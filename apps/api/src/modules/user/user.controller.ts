@@ -4,7 +4,10 @@ import { UserService } from 'src/modules/user/user.service';
 
 @Controller('users')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  userService: UserService;
+  constructor(userService: UserService) {
+    this.userService = userService;
+  }
 
   @Get()
   getUsers() {
