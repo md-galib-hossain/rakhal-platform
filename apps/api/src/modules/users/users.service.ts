@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CreateUserDto } from 'src/modules/user/dto/create-user.dto';
+import { CreateUserDto } from 'src/modules/users/dto/create-user.dto';
 
 export interface User {
   id: number;
@@ -8,7 +8,7 @@ export interface User {
 }
 
 @Injectable()
-export class UserService {
+export class UsersService {
   private users: User[] = [];
   private idCounter = 1;
 
