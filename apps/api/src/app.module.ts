@@ -12,8 +12,10 @@ import {
 
 @Module({
   imports: [
+    // Environment configuration
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: '.env',
 
       load: [appConfig, authConfig, databaseConfig, redisConfig],
 

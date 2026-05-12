@@ -1,9 +1,8 @@
-// src/config/env/env.ts
+import 'dotenv/config';
 
 import { envSchema } from './env.schema';
 
 const parsedEnv = envSchema.safeParse(process.env);
-
 if (!parsedEnv.success) {
   console.error(
     'Invalid environment variables:',
