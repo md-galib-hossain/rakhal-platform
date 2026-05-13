@@ -10,6 +10,7 @@ export const envSchema = z.object({
   PORT: z.coerce.number().default(5000),
 
   APP_NAME: z.string().default('rakhal-api'),
+  APP_VERSION: z.string().default('1.0.0'),
 
   API_PREFIX: z.string().default('api/v1'),
 
@@ -30,6 +31,18 @@ export const envSchema = z.object({
   REDIS_PASSWORD: z.string().optional(),
 
   BCRYPT_SALT_ROUNDS: z.coerce.number().default(10),
+  // Logging configuration
+  LOG_LEVEL: z
+    .enum(['error', 'warn', 'info', 'debug', 'verbose'])
+    .default('info'),
+
+  LOG_FORMAT: z.enum(['json', 'pretty']).default('json'),
+
+  ENABLE_REQUEST_LOGGING: z.coerce.boolean().default(true),
+
+  ENABLE_DB_LOGGING: z.coerce.boolean().default(false),
+
+  ENABLE_HTTP_LOGGING: z.coerce.boolean().default(true),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -9,7 +9,7 @@ import {
   databaseConfig,
   redisConfig,
 } from 'src/core/config/env';
-import { LoggerModule } from 'nestjs-pino';
+import { LoggerModule } from 'src/core/logger/logger/logger.module';
 
 @Module({
   imports: [
@@ -26,7 +26,7 @@ import { LoggerModule } from 'nestjs-pino';
     }),
     UsersModule,
     PrismaModule,
-    LoggerModule.forRoot(),
+    LoggerModule,
   ],
 })
 export class AppModule {}

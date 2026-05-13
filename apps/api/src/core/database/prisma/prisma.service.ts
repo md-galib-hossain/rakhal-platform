@@ -1,5 +1,4 @@
-// src/prisma/prisma.service.ts
-
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import {
   Injectable,
   OnModuleInit,
@@ -10,7 +9,6 @@ import type { ConfigType } from '@nestjs/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import { databaseConfig } from 'src/core/config/env';
-
 @Injectable()
 export class PrismaService
   extends PrismaClient

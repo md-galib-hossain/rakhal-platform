@@ -9,4 +9,5 @@ export const appConfig = registerAs('app', () => ({
   nodeEnv: env.NODE_ENV,
   apiPrefix: env.API_PREFIX,
   isProduction: env.NODE_ENV === 'production',
+  appVersion: env.APP_VERSION,
 }));
