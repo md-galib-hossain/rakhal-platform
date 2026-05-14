@@ -1,13 +1,26 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { LoggerModule as PinoModule } from 'nestjs-pino';
 import { env } from 'src/core/config/env';
 import { SENSITIVE_PATHS } from './logger.constants';
 import { LoggerService } from './logger.service';
-import { LoggerMiddleware } from './logger.middleware';
 import { LoggerInterceptor } from './logger.interceptor';
 import { LoggerContext } from 'src/core/logger/logger/logger.context';
 import { IncomingMessage } from 'http';
 import { ServerResponse } from 'http';
+
+interface RequestContextFields {
+  requestId?: string;
+  traceId?: string;
+}
+
+function toLogId(value: unknown): string | undefined {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'bigint') {
+    return value.toString();
+  }
+
+  return undefined;
+}
 
 @Module({
   imports: [
@@ -32,13 +45,45 @@ import { ServerResponse } from 'http';
           remove: true,
         },
 
-        genReqId: (req) =>
-          (req.headers['x-request-id'] as string) || crypto.randomUUID(),
+        genReqId: (req) => {
+          const request = req as IncomingMessage & RequestContextFields;
+          const requestId =
+            (request.headers['x-request-id'] as string | undefined) ??
+            request.requestId ??
+            crypto.randomUUID();
+
+          request.headers['x-request-id'] = requestId;
+          request.requestId = requestId;
+
+          return requestId;
+        },
+
+        customLogLevel: () => 'info',
+        customErrorMessage: (req, res) =>
+          `request failed ${req.method ?? 'UNKNOWN'} ${req.url ?? ''} ${res.statusCode}`,
+
+        customErrorObject: (_req, res, error, value) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { err: _err, ...loggableObject } = value as Record<
+            string,
+            unknown
+          >;
+
+          return {
+            ...loggableObject,
+            httpError: {
+              statusCode: res.statusCode,
+              message: error.message,
+            },
+          };
+        },
 
         serializers: {
           req(req: IncomingMessage) {
+            const request = req as IncomingMessage & RequestContextFields;
+
             return {
-              id: req.id,
+              id: toLogId(req.id) ?? request.requestId,
               method: req.method,
               url: req.url,
               userAgent: req.headers?.['user-agent'],
@@ -114,8 +159,4 @@ import { ServerResponse } from 'http';
   providers: [LoggerContext, LoggerService, LoggerInterceptor],
   exports: [LoggerContext, LoggerService, LoggerInterceptor],
 })
-export class LoggerModule implements NestModule {
-  configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(LoggerMiddleware).forRoutes('*');
-  }
-}
+export class LoggerModule {}

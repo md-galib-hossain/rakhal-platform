@@ -2,11 +2,12 @@ import {
   Injectable,
   LoggerService as NestLoggerService,
   Optional,
+  Scope,
 } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
 import { LoggerContext } from 'src/core/logger/logger/logger.context';
 
-@Injectable()
+@Injectable({ scope: Scope.TRANSIENT })
 export class LoggerService implements NestLoggerService {
   // Label attached to every log line from this instance (e.g. 'UserService')
   private context?: string;
@@ -22,7 +23,6 @@ export class LoggerService implements NestLoggerService {
   // Call once in constructor of consuming class: this.logger.setContext(MyService.name)
   setContext(context: string): this {
     this.context = context;
-    this.pino.setContext(context);
     return this;
   }
 
@@ -38,6 +38,7 @@ export class LoggerService implements NestLoggerService {
         userId: ctx.userId,
         tenantId: ctx.tenantId,
       }),
+      context: this.context,
       ...meta,
     };
   }
@@ -65,7 +66,36 @@ export class LoggerService implements NestLoggerService {
       };
     }
 
-    return { err: { raw: JSON.stringify(error) } };
+    try {
+      return { err: { raw: JSON.stringify(error) } };
+    } catch {
+      return { err: { raw: this.formatUnknown(error) } };
+    }
+  }
+
+  private formatMessage(message: unknown): string {
+    if (typeof message === 'string') return message;
+
+    try {
+      return JSON.stringify(message) ?? this.formatUnknown(message);
+    } catch {
+      return this.formatUnknown(message);
+    }
+  }
+
+  private formatUnknown(value: unknown): string {
+    if (typeof value === 'string') return value;
+    if (
+      typeof value === 'number' ||
+      typeof value === 'boolean' ||
+      typeof value === 'bigint' ||
+      typeof value === 'symbol'
+    ) {
+      return value.toString();
+    }
+    if (value instanceof Error) return value.message;
+
+    return '[Unserializable value]';
   }
 
   // ─── Application Log Methods (use these in your own code) ─────────────────
@@ -84,13 +114,47 @@ export class LoggerService implements NestLoggerService {
   }
 
   // Use for unexpected but recoverable situations
-  warn(msg: string, meta?: Record<string, unknown>): void {
-    this.pino.warn(this.mergeContext(meta), msg);
+  warn(message: unknown, context?: string): void;
+  warn(msg: string, meta?: Record<string, unknown>): void;
+  warn(
+    message: unknown,
+    metaOrContext?: Record<string, unknown> | string,
+  ): void {
+    if (typeof metaOrContext === 'string') {
+      this.pino.warn(
+        this.mergeContext({ context: metaOrContext ?? this.context }),
+        this.formatMessage(message),
+      );
+      return;
+    }
+
+    this.pino.warn(
+      this.mergeContext(metaOrContext),
+      this.formatMessage(message),
+    );
   }
-  error(msg: string, error?: unknown, meta?: Record<string, unknown>): void {
+
+  error(message: unknown, stack?: unknown, context?: string): void;
+  error(msg: string, error?: unknown, meta?: Record<string, unknown>): void;
+  error(
+    message: unknown,
+    errorOrStack?: unknown,
+    metaOrContext?: Record<string, unknown> | string,
+  ): void {
+    if (typeof metaOrContext === 'string') {
+      this.pino.error(
+        this.mergeContext({ context: metaOrContext ?? this.context }),
+        this.formatMessage(message),
+      );
+      return;
+    }
+
     this.pino.error(
-      { ...this.mergeContext(meta), ...this.serializeError(error) },
-      msg,
+      {
+        ...this.mergeContext(metaOrContext),
+        ...this.serializeError(errorOrStack),
+      },
+      this.formatMessage(message),
     );
   }
 

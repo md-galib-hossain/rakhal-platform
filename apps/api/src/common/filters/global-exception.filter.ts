@@ -4,6 +4,7 @@ import {
   ArgumentsHost,
   HttpException,
   HttpStatus,
+  Injectable,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { LoggerService } from '../../core/logger/logger/logger.service';
@@ -41,8 +42,19 @@ interface HttpExceptionResponse {
   message?: string | string[];
   error?: string;
   statusCode?: number;
+  code?: unknown;
 }
 
+const INTERNAL_ERROR_MESSAGE = 'An unexpected error occurred';
+const HTTP_EXCEPTION_CODE_BY_STATUS: Partial<Record<number, ExceptionCode>> = {
+  [HttpStatus.BAD_REQUEST]: ExceptionCode.VALIDATION_ERROR,
+  [HttpStatus.UNAUTHORIZED]: ExceptionCode.UNAUTHORIZED,
+  [HttpStatus.FORBIDDEN]: ExceptionCode.FORBIDDEN,
+  [HttpStatus.NOT_FOUND]: ExceptionCode.NOT_FOUND,
+  [HttpStatus.CONFLICT]: ExceptionCode.CONFLICT,
+};
+
+@Injectable()
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
   constructor(private readonly logger: LoggerService) {}
@@ -93,10 +105,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
   private resolveException(exception: unknown): ResolvedExceptionResult {
     if (exception instanceof BaseException) {
+      const statusCode = exception.getStatus();
+
       return {
-        statusCode: exception.getStatus(),
+        statusCode,
         code: exception.code,
-        message: exception.message,
+        message: this.getResponseMessage(statusCode, exception.message),
         details: exception.details,
       };
     }
@@ -105,7 +119,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       return {
         statusCode: exception.statusCode,
         code: exception.code,
-        message: exception.message,
+        message: this.getResponseMessage(
+          exception.statusCode,
+          exception.message,
+        ),
         details: exception.details,
       };
     }
@@ -125,8 +142,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
       return {
         statusCode: exception.getStatus(),
-        code: ExceptionCode.VALIDATION_ERROR,
-        message,
+        code: this.resolveHttpExceptionCode(exception, httpBody),
+        message: this.getResponseMessage(exception.getStatus(), message),
       };
     }
 
@@ -134,10 +151,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       return {
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         code: ExceptionCode.INTERNAL_ERROR,
-        message: exception.message,
-        details: {
-          stack: env.NODE_ENV === 'production' ? undefined : exception.stack,
-        },
+        message: INTERNAL_ERROR_MESSAGE,
+        details:
+          env.NODE_ENV === 'production'
+            ? undefined
+            : { stack: exception.stack },
       };
     }
 
@@ -146,5 +164,32 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       code: ExceptionCode.INTERNAL_ERROR,
       message: 'An unexpected error occurred',
     };
+  }
+
+  private getResponseMessage(statusCode: number, message: string): string {
+    if (statusCode >= 500 && env.NODE_ENV === 'production') {
+      return INTERNAL_ERROR_MESSAGE;
+    }
+
+    return message;
+  }
+
+  private resolveHttpExceptionCode(
+    exception: HttpException,
+    response: HttpExceptionResponse,
+  ): ExceptionCode {
+    if (this.isExceptionCode(response.code)) return response.code;
+
+    return (
+      HTTP_EXCEPTION_CODE_BY_STATUS[exception.getStatus()] ??
+      ExceptionCode.INTERNAL_ERROR
+    );
+  }
+
+  private isExceptionCode(value: unknown): value is ExceptionCode {
+    return (
+      typeof value === 'string' &&
+      Object.values(ExceptionCode).includes(value as ExceptionCode)
+    );
   }
 }

@@ -16,6 +16,8 @@ import {
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { RequestContextMiddleware } from 'src/common/middleware/request-context.middleware';
 import { LoggerMiddleware } from 'src/core/logger/logger/logger.middleware';
+import { APP_FILTER } from '@nestjs/core';
+import { GlobalExceptionFilter } from 'src/common/filters/global-exception.filter';
 
 @Module({
   imports: [
@@ -29,6 +31,12 @@ import { LoggerMiddleware } from 'src/core/logger/logger/logger.middleware';
     UsersModule,
     PrismaModule,
     LoggerModule,
+  ],
+  providers: [
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
   ],
 })
 export class AppModule implements NestModule {
