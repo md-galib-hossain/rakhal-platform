@@ -104,7 +104,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       // ✅ Properly typed — no more unsafe `any` assignment
       const httpBody: HttpExceptionResponse =
         typeof exceptionResponse === 'object' && exceptionResponse !== null
-          ? (exceptionResponse as HttpExceptionResponse)
+          ? exceptionResponse
           : { message: exception.message };
 
       const rawMessage = httpBody.message ?? exception.message;
