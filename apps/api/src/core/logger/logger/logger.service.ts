@@ -2,12 +2,11 @@ import {
   Injectable,
   LoggerService as NestLoggerService,
   Optional,
-  Scope,
 } from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
 import { LoggerContext } from 'src/core/logger/logger/logger.context';
 
-@Injectable({ scope: Scope.TRANSIENT })
+@Injectable()
 export class LoggerService implements NestLoggerService {
   // Label attached to every log line from this instance (e.g. 'UserService')
   private context?: string;
