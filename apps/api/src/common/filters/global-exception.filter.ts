@@ -10,6 +10,10 @@ import { LoggerService } from '../../core/logger/logger/logger.service';
 import { BaseException } from '../exceptions/base.exception';
 import { ExceptionCode } from '../exceptions/exception-codes.enum';
 
+interface AppRequest extends Request {
+  requestId?: string;
+  traceId?: string;
+}
 export interface ErrorResponse {
   success: false;
   error: {
@@ -31,7 +35,6 @@ interface ResolvedExceptionResult {
   details?: Record<string, unknown>;
 }
 
-// ✅ Typed shape for NestJS HttpException response object
 interface HttpExceptionResponse {
   message?: string | string[];
   error?: string;
@@ -44,7 +47,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
-    const request = ctx.getRequest<Request>();
+    const request = ctx.getRequest<AppRequest>();
     const response = ctx.getResponse<Response>();
 
     // ✅ No more `any` cast — Request is now extended above
@@ -104,7 +107,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       // ✅ Properly typed — no more unsafe `any` assignment
       const httpBody: HttpExceptionResponse =
         typeof exceptionResponse === 'object' && exceptionResponse !== null
-          ? (exceptionResponse as HttpExceptionResponse)
+          ? exceptionResponse
           : { message: exception.message };
 
       const rawMessage = httpBody.message ?? exception.message;

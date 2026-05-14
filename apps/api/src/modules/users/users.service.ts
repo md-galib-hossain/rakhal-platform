@@ -23,6 +23,11 @@ export class UsersService {
   }
   findAll(): User[] {
     this.log.info('Fetching all users', { count: this.users.length });
+    this.log.error('This is an error log example', {
+      exampleField: 'exampleValue',
+    });
+    throw new Error('Example error to demonstrate logging');
+
     return this.users;
   }
 
