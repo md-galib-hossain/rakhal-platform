@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { AppError } from 'src/common/exceptions/app.error';
 import { LoggerContext } from 'src/core/logger/logger/logger.context';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { CreateUserDto } from 'src/modules/users/dto/create-user.dto';
@@ -23,11 +24,11 @@ export class UsersService {
   }
   findAll(): User[] {
     this.log.info('Fetching all users', { count: this.users.length });
-    this.log.error('This is an error log example', {
+    // ✅ correct
+    this.log.error('This is an error log example', new Error('Example error'), {
       exampleField: 'exampleValue',
     });
-    throw new Error('Example error to demonstrate logging');
-
+    throw AppError.notFound('Users not found'); // Example of throwing a custom application error
     return this.users;
   }
 

@@ -50,13 +50,39 @@ import { ServerResponse } from 'http';
           },
           // Ensure error stacks are always serialized
           err(err: unknown) {
+            if (err && typeof err === 'object') {
+              if ('message' in err || 'stack' in err) {
+                const typedErr = err as Error & {
+                  statusCode?: number;
+                  code?: string;
+                  details?: Record<string, unknown>;
+                };
+
+                return {
+                  name: typedErr.name ?? 'Error',
+                  message: typedErr.message,
+                  stack:
+                    env.NODE_ENV !== 'production' ? typedErr.stack : undefined,
+                  ...(typedErr.statusCode !== undefined && {
+                    statusCode: typedErr.statusCode,
+                  }),
+                  ...(typedErr.code !== undefined && { code: typedErr.code }),
+                  ...(typedErr.details !== undefined && {
+                    details: typedErr.details,
+                  }),
+                };
+              }
+
+              return err;
+            }
+
             if (!(err instanceof Error)) {
               return { raw: String(err) };
             }
             const typedErr = err as Error & { code?: string };
 
             return {
-              type: err.constructor?.name,
+              name: err.name ?? err.constructor?.name,
               message: err.message,
               stack: env.NODE_ENV !== 'production' ? err.stack : undefined,
               code: typedErr.code,

@@ -9,6 +9,8 @@ import { Request, Response } from 'express';
 import { LoggerService } from '../../core/logger/logger/logger.service';
 import { BaseException } from '../exceptions/base.exception';
 import { ExceptionCode } from '../exceptions/exception-codes.enum';
+import { AppError } from 'src/common/exceptions/app.error';
+import { env } from 'src/core/config/env';
 
 interface AppRequest extends Request {
   requestId?: string;
@@ -17,7 +19,7 @@ interface AppRequest extends Request {
 export interface ErrorResponse {
   success: false;
   error: {
-    code: string;
+    code: ExceptionCode;
     message: string;
     statusCode: number;
     details?: Record<string, unknown>;
@@ -30,7 +32,7 @@ export interface ErrorResponse {
 
 interface ResolvedExceptionResult {
   statusCode: number;
-  code: string;
+  code: ExceptionCode;
   message: string;
   details?: Record<string, unknown>;
 }
@@ -50,7 +52,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<AppRequest>();
     const response = ctx.getResponse<Response>();
 
-    // ✅ No more `any` cast — Request is now extended above
     const requestId = request.requestId ?? 'unknown';
     const traceId = request.traceId ?? 'unknown';
 
@@ -72,7 +73,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     };
 
     if (statusCode >= 500) {
-      // ✅ Removed unnecessary `as Error` cast — logger.error accepts `unknown`
       this.logger.error('Unhandled exception', exception, {
         requestId,
         traceId,
@@ -101,10 +101,18 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       };
     }
 
+    if (exception instanceof AppError) {
+      return {
+        statusCode: exception.statusCode,
+        code: exception.code,
+        message: exception.message,
+        details: exception.details,
+      };
+    }
+
     if (exception instanceof HttpException) {
       const exceptionResponse = exception.getResponse();
 
-      // ✅ Properly typed — no more unsafe `any` assignment
       const httpBody: HttpExceptionResponse =
         typeof exceptionResponse === 'object' && exceptionResponse !== null
           ? exceptionResponse
@@ -119,6 +127,17 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         statusCode: exception.getStatus(),
         code: ExceptionCode.VALIDATION_ERROR,
         message,
+      };
+    }
+
+    if (exception instanceof Error) {
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        code: ExceptionCode.INTERNAL_ERROR,
+        message: exception.message,
+        details: {
+          stack: env.NODE_ENV === 'production' ? undefined : exception.stack,
+        },
       };
     }
 

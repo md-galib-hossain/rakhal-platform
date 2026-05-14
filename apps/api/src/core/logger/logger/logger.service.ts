@@ -27,7 +27,9 @@ export class LoggerService implements NestLoggerService {
   }
 
   // Pulls requestId, traceId, userId, tenantId from AsyncLocalStorage and merges with log obj
-  private mergeContext(obj?: object): object {
+  private mergeContext(
+    meta?: Record<string, unknown>,
+  ): Record<string, unknown> {
     const ctx = this.loggerContext?.get();
     return {
       ...(ctx && {
@@ -36,62 +38,67 @@ export class LoggerService implements NestLoggerService {
         userId: ctx.userId,
         tenantId: ctx.tenantId,
       }),
-      ...obj,
+      ...meta,
     };
+  }
+
+  private serializeError(error: unknown): object {
+    if (error === undefined || error === null) return {};
+
+    // ✅ Duck-type check — bypasses instanceof cross-module failure
+    if (typeof error === 'object' && 'message' in error && 'stack' in error) {
+      const e = error as Error & {
+        statusCode?: number;
+        code?: string;
+        details?: Record<string, unknown>;
+      };
+
+      return {
+        err: {
+          name: e.name ?? 'Error',
+          message: e.message,
+          stack: e.stack,
+          ...(e.statusCode !== undefined && { statusCode: e.statusCode }),
+          ...(e.code !== undefined && { code: e.code }),
+          ...(e.details !== undefined && { details: e.details }),
+        },
+      };
+    }
+
+    return { err: { raw: JSON.stringify(error) } };
   }
 
   // ─── Application Log Methods (use these in your own code) ─────────────────
 
   // Finest-grained — use for internal flow tracing during development
-  trace(msg: string, obj?: object): void {
-    this.pino.trace(this.mergeContext(obj), msg);
+  trace(msg: string, meta?: Record<string, unknown>): void {
+    this.pino.trace(this.mergeContext(meta), msg);
   }
-
   // Use for debugging values, state, and branching logic
-  debug(msg: string, obj?: object): void {
-    this.pino.debug(this.mergeContext(obj), msg);
+  debug(msg: string, meta?: Record<string, unknown>): void {
+    this.pino.debug(this.mergeContext(meta), msg);
   }
-
   // Use for normal operational events (user created, job started, etc.)
-  info(msg: string, obj?: object): void {
-    this.pino.info(this.mergeContext(obj), msg);
+  info(msg: string, meta?: Record<string, unknown>): void {
+    this.pino.info(this.mergeContext(meta), msg);
   }
 
   // Use for unexpected but recoverable situations
-  warn(msg: string, obj?: object): void {
-    this.pino.warn(this.mergeContext(obj), msg);
+  warn(msg: string, meta?: Record<string, unknown>): void {
+    this.pino.warn(this.mergeContext(meta), msg);
+  }
+  error(msg: string, error?: unknown, meta?: Record<string, unknown>): void {
+    this.pino.error(
+      { ...this.mergeContext(meta), ...this.serializeError(error) },
+      msg,
+    );
   }
 
-  // Use for caught exceptions — automatically extracts message, stack, name from Error
-  error(msg: string, error?: unknown, obj?: object): void {
-    const err =
-      error instanceof Error
-        ? {
-            err: {
-              message: error.message,
-              stack: error.stack,
-              name: error.name,
-            },
-          }
-        : { err: error };
-
-    this.pino.error({ ...this.mergeContext(obj), ...err }, msg);
-  }
-
-  // Use for critical failures that may require process restart
-  fatal(msg: string, error?: unknown, obj?: object): void {
-    const err =
-      error instanceof Error
-        ? {
-            err: {
-              message: error.message,
-              stack: error.stack,
-              name: error.name,
-            },
-          }
-        : { err: error };
-
-    this.pino.fatal({ ...this.mergeContext(obj), ...err }, msg);
+  fatal(msg: string, error?: unknown, meta?: Record<string, unknown>): void {
+    this.pino.fatal(
+      { ...this.mergeContext(meta), ...this.serializeError(error) },
+      msg,
+    );
   }
 
   // Structured audit trail — tagged with audit:true for log pipeline filtering
