@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { LoggerContext } from 'src/core/logger/logger/logger.context';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
-import { CreateUserDto } from 'src/modules/users/dto/create-user.dto';
+import { CreateUserDto } from 'src/modules/user/dto/create-user.dto';
 
 export interface User {
   id: number;
@@ -10,7 +10,7 @@ export interface User {
 }
 
 @Injectable()
-export class UsersService {
+export class UserService {
   private users: User[] = [];
   private idCounter = 1;
   private readonly log: LoggerService;
@@ -19,7 +19,7 @@ export class UsersService {
     private readonly logger: LoggerService,
     private readonly ctx: LoggerContext,
   ) {
-    this.log = this.logger.setContext(UsersService.name);
+    this.log = this.logger.setContext(UserService.name);
   }
   findAll(): User[] {
     // this.log.info('Fetching all users', { count: this.users.length });
