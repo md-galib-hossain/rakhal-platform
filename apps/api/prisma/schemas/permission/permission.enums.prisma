@@ -1,0 +1,9 @@
+enum PermissionGroup {
+  COW
+  MILK
+  FINANCE
+  EMPLOYEE
+  SUBSCRIPTION
+  ANALYTICS
+  SETTINGS
+}

@@ -3,5 +3,8 @@
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "prettier.requireConfig": true,
   "files.eol": "\n",
-  "cSpell.words": ["autoincrement"]
+  "cSpell.words": ["autoincrement"],
+  "[prisma]": {
+    "editor.defaultFormatter": "Prisma.prisma"
+  }
 }
