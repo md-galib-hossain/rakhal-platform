@@ -29,7 +29,6 @@ model User {
 
   mfa                     UserMFA?
 
-  auditLogs               AuditLog[]
-
+auditLogs AuditLog[] @relation("UserToAuditLog")
   @@index([email])
 }
