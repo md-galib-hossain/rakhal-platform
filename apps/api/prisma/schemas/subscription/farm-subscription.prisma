@@ -1,0 +1,20 @@
+model FarmSubscription {
+  id                 String   @id @default(cuid())
+
+  farmId             String
+  subscriptionPlanId String
+
+  status             SubscriptionStatus @default(ACTIVE)
+  startsAt           DateTime
+  expiresAt          DateTime?
+  cancelledAt        DateTime?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  farm               Farm             @relation("FarmToSubscription", fields: [farmId], references: [id])
+  subscriptionPlan   SubscriptionPlan @relation("SubscriptionPlanToFarmSubscription", fields: [subscriptionPlanId], references: [id])
+
+  @@index([farmId])
+  @@index([status])
+}

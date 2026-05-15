@@ -1,0 +1,22 @@
+model SubscriptionPlan {
+    id String @id @default(cuid())
+
+    name String @unique
+
+    description String?
+
+    monthlyPrice Decimal @db.Decimal(10, 2)
+
+    yearlyPrice Decimal? @db.Decimal(10, 2)
+
+    maxFarmMembers Int?
+
+    maxCattle Int?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    features SubscriptionFeature[]
+
+    subscriptions FarmSubscription[]
+}

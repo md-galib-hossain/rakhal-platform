@@ -1,0 +1,11 @@
+model Feature {
+    id String @id @default(cuid())
+
+    key String @unique
+
+    description String?
+
+    createdAt DateTime @default(now())
+
+    plans SubscriptionFeature[]
+}

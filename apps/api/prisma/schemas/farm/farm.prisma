@@ -1,0 +1,24 @@
+model Farm {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+  description String?
+  logo        String?
+  status      FarmStatus  @default(ACTIVE)
+
+  ownerId     String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+
+  // Fixed relation block
+  owner       User        @relation("FarmOwner", fields: [ownerId], references: [id])
+
+  members      FarmMember[]
+  roles        Role[]
+  subscriptions FarmSubscription[]
+  auditLogs    AuditLog[]
+
+  @@index([ownerId])
+  @@index([slug])
+}

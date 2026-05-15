@@ -1,0 +1,13 @@
+model SubscriptionFeature {
+  subscriptionPlanId String
+  featureId          String
+
+  enabled     Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+
+  subscriptionPlan SubscriptionPlan @relation("SubscriptionPlanToSubscriptionFeature", fields: [subscriptionPlanId], references: [id])
+  feature      Feature             @relation("FeatureToSubscriptionFeature", fields: [featureId], references: [id])
+
+  @@id([subscriptionPlanId, featureId])
+}

@@ -1,19 +1,11 @@
 model RolePermission {
-    roleId String
+  roleId        String
+  permissionId  String
 
-    permissionId String
+  role        Role        @relation("RoleToRolePermission", fields: [roleId], references: [id])
+  permission  Permission  @relation("PermissionToRolePermission", fields: [permissionId], references: [id])
 
-    role                  Role @relation(
-    fields: [roleId],
-    references id[]
-    )
+  assignedAt  DateTime    @default(now())
 
-    permission            Permission @relation(
-    fields: [permissionId],
-    references id[]
-    )
-
-    assignedAt DateTime @default(now())
-
-    @@id([roleId, permissionId])
+  @@id([roleId, permissionId])
 }
