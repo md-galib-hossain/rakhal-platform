@@ -1,0 +1,16 @@
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+enum SessionStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+  COMPROMISED
+}
+
+enum TokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}

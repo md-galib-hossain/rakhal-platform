@@ -1,0 +1,20 @@
+model AuthToken {
+  id                String @id @default(cuid())
+
+  userId            String
+
+  type              TokenType
+
+  tokenHash         String
+
+  expiresAt         DateTime
+
+  isUsed            Boolean @default(false)
+
+  createdAt         DateTime @default(now())
+
+  user              User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([type])
+}
