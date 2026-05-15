@@ -5,16 +5,12 @@ import { ConfigType } from '@nestjs/config';
 import { appConfig } from 'src/core/config/env';
 import helmet from 'helmet';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
-import { GlobalExceptionFilter } from 'src/common/filters/global-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
-  // ✅ Get your custom logger from DI
-  const logger = app.get(LoggerService);
+  const logger = await app.resolve(LoggerService);
   app.useLogger(logger);
-  // ✅ Register global filter using DI-resolved logger
-  app.useGlobalFilters(new GlobalExceptionFilter(logger));
 
   app.use(helmet());
 
