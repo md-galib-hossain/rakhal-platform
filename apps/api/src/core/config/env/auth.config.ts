@@ -10,5 +10,7 @@ export const authConfig = registerAs('auth', () => ({
   accessExpiresIn: env.JWT_ACCESS_EXPIRES_IN,
   refreshExpiresIn: env.JWT_REFRESH_EXPIRES_IN,
 
-  bcryptSaltRounds: env.BCRYPT_SALT_ROUNDS,
+  argon2MemoryCost: env.ARGON2_MEMORY_COST,
+  argon2TimeCost: env.ARGON2_TIME_COST,
+  argon2Parallelism: env.ARGON2_PARALLELISM,
 }));

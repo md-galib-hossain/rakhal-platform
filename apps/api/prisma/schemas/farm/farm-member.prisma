@@ -1,25 +1,26 @@
 model FarmMember {
-    id String @id @default(cuid())
+  id String @id @default(cuid())
 
-    farmId      String
-    userId      String
-    roleId      String
-    invitedById String?
+  farmId      String
+  userId      String
+  roleId      String
+  invitedById String?
 
-    joinedAt  DateTime @default(now())
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  joinedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-    farm Farm @relation(fields: [farmId], references: [id])
+  farm Farm @relation(fields: [farmId], references: [id])
 
-    user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
-    role Role @relation(fields: [roleId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
 
-    invitedBy User? @relation("FarmInvitations", fields: [invitedById], references: [id])
+  invitedBy User? @relation("FarmInvitations", fields: [invitedById], references: [id])
 
-    @@unique([farmId, userId])
-    @@index([farmId])
-    @@index([userId])
-    @@index([roleId])
+  @@unique([farmId, userId])
+  @@index([farmId])
+  @@index([userId])
+  @@index([roleId])
+  @@index([invitedById])
 }

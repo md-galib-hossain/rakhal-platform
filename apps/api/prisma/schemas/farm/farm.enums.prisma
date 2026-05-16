@@ -1,5 +1,5 @@
 enum FarmStatus {
-    ACTIVE
-    SUSPENDED
-    ARCHIVED
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
 }

@@ -1,22 +1,22 @@
 model SubscriptionPlan {
-    id String @id @default(cuid())
+  id String @id @default(cuid())
 
-    name String @unique
+  name String @unique
 
-    description String?
+  description String?
 
-    monthlyPrice Decimal @db.Decimal(10, 2)
+  monthlyPrice Decimal @db.Decimal(10, 2)
 
-    yearlyPrice Decimal? @db.Decimal(10, 2)
+  yearlyPrice Decimal? @db.Decimal(10, 2)
 
-    maxFarmMembers Int?
+  maxFarmMembers Int?
 
-    maxCattle Int?
+  maxCattle Int?
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-    features SubscriptionFeature[]
+  features SubscriptionFeature[] @relation("SubscriptionPlanToSubscriptionFeature")
 
-    subscriptions FarmSubscription[]
+  subscriptions FarmSubscription[] @relation("SubscriptionPlanToFarmSubscription")
 }

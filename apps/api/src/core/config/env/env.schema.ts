@@ -30,7 +30,12 @@ export const envSchema = z.object({
 
   REDIS_PASSWORD: z.string().optional(),
 
-  BCRYPT_SALT_ROUNDS: z.coerce.number().default(10),
+  ARGON2_MEMORY_COST: z.coerce.number().int().positive().default(19456),
+
+  ARGON2_TIME_COST: z.coerce.number().int().positive().default(2),
+
+  ARGON2_PARALLELISM: z.coerce.number().int().positive().default(1),
+
   // Logging configuration
   LOG_LEVEL: z
     .enum(['error', 'warn', 'info', 'debug', 'verbose'])

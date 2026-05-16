@@ -23,6 +23,8 @@ model RefreshToken {
 
   nextTokens RefreshToken[] @relation("TokenChain")
 
+  @@unique([tokenHash])
   @@index([sessionId])
   @@index([tokenFamily])
+  @@index([parentTokenId])
 }

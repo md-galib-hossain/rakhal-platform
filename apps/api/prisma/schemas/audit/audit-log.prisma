@@ -1,21 +1,21 @@
 model AuditLog {
-  id          String   @id @default(cuid())
+  id String @id @default(cuid())
 
   actorUserId String
   farmId      String?
 
-  action      AuditAction
-  entityType  String
-  entityId    String?
-  metadata    Json?
+  action     AuditAction
+  entityType String
+  entityId   String?
+  metadata   Json?
 
-  ipAddress   String?
-  userAgent   String?
+  ipAddress String?
+  userAgent String?
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  actor       User     @relation("UserToAuditLog", fields: [actorUserId], references: [id])
-  farm        Farm?    @relation("FarmToAuditLog", fields: [farmId], references: [id])
+  actor User  @relation("UserToAuditLog", fields: [actorUserId], references: [id])
+  farm  Farm? @relation("FarmToAuditLog", fields: [farmId], references: [id])
 
   @@index([actorUserId])
   @@index([farmId])

@@ -1,11 +1,11 @@
 model Feature {
-    id String @id @default(cuid())
+  id String @id @default(cuid())
 
-    key String @unique
+  key String @unique
 
-    description String?
+  description String?
 
-    createdAt DateTime @default(now())
+  createdAt DateTime @default(now())
 
-    plans SubscriptionFeature[]
+  plans SubscriptionFeature[] @relation("FeatureToSubscriptionFeature")
 }

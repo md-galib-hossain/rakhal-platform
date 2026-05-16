@@ -1,15 +1,15 @@
 model UserMFA {
-  id              String @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId          String @unique
+  userId String @unique
 
-  secret          String
+  secret String
 
-  backupCodes     String[]
+  backupCodes String[]
 
-  isEnabled       Boolean @default(false)
+  isEnabled Boolean @default(false)
 
-  createdAt       DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  user            User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 }
