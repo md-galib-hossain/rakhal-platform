@@ -13,7 +13,7 @@ Status legend:
 
 ## Current Stage Pointer
 
-Current next stage: **Stage 3 - Auth Module Skeleton And Boundaries**
+Current next stage: **Stage 4 - Registration, Password Hashing, And Email Token Foundation**
 
 Last updated: 2026-05-18
 
@@ -141,9 +141,9 @@ Handoff notes:
 
 ## Stage 3 - Auth Module Skeleton And Boundaries
 
-Status: `[ ]`
+Status: `[x]`
 
-Completed on:
+Completed on: 2026-05-18
 
 Goal:
 
@@ -151,16 +151,16 @@ Create the auth module structure with clean boundaries. Controllers stay thin. S
 
 Deliverables:
 
-- `[ ]` Create `src/modules/auth/auth.module.ts`.
-- `[ ]` Create `src/modules/auth/auth.controller.ts`.
-- `[ ]` Create DTOs for register, login, refresh, logout, and session revocation.
-- `[ ]` Create `PasswordService`.
-- `[ ]` Create `TokenService`.
-- `[ ]` Create `SessionService`.
-- `[ ]` Create `RefreshTokenService`.
-- `[ ]` Create `AuthService`.
-- `[ ]` Create repository/data-access layer or clearly scoped Prisma access service.
-- `[ ]` Register module in `AppModule`.
+- `[x]` Create `src/modules/auth/auth.module.ts`.
+- `[x]` Create `src/modules/auth/auth.controller.ts`.
+- `[x]` Create DTOs for register, login, refresh, logout, and session revocation.
+- `[x]` Create `PasswordService`.
+- `[x]` Create `TokenService`.
+- `[x]` Create `SessionService`.
+- `[x]` Create `RefreshTokenService`.
+- `[x]` Create `AuthService`.
+- `[x]` Create repository/data-access layer or clearly scoped Prisma access service.
+- `[x]` Register module in `AppModule`.
 
 Rules:
 
@@ -171,13 +171,16 @@ Rules:
 
 Verification:
 
-- `[ ]` Unit tests compile.
-- `[ ]` Auth module imports cleanly.
-- `[ ]` No circular dependency is introduced.
+- `[x]` Unit tests compile.
+- `[x]` Auth module imports cleanly.
+- `[x]` No circular dependency is introduced.
 
 Handoff notes:
 
-- Add notes here after completion.
+- Added `src/modules/auth` module skeleton with thin controller endpoints and application services (`AuthService`, `PasswordService`, `TokenService`, `SessionService`, `RefreshTokenService`) plus DTOs and domain payload/user types.
+- Added `AuthRepository` as the auth-scoped Prisma data-access layer so controllers remain free from direct database access.
+- Registered `AuthModule` in `AppModule`.
+- Verification passed with `pnpm.cmd build` and `pnpm.cmd lint`; no test-coverage work was run per current instruction.
 
 ## Stage 4 - Registration, Password Hashing, And Email Token Foundation
 
