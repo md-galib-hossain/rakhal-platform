@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { SessionStatus, User } from '@prisma/client';
+import { AuditAction, SessionStatus, TokenType, User } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 
 @Injectable()
@@ -16,6 +16,47 @@ export class AuthRepository {
 
   createUser(data: { email: string; name: string; passwordHash: string }) {
     return this.prisma.user.create({ data });
+  }
+
+  registerUserWithVerification(data: {
+    email: string;
+    name: string;
+    passwordHash: string;
+    verificationTokenHash: string;
+    verificationExpiresAt: Date;
+  }) {
+    return this.prisma.$transaction(async (prisma) => {
+      const user = await prisma.user.create({
+        data: {
+          email: data.email,
+          name: data.name,
+          passwordHash: data.passwordHash,
+        },
+      });
+
+      await prisma.authToken.create({
+        data: {
+          userId: user.id,
+          type: TokenType.EMAIL_VERIFICATION,
+          tokenHash: data.verificationTokenHash,
+          expiresAt: data.verificationExpiresAt,
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          actorUserId: user.id,
+          action: AuditAction.REGISTER,
+          entityType: 'User',
+          entityId: user.id,
+          metadata: {
+            emailDomain: data.email.split('@')[1] ?? null,
+          },
+        },
+      });
+
+      return user;
+    });
   }
 
   createSession(data: {

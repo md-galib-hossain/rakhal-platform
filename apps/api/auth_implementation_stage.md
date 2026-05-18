@@ -13,7 +13,7 @@ Status legend:
 
 ## Current Stage Pointer
 
-Current next stage: **Stage 4 - Registration, Password Hashing, And Email Token Foundation**
+Current next stage: **Stage 5 - Login, Session Creation, And Access Token Issuing**
 
 Last updated: 2026-05-18
 
@@ -184,9 +184,9 @@ Handoff notes:
 
 ## Stage 4 - Registration, Password Hashing, And Email Token Foundation
 
-Status: `[ ]`
+Status: `[x]`
 
-Completed on:
+Completed on: 2026-05-18
 
 Goal:
 
@@ -194,12 +194,12 @@ Implement local user registration with Argon2id password hashing and secure emai
 
 Deliverables:
 
-- `[ ]` Implement user registration service flow.
-- `[ ]` Hash password with Argon2id.
-- `[ ]` Create email verification `AuthToken` with hashed token.
-- `[ ]` Avoid returning sensitive user fields.
-- `[ ]` Add duplicate email handling.
-- `[ ]` Add audit event for registration.
+- `[x]` Implement user registration service flow.
+- `[x]` Hash password with Argon2id.
+- `[x]` Create email verification `AuthToken` with hashed token.
+- `[x]` Avoid returning sensitive user fields.
+- `[x]` Add duplicate email handling.
+- `[x]` Add audit event for registration.
 
 Security requirements:
 
@@ -209,14 +209,17 @@ Security requirements:
 
 Verification:
 
-- `[ ]` Registration unit tests.
-- `[ ]` Duplicate email test.
-- `[ ]` Password hash persistence test.
-- `[ ]` Raw token is not persisted.
+- `[x]` Registration unit tests.
+- `[x]` Duplicate email test.
+- `[x]` Password hash persistence test.
+- `[x]` Raw token is not persisted.
 
 Handoff notes:
 
-- Add notes here after completion.
+- Added registration flow to `AuthService` with Argon2id password hashing, unique-email conflict handling, and a one-time email verification token that is persisted only as a hash.
+- Kept the controller response sanitized so the raw verification token never leaves the service boundary.
+- Wrote the registration, auth-token, and audit-log writes inside a Prisma transaction to avoid partial persistence.
+- Verification passed with `pnpm.cmd build`, `pnpm.cmd lint`, and `pnpm.cmd test`.
 
 ## Stage 5 - Login, Session Creation, And Access Token Issuing
 
