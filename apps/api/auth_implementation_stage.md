@@ -13,7 +13,7 @@ Status legend:
 
 ## Current Stage Pointer
 
-Current next stage: **Stage 6 - Refresh Rotation And Token Reuse Detection**
+Current next stage: **Stage 7 - Logout And Session Management**
 
 Last updated: 2026-05-18
 
@@ -269,29 +269,30 @@ Handoff notes:
 
 ## Stage 6 - Refresh Rotation And Token Reuse Detection
 
-Status: `[ ]`
+Status: `[x]`
 
-Completed on:
+Completed on: 2026-05-18
 
 Goal:
 
-Implement secure refresh rotation with token-family reuse detection.
+Implement secure refresh rotation with token-family reuse detection and the required audit trail/logging around refresh success, token reuse, and compromised sessions.
 
 Deliverables:
 
-- `[ ]` Read refresh token from HttpOnly cookie.
-- `[ ]` Hash incoming refresh token for lookup/verification.
-- `[ ]` Validate active session.
-- `[ ]` Validate refresh token expiry.
-- `[ ]` Revoke old refresh token during successful rotation.
-- `[ ]` Create new refresh token linked by `parentTokenId`.
-- `[ ]` Preserve `tokenFamily`.
-- `[ ]` Issue new access token.
-- `[ ]` Set new refresh cookie.
-- `[ ]` Detect reuse of revoked/rotated token.
-- `[ ]` Mark compromised session.
-- `[ ]` Revoke token family on reuse.
-- `[ ]` Audit suspicious activity.
+- `[x]` Read refresh token from HttpOnly cookie.
+- `[x]` Hash incoming refresh token for lookup/verification.
+- `[x]` Validate active session.
+- `[x]` Validate refresh token expiry.
+- `[x]` Revoke old refresh token during successful rotation.
+- `[x]` Create new refresh token linked by `parentTokenId`.
+- `[x]` Preserve `tokenFamily`.
+- `[x]` Issue new access token.
+- `[x]` Set new refresh cookie.
+- `[x]` Detect reuse of revoked/rotated token.
+- `[x]` Mark compromised session.
+- `[x]` Revoke token family on reuse.
+- `[x]` Audit suspicious activity.
+- `[x]` Emit application logs where operational logging is required for refresh success, token reuse, and compromised session handling.
 
 Security requirements:
 
@@ -301,16 +302,15 @@ Security requirements:
 
 Verification:
 
-- `[ ]` Refresh success test.
-- `[ ]` Expired refresh token test.
-- `[ ]` Revoked token test.
-- `[ ]` Reuse detection test.
-- `[ ]` Token family revocation test.
-- `[ ]` Compromised session rejection test.
+- `[x]` `pnpm.cmd build` succeeds.
+- `[x]` `pnpm.cmd lint` succeeds.
 
 Handoff notes:
 
-- Add notes here after completion.
+- Refresh rotation now reads the refresh token from the HttpOnly cookie, rotates the token family atomically, reissues a minimal access token, and clears the cookie on invalid refresh attempts.
+- Reuse detection marks the session `COMPROMISED`, revokes the full token family, and records a suspicious audit trail entry.
+- Refresh success and reuse paths are logged through the existing auth logging/audit flow already present in the codebase.
+- No new test coverage was added for this stage per request; verification was limited to `pnpm.cmd build` and `pnpm.cmd lint`.
 
 ## Stage 7 - Logout And Session Management
 

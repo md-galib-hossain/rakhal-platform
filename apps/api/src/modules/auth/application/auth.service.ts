@@ -5,10 +5,11 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
+import { SessionStatus } from '@prisma/client';
 import { randomBytes, createHash } from 'crypto';
 import { LoginDto } from '../dto/login.dto';
 import { LogoutDto } from '../dto/logout.dto';
-import { RefreshTokenDto } from '../dto/refresh-token.dto';
+import type { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { RevokeSessionDto } from '../dto/revoke-session.dto';
 import { AuthRepository } from '../repositories/auth.repository';
@@ -66,22 +67,74 @@ export class AuthService {
     return this.loginWithContext(dto);
   }
 
-  async refresh(dto: RefreshTokenDto) {
-    if (!dto.refreshToken) {
+  async refresh(dto: RefreshTokenDto, rawRefreshToken?: string) {
+    if (!rawRefreshToken) {
       throw new UnauthorizedException('Refresh token is required');
     }
 
-    const storedToken = await this.refreshTokenService.findByRawToken(
-      dto.refreshToken,
-    );
+    const storedToken =
+      await this.refreshTokenService.findByRawToken(rawRefreshToken);
 
-    if (!storedToken) {
+    if (!storedToken?.session?.user) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    return {
+    const now = new Date();
+    const session = storedToken.session;
+    const user = session.user;
+
+    if (
+      storedToken.isRevoked ||
+      storedToken.expiresAt.getTime() <= now.getTime() ||
+      session.status !== SessionStatus.ACTIVE ||
+      session.expiresAt.getTime() <= now.getTime()
+    ) {
+      await this.refreshTokenService.markReuse({
+        refreshTokenId: storedToken.id,
+        tokenFamily: storedToken.tokenFamily,
+        sessionId: session.id,
+        userId: user.id,
+        ipAddress: undefined,
+        userAgent: undefined,
+        deviceName: session.deviceName ?? undefined,
+        farmId: dto.farmId,
+      });
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const nextRefreshToken = this.refreshTokenService.generateToken();
+    const nextRefreshTokenHash =
+      this.refreshTokenService.hashToken(nextRefreshToken);
+    const nextRefreshTokenExpiresAt = new Date(
+      now.getTime() + this.parseDurationToMs(this.config.refreshExpiresIn),
+    );
+
+    const rotationResult = await this.refreshTokenService.completeRotation({
       refreshTokenId: storedToken.id,
-      sessionId: storedToken.sessionId,
+      tokenFamily: storedToken.tokenFamily,
+      tokenHash: nextRefreshTokenHash,
+      tokenExpiresAt: nextRefreshTokenExpiresAt,
+      parentTokenId: storedToken.id,
+      sessionId: session.id,
+      userId: user.id,
+      farmId: dto.farmId,
+      deviceName: session.deviceName ?? undefined,
+    });
+
+    const accessToken = await this.tokenService.signAccessToken(
+      this.buildAccessTokenPayload({
+        userId: user.id,
+        sessionId: rotationResult.session.id,
+        farmId: dto.farmId,
+        permissionsVersion: user.permissionsVersion,
+      }),
+    );
+
+    return {
+      accessToken,
+      refreshToken: nextRefreshToken,
+      sessionId: rotationResult.session.id,
+      user: this.toRegisteredUser(user),
     };
   }
 

@@ -239,7 +239,7 @@ export class AuthRepository {
   findRefreshTokenByHash(tokenHash: string) {
     return this.prisma.refreshToken.findUnique({
       where: { tokenHash },
-      include: { session: true },
+      include: { session: { include: { user: true } } },
     });
   }
 
@@ -250,6 +250,122 @@ export class AuthRepository {
         isRevoked: true,
         revokedAt: new Date(),
       },
+    });
+  }
+
+  completeRefreshRotation(data: {
+    refreshTokenId: string;
+    tokenFamily: string;
+    tokenHash: string;
+    tokenExpiresAt: Date;
+    parentTokenId: string;
+    sessionId: string;
+    userId: string;
+    ipAddress?: string;
+    userAgent?: string;
+    deviceName?: string;
+    farmId: string;
+    refreshReason: string;
+  }) {
+    return this.prisma.$transaction(async (prisma) => {
+      const previousToken = await prisma.refreshToken.update({
+        where: { id: data.refreshTokenId },
+        data: {
+          isRevoked: true,
+          revokedAt: new Date(),
+        },
+      });
+
+      const nextToken = await prisma.refreshToken.create({
+        data: {
+          sessionId: data.sessionId,
+          tokenHash: data.tokenHash,
+          tokenFamily: data.tokenFamily,
+          parentTokenId: data.parentTokenId,
+          expiresAt: data.tokenExpiresAt,
+        },
+      });
+
+      const session = await prisma.session.update({
+        where: { id: data.sessionId },
+        data: {
+          lastUsedAt: new Date(),
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          actorUserId: data.userId,
+          action: AuditAction.LOGIN,
+          entityType: 'Session',
+          entityId: data.sessionId,
+          ipAddress: data.ipAddress,
+          userAgent: data.userAgent,
+          metadata: {
+            event: 'refresh-rotated',
+            deviceName: data.deviceName ?? null,
+            farmId: data.farmId,
+            tokenFamily: data.tokenFamily,
+            parentTokenId: data.parentTokenId,
+            previousTokenId: previousToken.id,
+            nextTokenId: nextToken.id,
+          },
+        },
+      });
+
+      return { nextToken, session };
+    });
+  }
+
+  markRefreshReuse(data: {
+    refreshTokenId: string;
+    tokenFamily: string;
+    sessionId: string;
+    userId: string;
+    ipAddress?: string;
+    userAgent?: string;
+    deviceName?: string;
+    farmId: string;
+    reason: string;
+  }) {
+    return this.prisma.$transaction(async (prisma) => {
+      const compromisedSession = await prisma.session.update({
+        where: { id: data.sessionId },
+        data: {
+          status: SessionStatus.COMPROMISED,
+        },
+      });
+
+      await prisma.refreshToken.updateMany({
+        where: {
+          tokenFamily: data.tokenFamily,
+        },
+        data: {
+          isRevoked: true,
+          revokedAt: new Date(),
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          actorUserId: data.userId,
+          action: AuditAction.SUSPICIOUS_ACTIVITY,
+          entityType: 'Session',
+          entityId: data.sessionId,
+          ipAddress: data.ipAddress,
+          userAgent: data.userAgent,
+          metadata: {
+            event: 'refresh-token-reuse',
+            reason: data.reason,
+            deviceName: data.deviceName ?? null,
+            farmId: data.farmId,
+            tokenFamily: data.tokenFamily,
+            refreshTokenId: data.refreshTokenId,
+          },
+        },
+      });
+
+      return compromisedSession;
     });
   }
 }

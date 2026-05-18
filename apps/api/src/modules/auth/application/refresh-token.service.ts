@@ -39,4 +39,39 @@ export class RefreshTokenService {
   revokeToken(tokenId: string) {
     return this.authRepository.revokeRefreshToken(tokenId);
   }
+
+  completeRotation(data: {
+    refreshTokenId: string;
+    tokenFamily: string;
+    tokenHash: string;
+    tokenExpiresAt: Date;
+    parentTokenId: string;
+    sessionId: string;
+    userId: string;
+    ipAddress?: string;
+    userAgent?: string;
+    deviceName?: string;
+    farmId: string;
+  }) {
+    return this.authRepository.completeRefreshRotation({
+      ...data,
+      refreshReason: 'rotated',
+    });
+  }
+
+  markReuse(data: {
+    refreshTokenId: string;
+    tokenFamily: string;
+    sessionId: string;
+    userId: string;
+    ipAddress?: string;
+    userAgent?: string;
+    deviceName?: string;
+    farmId: string;
+  }) {
+    return this.authRepository.markRefreshReuse({
+      ...data,
+      reason: 'rotated-or-reused-token',
+    });
+  }
 }

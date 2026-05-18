@@ -70,8 +70,34 @@ export class AuthController {
   }
 
   @Post('refresh')
-  refresh(@Body() dto: RefreshTokenDto) {
-    return this.authService.refresh(dto);
+  async refresh(
+    @Body() dto: RefreshTokenDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const refreshToken = this.getRefreshTokenFromRequest(request);
+
+    try {
+      const result = await this.authService.refresh(dto, refreshToken);
+
+      response.cookie(
+        this.config.refreshCookie.name,
+        result.refreshToken,
+        getRefreshCookieOptions(this.config),
+      );
+
+      return {
+        accessToken: result.accessToken,
+        sessionId: result.sessionId,
+        user: result.user,
+      };
+    } catch (error) {
+      response.clearCookie(
+        this.config.refreshCookie.name,
+        getClearRefreshCookieOptions(this.config),
+      );
+      throw error;
+    }
   }
 
   @Post('logout')
@@ -106,5 +132,12 @@ export class AuthController {
   @Get('me')
   me(@Query('userId') userId: string) {
     return this.authService.me(userId);
+  }
+
+  private getRefreshTokenFromRequest(request: Request): string | undefined {
+    const cookies = request.cookies as
+      | Record<string, string | undefined>
+      | undefined;
+    return cookies?.[this.config.refreshCookie.name];
   }
 }
