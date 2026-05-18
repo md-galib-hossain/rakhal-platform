@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { createHash, randomUUID } from 'crypto';
+import { createHash, randomBytes, randomUUID } from 'crypto';
 import { AuthRepository } from '../repositories/auth.repository';
 
 @Injectable()
@@ -8,6 +8,10 @@ export class RefreshTokenService {
 
   hashToken(rawToken: string): string {
     return createHash('sha256').update(rawToken).digest('hex');
+  }
+
+  generateToken(): string {
+    return randomBytes(48).toString('hex');
   }
 
   async storeRefreshToken(data: {

@@ -13,7 +13,7 @@ Status legend:
 
 ## Current Stage Pointer
 
-Current next stage: **Stage 5 - Login, Session Creation, And Access Token Issuing**
+Current next stage: **Stage 6 - Refresh Rotation And Token Reuse Detection**
 
 Last updated: 2026-05-18
 
@@ -223,9 +223,9 @@ Handoff notes:
 
 ## Stage 5 - Login, Session Creation, And Access Token Issuing
 
-Status: `[ ]`
+Status: `[x]`
 
-Completed on:
+Completed on: 2026-05-18
 
 Goal:
 
@@ -233,16 +233,16 @@ Implement credential login that creates a device session, issues a minimal acces
 
 Deliverables:
 
-- `[ ]` Validate credentials.
-- `[ ]` Enforce blocked user and lockout checks.
-- `[ ]` Track failed login attempts.
-- `[ ]` Create `Session`.
-- `[ ]` Create refresh token family.
-- `[ ]` Hash and persist refresh token.
-- `[ ]` Issue access token with only `sub`, `sessionId`, `farmId`, and `permissionsVersion`.
-- `[ ]` Set HttpOnly secure refresh cookie.
-- `[ ]` Add audit event for successful login.
-- `[ ]` Add audit event or security event for suspicious login where applicable.
+- `[x]` Validate credentials.
+- `[x]` Enforce blocked user and lockout checks.
+- `[x]` Track failed login attempts.
+- `[x]` Create `Session`.
+- `[x]` Create refresh token family.
+- `[x]` Hash and persist refresh token.
+- `[x]` Issue access token with only `sub`, `sessionId`, `farmId`, and `permissionsVersion`.
+- `[x]` Set HttpOnly secure refresh cookie.
+- `[x]` Add audit event for successful login.
+- `[x]` Add audit event or security event for suspicious login where applicable.
 
 Security requirements:
 
@@ -253,16 +253,19 @@ Security requirements:
 
 Verification:
 
-- `[ ]` Successful login test.
-- `[ ]` Invalid password test.
-- `[ ]` Blocked user test.
-- `[ ]` Lockout test.
-- `[ ]` Refresh token hash persistence test.
-- `[ ]` JWT payload shape test.
+- `[x]` Successful login test.
+- `[x]` Invalid password test.
+- `[x]` Blocked user test.
+- `[x]` Lockout test.
+- `[x]` Refresh token hash persistence test.
+- `[x]` JWT payload shape test.
 
 Handoff notes:
 
-- Add notes here after completion.
+- Implemented credential login with Argon2id password verification, blocked-user and lockout checks, failed-attempt tracking, refresh-token family generation, refresh-cookie setting, and minimal access-token issuance.
+- Login now records successful `LOGIN` audit events and suspicious login audit events for blocked or locked accounts and invalid password attempts.
+- Added focused auth service and controller tests covering success, invalid password, blocked-user, lockout, cookie-setting, refresh-token hashing, and JWT payload shape.
+- Verification passed with `pnpm.cmd build`, `pnpm.cmd lint`, and `pnpm.cmd test`.
 
 ## Stage 6 - Refresh Rotation And Token Reuse Detection
 

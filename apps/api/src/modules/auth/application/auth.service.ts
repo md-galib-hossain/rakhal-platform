@@ -1,8 +1,10 @@
 import {
   ConflictException,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import type { ConfigType } from '@nestjs/config';
 import { randomBytes, createHash } from 'crypto';
 import { LoginDto } from '../dto/login.dto';
 import { LogoutDto } from '../dto/logout.dto';
@@ -16,10 +18,16 @@ import { SessionService } from './session.service';
 import { TokenService } from './token.service';
 import { RegisterResult } from '../domain/register-result.type';
 import { RegisteredUser } from '../domain/registered-user.type';
+import { LoginResult } from '../domain/login-result.type';
+import { LoginContext } from '../domain/login-context.type';
+import { authConfig } from 'src/core/config/env';
+import { AuthTokenPayload } from '../domain/auth-token-payload.type';
 
 @Injectable()
 export class AuthService {
   constructor(
+    @Inject(authConfig.KEY)
+    private readonly config: ConfigType<typeof authConfig>,
     private readonly authRepository: AuthRepository,
     private readonly passwordService: PasswordService,
     private readonly sessionService: SessionService,
@@ -54,38 +62,8 @@ export class AuthService {
     }
   }
 
-  async login(dto: LoginDto) {
-    const user = await this.authRepository.findUserByEmail(dto.email);
-    if (!user?.passwordHash) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    const isValid = await this.passwordService.verifyPassword(
-      user.passwordHash,
-      dto.password,
-    );
-
-    if (!isValid) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    const session = await this.sessionService.createSession({
-      userId: user.id,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    });
-
-    const accessToken = await this.tokenService.signAccessToken({
-      sub: user.id,
-      sessionId: session.id,
-      farmId: dto.farmId,
-      permissionsVersion: user.permissionsVersion,
-    });
-
-    return {
-      accessToken,
-      sessionId: session.id,
-      userId: user.id,
-    };
+  async login(dto: LoginDto): Promise<LoginResult> {
+    return this.loginWithContext(dto);
   }
 
   async refresh(dto: RefreshTokenDto) {
@@ -128,6 +106,138 @@ export class AuthService {
 
   me(userId: string) {
     return this.authRepository.findUserById(userId);
+  }
+
+  async loginWithContext(
+    dto: LoginDto,
+    context: LoginContext = {},
+  ): Promise<LoginResult> {
+    const user = await this.authRepository.findUserByEmail(dto.email);
+
+    if (!user?.passwordHash || user.deletedAt) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (user.isBlocked || this.isLockActive(user.lockedUntil)) {
+      await this.authRepository.recordSuspiciousLogin({
+        userId: user.id,
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent,
+        deviceName: context.deviceName,
+        reason: user.isBlocked ? 'blocked-user' : 'account-locked',
+      });
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const isValid = await this.passwordService.verifyPassword(
+      user.passwordHash,
+      dto.password,
+    );
+
+    if (!isValid) {
+      const nextFailedAttempts = user.failedLoginAttempts + 1;
+      await this.handleFailedLogin(user.id, nextFailedAttempts, context);
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const refreshToken = this.refreshTokenService.generateToken();
+    const sessionExpiresAt = this.parseExpiresInToDate(
+      this.config.refreshExpiresIn,
+    );
+    const refreshTokenExpiresAt = sessionExpiresAt;
+    const tokenFamily = randomBytes(16).toString('hex');
+    const refreshTokenHash = this.refreshTokenService.hashToken(refreshToken);
+
+    const { session } = await this.authRepository.completeSuccessfulLogin({
+      userId: user.id,
+      sessionExpiresAt,
+      refreshTokenHash,
+      tokenFamily,
+      refreshTokenExpiresAt,
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+      deviceName: context.deviceName,
+    });
+
+    const accessToken = await this.tokenService.signAccessToken(
+      this.buildAccessTokenPayload({
+        userId: user.id,
+        sessionId: session.id,
+        farmId: dto.farmId,
+        permissionsVersion: user.permissionsVersion,
+      }),
+    );
+
+    return {
+      accessToken,
+      refreshToken,
+      sessionId: session.id,
+      user: this.toRegisteredUser(user),
+    };
+  }
+
+  private async handleFailedLogin(
+    userId: string,
+    failedLoginAttempts: number,
+    context: LoginContext,
+  ): Promise<void> {
+    const lockedUntil =
+      failedLoginAttempts >= this.config.lockout.maxFailedAttempts
+        ? new Date(Date.now() + this.config.lockout.durationSeconds * 1000)
+        : null;
+
+    await this.authRepository.recordFailedLoginAttempt({
+      userId,
+      failedLoginAttempts: lockedUntil !== null ? 0 : failedLoginAttempts,
+      lockedUntil,
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+      deviceName: context.deviceName,
+      reason: 'invalid-password',
+    });
+  }
+
+  private buildAccessTokenPayload(data: {
+    userId: string;
+    sessionId: string;
+    farmId: string;
+    permissionsVersion: number;
+  }): AuthTokenPayload {
+    return {
+      sub: data.userId,
+      sessionId: data.sessionId,
+      farmId: data.farmId,
+      permissionsVersion: data.permissionsVersion,
+    };
+  }
+
+  private isLockActive(lockedUntil: Date | null) {
+    return Boolean(lockedUntil && lockedUntil.getTime() > Date.now());
+  }
+
+  private parseExpiresInToDate(expiresIn: string): Date {
+    const durationMs = this.parseDurationToMs(expiresIn);
+    return new Date(Date.now() + durationMs);
+  }
+
+  private parseDurationToMs(value: string): number {
+    const match = /^(?<amount>\d+)(?<unit>ms|s|m|h|d)$/i.exec(value.trim());
+
+    if (!match?.groups) {
+      return 30 * 24 * 60 * 60 * 1000;
+    }
+
+    const amount = Number(match.groups.amount);
+    const unit = match.groups.unit.toLowerCase();
+    const multipliers: Record<string, number> = {
+      ms: 1,
+      s: 1000,
+      m: 60 * 1000,
+      h: 60 * 60 * 1000,
+      d: 24 * 60 * 60 * 1000,
+    };
+
+    return amount * multipliers[unit];
   }
 
   private toRegisteredUser(user: {
