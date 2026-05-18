@@ -2,6 +2,17 @@
 
 import { z } from 'zod';
 
+const stringBoolean = z.preprocess((value) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'y', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'n', 'off'].includes(normalized)) return false;
+  }
+
+  return value;
+}, z.boolean());
+
 export const envSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'production', 'test'])
@@ -34,7 +45,9 @@ export const envSchema = z.object({
 
   REDIS_DATABASE: z.coerce.number().int().nonnegative().default(0),
 
-  REDIS_TLS_ENABLED: z.coerce.boolean().default(false),
+  REDIS_TLS_ENABLED: stringBoolean.default(false),
+
+  REDIS_CONNECT_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
 
   ARGON2_MEMORY_COST: z.coerce.number().int().positive().default(19456),
 
@@ -120,6 +133,12 @@ export const envSchema = z.object({
   ENABLE_DB_LOGGING: z.coerce.boolean().default(false),
 
   ENABLE_HTTP_LOGGING: z.coerce.boolean().default(true),
+
+  EMAIL_PROVIDER: z.enum(['resend', 'smtp']).default('resend'),
+  EMAIL_FROM: z.string().email(),
+  EMAIL_VERIFICATION_BASE_URL: z.string().url(),
+  EMAIL_VERIFICATION_TOKEN_TTL_MINUTES: z.coerce.number().int().positive().default(1440),
+  RESEND_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -18,14 +18,17 @@ import {
   appConfig,
   authConfig,
   databaseConfig,
+  emailConfig,
   redisConfig,
 } from 'src/core/config/env';
+import { DomainEventsModule } from 'src/common/events/domain-events.module';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { RedisModule } from 'src/core/redis/redis.module';
 import { RequestContextMiddleware } from 'src/common/middleware/request-context.middleware';
 import { LoggerMiddleware } from 'src/core/logger/logger/logger.middleware';
 import { APP_FILTER } from '@nestjs/core';
 import { GlobalExceptionFilter } from 'src/common/filters/global-exception.filter';
+import { EmailModule } from './modules/email/email.module';
 
 type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
 
@@ -34,7 +37,7 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
-      load: [appConfig, authConfig, databaseConfig, redisConfig],
+      load: [appConfig, authConfig, databaseConfig, redisConfig, emailConfig],
       expandVariables: true,
       cache: true,
     }),
@@ -81,6 +84,8 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     PrismaModule,
     LoggerModule,
     RedisModule,
+    DomainEventsModule,
+    EmailModule,
   ],
   providers: [
     {

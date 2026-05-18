@@ -7,6 +7,7 @@ model User {
   passwordHash String?
 
   isEmailVerified Boolean @default(false)
+  emailVerifiedAt DateTime?
   isBlocked       Boolean @default(false)
 
   failedLoginAttempts Int @default(0)

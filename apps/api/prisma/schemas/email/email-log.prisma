@@ -1,0 +1,43 @@
+enum EmailTemplate {
+  WELCOME_EMAIL
+  EMAIL_VERIFICATION
+  VACCINATION_REMINDER
+  SUBSCRIPTION_EXPIRY
+  PAYMENT_RECEIPT
+  FARM_REPORT
+}
+
+enum EmailStatus {
+  QUEUED
+  PROCESSING
+  SENT
+  FAILED
+}
+
+model EmailLog {
+  id String @id
+
+  to       String
+  subject  String
+  template EmailTemplate
+  status   EmailStatus @default(QUEUED)
+
+  provider String?
+
+  tenantId String
+  farmId   String?
+  userId   String?
+
+  retries      Int      @default(0)
+  errorMessage String?
+  correlationId String?
+
+  scheduledAt DateTime?
+  sentAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, farmId, userId])
+  @@index([status, createdAt])
+}

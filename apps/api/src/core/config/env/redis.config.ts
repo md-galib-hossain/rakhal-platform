@@ -10,6 +10,7 @@ export const redisConfig = registerAs('redis', () => ({
   password: env.REDIS_PASSWORD,
   database: env.REDIS_DATABASE,
   tlsEnabled: env.REDIS_TLS_ENABLED,
+  connectTimeoutMs: env.REDIS_CONNECT_TIMEOUT_MS,
   url: buildRedisUrl(),
 }));
 

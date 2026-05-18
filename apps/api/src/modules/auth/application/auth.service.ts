@@ -7,8 +7,10 @@ import {
 import type { ConfigType } from '@nestjs/config';
 import { AuditAction, SessionStatus } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
+import { DomainEventBusService } from 'src/common/events/domain-event-bus.service';
 import { authConfig } from 'src/core/config/env';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { USER_REGISTERED_EVENT } from 'src/modules/email/presentation/events/user-registered.event';
 import { LoginContext } from '../domain/login-context.type';
 import { LoginResult } from '../domain/login-result.type';
 import { RegisterResult } from '../domain/register-result.type';
@@ -39,6 +41,7 @@ export class AuthService {
     private readonly refreshTokenService: RefreshTokenService,
     private readonly permissionsVersionCache: PermissionsVersionCacheService,
     private readonly tokenService: TokenService,
+    private readonly eventBus: DomainEventBusService,
     private readonly logger: LoggerService,
   ) {
     this.log = this.logger.setContext(AuthService.name);
@@ -46,26 +49,32 @@ export class AuthService {
 
   async register(dto: RegisterDto): Promise<RegisterResult> {
     const passwordHash = await this.passwordService.hashPassword(dto.password);
-    const verificationToken = randomBytes(32).toString('hex');
-    const verificationTokenHash = this.hashToken(verificationToken);
 
     try {
-      const user = await this.authRepository.registerUserWithVerification({
+      const user = await this.authRepository.createUser({
         email: dto.email,
         name: dto.name,
         passwordHash,
-        verificationTokenHash,
-        verificationExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      });
+      this.eventBus.emit(USER_REGISTERED_EVENT, {
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        tenantId: user.id,
+        farmId: null,
       });
 
       this.log.audit('auth.register', {
         userId: user.id,
+        tenantId: user.id,
+        farmId: null,
+        correlationId: null,
+        timestamp: new Date().toISOString(),
         emailDomain: dto.email.split('@')[1] ?? null,
       });
 
       return {
         user: this.toRegisteredUser(user),
-        emailVerificationToken: verificationToken,
       };
     } catch (error) {
       if (this.isUniqueConstraintError(error)) {
@@ -261,6 +270,33 @@ export class AuthService {
 
   me(userId: string) {
     return this.authRepository.findUserById(userId);
+  }
+
+  async verifyEmailToken(token: string) {
+    const user = await this.authRepository.verifyEmailToken(token);
+    if (!user) {
+      this.log.warn('Email verification failed for invalid token', {
+        emailId: null,
+        userId: null,
+        tenantId: null,
+        farmId: null,
+        correlationId: null,
+        timestamp: new Date().toISOString(),
+      });
+      throw new UnauthorizedException('Invalid verification token');
+    }
+
+    this.log.audit('auth.email_verified', {
+      emailId: null,
+      userId: user.id,
+      tenantId: user.id,
+      farmId: null,
+      correlationId: null,
+      timestamp: new Date().toISOString(),
+      emailDomain: user.email.split('@')[1] ?? null,
+    });
+
+    return { success: true };
   }
 
   async loginWithContext(

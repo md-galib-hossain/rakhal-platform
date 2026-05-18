@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AuditAction, SessionStatus, TokenType, User } from '@prisma/client';
+import { createHash } from 'crypto';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 
 @Injectable()
@@ -12,6 +13,51 @@ export class AuthRepository {
 
   findUserById(userId: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { id: userId } });
+  }
+
+  createEmailVerificationToken(data: {
+    userId: string;
+    token: string;
+    expiresAt: Date;
+  }) {
+    return this.prisma.authToken.create({
+      data: {
+        userId: data.userId,
+        type: TokenType.EMAIL_VERIFICATION,
+        tokenHash: createHash('sha256').update(data.token).digest('hex'),
+        expiresAt: data.expiresAt,
+      },
+    });
+  }
+
+  async verifyEmailToken(token: string): Promise<User | null> {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const now = new Date();
+
+    return this.prisma.$transaction(async (prisma) => {
+      const authToken = await prisma.authToken.findFirst({
+        where: {
+          tokenHash,
+          type: TokenType.EMAIL_VERIFICATION,
+          isUsed: false,
+          expiresAt: { gt: now },
+        },
+      });
+
+      if (!authToken) {
+        return null;
+      }
+
+      await prisma.authToken.update({
+        where: { id: authToken.id },
+        data: { isUsed: true },
+      });
+
+      return prisma.user.update({
+        where: { id: authToken.userId },
+        data: { isEmailVerified: true },
+      });
+    });
   }
 
   createUser(data: { email: string; name: string; passwordHash: string }) {
