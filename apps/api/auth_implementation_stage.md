@@ -13,9 +13,9 @@ Status legend:
 
 ## Current Stage Pointer
 
-Current next stage: **Stage 2 - Dependency And Configuration Foundation**
+Current next stage: **Stage 3 - Auth Module Skeleton And Boundaries**
 
-Last updated: 2026-05-17
+Last updated: 2026-05-18
 
 ## Stage 0 - Planning Documents
 
@@ -89,9 +89,9 @@ Handoff notes:
 
 ## Stage 2 - Dependency And Configuration Foundation
 
-Status: `[ ]`
+Status: `[x]`
 
-Completed on:
+Completed on: 2026-05-18
 
 Goal:
 
@@ -109,12 +109,12 @@ Expected dependency areas:
 
 Deliverables:
 
-- `[ ]` Confirm exact package names and APIs against installed package docs or official documentation before use.
-- `[ ]` Add auth-specific env validation for cookie names, cookie options, lockout policy, and rate limits.
-- `[ ]` Configure secure cookie defaults.
-- `[ ]` Configure rate-limit defaults.
-- `[ ]` Configure Redis connection provider.
-- `[ ]` Update `.env` example or README if present.
+- `[x]` Confirm exact package names and APIs against installed package docs or official documentation before use.
+- `[x]` Add auth-specific env validation for cookie names, cookie options, lockout policy, and rate limits.
+- `[x]` Configure secure cookie defaults.
+- `[x]` Configure rate-limit defaults.
+- `[x]` Configure Redis connection provider.
+- `[x]` Update `.env` example or README if present.
 
 Security requirements:
 
@@ -126,13 +126,18 @@ Security requirements:
 
 Verification:
 
-- `[ ]` `pnpm lint` succeeds.
-- `[ ]` `pnpm test` succeeds or failures are documented.
-- `[ ]` App boots with validated env.
+- `[x]` `pnpm lint` succeeds.
+- `[x]` `pnpm test` succeeds or failures are documented.
+- `[x]` App boots with validated env.
 
 Handoff notes:
 
-- Add notes here after completion.
+- Installed Stage 2 dependencies: `@nestjs/jwt`, `@nestjs/passport`, `@nestjs/throttler`, `passport`, `passport-jwt`, `argon2`, `cookie-parser`, `csrf-csrf`, `redis`, and TypeScript types for cookie/passport packages.
+- Added auth env validation and config for Argon2, refresh-cookie defaults, CSRF names/options/secret, global/login/refresh rate-limit defaults, and account lockout policy.
+- Wired global JWT support, Nest throttler definitions, cookie parsing middleware, a lazy Redis client provider, and secure refresh/CSRF cookie option helpers.
+- Updated README with a safe environment template because the repo does not have an `.env.example`.
+- Fixed the stale `UsersModule` import path and test/Jest setup issues that blocked Stage 2 verification.
+- Verification passed with `pnpm.cmd build`, `pnpm.cmd lint`, `pnpm.cmd test`, a built Nest application-context boot check, and an `argon2.hash` runtime check.
 
 ## Stage 3 - Auth Module Skeleton And Boundaries
 

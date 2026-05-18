@@ -4,9 +4,11 @@ import {
   NestModule,
   RequestMethod,
 } from '@nestjs/common';
-import { UsersModule } from './modules/users/users.module';
+import { JwtModule } from '@nestjs/jwt';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { UsersModule } from './modules/user/user.module';
 import { PrismaModule } from './core/database/prisma/prisma.module';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigType } from '@nestjs/config';
 import {
   appConfig,
   authConfig,
@@ -14,10 +16,13 @@ import {
   redisConfig,
 } from 'src/core/config/env';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
+import { RedisModule } from 'src/core/redis/redis.module';
 import { RequestContextMiddleware } from 'src/common/middleware/request-context.middleware';
 import { LoggerMiddleware } from 'src/core/logger/logger/logger.middleware';
 import { APP_FILTER } from '@nestjs/core';
 import { GlobalExceptionFilter } from 'src/common/filters/global-exception.filter';
+
+type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
 
 @Module({
   imports: [
@@ -28,9 +33,44 @@ import { GlobalExceptionFilter } from 'src/common/filters/global-exception.filte
       expandVariables: true,
       cache: true,
     }),
+    JwtModule.registerAsync({
+      global: true,
+      imports: [ConfigModule.forFeature(authConfig)],
+      inject: [authConfig.KEY],
+      useFactory: (config: ConfigType<typeof authConfig>) => ({
+        secret: config.accessSecret,
+        signOptions: {
+          expiresIn: config.accessExpiresIn as JwtDuration,
+        },
+      }),
+    }),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule.forFeature(authConfig)],
+      inject: [authConfig.KEY],
+      useFactory: (config: ConfigType<typeof authConfig>) => ({
+        throttlers: [
+          {
+            name: 'default',
+            ttl: config.rateLimit.ttlSeconds * 1000,
+            limit: config.rateLimit.maxRequests,
+          },
+          {
+            name: 'login',
+            ttl: config.rateLimit.login.ttlSeconds * 1000,
+            limit: config.rateLimit.login.maxRequests,
+          },
+          {
+            name: 'refresh',
+            ttl: config.rateLimit.refresh.ttlSeconds * 1000,
+            limit: config.rateLimit.refresh.maxRequests,
+          },
+        ],
+      }),
+    }),
     UsersModule,
     PrismaModule,
     LoggerModule,
+    RedisModule,
   ],
   providers: [
     {

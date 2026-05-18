@@ -5,6 +5,7 @@ import { ConfigType } from '@nestjs/config';
 import { appConfig } from 'src/core/config/env';
 import helmet from 'helmet';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -13,6 +14,7 @@ async function bootstrap() {
   app.useLogger(logger);
 
   app.use(helmet());
+  app.use(cookieParser());
 
   app.useGlobalPipes(
     new ValidationPipe({
