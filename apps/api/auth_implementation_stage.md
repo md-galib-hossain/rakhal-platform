@@ -13,7 +13,7 @@ Status legend:
 
 ## Current Stage Pointer
 
-Current next stage: **Stage 7 - Logout And Session Management**
+Current next stage: **Stage 9 - Farm Membership And Tenant Isolation**
 
 Last updated: 2026-05-18
 
@@ -314,9 +314,9 @@ Handoff notes:
 
 ## Stage 7 - Logout And Session Management
 
-Status: `[ ]`
+Status: `[x]`
 
-Completed on:
+Completed on: 2026-05-18
 
 Goal:
 
@@ -324,13 +324,13 @@ Support logout current session, logout all sessions, session listing, and sessio
 
 Deliverables:
 
-- `[ ]` Implement logout current session.
-- `[ ]` Implement logout all sessions.
-- `[ ]` Implement list sessions.
-- `[ ]` Implement revoke selected session.
-- `[ ]` Clear refresh cookie on logout.
-- `[ ]` Revoke refresh-token family when session is revoked.
-- `[ ]` Audit session revocation.
+- `[x]` Implement logout current session.
+- `[x]` Implement logout all sessions.
+- `[x]` Implement list sessions.
+- `[x]` Implement revoke selected session.
+- `[x]` Clear refresh cookie on logout.
+- `[x]` Revoke refresh-token family when session is revoked.
+- `[x]` Audit session revocation.
 
 Security requirements:
 
@@ -339,21 +339,21 @@ Security requirements:
 
 Verification:
 
-- `[ ]` Logout current session test.
-- `[ ]` Logout all sessions test.
-- `[ ]` Session listing test.
-- `[ ]` Session revocation authorization test.
-- `[ ]` Revoked session guard rejection test.
+- `[x]` `pnpm.cmd build` succeeds.
+- `[x]` `pnpm.cmd lint` succeeds.
 
 Handoff notes:
 
-- Add notes here after completion.
+- Added guarded logout and session-management endpoints for the current session, all sessions, session listing, and single-session revocation.
+- Session revocation now invalidates the full refresh-token family and records both database audit events and application logs with clear logout versus revoke semantics.
+- Refresh cookies are cleared on logout flows, and the logout/session routes now require validated access tokens plus live session checks.
+- No new test coverage was added for this stage per request.
 
 ## Stage 8 - Authentication Guards And Request User Context
 
-Status: `[ ]`
+Status: `[x]`
 
-Completed on:
+Completed on: 2026-05-18
 
 Goal:
 
@@ -361,12 +361,12 @@ Implement access-token authentication and active-session validation for protecte
 
 Deliverables:
 
-- `[ ]` Create JWT access-token guard or equivalent NestJS guard.
-- `[ ]` Create session validation guard.
-- `[ ]` Add typed authenticated request/user context.
-- `[ ]` Validate `sessionId` from JWT against database session.
-- `[ ]` Validate `permissionsVersion` cache behavior.
-- `[ ]` Ensure expired, revoked, and compromised sessions are rejected.
+- `[x]` Create JWT access-token guard or equivalent NestJS guard.
+- `[x]` Create session validation guard.
+- `[x]` Add typed authenticated request/user context.
+- `[x]` Validate `sessionId` from JWT against database session.
+- `[x]` Validate `permissionsVersion` cache behavior.
+- `[x]` Ensure expired, revoked, and compromised sessions are rejected.
 
 Security requirements:
 
@@ -376,15 +376,15 @@ Security requirements:
 
 Verification:
 
-- `[ ]` Missing token test.
-- `[ ]` Invalid token test.
-- `[ ]` Expired token test.
-- `[ ]` Revoked session test.
-- `[ ]` Blocked user test.
+- `[x]` `pnpm.cmd build` succeeds.
+- `[x]` `pnpm.cmd lint` succeeds.
 
 Handoff notes:
 
-- Add notes here after completion.
+- Added a Passport JWT access-token strategy, a JWT guard, and a session-validation guard that rejects expired, revoked, compromised, blocked, and deleted-user states.
+- Introduced typed authenticated request context on the auth routes so controllers can safely read the validated session and account context.
+- Added a small permissions-version cache helper backed by Redis and wired it into session validation so the cache stays aligned with the database source of truth.
+- No new test coverage was added for this stage per request.
 
 ## Stage 9 - Farm Membership And Tenant Isolation
 

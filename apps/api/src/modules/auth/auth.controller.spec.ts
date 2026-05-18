@@ -76,7 +76,7 @@ describe('AuthController', () => {
           'user-agent': 'jest',
           'x-device-name': 'laptop',
         },
-      } as never,
+      },
       response,
     );
 

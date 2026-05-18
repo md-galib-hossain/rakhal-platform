@@ -3,26 +3,30 @@ import {
   Controller,
   Delete,
   Get,
+  Inject,
   Param,
   Post,
-  Query,
-  Inject,
   Req,
   Res,
+  UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
+import { authConfig } from 'src/core/config/env';
+import {
+  getClearRefreshCookieOptions,
+  getRefreshCookieOptions,
+} from 'src/core/security/auth-cookie-options';
 import { AuthService } from './application/auth.service';
+import type { AuthenticatedHttpRequest } from './domain/authenticated-http-request.type';
+import { AuthenticatedRequestContext } from './domain/authenticated-request-context.type';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { SessionGuard } from './guards/session.guard';
 import { LoginDto } from './dto/login.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
-import { RevokeSessionDto } from './dto/revoke-session.dto';
-import { authConfig } from 'src/core/config/env';
-import {
-  getRefreshCookieOptions,
-  getClearRefreshCookieOptions,
-} from 'src/core/security/auth-cookie-options';
 
 @Controller('auth')
 export class AuthController {
@@ -44,7 +48,7 @@ export class AuthController {
   @Post('login')
   async login(
     @Body() dto: LoginDto,
-    @Req() request: Request,
+    @Req() request: AuthenticatedHttpRequest,
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.authService.loginWithContext(dto, {
@@ -72,7 +76,7 @@ export class AuthController {
   @Post('refresh')
   async refresh(
     @Body() dto: RefreshTokenDto,
-    @Req() request: Request,
+    @Req() request: AuthenticatedHttpRequest,
     @Res({ passthrough: true }) response: Response,
   ) {
     const refreshToken = this.getRefreshTokenFromRequest(request);
@@ -101,43 +105,93 @@ export class AuthController {
   }
 
   @Post('logout')
+  @UseGuards(JwtAuthGuard, SessionGuard)
   logout(
     @Body() dto: LogoutDto,
+    @Req() request: AuthenticatedHttpRequest,
     @Res({ passthrough: true }) response: Response,
   ) {
+    const auth = this.getAuthContext(request);
+
+    if (dto.sessionId && dto.sessionId !== auth.session.id) {
+      throw new UnauthorizedException('Session not found');
+    }
+
     response.clearCookie(
       this.config.refreshCookie.name,
       getClearRefreshCookieOptions(this.config),
     );
 
-    return this.authService.logout(dto);
+    return this.authService.logoutCurrentSession(
+      auth.user.sub,
+      auth.session.id,
+    );
   }
 
   @Post('logout-all')
-  logoutAll(@Query('userId') userId: string) {
-    return this.authService.logoutAll(userId);
+  @UseGuards(JwtAuthGuard, SessionGuard)
+  logoutAll(
+    @Req() request: AuthenticatedHttpRequest,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const auth = this.getAuthContext(request);
+
+    response.clearCookie(
+      this.config.refreshCookie.name,
+      getClearRefreshCookieOptions(this.config),
+    );
+
+    return this.authService.logoutAllSessions(auth.user.sub);
   }
 
   @Get('sessions')
-  sessions(@Query('userId') userId: string) {
-    return this.authService.sessions(userId);
+  @UseGuards(JwtAuthGuard, SessionGuard)
+  sessions(@Req() request: AuthenticatedHttpRequest) {
+    const auth = this.getAuthContext(request);
+    return this.authService.listSessions(auth.user.sub);
   }
 
   @Delete('sessions/:sessionId')
-  revokeSession(@Param('sessionId') sessionId: string) {
-    const dto: RevokeSessionDto = { sessionId };
-    return this.authService.revokeSession(dto);
+  @UseGuards(JwtAuthGuard, SessionGuard)
+  revokeSession(
+    @Param('sessionId') sessionId: string,
+    @Req() request: AuthenticatedHttpRequest,
+  ) {
+    const auth = this.getAuthContext(request);
+
+    return this.authService.revokeSessionForCurrentUser(
+      auth.user.sub,
+      sessionId,
+    );
   }
 
   @Get('me')
-  me(@Query('userId') userId: string) {
-    return this.authService.me(userId);
+  @UseGuards(JwtAuthGuard, SessionGuard)
+  me(@Req() request: AuthenticatedHttpRequest) {
+    const auth = this.getAuthContext(request);
+    return this.authService.me(auth.user.sub);
   }
 
-  private getRefreshTokenFromRequest(request: Request): string | undefined {
+  private getRefreshTokenFromRequest(
+    request: AuthenticatedHttpRequest,
+  ): string | undefined {
     const cookies = request.cookies as
       | Record<string, string | undefined>
       | undefined;
+
     return cookies?.[this.config.refreshCookie.name];
+  }
+
+  private getAuthContext(
+    request: AuthenticatedHttpRequest,
+  ): AuthenticatedRequestContext {
+    const authRequest = request as { auth?: AuthenticatedRequestContext };
+
+    if (!authRequest.auth) {
+      throw new UnauthorizedException('Unauthorized');
+    }
+
+    const auth = authRequest.auth;
+    return auth;
   }
 }

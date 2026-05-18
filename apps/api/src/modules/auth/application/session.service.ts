@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { AuditAction } from '@prisma/client';
 import { AuthRepository } from '../repositories/auth.repository';
 
 @Injectable()
@@ -19,8 +20,20 @@ export class SessionService {
     return this.authRepository.getUserSessions(userId);
   }
 
-  revokeSession(sessionId: string) {
-    return this.authRepository.revokeSession(sessionId);
+  findSessionById(sessionId: string) {
+    return this.authRepository.findSessionById(sessionId);
+  }
+
+  revokeSessionForUser(
+    sessionId: string,
+    userId: string,
+    auditAction: AuditAction,
+  ) {
+    return this.authRepository.revokeSessionForUser({
+      sessionId,
+      userId,
+      auditAction,
+    });
   }
 
   revokeAllSessionsForUser(userId: string) {

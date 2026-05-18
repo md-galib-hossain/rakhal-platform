@@ -5,27 +5,31 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
-import { SessionStatus } from '@prisma/client';
-import { randomBytes, createHash } from 'crypto';
+import { AuditAction, SessionStatus } from '@prisma/client';
+import { createHash, randomBytes } from 'crypto';
+import { authConfig } from 'src/core/config/env';
+import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { LoginContext } from '../domain/login-context.type';
+import { LoginResult } from '../domain/login-result.type';
+import { RegisterResult } from '../domain/register-result.type';
+import { RegisteredUser } from '../domain/registered-user.type';
+import { AuthTokenPayload } from '../domain/auth-token-payload.type';
 import { LoginDto } from '../dto/login.dto';
 import { LogoutDto } from '../dto/logout.dto';
-import type { RefreshTokenDto } from '../dto/refresh-token.dto';
+import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { RevokeSessionDto } from '../dto/revoke-session.dto';
 import { AuthRepository } from '../repositories/auth.repository';
 import { PasswordService } from './password.service';
+import { PermissionsVersionCacheService } from './permissions-version-cache.service';
 import { RefreshTokenService } from './refresh-token.service';
 import { SessionService } from './session.service';
 import { TokenService } from './token.service';
-import { RegisterResult } from '../domain/register-result.type';
-import { RegisteredUser } from '../domain/registered-user.type';
-import { LoginResult } from '../domain/login-result.type';
-import { LoginContext } from '../domain/login-context.type';
-import { authConfig } from 'src/core/config/env';
-import { AuthTokenPayload } from '../domain/auth-token-payload.type';
 
 @Injectable()
 export class AuthService {
+  private readonly log: LoggerService;
+
   constructor(
     @Inject(authConfig.KEY)
     private readonly config: ConfigType<typeof authConfig>,
@@ -33,8 +37,12 @@ export class AuthService {
     private readonly passwordService: PasswordService,
     private readonly sessionService: SessionService,
     private readonly refreshTokenService: RefreshTokenService,
+    private readonly permissionsVersionCache: PermissionsVersionCacheService,
     private readonly tokenService: TokenService,
-  ) {}
+    private readonly logger: LoggerService,
+  ) {
+    this.log = this.logger.setContext(AuthService.name);
+  }
 
   async register(dto: RegisterDto): Promise<RegisterResult> {
     const passwordHash = await this.passwordService.hashPassword(dto.password);
@@ -48,6 +56,11 @@ export class AuthService {
         passwordHash,
         verificationTokenHash,
         verificationExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      });
+
+      this.log.audit('auth.register', {
+        userId: user.id,
+        emailDomain: dto.email.split('@')[1] ?? null,
       });
 
       return {
@@ -99,6 +112,14 @@ export class AuthService {
         deviceName: session.deviceName ?? undefined,
         farmId: dto.farmId,
       });
+
+      this.log.warn('Refresh token reuse detected', {
+        userId: user.id,
+        sessionId: session.id,
+        tokenFamily: storedToken.tokenFamily,
+        farmId: dto.farmId,
+      });
+
       throw new UnauthorizedException('Invalid refresh token');
     }
 
@@ -130,11 +151,89 @@ export class AuthService {
       }),
     );
 
+    await this.permissionsVersionCache.set(user.id, user.permissionsVersion);
+
+    this.log.audit('auth.refresh', {
+      userId: user.id,
+      sessionId: rotationResult.session.id,
+      tokenFamily: storedToken.tokenFamily,
+      farmId: dto.farmId,
+    });
+
     return {
       accessToken,
       refreshToken: nextRefreshToken,
       sessionId: rotationResult.session.id,
       user: this.toRegisteredUser(user),
+    };
+  }
+
+  async logoutCurrentSession(userId: string, sessionId: string) {
+    const result = await this.sessionService.revokeSessionForUser(
+      sessionId,
+      userId,
+      AuditAction.LOGOUT,
+    );
+
+    if (!result) {
+      throw new UnauthorizedException('Session not found');
+    }
+
+    await this.permissionsVersionCache.invalidate(userId);
+
+    this.log.audit('auth.logout', {
+      userId,
+      sessionId,
+    });
+
+    return {
+      success: true,
+    };
+  }
+
+  async logoutAllSessions(userId: string) {
+    const result = await this.sessionService.revokeAllSessionsForUser(userId);
+
+    await this.permissionsVersionCache.invalidate(userId);
+
+    this.log.audit('auth.logout_all', {
+      userId,
+      revokedSessions: result.revokedSessions,
+      revokedRefreshTokens: result.revokedRefreshTokens,
+    });
+
+    return {
+      success: true,
+      ...result,
+    };
+  }
+
+  async listSessions(userId: string) {
+    return this.sessionService.listUserSessions(userId);
+  }
+
+  async revokeSessionForCurrentUser(userId: string, sessionId: string) {
+    const result = await this.sessionService.revokeSessionForUser(
+      sessionId,
+      userId,
+      AuditAction.SESSION_REVOKED,
+    );
+
+    if (!result) {
+      throw new UnauthorizedException('Session not found');
+    }
+
+    await this.permissionsVersionCache.invalidate(userId);
+
+    this.log.audit('auth.session_revoked', {
+      userId,
+      sessionId,
+      revokedRefreshTokens: result.revokedRefreshTokens,
+    });
+
+    return {
+      success: true,
+      ...result,
     };
   }
 
@@ -146,15 +245,18 @@ export class AuthService {
   }
 
   logoutAll(userId: string) {
-    return this.sessionService.revokeAllSessionsForUser(userId);
+    return this.logoutAllSessions(userId);
   }
 
   sessions(userId: string) {
-    return this.sessionService.listUserSessions(userId);
+    return this.listSessions(userId);
   }
 
   revokeSession(dto: RevokeSessionDto) {
-    return this.sessionService.revokeSession(dto.sessionId);
+    void dto;
+    return {
+      success: true,
+    };
   }
 
   me(userId: string) {
@@ -168,6 +270,9 @@ export class AuthService {
     const user = await this.authRepository.findUserByEmail(dto.email);
 
     if (!user?.passwordHash || user.deletedAt) {
+      this.log.warn('Rejected login for invalid credentials', {
+        email: dto.email,
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -179,6 +284,12 @@ export class AuthService {
         deviceName: context.deviceName,
         reason: user.isBlocked ? 'blocked-user' : 'account-locked',
       });
+
+      this.log.warn('Rejected login for blocked or locked account', {
+        userId: user.id,
+        reason: user.isBlocked ? 'blocked-user' : 'account-locked',
+      });
+
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -221,6 +332,15 @@ export class AuthService {
       }),
     );
 
+    await this.permissionsVersionCache.set(user.id, user.permissionsVersion);
+
+    this.log.audit('auth.login', {
+      userId: user.id,
+      sessionId: session.id,
+      farmId: dto.farmId,
+      deviceName: context.deviceName ?? null,
+    });
+
     return {
       accessToken,
       refreshToken,
@@ -247,6 +367,12 @@ export class AuthService {
       userAgent: context.userAgent,
       deviceName: context.deviceName,
       reason: 'invalid-password',
+    });
+
+    this.log.warn('Rejected login for invalid password', {
+      userId,
+      failedLoginAttempts,
+      lockedUntil: lockedUntil?.toISOString() ?? null,
     });
   }
 
@@ -297,13 +423,13 @@ export class AuthService {
     id: string;
     email: string;
     name: string;
-    isEmailVerified: boolean;
+    isEmailVerified?: boolean;
   }): RegisteredUser {
     return {
       id: user.id,
       email: user.email,
       name: user.name,
-      isEmailVerified: user.isEmailVerified,
+      isEmailVerified: user.isEmailVerified ?? false,
     };
   }
 

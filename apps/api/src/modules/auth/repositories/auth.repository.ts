@@ -199,22 +199,142 @@ export class AuthRepository {
     });
   }
 
-  revokeSession(sessionId: string) {
-    return this.prisma.session.update({
+  findSessionById(sessionId: string) {
+    return this.prisma.session.findUnique({
       where: { id: sessionId },
-      data: { status: SessionStatus.REVOKED },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            permissionsVersion: true,
+            isBlocked: true,
+            deletedAt: true,
+          },
+        },
+      },
+    });
+  }
+
+  revokeSessionForUser(data: {
+    sessionId: string;
+    userId: string;
+    auditAction: AuditAction;
+  }) {
+    return this.prisma.$transaction(async (prisma) => {
+      const session = await prisma.session.findFirst({
+        where: {
+          id: data.sessionId,
+          userId: data.userId,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (!session) {
+        return null;
+      }
+
+      await prisma.session.update({
+        where: { id: data.sessionId },
+        data: {
+          status: SessionStatus.REVOKED,
+        },
+      });
+
+      const revokedRefreshTokens = await prisma.refreshToken.updateMany({
+        where: {
+          sessionId: data.sessionId,
+        },
+        data: {
+          isRevoked: true,
+          revokedAt: new Date(),
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          actorUserId: data.userId,
+          action: data.auditAction,
+          entityType: 'Session',
+          entityId: data.sessionId,
+          metadata: {
+            revokedRefreshTokens: revokedRefreshTokens.count,
+          },
+        },
+      });
+
+      return {
+        sessionId: data.sessionId,
+        revokedRefreshTokens: revokedRefreshTokens.count,
+      };
     });
   }
 
   revokeAllSessionsForUser(userId: string) {
-    return this.prisma.session.updateMany({
-      where: {
-        userId,
-        status: SessionStatus.ACTIVE,
-      },
-      data: {
-        status: SessionStatus.REVOKED,
-      },
+    return this.prisma.$transaction(async (prisma) => {
+      const activeSessions = await prisma.session.findMany({
+        where: {
+          userId,
+          status: SessionStatus.ACTIVE,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      const sessionIds = activeSessions.map((session) => session.id);
+
+      if (sessionIds.length === 0) {
+        return {
+          revokedSessions: 0,
+          revokedRefreshTokens: 0,
+        };
+      }
+
+      const revokedSessions = await prisma.session.updateMany({
+        where: {
+          id: {
+            in: sessionIds,
+          },
+        },
+        data: {
+          status: SessionStatus.REVOKED,
+        },
+      });
+
+      const revokedRefreshTokens = await prisma.refreshToken.updateMany({
+        where: {
+          sessionId: {
+            in: sessionIds,
+          },
+        },
+        data: {
+          isRevoked: true,
+          revokedAt: new Date(),
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          actorUserId: userId,
+          action: AuditAction.LOGOUT,
+          entityType: 'User',
+          entityId: userId,
+          metadata: {
+            scope: 'all-sessions',
+            revokedSessions: revokedSessions.count,
+            revokedRefreshTokens: revokedRefreshTokens.count,
+          },
+        },
+      });
+
+      return {
+        revokedSessions: revokedSessions.count,
+        revokedRefreshTokens: revokedRefreshTokens.count,
+      };
     });
   }
 
@@ -239,7 +359,22 @@ export class AuthRepository {
   findRefreshTokenByHash(tokenHash: string) {
     return this.prisma.refreshToken.findUnique({
       where: { tokenHash },
-      include: { session: { include: { user: true } } },
+      include: {
+        session: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                permissionsVersion: true,
+                isBlocked: true,
+                deletedAt: true,
+              },
+            },
+          },
+        },
+      },
     });
   }
 
