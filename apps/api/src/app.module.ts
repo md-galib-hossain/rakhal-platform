@@ -7,6 +7,10 @@ import {
 import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './modules/auth/auth.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { PermissionModule } from './modules/permission/permission.module';
+import { SubscriptionModule } from './modules/subscription/subscription.module';
+import { TenantAccessModule } from './modules/tenant-access/tenant-access.module';
 import { UsersModule } from './modules/user/user.module';
 import { PrismaModule } from './core/database/prisma/prisma.module';
 import { ConfigModule, ConfigType } from '@nestjs/config';
@@ -70,6 +74,10 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     }),
     UsersModule,
     AuthModule,
+    TenantAccessModule,
+    PermissionModule,
+    SubscriptionModule,
+    AuditModule,
     PrismaModule,
     LoggerModule,
     RedisModule,

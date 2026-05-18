@@ -1,7 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { authConfig } from 'src/core/config/env';
 import { AuthController } from './auth.controller';
 import { AuthService } from './application/auth.service';
+import { CsrfService } from './application/csrf.service';
+import { CsrfGuard } from './guards/csrf.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { SessionGuard } from './guards/session.guard';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -30,6 +35,11 @@ describe('AuthController', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
+      imports: [
+        ThrottlerModule.forRoot({
+          throttlers: [{ name: 'default', ttl: 60_000, limit: 1 }],
+        }),
+      ],
       controllers: [AuthController],
       providers: [
         {
@@ -40,8 +50,22 @@ describe('AuthController', () => {
           provide: authConfig.KEY,
           useValue: config,
         },
+        {
+          provide: CsrfService,
+          useValue: {
+            generateToken: jest.fn().mockReturnValue('csrf-token'),
+            validateRequest: jest.fn().mockReturnValue(true),
+          },
+        },
       ],
-    }).compile();
+    })
+      .overrideGuard(CsrfGuard)
+      .useValue({})
+      .overrideGuard(JwtAuthGuard)
+      .useValue({})
+      .overrideGuard(SessionGuard)
+      .useValue({})
+      .compile();
 
     controller = module.get<AuthController>(AuthController);
   });

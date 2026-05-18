@@ -1,5 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
@@ -16,11 +16,17 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
-  it('/ (GET)', () => {
+  it('/auth/csrf (GET)', () => {
     return request(app.getHttpServer())
-      .get('/')
+      .get('/auth/csrf')
       .expect(200)
-      .expect('Hello World!');
+      .expect(({ body, headers }) => {
+        const typedBody = body as { csrfToken?: string };
+        expect(typedBody.csrfToken).toEqual(expect.any(String));
+        expect(headers['set-cookie']).toEqual(
+          expect.arrayContaining([expect.stringContaining('rakhal_csrf')]),
+        );
+      });
   });
 
   afterEach(async () => {

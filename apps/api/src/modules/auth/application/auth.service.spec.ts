@@ -41,6 +41,15 @@ describe('AuthService', () => {
   let tokenService: {
     signAccessToken: jest.Mock;
   };
+  let permissionsVersionCache: {
+    set: jest.Mock;
+    invalidate: jest.Mock;
+  };
+  let logger: {
+    setContext: jest.Mock;
+    audit: jest.Mock;
+    warn: jest.Mock;
+  };
   let service: AuthService;
 
   beforeEach(() => {
@@ -61,6 +70,16 @@ describe('AuthService', () => {
     tokenService = {
       signAccessToken: jest.fn(),
     };
+    permissionsVersionCache = {
+      set: jest.fn(),
+      invalidate: jest.fn(),
+    };
+    logger = {
+      setContext: jest.fn(),
+      audit: jest.fn(),
+      warn: jest.fn(),
+    };
+    logger.setContext.mockReturnValue(logger);
 
     service = new AuthService(
       config as never,
@@ -68,7 +87,9 @@ describe('AuthService', () => {
       passwordService as never,
       {} as SessionService,
       refreshTokenService as never,
+      permissionsVersionCache as never,
       tokenService as never,
+      logger as never,
     );
   });
 
