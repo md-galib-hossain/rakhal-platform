@@ -137,7 +137,11 @@ export const envSchema = z.object({
   EMAIL_PROVIDER: z.enum(['resend', 'smtp']).default('resend'),
   EMAIL_FROM: z.string().email(),
   EMAIL_VERIFICATION_BASE_URL: z.string().url(),
-  EMAIL_VERIFICATION_TOKEN_TTL_MINUTES: z.coerce.number().int().positive().default(1440),
+  EMAIL_VERIFICATION_TOKEN_TTL_MINUTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(1440),
   RESEND_API_KEY: z.string().optional(),
 });
 
