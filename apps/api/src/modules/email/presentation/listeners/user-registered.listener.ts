@@ -2,7 +2,10 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { DomainEventBusService } from 'src/common/events/domain-event-bus.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { SendVerificationEmailUseCase } from '../../application/use-cases/send-verification-email.use-case';
-import { USER_REGISTERED_EVENT, UserRegisteredEvent } from '../events/user-registered.event';
+import {
+  USER_REGISTERED_EVENT,
+  UserRegisteredEvent,
+} from '../events/user-registered.event';
 
 @Injectable()
 export class UserRegisteredListener implements OnModuleInit, OnModuleDestroy {
@@ -17,14 +20,22 @@ export class UserRegisteredListener implements OnModuleInit, OnModuleDestroy {
   }
 
   onModuleInit(): void {
-    this.eventBus.on<UserRegisteredEvent>(USER_REGISTERED_EVENT, this.handleUserRegistered);
+    this.eventBus.on<UserRegisteredEvent>(
+      USER_REGISTERED_EVENT,
+      this.handleUserRegistered,
+    );
   }
 
   onModuleDestroy(): void {
-    this.eventBus.off<UserRegisteredEvent>(USER_REGISTERED_EVENT, this.handleUserRegistered);
+    this.eventBus.off<UserRegisteredEvent>(
+      USER_REGISTERED_EVENT,
+      this.handleUserRegistered,
+    );
   }
 
-  private handleUserRegistered = async (event: UserRegisteredEvent): Promise<void> => {
+  private handleUserRegistered = async (
+    event: UserRegisteredEvent,
+  ): Promise<void> => {
     await this.sendVerificationEmail.execute({
       userId: event.userId,
       email: event.email,

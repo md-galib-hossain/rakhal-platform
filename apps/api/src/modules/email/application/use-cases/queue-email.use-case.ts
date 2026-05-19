@@ -3,7 +3,10 @@ import { Injectable } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { EmailRepository } from '../../domain/repositories/email.repository';
-import { EMAIL_JOB, EMAIL_QUEUE } from '../../infrastructure/queue/email.queue.constants';
+import {
+  EMAIL_JOB,
+  EMAIL_QUEUE,
+} from '../../infrastructure/queue/email.queue.constants';
 import { QueueEmailDto } from '../dto/queue-email.dto';
 
 @Injectable()
@@ -34,7 +37,9 @@ export class QueueEmailUseCase {
     await this.queue.add(EMAIL_JOB, input, {
       attempts: 5,
       backoff: { type: 'exponential', delay: 1000 },
-      delay: input.sendAt ? Math.max(input.sendAt.getTime() - Date.now(), 0) : 0,
+      delay: input.sendAt
+        ? Math.max(input.sendAt.getTime() - Date.now(), 0)
+        : undefined,
       jobId: input.emailId,
       removeOnComplete: 1000,
       removeOnFail: 1000,

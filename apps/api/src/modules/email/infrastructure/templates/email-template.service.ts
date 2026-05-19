@@ -19,7 +19,21 @@ export class EmailTemplateService {
 
     let html = readFileSync(templatePath, 'utf-8');
     for (const [key, value] of Object.entries(data)) {
-      html = html.replaceAll(`{{${key}}}`, String(value ?? ''));
+      if (
+        typeof value === 'string' ||
+        typeof value === 'number' ||
+        typeof value === 'boolean'
+      ) {
+        html = html.replaceAll(`{{${key}}}`, String(value));
+        continue;
+      }
+
+      if (value == null) {
+        html = html.replaceAll(`{{${key}}}`, '');
+        continue;
+      }
+
+      html = html.replaceAll(`{{${key}}}`, JSON.stringify(value));
     }
 
     return html;

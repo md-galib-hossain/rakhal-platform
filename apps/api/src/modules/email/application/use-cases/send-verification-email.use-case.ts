@@ -30,11 +30,14 @@ export class SendVerificationEmailUseCase {
     farmId: string | null;
     correlationId?: string;
   }): Promise<void> {
-    const verificationToken = randomUUID().replaceAll('-', '') + randomUUID().replaceAll('-', '');
+    const verificationToken =
+      randomUUID().replaceAll('-', '') + randomUUID().replaceAll('-', '');
     await this.authRepository.createEmailVerificationToken({
       userId: input.userId,
       token: verificationToken,
-      expiresAt: new Date(Date.now() + this.config.verificationTokenTtlMinutes * 60 * 1000),
+      expiresAt: new Date(
+        Date.now() + this.config.verificationTokenTtlMinutes * 60 * 1000,
+      ),
     });
 
     const verificationLink = `${this.config.verificationBaseUrl}?token=${verificationToken}`;

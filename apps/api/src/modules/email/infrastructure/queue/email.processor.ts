@@ -29,7 +29,10 @@ export class EmailProcessor extends WorkerHost {
     this.log.info('Email job picked by worker', this.logMeta(payload, job));
 
     try {
-      const html = this.templateService.render(payload.template, payload.templateData);
+      const html = this.templateService.render(
+        payload.template,
+        payload.templateData,
+      );
       const attachments = payload.includePdf
         ? [
             {
@@ -51,21 +54,38 @@ export class EmailProcessor extends WorkerHost {
       });
 
       await this.repository.markSent(payload.emailId, 'resend');
-      this.log.info('Email sent successfully via provider', this.logMeta(payload, job));
+      this.log.info(
+        'Email sent successfully via provider',
+        this.logMeta(payload, job),
+      );
     } catch (error) {
       const attemptsUsed = job.attemptsMade + 1;
-      await this.repository.markFailed(payload.emailId, (error as Error).message, attemptsUsed);
-      this.log.error('Email sending failed with error', error, this.logMeta(payload, job));
+      await this.repository.markFailed(
+        payload.emailId,
+        (error as Error).message,
+        attemptsUsed,
+      );
+      this.log.error(
+        'Email sending failed with error',
+        error,
+        this.logMeta(payload, job),
+      );
 
       if (attemptsUsed < 5) {
-        this.log.warn(`Retrying email send attempt #${attemptsUsed}`, this.logMeta(payload, job));
+        this.log.warn(
+          `Retrying email send attempt #${attemptsUsed}`,
+          this.logMeta(payload, job),
+        );
       }
 
       throw error;
     }
   }
 
-  private logMeta(payload: QueueEmailDto, job: Job<QueueEmailDto>): Record<string, unknown> {
+  private logMeta(
+    payload: QueueEmailDto,
+    job: Job<QueueEmailDto>,
+  ): Record<string, unknown> {
     return {
       emailId: payload.emailId,
       userId: payload.userId,
