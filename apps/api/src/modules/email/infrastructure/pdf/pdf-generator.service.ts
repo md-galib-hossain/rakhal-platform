@@ -3,7 +3,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
-
 @Injectable()
 export class PdfGeneratorService {
   async generateReportPdf(input: {
