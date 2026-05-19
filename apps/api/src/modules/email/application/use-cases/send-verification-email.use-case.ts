@@ -4,7 +4,10 @@ import { randomUUID } from 'crypto';
 import { TokenType } from '@prisma/client';
 import { emailConfig } from 'src/core/config/env';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
-import { AuthRepository } from 'src/modules/auth/repositories/auth.repository';
+import {
+  EMAIL_VERIFICATION_TOKEN_PORT,
+  EmailVerificationTokenPort,
+} from 'src/modules/auth/application/ports/email-verification-token.port';
 import { EmailTemplate } from '../../domain/enums/email-template.enum';
 import { QueueEmailUseCase } from './queue-email.use-case';
 
@@ -15,7 +18,8 @@ export class SendVerificationEmailUseCase {
   constructor(
     @Inject(emailConfig.KEY)
     private readonly config: ConfigType<typeof emailConfig>,
-    private readonly authRepository: AuthRepository,
+    @Inject(EMAIL_VERIFICATION_TOKEN_PORT)
+    private readonly emailVerificationTokenPort: EmailVerificationTokenPort,
     private readonly queueEmailUseCase: QueueEmailUseCase,
     logger: LoggerService,
   ) {
@@ -32,7 +36,7 @@ export class SendVerificationEmailUseCase {
   }): Promise<void> {
     const verificationToken =
       randomUUID().replaceAll('-', '') + randomUUID().replaceAll('-', '');
-    await this.authRepository.createEmailVerificationToken({
+    await this.emailVerificationTokenPort.createEmailVerificationToken({
       userId: input.userId,
       token: verificationToken,
       expiresAt: new Date(

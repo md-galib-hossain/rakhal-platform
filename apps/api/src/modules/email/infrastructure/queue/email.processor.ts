@@ -1,8 +1,12 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Inject } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { QueueEmailDto } from '../../application/dto/queue-email.dto';
-import { EmailRepository } from '../../domain/repositories/email.repository';
+import {
+  EMAIL_REPOSITORY,
+  EmailRepository,
+} from '../../domain/repositories/email.repository';
 import { PdfGeneratorService } from '../pdf/pdf-generator.service';
 import { EmailProviderFactory } from '../providers/email-provider.factory';
 import { EMAIL_QUEUE } from './email.queue.constants';
@@ -13,6 +17,7 @@ export class EmailProcessor extends WorkerHost {
   private readonly log: LoggerService;
 
   constructor(
+    @Inject(EMAIL_REPOSITORY)
     private readonly repository: EmailRepository,
     private readonly templateService: EmailTemplateService,
     private readonly providerFactory: EmailProviderFactory,

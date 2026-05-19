@@ -3,19 +3,19 @@ import { ConfigModule } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
 import { authConfig } from 'src/core/config/env';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
-import { AuthController } from './auth.controller';
-import { AuthService } from './application/auth.service';
-import { CsrfService } from './application/csrf.service';
-import { PermissionsVersionCacheService } from './application/permissions-version-cache.service';
-import { PasswordService } from './application/password.service';
-import { RefreshTokenService } from './application/refresh-token.service';
-import { SessionService } from './application/session.service';
-import { TokenService } from './application/token.service';
-import { AuthRepository } from './repositories/auth.repository';
-import { CsrfGuard } from './guards/csrf.guard';
-import { AccessTokenStrategy } from './strategies/access-token.strategy';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { SessionGuard } from './guards/session.guard';
+import { AuthController } from './presentation/controllers/auth.controller';
+import { AuthService } from './application/services/auth.service';
+import { CsrfService } from './application/services/csrf.service';
+import { PermissionsVersionCacheService } from './application/services/permissions-version-cache.service';
+import { PasswordService } from './application/services/password.service';
+import { RefreshTokenService } from './application/services/refresh-token.service';
+import { SessionService } from './application/services/session.service';
+import { TokenService } from './application/services/token.service';
+import { AuthRepository } from './infrastructure/persistence/repositories/auth.repository';
+import { CsrfGuard } from './presentation/guards/csrf.guard';
+import { AccessTokenStrategy } from './presentation/strategies/access-token.strategy';
+import { JwtAuthGuard } from './presentation/guards/jwt-auth.guard';
+import { SessionGuard } from './presentation/guards/session.guard';
 
 @Module({
   imports: [

@@ -1,10 +1,4 @@
-export const USER_REGISTERED_EVENT = 'auth.user.registered';
-
-export interface UserRegisteredEvent {
-  userId: string;
-  email: string;
-  name: string;
-  tenantId: string;
-  farmId: string | null;
-  correlationId?: string;
-}
+export {
+  USER_REGISTERED_EVENT,
+  type UserRegisteredEvent,
+} from 'src/modules/auth/domain/events/user-registered.event';

@@ -1,8 +1,11 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
-import { EmailRepository } from '../../domain/repositories/email.repository';
+import {
+  EMAIL_REPOSITORY,
+  EmailRepository,
+} from '../../domain/repositories/email.repository';
 import {
   EMAIL_JOB,
   EMAIL_QUEUE,
@@ -15,6 +18,7 @@ export class QueueEmailUseCase {
 
   constructor(
     @InjectQueue(EMAIL_QUEUE) private readonly queue: Queue,
+    @Inject(EMAIL_REPOSITORY)
     private readonly repository: EmailRepository,
     logger: LoggerService,
   ) {

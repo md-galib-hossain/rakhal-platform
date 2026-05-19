@@ -1,14 +1,10 @@
-import { Injectable } from '@nestjs/common';
 import type { EmailLog } from '@prisma/client';
-import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { EmailTemplate } from '../enums/email-template.enum';
-import { EmailStatus } from '../enums/email-status.enum';
 
-@Injectable()
-export class EmailRepository {
-  constructor(private readonly prisma: PrismaService) {}
+export const EMAIL_REPOSITORY = Symbol('EMAIL_REPOSITORY');
 
-  async create(data: {
+export interface EmailRepository {
+  create(data: {
     id: string;
     to: string;
     subject: string;
@@ -18,57 +14,15 @@ export class EmailRepository {
     userId: string | null;
     correlationId?: string;
     scheduledAt?: Date;
-  }): Promise<EmailLog> {
-    const result = await this.prisma.emailLog.create({
-      data: {
-        id: data.id,
-        to: data.to,
-        subject: data.subject,
-        tenantId: data.tenantId,
-        farmId: data.farmId,
-        userId: data.userId,
-        correlationId: data.correlationId,
-        template: data.template,
-        status: EmailStatus.QUEUED,
-        scheduledAt: data.scheduledAt,
-      },
-    });
-    return result;
-  }
+  }): Promise<EmailLog>;
 
-  async markProcessing(emailId: string): Promise<EmailLog> {
-    const result = await this.prisma.emailLog.update({
-      where: { id: emailId },
-      data: { status: EmailStatus.PROCESSING },
-    });
-    return result;
-  }
+  markProcessing(emailId: string): Promise<EmailLog>;
 
-  async markSent(emailId: string, provider: string): Promise<EmailLog> {
-    const result = await this.prisma.emailLog.update({
-      where: { id: emailId },
-      data: {
-        status: EmailStatus.SENT,
-        provider,
-        sentAt: new Date(),
-      },
-    });
-    return result;
-  }
+  markSent(emailId: string, provider: string): Promise<EmailLog>;
 
-  async markFailed(
+  markFailed(
     emailId: string,
     errorMessage: string,
     retries: number,
-  ): Promise<EmailLog> {
-    const result = await this.prisma.emailLog.update({
-      where: { id: emailId },
-      data: {
-        status: EmailStatus.FAILED,
-        errorMessage,
-        retries,
-      },
-    });
-    return result;
-  }
+  ): Promise<EmailLog>;
 }

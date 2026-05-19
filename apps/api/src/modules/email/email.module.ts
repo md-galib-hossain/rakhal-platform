@@ -4,11 +4,15 @@ import { ConfigModule, ConfigType } from '@nestjs/config';
 import { emailConfig, redisConfig } from 'src/core/config/env';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { PrismaModule } from 'src/core/database/prisma/prisma.module';
-import { AuthRepository } from '../auth/repositories/auth.repository';
+import { EMAIL_VERIFICATION_TOKEN_PORT } from '../auth/application/ports/email-verification-token.port';
+import { AuthRepository } from '../auth/infrastructure/persistence/repositories/auth.repository';
 import { QueueEmailUseCase } from './application/use-cases/queue-email.use-case';
 import { SendVerificationEmailUseCase } from './application/use-cases/send-verification-email.use-case';
-import { EmailService } from './application/email.service';
-import { EmailRepository } from './domain/repositories/email.repository';
+import { EmailService } from './application/services/email.service';
+import {
+  EMAIL_REPOSITORY,
+} from './domain/repositories/email.repository';
+import { PrismaEmailRepository } from './infrastructure/persistence/repositories/prisma-email.repository';
 import { PdfGeneratorService } from './infrastructure/pdf/pdf-generator.service';
 import { EmailProviderFactory } from './infrastructure/providers/email-provider.factory';
 import { ResendEmailProvider } from './infrastructure/providers/resend-email.provider';
@@ -44,7 +48,15 @@ import { UserRegisteredListener } from './presentation/listeners/user-registered
   ],
   providers: [
     AuthRepository,
-    EmailRepository,
+    {
+      provide: EMAIL_VERIFICATION_TOKEN_PORT,
+      useExisting: AuthRepository,
+    },
+    PrismaEmailRepository,
+    {
+      provide: EMAIL_REPOSITORY,
+      useExisting: PrismaEmailRepository,
+    },
     QueueEmailUseCase,
     SendVerificationEmailUseCase,
     EmailService,

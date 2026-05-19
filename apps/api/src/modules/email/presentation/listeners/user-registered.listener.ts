@@ -1,11 +1,11 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { DomainEventBusService } from 'src/common/events/domain-event-bus.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
-import { SendVerificationEmailUseCase } from '../../application/use-cases/send-verification-email.use-case';
 import {
   USER_REGISTERED_EVENT,
   UserRegisteredEvent,
-} from '../events/user-registered.event';
+} from 'src/modules/auth/domain/events/user-registered.event';
+import { SendVerificationEmailUseCase } from '../../application/use-cases/send-verification-email.use-case';
 
 @Injectable()
 export class UserRegisteredListener implements OnModuleInit, OnModuleDestroy {
