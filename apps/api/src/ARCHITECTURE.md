@@ -143,3 +143,65 @@ src/modules/<new-module>/
 - [ ] DI tokens wired correctly in module providers.
 - [ ] No circular dependencies introduced.
 - [ ] No forbidden dependency direction violations.
+
+## Logging in Any Module (From Scratch)
+Use this when adding logging to a new or existing module.
+
+1. Import `LoggerModule` in your module.
+- In `<module>.module.ts`:
+  - `import { LoggerModule } from 'src/core/logger/logger/logger.module';`
+  - Add `LoggerModule` to `imports`.
+
+2. Inject `LoggerService` into your service/use-case/guard/controller.
+- `import { LoggerService } from 'src/core/logger/logger/logger.service';`
+- Add `logger: LoggerService` in constructor.
+
+3. Create a context-specific logger once in constructor.
+- Keep a private field:
+  - `private readonly log: LoggerService;`
+- In constructor:
+  - `this.log = logger.setContext(YourClassName.name);`
+
+4. Use structured logs, not plain text only.
+- Good pattern:
+  - `this.log.info('Action completed', { userId, farmId, correlationId });`
+  - `this.log.warn('Validation failed', { reason, userId });`
+  - `this.log.error('Operation failed', error, { jobId, tenantId });`
+  - `this.log.audit('domain.action', { userId, tenantId, timestamp: new Date().toISOString() });`
+
+5. Keep logging out of `domain`.
+- Only use logger in `application`, `infrastructure`, or `presentation`.
+
+## Sending Email from Any Module
+Use the email module pipeline instead of calling providers directly.
+
+### Recommended Path (Queue-based)
+1. Ensure `EmailModule` is available in app/module composition.
+- `EmailModule` already provides:
+  - `EmailService`
+  - `QueueEmailUseCase`
+
+2. Inject `EmailService` in your application service/use-case.
+- `import { EmailService } from 'src/modules/email/application/services/email.service';`
+
+3. Call `emailService.queue(...)` with required payload.
+- Example fields:
+  - `to`
+  - `subject`
+  - `template`
+  - `templateData`
+  - `tenantId`
+  - `farmId`
+  - `userId`
+  - optional: `correlationId`, `sendAt`, `includePdf`
+
+4. Do not call provider implementations directly.
+- Avoid direct usage of:
+  - `ResendEmailProvider`
+  - `SmtpEmailProvider`
+- Provider selection and retries are handled by the email module internals.
+
+5. If introducing a new email template:
+- Add template enum in `email/domain/enums`.
+- Add HTML template file under `email/infrastructure/templates/files`.
+- Keep rendering through `EmailTemplateService` (no inline HTML in feature modules).
