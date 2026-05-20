@@ -6,7 +6,7 @@ import {
 import { FarmStatus } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
-import { VerifiedFarmContext } from './domain/verified-farm-context.type';
+import { VerifiedFarmContext } from 'src/modules/tenant-access/domain/verified-farm-context.type';
 
 @Injectable()
 export class TenantAccessService {

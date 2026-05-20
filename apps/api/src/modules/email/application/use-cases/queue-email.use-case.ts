@@ -2,15 +2,14 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Inject, Injectable } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
-import {
-  EMAIL_REPOSITORY,
-  EmailRepository,
-} from '../../domain/repositories/email.repository';
+
 import {
   EMAIL_JOB,
   EMAIL_QUEUE,
 } from '../../infrastructure/queue/email.queue.constants';
 import { QueueEmailDto } from '../dto/queue-email.dto';
+import { EMAIL_REPOSITORY } from 'src/modules/email/domain/repositories/email.repository';
+import type { EmailRepository } from 'src/modules/email/domain/repositories/email.repository';
 
 @Injectable()
 export class QueueEmailUseCase {

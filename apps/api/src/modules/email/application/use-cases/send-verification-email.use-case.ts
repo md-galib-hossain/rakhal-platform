@@ -4,10 +4,8 @@ import { randomUUID } from 'crypto';
 import { TokenType } from '@prisma/client';
 import { emailConfig } from 'src/core/config/env';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
-import {
-  EMAIL_VERIFICATION_TOKEN_PORT,
-  EmailVerificationTokenPort,
-} from 'src/modules/auth/application/ports/email-verification-token.port';
+import { EMAIL_VERIFICATION_TOKEN_PORT } from 'src/modules/auth/application/ports/email-verification-token.port';
+import type { EmailVerificationTokenPort } from 'src/modules/auth/application/ports/email-verification-token.port';
 import { EmailTemplate } from '../../domain/enums/email-template.enum';
 import { QueueEmailUseCase } from './queue-email.use-case';
 
