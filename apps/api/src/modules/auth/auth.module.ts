@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
 import { authConfig } from 'src/core/config/env';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
+import { PermissionModule } from '../permission/permission.module';
 import { AuthController } from './presentation/controllers/auth.controller';
 import { AuthService } from './application/services/auth.service';
 import { CsrfService } from './application/services/csrf.service';
@@ -22,6 +23,7 @@ import { SessionGuard } from './presentation/guards/session.guard';
     ConfigModule.forFeature(authConfig),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     LoggerModule,
+    PermissionModule,
   ],
   controllers: [AuthController],
   providers: [

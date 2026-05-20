@@ -31,6 +31,9 @@ import { LogoutDto } from '../dto/logout.dto';
 import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { VerifyEmailDto } from '../dto/verify-email.dto';
+import { ForgotPasswordDto } from '../dto/forgot-password.dto';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
+import { ChangePasswordDto } from '../dto/change-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -87,6 +90,32 @@ export class AuthController {
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   verifyEmail(@Body() dto: VerifyEmailDto) {
     return this.authService.verifyEmailToken(dto.token);
+  }
+
+  @Post('forgot-password')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto.email);
+  }
+
+  @Post('reset-password')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
+  }
+
+  @Post('change-password')
+  @UseGuards(ThrottlerGuard, CsrfGuard, JwtAuthGuard, SessionGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  changePassword(
+    @Body() dto: ChangePasswordDto,
+    @Req() request: AuthenticatedHttpRequest,
+  ) {
+    const auth = this.getAuthContext(request);
+
+    return this.authService.changePassword(auth.user.sub, dto);
   }
 
   @Get('csrf')

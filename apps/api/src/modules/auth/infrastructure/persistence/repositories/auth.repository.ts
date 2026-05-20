@@ -31,6 +31,61 @@ export class AuthRepository implements EmailVerificationTokenPort {
     });
   }
 
+  createResetToken(data: {
+    userId: string;
+    tokenHash: string;
+    expiresAt: Date;
+  }) {
+    return this.prisma.authToken.create({
+      data: {
+        userId: data.userId,
+        type: TokenType.PASSWORD_RESET,
+        tokenHash: data.tokenHash,
+        expiresAt: data.expiresAt,
+      },
+    });
+  }
+
+  findResetToken(tokenHash: string) {
+    const now = new Date();
+
+    return this.prisma.authToken.findFirst({
+      where: {
+        tokenHash,
+        type: TokenType.PASSWORD_RESET,
+        isUsed: false,
+        expiresAt: { gt: now },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+          },
+        },
+      },
+    });
+  }
+
+  markResetTokenUsed(tokenId: string) {
+    return this.prisma.authToken.update({
+      where: { id: tokenId },
+      data: { isUsed: true },
+    });
+  }
+
+  updateUserPassword(userId: string, passwordHash: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+      },
+    });
+  }
+
   async verifyEmailToken(token: string): Promise<User | null> {
     const tokenHash = createHash('sha256').update(token).digest('hex');
     const now = new Date();

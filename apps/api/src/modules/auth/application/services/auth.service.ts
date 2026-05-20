@@ -12,10 +12,13 @@ import { authConfig } from 'src/core/config/env';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { USER_REGISTERED_EVENT } from 'src/modules/auth/domain/events/user-registered.event';
 import {
+  ChangePasswordInput,
+  ForgotPasswordInput,
   LoginInput,
   LogoutInput,
   RefreshTokenInput,
   RegisterInput,
+  ResetPasswordInput,
   RevokeSessionInput,
 } from '../dto/auth.inputs';
 import { LoginContext } from '../../domain/login-context.type';
@@ -24,15 +27,26 @@ import { RegisterResult } from '../../domain/register-result.type';
 import { RegisteredUser } from '../../domain/registered-user.type';
 import { AuthTokenPayload } from '../../domain/auth-token-payload.type';
 import { AuthRepository } from '../../infrastructure/persistence/repositories/auth.repository';
+import { PermissionService } from 'src/modules/permission/application/services/permission.service';
 import { PasswordService } from './password.service';
 import { PermissionsVersionCacheService } from './permissions-version-cache.service';
 import { RefreshTokenService } from './refresh-token.service';
 import { SessionService } from './session.service';
 import { TokenService } from './token.service';
+import {
+  PASSWORD_CHANGED_EVENT,
+} from 'src/modules/auth/domain/events/password-changed.event';
+import {
+  PASSWORD_RESET_REQUESTED_EVENT,
+} from 'src/modules/auth/domain/events/password-reset-requested.event';
+import {
+  PASSWORD_RESET_SUCCESSFUL_EVENT,
+} from 'src/modules/auth/domain/events/password-reset-successful.event';
 
 @Injectable()
 export class AuthService {
   private readonly log: LoggerService;
+  private readonly passwordResetTokenTtlMinutes = 30;
 
   constructor(
     @Inject(authConfig.KEY)
@@ -42,6 +56,7 @@ export class AuthService {
     private readonly sessionService: SessionService,
     private readonly refreshTokenService: RefreshTokenService,
     private readonly permissionsVersionCache: PermissionsVersionCacheService,
+    private readonly permissionService: PermissionService,
     private readonly tokenService: TokenService,
     private readonly eventBus: DomainEventBusService,
     private readonly logger: LoggerService,
@@ -301,6 +316,123 @@ export class AuthService {
     return { success: true };
   }
 
+  async forgotPassword(email: string): Promise<{ success: true }> {
+    const input: ForgotPasswordInput = { email };
+    const user = await this.authRepository.findUserByEmail(input.email);
+
+    if (user) {
+      const resetToken = randomBytes(48).toString('hex');
+      const tokenHash = this.hashToken(resetToken);
+      const expiresAt = new Date(
+        Date.now() + this.passwordResetTokenTtlMinutes * 60 * 1000,
+      );
+
+      await this.authRepository.createResetToken({
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+      });
+
+      this.eventBus.emit(PASSWORD_RESET_REQUESTED_EVENT, {
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        token: resetToken,
+        tenantId: user.id,
+        farmId: null,
+      });
+
+      this.log.audit('auth.password_reset_requested', {
+        userId: user.id,
+        tenantId: user.id,
+        farmId: null,
+        correlationId: null,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return { success: true };
+  }
+
+  async resetPassword(input: ResetPasswordInput): Promise<{ success: true }> {
+    const tokenHash = this.hashToken(input.token);
+    const resetToken = await this.authRepository.findResetToken(tokenHash);
+
+    if (!resetToken?.user) {
+      throw new UnauthorizedException('Invalid reset token');
+    }
+
+    const nextPasswordHash = await this.passwordService.hashPassword(
+      input.newPassword,
+    );
+
+    await this.authRepository.updateUserPassword(
+      resetToken.user.id,
+      nextPasswordHash,
+    );
+    await this.authRepository.markResetTokenUsed(resetToken.id);
+    await this.revokeAccessAfterPasswordUpdate(resetToken.user.id);
+
+    this.eventBus.emit(PASSWORD_RESET_SUCCESSFUL_EVENT, {
+      userId: resetToken.user.id,
+      tenantId: resetToken.user.id,
+      farmId: null,
+    });
+
+    this.log.audit('auth.password_reset_successful', {
+      userId: resetToken.user.id,
+      tenantId: resetToken.user.id,
+      farmId: null,
+      correlationId: null,
+      timestamp: new Date().toISOString(),
+    });
+
+    return { success: true };
+  }
+
+  async changePassword(
+    userId: string,
+    input: ChangePasswordInput,
+  ): Promise<{ success: true }> {
+    const user = await this.authRepository.findUserById(userId);
+
+    if (!user?.passwordHash) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const isCurrentPasswordValid = await this.passwordService.verifyPassword(
+      user.passwordHash,
+      input.currentPassword,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const nextPasswordHash = await this.passwordService.hashPassword(
+      input.newPassword,
+    );
+
+    await this.authRepository.updateUserPassword(user.id, nextPasswordHash);
+    await this.revokeAccessAfterPasswordUpdate(user.id);
+
+    this.eventBus.emit(PASSWORD_CHANGED_EVENT, {
+      userId: user.id,
+      tenantId: user.id,
+      farmId: null,
+    });
+
+    this.log.audit('auth.password_changed', {
+      userId: user.id,
+      tenantId: user.id,
+      farmId: null,
+      correlationId: null,
+      timestamp: new Date().toISOString(),
+    });
+
+    return { success: true };
+  }
+
   async loginWithContext(
     dto: LoginInput,
     context: LoginContext = {},
@@ -482,5 +614,11 @@ export class AuthService {
       'code' in error &&
       (error as { code?: string }).code === 'P2002',
     );
+  }
+
+  private async revokeAccessAfterPasswordUpdate(userId: string): Promise<void> {
+    await this.sessionService.revokeAllSessionsForUser(userId);
+    await this.permissionsVersionCache.invalidate(userId);
+    await this.permissionService.invalidateForUser(userId);
   }
 }

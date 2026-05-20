@@ -136,7 +136,8 @@ export const envSchema = z.object({
 
   EMAIL_PROVIDER: z.enum(['resend', 'smtp']).default('resend'),
   EMAIL_FROM: z.string().email(),
-  EMAIL_VERIFICATION_BASE_URL: z.string().url(),
+  EMAIL_VERIFICATION_BASE_URL: z.string(),
+  EMAIL_PASSWORD_RESET_BASE_URL: z.string(),
   EMAIL_VERIFICATION_TOKEN_TTL_MINUTES: z.coerce
     .number()
     .int()

@@ -7,6 +7,7 @@ import { PrismaModule } from 'src/core/database/prisma/prisma.module';
 import { EMAIL_VERIFICATION_TOKEN_PORT } from '../auth/application/ports/email-verification-token.port';
 import { AuthRepository } from '../auth/infrastructure/persistence/repositories/auth.repository';
 import { QueueEmailUseCase } from './application/use-cases/queue-email.use-case';
+import { SendPasswordResetEmailUseCase } from './application/use-cases/send-password-reset-email.use-case';
 import { SendVerificationEmailUseCase } from './application/use-cases/send-verification-email.use-case';
 import { EmailService } from './application/services/email.service';
 import { EMAIL_REPOSITORY } from './domain/repositories/email.repository';
@@ -18,6 +19,7 @@ import { SmtpEmailProvider } from './infrastructure/providers/smtp-email.provide
 import { EmailProcessor } from './infrastructure/queue/email.processor';
 import { EMAIL_QUEUE } from './infrastructure/queue/email.queue.constants';
 import { EmailTemplateService } from './infrastructure/templates/email-template.service';
+import { PasswordResetRequestedListener } from './presentation/listeners/password-reset-requested.listener';
 import { UserRegisteredListener } from './presentation/listeners/user-registered.listener';
 
 @Module({
@@ -56,6 +58,7 @@ import { UserRegisteredListener } from './presentation/listeners/user-registered
       useExisting: PrismaEmailRepository,
     },
     QueueEmailUseCase,
+    SendPasswordResetEmailUseCase,
     SendVerificationEmailUseCase,
     EmailService,
     EmailTemplateService,
@@ -65,7 +68,13 @@ import { UserRegisteredListener } from './presentation/listeners/user-registered
     EmailProviderFactory,
     EmailProcessor,
     UserRegisteredListener,
+    PasswordResetRequestedListener,
   ],
-  exports: [QueueEmailUseCase, SendVerificationEmailUseCase, EmailService],
+  exports: [
+    QueueEmailUseCase,
+    SendVerificationEmailUseCase,
+    SendPasswordResetEmailUseCase,
+    EmailService,
+  ],
 })
 export class EmailModule {}

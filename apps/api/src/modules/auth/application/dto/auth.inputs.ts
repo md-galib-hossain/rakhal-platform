@@ -22,3 +22,17 @@ export interface RegisterInput {
 export interface RevokeSessionInput {
   sessionId: string;
 }
+
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+export interface ResetPasswordInput {
+  token: string;
+  newPassword: string;
+}
+
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+}

@@ -1,6 +1,6 @@
 import { UnauthorizedException } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { SessionService } from './session.service';
+import { AuthService } from './services/auth.service';
+import { SessionService } from './services/session.service';
 
 describe('AuthService', () => {
   type SuccessfulLoginCall = {
@@ -50,6 +50,12 @@ describe('AuthService', () => {
     audit: jest.Mock;
     warn: jest.Mock;
   };
+  let permissionService: {
+    invalidateForUser: jest.Mock;
+  };
+  let eventBus: {
+    emit: jest.Mock;
+  };
   let service: AuthService;
 
   beforeEach(() => {
@@ -79,6 +85,12 @@ describe('AuthService', () => {
       audit: jest.fn(),
       warn: jest.fn(),
     };
+    permissionService = {
+      invalidateForUser: jest.fn(),
+    };
+    eventBus = {
+      emit: jest.fn(),
+    };
     logger.setContext.mockReturnValue(logger);
 
     service = new AuthService(
@@ -88,8 +100,10 @@ describe('AuthService', () => {
       {} as SessionService,
       refreshTokenService,
       permissionsVersionCache,
+      permissionService as never,
       tokenService,
-      logger,
+      eventBus as never,
+      logger as never,
     );
   });
 
