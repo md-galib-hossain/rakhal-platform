@@ -82,14 +82,14 @@ describe('AuthService', () => {
     logger.setContext.mockReturnValue(logger);
 
     service = new AuthService(
-      config as never,
-      authRepository as never,
-      passwordService as never,
+      config,
+      authRepository,
+      passwordService,
       {} as SessionService,
-      refreshTokenService as never,
-      permissionsVersionCache as never,
-      tokenService as never,
-      logger as never,
+      refreshTokenService,
+      permissionsVersionCache,
+      tokenService,
+      logger,
     );
   });
 

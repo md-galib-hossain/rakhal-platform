@@ -9,9 +9,7 @@ import { AuthRepository } from '../auth/infrastructure/persistence/repositories/
 import { QueueEmailUseCase } from './application/use-cases/queue-email.use-case';
 import { SendVerificationEmailUseCase } from './application/use-cases/send-verification-email.use-case';
 import { EmailService } from './application/services/email.service';
-import {
-  EMAIL_REPOSITORY,
-} from './domain/repositories/email.repository';
+import { EMAIL_REPOSITORY } from './domain/repositories/email.repository';
 import { PrismaEmailRepository } from './infrastructure/persistence/repositories/prisma-email.repository';
 import { PdfGeneratorService } from './infrastructure/pdf/pdf-generator.service';
 import { EmailProviderFactory } from './infrastructure/providers/email-provider.factory';
