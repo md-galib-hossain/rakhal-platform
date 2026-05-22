@@ -85,7 +85,7 @@ export class PermissionService {
     );
 
     return requiredPermissions.every((permission) =>
-      permissions.includes(permission),
+      this.matchesPermission(permissions, permission),
     );
   }
 
@@ -142,5 +142,25 @@ export class PermissionService {
     permissionsVersion: number,
   ): string {
     return `auth:permissions:${userId}:${farmId}:${permissionsVersion}`;
+  }
+
+  private matchesPermission(
+    grantedPermissions: string[],
+    requiredPermission: string,
+  ): boolean {
+    if (grantedPermissions.includes('*')) {
+      return true;
+    }
+
+    if (grantedPermissions.includes(requiredPermission)) {
+      return true;
+    }
+
+    const [resource] = requiredPermission.split('.');
+    if (!resource) {
+      return false;
+    }
+
+    return grantedPermissions.includes(`${resource}.*`);
   }
 }
