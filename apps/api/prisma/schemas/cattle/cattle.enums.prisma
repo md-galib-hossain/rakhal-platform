@@ -3,15 +3,16 @@ enum CattleGender {
   COW
   HEIFER
   CALF
-  STEER
+  OX
 }
 
 enum CattlePurpose {
-  DAIRY
-  BEEF
+  MILK
   BREEDING
-  DRAFT
-  MIXED
+  MEAT
+  CALF
+  BULL_SERVICE
+  DUAL_PURPOSE
 }
 
 enum CattleStatus {
@@ -19,28 +20,12 @@ enum CattleStatus {
   SOLD
   DEAD
   TRANSFERRED
-  CULLED
+  MISSING
+  ARCHIVED
 }
 
-enum PregnancyStatus {
-  NOT_PREGNANT
-  PREGNANT
-  CONFIRMED
-  ABORTED
-  UNKNOWN
-}
-
-enum HealthStatus {
-  HEALTHY
-  SICK
-  UNDER_TREATMENT
-  RECOVERING
-  CRITICAL
-}
-
-enum AcquisitionType {
+enum CattleSourceType {
   BORN
   PURCHASED
   GIFTED
-  TRANSFERRED
 }

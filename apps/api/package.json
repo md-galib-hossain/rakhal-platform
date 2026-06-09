@@ -25,7 +25,9 @@
     "prisma:studio": "prisma studio --config prisma.config.ts",
     "redis:up": "docker compose -f docker-compose.redis.yml up -d",
     "redis:down": "docker compose -f docker-compose.redis.yml down",
-    "redis:logs": "docker logs -f rakhal-redis"
+    "redis:logs": "docker logs -f rakhal-redis",
+        "security": "node scripts/security/run-security-check.js"
+
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.2",

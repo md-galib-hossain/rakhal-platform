@@ -2,54 +2,73 @@ model Cattle {
   id String @id @default(cuid())
 
   farmId String
-  shedId String?
 
+  name      String?
   tagNumber String
-  name String?
+  image     String?
 
-  breedId String?
-  gender CattleGender
-
+  breedId     String?
+  gender      CattleGender
   dateOfBirth DateTime?
-  acquisitionType AcquisitionType?
-  acquisitionDate DateTime?
+  purpose     CattlePurpose
+  status      CattleStatus  @default(ACTIVE)
+  shedId      String?
 
-  purpose CattlePurpose // dairy, beef, breeding, draft, mixed
-  status CattleStatus   // active, sold, dead, transferred
-
-  // current snapshot
-  liveWeight Decimal?
-  bodyConditionScore Decimal?
-  currentHealthStatus HealthStatus?
-  pregnancyStatus PregnancyStatus?
-
-  // ancestry
   motherId String?
   fatherId String?
 
-  // dairy/reproduction snapshot
-  avgDailyYield Decimal?
-  totalCalvings Int @default(0)
-  lastCalvingDate DateTime?
-  lastInseminationDate DateTime?
-  expectedDeliveryDate DateTime?
+  sourceType CattleSourceType
+  color      String?
+  notes      String?
 
-  // scoring / performance
-  aqrScore Decimal?
-  productivityScore Decimal?
-
-  // media / notes
-  photoUrl String?
-  notes String?
-
+  isActive  Boolean  @default(true)
+  createdBy String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  farm    Farm   @relation("FarmToCattle", fields: [farmId], references: [id])
+  breed   Breed? @relation(fields: [breedId], references: [id])
+  shed    Shed?  @relation(fields: [shedId], references: [id])
+  creator User   @relation("CattleCreator", fields: [createdBy], references: [id])
+
+  mother   Cattle?  @relation("CattleMother", fields: [motherId], references: [id])
+  motherOf Cattle[] @relation("CattleMother")
+  father   Cattle?  @relation("CattleFather", fields: [fatherId], references: [id])
+  fatherOf Cattle[] @relation("CattleFather")
+
   @@unique([farmId, tagNumber])
   @@index([farmId])
-  @@index([shedId])
   @@index([breedId])
+  @@index([shedId])
   @@index([status])
   @@index([motherId])
   @@index([fatherId])
+  @@index([createdBy])
+}
+
+model Breed {
+  id String @id @default(cuid())
+
+  name        String  @unique
+  description String?
+  isActive    Boolean @default(true)
+
+  cattle Cattle[]
+}
+
+model Shed {
+  id String @id @default(cuid())
+
+  farmId      String
+  name        String
+  code        String
+  description String?
+  capacity    Int?
+  isActive    Boolean @default(true)
+
+  farm   Farm     @relation("FarmToShed", fields: [farmId], references: [id])
+  cattle Cattle[]
+
+  @@unique([farmId, code])
+  @@index([farmId])
 }

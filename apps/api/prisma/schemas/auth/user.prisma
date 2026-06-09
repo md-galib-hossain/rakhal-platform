@@ -6,9 +6,9 @@ model User {
 
   passwordHash String?
 
-  isEmailVerified Boolean @default(false)
+  isEmailVerified Boolean   @default(false)
   emailVerifiedAt DateTime?
-  isBlocked       Boolean @default(false)
+  isBlocked       Boolean   @default(false)
 
   failedLoginAttempts Int @default(0)
 
@@ -34,6 +34,7 @@ model User {
   farmMembers         FarmMember[]
   sentFarmInvitations FarmMember[] @relation("FarmInvitations")
   auditLogs           AuditLog[]   @relation("UserToAuditLog")
+  createdCattle       Cattle[]     @relation("CattleCreator")
 
   @@index([email])
 }

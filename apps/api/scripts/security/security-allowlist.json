@@ -1,0 +1,9 @@
+{
+  "allow": [
+    {
+      "file": "src/utils/safe-worker.ts",
+      "pattern": "new Function",
+      "reason": "Used intentionally in sandboxed expression parser"
+    }
+  ]
+}
