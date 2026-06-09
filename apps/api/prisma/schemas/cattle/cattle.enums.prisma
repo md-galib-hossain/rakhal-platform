@@ -1,0 +1,46 @@
+enum CattleGender {
+  BULL
+  COW
+  HEIFER
+  CALF
+  STEER
+}
+
+enum CattlePurpose {
+  DAIRY
+  BEEF
+  BREEDING
+  DRAFT
+  MIXED
+}
+
+enum CattleStatus {
+  ACTIVE
+  SOLD
+  DEAD
+  TRANSFERRED
+  CULLED
+}
+
+enum PregnancyStatus {
+  NOT_PREGNANT
+  PREGNANT
+  CONFIRMED
+  ABORTED
+  UNKNOWN
+}
+
+enum HealthStatus {
+  HEALTHY
+  SICK
+  UNDER_TREATMENT
+  RECOVERING
+  CRITICAL
+}
+
+enum AcquisitionType {
+  BORN
+  PURCHASED
+  GIFTED
+  TRANSFERRED
+}

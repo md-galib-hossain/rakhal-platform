@@ -1,0 +1,76 @@
+groups:
+  - name: rakhal-api-alerts
+    interval: 30s
+    rules:
+      - alert: RakhalHigh5xxErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(http_requests_total[5m])), 1)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: rakhal-api
+          team: backend
+        annotations:
+          summary: "High 5xx error rate on rakhal-api"
+          description: "5xx ratio is above 5% for 5 minutes. Investigate recent deploys, DB/Redis health, and Sentry spikes."
+          runbook_url: "observability/runbooks/incident-response.md"
+
+      - alert: RakhalHighP95Latency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(http_request_duration_ms_bucket[5m])) by (le, route)
+          ) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          service: rakhal-api
+          team: backend
+        annotations:
+          summary: "High p95 latency on one or more routes"
+          description: "p95 latency is above 800ms for at least 10 minutes. Check route-level hotspots and dependency latency."
+          runbook_url: "observability/runbooks/incident-response.md"
+
+      - alert: RakhalAuthFailureSpike
+        expr: sum(rate(auth_failures_total[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: rakhal-api
+          team: security
+        annotations:
+          summary: "Auth failure spike detected"
+          description: "Auth failures exceed 1 request/sec over 5m. Check brute-force patterns, bot traffic, or client auth regressions."
+          runbook_url: "observability/runbooks/incident-response.md"
+
+      - alert: RakhalServiceDegraded
+        expr: |
+          sum(rate(http_requests_total{route=~"/health|/ready|/live",status=~"5.."}[5m])) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: rakhal-api
+          team: sre
+        annotations:
+          summary: "Health endpoint degradation detected"
+          description: "One or more health probes are returning 5xx. Validate DB/Redis connectivity and pod/container state."
+          runbook_url: "observability/runbooks/incident-response.md"
+
+      - alert: RakhalTrafficAnomaly
+        expr: |
+          sum(rate(http_requests_total[5m]))
+          >
+          2 * sum(rate(http_requests_total[30m] offset 30m))
+        for: 10m
+        labels:
+          severity: warning
+          service: rakhal-api
+          team: sre
+        annotations:
+          summary: "Unusual traffic spike detected"
+          description: "Traffic is over 2x the previous baseline window. Validate campaign/load test/DDoS context."
+          runbook_url: "observability/runbooks/incident-response.md"

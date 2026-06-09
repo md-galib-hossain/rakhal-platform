@@ -1,0 +1,55 @@
+model Cattle {
+  id String @id @default(cuid())
+
+  farmId String
+  shedId String?
+
+  tagNumber String
+  name String?
+
+  breedId String?
+  gender CattleGender
+
+  dateOfBirth DateTime?
+  acquisitionType AcquisitionType?
+  acquisitionDate DateTime?
+
+  purpose CattlePurpose // dairy, beef, breeding, draft, mixed
+  status CattleStatus   // active, sold, dead, transferred
+
+  // current snapshot
+  liveWeight Decimal?
+  bodyConditionScore Decimal?
+  currentHealthStatus HealthStatus?
+  pregnancyStatus PregnancyStatus?
+
+  // ancestry
+  motherId String?
+  fatherId String?
+
+  // dairy/reproduction snapshot
+  avgDailyYield Decimal?
+  totalCalvings Int @default(0)
+  lastCalvingDate DateTime?
+  lastInseminationDate DateTime?
+  expectedDeliveryDate DateTime?
+
+  // scoring / performance
+  aqrScore Decimal?
+  productivityScore Decimal?
+
+  // media / notes
+  photoUrl String?
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([farmId, tagNumber])
+  @@index([farmId])
+  @@index([shedId])
+  @@index([breedId])
+  @@index([status])
+  @@index([motherId])
+  @@index([fatherId])
+}

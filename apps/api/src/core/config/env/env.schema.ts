@@ -144,6 +144,12 @@ export const envSchema = z.object({
     .positive()
     .default(1440),
   RESEND_API_KEY: z.string().optional(),
+
+  SENTRY_DSN: z.string().optional(),
+  SENTRY_ENABLED: z.coerce.boolean().default(false),
+  SENTRY_ENVIRONMENT: z.string().optional(),
+  SENTRY_RELEASE: z.string().optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
 });
 
 export type Env = z.infer<typeof envSchema>;

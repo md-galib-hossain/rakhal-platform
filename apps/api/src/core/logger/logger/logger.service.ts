@@ -36,8 +36,11 @@ export class LoggerService implements NestLoggerService {
         requestId: ctx.requestId,
         traceId: ctx.traceId,
         userId: ctx.userId,
+        farmId: ctx.tenantId,
         tenantId: ctx.tenantId,
+        service: 'rakhal-api',
       }),
+      ...(ctx === undefined && { service: 'rakhal-api' }),
       context: this.context,
       ...meta,
     };

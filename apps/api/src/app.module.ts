@@ -20,6 +20,7 @@ import {
   databaseConfig,
   emailConfig,
   redisConfig,
+  sentryConfig,
 } from 'src/core/config/env';
 import { DomainEventsModule } from 'src/common/events/domain-events.module';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
@@ -29,6 +30,9 @@ import { LoggerMiddleware } from 'src/core/logger/logger/logger.middleware';
 import { APP_FILTER } from '@nestjs/core';
 import { GlobalExceptionFilter } from 'src/common/filters/global-exception.filter';
 import { EmailModule } from './modules/email/email.module';
+import { SentryModule } from './core/observability/sentry/sentry.module';
+import { HealthController } from 'src/common/presentation/controllers/health.controller';
+import { MetricsModule } from './core/observability/metrics/metrics.module';
 
 type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
 
@@ -37,7 +41,14 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
-      load: [appConfig, authConfig, databaseConfig, redisConfig, emailConfig],
+      load: [
+        appConfig,
+        authConfig,
+        databaseConfig,
+        redisConfig,
+        emailConfig,
+        sentryConfig,
+      ],
       expandVariables: true,
       cache: true,
     }),
@@ -86,7 +97,10 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     RedisModule,
     DomainEventsModule,
     EmailModule,
+    SentryModule,
+    MetricsModule,
   ],
+  controllers: [HealthController],
   providers: [
     {
       provide: APP_FILTER,
