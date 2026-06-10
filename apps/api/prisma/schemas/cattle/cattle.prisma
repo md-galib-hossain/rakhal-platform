@@ -17,7 +17,7 @@ model Cattle {
   motherId String?
   fatherId String?
 
-  sourceType CattleSourceType
+  sourceType CattleSourceType @default(UNKNOWN)
   color      String?
   notes      String?
 
@@ -49,11 +49,18 @@ model Cattle {
 model Breed {
   id String @id @default(cuid())
 
-  name        String  @unique
+  farmId      String
+  name        String
   description String?
-  isActive    Boolean @default(true)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
+  farm   Farm     @relation("FarmToBreed", fields: [farmId], references: [id])
   cattle Cattle[]
+
+  @@unique([farmId, name])
+  @@index([farmId])
 }
 
 model Shed {
@@ -64,7 +71,9 @@ model Shed {
   code        String
   description String?
   capacity    Int?
-  isActive    Boolean @default(true)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   farm   Farm     @relation("FarmToShed", fields: [farmId], references: [id])
   cattle Cattle[]

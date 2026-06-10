@@ -1,5 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import { CsrfGuard } from './csrf.guard';
+import { CsrfGuard } from '../presentation/guards/csrf.guard';
 
 describe('CsrfGuard', () => {
   it('rejects invalid csrf tokens', () => {

@@ -1,9 +1,7 @@
 enum CattleGender {
-  BULL
-  COW
-  HEIFER
-  CALF
-  OX
+  MALE
+  FEMALE
+  CASTRATED_MALE
 }
 
 enum CattlePurpose {
@@ -28,4 +26,5 @@ enum CattleSourceType {
   BORN
   PURCHASED
   GIFTED
+  UNKNOWN
 }

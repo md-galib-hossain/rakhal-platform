@@ -48,6 +48,10 @@ import { SessionGuard } from './presentation/guards/session.guard';
     RefreshTokenService,
     CsrfService,
     AuthRepository,
+    PermissionsVersionCacheService,
+    JwtAuthGuard,
+    SessionGuard,
+    CsrfGuard,
   ],
 })
 export class AuthModule {}

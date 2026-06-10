@@ -18,6 +18,7 @@ model Farm {
   subscriptions FarmSubscription[] @relation("FarmToSubscription")
   auditLogs     AuditLog[]         @relation("FarmToAuditLog")
   cattle        Cattle[]           @relation("FarmToCattle")
+  breeds        Breed[]            @relation("FarmToBreed")
   sheds         Shed[]             @relation("FarmToShed")
 
   @@index([ownerId])

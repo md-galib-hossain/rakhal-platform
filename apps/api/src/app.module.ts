@@ -33,6 +33,7 @@ import { EmailModule } from './modules/email/email.module';
 import { SentryModule } from './core/observability/sentry/sentry.module';
 import { HealthController } from 'src/common/presentation/controllers/health.controller';
 import { MetricsModule } from './core/observability/metrics/metrics.module';
+import { CattleModule } from './modules/cattle/cattle.module';
 
 type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
 
@@ -99,6 +100,7 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     EmailModule,
     SentryModule,
     MetricsModule,
+    CattleModule,
   ],
   controllers: [HealthController],
   providers: [
