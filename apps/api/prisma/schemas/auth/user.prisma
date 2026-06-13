@@ -35,6 +35,7 @@ model User {
   sentFarmInvitations FarmMember[] @relation("FarmInvitations")
   auditLogs           AuditLog[]   @relation("UserToAuditLog")
   createdCattle       Cattle[]     @relation("CattleCreator")
+  createdHealthPlans  HealthPlan[] @relation("HealthPlanCreator")
 
   @@index([email])
 }

@@ -1,0 +1,312 @@
+model HealthCase {
+  id             String @id @default(cuid())
+  organizationId String
+  cattleId       String
+
+  caseCode      String
+  diagnosis     String
+  diagnosisType HealthDiagnosisType
+  priority      HealthPriority
+  status        HealthCaseStatus    @default(ACTIVE)
+
+  shedId   String?
+  shedName String?
+
+  reportedBy  String?
+  assignedVet String?
+
+  startDate            DateTime  @default(now())
+  expectedRecoveryDate DateTime?
+  closedDate           DateTime?
+  closeReason          String?
+  mortalityId          String?
+  healthPlanId         String?
+
+  currentStep        Int @default(0)
+  totalSteps         Int @default(0)
+  progressPercentage Int @default(0)
+
+  symptoms String[]
+  notes    String?
+
+  isSafetyWithholdingActive Boolean   @default(false)
+  milkWithdrawalUntil       DateTime?
+  meatWithdrawalUntil       DateTime?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Farm        @relation("FarmToHealthCase", fields: [organizationId], references: [id])
+  cattle       Cattle      @relation(fields: [cattleId], references: [id])
+  shed         Shed?       @relation(fields: [shedId], references: [id])
+  healthPlan   HealthPlan? @relation(fields: [healthPlanId], references: [id])
+
+  tasks             HealthTask[]
+  treatmentLogs     TreatmentLog[]
+  healthUpdates     HealthUpdate[]
+  mortalityRecord   MortalityRecord?
+  safetyWithdrawals SafetyWithdrawal[]
+
+  @@unique([organizationId, caseCode])
+  @@index([organizationId, cattleId])
+  @@index([organizationId, status])
+  @@index([organizationId, diagnosis])
+  @@index([organizationId, priority])
+  @@index([organizationId, startDate])
+}
+
+model HealthPlan {
+  id             String @id @default(cuid())
+  organizationId String
+
+  name        String
+  category    HealthPlanCategory
+  planType    HealthPlanType
+  description String?
+  diagnosis   String?
+
+  cycleLengthDays            Int?
+  totalActionSteps           Int      @default(0)
+  successRate                Decimal?
+  currentlyActiveAnimalCount Int      @default(0)
+
+  isTemplate Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  createdBy  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  organization Farm @relation("FarmToHealthPlan", fields: [organizationId], references: [id])
+  creator      User @relation("HealthPlanCreator", fields: [createdBy], references: [id])
+
+  steps HealthPlanStep[]
+  cases HealthCase[]
+  tasks HealthTask[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, category])
+  @@index([organizationId, name])
+}
+
+model HealthPlanStep {
+  id           String @id @default(cuid())
+  healthPlanId String
+
+  dayNumber  Int
+  title      String
+  actionType HealthActionType
+
+  medicineId   String?
+  medicineName String?
+  doseAmount   Decimal?
+  doseUnit     String?
+  route        MedicineRoute?
+
+  instruction        String?
+  estimatedTime      String?
+  milkWithdrawalDays Int?
+  meatWithdrawalDays Int?
+  isRequired         Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  healthPlan HealthPlan @relation(fields: [healthPlanId], references: [id])
+
+  @@index([healthPlanId])
+  @@index([healthPlanId, dayNumber])
+}
+
+model HealthTask {
+  id             String  @id @default(cuid())
+  organizationId String
+  cattleId       String
+  healthCaseId   String
+  healthPlanId   String?
+
+  taskCode    String
+  taskDate    DateTime
+  dueDateTime DateTime
+  status      HealthTaskStatus @default(PENDING)
+  taskType    HealthActionType
+
+  title       String
+  instruction String?
+  stepNumber  Int?
+  totalSteps  Int?
+
+  medicineId   String?
+  medicineName String?
+  doseAmount   Decimal?
+  doseUnit     String?
+  route        MedicineRoute?
+
+  completedAt DateTime?
+  completedBy String?
+
+  rescheduledFrom DateTime?
+  rescheduledTo   DateTime?
+  notes           String?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Farm        @relation("FarmToHealthTask", fields: [organizationId], references: [id])
+  cattle       Cattle      @relation(fields: [cattleId], references: [id])
+  healthCase   HealthCase  @relation(fields: [healthCaseId], references: [id])
+  healthPlan   HealthPlan? @relation(fields: [healthPlanId], references: [id])
+
+  treatmentLogs TreatmentLog[]
+
+  @@unique([organizationId, taskCode])
+  @@index([organizationId, dueDateTime])
+  @@index([organizationId, status])
+  @@index([organizationId, cattleId])
+  @@index([organizationId, healthCaseId])
+}
+
+model TreatmentLog {
+  id             String  @id @default(cuid())
+  organizationId String
+  cattleId       String
+  healthCaseId   String
+  healthTaskId   String?
+
+  medicineId   String?
+  medicineName String?
+  route        MedicineRoute?
+  doseAmount   Decimal?
+  doseUnit     String?
+
+  administeredAt DateTime
+  administeredBy String
+
+  stockDeducted          Boolean  @default(false)
+  stockDeductionQuantity Decimal?
+  batchNo                String?
+  notes                  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Farm        @relation("FarmToTreatmentLog", fields: [organizationId], references: [id])
+  cattle       Cattle      @relation(fields: [cattleId], references: [id])
+  healthCase   HealthCase  @relation(fields: [healthCaseId], references: [id])
+  healthTask   HealthTask? @relation(fields: [healthTaskId], references: [id])
+
+  safetyWithdrawals SafetyWithdrawal[]
+
+  @@index([organizationId, cattleId])
+  @@index([organizationId, healthCaseId])
+  @@index([organizationId, administeredAt])
+}
+
+model HealthUpdate {
+  id             String @id @default(cuid())
+  organizationId String
+  cattleId       String
+  healthCaseId   String
+
+  clinicalProgress ClinicalProgress
+  symptoms         String[]
+  temperature      Decimal?
+  appetite         AppetiteStatus?
+  appearance       AppearanceStatus?
+  observation      String?
+  recordedBy       String
+  recordedAt       DateTime          @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Farm       @relation("FarmToHealthUpdate", fields: [organizationId], references: [id])
+  cattle       Cattle     @relation(fields: [cattleId], references: [id])
+  healthCase   HealthCase @relation(fields: [healthCaseId], references: [id])
+
+  @@index([organizationId, healthCaseId])
+  @@index([organizationId, cattleId])
+  @@index([organizationId, recordedAt])
+}
+
+model MortalityRecord {
+  id             String @id @default(cuid())
+  organizationId String
+  cattleId       String
+  healthCaseId   String @unique
+
+  deathDate           DateTime
+  primaryCauseOfDeath String
+  vetSignOff          String?
+  symptoms            String[]
+  postMortemPerformed Boolean  @default(false)
+  disposalMethod      String?
+  disposalCost        Decimal?
+  disposalLocation    String?
+  additionalNotes     String?
+  recordedBy          String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Farm       @relation("FarmToMortalityRecord", fields: [organizationId], references: [id])
+  cattle       Cattle     @relation(fields: [cattleId], references: [id])
+  healthCase   HealthCase @relation(fields: [healthCaseId], references: [id])
+
+  @@index([organizationId, cattleId])
+  @@index([organizationId, healthCaseId])
+  @@index([organizationId, deathDate])
+}
+
+model SafetyWithdrawal {
+  id             String  @id @default(cuid())
+  organizationId String
+  cattleId       String
+  healthCaseId   String
+  treatmentLogId String?
+  medicineId     String?
+
+  milkWithdrawalUntil DateTime?
+  meatWithdrawalUntil DateTime?
+  status              SafetyWithdrawalStatus @default(ACTIVE)
+  safeMilkDate        DateTime?
+  safeMeatDate        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Farm          @relation("FarmToSafetyWithdrawal", fields: [organizationId], references: [id])
+  cattle       Cattle        @relation(fields: [cattleId], references: [id])
+  healthCase   HealthCase    @relation(fields: [healthCaseId], references: [id])
+  treatmentLog TreatmentLog? @relation(fields: [treatmentLogId], references: [id])
+
+  @@index([organizationId, cattleId])
+  @@index([organizationId, status])
+  @@index([organizationId, healthCaseId])
+}
+
+model DiseaseCatalog {
+  id             String  @id @default(cuid())
+  organizationId String?
+
+  name            String
+  category        String?
+  defaultPriority HealthPriority?
+  defaultSymptoms String[]
+
+  isContagious              Boolean @default(false)
+  recommendedIsolation      Boolean @default(false)
+  defaultMilkWithdrawalDays Int?
+  defaultMeatWithdrawalDays Int?
+  isSystemDefault           Boolean @default(false)
+  isActive                  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Farm? @relation("FarmToDiseaseCatalog", fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([name])
+}

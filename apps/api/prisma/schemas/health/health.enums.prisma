@@ -1,0 +1,101 @@
+enum HealthDiagnosisType {
+  DISEASE
+  INJURY
+  VACCINATION
+  DEWORMING
+  ROUTINE_CHECKUP
+  PREVENTIVE
+  BREEDING_RELATED
+  OTHER
+}
+
+enum HealthPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum HealthCaseStatus {
+  ACTIVE
+  IMPROVING
+  WORSENING
+  STABLE
+  RECOVERED
+  MORTALITY
+  CLOSED
+}
+
+enum HealthPlanCategory {
+  TREATMENT
+  PREVENTION
+  BREEDING
+  VACCINATION
+  DEWORMING
+  ROUTINE
+}
+
+enum HealthPlanType {
+  MEDICAL
+  PREVENTION
+  BREEDING
+  GENERAL
+}
+
+enum HealthActionType {
+  MEDICINE
+  OBSERVATION
+  VACCINATION
+  DEWORMING
+  CHECKUP
+  LAB_TEST
+  OTHER
+}
+
+enum MedicineRoute {
+  IM
+  IV
+  SC
+  ORAL
+  TOPICAL
+  OTHER
+}
+
+enum HealthTaskStatus {
+  PENDING
+  COMPLETED
+  MISSED
+  OVERDUE
+  SKIPPED
+  RESCHEDULED
+}
+
+enum ClinicalProgress {
+  IMPROVING
+  WORSENING
+  STABLE
+}
+
+enum AppetiteStatus {
+  NORMAL
+  REDUCED
+  NONE
+  HIGH
+}
+
+enum AppearanceStatus {
+  BRIGHT
+  DULL
+  DEPRESSED
+  WEAK
+}
+
+enum SafetyWithdrawalStatus {
+  ACTIVE
+  COMPLETED
+}
+
+enum HealthCloseOutcome {
+  RECOVERED
+  MORTALITY
+}

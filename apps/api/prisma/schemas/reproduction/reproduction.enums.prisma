@@ -1,0 +1,69 @@
+enum ReproductiveStatus {
+  HEIFER
+  OPEN
+  BRED
+  PREGNANT
+  DRY
+  LACTATING
+  POSTPARTUM
+  ABORTED
+  RETIRED
+}
+
+enum HeatDetectionMethod {
+  VISUAL
+  COLLAR_SENSOR
+  PEDOMETER
+  MANUAL
+}
+
+enum BreedingMethod {
+  AI
+  NATURAL
+  EMBRYO_TRANSFER
+}
+
+enum BreedingStatus {
+  PENDING_CHECK
+  PREGNANT
+  FAILED
+  ABORTED
+  CALVED
+}
+
+enum PregnancyDiagnosisResult {
+  PREGNANT
+  NOT_PREGNANT
+  SUSPECTED
+}
+
+enum PregnancyDiagnosisMethod {
+  ULTRASOUND
+  PALPATION
+  LAB
+}
+
+enum PregnancyStatus {
+  ACTIVE
+  CALVED
+  ABORTED
+  FAILED
+}
+
+enum CalvingEase {
+  NORMAL
+  ASSISTED
+  DIFFICULT
+  CESAREAN
+}
+
+enum CalfBirthStatus {
+  ALIVE
+  STILLBORN
+  DIED_AFTER_BIRTH
+}
+
+enum LactationStatus {
+  ACTIVE
+  ENDED
+}

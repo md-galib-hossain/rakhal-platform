@@ -1,0 +1,228 @@
+model ReproductionProfile {
+  id       String @id @default(cuid())
+  cattleId String @unique
+
+  pubertyDate DateTime?
+
+  reproductiveStatus     ReproductiveStatus @default(HEIFER)
+  currentLactationNumber Int                @default(0)
+
+  totalBreedings   Int @default(0)
+  totalPregnancies Int @default(0)
+  totalCalvings    Int @default(0)
+  totalAbortions   Int @default(0)
+
+  firstCalvingDate       DateTime?
+  lastBreedingDate       DateTime?
+  lastPregnancyCheckDate DateTime?
+  lastCalvingDate        DateTime?
+  currentPregnancyId     String?
+  currentLactationId     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cattle Cattle @relation(fields: [cattleId], references: [id])
+}
+
+model HeatEvent {
+  id       String @id @default(cuid())
+  cattleId String
+
+  heatDateTime DateTime
+
+  detectionMethod  HeatDetectionMethod
+  standingHeat     Boolean             @default(false)
+  mucusDischarge   Boolean             @default(false)
+  mountingBehavior Boolean             @default(false)
+  restlessness     Boolean             @default(false)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+
+  cattle Cattle @relation(fields: [cattleId], references: [id])
+
+  @@index([cattleId])
+  @@index([heatDateTime])
+}
+
+model BreedingEvent {
+  id       String @id @default(cuid())
+  cattleId String
+
+  breedingDate DateTime
+
+  breedingMethod BreedingMethod
+  bullId         String?
+  semenBatchId   String?
+  inseminator    String?
+
+  breedingNumber             Int
+  expectedPregnancyCheckDate DateTime?
+  status                     BreedingStatus @default(PENDING_CHECK)
+  notes                      String?
+
+  createdAt DateTime @default(now())
+
+  cattle Cattle  @relation("BreedingEventCattle", fields: [cattleId], references: [id])
+  bull   Cattle? @relation("BreedingEventBull", fields: [bullId], references: [id])
+
+  diagnoses   PregnancyDiagnosis[]
+  pregnancies Pregnancy[]
+
+  @@index([cattleId])
+  @@index([bullId])
+  @@index([breedingDate])
+  @@index([status])
+}
+
+model PregnancyDiagnosis {
+  id              String  @id @default(cuid())
+  cattleId        String
+  breedingEventId String?
+
+  diagnosisDate       DateTime
+  result              PregnancyDiagnosisResult
+  diagnosisMethod     PregnancyDiagnosisMethod
+  gestationDay        Int?
+  expectedCalvingDate DateTime?
+  notes               String?
+
+  createdAt DateTime @default(now())
+
+  cattle        Cattle         @relation(fields: [cattleId], references: [id])
+  breedingEvent BreedingEvent? @relation(fields: [breedingEventId], references: [id])
+
+  @@index([cattleId])
+  @@index([breedingEventId])
+  @@index([diagnosisDate])
+  @@index([result])
+}
+
+model Pregnancy {
+  id              String  @id @default(cuid())
+  cattleId        String
+  breedingEventId String?
+
+  conceptionDate      DateTime
+  expectedCalvingDate DateTime?
+  actualCalvingDate   DateTime?
+  gestationDays       Int?
+  status              PregnancyStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+
+  cattle        Cattle         @relation(fields: [cattleId], references: [id])
+  breedingEvent BreedingEvent? @relation(fields: [breedingEventId], references: [id])
+
+  calvingEvents  CalvingEvent[]
+  abortionEvents AbortionEvent[]
+
+  @@index([cattleId])
+  @@index([breedingEventId])
+  @@index([status])
+}
+
+model CalvingEvent {
+  id          String  @id @default(cuid())
+  cattleId    String
+  pregnancyId String?
+
+  calvingDate      DateTime
+  calvingNumber    Int
+  calvingEase      CalvingEase
+  calfCount        Int         @default(1)
+  placentaExpelled Boolean     @default(false)
+  retainedPlacenta Boolean     @default(false)
+  complications    String?
+  notes            String?
+
+  createdAt DateTime @default(now())
+
+  cattle    Cattle     @relation(fields: [cattleId], references: [id])
+  pregnancy Pregnancy? @relation(fields: [pregnancyId], references: [id])
+
+  calfBirths CalfBirth[]
+  lactations Lactation[]
+
+  @@index([cattleId])
+  @@index([pregnancyId])
+  @@index([calvingDate])
+}
+
+model CalfBirth {
+  id             String  @id @default(cuid())
+  calvingEventId String
+  calfId         String?
+
+  gender      CattleGender
+  birthWeight Decimal?
+  status      CalfBirthStatus
+
+  createdAt DateTime @default(now())
+
+  calvingEvent CalvingEvent @relation(fields: [calvingEventId], references: [id])
+  calf         Cattle?      @relation("CattleCalfBirth", fields: [calfId], references: [id])
+
+  @@index([calvingEventId])
+  @@index([calfId])
+}
+
+model AbortionEvent {
+  id          String  @id @default(cuid())
+  cattleId    String
+  pregnancyId String?
+
+  abortionDate   DateTime
+  gestationDay   Int?
+  suspectedCause String?
+  notes          String?
+
+  createdAt DateTime @default(now())
+
+  cattle    Cattle     @relation(fields: [cattleId], references: [id])
+  pregnancy Pregnancy? @relation(fields: [pregnancyId], references: [id])
+
+  @@index([cattleId])
+  @@index([pregnancyId])
+  @@index([abortionDate])
+}
+
+model DryPeriod {
+  id       String @id @default(cuid())
+  cattleId String
+
+  startDate       DateTime
+  expectedEndDate DateTime?
+  actualEndDate   DateTime?
+  notes           String?
+
+  createdAt DateTime @default(now())
+
+  cattle Cattle @relation(fields: [cattleId], references: [id])
+
+  @@index([cattleId])
+  @@index([startDate])
+}
+
+model Lactation {
+  id              String  @id @default(cuid())
+  cattleId        String
+  lactationNumber Int
+  calvingEventId  String?
+
+  startDate    DateTime
+  endDate      DateTime?
+  peakMilkDate DateTime?
+  status       LactationStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+
+  cattle       Cattle        @relation(fields: [cattleId], references: [id])
+  calvingEvent CalvingEvent? @relation(fields: [calvingEventId], references: [id])
+
+  @@index([cattleId])
+  @@index([calvingEventId])
+  @@index([status])
+}

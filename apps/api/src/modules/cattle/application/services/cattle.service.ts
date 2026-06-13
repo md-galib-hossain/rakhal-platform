@@ -8,6 +8,8 @@ import {
   Cattle,
   CattleSourceType,
   CattleStatus,
+  LactationStatus,
+  PregnancyStatus,
   Prisma,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
@@ -246,13 +248,25 @@ export class CattleService {
         OR: [{ motherId: id }, { fatherId: id }],
       },
     });
+    const [currentPregnancy, currentLactation] = await Promise.all([
+      this.prisma.pregnancy.findFirst({
+        where: { cattleId: id, status: PregnancyStatus.ACTIVE },
+        orderBy: { conceptionDate: 'desc' },
+      }),
+      this.prisma.lactation.findFirst({
+        where: { cattleId: id, status: LactationStatus.ACTIVE },
+        orderBy: { startDate: 'desc' },
+      }),
+    ]);
 
     return {
       ...cattle,
       age: this.calculateAge(cattle.dateOfBirth),
       childrenCount,
-      dim: null,
-      pregnancyStatus: 'NOT_RECORDED',
+      dim: currentLactation
+        ? this.daysBetween(currentLactation.startDate, new Date())
+        : null,
+      pregnancyStatus: currentPregnancy ? currentPregnancy.status : 'NOT_RECORDED',
       healthStatus: 'NOT_RECORDED',
     };
   }
@@ -487,6 +501,13 @@ export class CattleService {
     }
 
     return { years, months };
+  }
+
+  private daysBetween(start: Date, end: Date) {
+    return Math.max(
+      0,
+      Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
+    );
   }
 
   private orderBy(sortBy = 'createdAt', sortOrder: 'asc' | 'desc' = 'desc') {

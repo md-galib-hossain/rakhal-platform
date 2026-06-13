@@ -36,6 +36,24 @@ model Cattle {
   father   Cattle?  @relation("CattleFather", fields: [fatherId], references: [id])
   fatherOf Cattle[] @relation("CattleFather")
 
+  reproductionProfile ReproductionProfile?
+  heatEvents          HeatEvent[]
+  breedingEvents      BreedingEvent[]      @relation("BreedingEventCattle")
+  breedingAsBull      BreedingEvent[]      @relation("BreedingEventBull")
+  pregnancyDiagnoses  PregnancyDiagnosis[]
+  pregnancies         Pregnancy[]
+  calvingEvents       CalvingEvent[]
+  abortionEvents      AbortionEvent[]
+  dryPeriods          DryPeriod[]
+  lactations          Lactation[]
+  calfBirths          CalfBirth[]          @relation("CattleCalfBirth")
+  healthCases         HealthCase[]
+  healthTasks         HealthTask[]
+  treatmentLogs       TreatmentLog[]
+  healthUpdates       HealthUpdate[]
+  mortalityRecords    MortalityRecord[]
+  safetyWithdrawals   SafetyWithdrawal[]
+
   @@unique([farmId, tagNumber])
   @@index([farmId])
   @@index([breedId])
@@ -75,8 +93,9 @@ model Shed {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  farm   Farm     @relation("FarmToShed", fields: [farmId], references: [id])
-  cattle Cattle[]
+  farm        Farm         @relation("FarmToShed", fields: [farmId], references: [id])
+  cattle      Cattle[]
+  healthCases HealthCase[]
 
   @@unique([farmId, code])
   @@index([farmId])

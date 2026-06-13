@@ -13,13 +13,21 @@ model Farm {
 
   owner User @relation("FarmOwner", fields: [ownerId], references: [id])
 
-  members       FarmMember[]
-  roles         Role[]             @relation("FarmToRole")
-  subscriptions FarmSubscription[] @relation("FarmToSubscription")
-  auditLogs     AuditLog[]         @relation("FarmToAuditLog")
-  cattle        Cattle[]           @relation("FarmToCattle")
-  breeds        Breed[]            @relation("FarmToBreed")
-  sheds         Shed[]             @relation("FarmToShed")
+  members           FarmMember[]
+  roles             Role[]             @relation("FarmToRole")
+  subscriptions     FarmSubscription[] @relation("FarmToSubscription")
+  auditLogs         AuditLog[]         @relation("FarmToAuditLog")
+  cattle            Cattle[]           @relation("FarmToCattle")
+  breeds            Breed[]            @relation("FarmToBreed")
+  sheds             Shed[]             @relation("FarmToShed")
+  healthCases       HealthCase[]       @relation("FarmToHealthCase")
+  healthPlans       HealthPlan[]       @relation("FarmToHealthPlan")
+  healthTasks       HealthTask[]       @relation("FarmToHealthTask")
+  treatmentLogs     TreatmentLog[]     @relation("FarmToTreatmentLog")
+  healthUpdates     HealthUpdate[]     @relation("FarmToHealthUpdate")
+  mortalityRecords  MortalityRecord[]  @relation("FarmToMortalityRecord")
+  safetyWithdrawals SafetyWithdrawal[] @relation("FarmToSafetyWithdrawal")
+  diseaseCatalogs   DiseaseCatalog[]   @relation("FarmToDiseaseCatalog")
 
   @@index([ownerId])
   @@index([slug])

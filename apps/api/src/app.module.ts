@@ -34,6 +34,8 @@ import { SentryModule } from './core/observability/sentry/sentry.module';
 import { HealthController } from 'src/common/presentation/controllers/health.controller';
 import { MetricsModule } from './core/observability/metrics/metrics.module';
 import { CattleModule } from './modules/cattle/cattle.module';
+import { ReproductionModule } from './modules/reproduction/reproduction.module';
+import { HealthModule } from './modules/health/health.module';
 
 type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
 
@@ -101,6 +103,8 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     SentryModule,
     MetricsModule,
     CattleModule,
+    ReproductionModule,
+    HealthModule,
   ],
   controllers: [HealthController],
   providers: [
