@@ -14,7 +14,7 @@ export class CreateHealthCaseDto {
   @Transform(trimString)
   @IsString()
   @IsNotEmpty()
-  organizationId!: string;
+  farmId!: string;
 
   @Transform(trimString)
   @IsString()

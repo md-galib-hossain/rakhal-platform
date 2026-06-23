@@ -17,7 +17,7 @@ show cattle health history
 ```
 
 The existing project uses `Farm` as the tenant boundary. This module keeps the
-requested `organizationId` field name, and that value must be the farm ID.
+requested `farmId` field name, and that value must be the farm ID.
 
 All routes require:
 
@@ -61,7 +61,7 @@ routine, breeding-related, or other health events.
 Important fields:
 
 ```txt
-organizationId
+farmId
 cattleId
 caseCode
 diagnosis
@@ -141,7 +141,7 @@ List routes return:
 Common query fields:
 
 ```txt
-organizationId
+farmId
 cattleId
 search
 fromDate
@@ -152,7 +152,7 @@ sortBy
 sortOrder
 ```
 
-`organizationId` is required on most health list/dashboard routes.
+`farmId` is required on most health list/dashboard routes.
 
 ## 5. API List
 
@@ -190,7 +190,7 @@ POST /health/cases
 
 ```json
 {
-  "organizationId": "farm_id",
+  "farmId": "farm_id",
   "cattleId": "cattle_id",
   "diagnosis": "Mastitis",
   "diagnosisType": "DISEASE",
@@ -210,8 +210,8 @@ Rules:
 
 ```txt
 cattle must exist
-cattle.farmId must equal organizationId
-shedId must belong to organizationId
+cattle.farmId must equal farmId
+shedId must belong to farmId
 diagnosis and priority are required
 duplicate active case for same cattle + diagnosis is blocked
 startDate defaults to now
@@ -233,7 +233,7 @@ POST /health/cases/:id/apply-plan
 Behavior:
 
 ```txt
-validates plan belongs to same organization
+validates plan belongs to same Farm
 deletes pending tasks for the case
 creates HealthTask records from plan steps
 updates healthCase.healthPlanId
@@ -383,7 +383,7 @@ POST /health/plans
 
 ```json
 {
-  "organizationId": "farm_id",
+  "farmId": "farm_id",
   "name": "5 Day Mastitis Treatment",
   "category": "TREATMENT",
   "planType": "MEDICAL",
@@ -414,7 +414,7 @@ POST /health/plans
 Routes:
 
 ```txt
-GET /health/plans?organizationId=farm_id&search=mastitis
+GET /health/plans?farmId=farm_id&search=mastitis
 GET /health/plans/:id
 PATCH /health/plans/:id
 DELETE /health/plans/:id
@@ -443,13 +443,13 @@ Ovsynch Breeding Cycle
 Task hub:
 
 ```http
-GET /health/tasks?organizationId=farm_id&status=PENDING&type=MEDICINE
+GET /health/tasks?farmId=farm_id&status=PENDING&type=MEDICINE
 ```
 
 Calendar:
 
 ```http
-GET /health/tasks/calendar?organizationId=farm_id&month=6&year=2026
+GET /health/tasks/calendar?farmId=farm_id&month=6&year=2026
 ```
 
 Complete:
@@ -508,13 +508,13 @@ mortalityStatus
 List:
 
 ```http
-GET /health/safety-withdrawals?organizationId=farm_id&status=ACTIVE
+GET /health/safety-withdrawals?farmId=farm_id&status=ACTIVE
 ```
 
 Refresh:
 
 ```http
-POST /health/safety-withdrawals/refresh?organizationId=farm_id
+POST /health/safety-withdrawals/refresh?farmId=farm_id
 ```
 
 Refresh marks expired active withdrawal records as `COMPLETED`.
@@ -529,7 +529,7 @@ Cattle health summary returns safetyWithdrawalWarning=true when active withdrawa
 ## 16. Dashboard Metrics
 
 ```http
-GET /health/dashboard?organizationId=farm_id
+GET /health/dashboard?farmId=farm_id
 ```
 
 Returns:
@@ -565,8 +565,8 @@ sickBayCount excludes recovered, mortality, and closed cases.
 ## 17. Business Rules
 
 ```txt
-Every health record is organization scoped.
-organizationId must be a farm ID.
+Every health record is Farm scoped.
+farmId must be a farm ID.
 Never expose another farm's cattle or health data.
 Health case creation blocks duplicate active cases for same cattle + diagnosis.
 Applying a plan and generating tasks runs in a transaction.
@@ -580,7 +580,7 @@ Case history remains available after closure.
 
 ```txt
 Create health case
-Prevent cross-organization access
+Prevent cross-Farm access
 Apply health plan and generate tasks
 Complete dose and update progress
 Deduct medicine stock when inventory exists

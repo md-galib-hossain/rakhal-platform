@@ -52,9 +52,9 @@ export class HealthService {
     this.log = this.logger.setContext(HealthService.name);
   }
 
-  async getHealthDashboard(userId: string, organizationId: string) {
-    await this.assertFarmAccess(userId, organizationId);
-    await this.refreshSafetyWithdrawalsForOrganization(organizationId);
+  async getHealthDashboard(userId: string, farmId: string) {
+    await this.assertFarmAccess(userId, farmId);
+    await this.refreshSafetyWithdrawalsForFarm(farmId);
 
     const activeCaseStatuses = [
       HealthCaseStatus.ACTIVE,
@@ -75,40 +75,40 @@ export class HealthService {
       trendRows,
     ] = await Promise.all([
       this.prisma.cattle.count({
-        where: { farmId: organizationId, isActive: true },
+        where: { farmId: farmId, isActive: true },
       }),
       this.prisma.healthCase.count({
-        where: { organizationId, status: { in: activeCaseStatuses }, isActive: true },
+        where: { farmId, status: { in: activeCaseStatuses }, isActive: true },
       }),
       this.prisma.safetyWithdrawal.count({
-        where: { organizationId, status: SafetyWithdrawalStatus.ACTIVE },
+        where: { farmId, status: SafetyWithdrawalStatus.ACTIVE },
       }),
       this.prisma.healthTask.count({
         where: {
-          organizationId,
+          farmId,
           status: HealthTaskStatus.PENDING,
           dueDateTime: { gte: now },
         },
       }),
       this.prisma.healthTask.count({
         where: {
-          organizationId,
+          farmId,
           status: { in: [HealthTaskStatus.PENDING, HealthTaskStatus.OVERDUE] },
           dueDateTime: { lt: now },
         },
       }),
       this.prisma.healthCase.groupBy({
         by: ['diagnosis'],
-        where: { organizationId },
+        where: { farmId },
         _count: { diagnosis: true },
       }),
       this.prisma.healthCase.groupBy({
         by: ['shedName'],
-        where: { organizationId },
+        where: { farmId },
         _count: { shedName: true },
       }),
       this.prisma.healthCase.findMany({
-        where: { organizationId },
+        where: { farmId },
         select: { startDate: true },
         orderBy: { startDate: 'asc' },
       }),
@@ -141,8 +141,8 @@ export class HealthService {
   }
 
   async getSickBay(userId: string, query: SickBayQueryDto) {
-    const organizationId = this.requireOrganizationId(query.organizationId);
-    await this.assertFarmAccess(userId, organizationId);
+    const farmId = this.requireFarmId(query.farmId);
+    await this.assertFarmAccess(userId, farmId);
     const activeCaseStatuses = [
       HealthCaseStatus.ACTIVE,
       HealthCaseStatus.IMPROVING,
@@ -151,7 +151,7 @@ export class HealthService {
     ];
 
     const where: Prisma.HealthCaseWhereInput = {
-      organizationId,
+      farmId,
       isActive: true,
       status: query.status ?? { in: activeCaseStatuses },
       ...(query.search
@@ -191,13 +191,13 @@ export class HealthService {
   }
 
   async createHealthCase(userId: string, dto: CreateHealthCaseDto) {
-    await this.assertFarmAccess(userId, dto.organizationId);
-    const cattle = await this.assertCattleInOrganization(dto.cattleId, dto.organizationId);
-    if (dto.shedId) await this.assertShedInOrganization(dto.shedId, dto.organizationId);
+    await this.assertFarmAccess(userId, dto.farmId);
+    const cattle = await this.assertCattleInFarm(dto.cattleId, dto.farmId);
+    if (dto.shedId) await this.assertShedInFarm(dto.shedId, dto.farmId);
 
     const duplicate = await this.prisma.healthCase.findFirst({
       where: {
-        organizationId: dto.organizationId,
+        farmId: dto.farmId,
         cattleId: dto.cattleId,
         diagnosis: { equals: dto.diagnosis, mode: 'insensitive' },
         status: {
@@ -215,12 +215,12 @@ export class HealthService {
     }
 
     const count = await this.prisma.healthCase.count({
-      where: { organizationId: dto.organizationId },
+      where: { farmId: dto.farmId },
     });
     const caseCode = `HC-${String(count + 1).padStart(5, '0')}`;
     const healthCase = await this.prisma.healthCase.create({
       data: {
-        organizationId: dto.organizationId,
+        farmId: dto.farmId,
         cattleId: dto.cattleId,
         caseCode,
         diagnosis: dto.diagnosis,
@@ -241,7 +241,7 @@ export class HealthService {
     });
     this.log.info('Health case created', {
       healthCaseId: healthCase.id,
-      organizationId: dto.organizationId,
+      farmId: dto.farmId,
       cattleId: dto.cattleId,
     });
     return healthCase;
@@ -260,7 +260,7 @@ export class HealthService {
       },
     });
     if (!healthCase) throw new NotFoundException('Health case not found');
-    await this.assertFarmAccess(userId, healthCase.organizationId);
+    await this.assertFarmAccess(userId, healthCase.farmId);
     return {
       ...healthCase,
       nextDose: healthCase.tasks.find((task) => task.status === HealthTaskStatus.PENDING) ?? null,
@@ -287,7 +287,7 @@ export class HealthService {
       },
       include: this.caseInclude(),
     }).then((updated) => {
-      this.log.info('Health case updated', { healthCaseId: id, organizationId: healthCase.organizationId });
+      this.log.info('Health case updated', { healthCaseId: id, farmId: healthCase.farmId });
       return updated;
     });
   }
@@ -295,7 +295,7 @@ export class HealthService {
   async applyHealthPlanToCase(userId: string, id: string, dto: ApplyHealthPlanDto) {
     const healthCase = await this.getCaseForUser(userId, id);
     const plan = await this.prisma.healthPlan.findFirst({
-      where: { id: dto.healthPlanId, organizationId: healthCase.organizationId, isActive: true },
+      where: { id: dto.healthPlanId, farmId: healthCase.farmId, isActive: true },
       include: { steps: { orderBy: { dayNumber: 'asc' } } },
     });
     if (!plan) throw new NotFoundException('Health plan not found');
@@ -308,7 +308,7 @@ export class HealthService {
           const dueDateTime = this.addDays(startDate, step.dayNumber);
           return tx.healthTask.create({
             data: {
-              organizationId: healthCase.organizationId,
+              farmId: healthCase.farmId,
               cattleId: healthCase.cattleId,
               healthCaseId: id,
               healthPlanId: plan.id,
@@ -357,7 +357,7 @@ export class HealthService {
     const log = await this.prisma.$transaction(async (tx) => {
       const treatmentLog = await tx.treatmentLog.create({
         data: {
-          organizationId: healthCase.organizationId,
+          farmId: healthCase.farmId,
           cattleId: healthCase.cattleId,
           healthCaseId: id,
           healthTaskId: dto.healthTaskId,
@@ -402,7 +402,7 @@ export class HealthService {
     const update = await this.prisma.$transaction(async (tx) => {
       const created = await tx.healthUpdate.create({
         data: {
-          organizationId: healthCase.organizationId,
+          farmId: healthCase.farmId,
           cattleId: healthCase.cattleId,
           healthCaseId: id,
           clinicalProgress: dto.clinicalProgress,
@@ -439,7 +439,7 @@ export class HealthService {
         isActive: false,
       },
     }).then((closed) => {
-      this.log.info('Health case closed as recovered', { healthCaseId: id, organizationId: healthCase.organizationId });
+      this.log.info('Health case closed as recovered', { healthCaseId: id, farmId: healthCase.farmId });
       return closed;
     });
   }
@@ -449,7 +449,7 @@ export class HealthService {
     const result = await this.prisma.$transaction(async (tx) => {
       const mortality = await tx.mortalityRecord.create({
         data: {
-          organizationId: healthCase.organizationId,
+          farmId: healthCase.farmId,
           cattleId: healthCase.cattleId,
           healthCaseId: id,
           deathDate: new Date(dto.deathDate),
@@ -485,10 +485,10 @@ export class HealthService {
   }
 
   async getPlans(userId: string, query: HealthPlanQueryDto) {
-    const organizationId = this.requireOrganizationId(query.organizationId);
-    await this.assertFarmAccess(userId, organizationId);
+    const farmId = this.requireFarmId(query.farmId);
+    await this.assertFarmAccess(userId, farmId);
     const where: Prisma.HealthPlanWhereInput = {
-      organizationId,
+      farmId,
       isActive: true,
       ...(query.search ? { name: { contains: query.search, mode: 'insensitive' } } : {}),
       ...(query.category ? { category: query.category } : {}),
@@ -508,10 +508,10 @@ export class HealthService {
   }
 
   async createPlan(userId: string, dto: CreateHealthPlanDto) {
-    await this.assertFarmAccess(userId, dto.organizationId);
+    await this.assertFarmAccess(userId, dto.farmId);
     return this.prisma.healthPlan.create({
       data: {
-        organizationId: dto.organizationId,
+        farmId: dto.farmId,
         name: dto.name,
         category: dto.category,
         planType: dto.planType,
@@ -533,7 +533,7 @@ export class HealthService {
       include: { steps: { orderBy: { dayNumber: 'asc' } } },
     });
     if (!plan) throw new NotFoundException('Health plan not found');
-    await this.assertFarmAccess(userId, plan.organizationId);
+    await this.assertFarmAccess(userId, plan.farmId);
     return plan;
   }
 
@@ -559,7 +559,7 @@ export class HealthService {
         include: { steps: { orderBy: { dayNumber: 'asc' } } },
       });
     }).then((updated) => {
-      this.log.info('Health plan updated', { healthPlanId: id, organizationId: plan.organizationId });
+      this.log.info('Health plan updated', { healthPlanId: id, farmId: plan.farmId });
       return updated;
     });
   }
@@ -570,16 +570,16 @@ export class HealthService {
       where: { id },
       data: { isActive: false },
     }).then((deleted) => {
-      this.log.info('Health plan archived', { healthPlanId: id, organizationId: plan.organizationId });
+      this.log.info('Health plan archived', { healthPlanId: id, farmId: plan.farmId });
       return deleted;
     });
   }
 
   async getTasks(userId: string, query: HealthTaskQueryDto) {
-    const organizationId = this.requireOrganizationId(query.organizationId);
-    await this.assertFarmAccess(userId, organizationId);
+    const farmId = this.requireFarmId(query.farmId);
+    await this.assertFarmAccess(userId, farmId);
     const where: Prisma.HealthTaskWhereInput = {
-      organizationId,
+      farmId,
       isActive: true,
       ...(query.cattleId ? { cattleId: query.cattleId } : {}),
       ...(query.healthCaseId ? { healthCaseId: query.healthCaseId } : {}),
@@ -608,11 +608,11 @@ export class HealthService {
   }
 
   async getTaskCalendar(userId: string, query: HealthTaskCalendarQueryDto) {
-    await this.assertFarmAccess(userId, query.organizationId);
+    await this.assertFarmAccess(userId, query.farmId);
     const start = new Date(Date.UTC(query.year, query.month - 1, 1));
     const end = new Date(Date.UTC(query.year, query.month, 0, 23, 59, 59, 999));
     const tasks = await this.prisma.healthTask.findMany({
-      where: { organizationId: query.organizationId, dueDateTime: { gte: start, lte: end } },
+      where: { farmId: query.farmId, dueDateTime: { gte: start, lte: end } },
       select: { dueDateTime: true, status: true },
     });
     return this.groupTasksByDate(tasks);
@@ -655,7 +655,7 @@ export class HealthService {
   async getCattleHealthSummary(userId: string, cattleId: string) {
     const cattle = await this.getCattleOrThrow(cattleId);
     await this.assertFarmAccess(userId, cattle.farmId);
-    await this.refreshSafetyWithdrawalsForOrganization(cattle.farmId);
+    await this.refreshSafetyWithdrawalsForFarm(cattle.farmId);
     const [activeCases, treatmentHistory, activeWithdrawals, mortality] = await Promise.all([
       this.prisma.healthCase.findMany({
         where: {
@@ -685,10 +685,10 @@ export class HealthService {
   }
 
   async getSafetyWithdrawals(userId: string, query: SafetyWithdrawalQueryDto) {
-    const organizationId = this.requireOrganizationId(query.organizationId);
-    await this.assertFarmAccess(userId, organizationId);
+    const farmId = this.requireFarmId(query.farmId);
+    await this.assertFarmAccess(userId, farmId);
     const where: Prisma.SafetyWithdrawalWhereInput = {
-      organizationId,
+      farmId,
       ...(query.cattleId ? { cattleId: query.cattleId } : {}),
       ...(query.status ? { status: query.status } : {}),
     };
@@ -704,16 +704,16 @@ export class HealthService {
     );
   }
 
-  async refreshSafetyWithdrawals(userId: string, organizationId: string) {
-    await this.assertFarmAccess(userId, organizationId);
-    return this.refreshSafetyWithdrawalsForOrganization(organizationId);
+  async refreshSafetyWithdrawals(userId: string, farmId: string) {
+    await this.assertFarmAccess(userId, farmId);
+    return this.refreshSafetyWithdrawalsForFarm(farmId);
   }
 
-  private async refreshSafetyWithdrawalsForOrganization(organizationId: string) {
+  private async refreshSafetyWithdrawalsForFarm(farmId: string) {
     const now = new Date();
     const result = await this.prisma.safetyWithdrawal.updateMany({
       where: {
-        organizationId,
+        farmId,
         status: SafetyWithdrawalStatus.ACTIVE,
         OR: [
           { milkWithdrawalUntil: { lte: now } },
@@ -727,7 +727,7 @@ export class HealthService {
 
   private async createSafetyWithdrawalIfNeeded(
     tx: Prisma.TransactionClient,
-    healthCase: { id: string; cattleId: string; organizationId: string },
+    healthCase: { id: string; cattleId: string; farmId: string },
     treatmentLog: { id: string; medicineId: string | null; administeredAt: Date },
     dto: LogTreatmentDto,
   ) {
@@ -740,7 +740,7 @@ export class HealthService {
       : undefined;
     const withdrawal = await tx.safetyWithdrawal.create({
       data: {
-        organizationId: healthCase.organizationId,
+        farmId: healthCase.farmId,
         cattleId: healthCase.cattleId,
         healthCaseId: healthCase.id,
         treatmentLogId: treatmentLog.id,
@@ -777,14 +777,14 @@ export class HealthService {
   private async getCaseForUser(userId: string, id: string) {
     const healthCase = await this.prisma.healthCase.findUnique({ where: { id } });
     if (!healthCase) throw new NotFoundException('Health case not found');
-    await this.assertFarmAccess(userId, healthCase.organizationId);
+    await this.assertFarmAccess(userId, healthCase.farmId);
     return healthCase;
   }
 
   private async getTaskForUser(userId: string, id: string) {
     const task = await this.prisma.healthTask.findUnique({ where: { id } });
     if (!task) throw new NotFoundException('Health task not found');
-    await this.assertFarmAccess(userId, task.organizationId);
+    await this.assertFarmAccess(userId, task.farmId);
     return task;
   }
 
@@ -794,29 +794,29 @@ export class HealthService {
     return cattle;
   }
 
-  private async assertCattleInOrganization(cattleId: string, organizationId: string) {
+  private async assertCattleInFarm(cattleId: string, farmId: string) {
     const cattle = await this.getCattleOrThrow(cattleId);
-    if (cattle.farmId !== organizationId) {
-      throw new BadRequestException('Cattle must belong to organization');
+    if (cattle.farmId !== farmId) {
+      throw new BadRequestException('Cattle must belong to Farm');
     }
     return cattle;
   }
 
-  private async assertShedInOrganization(shedId: string, organizationId: string) {
+  private async assertShedInFarm(shedId: string, farmId: string) {
     const shed = await this.prisma.shed.findFirst({
-      where: { id: shedId, farmId: organizationId },
+      where: { id: shedId, farmId: farmId },
     });
-    if (!shed) throw new BadRequestException('Shed must belong to organization');
+    if (!shed) throw new BadRequestException('Shed must belong to Farm');
     return shed;
   }
 
-  private async assertFarmAccess(userId: string, organizationId: string) {
-    await this.tenantAccessService.resolveFarmContext(userId, organizationId);
+  private async assertFarmAccess(userId: string, farmId: string) {
+    await this.tenantAccessService.resolveFarmContext(userId, farmId);
   }
 
-  private requireOrganizationId(organizationId?: string) {
-    if (!organizationId) throw new BadRequestException('organizationId is required');
-    return organizationId;
+  private requireFarmId(farmId?: string) {
+    if (!farmId) throw new BadRequestException('farmId is required');
+    return farmId;
   }
 
   private caseInclude() {

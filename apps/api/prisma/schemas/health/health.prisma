@@ -1,7 +1,7 @@
 model HealthCase {
-  id             String @id @default(cuid())
-  organizationId String
-  cattleId       String
+  id       String @id @default(cuid())
+  farmId   String
+  cattleId String
 
   caseCode      String
   diagnosis     String
@@ -37,10 +37,10 @@ model HealthCase {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  organization Farm        @relation("FarmToHealthCase", fields: [organizationId], references: [id])
-  cattle       Cattle      @relation(fields: [cattleId], references: [id])
-  shed         Shed?       @relation(fields: [shedId], references: [id])
-  healthPlan   HealthPlan? @relation(fields: [healthPlanId], references: [id])
+  farm       Farm        @relation("FarmToHealthCase", fields: [farmId], references: [id])
+  cattle     Cattle      @relation(fields: [cattleId], references: [id])
+  shed       Shed?       @relation(fields: [shedId], references: [id])
+  healthPlan HealthPlan? @relation(fields: [healthPlanId], references: [id])
 
   tasks             HealthTask[]
   treatmentLogs     TreatmentLog[]
@@ -48,17 +48,17 @@ model HealthCase {
   mortalityRecord   MortalityRecord?
   safetyWithdrawals SafetyWithdrawal[]
 
-  @@unique([organizationId, caseCode])
-  @@index([organizationId, cattleId])
-  @@index([organizationId, status])
-  @@index([organizationId, diagnosis])
-  @@index([organizationId, priority])
-  @@index([organizationId, startDate])
+  @@unique([farmId, caseCode])
+  @@index([farmId, cattleId])
+  @@index([farmId, status])
+  @@index([farmId, diagnosis])
+  @@index([farmId, priority])
+  @@index([farmId, startDate])
 }
 
 model HealthPlan {
-  id             String @id @default(cuid())
-  organizationId String
+  id     String @id @default(cuid())
+  farmId String
 
   name        String
   category    HealthPlanCategory
@@ -77,16 +77,16 @@ model HealthPlan {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  organization Farm @relation("FarmToHealthPlan", fields: [organizationId], references: [id])
-  creator      User @relation("HealthPlanCreator", fields: [createdBy], references: [id])
+  farm    Farm @relation("FarmToHealthPlan", fields: [farmId], references: [id])
+  creator User @relation("HealthPlanCreator", fields: [createdBy], references: [id])
 
   steps HealthPlanStep[]
   cases HealthCase[]
   tasks HealthTask[]
 
-  @@unique([organizationId, name])
-  @@index([organizationId, category])
-  @@index([organizationId, name])
+  @@unique([farmId, name])
+  @@index([farmId, category])
+  @@index([farmId, name])
 }
 
 model HealthPlanStep {
@@ -119,11 +119,11 @@ model HealthPlanStep {
 }
 
 model HealthTask {
-  id             String  @id @default(cuid())
-  organizationId String
-  cattleId       String
-  healthCaseId   String
-  healthPlanId   String?
+  id           String  @id @default(cuid())
+  farmId       String
+  cattleId     String
+  healthCaseId String
+  healthPlanId String?
 
   taskCode    String
   taskDate    DateTime
@@ -153,26 +153,26 @@ model HealthTask {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  organization Farm        @relation("FarmToHealthTask", fields: [organizationId], references: [id])
-  cattle       Cattle      @relation(fields: [cattleId], references: [id])
-  healthCase   HealthCase  @relation(fields: [healthCaseId], references: [id])
-  healthPlan   HealthPlan? @relation(fields: [healthPlanId], references: [id])
+  farm       Farm        @relation("FarmToHealthTask", fields: [farmId], references: [id])
+  cattle     Cattle      @relation(fields: [cattleId], references: [id])
+  healthCase HealthCase  @relation(fields: [healthCaseId], references: [id])
+  healthPlan HealthPlan? @relation(fields: [healthPlanId], references: [id])
 
   treatmentLogs TreatmentLog[]
 
-  @@unique([organizationId, taskCode])
-  @@index([organizationId, dueDateTime])
-  @@index([organizationId, status])
-  @@index([organizationId, cattleId])
-  @@index([organizationId, healthCaseId])
+  @@unique([farmId, taskCode])
+  @@index([farmId, dueDateTime])
+  @@index([farmId, status])
+  @@index([farmId, cattleId])
+  @@index([farmId, healthCaseId])
 }
 
 model TreatmentLog {
-  id             String  @id @default(cuid())
-  organizationId String
-  cattleId       String
-  healthCaseId   String
-  healthTaskId   String?
+  id           String  @id @default(cuid())
+  farmId       String
+  cattleId     String
+  healthCaseId String
+  healthTaskId String?
 
   medicineId   String?
   medicineName String?
@@ -191,23 +191,23 @@ model TreatmentLog {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  organization Farm        @relation("FarmToTreatmentLog", fields: [organizationId], references: [id])
-  cattle       Cattle      @relation(fields: [cattleId], references: [id])
-  healthCase   HealthCase  @relation(fields: [healthCaseId], references: [id])
-  healthTask   HealthTask? @relation(fields: [healthTaskId], references: [id])
+  farm       Farm        @relation("FarmToTreatmentLog", fields: [farmId], references: [id])
+  cattle     Cattle      @relation(fields: [cattleId], references: [id])
+  healthCase HealthCase  @relation(fields: [healthCaseId], references: [id])
+  healthTask HealthTask? @relation(fields: [healthTaskId], references: [id])
 
   safetyWithdrawals SafetyWithdrawal[]
 
-  @@index([organizationId, cattleId])
-  @@index([organizationId, healthCaseId])
-  @@index([organizationId, administeredAt])
+  @@index([farmId, cattleId])
+  @@index([farmId, healthCaseId])
+  @@index([farmId, administeredAt])
 }
 
 model HealthUpdate {
-  id             String @id @default(cuid())
-  organizationId String
-  cattleId       String
-  healthCaseId   String
+  id           String @id @default(cuid())
+  farmId       String
+  cattleId     String
+  healthCaseId String
 
   clinicalProgress ClinicalProgress
   symptoms         String[]
@@ -221,20 +221,20 @@ model HealthUpdate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  organization Farm       @relation("FarmToHealthUpdate", fields: [organizationId], references: [id])
-  cattle       Cattle     @relation(fields: [cattleId], references: [id])
-  healthCase   HealthCase @relation(fields: [healthCaseId], references: [id])
+  farm       Farm       @relation("FarmToHealthUpdate", fields: [farmId], references: [id])
+  cattle     Cattle     @relation(fields: [cattleId], references: [id])
+  healthCase HealthCase @relation(fields: [healthCaseId], references: [id])
 
-  @@index([organizationId, healthCaseId])
-  @@index([organizationId, cattleId])
-  @@index([organizationId, recordedAt])
+  @@index([farmId, healthCaseId])
+  @@index([farmId, cattleId])
+  @@index([farmId, recordedAt])
 }
 
 model MortalityRecord {
-  id             String @id @default(cuid())
-  organizationId String
-  cattleId       String
-  healthCaseId   String @unique
+  id           String @id @default(cuid())
+  farmId       String
+  cattleId     String
+  healthCaseId String @unique
 
   deathDate           DateTime
   primaryCauseOfDeath String
@@ -250,18 +250,18 @@ model MortalityRecord {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  organization Farm       @relation("FarmToMortalityRecord", fields: [organizationId], references: [id])
-  cattle       Cattle     @relation(fields: [cattleId], references: [id])
-  healthCase   HealthCase @relation(fields: [healthCaseId], references: [id])
+  farm       Farm       @relation("FarmToMortalityRecord", fields: [farmId], references: [id])
+  cattle     Cattle     @relation(fields: [cattleId], references: [id])
+  healthCase HealthCase @relation(fields: [healthCaseId], references: [id])
 
-  @@index([organizationId, cattleId])
-  @@index([organizationId, healthCaseId])
-  @@index([organizationId, deathDate])
+  @@index([farmId, cattleId])
+  @@index([farmId, healthCaseId])
+  @@index([farmId, deathDate])
 }
 
 model SafetyWithdrawal {
   id             String  @id @default(cuid())
-  organizationId String
+  farmId         String
   cattleId       String
   healthCaseId   String
   treatmentLogId String?
@@ -276,19 +276,19 @@ model SafetyWithdrawal {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  organization Farm          @relation("FarmToSafetyWithdrawal", fields: [organizationId], references: [id])
+  farm         Farm          @relation("FarmToSafetyWithdrawal", fields: [farmId], references: [id])
   cattle       Cattle        @relation(fields: [cattleId], references: [id])
   healthCase   HealthCase    @relation(fields: [healthCaseId], references: [id])
   treatmentLog TreatmentLog? @relation(fields: [treatmentLogId], references: [id])
 
-  @@index([organizationId, cattleId])
-  @@index([organizationId, status])
-  @@index([organizationId, healthCaseId])
+  @@index([farmId, cattleId])
+  @@index([farmId, status])
+  @@index([farmId, healthCaseId])
 }
 
 model DiseaseCatalog {
-  id             String  @id @default(cuid())
-  organizationId String?
+  id     String  @id @default(cuid())
+  farmId String?
 
   name            String
   category        String?
@@ -305,8 +305,8 @@ model DiseaseCatalog {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  organization Farm? @relation("FarmToDiseaseCatalog", fields: [organizationId], references: [id])
+  farm Farm? @relation("FarmToDiseaseCatalog", fields: [farmId], references: [id])
 
-  @@index([organizationId])
+  @@index([farmId])
   @@index([name])
 }

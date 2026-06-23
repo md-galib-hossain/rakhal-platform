@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './modules/auth/auth.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { PermissionModule } from './modules/permission/permission.module';
@@ -25,10 +26,12 @@ import {
 import { DomainEventsModule } from 'src/common/events/domain-events.module';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { RedisModule } from 'src/core/redis/redis.module';
+import { CacheModule } from 'src/core/cache/cache.module';
 import { RequestContextMiddleware } from 'src/common/middleware/request-context.middleware';
 import { LoggerMiddleware } from 'src/core/logger/logger/logger.middleware';
-import { APP_FILTER } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { GlobalExceptionFilter } from 'src/common/filters/global-exception.filter';
+import { ResponseEnvelopeInterceptor } from 'src/common/interceptors/response-envelope.interceptor';
 import { EmailModule } from './modules/email/email.module';
 import { SentryModule } from './core/observability/sentry/sentry.module';
 import { HealthController } from 'src/common/presentation/controllers/health.controller';
@@ -89,6 +92,7 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
         ],
       }),
     }),
+    ScheduleModule.forRoot(),
     UsersModule,
     AuthModule,
     TenantAccessModule,
@@ -98,6 +102,7 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     PrismaModule,
     LoggerModule,
     RedisModule,
+    CacheModule,
     DomainEventsModule,
     EmailModule,
     SentryModule,
@@ -108,6 +113,10 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
   ],
   controllers: [HealthController],
   providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ResponseEnvelopeInterceptor,
+    },
     {
       provide: APP_FILTER,
       useClass: GlobalExceptionFilter,

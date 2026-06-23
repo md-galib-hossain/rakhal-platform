@@ -16,7 +16,7 @@ export class HealthListQueryDto {
   @IsOptional()
   @Transform(trimString)
   @IsString()
-  organizationId?: string;
+  farmId?: string;
 
   @IsOptional()
   @Transform(trimString)

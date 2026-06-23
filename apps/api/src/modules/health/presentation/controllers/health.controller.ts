@@ -45,12 +45,12 @@ export class HealthController {
 
   @Get('dashboard')
   dashboard(
-    @Query('organizationId') organizationId: string,
+    @Query('farmId') farmId: string,
     @Req() request: AuthenticatedHttpRequest,
   ) {
     return this.healthService.getHealthDashboard(
       this.userId(request),
-      organizationId,
+      farmId,
     );
   }
 
@@ -198,12 +198,12 @@ export class HealthController {
 
   @Post('safety-withdrawals/refresh')
   refreshSafetyWithdrawals(
-    @Query('organizationId') organizationId: string,
+    @Query('farmId') farmId: string,
     @Req() request: AuthenticatedHttpRequest,
   ) {
     return this.healthService.refreshSafetyWithdrawals(
       this.userId(request),
-      organizationId,
+      farmId,
     );
   }
 

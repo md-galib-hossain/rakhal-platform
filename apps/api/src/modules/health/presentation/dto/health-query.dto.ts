@@ -64,7 +64,7 @@ export class HealthTaskQueryDto extends HealthListQueryDto {
 export class HealthTaskCalendarQueryDto {
   @Transform(trimString)
   @IsString()
-  organizationId!: string;
+  farmId!: string;
 
   @Transform(({ value }) => Number(value))
   month!: number;

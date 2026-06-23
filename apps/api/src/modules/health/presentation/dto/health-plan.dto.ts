@@ -89,7 +89,7 @@ export class CreateHealthPlanDto {
   @Transform(trimString)
   @IsString()
   @IsNotEmpty()
-  organizationId!: string;
+  farmId!: string;
 
   @Transform(trimString)
   @IsString()
