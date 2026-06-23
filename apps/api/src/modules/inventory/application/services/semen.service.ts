@@ -1,0 +1,346 @@
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { Prisma, SemenBatch, SemenTank } from '@prisma/client';
+import { PrismaService } from 'src/core/database/prisma/prisma.service';
+import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { CursorPage, getCursorArgs, toCursorPage } from 'src/common/pagination';
+import {
+  CreateSemenTankDto,
+  UpdateSemenTankDto,
+} from '../../presentation/dto/semen-tank.dto';
+import {
+  CreateSemenBatchDto,
+  ListSemenBatchQueryDto,
+  UpdateSemenBatchDto,
+} from '../../presentation/dto/semen-batch.dto';
+
+type PresentedTank = SemenTank & {
+  strawInStock: number;
+  availableCapacity: number;
+};
+type PresentedBatch = SemenBatch & { lowStraw: boolean };
+
+/**
+ * Inventory → Semen tab (PRD §15.4, RAKHAL-077): LN2 tanks + straw batches.
+ * Enforces INV-07 (tank below 0 °C), INV-03 (straws in a tank ≤ its capacity),
+ * and INV-02 (straw count never negative). `decrementStraw` is the integration
+ * point the Reproduction AI flow calls (REP-05).
+ */
+@Injectable()
+export class SemenService {
+  private readonly log: LoggerService;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    logger: LoggerService,
+  ) {
+    this.log = logger.setContext(SemenService.name);
+  }
+
+  // ---- Tanks ---------------------------------------------------------------
+
+  async listTanks(farmId: string): Promise<PresentedTank[]> {
+    const tanks = await this.prisma.semenTank.findMany({
+      where: { farmId, isActive: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const sums = await this.prisma.semenBatch.groupBy({
+      by: ['tankId'],
+      where: { farmId, isActive: true, tankId: { in: tanks.map((t) => t.id) } },
+      _sum: { strawQuantity: true },
+    });
+    const byTank = new Map(
+      sums.map((s) => [s.tankId, s._sum.strawQuantity ?? 0]),
+    );
+
+    return tanks.map((tank) =>
+      this.presentTank(tank, byTank.get(tank.id) ?? 0),
+    );
+  }
+
+  async createTank(
+    farmId: string,
+    userId: string,
+    dto: CreateSemenTankDto,
+  ): Promise<PresentedTank> {
+    this.assertSubZeroTemp(dto.currentTempC);
+
+    const tank = await this.prisma.semenTank.create({
+      data: {
+        farmId,
+        name: dto.name,
+        modelManufacturer: dto.modelManufacturer,
+        strawCapacity: dto.strawCapacity,
+        numCanisters: dto.numCanisters,
+        numCanes: dto.numCanes,
+        numGoblets: dto.numGoblets,
+        storageLocation: dto.storageLocation,
+        currentTempC: dto.currentTempC,
+        ln2LevelPct: dto.ln2LevelPct,
+        createdBy: userId,
+      },
+    });
+
+    this.log.info('Semen tank created', { tankId: tank.id, farmId });
+    return this.presentTank(tank, 0);
+  }
+
+  async updateTank(
+    farmId: string,
+    id: string,
+    dto: UpdateSemenTankDto,
+  ): Promise<PresentedTank> {
+    await this.getTankOrThrow(farmId, id);
+    this.assertSubZeroTemp(dto.currentTempC);
+
+    const tank = await this.prisma.semenTank.update({
+      where: { id },
+      data: {
+        name: dto.name,
+        modelManufacturer: dto.modelManufacturer,
+        strawCapacity: dto.strawCapacity,
+        numCanisters: dto.numCanisters,
+        numCanes: dto.numCanes,
+        numGoblets: dto.numGoblets,
+        storageLocation: dto.storageLocation,
+        currentTempC: dto.currentTempC,
+        ln2LevelPct: dto.ln2LevelPct,
+      },
+    });
+
+    this.log.info('Semen tank updated', { tankId: id, farmId });
+    return this.presentTank(tank, await this.tankStrawTotal(farmId, id));
+  }
+
+  async archiveTank(farmId: string, id: string): Promise<PresentedTank> {
+    await this.getTankOrThrow(farmId, id);
+    const tank = await this.prisma.semenTank.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    return this.presentTank(tank, await this.tankStrawTotal(farmId, id));
+  }
+
+  // ---- Batches -------------------------------------------------------------
+
+  async listBatches(
+    farmId: string,
+    query: ListSemenBatchQueryDto,
+  ): Promise<CursorPage<PresentedBatch>> {
+    const where: Prisma.SemenBatchWhereInput = {
+      farmId,
+      ...(query.includeArchived ? {} : { isActive: true }),
+      ...(query.tankId ? { tankId: query.tankId } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { name: { contains: query.search, mode: 'insensitive' } },
+              { bullId: { contains: query.search, mode: 'insensitive' } },
+              { breed: { contains: query.search, mode: 'insensitive' } },
+              { batchCode: { contains: query.search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+
+    const rows = await this.prisma.semenBatch.findMany({
+      where,
+      orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
+      ...getCursorArgs(query),
+    });
+
+    const page = toCursorPage(rows, query);
+    return {
+      items: page.items.map((batch) => this.presentBatch(batch)),
+      meta: page.meta,
+    };
+  }
+
+  async createBatch(
+    farmId: string,
+    userId: string,
+    dto: CreateSemenBatchDto,
+  ): Promise<PresentedBatch> {
+    if (dto.tankId) {
+      await this.assertTankCapacity(farmId, dto.tankId, dto.strawQuantity);
+    }
+
+    const batch = await this.prisma.semenBatch.create({
+      data: {
+        farmId,
+        name: dto.name,
+        batchCode: dto.batchCode,
+        bullId: dto.bullId,
+        breed: dto.breed,
+        strawColor: dto.strawColor,
+        initialVitalityPct: dto.initialVitalityPct,
+        strawQuantity: dto.strawQuantity,
+        lowStrawThreshold: dto.lowStrawThreshold ?? 5,
+        fatherId: dto.fatherId,
+        motherId: dto.motherId,
+        tankId: dto.tankId,
+        canister: dto.canister,
+        cane: dto.cane,
+        goblet: dto.goblet,
+        notes: dto.notes,
+        createdBy: userId,
+      },
+    });
+
+    this.log.info('Semen batch created', { batchId: batch.id, farmId });
+    return this.presentBatch(batch);
+  }
+
+  async updateBatch(
+    farmId: string,
+    id: string,
+    dto: UpdateSemenBatchDto,
+  ): Promise<PresentedBatch> {
+    const existing = await this.getBatchOrThrow(farmId, id);
+
+    const tankId = dto.tankId ?? existing.tankId;
+    const strawQuantity = dto.strawQuantity ?? existing.strawQuantity;
+    if (tankId) {
+      await this.assertTankCapacity(farmId, tankId, strawQuantity, id);
+    }
+
+    const batch = await this.prisma.semenBatch.update({
+      where: { id },
+      data: {
+        name: dto.name,
+        batchCode: dto.batchCode,
+        bullId: dto.bullId,
+        breed: dto.breed,
+        strawColor: dto.strawColor,
+        initialVitalityPct: dto.initialVitalityPct,
+        strawQuantity: dto.strawQuantity,
+        lowStrawThreshold: dto.lowStrawThreshold,
+        tankId: dto.tankId,
+        canister: dto.canister,
+        cane: dto.cane,
+        goblet: dto.goblet,
+        notes: dto.notes,
+      },
+    });
+
+    this.log.info('Semen batch updated', { batchId: id, farmId });
+    return this.presentBatch(batch);
+  }
+
+  async archiveBatch(farmId: string, id: string): Promise<PresentedBatch> {
+    await this.getBatchOrThrow(farmId, id);
+    const batch = await this.prisma.semenBatch.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    return this.presentBatch(batch);
+  }
+
+  /**
+   * Decrement a batch's straw count (default 1) — called when an AI event is
+   * recorded (Reproduction module, REP-05). Rejects going below zero (INV-02).
+   */
+  async decrementStraw(
+    farmId: string,
+    batchId: string,
+    by = 1,
+  ): Promise<PresentedBatch> {
+    const existing = await this.getBatchOrThrow(farmId, batchId);
+    const next = existing.strawQuantity - by;
+    if (next < 0) {
+      throw new BadRequestException('Not enough straws in this batch');
+    }
+
+    const batch = await this.prisma.semenBatch.update({
+      where: { id: batchId },
+      data: { strawQuantity: next },
+    });
+    this.log.info('Semen straw decremented', { batchId, farmId, by });
+    return this.presentBatch(batch);
+  }
+
+  // ---- Helpers -------------------------------------------------------------
+
+  private async getTankOrThrow(farmId: string, id: string): Promise<SemenTank> {
+    const tank = await this.prisma.semenTank.findFirst({
+      where: { id, farmId },
+    });
+    if (!tank) throw new NotFoundException('Semen tank not found');
+    return tank;
+  }
+
+  private async getBatchOrThrow(
+    farmId: string,
+    id: string,
+  ): Promise<SemenBatch> {
+    const batch = await this.prisma.semenBatch.findFirst({
+      where: { id, farmId },
+    });
+    if (!batch) throw new NotFoundException('Semen batch not found');
+    return batch;
+  }
+
+  private async tankStrawTotal(
+    farmId: string,
+    tankId: string,
+  ): Promise<number> {
+    const sum = await this.prisma.semenBatch.aggregate({
+      where: { farmId, tankId, isActive: true },
+      _sum: { strawQuantity: true },
+    });
+    return sum._sum.strawQuantity ?? 0;
+  }
+
+  /** INV-03: a tank's total straws may not exceed its capacity. */
+  private async assertTankCapacity(
+    farmId: string,
+    tankId: string,
+    incomingStraws: number,
+    excludeBatchId?: string,
+  ): Promise<void> {
+    const tank = await this.getTankOrThrow(farmId, tankId);
+
+    const sum = await this.prisma.semenBatch.aggregate({
+      where: {
+        farmId,
+        tankId,
+        isActive: true,
+        ...(excludeBatchId ? { id: { not: excludeBatchId } } : {}),
+      },
+      _sum: { strawQuantity: true },
+    });
+    const others = sum._sum.strawQuantity ?? 0;
+
+    if (others + incomingStraws > tank.strawCapacity) {
+      throw new ConflictException(
+        `Tank capacity exceeded (${others + incomingStraws}/${tank.strawCapacity} straws)`,
+      );
+    }
+  }
+
+  private assertSubZeroTemp(tempC?: number): void {
+    if (tempC != null && tempC >= 0) {
+      throw new BadRequestException('LN2 tank temperature must be below 0 °C');
+    }
+  }
+
+  private presentTank(tank: SemenTank, strawInStock: number): PresentedTank {
+    return {
+      ...tank,
+      strawInStock,
+      availableCapacity: Math.max(tank.strawCapacity - strawInStock, 0),
+    };
+  }
+
+  private presentBatch(batch: SemenBatch): PresentedBatch {
+    return {
+      ...batch,
+      lowStraw: batch.strawQuantity <= batch.lowStrawThreshold,
+    };
+  }
+}

@@ -1,0 +1,67 @@
+/// Medicine inventory (Inventory module — Medicine tab). One row per batch:
+/// the same medicine bought in two batches is two rows, enabling FIFO selection
+/// by earliest expiry at treatment time (PRD §15.2 / business rules INV-01..06).
+model Medicine {
+  id String @id @default(cuid())
+
+  farmId String
+
+  name         String
+  imageUrl     String?
+  type         MedicineType
+  category     MedicineCategory
+  manufacturer String?
+  batchId      String?
+
+  unit              String // doses, ml, g, etc.
+  currentStock      Float  @default(0)
+  costPerUnit       Float
+  lowStockThreshold Float  @default(0)
+
+  purchaseDate DateTime
+  expiryDate   DateTime
+
+  milkWithdrawalDays Int @default(0)
+  meatWithdrawalDays Int @default(0)
+
+  notes String?
+
+  isActive  Boolean  @default(true)
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm    Farm @relation("FarmToMedicine", fields: [farmId], references: [id])
+  creator User @relation("MedicineCreator", fields: [createdBy], references: [id])
+
+  stockMovements MedicineStockMovement[]
+
+  @@index([farmId])
+  @@index([category])
+  @@index([expiryDate])
+  @@index([createdBy])
+}
+
+/// Append-only audit of every stock change on a Medicine (purchase, treatment
+/// decrement, manual adjustment, disposal). `balanceAfter` snapshots the running
+/// stock so history is reconstructable without replaying.
+model MedicineStockMovement {
+  id String @id @default(cuid())
+
+  medicineId String
+  farmId     String
+
+  reason       MedicineStockMovementReason
+  delta        Float // signed: +purchase / -consumption
+  balanceAfter Float
+  notes        String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+
+  medicine Medicine @relation(fields: [medicineId], references: [id])
+
+  @@index([medicineId])
+  @@index([farmId])
+  @@index([createdAt])
+}

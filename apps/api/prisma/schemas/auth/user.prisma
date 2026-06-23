@@ -36,6 +36,11 @@ model User {
   auditLogs           AuditLog[]   @relation("UserToAuditLog")
   createdCattle       Cattle[]     @relation("CattleCreator")
   createdHealthPlans  HealthPlan[] @relation("HealthPlanCreator")
+  createdMedicines    Medicine[]   @relation("MedicineCreator")
+  createdForages      Forage[]     @relation("ForageCreator")
+  createdSemenTanks   SemenTank[]  @relation("SemenTankCreator")
+  createdSemenBatches SemenBatch[] @relation("SemenBatchCreator")
+  createdMilkTanks    MilkTank[]   @relation("MilkTankCreator")
 
   @@index([email])
 }

@@ -1,0 +1,70 @@
+/// LN2 semen storage tank (Inventory module — Semen tab, PRD §15.4).
+model SemenTank {
+  id String @id @default(cuid())
+
+  farmId String
+
+  name              String
+  modelManufacturer String?
+  strawCapacity     Int
+  numCanisters      Int?
+  numCanes          Int?
+  numGoblets        Int?
+  storageLocation   String?
+  currentTempC      Float?
+  ln2LevelPct       Float?
+
+  isActive  Boolean  @default(true)
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm    Farm @relation("FarmToSemenTank", fields: [farmId], references: [id])
+  creator User @relation("SemenTankCreator", fields: [createdBy], references: [id])
+
+  batches SemenBatch[]
+
+  @@index([farmId])
+  @@index([createdBy])
+}
+
+/// A registered batch of semen straws. `strawQuantity` is decremented by 1 on
+/// each AI event recorded in the Reproduction module (PRD §15.4 / REP-05); a
+/// low-straw alert fires below `lowStrawThreshold`.
+model SemenBatch {
+  id String @id @default(cuid())
+
+  farmId String
+
+  name               String
+  batchCode          String?
+  bullId             String?
+  breed              String?
+  strawColor         String?
+  initialVitalityPct Float?
+  strawQuantity      Int     @default(0)
+  lowStrawThreshold  Int     @default(5)
+
+  fatherId String?
+  motherId String?
+
+  tankId   String?
+  canister String?
+  cane     String?
+  goblet   String?
+
+  notes String?
+
+  isActive  Boolean  @default(true)
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm    Farm       @relation("FarmToSemenBatch", fields: [farmId], references: [id])
+  creator User       @relation("SemenBatchCreator", fields: [createdBy], references: [id])
+  tank    SemenTank? @relation(fields: [tankId], references: [id])
+
+  @@index([farmId])
+  @@index([tankId])
+  @@index([createdBy])
+}

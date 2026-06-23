@@ -1,0 +1,94 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
+import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
+import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
+import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
+import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
+import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
+import { MilkTankService } from '../../application/services/milk-tank.service';
+import {
+  AdjustMilkTankVolumeDto,
+  CreateMilkTankDto,
+  ListMilkTankAuditQueryDto,
+  ListMilkTankQueryDto,
+  UpdateMilkTankDto,
+} from '../dto/milk-tank.dto';
+
+/** Inventory → Milk tab. `/api/v1/inventory/milk-tanks`. Token-based tenancy. */
+@Controller('inventory/milk-tanks')
+@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+export class MilkTankController {
+  constructor(private readonly milkTankService: MilkTankService) {}
+
+  // Static route declared before ':id' so it is not captured as a param.
+  @Get('audit-log')
+  @RequirePermission('inventory.read')
+  auditLog(
+    @CurrentFarmId() farmId: string,
+    @Query() query: ListMilkTankAuditQueryDto,
+  ) {
+    return this.milkTankService.auditLog(farmId, query);
+  }
+
+  @Get()
+  @RequirePermission('inventory.read')
+  findAll(
+    @CurrentFarmId() farmId: string,
+    @Query() query: ListMilkTankQueryDto,
+  ) {
+    return this.milkTankService.findAll(farmId, query);
+  }
+
+  @Get(':id')
+  @RequirePermission('inventory.read')
+  findOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.milkTankService.findOne(farmId, id);
+  }
+
+  @Post()
+  @RequirePermission('inventory.create')
+  create(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Body() dto: CreateMilkTankDto,
+  ) {
+    return this.milkTankService.create(farmId, userId, dto);
+  }
+
+  @Patch(':id')
+  @RequirePermission('inventory.update')
+  update(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateMilkTankDto,
+  ) {
+    return this.milkTankService.update(farmId, id, dto);
+  }
+
+  @Post(':id/adjust-volume')
+  @RequirePermission('inventory.update')
+  adjustVolume(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body() dto: AdjustMilkTankVolumeDto,
+  ) {
+    return this.milkTankService.adjustVolume(farmId, userId, id, dto);
+  }
+
+  @Delete(':id')
+  @RequirePermission('inventory.delete')
+  archive(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.milkTankService.archive(farmId, id);
+  }
+}

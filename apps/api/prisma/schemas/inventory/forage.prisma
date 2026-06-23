@@ -1,0 +1,37 @@
+/// Forage / feed inventory (Inventory module — Forage tab, PRD §15.3).
+/// Stock is held in `unit` (e.g. bag); `kgPerUnit` lets the app show the kg
+/// equivalent. Forage ingredients overlap with Feed Formulator ingredients —
+/// price changes here feed cost recalculation later.
+model Forage {
+  id String @id @default(cuid())
+
+  farmId String
+
+  name     String
+  type     ForageType
+  category String?
+
+  unit              String // bag, kg, sack
+  kgPerUnit         Float? // kg per unit (for bag → kg display)
+  currentStock      Float  @default(0)
+  costPerUnit       Float
+  lowStockThreshold Float  @default(0)
+
+  moisturePct  Float?
+  supplier     String?
+  purchaseDate DateTime
+
+  notes String?
+
+  isActive  Boolean  @default(true)
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm    Farm @relation("FarmToForage", fields: [farmId], references: [id])
+  creator User @relation("ForageCreator", fields: [createdBy], references: [id])
+
+  @@index([farmId])
+  @@index([type])
+  @@index([createdBy])
+}

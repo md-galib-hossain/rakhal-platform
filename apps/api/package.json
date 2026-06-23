@@ -23,6 +23,7 @@
     "prisma:generate": "prisma generate --config prisma.config.ts",
     "prisma:dev": "prisma generate --config prisma.config.ts",
     "prisma:studio": "prisma studio --config prisma.config.ts",
+    "seed": "ts-node -r tsconfig-paths/register prisma/seed.ts",
     "redis:up": "docker compose -f docker-compose.redis.yml up -d",
     "redis:down": "docker compose -f docker-compose.redis.yml down",
     "redis:logs": "docker logs -f rakhal-redis",

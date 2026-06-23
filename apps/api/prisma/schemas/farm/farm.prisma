@@ -28,6 +28,11 @@ model Farm {
   mortalityRecords  MortalityRecord[]  @relation("FarmToMortalityRecord")
   safetyWithdrawals SafetyWithdrawal[] @relation("FarmToSafetyWithdrawal")
   diseaseCatalogs   DiseaseCatalog[]   @relation("FarmToDiseaseCatalog")
+  medicines         Medicine[]         @relation("FarmToMedicine")
+  forages           Forage[]           @relation("FarmToForage")
+  semenTanks        SemenTank[]        @relation("FarmToSemenTank")
+  semenBatches      SemenBatch[]       @relation("FarmToSemenBatch")
+  milkTanks         MilkTank[]         @relation("FarmToMilkTank")
 
   @@index([ownerId])
   @@index([slug])
