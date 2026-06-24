@@ -7,13 +7,14 @@ import {
   Patch,
   Post,
   Query,
-  Req,
-  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import type { AuthenticatedHttpRequest } from 'src/modules/auth/domain/authenticated-http-request.type';
+import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
+import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
+import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
+import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { HealthService } from '../../application/services/health.service';
 import {
   ApplyHealthPlanDto,
@@ -38,178 +39,201 @@ import {
   SickBayQueryDto,
 } from '../dto/health-query.dto';
 
+/** Healthcare (PRD §13). `/api/v1/health`. Token tenancy + RBAC. */
 @Controller('health')
-@UseGuards(JwtAuthGuard, SessionGuard)
+@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 
   @Get('dashboard')
-  dashboard(
-    @Query('farmId') farmId: string,
-    @Req() request: AuthenticatedHttpRequest,
-  ) {
-    return this.healthService.getHealthDashboard(
-      this.userId(request),
-      farmId,
-    );
+  @RequirePermission('healthcare.read')
+  dashboard(@CurrentFarmId() farmId: string) {
+    return this.healthService.getHealthDashboard(farmId);
   }
 
   @Get('sick-bay')
-  sickBay(@Query() query: SickBayQueryDto, @Req() request: AuthenticatedHttpRequest) {
-    return this.healthService.getSickBay(this.userId(request), query);
+  @RequirePermission('healthcare.read')
+  sickBay(@CurrentFarmId() farmId: string, @Query() query: SickBayQueryDto) {
+    return this.healthService.getSickBay(farmId, query);
   }
 
   @Post('cases')
-  createCase(@Body() dto: CreateHealthCaseDto, @Req() request: AuthenticatedHttpRequest) {
-    return this.healthService.createHealthCase(this.userId(request), dto);
+  @RequirePermission('healthcare.report-sickness')
+  createCase(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Body() dto: CreateHealthCaseDto,
+  ) {
+    return this.healthService.createHealthCase(farmId, userId, dto);
   }
 
   @Get('cases/:id')
-  getCase(@Param('id') id: string, @Req() request: AuthenticatedHttpRequest) {
-    return this.healthService.getHealthCase(this.userId(request), id);
+  @RequirePermission('healthcare.read')
+  getCase(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.healthService.getHealthCase(farmId, id);
   }
 
   @Patch('cases/:id')
+  @RequirePermission('healthcare.update')
   updateCase(
+    @CurrentFarmId() farmId: string,
     @Param('id') id: string,
     @Body() dto: UpdateHealthCaseDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.healthService.updateHealthCase(this.userId(request), id, dto);
+    return this.healthService.updateHealthCase(farmId, id, dto);
   }
 
   @Post('cases/:id/apply-plan')
+  @RequirePermission('healthcare.update')
   applyPlan(
+    @CurrentFarmId() farmId: string,
     @Param('id') id: string,
     @Body() dto: ApplyHealthPlanDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.healthService.applyHealthPlanToCase(this.userId(request), id, dto);
+    return this.healthService.applyHealthPlanToCase(farmId, id, dto);
   }
 
   @Post('cases/:id/log-treatment')
+  @RequirePermission('healthcare.log-treatment')
   logTreatment(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: LogTreatmentDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.healthService.logTreatment(this.userId(request), id, dto);
+    return this.healthService.logTreatment(farmId, userId, id, dto);
   }
 
   @Post('cases/:id/health-update')
+  @RequirePermission('healthcare.log-treatment')
   healthUpdate(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: CreateHealthUpdateDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.healthService.createHealthUpdate(this.userId(request), id, dto);
+    return this.healthService.createHealthUpdate(farmId, userId, id, dto);
   }
 
   @Post('cases/:id/close')
+  @RequirePermission('healthcare.close-case')
   closeCase(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: CloseHealthCaseDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.healthService.closeCase(this.userId(request), id, dto);
+    return this.healthService.closeCase(farmId, userId, id, dto);
   }
 
   @Post('cases/:id/mortality')
+  @RequirePermission('healthcare.close-case')
   mortality(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: MortalityDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.healthService.logMortality(this.userId(request), id, dto);
+    return this.healthService.logMortality(farmId, userId, id, dto);
   }
 
   @Get('plans')
-  getPlans(@Query() query: HealthPlanQueryDto, @Req() request: AuthenticatedHttpRequest) {
-    return this.healthService.getPlans(this.userId(request), query);
+  @RequirePermission('healthcare.read')
+  getPlans(
+    @CurrentFarmId() farmId: string,
+    @Query() query: HealthPlanQueryDto,
+  ) {
+    return this.healthService.getPlans(farmId, query);
   }
 
   @Post('plans')
-  createPlan(@Body() dto: CreateHealthPlanDto, @Req() request: AuthenticatedHttpRequest) {
-    return this.healthService.createPlan(this.userId(request), dto);
+  @RequirePermission('healthcare.create')
+  createPlan(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Body() dto: CreateHealthPlanDto,
+  ) {
+    return this.healthService.createPlan(farmId, userId, dto);
   }
 
   @Get('plans/:id')
-  getPlan(@Param('id') id: string, @Req() request: AuthenticatedHttpRequest) {
-    return this.healthService.getPlan(this.userId(request), id);
+  @RequirePermission('healthcare.read')
+  getPlan(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.healthService.getPlan(farmId, id);
   }
 
   @Patch('plans/:id')
+  @RequirePermission('healthcare.update')
   updatePlan(
+    @CurrentFarmId() farmId: string,
     @Param('id') id: string,
     @Body() dto: UpdateHealthPlanDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.healthService.updatePlan(this.userId(request), id, dto);
+    return this.healthService.updatePlan(farmId, id, dto);
   }
 
   @Delete('plans/:id')
-  deletePlan(@Param('id') id: string, @Req() request: AuthenticatedHttpRequest) {
-    return this.healthService.deletePlan(this.userId(request), id);
+  @RequirePermission('healthcare.delete')
+  deletePlan(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.healthService.deletePlan(farmId, id);
   }
 
   @Get('tasks')
-  getTasks(@Query() query: HealthTaskQueryDto, @Req() request: AuthenticatedHttpRequest) {
-    return this.healthService.getTasks(this.userId(request), query);
+  @RequirePermission('healthcare.read')
+  getTasks(
+    @CurrentFarmId() farmId: string,
+    @Query() query: HealthTaskQueryDto,
+  ) {
+    return this.healthService.getTasks(farmId, query);
   }
 
   @Get('tasks/calendar')
+  @RequirePermission('healthcare.read')
   taskCalendar(
+    @CurrentFarmId() farmId: string,
     @Query() query: HealthTaskCalendarQueryDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.healthService.getTaskCalendar(this.userId(request), query);
+    return this.healthService.getTaskCalendar(farmId, query);
   }
 
   @Post('tasks/:id/complete')
-  completeTask(@Param('id') id: string, @Req() request: AuthenticatedHttpRequest) {
-    return this.healthService.completeTask(this.userId(request), id);
+  @RequirePermission('healthcare.log-treatment')
+  completeTask(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.healthService.completeTask(farmId, id);
   }
 
   @Post('tasks/:id/reschedule')
+  @RequirePermission('healthcare.update')
   rescheduleTask(
+    @CurrentFarmId() farmId: string,
     @Param('id') id: string,
     @Body() dto: RescheduleHealthTaskDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.healthService.rescheduleTask(this.userId(request), id, dto);
+    return this.healthService.rescheduleTask(farmId, id, dto);
   }
 
   @Post('tasks/:id/skip')
+  @RequirePermission('healthcare.update')
   skipTask(
+    @CurrentFarmId() farmId: string,
     @Param('id') id: string,
     @Body() dto: SkipHealthTaskDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.healthService.skipTask(this.userId(request), id, dto);
+    return this.healthService.skipTask(farmId, id, dto);
   }
 
   @Get('safety-withdrawals')
+  @RequirePermission('healthcare.read')
   getSafetyWithdrawals(
+    @CurrentFarmId() farmId: string,
     @Query() query: SafetyWithdrawalQueryDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.healthService.getSafetyWithdrawals(this.userId(request), query);
+    return this.healthService.getSafetyWithdrawals(farmId, query);
   }
 
   @Post('safety-withdrawals/refresh')
-  refreshSafetyWithdrawals(
-    @Query('farmId') farmId: string,
-    @Req() request: AuthenticatedHttpRequest,
-  ) {
-    return this.healthService.refreshSafetyWithdrawals(
-      this.userId(request),
-      farmId,
-    );
-  }
-
-  private userId(request: AuthenticatedHttpRequest) {
-    const userId = request.auth?.user.sub;
-    if (!userId) throw new UnauthorizedException('Unauthorized');
-    return userId;
+  @RequirePermission('healthcare.update')
+  refreshSafetyWithdrawals(@CurrentFarmId() farmId: string) {
+    return this.healthService.refreshSafetyWithdrawals(farmId);
   }
 }

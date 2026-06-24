@@ -232,6 +232,112 @@ export class MedicineService {
     return this.present(medicine);
   }
 
+  /**
+   * Consume medicine stock for a treatment (HLT-07). The integration point the
+   * Healthcare `logTreatment` flow calls. Resolves the batch to draw from —
+   * either the explicit `medicineId`, or, given only a `medicineName`, the
+   * earliest-expiry non-expired in-stock batch (FIFO, INV-05). Enforces
+   * expired-blocked-from-treatment (HLT-02) and the never-negative floor
+   * (INV-02), and records an audited `TREATMENT` stock movement atomically.
+   *
+   * NOTE: a single dose is drawn from one batch; cross-batch splitting when one
+   * batch can't cover the quantity is deferred (tracked in TECH_DEBT RD-003).
+   */
+  async decrementForTreatment(
+    farmId: string,
+    userId: string,
+    opts: {
+      medicineId?: string;
+      medicineName?: string;
+      quantity: number;
+      notes?: string;
+    },
+  ): Promise<{
+    medicineId: string;
+    batchId: string | null;
+    balanceAfter: number;
+  }> {
+    if (!opts.quantity || opts.quantity <= 0) {
+      throw new BadRequestException(
+        'Treatment quantity must be greater than 0',
+      );
+    }
+
+    const medicine = await this.resolveTreatmentBatch(farmId, opts);
+
+    if (medicine.expiryDate.getTime() < Date.now()) {
+      throw new BadRequestException(
+        'Cannot administer an expired medicine batch (HLT-02)',
+      );
+    }
+
+    const balanceAfter = medicine.currentStock - opts.quantity;
+    if (balanceAfter < 0) {
+      throw new BadRequestException(
+        'Not enough medicine stock for this treatment',
+      );
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.medicine.update({
+        where: { id: medicine.id },
+        data: { currentStock: balanceAfter },
+      }),
+      this.prisma.medicineStockMovement.create({
+        data: {
+          medicineId: medicine.id,
+          farmId,
+          reason: MedicineStockMovementReason.TREATMENT,
+          delta: -opts.quantity,
+          balanceAfter,
+          notes: opts.notes ?? 'Treatment administered',
+          createdBy: userId,
+        },
+      }),
+    ]);
+
+    this.log.info('Medicine decremented for treatment', {
+      medicineId: medicine.id,
+      farmId,
+      quantity: opts.quantity,
+      balanceAfter,
+    });
+    return { medicineId: medicine.id, batchId: medicine.batchId, balanceAfter };
+  }
+
+  /** Resolve the batch a treatment draws from: explicit id, else FIFO-by-name (INV-05). */
+  private async resolveTreatmentBatch(
+    farmId: string,
+    opts: { medicineId?: string; medicineName?: string },
+  ): Promise<Medicine> {
+    if (opts.medicineId) {
+      return this.getOrThrow(farmId, opts.medicineId);
+    }
+    if (!opts.medicineName) {
+      throw new BadRequestException(
+        'A medicineId or medicineName is required to deduct treatment stock',
+      );
+    }
+
+    const batch = await this.prisma.medicine.findFirst({
+      where: {
+        farmId,
+        isActive: true,
+        name: { equals: opts.medicineName, mode: 'insensitive' },
+        currentStock: { gt: 0 },
+        expiryDate: { gte: new Date() },
+      },
+      // FIFO: earliest expiry first (INV-05).
+      orderBy: [{ expiryDate: 'asc' }, { id: 'asc' }],
+    });
+    if (!batch) {
+      throw new BadRequestException(
+        `No in-stock, non-expired batch found for medicine "${opts.medicineName}"`,
+      );
+    }
+    return batch;
+  }
+
   async archive(farmId: string, id: string): Promise<PresentedMedicine> {
     await this.getOrThrow(farmId, id);
     const medicine = await this.prisma.medicine.update({

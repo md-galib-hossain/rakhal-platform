@@ -1,5 +1,11 @@
 import { Transform } from 'class-transformer';
-import { IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { HeatDetectionMethod } from '@prisma/client';
 import { BooleanSymptomsDto, trimString } from './common.dto';
 

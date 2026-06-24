@@ -5,13 +5,14 @@ import {
   Param,
   Post,
   Query,
-  Req,
-  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import type { AuthenticatedHttpRequest } from 'src/modules/auth/domain/authenticated-http-request.type';
+import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
+import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
+import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
+import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { ReproductionService } from '../../application/services/reproduction.service';
 import { ReproductionListQueryDto } from '../dto/common.dto';
 import { CreateAbortionEventDto } from '../dto/create-abortion-event.dto';
@@ -20,133 +21,121 @@ import { CreateCalvingEventDto } from '../dto/create-calving-event.dto';
 import { CreateHeatEventDto } from '../dto/create-heat-event.dto';
 import { CreatePregnancyDiagnosisDto } from '../dto/create-pregnancy-diagnosis.dto';
 
+/** Reproduction (PRD §9). `/api/v1/reproduction`. Token tenancy + RBAC. */
 @Controller('reproduction')
-@UseGuards(JwtAuthGuard, SessionGuard)
+@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class ReproductionController {
   constructor(private readonly reproductionService: ReproductionService) {}
 
   @Post('heat-events')
+  @RequirePermission('reproduction.heat')
   createHeatEvent(
+    @CurrentFarmId() farmId: string,
     @Body() dto: CreateHeatEventDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.reproductionService.createHeatEvent(this.userId(request), dto);
+    return this.reproductionService.createHeatEvent(farmId, dto);
   }
 
   @Get('heat-events')
+  @RequirePermission('reproduction.read')
   listHeatEvents(
+    @CurrentFarmId() farmId: string,
     @Query() query: ReproductionListQueryDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.reproductionService.listHeatEvents(this.userId(request), query);
+    return this.reproductionService.listHeatEvents(farmId, query);
   }
 
   @Post('breeding-events')
+  @RequirePermission('reproduction.create')
   createBreedingEvent(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Body() dto: CreateBreedingEventDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.reproductionService.createBreedingEvent(
-      this.userId(request),
-      dto,
-    );
+    return this.reproductionService.createBreedingEvent(farmId, userId, dto);
   }
 
   @Get('breeding-events')
+  @RequirePermission('reproduction.read')
   listBreedingEvents(
+    @CurrentFarmId() farmId: string,
     @Query() query: ReproductionListQueryDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.reproductionService.listBreedingEvents(
-      this.userId(request),
-      query,
-    );
+    return this.reproductionService.listBreedingEvents(farmId, query);
   }
 
   @Get('breeding-events/:id')
-  getBreedingEvent(
-    @Param('id') id: string,
-    @Req() request: AuthenticatedHttpRequest,
-  ) {
-    return this.reproductionService.getBreedingEvent(this.userId(request), id);
+  @RequirePermission('reproduction.read')
+  getBreedingEvent(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.reproductionService.getBreedingEvent(farmId, id);
   }
 
   @Post('pregnancy-diagnoses')
+  @RequirePermission('reproduction.create')
   createPregnancyDiagnosis(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Body() dto: CreatePregnancyDiagnosisDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
     return this.reproductionService.createPregnancyDiagnosis(
-      this.userId(request),
+      farmId,
+      userId,
       dto,
     );
   }
 
   @Get('pregnancies')
+  @RequirePermission('reproduction.read')
   listPregnancies(
+    @CurrentFarmId() farmId: string,
     @Query() query: ReproductionListQueryDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.reproductionService.listPregnancies(this.userId(request), query);
+    return this.reproductionService.listPregnancies(farmId, query);
   }
 
   @Post('calving-events')
+  @RequirePermission('reproduction.create')
   createCalvingEvent(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Body() dto: CreateCalvingEventDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.reproductionService.createCalvingEvent(
-      this.userId(request),
-      dto,
-    );
+    return this.reproductionService.createCalvingEvent(farmId, userId, dto);
   }
 
   @Get('calving-events')
+  @RequirePermission('reproduction.read')
   listCalvingEvents(
+    @CurrentFarmId() farmId: string,
     @Query() query: ReproductionListQueryDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.reproductionService.listCalvingEvents(
-      this.userId(request),
-      query,
-    );
+    return this.reproductionService.listCalvingEvents(farmId, query);
   }
 
   @Post('abortion-events')
+  @RequirePermission('reproduction.create')
   createAbortionEvent(
+    @CurrentFarmId() farmId: string,
     @Body() dto: CreateAbortionEventDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.reproductionService.createAbortionEvent(
-      this.userId(request),
-      dto,
-    );
+    return this.reproductionService.createAbortionEvent(farmId, dto);
   }
 
   @Get('abortion-events')
+  @RequirePermission('reproduction.read')
   listAbortionEvents(
+    @CurrentFarmId() farmId: string,
     @Query() query: ReproductionListQueryDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.reproductionService.listAbortionEvents(
-      this.userId(request),
-      query,
-    );
+    return this.reproductionService.listAbortionEvents(farmId, query);
   }
 
   @Get('lactations')
+  @RequirePermission('reproduction.read')
   listLactations(
+    @CurrentFarmId() farmId: string,
     @Query() query: ReproductionListQueryDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.reproductionService.listLactations(this.userId(request), query);
-  }
-
-  private userId(request: AuthenticatedHttpRequest) {
-    const userId = request.auth?.user.sub;
-    if (!userId) {
-      throw new UnauthorizedException('Unauthorized');
-    }
-    return userId;
+    return this.reproductionService.listLactations(farmId, query);
   }
 }

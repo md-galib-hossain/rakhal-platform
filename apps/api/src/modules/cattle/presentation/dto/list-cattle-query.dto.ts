@@ -1,18 +1,14 @@
 import { Transform } from 'class-transformer';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
 import { CattleGender, CattlePurpose, CattleStatus } from '@prisma/client';
-import { PaginationQueryDto, trimString } from './common.dto';
+import { CursorPaginationQueryDto } from 'src/common/pagination';
+import { toBoolean, trimString } from 'src/common/dto';
 
-export class ListCattleQueryDto extends PaginationQueryDto {
+export class ListCattleQueryDto extends CursorPaginationQueryDto {
   @IsOptional()
   @Transform(trimString)
   @IsString()
   search?: string;
-
-  @IsOptional()
-  @Transform(trimString)
-  @IsString()
-  farmId?: string;
 
   @IsOptional()
   @Transform(trimString)
@@ -35,4 +31,9 @@ export class ListCattleQueryDto extends PaginationQueryDto {
   @Transform(trimString)
   @IsString()
   shedId?: string;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  includeArchived = false;
 }

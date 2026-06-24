@@ -15,11 +15,6 @@ import {
 import { trimString } from './common.dto';
 
 export class CreateCattleDto {
-  @Transform(trimString)
-  @IsString()
-  @IsNotEmpty()
-  farmId!: string;
-
   @IsOptional()
   @Transform(trimString)
   @IsString()

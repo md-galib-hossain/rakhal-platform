@@ -7,73 +7,68 @@ import {
   Patch,
   Post,
   Query,
-  Req,
-  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import type { AuthenticatedHttpRequest } from 'src/modules/auth/domain/authenticated-http-request.type';
+import { CurrentFarmId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
+import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
+import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
+import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { BreedService } from '../../application/services/breed.service';
 import { CreateBreedDto } from '../dto/create-breed.dto';
 import { ListBreedQueryDto } from '../dto/list-breed-query.dto';
 import { UpdateBreedDto } from '../dto/update-breed.dto';
 
+/** Breeds (PRD §8.4). `/api/v1/breeds`. Token tenancy + RBAC (cattle.*). */
 @Controller('breeds')
-@UseGuards(JwtAuthGuard, SessionGuard)
+@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class BreedController {
   constructor(private readonly breedService: BreedService) {}
 
   @Post()
-  create(
-    @Body() dto: CreateBreedDto,
-    @Req() request: AuthenticatedHttpRequest,
-  ) {
-    return this.breedService.create(this.userId(request), dto);
+  @RequirePermission('cattle.create')
+  create(@CurrentFarmId() farmId: string, @Body() dto: CreateBreedDto) {
+    return this.breedService.create(farmId, dto);
   }
 
   @Get()
-  findAll(
-    @Query() query: ListBreedQueryDto,
-    @Req() request: AuthenticatedHttpRequest,
-  ) {
-    return this.breedService.findAll(this.userId(request), query);
+  @RequirePermission('cattle.read')
+  findAll(@CurrentFarmId() farmId: string, @Query() query: ListBreedQueryDto) {
+    return this.breedService.findAll(farmId, query);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @Req() request: AuthenticatedHttpRequest) {
-    return this.breedService.findOne(this.userId(request), id);
+  @RequirePermission('cattle.read')
+  findOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.breedService.findOne(farmId, id);
   }
 
   @Patch(':id')
+  @RequirePermission('cattle.update')
   update(
+    @CurrentFarmId() farmId: string,
     @Param('id') id: string,
     @Body() dto: UpdateBreedDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.breedService.update(this.userId(request), id, dto);
+    return this.breedService.update(farmId, id, dto);
   }
 
   @Patch(':id/archive')
-  archive(@Param('id') id: string, @Req() request: AuthenticatedHttpRequest) {
-    return this.breedService.archive(this.userId(request), id);
+  @RequirePermission('cattle.update')
+  archive(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.breedService.archive(farmId, id);
   }
 
   @Patch(':id/restore')
-  restore(@Param('id') id: string, @Req() request: AuthenticatedHttpRequest) {
-    return this.breedService.restore(this.userId(request), id);
+  @RequirePermission('cattle.update')
+  restore(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.breedService.restore(farmId, id);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string, @Req() request: AuthenticatedHttpRequest) {
-    return this.breedService.remove(this.userId(request), id);
-  }
-
-  private userId(request: AuthenticatedHttpRequest) {
-    const userId = request.auth?.user.sub;
-    if (!userId) {
-      throw new UnauthorizedException('Unauthorized');
-    }
-    return userId;
+  @RequirePermission('cattle.delete')
+  remove(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.breedService.remove(farmId, id);
   }
 }

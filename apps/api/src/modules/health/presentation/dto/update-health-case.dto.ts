@@ -1,6 +1,16 @@
 import { Transform } from 'class-transformer';
-import { IsArray, IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
-import { HealthCaseStatus, HealthDiagnosisType, HealthPriority } from '@prisma/client';
+import {
+  IsArray,
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+import {
+  HealthCaseStatus,
+  HealthDiagnosisType,
+  HealthPriority,
+} from '@prisma/client';
 import { trimString } from './common.dto';
 
 export class UpdateHealthCaseDto {

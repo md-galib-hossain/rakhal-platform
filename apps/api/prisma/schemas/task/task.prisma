@@ -1,0 +1,47 @@
+/// Task Hub task (PRD §17, §24.13). The same record is surfaced in the Task Hub
+/// and (when category = HEALTHCARE) the Healthcare task tab. Created either by a
+/// user (`source = MANUAL`) or programmatically by another module
+/// (`SYSTEM_AUTO` / `HEALTH_PLAN`) via the internal create API (RAKHAL-097).
+model Task {
+  id        String @id @default(cuid())
+  farmId    String
+  reference String // human ref, e.g. TSK-001 (sequential per farm)
+
+  name     String
+  details  String?
+  category TaskCategory @default(GENERAL)
+  priority TaskPriority @default(MEDIUM)
+  status   TaskStatus   @default(PENDING)
+
+  dueAt DateTime
+
+  /// Checklist sub-steps: [{ "id": "...", "text": "...", "completed": false }].
+  steps Json?
+
+  recurring         Boolean         @default(false)
+  recurrenceType    TaskRecurrence?
+  recurrenceEndDate DateTime?
+
+  safetyCritical Boolean    @default(false)
+  source         TaskSource @default(MANUAL)
+
+  relatedCattleId String?
+
+  assignedToId       String?
+  completionPhotoUrl String?
+  completedById      String?
+  completedAt        DateTime?
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm       Farm  @relation("FarmToTask", fields: [farmId], references: [id])
+  assignedTo User? @relation("TaskAssignee", fields: [assignedToId], references: [id])
+
+  @@unique([farmId, reference])
+  @@index([farmId, status])
+  @@index([assignedToId])
+  @@index([dueAt])
+  @@index([category])
+}

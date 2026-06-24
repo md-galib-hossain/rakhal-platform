@@ -1,51 +1,40 @@
 import {
-  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, Shed } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
-import { TenantAccessService } from 'src/modules/tenant-access/application/services/tenant-access.service';
+import { CursorPage, getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { CreateShedDto } from '../../presentation/dto/create-shed.dto';
 import { ListShedQueryDto } from '../../presentation/dto/list-shed-query.dto';
 import { UpdateShedDto } from '../../presentation/dto/update-shed.dto';
 
+/** Shed management (PRD §21.3). Farm-scoped via the token context. */
 @Injectable()
 export class ShedService {
   private readonly log: LoggerService;
-  private readonly sortWhitelist = new Set([
-    'name',
-    'code',
-    'capacity',
-    'createdAt',
-    'updatedAt',
-  ]);
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly tenantAccessService: TenantAccessService,
-    private readonly logger: LoggerService,
+    logger: LoggerService,
   ) {
-    this.log = this.logger.setContext(ShedService.name);
+    this.log = logger.setContext(ShedService.name);
   }
 
-  async create(userId: string, dto: CreateShedDto) {
-    await this.assertFarmAccess(userId, dto.farmId);
-
+  async create(farmId: string, dto: CreateShedDto) {
     try {
       const shed = await this.prisma.shed.create({
         data: {
-          farmId: dto.farmId,
+          farmId,
           name: dto.name,
           code: dto.code,
           description: dto.description,
           capacity: dto.capacity,
         },
       });
-
-      this.log.info('Shed created', { shedId: shed.id, farmId: shed.farmId });
+      this.log.info('Shed created', { shedId: shed.id, farmId });
       return shed;
     } catch (error) {
       if (this.isUniqueError(error)) {
@@ -55,13 +44,12 @@ export class ShedService {
     }
   }
 
-  async findAll(userId: string, query: ListShedQueryDto) {
-    await this.assertFarmAccess(userId, query.farmId);
-
-    const page = query.page;
-    const limit = query.limit;
+  async findAll(
+    farmId: string,
+    query: ListShedQueryDto,
+  ): Promise<CursorPage<Shed>> {
     const where: Prisma.ShedWhereInput = {
-      farmId: query.farmId,
+      farmId,
       ...(query.includeArchived ? {} : { isActive: true }),
       ...(query.search
         ? {
@@ -73,36 +61,20 @@ export class ShedService {
         : {}),
     };
 
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.shed.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: this.orderBy(query.sortBy, query.sortOrder),
-      }),
-      this.prisma.shed.count({ where }),
-    ]);
-
-    return this.paginate(items, total, page, limit);
+    const rows = await this.prisma.shed.findMany({
+      where,
+      orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
+      ...getCursorArgs(query),
+    });
+    return toCursorPage(rows, query);
   }
 
-  async findOne(userId: string, id: string) {
-    const shed = await this.prisma.shed.findUnique({ where: { id } });
-    if (!shed) {
-      this.log.warn('Shed not found', { shedId: id });
-      throw new NotFoundException('Shed not found');
-    }
-
-    await this.assertFarmAccess(userId, shed.farmId);
-    return shed;
+  async findOne(farmId: string, id: string) {
+    return this.getOrThrow(farmId, id);
   }
 
-  async update(userId: string, id: string, dto: UpdateShedDto) {
-    const existing = await this.findOne(userId, id);
-    if (dto.farmId && dto.farmId !== existing.farmId) {
-      throw new BadRequestException('farmId cannot be changed');
-    }
-
+  async update(farmId: string, id: string, dto: UpdateShedDto) {
+    await this.getOrThrow(farmId, id);
     try {
       const shed = await this.prisma.shed.update({
         where: { id },
@@ -113,8 +85,7 @@ export class ShedService {
           capacity: dto.capacity,
         },
       });
-
-      this.log.info('Shed updated', { shedId: id, farmId: existing.farmId });
+      this.log.info('Shed updated', { shedId: id, farmId });
       return shed;
     } catch (error) {
       if (this.isUniqueError(error)) {
@@ -124,49 +95,36 @@ export class ShedService {
     }
   }
 
-  async archive(userId: string, id: string) {
-    await this.findOne(userId, id);
+  async archive(farmId: string, id: string) {
+    await this.getOrThrow(farmId, id);
     const shed = await this.prisma.shed.update({
       where: { id },
       data: { isActive: false },
     });
-    this.log.info('Shed archived', { shedId: id, farmId: shed.farmId });
+    this.log.info('Shed archived', { shedId: id, farmId });
     return shed;
   }
 
-  async restore(userId: string, id: string) {
-    await this.findOne(userId, id);
+  async restore(farmId: string, id: string) {
+    await this.getOrThrow(farmId, id);
     const shed = await this.prisma.shed.update({
       where: { id },
       data: { isActive: true },
     });
-    this.log.info('Shed restored', { shedId: id, farmId: shed.farmId });
+    this.log.info('Shed restored', { shedId: id, farmId });
     return shed;
   }
 
-  async remove(userId: string, id: string) {
-    return this.archive(userId, id);
+  async remove(farmId: string, id: string) {
+    return this.archive(farmId, id);
   }
 
-  private async assertFarmAccess(userId: string, farmId: string) {
-    await this.tenantAccessService.resolveFarmContext(userId, farmId);
-  }
-
-  private orderBy(sortBy = 'createdAt', sortOrder: 'asc' | 'desc' = 'desc') {
-    const field = this.sortWhitelist.has(sortBy) ? sortBy : 'createdAt';
-    return { [field]: sortOrder };
-  }
-
-  private paginate<T>(items: T[], total: number, page: number, limit: number) {
-    return {
-      items,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+  private async getOrThrow(farmId: string, id: string): Promise<Shed> {
+    const shed = await this.prisma.shed.findFirst({ where: { id, farmId } });
+    if (!shed) {
+      throw new NotFoundException('Shed not found');
+    }
+    return shed;
   }
 
   private isUniqueError(error: unknown) {

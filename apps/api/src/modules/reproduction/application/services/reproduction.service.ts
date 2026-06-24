@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  BreedingMethod,
   BreedingStatus,
   CalfBirthStatus,
   CattleGender,
@@ -13,12 +14,17 @@ import {
   LactationStatus,
   PregnancyDiagnosisResult,
   PregnancyStatus,
-  Prisma,
   ReproductiveStatus,
+  TaskCategory,
+  TaskPriority,
+  TaskSource,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
-import { TenantAccessService } from 'src/modules/tenant-access/application/services/tenant-access.service';
+import { getCursorArgs, toCursorPage } from 'src/common/pagination';
+import { AqrService } from 'src/modules/activity/application/services/aqr.service';
+import { TaskService } from 'src/modules/task/application/services/task.service';
+import { SemenService } from 'src/modules/inventory/application/services/semen.service';
 import { CreateAbortionEventDto } from '../../presentation/dto/create-abortion-event.dto';
 import { CreateBreedingEventDto } from '../../presentation/dto/create-breeding-event.dto';
 import { CreateCalvingEventDto } from '../../presentation/dto/create-calving-event.dto';
@@ -33,20 +39,30 @@ type CattleForAccess = {
   tagNumber: string;
 };
 
+/**
+ * Reproduction service (PRD §9). Farm-scoped: `farmId` is supplied by the
+ * controller from the verified token context (`FarmContextGuard`), so every
+ * cattle lookup is scoped to it and no cross-tenant access is possible. Domain
+ * events feed the live cross-cutting engines: pregnancy confirmation (+5) and
+ * calving (+8) emit AQR/Activity events, newborn calves register (+50), and a
+ * breeding spawns a pregnancy-check task while calving spawns a colostrum task.
+ */
 @Injectable()
 export class ReproductionService {
   private readonly log: LoggerService;
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly tenantAccessService: TenantAccessService,
+    private readonly aqrService: AqrService,
+    private readonly taskService: TaskService,
+    private readonly semenService: SemenService,
     private readonly logger: LoggerService,
   ) {
     this.log = this.logger.setContext(ReproductionService.name);
   }
 
-  async createHeatEvent(userId: string, dto: CreateHeatEventDto) {
-    const cattle = await this.getFemaleCattleForUser(userId, dto.cattleId);
+  async createHeatEvent(farmId: string, dto: CreateHeatEventDto) {
+    const cattle = await this.getFemaleCattle(farmId, dto.cattleId);
 
     const heatEvent = await this.prisma.heatEvent.create({
       data: {
@@ -71,36 +87,38 @@ export class ReproductionService {
     return heatEvent;
   }
 
-  async listHeatEvents(userId: string, query: ReproductionListQueryDto) {
-    const where = await this.buildScopedWhere(userId, query, 'heatDateTime');
-    return this.paginated(
-      this.prisma.heatEvent.findMany({
-        where,
-        skip: (query.page - 1) * query.limit,
-        take: query.limit,
-        orderBy: this.orderBy(query.sortBy, query.sortOrder, [
-          'heatDateTime',
-          'createdAt',
-        ]),
-      }),
-      this.prisma.heatEvent.count({ where }),
-      query,
-    );
+  async listHeatEvents(farmId: string, query: ReproductionListQueryDto) {
+    const where = await this.buildScopedWhere(farmId, query, 'heatDateTime');
+    const rows = await this.prisma.heatEvent.findMany({
+      where,
+      orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
+      ...getCursorArgs(query),
+    });
+    return toCursorPage(rows, query);
   }
 
-  async createBreedingEvent(userId: string, dto: CreateBreedingEventDto) {
-    const cattle = await this.getFemaleCattleForUser(userId, dto.cattleId);
+  async createBreedingEvent(
+    farmId: string,
+    userId: string,
+    dto: CreateBreedingEventDto,
+  ) {
+    const cattle = await this.getFemaleCattle(farmId, dto.cattleId);
 
     if (dto.bullId) {
-      await this.assertCattleInFarm(dto.bullId, cattle.farmId);
+      await this.assertCattleInFarm(farmId, dto.bullId);
+    }
+
+    // Inventory decrement (REP-05): consume one straw for an AI service before
+    // recording it, so a missing/empty batch (INV-02) aborts the breeding.
+    if (dto.breedingMethod === BreedingMethod.AI && dto.semenBatchId) {
+      await this.semenService.decrementStraw(farmId, dto.semenBatchId, 1);
     }
 
     const breedingNumber =
       dto.breedingNumber ??
-      ((await this.prisma.breedingEvent.count({
+      (await this.prisma.breedingEvent.count({
         where: { cattleId: dto.cattleId },
-      })) +
-        1);
+      })) + 1;
 
     const breedingEvent = await this.prisma.breedingEvent.create({
       data: {
@@ -123,37 +141,45 @@ export class ReproductionService {
     });
 
     await this.refreshProfile(dto.cattleId);
+
+    // Task Hub: schedule the pregnancy check for this service (PRD §9.3, §17.6).
+    await this.taskService.createInternal({
+      farmId,
+      createdBy: userId,
+      name: `Pregnancy check — ${cattle.tagNumber}`,
+      details: `Confirm pregnancy for breeding #${breedingEvent.breedingNumber} of [${cattle.tagNumber}].`,
+      category: TaskCategory.BREEDING,
+      priority: TaskPriority.MEDIUM,
+      dueAt:
+        breedingEvent.expectedPregnancyCheckDate ??
+        this.addDays(new Date(dto.breedingDate), 35),
+      source: TaskSource.SYSTEM_AUTO,
+      relatedCattleId: dto.cattleId,
+    });
+
     this.log.info('Breeding event created', {
       breedingEventId: breedingEvent.id,
       cattleId: dto.cattleId,
-      farmId: cattle.farmId,
+      farmId,
     });
 
     return breedingEvent;
   }
 
-  async listBreedingEvents(userId: string, query: ReproductionListQueryDto) {
-    const where = await this.buildScopedWhere(userId, query, 'breedingDate');
-    return this.paginated(
-      this.prisma.breedingEvent.findMany({
-        where,
-        skip: (query.page - 1) * query.limit,
-        take: query.limit,
-        orderBy: this.orderBy(query.sortBy, query.sortOrder, [
-          'breedingDate',
-          'createdAt',
-          'status',
-        ]),
-        include: { bull: { select: { id: true, tagNumber: true, name: true } } },
-      }),
-      this.prisma.breedingEvent.count({ where }),
-      query,
-    );
+  async listBreedingEvents(farmId: string, query: ReproductionListQueryDto) {
+    const where = await this.buildScopedWhere(farmId, query, 'breedingDate');
+    const rows = await this.prisma.breedingEvent.findMany({
+      where,
+      orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
+      ...getCursorArgs(query),
+      include: { bull: { select: { id: true, tagNumber: true, name: true } } },
+    });
+    return toCursorPage(rows, query);
   }
 
-  async getBreedingEvent(userId: string, id: string) {
-    const event = await this.prisma.breedingEvent.findUnique({
-      where: { id },
+  async getBreedingEvent(farmId: string, id: string) {
+    const event = await this.prisma.breedingEvent.findFirst({
+      where: { id, cattle: { farmId } },
       include: {
         cattle: { select: { id: true, farmId: true } },
         bull: { select: { id: true, tagNumber: true, name: true } },
@@ -166,15 +192,15 @@ export class ReproductionService {
       throw new NotFoundException('Breeding event not found');
     }
 
-    await this.assertFarmAccess(userId, event.cattle.farmId);
     return event;
   }
 
   async createPregnancyDiagnosis(
+    farmId: string,
     userId: string,
     dto: CreatePregnancyDiagnosisDto,
   ) {
-    const cattle = await this.getFemaleCattleForUser(userId, dto.cattleId);
+    const cattle = await this.getFemaleCattle(farmId, dto.cattleId);
     const breedingEvent = dto.breedingEventId
       ? await this.getBreedingEventForCattle(dto.breedingEventId, dto.cattleId)
       : null;
@@ -196,7 +222,8 @@ export class ReproductionService {
       });
 
       if (dto.result === PregnancyDiagnosisResult.PREGNANT) {
-        const conceptionDate = breedingEvent?.breedingDate ?? new Date(dto.diagnosisDate);
+        const conceptionDate =
+          breedingEvent?.breedingDate ?? new Date(dto.diagnosisDate);
         const pregnancy = await tx.pregnancy.create({
           data: {
             cattleId: dto.cattleId,
@@ -231,7 +258,10 @@ export class ReproductionService {
             currentPregnancyId: pregnancy.id,
           },
         });
-      } else if (dto.breedingEventId && dto.result === PregnancyDiagnosisResult.NOT_PREGNANT) {
+      } else if (
+        dto.breedingEventId &&
+        dto.result === PregnancyDiagnosisResult.NOT_PREGNANT
+      ) {
         await tx.breedingEvent.update({
           where: { id: dto.breedingEventId },
           data: { status: BreedingStatus.FAILED },
@@ -242,36 +272,46 @@ export class ReproductionService {
     });
 
     await this.refreshProfile(dto.cattleId);
+
+    // AQR: Pregnancy Confirmed (+5) + immutable Activity Log entry (PRD §19.2).
+    if (dto.result === PregnancyDiagnosisResult.PREGNANT) {
+      await this.aqrService.applyEvent(
+        farmId,
+        dto.cattleId,
+        'pregnancy_confirmed',
+        {
+          actorId: userId,
+          actionDetails: `Pregnancy confirmed for [${cattle.tagNumber}].`,
+        },
+      );
+    }
+
     this.log.info('Pregnancy diagnosis created', {
       pregnancyDiagnosisId: diagnosis.id,
       cattleId: dto.cattleId,
-      farmId: cattle.farmId,
+      farmId,
       result: dto.result,
     });
 
     return diagnosis;
   }
 
-  async listPregnancies(userId: string, query: ReproductionListQueryDto) {
-    const where = await this.buildScopedWhere(userId, query, 'conceptionDate');
-    return this.paginated(
-      this.prisma.pregnancy.findMany({
-        where,
-        skip: (query.page - 1) * query.limit,
-        take: query.limit,
-        orderBy: this.orderBy(query.sortBy, query.sortOrder, [
-          'conceptionDate',
-          'createdAt',
-          'status',
-        ]),
-      }),
-      this.prisma.pregnancy.count({ where }),
-      query,
-    );
+  async listPregnancies(farmId: string, query: ReproductionListQueryDto) {
+    const where = await this.buildScopedWhere(farmId, query, 'conceptionDate');
+    const rows = await this.prisma.pregnancy.findMany({
+      where,
+      orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
+      ...getCursorArgs(query),
+    });
+    return toCursorPage(rows, query);
   }
 
-  async createCalvingEvent(userId: string, dto: CreateCalvingEventDto) {
-    const cattle = await this.getFemaleCattleForUser(userId, dto.cattleId);
+  async createCalvingEvent(
+    farmId: string,
+    userId: string,
+    dto: CreateCalvingEventDto,
+  ) {
+    const cattle = await this.getFemaleCattle(farmId, dto.cattleId);
     const pregnancy = dto.pregnancyId
       ? await this.getPregnancyForCattle(dto.pregnancyId, dto.cattleId)
       : null;
@@ -279,10 +319,9 @@ export class ReproductionService {
 
     const calvingNumber =
       dto.calvingNumber ??
-      ((await this.prisma.calvingEvent.count({
+      (await this.prisma.calvingEvent.count({
         where: { cattleId: dto.cattleId },
-      })) +
-        1);
+      })) + 1;
 
     const calvingEvent = await this.prisma.$transaction(async (tx) => {
       const created = await tx.calvingEvent.create({
@@ -306,7 +345,10 @@ export class ReproductionService {
           data: {
             status: PregnancyStatus.CALVED,
             actualCalvingDate: calvingDate,
-            gestationDays: this.daysBetween(pregnancy.conceptionDate, calvingDate),
+            gestationDays: this.daysBetween(
+              pregnancy.conceptionDate,
+              calvingDate,
+            ),
           },
         });
 
@@ -381,8 +423,7 @@ export class ReproductionService {
         update: {
           reproductiveStatus: ReproductiveStatus.LACTATING,
           currentLactationNumber: calvingNumber,
-          firstCalvingDate:
-            calvingNumber === 1 ? calvingDate : undefined,
+          firstCalvingDate: calvingNumber === 1 ? calvingDate : undefined,
           lastCalvingDate: calvingDate,
           currentLactationId: lactation.id,
           currentPregnancyId: null,
@@ -396,35 +437,72 @@ export class ReproductionService {
     });
 
     await this.refreshProfile(dto.cattleId);
+
+    // AQR: register each live-born calf (+50) just like CattleService does.
+    for (const birth of calvingEvent?.calfBirths ?? []) {
+      if (birth.calfId) {
+        await this.aqrService.applyEvent(
+          farmId,
+          birth.calfId,
+          'animal_registered',
+          {
+            actorId: userId,
+            actionDetails: `Calf [${birth.calf?.tagNumber ?? birth.calfId}] born to [${cattle.tagNumber}].`,
+          },
+        );
+      }
+    }
+
+    // AQR: Calving Recorded (+8) on the dam + immutable Activity Log entry.
+    await this.aqrService.applyEvent(
+      farmId,
+      dto.cattleId,
+      'calving_successful',
+      {
+        actorId: userId,
+        actionDetails: `Calving recorded for [${cattle.tagNumber}] (${
+          calvingEvent?.calfBirths.length ?? 0
+        } calf/calves).`,
+      },
+    );
+
+    // Task Hub: colostrum feeding is time-critical in the first hours (PRD §14).
+    await this.taskService.createInternal({
+      farmId,
+      createdBy: userId,
+      name: `Colostrum feeding — calf of ${cattle.tagNumber}`,
+      details:
+        'Feed colostrum to the newborn calf within the first 6 hours of birth.',
+      category: TaskCategory.CALF_CARE,
+      priority: TaskPriority.HIGH,
+      dueAt: this.addHours(calvingDate, 6),
+      source: TaskSource.SYSTEM_AUTO,
+      relatedCattleId: dto.cattleId,
+      safetyCritical: true,
+    });
+
     this.log.info('Calving event created', {
       calvingEventId: calvingEvent?.id,
       cattleId: dto.cattleId,
-      farmId: cattle.farmId,
+      farmId,
     });
 
     return calvingEvent;
   }
 
-  async listCalvingEvents(userId: string, query: ReproductionListQueryDto) {
-    const where = await this.buildScopedWhere(userId, query, 'calvingDate');
-    return this.paginated(
-      this.prisma.calvingEvent.findMany({
-        where,
-        skip: (query.page - 1) * query.limit,
-        take: query.limit,
-        orderBy: this.orderBy(query.sortBy, query.sortOrder, [
-          'calvingDate',
-          'createdAt',
-        ]),
-        include: { calfBirths: { include: { calf: true } }, lactations: true },
-      }),
-      this.prisma.calvingEvent.count({ where }),
-      query,
-    );
+  async listCalvingEvents(farmId: string, query: ReproductionListQueryDto) {
+    const where = await this.buildScopedWhere(farmId, query, 'calvingDate');
+    const rows = await this.prisma.calvingEvent.findMany({
+      where,
+      orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
+      ...getCursorArgs(query),
+      include: { calfBirths: { include: { calf: true } }, lactations: true },
+    });
+    return toCursorPage(rows, query);
   }
 
-  async createAbortionEvent(userId: string, dto: CreateAbortionEventDto) {
-    const cattle = await this.getFemaleCattleForUser(userId, dto.cattleId);
+  async createAbortionEvent(farmId: string, dto: CreateAbortionEventDto) {
+    await this.getFemaleCattle(farmId, dto.cattleId);
     const pregnancy = dto.pregnancyId
       ? await this.getPregnancyForCattle(dto.pregnancyId, dto.cattleId)
       : null;
@@ -475,50 +553,35 @@ export class ReproductionService {
     this.log.info('Abortion event created', {
       abortionEventId: abortion.id,
       cattleId: dto.cattleId,
-      farmId: cattle.farmId,
+      farmId,
     });
 
     return abortion;
   }
 
-  async listAbortionEvents(userId: string, query: ReproductionListQueryDto) {
-    const where = await this.buildScopedWhere(userId, query, 'abortionDate');
-    return this.paginated(
-      this.prisma.abortionEvent.findMany({
-        where,
-        skip: (query.page - 1) * query.limit,
-        take: query.limit,
-        orderBy: this.orderBy(query.sortBy, query.sortOrder, [
-          'abortionDate',
-          'createdAt',
-        ]),
-      }),
-      this.prisma.abortionEvent.count({ where }),
-      query,
-    );
+  async listAbortionEvents(farmId: string, query: ReproductionListQueryDto) {
+    const where = await this.buildScopedWhere(farmId, query, 'abortionDate');
+    const rows = await this.prisma.abortionEvent.findMany({
+      where,
+      orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
+      ...getCursorArgs(query),
+    });
+    return toCursorPage(rows, query);
   }
 
-  async listLactations(userId: string, query: ReproductionListQueryDto) {
-    const where = await this.buildScopedWhere(userId, query, 'startDate');
-    return this.paginated(
-      this.prisma.lactation.findMany({
-        where,
-        skip: (query.page - 1) * query.limit,
-        take: query.limit,
-        orderBy: this.orderBy(query.sortBy, query.sortOrder, [
-          'startDate',
-          'createdAt',
-          'status',
-        ]),
-        include: { calvingEvent: true },
-      }),
-      this.prisma.lactation.count({ where }),
-      query,
-    );
+  async listLactations(farmId: string, query: ReproductionListQueryDto) {
+    const where = await this.buildScopedWhere(farmId, query, 'startDate');
+    const rows = await this.prisma.lactation.findMany({
+      where,
+      orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
+      ...getCursorArgs(query),
+      include: { calvingEvent: true },
+    });
+    return toCursorPage(rows, query);
   }
 
-  async summary(userId: string, cattleId: string) {
-    const cattle = await this.getFemaleCattleForUser(userId, cattleId);
+  async summary(farmId: string, cattleId: string) {
+    const cattle = await this.getFemaleCattle(farmId, cattleId);
     await this.refreshProfile(cattleId);
 
     const [
@@ -573,9 +636,7 @@ export class ReproductionService {
       totalPregnancies: successfulPregnancies,
       totalAbortions: abortions.length,
       conceptionRate:
-        breedings.length > 0
-          ? successfulPregnancies / breedings.length
-          : null,
+        breedings.length > 0 ? successfulPregnancies / breedings.length : null,
       servicesPerConception:
         successfulPregnancies > 0
           ? breedings.length / successfulPregnancies
@@ -597,9 +658,9 @@ export class ReproductionService {
     };
   }
 
-  private async getFemaleCattleForUser(userId: string, cattleId: string) {
-    const cattle = await this.getCattleOrThrow(cattleId);
-    await this.assertFarmAccess(userId, cattle.farmId);
+  /** Resolve a female animal scoped to the active farm (tenant isolation). */
+  private async getFemaleCattle(farmId: string, cattleId: string) {
+    const cattle = await this.getCattleOrThrow(farmId, cattleId);
 
     if (cattle.gender !== CattleGender.FEMALE) {
       throw new BadRequestException(
@@ -610,9 +671,12 @@ export class ReproductionService {
     return cattle;
   }
 
-  private async getCattleOrThrow(cattleId: string): Promise<CattleForAccess> {
-    const cattle = await this.prisma.cattle.findUnique({
-      where: { id: cattleId },
+  private async getCattleOrThrow(
+    farmId: string,
+    cattleId: string,
+  ): Promise<CattleForAccess> {
+    const cattle = await this.prisma.cattle.findFirst({
+      where: { id: cattleId, farmId },
       select: {
         id: true,
         farmId: true,
@@ -628,12 +692,9 @@ export class ReproductionService {
     return cattle;
   }
 
-  private async assertCattleInFarm(cattleId: string, farmId: string) {
-    const cattle = await this.getCattleOrThrow(cattleId);
-    if (cattle.farmId !== farmId) {
-      throw new BadRequestException('Referenced cattle must belong to the same farm');
-    }
-    return cattle;
+  /** Assert a referenced animal (e.g. a service bull) belongs to the same farm. */
+  private async assertCattleInFarm(farmId: string, cattleId: string) {
+    return this.getCattleOrThrow(farmId, cattleId);
   }
 
   private async getBreedingEventForCattle(id: string, cattleId: string) {
@@ -663,27 +724,23 @@ export class ReproductionService {
     return pregnancy;
   }
 
+  /**
+   * Build a list filter scoped to the active farm (token tenancy). The farm is
+   * applied via the `cattle` relation; an optional `cattleId` is verified to
+   * belong to the farm before it narrows the result.
+   */
   private async buildScopedWhere(
-    userId: string,
+    farmId: string,
     query: ReproductionListQueryDto,
     dateField: string,
   ) {
-    if (!query.farmId && !query.cattleId) {
-      throw new BadRequestException('farmId or cattleId is required');
-    }
-
     if (query.cattleId) {
-      const cattle = await this.getCattleOrThrow(query.cattleId);
-      await this.assertFarmAccess(userId, cattle.farmId);
-    }
-
-    if (query.farmId) {
-      await this.assertFarmAccess(userId, query.farmId);
+      await this.getCattleOrThrow(farmId, query.cattleId);
     }
 
     return {
+      cattle: { farmId },
       ...(query.cattleId ? { cattleId: query.cattleId } : {}),
-      ...(query.farmId ? { cattle: { farmId: query.farmId } } : {}),
       ...this.dateRange(dateField, query.fromDate, query.toDate),
     };
   }
@@ -791,42 +848,12 @@ export class ReproductionService {
     });
   }
 
-  private async assertFarmAccess(userId: string, farmId: string) {
-    await this.tenantAccessService.resolveFarmContext(userId, farmId);
-  }
-
   private dateRange(field: string, fromDate?: string, toDate?: string) {
     if (!fromDate && !toDate) return {};
     return {
       [field]: {
         ...(fromDate ? { gte: new Date(fromDate) } : {}),
         ...(toDate ? { lte: new Date(toDate) } : {}),
-      },
-    };
-  }
-
-  private orderBy(
-    sortBy = 'createdAt',
-    sortOrder: 'asc' | 'desc' = 'desc',
-    whitelist: string[],
-  ) {
-    const field = whitelist.includes(sortBy) ? sortBy : whitelist[0] ?? 'createdAt';
-    return { [field]: sortOrder };
-  }
-
-  private async paginated<T>(
-    itemsPromise: Promise<T[]>,
-    totalPromise: Promise<number>,
-    query: ReproductionListQueryDto,
-  ) {
-    const [items, total] = await Promise.all([itemsPromise, totalPromise]);
-    return {
-      items,
-      meta: {
-        total,
-        page: query.page,
-        limit: query.limit,
-        totalPages: Math.ceil(total / query.limit),
       },
     };
   }
@@ -839,7 +866,10 @@ export class ReproductionService {
     const intervals: number[] = [];
     for (let index = 1; index < calvings.length; index += 1) {
       intervals.push(
-        this.daysBetween(calvings[index - 1].calvingDate, calvings[index].calvingDate),
+        this.daysBetween(
+          calvings[index - 1].calvingDate,
+          calvings[index].calvingDate,
+        ),
       );
     }
 
@@ -857,13 +887,17 @@ export class ReproductionService {
 
     const conceptionAfterCalving = pregnancies.find(
       (pregnancy) =>
-        pregnancy.conceptionDate.getTime() > lastCalving.calvingDate.getTime() &&
+        pregnancy.conceptionDate.getTime() >
+          lastCalving.calvingDate.getTime() &&
         (pregnancy.status === PregnancyStatus.ACTIVE ||
           pregnancy.status === PregnancyStatus.CALVED),
     );
 
     if (!conceptionAfterCalving) return null;
-    return this.daysBetween(lastCalving.calvingDate, conceptionAfterCalving.conceptionDate);
+    return this.daysBetween(
+      lastCalving.calvingDate,
+      conceptionAfterCalving.conceptionDate,
+    );
   }
 
   private daysBetween(start: Date, end: Date) {
@@ -877,5 +911,9 @@ export class ReproductionService {
     const result = new Date(date);
     result.setDate(result.getDate() + days);
     return result;
+  }
+
+  private addHours(date: Date, hours: number) {
+    return new Date(date.getTime() + hours * 60 * 60 * 1000);
   }
 }

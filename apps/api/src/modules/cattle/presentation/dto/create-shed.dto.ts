@@ -6,11 +6,6 @@ export class CreateShedDto {
   @Transform(trimString)
   @IsString()
   @IsNotEmpty()
-  farmId!: string;
-
-  @Transform(trimString)
-  @IsString()
-  @IsNotEmpty()
   name!: string;
 
   @Transform(trimString)
