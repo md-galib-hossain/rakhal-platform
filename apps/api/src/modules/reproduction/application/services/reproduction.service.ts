@@ -25,6 +25,7 @@ import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { SemenService } from 'src/modules/inventory/application/services/semen.service';
+import { CalfService } from 'src/modules/calf/application/services/calf.service';
 import { CreateAbortionEventDto } from '../../presentation/dto/create-abortion-event.dto';
 import { CreateBreedingEventDto } from '../../presentation/dto/create-breeding-event.dto';
 import { CreateCalvingEventDto } from '../../presentation/dto/create-calving-event.dto';
@@ -56,6 +57,7 @@ export class ReproductionService {
     private readonly aqrService: AqrService,
     private readonly taskService: TaskService,
     private readonly semenService: SemenService,
+    private readonly calfService: CalfService,
     private readonly logger: LoggerService,
   ) {
     this.log = this.logger.setContext(ReproductionService.name);
@@ -438,7 +440,8 @@ export class ReproductionService {
 
     await this.refreshProfile(dto.cattleId);
 
-    // AQR: register each live-born calf (+50) just like CattleService does.
+    // AQR: register each live-born calf (+50) just like CattleService does, then
+    // spin up the age-based calf-care schedule (PRD §14.5, RD-009).
     for (const birth of calvingEvent?.calfBirths ?? []) {
       if (birth.calfId) {
         await this.aqrService.applyEvent(
@@ -450,6 +453,14 @@ export class ReproductionService {
             actionDetails: `Calf [${birth.calf?.tagNumber ?? birth.calfId}] born to [${cattle.tagNumber}].`,
           },
         );
+
+        await this.calfService.scheduleCareReminders({
+          farmId,
+          createdBy: userId,
+          calfId: birth.calfId,
+          birthDate: calvingDate,
+          gender: birth.gender,
+        });
       }
     }
 
