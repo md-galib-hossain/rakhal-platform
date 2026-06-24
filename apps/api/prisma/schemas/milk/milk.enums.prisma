@@ -1,0 +1,8 @@
+/// Milking sessions in a day (PRD §10.2). Which sessions are active is a farm
+/// setting; all four are supported by the data model.
+enum MilkSession {
+  MORNING
+  NOON
+  EVENING
+  NIGHT
+}

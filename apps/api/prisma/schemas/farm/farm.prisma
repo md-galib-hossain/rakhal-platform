@@ -36,6 +36,7 @@ model Farm {
   equipment         Equipment[]        @relation("FarmToEquipment")
   activityLogs      ActivityLog[]      @relation("FarmToActivityLog")
   tasks             Task[]             @relation("FarmToTask")
+  milkLogEntries    MilkLogEntry[]     @relation("FarmToMilkLogEntry")
 
   @@index([ownerId])
   @@index([slug])

@@ -40,6 +40,7 @@ import { CattleModule } from './modules/cattle/cattle.module';
 import { ReproductionModule } from './modules/reproduction/reproduction.module';
 import { HealthModule } from './modules/health/health.module';
 import { CalfModule } from './modules/calf/calf.module';
+import { MilkModule } from './modules/milk/milk.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { FarmModule } from './modules/farm/farm.module';
 import { ActivityModule } from './modules/activity/activity.module';
@@ -116,6 +117,7 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     ReproductionModule,
     HealthModule,
     CalfModule,
+    MilkModule,
     InventoryModule,
     FarmModule,
     ActivityModule,
