@@ -1,0 +1,117 @@
+/// Finance Module (PRD §16). Farm-scoped double-tab ledger: transactions, plus
+/// receivables/payables (from partial settlements), loans (liabilities), and the
+/// wallet (cash position). The wallet is parallel to the ledger — a revenue
+/// transaction does NOT auto-credit it (§16.7).
+
+model FinanceTransaction {
+  id     String @id @default(cuid())
+  farmId String
+
+  reference   String /// TRX-XXXXX, unique per farm
+  date        DateTime
+  type        FinanceTxnType
+  category    FinanceCategory
+  subType     String? /// milk | animal | manure | salary | new_loan | emi_payment | …
+  entityName  String?
+  description String?
+
+  amount        Float
+  paidNow       Float                @default(0)
+  paymentType   FinancePaymentType   @default(FULL)
+  paymentMethod FinancePaymentMethod @default(CASH)
+  status        FinanceTxnStatus     @default(COMPLETED)
+
+  // Optional cross-references resolved by the wizard.
+  buyerId           String?
+  cattleId          String?
+  inventoryItemName String?
+  quantity          Float?
+  costPerUnit       Float?
+
+  // Void / reversal audit trail (§16.2). The reversal points back at its source.
+  isVoided             Boolean @default(false)
+  reversedTransactionId String?
+  reversalReason       String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm Farm @relation("FarmToFinanceTransaction", fields: [farmId], references: [id])
+
+  @@unique([farmId, reference])
+  @@index([farmId])
+  @@index([farmId, date])
+  @@index([farmId, type])
+  @@index([farmId, status])
+}
+
+model FinanceReceivable {
+  id     String @id @default(cuid())
+  farmId String
+
+  reference String /// REC-XXXXX / PAY-XXXXX
+  kind      ReceivableKind
+  entityName String?
+
+  total   Float
+  paid    Float            @default(0)
+  dueDate DateTime?
+  status  ReceivableStatus @default(PENDING)
+
+  sourceTransactionId String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm Farm @relation("FarmToFinanceReceivable", fields: [farmId], references: [id])
+
+  @@unique([farmId, reference])
+  @@index([farmId])
+  @@index([farmId, kind])
+  @@index([farmId, status])
+}
+
+model FinanceLoan {
+  id     String @id @default(cuid())
+  farmId String
+
+  lenderName     String
+  totalAmount    Float
+  paidAmount     Float      @default(0)
+  monthlyEmi     Float      @default(0)
+  startDate      DateTime
+  durationMonths Int        @default(0)
+  status         LoanStatus @default(ACTIVE)
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm Farm @relation("FarmToFinanceLoan", fields: [farmId], references: [id])
+
+  @@index([farmId])
+  @@index([farmId, status])
+}
+
+model WalletTransaction {
+  id     String @id @default(cuid())
+  farmId String
+
+  reference     String /// WAL-XXXXX
+  direction     WalletDirection
+  description   String?
+  amount        Float
+  paymentMethod FinancePaymentMethod @default(CASH)
+  date          DateTime
+
+  createdBy String
+  createdAt DateTime @default(now())
+
+  farm Farm @relation("FarmToWalletTransaction", fields: [farmId], references: [id])
+
+  @@unique([farmId, reference])
+  @@index([farmId])
+  @@index([farmId, date])
+}

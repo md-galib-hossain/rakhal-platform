@@ -1,0 +1,56 @@
+/// Finance Module enums (PRD §16).
+
+enum FinanceTxnType {
+  OPERATING_EXPENSE
+  INVENTORY_PURCHASE
+  REVENUE
+  DEBT_LOAN
+}
+
+enum FinanceCategory {
+  REVENUE
+  INVENTORY
+  HEALTHCARE
+  OVERHEAD
+  DEBT
+}
+
+enum FinancePaymentMethod {
+  CASH
+  BANK_TRANSFER
+  MFS
+}
+
+enum FinancePaymentType {
+  FULL
+  PARTIAL
+}
+
+enum FinanceTxnStatus {
+  COMPLETED
+  PENDING
+  VOIDED
+}
+
+/// A `FinanceReceivable` row models both sides of a partial settlement.
+enum ReceivableKind {
+  RECEIVABLE
+  PAYABLE
+}
+
+enum ReceivableStatus {
+  PENDING
+  PARTIAL
+  COMPLETED
+  OVERDUE
+}
+
+enum LoanStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum WalletDirection {
+  CREDIT
+  DEBIT
+}
