@@ -7,11 +7,6 @@ export class UpdateShedDto implements Partial<CreateShedDto> {
   @IsOptional()
   @Transform(trimString)
   @IsString()
-  farmId?: string;
-
-  @IsOptional()
-  @Transform(trimString)
-  @IsString()
   name?: string;
 
   @IsOptional()

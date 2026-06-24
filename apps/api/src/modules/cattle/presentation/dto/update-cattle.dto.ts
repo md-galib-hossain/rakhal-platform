@@ -13,11 +13,6 @@ export class UpdateCattleDto implements Partial<CreateCattleDto> {
   @IsOptional()
   @Transform(trimString)
   @IsString()
-  farmId?: string;
-
-  @IsOptional()
-  @Transform(trimString)
-  @IsString()
   name?: string;
 
   @IsOptional()

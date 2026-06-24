@@ -14,7 +14,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
-import { TenantAccessService } from 'src/modules/tenant-access/application/services/tenant-access.service';
+import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 import { AncestryQueryDto } from '../../presentation/dto/ancestry-query.dto';
 import { CreateCattleDto } from '../../presentation/dto/create-cattle.dto';
@@ -28,36 +28,32 @@ interface AncestryNode extends CattleSummary {
   father: AncestryNode | null;
 }
 
+/**
+ * Cattle service (PRD §8). Farm-scoped: `farmId` is supplied by the controller
+ * from the verified token context (`FarmContextGuard`), so every query is scoped
+ * to it and no cross-tenant access is possible. Registration emits the AQR
+ * "Animal Registered" event (+50) + Activity Log entry.
+ */
 @Injectable()
 export class CattleService {
   private readonly log: LoggerService;
-  private readonly sortWhitelist = new Set([
-    'tagNumber',
-    'name',
-    'dateOfBirth',
-    'createdAt',
-    'updatedAt',
-    'status',
-  ]);
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly tenantAccessService: TenantAccessService,
     private readonly aqrService: AqrService,
     private readonly logger: LoggerService,
   ) {
     this.log = this.logger.setContext(CattleService.name);
   }
 
-  async create(userId: string, dto: CreateCattleDto) {
-    await this.assertFarmAccess(userId, dto.farmId);
-    await this.validateReferences(dto.farmId, dto);
-    await this.validateParentRules(dto.farmId, undefined, dto);
+  async create(farmId: string, userId: string, dto: CreateCattleDto) {
+    await this.validateReferences(farmId, dto);
+    await this.validateParentRules(farmId, undefined, dto);
 
     try {
       const cattle = await this.prisma.cattle.create({
         data: {
-          farmId: dto.farmId,
+          farmId,
           name: dto.name,
           tagNumber: dto.tagNumber,
           image: dto.image,
@@ -78,14 +74,11 @@ export class CattleService {
         include: this.defaultInclude(),
       });
 
-      this.log.info('Cattle created', {
-        cattleId: cattle.id,
-        farmId: cattle.farmId,
-      });
+      this.log.info('Cattle created', { cattleId: cattle.id, farmId });
 
       // AQR: Animal Registered (+50) + immutable Activity Log entry (PRD §19.2).
       const aqr = await this.aqrService.applyEvent(
-        dto.farmId,
+        farmId,
         cattle.id,
         'animal_registered',
         {
@@ -103,17 +96,9 @@ export class CattleService {
     }
   }
 
-  async findAll(userId: string, query: ListCattleQueryDto) {
-    if (!query.farmId) {
-      throw new BadRequestException('farmId is required');
-    }
-
-    await this.assertFarmAccess(userId, query.farmId);
-
-    const page = query.page;
-    const limit = query.limit;
+  async findAll(farmId: string, query: ListCattleQueryDto) {
     const where: Prisma.CattleWhereInput = {
-      farmId: query.farmId,
+      farmId,
       ...(query.includeArchived
         ? {}
         : { isActive: true, status: { not: CattleStatus.ARCHIVED } }),
@@ -133,36 +118,24 @@ export class CattleService {
       ...(query.shedId ? { shedId: query.shedId } : {}),
     };
 
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.cattle.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: this.orderBy(query.sortBy, query.sortOrder),
-        include: this.defaultInclude(),
-      }),
-      this.prisma.cattle.count({ where }),
-    ]);
+    const rows = await this.prisma.cattle.findMany({
+      where,
+      orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
+      ...getCursorArgs(query),
+      include: this.defaultInclude(),
+    });
 
-    return this.paginate(items, total, page, limit);
+    return toCursorPage(rows, query);
   }
 
-  async findOne(userId: string, id: string) {
-    const cattle = await this.getCattleOrThrow(id, this.defaultInclude());
-    await this.assertFarmAccess(userId, cattle.farmId);
-    return cattle;
+  async findOne(farmId: string, id: string) {
+    return this.getCattleOrThrow(farmId, id, this.defaultInclude());
   }
 
-  async update(userId: string, id: string, dto: UpdateCattleDto) {
-    const existing = await this.getCattleOrThrow(id);
-    await this.assertFarmAccess(userId, existing.farmId);
-
-    if (dto.farmId && dto.farmId !== existing.farmId) {
-      throw new BadRequestException('farmId cannot be changed');
-    }
-
-    await this.validateReferences(existing.farmId, dto);
-    await this.validateParentRules(existing.farmId, id, dto);
+  async update(farmId: string, id: string, dto: UpdateCattleDto) {
+    await this.getCattleOrThrow(farmId, id);
+    await this.validateReferences(farmId, dto);
+    await this.validateParentRules(farmId, id, dto);
 
     try {
       const cattle = await this.prisma.cattle.update({
@@ -189,10 +162,7 @@ export class CattleService {
         include: this.defaultInclude(),
       });
 
-      this.log.info('Cattle updated', {
-        cattleId: id,
-        farmId: existing.farmId,
-      });
+      this.log.info('Cattle updated', { cattleId: id, farmId });
       return cattle;
     } catch (error) {
       if (this.isUniqueError(error)) {
@@ -202,67 +172,42 @@ export class CattleService {
     }
   }
 
-  async archive(userId: string, id: string) {
-    const existing = await this.findOne(userId, id);
+  async archive(farmId: string, id: string) {
+    await this.getCattleOrThrow(farmId, id);
     const cattle = await this.prisma.cattle.update({
       where: { id },
-      data: {
-        status: CattleStatus.ARCHIVED,
-        isActive: false,
-      },
+      data: { status: CattleStatus.ARCHIVED, isActive: false },
       include: this.defaultInclude(),
     });
-
-    this.log.info('Cattle archived', {
-      cattleId: id,
-      farmId: existing.farmId,
-    });
-
+    this.log.info('Cattle archived', { cattleId: id, farmId });
     return cattle;
   }
 
-  async restore(userId: string, id: string) {
-    const existing = await this.findOne(userId, id);
+  async restore(farmId: string, id: string) {
+    await this.getCattleOrThrow(farmId, id);
     const cattle = await this.prisma.cattle.update({
       where: { id },
-      data: {
-        status: CattleStatus.ACTIVE,
-        isActive: true,
-      },
+      data: { status: CattleStatus.ACTIVE, isActive: true },
       include: this.defaultInclude(),
     });
-
-    this.log.info('Cattle restored', {
-      cattleId: id,
-      farmId: existing.farmId,
-    });
-
+    this.log.info('Cattle restored', { cattleId: id, farmId });
     return cattle;
   }
 
-  async remove(userId: string, id: string) {
-    const existing = await this.archive(userId, id);
-    this.log.info('Cattle soft deleted', {
-      cattleId: id,
-      farmId: existing.farmId,
-    });
-    return existing;
+  async remove(farmId: string, id: string) {
+    return this.archive(farmId, id);
   }
 
-  async profile(userId: string, id: string) {
-    const cattle = await this.getCattleOrThrow(id, {
+  async profile(farmId: string, id: string) {
+    const cattle = await this.getCattleOrThrow(farmId, id, {
       breed: true,
       shed: true,
       mother: { select: this.summarySelect() },
       father: { select: this.summarySelect() },
     });
-    await this.assertFarmAccess(userId, cattle.farmId);
 
     const childrenCount = await this.prisma.cattle.count({
-      where: {
-        farmId: cattle.farmId,
-        OR: [{ motherId: id }, { fatherId: id }],
-      },
+      where: { farmId, OR: [{ motherId: id }, { fatherId: id }] },
     });
     const [currentPregnancy, currentLactation] = await Promise.all([
       this.prisma.pregnancy.findFirst({
@@ -289,19 +234,16 @@ export class CattleService {
     };
   }
 
-  async ancestry(userId: string, id: string, query: AncestryQueryDto) {
-    const cattle = await this.getCattleOrThrow(id);
-    await this.assertFarmAccess(userId, cattle.farmId);
+  async ancestry(farmId: string, id: string, query: AncestryQueryDto) {
+    await this.getCattleOrThrow(farmId, id);
     return this.buildAncestry(id, query.depth, new Set<string>());
   }
 
-  async children(userId: string, id: string) {
-    const cattle = await this.getCattleOrThrow(id);
-    await this.assertFarmAccess(userId, cattle.farmId);
-
+  async children(farmId: string, id: string) {
+    await this.getCattleOrThrow(farmId, id);
     return this.prisma.cattle.findMany({
       where: {
-        farmId: cattle.farmId,
+        farmId,
         isActive: true,
         OR: [{ motherId: id }, { fatherId: id }],
       },
@@ -310,17 +252,15 @@ export class CattleService {
     });
   }
 
-  async siblings(userId: string, id: string) {
-    const cattle = await this.getCattleOrThrow(id);
-    await this.assertFarmAccess(userId, cattle.farmId);
-
+  async siblings(farmId: string, id: string) {
+    const cattle = await this.getCattleOrThrow(farmId, id);
     if (!cattle.motherId && !cattle.fatherId) {
       return [];
     }
 
     return this.prisma.cattle.findMany({
       where: {
-        farmId: cattle.farmId,
+        farmId,
         id: { not: id },
         isActive: true,
         OR: [
@@ -376,10 +316,7 @@ export class CattleService {
     }
 
     const parents = await this.prisma.cattle.findMany({
-      where: {
-        id: { in: parentIds },
-        farmId,
-      },
+      where: { id: { in: parentIds }, farmId },
       select: { id: true },
     });
 
@@ -410,9 +347,7 @@ export class CattleService {
 
       visited.add(currentId);
       const children = await this.prisma.cattle.findMany({
-        where: {
-          OR: [{ motherId: currentId }, { fatherId: currentId }],
-        },
+        where: { OR: [{ motherId: currentId }, { fatherId: currentId }] },
         select: { id: true },
       });
 
@@ -462,24 +397,21 @@ export class CattleService {
   }
 
   private async getCattleOrThrow<T extends Prisma.CattleInclude | undefined>(
+    farmId: string,
     id: string,
     include?: T,
   ) {
-    const cattle = await this.prisma.cattle.findUnique({
-      where: { id },
+    const cattle = await this.prisma.cattle.findFirst({
+      where: { id, farmId },
       include,
     });
 
     if (!cattle) {
-      this.log.warn('Cattle not found', { cattleId: id });
+      this.log.warn('Cattle not found', { cattleId: id, farmId });
       throw new NotFoundException('Cattle not found');
     }
 
     return cattle;
-  }
-
-  private async assertFarmAccess(userId: string, farmId: string) {
-    await this.tenantAccessService.resolveFarmContext(userId, farmId);
   }
 
   private defaultInclude() {
@@ -526,23 +458,6 @@ export class CattleService {
       0,
       Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
     );
-  }
-
-  private orderBy(sortBy = 'createdAt', sortOrder: 'asc' | 'desc' = 'desc') {
-    const field = this.sortWhitelist.has(sortBy) ? sortBy : 'createdAt';
-    return { [field]: sortOrder };
-  }
-
-  private paginate<T>(items: T[], total: number, page: number, limit: number) {
-    return {
-      items,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
   }
 
   private isUniqueError(error: unknown) {

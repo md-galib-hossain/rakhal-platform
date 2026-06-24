@@ -7,70 +7,68 @@ import {
   Patch,
   Post,
   Query,
-  Req,
-  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import type { AuthenticatedHttpRequest } from 'src/modules/auth/domain/authenticated-http-request.type';
+import { CurrentFarmId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
+import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
+import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
+import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { ShedService } from '../../application/services/shed.service';
 import { CreateShedDto } from '../dto/create-shed.dto';
 import { ListShedQueryDto } from '../dto/list-shed-query.dto';
 import { UpdateShedDto } from '../dto/update-shed.dto';
 
+/** Sheds (PRD §21.3). `/api/v1/sheds`. Token tenancy + RBAC (cattle.*). */
 @Controller('sheds')
-@UseGuards(JwtAuthGuard, SessionGuard)
+@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class ShedController {
   constructor(private readonly shedService: ShedService) {}
 
   @Post()
-  create(@Body() dto: CreateShedDto, @Req() request: AuthenticatedHttpRequest) {
-    return this.shedService.create(this.userId(request), dto);
+  @RequirePermission('cattle.create')
+  create(@CurrentFarmId() farmId: string, @Body() dto: CreateShedDto) {
+    return this.shedService.create(farmId, dto);
   }
 
   @Get()
-  findAll(
-    @Query() query: ListShedQueryDto,
-    @Req() request: AuthenticatedHttpRequest,
-  ) {
-    return this.shedService.findAll(this.userId(request), query);
+  @RequirePermission('cattle.read')
+  findAll(@CurrentFarmId() farmId: string, @Query() query: ListShedQueryDto) {
+    return this.shedService.findAll(farmId, query);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @Req() request: AuthenticatedHttpRequest) {
-    return this.shedService.findOne(this.userId(request), id);
+  @RequirePermission('cattle.read')
+  findOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.shedService.findOne(farmId, id);
   }
 
   @Patch(':id')
+  @RequirePermission('cattle.update')
   update(
+    @CurrentFarmId() farmId: string,
     @Param('id') id: string,
     @Body() dto: UpdateShedDto,
-    @Req() request: AuthenticatedHttpRequest,
   ) {
-    return this.shedService.update(this.userId(request), id, dto);
+    return this.shedService.update(farmId, id, dto);
   }
 
   @Patch(':id/archive')
-  archive(@Param('id') id: string, @Req() request: AuthenticatedHttpRequest) {
-    return this.shedService.archive(this.userId(request), id);
+  @RequirePermission('cattle.update')
+  archive(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.shedService.archive(farmId, id);
   }
 
   @Patch(':id/restore')
-  restore(@Param('id') id: string, @Req() request: AuthenticatedHttpRequest) {
-    return this.shedService.restore(this.userId(request), id);
+  @RequirePermission('cattle.update')
+  restore(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.shedService.restore(farmId, id);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string, @Req() request: AuthenticatedHttpRequest) {
-    return this.shedService.remove(this.userId(request), id);
-  }
-
-  private userId(request: AuthenticatedHttpRequest) {
-    const userId = request.auth?.user.sub;
-    if (!userId) {
-      throw new UnauthorizedException('Unauthorized');
-    }
-    return userId;
+  @RequirePermission('cattle.delete')
+  remove(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.shedService.remove(farmId, id);
   }
 }

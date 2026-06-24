@@ -43,6 +43,7 @@ model User {
   createdMilkTanks    MilkTank[]   @relation("MilkTankCreator")
   createdEquipment    Equipment[]  @relation("EquipmentCreator")
   activityLogs        ActivityLog[] @relation("UserToActivityLog")
+  assignedTasks       Task[]       @relation("TaskAssignee")
 
   @@index([email])
 }

@@ -1,14 +1,16 @@
 import { Transform } from 'class-transformer';
-import { IsOptional, IsString } from 'class-validator';
-import { PaginationQueryDto, trimString } from './common.dto';
+import { IsBoolean, IsOptional, IsString } from 'class-validator';
+import { CursorPaginationQueryDto } from 'src/common/pagination';
+import { toBoolean, trimString } from 'src/common/dto';
 
-export class ListShedQueryDto extends PaginationQueryDto {
-  @Transform(trimString)
-  @IsString()
-  farmId!: string;
-
+export class ListShedQueryDto extends CursorPaginationQueryDto {
   @IsOptional()
   @Transform(trimString)
   @IsString()
   search?: string;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  includeArchived = false;
 }

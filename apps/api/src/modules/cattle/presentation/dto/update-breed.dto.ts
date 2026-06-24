@@ -7,11 +7,6 @@ export class UpdateBreedDto implements Partial<CreateBreedDto> {
   @IsOptional()
   @Transform(trimString)
   @IsString()
-  farmId?: string;
-
-  @IsOptional()
-  @Transform(trimString)
-  @IsString()
   name?: string;
 
   @IsOptional()
