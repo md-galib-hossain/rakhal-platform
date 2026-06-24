@@ -6,6 +6,7 @@ import { PermissionModule } from '../permission/permission.module';
 import { ActivityModule } from '../activity/activity.module';
 import { TaskModule } from '../task/task.module';
 import { InventoryModule } from '../inventory/inventory.module';
+import { CalfModule } from '../calf/calf.module';
 import { ReproductionService } from './application/services/reproduction.service';
 import { CattleReproductionController } from './presentation/controllers/cattle-reproduction.controller';
 import { ReproductionController } from './presentation/controllers/reproduction.controller';
@@ -19,6 +20,7 @@ import { ReproductionController } from './presentation/controllers/reproduction.
     ActivityModule,
     TaskModule,
     InventoryModule,
+    CalfModule,
   ],
   controllers: [ReproductionController, CattleReproductionController],
   providers: [ReproductionService],

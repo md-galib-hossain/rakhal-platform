@@ -11,10 +11,14 @@ import {
   CattlePurpose,
   HealthCaseStatus,
   Prisma,
+  TaskCategory,
+  TaskPriority,
+  TaskSource,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
+import { TaskService } from 'src/modules/task/application/services/task.service';
 import {
   ageInDays,
   computeAdg,
@@ -24,6 +28,7 @@ import {
   stageForAge,
   weaningTargetDate,
 } from '../../domain/calf-stage';
+import { buildCalfCareSchedule } from '../../domain/calf-care-schedule';
 import { ListCalfQueryDto } from '../../presentation/dto/list-calf-query.dto';
 import { RecordColostrumDto } from '../../presentation/dto/record-colostrum.dto';
 import { RecordMilkFeedingDto } from '../../presentation/dto/record-milk-feeding.dto';
@@ -55,9 +60,46 @@ export class CalfService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly taskService: TaskService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(CalfService.name);
+  }
+
+  /**
+   * Generate the age-based care/vaccination reminders for a newborn calf
+   * (PRD §14.5, RD-009). Called by the reproduction calving flow for each
+   * live-born calf. Each schedule item becomes a SYSTEM_AUTO "Calf Care" task
+   * due at `birthDate + offset`; brucellosis is female-only. Returns the number
+   * of tasks created so the caller can log it.
+   */
+  async scheduleCareReminders(input: {
+    farmId: string;
+    createdBy: string;
+    calfId: string;
+    birthDate: Date;
+    gender: CattleGender;
+  }): Promise<number> {
+    const schedule = buildCalfCareSchedule(input.birthDate, input.gender);
+    for (const item of schedule) {
+      await this.taskService.createInternal({
+        farmId: input.farmId,
+        createdBy: input.createdBy,
+        name: item.name,
+        details: item.details,
+        category: TaskCategory.CALF_CARE,
+        priority: TaskPriority.MEDIUM,
+        dueAt: item.dueAt,
+        source: TaskSource.SYSTEM_AUTO,
+        relatedCattleId: input.calfId,
+      });
+    }
+    this.log.info('Calf care schedule generated', {
+      calfId: input.calfId,
+      farmId: input.farmId,
+      tasks: schedule.length,
+    });
+    return schedule.length;
   }
 
   async list(farmId: string, query: ListCalfQueryDto) {

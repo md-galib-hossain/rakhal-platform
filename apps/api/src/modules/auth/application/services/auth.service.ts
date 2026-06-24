@@ -33,15 +33,9 @@ import { PermissionsVersionCacheService } from './permissions-version-cache.serv
 import { RefreshTokenService } from './refresh-token.service';
 import { SessionService } from './session.service';
 import { TokenService } from './token.service';
-import {
-  PASSWORD_CHANGED_EVENT,
-} from 'src/modules/auth/domain/events/password-changed.event';
-import {
-  PASSWORD_RESET_REQUESTED_EVENT,
-} from 'src/modules/auth/domain/events/password-reset-requested.event';
-import {
-  PASSWORD_RESET_SUCCESSFUL_EVENT,
-} from 'src/modules/auth/domain/events/password-reset-successful.event';
+import { PASSWORD_CHANGED_EVENT } from 'src/modules/auth/domain/events/password-changed.event';
+import { PASSWORD_RESET_REQUESTED_EVENT } from 'src/modules/auth/domain/events/password-reset-requested.event';
+import { PASSWORD_RESET_SUCCESSFUL_EVENT } from 'src/modules/auth/domain/events/password-reset-successful.event';
 
 @Injectable()
 export class AuthService {
