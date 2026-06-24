@@ -39,6 +39,10 @@ model Farm {
   milkLogEntries    MilkLogEntry[]     @relation("FarmToMilkLogEntry")
   milkBuyers        MilkBuyer[]        @relation("FarmToMilkBuyer")
   milkDispatches    MilkDispatch[]     @relation("FarmToMilkDispatch")
+  financeTransactions FinanceTransaction[] @relation("FarmToFinanceTransaction")
+  financeReceivables  FinanceReceivable[]  @relation("FarmToFinanceReceivable")
+  financeLoans        FinanceLoan[]        @relation("FarmToFinanceLoan")
+  walletTransactions  WalletTransaction[]  @relation("FarmToWalletTransaction")
 
   @@index([ownerId])
   @@index([slug])
