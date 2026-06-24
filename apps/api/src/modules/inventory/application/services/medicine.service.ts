@@ -252,9 +252,15 @@ export class MedicineService {
       quantity: number;
       notes?: string;
     },
-  ): Promise<{ medicineId: string; batchId: string | null; balanceAfter: number }> {
+  ): Promise<{
+    medicineId: string;
+    batchId: string | null;
+    balanceAfter: number;
+  }> {
     if (!opts.quantity || opts.quantity <= 0) {
-      throw new BadRequestException('Treatment quantity must be greater than 0');
+      throw new BadRequestException(
+        'Treatment quantity must be greater than 0',
+      );
     }
 
     const medicine = await this.resolveTreatmentBatch(farmId, opts);

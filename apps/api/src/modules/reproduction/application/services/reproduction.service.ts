@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  BreedingMethod,
   BreedingStatus,
   CalfBirthStatus,
   CattleGender,
@@ -23,6 +24,7 @@ import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
+import { SemenService } from 'src/modules/inventory/application/services/semen.service';
 import { CreateAbortionEventDto } from '../../presentation/dto/create-abortion-event.dto';
 import { CreateBreedingEventDto } from '../../presentation/dto/create-breeding-event.dto';
 import { CreateCalvingEventDto } from '../../presentation/dto/create-calving-event.dto';
@@ -53,6 +55,7 @@ export class ReproductionService {
     private readonly prisma: PrismaService,
     private readonly aqrService: AqrService,
     private readonly taskService: TaskService,
+    private readonly semenService: SemenService,
     private readonly logger: LoggerService,
   ) {
     this.log = this.logger.setContext(ReproductionService.name);
@@ -103,6 +106,12 @@ export class ReproductionService {
 
     if (dto.bullId) {
       await this.assertCattleInFarm(farmId, dto.bullId);
+    }
+
+    // Inventory decrement (REP-05): consume one straw for an AI service before
+    // recording it, so a missing/empty batch (INV-02) aborts the breeding.
+    if (dto.breedingMethod === BreedingMethod.AI && dto.semenBatchId) {
+      await this.semenService.decrementStraw(farmId, dto.semenBatchId, 1);
     }
 
     const breedingNumber =

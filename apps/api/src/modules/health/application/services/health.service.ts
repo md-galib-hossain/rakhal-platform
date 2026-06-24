@@ -17,6 +17,7 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
+import { MedicineService } from 'src/modules/inventory/application/services/medicine.service';
 import {
   ApplyHealthPlanDto,
   CloseHealthCaseDto,
@@ -61,6 +62,7 @@ export class HealthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aqrService: AqrService,
+    private readonly medicineService: MedicineService,
     private readonly logger: LoggerService,
   ) {
     this.log = this.logger.setContext(HealthService.name);
@@ -387,6 +389,22 @@ export class HealthService {
     if (dto.healthTaskId && !task)
       throw new BadRequestException('Health task must belong to case');
 
+    // Inventory decrement (HLT-07): consume medicine stock before logging the
+    // treatment, so an expired batch (HLT-02) or insufficient stock (INV-02)
+    // aborts the whole action. Only runs when a medicine + quantity is given.
+    const medicineId = dto.medicineId ?? task?.medicineId ?? undefined;
+    const medicineName = dto.medicineName ?? task?.medicineName ?? undefined;
+    const quantity = dto.stockDeductionQuantity ?? dto.doseAmount ?? undefined;
+    const deduction =
+      quantity && quantity > 0 && (medicineId || medicineName)
+        ? await this.medicineService.decrementForTreatment(farmId, userId, {
+            medicineId,
+            medicineName,
+            quantity,
+            notes: `Treatment for case ${healthCase.caseCode}`,
+          })
+        : null;
+
     const log = await this.prisma.$transaction(async (tx) => {
       const treatmentLog = await tx.treatmentLog.create({
         data: {
@@ -394,7 +412,7 @@ export class HealthService {
           cattleId: healthCase.cattleId,
           healthCaseId: id,
           healthTaskId: dto.healthTaskId,
-          medicineId: dto.medicineId ?? task?.medicineId,
+          medicineId: deduction?.medicineId ?? medicineId,
           medicineName: dto.medicineName ?? task?.medicineName,
           doseAmount: dto.doseAmount ?? task?.doseAmount,
           doseUnit: dto.doseUnit ?? task?.doseUnit,
@@ -403,9 +421,11 @@ export class HealthService {
             ? new Date(dto.administeredAt)
             : new Date(),
           administeredBy: dto.administeredBy ?? userId,
-          stockDeducted: false,
-          stockDeductionQuantity: dto.stockDeductionQuantity,
-          batchNo: dto.batchNo,
+          stockDeducted: Boolean(deduction),
+          stockDeductionQuantity: deduction
+            ? quantity
+            : dto.stockDeductionQuantity,
+          batchNo: deduction?.batchId ?? dto.batchNo,
           notes: dto.notes,
         },
       });

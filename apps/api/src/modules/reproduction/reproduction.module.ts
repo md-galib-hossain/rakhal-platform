@@ -5,6 +5,7 @@ import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { ActivityModule } from '../activity/activity.module';
 import { TaskModule } from '../task/task.module';
+import { InventoryModule } from '../inventory/inventory.module';
 import { ReproductionService } from './application/services/reproduction.service';
 import { CattleReproductionController } from './presentation/controllers/cattle-reproduction.controller';
 import { ReproductionController } from './presentation/controllers/reproduction.controller';
@@ -17,6 +18,7 @@ import { ReproductionController } from './presentation/controllers/reproduction.
     PermissionModule,
     ActivityModule,
     TaskModule,
+    InventoryModule,
   ],
   controllers: [ReproductionController, CattleReproductionController],
   providers: [ReproductionService],
