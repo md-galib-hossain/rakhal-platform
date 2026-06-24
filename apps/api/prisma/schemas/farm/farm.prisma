@@ -37,6 +37,8 @@ model Farm {
   activityLogs      ActivityLog[]      @relation("FarmToActivityLog")
   tasks             Task[]             @relation("FarmToTask")
   milkLogEntries    MilkLogEntry[]     @relation("FarmToMilkLogEntry")
+  milkBuyers        MilkBuyer[]        @relation("FarmToMilkBuyer")
+  milkDispatches    MilkDispatch[]     @relation("FarmToMilkDispatch")
 
   @@index([ownerId])
   @@index([slug])

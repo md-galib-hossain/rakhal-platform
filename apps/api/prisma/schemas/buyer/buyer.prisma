@@ -1,0 +1,70 @@
+/// Milk Sales & Buyer Management (PRD §11). A buyer is a farm-scoped customer
+/// with a price agreement; a dispatch records milk handed to a buyer (which
+/// decrements the SELLABLE tank via a SALE adjustment) and the receivable it
+/// generates. Farm-scoped by `farmId`.
+
+model MilkBuyer {
+  id     String @id @default(cuid())
+  farmId String
+
+  name          String
+  contactPerson String?
+  phone         String?
+  email         String?
+  buyerType     BuyerType
+
+  paymentTermsDays   Int      @default(0)
+  basePricePerLitre  Float
+  baseFatPct         Float    @default(3.5)
+  fatBonusPer01Pct   Float    @default(0)
+  sccThreshold       Int      @default(200000)
+  sccPenaltyPer100k  Float    @default(0)
+  collectionDays     String[] @default([])
+  collectionTime     String?
+  bankDetails        String?
+
+  isActive  Boolean  @default(true)
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm       Farm           @relation("FarmToMilkBuyer", fields: [farmId], references: [id])
+  dispatches MilkDispatch[]
+
+  @@index([farmId])
+  @@index([farmId, isActive])
+}
+
+model MilkDispatch {
+  id      String @id @default(cuid())
+  farmId  String
+  buyerId String
+
+  dispatchedAt      DateTime
+  volumeDispatchedL Float
+  volumeReceivedL   Float?
+  fatPct            Float?
+  scc               Int?
+
+  discrepancyL       Float?
+  discrepancyFlagged Boolean @default(false)
+
+  /// Price snapshot + breakdown at dispatch time (PRD §11.4).
+  basePricePerLitre Float
+  fatBonus          Float     @default(0)
+  sccPenalty        Float     @default(0)
+  calculatedAmount  Float
+  paymentDueDate    DateTime?
+  paidAmount        Float     @default(0)
+
+  notes     String?
+  createdBy String
+  createdAt DateTime @default(now())
+
+  farm  Farm      @relation("FarmToMilkDispatch", fields: [farmId], references: [id])
+  buyer MilkBuyer @relation(fields: [buyerId], references: [id])
+
+  @@index([farmId])
+  @@index([farmId, dispatchedAt])
+  @@index([buyerId])
+}
