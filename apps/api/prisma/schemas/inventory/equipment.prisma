@@ -1,0 +1,32 @@
+/// Equipment / other assets (Inventory module — Others tab, PRD §15.6).
+/// Tracks farm equipment, machinery, tools and supplies with a simple count and
+/// low-stock threshold. (Maintenance scheduling is V1.5 — RAKHAL-210.)
+model Equipment {
+  id String @id @default(cuid())
+
+  farmId String
+
+  name    String
+  assetId String?
+  type    EquipmentType @default(EQUIPMENT)
+
+  unit              String? // unit label when counted in something other than pieces
+  currentStock      Float   @default(0)
+  costPerUnit       Float
+  lowStockThreshold Float   @default(0)
+
+  purchaseDate DateTime
+  notes        String?
+
+  isActive  Boolean  @default(true)
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm    Farm @relation("FarmToEquipment", fields: [farmId], references: [id])
+  creator User @relation("EquipmentCreator", fields: [createdBy], references: [id])
+
+  @@index([farmId])
+  @@index([type])
+  @@index([createdBy])
+}

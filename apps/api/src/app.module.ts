@@ -41,6 +41,7 @@ import { ReproductionModule } from './modules/reproduction/reproduction.module';
 import { HealthModule } from './modules/health/health.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { FarmModule } from './modules/farm/farm.module';
+import { ActivityModule } from './modules/activity/activity.module';
 
 type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
 
@@ -114,6 +115,7 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     HealthModule,
     InventoryModule,
     FarmModule,
+    ActivityModule,
   ],
   controllers: [HealthController],
   providers: [

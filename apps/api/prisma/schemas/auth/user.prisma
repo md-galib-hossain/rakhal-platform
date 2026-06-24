@@ -41,6 +41,8 @@ model User {
   createdSemenTanks   SemenTank[]  @relation("SemenTankCreator")
   createdSemenBatches SemenBatch[] @relation("SemenBatchCreator")
   createdMilkTanks    MilkTank[]   @relation("MilkTankCreator")
+  createdEquipment    Equipment[]  @relation("EquipmentCreator")
+  activityLogs        ActivityLog[] @relation("UserToActivityLog")
 
   @@index([email])
 }

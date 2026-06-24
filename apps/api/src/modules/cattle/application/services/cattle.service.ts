@@ -15,6 +15,7 @@ import {
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { TenantAccessService } from 'src/modules/tenant-access/application/services/tenant-access.service';
+import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 import { AncestryQueryDto } from '../../presentation/dto/ancestry-query.dto';
 import { CreateCattleDto } from '../../presentation/dto/create-cattle.dto';
 import { ListCattleQueryDto } from '../../presentation/dto/list-cattle-query.dto';
@@ -42,6 +43,7 @@ export class CattleService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantAccessService: TenantAccessService,
+    private readonly aqrService: AqrService,
     private readonly logger: LoggerService,
   ) {
     this.log = this.logger.setContext(CattleService.name);
@@ -81,7 +83,18 @@ export class CattleService {
         farmId: cattle.farmId,
       });
 
-      return cattle;
+      // AQR: Animal Registered (+50) + immutable Activity Log entry (PRD §19.2).
+      const aqr = await this.aqrService.applyEvent(
+        dto.farmId,
+        cattle.id,
+        'animal_registered',
+        {
+          actorId: userId,
+          actionDetails: `New [${cattle.purpose}] [${cattle.name ?? cattle.tagNumber}] registered.`,
+        },
+      );
+
+      return { ...cattle, aqrScore: aqr.aqrScore };
     } catch (error) {
       if (this.isUniqueError(error)) {
         throw new ConflictException('Tag number already exists for this farm');
@@ -176,7 +189,10 @@ export class CattleService {
         include: this.defaultInclude(),
       });
 
-      this.log.info('Cattle updated', { cattleId: id, farmId: existing.farmId });
+      this.log.info('Cattle updated', {
+        cattleId: id,
+        farmId: existing.farmId,
+      });
       return cattle;
     } catch (error) {
       if (this.isUniqueError(error)) {
@@ -266,7 +282,9 @@ export class CattleService {
       dim: currentLactation
         ? this.daysBetween(currentLactation.startDate, new Date())
         : null,
-      pregnancyStatus: currentPregnancy ? currentPregnancy.status : 'NOT_RECORDED',
+      pregnancyStatus: currentPregnancy
+        ? currentPregnancy.status
+        : 'NOT_RECORDED',
       healthStatus: 'NOT_RECORDED',
     };
   }

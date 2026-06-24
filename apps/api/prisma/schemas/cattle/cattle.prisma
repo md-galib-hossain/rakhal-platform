@@ -21,6 +21,10 @@ model Cattle {
   color      String?
   notes      String?
 
+  /// Animal Quality Rating (0–100), event-driven via the AQR engine (PRD §19.2,
+  /// §25.7). Null = nullified (e.g. on mortality); excluded from the herd mean.
+  aqrScore Float? @default(0)
+
   isActive  Boolean  @default(true)
   createdBy String
   createdAt DateTime @default(now())

@@ -1,0 +1,46 @@
+enum ActivityLogModule {
+  COW_MANAGEMENT
+  MILK_PRODUCTION
+  HEALTH_SAFETY
+  FINANCE
+  BREEDING
+  INVENTORY
+  GENERAL
+}
+
+/// Immutable, hash-chained activity timeline (PRD §19). Entries are append-only
+/// — there are no update/delete paths anywhere in the app (§19.3). Each row's
+/// `hash` = sha256(canonical(fields) + prevHash), so any tampering with a past
+/// entry breaks the chain and is detectable.
+model ActivityLog {
+  id String @id @default(cuid())
+
+  farmId String
+
+  timestamp     DateTime          @default(now())
+  module        ActivityLogModule
+  eventTitle    String
+  actionDetails String
+
+  /// Pill-tagged values for the UI, e.g. [{ "key": "weight", "value": "210 Kg" }].
+  taggedValues Json?
+
+  aqrImpact       Float?
+  financialImpact Float?
+
+  actorId         String? // null = System-generated event
+  relatedCattleId String?
+
+  prevHash String?
+  hash     String
+
+  createdAt DateTime @default(now())
+
+  farm  Farm  @relation("FarmToActivityLog", fields: [farmId], references: [id])
+  actor User? @relation("UserToActivityLog", fields: [actorId], references: [id])
+
+  @@index([farmId, timestamp])
+  @@index([module])
+  @@index([actorId])
+  @@index([relatedCattleId])
+}

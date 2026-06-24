@@ -7,15 +7,16 @@ import { MedicineService } from './application/services/medicine.service';
 import { ForageService } from './application/services/forage.service';
 import { SemenService } from './application/services/semen.service';
 import { MilkTankService } from './application/services/milk-tank.service';
+import { EquipmentService } from './application/services/equipment.service';
 import { MedicineController } from './presentation/controllers/medicine.controller';
 import { ForageController } from './presentation/controllers/forage.controller';
 import { SemenController } from './presentation/controllers/semen.controller';
 import { MilkTankController } from './presentation/controllers/milk-tank.controller';
+import { EquipmentController } from './presentation/controllers/equipment.controller';
 
 /**
- * Inventory module (PRD §15). Tabs: Medicine (RAKHAL-074), Forage (075),
- * Semen tanks + batches (077), Milk tanks + audit log (078). Equipment tab (076)
- * is the remaining MVP piece.
+ * Inventory module (PRD §15). All five tabs: Medicine (RAKHAL-074), Forage (075),
+ * Equipment/Others (076), Semen tanks + batches (077), Milk tanks + audit log (078).
  *
  * Services are exported so cross-module integrations can consume them:
  *  - `SemenService.decrementStraw` ← Reproduction AI (REP-05)
@@ -32,8 +33,21 @@ import { MilkTankController } from './presentation/controllers/milk-tank.control
     ForageController,
     SemenController,
     MilkTankController,
+    EquipmentController,
   ],
-  providers: [MedicineService, ForageService, SemenService, MilkTankService],
-  exports: [MedicineService, ForageService, SemenService, MilkTankService],
+  providers: [
+    MedicineService,
+    ForageService,
+    SemenService,
+    MilkTankService,
+    EquipmentService,
+  ],
+  exports: [
+    MedicineService,
+    ForageService,
+    SemenService,
+    MilkTankService,
+    EquipmentService,
+  ],
 })
 export class InventoryModule {}

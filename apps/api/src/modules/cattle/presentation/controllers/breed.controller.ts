@@ -25,7 +25,10 @@ export class BreedController {
   constructor(private readonly breedService: BreedService) {}
 
   @Post()
-  create(@Body() dto: CreateBreedDto, @Req() request: AuthenticatedHttpRequest) {
+  create(
+    @Body() dto: CreateBreedDto,
+    @Req() request: AuthenticatedHttpRequest,
+  ) {
     return this.breedService.create(this.userId(request), dto);
   }
 

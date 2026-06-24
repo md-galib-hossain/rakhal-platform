@@ -33,6 +33,8 @@ model Farm {
   semenTanks        SemenTank[]        @relation("FarmToSemenTank")
   semenBatches      SemenBatch[]       @relation("FarmToSemenBatch")
   milkTanks         MilkTank[]         @relation("FarmToMilkTank")
+  equipment         Equipment[]        @relation("FarmToEquipment")
+  activityLogs      ActivityLog[]      @relation("FarmToActivityLog")
 
   @@index([ownerId])
   @@index([slug])

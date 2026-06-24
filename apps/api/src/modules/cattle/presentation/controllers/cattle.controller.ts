@@ -26,7 +26,10 @@ export class CattleController {
   constructor(private readonly cattleService: CattleService) {}
 
   @Post()
-  create(@Body() dto: CreateCattleDto, @Req() request: AuthenticatedHttpRequest) {
+  create(
+    @Body() dto: CreateCattleDto,
+    @Req() request: AuthenticatedHttpRequest,
+  ) {
     return this.cattleService.create(this.userId(request), dto);
   }
 
