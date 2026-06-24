@@ -51,6 +51,11 @@ model Cattle {
   dryPeriods          DryPeriod[]
   lactations          Lactation[]
   calfBirths          CalfBirth[]          @relation("CattleCalfBirth")
+  calfColostrumRecords   CalfColostrumRecord[]
+  calfMilkFeedings       CalfMilkFeeding[]
+  calfWeightRecords      CalfWeightRecord[]
+  calfStarterFeedRecords CalfStarterFeedRecord[]
+  calfWeaningRecord      CalfWeaningRecord?
   healthCases         HealthCase[]
   healthTasks         HealthTask[]
   treatmentLogs       TreatmentLog[]
