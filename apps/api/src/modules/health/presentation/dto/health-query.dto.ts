@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import {
   HealthActionType,
   HealthCaseStatus,
@@ -62,14 +62,15 @@ export class HealthTaskQueryDto extends HealthListQueryDto {
 }
 
 export class HealthTaskCalendarQueryDto {
-  @Transform(trimString)
-  @IsString()
-  farmId!: string;
-
   @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(1)
+  @Max(12)
   month!: number;
 
   @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(2000)
   year!: number;
 }
 

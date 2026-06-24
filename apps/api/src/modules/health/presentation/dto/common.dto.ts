@@ -1,23 +1,18 @@
 import { Transform } from 'class-transformer';
-import {
-  IsDateString,
-  IsIn,
-  IsInt,
-  IsOptional,
-  IsString,
-  Max,
-  Min,
-} from 'class-validator';
+import { IsDateString, IsOptional, IsString } from 'class-validator';
+import { CursorPaginationQueryDto } from 'src/common/pagination';
 
 export const trimString = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
-export class HealthListQueryDto {
-  @IsOptional()
-  @Transform(trimString)
-  @IsString()
-  farmId?: string;
-
+/**
+ * Shared list query for the health sub-resources. Cursor-paginated
+ * (`CursorPaginationQueryDto`). The active farm comes from the token context
+ * (`FarmContextGuard`), never the query string — only an optional `cattleId`
+ * (verified to belong to the farm), `search`, and a created-date range narrow
+ * the result.
+ */
+export class HealthListQueryDto extends CursorPaginationQueryDto {
   @IsOptional()
   @Transform(trimString)
   @IsString()
@@ -35,27 +30,4 @@ export class HealthListQueryDto {
   @IsOptional()
   @IsDateString()
   toDate?: string;
-
-  @IsOptional()
-  @Transform(({ value }) => Number(value))
-  @IsInt()
-  @Min(1)
-  page = 1;
-
-  @IsOptional()
-  @Transform(({ value }) => Number(value))
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit = 20;
-
-  @IsOptional()
-  @Transform(trimString)
-  @IsString()
-  sortBy?: string;
-
-  @IsOptional()
-  @Transform(trimString)
-  @IsIn(['asc', 'desc'])
-  sortOrder: 'asc' | 'desc' = 'desc';
 }

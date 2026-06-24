@@ -89,11 +89,6 @@ export class CreateHealthPlanDto {
   @Transform(trimString)
   @IsString()
   @IsNotEmpty()
-  farmId!: string;
-
-  @Transform(trimString)
-  @IsString()
-  @IsNotEmpty()
   name!: string;
 
   @IsEnum(HealthPlanCategory)
