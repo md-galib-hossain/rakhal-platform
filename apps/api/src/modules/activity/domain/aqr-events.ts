@@ -1,10 +1,20 @@
 import { ActivityLogModule } from '@prisma/client';
 
 /**
- * AQR (Animal Quality Rating) event catalogue — the configurable delta table
- * from PRD §19.2. Each AQR-impacting event adjusts a cow's score and writes an
- * Activity Log entry. Deltas are the launch defaults; PRD §25.7 (AQR-04) makes
- * them configurable in Rakhaal Admin — wire that override in RAKHAL-110.
+ * AQR (Animal Quality Rating) algorithm parameters — the tunable table from
+ * PRD §19.2/§19.4. Each AQR-impacting event adjusts a cow's score and writes an
+ * Activity Log entry.
+ *
+ * **These are LAUNCH DEFAULTS, not the source of truth at runtime.** The AQR
+ * algorithm is designed to be controllable by the future **Rakhaal Admin panel**
+ * (PRD §25.7 AQR-04..08, ADR-008/009): the engine never reads this table
+ * directly — it resolves every parameter through {@link AqrConfigService}, the
+ * single seam the Admin integration (RAKHAL-110) backs with the global Admin
+ * config + per-farm overrides. Resolution order: per-farm override → Admin
+ * global default → these built-in defaults. Config changes are non-retroactive
+ * (apply to future events only) and audited. So adjusting the algorithm later
+ * (new events, different deltas, different clamp bounds) requires NO change to
+ * the engine — only the config provider's backing store.
  */
 export interface AqrEventDef {
   /** Score change applied (ignored when `nullify`). */
@@ -14,6 +24,15 @@ export interface AqrEventDef {
   module: ActivityLogModule;
   title: string;
 }
+
+/** Score clamp bounds (PRD §25.7 AQR-01). Admin-tunable via {@link AqrConfigService}. */
+export interface AqrBounds {
+  min: number;
+  max: number;
+}
+
+/** Launch-default clamp bounds (0–100). Overridable per-farm/global by Admin. */
+export const AQR_DEFAULT_BOUNDS: AqrBounds = { min: 0, max: 100 };
 
 export const AQR_EVENTS = {
   animal_registered: {

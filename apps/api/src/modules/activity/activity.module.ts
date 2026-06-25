@@ -5,6 +5,7 @@ import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { ActivityLogService } from './application/services/activity-log.service';
 import { AqrService } from './application/services/aqr.service';
+import { AqrConfigService } from './application/services/aqr-config.service';
 import { ActivityController } from './presentation/controllers/activity.controller';
 
 /**
@@ -15,7 +16,7 @@ import { ActivityController } from './presentation/controllers/activity.controll
 @Module({
   imports: [AuthModule, TenantAccessModule, PermissionModule, LoggerModule],
   controllers: [ActivityController],
-  providers: [ActivityLogService, AqrService],
-  exports: [ActivityLogService, AqrService],
+  providers: [ActivityLogService, AqrService, AqrConfigService],
+  exports: [ActivityLogService, AqrService, AqrConfigService],
 })
 export class ActivityModule {}

@@ -497,6 +497,8 @@ Foundation mismatches with the Rakhaal API contract ([`Rakhaal_API.md`](../../..
 
 9. **Activity Log ≠ Audit Log.** `AuditLog` covers security/admin events. The PRD's **Activity Log** (§19) is a user-facing, immutable, hash-chained, AQR-emitting feed — a separate module (**RAKHAL-033**). Don't overload `AuditLog`.
 
+10. **AQR is an Admin-tunable engine — never hard-code its parameters.** The AQR algorithm (PRD §19.4, §25.7 AQR-04..08) is owned by the future Rakhaal Admin panel. `AqrService` resolves **every** tunable (per-event deltas, nullify behaviour, clamp bounds) through the `AqrConfigService` provider seam — it holds no constants of its own. `aqr-events.ts` is the **launch-default** table, not the runtime source of truth. When adding an AQR-impacting event, add it to the catalogue and emit via `aqrService.applyEvent(...)`; do **not** read deltas/bounds directly anywhere. RAKHAL-110 backs the seam with Admin global + per-farm config (resolution: per-farm override → Admin default → built-in default) with no engine change.
+
 ---
 
 ## 14. How to Add a New Rakhal Module (cookbook)
