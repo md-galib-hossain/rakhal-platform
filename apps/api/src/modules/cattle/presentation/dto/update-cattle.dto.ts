@@ -1,11 +1,20 @@
 import { CreateCattleDto } from './create-cattle.dto';
 import { Transform } from 'class-transformer';
-import { IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 import {
   CattleGender,
   CattlePurpose,
   CattleSourceType,
   CattleStatus,
+  ProductionStatus,
 } from '@prisma/client';
 import { trimString } from './common.dto';
 
@@ -45,6 +54,21 @@ export class UpdateCattleDto implements Partial<CreateCattleDto> {
   @IsOptional()
   @IsEnum(CattleStatus)
   status?: CattleStatus;
+
+  @IsOptional()
+  @IsEnum(ProductionStatus)
+  productionStatus?: ProductionStatus;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(2000)
+  weightKg?: number;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  feedGroupId?: string;
 
   @IsOptional()
   @Transform(trimString)

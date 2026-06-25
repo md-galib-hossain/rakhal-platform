@@ -2,16 +2,23 @@ import { Transform } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
+  IsIn,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
+  Max,
+  Min,
 } from 'class-validator';
 import {
   CattleGender,
   CattlePurpose,
   CattleSourceType,
   CattleStatus,
+  ProductionStatus,
+  ReproductiveStatus,
 } from '@prisma/client';
+import { BCS_ALLOWED_SCORES } from '../../domain/cattle.constants';
 import { trimString } from './common.dto';
 
 export class CreateCattleDto {
@@ -48,6 +55,30 @@ export class CreateCattleDto {
   @IsOptional()
   @IsEnum(CattleStatus)
   status?: CattleStatus;
+
+  @IsOptional()
+  @IsEnum(ProductionStatus)
+  productionStatus?: ProductionStatus;
+
+  @IsOptional()
+  @IsEnum(ReproductiveStatus)
+  reproductiveStatus?: ReproductiveStatus;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(2000)
+  weightKg?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @IsIn(BCS_ALLOWED_SCORES)
+  bcs?: number;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  feedGroupId?: string;
 
   @IsOptional()
   @Transform(trimString)

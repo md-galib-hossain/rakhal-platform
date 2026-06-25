@@ -22,6 +22,18 @@ enum CattleStatus {
   ARCHIVED
 }
 
+/// Production dimension of the multi-state status model (PRD §8.1 / §24.2).
+/// Independent of reproductive status (`ReproductiveStatus`) and the derived
+/// health status. SOLD/DECEASED exclude the animal from active herd KPIs (CAT-08).
+enum ProductionStatus {
+  MILKING
+  DRY
+  FRESH
+  GROWING
+  SOLD
+  DECEASED
+}
+
 enum CattleSourceType {
   BORN
   PURCHASED

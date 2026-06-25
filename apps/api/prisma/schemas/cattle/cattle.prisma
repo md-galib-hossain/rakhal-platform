@@ -14,6 +14,21 @@ model Cattle {
   status      CattleStatus  @default(ACTIVE)
   shedId      String?
 
+  /// Feed-group assignment (PRD §8.3). Nullable plain id — no FK yet because the
+  /// Feed module / FeedGroup model is not built; the column lets bulk
+  /// `change_feed_group` and the list column work now (FK added when Feed lands).
+  feedGroupId String?
+
+  /// Production dimension of the multi-state status (PRD §8.1). Reproductive
+  /// status lives on `ReproductionProfile`; health status is derived from active
+  /// `HealthCase`/`SafetyWithdrawal` — neither is duplicated here.
+  productionStatus ProductionStatus @default(GROWING)
+
+  /// Denormalized latest physical readings (PRD §8.5 header / §24.2).
+  /// `lastBcs` is maintained by BCS records (`BodyConditionScore`).
+  lastBcs      Float?
+  lastWeightKg Float?
+
   motherId String?
   fatherId String?
 
@@ -63,15 +78,38 @@ model Cattle {
   healthUpdates       HealthUpdate[]
   mortalityRecords    MortalityRecord[]
   safetyWithdrawals   SafetyWithdrawal[]
+  bcsRecords          BodyConditionScore[]
 
   @@unique([farmId, tagNumber])
   @@index([farmId])
   @@index([breedId])
   @@index([shedId])
   @@index([status])
+  @@index([farmId, productionStatus])
   @@index([motherId])
   @@index([fatherId])
   @@index([createdBy])
+}
+
+/// Body Condition Score record (PRD §8.6 / §24.6). A timestamped reading
+/// (1.0–5.0 in 0.25 steps; validated in the DTO). Scoped via `cattle`
+/// (`cattle.farmId`), matching the calf sub-record pattern in `calf.prisma`.
+/// The latest score is denormalized to `Cattle.lastBcs`.
+model BodyConditionScore {
+  id     String @id @default(cuid())
+  cattleId String
+
+  score        Float
+  recordedDate DateTime
+  recordedBy   String?
+  notes        String?
+
+  createdAt DateTime @default(now())
+
+  cattle Cattle @relation(fields: [cattleId], references: [id])
+
+  @@index([cattleId])
+  @@index([cattleId, recordedDate])
 }
 
 model Breed {

@@ -1,0 +1,628 @@
+import { Injectable } from '@nestjs/common';
+import {
+  CattlePurpose,
+  HealthCaseStatus,
+  HealthTaskStatus,
+  MilkTankType,
+  PregnancyStatus,
+  ReceivableKind,
+  ReceivableStatus,
+  ReproductiveStatus,
+  SafetyWithdrawalStatus,
+  TaskStatus,
+} from '@prisma/client';
+import { PrismaService } from 'src/core/database/prisma/prisma.service';
+import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { FinanceService } from 'src/modules/finance/application/services/finance.service';
+import { MilkService } from 'src/modules/milk/application/services/milk.service';
+import { HealthService } from 'src/modules/health/application/services/health.service';
+import { DashboardPeriod } from '../../presentation/dto/dashboard-query.dto';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const ACTIVE_CASE_STATUSES = [
+  HealthCaseStatus.ACTIVE,
+  HealthCaseStatus.IMPROVING,
+  HealthCaseStatus.WORSENING,
+  HealthCaseStatus.STABLE,
+];
+
+/**
+ * Dashboard — "Morning Briefing" (PRD §7, API §3). A **read-only** cross-module
+ * aggregator: it composes the headline KPIs, priorities, and widgets from the
+ * already-built feature modules. Heavy KPIs are delegated to the owning service
+ * (`FinanceService`, `MilkService`, `HealthService`) to avoid logic drift; the
+ * rest are direct farm-scoped reads. `farmId` comes from the token context.
+ */
+@Injectable()
+export class DashboardService {
+  private readonly log: LoggerService;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly finance: FinanceService,
+    private readonly milk: MilkService,
+    private readonly health: HealthService,
+    logger: LoggerService,
+  ) {
+    this.log = logger.setContext(DashboardService.name);
+  }
+
+  // ---- Headline KPI bar (§7.2) --------------------------------------------
+
+  async kpis(farmId: string) {
+    const [finance, milk, health] = await Promise.all([
+      this.finance.highlights(farmId),
+      this.milk.overview(farmId),
+      this.health.getHealthDashboard(farmId),
+    ]);
+    const yieldChangePct = this.changePct(
+      milk.today.totalL,
+      milk.yesterday.totalL,
+    );
+    return {
+      costPerLitre: {
+        value: finance.costPerLitreThisMonth,
+        currency: 'Tk',
+      },
+      todaysYield: {
+        value: milk.today.totalL,
+        unit: 'L',
+        changePct: yieldChangePct,
+        changeDirection:
+          yieldChangePct == null ? null : yieldChangePct >= 0 ? 'up' : 'down',
+        changePeriod: 'vs_yesterday',
+      },
+      herdHealth: {
+        value: health.herdHealthScore,
+        unit: '%',
+        sickCount: health.sickBayCount,
+        threshold: 70,
+      },
+      cashRunway: {
+        value: finance.survivalRunwayDays,
+        unit: 'days',
+        status: finance.survivalRunwayStatus,
+      },
+    };
+  }
+
+  // ---- Production Summary widget (§7.3) ------------------------------------
+
+  async productionSummary(farmId: string, period: DashboardPeriod) {
+    const overview = await this.milk.overview(farmId);
+    if (period === 'today') {
+      return {
+        period,
+        totalYieldL: overview.today.totalL,
+        sellableL: overview.today.sellableL,
+        withholdingL: overview.today.withholdingL,
+        calfAllocationL: overview.today.calfL,
+        comparison: {
+          yesterday: overview.yesterday.totalL,
+          sameDayLastWeek: overview.sameDayLastWeek.totalL,
+          sameDayLastYear: overview.sameDayLastYear.totalL,
+        },
+        sessions: overview.sessionsStatus,
+      };
+    }
+    const { gte } = this.periodRange(period);
+    const rows = await this.prisma.milkLogEntry.groupBy({
+      by: ['tankType'],
+      where: { farmId, submitted: true, logDate: { gte } },
+      _sum: { yieldL: true },
+    });
+    const byType = new Map(rows.map((r) => [r.tankType, r._sum.yieldL ?? 0]));
+    const sellableL = this.round(byType.get(MilkTankType.SELLABLE) ?? 0);
+    const withholdingL = this.round(byType.get(MilkTankType.WITHHOLDING) ?? 0);
+    return {
+      period,
+      totalYieldL: this.round(sellableL + withholdingL),
+      sellableL,
+      withholdingL,
+      calfAllocationL: 0,
+      comparison: null,
+      sessions: null,
+    };
+  }
+
+  // ---- 7-Day Calving Forecast widget (§7.3) -------------------------------
+
+  async calvingForecast(farmId: string) {
+    const now = new Date();
+    const horizon = new Date(now.getTime() + 7 * DAY_MS);
+    const pregnancies = await this.prisma.pregnancy.findMany({
+      where: {
+        status: PregnancyStatus.ACTIVE,
+        expectedCalvingDate: { gte: now, lte: horizon },
+        cattle: { farmId },
+      },
+      orderBy: { expectedCalvingDate: 'asc' },
+      include: {
+        cattle: {
+          select: {
+            id: true,
+            name: true,
+            tagNumber: true,
+            shed: { select: { name: true } },
+          },
+        },
+      },
+    });
+    return {
+      forecast: pregnancies.map((p) => ({
+        cattleId: p.cattleId,
+        name: p.cattle.name,
+        tag: p.cattle.tagNumber,
+        shed: p.cattle.shed?.name ?? null,
+        expectedCalvingDate: p.expectedCalvingDate,
+        daysRemaining: p.expectedCalvingDate
+          ? Math.max(
+              0,
+              Math.ceil(
+                (p.expectedCalvingDate.getTime() - now.getTime()) / DAY_MS,
+              ),
+            )
+          : null,
+        conceptionDate: p.conceptionDate,
+      })),
+    };
+  }
+
+  // ---- Herd Status donut (§7.3) -------------------------------------------
+
+  async herdStatus(farmId: string) {
+    const now = new Date();
+    const [totalActive, repro, activeCases, withholding, calves] =
+      await Promise.all([
+        this.prisma.cattle.count({
+          where: {
+            farmId,
+            isActive: true,
+            purpose: { not: CattlePurpose.CALF },
+          },
+        }),
+        this.prisma.reproductionProfile.groupBy({
+          by: ['reproductiveStatus'],
+          where: { cattle: { farmId, isActive: true } },
+          _count: { _all: true },
+        }),
+        this.prisma.healthCase.count({
+          where: {
+            farmId,
+            isActive: true,
+            status: { in: ACTIVE_CASE_STATUSES },
+          },
+        }),
+        this.prisma.safetyWithdrawal.count({
+          where: { farmId, status: SafetyWithdrawalStatus.ACTIVE },
+        }),
+        this.prisma.cattle.findMany({
+          where: { farmId, isActive: true, purpose: CattlePurpose.CALF },
+          select: { dateOfBirth: true },
+        }),
+      ]);
+
+    const reproCount = (s: ReproductiveStatus) =>
+      repro.find((r) => r.reproductiveStatus === s)?._count._all ?? 0;
+    const healthy = Math.max(totalActive - activeCases, 0);
+
+    return {
+      totalActive,
+      productionBreakdown: {
+        milking: reproCount(ReproductiveStatus.LACTATING),
+        dry: reproCount(ReproductiveStatus.DRY),
+        fresh: reproCount(ReproductiveStatus.POSTPARTUM),
+        growing: reproCount(ReproductiveStatus.HEIFER),
+      },
+      reproductiveBreakdown: {
+        open: reproCount(ReproductiveStatus.OPEN),
+        inseminated: reproCount(ReproductiveStatus.BRED),
+        pregnant: reproCount(ReproductiveStatus.PREGNANT),
+        dryPeriod: reproCount(ReproductiveStatus.DRY),
+      },
+      healthBreakdown: {
+        healthy,
+        sick: activeCases,
+        inTreatment: activeCases,
+        withholding,
+      },
+      calves: this.calfStageCounts(
+        calves.map((c) => c.dateOfBirth),
+        now,
+      ),
+    };
+  }
+
+  // ---- Livestock State bar chart (§7.3) -----------------------------------
+
+  async livestockState(farmId: string, period: DashboardPeriod) {
+    const herd = await this.herdStatus(farmId);
+    return {
+      period,
+      states: [
+        {
+          state: 'fresh',
+          count: herd.productionBreakdown.fresh,
+          color: '#1A7A4A',
+        },
+        {
+          state: 'milking',
+          count: herd.productionBreakdown.milking,
+          color: '#14B8A6',
+        },
+        { state: 'dry', count: herd.productionBreakdown.dry, color: '#7C3AED' },
+        {
+          state: 'pregnant',
+          count: herd.reproductiveBreakdown.pregnant,
+          color: '#D97706',
+        },
+        {
+          state: 'insemination',
+          count: herd.reproductiveBreakdown.inseminated,
+          color: '#2563EB',
+        },
+        { state: 'sick', count: herd.healthBreakdown.sick, color: '#DC2626' },
+      ],
+    };
+  }
+
+  // ---- Financial Snapshot widget (§7.3) -----------------------------------
+
+  async financialSnapshot(farmId: string) {
+    const now = new Date();
+    const monthStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    );
+    const prevStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1),
+    );
+
+    const [income, expense, prevIncome, prevExpense, finance] =
+      await Promise.all([
+        this.txnSum(farmId, true, monthStart, now),
+        this.txnSum(farmId, false, monthStart, now),
+        this.txnSum(farmId, true, prevStart, monthStart),
+        this.txnSum(farmId, false, prevStart, monthStart),
+        this.finance.highlights(farmId),
+      ]);
+
+    return {
+      period: monthStart.toISOString().slice(0, 7),
+      income: {
+        current: income,
+        previous: prevIncome,
+        changePct: this.changePct(income, prevIncome),
+      },
+      expenses: {
+        current: expense,
+        previous: prevExpense,
+        changePct: this.changePct(expense, prevExpense),
+      },
+      profit: {
+        current: this.round(income - expense),
+        previous: this.round(prevIncome - prevExpense),
+        changePct: this.changePct(income - expense, prevIncome - prevExpense),
+      },
+      survivalRunway: {
+        days: finance.survivalRunwayDays,
+        availableLiquidity: finance.availableLiquidity,
+        status: finance.survivalRunwayStatus,
+      },
+    };
+  }
+
+  // ---- Feed Stock Alerts widget (§7.3) ------------------------------------
+
+  async feedStockAlerts(farmId: string) {
+    const [medicines, forages] = await Promise.all([
+      this.prisma.medicine.findMany({
+        where: { farmId, isActive: true, lowStockThreshold: { gt: 0 } },
+        select: {
+          id: true,
+          name: true,
+          unit: true,
+          currentStock: true,
+          lowStockThreshold: true,
+        },
+      }),
+      this.prisma.forage.findMany({
+        where: { farmId, isActive: true, lowStockThreshold: { gt: 0 } },
+        select: {
+          id: true,
+          name: true,
+          unit: true,
+          currentStock: true,
+          lowStockThreshold: true,
+        },
+      }),
+    ]);
+    const toAlert =
+      (type: string) =>
+      (i: {
+        id: string;
+        name: string;
+        unit: string;
+        currentStock: number;
+        lowStockThreshold: number;
+      }) => ({
+        itemId: i.id,
+        itemType: type,
+        name: i.name,
+        currentStock: i.currentStock,
+        unit: i.unit,
+        threshold: i.lowStockThreshold,
+        // Consumption-rate estimate needs usage history — deferred (RD-011).
+        daysRemainingEstimate: null,
+        status: i.currentStock <= i.lowStockThreshold / 2 ? 'critical' : 'low',
+      });
+    const alerts = [
+      ...medicines
+        .filter((m) => m.currentStock <= m.lowStockThreshold)
+        .map(toAlert('medicine')),
+      ...forages
+        .filter((f) => f.currentStock <= f.lowStockThreshold)
+        .map(toAlert('forage')),
+    ];
+    return { alerts };
+  }
+
+  // ---- Upcoming Tasks widget (§7.3) ---------------------------------------
+
+  async upcomingTasks(farmId: string) {
+    const now = new Date();
+    const dayStart = new Date(now);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart.getTime() + DAY_MS);
+
+    const todays = await this.prisma.task.findMany({
+      where: { farmId, dueAt: { gte: dayStart, lt: dayEnd } },
+      orderBy: { dueAt: 'asc' },
+      include: { assignedTo: { select: { name: true } } },
+    });
+    const overdue = todays.filter(
+      (t) =>
+        t.status !== TaskStatus.COMPLETED && t.dueAt.getTime() < now.getTime(),
+    );
+    const byCategory: Record<string, { count: number; overdue: number }> = {};
+    for (const t of todays) {
+      const key = t.category.toLowerCase();
+      const row = byCategory[key] ?? { count: 0, overdue: 0 };
+      row.count += 1;
+      if (
+        t.status !== TaskStatus.COMPLETED &&
+        t.dueAt.getTime() < now.getTime()
+      ) {
+        row.overdue += 1;
+      }
+      byCategory[key] = row;
+    }
+    return {
+      totalToday: todays.length,
+      completedToday: todays.filter((t) => t.status === TaskStatus.COMPLETED)
+        .length,
+      overdue: overdue.length,
+      byCategory,
+      tasks: todays.map((t) => ({
+        id: t.id,
+        name: t.name,
+        category: t.category,
+        priority: t.priority,
+        dueAt: t.dueAt,
+        status: t.status,
+        assignedTo: t.assignedTo?.name ?? null,
+      })),
+    };
+  }
+
+  // ---- Today's Priorities panel (§7.1) ------------------------------------
+
+  async priorities(farmId: string) {
+    const now = new Date();
+    const dayStart = new Date(now);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart.getTime() + DAY_MS);
+    const calvingHorizon = new Date(now.getTime() + 3 * DAY_MS);
+
+    const [
+      overdueDoses,
+      soonCalving,
+      lowMed,
+      overdueRec,
+      dueTasks,
+      completedTasks,
+    ] = await Promise.all([
+      this.prisma.healthTask.count({
+        where: {
+          farmId,
+          isActive: true,
+          status: { in: [HealthTaskStatus.PENDING, HealthTaskStatus.OVERDUE] },
+          dueDateTime: { lt: now },
+        },
+      }),
+      this.prisma.pregnancy.findFirst({
+        where: {
+          status: PregnancyStatus.ACTIVE,
+          expectedCalvingDate: { gte: now, lte: calvingHorizon },
+          cattle: { farmId },
+        },
+        orderBy: { expectedCalvingDate: 'asc' },
+        include: {
+          cattle: { select: { id: true, name: true, tagNumber: true } },
+        },
+      }),
+      this.prisma.medicine.findFirst({
+        where: {
+          farmId,
+          isActive: true,
+          lowStockThreshold: { gt: 0 },
+          currentStock: { lte: this.prisma.medicine.fields.lowStockThreshold },
+        },
+        orderBy: { currentStock: 'asc' },
+      }),
+      this.prisma.financeReceivable.findFirst({
+        where: {
+          farmId,
+          kind: ReceivableKind.RECEIVABLE,
+          status: { not: ReceivableStatus.COMPLETED },
+          dueDate: { lt: now },
+        },
+        orderBy: { dueDate: 'asc' },
+      }),
+      this.prisma.task.count({
+        where: { farmId, dueAt: { gte: dayStart, lt: dayEnd } },
+      }),
+      this.prisma.task.count({
+        where: {
+          farmId,
+          status: TaskStatus.COMPLETED,
+          dueAt: { gte: dayStart, lt: dayEnd },
+        },
+      }),
+    ]);
+
+    const priorities: Array<Record<string, unknown>> = [];
+    if (overdueDoses > 0) {
+      priorities.push({
+        priority: 'critical',
+        icon: '🔴',
+        message: `${overdueDoses} cow(s) overdue for treatment dose`,
+        actionLabel: 'Log now',
+        link: '/healthcare/sick-bay',
+        count: overdueDoses,
+      });
+    }
+    if (soonCalving?.expectedCalvingDate) {
+      const days = Math.max(
+        0,
+        Math.ceil(
+          (soonCalving.expectedCalvingDate.getTime() - now.getTime()) / DAY_MS,
+        ),
+      );
+      priorities.push({
+        priority: 'urgent',
+        icon: '🟠',
+        message: `${soonCalving.cattle.name ?? soonCalving.cattle.tagNumber} expected to calve in ${days} day(s)`,
+        actionLabel: 'Prepare calving kit',
+        link: `/reproduction/calving/${soonCalving.cattleId}`,
+        cattleId: soonCalving.cattleId,
+        expectedDate: soonCalving.expectedCalvingDate,
+      });
+    }
+    if (lowMed) {
+      priorities.push({
+        priority: 'important',
+        icon: '🟡',
+        message: `${lowMed.name} stock: ${lowMed.currentStock} ${lowMed.unit} remaining (low)`,
+        actionLabel: 'Reorder',
+        link: `/inventory/medicines/${lowMed.id}`,
+        count: lowMed.currentStock,
+      });
+    }
+    if (overdueRec) {
+      const daysOver = overdueRec.dueDate
+        ? Math.floor((now.getTime() - overdueRec.dueDate.getTime()) / DAY_MS)
+        : 0;
+      priorities.push({
+        priority: 'important',
+        icon: '🟡',
+        message: `${overdueRec.entityName ?? 'Buyer'} payment: Tk ${this.round(overdueRec.total - overdueRec.paid)} overdue by ${daysOver} day(s)`,
+        actionLabel: 'Follow up',
+        link: `/finance/receivables/${overdueRec.id}`,
+      });
+    }
+    const pendingMilk = await this.pendingMilkCount(farmId, dayStart, dayEnd);
+    if (pendingMilk > 0) {
+      priorities.push({
+        priority: 'operational',
+        icon: '🟢',
+        message: `Milk log pending — ${pendingMilk} cow(s) not yet logged`,
+        actionLabel: 'Log milk',
+        link: '/milk?session=morning',
+      });
+    }
+    if (dueTasks > 0) {
+      priorities.push({
+        priority: 'routine',
+        icon: '⚪',
+        message: `${dueTasks} task(s) due today — ${completedTasks} completed`,
+        actionLabel: 'View tasks',
+        link: '/tasks',
+      });
+    }
+    return { priorities: priorities.slice(0, 7) };
+  }
+
+  // ---- Helpers -------------------------------------------------------------
+
+  private async pendingMilkCount(
+    farmId: string,
+    dayStart: Date,
+    dayEnd: Date,
+  ): Promise<number> {
+    const milkingCows = await this.prisma.cattle.count({
+      where: {
+        farmId,
+        isActive: true,
+        purpose: { in: [CattlePurpose.MILK, CattlePurpose.DUAL_PURPOSE] },
+      },
+    });
+    const logged = await this.prisma.milkLogEntry.findMany({
+      where: { farmId, logDate: { gte: dayStart, lt: dayEnd } },
+      select: { cattleId: true },
+      distinct: ['cattleId'],
+    });
+    return Math.max(0, milkingCows - logged.length);
+  }
+
+  private async txnSum(
+    farmId: string,
+    revenue: boolean,
+    from: Date,
+    to: Date,
+  ): Promise<number> {
+    const agg = await this.prisma.financeTransaction.aggregate({
+      where: {
+        farmId,
+        status: 'COMPLETED',
+        type: revenue ? 'REVENUE' : { not: 'REVENUE' },
+        date: { gte: from, lt: to },
+      },
+      _sum: { amount: true },
+    });
+    return this.round(agg._sum.amount ?? 0);
+  }
+
+  private calfStageCounts(dobs: Array<Date | null>, now: Date) {
+    const counts = {
+      total: dobs.length,
+      newborn_0_7: 0,
+      young_7_60: 0,
+      pre_weaning_60_90: 0,
+      post_weaning_90plus: 0,
+    };
+    for (const dob of dobs) {
+      if (!dob) continue;
+      const age = Math.floor((now.getTime() - dob.getTime()) / DAY_MS);
+      if (age < 7) counts.newborn_0_7 += 1;
+      else if (age < 60) counts.young_7_60 += 1;
+      else if (age < 90) counts.pre_weaning_60_90 += 1;
+      else counts.post_weaning_90plus += 1;
+    }
+    return counts;
+  }
+
+  private periodRange(period: DashboardPeriod): { gte: Date } {
+    const now = new Date();
+    if (period === 'week') return { gte: new Date(now.getTime() - 7 * DAY_MS) };
+    return { gte: new Date(now.getTime() - 30 * DAY_MS) };
+  }
+
+  private changePct(current: number, previous: number): number | null {
+    if (!previous) return null;
+    return Math.round(((current - previous) / previous) * 1000) / 10;
+  }
+
+  private round(n: number): number {
+    return Math.round(n * 100) / 100;
+  }
+}

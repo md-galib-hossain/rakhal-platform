@@ -8,18 +8,29 @@ import {
   Cattle,
   CattleSourceType,
   CattleStatus,
+  HealthCaseStatus,
   LactationStatus,
   PregnancyStatus,
   Prisma,
+  ProductionStatus,
+  ReproductiveStatus,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
+import { VWP_DEFAULT_DAYS } from '../../domain/cattle.constants';
+import { deriveHealthStatus } from '../../domain/health-status';
 import { AncestryQueryDto } from '../../presentation/dto/ancestry-query.dto';
+import { ArchiveCattleDto } from '../../presentation/dto/archive-cattle.dto';
+import { BulkCattleDto } from '../../presentation/dto/bulk-cattle.dto';
 import { CreateCattleDto } from '../../presentation/dto/create-cattle.dto';
-import { ListCattleQueryDto } from '../../presentation/dto/list-cattle-query.dto';
+import {
+  HealthStatusFilter,
+  ListCattleQueryDto,
+} from '../../presentation/dto/list-cattle-query.dto';
 import { UpdateCattleDto } from '../../presentation/dto/update-cattle.dto';
+import { UpdateCattleStatusDto } from '../../presentation/dto/update-cattle-status.dto';
 
 type CattleSummary = Pick<Cattle, 'id' | 'name' | 'tagNumber'>;
 
@@ -28,11 +39,29 @@ interface AncestryNode extends CattleSummary {
   father: AncestryNode | null;
 }
 
+/** HealthCase statuses that count as an open/active case (not yet closed). */
+const OPEN_HEALTH_CASE_STATUSES: HealthCaseStatus[] = [
+  HealthCaseStatus.ACTIVE,
+  HealthCaseStatus.IMPROVING,
+  HealthCaseStatus.WORSENING,
+  HealthCaseStatus.STABLE,
+];
+
+/** Production statuses excluded from active herd KPIs and AQR averages (CAT-08). */
+const INACTIVE_PRODUCTION_STATUSES: ProductionStatus[] = [
+  ProductionStatus.SOLD,
+  ProductionStatus.DECEASED,
+];
+
 /**
  * Cattle service (PRD §8). Farm-scoped: `farmId` is supplied by the controller
  * from the verified token context (`FarmContextGuard`), so every query is scoped
  * to it and no cross-tenant access is possible. Registration emits the AQR
  * "Animal Registered" event (+50) + Activity Log entry.
+ *
+ * Status is multi-dimensional (PRD §8.1): production status is stored here,
+ * reproductive status lives on `ReproductionProfile`, and health status is
+ * derived from active Healthcare records — see {@link composeStatus}.
  */
 @Injectable()
 export class CattleService {
@@ -62,7 +91,11 @@ export class CattleService {
           dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
           purpose: dto.purpose,
           status: dto.status ?? CattleStatus.ACTIVE,
+          productionStatus: dto.productionStatus ?? ProductionStatus.GROWING,
           shedId: dto.shedId,
+          feedGroupId: dto.feedGroupId,
+          lastWeightKg: dto.weightKg,
+          lastBcs: dto.bcs,
           motherId: dto.motherId,
           fatherId: dto.fatherId,
           sourceType: dto.sourceType ?? CattleSourceType.UNKNOWN,
@@ -70,6 +103,28 @@ export class CattleService {
           notes: dto.notes,
           isActive: dto.status !== CattleStatus.ARCHIVED,
           createdBy: userId,
+          // Initial physical readings (PRD §8.4) — keep the denormalized
+          // `lastBcs` and the BCS history in sync from the start.
+          ...(dto.bcs
+            ? {
+                bcsRecords: {
+                  create: {
+                    score: dto.bcs,
+                    recordedDate: new Date(),
+                    recordedBy: userId,
+                  },
+                },
+              }
+            : {}),
+          // Seed a reproduction profile when an initial reproductive status is
+          // supplied so the status dimension has a home (PRD §8.1/§8.4).
+          ...(dto.reproductiveStatus
+            ? {
+                reproductionProfile: {
+                  create: { reproductiveStatus: dto.reproductiveStatus },
+                },
+              }
+            : {}),
         },
         include: this.defaultInclude(),
       });
@@ -87,7 +142,7 @@ export class CattleService {
         },
       );
 
-      return { ...cattle, aqrScore: aqr.aqrScore };
+      return { ...this.composeStatus(cattle), aqrScore: aqr.aqrScore };
     } catch (error) {
       if (this.isUniqueError(error)) {
         throw new ConflictException('Tag number already exists for this farm');
@@ -115,7 +170,19 @@ export class CattleService {
       ...(query.gender ? { gender: query.gender } : {}),
       ...(query.purpose ? { purpose: query.purpose } : {}),
       ...(query.status ? { status: query.status } : {}),
+      ...(query.productionStatus
+        ? { productionStatus: query.productionStatus }
+        : {}),
       ...(query.shedId ? { shedId: query.shedId } : {}),
+      ...(query.feedGroupId ? { feedGroupId: query.feedGroupId } : {}),
+      ...(query.reproductiveStatus
+        ? {
+            reproductionProfile: {
+              is: { reproductiveStatus: query.reproductiveStatus },
+            },
+          }
+        : {}),
+      ...(query.healthStatus ? this.healthStatusWhere(query.healthStatus) : {}),
     };
 
     const rows = await this.prisma.cattle.findMany({
@@ -125,11 +192,19 @@ export class CattleService {
       include: this.defaultInclude(),
     });
 
-    return toCursorPage(rows, query);
+    return toCursorPage(
+      rows.map((row) => this.composeStatus(row)),
+      query,
+    );
   }
 
   async findOne(farmId: string, id: string) {
-    return this.getCattleOrThrow(farmId, id, this.defaultInclude());
+    const cattle = await this.getCattleOrThrow(
+      farmId,
+      id,
+      this.defaultInclude(),
+    );
+    return this.composeStatus(cattle);
   }
 
   async update(farmId: string, id: string, dto: UpdateCattleDto) {
@@ -149,7 +224,10 @@ export class CattleService {
           dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
           purpose: dto.purpose,
           status: dto.status,
+          productionStatus: dto.productionStatus,
           shedId: dto.shedId,
+          feedGroupId: dto.feedGroupId,
+          lastWeightKg: dto.weightKg,
           motherId: dto.motherId,
           fatherId: dto.fatherId,
           sourceType: dto.sourceType,
@@ -163,7 +241,7 @@ export class CattleService {
       });
 
       this.log.info('Cattle updated', { cattleId: id, farmId });
-      return cattle;
+      return this.composeStatus(cattle);
     } catch (error) {
       if (this.isUniqueError(error)) {
         throw new ConflictException('Tag number already exists for this farm');
@@ -172,15 +250,71 @@ export class CattleService {
     }
   }
 
-  async archive(farmId: string, id: string) {
+  /**
+   * Dedicated multi-dimension status update (PRD §8.1, RAKHAL-036). Sets the
+   * stored production status and/or the reproductive status on the linked
+   * `ReproductionProfile`. Moving production status to Sold/Deceased also
+   * archives the animal so it leaves active herd KPIs (CAT-08).
+   */
+  async updateStatus(farmId: string, id: string, dto: UpdateCattleStatusDto) {
     await this.getCattleOrThrow(farmId, id);
+
+    if (dto.productionStatus) {
+      const lifecycle = this.lifecycleForProductionStatus(dto.productionStatus);
+      await this.prisma.cattle.update({
+        where: { id },
+        data: { productionStatus: dto.productionStatus, ...lifecycle },
+      });
+    }
+
+    if (dto.reproductiveStatus) {
+      await this.prisma.reproductionProfile.upsert({
+        where: { cattleId: id },
+        update: { reproductiveStatus: dto.reproductiveStatus },
+        create: { cattleId: id, reproductiveStatus: dto.reproductiveStatus },
+      });
+    }
+
+    this.log.info('Cattle status updated', { cattleId: id, farmId });
+    return this.findOne(farmId, id);
+  }
+
+  async archive(farmId: string, id: string) {
+    return this.archiveWithReason(farmId, id, {});
+  }
+
+  /**
+   * Soft-archive with an optional reason (PRD §8.5, RAKHAL-036). `sold` and
+   * `deceased` keep production status distinct (CAT-09) and both exclude the
+   * animal from active herd KPIs (CAT-08). The deceased → cancel-tasks /
+   * close-cases side effects are owned by the Healthcare mortality flow
+   * (RAKHAL-067) and are intentionally not done here.
+   */
+  async archiveWithReason(farmId: string, id: string, dto: ArchiveCattleDto) {
+    await this.getCattleOrThrow(farmId, id);
+
+    const data: Prisma.CattleUpdateInput = { isActive: false };
+    if (dto.reason === 'sold') {
+      data.productionStatus = ProductionStatus.SOLD;
+      data.status = CattleStatus.SOLD;
+    } else if (dto.reason === 'deceased') {
+      data.productionStatus = ProductionStatus.DECEASED;
+      data.status = CattleStatus.DEAD;
+    } else {
+      data.status = CattleStatus.ARCHIVED;
+    }
+
     const cattle = await this.prisma.cattle.update({
       where: { id },
-      data: { status: CattleStatus.ARCHIVED, isActive: false },
+      data,
       include: this.defaultInclude(),
     });
-    this.log.info('Cattle archived', { cattleId: id, farmId });
-    return cattle;
+    this.log.info('Cattle archived', {
+      cattleId: id,
+      farmId,
+      reason: dto.reason,
+    });
+    return this.composeStatus(cattle);
   }
 
   async restore(farmId: string, id: string) {
@@ -191,46 +325,147 @@ export class CattleService {
       include: this.defaultInclude(),
     });
     this.log.info('Cattle restored', { cattleId: id, farmId });
-    return cattle;
+    return this.composeStatus(cattle);
   }
 
-  async remove(farmId: string, id: string) {
-    return this.archive(farmId, id);
+  async remove(farmId: string, id: string, dto: ArchiveCattleDto = {}) {
+    return this.archiveWithReason(farmId, id, dto);
+  }
+
+  /**
+   * Cattle highlights bar (PRD §8.2, RAKHAL-037): total active herd, average
+   * herd AQR, breeding-ready count, and today's yield — each with a trend.
+   */
+  async highlights(farmId: string) {
+    const now = new Date();
+    const monthAgo = new Date(now);
+    monthAgo.setDate(monthAgo.getDate() - 30);
+    const vwpCutoff = new Date(now);
+    vwpCutoff.setDate(vwpCutoff.getDate() - VWP_DEFAULT_DAYS);
+
+    const activeWhere: Prisma.CattleWhereInput = {
+      farmId,
+      isActive: true,
+      productionStatus: { notIn: INACTIVE_PRODUCTION_STATUSES },
+    };
+
+    const [totalActive, prevActive, aqrAgg, breedingReady] = await Promise.all([
+      this.prisma.cattle.count({ where: activeWhere }),
+      this.prisma.cattle.count({
+        where: { ...activeWhere, createdAt: { lte: monthAgo } },
+      }),
+      this.prisma.cattle.aggregate({
+        where: { ...activeWhere, aqrScore: { not: null } },
+        _avg: { aqrScore: true },
+      }),
+      this.prisma.cattle.count({
+        where: {
+          ...activeWhere,
+          productionStatus: ProductionStatus.MILKING,
+          reproductionProfile: {
+            is: { reproductiveStatus: ReproductiveStatus.OPEN },
+          },
+          lactations: {
+            some: {
+              status: LactationStatus.ACTIVE,
+              startDate: { lte: vwpCutoff },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const { todayL, yesterdayL } = await this.dailyYield(farmId, now);
+
+    return {
+      total_active: totalActive,
+      total_change_pct: this.pctChange(totalActive, prevActive),
+      avg_herd_aqr: this.round(aqrAgg._avg.aqrScore ?? 0),
+      // No historical AQR snapshots yet — trend deferred (TECH_DEBT).
+      aqr_change_pct: null as number | null,
+      breeding_ready_count: breedingReady,
+      todays_yield_l: this.round(todayL),
+      yield_change_pct: this.pctChange(todayL, yesterdayL),
+    };
+  }
+
+  /**
+   * Bulk operations on a selection of cattle (PRD §8.3, RAKHAL-037).
+   * Farm-scoped: only rows belonging to `farmId` are affected; the rest count
+   * as `failed`.
+   */
+  async bulk(farmId: string, dto: BulkCattleDto) {
+    const { cattleIds, action, payload } = dto;
+    const scope: Prisma.CattleWhereInput = { id: { in: cattleIds }, farmId };
+
+    switch (action) {
+      case 'change_shed': {
+        if (!payload?.shedId) {
+          throw new BadRequestException('shedId is required for change_shed');
+        }
+        await this.assertShedInFarm(farmId, payload.shedId);
+        const { count } = await this.prisma.cattle.updateMany({
+          where: scope,
+          data: { shedId: payload.shedId },
+        });
+        return this.bulkResult(action, count, cattleIds.length);
+      }
+      case 'change_feed_group': {
+        const { count } = await this.prisma.cattle.updateMany({
+          where: scope,
+          data: { feedGroupId: payload?.feedGroupId ?? null },
+        });
+        return this.bulkResult(action, count, cattleIds.length);
+      }
+      case 'mark_sold': {
+        const { count } = await this.prisma.cattle.updateMany({
+          where: { ...scope, isActive: true },
+          data: {
+            productionStatus: ProductionStatus.SOLD,
+            status: CattleStatus.SOLD,
+            isActive: false,
+          },
+        });
+        return this.bulkResult(action, count, cattleIds.length);
+      }
+      case 'export': {
+        const rows = await this.prisma.cattle.findMany({
+          where: scope,
+          orderBy: { tagNumber: 'asc' },
+          include: this.defaultInclude(),
+        });
+        return {
+          action,
+          updated: 0,
+          failed: cattleIds.length - rows.length,
+          items: rows.map((row) => this.composeStatus(row)),
+        };
+      }
+    }
   }
 
   async profile(farmId: string, id: string) {
-    const cattle = await this.getCattleOrThrow(farmId, id, {
-      breed: true,
-      shed: true,
-      mother: { select: this.summarySelect() },
-      father: { select: this.summarySelect() },
-    });
+    const cattle = await this.getCattleOrThrow(
+      farmId,
+      id,
+      this.defaultInclude(),
+    );
 
     const childrenCount = await this.prisma.cattle.count({
       where: { farmId, OR: [{ motherId: id }, { fatherId: id }] },
     });
-    const [currentPregnancy, currentLactation] = await Promise.all([
-      this.prisma.pregnancy.findFirst({
-        where: { cattleId: id, status: PregnancyStatus.ACTIVE },
-        orderBy: { conceptionDate: 'desc' },
-      }),
-      this.prisma.lactation.findFirst({
-        where: { cattleId: id, status: LactationStatus.ACTIVE },
-        orderBy: { startDate: 'desc' },
-      }),
-    ]);
+    const currentPregnancy = await this.prisma.pregnancy.findFirst({
+      where: { cattleId: id, status: PregnancyStatus.ACTIVE },
+      orderBy: { conceptionDate: 'desc' },
+    });
 
     return {
-      ...cattle,
+      ...this.composeStatus(cattle),
       age: this.calculateAge(cattle.dateOfBirth),
       childrenCount,
-      dim: currentLactation
-        ? this.daysBetween(currentLactation.startDate, new Date())
-        : null,
       pregnancyStatus: currentPregnancy
         ? currentPregnancy.status
         : 'NOT_RECORDED',
-      healthStatus: 'NOT_RECORDED',
     };
   }
 
@@ -273,6 +508,145 @@ export class CattleService {
     });
   }
 
+  // ---- status composition -------------------------------------------------
+
+  /**
+   * Augment a cattle row with the derived status dimensions (PRD §8.1):
+   * reproductive status from `ReproductionProfile`, health status derived from
+   * active Healthcare records, and DIM from the active lactation.
+   */
+  private composeStatus<
+    T extends {
+      productionStatus: ProductionStatus;
+      reproductionProfile?: { reproductiveStatus: ReproductiveStatus } | null;
+      healthCases?: {
+        isSafetyWithholdingActive: boolean;
+        milkWithdrawalUntil: Date | null;
+      }[];
+      safetyWithdrawals?: {
+        milkWithdrawalUntil: Date | null;
+        meatWithdrawalUntil: Date | null;
+      }[];
+      lactations?: { startDate: Date }[];
+    },
+  >(row: T) {
+    const now = new Date();
+    const healthStatus = deriveHealthStatus(
+      row.healthCases ?? [],
+      row.safetyWithdrawals ?? [],
+      now,
+    );
+
+    const activeLactation = (row.lactations ?? [])[0];
+    const dim = activeLactation
+      ? this.daysBetween(activeLactation.startDate, now)
+      : null;
+
+    return {
+      ...row,
+      reproductiveStatus: row.reproductionProfile?.reproductiveStatus ?? null,
+      healthStatus,
+      dim,
+    };
+  }
+
+  /** Prisma `where` fragment for a derived health-status list filter (PRD §8.1). */
+  private healthStatusWhere(
+    filter: HealthStatusFilter,
+  ): Prisma.CattleWhereInput {
+    switch (filter) {
+      case 'WITHHOLDING':
+        return {
+          safetyWithdrawals: { some: { status: 'ACTIVE' } },
+        };
+      case 'SICK':
+      case 'IN_TREATMENT':
+        return {
+          healthCases: { some: { status: { in: OPEN_HEALTH_CASE_STATUSES } } },
+        };
+      case 'HEALTHY':
+        return {
+          healthCases: { none: { status: { in: OPEN_HEALTH_CASE_STATUSES } } },
+          safetyWithdrawals: { none: { status: 'ACTIVE' } },
+        };
+      case 'QUARANTINE':
+      default:
+        // Quarantine is not tracked yet (deferred to Healthcare) — match none.
+        return { id: '__none__' };
+    }
+  }
+
+  /** Lifecycle (`status`/`isActive`) implied by a production-status change. */
+  private lifecycleForProductionStatus(
+    productionStatus: ProductionStatus,
+  ): Pick<Prisma.CattleUpdateInput, 'status' | 'isActive'> {
+    if (productionStatus === ProductionStatus.SOLD) {
+      return { status: CattleStatus.SOLD, isActive: false };
+    }
+    if (productionStatus === ProductionStatus.DECEASED) {
+      return { status: CattleStatus.DEAD, isActive: false };
+    }
+    return {};
+  }
+
+  /** Today's and yesterday's total logged yield (litres) for the farm. */
+  private async dailyYield(farmId: string, now: Date) {
+    const todayStart = this.utcMidnight(now);
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setUTCDate(tomorrowStart.getUTCDate() + 1);
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setUTCDate(yesterdayStart.getUTCDate() - 1);
+
+    const [today, yesterday] = await Promise.all([
+      this.prisma.milkLogEntry.aggregate({
+        where: { farmId, logDate: { gte: todayStart, lt: tomorrowStart } },
+        _sum: { yieldL: true },
+      }),
+      this.prisma.milkLogEntry.aggregate({
+        where: { farmId, logDate: { gte: yesterdayStart, lt: todayStart } },
+        _sum: { yieldL: true },
+      }),
+    ]);
+
+    return {
+      todayL: today._sum.yieldL ?? 0,
+      yesterdayL: yesterday._sum.yieldL ?? 0,
+    };
+  }
+
+  private bulkResult(action: string, updated: number, requested: number) {
+    return { action, updated, failed: requested - updated };
+  }
+
+  private async assertShedInFarm(farmId: string, shedId: string) {
+    const shed = await this.prisma.shed.findFirst({
+      where: { id: shedId, farmId, isActive: true },
+      select: { id: true },
+    });
+    if (!shed) {
+      throw new BadRequestException('Shed must belong to the same farm');
+    }
+  }
+
+  private utcMidnight(date: Date) {
+    return new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    );
+  }
+
+  private pctChange(current: number, previous: number): number | null {
+    if (!previous) {
+      return current ? 100 : 0;
+    }
+    return this.round(((current - previous) / previous) * 100);
+  }
+
+  private round(value: number) {
+    return Math.round(value * 100) / 100;
+  }
+
+  // ---- existing helpers ---------------------------------------------------
+
   private async validateReferences(
     farmId: string,
     dto: Partial<CreateCattleDto>,
@@ -288,13 +662,7 @@ export class CattleService {
     }
 
     if (dto.shedId) {
-      const shed = await this.prisma.shed.findFirst({
-        where: { id: dto.shedId, farmId, isActive: true },
-        select: { id: true },
-      });
-      if (!shed) {
-        throw new BadRequestException('Shed must belong to the same farm');
-      }
+      await this.assertShedInFarm(farmId, dto.shedId);
     }
   }
 
@@ -420,6 +788,23 @@ export class CattleService {
       shed: true,
       mother: { select: this.summarySelect() },
       father: { select: this.summarySelect() },
+      reproductionProfile: { select: { reproductiveStatus: true } },
+      healthCases: {
+        where: { status: { in: OPEN_HEALTH_CASE_STATUSES } },
+        select: { isSafetyWithholdingActive: true, milkWithdrawalUntil: true },
+        take: 1,
+      },
+      safetyWithdrawals: {
+        where: { status: 'ACTIVE' as const },
+        select: { milkWithdrawalUntil: true, meatWithdrawalUntil: true },
+        take: 1,
+      },
+      lactations: {
+        where: { status: LactationStatus.ACTIVE },
+        orderBy: { startDate: 'desc' as const },
+        select: { startDate: true },
+        take: 1,
+      },
     } satisfies Prisma.CattleInclude;
   }
 

@@ -27,8 +27,7 @@
     "redis:up": "docker compose -f docker-compose.redis.yml up -d",
     "redis:down": "docker compose -f docker-compose.redis.yml down",
     "redis:logs": "docker logs -f rakhal-redis",
-        "security": "node scripts/security/run-security-check.js"
-
+    "security": "node scripts/security/run-security-check.js"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.2",
@@ -49,6 +48,7 @@
     "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.7",
     "csrf-csrf": "^4.0.3",
+    "csv-parse": "^7.0.0",
     "dotenv": "^17.4.2",
     "helmet": "^8.1.0",
     "ioredis": "^5.10.1",
@@ -73,6 +73,7 @@
     "@types/express": "^5.0.0",
     "@types/ioredis": "^5.0.0",
     "@types/jest": "^30.0.0",
+    "@types/multer": "^2.1.0",
     "@types/node": "^24.0.0",
     "@types/passport": "^1.0.17",
     "@types/passport-jwt": "^4.0.1",
