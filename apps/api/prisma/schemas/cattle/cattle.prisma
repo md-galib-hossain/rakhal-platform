@@ -14,9 +14,6 @@ model Cattle {
   status      CattleStatus  @default(ACTIVE)
   shedId      String?
 
-  /// Feed-group assignment (PRD §8.3). Nullable plain id — no FK yet because the
-  /// Feed module / FeedGroup model is not built; the column lets bulk
-  /// `change_feed_group` and the list column work now (FK added when Feed lands).
   feedGroupId String?
 
   /// Production dimension of the multi-state status (PRD §8.1). Reproductive
@@ -45,9 +42,10 @@ model Cattle {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  farm    Farm   @relation("FarmToCattle", fields: [farmId], references: [id])
-  breed   Breed? @relation(fields: [breedId], references: [id])
-  shed    Shed?  @relation(fields: [shedId], references: [id])
+  farm      Farm       @relation("FarmToCattle", fields: [farmId], references: [id])
+  breed     Breed?     @relation(fields: [breedId], references: [id])
+  shed      Shed?      @relation(fields: [shedId], references: [id])
+  feedGroup FeedGroup? @relation(fields: [feedGroupId], references: [id])
   creator User   @relation("CattleCreator", fields: [createdBy], references: [id])
 
   mother   Cattle?  @relation("CattleMother", fields: [motherId], references: [id])
@@ -79,6 +77,7 @@ model Cattle {
   mortalityRecords    MortalityRecord[]
   safetyWithdrawals   SafetyWithdrawal[]
   bcsRecords          BodyConditionScore[]
+  weightRecords       WeightRecord[]
 
   @@unique([farmId, tagNumber])
   @@index([farmId])
@@ -112,6 +111,25 @@ model BodyConditionScore {
   @@index([cattleId, recordedDate])
 }
 
+/// Body weight record (PRD §8.5, RAKHAL-039). Timestamped; denormalized to
+/// `Cattle.lastWeightKg` on each save.
+model WeightRecord {
+  id       String @id @default(cuid())
+  cattleId String
+
+  weightKg     Float
+  recordedDate DateTime
+  recordedBy   String?
+  notes        String?
+
+  createdAt DateTime @default(now())
+
+  cattle Cattle @relation(fields: [cattleId], references: [id])
+
+  @@index([cattleId])
+  @@index([cattleId, recordedDate])
+}
+
 model Breed {
   id String @id @default(cuid())
 
@@ -132,19 +150,38 @@ model Breed {
 model Shed {
   id String @id @default(cuid())
 
+  farmId              String
+  name                String
+  code                String
+  description         String?
+  capacity            Int?
+  purpose             ShedPurpose @default(GENERAL)
+  responsibleMemberId String?
+  isActive            Boolean     @default(true)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  farm              Farm         @relation("FarmToShed", fields: [farmId], references: [id])
+  responsibleMember User?        @relation("ShedResponsible", fields: [responsibleMemberId], references: [id])
+  cattle            Cattle[]
+  healthCases       HealthCase[]
+
+  @@unique([farmId, code])
+  @@index([farmId])
+}
+
+model FeedGroup {
+  id          String  @id @default(cuid())
   farmId      String
   name        String
-  code        String
   description String?
-  capacity    Int?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  farm        Farm         @relation("FarmToShed", fields: [farmId], references: [id])
-  cattle      Cattle[]
-  healthCases HealthCase[]
+  farm   Farm     @relation("FarmToFeedGroup", fields: [farmId], references: [id])
+  cattle Cattle[]
 
-  @@unique([farmId, code])
+  @@unique([farmId, name])
   @@index([farmId])
 }

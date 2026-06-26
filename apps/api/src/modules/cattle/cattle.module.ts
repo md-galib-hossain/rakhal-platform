@@ -7,8 +7,10 @@ import { ActivityModule } from '../activity/activity.module';
 import { BcsService } from './application/services/bcs.service';
 import { BreedService } from './application/services/breed.service';
 import { CattleService } from './application/services/cattle.service';
+import { CattleDetailService } from './application/services/cattle-detail.service';
 import { CattleImportService } from './application/services/cattle-import.service';
 import { ShedService } from './application/services/shed.service';
+import { WeightService } from './application/services/weight.service';
 import { BreedController } from './presentation/controllers/breed.controller';
 import { CattleController } from './presentation/controllers/cattle.controller';
 import { ShedController } from './presentation/controllers/shed.controller';
@@ -25,6 +27,8 @@ import { ShedController } from './presentation/controllers/shed.controller';
   providers: [
     CattleService,
     BcsService,
+    WeightService,
+    CattleDetailService,
     CattleImportService,
     BreedService,
     ShedService,

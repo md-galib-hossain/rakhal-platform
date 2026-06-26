@@ -9,15 +9,20 @@ import {
   CattleStatus,
   HealthCaseStatus,
   HealthCloseOutcome,
+  HealthPriority,
   HealthTaskStatus,
   Prisma,
   SafetyWithdrawalStatus,
+  TaskCategory,
+  TaskPriority,
+  TaskSource,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 import { MedicineService } from 'src/modules/inventory/application/services/medicine.service';
+import { TaskService } from 'src/modules/task/application/services/task.service';
 import {
   ApplyHealthPlanDto,
   CloseHealthCaseDto,
@@ -63,6 +68,7 @@ export class HealthService {
     private readonly prisma: PrismaService,
     private readonly aqrService: AqrService,
     private readonly medicineService: MedicineService,
+    private readonly taskService: TaskService,
     private readonly logger: LoggerService,
   ) {
     this.log = this.logger.setContext(HealthService.name);
@@ -223,9 +229,7 @@ export class HealthService {
       );
     }
 
-    const count = await this.prisma.healthCase.count({ where: { farmId } });
-    const caseCode = `HC-${String(count + 1).padStart(5, '0')}`;
-    const healthCase = await this.prisma.healthCase.create({
+    const healthCase = await this.createCaseWithCode(farmId, (caseCode) => ({
       data: {
         farmId,
         cattleId: dto.cattleId,
@@ -243,9 +247,33 @@ export class HealthService {
           : undefined,
         symptoms: dto.symptoms ?? [],
         notes: dto.notes,
+        photoUrl: dto.photoUrl,
       },
       include: this.caseInclude(),
-    });
+    }));
+
+    // Initial vitals (PRD §8.7): land temperature/appetite/observation on the
+    // case timeline without moving the case off ACTIVE (so it reads as "Sick").
+    if (
+      dto.temperature !== undefined ||
+      dto.appetite !== undefined ||
+      dto.staffObservation
+    ) {
+      await this.prisma.healthUpdate.create({
+        data: {
+          farmId,
+          cattleId: dto.cattleId,
+          healthCaseId: healthCase.id,
+          clinicalProgress: ClinicalProgress.STABLE,
+          symptoms: dto.symptoms ?? [],
+          temperature: dto.temperature,
+          appetite: dto.appetite,
+          observation: dto.staffObservation,
+          recordedBy: userId,
+          recordedAt: new Date(),
+        },
+      });
+    }
 
     // AQR: Animal Sickness Reported (−10) + immutable Activity Log entry.
     await this.aqrService.applyEvent(
@@ -258,12 +286,73 @@ export class HealthService {
       },
     );
 
+    // Notify Owner + Manager (PRD §8.7). No push/SMS engine yet (RAKHAL-098) —
+    // the Task Hub item is the in-app notification, matching the calf/repro pattern.
+    await this.taskService.createInternal({
+      farmId,
+      createdBy: userId,
+      name: `Review reported sickness — ${cattle.tagNumber}`,
+      details: `Sickness reported for [${cattle.name ?? cattle.tagNumber}] (${cattle.tagNumber}) — ${dto.diagnosis}. Priority: ${dto.priority}.`,
+      category: TaskCategory.HEALTHCARE,
+      priority: this.toTaskPriority(dto.priority),
+      dueAt: new Date(),
+      source: TaskSource.SYSTEM_AUTO,
+      relatedCattleId: dto.cattleId,
+    });
+
     this.log.info('Health case created', {
       healthCaseId: healthCase.id,
       farmId,
       cattleId: dto.cattleId,
     });
     return healthCase;
+  }
+
+  /** Map a case priority to a Task Hub priority (PRD §8.7 notification). */
+  private toTaskPriority(priority: HealthPriority): TaskPriority {
+    switch (priority) {
+      case HealthPriority.CRITICAL:
+      case HealthPriority.HIGH:
+        return TaskPriority.HIGH;
+      case HealthPriority.MEDIUM:
+        return TaskPriority.MEDIUM;
+      case HealthPriority.LOW:
+        return TaskPriority.LOW;
+    }
+  }
+
+  /**
+   * Create a HealthCase with a collision-safe per-farm `caseCode`. The code is
+   * derived from the current max suffix (+1); a unique-violation (concurrent
+   * insert or a non-contiguous sequence) retries with a freshly computed code.
+   */
+  private async createCaseWithCode<T extends Prisma.HealthCaseCreateArgs>(
+    farmId: string,
+    build: (caseCode: string) => T,
+  ): Promise<Prisma.HealthCaseGetPayload<T>> {
+    for (let attempt = 0; ; attempt += 1) {
+      const caseCode = await this.nextCaseCode(farmId);
+      try {
+        return (await this.prisma.healthCase.create(
+          build(caseCode),
+        )) as Prisma.HealthCaseGetPayload<T>;
+      } catch (error) {
+        const isUnique = (error as { code?: string }).code === 'P2002';
+        if (isUnique && attempt < 4) continue;
+        throw error;
+      }
+    }
+  }
+
+  /** Next per-farm `HC-XXXXX` code from the current max suffix (PRD §13). */
+  private async nextCaseCode(farmId: string): Promise<string> {
+    const last = await this.prisma.healthCase.findFirst({
+      where: { farmId },
+      orderBy: { caseCode: 'desc' },
+      select: { caseCode: true },
+    });
+    const n = last ? parseInt(last.caseCode.replace(/\D/g, ''), 10) || 0 : 0;
+    return `HC-${String(n + 1).padStart(5, '0')}`;
   }
 
   async getHealthCase(farmId: string, id: string) {

@@ -4,10 +4,17 @@ import {
   IsDateString,
   IsEnum,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
+  Max,
+  Min,
 } from 'class-validator';
-import { HealthDiagnosisType, HealthPriority } from '@prisma/client';
+import {
+  AppetiteStatus,
+  HealthDiagnosisType,
+  HealthPriority,
+} from '@prisma/client';
 import { trimString } from './common.dto';
 
 export class CreateHealthCaseDto {
@@ -64,4 +71,26 @@ export class CreateHealthCaseDto {
   @Transform(trimString)
   @IsString()
   notes?: string;
+
+  // Initial vitals captured by the Report Sickness form (PRD §8.7). When any are
+  // present, an initial HealthUpdate is written to the new case's timeline.
+  @IsOptional()
+  @IsNumber()
+  @Min(35)
+  @Max(45)
+  temperature?: number;
+
+  @IsOptional()
+  @IsEnum(AppetiteStatus)
+  appetite?: AppetiteStatus;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  staffObservation?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  photoUrl?: string;
 }

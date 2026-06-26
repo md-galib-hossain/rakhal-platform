@@ -19,15 +19,19 @@ import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { BcsService } from '../../application/services/bcs.service';
+import { CattleDetailService } from '../../application/services/cattle-detail.service';
 import { CattleImportService } from '../../application/services/cattle-import.service';
 import { CattleService } from '../../application/services/cattle.service';
+import { WeightService } from '../../application/services/weight.service';
 import { AncestryQueryDto } from '../dto/ancestry-query.dto';
 import { ArchiveCattleDto } from '../dto/archive-cattle.dto';
 import { BulkCattleDto } from '../dto/bulk-cattle.dto';
+import { CattleFinanceQueryDto } from '../dto/cattle-finance-query.dto';
 import { CreateCattleDto } from '../dto/create-cattle.dto';
 import { ImportConfirmDto, ImportPreviewDto } from '../dto/import-cattle.dto';
 import { ListCattleQueryDto } from '../dto/list-cattle-query.dto';
 import { RecordBcsDto } from '../dto/record-bcs.dto';
+import { RecordWeightDto } from '../dto/record-weight.dto';
 import { UpdateCattleDto } from '../dto/update-cattle.dto';
 import { UpdateCattleStatusDto } from '../dto/update-cattle-status.dto';
 
@@ -41,6 +45,8 @@ export class CattleController {
   constructor(
     private readonly cattleService: CattleService,
     private readonly bcsService: BcsService,
+    private readonly weightService: WeightService,
+    private readonly detailService: CattleDetailService,
     private readonly importService: CattleImportService,
   ) {}
 
@@ -138,6 +144,47 @@ export class CattleController {
     @Body() dto: RecordBcsDto,
   ) {
     return this.bcsService.recordBcs(farmId, userId, id, dto);
+  }
+
+  @Get(':id/weight')
+  @RequirePermission('cattle.read')
+  weightHistory(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.weightService.history(farmId, id);
+  }
+
+  @Post(':id/weight')
+  @RequirePermission('cattle.update')
+  recordWeight(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body() dto: RecordWeightDto,
+  ) {
+    return this.weightService.recordWeight(farmId, userId, id, dto);
+  }
+
+  // Detail-page tabs (PRD §8.5). Reproduction (Tab 2) + Health (Tab 3) are
+  // served by the reproduction/health modules' `*-summary` endpoints.
+  @Get(':id/overview')
+  @RequirePermission('cattle.read')
+  overview(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.detailService.overview(farmId, id);
+  }
+
+  @Get(':id/pedigree')
+  @RequirePermission('cattle.read')
+  pedigree(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.detailService.pedigree(farmId, id);
+  }
+
+  @Get(':id/finance')
+  @RequirePermission('finance.read')
+  finance(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @Query() query: CattleFinanceQueryDto,
+  ) {
+    return this.detailService.cattleFinance(farmId, id, query.period);
   }
 
   @Get(':id')

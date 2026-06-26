@@ -28,6 +28,9 @@ model HealthCase {
 
   symptoms String[]
   notes    String?
+  /// Photo of the affected area (PRD §8.7). URL only — binary upload is blocked
+  /// on the object-storage decision.
+  photoUrl String?
 
   isSafetyWithholdingActive Boolean   @default(false)
   milkWithdrawalUntil       DateTime?

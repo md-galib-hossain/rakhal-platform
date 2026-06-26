@@ -5,11 +5,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  BreedingMethod,
   Cattle,
   CattleSourceType,
   CattleStatus,
+  FinanceTxnType,
   HealthCaseStatus,
   LactationStatus,
+  MilkSession,
   PregnancyStatus,
   Prisma,
   ProductionStatus,
@@ -487,6 +490,431 @@ export class CattleService {
     });
   }
 
+  // ---- RAKHAL-039: Weight Recording -------------------------------------------
+
+  async recordWeight(
+    farmId: string,
+    userId: string,
+    id: string,
+    dto: { weightKg: number; date: string; notes?: string },
+  ) {
+    await this.getCattleOrThrow(farmId, id);
+    const record = await this.prisma.weightRecord.create({
+      data: {
+        cattleId: id,
+        weightKg: dto.weightKg,
+        recordedDate: new Date(dto.date),
+        recordedBy: userId,
+        notes: dto.notes,
+      },
+    });
+    await this.prisma.cattle.update({
+      where: { id },
+      data: { lastWeightKg: dto.weightKg },
+    });
+    this.log.info('Weight recorded', {
+      cattleId: id,
+      farmId,
+      kg: dto.weightKg,
+    });
+    return record;
+  }
+
+  async weightHistory(farmId: string, id: string) {
+    await this.getCattleOrThrow(farmId, id);
+    return this.prisma.weightRecord.findMany({
+      where: { cattleId: id },
+      orderBy: { recordedDate: 'desc' },
+      take: 50,
+    });
+  }
+
+  // ---- RAKHAL-040: Cattle Detail Tabs -----------------------------------------
+
+  async tabOverview(farmId: string, id: string) {
+    const cattle = await this.prisma.cattle.findFirst({
+      where: { id, farmId },
+      include: {
+        bcsRecords: { orderBy: { recordedDate: 'desc' as const }, take: 10 },
+        weightRecords: { orderBy: { recordedDate: 'desc' as const }, take: 20 },
+        lactations: {
+          where: { status: LactationStatus.ACTIVE },
+          orderBy: { startDate: 'desc' as const },
+          take: 1,
+        },
+      },
+    });
+    if (!cattle) throw new NotFoundException('Cattle not found');
+
+    const now = new Date();
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    // 7-day avg yield for this animal
+    const yieldAgg = await this.prisma.milkLogEntry.aggregate({
+      where: { cattleId: id, logDate: { gte: sevenDaysAgo } },
+      _avg: { yieldL: true },
+    });
+
+    // Lactation curve: yield by DIM bucket (up to 120d of records)
+    const lactationStart = cattle.lactations[0]?.startDate ?? null;
+    const lactationCurve: { dim: number; yield_l: number }[] = [];
+    if (lactationStart) {
+      const entries = await this.prisma.milkLogEntry.findMany({
+        where: { cattleId: id, logDate: { gte: lactationStart } },
+        orderBy: { logDate: 'asc' },
+        take: 200,
+        select: { logDate: true, yieldL: true },
+      });
+      for (const e of entries) {
+        const dim = this.daysBetween(lactationStart, e.logDate);
+        const existing = lactationCurve.find((c) => c.dim === dim);
+        if (existing) {
+          existing.yield_l = this.round(existing.yield_l + e.yieldL);
+        } else {
+          lactationCurve.push({ dim, yield_l: this.round(e.yieldL) });
+        }
+      }
+    }
+
+    // Lifetime yield by year
+    const allEntries = await this.prisma.milkLogEntry.findMany({
+      where: { cattleId: id },
+      select: { logDate: true, yieldL: true },
+    });
+    const byYear: Record<number, number> = {};
+    for (const e of allEntries) {
+      const yr = e.logDate.getFullYear();
+      byYear[yr] = this.round((byYear[yr] ?? 0) + e.yieldL);
+    }
+    const lifetimeYield = Object.entries(byYear).map(([year, total_l]) => ({
+      year: Number(year),
+      total_l,
+    }));
+
+    // Recent milk records (last 7 days, summed per date)
+    const recent = await this.prisma.milkLogEntry.findMany({
+      where: { cattleId: id, logDate: { gte: sevenDaysAgo } },
+      orderBy: { logDate: 'desc' },
+      select: { logDate: true, yieldL: true, session: true },
+    });
+    const recentByDate: Record<
+      string,
+      { morning_l: number; noon_l: number; evening_l: number; total_l: number }
+    > = {};
+    for (const r of recent) {
+      const key = r.logDate.toISOString().slice(0, 10);
+      if (!recentByDate[key]) {
+        recentByDate[key] = {
+          morning_l: 0,
+          noon_l: 0,
+          evening_l: 0,
+          total_l: 0,
+        };
+      }
+      if (r.session === MilkSession.NOON) recentByDate[key].noon_l += r.yieldL;
+      else if (r.session === MilkSession.EVENING)
+        recentByDate[key].evening_l += r.yieldL;
+      else recentByDate[key].morning_l += r.yieldL;
+      recentByDate[key].total_l = this.round(
+        recentByDate[key].morning_l +
+          recentByDate[key].noon_l +
+          recentByDate[key].evening_l,
+      );
+    }
+
+    const prevWeight =
+      cattle.weightRecords.length > 1 ? cattle.weightRecords[1].weightKg : null;
+
+    return {
+      aqr_score: cattle.aqrScore,
+      aqr_change_pct: null as number | null,
+      avg_daily_yield_7d: this.round(yieldAgg._avg.yieldL ?? 0),
+      yield_change_pct: null as number | null,
+      last_weight_kg: cattle.lastWeightKg,
+      weight_change_pct:
+        cattle.lastWeightKg && prevWeight
+          ? this.pctChange(cattle.lastWeightKg, prevWeight)
+          : null,
+      bcs_records: cattle.bcsRecords.map((b) => ({
+        date: b.recordedDate.toISOString().slice(0, 10),
+        score: b.score,
+      })),
+      weight_history: cattle.weightRecords.map((w) => ({
+        date: w.recordedDate.toISOString().slice(0, 10),
+        weight_kg: w.weightKg,
+      })),
+      lactation_curve: lactationCurve,
+      lifetime_yield: lifetimeYield,
+      recent_milk_records: Object.entries(recentByDate).map(([date, v]) => ({
+        date,
+        ...v,
+        status: 'normal',
+      })),
+    };
+  }
+
+  async tabReproduction(farmId: string, id: string) {
+    await this.getCattleOrThrow(farmId, id);
+
+    const [profile, heats, breedings, calvings] = await Promise.all([
+      this.prisma.reproductionProfile.findUnique({ where: { cattleId: id } }),
+      this.prisma.heatEvent.findMany({
+        where: { cattleId: id },
+        orderBy: { heatDateTime: 'desc' },
+        take: 20,
+      }),
+      this.prisma.breedingEvent.findMany({
+        where: { cattleId: id },
+        orderBy: { breedingDate: 'desc' },
+        take: 20,
+        include: {
+          pregnancies: { select: { status: true, conceptionDate: true } },
+        },
+      }),
+      this.prisma.calvingEvent.findMany({
+        where: { cattleId: id },
+        orderBy: { calvingDate: 'desc' },
+        take: 20,
+        include: {
+          calfBirths: {
+            take: 1,
+            include: {
+              calf: {
+                select: {
+                  id: true,
+                  name: true,
+                  tagNumber: true,
+                  gender: true,
+                  dateOfBirth: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const activeLactation = await this.prisma.lactation.findFirst({
+      where: { cattleId: id, status: 'ACTIVE' },
+      orderBy: { startDate: 'desc' },
+    });
+
+    return {
+      total_calvings: profile?.totalCalvings ?? 0,
+      avg_calving_interval_days: null as number | null,
+      conception_rate_pct:
+        profile && profile.totalBreedings > 0
+          ? this.round(
+              (profile.totalPregnancies / profile.totalBreedings) * 100,
+            )
+          : null,
+      services_per_conception:
+        profile && profile.totalPregnancies > 0
+          ? this.round(profile.totalBreedings / profile.totalPregnancies)
+          : null,
+      current_dim: activeLactation
+        ? this.daysBetween(activeLactation.startDate, new Date())
+        : null,
+      vwp_end_date: activeLactation
+        ? new Date(
+            activeLactation.startDate.getTime() + VWP_DEFAULT_DAYS * 86400_000,
+          )
+            .toISOString()
+            .slice(0, 10)
+        : null,
+      reproductive_status: profile?.reproductiveStatus ?? null,
+      heat_history: heats.map((h) => ({
+        id: h.id,
+        date: h.heatDateTime.toISOString().slice(0, 10),
+        type: h.standingHeat ? 'standing_heat' : 'observed',
+        detection_method: h.detectionMethod,
+      })),
+      ai_history: breedings
+        .filter((b) => b.breedingMethod === BreedingMethod.AI)
+        .map((b) => ({
+          id: b.id,
+          date: b.breedingDate.toISOString().slice(0, 10),
+          inseminator: b.inseminator,
+          outcome: b.status,
+          pregnancy_confirmed_on:
+            b.pregnancies[0]?.conceptionDate?.toISOString().slice(0, 10) ??
+            null,
+        })),
+      calving_history: calvings.map((c) => {
+        const firstCalf = c.calfBirths[0]?.calf ?? null;
+        return {
+          id: c.id,
+          date: c.calvingDate.toISOString().slice(0, 10),
+          ease_score: c.calvingEase,
+          calf: firstCalf
+            ? {
+                id: firstCalf.id,
+                tag: firstCalf.tagNumber,
+                name: firstCalf.name,
+                gender: firstCalf.gender,
+                birth_date:
+                  firstCalf.dateOfBirth?.toISOString().slice(0, 10) ?? null,
+              }
+            : null,
+        };
+      }),
+    };
+  }
+
+  async tabHealth(farmId: string, id: string) {
+    await this.getCattleOrThrow(farmId, id);
+
+    const [activeCases, closedCases, bcsRecords] = await Promise.all([
+      this.prisma.healthCase.findMany({
+        where: {
+          cattleId: id,
+          farmId,
+          status: { in: OPEN_HEALTH_CASE_STATUSES },
+        },
+        orderBy: { startDate: 'desc' },
+        include: {
+          treatmentLogs: {
+            select: { id: true },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+        },
+      }),
+      this.prisma.healthCase.findMany({
+        where: {
+          cattleId: id,
+          farmId,
+          status: { notIn: OPEN_HEALTH_CASE_STATUSES },
+        },
+        orderBy: { closedDate: 'desc' },
+        take: 10,
+      }),
+      this.prisma.bodyConditionScore.findMany({
+        where: { cattleId: id },
+        orderBy: { recordedDate: 'desc' },
+        take: 10,
+      }),
+    ]);
+
+    return {
+      active_cases: activeCases.map((c) => ({
+        id: c.id,
+        diagnosis: c.diagnosis,
+        priority: c.priority,
+        status: c.status,
+        opened_at: c.startDate.toISOString().slice(0, 10),
+        withholding_active: c.isSafetyWithholdingActive,
+        withholding_end_date:
+          c.milkWithdrawalUntil?.toISOString().slice(0, 10) ?? null,
+      })),
+      treatment_history: closedCases.map((c) => ({
+        id: c.id,
+        diagnosis: c.diagnosis,
+        status: c.status,
+        opened_at: c.startDate.toISOString().slice(0, 10),
+        closed_at: c.closedDate?.toISOString().slice(0, 10) ?? null,
+      })),
+      vaccination_history: [] as unknown[],
+      bcs_trend: bcsRecords.map((b) => ({
+        date: b.recordedDate.toISOString().slice(0, 10),
+        score: b.score,
+        alert: null as string | null,
+      })),
+    };
+  }
+
+  async tabFinance(farmId: string, id: string, period?: string) {
+    await this.getCattleOrThrow(farmId, id);
+
+    const now = new Date();
+    const p =
+      period ??
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const [year, month] = p.split('-').map(Number);
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 1);
+
+    const txns = await this.prisma.financeTransaction.findMany({
+      where: {
+        farmId,
+        cattleId: id,
+        date: { gte: start, lt: end },
+        isVoided: false,
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    let total_income = 0;
+    let total_cost = 0;
+    const expense_breakdown = { feed: 0, health: 0, breeding: 0, others: 0 };
+    const income_breakdown = { milk_sales: 0, calf_sales: 0 };
+
+    const EXPENSE_TYPES: FinanceTxnType[] = [
+      FinanceTxnType.OPERATING_EXPENSE,
+      FinanceTxnType.INVENTORY_PURCHASE,
+    ];
+    for (const t of txns) {
+      if (t.type === FinanceTxnType.REVENUE) {
+        total_income += t.amount;
+        if (t.subType === 'milk') income_breakdown.milk_sales += t.amount;
+        else if (t.subType === 'animal')
+          income_breakdown.calf_sales += t.amount;
+      } else if (EXPENSE_TYPES.includes(t.type)) {
+        total_cost += t.amount;
+        const sub = t.subType ?? '';
+        if (sub === 'feed') expense_breakdown.feed += t.amount;
+        else if (sub === 'health') expense_breakdown.health += t.amount;
+        else if (sub === 'breeding') expense_breakdown.breeding += t.amount;
+        else expense_breakdown.others += t.amount;
+      }
+    }
+
+    // Monthly chart: last 6 months
+    const sixMonthsAgo = new Date(year, month - 7, 1);
+    const allTxns = await this.prisma.financeTransaction.findMany({
+      where: {
+        farmId,
+        cattleId: id,
+        date: { gte: sixMonthsAgo, lt: end },
+        isVoided: false,
+      },
+      select: { date: true, type: true, amount: true },
+    });
+    const monthlyMap: Record<string, { income: number; cost: number }> = {};
+    for (const t of allTxns) {
+      const key = `${t.date.getFullYear()}-${String(t.date.getMonth() + 1).padStart(2, '0')}`;
+      if (!monthlyMap[key]) monthlyMap[key] = { income: 0, cost: 0 };
+      if (t.type === FinanceTxnType.REVENUE) monthlyMap[key].income += t.amount;
+      else if (EXPENSE_TYPES.includes(t.type)) monthlyMap[key].cost += t.amount;
+    }
+    const monthly_chart = Object.entries(monthlyMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, v]) => ({
+        month,
+        income: this.round(v.income),
+        cost: this.round(v.cost),
+      }));
+
+    return {
+      period: p,
+      total_income: this.round(total_income),
+      total_cost: this.round(total_cost),
+      net_profit: this.round(total_income - total_cost),
+      expense_breakdown: {
+        feed: this.round(expense_breakdown.feed),
+        health: this.round(expense_breakdown.health),
+        breeding: this.round(expense_breakdown.breeding),
+        others: this.round(expense_breakdown.others),
+      },
+      income_breakdown: {
+        milk_sales: this.round(income_breakdown.milk_sales),
+        calf_sales: this.round(income_breakdown.calf_sales),
+      },
+      monthly_chart,
+    };
+  }
+
   async siblings(farmId: string, id: string) {
     const cattle = await this.getCattleOrThrow(farmId, id);
     if (!cattle.motherId && !cattle.fatherId) {
@@ -520,6 +948,7 @@ export class CattleService {
       productionStatus: ProductionStatus;
       reproductionProfile?: { reproductiveStatus: ReproductiveStatus } | null;
       healthCases?: {
+        status: string;
         isSafetyWithholdingActive: boolean;
         milkWithdrawalUntil: Date | null;
       }[];
@@ -791,8 +1220,12 @@ export class CattleService {
       reproductionProfile: { select: { reproductiveStatus: true } },
       healthCases: {
         where: { status: { in: OPEN_HEALTH_CASE_STATUSES } },
-        select: { isSafetyWithholdingActive: true, milkWithdrawalUntil: true },
-        take: 1,
+        select: {
+          status: true,
+          isSafetyWithholdingActive: true,
+          milkWithdrawalUntil: true,
+        },
+        take: 5,
       },
       safetyWithdrawals: {
         where: { status: 'ACTIVE' as const },

@@ -15,6 +15,7 @@ import { PermissionGuard } from 'src/modules/permission/presentation/guards/perm
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { ReproductionService } from '../../application/services/reproduction.service';
 import { ReproductionListQueryDto } from '../dto/common.dto';
+import { ReproEventsQueryDto } from '../dto/repro-events-query.dto';
 import { CreateAbortionEventDto } from '../dto/create-abortion-event.dto';
 import { CreateBreedingEventDto } from '../dto/create-breeding-event.dto';
 import { CreateCalvingEventDto } from '../dto/create-calving-event.dto';
@@ -137,5 +138,25 @@ export class ReproductionController {
     @Query() query: ReproductionListQueryDto,
   ) {
     return this.reproductionService.listLactations(farmId, query);
+  }
+
+  /** RAKHAL-051: Reproduction dashboard — KPIs + action panels + calving forecast. */
+  @Get('dashboard')
+  @RequirePermission('reproduction.read')
+  dashboard(@CurrentFarmId() farmId: string) {
+    return this.reproductionService.dashboard(farmId);
+  }
+
+  /** RAKHAL-051: Unified reproduction events feed with optional filters. */
+  @Get('events')
+  @RequirePermission('reproduction.read')
+  events(@CurrentFarmId() farmId: string, @Query() query: ReproEventsQueryDto) {
+    return this.reproductionService.events(farmId, {
+      cattleId: query.cattleId,
+      eventType: query.eventType,
+      fromDate: query.fromDate,
+      toDate: query.toDate,
+      limit: query.limit,
+    });
   }
 }

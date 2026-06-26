@@ -40,3 +40,12 @@ enum CattleSourceType {
   GIFTED
   UNKNOWN
 }
+
+enum ShedPurpose {
+  MILKING
+  HEIFER
+  DRY
+  CALF
+  QUARANTINE
+  GENERAL
+}

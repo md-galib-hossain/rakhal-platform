@@ -6,6 +6,11 @@ model Farm {
   logo        String?
   status      FarmStatus @default(ACTIVE)
 
+  division           String?
+  district           String?
+  upazila            String?
+  operationalPurpose String?
+
   ownerId   String
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -43,6 +48,7 @@ model Farm {
   financeReceivables  FinanceReceivable[]  @relation("FarmToFinanceReceivable")
   financeLoans        FinanceLoan[]        @relation("FarmToFinanceLoan")
   walletTransactions  WalletTransaction[]  @relation("FarmToWalletTransaction")
+  feedGroups          FeedGroup[]          @relation("FarmToFeedGroup")
 
   @@index([ownerId])
   @@index([slug])
