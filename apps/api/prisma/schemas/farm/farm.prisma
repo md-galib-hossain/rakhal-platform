@@ -11,6 +11,8 @@ model Farm {
   upazila            String?
   operationalPurpose String?
 
+  hasCompletedOnboarding Boolean @default(false)
+
   ownerId   String
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -56,6 +58,9 @@ model Farm {
   invitations         FarmInvitation[]     @relation("FarmToInvitation")
   suppliers           Supplier[]           @relation("FarmToSupplier")
   moduleSettings      FarmModuleSettings?  @relation("FarmToModuleSettings")
+  feedDistributions   FeedDistribution[]   @relation("FarmToFeedDistribution")
+  scoreboardParticipation ScoreboardParticipation? @relation("FarmToScoreboardParticipation")
+  notifications           Notification[]           @relation("FarmToNotification")
 
   @@index([ownerId])
   @@index([slug])

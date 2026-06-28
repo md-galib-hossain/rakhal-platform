@@ -51,6 +51,9 @@ import { FarmModule } from './modules/farm/farm.module';
 import { ActivityModule } from './modules/activity/activity.module';
 import { TaskModule } from './modules/task/task.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { OnboardingModule } from './modules/onboarding/onboarding.module';
+import { ScoreboardModule } from './modules/scoreboard/scoreboard.module';
+import { NotificationModule } from './modules/notification/notification.module';
 
 type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
 
@@ -132,6 +135,9 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     InventoryModule,
     FarmModule,
     SettingsModule,
+    OnboardingModule,
+    ScoreboardModule,
+    NotificationModule,
     ActivityModule,
     TaskModule,
   ],

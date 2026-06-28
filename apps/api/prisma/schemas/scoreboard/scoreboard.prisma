@@ -1,0 +1,18 @@
+/// Scoreboard / national leaderboard (PRD §18 / API §14, RAKHAL-206, V1.5).
+/// Opt-in is per farm: a farm with a `ScoreboardParticipation` row exposes its
+/// herd (AQR / production / breed / district) on the cross-farm leaderboard.
+/// Owner-only join/leave (`scoreboard.join`); the leaderboard reads only the
+/// cattle of farms that have a row here. Deleting the row opts the farm out.
+model ScoreboardParticipation {
+  id     String @id @default(cuid())
+  farmId String @unique
+
+  joinedAt       DateTime @default(now())
+  acceptedTermsAt DateTime
+  joinedBy       String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm Farm @relation("FarmToScoreboardParticipation", fields: [farmId], references: [id])
+}

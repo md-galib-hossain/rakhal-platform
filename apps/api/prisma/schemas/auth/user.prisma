@@ -47,6 +47,9 @@ model User {
   responsibleForSheds Shed[]       @relation("ShedResponsible")
   createdFixedAssets  FixedAsset[] @relation("FixedAssetCreator")
   sentInvitations     FarmInvitation[] @relation("UserSentInvitations")
+  notifications           Notification[]           @relation("UserToNotification")
+  notificationPreferences NotificationPreference[] @relation("UserToNotificationPreference")
+  notificationSetting     NotificationSetting?     @relation("UserToNotificationSetting")
 
   @@index([email])
 }

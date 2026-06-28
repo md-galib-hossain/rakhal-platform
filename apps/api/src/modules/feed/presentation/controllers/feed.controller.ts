@@ -19,6 +19,7 @@ import { FeedConcentrationService } from '../../application/services/feed-concen
 import { FeedGroupAssignService } from '../../application/services/feed-group-assign.service';
 import { FeedIngredientService } from '../../application/services/feed-ingredient.service';
 import { FeedRequirementsService } from '../../application/services/feed-requirements.service';
+import { FeedDistributionService } from '../../application/services/feed-distribution.service';
 import { AssignCattleDto } from '../dto/assign-cattle.dto';
 import {
   CreateConcentrationDto,
@@ -27,6 +28,11 @@ import {
 } from '../dto/concentration.dto';
 import { FeedRequirementsQueryDto } from '../dto/feed-requirements-query.dto';
 import { SetFeedOverrideDto } from '../dto/set-feed-override.dto';
+import { LogDistributionDto } from '../dto/log-distribution.dto';
+import {
+  FeedEfficiencyQueryDto,
+  ListDistributionQueryDto,
+} from '../dto/list-distribution-query.dto';
 
 /** Feed Formulator (PRD §12 / API §8). `/api/v1/feed`. Token tenancy + RBAC. */
 @Controller('feed')
@@ -37,6 +43,7 @@ export class FeedController {
     private readonly requirements: FeedRequirementsService,
     private readonly concentrations: FeedConcentrationService,
     private readonly groups: FeedGroupAssignService,
+    private readonly distributions: FeedDistributionService,
   ) {}
 
   // ---- Ingredients --------------------------------------------------------
@@ -136,5 +143,40 @@ export class FeedController {
     @Body() dto: AssignCattleDto,
   ) {
     return this.groups.assignCattle(farmId, id, dto.cattleIds);
+  }
+
+  // ---- Feed distribution (§12.5) -----------------------------------------
+  @Get('distributions')
+  @RequirePermission('feed.read')
+  listDistributions(
+    @CurrentFarmId() farmId: string,
+    @Query() query: ListDistributionQueryDto,
+  ) {
+    return this.distributions.list(farmId, query);
+  }
+
+  @Post('distributions')
+  @RequirePermission('feed.distribution-log')
+  logDistribution(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Body() dto: LogDistributionDto,
+  ) {
+    return this.distributions.create(farmId, userId, dto);
+  }
+
+  @Get('efficiency')
+  @RequirePermission('feed.read')
+  efficiency(
+    @CurrentFarmId() farmId: string,
+    @Query() query: FeedEfficiencyQueryDto,
+  ) {
+    return this.distributions.efficiency(farmId, query);
+  }
+
+  @Get('distributions/:id')
+  @RequirePermission('feed.read')
+  getDistribution(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.distributions.get(farmId, id);
   }
 }

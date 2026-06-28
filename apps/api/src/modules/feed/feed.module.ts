@@ -7,6 +7,7 @@ import { FeedConcentrationService } from './application/services/feed-concentrat
 import { FeedGroupAssignService } from './application/services/feed-group-assign.service';
 import { FeedIngredientService } from './application/services/feed-ingredient.service';
 import { FeedRequirementsService } from './application/services/feed-requirements.service';
+import { FeedDistributionService } from './application/services/feed-distribution.service';
 import { FeedController } from './presentation/controllers/feed.controller';
 
 /**
@@ -22,6 +23,7 @@ import { FeedController } from './presentation/controllers/feed.controller';
     FeedRequirementsService,
     FeedConcentrationService,
     FeedGroupAssignService,
+    FeedDistributionService,
   ],
   exports: [FeedIngredientService, FeedConcentrationService],
 })

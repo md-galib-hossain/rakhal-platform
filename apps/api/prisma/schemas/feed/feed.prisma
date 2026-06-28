@@ -109,6 +109,62 @@ model FeedConcentrationItem {
   @@index([ingredientId])
 }
 
+/// Daily feed distribution log (PRD §12.5, V1.5). After a concentration formula
+/// is applied to a group, the actual quantities distributed are logged per
+/// ingredient (pre-filled from the formula's planned amounts, editable), with any
+/// refusal/leftover. Total cost is computed from actual quantities at the farm's
+/// effective ingredient prices (snapshotted on each line). Matching forage stock
+/// decrements best-effort (§15.3) by ingredient name, kg-unit forages only.
+model FeedDistribution {
+  id String @id @default(cuid())
+
+  farmId          String
+  concentrationId String
+  feedGroupId     String? /// denormalized from the concentration at log time
+
+  distributedAt DateTime /// the day the feed was distributed
+
+  totalPlannedKg   Float @default(0)
+  totalActualKg    Float @default(0)
+  totalRefusalKg   Float @default(0)
+  totalPlannedCost Float @default(0)
+  totalActualCost  Float @default(0)
+
+  notes String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm  Farm                   @relation("FarmToFeedDistribution", fields: [farmId], references: [id])
+  items FeedDistributionItem[]
+
+  @@index([farmId])
+  @@index([farmId, feedGroupId])
+  @@index([farmId, distributedAt])
+}
+
+model FeedDistributionItem {
+  id             String @id @default(cuid())
+  distributionId String
+
+  /// Plain snapshot of the catalogue ingredient (no relation — the line keeps its
+  /// own name + price so history survives later catalogue edits).
+  ingredientId   String
+  ingredientName String
+
+  plannedKg  Float
+  actualKg   Float
+  refusalKg  Float @default(0)
+  pricePerKg Float
+  lineCost   Float /// actualKg * pricePerKg
+
+  distribution FeedDistribution @relation(fields: [distributionId], references: [id], onDelete: Cascade)
+
+  @@index([distributionId])
+  @@index([ingredientId])
+}
+
 enum FeedIngredientCategory {
   ROUGHAGE
   CONCENTRATE

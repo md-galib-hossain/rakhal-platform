@@ -1,0 +1,71 @@
+/// Notification engine (PRD §20 / API §17, RAKHAL-098/099). Per-user, farm-scoped
+/// in-app notifications + per-event channel preferences + quiet hours. The event
+/// catalogue (categories, priority, can-disable, default channels) lives in code
+/// (`domain/notification-events.ts`); these tables store the delivered feed and
+/// each user's overrides. SMS/WhatsApp/Email delivery is a stubbed provider seam
+/// (in-app is always live) until a provider lands (RAKHAL-110).
+
+model Notification {
+  id     String @id @default(cuid())
+  farmId String
+  userId String /// recipient
+
+  eventKey String
+  category String
+  priority String
+  title    String
+  message  String
+  link     String?
+
+  /// Channels actually delivered (subset of the resolved preference).
+  channelsSent String[] @default([])
+
+  isRead Boolean   @default(false)
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  farm Farm @relation("FarmToNotification", fields: [farmId], references: [id])
+  user User @relation("UserToNotification", fields: [userId], references: [id])
+
+  @@index([farmId, userId, isRead])
+  @@index([userId, createdAt])
+}
+
+/// Per (user, event) channel override. Absence = the catalogue default.
+model NotificationPreference {
+  id     String @id @default(cuid())
+  farmId String
+  userId String
+
+  eventKey String
+  enabled  Boolean @default(true)
+
+  inApp    Boolean @default(true)
+  sms      Boolean @default(false)
+  whatsapp Boolean @default(false)
+  email    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation("UserToNotificationPreference", fields: [userId], references: [id])
+
+  @@unique([userId, eventKey])
+  @@index([farmId, userId])
+}
+
+/// Per-user quiet hours (HH:mm). No SMS/WhatsApp delivery inside the window.
+model NotificationSetting {
+  id     String @id @default(cuid())
+  farmId String
+  userId String @unique
+
+  quietHoursStart String? /// "22:00"
+  quietHoursEnd   String? /// "05:00"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation("UserToNotificationSetting", fields: [userId], references: [id])
+}
