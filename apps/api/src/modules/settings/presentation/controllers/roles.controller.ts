@@ -1,0 +1,72 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
+import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
+import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
+import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
+import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
+import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
+import { RolesService } from '../../application/services/roles.service';
+import { CreateRoleDto } from '../dto/create-role.dto';
+import { UpdateRolePermissionsDto } from '../dto/update-role-permissions.dto';
+
+/**
+ * Roles & Permissions (RAKHAL-031, PRD §21.4 / API §18). `/api/v1/settings`.
+ * Read = Manager+ (`settings.read`); mutations = Owner-only (`settings.roles-manage`).
+ */
+@Controller('settings')
+@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+export class RolesController {
+  constructor(private readonly rolesService: RolesService) {}
+
+  @Get('permissions')
+  @RequirePermission('settings.read')
+  getCatalogue() {
+    return this.rolesService.getCatalogue();
+  }
+
+  @Get('roles')
+  @RequirePermission('settings.read')
+  listRoles(@CurrentFarmId() farmId: string) {
+    return this.rolesService.listRoles(farmId);
+  }
+
+  @Post('roles')
+  @RequirePermission('settings.roles-manage')
+  createRole(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Body() dto: CreateRoleDto,
+  ) {
+    return this.rolesService.createRole(farmId, userId, dto);
+  }
+
+  @Patch('roles/:id/permissions')
+  @RequirePermission('settings.roles-manage')
+  updateRolePermissions(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateRolePermissionsDto,
+  ) {
+    return this.rolesService.updateRolePermissions(farmId, userId, id, dto);
+  }
+
+  @Delete('roles/:id')
+  @RequirePermission('settings.roles-manage')
+  deleteRole(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.rolesService.deleteRole(farmId, userId, id);
+  }
+}

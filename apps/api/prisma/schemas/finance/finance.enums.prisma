@@ -54,3 +54,10 @@ enum WalletDirection {
   CREDIT
   DEBIT
 }
+
+enum FixedAssetCategory {
+  EQUIPMENT
+  VEHICLE
+  BUILDING
+  OTHER
+}

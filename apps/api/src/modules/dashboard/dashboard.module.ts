@@ -6,6 +6,7 @@ import { PermissionModule } from '../permission/permission.module';
 import { FinanceModule } from '../finance/finance.module';
 import { MilkModule } from '../milk/milk.module';
 import { HealthModule } from '../health/health.module';
+import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { DashboardService } from './application/services/dashboard.service';
 import { DashboardController } from './presentation/controllers/dashboard.controller';
 
@@ -23,6 +24,7 @@ import { DashboardController } from './presentation/controllers/dashboard.contro
     FinanceModule,
     MilkModule,
     HealthModule,
+    FarmSettingsModule,
   ],
   controllers: [DashboardController],
   providers: [DashboardService],

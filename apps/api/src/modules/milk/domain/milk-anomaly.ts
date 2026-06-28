@@ -18,10 +18,18 @@ export const DEFAULT_SESSION_CONFIG: MilkSession[] = [
   MilkSession.EVENING,
 ];
 
-/** True when `yieldL` is below 70% of a positive 7-day average (possible health issue). */
-export function isAnomaly(yieldL: number, avg7d: number | null): boolean {
+/**
+ * True when `yieldL` is below `thresholdFraction` of a positive 7-day average
+ * (possible health issue). The fraction defaults to {@link ANOMALY_THRESHOLD} but
+ * is overridden per-farm from `FarmModuleSettings.milkAnomalyThresholdPct` (RD-016).
+ */
+export function isAnomaly(
+  yieldL: number,
+  avg7d: number | null,
+  thresholdFraction: number = ANOMALY_THRESHOLD,
+): boolean {
   if (avg7d == null || avg7d <= 0) return false;
-  return yieldL < ANOMALY_THRESHOLD * avg7d;
+  return yieldL < thresholdFraction * avg7d;
 }
 
 /** Percentage drop of `yieldL` vs the average (0–100), or null when not computable. */

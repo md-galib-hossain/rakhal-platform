@@ -13,9 +13,11 @@ import {
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { NON_VOID_TXN } from 'src/common/finance/txn-filters';
 import { FinanceService } from 'src/modules/finance/application/services/finance.service';
 import { MilkService } from 'src/modules/milk/application/services/milk.service';
 import { HealthService } from 'src/modules/health/application/services/health.service';
+import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { DashboardPeriod } from '../../presentation/dto/dashboard-query.dto';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -42,6 +44,7 @@ export class DashboardService {
     private readonly finance: FinanceService,
     private readonly milk: MilkService,
     private readonly health: HealthService,
+    private readonly farmSettings: FarmSettingsService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(DashboardService.name);
@@ -50,10 +53,11 @@ export class DashboardService {
   // ---- Headline KPI bar (§7.2) --------------------------------------------
 
   async kpis(farmId: string) {
-    const [finance, milk, health] = await Promise.all([
+    const [finance, milk, health, healthThreshold] = await Promise.all([
       this.finance.highlights(farmId),
       this.milk.overview(farmId),
       this.health.getHealthDashboard(farmId),
+      this.farmSettings.healthScoreWarningPct(farmId),
     ]);
     const yieldChangePct = this.changePct(
       milk.today.totalL,
@@ -76,7 +80,7 @@ export class DashboardService {
         value: health.herdHealthScore,
         unit: '%',
         sickCount: health.sickBayCount,
-        threshold: 70,
+        threshold: healthThreshold,
       },
       cashRunway: {
         value: finance.survivalRunwayDays,
@@ -314,7 +318,9 @@ export class DashboardService {
   // ---- Feed Stock Alerts widget (§7.3) ------------------------------------
 
   async feedStockAlerts(farmId: string) {
-    const [medicines, forages] = await Promise.all([
+    const thirtyDaysAgo = new Date(Date.now() - 30 * DAY_MS);
+
+    const [medicines, forages, medicineUsage] = await Promise.all([
       this.prisma.medicine.findMany({
         where: { farmId, isActive: true, lowStockThreshold: { gt: 0 } },
         select: {
@@ -335,9 +341,34 @@ export class DashboardService {
           lowStockThreshold: true,
         },
       }),
+      // Sum completed health-task dose amounts per medicine in last 30 days (RD-011).
+      this.prisma.healthTask.groupBy({
+        by: ['medicineId'],
+        where: {
+          farmId,
+          medicineId: { not: null },
+          status: HealthTaskStatus.COMPLETED,
+          completedAt: { gte: thirtyDaysAgo },
+        },
+        _sum: { doseAmount: true },
+      }),
     ]);
+
+    const consumptionById = new Map(
+      medicineUsage
+        .filter((u) => u.medicineId != null)
+        .map((u) => [u.medicineId!, Number(u._sum.doseAmount ?? 0)]),
+    );
+
+    const calcDaysRemaining = (id: string, stock: number): number | null => {
+      const total30d = consumptionById.get(id);
+      if (!total30d || total30d === 0) return null;
+      const dailyRate = total30d / 30;
+      return Math.floor(stock / dailyRate);
+    };
+
     const toAlert =
-      (type: string) =>
+      (type: 'medicine' | 'forage') =>
       (i: {
         id: string;
         name: string;
@@ -351,10 +382,11 @@ export class DashboardService {
         currentStock: i.currentStock,
         unit: i.unit,
         threshold: i.lowStockThreshold,
-        // Consumption-rate estimate needs usage history — deferred (RD-011).
-        daysRemainingEstimate: null,
+        daysRemainingEstimate:
+          type === 'medicine' ? calcDaysRemaining(i.id, i.currentStock) : null,
         status: i.currentStock <= i.lowStockThreshold / 2 ? 'critical' : 'low',
       });
+
     const alerts = [
       ...medicines
         .filter((m) => m.currentStock <= m.lowStockThreshold)
@@ -586,6 +618,7 @@ export class DashboardService {
         status: 'COMPLETED',
         type: revenue ? 'REVENUE' : { not: 'REVENUE' },
         date: { gte: from, lt: to },
+        ...NON_VOID_TXN,
       },
       _sum: { amount: true },
     });

@@ -1,35 +1,26 @@
-import { INestApplication } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
+import { createTestApp, TestContext } from './utils/e2e';
 
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+describe('App bootstrap (e2e)', () => {
+  let ctx: TestContext;
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+  beforeAll(async () => {
+    ctx = await createTestApp();
+  }, 30_000);
 
-    app = moduleFixture.createNestApplication();
-    await app.init();
+  afterAll(async () => {
+    await ctx.app.close();
   });
 
-  it('/auth/csrf (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/auth/csrf')
-      .expect(200)
-      .expect(({ body, headers }) => {
-        const typedBody = body as { csrfToken?: string };
-        expect(typedBody.csrfToken).toEqual(expect.any(String));
-        expect(headers['set-cookie']).toEqual(
-          expect.arrayContaining([expect.stringContaining('rakhal_csrf')]),
-        );
-      });
-  });
+  it('GET /api/v1/auth/csrf issues a token + cookie', async () => {
+    const res = await request(ctx.app.getHttpServer())
+      .get(`${ctx.prefix}/auth/csrf`)
+      .expect(200);
 
-  afterEach(async () => {
-    await app.close();
+    const body = res.body as { data?: { csrfToken?: string } };
+    expect(body.data?.csrfToken).toEqual(expect.any(String));
+    expect(res.headers['set-cookie']).toEqual(
+      expect.arrayContaining([expect.stringContaining('rakhal_csrf')]),
+    );
   });
 });

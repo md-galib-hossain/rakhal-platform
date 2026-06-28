@@ -26,6 +26,7 @@ import { AqrService } from 'src/modules/activity/application/services/aqr.servic
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { SemenService } from 'src/modules/inventory/application/services/semen.service';
 import { CalfService } from 'src/modules/calf/application/services/calf.service';
+import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { CreateAbortionEventDto } from '../../presentation/dto/create-abortion-event.dto';
 import { CreateBreedingEventDto } from '../../presentation/dto/create-breeding-event.dto';
 import { CreateCalvingEventDto } from '../../presentation/dto/create-calving-event.dto';
@@ -58,6 +59,7 @@ export class ReproductionService {
     private readonly taskService: TaskService,
     private readonly semenService: SemenService,
     private readonly calfService: CalfService,
+    private readonly farmSettings: FarmSettingsService,
     private readonly logger: LoggerService,
   ) {
     this.log = this.logger.setContext(ReproductionService.name);
@@ -679,6 +681,7 @@ export class ReproductionService {
   async dashboard(farmId: string) {
     const now = new Date();
     const twelveMonthsAgo = this.addDays(now, -365);
+    const vwpDays = await this.farmSettings.reproVwpDays(farmId);
 
     // ---- Farm-level KPIs (rolling 12 months) ----------------------------
     const [
@@ -746,7 +749,7 @@ export class ReproductionService {
     };
 
     // ---- Action panels --------------------------------------------------
-    const vwpCutoff = this.addDays(now, -60); // default VWP 60d
+    const vwpCutoff = this.addDays(now, -vwpDays); // per-farm VWP (RD-016)
     const in24h = this.addHours(now, -24);
     const in3d = this.addDays(now, 3);
     const in7d = this.addDays(now, 7);
@@ -953,7 +956,9 @@ export class ReproductionService {
         dim,
         days_open: dim,
         last_ai_date: profile?.lastBreedingDate ?? null,
-        vwp_end_date: lactationStart ? this.addDays(lactationStart, 60) : null,
+        vwp_end_date: lactationStart
+          ? this.addDays(lactationStart, vwpDays)
+          : null,
         conception_rate_pct: conceptionRate,
       };
     });

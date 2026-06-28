@@ -21,6 +21,7 @@ import {
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
+import { NON_VOID_TXN } from 'src/common/finance/txn-filters';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 import { VWP_DEFAULT_DAYS } from '../../domain/cattle.constants';
 import { deriveHealthStatus } from '../../domain/health-status';
@@ -840,7 +841,7 @@ export class CattleService {
         farmId,
         cattleId: id,
         date: { gte: start, lt: end },
-        isVoided: false,
+        ...NON_VOID_TXN,
       },
       orderBy: { date: 'asc' },
     });
@@ -877,7 +878,7 @@ export class CattleService {
         farmId,
         cattleId: id,
         date: { gte: sixMonthsAgo, lt: end },
-        isVoided: false,
+        ...NON_VOID_TXN,
       },
       select: { date: true, type: true, amount: true },
     });

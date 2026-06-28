@@ -12,6 +12,7 @@ model Role {
 
   permissions RolePermission[] @relation("RoleToRolePermission")
   members     FarmMember[]
+  invitations FarmInvitation[] @relation("RoleToInvitation")
 
   @@unique([farmId, name])
   @@index([farmId])

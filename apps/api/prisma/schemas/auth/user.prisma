@@ -45,6 +45,8 @@ model User {
   activityLogs        ActivityLog[] @relation("UserToActivityLog")
   assignedTasks       Task[]       @relation("TaskAssignee")
   responsibleForSheds Shed[]       @relation("ShedResponsible")
+  createdFixedAssets  FixedAsset[] @relation("FixedAssetCreator")
+  sentInvitations     FarmInvitation[] @relation("UserSentInvitations")
 
   @@index([email])
 }

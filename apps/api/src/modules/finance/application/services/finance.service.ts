@@ -8,6 +8,7 @@ import {
   FinancePaymentType,
   FinanceTxnStatus,
   FinanceTxnType,
+  FixedAssetCategory,
   LoanStatus,
   Prisma,
   ReceivableKind,
@@ -17,7 +18,10 @@ import {
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
+import { NON_VOID_TXN } from 'src/common/finance/txn-filters';
+import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { CreateTransactionDto } from '../../presentation/dto/create-transaction.dto';
+import { CreateFixedAssetDto } from '../../presentation/dto/create-fixed-asset.dto';
 import {
   LedgerQueryDto,
   ReceivableQueryDto,
@@ -45,6 +49,7 @@ export class FinanceService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly farmSettings: FarmSettingsService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(FinanceService.name);
@@ -162,6 +167,20 @@ export class FinanceService {
       }
     }
 
+    // Inventory auto-increment on INVENTORY_PURCHASE (RD-010).
+    let inventoryUpdated = false;
+    if (
+      dto.type === FinanceTxnType.INVENTORY_PURCHASE &&
+      dto.inventoryItemName &&
+      dto.quantity
+    ) {
+      inventoryUpdated = await this.incrementInventoryStock(
+        farmId,
+        dto.inventoryItemName,
+        dto.quantity,
+      );
+    }
+
     this.log.info('Finance transaction recorded', {
       transactionId: transaction.id,
       farmId,
@@ -178,8 +197,7 @@ export class FinanceService {
       payableCreated,
       loanCreated,
       cattleStatusUpdated,
-      // Inventory auto-increment on purchase is deferred (TECH_DEBT RD-010).
-      inventoryUpdated: false,
+      inventoryUpdated,
     };
   }
 
@@ -395,12 +413,13 @@ export class FinanceService {
     const monthStart = new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
     );
-    const [liquidity, monthExpense, sellableLitres, avgDailyExpense] =
+    const [liquidity, monthExpense, sellableLitres, avgDailyExpense, runway] =
       await Promise.all([
         this.currentLiquidity(farmId),
         this.expenseSum(farmId, monthStart, now),
         this.sellableLitres(farmId, monthStart, now),
         this.avgDailyExpense(farmId, now),
+        this.farmSettings.financeRunwayThresholds(farmId),
       ]);
 
     const costPerLitre =
@@ -414,35 +433,117 @@ export class FinanceService {
       // Herd valuation needs a per-animal market value (not modelled) — deferred.
       herdMarketValue: 0,
       survivalRunwayDays: runwayDays,
-      survivalRunwayStatus: this.runwayStatus(runwayDays),
+      survivalRunwayStatus: this.runwayStatus(runwayDays, runway),
     };
   }
 
   async assets(farmId: string) {
-    const [medicines, liquidity, loans] = await Promise.all([
+    const [
+      medicines,
+      forages,
+      equipmentInv,
+      fixedAssets,
+      liquidity,
+      loans,
+      cattlePurchases,
+    ] = await Promise.all([
       this.prisma.medicine.findMany({
         where: { farmId, isActive: true },
         select: { currentStock: true, costPerUnit: true },
+      }),
+      this.prisma.forage.findMany({
+        where: { farmId, isActive: true },
+        select: { currentStock: true, costPerUnit: true },
+      }),
+      this.prisma.equipment.findMany({
+        where: { farmId, isActive: true },
+        select: { currentStock: true, costPerUnit: true },
+      }),
+      this.prisma.fixedAsset.findMany({
+        where: { farmId, isActive: true },
+        select: {
+          name: true,
+          category: true,
+          purchaseDate: true,
+          purchasePrice: true,
+          usefulLifeYears: true,
+          salvageValue: true,
+        },
       }),
       this.currentLiquidity(farmId),
       this.prisma.financeLoan.findMany({
         where: { farmId, status: LoanStatus.ACTIVE },
         select: { totalAmount: true, paidAmount: true },
       }),
+      this.prisma.financeTransaction.aggregate({
+        where: {
+          farmId,
+          type: FinanceTxnType.INVENTORY_PURCHASE,
+          category: 'INVENTORY' as const,
+          subType: 'animal',
+          ...NON_VOID_TXN,
+        },
+        _sum: { amount: true },
+      }),
     ]);
+
     const inventoryValue = round2(
-      medicines.reduce((s, m) => s + m.currentStock * m.costPerUnit, 0),
+      medicines.reduce((s, m) => s + m.currentStock * m.costPerUnit, 0) +
+        forages.reduce((s, f) => s + f.currentStock * f.costPerUnit, 0) +
+        equipmentInv.reduce((s, e) => s + e.currentStock * e.costPerUnit, 0),
     );
+
+    const now = new Date();
+    let equipmentBookValue = 0;
+    let landStructureBookValue = 0;
+    const depreciation: Array<{
+      asset_name: string;
+      book_value: number;
+      accumulated_depreciation: number;
+      useful_life_years: number;
+      purchase_value: number;
+    }> = [];
+
+    for (const asset of fixedAssets) {
+      const yearsElapsed =
+        (now.getTime() - asset.purchaseDate.getTime()) / (365.25 * DAY_MS);
+      const annualDepreciation =
+        (asset.purchasePrice - asset.salvageValue) / asset.usefulLifeYears;
+      const accumulated = round2(
+        Math.min(
+          annualDepreciation * yearsElapsed,
+          asset.purchasePrice - asset.salvageValue,
+        ),
+      );
+      const bookValue = round2(asset.purchasePrice - accumulated);
+      depreciation.push({
+        asset_name: asset.name,
+        book_value: bookValue,
+        accumulated_depreciation: accumulated,
+        useful_life_years: asset.usefulLifeYears,
+        purchase_value: asset.purchasePrice,
+      });
+      if (asset.category === FixedAssetCategory.BUILDING) {
+        landStructureBookValue = round2(landStructureBookValue + bookValue);
+      } else {
+        equipmentBookValue = round2(equipmentBookValue + bookValue);
+      }
+    }
+
+    const cattleHerdValue = round2(cattlePurchases._sum.amount ?? 0);
     const totalLiabilities = round2(
       loans.reduce((s, l) => s + (l.totalAmount - l.paidAmount), 0),
     );
     const allocation = [
-      { category: 'inventory', value: inventoryValue },
-      { category: 'cash_bank', value: liquidity },
-      // cattle_herd / equipment / land_structure need valuation — deferred (RD-010).
-      { category: 'cattle_herd', value: 0 },
-      { category: 'equipment', value: 0 },
-      { category: 'land_structure', value: 0 },
+      { category: 'cattle_herd', value: cattleHerdValue, color: '#1A7A4A' },
+      { category: 'equipment', value: equipmentBookValue, color: '#2563EB' },
+      {
+        category: 'land_structure',
+        value: landStructureBookValue,
+        color: '#D97706',
+      },
+      { category: 'inventory', value: inventoryValue, color: '#7C3AED' },
+      { category: 'cash_bank', value: liquidity, color: '#DC2626' },
     ];
     const totalAssets = round2(allocation.reduce((s, a) => s + a.value, 0));
     return {
@@ -450,11 +551,67 @@ export class FinanceService {
       totalAssets,
       totalLiabilities,
       totalNetWorth: round2(totalAssets - totalLiabilities),
-      depreciation: [],
+      depreciation,
     };
   }
 
+  async createFixedAsset(
+    farmId: string,
+    userId: string,
+    dto: CreateFixedAssetDto,
+  ) {
+    const asset = await this.prisma.fixedAsset.create({
+      data: {
+        farmId,
+        name: dto.name,
+        category: dto.category ?? FixedAssetCategory.EQUIPMENT,
+        description: dto.description,
+        purchaseDate: new Date(dto.purchaseDate),
+        purchasePrice: dto.purchasePrice,
+        usefulLifeYears: dto.usefulLifeYears ?? 5,
+        salvageValue: dto.salvageValue ?? 0,
+        createdBy: userId,
+      },
+    });
+    this.log.info('Fixed asset created', { assetId: asset.id, farmId });
+    return { assetId: asset.id, name: asset.name, category: asset.category };
+  }
+
   // ---- Helpers -------------------------------------------------------------
+
+  /** Increment inventory stock for INVENTORY_PURCHASE transactions (RD-010). */
+  private async incrementInventoryStock(
+    farmId: string,
+    itemName: string,
+    quantity: number,
+  ): Promise<boolean> {
+    const nameFilter = { contains: itemName, mode: 'insensitive' as const };
+    const [medicine, forage] = await Promise.all([
+      this.prisma.medicine.findFirst({
+        where: { farmId, name: nameFilter, isActive: true },
+        select: { id: true },
+      }),
+      this.prisma.forage.findFirst({
+        where: { farmId, name: nameFilter, isActive: true },
+        select: { id: true },
+      }),
+    ]);
+    if (medicine) {
+      await this.prisma.medicine.update({
+        where: { id: medicine.id },
+        data: { currentStock: { increment: quantity } },
+      });
+      return true;
+    }
+    if (forage) {
+      await this.prisma.forage.update({
+        where: { id: forage.id },
+        data: { currentStock: { increment: quantity } },
+      });
+      return true;
+    }
+    return false;
+  }
 
   private async settlements(
     farmId: string,
@@ -542,6 +699,7 @@ export class FinanceService {
         farmId,
         status: FinanceTxnStatus.COMPLETED,
         date: { gte: yearStart },
+        ...NON_VOID_TXN,
       },
       select: { date: true, type: true, amount: true },
     });
@@ -610,6 +768,7 @@ export class FinanceService {
         status: FinanceTxnStatus.COMPLETED,
         type: { not: FinanceTxnType.REVENUE },
         date: { gte: from, lte: to },
+        ...NON_VOID_TXN,
       },
       _sum: { amount: true },
     });
@@ -663,10 +822,13 @@ export class FinanceService {
     return round2(inventoryValue + liquidity);
   }
 
-  private runwayStatus(days: number | null): string {
+  private runwayStatus(
+    days: number | null,
+    thresholds: { warningDays: number; criticalDays: number },
+  ): string {
     if (days == null) return 'unknown';
-    if (days < 14) return 'critical';
-    if (days < 30) return 'warning';
+    if (days < thresholds.criticalDays) return 'critical';
+    if (days < thresholds.warningDays) return 'warning';
     return 'healthy';
   }
 

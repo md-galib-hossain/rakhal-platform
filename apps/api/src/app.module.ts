@@ -44,10 +44,13 @@ import { MilkModule } from './modules/milk/milk.module';
 import { BuyerModule } from './modules/buyer/buyer.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { FeedModule } from './modules/feed/feed.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { FarmModule } from './modules/farm/farm.module';
 import { ActivityModule } from './modules/activity/activity.module';
 import { TaskModule } from './modules/task/task.module';
+import { SettingsModule } from './modules/settings/settings.module';
 
 type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
 
@@ -124,8 +127,11 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     BuyerModule,
     FinanceModule,
     DashboardModule,
+    ReportsModule,
+    FeedModule,
     InventoryModule,
     FarmModule,
+    SettingsModule,
     ActivityModule,
     TaskModule,
   ],

@@ -49,6 +49,13 @@ model Farm {
   financeLoans        FinanceLoan[]        @relation("FarmToFinanceLoan")
   walletTransactions  WalletTransaction[]  @relation("FarmToWalletTransaction")
   feedGroups          FeedGroup[]          @relation("FarmToFeedGroup")
+  reportJobs          ReportJob[]          @relation("FarmToReportJob")
+  feedIngredientOverrides FeedIngredientOverride[] @relation("FarmToFeedIngredientOverride")
+  feedConcentrations      FeedConcentration[]      @relation("FarmToFeedConcentration")
+  fixedAssets         FixedAsset[]         @relation("FarmToFixedAsset")
+  invitations         FarmInvitation[]     @relation("FarmToInvitation")
+  suppliers           Supplier[]           @relation("FarmToSupplier")
+  moduleSettings      FarmModuleSettings?  @relation("FarmToModuleSettings")
 
   @@index([ownerId])
   @@index([slug])

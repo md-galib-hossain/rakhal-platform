@@ -1,0 +1,38 @@
+/// Team invitation (PRD §21.4 / API §18 — RAKHAL-030). A pending invite to join a
+/// farm with a given role, identified by phone (phone-first onboarding, PRD §5).
+/// SMS delivery is stubbed until an SMS provider is chosen; the token + accept
+/// flow is consumed by the onboarding accept-invite path (RAKHAL-025).
+
+model FarmInvitation {
+  id     String @id @default(cuid())
+  farmId String
+
+  phone       String
+  name        String?
+  roleId      String
+  invitedById String
+
+  token      String           @unique @default(cuid())
+  status     InvitationStatus @default(PENDING)
+  expiresAt  DateTime
+  acceptedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm      Farm @relation("FarmToInvitation", fields: [farmId], references: [id])
+  role      Role @relation("RoleToInvitation", fields: [roleId], references: [id])
+  invitedBy User @relation("UserSentInvitations", fields: [invitedById], references: [id])
+
+  @@index([farmId])
+  @@index([farmId, status])
+  @@index([roleId])
+  @@index([invitedById])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}

@@ -16,6 +16,7 @@ import { PermissionGuard } from 'src/modules/permission/presentation/guards/perm
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { FinanceService } from '../../application/services/finance.service';
 import { CreateTransactionDto } from '../dto/create-transaction.dto';
+import { CreateFixedAssetDto } from '../dto/create-fixed-asset.dto';
 import { LedgerQueryDto, ReceivableQueryDto } from '../dto/finance-query.dto';
 import {
   AddFundsDto,
@@ -121,6 +122,16 @@ export class FinanceController {
   @RequirePermission('finance.read')
   assets(@CurrentFarmId() farmId: string) {
     return this.financeService.assets(farmId);
+  }
+
+  @Post('assets')
+  @RequirePermission('finance.create')
+  createAsset(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Body() dto: CreateFixedAssetDto,
+  ) {
+    return this.financeService.createFixedAsset(farmId, userId, dto);
   }
 
   @Get('wallet')

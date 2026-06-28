@@ -7,6 +7,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { NON_VOID_TXN } from 'src/common/finance/txn-filters';
 import {
   buildLactationCurve,
   DailyYield,
@@ -203,7 +204,7 @@ export class CattleDetailService {
         where: {
           farmId,
           cattleId,
-          isVoided: false,
+          ...NON_VOID_TXN,
           date: { gte: start, lt: end },
         },
         select: { type: true, category: true, subType: true, amount: true },
@@ -213,7 +214,7 @@ export class CattleDetailService {
         where: {
           farmId,
           cattleId,
-          isVoided: false,
+          ...NON_VOID_TXN,
           date: { gte: this.monthsAgo(start, 5) },
         },
         select: { type: true, amount: true, date: true },

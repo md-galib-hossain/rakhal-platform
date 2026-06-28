@@ -1,0 +1,24 @@
+/// Supplier directory (PRD §21.6 / API §18 — RAKHAL-032). Farm-scoped contacts for
+/// feed/medicine/equipment vendors; referenced loosely by inventory/finance later.
+/// Soft-deleted via `isActive` (CONV: archive, not hard delete).
+
+model Supplier {
+  id     String @id @default(cuid())
+  farmId String
+
+  name         String
+  contact      String?
+  phone        String?
+  category     String? /// feed | medicine | equipment | services | other
+  paymentTerms String? /// cod | net_7 | net_15 | net_30 | …
+  notes        String?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm Farm @relation("FarmToSupplier", fields: [farmId], references: [id])
+
+  @@index([farmId])
+  @@index([farmId, isActive])
+}

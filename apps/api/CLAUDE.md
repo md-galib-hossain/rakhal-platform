@@ -3,6 +3,7 @@
 NestJS + Prisma + PostgreSQL dairy-farm SaaS backend. **Do not redesign — follow existing patterns.**
 
 ## Read first
+- **`../../docs/IN_FLIGHT.md` — parallel agents work this tree at once. Read it and claim your ticket there BEFORE editing.** Hot shared files (`prisma/schemas/{farm,auth,permission}/*.prisma`, `prisma/seed.ts`, `src/app.module.ts`, the status docs, `RD-NNN`/`RAKHAL-NNN` numbering) are append-only + re-`Read` before each `Edit`; one `migrate dev` at a time.
 - `docs/TEMPLATE_OVERVIEW.md` — the bible: layering + conventions (§2), guard chain (§6), gaps (§13), reusable building blocks (§16).
 - Project state + next task: `../../docs/CURRENT_STATE.md` and `../../docs/HANDOFF.md`.
 - Tickets: `../../docs/PROJECT_PROGRESS.md`. Specs: `../../docs/Rakhaal_PRD_v3_Complete.md`, `../../docs/Rakhaal_API.md`.
@@ -24,4 +25,4 @@ Copy `src/modules/inventory/` for any new module.
 - Dev stack: `pnpm redis:up` + Docker `rakhal-postgres` (Docker Desktop must run). Demo: `owner@demo.rakhal.test` / `DemoPass123`.
 
 ## Definition of done
-`nest build` (0) + `eslint` (0) + `jest` (green) + a live smoke test (RBAC verified with the worker), then update the docs in `../../docs/`.
+`nest build` (0) + `eslint` (0) + `jest` (green) + **`pnpm test:e2e` (green)** — the automated replacement for the manual curl smoke. Add/extend an e2e spec under `test/` for new routes (harness: `test/utils/e2e.ts` → `createTestApp()` + `loginAs()`; demo owner/manager/worker + finance data come from `pnpm seed`). Needs the dev stack (Postgres + Redis) up. Then update the docs in `../../docs/`.

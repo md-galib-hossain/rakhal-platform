@@ -5,6 +5,7 @@ import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { ActivityModule } from '../activity/activity.module';
 import { InventoryModule } from '../inventory/inventory.module';
+import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { MilkService } from './application/services/milk.service';
 import { MilkController } from './presentation/controllers/milk.controller';
 
@@ -16,6 +17,7 @@ import { MilkController } from './presentation/controllers/milk.controller';
     PermissionModule,
     ActivityModule,
     InventoryModule,
+    FarmSettingsModule,
   ],
   controllers: [MilkController],
   providers: [MilkService],

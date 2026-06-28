@@ -1,0 +1,44 @@
+/// Reports Module (PRD §22 / API §15). On-demand report generation. A
+/// `ReportJob` captures one generation request; generation is synchronous for
+/// the MVP (the async job is modelled so BullMQ can back it later without an
+/// API change). The rendered output is stored in `fileData` (bytea) and streamed
+/// from `GET /reports/jobs/:id/download` — no object storage/CDN needed yet.
+
+model ReportJob {
+  id     String @id @default(cuid())
+  farmId String
+
+  reportId String /// catalogue id, e.g. rpt_daily_milk
+  format   ReportFormat
+  params   Json
+
+  status   ReportJobStatus @default(GENERATING)
+  title    String?
+  fileName String?
+  fileData Bytes? /// rendered CSV/PDF bytes, streamed on download
+  byteSize Int?
+  error    String?
+
+  expiresAt DateTime?
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm Farm @relation("FarmToReportJob", fields: [farmId], references: [id])
+
+  @@index([farmId])
+  @@index([farmId, status])
+  @@index([farmId, reportId])
+}
+
+enum ReportFormat {
+  PDF
+  CSV
+}
+
+enum ReportJobStatus {
+  GENERATING
+  COMPLETED
+  FAILED
+}

@@ -1,6 +1,14 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '@prisma/client';
+import {
+  FinanceCategory,
+  FinancePaymentMethod,
+  FinancePaymentType,
+  FinanceTxnStatus,
+  FinanceTxnType,
+  PrismaClient,
+  WalletDirection,
+} from '@prisma/client';
 import * as argon2 from 'argon2';
 import {
   PERMISSIONS,
@@ -72,8 +80,12 @@ async function seedRole(name: SystemRoleName): Promise<string> {
   return role.id;
 }
 
-async function seedDemo(ownerRoleId: string): Promise<void> {
-  if (process.env.NODE_ENV === 'production') return;
+async function seedDemo(
+  ownerRoleId: string,
+): Promise<{ farmId: string; ownerUserId: string }> {
+  if (process.env.NODE_ENV === 'production') {
+    return { farmId: '', ownerUserId: '' };
+  }
 
   const email = 'owner@demo.rakhal.test';
   const passwordHash = await argon2.hash('DemoPass123', {
@@ -107,14 +119,190 @@ async function seedDemo(ownerRoleId: string): Promise<void> {
   console.log(
     `✔ demo: ${email} / DemoPass123 — userId=${user.id} farmId=${farm.id}`,
   );
+  return { farmId: farm.id, ownerUserId: user.id };
+}
+
+/**
+ * Demo Manager + Worker on the demo farm — needed so RBAC is exercisable
+ * (and e2e tests can assert owner-vs-worker permission boundaries). Manager and
+ * worker were previously created out-of-band; seeding them makes a fresh
+ * `pnpm seed` self-sufficient.
+ */
+async function seedDemoMember(
+  email: string,
+  name: string,
+  password: string,
+  farmId: string,
+  roleId: string,
+): Promise<void> {
+  const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
+  const user = await prisma.user.upsert({
+    where: { email },
+    update: {},
+    create: { email, name, passwordHash, isEmailVerified: true },
+    select: { id: true },
+  });
+  await prisma.farmMember.upsert({
+    where: { farmId_userId: { farmId, userId: user.id } },
+    update: { roleId },
+    create: { farmId, userId: user.id, roleId },
+  });
+  console.log(`✔ demo member: ${email} / ${password} (${name})`);
+}
+
+/**
+ * A little operational finance data so the dashboard/finance KPIs render
+ * meaningfully (not nulls): a wallet credit gives liquidity and a few recent
+ * expenses give an average daily burn, so `survivalRunwayDays`/status compute.
+ * Idempotent (upsert by reference); dates are relative to run time so they stay
+ * inside the trailing-30-day window.
+ */
+async function seedDemoFinance(
+  farmId: string,
+  createdBy: string,
+): Promise<void> {
+  const now = Date.now();
+  const daysAgo = (n: number): Date => new Date(now - n * 86_400_000);
+
+  await prisma.walletTransaction.upsert({
+    where: { farmId_reference: { farmId, reference: 'SEED-WAL-01' } },
+    update: { amount: 300_000, date: daysAgo(40) },
+    create: {
+      farmId,
+      reference: 'SEED-WAL-01',
+      direction: WalletDirection.CREDIT,
+      amount: 300_000,
+      paymentMethod: FinancePaymentMethod.BANK_TRANSFER,
+      description: 'Seed: initial working capital',
+      date: daysAgo(40),
+      createdBy,
+    },
+  });
+
+  const txns: Array<{
+    ref: string;
+    type: FinanceTxnType;
+    category: FinanceCategory;
+    subType: string;
+    amount: number;
+    days: number;
+  }> = [
+    { ref: 'SEED-TRX-REV-01', type: FinanceTxnType.REVENUE, category: FinanceCategory.REVENUE, subType: 'milk', amount: 42_000, days: 8 },
+    { ref: 'SEED-TRX-EXP-01', type: FinanceTxnType.OPERATING_EXPENSE, category: FinanceCategory.OVERHEAD, subType: 'salary', amount: 12_000, days: 5 },
+    { ref: 'SEED-TRX-EXP-02', type: FinanceTxnType.INVENTORY_PURCHASE, category: FinanceCategory.INVENTORY, subType: 'feed', amount: 18_000, days: 12 },
+    { ref: 'SEED-TRX-EXP-03', type: FinanceTxnType.OPERATING_EXPENSE, category: FinanceCategory.HEALTHCARE, subType: 'vet', amount: 4_000, days: 20 },
+  ];
+  for (const t of txns) {
+    const data = {
+      date: daysAgo(t.days),
+      type: t.type,
+      category: t.category,
+      subType: t.subType,
+      amount: t.amount,
+      paidNow: t.amount,
+      paymentType: FinancePaymentType.FULL,
+      paymentMethod: FinancePaymentMethod.CASH,
+      status: FinanceTxnStatus.COMPLETED,
+      createdBy,
+    };
+    await prisma.financeTransaction.upsert({
+      where: { farmId_reference: { farmId, reference: t.ref } },
+      update: data,
+      create: { farmId, reference: t.ref, ...data },
+    });
+  }
+  console.log('✔ demo finance: wallet credit + 1 revenue + 3 expenses');
+}
+
+/**
+ * Global feed-ingredient catalogue (PRD §4.1 / §12.1). These are Rakhaal-Admin
+ * defaults; until the Admin panel exists (RAKHAL-110) they ship as seeded
+ * `isSystemDefault` rows. Values are plausible INRA/NRC/BAU references for common
+ * Bangladesh dairy feeds — review/refine with the Admin nutritionist.
+ */
+async function seedFeedIngredients(): Promise<void> {
+  type Ing = {
+    id: string;
+    nameEn: string;
+    nameBn: string;
+    category: 'ROUGHAGE' | 'CONCENTRATE' | 'SILAGE' | 'SUPPLEMENT' | 'BY_PRODUCT';
+    dmPct: number;
+    cpPct: number;
+    meMjPerKgDm: number;
+    fatPct: number;
+    ndfPct: number;
+    price: number;
+    source: string;
+  };
+  const ingredients: Ing[] = [
+    { id: 'feed_napier', nameEn: 'Napier grass', nameBn: 'নেপিয়ার ঘাস', category: 'ROUGHAGE', dmPct: 20, cpPct: 9, meMjPerKgDm: 8.5, fatPct: 2, ndfPct: 65, price: 5, source: 'BAU' },
+    { id: 'feed_green_maize', nameEn: 'Green maize fodder', nameBn: 'কাঁচা ভুট্টা', category: 'ROUGHAGE', dmPct: 22, cpPct: 9, meMjPerKgDm: 9.5, fatPct: 2.5, ndfPct: 55, price: 6, source: 'INRA 2018' },
+    { id: 'feed_rice_straw', nameEn: 'Rice straw', nameBn: 'ধানের খড়', category: 'ROUGHAGE', dmPct: 90, cpPct: 4, meMjPerKgDm: 6.5, fatPct: 1.5, ndfPct: 75, price: 8, source: 'BAU' },
+    { id: 'feed_maize_silage', nameEn: 'Maize silage', nameBn: 'ভুট্টা সাইলেজ', category: 'SILAGE', dmPct: 30, cpPct: 8, meMjPerKgDm: 10, fatPct: 3, ndfPct: 45, price: 12, source: 'INRA 2018' },
+    { id: 'feed_wheat_bran', nameEn: 'Wheat bran', nameBn: 'গমের ভুসি', category: 'BY_PRODUCT', dmPct: 88, cpPct: 17, meMjPerKgDm: 11.5, fatPct: 4, ndfPct: 40, price: 38, source: 'NRC 2001' },
+    { id: 'feed_rice_polish', nameEn: 'Rice polish (bran)', nameBn: 'চালের কুঁড়া', category: 'BY_PRODUCT', dmPct: 90, cpPct: 13, meMjPerKgDm: 11, fatPct: 12, ndfPct: 25, price: 35, source: 'BAU' },
+    { id: 'feed_maize_grain', nameEn: 'Maize grain (crushed)', nameBn: 'ভুট্টার দানা', category: 'CONCENTRATE', dmPct: 88, cpPct: 9, meMjPerKgDm: 13.5, fatPct: 4, ndfPct: 11, price: 42, source: 'NRC 2001' },
+    { id: 'feed_soybean_meal', nameEn: 'Soybean meal', nameBn: 'সয়াবিন মিল', category: 'CONCENTRATE', dmPct: 90, cpPct: 44, meMjPerKgDm: 12.5, fatPct: 1.5, ndfPct: 13, price: 70, source: 'NRC 2001' },
+    { id: 'feed_mustard_cake', nameEn: 'Mustard oil cake', nameBn: 'সরিষার খৈল', category: 'CONCENTRATE', dmPct: 90, cpPct: 32, meMjPerKgDm: 11, fatPct: 9, ndfPct: 30, price: 55, source: 'BAU' },
+    { id: 'feed_sesame_cake', nameEn: 'Sesame (til) oil cake', nameBn: 'তিলের খৈল', category: 'CONCENTRATE', dmPct: 92, cpPct: 35, meMjPerKgDm: 11.5, fatPct: 10, ndfPct: 20, price: 60, source: 'BAU' },
+    { id: 'feed_khesari_bran', nameEn: 'Khesari (lentil) bran', nameBn: 'খেসারির ভুসি', category: 'BY_PRODUCT', dmPct: 89, cpPct: 18, meMjPerKgDm: 10.5, fatPct: 2, ndfPct: 35, price: 30, source: 'BAU' },
+    { id: 'feed_molasses', nameEn: 'Molasses', nameBn: 'চিটাগুড়', category: 'SUPPLEMENT', dmPct: 75, cpPct: 4, meMjPerKgDm: 12.5, fatPct: 0, ndfPct: 0, price: 28, source: 'INRA 2018' },
+    { id: 'feed_dcp', nameEn: 'Di-calcium phosphate (DCP)', nameBn: 'ডিসিপি', category: 'SUPPLEMENT', dmPct: 97, cpPct: 0, meMjPerKgDm: 0, fatPct: 0, ndfPct: 0, price: 60, source: 'NRC 2001' },
+    { id: 'feed_mineral_mix', nameEn: 'Mineral & vitamin mixture', nameBn: 'মিনারেল মিক্সচার', category: 'SUPPLEMENT', dmPct: 98, cpPct: 0, meMjPerKgDm: 0, fatPct: 0, ndfPct: 0, price: 80, source: 'NRC 2001' },
+    { id: 'feed_salt', nameEn: 'Common salt', nameBn: 'খাবার লবণ', category: 'SUPPLEMENT', dmPct: 99, cpPct: 0, meMjPerKgDm: 0, fatPct: 0, ndfPct: 0, price: 15, source: 'NRC 2001' },
+  ];
+
+  const now = new Date();
+  for (const i of ingredients) {
+    const data = {
+      nameEn: i.nameEn,
+      nameBn: i.nameBn,
+      category: i.category,
+      dmPct: i.dmPct,
+      cpPct: i.cpPct,
+      meMjPerKgDm: i.meMjPerKgDm,
+      fatPct: i.fatPct,
+      ndfPct: i.ndfPct,
+      nutritionSource: i.source,
+      currentPricePerKg: i.price,
+      priceUpdatedAt: now,
+      isAvailableBd: true,
+      isSystemDefault: true,
+      isActive: true,
+    };
+    await prisma.feedIngredient.upsert({
+      where: { id: i.id },
+      update: data,
+      create: { id: i.id, ...data },
+    });
+  }
+  console.log(`✔ feed ingredients seeded (${ingredients.length})`);
 }
 
 async function main(): Promise<void> {
   await seedPermissions();
   const ownerRoleId = await seedRole(SYSTEM_ROLES.OWNER);
-  await seedRole(SYSTEM_ROLES.MANAGER);
-  await seedRole(SYSTEM_ROLES.WORKER);
-  await seedDemo(ownerRoleId);
+  const managerRoleId = await seedRole(SYSTEM_ROLES.MANAGER);
+  const workerRoleId = await seedRole(SYSTEM_ROLES.WORKER);
+  const demo = await seedDemo(ownerRoleId);
+  if (demo.farmId) {
+    await seedDemoMember(
+      'manager@demo.rakhal.test',
+      'Demo Manager',
+      'ManagerPass123',
+      demo.farmId,
+      managerRoleId,
+    );
+    await seedDemoMember(
+      'worker@demo.rakhal.test',
+      'Demo Worker',
+      'WorkerPass123',
+      demo.farmId,
+      workerRoleId,
+    );
+    await seedDemoFinance(demo.farmId, demo.ownerUserId);
+  }
+  await seedFeedIngredients();
 }
 
 main()

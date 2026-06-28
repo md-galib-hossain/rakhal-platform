@@ -17,11 +17,8 @@ import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { MilkTankService } from 'src/modules/inventory/application/services/milk-tank.service';
-import {
-  DEFAULT_SESSION_CONFIG,
-  dropPct,
-  isAnomaly,
-} from '../../domain/milk-anomaly';
+import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
+import { dropPct, isAnomaly } from '../../domain/milk-anomaly';
 import { MilkLogQueryDto } from '../../presentation/dto/milk-query.dto';
 import { ReviewAnomalyDto } from '../../presentation/dto/review-anomaly.dto';
 import { SaveMilkLogDto } from '../../presentation/dto/save-milk-log.dto';
@@ -47,6 +44,7 @@ export class MilkService {
     private readonly aqrService: AqrService,
     private readonly activityLog: ActivityLogService,
     private readonly milkTankService: MilkTankService,
+    private readonly farmSettings: FarmSettingsService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(MilkService.name);
@@ -138,7 +136,7 @@ export class MilkService {
 
     return {
       date: this.dateOnly(day),
-      sessionConfig: DEFAULT_SESSION_CONFIG,
+      sessionConfig: await this.farmSettings.milkActiveSessions(farmId),
       entries: rows,
     };
   }
@@ -175,6 +173,7 @@ export class MilkService {
       }),
     ]);
     const avgMap = new Map(avgRows.map((r) => [r.cattleId, r._avg.yieldL]));
+    const anomalyFraction = await this.farmSettings.milkAnomalyFraction(farmId);
 
     let anomaliesFlagged = 0;
     let sessionTotal = 0;
@@ -185,6 +184,7 @@ export class MilkService {
       const anomalyFlag = isAnomaly(
         entry.yieldL,
         avgMap.get(entry.cattleId) ?? null,
+        anomalyFraction,
       );
       if (anomalyFlag) anomaliesFlagged += 1;
       sessionTotal += entry.yieldL;
@@ -498,14 +498,17 @@ export class MilkService {
   }
 
   private async sessionStatuses(farmId: string, day: Date) {
-    const rows = await this.prisma.milkLogEntry.groupBy({
-      by: ['session', 'submitted'],
-      where: { farmId, logDate: day },
-      _count: { _all: true },
-    });
+    const [rows, activeSessions] = await Promise.all([
+      this.prisma.milkLogEntry.groupBy({
+        by: ['session', 'submitted'],
+        where: { farmId, logDate: day },
+        _count: { _all: true },
+      }),
+      this.farmSettings.milkActiveSessions(farmId),
+    ]);
     const status: Record<string, string> = {};
     for (const session of Object.values(MilkSession)) {
-      if (!DEFAULT_SESSION_CONFIG.includes(session)) {
+      if (!activeSessions.includes(session)) {
         status[session.toLowerCase()] = 'not_configured';
         continue;
       }
