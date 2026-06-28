@@ -23,6 +23,7 @@ import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 import { MedicineService } from 'src/modules/inventory/application/services/medicine.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
+import { NotificationService } from 'src/modules/notification/application/services/notification.service';
 import {
   ApplyHealthPlanDto,
   CloseHealthCaseDto,
@@ -69,6 +70,7 @@ export class HealthService {
     private readonly aqrService: AqrService,
     private readonly medicineService: MedicineService,
     private readonly taskService: TaskService,
+    private readonly notificationService: NotificationService,
     private readonly logger: LoggerService,
   ) {
     this.log = this.logger.setContext(HealthService.name);
@@ -286,8 +288,10 @@ export class HealthService {
       },
     );
 
-    // Notify Owner + Manager (PRD §8.7). No push/SMS engine yet (RAKHAL-098) —
-    // the Task Hub item is the in-app notification, matching the calf/repro pattern.
+    // Notify Owner + Manager (PRD §8.7 / §20.2 `animal_sickness_reported`). Two
+    // distinct artefacts: an **actionable Task** to review, and a **push alert**
+    // via the notification engine (RAKHAL-098) — in-app now, SMS once a provider
+    // lands (the delivery seam is wired).
     await this.taskService.createInternal({
       farmId,
       createdBy: userId,
@@ -298,6 +302,13 @@ export class HealthService {
       dueAt: new Date(),
       source: TaskSource.SYSTEM_AUTO,
       relatedCattleId: dto.cattleId,
+    });
+    await this.notificationService.notifyOwnersAndManagers({
+      farmId,
+      eventKey: 'animal_sickness_reported',
+      title: 'Animal Sickness Reported',
+      message: `${cattle.name ?? cattle.tagNumber} (${cattle.tagNumber}) — ${dto.diagnosis} reported (priority: ${dto.priority}).`,
+      link: `/healthcare/cases/${healthCase.id}`,
     });
 
     this.log.info('Health case created', {

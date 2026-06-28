@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
 /**
@@ -13,6 +14,7 @@ describe('Feed Distribution (e2e)', () => {
   let ctx: TestContext;
   let owner: AuthedUser;
   let worker: AuthedUser;
+  let prisma: PrismaService;
 
   let ingredientA: { id: string; price: number; name: string };
   let ingredientB: { id: string; price: number };
@@ -30,6 +32,7 @@ describe('Feed Distribution (e2e)', () => {
     ctx = await createTestApp();
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
     worker = await loginAs(ctx, 'worker@demo.rakhal.test', 'WorkerPass123');
+    prisma = ctx.app.get(PrismaService);
 
     const ings = await request(server())
       .get(api('/feed/ingredients'))
@@ -143,6 +146,12 @@ describe('Feed Distribution (e2e)', () => {
   });
 
   it('decrements a matching kg-unit forage on log (§15.3)', async () => {
+    // Hermetic: remove any same-named forage left by a prior run so the
+    // name→forage match is unambiguous (the decrement keys on ingredient name).
+    await prisma.forage.deleteMany({
+      where: { farmId: owner.farmId, name: ingredientA.name },
+    });
+
     // A forage named exactly like ingredient A, in kg, is the match target.
     const forage = await request(server())
       .post(api('/inventory/forages'))
@@ -171,6 +180,8 @@ describe('Feed Distribution (e2e)', () => {
       .set(...auth(owner))
       .expect(200);
     expect(after.body.data.currentStock).toBe(96); // 100 − 4
+
+    await prisma.forage.deleteMany({ where: { id: forageId } });
   });
 
   describe('validation + RBAC', () => {

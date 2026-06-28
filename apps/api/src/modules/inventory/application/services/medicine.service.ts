@@ -7,6 +7,7 @@ import {
 import { Medicine, MedicineStockMovementReason, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { NotificationService } from 'src/modules/notification/application/services/notification.service';
 import { CursorPage, getCursorArgs, toCursorPage } from 'src/common/pagination';
 import {
   computeExpiryStatus,
@@ -41,6 +42,7 @@ export class MedicineService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly notificationService: NotificationService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(MedicineService.name);
@@ -302,6 +304,24 @@ export class MedicineService {
       quantity: opts.quantity,
       balanceAfter,
     });
+
+    // Low Medicine Stock alert (PRD §20.2) — fire only on the downward crossing
+    // (was above the threshold, now at/below) so it doesn't spam every dose.
+    const threshold = medicine.lowStockThreshold;
+    if (
+      threshold > 0 &&
+      medicine.currentStock > threshold &&
+      balanceAfter <= threshold
+    ) {
+      await this.notificationService.notifyOwnersAndManagers({
+        farmId,
+        eventKey: 'low_medicine_stock',
+        title: 'Low Medicine Stock',
+        message: `${medicine.name} is low: ${balanceAfter} left (alert threshold ${threshold}).`,
+        link: '/inventory/medicine',
+      });
+    }
+
     return { medicineId: medicine.id, batchId: medicine.batchId, balanceAfter };
   }
 

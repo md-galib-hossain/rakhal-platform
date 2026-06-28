@@ -6,6 +6,7 @@ import { PermissionModule } from '../permission/permission.module';
 import { ActivityModule } from '../activity/activity.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { TaskModule } from '../task/task.module';
+import { NotificationModule } from '../notification/notification.module';
 import { HealthService } from './application/services/health.service';
 import { CattleHealthController } from './presentation/controllers/cattle-health.controller';
 import { HealthController } from './presentation/controllers/health.controller';
@@ -19,6 +20,7 @@ import { HealthController } from './presentation/controllers/health.controller';
     ActivityModule,
     InventoryModule,
     TaskModule,
+    NotificationModule,
   ],
   controllers: [HealthController, CattleHealthController],
   providers: [HealthService],

@@ -159,7 +159,9 @@ describe('Notifications (e2e)', () => {
     await request(server())
       .patch(api('/notifications/preferences'))
       .set(...auth(owner))
-      .send({ preferences: [{ event_key: 'medicine_expired', enabled: false }] })
+      .send({
+        preferences: [{ event_key: 'medicine_expired', enabled: false }],
+      })
       .expect(400);
   });
 

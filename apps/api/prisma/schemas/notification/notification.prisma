@@ -20,6 +20,11 @@ model Notification {
   /// Channels actually delivered (subset of the resolved preference).
   channelsSent String[] @default([])
 
+  /// Idempotency key for recurring (scheduled) emits — e.g.
+  /// `payment_overdue:<receivableId>:<YYYY-MM-DD>`. A daily sweep skips a user who
+  /// already holds a notification with the same key, so re-runs don't spam.
+  dedupeKey String?
+
   isRead Boolean   @default(false)
   readAt DateTime?
 
@@ -30,6 +35,7 @@ model Notification {
 
   @@index([farmId, userId, isRead])
   @@index([userId, createdAt])
+  @@index([userId, dedupeKey])
 }
 
 /// Per (user, event) channel override. Absence = the catalogue default.

@@ -3,6 +3,7 @@ import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { AuthModule } from '../auth/auth.module';
 import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
+import { NotificationModule } from '../notification/notification.module';
 import { MedicineService } from './application/services/medicine.service';
 import { ForageService } from './application/services/forage.service';
 import { SemenService } from './application/services/semen.service';
@@ -27,7 +28,13 @@ import { EquipmentController } from './presentation/controllers/equipment.contro
  * JwtAuthGuard / SessionGuard / FarmContextGuard resolve.
  */
 @Module({
-  imports: [AuthModule, TenantAccessModule, PermissionModule, LoggerModule],
+  imports: [
+    AuthModule,
+    TenantAccessModule,
+    PermissionModule,
+    LoggerModule,
+    NotificationModule,
+  ],
   controllers: [
     MedicineController,
     ForageController,

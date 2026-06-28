@@ -54,6 +54,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { ScoreboardModule } from './modules/scoreboard/scoreboard.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { SchedulerModule } from './modules/scheduler/scheduler.module';
 
 type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
 
@@ -138,6 +139,7 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     OnboardingModule,
     ScoreboardModule,
     NotificationModule,
+    SchedulerModule,
     ActivityModule,
     TaskModule,
   ],

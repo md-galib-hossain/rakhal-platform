@@ -25,6 +25,8 @@ export interface NotifyInput {
   title: string;
   message: string;
   link?: string;
+  /** Idempotency key — recipients already holding a notification with this key are skipped. */
+  dedupeKey?: string;
 }
 
 /**
@@ -52,13 +54,52 @@ export class NotificationService {
 
   // ---- internal emit API --------------------------------------------------
 
+  /**
+   * Emit to every member of the farm holding one of `roleNames` (resolves the
+   * recipients, then delegates to {@link notifyUsers}). The one-liner emitters in
+   * other modules use this so recipient resolution lives in one place.
+   */
+  async notifyFarmRoles(
+    input: Omit<NotifyInput, 'userIds'> & { roleNames: string[] },
+  ) {
+    const members = await this.prisma.farmMember.findMany({
+      where: { farmId: input.farmId, role: { name: { in: input.roleNames } } },
+      select: { userId: true },
+    });
+    return this.notifyUsers({
+      farmId: input.farmId,
+      userIds: members.map((m) => m.userId),
+      eventKey: input.eventKey,
+      title: input.title,
+      message: input.message,
+      link: input.link,
+      dedupeKey: input.dedupeKey,
+    });
+  }
+
+  /** Emit to the farm's Owner + Manager(s) — the common "alert the bosses" target. */
+  notifyOwnersAndManagers(input: Omit<NotifyInput, 'userIds'>) {
+    return this.notifyFarmRoles({ ...input, roleNames: ['Owner', 'Manager'] });
+  }
+
   async notifyUsers(input: NotifyInput) {
     const event = getEvent(input.eventKey);
     if (!event) {
       throw new Error(`Unknown notification event: ${input.eventKey}`);
     }
-    const userIds = [...new Set(input.userIds)];
+    let userIds = [...new Set(input.userIds)];
     if (userIds.length === 0) return [];
+
+    // Idempotency: drop recipients who already hold this dedupe key (recurring sweeps).
+    if (input.dedupeKey) {
+      const existing = await this.prisma.notification.findMany({
+        where: { userId: { in: userIds }, dedupeKey: input.dedupeKey },
+        select: { userId: true },
+      });
+      const seen = new Set(existing.map((e) => e.userId));
+      userIds = userIds.filter((id) => !seen.has(id));
+      if (userIds.length === 0) return [];
+    }
 
     const [overrides, settings] = await Promise.all([
       this.prisma.notificationPreference.findMany({
@@ -116,6 +157,7 @@ export class NotificationService {
           message: input.message,
           link: input.link,
           channelsSent: sent,
+          dedupeKey: input.dedupeKey,
         },
       });
       created.push(notification);
