@@ -4,8 +4,10 @@
  * and the default delivery channels. Pure data; no framework/Prisma imports.
  *
  * Health & Safety events are **always sent and cannot be disabled** (PRD §20.2).
- * SMS/WhatsApp/Email delivery is gated behind a provider seam that is stubbed
- * until a provider is chosen (RAKHAL-110) — the in-app channel is always live.
+ * `in_app` and `push` are on by default (the free, always-available channels);
+ * `sms`/`whatsapp`/`telegram`/`email` are opt-in per event and require a
+ * configured provider (see `application/channels/*`). The in-app channel is the
+ * `Notification` row itself; everything else goes through a `ChannelProvider`.
  */
 
 export type NotificationCategory =
@@ -17,12 +19,21 @@ export type NotificationCategory =
 
 export type NotificationPriority = 'critical' | 'high' | 'medium' | 'low';
 
-export type NotificationChannel = 'in_app' | 'sms' | 'whatsapp' | 'email';
+/** A delivery channel. Add a new one here + implement a `ChannelProvider`. */
+export type NotificationChannel =
+  | 'in_app'
+  | 'push'
+  | 'sms'
+  | 'whatsapp'
+  | 'telegram'
+  | 'email';
 
 export interface NotificationChannels {
   in_app: boolean;
+  push: boolean;
   sms: boolean;
   whatsapp: boolean;
+  telegram: boolean;
   email: boolean;
 }
 
@@ -36,16 +47,34 @@ export interface NotificationEventDef {
   defaultChannels: NotificationChannels;
 }
 
+/** `in_app` + `push` are always on by default; pass the extra channels you want. */
 const ch = (
-  inApp: boolean,
-  sms = false,
-  whatsapp = false,
-  email = false,
+  opts: Partial<Omit<NotificationChannels, 'in_app' | 'push'>> & {
+    push?: boolean;
+  } = {},
 ): NotificationChannels => ({
-  in_app: inApp,
-  sms,
-  whatsapp,
-  email,
+  in_app: true,
+  push: opts.push ?? true,
+  sms: opts.sms ?? false,
+  whatsapp: opts.whatsapp ?? false,
+  telegram: opts.telegram ?? false,
+  email: opts.email ?? false,
+});
+
+const evt = (
+  key: string,
+  label: string,
+  category: NotificationCategory,
+  priority: NotificationPriority,
+  canDisable: boolean,
+  defaultChannels: NotificationChannels,
+): NotificationEventDef => ({
+  key,
+  label,
+  category,
+  priority,
+  canDisable,
+  defaultChannels,
 });
 
 export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
@@ -56,7 +85,7 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'health_safety',
     'critical',
     false,
-    ch(true, true),
+    ch({ sms: true }),
   ),
   evt(
     'medicine_expired',
@@ -64,7 +93,7 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'health_safety',
     'high',
     false,
-    ch(true, true),
+    ch({ sms: true }),
   ),
   evt(
     'withholding_active',
@@ -72,7 +101,7 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'health_safety',
     'high',
     false,
-    ch(true),
+    ch(),
   ),
   evt(
     'withholding_ended',
@@ -80,7 +109,7 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'health_safety',
     'medium',
     false,
-    ch(true),
+    ch(),
   ),
   evt(
     'morbidity_outbreak',
@@ -88,7 +117,7 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'health_safety',
     'critical',
     false,
-    ch(true, true),
+    ch({ sms: true }),
   ),
   // ── Reproduction ──────────────────────────────────────────────────────────
   evt(
@@ -97,7 +126,7 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'reproduction',
     'high',
     true,
-    ch(true, true),
+    ch({ sms: true }),
   ),
   evt(
     'cow_expected_in_heat',
@@ -105,7 +134,7 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'reproduction',
     'medium',
     true,
-    ch(true),
+    ch(),
   ),
   evt(
     'pregnancy_check_due',
@@ -113,7 +142,7 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'reproduction',
     'medium',
     true,
-    ch(true),
+    ch(),
   ),
   evt(
     'vwp_complete_ready_ai',
@@ -121,7 +150,7 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'reproduction',
     'medium',
     true,
-    ch(true),
+    ch(),
   ),
   evt(
     'dry_off_due_14_days',
@@ -129,7 +158,7 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'reproduction',
     'medium',
     true,
-    ch(true),
+    ch(),
   ),
   // ── Operational ───────────────────────────────────────────────────────────
   evt(
@@ -138,32 +167,25 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'operational',
     'medium',
     true,
-    ch(true),
+    ch(),
   ),
-  evt(
-    'low_feed_stock',
-    'Low Feed Stock',
-    'operational',
-    'medium',
-    true,
-    ch(true),
-  ),
+  evt('low_feed_stock', 'Low Feed Stock', 'operational', 'medium', true, ch()),
   evt(
     'daily_milk_log_reminder',
     'Daily Milk Log Reminder',
     'operational',
     'medium',
     true,
-    ch(true, true),
+    ch({ sms: true }),
   ),
-  evt('task_overdue', 'Task Overdue', 'operational', 'medium', true, ch(true)),
+  evt('task_overdue', 'Task Overdue', 'operational', 'medium', true, ch()),
   evt(
     'safety_critical_task_overdue',
     'Safety Critical Task Overdue',
     'operational',
     'high',
     false,
-    ch(true, true),
+    ch({ sms: true }),
   ),
   evt(
     'todays_tasks_ready',
@@ -171,7 +193,7 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'operational',
     'low',
     true,
-    ch(true),
+    ch(),
   ),
   // ── Financial ─────────────────────────────────────────────────────────────
   evt(
@@ -180,7 +202,7 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'financial',
     'high',
     true,
-    ch(true, true),
+    ch({ sms: true }),
   ),
   evt(
     'survival_runway_warning',
@@ -188,7 +210,7 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'financial',
     'high',
     true,
-    ch(true, true),
+    ch({ sms: true }),
   ),
   evt(
     'supplier_payment_due_soon',
@@ -196,7 +218,7 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'financial',
     'medium',
     true,
-    ch(true),
+    ch(),
   ),
   // ── Inventory ─────────────────────────────────────────────────────────────
   evt(
@@ -205,7 +227,7 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'inventory',
     'medium',
     true,
-    ch(true),
+    ch(),
   ),
   evt(
     'semen_tank_low_ln2',
@@ -213,20 +235,9 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'inventory',
     'high',
     true,
-    ch(true, true),
+    ch({ sms: true }),
   ),
 ];
-
-function evt(
-  key: string,
-  label: string,
-  category: NotificationCategory,
-  priority: NotificationPriority,
-  canDisable: boolean,
-  defaultChannels: NotificationChannels,
-): NotificationEventDef {
-  return { key, label, category, priority, canDisable, defaultChannels };
-}
 
 const BY_KEY = new Map(NOTIFICATION_EVENTS.map((e) => [e.key, e]));
 
@@ -238,13 +249,16 @@ export function isKnownEvent(key: string): boolean {
   return BY_KEY.has(key);
 }
 
-/** The non-`in_app` channels enabled on a channel set (what the delivery seam handles). */
+/** The non-`in_app` channels enabled on a set (what the delivery dispatcher handles). */
 export function externalChannels(
   channels: NotificationChannels,
 ): NotificationChannel[] {
-  const out: NotificationChannel[] = [];
-  if (channels.sms) out.push('sms');
-  if (channels.whatsapp) out.push('whatsapp');
-  if (channels.email) out.push('email');
-  return out;
+  const order: NotificationChannel[] = [
+    'push',
+    'sms',
+    'whatsapp',
+    'telegram',
+    'email',
+  ];
+  return order.filter((c) => channels[c]);
 }

@@ -20,8 +20,10 @@ export class QuietHoursDto {
 
 export class PreferenceChannelsDto {
   @IsBoolean() in_app!: boolean;
+  @IsBoolean() push!: boolean;
   @IsBoolean() sms!: boolean;
   @IsBoolean() whatsapp!: boolean;
+  @IsBoolean() telegram!: boolean;
   @IsBoolean() email!: boolean;
 }
 

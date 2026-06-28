@@ -66,7 +66,9 @@ describe('Scheduler sweeps (e2e)', () => {
     });
 
     // Pregnancy due to calve in 2 days, on a cow that has none yet.
-    const withPreg = await prisma.pregnancy.findMany({ select: { cattleId: true } });
+    const withPreg = await prisma.pregnancy.findMany({
+      select: { cattleId: true },
+    });
     const taken = new Set(withPreg.map((p) => p.cattleId));
     const cow = (
       await prisma.cattle.findMany({

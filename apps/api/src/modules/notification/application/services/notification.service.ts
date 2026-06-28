@@ -11,8 +11,17 @@ import {
   getEvent,
   isKnownEvent,
   NOTIFICATION_EVENTS,
+  NotificationChannel,
   NotificationChannels,
 } from '../../domain/notification-events';
+
+/** Channels that ping a device — suppressed during a user's quiet hours (PRD §20.3). */
+const QUIET_HOURS_SUPPRESSED = new Set<NotificationChannel>([
+  'push',
+  'sms',
+  'whatsapp',
+  'telegram',
+]);
 import { NotificationDeliveryService } from './notification-delivery.service';
 import { ListNotificationQueryDto } from '../../presentation/dto/list-notification-query.dto';
 import { UpdatePreferencesDto } from '../../presentation/dto/update-preferences.dto';
@@ -125,8 +134,10 @@ export class NotificationService {
         event.canDisable && override
           ? {
               in_app: override.inApp,
+              push: override.push,
               sms: override.sms,
               whatsapp: override.whatsapp,
+              telegram: override.telegram,
               email: override.email,
             }
           : event.defaultChannels;
@@ -139,11 +150,12 @@ export class NotificationService {
       );
 
       const sent: string[] = [];
+      const dispatch: NotificationChannel[] = [];
       if (channels.in_app) sent.push('in_app');
       for (const ch of externalChannels(channels)) {
-        if (quiet && (ch === 'sms' || ch === 'whatsapp')) continue; // quiet-hours suppression
-        this.delivery.deliver(ch, userId, event.key);
+        if (quiet && QUIET_HOURS_SUPPRESSED.has(ch)) continue;
         sent.push(ch);
+        dispatch.push(ch);
       }
 
       const notification = await this.prisma.notification.create({
@@ -161,6 +173,27 @@ export class NotificationService {
         },
       });
       created.push(notification);
+
+      // External channels go through the dispatcher (best-effort; never blocks
+      // the in-app row that was just persisted).
+      for (const ch of dispatch) {
+        try {
+          await this.delivery.deliver(ch, {
+            userId,
+            eventKey: event.key,
+            category: event.category,
+            priority: event.priority,
+            title: input.title,
+            message: input.message,
+            link: input.link,
+          });
+        } catch (err) {
+          this.log.warn('Channel dispatch threw', {
+            channel: ch,
+            err: (err as Error).message,
+          });
+        }
+      }
     }
 
     this.log.info('Notifications emitted', {
@@ -251,8 +284,10 @@ export class NotificationService {
         const channels = o
           ? {
               in_app: o.inApp,
+              push: o.push,
               sms: o.sms,
               whatsapp: o.whatsapp,
+              telegram: o.telegram,
               email: o.email,
             }
           : e.defaultChannels;
@@ -310,8 +345,10 @@ export class NotificationService {
           eventKey: event.key,
           enabled: pref.enabled ?? true,
           inApp: channels.in_app,
+          push: channels.push,
           sms: channels.sms,
           whatsapp: channels.whatsapp,
+          telegram: channels.telegram,
           email: channels.email,
         },
         update: {
@@ -319,8 +356,10 @@ export class NotificationService {
           ...(pref.channels
             ? {
                 inApp: channels.in_app,
+                push: channels.push,
                 sms: channels.sms,
                 whatsapp: channels.whatsapp,
+                telegram: channels.telegram,
                 email: channels.email,
               }
             : {}),

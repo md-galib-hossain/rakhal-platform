@@ -56,6 +56,7 @@ describe('Notifications (e2e)', () => {
     await prisma.notificationSetting.deleteMany({
       where: { userId: ownerUserId },
     });
+    await prisma.deviceToken.deleteMany({ where: { userId: ownerUserId } });
   }
 
   const emit = (eventKey: string) =>
@@ -68,11 +69,11 @@ describe('Notifications (e2e)', () => {
       link: '/x',
     });
 
-  it('notifyUsers writes an in-app + SMS notification (no quiet hours)', async () => {
+  it('notifyUsers routes in-app + push + SMS (no quiet hours)', async () => {
     const created = await emit('animal_sickness_reported');
     expect(created).toHaveLength(1);
     expect(created[0].channelsSent).toEqual(
-      expect.arrayContaining(['in_app', 'sms']),
+      expect.arrayContaining(['in_app', 'push', 'sms']),
     );
   });
 
@@ -171,6 +172,48 @@ describe('Notifications (e2e)', () => {
       .set(...auth(owner))
       .send({ preferences: [{ event_key: 'nope', enabled: false }] })
       .expect(400);
+  });
+
+  describe('push device tokens', () => {
+    const token = `e2e-fcm-token-${Date.now()}`;
+
+    it('registers, lists, then unregisters a device token', async () => {
+      const reg = await request(server())
+        .post(api('/notifications/devices'))
+        .set(...auth(owner))
+        .send({ token, platform: 'android' })
+        .expect(201);
+      expect(reg.body.data.registered).toBe(true);
+
+      const list = await request(server())
+        .get(api('/notifications/devices'))
+        .set(...auth(owner))
+        .expect(200);
+      expect(
+        (list.body.data as Array<{ platform: string }>).some(
+          (d) => d.platform === 'android',
+        ),
+      ).toBe(true);
+
+      const del = await request(server())
+        .delete(api('/notifications/devices'))
+        .set(...auth(owner))
+        .send({ token, platform: 'android' })
+        .expect(200);
+      expect(del.body.data.removed).toBe(true);
+    });
+
+    it('exposes push in the preference catalogue channels', async () => {
+      const res = await request(server())
+        .get(api('/notifications/preferences'))
+        .set(...auth(owner))
+        .expect(200);
+      const first = res.body.data.preferences[0] as {
+        channels: Record<string, boolean>;
+      };
+      expect(first.channels).toHaveProperty('push');
+      expect(first.channels).toHaveProperty('telegram');
+    });
   });
 
   describe('RBAC', () => {

@@ -20,9 +20,10 @@ describe('notification-events catalogue', () => {
     expect(getEvent('calving_expected_3_days')?.canDisable).toBe(true);
   });
 
-  it('always enables the in_app channel by default', () => {
+  it('always enables in_app + push by default', () => {
     for (const e of NOTIFICATION_EVENTS) {
       expect(e.defaultChannels.in_app).toBe(true);
+      expect(e.defaultChannels.push).toBe(true);
     }
   });
 
@@ -31,20 +32,24 @@ describe('notification-events catalogue', () => {
     expect(isKnownEvent('nope')).toBe(false);
   });
 
-  it('extracts only the external (non-in_app) channels', () => {
+  it('extracts only the external (non-in_app) channels, push first', () => {
     expect(
       externalChannels({
         in_app: true,
+        push: true,
         sms: true,
         whatsapp: false,
+        telegram: false,
         email: true,
       }),
-    ).toEqual(['sms', 'email']);
+    ).toEqual(['push', 'sms', 'email']);
     expect(
       externalChannels({
         in_app: true,
+        push: false,
         sms: false,
         whatsapp: false,
+        telegram: false,
         email: false,
       }),
     ).toEqual([]);

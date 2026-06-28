@@ -1,33 +1,58 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { NotificationChannel } from '../../domain/notification-events';
+import {
+  ChannelMessage,
+  ChannelProvider,
+  CHANNEL_PROVIDERS,
+  DeliveryResult,
+} from '../channels/channel-provider.port';
 
 /**
- * External-channel delivery seam (PRD §20.1). SMS / WhatsApp / Email all require
- * a provider that has not been chosen yet (blocked — see DECISIONS), so this is a
- * **stub**: it records intent in the log and returns. The in-app channel needs no
- * provider (the `Notification` row *is* the delivery), so it never reaches here.
- * Swap the body for a real provider (RAKHAL-110) with no change to callers.
+ * Outbound-channel dispatcher (PRD §20.1). Channel-agnostic: it routes each
+ * external channel to its registered `ChannelProvider` and never throws. A
+ * channel with no provider — or a provider that isn't configured (no creds yet,
+ * e.g. SMS/WhatsApp/Telegram) — is **deferred** (logged), so the rest of the
+ * notification still goes out. `in_app` never reaches here (the row is the
+ * delivery). Add a channel by registering its provider in `CHANNEL_PROVIDERS`.
  */
 @Injectable()
 export class NotificationDeliveryService {
   private readonly log: LoggerService;
+  private readonly byChannel: Map<NotificationChannel, ChannelProvider>;
 
-  constructor(logger: LoggerService) {
+  constructor(
+    @Inject(CHANNEL_PROVIDERS) providers: ChannelProvider[],
+    logger: LoggerService,
+  ) {
     this.log = logger.setContext(NotificationDeliveryService.name);
+    this.byChannel = new Map(providers.map((p) => [p.channel, p]));
   }
 
-  deliver(
+  async deliver(
     channel: NotificationChannel,
-    userId: string,
-    eventKey: string,
-  ): void {
-    if (channel === 'in_app') return;
-    // No provider yet — record the intent so it's observable and forward-compatible.
-    this.log.info('External notification deferred (no provider)', {
+    msg: ChannelMessage,
+  ): Promise<DeliveryResult> {
+    if (channel === 'in_app') return { delivered: true };
+
+    const provider = this.byChannel.get(channel);
+    if (!provider || !provider.isConfigured()) {
+      this.log.info('Channel deferred (no provider configured)', {
+        channel,
+        userId: msg.userId,
+        eventKey: msg.eventKey,
+      });
+      return { delivered: false, detail: 'not_configured' };
+    }
+
+    const result = await provider.send(msg);
+    this.log.info('Channel dispatched', {
       channel,
-      userId,
-      eventKey,
+      userId: msg.userId,
+      eventKey: msg.eventKey,
+      delivered: result.delivered,
+      detail: result.detail,
     });
+    return result;
   }
 }
