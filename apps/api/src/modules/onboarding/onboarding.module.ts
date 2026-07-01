@@ -5,6 +5,7 @@ import { AuthModule } from '../auth/auth.module';
 import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { SettingsModule } from '../settings/settings.module';
+import { SubscriptionModule } from '../subscription/subscription.module';
 import { OnboardingService } from './application/services/onboarding.service';
 import { OnboardingController } from './presentation/controllers/onboarding.controller';
 
@@ -16,6 +17,7 @@ import { OnboardingController } from './presentation/controllers/onboarding.cont
     TenantAccessModule,
     PermissionModule,
     SettingsModule,
+    SubscriptionModule,
   ],
   controllers: [OnboardingController],
   providers: [OnboardingService],

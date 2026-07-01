@@ -15,6 +15,9 @@ import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
+import { SubscriptionFeatureGuard } from 'src/modules/subscription/presentation/guards/subscription-feature.guard';
+import { RequireFeature } from 'src/modules/subscription/presentation/decorators/require-feature.decorator';
 import { FeedConcentrationService } from '../../application/services/feed-concentration.service';
 import { FeedGroupAssignService } from '../../application/services/feed-group-assign.service';
 import { FeedIngredientService } from '../../application/services/feed-ingredient.service';
@@ -34,9 +37,21 @@ import {
   ListDistributionQueryDto,
 } from '../dto/list-distribution-query.dto';
 
-/** Feed Formulator (PRD §12 / API §8). `/api/v1/feed`. Token tenancy + RBAC. */
+/**
+ * Feed Formulator (PRD §12 / API §8). `/api/v1/feed`. Token tenancy + RBAC +
+ * **subscription gate**: Feed Formulator is a Starter/Pro feature
+ * (`feed.formulator`, RAKHAL-219); baseline guard makes it read-only in grace.
+ */
 @Controller('feed')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+  SubscriptionFeatureGuard,
+)
+@RequireFeature('feed.formulator')
 export class FeedController {
   constructor(
     private readonly ingredients: FeedIngredientService,

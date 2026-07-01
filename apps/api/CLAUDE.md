@@ -1,4 +1,4 @@
-# Rakhaal Backend — Claude Code memory (auto-loaded)
+# Rakhal Backend — Claude Code memory (auto-loaded)
 
 NestJS + Prisma + PostgreSQL dairy-farm SaaS backend. **Do not redesign — follow existing patterns.**
 
@@ -6,7 +6,7 @@ NestJS + Prisma + PostgreSQL dairy-farm SaaS backend. **Do not redesign — foll
 - **`../../docs/IN_FLIGHT.md` — parallel agents work this tree at once. Read it and claim your ticket there BEFORE editing.** Hot shared files (`prisma/schemas/{farm,auth,permission}/*.prisma`, `prisma/seed.ts`, `src/app.module.ts`, the status docs, `RD-NNN`/`RAKHAL-NNN` numbering) are append-only + re-`Read` before each `Edit`; one `migrate dev` at a time.
 - `docs/TEMPLATE_OVERVIEW.md` — the bible: layering + conventions (§2), guard chain (§6), gaps (§13), reusable building blocks (§16).
 - Project state + next task: `../../docs/CURRENT_STATE.md` and `../../docs/HANDOFF.md`.
-- Tickets: `../../docs/PROJECT_PROGRESS.md`. Specs: `../../docs/Rakhaal_PRD_v3_Complete.md`, `../../docs/Rakhaal_API.md`.
+- Tickets: `../../docs/PROJECT_PROGRESS.md`. Specs: `../../docs/Rakhal_PRD_v3_Complete.md`, `../../docs/Rakhal_API.md`.
 
 ## Reference module
 Copy `src/modules/inventory/` for any new module.

@@ -6,7 +6,7 @@ import { ActivityLogModule } from '@prisma/client';
  * Activity Log entry.
  *
  * **These are LAUNCH DEFAULTS, not the source of truth at runtime.** The AQR
- * algorithm is designed to be controllable by the future **Rakhaal Admin panel**
+ * algorithm is designed to be controllable by the future **Rakhal Admin panel**
  * (PRD §25.7 AQR-04..08, ADR-008/009): the engine never reads this table
  * directly — it resolves every parameter through {@link AqrConfigService}, the
  * single seam the Admin integration (RAKHAL-110) backs with the global Admin

@@ -4,7 +4,7 @@
 > It describes what already exists (architecture, auth, authorization, multi-tenancy, subscriptions,
 > middleware, exceptions, config, Prisma, Redis, email + job queues, observability, health) and — critically —
 > **what is NOT yet wired** so feature work against [`docs/PROJECT_PROGRESS.md`](../../../docs/PROJECT_PROGRESS.md)
-> and [`docs/Rakhaal_API.md`](../../../docs/Rakhaal_API.md) doesn't trip over hidden assumptions.
+> and [`docs/Rakhal_API.md`](../../../docs/Rakhal_API.md) doesn't trip over hidden assumptions.
 >
 > **Read order for a new agent:** this file → [`ARCHITECTURE.md`](ARCHITECTURE.md) → [`AUTH_USAGE.md`](AUTH_USAGE.md) →
 > [`PermissionArcitecture.md`](PermissionArcitecture.md) → [`ERROR_FLOW_GUIDE.md`](ERROR_FLOW_GUIDE.md) → [`OBSERVABILITY_GUIDE.md`](OBSERVABILITY_GUIDE.md).
@@ -421,7 +421,7 @@ Detail in [`ERROR_FLOW_GUIDE.md`](ERROR_FLOW_GUIDE.md).
 
 **Success envelope:** `ResponseEnvelopeInterceptor` (global `APP_INTERCEPTOR`, `src/common/interceptors/`) wraps every successful controller return as `{ success: true, data, meta? }`. It hoists service pagination shapes (`{ items, meta }` → `{ success, data: items, meta }`), and passes through (no wrapping) for: `null`/`undefined` payloads, values that already carry a boolean `success` field (e.g. the health controller), and binary/stream responses (PDFs, `/metrics`). Errors are enveloped separately by `GlobalExceptionFilter`.
 
-> Net effect: responses now match the Rakhaal API contract's `{ success, data, meta }` / `{ success:false, error... }` envelopes. Clients read tokens/payloads from `data.*` (e.g. `data.accessToken`).
+> Net effect: responses now match the Rakhal API contract's `{ success, data, meta }` / `{ success:false, error... }` envelopes. Clients read tokens/payloads from `data.*` (e.g. `data.accessToken`).
 
 ---
 
@@ -468,7 +468,7 @@ The email pipeline is the **reference implementation** for queue-backed backgrou
 
 ## 13. Gaps & Decisions — Status
 
-Foundation mismatches with the Rakhaal API contract ([`Rakhaal_API.md`](../../../docs/Rakhaal_API.md)). The low-risk, high-leverage ones are now **fixed**; the rest are scoped follow-ups tied to tracker tickets.
+Foundation mismatches with the Rakhal API contract ([`Rakhal_API.md`](../../../docs/Rakhal_API.md)). The low-risk, high-leverage ones are now **fixed**; the rest are scoped follow-ups tied to tracker tickets.
 
 ### ✅ Fixed (2026-06-23)
 
@@ -497,7 +497,7 @@ Foundation mismatches with the Rakhaal API contract ([`Rakhaal_API.md`](../../..
 
 9. **Activity Log ≠ Audit Log.** `AuditLog` covers security/admin events. The PRD's **Activity Log** (§19) is a user-facing, immutable, hash-chained, AQR-emitting feed — a separate module (**RAKHAL-033**). Don't overload `AuditLog`.
 
-10. **AQR is an Admin-tunable engine — never hard-code its parameters.** The AQR algorithm (PRD §19.4, §25.7 AQR-04..08) is owned by the future Rakhaal Admin panel. `AqrService` resolves **every** tunable (per-event deltas, nullify behaviour, clamp bounds) through the `AqrConfigService` provider seam — it holds no constants of its own. `aqr-events.ts` is the **launch-default** table, not the runtime source of truth. When adding an AQR-impacting event, add it to the catalogue and emit via `aqrService.applyEvent(...)`; do **not** read deltas/bounds directly anywhere. RAKHAL-110 backs the seam with Admin global + per-farm config (resolution: per-farm override → Admin default → built-in default) with no engine change.
+10. **AQR is an Admin-tunable engine — never hard-code its parameters.** The AQR algorithm (PRD §19.4, §25.7 AQR-04..08) is owned by the future Rakhal Admin panel. `AqrService` resolves **every** tunable (per-event deltas, nullify behaviour, clamp bounds) through the `AqrConfigService` provider seam — it holds no constants of its own. `aqr-events.ts` is the **launch-default** table, not the runtime source of truth. When adding an AQR-impacting event, add it to the catalogue and emit via `aqrService.applyEvent(...)`; do **not** read deltas/bounds directly anywhere. RAKHAL-110 backs the seam with Admin global + per-farm config (resolution: per-farm override → Admin default → built-in default) with no engine change.
 
 ---
 

@@ -8,7 +8,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 /**
- * Standard success envelope mandated by the Rakhaal API contract:
+ * Standard success envelope mandated by the Rakhal API contract:
  *   { success: true, data, meta? }
  *
  * The matching error envelope is produced by GlobalExceptionFilter, so this

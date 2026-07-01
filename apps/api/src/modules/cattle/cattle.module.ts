@@ -4,6 +4,7 @@ import { AuthModule } from '../auth/auth.module';
 import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { ActivityModule } from '../activity/activity.module';
+import { SubscriptionModule } from '../subscription/subscription.module';
 import { BcsService } from './application/services/bcs.service';
 import { BreedService } from './application/services/breed.service';
 import { CattleService } from './application/services/cattle.service';
@@ -22,6 +23,7 @@ import { ShedController } from './presentation/controllers/shed.controller';
     TenantAccessModule,
     PermissionModule,
     ActivityModule,
+    SubscriptionModule,
   ],
   controllers: [CattleController, BreedController, ShedController],
   providers: [

@@ -23,6 +23,7 @@ import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { NON_VOID_TXN } from 'src/common/finance/txn-filters';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
+import { SubscriptionAccessService } from 'src/modules/subscription/application/services/subscription-access.service';
 import { VWP_DEFAULT_DAYS } from '../../domain/cattle.constants';
 import { deriveHealthStatus } from '../../domain/health-status';
 import { AncestryQueryDto } from '../../presentation/dto/ancestry-query.dto';
@@ -74,12 +75,19 @@ export class CattleService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aqrService: AqrService,
+    private readonly subscriptionAccess: SubscriptionAccessService,
     private readonly logger: LoggerService,
   ) {
     this.log = this.logger.setContext(CattleService.name);
   }
 
   async create(farmId: string, userId: string, dto: CreateCattleDto) {
+    // Enforce the plan's herd ceiling before adding (RAKHAL-219, CAT limit).
+    const activeCount = await this.prisma.cattle.count({
+      where: { farmId, isActive: true },
+    });
+    await this.subscriptionAccess.assertCattleLimit(farmId, activeCount);
+
     await this.validateReferences(farmId, dto);
     await this.validateParentRules(farmId, undefined, dto);
 

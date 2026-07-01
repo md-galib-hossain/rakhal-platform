@@ -61,6 +61,8 @@ model Farm {
   feedDistributions   FeedDistribution[]   @relation("FarmToFeedDistribution")
   scoreboardParticipation ScoreboardParticipation? @relation("FarmToScoreboardParticipation")
   notifications           Notification[]           @relation("FarmToNotification")
+  reproProtocols          ReproProtocol[]          @relation("FarmToReproProtocol")
+  reproProtocolInstances  ReproProtocolInstance[]  @relation("FarmToReproProtocolInstance")
 
   @@index([ownerId])
   @@index([slug])

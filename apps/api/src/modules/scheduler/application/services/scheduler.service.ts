@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { NotificationService } from 'src/modules/notification/application/services/notification.service';
+import { SubscriptionLifecycleService } from 'src/modules/subscription/application/services/subscription-lifecycle.service';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const BOSSES = ['Owner', 'Manager'];
@@ -24,6 +25,7 @@ export class SchedulerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationService,
+    private readonly subscriptionLifecycle: SubscriptionLifecycleService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(SchedulerService.name);
@@ -37,6 +39,7 @@ export class SchedulerService {
       ['payment_overdue', () => this.sweepPaymentOverdue()],
       ['task_overdue', () => this.sweepTasksOverdue()],
       ['medicine_expiring_30_days', () => this.sweepMedicineExpiring()],
+      ['subscription_expiry', () => this.sweepSubscriptionExpiry()],
     ] as const) {
       try {
         results[name] = await sweep();
@@ -167,6 +170,18 @@ export class SchedulerService {
       });
     }
     return emitted;
+  }
+
+  /**
+   * Subscription lifecycle transitions (RAKHAL-218, SUB-03): flip expired
+   * ACTIVE/TRIALING → PAST_DUE (grace) → EXPIRED. Delegates to the subscription
+   * module (owns the cache invalidation). **No auto-charge** (ADR-014); renewal
+   * reminders are RAKHAL-240. Returns the count of transitions.
+   */
+  private async sweepSubscriptionExpiry(): Promise<number> {
+    const { pastDue, expired } =
+      await this.subscriptionLifecycle.runExpirySweep();
+    return pastDue + expired;
   }
 
   // ---- helpers ------------------------------------------------------------

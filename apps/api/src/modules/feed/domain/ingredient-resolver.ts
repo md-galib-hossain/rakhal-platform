@@ -1,6 +1,6 @@
 /**
  * Effective-ingredient resolution (PRD §4.3 / §12.1, RAKHAL-080). Pure — merges
- * the Rakhaal-Admin catalogue values with a farm's per-org override: any custom
+ * the Rakhal-Admin catalogue values with a farm's per-org override: any custom
  * field wins, null falls through to the standard value. No framework/Prisma.
  */
 
@@ -23,7 +23,7 @@ export interface IngredientOverride {
   customNdfPct: number | null;
 }
 
-export type PriceSource = 'rakhaal_market' | 'farm_override';
+export type PriceSource = 'rakhal_market' | 'farm_override';
 
 export interface EffectiveIngredient {
   id: string;
@@ -59,7 +59,7 @@ export function resolveEffective(
   return {
     id: ingredient.id,
     pricePerKg: pick(override?.customPricePerKg, ingredient.currentPricePerKg),
-    priceSource: priceOverridden ? 'farm_override' : 'rakhaal_market',
+    priceSource: priceOverridden ? 'farm_override' : 'rakhal_market',
     hasNutritionOverride,
     dmPct: pick(override?.customDmPct, ingredient.dmPct),
     cpPct: pick(override?.customCpPct, ingredient.cpPct),

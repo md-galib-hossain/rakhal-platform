@@ -14,12 +14,27 @@ import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
+import { SubscriptionFeatureGuard } from 'src/modules/subscription/presentation/guards/subscription-feature.guard';
+import { RequireFeature } from 'src/modules/subscription/presentation/decorators/require-feature.decorator';
 import { ReportsService } from '../../application/services/reports.service';
 import { GenerateReportDto } from '../dto/generate-report.dto';
 
-/** Reports (PRD §22 / API §15). `/api/v1/reports`. Token tenancy + RBAC. */
+/**
+ * Reports (PRD §22 / API §15). `/api/v1/reports`. Token tenancy + RBAC +
+ * **subscription gate**: the Reports engine is a Pro feature (`reports.generate`,
+ * RAKHAL-219), and the baseline `SubscriptionGuard` makes it read-only in grace.
+ */
 @Controller('reports')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+  SubscriptionFeatureGuard,
+)
+@RequireFeature('reports.generate')
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 

@@ -10,6 +10,7 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { SettingsService } from 'src/modules/settings/application/services/settings.service';
 import { WorkspaceSettingsService } from 'src/modules/settings/application/services/workspace-settings.service';
+import { SubscriptionAccessService } from 'src/modules/subscription/application/services/subscription-access.service';
 import { ConfigureOnboardingDto } from '../../presentation/dto/configure-onboarding.dto';
 
 /**
@@ -29,6 +30,7 @@ export class OnboardingService {
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly workspace: WorkspaceSettingsService,
+    private readonly subscriptionAccess: SubscriptionAccessService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(OnboardingService.name);
@@ -129,6 +131,15 @@ export class OnboardingService {
     if (existing) {
       throw new ConflictException('You are already a member of this farm');
     }
+
+    // Enforce the plan's team-seat ceiling before adding (RAKHAL-219).
+    const memberCount = await this.prisma.farmMember.count({
+      where: { farmId: invite.farmId },
+    });
+    await this.subscriptionAccess.assertMemberSeatAvailable(
+      invite.farmId,
+      memberCount,
+    );
 
     await this.prisma.$transaction([
       this.prisma.farmMember.create({

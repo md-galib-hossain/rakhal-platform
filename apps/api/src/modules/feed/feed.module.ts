@@ -3,6 +3,7 @@ import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { AuthModule } from '../auth/auth.module';
 import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
+import { SubscriptionModule } from '../subscription/subscription.module';
 import { FeedConcentrationService } from './application/services/feed-concentration.service';
 import { FeedGroupAssignService } from './application/services/feed-group-assign.service';
 import { FeedIngredientService } from './application/services/feed-ingredient.service';
@@ -16,7 +17,13 @@ import { FeedController } from './presentation/controllers/feed.controller';
  * directly via Prisma — no cross-module service coupling (no cycles).
  */
 @Module({
-  imports: [AuthModule, LoggerModule, TenantAccessModule, PermissionModule],
+  imports: [
+    AuthModule,
+    LoggerModule,
+    TenantAccessModule,
+    PermissionModule,
+    SubscriptionModule,
+  ],
   controllers: [FeedController],
   providers: [
     FeedIngredientService,

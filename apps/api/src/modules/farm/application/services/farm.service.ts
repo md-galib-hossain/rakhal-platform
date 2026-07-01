@@ -7,6 +7,7 @@ import { Farm } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { SYSTEM_ROLES } from 'src/modules/permission/domain/permission-catalogue';
+import { SubscriptionLifecycleService } from 'src/modules/subscription/application/services/subscription-lifecycle.service';
 import { CreateFarmDto } from '../../presentation/dto/create-farm.dto';
 
 /**
@@ -23,6 +24,7 @@ export class FarmService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly subscriptionLifecycle: SubscriptionLifecycleService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(FarmService.name);
@@ -56,6 +58,15 @@ export class FarmService {
     });
 
     this.log.info('Farm created', { farmId: farm.id, ownerId: userId });
+
+    // Auto-provision the 14-day Starter trial (SUB-01). Best-effort — never
+    // block farm bootstrap if plans aren't seeded / provisioning hiccups.
+    try {
+      await this.subscriptionLifecycle.provisionTrial(farm.id);
+    } catch (err) {
+      this.log.error('Trial provisioning failed (farm still created)', err);
+    }
+
     return farm;
   }
 

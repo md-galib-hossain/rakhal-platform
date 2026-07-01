@@ -3,6 +3,7 @@ import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { AuthModule } from '../auth/auth.module';
 import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
+import { SubscriptionModule } from '../subscription/subscription.module';
 import { ReportGeneratorsService } from './application/services/report-generators.service';
 import { ReportsService } from './application/services/reports.service';
 import { ReportsController } from './presentation/controllers/reports.controller';
@@ -13,7 +14,13 @@ import { ReportsController } from './presentation/controllers/reports.controller
  * it needs no cross-module service imports (and creates no cycles).
  */
 @Module({
-  imports: [AuthModule, LoggerModule, TenantAccessModule, PermissionModule],
+  imports: [
+    AuthModule,
+    LoggerModule,
+    TenantAccessModule,
+    PermissionModule,
+    SubscriptionModule,
+  ],
   controllers: [ReportsController],
   providers: [ReportsService, ReportGeneratorsService],
   exports: [ReportsService],

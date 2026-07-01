@@ -7,6 +7,7 @@ import {
   FinanceTxnStatus,
   FinanceTxnType,
   PrismaClient,
+  SubscriptionStatus,
   WalletDirection,
 } from '@prisma/client';
 import * as argon2 from 'argon2';
@@ -16,6 +17,10 @@ import {
   SYSTEM_ROLES,
   SystemRoleName,
 } from '../src/modules/permission/domain/permission-catalogue';
+import {
+  FEATURE_CATALOGUE,
+  PLAN_CATALOGUE,
+} from '../src/modules/subscription/domain/subscription-features';
 
 /**
  * RBAC + dev-data seed (RAKHAL-019). Idempotent — safe to run repeatedly.
@@ -215,7 +220,7 @@ async function seedDemoFinance(
 }
 
 /**
- * Global feed-ingredient catalogue (PRD §4.1 / §12.1). These are Rakhaal-Admin
+ * Global feed-ingredient catalogue (PRD §4.1 / §12.1). These are Rakhal-Admin
  * defaults; until the Admin panel exists (RAKHAL-110) they ship as seeded
  * `isSystemDefault` rows. Values are plausible INRA/NRC/BAU references for common
  * Bangladesh dairy feeds — review/refine with the Admin nutritionist.
@@ -279,6 +284,193 @@ async function seedFeedIngredients(): Promise<void> {
   console.log(`✔ feed ingredients seeded (${ingredients.length})`);
 }
 
+/**
+ * Default reproductive (synchronization) protocols (RAKHAL-214, PRD §9.8). Global
+ * `isSystemDefault` templates (farmId = null) any farm can apply or clone, mirroring
+ * the feed-ingredient catalogue seam. Day numbers are protocol day offsets.
+ */
+async function seedReproProtocols(): Promise<void> {
+  type Step = {
+    dayNumber: number;
+    title: string;
+    stepType:
+      | 'GNRH'
+      | 'PGF2ALPHA'
+      | 'CIDR_INSERT'
+      | 'CIDR_REMOVE'
+      | 'AI'
+      | 'PREGNANCY_CHECK'
+      | 'OTHER';
+  };
+  type Protocol = {
+    id: string;
+    name: string;
+    code: string;
+    description: string;
+    durationDays: number;
+    steps: Step[];
+  };
+
+  const protocols: Protocol[] = [
+    {
+      id: 'repro_ovsynch',
+      name: 'Ovsynch',
+      code: 'OVSYNCH',
+      description: 'GnRH → 7d PGF₂α → 2d GnRH → Timed AI (the classic Ovsynch).',
+      durationDays: 10,
+      steps: [
+        { dayNumber: 0, title: 'GnRH injection', stepType: 'GNRH' },
+        { dayNumber: 7, title: 'PGF₂α injection', stepType: 'PGF2ALPHA' },
+        { dayNumber: 9, title: 'GnRH injection', stepType: 'GNRH' },
+        { dayNumber: 10, title: 'Timed AI', stepType: 'AI' },
+        { dayNumber: 40, title: 'Pregnancy check', stepType: 'PREGNANCY_CHECK' },
+      ],
+    },
+    {
+      id: 'repro_cidr_synch',
+      name: 'CIDR-Synch',
+      code: 'CIDR_SYNCH',
+      description:
+        'CIDR insert + GnRH → 7d remove + PGF₂α → GnRH → Timed AI (progesterone-based).',
+      durationDays: 10,
+      steps: [
+        { dayNumber: 0, title: 'Insert CIDR device', stepType: 'CIDR_INSERT' },
+        { dayNumber: 0, title: 'GnRH injection', stepType: 'GNRH' },
+        { dayNumber: 7, title: 'Remove CIDR device', stepType: 'CIDR_REMOVE' },
+        { dayNumber: 7, title: 'PGF₂α injection', stepType: 'PGF2ALPHA' },
+        { dayNumber: 9, title: 'GnRH injection', stepType: 'GNRH' },
+        { dayNumber: 10, title: 'Timed AI', stepType: 'AI' },
+        { dayNumber: 40, title: 'Pregnancy check', stepType: 'PREGNANCY_CHECK' },
+      ],
+    },
+    {
+      id: 'repro_presynch_ovsynch',
+      name: 'Presynch-Ovsynch',
+      code: 'PRESYNCH_OVSYNCH',
+      description:
+        'Two PGF₂α 14 days apart (presynch), then a standard Ovsynch — higher conception in cyclic cows.',
+      durationDays: 36,
+      steps: [
+        { dayNumber: 0, title: 'PGF₂α injection (Presynch 1)', stepType: 'PGF2ALPHA' },
+        { dayNumber: 14, title: 'PGF₂α injection (Presynch 2)', stepType: 'PGF2ALPHA' },
+        { dayNumber: 26, title: 'GnRH injection (Ovsynch start)', stepType: 'GNRH' },
+        { dayNumber: 33, title: 'PGF₂α injection', stepType: 'PGF2ALPHA' },
+        { dayNumber: 35, title: 'GnRH injection', stepType: 'GNRH' },
+        { dayNumber: 36, title: 'Timed AI', stepType: 'AI' },
+        { dayNumber: 66, title: 'Pregnancy check', stepType: 'PREGNANCY_CHECK' },
+      ],
+    },
+  ];
+
+  for (const p of protocols) {
+    const data = {
+      name: p.name,
+      code: p.code,
+      description: p.description,
+      durationDays: p.durationDays,
+      isSystemDefault: true,
+      isActive: true,
+    };
+    await prisma.reproProtocol.upsert({
+      where: { id: p.id },
+      update: data,
+      create: { id: p.id, ...data },
+    });
+    await prisma.reproProtocolStep.deleteMany({ where: { protocolId: p.id } });
+    await prisma.reproProtocolStep.createMany({
+      data: p.steps.map((s) => ({ protocolId: p.id, ...s })),
+    });
+  }
+  console.log(`✔ repro protocols: ${protocols.length} system defaults`);
+}
+
+/**
+ * Subscription plan catalogue (RAKHAL-217, PRD §31.1). Idempotent: upserts the
+ * `Feature` catalogue + Free/Starter/Pro `SubscriptionPlan`s, then resets each
+ * plan's `SubscriptionFeature` matrix to exactly match `subscription-features.ts`.
+ */
+async function seedSubscriptionPlans(): Promise<void> {
+  for (const f of FEATURE_CATALOGUE) {
+    await prisma.feature.upsert({
+      where: { key: f.key },
+      update: { description: f.description },
+      create: { key: f.key, description: f.description },
+    });
+  }
+
+  const featureIdByKey = new Map(
+    (
+      await prisma.feature.findMany({ select: { id: true, key: true } })
+    ).map((f) => [f.key, f.id] as const),
+  );
+
+  for (const plan of PLAN_CATALOGUE) {
+    const existing = await prisma.subscriptionPlan.findUnique({
+      where: { name: plan.name },
+    });
+    const data = {
+      description: plan.description,
+      monthlyPrice: plan.monthlyPrice,
+      yearlyPrice: plan.yearlyPrice,
+      maxCattle: plan.maxCattle,
+      maxFarmMembers: plan.maxFarmMembers,
+    };
+    const row = existing
+      ? await prisma.subscriptionPlan.update({
+          where: { id: existing.id },
+          data,
+        })
+      : await prisma.subscriptionPlan.create({
+          data: { name: plan.name, ...data },
+        });
+
+    // Reset the plan↔feature matrix to exactly match the catalogue.
+    await prisma.subscriptionFeature.deleteMany({
+      where: { subscriptionPlanId: row.id },
+    });
+    await prisma.subscriptionFeature.createMany({
+      data: plan.features
+        .map((key) => featureIdByKey.get(key))
+        .filter((id): id is string => Boolean(id))
+        .map((featureId) => ({
+          subscriptionPlanId: row.id,
+          featureId,
+          enabled: true,
+        })),
+    });
+  }
+}
+
+/**
+ * Give the demo farm an ACTIVE Pro subscription (unlimited, 1-year) so demo +
+ * e2e flows retain full feature access once the subscription gate lands
+ * (RAKHAL-218). Idempotent; requires `seedSubscriptionPlans()` to have run.
+ */
+async function seedDemoSubscription(farmId: string): Promise<void> {
+  const existing = await prisma.farmSubscription.findFirst({
+    where: { farmId },
+  });
+  if (existing) return;
+
+  const pro = await prisma.subscriptionPlan.findUnique({
+    where: { name: 'Pro' },
+    select: { id: true },
+  });
+  if (!pro) return;
+
+  const now = new Date();
+  await prisma.farmSubscription.create({
+    data: {
+      farmId,
+      subscriptionPlanId: pro.id,
+      status: SubscriptionStatus.ACTIVE,
+      startsAt: now,
+      expiresAt: new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000),
+    },
+  });
+  console.log('✔ demo subscription: ACTIVE Pro (1 year)');
+}
+
 async function main(): Promise<void> {
   await seedPermissions();
   const ownerRoleId = await seedRole(SYSTEM_ROLES.OWNER);
@@ -303,6 +495,11 @@ async function main(): Promise<void> {
     await seedDemoFinance(demo.farmId, demo.ownerUserId);
   }
   await seedFeedIngredients();
+  await seedReproProtocols();
+  await seedSubscriptionPlans();
+  if (demo.farmId) {
+    await seedDemoSubscription(demo.farmId);
+  }
 }
 
 main()

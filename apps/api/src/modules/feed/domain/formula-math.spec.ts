@@ -8,7 +8,7 @@ const eff = (
 ): EffectiveIngredient => ({
   id,
   pricePerKg: 50,
-  priceSource: 'rakhaal_market',
+  priceSource: 'rakhal_market',
   hasNutritionOverride: false,
   dmPct: 88,
   cpPct: 17,

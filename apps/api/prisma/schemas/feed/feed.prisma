@@ -1,7 +1,7 @@
 /// Feed Formulator (PRD §12 / API §8). Farms price ingredients, compute a
 /// cow/group's nutritional requirements, and build concentration formulas.
 ///
-/// The ingredient catalogue is **Rakhaal-Admin-managed** but the Admin panel is
+/// The ingredient catalogue is **Rakhal-Admin-managed** but the Admin panel is
 /// not built yet, so `FeedIngredient` is a seeded global catalogue (no `farmId`,
 /// `isSystemDefault`) — the same pattern as `DiseaseCatalog` / the AQR config
 /// seam. RAKHAL-110 will later sync it from the real Admin. Farms layer

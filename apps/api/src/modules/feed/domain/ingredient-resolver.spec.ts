@@ -24,10 +24,10 @@ const emptyOverride: IngredientOverride = {
 };
 
 describe('resolveEffective', () => {
-  it('falls through to Rakhaal market values with no override', () => {
+  it('falls through to Rakhal market values with no override', () => {
     const eff = resolveEffective(base);
     expect(eff.pricePerKg).toBe(52);
-    expect(eff.priceSource).toBe('rakhaal_market');
+    expect(eff.priceSource).toBe('rakhal_market');
     expect(eff.hasNutritionOverride).toBe(false);
     expect(eff.cpPct).toBe(17);
   });
@@ -47,7 +47,7 @@ describe('resolveEffective', () => {
     expect(eff.cpPct).toBe(20);
     expect(eff.dmPct).toBe(88); // untouched
     expect(eff.hasNutritionOverride).toBe(true);
-    expect(eff.priceSource).toBe('rakhaal_market'); // price not overridden
+    expect(eff.priceSource).toBe('rakhal_market'); // price not overridden
   });
 
   it('treats a custom price of 0 as an override (not a fall-through)', () => {

@@ -31,7 +31,7 @@ export interface ApplyEventOptions {
  * Herd AQR (AQR-03) is the mean of active, non-nullified cattle scores.
  * Modules inject this service and call `applyEvent(...)` on their domain events
  * (cattle registration, milk session, sickness, calving, …). Because every
- * tunable parameter is resolved through the config provider, the Rakhaal Admin
+ * tunable parameter is resolved through the config provider, the Rakhal Admin
  * panel can re-tune the algorithm (RAKHAL-110) without changing this engine.
  */
 @Injectable()

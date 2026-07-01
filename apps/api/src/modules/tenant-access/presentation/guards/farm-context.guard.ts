@@ -9,7 +9,7 @@ import { AuthenticatedHttpRequest } from 'src/modules/auth/domain/authenticated-
 import { TenantAccessService } from '../../application/services/tenant-access.service';
 
 /**
- * Token-based tenancy guard (the Rakhaal API contract: "all data routes are
+ * Token-based tenancy guard (the Rakhal API contract: "all data routes are
  * scoped to the organization_id from the authenticated session").
  *
  * Unlike {@link FarmMembershipGuard}, which reads `farmId` from a route param,

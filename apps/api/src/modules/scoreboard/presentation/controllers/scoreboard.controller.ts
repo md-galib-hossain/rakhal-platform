@@ -13,6 +13,9 @@ import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
+import { SubscriptionFeatureGuard } from 'src/modules/subscription/presentation/guards/subscription-feature.guard';
+import { RequireFeature } from 'src/modules/subscription/presentation/decorators/require-feature.decorator';
 import { ScoreboardService } from '../../application/services/scoreboard.service';
 import { JoinScoreboardDto } from '../dto/join-scoreboard.dto';
 import { LeaderboardQueryDto } from '../dto/leaderboard-query.dto';
@@ -20,10 +23,20 @@ import { LeaderboardQueryDto } from '../dto/leaderboard-query.dto';
 /**
  * Scoreboard (PRD §18 / API §14, RAKHAL-206). `/api/v1/scoreboard`. Token tenancy
  * + RBAC: view = `scoreboard.read` (Owner/Manager); join/leave = `scoreboard.join`
- * (Owner only). The leaderboard is cross-tenant but reads only opted-in farms.
+ * (Owner only). **Subscription gate:** Scoreboard is a Pro feature
+ * (`scoreboard.read`, RAKHAL-219). The leaderboard is cross-tenant but reads only
+ * opted-in farms.
  */
 @Controller('scoreboard')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+  SubscriptionFeatureGuard,
+)
+@RequireFeature('scoreboard.read')
 export class ScoreboardController {
   constructor(private readonly scoreboard: ScoreboardService) {}
 

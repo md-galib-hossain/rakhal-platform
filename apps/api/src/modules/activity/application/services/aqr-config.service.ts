@@ -24,7 +24,7 @@ export interface FarmAqrOverrides {
  * Resolution order (per parameter): **farm override → Admin global default →
  * built-in launch default**. Today no overrides are stored, so every farm falls
  * through to the built-in defaults ({@link AQR_EVENTS}, {@link AQR_DEFAULT_BOUNDS}).
- * The **Rakhaal Admin panel** integration (RAKHAL-110) will populate
+ * The **Rakhal Admin panel** integration (RAKHAL-110) will populate
  * {@link overridesFor} from the Admin-managed config (global defaults +
  * per-`farmId` overrides) — no engine change required. Config changes are
  * non-retroactive (applied to future events only) and audited.
@@ -57,7 +57,7 @@ export class AqrConfigService {
   /**
    * Resolve a farm's effective overrides. Stub today (returns whatever is in the
    * in-memory map, i.e. nothing) — RAKHAL-110 replaces the body with a cached
-   * fetch from Rakhaal Admin (global defaults merged with per-farm overrides).
+   * fetch from Rakhal Admin (global defaults merged with per-farm overrides).
    */
   private overridesFor(farmId: string): Promise<FarmAqrOverrides> {
     return Promise.resolve(this.overrides.get(farmId) ?? {});

@@ -6,7 +6,7 @@ import { SetFeedOverrideDto } from '../../presentation/dto/set-feed-override.dto
 
 /**
  * Feed ingredient catalogue + per-farm overrides (PRD §12.1 / §4.3, RAKHAL-080).
- * The catalogue is the seeded global `FeedIngredient` table (Rakhaal-Admin proxy
+ * The catalogue is the seeded global `FeedIngredient` table (Rakhal-Admin proxy
  * until RAKHAL-110); farms layer price/nutrition overrides on top. The merged,
  * effective view is resolved by the pure `resolveEffective` domain helper.
  */
@@ -43,7 +43,7 @@ export class FeedIngredientService {
         name_bn: ing.nameBn,
         category: ing.category,
         nutrition_source: ing.nutritionSource,
-        rakhaal_price_per_kg: ing.currentPricePerKg,
+        rakhal_price_per_kg: ing.currentPricePerKg,
         price_updated_at: ing.priceUpdatedAt,
         effective_price_per_kg: eff.pricePerKg,
         price_source: eff.priceSource,
@@ -87,13 +87,13 @@ export class FeedIngredientService {
     return override;
   }
 
-  /** Reset an ingredient to Rakhaal Admin defaults (remove the farm override). */
+  /** Reset an ingredient to Rakhal Admin defaults (remove the farm override). */
   async resetOverride(farmId: string, ingredientId: string) {
     await this.prisma.feedIngredientOverride.deleteMany({
       where: { farmId, ingredientId },
     });
     this.log.info('Feed ingredient override reset', { farmId, ingredientId });
-    return { ingredient_id: ingredientId, price_source: 'rakhaal_market' };
+    return { ingredient_id: ingredientId, price_source: 'rakhal_market' };
   }
 
   private async assertIngredientExists(ingredientId: string) {

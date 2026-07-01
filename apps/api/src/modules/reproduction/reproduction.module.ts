@@ -9,8 +9,10 @@ import { InventoryModule } from '../inventory/inventory.module';
 import { CalfModule } from '../calf/calf.module';
 import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { ReproductionService } from './application/services/reproduction.service';
+import { ReproProtocolService } from './application/services/repro-protocol.service';
 import { CattleReproductionController } from './presentation/controllers/cattle-reproduction.controller';
 import { ReproductionController } from './presentation/controllers/reproduction.controller';
+import { ReproProtocolController } from './presentation/controllers/repro-protocol.controller';
 
 @Module({
   imports: [
@@ -24,8 +26,12 @@ import { ReproductionController } from './presentation/controllers/reproduction.
     CalfModule,
     FarmSettingsModule,
   ],
-  controllers: [ReproductionController, CattleReproductionController],
-  providers: [ReproductionService],
+  controllers: [
+    ReproductionController,
+    CattleReproductionController,
+    ReproProtocolController,
+  ],
+  providers: [ReproductionService, ReproProtocolService],
   exports: [ReproductionService],
 })
 export class ReproductionModule {}

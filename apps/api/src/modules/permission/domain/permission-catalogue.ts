@@ -107,6 +107,13 @@ const RESOURCES: ResourceDef[] = [
     group: PermissionGroup.TEAM,
     actions: ['read', 'invite', 'remove'],
   },
+  // Subscription / billing self-serve (RAKHAL-219). `read` = view status (all
+  // roles); `manage` = purchase/upgrade/cancel/redeem (Owner-only via `*`).
+  {
+    resource: 'subscription',
+    group: PermissionGroup.SETTINGS,
+    actions: ['read', 'manage'],
+  },
 ];
 
 /** The full permission catalogue: every `resource.action`, a `resource.*` per resource, and global `*`. */
@@ -161,6 +168,8 @@ export const ROLE_PERMISSIONS: Record<SystemRoleName, string[]> = {
     'team.read',
     // Scoreboard view only (join is owner-only)
     'scoreboard.read',
+    // View subscription status (purchase/manage is owner-only)
+    'subscription.read',
   ],
   [SYSTEM_ROLES.WORKER]: [
     'dashboard.read',
@@ -180,5 +189,6 @@ export const ROLE_PERMISSIONS: Record<SystemRoleName, string[]> = {
     'task.read',
     'task.complete',
     'notification.read',
+    'subscription.read',
   ],
 };
