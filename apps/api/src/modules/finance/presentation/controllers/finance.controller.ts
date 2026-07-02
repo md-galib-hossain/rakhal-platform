@@ -24,8 +24,11 @@ import {
   VoidTransactionDto,
   WithdrawDto,
 } from '../dto/finance-actions.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Finance (PRD §16). `/api/v1/finance`. Token tenancy + RBAC (`finance.*`). */
+@ApiTags('Finance')
+@ApiBearerAuth()
 @Controller('finance')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class FinanceController {

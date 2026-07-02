@@ -8,6 +8,7 @@ import helmet from 'helmet';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import cookieParser from 'cookie-parser';
 import { SentryService } from 'src/core/observability/sentry/sentry.service';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -24,7 +25,9 @@ async function bootstrap() {
     credentials: true,
   });
 
-  const { apiPrefix } = app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
+  const { apiPrefix, name, appVersion, swaggerEnabled } = app.get<
+    ConfigType<typeof appConfig>
+  >(appConfig.KEY);
   // Health/readiness probes and the Prometheus scrape stay un-prefixed so
   // infra (k8s, Prometheus) keeps hitting /health, /ready, /live, /metrics.
   app.setGlobalPrefix(apiPrefix, {
@@ -43,6 +46,22 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  // Dev/staging-only API docs (never production — see appConfig.swaggerEnabled).
+  // Built after setGlobalPrefix so documented paths match what's actually served.
+  if (swaggerEnabled) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle(`${name} API`)
+      .setDescription(
+        'API documentation for the Rakhal dairy-farm operations backend',
+      )
+      .setVersion(appVersion)
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api/docs', app, document);
+    logger.warn('Swagger docs enabled at /api/docs (non-production only)');
+  }
 
   const { port } = app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
   await app.listen(port);

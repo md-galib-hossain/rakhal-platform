@@ -19,8 +19,11 @@ import { ShedService } from '../../application/services/shed.service';
 import { CreateShedDto } from '../dto/create-shed.dto';
 import { ListShedQueryDto } from '../dto/list-shed-query.dto';
 import { UpdateShedDto } from '../dto/update-shed.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Sheds (PRD §21.3). `/api/v1/sheds`. Token tenancy + RBAC (cattle.*). */
+@ApiTags('Sheds')
+@ApiBearerAuth()
 @Controller('sheds')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class ShedController {

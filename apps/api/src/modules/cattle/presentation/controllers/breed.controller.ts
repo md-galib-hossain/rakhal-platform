@@ -19,8 +19,11 @@ import { BreedService } from '../../application/services/breed.service';
 import { CreateBreedDto } from '../dto/create-breed.dto';
 import { ListBreedQueryDto } from '../dto/list-breed-query.dto';
 import { UpdateBreedDto } from '../dto/update-breed.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Breeds (PRD §8.4). `/api/v1/breeds`. Token tenancy + RBAC (cattle.*). */
+@ApiTags('Breeds')
+@ApiBearerAuth()
 @Controller('breeds')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class BreedController {

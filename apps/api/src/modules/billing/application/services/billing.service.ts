@@ -21,6 +21,7 @@ import {
 } from '../ports/payment-provider.port';
 import { CheckoutDto } from '../../presentation/dto/checkout.dto';
 import { ListInvoiceQueryDto } from '../../presentation/dto/list-invoice-query.dto';
+import { CouponService } from './coupon.service';
 
 export interface PublicInvoice {
   id: string;
@@ -50,6 +51,7 @@ export class BillingService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly lifecycle: SubscriptionLifecycleService,
+    private readonly coupons: CouponService,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
     logger: LoggerService,
   ) {
@@ -86,24 +88,61 @@ export class BillingService {
       dto.billingPeriod === BillingPeriod.YEARLY
         ? (plan.yearlyPrice ?? plan.monthlyPrice.times(12))
         : plan.monthlyPrice;
-    const discountTotal = new Prisma.Decimal(0); // coupon (222) / referral (223) seams
-    const total = computeInvoiceTotal(subtotal, discountTotal);
+
+    // Coupon (222) applies inside its own transaction so the seat decrement,
+    // the per-farm-once check, and the invoice commit atomically (CPN-01).
+    // Referral credit (223) is a separate seam, still `discountTotal = 0` here.
+    let invoice: Invoice;
+    let redeemedCouponId: string | null = null;
+    if (dto.couponCode) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { phoneVerifiedAt: true },
+      });
+      invoice = await this.prisma.$transaction(async (tx) => {
+        const reservation = await this.coupons.reserve(tx, {
+          code: dto.couponCode!,
+          farmId,
+          planId: plan.id,
+          subtotal,
+          phoneVerifiedAt: user?.phoneVerifiedAt ?? null,
+        });
+        const created = await tx.invoice.create({
+          data: this.buildInvoiceData(
+            farmId,
+            plan.id,
+            dto.billingPeriod,
+            subtotal,
+            reservation.discount,
+            reservation.couponId,
+            key,
+          ),
+        });
+        await this.coupons.recordRedemption(tx, {
+          couponId: reservation.couponId,
+          farmId,
+          invoiceId: created.id,
+          discount: reservation.discount,
+        });
+        return created;
+      });
+      redeemedCouponId = invoice.couponId;
+    } else {
+      invoice = await this.prisma.invoice.create({
+        data: this.buildInvoiceData(
+          farmId,
+          plan.id,
+          dto.billingPeriod,
+          subtotal,
+          new Prisma.Decimal(0),
+          null,
+          key,
+        ),
+      });
+    }
+    const total = invoice.total;
     const isFree = total.isZero();
 
-    const invoice = await this.prisma.invoice.create({
-      data: {
-        farmId,
-        subscriptionPlanId: plan.id,
-        billingPeriod: dto.billingPeriod,
-        currency: 'BDT',
-        subtotal,
-        discountTotal,
-        total,
-        status: isFree ? InvoiceStatus.PAID : InvoiceStatus.PENDING,
-        idempotencyKey: key,
-        paidAt: isFree ? new Date() : null,
-      },
-    });
     await this.audit.record({
       actorUserId: userId,
       action: AuditAction.INVOICE_CREATED,
@@ -112,6 +151,19 @@ export class BillingService {
       farmId,
       metadata: { total: total.toNumber(), status: invoice.status },
     });
+    if (redeemedCouponId) {
+      await this.audit.record({
+        actorUserId: userId,
+        action: AuditAction.COUPON_REDEEMED,
+        entityType: 'Coupon',
+        entityId: redeemedCouponId,
+        farmId,
+        metadata: {
+          invoiceId: invoice.id,
+          discount: invoice.discountTotal.toNumber(),
+        },
+      });
+    }
 
     // ৳0 invoice (e.g. Free / 100%-coupon later) → PAID with no gateway (PAY-07).
     if (isFree) {
@@ -151,27 +203,41 @@ export class BillingService {
       metadata: { amount: total.toNumber(), provider: this.provider.gateway },
     });
 
-    // Initiate with the gateway when one is configured (bKash, RAKHAL-221).
+    // Initiate with the gateway when one is configured (bKash, RAKHAL-221). A
+    // gateway error must NOT 500 the checkout — the invoice stays PENDING (the
+    // client can retry the idempotent checkout, or reconciliation resolves it).
     if (this.provider.isConfigured()) {
-      const res = await this.provider.createPayment({
-        invoiceId: invoice.id,
-        farmId,
-        amount: total.toNumber(),
-        currency: 'BDT',
-      });
-      await this.prisma.payment.update({
-        where: { id: payment.id },
-        data: { providerPaymentId: res.providerPaymentId },
-      });
-      return {
-        invoice: this.present(invoice),
-        checkout: {
-          provider: this.provider.gateway,
-          provider_payment_id: res.providerPaymentId,
-          redirect_url: res.redirectUrl ?? null,
-        },
-        idempotent: false,
-      };
+      try {
+        const res = await this.provider.createPayment({
+          invoiceId: invoice.id,
+          farmId,
+          amount: total.toNumber(),
+          currency: 'BDT',
+        });
+        await this.prisma.payment.update({
+          where: { id: payment.id },
+          data: { providerPaymentId: res.providerPaymentId },
+        });
+        return {
+          invoice: this.present(invoice),
+          checkout: {
+            provider: this.provider.gateway,
+            provider_payment_id: res.providerPaymentId,
+            redirect_url: res.redirectUrl ?? null,
+          },
+          idempotent: false,
+        };
+      } catch (err) {
+        this.log.error('Gateway payment initiation failed', err, {
+          farmId,
+          invoiceId: invoice.id,
+        });
+        return {
+          invoice: this.present(invoice),
+          checkout: { provider_configured: true, initiation_failed: true },
+          idempotent: false,
+        };
+      }
     }
 
     this.log.warn(
@@ -334,6 +400,33 @@ export class BillingService {
         farmId: invoice.farmId,
       });
     }
+  }
+
+  /** ৳0 (coupon/Free) → PAID with no gateway round-trip, still audited (PAY-07). */
+  private buildInvoiceData(
+    farmId: string,
+    subscriptionPlanId: string,
+    billingPeriod: BillingPeriod,
+    subtotal: Prisma.Decimal,
+    discountTotal: Prisma.Decimal,
+    couponId: string | null,
+    idempotencyKey: string,
+  ): Prisma.InvoiceCreateInput {
+    const total = computeInvoiceTotal(subtotal, discountTotal);
+    const isFree = total.isZero();
+    return {
+      farmId,
+      subscriptionPlanId,
+      billingPeriod,
+      currency: 'BDT',
+      subtotal,
+      discountTotal,
+      total,
+      couponId,
+      status: isFree ? InvoiceStatus.PAID : InvoiceStatus.PENDING,
+      idempotencyKey,
+      paidAt: isFree ? new Date() : null,
+    };
   }
 
   private async farmOwnerId(farmId: string): Promise<string | null> {

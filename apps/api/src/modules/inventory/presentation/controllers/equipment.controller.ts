@@ -19,8 +19,11 @@ import { EquipmentService } from '../../application/services/equipment.service';
 import { CreateEquipmentDto } from '../dto/create-equipment.dto';
 import { ListEquipmentQueryDto } from '../dto/list-equipment-query.dto';
 import { UpdateEquipmentDto } from '../dto/update-equipment.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Inventory → Others/Equipment tab. `/api/v1/inventory/equipment`. Token tenancy + RBAC. */
+@ApiTags('Inventory')
+@ApiBearerAuth()
 @Controller('inventory/equipment')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class EquipmentController {

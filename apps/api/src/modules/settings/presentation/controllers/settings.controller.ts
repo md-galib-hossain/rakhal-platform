@@ -20,8 +20,11 @@ import { CreateShedDto } from '../dto/create-shed.dto';
 import { UpdateShedDto } from '../dto/update-shed.dto';
 import { CreateFeedGroupDto } from '../dto/create-feed-group.dto';
 import { UpdateFeedGroupDto } from '../dto/update-feed-group.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Settings (PRD §21 / API §18). `/api/v1/settings`. Token tenancy + RBAC. */
+@ApiTags('Settings')
+@ApiBearerAuth()
 @Controller('settings')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class SettingsController {

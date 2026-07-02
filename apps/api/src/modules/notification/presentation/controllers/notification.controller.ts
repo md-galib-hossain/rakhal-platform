@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -17,21 +18,27 @@ import { PermissionGuard } from 'src/modules/permission/presentation/guards/perm
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { NotificationService } from '../../application/services/notification.service';
 import { DeviceTokenService } from '../../application/services/device-token.service';
+import { ChannelRouterService } from '../../application/services/channel-router.service';
 import { ListNotificationQueryDto } from '../dto/list-notification-query.dto';
 import { UpdatePreferencesDto } from '../dto/update-preferences.dto';
 import { RegisterDeviceDto } from '../dto/register-device.dto';
+import { SetRoutingDto } from '../dto/set-routing.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
  * Notifications (PRD §20 / API §17). `/api/v1/notifications`. The bell feed is
  * each user's own notifications — list/mark-read need only `notification.read`
  * (every role, including Worker); changing preferences needs `notification.update`.
  */
+@ApiTags('Notifications')
+@ApiBearerAuth()
 @Controller('notifications')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class NotificationController {
   constructor(
     private readonly notifications: NotificationService,
     private readonly devices: DeviceTokenService,
+    private readonly routing: ChannelRouterService,
   ) {}
 
   // ---- Push device tokens (PRD §20.1) ------------------------------------
@@ -106,5 +113,31 @@ export class NotificationController {
     @Body() dto: UpdatePreferencesDto,
   ) {
     return this.notifications.updatePreferences(farmId, userId, dto);
+  }
+
+  // ---- Channel routing (RAKHAL-256, §20.1a) — per-farm overrides ----------
+  @Get('routing')
+  @RequirePermission('notification.read')
+  getRouting(@CurrentFarmId() farmId: string) {
+    return this.routing.getFarmRouting(farmId);
+  }
+
+  @Put('routing/:eventKey')
+  @RequirePermission('notification.update')
+  setRouting(
+    @CurrentFarmId() farmId: string,
+    @Param('eventKey') eventKey: string,
+    @Body() dto: SetRoutingDto,
+  ) {
+    return this.routing.setFarmRule(farmId, eventKey, dto.channels);
+  }
+
+  @Delete('routing/:eventKey')
+  @RequirePermission('notification.update')
+  deleteRouting(
+    @CurrentFarmId() farmId: string,
+    @Param('eventKey') eventKey: string,
+  ) {
+    return this.routing.deleteFarmRule(farmId, eventKey);
   }
 }

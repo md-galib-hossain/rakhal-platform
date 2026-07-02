@@ -20,6 +20,7 @@ import { AdjustStockDto } from '../dto/adjust-stock.dto';
 import { CreateMedicineDto } from '../dto/create-medicine.dto';
 import { ListMedicineQueryDto } from '../dto/list-medicine-query.dto';
 import { UpdateMedicineDto } from '../dto/update-medicine.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
  * Inventory → Medicine tab. Routes resolve under the global prefix as
@@ -29,6 +30,8 @@ import { UpdateMedicineDto } from '../dto/update-medicine.dto';
  *   JwtAuthGuard → SessionGuard → FarmContextGuard → PermissionGuard
  * The active farm is taken from the verified token context, never the body.
  */
+@ApiTags('Inventory')
+@ApiBearerAuth()
 @Controller('inventory/medicines')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class MedicineController {

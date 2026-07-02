@@ -5,6 +5,7 @@ import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { NotificationService } from './application/services/notification.service';
 import { NotificationDeliveryService } from './application/services/notification-delivery.service';
+import { ChannelRouterService } from './application/services/channel-router.service';
 import { DeviceTokenService } from './application/services/device-token.service';
 import { FcmPushProvider } from './application/channels/fcm-push.provider';
 import {
@@ -27,6 +28,7 @@ import { NotificationController } from './presentation/controllers/notification.
   providers: [
     NotificationService,
     NotificationDeliveryService,
+    ChannelRouterService,
     DeviceTokenService,
     FcmPushProvider,
     {

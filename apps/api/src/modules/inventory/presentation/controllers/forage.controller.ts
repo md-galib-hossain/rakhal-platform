@@ -19,8 +19,11 @@ import { ForageService } from '../../application/services/forage.service';
 import { CreateForageDto } from '../dto/create-forage.dto';
 import { ListForageQueryDto } from '../dto/list-forage-query.dto';
 import { UpdateForageDto } from '../dto/update-forage.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Inventory → Forage tab. `/api/v1/inventory/forages`. Token tenancy + RBAC. */
+@ApiTags('Inventory')
+@ApiBearerAuth()
 @Controller('inventory/forages')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class ForageController {

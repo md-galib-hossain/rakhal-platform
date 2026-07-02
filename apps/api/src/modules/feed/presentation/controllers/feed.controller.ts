@@ -36,12 +36,15 @@ import {
   FeedEfficiencyQueryDto,
   ListDistributionQueryDto,
 } from '../dto/list-distribution-query.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
  * Feed Formulator (PRD §12 / API §8). `/api/v1/feed`. Token tenancy + RBAC +
  * **subscription gate**: Feed Formulator is a Starter/Pro feature
  * (`feed.formulator`, RAKHAL-219); baseline guard makes it read-only in grace.
  */
+@ApiTags('Feed')
+@ApiBearerAuth()
 @Controller('feed')
 @UseGuards(
   JwtAuthGuard,

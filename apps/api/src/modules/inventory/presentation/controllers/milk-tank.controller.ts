@@ -23,8 +23,11 @@ import {
   ListMilkTankQueryDto,
   UpdateMilkTankDto,
 } from '../dto/milk-tank.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Inventory → Milk tab. `/api/v1/inventory/milk-tanks`. Token-based tenancy. */
+@ApiTags('Inventory')
+@ApiBearerAuth()
 @Controller('inventory/milk-tanks')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class MilkTankController {

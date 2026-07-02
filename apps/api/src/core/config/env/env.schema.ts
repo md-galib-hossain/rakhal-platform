@@ -153,9 +153,7 @@ export const envSchema = z.object({
 
   // bKash Tokenized Checkout (RAKHAL-221). Optional — absent creds ⇒ the payment
   // provider reports isConfigured()=false and billing runs without a gateway.
-  BKASH_BASE_URL: z
-    .string()
-    .optional(),
+  BKASH_BASE_URL: z.string().optional(),
   BKASH_APP_KEY: z.string().optional(),
   BKASH_APP_SECRET: z.string().optional(),
   BKASH_USERNAME: z.string().optional(),

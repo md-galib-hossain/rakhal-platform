@@ -8,12 +8,15 @@ import { RequirePermission } from 'src/modules/permission/presentation/decorator
 import { ActivityLogService } from '../../application/services/activity-log.service';
 import { AqrService } from '../../application/services/aqr.service';
 import { ListActivityQueryDto } from '../dto/list-activity-query.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
  * Activity Log + AQR read surface. `/api/v1/activity-log`. Token tenancy + RBAC.
  * The log is read-only by design — there is no create/update/delete endpoint
  * (entries are written by other modules via ActivityLogService, PRD §19.3).
  */
+@ApiTags('Activity Log')
+@ApiBearerAuth()
 @Controller('activity-log')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class ActivityController {

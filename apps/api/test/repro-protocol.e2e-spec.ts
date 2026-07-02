@@ -48,9 +48,9 @@ describe('Reproductive Protocols (e2e)', () => {
       .get(api('/reproduction/protocols'))
       .set(...auth(owner))
       .expect(200);
-    ovsynchId = (
-      protos.body.data as Array<{ id: string; code: string }>
-    ).find((p) => p.code === 'OVSYNCH')!.id;
+    ovsynchId = (protos.body.data as Array<{ id: string; code: string }>).find(
+      (p) => p.code === 'OVSYNCH',
+    )!.id;
   }, 30_000);
 
   afterAll(async () => {
@@ -92,7 +92,11 @@ describe('Reproductive Protocols (e2e)', () => {
     const applied = await request(server())
       .post(api('/reproduction/protocols/apply'))
       .set(...auth(owner))
-      .send({ protocolId: ovsynchId, cattleIds: [cattleA], startDate: '2026-06-01' })
+      .send({
+        protocolId: ovsynchId,
+        cattleIds: [cattleA],
+        startDate: '2026-06-01',
+      })
       .expect(201);
     expect(applied.body.data.applied).toBe(1);
     expect(applied.body.data.tasks_created).toBeGreaterThanOrEqual(5);
@@ -101,7 +105,11 @@ describe('Reproductive Protocols (e2e)', () => {
 
     // Task-Hub got the BREEDING tasks for this cow.
     const taskCount = await prisma.task.count({
-      where: { farmId: owner.farmId, category: 'BREEDING', relatedCattleId: cattleA },
+      where: {
+        farmId: owner.farmId,
+        category: 'BREEDING',
+        relatedCattleId: cattleA,
+      },
     });
     expect(taskCount).toBeGreaterThanOrEqual(5);
 

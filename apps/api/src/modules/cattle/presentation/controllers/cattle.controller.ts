@@ -34,11 +34,14 @@ import { RecordBcsDto } from '../dto/record-bcs.dto';
 import { RecordWeightDto } from '../dto/record-weight.dto';
 import { UpdateCattleDto } from '../dto/update-cattle.dto';
 import { UpdateCattleStatusDto } from '../dto/update-cattle-status.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Max CSV upload size for bulk import (PRD §8.4). */
 const CSV_MAX_BYTES = 5 * 1024 * 1024;
 
 /** Cattle (PRD §8). `/api/v1/cattle`. Token tenancy + RBAC. */
+@ApiTags('Cattle')
+@ApiBearerAuth()
 @Controller('cattle')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class CattleController {

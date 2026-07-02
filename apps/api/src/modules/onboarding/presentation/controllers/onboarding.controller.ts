@@ -8,8 +8,11 @@ import { RequirePermission } from 'src/modules/permission/presentation/decorator
 import { OnboardingService } from '../../application/services/onboarding.service';
 import { AcceptInviteDto } from '../dto/accept-invite.dto';
 import { ConfigureOnboardingDto } from '../dto/configure-onboarding.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Onboarding (PRD §5.1 / API §2). `/api/v1/onboarding`. */
+@ApiTags('Onboarding')
+@ApiBearerAuth()
 @Controller('onboarding')
 export class OnboardingController {
   constructor(private readonly onboarding: OnboardingService) {}

@@ -1,0 +1,30 @@
+enum RoutingScope {
+  GLOBAL
+  FARM
+}
+
+/// Admin/farm-configurable channel routing per notification event (RAKHAL-256,
+/// PRD §20.1a). Resolved most-specific-first: FARM+event → FARM+category →
+/// GLOBAL+event → GLOBAL+category → built-in code default (the event catalogue).
+/// `channels` is the enabled channel set (multi-channel fan-out); `fallbackOrder`
+/// is the single-channel escalation order used by OTP (`auth.otp`, OTP-05).
+/// `farmId` is a plain scalar FK (feed-module precedent) to keep this isolated.
+model NotificationRoutingRule {
+  id String @id @default(cuid())
+
+  scope  RoutingScope
+  farmId String? // required when scope = FARM
+
+  eventKey String? // target a specific event…
+  category String? // …or a whole category (used when eventKey is null)
+
+  channels      String[]
+  fallbackOrder String[] @default([])
+  enabled       Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([scope, farmId])
+  @@index([eventKey])
+}

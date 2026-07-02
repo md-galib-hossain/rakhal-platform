@@ -23,6 +23,7 @@ const QUIET_HOURS_SUPPRESSED = new Set<NotificationChannel>([
   'telegram',
 ]);
 import { NotificationDeliveryService } from './notification-delivery.service';
+import { ChannelRouterService } from './channel-router.service';
 import { ListNotificationQueryDto } from '../../presentation/dto/list-notification-query.dto';
 import { UpdatePreferencesDto } from '../../presentation/dto/update-preferences.dto';
 
@@ -56,6 +57,7 @@ export class NotificationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly delivery: NotificationDeliveryService,
+    private readonly router: ChannelRouterService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(NotificationService.name);
@@ -122,6 +124,15 @@ export class NotificationService {
     const settingByUser = new Map(settings.map((s) => [s.userId, s]));
     const nowHm = this.nowHm();
 
+    // Admin/farm-configurable channel routing (RAKHAL-256, §20.1a) — resolved
+    // once per emit; it replaces the hard-coded catalogue default as the base
+    // channel set. A user's own per-event override still wins for that user.
+    const routed = await this.router.resolveChannels(
+      event.key,
+      event.category,
+      input.farmId,
+    );
+
     const created: Notification[] = [];
     for (const userId of userIds) {
       const override = overrideByUser.get(userId);
@@ -140,7 +151,7 @@ export class NotificationService {
               telegram: override.telegram,
               email: override.email,
             }
-          : event.defaultChannels;
+          : routed;
 
       const setting = settingByUser.get(userId);
       const quiet = this.inQuietHours(

@@ -20,11 +20,14 @@ import { CreateBuyerDto } from '../dto/create-buyer.dto';
 import { UpdateBuyerDto } from '../dto/update-buyer.dto';
 import { ListBuyerQueryDto } from '../dto/list-buyer-query.dto';
 import { StatementQueryDto } from '../dto/dispatch-query.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
  * Milk buyers (PRD §11). `/api/v1/buyers`. Token tenancy + RBAC. Milk sales are
  * a revenue concern, so buyer management is gated behind `finance.*`.
  */
+@ApiTags('Milk Buyers')
+@ApiBearerAuth()
 @Controller('buyers')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class BuyerController {

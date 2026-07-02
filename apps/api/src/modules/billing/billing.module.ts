@@ -6,6 +6,7 @@ import { PermissionModule } from '../permission/permission.module';
 import { AuditModule } from '../audit/audit.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { BillingService } from './application/services/billing.service';
+import { CouponService } from './application/services/coupon.service';
 import { BkashTokenService } from './application/services/bkash-token.service';
 import { UnconfiguredPaymentProvider } from './application/providers/unconfigured-payment.provider';
 import { BkashPaymentProvider } from './application/providers/bkash-payment.provider';
@@ -19,7 +20,9 @@ import { BkashCallbackController } from './presentation/controllers/bkash-callba
  * factory: **bKash** when its credentials are configured (RAKHAL-221), else the
  * no-op provider. Imports SubscriptionModule to activate a subscription on a paid
  * invoice and AuditModule for the money-path audit trail. The bKash callback is a
- * separate unguarded controller (browser redirect, no auth token).
+ * separate unguarded controller (browser redirect, no auth token). `CouponService`
+ * (RAKHAL-222) is exported so the future platform-admin module (RAKHAL-224/225)
+ * can wire an issue/list/disable controller straight into it.
  */
 @Module({
   imports: [
@@ -33,6 +36,7 @@ import { BkashCallbackController } from './presentation/controllers/bkash-callba
   controllers: [BillingController, BkashCallbackController],
   providers: [
     BillingService,
+    CouponService,
     BkashTokenService,
     BkashPaymentProvider,
     UnconfiguredPaymentProvider,
@@ -47,6 +51,6 @@ import { BkashCallbackController } from './presentation/controllers/bkash-callba
       inject: [BkashPaymentProvider, UnconfiguredPaymentProvider],
     },
   ],
-  exports: [BillingService],
+  exports: [BillingService, CouponService],
 })
 export class BillingModule {}

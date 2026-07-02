@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import {
+  CattleGender,
+  CattlePurpose,
   FinanceCategory,
   FinancePaymentMethod,
   FinancePaymentType,
@@ -471,6 +473,30 @@ async function seedDemoSubscription(farmId: string): Promise<void> {
   console.log('✔ demo subscription: ACTIVE Pro (1 year)');
 }
 
+/**
+ * Demo herd (RAKHAL-256 test-infra fix). Several e2e specs (reproduction
+ * protocols, scoreboard, notification emitters) fetch `GET /cattle` and operate
+ * on the demo farm's animals — they previously relied on cattle left behind by
+ * earlier runs. Seed a small stable herd so the suite is reproducible from a
+ * clean `pnpm seed` / `prisma migrate reset`. Idempotent (skips if any exist).
+ */
+async function seedDemoCattle(farmId: string, createdBy: string): Promise<void> {
+  const existing = await prisma.cattle.count({ where: { farmId } });
+  if (existing > 0) return;
+
+  await prisma.cattle.createMany({
+    data: Array.from({ length: 8 }, (_, i) => ({
+      farmId,
+      tagNumber: `DEMO-${String(i + 1).padStart(3, '0')}`,
+      gender: i < 6 ? CattleGender.FEMALE : CattleGender.MALE,
+      purpose: i < 6 ? CattlePurpose.MILK : CattlePurpose.BREEDING,
+      aqrScore: 50,
+      createdBy,
+    })),
+  });
+  console.log('✔ demo cattle seeded (8)');
+}
+
 async function main(): Promise<void> {
   await seedPermissions();
   const ownerRoleId = await seedRole(SYSTEM_ROLES.OWNER);
@@ -493,6 +519,7 @@ async function main(): Promise<void> {
       workerRoleId,
     );
     await seedDemoFinance(demo.farmId, demo.ownerUserId);
+    await seedDemoCattle(demo.farmId, demo.ownerUserId);
   }
   await seedFeedIngredients();
   await seedReproProtocols();

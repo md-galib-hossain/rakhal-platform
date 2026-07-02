@@ -8,8 +8,11 @@ import { RequirePermission } from 'src/modules/permission/presentation/decorator
 import { BuyerService } from '../../application/services/buyer.service';
 import { RecordDispatchDto } from '../dto/record-dispatch.dto';
 import { DispatchQueryDto } from '../dto/dispatch-query.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Milk dispatch (PRD §11.2). `/api/v1/milk/dispatch`. Token tenancy + RBAC. */
+@ApiTags('Milk Dispatch')
+@ApiBearerAuth()
 @Controller('milk/dispatch')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class MilkDispatchController {

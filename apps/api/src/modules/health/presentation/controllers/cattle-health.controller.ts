@@ -6,8 +6,11 @@ import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { HealthService } from '../../application/services/health.service';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Per-animal health summary (PRD §13). `/api/v1/cattle/:id/health-summary`. */
+@ApiTags('Health')
+@ApiBearerAuth()
 @Controller('cattle')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class CattleHealthController {

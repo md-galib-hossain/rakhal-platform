@@ -20,8 +20,11 @@ import { RecordMilkFeedingDto } from '../dto/record-milk-feeding.dto';
 import { RecordStarterFeedDto } from '../dto/record-starter-feed.dto';
 import { RecordWeightDto } from '../dto/record-weight.dto';
 import { WeanCalfDto } from '../dto/wean-calf.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Calf Management (PRD §14). `/api/v1/calves`. Token tenancy + RBAC. */
+@ApiTags('Calf')
+@ApiBearerAuth()
 @Controller('calves')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class CalfController {

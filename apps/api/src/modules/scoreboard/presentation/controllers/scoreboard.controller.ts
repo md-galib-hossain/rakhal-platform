@@ -19,6 +19,7 @@ import { RequireFeature } from 'src/modules/subscription/presentation/decorators
 import { ScoreboardService } from '../../application/services/scoreboard.service';
 import { JoinScoreboardDto } from '../dto/join-scoreboard.dto';
 import { LeaderboardQueryDto } from '../dto/leaderboard-query.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
  * Scoreboard (PRD §18 / API §14, RAKHAL-206). `/api/v1/scoreboard`. Token tenancy
@@ -27,6 +28,8 @@ import { LeaderboardQueryDto } from '../dto/leaderboard-query.dto';
  * (`scoreboard.read`, RAKHAL-219). The leaderboard is cross-tenant but reads only
  * opted-in farms.
  */
+@ApiTags('Scoreboard')
+@ApiBearerAuth()
 @Controller('scoreboard')
 @UseGuards(
   JwtAuthGuard,

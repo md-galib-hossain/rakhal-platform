@@ -19,12 +19,15 @@ import { SubscriptionFeatureGuard } from 'src/modules/subscription/presentation/
 import { RequireFeature } from 'src/modules/subscription/presentation/decorators/require-feature.decorator';
 import { ReportsService } from '../../application/services/reports.service';
 import { GenerateReportDto } from '../dto/generate-report.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
  * Reports (PRD §22 / API §15). `/api/v1/reports`. Token tenancy + RBAC +
  * **subscription gate**: the Reports engine is a Pro feature (`reports.generate`,
  * RAKHAL-219), and the baseline `SubscriptionGuard` makes it read-only in grace.
  */
+@ApiTags('Reports')
+@ApiBearerAuth()
 @Controller('reports')
 @UseGuards(
   JwtAuthGuard,

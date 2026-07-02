@@ -18,8 +18,11 @@ import { WorkspaceSettingsService } from '../../application/services/workspace-s
 import { CreateSupplierDto } from '../dto/create-supplier.dto';
 import { UpdateSupplierDto } from '../dto/update-supplier.dto';
 import { UpdateModuleSettingsDto } from '../dto/update-module-settings.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Settings → Modules / Suppliers / Billing (PRD §21.5–21.7 / API §18). `/api/v1/settings`. */
+@ApiTags('Settings')
+@ApiBearerAuth()
 @Controller('settings')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class WorkspaceSettingsController {

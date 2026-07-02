@@ -27,3 +27,17 @@ enum PaymentGateway {
   MANUAL
   BKASH
 }
+
+/// RAKHAL-222, PRD §33.1. `FREE_DAYS` is priced as a full-subtotal discount for
+/// MVP (a "free period" invoice) — a mid-cycle period-extension semantic is
+/// deferred until a ticket needs it.
+enum CouponType {
+  PERCENT
+  FIXED
+  FREE_DAYS
+}
+
+enum CouponStatus {
+  ACTIVE
+  DISABLED
+}

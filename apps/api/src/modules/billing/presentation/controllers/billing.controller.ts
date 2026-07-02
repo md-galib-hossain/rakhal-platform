@@ -17,6 +17,7 @@ import { RequirePermission } from 'src/modules/permission/presentation/decorator
 import { BillingService } from '../../application/services/billing.service';
 import { CheckoutDto } from '../dto/checkout.dto';
 import { ListInvoiceQueryDto } from '../dto/list-invoice-query.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
  * Billing (RAKHAL-220, PRD §32). `/api/v1/billing`. Farm chain + RBAC.
@@ -26,6 +27,8 @@ import { ListInvoiceQueryDto } from '../dto/list-invoice-query.dto';
  * Owner-only (`subscription.manage`); invoice reads are `subscription.read`.
  * Idempotency via the `Idempotency-Key` header (PAY-05).
  */
+@ApiTags('Billing')
+@ApiBearerAuth()
 @Controller('billing')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class BillingController {

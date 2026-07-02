@@ -7,6 +7,7 @@ import { SubscriptionLifecycleService } from '../src/modules/subscription/applic
 import { SubscriptionAccessService } from '../src/modules/subscription/application/services/subscription-access.service';
 import { LoggerService } from '../src/core/logger/logger/logger.service';
 import { BillingService } from '../src/modules/billing/application/services/billing.service';
+import { CouponService } from '../src/modules/billing/application/services/coupon.service';
 import type {
   PaymentExecutionResult,
   PaymentProvider,
@@ -24,6 +25,7 @@ describe('bKash payment finalize (e2e)', () => {
   let prisma: PrismaService;
   let audit: AuditService;
   let lifecycle: SubscriptionLifecycleService;
+  let coupons: CouponService;
   let access: SubscriptionAccessService;
   let starterPlanId: string;
   let tempFarmId: string;
@@ -49,7 +51,14 @@ describe('bKash payment finalize (e2e)', () => {
       queryPayment: () => Promise.resolve({ status: 'PENDING' }),
       refund: () => Promise.resolve({ refundTrxId: 'R', status: 'ok' }),
     };
-    return new BillingService(prisma, audit, lifecycle, provider, logger);
+    return new BillingService(
+      prisma,
+      audit,
+      lifecycle,
+      coupons,
+      provider,
+      logger,
+    );
   };
 
   const seedPending = async (providerPaymentId: string, total: string) => {
@@ -86,6 +95,7 @@ describe('bKash payment finalize (e2e)', () => {
     prisma = ctx.app.get(PrismaService);
     audit = ctx.app.get(AuditService);
     lifecycle = ctx.app.get(SubscriptionLifecycleService);
+    coupons = ctx.app.get(CouponService);
     access = ctx.app.get(SubscriptionAccessService);
 
     const starter = await prisma.subscriptionPlan.findUnique({

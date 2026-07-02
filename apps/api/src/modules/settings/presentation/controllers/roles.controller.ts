@@ -17,11 +17,14 @@ import { RequirePermission } from 'src/modules/permission/presentation/decorator
 import { RolesService } from '../../application/services/roles.service';
 import { CreateRoleDto } from '../dto/create-role.dto';
 import { UpdateRolePermissionsDto } from '../dto/update-role-permissions.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
  * Roles & Permissions (RAKHAL-031, PRD §21.4 / API §18). `/api/v1/settings`.
  * Read = Manager+ (`settings.read`); mutations = Owner-only (`settings.roles-manage`).
  */
+@ApiTags('Settings')
+@ApiBearerAuth()
 @Controller('settings')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class RolesController {

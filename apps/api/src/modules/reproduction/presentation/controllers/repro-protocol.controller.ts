@@ -21,6 +21,7 @@ import {
   RecordAiDto,
   RecordOutcomeDto,
 } from '../dto/protocol.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
  * Reproductive (Synchronization) Protocols (RAKHAL-214, PRD §9.8 / §9.9).
@@ -28,6 +29,8 @@ import {
  * (`reproduction.read`), apply = `reproduction.create`, instance actions =
  * `reproduction.update`.
  */
+@ApiTags('Reproduction')
+@ApiBearerAuth()
 @Controller('reproduction/protocols')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class ReproProtocolController {

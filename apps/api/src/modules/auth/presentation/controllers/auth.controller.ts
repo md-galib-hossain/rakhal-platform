@@ -34,7 +34,12 @@ import { VerifyEmailDto } from '../dto/verify-email.dto';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { ChangePasswordDto } from '../dto/change-password.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+/** Auth (§2). `/api/v1/auth`. Mostly public (login/register/refresh use a
+ * cookie, not a bearer token); routes needing a signed-in session are
+ * individually marked `@ApiBearerAuth()` below. */
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -107,6 +112,7 @@ export class AuthController {
   }
 
   @Post('change-password')
+  @ApiBearerAuth()
   @UseGuards(ThrottlerGuard, CsrfGuard, JwtAuthGuard, SessionGuard)
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   changePassword(
@@ -164,6 +170,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @ApiBearerAuth()
   @UseGuards(ThrottlerGuard, CsrfGuard, JwtAuthGuard, SessionGuard)
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   logout(
@@ -189,6 +196,7 @@ export class AuthController {
   }
 
   @Post('logout-all')
+  @ApiBearerAuth()
   @UseGuards(ThrottlerGuard, CsrfGuard, JwtAuthGuard, SessionGuard)
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   logoutAll(
@@ -206,6 +214,7 @@ export class AuthController {
   }
 
   @Get('sessions')
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, SessionGuard)
   sessions(@Req() request: AuthenticatedHttpRequest) {
     const auth = this.getAuthContext(request);
@@ -213,6 +222,7 @@ export class AuthController {
   }
 
   @Delete('sessions/:sessionId')
+  @ApiBearerAuth()
   @UseGuards(ThrottlerGuard, JwtAuthGuard, SessionGuard)
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   revokeSession(
@@ -228,6 +238,7 @@ export class AuthController {
   }
 
   @Get('me')
+  @ApiBearerAuth()
   @UseGuards(ThrottlerGuard, JwtAuthGuard, SessionGuard)
   me(@Req() request: AuthenticatedHttpRequest) {
     const auth = this.getAuthContext(request);

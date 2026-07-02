@@ -5,7 +5,10 @@ import { REDIS_CLIENT } from 'src/core/redis/redis.constants';
 import type { RedisClient } from 'src/core/redis/redis.module';
 import type { Response } from 'express';
 import { Res } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 
+/** Infra probes — unguarded, no auth token, consumed by k8s/Prometheus. */
+@ApiTags('Ops')
 @Controller()
 export class HealthController {
   constructor(

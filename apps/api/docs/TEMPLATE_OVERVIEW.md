@@ -162,6 +162,8 @@ The active farm is on `req.farm` (set by `FarmContextGuard`) and the token (`req
 > }
 > ```
 
+**Every new controller adds `@ApiTags('YourDomain')` + `@ApiBearerAuth()`** (skip the latter only for a genuinely unguarded controller — public pricing, a webhook callback, infra probes) so it shows up correctly in the Swagger docs (§4). DTO fields don't need manual `@ApiProperty()` — the `@nestjs/swagger` CLI plugin (`nest-cli.json` → `compilerOptions.plugins`) infers the schema from the DTO's TS types + `class-validator` decorators at build time.
+
 ### 2.5 Services & use-cases
 
 - One context-scoped logger per class, created **once** in the constructor:
@@ -300,6 +302,8 @@ On startup:
 - `APP_FILTER → GlobalExceptionFilter` (error envelope, see §9).
 
 **Global API prefix:** `main.ts` calls `app.setGlobalPrefix(apiPrefix)` (`API_PREFIX`, default `api/v1`), so business routes are served under `/api/v1/...` (e.g. `/api/v1/auth/login`, `/api/v1/cattle`). The refresh/CSRF cookie paths (`/api/v1/auth`) now line up. Infra probes are **excluded** from the prefix and stay at root: `/health`, `/ready`, `/live`, `/metrics`.
+
+**API docs (Swagger/OpenAPI):** built after `setGlobalPrefix` (so documented paths match what's served) and mounted at `/api/docs` (+ `/api/docs-json`) — but **only when `appConfig.swaggerEnabled`** (`NODE_ENV !== 'production'`, hard-coded, not env-overridable — see `app.config.ts`). In a production boot the routes don't exist at all (404, not just hidden). Schemas are inferred from DTOs by the `@nestjs/swagger` CLI plugin (`nest-cli.json`), so DTOs don't need manual `@ApiProperty()`; controllers still need `@ApiTags(...)` + `@ApiBearerAuth()` (§2.4).
 
 ---
 

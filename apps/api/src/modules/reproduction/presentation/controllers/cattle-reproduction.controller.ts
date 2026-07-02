@@ -6,8 +6,11 @@ import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { ReproductionService } from '../../application/services/reproduction.service';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Per-animal reproduction summary (PRD §9). `/api/v1/cattle/:id/reproduction-summary`. */
+@ApiTags('Reproduction')
+@ApiBearerAuth()
 @Controller('cattle')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class CattleReproductionController {

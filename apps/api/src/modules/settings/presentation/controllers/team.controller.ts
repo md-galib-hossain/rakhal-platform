@@ -15,8 +15,11 @@ import { PermissionGuard } from 'src/modules/permission/presentation/guards/perm
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { TeamService } from '../../application/services/team.service';
 import { InviteTeamMemberDto } from '../dto/invite-team-member.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Settings → Team (PRD §21.4 / API §18). `/api/v1/settings/team`. Token tenancy + RBAC. */
+@ApiTags('Team')
+@ApiBearerAuth()
 @Controller('settings/team')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class TeamController {

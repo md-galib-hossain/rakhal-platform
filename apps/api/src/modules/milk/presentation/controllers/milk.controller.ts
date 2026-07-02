@@ -22,8 +22,11 @@ import {
 import { ReviewAnomalyDto } from '../dto/review-anomaly.dto';
 import { SaveMilkLogDto } from '../dto/save-milk-log.dto';
 import { SubmitMilkDto } from '../dto/submit-milk.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Milk Module (PRD §10). `/api/v1/milk`. Token tenancy + RBAC. */
+@ApiTags('Milk')
+@ApiBearerAuth()
 @Controller('milk')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class MilkController {

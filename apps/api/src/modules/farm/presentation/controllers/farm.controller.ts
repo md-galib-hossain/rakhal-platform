@@ -4,6 +4,7 @@ import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guar
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmService } from '../../application/services/farm.service';
 import { CreateFarmDto } from '../dto/create-farm.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
  * Farm bootstrap endpoints. `/api/v1/farms`.
@@ -11,6 +12,8 @@ import { CreateFarmDto } from '../dto/create-farm.dto';
  * Only authenticated (not yet farm-scoped) — creating/listing farms happens
  * before a farm context exists, so these use JwtAuthGuard + SessionGuard only.
  */
+@ApiTags('Farm')
+@ApiBearerAuth()
 @Controller('farms')
 @UseGuards(JwtAuthGuard, SessionGuard)
 export class FarmController {

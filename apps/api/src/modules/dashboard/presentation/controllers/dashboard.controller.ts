@@ -7,8 +7,11 @@ import { PermissionGuard } from 'src/modules/permission/presentation/guards/perm
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { DashboardService } from '../../application/services/dashboard.service';
 import { DashboardPeriodQueryDto } from '../dto/dashboard-query.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Dashboard — Morning Briefing (PRD §7). `/api/v1/dashboard`. Token tenancy + RBAC. */
+@ApiTags('Dashboard')
+@ApiBearerAuth()
 @Controller('dashboard')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class DashboardController {

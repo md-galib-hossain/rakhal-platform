@@ -21,8 +21,11 @@ import { CreateBreedingEventDto } from '../dto/create-breeding-event.dto';
 import { CreateCalvingEventDto } from '../dto/create-calving-event.dto';
 import { CreateHeatEventDto } from '../dto/create-heat-event.dto';
 import { CreatePregnancyDiagnosisDto } from '../dto/create-pregnancy-diagnosis.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Reproduction (PRD §9). `/api/v1/reproduction`. Token tenancy + RBAC. */
+@ApiTags('Reproduction')
+@ApiBearerAuth()
 @Controller('reproduction')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class ReproductionController {

@@ -5,6 +5,7 @@ import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guar
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { SubscriptionAccessService } from '../../application/services/subscription-access.service';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
  * Self-serve subscription status (RAKHAL-218/219 / SUB-07, `customer-api`) →
@@ -14,6 +15,8 @@ import { SubscriptionAccessService } from '../../application/services/subscripti
  * No `@RequireFeature` / no baseline `SubscriptionGuard`: an expired farm must
  * still see its status to know it needs to renew.
  */
+@ApiTags('Subscription')
+@ApiBearerAuth()
 @Controller('subscription')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard)
 export class SubscriptionController {

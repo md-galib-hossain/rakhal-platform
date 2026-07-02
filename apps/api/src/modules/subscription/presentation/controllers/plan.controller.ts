@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { PlanCatalogueService } from '../../application/services/plan-catalogue.service';
+import { ApiTags } from '@nestjs/swagger';
 
 /**
  * Public subscription-plans catalogue (RAKHAL-217, PRD §31.1) — `customer-api`.
@@ -9,6 +10,7 @@ import { PlanCatalogueService } from '../../application/services/plan-catalogue.
  * guard chain and no `@RequireFeature`. It exposes no tenant data — only the
  * seeded plan/feature/limit catalogue.
  */
+@ApiTags('Subscription')
 @Controller('plans')
 export class PlanController {
   constructor(private readonly planCatalogue: PlanCatalogueService) {}

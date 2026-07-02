@@ -38,8 +38,11 @@ import {
   SafetyWithdrawalQueryDto,
   SickBayQueryDto,
 } from '../dto/health-query.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Healthcare (PRD §13). `/api/v1/health`. Token tenancy + RBAC. */
+@ApiTags('Health')
+@ApiBearerAuth()
 @Controller('health')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class HealthController {

@@ -2,6 +2,7 @@ import { Controller, Get, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { env } from 'src/core/config/env';
 import { BillingService } from '../../application/services/billing.service';
+import { ApiTags } from '@nestjs/swagger';
 
 /**
  * bKash return/callback (RAKHAL-221, PRD §32.3). bKash redirects the payer's
@@ -11,6 +12,7 @@ import { BillingService } from '../../application/services/billing.service';
  * with the outcome. Forging a `paymentID` can't mint a PAID invoice: finalize
  * only acts on a Payment we created and requires a gateway-confirmed COMPLETED.
  */
+@ApiTags('Billing')
 @Controller('billing/bkash')
 export class BkashCallbackController {
   constructor(private readonly billing: BillingService) {}

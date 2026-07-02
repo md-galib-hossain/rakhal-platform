@@ -20,12 +20,15 @@ import { CreateTaskDto } from '../dto/create-task.dto';
 import { UpdateTaskDto } from '../dto/update-task.dto';
 import { ListTaskQueryDto } from '../dto/list-task-query.dto';
 import { CheckStepDto, CompleteTaskDto } from '../dto/complete-task.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
  * Task Hub (PRD §17). `/api/v1/tasks`. Token tenancy + RBAC.
  * Workers (task.read + task.complete) can view and finish tasks; create/edit/
  * reassign/delete require manager-level grants (task.create/update/delete).
  */
+@ApiTags('Tasks')
+@ApiBearerAuth()
 @Controller('tasks')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class TaskController {

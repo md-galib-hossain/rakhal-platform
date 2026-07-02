@@ -22,11 +22,14 @@ import {
   ListSemenBatchQueryDto,
   UpdateSemenBatchDto,
 } from '../dto/semen-batch.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
  * Inventory → Semen tab. Tanks under `/api/v1/inventory/semen/tanks`, straw
  * batches under `/api/v1/inventory/semen/batches`. Token-based tenancy.
  */
+@ApiTags('Inventory')
+@ApiBearerAuth()
 @Controller('inventory/semen')
 @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
 export class SemenController {
