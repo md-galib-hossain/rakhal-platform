@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { FarmSubscription, SubscriptionStatus } from '@prisma/client';
+import {
+  BillingPeriod,
+  FarmSubscription,
+  SubscriptionStatus,
+} from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import {
@@ -10,6 +14,17 @@ import {
 import { SubscriptionAccessService } from './subscription-access.service';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Advance a date by one billing period (calendar month/year). */
+function addBillingPeriod(from: Date, period: BillingPeriod): Date {
+  const d = new Date(from);
+  if (period === BillingPeriod.YEARLY) {
+    d.setFullYear(d.getFullYear() + 1);
+  } else {
+    d.setMonth(d.getMonth() + 1);
+  }
+  return d;
+}
 
 interface ProvisionOptions {
   planName: string;
@@ -148,5 +163,48 @@ export class SubscriptionLifecycleService {
     const result = { pastDue: toPastDue.length, expired: toExpired.length };
     this.log.info('Subscription expiry sweep complete', result);
     return result;
+  }
+
+  /**
+   * Activate/extend a farm's subscription after a PAID invoice (RAKHAL-220).
+   * Creates a fresh `ACTIVE` row (history preserved; `resolveEntitlement` reads
+   * the latest). Renewing the *same* plan while still active extends from the
+   * current expiry; otherwise it starts now. Busts the entitlement cache.
+   */
+  async activate(
+    farmId: string,
+    planId: string,
+    period: BillingPeriod,
+  ): Promise<FarmSubscription> {
+    const now = new Date();
+    const current = await this.prisma.farmSubscription.findFirst({
+      where: { farmId },
+      orderBy: { createdAt: 'desc' },
+    });
+    const extendFrom =
+      current &&
+      current.subscriptionPlanId === planId &&
+      current.status === SubscriptionStatus.ACTIVE &&
+      current.expiresAt &&
+      current.expiresAt > now
+        ? current.expiresAt
+        : now;
+
+    const sub = await this.prisma.farmSubscription.create({
+      data: {
+        farmId,
+        subscriptionPlanId: planId,
+        status: SubscriptionStatus.ACTIVE,
+        startsAt: now,
+        expiresAt: addBillingPeriod(extendFrom, period),
+      },
+    });
+    await this.access.invalidateFarm(farmId);
+    this.log.info('Subscription activated from paid invoice', {
+      farmId,
+      planId,
+      period,
+    });
+    return sub;
   }
 }

@@ -1,0 +1,35 @@
+/// Invoice for a subscription purchase/renewal (RAKHAL-220, PRD §32.1). All money
+/// is ৳ (BDT) Decimal(12,2), computed server-side (PAY-01). `farmId` /
+/// `subscriptionPlanId` are plain scalar FKs (app-scoped, feed-module precedent)
+/// so the billing migration stays isolated from the hot Farm/Plan schemas.
+model Invoice {
+  id String @id @default(cuid())
+
+  farmId             String
+  subscriptionPlanId String
+
+  billingPeriod BillingPeriod
+  currency      String        @default("BDT")
+
+  subtotal      Decimal @db.Decimal(12, 2)
+  discountTotal Decimal @default(0) @db.Decimal(12, 2)
+  total         Decimal @db.Decimal(12, 2)
+
+  status InvoiceStatus @default(PENDING)
+
+  // Seams for coupons (RAKHAL-222) + referral credit (RAKHAL-223).
+  couponId              String?
+  referralCreditApplied Decimal? @db.Decimal(12, 2)
+
+  idempotencyKey String
+
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  payments Payment[] @relation("InvoiceToPayment")
+
+  @@unique([farmId, idempotencyKey])
+  @@index([farmId])
+  @@index([status])
+}

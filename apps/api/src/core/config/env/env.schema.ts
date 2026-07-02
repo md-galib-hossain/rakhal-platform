@@ -150,6 +150,20 @@ export const envSchema = z.object({
   SENTRY_ENVIRONMENT: z.string().optional(),
   SENTRY_RELEASE: z.string().optional(),
   SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
+
+  // bKash Tokenized Checkout (RAKHAL-221). Optional — absent creds ⇒ the payment
+  // provider reports isConfigured()=false and billing runs without a gateway.
+  BKASH_BASE_URL: z
+    .string()
+    .optional(),
+  BKASH_APP_KEY: z.string().optional(),
+  BKASH_APP_SECRET: z.string().optional(),
+  BKASH_USERNAME: z.string().optional(),
+  BKASH_PASSWORD: z.string().optional(),
+  /** Public URL bKash redirects the payer's browser back to after approval. */
+  BKASH_CALLBACK_URL: z.string().optional(),
+  /** Frontend page to send the user to after we finalize (with ?status=). */
+  BKASH_RETURN_URL: z.string().default('/'),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -1,0 +1,29 @@
+enum BillingPeriod {
+  MONTHLY
+  YEARLY
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  PAID
+  FAILED
+  VOID
+  REFUNDED
+}
+
+enum PaymentStatus {
+  INITIATED
+  AUTHORIZED
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+/// The payment gateway an attempt ran through. `NONE` = ৳0 invoice (no gateway);
+/// `MANUAL` = admin-recorded; `BKASH` = the tokenized-checkout adapter (RAKHAL-221).
+enum PaymentGateway {
+  NONE
+  MANUAL
+  BKASH
+}

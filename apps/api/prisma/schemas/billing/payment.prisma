@@ -1,0 +1,28 @@
+/// A payment attempt against an Invoice (RAKHAL-220, PRD §32.1). A COMPLETED
+/// payment is the only thing that flips an invoice to PAID. Idempotent on
+/// `idempotencyKey` so retries/replays can't double-charge (PAY-05).
+model Payment {
+  id String @id @default(cuid())
+
+  invoiceId String
+  farmId    String
+
+  provider          PaymentGateway @default(NONE)
+  providerPaymentId String?
+  providerTrxId     String?
+
+  amount Decimal       @db.Decimal(12, 2)
+  status PaymentStatus @default(INITIATED)
+
+  idempotencyKey String @unique
+  rawPayload     Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  invoice Invoice @relation("InvoiceToPayment", fields: [invoiceId], references: [id])
+
+  @@index([invoiceId])
+  @@index([farmId])
+  @@index([status])
+}
