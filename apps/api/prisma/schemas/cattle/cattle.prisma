@@ -33,6 +33,11 @@ model Cattle {
   color      String?
   notes      String?
 
+  /// Current profile photo (RAKHAL-009) — a scalar FK to a READY `MediaAsset`
+  /// (no Prisma relation, keeping media's migration isolated). Replaced only
+  /// after the new upload is processed + READY; the previous asset is soft-deleted.
+  profilePhotoAssetId String?
+
   /// Animal Quality Rating (0–100), event-driven via the AQR engine (PRD §19.2,
   /// §25.7). Null = nullified (e.g. on mortality); excluded from the herd mean.
   aqrScore Float? @default(0)

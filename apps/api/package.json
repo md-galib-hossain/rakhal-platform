@@ -30,6 +30,8 @@
     "security": "node scripts/security/run-security-check.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1079.0",
+    "@aws-sdk/s3-request-presigner": "^3.1079.0",
     "@nestjs/bullmq": "^11.0.2",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
@@ -62,6 +64,7 @@
     "reflect-metadata": "^0.2.2",
     "resend": "^6.3.0",
     "rxjs": "^7.8.1",
+    "sharp": "^0.35.3",
     "swagger-ui-express": "^5.0.1",
     "zod": "^4.4.3"
   },

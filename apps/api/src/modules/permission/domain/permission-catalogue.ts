@@ -121,6 +121,15 @@ const RESOURCES: ResourceDef[] = [
     group: PermissionGroup.SETTINGS,
     actions: ['read'],
   },
+  // Media / image uploads (RAKHAL-009). `read` = fetch a presigned URL (all
+  // roles, farm-scoped); `upload`/`delete` = generic media management. Attaching
+  // an image to an entity is additionally governed by that entity's own
+  // permission (e.g. a cattle profile photo requires `cattle.update`).
+  {
+    resource: 'media',
+    group: PermissionGroup.GENERAL,
+    actions: ['read', 'upload', 'delete'],
+  },
 ];
 
 /** The full permission catalogue: every `resource.action`, a `resource.*` per resource, and global `*`. */
@@ -178,6 +187,8 @@ export const ROLE_PERMISSIONS: Record<SystemRoleName, string[]> = {
     // View subscription status (purchase/manage is owner-only)
     'subscription.read',
     'referral.read',
+    // Media management (upload/delete/read), farm-scoped
+    'media.*',
   ],
   [SYSTEM_ROLES.WORKER]: [
     'dashboard.read',
@@ -198,5 +209,8 @@ export const ROLE_PERMISSIONS: Record<SystemRoleName, string[]> = {
     'task.complete',
     'notification.read',
     'subscription.read',
+    // Workers capture photos in the field + view them
+    'media.read',
+    'media.upload',
   ],
 };

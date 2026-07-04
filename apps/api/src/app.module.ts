@@ -59,6 +59,7 @@ import { BillingModule } from './modules/billing/billing.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { OtpModule } from './modules/otp/otp.module';
 import { ComplianceModule } from './modules/compliance/compliance.module';
+import { MediaModule } from './modules/media/media.module';
 
 type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
 
@@ -148,6 +149,7 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     AdminModule,
     OtpModule,
     ComplianceModule,
+    MediaModule,
     ActivityModule,
     TaskModule,
   ],

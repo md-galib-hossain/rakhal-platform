@@ -12,6 +12,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { env } from 'src/core/config/env';
 import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
@@ -38,6 +39,9 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Max CSV upload size for bulk import (PRD §8.4). */
 const CSV_MAX_BYTES = 5 * 1024 * 1024;
+
+/** Max profile-photo upload size (RAKHAL-009) — the raw file is compressed server-side. */
+const PHOTO_MAX_BYTES = env.MEDIA_MAX_UPLOAD_BYTES;
 
 /** Cattle (PRD §8). `/api/v1/cattle`. Token tenancy + RBAC. */
 @ApiTags('Cattle')
@@ -164,6 +168,38 @@ export class CattleController {
     @Body() dto: RecordWeightDto,
   ) {
     return this.weightService.recordWeight(farmId, userId, id, dto);
+  }
+
+  // Profile photo (RAKHAL-009, PRD §8.4). Upload → Sharp-processed → private R2;
+  // gated by `cattle.update` (the entity permission governs the write).
+  @Get(':id/photo')
+  @RequirePermission('cattle.read')
+  getPhoto(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.cattleService.getProfilePhoto(farmId, id);
+  }
+
+  @Post(':id/photo')
+  @RequirePermission('cattle.update')
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: PHOTO_MAX_BYTES } }),
+  )
+  setPhoto(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.cattleService.setProfilePhoto(farmId, userId, id, file);
+  }
+
+  @Delete(':id/photo')
+  @RequirePermission('cattle.update')
+  removePhoto(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.cattleService.removeProfilePhoto(farmId, userId, id);
   }
 
   // Detail-page tabs (PRD §8.5). Reproduction (Tab 2) + Health (Tab 3) are

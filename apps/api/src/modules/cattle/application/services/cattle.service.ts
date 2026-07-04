@@ -24,6 +24,11 @@ import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { NON_VOID_TXN } from 'src/common/finance/txn-filters';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 import { SubscriptionAccessService } from 'src/modules/subscription/application/services/subscription-access.service';
+import {
+  MediaService,
+  type MediaUrls,
+} from 'src/modules/media/application/services/media.service';
+import { MediaCategory, MediaUsage } from '@prisma/client';
 import { VWP_DEFAULT_DAYS } from '../../domain/cattle.constants';
 import { deriveHealthStatus } from '../../domain/health-status';
 import { AncestryQueryDto } from '../../presentation/dto/ancestry-query.dto';
@@ -76,6 +81,7 @@ export class CattleService {
     private readonly prisma: PrismaService,
     private readonly aqrService: AqrService,
     private readonly subscriptionAccess: SubscriptionAccessService,
+    private readonly media: MediaService,
     private readonly logger: LoggerService,
   ) {
     this.log = this.logger.setContext(CattleService.name);
@@ -204,10 +210,13 @@ export class CattleService {
       include: this.defaultInclude(),
     });
 
-    return toCursorPage(
+    const page = toCursorPage(
       rows.map((row) => this.composeStatus(row)),
       query,
     );
+    // List view carries only the thumbnail (RAKHAL-009) — cheap payload.
+    const items = await this.attachListPhotos(farmId, page.items);
+    return { ...page, items };
   }
 
   async findOne(farmId: string, id: string) {
@@ -216,7 +225,7 @@ export class CattleService {
       id,
       this.defaultInclude(),
     );
-    return this.composeStatus(cattle);
+    return this.attachDetailPhoto(this.composeStatus(cattle));
   }
 
   async update(farmId: string, id: string, dto: UpdateCattleDto) {
@@ -943,6 +952,101 @@ export class CattleService {
       orderBy: { tagNumber: 'asc' },
       select: this.summarySelect(),
     });
+  }
+
+  // ---- RAKHAL-009: Profile photo ------------------------------------------
+
+  /**
+   * Set (or replace) the cattle profile photo. The image is validated + Sharp-
+   * processed + stored first; only once it's READY do we point the cattle at it
+   * and soft-delete the previous photo (so a failed upload never blanks the
+   * existing one). Gated by `cattle.update` at the controller.
+   */
+  async setProfilePhoto(
+    farmId: string,
+    userId: string,
+    id: string,
+    file: { buffer: Buffer; originalname?: string; size?: number },
+  ): Promise<MediaUrls> {
+    const cattle = await this.getCattleOrThrow(farmId, id);
+    const asset = await this.media.uploadImage({
+      farmId,
+      uploadedByUserId: userId,
+      category: MediaCategory.CATTLE,
+      usage: MediaUsage.PROFILE_PHOTO,
+      file,
+    });
+
+    const previousId = cattle.profilePhotoAssetId;
+    await this.prisma.cattle.update({
+      where: { id },
+      data: { profilePhotoAssetId: asset.id },
+    });
+    if (previousId && previousId !== asset.id) {
+      await this.media
+        .softDeleteById(farmId, previousId, userId)
+        .catch(() => undefined);
+    }
+    this.log.info('Cattle profile photo set', {
+      cattleId: id,
+      farmId,
+      assetId: asset.id,
+    });
+    return this.media.signUrls(asset, true);
+  }
+
+  async removeProfilePhoto(farmId: string, userId: string, id: string) {
+    const cattle = await this.getCattleOrThrow(farmId, id);
+    if (cattle.profilePhotoAssetId) {
+      const previousId = cattle.profilePhotoAssetId;
+      await this.prisma.cattle.update({
+        where: { id },
+        data: { profilePhotoAssetId: null },
+      });
+      await this.media
+        .softDeleteById(farmId, previousId, userId)
+        .catch(() => undefined);
+    }
+    return { removed: true };
+  }
+
+  async getProfilePhoto(farmId: string, id: string): Promise<MediaUrls> {
+    const cattle = await this.getCattleOrThrow(farmId, id);
+    if (!cattle.profilePhotoAssetId) {
+      throw new NotFoundException('No profile photo for this cattle');
+    }
+    return this.media.presentUrls(farmId, cattle.profilePhotoAssetId, true);
+  }
+
+  /** Enrich a list of composed cattle with their thumbnail URLs (batched). */
+  private async attachListPhotos<
+    T extends { profilePhotoAssetId: string | null },
+  >(
+    farmId: string,
+    items: T[],
+  ): Promise<(T & { profile_photo: MediaUrls | null })[]> {
+    const ids = items
+      .map((i) => i.profilePhotoAssetId)
+      .filter((x): x is string => Boolean(x));
+    const signed = await this.media.signThumbs(farmId, ids);
+    return items.map((i) => ({
+      ...i,
+      profile_photo: i.profilePhotoAssetId
+        ? (signed.get(i.profilePhotoAssetId) ?? null)
+        : null,
+    }));
+  }
+
+  /** Enrich a single composed cattle with full + thumb URLs (detail view). */
+  private async attachDetailPhoto<
+    T extends { profilePhotoAssetId: string | null; farmId: string },
+  >(item: T): Promise<T & { profile_photo: MediaUrls | null }> {
+    const photo = item.profilePhotoAssetId
+      ? await this.media
+          .presentUrls(item.farmId, item.profilePhotoAssetId, true)
+          .catch(() => null)
+      : null;
+    return { ...item, profile_photo: photo };
   }
 
   // ---- status composition -------------------------------------------------

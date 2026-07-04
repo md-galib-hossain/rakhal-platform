@@ -1,0 +1,70 @@
+/// Uploaded image asset (RAKHAL-009). Every user-uploaded image in Rakhal
+/// (cattle photos now; health/repro/avatars/farm-logo later) is processed by
+/// Sharp (validated, re-encoded to JPEG, EXIF-stripped, resized) and its
+/// variants stored in a **private** Cloudflare R2 bucket — served only via
+/// short-lived presigned GET URLs. `farmId`/`uploadedByUserId` are plain scalar
+/// FKs (billing/feed precedent) so the media migration stays isolated from the
+/// hot Farm/User schemas. The original upload is never stored (privacy + cost).
+model MediaAsset {
+  id String @id @default(cuid())
+
+  farmId           String
+  uploadedByUserId String
+
+  category MediaCategory
+  usage    MediaUsage
+  status   MediaStatus   @default(PENDING)
+
+  /// Structured per-variant descriptor:
+  /// `{ full: {key,width,height,byteSize}, thumb: {key,width,height,byteSize} }`.
+  variants Json?
+
+  contentType    String  @default("image/jpeg")
+  /// The format Sharp actually decoded (jpeg/png/webp) — audit + validation trail.
+  detectedFormat String?
+
+  width  Int?
+  height Int?
+
+  originalFileName  String?
+  originalByteSize  Int
+  processedByteSize Int?
+  /// sha256 of the original bytes — dedupe / integrity / audit.
+  sha256 String
+
+  deletedAt       DateTime?
+  deletedByUserId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([farmId])
+  @@index([farmId, category, usage])
+  // Drives the orphan/FAILED cleanup sweep (delete stale PENDING/FAILED/DELETED).
+  @@index([status, createdAt])
+}
+
+enum MediaCategory {
+  CATTLE
+  HEALTH
+  REPRODUCTION
+  CALF
+  FARM
+  USER
+}
+
+enum MediaUsage {
+  PROFILE_PHOTO
+  GALLERY
+  PRESCRIPTION_IMAGE
+  DISEASE_IMAGE
+  FARM_LOGO
+  AVATAR
+}
+
+enum MediaStatus {
+  PENDING
+  READY
+  FAILED
+  DELETED
+}

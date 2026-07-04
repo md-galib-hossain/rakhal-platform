@@ -168,6 +168,27 @@ export const envSchema = z.object({
   SENTRY_RELEASE: z.string().optional(),
   SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
 
+  // Object storage / image uploads (RAKHAL-009). Cloudflare R2 (S3-compatible),
+  // **private** bucket — files are served only via short-lived presigned GET URLs.
+  // In test (`NODE_ENV=test`) the in-memory adapter is always used, so the suite
+  // never touches the real bucket. In production `STORAGE_PROVIDER=r2` requires the
+  // R2_* creds (fail-closed at boot); dev without creds falls back to memory.
+  STORAGE_PROVIDER: z.enum(['r2', 'memory']).default('memory'),
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET: z.string().optional(),
+  R2_PUBLIC_BASE_URL: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : undefined)),
+  R2_PRESIGN_EXPIRY_SECONDS: z.coerce.number().int().positive().default(900),
+  MEDIA_MAX_UPLOAD_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(8 * 1024 * 1024),
+
   // Tax-ready invoicing (RAKHAL-237, PRD §36.2). VAT is OFF at launch — Rakhal
   // is not VAT-registered, so receipts carry no VAT line until `VAT_ENABLED=true`
   // + a `VAT_RATE` (Mushak is 15% in BD). Toggling it on only affects invoices
