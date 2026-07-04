@@ -6,10 +6,12 @@ import { PermissionModule } from '../permission/permission.module';
 import { AuditModule } from '../audit/audit.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { ComplianceModule } from '../compliance/compliance.module';
+import { EmailModule } from '../email/email.module';
 import { BillingService } from './application/services/billing.service';
 import { CouponService } from './application/services/coupon.service';
 import { ReferralService } from './application/services/referral.service';
 import { CreditWalletService } from './application/services/credit-wallet.service';
+import { ReceiptService } from './application/services/receipt.service';
 import { BkashTokenService } from './application/services/bkash-token.service';
 import { UnconfiguredPaymentProvider } from './application/providers/unconfigured-payment.provider';
 import { BkashPaymentProvider } from './application/providers/bkash-payment.provider';
@@ -42,6 +44,7 @@ import { ReferralController } from './presentation/controllers/referral.controll
     AuditModule,
     SubscriptionModule,
     ComplianceModule,
+    EmailModule,
   ],
   controllers: [BillingController, BkashCallbackController, ReferralController],
   providers: [
@@ -49,6 +52,7 @@ import { ReferralController } from './presentation/controllers/referral.controll
     CouponService,
     ReferralService,
     CreditWalletService,
+    ReceiptService,
     BkashTokenService,
     BkashPaymentProvider,
     UnconfiguredPaymentProvider,

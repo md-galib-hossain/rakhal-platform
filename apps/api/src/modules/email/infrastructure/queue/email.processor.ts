@@ -36,7 +36,15 @@ export class EmailProcessor extends WorkerHost {
         payload.template,
         payload.templateData,
       );
-      const attachments = payload.includePdf
+      // Pre-rendered attachments (e.g. the billing receipt PDF, RAKHAL-237) are
+      // carried base64 on the job; decode them back to Buffers. `includePdf` still
+      // generates the legacy generic placeholder PDF.
+      const preRendered = (payload.attachments ?? []).map((a) => ({
+        filename: a.filename,
+        content: Buffer.from(a.contentBase64, 'base64'),
+        contentType: a.contentType ?? 'application/pdf',
+      }));
+      const generated = payload.includePdf
         ? [
             {
               filename: `${payload.template.toLowerCase()}-${payload.emailId}.pdf`,
@@ -47,13 +55,14 @@ export class EmailProcessor extends WorkerHost {
               contentType: 'application/pdf',
             },
           ]
-        : undefined;
+        : [];
+      const attachments = [...preRendered, ...generated];
 
       await this.providerFactory.getProvider().sendEmail({
         to: payload.to,
         subject: payload.subject,
         html,
-        attachments,
+        attachments: attachments.length ? attachments : undefined,
       });
 
       await this.repository.markSent(payload.emailId, 'resend');

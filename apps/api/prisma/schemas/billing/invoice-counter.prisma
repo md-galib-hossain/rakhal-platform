@@ -1,0 +1,13 @@
+/// Gapless invoice-number counter (RAKHAL-237, PRD §36.2 / TAX-02). One row per
+/// numbering scope (e.g. a fiscal year, or the single global "invoice" scope used
+/// at launch). The next number is taken by incrementing `value` **inside the same
+/// transaction as the invoice insert**, so a rolled-back checkout releases the
+/// number (truly gapless) and concurrent checkouts serialize on the row lock —
+/// never a count-based query (which would collide) and never a Postgres SEQUENCE
+/// (which gaps on rollback).
+model InvoiceCounter {
+  scope String @id
+  value Int    @default(0)
+
+  updatedAt DateTime @updatedAt
+}

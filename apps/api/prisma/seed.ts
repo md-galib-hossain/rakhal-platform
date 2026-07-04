@@ -526,6 +526,19 @@ async function seedSubscriptionPlans(): Promise<void> {
 }
 
 /**
+ * Ensure the gapless invoice-number counter row exists (RAKHAL-237, TAX-02) so
+ * every checkout hits the atomic `increment` path — never the create branch (which
+ * could race under concurrency). Idempotent: seeded at value 0, never reset.
+ */
+async function seedInvoiceCounter(): Promise<void> {
+  await prisma.invoiceCounter.upsert({
+    where: { scope: 'invoice' },
+    update: {},
+    create: { scope: 'invoice', value: 0 },
+  });
+}
+
+/**
  * Give the demo farm an ACTIVE Pro subscription (unlimited, 1-year) so demo +
  * e2e flows retain full feature access once the subscription gate lands
  * (RAKHAL-218). Idempotent; requires `seedSubscriptionPlans()` to have run.
@@ -606,6 +619,7 @@ async function main(): Promise<void> {
   await seedFeedIngredients();
   await seedReproProtocols();
   await seedSubscriptionPlans();
+  await seedInvoiceCounter();
   await seedPlatformAdmin();
   await seedLegalConsent(demo.ownerUserId ?? null);
   if (demo.farmId) {

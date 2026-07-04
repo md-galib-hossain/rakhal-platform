@@ -8,6 +8,7 @@ import { BillingService } from '../src/modules/billing/application/services/bill
 import { CouponService } from '../src/modules/billing/application/services/coupon.service';
 import { ReferralService } from '../src/modules/billing/application/services/referral.service';
 import { CreditWalletService } from '../src/modules/billing/application/services/credit-wallet.service';
+import { ReceiptService } from '../src/modules/billing/application/services/receipt.service';
 import { LegalConsentService } from '../src/modules/compliance/application/services/legal-consent.service';
 import { FarmService } from '../src/modules/farm/application/services/farm.service';
 import { LoggerService } from '../src/core/logger/logger/logger.service';
@@ -32,6 +33,7 @@ describe('Referral engine (e2e)', () => {
   let coupons: CouponService;
   let referrals: ReferralService;
   let creditWallet: CreditWalletService;
+  let receipts: ReceiptService;
   let legal: LegalConsentService;
   let farmService: FarmService;
   let owner: AuthedUser;
@@ -56,6 +58,7 @@ describe('Referral engine (e2e)', () => {
       coupons,
       referrals,
       creditWallet,
+      receipts,
       legal,
       provider,
       logger,
@@ -132,6 +135,7 @@ describe('Referral engine (e2e)', () => {
     coupons = ctx.app.get(CouponService);
     referrals = ctx.app.get(ReferralService);
     creditWallet = ctx.app.get(CreditWalletService);
+    receipts = ctx.app.get(ReceiptService);
     legal = ctx.app.get(LegalConsentService);
     farmService = ctx.app.get(FarmService);
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');

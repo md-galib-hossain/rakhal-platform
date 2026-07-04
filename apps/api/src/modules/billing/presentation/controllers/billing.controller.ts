@@ -6,8 +6,10 @@ import {
   Param,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
@@ -59,6 +61,25 @@ export class BillingController {
   @RequirePermission('subscription.read')
   getOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.billing.getInvoice(farmId, id);
+  }
+
+  @Get('invoices/:id/receipt')
+  @RequirePermission('subscription.read')
+  async receipt(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    // Resolve before touching `res` so not-found / not-paid still flow to the
+    // global exception filter. On success we own the raw response (non-passthrough
+    // `@Res`), bypassing the JSON envelope, and stream the PDF bytes (TAX-03).
+    const file = await this.billing.getReceipt(farmId, id);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${file.fileName}"`,
+      'Content-Length': String(file.buffer.length),
+    });
+    res.send(file.buffer);
   }
 
   @Post('invoices/:id/refund')

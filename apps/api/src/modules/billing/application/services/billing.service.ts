@@ -11,9 +11,18 @@ import {
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { CursorPage, getCursorArgs, toCursorPage } from 'src/common/pagination';
+import { env } from 'src/core/config/env';
 import { AuditService } from 'src/modules/audit/application/services/audit.service';
 import { SubscriptionLifecycleService } from 'src/modules/subscription/application/services/subscription-lifecycle.service';
-import { clampNonNegative, computeInvoiceTotal } from '../../domain/money';
+import {
+  clampNonNegative,
+  computeGrandTotal,
+  computeTax,
+} from '../../domain/money';
+import {
+  formatInvoiceNumber,
+  INVOICE_COUNTER_SCOPE,
+} from '../../domain/invoice-number';
 import {
   PAYMENT_PROVIDER,
   type PaymentExecutionResult,
@@ -24,16 +33,20 @@ import { ListInvoiceQueryDto } from '../../presentation/dto/list-invoice-query.d
 import { CouponService } from './coupon.service';
 import { ReferralService } from './referral.service';
 import { CreditWalletService } from './credit-wallet.service';
+import { ReceiptService, type RenderedReceipt } from './receipt.service';
 import { LegalConsentService } from 'src/modules/compliance/application/services/legal-consent.service';
 
 export interface PublicInvoice {
   id: string;
+  invoice_number: string | null;
   plan_id: string;
   billing_period: BillingPeriod;
   currency: string;
   subtotal: number;
   discount_total: number;
   referral_credit_applied: number;
+  tax_rate: number;
+  tax_amount: number;
   total: number;
   status: InvoiceStatus;
   paid_at: string | null;
@@ -58,6 +71,7 @@ export class BillingService {
     private readonly coupons: CouponService,
     private readonly referrals: ReferralService,
     private readonly creditWallet: CreditWalletService,
+    private readonly receipts: ReceiptService,
     private readonly legal: LegalConsentService,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
     logger: LoggerService,
@@ -110,6 +124,10 @@ export class BillingService {
         })
       : null;
 
+    // VAT is off at launch (`VAT_ENABLED=false`) → rate 0 → taxAmount 0, so the
+    // total is unchanged from the pre-237 behaviour (TAX-04).
+    const vatRate = new Prisma.Decimal(env.VAT_ENABLED ? env.VAT_RATE : 0);
+
     const invoice = await this.prisma.$transaction(async (tx) => {
       let discountTotal = new Prisma.Decimal(0);
       let couponId: string | null = null;
@@ -125,28 +143,47 @@ export class BillingService {
         couponId = reservation.couponId;
       }
 
-      const remainingAfterCoupon = clampNonNegative(
-        subtotal.minus(discountTotal),
-      );
-      // Closed-loop Rakhal Credit auto-applies to the remaining charge (§37).
+      const netAfterDiscount = clampNonNegative(subtotal.minus(discountTotal));
+      // VAT is charged on the post-discount price (TAX-01).
+      const taxAmount = computeTax(netAfterDiscount, vatRate);
+      const grossWithTax = netAfterDiscount.plus(taxAmount);
+
+      // Closed-loop Rakhal Credit auto-applies to the tax-inclusive charge (§37).
       const referralCreditApplied = await this.creditWallet.applyToCharge(
         tx,
         farmId,
-        remainingAfterCoupon,
+        grossWithTax,
         'subscription',
       );
 
+      // Gapless sequential receipt number (TAX-02): incrementing the counter row
+      // inside this transaction serializes concurrent checkouts on its lock and
+      // releases the number if the checkout rolls back — never a collision, never
+      // a gap. The seed pre-creates the row so the create branch never races.
+      const counter = await tx.invoiceCounter.upsert({
+        where: { scope: INVOICE_COUNTER_SCOPE },
+        create: { scope: INVOICE_COUNTER_SCOPE, value: 1 },
+        update: { value: { increment: 1 } },
+      });
+      const invoiceNumber = formatInvoiceNumber(
+        env.INVOICE_NUMBER_PREFIX,
+        counter.value,
+      );
+
       const created = await tx.invoice.create({
-        data: this.buildInvoiceData(
+        data: this.buildInvoiceData({
           farmId,
-          plan.id,
-          dto.billingPeriod,
+          subscriptionPlanId: plan.id,
+          billingPeriod: dto.billingPeriod,
           subtotal,
           discountTotal,
+          taxRate: vatRate,
+          taxAmount,
           couponId,
           referralCreditApplied,
-          key,
-        ),
+          invoiceNumber,
+          idempotencyKey: key,
+        }),
       });
 
       if (couponId) {
@@ -196,6 +233,8 @@ export class BillingService {
         farmId,
         metadata: { total: 0 },
       });
+      // Receipt PDF emailed on payment (TAX-03); best-effort, never throws.
+      await this.receipts.emailReceipt(invoice.id);
       return {
         invoice: this.present(invoice),
         checkout: null,
@@ -388,6 +427,10 @@ export class BillingService {
           metadata: { total: invoice.total.toNumber() },
         });
       }
+
+      // Receipt PDF emailed on payment (TAX-03); best-effort, never throws — and
+      // idempotent-safe because the invoice only reaches here on the first flip.
+      await this.receipts.emailReceipt(invoice.id);
       return { status: 'PAID' };
     }
 
@@ -496,35 +539,54 @@ export class BillingService {
   }
 
   /** ৳0 (coupon/wallet-credit/Free) → PAID with no gateway round-trip, still audited (PAY-07). */
-  private buildInvoiceData(
-    farmId: string,
-    subscriptionPlanId: string,
-    billingPeriod: BillingPeriod,
-    subtotal: Prisma.Decimal,
-    discountTotal: Prisma.Decimal,
-    couponId: string | null,
-    referralCreditApplied: Prisma.Decimal,
-    idempotencyKey: string,
-  ): Prisma.InvoiceCreateInput {
-    const total = computeInvoiceTotal(
-      subtotal,
-      discountTotal.plus(referralCreditApplied),
+  private buildInvoiceData(p: {
+    farmId: string;
+    subscriptionPlanId: string;
+    billingPeriod: BillingPeriod;
+    subtotal: Prisma.Decimal;
+    discountTotal: Prisma.Decimal;
+    taxRate: Prisma.Decimal;
+    taxAmount: Prisma.Decimal;
+    couponId: string | null;
+    referralCreditApplied: Prisma.Decimal;
+    invoiceNumber: string;
+    idempotencyKey: string;
+  }): Prisma.InvoiceCreateInput {
+    const total = computeGrandTotal(
+      p.subtotal,
+      p.discountTotal,
+      p.taxAmount,
+      p.referralCreditApplied,
     );
     const isFree = total.isZero();
     return {
-      farmId,
-      subscriptionPlanId,
-      billingPeriod,
+      farmId: p.farmId,
+      subscriptionPlanId: p.subscriptionPlanId,
+      billingPeriod: p.billingPeriod,
       currency: 'BDT',
-      subtotal,
-      discountTotal,
-      referralCreditApplied,
+      subtotal: p.subtotal,
+      discountTotal: p.discountTotal,
+      referralCreditApplied: p.referralCreditApplied,
+      taxRate: p.taxRate,
+      taxAmount: p.taxAmount,
+      invoiceNumber: p.invoiceNumber,
+      // Seller identity snapshotted at issue time (TAX-04 — a later config change
+      // never mutates a past receipt).
+      sellerName: env.INVOICE_SELLER_NAME,
+      sellerAddress: env.INVOICE_SELLER_ADDRESS,
+      sellerBin: env.INVOICE_SELLER_BIN ?? null,
+      placeOfSupply: env.INVOICE_PLACE_OF_SUPPLY,
       total,
-      couponId,
+      couponId: p.couponId,
       status: isFree ? InvoiceStatus.PAID : InvoiceStatus.PENDING,
-      idempotencyKey,
+      idempotencyKey: p.idempotencyKey,
       paidAt: isFree ? new Date() : null,
     };
+  }
+
+  /** `GET /billing/invoices/:id/receipt` — the tax-ready receipt PDF (TAX-03). */
+  getReceipt(farmId: string, invoiceId: string): Promise<RenderedReceipt> {
+    return this.receipts.renderForDownload(farmId, invoiceId);
   }
 
   private async farmOwnerId(farmId: string): Promise<string | null> {
@@ -538,6 +600,7 @@ export class BillingService {
   private present(invoice: Invoice): PublicInvoice {
     return {
       id: invoice.id,
+      invoice_number: invoice.invoiceNumber,
       plan_id: invoice.subscriptionPlanId,
       billing_period: invoice.billingPeriod,
       currency: invoice.currency,
@@ -546,6 +609,8 @@ export class BillingService {
       referral_credit_applied: (
         invoice.referralCreditApplied ?? new Prisma.Decimal(0)
       ).toNumber(),
+      tax_rate: invoice.taxRate.toNumber(),
+      tax_amount: invoice.taxAmount.toNumber(),
       total: invoice.total.toNumber(),
       status: invoice.status,
       paid_at: invoice.paidAt ? invoice.paidAt.toISOString() : null,

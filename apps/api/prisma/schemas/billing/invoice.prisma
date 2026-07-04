@@ -15,6 +15,23 @@ model Invoice {
   discountTotal Decimal @default(0) @db.Decimal(12, 2)
   total         Decimal @db.Decimal(12, 2)
 
+  // Tax-ready receipt fields (RAKHAL-237, PRD §36.2). VAT is OFF at launch
+  // (`VAT_ENABLED=false`) so these default to 0 and the total is unchanged;
+  // flipping VAT on only affects new invoices (TAX-04 — no retro-mutation).
+  taxRate   Decimal @default(0) @db.Decimal(5, 2)
+  taxAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  // Gapless sequential receipt number (TAX-02), assigned at creation from
+  // `InvoiceCounter` and never reused (a void/refund keeps its number).
+  invoiceNumber String? @unique
+
+  // Seller identity snapshotted at issue time so a past receipt renders
+  // identically even if the platform's config later changes (TAX-04).
+  sellerName    String?
+  sellerAddress String?
+  sellerBin     String?
+  placeOfSupply String?
+
   status InvoiceStatus @default(PENDING)
 
   // Seams for coupons (RAKHAL-222) + referral credit (RAKHAL-223).

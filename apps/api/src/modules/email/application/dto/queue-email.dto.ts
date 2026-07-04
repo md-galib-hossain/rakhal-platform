@@ -1,5 +1,16 @@
 import { EmailTemplate } from '../../domain/enums/email-template.enum';
 
+/**
+ * A pre-rendered attachment carried on the queued job. `contentBase64` keeps the
+ * payload JSON-serializable through BullMQ/Redis (a raw Buffer isn't). Used by the
+ * billing receipt PDF (RAKHAL-237); the processor decodes it back to a Buffer.
+ */
+export interface QueueEmailAttachment {
+  filename: string;
+  contentBase64: string;
+  contentType?: string;
+}
+
 export interface QueueEmailDto {
   emailId: string;
   to: string;
@@ -12,4 +23,5 @@ export interface QueueEmailDto {
   templateData: Record<string, unknown>;
   sendAt?: Date;
   includePdf?: boolean;
+  attachments?: QueueEmailAttachment[];
 }

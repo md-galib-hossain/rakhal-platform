@@ -168,6 +168,19 @@ export const envSchema = z.object({
   SENTRY_RELEASE: z.string().optional(),
   SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
 
+  // Tax-ready invoicing (RAKHAL-237, PRD §36.2). VAT is OFF at launch — Rakhal
+  // is not VAT-registered, so receipts carry no VAT line until `VAT_ENABLED=true`
+  // + a `VAT_RATE` (Mushak is 15% in BD). Toggling it on only affects invoices
+  // issued afterwards (TAX-04 — never retro-mutates past receipts). The seller
+  // identity is snapshotted onto each invoice at issue time.
+  VAT_ENABLED: stringBoolean.default(false),
+  VAT_RATE: z.coerce.number().min(0).max(100).default(0),
+  INVOICE_NUMBER_PREFIX: z.string().default('INV'),
+  INVOICE_SELLER_NAME: z.string().default('Rakhal'),
+  INVOICE_SELLER_ADDRESS: z.string().default('Dhaka, Bangladesh'),
+  INVOICE_SELLER_BIN: z.string().optional(),
+  INVOICE_PLACE_OF_SUPPLY: z.string().default('Bangladesh'),
+
   // bKash Tokenized Checkout (RAKHAL-221). Optional — absent creds ⇒ the payment
   // provider reports isConfigured()=false and billing runs without a gateway.
   BKASH_BASE_URL: z.string().optional(),
