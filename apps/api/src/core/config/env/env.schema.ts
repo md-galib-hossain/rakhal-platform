@@ -35,6 +35,23 @@ export const envSchema = z.object({
 
   JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
 
+  // Platform-admin identity (RAKHAL-224, ADR-019). A **separate** secret from
+  // the farm JWTs is the enforcement that a farm access token can never
+  // authenticate as an admin (and vice-versa). Required + fail-closed like the
+  // farm secrets — no default, so a misconfigured deploy refuses to boot.
+  JWT_ADMIN_SECRET: z.string().min(32),
+
+  JWT_ADMIN_EXPIRES_IN: z.string().default('1h'),
+
+  // OTP / verification (RAKHAL-215/216). Delivery channel is swappable —
+  // `email` now (MimSMS creds pending), `sms` drops in when the SMS provider
+  // is configured. In non-production the code is returned in the API response
+  // for testing (never in production).
+  OTP_CHANNEL: z.enum(['email', 'sms']).default('email'),
+  OTP_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+  OTP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
+  OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().positive().default(60),
+
   REDIS_HOST: z.string(),
 
   REDIS_PORT: z.coerce.number(),

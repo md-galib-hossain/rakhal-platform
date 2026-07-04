@@ -102,7 +102,7 @@ describe('Coupon engine (e2e)', () => {
     });
 
     const code = uniqueCode('GALIB100');
-    await coupons.issue(ownerUserId, {
+    await coupons.issue({
       code,
       type: CouponType.PERCENT,
       value: 100,
@@ -142,7 +142,7 @@ describe('Coupon engine (e2e)', () => {
 
   it('the same farm cannot redeem a coupon twice', async () => {
     const code = uniqueCode('ONCE');
-    await coupons.issue(ownerUserId, {
+    await coupons.issue({
       code,
       type: CouponType.FIXED,
       value: 100,
@@ -170,7 +170,7 @@ describe('Coupon engine (e2e)', () => {
 
   it('an expired coupon is rejected', async () => {
     const code = uniqueCode('EXPIRED');
-    await coupons.issue(ownerUserId, {
+    await coupons.issue({
       code,
       type: CouponType.FIXED,
       value: 100,
@@ -195,7 +195,7 @@ describe('Coupon engine (e2e)', () => {
       data: { phoneVerifiedAt: null },
     });
     const code = uniqueCode('FREE100');
-    await coupons.issue(ownerUserId, {
+    await coupons.issue({
       code,
       type: CouponType.PERCENT,
       value: 100,
@@ -216,7 +216,7 @@ describe('Coupon engine (e2e)', () => {
 
   it('concurrent redemptions never exceed the seat count (CPN-01)', async () => {
     const code = uniqueCode('RACE');
-    await coupons.issue(ownerUserId, {
+    await coupons.issue({
       code,
       type: CouponType.FIXED,
       value: 50,
@@ -253,7 +253,7 @@ describe('Coupon engine (e2e)', () => {
 
   it('applies a coupon at checkout over HTTP and reflects the discount', async () => {
     const code = uniqueCode('HTTPFIXED');
-    await coupons.issue(ownerUserId, {
+    await coupons.issue({
       code,
       type: CouponType.FIXED,
       value: 200,

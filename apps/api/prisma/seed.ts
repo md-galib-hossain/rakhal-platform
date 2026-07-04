@@ -157,6 +157,88 @@ async function seedDemoMember(
   console.log(`✔ demo member: ${email} / ${password} (${name})`);
 }
 
+/** Demo platform-admin (RAKHAL-224). Separate identity from farm users. */
+async function seedPlatformAdmin(): Promise<void> {
+  const email = 'admin@rakhal.test';
+  const password = 'AdminPass123';
+  const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
+  await prisma.platformAdmin.upsert({
+    where: { email },
+    update: { passwordHash, isActive: true },
+    create: {
+      email,
+      name: 'Rakhal Super Admin',
+      passwordHash,
+      role: 'SUPER_ADMIN',
+    },
+  });
+  console.log(`✔ platform admin: ${email} / ${password}`);
+}
+
+/**
+ * Current legal documents (RAKHAL-236) + the demo owner's acceptance so the
+ * consent gate (farm-create / checkout) passes for the seeded demo flows.
+ * Admin authoring/publishing UI is RAKHAL-225; these are the seeded v1.0.
+ */
+async function seedLegalConsent(ownerUserId: string | null): Promise<void> {
+  const docs: {
+    type: 'TERMS' | 'PRIVACY';
+    title: string;
+    content: string;
+  }[] = [
+    {
+      type: 'TERMS',
+      title: 'Rakhal Terms of Service',
+      content:
+        'These are the Rakhal Terms of Service (v1.0). By using Rakhal you agree to operate your farm data responsibly and to our subscription terms.',
+    },
+    {
+      type: 'PRIVACY',
+      title: 'Rakhal Privacy Policy',
+      content:
+        'This is the Rakhal Privacy Policy (v1.0). We process your farm and account data to provide the service and never sell it.',
+    },
+  ];
+
+  const created: { id: string; type: 'TERMS' | 'PRIVACY'; version: string }[] =
+    [];
+  for (const d of docs) {
+    const doc = await prisma.legalDocument.upsert({
+      where: { type_version: { type: d.type, version: '1.0' } },
+      update: { published: true },
+      create: {
+        type: d.type,
+        version: '1.0',
+        title: d.title,
+        content: d.content,
+        effectiveAt: new Date('2026-01-01T00:00:00Z'),
+        published: true,
+      },
+      select: { id: true, type: true, version: true },
+    });
+    created.push(doc);
+  }
+  console.log(`✔ legal documents: ${created.length} (ToS + Privacy v1.0)`);
+
+  if (ownerUserId) {
+    for (const doc of created) {
+      await prisma.consentRecord.upsert({
+        where: {
+          userId_documentId: { userId: ownerUserId, documentId: doc.id },
+        },
+        update: {},
+        create: {
+          userId: ownerUserId,
+          documentId: doc.id,
+          documentType: doc.type,
+          version: doc.version,
+        },
+      });
+    }
+    console.log('✔ demo owner consent: ToS + Privacy accepted');
+  }
+}
+
 /**
  * A little operational finance data so the dashboard/finance KPIs render
  * meaningfully (not nulls): a wallet credit gives liquidity and a few recent
@@ -524,6 +606,8 @@ async function main(): Promise<void> {
   await seedFeedIngredients();
   await seedReproProtocols();
   await seedSubscriptionPlans();
+  await seedPlatformAdmin();
+  await seedLegalConsent(demo.ownerUserId ?? null);
   if (demo.farmId) {
     await seedDemoSubscription(demo.farmId);
   }

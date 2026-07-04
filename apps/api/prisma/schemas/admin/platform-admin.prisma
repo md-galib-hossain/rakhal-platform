@@ -1,0 +1,55 @@
+/// Platform-admin roles (RAKHAL-224, PRD §32.5). `SUPER_ADMIN` is the only role
+/// at launch; RAKHAL-225 adds granular back-office roles (BILLING_ADMIN,
+/// SUPPORT_ADMIN, …) + a permission matrix on this same identity.
+enum PlatformAdminRole {
+  SUPER_ADMIN
+}
+
+/// A Rakhal-team back-office identity (RAKHAL-224, PRD §32.5 / ADR-019).
+/// **Deliberately a separate table from farm `User`** — a farm role can never
+/// become a platform admin (ADR-016). Admin tokens are signed with a distinct
+/// `JWT_ADMIN_SECRET`, so a farm access token can never authenticate here and
+/// vice-versa. RAKHAL-225 extends this with 2FA, sessions, and granular RBAC.
+model PlatformAdmin {
+  id String @id @default(cuid())
+
+  email        String @unique
+  name         String
+  passwordHash String
+
+  role     PlatformAdminRole @default(SUPER_ADMIN)
+  isActive Boolean           @default(true)
+
+  lastLoginAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auditLogs PlatformAdminAuditLog[] @relation("PlatformAdminToAudit")
+
+  @@index([email])
+}
+
+/// Immutable audit trail for platform-admin actions (RAKHAL-224). Separate from
+/// the farm `AuditLog` (whose `actorUserId` FKs `User`) precisely because the
+/// actor here is a `PlatformAdmin`, not a farm user. `action` is a free-text
+/// code for now (e.g. `COUPON_ISSUED`); RAKHAL-225 may formalise it + add
+/// IP/geo/session context as the admin audit surface grows.
+model PlatformAdminAuditLog {
+  id String @id @default(cuid())
+
+  adminId String
+  admin   PlatformAdmin @relation("PlatformAdminToAudit", fields: [adminId], references: [id])
+
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([action])
+}

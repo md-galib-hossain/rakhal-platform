@@ -4,16 +4,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  AuditAction,
-  Coupon,
-  CouponStatus,
-  CouponType,
-  Prisma,
-} from '@prisma/client';
+import { Coupon, CouponStatus, CouponType, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
-import { AuditService } from 'src/modules/audit/application/services/audit.service';
 import { computeCouponDiscount } from '../../domain/coupon-pricing';
 
 export interface IssueCouponInput {
@@ -35,11 +28,10 @@ export interface CouponReservation {
 
 /**
  * Coupon engine (RAKHAL-222, PRD §33.1). `issue`/`list`/`disable` are
- * platform-admin actions (CPN-06). They're plain service methods — no HTTP
- * controller yet, since `PlatformAdminGuard` doesn't exist until
- * RAKHAL-224/225; this mirrors the AQR admin-config seam (`AqrConfigService`)
- * of building the engine first and wiring the admin surface once the guard
- * lands. `reserve`/`recordRedemption` are called from inside
+ * platform-admin-only actions (CPN-06) — wired to `admin-api` behind
+ * `PlatformAdminGuard` by the `AdminBillingController` (RAKHAL-224), which owns
+ * the admin audit trail (`AdminAuditService`); these methods stay pure business
+ * logic. `reserve`/`recordRedemption` are called from inside
  * `BillingService.checkout`'s own transaction so the seat decrement, the
  * per-farm-once check, and the invoice commit atomically (CPN-01).
  */
@@ -49,13 +41,12 @@ export class CouponService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly audit: AuditService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(CouponService.name);
   }
 
-  async issue(actorUserId: string, input: IssueCouponInput): Promise<Coupon> {
+  async issue(input: IssueCouponInput): Promise<Coupon> {
     const code = input.code.trim().toUpperCase();
     let coupon: Coupon;
     try {
@@ -83,17 +74,6 @@ export class CouponService {
       throw err;
     }
 
-    await this.audit.record({
-      actorUserId,
-      action: AuditAction.COUPON_ISSUED,
-      entityType: 'Coupon',
-      entityId: coupon.id,
-      metadata: {
-        code,
-        type: input.type,
-        maxRedemptions: input.maxRedemptions,
-      },
-    });
     this.log.info('Coupon issued', { couponId: coupon.id, code });
     return coupon;
   }
@@ -105,20 +85,13 @@ export class CouponService {
     });
   }
 
-  async disable(actorUserId: string, id: string): Promise<Coupon> {
+  async disable(id: string): Promise<Coupon> {
     const coupon = await this.prisma.coupon.findUnique({ where: { id } });
     if (!coupon) throw new NotFoundException('Coupon not found');
 
     const updated = await this.prisma.coupon.update({
       where: { id },
       data: { status: CouponStatus.DISABLED },
-    });
-    await this.audit.record({
-      actorUserId,
-      action: AuditAction.COUPON_DISABLED,
-      entityType: 'Coupon',
-      entityId: id,
-      metadata: { code: coupon.code },
     });
     this.log.info('Coupon disabled', { couponId: id, code: coupon.code });
     return updated;

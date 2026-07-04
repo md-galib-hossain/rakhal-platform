@@ -15,4 +15,11 @@ export class CreateFarmDto {
   @IsString()
   @MaxLength(500)
   description?: string;
+
+  /** Captured `?ref=<code>` at signup (REF-01, RAKHAL-223). Bound once, permanently. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  @MaxLength(20)
+  referralCode?: string;
 }

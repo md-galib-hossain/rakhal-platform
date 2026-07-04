@@ -13,7 +13,7 @@ import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { CursorPage, getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { AuditService } from 'src/modules/audit/application/services/audit.service';
 import { SubscriptionLifecycleService } from 'src/modules/subscription/application/services/subscription-lifecycle.service';
-import { computeInvoiceTotal } from '../../domain/money';
+import { clampNonNegative, computeInvoiceTotal } from '../../domain/money';
 import {
   PAYMENT_PROVIDER,
   type PaymentExecutionResult,
@@ -22,6 +22,9 @@ import {
 import { CheckoutDto } from '../../presentation/dto/checkout.dto';
 import { ListInvoiceQueryDto } from '../../presentation/dto/list-invoice-query.dto';
 import { CouponService } from './coupon.service';
+import { ReferralService } from './referral.service';
+import { CreditWalletService } from './credit-wallet.service';
+import { LegalConsentService } from 'src/modules/compliance/application/services/legal-consent.service';
 
 export interface PublicInvoice {
   id: string;
@@ -30,6 +33,7 @@ export interface PublicInvoice {
   currency: string;
   subtotal: number;
   discount_total: number;
+  referral_credit_applied: number;
   total: number;
   status: InvoiceStatus;
   paid_at: string | null;
@@ -52,6 +56,9 @@ export class BillingService {
     private readonly audit: AuditService,
     private readonly lifecycle: SubscriptionLifecycleService,
     private readonly coupons: CouponService,
+    private readonly referrals: ReferralService,
+    private readonly creditWallet: CreditWalletService,
+    private readonly legal: LegalConsentService,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
     logger: LoggerService,
   ) {
@@ -64,6 +71,9 @@ export class BillingService {
     dto: CheckoutDto,
     idempotencyKey?: string,
   ) {
+    // LGL-02: the current Terms + Privacy must be accepted before any charge.
+    await this.legal.assertConsent(userId);
+
     const key = idempotencyKey?.trim() || randomUUID();
 
     // Idempotent: same (farm, key) returns the invoice already created (PAY-05).
@@ -89,57 +99,67 @@ export class BillingService {
         ? (plan.yearlyPrice ?? plan.monthlyPrice.times(12))
         : plan.monthlyPrice;
 
-    // Coupon (222) applies inside its own transaction so the seat decrement,
-    // the per-farm-once check, and the invoice commit atomically (CPN-01).
-    // Referral credit (223) is a separate seam, still `discountTotal = 0` here.
-    let invoice: Invoice;
-    let redeemedCouponId: string | null = null;
-    if (dto.couponCode) {
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { phoneVerifiedAt: true },
-      });
-      invoice = await this.prisma.$transaction(async (tx) => {
+    // Coupon (222) reservation + wallet-credit application (223) both run
+    // inside the same transaction as the invoice commit, so the coupon seat
+    // decrement (CPN-01), the wallet debit, and the invoice row all commit
+    // atomically (a rejected coupon rolls the wallet debit back too).
+    const user = dto.couponCode
+      ? await this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { phoneVerifiedAt: true },
+        })
+      : null;
+
+    const invoice = await this.prisma.$transaction(async (tx) => {
+      let discountTotal = new Prisma.Decimal(0);
+      let couponId: string | null = null;
+      if (dto.couponCode) {
         const reservation = await this.coupons.reserve(tx, {
-          code: dto.couponCode!,
+          code: dto.couponCode,
           farmId,
           planId: plan.id,
           subtotal,
           phoneVerifiedAt: user?.phoneVerifiedAt ?? null,
         });
-        const created = await tx.invoice.create({
-          data: this.buildInvoiceData(
-            farmId,
-            plan.id,
-            dto.billingPeriod,
-            subtotal,
-            reservation.discount,
-            reservation.couponId,
-            key,
-          ),
-        });
-        await this.coupons.recordRedemption(tx, {
-          couponId: reservation.couponId,
-          farmId,
-          invoiceId: created.id,
-          discount: reservation.discount,
-        });
-        return created;
-      });
-      redeemedCouponId = invoice.couponId;
-    } else {
-      invoice = await this.prisma.invoice.create({
+        discountTotal = reservation.discount;
+        couponId = reservation.couponId;
+      }
+
+      const remainingAfterCoupon = clampNonNegative(
+        subtotal.minus(discountTotal),
+      );
+      // Closed-loop Rakhal Credit auto-applies to the remaining charge (§37).
+      const referralCreditApplied = await this.creditWallet.applyToCharge(
+        tx,
+        farmId,
+        remainingAfterCoupon,
+        'subscription',
+      );
+
+      const created = await tx.invoice.create({
         data: this.buildInvoiceData(
           farmId,
           plan.id,
           dto.billingPeriod,
           subtotal,
-          new Prisma.Decimal(0),
-          null,
+          discountTotal,
+          couponId,
+          referralCreditApplied,
           key,
         ),
       });
-    }
+
+      if (couponId) {
+        await this.coupons.recordRedemption(tx, {
+          couponId,
+          farmId,
+          invoiceId: created.id,
+          discount: discountTotal,
+        });
+      }
+      return created;
+    });
+    const redeemedCouponId = invoice.couponId;
     const total = invoice.total;
     const isFree = total.isZero();
 
@@ -336,6 +356,16 @@ export class BillingService {
         invoice.billingPeriod,
       );
 
+      // REF-02: only a real (gateway-paid, > ৳0) invoice is a qualifying
+      // conversion — a ৳0 invoice never reaches this path. Best-effort;
+      // never fails the payment finalize (see ReferralService.accrueOnFirstPaidInvoice).
+      if (invoice.total.gt(0)) {
+        await this.referrals.accrueOnFirstPaidInvoice(
+          invoice.farmId,
+          invoice.id,
+        );
+      }
+
       const actorUserId = await this.farmOwnerId(invoice.farmId);
       if (actorUserId) {
         await this.audit.record({
@@ -376,6 +406,69 @@ export class BillingService {
     return { status: 'FAILED' };
   }
 
+  /**
+   * Refund a paid, gateway-backed invoice (RAKHAL-221 promised this, never
+   * wired up until 223 needed a real REF-05 clawback trigger). Owner-only
+   * (billing.controller). Idempotent — a repeat call on an already-REFUNDED
+   * invoice is a no-op. Flips the invoice `REFUNDED`, audits it, then claws
+   * back any referral commission it triggered (REF-05).
+   */
+  async refundInvoice(
+    farmId: string,
+    invoiceId: string,
+    actorUserId: string,
+    reason?: string,
+  ): Promise<PublicInvoice> {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: invoiceId, farmId },
+    });
+    if (!invoice) throw new NotFoundException('Invoice not found');
+    if (invoice.status === InvoiceStatus.REFUNDED) return this.present(invoice);
+    if (invoice.status !== InvoiceStatus.PAID) {
+      throw new NotFoundException('Only a paid invoice can be refunded');
+    }
+
+    const payment = await this.prisma.payment.findFirst({
+      where: { invoiceId, status: PaymentStatus.COMPLETED },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!payment?.providerPaymentId) {
+      throw new NotFoundException(
+        'No completed gateway payment found for this invoice',
+      );
+    }
+
+    await this.provider.refund({
+      providerPaymentId: payment.providerPaymentId,
+      amount: invoice.total.toNumber(),
+      reason,
+    });
+
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.invoice.update({
+        where: { id: invoice.id },
+        data: { status: InvoiceStatus.REFUNDED },
+      }),
+      this.prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: PaymentStatus.REFUNDED },
+      }),
+    ]);
+
+    await this.audit.record({
+      actorUserId,
+      action: AuditAction.REFUND_ISSUED,
+      entityType: 'Invoice',
+      entityId: invoice.id,
+      farmId,
+      metadata: { amount: invoice.total.toNumber(), reason: reason ?? null },
+    });
+
+    await this.referrals.clawback(invoice.id, actorUserId);
+
+    return this.present(updated);
+  }
+
   private async failPayment(
     paymentId: string,
     invoice: Invoice,
@@ -402,7 +495,7 @@ export class BillingService {
     }
   }
 
-  /** ৳0 (coupon/Free) → PAID with no gateway round-trip, still audited (PAY-07). */
+  /** ৳0 (coupon/wallet-credit/Free) → PAID with no gateway round-trip, still audited (PAY-07). */
   private buildInvoiceData(
     farmId: string,
     subscriptionPlanId: string,
@@ -410,9 +503,13 @@ export class BillingService {
     subtotal: Prisma.Decimal,
     discountTotal: Prisma.Decimal,
     couponId: string | null,
+    referralCreditApplied: Prisma.Decimal,
     idempotencyKey: string,
   ): Prisma.InvoiceCreateInput {
-    const total = computeInvoiceTotal(subtotal, discountTotal);
+    const total = computeInvoiceTotal(
+      subtotal,
+      discountTotal.plus(referralCreditApplied),
+    );
     const isFree = total.isZero();
     return {
       farmId,
@@ -421,6 +518,7 @@ export class BillingService {
       currency: 'BDT',
       subtotal,
       discountTotal,
+      referralCreditApplied,
       total,
       couponId,
       status: isFree ? InvoiceStatus.PAID : InvoiceStatus.PENDING,
@@ -445,6 +543,9 @@ export class BillingService {
       currency: invoice.currency,
       subtotal: invoice.subtotal.toNumber(),
       discount_total: invoice.discountTotal.toNumber(),
+      referral_credit_applied: (
+        invoice.referralCreditApplied ?? new Prisma.Decimal(0)
+      ).toNumber(),
       total: invoice.total.toNumber(),
       status: invoice.status,
       paid_at: invoice.paidAt ? invoice.paidAt.toISOString() : null,

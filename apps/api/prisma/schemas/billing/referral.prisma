@@ -1,0 +1,101 @@
+enum ReferralStatus {
+  PENDING
+  QUALIFIED
+  REWARDED
+  VOID
+}
+
+enum CommissionRewardType {
+  CREDIT
+  CASH
+}
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
+  PAID
+  CLAWED_BACK
+}
+
+/// A shareable referral code (RAKHAL-223, PRD §33.2). One active code per farm,
+/// created lazily on first `GET /referrals`.
+model ReferralCode {
+  id String @id @default(cuid())
+
+  ownerUserId String
+  farmId      String
+
+  code   String  @unique
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  referrals Referral[] @relation("ReferralCodeToReferral")
+
+  @@index([farmId])
+}
+
+/// A farm-to-farm referral, bound **once, permanently** at farm creation
+/// (REF-01) — `referredFarmId` is unique so there is no retroactive
+/// re-attribution, no matter the outcome (including a rejected self-referral).
+model Referral {
+  id String @id @default(cuid())
+
+  referralCodeId String
+  referralCode   ReferralCode @relation("ReferralCodeToReferral", fields: [referralCodeId], references: [id])
+
+  referrerFarmId String
+  referredFarmId String @unique
+
+  status ReferralStatus @default(PENDING)
+
+  /// REF-04 velocity-cap review queue — set when this code bound referrals
+  /// faster than the program's cap; commission accrual holds at PENDING
+  /// instead of auto-crediting until reviewed.
+  flagged    Boolean @default(false)
+  flagReason String?
+
+  boundAt     DateTime  @default(now())
+  qualifiedAt DateTime?
+
+  @@index([referrerFarmId])
+}
+
+/// Commission ledger (RAKHAL-223, PRD §33.2). `idempotencyKey = triggerInvoiceId`
+/// so a re-processed payment/webhook can never double-credit (REF-06).
+model ReferralCommission {
+  id String @id @default(cuid())
+
+  referrerFarmId String
+  referredFarmId String
+
+  triggerInvoiceId String
+
+  rewardType CommissionRewardType @default(CREDIT)
+  amount     Decimal              @db.Decimal(12, 2)
+  status     CommissionStatus     @default(PENDING)
+
+  idempotencyKey String @unique
+
+  clawedBackAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([referrerFarmId])
+  @@index([status])
+}
+
+/// Per-farm account credit (RAKHAL-223, PRD §33.2/§32.1). Auto-applied at
+/// checkout (`Invoice.referralCreditApplied`). Can go negative on a clawback
+/// (nets against future earnings — never an out-of-pocket demand, REF-05).
+model CreditWallet {
+  id     String @id @default(cuid())
+  farmId String @unique
+
+  balance Decimal @default(0) @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

@@ -114,6 +114,13 @@ const RESOURCES: ResourceDef[] = [
     group: PermissionGroup.SETTINGS,
     actions: ['read', 'manage'],
   },
+  // Referrals self-serve (RAKHAL-223) — code/link/credit is growth-financial
+  // data, so Owner+Manager only (like finance), not Worker.
+  {
+    resource: 'referral',
+    group: PermissionGroup.SETTINGS,
+    actions: ['read'],
+  },
 ];
 
 /** The full permission catalogue: every `resource.action`, a `resource.*` per resource, and global `*`. */
@@ -170,6 +177,7 @@ export const ROLE_PERMISSIONS: Record<SystemRoleName, string[]> = {
     'scoreboard.read',
     // View subscription status (purchase/manage is owner-only)
     'subscription.read',
+    'referral.read',
   ],
   [SYSTEM_ROLES.WORKER]: [
     'dashboard.read',

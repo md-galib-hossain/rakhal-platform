@@ -1,4 +1,5 @@
-import { Controller, Get, Query, Res } from '@nestjs/common';
+import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { env } from 'src/core/config/env';
 import { BillingService } from '../../application/services/billing.service';
@@ -11,6 +12,8 @@ import { ApiTags } from '@nestjs/swagger';
  * trusts the callback, PAY-02) and redirects the user to the frontend return URL
  * with the outcome. Forging a `paymentID` can't mint a PAID invoice: finalize
  * only acts on a Payment we created and requires a gateway-confirmed COMPLETED.
+ * Rate-limited (RAKHAL-224) so the public, unauthenticated route can't be abused
+ * to hammer the gateway with forged paymentIDs.
  */
 @ApiTags('Billing')
 @Controller('billing/bkash')
@@ -18,6 +21,8 @@ export class BkashCallbackController {
   constructor(private readonly billing: BillingService) {}
 
   @Get('callback')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   async callback(
     @Query('paymentID') paymentID: string | undefined,
     @Query('status') status: string | undefined,

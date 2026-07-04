@@ -8,6 +8,9 @@ import { SubscriptionAccessService } from '../src/modules/subscription/applicati
 import { LoggerService } from '../src/core/logger/logger/logger.service';
 import { BillingService } from '../src/modules/billing/application/services/billing.service';
 import { CouponService } from '../src/modules/billing/application/services/coupon.service';
+import { ReferralService } from '../src/modules/billing/application/services/referral.service';
+import { CreditWalletService } from '../src/modules/billing/application/services/credit-wallet.service';
+import { LegalConsentService } from '../src/modules/compliance/application/services/legal-consent.service';
 import type {
   PaymentExecutionResult,
   PaymentProvider,
@@ -26,6 +29,9 @@ describe('bKash payment finalize (e2e)', () => {
   let audit: AuditService;
   let lifecycle: SubscriptionLifecycleService;
   let coupons: CouponService;
+  let referrals: ReferralService;
+  let creditWallet: CreditWalletService;
+  let legal: LegalConsentService;
   let access: SubscriptionAccessService;
   let starterPlanId: string;
   let tempFarmId: string;
@@ -56,6 +62,9 @@ describe('bKash payment finalize (e2e)', () => {
       audit,
       lifecycle,
       coupons,
+      referrals,
+      creditWallet,
+      legal,
       provider,
       logger,
     );
@@ -96,6 +105,9 @@ describe('bKash payment finalize (e2e)', () => {
     audit = ctx.app.get(AuditService);
     lifecycle = ctx.app.get(SubscriptionLifecycleService);
     coupons = ctx.app.get(CouponService);
+    referrals = ctx.app.get(ReferralService);
+    creditWallet = ctx.app.get(CreditWalletService);
+    legal = ctx.app.get(LegalConsentService);
     access = ctx.app.get(SubscriptionAccessService);
 
     const starter = await prisma.subscriptionPlan.findUnique({

@@ -56,6 +56,9 @@ import { ScoreboardModule } from './modules/scoreboard/scoreboard.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { SchedulerModule } from './modules/scheduler/scheduler.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { OtpModule } from './modules/otp/otp.module';
+import { ComplianceModule } from './modules/compliance/compliance.module';
 
 type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
 
@@ -142,6 +145,9 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     NotificationModule,
     SchedulerModule,
     BillingModule,
+    AdminModule,
+    OtpModule,
+    ComplianceModule,
     ActivityModule,
     TaskModule,
   ],

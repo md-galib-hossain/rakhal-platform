@@ -8,6 +8,8 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { SYSTEM_ROLES } from 'src/modules/permission/domain/permission-catalogue';
 import { SubscriptionLifecycleService } from 'src/modules/subscription/application/services/subscription-lifecycle.service';
+import { ReferralService } from 'src/modules/billing/application/services/referral.service';
+import { LegalConsentService } from 'src/modules/compliance/application/services/legal-consent.service';
 import { CreateFarmDto } from '../../presentation/dto/create-farm.dto';
 
 /**
@@ -25,12 +27,17 @@ export class FarmService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly subscriptionLifecycle: SubscriptionLifecycleService,
+    private readonly referrals: ReferralService,
+    private readonly legal: LegalConsentService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(FarmService.name);
   }
 
   async create(userId: string, dto: CreateFarmDto): Promise<Farm> {
+    // LGL-02: the current Terms + Privacy must be accepted before a farm exists.
+    await this.legal.assertConsent(userId);
+
     const ownerRole = await this.prisma.role.findFirst({
       where: { name: SYSTEM_ROLES.OWNER, farmId: null, isSystemRole: true },
       select: { id: true },
@@ -65,6 +72,16 @@ export class FarmService {
       await this.subscriptionLifecycle.provisionTrial(farm.id);
     } catch (err) {
       this.log.error('Trial provisioning failed (farm still created)', err);
+    }
+
+    // REF-01: bind the referral captured at signup, once, permanently.
+    // Best-effort — an unknown code or any error must never block bootstrap.
+    if (dto.referralCode) {
+      try {
+        await this.referrals.bindReferral(farm.id, userId, dto.referralCode);
+      } catch (err) {
+        this.log.error('Referral attribution failed (farm still created)', err);
+      }
     }
 
     return farm;

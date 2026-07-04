@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
@@ -17,6 +18,7 @@ import { RequirePermission } from 'src/modules/permission/presentation/decorator
 import { BillingService } from '../../application/services/billing.service';
 import { CheckoutDto } from '../dto/checkout.dto';
 import { ListInvoiceQueryDto } from '../dto/list-invoice-query.dto';
+import { RefundInvoiceDto } from '../dto/refund-invoice.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
@@ -36,6 +38,8 @@ export class BillingController {
 
   @Post('checkout')
   @RequirePermission('subscription.manage')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   checkout(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -55,5 +59,18 @@ export class BillingController {
   @RequirePermission('subscription.read')
   getOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.billing.getInvoice(farmId, id);
+  }
+
+  @Post('invoices/:id/refund')
+  @RequirePermission('subscription.manage')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  refund(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body() dto: RefundInvoiceDto,
+  ) {
+    return this.billing.refundInvoice(farmId, id, userId, dto.reason);
   }
 }

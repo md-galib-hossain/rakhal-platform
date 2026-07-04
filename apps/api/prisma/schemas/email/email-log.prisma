@@ -5,6 +5,7 @@ enum EmailTemplate {
   SUBSCRIPTION_EXPIRY
   PAYMENT_RECEIPT
   FARM_REPORT
+  OTP_VERIFICATION
 }
 
 enum EmailStatus {
