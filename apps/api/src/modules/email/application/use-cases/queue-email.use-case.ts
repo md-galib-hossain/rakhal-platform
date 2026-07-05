@@ -35,6 +35,7 @@ export class QueueEmailUseCase {
       userId: input.userId,
       correlationId: input.correlationId,
       scheduledAt: input.sendAt,
+      idempotencyKey: input.idempotencyKey,
     });
 
     await this.queue.add(EMAIL_JOB, input, {

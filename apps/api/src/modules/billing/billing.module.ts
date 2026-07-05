@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { env } from 'src/core/config/env';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { AuthModule } from '../auth/auth.module';
 import { TenantAccessModule } from '../tenant-access/tenant-access.module';
@@ -56,14 +57,28 @@ import { ReferralController } from './presentation/controllers/referral.controll
     BkashTokenService,
     BkashPaymentProvider,
     UnconfiguredPaymentProvider,
-    // Config-selected: use bKash when its credentials are present, else the
-    // no-op provider (so billing boots + tests run without a gateway).
+    // Explicit gateway toggle (`PAYMENT_PROVIDER`). Tests always run gateway-less
+    // (deterministic — never hit the real bKash network; the finalize logic is
+    // covered by a stub-provider e2e). Otherwise `bkash` selects the adapter and
+    // is **fail-closed**: selecting it without complete BKASH_* creds refuses to
+    // boot rather than silently falling back.
     {
       provide: PAYMENT_PROVIDER,
       useFactory: (
         bkash: BkashPaymentProvider,
         none: UnconfiguredPaymentProvider,
-      ) => (bkash.isConfigured() ? bkash : none),
+      ) => {
+        if (env.NODE_ENV === 'test') return none;
+        if (env.PAYMENT_PROVIDER === 'bkash') {
+          if (!bkash.isConfigured()) {
+            throw new Error(
+              'PAYMENT_PROVIDER=bkash but BKASH_* credentials are incomplete',
+            );
+          }
+          return bkash;
+        }
+        return none;
+      },
       inject: [BkashPaymentProvider, UnconfiguredPaymentProvider],
     },
   ],

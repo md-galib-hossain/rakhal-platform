@@ -24,4 +24,6 @@ export interface QueueEmailDto {
   sendAt?: Date;
   includePdf?: boolean;
   attachments?: QueueEmailAttachment[];
+  /** Transactional idempotency key (RAKHAL-238) — a duplicate is dropped. */
+  idempotencyKey?: string;
 }

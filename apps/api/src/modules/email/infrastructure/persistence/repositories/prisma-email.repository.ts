@@ -22,6 +22,7 @@ export class PrismaEmailRepository implements EmailRepository {
     userId: string | null;
     correlationId?: string;
     scheduledAt?: Date;
+    idempotencyKey?: string;
   }): Promise<EmailLog> {
     const result = await this.prisma.emailLog.create({
       data: {
@@ -35,6 +36,7 @@ export class PrismaEmailRepository implements EmailRepository {
         template: data.template as unknown as PrismaEmailTemplate,
         status: EmailStatus.QUEUED,
         scheduledAt: data.scheduledAt,
+        idempotencyKey: data.idempotencyKey,
       },
     });
     return result;

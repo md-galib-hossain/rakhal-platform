@@ -10,6 +10,7 @@ import { QueueEmailUseCase } from './application/use-cases/queue-email.use-case'
 import { SendPasswordResetEmailUseCase } from './application/use-cases/send-password-reset-email.use-case';
 import { SendVerificationEmailUseCase } from './application/use-cases/send-verification-email.use-case';
 import { EmailService } from './application/services/email.service';
+import { TransactionalEmailService } from './application/services/transactional-email.service';
 import { EMAIL_REPOSITORY } from './domain/repositories/email.repository';
 import { PrismaEmailRepository } from './infrastructure/persistence/repositories/prisma-email.repository';
 import { PdfGeneratorService } from './infrastructure/pdf/pdf-generator.service';
@@ -61,6 +62,7 @@ import { UserRegisteredListener } from './presentation/listeners/user-registered
     SendPasswordResetEmailUseCase,
     SendVerificationEmailUseCase,
     EmailService,
+    TransactionalEmailService,
     EmailTemplateService,
     PdfGeneratorService,
     ResendEmailProvider,
@@ -75,6 +77,7 @@ import { UserRegisteredListener } from './presentation/listeners/user-registered
     SendVerificationEmailUseCase,
     SendPasswordResetEmailUseCase,
     EmailService,
+    TransactionalEmailService,
   ],
 })
 export class EmailModule {}

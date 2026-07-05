@@ -6,6 +6,8 @@ import {
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { TransactionalEmailService } from 'src/modules/email/application/services/transactional-email.service';
+import { EmailTemplate } from 'src/modules/email/domain/enums/email-template.enum';
 import {
   GRACE_PERIOD_DAYS,
   TRIAL_DURATION_DAYS,
@@ -46,6 +48,7 @@ export class SubscriptionLifecycleService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: SubscriptionAccessService,
+    private readonly txEmail: TransactionalEmailService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(SubscriptionLifecycleService.name);
@@ -160,9 +163,57 @@ export class SubscriptionLifecycleService {
       await this.access.invalidateFarm(farmId);
     }
 
+    // Transactional expiry emails (RAKHAL-238, COM-01) — idempotent per
+    // subscription+status so a re-run / self-correcting sweep never double-mails.
+    await this.sendExpiryEmails(toPastDue, SubscriptionStatus.PAST_DUE);
+    await this.sendExpiryEmails(toExpired, SubscriptionStatus.EXPIRED);
+
     const result = { pastDue: toPastDue.length, expired: toExpired.length };
     this.log.info('Subscription expiry sweep complete', result);
     return result;
+  }
+
+  /** Email each transitioned farm's owner (best-effort, idempotent). */
+  private async sendExpiryEmails(
+    transitions: { id: string; farmId: string }[],
+    status: SubscriptionStatus,
+  ): Promise<void> {
+    for (const t of transitions) {
+      try {
+        const farm = await this.prisma.farm.findUnique({
+          where: { id: t.farmId },
+          select: {
+            name: true,
+            owner: { select: { email: true, name: true } },
+          },
+        });
+        if (!farm?.owner?.email) continue;
+        const sub = await this.prisma.farmSubscription.findUnique({
+          where: { id: t.id },
+          select: { expiresAt: true },
+        });
+        await this.txEmail.sendOnce({
+          idempotencyKey: `subscription_expiry:${t.id}:${status}`,
+          to: farm.owner.email,
+          subject:
+            status === SubscriptionStatus.EXPIRED
+              ? 'Your Rakhal subscription has expired'
+              : 'Your Rakhal subscription needs attention',
+          template: EmailTemplate.SUBSCRIPTION_EXPIRY,
+          templateData: {
+            name: farm.owner.name ?? farm.name,
+            expiryDate: sub?.expiresAt
+              ? sub.expiresAt.toISOString().slice(0, 10)
+              : '',
+          },
+          tenantId: t.farmId,
+          farmId: t.farmId,
+          userId: null,
+        });
+      } catch {
+        // best-effort — an email hiccup never affects the sweep
+      }
+    }
   }
 
   /**

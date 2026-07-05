@@ -60,6 +60,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { OtpModule } from './modules/otp/otp.module';
 import { ComplianceModule } from './modules/compliance/compliance.module';
 import { MediaModule } from './modules/media/media.module';
+import { SupportModule } from './modules/support/support.module';
 
 type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
 
@@ -150,6 +151,7 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     OtpModule,
     ComplianceModule,
     MediaModule,
+    SupportModule,
     ActivityModule,
     TaskModule,
   ],

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { AuthModule } from '../auth/auth.module';
 import { TenantAccessModule } from '../tenant-access/tenant-access.module';
+import { EmailModule } from '../email/email.module';
 import { SubscriptionAccessService } from './application/services/subscription-access.service';
 import { PlanCatalogueService } from './application/services/plan-catalogue.service';
 import { SubscriptionLifecycleService } from './application/services/subscription-lifecycle.service';
@@ -20,7 +21,7 @@ import { SubscriptionController } from './presentation/controllers/subscription.
  * (JwtAuthGuard / SessionGuard / FarmContextGuard) resolves.
  */
 @Module({
-  imports: [LoggerModule, AuthModule, TenantAccessModule],
+  imports: [LoggerModule, AuthModule, TenantAccessModule, EmailModule],
   controllers: [PlanController, SubscriptionController],
   providers: [
     SubscriptionAccessService,

@@ -4,6 +4,8 @@ enum EmailTemplate {
   VACCINATION_REMINDER
   SUBSCRIPTION_EXPIRY
   PAYMENT_RECEIPT
+  PAYMENT_FAILED
+  SUBSCRIPTION_RENEWAL
   FARM_REPORT
   OTP_VERIFICATION
 }
@@ -22,6 +24,11 @@ model EmailLog {
   subject  String
   template EmailTemplate
   status   EmailStatus @default(QUEUED)
+
+  /// Idempotency anchor for transactional emails (RAKHAL-238). A stable key per
+  /// (event, entity) makes a replayed trigger a no-op — the unique index is the
+  /// race-safe guard. Null for non-transactional / fire-and-forget mails.
+  idempotencyKey String? @unique
 
   provider String?
 

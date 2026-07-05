@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { NotificationModule } from '../notification/notification.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
+import { RenewalModule } from '../renewal/renewal.module';
 import { SchedulerService } from './application/services/scheduler.service';
 
 /**
@@ -11,7 +12,12 @@ import { SchedulerService } from './application/services/scheduler.service';
  * AppModule). Reads data tables directly via Prisma; emits via NotificationModule.
  */
 @Module({
-  imports: [LoggerModule, NotificationModule, SubscriptionModule],
+  imports: [
+    LoggerModule,
+    NotificationModule,
+    SubscriptionModule,
+    RenewalModule,
+  ],
   providers: [SchedulerService],
   exports: [SchedulerService],
 })

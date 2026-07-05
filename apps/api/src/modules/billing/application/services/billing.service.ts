@@ -35,6 +35,8 @@ import { ReferralService } from './referral.service';
 import { CreditWalletService } from './credit-wallet.service';
 import { ReceiptService, type RenderedReceipt } from './receipt.service';
 import { LegalConsentService } from 'src/modules/compliance/application/services/legal-consent.service';
+import { TransactionalEmailService } from 'src/modules/email/application/services/transactional-email.service';
+import { EmailTemplate } from 'src/modules/email/domain/enums/email-template.enum';
 
 export interface PublicInvoice {
   id: string;
@@ -73,6 +75,7 @@ export class BillingService {
     private readonly creditWallet: CreditWalletService,
     private readonly receipts: ReceiptService,
     private readonly legal: LegalConsentService,
+    private readonly txEmail: TransactionalEmailService,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
     logger: LoggerService,
   ) {
@@ -535,6 +538,30 @@ export class BillingService {
         entityId: paymentId,
         farmId: invoice.farmId,
       });
+
+      // Payment-failed email (RAKHAL-238, COM-01) — idempotent on the payment id
+      // so a retried finalize can't re-notify. Best-effort.
+      const owner = await this.prisma.user.findUnique({
+        where: { id: actorUserId },
+        select: { email: true, name: true },
+      });
+      if (owner) {
+        await this.txEmail
+          .sendOnce({
+            idempotencyKey: `payment_failed:${paymentId}`,
+            to: owner.email,
+            subject: 'Your Rakhal payment could not be completed',
+            template: EmailTemplate.PAYMENT_FAILED,
+            templateData: {
+              name: owner.name,
+              amount: `${invoice.currency} ${invoice.total.toFixed(2)}`,
+            },
+            tenantId: invoice.farmId,
+            farmId: invoice.farmId,
+            userId: actorUserId,
+          })
+          .catch(() => undefined);
+      }
     }
   }
 

@@ -14,6 +14,7 @@ export interface EmailRepository {
     userId: string | null;
     correlationId?: string;
     scheduledAt?: Date;
+    idempotencyKey?: string;
   }): Promise<EmailLog>;
 
   markProcessing(emailId: string): Promise<EmailLog>;

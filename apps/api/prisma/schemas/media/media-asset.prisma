@@ -51,6 +51,7 @@ enum MediaCategory {
   CALF
   FARM
   USER
+  SUPPORT
 }
 
 enum MediaUsage {
@@ -60,6 +61,7 @@ enum MediaUsage {
   DISEASE_IMAGE
   FARM_LOGO
   AVATAR
+  FEEDBACK_SCREENSHOT
 }
 
 enum MediaStatus {

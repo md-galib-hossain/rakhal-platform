@@ -4,6 +4,7 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { NotificationService } from 'src/modules/notification/application/services/notification.service';
 import { SubscriptionLifecycleService } from 'src/modules/subscription/application/services/subscription-lifecycle.service';
+import { RenewalReminderService } from 'src/modules/renewal/application/services/renewal-reminder.service';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const BOSSES = ['Owner', 'Manager'];
@@ -26,6 +27,7 @@ export class SchedulerService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationService,
     private readonly subscriptionLifecycle: SubscriptionLifecycleService,
+    private readonly renewalReminders: RenewalReminderService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(SchedulerService.name);
@@ -40,6 +42,8 @@ export class SchedulerService {
       ['task_overdue', () => this.sweepTasksOverdue()],
       ['medicine_expiring_30_days', () => this.sweepMedicineExpiring()],
       ['subscription_expiry', () => this.sweepSubscriptionExpiry()],
+      // Runs after the expiry sweep so EXPIRED status is current for win-back.
+      ['renewal_reminders', () => this.sweepRenewalReminders()],
     ] as const) {
       try {
         results[name] = await sweep();
@@ -182,6 +186,17 @@ export class SchedulerService {
     const { pastDue, expired } =
       await this.subscriptionLifecycle.runExpirySweep();
     return pastDue + expired;
+  }
+
+  /**
+   * Renewal reminders + win-back (RAKHAL-240): pre-expiry T-7/3/1/expiry-day +
+   * post-expiry T+3/7/30 nudges, idempotent per (subscription, stage). **No
+   * auto-charge** — reminders only.
+   */
+  private async sweepRenewalReminders(): Promise<number> {
+    const { preExpiry, winback } =
+      await this.renewalReminders.runRenewalSweep();
+    return preExpiry + winback;
   }
 
   // ---- helpers ------------------------------------------------------------

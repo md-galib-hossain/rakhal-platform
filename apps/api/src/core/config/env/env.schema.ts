@@ -202,9 +202,19 @@ export const envSchema = z.object({
   INVOICE_SELLER_BIN: z.string().optional(),
   INVOICE_PLACE_OF_SUPPLY: z.string().default('Bangladesh'),
 
-  // bKash Tokenized Checkout (RAKHAL-221). Optional — absent creds ⇒ the payment
-  // provider reports isConfigured()=false and billing runs without a gateway.
-  BKASH_BASE_URL: z.string().optional(),
+  // Active payment gateway (RAKHAL-221). Explicit toggle: `none` = billing runs
+  // gateway-less (৳0/Free flows only); `bkash` = use the bKash adapter (its
+  // BKASH_* creds must then be complete — fail-closed at boot). Tests always run
+  // gateway-less regardless (deterministic; the bkash finalize logic is covered
+  // by a stub-provider e2e).
+  PAYMENT_PROVIDER: z.enum(['none', 'bkash']).default('none'),
+
+  // bKash Tokenized Checkout (RAKHAL-221). Base URL defaults to sandbox; set the
+  // BKASH_* creds + `PAYMENT_PROVIDER=bkash` to activate. Sandbox creds are public
+  // (see the bKash sandbox guide); live creds come from the Merchant Portal.
+  BKASH_BASE_URL: z
+    .string()
+    .default('https://tokenized.sandbox.bka.sh/v1.2.0-beta'),
   BKASH_APP_KEY: z.string().optional(),
   BKASH_APP_SECRET: z.string().optional(),
   BKASH_USERNAME: z.string().optional(),

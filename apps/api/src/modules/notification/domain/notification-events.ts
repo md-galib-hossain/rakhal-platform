@@ -220,6 +220,27 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     true,
     ch(),
   ),
+  // Subscription renewal campaign (RAKHAL-240). Disablable — the in-app path
+  // respects the opt-out automatically; the pre-expiry reminder email is
+  // billing-transactional (always sent), the post-expiry win-back email honours
+  // the opt-out. Email is dispatched via the idempotent transactional pipeline,
+  // so the default channel set is in-app (+push) only here.
+  evt(
+    'subscription_renewal_reminder',
+    'Subscription Renewal Reminder',
+    'financial',
+    'high',
+    true,
+    ch(),
+  ),
+  evt(
+    'subscription_winback',
+    'Subscription Win-back',
+    'financial',
+    'low',
+    true,
+    ch(),
+  ),
   // ── Inventory ─────────────────────────────────────────────────────────────
   evt(
     'medicine_expiring_30_days',

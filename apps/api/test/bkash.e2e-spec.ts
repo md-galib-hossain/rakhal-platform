@@ -12,6 +12,7 @@ import { ReferralService } from '../src/modules/billing/application/services/ref
 import { CreditWalletService } from '../src/modules/billing/application/services/credit-wallet.service';
 import { ReceiptService } from '../src/modules/billing/application/services/receipt.service';
 import { LegalConsentService } from '../src/modules/compliance/application/services/legal-consent.service';
+import { TransactionalEmailService } from '../src/modules/email/application/services/transactional-email.service';
 import type {
   PaymentExecutionResult,
   PaymentProvider,
@@ -34,6 +35,7 @@ describe('bKash payment finalize (e2e)', () => {
   let creditWallet: CreditWalletService;
   let receipts: ReceiptService;
   let legal: LegalConsentService;
+  let txEmail: TransactionalEmailService;
   let access: SubscriptionAccessService;
   let starterPlanId: string;
   let tempFarmId: string;
@@ -68,6 +70,7 @@ describe('bKash payment finalize (e2e)', () => {
       creditWallet,
       receipts,
       legal,
+      txEmail,
       provider,
       logger,
     );
@@ -112,6 +115,7 @@ describe('bKash payment finalize (e2e)', () => {
     creditWallet = ctx.app.get(CreditWalletService);
     receipts = ctx.app.get(ReceiptService);
     legal = ctx.app.get(LegalConsentService);
+    txEmail = ctx.app.get(TransactionalEmailService);
     access = ctx.app.get(SubscriptionAccessService);
 
     const starter = await prisma.subscriptionPlan.findUnique({

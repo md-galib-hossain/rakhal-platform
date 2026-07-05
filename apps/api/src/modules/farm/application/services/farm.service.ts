@@ -7,9 +7,11 @@ import { Farm } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { SYSTEM_ROLES } from 'src/modules/permission/domain/permission-catalogue';
-import { SubscriptionLifecycleService } from 'src/modules/subscription/application/services/subscription-lifecycle.service';
+import { TrialAbuseService } from 'src/modules/support/application/services/trial-abuse.service';
 import { ReferralService } from 'src/modules/billing/application/services/referral.service';
 import { LegalConsentService } from 'src/modules/compliance/application/services/legal-consent.service';
+import { TransactionalEmailService } from 'src/modules/email/application/services/transactional-email.service';
+import { EmailTemplate } from 'src/modules/email/domain/enums/email-template.enum';
 import { CreateFarmDto } from '../../presentation/dto/create-farm.dto';
 
 /**
@@ -26,9 +28,10 @@ export class FarmService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly subscriptionLifecycle: SubscriptionLifecycleService,
+    private readonly trialAbuse: TrialAbuseService,
     private readonly referrals: ReferralService,
     private readonly legal: LegalConsentService,
+    private readonly txEmail: TransactionalEmailService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(FarmService.name);
@@ -66,10 +69,35 @@ export class FarmService {
 
     this.log.info('Farm created', { farmId: farm.id, ownerId: userId });
 
-    // Auto-provision the 14-day Starter trial (SUB-01). Best-effort — never
-    // block farm bootstrap if plans aren't seeded / provisioning hiccups.
+    // Welcome email (RAKHAL-238, COM-01) — once per owner (idempotency key on
+    // the user, not the farm, so a 2nd farm doesn't re-welcome). Best-effort.
     try {
-      await this.subscriptionLifecycle.provisionTrial(farm.id);
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true, name: true },
+      });
+      if (user) {
+        await this.txEmail.sendOnce({
+          idempotencyKey: `welcome:${userId}`,
+          to: user.email,
+          subject: 'Welcome to Rakhal',
+          template: EmailTemplate.WELCOME_EMAIL,
+          templateData: { name: user.name },
+          tenantId: userId,
+          farmId: farm.id,
+          userId,
+        });
+      }
+    } catch (err) {
+      this.log.error('Welcome email failed (farm still created)', err);
+    }
+
+    // Auto-provision the 14-day Starter trial (SUB-01) — but only if this owner
+    // is eligible (one free trial per owner identity, SUP-02/RAKHAL-242). A
+    // repeat owner gets the farm with no trial + a flagged/audited event.
+    // Best-effort — never block farm bootstrap on a provisioning hiccup.
+    try {
+      await this.trialAbuse.grantTrialIfEligible(farm.id, userId);
     } catch (err) {
       this.log.error('Trial provisioning failed (farm still created)', err);
     }
