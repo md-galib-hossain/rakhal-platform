@@ -193,3 +193,33 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ── Landing page (RFE-100) ─────────────────────────────────────────────── */
+/* Warm cream surface used by the marketing page only (deep-green ↔ cream rhythm). */
+:root {
+  --cream: #faf7ef;
+}
+.dark {
+  --cream: #14191f;
+}
+@theme inline {
+  --color-cream: var(--cream);
+}
+
+/* Slow cinematic zoom on the hero background layer. */
+@keyframes hero-zoom {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.08);
+  }
+}
+.landing-hero-zoom {
+  animation: hero-zoom 26s ease-in-out infinite alternate;
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-hero-zoom {
+    animation: none;
+  }
+}

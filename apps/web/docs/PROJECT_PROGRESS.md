@@ -294,6 +294,36 @@
 
 ---
 
+## Phase M — Marketing site 🌐 (public, outside the app shell)
+
+#### RFE-100 — Cinematic marketing landing page
+- **Lane:** `app/(landing-page)/**` (all sections live in its private `_components/`), `components/ui/button.tsx` (created here, shared) · **Design:** user-provided copy/section spec (2026-07-09 request), tokens from RFE-002
+- 12 sections at the site root `/`: Hero (slow-zoom glow bg + floating glass dashboard cards), live counters
+  (animated count-up — **placeholder numbers with a TODO: wire to a public stats endpoint before production
+  marketing**), Problem (fading paper records → rising Rakhal card), Solution (module chips + mini dashboard
+  mock), Features (sticky-rail + 7 cards), 4-step onboarding, Dashboard preview (dark section, parallax
+  columns), 3 testimonials, Pricing (3 plans — **TODO: source from `GET /plans`**; Growth=৳2,500/mo matches
+  the seeded Pro plan), FAQ (native `<details>`, zero-JS + FAQPage JSON-LD), final CTA, footer.
+  `motion` (Framer Motion v12) for animation — all sections are **Server Components**; only thin client
+  wrappers (`Reveal`/`Float`/`ParallaxY`/`CountUp`/`LocaleToggle`) hydrate, so full copy ships as HTML for
+  SEO. Reduced-motion respected everywhere (`useReducedMotion` + CSS media query). No external
+  assets/video — mockups are CSS-only, replaceable with real screenshots later. Full bn+en copy in
+  `i18n/messages/*` under `landing.*`; localized `generateMetadata` + OpenGraph.
+- **Route/domain plan:** landing owns `/` (deleted the old root redirect). Target topology: `rakhal.app` =
+  landing, `farm.rakhal.app` = the `(app)` consumer shell (host-based rewrites in `proxy.ts` when domains
+  exist), `admin.rakhal.app` = separate project. Until then everything serves from one origin: `/` landing,
+  `/dashboard`… app.
+- Also added **placeholder `/login` + `/register` pages** (`authPlaceholder.*` strings) so landing CTAs don't
+  404 — RFE-006 replaces them with the real auth pages.
+- **AC met:** lint/typecheck/test/build green; both locales verified live (bn default + en via nav toggle —
+  title/h1/lang/FAQ JSON-LD checked in the browser); 11 sections + footer render server-side; a11y snapshot
+  clean (semantic headings/lists/nav landmarks). ⚠ Preview screenshot tooling wedged this session (timeouts
+  even on known-good pages) — visual QA done via a11y snapshot + computed-style inspection; eyeball pass
+  recommended when the user runs `pnpm dev`.
+- **Status:** `DONE` (2026-07-09)
+
+---
+
 ## Cross-cutting quality tickets (continuous)
 
 #### RFE-090 — i18n message completeness sweep — every `messages/en.json` key has a reviewed `bn` twin; no literals in JSX (lint rule if feasible). `TODO`

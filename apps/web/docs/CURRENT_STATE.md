@@ -1,6 +1,15 @@
 # Frontend — Current State
 
-**Last updated:** 2026-07-09 · **Completion:** Phase 0 in progress (RFE-001, RFE-002 done)
+**Last updated:** 2026-07-09 · **Completion:** Phase 0 in progress (RFE-001, RFE-002 done) + RFE-100 marketing landing done
+
+## Marketing landing page (RFE-100 — done)
+`/` now serves a full cinematic landing page (`app/(landing-page)/**`): hero w/ floating glass cards,
+animated counters (placeholder numbers — TODO wire to a public stats endpoint), problem/solution story,
+7-feature showcase w/ sticky rail, onboarding steps, dark parallax dashboard preview, testimonials,
+pricing (TODO source from `GET /plans`), native-`<details>` FAQ + FAQPage JSON-LD, final CTA, footer.
+Server Components + thin `motion` client wrappers; bn/en copy complete; reduced-motion safe.
+Domain plan: `rakhal.app`=landing · `farm.rakhal.app`=consumer app (host rewrites in `proxy.ts` later) ·
+`admin.rakhal.app`=separate project. `/login` + `/register` are placeholders until RFE-006.
 
 ## Where things stand
 - Repo bootstrapped per `ARCHITECTURE.md` §3: `features/`, `components/{ui,shared,layout}/`, `lib/`,

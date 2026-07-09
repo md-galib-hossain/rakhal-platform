@@ -26,10 +26,13 @@
 
 | Agent | Ticket | Lane (file globs) | Started | Status |
 |-------|--------|-------------------|---------|--------|
-| agent-fe-1 | RFE-001…005 (Phase 0, sequential, exclusive) | root config, app/**, components/**, lib/**, i18n/**, providers/**, types/** | 2026-07-09 | claimed |
+| agent-fe-1 | RFE-003…005 (Phase 0 remainder, sequential, exclusive) | root config, app/**, components/**, lib/**, i18n/**, providers/**, types/** | 2026-07-09 | claimed (RFE-001, RFE-002, RFE-100 done — see Recently Done) |
 
 ## 🟢 Recently Done (pending commit)
 
 | Ticket | Notes |
 |--------|-------|
+| RFE-100 | Marketing landing page at `/` (`app/(landing-page)/**` + shared `components/ui/button.tsx` + `landing.*`/`authPlaceholder.*` messages + `--cream` token/keyframes in globals.css + placeholder /login, /register). Gate green; details in PROJECT_PROGRESS.md |
+| RFE-002 | Tokens/theme/fonts/i18n live — spec recorded in DESIGN_SYSTEM.md §4 |
+| RFE-001 | Bootstrap: folders, deps, env.ts, scripts, ESLint, vitest/playwright configs. NB machine-level pnpm-store workaround in `.npmrc` — see CURRENT_STATE.md |
 | — (knowledge base created 2026-07-09) | docs/ARCHITECTURE.md, DESIGN_SYSTEM.md, PROJECT_PROGRESS.md, this board, CURRENT_STATE.md, CLAUDE.md |
