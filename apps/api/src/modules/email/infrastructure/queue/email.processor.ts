@@ -35,6 +35,7 @@ export class EmailProcessor extends WorkerHost {
       const html = this.templateService.render(
         payload.template,
         payload.templateData,
+        payload.locale,
       );
       // Pre-rendered attachments (e.g. the billing receipt PDF, RAKHAL-237) are
       // carried base64 on the job; decode them back to Buffers. `includePdf` still

@@ -1,5 +1,6 @@
 import { SessionStatus } from '@prisma/client';
 import { AuthTokenPayload } from './auth-token-payload.type';
+import { AppLanguage } from 'src/common/i18n/language';
 
 export interface AuthenticatedRequestAccount {
   id: string;
@@ -8,6 +9,7 @@ export interface AuthenticatedRequestAccount {
   permissionsVersion: number;
   isBlocked: boolean;
   deletedAt: Date | null;
+  preferredLanguage: AppLanguage;
 }
 
 export interface AuthenticatedRequestSession {

@@ -5,6 +5,7 @@ import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { NotificationService } from 'src/modules/notification/application/services/notification.service';
 import { SubscriptionLifecycleService } from 'src/modules/subscription/application/services/subscription-lifecycle.service';
 import { RenewalReminderService } from 'src/modules/renewal/application/services/renewal-reminder.service';
+import { ReconciliationService } from 'src/modules/billing/application/services/reconciliation.service';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const BOSSES = ['Owner', 'Manager'];
@@ -28,6 +29,7 @@ export class SchedulerService {
     private readonly notifications: NotificationService,
     private readonly subscriptionLifecycle: SubscriptionLifecycleService,
     private readonly renewalReminders: RenewalReminderService,
+    private readonly reconciliation: ReconciliationService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(SchedulerService.name);
@@ -44,6 +46,7 @@ export class SchedulerService {
       ['subscription_expiry', () => this.sweepSubscriptionExpiry()],
       // Runs after the expiry sweep so EXPIRED status is current for win-back.
       ['renewal_reminders', () => this.sweepRenewalReminders()],
+      ['settlement_reconciliation', () => this.sweepReconciliation()],
     ] as const) {
       try {
         results[name] = await sweep();
@@ -82,6 +85,11 @@ export class SchedulerService {
         eventKey: 'calving_expected_3_days',
         title: 'Calving Expected in 3 Days',
         message: `${label} (${p.cattle.tagNumber}) is expected to calve on ${this.ymd(p.expectedCalvingDate!)}.`,
+        params: {
+          name: label,
+          tagNumber: p.cattle.tagNumber,
+          date: this.ymd(p.expectedCalvingDate!),
+        },
         link: '/reproduction',
         dedupeKey: `calving_expected_3_days:${p.id}:${this.ymd(now)}`,
       });
@@ -116,6 +124,11 @@ export class SchedulerService {
         eventKey: 'payment_overdue',
         title: 'Payment Overdue',
         message: `${r.entityName ?? 'A receivable'} is overdue: ৳${outstanding} (due ${this.ymd(r.dueDate!)}).`,
+        params: {
+          entityName: r.entityName ?? 'A receivable',
+          amount: outstanding,
+          date: this.ymd(r.dueDate!),
+        },
         link: '/finance/receivables',
         dedupeKey: `payment_overdue:${r.id}:${this.ymd(now)}`,
       });
@@ -141,6 +154,7 @@ export class SchedulerService {
         eventKey: 'task_overdue',
         title: 'Task Overdue',
         message: `"${t.name}" was due ${this.ymd(t.dueAt)} and is not complete.`,
+        params: { name: t.name, date: this.ymd(t.dueAt) },
         link: '/tasks',
         dedupeKey: `task_overdue:${t.id}:${this.ymd(now)}`,
       });
@@ -168,6 +182,7 @@ export class SchedulerService {
         eventKey: 'medicine_expiring_30_days',
         title: 'Medicine Expiring in 30 Days',
         message: `${m.name} expires on ${this.ymd(m.expiryDate)}.`,
+        params: { name: m.name, date: this.ymd(m.expiryDate) },
         link: '/inventory/medicine',
         // No date in the key → one alert per batch (avoids a 30-day daily drip).
         dedupeKey: `medicine_expiring_30_days:${m.id}`,
@@ -199,6 +214,15 @@ export class SchedulerService {
     return preExpiry + winback;
   }
 
+  /**
+   * Settlement reconciliation (RAKHAL-239): re-query the gateway for recent
+   * payments + flag discrepancies for admin clearing. Read-only to the ledger.
+   */
+  private async sweepReconciliation(): Promise<number> {
+    const { flagged } = await this.reconciliation.runReconciliation();
+    return flagged;
+  }
+
   // ---- helpers ------------------------------------------------------------
 
   private async emit(input: {
@@ -206,6 +230,7 @@ export class SchedulerService {
     eventKey: string;
     title: string;
     message: string;
+    params?: Record<string, string | number>;
     link: string;
     dedupeKey: string;
   }): Promise<number> {

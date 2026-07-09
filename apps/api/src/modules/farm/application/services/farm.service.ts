@@ -12,6 +12,7 @@ import { ReferralService } from 'src/modules/billing/application/services/referr
 import { LegalConsentService } from 'src/modules/compliance/application/services/legal-consent.service';
 import { TransactionalEmailService } from 'src/modules/email/application/services/transactional-email.service';
 import { EmailTemplate } from 'src/modules/email/domain/enums/email-template.enum';
+import { AppLanguage } from 'src/common/i18n/language';
 import { CreateFarmDto } from '../../presentation/dto/create-farm.dto';
 
 /**
@@ -74,7 +75,7 @@ export class FarmService {
     try {
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
-        select: { email: true, name: true },
+        select: { email: true, name: true, preferredLanguage: true },
       });
       if (user) {
         await this.txEmail.sendOnce({
@@ -86,6 +87,7 @@ export class FarmService {
           tenantId: userId,
           farmId: farm.id,
           userId,
+          locale: user.preferredLanguage.toLowerCase() as AppLanguage,
         });
       }
     } catch (err) {

@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   Controller,
   Delete,
@@ -14,6 +14,7 @@ import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guar
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { BuyerService } from '../../application/services/buyer.service';
 import { CreateBuyerDto } from '../dto/create-buyer.dto';
@@ -23,13 +24,19 @@ import { StatementQueryDto } from '../dto/dispatch-query.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
- * Milk buyers (PRD §11). `/api/v1/buyers`. Token tenancy + RBAC. Milk sales are
+ * Milk buyers (PRD Â§11). `/api/v1/buyers`. Token tenancy + RBAC. Milk sales are
  * a revenue concern, so buyer management is gated behind `finance.*`.
  */
 @ApiTags('Milk Buyers')
 @ApiBearerAuth()
 @Controller('buyers')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+)
 export class BuyerController {
   constructor(private readonly buyerService: BuyerService) {}
 

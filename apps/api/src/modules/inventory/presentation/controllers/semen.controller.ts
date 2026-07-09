@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   Controller,
   Delete,
@@ -14,6 +14,7 @@ import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guar
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { SemenService } from '../../application/services/semen.service';
 import { CreateSemenTankDto, UpdateSemenTankDto } from '../dto/semen-tank.dto';
@@ -25,13 +26,19 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
- * Inventory → Semen tab. Tanks under `/api/v1/inventory/semen/tanks`, straw
+ * Inventory â†’ Semen tab. Tanks under `/api/v1/inventory/semen/tanks`, straw
  * batches under `/api/v1/inventory/semen/batches`. Token-based tenancy.
  */
 @ApiTags('Inventory')
 @ApiBearerAuth()
 @Controller('inventory/semen')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+)
 export class SemenController {
   constructor(private readonly semenService: SemenService) {}
 

@@ -4,6 +4,7 @@ import { AuthModule } from '../auth/auth.module';
 import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { TaskModule } from '../task/task.module';
+import { SubscriptionModule } from '../subscription/subscription.module';
 import { CalfService } from './application/services/calf.service';
 import { CalfController } from './presentation/controllers/calf.controller';
 
@@ -14,6 +15,7 @@ import { CalfController } from './presentation/controllers/calf.controller';
     TenantAccessModule,
     PermissionModule,
     TaskModule,
+    SubscriptionModule,
   ],
   controllers: [CalfController],
   providers: [CalfService],

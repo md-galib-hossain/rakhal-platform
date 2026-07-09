@@ -8,6 +8,7 @@ import { TaskModule } from '../task/task.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { CalfModule } from '../calf/calf.module';
 import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
+import { SubscriptionModule } from '../subscription/subscription.module';
 import { ReproductionService } from './application/services/reproduction.service';
 import { ReproProtocolService } from './application/services/repro-protocol.service';
 import { CattleReproductionController } from './presentation/controllers/cattle-reproduction.controller';
@@ -25,6 +26,7 @@ import { ReproProtocolController } from './presentation/controllers/repro-protoc
     InventoryModule,
     CalfModule,
     FarmSettingsModule,
+    SubscriptionModule,
   ],
   controllers: [
     ReproductionController,

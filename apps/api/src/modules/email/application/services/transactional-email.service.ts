@@ -3,6 +3,7 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { EmailTemplate } from '../../domain/enums/email-template.enum';
 import { EmailService } from './email.service';
+import { AppLanguage } from 'src/common/i18n/language';
 
 export interface TransactionalEmailInput {
   /** Stable key per (event, entity) — a replay with the same key is dropped. */
@@ -14,6 +15,8 @@ export interface TransactionalEmailInput {
   tenantId: string;
   farmId: string | null;
   userId: string | null;
+  /** Recipient's resolved language (RAKHAL-107) — defaults to English if omitted. */
+  locale?: AppLanguage;
 }
 
 /**
@@ -61,6 +64,7 @@ export class TransactionalEmailService {
         farmId: input.farmId,
         userId: input.userId,
         idempotencyKey: input.idempotencyKey,
+        locale: input.locale,
       });
       return { sent: true };
     } catch (err) {

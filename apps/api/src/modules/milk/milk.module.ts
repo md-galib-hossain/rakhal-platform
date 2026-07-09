@@ -6,6 +6,7 @@ import { PermissionModule } from '../permission/permission.module';
 import { ActivityModule } from '../activity/activity.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
+import { SubscriptionModule } from '../subscription/subscription.module';
 import { MilkService } from './application/services/milk.service';
 import { MilkController } from './presentation/controllers/milk.controller';
 
@@ -18,6 +19,7 @@ import { MilkController } from './presentation/controllers/milk.controller';
     ActivityModule,
     InventoryModule,
     FarmSettingsModule,
+    SubscriptionModule,
   ],
   controllers: [MilkController],
   providers: [MilkService],

@@ -318,6 +318,11 @@ export class MedicineService {
         eventKey: 'low_medicine_stock',
         title: 'Low Medicine Stock',
         message: `${medicine.name} is low: ${balanceAfter} left (alert threshold ${threshold}).`,
+        params: {
+          name: medicine.name,
+          balance: balanceAfter,
+          threshold,
+        },
         link: '/inventory/medicine',
       });
     }

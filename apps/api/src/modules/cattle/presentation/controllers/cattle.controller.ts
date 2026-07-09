@@ -19,6 +19,7 @@ import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { BcsService } from '../../application/services/bcs.service';
 import { CattleDetailService } from '../../application/services/cattle-detail.service';
 import { CattleImportService } from '../../application/services/cattle-import.service';
@@ -43,11 +44,17 @@ const CSV_MAX_BYTES = 5 * 1024 * 1024;
 /** Max profile-photo upload size (RAKHAL-009) — the raw file is compressed server-side. */
 const PHOTO_MAX_BYTES = env.MEDIA_MAX_UPLOAD_BYTES;
 
-/** Cattle (PRD §8). `/api/v1/cattle`. Token tenancy + RBAC. */
+/** Cattle (PRD §8). `/api/v1/cattle`. Token tenancy + RBAC + subscription baseline. */
 @ApiTags('Cattle')
 @ApiBearerAuth()
 @Controller('cattle')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+)
 export class CattleController {
   constructor(
     private readonly cattleService: CattleService,

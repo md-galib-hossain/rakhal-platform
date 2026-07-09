@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   Controller,
   Delete,
@@ -14,6 +14,7 @@ import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guar
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { MedicineService } from '../../application/services/medicine.service';
 import { AdjustStockDto } from '../dto/adjust-stock.dto';
@@ -23,17 +24,23 @@ import { UpdateMedicineDto } from '../dto/update-medicine.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
- * Inventory → Medicine tab. Routes resolve under the global prefix as
+ * Inventory â†’ Medicine tab. Routes resolve under the global prefix as
  * `/api/v1/inventory/medicines`.
  *
- * Guard chain (token-based tenancy + RBAC — see TEMPLATE_OVERVIEW §6):
- *   JwtAuthGuard → SessionGuard → FarmContextGuard → PermissionGuard
+ * Guard chain (token-based tenancy + RBAC â€” see TEMPLATE_OVERVIEW Â§6):
+ *   JwtAuthGuard â†’ SessionGuard â†’ FarmContextGuard â†’ PermissionGuard
  * The active farm is taken from the verified token context, never the body.
  */
 @ApiTags('Inventory')
 @ApiBearerAuth()
 @Controller('inventory/medicines')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+)
 export class MedicineController {
   constructor(private readonly medicineService: MedicineService) {}
 

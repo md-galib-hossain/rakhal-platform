@@ -5,6 +5,7 @@ import {
   Get,
   Inject,
   Param,
+  Patch,
   Post,
   Req,
   Res,
@@ -34,6 +35,7 @@ import { VerifyEmailDto } from '../dto/verify-email.dto';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { ChangePasswordDto } from '../dto/change-password.dto';
+import { UpdateLanguageDto } from '../dto/update-language.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Auth (§2). `/api/v1/auth`. Mostly public (login/register/refresh use a
@@ -243,6 +245,20 @@ export class AuthController {
   me(@Req() request: AuthenticatedHttpRequest) {
     const auth = this.getAuthContext(request);
     return this.authService.me(auth.user.sub);
+  }
+
+  @Patch('me/language')
+  @ApiBearerAuth()
+  @UseGuards(ThrottlerGuard, JwtAuthGuard, SessionGuard)
+  updateLanguage(
+    @Body() dto: UpdateLanguageDto,
+    @Req() request: AuthenticatedHttpRequest,
+  ) {
+    const auth = this.getAuthContext(request);
+    return this.authService.updateLanguage(
+      auth.user.sub,
+      dto.preferredLanguage,
+    );
   }
 
   private getRefreshTokenFromRequest(

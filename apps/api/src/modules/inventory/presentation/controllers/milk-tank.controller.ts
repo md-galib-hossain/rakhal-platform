@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   Controller,
   Delete,
@@ -14,6 +14,7 @@ import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guar
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { MilkTankService } from '../../application/services/milk-tank.service';
 import {
@@ -25,11 +26,17 @@ import {
 } from '../dto/milk-tank.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-/** Inventory → Milk tab. `/api/v1/inventory/milk-tanks`. Token-based tenancy. */
+/** Inventory â†’ Milk tab. `/api/v1/inventory/milk-tanks`. Token-based tenancy. */
 @ApiTags('Inventory')
 @ApiBearerAuth()
 @Controller('inventory/milk-tanks')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+)
 export class MilkTankController {
   constructor(private readonly milkTankService: MilkTankService) {}
 

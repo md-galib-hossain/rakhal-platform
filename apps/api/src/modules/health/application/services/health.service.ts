@@ -308,6 +308,12 @@ export class HealthService {
       eventKey: 'animal_sickness_reported',
       title: 'Animal Sickness Reported',
       message: `${cattle.name ?? cattle.tagNumber} (${cattle.tagNumber}) — ${dto.diagnosis} reported (priority: ${dto.priority}).`,
+      params: {
+        name: cattle.name ?? cattle.tagNumber,
+        tagNumber: cattle.tagNumber,
+        diagnosis: dto.diagnosis,
+        priority: dto.priority,
+      },
       link: `/healthcare/cases/${healthCase.id}`,
     });
 

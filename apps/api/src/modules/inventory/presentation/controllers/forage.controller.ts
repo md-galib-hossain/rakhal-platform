@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   Controller,
   Delete,
@@ -14,6 +14,7 @@ import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guar
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { ForageService } from '../../application/services/forage.service';
 import { CreateForageDto } from '../dto/create-forage.dto';
@@ -21,11 +22,17 @@ import { ListForageQueryDto } from '../dto/list-forage-query.dto';
 import { UpdateForageDto } from '../dto/update-forage.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-/** Inventory → Forage tab. `/api/v1/inventory/forages`. Token tenancy + RBAC. */
+/** Inventory â†’ Forage tab. `/api/v1/inventory/forages`. Token tenancy + RBAC. */
 @ApiTags('Inventory')
 @ApiBearerAuth()
 @Controller('inventory/forages')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+)
 export class ForageController {
   constructor(private readonly forageService: ForageService) {}
 

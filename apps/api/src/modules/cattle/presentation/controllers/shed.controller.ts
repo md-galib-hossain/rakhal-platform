@@ -15,17 +15,24 @@ import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { ShedService } from '../../application/services/shed.service';
 import { CreateShedDto } from '../dto/create-shed.dto';
 import { ListShedQueryDto } from '../dto/list-shed-query.dto';
 import { UpdateShedDto } from '../dto/update-shed.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-/** Sheds (PRD §21.3). `/api/v1/sheds`. Token tenancy + RBAC (cattle.*). */
+/** Sheds (PRD §21.3). `/api/v1/sheds`. Token tenancy + RBAC + subscription baseline. */
 @ApiTags('Sheds')
 @ApiBearerAuth()
 @Controller('sheds')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+)
 export class ShedController {
   constructor(private readonly shedService: ShedService) {}
 

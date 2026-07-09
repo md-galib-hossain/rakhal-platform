@@ -13,11 +13,26 @@ import { ExceptionCode } from '../exceptions/exception-codes.enum';
 import { AppError } from 'src/common/exceptions/app.error';
 import { env } from 'src/core/config/env';
 import { SentryService } from 'src/core/observability/sentry/sentry.service';
+import { I18nService } from 'src/common/i18n/i18n.service';
+import { AppLanguage, resolveLanguage } from 'src/common/i18n/language';
 
 interface AppRequest extends Request {
   requestId?: string;
   traceId?: string;
 }
+
+/**
+ * Exact-match English default → translation key (RAKHAL-107). Only the
+ * generic messages our own guards/Nest emit verbatim are translated here —
+ * custom business messages pass through untouched (see `translations/common.en.ts`).
+ */
+const COMMON_MESSAGE_KEYS: Record<string, string> = {
+  Unauthorized: 'common.unauthorized',
+  'Session is not active': 'common.sessionNotActive',
+  'Session permissions are stale': 'common.sessionPermissionsStale',
+  'Invalid credentials': 'common.invalidCredentials',
+  'Forbidden resource': 'common.forbiddenResource',
+};
 export interface ErrorResponse {
   success: false;
   message: string;
@@ -40,7 +55,6 @@ interface HttpExceptionResponse {
   code?: unknown;
 }
 
-const INTERNAL_ERROR_MESSAGE = 'An unexpected error occurred';
 const HTTP_EXCEPTION_CODE_BY_STATUS: Partial<Record<number, ExceptionCode>> = {
   [HttpStatus.BAD_REQUEST]: ExceptionCode.VALIDATION_ERROR,
   [HttpStatus.UNAUTHORIZED]: ExceptionCode.UNAUTHORIZED,
@@ -55,6 +69,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   constructor(
     private readonly logger: LoggerService,
     private readonly sentry: SentryService,
+    private readonly i18n: I18nService,
   ) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
@@ -64,9 +79,15 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     const requestId = request.requestId ?? 'unknown';
     const traceId = request.traceId ?? 'unknown';
+    // Header-only resolution (RAKHAL-107) — the exception may itself be an
+    // auth failure, so `request.auth` (the DB-backed preference) can't be
+    // relied on here.
+    const lang = resolveLanguage(request.headers['accept-language']);
 
-    const { statusCode, code, message, details } =
-      this.resolveException(exception);
+    const { statusCode, code, message, details } = this.resolveException(
+      exception,
+      lang,
+    );
 
     const timestamp = new Date().toISOString();
     const errorResponse: ErrorResponse = {
@@ -110,14 +131,17 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     response.status(statusCode).json(errorResponse);
   }
 
-  private resolveException(exception: unknown): ResolvedExceptionResult {
+  private resolveException(
+    exception: unknown,
+    lang: AppLanguage,
+  ): ResolvedExceptionResult {
     if (exception instanceof BaseException) {
       const statusCode = exception.getStatus();
 
       return {
         statusCode,
         code: exception.code,
-        message: this.getResponseMessage(statusCode, exception.message),
+        message: this.getResponseMessage(statusCode, exception.message, lang),
         details: exception.details,
       };
     }
@@ -129,6 +153,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         message: this.getResponseMessage(
           exception.statusCode,
           exception.message,
+          lang,
         ),
         details: exception.details,
       };
@@ -150,7 +175,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       return {
         statusCode: exception.getStatus(),
         code: this.resolveHttpExceptionCode(exception, httpBody),
-        message: this.getResponseMessage(exception.getStatus(), message),
+        message: this.getResponseMessage(exception.getStatus(), message, lang),
       };
     }
 
@@ -158,7 +183,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       return {
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         code: ExceptionCode.INTERNAL_ERROR,
-        message: INTERNAL_ERROR_MESSAGE,
+        message: this.i18n.translate(lang, 'common.internalError'),
         details:
           env.NODE_ENV === 'production'
             ? undefined
@@ -169,16 +194,21 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     return {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       code: ExceptionCode.INTERNAL_ERROR,
-      message: 'An unexpected error occurred',
+      message: this.i18n.translate(lang, 'common.internalError'),
     };
   }
 
-  private getResponseMessage(statusCode: number, message: string): string {
+  private getResponseMessage(
+    statusCode: number,
+    message: string,
+    lang: AppLanguage,
+  ): string {
     if (statusCode >= 500 && env.NODE_ENV === 'production') {
-      return INTERNAL_ERROR_MESSAGE;
+      return this.i18n.translate(lang, 'common.internalError');
     }
 
-    return message;
+    const key = COMMON_MESSAGE_KEYS[message];
+    return key ? this.i18n.translate(lang, key) : message;
   }
 
   private resolveHttpExceptionCode(

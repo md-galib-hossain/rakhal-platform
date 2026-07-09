@@ -105,9 +105,13 @@ describe('Scheduler sweeps (e2e)', () => {
       expect(result.calving_expected_3_days).toBeGreaterThanOrEqual(1);
     }
 
+    // RAKHAL-107: the demo owner defaults to Bangla, so sweep-emitted titles
+    // are localized (`notification.{payment_overdue,calving_expected_3_days}.title`).
     const titles = await ownerNotifTitles();
-    expect(titles).toContain('Payment Overdue');
-    if (pregnancyId) expect(titles).toContain('Calving Expected in 3 Days');
+    expect(titles).toContain('পরিশোধের মেয়াদ পার হয়ে গেছে');
+    if (pregnancyId) {
+      expect(titles).toContain('৩ দিনের মধ্যে বাছুর প্রসবের সম্ভাবনা');
+    }
   });
 
   it('a second run on the same day is deduped (no new notifications)', async () => {

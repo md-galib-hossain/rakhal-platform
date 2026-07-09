@@ -9,6 +9,7 @@ import { AdminAuditService } from './application/services/admin-audit.service';
 import { PlatformAdminGuard } from './presentation/guards/platform-admin.guard';
 import { AdminAuthController } from './presentation/controllers/admin-auth.controller';
 import { AdminBillingController } from './presentation/controllers/admin-billing.controller';
+import { AdminReconciliationController } from './presentation/controllers/admin-reconciliation.controller';
 
 /**
  * Rakhal Admin (`admin-api`) — RAKHAL-224 (PRD §32.5 / ADR-016/019). The
@@ -20,7 +21,11 @@ import { AdminBillingController } from './presentation/controllers/admin-billing
  */
 @Module({
   imports: [LoggerModule, AuthModule, BillingModule, SubscriptionModule],
-  controllers: [AdminAuthController, AdminBillingController],
+  controllers: [
+    AdminAuthController,
+    AdminBillingController,
+    AdminReconciliationController,
+  ],
   providers: [
     AdminTokenService,
     AdminAuthService,

@@ -13,6 +13,7 @@ import { CouponService } from './application/services/coupon.service';
 import { ReferralService } from './application/services/referral.service';
 import { CreditWalletService } from './application/services/credit-wallet.service';
 import { ReceiptService } from './application/services/receipt.service';
+import { ReconciliationService } from './application/services/reconciliation.service';
 import { BkashTokenService } from './application/services/bkash-token.service';
 import { UnconfiguredPaymentProvider } from './application/providers/unconfigured-payment.provider';
 import { BkashPaymentProvider } from './application/providers/bkash-payment.provider';
@@ -54,6 +55,7 @@ import { ReferralController } from './presentation/controllers/referral.controll
     ReferralService,
     CreditWalletService,
     ReceiptService,
+    ReconciliationService,
     BkashTokenService,
     BkashPaymentProvider,
     UnconfiguredPaymentProvider,
@@ -87,6 +89,7 @@ import { ReferralController } from './presentation/controllers/referral.controll
     CouponService,
     ReferralService,
     CreditWalletService,
+    ReconciliationService,
   ],
 })
 export class BillingModule {}

@@ -5,6 +5,7 @@ import { AuthModule } from '../auth/auth.module';
 import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { AuditModule } from '../audit/audit.module';
+import { SubscriptionModule } from '../subscription/subscription.module';
 import { SettingsService } from './application/services/settings.service';
 import { RolesService } from './application/services/roles.service';
 import { TeamService } from './application/services/team.service';
@@ -22,6 +23,7 @@ import { WorkspaceSettingsController } from './presentation/controllers/workspac
     TenantAccessModule,
     PermissionModule,
     AuditModule,
+    SubscriptionModule,
   ],
   controllers: [
     SettingsController,

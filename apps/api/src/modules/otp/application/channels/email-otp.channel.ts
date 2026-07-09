@@ -32,6 +32,7 @@ export class EmailOtpChannel implements OtpDeliveryChannel {
       farmId: null,
       userId: request.userId,
       correlationId: randomUUID(),
+      locale: request.locale,
     });
   }
 }

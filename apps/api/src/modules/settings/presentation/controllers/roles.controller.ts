@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   Controller,
   Delete,
@@ -13,6 +13,7 @@ import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guar
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { RolesService } from '../../application/services/roles.service';
 import { CreateRoleDto } from '../dto/create-role.dto';
@@ -20,13 +21,19 @@ import { UpdateRolePermissionsDto } from '../dto/update-role-permissions.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
- * Roles & Permissions (RAKHAL-031, PRD §21.4 / API §18). `/api/v1/settings`.
+ * Roles & Permissions (RAKHAL-031, PRD Â§21.4 / API Â§18). `/api/v1/settings`.
  * Read = Manager+ (`settings.read`); mutations = Owner-only (`settings.roles-manage`).
  */
 @ApiTags('Settings')
 @ApiBearerAuth()
 @Controller('settings')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+)
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 

@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   Controller,
   Get,
@@ -12,6 +12,7 @@ import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guar
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { ReproProtocolService } from '../../application/services/repro-protocol.service';
 import {
@@ -24,7 +25,7 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
- * Reproductive (Synchronization) Protocols (RAKHAL-214, PRD §9.8 / §9.9).
+ * Reproductive (Synchronization) Protocols (RAKHAL-214, PRD Â§9.8 / Â§9.9).
  * `/api/v1/reproduction/protocols`. Token tenancy + RBAC: read = Manager+
  * (`reproduction.read`), apply = `reproduction.create`, instance actions =
  * `reproduction.update`.
@@ -32,7 +33,13 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 @ApiTags('Reproduction')
 @ApiBearerAuth()
 @Controller('reproduction/protocols')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+)
 export class ReproProtocolController {
   constructor(private readonly protocols: ReproProtocolService) {}
 

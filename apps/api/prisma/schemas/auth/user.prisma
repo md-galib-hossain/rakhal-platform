@@ -22,6 +22,10 @@ model User {
 
   permissionsVersion Int @default(1)
 
+  // RAKHAL-107 — worker-facing screens default to Bangla; Accept-Language can
+  // override per-request without changing this stored preference.
+  preferredLanguage Language @default(BN)
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?

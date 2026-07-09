@@ -6,6 +6,7 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { OTP_DELIVERY_CHANNEL } from '../ports/otp-delivery-channel.port';
 import type { OtpDeliveryChannel } from '../ports/otp-delivery-channel.port';
+import type { AppLanguage } from 'src/common/i18n/language';
 
 export interface OtpRequestResult {
   sent: true;
@@ -65,7 +66,7 @@ export class OtpService {
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true, name: true },
+      select: { email: true, name: true, preferredLanguage: true },
     });
     if (!user) throw new BadRequestException('User not found');
 
@@ -94,6 +95,7 @@ export class OtpService {
       code,
       purpose,
       ttlSeconds: this.ttl,
+      locale: user.preferredLanguage.toLowerCase() as AppLanguage,
     });
     this.log.info('OTP requested', {
       userId,

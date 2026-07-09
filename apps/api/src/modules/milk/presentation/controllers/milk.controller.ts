@@ -13,6 +13,7 @@ import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { MilkService } from '../../application/services/milk.service';
 import {
   MilkAnomalyQueryDto,
@@ -24,11 +25,17 @@ import { SaveMilkLogDto } from '../dto/save-milk-log.dto';
 import { SubmitMilkDto } from '../dto/submit-milk.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-/** Milk Module (PRD §10). `/api/v1/milk`. Token tenancy + RBAC. */
+/** Milk Module (PRD §10). `/api/v1/milk`. Token tenancy + RBAC + subscription baseline. */
 @ApiTags('Milk')
 @ApiBearerAuth()
 @Controller('milk')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+)
 export class MilkController {
   constructor(private readonly milkService: MilkService) {}
 

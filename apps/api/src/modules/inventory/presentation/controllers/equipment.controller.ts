@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   Controller,
   Delete,
@@ -14,6 +14,7 @@ import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guar
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { EquipmentService } from '../../application/services/equipment.service';
 import { CreateEquipmentDto } from '../dto/create-equipment.dto';
@@ -21,11 +22,17 @@ import { ListEquipmentQueryDto } from '../dto/list-equipment-query.dto';
 import { UpdateEquipmentDto } from '../dto/update-equipment.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-/** Inventory → Others/Equipment tab. `/api/v1/inventory/equipment`. Token tenancy + RBAC. */
+/** Inventory â†’ Others/Equipment tab. `/api/v1/inventory/equipment`. Token tenancy + RBAC. */
 @ApiTags('Inventory')
 @ApiBearerAuth()
 @Controller('inventory/equipment')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+)
 export class EquipmentController {
   constructor(private readonly equipmentService: EquipmentService) {}
 

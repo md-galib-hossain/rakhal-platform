@@ -110,6 +110,9 @@ export class SessionGuard implements CanActivate {
         permissionsVersion: session.user.permissionsVersion,
         isBlocked: session.user.isBlocked,
         deletedAt: session.user.deletedAt,
+        preferredLanguage: session.user.preferredLanguage.toLowerCase() as
+          | 'bn'
+          | 'en',
       },
     } satisfies AuthenticatedRequestContext;
 

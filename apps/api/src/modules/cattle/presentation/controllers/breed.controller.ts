@@ -15,17 +15,24 @@ import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { BreedService } from '../../application/services/breed.service';
 import { CreateBreedDto } from '../dto/create-breed.dto';
 import { ListBreedQueryDto } from '../dto/list-breed-query.dto';
 import { UpdateBreedDto } from '../dto/update-breed.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-/** Breeds (PRD §8.4). `/api/v1/breeds`. Token tenancy + RBAC (cattle.*). */
+/** Breeds (PRD §8.4). `/api/v1/breeds`. Token tenancy + RBAC + subscription baseline. */
 @ApiTags('Breeds')
 @ApiBearerAuth()
 @Controller('breeds')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+)
 export class BreedController {
   constructor(private readonly breedService: BreedService) {}
 

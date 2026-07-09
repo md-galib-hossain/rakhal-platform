@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   Controller,
   Delete,
@@ -13,6 +13,7 @@ import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guar
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { WorkspaceSettingsService } from '../../application/services/workspace-settings.service';
 import { CreateSupplierDto } from '../dto/create-supplier.dto';
@@ -20,15 +21,21 @@ import { UpdateSupplierDto } from '../dto/update-supplier.dto';
 import { UpdateModuleSettingsDto } from '../dto/update-module-settings.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-/** Settings → Modules / Suppliers / Billing (PRD §21.5–21.7 / API §18). `/api/v1/settings`. */
+/** Settings â†’ Modules / Suppliers / Billing (PRD Â§21.5â€“21.7 / API Â§18). `/api/v1/settings`. */
 @ApiTags('Settings')
 @ApiBearerAuth()
 @Controller('settings')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+)
 export class WorkspaceSettingsController {
   constructor(private readonly workspace: WorkspaceSettingsService) {}
 
-  // ── Module settings ─────────────────────────────────────────────────────────
+  // â”€â”€ Module settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   @Get('modules')
   @RequirePermission('settings.read')
@@ -45,7 +52,7 @@ export class WorkspaceSettingsController {
     return this.workspace.updateModules(farmId, dto);
   }
 
-  // ── Suppliers ───────────────────────────────────────────────────────────────
+  // â”€â”€ Suppliers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   @Get('suppliers')
   @RequirePermission('settings.read')
@@ -78,7 +85,7 @@ export class WorkspaceSettingsController {
     return this.workspace.deleteSupplier(farmId, id);
   }
 
-  // ── Billing ───────────────────────────────────────────────────────────────--
+  // â”€â”€ Billing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€--
 
   @Get('billing')
   @RequirePermission('settings.billing')

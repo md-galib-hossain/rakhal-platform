@@ -3,6 +3,7 @@ import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { NotificationModule } from '../notification/notification.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { RenewalModule } from '../renewal/renewal.module';
+import { BillingModule } from '../billing/billing.module';
 import { SchedulerService } from './application/services/scheduler.service';
 
 /**
@@ -17,6 +18,7 @@ import { SchedulerService } from './application/services/scheduler.service';
     NotificationModule,
     SubscriptionModule,
     RenewalModule,
+    BillingModule,
   ],
   providers: [SchedulerService],
   exports: [SchedulerService],

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+﻿import { Module } from '@nestjs/common';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { AuthModule } from '../auth/auth.module';
 import { TenantAccessModule } from '../tenant-access/tenant-access.module';
@@ -10,6 +10,7 @@ import { NotificationModule } from '../notification/notification.module';
 import { HealthService } from './application/services/health.service';
 import { CattleHealthController } from './presentation/controllers/cattle-health.controller';
 import { HealthController } from './presentation/controllers/health.controller';
+import { SubscriptionModule } from '../subscription/subscription.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { HealthController } from './presentation/controllers/health.controller';
     InventoryModule,
     TaskModule,
     NotificationModule,
+    SubscriptionModule,
   ],
   controllers: [HealthController, CattleHealthController],
   providers: [HealthService],

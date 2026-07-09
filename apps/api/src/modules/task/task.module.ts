@@ -3,6 +3,7 @@ import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { AuthModule } from '../auth/auth.module';
 import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
+import { SubscriptionModule } from '../subscription/subscription.module';
 import { TaskService } from './application/services/task.service';
 import { TaskController } from './presentation/controllers/task.controller';
 
@@ -13,7 +14,13 @@ import { TaskController } from './presentation/controllers/task.controller';
  * health-plan doses) that surface in the same Task Hub.
  */
 @Module({
-  imports: [AuthModule, TenantAccessModule, PermissionModule, LoggerModule],
+  imports: [
+    AuthModule,
+    TenantAccessModule,
+    PermissionModule,
+    LoggerModule,
+    SubscriptionModule,
+  ],
   controllers: [TaskController],
   providers: [TaskService],
   exports: [TaskService],

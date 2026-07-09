@@ -1,4 +1,5 @@
 import { OtpPurpose } from '@prisma/client';
+import { AppLanguage } from 'src/common/i18n/language';
 
 export interface OtpDeliveryRequest {
   userId: string;
@@ -7,6 +8,7 @@ export interface OtpDeliveryRequest {
   code: string;
   purpose: OtpPurpose;
   ttlSeconds: number;
+  locale: AppLanguage;
 }
 
 /**

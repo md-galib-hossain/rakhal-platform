@@ -82,7 +82,10 @@ describe('Notification emitters (e2e)', () => {
         title: string;
         link: string;
       }>
-    ).find((n) => n.title === 'Animal Sickness Reported');
+    )
+      // RAKHAL-107: the demo owner defaults to Bangla, so notification copy is
+      // rendered in Bangla (`notification.animal_sickness_reported.title`).
+      .find((n) => n.title === 'পশুর অসুস্থতার তথ্য পাওয়া গেছে');
     expect(alert).toBeDefined();
     expect(alert?.type).toBe('health_safety');
     expect(alert?.link).toContain('/healthcare/cases/');
@@ -120,7 +123,9 @@ describe('Notification emitters (e2e)', () => {
       .expect(200);
     const alert = (
       feed.body.data.notifications as Array<{ title: string; type: string }>
-    ).find((n) => n.title === 'Low Medicine Stock');
+    )
+      // RAKHAL-107: the demo owner defaults to Bangla (`notification.low_medicine_stock.title`).
+      .find((n) => n.title === 'ওষুধের মজুদ কম');
     expect(alert).toBeDefined();
     expect(alert?.type).toBe('operational');
 

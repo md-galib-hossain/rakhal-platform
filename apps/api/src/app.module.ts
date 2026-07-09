@@ -24,6 +24,7 @@ import {
   sentryConfig,
 } from 'src/core/config/env';
 import { DomainEventsModule } from 'src/common/events/domain-events.module';
+import { I18nModule } from 'src/common/i18n/i18n.module';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { RedisModule } from 'src/core/redis/redis.module';
 import { CacheModule } from 'src/core/cache/cache.module';
@@ -61,6 +62,7 @@ import { OtpModule } from './modules/otp/otp.module';
 import { ComplianceModule } from './modules/compliance/compliance.module';
 import { MediaModule } from './modules/media/media.module';
 import { SupportModule } from './modules/support/support.module';
+import { SearchModule } from './modules/search/search.module';
 
 type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
 
@@ -126,6 +128,7 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     RedisModule,
     CacheModule,
     DomainEventsModule,
+    I18nModule,
     EmailModule,
     SentryModule,
     MetricsModule,
@@ -152,6 +155,7 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     ComplianceModule,
     MediaModule,
     SupportModule,
+    SearchModule,
     ActivityModule,
     TaskModule,
   ],

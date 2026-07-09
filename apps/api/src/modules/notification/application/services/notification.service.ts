@@ -26,15 +26,26 @@ import { NotificationDeliveryService } from './notification-delivery.service';
 import { ChannelRouterService } from './channel-router.service';
 import { ListNotificationQueryDto } from '../../presentation/dto/list-notification-query.dto';
 import { UpdatePreferencesDto } from '../../presentation/dto/update-preferences.dto';
+import { I18nService } from 'src/common/i18n/i18n.service';
+import { AppLanguage, DEFAULT_LANGUAGE } from 'src/common/i18n/language';
 
 /** Recipients + content for an internal `notifyUsers` call (other modules emit these). */
 export interface NotifyInput {
   farmId: string;
   userIds: string[];
   eventKey: string;
+  /** English fallback — used verbatim when `params` is omitted or the event
+   * has no catalogue entry under `translations/notification.*.ts`. */
   title: string;
   message: string;
   link?: string;
+  /**
+   * When present, title/message are instead rendered per-recipient from
+   * `notification.<eventKey>.{title,message}` in each user's resolved
+   * language (RAKHAL-107) — falls back to the literal `title`/`message`
+   * above for events not yet in the catalogue.
+   */
+  params?: Record<string, string | number>;
   /** Idempotency key — recipients already holding a notification with this key are skipped. */
   dedupeKey?: string;
 }
@@ -58,6 +69,7 @@ export class NotificationService {
     private readonly prisma: PrismaService,
     private readonly delivery: NotificationDeliveryService,
     private readonly router: ChannelRouterService,
+    private readonly i18n: I18nService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(NotificationService.name);
@@ -84,6 +96,7 @@ export class NotificationService {
       title: input.title,
       message: input.message,
       link: input.link,
+      params: input.params,
       dedupeKey: input.dedupeKey,
     });
   }
@@ -112,16 +125,28 @@ export class NotificationService {
       if (userIds.length === 0) return [];
     }
 
-    const [overrides, settings] = await Promise.all([
+    const [overrides, settings, languages] = await Promise.all([
       this.prisma.notificationPreference.findMany({
         where: { userId: { in: userIds }, eventKey: event.key },
       }),
       this.prisma.notificationSetting.findMany({
         where: { userId: { in: userIds } },
       }),
+      // Only needed for the localized-copy path — cheap enough to always fetch
+      // (single indexed IN query) rather than branch on `input.params`.
+      this.prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, preferredLanguage: true },
+      }),
     ]);
     const overrideByUser = new Map(overrides.map((o) => [o.userId, o]));
     const settingByUser = new Map(settings.map((s) => [s.userId, s]));
+    const languageByUser = new Map(
+      languages.map((u) => [
+        u.id,
+        u.preferredLanguage.toLowerCase() as AppLanguage,
+      ]),
+    );
     const nowHm = this.nowHm();
 
     // Admin/farm-configurable channel routing (RAKHAL-256, §20.1a) — resolved
@@ -169,6 +194,22 @@ export class NotificationService {
         dispatch.push(ch);
       }
 
+      const lang = languageByUser.get(userId) ?? DEFAULT_LANGUAGE;
+      const title = input.params
+        ? this.i18n.translate(
+            lang,
+            `notification.${event.key}.title`,
+            input.params,
+          )
+        : input.title;
+      const message = input.params
+        ? this.i18n.translate(
+            lang,
+            `notification.${event.key}.message`,
+            input.params,
+          )
+        : input.message;
+
       const notification = await this.prisma.notification.create({
         data: {
           farmId: input.farmId,
@@ -176,8 +217,8 @@ export class NotificationService {
           eventKey: event.key,
           category: event.category,
           priority: event.priority,
-          title: input.title,
-          message: input.message,
+          title,
+          message,
           link: input.link,
           channelsSent: sent,
           dedupeKey: input.dedupeKey,
@@ -194,8 +235,8 @@ export class NotificationService {
             eventKey: event.key,
             category: event.category,
             priority: event.priority,
-            title: input.title,
-            message: input.message,
+            title,
+            message,
             link: input.link,
           });
         } catch (err) {

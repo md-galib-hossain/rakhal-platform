@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   Controller,
   Get,
@@ -12,6 +12,7 @@ import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guar
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { CalfService } from '../../application/services/calf.service';
 import { ListCalfQueryDto } from '../dto/list-calf-query.dto';
@@ -22,11 +23,17 @@ import { RecordWeightDto } from '../dto/record-weight.dto';
 import { WeanCalfDto } from '../dto/wean-calf.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-/** Calf Management (PRD §14). `/api/v1/calves`. Token tenancy + RBAC. */
+/** Calf Management (PRD Â§14). `/api/v1/calves`. Token tenancy + RBAC. */
 @ApiTags('Calf')
 @ApiBearerAuth()
 @Controller('calves')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+)
 export class CalfController {
   constructor(private readonly calfService: CalfService) {}
 

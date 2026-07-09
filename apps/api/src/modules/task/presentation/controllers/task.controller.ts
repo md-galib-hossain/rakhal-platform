@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   Controller,
   Delete,
@@ -14,6 +14,7 @@ import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guar
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { TaskService } from '../../application/services/task.service';
 import { CreateTaskDto } from '../dto/create-task.dto';
@@ -23,14 +24,20 @@ import { CheckStepDto, CompleteTaskDto } from '../dto/complete-task.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
- * Task Hub (PRD §17). `/api/v1/tasks`. Token tenancy + RBAC.
+ * Task Hub (PRD Â§17). `/api/v1/tasks`. Token tenancy + RBAC.
  * Workers (task.read + task.complete) can view and finish tasks; create/edit/
  * reassign/delete require manager-level grants (task.create/update/delete).
  */
 @ApiTags('Tasks')
 @ApiBearerAuth()
 @Controller('tasks')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+)
 export class TaskController {
   constructor(private readonly taskService: TaskService) {}
 

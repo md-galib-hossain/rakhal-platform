@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   Controller,
   Delete,
@@ -12,16 +12,23 @@ import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guar
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { TeamService } from '../../application/services/team.service';
 import { InviteTeamMemberDto } from '../dto/invite-team-member.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-/** Settings → Team (PRD §21.4 / API §18). `/api/v1/settings/team`. Token tenancy + RBAC. */
+/** Settings â†’ Team (PRD Â§21.4 / API Â§18). `/api/v1/settings/team`. Token tenancy + RBAC. */
 @ApiTags('Team')
 @ApiBearerAuth()
 @Controller('settings/team')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+)
 export class TeamController {
   constructor(private readonly teamService: TeamService) {}
 

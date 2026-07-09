@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   Controller,
   Delete,
@@ -13,6 +13,7 @@ import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guar
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
+import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { SettingsService } from '../../application/services/settings.service';
 import { UpdateFarmSettingsDto } from '../dto/update-farm-settings.dto';
@@ -22,15 +23,21 @@ import { CreateFeedGroupDto } from '../dto/create-feed-group.dto';
 import { UpdateFeedGroupDto } from '../dto/update-feed-group.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-/** Settings (PRD §21 / API §18). `/api/v1/settings`. Token tenancy + RBAC. */
+/** Settings (PRD Â§21 / API Â§18). `/api/v1/settings`. Token tenancy + RBAC. */
 @ApiTags('Settings')
 @ApiBearerAuth()
 @Controller('settings')
-@UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+@UseGuards(
+  JwtAuthGuard,
+  SessionGuard,
+  FarmContextGuard,
+  PermissionGuard,
+  SubscriptionGuard,
+)
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
-  // ── Farm workspace ──────────────────────────────────────────────────────────
+  // â”€â”€ Farm workspace â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   @Get('farm')
   @RequirePermission('settings.read')
@@ -48,7 +55,7 @@ export class SettingsController {
     return this.settingsService.updateFarm(farmId, userId, dto);
   }
 
-  // ── Sheds ───────────────────────────────────────────────────────────────────
+  // â”€â”€ Sheds â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   @Get('sheds')
   @RequirePermission('settings.read')
@@ -78,7 +85,7 @@ export class SettingsController {
     return this.settingsService.deleteShed(farmId, id);
   }
 
-  // ── Feed Groups ─────────────────────────────────────────────────────────────
+  // â”€â”€ Feed Groups â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   @Get('feed-groups')
   @RequirePermission('settings.read')

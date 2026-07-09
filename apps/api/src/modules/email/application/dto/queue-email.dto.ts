@@ -1,4 +1,5 @@
 import { EmailTemplate } from '../../domain/enums/email-template.enum';
+import { AppLanguage } from 'src/common/i18n/language';
 
 /**
  * A pre-rendered attachment carried on the queued job. `contentBase64` keeps the
@@ -21,6 +22,8 @@ export interface QueueEmailDto {
   userId: string | null;
   correlationId?: string;
   templateData: Record<string, unknown>;
+  /** Recipient's resolved language (RAKHAL-107) — defaults to English if omitted. */
+  locale?: AppLanguage;
   sendAt?: Date;
   includePdf?: boolean;
   attachments?: QueueEmailAttachment[];

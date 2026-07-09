@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { AuditAction, SessionStatus, TokenType, User } from '@prisma/client';
+import {
+  AuditAction,
+  Language as PrismaLanguage,
+  SessionStatus,
+  TokenType,
+  User,
+} from '@prisma/client';
 import { createHash } from 'crypto';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { EmailVerificationTokenPort } from 'src/modules/auth/application/ports/email-verification-token.port';
@@ -313,9 +319,18 @@ export class AuthRepository implements EmailVerificationTokenPort {
             permissionsVersion: true,
             isBlocked: true,
             deletedAt: true,
+            preferredLanguage: true,
           },
         },
       },
+    });
+  }
+
+  updatePreferredLanguage(userId: string, preferredLanguage: PrismaLanguage) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { preferredLanguage },
+      select: { id: true, preferredLanguage: true },
     });
   }
 

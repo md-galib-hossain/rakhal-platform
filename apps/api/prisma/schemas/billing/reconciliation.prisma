@@ -1,0 +1,47 @@
+/// Settlement-reconciliation exception (RAKHAL-239, PRD §36.4 / REC-01..03). The
+/// daily job re-queries the gateway (source of truth) for our recent `Payment`s
+/// and, when the gateway disagrees with our ledger, raises an OPEN exception here
+/// for a human to clear — it **never mutates a `Payment`/`Invoice`** (REC-03). The
+/// unique `(paymentId, type)` makes the job idempotent (a re-run doesn't
+/// re-raise). Scalar FKs (billing precedent).
+model ReconciliationException {
+  id String @id @default(cuid())
+
+  paymentId         String?
+  invoiceId         String?
+  farmId            String?
+  providerPaymentId String?
+
+  type   ReconciliationType
+  status ReconciliationStatus @default(OPEN)
+
+  /// What we had on record vs. what the gateway reported.
+  expectedAmount Decimal? @db.Decimal(12, 2)
+  actualAmount   Decimal? @db.Decimal(12, 2)
+  detail         String?
+
+  resolvedByAdminId String?
+  resolvedAt        DateTime?
+  resolutionNote    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([paymentId, type])
+  @@index([status, createdAt])
+  @@index([type])
+}
+
+enum ReconciliationType {
+  PAID_NOT_SETTLED // gateway says Completed, our ledger doesn't (missed callback)
+  STATUS_MISMATCH // our ledger says PAID/COMPLETED, gateway disagrees
+  AMOUNT_MISMATCH // gateway amount ≠ our recorded amount
+  DUPLICATE // >1 completed payment for the same invoice
+  SETTLED_NO_INVOICE // a gateway settlement with no matching invoice (needs the settlement report — deferred)
+}
+
+enum ReconciliationStatus {
+  OPEN
+  RESOLVED
+  IGNORED
+}

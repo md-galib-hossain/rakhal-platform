@@ -5,7 +5,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
-import { AuditAction, SessionStatus } from '@prisma/client';
+import { AuditAction, Language, SessionStatus } from '@prisma/client';
+import { AppLanguage } from 'src/common/i18n/language';
 import { createHash, randomBytes } from 'crypto';
 import { DomainEventBusService } from 'src/common/events/domain-event-bus.service';
 import { authConfig } from 'src/core/config/env';
@@ -281,6 +282,14 @@ export class AuthService {
 
   me(userId: string) {
     return this.authRepository.findUserById(userId);
+  }
+
+  /** Language toggle persists to the user's profile (RAKHAL-107). */
+  updateLanguage(userId: string, preferredLanguage: AppLanguage) {
+    return this.authRepository.updatePreferredLanguage(
+      userId,
+      preferredLanguage.toUpperCase() as Language,
+    );
   }
 
   async verifyEmailToken(token: string) {

@@ -1,0 +1,12 @@
+import { commonEn } from './common.en';
+
+/** Bangla catalogue — draft for review; keys must mirror `commonEn`. */
+export const commonBn: typeof commonEn = {
+  unauthorized: 'অননুমোদিত প্রবেশাধিকার',
+  sessionNotActive: 'সেশনটি সক্রিয় নেই',
+  sessionPermissionsStale: 'সেশনের অনুমতি পুরনো হয়ে গেছে, আবার লগইন করুন',
+  invalidCredentials: 'ইমেইল অথবা পাসওয়ার্ড সঠিক নয়',
+  forbiddenResource: 'এই কাজটি করার অনুমতি আপনার নেই',
+  notFound: 'তথ্যটি পাওয়া যায়নি',
+  internalError: 'একটি অপ্রত্যাশিত সমস্যা হয়েছে, পরে আবার চেষ্টা করুন',
+};
