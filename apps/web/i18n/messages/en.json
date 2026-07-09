@@ -1,0 +1,62 @@
+{
+  "common": {
+    "appName": "Rakhal",
+    "loading": "Loading…",
+    "error": "Error",
+    "retry": "Retry",
+    "somethingWentWrong": "Something went wrong",
+    "noResults": "No results found",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "viewAll": "View All",
+    "back": "Back",
+    "next": "Next",
+    "close": "Close"
+  },
+  "nav": {
+    "menu": "Menu",
+    "others": "Others",
+    "dashboard": "Dashboard",
+    "cattle": "Cattle",
+    "feedFormulator": "Feed Formulator",
+    "milk": "Milk",
+    "buyers": "Buyers",
+    "finance": "Finance",
+    "healthcare": "Healthcare",
+    "reproduction": "Reproduction",
+    "calves": "Calves",
+    "inventory": "Inventory",
+    "scoreboard": "Scoreboard",
+    "taskHub": "Task Hub",
+    "reports": "Reports",
+    "activityLog": "Activity Log",
+    "settings": "Settings"
+  },
+  "topbar": {
+    "searchPlaceholder": "Search here",
+    "notifications": "Notifications",
+    "profile": "Profile",
+    "onDuty": "On Duty",
+    "accountSettings": "Account Settings",
+    "logout": "Log Out",
+    "language": "Language"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "toggle": "Toggle theme"
+  },
+  "upgrade": {
+    "title": "Become a PRO!",
+    "description": "Upgrade your account to avail more cool features.",
+    "cta": "Upgrade to Pro"
+  }
+}

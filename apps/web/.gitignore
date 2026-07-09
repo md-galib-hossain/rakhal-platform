@@ -2,6 +2,8 @@
 
 # dependencies
 /node_modules
+# permission-corrupted leftover renamed out of the way — see CURRENT_STATE.md "Known environment issue"
+/node_modules.broken
 /.pnp
 .pnp.*
 .yarn/*
@@ -12,6 +14,8 @@
 
 # testing
 /coverage
+/playwright-report
+/test-results
 
 # next.js
 /.next/
@@ -30,8 +34,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files (real secrets never committed; .env.example is the template and IS committed)
+.env
+.env.local
+.env.*.local
 
 # vercel
 .vercel

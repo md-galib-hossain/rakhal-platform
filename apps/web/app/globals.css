@@ -1,26 +1,195 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens — extracted from 75 UI reference screenshots, see:
+ *   D:\Projects\Rakhal\docs\rakhal-ui-analysis.md §6 (Design tokens)
+ * Values are eye-sampled approximations pending pixel-confirmation against Figma (RFE-002 AC).
+ * Semantic tokens only — components must never use raw hex values.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Base surfaces */
+  --background: #f2f3f5;
+  --foreground: #171d22;
+  --card: #ffffff;
+  --card-foreground: #171d22;
+  --popover: #ffffff;
+  --popover-foreground: #171d22;
+
+  /* Brand */
+  --primary: #16a34a;
+  --primary-hover: #128a3e;
+  --primary-foreground: #ffffff;
+  --sidebar: #0b5137;
+  --sidebar-foreground: #ffffff;
+  --sidebar-muted: #b8e4ce;
+
+  /* Neutral */
+  --secondary: #f5f6f7;
+  --secondary-foreground: #171d22;
+  --muted: #f5f6f7;
+  --muted-foreground: #66707a;
+  --accent: #f5f6f7;
+  --accent-foreground: #171d22;
+  --border: #e7e9ec;
+  --input: #e7e9ec;
+  --ring: #16a34a66;
+
+  /* Semantic status */
+  --success: #16a34a;
+  --success-foreground: #ffffff;
+  --success-tint: #e7f6ee;
+  --warning: #f59e0b;
+  --warning-foreground: #ffffff;
+  --warning-tint: #fef4e6;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --destructive-tint: #fdecee;
+  --info: #3b82f6;
+  --info-foreground: #ffffff;
+  --info-tint: #eaf2fe;
+
+  /* Accent hues used by badges/charts (Pink Eye, Breeding, Growing, Prevention…) */
+  --accent-purple: #8b5cf6;
+  --accent-purple-tint: #f1ecfe;
+  --accent-teal: #14b8a6;
+  --accent-teal-tint: #e6fbf7;
+  --accent-indigo: #6366f1;
+  --accent-indigo-tint: #eeeefe;
+
+  /* Chart series (order: primary, expense/negative, secondary, comparison, extra) */
+  --chart-1: #16a34a;
+  --chart-2: #ef4444;
+  --chart-3: #3b82f6;
+  --chart-4: #f59e0b;
+  --chart-5: #8b5cf6;
+
+  /* Radii */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 1rem;
+  --radius-full: 9999px;
+}
+
+.dark {
+  /* No dark frames exist in the reference set (ui-analysis.md decision D-11) — derived from the
+     light tokens, keeping the sidebar dark in both themes and lifting surfaces/borders. Flag for
+     design review once dark screenshots/Figma frames exist. */
+  --background: #10151a;
+  --foreground: #eef1f3;
+  --card: #171d22;
+  --card-foreground: #eef1f3;
+  --popover: #171d22;
+  --popover-foreground: #eef1f3;
+
+  --primary: #22c55e;
+  --primary-hover: #16a34a;
+  --primary-foreground: #08130c;
+  --sidebar: #06301f;
+  --sidebar-foreground: #ffffff;
+  --sidebar-muted: #8fcbab;
+
+  --secondary: #1c2329;
+  --secondary-foreground: #eef1f3;
+  --muted: #1c2329;
+  --muted-foreground: #9aa7b0;
+  --accent: #1c2329;
+  --accent-foreground: #eef1f3;
+  --border: #262e35;
+  --input: #262e35;
+  --ring: #22c55e66;
+
+  --success: #22c55e;
+  --success-foreground: #08130c;
+  --success-tint: #123420;
+  --warning: #fbbf24;
+  --warning-foreground: #221a02;
+  --warning-tint: #3a2c08;
+  --destructive: #f87171;
+  --destructive-foreground: #2a0a0a;
+  --destructive-tint: #3a1414;
+  --info: #60a5fa;
+  --info-foreground: #071a33;
+  --info-tint: #0f2a4a;
+
+  --accent-purple: #a78bfa;
+  --accent-purple-tint: #241c3d;
+  --accent-teal: #2dd4bf;
+  --accent-teal-tint: #0f2e2a;
+  --accent-indigo: #818cf8;
+  --accent-indigo-tint: #202249;
+
+  --chart-1: #22c55e;
+  --chart-2: #f87171;
+  --chart-3: #60a5fa;
+  --chart-4: #fbbf24;
+  --chart-5: #a78bfa;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-tint: var(--success-tint);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-tint: var(--warning-tint);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-tint: var(--destructive-tint);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-tint: var(--info-tint);
+
+  --color-accent-purple: var(--accent-purple);
+  --color-accent-purple-tint: var(--accent-purple-tint);
+  --color-accent-teal: var(--accent-teal);
+  --color-accent-teal-tint: var(--accent-teal-tint);
+  --color-accent-indigo: var(--accent-indigo);
+  --color-accent-indigo-tint: var(--accent-indigo-tint);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-full: var(--radius-full);
+
+  --font-sans: var(--font-latin), var(--font-bengali), sans-serif;
+  --font-bengali: var(--font-bengali), sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-border;
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    @apply bg-background text-foreground;
+  }
 }

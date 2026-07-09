@@ -1,0 +1,62 @@
+{
+  "common": {
+    "appName": "রাখাল",
+    "loading": "লোড হচ্ছে…",
+    "error": "ত্রুটি",
+    "retry": "আবার চেষ্টা করুন",
+    "somethingWentWrong": "কিছু একটা ভুল হয়েছে",
+    "noResults": "কোনো ফলাফল পাওয়া যায়নি",
+    "save": "সংরক্ষণ করুন",
+    "cancel": "বাতিল",
+    "confirm": "নিশ্চিত করুন",
+    "delete": "মুছুন",
+    "edit": "সম্পাদনা",
+    "add": "যোগ করুন",
+    "search": "খুঁজুন",
+    "filter": "ফিল্টার",
+    "export": "এক্সপোর্ট",
+    "viewAll": "সব দেখুন",
+    "back": "পেছনে",
+    "next": "পরবর্তী",
+    "close": "বন্ধ করুন"
+  },
+  "nav": {
+    "menu": "মেনু",
+    "others": "অন্যান্য",
+    "dashboard": "ড্যাশবোর্ড",
+    "cattle": "গবাদি পশু",
+    "feedFormulator": "ফিড ফরমুলেটর",
+    "milk": "দুধ",
+    "buyers": "ক্রেতা",
+    "finance": "অর্থ",
+    "healthcare": "স্বাস্থ্যসেবা",
+    "reproduction": "প্রজনন",
+    "calves": "বাছুর",
+    "inventory": "ইনভেন্টরি",
+    "scoreboard": "স্কোরবোর্ড",
+    "taskHub": "টাস্ক হাব",
+    "reports": "প্রতিবেদন",
+    "activityLog": "কার্যকলাপ লগ",
+    "settings": "সেটিংস"
+  },
+  "topbar": {
+    "searchPlaceholder": "এখানে খুঁজুন",
+    "notifications": "বিজ্ঞপ্তি",
+    "profile": "প্রোফাইল",
+    "onDuty": "দায়িত্বে",
+    "accountSettings": "অ্যাকাউন্ট সেটিংস",
+    "logout": "লগ আউট",
+    "language": "ভাষা"
+  },
+  "theme": {
+    "light": "লাইট",
+    "dark": "ডার্ক",
+    "system": "সিস্টেম",
+    "toggle": "থিম পরিবর্তন করুন"
+  },
+  "upgrade": {
+    "title": "প্রো তে আপগ্রেড করুন!",
+    "description": "আরও ভালো ফিচার পেতে আপনার অ্যাকাউন্ট আপগ্রেড করুন।",
+    "cta": "প্রো তে আপগ্রেড করুন"
+  }
+}

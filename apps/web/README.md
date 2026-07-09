@@ -1,36 +1,27 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Rakhal Consumer Frontend
 
-## Getting Started
+Farm-facing web app for **Rakhal** — dairy-farm operations SaaS (Bangladesh, ৳, Bangla-first UI).
+Next.js 16 (App Router) + React 19 + Tailwind v4, consuming `Repos/rakhal-backend` via `/api/v1`.
 
-First, run the development server:
+Start here: [`CLAUDE.md`](CLAUDE.md) → [`docs/IN_FLIGHT.md`](docs/IN_FLIGHT.md) → [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md).
+
+## Quickstart
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install                       # 1. install deps
+cp .env.example .env.local         # 2. point at your local backend
+# 3. start the backend (separate terminal): Repos/rakhal-backend → pnpm start:dev (needs Docker postgres+redis, then pnpm seed)
+pnpm dev                           # 4. runs on http://localhost:3001
+pnpm lint && pnpm typecheck        # 5. verify
+pnpm build                         # 6. production build check
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Demo logins (seeded on the backend): `owner@demo.rakhal.test` / `DemoPass123`,
+`worker@demo.rakhal.test` / `WorkerPass123`. Backend Swagger: `http://localhost:3000/api/docs`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Docs
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — stack, folder rules, contract, perf budgets, Definition of Done
+- [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) — tokens, component inventory
+- [`docs/PROJECT_PROGRESS.md`](docs/PROJECT_PROGRESS.md) — ticket board (source of truth)
+- [`D:\Projects\Rakhal\docs\rakhal-ui-analysis.md`](../../docs/rakhal-ui-analysis.md) — full UI screenshot analysis + design spec
