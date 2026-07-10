@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { LogOut, Settings, UserRound } from "lucide-react";
+import { ChevronDown, LogOut, Settings, UserRound } from "lucide-react";
 import { useLogout, useSession } from "@/lib/auth/use-session";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
@@ -32,10 +32,11 @@ export function UserMenu() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <Avatar>
+      <DropdownMenuTrigger className="flex items-center gap-1 rounded-full border border-border bg-card py-0.5 pl-0.5 pr-1.5 shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <Avatar className="size-8">
           <AvatarFallback>{initialsOf(session?.user.name)}</AvatarFallback>
         </Avatar>
+        <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel>

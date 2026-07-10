@@ -151,16 +151,42 @@ entry above for these values only, the rest of the palette is still unconfirmed)
   perf-budget review).
 - Layout: form panel **left** (760/1440 share), photo/branding panel **right** (680/1440 share) — the
   opposite order RFE-006 originally shipped (branding was left). `AuthShell` corrected to match.
-- Hero photo + "Rakhal." wordmark are real Figma image exports, downloaded to `public/auth/{hero.png,
-  logo-mark.svg}` (Figma's asset CDN URLs expire after 7 days — do not reference `figma.com/api/mcp/asset/…`
-  URLs directly in code, always download first).
+- Hero photo + "Rakhal." wordmark are real Figma image exports, downloaded to `public/auth/{auth-side-
+  image.png, logo-mark.svg}` (Figma's asset CDN URLs expire after 7 days — do not reference
+  `figma.com/api/mcp/asset/…` URLs directly in code, always download first).
 - No Figma frame exists for `/verify-email` (the prototype's equivalent flow is OTP-based, which this
   backend doesn't implement — same gap RFE-006 originally flagged) — left on the shared card chrome only.
 
+**RFE-005 pixel-exact pass (2026-07-10) — Figma "Dashboard" frame pulled live**: the full `Dashboard`
+frame (`732:1656`) is too large for `get_design_context` in one call — used `get_metadata` first to find
+child node ids, then pulled just the `Navbar` (`732:1659`, the sidebar) and `Frame 32` (`732:1695`, the
+topbar) subtrees.
+- **Sidebar**: dark-green `#055640` (now `--sidebar`, replaces the eye-sampled `#0b5137` — light theme
+  only, no dark Figma frame exists), `rounded-[16px]` floating card (not flush), `240px` wide. Header:
+  28px green logo mark + "Rakhal" 24px bold, bottom border in `--primary-hover` (`#00774C`, same hex the
+  Figma frame uses for its own `#00774c` divider). Org switcher: white pill, `border #D1D1D1`≈`--border`,
+  `rounded-[8px]`. Two nav sections "MENU"/"OTHERS", uppercase bold 12px `#EBEBEB`≈`--sidebar-muted`
+  (updated `#b8e4ce`→`#f4f4f4`). Nav item: `rounded-[8px]`, active = `bg-[#FEFEFE] text-[#00774C]`
+  (`bg-card text-primary-hover` — exact Figma match), inactive = `text-[#F4F4F4]`
+  (`text-sidebar-foreground/90`). Bottom: dark "Become a PRO!" card (Figma `#013a25`, approximated as
+  `bg-black/20` over the sidebar green rather than a new raw-hex token — visually equivalent). **Skipped**:
+  the Figma frame's two blurred-polygon decorative background layers — a CSS `blur-3xl` glow stands in,
+  avoids two more downloaded PNGs for a background-only effect.
+- **Topbar**: `#F7F7F7`≈`--background` rounded card (`rounded-[16px]`, `1px` border `#E6E6E6`≈`--border`),
+  `56px` tall, `10px` padding. Search: white `320px` pill with `shadow: 0 1px 2px rgba(0,0,0,0.1)`
+  (`shadow-xs`). Icon cluster: `36px` white circles/pills, same shadow, for theme toggle / notifications /
+  avatar+chevron.
+- **Nav item set**: the Figma sidebar only pictures 9 of our 15 modules (deliberately incomplete, per §1
+  above) — Buyers/Reproduction/Calves/Reports aren't in the design at all. Kept all of them, slotted into
+  the MENU section next to their closest sibling. Figma's icon choices for a couple of items looked like
+  placeholder/wrong picks (Feed Formulator shares Cattle's cowboy-hat icon) — kept semantically-matched
+  `lucide-react` icons instead of copying those verbatim. Figma's hardcoded unread-count badges ("2" on
+  Dashboard/Finance) were **not** copied — no real backing data exists for them.
+
 > First agent to pull a Figma frame or receive screenshots: record exact palette hexes, type scale,
 > spacing base, card radius/shadow, sidebar width, breakpoint behavior here. **Still open:** full palette
-> pixel-confirmation beyond primary (background/card/border/status/chart hues), sidebar/app-shell frames,
-> and every non-auth module frame — pull as each ticket touches that area.
+> pixel-confirmation beyond primary/sidebar (card/border/status/chart hues), and every non-auth,
+> non-app-shell module frame — pull as each ticket touches that area.
 
 ## 5. UX conventions
 

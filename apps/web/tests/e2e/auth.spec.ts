@@ -1,5 +1,5 @@
 import { expectNoA11yViolations } from "./axe";
-import { DEMO_OWNER, expect, loginViaUi, test, uniqueTestEmail } from "./utils";
+import { DEMO_OWNER, expect, formLevelAlert, loginViaUi, test, uniqueTestEmail } from "./utils";
 
 test.describe("auth", () => {
   test("login -> farm picker -> dashboard smoke (RFE-006 AC)", async ({ page }) => {
@@ -10,20 +10,20 @@ test.describe("auth", () => {
   test("wrong password shows a form-level error, not a crash", async ({ page }) => {
     await page.goto("/login");
     await page.getByLabel(/email/i).fill(DEMO_OWNER.email);
-    await page.getByLabel(/password/i).fill("DefinitelyWrongPass1");
+    await page.getByLabel("Password", { exact: true }).fill("DefinitelyWrongPass1");
     await page.getByRole("button", { name: /log in/i }).click();
-    await expect(page.locator("form").getByRole("alert")).toBeVisible({ timeout: 10_000 });
+    await expect(formLevelAlert(page)).toBeVisible({ timeout: 10_000 });
     await expect(page).toHaveURL(/\/login/);
   });
 
   test("client-side validation blocks an invalid email before any request", async ({ page }) => {
     await page.goto("/login");
     await page.getByLabel(/email/i).fill("not-an-email");
-    await page.getByLabel(/password/i).fill("whatever123");
+    await page.getByLabel("Password", { exact: true }).fill("whatever123");
     await page.getByRole("button", { name: /log in/i }).click();
-    // zodResolver's field error renders inline, not the form-level alert (Next's own
-    // #__next-route-announcer__ carries role="alert" too, so scope to the form's own alert).
-    await expect(page.locator("form").getByRole("alert")).not.toBeVisible();
+    // zodResolver's field error renders inline (FloatingInput's own role="alert", no tint
+    // background) — only the form-level submit alert should stay absent.
+    await expect(formLevelAlert(page)).not.toBeVisible();
     await expect(page).toHaveURL(/\/login/);
   });
 
@@ -44,7 +44,7 @@ test.describe("auth", () => {
     await page.getByLabel(/^email$/i).fill(DEMO_OWNER.email);
     await page.getByLabel(/^password$/i).fill("TestPass123");
     await page.getByRole("button", { name: /create account/i }).click();
-    await expect(page.getByRole("alert")).toBeVisible({ timeout: 10_000 });
+    await expect(formLevelAlert(page)).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("heading", { name: /check your email/i })).not.toBeVisible();
   });
 

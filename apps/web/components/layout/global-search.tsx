@@ -31,9 +31,9 @@ export function GlobalSearch() {
       <Button
         variant="outline"
         onClick={() => setOpen(true)}
-        className="w-full max-w-sm justify-start gap-2 text-muted-foreground font-normal"
+        className="h-9 w-full max-w-[320px] justify-start gap-2 rounded-lg border-border bg-card font-normal text-muted-foreground shadow-xs"
       >
-        <Search className="size-4" />
+        <Search className="size-[18px]" />
         <span className="hidden sm:inline">{t("searchPlaceholder")}</span>
         <kbd className="ml-auto hidden rounded border border-border bg-muted px-1.5 py-0.5 text-xs sm:inline">
           ⌘K

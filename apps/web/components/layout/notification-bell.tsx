@@ -15,8 +15,13 @@ export function NotificationBell() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={t("notifications")} className="relative">
-          <Bell className="size-5" />
+        <Button
+          variant="outline"
+          size="icon"
+          aria-label={t("notifications")}
+          className="relative size-9 rounded-full border-border bg-card shadow-xs"
+        >
+          <Bell className="size-[18px]" />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80">

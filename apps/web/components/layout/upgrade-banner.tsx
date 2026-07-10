@@ -9,13 +9,13 @@ export function UpgradeBanner() {
   const t = useTranslations("upgrade");
 
   return (
-    <div className="mx-3 mb-4 flex flex-col gap-2 rounded-lg border border-sidebar-foreground/15 bg-sidebar-foreground/5 p-4">
-      <div className="flex items-center gap-2 text-sidebar-foreground">
-        <Sparkles className="size-4" aria-hidden />
-        <p className="text-sm font-semibold">{t("title")}</p>
+    <div className="relative flex flex-col items-center gap-2 overflow-hidden rounded-xl bg-black/20 p-4 text-center">
+      <div className="flex size-10 items-center justify-center rounded-[10px] border border-primary-hover bg-primary/10 text-sidebar-foreground">
+        <Sparkles className="size-5" aria-hidden />
       </div>
+      <p className="text-base font-bold text-sidebar-foreground">{t("title")}</p>
       <p className="text-xs text-sidebar-muted">{t("description")}</p>
-      <Button variant="inverse" size="sm" className="w-full">
+      <Button size="sm" className="mt-1 w-full">
         {t("cta")}
       </Button>
     </div>

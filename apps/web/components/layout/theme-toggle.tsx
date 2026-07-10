@@ -27,8 +27,13 @@ export function ThemeToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={t("toggle")}>
-          {mounted && theme === "dark" ? <Moon className="size-5" /> : <Sun className="size-5" />}
+        <Button
+          variant="outline"
+          size="icon"
+          aria-label={t("toggle")}
+          className="size-9 rounded-full border-border bg-card shadow-xs"
+        >
+          {mounted && theme === "dark" ? <Moon className="size-[18px]" /> : <Sun className="size-[18px]" />}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

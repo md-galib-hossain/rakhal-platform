@@ -8,11 +8,14 @@ import { localeCookieName } from "../../lib/constants/i18n";
  * render the identical component tree, so this doesn't reduce coverage of the actual logic.
  */
 export const test = base.extend({
-  context: async ({ context }, use) => {
+  // Playwright's fixture callback's 2nd param is conventionally named `use` — renamed to
+  // `runWithFixture` here because eslint-plugin-react-hooks heuristically (and incorrectly)
+  // treats any function literally named `use` as a React hook call.
+  context: async ({ context }, runWithFixture) => {
     await context.addCookies([
       { name: localeCookieName, value: "en", domain: "localhost", path: "/" },
     ]);
-    await use(context);
+    await runWithFixture(context);
   },
 });
 export { expect };
@@ -34,7 +37,9 @@ export const DEMO_WORKER = { email: "worker@demo.rakhal.test", password: "Worker
 export async function loginViaUi(page: Page, credentials: { email: string; password: string }) {
   await page.goto("/login");
   await page.getByLabel(/email/i).fill(credentials.email);
-  await page.getByLabel(/password/i).fill(credentials.password);
+  // Exact match: FloatingInput's password-visibility toggle button is also aria-labelled
+  // "Show/Hide password", which /password/i would ambiguously match too.
+  await page.getByLabel("Password", { exact: true }).fill(credentials.password);
   await page.getByRole("button", { name: /log in/i }).click();
 
   // Either a farm-picker list appears (multi-farm accounts) or we land straight on /dashboard.
@@ -50,4 +55,13 @@ export async function loginViaUi(page: Page, credentials: { email: string; passw
 /** A unique-per-run email so repeated E2E runs never collide on the backend's unique constraint. */
 export function uniqueTestEmail(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
+}
+
+/**
+ * The form-level submit error (`bg-destructive-tint`) vs. `FloatingInput`'s per-field error
+ * (`role="alert"` too, but no tint background) both render inside the form — scope to the tint
+ * class so tests can tell "the mutation failed" apart from "a field failed client validation".
+ */
+export function formLevelAlert(page: Page) {
+  return page.locator('form [role="alert"].bg-destructive-tint');
 }

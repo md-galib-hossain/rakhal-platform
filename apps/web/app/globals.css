@@ -5,8 +5,9 @@
  *   D:\Projects\Rakhal\docs\rakhal-ui-analysis.md §6 (Design tokens)
  * Values are eye-sampled approximations pending pixel-confirmation against Figma (RFE-002 AC).
  * --primary/--primary-hover are pixel-confirmed against the Figma auth frames (Primary/primary-500
- * #00A86B, Primary/primary-700 #00774C) as of the RFE-006 pixel-exact pass — the rest of this file
- * is still eye-sampled pending a full design-system Figma sweep.
+ * #00A86B, Primary/primary-700 #00774C) as of the RFE-006 pixel-exact pass; --sidebar (light theme
+ * only, #055640) is pixel-confirmed against the Figma "Navbar" frame (RFE-005 pixel-exact pass) —
+ * the rest of this file is still eye-sampled pending a full design-system Figma sweep.
  * Semantic tokens only — components must never use raw hex values.
  */
 :root {
@@ -21,10 +22,14 @@
   /* Brand */
   --primary: #00a86b;
   --primary-hover: #00774c;
-  --primary-foreground: #ffffff;
-  --sidebar: #0b5137;
+  /* Dark text, not white: white-on-#00a86b is 3.08:1, fails WCAG AA 4.5:1 for normal-size button/link
+     text (confirmed via axe, tests/e2e/auth.spec.ts). Mirrors the dark theme's existing pattern
+     (--primary-foreground: #08130c on its lighter #1ec883 fill) rather than changing the
+     pixel-confirmed #00a86b fill itself. */
+  --primary-foreground: #171d22;
+  --sidebar: #055640;
   --sidebar-foreground: #ffffff;
-  --sidebar-muted: #b8e4ce;
+  --sidebar-muted: #f4f4f4;
 
   /* Neutral */
   --secondary: #f5f6f7;

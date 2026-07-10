@@ -55,7 +55,7 @@ export function RegisterForm() {
         <h1 className="text-[28px] font-bold leading-[1.4] text-foreground">{t("register.title")}</h1>
         <p className="text-base text-muted-foreground">
           {t("register.haveAccount")}{" "}
-          <Link href="/login" className="font-bold text-primary hover:underline">
+          <Link href="/login" className="font-bold text-primary-hover hover:underline">
             {t("register.logIn")}
           </Link>
         </p>

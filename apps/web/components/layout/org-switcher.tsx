@@ -23,17 +23,17 @@ export function OrgSwitcher() {
   const { data: session, isLoading } = useSession();
 
   if (isLoading) {
-    return <Skeleton className="h-10 w-full" />;
+    return <Skeleton className="h-10 w-full bg-sidebar-foreground/10" />;
   }
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-md border border-sidebar-foreground/15 bg-sidebar-foreground/5 px-3 py-2 text-left text-sidebar-foreground transition-colors hover:bg-sidebar-foreground/10">
+      <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-left text-card-foreground shadow-xs transition-colors hover:bg-muted">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">{session?.user.name ?? "—"}</p>
-          <p className="truncate text-xs text-sidebar-muted">Farm {session?.farmId ?? ""}</p>
+          <p className="truncate text-sm font-medium">{session?.user.name ?? "—"}</p>
+          <p className="truncate text-xs text-muted-foreground">Farm {session?.farmId ?? ""}</p>
         </div>
-        <ChevronsUpDown className="size-4 shrink-0 text-sidebar-muted" aria-hidden />
+        <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
         <DropdownMenuLabel>Your farm</DropdownMenuLabel>

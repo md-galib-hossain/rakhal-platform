@@ -20,7 +20,7 @@ export async function AuthShell({ children }: { children: React.ReactNode }) {
     <div className="grid min-h-svh bg-background lg:grid-cols-[760fr_680fr]">
       <div className="flex flex-col">
         <div className="flex items-center justify-between p-6 lg:justify-end">
-          <Link href="/" className="text-lg font-bold text-primary lg:hidden">
+          <Link href="/" className="text-lg font-bold text-primary-hover lg:hidden">
             রাখাল
           </Link>
           <div className="flex items-center gap-1">
@@ -28,14 +28,14 @@ export async function AuthShell({ children }: { children: React.ReactNode }) {
             <ThemeToggle />
           </div>
         </div>
-        <div className="flex flex-1 items-center justify-center p-2.5">
+        <main className="flex flex-1 items-center justify-center p-2.5">
           <div className="flex w-full max-w-[453px] flex-col items-center gap-[60px] rounded-[20px] bg-card p-[30px] shadow-[0px_12px_16px_rgba(0,0,0,0.12)]">
             {children}
           </div>
-        </div>
+        </main>
       </div>
 
-      <div className="relative hidden overflow-hidden lg:block">
+      <aside className="relative hidden overflow-hidden lg:block" aria-label={t("headline")}>
         <Image
           src={authSideImage}
           alt=""
@@ -51,7 +51,7 @@ export async function AuthShell({ children }: { children: React.ReactNode }) {
           <p className="text-[32px] font-bold leading-[1.3] xl:text-[40px]">{t("headline")}</p>
           <p className="mt-6 max-w-md text-lg font-medium leading-[1.3]">{t("subcopy")}</p>
         </div>
-      </div>
+      </aside>
     </div>
   );
 }

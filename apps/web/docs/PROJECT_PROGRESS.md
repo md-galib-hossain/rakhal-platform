@@ -149,6 +149,35 @@
   3000 as `.env.example`/every doc still says) — this frontend's `.env` `API_BASE_URL` was pointed at
   `:5000` to match for this verification session; whoever owns the backend should reconcile the docs
   vs. the actual configured port. Gate green: lint/typecheck/test/build all pass.
+- **Pixel-exact pass (2026-07-10)** — Figma access landed (official plugin, user OAuth'd). Pulled the
+  real "Dashboard" frame's `Navbar` (`732:1659`) and topbar (`Frame 32`, `732:1695`) subtrees from file
+  `SCfMPdxP6vgW1uTxfqCtz7` (the full Dashboard frame is too large to fetch in one call — used
+  `get_metadata` to find the sidebar/topbar child node ids first, then `get_design_context` on just those)
+  and rebuilt `AppShell` to match: sidebar + topbar are now two separate floating rounded cards on a
+  shared page gutter (`p-2.5 gap-2.5`), not the original flush full-bleed shell. **Sidebar**: dark-green
+  card pixel-confirmed `#055640` (`--sidebar`, was eye-sampled `#0b5137`, updated in `app/globals.css`),
+  logo header with a bottom border, white pill `OrgSwitcher` restyled off the sidebar-dark palette onto
+  `bg-card`, two nav sections MENU/OTHERS (`nav-items.ts` gained a `section: "menu"|"others"` field —
+  the Figma prototype only pictures 9 of our 15 modules, deliberately incomplete per DESIGN_SYSTEM.md §1,
+  so Buyers/Reproduction/Calves/Reports were slotted into MENU next to their closest sibling rather than
+  dropped), pill active/inactive states in `sidebar-nav.tsx` (active = `bg-card text-primary-hover`,
+  matching Figma exactly), a handful of icons swapped for closer Figma matches (`LayoutDashboard`,
+  `Warehouse`, `Syringe`, `Trophy`), `UpgradeBanner` restyled to the dark rounded card. Skipped the
+  Figma frame's two blurred-polygon decorative background layers (would mean two more downloaded PNGs)
+  in favor of a CSS `blur-3xl` glow — visually close without the asset weight. **Topbar**: rounded card
+  wrapper, `GlobalSearch` restyled to a white search pill (same ⌘K palette logic, just new chrome),
+  `NotificationBell`/`ThemeToggle`/`UserMenu` restyled to white circular/pill buttons with `shadow-xs`
+  matching Figma's icon cluster. **Also fixed the RFE-009-flagged WCAG AA contrast finding** while in
+  these files: `text-primary` (#00A86B is 3.23:1 on white — fails normal-text AA) was used for auth link
+  text; computed contrast confirmed `text-primary-hover` (#00774C, 5.53:1) passes AND matches Figma's own
+  color split (primary-500 reserved for solid button backgrounds, primary-700 for text-on-white) — swapped
+  in `login-form.tsx`/`register-form.tsx`/`forgot-password-form.tsx`/`auth-shell.tsx`'s mobile logo link.
+  Added the missing `<main>` landmark to `AuthShell` (same finding). **Not pulled from Figma** (fabricated
+  placeholder data, not a real gap): the Figma frame's hardcoded unread-count badges ("2" on
+  Dashboard/Finance) were skipped — no backing data source exists for them yet. **Verified LIVE**: full
+  login→farm-picker→dashboard flow against the real backend, light+dark theme, desktop (1280px) +
+  mobile (375px incl. the Sheet nav), route navigation (`/cattle`) with correct active-state — no console
+  errors, no failed requests. Gate green: lint/typecheck/build/18 unit tests all pass.
 
 #### RFE-006 — Auth pages (login / register / forgot-password / farm select)
 - **Depends:** RFE-003, RFE-004 · **Lane:** `app/(auth)/**`, `features/auth/**` · **Design:** Figma auth frames
@@ -256,7 +285,49 @@
 - **Depends:** RFE-003 · **Lane:** `tests/**`, `playwright.config.ts`, `vitest.config.ts`
 - Vitest+RTL setup, Playwright against live dev backend (demo owner/manager/worker), axe helper,
   `tests/e2e/utils.ts` (login helpers mirroring backend e2e harness).
-- **Status:** `TODO`
+- **Status:** `DONE` (2026-07-10) — Vitest+RTL was already live from RFE-001/004 (18 component tests);
+  this ticket built the missing **Playwright E2E layer** against RFE-006's real auth pages (the only
+  pages with real business logic to exercise so far). New `tests/e2e/utils.ts`: `DEMO_OWNER/MANAGER/
+  WORKER` seed credentials, `loginViaUi()` (drives the real `/login` page incl. the multi-farm picker,
+  mirrors the backend's `test/utils/e2e.ts#loginAs` in spirit but through actual pages, not API
+  shortcuts), `uniqueTestEmail()`, `formLevelAlert()` (disambiguates the submit-error alert from
+  `FloatingInput`'s own per-field `role="alert"`), and a `test` fixture that **pins the locale cookie to
+  `en`** for every spec — the app is Bangla-first by default (`bn`), so English gives E2E assertions
+  stable strings without losing coverage (identical component tree either locale). New `tests/e2e/axe.ts`
+  (`expectNoA11yViolations` wrapping `axe-playwright`). New `tests/e2e/auth.spec.ts` — 10 specs: login→
+  farm-picker→dashboard smoke (fulfills RFE-006's own AC), wrong-password error mapping, client-side
+  validation (no premature API call), register→success, duplicate-email 409 mapping, forgot-password
+  no-enumeration, reset-password/verify-email missing-token states, unauthenticated redirect off a
+  protected route, and an axe a11y check on `/login`. Installed the Chromium browser (`npx playwright
+  install chromium`, wasn't present). **`playwright.config.ts` tuned for `next dev`'s on-demand Turbopack
+  compilation**: `fullyParallel:true` (the RFE-001 default) reliably timed out 9/10 specs when several
+  workers hit different uncompiled routes at once — switched to `workers:1` + `timeout:60_000`; verified
+  0 failures from cold-compile after the change (root-caused via a serial re-run, not guessed). **Ran
+  live against the real dev backend** (Docker Postgres+Redis, `pnpm start:dev`, seeded) — not mocked.
+  **9/10 passing**; the 10th (the axe a11y check) found **real, confirmed WCAG AA violations** on
+  `/login` — the harness working as intended, not a harness bug: (a) `--primary` (`#00a86b`, RFE-006's
+  pixel-exact-pass brand color) fails 4.5:1 contrast as white-on-button text (3.08:1) and as link text on
+  the white card (3.08:1); (b) no `<main>` landmark, page content not contained by any landmark region.
+  Both are in `app/globals.css`/`features/auth/components/auth-shell.tsx`, outside this ticket's
+  `tests/**` lane and mid-ownership by the just-finished RFE-006 pixel-exact-pass ticket — **left the
+  strict assertion in place rather than weakening it to hide a real bug**, and spawned a background task
+  (title: "Fix auth pages: color-contrast + missing landmark a11y bugs") for the fix. **Resolved
+  2026-07-10**: RFE-005's pass fixed the link-text half + the `<main>` landmark; the button-text half
+  (white on `#00a86b`, app-wide via `Button`'s default `variant="primary"`, not auth-only) and the
+  hero-panel `region` violation were left open and fixed in a follow-up pass — darkened
+  `--primary-foreground` to `#171d22` (light theme) rather than the pixel-confirmed `#00a86b` fill, and
+  wrapped `AuthShell`'s hero panel in `<aside>`. `pnpm test:e2e` now 10/10 green. See IN_FLIGHT.md's
+  "RFE-009 a11y fix" entry for full detail. Also fixed two real
+  bugs found in my own harness code along the way (not pre-existing app bugs): `getByLabel(/password/i)`
+  ambiguously matched `FloatingInput`'s new "Show password" toggle button too (switched to exact-match);
+  ESLint's `react-hooks` rule false-positived on Playwright's fixture callback param conventionally named
+  `use` (renamed to `runWithFixture` — a known collision between the two APIs, not a real hook violation).
+  Gate green: lint (0 errors) / typecheck / build / **18 unit + 9/10 e2e** (10th is the tracked a11y
+  finding above, not a flake — reproduced identically 3 runs in a row). **Deferred, not built**: RBAC-
+  differentiated specs (manager/worker logins) — no permission-gated UI exists yet anywhere in the app to
+  meaningfully exercise (`AppShell`'s nav isn't `<Can/>`-gated per RFE-005's own notes); add per-module
+  E2E coverage as each module ships real pages, reusing this harness. RFE-010 (Lighthouse CI) can now
+  build on this Playwright setup instead of starting from zero.
 
 #### RFE-010 — CI + Lighthouse gate
 - **Depends:** RFE-001 · **Lane:** `.github/workflows/**`

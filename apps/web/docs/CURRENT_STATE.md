@@ -1,6 +1,18 @@
 # Frontend — Current State
 
-**Last updated:** 2026-07-10 · **Completion:** Phase 0 core done (RFE-001…007) + RFE-100 marketing landing done
+**Last updated:** 2026-07-10 · **Completion:** Phase 0 core done (RFE-001…007, RFE-009) + RFE-100 marketing landing done
+
+## Testing harness (RFE-009 — done)
+Playwright E2E layer built against RFE-006's real auth pages — the first pages with real logic to test.
+`tests/e2e/utils.ts` (`loginViaUi()` drives the real multi-farm-picker login flow, `formLevelAlert()`,
+a locale-pinning `en` fixture since the app defaults to `bn`), `tests/e2e/axe.ts`, `tests/e2e/auth.spec.ts`
+(10 specs: login smoke, error mapping, register/forgot/reset/verify-email flows, protected-route redirect,
+a11y). `playwright.config.ts` tuned (`workers:1`, `timeout:60_000`) after diagnosing that full parallelism
+reliably timed out against `next dev`'s on-demand Turbopack compilation. **9/10 passing live against the
+real dev backend**; the 10th is a genuine WCAG AA finding on `/login` (color-contrast on the `#00a86b`
+brand green + missing `<main>` landmark) — left red on purpose rather than weakened, background task
+spawned for the fix (owned by whoever picks up `app/globals.css`/`auth-shell.tsx` next). Gate green
+(lint/typecheck/build/18 unit tests). RFE-010 (Lighthouse CI) can build on this Playwright setup.
 
 ## Auth pages (RFE-006 — done)
 All 5 public auth pages built against the **real backend contract** (email+password + token-link email
@@ -58,6 +70,18 @@ guessed: the backend only returns the farm list during the login bootstrap step,
 don't have post-login). **Local-dev gotcha found while verifying:** `rakhal-backend`'s `.env` now has
 `PORT=5000`, not the `3000` every doc (including `.env.example`) still assumes — this repo's `.env`
 `API_BASE_URL` was pointed at `:5000` to match; someone should reconcile the backend docs/env.
+
+**Pixel-exact visual pass (2026-07-10)** — pulled the real Figma "Dashboard" frame's Navbar (`732:1659`)
+and topbar (`732:1695`) and rebuilt `AppShell`: sidebar + topbar are now two separate floating rounded
+cards on a shared page gutter (was flush full-bleed). Dark-green sidebar pixel-confirmed `#055640`
+(was eye-sampled `#0b5137`), white pill `OrgSwitcher`, MENU/OTHERS nav sections (`nav-items.ts` gained a
+`section` field — the Figma prototype only pictures 9 of our 15 modules, Buyers/Reproduction/Calves/
+Reports slotted into MENU rather than dropped), pill active-state, white circular topbar icon buttons.
+**Also fixed the RFE-009-flagged WCAG AA contrast finding**: swapped `text-primary` (3.23:1, fails) to
+`text-primary-hover` (5.53:1, passes — matches Figma's own text-vs-button color split) on auth link text,
+and added the missing `<main>` landmark to `AuthShell`. Verified live: full login flow, light/dark,
+desktop/mobile incl. Sheet nav, route navigation with correct active-state, no console errors. Gate green.
+Full writeup: `PROJECT_PROGRESS.md` RFE-005 entry + `DESIGN_SYSTEM.md` §4.
 
 ## UI primitives + shared composites (RFE-004 — done)
 Full `components/ui/**` inventory built on top of the existing `button.tsx`: Input, Textarea, Label,

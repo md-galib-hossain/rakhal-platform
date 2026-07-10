@@ -103,7 +103,7 @@ export function LoginForm() {
         <h1 className="text-[28px] font-bold leading-[1.4] text-foreground">{t("login.title")}</h1>
         <p className="text-base text-muted-foreground">
           {t("login.noAccount")}{" "}
-          <Link href="/register" className="font-bold text-primary hover:underline">
+          <Link href="/register" className="font-bold text-primary-hover hover:underline">
             {t("login.createAccount")}
           </Link>
         </p>
@@ -135,7 +135,7 @@ export function LoginForm() {
               {...form.register("password")}
             />
           </div>
-          <Link href="/forgot-password" className="p-1 text-sm font-medium text-primary hover:underline">
+          <Link href="/forgot-password" className="p-1 text-sm font-medium text-primary-hover hover:underline">
             {t("login.forgotPassword")}
           </Link>
         </div>

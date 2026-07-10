@@ -74,7 +74,7 @@ export function ForgotPasswordForm() {
           <Button type="submit" disabled={forgotPassword.isPending} className="h-[52px] w-full rounded-xl">
             {forgotPassword.isPending ? t("forgotPassword.submitting") : t("forgotPassword.submit")}
           </Button>
-          <Link href="/login" className="p-1 text-sm font-medium text-primary underline">
+          <Link href="/login" className="p-1 text-sm font-medium text-primary-hover underline">
             {t("forgotPassword.backToLogin")}
           </Link>
         </div>
