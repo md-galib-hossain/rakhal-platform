@@ -1,5 +1,7 @@
+import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import rakhalLogo from "@/public/rakhal-full-logo.jpg";
 
 export function Footer() {
   const t = useTranslations("landing.footer");
@@ -38,11 +40,8 @@ export function Footer() {
     <footer className="bg-sidebar text-sidebar-foreground">
       <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
         <div>
-          <Link href="/" className="flex items-center gap-2.5">
-            <span aria-hidden className="grid size-8 place-items-center rounded-lg bg-primary">
-              <span className="size-3.5 rounded-sm bg-primary-foreground/90" />
-            </span>
-            <span className="text-lg font-bold">{tc("appName")}</span>
+          <Link href="/" className="block h-9 w-[150px] overflow-hidden rounded-lg">
+            <Image src={rakhalLogo} alt="Rakhal" className="h-full w-full object-cover object-left" />
           </Link>
           <p className="mt-4 max-w-xs text-sm text-sidebar-muted">{t("tagline")}</p>
         </div>

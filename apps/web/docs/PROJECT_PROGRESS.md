@@ -279,7 +279,26 @@
   limits+usage, status. Drives: sidebar Upgrade banner (Free), premium-module gating UI, global read-only
   mode when EXPIRED/PAST_DUE (disable writes + renewal CTA — backend already 403s).
 - **API:** `GET /subscription`, `GET /plans` · **PRD:** §31 · **Design:** PRD-spec
-- **Status:** `TODO`
+- **Status:** `DONE` (2026-07-10) — `features/subscription/` (real `GET /subscription`, mirrors
+  `features/profile/`'s api/hook pattern) + `hooks/use-subscription-gates.ts` (`useHasFeature`/
+  `useIsReadOnly`/`useIsEligibleForUpgradeAd`, mirrors `lib/auth/permissions.tsx`'s `useCan()` shape).
+  Drives three real pieces: `sidebar-nav.tsx`'s pre-existing `premiumFlag` scaffold (Scoreboard) now
+  actually locks (Lock icon, redirects to `/subscription`, tooltip) when the feature key isn't in the
+  farm's plan; `upgrade-ad.tsx`'s eligibility is real (usable status + missing the Pro-only
+  `reports.scheduled` feature) instead of hardcoded `true`, and its CTA button now links somewhere
+  real instead of doing nothing; new `read-only-banner.tsx` (mounted in `app-shell.tsx`) mirrors the
+  backend's own `SubscriptionGuard` exactly for PAST_DUE/EXPIRED/CANCELLED/NONE. **Backend gap**:
+  `Rakhal_API.md` has no §31 section for `/subscription`/`/plans` at all — verified live against
+  `subscription.controller.ts`/`plan.controller.ts` instead (matches PRD §31.3 SUB-07). **Verified
+  live, all 3 states**, without touching the shared demo DB: real ACTIVE+Pro data confirmed via the
+  actual network response; EXPIRED/Free and ACTIVE/Starter simulated via a temporary dev-only
+  `queryClient` window exposure (added, used, then fully removed — zero residual `git diff`). Full
+  writeup + the contrast fix + the port-3001 Playwright environment gotcha found while testing:
+  `docs/IN_FLIGHT.md`'s Recently Done entry. Gate green: lint/typecheck/`pnpm build`/18 unit
+  tests/10 e2e. **Not built** (explicit scope boundary, not a miss): the full `/subscription`
+  billing/plan-comparison page is RFE-036's; admin-configurable ad cadence; per-module
+  mutation-button gating (moot — those modules are still `RouteStub`s, and the backend's
+  `SubscriptionGuard` already 403s regardless of frontend UI).
 
 #### RFE-009 — Testing harness + seeds
 - **Depends:** RFE-003 · **Lane:** `tests/**`, `playwright.config.ts`, `vitest.config.ts`
@@ -333,7 +352,27 @@
 - **Depends:** RFE-001 · **Lane:** `.github/workflows/**`
 - CI: lint/typecheck/test/build; Lighthouse CI on key routes (login, dashboard, cattle) with 100-score
   assertion (perf ≥ 98 tolerated in CI variance, a11y/BP/SEO = 100); PR previews if hosting chosen.
-- **Status:** `TODO`
+- **Status:** `DONE` (2026-07-10) — `.github/workflows/ci.yml`: `checks` job (lint/typecheck/test/build on
+  every push/PR to `main`) + `lighthouse` job (build, `pnpm start`, `treosh/lighthouse-ci-action@v12`
+  against `lighthouserc.json`'s assertions — perf ≥98 error-level, a11y/BP/SEO =100 error-level, exactly
+  ARCHITECTURE.md §7's budget). **Gotcha handled:** the repo's committed `.npmrc` pins `store-dir` to a
+  Windows dev-machine path (RFE-001's corrupted-pnpm-store workaround, see CURRENT_STATE.md) — doesn't
+  resolve on the Linux runner, so CI installs with `--store-dir ~/.pnpm-store` (CLI flag beats project
+  `.npmrc` in pnpm's precedence) instead of editing that file. **Scoped down from the AC, flagged not
+  guessed:** only `/` (landing) and `/login` are Lighthouse-audited, not dashboard/cattle as the AC lists
+  — every other route sits behind `(app)/layout.tsx`'s session-cookie gate, and this workflow has no
+  Postgres/Redis/backend service to log a real session in with (the backend is a *separate* GitHub repo,
+  `rakhal-backend`, not a submodule of this one). Wiring the authenticated routes needs Docker service
+  containers + `pnpm seed` + a cross-repo checkout — real infra work, not something to fake by pointing
+  Lighthouse at the gate-redirect page. The same missing-backend-service gap means `tests/e2e/auth.spec.ts`
+  (RFE-009) isn't run in this CI either. PR-preview deploys (the AC's "if hosting chosen" clause) skipped —
+  hosting is still an open item in `CURRENT_STATE.md`'s "Blocked / decisions needed". **Verified:** the
+  exact commands the `checks` job runs (`pnpm lint`/`typecheck`/`test`/`build`) all pass locally; YAML/JSON
+  syntax checked clean; every action tag cross-checked against its real upstream GitHub releases via
+  `gh release list` (not guessed from training data) — `checkout@v7`, `pnpm/action-setup@v6`,
+  `setup-node@v6`, `lighthouse-ci-action@v12`. **Not verified:** an actual GitHub Actions run — no
+  Chrome/Chromium exists in this sandbox to dry-run Lighthouse, so the real perf/a11y/BP/SEO scores against
+  `/`/`/login` are unconfirmed until the workflow's first push-triggered run.
 
 ---
 
@@ -346,7 +385,30 @@
   activity-feed. `staleTime` 60s; charts dynamic-imported.
 - **API:** §3 (10 endpoints) · **PRD:** §7 — note PRD lists widget metrics the Figma may lack (days-remaining
   estimates, week/month sessions): PRD-spec those.
-- **Status:** `TODO`
+- **Status:** `DONE` (2026-07-10) — **the real backend only has 9 of the doc's 10 endpoints**
+  (`dashboard.controller.ts` — no `/dashboard/activity-feed`; that's the separate Activity Log module,
+  RFE-042); built against the real 9, not guessed at a 10th. `features/dashboard/{types,api}.ts` types
+  are read directly from `dashboard.service.ts`'s actual return objects (camelCase, not the API doc's
+  aspirational examples — the two differ in at least one real place, see below). `hooks/use-dashboard-
+  widgets.ts`: one `useQuery` per widget, `staleTime` 60s. **Fault isolation instead of React
+  ErrorBoundary**: each widget's own `isLoading`/`isError`/`data` drives its own skeleton/error/empty/
+  success state — a query failure is already scoped to just that widget, the same isolation the AC's
+  "ErrorBoundary" phrasing asks for, without introducing a second, unestablished error-handling pattern
+  alongside the loading/error/empty/success convention every other page in this repo already uses.
+  9 widget components in `features/dashboard/components/`; `HerdStatusDonut`/`LivestockStateChart` are
+  the app's first real chart usage (`recharts`, `next/dynamic`-imported per ARCHITECTURE.md §7 — kept out
+  of the main bundle). **Real bug caught before merge**: `ProductionSummaryResponse.sessions` was first
+  typed against the API doc's richer per-session `{status,totalL,submittedAt}` shape; a live
+  `MISSING_MESSAGE` i18n error while browser-verifying led to cross-checking the actual
+  `MilkService#sessionStatuses` — the real shape is a flat `session -> "submitted"|"pending"|
+  "not_configured"` string map. Fixed in `types.ts` + `production-summary-card.tsx`, confirmed against
+  the real `GET /dashboard/production-summary` network response body. New `dashboard.*` i18n namespace,
+  bn+en, all 9 widgets. **Verified LIVE**: full render against the real backend (demo owner, Demo Farm) —
+  real priorities/KPIs/production/calving/herd-status (all 4 tabs)/livestock-state/financial/feed-alerts/
+  tasks data, light+dark theme, desktop (1280px) + mobile (375px), no console errors, no failed requests.
+  Gate green: lint/typecheck/build/18 unit tests. No Figma frame was pulled for this ticket's widgets
+  (out of scope for this pass — the sidebar/topbar chrome around them is already pixel-matched per
+  RFE-005; widget-internal layout used the established `StatCard`/`ChartCard`/`Card` primitives).
 
 #### RFE-021 — Cattle list + highlights + bulk ops
 - **Lane:** `features/cattle/**` (list part), `app/(app)/cattle/page.tsx` · **Design:** Figma cattle list
@@ -576,3 +638,4 @@ Same-folder sequences: 021→022→023→024 · 031→032 · 008→036 · 024→
 | 2026-07-10 | RFE-003 | `POST /auth/refresh`'s embedded `user.isEmailVerified` observed `false` right after login's `true` for the same user | Worked around client-side (trust login-time cached profile over refresh's); backend inconsistency itself unfixed |
 | 2026-07-10 | RFE-003 | Error envelope is flat (`{success,message,code,requestId,timestamp}`), not the `{error:{code,message,details}}` shape the cross-repo template doc assumes; validation errors are one comma-joined string, no per-field `details[]` | Not necessarily a bug — just means frontend form-error mapping can only show a form-level message, never per-field, until/unless the backend adds structured validation details |
 | 2026-07-10 | RFE-007 | `PATCH /auth/me/on-duty`, `PATCH /auth/me/pin`, generic `PATCH /auth/me` (name/avatar), and `POST /auth/switch-organization` are documented in `Rakhal_API.md` but **do not exist in the backend at all** (grepped `src/` — zero matches for on-duty/pin/switch-organization; only route is `PATCH /auth/me/language`). `GET /auth/sessions` + `DELETE /auth/sessions/:sessionId` + `POST /auth/logout-all` DO exist and are real. Confirmed via `auth.controller.ts`/`auth.service.ts`. | Not built client-side — placeholders left disabled/hidden rather than faked. Backend ticket needed for on-duty toggle, PIN self-service, generic profile edit, org switch before RFE-007 can close out those ACs. RFE-005's OrgSwitcher already flagged the switch-organization gap separately. |
+| 2026-07-10 | RFE-008 | `Rakhal_API.md` has **no §31 section for `GET /subscription`/`GET /plans` at all** — the only subscription-adjacent entry, `GET /settings/billing`, describes a different, unimplemented shape (`current_plan.status: "active"` lowercase, `price_per_month`, `currency`, `invoices[]`) that doesn't match the real endpoint and shouldn't be used. The real routes exist and work correctly — verified live directly against `subscription.controller.ts`/`plan.controller.ts` source, response shape matches PRD §31.3 SUB-07. | Docs-only gap, not a code bug — no backend change needed, `Rakhal_API.md` just needs a real §31 section written from the actual controllers. |

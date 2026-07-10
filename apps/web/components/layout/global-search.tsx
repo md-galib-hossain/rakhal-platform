@@ -1,19 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CommandDialog, CommandEmpty, CommandInput, CommandList } from "@/components/ui/command";
 
+const emptySubscribe = () => () => {};
+
+/** SSR always assumes non-Mac (`Ctrl K`) — flips to `⌘ K` after hydration on real Mac clients.
+ * Mirrors the `useMounted` pattern `ThemeToggle` already uses for the same class of check. */
+function useIsMac() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => typeof navigator !== "undefined" && /mac/i.test(navigator.userAgent),
+    () => false,
+  );
+}
+
 /**
- * ⌘K global search palette. RFE-005's scope is the topbar "search placeholder" per
+ * ⌘K/Ctrl-K global search palette. RFE-005's scope is the topbar "search placeholder" per
  * PROJECT_PROGRESS.md — this wires the palette's open/close + keyboard shortcut only. Live results
  * against `GET /search` (§19 of Rakhal_API.md) land with a future ticket.
  */
 export function GlobalSearch() {
   const t = useTranslations("topbar");
   const [open, setOpen] = useState(false);
+  const isMac = useIsMac();
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -31,12 +44,12 @@ export function GlobalSearch() {
       <Button
         variant="outline"
         onClick={() => setOpen(true)}
-        className="h-9 w-full max-w-[320px] justify-start gap-2 rounded-lg border-border bg-card font-normal text-muted-foreground shadow-xs"
+        className="h-10 w-full max-w-[320px] justify-start gap-2 rounded-lg border-border bg-card font-normal text-muted-foreground shadow-xs"
       >
         <Search className="size-[18px]" />
-        <span className="hidden sm:inline">{t("searchPlaceholder")}</span>
-        <kbd className="ml-auto hidden rounded border border-border bg-muted px-1.5 py-0.5 text-xs sm:inline">
-          ⌘K
+        <span className="hidden truncate sm:inline">{t("searchPlaceholder")}</span>
+        <kbd className="ml-auto hidden shrink-0 rounded border border-border bg-muted px-1.5 py-0.5 text-xs sm:inline">
+          {isMac ? t("searchShortcutMac") : t("searchShortcutWin")}
         </kbd>
       </Button>
       <CommandDialog open={open} onOpenChange={setOpen}>

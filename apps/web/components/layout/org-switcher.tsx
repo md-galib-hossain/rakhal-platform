@@ -1,7 +1,8 @@
 "use client";
 
-import { ChevronsUpDown } from "lucide-react";
-import { useSession } from "@/lib/auth/use-session";
+import { ChevronsUpDown, Warehouse } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useCurrentFarm } from "@/features/farm/hooks/use-current-farm";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,36 +11,54 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
- * Farm switcher for multi-farm accounts. The backend only exposes the farm list during the
- * login bootstrap step (see `features/auth/types.ts#FarmOption`) — there is no confirmed
- * "list my farms while already logged in" GET endpoint (only `POST /auth/switch-organization`,
- * which needs an id we don't have post-login). Flagged as a gap in PROJECT_PROGRESS.md's RFE-005
- * entry rather than guessed at; this renders the current farm read-only until that endpoint exists.
+ * Farm switcher for multi-farm accounts. Shows the real farm name/slug via `GET /farms`
+ * (`features/farm`) — the backend only exposes the farm list during login bootstrap or this
+ * always-available list route; there's no confirmed "switch farm while already logged in" endpoint
+ * (only `POST /auth/switch-organization`, which needs an id the client doesn't otherwise have).
+ * Flagged as a gap in PROJECT_PROGRESS.md's RFE-005 entry — this renders the current farm read-only
+ * until that endpoint exists. No location/address field exists on the farm model; `slug` is the
+ * closest secondary identifier.
  */
 export function OrgSwitcher() {
-  const { data: session, isLoading } = useSession();
+  const t = useTranslations("farmSelector");
+  const { farm, farmId, isLoading, isError } = useCurrentFarm();
 
   if (isLoading) {
-    return <Skeleton className="h-10 w-full bg-sidebar-foreground/10" />;
+    return <Skeleton className="h-[52px] w-full bg-sidebar-foreground/10" />;
   }
+
+  const name = farm?.name ?? (isError ? `Farm ${farmId ?? ""}` : "—");
+  const secondary = farm?.slug ?? farmId ?? "";
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-left text-card-foreground shadow-xs transition-colors hover:bg-muted">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{session?.user.name ?? "—"}</p>
-          <p className="truncate text-xs text-muted-foreground">Farm {session?.farmId ?? ""}</p>
-        </div>
-        <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-      </DropdownMenuTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger
+            aria-label={`${name} — ${t("switchHint")}`}
+            className="flex w-full items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2.5 text-left text-card-foreground shadow-xs transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary-hover">
+              <Warehouse className="size-[18px]" aria-hidden />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold">{name}</p>
+              <p className="truncate text-xs text-muted-foreground">{secondary}</p>
+            </div>
+            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="right">{name}</TooltipContent>
+      </Tooltip>
       <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel>Your farm</DropdownMenuLabel>
-        <DropdownMenuItem disabled>{session?.user.name ?? "—"}</DropdownMenuItem>
+        <DropdownMenuLabel>{t("yourFarm")}</DropdownMenuLabel>
+        <DropdownMenuItem disabled>{name}</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled>Switch organization (coming soon)</DropdownMenuItem>
+        <DropdownMenuItem disabled>{t("switchComingSoon")}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

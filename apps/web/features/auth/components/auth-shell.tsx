@@ -5,6 +5,7 @@ import { LocaleToggle } from "@/components/shared/locale-toggle";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import authSideImage from "@/public/auth/auth-side-image.png";
 import logoMark from "@/public/auth/logo-mark.svg";
+import rakhalLogo from "@/public/rakhal-full-logo.jpg";
 
 /**
  * Shared split-panel chrome for every `(auth)` page — pixel-matched against the Figma prototype's
@@ -20,8 +21,8 @@ export async function AuthShell({ children }: { children: React.ReactNode }) {
     <div className="grid min-h-svh bg-background lg:grid-cols-[760fr_680fr]">
       <div className="flex flex-col">
         <div className="flex items-center justify-between p-6 lg:justify-end">
-          <Link href="/" className="text-lg font-bold text-primary-hover lg:hidden">
-            রাখাল
+          <Link href="/" className="block h-8 w-[130px] overflow-hidden rounded-lg lg:hidden">
+            <Image src={rakhalLogo} alt="Rakhal" className="h-full w-full object-cover object-left" />
           </Link>
           <div className="flex items-center gap-1">
             <LocaleToggle />

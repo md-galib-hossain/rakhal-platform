@@ -1,6 +1,49 @@
 # Frontend — Current State
 
-**Last updated:** 2026-07-10 · **Completion:** Phase 0 core done (RFE-001…007, RFE-009) + RFE-100 marketing landing done
+**Last updated:** 2026-07-10 · **Completion:** Phase 0 done (RFE-001…010) + RFE-100 marketing landing +
+Phase 1 RFE-020 (Dashboard) done
+
+## Dashboard / Morning Briefing (RFE-020 — done)
+All 9 real widgets against the live `GET /dashboard/*` endpoints (the aspirational `Rakhal_API.md` §3
+lists a 10th "activity-feed" widget the real backend doesn't implement — matched the real 9 instead,
+per `dashboard.controller.ts`). New `features/dashboard/{types,api,hooks,components}` — types read
+directly from `dashboard.service.ts`'s real return shapes; one `useQuery` per widget (`staleTime` 60s)
+so each widget owns its own loading/error/empty/success state instead of a shared React ErrorBoundary
+(the same fault isolation, no new error-handling pattern). Two chart widgets (`recharts` via
+`next/dynamic`, the app's first real chart usage) for herd status (donut, 4 tabs) and livestock state
+(bar). **Real bug caught before merge**: `sessions` on the production-summary widget was first typed
+against the API doc's richer shape; cross-checking `MilkService#sessionStatuses` found the real shape is
+a flat `session -> status` string map — fixed, confirmed against the real network response. New
+`dashboard.*` i18n namespace (bn+en). **Verified live**: full render against the real backend, all
+widgets with real data, light+dark, desktop+mobile, no console errors. Gate green. Full writeup:
+`PROJECT_PROGRESS.md` RFE-020 entry.
+
+## Subscription context + gating (RFE-008 — done)
+`features/subscription/` (real `GET /subscription`, mirrors `features/profile/`'s pattern) +
+`hooks/use-subscription-gates.ts` (`useHasFeature`/`useIsReadOnly`/`useIsEligibleForUpgradeAd`, mirrors
+`lib/auth/permissions.tsx`'s `useCan()`). Drives three real pieces: `sidebar-nav.tsx`'s pre-existing
+`premiumFlag` scaffold (Scoreboard) now actually locks (Lock icon, `/subscription` redirect, tooltip)
+when a feature isn't in the farm's plan; `upgrade-ad.tsx`'s eligibility is real (usable status + missing
+the Pro-only `reports.scheduled`) instead of hardcoded `true`; new `read-only-banner.tsx` (in
+`app-shell.tsx`) mirrors the backend's own `SubscriptionGuard` for PAST_DUE/EXPIRED/CANCELLED/NONE.
+**Backend gap**: `Rakhal_API.md` has no §31 subscription/plans section at all — verified live against
+the real controllers instead. **Verified live, all 3 states** without touching the shared demo DB (real
+ACTIVE+Pro data, then EXPIRED/Free and ACTIVE/Starter simulated via a temporary dev-only `queryClient`
+window exposure, added/used/fully removed). Gate green. Full writeup: `docs/IN_FLIGHT.md`'s Recently
+Done entry.
+
+## CI + Lighthouse gate (RFE-010 — done)
+`.github/workflows/ci.yml`: `checks` job (lint/typecheck/test/build, every push/PR) + `lighthouse` job
+(`treosh/lighthouse-ci-action@v12` against `/` and `/login` per `lighthouserc.json` — perf ≥98,
+a11y/BP/SEO =100, error-level, matching `ARCHITECTURE.md` §7). Handles the repo's Windows-path `.npmrc`
+gotcha (`--store-dir ~/.pnpm-store` CLI override). **Scoped down from the ticket's AC, flagged not
+guessed:** only the two backend-independent public routes are Lighthouse-audited — `/dashboard`/`/cattle`
+and the Playwright e2e suite both need a live backend (a separate repo, `rakhal-backend`, with its own
+Postgres/Redis + seed data) that this workflow doesn't stand up; that's real infra work for a follow-up,
+not something to fake. PR-preview deploys skipped — hosting is still unconfirmed (see below). **Not
+verified:** an actual GitHub Actions run — no Chrome available in this session's sandbox to dry-run
+Lighthouse, so real scores are unconfirmed until the first push-triggered run. Full writeup:
+`PROJECT_PROGRESS.md` RFE-010 entry.
 
 ## Testing harness (RFE-009 — done)
 Playwright E2E layer built against RFE-006's real auth pages — the first pages with real logic to test.
@@ -83,6 +126,33 @@ and added the missing `<main>` landmark to `AuthShell`. Verified live: full logi
 desktop/mobile incl. Sheet nav, route navigation with correct active-state, no console errors. Gate green.
 Full writeup: `PROJECT_PROGRESS.md` RFE-005 entry + `DESIGN_SYSTEM.md` §4.
 
+**Sidebar/topbar UX pass (2026-07-10, user design feedback)** — grouped the flat 15-item nav into 7
+task-oriented sections (Overview/Herd Management/Production/Business/Insights/Workspace/System,
+`nav-items.ts`); `OrgSwitcher` now shows the real farm name/slug via a new `features/farm/` (`GET
+/farms`, matched by JWT `farmId`) instead of the old bug of displaying the *user's* name; active nav is
+now a soft `bg-primary/25` fill + left accent bar (was a strong white pill); `UpgradeBanner` replaced by
+`UpgradeAd` — a periodic slide-up-from-bottom ad (`motion/react`) on a local-constant cadence
+(`upgrade-ad-config.ts`, real cadence/eligibility still needs RFE-008's `GET /subscription`), with a new
+persistent sidebar account row (`UserMenu` gained a `sidebar` variant) as its resting state; topbar search
+placeholder + OS-aware `Ctrl K`/`⌘ K` hint, bigger tooltipped notification/theme/profile controls (new
+`TooltipProvider`). Verified live end-to-end incl. bn locale, dark theme, mobile Sheet. Gate green
+(lint/typecheck/build/18 unit tests/10 e2e). Full writeup: `docs/IN_FLIGHT.md`'s Recently Done entry.
+
+**Collapsible sidebar groups (2026-07-10 follow-up)** — the 7 groups above are now independently
+collapsible (any subset at once, not an accordion): `sidebar-nav.tsx` group headers are real
+`aria-expanded` buttons, state persists in `localStorage` via `useSyncExternalStore`, collapsed groups
+get `inert` (removed from tab order + a11y tree, not just visually shrunk), the active route's group
+auto-expands once on mount. Uses a plain CSS `grid-template-rows` collapse, not `motion/react` —
+`AnimatePresence`+`height:"auto"` was tried first but never completed its exit animation in this
+session's preview tool (root-caused as likely rAF throttling on a backgrounded tab, not a logic bug).
+Gate green. Full writeup: `docs/IN_FLIGHT.md`'s Recently Done entry.
+
+**Duplicate account menu removed (2026-07-10 follow-up)** — the sidebar-footer `UserMenu` variant
+added above (as the upgrade ad's resting state) duplicated the topbar's account menu; user flagged it.
+Kept the topbar one only (conventional, always-visible location); `UserMenu`'s `variant` prop is gone,
+back to a single implementation. `UpgradeAd` now anchors directly to the sidebar's own bottom edge
+(`inset-x-4 bottom-4`) instead of overlaying a removed account row. Gate green.
+
 ## UI primitives + shared composites (RFE-004 — done)
 Full `components/ui/**` inventory built on top of the existing `button.tsx`: Input, Textarea, Label,
 Select, Checkbox, RadioGroup, Switch, Dialog, Sheet, DropdownMenu, Popover, Tooltip, Tabs, Badge, Card,
@@ -140,10 +210,14 @@ Domain plan: `rakhal.app`=landing · `farm.rakhal.app`=consumer app (host rewrit
   (Swagger `/api/docs`). Known not-built: milk quality (V1.5), report schedules (V1.5), feed mixtures, mobile sync.
 
 ## Next task
-RFE-005 and RFE-007 are done. RFE-006 (auth pages) is in progress. Remaining Phase 0: RFE-008
-(subscription context/upgrade UX), RFE-009 (testing harness + seeds), RFE-010 (CI + Lighthouse gate) —
-all parallel-safe now per IN_FLIGHT.md's protocol §6. Live browser verification of RFE-007 is still owed
-once the dev-server lock frees up.
+Phase 0 is fully done (RFE-001…010). Phase 1 has started: RFE-020 (Dashboard) is done. Remaining Phase 1
+daily-driver pages are open, parallel lanes per `PROJECT_PROGRESS.md`: RFE-021/022/023/024 (cattle),
+RFE-025/026 (milk/buyers), RFE-027 (task hub), RFE-030/031/032/033 (reproduction/healthcare/calves),
+RFE-034/035 (inventory/finance), RFE-040/041 (feed formulator/reports). Real follow-ups flagged (not
+started): a CI backend service (Postgres/Redis/seed + cross-repo `rakhal-backend` checkout) so RFE-010's
+Lighthouse gate can cover authenticated routes and RFE-009's Playwright suite can run in CI, not just
+locally against a manually-started dev backend. Live browser verification of RFE-007 is still owed once
+the dev-server lock frees up.
 
 ## Known environment issue (this machine — not a code problem)
 The shared pnpm store (`D:\.pnpm-store\v10`) has a permission-corrupted file — even `icacls`/`Remove-Item`
@@ -152,6 +226,16 @@ as the owning user get **Access Denied**, and it broke hard-linked files inside 
 fresh unaffected store. The original corrupted `node_modules` was renamed (not deleted, couldn't be) to
 `node_modules.broken/` — it's gitignored and excluded from `vitest.config.ts`'s test glob; leave it alone,
 an admin can `takeown`/delete it later. `pnpm install`/`pnpm add` both work normally now via the new store.
+
+**Port 3001 is permanently occupied by an unrelated project on this machine** (`D:\gcb\gcpay\repos\
+gcpay-admin`, a different Next.js app entirely — confirmed via its process command line). `pnpm dev`'s
+default `-p 3001` and `playwright.config.ts`'s `webServer` (hardcoded `url: "http://localhost:3001"`,
+`reuseExistingServer: true` locally) will silently attach to *that* app instead of this one, producing
+nonsense e2e failures that look like real regressions but aren't. **Workaround**: run e2e with
+`NEXT_PUBLIC_APP_URL` pointed at whatever port this repo's real dev server is actually on (check with
+`curl`/branding, not just "something responds") — found while verifying RFE-008, see
+`docs/IN_FLIGHT.md`'s entry for the full trace. Not fixed at the config level (affects every agent,
+needs a considered port strategy, not this ticket's call to make unilaterally).
 
 ## Blocked / decisions needed
 - ~~Figma token extraction~~ **resolved 2026-07-09** — screenshots analyzed; token values are in

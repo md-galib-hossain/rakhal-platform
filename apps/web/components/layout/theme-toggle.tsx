@@ -10,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 
 const emptySubscribe = () => () => {};
@@ -26,16 +27,21 @@ export function ThemeToggle() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label={t("toggle")}
-          className="size-9 rounded-full border-border bg-card shadow-xs"
-        >
-          {mounted && theme === "dark" ? <Moon className="size-[18px]" /> : <Sun className="size-[18px]" />}
-        </Button>
-      </DropdownMenuTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label={t("toggle")}
+              className="size-10 rounded-full border-border bg-card shadow-xs"
+            >
+              {mounted && theme === "dark" ? <Moon className="size-5" /> : <Sun className="size-5" />}
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent>{t("toggle")}</TooltipContent>
+      </Tooltip>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={() => setTheme("light")}>
           <Sun className="size-4" /> {t("light")}

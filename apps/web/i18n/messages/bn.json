@@ -21,8 +21,13 @@
     "close": "বন্ধ করুন"
   },
   "nav": {
-    "menu": "মেনু",
-    "others": "অন্যান্য",
+    "groupOverview": "ওভারভিউ",
+    "groupHerdManagement": "পশুপাল ব্যবস্থাপনা",
+    "groupProduction": "উৎপাদন",
+    "groupBusiness": "ব্যবসা",
+    "groupInsights": "ইনসাইটস",
+    "groupWorkspace": "ওয়ার্কস্পেস",
+    "groupSystem": "সিস্টেম",
     "dashboard": "ড্যাশবোর্ড",
     "cattle": "গবাদি পশু",
     "feedFormulator": "ফিড ফরমুলেটর",
@@ -37,12 +42,17 @@
     "taskHub": "টাস্ক হাব",
     "reports": "প্রতিবেদন",
     "activityLog": "কার্যকলাপ লগ",
-    "settings": "সেটিংস"
+    "settings": "সেটিংস",
+    "premiumLocked": "প্রো প্ল্যান প্রয়োজন — আপগ্রেড করতে ক্লিক করুন"
   },
   "topbar": {
-    "searchPlaceholder": "এখানে খুঁজুন",
+    "searchPlaceholder": "গবাদি পশু, রেকর্ড, ক্রেতা বা প্রতিবেদন খুঁজুন…",
+    "searchShortcutMac": "⌘ K",
+    "searchShortcutWin": "Ctrl K",
     "notifications": "বিজ্ঞপ্তি",
+    "notificationsHint": "বিজ্ঞপ্তি দেখুন",
     "profile": "প্রোফাইল",
+    "accountMenuHint": "অ্যাকাউন্ট মেনু খুলুন",
     "onDuty": "দায়িত্বে",
     "accountSettings": "অ্যাকাউন্ট সেটিংস",
     "logout": "লগ আউট",
@@ -54,10 +64,23 @@
     "system": "সিস্টেম",
     "toggle": "থিম পরিবর্তন করুন"
   },
+  "farmSelector": {
+    "switchHint": "খামার পরিবর্তন করুন",
+    "yourFarm": "আপনার খামার",
+    "switchComingSoon": "প্রতিষ্ঠান পরিবর্তন (শীঘ্রই আসছে)"
+  },
   "upgrade": {
-    "title": "প্রো তে আপগ্রেড করুন!",
-    "description": "আরও ভালো ফিচার পেতে আপনার অ্যাকাউন্ট আপগ্রেড করুন।",
-    "cta": "প্রো তে আপগ্রেড করুন"
+    "title": "প্রো নিন",
+    "description": "উন্নত প্রতিবেদন ও ইনসাইট আনলক করুন।",
+    "cta": "আপগ্রেড করুন",
+    "dismiss": "বাদ দিন"
+  },
+  "subscription": {
+    "pastDueMessage": "আপনার পেমেন্ট বকেয়া আছে। আপনি আপনার ডেটা দেখতে পারবেন, তবে নবায়ন না করা পর্যন্ত পরিবর্তন করা বন্ধ থাকবে।",
+    "expiredMessage": "আপনার সাবস্ক্রিপশনের মেয়াদ শেষ হয়ে গেছে। আপনি আপনার ডেটা দেখতে পারবেন, তবে নবায়ন না করা পর্যন্ত পরিবর্তন করা বন্ধ থাকবে।",
+    "cancelledMessage": "আপনার সাবস্ক্রিপশন বাতিল করা হয়েছে। আপনি আপনার ডেটা দেখতে পারবেন, তবে পুনরায় সাবস্ক্রাইব না করা পর্যন্ত পরিবর্তন করা বন্ধ থাকবে।",
+    "noneMessage": "এই খামারের কোনো সক্রিয় সাবস্ক্রিপশন নেই। আপনি আপনার ডেটা দেখতে পারবেন, তবে পরিবর্তন করা বন্ধ থাকবে।",
+    "renewCta": "প্ল্যান দেখুন"
   },
   "auth": {
     "login": {
@@ -355,5 +378,120 @@
     "logoutAllConfirmTitle": "সব জায়গা থেকে লগ-আউট করবেন?",
     "logoutAllConfirmDescription": "এটি এই ডিভাইসসহ প্রতিটি ডিভাইস থেকে আপনাকে সাইন-আউট করে দেবে — আবার লগইন করতে হবে।",
     "logoutAllFailed": "সব ডিভাইস থেকে লগ-আউট করা যায়নি। আবার চেষ্টা করুন।"
+  },
+  "dashboard": {
+    "priorities": {
+      "title": "আজকের অগ্রাধিকার",
+      "error": "অগ্রাধিকার লোড করা যায়নি।",
+      "emptyTitle": "সব ঠিক আছে",
+      "emptyDescription": "এই মুহূর্তে জরুরি কিছু নেই।"
+    },
+    "kpis": {
+      "costPerLitre": "প্রতি লিটার খরচ",
+      "todaysYield": "আজকের উৎপাদন",
+      "vsYesterday": "গতকালের তুলনায়",
+      "herdHealth": "পালের স্বাস্থ্য",
+      "sickCount": "{count} টি অসুস্থ",
+      "cashRunway": "নগদ রানওয়ে",
+      "daysValue": "{days} দিন",
+      "status": {
+        "critical": "সংকটজনক",
+        "warning": "কম",
+        "unknown": "অজানা"
+      },
+      "error": "কেপিআই লোড করা যায়নি।"
+    },
+    "productionSummary": {
+      "title": "উৎপাদন সারসংক্ষেপ",
+      "today": "আজ",
+      "week": "সপ্তাহ",
+      "month": "মাস",
+      "totalYield": "মোট উৎপাদন (লিটার)",
+      "sellable": "বিক্রয়যোগ্য (লিটার)",
+      "withholding": "আটকানো (লিটার)",
+      "sessionStatus": {
+        "submitted": "জমা দেওয়া হয়েছে",
+        "pending": "বাকি আছে",
+        "not_configured": "কনফিগার করা হয়নি"
+      },
+      "error": "উৎপাদন সারসংক্ষেপ লোড করা যায়নি।"
+    },
+    "calvingForecast": {
+      "title": "৭ দিনের বাছুর প্রসবের পূর্বাভাস",
+      "daysRemaining": "{days} দিন",
+      "emptyTitle": "কোনো প্রসব প্রত্যাশিত নেই",
+      "emptyDescription": "আগামী ৭ দিনে কিছু নেই।",
+      "error": "প্রসবের পূর্বাভাস লোড করা যায়নি।"
+    },
+    "herdStatus": {
+      "title": "পালের অবস্থা",
+      "totalActive": "{count} টি সক্রিয়",
+      "tabs": {
+        "production": "উৎপাদন",
+        "reproductive": "প্রজনন",
+        "health": "স্বাস্থ্য",
+        "calves": "বাছুর"
+      },
+      "production": {
+        "milking": "দুধেল",
+        "dry": "শুষ্ক",
+        "fresh": "সদ্য প্রসূত",
+        "growing": "বর্ধনশীল"
+      },
+      "reproductive": {
+        "open": "ওপেন",
+        "inseminated": "প্রজননকৃত",
+        "pregnant": "গর্ভবতী",
+        "dryPeriod": "শুষ্ক সময়কাল"
+      },
+      "health": {
+        "healthy": "সুস্থ",
+        "sick": "অসুস্থ",
+        "inTreatment": "চিকিৎসাধীন",
+        "withholding": "আটকানো"
+      },
+      "calves": {
+        "newborn": "নবজাতক (০-৭ দিন)",
+        "young": "কিশোর (৭-৬০ দিন)",
+        "preWeaning": "দুধ ছাড়ানোর আগে (৬০-৯০ দিন)",
+        "postWeaning": "দুধ ছাড়ানোর পরে (৯০+ দিন)"
+      },
+      "error": "পালের অবস্থা লোড করা যায়নি।"
+    },
+    "livestockState": {
+      "title": "গবাদি পশুর অবস্থা",
+      "today": "আজ",
+      "week": "সপ্তাহ",
+      "month": "মাস",
+      "error": "গবাদি পশুর অবস্থা লোড করা যায়নি।"
+    },
+    "financialSnapshot": {
+      "title": "আর্থিক সারসংক্ষেপ",
+      "income": "আয়",
+      "expenses": "ব্যয়",
+      "profit": "মুনাফা",
+      "survivalRunway": "টিকে থাকার সময়",
+      "daysValue": "{days} দিন",
+      "error": "আর্থিক সারসংক্ষেপ লোড করা যায়নি।"
+    },
+    "feedStockAlerts": {
+      "title": "খাদ্য ও ওষুধ মজুদ সতর্কতা",
+      "status": {
+        "critical": "সংকটজনক",
+        "low": "কম"
+      },
+      "emptyTitle": "মজুদ পর্যাপ্ত আছে",
+      "emptyDescription": "এই মুহূর্তে কোনো কম-মজুদ আইটেম নেই।",
+      "error": "মজুদ সতর্কতা লোড করা যায়নি।"
+    },
+    "upcomingTasks": {
+      "title": "আসন্ন কাজ",
+      "viewAll": "সব দেখুন",
+      "completed": "আজ {total} টির মধ্যে {done} টি সম্পন্ন",
+      "overdue": "{count} টি মেয়াদোত্তীর্ণ",
+      "emptyTitle": "আজ কোনো কাজ নেই",
+      "emptyDescription": "আজকের জন্য কিছু নির্ধারিত নেই।",
+      "error": "কাজ লোড করা যায়নি।"
+    }
   }
 }

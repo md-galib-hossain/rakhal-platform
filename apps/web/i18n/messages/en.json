@@ -21,8 +21,13 @@
     "close": "Close"
   },
   "nav": {
-    "menu": "Menu",
-    "others": "Others",
+    "groupOverview": "Overview",
+    "groupHerdManagement": "Herd Management",
+    "groupProduction": "Production",
+    "groupBusiness": "Business",
+    "groupInsights": "Insights",
+    "groupWorkspace": "Workspace",
+    "groupSystem": "System",
     "dashboard": "Dashboard",
     "cattle": "Cattle",
     "feedFormulator": "Feed Formulator",
@@ -37,12 +42,17 @@
     "taskHub": "Task Hub",
     "reports": "Reports",
     "activityLog": "Activity Log",
-    "settings": "Settings"
+    "settings": "Settings",
+    "premiumLocked": "Requires a Pro plan — click to upgrade"
   },
   "topbar": {
-    "searchPlaceholder": "Search here",
+    "searchPlaceholder": "Search cattle, records, buyers, or reports…",
+    "searchShortcutMac": "⌘ K",
+    "searchShortcutWin": "Ctrl K",
     "notifications": "Notifications",
+    "notificationsHint": "View notifications",
     "profile": "Profile",
+    "accountMenuHint": "Open account menu",
     "onDuty": "On Duty",
     "accountSettings": "Account Settings",
     "logout": "Log Out",
@@ -54,10 +64,23 @@
     "system": "System",
     "toggle": "Toggle theme"
   },
+  "farmSelector": {
+    "switchHint": "Switch farm",
+    "yourFarm": "Your farm",
+    "switchComingSoon": "Switch organization (coming soon)"
+  },
   "upgrade": {
-    "title": "Become a PRO!",
-    "description": "Upgrade your account to avail more cool features.",
-    "cta": "Upgrade to Pro"
+    "title": "Go PRO",
+    "description": "Unlock advanced reports & insights.",
+    "cta": "Upgrade",
+    "dismiss": "Dismiss"
+  },
+  "subscription": {
+    "pastDueMessage": "Your payment is past due. You can keep viewing your data, but changes are disabled until you renew.",
+    "expiredMessage": "Your subscription has expired. You can keep viewing your data, but changes are disabled until you renew.",
+    "cancelledMessage": "Your subscription was cancelled. You can keep viewing your data, but changes are disabled until you resubscribe.",
+    "noneMessage": "This farm has no active subscription. You can keep viewing your data, but changes are disabled.",
+    "renewCta": "View plan"
   },
   "auth": {
     "login": {
@@ -355,5 +378,120 @@
     "logoutAllConfirmTitle": "Log out everywhere?",
     "logoutAllConfirmDescription": "This signs you out of every device, including this one — you'll need to log in again.",
     "logoutAllFailed": "Couldn't log out all devices. Try again."
+  },
+  "dashboard": {
+    "priorities": {
+      "title": "Today's Priorities",
+      "error": "Could not load priorities.",
+      "emptyTitle": "All clear",
+      "emptyDescription": "No urgent items right now."
+    },
+    "kpis": {
+      "costPerLitre": "Cost per litre",
+      "todaysYield": "Today's yield",
+      "vsYesterday": "vs yesterday",
+      "herdHealth": "Herd health",
+      "sickCount": "{count} sick",
+      "cashRunway": "Cash runway",
+      "daysValue": "{days} days",
+      "status": {
+        "critical": "Critical",
+        "warning": "Low",
+        "unknown": "Unknown"
+      },
+      "error": "Could not load KPIs."
+    },
+    "productionSummary": {
+      "title": "Production Summary",
+      "today": "Today",
+      "week": "Week",
+      "month": "Month",
+      "totalYield": "Total yield (L)",
+      "sellable": "Sellable (L)",
+      "withholding": "Withholding (L)",
+      "sessionStatus": {
+        "submitted": "Submitted",
+        "pending": "Pending",
+        "not_configured": "Not configured"
+      },
+      "error": "Could not load production summary."
+    },
+    "calvingForecast": {
+      "title": "7-Day Calving Forecast",
+      "daysRemaining": "{days}d",
+      "emptyTitle": "No calvings expected",
+      "emptyDescription": "Nothing due in the next 7 days.",
+      "error": "Could not load the calving forecast."
+    },
+    "herdStatus": {
+      "title": "Herd Status",
+      "totalActive": "{count} active",
+      "tabs": {
+        "production": "Production",
+        "reproductive": "Reproductive",
+        "health": "Health",
+        "calves": "Calves"
+      },
+      "production": {
+        "milking": "Milking",
+        "dry": "Dry",
+        "fresh": "Fresh",
+        "growing": "Growing"
+      },
+      "reproductive": {
+        "open": "Open",
+        "inseminated": "Inseminated",
+        "pregnant": "Pregnant",
+        "dryPeriod": "Dry period"
+      },
+      "health": {
+        "healthy": "Healthy",
+        "sick": "Sick",
+        "inTreatment": "In treatment",
+        "withholding": "Withholding"
+      },
+      "calves": {
+        "newborn": "Newborn (0-7d)",
+        "young": "Young (7-60d)",
+        "preWeaning": "Pre-weaning (60-90d)",
+        "postWeaning": "Post-weaning (90d+)"
+      },
+      "error": "Could not load herd status."
+    },
+    "livestockState": {
+      "title": "Livestock State",
+      "today": "Today",
+      "week": "Week",
+      "month": "Month",
+      "error": "Could not load livestock state."
+    },
+    "financialSnapshot": {
+      "title": "Financial Snapshot",
+      "income": "Income",
+      "expenses": "Expenses",
+      "profit": "Profit",
+      "survivalRunway": "Survival runway",
+      "daysValue": "{days} days",
+      "error": "Could not load the financial snapshot."
+    },
+    "feedStockAlerts": {
+      "title": "Feed & Medicine Stock Alerts",
+      "status": {
+        "critical": "Critical",
+        "low": "Low"
+      },
+      "emptyTitle": "Stock levels are healthy",
+      "emptyDescription": "No low-stock items right now.",
+      "error": "Could not load stock alerts."
+    },
+    "upcomingTasks": {
+      "title": "Upcoming Tasks",
+      "viewAll": "View all",
+      "completed": "{done} of {total} done today",
+      "overdue": "{count} overdue",
+      "emptyTitle": "No tasks today",
+      "emptyDescription": "Nothing scheduled for today.",
+      "error": "Could not load tasks."
+    }
   }
 }

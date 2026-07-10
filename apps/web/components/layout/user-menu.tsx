@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { LanguageToggleItem } from "./language-toggle-item";
 
 function initialsOf(name?: string) {
@@ -26,18 +27,32 @@ function initialsOf(name?: string) {
     .toUpperCase();
 }
 
+/** Single account menu, topbar-only — always visible regardless of sidebar/Sheet state, the
+ * conventional location for account actions. (A sidebar-footer copy existed briefly to give the
+ * upgrade ad a resting state to overlay; removed as a redundant duplicate — the ad now just
+ * anchors to the sidebar's own bottom edge instead.) */
 export function UserMenu() {
   const { data: session } = useSession();
   const t = useTranslations("topbar");
+  const name = session?.user.name;
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center gap-1 rounded-full border border-border bg-card py-0.5 pl-0.5 pr-1.5 shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <Avatar className="size-8">
-          <AvatarFallback>{initialsOf(session?.user.name)}</AvatarFallback>
-        </Avatar>
-        <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden />
-      </DropdownMenuTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger
+            aria-label={`${name ?? t("profile")} — ${t("accountMenuHint")}`}
+            className="flex h-10 items-center gap-2 rounded-full border border-border bg-card py-0.5 pl-0.5 pr-2 shadow-xs transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Avatar className="size-9">
+              <AvatarFallback>{initialsOf(name)}</AvatarFallback>
+            </Avatar>
+            <span className="hidden max-w-28 truncate text-sm font-medium xl:inline">{name ?? "—"}</span>
+            <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent>{t("accountMenuHint")}</TooltipContent>
+      </Tooltip>
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel>
           <p className="truncate font-medium">{session?.user.name}</p>

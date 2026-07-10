@@ -1,13 +1,15 @@
 "use client"; // owns the mobile Sheet's open state
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { SidebarNav } from "./sidebar-nav";
 import { OrgSwitcher } from "./org-switcher";
-import { UpgradeBanner } from "./upgrade-banner";
+import { UpgradeAd } from "./upgrade-ad";
+import rakhalLogo from "@/public/auth/logo-mark.svg";
 
 function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   return (
@@ -15,21 +17,20 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       {/* Decorative bottom glow — stands in for the Figma frame's two blurred polygon layers. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -bottom-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/20 blur-3xl"
+        className="pointer-events-none absolute -bottom-24 left-1/2 h-72 w-72 -translate-x-1/2 bg-primary/20 blur-3xl"
       />
-      <div className="relative flex items-center gap-2 border-b border-primary-hover/60 px-4 py-5">
-        <div className="size-7 shrink-0 rounded-lg bg-primary" aria-hidden />
-        <Link href="/dashboard" className="text-2xl font-bold tracking-tight text-primary">
-          Rakhal
+      <div className="relative flex items-center border-b border-primary-hover/60 px-4 py-5">
+        <Link href="/dashboard" className="block h-9 w-full max-w-[160px] overflow-hidden">
+          <Image src={rakhalLogo} alt="Rakhal" className="h-full w-full object-cover object-left" priority />
         </Link>
       </div>
       <div className="relative flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-5">
         <OrgSwitcher />
         <SidebarNav onNavigate={onNavigate} />
       </div>
-      <div className="relative px-4 pb-4">
-        <UpgradeBanner />
-      </div>
+      {/* Account access lives only in the topbar (UserMenu) — no sidebar duplicate. The ad
+       * (upgrade-ad.tsx) periodically slides up from here, over the bottom of the nav list. */}
+      <UpgradeAd />
     </div>
   );
 }
