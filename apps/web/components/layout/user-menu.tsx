@@ -1,0 +1,85 @@
+"use client";
+
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { LogOut, Settings, UserRound } from "lucide-react";
+import { useLogout, useSession } from "@/lib/auth/use-session";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { LanguageToggleItem } from "./language-toggle-item";
+
+function initialsOf(name?: string) {
+  if (!name) return "?";
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+export function UserMenu() {
+  const { data: session } = useSession();
+  const t = useTranslations("topbar");
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <Avatar>
+          <AvatarFallback>{initialsOf(session?.user.name)}</AvatarFallback>
+        </Avatar>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuLabel>
+          <p className="truncate font-medium">{session?.user.name}</p>
+          <p className="truncate text-xs font-normal text-muted-foreground">{session?.user.email}</p>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <div className="flex items-center justify-between px-2 py-2 text-sm">
+          <span>{t("onDuty")}</span>
+          {/* Real wiring (PATCH /auth/me/on-duty) is RFE-007's lane — shell shows the control only. */}
+          <Switch disabled aria-label={t("onDuty")} />
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/profile">
+            <UserRound className="size-4" /> {t("profile")}
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings">
+            <Settings className="size-4" /> {t("accountSettings")}
+          </Link>
+        </DropdownMenuItem>
+        <LanguageToggleItem />
+        <DropdownMenuSeparator />
+        <LogoutMenuItem />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function LogoutMenuItem() {
+  const t = useTranslations("topbar");
+  const logout = useLogout();
+  return (
+    <DropdownMenuItem
+      onSelect={(event) => {
+        event.preventDefault();
+        logout.mutate();
+      }}
+      disabled={logout.isPending}
+      className="text-destructive focus:text-destructive"
+    >
+      <LogOut className="size-4" /> {t("logout")}
+    </DropdownMenuItem>
+  );
+}

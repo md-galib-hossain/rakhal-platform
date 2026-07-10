@@ -1,6 +1,84 @@
 # Frontend — Current State
 
-**Last updated:** 2026-07-09 · **Completion:** Phase 0 in progress (RFE-001, RFE-002 done) + RFE-100 marketing landing done
+**Last updated:** 2026-07-10 · **Completion:** Phase 0 core done (RFE-001…007) + RFE-100 marketing landing done
+
+## Auth pages (RFE-006 — done)
+All 5 public auth pages built against the **real backend contract** (email+password + token-link email
+verification/reset — not the PRD's aspirational phone/OTP flow, same gap RFE-003 already flagged):
+`/login` (redesigned with real UI primitives, farm-picker for multi-farm accounts), `/register`
+(→ "check your email"), `/forgot-password` (→ always-success, no enumeration), `/reset-password`
+(`?token=`), `/verify-email` (`?token=`, auto-verifies on mount). Shared `AuthShell` (split branding+form
+panel, built PRD-spec since no Figma auth frames exist) + a new `components/shared/locale-toggle.tsx`.
+**Verified live end-to-end** against the real backend for every flow incl. error/invalid-token/missing-
+token states, dark theme, and mobile. Gate green (lint/typecheck/build/18 unit tests).
+**Found + fixed two live backend bugs while verifying** (backend `IN_FLIGHT.md`/`TECH_DEBT.md` have the
+full writeup — not duplicated here): a Prisma enum gap that crashed the **entire backend process** on
+every forgot-password request (migration `email_template_password_reset`), and a `proxy.ts` gap where
+`/verify-email` wasn't in the public-paths allowlist (fixed in this repo). Filed **RD-034** for the
+underlying systemic issue (event listeners with no error boundary) and spawned a background task for it.
+Playwright E2E for these flows is deferred to whichever ticket builds the harness (RFE-009, not started).
+
+## Profile & session self-service (RFE-007 — done, rescoped)
+Real `/profile` page wired to the actual backend, not `Rakhal_API.md`'s aspirational shape — verified
+against `auth.controller.ts` directly. **Backend gap found:** `PATCH /auth/me` (generic), `PATCH
+/auth/me/on-duty`, `PATCH /auth/me/pin`, and `POST /auth/switch-organization` don't exist server-side at
+all (zero matches grepping `src/`); only `PATCH /auth/me/language` is real, alongside `GET /auth/me`,
+`GET /auth/sessions`, `DELETE /auth/sessions/:id`, `POST /auth/logout-all`. Built: account-info card,
+a language card that persists to the backend and flips the local UI-locale cookie together, and a
+sessions card (list/revoke/logout-all, current-device badge from the session's JWT `sessionId`).
+Logout-all needed a new bespoke `/api/auth/logout-all` BFF route (CSRF+cookie dance, mirrors
+`/api/auth/logout`) since it needs `CsrfGuard` and the generic `/api/backend` proxy doesn't attach CSRF
+tokens. The shell's on-duty switch (`user-menu.tsx`) stays disabled — there is genuinely nothing to wire
+it to. Gate green (lint/typecheck/build/test); **live browser smoke test not done this session** — RFE-006
+held the Next.js dev-server lock on this tree throughout, so verification is still owed once that frees up.
+
+## App shell (RFE-005 — done)
+`(app)/layout.tsx` now wraps every authenticated route in a real `AppShell` (`components/layout/**`):
+desktop fixed Sidebar (OrgSwitcher + 15-item module nav + Upgrade banner) that becomes a Sheet-based
+mobile drawer via the topbar's hamburger button, Topbar (⌘K search palette placeholder, notification
+bell placeholder, theme toggle, avatar menu with on-duty switch/profile/settings/language-toggle/logout).
+All 18 module route folders got a stub `page.tsx` + `loading.tsx` + `error.tsx`; root + in-shell
+`not-found.tsx`. **Verified live** against the real backend: login → farm picker → dashboard inside the
+real shell → navigated into `/cattle` (stub renders) → dark theme toggle → resized to mobile, opened the
+Sheet nav, closed it — no console errors anywhere. **OrgSwitcher is read-only for now** — flagged, not
+guessed: the backend only returns the farm list during the login bootstrap step, there's no confirmed
+"list my farms while logged in" GET endpoint (only `POST /auth/switch-organization`, which needs an id we
+don't have post-login). **Local-dev gotcha found while verifying:** `rakhal-backend`'s `.env` now has
+`PORT=5000`, not the `3000` every doc (including `.env.example`) still assumes — this repo's `.env`
+`API_BASE_URL` was pointed at `:5000` to match; someone should reconcile the backend docs/env.
+
+## UI primitives + shared composites (RFE-004 — done)
+Full `components/ui/**` inventory built on top of the existing `button.tsx`: Input, Textarea, Label,
+Select, Checkbox, RadioGroup, Switch, Dialog, Sheet, DropdownMenu, Popover, Tooltip, Tabs, Badge, Card,
+Table, Avatar, Progress, Separator, Skeleton, Calendar (`react-day-picker`), Combobox, Command (`cmdk`),
+and a `sonner` `Toaster` (now the single source of truth — replaced the inline `ThemedToaster` that used
+to live in `providers/app-providers.tsx`, which also now wires `NuqsAdapter` since FilterBar/DataTable need
+it). All semantic-token-only, no raw hex. `components/shared/**`: DataTable (TanStack Table, cursor "load
+more" pagination, URL-synced single-column sort via nuqs, row selection for bulk ops, mobile
+card-collapse, all 4 states), PageHeader, StatCard, ChartCard, EmptyState/ErrorState/TableSkeleton/
+CardSkeleton, ConfirmDialog, FilterBar (300ms-debounced search + select filters, URL-synced), FileUpload
+(drag/drop, type/size validation, image preview, upload progress), FormDialog/FormSheet (dialog/sheet
+chrome only — the caller owns its own RHF+zod form), MoneyText/DateText (locale-aware, wrap
+`lib/format.ts`), CattlePicker (search-select over `GET /cattle`). 11 component tests (DataTable,
+FormDialog, FilterBar) all green using `nuqs/adapters/testing`. **Axe/Lighthouse checks deferred** — no
+real pages or Playwright e2e harness exist yet to run them against meaningfully (RFE-005/009 build those);
+flagged rather than faked. Gate green: lint (0 errors, 1 known non-blocking TanStack-Table React-Compiler
+warning) / typecheck / test / build all pass.
+
+## Auth / API / session layer (RFE-003 — done)
+Full BFF auth flow **verified live in the browser against the real running backend**: login (bootstrap
+farmId → farm picker, demo owner has 5 farms) → farm select → httpOnly session cookies on our own domain
+(`rk_at`/`rk_rt`/`rk_user`, never the backend's tokens directly) → `/dashboard` renders real session data
++ a real backend fetch → logout → gate redirects to `/login` again. See `lib/auth/session.ts`,
+`lib/auth/refresh-core.ts` (shared by `next/headers`-based Route Handlers and `proxy.ts`'s
+`NextRequest`/`NextResponse` cookies — different APIs, same HTTP logic), `lib/api/client.ts` (client fetch
+→ generic `/api/backend/[...path]` proxy) + `lib/api/server-fetch.ts` (RSC direct-to-backend fetch).
+**Real backend contract differs from the cross-repo template docs** — flat error envelope, no per-field
+validation `details[]`, cursor meta shape — all documented in `types/api.ts`'s header comment and
+PROJECT_PROGRESS.md's RFE-003 entry. **Both backend gaps found here are now fixed (2026-07-10, RAKHAL-259/260,
+fixed directly in `rakhal-backend` this session):** `GET /auth/me` no longer leaks `passwordHash`, and now
+returns a real `permissions: string[]`. `<Can/>`/`useCan()` consume it via `/api/auth/session` →
+`serverFetch('/auth/me')` — **verified live** as `["*"]` for the demo owner.
 
 ## Marketing landing page (RFE-100 — done)
 `/` now serves a full cinematic landing page (`app/(landing-page)/**`): hero w/ floating glass cards,
@@ -26,8 +104,10 @@ Domain plan: `rakhal.app`=landing · `farm.rakhal.app`=consumer app (host rewrit
   (Swagger `/api/docs`). Known not-built: milk quality (V1.5), report schedules (V1.5), feed mixtures, mobile sync.
 
 ## Next task
-RFE-003 (API client + auth session layer) → RFE-004 (UI primitives) → RFE-005 (app shell). Single agent
-through Phase 0 core; parallelize from RFE-006 onward per the dependency graph in `PROJECT_PROGRESS.md`.
+RFE-005 and RFE-007 are done. RFE-006 (auth pages) is in progress. Remaining Phase 0: RFE-008
+(subscription context/upgrade UX), RFE-009 (testing harness + seeds), RFE-010 (CI + Lighthouse gate) —
+all parallel-safe now per IN_FLIGHT.md's protocol §6. Live browser verification of RFE-007 is still owed
+once the dev-server lock frees up.
 
 ## Known environment issue (this machine — not a code problem)
 The shared pnpm store (`D:\.pnpm-store\v10`) has a permission-corrupted file — even `icacls`/`Remove-Item`

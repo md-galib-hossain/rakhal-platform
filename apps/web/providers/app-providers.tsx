@@ -1,19 +1,19 @@
-"use client"; // composes client-only providers (theme, toaster; query client joins in RFE-003)
+"use client"; // composes client-only providers (theme, query cache, toaster)
 
-import { Toaster } from "sonner";
-import { useTheme } from "next-themes";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { Toaster } from "@/components/ui/sonner";
+import { QueryProvider } from "./query-provider";
 import { ThemeProvider } from "./theme-provider";
-
-function ThemedToaster() {
-  const { resolvedTheme } = useTheme();
-  return <Toaster theme={resolvedTheme === "dark" ? "dark" : "light"} richColors closeButton />;
-}
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
-      {children}
-      <ThemedToaster />
+      <NuqsAdapter>
+        <QueryProvider>
+          {children}
+          <Toaster richColors closeButton />
+        </QueryProvider>
+      </NuqsAdapter>
     </ThemeProvider>
   );
 }

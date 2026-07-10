@@ -57,14 +57,66 @@
   CSRF handling; httpOnly cookies on our domain; `proxy.ts` coarse gate; `useSession()` +
   `lib/auth/permissions.ts` (`can()`, `<Can/>` — strings from backend RBAC catalogue).
 - **AC:** unit tests for error mapping + refresh single-flight; login→me→refresh→logout proven against live dev backend.
-- **Status:** `TODO`
+- **Status:** `DONE` (2026-07-10) — **verified live end-to-end in the browser** against the real running
+  backend (not curl-only): unauthenticated `/dashboard` → `proxy.ts` redirects to
+  `/login?next=%2Fdashboard` → login form (bootstrap farmId) → farm picker (demo owner has 5 farms) →
+  select farm → session cookies set → `/dashboard` renders real session data (`getSession()`) **and** a
+  real backend fetch (`serverFetchPage('/cattle')`, real cursor `meta`) → Log Out → redirect to `/login`,
+  httpOnly cookies cleared → `/dashboard` gate-redirects again. Refresh path (rotation, CSRF re-fetch)
+  proven via direct backend curl trace (see below) + reused verbatim by the browser flow's token lifetime.
+  **Architecture:** BFF-only — browser never talks to the backend or sees a token. Three httpOnly cookies
+  on our own domain (`rk_at`/`rk_rt`/`rk_user`, see `lib/auth/cookie-names.ts`). Client-side data fetching
+  goes through one generic `/api/backend/[...path]` proxy (reactive 401→refresh→retry-once); Server
+  Components fetch the backend directly via `lib/api/server-fetch.ts` (attaches the cookie's token, no
+  network hop through our own routes). `proxy.ts` proactively refreshes near-expiring tokens before RSC
+  pages render (Proxy uses `NextRequest`/`NextResponse` cookies, a different API from `next/headers` — the
+  actual refresh HTTP calls are factored into cookie-API-agnostic `lib/auth/refresh-core.ts` so neither
+  side duplicates them). Login is a two-step bootstrap-farm flow (`lib/auth/session.ts#loginWithBackend`)
+  matching ARCHITECTURE.md §4 exactly. Minimal but real login page + dashboard built (not RFE-006-final —
+  those own the polish/OTP/register; the session wiring here carries over unchanged).
+  **Real backend contract, verified live (differs from doc 04's aspirational shape — types/api.ts header
+  has the full writeup):** error envelope is flat `{success:false,message,code,requestId,timestamp}` (no
+  `error.details[]` — validation errors are one comma-joined string, not per-field); codes seen:
+  `VALIDATION_ERROR` (400), `UNAUTHORIZED` (401), `FORBIDDEN`/"invalid csrf token" (403); cursor pagination
+  meta is `{count,limit,hasNextPage,hasPreviousPage,startCursor,endCursor}`; `Accept-Language` genuinely
+  localizes error messages (bn default). **CSRF token invalidates across a login/session boundary** — a
+  token fetched before login fails on a post-login refresh/logout call; the fix is to never cache it,
+  fetch fresh immediately before each mutating auth call (implemented this way throughout).
+  **Backend gaps discovered (also see the table below):** (1) ✅ **Fixed 2026-07-10** (RAKHAL-259) —
+  `GET /auth/me` no longer returns `passwordHash` (`AuthRepository.findSafeUserById`, Prisma `omit`).
+  (2) ✅ **Fixed 2026-07-10** (RAKHAL-260) — `GET /auth/me` now includes a real `permissions: string[]`
+  (backend's existing `PermissionService.resolvePermissions`, previously only used by `PermissionGuard`,
+  now also exposed here); `/api/auth/session` fetches it server-side via `serverFetch('/auth/me')` and
+  `<Can/>`/`useCan()` consume the real array — **verified live** as `["*"]` for the demo owner. (3)
+  `POST /auth/refresh`'s embedded `user.isEmailVerified` was observed `false`
+  immediately after login's `true` for the same user — worked around by trusting the cached login-time
+  profile over refresh's, but the backend inconsistency itself is unfixed.
 
 #### RFE-004 — UI primitives + shared composites
 - **Depends:** RFE-002 · **Lane:** `components/ui/**`, `components/shared/**` (exclusive during build-out)
 - Build the full DESIGN_SYSTEM.md §3 inventory. DataTable must do cursor pagination, URL-synced filters
   (nuqs), selection, mobile collapse, all four states.
 - **AC:** component tests for DataTable/FormDialog/FilterBar; axe clean; every primitive tokenized.
-- **Status:** `TODO`
+- **Status:** `DONE` (2026-07-10) — full `components/ui/**` inventory built (added `cmdk` +
+  `react-day-picker`/`date-fns` + `@radix-ui/react-progress`/`react-scroll-area`/`react-toggle` deps for
+  Command/Calendar): Input, Textarea, Label, Select, Checkbox, RadioGroup, Switch, Dialog, Sheet,
+  DropdownMenu, Popover, Tooltip, Tabs, Badge, Card, Table, Avatar, Progress, Separator, Skeleton,
+  Calendar, Combobox, Command, Sonner `Toaster` (now the single source — `providers/app-providers.tsx`'s
+  inline `ThemedToaster` replaced with it, also wired `NuqsAdapter` there since FilterBar/DataTable need
+  it). All primitives are semantic-token-only (no raw hex), matching `button.tsx`'s existing style.
+  `components/shared/**` composites all built: DataTable (TanStack Table, cursor "load more" + URL-synced
+  single-column sort via nuqs, row selection, mobile card-collapse via a `renderMobileCard` render prop,
+  all 4 states), PageHeader, StatCard, ChartCard, EmptyState/ErrorState/TableSkeleton/CardSkeleton,
+  ConfirmDialog, FilterBar (debounced 300ms search + select filters, URL-synced via nuqs), FileUpload
+  (drag/drop, type/size validation, image preview, progress), FormDialog/FormSheet (chrome only — caller
+  owns RHF+zod), MoneyText/DateText (wrap `lib/format.ts`, read locale via `useLocale()`), CattlePicker
+  (Popover+Command search-select over `GET /cattle`). Component tests per AC:
+  `data-table.test.tsx`/`form-dialog.test.tsx`/`filter-bar.test.tsx` (11 tests, using
+  `nuqs/adapters/testing`'s `withNuqsTestingAdapter`) — all green. **Axe/Lighthouse deferred**: no e2e
+  harness or real pages exist yet to run `axe-playwright` against (RFE-009/RFE-005 build those) — flagging
+  rather than fabricating a pass; re-verify once RFE-005's shell pages exist. Gate green:
+  lint/typecheck/test/build all pass (0 errors; 1 known non-blocking React Compiler warning on
+  `useReactTable()`, a TanStack Table incompatible-library note, not a real bug).
 
 #### RFE-005 — App shell, navigation, route skeleton
 - **Depends:** RFE-003, RFE-004 · **Lane:** `app/(app)/layout.tsx`, `components/layout/**`, all route stubs
@@ -73,7 +125,30 @@
   OrgSwitcher (farms list → switch-organization). Route stubs + `loading.tsx`/`error.tsx` per segment;
   `(app)` layout session guard; `not-found`.
 - **AC:** authenticated shell renders with live session; mobile sidebar sheet; keyboard navigable.
-- **Status:** `TODO`
+- **Status:** `DONE` (2026-07-10) — `components/layout/**`: AppShell (desktop fixed `Sidebar` + `Topbar`,
+  `lg:pl-64` content offset), Sidebar (OrgSwitcher + `SidebarNav` 15-item module list from
+  `nav-items.ts` incl. Scoreboard flagged `PRO`/V1.5 + UpgradeBanner), MobileSidebar (Sheet, triggered
+  from the topbar hamburger, closes on nav), Topbar (GlobalSearch ⌘K palette — placeholder per this
+  ticket's scope, live query wiring against `GET /search` §19 is a future ticket — NotificationBell
+  placeholder pending RFE-098's SMS/push provider decision, ThemeToggle, UserMenu), UserMenu (avatar
+  initials, on-duty switch UI-only — real `PATCH /auth/me/on-duty` wiring is RFE-007's lane —
+  profile/settings links, language toggle wired to the existing `lib/i18n/set-locale.ts` server action,
+  logout via `useLogout()`). `(app)/layout.tsx` now wraps `children` in `<AppShell>`; route stubs +
+  `loading.tsx`/`error.tsx` added for all 18 module folders (`components/layout/route-stub.tsx` /
+  `route-loading.tsx` / `route-error.tsx` share the boilerplate); root `app/not-found.tsx` (public 404)
+  + `app/(app)/not-found.tsx` (404 inside the shell). **Gap flagged, not guessed:** `OrgSwitcher` shows
+  the current farm read-only — the backend only returns the farm list during the login bootstrap step
+  (`features/auth/types.ts#FarmOption`); there is no confirmed "list my farms while logged in" GET
+  endpoint (only `POST /auth/switch-organization`, which needs an id we don't have post-login) — wire
+  the real switcher once that endpoint exists or is confirmed in Swagger. **Verified live** end-to-end
+  in the browser against the real backend (demo owner, 5 farms): login → farm picker → dashboard inside
+  the real AppShell (sidebar, topbar, avatar "DO" initials) → clicked into `/cattle` (route stub renders
+  "Coming soon") → dark theme toggle applied (`<html class="…dark">`, `color-scheme: dark`) → resized to
+  375px mobile, hamburger opened the Sheet with the full nav, closed on click. No console errors.
+  **Local-dev gotcha discovered while verifying:** `rakhal-backend`'s `.env` now has `PORT=5000` (not
+  3000 as `.env.example`/every doc still says) — this frontend's `.env` `API_BASE_URL` was pointed at
+  `:5000` to match for this verification session; whoever owns the backend should reconcile the docs
+  vs. the actual configured port. Gate green: lint/typecheck/test/build all pass.
 
 #### RFE-006 — Auth pages (login / register / forgot-password / farm select)
 - **Depends:** RFE-003, RFE-004 · **Lane:** `app/(auth)/**`, `features/auth/**` · **Design:** Figma auth frames
@@ -82,14 +157,76 @@
   Full Metadata/SEO on these public pages.
 - **API:** §1 Auth & Session · **PRD:** §5
 - **AC:** Playwright E2E: register-mock/login→dashboard smoke; VALIDATION_FAILED maps to fields; Lighthouse 100 on /login.
-- **Status:** `TODO`
+- **Status:** `DONE` (2026-07-10) — **Real backend contract confirmed live (Swagger + controller read),
+  not the PRD's aspirational phone/OTP flow**: this backend is email+password with **token-link**
+  email verification (`POST /auth/verify-email {token}`) and reset password (`POST /auth/reset-password
+  {token,newPassword}`) — no `/auth/verify-otp` endpoint exists (matches the phone/OTP gap RFE-003
+  already flagged in `CURRENT_STATE.md`/backend `TEMPLATE_OVERVIEW.md` §13). Built against the real
+  contract: **login** (polished — redesigned `LoginForm` with real `Input`/`Label`/`Button` primitives,
+  farm-picker with a "use a different account" back action, i18n), **register** (name+email+password →
+  "check your email" success state), **forgot-password** (email → always-success state, no user
+  enumeration), **reset-password** (`?token=` from the URL; missing/invalid-token state; success →
+  login), **verify-email** (`?token=` auto-fires on mount; loading/success/error/missing-token states).
+  New shared `features/auth/components/auth-shell.tsx` (split branding-panel + form-panel chrome, reused
+  by all 5 pages — no Figma auth frames exist yet, DESIGN_SYSTEM.md §1 resolution-path 3: built with
+  established tokens/components matching the landing page's brand language, not invented). New shared
+  `components/shared/locale-toggle.tsx` (promoted out of the landing page's private `_components/` so a
+  feature can use it without reaching into another route group's internals). `features/auth/{schemas,
+  types,api,hooks}` extended with `register`/`verifyEmail`/`forgotPassword`/`resetPassword` (the three
+  non-login mutations go through the generic `/api/backend/[...path]` proxy — no bespoke cookie logic
+  needed, unlike login). New i18n `auth.*` namespace (bn+en, full copy for all 5 flows); removed the now-
+  dead `authPlaceholder` namespace. **Verified live end-to-end against the real backend** (browser,
+  demo owner + a real registered test account, cleaned up after): login → farm-picker → dashboard;
+  register → 201 → success state; forgot-password → 201 → success state; reset-password with a
+  DB-seeded valid token → 201 → success → confirmed the new password logs in; verify-email with a
+  DB-seeded valid token → auto-verifies → success state; invalid-token and missing-token states on both
+  reset-password and verify-email; duplicate-email register → backend's `409 Email already exists`
+  surfaces correctly, no crash; dark theme (desktop split-panel, confirmed via computed-style probe —
+  the JPEG screenshot's compression made the dark-green/near-black contrast hard to eyeball, verified via
+  DOM instead) + mobile 375px (single column, branding panel hidden, no overflow). Gate green: lint (0
+  errors, 1 pre-existing non-blocking DataTable warning) / typecheck / build / **18 unit tests** all pass.
+  **Two real bugs found + fixed live** (both blocking this ticket's own verification, fixed under the
+  established RFE-003/RAKHAL-259/260 precedent of collaborative agents patching blocking backend bugs
+  found in-session — logged in the backend's `IN_FLIGHT.md`/`TECH_DEBT.md`, not this repo's):
+  (1) **Prisma `EmailTemplate` enum was missing `PASSWORD_RESET`** (the TS domain enum already had it) —
+  every `POST /auth/forgot-password` call crashed the **entire backend process** (uncaught
+  `PrismaClientValidationError` inside an unguarded event listener). One-line schema fix + migration
+  `email_template_password_reset`. (2) **`proxy.ts`'s `PUBLIC_PATHS` list didn't include `/verify-email`**
+  (it predates this ticket, from RFE-003/005) — an unauthenticated user clicking the email link got
+  bounced to `/login` instead of reaching the verification page. Added `/verify-email` to the list (this
+  repo's own fix, in-lane). **Filed RD-034** (backend `TECH_DEBT.md`) for the systemic issue behind bug
+  (1) — domain event listeners have no error boundary and can crash the whole process; spawned a
+  background task for it (out of this ticket's scope). **Deferred, not built here** (documented as gaps,
+  not guessed): Playwright E2E (blocked on RFE-009, not started yet — AC's Lighthouse-100/E2E requirement
+  carries over to whichever ticket builds the harness), pixel-exact auth visual design (no Figma access
+  yet, same blocker as RFE-002/004).
 
 #### RFE-007 — Profile & session self-service
 - **Depends:** RFE-005 · **Lane:** `features/profile/**`, `app/(app)/profile/**`
 - `GET/PATCH /auth/me`, on-duty toggle (`PATCH /auth/me/on-duty`), PIN set/change (`PATCH /auth/me/pin`),
   language toggle (`PATCH /auth/me/language`), sessions list/revoke if exposed.
 - **API:** §1 · **PRD:** §5 · **Design:** PRD-spec
-- **Status:** `TODO`
+- **Status:** `DONE` (scoped to what the real backend exposes)
+- **Rescoped, 2026-07-10:** verified against the actual `auth.controller.ts` (not just `Rakhal_API.md`) —
+  `PATCH /auth/me` (generic), `PATCH /auth/me/on-duty`, `PATCH /auth/me/pin`, and
+  `POST /auth/switch-organization` **don't exist in the backend at all** (zero grep matches in `src/`).
+  Only `PATCH /auth/me/language` is real. Built: real `/profile` page — `GET /auth/me` account-info
+  card (verified email badge, member-since, last-login, last-password-change via `DateText`), a
+  language-preference card that persists `PATCH /auth/me/language` **and** flips the local UI-locale
+  cookie in one action (so it never disagrees with the topbar's cookie-only `LocaleToggle`), and a real
+  sessions card (`GET /auth/sessions` list + `DELETE /auth/sessions/:id` revoke via `ConfirmDialog`,
+  current-device badge derived from the session cookie's JWT `sessionId` claim, `POST /auth/logout-all`
+  wired through a new bespoke `/api/auth/logout-all` route — mirrors `/api/auth/logout`'s CSRF+cookie
+  dance in `lib/auth/session.ts` since that route needs `CsrfGuard` and the generic `/api/backend`
+  proxy doesn't attach CSRF tokens). On-duty toggle and PIN self-service are **not built** — no backend
+  route to call; the shell's on-duty switch (`components/layout/user-menu.tsx`) stays disabled as
+  RFE-005 left it. See the gaps table below for the missing-endpoints entry.
+- **Gate:** `pnpm typecheck` (0) / `pnpm lint` (0 errors, 1 pre-existing unrelated warning) / `pnpm test`
+  (18/18) / `pnpm build` (green, `/profile` route compiles) all pass. **Live browser verification not
+  yet done this session** — blocked by RFE-006's dev server holding the Next.js single-instance lock on
+  this same working tree (`localhost:3000`, PID observed live); didn't kill another agent's active
+  server to force it. Re-run the interactive smoke test (login → `/profile` → toggle language → revoke a
+  non-current session → logout-all → lands on `/login`) once that port is free.
 
 #### RFE-008 — Subscription context + read-only/upgrade UX
 - **Depends:** RFE-005 · **Lane:** `features/subscription/**` (context part), `components/layout/upgrade-banner.tsx`
@@ -347,4 +484,8 @@ Same-folder sequences: 021→022→023→024 · 031→032 · 008→036 · 024→
 
 | Date | Page/ticket | Gap | Backend action |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-07-10 | RFE-003 | ✅ **FIXED** `GET /auth/me` returned `passwordHash` in plaintext | RAKHAL-259 — `AuthRepository.findSafeUserById` (Prisma `omit`), covered by `test/auth-me.e2e-spec.ts` |
+| 2026-07-10 | RFE-003 | ✅ **FIXED** No endpoint returned the current user's `resource.action` permission strings | RAKHAL-260 — `GET /auth/me` now includes `permissions: string[]` via the existing `PermissionService.resolvePermissions`; frontend's `/api/auth/session` + `<Can/>`/`useCan()` updated to consume it, verified live |
+| 2026-07-10 | RFE-003 | `POST /auth/refresh`'s embedded `user.isEmailVerified` observed `false` right after login's `true` for the same user | Worked around client-side (trust login-time cached profile over refresh's); backend inconsistency itself unfixed |
+| 2026-07-10 | RFE-003 | Error envelope is flat (`{success,message,code,requestId,timestamp}`), not the `{error:{code,message,details}}` shape the cross-repo template doc assumes; validation errors are one comma-joined string, no per-field `details[]` | Not necessarily a bug — just means frontend form-error mapping can only show a form-level message, never per-field, until/unless the backend adds structured validation details |
+| 2026-07-10 | RFE-007 | `PATCH /auth/me/on-duty`, `PATCH /auth/me/pin`, generic `PATCH /auth/me` (name/avatar), and `POST /auth/switch-organization` are documented in `Rakhal_API.md` but **do not exist in the backend at all** (grepped `src/` — zero matches for on-duty/pin/switch-organization; only route is `PATCH /auth/me/language`). `GET /auth/sessions` + `DELETE /auth/sessions/:sessionId` + `POST /auth/logout-all` DO exist and are real. Confirmed via `auth.controller.ts`/`auth.service.ts`. | Not built client-side — placeholders left disabled/hidden rather than faked. Backend ticket needed for on-duty toggle, PIN self-service, generic profile edit, org switch before RFE-007 can close out those ACs. RFE-005's OrgSwitcher already flagged the switch-organization gap separately. |

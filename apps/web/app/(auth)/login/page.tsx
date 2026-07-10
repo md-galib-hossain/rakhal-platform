@@ -1,18 +1,18 @@
-import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
+import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
+import { AuthShell } from "@/features/auth/components/auth-shell";
+import { LoginForm } from "@/features/auth/components/login-form";
 
-// Placeholder — the real login page (form + BFF auth) lands in RFE-006 after RFE-003.
-export default function LoginPage() {
-  const t = useTranslations("authPlaceholder");
-  const tc = useTranslations("common");
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("auth.login");
+  return { title: `${t("title")} — Rakhal`, description: t("subtitle") };
+}
+
+export default async function LoginPage() {
+  const t = await getTranslations("auth.login");
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center gap-6 px-6 text-center">
-      <h1 className="text-2xl font-bold">{t("comingSoon")}</h1>
-      <p className="max-w-md text-muted-foreground">{t("loginSoonBody")}</p>
-      <Button variant="secondary" asChild>
-        <Link href="/">{tc("back")}</Link>
-      </Button>
-    </div>
+    <AuthShell title={t("title")} description={t("subtitle")}>
+      <LoginForm />
+    </AuthShell>
   );
 }
