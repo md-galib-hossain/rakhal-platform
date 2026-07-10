@@ -4,6 +4,9 @@
  * Design tokens — extracted from 75 UI reference screenshots, see:
  *   D:\Projects\Rakhal\docs\rakhal-ui-analysis.md §6 (Design tokens)
  * Values are eye-sampled approximations pending pixel-confirmation against Figma (RFE-002 AC).
+ * --primary/--primary-hover are pixel-confirmed against the Figma auth frames (Primary/primary-500
+ * #00A86B, Primary/primary-700 #00774C) as of the RFE-006 pixel-exact pass — the rest of this file
+ * is still eye-sampled pending a full design-system Figma sweep.
  * Semantic tokens only — components must never use raw hex values.
  */
 :root {
@@ -16,8 +19,8 @@
   --popover-foreground: #171d22;
 
   /* Brand */
-  --primary: #16a34a;
-  --primary-hover: #128a3e;
+  --primary: #00a86b;
+  --primary-hover: #00774c;
   --primary-foreground: #ffffff;
   --sidebar: #0b5137;
   --sidebar-foreground: #ffffff;
@@ -32,7 +35,7 @@
   --accent-foreground: #171d22;
   --border: #e7e9ec;
   --input: #e7e9ec;
-  --ring: #16a34a66;
+  --ring: #00a86b66;
 
   /* Semantic status */
   --success: #16a34a;
@@ -81,8 +84,8 @@
   --popover: #171d22;
   --popover-foreground: #eef1f3;
 
-  --primary: #22c55e;
-  --primary-hover: #16a34a;
+  --primary: #1ec883;
+  --primary-hover: #00a86b;
   --primary-foreground: #08130c;
   --sidebar: #06301f;
   --sidebar-foreground: #ffffff;
@@ -96,7 +99,7 @@
   --accent-foreground: #eef1f3;
   --border: #262e35;
   --input: #262e35;
-  --ring: #22c55e66;
+  --ring: #1ec88366;
 
   --success: #22c55e;
   --success-foreground: #08130c;

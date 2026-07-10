@@ -32,3 +32,16 @@ export const resetPasswordSchema = z.object({
   newPassword: z.string().min(8),
 });
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+/**
+ * Form-only superset of `resetPasswordSchema` — adds the confirm-password field the Figma "Set
+ * New Password" frame shows. `confirmPassword` never reaches the backend; strip it before calling
+ * `resetPassword.mutateAsync`.
+ */
+export const resetPasswordFormSchema = resetPasswordSchema
+  .extend({ confirmPassword: z.string().min(8) })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "passwordMismatch",
+    path: ["confirmPassword"],
+  });
+export type ResetPasswordFormInput = z.infer<typeof resetPasswordFormSchema>;

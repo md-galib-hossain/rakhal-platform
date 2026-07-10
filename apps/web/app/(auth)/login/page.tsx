@@ -8,10 +8,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t("title")} — Rakhal`, description: t("subtitle") };
 }
 
-export default async function LoginPage() {
-  const t = await getTranslations("auth.login");
+export default function LoginPage() {
   return (
-    <AuthShell title={t("title")} description={t("subtitle")}>
+    <AuthShell>
       <LoginForm />
     </AuthShell>
   );

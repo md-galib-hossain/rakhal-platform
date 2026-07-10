@@ -8,8 +8,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FloatingInput } from "@/components/ui/floating-input";
 import { useLogin } from "../hooks/use-login";
 import { loginSchema, type LoginInput } from "../schemas";
 import type { FarmOption } from "../types";
@@ -54,100 +53,97 @@ export function LoginForm() {
 
   if (farms) {
     return (
-      <div className="space-y-6">
-        <div className="space-y-1.5">
-          <h1 className="text-2xl font-bold text-foreground">{t("farmPicker.title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("farmPicker.subtitle")}</p>
+      <div className="flex w-full flex-col items-center gap-[60px]">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <h1 className="text-[28px] font-bold leading-[1.4] text-foreground">{t("farmPicker.title")}</h1>
+          <p className="text-base text-muted-foreground">{t("farmPicker.subtitle")}</p>
         </div>
-        {formError ? (
-          <p role="alert" className="rounded-md bg-destructive-tint px-3 py-2 text-sm text-destructive">
-            {formError}
-          </p>
-        ) : null}
-        <ul className="space-y-2">
-          {farms.map((farm) => (
-            <li key={farm.id}>
-              <button
-                type="button"
-                disabled={login.isPending}
-                onClick={() => selectFarm(farm.id)}
-                className="flex w-full items-center justify-between rounded-md border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-muted disabled:opacity-50"
-              >
-                <span className="font-semibold text-foreground">{farm.name}</span>
-                <span className="text-sm text-muted-foreground">{farm.role}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        <Button
-          type="button"
-          variant="ghost"
-          className="w-full"
-          disabled={login.isPending}
-          onClick={() => {
-            setFarms(null);
-            setCredentials(null);
-            setFormError(null);
-          }}
-        >
-          {t("farmPicker.back")}
-        </Button>
+        <div className="flex w-full flex-col gap-4">
+          {formError ? (
+            <p role="alert" className="rounded-md bg-destructive-tint px-3 py-2 text-sm text-destructive">
+              {formError}
+            </p>
+          ) : null}
+          <ul className="space-y-2">
+            {farms.map((farm) => (
+              <li key={farm.id}>
+                <button
+                  type="button"
+                  disabled={login.isPending}
+                  onClick={() => selectFarm(farm.id)}
+                  className="flex w-full items-center justify-between rounded-[14px] border border-input bg-card px-4 py-3 text-left transition-colors hover:bg-muted disabled:opacity-50"
+                >
+                  <span className="font-semibold text-foreground">{farm.name}</span>
+                  <span className="text-sm text-muted-foreground">{farm.role}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full"
+            disabled={login.isPending}
+            onClick={() => {
+              setFarms(null);
+              setCredentials(null);
+              setFormError(null);
+            }}
+          >
+            {t("farmPicker.back")}
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" noValidate>
-      <div className="space-y-1.5">
-        <h1 className="text-2xl font-bold text-foreground">{t("login.title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("login.subtitle")}</p>
-      </div>
-
-      {formError ? (
-        <p role="alert" className="rounded-md bg-destructive-tint px-3 py-2 text-sm text-destructive">
-          {formError}
+    <form onSubmit={form.handleSubmit(onSubmit)} className="flex w-full flex-col items-center gap-[60px]" noValidate>
+      <div className="flex flex-col items-center gap-3 text-center">
+        <h1 className="text-[28px] font-bold leading-[1.4] text-foreground">{t("login.title")}</h1>
+        <p className="text-base text-muted-foreground">
+          {t("login.noAccount")}{" "}
+          <Link href="/register" className="font-bold text-primary hover:underline">
+            {t("login.createAccount")}
+          </Link>
         </p>
-      ) : null}
-
-      <div className="space-y-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="email">{t("login.email")}</Label>
-          <Input
-            id="email"
-            type="email"
-            autoComplete="email"
-            error={form.formState.errors.email?.message}
-            {...form.register("email")}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="password">{t("login.password")}</Label>
-            <Link href="/forgot-password" className="text-sm font-medium text-primary hover:underline">
-              {t("login.forgotPassword")}
-            </Link>
-          </div>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            error={form.formState.errors.password?.message}
-            {...form.register("password")}
-          />
-        </div>
       </div>
 
-      <Button type="submit" disabled={login.isPending} className="w-full">
-        {login.isPending ? t("login.submitting") : t("login.submit")}
-      </Button>
+      <div className="flex w-full flex-col gap-6">
+        {formError ? (
+          <p role="alert" className="rounded-md bg-destructive-tint px-3 py-2 text-sm text-destructive">
+            {formError}
+          </p>
+        ) : null}
 
-      <p className="text-center text-sm text-muted-foreground">
-        {t("login.noAccount")}{" "}
-        <Link href="/register" className="font-medium text-primary hover:underline">
-          {t("login.createAccount")}
-        </Link>
-      </p>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex w-full flex-col gap-6">
+            <FloatingInput
+              id="email"
+              type="email"
+              label={t("login.email")}
+              autoComplete="email"
+              error={form.formState.errors.email?.message}
+              {...form.register("email")}
+            />
+            <FloatingInput
+              id="password"
+              type="password"
+              label={t("login.password")}
+              autoComplete="current-password"
+              error={form.formState.errors.password?.message}
+              {...form.register("password")}
+            />
+          </div>
+          <Link href="/forgot-password" className="p-1 text-sm font-medium text-primary hover:underline">
+            {t("login.forgotPassword")}
+          </Link>
+        </div>
+
+        <Button type="submit" disabled={login.isPending} className="h-[52px] w-full rounded-xl">
+          {login.isPending ? t("login.submitting") : t("login.submit")}
+        </Button>
+      </div>
     </form>
   );
 }

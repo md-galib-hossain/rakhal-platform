@@ -198,8 +198,24 @@
   (1) — domain event listeners have no error boundary and can crash the whole process; spawned a
   background task for it (out of this ticket's scope). **Deferred, not built here** (documented as gaps,
   not guessed): Playwright E2E (blocked on RFE-009, not started yet — AC's Lighthouse-100/E2E requirement
-  carries over to whichever ticket builds the harness), pixel-exact auth visual design (no Figma access
-  yet, same blocker as RFE-002/004).
+  carries over to whichever ticket builds the harness), ~~pixel-exact auth visual design (no Figma access
+  yet, same blocker as RFE-002/004)~~ **resolved below.**
+- **Pixel-exact pass (2026-07-10)** — Figma access landed (official plugin, user OAuth'd). Pulled the real
+  auth frames from file `SCfMPdxP6vgW1uTxfqCtz7` (`1042:63021` Sign In, `1039:52364` Sign Up, `1039:52389`
+  Reset Password, `1039:52443` Set New Password; no frame exists for verify-email — same OTP-vs-token-link
+  gap as before) and rebuilt all 5 pages to match: `AuthShell` rewritten (form panel moved to the **left**
+  per Figma — RFE-006 originally had it on the right; 453px white card, `rounded-[20px]`, `gap-[60px]`,
+  real hero photo + wordmark downloaded to `public/auth/**` since Figma's asset CDN URLs expire in 7 days),
+  new `components/ui/floating-input.tsx` (floating-label input matching Figma's "Input Field/lg-52px",
+  built-in password show/hide). **Real brand primary confirmed `#00A86B`/`#00774C`** (not the RFE-002
+  eye-sampled `#16a34a`) — updated app-wide in `app/globals.css` (`--primary`/`--primary-hover`/`--ring`,
+  both themes; dark derived, no dark Figma frames exist yet). Added a `confirmPassword` field to
+  reset-password (`resetPasswordFormSchema` in `schemas.ts`, client-only, stripped before the API call) to
+  match the Figma "Set New Password" frame's two-field layout. New i18n: `auth.shell.{headline,subcopy}`,
+  `auth.resetPassword.{confirmPassword,passwordMismatch}` (bn+en). Full writeup + open gaps (font family
+  not swapped to Satoshi, rest of the palette still eye-sampled) in `DESIGN_SYSTEM.md` §4. **Verified LIVE**:
+  all 4 pages (with Figma frames), light+dark theme, bn+en locale, desktop (1280px) + mobile (375px) — no
+  console errors, no failed network requests. Gate green: lint/typecheck/build/18 unit tests all pass.
 
 #### RFE-007 — Profile & session self-service
 - **Depends:** RFE-005 · **Lane:** `features/profile/**`, `app/(app)/profile/**`

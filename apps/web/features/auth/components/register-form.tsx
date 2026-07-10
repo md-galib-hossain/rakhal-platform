@@ -8,8 +8,7 @@ import { useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FloatingInput } from "@/components/ui/floating-input";
 import { useRegister } from "../hooks/use-register";
 import { registerSchema, type RegisterInput } from "../schemas";
 
@@ -33,17 +32,17 @@ export function RegisterForm() {
 
   if (registeredEmail) {
     return (
-      <div className="space-y-6 text-center">
+      <div className="flex w-full flex-col items-center gap-[60px] text-center">
         <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-success-tint text-success">
           <Mail className="size-6" aria-hidden />
         </div>
-        <div className="space-y-1.5">
-          <h1 className="text-2xl font-bold text-foreground">{t("register.successTitle")}</h1>
-          <p className="text-sm text-muted-foreground">
+        <div className="flex flex-col gap-3">
+          <h1 className="text-[28px] font-bold leading-[1.4] text-foreground">{t("register.successTitle")}</h1>
+          <p className="text-base text-muted-foreground">
             {t("register.successBody", { email: registeredEmail })}
           </p>
         </div>
-        <Button asChild className="w-full">
+        <Button asChild className="h-[52px] w-full rounded-xl">
           <Link href="/login">{t("register.backToLogin")}</Link>
         </Button>
       </div>
@@ -51,60 +50,61 @@ export function RegisterForm() {
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" noValidate>
-      <div className="space-y-1.5">
-        <h1 className="text-2xl font-bold text-foreground">{t("register.title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("register.subtitle")}</p>
+    <form onSubmit={form.handleSubmit(onSubmit)} className="flex w-full flex-col items-center gap-[60px]" noValidate>
+      <div className="flex flex-col items-center gap-3 text-center">
+        <h1 className="text-[28px] font-bold leading-[1.4] text-foreground">{t("register.title")}</h1>
+        <p className="text-base text-muted-foreground">
+          {t("register.haveAccount")}{" "}
+          <Link href="/login" className="font-bold text-primary hover:underline">
+            {t("register.logIn")}
+          </Link>
+        </p>
       </div>
 
-      {formError ? (
-        <p role="alert" className="rounded-md bg-destructive-tint px-3 py-2 text-sm text-destructive">
-          {formError}
-        </p>
-      ) : null}
+      <div className="flex w-full flex-col items-center gap-6">
+        {formError ? (
+          <p role="alert" className="w-full rounded-md bg-destructive-tint px-3 py-2 text-sm text-destructive">
+            {formError}
+          </p>
+        ) : null}
 
-      <div className="space-y-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="name">{t("register.name")}</Label>
-          <Input id="name" autoComplete="name" error={form.formState.errors.name?.message} {...form.register("name")} />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="email">{t("register.email")}</Label>
-          <Input
+        <div className="flex w-full flex-col gap-6">
+          <FloatingInput
+            id="name"
+            label={t("register.name")}
+            autoComplete="name"
+            error={form.formState.errors.name?.message}
+            {...form.register("name")}
+          />
+          <FloatingInput
             id="email"
             type="email"
+            label={t("register.email")}
             autoComplete="email"
             error={form.formState.errors.email?.message}
             {...form.register("email")}
           />
+          <div>
+            <FloatingInput
+              id="password"
+              type="password"
+              label={t("register.password")}
+              autoComplete="new-password"
+              error={form.formState.errors.password?.message}
+              {...form.register("password")}
+            />
+            {!form.formState.errors.password ? (
+              <p className="mt-1.5 text-xs text-muted-foreground">{t("register.passwordHint")}</p>
+            ) : null}
+          </div>
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="password">{t("register.password")}</Label>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="new-password"
-            error={form.formState.errors.password?.message}
-            {...form.register("password")}
-          />
-          {!form.formState.errors.password ? (
-            <p className="text-xs text-muted-foreground">{t("register.passwordHint")}</p>
-          ) : null}
+        <div className="flex w-full flex-col items-center gap-4">
+          <Button type="submit" disabled={register.isPending} className="h-[52px] w-full rounded-xl">
+            {register.isPending ? t("register.submitting") : t("register.submit")}
+          </Button>
         </div>
       </div>
-
-      <Button type="submit" disabled={register.isPending} className="w-full">
-        {register.isPending ? t("register.submitting") : t("register.submit")}
-      </Button>
-
-      <p className="text-center text-sm text-muted-foreground">
-        {t("register.haveAccount")}{" "}
-        <Link href="/login" className="font-medium text-primary hover:underline">
-          {t("register.logIn")}
-        </Link>
-      </p>
     </form>
   );
 }

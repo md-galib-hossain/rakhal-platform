@@ -8,10 +8,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t("title")} — Rakhal`, description: t("subtitle") };
 }
 
-export default async function RegisterPage() {
-  const t = await getTranslations("auth.register");
+export default function RegisterPage() {
   return (
-    <AuthShell title={t("title")} description={t("subtitle")}>
+    <AuthShell>
       <RegisterForm />
     </AuthShell>
   );

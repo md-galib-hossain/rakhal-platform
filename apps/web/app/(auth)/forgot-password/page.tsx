@@ -8,10 +8,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t("title")} — Rakhal`, description: t("subtitle"), robots: { index: false } };
 }
 
-export default async function ForgotPasswordPage() {
-  const t = await getTranslations("auth.forgotPassword");
+export default function ForgotPasswordPage() {
   return (
-    <AuthShell title={t("title")} description={t("subtitle")}>
+    <AuthShell>
       <ForgotPasswordForm />
     </AuthShell>
   );

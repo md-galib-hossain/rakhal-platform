@@ -14,9 +14,8 @@ export default async function ResetPasswordPage({
   searchParams: Promise<{ token?: string }>;
 }) {
   const { token } = await searchParams;
-  const t = await getTranslations("auth.resetPassword");
   return (
-    <AuthShell title={t("title")} description={t("subtitle")}>
+    <AuthShell>
       <ResetPasswordForm token={token} />
     </AuthShell>
   );

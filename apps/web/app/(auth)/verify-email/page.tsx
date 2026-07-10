@@ -14,9 +14,8 @@ export default async function VerifyEmailPage({
   searchParams: Promise<{ token?: string }>;
 }) {
   const { token } = await searchParams;
-  const t = await getTranslations("auth.verifyEmail");
   return (
-    <AuthShell title={t("title")}>
+    <AuthShell>
       <VerifyEmailStatus token={token} />
     </AuthShell>
   );

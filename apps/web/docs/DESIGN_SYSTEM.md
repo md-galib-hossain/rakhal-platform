@@ -131,8 +131,36 @@ toggle) · OrgSwitcher (farms list + switch-organization flow).
   `providers/theme-provider.tsx` → `providers/app-providers.tsx` (also hosts a theme-aware `sonner` Toaster).
   Verified: system dark → tokens flip correctly; light → `#f2f3f5` canvas matches the screenshots exactly.
 
-> _Empty. First agent to pull a Figma frame or receive screenshots: record exact palette hexes, type scale,
-> spacing base, card radius/shadow, sidebar width, breakpoint behavior here._
+**RFE-006 pixel-exact pass (2026-07-10) — Figma auth frames pulled live** (official plugin OAuth'd by the
+user): `get_design_context`/`get_metadata` on file `SCfMPdxP6vgW1uTxfqCtz7` for frames `1042:63021` (Sign
+In), `1039:52364` (Sign Up), `1039:52389` (Reset Password — email step), `1039:52443` (Set New Password).
+Exact tokens confirmed from these frames (first real Figma pixel-pick — supersedes the eye-sampled §4
+entry above for these values only, the rest of the palette is still unconfirmed):
+- **Primary/primary-500 `#00A86B`, Primary/primary-700 `#00774C`** — now `--primary`/`--primary-hover` in
+  `app/globals.css` (both themes; dark is a derived lighter tint, no dark Figma frames exist). This
+  replaces the old eye-sampled `#16a34a`/`#128a3e` **app-wide**, not just on auth pages.
+- Card chrome: white/`#FEFEFE` surface, `rounded-[20px]`, `p-[30px]`, `gap-[60px]` between the title block
+  and the field block, `shadow: 0px 12px 16px rgba(0,0,0,0.12)`, fixed width `453px`.
+- Input ("Input Field/lg - 52px"): `h-[52px]`, `rounded-[14px]`, `1px` border `#E6E6E6` (≈ existing
+  `--border` token, close enough not to need a new one), floating label chip (`bg-card`, `rounded-[4px]`,
+  overlapping the top border at `-10px`) — built as the new `components/ui/floating-input.tsx`.
+- Type: Satoshi Bold 28px/1.4 (card title), Satoshi Medium 16px (subtitle/body), Satoshi Medium 14px
+  (input value), Satoshi Medium 12px (floating label), Satoshi Bold 16px (button). **Font family not
+  swapped** — Satoshi isn't loaded in this project (still Plus Jakarta Sans/Noto Sans Bengali per RFE-002);
+  flagged, not guessed. Swap fonts only via an explicit follow-up ticket (loading a new `next/font` costs a
+  perf-budget review).
+- Layout: form panel **left** (760/1440 share), photo/branding panel **right** (680/1440 share) — the
+  opposite order RFE-006 originally shipped (branding was left). `AuthShell` corrected to match.
+- Hero photo + "Rakhal." wordmark are real Figma image exports, downloaded to `public/auth/{hero.png,
+  logo-mark.svg}` (Figma's asset CDN URLs expire after 7 days — do not reference `figma.com/api/mcp/asset/…`
+  URLs directly in code, always download first).
+- No Figma frame exists for `/verify-email` (the prototype's equivalent flow is OTP-based, which this
+  backend doesn't implement — same gap RFE-006 originally flagged) — left on the shared card chrome only.
+
+> First agent to pull a Figma frame or receive screenshots: record exact palette hexes, type scale,
+> spacing base, card radius/shadow, sidebar width, breakpoint behavior here. **Still open:** full palette
+> pixel-confirmation beyond primary (background/card/border/status/chart hues), sidebar/app-shell frames,
+> and every non-auth module frame — pull as each ticket touches that area.
 
 ## 5. UX conventions
 

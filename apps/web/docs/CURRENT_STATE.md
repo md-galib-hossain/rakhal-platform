@@ -18,6 +18,18 @@ every forgot-password request (migration `email_template_password_reset`), and a
 underlying systemic issue (event listeners with no error boundary) and spawned a background task for it.
 Playwright E2E for these flows is deferred to whichever ticket builds the harness (RFE-009, not started).
 
+**Pixel-exact visual pass (2026-07-10)** — Figma access landed (official plugin, user OAuth'd). Rebuilt
+all 5 auth pages against the real "Sign In"/"Sign Up"/"Reset Password"/"Set New Password" Figma frames
+(file `SCfMPdxP6vgW1uTxfqCtz7`): `AuthShell` form panel moved to the **left** (Figma order — was right),
+exact 453px card chrome, new `components/ui/floating-input.tsx` (floating-label inputs), real hero
+photo/wordmark downloaded to `public/auth/**` (Figma asset URLs expire in 7 days), a `confirmPassword`
+field added to reset-password to match Figma's two-field layout. **Confirmed the real brand primary is
+`#00A86B`/`#00774C`** — swapped app-wide in `app/globals.css` (was the RFE-002 eye-sampled `#16a34a`). No
+Figma frame exists for verify-email (prototype uses OTP, this backend doesn't) — left on shared chrome
+only. Full writeup: `PROJECT_PROGRESS.md` RFE-006 entry + `DESIGN_SYSTEM.md` §4. **Verified live**:
+light/dark theme × bn/en locale × desktop (1280px)/mobile (375px), no console errors. Gate green
+(lint/typecheck/build/18 unit tests).
+
 ## Profile & session self-service (RFE-007 — done, rescoped)
 Real `/profile` page wired to the actual backend, not `Rakhal_API.md`'s aspirational shape — verified
 against `auth.controller.ts` directly. **Backend gap found:** `PATCH /auth/me` (generic), `PATCH

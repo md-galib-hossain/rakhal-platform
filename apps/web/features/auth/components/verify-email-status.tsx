@@ -20,15 +20,15 @@ export function VerifyEmailStatus({ token }: { token: string | undefined }) {
 
   if (!token) {
     return (
-      <div className="space-y-6 text-center">
+      <div className="flex w-full flex-col items-center gap-[60px] text-center">
         <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-destructive-tint text-destructive">
           <XCircle className="size-6" aria-hidden />
         </div>
-        <div className="space-y-1.5">
-          <h1 className="text-2xl font-bold text-foreground">{t("errorTitle")}</h1>
-          <p className="text-sm text-muted-foreground">{t("invalidToken")}</p>
+        <div className="flex flex-col gap-3">
+          <h1 className="text-[28px] font-bold leading-[1.4] text-foreground">{t("errorTitle")}</h1>
+          <p className="text-base text-muted-foreground">{t("invalidToken")}</p>
         </div>
-        <Button asChild className="w-full">
+        <Button asChild className="h-[52px] w-full rounded-xl">
           <Link href="/login">{t("backToLogin")}</Link>
         </Button>
       </div>
@@ -37,13 +37,13 @@ export function VerifyEmailStatus({ token }: { token: string | undefined }) {
 
   if (verifyEmail.isPending || verifyEmail.isIdle) {
     return (
-      <div className="space-y-6 text-center">
+      <div className="flex w-full flex-col items-center gap-[60px] text-center">
         <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
           <Loader2 className="size-6 animate-spin" aria-hidden />
         </div>
-        <div className="space-y-1.5">
-          <h1 className="text-2xl font-bold text-foreground">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("verifying")}</p>
+        <div className="flex flex-col gap-3">
+          <h1 className="text-[28px] font-bold leading-[1.4] text-foreground">{t("title")}</h1>
+          <p className="text-base text-muted-foreground">{t("verifying")}</p>
         </div>
       </div>
     );
@@ -51,15 +51,15 @@ export function VerifyEmailStatus({ token }: { token: string | undefined }) {
 
   if (verifyEmail.isError) {
     return (
-      <div className="space-y-6 text-center">
+      <div className="flex w-full flex-col items-center gap-[60px] text-center">
         <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-destructive-tint text-destructive">
           <XCircle className="size-6" aria-hidden />
         </div>
-        <div className="space-y-1.5">
-          <h1 className="text-2xl font-bold text-foreground">{t("errorTitle")}</h1>
-          <p className="text-sm text-muted-foreground">{t("errorBody")}</p>
+        <div className="flex flex-col gap-3">
+          <h1 className="text-[28px] font-bold leading-[1.4] text-foreground">{t("errorTitle")}</h1>
+          <p className="text-base text-muted-foreground">{t("errorBody")}</p>
         </div>
-        <Button asChild className="w-full">
+        <Button asChild className="h-[52px] w-full rounded-xl">
           <Link href="/login">{t("backToLogin")}</Link>
         </Button>
       </div>
@@ -67,15 +67,15 @@ export function VerifyEmailStatus({ token }: { token: string | undefined }) {
   }
 
   return (
-    <div className="space-y-6 text-center">
+    <div className="flex w-full flex-col items-center gap-[60px] text-center">
       <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-success-tint text-success">
         <CheckCircle2 className="size-6" aria-hidden />
       </div>
-      <div className="space-y-1.5">
-        <h1 className="text-2xl font-bold text-foreground">{t("successTitle")}</h1>
-        <p className="text-sm text-muted-foreground">{t("successBody")}</p>
+      <div className="flex flex-col gap-3">
+        <h1 className="text-[28px] font-bold leading-[1.4] text-foreground">{t("successTitle")}</h1>
+        <p className="text-base text-muted-foreground">{t("successBody")}</p>
       </div>
-      <Button asChild className="w-full">
+      <Button asChild className="h-[52px] w-full rounded-xl">
         <Link href="/login">{t("logIn")}</Link>
       </Button>
     </div>

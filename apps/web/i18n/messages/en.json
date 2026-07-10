@@ -115,7 +115,9 @@
       "logIn": "Log In",
       "invalidToken": "This reset link is missing or invalid.",
       "requestNew": "Request a new link",
-      "genericError": "Something went wrong. Please try again."
+      "genericError": "Something went wrong. Please try again.",
+      "confirmPassword": "Confirm password",
+      "passwordMismatch": "Passwords do not match."
     },
     "verifyEmail": {
       "title": "Verifying your email",
@@ -127,6 +129,10 @@
       "errorBody": "This verification link is invalid or has expired.",
       "backToLogin": "Back to log in",
       "invalidToken": "This verification link is missing or invalid."
+    },
+    "shell": {
+      "headline": "Manage Your Farm. Maximize Every Drop.",
+      "subcopy": "Track cattle health, monitor milk yield, and make smarter decisions - all in one place."
     }
   },
   "routeStub": {
