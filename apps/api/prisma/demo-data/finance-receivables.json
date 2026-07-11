@@ -1,0 +1,6 @@
+[
+  { "id": "sd_receivable_001", "farmId": "@farm", "reference": "SEED-REC-001", "kind": "RECEIVABLE", "entityName": "Aarong Dairy", "total": 6780, "paid": 0, "dueDate": "@daysFromNow:6", "status": "PENDING", "createdBy": "@user:manager" },
+  { "id": "sd_receivable_002", "farmId": "@farm", "reference": "SEED-REC-002", "kind": "RECEIVABLE", "entityName": "Milk Vita Cooperative", "total": 5011.25, "paid": 0, "dueDate": "@daysAgo:2", "status": "OVERDUE", "createdBy": "@user:manager" },
+  { "id": "sd_receivable_003", "farmId": "@farm", "reference": "SEED-PAY-001", "kind": "PAYABLE", "entityName": "Gazipur Feed Traders", "total": 10000, "paid": 5000, "dueDate": "@daysFromNow:10", "status": "PARTIAL", "sourceTransactionId": "sd_fintxn_012", "createdBy": "@user:manager" },
+  { "id": "sd_receivable_004", "farmId": "@farm", "reference": "SEED-PAY-002", "kind": "PAYABLE", "entityName": "Dr. Nasrin Akter", "total": 3500, "paid": 3500, "status": "COMPLETED", "sourceTransactionId": "sd_fintxn_007", "createdBy": "@user:manager" }
+]

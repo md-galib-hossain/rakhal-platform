@@ -1,0 +1,4 @@
+[
+  { "id": "sd_consent_neighbor_tos", "userId": "@user:neighbor", "farmId": "@farm2", "documentId": "@legal:TERMS", "documentType": "TERMS", "version": "1.0", "acceptedAt": "@daysAgo:20" },
+  { "id": "sd_consent_neighbor_privacy", "userId": "@user:neighbor", "farmId": "@farm2", "documentId": "@legal:PRIVACY", "documentType": "PRIVACY", "version": "1.0", "acceptedAt": "@daysAgo:20" }
+]

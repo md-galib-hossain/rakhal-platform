@@ -1,0 +1,7 @@
+[
+  { "id": "sd_shed_a", "farmId": "@farm", "name": "Milking Shed A", "code": "SHED-A", "description": "Primary milking herd shed", "capacity": 12, "purpose": "MILKING", "responsibleMemberId": "@user:manager" },
+  { "id": "sd_shed_b", "farmId": "@farm", "name": "Milking Shed B", "code": "SHED-B", "description": "Secondary milking shed", "capacity": 10, "purpose": "MILKING", "responsibleMemberId": "@user:worker" },
+  { "id": "sd_shed_dry", "farmId": "@farm", "name": "Dry Cow Shed", "code": "SHED-C", "description": "Dry and close-up cows", "capacity": 8, "purpose": "DRY" },
+  { "id": "sd_shed_calf", "farmId": "@farm", "name": "Calf Pen", "code": "SHED-D", "description": "Calves under 6 months", "capacity": 10, "purpose": "CALF", "responsibleMemberId": "@user:worker2" },
+  { "id": "sd_shed_q", "farmId": "@farm", "name": "Quarantine Shed", "code": "SHED-Q", "description": "Isolation for sick or new animals", "capacity": 4, "purpose": "QUARANTINE" }
+]

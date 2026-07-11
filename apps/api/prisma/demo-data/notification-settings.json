@@ -1,0 +1,4 @@
+[
+  { "id": "sd_notifsetting_worker", "farmId": "@farm", "userId": "@user:worker", "quietHoursStart": "22:00", "quietHoursEnd": "05:30" },
+  { "id": "sd_notifsetting_manager", "farmId": "@farm", "userId": "@user:manager", "quietHoursStart": "23:00", "quietHoursEnd": "05:00" }
+]

@@ -1,0 +1,4 @@
+[
+  { "id": "sd_withdrawal_001", "farmId": "@farm", "cattleId": "sd_cattle_005", "healthCaseId": "sd_hc_001", "treatmentLogId": "sd_treatment_001", "medicineId": "sd_med_penstrep", "milkWithdrawalUntil": "@daysFromNow:5", "meatWithdrawalUntil": "@daysFromNow:15", "status": "ACTIVE", "safeMilkDate": "@daysFromNow:5", "safeMeatDate": "@daysFromNow:15" },
+  { "id": "sd_withdrawal_002", "farmId": "@farm", "cattleId": "sd_cattle_019", "healthCaseId": "sd_hc_002", "treatmentLogId": "sd_treatment_004", "medicineId": "sd_med_ad3e", "milkWithdrawalUntil": "@daysAgo:51", "meatWithdrawalUntil": "@daysAgo:44", "status": "COMPLETED", "safeMilkDate": "@daysAgo:51", "safeMeatDate": "@daysAgo:44" }
+]

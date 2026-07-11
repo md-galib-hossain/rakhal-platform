@@ -1,0 +1,3 @@
+[
+  { "id": "sd_invoice_farm2", "farmId": "@farm2", "subscriptionPlanId": "@plan:Starter", "billingPeriod": "MONTHLY", "currency": "BDT", "subtotal": 1000, "discountTotal": 100, "total": 900, "invoiceNumber": "SD-INV-000001", "sellerName": "Rakhal", "sellerAddress": "Dhaka, Bangladesh", "placeOfSupply": "Dhaka", "status": "PAID", "couponId": "sd_coupon_welcome10", "idempotencyKey": "sd-seed-checkout-farm2", "paidAt": "@daysAgo:18" }
+]

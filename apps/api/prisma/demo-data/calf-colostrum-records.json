@@ -1,0 +1,7 @@
+[
+  { "id": "sd_colostrum_001", "calfId": "sd_cattle_013", "feedNumber": 1, "fedAt": "@daysAgo:19.9", "volumeMl": 2000, "quality": "EXCELLENT", "fedBy": "Demo Worker", "notes": "Within 2 hours of birth" },
+  { "id": "sd_colostrum_002", "calfId": "sd_cattle_013", "feedNumber": 2, "fedAt": "@daysAgo:19.5", "volumeMl": 1500, "quality": "EXCELLENT", "fedBy": "Demo Worker" },
+  { "id": "sd_colostrum_003", "calfId": "sd_cattle_013", "feedNumber": 3, "fedAt": "@daysAgo:19", "volumeMl": 1500, "quality": "GOOD", "fedBy": "Karim (Farmhand)" },
+  { "id": "sd_colostrum_004", "calfId": "sd_cattle_014", "feedNumber": 1, "fedAt": "@daysAgo:44.9", "volumeMl": 1800, "quality": "GOOD", "fedBy": "Demo Worker", "notes": "Slightly delayed — assisted calving" },
+  { "id": "sd_colostrum_005", "calfId": "sd_cattle_014", "feedNumber": 2, "fedAt": "@daysAgo:44.5", "volumeMl": 1500, "quality": "GOOD", "fedBy": "Demo Worker" }
+]

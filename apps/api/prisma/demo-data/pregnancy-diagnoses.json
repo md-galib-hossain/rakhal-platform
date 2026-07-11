@@ -1,0 +1,8 @@
+[
+  { "id": "sd_pd_001", "cattleId": "sd_cattle_006", "breedingEventId": "sd_breed_evt_001", "diagnosisDate": "@daysAgo:110", "result": "PREGNANT", "diagnosisMethod": "ULTRASOUND", "gestationDay": 40, "expectedCalvingDate": "@daysFromNow:133", "notes": "Single foetus, normal development" },
+  { "id": "sd_pd_002", "cattleId": "sd_cattle_007", "breedingEventId": "sd_breed_evt_002", "diagnosisDate": "@daysAgo:210", "result": "PREGNANT", "diagnosisMethod": "PALPATION", "gestationDay": 40, "expectedCalvingDate": "@daysFromNow:33" },
+  { "id": "sd_pd_003", "cattleId": "sd_cattle_004", "breedingEventId": "sd_breed_evt_005", "diagnosisDate": "@daysAgo:40", "result": "NOT_PREGNANT", "diagnosisMethod": "ULTRASOUND", "notes": "Open — rebred after CIDR-Synch" },
+  { "id": "sd_pd_004", "cattleId": "sd_cattle_004", "breedingEventId": "sd_breed_evt_006", "diagnosisDate": "@daysAgo:10", "result": "NOT_PREGNANT", "diagnosisMethod": "ULTRASOUND", "notes": "Open again — vet advised repeat-breeder workup" },
+  { "id": "sd_pd_005", "cattleId": "sd_cattle_019", "breedingEventId": "sd_breed_evt_010", "diagnosisDate": "@daysAgo:160", "result": "PREGNANT", "diagnosisMethod": "PALPATION", "gestationDay": 40 },
+  { "id": "sd_pd_006", "cattleId": "sd_cattle_001", "breedingEventId": "sd_breed_evt_007", "diagnosisDate": "@daysAgo:263", "result": "PREGNANT", "diagnosisMethod": "ULTRASOUND", "gestationDay": 40 }
+]

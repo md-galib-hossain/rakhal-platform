@@ -1,0 +1,12 @@
+[
+  { "id": "sd_calfweight_013_1", "calfId": "sd_cattle_013", "weightKg": 28, "measuredDate": "@daysAgo:20", "recordedBy": "Demo Worker", "notes": "Birth weight" },
+  { "id": "sd_calfweight_013_2", "calfId": "sd_cattle_013", "weightKg": 32, "measuredDate": "@daysAgo:10", "recordedBy": "Demo Worker" },
+  { "id": "sd_calfweight_013_3", "calfId": "sd_cattle_013", "weightKg": 36, "measuredDate": "@daysAgo:1", "recordedBy": "Karim (Farmhand)" },
+  { "id": "sd_calfweight_014_1", "calfId": "sd_cattle_014", "weightKg": 30, "measuredDate": "@daysAgo:45", "recordedBy": "Demo Worker", "notes": "Birth weight" },
+  { "id": "sd_calfweight_014_2", "calfId": "sd_cattle_014", "weightKg": 40, "measuredDate": "@daysAgo:20", "recordedBy": "Demo Worker" },
+  { "id": "sd_calfweight_014_3", "calfId": "sd_cattle_014", "weightKg": 48, "measuredDate": "@daysAgo:2", "recordedBy": "Demo Worker" },
+  { "id": "sd_calfweight_015_1", "calfId": "sd_cattle_015", "weightKg": 25, "measuredDate": "@daysAgo:150", "recordedBy": "Demo Worker", "notes": "Birth weight" },
+  { "id": "sd_calfweight_015_2", "calfId": "sd_cattle_015", "weightKg": 82, "measuredDate": "@daysAgo:60", "recordedBy": "Demo Manager", "notes": "Weaning weight" },
+  { "id": "sd_calfweight_016_1", "calfId": "sd_cattle_016", "weightKg": 45, "measuredDate": "@daysAgo:60", "recordedBy": "Demo Worker", "notes": "Weight at purchase" },
+  { "id": "sd_calfweight_016_2", "calfId": "sd_cattle_016", "weightKg": 62, "measuredDate": "@daysAgo:5", "recordedBy": "Karim (Farmhand)" }
+]

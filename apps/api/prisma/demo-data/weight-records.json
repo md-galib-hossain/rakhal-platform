@@ -1,0 +1,22 @@
+[
+  { "id": "sd_weight_001a", "cattleId": "sd_cattle_001", "weightKg": 405, "recordedDate": "@daysAgo:90", "recordedBy": "Demo Manager" },
+  { "id": "sd_weight_001b", "cattleId": "sd_cattle_001", "weightKg": 420, "recordedDate": "@daysAgo:15", "recordedBy": "Demo Manager", "notes": "Post-calving weight" },
+  { "id": "sd_weight_002a", "cattleId": "sd_cattle_002", "weightKg": 392, "recordedDate": "@daysAgo:90", "recordedBy": "Demo Manager" },
+  { "id": "sd_weight_002b", "cattleId": "sd_cattle_002", "weightKg": 400, "recordedDate": "@daysAgo:20", "recordedBy": "Demo Worker" },
+  { "id": "sd_weight_003a", "cattleId": "sd_cattle_003", "weightKg": 375, "recordedDate": "@daysAgo:80", "recordedBy": "Demo Manager" },
+  { "id": "sd_weight_003b", "cattleId": "sd_cattle_003", "weightKg": 380, "recordedDate": "@daysAgo:25", "recordedBy": "Demo Manager" },
+  { "id": "sd_weight_004a", "cattleId": "sd_cattle_004", "weightKg": 345, "recordedDate": "@daysAgo:60", "recordedBy": "Demo Worker" },
+  { "id": "sd_weight_004b", "cattleId": "sd_cattle_004", "weightKg": 350, "recordedDate": "@daysAgo:10", "recordedBy": "Demo Worker" },
+  { "id": "sd_weight_005a", "cattleId": "sd_cattle_005", "weightKg": 402, "recordedDate": "@daysAgo:70", "recordedBy": "Demo Manager" },
+  { "id": "sd_weight_005b", "cattleId": "sd_cattle_005", "weightKg": 390, "recordedDate": "@daysAgo:2", "recordedBy": "Demo Manager", "notes": "Weight drop during mastitis treatment" },
+  { "id": "sd_weight_006a", "cattleId": "sd_cattle_006", "weightKg": 398, "recordedDate": "@daysAgo:100", "recordedBy": "Demo Manager" },
+  { "id": "sd_weight_006b", "cattleId": "sd_cattle_006", "weightKg": 410, "recordedDate": "@daysAgo:12", "recordedBy": "Demo Manager", "notes": "Mid-pregnancy gain" },
+  { "id": "sd_weight_007a", "cattleId": "sd_cattle_007", "weightKg": 395, "recordedDate": "@daysAgo:30", "recordedBy": "Demo Manager" },
+  { "id": "sd_weight_008a", "cattleId": "sd_cattle_008", "weightKg": 385, "recordedDate": "@daysAgo:28", "recordedBy": "Demo Worker" },
+  { "id": "sd_weight_009a", "cattleId": "sd_cattle_009", "weightKg": 310, "recordedDate": "@daysAgo:35", "recordedBy": "Demo Worker" },
+  { "id": "sd_weight_010a", "cattleId": "sd_cattle_010", "weightKg": 260, "recordedDate": "@daysAgo:30", "recordedBy": "Demo Worker" },
+  { "id": "sd_weight_011a", "cattleId": "sd_cattle_011", "weightKg": 230, "recordedDate": "@daysAgo:30", "recordedBy": "Demo Worker" },
+  { "id": "sd_weight_012a", "cattleId": "sd_cattle_012", "weightKg": 550, "recordedDate": "@daysAgo:40", "recordedBy": "Demo Manager" },
+  { "id": "sd_weight_019a", "cattleId": "sd_cattle_019", "weightKg": 360, "recordedDate": "@daysAgo:35", "recordedBy": "Demo Manager", "notes": "Post-recovery check" },
+  { "id": "sd_weight_020a", "cattleId": "sd_cattle_020", "weightKg": 340, "recordedDate": "@daysAgo:8", "recordedBy": "Demo Worker" }
+]

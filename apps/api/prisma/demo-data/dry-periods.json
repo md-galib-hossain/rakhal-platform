@@ -1,0 +1,4 @@
+[
+  { "id": "sd_dry_001", "cattleId": "sd_cattle_007", "startDate": "@daysAgo:45", "expectedEndDate": "@daysFromNow:33", "notes": "Standard 60-day dry-off before expected calving" },
+  { "id": "sd_dry_002", "cattleId": "sd_cattle_008", "startDate": "@daysAgo:30", "expectedEndDate": "@daysFromNow:60", "notes": "Early dry-off — low yield" }
+]

@@ -1,0 +1,5 @@
+[
+  { "id": "sd_calving_001", "cattleId": "sd_cattle_001", "pregnancyId": "sd_preg_003", "calvingDate": "@daysAgo:20", "calvingNumber": 3, "calvingEase": "NORMAL", "calfCount": 1, "placentaExpelled": true, "notes": "Healthy heifer calf (Tuni, RKL-013)" },
+  { "id": "sd_calving_002", "cattleId": "sd_cattle_003", "pregnancyId": "sd_preg_004", "calvingDate": "@daysAgo:45", "calvingNumber": 4, "calvingEase": "ASSISTED", "calfCount": 1, "placentaExpelled": true, "complications": "Mild traction needed", "notes": "Bull calf (Bhola, RKL-014)" },
+  { "id": "sd_calving_003", "cattleId": "sd_cattle_020", "pregnancyId": "sd_preg_005", "calvingDate": "@daysAgo:10", "calvingNumber": 1, "calvingEase": "DIFFICULT", "calfCount": 1, "placentaExpelled": false, "retainedPlacenta": true, "complications": "Prolonged labour, retained placenta — case HC-00004", "notes": "Calf stillborn" }
+]

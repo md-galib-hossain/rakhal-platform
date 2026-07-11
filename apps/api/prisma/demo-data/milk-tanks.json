@@ -1,0 +1,4 @@
+[
+  { "id": "sd_milktank_sellable", "farmId": "@farm", "name": "Main Sellable Tank", "tankType": "SELLABLE", "totalCapacityL": 500, "currentVolumeL": 220, "fatPct": 4.1, "proteinPct": 3.4, "snfPct": 8.6, "targetTempC": 4, "agitationIntervalMin": 30, "assignedShedId": "sd_shed_a", "createdBy": "@user:owner" },
+  { "id": "sd_milktank_withholding", "farmId": "@farm", "name": "Withholding Tank", "tankType": "WITHHOLDING", "totalCapacityL": 100, "currentVolumeL": 18, "targetTempC": 4, "assignedShedId": "sd_shed_a", "createdBy": "@user:owner" }
+]

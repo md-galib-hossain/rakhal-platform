@@ -1,0 +1,4 @@
+[
+  { "id": "sd_fio_napier", "farmId": "@farm", "ingredientId": "feed_napier", "customPricePerKg": 4.5, "notes": "Own plot — cheaper than market rate", "createdBy": "@user:manager" },
+  { "id": "sd_fio_wheatbran", "farmId": "@farm", "ingredientId": "feed_wheat_bran", "customPricePerKg": 38, "notes": "Current Gazipur Feed Traders rate", "createdBy": "@user:manager" }
+]

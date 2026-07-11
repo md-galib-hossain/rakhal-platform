@@ -1,0 +1,10 @@
+[
+  { "id": "sd_lact_001", "cattleId": "sd_cattle_001", "lactationNumber": 3, "calvingEventId": "sd_calving_001", "startDate": "@daysAgo:20", "status": "ACTIVE" },
+  { "id": "sd_lact_002", "cattleId": "sd_cattle_002", "lactationNumber": 2, "startDate": "@daysAgo:240", "peakMilkDate": "@daysAgo:190", "status": "ACTIVE" },
+  { "id": "sd_lact_003", "cattleId": "sd_cattle_003", "lactationNumber": 4, "calvingEventId": "sd_calving_002", "startDate": "@daysAgo:45", "peakMilkDate": "@daysAgo:5", "status": "ACTIVE" },
+  { "id": "sd_lact_004", "cattleId": "sd_cattle_004", "lactationNumber": 1, "startDate": "@daysAgo:150", "peakMilkDate": "@daysAgo:100", "status": "ACTIVE" },
+  { "id": "sd_lact_005", "cattleId": "sd_cattle_005", "lactationNumber": 3, "startDate": "@daysAgo:210", "peakMilkDate": "@daysAgo:160", "status": "ACTIVE" },
+  { "id": "sd_lact_006", "cattleId": "sd_cattle_006", "lactationNumber": 2, "startDate": "@daysAgo:300", "peakMilkDate": "@daysAgo:250", "status": "ACTIVE" },
+  { "id": "sd_lact_007", "cattleId": "sd_cattle_020", "lactationNumber": 1, "calvingEventId": "sd_calving_003", "startDate": "@daysAgo:10", "status": "ACTIVE" },
+  { "id": "sd_lact_008", "cattleId": "sd_cattle_007", "lactationNumber": 4, "startDate": "@daysAgo:420", "endDate": "@daysAgo:45", "peakMilkDate": "@daysAgo:360", "status": "ENDED" }
+]

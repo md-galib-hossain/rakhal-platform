@@ -1,0 +1,7 @@
+[
+  { "id": "sd_equip_milkingmachine", "farmId": "@farm", "name": "Milking machine (double bucket)", "assetId": "EQ-001", "type": "MACHINERY", "unit": "pcs", "currentStock": 2, "costPerUnit": 60000, "lowStockThreshold": 1, "purchaseDate": "@daysAgo:400", "notes": "Serviced quarterly", "createdBy": "@user:owner" },
+  { "id": "sd_equip_chaffcutter", "farmId": "@farm", "name": "Chaff cutter (2HP electric)", "assetId": "EQ-002", "type": "MACHINERY", "unit": "pcs", "currentStock": 1, "costPerUnit": 35000, "lowStockThreshold": 0, "purchaseDate": "@daysAgo:700", "createdBy": "@user:owner" },
+  { "id": "sd_equip_generator", "farmId": "@farm", "name": "Diesel generator 5kVA", "assetId": "EQ-003", "type": "MACHINERY", "unit": "pcs", "currentStock": 1, "costPerUnit": 85000, "lowStockThreshold": 0, "purchaseDate": "@daysAgo:900", "notes": "Backup for milking machine + tank chiller", "createdBy": "@user:owner" },
+  { "id": "sd_equip_buckets", "farmId": "@farm", "name": "Stainless milk buckets", "type": "SUPPLY", "unit": "pcs", "currentStock": 18, "costPerUnit": 850, "lowStockThreshold": 10, "purchaseDate": "@daysAgo:200", "createdBy": "@user:manager" },
+  { "id": "sd_equip_wheelbarrow", "farmId": "@farm", "name": "Wheelbarrow", "type": "TOOL", "unit": "pcs", "currentStock": 3, "costPerUnit": 4500, "lowStockThreshold": 1, "purchaseDate": "@daysAgo:300", "createdBy": "@user:worker" }
+]

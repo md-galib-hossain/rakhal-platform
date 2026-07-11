@@ -1,0 +1,14 @@
+[
+  { "id": "sd_fci_high_1", "concentrationId": "sd_feedconc_high", "ingredientId": "feed_napier", "amountKg": 15 },
+  { "id": "sd_fci_high_2", "concentrationId": "sd_feedconc_high", "ingredientId": "feed_maize_silage", "amountKg": 8 },
+  { "id": "sd_fci_high_3", "concentrationId": "sd_feedconc_high", "ingredientId": "feed_wheat_bran", "amountKg": 3 },
+  { "id": "sd_fci_high_4", "concentrationId": "sd_feedconc_high", "ingredientId": "feed_soybean_meal", "amountKg": 2 },
+  { "id": "sd_fci_high_5", "concentrationId": "sd_feedconc_high", "ingredientId": "feed_mineral_mix", "amountKg": 0.15 },
+  { "id": "sd_fci_mid_1", "concentrationId": "sd_feedconc_mid", "ingredientId": "feed_napier", "amountKg": 12 },
+  { "id": "sd_fci_mid_2", "concentrationId": "sd_feedconc_mid", "ingredientId": "feed_rice_straw", "amountKg": 3 },
+  { "id": "sd_fci_mid_3", "concentrationId": "sd_feedconc_mid", "ingredientId": "feed_wheat_bran", "amountKg": 2 },
+  { "id": "sd_fci_mid_4", "concentrationId": "sd_feedconc_mid", "ingredientId": "feed_mustard_cake", "amountKg": 1 },
+  { "id": "sd_fci_dry_1", "concentrationId": "sd_feedconc_dry", "ingredientId": "feed_rice_straw", "amountKg": 6 },
+  { "id": "sd_fci_dry_2", "concentrationId": "sd_feedconc_dry", "ingredientId": "feed_napier", "amountKg": 4 },
+  { "id": "sd_fci_dry_3", "concentrationId": "sd_feedconc_dry", "ingredientId": "feed_mineral_mix", "amountKg": 0.1 }
+]

@@ -1,0 +1,6 @@
+[
+  { "id": "sd_starter_014_1", "calfId": "sd_cattle_014", "date": "@dayStart:25", "eventType": "FIRST_OFFERED", "amountG": 0, "notes": "Starter offered at 3 weeks" },
+  { "id": "sd_starter_014_2", "calfId": "sd_cattle_014", "date": "@dayStart:20", "eventType": "FIRST_INTAKE", "amountG": 100 },
+  { "id": "sd_starter_014_3", "calfId": "sd_cattle_014", "date": "@dayStart:1", "eventType": "DAILY_INTAKE", "amountG": 300 },
+  { "id": "sd_starter_016_1", "calfId": "sd_cattle_016", "date": "@dayStart:1", "eventType": "DAILY_INTAKE", "amountG": 500 }
+]

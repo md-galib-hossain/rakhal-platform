@@ -1,0 +1,5 @@
+[
+  { "id": "sd_feeddist_001", "farmId": "@farm", "concentrationId": "sd_feedconc_high", "feedGroupId": "sd_fg_high", "distributedAt": "@dayStart:2", "totalPlannedKg": 172, "totalActualKg": 168, "totalRefusalKg": 4, "totalPlannedCost": 2150, "totalActualCost": 2096, "notes": "Slight refusal on silage", "createdBy": "@user:worker2" },
+  { "id": "sd_feeddist_002", "farmId": "@farm", "concentrationId": "sd_feedconc_high", "feedGroupId": "sd_fg_high", "distributedAt": "@dayStart:1", "totalPlannedKg": 172, "totalActualKg": 172, "totalRefusalKg": 0, "totalPlannedCost": 2150, "totalActualCost": 2150, "createdBy": "@user:worker2" },
+  { "id": "sd_feeddist_003", "farmId": "@farm", "concentrationId": "sd_feedconc_mid", "feedGroupId": "sd_fg_mid", "distributedAt": "@dayStart:1", "totalPlannedKg": 108, "totalActualKg": 105, "totalRefusalKg": 3, "totalPlannedCost": 918, "totalActualCost": 893, "createdBy": "@user:worker" }
+]

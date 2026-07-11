@@ -1,0 +1,5 @@
+[
+  { "id": "sd_feedconc_high", "farmId": "@farm", "name": "High Yield Ration", "durationDays": 30, "targetType": "GROUP", "feedGroupId": "sd_fg_high", "targetMilkL": 14, "createdBy": "@user:manager" },
+  { "id": "sd_feedconc_mid", "farmId": "@farm", "name": "Mid Yield Ration", "durationDays": 30, "targetType": "GROUP", "feedGroupId": "sd_fg_mid", "targetMilkL": 8, "createdBy": "@user:manager" },
+  { "id": "sd_feedconc_dry", "farmId": "@farm", "name": "Dry Cow Ration", "durationDays": 60, "targetType": "GROUP", "feedGroupId": "sd_fg_dry", "createdBy": "@user:manager" }
+]

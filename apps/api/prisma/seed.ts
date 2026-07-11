@@ -27,6 +27,7 @@ import {
   FEATURE_CATALOGUE,
   PLAN_CATALOGUE,
 } from '../src/modules/subscription/domain/subscription-features';
+import { seedDemoDataset } from './seed-demo-data';
 
 /**
  * RBAC + dev-data seed (RAKHAL-019). Idempotent — safe to run repeatedly.
@@ -814,6 +815,13 @@ async function main(): Promise<void> {
   const ownerRoleId = await seedRole(SYSTEM_ROLES.OWNER);
   const managerRoleId = await seedRole(SYSTEM_ROLES.MANAGER);
   const workerRoleId = await seedRole(SYSTEM_ROLES.WORKER);
+  // Moved ahead of the demo block: the full demo dataset (seedDemoDataset)
+  // references feed ingredients, repro protocols, subscription plans, and the
+  // legal documents by id, so those catalogues must exist before it runs.
+  await seedFeedIngredients();
+  await seedReproProtocols();
+  await seedSubscriptionPlans();
+  await seedLegalConsent(null);
   const demo = await seedDemo(ownerRoleId);
   if (demo.farmId) {
     await seedDemoMember(
@@ -831,12 +839,19 @@ async function main(): Promise<void> {
       workerRoleId,
     );
     await seedDemoFinance(demo.farmId, demo.ownerUserId);
+    // Full farm-facing dataset (prisma/demo-data/*.json) — runs before the
+    // older 8-cow stub below so seedDemoCattle's idempotency guard
+    // (`existing > 0`) skips once this real herd exists.
+    await seedDemoDataset(prisma, {
+      farmId: demo.farmId,
+      ownerUserId: demo.ownerUserId,
+      ownerRoleId,
+      managerRoleId,
+      workerRoleId,
+    });
     await seedDemoCattle(demo.farmId, demo.ownerUserId);
     await seedDemoDashboardHistory(demo.farmId, demo.ownerUserId);
   }
-  await seedFeedIngredients();
-  await seedReproProtocols();
-  await seedSubscriptionPlans();
   await seedInvoiceCounter();
   await seedPlatformAdmin();
   await seedLegalConsent(demo.ownerUserId ?? null);

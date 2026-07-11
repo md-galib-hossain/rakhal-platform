@@ -1,0 +1,3 @@
+[
+  { "id": "sd_abortion_001", "cattleId": "sd_cattle_019", "pregnancyId": "sd_preg_006", "abortionDate": "@daysAgo:80", "gestationDay": 120, "suspectedCause": "Stress following FMD infection", "notes": "Vet consulted; cow moved to quarantine for observation" }
+]

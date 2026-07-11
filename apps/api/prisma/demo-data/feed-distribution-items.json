@@ -1,0 +1,14 @@
+[
+  { "id": "sd_fdi_001a", "distributionId": "sd_feeddist_001", "ingredientId": "feed_napier", "ingredientName": "Napier grass", "plannedKg": 90, "actualKg": 90, "pricePerKg": 5, "lineCost": 450 },
+  { "id": "sd_fdi_001b", "distributionId": "sd_feeddist_001", "ingredientId": "feed_maize_silage", "ingredientName": "Maize silage", "plannedKg": 48, "actualKg": 44, "refusalKg": 4, "pricePerKg": 12, "lineCost": 528 },
+  { "id": "sd_fdi_001c", "distributionId": "sd_feeddist_001", "ingredientId": "feed_wheat_bran", "ingredientName": "Wheat bran", "plannedKg": 18, "actualKg": 18, "pricePerKg": 38, "lineCost": 684 },
+  { "id": "sd_fdi_001d", "distributionId": "sd_feeddist_001", "ingredientId": "feed_soybean_meal", "ingredientName": "Soybean meal", "plannedKg": 12, "actualKg": 12, "pricePerKg": 70, "lineCost": 840 },
+  { "id": "sd_fdi_002a", "distributionId": "sd_feeddist_002", "ingredientId": "feed_napier", "ingredientName": "Napier grass", "plannedKg": 90, "actualKg": 90, "pricePerKg": 5, "lineCost": 450 },
+  { "id": "sd_fdi_002b", "distributionId": "sd_feeddist_002", "ingredientId": "feed_maize_silage", "ingredientName": "Maize silage", "plannedKg": 48, "actualKg": 48, "pricePerKg": 12, "lineCost": 576 },
+  { "id": "sd_fdi_002c", "distributionId": "sd_feeddist_002", "ingredientId": "feed_wheat_bran", "ingredientName": "Wheat bran", "plannedKg": 18, "actualKg": 18, "pricePerKg": 38, "lineCost": 684 },
+  { "id": "sd_fdi_002d", "distributionId": "sd_feeddist_002", "ingredientId": "feed_soybean_meal", "ingredientName": "Soybean meal", "plannedKg": 12, "actualKg": 12, "pricePerKg": 70, "lineCost": 840 },
+  { "id": "sd_fdi_003a", "distributionId": "sd_feeddist_003", "ingredientId": "feed_napier", "ingredientName": "Napier grass", "plannedKg": 60, "actualKg": 58, "refusalKg": 2, "pricePerKg": 5, "lineCost": 290 },
+  { "id": "sd_fdi_003b", "distributionId": "sd_feeddist_003", "ingredientId": "feed_rice_straw", "ingredientName": "Rice straw", "plannedKg": 15, "actualKg": 14, "refusalKg": 1, "pricePerKg": 8, "lineCost": 112 },
+  { "id": "sd_fdi_003c", "distributionId": "sd_feeddist_003", "ingredientId": "feed_wheat_bran", "ingredientName": "Wheat bran", "plannedKg": 10, "actualKg": 10, "pricePerKg": 38, "lineCost": 380 },
+  { "id": "sd_fdi_003d", "distributionId": "sd_feeddist_003", "ingredientId": "feed_mustard_cake", "ingredientName": "Mustard oil cake", "plannedKg": 5, "actualKg": 5, "pricePerKg": 55, "lineCost": 275 }
+]

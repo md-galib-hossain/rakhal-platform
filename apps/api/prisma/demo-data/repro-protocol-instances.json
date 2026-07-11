@@ -1,0 +1,4 @@
+[
+  { "id": "sd_rpi_001", "farmId": "@farm", "protocolId": "repro_ovsynch", "cattleId": "sd_cattle_010", "startDate": "@daysAgo:5", "status": "IN_PROGRESS", "currentStepDay": 0, "pregnancyOutcome": "WAITING_PD", "notes": "First Ovsynch on this heifer — GnRH given day 0, PGF₂α due day 7", "createdBy": "@user:manager" },
+  { "id": "sd_rpi_002", "farmId": "@farm", "protocolId": "repro_cidr_synch", "cattleId": "sd_cattle_004", "startDate": "@daysAgo:55", "status": "COMPLETED", "currentStepDay": 10, "aiCompletedAt": "@daysAgo:45", "breedingEventId": "sd_breed_evt_006", "pregnancyOutcome": "OPEN", "outcomeRecordedAt": "@daysAgo:10", "completedAt": "@daysAgo:45", "notes": "AI done on schedule; PD came back open", "createdBy": "@user:manager" }
+]

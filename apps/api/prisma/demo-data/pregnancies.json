@@ -1,0 +1,8 @@
+[
+  { "id": "sd_preg_001", "cattleId": "sd_cattle_006", "breedingEventId": "sd_breed_evt_001", "conceptionDate": "@daysAgo:150", "expectedCalvingDate": "@daysFromNow:133", "status": "ACTIVE" },
+  { "id": "sd_preg_002", "cattleId": "sd_cattle_007", "breedingEventId": "sd_breed_evt_002", "conceptionDate": "@daysAgo:250", "expectedCalvingDate": "@daysFromNow:33", "status": "ACTIVE" },
+  { "id": "sd_preg_003", "cattleId": "sd_cattle_001", "breedingEventId": "sd_breed_evt_007", "conceptionDate": "@daysAgo:303", "expectedCalvingDate": "@daysAgo:20", "actualCalvingDate": "@daysAgo:20", "gestationDays": 283, "status": "CALVED" },
+  { "id": "sd_preg_004", "cattleId": "sd_cattle_003", "breedingEventId": "sd_breed_evt_008", "conceptionDate": "@daysAgo:328", "expectedCalvingDate": "@daysAgo:45", "actualCalvingDate": "@daysAgo:45", "gestationDays": 283, "status": "CALVED" },
+  { "id": "sd_preg_005", "cattleId": "sd_cattle_020", "breedingEventId": "sd_breed_evt_009", "conceptionDate": "@daysAgo:293", "expectedCalvingDate": "@daysAgo:10", "actualCalvingDate": "@daysAgo:10", "gestationDays": 283, "status": "CALVED" },
+  { "id": "sd_preg_006", "cattleId": "sd_cattle_019", "breedingEventId": "sd_breed_evt_010", "conceptionDate": "@daysAgo:200", "expectedCalvingDate": "@daysFromNow:83", "status": "ABORTED" }
+]

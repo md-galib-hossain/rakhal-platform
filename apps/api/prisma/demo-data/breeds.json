@@ -1,0 +1,7 @@
+[
+  { "id": "sd_breed_holstein", "farmId": "@farm", "name": "Holstein Friesian", "description": "High-yield exotic dairy breed" },
+  { "id": "sd_breed_sahiwal", "farmId": "@farm", "name": "Sahiwal", "description": "Heat-tolerant zebu dairy breed" },
+  { "id": "sd_breed_jersey", "farmId": "@farm", "name": "Jersey", "description": "Small-frame, high-fat milk" },
+  { "id": "sd_breed_rcc", "farmId": "@farm", "name": "Red Chittagong", "description": "Native Bangladeshi dual-purpose breed" },
+  { "id": "sd_breed_cross", "farmId": "@farm", "name": "Local Cross", "description": "Holstein × local crossbred" }
+]

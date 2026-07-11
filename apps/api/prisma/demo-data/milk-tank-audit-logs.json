@@ -1,0 +1,9 @@
+[
+  { "id": "sd_tanklog_001", "milkTankId": "sd_milktank_sellable", "farmId": "@farm", "activityType": "COLLECTION", "quantityL": 190, "balanceAfterL": 190, "source": "milk_log_submission", "notes": "Day -2 sessions", "createdBy": "@user:worker", "createdAt": "@daysAgo:2" },
+  { "id": "sd_tanklog_002", "milkTankId": "sd_milktank_sellable", "farmId": "@farm", "activityType": "SALE", "quantityL": -120, "balanceAfterL": 70, "source": "finance_sale", "notes": "Dispatch to Aarong Dairy", "createdBy": "@user:manager", "createdAt": "@daysAgo:1.5" },
+  { "id": "sd_tanklog_003", "milkTankId": "sd_milktank_sellable", "farmId": "@farm", "activityType": "COLLECTION", "quantityL": 185, "balanceAfterL": 255, "source": "milk_log_submission", "notes": "Day -1 sessions", "createdBy": "@user:worker", "createdAt": "@daysAgo:1" },
+  { "id": "sd_tanklog_004", "milkTankId": "sd_milktank_sellable", "farmId": "@farm", "activityType": "SALE", "quantityL": -120, "balanceAfterL": 135, "source": "finance_sale", "notes": "Dispatch to Milk Vita", "createdBy": "@user:manager", "createdAt": "@daysAgo:0.5" },
+  { "id": "sd_tanklog_005", "milkTankId": "sd_milktank_sellable", "farmId": "@farm", "activityType": "COLLECTION", "quantityL": 85, "balanceAfterL": 220, "source": "milk_log_submission", "notes": "This morning's session", "createdBy": "@user:worker", "createdAt": "@daysAgo:0.2" },
+  { "id": "sd_tanklog_006", "milkTankId": "sd_milktank_withholding", "farmId": "@farm", "activityType": "COLLECTION", "quantityL": 9, "balanceAfterL": 9, "source": "milk_log_submission", "notes": "RKL-005 under withdrawal", "createdBy": "@user:worker", "createdAt": "@daysAgo:1" },
+  { "id": "sd_tanklog_007", "milkTankId": "sd_milktank_withholding", "farmId": "@farm", "activityType": "COLLECTION", "quantityL": 9, "balanceAfterL": 18, "source": "milk_log_submission", "notes": "RKL-005 under withdrawal", "createdBy": "@user:worker", "createdAt": "@daysAgo:0.2" }
+]

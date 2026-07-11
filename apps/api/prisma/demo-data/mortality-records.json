@@ -1,0 +1,3 @@
+[
+  { "id": "sd_mortality_001", "farmId": "@farm", "cattleId": "sd_cattle_018", "healthCaseId": "sd_hc_003", "deathDate": "@daysAgo:85", "primaryCauseOfDeath": "Acute bloat with suspected toxaemia", "vetSignOff": "Dr. Nasrin Akter, BVC Reg 4521", "symptoms": ["Severe abdominal distension", "Collapse"], "postMortemPerformed": true, "disposalMethod": "Deep burial with lime", "disposalCost": 2000, "disposalLocation": "Farm boundary plot (approved site)", "additionalNotes": "Feed storage checked; no other animals affected", "recordedBy": "Demo Manager" }
+]
