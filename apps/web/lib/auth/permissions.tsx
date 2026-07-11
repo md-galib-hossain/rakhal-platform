@@ -6,10 +6,15 @@ import { useSession } from "./use-session";
 /** `resource.action` strings from the backend's RBAC catalogue, e.g. "cattle.create". */
 export type Permission = string;
 
-/** Never compare `role === 'owner'` in components — always gate through this (framework doc 02 §10). */
+/** Never compare `role === 'owner'` in components — always gate through this (framework doc 02 §10).
+ * The backend's `/auth/me` returns a literal `["*"]` for an Owner (full-access role, verified live
+ * RAKHAL-259/260) rather than every individual `resource.action` string — a plain `.includes(...)`
+ * check never matched it, silently hiding every `<Can>`-gated control for the Owner account. Fixed
+ * at the root (this hook) so every existing/future `<Can I="...">` call site is covered. */
 export function useCan() {
   const { data: session } = useSession();
-  return (permission: Permission) => session?.permissions.includes(permission) ?? false;
+  return (permission: Permission) =>
+    session?.permissions.includes("*") || (session?.permissions.includes(permission) ?? false);
 }
 
 export function Can({

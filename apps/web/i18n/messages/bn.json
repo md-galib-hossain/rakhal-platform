@@ -611,6 +611,107 @@
       "apply": "প্রয়োগ করুন",
       "resultToast": "{updated} টি আপডেট, {failed} টি ব্যর্থ",
       "failedToast": "বাল্ক অ্যাকশন ব্যর্থ হয়েছে।"
+    },
+    "form": {
+      "addCattle": "গবাদি পশু যোগ করুন",
+      "createTitle": "গবাদি পশু যোগ করুন",
+      "editTitle": "গবাদি পশু সম্পাদনা করুন",
+      "tagNumber": "ট্যাগ নম্বর",
+      "name": "নাম",
+      "gender": "লিঙ্গ",
+      "genderOptions": {
+        "MALE": "পুরুষ",
+        "FEMALE": "স্ত্রী",
+        "CASTRATED_MALE": "খাসি করা পুরুষ"
+      },
+      "purpose": "উদ্দেশ্য",
+      "purposeOptions": {
+        "MILK": "দুধ",
+        "BREEDING": "প্রজনন",
+        "MEAT": "মাংস",
+        "CALF": "বাছুর",
+        "BULL_SERVICE": "ষাঁড় সেবা",
+        "DUAL_PURPOSE": "দ্বৈত উদ্দেশ্য"
+      },
+      "dateOfBirth": "জন্ম তারিখ",
+      "weightKg": "ওজন (কেজি)",
+      "breed": "জাত",
+      "shed": "শেড",
+      "feedGroup": "ফিড গ্রুপ",
+      "sourceType": "উৎস",
+      "sourceTypeOptions": {
+        "BORN": "খামারে জন্ম",
+        "PURCHASED": "ক্রয়কৃত",
+        "GIFTED": "উপহার",
+        "UNKNOWN": "অজানা"
+      },
+      "mother": "মা",
+      "father": "বাবা",
+      "color": "রং",
+      "notes": "নোট",
+      "unassigned": "নির্ধারিত নয়",
+      "photo": "ছবি",
+      "photoUploadLabel": "এখানে একটি ছবি টেনে আনুন, অথবা ব্রাউজ করতে ক্লিক করুন",
+      "removePhoto": "ছবি সরান",
+      "save": "সংরক্ষণ করুন",
+      "cancel": "বাতিল",
+      "createdToast": "গবাদি পশু যোগ করা হয়েছে।",
+      "updatedToast": "গবাদি পশু আপডেট করা হয়েছে।",
+      "photoUpdatedToast": "ছবি আপডেট করা হয়েছে।",
+      "photoRemovedToast": "ছবি সরানো হয়েছে।",
+      "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
+    },
+    "statusDialog": {
+      "title": "অবস্থা পরিবর্তন — {name}",
+      "productionStatus": "উৎপাদন অবস্থা",
+      "productionOptions": {
+        "MILKING": "দুধ দেওয়া",
+        "DRY": "শুকনো",
+        "FRESH": "সদ্য বিয়ানো",
+        "GROWING": "বেড়ে ওঠা",
+        "SOLD": "বিক্রিত",
+        "DECEASED": "মৃত"
+      },
+      "reproductiveStatus": "প্রজনন অবস্থা",
+      "reproductiveOptions": {
+        "HEIFER": "বকনা",
+        "OPEN": "খোলা",
+        "BRED": "প্রজননকৃত",
+        "PREGNANT": "গর্ভবতী",
+        "DRY": "শুকনো",
+        "LACTATING": "দুগ্ধদানকারী",
+        "POSTPARTUM": "প্রসবোত্তর",
+        "ABORTED": "গর্ভপাত হয়েছে",
+        "RETIRED": "অবসরপ্রাপ্ত"
+      },
+      "unassigned": "নির্ধারিত নয়",
+      "save": "সংরক্ষণ করুন",
+      "cancel": "বাতিল",
+      "updatedToast": "অবস্থা আপডেট করা হয়েছে।",
+      "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
+    },
+    "archiveDialog": {
+      "title": "সংরক্ষণাগারে পাঠান — {name}",
+      "description": "এটি প্রাণীটিকে সক্রিয় পাল থেকে সরিয়ে দেবে। উপযুক্ত কারণ নির্বাচন করুন।",
+      "reason": "কারণ",
+      "reasonOptions": {
+        "sold": "বিক্রিত",
+        "deceased": "মৃত",
+        "archived": "সংরক্ষণাগারে (অন্যান্য)"
+      },
+      "cancel": "বাতিল",
+      "confirm": "সংরক্ষণাগারে পাঠান",
+      "archivedToast": "গবাদি পশু সংরক্ষণাগারে পাঠানো হয়েছে।",
+      "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
+    },
+    "actions": {
+      "menu": "সারির অ্যাকশন",
+      "edit": "সম্পাদনা করুন",
+      "changeStatus": "অবস্থা পরিবর্তন করুন",
+      "archive": "সংরক্ষণাগারে পাঠান",
+      "restore": "পুনরুদ্ধার করুন",
+      "restoredToast": "গবাদি পশু পুনরুদ্ধার করা হয়েছে।",
+      "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
     }
   }
 }

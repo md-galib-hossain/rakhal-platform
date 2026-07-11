@@ -5,6 +5,7 @@ import { PageCard } from "@/components/shared/page-card";
 import { CattleHighlightsBar } from "@/features/cattle/components/cattle-highlights-bar";
 import { CattleFilters } from "@/features/cattle/components/cattle-filters";
 import { CattleTable } from "@/features/cattle/components/cattle-table";
+import { CattleAddButton } from "@/features/cattle/components/cattle-add-button";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("nav");
@@ -16,19 +17,20 @@ export async function generateMetadata(): Promise<Metadata> {
  * cursor-paginated list (`GET /cattle`) are separate real backend routes, both `cattle.read`-gated;
  * bulk ops (`POST /cattle/bulk`) require `cattle.bulk`. Filters/search are URL-synced (`nuqs`, via
  * the shared `FilterBar`), so `CattleFilters` and `CattleTable` read the same query string without
- * prop-drilling between them. Cattle detail (RFE-023) and add/edit (RFE-022) aren't built yet — the
- * list intentionally doesn't link out to either.
+ * prop-drilling between them. Cattle detail (RFE-023) still isn't built — the list still doesn't
+ * link out to it, only to add/edit (RFE-022, below).
  *
  * **Parent-card wrapper (2026-07-11, user request):** the whole page now sits inside one
- * `PageCard` (`components/shared/page-card.tsx`), same pattern as `/dashboard` — no `actions` slot
- * here (no date picker/filter belongs at this level; `CattleFilters` already owns its own search
- * bar further down).
+ * `PageCard` (`components/shared/page-card.tsx`), same pattern as `/dashboard`.
+ *
+ * **RFE-022 (2026-07-11):** `actions` now carries `CattleAddButton`, a `cattle.create`-gated
+ * trigger for the same add/edit `CattleFormDialog` the table's row actions use in edit mode.
  */
 export default async function CattlePage() {
   const t = await getTranslations("nav");
 
   return (
-    <PageCard title={t("cattle")}>
+    <PageCard title={t("cattle")} actions={<CattleAddButton />}>
       <CattleHighlightsBar />
       <Suspense fallback={null}>
         <CattleFilters />

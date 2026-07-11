@@ -438,7 +438,13 @@
   media module); status change dialog (`PATCH /cattle/:id/status`, multi-dimension statuses PRD §8.3),
   archive sold/deceased with ConfirmDialog.
 - **API:** §4 · **PRD:** §8
-- **Status:** `TODO`
+- **Status:** `DONE` (2026-07-11) — see `IN_FLIGHT.md` Recently Done for the full build note. One
+  `CattleFormDialog` for create+edit; status dialog + archive dialog (reason select) round out the
+  new row-actions menu. Found+fixed 2 root-cause infra bugs along the way: the app had no multipart
+  upload path at all (`apiUpload()` + proxy fix — first multipart consumer), and `useCan()` never
+  matched the backend's `["*"]` Owner wildcard, hiding every `<Can>`-gated control app-wide. Photo
+  upload reaches the backend correctly but 500s on a real R2 `AccessDenied` — pre-existing env
+  credential issue, not this ticket's code, flagged not fixed.
 
 #### RFE-023 — Cattle detail (5 tabs)
 - **Depends:** RFE-021 · **Lane:** `features/cattle/**` (detail), `app/(app)/cattle/[id]/**`

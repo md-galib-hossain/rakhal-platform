@@ -3,6 +3,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { CattleRowActions } from "./cattle-row-actions";
 import type { CattleListItem, HealthStatusFilter, ProductionStatus } from "../types";
 
 /** Radix `Avatar` (plain `<img>` under the hood) rather than `next/image` for the 40px list
@@ -36,7 +37,14 @@ const HEALTH_STATUS_VARIANT: Record<HealthStatusFilter, "success" | "warning" | 
   QUARANTINE: "warning",
 };
 
-export function buildCattleColumns(t: (key: string) => string): ColumnDef<CattleListItem, unknown>[] {
+export function buildCattleColumns(
+  t: (key: string) => string,
+  rowActions: {
+    onEdit: (cattle: CattleListItem) => void;
+    onChangeStatus: (cattle: CattleListItem) => void;
+    onArchive: (cattle: CattleListItem) => void;
+  },
+): ColumnDef<CattleListItem, unknown>[] {
   return [
     {
       id: "cattle",
@@ -103,6 +111,19 @@ export function buildCattleColumns(t: (key: string) => string): ColumnDef<Cattle
       id: "lastBcs",
       header: t("columns.bcs"),
       cell: ({ row }) => row.original.lastBcs ?? "—",
+    },
+    {
+      id: "__actions__",
+      header: "",
+      size: 40,
+      cell: ({ row }) => (
+        <CattleRowActions
+          cattle={row.original}
+          onEdit={rowActions.onEdit}
+          onChangeStatus={rowActions.onChangeStatus}
+          onArchive={rowActions.onArchive}
+        />
+      ),
     },
   ];
 }

@@ -611,6 +611,107 @@
       "apply": "Apply",
       "resultToast": "{updated} updated, {failed} failed",
       "failedToast": "Bulk action failed."
+    },
+    "form": {
+      "addCattle": "Add cattle",
+      "createTitle": "Add cattle",
+      "editTitle": "Edit cattle",
+      "tagNumber": "Tag number",
+      "name": "Name",
+      "gender": "Gender",
+      "genderOptions": {
+        "MALE": "Male",
+        "FEMALE": "Female",
+        "CASTRATED_MALE": "Castrated male"
+      },
+      "purpose": "Purpose",
+      "purposeOptions": {
+        "MILK": "Milk",
+        "BREEDING": "Breeding",
+        "MEAT": "Meat",
+        "CALF": "Calf",
+        "BULL_SERVICE": "Bull service",
+        "DUAL_PURPOSE": "Dual purpose"
+      },
+      "dateOfBirth": "Date of birth",
+      "weightKg": "Weight (kg)",
+      "breed": "Breed",
+      "shed": "Shed",
+      "feedGroup": "Feed group",
+      "sourceType": "Source",
+      "sourceTypeOptions": {
+        "BORN": "Born on farm",
+        "PURCHASED": "Purchased",
+        "GIFTED": "Gifted",
+        "UNKNOWN": "Unknown"
+      },
+      "mother": "Mother",
+      "father": "Father",
+      "color": "Color",
+      "notes": "Notes",
+      "unassigned": "Unassigned",
+      "photo": "Photo",
+      "photoUploadLabel": "Drop a photo here, or click to browse",
+      "removePhoto": "Remove photo",
+      "save": "Save",
+      "cancel": "Cancel",
+      "createdToast": "Cattle added.",
+      "updatedToast": "Cattle updated.",
+      "photoUpdatedToast": "Photo updated.",
+      "photoRemovedToast": "Photo removed.",
+      "genericError": "Something went wrong. Please try again."
+    },
+    "statusDialog": {
+      "title": "Change status — {name}",
+      "productionStatus": "Production status",
+      "productionOptions": {
+        "MILKING": "Milking",
+        "DRY": "Dry",
+        "FRESH": "Fresh",
+        "GROWING": "Growing",
+        "SOLD": "Sold",
+        "DECEASED": "Deceased"
+      },
+      "reproductiveStatus": "Reproductive status",
+      "reproductiveOptions": {
+        "HEIFER": "Heifer",
+        "OPEN": "Open",
+        "BRED": "Bred",
+        "PREGNANT": "Pregnant",
+        "DRY": "Dry",
+        "LACTATING": "Lactating",
+        "POSTPARTUM": "Postpartum",
+        "ABORTED": "Aborted",
+        "RETIRED": "Retired"
+      },
+      "unassigned": "Not set",
+      "save": "Save",
+      "cancel": "Cancel",
+      "updatedToast": "Status updated.",
+      "genericError": "Something went wrong. Please try again."
+    },
+    "archiveDialog": {
+      "title": "Archive — {name}",
+      "description": "This removes the animal from the active herd. Choose the reason that fits.",
+      "reason": "Reason",
+      "reasonOptions": {
+        "sold": "Sold",
+        "deceased": "Deceased",
+        "archived": "Archived (other)"
+      },
+      "cancel": "Cancel",
+      "confirm": "Archive",
+      "archivedToast": "Cattle archived.",
+      "genericError": "Something went wrong. Please try again."
+    },
+    "actions": {
+      "menu": "Row actions",
+      "edit": "Edit",
+      "changeStatus": "Change status",
+      "archive": "Archive",
+      "restore": "Restore",
+      "restoredToast": "Cattle restored.",
+      "genericError": "Something went wrong. Please try again."
     }
   }
 }

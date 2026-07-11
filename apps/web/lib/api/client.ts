@@ -70,3 +70,27 @@ export async function apiFetchPage<T>(path: string, init: ApiFetchInit = {}): Pr
   }
   return { items, meta };
 }
+
+/**
+ * For multipart file uploads (cattle photo, CSV import). Never set a `Content-Type` header
+ * manually — the browser generates the multipart boundary itself when given a `FormData` body.
+ * Goes through the same `/api/backend` proxy as `apiFetch`; the proxy forwards the raw bytes +
+ * original boundary-bearing header untouched (see that route's comments).
+ */
+export async function apiUpload<T>(path: string, file: File, fieldName = "file"): Promise<T> {
+  const formData = new FormData();
+  formData.append(fieldName, file);
+  let res: Response;
+  try {
+    res = await fetch(buildUrl(path), { method: "POST", credentials: "same-origin", body: formData });
+  } catch (cause) {
+    throw new NetworkError(cause);
+  }
+  let envelope: ApiEnvelope<T>;
+  try {
+    envelope = (await res.json()) as ApiEnvelope<T>;
+  } catch (cause) {
+    throw new NetworkError(cause);
+  }
+  return unwrapEnvelope(envelope, res.status);
+}

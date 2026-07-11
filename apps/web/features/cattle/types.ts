@@ -109,3 +109,40 @@ export interface BulkCattleResult {
   failed: number;
   items?: CattleListItem[];
 }
+
+export type CattleSourceType = "BORN" | "PURCHASED" | "GIFTED" | "UNKNOWN";
+
+/**
+ * `GET/POST/PATCH /cattle(/:id)` single-resource shape (`cattle.service.ts#composeStatus` +
+ * `#attachDetailPhoto`) — the raw Prisma row (all `CreateCattleDto` fields as scalars, incl.
+ * `motherId`/`fatherId` alongside the `mother`/`father` summary relations) plus the same derived
+ * fields the list row gets. Detail photo carries a signed `full_url`, unlike the list's thumb-only.
+ */
+export interface CattleDetail extends CattleListItem {
+  image: string | null;
+  color: string | null;
+  notes: string | null;
+  motherId: string | null;
+  fatherId: string | null;
+  sourceType: CattleSourceType | null;
+  status: CattleStatus;
+  isActive: boolean;
+}
+
+/** `POST/PATCH /cattle(/:id)` body — mirrors `CreateCattleDto`/`UpdateCattleDto`. */
+export interface CattleFormPayload {
+  name?: string;
+  tagNumber: string;
+  breedId?: string;
+  gender: CattleGender;
+  dateOfBirth?: string;
+  purpose: CattlePurpose;
+  shedId?: string;
+  feedGroupId?: string;
+  motherId?: string;
+  fatherId?: string;
+  sourceType?: CattleSourceType;
+  weightKg?: number;
+  color?: string;
+  notes?: string;
+}

@@ -3,7 +3,8 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { cattleApi } from "../api";
-import type { BulkAction, CattleListFilters } from "../types";
+import type { BulkAction, CattleFormPayload, CattleListFilters } from "../types";
+import type { CattleArchiveInput, CattleStatusInput } from "../schemas";
 
 const STALE_TIME = 60_000;
 
@@ -51,5 +52,80 @@ export function useBulkCattle() {
       void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });
       void queryClient.invalidateQueries({ queryKey: qk.cattle.highlights() });
     },
+  });
+}
+
+export function useCattleDetail(id: string | undefined) {
+  return useQuery({
+    queryKey: qk.cattle.detail(id ?? ""),
+    queryFn: () => cattleApi.findOne(id!),
+    enabled: Boolean(id),
+    staleTime: STALE_TIME,
+  });
+}
+
+/** Shared invalidation for any mutation that changes a cattle row's list/highlights-visible fields. */
+function useInvalidateCattle() {
+  const queryClient = useQueryClient();
+  return (id?: string) => {
+    void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });
+    void queryClient.invalidateQueries({ queryKey: qk.cattle.highlights() });
+    if (id) void queryClient.invalidateQueries({ queryKey: qk.cattle.detail(id) });
+  };
+}
+
+export function useCreateCattle() {
+  const invalidate = useInvalidateCattle();
+  return useMutation({
+    mutationFn: (dto: CattleFormPayload) => cattleApi.create(dto),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useUpdateCattle() {
+  const invalidate = useInvalidateCattle();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: CattleFormPayload }) => cattleApi.update(id, dto),
+    onSuccess: (_data, { id }) => invalidate(id),
+  });
+}
+
+export function useUpdateCattleStatus() {
+  const invalidate = useInvalidateCattle();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: CattleStatusInput }) => cattleApi.updateStatus(id, dto),
+    onSuccess: (_data, { id }) => invalidate(id),
+  });
+}
+
+export function useArchiveCattle() {
+  const invalidate = useInvalidateCattle();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: CattleArchiveInput }) => cattleApi.archive(id, dto),
+    onSuccess: (_data, { id }) => invalidate(id),
+  });
+}
+
+export function useRestoreCattle() {
+  const invalidate = useInvalidateCattle();
+  return useMutation({
+    mutationFn: (id: string) => cattleApi.restore(id),
+    onSuccess: (_data, id) => invalidate(id),
+  });
+}
+
+export function useSetCattlePhoto() {
+  const invalidate = useInvalidateCattle();
+  return useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) => cattleApi.setPhoto(id, file),
+    onSuccess: (_data, { id }) => invalidate(id),
+  });
+}
+
+export function useRemoveCattlePhoto() {
+  const invalidate = useInvalidateCattle();
+  return useMutation({
+    mutationFn: (id: string) => cattleApi.removePhoto(id),
+    onSuccess: (_data, id) => invalidate(id),
   });
 }

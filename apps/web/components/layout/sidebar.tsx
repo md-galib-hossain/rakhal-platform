@@ -39,7 +39,10 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 export function Sidebar() {
   return (
     <aside className="hidden w-60 shrink-0 lg:block">
-      <div className="sticky top-2.5 h-[calc(100vh-1.25rem)]">
+      {/* z-30 matches Topbar's own z-index — keeps it unambiguously above AppShell's z-20
+          scroll-fog scrim, which otherwise has no explicit stacking relationship with this
+          sticky-but-unindexed sidebar. */}
+      <div className="sticky top-2.5 z-30 h-[calc(100vh-1.25rem)]">
         <SidebarBody />
       </div>
     </aside>

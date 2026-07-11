@@ -33,5 +33,6 @@ export const qk = {
     breeds: () => ["cattle", "breeds"] as const,
     sheds: () => ["cattle", "sheds"] as const,
     feedGroups: () => ["cattle", "feed-groups"] as const,
+    detail: (id: string) => ["cattle", "detail", id] as const,
   },
 };

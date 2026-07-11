@@ -25,7 +25,15 @@ async function forward(req: NextRequest, path: string[]): Promise<{ res: Respons
 
   const search = req.nextUrl.search;
   const url = `${serverEnv.API_BASE_URL}/${path.join("/")}${search}`;
-  const body = ["GET", "HEAD"].includes(req.method) ? undefined : await req.text();
+  // Multipart bodies (file uploads, e.g. cattle photo) must be forwarded as raw bytes with the
+  // original boundary-bearing Content-Type — `req.text()` would corrupt binary image data.
+  const contentType = req.headers.get("content-type");
+  const isMultipart = contentType?.startsWith("multipart/form-data") ?? false;
+  const body = ["GET", "HEAD"].includes(req.method)
+    ? undefined
+    : isMultipart
+      ? await req.arrayBuffer()
+      : await req.text();
 
   const res = await fetch(url, {
     method: req.method,
@@ -33,7 +41,7 @@ async function forward(req: NextRequest, path: string[]): Promise<{ res: Respons
     headers: {
       "Accept-Language": locale,
       ...(session ? { Authorization: `Bearer ${session.accessToken}` } : {}),
-      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(body !== undefined ? { "Content-Type": isMultipart ? contentType! : "application/json" } : {}),
     },
     body,
   });

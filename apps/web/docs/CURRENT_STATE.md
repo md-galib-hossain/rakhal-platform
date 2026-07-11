@@ -1,7 +1,48 @@
 # Frontend — Current State
 
 **Last updated:** 2026-07-11 · **Completion:** Phase 0 done (RFE-001…010) + RFE-100 marketing landing +
-Phase 1 RFE-020 (Dashboard) + RFE-021 (Cattle) done
+Phase 1 RFE-020 (Dashboard) + RFE-021 (Cattle list) + RFE-022 (Cattle add/edit) done
+
+## RFE-022 — Add/Edit cattle + photo + status flows (2026-07-11)
+Cattle create/edit (`CattleFormDialog`, one form for both), status-change dialog, archive dialog
+(sold/deceased/archived), and a new per-row actions menu — all live against the real backend. See
+`IN_FLIGHT.md` Recently Done for the full write-up, incl. two app-wide infra bugs found+fixed along
+the way (no multipart upload path existed yet; `useCan()` never matched the backend's `["*"]` Owner
+wildcard). Photo upload is wired correctly but 500s on a real R2 `AccessDenied` in this dev env —
+flagged, not fixed (out of this ticket's scope, needs valid R2 creds). Next: RFE-023 (detail page)
+or RFE-024 (CSV import, depends on this ticket).
+
+## Named shadow token (2026-07-11, user request)
+The one repeated arbitrary-value shadow (`shadow-[0px_0px_3px_rgba(0,0,0,0.1)]`, duplicated in
+`DashboardCard` and the new `PageCard`) is now a real design token: `--shadow-card` in `app/globals.css`
+(`:root` value + `@theme inline` mapping, same two-step pattern as `--radius-sm/md/lg/full`), which
+Tailwind v4's `--shadow-*` namespace auto-generates into a `shadow-card` utility class — both components
+now use `shadow-card` instead of the raw bracket value. (`auth-shell.tsx`'s `shadow-[0px_12px_16px_
+rgba(0,0,0,0.12)]` is a different value used only once, left alone — not "repetitive" yet.) **Verified
+via a fresh production build**, not the dev server: `grep`'d the compiled CSS chunk and confirmed
+`.shadow-card{--tw-shadow:var(--shadow-card);box-shadow:...}` compiles with the exact right value. The
+already-running dev server (owned by another agent's session, reused rather than restarted) showed
+`box-shadow: none` for a few checks — a known Turbopack dev-HMR staleness limitation for `@theme` block
+changes (confirmed via `document.styleSheets` — no `.shadow-card` rule existed in the served dev CSS at
+all, yet `--shadow-card` the *variable* resolved correctly, and the same build compiles the utility
+correctly from a clean `.next`) — not a code defect, didn't restart someone else's server to chase it.
+Gate green: lint/typecheck/build/18 unit tests.
+
+## Frosted-glass topbar scroll scrim (2026-07-11, user request)
+`AppShell` is not its own scroll container — the page/document scrolls, and `Topbar`/`Sidebar` are
+`sticky`, not `fixed`, so the `p-2.5` gutter above them is normal flow, not fixed chrome. Once scrolled,
+`main`'s own content was what showed in that gutter — a hard, unpolished edge. Fixed with a new
+`pointer-events-none fixed` scrim in `app-shell.tsx` (blur + a `background`→transparent gradient, pinned
+to the viewport top, `lg:left-[16.25rem]` to start exactly where `Topbar` does — math in the file's
+header comment) so scrolled content fogs out before reaching the topbar instead of cutting off sharply.
+`Topbar` itself went from opaque `bg-background` to a translucent `bg-card/80 backdrop-blur-md` glass
+card so it reads as one continuous frosted surface with the scrim, not two different treatments stacked;
+`Sidebar` got an explicit `z-30` (matching `Topbar`'s) so its stacking order relative to the scrim's
+`z-20` is unambiguous. Verified live via computed-style + `getBoundingClientRect` probes (screenshot
+tool still down this session): pixel-exact alignment (`scrim.left === topbar.left === 260px` at 1280px
+width, `scrim.left === 0` below the `lg` breakpoint where the sidebar is hidden), `backdrop-filter:
+blur(12px)` applied, correct gradient color in both light (`rgb(242,243,245)`) and dark
+(`rgb(16,21,26)`) theme, no console errors. Gate green: lint/typecheck/build.
 
 ## Shared "parent card" page wrapper (2026-07-11, user request)
 New `components/shared/page-card.tsx` (`PageCard`) — every module page's title (+ optional `actions`
