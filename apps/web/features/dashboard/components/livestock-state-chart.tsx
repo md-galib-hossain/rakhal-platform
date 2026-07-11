@@ -1,46 +1,81 @@
-"use client"; // period tabs (local UI state) + live query + dynamic chart import
+"use client"; // period select (local UI state) + live query
 
 import { useState } from "react";
-import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useLivestockState } from "../hooks/use-dashboard-widgets";
+import { DashboardCard } from "./dashboard-card";
+import { PeriodSelect } from "./period-select";
 import type { DashboardPeriod } from "../types";
 
-const LivestockStateChartInner = dynamic(() => import("./livestock-state-chart-inner"), {
-  ssr: false,
-  loading: () => <Skeleton className="h-[220px] w-full" />,
-});
+/** Figma-exact colors per state (732:1788) — overrides the backend's own arbitrary per-state hex
+ * (kept for other consumers) so this widget matches the "Livestock State" card pixel-for-pixel;
+ * keyed by the real `state` string the API returns. */
+const STATE_STYLE: Record<string, { bar: string; tint: string; text: string }> = {
+  fresh: { bar: "#059669", tint: "#ecfdf5", text: "#065f46" },
+  insemination: { bar: "#0074e8", tint: "#e6f2ff", text: "#00468c" },
+  dry: { bar: "#7e27ce", tint: "#f3eafc", text: "#4c187c" },
+  milking: { bar: "#0891b2", tint: "#ecfeff", text: "#155e75" },
+  pregnant: { bar: "#e8ae00", tint: "#fff9e6", text: "#8c6900" },
+  sick: { bar: "#e11d48", tint: "#fff1f2", text: "#9f1239" },
+};
+const ORDER = ["fresh", "insemination", "dry", "milking", "pregnant", "sick"];
 
 export function LivestockStateChart() {
   const t = useTranslations("dashboard.livestockState");
-  const [period, setPeriod] = useState<DashboardPeriod>("today");
+  const [period, setPeriod] = useState<DashboardPeriod>("month");
   const query = useLivestockState(period);
 
+  const headerRight = <PeriodSelect value={period} onChange={setPeriod} />;
+
+  if (query.isLoading) return <CardSkeleton lines={6} className="rounded-2xl" />;
+  if (query.isError) {
+    return (
+      <DashboardCard title={t("title")} headerRight={headerRight}>
+        <ErrorState description={t("error")} onRetry={() => query.refetch()} />
+      </DashboardCard>
+    );
+  }
+  const states = query.data?.states ?? [];
+  const byState = new Map(states.map((s) => [s.state, s.count]));
+  const scaleMax = Math.max(100, ...states.map((s) => s.count));
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(scaleMax * f));
+
   return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between space-y-0">
-        <CardTitle>{t("title")}</CardTitle>
-        <Tabs value={period} onValueChange={(v) => setPeriod(v as DashboardPeriod)}>
-          <TabsList>
-            <TabsTrigger value="today">{t("today")}</TabsTrigger>
-            <TabsTrigger value="week">{t("week")}</TabsTrigger>
-            <TabsTrigger value="month">{t("month")}</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </CardHeader>
-      <CardContent>
-        {query.isLoading ? (
-          <Skeleton className="h-[220px] w-full" />
-        ) : query.isError ? (
-          <ErrorState description={t("error")} onRetry={() => query.refetch()} />
-        ) : (
-          <LivestockStateChartInner bars={query.data?.states ?? []} />
-        )}
-      </CardContent>
-    </Card>
+    <DashboardCard title={t("title")} headerRight={headerRight}>
+      <div className="flex flex-col gap-4">
+        {ORDER.map((state) => {
+          const count = byState.get(state) ?? 0;
+          const style = STATE_STYLE[state];
+          const pct = Math.min(100, (count / scaleMax) * 100);
+          return (
+            <div key={state} className="flex items-center gap-2">
+              <p className="w-[76px] shrink-0 text-xs text-muted-foreground">{t(`states.${state}`)}</p>
+              <div className="relative h-7 flex-1 rounded-md" style={{ backgroundColor: style.tint }}>
+                <div
+                  className="h-7 rounded-md transition-[width]"
+                  style={{ width: `${pct}%`, backgroundColor: style.bar }}
+                />
+                <span
+                  className="absolute top-1/2 flex h-[18px] min-w-[25px] -translate-y-1/2 items-center justify-center rounded px-1 bg-card text-[10px] font-bold shadow-xs"
+                  style={{ left: `calc(${pct}% - 12px)`, color: style.text }}
+                >
+                  {count}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+        <div className="flex items-center gap-2 pt-1">
+          <p className="w-[76px] shrink-0 text-xs text-muted-foreground/60">{t("axisLabel")}</p>
+          <div className="flex flex-1 justify-between text-xs text-muted-foreground">
+            {ticks.map((tick) => (
+              <span key={tick}>{tick}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </DashboardCard>
   );
 }

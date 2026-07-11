@@ -380,6 +380,9 @@
     "logoutAllFailed": "Couldn't log out all devices. Try again."
   },
   "dashboard": {
+    "overview": {
+      "title": "Overview"
+    },
     "priorities": {
       "title": "Today's Priorities",
       "error": "Could not load priorities.",
@@ -399,7 +402,8 @@
         "warning": "Low",
         "unknown": "Unknown"
       },
-      "error": "Could not load KPIs."
+      "error": "Could not load KPIs.",
+      "title": "Key Metrics"
     },
     "productionSummary": {
       "title": "Production Summary",
@@ -456,14 +460,25 @@
         "preWeaning": "Pre-weaning (60-90d)",
         "postWeaning": "Post-weaning (90d+)"
       },
-      "error": "Could not load herd status."
+      "error": "Could not load herd status.",
+      "totalLabel": "Total",
+      "calvesTotal": "Calves"
     },
     "livestockState": {
       "title": "Livestock State",
       "today": "Today",
       "week": "Week",
       "month": "Month",
-      "error": "Could not load livestock state."
+      "error": "Could not load livestock state.",
+      "axisLabel": "No.",
+      "states": {
+        "fresh": "Fresh",
+        "insemination": "Insemination",
+        "dry": "Dry",
+        "milking": "Milking",
+        "pregnant": "Pregnant",
+        "sick": "Sick"
+      }
     },
     "financialSnapshot": {
       "title": "Financial Snapshot",
@@ -492,6 +507,110 @@
       "emptyTitle": "No tasks today",
       "emptyDescription": "Nothing scheduled for today.",
       "error": "Could not load tasks."
+    },
+    "financialPerformance": {
+      "title": "Financial Performance Over Time",
+      "periodLabel": "Yearly",
+      "income": "Income",
+      "expense": "Expense",
+      "profit": "Profit",
+      "error": "Could not load financial performance."
+    },
+    "productionVsFeedcost": {
+      "title": "Production vs Feedcost",
+      "periodLabel": "Monthly",
+      "production": "Production",
+      "feedcost": "Feedcost",
+      "error": "Could not load production vs feedcost."
+    },
+    "conceptionRate": {
+      "title": "Conception Rate ({rate}%)",
+      "monthlyConception": "Monthly Conception",
+      "avgRate": "Avg. Rate",
+      "error": "Could not load the conception rate."
+    },
+    "period": {
+      "today": "Today",
+      "week": "Week",
+      "month": "Monthly"
+    }
+  },
+  "cattle": {
+    "empty": {
+      "title": "No cattle found",
+      "description": "Try adjusting your search or filters."
+    },
+    "highlights": {
+      "totalActive": "Total Active",
+      "avgHerdAqr": "Avg. Herd AQR",
+      "breedingReady": "Breeding Ready",
+      "todaysYield": "Today's Yield",
+      "error": "Could not load cattle highlights."
+    },
+    "filters": {
+      "searchPlaceholder": "Search by name or tag…",
+      "status": "Status",
+      "health": "Health",
+      "breed": "Breed",
+      "shed": "Shed",
+      "feedGroup": "Feed Group",
+      "statusOptions": {
+        "milking": "Milking",
+        "dry": "Dry",
+        "fresh": "Fresh",
+        "growing": "Growing",
+        "sold": "Sold",
+        "deceased": "Deceased"
+      },
+      "healthOptions": {
+        "healthy": "Healthy",
+        "sick": "Sick",
+        "inTreatment": "In treatment",
+        "withholding": "Withholding",
+        "quarantine": "Quarantine"
+      }
+    },
+    "columns": {
+      "cattle": "Cattle",
+      "breed": "Breed",
+      "shed": "Shed",
+      "status": "Status",
+      "health": "Health",
+      "aqr": "AQR",
+      "dim": "DIM",
+      "weight": "Weight",
+      "bcs": "BCS"
+    },
+    "statusOptions": {
+      "milking": "Milking",
+      "dry": "Dry",
+      "fresh": "Fresh",
+      "growing": "Growing",
+      "sold": "Sold",
+      "deceased": "Deceased"
+    },
+    "healthOptions": {
+      "healthy": "Healthy",
+      "sick": "Sick",
+      "inTreatment": "In treatment",
+      "withholding": "Withholding",
+      "quarantine": "Quarantine"
+    },
+    "bulk": {
+      "selectedCount": "{count} selected",
+      "changeShed": "Change shed",
+      "changeShedDescription": "Move {count} cattle to a different shed.",
+      "shedLabel": "Shed",
+      "changeFeedGroup": "Change feed group",
+      "changeFeedGroupDescription": "Move {count} cattle to a different feed group.",
+      "feedGroupLabel": "Feed group",
+      "markSold": "Mark as sold",
+      "markSoldDescription": "Mark {count} cattle as sold. This archives them from the active herd.",
+      "export": "Export",
+      "cancel": "Cancel",
+      "apply": "Apply",
+      "resultToast": "{updated} updated, {failed} failed",
+      "failedToast": "Bulk action failed."
     }
   }
 }

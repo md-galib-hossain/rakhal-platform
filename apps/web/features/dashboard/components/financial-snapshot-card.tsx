@@ -1,11 +1,11 @@
 "use client"; // live query
 
 import { useTranslations } from "next-intl";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
 import { useFinancialSnapshot } from "../hooks/use-dashboard-widgets";
+import { DashboardCard } from "./dashboard-card";
 
 function Row({ label, current, changePct }: { label: string; current: number; changePct: number | null }) {
   return (
@@ -28,25 +28,20 @@ export function FinancialSnapshotCard() {
   const t = useTranslations("dashboard.financialSnapshot");
   const query = useFinancialSnapshot();
 
-  if (query.isLoading) return <CardSkeleton lines={4} />;
+  if (query.isLoading) return <CardSkeleton lines={4} className="rounded-2xl" />;
   if (query.isError) {
     return (
-      <Card>
-        <CardContent className="pt-6">
-          <ErrorState description={t("error")} onRetry={() => query.refetch()} />
-        </CardContent>
-      </Card>
+      <DashboardCard title={t("title")}>
+        <ErrorState description={t("error")} onRetry={() => query.refetch()} />
+      </DashboardCard>
     );
   }
   const data = query.data;
   if (!data) return null;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("title")}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+    <DashboardCard title={t("title")}>
+      <div className="flex flex-1 flex-col justify-between gap-3">
         <Row label={t("income")} current={data.income.current} changePct={data.income.changePct} />
         <Row label={t("expenses")} current={data.expenses.current} changePct={data.expenses.changePct} />
         <div className="border-t border-border pt-3">
@@ -56,7 +51,7 @@ export function FinancialSnapshotCard() {
           <span className="text-muted-foreground">{t("survivalRunway")}</span>
           <span className="font-medium text-foreground">{t("daysValue", { days: data.survivalRunway.days })}</span>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </DashboardCard>
   );
 }

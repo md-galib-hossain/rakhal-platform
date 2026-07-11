@@ -56,6 +56,30 @@ export function useFinancialSnapshot() {
   });
 }
 
+export function useFinancialPerformance() {
+  return useQuery({
+    queryKey: qk.dashboard.financialPerformance(),
+    queryFn: dashboardApi.financialPerformance,
+    staleTime: STALE_TIME,
+  });
+}
+
+export function useProductionVsFeedcost() {
+  return useQuery({
+    queryKey: qk.dashboard.productionVsFeedcost(),
+    queryFn: dashboardApi.productionVsFeedcost,
+    staleTime: STALE_TIME,
+  });
+}
+
+export function useConceptionRate() {
+  return useQuery({
+    queryKey: qk.dashboard.conceptionRate(),
+    queryFn: dashboardApi.conceptionRate,
+    staleTime: STALE_TIME,
+  });
+}
+
 export function useFeedStockAlerts() {
   return useQuery({
     queryKey: qk.dashboard.feedStockAlerts(),

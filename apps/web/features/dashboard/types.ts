@@ -88,6 +88,24 @@ export interface FinancialSnapshotResponse {
   survivalRunway: { days: number; availableLiquidity: number; status: string };
 }
 
+export interface FinancialPerformanceResponse {
+  months: Array<{ month: string; label: string; income: number; expense: number; profit: number }>;
+}
+
+export interface ProductionVsFeedcostResponse {
+  days: Array<{ day: number; productionL: number; feedcost: number }>;
+}
+
+export interface ConceptionRateResponse {
+  months: Array<{
+    month: string;
+    label: string;
+    inseminations: number;
+    confirmedPregnancies: number;
+    ratePct: number;
+  }>;
+}
+
 export interface FeedStockAlertItem {
   itemId: string;
   itemType: "medicine" | "forage";

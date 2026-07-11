@@ -3,14 +3,17 @@
 import { apiFetch } from "@/lib/api/client";
 import type {
   CalvingForecastResponse,
+  ConceptionRateResponse,
   DashboardPeriod,
   FeedStockAlertsResponse,
+  FinancialPerformanceResponse,
   FinancialSnapshotResponse,
   HerdStatusResponse,
   KpisResponse,
   LivestockStateResponse,
   PrioritiesResponse,
   ProductionSummaryResponse,
+  ProductionVsFeedcostResponse,
   UpcomingTasksResponse,
 } from "./types";
 
@@ -36,6 +39,15 @@ export const dashboardApi = {
   },
   financialSnapshot(): Promise<FinancialSnapshotResponse> {
     return apiFetch<FinancialSnapshotResponse>("/dashboard/financial-snapshot");
+  },
+  financialPerformance(): Promise<FinancialPerformanceResponse> {
+    return apiFetch<FinancialPerformanceResponse>("/dashboard/financial-performance");
+  },
+  productionVsFeedcost(): Promise<ProductionVsFeedcostResponse> {
+    return apiFetch<ProductionVsFeedcostResponse>("/dashboard/production-vs-feedcost");
+  },
+  conceptionRate(): Promise<ConceptionRateResponse> {
+    return apiFetch<ConceptionRateResponse>("/dashboard/conception-rate");
   },
   feedStockAlerts(): Promise<FeedStockAlertsResponse> {
     return apiFetch<FeedStockAlertsResponse>("/dashboard/feed-stock-alerts");

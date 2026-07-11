@@ -380,6 +380,9 @@
     "logoutAllFailed": "সব ডিভাইস থেকে লগ-আউট করা যায়নি। আবার চেষ্টা করুন।"
   },
   "dashboard": {
+    "overview": {
+      "title": "ওভারভিউ"
+    },
     "priorities": {
       "title": "আজকের অগ্রাধিকার",
       "error": "অগ্রাধিকার লোড করা যায়নি।",
@@ -399,7 +402,8 @@
         "warning": "কম",
         "unknown": "অজানা"
       },
-      "error": "কেপিআই লোড করা যায়নি।"
+      "error": "কেপিআই লোড করা যায়নি।",
+      "title": "মূল সূচক"
     },
     "productionSummary": {
       "title": "উৎপাদন সারসংক্ষেপ",
@@ -456,14 +460,25 @@
         "preWeaning": "দুধ ছাড়ানোর আগে (৬০-৯০ দিন)",
         "postWeaning": "দুধ ছাড়ানোর পরে (৯০+ দিন)"
       },
-      "error": "পালের অবস্থা লোড করা যায়নি।"
+      "error": "পালের অবস্থা লোড করা যায়নি।",
+      "totalLabel": "মোট",
+      "calvesTotal": "বাছুর"
     },
     "livestockState": {
       "title": "গবাদি পশুর অবস্থা",
       "today": "আজ",
       "week": "সপ্তাহ",
       "month": "মাস",
-      "error": "গবাদি পশুর অবস্থা লোড করা যায়নি।"
+      "error": "গবাদি পশুর অবস্থা লোড করা যায়নি।",
+      "axisLabel": "সংখ্যা",
+      "states": {
+        "fresh": "সদ্য প্রসূত",
+        "insemination": "প্রজনন",
+        "dry": "শুষ্ক",
+        "milking": "দুধেল",
+        "pregnant": "গর্ভবতী",
+        "sick": "অসুস্থ"
+      }
     },
     "financialSnapshot": {
       "title": "আর্থিক সারসংক্ষেপ",
@@ -492,6 +507,110 @@
       "emptyTitle": "আজ কোনো কাজ নেই",
       "emptyDescription": "আজকের জন্য কিছু নির্ধারিত নেই।",
       "error": "কাজ লোড করা যায়নি।"
+    },
+    "financialPerformance": {
+      "title": "সময়ের সাথে আর্থিক পারফরম্যান্স",
+      "periodLabel": "বার্ষিক",
+      "income": "আয়",
+      "expense": "ব্যয়",
+      "profit": "মুনাফা",
+      "error": "আর্থিক পারফরম্যান্স লোড করা যায়নি।"
+    },
+    "productionVsFeedcost": {
+      "title": "উৎপাদন বনাম খাদ্য ব্যয়",
+      "periodLabel": "মাসিক",
+      "production": "উৎপাদন",
+      "feedcost": "খাদ্য ব্যয়",
+      "error": "উৎপাদন বনাম খাদ্য ব্যয় লোড করা যায়নি।"
+    },
+    "conceptionRate": {
+      "title": "গর্ভধারণের হার ({rate}%)",
+      "monthlyConception": "মাসিক গর্ভধারণ",
+      "avgRate": "গড় হার",
+      "error": "গর্ভধারণের হার লোড করা যায়নি।"
+    },
+    "period": {
+      "today": "আজ",
+      "week": "সপ্তাহ",
+      "month": "মাসিক"
+    }
+  },
+  "cattle": {
+    "empty": {
+      "title": "কোনো গবাদি পশু পাওয়া যায়নি",
+      "description": "আপনার অনুসন্ধান বা ফিল্টার সামঞ্জস্য করার চেষ্টা করুন।"
+    },
+    "highlights": {
+      "totalActive": "মোট সক্রিয়",
+      "avgHerdAqr": "গড় AQR",
+      "breedingReady": "প্রজননের জন্য প্রস্তুত",
+      "todaysYield": "আজকের উৎপাদন",
+      "error": "গবাদি পশুর হাইলাইট লোড করা যায়নি।"
+    },
+    "filters": {
+      "searchPlaceholder": "নাম বা ট্যাগ দিয়ে খুঁজুন…",
+      "status": "অবস্থা",
+      "health": "স্বাস্থ্য",
+      "breed": "জাত",
+      "shed": "শেড",
+      "feedGroup": "ফিড গ্রুপ",
+      "statusOptions": {
+        "milking": "দুধ দেওয়া",
+        "dry": "শুকনো",
+        "fresh": "সদ্য বিয়ানো",
+        "growing": "বেড়ে ওঠা",
+        "sold": "বিক্রিত",
+        "deceased": "মৃত"
+      },
+      "healthOptions": {
+        "healthy": "সুস্থ",
+        "sick": "অসুস্থ",
+        "inTreatment": "চিকিৎসাধীন",
+        "withholding": "দুধ আটকানো",
+        "quarantine": "কোয়ারেন্টাইন"
+      }
+    },
+    "columns": {
+      "cattle": "গবাদি পশু",
+      "breed": "জাত",
+      "shed": "শেড",
+      "status": "অবস্থা",
+      "health": "স্বাস্থ্য",
+      "aqr": "AQR",
+      "dim": "DIM",
+      "weight": "ওজন",
+      "bcs": "BCS"
+    },
+    "statusOptions": {
+      "milking": "দুধ দেওয়া",
+      "dry": "শুকনো",
+      "fresh": "সদ্য বিয়ানো",
+      "growing": "বেড়ে ওঠা",
+      "sold": "বিক্রিত",
+      "deceased": "মৃত"
+    },
+    "healthOptions": {
+      "healthy": "সুস্থ",
+      "sick": "অসুস্থ",
+      "inTreatment": "চিকিৎসাধীন",
+      "withholding": "দুধ আটকানো",
+      "quarantine": "কোয়ারেন্টাইন"
+    },
+    "bulk": {
+      "selectedCount": "{count} টি নির্বাচিত",
+      "changeShed": "শেড পরিবর্তন করুন",
+      "changeShedDescription": "{count} টি গবাদি পশুকে ভিন্ন শেডে সরান।",
+      "shedLabel": "শেড",
+      "changeFeedGroup": "ফিড গ্রুপ পরিবর্তন করুন",
+      "changeFeedGroupDescription": "{count} টি গবাদি পশুকে ভিন্ন ফিড গ্রুপে সরান।",
+      "feedGroupLabel": "ফিড গ্রুপ",
+      "markSold": "বিক্রিত হিসেবে চিহ্নিত করুন",
+      "markSoldDescription": "{count} টি গবাদি পশুকে বিক্রিত হিসেবে চিহ্নিত করুন। এটি সক্রিয় পাল থেকে সংরক্ষণাগারে সরিয়ে দেবে।",
+      "export": "রপ্তানি",
+      "cancel": "বাতিল",
+      "apply": "প্রয়োগ করুন",
+      "resultToast": "{updated} টি আপডেট, {failed} টি ব্যর্থ",
+      "failedToast": "বাল্ক অ্যাকশন ব্যর্থ হয়েছে।"
     }
   }
 }

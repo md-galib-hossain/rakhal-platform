@@ -21,7 +21,17 @@ export const qk = {
     herdStatus: () => ["dashboard", "herd-status"] as const,
     livestockState: (period: string) => ["dashboard", "livestock-state", period] as const,
     financialSnapshot: () => ["dashboard", "financial-snapshot"] as const,
+    financialPerformance: () => ["dashboard", "financial-performance"] as const,
+    productionVsFeedcost: () => ["dashboard", "production-vs-feedcost"] as const,
+    conceptionRate: () => ["dashboard", "conception-rate"] as const,
     feedStockAlerts: () => ["dashboard", "feed-stock-alerts"] as const,
     upcomingTasks: () => ["dashboard", "upcoming-tasks"] as const,
+  },
+  cattle: {
+    list: (filters: Record<string, string | undefined>) => ["cattle", "list", filters] as const,
+    highlights: () => ["cattle", "highlights"] as const,
+    breeds: () => ["cattle", "breeds"] as const,
+    sheds: () => ["cattle", "sheds"] as const,
+    feedGroups: () => ["cattle", "feed-groups"] as const,
   },
 };

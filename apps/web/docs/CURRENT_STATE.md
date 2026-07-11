@@ -18,6 +18,24 @@ a flat `session -> status` string map — fixed, confirmed against the real netw
 widgets with real data, light+dark, desktop+mobile, no console errors. Gate green. Full writeup:
 `PROJECT_PROGRESS.md` RFE-020 entry.
 
+**Pixel-exact layout pass (2026-07-11 follow-up)** — user flagged the layout didn't match the real
+Figma "Dashboard" frame; pulled per-widget design context (metadata for the whole content area was
+still too large, fetched each card individually) and rebuilt the grid to Figma's 3-per-row card rhythm.
+New `dashboard-card.tsx` (shared card chrome, pixel-matched) + `period-select.tsx` (real dropdown,
+replaces the old `Tabs`, now also wired to `LivestockStateChart` which previously had none). `KpiBar` →
+2×2 icon-tile grid; `HerdStatusDonut` → single donut + legend (was 4 tabs; Figma's own legend is a
+sex/age split — cows/heifers/bulls — this backend doesn't track, so kept the real `productionBreakdown`
+categories instead of faking one); `LivestockStateChart` → hand-built horizontal bars (closer to Figma
+than the recharts version, and the real `states` data lines up with Figma's rows exactly). **Three
+Figma widgets have no real backing endpoint — not built as fakes**: "Financial Performance Over Time"
+(12-month trend), "Production vs Feedcost", "Conception Rate" all need data outside the 9 real
+`GET /dashboard/*` routes; those grid slots carry real widgets instead (`FinancialSnapshotCard`,
+`PrioritiesPanel`, `CalvingForecastCard`, `FeedStockAlertsCard`) in the same new chrome. Gate green
+(lint/typecheck/build) — **live browser verification not completed this session**: hit a tool-permission
+outage, then a stale orphaned `next dev` process holding the dev-server lock (user-approved kill), then
+the browser tool itself switched to the Chrome-extension path mid-session, which isn't connected here.
+Flagged, not claimed as verified — owed on the next session with working browser tools.
+
 ## Subscription context + gating (RFE-008 — done)
 `features/subscription/` (real `GET /subscription`, mirrors `features/profile/`'s pattern) +
 `hooks/use-subscription-gates.ts` (`useHasFeature`/`useIsReadOnly`/`useIsEligibleForUpgradeAd`, mirrors
@@ -210,14 +228,16 @@ Domain plan: `rakhal.app`=landing · `farm.rakhal.app`=consumer app (host rewrit
   (Swagger `/api/docs`). Known not-built: milk quality (V1.5), report schedules (V1.5), feed mixtures, mobile sync.
 
 ## Next task
-Phase 0 is fully done (RFE-001…010). Phase 1 has started: RFE-020 (Dashboard) is done. Remaining Phase 1
-daily-driver pages are open, parallel lanes per `PROJECT_PROGRESS.md`: RFE-021/022/023/024 (cattle),
+Phase 0 is fully done (RFE-001…010). Phase 1 has started: RFE-020 (Dashboard) and RFE-021 (Cattle list)
+are done. Remaining Phase 1 daily-driver pages are open, parallel lanes per `PROJECT_PROGRESS.md`:
+RFE-022/023/024 (cattle add/edit, detail, CSV import — all depend on RFE-021's feature folder),
 RFE-025/026 (milk/buyers), RFE-027 (task hub), RFE-030/031/032/033 (reproduction/healthcare/calves),
 RFE-034/035 (inventory/finance), RFE-040/041 (feed formulator/reports). Real follow-ups flagged (not
 started): a CI backend service (Postgres/Redis/seed + cross-repo `rakhal-backend` checkout) so RFE-010's
 Lighthouse gate can cover authenticated routes and RFE-009's Playwright suite can run in CI, not just
-locally against a manually-started dev backend. Live browser verification of RFE-007 is still owed once
-the dev-server lock frees up.
+locally against a manually-started dev backend. Live browser verification of RFE-007 and RFE-021 is
+still owed — this session's browser tool couldn't get past the demo owner's 11-farm "select farm" login
+step (see `IN_FLIGHT.md`'s RFE-021 entry); verified instead via `curl` against the real backend.
 
 ## Known environment issue (this machine — not a code problem)
 The shared pnpm store (`D:\.pnpm-store\v10`) has a permission-corrupted file — even `icacls`/`Remove-Item`

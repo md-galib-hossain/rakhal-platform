@@ -415,7 +415,11 @@
 - DataTable (cursor), filters (status/breed/shed/feed-group/health/search), highlights bar (4 KPIs),
   bulk ops (`POST /cattle/bulk`: shed/feed-group/sold/export), thumbnails (signed URLs → `next/image`).
 - **API:** §4 · **PRD:** §8
-- **Status:** `TODO`
+- **Status:** `DONE` — see `IN_FLIGHT.md` Recently Done for the full build note. Real gaps found vs the
+  aspirational `Rakhal_API.md` §4: cursor pagination not page/per_page, `highlights()` is snake_case
+  on the wire (unlike the rest of this app's camelCase responses), thumbnails render via `Avatar`
+  (plain `<img>`) not `next/image` (no fixed remote host for the R2 signed URL). Bulk result is
+  aggregate-only (`{updated,failed}`, no per-row detail). No detail/add-edit route yet (RFE-022/023).
 
 #### RFE-022 — Add/Edit cattle + photo + status flows
 - **Depends:** RFE-021 (shares feature folder — same agent or sequenced) · **Design:** Figma add-cattle frames

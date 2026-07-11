@@ -2,40 +2,38 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
 import { useUpcomingTasks } from "../hooks/use-dashboard-widgets";
+import { DashboardCard } from "./dashboard-card";
 
 export function UpcomingTasksCard() {
   const t = useTranslations("dashboard.upcomingTasks");
   const query = useUpcomingTasks();
 
-  if (query.isLoading) return <CardSkeleton lines={4} />;
+  const headerRight = (
+    <Link href="/tasks" className="text-xs font-medium text-primary-hover hover:underline">
+      {t("viewAll")}
+    </Link>
+  );
+
+  if (query.isLoading) return <CardSkeleton lines={4} className="rounded-2xl" />;
   if (query.isError) {
     return (
-      <Card>
-        <CardContent className="pt-6">
-          <ErrorState description={t("error")} onRetry={() => query.refetch()} />
-        </CardContent>
-      </Card>
+      <DashboardCard title={t("title")} headerRight={headerRight}>
+        <ErrorState description={t("error")} onRetry={() => query.refetch()} />
+      </DashboardCard>
     );
   }
   const data = query.data;
   if (!data) return null;
 
   return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between space-y-0">
-        <CardTitle>{t("title")}</CardTitle>
-        <Link href="/tasks" className="text-xs font-medium text-primary-hover hover:underline">
-          {t("viewAll")}
-        </Link>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+    <DashboardCard title={t("title")} headerRight={headerRight}>
+      <div className="flex flex-1 flex-col gap-3">
         <div className="flex items-center gap-4 text-sm">
           <span className="text-muted-foreground">
             {t("completed", { done: data.completedToday, total: data.totalToday })}
@@ -56,7 +54,7 @@ export function UpcomingTasksCard() {
             ))}
           </ul>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </DashboardCard>
   );
 }
