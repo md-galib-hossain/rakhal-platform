@@ -15,6 +15,8 @@ import { CouponService } from 'src/modules/billing/application/services/coupon.s
 import { ReferralService } from 'src/modules/billing/application/services/referral.service';
 import { PlanCatalogueService } from 'src/modules/subscription/application/services/plan-catalogue.service';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
+import { AdminPermissionGuard } from '../guards/admin-permission.guard';
+import { RequireAdminPermission } from '../decorators/require-admin-permission.decorator';
 import { CurrentAdmin } from '../decorators/current-admin.decorator';
 import type { CurrentAdminContext } from '../../domain/authenticated-admin-request.type';
 import { AdminAuditService } from '../../application/services/admin-audit.service';
@@ -30,7 +32,7 @@ import { AdminIssueCouponDto } from '../dto/admin-issue-coupon.dto';
 @ApiTags('Admin — Billing')
 @ApiBearerAuth()
 @Controller('admin')
-@UseGuards(PlatformAdminGuard)
+@UseGuards(PlatformAdminGuard, AdminPermissionGuard)
 export class AdminBillingController {
   constructor(
     private readonly coupons: CouponService,
@@ -45,11 +47,13 @@ export class AdminBillingController {
   }
 
   @Get('coupons')
+  @RequireAdminPermission('coupon.read')
   listCoupons(@Query('status') status?: CouponStatus) {
     return this.coupons.list(status);
   }
 
   @Post('coupons')
+  @RequireAdminPermission('coupon.manage')
   async issueCoupon(
     @CurrentAdmin() admin: CurrentAdminContext,
     @Body() dto: AdminIssueCouponDto,
@@ -78,6 +82,7 @@ export class AdminBillingController {
   }
 
   @Post('coupons/:id/disable')
+  @RequireAdminPermission('coupon.manage')
   async disableCoupon(
     @CurrentAdmin() admin: CurrentAdminContext,
     @Param('id') id: string,
@@ -96,6 +101,7 @@ export class AdminBillingController {
   }
 
   @Get('referrals/commissions')
+  @RequireAdminPermission('referral.read')
   listCommissions(@Query('status') status?: CommissionStatus) {
     return this.referrals.listAllCommissions(status);
   }

@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { bearer, createTestApp, loginAs, TestContext } from './utils/e2e';
 import type { AuthedUser } from './utils/e2e';
+import { currentTotpCode } from './utils/totp';
 import { PaymentGateway } from '@prisma/client';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { LoggerService } from '../src/core/logger/logger/logger.service';
@@ -104,7 +105,11 @@ describe('Settlement reconciliation (e2e)', () => {
 
     const login = await request(ctx.app.getHttpServer())
       .post(`${ctx.prefix}/admin/auth/login`)
-      .send({ email: 'admin@rakhal.test', password: 'AdminPass123' })
+      .send({
+        email: 'admin@rakhal.test',
+        password: 'AdminPass123',
+        code: currentTotpCode(),
+      })
       .expect(201);
     adminToken = (login.body as { data: { accessToken: string } }).data
       .accessToken;

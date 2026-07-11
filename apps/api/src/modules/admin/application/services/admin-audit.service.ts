@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { CursorPage, getCursorArgs, toCursorPage } from 'src/common/pagination';
+import { ListAdminAuditQueryDto } from '../../presentation/dto/list-admin-audit.dto';
+import { PlatformAdminAuditLog } from '@prisma/client';
 
 /**
  * Immutable audit trail for platform-admin actions (RAKHAL-224). Separate from
@@ -43,5 +46,20 @@ export class AdminAuditService {
         ipAddress: data.ipAddress ?? null,
       },
     });
+  }
+
+  /** `GET /admin/audit` (ADM-03) — the immutable trail, newest first. */
+  async list(
+    query: ListAdminAuditQueryDto,
+  ): Promise<CursorPage<PlatformAdminAuditLog>> {
+    const rows = await this.prisma.platformAdminAuditLog.findMany({
+      where: {
+        adminId: query.adminId,
+        action: query.action,
+      },
+      orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
+      ...getCursorArgs(query),
+    });
+    return toCursorPage(rows, query);
   }
 }

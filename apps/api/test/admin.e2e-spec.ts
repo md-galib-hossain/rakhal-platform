@@ -1,6 +1,8 @@
 import request from 'supertest';
+import * as argon2 from 'argon2';
 import { bearer, createTestApp, loginAs, TestContext } from './utils/e2e';
 import type { AuthedUser } from './utils/e2e';
+import { currentTotpCode } from './utils/totp';
 import { BillingPeriod } from '@prisma/client';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { BillingService } from '../src/modules/billing/application/services/billing.service';
@@ -12,6 +14,7 @@ import { BillingService } from '../src/modules/billing/application/services/bill
  * coupon lifecycle (CPN-06) and the disabled-coupon-can't-redeem loophole.
  */
 interface LoginResp {
+  twoFactorSetupRequired: boolean;
   accessToken: string;
   admin: { id: string; email: string; role: string };
 }
@@ -72,7 +75,11 @@ describe('Platform admin (e2e)', () => {
 
     const login = await request(ctx.app.getHttpServer())
       .post(`${ctx.prefix}/admin/auth/login`)
-      .send({ email: 'admin@rakhal.test', password: 'AdminPass123' })
+      .send({
+        email: 'admin@rakhal.test',
+        password: 'AdminPass123',
+        code: currentTotpCode(),
+      })
       .expect(201);
     adminToken = (login.body as { data: LoginResp }).data.accessToken;
   }, 30_000);
@@ -103,6 +110,99 @@ describe('Platform admin (e2e)', () => {
       .get(`${ctx.prefix}/admin/coupons`)
       .set(...bearer(owner))
       .expect(401);
+  });
+
+  it('an admin without 2FA enabled is blocked from every /admin/* route (RAKHAL-225)', async () => {
+    const email = `no2fa-${Date.now()}@rakhal.test`;
+    const created = await prisma.platformAdmin.create({
+      data: {
+        email,
+        name: 'No 2FA Admin',
+        passwordHash: await argon2.hash('NoTwoFactor123', {
+          type: argon2.argon2id,
+        }),
+        role: 'SUPER_ADMIN',
+      },
+    });
+
+    const login = await request(ctx.app.getHttpServer())
+      .post(`${ctx.prefix}/admin/auth/login`)
+      .send({ email, password: 'NoTwoFactor123' })
+      .expect(201);
+    const body = (login.body as { data: LoginResp }).data;
+    expect(body.twoFactorSetupRequired).toBe(true);
+    expect(body.accessToken).toBeUndefined();
+
+    // The setup token cannot be used against a normal /admin/* route.
+    await request(ctx.app.getHttpServer())
+      .get(`${ctx.prefix}/admin/coupons`)
+      .set(
+        'Authorization',
+        `Bearer ${(login.body as { data: { setupToken: string } }).data.setupToken}`,
+      )
+      .expect(401);
+
+    await prisma.platformAdmin.delete({ where: { id: created.id } });
+  });
+
+  it('least-privilege: a role without the permission gets 403 on a foreign action', async () => {
+    const email = `support-${Date.now()}@rakhal.test`;
+    const created = await prisma.platformAdmin.create({
+      data: {
+        email,
+        name: 'Support Admin',
+        passwordHash: await argon2.hash('SupportPass123', {
+          type: argon2.argon2id,
+        }),
+        role: 'SUPPORT_ADMIN',
+        totpEnabled: true,
+        totpSecret: 'JBSWY3DPEHPK3PXP',
+      },
+    });
+
+    const login = await request(ctx.app.getHttpServer())
+      .post(`${ctx.prefix}/admin/auth/login`)
+      .send({
+        email,
+        password: 'SupportPass123',
+        code: currentTotpCode(),
+      })
+      .expect(201);
+    const supportToken = (login.body as { data: LoginResp }).data.accessToken;
+
+    // SUPPORT_ADMIN can read coupons...
+    await request(ctx.app.getHttpServer())
+      .get(`${ctx.prefix}/admin/coupons`)
+      .set('Authorization', `Bearer ${supportToken}`)
+      .expect(200);
+
+    // ...but cannot issue one (coupon.manage is BILLING_ADMIN/SUPER_ADMIN only).
+    await request(ctx.app.getHttpServer())
+      .post(`${ctx.prefix}/admin/coupons`)
+      .set('Authorization', `Bearer ${supportToken}`)
+      .send({
+        code: uniqueCode('DENIED'),
+        type: 'FIXED',
+        value: 100,
+        maxRedemptions: 5,
+        validFrom: new Date(Date.now() - 86_400_000).toISOString(),
+        validUntil: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+      })
+      .expect(403);
+
+    await prisma.platformAdminAuditLog.deleteMany({
+      where: { adminId: created.id },
+    });
+    await prisma.platformAdmin.delete({ where: { id: created.id } });
+  });
+
+  it('GET /admin/audit lists admin actions (ADM-03)', async () => {
+    const res = await request(ctx.app.getHttpServer())
+      .get(`${ctx.prefix}/admin/audit`)
+      .set(...adminAuth())
+      .expect(200);
+    const items = (res.body as { data: unknown[] }).data;
+    expect(Array.isArray(items)).toBe(true);
   });
 
   it('an admin token cannot reach a farm billing route (reverse isolation)', async () => {

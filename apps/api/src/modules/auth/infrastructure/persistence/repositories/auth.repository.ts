@@ -22,6 +22,15 @@ export class AuthRepository implements EmailVerificationTokenPort {
     return this.prisma.user.findUnique({ where: { id: userId } });
   }
 
+  /** For anything returned to the client (`GET /auth/me`) — `findUserById` still carries
+   * `passwordHash` for internal use (e.g. `changePassword`'s re-verification). */
+  findSafeUserById(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      omit: { passwordHash: true },
+    });
+  }
+
   createEmailVerificationToken(data: {
     userId: string;
     token: string;

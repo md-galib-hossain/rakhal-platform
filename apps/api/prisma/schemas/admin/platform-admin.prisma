@@ -1,8 +1,11 @@
-/// Platform-admin roles (RAKHAL-224, PRD §32.5). `SUPER_ADMIN` is the only role
-/// at launch; RAKHAL-225 adds granular back-office roles (BILLING_ADMIN,
-/// SUPPORT_ADMIN, …) + a permission matrix on this same identity.
+/// Platform-admin roles (RAKHAL-224, RAKHAL-225, PRD §32.5/§35.21). Granular
+/// back-office roles beyond `SUPER_ADMIN` (wildcard access); each maps to a
+/// fixed permission set in `domain/admin-permission-matrix.ts`.
 enum PlatformAdminRole {
   SUPER_ADMIN
+  SUPPORT_ADMIN
+  BILLING_ADMIN
+  CONTENT_ADMIN
 }
 
 /// A Rakhal-team back-office identity (RAKHAL-224, PRD §32.5 / ADR-019).
@@ -20,7 +23,14 @@ model PlatformAdmin {
   role     PlatformAdminRole @default(SUPER_ADMIN)
   isActive Boolean           @default(true)
 
-  lastLoginAt DateTime?
+  /// TOTP secret (RAKHAL-225, base32) — set once at 2FA setup, kept even after
+  /// enabling (no rotation flow yet). `totpEnabled=false` means the admin must
+  /// complete setup before a real session token is issued (mandatory 2FA).
+  totpSecret  String?
+  totpEnabled Boolean @default(false)
+
+  lastLoginAt   DateTime?
+  lastLoginIp   String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

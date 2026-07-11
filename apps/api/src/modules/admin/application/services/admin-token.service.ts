@@ -18,10 +18,13 @@ export class AdminTokenService {
   private readonly secret = env.JWT_ADMIN_SECRET;
   private readonly expiresIn = env.JWT_ADMIN_EXPIRES_IN as JwtDuration;
 
-  sign(payload: AdminTokenPayload): Promise<string> {
+  sign(
+    payload: AdminTokenPayload,
+    expiresIn: JwtDuration = this.expiresIn,
+  ): Promise<string> {
     return this.jwt.signAsync(payload, {
       secret: this.secret,
-      expiresIn: this.expiresIn,
+      expiresIn,
     });
   }
 

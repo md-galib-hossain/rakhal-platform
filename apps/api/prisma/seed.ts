@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import {
+  BreedingMethod,
+  BreedingStatus,
   CattleGender,
   CattlePurpose,
   FinanceCategory,
@@ -8,6 +10,8 @@ import {
   FinancePaymentType,
   FinanceTxnStatus,
   FinanceTxnType,
+  MilkSession,
+  MilkTankType,
   PrismaClient,
   SubscriptionStatus,
   WalletDirection,
@@ -157,22 +161,37 @@ async function seedDemoMember(
   console.log(`✔ demo member: ${email} / ${password} (${name})`);
 }
 
-/** Demo platform-admin (RAKHAL-224). Separate identity from farm users. */
+/**
+ * Demo platform-admin (RAKHAL-224). Separate identity from farm users.
+ * **2FA pre-enabled with a fixed, well-known test secret** (RAKHAL-225 — 2FA is
+ * mandatory, and e2e/dev tooling needs a deterministic secret to compute a live
+ * TOTP code without going through the interactive setup flow). Never a real
+ * production admin credential.
+ */
+const DEMO_ADMIN_TOTP_SECRET = 'JBSWY3DPEHPK3PXP';
+
 async function seedPlatformAdmin(): Promise<void> {
   const email = 'admin@rakhal.test';
   const password = 'AdminPass123';
   const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
   await prisma.platformAdmin.upsert({
     where: { email },
-    update: { passwordHash, isActive: true },
+    update: {
+      passwordHash,
+      isActive: true,
+      totpEnabled: true,
+      totpSecret: DEMO_ADMIN_TOTP_SECRET,
+    },
     create: {
       email,
       name: 'Rakhal Super Admin',
       passwordHash,
       role: 'SUPER_ADMIN',
+      totpEnabled: true,
+      totpSecret: DEMO_ADMIN_TOTP_SECRET,
     },
   });
-  console.log(`✔ platform admin: ${email} / ${password}`);
+  console.log(`✔ platform admin: ${email} / ${password} (2FA secret: ${DEMO_ADMIN_TOTP_SECRET})`);
 }
 
 /**
@@ -592,6 +611,204 @@ async function seedDemoCattle(farmId: string, createdBy: string): Promise<void> 
   console.log('✔ demo cattle seeded (8)');
 }
 
+/**
+ * 12 months of history so the dashboard's 3 trend charts (Financial
+ * Performance / Production vs Feedcost / Conception Rate —
+ * `dashboard.service.ts#financialPerformance/productionVsFeedcost/conceptionRate`)
+ * render a real curve instead of a flat line. Idempotent (upsert by
+ * reference / unique key); deterministic wave-shaped values, not random, so
+ * re-running `pnpm seed` doesn't reshuffle the chart on every run.
+ */
+async function seedDemoDashboardHistory(
+  farmId: string,
+  createdBy: string,
+): Promise<void> {
+  const now = new Date();
+
+  // ---- Financial Performance: 12 monthly income/expense transactions ------
+  for (let i = 11; i >= 0; i -= 1) {
+    const monthStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 5),
+    );
+    const wave = Math.sin(((11 - i) / 11) * Math.PI * 1.5);
+    const income = Math.round(150_000 + wave * 90_000);
+    const expense = Math.round(120_000 + Math.cos(((11 - i) / 11) * Math.PI) * 60_000);
+    const key = monthStart.toISOString().slice(0, 7);
+
+    await prisma.financeTransaction.upsert({
+      where: { farmId_reference: { farmId, reference: `SEED-HIST-REV-${key}` } },
+      update: { date: monthStart, amount: income },
+      create: {
+        farmId,
+        reference: `SEED-HIST-REV-${key}`,
+        date: monthStart,
+        type: FinanceTxnType.REVENUE,
+        category: FinanceCategory.REVENUE,
+        subType: 'milk',
+        amount: income,
+        paidNow: income,
+        paymentType: FinancePaymentType.FULL,
+        paymentMethod: FinancePaymentMethod.BANK_TRANSFER,
+        status: FinanceTxnStatus.COMPLETED,
+        createdBy,
+      },
+    });
+    await prisma.financeTransaction.upsert({
+      where: { farmId_reference: { farmId, reference: `SEED-HIST-EXP-${key}` } },
+      update: { date: monthStart, amount: expense },
+      create: {
+        farmId,
+        reference: `SEED-HIST-EXP-${key}`,
+        date: monthStart,
+        type: FinanceTxnType.OPERATING_EXPENSE,
+        category: FinanceCategory.OVERHEAD,
+        subType: 'salary',
+        amount: expense,
+        paidNow: expense,
+        paymentType: FinancePaymentType.FULL,
+        paymentMethod: FinancePaymentMethod.CASH,
+        status: FinanceTxnStatus.COMPLETED,
+        createdBy,
+      },
+    });
+  }
+  console.log('✔ demo finance history: 12 monthly income/expense pairs');
+
+  // ---- Production vs Feedcost: current-month daily milk + feed cost -------
+  const milkCows = await prisma.cattle.findMany({
+    where: { farmId, purpose: CattlePurpose.MILK },
+    select: { id: true },
+    take: 6,
+  });
+  if (milkCows.length > 0) {
+    const monthStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    );
+    const daysSoFar = now.getUTCDate();
+
+    let concentration = await prisma.feedConcentration.findFirst({
+      where: { farmId, name: 'Seed: Milking Herd Ration' },
+    });
+    if (!concentration) {
+      concentration = await prisma.feedConcentration.create({
+        data: {
+          farmId,
+          name: 'Seed: Milking Herd Ration',
+          targetType: 'GROUP',
+          createdBy,
+        },
+      });
+    }
+
+    for (let day = 1; day <= daysSoFar; day += 1) {
+      const logDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), day));
+      const dayWave = Math.sin((day / daysSoFar) * Math.PI * 2);
+
+      for (const [idx, cow] of milkCows.entries()) {
+        const yieldL = Math.round((28 + dayWave * 6 + idx) * 10) / 10;
+        await prisma.milkLogEntry.upsert({
+          where: {
+            cattleId_logDate_session: {
+              cattleId: cow.id,
+              logDate,
+              session: MilkSession.MORNING,
+            },
+          },
+          update: { yieldL, submitted: true, submittedAt: logDate },
+          create: {
+            farmId,
+            cattleId: cow.id,
+            logDate,
+            session: MilkSession.MORNING,
+            yieldL,
+            tankType: MilkTankType.SELLABLE,
+            submitted: true,
+            submittedAt: logDate,
+            createdBy,
+          },
+        });
+      }
+
+      const actualKg = Math.round(80 + dayWave * 20);
+      const pricePerKg = 12;
+      const lineCost = actualKg * pricePerKg;
+      const distReference = `SEED-FEED-${logDate.toISOString().slice(0, 10)}`;
+      const existingDist = await prisma.feedDistribution.findFirst({
+        where: { farmId, distributedAt: logDate, concentrationId: concentration.id },
+      });
+      if (!existingDist) {
+        await prisma.feedDistribution.create({
+          data: {
+            farmId,
+            concentrationId: concentration.id,
+            distributedAt: logDate,
+            totalPlannedKg: actualKg,
+            totalActualKg: actualKg,
+            totalPlannedCost: lineCost,
+            totalActualCost: lineCost,
+            notes: distReference,
+            createdBy,
+            items: {
+              create: [
+                {
+                  ingredientId: 'feed_napier',
+                  ingredientName: 'Napier grass',
+                  plannedKg: actualKg,
+                  actualKg,
+                  pricePerKg,
+                  lineCost,
+                },
+              ],
+            },
+          },
+        });
+      }
+    }
+    console.log(`✔ demo production/feedcost history: ${daysSoFar} day(s) this month`);
+  }
+
+  // ---- Conception Rate: 12 months of breeding events ----------------------
+  const femaleCattle = await prisma.cattle.findMany({
+    where: { farmId, gender: CattleGender.FEMALE },
+    select: { id: true },
+  });
+  const bull = await prisma.cattle.findFirst({
+    where: { farmId, purpose: CattlePurpose.BREEDING, gender: CattleGender.MALE },
+    select: { id: true },
+  });
+  if (femaleCattle.length > 0) {
+    let breedingNumber = 1;
+    for (let i = 11; i >= 0; i -= 1) {
+      const breedingDate = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 15),
+      );
+      const wave = (Math.sin((((11 - i) / 11) * Math.PI * 2)) + 1) / 2; // 0..1
+      const perMonth = 2 + Math.round(wave * 2); // 2..4 events/month
+      for (let j = 0; j < perMonth; j += 1) {
+        const cow = femaleCattle[(i * 3 + j) % femaleCattle.length];
+        const confirmed = (i + j) % 2 === 0; // ~45-50% confirmed, matches Figma
+        const existing = await prisma.breedingEvent.findFirst({
+          where: { cattleId: cow.id, breedingDate, breedingNumber },
+        });
+        if (!existing) {
+          await prisma.breedingEvent.create({
+            data: {
+              cattleId: cow.id,
+              bullId: bull?.id ?? null,
+              breedingDate,
+              breedingMethod: BreedingMethod.AI,
+              breedingNumber,
+              status: confirmed ? BreedingStatus.PREGNANT : BreedingStatus.FAILED,
+            },
+          });
+        }
+        breedingNumber += 1;
+      }
+    }
+    console.log('✔ demo conception-rate history: 12 months of breeding events');
+  }
+}
+
 async function main(): Promise<void> {
   await seedPermissions();
   const ownerRoleId = await seedRole(SYSTEM_ROLES.OWNER);
@@ -615,6 +832,7 @@ async function main(): Promise<void> {
     );
     await seedDemoFinance(demo.farmId, demo.ownerUserId);
     await seedDemoCattle(demo.farmId, demo.ownerUserId);
+    await seedDemoDashboardHistory(demo.farmId, demo.ownerUserId);
   }
   await seedFeedIngredients();
   await seedReproProtocols();

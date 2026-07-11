@@ -26,6 +26,7 @@ describe('AuthService', () => {
 
   let authRepository: {
     findUserByEmail: jest.Mock;
+    findSafeUserById: jest.Mock;
     recordFailedLoginAttempt: jest.Mock;
     recordSuspiciousLogin: jest.Mock;
     completeSuccessfulLogin: jest.Mock;
@@ -52,6 +53,7 @@ describe('AuthService', () => {
   };
   let permissionService: {
     invalidateForUser: jest.Mock;
+    resolvePermissions: jest.Mock;
   };
   let eventBus: {
     emit: jest.Mock;
@@ -61,6 +63,7 @@ describe('AuthService', () => {
   beforeEach(() => {
     authRepository = {
       findUserByEmail: jest.fn(),
+      findSafeUserById: jest.fn(),
       recordFailedLoginAttempt: jest.fn(),
       recordSuspiciousLogin: jest.fn(),
       completeSuccessfulLogin: jest.fn(),
@@ -87,6 +90,7 @@ describe('AuthService', () => {
     };
     permissionService = {
       invalidateForUser: jest.fn(),
+      resolvePermissions: jest.fn(),
     };
     eventBus = {
       emit: jest.fn(),
@@ -263,5 +267,46 @@ describe('AuthService', () => {
       .calls as FailedLoginCall[][];
     const failedLoginCall = failedLoginCalls[0]?.[0];
     expect(failedLoginCall.lockedUntil).toBeInstanceOf(Date);
+  });
+
+  describe('me', () => {
+    it('never includes passwordHash and attaches resolved permissions', async () => {
+      authRepository.findSafeUserById.mockResolvedValue({
+        id: 'user-1',
+        email: 'alice@example.com',
+        name: 'Alice',
+        isEmailVerified: true,
+      });
+      permissionService.resolvePermissions.mockResolvedValue([
+        'cattle.read',
+        'cattle.create',
+      ]);
+
+      const result = await service.me('user-1', 'farm-1', 3);
+
+      expect(result).not.toHaveProperty('passwordHash');
+      expect(result.permissions).toEqual(['cattle.read', 'cattle.create']);
+      expect(permissionService.resolvePermissions).toHaveBeenCalledWith(
+        'user-1',
+        'farm-1',
+        3,
+      );
+    });
+
+    it('degrades to an empty permissions array when resolution fails (e.g. bootstrap farmId)', async () => {
+      authRepository.findSafeUserById.mockResolvedValue({
+        id: 'user-1',
+        email: 'alice@example.com',
+        name: 'Alice',
+        isEmailVerified: true,
+      });
+      permissionService.resolvePermissions.mockRejectedValue(
+        new Error('no membership'),
+      );
+
+      const result = await service.me('user-1', 'bootstrap', 3);
+
+      expect(result.permissions).toEqual([]);
+    });
   });
 });

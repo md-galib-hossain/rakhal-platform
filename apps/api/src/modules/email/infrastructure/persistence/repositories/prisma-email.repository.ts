@@ -33,7 +33,7 @@ export class PrismaEmailRepository implements EmailRepository {
         farmId: data.farmId,
         userId: data.userId,
         correlationId: data.correlationId,
-        template: data.template as unknown as PrismaEmailTemplate,
+        template: data.template,
         status: EmailStatus.QUEUED,
         scheduledAt: data.scheduledAt,
         idempotencyKey: data.idempotencyKey,

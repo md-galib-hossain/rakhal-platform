@@ -12,6 +12,8 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { ReconciliationService } from 'src/modules/billing/application/services/reconciliation.service';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
+import { AdminPermissionGuard } from '../guards/admin-permission.guard';
+import { RequireAdminPermission } from '../decorators/require-admin-permission.decorator';
 import { CurrentAdmin } from '../decorators/current-admin.decorator';
 import type { CurrentAdminContext } from '../../domain/authenticated-admin-request.type';
 import { AdminAuditService } from '../../application/services/admin-audit.service';
@@ -30,7 +32,7 @@ import {
 @ApiTags('Admin — Reconciliation')
 @ApiBearerAuth()
 @Controller('admin/reconciliation')
-@UseGuards(PlatformAdminGuard)
+@UseGuards(PlatformAdminGuard, AdminPermissionGuard)
 export class AdminReconciliationController {
   constructor(
     private readonly reconciliation: ReconciliationService,
@@ -38,11 +40,13 @@ export class AdminReconciliationController {
   ) {}
 
   @Get()
+  @RequireAdminPermission('reconciliation.read')
   list(@Query() query: ListReconciliationQueryDto) {
     return this.reconciliation.list({ status: query.status, type: query.type });
   }
 
   @Post('run')
+  @RequireAdminPermission('reconciliation.manage')
   async run(@CurrentAdmin() admin: CurrentAdminContext, @Req() req: Request) {
     const result = await this.reconciliation.runReconciliation();
     await this.audit.record({
@@ -56,6 +60,7 @@ export class AdminReconciliationController {
   }
 
   @Post(':id/resolve')
+  @RequireAdminPermission('reconciliation.manage')
   async resolve(
     @CurrentAdmin() admin: CurrentAdminContext,
     @Param('id') id: string,

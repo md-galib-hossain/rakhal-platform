@@ -280,8 +280,35 @@ export class AuthService {
     };
   }
 
-  me(userId: string) {
-    return this.authRepository.findUserById(userId);
+  /** Never returns `passwordHash` (RAKHAL-259 — it used to leak via `findUserById`).
+   * `permissions` (RAKHAL-260) is best-effort: a `bootstrap`-scoped token or a user with no
+   * membership on the token's farm has nothing to resolve, so it degrades to `[]` rather than
+   * failing the whole request. */
+  async me(userId: string, farmId: string, permissionsVersion: number) {
+    const user = await this.authRepository.findSafeUserById(userId);
+    const permissions = await this.resolvePermissionsSafely(
+      userId,
+      farmId,
+      permissionsVersion,
+    );
+
+    return { ...user, permissions };
+  }
+
+  private async resolvePermissionsSafely(
+    userId: string,
+    farmId: string,
+    permissionsVersion: number,
+  ): Promise<string[]> {
+    try {
+      return await this.permissionService.resolvePermissions(
+        userId,
+        farmId,
+        permissionsVersion,
+      );
+    } catch {
+      return [];
+    }
   }
 
   /** Language toggle persists to the user's profile (RAKHAL-107). */

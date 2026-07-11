@@ -2,6 +2,7 @@ import request from 'supertest';
 import sharp from 'sharp';
 import { bearer, createTestApp, loginAs, TestContext } from './utils/e2e';
 import type { AuthedUser } from './utils/e2e';
+import { currentTotpCode } from './utils/totp';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { FarmService } from '../src/modules/farm/application/services/farm.service';
 import { LegalConsentService } from '../src/modules/compliance/application/services/legal-consent.service';
@@ -50,7 +51,11 @@ describe('Support feedback + trial-abuse (e2e)', () => {
 
     const login = await request(ctx.app.getHttpServer())
       .post(`${ctx.prefix}/admin/auth/login`)
-      .send({ email: 'admin@rakhal.test', password: 'AdminPass123' })
+      .send({
+        email: 'admin@rakhal.test',
+        password: 'AdminPass123',
+        code: currentTotpCode(),
+      })
       .expect(201);
     adminToken = (login.body as { data: LoginResp }).data.accessToken;
 

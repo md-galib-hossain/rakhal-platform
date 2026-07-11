@@ -65,6 +65,24 @@ export class DashboardController {
     return this.dashboardService.livestockState(farmId, query.period);
   }
 
+  @Get('financial-performance')
+  @RequirePermission('dashboard.read')
+  financialPerformance(@CurrentFarmId() farmId: string) {
+    return this.dashboardService.financialPerformance(farmId);
+  }
+
+  @Get('production-vs-feedcost')
+  @RequirePermission('dashboard.read')
+  productionVsFeedcost(@CurrentFarmId() farmId: string) {
+    return this.dashboardService.productionVsFeedcost(farmId);
+  }
+
+  @Get('conception-rate')
+  @RequirePermission('dashboard.read')
+  conceptionRate(@CurrentFarmId() farmId: string) {
+    return this.dashboardService.conceptionRate(farmId);
+  }
+
   @Get('feed-stock-alerts')
   @RequirePermission('dashboard.read')
   feedStockAlerts(@CurrentFarmId() farmId: string) {

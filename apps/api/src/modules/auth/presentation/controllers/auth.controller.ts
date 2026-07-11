@@ -244,7 +244,11 @@ export class AuthController {
   @UseGuards(ThrottlerGuard, JwtAuthGuard, SessionGuard)
   me(@Req() request: AuthenticatedHttpRequest) {
     const auth = this.getAuthContext(request);
-    return this.authService.me(auth.user.sub);
+    return this.authService.me(
+      auth.user.sub,
+      auth.user.farmId,
+      auth.user.permissionsVersion,
+    );
   }
 
   @Patch('me/language')

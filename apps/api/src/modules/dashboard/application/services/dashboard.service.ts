@@ -315,6 +315,128 @@ export class DashboardService {
     };
   }
 
+  // ---- Financial Performance Over Time chart (Figma "Dashboard" 732:1... ) --
+  // 12-month income/expense/profit trend. No PRD-numbered widget backs this in
+  // the 9 real `GET /dashboard/*` routes yet — added as its own read so the
+  // Figma line-chart slot has real data instead of reusing FinancialSnapshotCard.
+
+  async financialPerformance(farmId: string) {
+    const months = this.lastNMonths(12);
+    const rangeStart = months[0].start;
+    const txns = await this.prisma.financeTransaction.findMany({
+      where: {
+        farmId,
+        status: 'COMPLETED',
+        date: { gte: rangeStart },
+        ...NON_VOID_TXN,
+      },
+      select: { date: true, type: true, amount: true },
+    });
+    const buckets = new Map<string, { income: number; expense: number }>(
+      months.map((m) => [m.key, { income: 0, expense: 0 }]),
+    );
+    for (const t of txns) {
+      const key = this.monthKey(t.date);
+      const bucket = buckets.get(key);
+      if (!bucket) continue;
+      if (t.type === 'REVENUE') bucket.income += t.amount;
+      else bucket.expense += t.amount;
+    }
+    return {
+      months: months.map((m) => {
+        const b = buckets.get(m.key)!;
+        const income = this.round(b.income);
+        const expense = this.round(b.expense);
+        return {
+          month: m.key,
+          label: m.label,
+          income,
+          expense,
+          profit: this.round(income - expense),
+        };
+      }),
+    };
+  }
+
+  // ---- Production vs Feedcost chart (Figma "Dashboard" 732:1...) -----------
+  // Current-month daily milk yield vs feed distribution cost.
+
+  async productionVsFeedcost(farmId: string) {
+    const now = new Date();
+    const monthStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    );
+    const daysInMonth = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0),
+    ).getUTCDate();
+
+    const [milk, feed] = await Promise.all([
+      this.prisma.milkLogEntry.findMany({
+        where: { farmId, submitted: true, logDate: { gte: monthStart } },
+        select: { logDate: true, yieldL: true },
+      }),
+      this.prisma.feedDistribution.findMany({
+        where: { farmId, distributedAt: { gte: monthStart } },
+        select: { distributedAt: true, totalActualCost: true },
+      }),
+    ]);
+
+    const production = new Array<number>(daysInMonth).fill(0);
+    const feedcost = new Array<number>(daysInMonth).fill(0);
+    for (const m of milk) {
+      const day = m.logDate.getUTCDate();
+      if (day >= 1 && day <= daysInMonth) production[day - 1] += m.yieldL;
+    }
+    for (const f of feed) {
+      const day = f.distributedAt.getUTCDate();
+      if (day >= 1 && day <= daysInMonth)
+        feedcost[day - 1] += f.totalActualCost;
+    }
+
+    return {
+      days: Array.from({ length: daysInMonth }, (_, i) => ({
+        day: i + 1,
+        productionL: this.round(production[i]),
+        feedcost: this.round(feedcost[i]),
+      })),
+    };
+  }
+
+  // ---- Conception Rate chart (Figma "Dashboard" 732:1...) -------------------
+  // 12-month monthly breeding count vs confirmed-pregnant rate.
+
+  async conceptionRate(farmId: string) {
+    const months = this.lastNMonths(12);
+    const rangeStart = months[0].start;
+    const events = await this.prisma.breedingEvent.findMany({
+      where: { breedingDate: { gte: rangeStart }, cattle: { farmId } },
+      select: { breedingDate: true, status: true },
+    });
+    const buckets = new Map<string, { total: number; confirmed: number }>(
+      months.map((m) => [m.key, { total: 0, confirmed: 0 }]),
+    );
+    for (const e of events) {
+      const bucket = buckets.get(this.monthKey(e.breedingDate));
+      if (!bucket) continue;
+      bucket.total += 1;
+      if (e.status === 'PREGNANT') bucket.confirmed += 1;
+    }
+    return {
+      months: months.map((m) => {
+        const b = buckets.get(m.key)!;
+        return {
+          month: m.key,
+          label: m.label,
+          inseminations: b.total,
+          confirmedPregnancies: b.confirmed,
+          ratePct: b.total
+            ? Math.round((b.confirmed / b.total) * 1000) / 10
+            : 0,
+        };
+      }),
+    };
+  }
+
   // ---- Feed Stock Alerts widget (§7.3) ------------------------------------
 
   async feedStockAlerts(farmId: string) {
@@ -657,5 +779,43 @@ export class DashboardService {
 
   private round(n: number): number {
     return Math.round(n * 100) / 100;
+  }
+
+  private monthKey(d: Date): string {
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  }
+
+  /** Oldest-first list of the last N calendar months (UTC), each with its
+   * `YYYY-MM` bucket key, a short display label, and the month's start date. */
+  private lastNMonths(
+    n: number,
+  ): Array<{ key: string; label: string; start: Date }> {
+    const now = new Date();
+    const labels = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    const months: Array<{ key: string; label: string; start: Date }> = [];
+    for (let i = n - 1; i >= 0; i -= 1) {
+      const start = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1),
+      );
+      months.push({
+        key: this.monthKey(start),
+        label: labels[start.getUTCMonth()],
+        start,
+      });
+    }
+    return months;
   }
 }
