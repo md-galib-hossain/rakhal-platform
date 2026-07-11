@@ -1,7 +1,21 @@
 # Frontend — Current State
 
-**Last updated:** 2026-07-10 · **Completion:** Phase 0 done (RFE-001…010) + RFE-100 marketing landing +
-Phase 1 RFE-020 (Dashboard) done
+**Last updated:** 2026-07-11 · **Completion:** Phase 0 done (RFE-001…010) + RFE-100 marketing landing +
+Phase 1 RFE-020 (Dashboard) + RFE-021 (Cattle) done
+
+## Shared "parent card" page wrapper (2026-07-11, user request)
+New `components/shared/page-card.tsx` (`PageCard`) — every module page's title (+ optional `actions`
+slot, e.g. a date pill) and all of its child cards now sit inside one large card instead of the title
+floating on the bare page background above independent cards. **Not a Figma-sourced pattern** — the
+Dashboard frame's equivalent container node (`732:1714`) has no fill/shadow of its own, confirmed live
+via the Figma plugin; reuses `DashboardCard`'s already-established chrome (`rounded-2xl bg-card` +
+`shadow-[0px_0px_3px_rgba(0,0,0,0.1)]`) instead of inventing a new visual style. Wired into `/dashboard`
+(title + `TodayDatePill` in the `actions` slot — `OverviewHeader` reduced to just that pill, `PageCard`
+now owns the title row) and `/cattle` (title only). **Intended for every module page going forward** —
+future pages should wrap their content in `PageCard` from the start rather than a bare `PageHeader` +
+floating grid. Verified live via computed-style probes (light `rgb(255,255,255)` / dark card bg, 16px
+radius, correct shadow, no console errors, no horizontal overflow at 375px) — this session's screenshot
+tool was down, so no image capture, DOM/style verification used instead. Gate green: lint/typecheck/build.
 
 ## Dashboard / Morning Briefing (RFE-020 — done)
 All 9 real widgets against the live `GET /dashboard/*` endpoints (the aspirational `Rakhal_API.md` §3

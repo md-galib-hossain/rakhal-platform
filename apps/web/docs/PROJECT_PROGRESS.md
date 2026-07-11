@@ -409,6 +409,15 @@
   Gate green: lint/typecheck/build/18 unit tests. No Figma frame was pulled for this ticket's widgets
   (out of scope for this pass — the sidebar/topbar chrome around them is already pixel-matched per
   RFE-005; widget-internal layout used the established `StatCard`/`ChartCard`/`Card` primitives).
+  **Parent-card wrapper (2026-07-11, user request):** new shared `components/shared/page-card.tsx` —
+  the title+date-pill header row and every widget now sit inside one `PageCard` instead of floating
+  independently on the bare page background (not Figma-sourced, its equivalent container node
+  `732:1714` has no fill/shadow of its own — reuses the established `DashboardCard` chrome instead).
+  `OverviewHeader` reduced to just `TodayDatePill` (the `actions` slot content), `PageCard` now owns
+  the title row. Verified live (computed-style probe, not screenshot — this session's screenshot tool
+  was down): `rounded-2xl`/16px radius, correct shadow, `bg-card` white in light / dark-card in dark,
+  no console errors, no horizontal overflow at 375px. Gate green: lint/typecheck/build. Same pattern
+  applied to `/cattle`, intended for every module page going forward — see IN_FLIGHT.md.
 
 #### RFE-021 — Cattle list + highlights + bulk ops
 - **Lane:** `features/cattle/**` (list part), `app/(app)/cattle/page.tsx` · **Design:** Figma cattle list
@@ -420,6 +429,8 @@
   on the wire (unlike the rest of this app's camelCase responses), thumbnails render via `Avatar`
   (plain `<img>`) not `next/image` (no fixed remote host for the R2 signed URL). Bulk result is
   aggregate-only (`{updated,failed}`, no per-row detail). No detail/add-edit route yet (RFE-022/023).
+  **Parent-card wrapper (2026-07-11 follow-up):** page now wrapped in the shared `PageCard` — see
+  RFE-020's entry above for the full writeup, same component, no `actions` slot on this page.
 
 #### RFE-022 — Add/Edit cattle + photo + status flows
 - **Depends:** RFE-021 (shares feature folder — same agent or sequenced) · **Design:** Figma add-cattle frames

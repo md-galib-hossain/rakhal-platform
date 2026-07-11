@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
-import { OverviewHeader } from "@/features/dashboard/components/overview-header";
+import { PageCard } from "@/components/shared/page-card";
+import { TodayDatePill } from "@/features/dashboard/components/overview-header";
 import { PrioritiesPanel } from "@/features/dashboard/components/priorities-panel";
 import { KpiBar } from "@/features/dashboard/components/kpi-bar";
 import { ProductionSummaryCard } from "@/features/dashboard/components/production-summary-card";
@@ -39,8 +40,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * **Refinement pass (2026-07-11)**, re-inspected live via the Figma plugin (not just the earlier
  * cached node comments) and found two things the first pass missed: (1) a page-header layer (node
  * 732:1715, parent 732:1656 "Dashboard") this app never built — a bold "Overview" title + a static
- * today's-date pill, now `OverviewHeader` (replaces the generic `PageHeader` on this page only,
- * which has no breadcrumbs/action-button slot to offer here); (2) the 3-per-row grid's row ratios
+ * today's-date pill, replacing the generic `PageHeader` on this page only (which has no
+ * breadcrumbs/action-button slot to offer here); (2) the 3-per-row grid's row ratios
  * were wrong — Figma's row 2 is Financial Performance at **2 of 3 columns** (752/1138px) next to a
  * 1-column companion (752+370+16 gap = 1138, not one card at full width), and row 3 is Production
  * vs Feedcost at 2 columns next to Conception Rate at 1 (680+442+16). Fixed by giving
@@ -54,14 +55,21 @@ export async function generateMetadata(): Promise<Metadata> {
  * `#059669`/Feedcost `#FFBF54` (node 732:2017), Monthly Conception `#059669`/Avg. Rate `#FFBF54`
  * with its own gradient fill (node 732:2250) — legend dots changed from circles to the app's usual
  * `h-1.5 w-3 rounded-full` pill (matches `HerdStatusDonut`'s legend, not a new shape).
+ *
+ * **Parent-card wrapper (2026-07-11 follow-up, user request):** all widgets now sit inside one
+ * `PageCard` (`components/shared/page-card.tsx`) instead of floating independently on the bare
+ * page background — the title+date-pill header row moved into `PageCard`'s `actions` slot. Not a
+ * Figma-sourced pattern (node 732:1714, the equivalent Figma container, has no fill/shadow of its
+ * own — confirmed via the Figma plugin) but reuses `DashboardCard`'s established card chrome
+ * (`rounded-2xl bg-card` + the same drop shadow) so it doesn't invent a new visual language. Same
+ * pattern applied to `/cattle`; intended for every module page going forward.
  */
 export default async function DashboardPage() {
   const t = await getTranslations("dashboard.overview");
   const locale = (await getLocale()) as Locale;
 
   return (
-    <div className="flex flex-col gap-4">
-      <OverviewHeader title={t("title")} locale={locale} />
+    <PageCard title={t("title")} actions={<TodayDatePill locale={locale} />}>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <KpiBar />
         <HerdStatusDonut />
@@ -78,6 +86,6 @@ export default async function DashboardPage() {
         <FeedStockAlertsCard />
         <UpcomingTasksCard />
       </div>
-    </div>
+    </PageCard>
   );
 }
