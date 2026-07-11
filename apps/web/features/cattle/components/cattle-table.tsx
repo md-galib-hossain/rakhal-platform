@@ -1,16 +1,19 @@
-"use client"; // filter reads (nuqs/searchParams), row-selection state, infinite query
+"use client"; // filter reads (nuqs/searchParams), row-selection state, paged query
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { RowSelectionState } from "@tanstack/react-table";
 import { useSearchParams } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { DataTable } from "@/components/shared/data-table";
-import { useCattleDetail, useCattleList } from "../hooks/use-cattle";
+import { Pagination } from "@/components/shared/pagination";
+import { useCattleDetail, useCattlePagedList } from "../hooks/use-cattle";
 import { buildCattleColumns } from "./cattle-columns";
 import { CattleBulkActionsBar } from "./cattle-bulk-actions-bar";
 import { CattleFormDialog } from "./cattle-form-dialog";
 import { CattleStatusDialog } from "./cattle-status-dialog";
 import { CattleArchiveDialog } from "./cattle-archive-dialog";
+import { CattleDetailSheet } from "./detail/cattle-detail-sheet";
 import type { CattleListFilters, CattleListItem, HealthStatusFilter, ProductionStatus } from "../types";
 
 /** Reads the URL params `CattleFilters` writes (both are siblings under the same page) and drives
@@ -23,6 +26,7 @@ export function CattleTable() {
   const [formOpen, setFormOpen] = useState(false);
   const [statusTarget, setStatusTarget] = useState<CattleListItem | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<CattleListItem | null>(null);
+  const [viewId, setViewId] = useState<string | undefined>(undefined);
 
   const filters: CattleListFilters = {
     search: searchParams.get("search") ?? undefined,
@@ -33,12 +37,13 @@ export function CattleTable() {
     healthStatus: (searchParams.get("healthStatus") as HealthStatusFilter | null) ?? undefined,
   };
 
-  const query = useCattleList(filters);
+  const query = useCattlePagedList(filters);
   const editingDetail = useCattleDetail(editingId);
-  const items = useMemo(() => query.data?.pages.flatMap((p) => p.items) ?? [], [query.data]);
+  const items = query.items;
   const columns = useMemo(
     () =>
       buildCattleColumns(t, {
+        onView: (cattle) => setViewId(cattle.id),
         onEdit: (cattle) => {
           setEditingId(cattle.id);
           setFormOpen(true);
@@ -59,22 +64,49 @@ export function CattleTable() {
         selectedItems={selectedItems}
         onDone={() => setRowSelection({})}
       />
-      <DataTable
-        columns={columns}
-        data={items}
-        getRowId={(row) => row.id}
-        isLoading={query.isLoading}
-        isError={query.isError}
-        onRetry={() => query.refetch()}
-        emptyState={{ title: t("empty.title"), description: t("empty.description") }}
-        hasNextPage={query.hasNextPage}
-        isFetchingNextPage={query.isFetchingNextPage}
-        onLoadMore={() => void query.fetchNextPage()}
-        enableRowSelection
-        rowSelection={rowSelection}
-        onRowSelectionChange={setRowSelection}
+      <div
+        className={cn(
+          "overflow-hidden rounded-2xl border border-border",
+          // Figma "Cattle" table spec, scoped to this instance only (not the shared `Table`
+          // primitive, which every other page's table also uses): 54px normal-case header row,
+          // 56px body rows (achieved by trimming `TableCell`'s default py-3 to py-2).
+          "[&_thead_tr]:border-b-0 [&_thead_tr]:bg-muted",
+          "[&_thead_th]:h-[54px] [&_thead_th]:text-sm [&_thead_th]:font-medium [&_thead_th]:normal-case [&_thead_th]:tracking-normal [&_thead_th]:text-muted-foreground",
+          "[&_tbody_td]:py-2",
+        )}
+      >
+        <DataTable
+          columns={columns}
+          data={items}
+          getRowId={(row) => row.id}
+          isLoading={query.isLoading}
+          isError={query.isError}
+          onRetry={() => query.refetch()}
+          emptyState={{ title: t("empty.title"), description: t("empty.description") }}
+          enableRowSelection
+          rowSelection={rowSelection}
+          onRowSelectionChange={setRowSelection}
+        />
+      </div>
+      <Pagination
+        page={query.page}
+        totalPages={query.totalPages}
+        onPageChange={(page) => {
+          query.goToPage(page);
+          setRowSelection({});
+        }}
+        disabled={query.isFetching}
       />
 
+      <CattleDetailSheet
+        cattleId={viewId}
+        onOpenChange={(open) => !open && setViewId(undefined)}
+        onEdit={(cattle) => {
+          setViewId(undefined);
+          setEditingId(cattle.id);
+          setFormOpen(true);
+        }}
+      />
       <CattleFormDialog
         open={formOpen}
         onOpenChange={(open) => {

@@ -4,6 +4,13 @@
 
 ---
 
+> **⚠️ Read `docs/design/` first (added 2026-07-12).** Before pulling any Figma frame, check
+> `docs/design/figma-screen-registry.md` for the node ID (never re-scan the whole file — it's
+> ~2.2M tokens and has blown the budget once already) and `docs/design/rakhal-design-system.md` /
+> `component-inventory.md` for tokens/components that are almost certainly already documented.
+> This file (`DESIGN_SYSTEM.md`) stays as the narrative history of how each pass was done; the
+> `docs/design/` files are the lookup-first reference for new work.
+
 ## 1. Design source of truth
 
 **Figma prototype:**

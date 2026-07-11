@@ -63,6 +63,10 @@
   --accent-teal-tint: #e6fbf7;
   --accent-indigo: #6366f1;
   --accent-indigo-tint: #eeeefe;
+  /* Female gender glyph (Cattle table/detail, Figma "female-symbol") — no existing hue fit, added
+     following this section's own precedent for incremental accent additions. */
+  --accent-pink: #ec4899;
+  --accent-pink-tint: #fce7f3;
 
   /* Chart series (order: primary, expense/negative, secondary, comparison, extra) */
   --chart-1: #16a34a;
@@ -130,6 +134,8 @@
   --accent-teal-tint: #0f2e2a;
   --accent-indigo: #818cf8;
   --accent-indigo-tint: #202249;
+  --accent-pink: #f472b6;
+  --accent-pink-tint: #3d1830;
 
   --chart-1: #22c55e;
   --chart-2: #f87171;
@@ -182,6 +188,8 @@
   --color-accent-teal-tint: var(--accent-teal-tint);
   --color-accent-indigo: var(--accent-indigo);
   --color-accent-indigo-tint: var(--accent-indigo-tint);
+  --color-accent-pink: var(--accent-pink);
+  --color-accent-pink-tint: var(--accent-pink-tint);
 
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);

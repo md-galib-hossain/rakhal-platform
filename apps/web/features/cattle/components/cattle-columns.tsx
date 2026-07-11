@@ -1,45 +1,59 @@
 "use client"; // column defs consumed by the client-only DataTable
 
 import type { ColumnDef } from "@tanstack/react-table";
+import Link from "next/link";
+import { Mars, Venus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { Chip, type ChipProps } from "@/components/ui/chip";
+import { avatarTint } from "../avatar-tint";
+import { formatCattleAge } from "../format";
 import { CattleRowActions } from "./cattle-row-actions";
-import type { CattleListItem, HealthStatusFilter, ProductionStatus } from "../types";
+import type { CattleListItem, ProductionStatus } from "../types";
 
-/** Radix `Avatar` (plain `<img>` under the hood) rather than `next/image` for the 40px list
+/** Radix `Avatar` (plain `<img>` under the hood) rather than `next/image` for the 32px list
  * thumbnail — the signed R2 URL's host isn't a fixed, config-time-known hostname (varies by
  * `R2_ACCOUNT_ID`/optional public CDN override), and `Avatar` already gives the loading/error
  * fallback this cheap thumbnail needs for free. */
 function CattleThumbnail({ cattle }: { cattle: CattleListItem }) {
   const initial = (cattle.name ?? cattle.tagNumber).charAt(0).toUpperCase();
   return (
-    <Avatar className="size-9">
+    <Avatar className="size-8">
       {cattle.profile_photo ? <AvatarImage src={cattle.profile_photo.thumb_url} alt="" /> : null}
-      <AvatarFallback>{initial}</AvatarFallback>
+      <AvatarFallback className={avatarTint(cattle.id)}>{initial}</AvatarFallback>
     </Avatar>
   );
 }
 
-const PRODUCTION_STATUS_VARIANT: Record<ProductionStatus, "success" | "info" | "warning" | "secondary" | "destructive"> = {
-  MILKING: "success",
+/** Figma's "male-symbol"/"female-symbol" glyph next to the tag number — `CASTRATED_MALE` still
+ * reads as male (no third glyph in the design). */
+function GenderGlyph({ gender }: { gender: CattleListItem["gender"] }) {
+  if (gender === "FEMALE") return <Venus className="size-3.5 text-accent-pink" aria-hidden />;
+  return <Mars className="size-3.5 text-info" aria-hidden />;
+}
+
+const PRODUCTION_STATUS_VARIANT: Record<ProductionStatus, ChipProps["variant"]> = {
+  MILKING: "primary",
   FRESH: "info",
   DRY: "warning",
-  GROWING: "secondary",
-  SOLD: "secondary",
+  GROWING: "teal",
+  SOLD: "muted",
   DECEASED: "destructive",
 };
 
-const HEALTH_STATUS_VARIANT: Record<HealthStatusFilter, "success" | "warning" | "destructive"> = {
-  HEALTHY: "success",
-  SICK: "destructive",
-  IN_TREATMENT: "warning",
-  WITHHOLDING: "warning",
-  QUARANTINE: "warning",
-};
-
+/**
+ * Column set pixel-matched to the Figma "Cattle" table: Name/Breed/Age/Weight/Shed/AQR Score/
+ * Status/Action, 8 columns — dropped the previous (real, but Figma-divergent) Health/DIM/BCS
+ * columns to match. **Real information trade-off, not silently dropped**: Health status is still
+ * fully real data — filterable via the existing Health select in `CattleFilters` and shown in the
+ * "View Details" drawer's Health tab — just no longer a list column. Figma's own mock "Status"
+ * values (e.g. "Active Breeder") don't map to any real field this backend has (not
+ * `productionStatus`, not `reproductiveStatus`); `productionStatus` (Milking/Fresh/Dry/Growing/
+ * Sold/Deceased) is the real closest match and is used here rather than fabricating a field.
+ */
 export function buildCattleColumns(
-  t: (key: string) => string,
+  t: (key: string, values?: Record<string, string | number | Date>) => string,
   rowActions: {
+    onView: (cattle: CattleListItem) => void;
     onEdit: (cattle: CattleListItem) => void;
     onChangeStatus: (cattle: CattleListItem) => void;
     onArchive: (cattle: CattleListItem) => void;
@@ -51,15 +65,17 @@ export function buildCattleColumns(
       header: t("columns.cattle"),
       cell: ({ row }) => {
         const cattle = row.original;
-        // No detail route yet (RFE-023, separate ticket) — plain row, not a dead link.
         return (
-          <div className="flex items-center gap-3">
+          <Link href={`/cattle/${cattle.id}`} className="flex items-center gap-2 hover:underline">
             <CattleThumbnail cattle={cattle} />
-            <span className="flex flex-col">
-              <span className="font-medium text-foreground">{cattle.name ?? cattle.tagNumber}</span>
-              <span className="text-xs text-muted-foreground">{cattle.tagNumber}</span>
+            <span className="flex flex-col gap-0.5">
+              <span className="text-sm font-medium text-foreground">{cattle.name ?? cattle.tagNumber}</span>
+              <span className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">{cattle.tagNumber}</span>
+                <GenderGlyph gender={cattle.gender} />
+              </span>
             </span>
-          </div>
+          </Link>
         );
       },
     },
@@ -69,38 +85,9 @@ export function buildCattleColumns(
       cell: ({ row }) => row.original.breed?.name ?? "—",
     },
     {
-      id: "shed",
-      header: t("columns.shed"),
-      cell: ({ row }) => row.original.shed?.name ?? "—",
-    },
-    {
-      id: "productionStatus",
-      header: t("columns.status"),
-      cell: ({ row }) => (
-        <Badge variant={PRODUCTION_STATUS_VARIANT[row.original.productionStatus]}>
-          {t(`statusOptions.${row.original.productionStatus.toLowerCase()}`)}
-        </Badge>
-      ),
-    },
-    {
-      id: "healthStatus",
-      header: t("columns.health"),
-      cell: ({ row }) => (
-        <Badge variant={HEALTH_STATUS_VARIANT[row.original.healthStatus]}>
-          {t(`healthOptions.${toHealthKey(row.original.healthStatus)}`)}
-        </Badge>
-      ),
-    },
-    {
-      id: "aqrScore",
-      header: t("columns.aqr"),
-      cell: ({ row }) => row.original.aqrScore ?? "—",
-      meta: { sortField: "aqrScore" },
-    },
-    {
-      id: "dim",
-      header: t("columns.dim"),
-      cell: ({ row }) => row.original.dim ?? "—",
+      id: "age",
+      header: t("columns.age"),
+      cell: ({ row }) => formatCattleAge(row.original.dateOfBirth, t),
     },
     {
       id: "lastWeightKg",
@@ -108,26 +95,48 @@ export function buildCattleColumns(
       cell: ({ row }) => (row.original.lastWeightKg != null ? `${row.original.lastWeightKg} kg` : "—"),
     },
     {
-      id: "lastBcs",
-      header: t("columns.bcs"),
-      cell: ({ row }) => row.original.lastBcs ?? "—",
+      id: "shed",
+      header: t("columns.shed"),
+      cell: ({ row }) => row.original.shed?.name ?? "—",
+    },
+    {
+      id: "aqrScore",
+      header: t("columns.aqr"),
+      cell: ({ row }) =>
+        row.original.aqrScore != null ? (
+          <span>
+            <span className="font-medium text-primary">{row.original.aqrScore}</span>
+            <span className="text-muted-foreground">/100</span>
+          </span>
+        ) : (
+          "—"
+        ),
+      meta: { sortField: "aqrScore" },
+    },
+    {
+      id: "productionStatus",
+      header: t("columns.status"),
+      cell: ({ row }) => (
+        <Chip variant={PRODUCTION_STATUS_VARIANT[row.original.productionStatus]}>
+          {t(`statusOptions.${row.original.productionStatus.toLowerCase()}`)}
+        </Chip>
+      ),
     },
     {
       id: "__actions__",
-      header: "",
-      size: 40,
+      header: t("columns.action"),
+      size: 72,
       cell: ({ row }) => (
-        <CattleRowActions
-          cattle={row.original}
-          onEdit={rowActions.onEdit}
-          onChangeStatus={rowActions.onChangeStatus}
-          onArchive={rowActions.onArchive}
-        />
+        <div className="flex justify-center">
+          <CattleRowActions
+            cattle={row.original}
+            onView={rowActions.onView}
+            onEdit={rowActions.onEdit}
+            onChangeStatus={rowActions.onChangeStatus}
+            onArchive={rowActions.onArchive}
+          />
+        </div>
       ),
     },
   ];
-}
-
-function toHealthKey(status: HealthStatusFilter): string {
-  return status === "IN_TREATMENT" ? "inTreatment" : status.toLowerCase();
 }

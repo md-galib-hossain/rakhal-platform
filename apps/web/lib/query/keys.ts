@@ -34,5 +34,16 @@ export const qk = {
     sheds: () => ["cattle", "sheds"] as const,
     feedGroups: () => ["cattle", "feed-groups"] as const,
     detail: (id: string) => ["cattle", "detail", id] as const,
+    overview: (id: string) => ["cattle", "overview", id] as const,
+    pedigree: (id: string) => ["cattle", "pedigree", id] as const,
+    finance: (id: string, period: string | undefined) => ["cattle", "finance", id, period] as const,
+    reproductionSummary: (id: string) => ["cattle", "reproduction-summary", id] as const,
+    healthSummary: (id: string) => ["cattle", "health-summary", id] as const,
+    calvingEvents: (id: string) => ["cattle", "calving-events", id] as const,
+  },
+  milk: {
+    overview: (date: string | undefined) => ["milk", "overview", date] as const,
+    log: (date: string | undefined, shedId: string | undefined) => ["milk", "log", date, shedId] as const,
+    anomalies: (date: string | undefined) => ["milk", "anomalies", date] as const,
   },
 };

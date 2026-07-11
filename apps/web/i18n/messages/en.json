@@ -536,19 +536,29 @@
     }
   },
   "cattle": {
+    "allCattleView": "All Cattle View",
+    "age": {
+      "year": "{value} year",
+      "years": "{value} years",
+      "month": "{value} month",
+      "months": "{value} months"
+    },
     "empty": {
       "title": "No cattle found",
       "description": "Try adjusting your search or filters."
     },
     "highlights": {
-      "totalActive": "Total Active",
+      "title": "Cattle Highlights",
+      "totalActive": "Total Cattle",
       "avgHerdAqr": "Avg. Herd AQR",
       "breedingReady": "Breeding Ready",
       "todaysYield": "Today's Yield",
+      "vsLastMonth": "vs last month",
+      "vsYesterday": "vs yesterday",
       "error": "Could not load cattle highlights."
     },
     "filters": {
-      "searchPlaceholder": "Search by name or tag…",
+      "searchPlaceholder": "Find Cow by name or id",
       "status": "Status",
       "health": "Health",
       "breed": "Breed",
@@ -571,15 +581,17 @@
       }
     },
     "columns": {
-      "cattle": "Cattle",
+      "cattle": "Name",
       "breed": "Breed",
+      "age": "Age",
       "shed": "Shed",
       "status": "Status",
       "health": "Health",
       "aqr": "AQR",
       "dim": "DIM",
       "weight": "Weight",
-      "bcs": "BCS"
+      "bcs": "BCS",
+      "action": "Action"
     },
     "statusOptions": {
       "milking": "Milking",
@@ -613,10 +625,14 @@
       "failedToast": "Bulk action failed."
     },
     "form": {
-      "addCattle": "Add cattle",
-      "createTitle": "Add cattle",
-      "editTitle": "Edit cattle",
-      "tagNumber": "Tag number",
+      "addCattle": "Add New Cow",
+      "createTitle": "Add New Cattle",
+      "editTitle": "Edit Cattle",
+      "basicInfo": "Basic Info",
+      "additionalInfo": "Additional Info",
+      "cowName": "Cow Name",
+      "addCowImage": "Add Cow Image",
+      "tagNumber": "ID",
       "name": "Name",
       "gender": "Gender",
       "genderOptions": {
@@ -636,7 +652,7 @@
       "dateOfBirth": "Date of birth",
       "weightKg": "Weight (kg)",
       "breed": "Breed",
-      "shed": "Shed",
+      "shed": "Shed Location",
       "feedGroup": "Feed group",
       "sourceType": "Source",
       "sourceTypeOptions": {
@@ -650,16 +666,12 @@
       "color": "Color",
       "notes": "Notes",
       "unassigned": "Unassigned",
-      "photo": "Photo",
-      "photoUploadLabel": "Drop a photo here, or click to browse",
-      "removePhoto": "Remove photo",
-      "save": "Save",
+      "save": "Save Cattle",
       "cancel": "Cancel",
       "createdToast": "Cattle added.",
       "updatedToast": "Cattle updated.",
-      "photoUpdatedToast": "Photo updated.",
-      "photoRemovedToast": "Photo removed.",
-      "genericError": "Something went wrong. Please try again."
+      "genericError": "Something went wrong. Please try again.",
+      "photoGenericError": "Cattle saved, but the photo failed to upload. Try again from Edit."
     },
     "statusDialog": {
       "title": "Change status — {name}",
@@ -706,12 +718,238 @@
     },
     "actions": {
       "menu": "Row actions",
+      "viewDetails": "View Details",
       "edit": "Edit",
       "changeStatus": "Change status",
       "archive": "Archive",
       "restore": "Restore",
       "restoredToast": "Cattle restored.",
       "genericError": "Something went wrong. Please try again."
+    },
+    "detail": {
+      "title": "Cattle Details",
+      "back": "Back",
+      "cancel": "Cancel",
+      "editProfile": "Edit Profile",
+      "error": "Could not load this cattle record.",
+      "breed": "Breed",
+      "gender": "Gender",
+      "shed": "Shed",
+      "dateOfBirth": "Date of Birth",
+      "age": "Age",
+      "purpose": "Purpose",
+      "status": "Status",
+      "dim": "DIM",
+      "dimValue": "{days} Days",
+      "genderOptions": {
+        "MALE": "Male",
+        "FEMALE": "Female",
+        "CASTRATED_MALE": "Castrated male"
+      },
+      "purposeOptions": {
+        "MILK": "Milk",
+        "BREEDING": "Breeding",
+        "MEAT": "Meat",
+        "CALF": "Calf",
+        "BULL_SERVICE": "Bull service",
+        "DUAL_PURPOSE": "Dual purpose"
+      },
+      "statusOptions": {
+        "milking": "Milking",
+        "dry": "Dry",
+        "fresh": "Fresh",
+        "growing": "Growing",
+        "sold": "Sold",
+        "deceased": "Deceased"
+      },
+      "tabs": {
+        "overview": "Overview",
+        "reproduction": "Reproduction",
+        "health": "Health",
+        "finance": "Finance",
+        "pedigree": "Ancestry"
+      },
+      "overview": {
+        "error": "Could not load the overview.",
+        "aqrScore": "AQR Score",
+        "avgDailyYield": "Avg. Daily Yield",
+        "liveWeight": "Live Weight",
+        "litres": "{value} L",
+        "kg": "{value} kg",
+        "weightHistory": "Weight History",
+        "weightKg": "Weight (kg)",
+        "noWeightRecords": "No weight records yet.",
+        "lactationCurve": "Lactation Curve",
+        "yieldL": "Yield (L)",
+        "noLactationData": "No active lactation.",
+        "lifetimeYield": "Lifetime Yield",
+        "noLifetimeData": "No milk records yet.",
+        "recentRecords": "Recent Daily Records",
+        "noRecentRecords": "No recent records.",
+        "columns": {
+          "date": "Date",
+          "morning": "Morning",
+          "noon": "Noon",
+          "evening": "Evening",
+          "total": "Total Yield"
+        }
+      },
+      "reproduction": {
+        "notApplicable": "Not applicable",
+        "notApplicableDescription": "Reproduction records apply to female cattle only.",
+        "error": "Could not load reproduction data.",
+        "totalCalvings": "Total Calvings",
+        "calvingInterval": "Calving Interval",
+        "conceptionRate": "Conception Rate",
+        "days": "{value} days",
+        "kg": "{value} kg",
+        "calvingHistory": "Calving History",
+        "noCalvings": "No calving records yet.",
+        "columns": {
+          "date": "Date",
+          "calfGender": "Calf Gender",
+          "birthWeight": "Birth Weight"
+        },
+        "genderOptions": {
+          "MALE": "Male",
+          "FEMALE": "Female",
+          "CASTRATED_MALE": "Castrated male"
+        }
+      },
+      "health": {
+        "error": "Could not load health data.",
+        "mortalityRecorded": "Mortality recorded",
+        "withholdingActive": "A safety withdrawal period is active for this animal.",
+        "ongoingTreatment": "Ongoing Treatment",
+        "progress": "Step {current} of {total}",
+        "treatmentHistory": "Treatment History",
+        "noTreatments": "No treatment records yet.",
+        "columns": {
+          "date": "Date",
+          "medicine": "Medicine",
+          "dose": "Dose"
+        }
+      },
+      "finance": {
+        "error": "Could not load finance data.",
+        "totalIncome": "Total Income",
+        "totalCost": "Total Cost",
+        "netProfit": "Net Profit",
+        "previousMonth": "Previous month",
+        "nextMonth": "Next month",
+        "expenseBreakdown": "Expense Breakdown",
+        "incomeBreakdown": "Income Breakdown",
+        "noData": "No transactions this month.",
+        "expenseLabels": {
+          "feed": "Feed",
+          "health": "Health",
+          "breeding": "Breeding",
+          "others": "Others"
+        },
+        "incomeLabels": {
+          "milk_sales": "Milk Sales",
+          "calf_sales": "Calf Sales"
+        },
+        "monthlyChart": "Monthly Income vs Cost",
+        "income": "Income",
+        "cost": "Cost"
+      },
+      "pedigree": {
+        "error": "Could not load pedigree data.",
+        "parents": "Parents",
+        "mother": "Mother",
+        "father": "Father",
+        "selfAndSiblings": "Self & Siblings",
+        "self": "Self",
+        "fullSibling": "Full Sibling",
+        "halfSibling": "Half Sibling",
+        "offspring": "Offspring",
+        "noOffspring": "No offspring recorded yet.",
+        "unknown": "Unknown",
+        "genderOptions": {
+          "MALE": "Male",
+          "FEMALE": "Female",
+          "CASTRATED_MALE": "Castrated male"
+        }
+      }
+    }
+  },
+  "milk": {
+    "overview": {
+      "title": "Overview",
+      "error": "Could not load milk overview.",
+      "totalToday": "Total Today",
+      "sellable": "Sellable",
+      "withholding": "Withholding",
+      "yesterday": "Yesterday",
+      "lastWeek": "Same Day Last Week",
+      "lastYear": "Same Day Last Year",
+      "sessionStatus": {
+        "submitted": "Submitted",
+        "pending": "Pending",
+        "not_configured": "Not configured"
+      }
+    },
+    "trend": {
+      "title": "30-Day Trend",
+      "error": "Could not load the trend chart.",
+      "legend": "Total Litres"
+    },
+    "log": {
+      "title": "Session Log",
+      "error": "Could not load the session log.",
+      "noSessionsConfigured": "No milking sessions are configured for this farm yet.",
+      "noCattle": "No milking cattle found.",
+      "noEntries": "Enter at least one yield before saving.",
+      "session": {
+        "morning": "Morning",
+        "noon": "Noon",
+        "evening": "Evening",
+        "night": "Night"
+      },
+      "columns": {
+        "cattle": "Cattle",
+        "shed": "Shed",
+        "avg7d": "Avg 7d (L)",
+        "yield": "Yield (L)",
+        "tank": "Tank"
+      },
+      "tankSellable": "Sellable",
+      "tankWithholding": "Withholding",
+      "save": "Save Draft",
+      "saving": "Saving…",
+      "savedToast": "Saved {saved} entries ({anomalies} flagged as anomalies).",
+      "saveError": "Could not save the log. Please try again.",
+      "submit": "Submit All Logs",
+      "submitting": "Submitting…",
+      "submittedToast": "Submitted {count} cow(s) to the tank.",
+      "submitError": "Could not submit the session. Please try again."
+    },
+    "anomalies": {
+      "title": "Anomalies",
+      "error": "Could not load anomalies.",
+      "empty": "No anomalies flagged.",
+      "columns": {
+        "cattle": "Cattle",
+        "date": "Date",
+        "session": "Session",
+        "yield": "Yield",
+        "drop": "Drop",
+        "status": "Status"
+      },
+      "reviewed": "Reviewed",
+      "pending": "Pending",
+      "review": "Review",
+      "reviewTitle": "Review Anomaly",
+      "reviewDescription": "{name} logged {yield}L — below their recent average.",
+      "actionLabel": "Action taken",
+      "actionPlaceholder": "e.g. Confirmed with worker, health check ordered",
+      "notesLabel": "Notes (optional)",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "markReviewed": "Mark Reviewed",
+      "reviewedToast": "Anomaly marked as reviewed.",
+      "reviewError": "Could not save the review. Please try again."
     }
   }
 }

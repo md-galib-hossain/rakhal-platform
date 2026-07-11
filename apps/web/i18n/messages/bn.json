@@ -536,19 +536,29 @@
     }
   },
   "cattle": {
+    "allCattleView": "সব গবাদি পশুর তালিকা",
+    "age": {
+      "year": "{value} বছর",
+      "years": "{value} বছর",
+      "month": "{value} মাস",
+      "months": "{value} মাস"
+    },
     "empty": {
       "title": "কোনো গবাদি পশু পাওয়া যায়নি",
       "description": "আপনার অনুসন্ধান বা ফিল্টার সামঞ্জস্য করার চেষ্টা করুন।"
     },
     "highlights": {
-      "totalActive": "মোট সক্রিয়",
+      "title": "গবাদি পশুর হাইলাইট",
+      "totalActive": "মোট গবাদি পশু",
       "avgHerdAqr": "গড় AQR",
       "breedingReady": "প্রজননের জন্য প্রস্তুত",
       "todaysYield": "আজকের উৎপাদন",
+      "vsLastMonth": "গত মাসের তুলনায়",
+      "vsYesterday": "গতকালের তুলনায়",
       "error": "গবাদি পশুর হাইলাইট লোড করা যায়নি।"
     },
     "filters": {
-      "searchPlaceholder": "নাম বা ট্যাগ দিয়ে খুঁজুন…",
+      "searchPlaceholder": "নাম বা আইডি দিয়ে গরু খুঁজুন",
       "status": "অবস্থা",
       "health": "স্বাস্থ্য",
       "breed": "জাত",
@@ -571,15 +581,17 @@
       }
     },
     "columns": {
-      "cattle": "গবাদি পশু",
+      "cattle": "নাম",
       "breed": "জাত",
+      "age": "বয়স",
       "shed": "শেড",
       "status": "অবস্থা",
       "health": "স্বাস্থ্য",
       "aqr": "AQR",
       "dim": "DIM",
       "weight": "ওজন",
-      "bcs": "BCS"
+      "bcs": "BCS",
+      "action": "অ্যাকশন"
     },
     "statusOptions": {
       "milking": "দুধ দেওয়া",
@@ -613,10 +625,14 @@
       "failedToast": "বাল্ক অ্যাকশন ব্যর্থ হয়েছে।"
     },
     "form": {
-      "addCattle": "গবাদি পশু যোগ করুন",
-      "createTitle": "গবাদি পশু যোগ করুন",
+      "addCattle": "নতুন গরু যোগ করুন",
+      "createTitle": "নতুন গবাদি পশু যোগ করুন",
       "editTitle": "গবাদি পশু সম্পাদনা করুন",
-      "tagNumber": "ট্যাগ নম্বর",
+      "basicInfo": "মৌলিক তথ্য",
+      "additionalInfo": "অতিরিক্ত তথ্য",
+      "cowName": "গরুর নাম",
+      "addCowImage": "গরুর ছবি যোগ করুন",
+      "tagNumber": "আইডি",
       "name": "নাম",
       "gender": "লিঙ্গ",
       "genderOptions": {
@@ -636,7 +652,7 @@
       "dateOfBirth": "জন্ম তারিখ",
       "weightKg": "ওজন (কেজি)",
       "breed": "জাত",
-      "shed": "শেড",
+      "shed": "শেড অবস্থান",
       "feedGroup": "ফিড গ্রুপ",
       "sourceType": "উৎস",
       "sourceTypeOptions": {
@@ -650,16 +666,12 @@
       "color": "রং",
       "notes": "নোট",
       "unassigned": "নির্ধারিত নয়",
-      "photo": "ছবি",
-      "photoUploadLabel": "এখানে একটি ছবি টেনে আনুন, অথবা ব্রাউজ করতে ক্লিক করুন",
-      "removePhoto": "ছবি সরান",
-      "save": "সংরক্ষণ করুন",
+      "save": "গবাদি পশু সংরক্ষণ করুন",
       "cancel": "বাতিল",
       "createdToast": "গবাদি পশু যোগ করা হয়েছে।",
       "updatedToast": "গবাদি পশু আপডেট করা হয়েছে।",
-      "photoUpdatedToast": "ছবি আপডেট করা হয়েছে।",
-      "photoRemovedToast": "ছবি সরানো হয়েছে।",
-      "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
+      "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।",
+      "photoGenericError": "গবাদি পশু সংরক্ষিত হয়েছে, কিন্তু ছবি আপলোড ব্যর্থ হয়েছে। সম্পাদনা থেকে আবার চেষ্টা করুন।"
     },
     "statusDialog": {
       "title": "অবস্থা পরিবর্তন — {name}",
@@ -706,12 +718,238 @@
     },
     "actions": {
       "menu": "সারির অ্যাকশন",
+      "viewDetails": "বিস্তারিত দেখুন",
       "edit": "সম্পাদনা করুন",
       "changeStatus": "অবস্থা পরিবর্তন করুন",
       "archive": "সংরক্ষণাগারে পাঠান",
       "restore": "পুনরুদ্ধার করুন",
       "restoredToast": "গবাদি পশু পুনরুদ্ধার করা হয়েছে।",
       "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
+    },
+    "detail": {
+      "title": "গবাদি পশুর বিবরণ",
+      "back": "ফিরে যান",
+      "cancel": "বাতিল",
+      "editProfile": "প্রোফাইল সম্পাদনা করুন",
+      "error": "এই গবাদি পশুর তথ্য লোড করা যায়নি।",
+      "breed": "জাত",
+      "gender": "লিঙ্গ",
+      "shed": "শেড",
+      "dateOfBirth": "জন্ম তারিখ",
+      "age": "বয়স",
+      "purpose": "উদ্দেশ্য",
+      "status": "অবস্থা",
+      "dim": "DIM",
+      "dimValue": "{days} দিন",
+      "genderOptions": {
+        "MALE": "পুরুষ",
+        "FEMALE": "স্ত্রী",
+        "CASTRATED_MALE": "খাসি করা পুরুষ"
+      },
+      "purposeOptions": {
+        "MILK": "দুধ",
+        "BREEDING": "প্রজনন",
+        "MEAT": "মাংস",
+        "CALF": "বাছুর",
+        "BULL_SERVICE": "ষাঁড় সেবা",
+        "DUAL_PURPOSE": "দ্বৈত উদ্দেশ্য"
+      },
+      "statusOptions": {
+        "milking": "দুধ দেওয়া",
+        "dry": "শুকনো",
+        "fresh": "সদ্য বিয়ানো",
+        "growing": "বেড়ে ওঠা",
+        "sold": "বিক্রিত",
+        "deceased": "মৃত"
+      },
+      "tabs": {
+        "overview": "ওভারভিউ",
+        "reproduction": "প্রজনন",
+        "health": "স্বাস্থ্য",
+        "finance": "অর্থ",
+        "pedigree": "বংশতালিকা"
+      },
+      "overview": {
+        "error": "ওভারভিউ লোড করা যায়নি।",
+        "aqrScore": "AQR স্কোর",
+        "avgDailyYield": "গড় দৈনিক উৎপাদন",
+        "liveWeight": "জীবন্ত ওজন",
+        "litres": "{value} লিটার",
+        "kg": "{value} কেজি",
+        "weightHistory": "ওজনের ইতিহাস",
+        "weightKg": "ওজন (কেজি)",
+        "noWeightRecords": "এখনো কোনো ওজন রেকর্ড নেই।",
+        "lactationCurve": "দুগ্ধদান বক্ররেখা",
+        "yieldL": "উৎপাদন (লিটার)",
+        "noLactationData": "কোনো সক্রিয় দুগ্ধদান পর্যায় নেই।",
+        "lifetimeYield": "জীবনকালীন উৎপাদন",
+        "noLifetimeData": "এখনো কোনো দুধের রেকর্ড নেই।",
+        "recentRecords": "সাম্প্রতিক দৈনিক রেকর্ড",
+        "noRecentRecords": "কোনো সাম্প্রতিক রেকর্ড নেই।",
+        "columns": {
+          "date": "তারিখ",
+          "morning": "সকাল",
+          "noon": "দুপুর",
+          "evening": "সন্ধ্যা",
+          "total": "মোট উৎপাদন"
+        }
+      },
+      "reproduction": {
+        "notApplicable": "প্রযোজ্য নয়",
+        "notApplicableDescription": "প্রজনন রেকর্ড শুধুমাত্র স্ত্রী গবাদি পশুর জন্য প্রযোজ্য।",
+        "error": "প্রজনন তথ্য লোড করা যায়নি।",
+        "totalCalvings": "মোট প্রসব",
+        "calvingInterval": "প্রসব ব্যবধান",
+        "conceptionRate": "গর্ভধারণ হার",
+        "days": "{value} দিন",
+        "kg": "{value} কেজি",
+        "calvingHistory": "প্রসবের ইতিহাস",
+        "noCalvings": "এখনো কোনো প্রসব রেকর্ড নেই।",
+        "columns": {
+          "date": "তারিখ",
+          "calfGender": "বাছুরের লিঙ্গ",
+          "birthWeight": "জন্ম ওজন"
+        },
+        "genderOptions": {
+          "MALE": "পুরুষ",
+          "FEMALE": "স্ত্রী",
+          "CASTRATED_MALE": "খাসি করা পুরুষ"
+        }
+      },
+      "health": {
+        "error": "স্বাস্থ্য তথ্য লোড করা যায়নি।",
+        "mortalityRecorded": "মৃত্যু রেকর্ড করা হয়েছে",
+        "withholdingActive": "এই প্রাণীর জন্য একটি নিরাপত্তা বিরতি সময়কাল সক্রিয় আছে।",
+        "ongoingTreatment": "চলমান চিকিৎসা",
+        "progress": "ধাপ {current} এর {total}",
+        "treatmentHistory": "চিকিৎসার ইতিহাস",
+        "noTreatments": "এখনো কোনো চিকিৎসা রেকর্ড নেই।",
+        "columns": {
+          "date": "তারিখ",
+          "medicine": "ওষুধ",
+          "dose": "মাত্রা"
+        }
+      },
+      "finance": {
+        "error": "আর্থিক তথ্য লোড করা যায়নি।",
+        "totalIncome": "মোট আয়",
+        "totalCost": "মোট খরচ",
+        "netProfit": "নিট মুনাফা",
+        "previousMonth": "আগের মাস",
+        "nextMonth": "পরের মাস",
+        "expenseBreakdown": "খরচের বিভাজন",
+        "incomeBreakdown": "আয়ের বিভাজন",
+        "noData": "এই মাসে কোনো লেনদেন নেই।",
+        "expenseLabels": {
+          "feed": "ফিড",
+          "health": "স্বাস্থ্য",
+          "breeding": "প্রজনন",
+          "others": "অন্যান্য"
+        },
+        "incomeLabels": {
+          "milk_sales": "দুধ বিক্রয়",
+          "calf_sales": "বাছুর বিক্রয়"
+        },
+        "monthlyChart": "মাসিক আয় বনাম খরচ",
+        "income": "আয়",
+        "cost": "খরচ"
+      },
+      "pedigree": {
+        "error": "বংশতালিকা তথ্য লোড করা যায়নি।",
+        "parents": "পিতামাতা",
+        "mother": "মা",
+        "father": "বাবা",
+        "selfAndSiblings": "নিজে ও ভাইবোন",
+        "self": "নিজে",
+        "fullSibling": "সহোদর",
+        "halfSibling": "সৎ ভাইবোন",
+        "offspring": "সন্তান",
+        "noOffspring": "এখনো কোনো সন্তান নথিভুক্ত নেই।",
+        "unknown": "অজানা",
+        "genderOptions": {
+          "MALE": "পুরুষ",
+          "FEMALE": "স্ত্রী",
+          "CASTRATED_MALE": "খাসি করা পুরুষ"
+        }
+      }
+    }
+  },
+  "milk": {
+    "overview": {
+      "title": "ওভারভিউ",
+      "error": "দুধের ওভারভিউ লোড করা যায়নি।",
+      "totalToday": "আজকের মোট",
+      "sellable": "বিক্রয়যোগ্য",
+      "withholding": "আটকানো",
+      "yesterday": "গতকাল",
+      "lastWeek": "গত সপ্তাহের একই দিন",
+      "lastYear": "গত বছরের একই দিন",
+      "sessionStatus": {
+        "submitted": "জমা দেওয়া হয়েছে",
+        "pending": "বাকি আছে",
+        "not_configured": "কনফিগার করা হয়নি"
+      }
+    },
+    "trend": {
+      "title": "৩০ দিনের ট্রেন্ড",
+      "error": "ট্রেন্ড চার্ট লোড করা যায়নি।",
+      "legend": "মোট লিটার"
+    },
+    "log": {
+      "title": "সেশন লগ",
+      "error": "সেশন লগ লোড করা যায়নি।",
+      "noSessionsConfigured": "এই খামারের জন্য এখনো কোনো দুধ দোহনের সেশন কনফিগার করা হয়নি।",
+      "noCattle": "কোনো দুধেল গরু পাওয়া যায়নি।",
+      "noEntries": "সংরক্ষণ করার আগে কমপক্ষে একটি ফলন লিখুন।",
+      "session": {
+        "morning": "সকাল",
+        "noon": "দুপুর",
+        "evening": "বিকাল",
+        "night": "রাত"
+      },
+      "columns": {
+        "cattle": "গবাদি পশু",
+        "shed": "শেড",
+        "avg7d": "গড় ৭দিন (লি)",
+        "yield": "ফলন (লি)",
+        "tank": "ট্যাংক"
+      },
+      "tankSellable": "বিক্রয়যোগ্য",
+      "tankWithholding": "আটকানো",
+      "save": "খসড়া সংরক্ষণ করুন",
+      "saving": "সংরক্ষণ হচ্ছে…",
+      "savedToast": "{saved} টি এন্ট্রি সংরক্ষিত হয়েছে ({anomalies} টি অস্বাভাবিক হিসেবে চিহ্নিত)।",
+      "saveError": "লগ সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।",
+      "submit": "সব লগ জমা দিন",
+      "submitting": "জমা দেওয়া হচ্ছে…",
+      "submittedToast": "{count} টি গরু ট্যাংকে জমা দেওয়া হয়েছে।",
+      "submitError": "সেশন জমা দেওয়া যায়নি। আবার চেষ্টা করুন।"
+    },
+    "anomalies": {
+      "title": "অস্বাভাবিকতা",
+      "error": "অস্বাভাবিকতা লোড করা যায়নি।",
+      "empty": "কোনো অস্বাভাবিকতা চিহ্নিত হয়নি।",
+      "columns": {
+        "cattle": "গবাদি পশু",
+        "date": "তারিখ",
+        "session": "সেশন",
+        "yield": "ফলন",
+        "drop": "হ্রাস",
+        "status": "অবস্থা"
+      },
+      "reviewed": "পর্যালোচিত",
+      "pending": "বাকি আছে",
+      "review": "পর্যালোচনা করুন",
+      "reviewTitle": "অস্বাভাবিকতা পর্যালোচনা করুন",
+      "reviewDescription": "{name} {yield} লিটার দিয়েছে — সাম্প্রতিক গড়ের চেয়ে কম।",
+      "actionLabel": "গৃহীত পদক্ষেপ",
+      "actionPlaceholder": "যেমন: কর্মীর সাথে নিশ্চিত করা হয়েছে, স্বাস্থ্য পরীক্ষার নির্দেশ দেওয়া হয়েছে",
+      "notesLabel": "নোট (ঐচ্ছিক)",
+      "cancel": "বাতিল",
+      "saving": "সংরক্ষণ হচ্ছে…",
+      "markReviewed": "পর্যালোচিত হিসেবে চিহ্নিত করুন",
+      "reviewedToast": "অস্বাভাবিকতা পর্যালোচিত হিসেবে চিহ্নিত হয়েছে।",
+      "reviewError": "পর্যালোচনা সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।"
     }
   }
 }

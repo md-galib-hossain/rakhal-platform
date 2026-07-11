@@ -1,16 +1,66 @@
 # Frontend — Current State
 
-**Last updated:** 2026-07-11 · **Completion:** Phase 0 done (RFE-001…010) + RFE-100 marketing landing +
-Phase 1 RFE-020 (Dashboard) + RFE-021 (Cattle list) + RFE-022 (Cattle add/edit) done
+**Last updated:** 2026-07-12 · **Completion:** Phase 0 done (RFE-001…010) + RFE-100 marketing landing +
+Phase 1 RFE-020 (Dashboard) + RFE-021 (Cattle list) + RFE-022 (Cattle add/edit) + RFE-023 (Cattle detail)
++ RFE-025 (Milk log) done
 
-## RFE-022 — Add/Edit cattle + photo + status flows (2026-07-11)
-Cattle create/edit (`CattleFormDialog`, one form for both), status-change dialog, archive dialog
-(sold/deceased/archived), and a new per-row actions menu — all live against the real backend. See
+## Cattle — pixel-perfect pass + reusable Pagination (2026-07-12, user request)
+Pulled the real Figma "Cattle" + "Cattle (Details - Overview)" frames live and matched them exactly.
+New **reusable** `components/shared/pagination.tsx` (`Pagination` — numbered pills, prev/next, "Page
+[N] of total" jump select) replaces the cursor "Load more" footer everywhere it's used on `/cattle`,
+backed by a new `useCattlePagedList` adapter that turns the backend's keyset-only `GET /cattle` (no
+`total`/offset) into numbered pages honestly — caches the cursor trail as pages are visited, never
+fetches by a fake offset, `totalPages` is the discovered frontier (grows by one each time a new page
+is reached). New `components/ui/chip.tsx` (outline-pill status style) for the table's Status/Health
+columns; gender glyphs (`Mars`/`Venus`, new `--accent-pink` token) in the name cell; rebuilt
+`CattleHighlightsBar` as its own elevated "Cattle Highlights" card; added the "All Cattle View"
+section heading with search/filter/`CattleAddButton` grouped in one row. New `CattleDetailSheet`
+right-side drawer (row-action "View Details") — reuses RFE-023's profile card + 5 tabs as-is, the
+`/cattle/:id` route stays the deep link. **Verified LIVE** against the real backend (27 real seeded
+cattle, 2 real pages): genuine `?cursor=` network requests on page navigation, gender/status colors
+confirmed via computed style, "View Details" → real drawer with live chart data → "Edit Profile"
+handoff, zero console errors. Gate green: typecheck/lint/build/18 unit tests. Full writeup:
+`IN_FLIGHT.md` Recently Done, `PROJECT_PROGRESS.md` RFE-021.
+
+## RFE-025 — Milk log page (2026-07-11)
+Built in parallel with another agent's RFE-023 (cattle detail) — deliberately picked a zero-overlap
+module (`features/milk/**`/`app/(app)/milk/**` vs their `features/cattle/**`/`app/(app)/cattle/[id]/**`)
+per the user's "make sure no conflict" instruction; confirmed both compile together in the same
+`pnpm build`. Overview KPIs + 30-day trend (`GET /milk/overview`, one query shared by both widgets),
+session tabs from the farm's real `sessionConfig` (not a hardcoded 4) wrapping an editable per-cow
+yield grid (`GET/POST /milk/log`, `POST /milk/submit`), and an anomaly review list (`GET /milk/anomalies`,
+`POST /milk/anomalies/:id/review`) — all real backend routes verified directly against
+`milk.controller.ts`/`milk.service.ts`. New local `MilkCard` chrome (didn't reach into
+`features/dashboard`'s `DashboardCard` — no public `index.ts` there per the import-boundary rule).
+**Hit + fixed a real `set-state-in-effect` error**: restructured the session-switch draft re-seed from a
+`useEffect` into a `key`-remounted child component (`MilkSessionTable`), reusing the same remount-key
+pattern `CattleFormDialogBody` already established in this codebase. **Verified LIVE end-to-end**: real
+overview totals/session-status dots, trend chart, session tabs correctly show only the farm's 2
+configured sessions, switching sessions correctly resets drafts to that session's own values, a real
+`POST /milk/log` save (`201`, toast, auto-refetch confirmed via network log), dark theme + mobile (no
+overflow). Gate green: lint/typecheck/build/18 unit tests. Full writeup: `PROJECT_PROGRESS.md` RFE-025.
+
+## RFE-023 — Cattle detail (5 tabs) (2026-07-11)
+`app/(app)/cattle/[id]/page.tsx` — Overview/Reproduction/Health/Finance/Ancestry, all live against
+real backend endpoints (`cattle-detail.service.ts` + reproduction/health `*-summary`). Built as a
+plain page, not the Figma drawer (D-2 — no intercepted-route precedent yet). Health's vaccination
+timeline and Ancestry's canvas pedigree diagram simplified to cards/grid (PRD-spec gaps already
+flagged in `rakhal-ui-analysis.md`). Cattle list rows now link to the detail page. **Not built this
+pass**: BCS/weight record-entry dialogs (Overview only displays history, doesn't add new records).
+See `IN_FLIGHT.md` Recently Done for the full write-up. Next: RFE-024 (CSV import).
+
+## RFE-022 — Add/Edit cattle + photo + status flows (2026-07-11, incl. pixel-exact follow-up)
+Cattle create/edit (`CattleFormDialog`, one dialog for both), status-change dialog, archive dialog
+(sold/deceased/archived), and a per-row actions menu — all live against the real backend. See
 `IN_FLIGHT.md` Recently Done for the full write-up, incl. two app-wide infra bugs found+fixed along
 the way (no multipart upload path existed yet; `useCan()` never matched the backend's `["*"]` Owner
-wildcard). Photo upload is wired correctly but 500s on a real R2 `AccessDenied` in this dev env —
-flagged, not fixed (out of this ticket's scope, needs valid R2 creds). Next: RFE-023 (detail page)
-or RFE-024 (CSV import, depends on this ticket).
+wildcard). **Follow-up pass**: rebuilt to pixel-match the real Figma "Add New Cattle" modal (620px,
+dashed separators, muted section bands, square photo dropzone, stacked-label fields via new shared
+`components/ui/labeled-field.tsx`) — photo is now staged locally and uploaded in the same "Save
+Cattle" click right after create/update, instead of being edit-only. **R2 `AccessDenied` flagged in
+the earlier pass is now resolved** (user granted bucket write access) — photo upload verified LIVE
+end-to-end (create → 201 → photo → 201, real R2 thumb renders in the list). Next: RFE-023 (detail
+page) or RFE-024 (CSV import, depends on this ticket).
 
 ## Named shadow token (2026-07-11, user request)
 The one repeated arbitrary-value shadow (`shadow-[0px_0px_3px_rgba(0,0,0,0.1)]`, duplicated in

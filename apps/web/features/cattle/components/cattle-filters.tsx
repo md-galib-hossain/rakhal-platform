@@ -5,8 +5,10 @@ import { FilterBar } from "@/components/shared/filter-bar";
 import { useBreeds, useFeedGroups, useSheds } from "../hooks/use-cattle";
 
 /** Search + status/breed/shed/feed-group/health selects (PRD §8.1 list filters, ticket RFE-021) —
- * all URL-synced via the shared `FilterBar`, read back by `CattleTable` for the actual query. */
-export function CattleFilters() {
+ * all URL-synced via the shared `FilterBar`, read back by `CattleTable` for the actual query.
+ * `actions` (the "Add New Cow" button) renders after the filters, matching the Figma "All Cattle
+ * View" row where search/filter/add all sit together, right-aligned next to the section title. */
+export function CattleFilters({ actions }: { actions?: React.ReactNode }) {
   const t = useTranslations("cattle.filters");
   const breeds = useBreeds();
   const sheds = useSheds();
@@ -55,6 +57,7 @@ export function CattleFilters() {
           options: (feedGroups.data ?? []).map((g) => ({ value: g.id, label: g.name })),
         },
       ]}
+      extra={actions}
     />
   );
 }

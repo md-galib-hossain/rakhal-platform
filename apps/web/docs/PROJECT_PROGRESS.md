@@ -431,6 +431,15 @@
   aggregate-only (`{updated,failed}`, no per-row detail). No detail/add-edit route yet (RFE-022/023).
   **Parent-card wrapper (2026-07-11 follow-up):** page now wrapped in the shared `PageCard` — see
   RFE-020's entry above for the full writeup, same component, no `actions` slot on this page.
+  **Pixel-perfect pass + reusable Pagination (2026-07-12 follow-up):** cursor "Load more" replaced
+  by numbered `Pagination` (new `components/shared/pagination.tsx`, generic — `page`/`totalPages`/
+  `onPageChange`) over a new `useCattlePagedList` cursor-trail adapter (still keyset under the hood,
+  no fake offset). Table restyled to the real Figma "Cattle" frame: gender glyphs, outline `Chip`
+  status pills (new `components/ui/chip.tsx`), rebuilt `CattleHighlightsBar` as its own elevated
+  card, added the "All Cattle View" section heading + moved `CattleAddButton` next to search/filter.
+  New `CattleDetailSheet` right-side drawer (row-action "View Details") reuses the RFE-023 profile
+  card + 5 tabs as-is — the `/cattle/:id` route stays the deep link, the drawer is now an additional
+  fast-access presentation of the same data, not a replacement. Full writeup: `IN_FLIGHT.md`.
 
 #### RFE-022 — Add/Edit cattle + photo + status flows
 - **Depends:** RFE-021 (shares feature folder — same agent or sequenced) · **Design:** Figma add-cattle frames
@@ -451,7 +460,11 @@
 - Tabs: Overview (yield/weight/BCS/lactation-curve/lifetime — charts dynamic), Reproduction, Health,
   Finance (per-animal P&L), Pedigree/Ancestry tree. BCS + weight record dialogs (worker-permitted BCS).
 - **API:** §4 detail endpoints · **PRD:** §8.5+ · **Design:** Figma detail frames; PRD-spec for tabs missing in Figma
-- **Status:** `TODO`
+- **Status:** `DONE` (2026-07-11) — see `IN_FLIGHT.md` Recently Done for the full build note. Built
+  as a plain page (`app/(app)/cattle/[id]/page.tsx`), not the Figma drawer (D-2) — no intercepted-route
+  precedent in this codebase yet. Health's vaccination timeline and Ancestry's canvas pedigree diagram
+  simplified to cards/grid (both already PRD-spec-flagged in `rakhal-ui-analysis.md`). BCS/weight record
+  dialogs **not built this pass** — deferred, not part of the Overview tab's read surface.
 
 #### RFE-024 — Cattle CSV import (+ onboarding import reuse)
 - **Depends:** RFE-022 · Multipart preview→confirm wizard (`/cattle` import routes; reused by RFE-063).
@@ -464,7 +477,44 @@
   `milkActiveSessions` settings), withholding locks, save (`POST /milk/log`) + submit-to-tank
   (`POST /milk/submit`), anomaly list + review dialog (<70% flag).
 - **API:** §6 (skip `/milk/quality` — V1.5, backend not built) · **PRD:** §10
-- **Status:** `TODO`
+- **Status:** `DONE` (2026-07-11) — built against the real backend, verified directly against
+  `milk.controller.ts`/`milk.service.ts`/the 4 DTOs (not the aspirational API doc): `logTable`/
+  `anomalies` return flat objects, not cursor pages; `sessionsStatus`/`sessionConfig` are real.
+  New `features/milk/{types,schemas,api,hooks/use-milk}.ts` + 8 components: `MilkOverviewCard`
+  (today/sellable/withholding + yesterday/last-week/last-year comparisons + per-session status
+  dots — `GET /milk/overview`), `MilkTrendChart` (+`-inner`, 30-day area chart, dynamic-imported
+  `recharts`, shares the same overview query — TanStack Query dedupes it into one network call),
+  `MilkSessionLog` (session tabs from the farm's real `sessionConfig`, not a hardcoded 4) wrapping
+  `MilkSessionTable` (the editable per-cow yield grid + Save Draft/Submit All Logs, `milk.log`-gated
+  via `<Can/>`), `MilkAnomaliesPanel` + `ReviewAnomalyDialog` (`milk.update`-gated). New local
+  `MilkCard` (not `features/dashboard`'s `DashboardCard` — no public `index.ts` there to import
+  through per ARCHITECTURE.md §3, so duplicated the same `rounded-2xl bg-card shadow-card` chrome
+  as a small in-lane component instead of reaching into another feature's internals). Wrapped in
+  the shared `PageCard` (2026-07-11 pattern), matching `/dashboard` and `/cattle`. **Hit and fixed
+  a real `set-state-in-effect` React Compiler error**: the session-switch re-seed of the editable
+  draft inputs was originally a `useEffect` calling `setDrafts` synchronously — restructured into
+  the `MilkSessionTable` child, `key`-remounted per session by its `MilkSessionLog` parent, so a
+  fresh `useState` initializer seeds from that session's data with no effect at all (same
+  remount-key fix `CattleFormDialogBody` already established in this codebase for an equivalent
+  reset-on-change need — followed the precedent instead of re-solving it differently). Also fixed
+  a real `recharts` `Tooltip.labelFormatter` type error (removed — it was a no-op passthrough
+  anyway, the reference `financial-performance-chart-inner.tsx` doesn't use it either). **Verified
+  LIVE end-to-end** against the real backend + real seeded data (demo owner, Demo Farm): overview
+  totals/comparisons/session-status dots all real, 30-day trend chart renders, session tabs show
+  only the farm's 2 actually-configured sessions (Morning/Evening — Noon/Night correctly absent,
+  not just disabled), switching sessions correctly resets the draft inputs to that session's own
+  saved values (confirmed empty inputs on Evening, a session with no prior entries), a real
+  `POST /milk/log` **save** (`201 Created`, real success toast, auto-refetch confirmed via network
+  log) — the anomalies list showed its real empty state (no anomalies in the seed data, not
+  independently exercised beyond that this session). Dark theme + mobile (375px, no horizontal
+  overflow) also confirmed via computed-style probes (screenshot tool down this session, same as
+  other recent entries on this board). Gate green: lint/typecheck/build/18 unit tests. **Built in
+  parallel with another agent's RFE-023 (cattle detail)** — zero file overlap (`features/milk/**`
+  vs `features/cattle/**`), confirmed both compile together in the same `pnpm build`. **Not
+  built**, flagged not guessed: `/milk/quality` (ticket's own note — V1.5, backend doesn't have
+  it), a shed filter on the log table (`GET /milk/log?shedId=` exists server-side but no shed
+  picker UI was wired — `MilkLogQueryDto.shedId` untouched from this page), no dedicated
+  Playwright spec (this repo's e2e harness only covers `/login` et al. so far, per RFE-009).
 
 #### RFE-026 — Milk buyers & dispatch
 - **Lane:** `features/buyers/**`, `app/(app)/buyers/**`

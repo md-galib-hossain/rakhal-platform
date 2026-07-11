@@ -14,28 +14,34 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * RFE-021 — Cattle list + highlights + bulk ops. Highlights (`GET /cattle/highlights`) and the
- * cursor-paginated list (`GET /cattle`) are separate real backend routes, both `cattle.read`-gated;
- * bulk ops (`POST /cattle/bulk`) require `cattle.bulk`. Filters/search are URL-synced (`nuqs`, via
- * the shared `FilterBar`), so `CattleFilters` and `CattleTable` read the same query string without
- * prop-drilling between them. Cattle detail (RFE-023) still isn't built — the list still doesn't
- * link out to it, only to add/edit (RFE-022, below).
+ * numbered-page list (`GET /cattle`, cursor under the hood via `useCattlePagedList`) are separate
+ * real backend routes, both `cattle.read`-gated; bulk ops (`POST /cattle/bulk`) require
+ * `cattle.bulk`. Filters/search are URL-synced (`nuqs`, via the shared `FilterBar`), so
+ * `CattleFilters` and `CattleTable` read the same query string without prop-drilling between them.
  *
- * **Parent-card wrapper (2026-07-11, user request):** the whole page now sits inside one
- * `PageCard` (`components/shared/page-card.tsx`), same pattern as `/dashboard`.
- *
- * **RFE-022 (2026-07-11):** `actions` now carries `CattleAddButton`, a `cattle.create`-gated
- * trigger for the same add/edit `CattleFormDialog` the table's row actions use in edit mode.
+ * **Pixel-perfect pass (2026-07-12, user request + Figma "Cattle" frame):** the page now mirrors
+ * Figma's two-heading layout — the outer `PageCard` ("Cattle") holds the "Cattle Highlights" card
+ * plus a second "All Cattle View" section whose header row carries search/filter/`CattleAddButton`
+ * together (moved out of `PageCard`'s top-level `actions` slot to match).
  */
 export default async function CattlePage() {
   const t = await getTranslations("nav");
+  const tCattle = await getTranslations("cattle");
 
   return (
-    <PageCard title={t("cattle")} actions={<CattleAddButton />}>
+    <PageCard title={t("cattle")}>
       <CattleHighlightsBar />
-      <Suspense fallback={null}>
-        <CattleFilters />
-        <CattleTable />
-      </Suspense>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-2xl font-bold text-foreground">{tCattle("allCattleView")}</h2>
+          <Suspense fallback={null}>
+            <CattleFilters actions={<CattleAddButton />} />
+          </Suspense>
+        </div>
+        <Suspense fallback={null}>
+          <CattleTable />
+        </Suspense>
+      </div>
     </PageCard>
   );
 }

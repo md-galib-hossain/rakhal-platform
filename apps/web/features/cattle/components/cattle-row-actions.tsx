@@ -19,11 +19,13 @@ import type { CattleListItem } from "../types";
  * add/edit form, status dialog, and archive dialog owned by the parent `CattleTable`. */
 export function CattleRowActions({
   cattle,
+  onView,
   onEdit,
   onChangeStatus,
   onArchive,
 }: {
   cattle: CattleListItem;
+  onView: (cattle: CattleListItem) => void;
   onEdit: (cattle: CattleListItem) => void;
   onChangeStatus: (cattle: CattleListItem) => void;
   onArchive: (cattle: CattleListItem) => void;
@@ -34,8 +36,6 @@ export function CattleRowActions({
   const isArchived = cattle.status === "SOLD" || cattle.status === "DEAD" || cattle.status === "ARCHIVED";
   const canUpdate = can("cattle.update");
   const canArchive = can("cattle.archive");
-
-  if (!canUpdate && !canArchive) return null;
 
   async function handleRestore() {
     try {
@@ -54,6 +54,7 @@ export function CattleRowActions({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => onView(cattle)}>{t("viewDetails")}</DropdownMenuItem>
         {canUpdate ? <DropdownMenuItem onSelect={() => onEdit(cattle)}>{t("edit")}</DropdownMenuItem> : null}
         {canUpdate ? (
           <DropdownMenuItem onSelect={() => onChangeStatus(cattle)}>{t("changeStatus")}</DropdownMenuItem>

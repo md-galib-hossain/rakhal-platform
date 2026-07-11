@@ -16,6 +16,14 @@ import type {
   Shed,
 } from "./types";
 import type { CattleArchiveInput, CattleStatusInput } from "./schemas";
+import type {
+  CalvingEventRow,
+  CattleFinance,
+  CattleOverview,
+  CattlePedigree,
+  HealthSummary,
+  ReproductionSummary,
+} from "./detail-types";
 
 /** `GET/POST /cattle*` — real backend routes (`cattle.controller.ts`), `cattle.read`/`cattle.bulk`-gated.
  * Breed/shed/feed-group lookups back the filter selects — their own controllers (`/breeds`, `/sheds`,
@@ -82,5 +90,30 @@ export const cattleApi = {
   },
   removePhoto(id: string): Promise<{ removed: boolean }> {
     return apiFetch<{ removed: boolean }>(`/cattle/${id}/photo`, { method: "DELETE" });
+  },
+
+  // RFE-023 — detail page tabs.
+  overview(id: string): Promise<CattleOverview> {
+    return apiFetch<CattleOverview>(`/cattle/${id}/overview`);
+  },
+  pedigree(id: string): Promise<CattlePedigree> {
+    return apiFetch<CattlePedigree>(`/cattle/${id}/pedigree`);
+  },
+  /** `finance.read`-gated (separate from the rest of the cattle detail, which is `cattle.read`). */
+  finance(id: string, period?: string): Promise<CattleFinance> {
+    return apiFetch<CattleFinance>(`/cattle/${id}/finance`, { searchParams: { period } });
+  },
+  /** Female cattle only — the backend 400s for male/castrated (`getFemaleCattle`), so callers must
+   * gate this behind `gender === "FEMALE"` rather than rely on catching the error. */
+  reproductionSummary(id: string): Promise<ReproductionSummary> {
+    return apiFetch<ReproductionSummary>(`/cattle/${id}/reproduction-summary`);
+  },
+  healthSummary(id: string): Promise<HealthSummary> {
+    return apiFetch<HealthSummary>(`/cattle/${id}/health-summary`);
+  },
+  calvingEvents(cattleId: string): Promise<CursorPage<CalvingEventRow>> {
+    return apiFetchPage<CalvingEventRow>("/reproduction/calving-events", {
+      searchParams: { cattleId, limit: 20 },
+    });
   },
 };
