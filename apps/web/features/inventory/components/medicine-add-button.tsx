@@ -11,7 +11,8 @@ export function MedicineAddButton({ onClick }: { onClick: () => void }) {
   const t = useTranslations("inventory.medicine.form");
   return (
     <Can I="inventory.create">
-      <Button size="sm" onClick={onClick}>
+      {/* Default (md/h-11) size — matches the search input's height in the same toolbar row. */}
+      <Button onClick={onClick}>
         <Plus className="size-4" aria-hidden />
         {t("add")}
       </Button>

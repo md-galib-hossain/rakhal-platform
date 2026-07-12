@@ -284,7 +284,10 @@ function CattleFormDialogBody({
         noValidate
         className="flex min-h-0 flex-1 flex-col"
       >
-        <div className="flex flex-col gap-4 overflow-y-auto px-6 py-5">
+        {/* `min-h-0 flex-1` pins the footer to the bottom — without it this div sizes to its
+            content and the outer Sheet/Dialog's own `overflow-y-auto` scrolls header+form+footer
+            as one unit instead of just this middle section. */}
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-5">
           <div className="flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-2.5 text-sm font-semibold text-foreground">
             <Sparkles className="size-4 text-primary" aria-hidden />
             {t("basicInfo")}

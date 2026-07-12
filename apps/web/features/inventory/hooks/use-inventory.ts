@@ -129,3 +129,19 @@ export function useRestoreMedicine() {
     onSuccess: (_data, id) => invalidate(id),
   });
 }
+
+export function useSetMedicinePhoto() {
+  const invalidate = useInvalidateMedicine();
+  return useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) => inventoryApi.setMedicinePhoto(id, file),
+    onSuccess: (_data, { id }) => invalidate(id),
+  });
+}
+
+export function useRemoveMedicinePhoto() {
+  const invalidate = useInvalidateMedicine();
+  return useMutation({
+    mutationFn: (id: string) => inventoryApi.removeMedicinePhoto(id),
+    onSuccess: (_data, id) => invalidate(id),
+  });
+}

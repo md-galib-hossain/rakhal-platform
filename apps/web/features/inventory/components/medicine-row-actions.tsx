@@ -12,18 +12,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import { useRestoreMedicine } from "../hooks/use-inventory";
 import type { Medicine } from "../types";
 
-/** Per-row menu (edit / archive / restore) — same anatomy as `CattleRowActions`. */
+/** Per-row menu (edit / archive / restore) — same anatomy as `CattleRowActions`. `triggerClassName`
+ * lets the grid card give the trigger a translucent circular backdrop so it stays legible over a
+ * photo/color-block image — the table cell usage leaves it unset (plain ghost icon button). */
 export function MedicineRowActions({
   medicine,
   onEdit,
   onArchive,
+  triggerClassName,
 }: {
   medicine: Medicine;
   onEdit: (medicine: Medicine) => void;
   onArchive: (medicine: Medicine) => void;
+  triggerClassName?: string;
 }) {
   const t = useTranslations("inventory.actions");
   const can = useCan();
@@ -42,7 +47,7 @@ export function MedicineRowActions({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={t("menu")}>
+        <Button variant="ghost" size="icon" aria-label={t("menu")} className={cn(triggerClassName)}>
           <MoreHorizontal className="size-4" />
         </Button>
       </DropdownMenuTrigger>

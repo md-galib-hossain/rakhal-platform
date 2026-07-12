@@ -1,12 +1,13 @@
 "use client";
 
-import { apiFetch, apiFetchPage } from "@/lib/api/client";
+import { apiFetch, apiFetchPage, apiUpload } from "@/lib/api/client";
 import type { CursorPage } from "@/types/api";
 import type {
   AdjustMedicineStockPayload,
   CreateMedicinePayload,
   Medicine,
   MedicineListFilters,
+  MediaUrls,
   UpdateMedicinePayload,
 } from "./types";
 
@@ -34,5 +35,11 @@ export const inventoryApi = {
   },
   restoreMedicine(id: string): Promise<Medicine> {
     return apiFetch<Medicine>(`/inventory/medicines/${id}/restore`, { method: "PATCH" });
+  },
+  setMedicinePhoto(id: string, file: File): Promise<MediaUrls> {
+    return apiUpload<MediaUrls>(`/inventory/medicines/${id}/photo`, file);
+  },
+  removeMedicinePhoto(id: string): Promise<{ removed: boolean }> {
+    return apiFetch<{ removed: boolean }>(`/inventory/medicines/${id}/photo`, { method: "DELETE" });
   },
 };

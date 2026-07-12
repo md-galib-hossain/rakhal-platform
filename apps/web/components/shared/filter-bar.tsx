@@ -30,6 +30,11 @@ export interface FilterBarProps {
   selects?: FilterBarSelectConfig[];
   /** Extra controls (date-range picker, etc.) rendered after the Filter button. */
   extra?: React.ReactNode;
+  /** "inline" (default) packs search+Filter+extra together, left-aligned — the Figma "Cattle"
+   * list's row. "split" pins search to the far left and Filter+extra to the far right (Figma
+   * "Inventory" list's row, `732:12448`: `Search` at x=0/w=300, `Filter`+`Buttons` grouped at
+   * x=890+) — a real, different Figma spec per module, not a bug in one of them. */
+  layout?: "inline" | "split";
   className?: string;
 }
 
@@ -37,12 +42,35 @@ export interface FilterBarProps {
  * URL-synced via nuqs. Matches the Figma "Cattle" list's search+Filter-button row (a single icon
  * button, not N always-visible selects) — the selects themselves are unchanged, just behind one
  * click instead of spread across the row. Resets DataTable's cursor by design. */
-export function FilterBar({ searchKey, searchPlaceholder = "Search…", selects = [], extra, className }: FilterBarProps) {
-  return (
-    <div className={cn("flex flex-wrap items-center gap-3 [&>*]:shrink-0", className)}>
-      {searchKey ? <SearchInput paramKey={searchKey} placeholder={searchPlaceholder} /> : null}
+export function FilterBar({
+  searchKey,
+  searchPlaceholder = "Search…",
+  selects = [],
+  extra,
+  layout = "inline",
+  className,
+}: FilterBarProps) {
+  const search = searchKey ? <SearchInput paramKey={searchKey} placeholder={searchPlaceholder} /> : null;
+  const filterAndExtra = (
+    <>
       {selects.length > 0 ? <FilterPopover selects={selects} searchKey={searchKey} /> : null}
       {extra}
+    </>
+  );
+
+  if (layout === "split") {
+    return (
+      <div className={cn("flex flex-wrap items-center justify-between gap-3", className)}>
+        {search}
+        <div className="flex flex-wrap items-center gap-3 [&>*]:shrink-0">{filterAndExtra}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn("flex flex-wrap items-center gap-3 [&>*]:shrink-0", className)}>
+      {search}
+      {filterAndExtra}
     </div>
   );
 }
@@ -68,7 +96,14 @@ function SearchInput({ paramKey, placeholder }: { paramKey: string; placeholder:
   }, [draft]);
 
   return (
-    <div className="relative w-full max-w-xs">
+    // Fixed width (Figma's "Search" component is a literal 300px, `732:12449`/`732:18131`), not
+    // `w-full max-w-xs` — a percentage width on a flex item whose own container is itself
+    // shrink-to-fit (as `FilterBar`'s row is when it's nested inside another flex row, e.g. the
+    // Cattle/Inventory page header's title+filters row) creates a circular sizing dependency:
+    // the browser can't resolve "100% of a container whose size depends on this child's size",
+    // so it collapses the container's computed width well below its children's real total width,
+    // pushing the last flex item (the page's Add button) onto its own wrapped line.
+    <div className="relative w-[300px] shrink-0">
       <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         value={draft}
@@ -91,6 +126,8 @@ function FilterPopover({ selects, searchKey }: { selects: FilterBarSelectConfig[
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
+        {/* Default (md/h-11) size — matches the search input's height (`h-11`) in the same row,
+            and the page-header "Add X" button next to it (also default size). */}
         <Button variant="outline" className="gap-1.5 text-muted-foreground">
           <FilterIcon className="size-4" aria-hidden />
           Filter

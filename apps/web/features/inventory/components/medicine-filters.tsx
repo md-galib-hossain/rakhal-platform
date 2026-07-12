@@ -16,13 +16,15 @@ const CATEGORIES = [
 ] as const;
 
 /** Search + category/expiry-status selects (mirrors `CattleFilters`' anatomy) — URL-synced via the
- * shared `FilterBar`, read back by the medicine list query. `actions` (the "Add Medicine" button)
- * renders after the filters, matching the Figma row where search/filter/add sit together. */
+ * shared `FilterBar`, read back by the medicine list query. Figma's "Inventory" row (732:12448)
+ * splits search to the far left from Filter+"Add Medicine" on the far right — a different layout
+ * than the Cattle list's all-together row, hence `layout="split"` rather than the default. */
 export function MedicineFilters({ actions }: { actions?: React.ReactNode }) {
   const t = useTranslations("inventory.medicine.filters");
 
   return (
     <FilterBar
+      layout="split"
       searchKey="search"
       searchPlaceholder={t("searchPlaceholder")}
       selects={[

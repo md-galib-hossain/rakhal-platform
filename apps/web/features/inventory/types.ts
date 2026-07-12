@@ -85,6 +85,17 @@ export interface AdjustMedicineStockPayload {
   notes?: string;
 }
 
+/** Signed R2 URL bundle — same shape as `features/cattle/types.ts#MediaUrls` (kept feature-local
+ * per this codebase's per-feature siloing convention, not cross-imported). */
+export interface MediaUrls {
+  asset_id: string;
+  thumb_url: string;
+  full_url: string | null;
+  width: number | null;
+  height: number | null;
+  expires_at: string;
+}
+
 export type InventoryTabKey = "medicine" | "forage" | "semen" | "milk" | "others";
 
 export interface InventoryTabConfig {

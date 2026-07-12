@@ -1,10 +1,11 @@
-"use client"; // form state + mutation
+"use client"; // form state + mutation + staged photo upload
 
+import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { CalendarDays, Droplets, Info, Sparkles, Timer } from "lucide-react";
+import { ArrowRightToLine, Plus, X } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
@@ -12,7 +13,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
-import { useCreateMedicine, useUpdateMedicine } from "../hooks/use-inventory";
+import {
+  useCreateMedicine,
+  useRemoveMedicinePhoto,
+  useSetMedicinePhoto,
+  useUpdateMedicine,
+} from "../hooks/use-inventory";
 import { medicineFormSchema, type MedicineFormInput } from "../schemas";
 import type { CreateMedicinePayload, Medicine, UpdateMedicinePayload } from "../types";
 
@@ -32,7 +38,6 @@ const MEDICINE_CATEGORIES = [
 function toCreatePayload(values: MedicineFormInput): CreateMedicinePayload {
   return {
     name: values.name,
-    imageUrl: values.imageUrl || undefined,
     type: values.type,
     category: values.category,
     manufacturer: values.manufacturer || undefined,
@@ -55,7 +60,6 @@ function toCreatePayload(values: MedicineFormInput): CreateMedicinePayload {
 function toUpdatePayload(values: MedicineFormInput): UpdateMedicinePayload {
   return {
     name: values.name,
-    imageUrl: values.imageUrl || undefined,
     type: values.type,
     category: values.category,
     manufacturer: values.manufacturer || undefined,
@@ -75,7 +79,6 @@ function toFormDefaults(medicine: Medicine | undefined): Partial<MedicineFormInp
   if (!medicine) return { type: "LIQUID", category: "ANTIBIOTIC", currentStock: 0, costPerUnit: 0 };
   return {
     name: medicine.name,
-    imageUrl: medicine.imageUrl ?? "",
     type: medicine.type,
     category: medicine.category,
     manufacturer: medicine.manufacturer ?? "",
@@ -92,27 +95,84 @@ function toFormDefaults(medicine: Medicine | undefined): Partial<MedicineFormInp
   };
 }
 
-function SectionHeader({ icon: Icon, children }: { icon: React.ElementType; children: React.ReactNode }) {
+/** Plain bold-text grey band — Figma "Add Medicine"/"Add Forage" side modal section headers
+ * (732:11120 / 732:13198) have no icon, unlike the earlier pass's icon+label bar. */
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-xl bg-muted px-4 py-2.5 text-sm font-semibold text-foreground">{children}</div>;
+}
+
+/** Square "+ Add Medicine Image" dropzone — same anatomy as cattle's `PhotoDropzone`
+ * (`cattle-form-dialog.tsx`): dashed border, muted fill, centered plus icon + 2-line label,
+ * local-only until Save. */
+function PhotoDropzone({
+  previewUrl,
+  onPick,
+  onClear,
+  label,
+}: {
+  previewUrl: string | null;
+  onPick: (file: File) => void;
+  onClear: () => void;
+  label: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-2.5 text-sm font-semibold text-foreground">
-      <Icon className="size-4 text-primary" aria-hidden />
-      {children}
+    <div className="relative size-[140px] shrink-0">
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        className="flex size-full flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-input bg-muted text-center transition-colors hover:bg-muted/70"
+      >
+        {previewUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- transient local object-URL / signed R2 URL preview
+          <img src={previewUrl} alt="" className="size-full rounded-2xl object-cover" />
+        ) : (
+          <>
+            <Plus className="size-[18px] text-muted-foreground" aria-hidden />
+            <span className="px-3 text-sm leading-tight text-muted-foreground">{label}</span>
+          </>
+        )}
+      </button>
+      {previewUrl ? (
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label="Remove"
+          className="absolute -right-2 -top-2 flex size-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-xs hover:text-destructive"
+        >
+          <X className="size-3.5" />
+        </button>
+      ) : null}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="sr-only"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onPick(file);
+          e.target.value = "";
+        }}
+      />
     </div>
   );
 }
 
 /**
- * Add/Edit Medicine drawer — Figma "Item Type" frame (732:11067): flush right-edge panel (this
- * frame's own chrome, deliberately kept distinct from the floating/inset "Cattle Details" sheet —
- * Figma itself isn't consistent here, matched per-frame rather than forced into one pattern).
- * **Real gaps vs the mock, flagged not faked**: (1) the mock's square "+ Add Medicine Image"
- * dropzone implies a photo upload, but `medicine.controller.ts` has no
- * `POST /inventory/medicines/:id/photo` endpoint (unlike cattle) — swapped for a plain optional
- * `imageUrl` text field instead of building a dropzone with nowhere to send the file. (2) "Unit"
- * and "Low Stock Alert" are mock dropdowns with invented option lists; the real DTO fields
- * (`unit: string`, `lowStockThreshold: number`) are free text/number, rendered as such. (3)
+ * Add/Edit Medicine drawer — Figma "Add Medicine - Side Modal" (732:11120, `get_design_context`):
+ * same floating-card chrome as the "Cattle Details" sheet (10px inset from the viewport edges,
+ * 20px radius, 2px border, `arrow-right-03` header icon), dashed section dividers, plain-text
+ * (no-icon) section header bands, and a real "+ Add Medicine Image" dropzone — backed by a new
+ * `POST/DELETE /inventory/medicines/:id/photo` pair added to the backend for this (mirrors
+ * `POST/DELETE /cattle/:id/photo` exactly: `MediaService`, private-R2, signed thumb URLs; a new
+ * `Medicine.photoAssetId` column + `MediaCategory.MEDICINE`/`MediaUsage.PRODUCT_PHOTO` enum values,
+ * migration `medicine_photo_upload`). Photo is staged locally and uploaded right after
+ * create/update resolves, same one-click flow as the cattle form. **Real gaps vs the mock, flagged
+ * not faked**: "Unit" and "Low Stock Alert" are mock dropdowns with invented option lists; the real
+ * DTO fields (`unit: string`, `lowStockThreshold: number`) are free text/number, rendered as such.
  * "Milk/Meat Withdrawal Days" are mock dropdowns ("select days"/"select date"); the real fields are
- * plain integers (days), rendered as number inputs.
+ * plain integers (days), rendered as number inputs. The mock's "Item Type" selector (switching
+ * between Medicine/Forage/Semen/Milk/Others) isn't built — only Medicine has a real form this pass.
  */
 export function MedicineFormDialog({
   open,
@@ -144,19 +204,48 @@ function MedicineFormDialogBody({
   const isEdit = Boolean(medicine);
   const createMedicine = useCreateMedicine();
   const updateMedicine = useUpdateMedicine();
-  const pending = createMedicine.isPending || updateMedicine.isPending;
+  const setPhoto = useSetMedicinePhoto();
+  const removePhotoMutation = useRemoveMedicinePhoto();
+
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [clearExistingPhoto, setClearExistingPhoto] = useState(false);
+
+  const pending = createMedicine.isPending || updateMedicine.isPending || setPhoto.isPending || removePhotoMutation.isPending;
+  const displayedPhotoUrl = photoPreviewUrl ?? (!clearExistingPhoto ? (medicine?.imageUrl ?? null) : null);
 
   const form = useForm<MedicineFormInput>({
     resolver: zodResolver(medicineFormSchema),
     defaultValues: toFormDefaults(medicine),
   });
 
+  function handlePhotoPick(file: File) {
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    setPhotoFile(file);
+    setPhotoPreviewUrl(URL.createObjectURL(file));
+    setClearExistingPhoto(false);
+  }
+
+  function handlePhotoClear() {
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    setPhotoFile(null);
+    setPhotoPreviewUrl(null);
+    setClearExistingPhoto(true);
+  }
+
   async function onSubmit(values: MedicineFormInput) {
     try {
-      if (isEdit && medicine) {
-        await updateMedicine.mutateAsync({ id: medicine.id, dto: toUpdatePayload(values) });
-      } else {
-        await createMedicine.mutateAsync(toCreatePayload(values));
+      const savedId = isEdit && medicine
+        ? (await updateMedicine.mutateAsync({ id: medicine.id, dto: toUpdatePayload(values) })).id
+        : (await createMedicine.mutateAsync(toCreatePayload(values))).id;
+      try {
+        if (photoFile) {
+          await setPhoto.mutateAsync({ id: savedId, file: photoFile });
+        } else if (isEdit && clearExistingPhoto && medicine?.imageUrl) {
+          await removePhotoMutation.mutateAsync(savedId);
+        }
+      } catch (photoErr) {
+        toast.error(photoErr instanceof ApiError ? photoErr.message : t("photoGenericError"));
       }
       toast.success(isEdit ? t("updatedToast") : t("createdToast"));
       onOpenChange(false);
@@ -166,40 +255,58 @@ function MedicineFormDialogBody({
   }
 
   return (
-    <SheetContent className="flex w-full flex-col gap-0 p-0 sm:max-w-[650px]">
-      <div className="flex items-center justify-between px-6 py-5">
+    <SheetContent
+      showClose={false}
+      className="inset-y-2.5 right-2.5 flex h-[calc(100vh-20px)] w-[calc(100%-20px)] max-w-[680px] flex-col gap-0 rounded-[20px] border-2 border-border p-5 shadow-2xl sm:max-w-[680px]"
+    >
+      <div className="flex items-center justify-between pb-5">
         <SheetTitle className="text-xl font-bold text-foreground">{isEdit ? t("editTitle") : t("createTitle")}</SheetTitle>
+        <button
+          type="button"
+          onClick={() => onOpenChange(false)}
+          aria-label={t("close")}
+          className="flex size-5 items-center justify-center text-foreground transition-opacity hover:opacity-70"
+        >
+          <ArrowRightToLine className="size-5" aria-hidden />
+        </button>
       </div>
-      <div className="border-t border-border" />
+      <div className="border-t border-dashed border-border" />
 
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
-        <div className="flex flex-col gap-4 overflow-y-auto px-6 py-5">
-          <SectionHeader icon={Sparkles}>{t("basicInfo")}</SectionHeader>
-          <div className="grid grid-cols-2 gap-3">
-            <LabeledInput id="name" label={t("medicineName")} className="col-span-2" {...form.register("name")} error={form.formState.errors.name?.message} />
-            <LabeledInput
-              id="currentStock"
-              type="number"
-              min={0}
-              step="0.01"
-              label={t("currentStock")}
-              disabled={isEdit}
-              {...form.register("currentStock", { setValueAs: (v) => (v === "" ? undefined : Number(v)) })}
-            />
-            <LabeledInput id="unit" label={t("unit")} placeholder={t("unitPlaceholder")} {...form.register("unit")} error={form.formState.errors.unit?.message} />
-            <LabeledInput
-              id="costPerUnit"
-              type="number"
-              min={0}
-              step="0.01"
-              label={t("costPerUnit")}
-              className="col-span-2"
-              {...form.register("costPerUnit", { setValueAs: (v) => (v === "" ? undefined : Number(v)) })}
-            />
-            <LabeledInput id="imageUrl" label={t("imageUrl")} placeholder={t("imageUrlPlaceholder")} className="col-span-2" {...form.register("imageUrl")} />
+        {/* `min-h-0 flex-1` is what makes THIS div (not the outer Sheet/form) the scroll
+            container — without it the div sizes to its content and pushes the footer down below
+            the fold instead of pinning it, since the outer `SheetContent` also carries its own
+            `overflow-y-auto` (base `Sheet` primitive) and will happily scroll the whole header+
+            form+footer as one unit if this inner div doesn't claim the scrolling itself. */}
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-4">
+          <SectionHeader>{t("basicInfo")}</SectionHeader>
+          <div className="flex gap-4">
+            <PhotoDropzone previewUrl={displayedPhotoUrl} onPick={handlePhotoPick} onClear={handlePhotoClear} label={t("addMedicineImage")} />
+            <div className="grid flex-1 grid-cols-2 gap-3">
+              <LabeledInput id="name" label={t("medicineName")} className="col-span-2" {...form.register("name")} error={form.formState.errors.name?.message} />
+              <LabeledInput
+                id="currentStock"
+                type="number"
+                min={0}
+                step="0.01"
+                label={t("currentStock")}
+                disabled={isEdit}
+                {...form.register("currentStock", { setValueAs: (v) => (v === "" ? undefined : Number(v)) })}
+              />
+              <LabeledInput id="unit" label={t("unit")} placeholder={t("unitPlaceholder")} {...form.register("unit")} error={form.formState.errors.unit?.message} />
+              <LabeledInput
+                id="costPerUnit"
+                type="number"
+                min={0}
+                step="0.01"
+                label={t("costPerUnit")}
+                className="col-span-2"
+                {...form.register("costPerUnit", { setValueAs: (v) => (v === "" ? undefined : Number(v)) })}
+              />
+            </div>
           </div>
 
-          <SectionHeader icon={Droplets}>{t("medicineDetails")}</SectionHeader>
+          <SectionHeader>{t("medicineDetails")}</SectionHeader>
           <div className="grid grid-cols-2 gap-3">
             <Controller
               control={form.control}
@@ -236,7 +343,7 @@ function MedicineFormDialogBody({
             <LabeledInput id="manufacturer" label={t("manufacturer")} className="col-span-2" {...form.register("manufacturer")} />
           </div>
 
-          <SectionHeader icon={CalendarDays}>{t("stockExpiry")}</SectionHeader>
+          <SectionHeader>{t("stockExpiry")}</SectionHeader>
           <div className="grid grid-cols-2 gap-3">
             <LabeledInput
               id="purchaseDate"
@@ -262,7 +369,7 @@ function MedicineFormDialogBody({
             />
           </div>
 
-          <SectionHeader icon={Timer}>{t("withdrawalPeriod")}</SectionHeader>
+          <SectionHeader>{t("withdrawalPeriod")}</SectionHeader>
           <div className="grid grid-cols-2 gap-3">
             <LabeledInput
               id="milkWithdrawalDays"
@@ -280,15 +387,15 @@ function MedicineFormDialogBody({
             />
           </div>
 
-          <SectionHeader icon={Info}>{t("note")}</SectionHeader>
+          <SectionHeader>{t("note")}</SectionHeader>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="notes">{t("additionalNotes")}</Label>
             <Textarea id="notes" {...form.register("notes")} />
           </div>
         </div>
 
-        <div className="border-t border-border" />
-        <div className="flex gap-3 px-6 py-5">
+        <div className="border-t border-dashed border-border" />
+        <div className="flex gap-3 pt-5">
           <Button type="button" variant="secondary" className="h-12 flex-1" onClick={() => onOpenChange(false)} disabled={pending}>
             {t("cancel")}
           </Button>

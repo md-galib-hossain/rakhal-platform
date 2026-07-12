@@ -4,10 +4,11 @@ import { z } from "zod";
  * `rakhal-backend/src/modules/inventory/presentation/dto/{create,update}-medicine.dto.ts`) — one
  * shape for both create and edit. `currentStock` is create-only on the wire (edits go through the
  * separate `adjust-stock` endpoint per INV-02) but stays in the form so the create flow can collect
- * it; `toPayload` in the dialog strips it for updates. */
+ * it; `toPayload` in the dialog strips it for updates. The photo is staged/uploaded separately
+ * (`POST /inventory/medicines/:id/photo`, same two-step contract as cattle photos) — not a form
+ * field here. */
 export const medicineFormSchema = z.object({
   name: z.string().trim().min(1),
-  imageUrl: z.string().trim().optional(),
   currentStock: z.number().min(0),
   unit: z.string().trim().min(1),
   costPerUnit: z.number().min(0),

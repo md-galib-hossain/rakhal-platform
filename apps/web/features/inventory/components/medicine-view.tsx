@@ -45,18 +45,16 @@ export function MedicineView({ view }: { view: "table" | "grid" }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <MedicineFilters
-          actions={
-            <MedicineAddButton
-              onClick={() => {
-                setEditingMedicine(undefined);
-                setFormOpen(true);
-              }}
-            />
-          }
-        />
-      </div>
+      <MedicineFilters
+        actions={
+          <MedicineAddButton
+            onClick={() => {
+              setEditingMedicine(undefined);
+              setFormOpen(true);
+            }}
+          />
+        }
+      />
 
       {view === "table" ? (
         <MedicineTable

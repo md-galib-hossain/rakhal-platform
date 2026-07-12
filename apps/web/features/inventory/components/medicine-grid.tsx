@@ -1,8 +1,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { CircleDollarSign, Package, PillBottle } from "lucide-react";
+import { CalendarDays, CalendarX, Coins, Package, PillBottle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Chip } from "@/components/ui/chip";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -17,6 +18,13 @@ const STOCK_COLOR: Record<Medicine["stockStatus"], string> = {
   out: "text-destructive",
 };
 
+/** Card matched to the Figma "Inventory Item Card" component (732:17670, `get_design_context`):
+ * 8px outer padding, `shadow-card` (no border), a 160px image inset 10px with its own 12px
+ * radius, batch/type/category chips stacked top-left over the image, name, 3 icon+label/value
+ * rows (values share the label's muted color, not bold foreground), and the Stock row as its own
+ * nested `shadow-card` pill — not just a top divider. The Figma mock has no row-action affordance
+ * at all; a small overlay "…" button was added (top-right of the image) since edit/archive still
+ * need a real entry point from grid view. */
 function MedicineCard({
   medicine,
   onEdit,
@@ -28,8 +36,8 @@ function MedicineCard({
 }) {
   const t = useTranslations("inventory.medicine");
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-      <div className="relative h-[170px] w-full shrink-0">
+    <div className="flex w-full flex-col items-center gap-2.5 rounded-2xl bg-card p-2 shadow-card">
+      <div className="relative h-[160px] w-full shrink-0 overflow-hidden rounded-xl">
         {medicine.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- signed/arbitrary host thumbnail, same tradeoff as CattleThumbnail
           <img src={medicine.imageUrl} alt="" className="size-full object-cover" />
@@ -38,57 +46,64 @@ function MedicineCard({
             <PillBottle className="size-10" aria-hidden />
           </div>
         )}
-        {medicine.batchId ? (
-          <span className="absolute left-3 top-3 rounded-full bg-info px-3 py-1 text-xs font-bold text-white shadow-sm">
-            {medicine.batchId}
-          </span>
-        ) : null}
-        <span className="absolute left-3 top-11 flex gap-1.5">
-          <span className="rounded-full bg-card/95 px-2.5 py-1 text-xs font-medium text-foreground shadow-sm">
-            {t(`typeOptions.${medicine.type}`)}
-          </span>
-          <span className="rounded-full bg-card/95 px-2.5 py-1 text-xs font-medium text-foreground shadow-sm">
-            {t(`categoryOptions.${medicine.category}`)}
-          </span>
-        </span>
-      </div>
 
-      <div className="flex flex-col gap-3 p-4">
-        <div className="flex items-center justify-between">
-          <p className="text-base font-bold text-foreground">{medicine.name}</p>
-          <MedicineRowActions medicine={medicine} onEdit={onEdit} onArchive={onArchive} />
+        <div className="absolute right-2 top-2">
+          <MedicineRowActions
+            medicine={medicine}
+            onEdit={onEdit}
+            onArchive={onArchive}
+            triggerClassName="size-7 rounded-full bg-card/90 text-foreground shadow-sm hover:bg-card"
+          />
         </div>
 
-        <div className="flex flex-col gap-2 text-sm">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <CircleDollarSign className="size-4" aria-hidden />
+        <div className="absolute left-2.5 top-2.5 flex flex-col items-start gap-1.5">
+          {medicine.batchId ? <Chip variant="info">{medicine.batchId}</Chip> : null}
+          <div className="flex items-center gap-1.5">
+            <Chip variant="muted">{t(`typeOptions.${medicine.type}`)}</Chip>
+            <Chip variant="muted">{t(`categoryOptions.${medicine.category}`)}</Chip>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex w-full flex-col gap-6 px-1.5 pb-1.5">
+        <p className="truncate text-xl font-bold text-foreground">{medicine.name}</p>
+
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Coins className="size-4" aria-hidden />
               {t("columns.costPerUnit")}
             </span>
-            <MoneyText amount={medicine.costPerUnit} className="font-medium text-foreground" />
+            <MoneyText amount={medicine.costPerUnit} className="text-sm font-medium text-muted-foreground" />
           </div>
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span>{t("columns.purchaseDate")}</span>
-            <span className="font-medium text-foreground">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <CalendarDays className="size-4" aria-hidden />
+              {t("columns.purchaseDate")}
+            </span>
+            <span className="text-sm font-medium text-muted-foreground">
               <DateText date={medicine.purchaseDate} />
             </span>
           </div>
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span>{t("columns.expiryDate")}</span>
-            <span className="font-medium text-foreground">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <CalendarX className="size-4" aria-hidden />
+              {t("columns.expiryDate")}
+            </span>
+            <span className="text-sm font-medium text-muted-foreground">
               <DateText date={medicine.expiryDate} />
             </span>
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-t border-border pt-3">
-          <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Package className="size-4" aria-hidden />
+        <div className="flex items-center justify-between rounded-xl bg-card p-2 shadow-card">
+          <span className="flex items-center gap-1 text-base font-medium text-muted-foreground">
+            <Package className="size-[18px]" aria-hidden />
             {t("columns.stock")}
           </span>
           <span className="flex items-baseline gap-1">
-            <span className={cn("text-2xl font-bold", STOCK_COLOR[medicine.stockStatus])}>{medicine.currentStock}</span>
-            <span className="text-xs text-muted-foreground">{medicine.unit}</span>
+            <span className={cn("text-[28px] font-bold leading-none", STOCK_COLOR[medicine.stockStatus])}>{medicine.currentStock}</span>
+            <span className="text-sm font-medium text-muted-foreground">{medicine.unit}</span>
           </span>
         </div>
       </div>
@@ -124,7 +139,7 @@ export function MedicineGrid({
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {isLoading && items.length === 0
         ? Array.from({ length: 8 }, (_, i) => (
-            <div key={i} className="h-[380px] animate-pulse rounded-2xl border border-border bg-muted" />
+            <div key={i} className="h-[400px] animate-pulse rounded-2xl bg-muted" />
           ))
         : items.map((medicine) => (
             <MedicineCard key={medicine.id} medicine={medicine} onEdit={onEdit} onArchive={onArchive} />

@@ -15,7 +15,8 @@ export function CattleAddButton() {
 
   return (
     <Can I="cattle.create">
-      <Button size="sm" onClick={() => setOpen(true)}>
+      {/* Default (md/h-11) size — matches the search input's height in the same toolbar row. */}
+      <Button onClick={() => setOpen(true)}>
         <Plus className="size-4" aria-hidden />
         {t("addCattle")}
       </Button>
