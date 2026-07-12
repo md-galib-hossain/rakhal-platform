@@ -9,6 +9,7 @@ import { ArrowRightToLine, Plus, X } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -345,19 +346,34 @@ function MedicineFormDialogBody({
 
           <SectionHeader>{t("stockExpiry")}</SectionHeader>
           <div className="grid grid-cols-2 gap-3">
-            <LabeledInput
-              id="purchaseDate"
-              type="date"
-              label={t("purchaseDate")}
-              {...form.register("purchaseDate")}
-              error={form.formState.errors.purchaseDate?.message}
+            <Controller
+              control={form.control}
+              name="purchaseDate"
+              render={({ field, fieldState }) => (
+                <DatePicker
+                  id="purchaseDate"
+                  label={t("purchaseDate")}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={fieldState.error?.message}
+                  disabledDates={{ after: new Date() }}
+                />
+              )}
             />
-            <LabeledInput
-              id="expiryDate"
-              type="date"
-              label={t("expiryDate")}
-              {...form.register("expiryDate")}
-              error={form.formState.errors.expiryDate?.message}
+            <Controller
+              control={form.control}
+              name="expiryDate"
+              render={({ field, fieldState }) => (
+                <DatePicker
+                  id="expiryDate"
+                  label={t("expiryDate")}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={fieldState.error?.message}
+                />
+              )}
             />
             <LabeledInput id="batchId" label={t("batchNumber")} {...form.register("batchId")} />
             <LabeledInput

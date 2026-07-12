@@ -3,7 +3,7 @@
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { MilkOverviewResponse } from "../types";
 
-const COLOR = "#059669";
+const COLOR = "var(--success)";
 
 export default function MilkTrendChartInner({
   trend,
@@ -31,7 +31,12 @@ export default function MilkTrendChartInner({
               axisLine={false}
               tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
             />
-            <YAxis tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
+            <YAxis
+              tickFormatter={(value: number) => `${value}L`}
+              tickLine={false}
+              axisLine={false}
+              tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
+            />
             <Tooltip
               formatter={(value) => [`${value} L`, label]}
               contentStyle={{

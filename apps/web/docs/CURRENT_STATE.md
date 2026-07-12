@@ -4,6 +4,21 @@
 Phase 1 RFE-020 (Dashboard) + RFE-021 (Cattle list) + RFE-022 (Cattle add/edit) + RFE-023 (Cattle detail)
 + RFE-025 (Milk log) done
 
+## Inventory — Forage tab, Figma-perfect (2026-07-12, user request)
+Full CRUD tab (`features/inventory/forage-*`) matched to the real Figma frames (list, grid, Add/Edit
+side modal, "Item Details" view modal), backed by the real `forage.controller.ts`/`forage.service.ts`
+(cursor list/detail/create/update/archive/restore — no separate adjust-stock endpoint, unlike
+Medicine). `INVENTORY_TABS.forage.implemented` flipped to `true`. Two real gaps vs Medicine, flagged
+not faked: `Forage` has no photo column/endpoint at all (static placeholder tile, tinted-icon
+fallback everywhere) and no audited stock-adjust route (new small `ForageStockUpdateDialog` PATCHes
+`currentStock` directly, matching what the backend allows). **Verified LIVE end-to-end** against the
+real backend (6 real seeded forage rows in both table/grid view): create → 201, view details → 200,
+stock update → 200 (reactively reflected in the open detail sheet), edit prefill (confirmed
+`currentStock` stays editable), archive → 200 — zero console errors; the test row created during
+verification was archived afterward to keep demo data clean. Gate green: typecheck/lint/18 unit
+tests (`next build` skipped — another agent's live `next dev` shared the same `.next/`). Full
+writeup: `IN_FLIGHT.md` Recently Done.
+
 ## Cattle — pixel-perfect pass + reusable Pagination (2026-07-12, user request)
 Pulled the real Figma "Cattle" + "Cattle (Details - Overview)" frames live and matched them exactly.
 New **reusable** `components/shared/pagination.tsx` (`Pagination` — numbered pills, prev/next, "Page

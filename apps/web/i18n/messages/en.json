@@ -906,6 +906,7 @@
     },
     "actions": {
       "menu": "Row actions",
+      "viewDetails": "View Details",
       "edit": "Edit",
       "archive": "Archive",
       "restore": "Restore",
@@ -1011,35 +1012,144 @@
         "updatedToast": "Medicine updated.",
         "genericError": "Something went wrong. Please try again."
       }
+    },
+    "forage": {
+      "empty": {
+        "title": "No forage found",
+        "description": "Try adjusting your search or filters."
+      },
+      "archivedToast": "Forage archived.",
+      "restoredToast": "Forage restored.",
+      "genericError": "Something went wrong. Please try again.",
+      "archiveDialog": {
+        "title": "Archive {name}",
+        "description": "This removes the forage item from active inventory lists.",
+        "confirm": "Archive",
+        "cancel": "Cancel"
+      },
+      "columns": {
+        "no": "No.",
+        "name": "Feed Name",
+        "type": "Type",
+        "category": "Category",
+        "costPerUnit": "Cost Per Unit",
+        "purchaseDate": "Purchase Date",
+        "stock": "Stock",
+        "action": "Action"
+      },
+      "typeOptions": {
+        "ROUGHAGE": "Roughage",
+        "CONCENTRATE": "Concentrate",
+        "SILAGE": "Silage",
+        "SUPPLEMENT": "Supplement",
+        "BY_PRODUCT": "By-product",
+        "MINERAL": "Mineral",
+        "OTHER": "Other"
+      },
+      "filters": {
+        "searchPlaceholder": "Find forage by name",
+        "type": "Type",
+        "typeOptions": {
+          "ROUGHAGE": "Roughage",
+          "CONCENTRATE": "Concentrate",
+          "SILAGE": "Silage",
+          "SUPPLEMENT": "Supplement",
+          "BY_PRODUCT": "By-product",
+          "MINERAL": "Mineral",
+          "OTHER": "Other"
+        }
+      },
+      "form": {
+        "add": "Add Forage",
+        "createTitle": "Add Forage",
+        "editTitle": "Edit Forage",
+        "close": "Close",
+        "basicInfo": "Basic Info",
+        "noPhoto": "No Photo",
+        "feedName": "Feed Name",
+        "currentStock": "Current Stock",
+        "unit": "Unit",
+        "unitPlaceholder": "e.g. bag, kg, sack",
+        "kgPerUnit": "Kg Per Unit",
+        "costPerUnit": "Cost Per Unit (CPU)",
+        "feedDetails": "Feed Details",
+        "feedType": "Feed Type",
+        "category": "Category",
+        "categoryPlaceholder": "e.g. Green fodder, Dry fodder",
+        "moisture": "Moisture",
+        "supplier": "Supplier",
+        "supplierPlaceholder": "Enter supplier name",
+        "stockExpiry": "Stock & Expiry",
+        "purchaseDate": "Purchase Date",
+        "lowStockAlert": "Low Stock Alert",
+        "note": "Note",
+        "additionalNotes": "Additional Notes",
+        "cancel": "Cancel",
+        "save": "Save Changes",
+        "createdToast": "Forage added.",
+        "updatedToast": "Forage updated.",
+        "genericError": "Something went wrong. Please try again."
+      },
+      "detail": {
+        "title": "Item Details",
+        "close": "Close",
+        "error": "Could not load this forage item.",
+        "itemStatistics": "Item Statistics",
+        "costPerUnit": "Cost Per Unit",
+        "currentStock": "Current Stock",
+        "purchaseDate": "Purchase Date",
+        "moisture": "Moisture",
+        "note": "Note",
+        "noNotes": "No notes added.",
+        "editItem": "Edit Item",
+        "stockUpdate": "Stock Update",
+        "stockStatus": {
+          "adequate": "In Stock",
+          "low": "Low Stock",
+          "out": "Out of Stock"
+        }
+      },
+      "stockUpdate": {
+        "title": "Update Stock",
+        "description": "Set the current stock for {name}.",
+        "label": "Current stock ({unit})",
+        "cancel": "Cancel",
+        "save": "Save",
+        "updatedToast": "Stock updated.",
+        "genericError": "Something went wrong. Please try again."
+      }
     }
   },
   "milk": {
-    "overview": {
-      "title": "Overview",
+    "kpi": {
+      "title": "Production Key Metrics",
       "error": "Could not load milk overview.",
-      "totalToday": "Total Today",
-      "sellable": "Sellable",
-      "withholding": "Withholding",
-      "yesterday": "Yesterday",
-      "lastWeek": "Same Day Last Week",
-      "lastYear": "Same Day Last Year",
-      "sessionStatus": {
-        "submitted": "Submitted",
-        "pending": "Pending",
-        "not_configured": "Not configured"
-      }
+      "todayYield": "Today's Yield",
+      "vsYesterday": "vs yesterday",
+      "avgPerCow": "Avg. Per Cow (7D)",
+      "acrossCows": "Across {count} milking cows",
+      "safetyStatus": "Safety Status",
+      "safetyCaption": "Withholding volume above zero.",
+      "marketValue": "Market Value (Est.)",
+      "marketValueCaption": "Est. value of today's collection.",
+      "notAvailable": "—"
     },
     "trend": {
-      "title": "30-Day Trend",
+      "title": "Production Trend Over Time",
       "error": "Could not load the trend chart.",
-      "legend": "Total Litres"
+      "legend": "Total Litres",
+      "rangeLabel": "Last 30 Days"
     },
     "log": {
-      "title": "Session Log",
-      "error": "Could not load the session log.",
+      "title": "Milk Log",
+      "error": "Could not load the milk log.",
       "noSessionsConfigured": "No milking sessions are configured for this farm yet.",
       "noCattle": "No milking cattle found.",
+      "noSearchResults": "No cows match your search/filters.",
       "noEntries": "Enter at least one yield before saving.",
+      "searchPlaceholder": "Find cow by cow ID or name",
+      "shedFilter": "All Sheds",
+      "shedLabel": "Shed",
       "session": {
         "morning": "Morning",
         "noon": "Noon",
@@ -1047,12 +1157,19 @@
         "night": "Night"
       },
       "columns": {
-        "cattle": "Cattle",
+        "cowId": "Cow ID",
+        "name": "Name",
+        "status": "Status",
         "shed": "Shed",
-        "avg7d": "Avg 7d (L)",
-        "yield": "Yield (L)",
-        "tank": "Tank"
+        "morningLog": "Morning Log",
+        "noonLog": "Noon Log",
+        "eveningLog": "Evening Log",
+        "nightLog": "Night Log",
+        "tank": "Tank",
+        "total": "Total"
       },
+      "avgYieldCaption": "Avg Yield: {value}L",
+      "statusMilking": "In-Milk",
       "tankSellable": "Sellable",
       "tankWithholding": "Withholding",
       "save": "Save Draft",

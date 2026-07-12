@@ -83,6 +83,10 @@ export default function FinancialPerformanceChartInner({
               stroke={COLOR.profit}
               strokeWidth={2}
               fill="url(#financialPerformanceProfitFill)"
+              // Recharts fills to y=0 by default, so a negative Profit dip makes the shading
+              // sit above the line instead of below it. "dataMin" anchors the fill to the
+              // series' own minimum so it's always below the line, regardless of sign.
+              baseValue="dataMin"
               dot={false}
             />
           </AreaChart>

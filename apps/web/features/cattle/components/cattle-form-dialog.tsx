@@ -5,7 +5,7 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { CalendarDays, Info, Plus, Sparkles, X } from "lucide-react";
+import { Info, Plus, Sparkles, X } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CattlePicker } from "@/components/shared/cattle-picker";
@@ -13,6 +13,7 @@ import {
   LabeledInput,
   LabeledSelectTrigger,
 } from "@/components/ui/labeled-field";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -375,17 +376,21 @@ function CattleFormDialogBody({
                   </Select>
                 )}
               />
-              <LabeledInput
-                id="dateOfBirth"
-                type="date"
-                label={t("dateOfBirth")}
-                endIcon={
-                  <CalendarDays
-                    className="size-4 shrink-0 text-muted-foreground"
-                    aria-hidden
+              <Controller
+                control={form.control}
+                name="dateOfBirth"
+                render={({ field, fieldState }) => (
+                  <DatePicker
+                    id="dateOfBirth"
+                    label={t("dateOfBirth")}
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={fieldState.error?.message}
+                    disabledDates={{ after: new Date() }}
+                    captionLayout="dropdown"
                   />
-                }
-                {...form.register("dateOfBirth")}
+                )}
               />
               <Controller
                 control={form.control}

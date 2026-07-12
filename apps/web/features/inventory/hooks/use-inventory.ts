@@ -6,8 +6,11 @@ import { qk } from "@/lib/query/keys";
 import { inventoryApi } from "../api";
 import type {
   AdjustMedicineStockPayload,
+  CreateForagePayload,
   CreateMedicinePayload,
+  ForageListFilters,
   MedicineListFilters,
+  UpdateForagePayload,
   UpdateMedicinePayload,
 } from "../types";
 
@@ -142,6 +145,103 @@ export function useRemoveMedicinePhoto() {
   const invalidate = useInvalidateMedicine();
   return useMutation({
     mutationFn: (id: string) => inventoryApi.removeMedicinePhoto(id),
+    onSuccess: (_data, id) => invalidate(id),
+  });
+}
+
+/** Same honest-frontier numbered-page adapter as `useMedicinePagedList`, over the cursor-only
+ * `GET /inventory/forages`. */
+export function useForagePagedList(filters: ForageListFilters) {
+  const filtersKey = JSON.stringify(filters);
+  const [state, setState] = useState<PagerState>(() => initialPagerState(filtersKey));
+  if (state.filtersKey !== filtersKey) {
+    setState(initialPagerState(filtersKey));
+  }
+
+  const { pageIndex, cursors } = state;
+  const cursor = cursors[pageIndex];
+
+  const query = useQuery({
+    queryKey: ["inventory", "forage", "list", "paged", filters as Record<string, string | undefined>, cursor],
+    queryFn: () => inventoryApi.listForages(filters, cursor),
+    staleTime: STALE_TIME,
+    placeholderData: keepPreviousData,
+  });
+
+  const atFrontier = pageIndex === cursors.length - 1;
+  const hasUndiscoveredNext = atFrontier && Boolean(query.data?.meta.hasNextPage);
+  const totalPages = Math.max(cursors.length + (hasUndiscoveredNext ? 1 : 0), 1);
+
+  function goToPage(page: number) {
+    const idx = page - 1;
+    if (idx < 0 || idx === pageIndex) return;
+    if (idx < cursors.length) {
+      setState((s) => ({ ...s, pageIndex: idx }));
+      return;
+    }
+    if (idx === cursors.length && hasUndiscoveredNext) {
+      const nextCursor = query.data?.meta.endCursor ?? undefined;
+      setState((s) => ({ ...s, pageIndex: idx, cursors: [...s.cursors, nextCursor] }));
+    }
+  }
+
+  return {
+    items: query.data?.items ?? [],
+    page: pageIndex + 1,
+    totalPages,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    isFetching: query.isFetching,
+    refetch: query.refetch,
+    goToPage,
+  };
+}
+
+export function useForageDetail(id: string | undefined) {
+  return useQuery({
+    queryKey: qk.inventory.forageDetail(id ?? ""),
+    queryFn: () => inventoryApi.findForage(id!),
+    enabled: Boolean(id),
+    staleTime: STALE_TIME,
+  });
+}
+
+function useInvalidateForage() {
+  const queryClient = useQueryClient();
+  return (id?: string) => {
+    void queryClient.invalidateQueries({ queryKey: ["inventory", "forage", "list"] });
+    if (id) void queryClient.invalidateQueries({ queryKey: qk.inventory.forageDetail(id) });
+  };
+}
+
+export function useCreateForage() {
+  const invalidate = useInvalidateForage();
+  return useMutation({
+    mutationFn: (dto: CreateForagePayload) => inventoryApi.createForage(dto),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useUpdateForage() {
+  const invalidate = useInvalidateForage();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: UpdateForagePayload }) => inventoryApi.updateForage(id, dto),
+    onSuccess: (_data, { id }) => invalidate(id),
+  });
+}
+
+export function useArchiveForage() {
+  const invalidate = useInvalidateForage();
+  return useMutation({
+    mutationFn: (id: string) => inventoryApi.archiveForage(id),
+    onSuccess: (_data, id) => invalidate(id),
+  });
+}
+
+export function useRestoreForage() {
+  const invalidate = useInvalidateForage();
+  return useMutation({
+    mutationFn: (id: string) => inventoryApi.restoreForage(id),
     onSuccess: (_data, id) => invalidate(id),
   });
 }

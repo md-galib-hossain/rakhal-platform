@@ -48,5 +48,6 @@ export const qk = {
   },
   inventory: {
     medicineDetail: (id: string) => ["inventory", "medicine", "detail", id] as const,
+    forageDetail: (id: string) => ["inventory", "forage", "detail", id] as const,
   },
 };

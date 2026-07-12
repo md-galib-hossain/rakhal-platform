@@ -16,6 +16,17 @@ export function Calendar({ className, classNames, showOutsideDays = true, ...pro
         months: "flex flex-col sm:flex-row gap-4",
         month: "flex flex-col gap-4",
         month_caption: "flex justify-center pt-1 relative items-center text-sm font-medium",
+        // `captionLayout="dropdown"` support: react-day-picker renders each month/year `Dropdown` as
+        // a real (but normally invisible) `<select>` absolutely stacked UNDER a visible fake label +
+        // chevron span (see `node_modules/react-day-picker/dist/.../components/Dropdown.js`) — it
+        // relies entirely on consumer CSS to actually hide/position the select. This app never
+        // imports react-day-picker's own stylesheet, so without these 4 classNames the select had no
+        // positioning at all and rendered as a second, fully visible native dropdown right next to
+        // the fake label — the "March ▾ March" / "2023 ▾ 2023" duplicate the user screenshotted.
+        dropdowns: "flex items-center gap-1.5",
+        dropdown_root: "relative inline-flex items-center",
+        dropdown: "absolute inset-0 z-10 cursor-pointer opacity-0",
+        caption_label: "pointer-events-none flex items-center gap-1 text-sm font-medium",
         nav: "flex items-center justify-between absolute inset-x-0 top-0",
         button_previous: cn(buttonVariants({ variant: "ghost", size: "icon" }), "size-7"),
         button_next: cn(buttonVariants({ variant: "ghost", size: "icon" }), "size-7"),

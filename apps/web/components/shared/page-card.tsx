@@ -21,7 +21,12 @@ export function PageCard({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-col gap-4 rounded-2xl bg-card p-4 shadow-card", className)}>
+    <div
+      className={cn(
+        "flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-card",
+        className,
+      )}
+    >
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-bold text-foreground">{title}</h1>
         {actions}

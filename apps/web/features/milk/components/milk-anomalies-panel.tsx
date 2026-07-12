@@ -25,7 +25,7 @@ export function MilkAnomaliesPanel() {
 
   if (query.isLoading) {
     return (
-      <MilkCard title={t("title")} className="lg:col-span-3">
+      <MilkCard title={t("title")} className="lg:col-span-5">
         <Table>
           <TableBody>
             <TableSkeleton rows={4} columns={6} />
@@ -36,7 +36,7 @@ export function MilkAnomaliesPanel() {
   }
   if (query.isError) {
     return (
-      <MilkCard title={t("title")} className="lg:col-span-3">
+      <MilkCard title={t("title")} className="lg:col-span-5">
         <ErrorState description={t("error")} onRetry={() => query.refetch()} />
       </MilkCard>
     );
@@ -45,7 +45,7 @@ export function MilkAnomaliesPanel() {
   const anomalies = query.data?.anomalies ?? [];
 
   return (
-    <MilkCard title={t("title")} className="lg:col-span-3">
+    <MilkCard title={t("title")} className="lg:col-span-5">
       {anomalies.length === 0 ? (
         <EmptyState icon={CheckCircle2} title={t("empty")} />
       ) : (

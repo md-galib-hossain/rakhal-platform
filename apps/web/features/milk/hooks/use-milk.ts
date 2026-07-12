@@ -23,14 +23,18 @@ export function useMilkLogTable(date?: string, shedId?: string) {
   });
 }
 
-/** Saves a session's draft entries — invalidates the log table + overview (totals/session status change). */
+/** Saves a session's draft entries — invalidates the log table + overview (totals/session status
+ * change). Overview invalidation matches the `["milk", "overview"]` prefix rather than
+ * `qk.milk.overview(variables.date)` exactly: `MilkKeyMetricsCard`/`MilkTrendChart` query with no
+ * `date` (server defaults to today), a different cache key from a save/submit for an explicit
+ * `date` string even when that string IS today — an exact-key invalidation would silently miss them. */
 export function useSaveMilkLog() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: SaveMilkLogInput) => milkApi.saveLog(input),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: qk.milk.log(variables.date, undefined) });
-      queryClient.invalidateQueries({ queryKey: qk.milk.overview(variables.date) });
+      queryClient.invalidateQueries({ queryKey: ["milk", "overview"] });
     },
   });
 }
@@ -42,7 +46,7 @@ export function useSubmitMilk() {
     mutationFn: (input: SubmitMilkInput) => milkApi.submit(input),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: qk.milk.log(variables.date, undefined) });
-      queryClient.invalidateQueries({ queryKey: qk.milk.overview(variables.date) });
+      queryClient.invalidateQueries({ queryKey: ["milk", "overview"] });
       queryClient.invalidateQueries({ queryKey: qk.milk.anomalies(variables.date) });
     },
   });

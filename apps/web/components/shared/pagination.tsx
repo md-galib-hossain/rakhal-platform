@@ -73,7 +73,7 @@ export function Pagination({ page, totalPages, onPageChange, siblingCount = 0, d
         <Button
           variant="outline"
           size="icon"
-          className="size-7 rounded-lg"
+          className="size-7 rounded-sm"
           disabled={disabled || page <= 1}
           onClick={() => clampedChange(page - 1)}
           aria-label="Previous page"
@@ -95,10 +95,10 @@ export function Pagination({ page, totalPages, onPageChange, siblingCount = 0, d
                 aria-current={item === page ? "page" : undefined}
                 onClick={() => clampedChange(item)}
                 className={cn(
-                  "flex h-7 w-8 items-center justify-center rounded-lg border text-xs font-medium transition-colors",
+                  "flex h-7 w-8 items-center justify-center rounded-sm text-xs font-medium transition-colors",
                   item === page
-                    ? "border-primary-hover bg-primary text-white font-bold"
-                    : "border-border bg-card text-muted-foreground hover:bg-muted disabled:pointer-events-none",
+                    ? "border-[1.5px] border-primary-hover bg-primary text-white font-bold"
+                    : "border border-border bg-card text-muted-foreground hover:bg-muted disabled:pointer-events-none",
                 )}
               >
                 {item}
@@ -110,7 +110,7 @@ export function Pagination({ page, totalPages, onPageChange, siblingCount = 0, d
         <Button
           variant="outline"
           size="icon"
-          className="size-7 rounded-lg"
+          className="size-7 rounded-sm"
           disabled={disabled || page >= totalPages}
           onClick={() => clampedChange(page + 1)}
           aria-label="Next page"
@@ -126,7 +126,7 @@ export function Pagination({ page, totalPages, onPageChange, siblingCount = 0, d
           onValueChange={(v) => clampedChange(Number(v))}
           disabled={disabled || totalPages <= 1}
         >
-          <SelectTrigger className="h-7 w-auto gap-1 rounded-lg border-border px-2 py-1 text-sm font-medium text-foreground shadow-none">
+          <SelectTrigger className="h-7 w-auto gap-1 rounded-sm border-border px-2 py-1 text-sm font-medium text-foreground shadow-none">
             <SelectValue>{page}</SelectValue>
           </SelectTrigger>
           <SelectContent>

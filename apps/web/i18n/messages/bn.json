@@ -906,6 +906,7 @@
     },
     "actions": {
       "menu": "সারির অ্যাকশন",
+      "viewDetails": "বিস্তারিত দেখুন",
       "edit": "সম্পাদনা করুন",
       "archive": "সংরক্ষণাগারে পাঠান",
       "restore": "পুনরুদ্ধার করুন",
@@ -1011,35 +1012,144 @@
         "updatedToast": "ওষুধ আপডেট করা হয়েছে।",
         "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
       }
+    },
+    "forage": {
+      "empty": {
+        "title": "কোনো পশুখাদ্য পাওয়া যায়নি",
+        "description": "আপনার সার্চ বা ফিল্টার পরিবর্তন করে দেখুন।"
+      },
+      "archivedToast": "পশুখাদ্য সংরক্ষণাগারে পাঠানো হয়েছে।",
+      "restoredToast": "পশুখাদ্য পুনরুদ্ধার করা হয়েছে।",
+      "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।",
+      "archiveDialog": {
+        "title": "{name} সংরক্ষণাগারে পাঠান",
+        "description": "এটি সক্রিয় ইনভেন্টরি তালিকা থেকে পশুখাদ্য আইটেমটি সরিয়ে দেবে।",
+        "confirm": "সংরক্ষণাগারে পাঠান",
+        "cancel": "বাতিল"
+      },
+      "columns": {
+        "no": "নং",
+        "name": "খাদ্যের নাম",
+        "type": "ধরন",
+        "category": "বিভাগ",
+        "costPerUnit": "প্রতি ইউনিট খরচ",
+        "purchaseDate": "ক্রয়ের তারিখ",
+        "stock": "মজুদ",
+        "action": "অ্যাকশন"
+      },
+      "typeOptions": {
+        "ROUGHAGE": "রাফেজ",
+        "CONCENTRATE": "কনসেন্ট্রেট",
+        "SILAGE": "সাইলেজ",
+        "SUPPLEMENT": "সাপ্লিমেন্ট",
+        "BY_PRODUCT": "উপজাত",
+        "MINERAL": "মিনারেল",
+        "OTHER": "অন্যান্য"
+      },
+      "filters": {
+        "searchPlaceholder": "নাম দিয়ে পশুখাদ্য খুঁজুন",
+        "type": "ধরন",
+        "typeOptions": {
+          "ROUGHAGE": "রাফেজ",
+          "CONCENTRATE": "কনসেন্ট্রেট",
+          "SILAGE": "সাইলেজ",
+          "SUPPLEMENT": "সাপ্লিমেন্ট",
+          "BY_PRODUCT": "উপজাত",
+          "MINERAL": "মিনারেল",
+          "OTHER": "অন্যান্য"
+        }
+      },
+      "form": {
+        "add": "পশুখাদ্য যোগ করুন",
+        "createTitle": "পশুখাদ্য যোগ করুন",
+        "editTitle": "পশুখাদ্য সম্পাদনা করুন",
+        "close": "বন্ধ করুন",
+        "basicInfo": "মৌলিক তথ্য",
+        "noPhoto": "কোনো ছবি নেই",
+        "feedName": "খাদ্যের নাম",
+        "currentStock": "বর্তমান মজুদ",
+        "unit": "একক",
+        "unitPlaceholder": "যেমন: বস্তা, কেজি, চটের বস্তা",
+        "kgPerUnit": "প্রতি একক কেজি",
+        "costPerUnit": "প্রতি ইউনিট খরচ (CPU)",
+        "feedDetails": "খাদ্যের বিবরণ",
+        "feedType": "খাদ্যের ধরন",
+        "category": "বিভাগ",
+        "categoryPlaceholder": "যেমন: সবুজ ঘাস, শুকনো ঘাস",
+        "moisture": "আর্দ্রতা",
+        "supplier": "সরবরাহকারী",
+        "supplierPlaceholder": "সরবরাহকারীর নাম লিখুন",
+        "stockExpiry": "মজুদ ও মেয়াদ",
+        "purchaseDate": "ক্রয়ের তারিখ",
+        "lowStockAlert": "স্বল্প মজুদ সতর্কতা",
+        "note": "নোট",
+        "additionalNotes": "অতিরিক্ত তথ্য",
+        "cancel": "বাতিল",
+        "save": "পরিবর্তন সংরক্ষণ করুন",
+        "createdToast": "পশুখাদ্য যোগ করা হয়েছে।",
+        "updatedToast": "পশুখাদ্য আপডেট করা হয়েছে।",
+        "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+      },
+      "detail": {
+        "title": "আইটেমের বিবরণ",
+        "close": "বন্ধ করুন",
+        "error": "এই পশুখাদ্য আইটেমটি লোড করা যায়নি।",
+        "itemStatistics": "আইটেম পরিসংখ্যান",
+        "costPerUnit": "প্রতি ইউনিট খরচ",
+        "currentStock": "বর্তমান মজুদ",
+        "purchaseDate": "ক্রয়ের তারিখ",
+        "moisture": "আর্দ্রতা",
+        "note": "নোট",
+        "noNotes": "কোনো নোট যোগ করা হয়নি।",
+        "editItem": "আইটেম সম্পাদনা করুন",
+        "stockUpdate": "মজুদ হালনাগাদ",
+        "stockStatus": {
+          "adequate": "মজুদ আছে",
+          "low": "স্বল্প মজুদ",
+          "out": "মজুদ শেষ"
+        }
+      },
+      "stockUpdate": {
+        "title": "মজুদ হালনাগাদ করুন",
+        "description": "{name}-এর বর্তমান মজুদ নির্ধারণ করুন।",
+        "label": "বর্তমান মজুদ ({unit})",
+        "cancel": "বাতিল",
+        "save": "সংরক্ষণ করুন",
+        "updatedToast": "মজুদ হালনাগাদ করা হয়েছে।",
+        "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+      }
     }
   },
   "milk": {
-    "overview": {
-      "title": "ওভারভিউ",
+    "kpi": {
+      "title": "উৎপাদন মূল সূচক",
       "error": "দুধের ওভারভিউ লোড করা যায়নি।",
-      "totalToday": "আজকের মোট",
-      "sellable": "বিক্রয়যোগ্য",
-      "withholding": "আটকানো",
-      "yesterday": "গতকাল",
-      "lastWeek": "গত সপ্তাহের একই দিন",
-      "lastYear": "গত বছরের একই দিন",
-      "sessionStatus": {
-        "submitted": "জমা দেওয়া হয়েছে",
-        "pending": "বাকি আছে",
-        "not_configured": "কনফিগার করা হয়নি"
-      }
+      "todayYield": "আজকের ফলন",
+      "vsYesterday": "গতকালের তুলনায়",
+      "avgPerCow": "প্রতি গরুতে গড় (৭দিন)",
+      "acrossCows": "{count} টি দুধেল গরুর মধ্যে",
+      "safetyStatus": "সুরক্ষা অবস্থা",
+      "safetyCaption": "শূন্যের বেশি আটকানো পরিমাণ।",
+      "marketValue": "বাজার মূল্য (প্রা.)",
+      "marketValueCaption": "আজকের সংগ্রহের আনুমানিক মূল্য।",
+      "notAvailable": "—"
     },
     "trend": {
-      "title": "৩০ দিনের ট্রেন্ড",
+      "title": "সময়ের সাথে উৎপাদনের ট্রেন্ড",
       "error": "ট্রেন্ড চার্ট লোড করা যায়নি।",
-      "legend": "মোট লিটার"
+      "legend": "মোট লিটার",
+      "rangeLabel": "গত ৩০ দিন"
     },
     "log": {
-      "title": "সেশন লগ",
-      "error": "সেশন লগ লোড করা যায়নি।",
+      "title": "দুধ লগ",
+      "error": "দুধ লগ লোড করা যায়নি।",
       "noSessionsConfigured": "এই খামারের জন্য এখনো কোনো দুধ দোহনের সেশন কনফিগার করা হয়নি।",
       "noCattle": "কোনো দুধেল গরু পাওয়া যায়নি।",
+      "noSearchResults": "আপনার সার্চ/ফিল্টারের সাথে মিলে এমন কোনো গরু নেই।",
       "noEntries": "সংরক্ষণ করার আগে কমপক্ষে একটি ফলন লিখুন।",
+      "searchPlaceholder": "গরুর আইডি বা নাম দিয়ে খুঁজুন",
+      "shedFilter": "সব শেড",
+      "shedLabel": "শেড",
       "session": {
         "morning": "সকাল",
         "noon": "দুপুর",
@@ -1047,12 +1157,19 @@
         "night": "রাত"
       },
       "columns": {
-        "cattle": "গবাদি পশু",
+        "cowId": "গরুর আইডি",
+        "name": "নাম",
+        "status": "অবস্থা",
         "shed": "শেড",
-        "avg7d": "গড় ৭দিন (লি)",
-        "yield": "ফলন (লি)",
-        "tank": "ট্যাংক"
+        "morningLog": "সকালের লগ",
+        "noonLog": "দুপুরের লগ",
+        "eveningLog": "বিকালের লগ",
+        "nightLog": "রাতের লগ",
+        "tank": "ট্যাংক",
+        "total": "মোট"
       },
+      "avgYieldCaption": "গড় ফলন: {value}লি",
+      "statusMilking": "দুধেল",
       "tankSellable": "বিক্রয়যোগ্য",
       "tankWithholding": "আটকানো",
       "save": "খসড়া সংরক্ষণ করুন",

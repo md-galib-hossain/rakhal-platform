@@ -96,6 +96,66 @@ export interface MediaUrls {
   expires_at: string;
 }
 
+/**
+ * Forage tab — mirrors `forage.controller.ts`/`forage.service.ts` + the `Forage` Prisma model
+ * directly (verified live, `prisma/schemas/inventory/forage.prisma`). **Real difference from
+ * Medicine, not an oversight**: `Forage` has no `imageUrl`/photo column at all (no
+ * `POST/DELETE /inventory/forages/:id/photo` route either) — the Figma "Add Forage" mock's photo
+ * dropzone and the card/detail images have no backing field, so the frontend renders the same
+ * tinted-icon fallback every Medicine row without a photo already uses, never an upload control.
+ * Also no `expiryDate`/withdrawal-day fields (forage doesn't spoil like medicine) and no separate
+ * audited `adjust-stock` endpoint — `currentStock` is a normal editable field on `PATCH
+ * /inventory/forages/:id`.
+ */
+export type ForageType = "ROUGHAGE" | "CONCENTRATE" | "SILAGE" | "SUPPLEMENT" | "BY_PRODUCT" | "MINERAL" | "OTHER";
+export type ForageStockStatus = "out" | "low" | "adequate";
+
+/** `GET/POST /inventory/forages(/:id)` row shape (`forage.service.ts#present`). */
+export interface Forage {
+  id: string;
+  name: string;
+  type: ForageType;
+  category: string | null;
+  unit: string;
+  kgPerUnit: number | null;
+  currentStock: number;
+  costPerUnit: number;
+  lowStockThreshold: number;
+  moisturePct: number | null;
+  supplier: string | null;
+  purchaseDate: string;
+  notes: string | null;
+  isActive: boolean;
+  stockStatus: ForageStockStatus;
+  /** `currentStock * kgPerUnit`, or `null` when `kgPerUnit` isn't set. Derived, not stored. */
+  kgEquivalent: number | null;
+}
+
+export interface ForageListFilters {
+  search?: string;
+  type?: ForageType;
+}
+
+/** `POST /inventory/forages` body (`CreateForageDto`). */
+export interface CreateForagePayload {
+  name: string;
+  type: ForageType;
+  category?: string;
+  unit: string;
+  kgPerUnit?: number;
+  currentStock: number;
+  costPerUnit: number;
+  lowStockThreshold?: number;
+  moisturePct?: number;
+  supplier?: string;
+  purchaseDate: string;
+  notes?: string;
+}
+
+/** `PATCH /inventory/forages/:id` body (`UpdateForageDto`) — every field optional, including
+ * `currentStock` (no separate adjust-stock endpoint for forage, unlike medicine). */
+export type UpdateForagePayload = Partial<CreateForagePayload>;
+
 export type InventoryTabKey = "medicine" | "forage" | "semen" | "milk" | "others";
 
 export interface InventoryTabConfig {
@@ -106,7 +166,7 @@ export interface InventoryTabConfig {
 
 export const INVENTORY_TABS: InventoryTabConfig[] = [
   { key: "medicine", implemented: true },
-  { key: "forage", implemented: false },
+  { key: "forage", implemented: true },
   { key: "semen", implemented: false },
   { key: "milk", implemented: false },
   { key: "others", implemented: false },

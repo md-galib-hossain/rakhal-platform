@@ -9,6 +9,9 @@ export interface StatCardProps {
   delta?: number;
   deltaLabel?: string;
   icon?: React.ReactNode;
+  /** Overrides the icon chip's tint/color pair (default `bg-info-tint text-info`) — e.g. forage's
+   * detail-sheet KPI row uses a distinct color per tile (Figma "Item Details - Forage", 732:13304). */
+  iconClassName?: string;
   /** Tiny inline trend chart (e.g. `<Sparkline />`) rendered under the value. */
   sparkline?: React.ReactNode;
   className?: string;
@@ -17,14 +20,14 @@ export interface StatCardProps {
 /** Dashboard KPI / module highlight-bar tile — Figma "KPI" component (cattle detail sheet, node
  * 1042:58073): a small colored icon chip over a label, a large value, and a pill-shaped trend chip
  * (tinted bg, arrow + signed delta) next to a "vs last period" caption. */
-export function StatCard({ label, value, delta, deltaLabel, icon, sparkline, className }: StatCardProps) {
+export function StatCard({ label, value, delta, deltaLabel, icon, iconClassName, sparkline, className }: StatCardProps) {
   const isPositive = typeof delta === "number" && delta > 0;
   const isNegative = typeof delta === "number" && delta < 0;
 
   return (
     <Card className={cn("flex flex-col justify-between gap-3 rounded-xl p-3", className)}>
       <div className="flex items-center gap-2">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-info-tint text-info shadow-sm">
+        <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg shadow-sm", iconClassName ?? "bg-info-tint text-info")}>
           {icon ?? <Box className="size-4" aria-hidden />}
         </span>
         <p className="text-sm font-medium text-foreground">{label}</p>

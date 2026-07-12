@@ -44,22 +44,24 @@ export function LivestockStateChart() {
 
   return (
     <DashboardCard title={t("title")} headerRight={headerRight}>
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-6">
         {ORDER.map((state) => {
           const count = byState.get(state) ?? 0;
           const style = STATE_STYLE[state];
           const pct = Math.min(100, (count / scaleMax) * 100);
           return (
             <div key={state} className="flex items-center gap-2">
-              <p className="w-[76px] shrink-0 text-xs text-muted-foreground">{t(`states.${state}`)}</p>
+              <p className="w-[72px] shrink-0 text-xs text-muted-foreground">{t(`states.${state}`)}</p>
               <div className="relative h-7 flex-1 rounded-md" style={{ backgroundColor: style.tint }}>
                 <div
                   className="h-7 rounded-md transition-[width]"
                   style={{ width: `${pct}%`, backgroundColor: style.bar }}
                 />
+                {/* Figma (732:1788) pins the value pill near the track's right edge for every
+                 * row, regardless of the bar's own fill length — not at the end of the fill. */}
                 <span
-                  className="absolute top-1/2 flex h-[18px] min-w-[25px] -translate-y-1/2 items-center justify-center rounded px-1 bg-card text-[10px] font-bold shadow-xs"
-                  style={{ left: `calc(${pct}% - 12px)`, color: style.text }}
+                  className="absolute right-[5px] top-1/2 flex h-4 min-w-[25px] -translate-y-1/2 items-center justify-center rounded-[5px] px-[3px] bg-card text-[10px] font-bold shadow-[0px_1px_2px_rgba(0,0,0,0.15)]"
+                  style={{ color: style.text }}
                 >
                   {count}
                 </span>
@@ -68,7 +70,7 @@ export function LivestockStateChart() {
           );
         })}
         <div className="flex items-center gap-2 pt-1">
-          <p className="w-[76px] shrink-0 text-xs text-muted-foreground/60">{t("axisLabel")}</p>
+          <p className="w-[72px] shrink-0 text-xs text-muted-foreground/60">{t("axisLabel")}</p>
           <div className="flex flex-1 justify-between text-xs text-muted-foreground">
             {ticks.map((tick) => (
               <span key={tick}>{tick}</span>

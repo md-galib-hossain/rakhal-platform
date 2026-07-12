@@ -1,0 +1,56 @@
+"use client"; // columns need client callbacks
+
+import { useMemo } from "react";
+import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
+import { DataTable } from "@/components/shared/data-table";
+import { buildForageColumns } from "./forage-columns";
+import type { Forage } from "../types";
+
+export function ForageTable({
+  items,
+  startIndex,
+  isLoading,
+  isError,
+  onRetry,
+  onView,
+  onEdit,
+  onArchive,
+}: {
+  items: Forage[];
+  startIndex: number;
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
+  onView: (forage: Forage) => void;
+  onEdit: (forage: Forage) => void;
+  onArchive: (forage: Forage) => void;
+}) {
+  const t = useTranslations("inventory.forage");
+  const columns = useMemo(
+    () => buildForageColumns(t, startIndex, { onView, onEdit, onArchive }),
+    [t, startIndex, onView, onEdit, onArchive],
+  );
+
+  return (
+    <div
+      className={cn(
+        "overflow-hidden rounded-2xl border border-border",
+        // Same Figma-matched density override the cattle/medicine tables use, scoped to this instance only.
+        "[&_thead_tr]:border-b-0 [&_thead_tr]:bg-muted",
+        "[&_thead_th]:h-[54px] [&_thead_th]:text-sm [&_thead_th]:font-medium [&_thead_th]:normal-case [&_thead_th]:tracking-normal [&_thead_th]:text-muted-foreground",
+        "[&_tbody_td]:py-2",
+      )}
+    >
+      <DataTable
+        columns={columns}
+        data={items}
+        getRowId={(row) => row.id}
+        isLoading={isLoading}
+        isError={isError}
+        onRetry={onRetry}
+        emptyState={{ title: t("empty.title"), description: t("empty.description") }}
+      />
+    </div>
+  );
+}

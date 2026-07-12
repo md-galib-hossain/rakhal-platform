@@ -34,3 +34,23 @@ export const medicineFormSchema = z.object({
   notes: z.string().trim().optional(),
 });
 export type MedicineFormInput = z.infer<typeof medicineFormSchema>;
+
+/** Mirrors `CreateForageDto`/`UpdateForageDto` (verified live against
+ * `rakhal-backend/src/modules/inventory/presentation/dto/{create,update}-forage.dto.ts`) — one shape
+ * for both create and edit, unlike medicine there's no separate adjust-stock endpoint so
+ * `currentStock` is a normal editable field in both modes. */
+export const forageFormSchema = z.object({
+  name: z.string().trim().min(1),
+  type: z.enum(["ROUGHAGE", "CONCENTRATE", "SILAGE", "SUPPLEMENT", "BY_PRODUCT", "MINERAL", "OTHER"]),
+  category: z.string().trim().optional(),
+  unit: z.string().trim().min(1),
+  kgPerUnit: z.number().min(0).optional(),
+  currentStock: z.number().min(0),
+  costPerUnit: z.number().min(0),
+  lowStockThreshold: z.number().min(0).optional(),
+  moisturePct: z.number().min(0).max(100).optional(),
+  supplier: z.string().trim().optional(),
+  purchaseDate: z.string().min(1),
+  notes: z.string().trim().optional(),
+});
+export type ForageFormInput = z.infer<typeof forageFormSchema>;
