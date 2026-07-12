@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("FilterBar", () => {
-  it("renders a debounced search input and select filters", () => {
+  it("renders a debounced search input and a Filter popover holding the select filters", async () => {
     render(
       <FilterBar
         searchKey="q"
@@ -29,7 +29,12 @@ describe("FilterBar", () => {
     );
 
     expect(screen.getByLabelText("Search cattle")).toBeInTheDocument();
-    expect(screen.getByLabelText("Status")).toBeInTheDocument();
+    // Select filters live behind the "Filter" button (Figma's single Filter trigger, not N
+    // always-visible selects) — not in the document until opened.
+    expect(screen.queryByLabelText("Status")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /filter/i }));
+    expect(await screen.findByLabelText("Status")).toBeInTheDocument();
   });
 
   it("debounces search input changes before syncing to the URL", async () => {
