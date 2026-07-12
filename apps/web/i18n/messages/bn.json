@@ -890,6 +890,128 @@
       }
     }
   },
+  "inventory": {
+    "tabs": {
+      "medicine": "ওষুধ",
+      "forage": "পশুখাদ্য",
+      "semen": "সিমেন",
+      "milk": "দুধ",
+      "others": "অন্যান্য",
+      "gridView": "গ্রিড ভিউ",
+      "tableView": "টেবিল ভিউ"
+    },
+    "comingSoon": {
+      "title": "এখনো তৈরি হয়নি",
+      "description": "এই ইনভেন্টরি বিভাগটি এখনো যুক্ত করা হয়নি — শীঘ্রই আসছে।"
+    },
+    "actions": {
+      "menu": "সারির অ্যাকশন",
+      "edit": "সম্পাদনা করুন",
+      "archive": "সংরক্ষণাগারে পাঠান",
+      "restore": "পুনরুদ্ধার করুন",
+      "restoredToast": "ওষুধ পুনরুদ্ধার করা হয়েছে।",
+      "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+    },
+    "medicine": {
+      "empty": {
+        "title": "কোনো ওষুধ পাওয়া যায়নি",
+        "description": "আপনার সার্চ বা ফিল্টার পরিবর্তন করে দেখুন।"
+      },
+      "archivedToast": "ওষুধ সংরক্ষণাগারে পাঠানো হয়েছে।",
+      "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।",
+      "archiveDialog": {
+        "title": "{name} সংরক্ষণাগারে পাঠান",
+        "description": "এটি সক্রিয় ইনভেন্টরি তালিকা থেকে ওষুধটি সরিয়ে দেবে। বিদ্যমান চিকিৎসার ইতিহাস অক্ষত থাকবে।",
+        "confirm": "সংরক্ষণাগারে পাঠান",
+        "cancel": "বাতিল"
+      },
+      "columns": {
+        "no": "নং",
+        "name": "ওষুধের নাম",
+        "batchId": "ব্যাচ আইডি",
+        "type": "ধরন",
+        "category": "বিভাগ",
+        "costPerUnit": "প্রতি ইউনিট খরচ",
+        "purchaseDate": "ক্রয়ের তারিখ",
+        "expiryDate": "মেয়াদ শেষের তারিখ",
+        "stock": "মজুদ",
+        "action": "অ্যাকশন"
+      },
+      "typeOptions": {
+        "LIQUID": "তরল",
+        "POWDER": "গুঁড়া",
+        "TABLET": "ট্যাবলেট",
+        "INJECTABLE": "ইনজেকশনযোগ্য",
+        "BOLUS": "বোলাস",
+        "OINTMENT": "মলম",
+        "OTHER": "অন্যান্য"
+      },
+      "categoryOptions": {
+        "ANTIBIOTIC": "অ্যান্টিবায়োটিক",
+        "ANTIPARASITIC": "অ্যান্টিপ্যারাসাইটিক",
+        "VACCINE": "টিকা",
+        "VITAMIN": "ভিটামিন",
+        "MINERAL": "মিনারেল",
+        "HORMONE": "হরমোন",
+        "ANTI_INFLAMMATORY": "প্রদাহবিরোধী",
+        "ANALGESIC": "ব্যথানাশক",
+        "OTHER": "অন্যান্য"
+      },
+      "filters": {
+        "searchPlaceholder": "নাম বা ব্যাচ আইডি দিয়ে ওষুধ খুঁজুন",
+        "category": "বিভাগ",
+        "status": "অবস্থা",
+        "categoryOptions": {
+          "ANTIBIOTIC": "অ্যান্টিবায়োটিক",
+          "ANTIPARASITIC": "অ্যান্টিপ্যারাসাইটিক",
+          "VACCINE": "টিকা",
+          "VITAMIN": "ভিটামিন",
+          "MINERAL": "মিনারেল",
+          "HORMONE": "হরমোন",
+          "ANTI_INFLAMMATORY": "প্রদাহবিরোধী",
+          "ANALGESIC": "ব্যথানাশক",
+          "OTHER": "অন্যান্য"
+        },
+        "statusOptions": {
+          "active": "সক্রিয়",
+          "expiring_soon": "শীঘ্রই মেয়াদ শেষ",
+          "expired": "মেয়াদোত্তীর্ণ"
+        }
+      },
+      "form": {
+        "add": "ওষুধ যোগ করুন",
+        "createTitle": "ওষুধ যোগ করুন",
+        "editTitle": "ওষুধ সম্পাদনা করুন",
+        "basicInfo": "মৌলিক তথ্য",
+        "medicineName": "ওষুধের নাম",
+        "currentStock": "বর্তমান মজুদ",
+        "unit": "একক",
+        "unitPlaceholder": "যেমন: ডোজ, মিলি, কেজি",
+        "costPerUnit": "প্রতি ইউনিট খরচ (CPU)",
+        "imageUrl": "ছবির URL",
+        "imageUrlPlaceholder": "ঐচ্ছিক ছবির লিংক",
+        "medicineDetails": "ওষুধের বিবরণ",
+        "medicineType": "ওষুধের ধরন",
+        "category": "বিভাগ",
+        "manufacturer": "প্রস্তুতকারক",
+        "stockExpiry": "মজুদ ও মেয়াদ",
+        "purchaseDate": "ক্রয়ের তারিখ",
+        "expiryDate": "মেয়াদ শেষের তারিখ",
+        "batchNumber": "ব্যাচ নম্বর",
+        "lowStockAlert": "স্বল্প মজুদ সতর্কতা",
+        "withdrawalPeriod": "প্রত্যাহার সময়কাল",
+        "milkWithdrawalDays": "দুধ প্রত্যাহারের দিন",
+        "meatWithdrawalDays": "মাংস প্রত্যাহারের দিন",
+        "note": "নোট",
+        "additionalNotes": "অতিরিক্ত তথ্য",
+        "cancel": "বাতিল",
+        "save": "পরিবর্তন সংরক্ষণ করুন",
+        "createdToast": "ওষুধ যোগ করা হয়েছে।",
+        "updatedToast": "ওষুধ আপডেট করা হয়েছে।",
+        "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+      }
+    }
+  },
   "milk": {
     "overview": {
       "title": "ওভারভিউ",

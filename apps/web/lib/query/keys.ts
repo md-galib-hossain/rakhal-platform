@@ -46,4 +46,7 @@ export const qk = {
     log: (date: string | undefined, shedId: string | undefined) => ["milk", "log", date, shedId] as const,
     anomalies: (date: string | undefined) => ["milk", "anomalies", date] as const,
   },
+  inventory: {
+    medicineDetail: (id: string) => ["inventory", "medicine", "detail", id] as const,
+  },
 };

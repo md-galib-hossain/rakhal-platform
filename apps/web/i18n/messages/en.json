@@ -890,6 +890,128 @@
       }
     }
   },
+  "inventory": {
+    "tabs": {
+      "medicine": "Medicine",
+      "forage": "Forage",
+      "semen": "Semen",
+      "milk": "Milk",
+      "others": "Others",
+      "gridView": "Grid view",
+      "tableView": "Table view"
+    },
+    "comingSoon": {
+      "title": "Not built yet",
+      "description": "This inventory category isn't wired up yet — check back soon."
+    },
+    "actions": {
+      "menu": "Row actions",
+      "edit": "Edit",
+      "archive": "Archive",
+      "restore": "Restore",
+      "restoredToast": "Medicine restored.",
+      "genericError": "Something went wrong. Please try again."
+    },
+    "medicine": {
+      "empty": {
+        "title": "No medicine found",
+        "description": "Try adjusting your search or filters."
+      },
+      "archivedToast": "Medicine archived.",
+      "genericError": "Something went wrong. Please try again.",
+      "archiveDialog": {
+        "title": "Archive {name}",
+        "description": "This removes the medicine from active inventory lists. Existing treatment history stays intact.",
+        "confirm": "Archive",
+        "cancel": "Cancel"
+      },
+      "columns": {
+        "no": "No.",
+        "name": "Medicine Name",
+        "batchId": "Batch ID",
+        "type": "Type",
+        "category": "Category",
+        "costPerUnit": "Cost Per Unit",
+        "purchaseDate": "Purchase Date",
+        "expiryDate": "Expiry Date",
+        "stock": "Stock",
+        "action": "Action"
+      },
+      "typeOptions": {
+        "LIQUID": "Liquid",
+        "POWDER": "Powder",
+        "TABLET": "Tablet",
+        "INJECTABLE": "Injectable",
+        "BOLUS": "Bolus",
+        "OINTMENT": "Ointment",
+        "OTHER": "Other"
+      },
+      "categoryOptions": {
+        "ANTIBIOTIC": "Antibiotic",
+        "ANTIPARASITIC": "Antiparasitic",
+        "VACCINE": "Vaccine",
+        "VITAMIN": "Vitamin",
+        "MINERAL": "Mineral",
+        "HORMONE": "Hormone",
+        "ANTI_INFLAMMATORY": "Anti-inflammatory",
+        "ANALGESIC": "Analgesic",
+        "OTHER": "Other"
+      },
+      "filters": {
+        "searchPlaceholder": "Find medicine by name or batch ID",
+        "category": "Category",
+        "status": "Status",
+        "categoryOptions": {
+          "ANTIBIOTIC": "Antibiotic",
+          "ANTIPARASITIC": "Antiparasitic",
+          "VACCINE": "Vaccine",
+          "VITAMIN": "Vitamin",
+          "MINERAL": "Mineral",
+          "HORMONE": "Hormone",
+          "ANTI_INFLAMMATORY": "Anti-inflammatory",
+          "ANALGESIC": "Analgesic",
+          "OTHER": "Other"
+        },
+        "statusOptions": {
+          "active": "Active",
+          "expiring_soon": "Expiring soon",
+          "expired": "Expired"
+        }
+      },
+      "form": {
+        "add": "Add Medicine",
+        "createTitle": "Add Medicine",
+        "editTitle": "Edit Medicine",
+        "basicInfo": "Basic Info",
+        "medicineName": "Medicine name",
+        "currentStock": "Current Stock",
+        "unit": "Unit",
+        "unitPlaceholder": "e.g. doses, ml, kg",
+        "costPerUnit": "Cost Per Unit (CPU)",
+        "imageUrl": "Image URL",
+        "imageUrlPlaceholder": "Optional image link",
+        "medicineDetails": "Medicine Details",
+        "medicineType": "Medicine Type",
+        "category": "Category",
+        "manufacturer": "Manufacturer",
+        "stockExpiry": "Stock & Expiry",
+        "purchaseDate": "Purchase Date",
+        "expiryDate": "Expiry Date",
+        "batchNumber": "Batch Number",
+        "lowStockAlert": "Low Stock Alert",
+        "withdrawalPeriod": "Withdrawal Period",
+        "milkWithdrawalDays": "Milk Withdrawal Days",
+        "meatWithdrawalDays": "Meat Withdrawal Days",
+        "note": "Note",
+        "additionalNotes": "Additional Notes",
+        "cancel": "Cancel",
+        "save": "Save Changes",
+        "createdToast": "Medicine added.",
+        "updatedToast": "Medicine updated.",
+        "genericError": "Something went wrong. Please try again."
+      }
+    }
+  },
   "milk": {
     "overview": {
       "title": "Overview",

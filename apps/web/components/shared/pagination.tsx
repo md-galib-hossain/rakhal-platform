@@ -97,7 +97,7 @@ export function Pagination({ page, totalPages, onPageChange, siblingCount = 0, d
                 className={cn(
                   "flex h-7 w-8 items-center justify-center rounded-lg border text-xs font-medium transition-colors",
                   item === page
-                    ? "border-primary-hover bg-primary text-primary-foreground font-bold"
+                    ? "border-primary-hover bg-primary text-white font-bold"
                     : "border-border bg-card text-muted-foreground hover:bg-muted disabled:pointer-events-none",
                 )}
               >
