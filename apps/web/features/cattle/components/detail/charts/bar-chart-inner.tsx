@@ -10,7 +10,7 @@ export default function BarChartInner({
   xKey,
   yKey,
   color = "var(--warning)",
-  minWidth = 320,
+  minWidth = 280,
   height = 200,
 }: {
   data: Record<string, unknown>[];
@@ -24,10 +24,10 @@ export default function BarChartInner({
     <div className="w-full overflow-x-auto">
       <div style={{ minWidth }}>
         <ResponsiveContainer width="100%" height={height}>
-          <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+          <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--border)" />
             <XAxis dataKey={xKey} tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
-            <YAxis tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
+            <YAxis width={36} tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
             <Tooltip
               contentStyle={{
                 backgroundColor: "var(--card)",

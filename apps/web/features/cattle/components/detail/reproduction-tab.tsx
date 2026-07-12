@@ -1,6 +1,7 @@
 "use client"; // live query
 
 import { useTranslations } from "next-intl";
+import { Mars, Venus } from "lucide-react";
 import { StatCard } from "@/components/shared/stat-card";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
@@ -14,6 +15,13 @@ interface CalvingRow {
   eventId: string;
   calvingDate: string;
   calf: { id: string; gender: CattleGender; birthWeight: number | null } | null;
+}
+
+/** Figma's "male-symbol"/"female-symbol" glyph next to the gender label — same pattern as the
+ * cattle list's `GenderGlyph` (cattle-columns.tsx). */
+function GenderGlyph({ gender }: { gender: CattleGender }) {
+  if (gender === "FEMALE") return <Venus className="size-3.5 text-accent-pink" aria-hidden />;
+  return <Mars className="size-3.5 text-info" aria-hidden />;
 }
 
 /** Reproduction tab (Figma B1-S7) — `GET /cattle/:id/reproduction-summary` + `GET
@@ -73,6 +81,7 @@ export function ReproductionTab({ cattleId, gender }: { cattleId: string; gender
             <TableHeader>
               <TableRow>
                 <TableHead>{t("columns.date")}</TableHead>
+                <TableHead>{t("columns.calfId")}</TableHead>
                 <TableHead>{t("columns.calfGender")}</TableHead>
                 <TableHead>{t("columns.birthWeight")}</TableHead>
               </TableRow>
@@ -83,7 +92,17 @@ export function ReproductionTab({ cattleId, gender }: { cattleId: string; gender
                   <TableCell>
                     <DateText date={row.calvingDate} />
                   </TableCell>
-                  <TableCell>{row.calf ? t(`genderOptions.${row.calf.gender}`) : "—"}</TableCell>
+                  <TableCell className="font-mono text-xs">{row.calf?.id ?? "—"}</TableCell>
+                  <TableCell>
+                    {row.calf ? (
+                      <span className="flex items-center gap-1.5">
+                        {t(`genderOptions.${row.calf.gender}`)}
+                        <GenderGlyph gender={row.calf.gender} />
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
                   <TableCell>{row.calf?.birthWeight != null ? t("kg", { value: row.calf.birthWeight }) : "—"}</TableCell>
                 </TableRow>
               ))}

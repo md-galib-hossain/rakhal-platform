@@ -4,6 +4,7 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { StatCard } from "@/components/shared/stat-card";
 import { ChartCard } from "@/components/shared/chart-card";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
@@ -86,7 +87,21 @@ export function FinanceTab({ cattleId }: { cattleId: string }) {
         <BreakdownCard title={t("incomeBreakdown")} entries={incomeEntries} total={incomeTotal} labelKey="incomeLabels" />
       </div>
 
-      <ChartCard title={t("monthlyChart")}>
+      <ChartCard
+        title={t("monthlyChart")}
+        legend={
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="h-1.5 w-3 rounded-full bg-success" />
+              <p className="text-xs font-medium text-muted-foreground">{t("income")}</p>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-1.5 w-3 rounded-full bg-destructive" />
+              <p className="text-xs font-medium text-muted-foreground">{t("cost")}</p>
+            </div>
+          </div>
+        }
+      >
         <TrendChartInner
           data={data.monthly_chart}
           xKey="month"
@@ -99,6 +114,8 @@ export function FinanceTab({ cattleId }: { cattleId: string }) {
     </div>
   );
 }
+
+const SEGMENT_COLORS = ["bg-info", "bg-success", "bg-accent-purple", "bg-warning", "bg-accent-teal"] as const;
 
 function BreakdownCard({
   title,
@@ -113,25 +130,28 @@ function BreakdownCard({
 }) {
   const t = useTranslations("cattle.detail.finance");
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-border p-4">
+    <div className="flex flex-col gap-4 rounded-xl border border-border p-4">
       <p className="text-sm font-semibold text-foreground">{title}</p>
       {total === 0 ? (
         <p className="text-sm text-muted-foreground">{t("noData")}</p>
       ) : (
-        entries.map(([key, value]) => {
-          const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-          return (
-            <div key={key} className="flex flex-col gap-1">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">{t(`${labelKey}.${key}`)}</span>
-                <MoneyText amount={value} className="font-medium text-foreground" />
+        <>
+          <div className="flex h-9 w-full gap-0.5 overflow-hidden rounded-lg">
+            {entries.map(([key, value], i) => {
+              const pct = total > 0 ? (value / total) * 100 : 0;
+              if (pct <= 0) return null;
+              return <div key={key} className={cn("h-full", SEGMENT_COLORS[i % SEGMENT_COLORS.length])} style={{ width: `${pct}%` }} />;
+            })}
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            {entries.map(([key], i) => (
+              <div key={key} className="flex items-center gap-1.5">
+                <span className={cn("size-2 rounded-full", SEGMENT_COLORS[i % SEGMENT_COLORS.length])} />
+                <p className="text-xs font-medium text-muted-foreground">{t(`${labelKey}.${key}`)}</p>
               </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
-              </div>
-            </div>
-          );
-        })
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

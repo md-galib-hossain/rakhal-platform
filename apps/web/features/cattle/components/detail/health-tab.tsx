@@ -1,16 +1,18 @@
 "use client"; // live query
 
 import { useTranslations } from "next-intl";
-import { AlertTriangle, Skull } from "lucide-react";
+import { AlertTriangle, Check, Skull } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Chip } from "@/components/ui/chip";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCattleHealthSummary } from "../../hooks/use-cattle-detail-tabs";
+import type { HealthCaseRow } from "../../detail-types";
 
 const CASE_STATUS_VARIANT: Record<string, "warning" | "success" | "destructive" | "secondary" | "info"> = {
   ACTIVE: "warning",
@@ -22,10 +24,61 @@ const CASE_STATUS_VARIANT: Record<string, "warning" | "success" | "destructive" 
   CLOSED: "secondary",
 };
 
-/** Health tab (Figma B1-S8) — `GET /cattle/:id/health-summary`. Simplified vs the mock's
- * vertical-timeline vaccination stepper (`TimelineStepper`/`ProgressArc` — not built, too much
- * scope for one pass, PRD-spec flagged): active cases render as cards with a linear progress bar
- * instead, treatment history stays a plain table matching the mock's row style. */
+/** Vertical dose stepper (Figma "Single Cow Details" frame 1042:57994, node "Ongoing Treatment") —
+ * a dashed connector line joining one circle per step: filled green+check for completed steps, an
+ * outlined circle for the next pending one. Real-data caveat: the backend's `HealthCaseRow` only
+ * exposes `currentStep`/`totalSteps` counts plus a flat `tasks[]` (future due dates) — no per-step
+ * "given on" date for completed doses — so completed steps show a "Done" chip rather than a
+ * fabricated given-date, and the next pending step's date comes from `tasks[0]` when present. */
+function DoseStepper({ activeCase }: { activeCase: HealthCaseRow }) {
+  const t = useTranslations("cattle.detail.health");
+  const steps = Array.from({ length: activeCase.totalSteps }, (_, i) => activeCase.totalSteps - i);
+  const nextDue = activeCase.tasks[0]?.dueDateTime;
+
+  return (
+    <div className="flex flex-col">
+      {steps.map((stepNumber, i) => {
+        const isDone = stepNumber <= activeCase.currentStep;
+        const isNext = stepNumber === activeCase.currentStep + 1;
+        const isLast = i === steps.length - 1;
+        return (
+          <div key={stepNumber} className="flex gap-3">
+            <div className="flex flex-col items-center">
+              <span
+                className={cn(
+                  "flex size-6 shrink-0 items-center justify-center rounded-full border-2",
+                  isDone ? "border-primary bg-primary text-secondary" : "border-border bg-card",
+                )}
+              >
+                {isDone ? <Check className="size-3.5" aria-hidden /> : null}
+              </span>
+              {!isLast ? <span className="w-px flex-1 border-l border-dashed border-primary/40" /> : null}
+            </div>
+            <div className="flex flex-1 items-center justify-between gap-3 pb-4">
+              <div className="flex flex-col gap-0.5">
+                <p className="text-sm font-medium text-foreground">{t("stepLabel", { n: stepNumber })}</p>
+                {isNext && nextDue ? (
+                  <p className="text-xs text-muted-foreground">
+                    {t("estimatedDate")} <DateText date={nextDue} />
+                  </p>
+                ) : null}
+              </div>
+              {isDone ? (
+                <Chip variant="primary">{t("done")}</Chip>
+              ) : isNext ? (
+                <Chip variant="warning">{t("dueSoon")}</Chip>
+              ) : null}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Health tab (Figma "Single Cow Details" frame 1042:57994) — `GET /cattle/:id/health-summary`.
+ * Active cases render as a card with the vertical `DoseStepper` above; treatment history stays a
+ * plain table matching the mock's row style. */
 export function HealthTab({ cattleId }: { cattleId: string }) {
   const t = useTranslations("cattle.detail.health");
   const query = useCattleHealthSummary(cattleId);
@@ -62,23 +115,24 @@ export function HealthTab({ cattleId }: { cattleId: string }) {
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-semibold text-foreground">{t("ongoingTreatment")}</h3>
           {data.activeCases.map((c) => (
-            <Card key={c.id} className="flex flex-col gap-3 p-4">
+            <Card key={c.id} className="flex flex-col gap-4 rounded-xl p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-foreground">{c.diagnosis}</p>
                   <p className="text-xs text-muted-foreground">{c.caseCode}</p>
                 </div>
-                <Badge variant={CASE_STATUS_VARIANT[c.status] ?? "secondary"}>{c.status}</Badge>
+                {c.totalSteps > 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    {t("progressLabel")}{" "}
+                    <span className="font-semibold text-foreground">
+                      {c.currentStep}/{c.totalSteps}
+                    </span>
+                  </p>
+                ) : (
+                  <Badge variant={CASE_STATUS_VARIANT[c.status] ?? "secondary"}>{c.status}</Badge>
+                )}
               </div>
-              {c.totalSteps > 0 ? (
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{t("progress", { current: c.currentStep, total: c.totalSteps })}</span>
-                    <span>{c.progressPercentage}%</span>
-                  </div>
-                  <Progress value={c.progressPercentage} />
-                </div>
-              ) : null}
+              {c.totalSteps > 0 ? <DoseStepper activeCase={c} /> : null}
             </Card>
           ))}
         </div>

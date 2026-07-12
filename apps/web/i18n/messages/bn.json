@@ -731,6 +731,7 @@
       "back": "ফিরে যান",
       "cancel": "বাতিল",
       "editProfile": "প্রোফাইল সম্পাদনা করুন",
+      "close": "বন্ধ করুন",
       "error": "এই গবাদি পশুর তথ্য লোড করা যায়নি।",
       "breed": "জাত",
       "gender": "লিঙ্গ",
@@ -741,6 +742,11 @@
       "status": "অবস্থা",
       "dim": "DIM",
       "dimValue": "{days} দিন",
+      "pregnantStatus": "গর্ভাবস্থা",
+      "pregnantOptions": {
+        "positive": "পজিটিভ",
+        "negative": "নেগেটিভ"
+      },
       "genderOptions": {
         "MALE": "পুরুষ",
         "FEMALE": "স্ত্রী",
@@ -777,6 +783,8 @@
         "litres": "{value} লিটার",
         "kg": "{value} কেজি",
         "weightHistory": "ওজনের ইতিহাস",
+        "weightHistorySubtitle": "মাসিক ট্র্যাকিং",
+        "actual": "প্রকৃত",
         "weightKg": "ওজন (কেজি)",
         "noWeightRecords": "এখনো কোনো ওজন রেকর্ড নেই।",
         "lactationCurve": "দুগ্ধদান বক্ররেখা",
@@ -807,6 +815,7 @@
         "noCalvings": "এখনো কোনো প্রসব রেকর্ড নেই।",
         "columns": {
           "date": "তারিখ",
+          "calfId": "বাছুরের আইডি",
           "calfGender": "বাছুরের লিঙ্গ",
           "birthWeight": "জন্ম ওজন"
         },
@@ -822,6 +831,11 @@
         "withholdingActive": "এই প্রাণীর জন্য একটি নিরাপত্তা বিরতি সময়কাল সক্রিয় আছে।",
         "ongoingTreatment": "চলমান চিকিৎসা",
         "progress": "ধাপ {current} এর {total}",
+        "progressLabel": "অগ্রগতি:",
+        "stepLabel": "টিকার ডোজ {n}",
+        "estimatedDate": "আনুমানিক তারিখ:",
+        "done": "সম্পন্ন",
+        "dueSoon": "শীঘ্রই বাকি",
         "treatmentHistory": "চিকিৎসার ইতিহাস",
         "noTreatments": "এখনো কোনো চিকিৎসা রেকর্ড নেই।",
         "columns": {
@@ -861,6 +875,8 @@
         "father": "বাবা",
         "selfAndSiblings": "নিজে ও ভাইবোন",
         "self": "নিজে",
+        "gender": "লিঙ্গ",
+        "relation": "সম্পর্ক",
         "fullSibling": "সহোদর",
         "halfSibling": "সৎ ভাইবোন",
         "offspring": "সন্তান",

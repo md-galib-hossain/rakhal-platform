@@ -5,7 +5,7 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { CalendarDays, Plus, X } from "lucide-react";
+import { CalendarDays, Info, Plus, Sparkles, X } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CattlePicker } from "@/components/shared/cattle-picker";
@@ -271,13 +271,13 @@ function CattleFormDialogBody({
   }
 
   return (
-    <DialogContent className="flex max-h-[90vh] w-full max-w-[620px] flex-col gap-0 overflow-hidden rounded-2xl p-0">
+    <DialogContent className="flex max-h-[90vh] w-full max-w-[680px] flex-col gap-0 overflow-hidden rounded-[20px] border-2 border-border p-0 shadow-2xl">
       <div className="flex items-center justify-between px-6 py-5">
         <DialogTitle className="text-xl font-bold text-foreground">
           {isEdit ? t("editTitle") : t("createTitle")}
         </DialogTitle>
       </div>
-      <div className="border-t border-dashed border-border" />
+      <div className="border-t border-border" />
 
       <form
         onSubmit={form.handleSubmit(onSubmit)}
@@ -285,7 +285,8 @@ function CattleFormDialogBody({
         className="flex min-h-0 flex-1 flex-col"
       >
         <div className="flex flex-col gap-4 overflow-y-auto px-6 py-5">
-          <div className="rounded-lg bg-muted px-4 py-2.5 text-sm font-semibold text-foreground">
+          <div className="flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-2.5 text-sm font-semibold text-foreground">
+            <Sparkles className="size-4 text-primary" aria-hidden />
             {t("basicInfo")}
           </div>
 
@@ -404,7 +405,8 @@ function CattleFormDialogBody({
 
           {/* Not pictured in Figma (only "Basic Info" is designed) — same visual language,
                 covers the remaining CreateCattleDto fields per PRD §8 rather than dropping them. */}
-          <div className="rounded-lg bg-muted px-4 py-2.5 text-sm font-semibold text-foreground">
+          <div className="flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-2.5 text-sm font-semibold text-foreground">
+            <Info className="size-4 text-primary" aria-hidden />
             {t("additionalInfo")}
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -505,7 +507,7 @@ function CattleFormDialogBody({
           </div>
         </div>
 
-        <div className="border-t border-dashed border-border" />
+        <div className="border-t border-border" />
         <div className="flex gap-3 px-6 py-5">
           <Button
             type="button"

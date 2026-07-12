@@ -1,27 +1,13 @@
-import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
-import { PageCard } from "@/components/shared/page-card";
-import { CattleDetailView } from "@/features/cattle/components/detail/cattle-detail-view";
-
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("cattle.detail");
-  return { title: `${t("title")} — Rakhal`, robots: { index: false } };
-}
+import { redirect } from "next/navigation";
 
 /**
- * RFE-023 — Cattle detail page. Figma (`rakhal-ui-analysis.md` B1-S5, decision D-2) pictures this
- * as a right-side drawer with route-backed deep links (an intercepted route); built as a plain
- * page instead — the ticket's own file scope (`app/(app)/cattle/[id]/**`) matches a page route,
- * and this codebase has no other intercepted-route precedent yet, so a full drawer/parallel-route
- * implementation would be new infra risk for one screen. Flagged, not silently swapped.
+ * RFE-023 — there is no standalone cattle detail page anymore (per user decision): the "Cattle
+ * Details" right-side drawer (`CattleDetailSheet`, opened from the list's row-actions menu) is the
+ * single detail view. This route only exists so old/bookmarked `/cattle/:id` links keep working —
+ * it immediately redirects into the list with the drawer's URL-synced `view` param
+ * (`CattleTable`'s `useQueryState("view", ...)`), which opens the same sheet.
  */
 export default async function CattleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const t = await getTranslations("cattle.detail");
-
-  return (
-    <PageCard title={t("title")}>
-      <CattleDetailView cattleId={id} />
-    </PageCard>
-  );
+  redirect(`/cattle?view=${id}`);
 }

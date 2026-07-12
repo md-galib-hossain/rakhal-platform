@@ -731,6 +731,7 @@
       "back": "Back",
       "cancel": "Cancel",
       "editProfile": "Edit Profile",
+      "close": "Close",
       "error": "Could not load this cattle record.",
       "breed": "Breed",
       "gender": "Gender",
@@ -741,6 +742,11 @@
       "status": "Status",
       "dim": "DIM",
       "dimValue": "{days} Days",
+      "pregnantStatus": "Pregnant Status",
+      "pregnantOptions": {
+        "positive": "Positive",
+        "negative": "Negative"
+      },
       "genderOptions": {
         "MALE": "Male",
         "FEMALE": "Female",
@@ -777,6 +783,8 @@
         "litres": "{value} L",
         "kg": "{value} kg",
         "weightHistory": "Weight History",
+        "weightHistorySubtitle": "Monthly tracking",
+        "actual": "Actual",
         "weightKg": "Weight (kg)",
         "noWeightRecords": "No weight records yet.",
         "lactationCurve": "Lactation Curve",
@@ -807,6 +815,7 @@
         "noCalvings": "No calving records yet.",
         "columns": {
           "date": "Date",
+          "calfId": "Calf ID",
           "calfGender": "Calf Gender",
           "birthWeight": "Birth Weight"
         },
@@ -822,6 +831,11 @@
         "withholdingActive": "A safety withdrawal period is active for this animal.",
         "ongoingTreatment": "Ongoing Treatment",
         "progress": "Step {current} of {total}",
+        "progressLabel": "Progress:",
+        "stepLabel": "Vaccine Dose {n}",
+        "estimatedDate": "Estimated Date:",
+        "done": "Done",
+        "dueSoon": "Due Soon",
         "treatmentHistory": "Treatment History",
         "noTreatments": "No treatment records yet.",
         "columns": {
@@ -861,6 +875,8 @@
         "father": "Father",
         "selfAndSiblings": "Self & Siblings",
         "self": "Self",
+        "gender": "Gender",
+        "relation": "Relation",
         "fullSibling": "Full Sibling",
         "halfSibling": "Half Sibling",
         "offspring": "Offspring",

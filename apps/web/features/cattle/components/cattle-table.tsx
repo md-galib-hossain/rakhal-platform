@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { RowSelectionState } from "@tanstack/react-table";
 import { useSearchParams } from "next/navigation";
+import { parseAsString, useQueryState } from "nuqs";
 import { cn } from "@/lib/utils";
 import { DataTable } from "@/components/shared/data-table";
 import { Pagination } from "@/components/shared/pagination";
@@ -26,7 +27,10 @@ export function CattleTable() {
   const [formOpen, setFormOpen] = useState(false);
   const [statusTarget, setStatusTarget] = useState<CattleListItem | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<CattleListItem | null>(null);
-  const [viewId, setViewId] = useState<string | undefined>(undefined);
+  /** URL-synced (`?view=`) rather than local state — the drawer is the *only* cattle detail view
+   * now (no standalone `/cattle/:id` page), so its own deep link has to live here for the redirect
+   * in `app/(app)/cattle/[id]/page.tsx` to have somewhere to land. */
+  const [viewId, setViewId] = useQueryState("view", parseAsString);
 
   const filters: CattleListFilters = {
     search: searchParams.get("search") ?? undefined,
@@ -43,7 +47,7 @@ export function CattleTable() {
   const columns = useMemo(
     () =>
       buildCattleColumns(t, {
-        onView: (cattle) => setViewId(cattle.id),
+        onView: (cattle) => void setViewId(cattle.id),
         onEdit: (cattle) => {
           setEditingId(cattle.id);
           setFormOpen(true);
@@ -51,7 +55,7 @@ export function CattleTable() {
         onChangeStatus: setStatusTarget,
         onArchive: setArchiveTarget,
       }),
-    [t],
+    [t, setViewId],
   );
 
   const selectedIds = Object.keys(rowSelection).filter((id) => rowSelection[id]);
@@ -99,10 +103,10 @@ export function CattleTable() {
       />
 
       <CattleDetailSheet
-        cattleId={viewId}
-        onOpenChange={(open) => !open && setViewId(undefined)}
+        cattleId={viewId ?? undefined}
+        onOpenChange={(open) => !open && void setViewId(null)}
         onEdit={(cattle) => {
-          setViewId(undefined);
+          void setViewId(null);
           setEditingId(cattle.id);
           setFormOpen(true);
         }}

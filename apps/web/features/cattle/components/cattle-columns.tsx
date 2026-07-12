@@ -1,7 +1,6 @@
 "use client"; // column defs consumed by the client-only DataTable
 
 import type { ColumnDef } from "@tanstack/react-table";
-import Link from "next/link";
 import { Mars, Venus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Chip, type ChipProps } from "@/components/ui/chip";
@@ -66,7 +65,11 @@ export function buildCattleColumns(
       cell: ({ row }) => {
         const cattle = row.original;
         return (
-          <Link href={`/cattle/${cattle.id}`} className="flex items-center gap-2 hover:underline">
+          <button
+            type="button"
+            onClick={() => rowActions.onView(cattle)}
+            className="flex items-center gap-2 text-left hover:underline"
+          >
             <CattleThumbnail cattle={cattle} />
             <span className="flex flex-col gap-0.5">
               <span className="text-sm font-medium text-foreground">{cattle.name ?? cattle.tagNumber}</span>
@@ -75,7 +78,7 @@ export function buildCattleColumns(
                 <GenderGlyph gender={cattle.gender} />
               </span>
             </span>
-          </Link>
+          </button>
         );
       },
     },

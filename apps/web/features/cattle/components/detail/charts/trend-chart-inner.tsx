@@ -21,7 +21,7 @@ export default function TrendChartInner<T extends object>({
   xKey,
   series,
   minWidth = 480,
-  height = 220,
+  height = 200,
 }: {
   data: T[];
   xKey: string;
@@ -33,7 +33,7 @@ export default function TrendChartInner<T extends object>({
     <div className="w-full overflow-x-auto">
       <div style={{ minWidth }}>
         <ResponsiveContainer width="100%" height={height}>
-          <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+          <AreaChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
             <defs>
               {series
                 .filter((s) => s.variant !== "line")
@@ -46,7 +46,7 @@ export default function TrendChartInner<T extends object>({
             </defs>
             <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--border)" />
             <XAxis dataKey={xKey} tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
-            <YAxis tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
+            <YAxis width={36} tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
             <Tooltip
               contentStyle={{
                 backgroundColor: "var(--card)",

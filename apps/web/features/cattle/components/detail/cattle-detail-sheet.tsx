@@ -1,6 +1,7 @@
 "use client"; // live query + sheet open state
 
 import { useTranslations } from "next-intl";
+import { ArrowRightToLine } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
@@ -11,11 +12,11 @@ import { CattleDetailTabs } from "./cattle-detail-tabs";
 import type { CattleDetail } from "../../types";
 
 /**
- * "Cattle Details" right-side quick-view drawer (Figma) — opened from the list row-actions menu
- * (`CattleRowActions`'s "View Details"). Reuses the same `CattleProfileCard` + `CattleDetailTabs`
- * the full `/cattle/:id` page (RFE-023) already renders rather than duplicating that data-fetching
- * and 5-tab layout — this is purely an alternate, faster presentation of the same detail view, not
- * a replacement for the route (still linked from the name cell for a bookmarkable deep link).
+ * "Cattle Details" right-side drawer — Figma "Single Cow Details with options" frame (1042:57994):
+ * a floating card inset 10px from the viewport edges (not a flush full-height panel), 20px corner
+ * radius, 2px border. This is the **only** cattle detail view (no standalone `/cattle/:id` page —
+ * that route now just redirects here via the `?view=` param `CattleTable` owns), so the header's
+ * arrow icon closes the drawer rather than linking anywhere.
  */
 export function CattleDetailSheet({
   cattleId,
@@ -31,27 +32,38 @@ export function CattleDetailSheet({
 
   return (
     <Sheet open={Boolean(cattleId)} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col gap-0 p-0 sm:max-w-xl">
-        <div className="flex items-center justify-between px-6 py-5">
+      <SheetContent
+        showClose={false}
+        className="inset-y-2.5 right-2.5 flex h-[calc(100vh-20px)] w-[calc(100%-20px)] max-w-[820px] flex-col gap-0 rounded-[20px] border-2 border-border p-5 shadow-2xl sm:max-w-[820px]"
+      >
+        <div className="flex items-center justify-between pb-5">
           <SheetTitle className="text-xl font-bold text-foreground">{t("title")}</SheetTitle>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            aria-label={t("close")}
+            className="flex size-5 items-center justify-center text-foreground transition-opacity hover:opacity-70"
+          >
+            <ArrowRightToLine className="size-5" aria-hidden />
+          </button>
         </div>
-        <div className="border-t border-dashed border-border" />
+        <div className="border-t border-border" />
 
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto py-4">
           {query.isLoading ? (
             <CardSkeleton lines={3} />
           ) : query.isError || !query.data ? (
             <ErrorState description={t("error")} onRetry={() => query.refetch()} />
           ) : (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-6">
               <CattleProfileCard cattle={query.data} />
               <CattleDetailTabs cattleId={query.data.id} gender={query.data.gender} />
             </div>
           )}
         </div>
 
-        <div className="border-t border-dashed border-border" />
-        <div className="flex gap-3 px-6 py-5">
+        <div className="border-t border-border" />
+        <div className="flex gap-3 pt-5">
           <Button type="button" variant="secondary" className="h-12 flex-1" onClick={() => onOpenChange(false)}>
             {t("cancel")}
           </Button>

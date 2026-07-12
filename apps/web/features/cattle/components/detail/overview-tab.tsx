@@ -71,7 +71,16 @@ export function OverviewTab({ cattleId }: { cattleId: string }) {
         />
       </div>
 
-      <ChartCard title={t("weightHistory")}>
+      <ChartCard
+        title={t("weightHistory")}
+        subtitle={t("weightHistorySubtitle")}
+        legend={
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-3 rounded-full bg-success" />
+            <p className="text-xs font-medium text-muted-foreground">{t("actual")}</p>
+          </div>
+        }
+      >
         {weightData.length === 0 ? (
           <EmptyState title={t("noWeightRecords")} className="py-8" />
         ) : (
@@ -83,25 +92,28 @@ export function OverviewTab({ cattleId }: { cattleId: string }) {
         )}
       </ChartCard>
 
-      <ChartCard title={t("lactationCurve")}>
-        {lactationData.length === 0 ? (
-          <EmptyState title={t("noLactationData")} className="py-8" />
-        ) : (
-          <TrendChartInner
-            data={lactationData}
-            xKey="dim"
-            series={[{ key: "yield", label: t("yieldL"), color: "var(--info)" }]}
-          />
-        )}
-      </ChartCard>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <ChartCard title={t("lactationCurve")}>
+          {lactationData.length === 0 ? (
+            <EmptyState title={t("noLactationData")} className="py-8" />
+          ) : (
+            <TrendChartInner
+              data={lactationData}
+              xKey="dim"
+              series={[{ key: "yield", label: t("yieldL"), color: "var(--info)" }]}
+              minWidth={280}
+            />
+          )}
+        </ChartCard>
 
-      <ChartCard title={t("lifetimeYield")}>
-        {lifetimeData.length === 0 ? (
-          <EmptyState title={t("noLifetimeData")} className="py-8" />
-        ) : (
-          <BarChartInner data={lifetimeData} xKey="year" yKey="total" />
-        )}
-      </ChartCard>
+        <ChartCard title={t("lifetimeYield")}>
+          {lifetimeData.length === 0 ? (
+            <EmptyState title={t("noLifetimeData")} className="py-8" />
+          ) : (
+            <BarChartInner data={lifetimeData} xKey="year" yKey="total" minWidth={280} />
+          )}
+        </ChartCard>
+      </div>
 
       <div className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold text-foreground">{t("recentRecords")}</h3>

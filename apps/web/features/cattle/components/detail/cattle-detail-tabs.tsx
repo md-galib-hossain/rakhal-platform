@@ -2,6 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { parseAsString, useQueryState } from "nuqs";
+import { Box } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OverviewTab } from "./overview-tab";
 import { ReproductionTab } from "./reproduction-tab";
@@ -13,8 +15,10 @@ import type { CattleGender } from "../../types";
 const TABS = ["overview", "reproduction", "health", "finance", "pedigree"] as const;
 type TabKey = (typeof TABS)[number];
 
-/** Pill tab bar (Figma B1-S5) over the 5 detail tabs — URL-synced (`?tab=`) so a tab is
- * bookmarkable/shareable, same `nuqs` pattern the cattle list's filters already use. */
+/** Segmented pill tab bar (Figma "Single Cow Details" frame 1042:57994, node 1042:58064) over the
+ * 5 detail tabs — muted track, active tab a raised white pill with a primary-green icon+label,
+ * inactive tabs plain muted-grey. URL-synced (`?tab=`) so a tab is bookmarkable/shareable, same
+ * `nuqs` pattern the cattle list's filters already use. */
 export function CattleDetailTabs({ cattleId, gender }: { cattleId: string; gender: CattleGender }) {
   const t = useTranslations("cattle.detail.tabs");
   const [tab, setTab] = useQueryState("tab", parseAsString.withDefault("overview"));
@@ -22,9 +26,17 @@ export function CattleDetailTabs({ cattleId, gender }: { cattleId: string; gende
 
   return (
     <Tabs value={active} onValueChange={(v) => void setTab(v)}>
-      <TabsList>
+      <TabsList className="h-12 w-full items-stretch justify-between gap-0 rounded-xl border border-border bg-muted p-1 text-muted-foreground">
         {TABS.map((key) => (
-          <TabsTrigger key={key} value={key}>
+          <TabsTrigger
+            key={key}
+            value={key}
+            className={cn(
+              "flex-1 gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium text-muted-foreground shadow-none",
+              "data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm",
+            )}
+          >
+            <Box className="size-[18px]" aria-hidden />
             {t(key)}
           </TabsTrigger>
         ))}
