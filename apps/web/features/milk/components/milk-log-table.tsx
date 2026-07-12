@@ -3,10 +3,10 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
-import { TrendingDown, TrendingUp } from "lucide-react";
+import { ChevronDown, TrendingDown, TrendingUp } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,16 @@ const SESSION_COLUMN_LABEL: Record<MilkSession, string> = {
   NOON: "noonLog",
   EVENING: "eveningLog",
   NIGHT: "nightLog",
+};
+
+/** Per-session tinted glow on the log-input cell (Figma "Milk Log" table, node 734:32487 — each
+ * session column's input pill carries a distinct colored drop-shadow). Uses the `--session-*`
+ * tokens added to globals.css rather than raw hex, per this project's semantic-tokens-only rule. */
+const SESSION_GLOW: Record<MilkSession, string> = {
+  MORNING: "shadow-[0_0_2px_color-mix(in_srgb,var(--color-session-morning)_40%,transparent)]",
+  NOON: "shadow-[0_0_3px_color-mix(in_srgb,var(--color-session-noon)_40%,transparent)]",
+  EVENING: "shadow-[0_0_3px_color-mix(in_srgb,var(--color-session-evening)_40%,transparent)]",
+  NIGHT: "shadow-[0_0_3px_color-mix(in_srgb,var(--color-session-night)_40%,transparent)]",
 };
 
 const PAGE_SIZE = 8;
@@ -132,83 +142,103 @@ export function MilkLogTable({
         <EmptyState title={entries.length === 0 ? t("noCattle") : t("noSearchResults")} />
       ) : (
         <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("columns.cowId")}</TableHead>
-                <TableHead>{t("columns.name")}</TableHead>
-                <TableHead>{t("columns.status")}</TableHead>
-                <TableHead>{t("columns.shed")}</TableHead>
-                {sessions.map((session) => (
-                  <TableHead key={session}>{t(`columns.${SESSION_COLUMN_LABEL[session]}`)}</TableHead>
-                ))}
-                <TableHead>{t("columns.tank")}</TableHead>
-                <TableHead>{t("columns.total")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pageRows.map((row) => (
-                <TableRow key={row.cattleId}>
-                  <TableCell className="font-medium text-foreground">{row.tag}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Avatar className="size-8">
-                        <AvatarFallback>{(row.name ?? row.tag).slice(0, 1).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-foreground">{row.name ?? row.tag}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {row.avgYield7d != null ? t("avgYieldCaption", { value: row.avgYield7d }) : "—"}
-                        </span>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Chip variant="primary">{t("statusMilking")}</Chip>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{row.shed ?? "—"}</TableCell>
+          <div
+            className={cn(
+              "overflow-hidden rounded-2xl border border-border",
+              // Figma "Milk Log" table spec (node 734:32487), scoped to this instance only: 54px
+              // normal-case header row, 56px body rows (trimmed `py-2` cell padding) — same
+              // convention `CattleTable` uses to pixel-match its own Figma header/row spec.
+              "[&_thead_tr]:border-b-0 [&_thead_tr]:bg-muted",
+              "[&_thead_th]:h-[54px] [&_thead_th]:text-sm [&_thead_th]:font-medium [&_thead_th]:normal-case [&_thead_th]:tracking-normal [&_thead_th]:text-muted-foreground",
+              "[&_tbody_td]:py-2",
+            )}
+          >
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("columns.cowId")}</TableHead>
+                  <TableHead>{t("columns.name")}</TableHead>
+                  <TableHead>{t("columns.status")}</TableHead>
+                  <TableHead>{t("columns.shed")}</TableHead>
                   {sessions.map((session) => (
-                    <TableCell key={session}>
-                      <Can I="milk.log">
-                        <div className="flex h-9 w-24 items-center gap-1 rounded-lg border border-border bg-card px-2 shadow-xs">
-                          <Input
-                            type="number"
-                            min={0}
-                            step={0.1}
-                            className="h-auto w-full border-none p-0 shadow-none focus-visible:ring-0"
-                            value={drafts[draftKey(row.cattleId, session)] ?? ""}
-                            onChange={(e) =>
-                              setDrafts((prev) => ({ ...prev, [draftKey(row.cattleId, session)]: e.target.value }))
-                            }
-                          />
-                          <span className="shrink-0 text-xs text-muted-foreground">L</span>
-                        </div>
-                      </Can>
-                    </TableCell>
+                    <TableHead key={session}>{t(`columns.${SESSION_COLUMN_LABEL[session]}`)}</TableHead>
                   ))}
-                  <TableCell>
-                    {row.withholding ? (
-                      <Badge variant="warning">{t("tankWithholding")}</Badge>
-                    ) : (
-                      <Badge variant="success">{t("tankSellable")}</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-medium text-foreground">{row.log.totalL}L</span>
-                      {row.avgYield7d != null ? (
-                        row.log.totalL >= row.avgYield7d ? (
-                          <TrendingUp className="size-3.5 text-success" aria-hidden />
-                        ) : (
-                          <TrendingDown className="size-3.5 text-destructive" aria-hidden />
-                        )
-                      ) : null}
-                    </div>
-                  </TableCell>
+                  <TableHead>{t("columns.tank")}</TableHead>
+                  <TableHead>{t("columns.total")}</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {pageRows.map((row) => (
+                  <TableRow key={row.cattleId}>
+                    <TableCell className="font-medium text-foreground">{row.tag}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Avatar className="size-8">
+                          <AvatarFallback>{(row.name ?? row.tag).slice(0, 1).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-foreground">{row.name ?? row.tag}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {row.avgYield7d != null ? t("avgYieldCaption", { value: row.avgYield7d }) : "—"}
+                          </span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Chip variant={row.withholding ? "destructive" : "primary"}>
+                        {row.withholding ? t("statusWithholding") : t("statusMilking")}
+                      </Chip>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{row.shed ?? "—"}</TableCell>
+                    {sessions.map((session) => (
+                      <TableCell key={session}>
+                        <Can I="milk.log">
+                          <div
+                            className={cn(
+                              "flex h-9 w-24 items-center gap-1 rounded-sm bg-card px-1.5",
+                              SESSION_GLOW[session],
+                            )}
+                          >
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.1}
+                              className="h-auto w-full border-none p-0 shadow-none focus-visible:ring-0"
+                              value={drafts[draftKey(row.cattleId, session)] ?? ""}
+                              onChange={(e) =>
+                                setDrafts((prev) => ({ ...prev, [draftKey(row.cattleId, session)]: e.target.value }))
+                              }
+                            />
+                            <span className="shrink-0 text-xs text-muted-foreground">L</span>
+                          </div>
+                        </Can>
+                      </TableCell>
+                    ))}
+                    <TableCell>
+                      <div className="flex h-9 w-[130px] items-center justify-between gap-1 rounded-sm bg-card px-1.5 shadow-card">
+                        <span className="truncate text-sm text-muted-foreground">
+                          {row.withholding ? t("tankWithholding") : t("tankSellable")}
+                        </span>
+                        <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium text-foreground">{row.log.totalL}L</span>
+                        {row.avgYield7d != null ? (
+                          row.log.totalL >= row.avgYield7d ? (
+                            <TrendingUp className="size-3.5 text-success" aria-hidden />
+                          ) : (
+                            <TrendingDown className="size-3.5 text-destructive" aria-hidden />
+                          )
+                        ) : null}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
           {totalPages > 1 ? <Pagination page={page} totalPages={totalPages} onPageChange={setPage} /> : null}
         </>

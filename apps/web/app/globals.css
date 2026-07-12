@@ -69,6 +69,15 @@
   --accent-pink: #ec4899;
   --accent-pink-tint: #fce7f3;
 
+  /* Milk session accent glows (Figma "Milk Log" table, node 734:32487 — each session's log-input
+     cell has a tinted drop-shadow: morning blue, noon amber, evening burnt-orange, night near-black).
+     Time-of-day accents, not a light/dark-theme concern (no dark Figma frames exist here either,
+     ui-analysis.md decision D-11) — defined once in :root and left unoverridden in .dark. */
+  --session-morning: #0082fd;
+  --session-noon: #faa70c;
+  --session-evening: #df4e00;
+  --session-night: #333333;
+
   /* Chart series (order: primary, expense/negative, secondary, comparison, extra) */
   --chart-1: #16a34a;
   --chart-2: #ef4444;
@@ -191,6 +200,11 @@
   --color-accent-indigo-tint: var(--accent-indigo-tint);
   --color-accent-pink: var(--accent-pink);
   --color-accent-pink-tint: var(--accent-pink-tint);
+
+  --color-session-morning: var(--session-morning);
+  --color-session-noon: var(--session-noon);
+  --color-session-evening: var(--session-evening);
+  --color-session-night: var(--session-night);
 
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);

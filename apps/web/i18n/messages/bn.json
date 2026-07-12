@@ -1170,6 +1170,7 @@
       },
       "avgYieldCaption": "গড় ফলন: {value}লি",
       "statusMilking": "দুধেল",
+      "statusWithholding": "আটকানো",
       "tankSellable": "বিক্রয়যোগ্য",
       "tankWithholding": "আটকানো",
       "save": "খসড়া সংরক্ষণ করুন",

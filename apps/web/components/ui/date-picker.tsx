@@ -32,8 +32,6 @@ export interface DatePickerProps {
   disabled?: boolean;
   /** Restrict selectable calendar days (e.g. `{ after: new Date() }` for a birth date). */
   disabledDates?: Matcher | Matcher[];
-  /** Set to `"dropdown"` for a fast year/month jump — useful for dates that can be years back. */
-  captionLayout?: "label" | "dropdown";
 }
 
 export function DatePicker({
@@ -46,7 +44,6 @@ export function DatePicker({
   error,
   disabled,
   disabledDates,
-  captionLayout,
 }: DatePickerProps) {
   const locale = useLocale() as Locale;
   const [open, setOpen] = useState(false);
@@ -76,12 +73,11 @@ export function DatePicker({
             <CalendarDays className="size-4 shrink-0 text-primary" aria-hidden />
           </button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-auto p-0">
+        <PopoverContent align="start" className="w-auto rounded-2xl p-0 shadow-lg">
           <Calendar
             mode="single"
             selected={selected}
             defaultMonth={selected}
-            captionLayout={captionLayout}
             disabled={disabledDates}
             onSelect={(date) => {
               if (!date) return;

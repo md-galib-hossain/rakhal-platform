@@ -388,7 +388,6 @@ function CattleFormDialogBody({
                     onBlur={field.onBlur}
                     error={fieldState.error?.message}
                     disabledDates={{ after: new Date() }}
-                    captionLayout="dropdown"
                   />
                 )}
               />

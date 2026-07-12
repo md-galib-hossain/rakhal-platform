@@ -1170,6 +1170,7 @@
       },
       "avgYieldCaption": "Avg Yield: {value}L",
       "statusMilking": "In-Milk",
+      "statusWithholding": "Withholding",
       "tankSellable": "Sellable",
       "tankWithholding": "Withholding",
       "save": "Save Draft",
