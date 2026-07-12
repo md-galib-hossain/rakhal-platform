@@ -8,6 +8,11 @@ model Medicine {
 
   name         String
   imageUrl     String?
+  /// Uploaded product photo (RAKHAL-074 follow-up) — resolved to a signed thumb URL at read time
+  /// via `MediaService`, same private-R2-bucket pattern as `Cattle.profilePhotoAssetId`. `imageUrl`
+  /// stays as a legacy plain-string fallback (pre-upload rows / external links); the presented
+  /// `imageUrl` in API responses prefers the signed photo when both are present.
+  photoAssetId String?
   type         MedicineType
   category     MedicineCategory
   manufacturer String?

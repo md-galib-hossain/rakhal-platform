@@ -4,10 +4,20 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Medicine, MedicineStockMovementReason, Prisma } from '@prisma/client';
+import {
+  Medicine,
+  MediaCategory,
+  MediaUsage,
+  MedicineStockMovementReason,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { NotificationService } from 'src/modules/notification/application/services/notification.service';
+import {
+  MediaService,
+  MediaUrls,
+} from 'src/modules/media/application/services/media.service';
 import { CursorPage, getCursorArgs, toCursorPage } from 'src/common/pagination';
 import {
   computeExpiryStatus,
@@ -43,6 +53,7 @@ export class MedicineService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationService: NotificationService,
+    private readonly media: MediaService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(MedicineService.name);
@@ -95,7 +106,7 @@ export class MedicineService {
       });
 
       this.log.info('Medicine created', { medicineId: medicine.id, farmId });
-      return this.present(medicine);
+      return this.presentOne(medicine);
     } catch (error) {
       if (this.isUniqueError(error)) {
         throw new ConflictException('Medicine batch already exists');
@@ -132,13 +143,13 @@ export class MedicineService {
 
     const page = toCursorPage(rows, query);
     return {
-      items: page.items.map((medicine) => this.present(medicine)),
+      items: await this.presentList(farmId, page.items),
       meta: page.meta,
     };
   }
 
   async findOne(farmId: string, id: string): Promise<PresentedMedicine> {
-    return this.present(await this.getOrThrow(farmId, id));
+    return this.presentOne(await this.getOrThrow(farmId, id));
   }
 
   async update(
@@ -178,7 +189,7 @@ export class MedicineService {
       });
 
       this.log.info('Medicine updated', { medicineId: id, farmId });
-      return this.present(medicine);
+      return this.presentOne(medicine);
     } catch (error) {
       if (this.isUniqueError(error)) {
         throw new ConflictException('Medicine batch already exists');
@@ -231,7 +242,7 @@ export class MedicineService {
       delta: dto.adjustment,
       balanceAfter,
     });
-    return this.present(medicine);
+    return this.presentOne(medicine);
   }
 
   /**
@@ -370,7 +381,7 @@ export class MedicineService {
       data: { isActive: false },
     });
     this.log.info('Medicine archived', { medicineId: id, farmId });
-    return this.present(medicine);
+    return this.presentOne(medicine);
   }
 
   async restore(farmId: string, id: string): Promise<PresentedMedicine> {
@@ -380,12 +391,67 @@ export class MedicineService {
       data: { isActive: true },
     });
     this.log.info('Medicine restored', { medicineId: id, farmId });
-    return this.present(medicine);
+    return this.presentOne(medicine);
   }
 
   /** Soft-delete (archive). Hard delete is avoided so treatment history stays intact (INV-06). */
   async remove(farmId: string, id: string): Promise<PresentedMedicine> {
     return this.archive(farmId, id);
+  }
+
+  /** Product-photo upload (RAKHAL-074 follow-up) — same `MediaService`/private-R2 pattern as
+   * `CattleService#setProfilePhoto`: process+store via `MediaService.uploadImage`, point
+   * `photoAssetId` at the new asset, soft-delete the previous one if replacing. */
+  async setPhoto(
+    farmId: string,
+    userId: string,
+    id: string,
+    file: { buffer: Buffer; originalname?: string; size?: number },
+  ): Promise<MediaUrls> {
+    const medicine = await this.getOrThrow(farmId, id);
+    const asset = await this.media.uploadImage({
+      farmId,
+      uploadedByUserId: userId,
+      category: MediaCategory.MEDICINE,
+      usage: MediaUsage.PRODUCT_PHOTO,
+      file,
+    });
+    const previousId = medicine.photoAssetId;
+    await this.prisma.medicine.update({
+      where: { id },
+      data: { photoAssetId: asset.id },
+    });
+    if (previousId && previousId !== asset.id) {
+      await this.media
+        .softDeleteById(farmId, previousId, userId)
+        .catch(() => undefined);
+    }
+    this.log.info('Medicine photo uploaded', { medicineId: id, farmId });
+    return this.media.signUrls(asset, true);
+  }
+
+  async getPhoto(farmId: string, id: string): Promise<MediaUrls | null> {
+    const medicine = await this.getOrThrow(farmId, id);
+    if (!medicine.photoAssetId) return null;
+    return this.media.presentUrls(farmId, medicine.photoAssetId, true);
+  }
+
+  async removePhoto(
+    farmId: string,
+    userId: string,
+    id: string,
+  ): Promise<{ removed: boolean }> {
+    const medicine = await this.getOrThrow(farmId, id);
+    if (!medicine.photoAssetId) return { removed: false };
+    await this.prisma.medicine.update({
+      where: { id },
+      data: { photoAssetId: null },
+    });
+    await this.media
+      .softDeleteById(farmId, medicine.photoAssetId, userId)
+      .catch(() => undefined);
+    this.log.info('Medicine photo removed', { medicineId: id, farmId });
+    return { removed: true };
   }
 
   private async getOrThrow(farmId: string, id: string): Promise<Medicine> {
@@ -417,15 +483,51 @@ export class MedicineService {
     return { expiryDate: { gte: now } };
   }
 
-  private present(medicine: Medicine): PresentedMedicine {
+  /** Single-resource presentation — resolves `photoAssetId` to a signed thumb URL (falling back to
+   * the legacy plain-string `imageUrl` column when there's no uploaded photo), same
+   * `presentUrls`-per-item pattern as `CattleService#attachDetailPhoto`. */
+  private async presentOne(medicine: Medicine): Promise<PresentedMedicine> {
+    const resolvedImageUrl = medicine.photoAssetId
+      ? await this.media
+          .presentUrls(medicine.farmId, medicine.photoAssetId, false)
+          .then((urls) => urls.thumb_url)
+          .catch(() => medicine.imageUrl)
+      : medicine.imageUrl;
     return {
       ...medicine,
+      imageUrl: resolvedImageUrl,
       stockStatus: computeStockStatus(
         medicine.currentStock,
         medicine.lowStockThreshold,
       ),
       expiryStatus: computeExpiryStatus(medicine.expiryDate),
     };
+  }
+
+  /** List presentation — batches every row's `photoAssetId` into one `signThumbs` call (same
+   * `CattleService#attachListPhotos` pattern) instead of N individual signing round-trips. */
+  private async presentList(
+    farmId: string,
+    medicines: Medicine[],
+  ): Promise<PresentedMedicine[]> {
+    const ids = medicines
+      .map((m) => m.photoAssetId)
+      .filter((id): id is string => Boolean(id));
+    const signed =
+      ids.length > 0
+        ? await this.media.signThumbs(farmId, ids)
+        : new Map<string, MediaUrls>();
+    return medicines.map((medicine) => ({
+      ...medicine,
+      imageUrl: medicine.photoAssetId
+        ? (signed.get(medicine.photoAssetId)?.thumb_url ?? medicine.imageUrl)
+        : medicine.imageUrl,
+      stockStatus: computeStockStatus(
+        medicine.currentStock,
+        medicine.lowStockThreshold,
+      ),
+      expiryStatus: computeExpiryStatus(medicine.expiryDate),
+    }));
   }
 
   private assertExpiryAfterPurchase(

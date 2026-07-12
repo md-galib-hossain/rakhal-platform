@@ -7,8 +7,12 @@
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { env } from 'src/core/config/env';
 import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
@@ -22,6 +26,9 @@ import { CreateMedicineDto } from '../dto/create-medicine.dto';
 import { ListMedicineQueryDto } from '../dto/list-medicine-query.dto';
 import { UpdateMedicineDto } from '../dto/update-medicine.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+
+/** Max product-photo upload size — same limit as the cattle profile-photo endpoint. */
+const PHOTO_MAX_BYTES = env.MEDIA_MAX_UPLOAD_BYTES;
 
 /**
  * Inventory â†’ Medicine tab. Routes resolve under the global prefix as
@@ -88,6 +95,36 @@ export class MedicineController {
     @Body() dto: AdjustStockDto,
   ) {
     return this.medicineService.adjustStock(farmId, userId, id, dto);
+  }
+
+  @Get(':id/photo')
+  @RequirePermission('inventory.read')
+  getPhoto(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.medicineService.getPhoto(farmId, id);
+  }
+
+  @Post(':id/photo')
+  @RequirePermission('inventory.update')
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: PHOTO_MAX_BYTES } }),
+  )
+  setPhoto(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.medicineService.setPhoto(farmId, userId, id, file);
+  }
+
+  @Delete(':id/photo')
+  @RequirePermission('inventory.update')
+  removePhoto(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.medicineService.removePhoto(farmId, userId, id);
   }
 
   @Patch(':id/archive')

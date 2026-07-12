@@ -5,6 +5,7 @@ import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { NotificationModule } from '../notification/notification.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
+import { MediaModule } from '../media/media.module';
 import { MedicineService } from './application/services/medicine.service';
 import { ForageService } from './application/services/forage.service';
 import { SemenService } from './application/services/semen.service';
@@ -36,6 +37,7 @@ import { EquipmentController } from './presentation/controllers/equipment.contro
     LoggerModule,
     NotificationModule,
     SubscriptionModule,
+    MediaModule,
   ],
   controllers: [
     MedicineController,
