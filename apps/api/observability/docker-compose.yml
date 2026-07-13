@@ -35,7 +35,7 @@ services:
     volumes:
       - ./loki/config.yml:/etc/loki/config.yml:ro
     restart: unless-stopped
-
+# dont use promtail grafana recommend alloy instead
   promtail:
     image: grafana/promtail:3.1.1
     container_name: rakhal-promtail
