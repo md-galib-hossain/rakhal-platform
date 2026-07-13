@@ -1118,6 +1118,126 @@
         "updatedToast": "মজুদ হালনাগাদ করা হয়েছে।",
         "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
       }
+    },
+    "milk": {
+      "physicalStorage": "ফিজিক্যাল স্টোরেজ",
+      "addNewTank": "নতুন ট্যাংক যোগ করুন",
+      "empty": {
+        "title": "এখনো কোনো ট্যাংক নেই",
+        "description": "দুধ মজুদ ট্র্যাক করা শুরু করতে আপনার প্রথম বিক্রয়যোগ্য বা আটকে রাখা ট্যাংক যোগ করুন।"
+      },
+      "tankCard": {
+        "totalMilk": "মোট দুধ",
+        "badgeSellable": "বিক্রয়যোগ্য",
+        "badgeWithholding": "আটকে রাখা",
+        "totalCapacity": "মোট ধারণক্ষমতা: {value}লি",
+        "fat": "ফ্যাট",
+        "protein": "প্রোটিন",
+        "snf": "SNF",
+        "syncToPhysical": "ফিজিক্যাল ডেটা মেলান",
+        "routeSell": "বিক্রি করুন",
+        "routeResolve": "সমাধান করুন"
+      },
+      "form": {
+        "editTitle": "ট্যাংক সম্পাদনা করুন",
+        "createTitle": "নতুন ট্যাংক যোগ করুন",
+        "subtitle": "নতুন ট্যাংক যোগ করুন এবং এর ডিজিটাল টুইন সিঙ্ক করুন",
+        "close": "বন্ধ করুন",
+        "tankType": "ট্যাংকের ধরন",
+        "sellableTank": "বিক্রয়যোগ্য ট্যাংক",
+        "withholdingTank": "আটকে রাখা ট্যাংক",
+        "tankInfo": "ট্যাংক তথ্য",
+        "tankName": "ট্যাংকের নাম",
+        "tankNamePlaceholder": "যেমন: \"বাল্ক ট্যাংক ৩\"",
+        "coolingType": "কুলিং টাইপ",
+        "coolingTypeValue": "ডাইরেক্ট এক্সপানশন",
+        "coolingTypeNote": "এখনো ট্র্যাক করা হয় না — শুধু তথ্যের জন্য",
+        "totalCapacity": "মোট ধারণক্ষমতা",
+        "litre": "লিটার",
+        "smartSensorId": "স্মার্ট সেন্সর আইডি",
+        "smartSensorIdPlaceholder": "যেমন: IoT-SN-991",
+        "assignedShed": "নির্ধারিত শেড",
+        "selectShed": "শেড নির্বাচন করুন",
+        "calibrationSafety": "ক্যালিব্রেশন ও নিরাপত্তা",
+        "targetTemperature": "লক্ষ্য তাপমাত্রা",
+        "agitationInterval": "আন্দোলন বিরতি",
+        "min": "মিনিট",
+        "milkInfo": "দুধের তথ্য",
+        "milkVolume": "দুধের পরিমাণ",
+        "milkVolumeEditHint": "পরিবর্তে \"ফিজিক্যাল ডেটা মেলান\" থেকে পরিমাণ পরিবর্তন করুন",
+        "fat": "ফ্যাট",
+        "protein": "প্রোটিন",
+        "snf": "SNF",
+        "cancel": "বাতিল",
+        "save": "পরিবর্তন সংরক্ষণ করুন",
+        "add": "যোগ করুন",
+        "createdToast": "দুধের ট্যাংক যোগ করা হয়েছে।",
+        "updatedToast": "দুধের ট্যাংক আপডেট করা হয়েছে।",
+        "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+      },
+      "sync": {
+        "title": "ফিজিক্যাল ডেটা মেলান",
+        "subtitle": "ট্যাংকের এই মুহূর্তের প্রকৃত পরিমাণের সাথে ডেটা মিলিয়ে নিন।",
+        "close": "বন্ধ করুন",
+        "badgeSellable": "বিক্রয়যোগ্য ট্যাংক",
+        "badgeWithholding": "আটকে রাখা ট্যাংক",
+        "totalMilk": "মোট দুধ",
+        "smartSensorId": "স্মার্ট সেন্সর আইডি",
+        "totalCapacity": "মোট ধারণক্ষমতা",
+        "litreValue": "{value} লিটার",
+        "litre": "লিটার",
+        "temperature": "তাপমাত্রা",
+        "agitationInterval": "আন্দোলন বিরতি",
+        "minValue": "{value} মিনিট",
+        "adjustMilkInfo": "দুধের তথ্য সমন্বয় করুন",
+        "actualMilkVolume": "প্রকৃত দুধের পরিমাণ",
+        "fat": "ফ্যাট",
+        "protein": "প্রোটিন",
+        "snf": "SNF",
+        "whyTheDifference": "পার্থক্যের কারণ কী?",
+        "reasons": {
+          "BUYERS_SLIP": "ক্রেতার স্লিপ",
+          "TYPING_ERROR": "টাইপিং ভুল",
+          "UNKNOWN_LOSS": "অজানা ক্ষতি",
+          "OTHERS": "অন্যান্য"
+        },
+        "reasonPlaceholder": "এখানে আপনার কারণ লিখুন",
+        "cancel": "বাতিল",
+        "syncToPhysical": "ফিজিক্যাল ডেটা মেলান",
+        "noChangeError": "বর্তমান রিডিং থেকে আলাদা একটি প্রকৃত পরিমাণ লিখুন।",
+        "syncedToast": "ট্যাংক ফিজিক্যাল রিডিং-এর সাথে সিঙ্ক করা হয়েছে।",
+        "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+      },
+      "stats": {
+        "title": "পরিসংখ্যান",
+        "totalMilkStock": "মোট দুধের মজুদ",
+        "litreValue": "{value}লি",
+        "sellable": "বিক্রয়যোগ্য",
+        "withholding": "আটকে রাখা"
+      },
+      "auditLog": {
+        "title": "দুধের অডিট লগ",
+        "columns": {
+          "no": "নং",
+          "date": "তারিখ",
+          "activityType": "কার্যক্রমের ধরন",
+          "quantity": "পরিমাণ",
+          "storage": "স্টোরেজ",
+          "operator": "পরিচালনাকারী"
+        },
+        "activityOptions": {
+          "COLLECTION": "সংগ্রহ",
+          "SALE": "বিক্রয়",
+          "ADJUSTMENT": "সমন্বয়",
+          "TRANSFER": "স্থানান্তর",
+          "CALF_ALLOCATION": "বাছুরের জন্য বরাদ্দ"
+        },
+        "unknownOperator": "টিম সদস্য",
+        "empty": {
+          "title": "এখনো কোনো কার্যক্রম নেই",
+          "description": "সংগ্রহ, বিক্রয় বা সিঙ্ক থেকে পরিমাণ পরিবর্তন এখানে দেখা যাবে।"
+        }
+      }
     }
   },
   "milk": {

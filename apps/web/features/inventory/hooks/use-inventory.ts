@@ -6,12 +6,17 @@ import { qk } from "@/lib/query/keys";
 import { inventoryApi } from "../api";
 import type {
   AdjustMedicineStockPayload,
+  AdjustMilkTankVolumePayload,
   CreateForagePayload,
   CreateMedicinePayload,
+  CreateMilkTankPayload,
   ForageListFilters,
   MedicineListFilters,
+  MilkTankListFilters,
+  MilkTankTeamMember,
   UpdateForagePayload,
   UpdateMedicinePayload,
+  UpdateMilkTankPayload,
 } from "../types";
 
 const STALE_TIME = 60_000;
@@ -244,4 +249,124 @@ export function useRestoreForage() {
     mutationFn: (id: string) => inventoryApi.restoreForage(id),
     onSuccess: (_data, id) => invalidate(id),
   });
+}
+
+/** `GET /inventory/milk-tanks` returns the full (small — a farm keeps a handful of tanks, never a
+ * paged list) array directly, unlike Medicine/Forage — no cursor pager needed here. */
+export function useMilkTanks(filters: MilkTankListFilters = {}) {
+  return useQuery({
+    queryKey: qk.inventory.milkTanks(filters as Record<string, string | undefined>),
+    queryFn: () => inventoryApi.listMilkTanks(filters),
+    staleTime: STALE_TIME,
+  });
+}
+
+function useInvalidateMilkTank() {
+  const queryClient = useQueryClient();
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: ["inventory", "milk-tank", "list"] });
+    void queryClient.invalidateQueries({ queryKey: ["inventory", "milk-tank", "audit-log"] });
+  };
+}
+
+export function useCreateMilkTank() {
+  const invalidate = useInvalidateMilkTank();
+  return useMutation({
+    mutationFn: (dto: CreateMilkTankPayload) => inventoryApi.createMilkTank(dto),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useUpdateMilkTank() {
+  const invalidate = useInvalidateMilkTank();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: UpdateMilkTankPayload }) => inventoryApi.updateMilkTank(id, dto),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useAdjustMilkTankVolume() {
+  const invalidate = useInvalidateMilkTank();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: AdjustMilkTankVolumePayload }) => inventoryApi.adjustMilkTankVolume(id, dto),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useArchiveMilkTank() {
+  const invalidate = useInvalidateMilkTank();
+  return useMutation({
+    mutationFn: (id: string) => inventoryApi.archiveMilkTank(id),
+    onSuccess: () => invalidate(),
+  });
+}
+
+/** Same honest-frontier numbered-page adapter as `useMedicinePagedList`/`useForagePagedList`, over
+ * the cursor-only `GET /inventory/milk-tanks/audit-log`. */
+export function useMilkTankAuditLogPagedList() {
+  const filtersKey = "audit-log";
+  const [state, setState] = useState<PagerState>(() => initialPagerState(filtersKey));
+
+  const { pageIndex, cursors } = state;
+  const cursor = cursors[pageIndex];
+
+  const query = useQuery({
+    queryKey: ["inventory", "milk-tank", "audit-log", "paged", cursor],
+    queryFn: () => inventoryApi.milkTankAuditLog(undefined, cursor),
+    staleTime: STALE_TIME,
+    placeholderData: keepPreviousData,
+  });
+
+  const atFrontier = pageIndex === cursors.length - 1;
+  const hasUndiscoveredNext = atFrontier && Boolean(query.data?.meta.hasNextPage);
+  const totalPages = Math.max(cursors.length + (hasUndiscoveredNext ? 1 : 0), 1);
+
+  function goToPage(page: number) {
+    const idx = page - 1;
+    if (idx < 0 || idx === pageIndex) return;
+    if (idx < cursors.length) {
+      setState((s) => ({ ...s, pageIndex: idx }));
+      return;
+    }
+    if (idx === cursors.length && hasUndiscoveredNext) {
+      const nextCursor = query.data?.meta.endCursor ?? undefined;
+      setState((s) => ({ ...s, pageIndex: idx, cursors: [...s.cursors, nextCursor] }));
+    }
+  }
+
+  return {
+    items: query.data?.items ?? [],
+    page: pageIndex + 1,
+    totalPages,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    isFetching: query.isFetching,
+    refetch: query.refetch,
+    goToPage,
+  };
+}
+
+export function useShedsForMilkTank() {
+  return useQuery({
+    queryKey: ["inventory", "milk-tank", "sheds"],
+    queryFn: () => inventoryApi.shedsForMilkTank(),
+    staleTime: STALE_TIME,
+  });
+}
+
+/** Best-effort `createdBy` → display-name map for the audit log's Operator column
+ * (`types.ts#MilkTankTeamMember`). `team.read` may not be granted to every role viewing this page
+ * (Worker likely can't), so a failed fetch resolves to an empty map instead of an error state —
+ * `MilkAuditLogTable` falls back to a generic "Team member" label + tinted-icon avatar when a given
+ * `createdBy` id isn't in the map, same graceful-degrade shape as Forage's no-photo fallback. */
+export function useTeamMembersMap() {
+  const query = useQuery({
+    queryKey: qk.inventory.teamMembers(),
+    queryFn: () => inventoryApi.teamMembersForMilkAudit(),
+    staleTime: STALE_TIME,
+    retry: false,
+  });
+  const map = new Map<string, MilkTankTeamMember>();
+  for (const member of query.data?.members ?? []) map.set(member.id, member);
+  return map;
 }

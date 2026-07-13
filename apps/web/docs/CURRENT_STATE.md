@@ -1,8 +1,39 @@
 # Frontend — Current State
 
-**Last updated:** 2026-07-12 · **Completion:** Phase 0 done (RFE-001…010) + RFE-100 marketing landing +
+**Last updated:** 2026-07-13 · **Completion:** Phase 0 done (RFE-001…010) + RFE-100 marketing landing +
 Phase 1 RFE-020 (Dashboard) + RFE-021 (Cattle list) + RFE-022 (Cattle add/edit) + RFE-023 (Cattle detail)
 + RFE-025 (Milk log) done
+
+## Inventory — Milk tab, Figma-perfect (2026-07-13, user request)
+Full tank CRUD + volume-sync + audit log (`features/inventory/milk-*`) matched to the real Figma
+frames ("Inventory - Milk" 734:27903, "Add New Tank" 734:30564, "Sync to Physical" 734:31364, file
+`SCfMPdxP6vgW1uTxfqCtz7`), backed by the real `milk-tank.controller.ts`/`milk-tank.service.ts`
+(list/create/update/archive + the audited `adjust-volume` endpoint, never a plain volume field edit)
++ `GET /inventory/milk-tanks/audit-log` (cursor, same honest-frontier `Pagination` pattern as
+Medicine/Forage). `INVENTORY_TABS.milk.implemented` flipped to `true`. **Real gaps vs the mock,
+flagged not faked**: no `coolingType` field exists on `CreateMilkTankDto`/`UpdateMilkTankDto` at all
+— the mock's dropdown renders disabled/decorative, never submitted; the mock's "Statistics" KPIs
+("Own Herd Production"/"Outsourced Purchase" split, "Calf Feed Pool") have zero backing data anywhere
+in this schema — replaced with a real Sellable/Withholding volume breakdown of the same `Total Milk
+Stock` sum instead of inventing numbers. The bottle-fill gauge is a plain data-driven div (real
+`fillPct` per tank), not a re-hosted copy of Figma's exported bottle asset (those URLs expire in 7
+days and had one fixed mock fill baked in, not a real per-tank percentage). "Route/Sell"/"Route/Resolve"
+are bare `/buyers` deep links (no tank-preselection flow exists there yet). Operator names on the
+audit log resolve via a best-effort `GET /settings/team` fetch (`team.read`-gated — may not be
+granted to a Worker role; falls back to a tinted-initial avatar + generic label rather than blocking
+the page on a 403). **Verified LIVE end-to-end** against the real backend (2 real seeded tanks — Main
+Sellable Tank 220/500L, Withholding Tank 18/100L): create → 201 (new tank appears immediately, correct
+blue/amber ribbon + bottle fill), Sync to Physical → 201 `adjust-volume` + correct audit row, archive
+→ real cleanup after testing — zero console errors, dark theme confirmed via computed styles (info/
+warning tokens resolve correctly in both themes). Caught and fixed one real bug during live
+verification: the sync dialog's composition-changed check (`values.fatPct !== tank.fatPct`) compared
+`undefined` against `null` and fired a spurious no-op `PATCH` on every sync even when Fat/Protein/SNF
+were untouched — fixed by normalizing both sides to `null` before comparing, confirmed via network
+trace that only `adjust-volume` fires now. Also fixed the audit log's "Storage" column losing a tank's
+name once that tank is archived (name resolution now fetches `includeArchived: true` separately from
+the active-only tank grid). Gate green: typecheck/lint/18 unit tests (`next build` skipped — another
+agent's live `next dev` shared the same `.next/`, same precedent as the Forage-tab entry below). Full
+writeup: `IN_FLIGHT.md` Recently Done.
 
 ## Inventory — Forage tab, Figma-perfect (2026-07-12, user request)
 Full CRUD tab (`features/inventory/forage-*`) matched to the real Figma frames (list, grid, Add/Edit

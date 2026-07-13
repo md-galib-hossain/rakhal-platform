@@ -168,6 +168,113 @@ export const INVENTORY_TABS: InventoryTabConfig[] = [
   { key: "medicine", implemented: true },
   { key: "forage", implemented: true },
   { key: "semen", implemented: false },
-  { key: "milk", implemented: false },
+  { key: "milk", implemented: true },
   { key: "others", implemented: false },
 ];
+
+/**
+ * Milk tab — mirrors `milk-tank.controller.ts`/`milk-tank.service.ts` + the `MilkTank`/
+ * `MilkTankAuditLog` Prisma models directly (verified live, `prisma/schemas/inventory/milk-tank.prisma`,
+ * Figma "Inventory - Milk" 734:27903 + "Add New Tank" 734:30564 + "Sync to Physical" 734:31364). A
+ * farm keeps SELLABLE + WITHHOLDING tanks; volume changes go through the audited `adjust-volume`
+ * endpoint (never a plain field edit) and append an immutable `MilkTankAuditLog` row.
+ * **Real gaps vs the Figma mock, flagged not faked**: `CreateMilkTankDto`/`UpdateMilkTankDto` have no
+ * `coolingType` field at all — the mock's "Cooling Type" dropdown ("Direct Expansion") has no backing
+ * column, rendered as a disabled/decorative field in the form, never submitted. The mock's
+ * "Statistics" KPIs ("Own Herd Production" vs "Outsourced Purchase" split, "Calf Feed
+ * Pool"/"Today's Consumption") have zero backing data anywhere in this schema (no source-of-milk
+ * tracking, no calf-feed-to-tank link) — not built as fakes; replaced with a real Sellable/Withholding
+ * volume breakdown of the same `Total Milk Stock` KPI card instead (see `milk-stats-card.tsx`). The
+ * mock's audit log "Loss" activity chip has no matching enum value — `MilkTankActivity` is
+ * COLLECTION/SALE/ADJUSTMENT/TRANSFER/CALF_ALLOCATION, so ADJUSTMENT (used for manual sync
+ * corrections) renders with the same rose "Loss"-style chip when its delta is negative.
+ */
+export type MilkTankType = "SELLABLE" | "WITHHOLDING";
+export type MilkTankActivity = "COLLECTION" | "SALE" | "ADJUSTMENT" | "TRANSFER" | "CALF_ALLOCATION";
+
+/** `GET/POST /inventory/milk-tanks(/:id)` row shape (`milk-tank.service.ts#present`) — the raw
+ * Prisma `MilkTank` row plus a derived `fillPct` (not a stored column). */
+export interface MilkTank {
+  id: string;
+  name: string;
+  tankType: MilkTankType;
+  totalCapacityL: number;
+  currentVolumeL: number;
+  fatPct: number | null;
+  proteinPct: number | null;
+  snfPct: number | null;
+  smartSensorId: string | null;
+  targetTempC: number | null;
+  agitationIntervalMin: number | null;
+  assignedShedId: string | null;
+  isActive: boolean;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  fillPct: number;
+}
+
+export interface MilkTankListFilters {
+  tankType?: MilkTankType;
+  includeArchived?: boolean;
+}
+
+/** `POST /inventory/milk-tanks` body (`CreateMilkTankDto`). */
+export interface CreateMilkTankPayload {
+  name: string;
+  tankType: MilkTankType;
+  totalCapacityL: number;
+  currentVolumeL?: number;
+  fatPct?: number;
+  proteinPct?: number;
+  snfPct?: number;
+  smartSensorId?: string;
+  targetTempC?: number;
+  agitationIntervalMin?: number;
+  assignedShedId?: string;
+}
+
+/** `PATCH /inventory/milk-tanks/:id` body (`UpdateMilkTankDto`) — volume goes through adjust-volume. */
+export type UpdateMilkTankPayload = Partial<Omit<CreateMilkTankPayload, "currentVolumeL">>;
+
+/** `POST /inventory/milk-tanks/:id/adjust-volume` body (`AdjustMilkTankVolumeDto`) — signed delta,
+ * writes an immutable `MilkTankAuditLog` row. Used by `MilkSyncDialog` ("Sync Data to Physical",
+ * `activityType: "ADJUSTMENT"`, delta = actual − current). */
+export interface AdjustMilkTankVolumePayload {
+  delta: number;
+  activityType: MilkTankActivity;
+  source?: string;
+  notes?: string;
+}
+
+/** `GET /inventory/milk-tanks/audit-log` row shape — cursor-paginated, append-only. */
+export interface MilkTankAuditLogEntry {
+  id: string;
+  milkTankId: string;
+  farmId: string;
+  activityType: MilkTankActivity;
+  quantityL: number;
+  balanceAfterL: number;
+  source: string | null;
+  notes: string | null;
+  createdBy: string;
+  createdAt: string;
+}
+
+/** `GET /sheds` row shape (same `sheds.controller.ts` the cattle filters use) — kept feature-local
+ * per this codebase's per-feature siloing convention (see `MediaUrls` above) rather than importing
+ * `features/cattle/types`. */
+export interface MilkTankShed {
+  id: string;
+  name: string;
+  code: string;
+}
+
+/** `GET /settings/team` row shape (`team.service.ts#listTeam`, snake_case on the wire like the
+ * cattle `highlights` endpoint) — used only to resolve the audit log's `createdBy` user id to a
+ * display name/avatar; requires `team.read`, which a Worker role may not have. `useTeamMembersMap`
+ * treats a failed fetch as "no names resolved" rather than blocking the page — see that hook. */
+export interface MilkTankTeamMember {
+  id: string;
+  name: string;
+}

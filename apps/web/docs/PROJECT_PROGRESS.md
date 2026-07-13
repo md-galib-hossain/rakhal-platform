@@ -570,9 +570,11 @@
 - **Status:** `PARTIAL` — Medicine tab done (list/grid/add-edit/archive-restore/adjust-stock/photo,
   see `IN_FLIGHT.md` Recently Done). **Forage tab done** (2026-07-12, Figma-perfect: list/grid/
   add-edit/"Item Details" view/stock-update/archive-restore, see `IN_FLIGHT.md` Recently Done +
-  `CURRENT_STATE.md`). Semen/Equipment("Others")/Milk tanks still `TODO` — real backend controllers
-  exist for all three (`semen.controller.ts`/`equipment.controller.ts`/`milk-tank.controller.ts`)
-  but no Figma frames were given for them yet.
+  `CURRENT_STATE.md`). **Milk tab done** (2026-07-13, Figma-perfect: tank grid (Sellable/Withholding,
+  real fill-gauge), Add New Tank + Sync to Physical side modals, Statistics KPI, audit log table —
+  see `IN_FLIGHT.md` Recently Done + `CURRENT_STATE.md`). Semen/Equipment("Others") still `TODO` —
+  real backend controllers exist for both (`semen.controller.ts`/`equipment.controller.ts`) but no
+  Figma frames were given for them yet.
 
 #### RFE-035 — Finance (ledger + wizard + sub-pages)
 - **Lane:** `features/finance/**`, `app/(app)/finance/**` · **Design:** Figma finance frames

@@ -54,3 +54,38 @@ export const forageFormSchema = z.object({
   notes: z.string().trim().optional(),
 });
 export type ForageFormInput = z.infer<typeof forageFormSchema>;
+
+/** Mirrors `CreateMilkTankDto`/`UpdateMilkTankDto` (verified live against
+ * `rakhal-backend/src/modules/inventory/presentation/dto/milk-tank.dto.ts`) — one shape for both
+ * create and edit. `currentVolumeL` is create-only on the wire (edits go through the separate
+ * audited `adjust-volume` endpoint) but stays in the form so the create flow can collect a starting
+ * volume; `toPayload` in the dialog strips it for updates. No `coolingType` field — the Figma mock's
+ * dropdown has no backing column (see `types.ts` doc comment), not part of this schema. */
+export const milkTankFormSchema = z.object({
+  name: z.string().trim().min(1),
+  tankType: z.enum(["SELLABLE", "WITHHOLDING"]),
+  totalCapacityL: z.number().min(0),
+  currentVolumeL: z.number().min(0).optional(),
+  fatPct: z.number().min(0).max(100).optional(),
+  proteinPct: z.number().min(0).max(100).optional(),
+  snfPct: z.number().min(0).max(100).optional(),
+  smartSensorId: z.string().trim().optional(),
+  targetTempC: z.number().optional(),
+  agitationIntervalMin: z.number().int().min(0).optional(),
+  assignedShedId: z.string().trim().optional(),
+});
+export type MilkTankFormInput = z.infer<typeof milkTankFormSchema>;
+
+/** Figma "Sync Data to Physical" (734:31364) — not a real DTO of its own, resolves to
+ * `AdjustMilkTankVolumePayload` (`activityType: "ADJUSTMENT"`, `delta` computed from the tank's
+ * current volume vs the actual entered volume). The reason chips + free-text reason both feed
+ * `notes` since the backend has a single `notes` field, not a separate reason-code enum. */
+export const milkTankSyncFormSchema = z.object({
+  actualVolumeL: z.number().min(0),
+  fatPct: z.number().min(0).max(100).optional(),
+  proteinPct: z.number().min(0).max(100).optional(),
+  snfPct: z.number().min(0).max(100).optional(),
+  reason: z.enum(["BUYERS_SLIP", "TYPING_ERROR", "UNKNOWN_LOSS", "OTHERS"]),
+  notes: z.string().trim().optional(),
+});
+export type MilkTankSyncFormInput = z.infer<typeof milkTankSyncFormSchema>;

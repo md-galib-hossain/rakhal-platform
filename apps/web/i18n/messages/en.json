@@ -1118,6 +1118,126 @@
         "updatedToast": "Stock updated.",
         "genericError": "Something went wrong. Please try again."
       }
+    },
+    "milk": {
+      "physicalStorage": "Physical Storage",
+      "addNewTank": "Add New Tank",
+      "empty": {
+        "title": "No tanks yet",
+        "description": "Add your first sellable or withholding tank to start tracking milk storage."
+      },
+      "tankCard": {
+        "totalMilk": "Total Milk",
+        "badgeSellable": "Sellable",
+        "badgeWithholding": "Withholding",
+        "totalCapacity": "Total Capacity: {value}L",
+        "fat": "Fat",
+        "protein": "Protein",
+        "snf": "SNF",
+        "syncToPhysical": "Sync to Physical",
+        "routeSell": "Route/Sell",
+        "routeResolve": "Route/Resolve"
+      },
+      "form": {
+        "editTitle": "Edit Tank",
+        "createTitle": "Add New Tank",
+        "subtitle": "Add a new tank and sync its digital twin",
+        "close": "Close",
+        "tankType": "Tank Type",
+        "sellableTank": "Sellable Tank",
+        "withholdingTank": "Withholding Tank",
+        "tankInfo": "Tank Info",
+        "tankName": "Tank Name",
+        "tankNamePlaceholder": "e.g. \"Bulk Tank 3\"",
+        "coolingType": "Cooling Type",
+        "coolingTypeValue": "Direct Expansion",
+        "coolingTypeNote": "Not tracked yet — informational only",
+        "totalCapacity": "Total Capacity",
+        "litre": "Litre",
+        "smartSensorId": "Smart Sensor ID",
+        "smartSensorIdPlaceholder": "e.g. IoT-SN-991",
+        "assignedShed": "Assigned Shed",
+        "selectShed": "Select shed",
+        "calibrationSafety": "Calibration & Safety",
+        "targetTemperature": "Target Temperature",
+        "agitationInterval": "Agitation INT.",
+        "min": "MIN",
+        "milkInfo": "Milk Info",
+        "milkVolume": "Milk Volume",
+        "milkVolumeEditHint": "Change volume from Sync to Physical instead",
+        "fat": "Fat",
+        "protein": "Protein",
+        "snf": "SNF",
+        "cancel": "Cancel",
+        "save": "Save Changes",
+        "add": "Add",
+        "createdToast": "Milk tank added.",
+        "updatedToast": "Milk tank updated.",
+        "genericError": "Something went wrong. Please try again."
+      },
+      "sync": {
+        "title": "Sync Data to Physical",
+        "subtitle": "Update the data to match the actual volume in the tank right now.",
+        "close": "Close",
+        "badgeSellable": "Sellable Tank",
+        "badgeWithholding": "Withholding Tank",
+        "totalMilk": "Total Milk",
+        "smartSensorId": "Smart Sensor ID",
+        "totalCapacity": "Total Capacity",
+        "litreValue": "{value} Litres",
+        "litre": "Litre",
+        "temperature": "Temperature",
+        "agitationInterval": "Agitation INT.",
+        "minValue": "{value} Min",
+        "adjustMilkInfo": "Adjust Milk Info",
+        "actualMilkVolume": "Actual Milk Volume",
+        "fat": "Fat",
+        "protein": "Protein",
+        "snf": "SNF",
+        "whyTheDifference": "Why The Difference?",
+        "reasons": {
+          "BUYERS_SLIP": "Buyers Slip",
+          "TYPING_ERROR": "Typing Error",
+          "UNKNOWN_LOSS": "Unknown Loss",
+          "OTHERS": "Others"
+        },
+        "reasonPlaceholder": "Type your reason here",
+        "cancel": "Cancel",
+        "syncToPhysical": "Sync to Physical",
+        "noChangeError": "Enter an actual volume different from the current reading.",
+        "syncedToast": "Tank synced to physical reading.",
+        "genericError": "Something went wrong. Please try again."
+      },
+      "stats": {
+        "title": "Statistics",
+        "totalMilkStock": "Total Milk Stock",
+        "litreValue": "{value}L",
+        "sellable": "Sellable",
+        "withholding": "Withholding"
+      },
+      "auditLog": {
+        "title": "Milk Audit Log",
+        "columns": {
+          "no": "No.",
+          "date": "Date",
+          "activityType": "Activity Type",
+          "quantity": "Quantity",
+          "storage": "Storage",
+          "operator": "Operator"
+        },
+        "activityOptions": {
+          "COLLECTION": "Collection",
+          "SALE": "Sale",
+          "ADJUSTMENT": "Adjustment",
+          "TRANSFER": "Transfer",
+          "CALF_ALLOCATION": "Calf Allocation"
+        },
+        "unknownOperator": "Team member",
+        "empty": {
+          "title": "No activity yet",
+          "description": "Volume changes from collection, sale, or sync will show up here."
+        }
+      }
     }
   },
   "milk": {
