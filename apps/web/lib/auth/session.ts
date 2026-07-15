@@ -113,11 +113,57 @@ export async function loginWithBackend(email: string, password: string, farmId?:
   );
   if (!farms.envelope.success) throw new ApiError(farms.envelope.code, farms.envelope.message, 500);
 
-  if (farms.envelope.data.length === 0) return { status: "no-farms" };
+  if (farms.envelope.data.length === 0) {
+    // No real farm yet — persist the bootstrap-scoped session so the onboarding page can call
+    // `createFirstFarm` below (it needs an authenticated request + the refresh cookie to
+    // escalate to a real farm-scoped token once the farm exists).
+    if (!bootstrap.envelope.success) throw new ApiError(bootstrap.envelope.code, bootstrap.envelope.message, 401);
+    const bootstrapRefreshCookie = extractCookieValue(bootstrap.setCookies, "rakhal_refresh");
+    if (!bootstrapRefreshCookie) {
+      throw new ApiError("LOGIN_NO_REFRESH_COOKIE", "Backend did not issue a refresh cookie.", 500);
+    }
+    await setSessionCookies(bootstrap.envelope.data.accessToken, bootstrapRefreshCookie, bootstrap.envelope.data.user);
+    return { status: "no-farms" };
+  }
   if (farms.envelope.data.length === 1) {
     return loginWithBackend(email, password, farms.envelope.data[0].id);
   }
   return { status: "select-farm", farms: farms.envelope.data };
+}
+
+/**
+ * Onboarding step after a "no-farms" login: creates the user's first farm using the bootstrap
+ * session already persisted above, then escalates to a real farm-scoped token via `/auth/refresh`
+ * (no password re-entry needed — `FarmContextGuard` validates real membership on every farm-scoped
+ * route afterward, so trusting the requested `farmId` here is safe). Only callable from a Server
+ * Action or Route Handler.
+ */
+export async function createFirstFarm(name: string, description?: string): Promise<{ user: SessionUser }> {
+  const store = await cookies();
+  const accessToken = store.get(COOKIE_ACCESS)?.value;
+  const refreshCookieValue = store.get(COOKIE_REFRESH)?.value;
+  if (!accessToken || !refreshCookieValue) {
+    throw new ApiError("NO_SESSION", "Not authenticated.", 401);
+  }
+
+  const created = await backendFetch<{ id: string }>("/farms", {
+    method: "POST",
+    body: JSON.stringify({ name, description }),
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!created.envelope.success) throw new ApiError(created.envelope.code, created.envelope.message, 500);
+
+  const refreshed = await performBackendRefresh(refreshCookieValue, created.envelope.data.id);
+  if (!refreshed) {
+    throw new ApiError(
+      "FARM_ACTIVATE_FAILED",
+      "Farm created but activating the session failed. Please log in again.",
+      500,
+    );
+  }
+
+  await setSessionCookies(refreshed.accessToken, refreshed.refreshCookie, refreshed.user);
+  return { user: refreshed.user };
 }
 
 /** Single-flight refresh, cookie access via `next/headers`. Route Handler / Server Action only. */

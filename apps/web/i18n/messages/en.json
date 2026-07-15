@@ -165,6 +165,16 @@
     "notifications": "Notifications",
     "onboarding": "Onboarding"
   },
+  "onboarding": {
+    "createFarm": {
+      "title": "Set up your farm",
+      "subtitle": "Give your farm a name to get started — you can add more details later.",
+      "name": "Farm name",
+      "submit": "Create Farm",
+      "submitting": "Creating farm…",
+      "genericError": "Something went wrong. Please try again."
+    }
+  },
   "landing": {
     "meta": {
       "title": "Rakhal — Smart Dairy Management, From Cattle to Profit",

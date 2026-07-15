@@ -32,8 +32,8 @@ export function LoginForm() {
       } else if (result.status === "select-farm") {
         setFarms(result.farms);
         setCredentials(values);
-      } else {
-        setFormError(t("login.genericError"));
+      } else if (result.status === "no-farms") {
+        router.push("/onboarding");
       }
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : t("login.genericError"));
