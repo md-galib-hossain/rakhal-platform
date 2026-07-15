@@ -40,7 +40,7 @@ export function Footer() {
     <footer className="bg-sidebar text-sidebar-foreground">
       <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
         <div>
-          <Link href="/" className="block h-9 w-[150px] overflow-hidden rounded-lg">
+          <Link href="/" className="block h-9 w-[150px] overflow-hidden">
             <Image src={rakhalLogo} alt="Rakhal" className="h-full w-full object-cover object-left" />
           </Link>
           <p className="mt-4 max-w-xs text-sm text-sidebar-muted">{t("tagline")}</p>

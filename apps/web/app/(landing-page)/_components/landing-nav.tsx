@@ -12,7 +12,7 @@ export function LandingNav() {
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-border/60 bg-background/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-6">
-        <Link href="/" className="block h-9 w-[150px] overflow-hidden rounded-lg">
+        <Link href="/" className="block h-9 w-[150px] overflow-hidden">
           <Image src={rakhalLogo} alt="Rakhal" className="h-full w-full object-cover object-left" priority />
         </Link>
 
