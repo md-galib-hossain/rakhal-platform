@@ -7,7 +7,12 @@ import type {
   AdjustMilkTankVolumePayload,
   CreateForagePayload,
   CreateMedicinePayload,
+  CreateEquipmentPayload,
   CreateMilkTankPayload,
+  CreateSemenBatchPayload,
+  CreateSemenTankPayload,
+  Equipment,
+  EquipmentListFilters,
   Forage,
   ForageListFilters,
   Medicine,
@@ -18,9 +23,15 @@ import type {
   MilkTankListFilters,
   MilkTankShed,
   MilkTankTeamMember,
+  SemenBatch,
+  SemenBatchListFilters,
+  SemenTank,
+  UpdateEquipmentPayload,
   UpdateForagePayload,
   UpdateMedicinePayload,
   UpdateMilkTankPayload,
+  UpdateSemenBatchPayload,
+  UpdateSemenTankPayload,
 } from "./types";
 
 /** `/inventory/medicines*` — real backend routes (`medicine.controller.ts`), `inventory.*`-gated. */
@@ -117,5 +128,58 @@ export const inventoryApi = {
    * see `types.ts#MilkTankTeamMember`. */
   teamMembersForMilkAudit(): Promise<{ members: MilkTankTeamMember[] }> {
     return apiFetch<{ members: MilkTankTeamMember[] }>("/settings/team");
+  },
+
+  /** `/inventory/semen/tanks*` — real backend routes (`semen.controller.ts`). Returns the full
+   * (small) array directly, same as milk tanks — no cursor pager. */
+  listSemenTanks(): Promise<SemenTank[]> {
+    return apiFetch<SemenTank[]>("/inventory/semen/tanks");
+  },
+  createSemenTank(dto: CreateSemenTankPayload): Promise<SemenTank> {
+    return apiFetch<SemenTank>("/inventory/semen/tanks", { method: "POST", body: dto });
+  },
+  updateSemenTank(id: string, dto: UpdateSemenTankPayload): Promise<SemenTank> {
+    return apiFetch<SemenTank>(`/inventory/semen/tanks/${id}`, { method: "PATCH", body: dto });
+  },
+  archiveSemenTank(id: string): Promise<SemenTank> {
+    return apiFetch<SemenTank>(`/inventory/semen/tanks/${id}`, { method: "DELETE" });
+  },
+
+  /** `/inventory/semen/batches*` — real backend routes, cursor-paginated. */
+  listSemenBatches(filters: SemenBatchListFilters, cursor?: string): Promise<CursorPage<SemenBatch>> {
+    return apiFetchPage<SemenBatch>("/inventory/semen/batches", {
+      searchParams: { search: filters.search, tankId: filters.tankId, includeArchived: filters.includeArchived, cursor, limit: 20 },
+    });
+  },
+  createSemenBatch(dto: CreateSemenBatchPayload): Promise<SemenBatch> {
+    return apiFetch<SemenBatch>("/inventory/semen/batches", { method: "POST", body: dto });
+  },
+  updateSemenBatch(id: string, dto: UpdateSemenBatchPayload): Promise<SemenBatch> {
+    return apiFetch<SemenBatch>(`/inventory/semen/batches/${id}`, { method: "PATCH", body: dto });
+  },
+  archiveSemenBatch(id: string): Promise<SemenBatch> {
+    return apiFetch<SemenBatch>(`/inventory/semen/batches/${id}`, { method: "DELETE" });
+  },
+
+  /** `/inventory/equipment*` — real backend routes (`equipment.controller.ts`). */
+  listEquipment(filters: EquipmentListFilters, cursor?: string): Promise<CursorPage<Equipment>> {
+    return apiFetchPage<Equipment>("/inventory/equipment", {
+      searchParams: { search: filters.search, type: filters.type, cursor, limit: 20 },
+    });
+  },
+  findEquipment(id: string): Promise<Equipment> {
+    return apiFetch<Equipment>(`/inventory/equipment/${id}`);
+  },
+  createEquipment(dto: CreateEquipmentPayload): Promise<Equipment> {
+    return apiFetch<Equipment>("/inventory/equipment", { method: "POST", body: dto });
+  },
+  updateEquipment(id: string, dto: UpdateEquipmentPayload): Promise<Equipment> {
+    return apiFetch<Equipment>(`/inventory/equipment/${id}`, { method: "PATCH", body: dto });
+  },
+  archiveEquipment(id: string): Promise<Equipment> {
+    return apiFetch<Equipment>(`/inventory/equipment/${id}/archive`, { method: "PATCH" });
+  },
+  restoreEquipment(id: string): Promise<Equipment> {
+    return apiFetch<Equipment>(`/inventory/equipment/${id}/restore`, { method: "PATCH" });
   },
 };

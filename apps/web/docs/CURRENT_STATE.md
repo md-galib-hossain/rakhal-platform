@@ -1,8 +1,88 @@
 # Frontend — Current State
 
-**Last updated:** 2026-07-13 · **Completion:** Phase 0 done (RFE-001…010) + RFE-100 marketing landing +
+**Last updated:** 2026-07-16 · **Completion:** Phase 0 done (RFE-001…010) + RFE-100 marketing landing +
 Phase 1 RFE-020 (Dashboard) + RFE-021 (Cattle list) + RFE-022 (Cattle add/edit) + RFE-023 (Cattle detail)
-+ RFE-025 (Milk log) done
++ RFE-025 (Milk log) done · **Inventory tab now has all 5 categories built** (Medicine/Forage/Semen/Milk/Others)
+
+## Healthcare — Health Plan tab, Figma-perfect (2026-07-16, user request)
+Health Plan segment of the Health Management Center (previously a plain list, no Figma frame) is now
+built against 5 corrected Figma links the user supplied after 4 of their original 6 links turned out
+to be decorative "Screen Dimer" overlay layers, not real dialog content (byte-identical screenshots
+caught it, confirmed via `md5sum`). `HealthPlanCard` (title/planType chip/collapsible Action Sequence,
+dropped the mock's unbacked "Currently Active/Success Rate" footer), `CreateHealthPlanDialog` (3-step
+wizard, create+edit), `ApplyHealthPlanDialog` (2-step wizard — **no bulk-apply endpoint exists**, so
+"Confirm Schedule" loops a real create-case + apply-plan call per selected animal, flagged not faked).
+**Found + fixed a severe pre-existing backend bug while live-verifying**: `POST /health/cases` was
+500ing for every animal on Demo Farm — `HealthService#nextCaseCode`'s string-sort caseCode lookup broke
+once the demo seeder added `HC-SEED-*` rows (they sort ahead of `HC-00008` alphabetically), causing a
+permanent P2002 collision. Fixed in `rakhal-backend/src/modules/health/application/services/health.service.ts`
+(now computes the max suffix by regex over all `HC-`-prefixed codes, ignoring non-conforming ones) — this
+was silently breaking Report Sickness too, not just this new flow. **Verified LIVE end-to-end**: created
+a real plan, applied it to Golapi (RKL-020) through the full wizard, both `POST /health/cases` and
+`POST /health/cases/:id/apply-plan` fired 201 (network-trace confirmed), Sick Bay count and Herd Health
+Score updated live on the dashboard. Full writeup in `IN_FLIGHT.md` Recently Done.
+
+## Inventory — Others/Equipment tab, Figma-perfect (2026-07-16, user request)
+New `features/inventory/equipment-*.tsx` (last unbuilt `INVENTORY_TABS` entry, now `implemented: true`)
+matched to Figma "Inventory - Other - Table View" (`732:23402`) + "Add New Equipment" side modal
+(`734:26462`), built by mirroring the already-shipped Medicine tab 1:1 against the real
+`equipment.controller.ts`/`equipment.service.ts`. **Real gaps vs the mock, flagged not faked**:
+`Equipment` has no `imageUrl`/`location`/`warrantyExpiry` columns at all — static tinted-`Wrench`-icon
+fallback (no photo upload), Location/Warranty fields dropped entirely; mock's "Category" dropdown maps
+to the real `type: EquipmentType` enum. **Caught + fixed a real `MISSING_MESSAGE` i18n bug** during live
+verification (the type-filter's `typeOptions` translations weren't duplicated under `filters`, unlike
+Medicine's own already-correct pattern). **Verified LIVE**: table + grid views render 5 real seeded
+equipment rows, Add New Equipment sheet renders all sections with correct `rounded-2xl` photo-placeholder
+radius (no border-radius regression), type filter shows correct Bangla options post-fix, zero console
+errors. Gate green: typecheck/lint/18 tests. Full writeup: `IN_FLIGHT.md` Recently Done.
+
+## Healthcare — Figma-perfect (2026-07-15, user request)
+New `features/health/**` + `app/(app)/healthcare/page.tsx` (was a stub). Dashboard/sick-bay page
+matched to Figma `734:35601` (Key Metrics KPI card, Morbidity Trend chart, Health Management Center's
+Sick Bay/Task Hub/Health Plan tabs — only Sick Bay has a Figma frame, the other two are plain real
+lists, flagged) + the Case Management sheet's 4 tab states (`734:37459`/`38378`/`39319`/`40144` — Log
+Treatment/Health Update/Close Case/Log Mortality), all against the real
+`health.controller.ts`/`health.service.ts`. "Report Sickness" and the header "Log Treatment" shortcut
+have no Figma frame — small non-Figma pickers instead of dead buttons. New `Chip` `purple` variant.
+**Verified LIVE** (real 10-case sick bay list, 63% herd health score, correct progress rings/diagnosis
+chip colors) via DOM text extraction (screenshot tool down). **Not fully verified**: the Case sheet's 3
+submit flows — the shared dev server hung app-wide (`/cattle` too) partway through this session's
+click-through testing, flagged as shared-server contention, not a code defect (full writeup +
+stack-trace evidence in `IN_FLIGHT.md`'s Recently Done entry). Gate green: typecheck/lint/18 tests.
+
+## Healthcare — Task Hub tab, Figma-perfect (2026-07-15, follow-up user request)
+The Task Hub tab (previously a plain list, no Figma frame) is now built against 4 frames the user
+supplied: main layout `734:40931`, "Record Vaccination" batch drawer `734:43007`, "Task Reschedule"
+`734:44187`, "Task List" day drill-in `734:45177`. Real `HealthTask` rows (one per animal) are grouped
+client-side into per-plan "Scheduled Task Cards" (new `features/health/task-grouping.ts`) since the
+backend has no multi-animal batch-task record — every aggregate shown is real, not fabricated. New
+calendar strip (`GET /health/tasks/calendar`, real overdue/pending dot indicators), filter tabs
+(All/Overdue/Today/Upcoming, real counts), reschedule dialog (loops `POST /health/tasks/:id/reschedule`),
+and a batch-record dialog (loops the real `POST /health/cases/:id/log-treatment`, one call per selected
+animal — the same endpoint Case Management's own Log Treatment tab uses, which server-side completes
+the task and fires the real AQR event). Fixed a real cache-invalidation bug found while building this:
+completing a task via Case Management never refreshed the Task Hub's own queries. **Also fixed a real
+pre-existing hydration bug** (button-in-button) in `features/inventory/components/semen-tank-card.tsx`,
+spotted via console while verifying this page. **Verified LIVE end-to-end**: tab counts sum correctly,
+a real reschedule and a real batch treatment both round-tripped and updated the UI live — full writeup
+in `IN_FLIGHT.md` Recently Done. Gate green: typecheck/lint/18 tests.
+
+## Inventory — Semen tab, Figma-perfect (2026-07-15, user request)
+Full LN2-tank + straw-batch CRUD (`features/inventory/semen-*`) matched to the real Figma frames
+("Inventory - Semen" 732:20158, "Add New Tank" 732:21955, "Tank Details" 732:22640, "Add Straw"
+732:23249, file `SCfMPdxP6vgW1uTxfqCtz7`), backed by the real `semen.controller.ts`/`semen.service.ts`
++ `SemenTank`/`SemenBatch` Prisma models — a tank's straw stock is derived from its batches, not a
+tank-owned field. `INVENTORY_TABS.semen.implemented` flipped to `true`. **Real gaps vs the mock,
+flagged not faked**: no "Straw in Stock" field on tank create (derived-only); "Tank Details"'
+"Adjust Straw Stock" repurposed into a real "Update Readings" (temp/LN2) quick-form since stock has
+no tank-level endpoint; "Add Straw" gained a required Batch/Straw Name field the mock didn't picture;
+no tank-edit/archive UI (matches Milk's own precedent). **Verified LIVE end-to-end** against the real
+backend: real seeded `LN2 Tank 1` (42/120 straws, 3 batches incl. one correctly rendering in
+destructive red for low straw count) plus a real created-then-archived test tank (`POST` 201 →
+`DELETE` 200) — full writeup in `IN_FLIGHT.md` Recently Done, including a caught-and-fixed browser-pane
+tunnel leak to the real `farm.rakhal.app` staging site (caused by this session's own new proxy.ts
+marketing→farm-host redirect, not a bug — just required a local `.env` override to test against
+localhost). Gate green: typecheck/lint/18 unit tests.
 
 ## Inventory — Milk tab, Figma-perfect (2026-07-13, user request)
 Full tank CRUD + volume-sync + audit log (`features/inventory/milk-*`) matched to the real Figma

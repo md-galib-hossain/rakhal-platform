@@ -1250,6 +1250,209 @@
           "description": "সংগ্রহ, বিক্রয় বা সিঙ্ক থেকে পরিমাণ পরিবর্তন এখানে দেখা যাবে।"
         }
       }
+    },
+    "semen": {
+      "physicalStorage": "ফিজিক্যাল স্টোরেজ",
+      "addNewTank": "নতুন ট্যাংক যোগ করুন",
+      "activeStrawBatches": "সক্রিয় স্ট্র ব্যাচ",
+      "totalBatch": "মোট ব্যাচ: {count}",
+      "searchPlaceholder": "নাম বা আইডি দিয়ে ব্যাচ খুঁজুন",
+      "addStraw": "স্ট্র যোগ করুন",
+      "emptyTanks": {
+        "title": "এখনো কোনো ট্যাংক নেই",
+        "description": "সিমেন স্টোরেজ ট্র্যাক করা শুরু করতে আপনার প্রথম LN2 ট্যাংক যোগ করুন।"
+      },
+      "emptyBatches": {
+        "title": "এখনো কোনো স্ট্র ব্যাচ নেই",
+        "description": "সিমেন স্টক ট্র্যাক করা শুরু করতে আপনার প্রথম স্ট্র ব্যাচ নিবন্ধন করুন।"
+      },
+      "tankCard": {
+        "badgeStable": "স্থিতিশীল",
+        "badgeNeedsRefill": "রিফিল প্রয়োজন",
+        "locatedAt": "{location}-এ অবস্থিত",
+        "noLocation": "কোনো স্টোরেজ লোকেশন সেট করা নেই",
+        "totalStraw": "মোট স্ট্র",
+        "currentTemp": "বর্তমান তাপমাত্রা (°C)",
+        "ln2Level": "LN2 লেভেল (%)",
+        "viewDetails": "বিস্তারিত দেখুন"
+      },
+      "tankForm": {
+        "createTitle": "নতুন ট্যাংক যোগ করুন",
+        "editTitle": "ট্যাংক সম্পাদনা করুন",
+        "subtitle": "আপনার স্টোরেজ অবকাঠামোতে একটি নতুন লিকুইড নাইট্রোজেন ডিওয়ার যোগ করুন।",
+        "close": "বন্ধ করুন",
+        "tankInfo": "ট্যাংক তথ্য",
+        "tankName": "ট্যাংকের নাম",
+        "tankNamePlaceholder": "যেমন \"বাল্ক ট্যাংক ৩\"",
+        "modelManufacturer": "মডেল/প্রস্তুতকারক",
+        "modelManufacturerPlaceholder": "যেমন 'MVE XC 20'",
+        "strawCapacity": "স্ট্র ধারণক্ষমতা",
+        "numCanisters": "ক্যানিস্টার সংখ্যা",
+        "numCanes": "কেইন সংখ্যা",
+        "numGoblets": "গবলেট সংখ্যা",
+        "storageLocation": "স্টোরেজ অবস্থান",
+        "storageLocationPlaceholder": "যেমন 'ওয়্যারহাউস এ'",
+        "calibrationSafety": "ক্যালিব্রেশন ও নিরাপত্তা",
+        "currentTemperature": "বর্তমান তাপমাত্রা",
+        "ln2Level": "LN2 লেভেল",
+        "cancel": "বাতিল",
+        "save": "পরিবর্তন সংরক্ষণ করুন",
+        "add": "যোগ করুন",
+        "createdToast": "সিমেন ট্যাংক যোগ করা হয়েছে।",
+        "updatedToast": "সিমেন ট্যাংক আপডেট করা হয়েছে।",
+        "genericError": "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"
+      },
+      "tankDetails": {
+        "title": "ট্যাংকের বিবরণ",
+        "close": "বন্ধ করুন",
+        "badgeStable": "স্থিতিশীল",
+        "badgeNeedsRefill": "রিফিল প্রয়োজন",
+        "strawInStock": "স্টকে স্ট্র",
+        "modelManufacturer": "মডেল/প্রস্তুতকারক",
+        "strawCapacity": "স্ট্র ধারণক্ষমতা",
+        "numCanisters": "ক্যানিস্টার সংখ্যা",
+        "numCanes": "কেইন সংখ্যা",
+        "numGoblets": "গবলেট সংখ্যা",
+        "storageLocation": "স্টোরেজ অবস্থান",
+        "currentTemperature": "বর্তমান তাপমাত্রা",
+        "ln2Level": "LN2 লেভেল",
+        "updateReadings": "রিডিং আপডেট করুন",
+        "cancel": "বাতিল",
+        "updateStock": "স্টক আপডেট করুন",
+        "updatedToast": "ট্যাংক রিডিং আপডেট করা হয়েছে।",
+        "genericError": "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"
+      },
+      "batchCard": {
+        "menu": "রো অ্যাকশন",
+        "edit": "সম্পাদনা",
+        "archive": "আর্কাইভ",
+        "bullId": "ষাঁড়ের আইডি",
+        "breed": "জাত",
+        "strawColor": "স্ট্র রঙ",
+        "tank": "ট্যাংক",
+        "canister": "ক্যানিস্টার",
+        "cane": "কেইন",
+        "goblet": "গবলেট",
+        "strawLeft": "অবশিষ্ট স্ট্র",
+        "archivedToast": "স্ট্র ব্যাচ আর্কাইভ করা হয়েছে।",
+        "genericError": "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।",
+        "archiveDialog": {
+          "title": "{name} আর্কাইভ করুন",
+          "description": "এটি সক্রিয় ইনভেন্টরি তালিকা থেকে স্ট্র ব্যাচটি সরিয়ে দেয়।",
+          "confirm": "আর্কাইভ",
+          "cancel": "বাতিল"
+        }
+      },
+      "batchForm": {
+        "createTitle": "স্ট্র যোগ করুন",
+        "editTitle": "স্ট্র ব্যাচ সম্পাদনা করুন",
+        "subtitle": "নতুন সিমেন ব্যাচের জেনেটিক ও স্টোরেজ বিবরণ লিখুন।",
+        "close": "বন্ধ করুন",
+        "batchInfo": "ব্যাচ তথ্য",
+        "batchName": "ব্যাচ/স্ট্র নাম",
+        "batchNamePlaceholder": "যেমন \"হলস্টেইন ফ্রিজিয়ান প্রিমিয়াম\"",
+        "bullId": "ষাঁড়ের আইডি/নাম",
+        "bullIdPlaceholder": "যেমন \"HF-9982\"",
+        "breed": "জাত",
+        "breedPlaceholder": "যেমন \"হলস্টেইন ফ্রিজিয়ান\"",
+        "batchCode": "ব্যাচ আইডি",
+        "batchCodePlaceholder": "যেমন \"SM-2025-HF-01\"",
+        "strawColor": "স্ট্র রঙ",
+        "selectColor": "রঙ নির্বাচন করুন",
+        "initialVitality": "প্রাথমিক ভাইটালিটি",
+        "strawInventory": "স্ট্র ইনভেন্টরি",
+        "strawQuantity": "স্ট্র পরিমাণ",
+        "fatherId": "পিতার আইডি",
+        "fatherIdPlaceholder": "যেমন \"HF-1212\"",
+        "motherId": "মাতার আইডি",
+        "motherIdPlaceholder": "যেমন \"HFW-1234\"",
+        "storageLocationInfo": "স্টোরেজ অবস্থানের তথ্য",
+        "tank": "ট্যাংক",
+        "selectTank": "ট্যাংক নির্বাচন করুন",
+        "canister": "ক্যানিস্টার",
+        "canisterPlaceholder": "যেমন \"ক্যানিস্টার এ\"",
+        "cane": "কেইন",
+        "canePlaceholder": "যেমন \"কেইন ০৫\"",
+        "goblet": "গবলেট",
+        "gobletPlaceholder": "যেমন \"গবলেট ১\"",
+        "note": "নোট",
+        "notesPlaceholder": "এখানে অতিরিক্ত তথ্য লিখুন যেমন 'উচ্চ পেডিগ্রি, অতিরিক্ত যত্নে পরিচালনা করুন'",
+        "cancel": "বাতিল",
+        "save": "পরিবর্তন সংরক্ষণ করুন",
+        "add": "স্ট্র নিবন্ধন করুন",
+        "createdToast": "স্ট্র ব্যাচ যোগ করা হয়েছে।",
+        "updatedToast": "স্ট্র ব্যাচ আপডেট করা হয়েছে।",
+        "genericError": "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"
+      }
+    },
+    "equipment": {
+      "piece": "টি",
+      "empty": {
+        "title": "কোনো আইটেম পাওয়া যায়নি",
+        "description": "আপনার সার্চ বা ফিল্টার সমন্বয় করে দেখুন।"
+      },
+      "archivedToast": "আইটেম সংরক্ষণাগারভুক্ত হয়েছে।",
+      "genericError": "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।",
+      "archiveDialog": {
+        "title": "{name} সংরক্ষণাগারভুক্ত করুন",
+        "description": "এটি আইটেমটিকে সক্রিয় ইনভেন্টরি তালিকা থেকে সরিয়ে দেয়।",
+        "confirm": "সংরক্ষণাগারভুক্ত করুন",
+        "cancel": "বাতিল"
+      },
+      "columns": {
+        "no": "নং",
+        "name": "আইটেমের নাম",
+        "assetId": "অ্যাসেট আইডি",
+        "type": "ধরন",
+        "costPerUnit": "প্রতি ইউনিট খরচ",
+        "purchaseDate": "ক্রয়ের তারিখ",
+        "stock": "মজুদ",
+        "action": "পদক্ষেপ"
+      },
+      "typeOptions": {
+        "EQUIPMENT": "সরঞ্জাম",
+        "MACHINERY": "যন্ত্রপাতি",
+        "TOOL": "টুল",
+        "SUPPLY": "সরবরাহ",
+        "OTHER": "অন্যান্য"
+      },
+      "filters": {
+        "searchPlaceholder": "নাম দিয়ে আইটেম খুঁজুন",
+        "type": "ধরন",
+        "typeOptions": {
+          "EQUIPMENT": "সরঞ্জাম",
+          "MACHINERY": "যন্ত্রপাতি",
+          "TOOL": "টুল",
+          "SUPPLY": "সরবরাহ",
+          "OTHER": "অন্যান্য"
+        }
+      },
+      "form": {
+        "add": "আইটেম যোগ করুন",
+        "createTitle": "নতুন সরঞ্জাম যোগ করুন",
+        "editTitle": "সরঞ্জাম সম্পাদনা করুন",
+        "close": "বন্ধ করুন",
+        "basicInfo": "মৌলিক তথ্য",
+        "itemName": "আইটেমের নাম",
+        "currentStock": "বর্তমান মজুদ",
+        "unit": "একক",
+        "unitPlaceholder": "যেমন: পিস, সেট, বক্স",
+        "costPerUnit": "প্রতি ইউনিট খরচ (CPU)",
+        "noPhoto": "কোনো ছবি নেই",
+        "details": "বিস্তারিত",
+        "category": "বিভাগ",
+        "assetId": "অ্যাসেট আইডি",
+        "stockExpiry": "মজুদ",
+        "purchaseDate": "ক্রয়ের তারিখ",
+        "lowStockAlert": "স্বল্প মজুদ সতর্কতা",
+        "note": "নোট",
+        "additionalNotes": "অতিরিক্ত নোট",
+        "cancel": "বাতিল",
+        "save": "পরিবর্তন সংরক্ষণ করুন",
+        "createdToast": "আইটেম যোগ করা হয়েছে।",
+        "updatedToast": "আইটেম আপডেট করা হয়েছে।",
+        "genericError": "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"
+      }
     }
   },
   "milk": {
@@ -1339,6 +1542,436 @@
       "markReviewed": "পর্যালোচিত হিসেবে চিহ্নিত করুন",
       "reviewedToast": "অস্বাভাবিকতা পর্যালোচিত হিসেবে চিহ্নিত হয়েছে।",
       "reviewError": "পর্যালোচনা সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।"
+    }
+  },
+  "health": {
+    "kpis": {
+      "title": "মূল সূচক",
+      "error": "স্বাস্থ্য ড্যাশবোর্ড লোড করা যায়নি।",
+      "herdHealthScore": "পালের স্বাস্থ্য স্কোর",
+      "sickBay": "সিক বে",
+      "medicineExpense": "ওষুধের খরচ",
+      "safetyStop": "সুরক্ষা স্টপ",
+      "animalsHealthy": "{healthy}/{total} টি পশু সুস্থ আছে।",
+      "activeWithholding": "সক্রিয় আটকানো সময়কাল"
+    },
+    "morbidityTrend": {
+      "title": "সময়ের সাথে অসুস্থতার ট্রেন্ড",
+      "error": "অসুস্থতার ট্রেন্ড লোড করা যায়নি।",
+      "legend": "অসুস্থ কেস",
+      "periodLabel": "সর্বমোট সময়",
+      "decreasing": "কমছে",
+      "increasing": "বাড়ছে"
+    },
+    "managementCenter": {
+      "title": "স্বাস্থ্য ব্যবস্থাপনা কেন্দ্র",
+      "tabs": {
+        "sickBay": "সিক বে",
+        "taskHub": "টাস্ক হাব",
+        "healthPlan": "স্বাস্থ্য পরিকল্পনা"
+      },
+      "searchPlaceholder": "গরুর আইডি বা নাম দিয়ে খুঁজুন",
+      "reportSickness": "অসুস্থতা রিপোর্ট করুন",
+      "logTreatment": "চিকিৎসা লগ করুন"
+    },
+    "sickBay": {
+      "columns": {
+        "name": "নাম",
+        "shed": "শেড",
+        "diagnosis": "রোগ নির্ণয়",
+        "treatment": "চিকিৎসা",
+        "progress": "অগ্রগতি",
+        "nextDose": "পরবর্তী ডোজ",
+        "action": "পদক্ষেপ"
+      },
+      "today": "আজ",
+      "tomorrow": "আগামীকাল",
+      "manageCase": "কেস পরিচালনা করুন",
+      "error": "সিক বে তালিকা লোড করা যায়নি।",
+      "emptyTitle": "কোনো সক্রিয় স্বাস্থ্য কেস নেই",
+      "emptyDescription": "এখানে ট্র্যাকিং শুরু করতে একটি অসুস্থতা রিপোর্ট করুন।"
+    },
+    "taskHub": {
+      "error": "স্বাস্থ্য টাস্ক লোড করা যায়নি।",
+      "emptyTitle": "কোনো স্বাস্থ্য টাস্ক নেই",
+      "emptyDescription": "একটি কেসে স্বাস্থ্য পরিকল্পনা প্রয়োগ করলে টাস্ক এখানে দেখা যাবে।",
+      "status": {
+        "PENDING": "বাকি আছে",
+        "COMPLETED": "সম্পন্ন",
+        "MISSED": "মিস হয়েছে",
+        "OVERDUE": "বিলম্বিত",
+        "SKIPPED": "বাদ দেওয়া হয়েছে",
+        "RESCHEDULED": "পুনঃনির্ধারিত"
+      },
+      "tabs": {
+        "all": "সব",
+        "overdue": "বিলম্বিত",
+        "today": "আজকের সময়সূচি",
+        "upcoming": "আসন্ন"
+      },
+      "calendar": {
+        "prevMonth": "আগের মাস",
+        "nextMonth": "পরের মাস",
+        "weekday": {
+          "sun": "র",
+          "mon": "সো",
+          "tue": "ম",
+          "wed": "বু",
+          "thu": "বৃ",
+          "fri": "শু",
+          "sat": "শ"
+        }
+      },
+      "card": {
+        "category": {
+          "medical": "মেডিকেল",
+          "prevention": "প্রতিরোধ",
+          "general": "সাধারণ"
+        },
+        "due": "নির্ধারিত সময়",
+        "dueToday": "আজ",
+        "dueYesterday": "গতকাল",
+        "dueTomorrow": "আগামীকাল",
+        "medicine": "ওষুধ",
+        "dose": "ডোজ",
+        "action": "কাজ",
+        "progress": "অগ্রগতি",
+        "animalCount": "{completed}/{total} পশু",
+        "reschedule": "পুনঃনির্ধারণ",
+        "recordBatch": "ব্যাচ রেকর্ড করুন",
+        "resumeRecording": "রেকর্ডিং চালিয়ে যান",
+        "completed": "সম্পন্ন"
+      },
+      "reschedule": {
+        "title": "টাস্ক সময়সূচি:",
+        "close": "বন্ধ করুন",
+        "currentDate": "বর্তমান তারিখ",
+        "newDate": "নতুন তারিখ",
+        "cancel": "বাতিল",
+        "confirm": "নিশ্চিত করুন",
+        "noChangeError": "বর্তমান তারিখের চেয়ে ভিন্ন একটি তারিখ বেছে নিন।",
+        "rescheduledToast": "{count, plural, one {১টি টাস্ক} other {#টি টাস্ক}} পুনঃনির্ধারণ করা হয়েছে।",
+        "genericError": "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।",
+        "category": {
+          "medical": "মেডিকেল",
+          "prevention": "প্রতিরোধ",
+          "general": "সাধারণ"
+        }
+      },
+      "recordBatch": {
+        "title": "রেকর্ড: {name}",
+        "close": "বন্ধ করুন",
+        "due": "নির্ধারিত সময়",
+        "medicine": "ওষুধ",
+        "dose": "ডোজ",
+        "route": "প্রয়োগের পদ্ধতি",
+        "action": "কাজ",
+        "selectedAnimals": "নির্বাচিত পশু",
+        "selectAll": "সব নির্বাচন করুন",
+        "deselectAll": "সব বাতিল করুন",
+        "searchPlaceholder": "গরুর আইডি দিয়ে খুঁজুন",
+        "noAnimals": "আপনার খোঁজের সাথে মিলে এমন কোনো পশু নেই।",
+        "selectedCount": "নির্বাচিত: {count} পশু",
+        "totalDosage": "মোট ডোজ: {value}",
+        "aqrImpact": "AQR প্রভাব:",
+        "cancel": "বাতিল",
+        "confirm": "নিশ্চিত করুন",
+        "noneSelectedError": "অন্তত একটি পশু নির্বাচন করুন।",
+        "recordedToast": "{count, plural, one {১টি চিকিৎসা} other {#টি চিকিৎসা}} লগ করা হয়েছে।",
+        "genericError": "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।",
+        "category": {
+          "medical": "মেডিকেল",
+          "prevention": "প্রতিরোধ",
+          "general": "সাধারণ"
+        }
+      }
+    },
+    "healthPlan": {
+      "error": "স্বাস্থ্য পরিকল্পনা লোড করা যায়নি।",
+      "emptyTitle": "কোনো স্বাস্থ্য পরিকল্পনা নেই",
+      "emptyDescription": "এই খামারের জন্য সেট করা স্বাস্থ্য পরিকল্পনা টেমপ্লেট এখানে দেখা যাবে।",
+      "stepsCount": "{count} টি ধাপ",
+      "searchPlaceholder": "নাম দিয়ে স্বাস্থ্য পরিকল্পনা খুঁজুন",
+      "createNewPlan": "নতুন স্বাস্থ্য পরিকল্পনা তৈরি করুন",
+      "card": {
+        "type": {
+          "medical": "মেডিকেল",
+          "prevention": "প্রতিরোধ",
+          "breeding": "প্রজনন",
+          "general": "সাধারণ"
+        },
+        "actionSteps": "{count} টি কর্ম ধাপ",
+        "cycleLength": "{count} দিনের চক্র",
+        "actionSequence": "কর্ম ক্রম",
+        "day": "দিন {day}",
+        "showMore": "আরও দেখুন",
+        "showLess": "কম দেখুন",
+        "editPlan": "পরিকল্পনা সম্পাদনা",
+        "apply": "প্রয়োগ করুন"
+      },
+      "createDialog": {
+        "title": "নতুন স্বাস্থ্য পরিকল্পনা তৈরি করুন",
+        "close": "বন্ধ করুন",
+        "stepOf": "ধাপ {step} এর {total}",
+        "step1Title": "স্বাস্থ্য পরিকল্পনার ধরন নির্বাচন করুন",
+        "step1Subtitle": "আপনি কোন ধরনের স্বাস্থ্য পরিকল্পনা তৈরি করতে চান তা বেছে নিন",
+        "planTypes": {
+          "treatment": "চিকিৎসা",
+          "treatmentDesc": "চিকিৎসা ও পুনরুদ্ধার প্রোটোকল।",
+          "breeding": "প্রজনন",
+          "breedingDesc": "প্রজনন চক্র ব্যবস্থাপনা।",
+          "prevention": "প্রতিরোধ",
+          "preventionDesc": "টিকাদান ও স্বাস্থ্য রক্ষণাবেক্ষণ।"
+        },
+        "step2Title": "স্বাস্থ্য পরিকল্পনার বিবরণ",
+        "step2Subtitle": "এই পরিকল্পনার মৌলিক তথ্য নির্ধারণ করুন",
+        "planName": "পরিকল্পনার নাম",
+        "planNamePlaceholder": "যেমন ৫ দিনের ম্যাস্টাইটিস চিকিৎসা",
+        "category": "বিভাগ",
+        "selectCategory": "বিভাগ নির্বাচন করুন",
+        "categoryOptions": {
+          "TREATMENT": "চিকিৎসা",
+          "PREVENTION": "প্রতিরোধ",
+          "BREEDING": "প্রজনন",
+          "VACCINATION": "টিকাদান",
+          "DEWORMING": "কৃমিনাশক",
+          "ROUTINE": "নিয়মিত"
+        },
+        "cycleLength": "চক্রের দৈর্ঘ্য",
+        "days": "দিন",
+        "description": "বিবরণ",
+        "descriptionPlaceholder": "যেমন ক্লিনিক্যাল ম্যাস্টাইটিসের জন্য নিবিড় অ্যান্টিবায়োটিক চিকিৎসা",
+        "step3Title": "কর্ম ক্রম নির্মাতা",
+        "step3Subtitle": "প্রতিদিন কী ঘটবে তা নির্ধারণ করুন",
+        "day": "দিন",
+        "action": "কাজ",
+        "actionPlaceholder": "যেমন ৫মিলি পেনিসিলিন জি ইনজেকশন (IM)",
+        "medicine": "ওষুধ",
+        "medicinePlaceholder": "যেমন পেনিসিলিন জি",
+        "dose": "ডোজ",
+        "removeDay": "দিন সরান",
+        "addAnotherDay": "আরেকটি দিন যোগ করুন",
+        "cancel": "বাতিল",
+        "back": "পেছনে",
+        "continue": "চালিয়ে যান",
+        "deployPlan": "পরিকল্পনা চালু করুন",
+        "saveChanges": "পরিবর্তন সংরক্ষণ করুন",
+        "createdToast": "স্বাস্থ্য পরিকল্পনা তৈরি করা হয়েছে।",
+        "updatedToast": "স্বাস্থ্য পরিকল্পনা আপডেট করা হয়েছে।",
+        "genericError": "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"
+      },
+      "applyDialog": {
+        "title": "{name} প্রয়োগ করুন",
+        "close": "বন্ধ করুন",
+        "stepOf": "ধাপ {step} এর {total}",
+        "step1Title": "লক্ষ্য পশু নির্বাচন করুন",
+        "step1Subtitle": "যে পশুতে এই চিকিৎসা প্রয়োগ করতে চান তা নির্বাচন করুন",
+        "selectionMethod": "নির্বাচন পদ্ধতি",
+        "selectionMethods": {
+          "shed": "শেড",
+          "batch": "ব্যাচ",
+          "individual": "স্বতন্ত্র"
+        },
+        "selectShed": "শেড নির্বাচন করুন",
+        "selectShedPlaceholder": "শেড নির্বাচন করুন",
+        "selectBatch": "ব্যাচ নির্বাচন করুন",
+        "selectBatchPlaceholder": "ব্যাচ নির্বাচন করুন",
+        "searchAnimals": "পশু খুঁজুন",
+        "searchAnimalsPlaceholder": "গরুর আইডি বা নাম দিয়ে খুঁজুন",
+        "loadingAnimals": "পশু লোড হচ্ছে…",
+        "noAnimals": "কোনো পশু পাওয়া যায়নি।",
+        "excludePregnant": "গর্ভবতী পশু বাদ দিন",
+        "administrationRoute": "প্রয়োগের পদ্ধতি",
+        "startDate": "শুরুর তারিখ",
+        "step2Title": "সময়সূচি পূর্বরূপ",
+        "step2Subtitle": "আপনার দিনভিত্তিক সময়সূচি দেখুন",
+        "day": "দিন",
+        "action": "কাজ",
+        "medicine": "ওষুধ",
+        "dose": "ডোজ",
+        "cancel": "বাতিল",
+        "back": "পেছনে",
+        "continue": "চালিয়ে যান",
+        "confirmSchedule": "সময়সূচি নিশ্চিত করুন",
+        "noneSelectedError": "অন্তত একটি পশু নির্বাচন করুন।",
+        "appliedToast": "{count, plural, one {১টি পশু} other {#টি পশু}} এই পরিকল্পনায় অন্তর্ভুক্ত করা হয়েছে।",
+        "genericError": "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"
+      }
+    },
+    "symptoms": {
+      "limpingLameness": "খোঁড়ানো/পঙ্গুত্ব",
+      "coughing": "কাশি",
+      "diarrhea": "ডায়রিয়া",
+      "eyeDischarge": "চোখ দিয়ে স্রাব",
+      "udderSwelling": "স্তনে ফোলাভাব",
+      "nasalDischarge": "নাক দিয়ে স্রাব",
+      "fever": "জ্বর"
+    },
+    "reportSickness": {
+      "title": "অসুস্থতা রিপোর্ট করুন",
+      "submit": "অসুস্থতা রিপোর্ট করুন",
+      "cattle": "গবাদি পশু",
+      "diagnosis": "রোগ নির্ণয়",
+      "diagnosisPlaceholder": "যেমন: ম্যাস্টাইটিস",
+      "diagnosisType": "রোগের ধরন",
+      "priority": "অগ্রাধিকার",
+      "notes": "নোট",
+      "notesPlaceholder": "অতিরিক্ত কোনো নোট",
+      "createdToast": "স্বাস্থ্য কেস রিপোর্ট করা হয়েছে।",
+      "genericError": "অসুস্থতা রিপোর্ট করা যায়নি। আবার চেষ্টা করুন।",
+      "diagnosisTypeValue": {
+        "DISEASE": "রোগ",
+        "INJURY": "আঘাত",
+        "VACCINATION": "টিকাদান",
+        "DEWORMING": "কৃমিনাশক",
+        "ROUTINE_CHECKUP": "নিয়মিত চেকআপ",
+        "PREVENTIVE": "প্রতিরোধমূলক",
+        "BREEDING_RELATED": "প্রজনন সম্পর্কিত",
+        "OTHER": "অন্যান্য"
+      },
+      "priorityValue": {
+        "LOW": "কম",
+        "MEDIUM": "মাঝারি",
+        "HIGH": "উচ্চ",
+        "CRITICAL": "গুরুতর"
+      }
+    },
+    "selectCase": {
+      "title": "একটি কেস নির্বাচন করুন",
+      "description": "চিকিৎসা লগ করতে একটি সক্রিয় কেস বেছে নিন।",
+      "searchPlaceholder": "গরুর আইডি বা রোগ নির্ণয় দিয়ে খুঁজুন…",
+      "searching": "খোঁজা হচ্ছে…",
+      "noCases": "কোনো সক্রিয় কেস পাওয়া যায়নি।"
+    },
+    "caseSheet": {
+      "title": "কেস ব্যবস্থাপনা",
+      "cancel": "বাতিল",
+      "saveUpdate": "আপডেট সংরক্ষণ করুন",
+      "saving": "সংরক্ষণ হচ্ছে…",
+      "loadError": "এই কেসটি লোড করা যায়নি।",
+      "genericError": "সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।",
+      "tabs": {
+        "logTreatment": "চিকিৎসা লগ",
+        "healthUpdate": "স্বাস্থ্য আপডেট",
+        "closeCase": "কেস বন্ধ করুন"
+      },
+      "header": {
+        "location": "অবস্থান",
+        "diagnosis": "রোগ নির্ণয়",
+        "priority": "অগ্রাধিকার",
+        "progress": "অগ্রগতি",
+        "lastDose": "শেষ ডোজ",
+        "nextDose": "পরবর্তী ডোজ",
+        "none": "—",
+        "safetyWithholdingActive": "সুরক্ষা আটকানো সক্রিয়: {date} তারিখে নিরাপদ",
+        "priorityValue": {
+          "LOW": "কম",
+          "MEDIUM": "মাঝারি",
+          "HIGH": "উচ্চ",
+          "CRITICAL": "গুরুতর"
+        }
+      },
+      "logTreatment": {
+        "selectMedicine": "ওষুধ নির্বাচন করুন",
+        "selectMedicinePlaceholder": "ওষুধ নির্বাচন করুন",
+        "searchMedicine": "ওষুধ খুঁজুন…",
+        "searching": "খোঁজা হচ্ছে…",
+        "noMedicines": "কোনো ওষুধ পাওয়া যায়নি।",
+        "stock": "মজুদ",
+        "clearMedicine": "ওষুধ মুছুন",
+        "administrationRoute": "প্রয়োগের পদ্ধতি",
+        "route": {
+          "IM": "IM",
+          "IV": "IV",
+          "SC": "SC",
+          "ORAL": "মুখে"
+        },
+        "doseAmount": "ডোজের পরিমাণ",
+        "decreaseDose": "ডোজ কমান",
+        "increaseDose": "ডোজ বাড়ান",
+        "administeredBy": "প্রয়োগকারী",
+        "savedToast": "চিকিৎসা লগ করা হয়েছে।"
+      },
+      "healthUpdate": {
+        "clinicalProgress": "ক্লিনিক্যাল অগ্রগতি",
+        "progress": {
+          "IMPROVING": "উন্নতি হচ্ছে",
+          "WORSENING": "অবনতি হচ্ছে",
+          "STABLE": "স্থিতিশীল"
+        },
+        "signsAndSymptoms": "লক্ষণ ও উপসর্গ",
+        "temperature": "তাপমাত্রা",
+        "appetite": "ক্ষুধা",
+        "appetiteValue": {
+          "NORMAL": "স্বাভাবিক",
+          "REDUCED": "কমেছে",
+          "NONE": "নেই",
+          "HIGH": "বেশি"
+        },
+        "appearance": "চেহারা",
+        "appearanceValue": {
+          "BRIGHT": "উজ্জ্বল",
+          "DULL": "নিস্তেজ",
+          "DEPRESSED": "বিষণ্ণ",
+          "WEAK": "দুর্বল"
+        },
+        "staffObservation": "কর্মীর পর্যবেক্ষণ",
+        "staffObservationPlaceholder": "নির্দিষ্ট পরিবর্তনগুলো এখানে লিখুন",
+        "savedToast": "স্বাস্থ্য আপডেট সংরক্ষিত হয়েছে।",
+        "temperatureRequired": "তাপমাত্রা আবশ্যক।"
+      },
+      "closeCase": {
+        "caseOutcome": "কেসের ফলাফল",
+        "markAsRecovered": "সুস্থ হিসেবে চিহ্নিত করুন",
+        "logMortality": "মৃত্যু লগ করুন",
+        "staffObservation": "কর্মীর পর্যবেক্ষণ",
+        "staffObservationPlaceholder": "উল্লেখযোগ্য কিছু থাকলে লিখুন",
+        "recoveredToast": "কেস বন্ধ হয়েছে — পশু সুস্থ হয়েছে।",
+        "clinicalDetails": "ক্লিনিক্যাল বিবরণ",
+        "primaryCauseOfDeath": "মৃত্যুর প্রধান কারণ",
+        "selectCause": "কারণ নির্বাচন করুন",
+        "vetSignOff": "পশু চিকিৎসকের অনুমোদন",
+        "selectVet": "চিকিৎসক নির্বাচন করুন",
+        "signsAndSymptoms": "লক্ষণ ও উপসর্গ",
+        "postMortemPerformed": "ময়নাতদন্ত করা হয়েছে?",
+        "yes": "হ্যাঁ",
+        "no": "না",
+        "disposalLogistics": "নিষ্পত্তি ব্যবস্থাপনা",
+        "disposalMethod": "নিষ্পত্তি পদ্ধতি",
+        "selectMethod": "পদ্ধতি নির্বাচন করুন",
+        "disposalCost": "নিষ্পত্তি খরচ",
+        "disposalLocation": "নিষ্পত্তি স্থান",
+        "selectLocation": "স্থান নির্বাচন করুন",
+        "additionalNotes": "অতিরিক্ত নোট",
+        "additionalNotesPlaceholder": "অতিরিক্ত কোনো তথ্য থাকলে লিখুন",
+        "mortalityWarning": "আপনার তথ্য আবার যাচাই করুন। এই ক্ষতি রেকর্ড করলে পশুর প্রোফাইল স্থায়ীভাবে সংরক্ষণাগারে যাবে এবং সব আর্থিক রেকর্ড চূড়ান্ত হবে।",
+        "confirmDisposal": "নিষ্পত্তি নিশ্চিত করুন",
+        "mortalityToast": "মৃত্যু রেকর্ড করা হয়েছে।",
+        "mortalityRequiredFields": "মৃত্যুর প্রধান কারণ এবং অতিরিক্ত নোট আবশ্যক।"
+      }
+    }
+  },
+  "activity": {
+    "searchPlaceholder": "কার্যক্রম খুঁজুন",
+    "moduleFilter": "মডিউল",
+    "allModules": "সব মডিউল",
+    "dateFilter": "তারিখ",
+    "allDates": "সব তারিখ",
+    "modules": {
+      "COW_MANAGEMENT": "গরু ব্যবস্থাপনা",
+      "MILK_PRODUCTION": "দুধ উৎপাদন",
+      "HEALTH_SAFETY": "স্বাস্থ্য ও নিরাপত্তা",
+      "FINANCE": "অর্থ",
+      "BREEDING": "প্রজনন",
+      "INVENTORY": "মজুদ",
+      "GENERAL": "সাধারণ"
+    },
+    "empty": {
+      "title": "এখনো কোনো কার্যক্রম নেই",
+      "description": "খামারে কার্যক্রম ঘটলে তা এখানে দেখা যাবে।"
+    },
+    "error": {
+      "title": "কার্যক্রমের তালিকা লোড করা যায়নি।"
     }
   }
 }

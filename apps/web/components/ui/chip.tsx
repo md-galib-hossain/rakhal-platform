@@ -13,6 +13,8 @@ const chipVariants = cva(
         info: "border-info text-info",
         warning: "border-warning text-warning",
         teal: "border-accent-teal text-accent-teal",
+        purple: "border-accent-purple text-accent-purple",
+        indigo: "border-accent-indigo text-accent-indigo",
         destructive: "border-destructive text-destructive",
         muted: "border-border text-muted-foreground",
       },

@@ -543,17 +543,23 @@
 - **Status:** `TODO`
 
 #### RFE-031 — Healthcare (dashboard, sick bay, cases)
-- **Lane:** `features/healthcare/**`, `app/(app)/healthcare/**` · **Design:** Figma health frames
+- **Lane:** `features/health/**`, `app/(app)/healthcare/**` · **Design:** Figma health frames
 - Dashboard + sick-bay board; case lifecycle: report sickness (worker flow), case detail timeline,
   log-treatment (medicine picker → FIFO stock note), health-update, close/recover; mortality flow.
 - **API:** §9 · **PRD:** §13
-- **Status:** `TODO`
+- **Status:** `DONE` (2026-07-15) — see `IN_FLIGHT.md`/`CURRENT_STATE.md` "Healthcare — Figma-perfect".
 
 #### RFE-032 — Health plans + healthcare tasks
 - **Depends:** RFE-031 (same folder — sequence or same agent)
 - Plans CRUD, check-stock preview, apply-to-cattle; healthcare task list (reschedule, record-batch).
 - **API:** §9 · **PRD:** §13.x · **Design:** PRD-spec
-- **Status:** `TODO`
+- **Status:** `DONE` (2026-07-16) — Task Hub tab done 2026-07-15 (Figma-perfect: calendar strip +
+  filter tabs + grouped "Scheduled Task Cards" over real per-animal `HealthTask` rows + reschedule +
+  batch-record dialogs). Health Plan tab done 2026-07-16 (Figma-perfect: plan CRUD 3-step wizard,
+  Apply-to-cattle 2-step wizard — no bulk-apply endpoint exists, so applying loops a real
+  create-case + apply-plan call per selected animal, flagged not faked). See `IN_FLIGHT.md`/
+  `CURRENT_STATE.md` for both. No "check-stock preview" step exists in the Figma frames given for
+  this half — not built (flag if a future pass wants one).
 
 #### RFE-033 — Calves
 - **Lane:** `features/calves/**`, `app/(app)/calves/**`
@@ -572,9 +578,11 @@
   add-edit/"Item Details" view/stock-update/archive-restore, see `IN_FLIGHT.md` Recently Done +
   `CURRENT_STATE.md`). **Milk tab done** (2026-07-13, Figma-perfect: tank grid (Sellable/Withholding,
   real fill-gauge), Add New Tank + Sync to Physical side modals, Statistics KPI, audit log table —
-  see `IN_FLIGHT.md` Recently Done + `CURRENT_STATE.md`). Semen/Equipment("Others") still `TODO` —
-  real backend controllers exist for both (`semen.controller.ts`/`equipment.controller.ts`) but no
-  Figma frames were given for them yet.
+  see `IN_FLIGHT.md` Recently Done + `CURRENT_STATE.md`). **Semen tab done** (2026-07-15, Figma-perfect:
+  LN2 tank grid (Stable/Need Refill), Add New Tank + Tank Details (repurposed "Update Readings") side
+  sheets, paginated straw-batch cards + Add Straw sheet — see `IN_FLIGHT.md` Recently Done +
+  `CURRENT_STATE.md`). Equipment ("Others") still `TODO` — a real backend controller exists
+  (`equipment.controller.ts`) but no Figma frames were given for it yet.
 
 #### RFE-035 — Finance (ledger + wizard + sub-pages)
 - **Lane:** `features/finance/**`, `app/(app)/finance/**` · **Design:** Figma finance frames

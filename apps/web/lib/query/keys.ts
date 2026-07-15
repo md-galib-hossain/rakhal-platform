@@ -52,5 +52,18 @@ export const qk = {
     milkTanks: (filters: Record<string, string | undefined>) => ["inventory", "milk-tank", "list", filters] as const,
     milkTankAuditLog: (tankId: string | undefined) => ["inventory", "milk-tank", "audit-log", tankId] as const,
     teamMembers: () => ["inventory", "milk-tank", "team-members"] as const,
+    semenTanks: () => ["inventory", "semen-tank", "list"] as const,
+    equipmentDetail: (id: string) => ["inventory", "equipment", "detail", id] as const,
+  },
+  health: {
+    dashboard: () => ["health", "dashboard"] as const,
+    sickBay: (filters: Record<string, string | undefined>) => ["health", "sick-bay", "list", filters] as const,
+    caseDetail: (id: string) => ["health", "case", "detail", id] as const,
+    tasks: () => ["health", "tasks", "list"] as const,
+    taskCalendar: (year: number, month: number) => ["health", "tasks", "calendar", year, month] as const,
+    plans: () => ["health", "plans", "list"] as const,
+  },
+  activity: {
+    list: (filters: Record<string, string | undefined>) => ["activity", "list", filters] as const,
   },
 };

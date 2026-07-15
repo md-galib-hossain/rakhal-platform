@@ -1250,6 +1250,209 @@
           "description": "Volume changes from collection, sale, or sync will show up here."
         }
       }
+    },
+    "semen": {
+      "physicalStorage": "Physical Storage",
+      "addNewTank": "Add New Tank",
+      "activeStrawBatches": "Active Straw Batches",
+      "totalBatch": "Total Batch: {count}",
+      "searchPlaceholder": "Find batch by name or id",
+      "addStraw": "Add Straw",
+      "emptyTanks": {
+        "title": "No tanks yet",
+        "description": "Add your first LN2 tank to start tracking semen storage."
+      },
+      "emptyBatches": {
+        "title": "No straw batches yet",
+        "description": "Register your first straw batch to start tracking semen stock."
+      },
+      "tankCard": {
+        "badgeStable": "Stable",
+        "badgeNeedsRefill": "Need Refill",
+        "locatedAt": "Located at {location}",
+        "noLocation": "No storage location set",
+        "totalStraw": "Total Straw",
+        "currentTemp": "Current Temp (°C)",
+        "ln2Level": "LN2 Level (%)",
+        "viewDetails": "View Details"
+      },
+      "tankForm": {
+        "createTitle": "Add New Tank",
+        "editTitle": "Edit Tank",
+        "subtitle": "Add a new Liquid Nitrogen dewar to your storage infrastructure.",
+        "close": "Close",
+        "tankInfo": "Tank Info",
+        "tankName": "Tank Name",
+        "tankNamePlaceholder": "e.g. \"Bulk Tank 3\"",
+        "modelManufacturer": "Model/Manufacturer",
+        "modelManufacturerPlaceholder": "e.g. 'MVE XC 20'",
+        "strawCapacity": "Straw Capacity",
+        "numCanisters": "Number of Canister",
+        "numCanes": "Number of Cane",
+        "numGoblets": "Number of Goblet",
+        "storageLocation": "Storage Location",
+        "storageLocationPlaceholder": "e.g. 'Warehouse A'",
+        "calibrationSafety": "Calibration & Safety",
+        "currentTemperature": "Current Temperature",
+        "ln2Level": "LN2 Level",
+        "cancel": "Cancel",
+        "save": "Save Changes",
+        "add": "Add",
+        "createdToast": "Semen tank added.",
+        "updatedToast": "Semen tank updated.",
+        "genericError": "Something went wrong. Please try again."
+      },
+      "tankDetails": {
+        "title": "Tank Details",
+        "close": "Close",
+        "badgeStable": "Stable",
+        "badgeNeedsRefill": "Need Refill",
+        "strawInStock": "Straw in Stock",
+        "modelManufacturer": "Model/Manufacturer",
+        "strawCapacity": "Straw Capacity",
+        "numCanisters": "Number of Canister",
+        "numCanes": "Number of Cane",
+        "numGoblets": "Number of Goblet",
+        "storageLocation": "Storage Location",
+        "currentTemperature": "Current Temperature",
+        "ln2Level": "LN2 Level",
+        "updateReadings": "Update Readings",
+        "cancel": "Cancel",
+        "updateStock": "Update Stock",
+        "updatedToast": "Tank readings updated.",
+        "genericError": "Something went wrong. Please try again."
+      },
+      "batchCard": {
+        "menu": "Row actions",
+        "edit": "Edit",
+        "archive": "Archive",
+        "bullId": "Bull ID",
+        "breed": "Breed",
+        "strawColor": "Straw Color",
+        "tank": "Tank",
+        "canister": "Cannister",
+        "cane": "Cane",
+        "goblet": "Goblet",
+        "strawLeft": "Straw Left",
+        "archivedToast": "Straw batch archived.",
+        "genericError": "Something went wrong. Please try again.",
+        "archiveDialog": {
+          "title": "Archive {name}",
+          "description": "This removes the straw batch from active inventory lists.",
+          "confirm": "Archive",
+          "cancel": "Cancel"
+        }
+      },
+      "batchForm": {
+        "createTitle": "Add Straw",
+        "editTitle": "Edit Straw Batch",
+        "subtitle": "Enter the genetic and storage details for the new semen batch.",
+        "close": "Close",
+        "batchInfo": "Batch Info",
+        "batchName": "Batch/Straw Name",
+        "batchNamePlaceholder": "e.g. \"Holstein Frisian Premium\"",
+        "bullId": "Bull ID/Name",
+        "bullIdPlaceholder": "e.g. \"HF-9982\"",
+        "breed": "Breed",
+        "breedPlaceholder": "e.g. \"Holstein Frisian\"",
+        "batchCode": "Batch ID",
+        "batchCodePlaceholder": "e.g. \"SM-2025-HF-01\"",
+        "strawColor": "Straw Color",
+        "selectColor": "Select Color",
+        "initialVitality": "Initial Vitality",
+        "strawInventory": "Straw Inventory",
+        "strawQuantity": "Straw Quantity",
+        "fatherId": "Father ID",
+        "fatherIdPlaceholder": "e.g. \"HF-1212\"",
+        "motherId": "Mother ID",
+        "motherIdPlaceholder": "e.g. \"HFW-1234\"",
+        "storageLocationInfo": "Storage Location Info",
+        "tank": "Tank",
+        "selectTank": "Select tank",
+        "canister": "Canister",
+        "canisterPlaceholder": "e.g. \"Canister A\"",
+        "cane": "Cane",
+        "canePlaceholder": "e.g. \"Cane 05\"",
+        "goblet": "Goblet",
+        "gobletPlaceholder": "e.g. \"Goblet 1\"",
+        "note": "Note",
+        "notesPlaceholder": "Write any additional information here e.g. 'High pedigree, handle with extra care'",
+        "cancel": "Cancel",
+        "save": "Save Changes",
+        "add": "Register Straw",
+        "createdToast": "Straw batch added.",
+        "updatedToast": "Straw batch updated.",
+        "genericError": "Something went wrong. Please try again."
+      }
+    },
+    "equipment": {
+      "piece": "pieces",
+      "empty": {
+        "title": "No items found",
+        "description": "Try adjusting your search or filters."
+      },
+      "archivedToast": "Item archived.",
+      "genericError": "Something went wrong. Please try again.",
+      "archiveDialog": {
+        "title": "Archive {name}",
+        "description": "This removes the item from active inventory lists.",
+        "confirm": "Archive",
+        "cancel": "Cancel"
+      },
+      "columns": {
+        "no": "No.",
+        "name": "Item Name",
+        "assetId": "Asset ID",
+        "type": "Type",
+        "costPerUnit": "Cost Per Unit",
+        "purchaseDate": "Purchase Date",
+        "stock": "Stock",
+        "action": "Action"
+      },
+      "typeOptions": {
+        "EQUIPMENT": "Equipment",
+        "MACHINERY": "Machinery",
+        "TOOL": "Tool",
+        "SUPPLY": "Supply",
+        "OTHER": "Other"
+      },
+      "filters": {
+        "searchPlaceholder": "Find item by name",
+        "type": "Type",
+        "typeOptions": {
+          "EQUIPMENT": "Equipment",
+          "MACHINERY": "Machinery",
+          "TOOL": "Tool",
+          "SUPPLY": "Supply",
+          "OTHER": "Other"
+        }
+      },
+      "form": {
+        "add": "Add Item",
+        "createTitle": "Add New Equipment",
+        "editTitle": "Edit Equipment",
+        "close": "Close",
+        "basicInfo": "Basic Info",
+        "itemName": "Item Name",
+        "currentStock": "Current Stock",
+        "unit": "Unit",
+        "unitPlaceholder": "e.g. Piece, Set, Box",
+        "costPerUnit": "Cost Per Unit (CPU)",
+        "noPhoto": "No Item Image",
+        "details": "Details",
+        "category": "Category",
+        "assetId": "Asset ID",
+        "stockExpiry": "Stock",
+        "purchaseDate": "Purchase Date",
+        "lowStockAlert": "Low Stock Alert",
+        "note": "Note",
+        "additionalNotes": "Additional Notes",
+        "cancel": "Cancel",
+        "save": "Save Changes",
+        "createdToast": "Item added.",
+        "updatedToast": "Item updated.",
+        "genericError": "Something went wrong. Please try again."
+      }
     }
   },
   "milk": {
@@ -1339,6 +1542,436 @@
       "markReviewed": "Mark Reviewed",
       "reviewedToast": "Anomaly marked as reviewed.",
       "reviewError": "Could not save the review. Please try again."
+    }
+  },
+  "health": {
+    "kpis": {
+      "title": "Key Metrics",
+      "error": "Could not load the healthcare dashboard.",
+      "herdHealthScore": "Herd Health Score",
+      "sickBay": "Sick Bay",
+      "medicineExpense": "Medicine Expense",
+      "safetyStop": "Safety Stop",
+      "animalsHealthy": "{healthy}/{total} Animals are healthy.",
+      "activeWithholding": "Active withholding period"
+    },
+    "morbidityTrend": {
+      "title": "Morbidity Trend Over Time",
+      "error": "Could not load the morbidity trend.",
+      "legend": "Sick Cases",
+      "periodLabel": "All time",
+      "decreasing": "Decreasing",
+      "increasing": "Increasing"
+    },
+    "managementCenter": {
+      "title": "Health Management Center",
+      "tabs": {
+        "sickBay": "Sick Bay",
+        "taskHub": "Task Hub",
+        "healthPlan": "Health Plan"
+      },
+      "searchPlaceholder": "Find Cow by cow ID or name",
+      "reportSickness": "Report Sickness",
+      "logTreatment": "Log Treatment"
+    },
+    "sickBay": {
+      "columns": {
+        "name": "Name",
+        "shed": "Shed",
+        "diagnosis": "Diagnosis",
+        "treatment": "Treatment",
+        "progress": "Progress",
+        "nextDose": "Next Dose",
+        "action": "Action"
+      },
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "manageCase": "Manage Case",
+      "error": "Could not load the sick bay list.",
+      "emptyTitle": "No active health cases",
+      "emptyDescription": "Report a sickness to start tracking a case here."
+    },
+    "taskHub": {
+      "error": "Could not load health tasks.",
+      "emptyTitle": "No health tasks",
+      "emptyDescription": "Tasks appear here once a health plan is applied to a case.",
+      "status": {
+        "PENDING": "Pending",
+        "COMPLETED": "Completed",
+        "MISSED": "Missed",
+        "OVERDUE": "Overdue",
+        "SKIPPED": "Skipped",
+        "RESCHEDULED": "Rescheduled"
+      },
+      "tabs": {
+        "all": "All",
+        "overdue": "Overdue",
+        "today": "Today's Schedule",
+        "upcoming": "Upcoming"
+      },
+      "calendar": {
+        "prevMonth": "Previous month",
+        "nextMonth": "Next month",
+        "weekday": {
+          "sun": "S",
+          "mon": "M",
+          "tue": "T",
+          "wed": "W",
+          "thu": "T",
+          "fri": "F",
+          "sat": "S"
+        }
+      },
+      "card": {
+        "category": {
+          "medical": "Medical",
+          "prevention": "Prevention",
+          "general": "General"
+        },
+        "due": "Due",
+        "dueToday": "Today",
+        "dueYesterday": "Yesterday",
+        "dueTomorrow": "Tomorrow",
+        "medicine": "Medicine",
+        "dose": "Dose",
+        "action": "Action",
+        "progress": "Progress",
+        "animalCount": "{completed}/{total} Animal",
+        "reschedule": "Reschedule",
+        "recordBatch": "Record Batch",
+        "resumeRecording": "Resume Recording",
+        "completed": "Completed"
+      },
+      "reschedule": {
+        "title": "Task Schedule:",
+        "close": "Close",
+        "currentDate": "Current Date",
+        "newDate": "New Date",
+        "cancel": "Cancel",
+        "confirm": "Confirm",
+        "noChangeError": "Pick a date different from the current one.",
+        "rescheduledToast": "{count, plural, one {1 task} other {# tasks}} rescheduled.",
+        "genericError": "Something went wrong. Please try again.",
+        "category": {
+          "medical": "Medical",
+          "prevention": "Prevention",
+          "general": "General"
+        }
+      },
+      "recordBatch": {
+        "title": "Record: {name}",
+        "close": "Close",
+        "due": "Due",
+        "medicine": "Medicine",
+        "dose": "Dose",
+        "route": "Administrative Route",
+        "action": "Action",
+        "selectedAnimals": "Selected Animals",
+        "selectAll": "Select All",
+        "deselectAll": "Deselect All",
+        "searchPlaceholder": "Search by Cow ID",
+        "noAnimals": "No animals match your search.",
+        "selectedCount": "Selected: {count} Animals",
+        "totalDosage": "Total Dosage: {value}",
+        "aqrImpact": "AQR Impact:",
+        "cancel": "Cancel",
+        "confirm": "Confirm",
+        "noneSelectedError": "Select at least one animal.",
+        "recordedToast": "{count, plural, one {1 treatment} other {# treatments}} logged.",
+        "genericError": "Something went wrong. Please try again.",
+        "category": {
+          "medical": "Medical",
+          "prevention": "Prevention",
+          "general": "General"
+        }
+      }
+    },
+    "healthPlan": {
+      "error": "Could not load health plans.",
+      "emptyTitle": "No health plans",
+      "emptyDescription": "Health plan templates set up for this farm will appear here.",
+      "stepsCount": "{count} steps",
+      "searchPlaceholder": "Find health plan by name",
+      "createNewPlan": "Create New Health Plan",
+      "card": {
+        "type": {
+          "medical": "Medical",
+          "prevention": "Prevention",
+          "breeding": "Breeding",
+          "general": "General"
+        },
+        "actionSteps": "{count} Action Steps",
+        "cycleLength": "{count} Days Cycle Length",
+        "actionSequence": "Action Sequence",
+        "day": "Day {day}",
+        "showMore": "Show More",
+        "showLess": "Show Less",
+        "editPlan": "Edit Plan",
+        "apply": "Apply"
+      },
+      "createDialog": {
+        "title": "Create New Health Plan",
+        "close": "Close",
+        "stepOf": "Step {step} of {total}",
+        "step1Title": "Select Health Plan Category",
+        "step1Subtitle": "Choose the type of health plan you want to create",
+        "planTypes": {
+          "treatment": "Treatment",
+          "treatmentDesc": "Treatment & recovery protocol.",
+          "breeding": "Breeding",
+          "breedingDesc": "Reproductive cycle management.",
+          "prevention": "Prevention",
+          "preventionDesc": "Vaccination and health maintenance."
+        },
+        "step2Title": "Health Plan Details",
+        "step2Subtitle": "Define the basic information for this plan",
+        "planName": "Plan Name",
+        "planNamePlaceholder": "e.g. 5 Day Mastitis Treatment",
+        "category": "Category",
+        "selectCategory": "Select category",
+        "categoryOptions": {
+          "TREATMENT": "Treatment",
+          "PREVENTION": "Prevention",
+          "BREEDING": "Breeding",
+          "VACCINATION": "Vaccination",
+          "DEWORMING": "Deworming",
+          "ROUTINE": "Routine"
+        },
+        "cycleLength": "Cycle Length",
+        "days": "Days",
+        "description": "Description",
+        "descriptionPlaceholder": "e.g. Intensive antibiotic treatment for clinical mastitis",
+        "step3Title": "Action Sequence Builder",
+        "step3Subtitle": "Define what happens each day",
+        "day": "Day",
+        "action": "Action",
+        "actionPlaceholder": "e.g. Inject 5ml Penicillin G (IM)",
+        "medicine": "Medicine",
+        "medicinePlaceholder": "e.g. Penicillin G",
+        "dose": "Dose",
+        "removeDay": "Remove day",
+        "addAnotherDay": "Add Another Day",
+        "cancel": "Cancel",
+        "back": "Back",
+        "continue": "Continue",
+        "deployPlan": "Deploy Plan",
+        "saveChanges": "Save Changes",
+        "createdToast": "Health plan created.",
+        "updatedToast": "Health plan updated.",
+        "genericError": "Something went wrong. Please try again."
+      },
+      "applyDialog": {
+        "title": "Apply {name}",
+        "close": "Close",
+        "stepOf": "Step {step} of {total}",
+        "step1Title": "Select Target Animals",
+        "step1Subtitle": "Select animal whom you want to apply this treatment",
+        "selectionMethod": "Selection Method",
+        "selectionMethods": {
+          "shed": "Shed",
+          "batch": "Batch",
+          "individual": "Individual"
+        },
+        "selectShed": "Select Shed",
+        "selectShedPlaceholder": "Select shed",
+        "selectBatch": "Select Batch",
+        "selectBatchPlaceholder": "Select batch",
+        "searchAnimals": "Search Animals",
+        "searchAnimalsPlaceholder": "Search by cow ID or name",
+        "loadingAnimals": "Loading animals…",
+        "noAnimals": "No animals found.",
+        "excludePregnant": "Exclude Pregnant Animals",
+        "administrationRoute": "Administration Route",
+        "startDate": "Start Date",
+        "step2Title": "Schedule Preview",
+        "step2Subtitle": "See your daywise schedule",
+        "day": "Day",
+        "action": "Action",
+        "medicine": "Medicine",
+        "dose": "Dose",
+        "cancel": "Cancel",
+        "back": "Back",
+        "continue": "Continue",
+        "confirmSchedule": "Confirm Schedule",
+        "noneSelectedError": "Select at least one animal.",
+        "appliedToast": "{count, plural, one {1 animal} other {# animals}} enrolled in this plan.",
+        "genericError": "Something went wrong. Please try again."
+      }
+    },
+    "symptoms": {
+      "limpingLameness": "Limping/Lameness",
+      "coughing": "Coughing",
+      "diarrhea": "Diarrhea",
+      "eyeDischarge": "Eye Discharge",
+      "udderSwelling": "Udder Swelling",
+      "nasalDischarge": "Nasal Discharge",
+      "fever": "Fever"
+    },
+    "reportSickness": {
+      "title": "Report Sickness",
+      "submit": "Report Sickness",
+      "cattle": "Cattle",
+      "diagnosis": "Diagnosis",
+      "diagnosisPlaceholder": "e.g. Mastitis",
+      "diagnosisType": "Diagnosis Type",
+      "priority": "Priority",
+      "notes": "Notes",
+      "notesPlaceholder": "Any additional notes",
+      "createdToast": "Health case reported.",
+      "genericError": "Could not report sickness. Please try again.",
+      "diagnosisTypeValue": {
+        "DISEASE": "Disease",
+        "INJURY": "Injury",
+        "VACCINATION": "Vaccination",
+        "DEWORMING": "Deworming",
+        "ROUTINE_CHECKUP": "Routine Checkup",
+        "PREVENTIVE": "Preventive",
+        "BREEDING_RELATED": "Breeding Related",
+        "OTHER": "Other"
+      },
+      "priorityValue": {
+        "LOW": "Low",
+        "MEDIUM": "Medium",
+        "HIGH": "High",
+        "CRITICAL": "Critical"
+      }
+    },
+    "selectCase": {
+      "title": "Select a Case",
+      "description": "Choose an active case to log a treatment for.",
+      "searchPlaceholder": "Search cow ID or diagnosis…",
+      "searching": "Searching…",
+      "noCases": "No active cases found."
+    },
+    "caseSheet": {
+      "title": "Case Management",
+      "cancel": "Cancel",
+      "saveUpdate": "Save Update",
+      "saving": "Saving…",
+      "loadError": "Could not load this case.",
+      "genericError": "Could not save. Please try again.",
+      "tabs": {
+        "logTreatment": "Log Treatment",
+        "healthUpdate": "Health Update",
+        "closeCase": "Close Case"
+      },
+      "header": {
+        "location": "Location",
+        "diagnosis": "Diagnosis",
+        "priority": "Priority",
+        "progress": "Progress",
+        "lastDose": "Last Dose",
+        "nextDose": "Next Dose",
+        "none": "—",
+        "safetyWithholdingActive": "Safety Withholding Active: Safe on {date}",
+        "priorityValue": {
+          "LOW": "Low",
+          "MEDIUM": "Medium",
+          "HIGH": "High",
+          "CRITICAL": "Critical"
+        }
+      },
+      "logTreatment": {
+        "selectMedicine": "Select Medicine",
+        "selectMedicinePlaceholder": "Select Medicine",
+        "searchMedicine": "Search medicine…",
+        "searching": "Searching…",
+        "noMedicines": "No medicines found.",
+        "stock": "Stock",
+        "clearMedicine": "Clear medicine",
+        "administrationRoute": "Administration Route",
+        "route": {
+          "IM": "IM",
+          "IV": "IV",
+          "SC": "SC",
+          "ORAL": "Oral"
+        },
+        "doseAmount": "Dose Amount",
+        "decreaseDose": "Decrease dose",
+        "increaseDose": "Increase dose",
+        "administeredBy": "Administrative By",
+        "savedToast": "Treatment logged."
+      },
+      "healthUpdate": {
+        "clinicalProgress": "Clinical Progress",
+        "progress": {
+          "IMPROVING": "Improving",
+          "WORSENING": "Worsening",
+          "STABLE": "Stable"
+        },
+        "signsAndSymptoms": "Signs & Symptoms",
+        "temperature": "Temperature",
+        "appetite": "Appetite",
+        "appetiteValue": {
+          "NORMAL": "Normal",
+          "REDUCED": "Reduced",
+          "NONE": "None",
+          "HIGH": "High"
+        },
+        "appearance": "Appearance",
+        "appearanceValue": {
+          "BRIGHT": "Bright",
+          "DULL": "Dull",
+          "DEPRESSED": "Depressed",
+          "WEAK": "Weak"
+        },
+        "staffObservation": "Staff Observation",
+        "staffObservationPlaceholder": "Type specific changes here",
+        "savedToast": "Health update saved.",
+        "temperatureRequired": "Temperature is required."
+      },
+      "closeCase": {
+        "caseOutcome": "Case Outcome",
+        "markAsRecovered": "Mark as Recovered",
+        "logMortality": "Log Mortality",
+        "staffObservation": "Staff Observation",
+        "staffObservationPlaceholder": "Type if any important there to note",
+        "recoveredToast": "Case closed — animal recovered.",
+        "clinicalDetails": "Clinical Details",
+        "primaryCauseOfDeath": "Primary Cause of Death",
+        "selectCause": "select cause",
+        "vetSignOff": "Vet Sign Off",
+        "selectVet": "select vet",
+        "signsAndSymptoms": "Signs & Symptoms",
+        "postMortemPerformed": "Post Mortem Performed?",
+        "yes": "Yes",
+        "no": "No",
+        "disposalLogistics": "Disposal Logistics",
+        "disposalMethod": "Disposal Method",
+        "selectMethod": "select method",
+        "disposalCost": "Disposal Cost",
+        "disposalLocation": "Disposal Location",
+        "selectLocation": "select location",
+        "additionalNotes": "Additional Notes",
+        "additionalNotesPlaceholder": "Write any additional information here",
+        "mortalityWarning": "Double check your info. Recording this loss will permanently archive the animal's profile and finalize all financial records.",
+        "confirmDisposal": "Confirm Disposal",
+        "mortalityToast": "Mortality recorded.",
+        "mortalityRequiredFields": "Primary cause of death and additional notes are required."
+      }
+    }
+  },
+  "activity": {
+    "searchPlaceholder": "Search activity",
+    "moduleFilter": "Module",
+    "allModules": "All modules",
+    "dateFilter": "Date",
+    "allDates": "All dates",
+    "modules": {
+      "COW_MANAGEMENT": "Cow Management",
+      "MILK_PRODUCTION": "Milk Production",
+      "HEALTH_SAFETY": "Health & Safety",
+      "FINANCE": "Finance",
+      "BREEDING": "Breeding",
+      "INVENTORY": "Inventory",
+      "GENERAL": "General"
+    },
+    "empty": {
+      "title": "No activity yet",
+      "description": "Actions across the farm will show up here as they happen."
+    },
+    "error": {
+      "title": "Could not load the activity log."
     }
   }
 }

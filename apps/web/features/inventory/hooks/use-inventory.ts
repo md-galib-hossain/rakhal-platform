@@ -7,16 +7,24 @@ import { inventoryApi } from "../api";
 import type {
   AdjustMedicineStockPayload,
   AdjustMilkTankVolumePayload,
+  CreateEquipmentPayload,
   CreateForagePayload,
   CreateMedicinePayload,
   CreateMilkTankPayload,
+  CreateSemenBatchPayload,
+  CreateSemenTankPayload,
+  EquipmentListFilters,
   ForageListFilters,
   MedicineListFilters,
   MilkTankListFilters,
   MilkTankTeamMember,
+  SemenBatchListFilters,
+  UpdateEquipmentPayload,
   UpdateForagePayload,
   UpdateMedicinePayload,
   UpdateMilkTankPayload,
+  UpdateSemenBatchPayload,
+  UpdateSemenTankPayload,
 } from "../types";
 
 const STALE_TIME = 60_000;
@@ -369,4 +377,214 @@ export function useTeamMembersMap() {
   const map = new Map<string, MilkTankTeamMember>();
   for (const member of query.data?.members ?? []) map.set(member.id, member);
   return map;
+}
+
+/** `GET /inventory/semen/tanks` returns the full (small) array directly, same as milk tanks — no
+ * cursor pager. */
+export function useSemenTanks() {
+  return useQuery({
+    queryKey: qk.inventory.semenTanks(),
+    queryFn: () => inventoryApi.listSemenTanks(),
+    staleTime: STALE_TIME,
+  });
+}
+
+function useInvalidateSemenTank() {
+  const queryClient = useQueryClient();
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: qk.inventory.semenTanks() });
+    void queryClient.invalidateQueries({ queryKey: ["inventory", "semen-batch", "list"] });
+  };
+}
+
+export function useCreateSemenTank() {
+  const invalidate = useInvalidateSemenTank();
+  return useMutation({
+    mutationFn: (dto: CreateSemenTankPayload) => inventoryApi.createSemenTank(dto),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useUpdateSemenTank() {
+  const invalidate = useInvalidateSemenTank();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: UpdateSemenTankPayload }) => inventoryApi.updateSemenTank(id, dto),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useArchiveSemenTank() {
+  const invalidate = useInvalidateSemenTank();
+  return useMutation({
+    mutationFn: (id: string) => inventoryApi.archiveSemenTank(id),
+    onSuccess: () => invalidate(),
+  });
+}
+
+/** Same honest-frontier numbered-page adapter as `useMedicinePagedList`/`useForagePagedList`, over
+ * the cursor-only `GET /inventory/semen/batches`. */
+export function useSemenBatchPagedList(filters: SemenBatchListFilters) {
+  const filtersKey = JSON.stringify(filters);
+  const [state, setState] = useState<PagerState>(() => initialPagerState(filtersKey));
+  if (state.filtersKey !== filtersKey) {
+    setState(initialPagerState(filtersKey));
+  }
+
+  const { pageIndex, cursors } = state;
+  const cursor = cursors[pageIndex];
+
+  const query = useQuery({
+    queryKey: ["inventory", "semen-batch", "list", "paged", filters as Record<string, string | undefined>, cursor],
+    queryFn: () => inventoryApi.listSemenBatches(filters, cursor),
+    staleTime: STALE_TIME,
+    placeholderData: keepPreviousData,
+  });
+
+  const atFrontier = pageIndex === cursors.length - 1;
+  const hasUndiscoveredNext = atFrontier && Boolean(query.data?.meta.hasNextPage);
+  const totalPages = Math.max(cursors.length + (hasUndiscoveredNext ? 1 : 0), 1);
+
+  function goToPage(page: number) {
+    const idx = page - 1;
+    if (idx < 0 || idx === pageIndex) return;
+    if (idx < cursors.length) {
+      setState((s) => ({ ...s, pageIndex: idx }));
+      return;
+    }
+    if (idx === cursors.length && hasUndiscoveredNext) {
+      const nextCursor = query.data?.meta.endCursor ?? undefined;
+      setState((s) => ({ ...s, pageIndex: idx, cursors: [...s.cursors, nextCursor] }));
+    }
+  }
+
+  return {
+    items: query.data?.items ?? [],
+    page: pageIndex + 1,
+    totalPages,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    isFetching: query.isFetching,
+    refetch: query.refetch,
+    goToPage,
+  };
+}
+
+function useInvalidateSemenBatch() {
+  const queryClient = useQueryClient();
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: ["inventory", "semen-batch", "list"] });
+    void queryClient.invalidateQueries({ queryKey: qk.inventory.semenTanks() });
+  };
+}
+
+export function useCreateSemenBatch() {
+  const invalidate = useInvalidateSemenBatch();
+  return useMutation({
+    mutationFn: (dto: CreateSemenBatchPayload) => inventoryApi.createSemenBatch(dto),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useUpdateSemenBatch() {
+  const invalidate = useInvalidateSemenBatch();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: UpdateSemenBatchPayload }) => inventoryApi.updateSemenBatch(id, dto),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useArchiveSemenBatch() {
+  const invalidate = useInvalidateSemenBatch();
+  return useMutation({
+    mutationFn: (id: string) => inventoryApi.archiveSemenBatch(id),
+    onSuccess: () => invalidate(),
+  });
+}
+
+/** Same honest-frontier numbered-page adapter as `useMedicinePagedList`, over the cursor-only
+ * `GET /inventory/equipment`. */
+export function useEquipmentPagedList(filters: EquipmentListFilters) {
+  const filtersKey = JSON.stringify(filters);
+  const [state, setState] = useState<PagerState>(() => initialPagerState(filtersKey));
+  if (state.filtersKey !== filtersKey) {
+    setState(initialPagerState(filtersKey));
+  }
+
+  const { pageIndex, cursors } = state;
+  const cursor = cursors[pageIndex];
+
+  const query = useQuery({
+    queryKey: ["inventory", "equipment", "list", "paged", filters as Record<string, string | undefined>, cursor],
+    queryFn: () => inventoryApi.listEquipment(filters, cursor),
+    staleTime: STALE_TIME,
+    placeholderData: keepPreviousData,
+  });
+
+  const atFrontier = pageIndex === cursors.length - 1;
+  const hasUndiscoveredNext = atFrontier && Boolean(query.data?.meta.hasNextPage);
+  const totalPages = Math.max(cursors.length + (hasUndiscoveredNext ? 1 : 0), 1);
+
+  function goToPage(page: number) {
+    const idx = page - 1;
+    if (idx < 0 || idx === pageIndex) return;
+    if (idx < cursors.length) {
+      setState((s) => ({ ...s, pageIndex: idx }));
+      return;
+    }
+    if (idx === cursors.length && hasUndiscoveredNext) {
+      const nextCursor = query.data?.meta.endCursor ?? undefined;
+      setState((s) => ({ ...s, pageIndex: idx, cursors: [...s.cursors, nextCursor] }));
+    }
+  }
+
+  return {
+    items: query.data?.items ?? [],
+    page: pageIndex + 1,
+    totalPages,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    isFetching: query.isFetching,
+    refetch: query.refetch,
+    goToPage,
+  };
+}
+
+function useInvalidateEquipment() {
+  const queryClient = useQueryClient();
+  return (id?: string) => {
+    void queryClient.invalidateQueries({ queryKey: ["inventory", "equipment", "list"] });
+    if (id) void queryClient.invalidateQueries({ queryKey: qk.inventory.equipmentDetail(id) });
+  };
+}
+
+export function useCreateEquipment() {
+  const invalidate = useInvalidateEquipment();
+  return useMutation({
+    mutationFn: (dto: CreateEquipmentPayload) => inventoryApi.createEquipment(dto),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useUpdateEquipment() {
+  const invalidate = useInvalidateEquipment();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: UpdateEquipmentPayload }) => inventoryApi.updateEquipment(id, dto),
+    onSuccess: (_data, { id }) => invalidate(id),
+  });
+}
+
+export function useArchiveEquipment() {
+  const invalidate = useInvalidateEquipment();
+  return useMutation({
+    mutationFn: (id: string) => inventoryApi.archiveEquipment(id),
+    onSuccess: (_data, id) => invalidate(id),
+  });
+}
+
+export function useRestoreEquipment() {
+  const invalidate = useInvalidateEquipment();
+  return useMutation({
+    mutationFn: (id: string) => inventoryApi.restoreEquipment(id),
+    onSuccess: (_data, id) => invalidate(id),
+  });
 }

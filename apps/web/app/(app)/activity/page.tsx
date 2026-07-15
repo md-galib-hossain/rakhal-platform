@@ -1,7 +1,24 @@
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { RouteStub } from "@/components/layout/route-stub";
+import { PageCard } from "@/components/shared/page-card";
+import { ActivityView } from "@/features/activity/components/activity-view";
 
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("nav");
+  return { title: `${t("activityLog")} — Rakhal`, robots: { index: false } };
+}
+
+/**
+ * Activity Log (Figma node 734:50995, file `SCfMPdxP6vgW1uTxfqCtz7`) — real, cursor-backed
+ * `GET /activity-log` timeline. See `features/activity/components/activity-view.tsx` for the
+ * real-vs-mock gaps (no backend search endpoint).
+ */
 export default async function ActivityPage() {
   const t = await getTranslations("nav");
-  return <RouteStub title={t("activityLog")} />;
+
+  return (
+    <PageCard title={t("activityLog")}>
+      <ActivityView />
+    </PageCard>
+  );
 }

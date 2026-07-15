@@ -1,11 +1,6 @@
 /**
- * Mirrors `rakhal-backend/src/modules/inventory/` directly — the "Medicine" tab
- * (`medicine.controller.ts`/`medicine.service.ts`, `Medicine` Prisma model + `MedicineType`/
- * `MedicineCategory` enums) is fully built and verified against the real backend; `Forage`/`Semen`/
- * `Milk`/`Others` (equipment) have real backend controllers too (`forage.controller.ts`,
- * `semen.controller.ts`, `milk-tank.controller.ts`, `equipment.controller.ts`) but aren't wired on
- * the frontend yet — deliberately not started this pass (only the 3 Figma frames given were for
- * Medicine), flagged via `INVENTORY_TABS`' `implemented` flag rather than faked.
+ * Mirrors `rakhal-backend/src/modules/inventory/` directly — Medicine, Forage, Semen, Milk, and
+ * Others (equipment) tabs are fully built and verified against the real backend.
  */
 
 export type MedicineType = "LIQUID" | "POWDER" | "TABLET" | "INJECTABLE" | "BOLUS" | "OINTMENT" | "OTHER";
@@ -167,9 +162,9 @@ export interface InventoryTabConfig {
 export const INVENTORY_TABS: InventoryTabConfig[] = [
   { key: "medicine", implemented: true },
   { key: "forage", implemented: true },
-  { key: "semen", implemented: false },
+  { key: "semen", implemented: true },
   { key: "milk", implemented: true },
-  { key: "others", implemented: false },
+  { key: "others", implemented: true },
 ];
 
 /**
@@ -278,3 +273,163 @@ export interface MilkTankTeamMember {
   id: string;
   name: string;
 }
+
+/**
+ * Semen tab — mirrors `semen.controller.ts`/`semen.service.ts` + the `SemenTank`/`SemenBatch`
+ * Prisma models directly (verified live, `prisma/schemas/inventory/semen.prisma`, Figma
+ * "Inventory - Semen" 732:20158 + "Add New Tank" 732:21955 + "Tank Details" 732:22640 + "Add Straw"
+ * 732:23249). An LN2 tank holds straw batches; a batch's `strawQuantity` is the only real per-batch
+ * stock count (INV-02: never negative) and a tank's own "straw in stock" is a *derived* sum across
+ * its batches (`semen.service.ts#listTanks` groups by `tankId`) — the tank itself has no stock field.
+ * **Real gaps vs the Figma mock, flagged not faked**: the "Add New Tank" mock pictures a "Straw in
+ * Stock" input, but `CreateSemenTankDto` has no such field at all (a brand-new tank starts with zero
+ * batches) — omitted from the create/edit form entirely rather than rendered as a fake input; the
+ * derived total is shown instead on the read-only "Tank Details" view. The "Tank Details" mock's
+ * "Adjust Straw Stock" section reads as a tank-level stock edit, but stock is batch-owned with no
+ * matching tank-level endpoint — repurposed into a real "Update Readings" quick-form for the two
+ * fields that genuinely are tank-owned and get checked often (`currentTempC`/`ln2LevelPct` via
+ * `UpdateSemenTankDto`), not a fabricated stock adjustment. The "Add Straw" mock has no batch-name
+ * field even though `CreateSemenBatchDto.name` is required — added a "Batch/Straw Name" input beyond
+ * the mock so the form can actually submit (same precedent as Cattle's mock-gap "Additional Info"
+ * band). "Breed"/"Straw Color" render as free text/a suggested-values select respectively — both are
+ * plain `string` columns on the wire, not FK/enum, unlike Cattle's own `breedId` relation. A tank's
+ * "Stable"/"Need Refill" status chip and progress-bar tint are a derived heuristic
+ * (`strawInStock / strawCapacity < 20%` ⇒ "Need Refill"), not a stored field — `SemenTank` has no
+ * status column of its own.
+ */
+export type SemenTankStatus = "stable" | "needsRefill";
+
+/** `GET/POST /inventory/semen/tanks(/:id)` row shape (`semen.service.ts#presentTank`) — the raw
+ * Prisma `SemenTank` row plus derived `strawInStock`/`availableCapacity` (batch-sum, not stored). */
+export interface SemenTank {
+  id: string;
+  name: string;
+  modelManufacturer: string | null;
+  strawCapacity: number;
+  numCanisters: number | null;
+  numCanes: number | null;
+  numGoblets: number | null;
+  storageLocation: string | null;
+  currentTempC: number | null;
+  ln2LevelPct: number | null;
+  isActive: boolean;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  strawInStock: number;
+  availableCapacity: number;
+}
+
+/** `POST /inventory/semen/tanks` body (`CreateSemenTankDto`). No stock field — see doc comment above. */
+export interface CreateSemenTankPayload {
+  name: string;
+  modelManufacturer?: string;
+  strawCapacity: number;
+  numCanisters?: number;
+  numCanes?: number;
+  numGoblets?: number;
+  storageLocation?: string;
+  /** Must be below 0 °C (INV-07), enforced server-side. */
+  currentTempC?: number;
+  ln2LevelPct?: number;
+}
+
+/** `PATCH /inventory/semen/tanks/:id` body (`UpdateSemenTankDto`) — same shape, all optional. */
+export type UpdateSemenTankPayload = Partial<CreateSemenTankPayload>;
+
+/** `GET/POST /inventory/semen/batches(/:id)` row shape (`semen.service.ts#presentBatch`) — the raw
+ * Prisma `SemenBatch` row plus a derived `lowStraw` flag (`strawQuantity <= lowStrawThreshold`). */
+export interface SemenBatch {
+  id: string;
+  name: string;
+  batchCode: string | null;
+  bullId: string | null;
+  breed: string | null;
+  strawColor: string | null;
+  initialVitalityPct: number | null;
+  strawQuantity: number;
+  lowStrawThreshold: number;
+  fatherId: string | null;
+  motherId: string | null;
+  tankId: string | null;
+  canister: string | null;
+  cane: string | null;
+  goblet: string | null;
+  notes: string | null;
+  isActive: boolean;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  lowStraw: boolean;
+}
+
+export interface SemenBatchListFilters {
+  search?: string;
+  tankId?: string;
+  includeArchived?: boolean;
+}
+
+/** `POST /inventory/semen/batches` body (`CreateSemenBatchDto`). */
+export interface CreateSemenBatchPayload {
+  name: string;
+  batchCode?: string;
+  bullId?: string;
+  breed?: string;
+  strawColor?: string;
+  initialVitalityPct?: number;
+  strawQuantity: number;
+  lowStrawThreshold?: number;
+  fatherId?: string;
+  motherId?: string;
+  tankId?: string;
+  canister?: string;
+  cane?: string;
+  goblet?: string;
+  notes?: string;
+}
+
+/** `PATCH /inventory/semen/batches/:id` body (`UpdateSemenBatchDto`) — same shape, all optional. */
+export type UpdateSemenBatchPayload = Partial<CreateSemenBatchPayload>;
+
+export type EquipmentType = "EQUIPMENT" | "MACHINERY" | "TOOL" | "SUPPLY" | "OTHER";
+
+/** `GET/POST /inventory/equipment(/:id)` row shape (`equipment.service.ts#present`) — the raw
+ * Prisma `Equipment` row plus a derived `stockStatus` (reuses `domain/medicine-status.ts`, same as
+ * Medicine — no separate "equipment status" logic on the backend). No `imageUrl`, no `expiryDate`,
+ * no `batchId`, no location/warranty fields — see `equipment.prisma`. */
+export interface Equipment {
+  id: string;
+  name: string;
+  assetId: string | null;
+  type: EquipmentType;
+  unit: string | null;
+  currentStock: number;
+  costPerUnit: number;
+  lowStockThreshold: number;
+  purchaseDate: string;
+  notes: string | null;
+  isActive: boolean;
+  stockStatus: MedicineStockStatus;
+}
+
+export interface EquipmentListFilters {
+  search?: string;
+  type?: EquipmentType;
+}
+
+/** `POST /inventory/equipment` body (`CreateEquipmentDto`). */
+export interface CreateEquipmentPayload {
+  name: string;
+  assetId?: string;
+  type?: EquipmentType;
+  unit?: string;
+  currentStock: number;
+  costPerUnit: number;
+  lowStockThreshold?: number;
+  purchaseDate: string;
+  notes?: string;
+}
+
+/** `PATCH /inventory/equipment/:id` body (`UpdateEquipmentDto`) — same shape, all optional, incl.
+ * `currentStock` (equipment has no separate audited adjust-stock route, unlike Medicine). */
+export type UpdateEquipmentPayload = Partial<CreateEquipmentPayload>;
