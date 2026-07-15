@@ -2,10 +2,11 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FloatingInput } from "@/components/ui/floating-input";
 import { useCreateFarm } from "../hooks/use-create-farm";
 import { createFarmSchema, type CreateFarmInput } from "../schemas";
@@ -18,7 +19,10 @@ export function CreateFarmForm() {
   const router = useRouter();
   const createFarm = useCreateFarm();
   const t = useTranslations("onboarding.createFarm");
-  const form = useForm<CreateFarmInput>({ resolver: zodResolver(createFarmSchema) });
+  const form = useForm<CreateFarmInput>({
+    resolver: zodResolver(createFarmSchema),
+    defaultValues: { agreeToTerms: false },
+  });
 
   async function onSubmit(values: CreateFarmInput) {
     try {
@@ -53,6 +57,28 @@ export function CreateFarmForm() {
           error={form.formState.errors.name?.message}
           {...form.register("name")}
         />
+
+        <div className="flex flex-col gap-1.5">
+          <label className="flex items-start gap-2.5 text-sm text-muted-foreground">
+            <Controller
+              control={form.control}
+              name="agreeToTerms"
+              render={({ field }) => (
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={(checked) => field.onChange(checked === true)}
+                  className="mt-0.5"
+                />
+              )}
+            />
+            {t("agreeToTerms")}
+          </label>
+          {form.formState.errors.agreeToTerms ? (
+            <p role="alert" className="text-sm text-destructive">
+              {t("agreeToTermsRequired")}
+            </p>
+          ) : null}
+        </div>
 
         <Button type="submit" disabled={createFarm.isPending} className="h-[52px] w-full rounded-xl">
           {createFarm.isPending ? t("submitting") : t("submit")}

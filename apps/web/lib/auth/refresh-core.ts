@@ -19,7 +19,14 @@ export async function performBackendRefresh(
   farmId: string,
 ): Promise<{ accessToken: string; refreshCookie: string; user: SessionUser } | null> {
   try {
-    const csrfRes = await fetch(`${serverEnv.API_BASE_URL}/auth/csrf`, { cache: "no-store" });
+    // The backend's CsrfGuard derives its session identifier from the `rakhal_refresh` cookie
+    // when present (falls back to IP+UA otherwise) — the CSRF token must be minted in a request
+    // that carries the SAME cookie the refresh call below will send, or validation always 403s
+    // with "invalid csrf token" (found live-testing onboarding's session escalation).
+    const csrfRes = await fetch(`${serverEnv.API_BASE_URL}/auth/csrf`, {
+      cache: "no-store",
+      headers: { Cookie: `rakhal_refresh=${refreshCookieValue}` },
+    });
     const csrfEnvelope = (await csrfRes.json()) as ApiEnvelope<{ csrfToken: string }>;
     const csrfCookie = extractCookieValue(csrfRes.headers.getSetCookie?.() ?? [], "rakhal_csrf");
     if (!csrfEnvelope.success || !csrfCookie) return null;

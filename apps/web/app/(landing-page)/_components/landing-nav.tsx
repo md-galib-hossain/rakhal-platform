@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { LocaleToggle } from "./locale-toggle";
-import rakhalLogo from "@/public/rakhal-full-logo.jpg";
+import rakhalLogo from "@/public/logo-mark.svg";
 
 export function LandingNav() {
   const t = useTranslations("landing.nav");

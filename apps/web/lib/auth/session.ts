@@ -146,6 +146,14 @@ export async function createFirstFarm(name: string, description?: string): Promi
     throw new ApiError("NO_SESSION", "Not authenticated.", 401);
   }
 
+  // LGL-02: FarmService.create 403s until the current ToS + Privacy are accepted. The onboarding
+  // form only submits here once the user has checked the agree box, so accept-all is safe.
+  await backendFetch("/legal/consent", {
+    method: "POST",
+    body: JSON.stringify({}),
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
   const created = await backendFetch<{ id: string }>("/farms", {
     method: "POST",
     body: JSON.stringify({ name, description }),
@@ -210,7 +218,13 @@ export async function logoutSession(): Promise<void> {
   const refreshCookieValue = store.get(COOKIE_REFRESH)?.value;
   if (accessToken && refreshCookieValue) {
     try {
-      const csrfRes = await fetch(`${serverEnv.API_BASE_URL}/auth/csrf`, { cache: "no-store" });
+      // See lib/auth/refresh-core.ts's comment: the CSRF session identifier binds to whichever
+      // `rakhal_refresh` cookie (if any) is present on the /auth/csrf request, so it must match
+      // the one sent below or the backend 403s with "invalid csrf token".
+      const csrfRes = await fetch(`${serverEnv.API_BASE_URL}/auth/csrf`, {
+        cache: "no-store",
+        headers: { Cookie: `rakhal_refresh=${refreshCookieValue}` },
+      });
       const csrfEnvelope = (await csrfRes.json()) as ApiEnvelope<{ csrfToken: string }>;
       const csrfCookie = extractCookieValue(csrfRes.headers.getSetCookie?.() ?? [], "rakhal_csrf");
       if (csrfEnvelope.success && csrfCookie) {
@@ -242,7 +256,13 @@ export async function logoutAllSessions(): Promise<{ success: boolean; revokedSe
   let result: { success: boolean; revokedSessions?: number } = { success: true };
   if (accessToken && refreshCookieValue) {
     try {
-      const csrfRes = await fetch(`${serverEnv.API_BASE_URL}/auth/csrf`, { cache: "no-store" });
+      // See lib/auth/refresh-core.ts's comment: the CSRF session identifier binds to whichever
+      // `rakhal_refresh` cookie (if any) is present on the /auth/csrf request, so it must match
+      // the one sent below or the backend 403s with "invalid csrf token".
+      const csrfRes = await fetch(`${serverEnv.API_BASE_URL}/auth/csrf`, {
+        cache: "no-store",
+        headers: { Cookie: `rakhal_refresh=${refreshCookieValue}` },
+      });
       const csrfEnvelope = (await csrfRes.json()) as ApiEnvelope<{ csrfToken: string }>;
       const csrfCookie = extractCookieValue(csrfRes.headers.getSetCookie?.() ?? [], "rakhal_csrf");
       if (csrfEnvelope.success && csrfCookie) {

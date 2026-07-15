@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import rakhalLogo from "@/public/rakhal-full-logo.jpg";
+import rakhalLogo from "@/public/logo-mark.svg";
 
 export function Footer() {
   const t = useTranslations("landing.footer");

@@ -170,6 +170,8 @@
       "title": "Set up your farm",
       "subtitle": "Give your farm a name to get started — you can add more details later.",
       "name": "Farm name",
+      "agreeToTerms": "I agree to Rakhal's Terms of Service and Privacy Policy.",
+      "agreeToTermsRequired": "You must accept the Terms of Service and Privacy Policy.",
       "submit": "Create Farm",
       "submitting": "Creating farm…",
       "genericError": "Something went wrong. Please try again."

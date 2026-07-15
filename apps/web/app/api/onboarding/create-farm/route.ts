@@ -6,6 +6,7 @@ import { createFirstFarm } from "@/lib/auth/session";
 const bodySchema = z.object({
   name: z.string().trim().min(1).max(120),
   description: z.string().trim().max(500).optional(),
+  agreeToTerms: z.literal(true),
 });
 
 /** POST body: {name, description?}. See lib/auth/session.ts#createFirstFarm — bespoke cookie
