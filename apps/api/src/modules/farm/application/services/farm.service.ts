@@ -1,9 +1,11 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
-import { Farm } from '@prisma/client';
+import { Farm, FarmStatus } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { SYSTEM_ROLES } from 'src/modules/permission/domain/permission-catalogue';
@@ -131,6 +133,37 @@ export class FarmService {
     });
 
     return memberships.map((m) => ({ ...m.farm, role: m.role.name }));
+  }
+
+  /**
+   * Soft-delete: flips `status` to ARCHIVED and stamps `deletedAt`, nothing else. Related
+   * data (cattle, finance, milk logs, etc.) is left untouched by design — a hard purge is a
+   * separate, deliberately deferred admin-side operation (see docs/TECH_DEBT.md). Only the
+   * farm's actual `ownerId` may delete it (not just any Owner-role member, in case that role
+   * is ever granted to more than one person) — `TenantAccessService.resolveFarmContext` already
+   * rejects `deletedAt`/non-ACTIVE farms on every subsequent request, so this takes effect
+   * immediately for every session scoped to this farm.
+   */
+  async softDelete(farmId: string, userId: string): Promise<{ success: true }> {
+    const farm = await this.prisma.farm.findFirst({
+      where: { id: farmId, deletedAt: null },
+      select: { id: true, ownerId: true },
+    });
+    if (!farm) {
+      throw new NotFoundException('Farm not found');
+    }
+    if (farm.ownerId !== userId) {
+      throw new ForbiddenException('Only the farm owner can delete this farm');
+    }
+
+    await this.prisma.farm.update({
+      where: { id: farmId },
+      data: { deletedAt: new Date(), status: FarmStatus.ARCHIVED },
+    });
+
+    this.log.info('Farm soft-deleted', { farmId, ownerId: userId });
+
+    return { success: true };
   }
 
   private async uniqueSlug(name: string): Promise<string> {
