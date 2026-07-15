@@ -22,7 +22,11 @@ const PUBLIC_PATHS = [
   "/verify-email",
 ];
 
+const FARM_ORIGIN = process.env.NEXT_PUBLIC_FARM_URL ?? "https://farm.rakhal.app";
+const FARM_HOSTNAME = new URL(FARM_ORIGIN).hostname.toLowerCase();
+
 const FARM_HOSTS = new Set([
+  FARM_HOSTNAME,
   "farm.rakhal.app",
   "localhost", // Optional: useful for local testing
 ]);
@@ -41,8 +45,22 @@ function getHostname(request: NextRequest) {
     .toLowerCase();
 }
 
+/**
+ * Builds a URL for `pathname` on the farm app shell, preserving the request's
+ * search params. Every route except the marketing root ("/") lives on
+ * `farm.rakhal.app` (auth pages included — signup/login are app-domain
+ * concerns per the RFE-100 marketing/app split), so any such path reached on
+ * the marketing host is handed off here rather than served/redirected locally.
+ */
+function toFarmUrl(request: NextRequest, pathname: string) {
+  const url = new URL(FARM_ORIGIN);
+  url.pathname = pathname;
+  url.search = request.nextUrl.search;
+  return url;
+}
+
 function clearedRedirect(request: NextRequest, next?: string) {
-  const url = new URL("/login", request.url);
+  const url = toFarmUrl(request, "/login");
 
   if (next) {
     url.searchParams.set("next", next);
@@ -71,6 +89,16 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(
       new URL("/dashboard", request.url),
     );
+  }
+
+  /**
+   * The marketing host only serves "/" (the landing page). Every other path —
+   * /login, /register, /onboarding, /dashboard, etc. — belongs to the app
+   * shell, so hand it off to farm.rakhal.app instead of resolving it (or
+   * redirecting to a login page) on the marketing origin.
+   */
+  if (!FARM_HOSTS.has(hostname) && pathname !== "/") {
+    return NextResponse.redirect(toFarmUrl(request, pathname));
   }
 
   if (isPublicPath(pathname)) {

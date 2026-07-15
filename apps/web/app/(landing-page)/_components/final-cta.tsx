@@ -1,7 +1,7 @@
 import { ArrowRight } from "lucide-react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { env } from "@/lib/env";
 import { Reveal } from "./motion";
 
 export function FinalCta() {
@@ -21,10 +21,10 @@ export function FinalCta() {
               <p className="mx-auto mt-5 max-w-xl text-lg text-sidebar-muted">{t("body")}</p>
               <div className="mt-9 flex flex-wrap justify-center gap-4">
                 <Button size="lg" asChild>
-                  <Link href="/register">
+                  <a href={`${env.NEXT_PUBLIC_FARM_URL}/register`}>
                     {t("buy")}
                     <ArrowRight aria-hidden />
-                  </Link>
+                  </a>
                 </Button>
                 {/* TODO(landing): point at the real demo-booking flow (calendar/contact) when one exists. */}
                 <Button size="lg" variant="inverse" asChild>

@@ -2,6 +2,7 @@ import { ArrowRight, Beef, HeartPulse, Milk, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { env } from "@/lib/env";
 import { MockBars } from "./mock-bits";
 import { Float, Reveal } from "./motion";
 
@@ -60,10 +61,10 @@ export function Hero() {
           <Reveal delay={0.3}>
             <div className="mt-10 flex flex-wrap items-center gap-4">
               <Button size="lg" asChild>
-                <Link href="/register">
+                <a href={`${env.NEXT_PUBLIC_FARM_URL}/register`}>
                   {t("ctaTrial")}
                   <ArrowRight aria-hidden />
-                </Link>
+                </a>
               </Button>
               <Button size="lg" variant="inverse" asChild>
                 <Link href="#pricing">{t("ctaDemo")}</Link>

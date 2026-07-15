@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { env } from "@/lib/env";
 import { LocaleToggle } from "./locale-toggle";
 import rakhalLogo from "@/public/logo-mark.svg";
 
@@ -30,10 +31,10 @@ export function LandingNav() {
         <div className="flex items-center gap-2">
           <LocaleToggle />
           <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
-            <Link href="/login">{t("login")}</Link>
+            <a href={`${env.NEXT_PUBLIC_FARM_URL}/login`}>{t("login")}</a>
           </Button>
           <Button size="sm" asChild>
-            <Link href="/register">{t("trial")}</Link>
+            <a href={`${env.NEXT_PUBLIC_FARM_URL}/register`}>{t("trial")}</a>
           </Button>
         </div>
       </div>

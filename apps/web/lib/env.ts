@@ -13,6 +13,13 @@ const serverSchema = z.object({
 /** Public env — safe to ship to the browser. */
 const clientSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.url().default("http://localhost:3001"),
+  /**
+   * Origin of the `farm.rakhal.app` app shell (auth/onboarding/dashboard). The
+   * marketing landing page (this app's `/`) links out to it directly instead of
+   * routing those pages through its own origin — see RFE-100 domain split,
+   * `proxy.ts`'s `FARM_HOSTS`/`toFarmUrl`.
+   */
+  NEXT_PUBLIC_FARM_URL: z.url().default("https://farm.rakhal.app"),
 });
 
 function parse<T extends z.ZodTypeAny>(schema: T, source: Record<string, string | undefined>): z.infer<T> {
@@ -32,4 +39,5 @@ export const serverEnv = isServer
 
 export const env = parse(clientSchema, {
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  NEXT_PUBLIC_FARM_URL: process.env.NEXT_PUBLIC_FARM_URL,
 });

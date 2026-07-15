@@ -2,6 +2,7 @@ import { Check } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { env } from "@/lib/env";
 import { cn } from "@/lib/utils";
 import { Reveal } from "./motion";
 import { SectionHeading } from "./section-heading";
@@ -11,8 +12,8 @@ import { SectionHeading } from "./section-heading";
  * `GET /plans` endpoint so marketing never drifts from real billing (PRD §31).
  */
 const PLANS = [
-  { key: "starter", features: ["F1", "F2", "F3"], highlight: false, href: "/register" },
-  { key: "growth", features: ["F1", "F2", "F3", "F4"], highlight: true, href: "/register" },
+  { key: "starter", features: ["F1", "F2", "F3"], highlight: false, href: `${env.NEXT_PUBLIC_FARM_URL}/register` },
+  { key: "growth", features: ["F1", "F2", "F3", "F4"], highlight: true, href: `${env.NEXT_PUBLIC_FARM_URL}/register` },
   { key: "enterprise", features: ["F1", "F2", "F3"], highlight: false, href: "mailto:hello@rakhal.app" },
 ] as const;
 
