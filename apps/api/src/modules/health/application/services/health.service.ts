@@ -361,14 +361,24 @@ export class HealthService {
     }
   }
 
-  /** Next per-farm `HC-XXXXX` code from the current max suffix (PRD §13). */
+  /**
+   * Next per-farm `HC-XXXXX` code from the current max suffix (PRD §13).
+   * Ordering by `caseCode desc` (string sort) breaks once any row uses a
+   * differently-shaped code — e.g. seed data's `HC-SEED-05` sorts ahead of
+   * `HC-00008` alphabetically ('S' > '0'), so the old single-row lookup kept
+   * re-deriving `HC-00006` and colliding (P2002) on every attempt, forever.
+   * Only consider codes matching the real `HC-<digits>` shape when computing
+   * the max suffix.
+   */
   private async nextCaseCode(farmId: string): Promise<string> {
-    const last = await this.prisma.healthCase.findFirst({
-      where: { farmId },
-      orderBy: { caseCode: 'desc' },
+    const rows = await this.prisma.healthCase.findMany({
+      where: { farmId, caseCode: { startsWith: 'HC-' } },
       select: { caseCode: true },
     });
-    const n = last ? parseInt(last.caseCode.replace(/\D/g, ''), 10) || 0 : 0;
+    const n = rows.reduce((max, row) => {
+      const match = /^HC-(\d+)$/.exec(row.caseCode);
+      return match ? Math.max(max, parseInt(match[1], 10)) : max;
+    }, 0);
     return `HC-${String(n + 1).padStart(5, '0')}`;
   }
 
