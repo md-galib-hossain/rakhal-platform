@@ -1973,5 +1973,411 @@
     "error": {
       "title": "Could not load the activity log."
     }
+  },
+  "tasks": {
+    "pageTitle": "Task Hub",
+    "createTask": "Create Task",
+    "allTasks": "All Tasks",
+    "searchPlaceholder": "Search task by id",
+    "priority": { "HIGH": "High", "MEDIUM": "Medium", "LOW": "Low" },
+    "category": {
+      "FEEDING": "Feeding",
+      "HEALTHCARE": "Healthcare",
+      "BREEDING": "Breeding",
+      "MAINTENANCE": "Maintenance",
+      "MILKING": "Milking",
+      "CALF_CARE": "Calf Care",
+      "GENERAL": "General"
+    },
+    "recurrence": { "DAILY": "Daily", "WEEKLY": "Weekly", "MONTHLY": "Monthly" },
+    "filters": {
+      "my_tasks": "My Tasks",
+      "all": "All Tasks",
+      "overdue": "Overdue",
+      "blocked": "Blocked"
+    },
+    "highlights": {
+      "title": "Task Highlights",
+      "dueToday": "Due Task Today",
+      "dueTodayDesc": "{count} tasks need to be completed by today",
+      "overdue": "Overdue Tasks",
+      "overdueDesc": "{count} high priority tasks missed deadline",
+      "blocked": "Task Blocked",
+      "blockedDesc": "{count} tasks waiting on stock",
+      "lateRate": "Late Completion Rate"
+    },
+    "card": {
+      "priority": "Priority",
+      "dueDate": "Due Date",
+      "overdueBy": "Overdue by {hours}h",
+      "stepsCompleted": "Steps Completed",
+      "stepsCount": "{completed}/{total} steps",
+      "category": "Category",
+      "assignedTo": "Assigned to",
+      "unassigned": "Unassigned",
+      "seeDetails": "See Details"
+    },
+    "empty": {
+      "title": "No tasks yet",
+      "description": "Create a task to start tracking farm work here."
+    },
+    "error": {
+      "title": "Could not load tasks."
+    },
+    "createSheet": {
+      "title": "Create New Task",
+      "close": "Close",
+      "taskName": "Task Name",
+      "taskNamePlaceholder": "Write your task name",
+      "taskDetails": "Task Details",
+      "taskDetailsPlaceholder": "Write your task details",
+      "category": "Category",
+      "selectCategory": "Select Category",
+      "dueDate": "Due Date",
+      "dueDatePlaceholder": "Choose due date",
+      "taskPriority": "Tasks Priority",
+      "assignTo": "Assign to",
+      "assignPlaceholder": "Type name to assign",
+      "assignSearchPlaceholder": "Search team member…",
+      "loadingAssignees": "Loading…",
+      "noAssignees": "No team members found",
+      "recurringTask": "Recurring Task",
+      "recurringTaskDesc": "Enable if this task repeats on a schedule",
+      "repeats": "Repeats",
+      "selectRepeats": "Select interval",
+      "repeatsOptions": { "DAILY": "Daily", "WEEKLY": "Weekly", "MONTHLY": "Monthly" },
+      "safetyCritical": "Safety Critical",
+      "safetyCriticalDesc": "Enable if this task involves animal or human Safety",
+      "cancel": "Cancel",
+      "create": "Create",
+      "createdToast": "Task created",
+      "genericError": "Something went wrong. Please try again."
+    },
+    "detailsSheet": {
+      "close": "Close",
+      "dueDate": "Due Date",
+      "overdueBy": "Overdue by {hours}h",
+      "taskPriority": "Task Priority",
+      "category": "Category",
+      "recurrence": "Recurrence",
+      "oneOff": "One-off",
+      "stepsCompleted": "Steps Completed",
+      "assignTo": "Assign To",
+      "unassigned": "Unassigned",
+      "description": "Task Description",
+      "checklist": "Checklist",
+      "reassignTo": "Reassign to",
+      "reassign": "Reassign",
+      "markComplete": "Completed",
+      "completed": "Completed",
+      "completedToast": "Task marked complete",
+      "reassignedToast": "Task reassigned",
+      "genericError": "Something went wrong. Please try again."
+    }
+  },
+  "finance": {
+    "actions": {
+      "wallet": "Wallet",
+      "record": "Record",
+      "comingSoon": "Coming soon"
+    },
+    "tabs": {
+      "ledger": "Master Ledger",
+      "receivables": "Receivables",
+      "payables": "Payables",
+      "liabilities": "Liabilities",
+      "assets": "Asset Distribution"
+    },
+    "highlights": {
+      "title": "My Highlights",
+      "availableLiquidity": "Available Liquidity",
+      "availableLiquiditySubtitle": "Cash + bank balance",
+      "costPerLitre": "Cost Per Litre",
+      "costPerLitreSubtitle": "This month",
+      "herdMarketValue": "Herd Market Value",
+      "survivalRunway": "Survival Runway",
+      "survivalRunwaySubtitle": "Based on avg daily burn rate",
+      "daysValue": "{days} Days",
+      "runwayStatus": "Runway status: {status}",
+      "error": "Could not load your finance highlights."
+    },
+    "ledger": {
+      "tableTitle": "Transaction Ledger",
+      "noDescription": "No description",
+      "chart": {
+        "title": "Financial Performance Over Time",
+        "income": "Income",
+        "expense": "Expense",
+        "profit": "Profit",
+        "operatingMargin": "Operating Margin",
+        "debtToAsset": "Debt to Asset"
+      },
+      "filters": {
+        "searchPlaceholder": "Search transactions",
+        "category": "Category",
+        "categoryOptions": {
+          "REVENUE": "Revenue",
+          "INVENTORY": "Inventory",
+          "HEALTHCARE": "Healthcare",
+          "OVERHEAD": "Overhead",
+          "DEBT": "Debt"
+        },
+        "export": "Export",
+        "exportUnavailable": "Export isn't available yet"
+      },
+      "columns": {
+        "date": "Date",
+        "description": "Description",
+        "entity": "Entity",
+        "category": "Category",
+        "method": "Method",
+        "amount": "Amount",
+        "status": "Status"
+      },
+      "categoryOptions": {
+        "REVENUE": "Revenue",
+        "INVENTORY": "Inventory",
+        "HEALTHCARE": "Healthcare",
+        "OVERHEAD": "Overhead",
+        "DEBT": "Debt"
+      },
+      "methodOptions": {
+        "CASH": "Cash",
+        "BANK_TRANSFER": "Bank Transfer",
+        "MFS": "Mobile Financial Service"
+      },
+      "statusOptions": {
+        "COMPLETED": "Completed",
+        "PENDING": "Pending",
+        "VOIDED": "Voided"
+      },
+      "empty": {
+        "title": "No transactions yet",
+        "description": "Recorded transactions will show up here."
+      }
+    },
+    "receivables": {
+      "title": "Accounts Receivable",
+      "searchPlaceholder": "Search buyer",
+      "statusFilter": "Status",
+      "noEntity": "Unknown entity",
+      "stats": {
+        "total": "Total Receivables",
+        "pending": "Pending Today",
+        "overdue": "Overdue"
+      },
+      "statusOptions": {
+        "PENDING": "Pending",
+        "PARTIAL": "Partially Paid",
+        "COMPLETED": "Completed",
+        "OVERDUE": "Overdue"
+      },
+      "columns": {
+        "date": "Date",
+        "entity": "Buyer / Entity",
+        "total": "Total",
+        "paid": "Paid",
+        "outstanding": "Outstanding",
+        "dueDate": "Due Date",
+        "status": "Status"
+      },
+      "empty": {
+        "title": "No receivables yet",
+        "description": "Partial payments owed to you will show up here."
+      }
+    },
+    "payables": {
+      "title": "Accounts Payable",
+      "searchPlaceholder": "Search vendor",
+      "statusFilter": "Status",
+      "noEntity": "Unknown entity",
+      "stats": {
+        "total": "Total Payables",
+        "pending": "Due This Week",
+        "overdue": "Overdue"
+      },
+      "statusOptions": {
+        "PENDING": "Pending",
+        "PARTIAL": "Partially Paid",
+        "COMPLETED": "Completed",
+        "OVERDUE": "Overdue"
+      },
+      "columns": {
+        "date": "Date",
+        "entity": "Vendor / Entity",
+        "total": "Total",
+        "paid": "Paid",
+        "outstanding": "Outstanding",
+        "dueDate": "Due Date",
+        "status": "Status"
+      },
+      "empty": {
+        "title": "No payables yet",
+        "description": "Amounts you owe will show up here."
+      }
+    },
+    "liabilities": {
+      "title": "Loan Portfolio",
+      "searchPlaceholder": "Search lender",
+      "error": "Could not load liabilities.",
+      "stats": {
+        "totalDebt": "Total Debt",
+        "monthlyEmi": "Monthly EMI"
+      },
+      "columns": {
+        "lender": "Lender",
+        "total": "Total",
+        "paid": "Paid",
+        "outstanding": "Outstanding",
+        "monthlyEmi": "Monthly EMI",
+        "status": "Status"
+      },
+      "statusOptions": {
+        "ACTIVE": "Active",
+        "CLOSED": "Closed"
+      },
+      "empty": {
+        "title": "No loans yet",
+        "description": "Loans recorded through the transaction wizard will show up here."
+      }
+    },
+    "assets": {
+      "error": "Could not load asset distribution.",
+      "allocation": {
+        "title": "Asset Allocation",
+        "totalNetWorth": "Total Net Worth",
+        "categories": {
+          "cattle_herd": "Cattle (Herd)",
+          "equipment": "Equipment",
+          "land_structure": "Land/Structure",
+          "inventory": "Inventory",
+          "cash_bank": "Cash/Bank"
+        }
+      },
+      "depreciation": {
+        "title": "Fixed Asset Depreciation",
+        "bookValue": "Book Value",
+        "accumulatedDepreciation": "Accumulated Depreciation",
+        "empty": "No fixed assets recorded yet."
+      }
+    },
+    "wallet": {
+      "title": "Wallet",
+      "close": "Close",
+      "totalBalance": "Total Balance",
+      "addFunds": "Add Funds",
+      "withdraw": "Withdraw",
+      "recentTransactions": "Recent Transactions",
+      "noDescription": "No description",
+      "error": "Could not load your wallet.",
+      "empty": {
+        "title": "No transactions yet",
+        "description": "Wallet transactions will show up here."
+      }
+    },
+    "addFunds": {
+      "title": "Add Funds to Wallet",
+      "back": "Back",
+      "fundName": "Fund Name",
+      "fundNamePlaceholder": "Enter fund name",
+      "amount": "Amount",
+      "paymentMethod": "Payment Method",
+      "methods": {
+        "CASH": { "label": "Cash", "description": "Direct cash payment" },
+        "BANK_TRANSFER": { "label": "Bank Account", "description": "Direct transfer from bank" },
+        "MFS": { "label": "MFS (Bkash / Nagad)", "description": "Mobile financial service" }
+      },
+      "submit": "Add Funds",
+      "addedToast": "Funds added to wallet",
+      "genericError": "Something went wrong. Please try again."
+    },
+    "withdraw": {
+      "title": "Withdraw Funds",
+      "back": "Back",
+      "fundName": "Fund Name",
+      "fundNamePlaceholder": "Enter fund name",
+      "amount": "Amount",
+      "paymentMethod": "Payment Method",
+      "methods": {
+        "CASH": { "label": "Cash", "description": "Direct cash payment" },
+        "BANK_TRANSFER": { "label": "Bank Account", "description": "Direct transfer from bank" },
+        "MFS": { "label": "MFS (Bkash / Nagad)", "description": "Mobile financial service" }
+      },
+      "submit": "Withdraw",
+      "withdrawnToast": "Funds withdrawn from wallet",
+      "genericError": "Something went wrong. Please try again."
+    },
+    "record": {
+      "title": "Record",
+      "close": "Close",
+      "stepOf": "Step {step} of {total}",
+      "step1Title": "What are you recording?",
+      "step1Subtitle": "Select the transaction type to get started",
+      "types": {
+        "OPERATING_EXPENSE": { "label": "Operating Expenses", "description": "Salary, Utilities, Maintenance and Others" },
+        "INVENTORY_PURCHASE": { "label": "Inventory Purchase", "description": "Feed, Medicines, Equipment, Supplies" },
+        "REVENUE": { "label": "Revenue / Sale", "description": "Milk, Animal, Manure, and Other Sales" },
+        "DEBT_LOAN": { "label": "Debt / Loan", "description": "New Loan or EMI Payment" }
+      },
+      "step2Title": "Details",
+      "step2Subtitle": {
+        "OPERATING_EXPENSE": "Record a direct overhead expense",
+        "INVENTORY_PURCHASE": "Record a feed, medicine, or equipment purchase",
+        "REVENUE": "Record a sale or other income",
+        "DEBT_LOAN": "Record a new loan or an EMI payment"
+      },
+      "subTypeLabel": {
+        "OPERATING_EXPENSE": "Expense Category",
+        "INVENTORY_PURCHASE": "Item Category",
+        "REVENUE": "Sale Type",
+        "DEBT_LOAN": "Loan Action"
+      },
+      "selectOption": "Select an option",
+      "subTypeOptions": {
+        "OPERATING_EXPENSE": { "salary": "Salary", "utilities": "Utilities", "maintenance": "Maintenance", "other": "Other" },
+        "INVENTORY_PURCHASE": { "feed": "Feed", "medicine": "Medicine", "equipment": "Equipment", "supplies": "Supplies", "other": "Other" },
+        "REVENUE": { "milk": "Milk", "animal": "Animal", "manure": "Manure", "other": "Other" },
+        "DEBT_LOAN": { "new_loan": "New Loan", "emi_payment": "EMI Payment" }
+      },
+      "entityNameLabel": {
+        "OPERATING_EXPENSE": "Entity Name",
+        "INVENTORY_PURCHASE": "Vendor Name",
+        "REVENUE": "Buyer Name",
+        "DEBT_LOAN": "Lender Name"
+      },
+      "entityNamePlaceholder": "Enter name",
+      "amount": "Amount",
+      "lenderName": "Lender Name",
+      "loanAmount": "Loan Amount",
+      "emiAmount": "EMI Amount",
+      "animal": "Animal",
+      "selectAnimal": "Select cattle…",
+      "itemName": "Item Name",
+      "itemNamePlaceholder": "Enter item name",
+      "quantity": "Quantity",
+      "costPerUnit": "Cost Per Unit",
+      "monthlyEmi": "Monthly EMI",
+      "durationMonths": "Duration (Months)",
+      "startDate": "Start Date",
+      "selectDate": "Select date",
+      "selectLoan": "Select Loan",
+      "outstandingSuffix": "outstanding",
+      "paymentType": "Payment Type",
+      "paymentTypeOptions": { "FULL": "Full Payment", "PARTIAL": "Partial Payment" },
+      "paidNow": "Pay Now",
+      "remainingBalance": "Remaining Balance",
+      "dueDate": "Due Date",
+      "paymentDate": "Payment Date",
+      "notes": "Notes",
+      "notesPlaceholder": "Add any note",
+      "step3Title": "Summary",
+      "step3Subtitle": "Check your details before submitting",
+      "cancel": "Cancel",
+      "back": "Back",
+      "continue": "Continue",
+      "submit": "Submit",
+      "createdToast": "Transaction recorded",
+      "genericError": "Something went wrong. Please try again."
+    }
   }
 }

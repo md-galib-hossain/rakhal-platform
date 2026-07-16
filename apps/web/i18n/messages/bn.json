@@ -1973,5 +1973,411 @@
     "error": {
       "title": "কার্যক্রমের তালিকা লোড করা যায়নি।"
     }
+  },
+  "tasks": {
+    "pageTitle": "টাস্ক হাব",
+    "createTask": "টাস্ক তৈরি করুন",
+    "allTasks": "সব টাস্ক",
+    "searchPlaceholder": "আইডি দিয়ে টাস্ক খুঁজুন",
+    "priority": { "HIGH": "উচ্চ", "MEDIUM": "মাঝারি", "LOW": "নিম্ন" },
+    "category": {
+      "FEEDING": "খাদ্য",
+      "HEALTHCARE": "স্বাস্থ্যসেবা",
+      "BREEDING": "প্রজনন",
+      "MAINTENANCE": "রক্ষণাবেক্ষণ",
+      "MILKING": "দোহন",
+      "CALF_CARE": "বাছুর পরিচর্যা",
+      "GENERAL": "সাধারণ"
+    },
+    "recurrence": { "DAILY": "প্রতিদিন", "WEEKLY": "সাপ্তাহিক", "MONTHLY": "মাসিক" },
+    "filters": {
+      "my_tasks": "আমার টাস্ক",
+      "all": "সব টাস্ক",
+      "overdue": "মেয়াদোত্তীর্ণ",
+      "blocked": "আটকে থাকা"
+    },
+    "highlights": {
+      "title": "টাস্ক হাইলাইটস",
+      "dueToday": "আজকের বাকি টাস্ক",
+      "dueTodayDesc": "আজকের মধ্যে {count}টি টাস্ক সম্পন্ন করতে হবে",
+      "overdue": "মেয়াদোত্তীর্ণ টাস্ক",
+      "overdueDesc": "{count}টি উচ্চ-অগ্রাধিকার টাস্কের সময়সীমা পার হয়েছে",
+      "blocked": "আটকে থাকা টাস্ক",
+      "blockedDesc": "{count}টি টাস্ক মজুদের অপেক্ষায় আছে",
+      "lateRate": "দেরিতে সম্পন্নের হার"
+    },
+    "card": {
+      "priority": "অগ্রাধিকার",
+      "dueDate": "নির্ধারিত তারিখ",
+      "overdueBy": "{hours} ঘণ্টা দেরি",
+      "stepsCompleted": "সম্পন্ন ধাপ",
+      "stepsCount": "{completed}/{total} ধাপ",
+      "category": "শ্রেণি",
+      "assignedTo": "দায়িত্বপ্রাপ্ত",
+      "unassigned": "অনির্ধারিত",
+      "seeDetails": "বিস্তারিত দেখুন"
+    },
+    "empty": {
+      "title": "এখনো কোনো টাস্ক নেই",
+      "description": "খামারের কাজ ট্র্যাক করতে একটি টাস্ক তৈরি করুন।"
+    },
+    "error": {
+      "title": "টাস্কের তালিকা লোড করা যায়নি।"
+    },
+    "createSheet": {
+      "title": "নতুন টাস্ক তৈরি করুন",
+      "close": "বন্ধ করুন",
+      "taskName": "টাস্কের নাম",
+      "taskNamePlaceholder": "আপনার টাস্কের নাম লিখুন",
+      "taskDetails": "টাস্কের বিবরণ",
+      "taskDetailsPlaceholder": "আপনার টাস্কের বিবরণ লিখুন",
+      "category": "শ্রেণি",
+      "selectCategory": "শ্রেণি নির্বাচন করুন",
+      "dueDate": "নির্ধারিত তারিখ",
+      "dueDatePlaceholder": "নির্ধারিত তারিখ বাছাই করুন",
+      "taskPriority": "টাস্কের অগ্রাধিকার",
+      "assignTo": "দায়িত্ব দিন",
+      "assignPlaceholder": "দায়িত্ব দিতে নাম লিখুন",
+      "assignSearchPlaceholder": "টিম সদস্য খুঁজুন…",
+      "loadingAssignees": "লোড হচ্ছে…",
+      "noAssignees": "কোনো টিম সদস্য পাওয়া যায়নি",
+      "recurringTask": "পুনরাবৃত্ত টাস্ক",
+      "recurringTaskDesc": "এই টাস্কটি নির্দিষ্ট সময় পর পর হলে সক্রিয় করুন",
+      "repeats": "পুনরাবৃত্তি",
+      "selectRepeats": "সময়ব্যবধান নির্বাচন করুন",
+      "repeatsOptions": { "DAILY": "প্রতিদিন", "WEEKLY": "সাপ্তাহিক", "MONTHLY": "মাসিক" },
+      "safetyCritical": "নিরাপত্তা-গুরুত্বপূর্ণ",
+      "safetyCriticalDesc": "প্রাণী বা মানুষের নিরাপত্তা জড়িত থাকলে সক্রিয় করুন",
+      "cancel": "বাতিল",
+      "create": "তৈরি করুন",
+      "createdToast": "টাস্ক তৈরি হয়েছে",
+      "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+    },
+    "detailsSheet": {
+      "close": "বন্ধ করুন",
+      "dueDate": "নির্ধারিত তারিখ",
+      "overdueBy": "{hours} ঘণ্টা দেরি",
+      "taskPriority": "টাস্কের অগ্রাধিকার",
+      "category": "শ্রেণি",
+      "recurrence": "পুনরাবৃত্তি",
+      "oneOff": "একবারের",
+      "stepsCompleted": "সম্পন্ন ধাপ",
+      "assignTo": "দায়িত্বপ্রাপ্ত",
+      "unassigned": "অনির্ধারিত",
+      "description": "টাস্কের বিবরণ",
+      "checklist": "চেকলিস্ট",
+      "reassignTo": "নতুন দায়িত্ব দিন",
+      "reassign": "পুনরায় নির্ধারণ",
+      "markComplete": "সম্পন্ন",
+      "completed": "সম্পন্ন",
+      "completedToast": "টাস্ক সম্পন্ন হয়েছে",
+      "reassignedToast": "টাস্ক পুনরায় নির্ধারিত হয়েছে",
+      "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+    }
+  },
+  "finance": {
+    "actions": {
+      "wallet": "ওয়ালেট",
+      "record": "রেকর্ড করুন",
+      "comingSoon": "শীঘ্রই আসছে"
+    },
+    "tabs": {
+      "ledger": "মাস্টার লেজার",
+      "receivables": "পাওনা",
+      "payables": "দেনা",
+      "liabilities": "দায়",
+      "assets": "সম্পদ বণ্টন"
+    },
+    "highlights": {
+      "title": "আমার হাইলাইটস",
+      "availableLiquidity": "উপলব্ধ তারল্য",
+      "availableLiquiditySubtitle": "নগদ + ব্যাংক ব্যালেন্স",
+      "costPerLitre": "প্রতি লিটার খরচ",
+      "costPerLitreSubtitle": "এই মাসে",
+      "herdMarketValue": "পালের বাজারমূল্য",
+      "survivalRunway": "টিকে থাকার সময়সীমা",
+      "survivalRunwaySubtitle": "গড় দৈনিক খরচের ভিত্তিতে",
+      "daysValue": "{days} দিন",
+      "runwayStatus": "সময়সীমার অবস্থা: {status}",
+      "error": "আপনার আর্থিক হাইলাইটস লোড করা যায়নি।"
+    },
+    "ledger": {
+      "tableTitle": "লেনদেনের লেজার",
+      "noDescription": "কোনো বিবরণ নেই",
+      "chart": {
+        "title": "সময়ের সাথে আর্থিক পারফরম্যান্স",
+        "income": "আয়",
+        "expense": "ব্যয়",
+        "profit": "মুনাফা",
+        "operatingMargin": "অপারেটিং মার্জিন",
+        "debtToAsset": "দায়-সম্পদ অনুপাত"
+      },
+      "filters": {
+        "searchPlaceholder": "লেনদেন খুঁজুন",
+        "category": "শ্রেণি",
+        "categoryOptions": {
+          "REVENUE": "আয়",
+          "INVENTORY": "মজুদ",
+          "HEALTHCARE": "স্বাস্থ্যসেবা",
+          "OVERHEAD": "পরিচালন ব্যয়",
+          "DEBT": "ঋণ"
+        },
+        "export": "এক্সপোর্ট",
+        "exportUnavailable": "এক্সপোর্ট এখনো চালু হয়নি"
+      },
+      "columns": {
+        "date": "তারিখ",
+        "description": "বিবরণ",
+        "entity": "সংশ্লিষ্ট পক্ষ",
+        "category": "শ্রেণি",
+        "method": "পদ্ধতি",
+        "amount": "পরিমাণ",
+        "status": "অবস্থা"
+      },
+      "categoryOptions": {
+        "REVENUE": "আয়",
+        "INVENTORY": "মজুদ",
+        "HEALTHCARE": "স্বাস্থ্যসেবা",
+        "OVERHEAD": "পরিচালন ব্যয়",
+        "DEBT": "ঋণ"
+      },
+      "methodOptions": {
+        "CASH": "নগদ",
+        "BANK_TRANSFER": "ব্যাংক ট্রান্সফার",
+        "MFS": "মোবাইল ফিনান্সিয়াল সার্ভিস"
+      },
+      "statusOptions": {
+        "COMPLETED": "সম্পন্ন",
+        "PENDING": "মুলতুবি",
+        "VOIDED": "বাতিল"
+      },
+      "empty": {
+        "title": "এখনো কোনো লেনদেন নেই",
+        "description": "রেকর্ড করা লেনদেনগুলো এখানে দেখাবে।"
+      }
+    },
+    "receivables": {
+      "title": "প্রাপ্য হিসাব",
+      "searchPlaceholder": "ক্রেতা খুঁজুন",
+      "statusFilter": "অবস্থা",
+      "noEntity": "অজানা পক্ষ",
+      "stats": {
+        "total": "মোট পাওনা",
+        "pending": "আজ বকেয়া",
+        "overdue": "মেয়াদোত্তীর্ণ"
+      },
+      "statusOptions": {
+        "PENDING": "মুলতুবি",
+        "PARTIAL": "আংশিক পরিশোধিত",
+        "COMPLETED": "সম্পন্ন",
+        "OVERDUE": "মেয়াদোত্তীর্ণ"
+      },
+      "columns": {
+        "date": "তারিখ",
+        "entity": "ক্রেতা / সংশ্লিষ্ট পক্ষ",
+        "total": "মোট",
+        "paid": "পরিশোধিত",
+        "outstanding": "বকেয়া",
+        "dueDate": "নির্ধারিত তারিখ",
+        "status": "অবস্থা"
+      },
+      "empty": {
+        "title": "এখনো কোনো পাওনা নেই",
+        "description": "আপনার প্রাপ্য আংশিক পরিশোধগুলো এখানে দেখাবে।"
+      }
+    },
+    "payables": {
+      "title": "দেনা হিসাব",
+      "searchPlaceholder": "বিক্রেতা খুঁজুন",
+      "statusFilter": "অবস্থা",
+      "noEntity": "অজানা পক্ষ",
+      "stats": {
+        "total": "মোট দেনা",
+        "pending": "এই সপ্তাহে বকেয়া",
+        "overdue": "মেয়াদোত্তীর্ণ"
+      },
+      "statusOptions": {
+        "PENDING": "মুলতুবি",
+        "PARTIAL": "আংশিক পরিশোধিত",
+        "COMPLETED": "সম্পন্ন",
+        "OVERDUE": "মেয়াদোত্তীর্ণ"
+      },
+      "columns": {
+        "date": "তারিখ",
+        "entity": "বিক্রেতা / সংশ্লিষ্ট পক্ষ",
+        "total": "মোট",
+        "paid": "পরিশোধিত",
+        "outstanding": "বকেয়া",
+        "dueDate": "নির্ধারিত তারিখ",
+        "status": "অবস্থা"
+      },
+      "empty": {
+        "title": "এখনো কোনো দেনা নেই",
+        "description": "আপনার বকেয়া পরিমাণগুলো এখানে দেখাবে।"
+      }
+    },
+    "liabilities": {
+      "title": "ঋণ পোর্টফোলিও",
+      "searchPlaceholder": "ঋণদাতা খুঁজুন",
+      "error": "দায় লোড করা যায়নি।",
+      "stats": {
+        "totalDebt": "মোট ঋণ",
+        "monthlyEmi": "মাসিক কিস্তি"
+      },
+      "columns": {
+        "lender": "ঋণদাতা",
+        "total": "মোট",
+        "paid": "পরিশোধিত",
+        "outstanding": "বকেয়া",
+        "monthlyEmi": "মাসিক কিস্তি",
+        "status": "অবস্থা"
+      },
+      "statusOptions": {
+        "ACTIVE": "চলমান",
+        "CLOSED": "সম্পন্ন"
+      },
+      "empty": {
+        "title": "এখনো কোনো ঋণ নেই",
+        "description": "লেনদেন উইজার্ডের মাধ্যমে রেকর্ড করা ঋণ এখানে দেখাবে।"
+      }
+    },
+    "assets": {
+      "error": "সম্পদ বণ্টন লোড করা যায়নি।",
+      "allocation": {
+        "title": "সম্পদ বণ্টন",
+        "totalNetWorth": "মোট নিট সম্পদ",
+        "categories": {
+          "cattle_herd": "গবাদি পশু (পাল)",
+          "equipment": "যন্ত্রপাতি",
+          "land_structure": "জমি/স্থাপনা",
+          "inventory": "মজুদ",
+          "cash_bank": "নগদ/ব্যাংক"
+        }
+      },
+      "depreciation": {
+        "title": "স্থায়ী সম্পদের অবচয়",
+        "bookValue": "বইমূল্য",
+        "accumulatedDepreciation": "সঞ্চিত অবচয়",
+        "empty": "এখনো কোনো স্থায়ী সম্পদ রেকর্ড করা হয়নি।"
+      }
+    },
+    "wallet": {
+      "title": "ওয়ালেট",
+      "close": "বন্ধ করুন",
+      "totalBalance": "মোট ব্যালেন্স",
+      "addFunds": "ফান্ড যোগ করুন",
+      "withdraw": "উত্তোলন করুন",
+      "recentTransactions": "সাম্প্রতিক লেনদেন",
+      "noDescription": "কোনো বিবরণ নেই",
+      "error": "আপনার ওয়ালেট লোড করা যায়নি।",
+      "empty": {
+        "title": "এখনো কোনো লেনদেন নেই",
+        "description": "ওয়ালেট লেনদেনগুলো এখানে দেখাবে।"
+      }
+    },
+    "addFunds": {
+      "title": "ওয়ালেটে ফান্ড যোগ করুন",
+      "back": "পেছনে",
+      "fundName": "ফান্ডের নাম",
+      "fundNamePlaceholder": "ফান্ডের নাম লিখুন",
+      "amount": "পরিমাণ",
+      "paymentMethod": "পেমেন্ট পদ্ধতি",
+      "methods": {
+        "CASH": { "label": "নগদ", "description": "সরাসরি নগদ পরিশোধ" },
+        "BANK_TRANSFER": { "label": "ব্যাংক অ্যাকাউন্ট", "description": "ব্যাংক থেকে সরাসরি ট্রান্সফার" },
+        "MFS": { "label": "এমএফএস (বিকাশ / নগদ)", "description": "মোবাইল ফিনান্সিয়াল সার্ভিস" }
+      },
+      "submit": "ফান্ড যোগ করুন",
+      "addedToast": "ওয়ালেটে ফান্ড যোগ হয়েছে",
+      "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+    },
+    "withdraw": {
+      "title": "ফান্ড উত্তোলন করুন",
+      "back": "পেছনে",
+      "fundName": "ফান্ডের নাম",
+      "fundNamePlaceholder": "ফান্ডের নাম লিখুন",
+      "amount": "পরিমাণ",
+      "paymentMethod": "পেমেন্ট পদ্ধতি",
+      "methods": {
+        "CASH": { "label": "নগদ", "description": "সরাসরি নগদ পরিশোধ" },
+        "BANK_TRANSFER": { "label": "ব্যাংক অ্যাকাউন্ট", "description": "ব্যাংক থেকে সরাসরি ট্রান্সফার" },
+        "MFS": { "label": "এমএফএস (বিকাশ / নগদ)", "description": "মোবাইল ফিনান্সিয়াল সার্ভিস" }
+      },
+      "submit": "উত্তোলন করুন",
+      "withdrawnToast": "ওয়ালেট থেকে উত্তোলন সম্পন্ন হয়েছে",
+      "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+    },
+    "record": {
+      "title": "রেকর্ড",
+      "close": "বন্ধ করুন",
+      "stepOf": "ধাপ {step} এর {total}",
+      "step1Title": "আপনি কী রেকর্ড করছেন?",
+      "step1Subtitle": "শুরু করতে লেনদেনের ধরন নির্বাচন করুন",
+      "types": {
+        "OPERATING_EXPENSE": { "label": "পরিচালন ব্যয়", "description": "বেতন, ইউটিলিটি, রক্ষণাবেক্ষণ এবং অন্যান্য" },
+        "INVENTORY_PURCHASE": { "label": "মজুদ ক্রয়", "description": "খাদ্য, ওষুধ, যন্ত্রপাতি, সরবরাহ" },
+        "REVENUE": { "label": "আয় / বিক্রয়", "description": "দুধ, পশু, গোবর এবং অন্যান্য বিক্রয়" },
+        "DEBT_LOAN": { "label": "ঋণ", "description": "নতুন ঋণ বা কিস্তি পরিশোধ" }
+      },
+      "step2Title": "বিস্তারিত",
+      "step2Subtitle": {
+        "OPERATING_EXPENSE": "একটি সরাসরি পরিচালন ব্যয় রেকর্ড করুন",
+        "INVENTORY_PURCHASE": "খাদ্য, ওষুধ বা যন্ত্রপাতি ক্রয় রেকর্ড করুন",
+        "REVENUE": "একটি বিক্রয় বা অন্য আয় রেকর্ড করুন",
+        "DEBT_LOAN": "একটি নতুন ঋণ বা কিস্তি পরিশোধ রেকর্ড করুন"
+      },
+      "subTypeLabel": {
+        "OPERATING_EXPENSE": "খরচের শ্রেণি",
+        "INVENTORY_PURCHASE": "আইটেম শ্রেণি",
+        "REVENUE": "বিক্রয়ের ধরন",
+        "DEBT_LOAN": "ঋণ কার্যক্রম"
+      },
+      "selectOption": "একটি অপশন নির্বাচন করুন",
+      "subTypeOptions": {
+        "OPERATING_EXPENSE": { "salary": "বেতন", "utilities": "ইউটিলিটি", "maintenance": "রক্ষণাবেক্ষণ", "other": "অন্যান্য" },
+        "INVENTORY_PURCHASE": { "feed": "খাদ্য", "medicine": "ওষুধ", "equipment": "যন্ত্রপাতি", "supplies": "সরবরাহ", "other": "অন্যান্য" },
+        "REVENUE": { "milk": "দুধ", "animal": "পশু", "manure": "গোবর", "other": "অন্যান্য" },
+        "DEBT_LOAN": { "new_loan": "নতুন ঋণ", "emi_payment": "কিস্তি পরিশোধ" }
+      },
+      "entityNameLabel": {
+        "OPERATING_EXPENSE": "সংশ্লিষ্ট পক্ষের নাম",
+        "INVENTORY_PURCHASE": "বিক্রেতার নাম",
+        "REVENUE": "ক্রেতার নাম",
+        "DEBT_LOAN": "ঋণদাতার নাম"
+      },
+      "entityNamePlaceholder": "নাম লিখুন",
+      "amount": "পরিমাণ",
+      "lenderName": "ঋণদাতার নাম",
+      "loanAmount": "ঋণের পরিমাণ",
+      "emiAmount": "কিস্তির পরিমাণ",
+      "animal": "পশু",
+      "selectAnimal": "গবাদি পশু নির্বাচন করুন…",
+      "itemName": "আইটেমের নাম",
+      "itemNamePlaceholder": "আইটেমের নাম লিখুন",
+      "quantity": "পরিমাণ (সংখ্যা)",
+      "costPerUnit": "প্রতি ইউনিট খরচ",
+      "monthlyEmi": "মাসিক কিস্তি",
+      "durationMonths": "মেয়াদ (মাস)",
+      "startDate": "শুরুর তারিখ",
+      "selectDate": "তারিখ নির্বাচন করুন",
+      "selectLoan": "ঋণ নির্বাচন করুন",
+      "outstandingSuffix": "বকেয়া",
+      "paymentType": "পেমেন্টের ধরন",
+      "paymentTypeOptions": { "FULL": "সম্পূর্ণ পরিশোধ", "PARTIAL": "আংশিক পরিশোধ" },
+      "paidNow": "এখন পরিশোধ",
+      "remainingBalance": "অবশিষ্ট ব্যালেন্স",
+      "dueDate": "নির্ধারিত তারিখ",
+      "paymentDate": "পেমেন্টের তারিখ",
+      "notes": "নোট",
+      "notesPlaceholder": "যেকোনো নোট যোগ করুন",
+      "step3Title": "সারসংক্ষেপ",
+      "step3Subtitle": "জমা দেওয়ার আগে আপনার বিবরণ যাচাই করুন",
+      "cancel": "বাতিল",
+      "back": "পেছনে",
+      "continue": "পরবর্তী",
+      "submit": "জমা দিন",
+      "createdToast": "লেনদেন রেকর্ড হয়েছে",
+      "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+    }
   }
 }

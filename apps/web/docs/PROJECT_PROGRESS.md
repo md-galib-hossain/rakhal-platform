@@ -528,7 +528,11 @@
 - List (filters: status/assignee/source/type incl. SYSTEM_AUTO), create/edit, detail with checklist steps
   (`POST .../steps/:id/check`), complete + recurrence, completion photo upload, highlights.
 - **API:** §13 · **PRD:** §17
-- **Status:** `TODO`
+- **Status:** `DONE` (2026-07-16) — Figma-perfect: list page (highlights + filter tabs + real search +
+  card grid + pagination), Create Task side panel, Task Details side panel (reassign + checklist +
+  complete). See `IN_FLIGHT.md` "Task Hub — Figma-perfect" for the full build notes and gaps
+  (no completion-photo-upload endpoint on the real controller; no create-time steps builder — no
+  Figma frame for either).
 
 ---
 
@@ -591,7 +595,27 @@
   receivables/payables (+record-payment), liabilities/EMI, assets (depreciation view), wallet.
   Sub-routes per tab. ৳ everywhere via MoneyText.
 - **API:** §12 · **PRD:** §16
-- **Status:** `TODO`
+- **Status:** `IN PROGRESS` — 5 tab bodies + Wallet + Record wizard done (2026-07-16, Figma-perfect
+  against 12 real Figma links the user supplied across two passes: Master Ledger/Receivables/
+  Payables/Liabilities/Asset Distribution tabs, then Wallet/Add Funds/Withdraw/Record wizard).
+  Highlights KPI row + Master Ledger (search/category filter, DataTable, Financial Performance
+  Over Time chart, Operating Margin/Debt-to-Asset stats, honest-frontier pagination) + Receivables/
+  Payables (3 stat tiles, search/status filter, DataTable) + Liabilities (Total Debt/Monthly EMI,
+  Loan Portfolio table) + Asset Distribution (Asset Allocation donut + Fixed Asset Depreciation bar
+  chart) + Wallet hub (balance, Add Funds/Withdraw, recent transactions) + the 4-type "Record"
+  transaction wizard (3 steps, mirrors `CreateTransactionDto` incl. real side effects: cattle-sale
+  status update, inventory auto-increment, loan create/EMI-payment) all wired to the real
+  `finance.controller.ts`. **Real gaps flagged, not faked** (full list in `features/finance/types.ts`'s
+  doc comment): no `FinanceLoan.dueDate` (Liabilities drops that column), no per-litre margin/AQR on
+  `highlights()` (shows the real cost-per-litre instead), `herdMarketValue` always ৳0 server-side (no
+  valuation model — shown honestly, not fabricated), no `GET /finance/transactions/export` route
+  (Export button renders disabled), no ledger `type` filter (only `category`, wired to the mock's
+  "All Types" dropdown), Add Funds' "Fund Name" input maps to the real `description` field (no such
+  DTO field exists), the Record wizard's Revenue/Inventory/Debt-Loan field sets are extrapolated from
+  the one real Operating Expense Figma frame (no frames were given for the other 3 types). **Still
+  deferred**: the Receivables/Payables record-payment modal, the ledger's void ConfirmDialog, and the
+  Assets tab's create-asset modal — no Figma links given for those yet. Full writeup: `IN_FLIGHT.md`
+  Recently Done (two entries — tabs pass, then Wallet/Record wizard pass).
 
 #### RFE-036 — Billing & subscription management pages
 - **Depends:** RFE-008 · **Lane:** `features/subscription/**` (pages), `app/(app)/subscription/**`

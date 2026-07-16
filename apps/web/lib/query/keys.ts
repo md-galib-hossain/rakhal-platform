@@ -70,4 +70,10 @@ export const qk = {
     list: (filters: Record<string, string | undefined>) => ["tasks", "list", filters] as const,
     teamMembers: () => ["tasks", "team-members"] as const,
   },
+  finance: {
+    highlights: () => ["finance", "highlights"] as const,
+    liabilities: () => ["finance", "liabilities"] as const,
+    assets: () => ["finance", "assets"] as const,
+    wallet: () => ["finance", "wallet"] as const,
+  },
 };

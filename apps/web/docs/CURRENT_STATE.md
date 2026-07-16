@@ -3,6 +3,47 @@
 **Last updated:** 2026-07-16 · **Completion:** Phase 0 done (RFE-001…010) + RFE-100 marketing landing +
 Phase 1 RFE-020 (Dashboard) + RFE-021 (Cattle list) + RFE-022 (Cattle add/edit) + RFE-023 (Cattle detail)
 + RFE-025 (Milk log) done · **Inventory tab now has all 5 categories built** (Medicine/Forage/Semen/Milk/Others)
+· **Finance (RFE-035) 5 tabs + Wallet + Record wizard done** — Master Ledger/Receivables/Payables/
+Liabilities/Asset Distribution + Wallet hub (Add Funds/Withdraw) + the 4-type Record transaction
+wizard, all Figma-perfect; only the record-payment/void/create-asset modals remain (no Figma yet).
+
+## Finance — Wallet + Add Funds/Withdraw + Record transaction wizard, Figma-perfect (2026-07-16, user follow-up)
+Follow-up to the tabs pass below — user supplied 7 more Figma links: Wallet hub, Add Funds, Withdraw,
+and the 4-type "Record" wizard (Step 1 type-picker + Step 2 full/partial-payment variants + Step 3
+summary, all one Operating-Expense-shaped 3-step wizard, not 4 separate flows). New
+`features/finance/schemas.ts` + `components/{wallet-dialog,add-funds-dialog,withdraw-dialog,
+record-transaction-dialog,finance-header-actions}.tsx`; the header's "Wallet"/"Record" buttons are
+now real, wired to `GET /finance/wallet` and `POST /finance/{wallet/add-funds,wallet/withdraw,
+transactions}`. The wizard mirrors `CreateTransactionDto`'s real side effects for all 4 types
+(cattle-sale status update, inventory auto-increment, loan create/EMI-payment) — only Operating
+Expense has a real Figma frame, the other 3 types' field sets are extrapolated from it (flagged in
+`record-transaction-dialog.tsx`'s doc comment). **Caught and fixed a real bug**: giving Wallet/Add
+Funds/Withdraw each their own `<Sheet>` broke step navigation (Radix's outside-click detector on a
+newly-mounted `Sheet` fired against the click that opened it) — fixed by sharing one `<Sheet>` across
+all three steps. **Verified LIVE end-to-end**: a real withdraw and a real 3-step Operating Expense
+transaction both posted (`201`s) and showed up immediately in the Wallet balance/Master Ledger table
+without a manual refresh. Gate green: typecheck/lint/18 unit tests. Full writeup: `IN_FLIGHT.md`
+Recently Done.
+
+## Finance — Master Ledger/Receivables/Payables/Liabilities/Asset Distribution, Figma-perfect (2026-07-16, user request)
+`app/(app)/finance/page.tsx` was a plain `RouteStub`; now a full `PageCard`+`FinanceView` against 5
+real Figma links (file `SCfMPdxP6vgW1uTxfqCtz7`, node ids in `IN_FLIGHT.md`'s Recently Done entry),
+wired to the real `finance.controller.ts`/`finance.service.ts`. My Highlights KPI row (available
+liquidity/cost-per-litre/herd market value/survival runway) sits above a 5-tab bar: **Master
+Ledger** (Financial Performance Over Time chart + Operating Margin/Debt-to-Asset stats, search/
+category filter, transaction table, honest-frontier pagination), **Receivables**/**Payables** (3
+stat tiles, search/status filter, settlement table — one shared presentational component,
+parametrized by `kind`), **Liabilities** (Total Debt/Monthly EMI + Loan Portfolio table),
+**Asset Distribution** (Asset Allocation donut + legend + Total Net Worth, Fixed Asset Depreciation
+grouped bar chart). **Real gaps flagged, not faked** — see `features/finance/types.ts`'s doc
+comment for the full list (no `FinanceLoan.dueDate`, no per-litre margin/AQR, `herdMarketValue`
+always ৳0 server-side, no CSV export route, no ledger `type` filter). **Deferred to a follow-up
+pass per the user's own instruction**: the 4-type transaction wizard, record-payment/void/
+create-asset modals, and the Wallet sub-page — header buttons render disabled. **Fixed a real
+hydration bug found live-verifying**: `FinanceHighlights`' `KpiTile` wrapped `value` in a `<p>`
+that couldn't legally contain the Survival Runway tile's `<div>` — fixed to a `<div>` wrapper.
+Verified LIVE against the real backend (all 5 tabs, real seeded data, zero console errors). Gate
+green: typecheck/lint/18 unit tests. Full writeup: `IN_FLIGHT.md` Recently Done.
 
 ## Healthcare — Health Plan tab, Figma-perfect (2026-07-16, user request)
 Health Plan segment of the Health Management Center (previously a plain list, no Figma frame) is now
