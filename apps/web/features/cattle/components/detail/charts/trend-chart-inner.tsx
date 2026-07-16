@@ -30,7 +30,7 @@ export default function TrendChartInner<T extends object>({
   height?: number;
 }) {
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="w-full overflow-x-auto scrollbar-hide">
       <div style={{ minWidth }}>
         <ResponsiveContainer width="100%" height={height}>
           <AreaChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>

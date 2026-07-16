@@ -261,3 +261,30 @@
     animation: none;
   }
 }
+
+/* ── Charts (recharts) ──────────────────────────────────────────────────── */
+/* Every chart's horizontally-scrollable wrapper (financial-performance/
+   production-vs-feedcost/conception-rate/morbidity-trend/milk-trend/cattle
+   bar+trend charts) uses this so the OS's on-hover overlay scrollbar never
+   shows — the scroll still works via wheel/trackpad/drag, it's just not
+   rendered as a visible bar. */
+.scrollbar-hide {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chromium/Safari */
+}
+
+/* recharts (v3) sets `tabIndex=0` + `role="application"` on its root <svg>
+   for keyboard a11y (`RootSurface.js`), so a plain mouse click focuses it and
+   the browser draws its default focus ring around the whole chart. Suppress
+   that on mouse focus but keep a visible ring for real keyboard navigation
+   (`:focus-visible`), so this is a pure visual fix, not an a11y regression. */
+.recharts-surface:focus {
+  outline: none;
+}
+.recharts-surface:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}

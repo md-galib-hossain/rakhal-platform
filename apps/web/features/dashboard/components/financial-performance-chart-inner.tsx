@@ -22,7 +22,7 @@ export default function FinancialPerformanceChartInner({
   labels: { income: string; expense: string; profit: string };
 }) {
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="w-full overflow-x-auto scrollbar-hide">
       <div className="min-w-[640px]">
         <ResponsiveContainer width="100%" height={260}>
           <AreaChart data={months} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>

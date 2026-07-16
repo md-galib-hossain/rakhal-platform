@@ -13,7 +13,7 @@ export default function MilkTrendChartInner({
   label: string;
 }) {
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="w-full overflow-x-auto scrollbar-hide">
       <div className="min-w-[560px]">
         <ResponsiveContainer width="100%" height={220}>
           <AreaChart data={trend} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>

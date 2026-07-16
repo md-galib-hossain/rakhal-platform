@@ -187,7 +187,7 @@ function CaseManagementSheetBody({
                   type="button"
                   onClick={() => setTab(key)}
                   className={cn(
-                    "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                    "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                     tab === key ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground",
                   )}
                 >

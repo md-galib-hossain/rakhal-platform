@@ -12,7 +12,7 @@ export default function MorbidityTrendChartInner({
   label: string;
 }) {
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="w-full overflow-x-auto scrollbar-hide">
       <div className="min-w-[500px]">
         <ResponsiveContainer width="100%" height={260}>
           <AreaChart data={points} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>

@@ -32,7 +32,7 @@ export function CattleDetailTabs({ cattleId, gender }: { cattleId: string; gende
             key={key}
             value={key}
             className={cn(
-              "flex-1 gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium text-muted-foreground shadow-none",
+              "flex-1 gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium text-muted-foreground shadow-none",
               "data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm",
             )}
           >

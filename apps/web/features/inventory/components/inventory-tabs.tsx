@@ -30,7 +30,7 @@ export function InventoryTabs({
             type="button"
             onClick={() => void setTab(key)}
             className={cn(
-              "flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors",
+              "flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
               tab === key
                 ? "bg-card text-primary shadow-sm"
                 : "text-muted-foreground hover:text-foreground",

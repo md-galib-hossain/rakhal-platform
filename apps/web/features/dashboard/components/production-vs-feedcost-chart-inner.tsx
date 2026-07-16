@@ -20,7 +20,7 @@ export default function ProductionVsFeedcostChartInner({
   labels: { production: string; feedcost: string };
 }) {
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="w-full overflow-x-auto scrollbar-hide">
       <div className="min-w-[900px]">
         <ResponsiveContainer width="100%" height={260}>
           <BarChart data={days} barGap={2} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>

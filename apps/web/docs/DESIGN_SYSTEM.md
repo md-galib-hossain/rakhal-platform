@@ -205,3 +205,50 @@ topbar) subtrees.
 - Every module landing page = PageHeader + highlight StatCards + primary list/table (mirrors PRD layouts).
 - Read-only mode (expired subscription): write buttons disabled with tooltip + renewal CTA, driven by
   `GET /subscription` status — do not hide them.
+
+## 6. Common pitfalls (read before touching form controls or building a tab bar)
+
+**Two project-wide bugs fixed 2026-07-16 (user-reported, "universal issue... all over the project") — the
+root causes are easy to reintroduce, read this before repeating either pattern.**
+
+### 6.1 Focus ring "merges" with the border on inputs/selects/buttons
+`--ring` (`app/globals.css`) is an **8-digit hex with alpha already baked in** (`#00a86b66`/`#1ec88366` ≈
+40% opacity), not a plain color. Every `components/ui/*` form control originally paired that translucent
+ring with `focus-visible:ring-offset-2` — but **no component ever set a matching `ring-offset-color`**
+(no `ring-offset-background`/`ring-offset-card` utility anywhere), so Tailwind fell back to its hard-coded
+default offset color (`#fff`). A translucent ring drawn flush against an invisible-on-white offset gap,
+immediately next to the 1px `border-input` gray border, reads as one blurry, uneven "merged" border instead
+of a crisp focus indicator — worst on `rounded-md`/`rounded-sm` controls where the offset box's corner
+radius doesn't cleanly nest against the ring's.
+
+**Fix applied**: dropped `ring-offset-2` entirely from `input.tsx`/`textarea.tsx`/`select.tsx`
+(`SelectTrigger`)/`button.tsx`/`checkbox.tsx`/`radio-group.tsx`/`switch.tsx`/`dialog.tsx` (`DialogClose`) —
+flush `focus-visible:ring-2 focus-visible:ring-ring` with no offset, plus `focus-visible:border-ring` on
+the free-text controls (Input/Textarea/Select/Button — skipped on Checkbox/RadioGroup/Switch since their
+`data-[state=checked]:border-primary` would fight a focus-driven border-color change).
+**Rule going forward**: never add `ring-offset-*` back to a `components/ui/*` control unless you also set
+an explicit, correct `ring-offset-{token}` matching whatever surface it actually sits on (like
+`components/layout/sidebar-nav.tsx`'s `ring-offset-sidebar` — that one was always correct, left untouched).
+Default to the offset-free flush-ring pattern; it's correct on every background by construction.
+
+### 6.2 Segmented tab bars rendering as a full pill instead of a rounded rectangle
+`--radius-lg` is redefined to **16px** in this project (Tailwind's own default `rounded-lg` is 8px — see
+the "Healthcare border-radius fix" note in `IN_FLIGHT.md`'s history for the original discovery). Multiple
+hand-rolled segmented tab bars (`inventory-tabs.tsx`, `case-management-sheet.tsx`,
+`health-management-center-card.tsx`, `cattle-detail-tabs.tsx`) used `rounded-lg` on their **active tab
+pill**, a button only ~30–36px tall (`px-4 py-1.5` + text). A 16px radius on a ~32px-tall element is
+*half its height* — the corners become semicircular and the "pill" renders as a full stadium/capsule shape,
+visibly rounder than every other small control in the app (buttons/inputs/checkboxes all use `rounded-md`,
+10px).
+
+**Fix applied**: all 4 files' active-tab-pill radius changed `rounded-lg` → `rounded-md`. The outer track
+(`rounded-xl`, 12px) was left alone — at track height (~40–44px) 12px doesn't approach a full pill, so it
+wasn't the reported bug.
+**Rule going forward**: **radius scales with element height, not just "how big should this feel."** Before
+using `rounded-lg`/`rounded-xl` (16px/12px) on anything, check its rendered height — if height ≤ ~32px,
+that radius reads as `rounded-full` by accident. Small controls (buttons, inputs, checkboxes, tab pills,
+icon buttons, chips) → `rounded-md` (10px) or `rounded-sm` (8px). Bigger surfaces (cards, dialogs, sheets,
+the tab-bar *track* itself) → `rounded-lg`/`rounded-xl`/`rounded-2xl` freely. If you're building a new
+segmented control, copy `components/ui/tabs.tsx` (`TabsList`/`TabsTrigger` — already correct: `rounded-md`
+track / `rounded-sm` active pill) rather than hand-rolling another bespoke `<button>` group; 4 near-identical
+duplicates of the same bug is a sign the shared primitive should have been reused in the first place.

@@ -66,4 +66,8 @@ export const qk = {
   activity: {
     list: (filters: Record<string, string | undefined>) => ["activity", "list", filters] as const,
   },
+  tasks: {
+    list: (filters: Record<string, string | undefined>) => ["tasks", "list", filters] as const,
+    teamMembers: () => ["tasks", "team-members"] as const,
+  },
 };
