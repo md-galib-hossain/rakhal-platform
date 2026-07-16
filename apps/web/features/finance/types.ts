@@ -178,6 +178,8 @@ export interface CreateTransactionPayload {
   inventoryItemName?: string;
   quantity?: number;
   costPerUnit?: number;
+  litresSold?: number;
+  pricePerLitre?: number;
   monthlyEmi?: number;
   startDate?: string;
   durationMonths?: number;

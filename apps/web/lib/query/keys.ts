@@ -76,4 +76,12 @@ export const qk = {
     assets: () => ["finance", "assets"] as const,
     wallet: () => ["finance", "wallet"] as const,
   },
+  feed: {
+    ingredients: () => ["feed", "ingredients"] as const,
+    concentrations: () => ["feed", "concentrations", "list"] as const,
+    concentrationDetail: (id: string) => ["feed", "concentrations", "detail", id] as const,
+    requirements: (weightKg: number | undefined, milkTargetL: number | undefined) =>
+      ["feed", "requirements", weightKg, milkTargetL] as const,
+    feedGroups: () => ["feed", "feed-groups"] as const,
+  },
 };

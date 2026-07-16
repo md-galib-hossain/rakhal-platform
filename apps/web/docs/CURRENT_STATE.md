@@ -7,6 +7,35 @@ Phase 1 RFE-020 (Dashboard) + RFE-021 (Cattle list) + RFE-022 (Cattle add/edit) 
 Liabilities/Asset Distribution + Wallet hub (Add Funds/Withdraw) + the 4-type Record transaction
 wizard, all Figma-perfect; only the record-payment/void/create-asset modals remain (no Figma yet).
 
+## Finance — Record wizard's Revenue/Sale step, fixed to its own real Figma frames (2026-07-16, user follow-up)
+Same pattern as the Inventory Purchase fix below: Revenue/Sale's Step 2/3 had been extrapolated from
+Operating Expense's shape; user supplied the real 6 frames. Revenue/Sale turned out the most
+structurally different type of the four — "Sales Type" is a real tab-pill bar (Milk/Animal/Manure/
+Others), not a dropdown, and **each sub-type has its own non-overlapping field set**: Milk (Liters
+Sold × Price Per Unit → computed Total Cost, no Entity Name), Animal (`CattlePicker` + Amount, no
+Entity Name), Manure (Amount only), Others (Entity Name + Amount — the only sub-type with an entity
+field). Rebuilt `record-transaction-dialog.tsx`'s `REVENUE` branch with a `selectRevenueSubType`
+handler that clears every other sub-type's field on switch (real stale-value bug this fixes, not
+cosmetic) and a local `selectedCattleLabel` for the Step 3 summary. **Coordinated with a concurrent
+same-file edit** — another agent was simultaneously rewriting the same file's Debt/Loan branch;
+re-`Read` before every edit, confirmed via diff neither session clobbered the other. **Verified LIVE**:
+all 4 Sales Type tabs render their correct distinct fields with zero cross-contamination, Milk's
+Total Cost auto-computed correctly (30L × ৳65 = ৳1,950.00), a real submit posted (`201`). Gate green:
+typecheck/18 unit tests. Full writeup: `IN_FLIGHT.md` Recently Done.
+
+## Finance — Record wizard's Inventory Purchase step, fixed to its own real Figma frames (2026-07-16, user follow-up)
+The Record wizard's `INVENTORY_PURCHASE` branch had been extrapolated from Operating Expense's frame
+(no Inventory Purchase frame existed yet); user supplied the real 4 (Step 2 full/partial-payment +
+Step 3 summary, Step 1 reused). The real field set turned out meaningfully different: no category/
+subType select, no Entity/Vendor Name field, and a **read-only computed Total Cost** (`quantity ×
+costPerUnit`, synced into the form's `amount` field via a small `useEffect`) instead of a typed
+Amount field. Rebuilt `record-transaction-dialog.tsx`'s Inventory Purchase Step 2/3 to match exactly;
+`schemas.ts`'s `subType` went from required to conditionally-required so the wizard doesn't block on
+a field this type never collects. **Verified LIVE**: Quantity 50 × Cost Per Unit ৳45 auto-computed
+Total Cost ৳2,250.00, Step 3 summary matched the real row order, and a real submit posted
+(`POST /finance/transactions → 201`, Operating Margin recomputed 11.71%→11.5%). Gate green:
+typecheck/lint/18 unit tests. Full writeup: `IN_FLIGHT.md` Recently Done.
+
 ## Finance — Wallet + Add Funds/Withdraw + Record transaction wizard, Figma-perfect (2026-07-16, user follow-up)
 Follow-up to the tabs pass below — user supplied 7 more Figma links: Wallet hub, Add Funds, Withdraw,
 and the 4-type "Record" wizard (Step 1 type-picker + Step 2 full/partial-payment variants + Step 3
@@ -504,7 +533,10 @@ Phase 0 is fully done (RFE-001…010). Phase 1 has started: RFE-020 (Dashboard) 
 are done. Remaining Phase 1 daily-driver pages are open, parallel lanes per `PROJECT_PROGRESS.md`:
 RFE-022/023/024 (cattle add/edit, detail, CSV import — all depend on RFE-021's feature folder),
 RFE-025/026 (milk/buyers), RFE-027 (task hub), RFE-030/031/032/033 (reproduction/healthcare/calves),
-RFE-034/035 (inventory/finance), RFE-040/041 (feed formulator/reports). Real follow-ups flagged (not
+RFE-034/035 (inventory/finance), RFE-040/041 (feed formulator/reports). RFE-040's list page + create
+wizard (list `1048:33190`, wizard `1065:35227`/`1065:35817`) are now built and live-verified — see
+`PROJECT_PROGRESS.md`'s RFE-040 entry for what's covered vs still open (ingredients-table/feed-group
+management UI, no Figma frames yet). Real follow-ups flagged (not
 started): a CI backend service (Postgres/Redis/seed + cross-repo `rakhal-backend` checkout) so RFE-010's
 Lighthouse gate can cover authenticated routes and RFE-009's Playwright suite can run in CI, not just
 locally against a manually-started dev backend. Live browser verification of RFE-007 and RFE-021 is

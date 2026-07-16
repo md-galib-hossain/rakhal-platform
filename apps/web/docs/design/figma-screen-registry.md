@@ -98,7 +98,7 @@ the row here instead of re-scanning next time.
 | Calves | Pending |
 | Healthcare | Pending |
 | Milk | Pending |
-| Feed Formulator | Pending |
+| Feed Formulator | List `1048:33190` · Create wizard Step 1 `1065:35227` · Step 2 `1065:35817` (file `SCfMPdxP6vgW1uTxfqCtz7`) |
 | Buyers | Pending |
 | Finance | Pending |
 | Inventory | Pending |

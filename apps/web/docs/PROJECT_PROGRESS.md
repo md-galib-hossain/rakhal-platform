@@ -611,11 +611,16 @@
   valuation model — shown honestly, not fabricated), no `GET /finance/transactions/export` route
   (Export button renders disabled), no ledger `type` filter (only `category`, wired to the mock's
   "All Types" dropdown), Add Funds' "Fund Name" input maps to the real `description` field (no such
-  DTO field exists), the Record wizard's Revenue/Inventory/Debt-Loan field sets are extrapolated from
-  the one real Operating Expense Figma frame (no frames were given for the other 3 types). **Still
-  deferred**: the Receivables/Payables record-payment modal, the ledger's void ConfirmDialog, and the
-  Assets tab's create-asset modal — no Figma links given for those yet. Full writeup: `IN_FLIGHT.md`
-  Recently Done (two entries — tabs pass, then Wallet/Record wizard pass).
+  DTO field exists). All 4 Record-wizard types (Operating Expense, Inventory Purchase, Revenue/Sale,
+  Debt/Loan) now have their own real Figma frames — the initial pass's Revenue/Inventory/Debt-Loan
+  extrapolation from Operating Expense's shape was corrected across 3 follow-up user-supplied-frame
+  passes (see `IN_FLIGHT.md`). Debt/Loan's `interestRate` is client-only (no `FinanceLoan` column
+  exists) — used purely to live-compute the read-only Monthly EMI field, never sent on submit; its
+  EMI Payment loan-picker cards drop the mock's "X months left" text since `liabilities()` doesn't
+  return enough data to compute a real remaining-tenure number. **Still deferred**: the
+  Receivables/Payables record-payment modal, the ledger's void ConfirmDialog, and the Assets tab's
+  create-asset modal — no Figma links given for those yet. Full writeup: `IN_FLIGHT.md` Recently Done
+  (tabs pass → Wallet/Record wizard pass → Inventory Purchase fix → Revenue/Sale fix → Debt/Loan fix).
 
 #### RFE-036 — Billing & subscription management pages
 - **Depends:** RFE-008 · **Lane:** `features/subscription/**` (pages), `app/(app)/subscription/**`
@@ -635,7 +640,15 @@
 - Ingredients table (+price overrides), feed groups (+assign-cattle), requirements calculator,
   concentrations builder (balance/normalize), cost summaries. Mixtures UI **deferred** (backend RD-015c).
 - **API:** §8 · **PRD:** §12 · Premium-gated via RFE-008.
-- **Status:** `TODO`
+- **Status:** `IN PROGRESS` — list page (`1048:33190`) + 2-step "Create New Feed Formulator" wizard
+  (`1065:35227`/`1065:35817`) built against the real `feed.controller.ts`/`settings.controller.ts`
+  routes (ingredients, requirements, concentrations CRUD + normalize, feed-groups read). Live-verified
+  end-to-end (demo owner, Demo Farm): create → real `POST /feed/concentrations → 201` → appears
+  server-scored in the list; "Normalize to 100%" → real `POST /feed/concentrations/normalize → 201`.
+  Still open: a dedicated Ingredients-table UI (+ price overrides) and Feed-group management/assign-
+  cattle UI — no Figma frames supplied for those yet, this pass only covers the list + wizard frames.
+  See `features/feed/types.ts`'s doc comment for the real gaps vs the Figma mock (single target
+  weight/milk instead of a range; RDP/RUP/STR/SUG columns dropped, no backend data for them).
 
 #### RFE-041 — Reports
 - **Lane:** `features/reports/**`, `app/(app)/reports/**`
