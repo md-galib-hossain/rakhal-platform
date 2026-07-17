@@ -1,0 +1,56 @@
+/// Feed batch inventory (§12.5 follow-up, "TMR ↔ Inventory" — user request 2026-07-17). A
+/// `FeedStock` lot is created when a farm **finalizes** a `FeedConcentration` (produces a real
+/// physical batch, `FeedConcentrationService.finalize`), tracking how much of that specific batch
+/// remains. This is a farm-*manufactured* good — a different lifecycle from the Inventory module's
+/// `Forage` (a *purchased* good with supplier/moisture/purchase-date fields) — so it's a new,
+/// purpose-built model owned by the Feed module, following the same "each physical resource is its
+/// own model + service" convention as `Medicine`/`SemenBatch` (not a generic `InventoryItem`, which
+/// has no precedent anywhere in this codebase).
+model FeedStock {
+  id     String @id @default(cuid())
+  farmId String
+
+  sourceConcentrationId      String
+  sourceConcentrationVersion Int
+
+  producedAt     DateTime
+  producedQtyKg  Float
+  currentStockKg Float
+  producedCostTk Float /// snapshot of the formula's total_cost_tk at production time
+
+  createdBy String
+  createdAt DateTime @default(now())
+
+  farm          Farm              @relation("FarmToFeedStock", fields: [farmId], references: [id])
+  concentration FeedConcentration @relation(fields: [sourceConcentrationId], references: [id])
+  movements     FeedStockMovement[]
+
+  @@index([farmId])
+  @@index([sourceConcentrationId])
+}
+
+/// Audit trail for `FeedStock.currentStockKg` changes — mirrors `MedicineStockMovement`'s pattern.
+model FeedStockMovement {
+  id      String @id @default(cuid())
+  stockId String
+
+  changeKg Float /// positive = produced, negative = consumed
+  reason   FeedStockMovementReason
+
+  /// Plain scalar, no FK (mirrors `FeedDistributionItem.ingredientName`'s "snapshot, not a
+  /// relation" convention) — a FED movement references the distribution that consumed it.
+  distributionId String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+
+  stock FeedStock @relation(fields: [stockId], references: [id], onDelete: Cascade)
+
+  @@index([stockId])
+}
+
+enum FeedStockMovementReason {
+  PRODUCED
+  FED
+  ADJUSTMENT
+}

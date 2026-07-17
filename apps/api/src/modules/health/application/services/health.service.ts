@@ -924,6 +924,28 @@ export class HealthService {
     };
   }
 
+  /**
+   * Single source of truth for "is this cow's milk currently withheld" — shared
+   * across modules so the rule can't drift (previously the Milk module
+   * duplicated this exact query independently).
+   */
+  async activeMilkWithholdingCattleIds(
+    farmId: string,
+    cattleIds: string[],
+  ): Promise<Set<string>> {
+    if (cattleIds.length === 0) return new Set();
+    const rows = await this.prisma.safetyWithdrawal.findMany({
+      where: {
+        farmId,
+        cattleId: { in: cattleIds },
+        status: SafetyWithdrawalStatus.ACTIVE,
+        milkWithdrawalUntil: { gt: new Date() },
+      },
+      select: { cattleId: true },
+    });
+    return new Set(rows.map((r) => r.cattleId));
+  }
+
   async getSafetyWithdrawals(farmId: string, query: SafetyWithdrawalQueryDto) {
     const where: Prisma.SafetyWithdrawalWhereInput = {
       farmId,

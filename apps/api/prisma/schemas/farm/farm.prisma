@@ -59,6 +59,8 @@ model Farm {
   suppliers           Supplier[]           @relation("FarmToSupplier")
   moduleSettings      FarmModuleSettings?  @relation("FarmToModuleSettings")
   feedDistributions   FeedDistribution[]   @relation("FarmToFeedDistribution")
+  customFeedIngredients   FeedIngredient[]     @relation("FarmToCustomFeedIngredient")
+  feedStocks              FeedStock[]          @relation("FarmToFeedStock")
   scoreboardParticipation ScoreboardParticipation? @relation("FarmToScoreboardParticipation")
   notifications           Notification[]           @relation("FarmToNotification")
   reproProtocols          ReproProtocol[]          @relation("FarmToReproProtocol")

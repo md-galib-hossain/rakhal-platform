@@ -14,6 +14,7 @@ import {
   LactationStatus,
   PregnancyDiagnosisResult,
   PregnancyStatus,
+  ProductionStatus,
   ReproductiveStatus,
   TaskCategory,
   TaskPriority,
@@ -432,6 +433,20 @@ export class ReproductionService {
           currentLactationId: lactation.id,
           currentPregnancyId: null,
         },
+      });
+
+      // Cattle.productionStatus was never auto-managed (manual-only field) —
+      // calving is a real lifecycle transition, so flip the dam into MILKING
+      // the same way reproductiveStatus flips to LACTATING above. Only auto-set
+      // when she isn't already SOLD/DECEASED (an archived cow shouldn't revive).
+      await tx.cattle.updateMany({
+        where: {
+          id: dto.cattleId,
+          productionStatus: {
+            notIn: [ProductionStatus.SOLD, ProductionStatus.DECEASED],
+          },
+        },
+        data: { productionStatus: ProductionStatus.MILKING },
       });
 
       return tx.calvingEvent.findUnique({

@@ -5,6 +5,7 @@ import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
+import { FinanceModule } from '../finance/finance.module';
 import { BuyerService } from './application/services/buyer.service';
 import { BuyerController } from './presentation/controllers/buyer.controller';
 import { MilkDispatchController } from './presentation/controllers/milk-dispatch.controller';
@@ -17,6 +18,7 @@ import { MilkDispatchController } from './presentation/controllers/milk-dispatch
     PermissionModule,
     InventoryModule,
     SubscriptionModule,
+    FinanceModule,
   ],
   controllers: [BuyerController, MilkDispatchController],
   providers: [BuyerService],

@@ -10,7 +10,7 @@ import {
   MilkTankActivity,
   MilkTankType,
   Prisma,
-  SafetyWithdrawalStatus,
+  ProductionStatus,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
@@ -18,6 +18,7 @@ import { AqrService } from 'src/modules/activity/application/services/aqr.servic
 import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { MilkTankService } from 'src/modules/inventory/application/services/milk-tank.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
+import { HealthService } from 'src/modules/health/application/services/health.service';
 import { dropPct, isAnomaly } from '../../domain/milk-anomaly';
 import { MilkLogQueryDto } from '../../presentation/dto/milk-query.dto';
 import { ReviewAnomalyDto } from '../../presentation/dto/review-anomaly.dto';
@@ -45,6 +46,7 @@ export class MilkService {
     private readonly activityLog: ActivityLogService,
     private readonly milkTankService: MilkTankService,
     private readonly farmSettings: FarmSettingsService,
+    private readonly healthService: HealthService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(MilkService.name);
@@ -83,6 +85,10 @@ export class MilkService {
         farmId,
         isActive: true,
         purpose: { in: MILKING_PURPOSES },
+        // A cow marked DRY (manually, or auto-set at calving/dry-off) has no
+        // milk to log — purpose alone doesn't capture that (purpose describes
+        // what the cow is raised for, not her current lactation state).
+        productionStatus: { not: ProductionStatus.DRY },
         ...(query.shedId ? { shedId: query.shedId } : {}),
       },
       orderBy: { tagNumber: 'asc' },
@@ -248,24 +254,34 @@ export class MilkService {
     const sellableTotal = this.sum(pending, MilkTankType.SELLABLE);
     const withholdingTotal = this.sum(pending, MilkTankType.WITHHOLDING);
 
-    await this.prisma.milkLogEntry.updateMany({
-      where: { farmId, logDate, session: dto.session, submitted: false },
-      data: { submitted: true, submittedAt: new Date() },
-    });
+    // Entry finalization and tank collection commit atomically: a tank rejecting
+    // the volume (over capacity) must not leave entries marked submitted with no
+    // matching tank movement (previously this failure was swallowed silently).
+    const { mainUpdated, withholdingUpdated } = await this.prisma.$transaction(
+      async (tx) => {
+        await tx.milkLogEntry.updateMany({
+          where: { farmId, logDate, session: dto.session, submitted: false },
+          data: { submitted: true, submittedAt: new Date() },
+        });
 
-    const mainUpdated = await this.collectInto(
-      farmId,
-      userId,
-      MilkTankType.SELLABLE,
-      sellableTotal,
-      dto.session,
-    );
-    const withholdingUpdated = await this.collectInto(
-      farmId,
-      userId,
-      MilkTankType.WITHHOLDING,
-      withholdingTotal,
-      dto.session,
+        const mainUpdated = await this.collectInto(
+          farmId,
+          userId,
+          MilkTankType.SELLABLE,
+          sellableTotal,
+          dto.session,
+          tx,
+        );
+        const withholdingUpdated = await this.collectInto(
+          farmId,
+          userId,
+          MilkTankType.WITHHOLDING,
+          withholdingTotal,
+          dto.session,
+          tx,
+        );
+        return { mainUpdated, withholdingUpdated };
+      },
     );
 
     // AQR: milk session logged (+0.5) per newly-submitted cow (RD-006 last emitter).
@@ -373,53 +389,60 @@ export class MilkService {
 
   // ---- Helpers -------------------------------------------------------------
 
+  /**
+   * `tx` is required — this only ever runs inside `submit()`'s transaction, so a
+   * capacity/negative-balance rejection from `adjustVolume` propagates and rolls
+   * back the whole submit (see submit() above). A missing tank (farm never
+   * configured one for this type) is a legitimate no-op, not an error.
+   */
   private async collectInto(
     farmId: string,
     userId: string,
     tankType: MilkTankType,
     volume: number,
     session: MilkSession,
+    tx: Prisma.TransactionClient,
   ): Promise<boolean> {
     if (volume <= 0) return false;
-    const tank = await this.prisma.milkTank.findFirst({
+    const tank = await tx.milkTank.findFirst({
       where: { farmId, tankType, isActive: true },
       orderBy: { createdAt: 'asc' },
     });
     if (!tank) return false;
-    try {
-      await this.milkTankService.adjustVolume(farmId, userId, tank.id, {
+    await this.milkTankService.adjustVolume(
+      farmId,
+      userId,
+      tank.id,
+      {
         delta: volume,
         activityType: MilkTankActivity.COLLECTION,
         source: 'milk_log_submission',
         notes: `Session ${session.toLowerCase()}`,
-      });
-      return true;
-    } catch (error) {
-      this.log.warn('Milk tank collection skipped', {
-        farmId,
-        tankType,
-        volume,
-        reason: (error as Error).message,
-      });
-      return false;
-    }
+      },
+      tx,
+    );
+    return true;
   }
 
-  private async activeWithholding(
+  // Delegates to HealthService — single source of truth shared with the Cattle
+  // domain's deriveHealthStatus(), so the withholding rule can't drift between
+  // the two modules.
+  private activeWithholding(
     farmId: string,
     ids: string[],
   ): Promise<Set<string>> {
-    if (ids.length === 0) return new Set();
-    const rows = await this.prisma.safetyWithdrawal.findMany({
-      where: {
-        farmId,
-        cattleId: { in: ids },
-        status: SafetyWithdrawalStatus.ACTIVE,
-        milkWithdrawalUntil: { gt: new Date() },
-      },
-      select: { cattleId: true },
-    });
-    return new Set(rows.map((r) => r.cattleId));
+    return this.healthService.activeMilkWithholdingCattleIds(farmId, ids);
+  }
+
+  /** Average daily total yield over the prior 7 days, per cow — public wrapper for cross-module
+   * reuse (Feed Formulator's cow-driven requirement calc, `FeedRequirementsService`). Defaults
+   * `asOf` to now (today's midnight boundary handled the same way as every other caller). */
+  async averageDailyYield(
+    farmId: string,
+    cattleIds: string[],
+    asOf: Date = new Date(),
+  ): Promise<Map<string, number>> {
+    return this.avgDailyYield(farmId, cattleIds, asOf);
   }
 
   /** Average daily total yield over the prior 7 days, per cow. */

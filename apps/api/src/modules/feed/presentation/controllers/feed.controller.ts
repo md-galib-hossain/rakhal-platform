@@ -23,14 +23,18 @@ import { FeedGroupAssignService } from '../../application/services/feed-group-as
 import { FeedIngredientService } from '../../application/services/feed-ingredient.service';
 import { FeedRequirementsService } from '../../application/services/feed-requirements.service';
 import { FeedDistributionService } from '../../application/services/feed-distribution.service';
+import { FeedStockService } from '../../application/services/feed-stock.service';
 import { AssignCattleDto } from '../dto/assign-cattle.dto';
 import {
+  BulkDeleteConcentrationDto,
   CreateConcentrationDto,
   NormalizeConcentrationDto,
   UpdateConcentrationDto,
 } from '../dto/concentration.dto';
+import { FeedConcentrationKind } from '@prisma/client';
 import { FeedRequirementsQueryDto } from '../dto/feed-requirements-query.dto';
 import { SetFeedOverrideDto } from '../dto/set-feed-override.dto';
+import { CreateCustomIngredientDto } from '../dto/create-custom-ingredient.dto';
 import { LogDistributionDto } from '../dto/log-distribution.dto';
 import {
   FeedEfficiencyQueryDto,
@@ -62,6 +66,7 @@ export class FeedController {
     private readonly concentrations: FeedConcentrationService,
     private readonly groups: FeedGroupAssignService,
     private readonly distributions: FeedDistributionService,
+    private readonly stock: FeedStockService,
   ) {}
 
   // ---- Ingredients --------------------------------------------------------
@@ -69,6 +74,16 @@ export class FeedController {
   @RequirePermission('feed.read')
   listIngredients(@CurrentFarmId() farmId: string) {
     return this.ingredients.listMerged(farmId);
+  }
+
+  @Post('ingredients/custom')
+  @RequirePermission('feed.create')
+  createCustomIngredient(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Body() dto: CreateCustomIngredientDto,
+  ) {
+    return this.ingredients.createCustom(farmId, userId, dto);
   }
 
   @Post('ingredients/:id/override')
@@ -91,15 +106,21 @@ export class FeedController {
   // ---- Requirements -------------------------------------------------------
   @Get('requirements')
   @RequirePermission('feed.read')
-  getRequirements(@Query() query: FeedRequirementsQueryDto) {
-    return this.requirements.calc(query);
+  getRequirements(
+    @CurrentFarmId() farmId: string,
+    @Query() query: FeedRequirementsQueryDto,
+  ) {
+    return this.requirements.calc(farmId, query);
   }
 
   // ---- Concentration templates -------------------------------------------
   @Get('concentrations')
   @RequirePermission('feed.read')
-  listConcentrations(@CurrentFarmId() farmId: string) {
-    return this.concentrations.list(farmId);
+  listConcentrations(
+    @CurrentFarmId() farmId: string,
+    @Query('kind') kind?: FeedConcentrationKind,
+  ) {
+    return this.concentrations.list(farmId, kind);
   }
 
   @Post('concentrations')
@@ -119,6 +140,18 @@ export class FeedController {
     @Body() dto: NormalizeConcentrationDto,
   ) {
     return this.concentrations.normalize(farmId, dto);
+  }
+
+  /** Multi-select delete (user request 2026-07-18) — registered before the `:id` routes so Nest
+   * doesn't try to match "bulk-delete" as an id (no conflict here since this is POST and the `:id`
+   * routes are GET/PATCH/DELETE, but keeping the static route grouped above them for clarity). */
+  @Post('concentrations/bulk-delete')
+  @RequirePermission('feed.delete')
+  bulkDeleteConcentrations(
+    @CurrentFarmId() farmId: string,
+    @Body() dto: BulkDeleteConcentrationDto,
+  ) {
+    return this.concentrations.removeMany(farmId, dto.ids);
   }
 
   @Get('concentrations/:id')
@@ -144,6 +177,18 @@ export class FeedController {
     @Param('id') id: string,
   ) {
     return this.concentrations.remove(farmId, id);
+  }
+
+  /** Promote this concentration into a reusable, versioned `FeedIngredient` (user request
+   * 2026-07-17, "concentrates become reusable ingredients") — see `FeedConcentrationService.finalize`. */
+  @Post('concentrations/:id/finalize')
+  @RequirePermission('feed.update')
+  finalizeConcentration(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.concentrations.finalize(farmId, userId, id);
   }
 
   // ---- Feed group ↔ cattle ------------------------------------------------
@@ -196,5 +241,18 @@ export class FeedController {
   @RequirePermission('feed.read')
   getDistribution(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.distributions.get(farmId, id);
+  }
+
+  // ---- Feed stock (§12.5 follow-up — TMR ↔ Inventory linkage) -------------
+  @Get('stock')
+  @RequirePermission('feed.read')
+  listStock(@CurrentFarmId() farmId: string) {
+    return this.stock.list(farmId);
+  }
+
+  @Get('stock/:id')
+  @RequirePermission('feed.read')
+  getStock(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.stock.get(farmId, id);
   }
 }

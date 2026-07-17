@@ -30,6 +30,14 @@ export class DistributionItemDto {
   @IsNumber()
   @Min(0)
   refusalKg?: number;
+
+  /** A specific `FeedStock` lot to decrement `actualKg` from (real FK-backed linkage, user request
+   * 2026-07-17 — "feeding a cow deducts from that specific inventory feed stock"). Optional — omit
+   * to keep using the existing best-effort `Forage` name-match decrement for this line. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  stockId?: string;
 }
 
 /** `POST /feed/distributions` — log a day's feed distribution for a concentration (§12.5). */

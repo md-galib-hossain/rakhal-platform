@@ -7,6 +7,7 @@ import { ActivityModule } from '../activity/activity.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
+import { HealthModule } from '../health/health.module';
 import { MilkService } from './application/services/milk.service';
 import { MilkController } from './presentation/controllers/milk.controller';
 
@@ -20,6 +21,7 @@ import { MilkController } from './presentation/controllers/milk.controller';
     InventoryModule,
     FarmSettingsModule,
     SubscriptionModule,
+    HealthModule,
   ],
   controllers: [MilkController],
   providers: [MilkService],

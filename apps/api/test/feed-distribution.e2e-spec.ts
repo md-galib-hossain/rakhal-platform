@@ -55,6 +55,7 @@ describe('Feed Distribution (e2e)', () => {
       .post(api('/feed/concentrations'))
       .set(...auth(owner))
       .send({
+        kind: 'CONCENTRATE_TEMPLATE',
         name: `E2E Distribution Formula ${Date.now()}`,
         items: [
           { ingredientId: ingredientA.id, amountKg: 4 },

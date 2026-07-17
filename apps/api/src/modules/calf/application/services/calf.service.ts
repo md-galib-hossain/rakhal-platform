@@ -11,6 +11,7 @@ import {
   CattlePurpose,
   HealthCaseStatus,
   Prisma,
+  ProductionStatus,
   TaskCategory,
   TaskPriority,
   TaskSource,
@@ -360,7 +361,10 @@ export class CalfService {
       // Move the animal out of Calf Management into the main herd (PRD §14.4).
       this.prisma.cattle.update({
         where: { id },
-        data: { purpose: newPurpose },
+        data: {
+          purpose: newPurpose,
+          productionStatus: ProductionStatus.GROWING,
+        },
       }),
     ]);
 

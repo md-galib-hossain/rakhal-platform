@@ -11,6 +11,13 @@ const base: CatalogueIngredient = {
   meMjPerKgDm: 11.5,
   fatPct: 4,
   ndfPct: 40,
+  rdpPct: null,
+  rupPct: null,
+  starchPct: null,
+  adfPct: null,
+  calciumPct: null,
+  phosphorusPct: null,
+  tdnPct: null,
   currentPricePerKg: 52,
 };
 
@@ -21,6 +28,13 @@ const emptyOverride: IngredientOverride = {
   customMeMjPerKgDm: null,
   customFatPct: null,
   customNdfPct: null,
+  customRdpPct: null,
+  customRupPct: null,
+  customStarchPct: null,
+  customAdfPct: null,
+  customCalciumPct: null,
+  customPhosphorusPct: null,
+  customTdnPct: null,
 };
 
 describe('resolveEffective', () => {

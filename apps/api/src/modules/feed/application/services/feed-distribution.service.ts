@@ -13,6 +13,7 @@ import {
   FeedEfficiencyQueryDto,
   ListDistributionQueryDto,
 } from '../../presentation/dto/list-distribution-query.dto';
+import { FeedStockService } from './feed-stock.service';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -32,6 +33,7 @@ export class FeedDistributionService {
   constructor(
     private readonly prisma: PrismaService,
     logger: LoggerService,
+    private readonly feedStock: FeedStockService,
   ) {
     this.log = logger.setContext(FeedDistributionService.name);
   }
@@ -83,8 +85,19 @@ export class FeedDistributionService {
         refusalKg: round2(refusalKg),
         pricePerKg: round2(price),
         lineCost: round2(actualKg * price),
+        stockId: override?.stockId,
       };
     });
+
+    // Real FK-backed decrement (user request 2026-07-17) — a line can name a specific `FeedStock`
+    // lot instead of relying on the loose Forage name-match below. Validated up-front so a
+    // shortfall is caught before the distribution row is created.
+    const stockRequests = lines
+      .filter((l): l is typeof l & { stockId: string } => l.stockId != null)
+      .map((l) => ({ stockId: l.stockId, quantity: l.actualKg }));
+    if (stockRequests.length > 0) {
+      await this.feedStock.assertSufficientStock(farmId, stockRequests);
+    }
 
     const totals = lines.reduce(
       (acc, l) => {
@@ -109,6 +122,15 @@ export class FeedDistributionService {
       : this.dayStart();
 
     const decrements = await this.planForageDecrements(farmId, lines);
+    const itemsForCreate = lines.map((line) => ({
+      ingredientId: line.ingredientId,
+      ingredientName: line.ingredientName,
+      plannedKg: line.plannedKg,
+      actualKg: line.actualKg,
+      refusalKg: line.refusalKg,
+      pricePerKg: line.pricePerKg,
+      lineCost: line.lineCost,
+    }));
 
     const created = await this.prisma.$transaction(async (tx) => {
       const dist = await tx.feedDistribution.create({
@@ -124,7 +146,7 @@ export class FeedDistributionService {
           totalActualCost: round2(totals.actualCost),
           notes: dto.notes,
           createdBy: userId,
-          items: { create: lines },
+          items: { create: itemsForCreate },
         },
         include: { items: true },
       });
@@ -137,10 +159,19 @@ export class FeedDistributionService {
       return dist;
     });
 
+    for (const req of stockRequests) {
+      await this.feedStock.decrementForDistribution(farmId, userId, {
+        stockId: req.stockId,
+        quantity: req.quantity,
+        distributionId: created.id,
+      });
+    }
+
     this.log.info('Feed distribution logged', {
       farmId,
       id: created.id,
       forageDecrements: decrements.length,
+      stockDecrements: stockRequests.length,
     });
     return this.mapDistribution(created, decrements);
   }

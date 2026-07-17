@@ -11,7 +11,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { FeedTargetType } from '@prisma/client';
+import { FeedConcentrationKind, FeedTargetType } from '@prisma/client';
 import { trimString } from 'src/common/dto';
 
 /** One ingredient line in a concentration formula. */
@@ -28,6 +28,12 @@ export class ConcentrationItemDto {
 
 /** `POST /feed/concentrations` — create a concentration template (RAKHAL-082, §12.4). */
 export class CreateConcentrationDto {
+  /** Explicit "Concentrate Mixer" vs "Feed Mixture" discriminator (user request 2026-07-18) — see
+   * `FeedConcentration.kind`'s Prisma doc comment. The service nulls out every target field below
+   * when this is `CONCENTRATE_TEMPLATE`, regardless of what the caller sends. */
+  @IsEnum(FeedConcentrationKind)
+  kind!: FeedConcentrationKind;
+
   @Transform(trimString)
   @IsString()
   @IsNotEmpty()
@@ -111,6 +117,16 @@ export class UpdateConcentrationDto {
   @ValidateNested({ each: true })
   @Type(() => ConcentrationItemDto)
   items?: ConcentrationItemDto[];
+}
+
+/** `POST /feed/concentrations/bulk-delete` — multi-select delete (user request 2026-07-18); soft-deletes
+ * every id that belongs to the caller's farm and is still active, silently ignoring any id that
+ * doesn't (another farm's row, already-archived, or unknown) rather than erroring the whole batch. */
+export class BulkDeleteConcentrationDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsString({ each: true })
+  ids!: string[];
 }
 
 /** `POST /feed/concentrations/normalize` — scale a draft formula to meet requirements. */

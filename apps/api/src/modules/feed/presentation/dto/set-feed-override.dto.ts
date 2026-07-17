@@ -38,6 +38,50 @@ export class SetFeedOverrideDto {
   @Max(100)
   customNdfPct?: number;
 
+  /** % of CP, not % of DM — see `FeedIngredient`'s Prisma doc comment. */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  customRdpPct?: number;
+
+  /** % of CP, not % of DM — see `FeedIngredient`'s Prisma doc comment. */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  customRupPct?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  customStarchPct?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  customAdfPct?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  customCalciumPct?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  customPhosphorusPct?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  customTdnPct?: number;
+
   @IsOptional()
   @Transform(trimString)
   @IsString()

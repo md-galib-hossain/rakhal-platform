@@ -11,7 +11,7 @@ const ADMIN_ROLE_GRANTS: Record<PlatformAdminRole, string[]> = {
   SUPER_ADMIN: ['*'],
   SUPPORT_ADMIN: ['support.*', 'audit.read', 'coupon.read', 'referral.read'],
   BILLING_ADMIN: ['coupon.*', 'referral.*', 'reconciliation.*', 'audit.read'],
-  CONTENT_ADMIN: ['audit.read'],
+  CONTENT_ADMIN: ['audit.read', 'feed-ingredient.*'],
 };
 
 function matches(grant: string, required: string): boolean {

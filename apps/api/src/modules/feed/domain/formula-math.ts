@@ -5,8 +5,13 @@
  * score against requirements, and a pragmatic "normalize" that scales amounts to
  * meet the dry-matter target (a full least-cost LP solver is deferred — TECH_DEBT).
  *
- * Nutrient convention (matches API §8): `dm_kg = asFed × dm% ; cp_kg/me/ndf/fat`
- * are computed **off the DM** (`cp%` etc. are per-kg-DM values).
+ * Nutrient convention (matches API §8 and `ingredient-resolver.ts`): `dm_kg =
+ * asFed × dm%`; `cp_kg`/`me_mj`/`ndf_kg`/`fat_kg`/`starch_kg`/`adf_kg`/
+ * `calcium_kg`/`phosphorus_kg`/`tdn_kg` are all computed **off the DM**
+ * (per-kg-DM rates). `rdp_kg`/`rup_kg` are the one exception — computed off
+ * `cp_kg` (they're a % of crude protein, not of DM) — keeping contribution-kg
+ * and rate-% structurally distinct per-field is what prevents the classic
+ * spreadsheet bug of a kg total getting mislabeled as a percentage.
  */
 import { EffectiveIngredient } from './ingredient-resolver';
 import { Requirements } from './requirements';
@@ -24,6 +29,13 @@ export interface ItemContribution {
   me_mj: number;
   ndf_kg: number;
   fat_kg: number;
+  rdp_kg: number;
+  rup_kg: number;
+  starch_kg: number;
+  adf_kg: number;
+  calcium_kg: number;
+  phosphorus_kg: number;
+  tdn_kg: number;
   cost_tk: number;
 }
 
@@ -33,6 +45,13 @@ export interface FormulaTotals {
   me_mj: number;
   ndf_kg: number;
   fat_kg: number;
+  rdp_kg: number;
+  rup_kg: number;
+  starch_kg: number;
+  adf_kg: number;
+  calcium_kg: number;
+  phosphorus_kg: number;
+  tdn_kg: number;
   total_cost_tk: number;
 }
 
@@ -43,32 +62,50 @@ export interface FormulaComputation {
 
 const round = (v: number) => Math.round(v * 100) / 100;
 
+const emptyTotals = (): FormulaTotals => ({
+  dm_kg: 0,
+  cp_kg: 0,
+  me_mj: 0,
+  ndf_kg: 0,
+  fat_kg: 0,
+  rdp_kg: 0,
+  rup_kg: 0,
+  starch_kg: 0,
+  adf_kg: 0,
+  calcium_kg: 0,
+  phosphorus_kg: 0,
+  tdn_kg: 0,
+  total_cost_tk: 0,
+});
+
 export function computeTotals(
   lines: FormulaLine[],
   effectiveById: Map<string, EffectiveIngredient>,
 ): FormulaComputation {
   const items: ItemContribution[] = [];
-  const totals: FormulaTotals = {
-    dm_kg: 0,
-    cp_kg: 0,
-    me_mj: 0,
-    ndf_kg: 0,
-    fat_kg: 0,
-    total_cost_tk: 0,
-  };
+  const totals = emptyTotals();
 
   for (const line of lines) {
     const eff = effectiveById.get(line.ingredientId);
     if (!eff) continue;
     const dm = line.amountKg * (eff.dmPct / 100);
+    const cpKg = dm * (eff.cpPct / 100);
     const item: ItemContribution = {
       ingredientId: line.ingredientId,
       amount_kg: round(line.amountKg),
       dm_kg: round(dm),
-      cp_kg: round(dm * (eff.cpPct / 100)),
+      cp_kg: round(cpKg),
       me_mj: round(dm * eff.meMjPerKgDm),
       ndf_kg: round(dm * (eff.ndfPct / 100)),
       fat_kg: round(dm * (eff.fatPct / 100)),
+      // RDP/RUP are % of CP, not % of DM — contribution comes off cp_kg.
+      rdp_kg: round(cpKg * (eff.rdpPct / 100)),
+      rup_kg: round(cpKg * (eff.rupPct / 100)),
+      starch_kg: round(dm * (eff.starchPct / 100)),
+      adf_kg: round(dm * (eff.adfPct / 100)),
+      calcium_kg: round(dm * (eff.calciumPct / 100)),
+      phosphorus_kg: round(dm * (eff.phosphorusPct / 100)),
+      tdn_kg: round(dm * (eff.tdnPct / 100)),
       cost_tk: round(line.amountKg * eff.pricePerKg),
     };
     items.push(item);
@@ -77,6 +114,13 @@ export function computeTotals(
     totals.me_mj += item.me_mj;
     totals.ndf_kg += item.ndf_kg;
     totals.fat_kg += item.fat_kg;
+    totals.rdp_kg += item.rdp_kg;
+    totals.rup_kg += item.rup_kg;
+    totals.starch_kg += item.starch_kg;
+    totals.adf_kg += item.adf_kg;
+    totals.calcium_kg += item.calcium_kg;
+    totals.phosphorus_kg += item.phosphorus_kg;
+    totals.tdn_kg += item.tdn_kg;
     totals.total_cost_tk += item.cost_tk;
   }
 
@@ -88,6 +132,13 @@ export function computeTotals(
       me_mj: round(totals.me_mj),
       ndf_kg: round(totals.ndf_kg),
       fat_kg: round(totals.fat_kg),
+      rdp_kg: round(totals.rdp_kg),
+      rup_kg: round(totals.rup_kg),
+      starch_kg: round(totals.starch_kg),
+      adf_kg: round(totals.adf_kg),
+      calcium_kg: round(totals.calcium_kg),
+      phosphorus_kg: round(totals.phosphorus_kg),
+      tdn_kg: round(totals.tdn_kg),
       total_cost_tk: round(totals.total_cost_tk),
     },
   };
@@ -96,7 +147,10 @@ export function computeTotals(
 /**
  * 0–100 adequacy score across the three governing nutrients (DM, CP, ME): the
  * mean of `min(total/requirement, 1)`. Surplus is not penalised here (it just
- * caps at 100); a deficit pulls the score down proportionally.
+ * caps at 100); a deficit pulls the score down proportionally. Deliberately
+ * NOT expanded to the fuller nutrient set added alongside this function (ADF/
+ * RDP/RUP/Ca/P/TDN) — that's a product decision on which nutrients "govern"
+ * the score, not made here.
  */
 export function balanceScore(totals: FormulaTotals, req: Requirements): number {
   const ratios = [

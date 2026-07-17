@@ -15,6 +15,13 @@ const eff = (
   meMjPerKgDm: 11.5,
   fatPct: 4,
   ndfPct: 40,
+  rdpPct: 0,
+  rupPct: 0,
+  starchPct: 0,
+  adfPct: 0,
+  calciumPct: 0,
+  phosphorusPct: 0,
+  tdnPct: 0,
   ...partial,
 });
 
@@ -67,6 +74,13 @@ describe('formula-math', () => {
         me_mj: 120,
         ndf_kg: 4,
         fat_kg: 1,
+        rdp_kg: 0,
+        rup_kg: 0,
+        starch_kg: 0,
+        adf_kg: 0,
+        calcium_kg: 0,
+        phosphorus_kg: 0,
+        tdn_kg: 0,
         total_cost_tk: 0,
       };
       expect(balanceScore(totals, req)).toBe(100);
@@ -78,6 +92,13 @@ describe('formula-math', () => {
         me_mj: 100,
         ndf_kg: 3,
         fat_kg: 0.4,
+        rdp_kg: 0,
+        rup_kg: 0,
+        starch_kg: 0,
+        adf_kg: 0,
+        calcium_kg: 0,
+        phosphorus_kg: 0,
+        tdn_kg: 0,
         total_cost_tk: 0,
       };
       // DM 50%, CP 100%, ME 100% → mean 83%

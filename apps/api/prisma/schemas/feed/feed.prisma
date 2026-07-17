@@ -14,15 +14,24 @@ model FeedIngredient {
   nameBn   String?
   category FeedIngredientCategory
 
-  /// Standard nutritional values per kg (§4.1 / §24.11).
+  /// Standard nutritional values per kg (§4.1 / §24.11). Unless noted, every
+  /// `xPct` is a rate on **dry matter** (% of DM) — `rdpPct`/`rupPct` are the one
+  /// exception, conventionally expressed as **% of CP** (NRC/INRA: RDP%+RUP% ≈
+  /// 100% of crude protein, partitioning CP into rumen-degradable/undegradable
+  /// fractions), never confuse the two bases when computing a kg contribution
+  /// (`formula-math.ts` derives `rdp_kg`/`rup_kg` off `cp_kg`, not `dm_kg`).
   dmPct        Float // Dry Matter %
-  cpPct        Float // Crude Protein %
-  rdpPct       Float? // Rumen-Degradable Protein %
-  rupPct       Float? // Rumen-Undegradable Protein %
+  cpPct        Float // Crude Protein % of DM
+  rdpPct       Float? // Rumen-Degradable Protein, % of CP
+  rupPct       Float? // Rumen-Undegradable Protein, % of CP
   meMjPerKgDm  Float // Metabolizable Energy (MJ/kg DM)
-  fatPct       Float? // Ether Extract %
-  starchPct    Float?
-  ndfPct       Float? // Neutral Detergent Fiber %
+  fatPct       Float? // Ether Extract, % of DM
+  starchPct    Float? // % of DM
+  ndfPct       Float? // Neutral Detergent Fiber, % of DM
+  adfPct       Float? // Acid Detergent Fiber, % of DM
+  calciumPct   Float? // % of DM
+  phosphorusPct Float? // % of DM
+  tdnPct       Float? // Total Digestible Nutrients, % of DM
   sugarsPct    Float?
 
   nutritionSource  String? // e.g. INRA 2018 / NRC 2001 / BAU
@@ -33,14 +42,45 @@ model FeedIngredient {
   isSystemDefault Boolean @default(false)
   isActive        Boolean @default(true)
 
+  /// Farm-added "quick" ingredient (frontend "Add Custom Ingredient", RAKHAL-feed-custom): `null`
+  /// = the global Rakhal-Admin catalogue (unchanged, `farmId` never set on those rows), non-null =
+  /// this one farm's own row, invisible to every other farm (`feed-ingredient.service.ts#listMerged`
+  /// scopes the query). A farm quick-add has **no known nutrition breakdown** (the user only
+  /// supplies a name/nutrientGroup/price, not lab values) — `dmPct` defaults to 100 (the whole
+  /// entered weight counts as dry matter, the simplest honest assumption when moisture is unknown)
+  /// and every other nutrient stays 0, so it contributes real ৳ cost to a formula without a
+  /// fabricated nutrient contribution. `nutrientGroup` is a **display-only** tag (which of the
+  /// table's Protein/Energy/Fiber column groups to color it under) — it does not feed any formula
+  /// math, unlike `cpPct`/`meMjPerKgDm`/`ndfPct` which do.
+  farmId        String?
+  nutrientGroup FeedNutrientGroup?
+
+  /// Set only for an ingredient row **promoted from a finalized concentration**
+  /// (`FeedConcentrationService.finalize`, "concentrate as reusable ingredient" —
+  /// user request 2026-07-17): `sourceConcentrationId`/`sourceConcentrationVersion`
+  /// pin this row to the exact formula snapshot that produced it — the row is
+  /// never mutated again after creation, so a TMR that already added it as a line
+  /// item keeps resolving the same frozen nutrition/cost even if the source
+  /// concentration is later edited and re-finalized into a new version.
+  /// `isLatestVersion` flips to `false` on the prior version when a new one is
+  /// finalized, so `listMerged`'s ingredient picker only offers the newest
+  /// version — the old one still resolves correctly for historical formulas.
+  sourceConcentrationId      String?
+  sourceConcentrationVersion Int?
+  isLatestVersion            Boolean @default(true)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  farm                Farm?                    @relation("FarmToCustomFeedIngredient", fields: [farmId], references: [id])
   overrides           FeedIngredientOverride[]
   concentrationItems  FeedConcentrationItem[]
+  sourceConcentration FeedConcentration?       @relation(fields: [sourceConcentrationId], references: [id])
 
   @@index([category])
   @@index([isActive])
+  @@index([farmId])
+  @@index([sourceConcentrationId])
 }
 
 model FeedIngredientOverride {
@@ -48,13 +88,21 @@ model FeedIngredientOverride {
   farmId       String
   ingredientId String
 
-  /// null on any field = fall through to the Admin/standard value.
+  /// null on any field = fall through to the Admin/standard value. Basis matches
+  /// `FeedIngredient`'s doc comment (rdp/rup = % of CP, everything else = % of DM).
   customPricePerKg Float?
   customDmPct      Float?
   customCpPct      Float?
   customMeMjPerKgDm Float?
   customFatPct     Float?
   customNdfPct     Float?
+  customRdpPct       Float?
+  customRupPct       Float?
+  customStarchPct    Float?
+  customAdfPct       Float?
+  customCalciumPct   Float?
+  customPhosphorusPct Float?
+  customTdnPct       Float?
   notes            String?
 
   createdBy String
@@ -75,6 +123,17 @@ model FeedConcentration {
   id     String @id @default(cuid())
   farmId String
 
+  /// Explicit discriminator (user request 2026-07-18 — "why does creating a concentrate add to my
+  /// feeds"): previously the only signal separating a reusable concentrate recipe from a cow-targeted
+  /// feed mixture was whether `targetWeightKg`/`targetMilkL` happened to be set, but the frontend's
+  /// create form required both fields unconditionally for every concentration, so everything always
+  /// landed as a mixture regardless of intent. `kind` is now set explicitly at creation and is
+  /// immutable afterwards — a `CONCENTRATE_TEMPLATE` never carries a target (enforced in
+  /// `FeedConcentrationService.create`, not just DTO validation) and can be promoted into a reusable
+  /// ingredient via `finalize()`; a `FEED_MIXTURE` always carries a target and is the thing actually
+  /// fed to a cow/group.
+  kind FeedConcentrationKind
+
   name          String
   durationDays  Int?
   targetType    FeedTargetType @default(GROUP)
@@ -83,13 +142,19 @@ model FeedConcentration {
   targetWeightKg Float?
   targetMilkL    Float?
 
+  /// Bumped each time `finalize()` promotes this formula into a reusable
+  /// `FeedIngredient` (see that model's doc comment). Starts at 1 (unfinalized).
+  versionNumber Int @default(1)
+
   isActive  Boolean  @default(true)
   createdBy String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  farm  Farm                    @relation("FarmToFeedConcentration", fields: [farmId], references: [id])
-  items FeedConcentrationItem[]
+  farm                Farm                    @relation("FarmToFeedConcentration", fields: [farmId], references: [id])
+  items               FeedConcentrationItem[]
+  promotedIngredients FeedIngredient[]
+  stocks              FeedStock[]
 
   @@index([farmId])
   @@index([farmId, feedGroupId])
@@ -176,4 +241,18 @@ enum FeedIngredientCategory {
 enum FeedTargetType {
   GROUP
   INDIVIDUAL
+}
+
+/// See `FeedConcentration.kind`'s doc comment.
+enum FeedConcentrationKind {
+  CONCENTRATE_TEMPLATE
+  FEED_MIXTURE
+}
+
+/// Display-only classification for a farm's quick-add custom ingredient (see `FeedIngredient`'s
+/// doc comment) — which of the ingredient table's 3 column groups to tag/color it under.
+enum FeedNutrientGroup {
+  PROTEIN
+  ENERGY
+  FIBER
 }

@@ -57,6 +57,11 @@ model MilkDispatch {
   paymentDueDate    DateTime?
   paidAmount        Float     @default(0)
 
+  /// Loose reference (no FK — cross-module, matches FinanceTransaction.buyerId
+  /// convention) to the FinanceTransaction created for this dispatch's revenue.
+  /// Null for dispatches recorded before this linkage existed.
+  financeTransactionId String?
+
   notes     String?
   createdBy String
   createdAt DateTime @default(now())

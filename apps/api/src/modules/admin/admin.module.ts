@@ -3,6 +3,7 @@ import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { AuthModule } from '../auth/auth.module';
 import { BillingModule } from '../billing/billing.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
+import { FeedModule } from '../feed/feed.module';
 import { AdminTokenService } from './application/services/admin-token.service';
 import { AdminAuthService } from './application/services/admin-auth.service';
 import { AdminAuditService } from './application/services/admin-audit.service';
@@ -15,6 +16,7 @@ import { AdminBillingController } from './presentation/controllers/admin-billing
 import { AdminReconciliationController } from './presentation/controllers/admin-reconciliation.controller';
 import { AdminAuditController } from './presentation/controllers/admin-audit.controller';
 import { AdminHealthController } from './presentation/controllers/admin-health.controller';
+import { AdminFeedIngredientController } from './presentation/controllers/admin-feed-ingredient.controller';
 
 /**
  * Rakhal Admin (`admin-api`) — RAKHAL-224 (PRD §32.5 / ADR-016/019). The
@@ -22,16 +24,27 @@ import { AdminHealthController } from './presentation/controllers/admin-health.c
  * `BillingModule`/`SubscriptionModule` to reuse the coupon/referral/plan
  * services (no reverse dep — billing knows nothing about admin) and `AuthModule`
  * for `PasswordService`. This is the seed of Milestone 13's admin panel;
- * RAKHAL-225 extends the identity with sessions/2FA/RBAC.
+ * RAKHAL-225 extends the identity with sessions/2FA/RBAC. `FeedModule` is
+ * imported for the Feed Ingredient Master (RAKHAL-233) — reuses
+ * `FeedIngredientService` directly, same "consume the owning module's service"
+ * pattern as billing/subscription above (no reverse dep — feed knows nothing
+ * about admin).
  */
 @Module({
-  imports: [LoggerModule, AuthModule, BillingModule, SubscriptionModule],
+  imports: [
+    LoggerModule,
+    AuthModule,
+    BillingModule,
+    SubscriptionModule,
+    FeedModule,
+  ],
   controllers: [
     AdminAuthController,
     AdminBillingController,
     AdminReconciliationController,
     AdminAuditController,
     AdminHealthController,
+    AdminFeedIngredientController,
   ],
   providers: [
     AdminTokenService,

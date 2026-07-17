@@ -126,13 +126,19 @@ export class MilkTankService {
    * Rejects going below zero or above capacity (INV-04). Used by the Milk module
    * (COLLECTION) and Finance (SALE) as well as manual corrections.
    */
+  /**
+   * `tx` lets a caller (e.g. Milk/Buyer "submit" and "dispatch" flows) fold this
+   * write into its own transaction, so a capacity/negative-balance rejection here
+   * rolls back the caller's write too instead of silently drifting out of sync.
+   */
   async adjustVolume(
     farmId: string,
     userId: string,
     id: string,
     dto: AdjustMilkTankVolumeDto,
+    tx?: Prisma.TransactionClient,
   ): Promise<PresentedMilkTank> {
-    const existing = await this.getOrThrow(farmId, id);
+    const existing = await this.getOrThrow(farmId, id, tx ?? this.prisma);
     const balanceAfterL = existing.currentVolumeL + dto.delta;
 
     if (dto.delta === 0) {
@@ -145,12 +151,12 @@ export class MilkTankService {
       throw new BadRequestException('Tank volume cannot exceed capacity');
     }
 
-    const [tank] = await this.prisma.$transaction([
-      this.prisma.milkTank.update({
+    const write = async (client: Prisma.TransactionClient) => {
+      const updatedTank = await client.milkTank.update({
         where: { id },
         data: { currentVolumeL: balanceAfterL },
-      }),
-      this.prisma.milkTankAuditLog.create({
+      });
+      await client.milkTankAuditLog.create({
         data: {
           milkTankId: id,
           farmId,
@@ -161,8 +167,13 @@ export class MilkTankService {
           notes: dto.notes,
           createdBy: userId,
         },
-      }),
-    ]);
+      });
+      return updatedTank;
+    };
+
+    const tank = tx
+      ? await write(tx)
+      : await this.prisma.$transaction((t) => write(t));
 
     this.log.info('Milk tank volume adjusted', {
       tankId: id,
@@ -197,8 +208,12 @@ export class MilkTankService {
     return toCursorPage(rows, query) satisfies CursorPage<unknown>;
   }
 
-  private async getOrThrow(farmId: string, id: string): Promise<MilkTank> {
-    const tank = await this.prisma.milkTank.findFirst({
+  private async getOrThrow(
+    farmId: string,
+    id: string,
+    client: PrismaService | Prisma.TransactionClient = this.prisma,
+  ): Promise<MilkTank> {
+    const tank = await client.milkTank.findFirst({
       where: { id, farmId },
     });
     if (!tank) throw new NotFoundException('Milk tank not found');
