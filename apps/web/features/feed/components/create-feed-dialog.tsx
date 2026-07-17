@@ -1,6 +1,6 @@
 "use client"; // multi-step wizard state + form
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -12,13 +12,27 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { CattlePicker } from "@/components/shared/cattle-picker";
-import { useCreateConcentration, useFeedGroups, useFeedIngredients, useFeedRequirements, useNormalizeConcentration } from "../hooks/use-feed";
+import {
+  useConcentrationDetail,
+  useCreateConcentration,
+  useFeedGroups,
+  useFeedIngredients,
+  useFeedRequirements,
+  useNormalizeConcentration,
+  useUpdateConcentration,
+} from "../hooks/use-feed";
 import { createFeedFormSchema, feedTargetTypes, type CreateFeedFormInput } from "../schemas";
 import { FeedMixtureTable, toEffectiveMap } from "./feed-mixture-table";
 import { IngredientPicker } from "./ingredient-picker";
+import { RequirementTile } from "./requirement-tile";
 import { fromApiRequirements } from "../lib/formula-math";
-import type { CreateFeedConcentrationPayload } from "../types";
+import type {
+  CreateFeedConcentrationPayload,
+  FeedConcentrationKind,
+  UpdateFeedConcentrationPayload,
+} from "../types";
 
 const numberField = { setValueAs: (v: string) => (v === "" ? undefined : Number(v)) };
 
@@ -43,28 +57,85 @@ function StepProgress({ step }: { step: 1 | 2 }) {
  * no "duplicate a concentration's items" endpoint) and is left as a disabled placeholder rather than
  * faked; only "Add New Item" (a real ingredient picker) and "Normalize to 100%" (a real `POST
  * /feed/concentrations/normalize` call) are wired.
+ *
+ * Also doubles as the **edit** dialog (user request 2026-07-17, no Figma frame for an edit variant —
+ * reuses this exact wizard, just prefilled): passing `editId` fetches that concentration's detail
+ * (`GET /feed/concentrations/:id`), prefills every field once loaded, and submits via `PATCH`
+ * (`useUpdateConcentration`) instead of `POST`. No new UI pattern, same form/validation/table.
+ *
+ * `kind` (user request 2026-07-18 — "Concentrate Mixer" vs "Feed Mixture" as real distinct flows,
+ * see `types.ts`'s `FeedConcentrationKind` doc comment) drives which Step 1 fields render: a
+ * `CONCENTRATE_TEMPLATE` shows only Name + Duration (no target-type pill, group/cattle picker,
+ * weight/milk inputs, or Estimated Daily Requirements box — a template is a recipe, not a
+ * cow-targeted ration). The caller always knows `kind` up front, even in edit mode — `feed-view.tsx`
+ * passes the card's own `kind` (already on `FeedConcentrationSummary`) rather than waiting on the
+ * detail fetch, so Step 1 renders correctly from the first frame instead of flashing the wrong shape.
  */
-export function CreateFeedDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function CreateFeedDialog({
+  open,
+  onOpenChange,
+  editId,
+  kind,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** When set, edits this concentration instead of creating a new one. */
+  editId?: string;
+  kind: FeedConcentrationKind;
+}) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      {open ? <CreateFeedDialogBody onOpenChange={onOpenChange} /> : null}
+      {open ? <CreateFeedDialogBody onOpenChange={onOpenChange} editId={editId} kind={kind} /> : null}
     </Sheet>
   );
 }
 
-function CreateFeedDialogBody({ onOpenChange }: { onOpenChange: (open: boolean) => void }) {
+function CreateFeedDialogBody({
+  onOpenChange,
+  editId,
+  kind,
+}: {
+  onOpenChange: (open: boolean) => void;
+  editId?: string;
+  kind: FeedConcentrationKind;
+}) {
   const t = useTranslations("feed.create");
+  const isEdit = Boolean(editId);
+  const isTemplate = kind === "CONCENTRATE_TEMPLATE";
   const [step, setStep] = useState<1 | 2>(1);
 
   const feedGroups = useFeedGroups();
   const ingredients = useFeedIngredients();
+  const editDetail = useConcentrationDetail(editId);
   const createConcentration = useCreateConcentration();
+  const updateConcentration = useUpdateConcentration();
   const normalizeMutation = useNormalizeConcentration();
 
   const form = useForm<CreateFeedFormInput>({
     resolver: zodResolver(createFeedFormSchema),
-    defaultValues: { targetType: "GROUP", items: [] },
+    defaultValues: { kind, targetType: "GROUP", items: [] },
   });
+  const prefilledRef = useRef(false);
+  useEffect(() => {
+    if (!editDetail.data || prefilledRef.current) return;
+    prefilledRef.current = true;
+    const d = editDetail.data;
+    form.reset({
+      kind: d.kind,
+      name: d.name,
+      durationDays: d.duration_days ?? undefined,
+      targetType: d.target_type,
+      feedGroupId: d.feed_group_id ?? undefined,
+      cattleId: d.cattle_id ?? undefined,
+      targetWeightKg: d.target_weight_kg ?? undefined,
+      targetMilkL: d.target_milk_l ?? undefined,
+      items: d.ingredients.map((i) => ({
+        ingredientId: i.ingredient_id,
+        ingredientName: i.name ?? i.ingredient_id,
+        amountKg: i.amount_kg,
+      })),
+    });
+  }, [editDetail.data, form]);
   const targetType = form.watch("targetType");
   const feedGroupId = form.watch("feedGroupId");
   const targetWeightKg = form.watch("targetWeightKg");
@@ -101,7 +172,7 @@ function CreateFeedDialogBody({ onOpenChange }: { onOpenChange: (open: boolean) 
   }
 
   async function handleNormalize() {
-    if (!targetWeightKg || items.length === 0) return;
+    if (!targetWeightKg || targetMilkL == null || items.length === 0) return;
     const result = await normalizeMutation.mutateAsync({
       weightKg: targetWeightKg,
       milkTargetL: targetMilkL,
@@ -119,25 +190,34 @@ function CreateFeedDialogBody({ onOpenChange }: { onOpenChange: (open: boolean) 
   }
 
   async function goNext() {
-    const valid = await form.trigger(["name", "targetType", "feedGroupId", "cattleId", "targetWeightKg", "targetMilkL"]);
+    const fields: (keyof CreateFeedFormInput)[] = isTemplate
+      ? ["name"]
+      : ["name", "targetType", "feedGroupId", "cattleId", "targetWeightKg", "targetMilkL"];
+    const valid = await form.trigger(fields);
     if (valid) setStep(2);
   }
 
   async function onSubmit(values: CreateFeedFormInput) {
     try {
-      const payload: CreateFeedConcentrationPayload = {
+      const payload: CreateFeedConcentrationPayload | UpdateFeedConcentrationPayload = {
+        kind: values.kind,
         name: values.name,
         durationDays: values.durationDays,
-        targetType: values.targetType,
-        feedGroupId: values.targetType === "GROUP" ? values.feedGroupId : undefined,
-        cattleId: values.targetType === "INDIVIDUAL" ? values.cattleId : undefined,
-        targetWeightKg: values.targetWeightKg,
-        targetMilkL: values.targetMilkL,
+        targetType: isTemplate ? undefined : values.targetType,
+        feedGroupId: !isTemplate && values.targetType === "GROUP" ? values.feedGroupId : undefined,
+        cattleId: !isTemplate && values.targetType === "INDIVIDUAL" ? values.cattleId : undefined,
+        targetWeightKg: isTemplate ? undefined : values.targetWeightKg,
+        targetMilkL: isTemplate ? undefined : values.targetMilkL,
         items: values.items.map((i) => ({ ingredientId: i.ingredientId, amountKg: i.amountKg })),
       };
-      await createConcentration.mutateAsync(payload);
-      toast.success(t("createdToast"));
-      form.reset({ targetType: "GROUP", items: [] });
+      if (isEdit && editId) {
+        await updateConcentration.mutateAsync({ id: editId, dto: payload });
+        toast.success(t("updatedToast"));
+      } else {
+        await createConcentration.mutateAsync(payload as CreateFeedConcentrationPayload);
+        toast.success(t("createdToast"));
+      }
+      form.reset({ kind, targetType: "GROUP", items: [] });
       setStep(1);
       onOpenChange(false);
     } catch (err) {
@@ -163,7 +243,7 @@ function CreateFeedDialogBody({ onOpenChange }: { onOpenChange: (open: boolean) 
       )}
     >
       <div className="flex items-start justify-between pb-5">
-        <SheetTitle className="text-xl font-bold text-foreground">{t("title")}</SheetTitle>
+        <SheetTitle className="text-xl font-bold text-foreground">{t(isEdit ? "titleEdit" : "title")}</SheetTitle>
         <button
           type="button"
           onClick={() => onOpenChange(false)}
@@ -175,6 +255,11 @@ function CreateFeedDialogBody({ onOpenChange }: { onOpenChange: (open: boolean) 
       </div>
       <div className="border-t border-dashed border-border" />
 
+      {isEdit && editDetail.isLoading ? (
+        <div className="flex-1 overflow-y-auto py-4">
+          <CardSkeleton lines={6} />
+        </div>
+      ) : (
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto py-4">
           <div className="flex flex-col gap-3">
@@ -187,92 +272,96 @@ function CreateFeedDialogBody({ onOpenChange }: { onOpenChange: (open: boolean) 
               <LabeledInput id="name" label={t("feedName")} placeholder={t("feedNamePlaceholder")} {...form.register("name")} error={form.formState.errors.name?.message} />
               <LabeledInput id="durationDays" type="number" min={1} label={t("feedDuration")} {...form.register("durationDays", numberField)} />
 
-              <div className="flex h-12 gap-1 rounded-xl border border-border bg-muted p-1">
-                {feedTargetTypes.map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => {
-                      form.setValue("targetType", value);
-                      form.setValue("feedGroupId", undefined);
-                      form.setValue("cattleId", undefined);
-                    }}
-                    className={cn(
-                      "flex flex-1 items-center justify-center rounded-lg text-sm font-bold transition-colors",
-                      targetType === value ? "bg-card text-primary shadow-xs" : "text-muted-foreground",
-                    )}
-                  >
-                    {t(`targetType.${value}`)}
-                  </button>
-                ))}
-              </div>
-
-              {targetType === "GROUP" ? (
-                <Controller
-                  control={form.control}
-                  name="feedGroupId"
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <LabeledSelectTrigger label={t("selectGroup")} placeholder={t("selectGroupPlaceholder")} className="h-11" />
-                      <SelectContent>
-                        {(feedGroups.data ?? []).map((group) => (
-                          <SelectItem key={group.id} value={group.id}>
-                            {group.name} ({t("cowCount", { count: group.assigned_count })})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              ) : (
-                <Controller
-                  control={form.control}
-                  name="cattleId"
-                  render={({ field }) => (
-                    <div className="flex flex-col gap-1.5">
-                      <p className="text-xs text-muted-foreground">{t("selectAnimal")}</p>
-                      <CattlePicker value={field.value} onValueChange={(id) => field.onChange(id)} />
-                    </div>
-                  )}
-                />
-              )}
-              {form.formState.errors.feedGroupId || form.formState.errors.cattleId ? (
-                <p className="-mt-3 text-sm text-destructive">
-                  {form.formState.errors.feedGroupId?.message ?? form.formState.errors.cattleId?.message}
-                </p>
-              ) : null}
-
-              <div className="flex gap-4">
-                <LabeledInput
-                  id="targetWeightKg"
-                  type="number"
-                  step="0.01"
-                  min={1}
-                  label={t("avgWeight")}
-                  {...form.register("targetWeightKg", numberField)}
-                  error={form.formState.errors.targetWeightKg?.message}
-                />
-                <LabeledInput
-                  id="targetMilkL"
-                  type="number"
-                  step="0.01"
-                  min={0}
-                  label={t("avgMilkTarget")}
-                  {...form.register("targetMilkL", numberField)}
-                  error={form.formState.errors.targetMilkL?.message}
-                />
-              </div>
-
-              {requirements ? (
-                <div className="flex flex-col gap-4 rounded-2xl border border-border bg-muted p-5">
-                  <p className="text-sm text-muted-foreground">{t("estimatedRequirements")}</p>
-                  <div className="grid grid-cols-4 gap-4 text-center">
-                    <RequirementTile label={t("dm")} value={requirements.dmKg} unit={t("kgPerDay")} tone="foreground" />
-                    <RequirementTile label={t("protein")} value={requirements.cpKg} unit={t("kgPerDay")} tone="info" />
-                    <RequirementTile label={t("energy")} value={requirements.meMj} unit={t("mjPerDay")} tone="warning" />
-                    <RequirementTile label={t("fiber")} value={requirements.ndfKg} unit={t("kgPerDay")} tone="success" />
+              {!isTemplate ? (
+                <>
+                  <div className="flex h-12 gap-1 rounded-xl border border-border bg-muted p-1">
+                    {feedTargetTypes.map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => {
+                          form.setValue("targetType", value);
+                          form.setValue("feedGroupId", undefined);
+                          form.setValue("cattleId", undefined);
+                        }}
+                        className={cn(
+                          "flex flex-1 items-center justify-center rounded-lg text-sm font-bold transition-colors",
+                          targetType === value ? "bg-card text-primary shadow-xs" : "text-muted-foreground",
+                        )}
+                      >
+                        {t(`targetType.${value}`)}
+                      </button>
+                    ))}
                   </div>
-                </div>
+
+                  {targetType === "GROUP" ? (
+                    <Controller
+                      control={form.control}
+                      name="feedGroupId"
+                      render={({ field }) => (
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <LabeledSelectTrigger label={t("selectGroup")} placeholder={t("selectGroupPlaceholder")} className="h-11" />
+                          <SelectContent>
+                            {(feedGroups.data ?? []).map((group) => (
+                              <SelectItem key={group.id} value={group.id}>
+                                {group.name} ({t("cowCount", { count: group.assigned_count })})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  ) : (
+                    <Controller
+                      control={form.control}
+                      name="cattleId"
+                      render={({ field }) => (
+                        <div className="flex flex-col gap-1.5">
+                          <p className="text-xs text-muted-foreground">{t("selectAnimal")}</p>
+                          <CattlePicker value={field.value} onValueChange={(id) => field.onChange(id)} />
+                        </div>
+                      )}
+                    />
+                  )}
+                  {form.formState.errors.feedGroupId || form.formState.errors.cattleId ? (
+                    <p className="-mt-3 text-sm text-destructive">
+                      {form.formState.errors.feedGroupId?.message ?? form.formState.errors.cattleId?.message}
+                    </p>
+                  ) : null}
+
+                  <div className="flex gap-4">
+                    <LabeledInput
+                      id="targetWeightKg"
+                      type="number"
+                      step="0.01"
+                      min={1}
+                      label={t("avgWeight")}
+                      {...form.register("targetWeightKg", numberField)}
+                      error={form.formState.errors.targetWeightKg?.message}
+                    />
+                    <LabeledInput
+                      id="targetMilkL"
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      label={t("avgMilkTarget")}
+                      {...form.register("targetMilkL", numberField)}
+                      error={form.formState.errors.targetMilkL?.message}
+                    />
+                  </div>
+
+                  {requirements ? (
+                    <div className="flex flex-col gap-4 rounded-2xl border border-border bg-muted p-5">
+                      <p className="text-sm text-muted-foreground">{t("estimatedRequirements")}</p>
+                      <div className="grid grid-cols-4 gap-4 text-center">
+                        <RequirementTile label={t("dm")} value={requirements.dmKg} unit={t("kgPerDay")} tone="foreground" />
+                        <RequirementTile label={t("protein")} value={requirements.cpKg} unit={t("kgPerDay")} tone="info" />
+                        <RequirementTile label={t("energy")} value={requirements.meMj} unit={t("mjPerDay")} tone="warning" />
+                        <RequirementTile label={t("fiber")} value={requirements.ndfKg} unit={t("kgPerDay")} tone="success" />
+                      </div>
+                    </div>
+                  ) : null}
+                </>
               ) : null}
             </div>
           ) : null}
@@ -321,7 +410,7 @@ function CreateFeedDialogBody({ onOpenChange }: { onOpenChange: (open: boolean) 
             variant="secondary"
             className="h-[52px] flex-1 rounded-xl"
             onClick={() => (step === 1 ? onOpenChange(false) : setStep(1))}
-            disabled={createConcentration.isPending}
+            disabled={createConcentration.isPending || updateConcentration.isPending}
           >
             {step === 1 ? t("cancel") : t("previous")}
           </Button>
@@ -330,39 +419,17 @@ function CreateFeedDialogBody({ onOpenChange }: { onOpenChange: (open: boolean) 
               {t("next")}
             </Button>
           ) : (
-            <Button type="submit" className="h-[52px] flex-1 rounded-xl" disabled={createConcentration.isPending || items.length === 0}>
-              {createConcentration.isPending ? "…" : t("saveFeed")}
+            <Button
+              type="submit"
+              className="h-[52px] flex-1 rounded-xl"
+              disabled={createConcentration.isPending || updateConcentration.isPending || items.length === 0}
+            >
+              {createConcentration.isPending || updateConcentration.isPending ? "…" : t(isEdit ? "saveFeedEdit" : "saveFeed")}
             </Button>
           )}
         </div>
       </form>
+      )}
     </SheetContent>
-  );
-}
-
-const TONE_TEXT_CLASS: Record<"foreground" | "info" | "warning" | "success", string> = {
-  foreground: "text-muted-foreground",
-  info: "text-info",
-  warning: "text-warning",
-  success: "text-success",
-};
-
-function RequirementTile({
-  label,
-  value,
-  unit,
-  tone,
-}: {
-  label: string;
-  value: number;
-  unit: string;
-  tone: "foreground" | "info" | "warning" | "success";
-}) {
-  return (
-    <div className="flex flex-col items-center gap-1 rounded-xl bg-card p-3">
-      <p className={cn("text-sm", TONE_TEXT_CLASS[tone])}>{label}</p>
-      <p className="text-xl font-bold text-foreground">{value}</p>
-      <p className={cn("text-sm", TONE_TEXT_CLASS[tone])}>{unit}</p>
-    </div>
   );
 }

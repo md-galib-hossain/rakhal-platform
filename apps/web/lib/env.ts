@@ -7,12 +7,12 @@ import { z } from "zod";
  * only place this value is read.
  */
 const serverSchema = z.object({
-  API_BASE_URL: z.url().default("http://localhost:3000/api/v1"),
+  API_BASE_URL: z.url().default("http://localhost:3005/api/v1"),
 });
 
 /** Public env — safe to ship to the browser. */
 const clientSchema = z.object({
-  NEXT_PUBLIC_APP_URL: z.url().default("http://localhost:3001"),
+  NEXT_PUBLIC_APP_URL: z.url().default("http://localhost:3005"),
   /**
    * Origin of the `farm.rakhal.app` app shell (auth/onboarding/dashboard). The
    * marketing landing page (this app's `/`) links out to it directly instead of

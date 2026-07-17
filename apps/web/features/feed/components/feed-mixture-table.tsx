@@ -29,6 +29,13 @@ export function toEffectiveMap(ingredients: FeedIngredient[]): Map<string, Effec
         meMjPerKgDm: ing.nutrition.me_mj_per_kg_dm,
         fatPct: ing.nutrition.fat_pct,
         ndfPct: ing.nutrition.ndf_pct,
+        rdpPct: ing.nutrition.rdp_pct,
+        rupPct: ing.nutrition.rup_pct,
+        starchPct: ing.nutrition.starch_pct,
+        adfPct: ing.nutrition.adf_pct,
+        calciumPct: ing.nutrition.calcium_pct,
+        phosphorusPct: ing.nutrition.phosphorus_pct,
+        tdnPct: ing.nutrition.tdn_pct,
         pricePerKg: ing.effective_price_per_kg,
       },
     ]),
@@ -37,15 +44,68 @@ export function toEffectiveMap(ingredients: FeedIngredient[]): Map<string, Effec
 
 const numberFmt = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(2));
 
+/** Per-line cell: the computed kg/mj contribution plus the ingredient's own raw nutrient rate
+ * (its fixed DM%/CP%/Fat%/NDF% or ME MJ/kg-DM) as a small annotation underneath — user request
+ * 2026-07-17: "how much % DM does Napier grass have, and how much kg does that turn into at the
+ * amount added". The computed value already answers the kg question; `rate` answers the %/rate one. */
+function NutrientCell({ value, rate, toneClass }: { value: number; rate: string | null; toneClass: string }) {
+  return (
+    <TableCell className={cn("text-center", toneClass)}>
+      <div className="flex flex-col items-center leading-tight">
+        <span>{numberFmt(value)}</span>
+        {rate != null ? <span className="text-[11px] text-muted-foreground">{rate}</span> : null}
+      </div>
+    </TableCell>
+  );
+}
+
+/** A row's cell for a nutrient with no per-cow requirement formula (Starch/ADF/RDP/RUP/Calcium/
+ * Phosphorus/TDN, user request 2026-07-17 follow-up) — shows the real computed value, same as any
+ * other nutrient, just never tinted/compared since there's nothing to compare against. */
+function PlainCell({ value, toneClass }: { value: number; toneClass: string }) {
+  return <TableCell className={cn("text-center", toneClass)}>{numberFmt(value)}</TableCell>;
+}
+
+/** Column group definitions — order and grouping match the user's reference spreadsheet (2026-07-17
+ * follow-up): Protein (CP/RDP/RUP), Energy (ME/FAT/Starch/TDN), Fibers (NDF/ADF), Minerals (Calcium/
+ * Phosphorus). Only DM/CP/ME/Fat/NDF have a real per-cow requirement (`requirements.ts` has no
+ * target for the other 7 — flagged, not fabricated) so `hasRequirement` gates the tinted comparison
+ * on the Daily Total Requirement row; uncovered nutrients show a plain `—` there instead. */
+const NUTRIENT_COLUMNS = [
+  { key: "cpKg", rateKey: "cpPct", labelKey: "cpKg", group: "protein", hasRequirement: true, unit: "%" },
+  { key: "rdpKg", rateKey: "rdpPct", labelKey: "rdpKg", group: "protein", hasRequirement: false, unit: "%" },
+  { key: "rupKg", rateKey: "rupPct", labelKey: "rupKg", group: "protein", hasRequirement: false, unit: "%" },
+  { key: "meMj", rateKey: "meMjPerKgDm", labelKey: "meMj", group: "energy", hasRequirement: true, unit: "MJ/kgDM" },
+  { key: "fatKg", rateKey: "fatPct", labelKey: "fatKg", group: "energy", hasRequirement: true, unit: "%" },
+  { key: "starchKg", rateKey: "starchPct", labelKey: "starchKg", group: "energy", hasRequirement: false, unit: "%" },
+  { key: "tdnKg", rateKey: "tdnPct", labelKey: "tdnKg", group: "energy", hasRequirement: false, unit: "%" },
+  { key: "ndfKg", rateKey: "ndfPct", labelKey: "ndfKg", group: "fibers", hasRequirement: true, unit: "%" },
+  { key: "adfKg", rateKey: "adfPct", labelKey: "adfKg", group: "fibers", hasRequirement: false, unit: "%" },
+  { key: "calciumKg", rateKey: "calciumPct", labelKey: "calciumKg", group: "minerals", hasRequirement: false, unit: "%" },
+  { key: "phosphorusKg", rateKey: "phosphorusPct", labelKey: "phosphorusKg", group: "minerals", hasRequirement: false, unit: "%" },
+] as const;
+
+const GROUP_STYLES = {
+  protein: { bg: "bg-info-tint", text: "text-info" },
+  energy: { bg: "bg-warning-tint", text: "text-warning" },
+  fibers: { bg: "bg-success-tint", text: "text-success" },
+  minerals: { bg: "bg-accent-purple-tint", text: "text-accent-purple" },
+} as const;
+
+const GROUP_ORDER = ["protein", "energy", "fibers", "minerals"] as const;
+
 /**
- * "Feed Mixture" ingredient table (Figma `1065:35817`) — Ingredient Name/Amount/DM columns + Protein
- * (CP only — RDP/RUP dropped, no backend data, see `lib/formula-math.ts`'s doc comment) + Energy
- * (ME/FAT — STR dropped) + Fibers (NDF — SUG dropped) + Cost, followed by Total Feed Amount / Daily
- * Total Amount (per cow — real division by the feed group's `assigned_count`, 1 for an Individual
- * target) / Daily Total Requirement (per cow, from `GET /feed/requirements`) rows. The last two rows'
- * per-nutrient cells are tinted success/destructive by whether the daily amount meets that
- * requirement — the same real comparison the "Feed Mixture ... % Completed" bar and each card's
- * Balance Score summarize as one number.
+ * "Feed Mixture" ingredient table (Figma `1065:35817` for the base layout; extended 2026-07-17
+ * follow-up to show all 12 nutrients the backend computes, per the user's own reference
+ * spreadsheet — no Figma frame exists for the wider table, built with the same column/tint pattern
+ * as the original 5). Ingredient Name/Amount/DM columns + Protein (CP/RDP/RUP) + Energy (ME/FAT/
+ * Starch/TDN) + Fibers (NDF/ADF) + Minerals (Calcium/Phosphorus) + Cost, followed by Total Feed
+ * Amount / Daily Total Amount (per cow) / Daily Total Requirement rows. Only DM/CP/ME/Fat/NDF have a
+ * real per-cow requirement target (`requirements.ts`) — those cells in the last row are tinted
+ * success/destructive by whether the daily amount meets it; the other 7 nutrients show a plain
+ * value with no comparison (no requirement formula exists for them yet, see `NUTRIENT_COLUMNS`).
+ * Wrapped in a horizontally-scrolling container since 12 nutrient pairs + name/amount/cost don't
+ * fit a card-width table.
  */
 export function FeedMixtureTable({
   items,
@@ -84,16 +144,26 @@ export function FeedMixtureTable({
   const totals = serverTotals ?? computed.totals;
   const contributionById = useMemo(() => new Map(contributions.map((c) => [c.ingredientId, c])), [contributions]);
 
+  /** Raw summed kg across every line — e.g. two 50kg lines = 100kg. Previously computed nowhere:
+   * the Total Feed Amount row's label cell spanned straight over the Amount column (`colSpan={2}`),
+   * so this figure never actually rendered anywhere (user request 2026-07-18). */
+  const totalAmountKg = useMemo(() => items.reduce((sum, i) => sum + i.amountKg, 0), [items]);
+
+  /** DM as a % of the *mix's* total kg (not an ingredient's own fixed DM% rate, which is a different
+   * number shown per-line) — e.g. 7kg DM out of 100kg total feed = 7%. Only meaningful on the totals
+   * rows, where "amount" means the whole mix rather than one ingredient. */
+  function dmPctOf(dmKg: number, amountKg: number) {
+    return amountKg > 0 ? (dmKg / amountKg) * 100 : 0;
+  }
+
   const dailyTotals = useMemo(() => {
     const divisor = cowCount > 0 ? cowCount : 1;
-    return {
-      dmKg: totals.dmKg / divisor,
-      cpKg: totals.cpKg / divisor,
-      meMj: totals.meMj / divisor,
-      fatKg: totals.fatKg / divisor,
-      ndfKg: totals.ndfKg / divisor,
-    };
-  }, [totals, cowCount]);
+    const out = {} as Record<(typeof NUTRIENT_COLUMNS)[number]["key"] | "dmKg" | "amountKg", number>;
+    out.amountKg = totalAmountKg / divisor;
+    out.dmKg = totals.dmKg / divisor;
+    for (const col of NUTRIENT_COLUMNS) out[col.key] = totals[col.key] / divisor;
+    return out;
+  }, [totals, cowCount, totalAmountKg]);
 
   const score = requirements ? balanceScore(totals, requirements) : null;
   const band = score != null ? balanceScoreBand(score) : null;
@@ -103,155 +173,184 @@ export function FeedMixtureTable({
     return actual >= required ? "bg-success-tint" : "bg-destructive-tint";
   }
 
+  const groupCounts = GROUP_ORDER.map((g) => ({
+    group: g,
+    count: NUTRIENT_COLUMNS.filter((c) => c.group === g).length,
+  })).filter((g) => g.count > 0);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="overflow-hidden rounded-2xl border border-border">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted hover:bg-muted">
-              <TableHead rowSpan={2} className="align-middle">
-                {t("ingredientName")}
-              </TableHead>
-              <TableHead rowSpan={2} className="align-middle">
-                {t("amount")}
-              </TableHead>
-              <TableHead rowSpan={2} className="text-center align-middle">
-                {t("dmKg")}
-              </TableHead>
-              <TableHead colSpan={1} className="bg-info-tint text-center text-info">
-                {t("protein")}
-              </TableHead>
-              <TableHead colSpan={2} className="bg-warning-tint text-center text-warning">
-                {t("energy")}
-              </TableHead>
-              <TableHead colSpan={1} className="bg-success-tint text-center text-success">
-                {t("fibers")}
-              </TableHead>
-              <TableHead rowSpan={2} className="text-center align-middle">
-                {t("cost")}
-              </TableHead>
-              {!readOnly ? <TableHead rowSpan={2} className="w-10" /> : null}
-            </TableRow>
-            <TableRow className="bg-muted hover:bg-muted">
-              <TableHead className="bg-info-tint text-center text-xs font-medium normal-case text-muted-foreground">
-                {t("cpKg")}
-              </TableHead>
-              <TableHead className="bg-warning-tint text-center text-xs font-medium normal-case text-muted-foreground">
-                {t("meMj")}
-              </TableHead>
-              <TableHead className="bg-warning-tint text-center text-xs font-medium normal-case text-muted-foreground">
-                {t("fatKg")}
-              </TableHead>
-              <TableHead className="bg-success-tint text-center text-xs font-medium normal-case text-muted-foreground">
-                {t("ndfKg")}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.map((item) => {
-              const c = contributionById.get(item.ingredientId);
-              return (
-                <TableRow key={item.ingredientId}>
-                  <TableCell className="font-medium text-foreground">{item.ingredientName}</TableCell>
-                  <TableCell>
-                    {readOnly ? (
-                      <span>
-                        {numberFmt(item.amountKg)} <span className="text-xs text-muted-foreground">kg</span>
-                      </span>
-                    ) : (
-                      <div className="flex h-9 w-28 items-center gap-1 rounded-lg bg-card px-2 shadow-xs">
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          value={item.amountKg}
-                          onChange={(e) => onAmountChange?.(item.ingredientId, Number(e.target.value) || 0)}
-                          className="w-full border-0 bg-transparent p-0 text-sm text-foreground outline-none"
-                        />
-                        <span className="text-xs text-muted-foreground">kg</span>
-                      </div>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted hover:bg-muted">
+                <TableHead rowSpan={2} className="align-middle">
+                  {t("ingredientName")}
+                </TableHead>
+                <TableHead rowSpan={2} className="align-middle">
+                  {t("amount")}
+                </TableHead>
+                <TableHead rowSpan={2} className="text-center align-middle">
+                  {t("dmKg")}
+                </TableHead>
+                {groupCounts.map(({ group, count }) => (
+                  <TableHead
+                    key={group}
+                    colSpan={count}
+                    className={cn("text-center", GROUP_STYLES[group].bg, GROUP_STYLES[group].text)}
+                  >
+                    {t(group)}
+                  </TableHead>
+                ))}
+                <TableHead rowSpan={2} className="text-center align-middle">
+                  {t("cost")}
+                </TableHead>
+                {!readOnly ? <TableHead rowSpan={2} className="w-10" /> : null}
+              </TableRow>
+              <TableRow className="bg-muted hover:bg-muted">
+                {NUTRIENT_COLUMNS.map((col) => (
+                  <TableHead
+                    key={col.key}
+                    className={cn(
+                      "text-center text-xs font-medium normal-case text-muted-foreground",
+                      GROUP_STYLES[col.group].bg,
                     )}
-                  </TableCell>
-                  <TableCell className="text-center">{numberFmt(c?.dmKg ?? 0)}</TableCell>
-                  <TableCell className="text-center text-info">{numberFmt(c?.cpKg ?? 0)}</TableCell>
-                  <TableCell className="text-center text-warning">{numberFmt(c?.meMj ?? 0)}</TableCell>
-                  <TableCell className="text-center text-warning">{numberFmt(c?.fatKg ?? 0)}</TableCell>
-                  <TableCell className="text-center text-success">{numberFmt(c?.ndfKg ?? 0)}</TableCell>
-                  <TableCell className="text-center">
-                    <MoneyText amount={c?.costTk ?? 0} />
-                  </TableCell>
-                  {!readOnly ? (
+                  >
+                    {t(col.labelKey)}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((item) => {
+                const c = contributionById.get(item.ingredientId);
+                const eff = effectiveById.get(item.ingredientId);
+                return (
+                  <TableRow key={item.ingredientId}>
+                    <TableCell className="font-medium text-foreground">{item.ingredientName}</TableCell>
                     <TableCell>
-                      <button
-                        type="button"
-                        onClick={() => onRemove?.(item.ingredientId)}
-                        aria-label={t("removeItem")}
-                        className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive-tint hover:text-destructive"
-                      >
-                        <X className="size-3.5" aria-hidden />
-                      </button>
+                      {readOnly ? (
+                        <span>
+                          {numberFmt(item.amountKg)} <span className="text-xs text-muted-foreground">kg</span>
+                        </span>
+                      ) : (
+                        <div className="flex h-9 w-28 items-center gap-1 rounded-lg bg-card px-2 shadow-xs">
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={item.amountKg}
+                            onChange={(e) => onAmountChange?.(item.ingredientId, Number(e.target.value) || 0)}
+                            className="w-full border-0 bg-transparent p-0 text-sm text-foreground outline-none"
+                          />
+                          <span className="text-xs text-muted-foreground">kg</span>
+                        </div>
+                      )}
                     </TableCell>
-                  ) : null}
-                </TableRow>
-              );
-            })}
+                    <NutrientCell value={c?.dmKg ?? 0} rate={eff ? `${numberFmt(eff.dmPct)}%` : null} toneClass="" />
+                    {NUTRIENT_COLUMNS.map((col) => {
+                      const rate = eff?.[col.rateKey] ?? null;
+                      return (
+                        <NutrientCell
+                          key={col.key}
+                          value={c?.[col.key] ?? 0}
+                          rate={rate != null ? `${numberFmt(rate)}${col.unit === "%" ? "%" : ` ${col.unit}`}` : null}
+                          toneClass={GROUP_STYLES[col.group].text}
+                        />
+                      );
+                    })}
+                    <TableCell className="text-center">
+                      <MoneyText amount={c?.costTk ?? 0} />
+                    </TableCell>
+                    {!readOnly ? (
+                      <TableCell>
+                        <button
+                          type="button"
+                          onClick={() => onRemove?.(item.ingredientId)}
+                          aria-label={t("removeItem")}
+                          className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive-tint hover:text-destructive"
+                        >
+                          <X className="size-3.5" aria-hidden />
+                        </button>
+                      </TableCell>
+                    ) : null}
+                  </TableRow>
+                );
+              })}
 
-            <TableRow className="bg-muted/60 font-medium hover:bg-muted/60">
-              <TableCell colSpan={2} className="text-foreground">
-                {t("totalFeedAmount")}
-              </TableCell>
-              <TableCell className="text-center">{numberFmt(totals.dmKg)}</TableCell>
-              <TableCell className="text-center text-info">{numberFmt(totals.cpKg)}</TableCell>
-              <TableCell className="text-center text-warning">{numberFmt(totals.meMj)}</TableCell>
-              <TableCell className="text-center text-warning">{numberFmt(totals.fatKg)}</TableCell>
-              <TableCell className="text-center text-success">{numberFmt(totals.ndfKg)}</TableCell>
-              <TableCell className="text-center">
-                <MoneyText amount={totals.totalCostTk} />
-              </TableCell>
-              {!readOnly ? <TableCell /> : null}
-            </TableRow>
+              <TableRow className="bg-muted/60 font-medium hover:bg-muted/60">
+                <TableCell className="text-foreground">{t("totalFeedAmount")}</TableCell>
+                <TableCell className="text-center">
+                  {numberFmt(totalAmountKg)} <span className="text-xs font-normal text-muted-foreground">kg</span>
+                </TableCell>
+                <NutrientCell
+                  value={totals.dmKg}
+                  rate={`${numberFmt(dmPctOf(totals.dmKg, totalAmountKg))}%`}
+                  toneClass=""
+                />
+                {NUTRIENT_COLUMNS.map((col) => (
+                  <PlainCell key={col.key} value={totals[col.key]} toneClass={GROUP_STYLES[col.group].text} />
+                ))}
+                <TableCell className="text-center">
+                  <MoneyText amount={totals.totalCostTk} />
+                </TableCell>
+                {!readOnly ? <TableCell /> : null}
+              </TableRow>
 
-            <TableRow className="bg-muted/60 font-medium hover:bg-muted/60">
-              <TableCell colSpan={2}>
-                <p className="text-foreground">{t("dailyTotalAmount")}</p>
-                <p className="text-xs font-normal text-muted-foreground">{t("perCow")}</p>
-              </TableCell>
-              <TableCell className="text-center">{numberFmt(dailyTotals.dmKg)}</TableCell>
-              <TableCell className="text-center text-info">{numberFmt(dailyTotals.cpKg)}</TableCell>
-              <TableCell className="text-center text-warning">{numberFmt(dailyTotals.meMj)}</TableCell>
-              <TableCell className="text-center text-warning">{numberFmt(dailyTotals.fatKg)}</TableCell>
-              <TableCell className="text-center text-success">{numberFmt(dailyTotals.ndfKg)}</TableCell>
-              <TableCell className="text-center">—</TableCell>
-              {!readOnly ? <TableCell /> : null}
-            </TableRow>
-
-            {requirements ? (
-              <TableRow className="font-medium hover:bg-transparent">
-                <TableCell colSpan={2}>
-                  <p className="text-foreground">{t("dailyTotalRequirement")}</p>
+              <TableRow className="bg-muted/60 font-medium hover:bg-muted/60">
+                <TableCell>
+                  <p className="text-foreground">{t("dailyTotalAmount")}</p>
                   <p className="text-xs font-normal text-muted-foreground">{t("perCow")}</p>
                 </TableCell>
-                <TableCell className={cn("text-center", cellTone(dailyTotals.dmKg, requirements.dmKg))}>
-                  {numberFmt(requirements.dmKg)}
+                <TableCell className="text-center">
+                  {numberFmt(dailyTotals.amountKg)} <span className="text-xs font-normal text-muted-foreground">kg</span>
                 </TableCell>
-                <TableCell className={cn("text-center", cellTone(dailyTotals.cpKg, requirements.cpKg))}>
-                  {numberFmt(requirements.cpKg)}
-                </TableCell>
-                <TableCell className={cn("text-center", cellTone(dailyTotals.meMj, requirements.meMj))}>
-                  {numberFmt(requirements.meMj)}
-                </TableCell>
-                <TableCell className={cn("text-center", cellTone(dailyTotals.fatKg, requirements.fatKg))}>
-                  {numberFmt(requirements.fatKg)}
-                </TableCell>
-                <TableCell className={cn("text-center", cellTone(dailyTotals.ndfKg, requirements.ndfKg))}>
-                  {numberFmt(requirements.ndfKg)}
-                </TableCell>
+                <NutrientCell
+                  value={dailyTotals.dmKg}
+                  rate={`${numberFmt(dmPctOf(dailyTotals.dmKg, dailyTotals.amountKg))}%`}
+                  toneClass=""
+                />
+                {NUTRIENT_COLUMNS.map((col) => (
+                  <PlainCell key={col.key} value={dailyTotals[col.key]} toneClass={GROUP_STYLES[col.group].text} />
+                ))}
                 <TableCell className="text-center">—</TableCell>
                 {!readOnly ? <TableCell /> : null}
               </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
+
+              {requirements ? (
+                <TableRow className="font-medium hover:bg-transparent">
+                  <TableCell colSpan={2}>
+                    <p className="text-foreground">{t("dailyTotalRequirement")}</p>
+                    <p className="text-xs font-normal text-muted-foreground">{t("perCow")}</p>
+                  </TableCell>
+                  <TableCell className={cn("text-center", cellTone(dailyTotals.dmKg, requirements.dmKg))}>
+                    {numberFmt(requirements.dmKg)}
+                  </TableCell>
+                  {NUTRIENT_COLUMNS.map((col) =>
+                    col.hasRequirement ? (
+                      <TableCell
+                        key={col.key}
+                        className={cn(
+                          "text-center",
+                          cellTone(dailyTotals[col.key], requirements[col.key as keyof Requirements]),
+                        )}
+                      >
+                        {numberFmt(requirements[col.key as keyof Requirements] as number)}
+                      </TableCell>
+                    ) : (
+                      <TableCell key={col.key} className="text-center">
+                        —
+                      </TableCell>
+                    ),
+                  )}
+                  <TableCell className="text-center">—</TableCell>
+                  {!readOnly ? <TableCell /> : null}
+                </TableRow>
+              ) : null}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       {score != null && band ? (

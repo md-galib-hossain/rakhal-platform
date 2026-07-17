@@ -82,6 +82,8 @@ export const qk = {
     concentrationDetail: (id: string) => ["feed", "concentrations", "detail", id] as const,
     requirements: (weightKg: number | undefined, milkTargetL: number | undefined) =>
       ["feed", "requirements", weightKg, milkTargetL] as const,
+    requirementsFor: (params: { cattleId?: string; feedGroupId?: string; weightKg?: number; milkTargetL?: number }) =>
+      ["feed", "requirements", "for", params] as const,
     feedGroups: () => ["feed", "feed-groups"] as const,
   },
 };

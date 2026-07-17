@@ -6,8 +6,8 @@ import { X } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
-import { useConcentrationDetail, useFeedGroups } from "../hooks/use-feed";
-import { FeedMixtureTable } from "./feed-mixture-table";
+import { useConcentrationDetail, useFeedGroups, useFeedIngredients } from "../hooks/use-feed";
+import { FeedMixtureTable, toEffectiveMap } from "./feed-mixture-table";
 import { fromApiRequirements } from "../lib/formula-math";
 
 /** Read-only "See Details" view (no dedicated Figma frame supplied this pass — the list page's card
@@ -32,6 +32,10 @@ function DetailBody({ id, onOpenChange }: { id: string; onOpenChange: (open: boo
   const t = useTranslations("feed.detail");
   const detail = useConcentrationDetail(id);
   const feedGroups = useFeedGroups();
+  const ingredients = useFeedIngredients();
+  // Needed only for the per-line "rate" annotation (e.g. "20%" DM) shown alongside the server-
+  // computed kg values below — the kg/cost figures themselves come from `serverContributions`.
+  const effectiveById = useMemo(() => toEffectiveMap(ingredients.data ?? []), [ingredients.data]);
 
   const cowCount = useMemo(() => {
     if (!detail.data) return 1;
@@ -74,7 +78,7 @@ function DetailBody({ id, onOpenChange }: { id: string; onOpenChange: (open: boo
               ingredientName: line.name ?? line.ingredient_id,
               amountKg: line.amount_kg,
             }))}
-            effectiveById={new Map()}
+            effectiveById={effectiveById}
             requirements={detail.data.requirements ? fromApiRequirements(detail.data.requirements) : null}
             cowCount={cowCount}
             readOnly
@@ -86,6 +90,13 @@ function DetailBody({ id, onOpenChange }: { id: string; onOpenChange: (open: boo
               meMj: line.me_mj,
               fatKg: line.fat_kg,
               ndfKg: line.ndf_kg,
+              rdpKg: line.rdp_kg,
+              rupKg: line.rup_kg,
+              starchKg: line.starch_kg,
+              adfKg: line.adf_kg,
+              calciumKg: line.calcium_kg,
+              phosphorusKg: line.phosphorus_kg,
+              tdnKg: line.tdn_kg,
               costTk: line.cost_tk,
             }))}
             serverTotals={{
@@ -94,6 +105,13 @@ function DetailBody({ id, onOpenChange }: { id: string; onOpenChange: (open: boo
               meMj: detail.data.totals.me_mj,
               fatKg: detail.data.totals.fat_kg,
               ndfKg: detail.data.totals.ndf_kg,
+              rdpKg: detail.data.totals.rdp_kg,
+              rupKg: detail.data.totals.rup_kg,
+              starchKg: detail.data.totals.starch_kg,
+              adfKg: detail.data.totals.adf_kg,
+              calciumKg: detail.data.totals.calcium_kg,
+              phosphorusKg: detail.data.totals.phosphorus_kg,
+              tdnKg: detail.data.totals.tdn_kg,
               totalCostTk: detail.data.totals.total_cost_tk,
             }}
           />

@@ -1,8 +1,12 @@
-"use client"; // opens the detail sheet on click
+"use client"; // opens the detail sheet on click + a per-card edit/delete menu
 
 import { useTranslations } from "next-intl";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCan } from "@/lib/auth/permissions";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoneyText } from "@/components/shared/money-text";
 import { balanceScoreBand } from "../lib/formula-math";
 import type { FeedConcentrationSummary, FeedGroup } from "../types";
@@ -18,28 +22,77 @@ function StatBox({ label, value }: { label: string; value: string | number }) {
 
 /**
  * One "Concentration Template"/"Feed Mixture" card (Figma `1048:33257`/`1048:33341`). The two Figma
- * sections are the same `FeedConcentration` resource (see `types.ts`'s doc comment) — this card
- * renders the Balance Score bar only when `balance_score` is present (a target was set). "Weight
- * Range (kg)"/"Avg. Daily Milk Yield (L)" render as single "Target Weight"/"Target Milk" values
- * (no range exists in the schema, see `types.ts`) — "Number of Cow" is the real target feed group's
- * `assigned_count` (1 for an Individual target).
+ * sections read the same `FeedConcentration` resource but split by the explicit `kind` field (see
+ * `types.ts`'s doc comment) — this card renders the Balance Score bar only when `balance_score` is
+ * present (only ever true for a `FEED_MIXTURE`). "Weight Range (kg)"/"Avg. Daily Milk Yield (L)"
+ * render as single "Target Weight"/"Target Milk" values (no range exists in the schema, see
+ * `types.ts`) — "Number of Cow" is the real target feed group's `assigned_count` (1 for an
+ * Individual target). "Finalize" (user request 2026-07-17/18 — promote into a reusable ingredient +
+ * stock batch) only ever applies to a `CONCENTRATE_TEMPLATE`. `selectable` (multi-select delete,
+ * user request 2026-07-18) swaps the edit/delete/finalize menu for a checkbox — the two are mutually
+ * exclusive so a card is never both individually-editable and bulk-selectable at once.
  */
 export function ConcentrationCard({
   concentration,
   feedGroup,
   onSeeDetails,
+  onEdit,
+  onDelete,
+  onFinalize,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
 }: {
   concentration: FeedConcentrationSummary;
   feedGroup: FeedGroup | undefined;
   onSeeDetails: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onFinalize?: () => void;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const t = useTranslations("feed.card");
+  const can = useCan();
   const cowCount = concentration.target_type === "INDIVIDUAL" ? 1 : (feedGroup?.assigned_count ?? "—");
   const band = concentration.balance_score != null ? balanceScoreBand(concentration.balance_score) : null;
+  const canUpdate = can("feed.update");
+  const canDelete = can("feed.delete");
+  const canFinalize = canUpdate && concentration.kind === "CONCENTRATE_TEMPLATE" && Boolean(onFinalize);
 
   return (
     <div className="flex flex-1 flex-col gap-5 rounded-2xl border border-border bg-card p-4">
-      <p className="text-xl font-bold text-foreground">{concentration.name}</p>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {selectable ? (
+            <Checkbox
+              checked={selected}
+              onCheckedChange={() => onToggleSelect?.()}
+              aria-label={t("selectCard", { name: concentration.name })}
+            />
+          ) : null}
+          <p className="text-xl font-bold text-foreground">{concentration.name}</p>
+        </div>
+        {!selectable && ((canUpdate && onEdit) || (canDelete && onDelete) || canFinalize) ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label={t("edit")} className="size-8 shrink-0">
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {canFinalize ? <DropdownMenuItem onSelect={onFinalize}>{t("finalize")}</DropdownMenuItem> : null}
+              {canUpdate && onEdit ? <DropdownMenuItem onSelect={onEdit}>{t("edit")}</DropdownMenuItem> : null}
+              {canDelete && onDelete ? (
+                <DropdownMenuItem onSelect={onDelete} className="text-destructive">
+                  {t("delete")}
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+      </div>
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2.5">

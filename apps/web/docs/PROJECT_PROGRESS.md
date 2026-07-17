@@ -648,7 +648,24 @@
   Still open: a dedicated Ingredients-table UI (+ price overrides) and Feed-group management/assign-
   cattle UI — no Figma frames supplied for those yet, this pass only covers the list + wizard frames.
   See `features/feed/types.ts`'s doc comment for the real gaps vs the Figma mock (single target
-  weight/milk instead of a range; RDP/RUP/STR/SUG columns dropped, no backend data for them).
+  weight/milk instead of a range).
+- **2026-07-17 follow-up** (backend epic Phase 1, plan `composed-pondering-teapot`): the backend now
+  computes 12 nutrients (RDP/RUP/Starch/ADF/Calcium/Phosphorus/TDN added to DM/CP/ME/Fat/NDF) and
+  `lib/formula-math.ts`/`feed-mixture-table.tsx` mirror all 12 end-to-end. `ingredient-picker.tsx`'s
+  custom-ingredient quick-add gained a collapsible "Advanced: full nutrition profile" section (12
+  optional fields, no Figma frame — built with existing `LabeledInput`/`Select` primitives) so a
+  farm with real lab values isn't limited to the cost-only quick-add. Verified live: a custom
+  ingredient with a full profile correctly showed both the rate (e.g. 20% DM) and the computed kg
+  contribution (2kg from 10kg @ 20%) in the mixture table.
+- **2026-07-17 follow-up #2 — all 12 nutrient columns now visible** (Phase 5, same plan): user
+  pointed at their own reference spreadsheet and asked why the table only showed 5 of the 12
+  computed nutrients — `feed-mixture-table.tsx` rewritten with a data-driven `NUTRIENT_COLUMNS` list
+  (Protein: CP/RDP/RUP, Energy: ME/FAT/Starch/TDN, Fibers: NDF/ADF, new Minerals: Calcium/Phosphorus
+  using the existing `accent-purple` token), wrapped in `overflow-x-auto`. The "Daily Total
+  Requirement" row shows a real tinted comparison only for DM/CP/ME/NDF/Fat (the only nutrients with
+  a requirement formula in `requirements.ts`) and `—` for the other 7 — flagged, not fabricated.
+  `concentration-detail-sheet.tsx` needed no changes (already passes full 12-field server data).
+  Verified live against two saved formulas with real nutrient data.
 
 #### RFE-041 — Reports
 - **Lane:** `features/reports/**`, `app/(app)/reports/**`

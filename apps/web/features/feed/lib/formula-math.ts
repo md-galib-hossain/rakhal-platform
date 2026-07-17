@@ -7,12 +7,13 @@
  * save — this is a preview only. Kept in exact numeric lockstep with the backend: same rounding
  * (2dp), same "mean of capped DM/CP/ME ratios" balance formula, same DM-scaling normalize.
  *
- * Real gap vs the Figma ingredient table (`1065:35817`), flagged not computed at all: the mock shows
- * RDP(kg)/RUP(kg) sub-columns under Protein and STR(kg)/SUG(kg) under Energy/Fibers — but neither
- * `feed-ingredient.service.ts#listMerged`'s `nutrition` object nor the backend's own
- * `ItemContribution` type carries RDP%/RUP%/starch%/sugars% at all (only dm/cp/me/ndf/fat), so there
- * is no real number to show in those columns. Dropped entirely rather than rendering fabricated
- * zeros — this table only shows DM/CP/ME/FAT/NDF, the columns the backend actually computes.
+ * As of the unified-nutrient-schema pass (2026-07-17), the backend's `ItemContribution` carries 12
+ * nutrients (dm/cp/me/fat/ndf/rdp/rup/starch/adf/calcium/phosphorus/tdn — `rdp_kg`/`rup_kg` computed
+ * off `cp_kg`, everything else off `dm_kg`, see the backend file's doc comment) and this mirror now
+ * matches. The Figma ingredient table (`1065:35817`) only has DM/CP/ME/FAT/NDF columns (Protein/
+ * Energy/Fibers group headers) — `feed-mixture-table.tsx` intentionally still renders only those 5;
+ * the other 7 are computed here (so a full-profile custom ingredient's cost/DM contribution is
+ * accurate) but have no column to render into yet without a new Figma frame.
  */
 
 export interface EffectiveIngredientNutrition {
@@ -21,6 +22,15 @@ export interface EffectiveIngredientNutrition {
   meMjPerKgDm: number;
   fatPct: number | null;
   ndfPct: number | null;
+  /** % of CP, not % of DM. */
+  rdpPct: number | null;
+  /** % of CP, not % of DM. */
+  rupPct: number | null;
+  starchPct: number | null;
+  adfPct: number | null;
+  calciumPct: number | null;
+  phosphorusPct: number | null;
+  tdnPct: number | null;
   pricePerKg: number;
 }
 
@@ -37,6 +47,13 @@ export interface ItemContribution {
   meMj: number;
   fatKg: number;
   ndfKg: number;
+  rdpKg: number;
+  rupKg: number;
+  starchKg: number;
+  adfKg: number;
+  calciumKg: number;
+  phosphorusKg: number;
+  tdnKg: number;
   costTk: number;
 }
 
@@ -46,6 +63,13 @@ export interface FormulaTotals {
   meMj: number;
   fatKg: number;
   ndfKg: number;
+  rdpKg: number;
+  rupKg: number;
+  starchKg: number;
+  adfKg: number;
+  calciumKg: number;
+  phosphorusKg: number;
+  tdnKg: number;
   totalCostTk: number;
 }
 
@@ -76,20 +100,43 @@ export function computeTotals(
   effectiveById: Map<string, EffectiveIngredientNutrition>,
 ): { items: ItemContribution[]; totals: FormulaTotals } {
   const items: ItemContribution[] = [];
-  const totals: FormulaTotals = { dmKg: 0, cpKg: 0, meMj: 0, fatKg: 0, ndfKg: 0, totalCostTk: 0 };
+  const totals: FormulaTotals = {
+    dmKg: 0,
+    cpKg: 0,
+    meMj: 0,
+    fatKg: 0,
+    ndfKg: 0,
+    rdpKg: 0,
+    rupKg: 0,
+    starchKg: 0,
+    adfKg: 0,
+    calciumKg: 0,
+    phosphorusKg: 0,
+    tdnKg: 0,
+    totalCostTk: 0,
+  };
 
   for (const line of lines) {
     const eff = effectiveById.get(line.ingredientId);
     if (!eff) continue;
     const dm = line.amountKg * (eff.dmPct / 100);
+    const cpKg = dm * (eff.cpPct / 100);
     const item: ItemContribution = {
       ingredientId: line.ingredientId,
       amountKg: round(line.amountKg),
       dmKg: round(dm),
-      cpKg: round(dm * (eff.cpPct / 100)),
+      cpKg: round(cpKg),
       meMj: round(dm * eff.meMjPerKgDm),
       fatKg: round(dm * ((eff.fatPct ?? 0) / 100)),
       ndfKg: round(dm * ((eff.ndfPct ?? 0) / 100)),
+      // RDP/RUP are % of CP, not % of DM — contribution comes off cpKg.
+      rdpKg: round(cpKg * ((eff.rdpPct ?? 0) / 100)),
+      rupKg: round(cpKg * ((eff.rupPct ?? 0) / 100)),
+      starchKg: round(dm * ((eff.starchPct ?? 0) / 100)),
+      adfKg: round(dm * ((eff.adfPct ?? 0) / 100)),
+      calciumKg: round(dm * ((eff.calciumPct ?? 0) / 100)),
+      phosphorusKg: round(dm * ((eff.phosphorusPct ?? 0) / 100)),
+      tdnKg: round(dm * ((eff.tdnPct ?? 0) / 100)),
       costTk: round(line.amountKg * eff.pricePerKg),
     };
     items.push(item);
@@ -98,6 +145,13 @@ export function computeTotals(
     totals.meMj += item.meMj;
     totals.fatKg += item.fatKg;
     totals.ndfKg += item.ndfKg;
+    totals.rdpKg += item.rdpKg;
+    totals.rupKg += item.rupKg;
+    totals.starchKg += item.starchKg;
+    totals.adfKg += item.adfKg;
+    totals.calciumKg += item.calciumKg;
+    totals.phosphorusKg += item.phosphorusKg;
+    totals.tdnKg += item.tdnKg;
     totals.totalCostTk += item.costTk;
   }
 
@@ -109,6 +163,13 @@ export function computeTotals(
       meMj: round(totals.meMj),
       fatKg: round(totals.fatKg),
       ndfKg: round(totals.ndfKg),
+      rdpKg: round(totals.rdpKg),
+      rupKg: round(totals.rupKg),
+      starchKg: round(totals.starchKg),
+      adfKg: round(totals.adfKg),
+      calciumKg: round(totals.calciumKg),
+      phosphorusKg: round(totals.phosphorusKg),
+      tdnKg: round(totals.tdnKg),
       totalCostTk: round(totals.totalCostTk),
     },
   };
