@@ -7,6 +7,7 @@ import {
   FeedConcentration,
   FeedConcentrationItem,
   FeedConcentrationKind,
+  FeedIngredient,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
@@ -18,6 +19,7 @@ import {
   balanceScore,
   computeTotals,
   FormulaLine,
+  FormulaTotals,
   normalize,
 } from '../../domain/formula-math';
 import { computeRequirements, Requirements } from '../../domain/requirements';
@@ -27,6 +29,7 @@ import {
   UpdateConcentrationDto,
 } from '../../presentation/dto/concentration.dto';
 import { FeedStockService } from './feed-stock.service';
+import { FeedRequirementsService } from './feed-requirements.service';
 
 type ConcentrationWithItems = FeedConcentration & {
   items: FeedConcentrationItem[];
@@ -47,6 +50,7 @@ export class FeedConcentrationService {
     private readonly prisma: PrismaService,
     private readonly logger: LoggerService,
     private readonly feedStock: FeedStockService,
+    private readonly feedRequirements: FeedRequirementsService,
   ) {
     this.log = this.logger.setContext(FeedConcentrationService.name);
   }
@@ -57,12 +61,37 @@ export class FeedConcentrationService {
       orderBy: { createdAt: 'desc' },
       include: { items: true },
     });
-    return Promise.all(rows.map((r) => this.enrich(farmId, r)));
+    const finalizedIds = await this.finalizedIds(
+      farmId,
+      rows.map((r) => r.id),
+    );
+    return Promise.all(
+      rows.map((r) => this.enrich(farmId, r, false, finalizedIds)),
+    );
   }
 
   async get(farmId: string, id: string) {
     const row = await this.getOrThrow(farmId, id);
-    return this.enrich(farmId, row, true);
+    const finalizedIds = await this.finalizedIds(farmId, [id]);
+    return this.enrich(farmId, row, true, finalizedIds);
+  }
+
+  /** Which of these concentration ids have ever been finalized at least once — a `FeedStock` lot is
+   * produced unconditionally on every `finalize()` call for both kinds (see that method's doc
+   * comment), so its mere existence is a reliable, cheap "has this recipe ever been finalized"
+   * signal for the card UI (user report 2026-07-19: Finalize was easy to miss, farmers had no way to
+   * tell a template hadn't been made usable in a TMR yet). */
+  private async finalizedIds(
+    farmId: string,
+    concentrationIds: string[],
+  ): Promise<Set<string>> {
+    if (concentrationIds.length === 0) return new Set();
+    const rows = await this.prisma.feedStock.findMany({
+      where: { farmId, sourceConcentrationId: { in: concentrationIds } },
+      select: { sourceConcentrationId: true },
+      distinct: ['sourceConcentrationId'],
+    });
+    return new Set(rows.map((r) => r.sourceConcentrationId));
   }
 
   async create(farmId: string, userId: string, dto: CreateConcentrationDto) {
@@ -71,19 +100,39 @@ export class FeedConcentrationService {
     // shows these fields for this kind, but a template must never accidentally end up bucketed as a
     // Feed Mixture the way every concentration did before `kind` existed, user request 2026-07-18).
     const isTemplate = dto.kind === 'CONCENTRATE_TEMPLATE';
-    if (
-      !isTemplate &&
-      (dto.targetWeightKg == null || dto.targetMilkL == null)
-    ) {
+    if (!isTemplate && dto.durationDays == null) {
       throw new BadRequestException(
-        'A Feed Mixture requires targetWeightKg and targetMilkL',
+        'A Total Mixed Ration requires durationDays',
       );
     }
     const targetType = isTemplate ? undefined : dto.targetType;
     const feedGroupId = isTemplate ? undefined : dto.feedGroupId;
     const cattleId = isTemplate ? undefined : dto.cattleId;
-    const targetWeightKg = isTemplate ? undefined : dto.targetWeightKg;
-    const targetMilkL = isTemplate ? undefined : dto.targetMilkL;
+    let targetWeightKg = isTemplate ? undefined : dto.targetWeightKg;
+    let targetMilkL = isTemplate ? undefined : dto.targetMilkL;
+
+    // Once a real cow/group target is picked, manual weight/milk entry is optional (user request
+    // 2026-07-18) — the wizard already surfaces these live-derived values, so the backend must be
+    // able to resolve them too instead of hard-rejecting whenever they're omitted. Reuses the exact
+    // same cattle/group derivation `GET /feed/requirements` already exposes to the wizard's live
+    // preview, so the stored value matches what the farmer actually saw on screen.
+    if (!isTemplate && (targetWeightKg == null || targetMilkL == null)) {
+      if (cattleId || feedGroupId) {
+        const resolved = await this.feedRequirements.calc(farmId, {
+          cattleId,
+          feedGroupId,
+          weightKg: targetWeightKg,
+          milkTargetL: targetMilkL,
+        });
+        targetWeightKg ??= resolved.inputs.weight_kg;
+        targetMilkL ??= resolved.inputs.milk_target_l;
+      }
+      if (targetWeightKg == null || targetMilkL == null) {
+        throw new BadRequestException(
+          'A Total Mixed Ration requires targetWeightKg and targetMilkL — supply them manually or target a cow/group with a real weight record',
+        );
+      }
+    }
 
     await this.validateTargets(farmId, feedGroupId, cattleId);
     await this.assertIngredients(dto.items.map((i) => i.ingredientId));
@@ -117,10 +166,17 @@ export class FeedConcentrationService {
     return this.enrich(farmId, created, true);
   }
 
+  /**
+   * `kind` is immutable — a template can never pick up a target via edit either (same
+   * defense-in-depth as `create`, see that method's comment). Live-sync (user request
+   * 2026-07-18): if this template has already been finalized at least once, every save keeps its
+   * promoted `FeedIngredient` in sync — no extra Finalize click needed for the change to reach
+   * every TMR that already uses it. Never auto-promotes an ingredient that doesn't exist yet
+   * (see `refreshPromotedIngredientIfExists`'s doc comment) — that stays a deliberate Finalize
+   * action.
+   */
   async update(farmId: string, id: string, dto: UpdateConcentrationDto) {
     const existing = await this.getOrThrow(farmId, id);
-    // `kind` is immutable — a template can never pick up a target via edit either (same
-    // defense-in-depth as `create`, see that method's comment).
     const isTemplate = existing.kind === 'CONCENTRATE_TEMPLATE';
     const targetType = isTemplate ? undefined : dto.targetType;
     const feedGroupId = isTemplate ? undefined : dto.feedGroupId;
@@ -160,27 +216,49 @@ export class FeedConcentrationService {
         include: { items: true },
       });
     });
+
+    if (isTemplate) {
+      await this.refreshPromotedIngredientIfExists(farmId, updated);
+    }
+
     this.log.info('Feed concentration updated', { farmId, id });
     return this.enrich(farmId, updated, true);
   }
 
+  /** Archiving a concentration must also archive any `FeedIngredient` promoted from it
+   * (`finalize()`'s `sourceConcentrationId`) — otherwise the ghost ingredient keeps passing
+   * `listMerged`'s `isActive: true` filter and stays selectable in every ingredient picker
+   * forever, even though the user believes they deleted it (user report 2026-07-18). */
   async remove(farmId: string, id: string) {
     await this.getOrThrow(farmId, id);
-    await this.prisma.feedConcentration.update({
-      where: { id },
-      data: { isActive: false },
-    });
+    await this.prisma.$transaction([
+      this.prisma.feedConcentration.update({
+        where: { id },
+        data: { isActive: false },
+      }),
+      this.prisma.feedIngredient.updateMany({
+        where: { sourceConcentrationId: id, isActive: true },
+        data: { isActive: false },
+      }),
+    ]);
     this.log.info('Feed concentration archived', { farmId, id });
     return { id, archived: true };
   }
 
   /** Multi-select delete (user request 2026-07-18) — one `updateMany`, silently skipping any id
-   * outside this farm or already inactive rather than erroring the whole batch. */
+   * outside this farm or already inactive rather than erroring the whole batch. Also archives any
+   * `FeedIngredient` promoted from these concentrations — see `remove()`'s doc comment. */
   async removeMany(farmId: string, ids: string[]) {
-    const result = await this.prisma.feedConcentration.updateMany({
-      where: { farmId, id: { in: ids }, isActive: true },
-      data: { isActive: false },
-    });
+    const [result] = await this.prisma.$transaction([
+      this.prisma.feedConcentration.updateMany({
+        where: { farmId, id: { in: ids }, isActive: true },
+        data: { isActive: false },
+      }),
+      this.prisma.feedIngredient.updateMany({
+        where: { sourceConcentrationId: { in: ids }, isActive: true },
+        data: { isActive: false },
+      }),
+    ]);
     this.log.info('Feed concentrations bulk-archived', {
       farmId,
       requested: ids.length,
@@ -190,23 +268,20 @@ export class FeedConcentrationService {
   }
 
   /**
-   * Promote this concentration into a reusable, **frozen** `FeedIngredient` row
-   * (user request 2026-07-17, "concentrates become reusable ingredients" —
-   * concentrate-as-ingredient + versioning). Computes the formula's current
-   * totals, back-derives per-DM/per-CP nutrient rates onto a new ingredient row
-   * (farm-scoped, `category: CONCENTRATE`), flips any prior promoted version's
-   * `isLatestVersion` to `false`, and bumps this concentration's `versionNumber`.
-   * The new row is never mutated again — a TMR that adds it as a line item keeps
-   * resolving this exact snapshot even if the concentration is edited and
-   * re-finalized later (see `FeedIngredient`'s Prisma doc comment).
+   * **Concentrate Mixer** (`kind=CONCENTRATE_TEMPLATE`): promote-or-refresh this concentration's
+   * formula into a reusable `FeedIngredient` row — an **upsert by `sourceConcentrationId`**, not
+   * "always create a new frozen version" (that versioning/freeze design was retired 2026-07-18 per
+   * user request: editing the template must live-propagate to every TMR already using it, and
+   * since a TMR's line item resolves nutrition via a live join on `ingredientId` — see
+   * `effectiveMap()` — updating this one row in place is all propagation needs). **Total Mixed
+   * Ration** (`kind=FEED_MIXTURE`): produces **only** a `FeedStock` inventory lot, no ingredient
+   * promotion at all (user request 2026-07-18: a TMR is the final ration, never a building block
+   * for another recipe). In both cases, producing a new physical stock batch stays a **deliberate,
+   * unconditional action on every `finalize()` call** — only the ingredient-promotion half became
+   * idempotent; a plain edit-save (`update()`) can refresh nutrition, but never produces stock.
    */
   async finalize(farmId: string, userId: string, id: string) {
     const row = await this.getOrThrow(farmId, id);
-    if (row.kind !== 'CONCENTRATE_TEMPLATE') {
-      throw new BadRequestException(
-        'Only a Concentrate Mixer template can be finalized — a Feed Mixture is the final ration, not an intermediate recipe',
-      );
-    }
     if (row.items.length === 0) {
       throw new BadRequestException(
         'Cannot finalize an empty concentration — add ingredients first',
@@ -229,63 +304,54 @@ export class FeedConcentrationService {
         'Concentration has no measurable dry matter to promote',
       );
     }
-    const pctOfDm = (kg: number) =>
-      totals.dm_kg > 0 ? (kg / totals.dm_kg) * 100 : 0;
-    const pctOfCp = (kg: number) =>
-      totals.cp_kg > 0 ? (kg / totals.cp_kg) * 100 : 0;
 
-    const version = row.versionNumber;
-    const created = await this.prisma.$transaction(async (tx) => {
-      await tx.feedIngredient.updateMany({
-        where: { sourceConcentrationId: row.id, isLatestVersion: true },
-        data: { isLatestVersion: false },
+    let ingredientResult: ReturnType<typeof this.mapIngredient> | null = null;
+    if (row.kind === 'CONCENTRATE_TEMPLATE') {
+      const nutrition = this.buildIngredientNutrition(
+        row.name,
+        totals,
+        totalAsFedKg,
+      );
+      const ingredient = await this.prisma.$transaction(async (tx) => {
+        const existing = await tx.feedIngredient.findFirst({
+          where: { sourceConcentrationId: row.id },
+        });
+        if (existing) {
+          return tx.feedIngredient.update({
+            where: { id: existing.id },
+            data: { ...nutrition, isActive: true },
+          });
+        }
+        return tx.feedIngredient.create({
+          data: {
+            farmId,
+            ...nutrition,
+            isSystemDefault: false,
+            isAvailableBd: true,
+            sourceConcentrationId: row.id,
+            sourceConcentrationVersion: 1,
+            isLatestVersion: true,
+          },
+        });
       });
-      const ingredient = await tx.feedIngredient.create({
-        data: {
+      this.log.info(
+        'Feed concentration promoted/refreshed into a reusable ingredient',
+        {
           farmId,
-          nameEn: `${row.name} (v${version})`,
-          category: 'CONCENTRATE',
-          dmPct: (totalAsFedKg > 0 ? totals.dm_kg / totalAsFedKg : 0) * 100,
-          cpPct: pctOfDm(totals.cp_kg),
-          meMjPerKgDm: totals.dm_kg > 0 ? totals.me_mj / totals.dm_kg : 0,
-          fatPct: pctOfDm(totals.fat_kg),
-          ndfPct: pctOfDm(totals.ndf_kg),
-          rdpPct: pctOfCp(totals.rdp_kg),
-          rupPct: pctOfCp(totals.rup_kg),
-          starchPct: pctOfDm(totals.starch_kg),
-          adfPct: pctOfDm(totals.adf_kg),
-          calciumPct: pctOfDm(totals.calcium_kg),
-          phosphorusPct: pctOfDm(totals.phosphorus_kg),
-          tdnPct: pctOfDm(totals.tdn_kg),
-          currentPricePerKg: totals.total_cost_tk / totalAsFedKg,
-          isSystemDefault: false,
-          isAvailableBd: true,
-          sourceConcentrationId: row.id,
-          sourceConcentrationVersion: version,
-          isLatestVersion: true,
+          concentrationId: row.id,
+          ingredientId: ingredient.id,
+          userId,
         },
-      });
-      await tx.feedConcentration.update({
-        where: { id: row.id },
-        data: { versionNumber: version + 1 },
-      });
-      return ingredient;
-    });
-
-    this.log.info('Feed concentration finalized into a reusable ingredient', {
-      farmId,
-      concentrationId: row.id,
-      version,
-      ingredientId: created.id,
-      userId,
-    });
+      );
+      ingredientResult = this.mapIngredient(ingredient);
+    }
 
     const stock = await this.feedStock.produceFromConcentration(
       farmId,
       userId,
       {
         concentrationId: row.id,
-        version,
+        version: 1,
         qtyKg: totalAsFedKg,
         costTk: totals.total_cost_tk,
       },
@@ -293,31 +359,8 @@ export class FeedConcentrationService {
 
     return {
       concentration_id: row.id,
-      version,
       stock,
-      ingredient: {
-        id: created.id,
-        name_en: created.nameEn,
-        is_custom: true,
-        is_latest_version: created.isLatestVersion,
-        source_concentration_id: created.sourceConcentrationId,
-        source_concentration_version: created.sourceConcentrationVersion,
-        effective_price_per_kg: created.currentPricePerKg,
-        nutrition: {
-          dm_pct: created.dmPct,
-          cp_pct: created.cpPct,
-          me_mj_per_kg_dm: created.meMjPerKgDm,
-          fat_pct: created.fatPct,
-          ndf_pct: created.ndfPct,
-          rdp_pct: created.rdpPct,
-          rup_pct: created.rupPct,
-          starch_pct: created.starchPct,
-          adf_pct: created.adfPct,
-          calcium_pct: created.calciumPct,
-          phosphorus_pct: created.phosphorusPct,
-          tdn_pct: created.tdnPct,
-        },
-      },
+      ingredient: ingredientResult,
     };
   }
 
@@ -356,6 +399,7 @@ export class FeedConcentrationService {
     farmId: string,
     row: ConcentrationWithItems,
     detailed = false,
+    finalizedIds?: Set<string>,
   ) {
     const ids = row.items.map((i) => i.ingredientId);
     const effById = await this.effectiveMap(farmId, ids);
@@ -387,6 +431,7 @@ export class FeedConcentrationService {
       totals: comp.totals,
       balance_score: balance,
       requirements: req ? this.reqShape(req) : null,
+      is_finalized: finalizedIds?.has(row.id) ?? false,
       created_at: row.createdAt,
     };
     if (!detailed) return base;
@@ -434,6 +479,104 @@ export class FeedConcentrationService {
         resolveEffective(ing, ovById.get(ing.id) ?? null),
       ]),
     );
+  }
+
+  /** Back-derives per-DM/per-CP nutrient rates from a formula's computed totals onto the shape
+   * `FeedIngredient` needs — shared by `finalize()` (first promotion / refresh-on-reFinalize) and
+   * `refreshPromotedIngredientIfExists()` (live-sync on plain edit-save), so the two call sites
+   * can never drift from each other. */
+  private buildIngredientNutrition(
+    name: string,
+    totals: FormulaTotals,
+    totalAsFedKg: number,
+  ) {
+    const pctOfDm = (kg: number) =>
+      totals.dm_kg > 0 ? (kg / totals.dm_kg) * 100 : 0;
+    const pctOfCp = (kg: number) =>
+      totals.cp_kg > 0 ? (kg / totals.cp_kg) * 100 : 0;
+    return {
+      nameEn: name,
+      category: 'CONCENTRATE' as const,
+      dmPct: (totalAsFedKg > 0 ? totals.dm_kg / totalAsFedKg : 0) * 100,
+      cpPct: pctOfDm(totals.cp_kg),
+      meMjPerKgDm: totals.dm_kg > 0 ? totals.me_mj / totals.dm_kg : 0,
+      fatPct: pctOfDm(totals.fat_kg),
+      ndfPct: pctOfDm(totals.ndf_kg),
+      rdpPct: pctOfCp(totals.rdp_kg),
+      rupPct: pctOfCp(totals.rup_kg),
+      starchPct: pctOfDm(totals.starch_kg),
+      adfPct: pctOfDm(totals.adf_kg),
+      calciumPct: pctOfDm(totals.calcium_kg),
+      phosphorusPct: pctOfDm(totals.phosphorus_kg),
+      tdnPct: pctOfDm(totals.tdn_kg),
+      currentPricePerKg: totals.total_cost_tk / totalAsFedKg,
+    };
+  }
+
+  private mapIngredient(ing: FeedIngredient) {
+    return {
+      id: ing.id,
+      name_en: ing.nameEn,
+      is_custom: true,
+      is_latest_version: ing.isLatestVersion,
+      source_concentration_id: ing.sourceConcentrationId,
+      source_concentration_version: ing.sourceConcentrationVersion,
+      effective_price_per_kg: ing.currentPricePerKg,
+      nutrition: {
+        dm_pct: ing.dmPct,
+        cp_pct: ing.cpPct,
+        me_mj_per_kg_dm: ing.meMjPerKgDm,
+        fat_pct: ing.fatPct,
+        ndf_pct: ing.ndfPct,
+        rdp_pct: ing.rdpPct,
+        rup_pct: ing.rupPct,
+        starch_pct: ing.starchPct,
+        adf_pct: ing.adfPct,
+        calcium_pct: ing.calciumPct,
+        phosphorus_pct: ing.phosphorusPct,
+        tdn_pct: ing.tdnPct,
+      },
+    };
+  }
+
+  /** Live-sync half of the 2026-07-18 rework (see `update()`'s doc comment) — if this template has
+   * already been finalized at least once (a `FeedIngredient` with matching `sourceConcentrationId`
+   * exists), refresh its nutrition/price to match the just-saved formula. **Never creates one** —
+   * a template that hasn't been finalized yet stays un-promoted until the farmer deliberately
+   * clicks Finalize; a plain edit must not silently start affecting other formulas' ingredient
+   * pickers or any TMR. No-ops (leaves the promoted ingredient as it was) if the edit left the
+   * formula with no measurable dry matter — same guard `finalize()` itself uses — rather than
+   * writing nonsensical zeroed-out nutrition onto a row that's still actively referenced. */
+  private async refreshPromotedIngredientIfExists(
+    farmId: string,
+    row: ConcentrationWithItems,
+  ) {
+    const promoted = await this.prisma.feedIngredient.findFirst({
+      where: { sourceConcentrationId: row.id },
+    });
+    if (!promoted) return;
+
+    const effById = await this.effectiveMap(
+      farmId,
+      row.items.map((i) => i.ingredientId),
+    );
+    const lines: FormulaLine[] = row.items.map((i) => ({
+      ingredientId: i.ingredientId,
+      amountKg: i.amountKg,
+    }));
+    const { totals } = computeTotals(lines, effById);
+    const totalAsFedKg = row.items.reduce((sum, i) => sum + i.amountKg, 0);
+    if (totalAsFedKg <= 0 || totals.dm_kg <= 0) return;
+
+    const nutrition = this.buildIngredientNutrition(
+      row.name,
+      totals,
+      totalAsFedKg,
+    );
+    await this.prisma.feedIngredient.update({
+      where: { id: promoted.id },
+      data: nutrition,
+    });
   }
 
   private async ingredientNames(ids: string[]) {

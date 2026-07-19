@@ -14,6 +14,9 @@ model MilkLogEntry {
 
   yieldL   Float
   tankType MilkTankType @default(SELLABLE)
+  /// Optional specific tank chosen by the worker/owner (header default or per-row override);
+  /// null falls back to submit()'s "first active tank of the matching type" behavior.
+  tankId   String?
 
   /// session yield < 70% of the cow's 7-day average for that session (PRD §10.2)
   anomalyFlag Boolean @default(false)
@@ -30,8 +33,9 @@ model MilkLogEntry {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  farm   Farm   @relation("FarmToMilkLogEntry", fields: [farmId], references: [id])
-  cattle Cattle @relation(fields: [cattleId], references: [id])
+  farm   Farm      @relation("FarmToMilkLogEntry", fields: [farmId], references: [id])
+  cattle Cattle    @relation(fields: [cattleId], references: [id])
+  tank   MilkTank? @relation("MilkLogEntryToMilkTank", fields: [tankId], references: [id])
 
   @@unique([cattleId, logDate, session])
   @@index([farmId])
@@ -39,4 +43,5 @@ model MilkLogEntry {
   @@index([farmId, logDate, session])
   @@index([farmId, anomalyFlag])
   @@index([cattleId])
+  @@index([tankId])
 }

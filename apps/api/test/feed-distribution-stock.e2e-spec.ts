@@ -2,13 +2,17 @@ import request from 'supertest';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
 /**
- * Feed Formulator — Phase 4 of the epic in
- * `C:\Users\mdgal\.claude\plans\composed-pondering-teapot.md` (2026-07-17, no ticket #): a
- * `POST /feed/distributions` line can now name a specific `FeedStock` lot (`items[].stockId`) to
- * decrement via a real FK-backed, validated, transactional path (`FeedStockService.
- * decrementForDistribution`) instead of the existing best-effort `Forage` name-match. Covers the
- * happy path (decrement + audit movement), over-consumption (400, no partial state), and that a
- * line without `stockId` still falls back to the untouched loose Forage path.
+ * Feed Formulator — Phase 4 + Phase 12.4 of the epic in
+ * `C:\Users\mdgal\.claude\plans\composed-pondering-teapot.md`: a `POST /feed/distributions` line
+ * can name a specific `FeedStock` lot (`items[].stockId`, Phase 4, 2026-07-17) to decrement via a
+ * real FK-backed, validated, transactional path (`FeedStockService.decrementForDistribution`)
+ * instead of the existing best-effort `Forage` name-match. As of Phase 12.4 (2026-07-18, "Feed
+ * Today"), a distribution with **no** explicit `stockId` on any line still auto-decrements the
+ * concentration's own finalized batch lot (`FeedStock.sourceConcentrationId`) if one exists — the
+ * frontend never picks a stock lot manually, it relies entirely on this. Covers: the explicit-
+ * stockId happy path (decrement + audit movement); over-consumption (400, no partial state); the
+ * auto-resolved own-batch path; and that a concentration with no finalized lot at all is a genuine
+ * no-op, not an error.
  *
  * Requires the dev stack up + `pnpm seed`.
  */
@@ -113,7 +117,7 @@ describe('Feed Formulator — distribution decrements a named feed stock lot (e2
     expect(detail.body.data.current_stock_kg).toBeCloseTo(5, 1);
   });
 
-  it('a line without stockId does not touch any FeedStock lot', async () => {
+  it("a line without stockId still auto-decrements the concentration's own finalized batch lot (Phase 12.4, 2026-07-18)", async () => {
     const { concentrationId, stockId } = await produceStock(15);
 
     await request(server())
@@ -122,15 +126,42 @@ describe('Feed Formulator — distribution decrements a named feed stock lot (e2
       .send({ concentrationId, items: [{ ingredientId, actualKg: 5 }] })
       .expect(201);
 
+    // No explicit stockId was supplied, but this concentration has its own finalized batch lot —
+    // "Feed Today" (the frontend's only caller) never picks a stockId manually, relying entirely on
+    // this auto-resolution to make stock actually move.
     const detail = await request(server())
       .get(api(`/feed/stock/${stockId}`))
       .set(...auth(owner))
       .expect(200);
-    expect(detail.body.data.current_stock_kg).toBeCloseTo(15, 1);
-    expect(
-      detail.body.data.movements.filter(
-        (m: { reason: string }) => m.reason === 'FED',
-      ),
-    ).toHaveLength(0);
+    expect(detail.body.data.current_stock_kg).toBeCloseTo(10, 1); // 15 - 5
+    const fed = detail.body.data.movements.find(
+      (m: { reason: string }) => m.reason === 'FED',
+    );
+    expect(fed).toBeTruthy();
+    expect(fed.change_kg).toBeCloseTo(-5, 1);
+  });
+
+  it('a distribution against a concentration with no finalized batch lot touches no FeedStock at all', async () => {
+    const conc = await request(server())
+      .post(api('/feed/concentrations'))
+      .set(...auth(owner))
+      .send({
+        kind: 'CONCENTRATE_TEMPLATE',
+        name: `E2E Dist-No-Stock Concentrate ${Date.now()}`,
+        items: [{ ingredientId, amountKg: 8 }],
+      })
+      .expect(201);
+    // Deliberately never finalized — no FeedStock lot exists for this concentration.
+
+    await request(server())
+      .post(api('/feed/distributions'))
+      .set(...auth(owner))
+      .send({
+        concentrationId: conc.body.data.id,
+        items: [{ ingredientId, actualKg: 4 }],
+      })
+      .expect(201);
+    // No assertion beyond the 201 — there is no stock lot to check; this proves the auto-resolution
+    // is a genuine no-op (not an error) when the concentration was never finalized.
   });
 });

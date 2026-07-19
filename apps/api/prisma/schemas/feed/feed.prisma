@@ -57,14 +57,17 @@ model FeedIngredient {
 
   /// Set only for an ingredient row **promoted from a finalized concentration**
   /// (`FeedConcentrationService.finalize`, "concentrate as reusable ingredient" —
-  /// user request 2026-07-17): `sourceConcentrationId`/`sourceConcentrationVersion`
-  /// pin this row to the exact formula snapshot that produced it — the row is
-  /// never mutated again after creation, so a TMR that already added it as a line
-  /// item keeps resolving the same frozen nutrition/cost even if the source
-  /// concentration is later edited and re-finalized into a new version.
-  /// `isLatestVersion` flips to `false` on the prior version when a new one is
-  /// finalized, so `listMerged`'s ingredient picker only offers the newest
-  /// version — the old one still resolves correctly for historical formulas.
+  /// user request 2026-07-17). As of 2026-07-18 (user request: editing a Concentrate
+  /// Mixer must live-propagate to every TMR using it) this row is **kept in sync
+  /// with the source concentration on every save** rather than frozen — `finalize()`
+  /// upserts by `sourceConcentrationId` (update in place if one already exists, only
+  /// creates a new row the first time), and a plain `update()` on an already-finalized
+  /// template refreshes this row's nutrition/price too, with no extra click needed.
+  /// `sourceConcentrationVersion`/`isLatestVersion` are now vestigial sentinels (always
+  /// `1`/`true` on the one promoted row per concentration) — the version-history
+  /// mechanic they used to drive was retired along with the frozen-snapshot behavior;
+  /// kept only because `FeedStock.sourceConcentrationVersion` still references the
+  /// column shape.
   sourceConcentrationId      String?
   sourceConcentrationVersion Int?
   isLatestVersion            Boolean @default(true)
@@ -142,8 +145,11 @@ model FeedConcentration {
   targetWeightKg Float?
   targetMilkL    Float?
 
-  /// Bumped each time `finalize()` promotes this formula into a reusable
-  /// `FeedIngredient` (see that model's doc comment). Starts at 1 (unfinalized).
+  /// Vestigial as of 2026-07-18 — `finalize()` no longer bumps this (the
+  /// version-history mechanic it drove was retired in favor of live-sync, see
+  /// `FeedIngredient.sourceConcentrationVersion`'s doc comment). Left in place
+  /// rather than dropped since it's unused by any code path, confirmed via a
+  /// full-frontend grep; safe to remove in a future cleanup pass.
   versionNumber Int @default(1)
 
   isActive  Boolean  @default(true)
@@ -185,7 +191,12 @@ model FeedDistribution {
 
   farmId          String
   concentrationId String
-  feedGroupId     String? /// denormalized from the concentration at log time
+  /// Denormalized from the concentration at log time — exactly one of these two is set, matching
+  /// the source TMR's own `targetType` (GROUP → `feedGroupId`, INDIVIDUAL → `cattleId`). Added
+  /// 2026-07-18 (Phase 12.4, user request — "feed a single cow, not just a group") alongside
+  /// `feedGroupId`, which predates this and was the only target this model supported until now.
+  feedGroupId String?
+  cattleId    String?
 
   distributedAt DateTime /// the day the feed was distributed
 
@@ -206,6 +217,7 @@ model FeedDistribution {
 
   @@index([farmId])
   @@index([farmId, feedGroupId])
+  @@index([farmId, cattleId])
   @@index([farmId, distributedAt])
 }
 

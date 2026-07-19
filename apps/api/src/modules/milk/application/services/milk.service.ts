@@ -135,6 +135,9 @@ export class MilkService {
             ? MilkTankType.WITHHOLDING
             : MilkTankType.SELLABLE,
           tankLocked: isWithholding,
+          // UI exposes one Tank pick per cow per day (not per session) — surface whichever
+          // saved session entry already named a tank, if any, so a reload doesn't lose it.
+          tankId: cowEntries.find((e) => e.tankId)?.tankId ?? null,
           anomalyFlag: cowEntries.some((e) => e.anomalyFlag),
         },
       };
@@ -148,6 +151,7 @@ export class MilkService {
   }
 
   async saveLog(farmId: string, userId: string, dto: SaveMilkLogDto) {
+    await this.assertSessionActive(farmId, dto.session);
     const logDate = this.normalizeDate(dto.date);
     const ids = dto.entries.map((e) => e.cattleId);
 
@@ -181,12 +185,41 @@ export class MilkService {
     const avgMap = new Map(avgRows.map((r) => [r.cattleId, r._avg.yieldL]));
     const anomalyFraction = await this.farmSettings.milkAnomalyFraction(farmId);
 
+    // Entries may name a specific tank (header default or a per-row override) — validate
+    // up front that it belongs to this farm, is active, and matches the cow's required
+    // SELLABLE/WITHHOLDING type (a withholding cow can never route into a sellable tank).
+    const tankIds = [
+      ...new Set(
+        dto.entries.map((e) => e.tankId).filter((id): id is string => !!id),
+      ),
+    ];
+    const tanks = tankIds.length
+      ? await this.prisma.milkTank.findMany({
+          where: { id: { in: tankIds }, farmId, isActive: true },
+        })
+      : [];
+    const tankById = new Map(tanks.map((t) => [t.id, t]));
+    const missingTank = tankIds.find((id) => !tankById.has(id));
+    if (missingTank) {
+      throw new BadRequestException(
+        `Milk tank ${missingTank} not found for this farm`,
+      );
+    }
+
     let anomaliesFlagged = 0;
     let sessionTotal = 0;
     for (const entry of dto.entries) {
       const tankType = withholding.has(entry.cattleId)
         ? MilkTankType.WITHHOLDING
         : MilkTankType.SELLABLE;
+      if (entry.tankId) {
+        const tank = tankById.get(entry.tankId)!;
+        if (tank.tankType !== tankType) {
+          throw new BadRequestException(
+            `Selected tank does not match the ${tankType.toLowerCase()} requirement for cattle ${entry.cattleId}`,
+          );
+        }
+      }
       const anomalyFlag = isAnomaly(
         entry.yieldL,
         avgMap.get(entry.cattleId) ?? null,
@@ -210,6 +243,7 @@ export class MilkService {
           session: dto.session,
           yieldL: entry.yieldL,
           tankType,
+          tankId: entry.tankId ?? null,
           anomalyFlag,
           anomalyNote: entry.anomalyNote,
           createdBy: userId,
@@ -217,6 +251,7 @@ export class MilkService {
         update: {
           yieldL: entry.yieldL,
           tankType,
+          tankId: entry.tankId ?? null,
           anomalyFlag,
           anomalyNote: entry.anomalyNote,
         },
@@ -236,6 +271,7 @@ export class MilkService {
   }
 
   async submit(farmId: string, userId: string, dto: SubmitMilkDto) {
+    await this.assertSessionActive(farmId, dto.session);
     const logDate = this.normalizeDate(dto.date);
     // Only entries not yet submitted are finalized — so re-submitting a session
     // is idempotent and never double-counts volume already collected into a tank.
@@ -254,6 +290,25 @@ export class MilkService {
     const sellableTotal = this.sum(pending, MilkTankType.SELLABLE);
     const withholdingTotal = this.sum(pending, MilkTankType.WITHHOLDING);
 
+    // Group by the specific tank each entry named (header default or per-row override) —
+    // several distinct SELLABLE (or WITHHOLDING) tanks can each collect their own share in
+    // one submit. Entries with no explicit tank fall back into a shared "type default" group,
+    // resolved the same way submit() always has (first active tank of that type).
+    const groups = new Map<
+      string,
+      { tankType: MilkTankType; tankId: string | null; volume: number }
+    >();
+    for (const entry of pending) {
+      const key = entry.tankId ?? `type:${entry.tankType}`;
+      const g = groups.get(key) ?? {
+        tankType: entry.tankType,
+        tankId: entry.tankId,
+        volume: 0,
+      };
+      g.volume += entry.yieldL;
+      groups.set(key, g);
+    }
+
     // Entry finalization and tank collection commit atomically: a tank rejecting
     // the volume (over capacity) must not leave entries marked submitted with no
     // matching tank movement (previously this failure was swallowed silently).
@@ -264,22 +319,25 @@ export class MilkService {
           data: { submitted: true, submittedAt: new Date() },
         });
 
-        const mainUpdated = await this.collectInto(
-          farmId,
-          userId,
-          MilkTankType.SELLABLE,
-          sellableTotal,
-          dto.session,
-          tx,
-        );
-        const withholdingUpdated = await this.collectInto(
-          farmId,
-          userId,
-          MilkTankType.WITHHOLDING,
-          withholdingTotal,
-          dto.session,
-          tx,
-        );
+        let mainUpdated = false;
+        let withholdingUpdated = false;
+        for (const group of groups.values()) {
+          const updated = await this.collectInto(
+            farmId,
+            userId,
+            group.tankType,
+            group.tankId,
+            Math.round(group.volume * 10) / 10,
+            dto.session,
+            tx,
+          );
+          if (updated && group.tankType === MilkTankType.SELLABLE) {
+            mainUpdated = true;
+          }
+          if (updated && group.tankType === MilkTankType.WITHHOLDING) {
+            withholdingUpdated = true;
+          }
+        }
         return { mainUpdated, withholdingUpdated };
       },
     );
@@ -390,24 +448,51 @@ export class MilkService {
   // ---- Helpers -------------------------------------------------------------
 
   /**
+   * A farm's owner controls which sessions are unlocked (`FarmSettingsService
+   * .milkActiveSessions`, default MORNING+EVENING). Logging/submitting to a
+   * disabled session was previously unenforced at write time — only the
+   * `sessionConfig` read path reflected it — so a client could write to a
+   * locked session regardless of what the UI showed.
+   */
+  private async assertSessionActive(
+    farmId: string,
+    session: MilkSession,
+  ): Promise<void> {
+    const active = await this.farmSettings.milkActiveSessions(farmId);
+    if (!active.includes(session)) {
+      throw new BadRequestException(
+        `The ${session.toLowerCase()} session is not enabled for this farm`,
+      );
+    }
+  }
+
+  /**
    * `tx` is required — this only ever runs inside `submit()`'s transaction, so a
    * capacity/negative-balance rejection from `adjustVolume` propagates and rolls
    * back the whole submit (see submit() above). A missing tank (farm never
-   * configured one for this type) is a legitimate no-op, not an error.
+   * configured one for this type, or a named tank got archived after entries
+   * were saved) is a legitimate no-op, not an error. `tankIdOverride` targets one
+   * specific tank (header default / row override); omitted, falls back to "first
+   * active tank of this type" like before per-tank selection existed.
    */
   private async collectInto(
     farmId: string,
     userId: string,
     tankType: MilkTankType,
+    tankIdOverride: string | null,
     volume: number,
     session: MilkSession,
     tx: Prisma.TransactionClient,
   ): Promise<boolean> {
     if (volume <= 0) return false;
-    const tank = await tx.milkTank.findFirst({
-      where: { farmId, tankType, isActive: true },
-      orderBy: { createdAt: 'asc' },
-    });
+    const tank = tankIdOverride
+      ? await tx.milkTank.findFirst({
+          where: { id: tankIdOverride, farmId, tankType, isActive: true },
+        })
+      : await tx.milkTank.findFirst({
+          where: { farmId, tankType, isActive: true },
+          orderBy: { createdAt: 'asc' },
+        });
     if (!tank) return false;
     await this.milkTankService.adjustVolume(
       farmId,

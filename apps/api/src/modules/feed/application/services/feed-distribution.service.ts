@@ -19,12 +19,17 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
  * Feed Distribution Tracking (PRD §12.5, V1.5). Logs the actual quantities of a
- * concentration formula distributed to its group on a day — pre-filled from the
- * formula's planned amounts, with optional refusal/leftover — and computes cost
- * from actual quantities at the farm's effective ingredient prices. Matching
- * forage stock decrements best-effort (§15.3) by ingredient name, kg-unit only.
- * Reads `FeedConcentration`/`Forage`/`Cattle`/`MilkLogEntry` directly via Prisma
- * (the feed-module pattern — no cross-module service coupling).
+ * concentration formula distributed to its group (or, since Phase 12.4, a single cow) on a day —
+ * pre-filled from the formula's planned amounts, with optional refusal/leftover — and computes cost
+ * from actual quantities at the farm's effective ingredient prices. Three independent stock-decrement
+ * paths, all best-effort/optional: (1) matching forage decrements by ingredient name, kg-unit only
+ * (§15.3); (2) a per-line `stockId` override for a real `FeedStock` lot (rarely used by the
+ * frontend today, kept for a future raw-ingredient-level stock flow); (3) the concentration's own
+ * finalized batch lot (`FeedStock.sourceConcentrationId`), auto-decremented by the distribution's
+ * total actual kg — this is the path "Feed Today" (Phase 12.4) actually relies on, since a TMR's
+ * finalize produces one aggregate-batch lot, not a per-ingredient breakdown. Reads
+ * `FeedConcentration`/`Forage`/`Cattle`/`MilkLogEntry` directly via Prisma (the feed-module pattern —
+ * no cross-module service coupling).
  */
 @Injectable()
 export class FeedDistributionService {
@@ -117,6 +122,34 @@ export class FeedDistributionService {
       },
     );
 
+    // The TMR/Concentrate Mixer's own finalized batch (Phase 12.4, 2026-07-18) — distinct from the
+    // per-line `stockId` overrides above: `finalize()` produces ONE `FeedStock` lot representing
+    // this whole concentration's total batch kg, not a per-ingredient breakdown, so decrementing it
+    // can't go through the per-item path. Auto-resolve the oldest lot with stock remaining (FIFO,
+    // MVP simplification — doesn't split across multiple lots if one alone can't cover it) and
+    // decrement it by the total actual kg fed. This is what makes "Finalize, then feed cows from
+    // that batch" actually move `current_stock_kg` without the caller ever supplying a stock-lot id.
+    // Skipped entirely when the caller already supplied an explicit per-line `stockId` — that means
+    // they're managing stock decrements themselves for this call, and (as `feed-distribution-stock.
+    // e2e-spec.ts` covers) a per-line `stockId` can legitimately target this same concentration's own
+    // lot, which would otherwise get decremented twice for one distribution.
+    const ownStock =
+      stockRequests.length === 0
+        ? await this.prisma.feedStock.findFirst({
+            where: {
+              farmId,
+              sourceConcentrationId: concentration.id,
+              currentStockKg: { gt: 0 },
+            },
+            orderBy: { producedAt: 'asc' },
+          })
+        : null;
+    if (ownStock && totals.actualKg > 0) {
+      await this.feedStock.assertSufficientStock(farmId, [
+        { stockId: ownStock.id, quantity: totals.actualKg },
+      ]);
+    }
+
     const distributedAt = dto.distributedAt
       ? this.dayStart(dto.distributedAt)
       : this.dayStart();
@@ -132,12 +165,20 @@ export class FeedDistributionService {
       lineCost: line.lineCost,
     }));
 
+    // Target is derived from the source TMR, never supplied by the caller directly (Phase 12.4,
+    // 2026-07-18) — a concentration is already either GROUP- or INDIVIDUAL-targeted from creation,
+    // so logging a distribution for it naturally records against that same target.
+    const targetFields =
+      concentration.targetType === 'INDIVIDUAL'
+        ? { feedGroupId: null, cattleId: concentration.cattleId }
+        : { feedGroupId: concentration.feedGroupId, cattleId: null };
+
     const created = await this.prisma.$transaction(async (tx) => {
       const dist = await tx.feedDistribution.create({
         data: {
           farmId,
           concentrationId: concentration.id,
-          feedGroupId: concentration.feedGroupId,
+          ...targetFields,
           distributedAt,
           totalPlannedKg: round2(totals.plannedKg),
           totalActualKg: round2(totals.actualKg),
@@ -166,12 +207,19 @@ export class FeedDistributionService {
         distributionId: created.id,
       });
     }
+    if (ownStock && totals.actualKg > 0) {
+      await this.feedStock.decrementForDistribution(farmId, userId, {
+        stockId: ownStock.id,
+        quantity: totals.actualKg,
+        distributionId: created.id,
+      });
+    }
 
     this.log.info('Feed distribution logged', {
       farmId,
       id: created.id,
       forageDecrements: decrements.length,
-      stockDecrements: stockRequests.length,
+      stockDecrements: stockRequests.length + (ownStock ? 1 : 0),
     });
     return this.mapDistribution(created, decrements);
   }
@@ -182,6 +230,7 @@ export class FeedDistributionService {
       where: {
         farmId,
         ...(query.feedGroupId ? { feedGroupId: query.feedGroupId } : {}),
+        ...(query.cattleId ? { cattleId: query.cattleId } : {}),
         ...(query.concentrationId
           ? { concentrationId: query.concentrationId }
           : {}),
@@ -206,15 +255,54 @@ export class FeedDistributionService {
     return this.mapDistribution(row);
   }
 
-  /** Planned-vs-actual + feed cost per litre for a group over a month (§12.5). */
+  /** Planned-vs-actual + feed cost per litre for a group OR a single cow, over a month (§12.5,
+   * extended Phase 12.4 2026-07-18 to also cover an INDIVIDUAL-targeted TMR — a farmer feeding one
+   * cow her own ration wants the same cost-per-litre visibility a group gets). Exactly one of
+   * `feedGroupId`/`cattleId` is expected (`FeedEfficiencyQueryDto`'s `@ValidateIf` cross-check). */
   async efficiency(farmId: string, query: FeedEfficiencyQueryDto) {
+    const { start, end, label } = this.monthRange(query.month);
+
+    if (query.cattleId) {
+      const cattle = await this.prisma.cattle.findFirst({
+        where: { id: query.cattleId, farmId },
+        select: { id: true, tagNumber: true, name: true },
+      });
+      if (!cattle) throw new NotFoundException('Cattle not found');
+
+      const [distributions, litresAgg] = await Promise.all([
+        this.prisma.feedDistribution.findMany({
+          where: {
+            farmId,
+            cattleId: cattle.id,
+            distributedAt: { gte: start, lt: end },
+          },
+          select: this.EFFICIENCY_DISTRIBUTION_SELECT,
+        }),
+        this.prisma.milkLogEntry.aggregate({
+          where: {
+            farmId,
+            cattleId: cattle.id,
+            logDate: { gte: start, lt: end },
+          },
+          _sum: { yieldL: true },
+        }),
+      ]);
+
+      return {
+        feed_group_id: null,
+        feed_group_name: null,
+        cattle_id: cattle.id,
+        cattle_name: cattle.name ?? cattle.tagNumber,
+        period: label,
+        ...this.summarizeEfficiency(distributions, litresAgg._sum.yieldL ?? 0),
+      };
+    }
+
     const group = await this.prisma.feedGroup.findFirst({
       where: { id: query.feedGroupId, farmId },
       select: { id: true, name: true },
     });
     if (!group) throw new NotFoundException('Feed group not found');
-
-    const { start, end, label } = this.monthRange(query.month);
 
     const [distributions, groupCattle] = await Promise.all([
       this.prisma.feedDistribution.findMany({
@@ -223,13 +311,7 @@ export class FeedDistributionService {
           feedGroupId: group.id,
           distributedAt: { gte: start, lt: end },
         },
-        select: {
-          totalPlannedKg: true,
-          totalActualKg: true,
-          totalRefusalKg: true,
-          totalPlannedCost: true,
-          totalActualCost: true,
-        },
+        select: this.EFFICIENCY_DISTRIBUTION_SELECT,
       }),
       this.prisma.cattle.findMany({
         where: { farmId, feedGroupId: group.id },
@@ -245,8 +327,42 @@ export class FeedDistributionService {
       },
       _sum: { yieldL: true },
     });
-    const litres = litresAgg._sum.yieldL ?? 0;
 
+    return {
+      feed_group_id: group.id,
+      feed_group_name: group.name,
+      cattle_id: null,
+      cattle_name: null,
+      period: label,
+      group_cattle: groupCattle.length,
+      ...this.summarizeEfficiency(distributions, litresAgg._sum.yieldL ?? 0),
+    };
+  }
+
+  // ---- internals ----------------------------------------------------------
+
+  /** Shared `Prisma.FeedDistribution` field selection for `efficiency()`'s two branches (group /
+   * cattle) — kept as one constant so both queries stay provably identical in shape. */
+  private readonly EFFICIENCY_DISTRIBUTION_SELECT = {
+    totalPlannedKg: true,
+    totalActualKg: true,
+    totalRefusalKg: true,
+    totalPlannedCost: true,
+    totalActualCost: true,
+  } as const;
+
+  /** Shared adherence/refusal/cost-per-litre reduction — `efficiency()`'s group and cattle branches
+   * both funnel through this so the two paths can never compute the math differently. */
+  private summarizeEfficiency(
+    distributions: {
+      totalPlannedKg: number;
+      totalActualKg: number;
+      totalRefusalKg: number;
+      totalPlannedCost: number;
+      totalActualCost: number;
+    }[],
+    litres: number,
+  ) {
     const t = distributions.reduce(
       (acc, d) => {
         acc.plannedKg += d.totalPlannedKg;
@@ -264,14 +380,9 @@ export class FeedDistributionService {
         actualCost: 0,
       },
     );
-
     const consumedKg = t.actualKg - t.refusalKg;
     return {
-      feed_group_id: group.id,
-      feed_group_name: group.name,
-      period: label,
       distributions: distributions.length,
-      group_cattle: groupCattle.length,
       planned_kg: round2(t.plannedKg),
       actual_kg: round2(t.actualKg),
       refusal_kg: round2(t.refusalKg),
@@ -286,8 +397,6 @@ export class FeedDistributionService {
       feed_cost_per_litre: litres > 0 ? round2(t.actualCost / litres) : null,
     };
   }
-
-  // ---- internals ----------------------------------------------------------
 
   /**
    * Best-effort forage decrement (§15.3): match each line's ingredient name to an
@@ -355,6 +464,7 @@ export class FeedDistributionService {
       id: row.id,
       concentration_id: row.concentrationId,
       feed_group_id: row.feedGroupId,
+      cattle_id: row.cattleId,
       distributed_at: row.distributedAt,
       total_planned_kg: row.totalPlannedKg,
       total_actual_kg: row.totalActualKg,
@@ -380,6 +490,7 @@ export class FeedDistributionService {
     id: string;
     concentrationId: string;
     feedGroupId: string | null;
+    cattleId: string | null;
     distributedAt: Date;
     totalActualKg: number;
     totalActualCost: number;
@@ -389,6 +500,7 @@ export class FeedDistributionService {
       id: row.id,
       concentration_id: row.concentrationId,
       feed_group_id: row.feedGroupId,
+      cattle_id: row.cattleId,
       distributed_at: row.distributedAt,
       total_actual_kg: row.totalActualKg,
       total_actual_cost: row.totalActualCost,

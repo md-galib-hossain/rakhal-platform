@@ -19,6 +19,7 @@ import { WorkspaceSettingsService } from '../../application/services/workspace-s
 import { CreateSupplierDto } from '../dto/create-supplier.dto';
 import { UpdateSupplierDto } from '../dto/update-supplier.dto';
 import { UpdateModuleSettingsDto } from '../dto/update-module-settings.dto';
+import { UpdateMilkSessionsDto } from '../dto/update-milk-sessions.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Settings â†’ Modules / Suppliers / Billing (PRD Â§21.5â€“21.7 / API Â§18). `/api/v1/settings`. */
@@ -50,6 +51,17 @@ export class WorkspaceSettingsController {
     @Body() dto: UpdateModuleSettingsDto,
   ) {
     return this.workspace.updateModules(farmId, dto);
+  }
+
+  // Split from `PATCH modules` — owner-only, so a Manager (who holds the
+  // general `settings.update`) can't unlock extra milking sessions on their own.
+  @Patch('modules/milk-sessions')
+  @RequirePermission('settings.milk-sessions-manage')
+  updateMilkSessions(
+    @CurrentFarmId() farmId: string,
+    @Body() dto: UpdateMilkSessionsDto,
+  ) {
+    return this.workspace.updateMilkSessions(farmId, dto);
   }
 
   // â”€â”€ Suppliers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

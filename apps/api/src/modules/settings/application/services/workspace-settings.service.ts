@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -9,6 +10,7 @@ import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { CreateSupplierDto } from '../../presentation/dto/create-supplier.dto';
 import { UpdateSupplierDto } from '../../presentation/dto/update-supplier.dto';
 import { UpdateModuleSettingsDto } from '../../presentation/dto/update-module-settings.dto';
+import { UpdateMilkSessionsDto } from '../../presentation/dto/update-milk-sessions.dto';
 
 /**
  * Settings → Module config, Suppliers, Billing (PRD §21.5–21.7 / API §18 —
@@ -49,7 +51,6 @@ export class WorkspaceSettingsService {
       );
     }
     if (dto.milk) {
-      this.assign(data, 'milkActiveSessions', dto.milk.active_sessions);
       this.assign(data, 'milkMorningStart', dto.milk.morning_start);
       this.assign(data, 'milkMorningEnd', dto.milk.morning_end);
       this.assign(data, 'milkNoonStart', dto.milk.noon_start);
@@ -121,6 +122,32 @@ export class WorkspaceSettingsService {
     });
     this.log.info('Module settings updated', { farmId });
     return this.mapModules(updated);
+  }
+
+  /**
+   * Owner-only (`settings.milk-sessions-manage`, enforced by the guard chain).
+   * MORNING and EVENING are the always-on default pair — a payload that drops
+   * either is rejected rather than silently re-added, so the caller notices.
+   */
+  async updateMilkSessions(farmId: string, dto: UpdateMilkSessionsDto) {
+    await this.ensureModuleSettings(farmId);
+
+    const sessions = new Set(dto.active_sessions.map((s) => s.toLowerCase()));
+    if (!sessions.has('morning') || !sessions.has('evening')) {
+      throw new BadRequestException(
+        'Morning and evening sessions cannot be disabled',
+      );
+    }
+
+    const updated = await this.prisma.farmModuleSettings.update({
+      where: { farmId },
+      data: { milkActiveSessions: [...sessions] },
+    });
+    this.log.info('Milk sessions updated', {
+      farmId,
+      activeSessions: [...sessions],
+    });
+    return this.mapModules(updated).milk;
   }
 
   // ── Suppliers ───────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
 /**
@@ -7,14 +8,17 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
  * "Concentrate Mixer" from "Feed Mixture" via an explicit, immutable `kind` discriminator instead of
  * the old implicit "does it have a target" heuristic. Covers: a template's target fields are nulled
  * server-side even if the caller sends them; a mixture without target fields is rejected; `finalize`
- * only works on a template; `kind` filters `GET /feed/concentrations`; bulk-delete archives multiple
- * rows scoped to the caller's farm.
+ * behaves differently by kind (updated Phase 12.2, 2026-07-18 — a mixture can now finalize too, but
+ * produces stock only, no ingredient promotion); `kind` filters `GET /feed/concentrations`;
+ * bulk-delete archives multiple rows scoped to the caller's farm.
  *
  * Requires the dev stack up + `pnpm seed`.
  */
 describe('Feed Formulator — concentration kind split (e2e)', () => {
   let ctx: TestContext;
+  let prisma: PrismaService;
   let owner: AuthedUser;
+  let ownerUserId: string;
   let ingredientId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
@@ -26,7 +30,13 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
 
   beforeAll(async () => {
     ctx = await createTestApp();
+    prisma = ctx.app.get(PrismaService);
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
+    const user = await prisma.user.findFirstOrThrow({
+      where: { email: 'owner@demo.rakhal.test' },
+      select: { id: true },
+    });
+    ownerUserId = user.id;
 
     const created = await request(server())
       .post(api('/feed/ingredients/custom'))
@@ -68,16 +78,63 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
     expect(created.body.data.balance_score).toBeNull();
   });
 
-  it('a FEED_MIXTURE requires targetWeightKg/targetMilkL', async () => {
+  it('a FEED_MIXTURE requires targetWeightKg/targetMilkL when no cow/group target is given', async () => {
     await request(server())
       .post(api('/feed/concentrations'))
       .set(...auth(owner))
       .send({
         kind: 'FEED_MIXTURE',
         name: `E2E Incomplete Mixture ${Date.now()}`,
+        durationDays: 30,
         items: [{ ingredientId, amountKg: 10 }],
       })
       .expect(400);
+  });
+
+  it('a FEED_MIXTURE requires durationDays', async () => {
+    await request(server())
+      .post(api('/feed/concentrations'))
+      .set(...auth(owner))
+      .send({
+        kind: 'FEED_MIXTURE',
+        name: `E2E No Duration Mixture ${Date.now()}`,
+        targetType: 'INDIVIDUAL',
+        targetWeightKg: 400,
+        targetMilkL: 15,
+        items: [{ ingredientId, amountKg: 10 }],
+      })
+      .expect(400);
+  });
+
+  it('a FEED_MIXTURE targeting a real cow resolves targetWeightKg/targetMilkL from her records when omitted (Phase 12.3, 2026-07-18)', async () => {
+    const cow = await prisma.cattle.create({
+      data: {
+        farmId: owner.farmId,
+        tagNumber: `E2E-KIND-${Date.now()}`,
+        gender: 'FEMALE',
+        purpose: 'MILK',
+        createdBy: ownerUserId,
+        lastWeightKg: 425,
+      },
+    });
+
+    const created = await request(server())
+      .post(api('/feed/concentrations'))
+      .set(...auth(owner))
+      .send({
+        kind: 'FEED_MIXTURE',
+        name: `E2E Auto-Resolved Mixture ${Date.now()}`,
+        targetType: 'INDIVIDUAL',
+        cattleId: cow.id,
+        durationDays: 30,
+        // targetWeightKg/targetMilkL deliberately omitted — must resolve from the cow's own
+        // record (weight) and fall back to 0/assumed (no milk logs for this brand-new test cow),
+        // not 400 just because the manual fields were left blank.
+        items: [{ ingredientId, amountKg: 10 }],
+      })
+      .expect(201);
+    expect(created.body.data.target_weight_kg).toBeCloseTo(425, 1);
+    expect(created.body.data.target_milk_l).toBeCloseTo(0, 1);
   });
 
   it('a real FEED_MIXTURE gets a balance score', async () => {
@@ -90,6 +147,7 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
         targetType: 'INDIVIDUAL',
         targetWeightKg: 400,
         targetMilkL: 15,
+        durationDays: 30,
         items: [{ ingredientId, amountKg: 10 }],
       })
       .expect(201);
@@ -97,24 +155,40 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
     expect(created.body.data.balance_score).not.toBeNull();
   });
 
-  it('finalize only works on a CONCENTRATE_TEMPLATE, not a FEED_MIXTURE', async () => {
+  it('finalize behaves differently by kind — CONCENTRATE_TEMPLATE promotes an ingredient, FEED_MIXTURE produces stock only (Phase 12.2, 2026-07-18)', async () => {
     const mixture = await request(server())
       .post(api('/feed/concentrations'))
       .set(...auth(owner))
       .send({
         kind: 'FEED_MIXTURE',
-        name: `E2E Mixture Cannot Finalize ${Date.now()}`,
+        name: `E2E Mixture Finalize ${Date.now()}`,
         targetType: 'INDIVIDUAL',
         targetWeightKg: 400,
         targetMilkL: 15,
+        durationDays: 30,
         items: [{ ingredientId, amountKg: 10 }],
       })
       .expect(201);
 
-    await request(server())
+    const mixtureFinalized = await request(server())
       .post(api(`/feed/concentrations/${mixture.body.data.id}/finalize`))
       .set(...auth(owner))
-      .expect(400);
+      .expect(201);
+    // A Feed Mixture (TMR) is the final ration, not an intermediate recipe — finalize produces
+    // only a FeedStock lot, never a reusable ingredient (user request 2026-07-18).
+    expect(mixtureFinalized.body.data.ingredient).toBeNull();
+    expect(mixtureFinalized.body.data.stock).toBeTruthy();
+    expect(mixtureFinalized.body.data.stock.produced_qty_kg).toBeCloseTo(10, 1);
+
+    const listAfterMixtureFinalize = await request(server())
+      .get(api('/feed/ingredients'))
+      .set(...auth(owner))
+      .expect(200);
+    expect(
+      (listAfterMixtureFinalize.body.data as Array<{ id: string }>).some(
+        (i) => i.id === mixture.body.data.id,
+      ),
+    ).toBe(false);
 
     const template = await request(server())
       .post(api('/feed/concentrations'))
@@ -126,10 +200,12 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
       })
       .expect(201);
 
-    await request(server())
+    const templateFinalized = await request(server())
       .post(api(`/feed/concentrations/${template.body.data.id}/finalize`))
       .set(...auth(owner))
       .expect(201);
+    expect(templateFinalized.body.data.ingredient).toBeTruthy();
+    expect(templateFinalized.body.data.stock).toBeTruthy();
   });
 
   it('GET /feed/concentrations?kind= filters server-side', async () => {
@@ -152,6 +228,7 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
         targetType: 'INDIVIDUAL',
         targetWeightKg: 400,
         targetMilkL: 15,
+        durationDays: 30,
         items: [{ ingredientId, amountKg: 5 }],
       })
       .expect(201);

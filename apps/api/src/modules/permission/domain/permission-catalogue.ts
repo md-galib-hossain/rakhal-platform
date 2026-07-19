@@ -95,7 +95,14 @@ const RESOURCES: ResourceDef[] = [
   {
     resource: 'settings',
     group: PermissionGroup.SETTINGS,
-    actions: ['read', 'update', 'team-manage', 'roles-manage', 'billing'],
+    actions: [
+      'read',
+      'update',
+      'team-manage',
+      'roles-manage',
+      'billing',
+      'milk-sessions-manage',
+    ],
   },
   {
     resource: 'notification',

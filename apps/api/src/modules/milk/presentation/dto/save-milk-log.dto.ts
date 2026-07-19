@@ -30,6 +30,14 @@ export class MilkLogEntryDto {
   @Transform(trimString)
   @IsString()
   anomalyNote?: string;
+
+  /** Specific `MilkTank` chosen for this cow's collection (header default or a per-row
+   * override) — optional; when absent, `submit()` falls back to "first active tank of the
+   * matching SELLABLE/WITHHOLDING type" like before this field existed. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  tankId?: string;
 }
 
 /** `POST /milk/log` — save/update draft entries for a session on a date. */

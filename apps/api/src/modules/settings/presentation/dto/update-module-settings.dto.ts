@@ -1,6 +1,5 @@
 import { Type } from 'class-transformer';
 import {
-  IsArray,
   IsIn,
   IsInt,
   IsOptional,
@@ -20,10 +19,8 @@ class CattleModuleDto {
 }
 
 class MilkModuleDto {
-  @IsOptional()
-  @IsArray()
-  @IsIn(['morning', 'noon', 'evening', 'night'], { each: true })
-  active_sessions?: string[];
+  // active_sessions moved to its own owner-only endpoint — see
+  // `update-milk-sessions.dto.ts` / `PATCH /settings/modules/milk-sessions`.
 
   @IsOptional() @IsString() @MaxLength(5) morning_start?: string;
   @IsOptional() @IsString() @MaxLength(5) morning_end?: string;
