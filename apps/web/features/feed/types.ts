@@ -13,12 +13,14 @@
  * `GET /settings/feed-groups`'s `assigned_count` for the concentration's `feed_group_id` (1 for an
  * `INDIVIDUAL`-target concentration).
  *
- * "Concentrate Mixer" (`kind: 'CONCENTRATE_TEMPLATE'`) and "Feed Mixture" (`kind: 'FEED_MIXTURE'`)
- * are still the same `FeedConcentration` resource, but as of 2026-07-18 `kind` is an explicit,
- * immutable, server-enforced discriminator — not an inferred "does it have a target" heuristic.
- * A template never carries a target (server nulls them out even if sent) and can be promoted into a
- * reusable ingredient via `POST /concentrations/:id/finalize`; a mixture always carries a target and
- * is the thing actually fed to a cow/group.
+ * "Concentrate Mixer" (`kind: 'CONCENTRATE_TEMPLATE'`) and "Total Mixed Ration (TMR)"
+ * (`kind: 'FEED_MIXTURE'`) are still the same `FeedConcentration` resource, but as of 2026-07-18
+ * `kind` is an explicit, immutable, server-enforced discriminator — not an inferred "does it have a
+ * target" heuristic. A Concentrate Mixer never carries a target (server nulls them out even if sent)
+ * and can be promoted into a reusable ingredient via `POST /concentrations/:id/finalize`; a TMR
+ * always carries a target and is the thing actually fed to a cow/group. (User request 2026-07-18
+ * follow-up: standardized on "Concentrate Mixer"/"Total Mixed Ration (TMR)" everywhere — dialog
+ * titles, confirmations, toasts — after these two names had drifted inconsistently across the UI.)
  */
 
 export type FeedTargetType = "GROUP" | "INDIVIDUAL";
@@ -173,6 +175,11 @@ export interface FeedConcentrationSummary {
   totals: FeedFormulaTotals;
   balance_score: number | null;
   requirements: FeedRequirements | null;
+  /** Has this recipe ever been finalized (Finalize produces a `FeedStock` lot unconditionally for
+   * both kinds — its existence is what this reflects). A never-finalized Concentrate Mixer can't be
+   * picked in any TMR's ingredient picker yet; a never-finalized TMR has no inventory batch to feed
+   * from. */
+  is_finalized: boolean;
   created_at: string;
 }
 
@@ -186,6 +193,10 @@ export interface FeedConcentrationItemInput {
   amountKg: number;
 }
 
+/** `targetWeightKg`/`targetMilkL` are optional as of Phase 12.3 (2026-07-18) — once a real
+ * `feedGroupId`/`cattleId` target is set, the backend resolves both from that target's own
+ * weight/milk records when omitted (same derivation `GET /feed/requirements` already exposes for
+ * the wizard's live preview); they stay available as a manual override/fallback. */
 export interface CreateFeedConcentrationPayload {
   kind: FeedConcentrationKind;
   name: string;
@@ -193,8 +204,8 @@ export interface CreateFeedConcentrationPayload {
   targetType: FeedTargetType;
   feedGroupId?: string;
   cattleId?: string;
-  targetWeightKg: number;
-  targetMilkL: number;
+  targetWeightKg?: number;
+  targetMilkL?: number;
   items: FeedConcentrationItemInput[];
 }
 
@@ -218,14 +229,15 @@ export interface NormalizeConcentrationPayload {
   items: FeedConcentrationItemInput[];
 }
 
-/** `POST /feed/concentrations/:id/finalize` response — promotes a Concentrate Mixer template into a
- * reusable, versioned `FeedIngredient` (and a `FeedStock` batch). Only the fields the frontend
- * actually reads are typed here; see the backend's `FeedConcentrationService.finalize` doc comment
- * for the full shape. */
+/** `POST /feed/concentrations/:id/finalize` response. As of Phase 12.1/12.2 (2026-07-18):
+ * `finalize()` is an upsert (no more `version` field — the promoted ingredient is kept in sync in
+ * place, not versioned) and `ingredient` is `null` for a `FEED_MIXTURE` (a TMR produces stock only,
+ * never a reusable ingredient — see the backend's `finalize()` doc comment). Only the fields the
+ * frontend actually reads are typed here. */
 export interface FinalizeConcentrationResult {
   concentration_id: string;
-  version: number;
-  ingredient: { id: string; name_en: string };
+  stock: FeedStock;
+  ingredient: { id: string; name_en: string } | null;
 }
 
 /** `POST /feed/concentrations/bulk-delete` — multi-select delete (user request 2026-07-18). */
@@ -249,4 +261,107 @@ export interface FeedGroup {
   is_active: boolean;
   assigned_count: number;
   created_at: string;
+}
+
+/** `FeedStockService.mapStock` — one physical batch produced by finalizing a Concentrate Mixer or
+ * TMR (`sourceConcentrationId` points at whichever produced it). Phase 12.4 (2026-07-18) frontend —
+ * the backend has had this since Phase 4, this is the first frontend type/consumer for it. */
+export interface FeedStock {
+  id: string;
+  source_concentration_id: string;
+  source_concentration_version: number;
+  produced_at: string;
+  produced_qty_kg: number;
+  current_stock_kg: number;
+  produced_cost_tk: number;
+  created_at: string;
+}
+
+export interface FeedStockMovement {
+  id: string;
+  change_kg: number;
+  reason: "PRODUCED" | "FED" | "ADJUSTMENT";
+  distribution_id: string | null;
+  created_at: string;
+}
+
+export interface FeedStockDetail extends FeedStock {
+  movements: FeedStockMovement[];
+}
+
+/** `POST /feed/distributions` — "Feed Today" (Phase 12.4, 2026-07-18). The target (group vs one
+ * cow) is never supplied directly — it's derived server-side from `concentrationId`'s own
+ * `targetType`, matching how a TMR is already either GROUP- or INDIVIDUAL-targeted from creation. */
+export interface LogDistributionItemInput {
+  ingredientId: string;
+  actualKg?: number;
+  refusalKg?: number;
+  stockId?: string;
+}
+
+export interface LogDistributionPayload {
+  concentrationId: string;
+  items?: LogDistributionItemInput[];
+  distributedAt?: string;
+  notes?: string;
+}
+
+export interface FeedDistributionItemLine {
+  ingredient_id: string;
+  name: string;
+  planned_kg: number;
+  actual_kg: number;
+  refusal_kg: number;
+  price_per_kg: number;
+  line_cost: number;
+}
+
+export interface FeedDistribution {
+  id: string;
+  concentration_id: string;
+  feed_group_id: string | null;
+  cattle_id: string | null;
+  distributed_at: string;
+  total_planned_kg: number;
+  total_actual_kg: number;
+  total_refusal_kg: number;
+  total_planned_cost: number;
+  total_actual_cost: number;
+  notes: string | null;
+  forage_decrements: number | null;
+  items: FeedDistributionItemLine[];
+  created_at: string;
+}
+
+export interface FeedDistributionSummary {
+  id: string;
+  concentration_id: string;
+  feed_group_id: string | null;
+  cattle_id: string | null;
+  distributed_at: string;
+  total_actual_kg: number;
+  total_actual_cost: number;
+  created_at: string;
+}
+
+/** `GET /feed/efficiency` — planned-vs-actual + feed cost/litre for exactly one of a group or a
+ * single cow (`feedGroupId` XOR `cattleId`, Phase 12.4 2026-07-18 added the `cattleId` mode). */
+export interface FeedEfficiencyResult {
+  feed_group_id: string | null;
+  feed_group_name: string | null;
+  cattle_id: string | null;
+  cattle_name: string | null;
+  period: string;
+  distributions: number;
+  group_cattle?: number;
+  planned_kg: number;
+  actual_kg: number;
+  refusal_kg: number;
+  consumed_kg: number;
+  planned_cost: number;
+  actual_cost: number;
+  adherence_pct: number | null;
+  refusal_pct: number | null;
+  litres_produced: number;
+  feed_cost_per_litre: number | null;
 }

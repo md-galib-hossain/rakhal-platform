@@ -81,6 +81,7 @@ function DetailBody({ id, onOpenChange }: { id: string; onOpenChange: (open: boo
             effectiveById={effectiveById}
             requirements={detail.data.requirements ? fromApiRequirements(detail.data.requirements) : null}
             cowCount={cowCount}
+            showPerCow={detail.data.kind !== "CONCENTRATE_TEMPLATE"}
             readOnly
             serverContributions={detail.data.ingredients.map((line) => ({
               ingredientId: line.ingredient_id,

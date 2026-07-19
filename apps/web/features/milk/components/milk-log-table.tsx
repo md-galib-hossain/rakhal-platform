@@ -1,21 +1,30 @@
-"use client"; // drafts across all sessions + save/submit mutations + client-side search/shed filter + pagination
+"use client"; // drafts across all sessions + save/submit mutations + client-side search/shed filter + pagination + keyboard nav refs
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
-import { ChevronDown, TrendingDown, TrendingUp } from "lucide-react";
+import { ChevronDown, Lock, TrendingDown, TrendingUp, Unlock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pagination } from "@/components/shared/pagination";
-import { Can } from "@/lib/auth/permissions";
-import { useSaveMilkLog, useSubmitMilk } from "../hooks/use-milk";
-import type { MilkLogRow, MilkSession } from "../types";
+import { Can, useCan } from "@/lib/auth/permissions";
+import { useMilkTanks } from "@/features/inventory/hooks/use-inventory";
+import type { MilkTank, MilkTankType as InventoryMilkTankType } from "@/features/inventory/types";
+import { useSaveMilkLog, useSubmitMilk, useUpdateMilkSessions } from "../hooks/use-milk";
+import { MILK_SESSIONS } from "../types";
+import type { MilkLogRow, MilkSession, MilkSessionKey } from "../types";
+
+/** NOON/NIGHT are the only sessions an Owner can lock/unlock — MORNING/EVENING must always stay
+ * on (the backend rejects a payload dropping either), so they never render a lock affordance. */
+const LOCKABLE_SESSIONS: MilkSession[] = ["NOON", "NIGHT"];
 
 const SESSION_FIELD: Record<MilkSession, "morningL" | "noonL" | "eveningL" | "nightL"> = {
   MORNING: "morningL",
@@ -29,6 +38,20 @@ const SESSION_COLUMN_LABEL: Record<MilkSession, string> = {
   NOON: "noonLog",
   EVENING: "eveningLog",
   NIGHT: "nightLog",
+};
+
+const SESSION_LABEL_KEY: Record<MilkSession, string> = {
+  MORNING: "session.morning",
+  NOON: "session.noon",
+  EVENING: "session.evening",
+  NIGHT: "session.night",
+};
+
+const SESSION_KEY: Record<MilkSession, MilkSessionKey> = {
+  MORNING: "morning",
+  NOON: "noon",
+  EVENING: "evening",
+  NIGHT: "night",
 };
 
 /** Per-session tinted glow on the log-input cell (Figma "Milk Log" table, node 734:32487 — each
@@ -47,15 +70,192 @@ function draftKey(cattleId: string, session: MilkSession): string {
   return `${cattleId}:${session}`;
 }
 
-function buildInitialDrafts(rows: MilkLogRow[], sessions: MilkSession[]): Record<string, string> {
+// Builds drafts for all 4 sessions regardless of which are active — locked
+// columns simply never render an input for these keys, and save/submit only
+// ever iterate the active `sessions` list, so the extra entries are inert.
+function buildInitialDrafts(rows: MilkLogRow[]): Record<string, string> {
   const drafts: Record<string, string> = {};
   for (const row of rows) {
-    for (const session of sessions) {
+    for (const session of MILK_SESSIONS) {
       const value = row.log[SESSION_FIELD[session]];
       drafts[draftKey(row.cattleId, session)] = value == null ? "" : String(value);
     }
   }
   return drafts;
+}
+
+// Seeds one tank choice per cow (keyed by cattleId, not per-session — the Tank column is one
+// selection per cow per day) from whichever saved entry already named a tank, if any.
+function buildInitialTankOverrides(rows: MilkLogRow[]): Record<string, string> {
+  const overrides: Record<string, string> = {};
+  for (const row of rows) {
+    if (row.log.tankId) overrides[row.cattleId] = row.log.tankId;
+  }
+  return overrides;
+}
+
+/** Header control for a session column. Active-and-locked-by-default sessions (NOON/NIGHT) that
+ * aren't yet enabled show a lock icon; the farm Owner (`settings.milk-sessions-manage`) can click it
+ * to unlock, everyone else sees a static muted label with no affordance. */
+function SessionLockControl({ session, activeSessions }: { session: MilkSession; activeSessions: MilkSession[] }) {
+  const t = useTranslations("milk.log");
+  const can = useCan();
+  const canManage = can("settings.milk-sessions-manage");
+  const updateSessions = useUpdateMilkSessions();
+  const [open, setOpen] = useState(false);
+  const label = t(SESSION_LABEL_KEY[session]);
+
+  async function handleEnable() {
+    const next = new Set(activeSessions.map((s) => SESSION_KEY[s]));
+    next.add(SESSION_KEY[session]);
+    try {
+      await updateSessions.mutateAsync({ active_sessions: [...next] });
+      toast.success(t("enableSessionSuccessToast", { session: label }));
+      setOpen(false);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("enableSessionError"));
+    }
+  }
+
+  if (!canManage) {
+    return (
+      <span className="inline-flex items-center gap-1 text-muted-foreground" title={t("sessionLockedNoAccess", { session: label })}>
+        <Lock className="size-3.5 shrink-0" aria-hidden />
+        {label}
+      </span>
+    );
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Lock className="size-3.5 shrink-0" aria-hidden />
+          {label}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 space-y-3">
+        <p className="text-sm text-foreground">{t("sessionLockedDescription", { session: label })}</p>
+        <Button size="sm" disabled={updateSessions.isPending} onClick={handleEnable}>
+          {updateSessions.isPending ? t("enabling") : t("enableSession", { session: label })}
+        </Button>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** Mirror of `SessionLockControl` for the opposite direction — an already-active NOON/NIGHT
+ * column header shows an open-lock icon the Owner can click to lock it back (MORNING/EVENING
+ * never render this, see `LOCKABLE_SESSIONS`). Everyone else just sees the plain column label. */
+function SessionActiveControl({ session, activeSessions }: { session: MilkSession; activeSessions: MilkSession[] }) {
+  const t = useTranslations("milk.log");
+  const can = useCan();
+  const canManage = can("settings.milk-sessions-manage");
+  const updateSessions = useUpdateMilkSessions();
+  const [open, setOpen] = useState(false);
+  const label = t(`columns.${SESSION_COLUMN_LABEL[session]}`);
+  const sessionLabel = t(SESSION_LABEL_KEY[session]);
+
+  if (!LOCKABLE_SESSIONS.includes(session) || !canManage) {
+    return <>{label}</>;
+  }
+
+  async function handleDisable() {
+    const next = new Set(activeSessions.map((s) => SESSION_KEY[s]));
+    next.delete(SESSION_KEY[session]);
+    try {
+      await updateSessions.mutateAsync({ active_sessions: [...next] });
+      toast.success(t("disableSessionSuccessToast", { session: sessionLabel }));
+      setOpen(false);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("disableSessionError"));
+    }
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {label}
+          <Unlock className="size-3.5 shrink-0" aria-hidden />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 space-y-3">
+        <p className="text-sm text-foreground">{t("disableSessionDescription", { session: sessionLabel })}</p>
+        <Button size="sm" variant="outline" disabled={updateSessions.isPending} onClick={handleDisable}>
+          {updateSessions.isPending ? t("disabling") : t("disableSession", { session: sessionLabel })}
+        </Button>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** Tank column header — click opens a popover to set a default tank per SELLABLE/WITHHOLDING
+ * type, applied immediately to every row of that type (rows can still be overridden below). */
+function TankColumnHeaderControl({
+  tanks,
+  onSetDefault,
+}: {
+  tanks: MilkTank[];
+  onSetDefault: (tankType: InventoryMilkTankType, tankId: string) => void;
+}) {
+  const t = useTranslations("milk.log");
+  const [open, setOpen] = useState(false);
+  const sellable = tanks.filter((tk) => tk.tankType === "SELLABLE" && tk.isActive);
+  const withholding = tanks.filter((tk) => tk.tankType === "WITHHOLDING" && tk.isActive);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {t("columns.tank")}
+          <ChevronDown className="size-3.5 shrink-0" aria-hidden />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 space-y-3">
+        <p className="text-xs text-muted-foreground">{t("tankDefaultDescription")}</p>
+        <div className="space-y-1.5">
+          <span className="text-xs font-medium text-foreground">{t("tankSellable")}</span>
+          <Select onValueChange={(v) => onSetDefault("SELLABLE", v)}>
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue placeholder={t("tankSelectPlaceholder")} />
+            </SelectTrigger>
+            <SelectContent>
+              {sellable.map((tk) => (
+                <SelectItem key={tk.id} value={tk.id}>
+                  {tk.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <span className="text-xs font-medium text-foreground">{t("tankWithholding")}</span>
+          <Select onValueChange={(v) => onSetDefault("WITHHOLDING", v)}>
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue placeholder={t("tankSelectPlaceholder")} />
+            </SelectTrigger>
+            <SelectContent>
+              {withholding.map((tk) => (
+                <SelectItem key={tk.id} value={tk.id}>
+                  {tk.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 /** The editable grid for one day — all of the farm's configured sessions as columns at once (Figma
@@ -80,8 +280,23 @@ export function MilkLogTable({
   const t = useTranslations("milk.log");
   const saveLog = useSaveMilkLog();
   const submitMilk = useSubmitMilk();
-  const [drafts, setDrafts] = useState<Record<string, string>>(() => buildInitialDrafts(entries, sessions));
+  const [drafts, setDrafts] = useState<Record<string, string>>(() => buildInitialDrafts(entries));
+  const [tankOverrides, setTankOverrides] = useState<Record<string, string>>(() => buildInitialTankOverrides(entries));
   const [page, setPage] = useState(1);
+  const inputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+  const tanksQuery = useMilkTanks({});
+  const tanks = tanksQuery.data ?? [];
+
+  function handleSetDefaultTank(tankType: InventoryMilkTankType, tankId: string) {
+    setTankOverrides((prev) => {
+      const next = { ...prev };
+      for (const row of entries) {
+        const rowType: InventoryMilkTankType = row.withholding ? "WITHHOLDING" : "SELLABLE";
+        if (rowType === tankType) next[row.cattleId] = tankId;
+      }
+      return next;
+    });
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -95,13 +310,54 @@ export function MilkLogTable({
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
+  // `sessions` (from `FarmModuleSettings.milkActiveSessions`) isn't guaranteed to arrive in
+  // chronological order — e.g. enabling Noon after Morning/Evening appends it last. Columns always
+  // render in MILK_SESSIONS order regardless (below), so Space-navigation must use that same fixed
+  // order too, or it'd jump somewhere other than "the next column to the right".
+  const orderedActiveSessions = MILK_SESSIONS.filter((s) => sessions.includes(s));
+
+  // Spreadsheet-style entry (milk is the highest-traffic module — a 10+ row table entered by mouse
+  // alone is slow). Only fires when a yield input is focused, and only for Enter/Space; every other
+  // key (digits, Tab, arrows, backspace) behaves natively. Scoped to the current page's active
+  // (unlocked) session columns — a locked column has no input to navigate into, so it's skipped
+  // automatically rather than needing special-cased logic.
+  function focusCell(rowIndex: number, session: MilkSession) {
+    if (rowIndex < 0 || rowIndex >= pageRows.length) return;
+    const target = inputRefs.current.get(draftKey(pageRows[rowIndex].cattleId, session));
+    if (!target) return;
+    target.focus();
+    target.select();
+  }
+
+  function handleCellKeyDown(e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, session: MilkSession) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      focusCell(rowIndex + 1, session);
+    } else if (e.key === " ") {
+      e.preventDefault();
+      const sessionIndex = orderedActiveSessions.indexOf(session);
+      const nextSession = orderedActiveSessions[sessionIndex + 1];
+      if (nextSession) {
+        focusCell(rowIndex, nextSession);
+      } else if (orderedActiveSessions.length > 0) {
+        // Last active column of the row — wrap to the next row's first session column,
+        // same as a spreadsheet's Tab-at-end-of-row behavior.
+        focusCell(rowIndex + 1, orderedActiveSessions[0]);
+      }
+    }
+  }
+
   async function handleSave() {
     let saved = 0;
     let anomaliesFlagged = 0;
     try {
       for (const session of sessions) {
         const sessionEntries = entries
-          .map((row) => ({ cattleId: row.cattleId, yieldL: Number(drafts[draftKey(row.cattleId, session)]) }))
+          .map((row) => ({
+            cattleId: row.cattleId,
+            yieldL: Number(drafts[draftKey(row.cattleId, session)]),
+            tankId: tankOverrides[row.cattleId],
+          }))
           .filter((entry) => {
             const raw = drafts[draftKey(entry.cattleId, session)];
             return raw !== "" && Number.isFinite(entry.yieldL) && entry.yieldL >= 0;
@@ -160,15 +416,25 @@ export function MilkLogTable({
                   <TableHead>{t("columns.name")}</TableHead>
                   <TableHead>{t("columns.status")}</TableHead>
                   <TableHead>{t("columns.shed")}</TableHead>
-                  {sessions.map((session) => (
-                    <TableHead key={session}>{t(`columns.${SESSION_COLUMN_LABEL[session]}`)}</TableHead>
-                  ))}
-                  <TableHead>{t("columns.tank")}</TableHead>
+                  {MILK_SESSIONS.map((session) =>
+                    sessions.includes(session) ? (
+                      <TableHead key={session}>
+                        <SessionActiveControl session={session} activeSessions={sessions} />
+                      </TableHead>
+                    ) : (
+                      <TableHead key={session}>
+                        <SessionLockControl session={session} activeSessions={sessions} />
+                      </TableHead>
+                    ),
+                  )}
+                  <TableHead>
+                    <TankColumnHeaderControl tanks={tanks} onSetDefault={handleSetDefaultTank} />
+                  </TableHead>
                   <TableHead>{t("columns.total")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pageRows.map((row) => (
+                {pageRows.map((row, rowIndex) => (
                   <TableRow key={row.cattleId}>
                     <TableCell className="font-medium text-foreground">{row.tag}</TableCell>
                     <TableCell>
@@ -190,37 +456,66 @@ export function MilkLogTable({
                       </Chip>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{row.shed ?? "—"}</TableCell>
-                    {sessions.map((session) => (
-                      <TableCell key={session}>
-                        <Can I="milk.log">
+                    {MILK_SESSIONS.map((session) =>
+                      !sessions.includes(session) ? (
+                        <TableCell key={session}>
                           <div
-                            className={cn(
-                              "flex h-9 w-24 items-center gap-1 rounded-sm bg-card px-1.5",
-                              SESSION_GLOW[session],
-                            )}
+                            className="flex h-9 w-24 items-center justify-center gap-1 rounded-sm bg-muted/50 px-1.5 text-muted-foreground"
+                            title={t("sessionLockedNoAccess", { session: t(SESSION_LABEL_KEY[session]) })}
                           >
-                            <Input
-                              type="number"
-                              min={0}
-                              step={0.1}
-                              className="h-auto w-full border-none p-0 shadow-none focus-visible:ring-0"
-                              value={drafts[draftKey(row.cattleId, session)] ?? ""}
-                              onChange={(e) =>
-                                setDrafts((prev) => ({ ...prev, [draftKey(row.cattleId, session)]: e.target.value }))
-                              }
-                            />
-                            <span className="shrink-0 text-xs text-muted-foreground">L</span>
+                            <Lock className="size-3.5 shrink-0" aria-hidden />
+                            <span className="text-xs">{t("sessionLocked")}</span>
                           </div>
-                        </Can>
-                      </TableCell>
-                    ))}
+                        </TableCell>
+                      ) : (
+                        <TableCell key={session}>
+                          <Can I="milk.log">
+                            <div
+                              className={cn(
+                                "flex h-9 w-24 items-center gap-1 rounded-sm bg-card px-1.5",
+                                SESSION_GLOW[session],
+                              )}
+                            >
+                              <Input
+                                ref={(el) => {
+                                  const key = draftKey(row.cattleId, session);
+                                  if (el) inputRefs.current.set(key, el);
+                                  else inputRefs.current.delete(key);
+                                }}
+                                type="number"
+                                min={0}
+                                step={0.1}
+                                className="h-auto w-full border-none p-0 text-sm leading-none shadow-none focus-visible:ring-0"
+                                value={drafts[draftKey(row.cattleId, session)] ?? ""}
+                                onChange={(e) =>
+                                  setDrafts((prev) => ({ ...prev, [draftKey(row.cattleId, session)]: e.target.value }))
+                                }
+                                onKeyDown={(e) => handleCellKeyDown(e, rowIndex, session)}
+                              />
+                              <span className="shrink-0 text-xs text-muted-foreground">L</span>
+                            </div>
+                          </Can>
+                        </TableCell>
+                      ),
+                    )}
                     <TableCell>
-                      <div className="flex h-9 w-[130px] items-center justify-between gap-1 rounded-sm bg-card px-1.5 shadow-card">
-                        <span className="truncate text-sm text-muted-foreground">
-                          {row.withholding ? t("tankWithholding") : t("tankSellable")}
-                        </span>
-                        <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                      </div>
+                      <Select
+                        value={tankOverrides[row.cattleId] ?? ""}
+                        onValueChange={(v) => setTankOverrides((prev) => ({ ...prev, [row.cattleId]: v }))}
+                      >
+                        <SelectTrigger className="h-9 w-[130px] rounded-sm border-none bg-card px-1.5 text-xs shadow-card">
+                          <SelectValue placeholder={row.withholding ? t("tankWithholding") : t("tankSellable")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {tanks
+                            .filter((tk) => tk.tankType === (row.withholding ? "WITHHOLDING" : "SELLABLE") && tk.isActive)
+                            .map((tk) => (
+                              <SelectItem key={tk.id} value={tk.id}>
+                                {tk.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1.5">

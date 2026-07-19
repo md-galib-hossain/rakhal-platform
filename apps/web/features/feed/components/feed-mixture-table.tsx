@@ -59,13 +59,6 @@ function NutrientCell({ value, rate, toneClass }: { value: number; rate: string 
   );
 }
 
-/** A row's cell for a nutrient with no per-cow requirement formula (Starch/ADF/RDP/RUP/Calcium/
- * Phosphorus/TDN, user request 2026-07-17 follow-up) — shows the real computed value, same as any
- * other nutrient, just never tinted/compared since there's nothing to compare against. */
-function PlainCell({ value, toneClass }: { value: number; toneClass: string }) {
-  return <TableCell className={cn("text-center", toneClass)}>{numberFmt(value)}</TableCell>;
-}
-
 /** Column group definitions — order and grouping match the user's reference spreadsheet (2026-07-17
  * follow-up): Protein (CP/RDP/RUP), Energy (ME/FAT/Starch/TDN), Fibers (NDF/ADF), Minerals (Calcium/
  * Phosphorus). Only DM/CP/ME/Fat/NDF have a real per-cow requirement (`requirements.ts` has no
@@ -95,7 +88,7 @@ const GROUP_STYLES = {
 const GROUP_ORDER = ["protein", "energy", "fibers", "minerals"] as const;
 
 /**
- * "Feed Mixture" ingredient table (Figma `1065:35817` for the base layout; extended 2026-07-17
+ * "Total Mixed Ration (TMR)" ingredient table (Figma `1065:35817` for the base layout; extended 2026-07-17
  * follow-up to show all 12 nutrients the backend computes, per the user's own reference
  * spreadsheet — no Figma frame exists for the wider table, built with the same column/tint pattern
  * as the original 5). Ingredient Name/Amount/DM columns + Protein (CP/RDP/RUP) + Energy (ME/FAT/
@@ -106,6 +99,14 @@ const GROUP_ORDER = ["protein", "energy", "fibers", "minerals"] as const;
  * value with no comparison (no requirement formula exists for them yet, see `NUTRIENT_COLUMNS`).
  * Wrapped in a horizontally-scrolling container since 12 nutrient pairs + name/amount/cost don't
  * fit a card-width table.
+ *
+ * The "Total Feed Amount" and "Daily Total Amount" rows show a %-of-DM rate sub-label under every
+ * nutrient column, not just DM (2026-07-18 follow-up: "why not for other columns") — the mix's own
+ * overall CP%/ME-per-kg-DM/etc. concentration (`pctOfDm`), distinct from a per-line ingredient's fixed
+ * rate. "Daily Total Amount"'s Cost cell now shows a real per-cow figure (`totals.totalCostTk` ÷
+ * `cowCount`) instead of a hardcoded `—` — it was never computed before, a real gap, not the
+ * intentional-`—` pattern the Requirement row still correctly uses for the 7 nutrients with no target
+ * formula.
  */
 export function FeedMixtureTable({
   items,
@@ -115,6 +116,7 @@ export function FeedMixtureTable({
   onAmountChange,
   onRemove,
   readOnly = false,
+  showPerCow = true,
   serverContributions,
   serverTotals,
 }: {
@@ -127,6 +129,12 @@ export function FeedMixtureTable({
   onAmountChange?: (ingredientId: string, amountKg: number) => void;
   onRemove?: (ingredientId: string) => void;
   readOnly?: boolean;
+  /** A Concentrate Mixer has no cow/group target at all (see `concentration-card.tsx`'s doc comment)
+   * so a "per cow" daily figure is meaningless for it — `cowCount` would otherwise silently default
+   * to 1, making this row a no-op duplicate of "Total Feed Amount" (user report 2026-07-19). Callers
+   * pass `false` for a `CONCENTRATE_TEMPLATE`; a `FEED_MIXTURE` always has a real target, so it
+   * defaults `true`. */
+  showPerCow?: boolean;
   /** Already-computed per-line/total figures straight from `GET /feed/concentrations/:id` (the
    * detail sheet) — used instead of the live client-side formula-math preview, which needs each
    * ingredient's effective nutrition (not fetched for a read-only view). */
@@ -156,11 +164,26 @@ export function FeedMixtureTable({
     return amountKg > 0 ? (dmKg / amountKg) * 100 : 0;
   }
 
+  /** A nutrient's overall concentration in the mix, on a DM basis (e.g. mix CP% = total CP kg ÷ total
+   * DM kg × 100) — same convention the user's reference spreadsheet pairs with every kg figure.
+   * Mirrors the per-line rate (`eff.cpPct` etc.) but computed for the *whole mix* instead of one
+   * ingredient, since a totals row has no single ingredient's fixed rate to show (user request
+   * 2026-07-18: "why not for other columns"). **ME is not kg-based** (`meMj` is megajoules, not a
+   * mass) — dividing it by DM kg and labeling the result "%" is nonsensical (caught live: a 44kg-DM
+   * mix with 594 MJ ME rendered "1350%"). ME's rate must stay energy-density (MJ per kg DM), matching
+   * its per-line rate (`eff.meMjPerKgDm`) and its column's own declared `unit` — every other column's
+   * `unit` is `"%"`, so this only branches for the one exception. */
+  function totalsRate(col: (typeof NUTRIENT_COLUMNS)[number], nutrientTotal: number, dmKg: number) {
+    if (col.unit !== "%") return dmKg > 0 ? `${numberFmt(nutrientTotal / dmKg)} ${col.unit}` : null;
+    return `${numberFmt(dmKg > 0 ? (nutrientTotal / dmKg) * 100 : 0)}%`;
+  }
+
   const dailyTotals = useMemo(() => {
     const divisor = cowCount > 0 ? cowCount : 1;
-    const out = {} as Record<(typeof NUTRIENT_COLUMNS)[number]["key"] | "dmKg" | "amountKg", number>;
+    const out = {} as Record<(typeof NUTRIENT_COLUMNS)[number]["key"] | "dmKg" | "amountKg" | "costTk", number>;
     out.amountKg = totalAmountKg / divisor;
     out.dmKg = totals.dmKg / divisor;
+    out.costTk = totals.totalCostTk / divisor;
     for (const col of NUTRIENT_COLUMNS) out[col.key] = totals[col.key] / divisor;
     return out;
   }, [totals, cowCount, totalAmountKg]);
@@ -290,7 +313,12 @@ export function FeedMixtureTable({
                   toneClass=""
                 />
                 {NUTRIENT_COLUMNS.map((col) => (
-                  <PlainCell key={col.key} value={totals[col.key]} toneClass={GROUP_STYLES[col.group].text} />
+                  <NutrientCell
+                    key={col.key}
+                    value={totals[col.key]}
+                    rate={totalsRate(col, totals[col.key], totals.dmKg)}
+                    toneClass={GROUP_STYLES[col.group].text}
+                  />
                 ))}
                 <TableCell className="text-center">
                   <MoneyText amount={totals.totalCostTk} />
@@ -298,25 +326,34 @@ export function FeedMixtureTable({
                 {!readOnly ? <TableCell /> : null}
               </TableRow>
 
-              <TableRow className="bg-muted/60 font-medium hover:bg-muted/60">
-                <TableCell>
-                  <p className="text-foreground">{t("dailyTotalAmount")}</p>
-                  <p className="text-xs font-normal text-muted-foreground">{t("perCow")}</p>
-                </TableCell>
-                <TableCell className="text-center">
-                  {numberFmt(dailyTotals.amountKg)} <span className="text-xs font-normal text-muted-foreground">kg</span>
-                </TableCell>
-                <NutrientCell
-                  value={dailyTotals.dmKg}
-                  rate={`${numberFmt(dmPctOf(dailyTotals.dmKg, dailyTotals.amountKg))}%`}
-                  toneClass=""
-                />
-                {NUTRIENT_COLUMNS.map((col) => (
-                  <PlainCell key={col.key} value={dailyTotals[col.key]} toneClass={GROUP_STYLES[col.group].text} />
-                ))}
-                <TableCell className="text-center">—</TableCell>
-                {!readOnly ? <TableCell /> : null}
-              </TableRow>
+              {showPerCow ? (
+                <TableRow className="bg-muted/60 font-medium hover:bg-muted/60">
+                  <TableCell>
+                    <p className="text-foreground">{t("dailyTotalAmount")}</p>
+                    <p className="text-xs font-normal text-muted-foreground">{t("perCow")}</p>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {numberFmt(dailyTotals.amountKg)} <span className="text-xs font-normal text-muted-foreground">kg</span>
+                  </TableCell>
+                  <NutrientCell
+                    value={dailyTotals.dmKg}
+                    rate={`${numberFmt(dmPctOf(dailyTotals.dmKg, dailyTotals.amountKg))}%`}
+                    toneClass=""
+                  />
+                  {NUTRIENT_COLUMNS.map((col) => (
+                    <NutrientCell
+                      key={col.key}
+                      value={dailyTotals[col.key]}
+                      rate={totalsRate(col, dailyTotals[col.key], dailyTotals.dmKg)}
+                      toneClass={GROUP_STYLES[col.group].text}
+                    />
+                  ))}
+                  <TableCell className="text-center">
+                    <MoneyText amount={dailyTotals.costTk} />
+                  </TableCell>
+                  {!readOnly ? <TableCell /> : null}
+                </TableRow>
+              ) : null}
 
               {requirements ? (
                 <TableRow className="font-medium hover:bg-transparent">

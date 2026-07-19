@@ -7,6 +7,42 @@ Phase 1 RFE-020 (Dashboard) + RFE-021 (Cattle list) + RFE-022 (Cattle add/edit) 
 Liabilities/Asset Distribution + Wallet hub (Add Funds/Withdraw) + the 4-type Record transaction
 wizard, all Figma-perfect; only the record-payment/void/create-asset modals remain (no Figma yet).
 
+## Milk page follow-ups: relock, Space wrap, per-cow tank selection, caret fix (2026-07-19, user request)
+4 more gaps reported on the just-shipped Milk page: (1) could unlock Noon/Night but not lock back —
+new `SessionActiveControl` mirrors the unlock control on active headers (Owner-only), same
+`PATCH /settings/modules/milk-sessions` with the session removed. (2) Space at a row's last active
+column used to no-op — now wraps to the next row's first active column. (3) Tank column was a static
+label — new backend `MilkLogEntry.tankId` (migration `milk_log_tank_selection`) lets a header popover
+set a bulk default tank per SELLABLE/WITHHOLDING type, with each row's own real `Select` (reusing
+Inventory's existing `useMilkTanks()` hook) able to override individually; `submit()` now routes volume
+into the specific named tank instead of always grabbing "first active tank of the type." (4) Fixed an
+oversized yield-input caret (`leading-none`, was inheriting a 20px line-height into a 36px pill) and
+confirmed the "All Sheds" blank shed column is real data (no `shedId` on the seeded demo cattle), not a
+bug. **Verified LIVE**: both lock directions fired real `PATCH → 200`s with correct header swaps; Space-
+wrap confirmed via focus-index checks; tank header default applied to all 8 visible rows then a row
+override correctly diverged; caret line-height confirmed via computed style. Same known `loading.tsx`
+reveal-hang hit and worked around (temporary rename during verification, restored after). Gate green:
+typecheck/lint (0 errors, same pre-existing warnings); backend milk e2e 8/8. Full writeup: `IN_FLIGHT.md`
+Recently Done.
+
+## Milk page: configurable sessions (owner-locked) + keyboard navigation (2026-07-18, user request)
+User asked to improve the Milk Log page — farms milk 2/3/4×/day but Noon/Night had no way to enable,
+and 10+ row × per-session entry was all-mouse. Backend (see `D:\Projects\Rakhal\docs\IN_FLIGHT.md`)
+added an owner-only `PATCH /settings/modules/milk-sessions` + write-time enforcement. Frontend:
+`milk-log-table.tsx` now always renders all 4 session columns — a locked one (Noon/Night by default)
+shows a lock icon; the Owner gets a click-to-unlock `Popover` (`useCan("settings.milk-sessions-manage")`),
+everyone else sees a static label. Added spreadsheet-style keyboard nav on focused yield inputs:
+**Enter** → next row, same session; **Space** → next active session, same row (locked columns skipped
+automatically since they have no input). `components/ui/input.tsx` gained ref-forwarding (React 19
+ref-as-prop, additive-only). **Verified LIVE** end-to-end (demo owner): default Morning/Evening-editable
++ Noon/Night-locked rendering confirmed, unlock popover opened with correct Bangla copy, real
+`PATCH → 200` enabled Noon and made it editable while Night stayed locked, then restored to defaults;
+Enter/Space navigation confirmed correct including no-op edge cases; normal typing unaffected. Hit the
+same `loading.tsx`/Turbopack Suspense reveal-hang the Feed Formulator Phase 11 entry below already
+documented (pre-existing, unrelated to this change) — resolved itself once an unrelated navigation
+occurred; confirmed app logic was correct throughout via direct fetch calls. Gate green:
+typecheck/lint (0 errors, same pre-existing warnings). Full writeup: `IN_FLIGHT.md` Recently Done.
+
 ## Finance — Record wizard's Revenue/Sale step, fixed to its own real Figma frames (2026-07-16, user follow-up)
 Same pattern as the Inventory Purchase fix below: Revenue/Sale's Step 2/3 had been extrapolated from
 Operating Expense's shape; user supplied the real 6 frames. Revenue/Sale turned out the most

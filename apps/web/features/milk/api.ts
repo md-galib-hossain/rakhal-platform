@@ -10,6 +10,8 @@ import type {
   SaveMilkLogResponse,
   SubmitMilkInput,
   SubmitMilkResponse,
+  UpdateMilkSessionsInput,
+  UpdateMilkSessionsResponse,
 } from "./types";
 
 /** `/milk/*` — real backend routes (`milk.controller.ts`), all `milk.read`/`milk.log`/`milk.update`-gated. */
@@ -31,5 +33,12 @@ export const milkApi = {
   },
   reviewAnomaly(id: string, input: ReviewAnomalyInput): Promise<unknown> {
     return apiFetch(`/milk/anomalies/${id}/review`, { method: "POST", body: input });
+  },
+  // Owner-only (`settings.milk-sessions-manage`) — a Manager gets a 403 here.
+  updateSessions(input: UpdateMilkSessionsInput): Promise<UpdateMilkSessionsResponse> {
+    return apiFetch<UpdateMilkSessionsResponse>("/settings/modules/milk-sessions", {
+      method: "PATCH",
+      body: input,
+    });
   },
 };

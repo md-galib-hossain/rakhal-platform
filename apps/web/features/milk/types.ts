@@ -40,6 +40,10 @@ export interface MilkLogRow {
     totalL: number;
     tank: MilkTankType;
     tankLocked: boolean;
+    /** Specific `MilkTank.id` already saved for this cow today, if any (header default or a
+     * row override) — null when no session entry named one yet, falls back to the derived
+     * SELLABLE/WITHHOLDING type at submit time. */
+    tankId: string | null;
     anomalyFlag: boolean;
   };
 }
@@ -54,6 +58,9 @@ export interface SaveMilkLogEntry {
   cattleId: string;
   yieldL: number;
   anomalyNote?: string;
+  /** Specific `MilkTank.id` this cow's collection goes into (header default or a row
+   * override) — omitted falls back to the backend's SELLABLE/WITHHOLDING type default. */
+  tankId?: string;
 }
 
 export interface SaveMilkLogInput {
@@ -106,4 +113,16 @@ export interface MilkAnomaliesResponse {
 export interface ReviewAnomalyInput {
   action: string;
   notes?: string;
+}
+
+/** `morning`/`noon`/`evening`/`night` — lowercase, matches the backend's
+ * `FarmModuleSettings.milkActiveSessions` storage + `UpdateMilkSessionsDto`. */
+export type MilkSessionKey = "morning" | "noon" | "evening" | "night";
+
+export interface UpdateMilkSessionsInput {
+  active_sessions: MilkSessionKey[];
+}
+
+export interface UpdateMilkSessionsResponse {
+  active_sessions: MilkSessionKey[];
 }

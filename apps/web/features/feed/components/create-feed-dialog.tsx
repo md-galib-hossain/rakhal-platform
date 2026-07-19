@@ -15,11 +15,11 @@ import { Button } from "@/components/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import {
+  useCattleOrGroupRequirements,
   useConcentrationDetail,
   useCreateConcentration,
   useFeedGroups,
   useFeedIngredients,
-  useFeedRequirements,
   useNormalizeConcentration,
   useUpdateConcentration,
 } from "../hooks/use-feed";
@@ -51,7 +51,14 @@ function StepProgress({ step }: { step: 1 | 2 }) {
  * `SCfMPdxP6vgW1uTxfqCtz7`). Mirrors `CreateConcentrationDto` — the "Cow Group"/"Individual Cow"
  * tab-pill (`1065:35268`) picks `targetType`, driving whether "Select Group" (`GET
  * /settings/feed-groups`) or a `CattlePicker` renders. The "Estimated Daily Requirements" box
- * (`1065:35244`) is a live `GET /feed/requirements` call keyed off Avg. Weight/Avg. Milk Target.
+ * (`1065:35244`) is a live `GET /feed/requirements?cattleId=`/`?feedGroupId=` call (merged in from
+ * the standalone Nutrition Calculator, user request 2026-07-18 follow-up — `useCattleOrGroupRequirements`)
+ * — auto-derives weight/BCS/gestation/milk-yield from the selected cow's or group's real records,
+ * with Avg. Weight/Avg. Milk Target as the fallback the backend uses when a record is incomplete
+ * (never the primary source once a real cattle/group target is chosen, since a Total Mixed Ration
+ * (TMR) always has one — Concentrate Mixer templates hide this box entirely and never reach here). The same
+ * response also drives Step 2's "Daily Total Requirement" row in `feed-mixture-table.tsx` — no
+ * separate calculator page needed anymore.
  * Step 2's "Add Concentrate Template" dashed placeholder (`1065:35837`) — pulling an existing
  * template's ingredient lines into a new formula — has no matching backend affordance yet (there is
  * no "duplicate a concentration's items" endpoint) and is left as a disabled placeholder rather than
@@ -63,8 +70,8 @@ function StepProgress({ step }: { step: 1 | 2 }) {
  * (`GET /feed/concentrations/:id`), prefills every field once loaded, and submits via `PATCH`
  * (`useUpdateConcentration`) instead of `POST`. No new UI pattern, same form/validation/table.
  *
- * `kind` (user request 2026-07-18 — "Concentrate Mixer" vs "Feed Mixture" as real distinct flows,
- * see `types.ts`'s `FeedConcentrationKind` doc comment) drives which Step 1 fields render: a
+ * `kind` (user request 2026-07-18 — "Concentrate Mixer" vs "Total Mixed Ration (TMR)" as real distinct
+ * flows, see `types.ts`'s `FeedConcentrationKind` doc comment) drives which Step 1 fields render: a
  * `CONCENTRATE_TEMPLATE` shows only Name + Duration (no target-type pill, group/cattle picker,
  * weight/milk inputs, or Estimated Daily Requirements box — a template is a recipe, not a
  * cow-targeted ration). The caller always knows `kind` up front, even in edit mode — `feed-view.tsx`
@@ -84,7 +91,22 @@ export function CreateFeedDialog({
   kind: FeedConcentrationKind;
 }) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet
+      open={open}
+      onOpenChange={onOpenChange}
+      // `modal={false}` (user report 2026-07-18: can't mouse-wheel-scroll the ingredient picker
+      // inside this wizard). Root cause, confirmed live via a dispatched `wheel` event on the
+      // picker's list (`ev.defaultPrevented === true` with the Sheet modal): Radix's modal Dialog
+      // installs a document-level scroll lock (`react-remove-scroll`, surfaces as
+      // `body[data-scroll-locked]`) that intercepts wheel events for anything outside its own
+      // allow-list — including this wizard's `IngredientPicker`, whose `Popover` portals to
+      // `document.body` as a *sibling* of the Sheet's own portal, not a registered descendant.
+      // Setting `modal={false}` on the `Popover` alone (tried first) did **not** fix it — the lock
+      // lives on the Sheet, not the Popover, so only removing it here actually stops the
+      // interception. Non-modal here just means Radix skips the background-inert/focus-trap
+      // behavior; the Sheet's own Esc/click-outside/close behavior is unaffected.
+      modal={false}
+    >
       {open ? <CreateFeedDialogBody onOpenChange={onOpenChange} editId={editId} kind={kind} /> : null}
     </Sheet>
   );
@@ -138,13 +160,27 @@ function CreateFeedDialogBody({
   }, [editDetail.data, form]);
   const targetType = form.watch("targetType");
   const feedGroupId = form.watch("feedGroupId");
+  const cattleId = form.watch("cattleId");
   const targetWeightKg = form.watch("targetWeightKg");
   const targetMilkL = form.watch("targetMilkL");
   const items = form.watch("items");
 
-  const requirementsQuery = useFeedRequirements(targetWeightKg, targetMilkL);
-  const requirementsApi = requirementsQuery.data?.requirements ?? null;
+  /** Cow/group-driven (user request 2026-07-18 follow-up — merged in from the removed standalone
+   * calculator). `requirements` (flat) covers manual/individual-cow mode; group mode returns
+   * `per_cow`/`group_total` instead (no flat `requirements` key — see `types.ts`'s
+   * `FeedRequirementsResult` doc comment), so the per-cow figure a Total Mixed Ration (TMR) actually needs for
+   * its "Daily Total Requirement (per cow)" row is `requirements ?? per_cow`. */
+  const requirementsQuery = useCattleOrGroupRequirements({
+    cattleId: targetType === "INDIVIDUAL" ? cattleId : undefined,
+    feedGroupId: targetType === "GROUP" ? feedGroupId : undefined,
+    weightKg: targetWeightKg,
+    milkTargetL: targetMilkL,
+  });
+  const requirementsResult = requirementsQuery.data ?? null;
+  const requirementsApi = requirementsResult?.requirements ?? requirementsResult?.per_cow ?? null;
   const requirements = requirementsApi ? fromApiRequirements(requirementsApi) : null;
+  const groupTotal = requirementsResult?.group_total ? fromApiRequirements(requirementsResult.group_total) : null;
+  const dataSource = requirementsResult?.data_source ?? null;
 
   const effectiveById = useMemo(() => toEffectiveMap(ingredients.data ?? []), [ingredients.data]);
 
@@ -192,7 +228,7 @@ function CreateFeedDialogBody({
   async function goNext() {
     const fields: (keyof CreateFeedFormInput)[] = isTemplate
       ? ["name"]
-      : ["name", "targetType", "feedGroupId", "cattleId", "targetWeightKg", "targetMilkL"];
+      : ["name", "targetType", "feedGroupId", "cattleId", "durationDays"];
     const valid = await form.trigger(fields);
     if (valid) setStep(2);
   }
@@ -228,6 +264,17 @@ function CreateFeedDialogBody({
   return (
     <SheetContent
       showClose={false}
+      onInteractOutside={(event) => {
+        // This Sheet has no `SheetTrigger` (fully externally controlled by `open`/`onOpenChange`),
+        // so Radix's non-modal `Dialog` (see `modal={false}` above) never has a legitimate trigger
+        // to exempt when something refocuses after it closes. Opening from `concentration-card.tsx`'s
+        // "⋯" `DropdownMenu`'s Edit item was flash-closing this Sheet immediately: the dropdown's own
+        // close cycle returns focus to its trigger button, which non-modal Dialog's `onInteractOutside`
+        // misread as a dismiss-worthy outside interaction (user report 2026-07-18, "edit modals are
+        // not opening properly"). Swallow only that focus-return case — a real pointer-down/keydown
+        // outside must still close us.
+        if (event.detail.originalEvent.type === "focusin") event.preventDefault();
+      }}
       className={cn(
         "inset-y-2.5 right-2.5 flex h-[calc(100vh-20px)] flex-col gap-0 rounded-[20px] border-2 border-border p-5 shadow-2xl transition-[left,max-width] duration-200",
         // Figma sizes Step 1 (`1065:35227`, a short form) as a narrow ~600px panel but Step 2
@@ -243,7 +290,17 @@ function CreateFeedDialogBody({
       )}
     >
       <div className="flex items-start justify-between pb-5">
-        <SheetTitle className="text-xl font-bold text-foreground">{t(isEdit ? "titleEdit" : "title")}</SheetTitle>
+        <SheetTitle className="text-xl font-bold text-foreground">
+          {t(
+            isTemplate
+              ? isEdit
+                ? "titleConcentrateEdit"
+                : "titleConcentrate"
+              : isEdit
+                ? "titleTmrEdit"
+                : "titleTmr",
+          )}
+        </SheetTitle>
         <button
           type="button"
           onClick={() => onOpenChange(false)}
@@ -270,10 +327,17 @@ function CreateFeedDialogBody({
           {step === 1 ? (
             <div className="flex flex-col gap-5">
               <LabeledInput id="name" label={t("feedName")} placeholder={t("feedNamePlaceholder")} {...form.register("name")} error={form.formState.errors.name?.message} />
-              <LabeledInput id="durationDays" type="number" min={1} label={t("feedDuration")} {...form.register("durationDays", numberField)} />
 
               {!isTemplate ? (
                 <>
+                  <LabeledInput
+                    id="durationDays"
+                    type="number"
+                    min={1}
+                    label={t("feedDuration")}
+                    {...form.register("durationDays", numberField)}
+                    error={form.formState.errors.durationDays?.message}
+                  />
                   <div className="flex h-12 gap-1 rounded-xl border border-border bg-muted p-1">
                     {feedTargetTypes.map((value) => (
                       <button
@@ -329,6 +393,10 @@ function CreateFeedDialogBody({
                     </p>
                   ) : null}
 
+                  {/* Deliberately no `error` prop on either field (Phase 12.3, 2026-07-18) — once a
+                      real cow/group target is picked, these become pure optional overrides; the
+                      backend resolves both from the target's own records when left blank, so an
+                      empty field is never itself a validation error. */}
                   <div className="flex gap-4">
                     <LabeledInput
                       id="targetWeightKg"
@@ -337,7 +405,6 @@ function CreateFeedDialogBody({
                       min={1}
                       label={t("avgWeight")}
                       {...form.register("targetWeightKg", numberField)}
-                      error={form.formState.errors.targetWeightKg?.message}
                     />
                     <LabeledInput
                       id="targetMilkL"
@@ -346,19 +413,48 @@ function CreateFeedDialogBody({
                       min={0}
                       label={t("avgMilkTarget")}
                       {...form.register("targetMilkL", numberField)}
-                      error={form.formState.errors.targetMilkL?.message}
                     />
                   </div>
 
                   {requirements ? (
                     <div className="flex flex-col gap-4 rounded-2xl border border-border bg-muted p-5">
-                      <p className="text-sm text-muted-foreground">{t("estimatedRequirements")}</p>
-                      <div className="grid grid-cols-4 gap-4 text-center">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm text-muted-foreground">{t("estimatedRequirements")}</p>
+                        {dataSource ? (
+                          <p className="text-xs text-muted-foreground">
+                            {t("dataSourceWeight")}: {t(`dataSource.${dataSource.weight}`)} ·{" "}
+                            {t("dataSourceMilk")}: {t(`dataSource.${dataSource.milk_yield}`)}
+                          </p>
+                        ) : null}
+                      </div>
+                      {/* Phase 12.3 (2026-07-18): weight/milk fields no longer block Save once a real
+                          target is picked — this warns instead, when the backend genuinely has no
+                          usable record (and no manual override was typed) for one of the two
+                          metrics, so the farmer knows the numbers above may be inaccurate. */}
+                      {dataSource?.weight === "assumed_zero" || dataSource?.milk_yield === "assumed_zero" ? (
+                        <p className="text-xs text-warning">{t("assumedZeroWarning")}</p>
+                      ) : null}
+                      <div className="grid grid-cols-5 gap-4 text-center">
                         <RequirementTile label={t("dm")} value={requirements.dmKg} unit={t("kgPerDay")} tone="foreground" />
                         <RequirementTile label={t("protein")} value={requirements.cpKg} unit={t("kgPerDay")} tone="info" />
                         <RequirementTile label={t("energy")} value={requirements.meMj} unit={t("mjPerDay")} tone="warning" />
+                        <RequirementTile label={t("fat")} value={requirements.fatKg} unit={t("kgPerDay")} tone="warning" />
                         <RequirementTile label={t("fiber")} value={requirements.ndfKg} unit={t("kgPerDay")} tone="success" />
                       </div>
+                      {groupTotal ? (
+                        <div className="flex flex-col gap-2 border-t border-dashed border-border pt-4">
+                          <p className="text-sm text-muted-foreground">
+                            {t("groupTotal", { count: requirementsResult?.inputs.headcount ?? 0 })}
+                          </p>
+                          <div className="grid grid-cols-5 gap-4 text-center">
+                            <RequirementTile label={t("dm")} value={groupTotal.dmKg} unit={t("kgPerDay")} tone="foreground" />
+                            <RequirementTile label={t("protein")} value={groupTotal.cpKg} unit={t("kgPerDay")} tone="info" />
+                            <RequirementTile label={t("energy")} value={groupTotal.meMj} unit={t("mjPerDay")} tone="warning" />
+                            <RequirementTile label={t("fat")} value={groupTotal.fatKg} unit={t("kgPerDay")} tone="warning" />
+                            <RequirementTile label={t("fiber")} value={groupTotal.ndfKg} unit={t("kgPerDay")} tone="success" />
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </>
@@ -369,7 +465,7 @@ function CreateFeedDialogBody({
           {step === 2 ? (
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between gap-4">
-                <p className="text-base font-medium text-foreground">{t("feedMixture")}</p>
+                <p className="text-base font-medium text-foreground">{t(isTemplate ? "concentrateMixer" : "totalMixedRation")}</p>
                 <IngredientPicker excludeIds={items.map((i) => i.ingredientId)} onSelect={(o) => addItem(o.id, o.nameEn)} />
               </div>
 
@@ -384,6 +480,7 @@ function CreateFeedDialogBody({
                     effectiveById={effectiveById}
                     requirements={requirements}
                     cowCount={cowCount}
+                    showPerCow={!isTemplate}
                     onAmountChange={updateAmount}
                     onRemove={removeItem}
                   />

@@ -11,8 +11,7 @@ import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Can, useCan } from "@/lib/auth/permissions";
+import { Can } from "@/lib/auth/permissions";
 import {
   useConcentrations,
   useFeedGroups,
@@ -23,8 +22,31 @@ import { ConcentrationCard } from "./concentration-card";
 import { CreateFeedDialog } from "./create-feed-dialog";
 import { ConcentrationDetailSheet } from "./concentration-detail-sheet";
 import { FeedBulkActionsBar } from "./feed-bulk-actions-bar";
-import { NutritionCalculator } from "./nutrition-calculator";
+import { LogDistributionDialog } from "./log-distribution-dialog";
 import type { FeedConcentrationKind, FeedConcentrationSummary, FeedGroup } from "../types";
+
+/** One section's selection state (Concentrate Mixer and Total Mixed Ration (TMR) each get their own — user
+ * request 2026-07-18 follow-up: no shared cross-section selection). No "select mode" toggle — a
+ * card's always-visible checkbox (`ConcentrationCard`) starts the selection directly; the bulk bar
+ * only appears once `selected.size > 0`. */
+function useSectionSelection() {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function selectAll(ids: string[]) {
+    setSelected(new Set(ids));
+  }
+  function clear() {
+    setSelected(new Set());
+  }
+  return { selected, toggle, selectAll, clear };
+}
 
 function ConcentrationSection({
   title,
@@ -40,9 +62,8 @@ function ConcentrationSection({
   onEdit,
   onDelete,
   onFinalize,
-  selectMode = false,
-  selectedIds,
-  onToggleSelect,
+  onFeedToday,
+  selection,
 }: {
   title: string;
   createLabel: string;
@@ -57,10 +78,10 @@ function ConcentrationSection({
   onEdit: (concentration: FeedConcentrationSummary) => void;
   onDelete: (concentration: FeedConcentrationSummary) => void;
   onFinalize?: (concentration: FeedConcentrationSummary) => void;
-  selectMode?: boolean;
-  selectedIds?: Set<string>;
-  onToggleSelect?: (id: string) => void;
+  onFeedToday?: (concentration: FeedConcentrationSummary) => void;
+  selection: ReturnType<typeof useSectionSelection>;
 }) {
+  const ids = items.map((i) => i.id);
   return (
     <div className="flex flex-col gap-4 rounded-2xl bg-card p-4 shadow-card">
       <div className="flex items-center justify-between">
@@ -72,6 +93,14 @@ function ConcentrationSection({
           </Button>
         </Can>
       </div>
+
+      <FeedBulkActionsBar
+        selectedIds={[...selection.selected]}
+        allSelected={ids.length > 0 && ids.every((id) => selection.selected.has(id))}
+        onSelectAll={() => selection.selectAll(ids)}
+        onCancel={selection.clear}
+        onDone={selection.clear}
+      />
 
       {isLoading ? (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -94,9 +123,9 @@ function ConcentrationSection({
               onEdit={() => onEdit(item)}
               onDelete={() => onDelete(item)}
               onFinalize={onFinalize ? () => onFinalize(item) : undefined}
-              selectable={selectMode}
-              selected={selectedIds?.has(item.id)}
-              onToggleSelect={() => onToggleSelect?.(item.id)}
+              onFeedToday={onFeedToday ? () => onFeedToday(item) : undefined}
+              selected={selection.selected.has(item.id)}
+              onToggleSelect={() => selection.toggle(item.id)}
             />
           ))}
         </div>
@@ -107,22 +136,33 @@ function ConcentrationSection({
 
 /**
  * Feed Formulator page body — Figma "Feed Formulator" list frame (`1048:33190`, file
- * `SCfMPdxP6vgW1uTxfqCtz7`): "Concentration Template" + "Feed Mixture" card sections. As of
- * 2026-07-18 these are split by the explicit, server-enforced `kind` field (see `types.ts`'s
+ * `SCfMPdxP6vgW1uTxfqCtz7`): "Concentrate Mixer" + "Total Mixed Ration (TMR)" card sections (renamed
+ * from "Concentration Template"/"Feed Mixture" per user request 2026-07-18 follow-up — those two
+ * names, plus "Feed Formulator" for the dialog title, had drifted inconsistently across the UI). As
+ * of 2026-07-18 these are split by the explicit, server-enforced `kind` field (see `types.ts`'s
  * `FeedConcentrationKind` doc comment) rather than the old implicit "does it have a target"
  * heuristic — each section's "Create" button opens `CreateFeedDialog` with that section's `kind`,
- * which drives Step 1 to show (Feed Mixture) or hide (Concentrate Mixer) the target fields. Edit
+ * which drives Step 1 to show (TMR) or hide (Concentrate Mixer) the target fields. Edit
  * (user request 2026-07-17, no Figma frame) reuses that same wizard prefilled (`CreateFeedDialog`'s
  * `editId` prop), passing along the card's own `kind` so Step 1 renders correctly before the detail
  * fetch resolves; delete calls the already-existing `DELETE /feed/concentrations/:id` (soft-delete)
  * behind a `ConfirmDialog`, same pattern as `EquipmentView`'s archive flow. Finalize (user request
- * 2026-07-17/18 — promote a template into a reusable ingredient) is offered only on template cards.
- * A third "Nutrition Calculator" tab (user request 2026-07-18) hosts the standalone cow/group
- * requirement lookup (`nutrition-calculator.tsx`), independent of building a ration.
+ * 2026-07-17/18) is offered on both sections as of Phase 12.2 (2026-07-18) — a Concentrate Mixer
+ * promotes into a reusable ingredient *and* produces stock; a TMR produces stock only (never an
+ * ingredient, it's the final ration) — the confirm dialog's copy is kind-conditional to match.
+ * Each section has its own independent multi-select (user request 2026-07-18 follow-up —
+ * `useSectionSelection`, no shared cross-section selection and no separate "select mode" toggle).
+ * The standalone Nutrition Calculator tab (2026-07-18) was merged back into the create/edit wizard's
+ * Step 1/2 (`create-feed-dialog.tsx` now calls `useCattleOrGroupRequirements` directly) and removed.
+ * "Feed Today" (Phase 12.4, 2026-07-18) — logs an actual feeding against a TMR's own target and
+ * deducts its finalized stock lot; offered only on the TMR section (a Concentrate Mixer has no cow
+ * target to feed), opening `LogDistributionDialog` via `feedTodayId` state.
+ * A read-only "Feed Stock (Inventory)" list briefly lived on this page (2026-07-19) but was moved to
+ * the existing Inventory page's new "Feed" tab per user feedback — "we have already a inventory...
+ * no need to create the tmr feed inventory here" — see `features/inventory/components/feed-stock-view.tsx`.
  */
 export function FeedView() {
   const t = useTranslations("feed");
-  const can = useCan();
   const concentrations = useConcentrations();
   const feedGroups = useFeedGroups();
   const removeConcentration = useRemoveConcentration();
@@ -133,22 +173,9 @@ export function FeedView() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FeedConcentrationSummary | null>(null);
   const [finalizeTarget, setFinalizeTarget] = useState<FeedConcentrationSummary | null>(null);
-  const [selectMode, setSelectMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-  function toggleSelect(id: string) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function exitSelectMode() {
-    setSelectMode(false);
-    setSelectedIds(new Set());
-  }
+  const [feedTodayId, setFeedTodayId] = useState<string | null>(null);
+  const templateSelection = useSectionSelection();
+  const mixtureSelection = useSectionSelection();
 
   const feedGroupById = useMemo(() => new Map((feedGroups.data ?? []).map((g) => [g.id, g])), [feedGroups.data]);
 
@@ -187,7 +214,7 @@ export function FeedView() {
     if (!finalizeTarget) return;
     try {
       await finalizeConcentration.mutateAsync(finalizeTarget.id);
-      toast.success(t("finalizedToast"));
+      toast.success(finalizeTarget.kind === "FEED_MIXTURE" ? t("finalizedToastMixture") : t("finalizedToast"));
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
     }
@@ -195,68 +222,39 @@ export function FeedView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Tabs defaultValue="formulator">
-        <TabsList>
-          <TabsTrigger value="formulator">{t("tabFormulator")}</TabsTrigger>
-          <TabsTrigger value="calculator">{t("tabCalculator")}</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="formulator" className="flex flex-col gap-4">
-          {can("feed.delete") ? (
-            selectMode ? (
-              <FeedBulkActionsBar
-                selectedIds={[...selectedIds]}
-                onCancel={exitSelectMode}
-                onDone={exitSelectMode}
-              />
-            ) : (
-              <Button variant="outline" size="sm" className="self-end" onClick={() => setSelectMode(true)}>
-                {t("selectMode")}
-              </Button>
-            )
-          ) : null}
-
-          <ConcentrationSection
-            title={t("concentrationTemplate")}
-            createLabel={t("createNewTemplate")}
-            items={templates}
-            isLoading={concentrations.isLoading}
-            isError={concentrations.isError}
-            onRetry={() => concentrations.refetch()}
-            emptyDescription={t("noTemplates")}
-            feedGroupById={feedGroupById}
-            onSeeDetails={setDetailId}
-            onCreate={() => openCreate("CONCENTRATE_TEMPLATE")}
-            onEdit={openEdit}
-            onDelete={setDeleteTarget}
-            onFinalize={setFinalizeTarget}
-            selectMode={selectMode}
-            selectedIds={selectedIds}
-            onToggleSelect={toggleSelect}
-          />
-          <ConcentrationSection
-            title={t("feedMixture")}
-            createLabel={t("createNewFeed")}
-            items={mixtures}
-            isLoading={concentrations.isLoading}
-            isError={concentrations.isError}
-            onRetry={() => concentrations.refetch()}
-            emptyDescription={t("noFeeds")}
-            feedGroupById={feedGroupById}
-            onSeeDetails={setDetailId}
-            onCreate={() => openCreate("FEED_MIXTURE")}
-            onEdit={openEdit}
-            onDelete={setDeleteTarget}
-            selectMode={selectMode}
-            selectedIds={selectedIds}
-            onToggleSelect={toggleSelect}
-          />
-        </TabsContent>
-
-        <TabsContent value="calculator">
-          <NutritionCalculator />
-        </TabsContent>
-      </Tabs>
+      <ConcentrationSection
+        title={t("concentrationTemplate")}
+        createLabel={t("createNewTemplate")}
+        items={templates}
+        isLoading={concentrations.isLoading}
+        isError={concentrations.isError}
+        onRetry={() => concentrations.refetch()}
+        emptyDescription={t("noTemplates")}
+        feedGroupById={feedGroupById}
+        onSeeDetails={setDetailId}
+        onCreate={() => openCreate("CONCENTRATE_TEMPLATE")}
+        onEdit={openEdit}
+        onDelete={setDeleteTarget}
+        onFinalize={setFinalizeTarget}
+        selection={templateSelection}
+      />
+      <ConcentrationSection
+        title={t("feedMixture")}
+        createLabel={t("createNewFeed")}
+        items={mixtures}
+        isLoading={concentrations.isLoading}
+        isError={concentrations.isError}
+        onRetry={() => concentrations.refetch()}
+        emptyDescription={t("noFeeds")}
+        feedGroupById={feedGroupById}
+        onSeeDetails={setDetailId}
+        onCreate={() => openCreate("FEED_MIXTURE")}
+        onEdit={openEdit}
+        onDelete={setDeleteTarget}
+        onFinalize={setFinalizeTarget}
+        onFeedToday={(c) => setFeedTodayId(c.id)}
+        selection={mixtureSelection}
+      />
 
       <CreateFeedDialog
         open={createOpen}
@@ -268,6 +266,7 @@ export function FeedView() {
         kind={createKind}
       />
       <ConcentrationDetailSheet concentrationId={detailId} onOpenChange={(open) => !open && setDetailId(null)} />
+      <LogDistributionDialog concentrationId={feedTodayId} onOpenChange={(open) => !open && setFeedTodayId(null)} />
       <ConfirmDialog
         open={deleteTarget != null}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
@@ -279,8 +278,16 @@ export function FeedView() {
       <ConfirmDialog
         open={finalizeTarget != null}
         onOpenChange={(open) => !open && setFinalizeTarget(null)}
-        title={t("finalizeConfirmTitle")}
-        description={t("finalizeConfirmDescription")}
+        title={
+          finalizeTarget?.kind === "FEED_MIXTURE"
+            ? t("finalizeConfirmTitleMixture")
+            : t("finalizeConfirmTitle")
+        }
+        description={
+          finalizeTarget?.kind === "FEED_MIXTURE"
+            ? t("finalizeConfirmDescriptionMixture")
+            : t("finalizeConfirmDescription")
+        }
         confirmLabel={t("card.finalize")}
         variant="primary"
         onConfirm={handleFinalizeConfirm}

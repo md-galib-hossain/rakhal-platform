@@ -165,6 +165,13 @@ export function IngredientPicker({
         setOpen(next);
         if (!next) reset();
       }}
+      // `modal={false}` — defense-in-depth alongside `create-feed-dialog.tsx`'s `Sheet` (see that
+      // file's doc comment for the actual root cause/fix of the mouse-wheel-scroll bug, user report
+      // 2026-07-18: the Sheet's own scroll lock was what intercepted wheel events here, confirmed by
+      // dispatching a `wheel` event and checking `defaultPrevented`; setting `modal={false}` on just
+      // this Popover alone did not fix it). Kept non-modal anyway so this picker never installs its
+      // own additional lock when reused somewhere without a modal parent.
+      modal={false}
     >
       <PopoverTrigger asChild>
         <Button type="button" variant="primary" size="sm" className={cn("gap-2 rounded-lg", className)}>

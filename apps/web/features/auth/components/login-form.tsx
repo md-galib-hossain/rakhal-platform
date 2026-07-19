@@ -64,7 +64,7 @@ export function LoginForm() {
               {formError}
             </p>
           ) : null}
-          <ul className="space-y-2">
+          <ul className="max-h-[320px] space-y-2 overflow-y-auto pr-1">
             {farms.map((farm) => (
               <li key={farm.id}>
                 <button

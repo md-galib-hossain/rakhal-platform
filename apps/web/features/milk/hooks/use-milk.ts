@@ -3,7 +3,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { milkApi } from "../api";
-import type { ReviewAnomalyInput, SaveMilkLogInput, SubmitMilkInput } from "../types";
+import type {
+  ReviewAnomalyInput,
+  SaveMilkLogInput,
+  SubmitMilkInput,
+  UpdateMilkSessionsInput,
+} from "../types";
 
 const STALE_TIME = 60_000;
 
@@ -57,6 +62,18 @@ export function useMilkAnomalies(date?: string) {
     queryKey: qk.milk.anomalies(date),
     queryFn: () => milkApi.anomalies(date),
     staleTime: STALE_TIME,
+  });
+}
+
+/** Owner-only session toggle — invalidates every `["milk","log"]` entry (all dates/shed filters
+ * share the same `sessionConfig`, unlike save/submit which only affect one date). */
+export function useUpdateMilkSessions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateMilkSessionsInput) => milkApi.updateSessions(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["milk", "log"] });
+    },
   });
 }
 

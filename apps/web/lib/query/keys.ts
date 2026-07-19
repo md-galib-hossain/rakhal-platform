@@ -80,10 +80,14 @@ export const qk = {
     ingredients: () => ["feed", "ingredients"] as const,
     concentrations: () => ["feed", "concentrations", "list"] as const,
     concentrationDetail: (id: string) => ["feed", "concentrations", "detail", id] as const,
-    requirements: (weightKg: number | undefined, milkTargetL: number | undefined) =>
-      ["feed", "requirements", weightKg, milkTargetL] as const,
     requirementsFor: (params: { cattleId?: string; feedGroupId?: string; weightKg?: number; milkTargetL?: number }) =>
       ["feed", "requirements", "for", params] as const,
     feedGroups: () => ["feed", "feed-groups"] as const,
+    stock: () => ["feed", "stock", "list"] as const,
+    stockDetail: (id: string) => ["feed", "stock", "detail", id] as const,
+    distributions: (params: Record<string, string | number | undefined>) =>
+      ["feed", "distributions", "list", params] as const,
+    efficiency: (params: { feedGroupId?: string; cattleId?: string; month?: string }) =>
+      ["feed", "efficiency", params] as const,
   },
 };

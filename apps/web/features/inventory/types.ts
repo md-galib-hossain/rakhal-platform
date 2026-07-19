@@ -1,6 +1,15 @@
 /**
  * Mirrors `rakhal-backend/src/modules/inventory/` directly — Medicine, Forage, Semen, Milk, and
  * Others (equipment) tabs are fully built and verified against the real backend.
+ *
+ * **Feed** (added 2026-07-19, user report: "we have already a inventory... no need to create the
+ * tmr feed inventory here" — a separate Feed Stock list had briefly lived on the Feed Formulator
+ * page itself) is the odd one out: it reuses `src/modules/feed/`'s `FeedStock` model/`GET
+ * /feed/stock` endpoint (owned by the Feed module, not `src/modules/inventory/`), read-only, no
+ * CRUD of its own — the only way stock is produced/consumed is Finalize/"Feed Today" on the Feed
+ * Formulator page. `FeedStockView` (`feed-stock-view.tsx`) cross-imports `features/feed`'s hooks,
+ * same established pattern as `features/feed/components/log-distribution-dialog.tsx` cross-importing
+ * this module's `useMilkTanks()`.
  */
 
 export type MedicineType = "LIQUID" | "POWDER" | "TABLET" | "INJECTABLE" | "BOLUS" | "OINTMENT" | "OTHER";
@@ -151,7 +160,7 @@ export interface CreateForagePayload {
  * `currentStock` (no separate adjust-stock endpoint for forage, unlike medicine). */
 export type UpdateForagePayload = Partial<CreateForagePayload>;
 
-export type InventoryTabKey = "medicine" | "forage" | "semen" | "milk" | "others";
+export type InventoryTabKey = "medicine" | "forage" | "semen" | "milk" | "feed" | "others";
 
 export interface InventoryTabConfig {
   key: InventoryTabKey;
@@ -164,6 +173,7 @@ export const INVENTORY_TABS: InventoryTabConfig[] = [
   { key: "forage", implemented: true },
   { key: "semen", implemented: true },
   { key: "milk", implemented: true },
+  { key: "feed", implemented: true },
   { key: "others", implemented: true },
 ];
 

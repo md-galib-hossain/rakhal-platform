@@ -8,17 +8,24 @@ import { z } from "zod";
  *
  * Mirrors `CreateConcentrationDto`: `targetType` picks Cow Group vs Individual Cow (Figma's
  * "Tabular Option" tab-pill, `1065:35268`), `feedGroupId`/`cattleId` are mutually required by which
- * tab is active. `targetWeightKg`/`targetMilkL` are required here (unlike the DTO, where they're
- * optional) because Figma's Step 1 always shows Avg. Weight/Avg. Milk Target as required inputs and
- * the "Estimated Daily Requirements" box needs both to call `GET /feed/requirements`.
+ * tab is active.
  *
  * As of 2026-07-18, `kind` splits this into two genuinely different required-field shapes (see
  * `types.ts`'s doc comment on `FeedConcentrationKind` for why): a `CONCENTRATE_TEMPLATE` needs only
- * `name`/`durationDays`/`items` — no target fields are shown or required for it, on purpose, since
- * making them required unconditionally for *every* concentration was the exact bug behind "why does
- * creating a concentrate add to my feeds" (every concentration ended up with a target, hence a
- * balance score, hence always bucketed as a mixture). A `FEED_MIXTURE` keeps every field this schema
- * required before.
+ * `name`/`items` — no target fields are shown or required for it, on purpose, since making them
+ * required unconditionally for *every* concentration was the exact bug behind "why does creating a
+ * concentrate add to my feeds" (every concentration ended up with a target, hence a balance score,
+ * hence always bucketed as a mixture). A `FEED_MIXTURE` requires a real cow/group target
+ * (`feedGroupId`/`cattleId`) and `durationDays` (Phase 12.2 — a farmer building a real ration always
+ * knows how many days it's meant to cover; a template has no such concept).
+ *
+ * `targetWeightKg`/`targetMilkL` are **deliberately not required** here (Phase 12.3, 2026-07-18
+ * follow-up, reversing the previous unconditional-required rule) — once a real cow/group target is
+ * picked, the backend already resolves them from that target's own weight/milk records (same
+ * derivation `GET /feed/requirements` uses for the live "Estimated Daily Requirements" preview), so
+ * forcing manual entry on top would just be busywork most of the time. They stay in the schema as
+ * plain optional numeric fields — a farmer can still type an override, and the backend falls back to
+ * it when the target's own records are incomplete.
  */
 export const feedTargetTypes = ["GROUP", "INDIVIDUAL"] as const;
 export const feedConcentrationKinds = ["CONCENTRATE_TEMPLATE", "FEED_MIXTURE"] as const;
@@ -49,14 +56,32 @@ export const createFeedFormSchema = z
     message: "An animal must be selected",
     path: ["cattleId"],
   })
-  .refine((v) => v.kind !== "FEED_MIXTURE" || v.targetWeightKg != null, {
-    message: "Average weight is required",
-    path: ["targetWeightKg"],
-  })
-  .refine((v) => v.kind !== "FEED_MIXTURE" || v.targetMilkL != null, {
-    message: "Average milk target is required",
-    path: ["targetMilkL"],
+  .refine((v) => v.kind !== "FEED_MIXTURE" || (v.durationDays != null && v.durationDays >= 1), {
+    message: "Duration is required for a Total Mixed Ration",
+    path: ["durationDays"],
   });
 
 export type CreateFeedFormInput = z.infer<typeof createFeedFormSchema>;
 export type CreateFeedFormItem = z.infer<typeof createFeedConcentrationItemSchema>;
+
+/** "Feed Today" (Phase 12.4, 2026-07-18) — logs an actual feeding against a TMR's own target
+ * (group or one cow, derived server-side from `concentrationId`). Mirrors `LogDistributionDto`:
+ * every field but `concentrationId` is optional, since a farmer confirming exactly the planned
+ * amounts needs to enter nothing at all beyond opening the dialog. */
+export const logDistributionItemSchema = z.object({
+  ingredientId: z.string().min(1),
+  ingredientName: z.string(),
+  plannedKg: z.number(),
+  actualKg: z.number().min(0),
+  refusalKg: z.number().min(0).optional(),
+});
+
+export const logDistributionFormSchema = z.object({
+  concentrationId: z.string().min(1),
+  distributedAt: z.string().optional(),
+  notes: z.string().trim().optional(),
+  items: z.array(logDistributionItemSchema),
+});
+
+export type LogDistributionFormInput = z.infer<typeof logDistributionFormSchema>;
+export type LogDistributionFormItem = z.infer<typeof logDistributionItemSchema>;

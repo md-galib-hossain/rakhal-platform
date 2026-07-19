@@ -8,14 +8,15 @@ import { MedicineView } from "./medicine-view";
 import { ForageView } from "./forage-view";
 import { SemenView } from "./semen-view";
 import { MilkView } from "./milk-view";
+import { FeedStockView } from "./feed-stock-view";
 import { EquipmentView } from "./equipment-view";
 import { INVENTORY_TABS } from "../types";
 
-/** Top-level Inventory page body — the 5-category tab bar + grid/list view toggle (Figma
- * "Inventory" frame 732:12409), routing to each tab's view. All 5 tabs have real backed views now
- * (see `types.ts#INVENTORY_TABS` doc comment). Milk has no grid/list toggle of its own (Figma's
- * "Inventory - Milk" frame is a single fixed layout, not a table/grid pair like Medicine/Forage) —
- * `view` is simply unused on that branch. */
+/** Top-level Inventory page body — the category tab bar + grid/list view toggle (Figma
+ * "Inventory" frame 732:12409), routing to each tab's view. All tabs have real backed views now
+ * (see `types.ts#INVENTORY_TABS` doc comment). Milk and Feed have no grid/list toggle of their own
+ * (single fixed layouts, not a table/grid pair like Medicine/Forage) — `view` is simply unused on
+ * those branches. */
 export function InventoryView() {
   const t = useTranslations("inventory");
   const [view, setView] = useState<"table" | "grid">("table");
@@ -34,6 +35,8 @@ export function InventoryView() {
           <SemenView />
         ) : activeTab === "milk" ? (
           <MilkView />
+        ) : activeTab === "feed" ? (
+          <FeedStockView />
         ) : activeTab === "others" ? (
           <EquipmentView view={view} />
         ) : null

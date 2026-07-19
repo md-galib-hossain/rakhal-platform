@@ -3,12 +3,15 @@ import { cn } from "@/lib/utils";
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   /** Renders a small message under the input in the destructive color. */
   error?: string;
+  /** React 19 ref-as-prop — no `forwardRef` needed. Forwarded straight to the underlying `<input>`. */
+  ref?: React.Ref<HTMLInputElement>;
 }
 
-export function Input({ className, error, ...props }: InputProps) {
+export function Input({ className, error, ref, ...props }: InputProps) {
   return (
     <div className="w-full">
       <input
+        ref={ref}
         data-slot="input"
         className={cn(
           "flex h-11 w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
