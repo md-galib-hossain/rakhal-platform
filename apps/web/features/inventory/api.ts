@@ -65,6 +65,10 @@ export const inventoryApi = {
   removeMedicinePhoto(id: string): Promise<{ removed: boolean }> {
     return apiFetch<{ removed: boolean }>(`/inventory/medicines/${id}/photo`, { method: "DELETE" });
   },
+  /** Multi-select delete (bulk-action dock, 2026-07-21). */
+  bulkDeleteMedicines(ids: string[]): Promise<{ deleted: number }> {
+    return apiFetch("/inventory/medicines/bulk-delete", { method: "POST", body: { ids } });
+  },
 
   /** `/inventory/feed-items*` — real backend routes (`feed-item.controller.ts`). No photo endpoints
    * (see `types.ts#FeedItem` doc comment) and no separate adjust-stock route — `currentStock` goes
@@ -88,6 +92,10 @@ export const inventoryApi = {
   },
   restoreFeedItem(id: string): Promise<FeedItem> {
     return apiFetch<FeedItem>(`/inventory/feed-items/${id}/restore`, { method: "PATCH" });
+  },
+  /** Multi-select delete (bulk-action dock, 2026-07-21). */
+  bulkDeleteFeedItems(ids: string[]): Promise<{ deleted: number }> {
+    return apiFetch("/inventory/feed-items/bulk-delete", { method: "POST", body: { ids } });
   },
 
   /** `/inventory/milk-tanks*` — real backend routes (`milk-tank.controller.ts`). No separate
@@ -181,5 +189,9 @@ export const inventoryApi = {
   },
   restoreEquipment(id: string): Promise<Equipment> {
     return apiFetch<Equipment>(`/inventory/equipment/${id}/restore`, { method: "PATCH" });
+  },
+  /** Multi-select delete (bulk-action dock, 2026-07-21). */
+  bulkDeleteEquipment(ids: string[]): Promise<{ deleted: number }> {
+    return apiFetch("/inventory/equipment/bulk-delete", { method: "POST", body: { ids } });
   },
 };

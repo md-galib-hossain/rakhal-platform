@@ -10,6 +10,7 @@ import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
+import { SelectableCardOverlay } from "@/components/shared/selectable-card-overlay";
 import { avatarTint } from "../avatar-tint";
 import type { FeedStock } from "@/features/feed/types";
 import type { FeedStockSource } from "./feed-stock-columns";
@@ -124,6 +125,9 @@ export function FeedStockGrid({
   onRetry,
   sourceById,
   onDelete,
+  canSelect,
+  isSelected,
+  onToggleSelect,
 }: {
   items: FeedStock[];
   isLoading: boolean;
@@ -131,6 +135,9 @@ export function FeedStockGrid({
   onRetry: () => void;
   sourceById: Map<string, FeedStockSource>;
   onDelete: (lot: FeedStock) => void;
+  canSelect: boolean;
+  isSelected: (id: string) => boolean;
+  onToggleSelect: (id: string) => void;
 }) {
   const t = useTranslations("feed.stock");
   const tFeed = useTranslations("feed");
@@ -147,14 +154,21 @@ export function FeedStockGrid({
             <div key={i} className="h-[400px] animate-pulse rounded-2xl bg-muted" />
           ))
         : items.map((lot) => (
-            <FeedStockCard
+            <SelectableCardOverlay
               key={lot.id}
-              lot={lot}
-              source={sourceById.get(lot.source_concentration_id)}
-              tFeed={tFeed}
-              t={t}
-              onDelete={onDelete}
-            />
+              canSelect={canSelect}
+              selected={isSelected(lot.id)}
+              onToggleSelect={() => onToggleSelect(lot.id)}
+              label={t("bulk.selectCard", { name: sourceById.get(lot.source_concentration_id)?.name ?? t("unknownSource") })}
+            >
+              <FeedStockCard
+                lot={lot}
+                source={sourceById.get(lot.source_concentration_id)}
+                tFeed={tFeed}
+                t={t}
+                onDelete={onDelete}
+              />
+            </SelectableCardOverlay>
           ))}
     </div>
   );

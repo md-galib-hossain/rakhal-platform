@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
+import type { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
 import { DataTable } from "@/components/shared/data-table";
 import { buildFeedStockColumns, type FeedStockSource } from "./feed-stock-columns";
@@ -16,6 +17,9 @@ export function FeedStockTable({
   onRetry,
   sourceById,
   onDelete,
+  enableRowSelection,
+  rowSelection,
+  onRowSelectionChange,
 }: {
   items: FeedStock[];
   isLoading: boolean;
@@ -23,6 +27,9 @@ export function FeedStockTable({
   onRetry: () => void;
   sourceById: Map<string, FeedStockSource>;
   onDelete: (lot: FeedStock) => void;
+  enableRowSelection: boolean;
+  rowSelection: RowSelectionState;
+  onRowSelectionChange: OnChangeFn<RowSelectionState>;
 }) {
   const t = useTranslations("feed.stock");
   const tFeed = useTranslations("feed");
@@ -48,6 +55,9 @@ export function FeedStockTable({
         isError={isError}
         onRetry={onRetry}
         emptyState={{ title: t("empty") }}
+        enableRowSelection={enableRowSelection}
+        rowSelection={rowSelection}
+        onRowSelectionChange={onRowSelectionChange}
       />
     </div>
   );

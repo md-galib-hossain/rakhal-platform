@@ -8,6 +8,7 @@ import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
+import { SelectableCardOverlay } from "@/components/shared/selectable-card-overlay";
 import { avatarTint } from "../avatar-tint";
 import { FeedItemRowActions } from "./feed-item-row-actions";
 import type { FeedItem } from "../types";
@@ -114,6 +115,9 @@ export function FeedItemGrid({
   onView,
   onEdit,
   onArchive,
+  canSelect,
+  isSelected,
+  onToggleSelect,
 }: {
   items: FeedItem[];
   isLoading: boolean;
@@ -122,6 +126,9 @@ export function FeedItemGrid({
   onView: (feedItem: FeedItem) => void;
   onEdit: (feedItem: FeedItem) => void;
   onArchive: (feedItem: FeedItem) => void;
+  canSelect: boolean;
+  isSelected: (id: string) => boolean;
+  onToggleSelect: (id: string) => void;
 }) {
   const t = useTranslations("inventory.feed");
 
@@ -137,7 +144,15 @@ export function FeedItemGrid({
             <div key={i} className="h-[400px] animate-pulse rounded-2xl bg-muted" />
           ))
         : items.map((feedItem) => (
-            <FeedItemCard key={feedItem.id} feedItem={feedItem} onView={onView} onEdit={onEdit} onArchive={onArchive} />
+            <SelectableCardOverlay
+              key={feedItem.id}
+              canSelect={canSelect}
+              selected={isSelected(feedItem.id)}
+              onToggleSelect={() => onToggleSelect(feedItem.id)}
+              label={t("bulk.selectCard", { name: feedItem.name })}
+            >
+              <FeedItemCard feedItem={feedItem} onView={onView} onEdit={onEdit} onArchive={onArchive} />
+            </SelectableCardOverlay>
           ))}
     </div>
   );

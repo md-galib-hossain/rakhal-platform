@@ -92,6 +92,10 @@ export const feedApi = {
   archiveStock(id: string): Promise<FeedStock> {
     return apiFetch<FeedStock>(`/feed/stock/${id}`, { method: "DELETE" });
   },
+  /** Multi-select delete (bulk-action dock, 2026-07-21). */
+  bulkDeleteStock(ids: string[]): Promise<{ deleted: number }> {
+    return apiFetch("/feed/stock/bulk-delete", { method: "POST", body: { ids } });
+  },
   /** "Feed Today" — the target (group vs one cow) is derived server-side from `concentrationId`,
    * never supplied here directly (see `LogDistributionPayload`'s doc comment). */
   logDistribution(dto: LogDistributionPayload): Promise<FeedDistribution> {

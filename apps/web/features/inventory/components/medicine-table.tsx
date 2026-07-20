@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
+import type { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
 import { DataTable } from "@/components/shared/data-table";
 import { buildMedicineColumns } from "./medicine-columns";
@@ -15,6 +16,9 @@ export function MedicineTable({
   onRetry,
   onEdit,
   onArchive,
+  enableRowSelection,
+  rowSelection,
+  onRowSelectionChange,
 }: {
   items: Medicine[];
   startIndex: number;
@@ -23,6 +27,9 @@ export function MedicineTable({
   onRetry: () => void;
   onEdit: (medicine: Medicine) => void;
   onArchive: (medicine: Medicine) => void;
+  enableRowSelection: boolean;
+  rowSelection: RowSelectionState;
+  onRowSelectionChange: OnChangeFn<RowSelectionState>;
 }) {
   const t = useTranslations("inventory.medicine");
   const columns = useMemo(() => buildMedicineColumns(t, startIndex, { onEdit, onArchive }), [t, startIndex, onEdit, onArchive]);
@@ -45,6 +52,9 @@ export function MedicineTable({
         isError={isError}
         onRetry={onRetry}
         emptyState={{ title: t("empty.title"), description: t("empty.description") }}
+        enableRowSelection={enableRowSelection}
+        rowSelection={rowSelection}
+        onRowSelectionChange={onRowSelectionChange}
       />
     </div>
   );

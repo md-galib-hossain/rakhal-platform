@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
+import type { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
 import { DataTable } from "@/components/shared/data-table";
 import { buildFeedItemColumns } from "./feed-item-columns";
@@ -16,6 +17,9 @@ export function FeedItemTable({
   onView,
   onEdit,
   onArchive,
+  enableRowSelection,
+  rowSelection,
+  onRowSelectionChange,
 }: {
   items: FeedItem[];
   startIndex: number;
@@ -25,6 +29,9 @@ export function FeedItemTable({
   onView: (feedItem: FeedItem) => void;
   onEdit: (feedItem: FeedItem) => void;
   onArchive: (feedItem: FeedItem) => void;
+  enableRowSelection: boolean;
+  rowSelection: RowSelectionState;
+  onRowSelectionChange: OnChangeFn<RowSelectionState>;
 }) {
   const t = useTranslations("inventory.feed");
   const columns = useMemo(
@@ -50,6 +57,9 @@ export function FeedItemTable({
         isError={isError}
         onRetry={onRetry}
         emptyState={{ title: t("empty.title"), description: t("empty.description") }}
+        enableRowSelection={enableRowSelection}
+        rowSelection={rowSelection}
+        onRowSelectionChange={onRowSelectionChange}
       />
     </div>
   );

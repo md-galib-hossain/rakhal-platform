@@ -4,10 +4,14 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useSearchParams } from "next/navigation";
+import type { RowSelectionState } from "@tanstack/react-table";
 import { ApiError } from "@/lib/api/errors";
+import { useCan } from "@/lib/auth/permissions";
 import { Pagination } from "@/components/shared/pagination";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { useArchiveMedicine, useMedicinePagedList } from "../hooks/use-inventory";
+import { BulkActionDock } from "@/components/shared/bulk-action-dock";
+import { useTableBulkSelection, useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
+import { useArchiveMedicine, useBulkDeleteMedicines, useMedicinePagedList } from "../hooks/use-inventory";
 import { MedicineFilters } from "./medicine-filters";
 import { MedicineAddButton } from "./medicine-add-button";
 import { MedicineTable } from "./medicine-table";
@@ -19,11 +23,15 @@ import type { Medicine, MedicineCategory, MedicineListStatus } from "../types";
  * `InventoryTabs`), pagination, and the add/edit/archive flows. Same shape as `CattleTable`. */
 export function MedicineView({ view }: { view: "table" | "grid" }) {
   const t = useTranslations("inventory.medicine");
+  const can = useCan();
+  const canDelete = can("inventory.delete");
   const searchParams = useSearchParams();
   const [editingMedicine, setEditingMedicine] = useState<Medicine | undefined>(undefined);
   const [formOpen, setFormOpen] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<Medicine | null>(null);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const archiveMedicine = useArchiveMedicine();
+  const bulkDeleteMedicines = useBulkDeleteMedicines();
 
   const filters = {
     search: searchParams.get("search") ?? undefined,
@@ -32,6 +40,22 @@ export function MedicineView({ view }: { view: "table" | "grid" }) {
   };
 
   const query = useMedicinePagedList(filters);
+  const allIds = query.items.map((m) => m.id);
+  const tableSelection = useTableBulkSelection(rowSelection, setRowSelection, allIds);
+  const gridSelection = useGridBulkSelection(allIds);
+  const selection = view === "table" ? tableSelection : gridSelection;
+
+  // Filters swap the underlying item set entirely — stale ids should never linger selected. Reset
+  // during render (React's blessed "adjusting state when a prop changes" pattern, same technique
+  // `useMedicinePagedList` itself already uses for its own filters-changed reset) rather than an
+  // effect, since a `setState` inside `useEffect` trips this repo's `react-hooks/set-state-in-effect` gate.
+  const filtersKey = JSON.stringify(filters);
+  const [prevFiltersKey, setPrevFiltersKey] = useState(filtersKey);
+  if (filtersKey !== prevFiltersKey) {
+    setPrevFiltersKey(filtersKey);
+    setRowSelection({});
+    gridSelection.clear();
+  }
 
   async function handleArchiveConfirm() {
     if (!archiveTarget) return;
@@ -40,6 +64,16 @@ export function MedicineView({ view }: { view: "table" | "grid" }) {
       toast.success(t("archivedToast"));
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
+    }
+  }
+
+  async function handleBulkDelete(ids: string[]) {
+    try {
+      const result = await bulkDeleteMedicines.mutateAsync(ids);
+      toast.success(t("bulk.deletedToast", { count: result.deleted }));
+      selection.clear();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("bulk.genericError"));
     }
   }
 
@@ -68,6 +102,9 @@ export function MedicineView({ view }: { view: "table" | "grid" }) {
             setFormOpen(true);
           }}
           onArchive={setArchiveTarget}
+          enableRowSelection={canDelete}
+          rowSelection={rowSelection}
+          onRowSelectionChange={setRowSelection}
         />
       ) : (
         <MedicineGrid
@@ -80,10 +117,21 @@ export function MedicineView({ view }: { view: "table" | "grid" }) {
             setFormOpen(true);
           }}
           onArchive={setArchiveTarget}
+          canSelect={canDelete}
+          isSelected={gridSelection.isSelected}
+          onToggleSelect={gridSelection.toggle}
         />
       )}
 
-      <Pagination page={query.page} totalPages={query.totalPages} onPageChange={query.goToPage} disabled={query.isFetching} />
+      <Pagination
+        page={query.page}
+        totalPages={query.totalPages}
+        onPageChange={(page) => {
+          query.goToPage(page);
+          setRowSelection({});
+        }}
+        disabled={query.isFetching}
+      />
 
       <MedicineFormDialog open={formOpen} onOpenChange={setFormOpen} medicine={editingMedicine} />
       <ConfirmDialog
@@ -94,6 +142,29 @@ export function MedicineView({ view }: { view: "table" | "grid" }) {
         confirmLabel={t("archiveDialog.confirm")}
         cancelLabel={t("archiveDialog.cancel")}
         onConfirm={handleArchiveConfirm}
+      />
+
+      <BulkActionDock
+        selectedCount={selection.selectedCount}
+        totalCount={allIds.length}
+        onSelectAll={selection.toggleAll}
+        onCancel={selection.clear}
+        selectedIds={selection.selectedIds}
+        selectAllLabel={t("bulk.selectAll", { count: allIds.length })}
+        cancelLabel={t("bulk.cancel")}
+        selectedCountLabel={t("bulk.selectedCount", { count: selection.selectedCount })}
+        actions={[
+          {
+            key: "delete",
+            label: t("bulk.deleteSelected"),
+            variant: "destructive",
+            requiresConfirm: true,
+            confirmTitle: t("bulk.deleteDialog.title"),
+            confirmDescription: t("bulk.deleteDialog.description", { count: selection.selectedCount }),
+            confirmLabel: t("bulk.deleteDialog.confirm"),
+            onRun: handleBulkDelete,
+          },
+        ]}
       />
     </div>
   );

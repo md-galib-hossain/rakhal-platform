@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
+import type { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
 import { DataTable } from "@/components/shared/data-table";
 import { buildEquipmentColumns } from "./equipment-columns";
@@ -15,6 +16,9 @@ export function EquipmentTable({
   onRetry,
   onEdit,
   onArchive,
+  enableRowSelection,
+  rowSelection,
+  onRowSelectionChange,
 }: {
   items: Equipment[];
   startIndex: number;
@@ -23,6 +27,9 @@ export function EquipmentTable({
   onRetry: () => void;
   onEdit: (equipment: Equipment) => void;
   onArchive: (equipment: Equipment) => void;
+  enableRowSelection: boolean;
+  rowSelection: RowSelectionState;
+  onRowSelectionChange: OnChangeFn<RowSelectionState>;
 }) {
   const t = useTranslations("inventory.equipment");
   const columns = useMemo(() => buildEquipmentColumns(t, startIndex, { onEdit, onArchive }), [t, startIndex, onEdit, onArchive]);
@@ -44,6 +51,9 @@ export function EquipmentTable({
         isError={isError}
         onRetry={onRetry}
         emptyState={{ title: t("empty.title"), description: t("empty.description") }}
+        enableRowSelection={enableRowSelection}
+        rowSelection={rowSelection}
+        onRowSelectionChange={onRowSelectionChange}
       />
     </div>
   );

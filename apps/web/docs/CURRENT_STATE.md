@@ -8,6 +8,31 @@ Feed is a unified tab with Purchased/Prepared segments as of 2026-07-19, see the
 Liabilities/Asset Distribution + Wallet hub (Add Funds/Withdraw) + the 4-type Record transaction
 wizard, all Figma-perfect; only the record-payment/void/create-asset modals remain (no Figma yet).
 
+## Shared bulk-select + bulk-delete "dock" — Inventory pilot (2026-07-21, user request)
+User asked for a UX analysis of adding bulk-select + bulk-delete across every module's list views,
+specifically floating the idea of a dock panel anchored bottom-center of the screen. Research found
+`components/shared/data-table.tsx` already fully supports row selection (only Cattle used it) and two
+existing bulk-action bars (Cattle, Feed Formulator) that both render **inline**, not floating — no
+shared floating pattern existed. Locked 3 decisions via `AskUserQuestion`: pilot on **Inventory's 4
+tabs** (Medicine/Equipment/Feed Item/Feed Stock) first; a **generic** `BulkAction[]`-shaped dock (not
+delete-only) so it can later absorb Cattle's/Feed's existing bars; **always-visible checkboxes** (no
+new "select mode"). Backend half (4 new bulk-delete routes) in `D:\Projects\Rakhal\docs\CURRENT_STATE.md`.
+New shared `components/shared/bulk-action-dock.tsx` (fixed bottom-center, portaled to `document.body`,
+enter-animation only), `lib/hooks/use-bulk-selection.ts` (`useTableBulkSelection` wraps TanStack's
+`RowSelectionState`; `useGridBulkSelection` promotes `feed-view.tsx`'s private `Set<string>` selection
+hook into a shared one), `components/shared/selectable-card-overlay.tsx` (corner-checkbox wrapper
+anchored to a card's outer div, avoiding collision with each card's own inner-image overlays). Wired
+into all 4 tabs' table + grid components; each view gates the checkbox itself via
+`useCan("inventory.delete"` or `"feed.delete")`, not just the dock, so an unauthorized role never sees
+a checkbox. Selection resets on pagination/filter change via a render-time key comparison (not
+`useEffect`, to avoid this repo's `react-hooks/set-state-in-effect` lint gate). New i18n `<feature>.bulk`
+blocks (en+bn) per module. Gate: `tsc`(0)/`eslint`(0 new)/`vitest`(18/18)/`next build`(0). **Verified
+live** (demo owner + demo worker, real backend): full select/select-all/cancel/real-delete cycle on
+Medicine (table+grid) and Feed Stock (table); RBAC confirmed — worker sees zero checkboxes anywhere.
+Fixed one bug caught live: the dock's `ConfirmDialog` wasn't passing a localized `cancelLabel`. Not in
+this pass: Cattle/Feed Formulator's own inline bars, Sick Bay (hand-rolled `<table>`). Full narrative:
+`docs/IN_FLIGHT.md` / `D:\Projects\Rakhal\docs\CHANGELOG.md`.
+
 ## Feed/Forage taxonomy unification (2026-07-19, user request)
 User asked for a first-principles review: feed is the umbrella term (forage/concentrate/mineral/
 vitamin/additive are classes of feed, not separate categories), but Inventory had it backwards — the

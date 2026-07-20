@@ -138,6 +138,15 @@ export function useArchiveMedicine() {
   });
 }
 
+/** Multi-select delete (bulk-action dock, 2026-07-21). */
+export function useBulkDeleteMedicines() {
+  const invalidate = useInvalidateMedicine();
+  return useMutation({
+    mutationFn: (ids: string[]) => inventoryApi.bulkDeleteMedicines(ids),
+    onSuccess: () => invalidate(),
+  });
+}
+
 export function useRestoreMedicine() {
   const invalidate = useInvalidateMedicine();
   return useMutation({
@@ -248,6 +257,15 @@ export function useArchiveFeedItem() {
   return useMutation({
     mutationFn: (id: string) => inventoryApi.archiveFeedItem(id),
     onSuccess: (_data, id) => invalidate(id),
+  });
+}
+
+/** Multi-select delete (bulk-action dock, 2026-07-21). */
+export function useBulkDeleteFeedItems() {
+  const invalidate = useInvalidateFeedItem();
+  return useMutation({
+    mutationFn: (ids: string[]) => inventoryApi.bulkDeleteFeedItems(ids),
+    onSuccess: () => invalidate(),
   });
 }
 
@@ -578,6 +596,15 @@ export function useArchiveEquipment() {
   return useMutation({
     mutationFn: (id: string) => inventoryApi.archiveEquipment(id),
     onSuccess: (_data, id) => invalidate(id),
+  });
+}
+
+/** Multi-select delete (bulk-action dock, 2026-07-21). */
+export function useBulkDeleteEquipment() {
+  const invalidate = useInvalidateEquipment();
+  return useMutation({
+    mutationFn: (ids: string[]) => inventoryApi.bulkDeleteEquipment(ids),
+    onSuccess: () => invalidate(),
   });
 }
 

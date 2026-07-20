@@ -8,6 +8,7 @@ import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
+import { SelectableCardOverlay } from "@/components/shared/selectable-card-overlay";
 import { avatarTint } from "../avatar-tint";
 import { MedicineRowActions } from "./medicine-row-actions";
 import type { Medicine } from "../types";
@@ -120,6 +121,9 @@ export function MedicineGrid({
   onRetry,
   onEdit,
   onArchive,
+  canSelect,
+  isSelected,
+  onToggleSelect,
 }: {
   items: Medicine[];
   isLoading: boolean;
@@ -127,6 +131,9 @@ export function MedicineGrid({
   onRetry: () => void;
   onEdit: (medicine: Medicine) => void;
   onArchive: (medicine: Medicine) => void;
+  canSelect: boolean;
+  isSelected: (id: string) => boolean;
+  onToggleSelect: (id: string) => void;
 }) {
   const t = useTranslations("inventory.medicine");
 
@@ -142,7 +149,15 @@ export function MedicineGrid({
             <div key={i} className="h-[400px] animate-pulse rounded-2xl bg-muted" />
           ))
         : items.map((medicine) => (
-            <MedicineCard key={medicine.id} medicine={medicine} onEdit={onEdit} onArchive={onArchive} />
+            <SelectableCardOverlay
+              key={medicine.id}
+              canSelect={canSelect}
+              selected={isSelected(medicine.id)}
+              onToggleSelect={() => onToggleSelect(medicine.id)}
+              label={t("bulk.selectCard", { name: medicine.name })}
+            >
+              <MedicineCard medicine={medicine} onEdit={onEdit} onArchive={onArchive} />
+            </SelectableCardOverlay>
           ))}
     </div>
   );

@@ -940,6 +940,21 @@
         "confirm": "Archive",
         "cancel": "Cancel"
       },
+      "bulk": {
+        "selectCard": "Select {name}",
+        "selectedCount": "{count} selected",
+        "selectAll": "Select all {count}",
+        "deleteSelected": "Archive selected",
+        "cancel": "Cancel",
+        "deletedToast": "{count} medicine(s) archived.",
+        "genericError": "Something went wrong. Please try again.",
+        "deleteDialog": {
+          "title": "Archive the selected medicines?",
+          "description": "This removes {count} medicine(s) from active inventory lists. Existing treatment history stays intact.",
+          "confirm": "Archive",
+          "cancel": "Cancel"
+        }
+      },
       "columns": {
         "no": "No.",
         "name": "Medicine Name",
@@ -1044,6 +1059,21 @@
         "description": "This removes the feed item from active inventory lists.",
         "confirm": "Archive",
         "cancel": "Cancel"
+      },
+      "bulk": {
+        "selectCard": "Select {name}",
+        "selectedCount": "{count} selected",
+        "selectAll": "Select all {count}",
+        "deleteSelected": "Archive selected",
+        "cancel": "Cancel",
+        "deletedToast": "{count} feed item(s) archived.",
+        "genericError": "Something went wrong. Please try again.",
+        "deleteDialog": {
+          "title": "Archive the selected feed items?",
+          "description": "This removes {count} feed item(s) from active inventory lists.",
+          "confirm": "Archive",
+          "cancel": "Cancel"
+        }
       },
       "columns": {
         "no": "No.",
@@ -1405,6 +1435,21 @@
         "description": "This removes the item from active inventory lists.",
         "confirm": "Archive",
         "cancel": "Cancel"
+      },
+      "bulk": {
+        "selectCard": "Select {name}",
+        "selectedCount": "{count} selected",
+        "selectAll": "Select all {count}",
+        "deleteSelected": "Archive selected",
+        "cancel": "Cancel",
+        "deletedToast": "{count} item(s) archived.",
+        "genericError": "Something went wrong. Please try again.",
+        "deleteDialog": {
+          "title": "Archive the selected items?",
+          "description": "This removes {count} item(s) from active inventory lists.",
+          "confirm": "Archive",
+          "cancel": "Cancel"
+        }
       },
       "columns": {
         "no": "No.",
@@ -2524,6 +2569,21 @@
         "description": "This removes the batch from active inventory. This can't be undone.",
         "confirm": "Delete",
         "cancel": "Cancel"
+      },
+      "bulk": {
+        "selectCard": "Select {name}",
+        "selectedCount": "{count} selected",
+        "selectAll": "Select all {count}",
+        "deleteSelected": "Delete selected",
+        "cancel": "Cancel",
+        "deletedToast": "{count} stock lot(s) deleted",
+        "genericError": "Something went wrong. Please try again.",
+        "deleteDialog": {
+          "title": "Delete the selected stock lots?",
+          "description": "This removes {count} lot(s) from active inventory. This can't be undone.",
+          "confirm": "Delete",
+          "cancel": "Cancel"
+        }
       }
     },
     "table": {

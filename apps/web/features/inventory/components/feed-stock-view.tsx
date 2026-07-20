@@ -4,12 +4,21 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Package } from "lucide-react";
+import type { RowSelectionState } from "@tanstack/react-table";
 import { ApiError } from "@/lib/api/errors";
+import { useCan } from "@/lib/auth/permissions";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { useArchiveFeedStock, useConcentrations, useFeedStock } from "@/features/feed/hooks/use-feed";
+import { BulkActionDock } from "@/components/shared/bulk-action-dock";
+import { useTableBulkSelection, useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
+import {
+  useArchiveFeedStock,
+  useBulkDeleteFeedStock,
+  useConcentrations,
+  useFeedStock,
+} from "@/features/feed/hooks/use-feed";
 import type { FeedStock } from "@/features/feed/types";
 import { FeedStockTable } from "./feed-stock-table";
 import { FeedStockGrid } from "./feed-stock-grid";
@@ -35,14 +44,20 @@ import type { FeedStockSource } from "./feed-stock-columns";
  *
  * **Deletable (user follow-up, 2026-07-19 — "form inventory it can be also deleted")**: a lot can
  * be removed from inventory here, same soft-delete-with-confirm pattern as the Purchased tab's
- * archive flow.
+ * archive flow. **Bulk-select (2026-07-21)**: multi-select + the shared floating `BulkActionDock`
+ * now also cover this segment, gated on `feed.delete` (Feed Stock's own permission namespace, not
+ * `inventory.delete` — see `feed.controller.ts`).
  */
 export function FeedStockView({ view }: { view: "table" | "grid" }) {
   const t = useTranslations("feed.stock");
+  const can = useCan();
+  const canDelete = can("feed.delete");
   const stock = useFeedStock();
   const concentrations = useConcentrations();
   const archiveStock = useArchiveFeedStock();
+  const bulkDeleteStock = useBulkDeleteFeedStock();
   const [deleteTarget, setDeleteTarget] = useState<FeedStock | null>(null);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
   const sourceById = useMemo(() => {
     const map = new Map<string, FeedStockSource>();
@@ -51,6 +66,12 @@ export function FeedStockView({ view }: { view: "table" | "grid" }) {
     }
     return map;
   }, [concentrations.data]);
+
+  const items = stock.data ?? [];
+  const allIds = items.map((s) => s.id);
+  const tableSelection = useTableBulkSelection(rowSelection, setRowSelection, allIds);
+  const gridSelection = useGridBulkSelection(allIds);
+  const selection = view === "table" ? tableSelection : gridSelection;
 
   async function handleDeleteConfirm() {
     if (!deleteTarget) return;
@@ -64,11 +85,19 @@ export function FeedStockView({ view }: { view: "table" | "grid" }) {
     }
   }
 
+  async function handleBulkDelete(ids: string[]) {
+    try {
+      const result = await bulkDeleteStock.mutateAsync(ids);
+      toast.success(t("bulk.deletedToast", { count: result.deleted }));
+      selection.clear();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("bulk.genericError"));
+    }
+  }
+
   if (stock.isLoading) return <CardSkeleton lines={3} />;
   if (stock.isError) return <ErrorState onRetry={() => stock.refetch()} />;
-  if ((stock.data ?? []).length === 0) return <EmptyState icon={Package} title={t("empty")} />;
-
-  const items = stock.data ?? [];
+  if (items.length === 0) return <EmptyState icon={Package} title={t("empty")} />;
 
   return (
     <>
@@ -80,6 +109,9 @@ export function FeedStockView({ view }: { view: "table" | "grid" }) {
           onRetry={() => void stock.refetch()}
           sourceById={sourceById}
           onDelete={setDeleteTarget}
+          enableRowSelection={canDelete}
+          rowSelection={rowSelection}
+          onRowSelectionChange={setRowSelection}
         />
       ) : (
         <FeedStockGrid
@@ -89,6 +121,9 @@ export function FeedStockView({ view }: { view: "table" | "grid" }) {
           onRetry={() => void stock.refetch()}
           sourceById={sourceById}
           onDelete={setDeleteTarget}
+          canSelect={canDelete}
+          isSelected={gridSelection.isSelected}
+          onToggleSelect={gridSelection.toggle}
         />
       )}
       <ConfirmDialog
@@ -99,6 +134,29 @@ export function FeedStockView({ view }: { view: "table" | "grid" }) {
         confirmLabel={t("deleteDialog.confirm")}
         cancelLabel={t("deleteDialog.cancel")}
         onConfirm={handleDeleteConfirm}
+      />
+
+      <BulkActionDock
+        selectedCount={selection.selectedCount}
+        totalCount={allIds.length}
+        onSelectAll={selection.toggleAll}
+        onCancel={selection.clear}
+        selectedIds={selection.selectedIds}
+        selectAllLabel={t("bulk.selectAll", { count: allIds.length })}
+        cancelLabel={t("bulk.cancel")}
+        selectedCountLabel={t("bulk.selectedCount", { count: selection.selectedCount })}
+        actions={[
+          {
+            key: "delete",
+            label: t("bulk.deleteSelected"),
+            variant: "destructive",
+            requiresConfirm: true,
+            confirmTitle: t("bulk.deleteDialog.title"),
+            confirmDescription: t("bulk.deleteDialog.description", { count: selection.selectedCount }),
+            confirmLabel: t("bulk.deleteDialog.confirm"),
+            onRun: handleBulkDelete,
+          },
+        ]}
       />
     </>
   );

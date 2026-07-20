@@ -190,6 +190,15 @@ export function useArchiveFeedStock() {
   });
 }
 
+/** Multi-select delete (bulk-action dock, 2026-07-21). */
+export function useBulkDeleteFeedStock() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => feedApi.bulkDeleteStock(ids),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: qk.feed.stock() }),
+  });
+}
+
 export function useFeedStockDetail(id: string | undefined) {
   return useQuery({
     queryKey: qk.feed.stockDetail(id ?? ""),

@@ -8,6 +8,7 @@ import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
+import { SelectableCardOverlay } from "@/components/shared/selectable-card-overlay";
 import { avatarTint } from "../avatar-tint";
 import { EquipmentRowActions } from "./equipment-row-actions";
 import type { Equipment } from "../types";
@@ -100,6 +101,9 @@ export function EquipmentGrid({
   onRetry,
   onEdit,
   onArchive,
+  canSelect,
+  isSelected,
+  onToggleSelect,
 }: {
   items: Equipment[];
   isLoading: boolean;
@@ -107,6 +111,9 @@ export function EquipmentGrid({
   onRetry: () => void;
   onEdit: (equipment: Equipment) => void;
   onArchive: (equipment: Equipment) => void;
+  canSelect: boolean;
+  isSelected: (id: string) => boolean;
+  onToggleSelect: (id: string) => void;
 }) {
   const t = useTranslations("inventory.equipment");
 
@@ -122,7 +129,15 @@ export function EquipmentGrid({
             <div key={i} className="h-[400px] animate-pulse rounded-2xl bg-muted" />
           ))
         : items.map((equipment) => (
-            <EquipmentCard key={equipment.id} equipment={equipment} onEdit={onEdit} onArchive={onArchive} />
+            <SelectableCardOverlay
+              key={equipment.id}
+              canSelect={canSelect}
+              selected={isSelected(equipment.id)}
+              onToggleSelect={() => onToggleSelect(equipment.id)}
+              label={t("bulk.selectCard", { name: equipment.name })}
+            >
+              <EquipmentCard equipment={equipment} onEdit={onEdit} onArchive={onArchive} />
+            </SelectableCardOverlay>
           ))}
     </div>
   );
