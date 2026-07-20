@@ -9,23 +9,25 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { useCreateCustomIngredient, useFeedIngredients } from "../hooks/use-feed";
-import type { CreateCustomIngredientPayload, FeedIngredientCategory } from "../types";
+import type { CreateCustomIngredientPayload, FeedClass } from "../types";
 
 export interface IngredientOption {
   id: string;
   nameEn: string;
 }
 
-/** Category display order + i18n key (user request 2026-07-18 — "use any of his concentrate
- * templates and add more items" — grouping by category lets a farmer tell a finalized Concentrate
- * Mixer template (`category: CONCENTRATE`) apart from a raw ingredient at a glance in a Feed
- * Mixture's picker). */
-const CATEGORY_ORDER: { category: FeedIngredientCategory; labelKey: string }[] = [
-  { category: "CONCENTRATE", labelKey: "categoryConcentrate" },
-  { category: "ROUGHAGE", labelKey: "categoryRoughage" },
-  { category: "SILAGE", labelKey: "categorySilage" },
-  { category: "SUPPLEMENT", labelKey: "categorySupplement" },
-  { category: "BY_PRODUCT", labelKey: "categoryByProduct" },
+/** Feed-class display order + i18n key (user request 2026-07-18 — "use any of his concentrate
+ * templates and add more items" — grouping by class lets a farmer tell a finalized Concentrate
+ * Mixer template (`feed_class: CONCENTRATE`) apart from a raw ingredient at a glance in a Feed
+ * Mixture's picker). Order mirrors how a nutritionist builds a ration: forage first, then
+ * concentrate, then minerals/vitamins/additives (`feed_taxonomy_unification`). */
+const CLASS_ORDER: { feedClass: FeedClass; labelKey: string }[] = [
+  { feedClass: "FORAGE", labelKey: "classForage" },
+  { feedClass: "CONCENTRATE", labelKey: "classConcentrate" },
+  { feedClass: "MINERAL", labelKey: "classMineral" },
+  { feedClass: "VITAMIN", labelKey: "classVitamin" },
+  { feedClass: "ADDITIVE", labelKey: "classAdditive" },
+  { feedClass: "OTHER", labelKey: "classOther" },
 ];
 
 const numberField = { setValueAs: (v: string) => (v === "" ? undefined : Number(v)) };
@@ -103,16 +105,16 @@ export function IngredientPicker({
   const { data, isLoading } = useFeedIngredients();
   const createCustom = useCreateCustomIngredient();
 
-  const optionsByCategory = useMemo(() => {
+  const optionsByClass = useMemo(() => {
     const excluded = new Set(excludeIds);
     const filtered = (data ?? [])
       .filter((ing) => !excluded.has(ing.id))
       .filter((ing) => ing.name_en.toLowerCase().includes(search.toLowerCase()));
-    return CATEGORY_ORDER.map(({ category, labelKey }) => ({
-      category,
+    return CLASS_ORDER.map(({ feedClass, labelKey }) => ({
+      feedClass,
       labelKey,
       options: filtered
-        .filter((ing) => ing.category === category)
+        .filter((ing) => ing.feed_class === feedClass)
         .map((ing) => ({ id: ing.id, nameEn: ing.name_en })),
     })).filter((g) => g.options.length > 0);
   }, [data, excludeIds, search]);
@@ -185,8 +187,8 @@ export function IngredientPicker({
             <CommandInput placeholder={t("searchIngredient")} value={search} onValueChange={setSearch} />
             <CommandList>
               <CommandEmpty>{isLoading ? t("loading") : t("noIngredientsFound")}</CommandEmpty>
-              {optionsByCategory.map(({ category, labelKey, options }) => (
-                <CommandGroup key={category} heading={t(labelKey)}>
+              {optionsByClass.map(({ feedClass, labelKey, options }) => (
+                <CommandGroup key={feedClass} heading={t(labelKey)}>
                   {options.map((option) => (
                     <CommandItem
                       key={option.id}

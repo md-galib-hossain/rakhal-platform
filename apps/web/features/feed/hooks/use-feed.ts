@@ -133,10 +133,11 @@ export function useBulkDeleteConcentrations() {
   });
 }
 
-/** Finalize — Concentrate Mixer promotes/refreshes a reusable ingredient + always produces a stock
- * batch; a Total Mixed Ration (TMR) produces stock only (Phase 12.1/12.2, 2026-07-18). Invalidates
- * the concentrations list, the ingredients list (a `FeedIngredient` row may have changed), and the
- * stock list (a new lot always appears). */
+/** Finalize — a Concentrate Mixer is a virtual recipe/calculator: finalizing one only promotes/
+ * refreshes a reusable ingredient, it never touches inventory (2026-07-19). A Total Mixed Ration
+ * (TMR) is the real ration — finalizing one produces a `FeedStock` inventory lot only, no
+ * ingredient (Phase 12.1/12.2, 2026-07-18). Invalidates the concentrations list, the ingredients
+ * list (a `FeedIngredient` row may have changed), and the stock list (a TMR finalize adds a lot). */
 export function useFinalizeConcentration() {
   const invalidateConcentrations = useInvalidateConcentrations();
   const invalidateIngredients = useInvalidateFeedIngredients();
@@ -176,6 +177,16 @@ export function useFeedStock() {
     queryKey: qk.feed.stock(),
     queryFn: () => feedApi.listStock(),
     staleTime: STALE_TIME,
+  });
+}
+
+/** Delete a stock lot from inventory (user request 2026-07-19 — "form inventory it can be also
+ * deleted"). */
+export function useArchiveFeedStock() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => feedApi.archiveStock(id),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: qk.feed.stock() }),
   });
 }
 

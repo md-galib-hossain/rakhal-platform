@@ -2,10 +2,54 @@
 
 **Last updated:** 2026-07-16 · **Completion:** Phase 0 done (RFE-001…010) + RFE-100 marketing landing +
 Phase 1 RFE-020 (Dashboard) + RFE-021 (Cattle list) + RFE-022 (Cattle add/edit) + RFE-023 (Cattle detail)
-+ RFE-025 (Milk log) done · **Inventory tab now has all 5 categories built** (Medicine/Forage/Semen/Milk/Others)
++ RFE-025 (Milk log) done · **Inventory tab now has all 5 categories built** (Medicine/Feed/Semen/Milk/Others —
+Feed is a unified tab with Purchased/Prepared segments as of 2026-07-19, see the entry below)
 · **Finance (RFE-035) 5 tabs + Wallet + Record wizard done** — Master Ledger/Receivables/Payables/
 Liabilities/Asset Distribution + Wallet hub (Add Funds/Withdraw) + the 4-type Record transaction
 wizard, all Figma-perfect; only the record-payment/void/create-asset modals remain (no Figma yet).
+
+## Feed/Forage taxonomy unification (2026-07-19, user request)
+User asked for a first-principles review: feed is the umbrella term (forage/concentrate/mineral/
+vitamin/additive are classes of feed, not separate categories), but Inventory had it backwards — the
+"Forage" tab was the real feed warehouse, a sibling "Feed" tab (added the session before) held only
+manufactured TMR batches. Backend half in `D:\Projects\Rakhal\docs\CURRENT_STATE.md` (new
+`FeedClass`/`FeedSubType` enums, `Forage`→`FeedItem` rename + real `ingredientId` FK to
+`FeedIngredient` fixing two bugs — a bag-unit item never decremented on a feed log, and a price
+change never refreshed Feed Formulator costs). This is the frontend half. Inventory collapses to
+**5 tabs**; the new unified **Feed** tab (`feed-view.tsx`) has a **Purchased**/**Prepared** segmented
+control (`?segment=`) over the renamed `FeedItemView` (10 components renamed from `Forage*`) and the
+pre-existing `FeedStockView`. The create/edit form gained a required "Linked Ingredient" field
+(reuses `features/feed`'s `IngredientPicker`, cross-feature import) that auto-fills Feed Class from
+the picked ingredient. `ingredient-picker.tsx`'s category grouping reordered to match how a
+nutritionist builds a ration (Forage→Concentrate→Mineral→Vitamin→Additive). Full i18n (en+bn).
+Gate: `tsc`(0)/`eslint`(0 errors)/`vitest`(18/18). Not verified live in the browser this pass — see
+`docs/IN_FLIGHT.md` for the full verification note. Full narrative: `D:\Projects\Rakhal\docs\CHANGELOG.md`.
+
+## Prepared feed tab: table/grid parity + deeper metrics (2026-07-19, user follow-up)
+Follow-up on the row above: the Prepared segment was still a bespoke flat list, not the shared
+table/grid the rest of Inventory uses, and had only 3 stats. New `feed-stock-metrics.ts` (cost/kg,
+consumed kg, remaining %, a 3-tier status) + `feed-stock-columns.tsx`/`feed-stock-table.tsx`/
+`feed-stock-grid.tsx` mirroring the Purchased tab's `FeedItemColumns`/`Table`/`Grid` shape.
+Each row/card now shows source name + a Concentrate Mixer/TMR badge, produced date, produced/
+remaining/consumed qty, cost/kg, and total cost; the grid adds a remaining-vs-produced progress
+bar. `feed-view.tsx` now threads the table/grid toggle into both segments, not just Purchased.
+Gate: `tsc`(0)/`eslint`(0)/`vitest`(18/18). **Verified live** (demo owner, real backend) — both
+views render correct real data and math; caught + fixed a duplicate "Deleted formula" display bug
+in the grid during verification. Full narrative: `docs/IN_FLIGHT.md`.
+
+## Concentrate Mixer must not create inventory + FeedStock deletable (2026-07-19, user correction)
+The Prepared-tab screenshot above surfaced a conceptual bug: a **Concentrate Mixer** is a virtual
+recipe/calculator (unlimited, zero inventory impact); only a **TMR** (`FEED_MIXTURE`) finalize
+should produce real `FeedStock`. Backend half in `D:\Projects\Rakhal\docs\CURRENT_STATE.md` fixed
+`finalize()` to only produce stock for TMR, and added `FeedStock` soft-delete (`DELETE
+/feed/stock/:id`, `feed.delete`). This is the frontend half: `FinalizeConcentrationResult.stock`
+retyped `FeedStock | null`; new `useArchiveFeedStock()` hook; delete icon added to both the
+Prepared table (`feed-stock-columns.tsx`) and card grid (`feed-stock-grid.tsx`), wired through
+`feed-stock-view.tsx` with a `ConfirmDialog` + toast. i18n (en+bn) updated to drop the false
+"produces a stock batch" claim for Concentrate Mixer and add delete-flow strings.
+Gate: `tsc`(0)/`eslint`(0)/`vitest`(18/18). **Verified live** (demo owner, real backend): Prepared
+table now shows zero Concentrate Mixer rows (all TMR); delete confirmed in both table and grid
+view. Full narrative: `docs/IN_FLIGHT.md`.
 
 ## Milk page follow-ups: relock, Space wrap, per-cow tank selection, caret fix (2026-07-19, user request)
 4 more gaps reported on the just-shipped Milk page: (1) could unlock Noon/Night but not lock back —

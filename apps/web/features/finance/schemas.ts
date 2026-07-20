@@ -42,7 +42,7 @@ export const recordTransactionFormSchema = z
     // Inventory Purchase's Total Cost.
     litresSold: z.number().min(0).optional(),
     pricePerLitre: z.number().min(0).optional(),
-    // Inventory Purchase (real side effect: auto-increments matching Medicine/Forage stock).
+    // Inventory Purchase (real side effect: auto-increments matching Medicine/FeedItem stock).
     inventoryItemName: z.string().trim().optional(),
     quantity: z.number().min(0).optional(),
     costPerUnit: z.number().min(0).optional(),

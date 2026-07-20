@@ -10,8 +10,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /** Inventory — Figma "Inventory" frame (732:12409/732:11796/732:11067, file `SCfMPdxP6vgW1uTxfqCtz7`):
- * 5-category tab bar (Medicine/Forage/Semen/Milk/Others) + grid/list view toggle. Only the
- * Medicine tab is wired to a real backend flow this pass — see `InventoryView`'s doc comment. */
+ * 5-tab bar (Medicine/Feed/Semen/Milk/Others) + grid/list view toggle — see `InventoryView`'s doc
+ * comment. Feed is one tab with two views (Purchased/Prepared), since feed is the umbrella term. */
 export default async function InventoryPage() {
   const t = await getTranslations("nav");
   return (

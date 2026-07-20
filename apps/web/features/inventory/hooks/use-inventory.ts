@@ -8,19 +8,19 @@ import type {
   AdjustMedicineStockPayload,
   AdjustMilkTankVolumePayload,
   CreateEquipmentPayload,
-  CreateForagePayload,
+  CreateFeedItemPayload,
   CreateMedicinePayload,
   CreateMilkTankPayload,
   CreateSemenBatchPayload,
   CreateSemenTankPayload,
   EquipmentListFilters,
-  ForageListFilters,
+  FeedItemListFilters,
   MedicineListFilters,
   MilkTankListFilters,
   MilkTankTeamMember,
   SemenBatchListFilters,
   UpdateEquipmentPayload,
-  UpdateForagePayload,
+  UpdateFeedItemPayload,
   UpdateMedicinePayload,
   UpdateMilkTankPayload,
   UpdateSemenBatchPayload,
@@ -163,8 +163,8 @@ export function useRemoveMedicinePhoto() {
 }
 
 /** Same honest-frontier numbered-page adapter as `useMedicinePagedList`, over the cursor-only
- * `GET /inventory/forages`. */
-export function useForagePagedList(filters: ForageListFilters) {
+ * `GET /inventory/feed-items`. */
+export function useFeedItemPagedList(filters: FeedItemListFilters) {
   const filtersKey = JSON.stringify(filters);
   const [state, setState] = useState<PagerState>(() => initialPagerState(filtersKey));
   if (state.filtersKey !== filtersKey) {
@@ -175,8 +175,8 @@ export function useForagePagedList(filters: ForageListFilters) {
   const cursor = cursors[pageIndex];
 
   const query = useQuery({
-    queryKey: ["inventory", "forage", "list", "paged", filters as Record<string, string | undefined>, cursor],
-    queryFn: () => inventoryApi.listForages(filters, cursor),
+    queryKey: ["inventory", "feed-item", "list", "paged", filters as Record<string, string | undefined>, cursor],
+    queryFn: () => inventoryApi.listFeedItems(filters, cursor),
     staleTime: STALE_TIME,
     placeholderData: keepPreviousData,
   });
@@ -210,57 +210,57 @@ export function useForagePagedList(filters: ForageListFilters) {
   };
 }
 
-export function useForageDetail(id: string | undefined) {
+export function useFeedItemDetail(id: string | undefined) {
   return useQuery({
-    queryKey: qk.inventory.forageDetail(id ?? ""),
-    queryFn: () => inventoryApi.findForage(id!),
+    queryKey: qk.inventory.feedItemDetail(id ?? ""),
+    queryFn: () => inventoryApi.findFeedItem(id!),
     enabled: Boolean(id),
     staleTime: STALE_TIME,
   });
 }
 
-function useInvalidateForage() {
+function useInvalidateFeedItem() {
   const queryClient = useQueryClient();
   return (id?: string) => {
-    void queryClient.invalidateQueries({ queryKey: ["inventory", "forage", "list"] });
-    if (id) void queryClient.invalidateQueries({ queryKey: qk.inventory.forageDetail(id) });
+    void queryClient.invalidateQueries({ queryKey: ["inventory", "feed-item", "list"] });
+    if (id) void queryClient.invalidateQueries({ queryKey: qk.inventory.feedItemDetail(id) });
   };
 }
 
-export function useCreateForage() {
-  const invalidate = useInvalidateForage();
+export function useCreateFeedItem() {
+  const invalidate = useInvalidateFeedItem();
   return useMutation({
-    mutationFn: (dto: CreateForagePayload) => inventoryApi.createForage(dto),
+    mutationFn: (dto: CreateFeedItemPayload) => inventoryApi.createFeedItem(dto),
     onSuccess: () => invalidate(),
   });
 }
 
-export function useUpdateForage() {
-  const invalidate = useInvalidateForage();
+export function useUpdateFeedItem() {
+  const invalidate = useInvalidateFeedItem();
   return useMutation({
-    mutationFn: ({ id, dto }: { id: string; dto: UpdateForagePayload }) => inventoryApi.updateForage(id, dto),
+    mutationFn: ({ id, dto }: { id: string; dto: UpdateFeedItemPayload }) => inventoryApi.updateFeedItem(id, dto),
     onSuccess: (_data, { id }) => invalidate(id),
   });
 }
 
-export function useArchiveForage() {
-  const invalidate = useInvalidateForage();
+export function useArchiveFeedItem() {
+  const invalidate = useInvalidateFeedItem();
   return useMutation({
-    mutationFn: (id: string) => inventoryApi.archiveForage(id),
+    mutationFn: (id: string) => inventoryApi.archiveFeedItem(id),
     onSuccess: (_data, id) => invalidate(id),
   });
 }
 
-export function useRestoreForage() {
-  const invalidate = useInvalidateForage();
+export function useRestoreFeedItem() {
+  const invalidate = useInvalidateFeedItem();
   return useMutation({
-    mutationFn: (id: string) => inventoryApi.restoreForage(id),
+    mutationFn: (id: string) => inventoryApi.restoreFeedItem(id),
     onSuccess: (_data, id) => invalidate(id),
   });
 }
 
 /** `GET /inventory/milk-tanks` returns the full (small — a farm keeps a handful of tanks, never a
- * paged list) array directly, unlike Medicine/Forage — no cursor pager needed here. */
+ * paged list) array directly, unlike Medicine/FeedItem — no cursor pager needed here. */
 export function useMilkTanks(filters: MilkTankListFilters = {}) {
   return useQuery({
     queryKey: qk.inventory.milkTanks(filters as Record<string, string | undefined>),
@@ -309,7 +309,7 @@ export function useArchiveMilkTank() {
   });
 }
 
-/** Same honest-frontier numbered-page adapter as `useMedicinePagedList`/`useForagePagedList`, over
+/** Same honest-frontier numbered-page adapter as `useMedicinePagedList`/`useFeedItemPagedList`, over
  * the cursor-only `GET /inventory/milk-tanks/audit-log`. */
 export function useMilkTankAuditLogPagedList() {
   const filtersKey = "audit-log";
@@ -366,7 +366,7 @@ export function useShedsForMilkTank() {
  * (`types.ts#MilkTankTeamMember`). `team.read` may not be granted to every role viewing this page
  * (Worker likely can't), so a failed fetch resolves to an empty map instead of an error state —
  * `MilkAuditLogTable` falls back to a generic "Team member" label + tinted-icon avatar when a given
- * `createdBy` id isn't in the map, same graceful-degrade shape as Forage's no-photo fallback. */
+ * `createdBy` id isn't in the map, same graceful-degrade shape as FeedItem's no-photo fallback. */
 export function useTeamMembersMap() {
   const query = useQuery({
     queryKey: qk.inventory.teamMembers(),
@@ -421,7 +421,7 @@ export function useArchiveSemenTank() {
   });
 }
 
-/** Same honest-frontier numbered-page adapter as `useMedicinePagedList`/`useForagePagedList`, over
+/** Same honest-frontier numbered-page adapter as `useMedicinePagedList`/`useFeedItemPagedList`, over
  * the cursor-only `GET /inventory/semen/batches`. */
 export function useSemenBatchPagedList(filters: SemenBatchListFilters) {
   const filtersKey = JSON.stringify(filters);

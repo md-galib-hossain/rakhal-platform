@@ -13,11 +13,11 @@ import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { cn } from "@/lib/utils";
 import { avatarTint } from "../avatar-tint";
-import { useForageDetail } from "../hooks/use-inventory";
-import { ForageStockUpdateDialog } from "./forage-stock-update-dialog";
-import type { Forage } from "../types";
+import { useFeedItemDetail } from "../hooks/use-inventory";
+import { FeedItemStockUpdateDialog } from "./feed-item-stock-update-dialog";
+import type { FeedItem } from "../types";
 
-const STOCK_CHIP_VARIANT: Record<Forage["stockStatus"], "primary" | "warning" | "destructive"> = {
+const STOCK_CHIP_VARIANT: Record<FeedItem["stockStatus"], "primary" | "warning" | "destructive"> = {
   adequate: "primary",
   low: "warning",
   out: "destructive",
@@ -25,31 +25,31 @@ const STOCK_CHIP_VARIANT: Record<Forage["stockStatus"], "primary" | "warning" | 
 
 /**
  * "Item Details - Forage" right-side drawer — Figma frame 732:13304, same floating-card chrome as
- * `ForageFormDialog`/`CattleDetailSheet` (680px max width here, matching the Figma frame's own
- * 640px content + 20px padding on each side — not Cattle's 820px, a different-sized design).
- * Forage has no photo field (see `types.ts#Forage` doc comment) so the image slot is always the
- * tinted `Wheat` fallback. The mock's "Local Market" subtitle has no matching field name — mapped
- * to the real `supplier` string, the closest real equivalent, not fabricated. The mock's cyan
- * "Moisture" tile color has no matching token in this app's palette — reuses the existing
+ * `FeedItemFormDialog`/`CattleDetailSheet` (680px max width here, matching the Figma frame's own
+ * 640px content + 20px padding on each side — not Cattle's 820px, a different-sized design). A
+ * feed item has no photo field (see `types.ts#FeedItem` doc comment) so the image slot is always
+ * the tinted `Wheat` fallback. The mock's "Local Market" subtitle has no matching field name —
+ * mapped to the real `supplier` string, the closest real equivalent, not fabricated. The mock's
+ * cyan "Moisture" tile color has no matching token in this app's palette — reuses the existing
  * `accent-teal` token (closest neighbor) rather than inventing a new one.
  */
-export function ForageDetailSheet({
-  forageId,
+export function FeedItemDetailSheet({
+  feedItemId,
   onOpenChange,
   onEdit,
 }: {
-  forageId: string | undefined;
+  feedItemId: string | undefined;
   onOpenChange: (open: boolean) => void;
-  onEdit: (forage: Forage) => void;
+  onEdit: (feedItem: FeedItem) => void;
 }) {
-  const t = useTranslations("inventory.forage.detail");
-  const tOptions = useTranslations("inventory.forage");
-  const query = useForageDetail(forageId);
+  const t = useTranslations("inventory.feed.detail");
+  const tOptions = useTranslations("inventory.feed");
+  const query = useFeedItemDetail(feedItemId);
   const [stockUpdateOpen, setStockUpdateOpen] = useState(false);
 
   return (
     <>
-      <Sheet open={Boolean(forageId)} onOpenChange={onOpenChange}>
+      <Sheet open={Boolean(feedItemId)} onOpenChange={onOpenChange}>
         <SheetContent
           showClose={false}
           className="inset-y-2.5 right-2.5 flex h-[calc(100vh-20px)] w-[calc(100%-20px)] max-w-[680px] flex-col gap-0 rounded-[20px] border-2 border-border p-5 shadow-2xl sm:max-w-[680px]"
@@ -84,7 +84,7 @@ export function ForageDetailSheet({
                       {query.data.supplier ? <p className="text-sm text-muted-foreground">{query.data.supplier}</p> : null}
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <Chip variant="muted">{tOptions(`typeOptions.${query.data.type}`)}</Chip>
+                      <Chip variant="muted">{tOptions(`classOptions.${query.data.feedClass}`)}</Chip>
                       {query.data.category ? <Chip variant="muted">{query.data.category}</Chip> : null}
                     </div>
                     <Chip variant={STOCK_CHIP_VARIANT[query.data.stockStatus]}>{t(`stockStatus.${query.data.stockStatus}`)}</Chip>
@@ -151,7 +151,7 @@ export function ForageDetailSheet({
         </SheetContent>
       </Sheet>
 
-      <ForageStockUpdateDialog forage={query.data ?? null} open={stockUpdateOpen} onOpenChange={setStockUpdateOpen} />
+      <FeedItemStockUpdateDialog feedItem={query.data ?? null} open={stockUpdateOpen} onOpenChange={setStockUpdateOpen} />
     </>
   );
 }

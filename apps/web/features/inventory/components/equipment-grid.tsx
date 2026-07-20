@@ -18,7 +18,7 @@ const STOCK_COLOR: Record<Equipment["stockStatus"], string> = {
   out: "text-destructive",
 };
 
-/** Card matched to the same Figma "Inventory Item Card" component Medicine/Forage use — 8px outer
+/** Card matched to the same Figma "Inventory Item Card" component Medicine/FeedItem use — 8px outer
  * padding, `shadow-card`, a 160px image inset with its own radius, type chip stacked top-left, name,
  * icon+label/value rows, Stock as its own nested `shadow-card` pill. Equipment has no `imageUrl`
  * (see `types.ts#Equipment` doc comment) so the image slot always shows the tinted `Wrench` fallback,

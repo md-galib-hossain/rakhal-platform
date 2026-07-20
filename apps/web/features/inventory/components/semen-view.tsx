@@ -23,7 +23,7 @@ import type { SemenBatch, SemenTank } from "../types";
  * Semen tab body — Figma "Inventory - Semen" (732:20158, `get_design_context`): "Physical Storage"
  * tank grid (+ "Add New Tank") in one card, "Active Straw Batches" (+ search + "Add Straw") in
  * another below. Straw batches use the same honest-frontier numbered `Pagination` as every other
- * cursor-backed list in this codebase (Medicine/Forage/Milk audit log) rather than the mock's
+ * cursor-backed list in this codebase (Medicine/FeedItem/Milk audit log) rather than the mock's
  * unpaginated 3-card row, since a farm can accumulate far more batches than fit on one screen.
  */
 export function SemenView() {

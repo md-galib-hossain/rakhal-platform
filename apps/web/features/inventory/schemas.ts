@@ -35,14 +35,19 @@ export const medicineFormSchema = z.object({
 });
 export type MedicineFormInput = z.infer<typeof medicineFormSchema>;
 
-/** Mirrors `CreateForageDto`/`UpdateForageDto` (verified live against
- * `rakhal-backend/src/modules/inventory/presentation/dto/{create,update}-forage.dto.ts`) — one shape
- * for both create and edit, unlike medicine there's no separate adjust-stock endpoint so
- * `currentStock` is a normal editable field in both modes. */
-export const forageFormSchema = z.object({
+/** Mirrors `CreateFeedItemDto`/`UpdateFeedItemDto` (verified live against
+ * `rakhal-backend/src/modules/inventory/presentation/dto/{create,update}-feed-item.dto.ts`) — one
+ * shape for both create and edit, unlike medicine there's no separate adjust-stock endpoint so
+ * `currentStock` is a normal editable field in both modes. `ingredientId` is required — every feed
+ * item links to a Feed Formulator catalogue/custom ingredient (`feed_taxonomy_unification`). */
+export const feedItemFormSchema = z.object({
   name: z.string().trim().min(1),
-  type: z.enum(["ROUGHAGE", "CONCENTRATE", "SILAGE", "SUPPLEMENT", "BY_PRODUCT", "MINERAL", "OTHER"]),
+  feedClass: z.enum(["FORAGE", "CONCENTRATE", "MINERAL", "VITAMIN", "ADDITIVE", "OTHER"]),
+  feedSubType: z
+    .enum(["GREEN_FODDER", "ROUGHAGE", "SILAGE", "HAY", "STRAW", "GRAIN", "OILCAKE", "BY_PRODUCT", "COMPOUND_PELLET", "PREMIX", "SUPPLEMENT", "OTHER"])
+    .optional(),
   category: z.string().trim().optional(),
+  ingredientId: z.string().trim().min(1),
   unit: z.string().trim().min(1),
   kgPerUnit: z.number().min(0).optional(),
   currentStock: z.number().min(0),
@@ -53,7 +58,7 @@ export const forageFormSchema = z.object({
   purchaseDate: z.string().min(1),
   notes: z.string().trim().optional(),
 });
-export type ForageFormInput = z.infer<typeof forageFormSchema>;
+export type FeedItemFormInput = z.infer<typeof feedItemFormSchema>;
 
 /** Mirrors `CreateMilkTankDto`/`UpdateMilkTankDto` (verified live against
  * `rakhal-backend/src/modules/inventory/presentation/dto/milk-tank.dto.ts`) — one shape for both

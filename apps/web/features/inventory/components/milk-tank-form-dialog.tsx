@@ -35,7 +35,7 @@ function toCreatePayload(values: MilkTankFormInput): CreateMilkTankPayload {
 
 /** Volume is deliberately absent here (unlike `toCreatePayload`) — edits go through the separate
  * audited `adjust-volume` endpoint (`MilkSyncDialog`), never a plain field update, mirroring
- * Medicine's `toUpdatePayload` (INV-02-style pattern) rather than Forage's single-shape one. */
+ * Medicine's `toUpdatePayload` (INV-02-style pattern) rather than FeedItem's single-shape one. */
 function toUpdatePayload(values: MilkTankFormInput): UpdateMilkTankPayload {
   return {
     name: values.name,
@@ -103,7 +103,7 @@ function MilkOffIcon() {
 
 /**
  * Add/Edit Milk Tank drawer — Figma "Add New Tank" (734:30564, `get_design_context`): same
- * floating-card chrome as `ForageFormDialog` (10px inset, 20px radius, 2px border, `arrow-right-03`
+ * floating-card chrome as `FeedItemFormDialog` (10px inset, 20px radius, 2px border, `arrow-right-03`
  * header icon), muted-band section headers, tank-type toggle cards. **Real gap vs the mock, flagged
  * not faked**: the "Cooling Type" select (`CreateMilkTankDto`/`UpdateMilkTankDto` have no matching
  * field at all, see `types.ts` doc comment) renders as a disabled, non-interactive field — kept for

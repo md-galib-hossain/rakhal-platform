@@ -108,7 +108,7 @@ export interface ConceptionRateResponse {
 
 export interface FeedStockAlertItem {
   itemId: string;
-  itemType: "medicine" | "forage";
+  itemType: "medicine" | "feed_item";
   name: string;
   currentStock: number;
   unit: string;

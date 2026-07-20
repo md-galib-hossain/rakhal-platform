@@ -6,28 +6,29 @@ import { Wheat } from "lucide-react";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
 import { avatarTint } from "../avatar-tint";
-import { ForageRowActions } from "./forage-row-actions";
+import { FeedItemRowActions } from "./feed-item-row-actions";
 import { StockStatusIcon } from "./stock-status-icon";
-import type { Forage } from "../types";
+import type { FeedItem } from "../types";
 
 /**
  * Column set matched to the Figma "Inventory - Forage - Table View" frame (732:12950): No. / Feed
- * Name (+thumb) / Type / Category / Cost Per Unit / Purchase Date / Stock / Action. No Batch
- * ID/Expiry Date columns (Forage has neither field, unlike Medicine) — the mock's row data is
- * literally leftover Medicine placeholder text ("Rabies Vaccine", "Viral" category), not real
- * forage content, so it isn't used as a data source, only for column layout. Forage has no photo
- * field at all (see `types.ts#Forage` doc comment) so every row uses the tinted-icon fallback,
- * never a real thumbnail.
+ * Name (+thumb) / Class / Category / Cost Per Unit / Purchase Date / Stock / Action. No Batch
+ * ID/Expiry Date columns (a feed item has neither field, unlike Medicine) — the mock's row data is
+ * literally leftover Medicine placeholder text ("Rabies Vaccine", "Viral" category), not real feed
+ * content, so it isn't used as a data source, only for column layout. A feed item has no photo
+ * field at all (see `types.ts#FeedItem` doc comment) so every row uses the tinted-icon fallback,
+ * never a real thumbnail. The "Type" column (old `ForageType`) is now "Class" (`FeedClass`) — feed
+ * is the umbrella, class is the scientific grouping (forage/concentrate/mineral/vitamin/additive).
  */
-export function buildForageColumns(
+export function buildFeedItemColumns(
   t: (key: string, values?: Record<string, string | number | Date>) => string,
   startIndex: number,
   rowActions: {
-    onView: (forage: Forage) => void;
-    onEdit: (forage: Forage) => void;
-    onArchive: (forage: Forage) => void;
+    onView: (feedItem: FeedItem) => void;
+    onEdit: (feedItem: FeedItem) => void;
+    onArchive: (feedItem: FeedItem) => void;
   },
-): ColumnDef<Forage, unknown>[] {
+): ColumnDef<FeedItem, unknown>[] {
   return [
     {
       id: "no",
@@ -39,23 +40,30 @@ export function buildForageColumns(
       id: "name",
       header: t("columns.name"),
       cell: ({ row }) => {
-        const forage = row.original;
+        const feedItem = row.original;
         return (
-          <button type="button" onClick={() => rowActions.onView(forage)} className="flex items-center gap-2 text-left">
+          <button type="button" onClick={() => rowActions.onView(feedItem)} className="flex items-center gap-2 text-left">
             <Avatar className="size-8 rounded-lg">
-              <AvatarFallback className={avatarTint(forage.id)}>
+              <AvatarFallback className={avatarTint(feedItem.id)}>
                 <Wheat className="size-4" aria-hidden />
               </AvatarFallback>
             </Avatar>
-            <span className="text-sm font-medium text-foreground">{forage.name}</span>
+            <span className="text-sm font-medium text-foreground">{feedItem.name}</span>
           </button>
         );
       },
     },
     {
-      id: "type",
-      header: t("columns.type"),
-      cell: ({ row }) => t(`typeOptions.${row.original.type}`),
+      id: "class",
+      header: t("columns.class"),
+      cell: ({ row }) => (
+        <span className="flex flex-col">
+          <span>{t(`classOptions.${row.original.feedClass}`)}</span>
+          {row.original.feedSubType ? (
+            <span className="text-xs text-muted-foreground">{row.original.feedSubType}</span>
+          ) : null}
+        </span>
+      ),
     },
     {
       id: "category",
@@ -97,8 +105,8 @@ export function buildForageColumns(
       size: 72,
       cell: ({ row }) => (
         <div className="flex justify-center">
-          <ForageRowActions
-            forage={row.original}
+          <FeedItemRowActions
+            feedItem={row.original}
             onView={rowActions.onView}
             onEdit={rowActions.onEdit}
             onArchive={rowActions.onArchive}

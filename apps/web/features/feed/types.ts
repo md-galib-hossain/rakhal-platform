@@ -26,7 +26,24 @@
 export type FeedTargetType = "GROUP" | "INDIVIDUAL";
 /** See this file's top-of-file doc comment — explicit, immutable, server-enforced. */
 export type FeedConcentrationKind = "CONCENTRATE_TEMPLATE" | "FEED_MIXTURE";
-export type FeedIngredientCategory = "ROUGHAGE" | "CONCENTRATE" | "SILAGE" | "SUPPLEMENT" | "BY_PRODUCT";
+/** Feed is the umbrella term; `FeedClass` is its scientific class (replaces the old
+ * `FeedIngredientCategory`, which named forage/silage as separate categories from feed rather than
+ * classes within it — `feed_taxonomy_unification`). `FeedSubType` is the optional operational
+ * detail (silage vs hay vs straw are all FORAGE, grain vs oilcake vs by-product are all CONCENTRATE). */
+export type FeedClass = "FORAGE" | "CONCENTRATE" | "MINERAL" | "VITAMIN" | "ADDITIVE" | "OTHER";
+export type FeedSubType =
+  | "GREEN_FODDER"
+  | "ROUGHAGE"
+  | "SILAGE"
+  | "HAY"
+  | "STRAW"
+  | "GRAIN"
+  | "OILCAKE"
+  | "BY_PRODUCT"
+  | "COMPOUND_PELLET"
+  | "PREMIX"
+  | "SUPPLEMENT"
+  | "OTHER";
 /** Display-only tag for a farm's quick-add custom ingredient — which of the ingredient table's 3
  * column groups to color it under. Doesn't feed any formula math (unlike `nutrition.*`). */
 export type FeedNutrientGroup = "PROTEIN" | "ENERGY" | "FIBER";
@@ -35,7 +52,8 @@ export interface FeedIngredient {
   id: string;
   name_en: string;
   name_bn: string | null;
-  category: FeedIngredientCategory;
+  feed_class: FeedClass;
+  feed_sub_type: FeedSubType | null;
   /** Set only for a farm's own quick-add ingredient (`is_custom: true`) — null for the Admin catalogue. */
   nutrient_group: FeedNutrientGroup | null;
   /** True for a farm-created ingredient (`POST /feed/ingredients/custom`) — invisible to other farms. */
@@ -232,11 +250,14 @@ export interface NormalizeConcentrationPayload {
 /** `POST /feed/concentrations/:id/finalize` response. As of Phase 12.1/12.2 (2026-07-18):
  * `finalize()` is an upsert (no more `version` field — the promoted ingredient is kept in sync in
  * place, not versioned) and `ingredient` is `null` for a `FEED_MIXTURE` (a TMR produces stock only,
- * never a reusable ingredient — see the backend's `finalize()` doc comment). Only the fields the
- * frontend actually reads are typed here. */
+ * never a reusable ingredient — see the backend's `finalize()` doc comment). As of 2026-07-19,
+ * `stock` is `null` for a `CONCENTRATE_TEMPLATE` — a Concentrate Mixer is a virtual recipe/
+ * calculator, finalizing one only promotes/refreshes the ingredient above and never touches
+ * inventory; only a `FEED_MIXTURE` (TMR) produces a real stock lot. Only the fields the frontend
+ * actually reads are typed here. */
 export interface FinalizeConcentrationResult {
   concentration_id: string;
-  stock: FeedStock;
+  stock: FeedStock | null;
   ingredient: { id: string; name_en: string } | null;
 }
 

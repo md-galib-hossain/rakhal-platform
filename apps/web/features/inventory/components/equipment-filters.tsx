@@ -7,7 +7,7 @@ const TYPES = ["EQUIPMENT", "MACHINERY", "TOOL", "SUPPLY", "OTHER"] as const;
 
 /** Search + type select (mirrors `MedicineFilters`' anatomy) — URL-synced via the shared
  * `FilterBar`, read back by the equipment list query. Figma's "Inventory" row splits search to the
- * far left from Filter+"Add Item" on the far right, same `layout="split"` as Medicine/Forage. */
+ * far left from Filter+"Add Item" on the far right, same `layout="split"` as Medicine/FeedItem. */
 export function EquipmentFilters({ actions }: { actions?: React.ReactNode }) {
   const t = useTranslations("inventory.equipment.filters");
 

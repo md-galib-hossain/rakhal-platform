@@ -7,38 +7,39 @@ import { useSearchParams } from "next/navigation";
 import { ApiError } from "@/lib/api/errors";
 import { Pagination } from "@/components/shared/pagination";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { useArchiveForage, useForagePagedList } from "../hooks/use-inventory";
-import { ForageFilters } from "./forage-filters";
-import { ForageAddButton } from "./forage-add-button";
-import { ForageTable } from "./forage-table";
-import { ForageGrid } from "./forage-grid";
-import { ForageFormDialog } from "./forage-form-dialog";
-import { ForageDetailSheet } from "./forage-detail-sheet";
-import type { Forage, ForageType } from "../types";
+import { useArchiveFeedItem, useFeedItemPagedList } from "../hooks/use-inventory";
+import { FeedItemFilters } from "./feed-item-filters";
+import { FeedItemAddButton } from "./feed-item-add-button";
+import { FeedItemTable } from "./feed-item-table";
+import { FeedItemGrid } from "./feed-item-grid";
+import { FeedItemFormDialog } from "./feed-item-form-dialog";
+import { FeedItemDetailSheet } from "./feed-item-detail-sheet";
+import type { FeedClass, FeedItem } from "../types";
 
-/** Forage tab body — search/filter row, table/grid view (view state owned by the parent
- * `InventoryTabs`), pagination, and the view/add/edit/archive flows. Same shape as `MedicineView`,
- * plus a "View Details" sheet Medicine doesn't have yet (Figma gave Forage a dedicated one). */
-export function ForageView({ view }: { view: "table" | "grid" }) {
-  const t = useTranslations("inventory.forage");
+/** Feed tab's "Purchased" view body — search/filter row, table/grid view (view state owned by the
+ * parent `InventoryTabs`), pagination, and the view/add/edit/archive flows. Same shape as
+ * `MedicineView`, plus a "View Details" sheet Medicine doesn't have yet (Figma gave this one a
+ * dedicated one). */
+export function FeedItemView({ view }: { view: "table" | "grid" }) {
+  const t = useTranslations("inventory.feed");
   const searchParams = useSearchParams();
   const [viewingId, setViewingId] = useState<string | undefined>(undefined);
-  const [editingForage, setEditingForage] = useState<Forage | undefined>(undefined);
+  const [editingFeedItem, setEditingFeedItem] = useState<FeedItem | undefined>(undefined);
   const [formOpen, setFormOpen] = useState(false);
-  const [archiveTarget, setArchiveTarget] = useState<Forage | null>(null);
-  const archiveForage = useArchiveForage();
+  const [archiveTarget, setArchiveTarget] = useState<FeedItem | null>(null);
+  const archiveFeedItem = useArchiveFeedItem();
 
   const filters = {
     search: searchParams.get("search") ?? undefined,
-    type: (searchParams.get("type") as ForageType | null) ?? undefined,
+    feedClass: (searchParams.get("feedClass") as FeedClass | null) ?? undefined,
   };
 
-  const query = useForagePagedList(filters);
+  const query = useFeedItemPagedList(filters);
 
   async function handleArchiveConfirm() {
     if (!archiveTarget) return;
     try {
-      await archiveForage.mutateAsync(archiveTarget.id);
+      await archiveFeedItem.mutateAsync(archiveTarget.id);
       toast.success(t("archivedToast"));
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
@@ -47,11 +48,11 @@ export function ForageView({ view }: { view: "table" | "grid" }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <ForageFilters
+      <FeedItemFilters
         actions={
-          <ForageAddButton
+          <FeedItemAddButton
             onClick={() => {
-              setEditingForage(undefined);
+              setEditingFeedItem(undefined);
               setFormOpen(true);
             }}
           />
@@ -59,28 +60,28 @@ export function ForageView({ view }: { view: "table" | "grid" }) {
       />
 
       {view === "table" ? (
-        <ForageTable
+        <FeedItemTable
           items={query.items}
           startIndex={(query.page - 1) * 20}
           isLoading={query.isLoading}
           isError={query.isError}
           onRetry={() => void query.refetch()}
-          onView={(forage) => setViewingId(forage.id)}
-          onEdit={(forage) => {
-            setEditingForage(forage);
+          onView={(feedItem) => setViewingId(feedItem.id)}
+          onEdit={(feedItem) => {
+            setEditingFeedItem(feedItem);
             setFormOpen(true);
           }}
           onArchive={setArchiveTarget}
         />
       ) : (
-        <ForageGrid
+        <FeedItemGrid
           items={query.items}
           isLoading={query.isLoading}
           isError={query.isError}
           onRetry={() => void query.refetch()}
-          onView={(forage) => setViewingId(forage.id)}
-          onEdit={(forage) => {
-            setEditingForage(forage);
+          onView={(feedItem) => setViewingId(feedItem.id)}
+          onEdit={(feedItem) => {
+            setEditingFeedItem(feedItem);
             setFormOpen(true);
           }}
           onArchive={setArchiveTarget}
@@ -89,13 +90,13 @@ export function ForageView({ view }: { view: "table" | "grid" }) {
 
       <Pagination page={query.page} totalPages={query.totalPages} onPageChange={query.goToPage} disabled={query.isFetching} />
 
-      <ForageFormDialog open={formOpen} onOpenChange={setFormOpen} forage={editingForage} />
-      <ForageDetailSheet
-        forageId={viewingId}
+      <FeedItemFormDialog open={formOpen} onOpenChange={setFormOpen} feedItem={editingFeedItem} />
+      <FeedItemDetailSheet
+        feedItemId={viewingId}
         onOpenChange={(open) => !open && setViewingId(undefined)}
-        onEdit={(forage) => {
+        onEdit={(feedItem) => {
           setViewingId(undefined);
-          setEditingForage(forage);
+          setEditingFeedItem(feedItem);
           setFormOpen(true);
         }}
       />

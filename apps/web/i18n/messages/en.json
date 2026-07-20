@@ -907,7 +907,6 @@
   "inventory": {
     "tabs": {
       "medicine": "Medicine",
-      "forage": "Forage",
       "semen": "Semen",
       "milk": "Milk",
       "feed": "Feed",
@@ -1028,56 +1027,58 @@
         "genericError": "Something went wrong. Please try again."
       }
     },
-    "forage": {
+    "feed": {
+      "segment": {
+        "purchased": "Purchased",
+        "prepared": "Prepared"
+      },
       "empty": {
-        "title": "No forage found",
+        "title": "No feed items found",
         "description": "Try adjusting your search or filters."
       },
-      "archivedToast": "Forage archived.",
-      "restoredToast": "Forage restored.",
+      "archivedToast": "Feed item archived.",
+      "restoredToast": "Feed item restored.",
       "genericError": "Something went wrong. Please try again.",
       "archiveDialog": {
         "title": "Archive {name}",
-        "description": "This removes the forage item from active inventory lists.",
+        "description": "This removes the feed item from active inventory lists.",
         "confirm": "Archive",
         "cancel": "Cancel"
       },
       "columns": {
         "no": "No.",
         "name": "Feed Name",
-        "type": "Type",
+        "class": "Class",
         "category": "Category",
         "costPerUnit": "Cost Per Unit",
         "purchaseDate": "Purchase Date",
         "stock": "Stock",
         "action": "Action"
       },
-      "typeOptions": {
-        "ROUGHAGE": "Roughage",
+      "classOptions": {
+        "FORAGE": "Forage",
         "CONCENTRATE": "Concentrate",
-        "SILAGE": "Silage",
-        "SUPPLEMENT": "Supplement",
-        "BY_PRODUCT": "By-product",
         "MINERAL": "Mineral",
+        "VITAMIN": "Vitamin",
+        "ADDITIVE": "Additive",
         "OTHER": "Other"
       },
       "filters": {
-        "searchPlaceholder": "Find forage by name",
-        "type": "Type",
-        "typeOptions": {
-          "ROUGHAGE": "Roughage",
+        "searchPlaceholder": "Find feed item by name",
+        "class": "Class",
+        "classOptions": {
+          "FORAGE": "Forage",
           "CONCENTRATE": "Concentrate",
-          "SILAGE": "Silage",
-          "SUPPLEMENT": "Supplement",
-          "BY_PRODUCT": "By-product",
           "MINERAL": "Mineral",
+          "VITAMIN": "Vitamin",
+          "ADDITIVE": "Additive",
           "OTHER": "Other"
         }
       },
       "form": {
-        "add": "Add Forage",
-        "createTitle": "Add Forage",
-        "editTitle": "Edit Forage",
+        "add": "Add Feed Item",
+        "createTitle": "Add Feed Item",
+        "editTitle": "Edit Feed Item",
         "close": "Close",
         "basicInfo": "Basic Info",
         "noPhoto": "No Photo",
@@ -1088,7 +1089,10 @@
         "kgPerUnit": "Kg Per Unit",
         "costPerUnit": "Cost Per Unit (CPU)",
         "feedDetails": "Feed Details",
-        "feedType": "Feed Type",
+        "feedClass": "Feed Class",
+        "ingredient": "Linked Ingredient",
+        "ingredientPlaceholder": "Search the feed catalogue…",
+        "ingredientRequired": "Select a linked ingredient",
         "category": "Category",
         "categoryPlaceholder": "e.g. Green fodder, Dry fodder",
         "moisture": "Moisture",
@@ -1101,14 +1105,14 @@
         "additionalNotes": "Additional Notes",
         "cancel": "Cancel",
         "save": "Save Changes",
-        "createdToast": "Forage added.",
-        "updatedToast": "Forage updated.",
+        "createdToast": "Feed item added.",
+        "updatedToast": "Feed item updated.",
         "genericError": "Something went wrong. Please try again."
       },
       "detail": {
         "title": "Item Details",
         "close": "Close",
-        "error": "Could not load this forage item.",
+        "error": "Could not load this feed item.",
         "itemStatistics": "Item Statistics",
         "costPerUnit": "Cost Per Unit",
         "currentStock": "Current Stock",
@@ -2446,11 +2450,12 @@
     "customTdnPct": "TDN (% of DM)",
     "back": "Back",
     "addItem": "Add",
-    "categoryConcentrate": "Concentrates",
-    "categoryRoughage": "Roughage",
-    "categorySilage": "Silage",
-    "categorySupplement": "Supplements",
-    "categoryByProduct": "By-products",
+    "classForage": "Forage",
+    "classConcentrate": "Concentrates",
+    "classMineral": "Minerals",
+    "classVitamin": "Vitamins",
+    "classAdditive": "Additives",
+    "classOther": "Other",
     "card": {
       "bestFor": "Best for",
       "numberOfCow": "Number of Cow",
@@ -2475,7 +2480,7 @@
     "deleteConfirmDescription": "This can't be undone. Any Total Mixed Ration (TMR) that already reused an ingredient promoted from this formula will keep working.",
     "deletedToast": "Formula deleted",
     "finalizeConfirmTitle": "Finalize this Concentrate Mixer?",
-    "finalizeConfirmDescription": "This produces a new stock batch matching today's total amount and, the first time, promotes the recipe into a reusable ingredient for Total Mixed Rations (TMR). Once finalized, editing the recipe automatically keeps that ingredient's values up to date — you don't need to Finalize again just to sync a change, only when you want to produce another physical batch.",
+    "finalizeConfirmDescription": "This is a virtual recipe, not physical stock — finalizing promotes it into a reusable ingredient for Total Mixed Rations (TMR), with no change to your inventory. Once finalized, editing the recipe automatically keeps that ingredient's values up to date — you don't need to Finalize again just to sync a change.",
     "finalizeConfirmTitleMixture": "Finalize this Total Mixed Ration (TMR)?",
     "finalizeConfirmDescriptionMixture": "This adds a new inventory stock batch matching today's total amount, under this feed's name. A TMR never becomes a reusable ingredient — it stays the final ration fed to cows.",
     "finalizedToast": "Concentrate Mixer finalized",
@@ -2493,13 +2498,33 @@
     },
     "stock": {
       "title": "Feed Stock (Inventory)",
-      "subtitle": "Batches produced by finalizing a Concentrate Mixer or TMR",
-      "empty": "No stock yet — Finalize a Concentrate Mixer or TMR to produce a batch",
+      "subtitle": "Batches produced by finalizing a Total Mixed Ration (TMR)",
+      "empty": "No stock yet — Finalize a Total Mixed Ration (TMR) to produce a batch",
       "producedOn": "Produced",
       "producedQty": "Produced",
       "remaining": "Remaining",
       "cost": "Cost",
-      "unknownSource": "Deleted formula"
+      "unknownSource": "Deleted formula",
+      "delete": "Delete",
+      "deletedToast": "Feed stock deleted",
+      "genericError": "Something went wrong. Please try again.",
+      "columns": {
+        "no": "No.",
+        "name": "Source",
+        "producedDate": "Produced Date",
+        "producedQty": "Produced Qty",
+        "remainingQty": "Remaining Qty",
+        "consumedQty": "Consumed",
+        "costPerKg": "Cost/kg",
+        "totalCost": "Total Cost",
+        "action": "Action"
+      },
+      "deleteDialog": {
+        "title": "Delete {name}?",
+        "description": "This removes the batch from active inventory. This can't be undone.",
+        "confirm": "Delete",
+        "cancel": "Cancel"
+      }
     },
     "table": {
       "ingredientName": "Ingredient Name",

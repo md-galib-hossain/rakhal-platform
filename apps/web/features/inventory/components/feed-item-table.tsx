@@ -4,10 +4,10 @@ import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { DataTable } from "@/components/shared/data-table";
-import { buildForageColumns } from "./forage-columns";
-import type { Forage } from "../types";
+import { buildFeedItemColumns } from "./feed-item-columns";
+import type { FeedItem } from "../types";
 
-export function ForageTable({
+export function FeedItemTable({
   items,
   startIndex,
   isLoading,
@@ -17,18 +17,18 @@ export function ForageTable({
   onEdit,
   onArchive,
 }: {
-  items: Forage[];
+  items: FeedItem[];
   startIndex: number;
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
-  onView: (forage: Forage) => void;
-  onEdit: (forage: Forage) => void;
-  onArchive: (forage: Forage) => void;
+  onView: (feedItem: FeedItem) => void;
+  onEdit: (feedItem: FeedItem) => void;
+  onArchive: (feedItem: FeedItem) => void;
 }) {
-  const t = useTranslations("inventory.forage");
+  const t = useTranslations("inventory.feed");
   const columns = useMemo(
-    () => buildForageColumns(t, startIndex, { onView, onEdit, onArchive }),
+    () => buildFeedItemColumns(t, startIndex, { onView, onEdit, onArchive }),
     [t, startIndex, onView, onEdit, onArchive],
   );
 

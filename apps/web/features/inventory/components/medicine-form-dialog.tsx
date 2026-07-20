@@ -173,7 +173,7 @@ function PhotoDropzone({
  * DTO fields (`unit: string`, `lowStockThreshold: number`) are free text/number, rendered as such.
  * "Milk/Meat Withdrawal Days" are mock dropdowns ("select days"/"select date"); the real fields are
  * plain integers (days), rendered as number inputs. The mock's "Item Type" selector (switching
- * between Medicine/Forage/Semen/Milk/Others) isn't built — only Medicine has a real form this pass.
+ * between Medicine/Feed/Semen/Milk/Others) isn't built — only Medicine has a real form this pass.
  */
 export function MedicineFormDialog({
   open,

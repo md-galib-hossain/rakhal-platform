@@ -87,6 +87,11 @@ export const feedApi = {
   getStock(id: string): Promise<FeedStockDetail> {
     return apiFetch<FeedStockDetail>(`/feed/stock/${id}`);
   },
+  /** Delete a stock lot from inventory (user request 2026-07-19 — "form inventory it can be also
+   * deleted"). Soft-delete on the backend. */
+  archiveStock(id: string): Promise<FeedStock> {
+    return apiFetch<FeedStock>(`/feed/stock/${id}`, { method: "DELETE" });
+  },
   /** "Feed Today" — the target (group vs one cow) is derived server-side from `concentrationId`,
    * never supplied here directly (see `LogDistributionPayload`'s doc comment). */
   logDistribution(dto: LogDistributionPayload): Promise<FeedDistribution> {

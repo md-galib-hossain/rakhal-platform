@@ -5,7 +5,7 @@ import type { CursorPage } from "@/types/api";
 import type {
   AdjustMedicineStockPayload,
   AdjustMilkTankVolumePayload,
-  CreateForagePayload,
+  CreateFeedItemPayload,
   CreateMedicinePayload,
   CreateEquipmentPayload,
   CreateMilkTankPayload,
@@ -13,8 +13,8 @@ import type {
   CreateSemenTankPayload,
   Equipment,
   EquipmentListFilters,
-  Forage,
-  ForageListFilters,
+  FeedItem,
+  FeedItemListFilters,
   Medicine,
   MedicineListFilters,
   MediaUrls,
@@ -27,7 +27,7 @@ import type {
   SemenBatchListFilters,
   SemenTank,
   UpdateEquipmentPayload,
-  UpdateForagePayload,
+  UpdateFeedItemPayload,
   UpdateMedicinePayload,
   UpdateMilkTankPayload,
   UpdateSemenBatchPayload,
@@ -66,28 +66,28 @@ export const inventoryApi = {
     return apiFetch<{ removed: boolean }>(`/inventory/medicines/${id}/photo`, { method: "DELETE" });
   },
 
-  /** `/inventory/forages*` — real backend routes (`forage.controller.ts`). No photo endpoints
-   * (see `types.ts#Forage` doc comment) and no separate adjust-stock route — `currentStock` goes
+  /** `/inventory/feed-items*` — real backend routes (`feed-item.controller.ts`). No photo endpoints
+   * (see `types.ts#FeedItem` doc comment) and no separate adjust-stock route — `currentStock` goes
    * through the normal update call. */
-  listForages(filters: ForageListFilters, cursor?: string): Promise<CursorPage<Forage>> {
-    return apiFetchPage<Forage>("/inventory/forages", {
-      searchParams: { search: filters.search, type: filters.type, cursor, limit: 20 },
+  listFeedItems(filters: FeedItemListFilters, cursor?: string): Promise<CursorPage<FeedItem>> {
+    return apiFetchPage<FeedItem>("/inventory/feed-items", {
+      searchParams: { search: filters.search, feedClass: filters.feedClass, cursor, limit: 20 },
     });
   },
-  findForage(id: string): Promise<Forage> {
-    return apiFetch<Forage>(`/inventory/forages/${id}`);
+  findFeedItem(id: string): Promise<FeedItem> {
+    return apiFetch<FeedItem>(`/inventory/feed-items/${id}`);
   },
-  createForage(dto: CreateForagePayload): Promise<Forage> {
-    return apiFetch<Forage>("/inventory/forages", { method: "POST", body: dto });
+  createFeedItem(dto: CreateFeedItemPayload): Promise<FeedItem> {
+    return apiFetch<FeedItem>("/inventory/feed-items", { method: "POST", body: dto });
   },
-  updateForage(id: string, dto: UpdateForagePayload): Promise<Forage> {
-    return apiFetch<Forage>(`/inventory/forages/${id}`, { method: "PATCH", body: dto });
+  updateFeedItem(id: string, dto: UpdateFeedItemPayload): Promise<FeedItem> {
+    return apiFetch<FeedItem>(`/inventory/feed-items/${id}`, { method: "PATCH", body: dto });
   },
-  archiveForage(id: string): Promise<Forage> {
-    return apiFetch<Forage>(`/inventory/forages/${id}/archive`, { method: "PATCH" });
+  archiveFeedItem(id: string): Promise<FeedItem> {
+    return apiFetch<FeedItem>(`/inventory/feed-items/${id}/archive`, { method: "PATCH" });
   },
-  restoreForage(id: string): Promise<Forage> {
-    return apiFetch<Forage>(`/inventory/forages/${id}/restore`, { method: "PATCH" });
+  restoreFeedItem(id: string): Promise<FeedItem> {
+    return apiFetch<FeedItem>(`/inventory/feed-items/${id}/restore`, { method: "PATCH" });
   },
 
   /** `/inventory/milk-tanks*` — real backend routes (`milk-tank.controller.ts`). No separate

@@ -1,15 +1,16 @@
 /**
- * Mirrors `rakhal-backend/src/modules/inventory/` directly — Medicine, Forage, Semen, Milk, and
+ * Mirrors `rakhal-backend/src/modules/inventory/` directly — Medicine, Feed, Semen, Milk, and
  * Others (equipment) tabs are fully built and verified against the real backend.
  *
- * **Feed** (added 2026-07-19, user report: "we have already a inventory... no need to create the
- * tmr feed inventory here" — a separate Feed Stock list had briefly lived on the Feed Formulator
- * page itself) is the odd one out: it reuses `src/modules/feed/`'s `FeedStock` model/`GET
- * /feed/stock` endpoint (owned by the Feed module, not `src/modules/inventory/`), read-only, no
- * CRUD of its own — the only way stock is produced/consumed is Finalize/"Feed Today" on the Feed
- * Formulator page. `FeedStockView` (`feed-stock-view.tsx`) cross-imports `features/feed`'s hooks,
- * same established pattern as `features/feed/components/log-distribution-dialog.tsx` cross-importing
- * this module's `useMilkTanks()`.
+ * **Feed** (`feed_taxonomy_unification`) is one tab with two views, since feed is the umbrella
+ * term — forage/concentrate/mineral/vitamin/additive are all feed, distinguished by `FeedClass`,
+ * not separate top-level categories. **Purchased** is this module's own `FeedItem` CRUD (below).
+ * **Prepared** reuses `src/modules/feed/`'s `FeedStock` model/`GET /feed/stock` endpoint (owned by
+ * the Feed module, not `src/modules/inventory/`), read-only, no CRUD of its own — the only way
+ * stock is produced/consumed is Finalize/"Feed Today" on the Feed Formulator page.
+ * `FeedStockView` (`feed-stock-view.tsx`) cross-imports `features/feed`'s hooks, same established
+ * pattern as `features/feed/components/log-distribution-dialog.tsx` cross-importing this module's
+ * `useMilkTanks()`.
  */
 
 export type MedicineType = "LIQUID" | "POWDER" | "TABLET" | "INJECTABLE" | "BOLUS" | "OINTMENT" | "OTHER";
@@ -101,25 +102,43 @@ export interface MediaUrls {
 }
 
 /**
- * Forage tab — mirrors `forage.controller.ts`/`forage.service.ts` + the `Forage` Prisma model
- * directly (verified live, `prisma/schemas/inventory/forage.prisma`). **Real difference from
- * Medicine, not an oversight**: `Forage` has no `imageUrl`/photo column at all (no
- * `POST/DELETE /inventory/forages/:id/photo` route either) — the Figma "Add Forage" mock's photo
- * dropzone and the card/detail images have no backing field, so the frontend renders the same
- * tinted-icon fallback every Medicine row without a photo already uses, never an upload control.
- * Also no `expiryDate`/withdrawal-day fields (forage doesn't spoil like medicine) and no separate
- * audited `adjust-stock` endpoint — `currentStock` is a normal editable field on `PATCH
- * /inventory/forages/:id`.
+ * Feed tab, "Purchased" view — mirrors `feed-item.controller.ts`/`feed-item.service.ts` + the
+ * `FeedItem` Prisma model directly (`@@map("Forage")` — same table, model renamed at the
+ * `feed_taxonomy_unification` migration since feed is the umbrella term, not forage; forage is one
+ * `FeedClass` alongside concentrate/mineral/vitamin/additive). `ingredientId` links a purchased
+ * stock row to its Feed Formulator nutrition/price catalogue counterpart (`FeedIngredient`) — a
+ * real FK, replacing the lowercased-name match the app used to rely on for stock decrement/price
+ * sync. **Real difference from Medicine, not an oversight**: no `imageUrl`/photo column at all (no
+ * photo route either) — the Figma "Add Forage" mock's photo dropzone and the card/detail images
+ * have no backing field, so the frontend renders the same tinted-icon fallback every Medicine row
+ * without a photo already uses, never an upload control. Also no `expiryDate`/withdrawal-day
+ * fields (feed doesn't spoil like medicine) and no separate audited `adjust-stock` endpoint —
+ * `currentStock` is a normal editable field on `PATCH /inventory/feed-items/:id`.
  */
-export type ForageType = "ROUGHAGE" | "CONCENTRATE" | "SILAGE" | "SUPPLEMENT" | "BY_PRODUCT" | "MINERAL" | "OTHER";
-export type ForageStockStatus = "out" | "low" | "adequate";
+export type FeedClass = "FORAGE" | "CONCENTRATE" | "MINERAL" | "VITAMIN" | "ADDITIVE" | "OTHER";
+export type FeedSubType =
+  | "GREEN_FODDER"
+  | "ROUGHAGE"
+  | "SILAGE"
+  | "HAY"
+  | "STRAW"
+  | "GRAIN"
+  | "OILCAKE"
+  | "BY_PRODUCT"
+  | "COMPOUND_PELLET"
+  | "PREMIX"
+  | "SUPPLEMENT"
+  | "OTHER";
+export type FeedItemStockStatus = "out" | "low" | "adequate";
 
-/** `GET/POST /inventory/forages(/:id)` row shape (`forage.service.ts#present`). */
-export interface Forage {
+/** `GET/POST /inventory/feed-items(/:id)` row shape (`feed-item.service.ts#present`). */
+export interface FeedItem {
   id: string;
   name: string;
-  type: ForageType;
+  feedClass: FeedClass;
+  feedSubType: FeedSubType | null;
   category: string | null;
+  ingredientId: string | null;
   unit: string;
   kgPerUnit: number | null;
   currentStock: number;
@@ -130,21 +149,24 @@ export interface Forage {
   purchaseDate: string;
   notes: string | null;
   isActive: boolean;
-  stockStatus: ForageStockStatus;
+  stockStatus: FeedItemStockStatus;
   /** `currentStock * kgPerUnit`, or `null` when `kgPerUnit` isn't set. Derived, not stored. */
   kgEquivalent: number | null;
 }
 
-export interface ForageListFilters {
+export interface FeedItemListFilters {
   search?: string;
-  type?: ForageType;
+  feedClass?: FeedClass;
 }
 
-/** `POST /inventory/forages` body (`CreateForageDto`). */
-export interface CreateForagePayload {
+/** `POST /inventory/feed-items` body (`CreateFeedItemDto`). `ingredientId` is required — every new
+ * purchased feed item must link to a Feed Formulator catalogue/custom ingredient. */
+export interface CreateFeedItemPayload {
   name: string;
-  type: ForageType;
+  feedClass: FeedClass;
+  feedSubType?: FeedSubType;
   category?: string;
+  ingredientId: string;
   unit: string;
   kgPerUnit?: number;
   currentStock: number;
@@ -156,11 +178,11 @@ export interface CreateForagePayload {
   notes?: string;
 }
 
-/** `PATCH /inventory/forages/:id` body (`UpdateForageDto`) — every field optional, including
- * `currentStock` (no separate adjust-stock endpoint for forage, unlike medicine). */
-export type UpdateForagePayload = Partial<CreateForagePayload>;
+/** `PATCH /inventory/feed-items/:id` body (`UpdateFeedItemDto`) — every field optional, including
+ * `currentStock` (no separate adjust-stock endpoint for feed items, unlike medicine). */
+export type UpdateFeedItemPayload = Partial<CreateFeedItemPayload>;
 
-export type InventoryTabKey = "medicine" | "forage" | "semen" | "milk" | "feed" | "others";
+export type InventoryTabKey = "medicine" | "semen" | "milk" | "feed" | "others";
 
 export interface InventoryTabConfig {
   key: InventoryTabKey;
@@ -170,7 +192,6 @@ export interface InventoryTabConfig {
 
 export const INVENTORY_TABS: InventoryTabConfig[] = [
   { key: "medicine", implemented: true },
-  { key: "forage", implemented: true },
   { key: "semen", implemented: true },
   { key: "milk", implemented: true },
   { key: "feed", implemented: true },

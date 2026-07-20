@@ -13,40 +13,40 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { useRestoreForage } from "../hooks/use-inventory";
-import type { Forage } from "../types";
+import { useRestoreFeedItem } from "../hooks/use-inventory";
+import type { FeedItem } from "../types";
 
 /** Per-row menu (view / edit / archive / restore) — same anatomy as `MedicineRowActions`, plus a
  * "View Details" entry (Figma's "Item Details - Forage" side modal, which Medicine doesn't have
  * yet) as the first item, mirroring `CattleRowActions`' ordering. */
-export function ForageRowActions({
-  forage,
+export function FeedItemRowActions({
+  feedItem,
   onView,
   onEdit,
   onArchive,
   triggerClassName,
 }: {
-  forage: Forage;
-  onView: (forage: Forage) => void;
-  onEdit: (forage: Forage) => void;
-  onArchive: (forage: Forage) => void;
+  feedItem: FeedItem;
+  onView: (feedItem: FeedItem) => void;
+  onEdit: (feedItem: FeedItem) => void;
+  onArchive: (feedItem: FeedItem) => void;
   triggerClassName?: string;
 }) {
   const t = useTranslations("inventory.actions");
   // `restoredToast`/`genericError` under the shared `inventory.actions` scope are hardcoded to
-  // "Medicine …" text (pre-existing, not this ticket's to rename) — Forage uses its own namespace
+  // "Medicine …" text (pre-existing, not this ticket's to rename) — Feed uses its own namespace
   // for those two strings instead of reusing the wrong wording.
-  const tForage = useTranslations("inventory.forage");
+  const tFeed = useTranslations("inventory.feed");
   const can = useCan();
-  const restore = useRestoreForage();
+  const restore = useRestoreFeedItem();
   const canUpdate = can("inventory.update");
 
   async function handleRestore() {
     try {
-      await restore.mutateAsync(forage.id);
-      toast.success(tForage("restoredToast"));
+      await restore.mutateAsync(feedItem.id);
+      toast.success(tFeed("restoredToast"));
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : tForage("genericError"));
+      toast.error(err instanceof ApiError ? err.message : tFeed("genericError"));
     }
   }
 
@@ -58,11 +58,11 @@ export function ForageRowActions({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={() => onView(forage)}>{t("viewDetails")}</DropdownMenuItem>
-        {canUpdate ? <DropdownMenuItem onSelect={() => onEdit(forage)}>{t("edit")}</DropdownMenuItem> : null}
-        {forage.isActive
+        <DropdownMenuItem onSelect={() => onView(feedItem)}>{t("viewDetails")}</DropdownMenuItem>
+        {canUpdate ? <DropdownMenuItem onSelect={() => onEdit(feedItem)}>{t("edit")}</DropdownMenuItem> : null}
+        {feedItem.isActive
           ? canUpdate && (
-              <DropdownMenuItem onSelect={() => onArchive(forage)} className="text-destructive">
+              <DropdownMenuItem onSelect={() => onArchive(feedItem)} className="text-destructive">
                 {t("archive")}
               </DropdownMenuItem>
             )

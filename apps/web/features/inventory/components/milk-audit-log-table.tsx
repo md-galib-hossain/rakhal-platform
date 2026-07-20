@@ -25,7 +25,7 @@ const ACTIVITY_CHIP_VARIANT: Record<MilkTankActivity, "primary" | "info" | "dest
  * "Milk Audit Log" — Figma 734:27983/734:27985 (`get_design_context` + screenshot of the real
  * mock's 6 columns: No/Date/Activity Type/Quantity/Storage/Operator). Backed by the real, cursor-only
  * `GET /inventory/milk-tanks/audit-log` (`milk-tank.service.ts#auditLog`) — same honest-frontier
- * numbered-`Pagination` pattern as Medicine/Forage rather than the mock's plain page-number look
+ * numbered-`Pagination` pattern as Medicine/FeedItem rather than the mock's plain page-number look
  * being faked over an infinite list. "Storage" resolves `milkTankId` → the tank's own name (not a
  * shed) via a `includeArchived: true` tank fetch — a plain active-only list (what the tank grid
  * itself uses) would lose the name on any row whose tank has since been archived, since the audit

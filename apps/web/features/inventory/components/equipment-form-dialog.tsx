@@ -52,13 +52,13 @@ function toFormDefaults(equipment: Equipment | undefined): Partial<EquipmentForm
   };
 }
 
-/** Plain bold-text grey band — same anatomy as `MedicineFormDialog`/`ForageFormDialog`'s
+/** Plain bold-text grey band — same anatomy as `MedicineFormDialog`/`FeedItemFormDialog`'s
  * `SectionHeader`. */
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return <div className="rounded-xl bg-muted px-4 py-2.5 text-sm font-semibold text-foreground">{children}</div>;
 }
 
-/** Static image slot — same pattern as Forage's `PhotoPlaceholder` (`equipment.prisma` has no
+/** Static image slot — same pattern as FeedItem's `PhotoPlaceholder` (`equipment.prisma` has no
  * `imageUrl` column at all, so there's nothing to upload — matches the mock's visual slot without
  * inventing an upload flow the backend can't support). */
 function PhotoPlaceholder({ label }: { label: string }) {
@@ -72,10 +72,10 @@ function PhotoPlaceholder({ label }: { label: string }) {
 
 /**
  * Add/Edit Equipment drawer — Figma "Add New Equipment - Side Modal" (734:26462, `get_design_context`):
- * same floating-card chrome as `MedicineFormDialog`/`ForageFormDialog` (10px inset, 20px radius, 2px
+ * same floating-card chrome as `MedicineFormDialog`/`FeedItemFormDialog` (10px inset, 20px radius, 2px
  * border, `arrow-right-03` header icon), dashed section dividers, plain-text section header bands.
  * **Real gaps vs the mock, flagged not faked**: the mock's "Item Type" selector (switching between
- * Medicine/Forage/Semen/Milk/Others) isn't built — only this tab's own form exists. The mock's
+ * Medicine/Feed/Semen/Milk/Others) isn't built — only this tab's own form exists. The mock's
  * "Location" (Warehouse/Shelf) and "Warranty Expiry" fields have **no backing column anywhere on
  * `Equipment`** (`equipment.prisma`) — dropped entirely rather than rendered as dead inputs. "Unit"
  * is a mock dropdown ("Piece") with an invented option list; the real `unit?: string` field is free

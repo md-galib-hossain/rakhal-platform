@@ -1,5 +1,6 @@
 "use client"; // form state + mutation
 
+import { useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -13,17 +14,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
-import { useCreateForage, useUpdateForage } from "../hooks/use-inventory";
-import { forageFormSchema, type ForageFormInput } from "../schemas";
-import type { CreateForagePayload, Forage, UpdateForagePayload } from "../types";
+import { IngredientPicker } from "@/features/feed/components/ingredient-picker";
+import { useFeedIngredients } from "@/features/feed/hooks/use-feed";
+import { useCreateFeedItem, useUpdateFeedItem } from "../hooks/use-inventory";
+import { feedItemFormSchema, type FeedItemFormInput } from "../schemas";
+import type { CreateFeedItemPayload, FeedItem, UpdateFeedItemPayload } from "../types";
 
-const FORAGE_TYPES = ["ROUGHAGE", "CONCENTRATE", "SILAGE", "SUPPLEMENT", "BY_PRODUCT", "MINERAL", "OTHER"] as const;
+const FEED_CLASSES = ["FORAGE", "CONCENTRATE", "MINERAL", "VITAMIN", "ADDITIVE", "OTHER"] as const;
 
-function toCreatePayload(values: ForageFormInput): CreateForagePayload {
+function toCreatePayload(values: FeedItemFormInput): CreateFeedItemPayload {
   return {
     name: values.name,
-    type: values.type,
+    feedClass: values.feedClass,
+    feedSubType: values.feedSubType,
     category: values.category || undefined,
+    ingredientId: values.ingredientId,
     unit: values.unit,
     kgPerUnit: values.kgPerUnit,
     currentStock: values.currentStock,
@@ -36,29 +41,31 @@ function toCreatePayload(values: ForageFormInput): CreateForagePayload {
   };
 }
 
-/** No `currentStock`-omission needed here unlike Medicine's `toUpdatePayload` — Forage has no
- * separate audited adjust-stock endpoint, so `PATCH /inventory/forages/:id` accepts it directly
- * (`UpdateForageDto`). Same shape as create, kept as its own function for symmetry with Medicine's
+/** No `currentStock`-omission needed here unlike Medicine's `toUpdatePayload` — a feed item has no
+ * separate audited adjust-stock endpoint, so `PATCH /inventory/feed-items/:id` accepts it directly
+ * (`UpdateFeedItemDto`). Same shape as create, kept as its own function for symmetry with Medicine's
  * two-function pattern rather than reusing `toCreatePayload` for both. */
-function toUpdatePayload(values: ForageFormInput): UpdateForagePayload {
+function toUpdatePayload(values: FeedItemFormInput): UpdateFeedItemPayload {
   return toCreatePayload(values);
 }
 
-function toFormDefaults(forage: Forage | undefined): Partial<ForageFormInput> {
-  if (!forage) return { type: "ROUGHAGE", currentStock: 0, costPerUnit: 0 };
+function toFormDefaults(feedItem: FeedItem | undefined): Partial<FeedItemFormInput> {
+  if (!feedItem) return { feedClass: "FORAGE", currentStock: 0, costPerUnit: 0, ingredientId: "" };
   return {
-    name: forage.name,
-    type: forage.type,
-    category: forage.category ?? "",
-    unit: forage.unit,
-    kgPerUnit: forage.kgPerUnit ?? undefined,
-    currentStock: forage.currentStock,
-    costPerUnit: forage.costPerUnit,
-    lowStockThreshold: forage.lowStockThreshold,
-    moisturePct: forage.moisturePct ?? undefined,
-    supplier: forage.supplier ?? "",
-    purchaseDate: forage.purchaseDate.slice(0, 10),
-    notes: forage.notes ?? "",
+    name: feedItem.name,
+    feedClass: feedItem.feedClass,
+    feedSubType: feedItem.feedSubType ?? undefined,
+    category: feedItem.category ?? "",
+    ingredientId: feedItem.ingredientId ?? "",
+    unit: feedItem.unit,
+    kgPerUnit: feedItem.kgPerUnit ?? undefined,
+    currentStock: feedItem.currentStock,
+    costPerUnit: feedItem.costPerUnit,
+    lowStockThreshold: feedItem.lowStockThreshold,
+    moisturePct: feedItem.moisturePct ?? undefined,
+    supplier: feedItem.supplier ?? "",
+    purchaseDate: feedItem.purchaseDate.slice(0, 10),
+    notes: feedItem.notes ?? "",
   };
 }
 
@@ -67,10 +74,10 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 }
 
 /** Static stand-in for the Figma "+ Add Forage Image" dropzone (732:13198) — **not** a real upload
- * control. `Forage` has no photo column/endpoint at all (see `types.ts#Forage` doc comment), unlike
- * Medicine which got one added specifically for this modal, so wiring a clickable file picker here
- * would silently do nothing on save. Keeps the same 140px visual slot for layout fidelity without
- * implying a capability that doesn't exist. */
+ * control. A feed item has no photo column/endpoint at all (see `types.ts#FeedItem` doc comment),
+ * unlike Medicine which got one added specifically for this modal, so wiring a clickable file
+ * picker here would silently do nothing on save. Keeps the same 140px visual slot for layout
+ * fidelity without implying a capability that doesn't exist. */
 function PhotoPlaceholder({ label }: { label: string }) {
   return (
     <div className="flex size-[140px] shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-input bg-muted text-center">
@@ -81,55 +88,70 @@ function PhotoPlaceholder({ label }: { label: string }) {
 }
 
 /**
- * Add/Edit Forage drawer — Figma "Add Forage - Side Modal" (732:13198, `get_design_context`): same
- * floating-card chrome as `MedicineFormDialog`/`CattleDetailSheet` (10px inset, 20px radius, 2px
- * border, `arrow-right-03` header icon), dashed section dividers, plain-text section header bands.
- * **Real gaps vs the mock, flagged not faked**: the mock's "Item Type" selector (switching between
- * Medicine/Forage/Semen/Milk/Others) isn't built, same as Medicine's form; "Low Stock Alert" is a
- * mock dropdown ("select number") — the real `lowStockThreshold` DTO field is a plain number,
- * rendered as such. No photo upload (see `PhotoPlaceholder`).
+ * Add/Edit Feed Item drawer — Figma "Add Forage - Side Modal" (732:13198, `get_design_context`):
+ * same floating-card chrome as `MedicineFormDialog`/`CattleDetailSheet` (10px inset, 20px radius,
+ * 2px border, `arrow-right-03` header icon), dashed section dividers, plain-text section header
+ * bands. **Real gaps vs the mock, flagged not faked**: the mock's "Item Type" selector (switching
+ * between Medicine/Forage/Semen/Milk/Others) isn't built, same as Medicine's form; "Low Stock
+ * Alert" is a mock dropdown ("select number") — the real `lowStockThreshold` DTO field is a plain
+ * number, rendered as such. No photo upload (see `PhotoPlaceholder`).
+ *
+ * **"Linked Ingredient"** (`feed_taxonomy_unification`, no Figma frame — a real backend requirement
+ * added when `Forage`/`FeedItem` gained a required `ingredientId` FK to the Feed Formulator's
+ * `FeedIngredient` catalogue, replacing the lowercased-name match stock decrement/price-sync used
+ * to rely on): reuses `features/feed`'s `IngredientPicker` (cross-feature import, same established
+ * pattern as this module's `useMilkTanks()` being reused from `log-distribution-dialog.tsx`).
+ * Picking an ingredient also prefills the Feed Class from that ingredient's own `feed_class` when
+ * the class hasn't been touched yet, so the two stay in sync by default without forcing it.
  */
-export function ForageFormDialog({
+export function FeedItemFormDialog({
   open,
   onOpenChange,
-  forage,
+  feedItem,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  forage?: Forage;
+  feedItem?: FeedItem;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      {open ? <ForageFormDialogBody key={forage?.id ?? "create"} onOpenChange={onOpenChange} forage={forage} /> : null}
+      {open ? <FeedItemFormDialogBody key={feedItem?.id ?? "create"} onOpenChange={onOpenChange} feedItem={feedItem} /> : null}
     </Sheet>
   );
 }
 
-function ForageFormDialogBody({
+function FeedItemFormDialogBody({
   onOpenChange,
-  forage,
+  feedItem,
 }: {
   onOpenChange: (open: boolean) => void;
-  forage?: Forage;
+  feedItem?: FeedItem;
 }) {
-  const t = useTranslations("inventory.forage.form");
-  const tOptions = useTranslations("inventory.forage");
-  const isEdit = Boolean(forage);
-  const createForage = useCreateForage();
-  const updateForage = useUpdateForage();
-  const pending = createForage.isPending || updateForage.isPending;
+  const t = useTranslations("inventory.feed.form");
+  const tOptions = useTranslations("inventory.feed");
+  const isEdit = Boolean(feedItem);
+  const createFeedItem = useCreateFeedItem();
+  const updateFeedItem = useUpdateFeedItem();
+  const pending = createFeedItem.isPending || updateFeedItem.isPending;
+  const { data: ingredients } = useFeedIngredients();
 
-  const form = useForm<ForageFormInput>({
-    resolver: zodResolver(forageFormSchema),
-    defaultValues: toFormDefaults(forage),
+  const form = useForm<FeedItemFormInput>({
+    resolver: zodResolver(feedItemFormSchema),
+    defaultValues: toFormDefaults(feedItem),
   });
 
-  async function onSubmit(values: ForageFormInput) {
+  const ingredientId = form.watch("ingredientId");
+  const selectedIngredientName = useMemo(
+    () => ingredients?.find((ing) => ing.id === ingredientId)?.name_en,
+    [ingredients, ingredientId],
+  );
+
+  async function onSubmit(values: FeedItemFormInput) {
     try {
-      if (isEdit && forage) {
-        await updateForage.mutateAsync({ id: forage.id, dto: toUpdatePayload(values) });
+      if (isEdit && feedItem) {
+        await updateFeedItem.mutateAsync({ id: feedItem.id, dto: toUpdatePayload(values) });
       } else {
-        await createForage.mutateAsync(toCreatePayload(values));
+        await createFeedItem.mutateAsync(toCreatePayload(values));
       }
       toast.success(isEdit ? t("updatedToast") : t("createdToast"));
       onOpenChange(false);
@@ -197,14 +219,14 @@ function ForageFormDialogBody({
           <div className="grid grid-cols-2 gap-3">
             <Controller
               control={form.control}
-              name="type"
+              name="feedClass"
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <LabeledSelectTrigger label={t("feedType")} />
+                  <LabeledSelectTrigger label={t("feedClass")} />
                   <SelectContent>
-                    {FORAGE_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {tOptions(`typeOptions.${type}`)}
+                    {FEED_CLASSES.map((feedClass) => (
+                      <SelectItem key={feedClass} value={feedClass}>
+                        {tOptions(`classOptions.${feedClass}`)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -221,6 +243,25 @@ function ForageFormDialogBody({
               {...form.register("moisturePct", { setValueAs: (v) => (v === "" ? undefined : Number(v)) })}
             />
             <LabeledInput id="supplier" label={t("supplier")} placeholder={t("supplierPlaceholder")} {...form.register("supplier")} />
+
+            <div className="col-span-2 flex flex-col gap-1.5">
+              <Label>{t("ingredient")}</Label>
+              <div className="flex items-center gap-2">
+                <IngredientPicker
+                  onSelect={(option) => {
+                    form.setValue("ingredientId", option.id, { shouldValidate: true });
+                    const picked = ingredients?.find((ing) => ing.id === option.id);
+                    if (picked) form.setValue("feedClass", picked.feed_class);
+                  }}
+                  excludeIds={[]}
+                  placeholder={selectedIngredientName ?? t("ingredientPlaceholder")}
+                  className="w-full justify-between"
+                />
+              </div>
+              {form.formState.errors.ingredientId ? (
+                <p className="text-xs text-destructive">{t("ingredientRequired")}</p>
+              ) : null}
+            </div>
           </div>
 
           <SectionHeader>{t("stockExpiry")}</SectionHeader>

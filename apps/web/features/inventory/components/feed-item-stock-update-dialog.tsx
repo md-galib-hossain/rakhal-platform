@@ -8,38 +8,38 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useUpdateForage } from "../hooks/use-inventory";
-import type { Forage } from "../types";
+import { useUpdateFeedItem } from "../hooks/use-inventory";
+import type { FeedItem } from "../types";
 
 /**
  * Figma's "Item Details - Forage" drawer (732:13304) has a dedicated "Stock Update" CTA next to
  * "Edit Item". Unlike Medicine (`AdjustMedicineStockPayload`, a separate audited
- * `POST /inventory/medicines/:id/adjust-stock` endpoint with a signed delta + reason), Forage has
- * no such route — `currentStock` is just a normal field on `PATCH /inventory/forages/:id`
- * (`UpdateForageDto`, see `types.ts#Forage` doc comment). This is a small dedicated dialog for that
- * one field rather than reusing the full `ForageFormDialog`, matching the Figma CTA's scope without
- * inventing a backend capability that isn't there.
+ * `POST /inventory/medicines/:id/adjust-stock` endpoint with a signed delta + reason), a feed item
+ * has no such route — `currentStock` is just a normal field on `PATCH /inventory/feed-items/:id`
+ * (`UpdateFeedItemDto`, see `types.ts#FeedItem` doc comment). This is a small dedicated dialog for
+ * that one field rather than reusing the full `FeedItemFormDialog`, matching the Figma CTA's scope
+ * without inventing a backend capability that isn't there.
  */
-export function ForageStockUpdateDialog({
-  forage,
+export function FeedItemStockUpdateDialog({
+  feedItem,
   open,
   onOpenChange,
 }: {
-  forage: Forage | null;
+  feedItem: FeedItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const t = useTranslations("inventory.forage.stockUpdate");
-  const updateForage = useUpdateForage();
+  const t = useTranslations("inventory.feed.stockUpdate");
+  const updateFeedItem = useUpdateFeedItem();
   const [value, setValue] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!forage) return;
+    if (!feedItem) return;
     const currentStock = Number(value);
     if (!Number.isFinite(currentStock) || currentStock < 0) return;
     try {
-      await updateForage.mutateAsync({ id: forage.id, dto: { currentStock } });
+      await updateFeedItem.mutateAsync({ id: feedItem.id, dto: { currentStock } });
       toast.success(t("updatedToast"));
       onOpenChange(false);
     } catch (err) {
@@ -51,17 +51,17 @@ export function ForageStockUpdateDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (next && forage) setValue(String(forage.currentStock));
+        if (next && feedItem) setValue(String(feedItem.currentStock));
         onOpenChange(next);
       }}
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t("title")}</DialogTitle>
-          <DialogDescription>{t("description", { name: forage?.name ?? "", unit: forage?.unit ?? "" })}</DialogDescription>
+          <DialogDescription>{t("description", { name: feedItem?.name ?? "", unit: feedItem?.unit ?? "" })}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-          <Label htmlFor="stock-update-value">{t("label", { unit: forage?.unit ?? "" })}</Label>
+          <Label htmlFor="stock-update-value">{t("label", { unit: feedItem?.unit ?? "" })}</Label>
           <Input
             id="stock-update-value"
             type="number"
@@ -71,11 +71,11 @@ export function ForageStockUpdateDialog({
             onChange={(e) => setValue(e.target.value)}
           />
           <DialogFooter className="pt-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={updateForage.isPending}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={updateFeedItem.isPending}>
               {t("cancel")}
             </Button>
-            <Button type="submit" disabled={updateForage.isPending}>
-              {updateForage.isPending ? "…" : t("save")}
+            <Button type="submit" disabled={updateFeedItem.isPending}>
+              {updateFeedItem.isPending ? "…" : t("save")}
             </Button>
           </DialogFooter>
         </form>

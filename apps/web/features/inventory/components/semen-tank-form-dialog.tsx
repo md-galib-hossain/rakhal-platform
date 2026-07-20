@@ -50,7 +50,7 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 
 /**
  * Add/Edit Semen Tank drawer — Figma "Add New Tank" (732:21955, `get_design_context`): same
- * floating-card chrome as the Milk/Forage form dialogs (10px inset, 20px radius, 2px border,
+ * floating-card chrome as the Milk/FeedItem form dialogs (10px inset, 20px radius, 2px border,
  * `arrow-right-03` header icon), two side-by-side sections ("Tank Info" / "Calibration & Safety").
  * **Real gap vs the mock, flagged not faked**: the mock's "Staw in Stock" input has no backing field
  * on `CreateSemenTankDto` at all (stock is derived from batches, see `types.ts` doc comment) — omitted

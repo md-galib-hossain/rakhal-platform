@@ -48,7 +48,7 @@ export const qk = {
   },
   inventory: {
     medicineDetail: (id: string) => ["inventory", "medicine", "detail", id] as const,
-    forageDetail: (id: string) => ["inventory", "forage", "detail", id] as const,
+    feedItemDetail: (id: string) => ["inventory", "feed-item", "detail", id] as const,
     milkTanks: (filters: Record<string, string | undefined>) => ["inventory", "milk-tank", "list", filters] as const,
     milkTankAuditLog: (tankId: string | undefined) => ["inventory", "milk-tank", "audit-log", tankId] as const,
     teamMembers: () => ["inventory", "milk-tank", "team-members"] as const,

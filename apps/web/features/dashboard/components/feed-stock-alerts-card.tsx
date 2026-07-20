@@ -31,7 +31,7 @@ export function FeedStockAlertsCard() {
           {query.data.alerts.map((alert) => (
             <li key={alert.itemId}>
               <Link
-                href={alert.itemType === "medicine" ? `/inventory/medicines/${alert.itemId}` : `/inventory/forage/${alert.itemId}`}
+                href={alert.itemType === "medicine" ? `/inventory/medicines/${alert.itemId}` : `/inventory?tab=feed&segment=purchased`}
                 className="flex items-center justify-between gap-3 rounded-md px-2 py-2 text-sm transition-colors hover:bg-muted"
               >
                 <span className="min-w-0 truncate text-foreground">{alert.name}</span>
