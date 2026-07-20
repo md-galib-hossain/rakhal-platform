@@ -10,9 +10,10 @@
 model FeedIngredient {
   id String @id @default(cuid())
 
-  nameEn   String
-  nameBn   String?
-  category FeedIngredientCategory
+  nameEn      String
+  nameBn      String?
+  feedClass   FeedClass
+  feedSubType FeedSubType?
 
   /// Standard nutritional values per kg (§4.1 / §24.11). Unless noted, every
   /// `xPct` is a rate on **dry matter** (% of DM) — `rdpPct`/`rupPct` are the one
@@ -79,8 +80,9 @@ model FeedIngredient {
   overrides           FeedIngredientOverride[]
   concentrationItems  FeedConcentrationItem[]
   sourceConcentration FeedConcentration?       @relation(fields: [sourceConcentrationId], references: [id])
+  feedItems           FeedItem[]
 
-  @@index([category])
+  @@index([feedClass])
   @@index([isActive])
   @@index([farmId])
   @@index([sourceConcentrationId])
@@ -184,8 +186,8 @@ model FeedConcentrationItem {
 /// is applied to a group, the actual quantities distributed are logged per
 /// ingredient (pre-filled from the formula's planned amounts, editable), with any
 /// refusal/leftover. Total cost is computed from actual quantities at the farm's
-/// effective ingredient prices (snapshotted on each line). Matching forage stock
-/// decrements best-effort (§15.3) by ingredient name, kg-unit forages only.
+/// effective ingredient prices (snapshotted on each line). Matching `FeedItem`
+/// stock decrements best-effort (§15.3) by `ingredientId` FK, any unit.
 model FeedDistribution {
   id String @id @default(cuid())
 
@@ -240,14 +242,6 @@ model FeedDistributionItem {
 
   @@index([distributionId])
   @@index([ingredientId])
-}
-
-enum FeedIngredientCategory {
-  ROUGHAGE
-  CONCENTRATE
-  SILAGE
-  SUPPLEMENT
-  BY_PRODUCT
 }
 
 enum FeedTargetType {

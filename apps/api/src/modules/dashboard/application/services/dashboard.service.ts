@@ -442,7 +442,7 @@ export class DashboardService {
   async feedStockAlerts(farmId: string) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * DAY_MS);
 
-    const [medicines, forages, medicineUsage] = await Promise.all([
+    const [medicines, feedItems, medicineUsage] = await Promise.all([
       this.prisma.medicine.findMany({
         where: { farmId, isActive: true, lowStockThreshold: { gt: 0 } },
         select: {
@@ -453,7 +453,7 @@ export class DashboardService {
           lowStockThreshold: true,
         },
       }),
-      this.prisma.forage.findMany({
+      this.prisma.feedItem.findMany({
         where: { farmId, isActive: true, lowStockThreshold: { gt: 0 } },
         select: {
           id: true,
@@ -490,7 +490,7 @@ export class DashboardService {
     };
 
     const toAlert =
-      (type: 'medicine' | 'forage') =>
+      (type: 'medicine' | 'feed_item') =>
       (i: {
         id: string;
         name: string;
@@ -513,9 +513,9 @@ export class DashboardService {
       ...medicines
         .filter((m) => m.currentStock <= m.lowStockThreshold)
         .map(toAlert('medicine')),
-      ...forages
+      ...feedItems
         .filter((f) => f.currentStock <= f.lowStockThreshold)
-        .map(toAlert('forage')),
+        .map(toAlert('feed_item')),
     ];
     return { alerts };
   }

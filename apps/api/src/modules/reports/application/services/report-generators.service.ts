@@ -677,8 +677,8 @@ export class ReportGeneratorsService {
 
   /**
    * Feed Cost Report (PRD §1.5 North-Star: ৳/L). Feed spend is identified by the
-   * existing Finance↔Forage linkage (RD-010): non-voided transactions whose
-   * `inventoryItemName` matches a forage (feed) item for the farm. Reported
+   * existing Finance↔FeedItem linkage (RD-010): non-voided transactions whose
+   * `inventoryItemName` matches a feed item for the farm. Reported
    * against litres produced → feed cost per litre, feed's share of total expense,
    * and cost per cow per day, with a per-item breakdown. No feed-distribution
    * tracking yet (V1.5), so this is purchase-based, not consumption-based.
@@ -692,9 +692,9 @@ export class ReportGeneratorsService {
     const effectiveEnd = end > now ? now : end;
     const days = Math.max(1, this.daysBetween(start, effectiveEnd) || 1);
 
-    const [forages, txns, litres, totalExpense, activeCows] = await Promise.all(
-      [
-        this.prisma.forage.findMany({
+    const [feedItems, txns, litres, totalExpense, activeCows] =
+      await Promise.all([
+        this.prisma.feedItem.findMany({
           where: { farmId },
           select: { name: true },
         }),
@@ -716,10 +716,9 @@ export class ReportGeneratorsService {
             productionStatus: { notIn: ACTIVE_PRODUCTION_EXCLUDE },
           },
         }),
-      ],
-    );
+      ]);
 
-    const feedNames = new Set(forages.map((f) => f.name.toLowerCase()));
+    const feedNames = new Set(feedItems.map((f) => f.name.toLowerCase()));
     const byItem = new Map<string, number>();
     for (const t of txns) {
       const name = t.inventoryItemName;

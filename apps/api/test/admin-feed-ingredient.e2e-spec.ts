@@ -61,7 +61,7 @@ describe('Admin Feed Ingredient Master (e2e)', () => {
       .set(...adminAuth())
       .send({
         nameEn: name,
-        category: 'CONCENTRATE',
+        feedClass: 'CONCENTRATE',
         dmPct: 88,
         cpPct: 44,
         meMjPerKgDm: 13.5,
@@ -96,7 +96,8 @@ describe('Admin Feed Ingredient Master (e2e)', () => {
       .set(...adminAuth())
       .send({
         nameEn: `E2E Admin Price Update ${Date.now()}`,
-        category: 'ROUGHAGE',
+        feedClass: 'FORAGE',
+        feedSubType: 'ROUGHAGE',
         dmPct: 20,
         cpPct: 10,
         meMjPerKgDm: 9,
@@ -149,7 +150,8 @@ describe('Admin Feed Ingredient Master (e2e)', () => {
       .set(...adminAuth())
       .send({
         nameEn: `E2E Admin Archive ${Date.now()}`,
-        category: 'SUPPLEMENT',
+        feedClass: 'ADDITIVE',
+        feedSubType: 'SUPPLEMENT',
         dmPct: 90,
         cpPct: 20,
         meMjPerKgDm: 10,

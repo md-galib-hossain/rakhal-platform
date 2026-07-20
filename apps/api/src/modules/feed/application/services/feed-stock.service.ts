@@ -12,7 +12,7 @@ const round2 = (v: number) => Math.round(v * 100) / 100;
  * Feed batch inventory (§12.5 follow-up — "TMR ↔ Inventory" real linkage, user request
  * 2026-07-17). Mirrors the Medicine/Semen "dedicated model + dedicated service + transactional
  * decrement + audit row" pattern (`MedicineService.decrementForTreatment`) rather than the
- * best-effort name-matched `Forage` decrement `FeedDistributionService` already does — that path
+ * best-effort FK-matched `FeedItem` decrement `FeedDistributionService` already does — that path
  * stays as-is for farms not using formal stock tracking (`FeedDistributionItem.stockId` is
  * optional).
  */
@@ -83,7 +83,7 @@ export class FeedStockService {
   ) {
     for (const { stockId, quantity } of requests) {
       const stock = await this.prisma.feedStock.findFirst({
-        where: { id: stockId, farmId },
+        where: { id: stockId, farmId, isActive: true },
       });
       if (!stock)
         throw new NotFoundException(`Feed stock lot ${stockId} not found`);
@@ -105,7 +105,7 @@ export class FeedStockService {
     opts: { stockId: string; quantity: number; distributionId?: string },
   ) {
     const stock = await this.prisma.feedStock.findFirst({
-      where: { id: opts.stockId, farmId },
+      where: { id: opts.stockId, farmId, isActive: true },
     });
     if (!stock) throw new NotFoundException('Feed stock lot not found');
     if (opts.quantity <= 0) {
@@ -146,10 +146,27 @@ export class FeedStockService {
 
   async list(farmId: string) {
     const rows = await this.prisma.feedStock.findMany({
-      where: { farmId },
+      where: { farmId, isActive: true },
       orderBy: { producedAt: 'desc' },
     });
     return rows.map((r) => this.mapStock(r));
+  }
+
+  /** Soft-delete a stock lot (user request 2026-07-19 — "form inventory it can be also deleted"),
+   * same archive-not-hard-delete convention as every other inventory model. Doesn't touch
+   * `currentStockKg`/movements — an archived lot's history stays intact, it's just hidden from the
+   * default `list()`. */
+  async archive(farmId: string, id: string) {
+    const row = await this.prisma.feedStock.findFirst({
+      where: { id, farmId },
+    });
+    if (!row) throw new NotFoundException('Feed stock lot not found');
+    const updated = await this.prisma.feedStock.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    this.log.info('Feed stock archived', { farmId, stockId: id });
+    return this.mapStock(updated);
   }
 
   async get(farmId: string, id: string) {

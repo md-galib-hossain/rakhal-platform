@@ -44,7 +44,7 @@ model User {
   createdCattle       Cattle[]     @relation("CattleCreator")
   createdHealthPlans  HealthPlan[] @relation("HealthPlanCreator")
   createdMedicines    Medicine[]   @relation("MedicineCreator")
-  createdForages      Forage[]     @relation("ForageCreator")
+  createdForages      FeedItem[]   @relation("ForageCreator")
   createdSemenTanks   SemenTank[]  @relation("SemenTankCreator")
   createdSemenBatches SemenBatch[] @relation("SemenBatchCreator")
   createdMilkTanks    MilkTank[]   @relation("MilkTankCreator")

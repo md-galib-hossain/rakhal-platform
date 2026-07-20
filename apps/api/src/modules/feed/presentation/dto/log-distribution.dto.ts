@@ -33,7 +33,7 @@ export class DistributionItemDto {
 
   /** A specific `FeedStock` lot to decrement `actualKg` from (real FK-backed linkage, user request
    * 2026-07-17 — "feeding a cow deducts from that specific inventory feed stock"). Optional — omit
-   * to keep using the existing best-effort `Forage` name-match decrement for this line. */
+   * to keep using the existing best-effort `FeedItem` FK-match decrement for this line. */
   @IsOptional()
   @Transform(trimString)
   @IsString()

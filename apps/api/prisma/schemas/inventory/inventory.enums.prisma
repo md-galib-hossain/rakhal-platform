@@ -28,16 +28,6 @@ enum MedicineStockMovementReason {
   CORRECTION
 }
 
-enum ForageType {
-  ROUGHAGE
-  CONCENTRATE
-  SILAGE
-  SUPPLEMENT
-  BY_PRODUCT
-  MINERAL
-  OTHER
-}
-
 enum MilkTankType {
   SELLABLE
   WITHHOLDING

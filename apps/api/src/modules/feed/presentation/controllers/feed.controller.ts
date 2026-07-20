@@ -255,4 +255,12 @@ export class FeedController {
   getStock(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.stock.get(farmId, id);
   }
+
+  /** Delete a stock lot from inventory (user request 2026-07-19 — "form inventory it can be also
+   * deleted"). Soft-delete, same as `removeConcentration` above. */
+  @Delete('stock/:id')
+  @RequirePermission('feed.delete')
+  archiveStock(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.stock.archive(farmId, id);
+  }
 }

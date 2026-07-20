@@ -62,7 +62,10 @@ export class AdminFeedIngredientController {
       action: 'FEED_INGREDIENT_CREATED',
       entityType: 'FeedIngredient',
       entityId: ingredient.id,
-      metadata: { name_en: ingredient.name_en, category: ingredient.category },
+      metadata: {
+        name_en: ingredient.name_en,
+        feed_class: ingredient.feed_class,
+      },
       ipAddress: req.ip,
     });
     return ingredient;

@@ -63,7 +63,7 @@ export class FeedConcentrationService {
     });
     const finalizedIds = await this.finalizedIds(
       farmId,
-      rows.map((r) => r.id),
+      rows.map((r) => ({ id: r.id, kind: r.kind })),
     );
     return Promise.all(
       rows.map((r) => this.enrich(farmId, r, false, finalizedIds)),
@@ -72,26 +72,46 @@ export class FeedConcentrationService {
 
   async get(farmId: string, id: string) {
     const row = await this.getOrThrow(farmId, id);
-    const finalizedIds = await this.finalizedIds(farmId, [id]);
+    const finalizedIds = await this.finalizedIds(farmId, [
+      { id: row.id, kind: row.kind },
+    ]);
     return this.enrich(farmId, row, true, finalizedIds);
   }
 
-  /** Which of these concentration ids have ever been finalized at least once — a `FeedStock` lot is
-   * produced unconditionally on every `finalize()` call for both kinds (see that method's doc
-   * comment), so its mere existence is a reliable, cheap "has this recipe ever been finalized"
-   * signal for the card UI (user report 2026-07-19: Finalize was easy to miss, farmers had no way to
-   * tell a template hadn't been made usable in a TMR yet). */
+  /** Which of these concentration ids have ever been finalized at least once. The two kinds
+   * finalize into different things — a Concentrate Mixer is a virtual recipe/calculator that
+   * never touches inventory, only ever promotes/refreshes a reusable `FeedIngredient`; a Total
+   * Mixed Ration is the real ration, and finalizing one produces an actual `FeedStock` inventory
+   * lot (see `finalize()`'s doc comment) — so each kind needs its own existence check, never the
+   * other's. */
   private async finalizedIds(
     farmId: string,
-    concentrationIds: string[],
+    rows: { id: string; kind: FeedConcentrationKind }[],
   ): Promise<Set<string>> {
-    if (concentrationIds.length === 0) return new Set();
-    const rows = await this.prisma.feedStock.findMany({
-      where: { farmId, sourceConcentrationId: { in: concentrationIds } },
-      select: { sourceConcentrationId: true },
-      distinct: ['sourceConcentrationId'],
-    });
-    return new Set(rows.map((r) => r.sourceConcentrationId));
+    const templateIds = rows
+      .filter((r) => r.kind === 'CONCENTRATE_TEMPLATE')
+      .map((r) => r.id);
+    const mixtureIds = rows
+      .filter((r) => r.kind === 'FEED_MIXTURE')
+      .map((r) => r.id);
+    // `in: []` is a safe no-op query (returns `[]`), so both queries can always run — no need to
+    // branch on whether either id list is non-empty, which sidesteps a TS inference gotcha where a
+    // ternary's two `Promise.all` branches (a real query vs `Promise.resolve([])`) collapse to `any`.
+    const [ingredientRows, stockRows] = await Promise.all([
+      this.prisma.feedIngredient.findMany({
+        where: { farmId, sourceConcentrationId: { in: templateIds } },
+        select: { sourceConcentrationId: true },
+      }),
+      this.prisma.feedStock.findMany({
+        where: { farmId, sourceConcentrationId: { in: mixtureIds } },
+        select: { sourceConcentrationId: true },
+        distinct: ['sourceConcentrationId'],
+      }),
+    ]);
+    return new Set([
+      ...ingredientRows.map((r) => r.sourceConcentrationId as string),
+      ...stockRows.map((r) => r.sourceConcentrationId),
+    ]);
   }
 
   async create(farmId: string, userId: string, dto: CreateConcentrationDto) {
@@ -268,17 +288,22 @@ export class FeedConcentrationService {
   }
 
   /**
-   * **Concentrate Mixer** (`kind=CONCENTRATE_TEMPLATE`): promote-or-refresh this concentration's
-   * formula into a reusable `FeedIngredient` row — an **upsert by `sourceConcentrationId`**, not
-   * "always create a new frozen version" (that versioning/freeze design was retired 2026-07-18 per
-   * user request: editing the template must live-propagate to every TMR already using it, and
-   * since a TMR's line item resolves nutrition via a live join on `ingredientId` — see
-   * `effectiveMap()` — updating this one row in place is all propagation needs). **Total Mixed
-   * Ration** (`kind=FEED_MIXTURE`): produces **only** a `FeedStock` inventory lot, no ingredient
-   * promotion at all (user request 2026-07-18: a TMR is the final ration, never a building block
-   * for another recipe). In both cases, producing a new physical stock batch stays a **deliberate,
-   * unconditional action on every `finalize()` call** — only the ingredient-promotion half became
-   * idempotent; a plain edit-save (`update()`) can refresh nutrition, but never produces stock.
+   * **Concentrate Mixer** (`kind=CONCENTRATE_TEMPLATE`) is a virtual recipe — a programmatic
+   * calculator for mixing ingredients, nothing more (user report 2026-07-19: "concentrate mixer...
+   * is nothing, it's just a programmatic calculator... there will be no change on inventory
+   * because it's kinda virtual"). A farm can create unlimited templates; finalizing one never
+   * touches inventory — it only promote-or-refreshes this concentration's formula into a reusable
+   * `FeedIngredient` row, an **upsert by `sourceConcentrationId`**, not "always create a new frozen
+   * version" (that versioning/freeze design was retired 2026-07-18 per user request: editing the
+   * template must live-propagate to every TMR already using it, and since a TMR's line item
+   * resolves nutrition via a live join on `ingredientId` — see `effectiveMap()` — updating this one
+   * row in place is all propagation needs). **Total Mixed Ration** (`kind=FEED_MIXTURE`) is the
+   * real ration actually fed to cows — finalizing one produces **only** a `FeedStock` inventory
+   * lot, no ingredient promotion at all (user request 2026-07-18: a TMR is the final ration, never
+   * a building block for another recipe). Producing a new physical stock batch on every
+   * `FEED_MIXTURE` finalize stays a **deliberate, unconditional action** (not idempotent — refinalizing
+   * produces another lot) — only the Concentrate Mixer's ingredient-promotion half is idempotent; a
+   * plain edit-save (`update()`) can refresh nutrition on either kind, but never produces stock.
    */
   async finalize(farmId: string, userId: string, id: string) {
     const row = await this.getOrThrow(farmId, id);
@@ -346,16 +371,18 @@ export class FeedConcentrationService {
       ingredientResult = this.mapIngredient(ingredient);
     }
 
-    const stock = await this.feedStock.produceFromConcentration(
-      farmId,
-      userId,
-      {
-        concentrationId: row.id,
-        version: 1,
-        qtyKg: totalAsFedKg,
-        costTk: totals.total_cost_tk,
-      },
-    );
+    // Only a Total Mixed Ration becomes real inventory. A Concentrate Mixer is a virtual
+    // calculator — its finalize above already did the only thing it's supposed to (promote/
+    // refresh the reusable ingredient); it must never also fabricate a physical stock lot.
+    const stock =
+      row.kind === 'FEED_MIXTURE'
+        ? await this.feedStock.produceFromConcentration(farmId, userId, {
+            concentrationId: row.id,
+            version: 1,
+            qtyKg: totalAsFedKg,
+            costTk: totals.total_cost_tk,
+          })
+        : null;
 
     return {
       concentration_id: row.id,
@@ -496,7 +523,8 @@ export class FeedConcentrationService {
       totals.cp_kg > 0 ? (kg / totals.cp_kg) * 100 : 0;
     return {
       nameEn: name,
-      category: 'CONCENTRATE' as const,
+      feedClass: 'CONCENTRATE' as const,
+      feedSubType: 'COMPOUND_PELLET' as const,
       dmPct: (totalAsFedKg > 0 ? totals.dm_kg / totalAsFedKg : 0) * 100,
       cpPct: pctOfDm(totals.cp_kg),
       meMjPerKgDm: totals.dm_kg > 0 ? totals.me_mj / totals.dm_kg : 0,

@@ -9,7 +9,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { FeedIngredientCategory } from '@prisma/client';
+import { FeedClass, FeedSubType } from '@prisma/client';
 import { trimString } from 'src/common/dto';
 
 /** `POST /admin/feed-ingredients` (RAKHAL-233 / PRD ADM-13, admin-only — `PlatformAdminGuard`).
@@ -29,8 +29,12 @@ export class CreateCatalogueIngredientDto {
   @IsString()
   nameBn?: string;
 
-  @IsEnum(FeedIngredientCategory)
-  category!: FeedIngredientCategory;
+  @IsEnum(FeedClass)
+  feedClass!: FeedClass;
+
+  @IsOptional()
+  @IsEnum(FeedSubType)
+  feedSubType?: FeedSubType;
 
   @IsNumber()
   @Min(0)

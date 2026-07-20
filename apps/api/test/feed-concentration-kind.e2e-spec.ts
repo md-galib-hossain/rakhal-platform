@@ -9,7 +9,9 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
  * the old implicit "does it have a target" heuristic. Covers: a template's target fields are nulled
  * server-side even if the caller sends them; a mixture without target fields is rejected; `finalize`
  * behaves differently by kind (updated Phase 12.2, 2026-07-18 — a mixture can now finalize too, but
- * produces stock only, no ingredient promotion); `kind` filters `GET /feed/concentrations`;
+ * produces stock only, no ingredient promotion; 2026-07-19 correction — a template's finalize
+ * produces no stock at all, since a Concentrate Mixer is a virtual recipe/calculator, never real
+ * inventory); `kind` filters `GET /feed/concentrations`;
  * bulk-delete archives multiple rows scoped to the caller's farm.
  *
  * Requires the dev stack up + `pnpm seed`.
@@ -204,8 +206,10 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
       .post(api(`/feed/concentrations/${template.body.data.id}/finalize`))
       .set(...auth(owner))
       .expect(201);
+    // A Concentrate Mixer is a virtual recipe/calculator (2026-07-19 correction) — finalizing one
+    // only promotes the reusable ingredient, it must never also fabricate a stock lot.
     expect(templateFinalized.body.data.ingredient).toBeTruthy();
-    expect(templateFinalized.body.data.stock).toBeTruthy();
+    expect(templateFinalized.body.data.stock).toBeNull();
   });
 
   it('GET /feed/concentrations?kind= filters server-side', async () => {

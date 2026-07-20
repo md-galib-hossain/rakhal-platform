@@ -18,6 +18,11 @@ model FeedStock {
   currentStockKg Float
   producedCostTk Float /// snapshot of the formula's total_cost_tk at production time
 
+  /// Soft-delete (user request 2026-07-19 — "form inventory it can be also deleted"), same
+  /// archive-not-hard-delete convention as every other inventory model. Never filtered out of
+  /// `get()`/movement history, only from the default `list()`.
+  isActive Boolean @default(true)
+
   createdBy String
   createdAt DateTime @default(now())
 

@@ -56,7 +56,7 @@ export class FeedIngredientService {
           isLatestVersion: true,
           OR: [{ farmId: null }, { farmId }],
         },
-        orderBy: [{ category: 'asc' }, { nameEn: 'asc' }],
+        orderBy: [{ feedClass: 'asc' }, { nameEn: 'asc' }],
       }),
       this.prisma.feedIngredientOverride.findMany({ where: { farmId } }),
     ]);
@@ -81,7 +81,9 @@ export class FeedIngredientService {
       data: {
         farmId,
         nameEn: dto.name,
-        category: 'SUPPLEMENT', // generic physical-type tag; `nutrientGroup` is the real display classifier
+        // generic feed-class tag; `nutrientGroup` is the real display classifier
+        feedClass: 'ADDITIVE',
+        feedSubType: 'SUPPLEMENT',
         nutrientGroup: dto.nutrientGroup,
         dmPct: dto.dmPct ?? 100,
         cpPct: dto.cpPct ?? 0,
@@ -156,7 +158,7 @@ export class FeedIngredientService {
   async listCatalogueForAdmin() {
     const rows = await this.prisma.feedIngredient.findMany({
       where: { farmId: null },
-      orderBy: [{ category: 'asc' }, { nameEn: 'asc' }],
+      orderBy: [{ feedClass: 'asc' }, { nameEn: 'asc' }],
     });
     return rows.map((ing) => this.toMerged(ing, null));
   }
@@ -169,7 +171,8 @@ export class FeedIngredientService {
         farmId: null,
         nameEn: dto.nameEn,
         nameBn: dto.nameBn,
-        category: dto.category,
+        feedClass: dto.feedClass,
+        feedSubType: dto.feedSubType,
         dmPct: dto.dmPct,
         cpPct: dto.cpPct,
         meMjPerKgDm: dto.meMjPerKgDm,
@@ -221,7 +224,8 @@ export class FeedIngredientService {
       data: {
         nameEn: dto.nameEn,
         nameBn: dto.nameBn,
-        category: dto.category,
+        feedClass: dto.feedClass,
+        feedSubType: dto.feedSubType,
         dmPct: dto.dmPct,
         cpPct: dto.cpPct,
         meMjPerKgDm: dto.meMjPerKgDm,
@@ -277,7 +281,8 @@ export class FeedIngredientService {
       id: ing.id,
       name_en: ing.nameEn,
       name_bn: ing.nameBn,
-      category: ing.category,
+      feed_class: ing.feedClass,
+      feed_sub_type: ing.feedSubType,
       nutrient_group: ing.nutrientGroup,
       is_custom: ing.farmId != null,
       nutrition_source: ing.nutritionSource,

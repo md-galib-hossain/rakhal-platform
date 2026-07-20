@@ -1,15 +1,24 @@
-/// Forage / feed inventory (Inventory module — Forage tab, PRD §15.3).
-/// Stock is held in `unit` (e.g. bag); `kgPerUnit` lets the app show the kg
-/// equivalent. Forage ingredients overlap with Feed Formulator ingredients —
-/// price changes here feed cost recalculation later.
-model Forage {
+/// Feed inventory (Inventory module — Feed tab, "Purchased" view, PRD §15.3).
+/// Feed is the umbrella: forage, concentrates, minerals, vitamins and
+/// additives are all feed, distinguished by `feedClass`/`feedSubType`
+/// (`shared/feed-class.prisma`). Stock is held in `unit` (e.g. bag);
+/// `kgPerUnit` lets the app show the kg equivalent. `ingredientId` links this
+/// purchased-stock row to its Feed Formulator nutrition/price catalogue
+/// counterpart (`FeedIngredient`) — a real FK, replacing the lowercased-name
+/// match the distribution/finance/report code used to rely on.
+/// `@@map("Forage")` — model renamed from `Forage`, underlying table kept
+/// as-is (zero migration cost for the rename itself).
+model FeedItem {
   id String @id @default(cuid())
 
   farmId String
 
-  name     String
-  type     ForageType
-  category String?
+  name        String
+  feedClass   FeedClass
+  feedSubType FeedSubType?
+  category    String?
+
+  ingredientId String?
 
   unit              String // bag, kg, sack
   kgPerUnit         Float? // kg per unit (for bag → kg display)
@@ -28,10 +37,13 @@ model Forage {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  farm    Farm @relation("FarmToForage", fields: [farmId], references: [id])
-  creator User @relation("ForageCreator", fields: [createdBy], references: [id])
+  farm       Farm            @relation("FarmToForage", fields: [farmId], references: [id])
+  creator    User            @relation("ForageCreator", fields: [createdBy], references: [id])
+  ingredient FeedIngredient? @relation(fields: [ingredientId], references: [id])
 
   @@index([farmId])
-  @@index([type])
+  @@index([feedClass])
   @@index([createdBy])
+  @@index([ingredientId])
+  @@map("Forage")
 }

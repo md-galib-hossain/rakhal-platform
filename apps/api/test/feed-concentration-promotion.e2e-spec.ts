@@ -10,8 +10,8 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
  * it, automatically, with no extra click. `POST /feed/concentrations/:id/finalize` now **upserts**
  * the promoted `FeedIngredient` by `sourceConcentrationId` (update in place if one exists) instead
  * of always creating a new version; a plain `PATCH` on an already-finalized template also refreshes
- * that same row. Producing a new physical `FeedStock` inventory batch stays a deliberate action on
- * every explicit `finalize()` call.
+ * that same row. A Concentrate Mixer is a virtual recipe/calculator (2026-07-19 correction) —
+ * finalizing one never produces a `FeedStock` inventory batch, only a Total Mixed Ration does.
  *
  * Requires the dev stack up + `pnpm seed`.
  */
@@ -113,6 +113,9 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
     // dmPct back-derived from totals: dm_kg = 20*0.9=18, totalAsFed=20 → dmPct=90
     expect(v1.body.data.ingredient.nutrition.dm_pct).toBeCloseTo(90, 1);
     expect(v1.body.data.ingredient.nutrition.cp_pct).toBeCloseTo(15, 1);
+    // A Concentrate Mixer is a virtual recipe/calculator — finalizing one never touches
+    // inventory, only ever the promoted ingredient above (2026-07-19 correction).
+    expect(v1.body.data.stock).toBeNull();
 
     // Use it as a line item in a TMR.
     const tmr = await request(server())
@@ -159,14 +162,14 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
       2,
     );
 
-    // Explicit re-finalize: same ingredient id (upsert-in-place, not a new version), but a
-    // separate, additional stock lot is produced (stock stays a deliberate per-click action).
+    // Explicit re-finalize: same ingredient id (upsert-in-place, not a new version). Still no
+    // stock lot — re-finalizing a Concentrate Mixer any number of times never produces inventory.
     const v2 = await request(server())
       .post(api(`/feed/concentrations/${concId}/finalize`))
       .set(...auth(owner))
       .expect(201);
     expect(v2.body.data.ingredient.id).toBe(ingredientId1);
-    expect(v2.body.data.stock.id).not.toBe(v1.body.data.stock.id);
+    expect(v2.body.data.stock).toBeNull();
   });
 
   it('a plain PATCH on a template that has never been finalized creates no FeedIngredient', async () => {

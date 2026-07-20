@@ -9,15 +9,15 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { ForageType } from '@prisma/client';
+import { FeedClass, FeedSubType } from '@prisma/client';
 import { trimString } from 'src/common/dto';
 
 /**
- * Partial update of a forage item, including direct stock correction
- * (`currentStock`). Forage is lower-stakes than medicine, so it has no separate
+ * Partial update of a feed item, including direct stock correction
+ * (`currentStock`). Lower-stakes than medicine, so it has no separate
  * movement-audit table — edits are logged via the application logger.
  */
-export class UpdateForageDto {
+export class UpdateFeedItemDto {
   @IsOptional()
   @Transform(trimString)
   @IsString()
@@ -30,13 +30,22 @@ export class UpdateForageDto {
   currentStock?: number;
 
   @IsOptional()
-  @IsEnum(ForageType)
-  type?: ForageType;
+  @IsEnum(FeedClass)
+  feedClass?: FeedClass;
+
+  @IsOptional()
+  @IsEnum(FeedSubType)
+  feedSubType?: FeedSubType;
 
   @IsOptional()
   @Transform(trimString)
   @IsString()
   category?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  ingredientId?: string;
 
   @IsOptional()
   @Transform(trimString)

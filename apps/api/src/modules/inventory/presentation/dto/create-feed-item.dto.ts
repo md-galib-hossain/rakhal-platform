@@ -9,23 +9,36 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { ForageType } from '@prisma/client';
+import { FeedClass, FeedSubType } from '@prisma/client';
 import { trimString } from 'src/common/dto';
 
-/** Create a forage / feed inventory item. Tenant comes from the token. */
-export class CreateForageDto {
+/** Create a feed inventory item (purchased stock — forage, concentrate, mineral,
+ * vitamin or additive; feed is the umbrella, `feedClass` is the scientific
+ * class). Tenant comes from the token. `ingredientId` links this stock row to
+ * its Feed Formulator nutrition/price catalogue counterpart — required so
+ * stock decrement and price-sync can resolve a real FK instead of a name
+ * match. */
+export class CreateFeedItemDto {
   @Transform(trimString)
   @IsString()
   @IsNotEmpty()
   name!: string;
 
-  @IsEnum(ForageType)
-  type!: ForageType;
+  @IsEnum(FeedClass)
+  feedClass!: FeedClass;
+
+  @IsOptional()
+  @IsEnum(FeedSubType)
+  feedSubType?: FeedSubType;
 
   @IsOptional()
   @Transform(trimString)
   @IsString()
   category?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  ingredientId!: string;
 
   /** Stock unit label, e.g. "bag", "kg", "sack". */
   @Transform(trimString)

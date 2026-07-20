@@ -22,13 +22,14 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  * concentration formula distributed to its group (or, since Phase 12.4, a single cow) on a day —
  * pre-filled from the formula's planned amounts, with optional refusal/leftover — and computes cost
  * from actual quantities at the farm's effective ingredient prices. Three independent stock-decrement
- * paths, all best-effort/optional: (1) matching forage decrements by ingredient name, kg-unit only
- * (§15.3); (2) a per-line `stockId` override for a real `FeedStock` lot (rarely used by the
- * frontend today, kept for a future raw-ingredient-level stock flow); (3) the concentration's own
- * finalized batch lot (`FeedStock.sourceConcentrationId`), auto-decremented by the distribution's
- * total actual kg — this is the path "Feed Today" (Phase 12.4) actually relies on, since a TMR's
- * finalize produces one aggregate-batch lot, not a per-ingredient breakdown. Reads
- * `FeedConcentration`/`Forage`/`Cattle`/`MilkLogEntry` directly via Prisma (the feed-module pattern —
+ * paths, all best-effort/optional: (1) decrementing a matching `FeedItem` by its real `ingredientId`
+ * FK, converting through `kgPerUnit` for a non-kg unit (§15.3); (2) a per-line `stockId` override for
+ * a real `FeedStock` lot (rarely used by the frontend today, kept for a future raw-ingredient-level
+ * stock flow); (3) the concentration's own finalized batch lot
+ * (`FeedStock.sourceConcentrationId`), auto-decremented by the distribution's total actual kg — this
+ * is the path "Feed Today" (Phase 12.4) actually relies on, since a TMR's finalize produces one
+ * aggregate-batch lot, not a per-ingredient breakdown. Reads
+ * `FeedConcentration`/`FeedItem`/`Cattle`/`MilkLogEntry` directly via Prisma (the feed-module pattern —
  * no cross-module service coupling).
  */
 @Injectable()
@@ -95,7 +96,7 @@ export class FeedDistributionService {
     });
 
     // Real FK-backed decrement (user request 2026-07-17) — a line can name a specific `FeedStock`
-    // lot instead of relying on the loose Forage name-match below. Validated up-front so a
+    // lot instead of relying on the FeedItem ingredientId-match below. Validated up-front so a
     // shortfall is caught before the distribution row is created.
     const stockRequests = lines
       .filter((l): l is typeof l & { stockId: string } => l.stockId != null)
@@ -140,6 +141,7 @@ export class FeedDistributionService {
               farmId,
               sourceConcentrationId: concentration.id,
               currentStockKg: { gt: 0 },
+              isActive: true,
             },
             orderBy: { producedAt: 'asc' },
           })
@@ -192,7 +194,7 @@ export class FeedDistributionService {
         include: { items: true },
       });
       for (const d of decrements) {
-        await tx.forage.update({
+        await tx.feedItem.update({
           where: { id: d.forageId },
           data: { currentStock: d.newStock },
         });
@@ -399,34 +401,54 @@ export class FeedDistributionService {
   }
 
   /**
-   * Best-effort forage decrement (§15.3): match each line's ingredient name to an
-   * active kg-unit forage and subtract the actual kg (floored at 0). Unmatched or
-   * non-kg forages are skipped — feed catalogue ↔ inventory linkage is loose.
+   * Feed item decrement (§15.3): match each line's ingredient by its real
+   * `ingredientId` FK to an active `FeedItem` and subtract the actual kg
+   * (floored at 0), converting through `kgPerUnit` for a non-kg-unit item
+   * (bag/sack) instead of skipping it — previously this only matched by
+   * lowercased ingredient name and only decremented kg-unit rows, so e.g. a
+   * bag-unit "Wheat bran" purchase never moved on a feed log at all. Rows
+   * with neither a kg unit nor a `kgPerUnit` conversion factor still can't be
+   * converted and are skipped (kept, not floor-guessed).
    */
   private async planForageDecrements(
     farmId: string,
-    lines: { ingredientName: string; actualKg: number }[],
+    lines: { ingredientId: string; actualKg: number }[],
   ): Promise<{ forageId: string; newStock: number }[]> {
-    const forages = await this.prisma.forage.findMany({
-      where: { farmId, isActive: true },
-      select: { id: true, name: true, unit: true, currentStock: true },
+    const ingredientIds = [...new Set(lines.map((l) => l.ingredientId))];
+    const feedItems = await this.prisma.feedItem.findMany({
+      where: { farmId, isActive: true, ingredientId: { in: ingredientIds } },
+      select: {
+        id: true,
+        ingredientId: true,
+        unit: true,
+        kgPerUnit: true,
+        currentStock: true,
+      },
     });
-    const kgByName = new Map<string, (typeof forages)[number]>();
-    for (const f of forages) {
-      if (f.unit.trim().toLowerCase() === 'kg') {
-        kgByName.set(f.name.trim().toLowerCase(), f);
-      }
-    }
+    const byIngredient = new Map(
+      feedItems
+        .filter((f) => f.ingredientId != null)
+        .map((f) => [f.ingredientId as string, f]),
+    );
 
-    const usageByForage = new Map<string, number>();
+    const usageByFeedItem = new Map<string, number>();
     for (const line of lines) {
-      const f = kgByName.get(line.ingredientName.trim().toLowerCase());
+      const f = byIngredient.get(line.ingredientId);
       if (!f || line.actualKg <= 0) continue;
-      usageByForage.set(f.id, (usageByForage.get(f.id) ?? 0) + line.actualKg);
+      const isKg = f.unit.trim().toLowerCase() === 'kg';
+      // Convert the fed kg into "units" for a non-kg item (bag/sack), then back to
+      // a unit-count decrement — kgPerUnit is required to do that conversion safely.
+      const usedInUnit = isKg
+        ? line.actualKg
+        : f.kgPerUnit && f.kgPerUnit > 0
+          ? line.actualKg / f.kgPerUnit
+          : null;
+      if (usedInUnit == null) continue;
+      usageByFeedItem.set(f.id, (usageByFeedItem.get(f.id) ?? 0) + usedInUnit);
     }
 
-    return [...usageByForage.entries()].map(([forageId, used]) => {
-      const f = forages.find((x) => x.id === forageId)!;
+    return [...usageByFeedItem.entries()].map(([forageId, used]) => {
+      const f = feedItems.find((x) => x.id === forageId)!;
       return { forageId, newStock: round2(Math.max(0, f.currentStock - used)) };
     });
   }

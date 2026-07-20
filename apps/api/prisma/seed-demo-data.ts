@@ -317,7 +317,7 @@ export async function seedDemoDataset(
     prisma.medicineStockMovement,
     loadJson('medicine-stock-movements.json', ctx),
   );
-  await upAll(prisma.forage, loadJson('forages.json', ctx));
+  await upAll(prisma.feedItem, loadJson('forages.json', ctx));
   await upAll(prisma.milkTank, loadJson('milk-tanks.json', ctx));
   await upAll(
     prisma.milkTankAuditLog,

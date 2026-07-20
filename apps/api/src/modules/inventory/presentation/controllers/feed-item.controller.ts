@@ -1,4 +1,4 @@
-﻿import {
+import {
   Body,
   Controller,
   Delete,
@@ -16,16 +16,16 @@ import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
 import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
-import { ForageService } from '../../application/services/forage.service';
-import { CreateForageDto } from '../dto/create-forage.dto';
-import { ListForageQueryDto } from '../dto/list-forage-query.dto';
-import { UpdateForageDto } from '../dto/update-forage.dto';
+import { FeedItemService } from '../../application/services/feed-item.service';
+import { CreateFeedItemDto } from '../dto/create-feed-item.dto';
+import { ListFeedItemQueryDto } from '../dto/list-feed-item-query.dto';
+import { UpdateFeedItemDto } from '../dto/update-feed-item.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-/** Inventory â†’ Forage tab. `/api/v1/inventory/forages`. Token tenancy + RBAC. */
+/** Inventory → Feed tab, "Purchased" view. `/api/v1/inventory/feed-items`. Token tenancy + RBAC. */
 @ApiTags('Inventory')
 @ApiBearerAuth()
-@Controller('inventory/forages')
+@Controller('inventory/feed-items')
 @UseGuards(
   JwtAuthGuard,
   SessionGuard,
@@ -33,56 +33,60 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
   PermissionGuard,
   SubscriptionGuard,
 )
-export class ForageController {
-  constructor(private readonly forageService: ForageService) {}
+export class FeedItemController {
+  constructor(private readonly feedItemService: FeedItemService) {}
 
   @Post()
   @RequirePermission('inventory.create')
   create(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
-    @Body() dto: CreateForageDto,
+    @Body() dto: CreateFeedItemDto,
   ) {
-    return this.forageService.create(farmId, userId, dto);
+    return this.feedItemService.create(farmId, userId, dto);
   }
 
   @Get()
   @RequirePermission('inventory.read')
-  findAll(@CurrentFarmId() farmId: string, @Query() query: ListForageQueryDto) {
-    return this.forageService.findAll(farmId, query);
+  findAll(
+    @CurrentFarmId() farmId: string,
+    @Query() query: ListFeedItemQueryDto,
+  ) {
+    return this.feedItemService.findAll(farmId, query);
   }
 
   @Get(':id')
   @RequirePermission('inventory.read')
   findOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.forageService.findOne(farmId, id);
+    return this.feedItemService.findOne(farmId, id);
   }
 
   @Patch(':id')
   @RequirePermission('inventory.update')
   update(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
-    @Body() dto: UpdateForageDto,
+    @Body() dto: UpdateFeedItemDto,
   ) {
-    return this.forageService.update(farmId, id, dto);
+    return this.feedItemService.update(farmId, userId, id, dto);
   }
 
   @Patch(':id/archive')
   @RequirePermission('inventory.update')
   archive(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.forageService.archive(farmId, id);
+    return this.feedItemService.archive(farmId, id);
   }
 
   @Patch(':id/restore')
   @RequirePermission('inventory.update')
   restore(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.forageService.restore(farmId, id);
+    return this.feedItemService.restore(farmId, id);
   }
 
   @Delete(':id')
   @RequirePermission('inventory.delete')
   remove(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.forageService.remove(farmId, id);
+    return this.feedItemService.remove(farmId, id);
   }
 }

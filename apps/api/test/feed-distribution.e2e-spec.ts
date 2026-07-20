@@ -146,27 +146,28 @@ describe('Feed Distribution (e2e)', () => {
     expect(res.body.data).toHaveProperty('feed_cost_per_litre');
   });
 
-  it('decrements a matching kg-unit forage on log (§15.3)', async () => {
-    // Hermetic: remove any same-named forage left by a prior run so the
-    // name→forage match is unambiguous (the decrement keys on ingredient name).
-    await prisma.forage.deleteMany({
-      where: { farmId: owner.farmId, name: ingredientA.name },
+  it('decrements a matching feed item on log via its ingredientId FK (§15.3)', async () => {
+    // Hermetic: remove any same-ingredient feed item left by a prior run so the
+    // FK match is unambiguous.
+    await prisma.feedItem.deleteMany({
+      where: { farmId: owner.farmId, ingredientId: ingredientA.id },
     });
 
-    // A forage named exactly like ingredient A, in kg, is the match target.
-    const forage = await request(server())
-      .post(api('/inventory/forages'))
+    // A feed item linked to ingredient A, in kg, is the match target.
+    const feedItem = await request(server())
+      .post(api('/inventory/feed-items'))
       .set(...auth(owner))
       .send({
         name: ingredientA.name,
-        type: 'ROUGHAGE',
+        feedClass: 'FORAGE',
+        ingredientId: ingredientA.id,
         unit: 'kg',
         currentStock: 100,
         costPerUnit: 10,
         purchaseDate: new Date().toISOString(),
       })
       .expect(201);
-    const forageId = forage.body.data.id as string;
+    const feedItemId = feedItem.body.data.id as string;
 
     // Default-planned distribution → ingredient A actual = 4 kg.
     const dist = await request(server())
@@ -177,12 +178,12 @@ describe('Feed Distribution (e2e)', () => {
     expect(dist.body.data.forage_decrements).toBeGreaterThanOrEqual(1);
 
     const after = await request(server())
-      .get(api(`/inventory/forages/${forageId}`))
+      .get(api(`/inventory/feed-items/${feedItemId}`))
       .set(...auth(owner))
       .expect(200);
     expect(after.body.data.currentStock).toBe(96); // 100 − 4
 
-    await prisma.forage.deleteMany({ where: { id: forageId } });
+    await prisma.feedItem.deleteMany({ where: { id: feedItemId } });
   });
 
   describe('validation + RBAC', () => {

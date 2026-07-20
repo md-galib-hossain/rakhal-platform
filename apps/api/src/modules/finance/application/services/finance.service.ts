@@ -440,7 +440,7 @@ export class FinanceService {
   async assets(farmId: string) {
     const [
       medicines,
-      forages,
+      feedItems,
       equipmentInv,
       fixedAssets,
       liquidity,
@@ -451,7 +451,7 @@ export class FinanceService {
         where: { farmId, isActive: true },
         select: { currentStock: true, costPerUnit: true },
       }),
-      this.prisma.forage.findMany({
+      this.prisma.feedItem.findMany({
         where: { farmId, isActive: true },
         select: { currentStock: true, costPerUnit: true },
       }),
@@ -489,7 +489,7 @@ export class FinanceService {
 
     const inventoryValue = round2(
       medicines.reduce((s, m) => s + m.currentStock * m.costPerUnit, 0) +
-        forages.reduce((s, f) => s + f.currentStock * f.costPerUnit, 0) +
+        feedItems.reduce((s, f) => s + f.currentStock * f.costPerUnit, 0) +
         equipmentInv.reduce((s, e) => s + e.currentStock * e.costPerUnit, 0),
     );
 
@@ -586,12 +586,12 @@ export class FinanceService {
     quantity: number,
   ): Promise<boolean> {
     const nameFilter = { contains: itemName, mode: 'insensitive' as const };
-    const [medicine, forage] = await Promise.all([
+    const [medicine, feedItem] = await Promise.all([
       this.prisma.medicine.findFirst({
         where: { farmId, name: nameFilter, isActive: true },
         select: { id: true },
       }),
-      this.prisma.forage.findFirst({
+      this.prisma.feedItem.findFirst({
         where: { farmId, name: nameFilter, isActive: true },
         select: { id: true },
       }),
@@ -603,9 +603,9 @@ export class FinanceService {
       });
       return true;
     }
-    if (forage) {
-      await this.prisma.forage.update({
-        where: { id: forage.id },
+    if (feedItem) {
+      await this.prisma.feedItem.update({
+        where: { id: feedItem.id },
         data: { currentStock: { increment: quantity } },
       });
       return true;

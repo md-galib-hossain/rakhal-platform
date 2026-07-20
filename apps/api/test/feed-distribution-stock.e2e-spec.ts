@@ -6,7 +6,7 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
  * `C:\Users\mdgal\.claude\plans\composed-pondering-teapot.md`: a `POST /feed/distributions` line
  * can name a specific `FeedStock` lot (`items[].stockId`, Phase 4, 2026-07-17) to decrement via a
  * real FK-backed, validated, transactional path (`FeedStockService.decrementForDistribution`)
- * instead of the existing best-effort `Forage` name-match. As of Phase 12.4 (2026-07-18, "Feed
+ * instead of the existing best-effort `FeedItem` ingredientId-match. As of Phase 12.4 (2026-07-18, "Feed
  * Today"), a distribution with **no** explicit `stockId` on any line still auto-decrements the
  * concentration's own finalized batch lot (`FeedStock.sourceConcentrationId`) if one exists — the
  * frontend never picks a stock lot manually, it relies entirely on this. Covers: the explicit-
@@ -52,12 +52,18 @@ describe('Feed Formulator — distribution decrements a named feed stock lot (e2
   });
 
   async function produceStock(amountKg: number) {
+    // A stock lot only ever comes from finalizing a Total Mixed Ration (TMR) — a Concentrate
+    // Mixer is a virtual recipe/calculator that never touches inventory (2026-07-19 correction).
     const conc = await request(server())
       .post(api('/feed/concentrations'))
       .set(...auth(owner))
       .send({
-        kind: 'CONCENTRATE_TEMPLATE',
-        name: `E2E Dist-Stock Concentrate ${Date.now()}-${Math.random()}`,
+        kind: 'FEED_MIXTURE',
+        name: `E2E Dist-Stock Mixture ${Date.now()}-${Math.random()}`,
+        targetType: 'INDIVIDUAL',
+        targetWeightKg: 400,
+        targetMilkL: 15,
+        durationDays: 30,
         items: [{ ingredientId, amountKg }],
       })
       .expect(201);

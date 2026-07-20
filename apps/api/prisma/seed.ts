@@ -334,7 +334,15 @@ async function seedFeedIngredients(): Promise<void> {
     id: string;
     nameEn: string;
     nameBn: string;
-    category: 'ROUGHAGE' | 'CONCENTRATE' | 'SILAGE' | 'SUPPLEMENT' | 'BY_PRODUCT';
+    feedClass: 'FORAGE' | 'CONCENTRATE' | 'MINERAL';
+    feedSubType:
+      | 'ROUGHAGE'
+      | 'SILAGE'
+      | 'GRAIN'
+      | 'BY_PRODUCT'
+      | 'SUPPLEMENT'
+      | 'PREMIX'
+      | 'OTHER';
     dmPct: number;
     cpPct: number;
     meMjPerKgDm: number;
@@ -343,22 +351,26 @@ async function seedFeedIngredients(): Promise<void> {
     price: number;
     source: string;
   };
+  // feedClass/feedSubType replace the old ROUGHAGE/CONCENTRATE/SILAGE/SUPPLEMENT/BY_PRODUCT
+  // category (feed_taxonomy_unification) — dcp/mineral_mix/salt were previously mistagged
+  // SUPPLEMENT for lack of a MINERAL category; now correctly FORAGE is the umbrella-consistent
+  // class name for roughage/silage, and minerals get their own class.
   const ingredients: Ing[] = [
-    { id: 'feed_napier', nameEn: 'Napier grass', nameBn: 'নেপিয়ার ঘাস', category: 'ROUGHAGE', dmPct: 20, cpPct: 9, meMjPerKgDm: 8.5, fatPct: 2, ndfPct: 65, price: 5, source: 'BAU' },
-    { id: 'feed_green_maize', nameEn: 'Green maize fodder', nameBn: 'কাঁচা ভুট্টা', category: 'ROUGHAGE', dmPct: 22, cpPct: 9, meMjPerKgDm: 9.5, fatPct: 2.5, ndfPct: 55, price: 6, source: 'INRA 2018' },
-    { id: 'feed_rice_straw', nameEn: 'Rice straw', nameBn: 'ধানের খড়', category: 'ROUGHAGE', dmPct: 90, cpPct: 4, meMjPerKgDm: 6.5, fatPct: 1.5, ndfPct: 75, price: 8, source: 'BAU' },
-    { id: 'feed_maize_silage', nameEn: 'Maize silage', nameBn: 'ভুট্টা সাইলেজ', category: 'SILAGE', dmPct: 30, cpPct: 8, meMjPerKgDm: 10, fatPct: 3, ndfPct: 45, price: 12, source: 'INRA 2018' },
-    { id: 'feed_wheat_bran', nameEn: 'Wheat bran', nameBn: 'গমের ভুসি', category: 'BY_PRODUCT', dmPct: 88, cpPct: 17, meMjPerKgDm: 11.5, fatPct: 4, ndfPct: 40, price: 38, source: 'NRC 2001' },
-    { id: 'feed_rice_polish', nameEn: 'Rice polish (bran)', nameBn: 'চালের কুঁড়া', category: 'BY_PRODUCT', dmPct: 90, cpPct: 13, meMjPerKgDm: 11, fatPct: 12, ndfPct: 25, price: 35, source: 'BAU' },
-    { id: 'feed_maize_grain', nameEn: 'Maize grain (crushed)', nameBn: 'ভুট্টার দানা', category: 'CONCENTRATE', dmPct: 88, cpPct: 9, meMjPerKgDm: 13.5, fatPct: 4, ndfPct: 11, price: 42, source: 'NRC 2001' },
-    { id: 'feed_soybean_meal', nameEn: 'Soybean meal', nameBn: 'সয়াবিন মিল', category: 'CONCENTRATE', dmPct: 90, cpPct: 44, meMjPerKgDm: 12.5, fatPct: 1.5, ndfPct: 13, price: 70, source: 'NRC 2001' },
-    { id: 'feed_mustard_cake', nameEn: 'Mustard oil cake', nameBn: 'সরিষার খৈল', category: 'CONCENTRATE', dmPct: 90, cpPct: 32, meMjPerKgDm: 11, fatPct: 9, ndfPct: 30, price: 55, source: 'BAU' },
-    { id: 'feed_sesame_cake', nameEn: 'Sesame (til) oil cake', nameBn: 'তিলের খৈল', category: 'CONCENTRATE', dmPct: 92, cpPct: 35, meMjPerKgDm: 11.5, fatPct: 10, ndfPct: 20, price: 60, source: 'BAU' },
-    { id: 'feed_khesari_bran', nameEn: 'Khesari (lentil) bran', nameBn: 'খেসারির ভুসি', category: 'BY_PRODUCT', dmPct: 89, cpPct: 18, meMjPerKgDm: 10.5, fatPct: 2, ndfPct: 35, price: 30, source: 'BAU' },
-    { id: 'feed_molasses', nameEn: 'Molasses', nameBn: 'চিটাগুড়', category: 'SUPPLEMENT', dmPct: 75, cpPct: 4, meMjPerKgDm: 12.5, fatPct: 0, ndfPct: 0, price: 28, source: 'INRA 2018' },
-    { id: 'feed_dcp', nameEn: 'Di-calcium phosphate (DCP)', nameBn: 'ডিসিপি', category: 'SUPPLEMENT', dmPct: 97, cpPct: 0, meMjPerKgDm: 0, fatPct: 0, ndfPct: 0, price: 60, source: 'NRC 2001' },
-    { id: 'feed_mineral_mix', nameEn: 'Mineral & vitamin mixture', nameBn: 'মিনারেল মিক্সচার', category: 'SUPPLEMENT', dmPct: 98, cpPct: 0, meMjPerKgDm: 0, fatPct: 0, ndfPct: 0, price: 80, source: 'NRC 2001' },
-    { id: 'feed_salt', nameEn: 'Common salt', nameBn: 'খাবার লবণ', category: 'SUPPLEMENT', dmPct: 99, cpPct: 0, meMjPerKgDm: 0, fatPct: 0, ndfPct: 0, price: 15, source: 'NRC 2001' },
+    { id: 'feed_napier', nameEn: 'Napier grass', nameBn: 'নেপিয়ার ঘাস', feedClass: 'FORAGE', feedSubType: 'ROUGHAGE', dmPct: 20, cpPct: 9, meMjPerKgDm: 8.5, fatPct: 2, ndfPct: 65, price: 5, source: 'BAU' },
+    { id: 'feed_green_maize', nameEn: 'Green maize fodder', nameBn: 'কাঁচা ভুট্টা', feedClass: 'FORAGE', feedSubType: 'ROUGHAGE', dmPct: 22, cpPct: 9, meMjPerKgDm: 9.5, fatPct: 2.5, ndfPct: 55, price: 6, source: 'INRA 2018' },
+    { id: 'feed_rice_straw', nameEn: 'Rice straw', nameBn: 'ধানের খড়', feedClass: 'FORAGE', feedSubType: 'ROUGHAGE', dmPct: 90, cpPct: 4, meMjPerKgDm: 6.5, fatPct: 1.5, ndfPct: 75, price: 8, source: 'BAU' },
+    { id: 'feed_maize_silage', nameEn: 'Maize silage', nameBn: 'ভুট্টা সাইলেজ', feedClass: 'FORAGE', feedSubType: 'SILAGE', dmPct: 30, cpPct: 8, meMjPerKgDm: 10, fatPct: 3, ndfPct: 45, price: 12, source: 'INRA 2018' },
+    { id: 'feed_wheat_bran', nameEn: 'Wheat bran', nameBn: 'গমের ভুসি', feedClass: 'CONCENTRATE', feedSubType: 'BY_PRODUCT', dmPct: 88, cpPct: 17, meMjPerKgDm: 11.5, fatPct: 4, ndfPct: 40, price: 38, source: 'NRC 2001' },
+    { id: 'feed_rice_polish', nameEn: 'Rice polish (bran)', nameBn: 'চালের কুঁড়া', feedClass: 'CONCENTRATE', feedSubType: 'BY_PRODUCT', dmPct: 90, cpPct: 13, meMjPerKgDm: 11, fatPct: 12, ndfPct: 25, price: 35, source: 'BAU' },
+    { id: 'feed_maize_grain', nameEn: 'Maize grain (crushed)', nameBn: 'ভুট্টার দানা', feedClass: 'CONCENTRATE', feedSubType: 'GRAIN', dmPct: 88, cpPct: 9, meMjPerKgDm: 13.5, fatPct: 4, ndfPct: 11, price: 42, source: 'NRC 2001' },
+    { id: 'feed_soybean_meal', nameEn: 'Soybean meal', nameBn: 'সয়াবিন মিল', feedClass: 'CONCENTRATE', feedSubType: 'GRAIN', dmPct: 90, cpPct: 44, meMjPerKgDm: 12.5, fatPct: 1.5, ndfPct: 13, price: 70, source: 'NRC 2001' },
+    { id: 'feed_mustard_cake', nameEn: 'Mustard oil cake', nameBn: 'সরিষার খৈল', feedClass: 'CONCENTRATE', feedSubType: 'GRAIN', dmPct: 90, cpPct: 32, meMjPerKgDm: 11, fatPct: 9, ndfPct: 30, price: 55, source: 'BAU' },
+    { id: 'feed_sesame_cake', nameEn: 'Sesame (til) oil cake', nameBn: 'তিলের খৈল', feedClass: 'CONCENTRATE', feedSubType: 'GRAIN', dmPct: 92, cpPct: 35, meMjPerKgDm: 11.5, fatPct: 10, ndfPct: 20, price: 60, source: 'BAU' },
+    { id: 'feed_khesari_bran', nameEn: 'Khesari (lentil) bran', nameBn: 'খেসারির ভুসি', feedClass: 'CONCENTRATE', feedSubType: 'BY_PRODUCT', dmPct: 89, cpPct: 18, meMjPerKgDm: 10.5, fatPct: 2, ndfPct: 35, price: 30, source: 'BAU' },
+    { id: 'feed_molasses', nameEn: 'Molasses', nameBn: 'চিটাগুড়', feedClass: 'CONCENTRATE', feedSubType: 'SUPPLEMENT', dmPct: 75, cpPct: 4, meMjPerKgDm: 12.5, fatPct: 0, ndfPct: 0, price: 28, source: 'INRA 2018' },
+    { id: 'feed_dcp', nameEn: 'Di-calcium phosphate (DCP)', nameBn: 'ডিসিপি', feedClass: 'MINERAL', feedSubType: 'PREMIX', dmPct: 97, cpPct: 0, meMjPerKgDm: 0, fatPct: 0, ndfPct: 0, price: 60, source: 'NRC 2001' },
+    { id: 'feed_mineral_mix', nameEn: 'Mineral & vitamin mixture', nameBn: 'মিনারেল মিক্সচার', feedClass: 'MINERAL', feedSubType: 'PREMIX', dmPct: 98, cpPct: 0, meMjPerKgDm: 0, fatPct: 0, ndfPct: 0, price: 80, source: 'NRC 2001' },
+    { id: 'feed_salt', nameEn: 'Common salt', nameBn: 'খাবার লবণ', feedClass: 'MINERAL', feedSubType: 'OTHER', dmPct: 99, cpPct: 0, meMjPerKgDm: 0, fatPct: 0, ndfPct: 0, price: 15, source: 'NRC 2001' },
   ];
 
   const now = new Date();
@@ -366,7 +378,8 @@ async function seedFeedIngredients(): Promise<void> {
     const data = {
       nameEn: i.nameEn,
       nameBn: i.nameBn,
-      category: i.category,
+      feedClass: i.feedClass,
+      feedSubType: i.feedSubType,
       dmPct: i.dmPct,
       cpPct: i.cpPct,
       meMjPerKgDm: i.meMjPerKgDm,
@@ -694,6 +707,7 @@ async function seedDemoDashboardHistory(
       concentration = await prisma.feedConcentration.create({
         data: {
           farmId,
+          kind: 'FEED_MIXTURE',
           name: 'Seed: Milking Herd Ration',
           targetType: 'GROUP',
           createdBy,
