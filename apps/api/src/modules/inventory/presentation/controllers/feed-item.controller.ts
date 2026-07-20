@@ -17,6 +17,7 @@ import { PermissionGuard } from 'src/modules/permission/presentation/guards/perm
 import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { FeedItemService } from '../../application/services/feed-item.service';
+import { BulkDeleteFeedItemDto } from '../dto/bulk-delete-feed-item.dto';
 import { CreateFeedItemDto } from '../dto/create-feed-item.dto';
 import { ListFeedItemQueryDto } from '../dto/list-feed-item-query.dto';
 import { UpdateFeedItemDto } from '../dto/update-feed-item.dto';
@@ -44,6 +45,16 @@ export class FeedItemController {
     @Body() dto: CreateFeedItemDto,
   ) {
     return this.feedItemService.create(farmId, userId, dto);
+  }
+
+  /** Multi-select delete (bulk-action dock, 2026-07-21) — registered before the `:id` routes. */
+  @Post('bulk-delete')
+  @RequirePermission('inventory.delete')
+  bulkDelete(
+    @CurrentFarmId() farmId: string,
+    @Body() dto: BulkDeleteFeedItemDto,
+  ) {
+    return this.feedItemService.removeMany(farmId, dto.ids);
   }
 
   @Get()

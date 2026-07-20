@@ -399,6 +399,25 @@ export class MedicineService {
     return this.archive(farmId, id);
   }
 
+  /** Multi-select delete (bulk-action dock, 2026-07-21) — one `updateMany`, silently skipping any
+   * id outside this farm or already inactive rather than erroring the whole batch. Same shape as
+   * `FeedConcentrationService.removeMany`. */
+  async removeMany(
+    farmId: string,
+    ids: string[],
+  ): Promise<{ deleted: number }> {
+    const result = await this.prisma.medicine.updateMany({
+      where: { farmId, id: { in: ids }, isActive: true },
+      data: { isActive: false },
+    });
+    this.log.info('Medicines bulk-archived', {
+      farmId,
+      requested: ids.length,
+      archived: result.count,
+    });
+    return { deleted: result.count };
+  }
+
   /** Product-photo upload (RAKHAL-074 follow-up) — same `MediaService`/private-R2 pattern as
    * `CattleService#setProfilePhoto`: process+store via `MediaService.uploadImage`, point
    * `photoAssetId` at the new asset, soft-delete the previous one if replacing. */

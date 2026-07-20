@@ -25,6 +25,7 @@ import { FeedRequirementsService } from '../../application/services/feed-require
 import { FeedDistributionService } from '../../application/services/feed-distribution.service';
 import { FeedStockService } from '../../application/services/feed-stock.service';
 import { AssignCattleDto } from '../dto/assign-cattle.dto';
+import { BulkDeleteStockDto } from '../dto/bulk-delete-stock.dto';
 import {
   BulkDeleteConcentrationDto,
   CreateConcentrationDto,
@@ -248,6 +249,18 @@ export class FeedController {
   @RequirePermission('feed.read')
   listStock(@CurrentFarmId() farmId: string) {
     return this.stock.list(farmId);
+  }
+
+  /** Multi-select delete (bulk-action dock, 2026-07-21) — registered before `stock/:id` so Nest
+   * doesn't try to match "bulk-delete" as an id (no real conflict here since this is POST and the
+   * `:id` routes are GET/DELETE, but keeping it grouped for clarity/precedent). */
+  @Post('stock/bulk-delete')
+  @RequirePermission('feed.delete')
+  bulkDeleteStock(
+    @CurrentFarmId() farmId: string,
+    @Body() dto: BulkDeleteStockDto,
+  ) {
+    return this.stock.removeMany(farmId, dto.ids);
   }
 
   @Get('stock/:id')

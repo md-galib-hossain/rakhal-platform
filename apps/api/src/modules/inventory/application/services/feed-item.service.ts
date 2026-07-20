@@ -180,6 +180,24 @@ export class FeedItemService {
     return this.archive(farmId, id);
   }
 
+  /** Multi-select delete (bulk-action dock, 2026-07-21) — one `updateMany`, silently skipping any
+   * id outside this farm or already inactive rather than erroring the whole batch. */
+  async removeMany(
+    farmId: string,
+    ids: string[],
+  ): Promise<{ deleted: number }> {
+    const result = await this.prisma.feedItem.updateMany({
+      where: { farmId, id: { in: ids }, isActive: true },
+      data: { isActive: false },
+    });
+    this.log.info('Feed items bulk-archived', {
+      farmId,
+      requested: ids.length,
+      archived: result.count,
+    });
+    return { deleted: result.count };
+  }
+
   private async getOrThrow(farmId: string, id: string): Promise<FeedItem> {
     const feedItem = await this.prisma.feedItem.findFirst({
       where: { id, farmId },

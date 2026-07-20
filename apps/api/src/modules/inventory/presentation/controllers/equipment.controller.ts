@@ -17,6 +17,7 @@ import { PermissionGuard } from 'src/modules/permission/presentation/guards/perm
 import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { EquipmentService } from '../../application/services/equipment.service';
+import { BulkDeleteEquipmentDto } from '../dto/bulk-delete-equipment.dto';
 import { CreateEquipmentDto } from '../dto/create-equipment.dto';
 import { ListEquipmentQueryDto } from '../dto/list-equipment-query.dto';
 import { UpdateEquipmentDto } from '../dto/update-equipment.dto';
@@ -44,6 +45,16 @@ export class EquipmentController {
     @Body() dto: CreateEquipmentDto,
   ) {
     return this.equipmentService.create(farmId, userId, dto);
+  }
+
+  /** Multi-select delete (bulk-action dock, 2026-07-21) — registered before the `:id` routes. */
+  @Post('bulk-delete')
+  @RequirePermission('inventory.delete')
+  bulkDelete(
+    @CurrentFarmId() farmId: string,
+    @Body() dto: BulkDeleteEquipmentDto,
+  ) {
+    return this.equipmentService.removeMany(farmId, dto.ids);
   }
 
   @Get()

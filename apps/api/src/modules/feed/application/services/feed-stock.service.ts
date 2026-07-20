@@ -169,6 +169,25 @@ export class FeedStockService {
     return this.mapStock(updated);
   }
 
+  /** Multi-select delete (bulk-action dock, 2026-07-21) — one `updateMany`, silently skipping any
+   * id outside this farm or already inactive rather than erroring the whole batch. Same shape as
+   * `FeedConcentrationService.removeMany`. */
+  async removeMany(
+    farmId: string,
+    ids: string[],
+  ): Promise<{ deleted: number }> {
+    const result = await this.prisma.feedStock.updateMany({
+      where: { farmId, id: { in: ids }, isActive: true },
+      data: { isActive: false },
+    });
+    this.log.info('Feed stock bulk-archived', {
+      farmId,
+      requested: ids.length,
+      archived: result.count,
+    });
+    return { deleted: result.count };
+  }
+
   async get(farmId: string, id: string) {
     const row = await this.prisma.feedStock.findFirst({
       where: { id, farmId },

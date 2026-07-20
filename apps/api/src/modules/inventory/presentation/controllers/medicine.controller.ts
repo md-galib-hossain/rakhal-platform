@@ -22,6 +22,7 @@ import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { MedicineService } from '../../application/services/medicine.service';
 import { AdjustStockDto } from '../dto/adjust-stock.dto';
+import { BulkDeleteMedicineDto } from '../dto/bulk-delete-medicine.dto';
 import { CreateMedicineDto } from '../dto/create-medicine.dto';
 import { ListMedicineQueryDto } from '../dto/list-medicine-query.dto';
 import { UpdateMedicineDto } from '../dto/update-medicine.dto';
@@ -59,6 +60,18 @@ export class MedicineController {
     @Body() dto: CreateMedicineDto,
   ) {
     return this.medicineService.create(farmId, userId, dto);
+  }
+
+  /** Multi-select delete (bulk-action dock, 2026-07-21) — registered before the `:id` routes so
+   * Nest doesn't try to match "bulk-delete" as an id (no real conflict here since this is POST and
+   * the `:id` routes are GET/PATCH/DELETE, but keeping it grouped for clarity/precedent). */
+  @Post('bulk-delete')
+  @RequirePermission('inventory.delete')
+  bulkDelete(
+    @CurrentFarmId() farmId: string,
+    @Body() dto: BulkDeleteMedicineDto,
+  ) {
+    return this.medicineService.removeMany(farmId, dto.ids);
   }
 
   @Get()
