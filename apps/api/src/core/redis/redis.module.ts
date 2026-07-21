@@ -1,4 +1,10 @@
-import { Global, Module, OnApplicationShutdown, Inject } from '@nestjs/common';
+import {
+  Global,
+  Module,
+  OnApplicationShutdown,
+  OnModuleInit,
+  Inject,
+} from '@nestjs/common';
 import { ConfigModule, ConfigType } from '@nestjs/config';
 import { createClient } from 'redis';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
@@ -35,8 +41,34 @@ const redisClientProvider = {
   },
 };
 
-class RedisShutdown implements OnApplicationShutdown {
-  constructor(@Inject(REDIS_CLIENT) private readonly client: RedisClient) {}
+/**
+ * RD-028 — node-redis v4 requires an explicit `.connect()`; nothing called it at boot, so every
+ * `CacheService` consumer silently no-op'd (its try/catch swallows the "client is closed" error)
+ * until `HealthController`'s on-demand `if (!isOpen) connect()` happened to run first. Connecting
+ * once here, at module init, means the shared client is live before any request can reach it —
+ * a failed initial connect is logged, not fatal (the client's default reconnect strategy keeps
+ * retrying in the background, and `CacheService` already degrades gracefully while still down).
+ */
+class RedisBootstrap implements OnModuleInit, OnApplicationShutdown {
+  private readonly log: LoggerService;
+
+  constructor(
+    @Inject(REDIS_CLIENT) private readonly client: RedisClient,
+    logger: LoggerService,
+  ) {
+    this.log = logger.setContext('RedisBootstrap');
+  }
+
+  async onModuleInit() {
+    try {
+      await this.client.connect();
+    } catch (error) {
+      this.log.error(
+        'Initial Redis connect failed — will retry in background',
+        error,
+      );
+    }
+  }
 
   async onApplicationShutdown() {
     if (this.client.isOpen) {
@@ -48,7 +80,7 @@ class RedisShutdown implements OnApplicationShutdown {
 @Global()
 @Module({
   imports: [ConfigModule.forFeature(redisConfig), LoggerModule],
-  providers: [redisClientProvider, RedisShutdown],
+  providers: [redisClientProvider, RedisBootstrap],
   exports: [REDIS_CLIENT],
 })
 export class RedisModule {}

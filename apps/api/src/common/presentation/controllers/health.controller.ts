@@ -64,11 +64,10 @@ export class HealthController {
     }
   }
 
+  /** `RedisModule`'s `RedisBootstrap` connects the shared client at boot (RD-028) — this only
+   * probes it, it no longer connects on-demand. */
   private async checkRedis(): Promise<boolean> {
     try {
-      if (!this.redis.isOpen) {
-        await this.redis.connect();
-      }
       await this.redis.ping();
       return true;
     } catch {
