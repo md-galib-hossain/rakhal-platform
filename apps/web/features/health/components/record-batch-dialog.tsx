@@ -1,18 +1,21 @@
 "use client"; // selection state + mutations
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { ArrowRight, ArrowRightToLine, Package, Search } from "lucide-react";
+import { ArrowRight, ArrowRightToLine, Ban, Check, Package, Search } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
+import { Can } from "@/lib/auth/permissions";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Chip } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
-import { useLogTreatment } from "../hooks/use-health";
+import { useCompleteTask, useLogTreatment } from "../hooks/use-health";
 import { groupIncompleteTasks, taskCategoryChip, type ScheduledTaskGroup } from "../task-grouping";
+import { SkipTaskDialog } from "./skip-task-dialog";
+import type { HealthTask } from "../types";
 
 /** AQR bump per completed dose — `AqrService`'s real `treatment_completed` rule
  * (`health.service.ts#logTreatment`), mirrored here only to preview the real total, not invented. */
@@ -51,12 +54,19 @@ export function RecordBatchDialog({ group, onOpenChange }: { group: ScheduledTas
 function RecordBatchDialogBody({ group, onOpenChange }: { group: ScheduledTaskGroup; onOpenChange: (open: boolean) => void }) {
   const t = useTranslations("health.taskHub.recordBatch");
   const logTreatment = useLogTreatment();
+  const completeTask = useCompleteTask();
   const category = taskCategoryChip(group.taskType);
-  const pending = groupIncompleteTasks(group);
+  const allPending = groupIncompleteTasks(group);
 
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(pending.map((task) => task.id)));
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(allPending.map((task) => task.id)));
   const [submitting, setSubmitting] = useState(false);
+  // Rows the user explicitly Skipped or quick-Completed this session — hidden immediately rather
+  // than waiting for the group prop (a snapshot from when the sheet opened) to catch up.
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [skippingTask, setSkippingTask] = useState<HealthTask | null>(null);
+
+  const pending = useMemo(() => allPending.filter((task) => !dismissed.has(task.id)), [allPending, dismissed]);
 
   const filtered = pending.filter((task) => {
     const name = task.cattle?.name ?? task.cattle?.tagNumber ?? "";
@@ -72,6 +82,32 @@ function RecordBatchDialogBody({ group, onOpenChange }: { group: ScheduledTaskGr
       else next.add(id);
       return next;
     });
+  }
+
+  function dismiss(id: string) {
+    setDismissed((prev) => new Set(prev).add(id));
+    setSelected((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }
+
+  /** No medicine on this whole group (e.g. a CHECKUP/OBSERVATION task) — a per-row quick Complete
+   * skips the log-treatment call entirely rather than creating a meaningless medicine-less
+   * treatment log row. A medicine-bearing group keeps its animals routed through Confirm→log-treatment
+   * (real stock decrement + AQR), unaffected by this. */
+  const canQuickComplete = !group.medicineName;
+
+  async function handleQuickComplete(task: HealthTask) {
+    try {
+      await completeTask.mutateAsync(task.id);
+      toast.success(t("completedToast"));
+      dismiss(task.id);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("genericError"));
+    }
   }
 
   const selectedCount = selected.size;
@@ -168,16 +204,47 @@ function RecordBatchDialogBody({ group, onOpenChange }: { group: ScheduledTaskGr
               <p className="p-4 text-center text-sm text-muted-foreground">{t("noAnimals")}</p>
             ) : (
               filtered.map((task) => (
-                <label key={task.id} className="flex cursor-pointer items-center gap-3 p-3">
-                  <Checkbox checked={selected.has(task.id)} onCheckedChange={() => toggle(task.id)} />
-                  <Avatar className="size-8">
-                    <AvatarFallback>{(task.cattle?.name ?? task.cattle?.tagNumber ?? "?").slice(0, 1)}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-foreground">{task.cattle?.name ?? task.cattle?.tagNumber ?? "—"}</span>
-                    {task.cattle?.name ? <span className="text-xs text-muted-foreground">{task.cattle.tagNumber}</span> : null}
+                <div key={task.id} className="flex items-center gap-3 p-3">
+                  <label className="flex flex-1 cursor-pointer items-center gap-3">
+                    <Checkbox checked={selected.has(task.id)} onCheckedChange={() => toggle(task.id)} />
+                    <Avatar className="size-8">
+                      <AvatarFallback>{(task.cattle?.name ?? task.cattle?.tagNumber ?? "?").slice(0, 1)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-foreground">{task.cattle?.name ?? task.cattle?.tagNumber ?? "—"}</span>
+                      {task.cattle?.name ? <span className="text-xs text-muted-foreground">{task.cattle.tagNumber}</span> : null}
+                    </div>
+                  </label>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {canQuickComplete ? (
+                      <Can I="healthcare.log-treatment">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 text-success hover:bg-success-tint"
+                          title={t("quickComplete")}
+                          onClick={() => void handleQuickComplete(task)}
+                          disabled={completeTask.isPending}
+                        >
+                          <Check className="size-4" aria-hidden />
+                        </Button>
+                      </Can>
+                    ) : null}
+                    <Can I="healthcare.update">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-destructive hover:bg-destructive-tint"
+                        title={t("skip")}
+                        onClick={() => setSkippingTask(task)}
+                      >
+                        <Ban className="size-4" aria-hidden />
+                      </Button>
+                    </Can>
                   </div>
-                </label>
+                </div>
               ))
             )}
           </div>
@@ -210,6 +277,12 @@ function RecordBatchDialogBody({ group, onOpenChange }: { group: ScheduledTaskGr
           </Button>
         </div>
       </div>
+
+      <SkipTaskDialog
+        task={skippingTask}
+        onOpenChange={(open) => !open && setSkippingTask(null)}
+        onSkipped={dismiss}
+      />
     </SheetContent>
   );
 }

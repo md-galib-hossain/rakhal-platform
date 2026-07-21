@@ -177,6 +177,11 @@ export interface RescheduleTaskPayload {
   reason?: string;
 }
 
+/** `POST /health/tasks/:id/skip` body (`SkipHealthTaskDto`). */
+export interface SkipTaskPayload {
+  reason?: string;
+}
+
 export interface HealthListFilters {
   search?: string;
   cattleId?: string;
@@ -342,8 +347,15 @@ export interface ApplyHealthPlanPayload {
   startDate?: string;
 }
 
-export const HEALTH_MANAGEMENT_TABS = ["sickBay", "taskHub", "healthPlan"] as const;
+export const HEALTH_MANAGEMENT_TABS = ["sickBay", "taskHub", "healthPlan", "safetyWithdrawals"] as const;
 export type HealthManagementTab = (typeof HEALTH_MANAGEMENT_TABS)[number];
+
+/** `GET /health/safety-withdrawals` row shape (`health.service.ts#getSafetyWithdrawals`) — the
+ * backend include for `cattle` was added alongside this frontend tab (previously had zero UI
+ * consumer despite the route existing). */
+export interface SafetyWithdrawalListItem extends SafetyWithdrawal {
+  cattle: HealthCattleRef;
+}
 
 export const CASE_MANAGE_TABS = ["logTreatment", "healthUpdate", "closeCase"] as const;
 export type CaseManageTab = (typeof CASE_MANAGE_TABS)[number];

@@ -21,6 +21,8 @@ import type {
   LogTreatmentPayload,
   MortalityPayload,
   RescheduleTaskPayload,
+  SafetyWithdrawalListItem,
+  SkipTaskPayload,
   TreatmentLog,
   UpdateHealthPlanPayload,
 } from "./types";
@@ -78,6 +80,26 @@ export const healthApi = {
   },
   rescheduleTask(id: string, dto: RescheduleTaskPayload): Promise<HealthTask> {
     return apiFetch<HealthTask>(`/health/tasks/${id}/reschedule`, { method: "POST", body: dto });
+  },
+  /** Plain complete — no treatment log, use `logTreatment` instead when a medicine/dose needs
+   * recording (that path also marks the task complete). */
+  completeTask(id: string): Promise<HealthTask> {
+    return apiFetch<HealthTask>(`/health/tasks/${id}/complete`, { method: "POST" });
+  },
+  skipTask(id: string, dto: SkipTaskPayload): Promise<HealthTask> {
+    return apiFetch<HealthTask>(`/health/tasks/${id}/skip`, { method: "POST", body: dto });
+  },
+  /** Safety Withdrawals tab (no Figma frame — real backend routes had zero frontend consumer). */
+  safetyWithdrawals(
+    filters: { status?: "ACTIVE" | "COMPLETED" } = {},
+    cursor?: string,
+  ): Promise<CursorPage<SafetyWithdrawalListItem>> {
+    return apiFetchPage<SafetyWithdrawalListItem>("/health/safety-withdrawals", {
+      searchParams: { status: filters.status, cursor, limit: 20 },
+    });
+  },
+  refreshSafetyWithdrawals(): Promise<{ updated: number }> {
+    return apiFetch<{ updated: number }>("/health/safety-withdrawals/refresh", { method: "POST" });
   },
   /** Health Plan tab (Figma 734:45281 + Create/Apply wizards). */
   listPlans(

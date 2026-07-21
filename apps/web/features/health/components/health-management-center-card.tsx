@@ -12,6 +12,7 @@ import { HEALTH_MANAGEMENT_TABS, type HealthManagementTab } from "../types";
 import { SickBayTable } from "./sick-bay-table";
 import { TaskHubTab } from "./task-hub-tab";
 import { HealthPlanTab } from "./health-plan-tab";
+import { SafetyWithdrawalTab } from "./safety-withdrawal-tab";
 import { HealthCard } from "./health-card";
 
 const TAB_KEYS = HEALTH_MANAGEMENT_TABS as unknown as [HealthManagementTab, ...HealthManagementTab[]];
@@ -89,8 +90,10 @@ export function HealthManagementCenterCard({
         </div>
       ) : tab === "taskHub" ? (
         <TaskHubTab />
-      ) : (
+      ) : tab === "healthPlan" ? (
         <HealthPlanTab />
+      ) : (
+        <SafetyWithdrawalTab />
       )}
     </HealthCard>
   );

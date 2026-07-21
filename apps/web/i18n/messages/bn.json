@@ -1683,7 +1683,8 @@
       "tabs": {
         "sickBay": "সিক বে",
         "taskHub": "টাস্ক হাব",
-        "healthPlan": "স্বাস্থ্য পরিকল্পনা"
+        "healthPlan": "স্বাস্থ্য পরিকল্পনা",
+        "safetyWithdrawals": "সেফটি উইথড্রয়াল"
       },
       "searchPlaceholder": "গরুর আইডি বা নাম দিয়ে খুঁজুন",
       "reportSickness": "অসুস্থতা রিপোর্ট করুন",
@@ -1798,7 +1799,19 @@
           "medical": "মেডিকেল",
           "prevention": "প্রতিরোধ",
           "general": "সাধারণ"
-        }
+        },
+        "skip": "এই পশুটি বাদ দিন",
+        "quickComplete": "সম্পন্ন হিসেবে চিহ্নিত করুন",
+        "completedToast": "সম্পন্ন হিসেবে চিহ্নিত করা হয়েছে।"
+      },
+      "skipDialog": {
+        "title": "টাস্ক বাদ দিন — {name}",
+        "description": "এই পশুটি এই ব্যাচ থেকে বাদ যাবে। ইচ্ছা করলে কারণ লিখতে পারেন।",
+        "reason": "কারণ (ঐচ্ছিক)",
+        "cancel": "বাতিল",
+        "confirm": "বাদ দিন",
+        "skippedToast": "টাস্ক বাদ দেওয়া হয়েছে।",
+        "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
       }
     },
     "healthPlan": {
@@ -2064,6 +2077,25 @@
         "mortalityToast": "মৃত্যু রেকর্ড করা হয়েছে।",
         "mortalityRequiredFields": "মৃত্যুর প্রধান কারণ এবং অতিরিক্ত নোট আবশ্যক।"
       }
+    },
+    "safetyWithdrawals": {
+      "error": "সেফটি উইথড্রয়াল লোড করা যায়নি।",
+      "emptyTitle": "কোনো সেফটি উইথড্রয়াল নেই",
+      "emptyDescription": "এখনো কোনো দুধ/মাংস উইথড্রয়াল হোল্ড রেকর্ড করা হয়নি।",
+      "columns": {
+        "name": "পশু",
+        "milkUntil": "দুধ উইথড্রয়াল পর্যন্ত",
+        "meatUntil": "মাংস উইথড্রয়াল পর্যন্ত",
+        "status": "অবস্থা"
+      },
+      "statusOptions": {
+        "ALL": "সব",
+        "ACTIVE": "সক্রিয়",
+        "COMPLETED": "পরিষ্কার"
+      },
+      "refresh": "রিফ্রেশ",
+      "refreshedToast": "{count}টি উইথড্রয়াল পরিষ্কার করা হয়েছে।",
+      "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
     }
   },
   "activity": {

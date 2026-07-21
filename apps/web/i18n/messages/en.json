@@ -1683,7 +1683,8 @@
       "tabs": {
         "sickBay": "Sick Bay",
         "taskHub": "Task Hub",
-        "healthPlan": "Health Plan"
+        "healthPlan": "Health Plan",
+        "safetyWithdrawals": "Safety Withdrawals"
       },
       "searchPlaceholder": "Find Cow by cow ID or name",
       "reportSickness": "Report Sickness",
@@ -1798,7 +1799,19 @@
           "medical": "Medical",
           "prevention": "Prevention",
           "general": "General"
-        }
+        },
+        "skip": "Skip this animal",
+        "quickComplete": "Mark complete",
+        "completedToast": "Marked complete."
+      },
+      "skipDialog": {
+        "title": "Skip task — {name}",
+        "description": "This animal will be removed from this batch. You can optionally note why.",
+        "reason": "Reason (optional)",
+        "cancel": "Cancel",
+        "confirm": "Skip",
+        "skippedToast": "Task skipped.",
+        "genericError": "Something went wrong. Please try again."
       }
     },
     "healthPlan": {
@@ -2064,6 +2077,25 @@
         "mortalityToast": "Mortality recorded.",
         "mortalityRequiredFields": "Primary cause of death and additional notes are required."
       }
+    },
+    "safetyWithdrawals": {
+      "error": "Could not load safety withdrawals.",
+      "emptyTitle": "No safety withdrawals",
+      "emptyDescription": "No milk/meat withdrawal holds recorded yet.",
+      "columns": {
+        "name": "Animal",
+        "milkUntil": "Milk Withdrawal Until",
+        "meatUntil": "Meat Withdrawal Until",
+        "status": "Status"
+      },
+      "statusOptions": {
+        "ALL": "All",
+        "ACTIVE": "Active",
+        "COMPLETED": "Cleared"
+      },
+      "refresh": "Refresh",
+      "refreshedToast": "{count} withdrawal(s) cleared.",
+      "genericError": "Something went wrong. Please try again."
     }
   },
   "activity": {

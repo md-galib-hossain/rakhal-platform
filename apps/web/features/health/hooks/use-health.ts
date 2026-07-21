@@ -16,6 +16,7 @@ import type {
   LogTreatmentPayload,
   MortalityPayload,
   RescheduleTaskPayload,
+  SkipTaskPayload,
   UpdateHealthPlanPayload,
 } from "../types";
 
@@ -172,6 +173,39 @@ export function useRescheduleTask() {
   return useMutation({
     mutationFn: ({ id, dto }: { id: string; dto: RescheduleTaskPayload }) => healthApi.rescheduleTask(id, dto),
     onSuccess: () => invalidate(),
+  });
+}
+
+/** Plain complete (no treatment log) — for a task with no medicine to record. */
+export function useCompleteTask() {
+  const invalidate = useInvalidateHealth();
+  return useMutation({
+    mutationFn: (id: string) => healthApi.completeTask(id),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useSkipTask() {
+  const invalidate = useInvalidateHealth();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: SkipTaskPayload }) => healthApi.skipTask(id, dto),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useSafetyWithdrawals(filters: { status?: "ACTIVE" | "COMPLETED" } = {}) {
+  return useQuery({
+    queryKey: [...qk.health.safetyWithdrawals(), filters],
+    queryFn: () => healthApi.safetyWithdrawals(filters),
+    staleTime: STALE_TIME,
+  });
+}
+
+export function useRefreshSafetyWithdrawals() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => healthApi.refreshSafetyWithdrawals(),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: qk.health.safetyWithdrawals() }),
   });
 }
 
