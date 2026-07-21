@@ -956,6 +956,11 @@ export class HealthService {
       where,
       orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
       ...getCursorArgs(query),
+      include: {
+        cattle: {
+          select: { id: true, name: true, tagNumber: true, image: true },
+        },
+      },
     });
     return toCursorPage(rows, query);
   }
