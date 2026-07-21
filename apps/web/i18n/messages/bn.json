@@ -622,6 +622,7 @@
     },
     "bulk": {
       "selectedCount": "{count} টি নির্বাচিত",
+      "selectAll": "সব {count} টি নির্বাচন করুন",
       "changeShed": "শেড পরিবর্তন করুন",
       "changeShedDescription": "{count} টি গবাদি পশুকে ভিন্ন শেডে সরান।",
       "shedLabel": "শেড",
@@ -2532,7 +2533,7 @@
     "finalizedToastMixture": "টোটাল মিক্সড রেশন (টিএমআর) চূড়ান্ত হয়েছে — স্টক যোগ হয়েছে",
     "bulk": {
       "selectedCount": "{count}টি নির্বাচিত",
-      "selectAll": "সব নির্বাচন করুন",
+      "selectAll": "সব {count}টি নির্বাচন করুন",
       "deleteSelected": "নির্বাচিত মুছুন",
       "cancel": "বাতিল",
       "deleteConfirmTitle": "নির্বাচিত আইটেমগুলো মুছবেন?",

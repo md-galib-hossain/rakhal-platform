@@ -8,6 +8,32 @@ Feed is a unified tab with Purchased/Prepared segments as of 2026-07-19, see the
 Liabilities/Asset Distribution + Wallet hub (Add Funds/Withdraw) + the 4-type Record transaction
 wizard, all Figma-perfect; only the record-payment/void/create-asset modals remain (no Figma yet).
 
+## Migrate Cattle + Feed Formulator bulk bars onto the shared floating dock (2026-07-21, user request)
+Follow-up to the row below: after auditing every module for dock fit (2 parallel Explore agents),
+user picked Cattle + Feed Formulator next — both already had full inline bulk-action bars (Cattle:
+change shed/change feed-group/mark sold/export CSV; Feed Formulator: bulk-delete concentrations),
+just rendered inline instead of the new floating dock. **Pure relocation, zero new backend
+endpoints** — every action/dialog/mutation preserved exactly. Both `*-bulk-actions-bar.tsx` files
+deleted, logic folded directly into `cattle-table.tsx`/`feed-view.tsx` (matches how every Inventory
+`*-view.tsx` owns its own dock wiring). **Cattle**: `enableRowSelection` changed from an ungated
+`true` to `useCan("cattle.bulk")`-gated (fixes a pre-existing checkbox-visible/bar-hidden
+mismatch); `useTableBulkSelection` adoption added a "Select all N" button Cattle didn't have before
+(new `cattle.bulk.selectAll` key, en+bn); change-shed/change-feed-group keep their own custom
+dialogs (bare `onRun`, the exact case `BulkActionDock`'s doc comment calls out); mark-sold became a
+`requiresConfirm` dock action; export unchanged (sync, no confirm, doesn't clear selection).
+**Feed Formulator**: the two independent section selections (Concentrate Mixer/TMR) migrated from
+a private `useSectionSelection` hook onto the shared `useGridBulkSelection` (which was itself
+originally promoted from this exact hook — closes the loop). Solved "two simultaneous floating
+docks" (nothing stopped both sections having a selection at once under the old inline layout, but a
+floating dock is always fixed bottom-center) via **mutual exclusion** — selecting in one section
+clears the other — verified live, not just claimed. Gate: `tsc`(0)/`eslint`(0 new)/`vitest`(18/18)/
+`next build`(0). **Verified live** (demo owner + demo worker): Cattle's full action set confirmed
+correct; Feed Formulator's mutual exclusion proven via DOM inspection (selecting a TMR card flipped
+a selected Mixer card's checkbox back off); a real bulk-delete on leftover E2E-debris confirmed
+end-to-end. Also fixed an unrelated dev-environment port mismatch (`.claude/launch.json`'s backend
+port didn't match the backend's own `.env`) found while restarting the preview stack. Full
+narrative: `docs/IN_FLIGHT.md` / `D:\Projects\Rakhal\docs\CHANGELOG.md`.
+
 ## Shared bulk-select + bulk-delete "dock" — Inventory pilot (2026-07-21, user request)
 User asked for a UX analysis of adding bulk-select + bulk-delete across every module's list views,
 specifically floating the idea of a dock panel anchored bottom-center of the screen. Research found

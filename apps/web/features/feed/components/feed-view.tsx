@@ -11,8 +11,11 @@ import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { BulkActionDock } from "@/components/shared/bulk-action-dock";
 import { Can } from "@/lib/auth/permissions";
+import { useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
 import {
+  useBulkDeleteConcentrations,
   useConcentrations,
   useFeedGroups,
   useFinalizeConcentration,
@@ -21,32 +24,8 @@ import {
 import { ConcentrationCard } from "./concentration-card";
 import { CreateFeedDialog } from "./create-feed-dialog";
 import { ConcentrationDetailSheet } from "./concentration-detail-sheet";
-import { FeedBulkActionsBar } from "./feed-bulk-actions-bar";
 import { LogDistributionDialog } from "./log-distribution-dialog";
 import type { FeedConcentrationKind, FeedConcentrationSummary, FeedGroup } from "../types";
-
-/** One section's selection state (Concentrate Mixer and Total Mixed Ration (TMR) each get their own — user
- * request 2026-07-18 follow-up: no shared cross-section selection). No "select mode" toggle — a
- * card's always-visible checkbox (`ConcentrationCard`) starts the selection directly; the bulk bar
- * only appears once `selected.size > 0`. */
-function useSectionSelection() {
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  function toggle(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-  function selectAll(ids: string[]) {
-    setSelected(new Set(ids));
-  }
-  function clear() {
-    setSelected(new Set());
-  }
-  return { selected, toggle, selectAll, clear };
-}
 
 function ConcentrationSection({
   title,
@@ -79,9 +58,8 @@ function ConcentrationSection({
   onDelete: (concentration: FeedConcentrationSummary) => void;
   onFinalize?: (concentration: FeedConcentrationSummary) => void;
   onFeedToday?: (concentration: FeedConcentrationSummary) => void;
-  selection: ReturnType<typeof useSectionSelection>;
+  selection: { isSelected: (id: string) => boolean; toggle: (id: string) => void };
 }) {
-  const ids = items.map((i) => i.id);
   return (
     <div className="flex flex-col gap-4 rounded-2xl bg-card p-4 shadow-card">
       <div className="flex items-center justify-between">
@@ -93,14 +71,6 @@ function ConcentrationSection({
           </Button>
         </Can>
       </div>
-
-      <FeedBulkActionsBar
-        selectedIds={[...selection.selected]}
-        allSelected={ids.length > 0 && ids.every((id) => selection.selected.has(id))}
-        onSelectAll={() => selection.selectAll(ids)}
-        onCancel={selection.clear}
-        onDone={selection.clear}
-      />
 
       {isLoading ? (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -124,7 +94,7 @@ function ConcentrationSection({
               onDelete={() => onDelete(item)}
               onFinalize={onFinalize ? () => onFinalize(item) : undefined}
               onFeedToday={onFeedToday ? () => onFeedToday(item) : undefined}
-              selected={selection.selected.has(item.id)}
+              selected={selection.isSelected(item.id)}
               onToggleSelect={() => selection.toggle(item.id)}
             />
           ))}
@@ -150,8 +120,11 @@ function ConcentrationSection({
  * 2026-07-17/18) is offered on both sections as of Phase 12.2 (2026-07-18) — a Concentrate Mixer
  * promotes into a reusable ingredient *and* produces stock; a TMR produces stock only (never an
  * ingredient, it's the final ration) — the confirm dialog's copy is kind-conditional to match.
- * Each section has its own independent multi-select (user request 2026-07-18 follow-up —
- * `useSectionSelection`, no shared cross-section selection and no separate "select mode" toggle).
+ * Each section has its own independent multi-select (user request 2026-07-18 follow-up — no shared
+ * cross-section selection and no separate "select mode" toggle; migrated 2026-07-21 onto the shared
+ * `useGridBulkSelection`/`BulkActionDock` — mutual exclusion between the two sections' selections,
+ * enforced locally here via `toggleTemplate`/`toggleMixture`, keeps at most one floating dock visible
+ * at a time since the dock is always fixed bottom-center).
  * The standalone Nutrition Calculator tab (2026-07-18) was merged back into the create/edit wizard's
  * Step 1/2 (`create-feed-dialog.tsx` now calls `useCattleOrGroupRequirements` directly) and removed.
  * "Feed Today" (Phase 12.4, 2026-07-18) — logs an actual feeding against a TMR's own target and
@@ -174,8 +147,8 @@ export function FeedView() {
   const [deleteTarget, setDeleteTarget] = useState<FeedConcentrationSummary | null>(null);
   const [finalizeTarget, setFinalizeTarget] = useState<FeedConcentrationSummary | null>(null);
   const [feedTodayId, setFeedTodayId] = useState<string | null>(null);
-  const templateSelection = useSectionSelection();
-  const mixtureSelection = useSectionSelection();
+  const bulkDeleteConcentrations = useBulkDeleteConcentrations();
+  const tBulk = useTranslations("feed.bulk");
 
   const feedGroupById = useMemo(() => new Map((feedGroups.data ?? []).map((g) => [g.id, g])), [feedGroups.data]);
 
@@ -187,6 +160,40 @@ export function FeedView() {
     () => (concentrations.data ?? []).filter((c) => c.kind === "FEED_MIXTURE"),
     [concentrations.data],
   );
+
+  const templateSelection = useGridBulkSelection(templates.map((c) => c.id));
+  const mixtureSelection = useGridBulkSelection(mixtures.map((c) => c.id));
+
+  /** Each section has its own independent selection, but a floating dock is always fixed
+   * bottom-center — two active docks at once would overlap. Enforce mutual exclusion (selecting in
+   * one section clears the other) instead of teaching the shared dock/hook about "sibling"
+   * selections, which only this one caller needs. */
+  function toggleTemplate(id: string) {
+    if (mixtureSelection.selectedCount > 0) mixtureSelection.clear();
+    templateSelection.toggle(id);
+  }
+  function toggleAllTemplates() {
+    if (mixtureSelection.selectedCount > 0) mixtureSelection.clear();
+    templateSelection.toggleAll();
+  }
+  function toggleMixture(id: string) {
+    if (templateSelection.selectedCount > 0) templateSelection.clear();
+    mixtureSelection.toggle(id);
+  }
+  function toggleAllMixtures() {
+    if (templateSelection.selectedCount > 0) templateSelection.clear();
+    mixtureSelection.toggleAll();
+  }
+
+  async function handleBulkDelete(ids: string[], onDone: () => void) {
+    try {
+      const result = await bulkDeleteConcentrations.mutateAsync(ids);
+      toast.success(tBulk("deletedToast", { count: result.deleted }));
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : tBulk("genericError"));
+    }
+  }
 
   function openCreate(kind: FeedConcentrationKind) {
     setEditId(null);
@@ -236,7 +243,7 @@ export function FeedView() {
         onEdit={openEdit}
         onDelete={setDeleteTarget}
         onFinalize={setFinalizeTarget}
-        selection={templateSelection}
+        selection={{ isSelected: templateSelection.isSelected, toggle: toggleTemplate }}
       />
       <ConcentrationSection
         title={t("feedMixture")}
@@ -253,7 +260,7 @@ export function FeedView() {
         onDelete={setDeleteTarget}
         onFinalize={setFinalizeTarget}
         onFeedToday={(c) => setFeedTodayId(c.id)}
-        selection={mixtureSelection}
+        selection={{ isSelected: mixtureSelection.isSelected, toggle: toggleMixture }}
       />
 
       <CreateFeedDialog
@@ -291,6 +298,53 @@ export function FeedView() {
         confirmLabel={t("card.finalize")}
         variant="primary"
         onConfirm={handleFinalizeConfirm}
+      />
+
+      {/* Two dock instances, one per section — safe because each no-ops at selectedCount === 0 and
+          the toggle wrappers above guarantee at most one section is ever non-empty at a time. */}
+      <BulkActionDock
+        selectedCount={templateSelection.selectedCount}
+        totalCount={templates.length}
+        onSelectAll={toggleAllTemplates}
+        onCancel={templateSelection.clear}
+        selectedIds={templateSelection.selectedIds}
+        selectAllLabel={tBulk("selectAll", { count: templates.length })}
+        cancelLabel={tBulk("cancel")}
+        selectedCountLabel={tBulk("selectedCount", { count: templateSelection.selectedCount })}
+        actions={[
+          {
+            key: "delete",
+            label: tBulk("deleteSelected"),
+            variant: "destructive",
+            requiresConfirm: true,
+            confirmTitle: tBulk("deleteConfirmTitle"),
+            confirmDescription: tBulk("deleteConfirmDescription", { count: templateSelection.selectedCount }),
+            confirmLabel: tBulk("deleteSelected"),
+            onRun: (ids) => handleBulkDelete(ids, templateSelection.clear),
+          },
+        ]}
+      />
+      <BulkActionDock
+        selectedCount={mixtureSelection.selectedCount}
+        totalCount={mixtures.length}
+        onSelectAll={toggleAllMixtures}
+        onCancel={mixtureSelection.clear}
+        selectedIds={mixtureSelection.selectedIds}
+        selectAllLabel={tBulk("selectAll", { count: mixtures.length })}
+        cancelLabel={tBulk("cancel")}
+        selectedCountLabel={tBulk("selectedCount", { count: mixtureSelection.selectedCount })}
+        actions={[
+          {
+            key: "delete",
+            label: tBulk("deleteSelected"),
+            variant: "destructive",
+            requiresConfirm: true,
+            confirmTitle: tBulk("deleteConfirmTitle"),
+            confirmDescription: tBulk("deleteConfirmDescription", { count: mixtureSelection.selectedCount }),
+            confirmLabel: tBulk("deleteSelected"),
+            onRun: (ids) => handleBulkDelete(ids, mixtureSelection.clear),
+          },
+        ]}
       />
     </div>
   );

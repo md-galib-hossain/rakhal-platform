@@ -622,6 +622,7 @@
     },
     "bulk": {
       "selectedCount": "{count} selected",
+      "selectAll": "Select all {count}",
       "changeShed": "Change shed",
       "changeShedDescription": "Move {count} cattle to a different shed.",
       "shedLabel": "Shed",
@@ -2533,7 +2534,7 @@
     "genericError": "Something went wrong. Please try again.",
     "bulk": {
       "selectedCount": "{count} selected",
-      "selectAll": "Select All",
+      "selectAll": "Select all {count}",
       "deleteSelected": "Delete selected",
       "cancel": "Cancel",
       "deleteConfirmTitle": "Delete the selected items?",
