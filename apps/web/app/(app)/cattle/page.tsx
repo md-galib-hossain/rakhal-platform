@@ -6,6 +6,7 @@ import { CattleHighlightsBar } from "@/features/cattle/components/cattle-highlig
 import { CattleFilters } from "@/features/cattle/components/cattle-filters";
 import { CattleTable } from "@/features/cattle/components/cattle-table";
 import { CattleAddButton } from "@/features/cattle/components/cattle-add-button";
+import { CattleImportButton } from "@/features/cattle/components/cattle-import-button";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("nav");
@@ -35,7 +36,14 @@ export default async function CattlePage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-2xl font-bold text-foreground">{tCattle("allCattleView")}</h2>
           <Suspense fallback={null}>
-            <CattleFilters actions={<CattleAddButton />} />
+            <CattleFilters
+              actions={
+                <div className="flex items-center gap-2">
+                  <CattleImportButton />
+                  <CattleAddButton />
+                </div>
+              }
+            />
           </Suspense>
         </div>
         <Suspense fallback={null}>

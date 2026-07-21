@@ -1,0 +1,77 @@
+"use client"; // form state + mutation
+
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
+import { toast } from "sonner";
+import { ApiError } from "@/lib/api/errors";
+import { FormDialog } from "@/components/shared/form-dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { useRecordWeight } from "../../hooks/use-cattle-detail-tabs";
+import { recordWeightSchema, type RecordWeightInput } from "../../schemas";
+
+/** `POST /cattle/:id/weight` (RAKHAL-039) — `cattle.update`-gated (manager+, no worker perm yet). */
+export function RecordWeightDialog({
+  cattleId,
+  open,
+  onOpenChange,
+}: {
+  cattleId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const t = useTranslations("cattle.detail.overview.recordWeightDialog");
+  const recordWeight = useRecordWeight(cattleId);
+
+  const form = useForm<RecordWeightInput>({
+    resolver: zodResolver(recordWeightSchema),
+    defaultValues: { weightKg: undefined, date: new Date().toISOString().slice(0, 10), notes: "" },
+  });
+
+  async function onSubmit(values: RecordWeightInput) {
+    try {
+      await recordWeight.mutateAsync(values);
+      toast.success(t("recordedToast"));
+      form.reset({ weightKg: undefined, date: new Date().toISOString().slice(0, 10), notes: "" });
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("genericError"));
+    }
+  }
+
+  return (
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t("title")}
+      onSubmit={form.handleSubmit(onSubmit)}
+      pending={recordWeight.isPending}
+      submitLabel={t("save")}
+      cancelLabel={t("cancel")}
+    >
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="record-weight-kg">{t("weightKg")}</Label>
+        <Input
+          id="record-weight-kg"
+          type="number"
+          step="0.1"
+          min={10}
+          max={2000}
+          {...form.register("weightKg", { valueAsNumber: true })}
+        />
+        {form.formState.errors.weightKg ? (
+          <p className="text-xs text-destructive">{form.formState.errors.weightKg.message}</p>
+        ) : null}
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="record-weight-date">{t("date")}</Label>
+        <Input id="record-weight-date" type="date" {...form.register("date")} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="record-weight-notes">{t("notes")}</Label>
+        <Input id="record-weight-notes" {...form.register("notes")} />
+      </div>
+    </FormDialog>
+  );
+}

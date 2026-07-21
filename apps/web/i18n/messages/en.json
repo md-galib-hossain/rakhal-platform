@@ -815,6 +815,28 @@
           "noon": "Noon",
           "evening": "Evening",
           "total": "Total Yield"
+        },
+        "recordBcs": "Record BCS",
+        "recordWeight": "Record Weight",
+        "recordBcsDialog": {
+          "title": "Record Body Condition Score",
+          "score": "BCS Score",
+          "date": "Date",
+          "notes": "Notes",
+          "save": "Save",
+          "cancel": "Cancel",
+          "recordedToast": "BCS recorded.",
+          "genericError": "Something went wrong. Please try again."
+        },
+        "recordWeightDialog": {
+          "title": "Record Weight",
+          "weightKg": "Weight (kg)",
+          "date": "Date",
+          "notes": "Notes",
+          "save": "Save",
+          "cancel": "Cancel",
+          "recordedToast": "Weight recorded.",
+          "genericError": "Something went wrong. Please try again."
         }
       },
       "reproduction": {
@@ -902,6 +924,32 @@
           "FEMALE": "Female",
           "CASTRATED_MALE": "Castrated male"
         }
+      }
+    },
+    "import": {
+      "trigger": "Import CSV",
+      "title": "Import Cattle from CSV",
+      "description": "Upload a CSV with columns name/tag/gender/purpose/date_of_birth/breed/shed/color/notes (case-insensitive headers). Preview validates every row before anything is imported.",
+      "chooseFile": "CSV file",
+      "previewAction": "Preview",
+      "confirmAction": "Confirm Import",
+      "cancel": "Cancel",
+      "genericError": "Something went wrong. Please try again.",
+      "empty": "The file has no data rows.",
+      "skipErrors": "Skip invalid rows and import the rest",
+      "confirmedToast": "{imported} imported, {skipped} skipped.",
+      "summary": {
+        "total": "{count} total",
+        "ready": "{count} ready",
+        "errors": "{count} error(s)"
+      },
+      "columns": {
+        "row": "Row",
+        "tag": "Tag",
+        "name": "Name",
+        "status": "Status",
+        "readyBadge": "Ready",
+        "errorBadge": "Error"
       }
     }
   },
@@ -2046,7 +2094,11 @@
     "createTask": "Create Task",
     "allTasks": "All Tasks",
     "searchPlaceholder": "Search task by id",
-    "priority": { "HIGH": "High", "MEDIUM": "Medium", "LOW": "Low" },
+    "priority": {
+      "HIGH": "High",
+      "MEDIUM": "Medium",
+      "LOW": "Low"
+    },
     "category": {
       "FEEDING": "Feeding",
       "HEALTHCARE": "Healthcare",
@@ -2056,7 +2108,11 @@
       "CALF_CARE": "Calf Care",
       "GENERAL": "General"
     },
-    "recurrence": { "DAILY": "Daily", "WEEKLY": "Weekly", "MONTHLY": "Monthly" },
+    "recurrence": {
+      "DAILY": "Daily",
+      "WEEKLY": "Weekly",
+      "MONTHLY": "Monthly"
+    },
     "filters": {
       "my_tasks": "My Tasks",
       "all": "All Tasks",
@@ -2112,7 +2168,11 @@
       "recurringTaskDesc": "Enable if this task repeats on a schedule",
       "repeats": "Repeats",
       "selectRepeats": "Select interval",
-      "repeatsOptions": { "DAILY": "Daily", "WEEKLY": "Weekly", "MONTHLY": "Monthly" },
+      "repeatsOptions": {
+        "DAILY": "Daily",
+        "WEEKLY": "Weekly",
+        "MONTHLY": "Monthly"
+      },
       "safetyCritical": "Safety Critical",
       "safetyCriticalDesc": "Enable if this task involves animal or human Safety",
       "cancel": "Cancel",
@@ -2350,9 +2410,18 @@
       "amount": "Amount",
       "paymentMethod": "Payment Method",
       "methods": {
-        "CASH": { "label": "Cash", "description": "Direct cash payment" },
-        "BANK_TRANSFER": { "label": "Bank Account", "description": "Direct transfer from bank" },
-        "MFS": { "label": "MFS (Bkash / Nagad)", "description": "Mobile financial service" }
+        "CASH": {
+          "label": "Cash",
+          "description": "Direct cash payment"
+        },
+        "BANK_TRANSFER": {
+          "label": "Bank Account",
+          "description": "Direct transfer from bank"
+        },
+        "MFS": {
+          "label": "MFS (Bkash / Nagad)",
+          "description": "Mobile financial service"
+        }
       },
       "submit": "Add Funds",
       "addedToast": "Funds added to wallet",
@@ -2366,9 +2435,18 @@
       "amount": "Amount",
       "paymentMethod": "Payment Method",
       "methods": {
-        "CASH": { "label": "Cash", "description": "Direct cash payment" },
-        "BANK_TRANSFER": { "label": "Bank Account", "description": "Direct transfer from bank" },
-        "MFS": { "label": "MFS (Bkash / Nagad)", "description": "Mobile financial service" }
+        "CASH": {
+          "label": "Cash",
+          "description": "Direct cash payment"
+        },
+        "BANK_TRANSFER": {
+          "label": "Bank Account",
+          "description": "Direct transfer from bank"
+        },
+        "MFS": {
+          "label": "MFS (Bkash / Nagad)",
+          "description": "Mobile financial service"
+        }
       },
       "submit": "Withdraw",
       "withdrawnToast": "Funds withdrawn from wallet",
@@ -2381,10 +2459,22 @@
       "step1Title": "What are you recording?",
       "step1Subtitle": "Select the transaction type to get started",
       "types": {
-        "OPERATING_EXPENSE": { "label": "Operating Expenses", "description": "Salary, Utilities, Maintenance and Others" },
-        "INVENTORY_PURCHASE": { "label": "Inventory Purchase", "description": "Feed, Medicines, Equipment, Supplies" },
-        "REVENUE": { "label": "Revenue / Sale", "description": "Milk, Animal, Manure, and Other Sales" },
-        "DEBT_LOAN": { "label": "Debt / Loan", "description": "New Loan or EMI Payment" }
+        "OPERATING_EXPENSE": {
+          "label": "Operating Expenses",
+          "description": "Salary, Utilities, Maintenance and Others"
+        },
+        "INVENTORY_PURCHASE": {
+          "label": "Inventory Purchase",
+          "description": "Feed, Medicines, Equipment, Supplies"
+        },
+        "REVENUE": {
+          "label": "Revenue / Sale",
+          "description": "Milk, Animal, Manure, and Other Sales"
+        },
+        "DEBT_LOAN": {
+          "label": "Debt / Loan",
+          "description": "New Loan or EMI Payment"
+        }
       },
       "step2Title": "Details",
       "step2TitleDebtLoan": "Debt Management",
@@ -2402,10 +2492,29 @@
       },
       "selectOption": "Select an option",
       "subTypeOptions": {
-        "OPERATING_EXPENSE": { "salary": "Salary", "utilities": "Utilities", "maintenance": "Maintenance", "other": "Other" },
-        "INVENTORY_PURCHASE": { "feed": "Feed", "medicine": "Medicine", "equipment": "Equipment", "supplies": "Supplies", "other": "Other" },
-        "REVENUE": { "milk": "Milk", "animal": "Animal", "manure": "Manure", "other": "Others" },
-        "DEBT_LOAN": { "new_loan": "New Loan", "emi_payment": "EMI Payment" }
+        "OPERATING_EXPENSE": {
+          "salary": "Salary",
+          "utilities": "Utilities",
+          "maintenance": "Maintenance",
+          "other": "Other"
+        },
+        "INVENTORY_PURCHASE": {
+          "feed": "Feed",
+          "medicine": "Medicine",
+          "equipment": "Equipment",
+          "supplies": "Supplies",
+          "other": "Other"
+        },
+        "REVENUE": {
+          "milk": "Milk",
+          "animal": "Animal",
+          "manure": "Manure",
+          "other": "Others"
+        },
+        "DEBT_LOAN": {
+          "new_loan": "New Loan",
+          "emi_payment": "EMI Payment"
+        }
       },
       "entityNameLabel": {
         "OPERATING_EXPENSE": "Entity Name",
@@ -2443,7 +2552,10 @@
       "selectLoan": "Select Loan",
       "outstandingSuffix": "outstanding",
       "paymentType": "Payment Type",
-      "paymentTypeOptions": { "FULL": "Full Payment", "PARTIAL": "Partial Payment" },
+      "paymentTypeOptions": {
+        "FULL": "Full Payment",
+        "PARTIAL": "Partial Payment"
+      },
       "paidNow": "Pay Now",
       "remainingBalance": "Remaining Balance",
       "dueDate": "Due Date",
@@ -2452,7 +2564,10 @@
       "notesPlaceholder": "Add any note",
       "step3Title": "Summary",
       "step3Subtitle": "Check your details before submitting",
-      "step3TitleDebtLoan": { "new_loan": "New Loan Summary", "emi_payment": "EMI Payment Summary" },
+      "step3TitleDebtLoan": {
+        "new_loan": "New Loan Summary",
+        "emi_payment": "EMI Payment Summary"
+      },
       "step3SubtitleDebtLoan": {
         "new_loan": "Check your loan details before submitting",
         "emi_payment": "Check your EMI details before submitting"
@@ -2627,7 +2742,10 @@
       "feedName": "Feed Name",
       "feedNamePlaceholder": "e.g. Feed 1",
       "feedDuration": "Feed Duration",
-      "targetType": { "GROUP": "Cow Group", "INDIVIDUAL": "Individual Cow" },
+      "targetType": {
+        "GROUP": "Cow Group",
+        "INDIVIDUAL": "Individual Cow"
+      },
       "selectGroup": "Select Group",
       "selectGroupPlaceholder": "Select a cow group",
       "cowCount": "{count} cows",

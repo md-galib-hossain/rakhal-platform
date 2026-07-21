@@ -146,3 +146,50 @@ export interface CattleFormPayload {
   color?: string;
   notes?: string;
 }
+
+// ---- RFE-023 follow-up: BCS + weight recording (`cattle.constants.ts#BCS_ALLOWED_SCORES`) --------
+
+/** 1.0–5.0 in 0.25 steps (PRD §8.6 / RAKHAL-038) — mirrors the backend's `BCS_ALLOWED_SCORES`. */
+export const BCS_ALLOWED_SCORES: number[] = Array.from({ length: 17 }, (_, i) => 1 + i * 0.25);
+
+/** `POST /cattle/:id/bcs` response (`bcs.service.ts#recordBcs`). */
+export interface BcsRecordResult {
+  id: string;
+  score: number;
+  date: string;
+  notes: string | null;
+}
+
+/** `POST /cattle/:id/weight` response (`weight.service.ts#recordWeight`). */
+export interface WeightRecordResult {
+  id: string;
+  weightKg: number;
+  date: string;
+  notes: string | null;
+}
+
+// ---- RFE-024 — Cattle CSV import (`cattle-import.service.ts`) -------------------------------------
+
+/** One row of a `POST /cattle/import/preview` response. */
+export interface CattleImportRow {
+  row: number;
+  name: string | null;
+  tag: string | null;
+  status: "ready" | "error";
+  error?: string;
+}
+
+/** `POST /cattle/import/preview` response — cached server-side under `importSessionId` (30 min TTL). */
+export interface CattleImportPreview {
+  importSessionId: string;
+  total: number;
+  ready: number;
+  errors: number;
+  rows: CattleImportRow[];
+}
+
+/** `POST /cattle/import/confirm` response. */
+export interface CattleImportConfirmResult {
+  imported: number;
+  skipped: number;
+}

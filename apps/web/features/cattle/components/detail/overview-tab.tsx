@@ -18,6 +18,8 @@ import { Can } from "@/lib/auth/permissions";
 import { useConcentrations, useFeedEfficiency } from "@/features/feed/hooks/use-feed";
 import { LogDistributionDialog } from "@/features/feed/components/log-distribution-dialog";
 import { useCattleOverview } from "../../hooks/use-cattle-detail-tabs";
+import { RecordBcsDialog } from "./record-bcs-dialog";
+import { RecordWeightDialog } from "./record-weight-dialog";
 
 const TrendChartInner = dynamic(() => import("./charts/trend-chart-inner"), {
   ssr: false,
@@ -88,6 +90,8 @@ function FeedTodayCard({ cattleId }: { cattleId: string }) {
 export function OverviewTab({ cattleId }: { cattleId: string }) {
   const t = useTranslations("cattle.detail.overview");
   const query = useCattleOverview(cattleId);
+  const [bcsDialogOpen, setBcsDialogOpen] = useState(false);
+  const [weightDialogOpen, setWeightDialogOpen] = useState(false);
 
   if (query.isLoading) {
     return (
@@ -128,6 +132,21 @@ export function OverviewTab({ cattleId }: { cattleId: string }) {
           deltaLabel="%"
         />
       </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Can I="cattle.bcs">
+          <Button variant="outline" size="sm" onClick={() => setBcsDialogOpen(true)}>
+            {t("recordBcs")}
+          </Button>
+        </Can>
+        <Can I="cattle.update">
+          <Button variant="outline" size="sm" onClick={() => setWeightDialogOpen(true)}>
+            {t("recordWeight")}
+          </Button>
+        </Can>
+      </div>
+      <RecordBcsDialog cattleId={cattleId} open={bcsDialogOpen} onOpenChange={setBcsDialogOpen} />
+      <RecordWeightDialog cattleId={cattleId} open={weightDialogOpen} onOpenChange={setWeightDialogOpen} />
 
       <FeedTodayCard cattleId={cattleId} />
 

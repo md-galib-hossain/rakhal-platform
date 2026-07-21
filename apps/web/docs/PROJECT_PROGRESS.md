@@ -463,13 +463,15 @@
 - **Status:** `DONE` (2026-07-11) — see `IN_FLIGHT.md` Recently Done for the full build note. Built
   as a plain page (`app/(app)/cattle/[id]/page.tsx`), not the Figma drawer (D-2) — no intercepted-route
   precedent in this codebase yet. Health's vaccination timeline and Ancestry's canvas pedigree diagram
-  simplified to cards/grid (both already PRD-spec-flagged in `rakhal-ui-analysis.md`). BCS/weight record
-  dialogs **not built this pass** — deferred, not part of the Overview tab's read surface.
+  simplified to cards/grid (both already PRD-spec-flagged in `rakhal-ui-analysis.md`). **BCS/weight
+  record dialogs added (2026-07-21)** — see `IN_FLIGHT.md` Recently Done.
 
 #### RFE-024 — Cattle CSV import (+ onboarding import reuse)
 - **Depends:** RFE-022 · Multipart preview→confirm wizard (`/cattle` import routes; reused by RFE-063).
 - **API:** §4 / §2 · **PRD:** §8.4 · **Design:** PRD-spec
-- **Status:** `TODO`
+- **Status:** `DONE` (2026-07-21) — no column-mapping UI (canonical CSV headers documented in the
+  dialog instead); see `IN_FLIGHT.md` Recently Done for the full build note + a real backend bug found
+  during verification (Redis client never connected at boot — TECH_DEBT, flagged separately).
 
 #### RFE-025 — Milk log page
 - **Lane:** `features/milk/**`, `app/(app)/milk/**` · **Design:** Figma milk frames

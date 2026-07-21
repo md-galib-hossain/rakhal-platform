@@ -1,8 +1,9 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { cattleApi } from "../api";
+import type { RecordBcsInput, RecordWeightInput } from "../schemas";
 
 const STALE_TIME = 60_000;
 
@@ -47,5 +48,29 @@ export function useCattleCalvingEvents(id: string, enabled: boolean) {
     queryFn: () => cattleApi.calvingEvents(id),
     staleTime: STALE_TIME,
     enabled,
+  });
+}
+
+/** `cattle.bcs` (worker-permitted, PRD §26) — invalidates the Overview tab's `bcs_records`. */
+export function useRecordBcs(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: RecordBcsInput) => cattleApi.recordBcs(id, dto),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.overview(id) });
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.detail(id) });
+    },
+  });
+}
+
+/** `cattle.update` (manager+, no worker perm yet — TECH_DEBT RD-012(f)). */
+export function useRecordWeight(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: RecordWeightInput) => cattleApi.recordWeight(id, dto),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.overview(id) });
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.detail(id) });
+    },
   });
 }

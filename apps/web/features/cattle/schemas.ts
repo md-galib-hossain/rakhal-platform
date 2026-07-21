@@ -42,3 +42,19 @@ export const cattleArchiveSchema = z.object({
   notes: z.string().trim().optional(),
 });
 export type CattleArchiveInput = z.infer<typeof cattleArchiveSchema>;
+
+/** Mirrors `RecordBcsDto` (`POST /cattle/:id/bcs`, PRD §8.6) — score is one of 17 quarter-steps. */
+export const recordBcsSchema = z.object({
+  score: z.number().min(1).max(5),
+  date: z.string().min(1).optional(),
+  notes: z.string().trim().optional(),
+});
+export type RecordBcsInput = z.infer<typeof recordBcsSchema>;
+
+/** Mirrors `RecordWeightDto` (`POST /cattle/:id/weight`). */
+export const recordWeightSchema = z.object({
+  weightKg: z.number().min(10).max(2000),
+  date: z.string().min(1),
+  notes: z.string().trim().optional(),
+});
+export type RecordWeightInput = z.infer<typeof recordWeightSchema>;

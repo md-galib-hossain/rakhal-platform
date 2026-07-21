@@ -3,19 +3,23 @@
 import { apiFetch, apiFetchPage, apiUpload } from "@/lib/api/client";
 import type { CursorPage } from "@/types/api";
 import type {
+  BcsRecordResult,
   Breed,
   BulkAction,
   BulkCattleResult,
   CattleDetail,
   CattleFormPayload,
   CattleHighlights,
+  CattleImportConfirmResult,
+  CattleImportPreview,
   CattleListFilters,
   CattleListItem,
   FeedGroup,
   MediaUrls,
   Shed,
+  WeightRecordResult,
 } from "./types";
-import type { CattleArchiveInput, CattleStatusInput } from "./schemas";
+import type { CattleArchiveInput, CattleStatusInput, RecordBcsInput, RecordWeightInput } from "./schemas";
 import type {
   CalvingEventRow,
   CattleFinance,
@@ -114,6 +118,25 @@ export const cattleApi = {
   calvingEvents(cattleId: string): Promise<CursorPage<CalvingEventRow>> {
     return apiFetchPage<CalvingEventRow>("/reproduction/calving-events", {
       searchParams: { cattleId, limit: 20 },
+    });
+  },
+
+  // RFE-023 follow-up — BCS + weight recording (`cattle.bcs`/`cattle.update`-gated on the backend).
+  recordBcs(id: string, dto: RecordBcsInput): Promise<BcsRecordResult> {
+    return apiFetch<BcsRecordResult>(`/cattle/${id}/bcs`, { method: "POST", body: dto });
+  },
+  recordWeight(id: string, dto: RecordWeightInput): Promise<WeightRecordResult> {
+    return apiFetch<WeightRecordResult>(`/cattle/${id}/weight`, { method: "POST", body: dto });
+  },
+
+  // RFE-024 — CSV import (multipart preview → confirm, both `cattle.create`-gated).
+  importPreview(file: File): Promise<CattleImportPreview> {
+    return apiUpload<CattleImportPreview>("/cattle/import/preview", file);
+  },
+  importConfirm(importSessionId: string, skipErrors: boolean): Promise<CattleImportConfirmResult> {
+    return apiFetch<CattleImportConfirmResult>("/cattle/import/confirm", {
+      method: "POST",
+      body: { importSessionId, skipErrors },
     });
   },
 };

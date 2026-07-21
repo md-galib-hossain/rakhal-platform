@@ -815,6 +815,28 @@
           "noon": "দুপুর",
           "evening": "সন্ধ্যা",
           "total": "মোট উৎপাদন"
+        },
+        "recordBcs": "বিসিএস রেকর্ড করুন",
+        "recordWeight": "ওজন রেকর্ড করুন",
+        "recordBcsDialog": {
+          "title": "বডি কন্ডিশন স্কোর রেকর্ড করুন",
+          "score": "বিসিএস স্কোর",
+          "date": "তারিখ",
+          "notes": "নোট",
+          "save": "সংরক্ষণ করুন",
+          "cancel": "বাতিল",
+          "recordedToast": "বিসিএস রেকর্ড করা হয়েছে।",
+          "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
+        },
+        "recordWeightDialog": {
+          "title": "ওজন রেকর্ড করুন",
+          "weightKg": "ওজন (কেজি)",
+          "date": "তারিখ",
+          "notes": "নোট",
+          "save": "সংরক্ষণ করুন",
+          "cancel": "বাতিল",
+          "recordedToast": "ওজন রেকর্ড করা হয়েছে।",
+          "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
         }
       },
       "reproduction": {
@@ -902,6 +924,32 @@
           "FEMALE": "স্ত্রী",
           "CASTRATED_MALE": "খাসি করা পুরুষ"
         }
+      }
+    },
+    "import": {
+      "trigger": "সিএসভি ইমপোর্ট করুন",
+      "title": "সিএসভি থেকে গবাদি পশু আমদানি করুন",
+      "description": "name/tag/gender/purpose/date_of_birth/breed/shed/color/notes কলামসহ একটি সিএসভি ফাইল আপলোড করুন (হেডার কেস-ইনসেনসিটিভ)। আমদানির আগে প্রতিটি সারি যাচাই করে দেখানো হবে।",
+      "chooseFile": "সিএসভি ফাইল",
+      "previewAction": "প্রিভিউ",
+      "confirmAction": "আমদানি নিশ্চিত করুন",
+      "cancel": "বাতিল",
+      "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।",
+      "empty": "ফাইলে কোনো ডেটা সারি নেই।",
+      "skipErrors": "ভুল সারিগুলো বাদ দিয়ে বাকিগুলো আমদানি করুন",
+      "confirmedToast": "{imported}টি আমদানি হয়েছে, {skipped}টি বাদ দেওয়া হয়েছে।",
+      "summary": {
+        "total": "মোট {count}",
+        "ready": "{count} প্রস্তুত",
+        "errors": "{count} ত্রুটি"
+      },
+      "columns": {
+        "row": "সারি",
+        "tag": "ট্যাগ",
+        "name": "নাম",
+        "status": "অবস্থা",
+        "readyBadge": "প্রস্তুত",
+        "errorBadge": "ত্রুটি"
       }
     }
   },
@@ -2046,7 +2094,11 @@
     "createTask": "টাস্ক তৈরি করুন",
     "allTasks": "সব টাস্ক",
     "searchPlaceholder": "আইডি দিয়ে টাস্ক খুঁজুন",
-    "priority": { "HIGH": "উচ্চ", "MEDIUM": "মাঝারি", "LOW": "নিম্ন" },
+    "priority": {
+      "HIGH": "উচ্চ",
+      "MEDIUM": "মাঝারি",
+      "LOW": "নিম্ন"
+    },
     "category": {
       "FEEDING": "খাদ্য",
       "HEALTHCARE": "স্বাস্থ্যসেবা",
@@ -2056,7 +2108,11 @@
       "CALF_CARE": "বাছুর পরিচর্যা",
       "GENERAL": "সাধারণ"
     },
-    "recurrence": { "DAILY": "প্রতিদিন", "WEEKLY": "সাপ্তাহিক", "MONTHLY": "মাসিক" },
+    "recurrence": {
+      "DAILY": "প্রতিদিন",
+      "WEEKLY": "সাপ্তাহিক",
+      "MONTHLY": "মাসিক"
+    },
     "filters": {
       "my_tasks": "আমার টাস্ক",
       "all": "সব টাস্ক",
@@ -2112,7 +2168,11 @@
       "recurringTaskDesc": "এই টাস্কটি নির্দিষ্ট সময় পর পর হলে সক্রিয় করুন",
       "repeats": "পুনরাবৃত্তি",
       "selectRepeats": "সময়ব্যবধান নির্বাচন করুন",
-      "repeatsOptions": { "DAILY": "প্রতিদিন", "WEEKLY": "সাপ্তাহিক", "MONTHLY": "মাসিক" },
+      "repeatsOptions": {
+        "DAILY": "প্রতিদিন",
+        "WEEKLY": "সাপ্তাহিক",
+        "MONTHLY": "মাসিক"
+      },
       "safetyCritical": "নিরাপত্তা-গুরুত্বপূর্ণ",
       "safetyCriticalDesc": "প্রাণী বা মানুষের নিরাপত্তা জড়িত থাকলে সক্রিয় করুন",
       "cancel": "বাতিল",
@@ -2350,9 +2410,18 @@
       "amount": "পরিমাণ",
       "paymentMethod": "পেমেন্ট পদ্ধতি",
       "methods": {
-        "CASH": { "label": "নগদ", "description": "সরাসরি নগদ পরিশোধ" },
-        "BANK_TRANSFER": { "label": "ব্যাংক অ্যাকাউন্ট", "description": "ব্যাংক থেকে সরাসরি ট্রান্সফার" },
-        "MFS": { "label": "এমএফএস (বিকাশ / নগদ)", "description": "মোবাইল ফিনান্সিয়াল সার্ভিস" }
+        "CASH": {
+          "label": "নগদ",
+          "description": "সরাসরি নগদ পরিশোধ"
+        },
+        "BANK_TRANSFER": {
+          "label": "ব্যাংক অ্যাকাউন্ট",
+          "description": "ব্যাংক থেকে সরাসরি ট্রান্সফার"
+        },
+        "MFS": {
+          "label": "এমএফএস (বিকাশ / নগদ)",
+          "description": "মোবাইল ফিনান্সিয়াল সার্ভিস"
+        }
       },
       "submit": "ফান্ড যোগ করুন",
       "addedToast": "ওয়ালেটে ফান্ড যোগ হয়েছে",
@@ -2366,9 +2435,18 @@
       "amount": "পরিমাণ",
       "paymentMethod": "পেমেন্ট পদ্ধতি",
       "methods": {
-        "CASH": { "label": "নগদ", "description": "সরাসরি নগদ পরিশোধ" },
-        "BANK_TRANSFER": { "label": "ব্যাংক অ্যাকাউন্ট", "description": "ব্যাংক থেকে সরাসরি ট্রান্সফার" },
-        "MFS": { "label": "এমএফএস (বিকাশ / নগদ)", "description": "মোবাইল ফিনান্সিয়াল সার্ভিস" }
+        "CASH": {
+          "label": "নগদ",
+          "description": "সরাসরি নগদ পরিশোধ"
+        },
+        "BANK_TRANSFER": {
+          "label": "ব্যাংক অ্যাকাউন্ট",
+          "description": "ব্যাংক থেকে সরাসরি ট্রান্সফার"
+        },
+        "MFS": {
+          "label": "এমএফএস (বিকাশ / নগদ)",
+          "description": "মোবাইল ফিনান্সিয়াল সার্ভিস"
+        }
       },
       "submit": "উত্তোলন করুন",
       "withdrawnToast": "ওয়ালেট থেকে উত্তোলন সম্পন্ন হয়েছে",
@@ -2381,10 +2459,22 @@
       "step1Title": "আপনি কী রেকর্ড করছেন?",
       "step1Subtitle": "শুরু করতে লেনদেনের ধরন নির্বাচন করুন",
       "types": {
-        "OPERATING_EXPENSE": { "label": "পরিচালন ব্যয়", "description": "বেতন, ইউটিলিটি, রক্ষণাবেক্ষণ এবং অন্যান্য" },
-        "INVENTORY_PURCHASE": { "label": "মজুদ ক্রয়", "description": "খাদ্য, ওষুধ, যন্ত্রপাতি, সরবরাহ" },
-        "REVENUE": { "label": "আয় / বিক্রয়", "description": "দুধ, পশু, গোবর এবং অন্যান্য বিক্রয়" },
-        "DEBT_LOAN": { "label": "ঋণ", "description": "নতুন ঋণ বা কিস্তি পরিশোধ" }
+        "OPERATING_EXPENSE": {
+          "label": "পরিচালন ব্যয়",
+          "description": "বেতন, ইউটিলিটি, রক্ষণাবেক্ষণ এবং অন্যান্য"
+        },
+        "INVENTORY_PURCHASE": {
+          "label": "মজুদ ক্রয়",
+          "description": "খাদ্য, ওষুধ, যন্ত্রপাতি, সরবরাহ"
+        },
+        "REVENUE": {
+          "label": "আয় / বিক্রয়",
+          "description": "দুধ, পশু, গোবর এবং অন্যান্য বিক্রয়"
+        },
+        "DEBT_LOAN": {
+          "label": "ঋণ",
+          "description": "নতুন ঋণ বা কিস্তি পরিশোধ"
+        }
       },
       "step2Title": "বিস্তারিত",
       "step2TitleDebtLoan": "ঋণ ব্যবস্থাপনা",
@@ -2402,10 +2492,29 @@
       },
       "selectOption": "একটি অপশন নির্বাচন করুন",
       "subTypeOptions": {
-        "OPERATING_EXPENSE": { "salary": "বেতন", "utilities": "ইউটিলিটি", "maintenance": "রক্ষণাবেক্ষণ", "other": "অন্যান্য" },
-        "INVENTORY_PURCHASE": { "feed": "খাদ্য", "medicine": "ওষুধ", "equipment": "যন্ত্রপাতি", "supplies": "সরবরাহ", "other": "অন্যান্য" },
-        "REVENUE": { "milk": "দুধ", "animal": "পশু", "manure": "গোবর", "other": "অন্যান্য" },
-        "DEBT_LOAN": { "new_loan": "নতুন ঋণ", "emi_payment": "কিস্তি পরিশোধ" }
+        "OPERATING_EXPENSE": {
+          "salary": "বেতন",
+          "utilities": "ইউটিলিটি",
+          "maintenance": "রক্ষণাবেক্ষণ",
+          "other": "অন্যান্য"
+        },
+        "INVENTORY_PURCHASE": {
+          "feed": "খাদ্য",
+          "medicine": "ওষুধ",
+          "equipment": "যন্ত্রপাতি",
+          "supplies": "সরবরাহ",
+          "other": "অন্যান্য"
+        },
+        "REVENUE": {
+          "milk": "দুধ",
+          "animal": "পশু",
+          "manure": "গোবর",
+          "other": "অন্যান্য"
+        },
+        "DEBT_LOAN": {
+          "new_loan": "নতুন ঋণ",
+          "emi_payment": "কিস্তি পরিশোধ"
+        }
       },
       "entityNameLabel": {
         "OPERATING_EXPENSE": "সংশ্লিষ্ট পক্ষের নাম",
@@ -2443,7 +2552,10 @@
       "selectLoan": "ঋণ নির্বাচন করুন",
       "outstandingSuffix": "বকেয়া",
       "paymentType": "পেমেন্টের ধরন",
-      "paymentTypeOptions": { "FULL": "সম্পূর্ণ পরিশোধ", "PARTIAL": "আংশিক পরিশোধ" },
+      "paymentTypeOptions": {
+        "FULL": "সম্পূর্ণ পরিশোধ",
+        "PARTIAL": "আংশিক পরিশোধ"
+      },
       "paidNow": "এখন পরিশোধ",
       "remainingBalance": "অবশিষ্ট ব্যালেন্স",
       "dueDate": "নির্ধারিত তারিখ",
@@ -2452,7 +2564,10 @@
       "notesPlaceholder": "যেকোনো নোট যোগ করুন",
       "step3Title": "সারসংক্ষেপ",
       "step3Subtitle": "জমা দেওয়ার আগে আপনার বিবরণ যাচাই করুন",
-      "step3TitleDebtLoan": { "new_loan": "নতুন ঋণের সারসংক্ষেপ", "emi_payment": "কিস্তি পরিশোধের সারসংক্ষেপ" },
+      "step3TitleDebtLoan": {
+        "new_loan": "নতুন ঋণের সারসংক্ষেপ",
+        "emi_payment": "কিস্তি পরিশোধের সারসংক্ষেপ"
+      },
       "step3SubtitleDebtLoan": {
         "new_loan": "জমা দেওয়ার আগে আপনার ঋণের বিবরণ যাচাই করুন",
         "emi_payment": "জমা দেওয়ার আগে আপনার কিস্তির বিবরণ যাচাই করুন"
@@ -2627,7 +2742,10 @@
       "feedName": "ফিডের নাম",
       "feedNamePlaceholder": "যেমন Feed 1",
       "feedDuration": "ফিড মেয়াদ",
-      "targetType": { "GROUP": "গরুর গ্রুপ", "INDIVIDUAL": "একক গরু" },
+      "targetType": {
+        "GROUP": "গরুর গ্রুপ",
+        "INDIVIDUAL": "একক গরু"
+      },
       "selectGroup": "গ্রুপ নির্বাচন করুন",
       "selectGroupPlaceholder": "একটি গরুর গ্রুপ নির্বাচন করুন",
       "cowCount": "{count} টি গরু",

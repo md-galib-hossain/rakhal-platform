@@ -185,3 +185,18 @@ export function useRemoveCattlePhoto() {
     onSuccess: (_data, id) => invalidate(id),
   });
 }
+
+// RFE-024 — CSV import (multipart preview → confirm). Preview is a plain mutation (no cache entry
+// to invalidate, its result is the session itself); confirm invalidates the list on success.
+export function useImportCattlePreview() {
+  return useMutation({ mutationFn: (file: File) => cattleApi.importPreview(file) });
+}
+
+export function useImportCattleConfirm() {
+  const invalidate = useInvalidateCattle();
+  return useMutation({
+    mutationFn: ({ importSessionId, skipErrors }: { importSessionId: string; skipErrors: boolean }) =>
+      cattleApi.importConfirm(importSessionId, skipErrors),
+    onSuccess: () => invalidate(),
+  });
+}
