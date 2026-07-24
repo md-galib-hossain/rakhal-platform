@@ -5,7 +5,7 @@ import { qk } from "@/lib/query/keys";
 import { useSession } from "@/lib/auth/use-session";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { subscriptionApi } from "../api";
-import type { CheckoutPayload } from "../types";
+import type { CheckoutPayload, PreviewCheckoutPayload, UpdateFarmProfilePayload } from "../types";
 
 const STALE_TIME = 60_000;
 
@@ -58,5 +58,33 @@ export function useAcceptConsent() {
   return useMutation({
     mutationFn: () => subscriptionApi.acceptConsent(),
     onSuccess: (data) => queryClient.setQueryData(qk.legal.consent(), data),
+  });
+}
+
+/** `GET /settings/farm` — pre-fill source for the upgrade modal's profile-completion stage.
+ * `enabled` so it only fetches once that stage is actually reachable (Free plan selected). */
+export function useFarmProfile(enabled: boolean) {
+  return useQuery({
+    queryKey: qk.settings.farm(),
+    queryFn: subscriptionApi.farmProfile,
+    enabled,
+    staleTime: STALE_TIME,
+  });
+}
+
+/** `PATCH /billing/profile` — the mandatory profile-completion step gating Free-plan checkout. */
+export function useUpdateFarmProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: UpdateFarmProfilePayload) => subscriptionApi.updateProfile(payload),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: qk.settings.farm() }),
+  });
+}
+
+/** `POST /billing/checkout/preview` — on-demand "Apply" action for the coupon stage, not a query;
+ * the real `checkout()` re-validates the coupon regardless of whether this was ever called. */
+export function usePreviewCheckout() {
+  return useMutation({
+    mutationFn: (payload: PreviewCheckoutPayload) => subscriptionApi.previewCheckout(payload),
   });
 }

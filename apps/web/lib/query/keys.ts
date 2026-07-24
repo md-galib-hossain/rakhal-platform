@@ -17,6 +17,9 @@ export const qk = {
     plans: () => ["billing", "plans"] as const,
     invoices: () => ["billing", "invoices"] as const,
   },
+  settings: {
+    farm: () => ["settings", "farm"] as const,
+  },
   legal: {
     consent: () => ["legal", "consent"] as const,
   },

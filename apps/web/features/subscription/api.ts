@@ -5,10 +5,14 @@ import type { CursorPage } from "@/types/api";
 import type {
   CheckoutPayload,
   CheckoutResult,
+  FarmProfile,
   LegalConsentStatus,
+  PreviewCheckoutPayload,
+  PreviewCheckoutResult,
   PublicInvoice,
   PublicPlan,
   SubscriptionSummary,
+  UpdateFarmProfilePayload,
 } from "./types";
 
 /**
@@ -45,5 +49,20 @@ export const subscriptionApi = {
   /** Accept all current legal documents (`POST /legal/consent`, empty body = accept-all). */
   acceptConsent(): Promise<LegalConsentStatus> {
     return apiFetch<LegalConsentStatus>("/legal/consent", { method: "POST", body: {} });
+  },
+  /** Farm phone/address/name for the upgrade modal's profile-completion pre-fill (`GET /settings/farm`,
+   * `settings.read`). */
+  farmProfile(): Promise<FarmProfile> {
+    return apiFetch<FarmProfile>("/settings/farm");
+  },
+  /** The mandatory profile-completion step before a Free-plan checkout can activate (`PATCH
+   * /billing/profile`, `subscription.manage`). */
+  updateProfile(payload: UpdateFarmProfilePayload): Promise<FarmProfile> {
+    return apiFetch<FarmProfile>("/billing/profile", { method: "PATCH", body: payload });
+  },
+  /** Non-mutating price preview for the upgrade modal's coupon stage (`POST /billing/checkout/preview`,
+   * `subscription.manage`) — server-validated, but doesn't reserve the coupon; `checkout` does that. */
+  previewCheckout(payload: PreviewCheckoutPayload): Promise<PreviewCheckoutResult> {
+    return apiFetch<PreviewCheckoutResult>("/billing/checkout/preview", { method: "POST", body: payload });
   },
 };

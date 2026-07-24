@@ -11,7 +11,7 @@ import { PaymentMethodCard } from "./payment-method-card";
 
 /** Checkout is behind the Owner-only actions and carries the heaviest deps (react-hook-form + zod
  * resolver) — dynamically imported so it never lands in the Settings route's initial JS. */
-const PlanPickerSheet = dynamic(() => import("./plan-picker-sheet").then((m) => m.PlanPickerSheet), { ssr: false });
+const UpgradePlanModal = dynamic(() => import("./upgrade-plan-modal").then((m) => m.UpgradePlanModal), { ssr: false });
 
 /**
  * Settings › Billing & Subscription tab (Figma `1039:51242`): header + Current Plan banner, Invoice
@@ -42,7 +42,7 @@ export function BillingSettingsView() {
       <PaymentMethodCard />
 
       <Can I="subscription.manage">
-        <PlanPickerSheet
+        <UpgradePlanModal
           open={sheet.open}
           onOpenChange={(open) => setSheet((s) => ({ ...s, open }))}
           mode={sheet.mode}

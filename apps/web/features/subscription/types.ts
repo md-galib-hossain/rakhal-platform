@@ -79,3 +79,42 @@ export interface LegalConsentStatus {
   documents: { id: string; type: string; version: string; title: string; accepted: boolean }[];
   all_accepted: boolean;
 }
+
+/* ---------------------------------------------------------------------------
+ * Upgrade modal (multi-stage): Free-plan profile gate + coupon preview.
+ * ------------------------------------------------------------------------- */
+
+/** `GET /settings/farm` (subset used for the profile-completion stage's pre-fill). */
+export interface FarmProfile {
+  farm_id: string;
+  farm_name: string;
+  phone: string | null;
+  address: string | null;
+}
+
+/** `PATCH /billing/profile` body — the mandatory step before a Free-plan checkout can activate. */
+export interface UpdateFarmProfilePayload {
+  phone: string;
+  address: string;
+  farm_name?: string;
+}
+
+/** `POST /billing/checkout/preview` body — `couponCode` is required (unlike `CheckoutPayload`). */
+export interface PreviewCheckoutPayload {
+  planId: string;
+  billingPeriod: BillingPeriod;
+  couponCode: string;
+}
+
+/** `POST /billing/checkout/preview` result — mirrors `PublicInvoice`'s pricing fields. */
+export interface PreviewCheckoutResult {
+  plan_id: string;
+  billing_period: BillingPeriod;
+  currency: string;
+  subtotal: number;
+  discount_total: number;
+  estimated_credit_applied: number;
+  tax_rate: number;
+  tax_amount: number;
+  total: number;
+}

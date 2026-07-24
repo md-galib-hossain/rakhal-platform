@@ -3030,6 +3030,11 @@
     "comingSoonDescription": "This settings tab isn't built yet — check back soon."
   },
   "billing": {
+    "stepper": {
+      "plan": "Plan",
+      "details": "Details",
+      "confirm": "Confirm"
+    },
     "header": {
       "title": "Billing & Subscription",
       "description": "Manage your subscription, view invoices, and update payment methods."
@@ -3084,11 +3089,17 @@
       "perYear": "/year",
       "currentBadge": "Current",
       "unlimited": "Unlimited",
+      "unlimitedCattle": "Unlimited cattle",
+      "unlimitedMembers": "Unlimited team members",
       "maxCattle": "Up to {n} cattle",
       "maxMembers": "Up to {n} team members",
+      "billedMonthly": "Billed monthly",
+      "billedYearly": "Billed yearly",
+      "featureCount": "{n} features included",
       "coupon": "Coupon code (optional)",
       "consent": "I agree to Rakhal's Terms of Service and Privacy Policy.",
       "cancel": "Cancel",
+      "continue": "Continue",
       "submit": "Continue to bKash",
       "submitFree": "Activate Plan",
       "redirecting": "Redirecting to bKash…",
@@ -3105,6 +3116,32 @@
       "timeout": "Still confirming",
       "failedDescription": "Your payment could not be confirmed. If money was deducted, it will be reconciled automatically — check your invoice history shortly.",
       "backToSettings": "Back to Settings"
+    },
+    "profile": {
+      "title": "Complete your farm profile",
+      "description": "This is your farm's contact info (not your personal profile) — we need it before activating the Free plan.",
+      "phoneLabel": "Phone number",
+      "phonePlaceholder": "01XXXXXXXXX",
+      "phoneError": "Enter a valid Bangladeshi mobile number (01XXXXXXXXX)",
+      "farmNameLabel": "Farm name",
+      "farmNamePlaceholder": "Your farm's name",
+      "farmNameRequired": "Enter your farm's name",
+      "addressLabel": "Address",
+      "addressPlaceholder": "Farm address",
+      "editableNote": "You can update this again anytime by reopening Upgrade Plan.",
+      "back": "Back"
+    },
+    "coupon": {
+      "title": "Apply a coupon",
+      "placeholder": "Coupon code",
+      "apply": "Apply",
+      "applying": "Applying…",
+      "invalid": "That coupon couldn't be applied.",
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "tax": "Tax",
+      "total": "Total",
+      "back": "Back"
     }
   }
 }
