@@ -13,6 +13,11 @@ export interface SubscriptionSummary {
   features: string[];
   limits: { max_cattle: number | null; max_farm_members: number | null };
   usage: { cattle: number; farm_members: number };
+  /** A scheduled downgrade/lateral switch (RFE-036 follow-up) — set once
+   * `POST /billing/downgrade/schedule` has been called and not yet cancelled or applied. */
+  pending_plan_id: string | null;
+  pending_plan_name: string | null;
+  pending_effective_at: string | null;
 }
 
 /* ---------------------------------------------------------------------------
@@ -117,4 +122,21 @@ export interface PreviewCheckoutResult {
   tax_rate: number;
   tax_amount: number;
   total: number;
+}
+
+/* ---------------------------------------------------------------------------
+ * Scheduled downgrade (RFE-036 follow-up) — never charges; the switch lands at
+ * the current period's `expires_at`, applied by the backend's daily sweep.
+ * ------------------------------------------------------------------------- */
+
+export interface ScheduleDowngradePayload {
+  planId: string;
+  billingPeriod: BillingPeriod;
+}
+
+export interface ScheduleDowngradeResult {
+  pending_plan_id: string;
+  pending_plan_name: string;
+  pending_billing_period: BillingPeriod;
+  effective_at: string;
 }

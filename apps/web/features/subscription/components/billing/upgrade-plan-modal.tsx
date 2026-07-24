@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MoneyText } from "@/components/shared/money-text";
+import { DateText } from "@/components/shared/date-text";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { cn } from "@/lib/utils";
@@ -25,13 +26,15 @@ import {
   useFarmProfile,
   usePlans,
   usePreviewCheckout,
+  useScheduleDowngrade,
   useUpdateFarmProfile,
 } from "../../hooks/use-billing";
 import { checkoutSchema, profileCompletionSchema, type CheckoutFormValues, type ProfileCompletionFormValues } from "../../schemas";
 import { subscriptionApi } from "../../api";
+import { useSubscription } from "../../hooks/use-subscription";
 import type { BillingPeriod, PreviewCheckoutResult, PublicPlan } from "../../types";
 
-type Stage = "plan" | "profile" | "coupon" | "status";
+type Stage = "plan" | "profile" | "coupon" | "confirm-downgrade" | "status";
 const USABLE_STATUSES = new Set(["ACTIVE", "TRIALING", "PAST_DUE"]);
 const POLL_INTERVAL_MS = 2000;
 const POLL_TIMEOUT_MS = 30_000;
@@ -74,11 +77,13 @@ export function UpgradePlanModal({
   const [preview, setPreview] = useState<PreviewCheckoutResult | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
+  const subscriptionQuery = useSubscription();
   const plansQuery = usePlans();
   const consentQuery = useConsentStatus();
   const checkout = useCheckout();
   const acceptConsent = useAcceptConsent();
   const previewCheckout = usePreviewCheckout();
+  const scheduleDowngrade = useScheduleDowngrade();
   const updateProfile = useUpdateFarmProfile();
   const farmProfileQuery = useFarmProfile(stage === "profile");
 
@@ -183,7 +188,17 @@ export function UpgradePlanModal({
 
   const plans = plansQuery.data ?? [];
   const selectedPlan = plans.find((p) => p.id === selectedPlanId);
+  const currentPlan = plans.find((p) => p.id === currentPlanId);
   const isFreeSelected = selectedPlan ? selectedPlan.name === "Free" : false;
+  // A downgrade/lateral move (RFE-036 follow-up) never charges — it schedules the switch for the
+  // current period's end instead of routing through checkout. Same tier signal the backend uses
+  // (`monthly_price`), and only relevant when actually changing plans (re-selecting the current plan
+  // is a no-op, not a downgrade).
+  const isDowngradeSelected =
+    !!selectedPlan &&
+    !!currentPlan &&
+    selectedPlan.id !== currentPlan.id &&
+    selectedPlan.monthly_price <= currentPlan.monthly_price;
   // Only ask for the farm name if the farm genuinely doesn't have one yet — it almost always already
   // does (Farm.name is required at creation), so this field is the exception, not the norm.
   const needsFarmName = !!farmProfileQuery.data && !farmProfileQuery.data.farm_name;
@@ -202,7 +217,23 @@ export function UpgradePlanModal({
 
   function onPlanContinue() {
     if (!selectedPlanId || consent !== true) return;
+    // A farm with no active plan yet (NONE/EXPIRED) has nothing to "downgrade" from — always route
+    // through a real activation. Otherwise a downgrade/lateral move schedules, never charges.
+    if (currentPlan && isDowngradeSelected) {
+      setStage("confirm-downgrade");
+      return;
+    }
     setStage(isFreeSelected ? "profile" : "coupon");
+  }
+
+  async function onConfirmDowngrade() {
+    try {
+      const result = await scheduleDowngrade.mutateAsync({ planId: selectedPlanId, billingPeriod });
+      toast.success(t("planPicker.downgrade.scheduledToast", { plan: result.pending_plan_name }));
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("planPicker.error"));
+    }
   }
 
   async function onProfileSubmit(values: ProfileCompletionFormValues) {
@@ -442,6 +473,53 @@ export function UpgradePlanModal({
                 </div>
               </form>
             )}
+          </>
+        ) : null}
+
+        {stage === "confirm-downgrade" && selectedPlan ? (
+          <>
+            <DialogHeader className="items-center text-center sm:text-center">
+              <DialogTitle>{t("planPicker.downgrade.title")}</DialogTitle>
+              <DialogDescription>
+                {currentPlan && subscriptionQuery.data?.expires_at
+                  ? t("planPicker.downgrade.description", {
+                      currentPlan: currentPlan.name,
+                      targetPlan: selectedPlan.name,
+                    })
+                  : null}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-4">
+              <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-foreground">
+                {currentPlan ? (
+                  <p>
+                    {t("planPicker.downgrade.keepCurrent", { plan: currentPlan.name })}{" "}
+                    {subscriptionQuery.data?.expires_at ? (
+                      <DateText date={subscriptionQuery.data.expires_at} className="font-semibold" />
+                    ) : null}
+                    .
+                  </p>
+                ) : null}
+                <p className="mt-1 text-muted-foreground">
+                  {t("planPicker.downgrade.switchThen", { plan: selectedPlan.name })}
+                </p>
+                <p className="mt-2 font-semibold text-success">{t("planPicker.downgrade.noChargeToday")}</p>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setStage("plan")}>
+                  {t("planPicker.downgrade.back")}
+                </Button>
+                <Button
+                  type="button"
+                  className="gap-1.5"
+                  onClick={() => void onConfirmDowngrade()}
+                  disabled={scheduleDowngrade.isPending}
+                >
+                  {scheduleDowngrade.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+                  {t("planPicker.downgrade.confirm")}
+                </Button>
+              </div>
+            </div>
           </>
         ) : null}
 

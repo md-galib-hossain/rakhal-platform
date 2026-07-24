@@ -11,6 +11,8 @@ import type {
   PreviewCheckoutResult,
   PublicInvoice,
   PublicPlan,
+  ScheduleDowngradePayload,
+  ScheduleDowngradeResult,
   SubscriptionSummary,
   UpdateFarmProfilePayload,
 } from "./types";
@@ -64,5 +66,15 @@ export const subscriptionApi = {
    * `subscription.manage`) — server-validated, but doesn't reserve the coupon; `checkout` does that. */
   previewCheckout(payload: PreviewCheckoutPayload): Promise<PreviewCheckoutResult> {
     return apiFetch<PreviewCheckoutResult>("/billing/checkout/preview", { method: "POST", body: payload });
+  },
+  /** Schedule a downgrade/lateral plan change (`POST /billing/downgrade/schedule`,
+   * `subscription.manage`) — never charges; the switch lands at the current period's expiry. */
+  scheduleDowngrade(payload: ScheduleDowngradePayload): Promise<ScheduleDowngradeResult> {
+    return apiFetch<ScheduleDowngradeResult>("/billing/downgrade/schedule", { method: "POST", body: payload });
+  },
+  /** Cancel a previously-scheduled downgrade (`POST /billing/downgrade/cancel`,
+   * `subscription.manage`). */
+  cancelScheduledDowngrade(): Promise<void> {
+    return apiFetch<void>("/billing/downgrade/cancel", { method: "POST", body: {} });
   },
 };

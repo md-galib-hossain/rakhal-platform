@@ -5,7 +5,12 @@ import { qk } from "@/lib/query/keys";
 import { useSession } from "@/lib/auth/use-session";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { subscriptionApi } from "../api";
-import type { CheckoutPayload, PreviewCheckoutPayload, UpdateFarmProfilePayload } from "../types";
+import type {
+  CheckoutPayload,
+  PreviewCheckoutPayload,
+  ScheduleDowngradePayload,
+  UpdateFarmProfilePayload,
+} from "../types";
 
 const STALE_TIME = 60_000;
 
@@ -86,5 +91,24 @@ export function useUpdateFarmProfile() {
 export function usePreviewCheckout() {
   return useMutation({
     mutationFn: (payload: PreviewCheckoutPayload) => subscriptionApi.previewCheckout(payload),
+  });
+}
+
+/** `POST /billing/downgrade/schedule` — never charges; invalidates `subscription` so the Current
+ * Plan card immediately reflects the pending switch. */
+export function useScheduleDowngrade() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ScheduleDowngradePayload) => subscriptionApi.scheduleDowngrade(payload),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["subscription"] }),
+  });
+}
+
+/** `POST /billing/downgrade/cancel`. */
+export function useCancelScheduledDowngrade() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => subscriptionApi.cancelScheduledDowngrade(),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["subscription"] }),
   });
 }

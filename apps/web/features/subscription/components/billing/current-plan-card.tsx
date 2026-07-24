@@ -5,9 +5,11 @@ import { Settings2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MoneyText } from "@/components/shared/money-text";
 import { DateText } from "@/components/shared/date-text";
+import { toast } from "sonner";
 import { Can } from "@/lib/auth/permissions";
+import { ApiError } from "@/lib/api/errors";
 import { useSubscription } from "../../hooks/use-subscription";
-import { usePlans } from "../../hooks/use-billing";
+import { useCancelScheduledDowngrade, usePlans } from "../../hooks/use-billing";
 import type { PublicPlan, SubscriptionSummary } from "../../types";
 
 /** ACTIVE/TRIALING/PAST_DUE still have a usable plan to show; EXPIRED/CANCELLED/NONE do not. */
@@ -57,6 +59,16 @@ function PlanBanner({
   const t = useTranslations("billing");
   const active = USABLE.has(sub.status) && !!sub.plan_id;
   const plan = plans?.find((p) => p.id === sub.plan_id);
+  const cancelDowngrade = useCancelScheduledDowngrade();
+
+  async function onCancelPending() {
+    try {
+      await cancelDowngrade.mutateAsync();
+      toast.success(t("currentPlan.pendingCancelled"));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("planPicker.error"));
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -74,6 +86,24 @@ function PlanBanner({
               <p className="text-xs text-sidebar-muted">
                 {t("currentPlan.validUntil")} <DateText date={sub.expires_at} />
               </p>
+            ) : null}
+            {sub.pending_plan_name && sub.pending_effective_at ? (
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-sidebar-muted">
+                <span>
+                  {t("currentPlan.pendingSwitch", { plan: sub.pending_plan_name })}{" "}
+                  <DateText date={sub.pending_effective_at} />
+                </span>
+                <Can I="subscription.manage">
+                  <button
+                    type="button"
+                    onClick={() => void onCancelPending()}
+                    disabled={cancelDowngrade.isPending}
+                    className="underline underline-offset-2 hover:text-sidebar-foreground disabled:opacity-50"
+                  >
+                    {t("currentPlan.cancelPending")}
+                  </button>
+                </Can>
+              </div>
             ) : null}
           </>
         ) : (

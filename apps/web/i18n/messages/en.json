@@ -3048,7 +3048,10 @@
       "choosePlan": "Choose a Plan",
       "none": "No active plan",
       "noneDescription": "Choose a plan to unlock the full farm workspace.",
-      "error": "Could not load your subscription."
+      "error": "Could not load your subscription.",
+      "pendingSwitch": "Switching to {plan} on",
+      "cancelPending": "Cancel",
+      "pendingCancelled": "Scheduled switch cancelled."
     },
     "paymentMethod": {
       "title": "Payment Method",
@@ -3106,7 +3109,17 @@
       "activated": "Plan activated.",
       "pendingError": "Couldn't start the payment. Please try again.",
       "error": "Something went wrong. Please try again.",
-      "empty": "No plans available right now."
+      "empty": "No plans available right now.",
+      "downgrade": {
+        "title": "Switch plan at renewal",
+        "description": "Switch from {currentPlan} to {targetPlan}?",
+        "keepCurrent": "You'll keep {plan} until",
+        "switchThen": "{plan} starts automatically then.",
+        "noChargeToday": "No charge today.",
+        "back": "Back",
+        "confirm": "Schedule switch",
+        "scheduledToast": "Switch to {plan} scheduled."
+      }
     },
     "return": {
       "polling": "Confirming your payment…",

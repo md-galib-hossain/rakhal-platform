@@ -648,6 +648,11 @@
   referral code share/commissions view, coupon-redemption UI beyond the plain input, PAID-invoice
   receipt-download happy path (no PAID invoice in current seed data to exercise it against), Playwright
   money-flow spec. Settings' other 3 tabs (workspace/team/modules) are RFE-045's remaining scope.
+  **2026-07-24 follow-up:** fixed the real bKash callback 404 (backend `BKASH_CALLBACK_URL` points at
+  the frontend for local dev — added a passthrough redirect route + a Next-16 Suspense render bug on
+  `/billing/return`), and added scheduled downgrade/lateral plan changes (no forfeited paid time, no
+  double-charge — switch is deferred to the current period's end via the backend's daily sweep instead
+  of an immediate checkout). Full detail in this repo's `docs/IN_FLIGHT.md` Recently Done + the backend's.
 
 ---
 
