@@ -1,12 +1,15 @@
 "use client"; // live query + dynamic chart imports
 
 import dynamic from "next/dynamic";
+import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAssets } from "../hooks/use-finance";
+import { CreateAssetDialog } from "./create-asset-dialog";
 
 const AssetAllocationChartInner = dynamic(() => import("./asset-allocation-chart-inner"), {
   ssr: false,
@@ -45,7 +48,18 @@ export function AssetDistributionView() {
   const depreciationLabels = { bookValue: t("depreciation.bookValue"), accumulatedDepreciation: t("depreciation.accumulatedDepreciation") };
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <div className="flex flex-col gap-4">
+      <div className="flex justify-end">
+        <CreateAssetDialog
+          trigger={
+            <Button variant="secondary" className="gap-2">
+              <Plus className="size-[18px]" aria-hidden />
+              {t("createDialog.trigger")}
+            </Button>
+          }
+        />
+      </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <div className="flex flex-col gap-6 rounded-2xl border border-border p-4">
         <p className="text-xl font-medium text-foreground">{t("allocation.title")}</p>
         <AssetAllocationChartInner slices={data.allocation} />
@@ -89,6 +103,7 @@ export function AssetDistributionView() {
         ) : (
           <p className="py-16 text-center text-sm text-muted-foreground">{t("depreciation.empty")}</p>
         )}
+      </div>
       </div>
     </div>
   );

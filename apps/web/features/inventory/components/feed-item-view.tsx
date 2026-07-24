@@ -133,7 +133,12 @@ export function FeedItemView({ view }: { view: "table" | "grid" }) {
           query.goToPage(page);
           setRowSelection({});
         }}
-        disabled={query.isFetching}
+        isFetching={query.isFetching}
+        pageSize={query.pageSize}
+        onPageSizeChange={(size) => {
+          query.setPageSize(size);
+          setRowSelection({});
+        }}
       />
 
       <FeedItemFormDialog open={formOpen} onOpenChange={setFormOpen} feedItem={editingFeedItem} />

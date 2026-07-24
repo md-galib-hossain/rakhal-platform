@@ -631,7 +631,23 @@
   invoice), invoices list + receipt download, referral code share + commissions view.
 - **API:** billing/plans/referrals/legal (Swagger §§) · **PRD:** §31–§33, §36–§37 · **Design:** PRD-spec
 - **AC:** checkout E2E against gateway-less dev backend (PENDING invoice path) — money flow gets Playwright coverage.
-- **Status:** `TODO`
+- **Status:** `IN PROGRESS` — Settings › Billing & Subscription tab built against Figma `1039:51174`
+  (file `SCfMPdxP6vgW1uTxfqCtz7`), consuming the already-complete backend (RAKHAL-217…240): Current
+  Plan banner (`GET /subscription` + `GET /plans` price match), Invoice History (`GET /billing/invoices`,
+  cursor-paged, Download gated to PAID/REFUNDED), Payment Method rendered as **bKash** (no saved-card
+  vault — Figma's "Visa - 4242" replaced; the backend stores no payment method on file), and a plan-picker
+  checkout sheet (`POST /billing/checkout` — server computes the total, never client-sent; ToS/Privacy
+  consent gate wired to `GET/POST /legal/consent`; bKash `redirect_url` navigation). New
+  `app/(app)/billing/return` page polls real `GET /subscription` (never trusts the callback's `?status=`
+  query param) to confirm payment before redirecting back into Settings — matches backend
+  `BKASH_RETURN_URL=http://localhost:3005/billing/return`. Binary receipt PDF can't go through the
+  generic JSON-envelope `/api/backend` proxy, so a bespoke `app/api/billing/invoices/[id]/receipt`
+  route streams it instead (session-scoped, refresh-on-401, no JSON parsing of the PDF bytes).
+  `nest`/`tsc`/`eslint`/`next build` all green; live-verified against the demo owner (Demo Farm, real
+  Pro plan + 10 real PENDING invoices + real `/plans` catalogue in the checkout sheet). **Deferred**:
+  referral code share/commissions view, coupon-redemption UI beyond the plain input, PAID-invoice
+  receipt-download happy path (no PAID invoice in current seed data to exercise it against), Playwright
+  money-flow spec. Settings' other 3 tabs (workspace/team/modules) are RFE-045's remaining scope.
 
 ---
 

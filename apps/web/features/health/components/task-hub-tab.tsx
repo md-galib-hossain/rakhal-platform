@@ -90,6 +90,7 @@ export function TaskHubTab() {
         }}
         selectedDate={selectedDate}
         onSelectDate={setSelectedDate}
+        groups={groups}
       />
 
       <div className="flex gap-4">

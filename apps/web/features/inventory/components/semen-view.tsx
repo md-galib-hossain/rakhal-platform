@@ -166,7 +166,14 @@ export function SemenView() {
                 />
               ))}
             </div>
-            <Pagination page={batchesQuery.page} totalPages={batchesQuery.totalPages} onPageChange={batchesQuery.goToPage} />
+            <Pagination
+              page={batchesQuery.page}
+              totalPages={batchesQuery.totalPages}
+              onPageChange={batchesQuery.goToPage}
+              isFetching={batchesQuery.isFetching}
+              pageSize={batchesQuery.pageSize}
+              onPageSizeChange={batchesQuery.setPageSize}
+            />
           </>
         )}
       </div>

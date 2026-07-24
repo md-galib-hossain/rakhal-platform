@@ -16,7 +16,7 @@ export type TaskListPage = CursorPage<Task> & { meta: CursorMeta & { highlights:
 
 /** `/tasks` — real backend routes (`task.controller.ts`), `task.*`-gated. */
 export const tasksApi = {
-  list(filters: TaskListFilters, cursor?: string): Promise<TaskListPage> {
+  list(filters: TaskListFilters, cursor?: string, limit = 20): Promise<TaskListPage> {
     return apiFetchPage<Task>("/tasks", {
       searchParams: {
         filter: filters.filter,
@@ -24,7 +24,7 @@ export const tasksApi = {
         priority: filters.priority,
         search: filters.search,
         cursor,
-        limit: 20,
+        limit,
         sortOrder: "asc",
       },
     }) as Promise<TaskListPage>;

@@ -36,9 +36,9 @@ import type {
 
 /** `/inventory/medicines*` — real backend routes (`medicine.controller.ts`), `inventory.*`-gated. */
 export const inventoryApi = {
-  listMedicines(filters: MedicineListFilters, cursor?: string): Promise<CursorPage<Medicine>> {
+  listMedicines(filters: MedicineListFilters, cursor?: string, limit = 20): Promise<CursorPage<Medicine>> {
     return apiFetchPage<Medicine>("/inventory/medicines", {
-      searchParams: { search: filters.search, category: filters.category, status: filters.status, cursor, limit: 20 },
+      searchParams: { search: filters.search, category: filters.category, status: filters.status, cursor, limit },
     });
   },
   findMedicine(id: string): Promise<Medicine> {
@@ -73,9 +73,9 @@ export const inventoryApi = {
   /** `/inventory/feed-items*` — real backend routes (`feed-item.controller.ts`). No photo endpoints
    * (see `types.ts#FeedItem` doc comment) and no separate adjust-stock route — `currentStock` goes
    * through the normal update call. */
-  listFeedItems(filters: FeedItemListFilters, cursor?: string): Promise<CursorPage<FeedItem>> {
+  listFeedItems(filters: FeedItemListFilters, cursor?: string, limit = 20): Promise<CursorPage<FeedItem>> {
     return apiFetchPage<FeedItem>("/inventory/feed-items", {
-      searchParams: { search: filters.search, feedClass: filters.feedClass, cursor, limit: 20 },
+      searchParams: { search: filters.search, feedClass: filters.feedClass, cursor, limit },
     });
   },
   findFeedItem(id: string): Promise<FeedItem> {
@@ -121,9 +121,9 @@ export const inventoryApi = {
   archiveMilkTank(id: string): Promise<MilkTank> {
     return apiFetch<MilkTank>(`/inventory/milk-tanks/${id}`, { method: "DELETE" });
   },
-  milkTankAuditLog(tankId: string | undefined, cursor?: string): Promise<CursorPage<MilkTankAuditLogEntry>> {
+  milkTankAuditLog(tankId: string | undefined, cursor?: string, limit = 10): Promise<CursorPage<MilkTankAuditLogEntry>> {
     return apiFetchPage<MilkTankAuditLogEntry>("/inventory/milk-tanks/audit-log", {
-      searchParams: { tankId, cursor, limit: 10 },
+      searchParams: { tankId, cursor, limit },
     });
   },
   /** Generous `limit` — the "Assigned Shed" select wants the farm's full (small) list, not one page.
@@ -154,9 +154,9 @@ export const inventoryApi = {
   },
 
   /** `/inventory/semen/batches*` — real backend routes, cursor-paginated. */
-  listSemenBatches(filters: SemenBatchListFilters, cursor?: string): Promise<CursorPage<SemenBatch>> {
+  listSemenBatches(filters: SemenBatchListFilters, cursor?: string, limit = 20): Promise<CursorPage<SemenBatch>> {
     return apiFetchPage<SemenBatch>("/inventory/semen/batches", {
-      searchParams: { search: filters.search, tankId: filters.tankId, includeArchived: filters.includeArchived, cursor, limit: 20 },
+      searchParams: { search: filters.search, tankId: filters.tankId, includeArchived: filters.includeArchived, cursor, limit },
     });
   },
   createSemenBatch(dto: CreateSemenBatchPayload): Promise<SemenBatch> {
@@ -170,9 +170,9 @@ export const inventoryApi = {
   },
 
   /** `/inventory/equipment*` — real backend routes (`equipment.controller.ts`). */
-  listEquipment(filters: EquipmentListFilters, cursor?: string): Promise<CursorPage<Equipment>> {
+  listEquipment(filters: EquipmentListFilters, cursor?: string, limit = 20): Promise<CursorPage<Equipment>> {
     return apiFetchPage<Equipment>("/inventory/equipment", {
-      searchParams: { search: filters.search, type: filters.type, cursor, limit: 20 },
+      searchParams: { search: filters.search, type: filters.type, cursor, limit },
     });
   },
   findEquipment(id: string): Promise<Equipment> {

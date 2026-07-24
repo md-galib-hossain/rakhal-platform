@@ -98,3 +98,34 @@ export const withdrawSchema = z.object({
   paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "MFS"]),
 });
 export type WithdrawInput = z.infer<typeof withdrawSchema>;
+
+/** Record Payment (receivables/payables settlement row action). Mirrors `RecordPaymentDto`. No
+ * Figma frame supplied for this modal — built PRD-spec against the real DTO shape. */
+export const recordPaymentSchema = z.object({
+  amountPaid: z.number().min(0.01),
+  paymentDate: z.string().optional(),
+  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "MFS"]).optional(),
+  notes: z.string().trim().optional(),
+});
+export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;
+
+/** Void a ledger transaction (owner-only reversal). Mirrors `VoidTransactionDto`. No Figma frame
+ * supplied — built PRD-spec against the real DTO shape. */
+export const voidTransactionSchema = z.object({
+  reasonCategory: z.string().trim().min(1),
+  reasonNotes: z.string().trim().optional(),
+});
+export type VoidTransactionInput = z.infer<typeof voidTransactionSchema>;
+
+/** Create a fixed asset (Asset Distribution tab). Mirrors `CreateFixedAssetDto`. No Figma frame
+ * supplied — built PRD-spec against the real DTO shape. */
+export const createAssetSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  category: z.enum(["EQUIPMENT", "VEHICLE", "BUILDING", "OTHER"]).optional(),
+  description: z.string().trim().max(500).optional(),
+  purchaseDate: z.string().min(1),
+  purchasePrice: z.number().min(0),
+  usefulLifeYears: z.number().int().min(1).optional(),
+  salvageValue: z.number().min(0).optional(),
+});
+export type CreateAssetInput = z.infer<typeof createAssetSchema>;

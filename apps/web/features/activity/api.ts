@@ -6,7 +6,7 @@ import type { ActivityListFilters, ActivityLogEntry } from "./types";
 
 /** `/activity-log` — real backend route (`activity.controller.ts`), `activity.read`-gated. */
 export const activityApi = {
-  list(filters: ActivityListFilters, cursor?: string): Promise<CursorPage<ActivityLogEntry>> {
+  list(filters: ActivityListFilters, cursor?: string, limit = 20): Promise<CursorPage<ActivityLogEntry>> {
     return apiFetchPage<ActivityLogEntry>("/activity-log", {
       searchParams: {
         module: filters.module,
@@ -15,7 +15,7 @@ export const activityApi = {
         aqrImpactOnly: filters.aqrImpactOnly,
         financialImpactOnly: filters.financialImpactOnly,
         cursor,
-        limit: 20,
+        limit,
       },
     });
   },

@@ -5,6 +5,7 @@ import type { CursorMeta, CursorPage } from "@/types/api";
 import type {
   AddFundsPayload,
   AssetsResponse,
+  CreateFixedAssetPayload,
   CreateTransactionPayload,
   CreateTransactionResult,
   FinanceHighlights,
@@ -13,9 +14,11 @@ import type {
   LedgerTransaction,
   LiabilitiesResponse,
   ReceivableKind,
+  RecordPaymentPayload,
   Settlement,
   SettlementListFilters,
   SettlementStats,
+  VoidTransactionPayload,
   WalletResponse,
   WithdrawPayload,
 } from "./types";
@@ -31,7 +34,7 @@ export const financeApi = {
   highlights(): Promise<FinanceHighlights> {
     return apiFetch<FinanceHighlights>("/finance/highlights");
   },
-  ledger(filters: LedgerListFilters, cursor?: string): Promise<LedgerListPage> {
+  ledger(filters: LedgerListFilters, cursor?: string, limit = 20): Promise<LedgerListPage> {
     return apiFetchPage<LedgerTransaction>("/finance/ledger", {
       searchParams: {
         from: filters.from,
@@ -40,14 +43,14 @@ export const financeApi = {
         status: filters.status,
         search: filters.search,
         cursor,
-        limit: 20,
+        limit,
       },
     }) as Promise<LedgerListPage>;
   },
-  settlements(kind: ReceivableKind, filters: SettlementListFilters, cursor?: string): Promise<SettlementListPage> {
+  settlements(kind: ReceivableKind, filters: SettlementListFilters, cursor?: string, limit = 20): Promise<SettlementListPage> {
     const path = kind === "RECEIVABLE" ? "/finance/receivables" : "/finance/payables";
     return apiFetchPage<Settlement>(path, {
-      searchParams: { status: filters.status, search: filters.search, cursor, limit: 20 },
+      searchParams: { status: filters.status, search: filters.search, cursor, limit },
     }) as Promise<SettlementListPage>;
   },
   liabilities(): Promise<LiabilitiesResponse> {
@@ -67,5 +70,15 @@ export const financeApi = {
   },
   withdraw(dto: WithdrawPayload) {
     return apiFetch("/finance/wallet/withdraw", { method: "POST", body: dto });
+  },
+  recordPayment(kind: ReceivableKind, id: string, dto: RecordPaymentPayload) {
+    const path = kind === "RECEIVABLE" ? `/finance/receivables/${id}/record-payment` : `/finance/payables/${id}/record-payment`;
+    return apiFetch(path, { method: "POST", body: dto });
+  },
+  voidTransaction(id: string, dto: VoidTransactionPayload) {
+    return apiFetch(`/finance/transactions/${id}/void`, { method: "POST", body: dto });
+  },
+  createAsset(dto: CreateFixedAssetPayload) {
+    return apiFetch("/finance/assets", { method: "POST", body: dto });
   },
 };

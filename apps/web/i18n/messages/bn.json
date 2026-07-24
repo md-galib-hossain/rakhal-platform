@@ -1728,14 +1728,15 @@
       "calendar": {
         "prevMonth": "আগের মাস",
         "nextMonth": "পরের মাস",
+        "moreCount": "+{count} আরও",
         "weekday": {
-          "sun": "র",
-          "mon": "সো",
-          "tue": "ম",
-          "wed": "বু",
-          "thu": "বৃ",
-          "fri": "শু",
-          "sat": "শ"
+          "sun": "রবি",
+          "mon": "সোম",
+          "tue": "মঙ্গল",
+          "wed": "বুধ",
+          "thu": "বৃহঃ",
+          "fri": "শুক্র",
+          "sat": "শনি"
         }
       },
       "card": {
@@ -2310,6 +2311,19 @@
         "PENDING": "মুলতুবি",
         "VOIDED": "বাতিল"
       },
+      "voidAction": "বাতিল করুন",
+      "voidDialog": {
+        "title": "লেনদেন বাতিল করুন",
+        "description": "{reference} (৳{amount}) বাতিল করা হচ্ছে। এটি একটি সমন্বয়কারী বিপরীত এন্ট্রি তৈরি করবে এবং পূর্বাবস্থায় ফেরানো যাবে না।",
+        "reasonCategory": "কারণের বিভাগ",
+        "reasonCategoryPlaceholder": "যেমন: ডেটা এন্ট্রি ভুল",
+        "reasonNotes": "নোট (ঐচ্ছিক)",
+        "cancel": "বাতিল",
+        "voiding": "বাতিল করা হচ্ছে…",
+        "submit": "লেনদেন বাতিল করুন",
+        "successToast": "লেনদেন বাতিল করা হয়েছে।",
+        "genericError": "লেনদেন বাতিল করা যায়নি।"
+      },
       "empty": {
         "title": "এখনো কোনো লেনদেন নেই",
         "description": "রেকর্ড করা লেনদেনগুলো এখানে দেখাবে।"
@@ -2340,6 +2354,20 @@
         "dueDate": "নির্ধারিত তারিখ",
         "status": "অবস্থা"
       },
+      "recordPayment": {
+        "action": "পরিশোধ রেকর্ড করুন",
+        "title": "পরিশোধ রেকর্ড করুন",
+        "description": "{entity} থেকে পরিশোধ রেকর্ড করা হচ্ছে। বকেয়া: ৳{outstanding}।",
+        "amountPaid": "পরিশোধিত পরিমাণ",
+        "paymentDate": "পরিশোধের তারিখ",
+        "paymentMethod": "পরিশোধ পদ্ধতি",
+        "notes": "নোট",
+        "cancel": "বাতিল",
+        "saving": "সংরক্ষণ হচ্ছে…",
+        "submit": "পরিশোধ রেকর্ড করুন",
+        "successToast": "পরিশোধ রেকর্ড করা হয়েছে।",
+        "genericError": "পরিশোধ রেকর্ড করা যায়নি।"
+      },
       "empty": {
         "title": "এখনো কোনো পাওনা নেই",
         "description": "আপনার প্রাপ্য আংশিক পরিশোধগুলো এখানে দেখাবে।"
@@ -2369,6 +2397,20 @@
         "outstanding": "বকেয়া",
         "dueDate": "নির্ধারিত তারিখ",
         "status": "অবস্থা"
+      },
+      "recordPayment": {
+        "action": "পরিশোধ রেকর্ড করুন",
+        "title": "পরিশোধ রেকর্ড করুন",
+        "description": "{entity} কে পরিশোধ রেকর্ড করা হচ্ছে। বকেয়া: ৳{outstanding}।",
+        "amountPaid": "পরিশোধিত পরিমাণ",
+        "paymentDate": "পরিশোধের তারিখ",
+        "paymentMethod": "পরিশোধ পদ্ধতি",
+        "notes": "নোট",
+        "cancel": "বাতিল",
+        "saving": "সংরক্ষণ হচ্ছে…",
+        "submit": "পরিশোধ রেকর্ড করুন",
+        "successToast": "পরিশোধ রেকর্ড করা হয়েছে।",
+        "genericError": "পরিশোধ রেকর্ড করা যায়নি।"
       },
       "empty": {
         "title": "এখনো কোনো দেনা নেই",
@@ -2418,6 +2460,28 @@
         "bookValue": "বইমূল্য",
         "accumulatedDepreciation": "সঞ্চিত অবচয়",
         "empty": "এখনো কোনো স্থায়ী সম্পদ রেকর্ড করা হয়নি।"
+      },
+      "createDialog": {
+        "trigger": "সম্পদ যোগ করুন",
+        "title": "স্থায়ী সম্পদ যোগ করুন",
+        "name": "সম্পদের নাম",
+        "category": "বিভাগ",
+        "categoryOptions": {
+          "EQUIPMENT": "যন্ত্রপাতি",
+          "VEHICLE": "যানবাহন",
+          "BUILDING": "ভবন",
+          "OTHER": "অন্যান্য"
+        },
+        "purchaseDate": "ক্রয়ের তারিখ",
+        "purchasePrice": "ক্রয়মূল্য",
+        "usefulLifeYears": "ব্যবহারযোগ্য জীবনকাল (বছর)",
+        "salvageValue": "অবশিষ্ট মূল্য",
+        "description": "বিবরণ",
+        "cancel": "বাতিল",
+        "saving": "সংরক্ষণ হচ্ছে…",
+        "submit": "সম্পদ যোগ করুন",
+        "successToast": "সম্পদ যোগ করা হয়েছে।",
+        "genericError": "সম্পদ যোগ করা যায়নি।"
       }
     },
     "wallet": {
@@ -2610,6 +2674,124 @@
       "submit": "জমা দিন",
       "createdToast": "লেনদেন রেকর্ড হয়েছে",
       "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+    }
+  },
+  "buyers": {
+    "tabs": {
+      "buyers": "ক্রেতা",
+      "dispatches": "প্রেরণের ইতিহাস"
+    },
+    "list": {
+      "searchPlaceholder": "ক্রেতা খুঁজুন",
+      "addBuyer": "ক্রেতা যোগ করুন",
+      "columns": {
+        "name": "নাম",
+        "type": "ধরন",
+        "phone": "ফোন",
+        "basePrice": "মূল দাম/লিটার",
+        "paymentTerms": "পরিশোধের শর্ত",
+        "status": "অবস্থা"
+      },
+      "typeOptions": {
+        "DAIRY_COMPANY": "দুগ্ধ কোম্পানি",
+        "COOPERATIVE": "সমবায়",
+        "LOCAL_TRADER": "স্থানীয় ব্যবসায়ী",
+        "DIRECT_CONSUMER": "সরাসরি ভোক্তা"
+      },
+      "paymentTermsDays": "{days} দিন",
+      "statusActive": "সক্রিয়",
+      "statusInactive": "নিষ্ক্রিয়",
+      "actionsColumn": {
+        "dispatch": "প্রেরণ",
+        "statement": "বিবরণী",
+        "edit": "সম্পাদনা",
+        "deactivate": "নিষ্ক্রিয় করুন"
+      },
+      "empty": {
+        "title": "এখনো কোনো ক্রেতা নেই",
+        "description": "প্রেরণ রেকর্ড শুরু করতে আপনার প্রথম দুধ ক্রেতা যোগ করুন।"
+      },
+      "deactivatedToast": "ক্রেতা নিষ্ক্রিয় করা হয়েছে।",
+      "deactivateError": "ক্রেতা নিষ্ক্রিয় করা যায়নি।",
+      "deactivateTitle": "ক্রেতা নিষ্ক্রিয় করুন",
+      "deactivateDescription": "{name} কে নিষ্ক্রিয় করবেন? এটি আর সক্রিয় ক্রেতা তালিকায় দেখাবে না।",
+      "deactivateConfirm": "নিষ্ক্রিয় করুন"
+    },
+    "form": {
+      "createTitle": "ক্রেতা যোগ করুন",
+      "editTitle": "ক্রেতা সম্পাদনা করুন",
+      "name": "ক্রেতার নাম",
+      "buyerType": "ক্রেতার ধরন",
+      "typeOptions": {
+        "DAIRY_COMPANY": "দুগ্ধ কোম্পানি",
+        "COOPERATIVE": "সমবায়",
+        "LOCAL_TRADER": "স্থানীয় ব্যবসায়ী",
+        "DIRECT_CONSUMER": "সরাসরি ভোক্তা"
+      },
+      "contactPerson": "যোগাযোগকারী ব্যক্তি",
+      "phone": "ফোন",
+      "email": "ইমেইল",
+      "basePricePerLitre": "মূল দাম / লিটার",
+      "paymentTermsDays": "পরিশোধের শর্ত (দিন)",
+      "baseFatPct": "মূল ফ্যাট %",
+      "fatBonusPer01Pct": "প্রতি ০.১% ফ্যাট বোনাস",
+      "sccThreshold": "SCC সীমা",
+      "sccPenaltyPer100k": "প্রতি ১ লাখে SCC জরিমানা",
+      "bankDetails": "ব্যাংক বিবরণ",
+      "cancel": "বাতিল",
+      "saving": "সংরক্ষণ হচ্ছে…",
+      "save": "পরিবর্তন সংরক্ষণ করুন",
+      "create": "ক্রেতা যোগ করুন",
+      "createdToast": "ক্রেতা যোগ করা হয়েছে।",
+      "updatedToast": "ক্রেতা আপডেট করা হয়েছে।",
+      "genericError": "ক্রেতা সংরক্ষণ করা যায়নি।"
+    },
+    "dispatch": {
+      "title": "প্রেরণ রেকর্ড করুন",
+      "buyer": "ক্রেতা",
+      "buyerPlaceholder": "একজন ক্রেতা নির্বাচন করুন",
+      "dispatchedAt": "প্রেরণের তারিখ",
+      "volumeDispatchedL": "প্রেরিত পরিমাণ (লিটার)",
+      "volumeReceivedL": "প্রাপ্ত পরিমাণ (লিটার)",
+      "fatPct": "ফ্যাট %",
+      "scc": "SCC",
+      "notes": "নোট",
+      "cancel": "বাতিল",
+      "saving": "রেকর্ড করা হচ্ছে…",
+      "submit": "প্রেরণ রেকর্ড করুন",
+      "successToast": "প্রেরণ রেকর্ড করা হয়েছে। পরিমাণ: ৳{amount}",
+      "genericError": "প্রেরণ রেকর্ড করা যায়নি।"
+    },
+    "statement": {
+      "title": "বিবরণী — {name}",
+      "month": "মাস",
+      "error": "বিবরণী লোড করা যায়নি।",
+      "totalDispatchedL": "মোট প্রেরিত",
+      "totalReceivedL": "মোট প্রাপ্ত",
+      "baseAmount": "মূল পরিমাণ",
+      "qualityAdjustments": "গুণমান সমন্বয়",
+      "totalDue": "মোট বকেয়া",
+      "totalPaid": "মোট পরিশোধিত",
+      "outstanding": "অবশিষ্ট বকেয়া",
+      "dispatchesTitle": "প্রেরণসমূহ",
+      "noDispatches": "এই মাসে কোনো প্রেরণ নেই।"
+    },
+    "dispatchHistory": {
+      "buyerFilter": "ক্রেতা",
+      "recordDispatch": "প্রেরণ রেকর্ড করুন",
+      "columns": {
+        "date": "তারিখ",
+        "buyer": "ক্রেতা",
+        "volumeDispatched": "প্রেরিত",
+        "volumeReceived": "প্রাপ্ত",
+        "discrepancy": "গরমিল",
+        "amount": "পরিমাণ",
+        "paymentDueDate": "নির্ধারিত তারিখ"
+      },
+      "empty": {
+        "title": "এখনো কোনো প্রেরণ নেই",
+        "description": "রেকর্ড করা প্রেরণগুলো এখানে দেখাবে।"
+      }
     }
   },
   "feed": {
@@ -2834,6 +3016,95 @@
       "confirm": "নিশ্চিত করুন",
       "loggedToast": "খাওয়ানো লগ করা হয়েছে — স্টক আপডেট হয়েছে",
       "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+    }
+  },
+  "settings": {
+    "title": "সেটিংস",
+    "tabs": {
+      "workspace": "ফার্ম ওয়ার্কস্পেস",
+      "team": "টিম, রোল ও অনুমতি",
+      "modules": "মডিউল সেটিংস",
+      "billing": "বিলিং ও সাবস্ক্রিপশন"
+    },
+    "comingSoon": "শীঘ্রই আসছে",
+    "comingSoonDescription": "এই সেটিংস ট্যাবটি এখনও তৈরি হয়নি — শীঘ্রই দেখুন।"
+  },
+  "billing": {
+    "header": {
+      "title": "বিলিং ও সাবস্ক্রিপশন",
+      "description": "আপনার সাবস্ক্রিপশন পরিচালনা করুন, চালান দেখুন এবং পেমেন্ট পদ্ধতি আপডেট করুন।"
+    },
+    "currentPlan": {
+      "title": "বর্তমান প্ল্যান",
+      "perMonth": "/মাস",
+      "validUntil": "মেয়াদ শেষ",
+      "manage": "সাবস্ক্রিপশন পরিচালনা করুন",
+      "upgrade": "প্ল্যান আপগ্রেড করুন",
+      "choosePlan": "একটি প্ল্যান বেছে নিন",
+      "none": "কোনো সক্রিয় প্ল্যান নেই",
+      "noneDescription": "সম্পূর্ণ ফার্ম ওয়ার্কস্পেস আনলক করতে একটি প্ল্যান বেছে নিন।",
+      "error": "আপনার সাবস্ক্রিপশন লোড করা যায়নি।"
+    },
+    "paymentMethod": {
+      "title": "পেমেন্ট পদ্ধতি",
+      "bkash": "বিকাশ",
+      "description": "চেকআউটে বিকাশের মাধ্যমে নিরাপদে পেমেন্ট করা হয়।"
+    },
+    "invoices": {
+      "title": "চালানের ইতিহাস",
+      "columns": {
+        "date": "তারিখ",
+        "amount": "পরিমাণ",
+        "status": "অবস্থা",
+        "action": "কার্যক্রম"
+      },
+      "download": "ডাউনলোড",
+      "empty": "এখনও কোনো চালান নেই",
+      "emptyDescription": "আপনার প্রথম পেমেন্টের পর এখানে চালান দেখা যাবে।",
+      "error": "আপনার চালান লোড করা যায়নি।",
+      "prev": "পূর্ববর্তী",
+      "next": "পরবর্তী",
+      "page": "পৃষ্ঠা {page}"
+    },
+    "status": {
+      "DRAFT": "খসড়া",
+      "PENDING": "মুলতুবি",
+      "PAID": "পরিশোধিত",
+      "FAILED": "ব্যর্থ",
+      "VOID": "বাতিল",
+      "REFUNDED": "ফেরত দেওয়া হয়েছে"
+    },
+    "planPicker": {
+      "title": "প্ল্যান আপগ্রেড করুন",
+      "manageTitle": "সাবস্ক্রিপশন পরিচালনা করুন",
+      "description": "একটি প্ল্যান বেছে নিন — আপনি নিরাপদে বিকাশে পেমেন্ট করবেন।",
+      "monthly": "মাসিক",
+      "yearly": "বার্ষিক",
+      "perMonth": "/মাস",
+      "perYear": "/বছর",
+      "currentBadge": "বর্তমান",
+      "unlimited": "সীমাহীন",
+      "maxCattle": "{n} টি পর্যন্ত গবাদি পশু",
+      "maxMembers": "{n} জন পর্যন্ত টিম সদস্য",
+      "coupon": "কুপন কোড (ঐচ্ছিক)",
+      "consent": "আমি রাখালের সেবার শর্তাবলী এবং গোপনীয়তা নীতিতে সম্মত।",
+      "cancel": "বাতিল",
+      "submit": "বিকাশে যান",
+      "submitFree": "প্ল্যান সক্রিয় করুন",
+      "redirecting": "বিকাশে পাঠানো হচ্ছে…",
+      "activated": "প্ল্যান সক্রিয় করা হয়েছে।",
+      "pendingError": "পেমেন্ট শুরু করা যায়নি। আবার চেষ্টা করুন।",
+      "error": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।",
+      "empty": "এই মুহূর্তে কোনো প্ল্যান উপলব্ধ নেই।"
+    },
+    "return": {
+      "polling": "আপনার পেমেন্ট নিশ্চিত করা হচ্ছে…",
+      "pollingDescription": "এতে সাধারণত কয়েক সেকেন্ড সময় লাগে। অনুগ্রহ করে এই পৃষ্ঠাটি বন্ধ করবেন না।",
+      "success": "পেমেন্ট নিশ্চিত হয়েছে",
+      "gatewayFailed": "পেমেন্ট ব্যর্থ হয়েছে",
+      "timeout": "এখনও নিশ্চিত করা হচ্ছে",
+      "failedDescription": "আপনার পেমেন্ট নিশ্চিত করা যায়নি। টাকা কাটা হয়ে থাকলে তা স্বয়ংক্রিয়ভাবে সমন্বয় করা হবে — শীঘ্রই আপনার চালানের ইতিহাস দেখুন।",
+      "backToSettings": "সেটিংসে ফিরে যান"
     }
   }
 }

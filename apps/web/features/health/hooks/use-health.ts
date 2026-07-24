@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
+import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { healthApi } from "../api";
 import type {
   ApplyHealthPlanPayload,
@@ -30,63 +30,13 @@ export function useHealthDashboard() {
   });
 }
 
-interface PagerState {
-  filtersKey: string;
-  pageIndex: number;
-  cursors: (string | undefined)[];
-}
-
-function initialPagerState(filtersKey: string): PagerState {
-  return { filtersKey, pageIndex: 0, cursors: [undefined] };
-}
-
-/** Numbered-page adapter over the cursor-only `GET /health/sick-bay` — same honest-frontier
- * approach as `useMedicinePagedList`/`useCattlePagedList`: the backend never returns a total/offset,
- * so `totalPages` only ever grows by 1 as the user actually pages past the discovered frontier. */
+/** Shared-pager adapter (`useCursorPager`) over the cursor-only `GET /health/sick-bay`. */
 export function useSickBayPagedList(filters: HealthListFilters) {
-  const filtersKey = JSON.stringify(filters);
-  const [state, setState] = useState<PagerState>(() => initialPagerState(filtersKey));
-  if (state.filtersKey !== filtersKey) {
-    setState(initialPagerState(filtersKey));
-  }
-
-  const { pageIndex, cursors } = state;
-  const cursor = cursors[pageIndex];
-
-  const query = useQuery({
-    queryKey: [...qk.health.sickBay(filters as Record<string, string | undefined>), cursor],
-    queryFn: () => healthApi.sickBay(filters, cursor),
-    staleTime: STALE_TIME,
-    placeholderData: keepPreviousData,
-  });
-
-  const atFrontier = pageIndex === cursors.length - 1;
-  const hasUndiscoveredNext = atFrontier && Boolean(query.data?.meta.hasNextPage);
-  const totalPages = Math.max(cursors.length + (hasUndiscoveredNext ? 1 : 0), 1);
-
-  function goToPage(page: number) {
-    const idx = page - 1;
-    if (idx < 0 || idx === pageIndex) return;
-    if (idx < cursors.length) {
-      setState((s) => ({ ...s, pageIndex: idx }));
-      return;
-    }
-    if (idx === cursors.length && hasUndiscoveredNext) {
-      const nextCursor = query.data?.meta.endCursor ?? undefined;
-      setState((s) => ({ ...s, pageIndex: idx, cursors: [...s.cursors, nextCursor] }));
-    }
-  }
-
-  return {
-    items: query.data?.items ?? [],
-    page: pageIndex + 1,
-    totalPages,
-    isLoading: query.isLoading,
-    isError: query.isError,
-    isFetching: query.isFetching,
-    refetch: query.refetch,
-    goToPage,
-  };
+  return useCursorPager(
+    qk.health.sickBay(filters as Record<string, string | undefined>),
+    (cursor, limit) => healthApi.sickBay(filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
 }
 
 export function useHealthCaseDetail(id: string | undefined) {

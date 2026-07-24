@@ -140,7 +140,14 @@ export function ActivityView() {
       )}
 
       {query.totalPages > 1 ? (
-        <Pagination page={query.page} totalPages={query.totalPages} onPageChange={query.goToPage} disabled={query.isFetching} />
+        <Pagination
+          page={query.page}
+          totalPages={query.totalPages}
+          onPageChange={query.goToPage}
+          isFetching={query.isFetching}
+          pageSize={query.pageSize}
+          onPageSizeChange={query.setPageSize}
+        />
       ) : null}
     </div>
   );

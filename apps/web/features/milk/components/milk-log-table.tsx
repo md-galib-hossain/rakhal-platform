@@ -64,7 +64,7 @@ const SESSION_GLOW: Record<MilkSession, string> = {
   NIGHT: "shadow-[0_0_3px_color-mix(in_srgb,var(--color-session-night)_40%,transparent)]",
 };
 
-const PAGE_SIZE = 8;
+const DEFAULT_PAGE_SIZE = 8;
 
 function draftKey(cattleId: string, session: MilkSession): string {
   return `${cattleId}:${session}`;
@@ -283,6 +283,7 @@ export function MilkLogTable({
   const [drafts, setDrafts] = useState<Record<string, string>>(() => buildInitialDrafts(entries));
   const [tankOverrides, setTankOverrides] = useState<Record<string, string>>(() => buildInitialTankOverrides(entries));
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const inputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const tanksQuery = useMilkTanks({});
   const tanks = tanksQuery.data ?? [];
@@ -307,8 +308,8 @@ export function MilkLogTable({
     });
   }, [entries, search, shed]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   // `sessions` (from `FarmModuleSettings.milkActiveSessions`) isn't guaranteed to arrive in
   // chronological order — e.g. enabling Noon after Morning/Evening appends it last. Columns always
@@ -535,7 +536,19 @@ export function MilkLogTable({
             </Table>
           </div>
 
-          {totalPages > 1 ? <Pagination page={page} totalPages={totalPages} onPageChange={setPage} /> : null}
+          {filtered.length > DEFAULT_PAGE_SIZE ? (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              pageSize={pageSize}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
+              pageSizeOptions={[8, 20, 50, 100]}
+            />
+          ) : null}
         </>
       )}
       <Can I="milk.log">

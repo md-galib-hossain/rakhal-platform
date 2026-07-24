@@ -1728,14 +1728,15 @@
       "calendar": {
         "prevMonth": "Previous month",
         "nextMonth": "Next month",
+        "moreCount": "+{count} more",
         "weekday": {
-          "sun": "S",
-          "mon": "M",
-          "tue": "T",
-          "wed": "W",
-          "thu": "T",
-          "fri": "F",
-          "sat": "S"
+          "sun": "Sun",
+          "mon": "Mon",
+          "tue": "Tue",
+          "wed": "Wed",
+          "thu": "Thu",
+          "fri": "Fri",
+          "sat": "Sat"
         }
       },
       "card": {
@@ -2310,6 +2311,19 @@
         "PENDING": "Pending",
         "VOIDED": "Voided"
       },
+      "voidAction": "Void",
+      "voidDialog": {
+        "title": "Void Transaction",
+        "description": "Voiding {reference} (৳{amount}). This creates an offsetting reversal entry and cannot be undone.",
+        "reasonCategory": "Reason Category",
+        "reasonCategoryPlaceholder": "e.g. Data entry error",
+        "reasonNotes": "Notes (optional)",
+        "cancel": "Cancel",
+        "voiding": "Voiding…",
+        "submit": "Void Transaction",
+        "successToast": "Transaction voided.",
+        "genericError": "Could not void transaction."
+      },
       "empty": {
         "title": "No transactions yet",
         "description": "Recorded transactions will show up here."
@@ -2340,6 +2354,20 @@
         "dueDate": "Due Date",
         "status": "Status"
       },
+      "recordPayment": {
+        "action": "Record Payment",
+        "title": "Record Payment",
+        "description": "Recording a payment from {entity}. Outstanding: ৳{outstanding}.",
+        "amountPaid": "Amount Paid",
+        "paymentDate": "Payment Date",
+        "paymentMethod": "Payment Method",
+        "notes": "Notes",
+        "cancel": "Cancel",
+        "saving": "Saving…",
+        "submit": "Record Payment",
+        "successToast": "Payment recorded.",
+        "genericError": "Could not record payment."
+      },
       "empty": {
         "title": "No receivables yet",
         "description": "Partial payments owed to you will show up here."
@@ -2369,6 +2397,20 @@
         "outstanding": "Outstanding",
         "dueDate": "Due Date",
         "status": "Status"
+      },
+      "recordPayment": {
+        "action": "Record Payment",
+        "title": "Record Payment",
+        "description": "Recording a payment to {entity}. Outstanding: ৳{outstanding}.",
+        "amountPaid": "Amount Paid",
+        "paymentDate": "Payment Date",
+        "paymentMethod": "Payment Method",
+        "notes": "Notes",
+        "cancel": "Cancel",
+        "saving": "Saving…",
+        "submit": "Record Payment",
+        "successToast": "Payment recorded.",
+        "genericError": "Could not record payment."
       },
       "empty": {
         "title": "No payables yet",
@@ -2418,6 +2460,28 @@
         "bookValue": "Book Value",
         "accumulatedDepreciation": "Accumulated Depreciation",
         "empty": "No fixed assets recorded yet."
+      },
+      "createDialog": {
+        "trigger": "Add Asset",
+        "title": "Add Fixed Asset",
+        "name": "Asset Name",
+        "category": "Category",
+        "categoryOptions": {
+          "EQUIPMENT": "Equipment",
+          "VEHICLE": "Vehicle",
+          "BUILDING": "Building",
+          "OTHER": "Other"
+        },
+        "purchaseDate": "Purchase Date",
+        "purchasePrice": "Purchase Price",
+        "usefulLifeYears": "Useful Life (Years)",
+        "salvageValue": "Salvage Value",
+        "description": "Description",
+        "cancel": "Cancel",
+        "saving": "Saving…",
+        "submit": "Add Asset",
+        "successToast": "Asset added.",
+        "genericError": "Could not add asset."
       }
     },
     "wallet": {
@@ -2610,6 +2674,124 @@
       "submit": "Submit",
       "createdToast": "Transaction recorded",
       "genericError": "Something went wrong. Please try again."
+    }
+  },
+  "buyers": {
+    "tabs": {
+      "buyers": "Buyers",
+      "dispatches": "Dispatch History"
+    },
+    "list": {
+      "searchPlaceholder": "Search buyers",
+      "addBuyer": "Add Buyer",
+      "columns": {
+        "name": "Name",
+        "type": "Type",
+        "phone": "Phone",
+        "basePrice": "Base Price/L",
+        "paymentTerms": "Payment Terms",
+        "status": "Status"
+      },
+      "typeOptions": {
+        "DAIRY_COMPANY": "Dairy Company",
+        "COOPERATIVE": "Cooperative",
+        "LOCAL_TRADER": "Local Trader",
+        "DIRECT_CONSUMER": "Direct Consumer"
+      },
+      "paymentTermsDays": "{days} days",
+      "statusActive": "Active",
+      "statusInactive": "Inactive",
+      "actionsColumn": {
+        "dispatch": "Dispatch",
+        "statement": "Statement",
+        "edit": "Edit",
+        "deactivate": "Deactivate"
+      },
+      "empty": {
+        "title": "No buyers yet",
+        "description": "Add your first milk buyer to start recording dispatches."
+      },
+      "deactivatedToast": "Buyer deactivated.",
+      "deactivateError": "Could not deactivate buyer.",
+      "deactivateTitle": "Deactivate Buyer",
+      "deactivateDescription": "Deactivate {name}? They will no longer appear in the active buyer list.",
+      "deactivateConfirm": "Deactivate"
+    },
+    "form": {
+      "createTitle": "Add Buyer",
+      "editTitle": "Edit Buyer",
+      "name": "Buyer Name",
+      "buyerType": "Buyer Type",
+      "typeOptions": {
+        "DAIRY_COMPANY": "Dairy Company",
+        "COOPERATIVE": "Cooperative",
+        "LOCAL_TRADER": "Local Trader",
+        "DIRECT_CONSUMER": "Direct Consumer"
+      },
+      "contactPerson": "Contact Person",
+      "phone": "Phone",
+      "email": "Email",
+      "basePricePerLitre": "Base Price / Litre",
+      "paymentTermsDays": "Payment Terms (Days)",
+      "baseFatPct": "Base Fat %",
+      "fatBonusPer01Pct": "Fat Bonus per 0.1%",
+      "sccThreshold": "SCC Threshold",
+      "sccPenaltyPer100k": "SCC Penalty per 100k",
+      "bankDetails": "Bank Details",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "save": "Save Changes",
+      "create": "Add Buyer",
+      "createdToast": "Buyer added.",
+      "updatedToast": "Buyer updated.",
+      "genericError": "Could not save buyer."
+    },
+    "dispatch": {
+      "title": "Record Dispatch",
+      "buyer": "Buyer",
+      "buyerPlaceholder": "Select a buyer",
+      "dispatchedAt": "Dispatch Date",
+      "volumeDispatchedL": "Volume Dispatched (L)",
+      "volumeReceivedL": "Volume Received (L)",
+      "fatPct": "Fat %",
+      "scc": "SCC",
+      "notes": "Notes",
+      "cancel": "Cancel",
+      "saving": "Recording…",
+      "submit": "Record Dispatch",
+      "successToast": "Dispatch recorded. Amount: ৳{amount}",
+      "genericError": "Could not record dispatch."
+    },
+    "statement": {
+      "title": "Statement — {name}",
+      "month": "Month",
+      "error": "Could not load statement.",
+      "totalDispatchedL": "Total Dispatched",
+      "totalReceivedL": "Total Received",
+      "baseAmount": "Base Amount",
+      "qualityAdjustments": "Quality Adjustments",
+      "totalDue": "Total Due",
+      "totalPaid": "Total Paid",
+      "outstanding": "Outstanding",
+      "dispatchesTitle": "Dispatches",
+      "noDispatches": "No dispatches this month."
+    },
+    "dispatchHistory": {
+      "buyerFilter": "Buyer",
+      "recordDispatch": "Record Dispatch",
+      "columns": {
+        "date": "Date",
+        "buyer": "Buyer",
+        "volumeDispatched": "Dispatched",
+        "volumeReceived": "Received",
+        "discrepancy": "Discrepancy",
+        "amount": "Amount",
+        "paymentDueDate": "Due Date"
+      },
+      "empty": {
+        "title": "No dispatches yet",
+        "description": "Recorded dispatches will show up here."
+      }
     }
   },
   "feed": {
@@ -2834,6 +3016,95 @@
       "confirm": "Confirm",
       "loggedToast": "Feeding logged — stock updated",
       "genericError": "Something went wrong. Please try again."
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "tabs": {
+      "workspace": "Farm Workspace",
+      "team": "Team, Roles & Permissions",
+      "modules": "Module Settings",
+      "billing": "Billing & Subscription"
+    },
+    "comingSoon": "Coming soon",
+    "comingSoonDescription": "This settings tab isn't built yet — check back soon."
+  },
+  "billing": {
+    "header": {
+      "title": "Billing & Subscription",
+      "description": "Manage your subscription, view invoices, and update payment methods."
+    },
+    "currentPlan": {
+      "title": "Current Plan",
+      "perMonth": "/month",
+      "validUntil": "Valid until",
+      "manage": "Manage Subscription",
+      "upgrade": "Upgrade Plan",
+      "choosePlan": "Choose a Plan",
+      "none": "No active plan",
+      "noneDescription": "Choose a plan to unlock the full farm workspace.",
+      "error": "Could not load your subscription."
+    },
+    "paymentMethod": {
+      "title": "Payment Method",
+      "bkash": "bKash",
+      "description": "Payments are made securely through bKash at checkout."
+    },
+    "invoices": {
+      "title": "Invoice History",
+      "columns": {
+        "date": "Date",
+        "amount": "Amount",
+        "status": "Status",
+        "action": "Action"
+      },
+      "download": "Download",
+      "empty": "No invoices yet",
+      "emptyDescription": "Your invoices will appear here after your first payment.",
+      "error": "Could not load your invoices.",
+      "prev": "Previous",
+      "next": "Next",
+      "page": "Page {page}"
+    },
+    "status": {
+      "DRAFT": "Draft",
+      "PENDING": "Pending",
+      "PAID": "Paid",
+      "FAILED": "Failed",
+      "VOID": "Void",
+      "REFUNDED": "Refunded"
+    },
+    "planPicker": {
+      "title": "Upgrade Plan",
+      "manageTitle": "Manage Subscription",
+      "description": "Choose a plan — you'll pay securely with bKash.",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "perMonth": "/month",
+      "perYear": "/year",
+      "currentBadge": "Current",
+      "unlimited": "Unlimited",
+      "maxCattle": "Up to {n} cattle",
+      "maxMembers": "Up to {n} team members",
+      "coupon": "Coupon code (optional)",
+      "consent": "I agree to Rakhal's Terms of Service and Privacy Policy.",
+      "cancel": "Cancel",
+      "submit": "Continue to bKash",
+      "submitFree": "Activate Plan",
+      "redirecting": "Redirecting to bKash…",
+      "activated": "Plan activated.",
+      "pendingError": "Couldn't start the payment. Please try again.",
+      "error": "Something went wrong. Please try again.",
+      "empty": "No plans available right now."
+    },
+    "return": {
+      "polling": "Confirming your payment…",
+      "pollingDescription": "This usually takes a few seconds. Please don't close this page.",
+      "success": "Payment confirmed",
+      "gatewayFailed": "Payment failed",
+      "timeout": "Still confirming",
+      "failedDescription": "Your payment could not be confirmed. If money was deducted, it will be reconciled automatically — check your invoice history shortly.",
+      "backToSettings": "Back to Settings"
     }
   }
 }

@@ -129,7 +129,7 @@ export function MilkAuditLogTable() {
           emptyState={{ title: t("empty.title"), description: t("empty.description") }}
         />
       </div>
-      <Pagination page={query.page} totalPages={query.totalPages} onPageChange={query.goToPage} disabled={query.isFetching} />
+      <Pagination page={query.page} totalPages={query.totalPages} onPageChange={query.goToPage} isFetching={query.isFetching} />
     </div>
   );
 }

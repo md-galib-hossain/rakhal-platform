@@ -12,14 +12,16 @@ export function LedgerTable({
   isLoading,
   isError,
   onRetry,
+  onVoid,
 }: {
   items: LedgerTransaction[];
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
+  onVoid: (transaction: LedgerTransaction) => void;
 }) {
   const t = useTranslations("finance.ledger");
-  const columns = useMemo(() => buildLedgerColumns(t), [t]);
+  const columns = useMemo(() => buildLedgerColumns(t, onVoid), [t, onVoid]);
 
   return (
     <div

@@ -186,6 +186,31 @@ export interface CreateTransactionPayload {
   loanId?: string;
 }
 
+/** Mirrors `RecordPaymentDto` — `POST /finance/{receivables,payables}/:id/record-payment`. */
+export interface RecordPaymentPayload {
+  amountPaid: number;
+  paymentDate?: string;
+  paymentMethod?: FinancePaymentMethod;
+  notes?: string;
+}
+
+/** Mirrors `VoidTransactionDto` — `POST /finance/transactions/:id/void` (owner-only reversal). */
+export interface VoidTransactionPayload {
+  reasonCategory: string;
+  reasonNotes?: string;
+}
+
+/** Mirrors `CreateFixedAssetDto` — `POST /finance/assets`. */
+export interface CreateFixedAssetPayload {
+  name: string;
+  category?: FixedAssetCategory;
+  description?: string;
+  purchaseDate: string;
+  purchasePrice: number;
+  usefulLifeYears?: number;
+  salvageValue?: number;
+}
+
 export interface CreateTransactionResult {
   transactionId: string;
   reference: string;

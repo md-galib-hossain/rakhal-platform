@@ -13,16 +13,18 @@ export function SettlementsTable({
   isLoading,
   isError,
   onRetry,
+  onRecordPayment,
 }: {
   kind: ReceivableKind;
   items: Settlement[];
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
+  onRecordPayment: (settlement: Settlement) => void;
 }) {
   const namespace = kind === "RECEIVABLE" ? "finance.receivables" : "finance.payables";
   const t = useTranslations(namespace);
-  const columns = useMemo(() => buildSettlementsColumns(t), [t]);
+  const columns = useMemo(() => buildSettlementsColumns(t, onRecordPayment), [t, onRecordPayment]);
 
   return (
     <div

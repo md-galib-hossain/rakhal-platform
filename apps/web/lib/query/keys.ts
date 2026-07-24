@@ -13,6 +13,13 @@ export const qk = {
   subscription: {
     current: () => ["subscription", "current"] as const,
   },
+  billing: {
+    plans: () => ["billing", "plans"] as const,
+    invoices: () => ["billing", "invoices"] as const,
+  },
+  legal: {
+    consent: () => ["legal", "consent"] as const,
+  },
   dashboard: {
     priorities: () => ["dashboard", "priorities"] as const,
     kpis: () => ["dashboard", "kpis"] as const,
@@ -76,6 +83,9 @@ export const qk = {
     liabilities: () => ["finance", "liabilities"] as const,
     assets: () => ["finance", "assets"] as const,
     wallet: () => ["finance", "wallet"] as const,
+  },
+  buyers: {
+    statement: (id: string, month: string) => ["buyers", "statement", id, month] as const,
   },
   feed: {
     ingredients: () => ["feed", "ingredients"] as const,

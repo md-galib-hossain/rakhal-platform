@@ -33,7 +33,7 @@ export const healthApi = {
   dashboard(): Promise<HealthDashboard> {
     return apiFetch<HealthDashboard>("/health/dashboard");
   },
-  sickBay(filters: HealthListFilters, cursor?: string): Promise<CursorPage<HealthCaseListItem>> {
+  sickBay(filters: HealthListFilters, cursor?: string, limit = 20): Promise<CursorPage<HealthCaseListItem>> {
     return apiFetchPage<HealthCaseListItem>("/health/sick-bay", {
       searchParams: {
         search: filters.search,
@@ -43,7 +43,7 @@ export const healthApi = {
         diagnosis: filters.diagnosis,
         priority: filters.priority,
         cursor,
-        limit: 20,
+        limit,
       },
     });
   },

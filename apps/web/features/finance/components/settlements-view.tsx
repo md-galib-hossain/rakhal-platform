@@ -1,5 +1,6 @@
 "use client"; // filter reads (searchParams), paged query
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { FilterBar } from "@/components/shared/filter-bar";
@@ -7,7 +8,8 @@ import { MoneyText } from "@/components/shared/money-text";
 import { Pagination } from "@/components/shared/pagination";
 import { usePayablesPagedList, useReceivablesPagedList } from "../hooks/use-finance";
 import { SettlementsTable } from "./settlements-table";
-import type { ReceivableKind, ReceivableStatus } from "../types";
+import { RecordPaymentDialog } from "./record-payment-dialog";
+import type { ReceivableKind, ReceivableStatus, Settlement } from "../types";
 
 function StatTile({ label, value }: { label: string; value: number }) {
   return (
@@ -40,6 +42,7 @@ function SettlementsViewBody({
   const namespace = kind === "RECEIVABLE" ? "finance.receivables" : "finance.payables";
   const t = useTranslations(namespace);
   const stats = query.stats;
+  const [paymentTarget, setPaymentTarget] = useState<Settlement | null>(null);
 
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-border p-4">
@@ -64,9 +67,30 @@ function SettlementsViewBody({
         ]}
       />
 
-      <SettlementsTable kind={kind} items={query.items} isLoading={query.isLoading} isError={query.isError} onRetry={() => void query.refetch()} />
+      <SettlementsTable
+        kind={kind}
+        items={query.items}
+        isLoading={query.isLoading}
+        isError={query.isError}
+        onRetry={() => void query.refetch()}
+        onRecordPayment={setPaymentTarget}
+      />
 
-      <Pagination page={query.page} totalPages={query.totalPages} onPageChange={query.goToPage} disabled={query.isFetching} />
+      <Pagination
+        page={query.page}
+        totalPages={query.totalPages}
+        onPageChange={query.goToPage}
+        isFetching={query.isFetching}
+        pageSize={query.pageSize}
+        onPageSizeChange={query.setPageSize}
+      />
+
+      <RecordPaymentDialog
+        kind={kind}
+        settlement={paymentTarget}
+        open={paymentTarget != null}
+        onOpenChange={(open) => !open && setPaymentTarget(null)}
+      />
     </div>
   );
 }

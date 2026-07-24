@@ -33,7 +33,7 @@ import type {
  * Breed/shed/feed-group lookups back the filter selects — their own controllers (`/breeds`, `/sheds`,
  * `/settings/feed-groups`), not `/cattle`. */
 export const cattleApi = {
-  list(filters: CattleListFilters, cursor?: string): Promise<CursorPage<CattleListItem>> {
+  list(filters: CattleListFilters, cursor?: string, limit = 20): Promise<CursorPage<CattleListItem>> {
     return apiFetchPage<CattleListItem>("/cattle", {
       searchParams: {
         search: filters.search,
@@ -43,7 +43,7 @@ export const cattleApi = {
         productionStatus: filters.productionStatus,
         healthStatus: filters.healthStatus,
         cursor,
-        limit: 20,
+        limit,
       },
     });
   },

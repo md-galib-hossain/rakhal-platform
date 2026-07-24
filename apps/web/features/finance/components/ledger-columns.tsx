@@ -2,6 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Chip, type ChipProps } from "@/components/ui/chip";
+import { Button } from "@/components/ui/button";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
 import type { FinanceCategory, FinanceTxnStatus, LedgerTransaction } from "../types";
@@ -29,6 +30,7 @@ const STATUS_VARIANT: Record<FinanceTxnStatus, ChipProps["variant"]> = {
  */
 export function buildLedgerColumns(
   t: (key: string, values?: Record<string, string | number>) => string,
+  onVoid: (transaction: LedgerTransaction) => void,
 ): ColumnDef<LedgerTransaction, unknown>[] {
   return [
     {
@@ -79,6 +81,16 @@ export function buildLedgerColumns(
       id: "status",
       header: t("columns.status"),
       cell: ({ row }) => <Chip variant={STATUS_VARIANT[row.original.status]}>{t(`statusOptions.${row.original.status}`)}</Chip>,
+    },
+    {
+      id: "actions",
+      header: "",
+      cell: ({ row }) =>
+        row.original.status === "COMPLETED" && !row.original.isVoided ? (
+          <Button size="sm" variant="destructive" onClick={() => onVoid(row.original)}>
+            {t("voidAction")}
+          </Button>
+        ) : null,
     },
   ];
 }

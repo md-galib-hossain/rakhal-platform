@@ -127,7 +127,12 @@ export function EquipmentView({ view }: { view: "table" | "grid" }) {
           query.goToPage(page);
           setRowSelection({});
         }}
-        disabled={query.isFetching}
+        isFetching={query.isFetching}
+        pageSize={query.pageSize}
+        onPageSizeChange={(size) => {
+          query.setPageSize(size);
+          setRowSelection({});
+        }}
       />
 
       <EquipmentFormDialog open={formOpen} onOpenChange={setFormOpen} equipment={editingEquipment} />

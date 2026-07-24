@@ -1,9 +1,10 @@
-"use client"; // page-jump select
+"use client"; // page-jump select, page-size select, fetch-transition spinner
 
-import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { PAGE_SIZE_OPTIONS } from "@/lib/hooks/use-cursor-pager";
 
 const ELLIPSIS = "…" as const;
 type PaginationItem = number | typeof ELLIPSIS;
@@ -47,14 +48,37 @@ export interface PaginationProps {
   onPageChange: (page: number) => void;
   /** Pages shown either side of the current page before collapsing into `…`. Default 0 (Figma spec). */
   siblingCount?: number;
+  /** Disables all controls (e.g. while a mutation is in flight). Distinct from `isFetching`, which
+   * only shows a transition spinner and keeps controls interactive (React Query `keepPreviousData`
+   * means the old page's rows stay on screen while the next page loads). */
   disabled?: boolean;
+  /** True while a page transition is in flight. Shows a small spinner instead of disabling the
+   * whole control — the previous page's rows stay visible (`keepPreviousData`) so there's no jank. */
+  isFetching?: boolean;
+  /** Rows-per-page. Omit to hide the page-size select entirely (e.g. the client-paginated Milk Log
+   * table, or a list too small to bother). */
+  pageSize?: number;
+  onPageSizeChange?: (pageSize: number) => void;
+  pageSizeOptions?: readonly number[];
   className?: string;
 }
 
 /** Reusable numbered pagination — pixel-matched to the Figma "Pagination" component (Cattle table
  * footer): prev/next 28px icon buttons, 32×28px page pills (active = primary fill), a `Page [N] of
- * [total]` jump select on the right. Purely presentational — callers own how `page` maps to data. */
-export function Pagination({ page, totalPages, onPageChange, siblingCount = 0, disabled, className }: PaginationProps) {
+ * [total]` jump select and an optional rows-per-page select on the right. Purely presentational —
+ * callers own how `page`/`pageSize` map to data. */
+export function Pagination({
+  page,
+  totalPages,
+  onPageChange,
+  siblingCount = 0,
+  disabled,
+  isFetching,
+  pageSize,
+  onPageSizeChange,
+  pageSizeOptions = PAGE_SIZE_OPTIONS,
+  className,
+}: PaginationProps) {
   if (totalPages < 1) return null;
   const items = getPaginationItems(page, totalPages, siblingCount);
   const clampedChange = (next: number) => {
@@ -81,7 +105,7 @@ export function Pagination({ page, totalPages, onPageChange, siblingCount = 0, d
           <ChevronLeft className="size-4" aria-hidden />
         </Button>
 
-        <div className="flex items-center gap-1">
+        <div className={cn("flex items-center gap-1 transition-opacity", isFetching && "opacity-60")}>
           {items.map((item, i) =>
             item === ELLIPSIS ? (
               <div key={`ellipsis-${i}`} className="flex h-8 w-6 items-end justify-center">
@@ -119,25 +143,50 @@ export function Pagination({ page, totalPages, onPageChange, siblingCount = 0, d
         </Button>
       </div>
 
-      <div className="flex items-center gap-2">
-        <p className="text-xs text-muted-foreground">Page</p>
-        <Select
-          value={String(page)}
-          onValueChange={(v) => clampedChange(Number(v))}
-          disabled={disabled || totalPages <= 1}
-        >
-          <SelectTrigger className="h-7 w-auto gap-1 rounded-sm border-border px-2 py-1 text-sm font-medium text-foreground shadow-none">
-            <SelectValue>{page}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-              <SelectItem key={n} value={String(n)}>
-                {n}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <p className="text-xs text-muted-foreground whitespace-nowrap">of {totalPages}</p>
+      <div className="flex items-center gap-4">
+        {pageSize != null && onPageSizeChange ? (
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-muted-foreground whitespace-nowrap">Rows per page</p>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(v) => onPageSizeChange(Number(v))}
+              disabled={disabled}
+            >
+              <SelectTrigger className="h-7 w-auto gap-1 rounded-sm border-border px-2 py-1 text-sm font-medium text-foreground shadow-none">
+                <SelectValue>{pageSize}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {pageSizeOptions.map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+
+        <div className="flex items-center gap-2">
+          {isFetching ? <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" aria-hidden /> : null}
+          <p className="text-xs text-muted-foreground">Page</p>
+          <Select
+            value={String(page)}
+            onValueChange={(v) => clampedChange(Number(v))}
+            disabled={disabled || totalPages <= 1}
+          >
+            <SelectTrigger className="h-7 w-auto gap-1 rounded-sm border-border px-2 py-1 text-sm font-medium text-foreground shadow-none">
+              <SelectValue>{page}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                <SelectItem key={n} value={String(n)}>
+                  {n}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground whitespace-nowrap">of {totalPages}</p>
+        </div>
       </div>
     </div>
   );

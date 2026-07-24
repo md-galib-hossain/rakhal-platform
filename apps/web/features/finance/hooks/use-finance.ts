@@ -1,29 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
+import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { financeApi } from "../api";
 import type {
   AddFundsPayload,
+  CreateFixedAssetPayload,
   CreateTransactionPayload,
   LedgerListFilters,
   ReceivableKind,
+  RecordPaymentPayload,
   SettlementListFilters,
+  VoidTransactionPayload,
   WithdrawPayload,
 } from "../types";
 
 const STALE_TIME = 60_000;
-
-interface PagerState {
-  filtersKey: string;
-  pageIndex: number;
-  cursors: (string | undefined)[];
-}
-
-function initialPagerState(filtersKey: string): PagerState {
-  return { filtersKey, pageIndex: 0, cursors: [undefined] };
-}
 
 export function useFinanceHighlights() {
   return useQuery({
@@ -33,104 +26,28 @@ export function useFinanceHighlights() {
   });
 }
 
-/** Honest-frontier numbered-page adapter over the cursor-only `GET /finance/ledger` — same approach
- * as `useMedicinePagedList` (`features/inventory/hooks/use-inventory.ts`). Also surfaces the
- * response's own `meta.chart` (the backend recomputes it on every call, not cached separately). */
+/** Shared-pager adapter over the cursor-only `GET /finance/ledger` (`useCursorPager`, same base as
+ * `useMedicinePagedList`). Also surfaces the response's own `meta.chart` (the backend recomputes it
+ * on every call, not cached separately). */
 export function useLedgerPagedList(filters: LedgerListFilters) {
-  const filtersKey = JSON.stringify(filters);
-  const [state, setState] = useState<PagerState>(() => initialPagerState(filtersKey));
-  if (state.filtersKey !== filtersKey) {
-    setState(initialPagerState(filtersKey));
-  }
-
-  const { pageIndex, cursors } = state;
-  const cursor = cursors[pageIndex];
-
-  const query = useQuery({
-    queryKey: ["finance", "ledger", "list", "paged", filters as Record<string, string | undefined>, cursor],
-    queryFn: () => financeApi.ledger(filters, cursor),
-    staleTime: STALE_TIME,
-    placeholderData: keepPreviousData,
-  });
-
-  const atFrontier = pageIndex === cursors.length - 1;
-  const hasUndiscoveredNext = atFrontier && Boolean(query.data?.meta.hasNextPage);
-  const totalPages = Math.max(cursors.length + (hasUndiscoveredNext ? 1 : 0), 1);
-
-  function goToPage(page: number) {
-    const idx = page - 1;
-    if (idx < 0 || idx === pageIndex) return;
-    if (idx < cursors.length) {
-      setState((s) => ({ ...s, pageIndex: idx }));
-      return;
-    }
-    if (idx === cursors.length && hasUndiscoveredNext) {
-      const nextCursor = query.data?.meta.endCursor ?? undefined;
-      setState((s) => ({ ...s, pageIndex: idx, cursors: [...s.cursors, nextCursor] }));
-    }
-  }
-
-  return {
-    items: query.data?.items ?? [],
-    chart: query.data?.meta.chart,
-    page: pageIndex + 1,
-    totalPages,
-    isLoading: query.isLoading,
-    isError: query.isError,
-    isFetching: query.isFetching,
-    refetch: query.refetch,
-    goToPage,
-  };
+  const pager = useCursorPager(
+    ["finance", "ledger", "list", "paged", filters as Record<string, string | undefined>],
+    (cursor, limit) => financeApi.ledger(filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
+  return { ...pager, chart: pager.meta?.chart };
 }
 
-/** Same honest-frontier pager as `useLedgerPagedList`, shared by Receivables and Payables — they're
- * the same backend shape (`GET /finance/{receivables,payables}`), only `kind` differs. Also surfaces
+/** Same shared pager as `useLedgerPagedList`, shared by Receivables and Payables — they're the
+ * same backend shape (`GET /finance/{receivables,payables}`), only `kind` differs. Also surfaces
  * `meta.stats` (totalOutstanding/pendingToday/overdue). */
 function useSettlementsPagedList(kind: ReceivableKind, filters: SettlementListFilters) {
-  const filtersKey = JSON.stringify(filters);
-  const [state, setState] = useState<PagerState>(() => initialPagerState(filtersKey));
-  if (state.filtersKey !== filtersKey) {
-    setState(initialPagerState(filtersKey));
-  }
-
-  const { pageIndex, cursors } = state;
-  const cursor = cursors[pageIndex];
-
-  const query = useQuery({
-    queryKey: ["finance", kind, "list", "paged", filters as Record<string, string | undefined>, cursor],
-    queryFn: () => financeApi.settlements(kind, filters, cursor),
-    staleTime: STALE_TIME,
-    placeholderData: keepPreviousData,
-  });
-
-  const atFrontier = pageIndex === cursors.length - 1;
-  const hasUndiscoveredNext = atFrontier && Boolean(query.data?.meta.hasNextPage);
-  const totalPages = Math.max(cursors.length + (hasUndiscoveredNext ? 1 : 0), 1);
-
-  function goToPage(page: number) {
-    const idx = page - 1;
-    if (idx < 0 || idx === pageIndex) return;
-    if (idx < cursors.length) {
-      setState((s) => ({ ...s, pageIndex: idx }));
-      return;
-    }
-    if (idx === cursors.length && hasUndiscoveredNext) {
-      const nextCursor = query.data?.meta.endCursor ?? undefined;
-      setState((s) => ({ ...s, pageIndex: idx, cursors: [...s.cursors, nextCursor] }));
-    }
-  }
-
-  return {
-    items: query.data?.items ?? [],
-    stats: query.data?.meta.stats,
-    page: pageIndex + 1,
-    totalPages,
-    isLoading: query.isLoading,
-    isError: query.isError,
-    isFetching: query.isFetching,
-    refetch: query.refetch,
-    goToPage,
-  };
+  const pager = useCursorPager(
+    ["finance", kind, "list", "paged", filters as Record<string, string | undefined>],
+    (cursor, limit) => financeApi.settlements(kind, filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
+  return { ...pager, stats: pager.meta?.stats };
 }
 
 export function useReceivablesPagedList(filters: SettlementListFilters) {
@@ -196,6 +113,30 @@ export function useWithdraw() {
   const invalidate = useInvalidateFinance();
   return useMutation({
     mutationFn: (dto: WithdrawPayload) => financeApi.withdraw(dto),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useRecordPayment(kind: ReceivableKind) {
+  const invalidate = useInvalidateFinance();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: RecordPaymentPayload }) => financeApi.recordPayment(kind, id, dto),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useVoidTransaction() {
+  const invalidate = useInvalidateFinance();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: VoidTransactionPayload }) => financeApi.voidTransaction(id, dto),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useCreateAsset() {
+  const invalidate = useInvalidateFinance();
+  return useMutation({
+    mutationFn: (dto: CreateFixedAssetPayload) => financeApi.createAsset(dto),
     onSuccess: () => invalidate(),
   });
 }

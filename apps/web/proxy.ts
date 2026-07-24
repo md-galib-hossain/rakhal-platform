@@ -20,6 +20,10 @@ const PUBLIC_PATHS = [
   "/forgot-password",
   "/reset-password",
   "/verify-email",
+  // bKash's own browser redirect target (`BKASH_CALLBACK_URL`) — a pure passthrough to the
+  // backend's real (also unguarded) finalize endpoint. Must never depend on a live session,
+  // since the whole point is forwarding regardless of token state.
+  "/billing/bkash/callback",
 ];
 
 const FARM_ORIGIN = process.env.NEXT_PUBLIC_FARM_URL ?? "https://farm.rakhal.app";

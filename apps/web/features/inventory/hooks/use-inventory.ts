@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
+import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { inventoryApi } from "../api";
 import type {
   AdjustMedicineStockPayload,
@@ -29,64 +29,14 @@ import type {
 
 const STALE_TIME = 60_000;
 
-interface PagerState {
-  filtersKey: string;
-  pageIndex: number;
-  cursors: (string | undefined)[];
-}
-
-function initialPagerState(filtersKey: string): PagerState {
-  return { filtersKey, pageIndex: 0, cursors: [undefined] };
-}
-
-/** Numbered-page adapter over the cursor-only `GET /inventory/medicines` — same honest-frontier
- * approach as `useCattlePagedList` (`features/cattle/hooks/use-cattle.ts`): the backend never
- * returns a total/offset, so `totalPages` only ever grows by 1 as the user actually pages past the
- * previously-discovered frontier. */
+/** Numbered-page adapter over the cursor-only `GET /inventory/medicines` — thin wrapper around the
+ * shared `useCursorPager` (`lib/hooks/use-cursor-pager.ts`). */
 export function useMedicinePagedList(filters: MedicineListFilters) {
-  const filtersKey = JSON.stringify(filters);
-  const [state, setState] = useState<PagerState>(() => initialPagerState(filtersKey));
-  if (state.filtersKey !== filtersKey) {
-    setState(initialPagerState(filtersKey));
-  }
-
-  const { pageIndex, cursors } = state;
-  const cursor = cursors[pageIndex];
-
-  const query = useQuery({
-    queryKey: ["inventory", "medicine", "list", "paged", filters as Record<string, string | undefined>, cursor],
-    queryFn: () => inventoryApi.listMedicines(filters, cursor),
-    staleTime: STALE_TIME,
-    placeholderData: keepPreviousData,
-  });
-
-  const atFrontier = pageIndex === cursors.length - 1;
-  const hasUndiscoveredNext = atFrontier && Boolean(query.data?.meta.hasNextPage);
-  const totalPages = Math.max(cursors.length + (hasUndiscoveredNext ? 1 : 0), 1);
-
-  function goToPage(page: number) {
-    const idx = page - 1;
-    if (idx < 0 || idx === pageIndex) return;
-    if (idx < cursors.length) {
-      setState((s) => ({ ...s, pageIndex: idx }));
-      return;
-    }
-    if (idx === cursors.length && hasUndiscoveredNext) {
-      const nextCursor = query.data?.meta.endCursor ?? undefined;
-      setState((s) => ({ ...s, pageIndex: idx, cursors: [...s.cursors, nextCursor] }));
-    }
-  }
-
-  return {
-    items: query.data?.items ?? [],
-    page: pageIndex + 1,
-    totalPages,
-    isLoading: query.isLoading,
-    isError: query.isError,
-    isFetching: query.isFetching,
-    refetch: query.refetch,
-    goToPage,
-  };
+  return useCursorPager(
+    ["inventory", "medicine", "list", "paged", filters as Record<string, string | undefined>],
+    (cursor, limit) => inventoryApi.listMedicines(filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
 }
 
 export function useMedicineDetail(id: string | undefined) {
@@ -171,52 +121,14 @@ export function useRemoveMedicinePhoto() {
   });
 }
 
-/** Same honest-frontier numbered-page adapter as `useMedicinePagedList`, over the cursor-only
+/** Same shared-pager adapter as `useMedicinePagedList`, over the cursor-only
  * `GET /inventory/feed-items`. */
 export function useFeedItemPagedList(filters: FeedItemListFilters) {
-  const filtersKey = JSON.stringify(filters);
-  const [state, setState] = useState<PagerState>(() => initialPagerState(filtersKey));
-  if (state.filtersKey !== filtersKey) {
-    setState(initialPagerState(filtersKey));
-  }
-
-  const { pageIndex, cursors } = state;
-  const cursor = cursors[pageIndex];
-
-  const query = useQuery({
-    queryKey: ["inventory", "feed-item", "list", "paged", filters as Record<string, string | undefined>, cursor],
-    queryFn: () => inventoryApi.listFeedItems(filters, cursor),
-    staleTime: STALE_TIME,
-    placeholderData: keepPreviousData,
-  });
-
-  const atFrontier = pageIndex === cursors.length - 1;
-  const hasUndiscoveredNext = atFrontier && Boolean(query.data?.meta.hasNextPage);
-  const totalPages = Math.max(cursors.length + (hasUndiscoveredNext ? 1 : 0), 1);
-
-  function goToPage(page: number) {
-    const idx = page - 1;
-    if (idx < 0 || idx === pageIndex) return;
-    if (idx < cursors.length) {
-      setState((s) => ({ ...s, pageIndex: idx }));
-      return;
-    }
-    if (idx === cursors.length && hasUndiscoveredNext) {
-      const nextCursor = query.data?.meta.endCursor ?? undefined;
-      setState((s) => ({ ...s, pageIndex: idx, cursors: [...s.cursors, nextCursor] }));
-    }
-  }
-
-  return {
-    items: query.data?.items ?? [],
-    page: pageIndex + 1,
-    totalPages,
-    isLoading: query.isLoading,
-    isError: query.isError,
-    isFetching: query.isFetching,
-    refetch: query.refetch,
-    goToPage,
-  };
+  return useCursorPager(
+    ["inventory", "feed-item", "list", "paged", filters as Record<string, string | undefined>],
+    (cursor, limit) => inventoryApi.listFeedItems(filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
 }
 
 export function useFeedItemDetail(id: string | undefined) {
@@ -327,49 +239,15 @@ export function useArchiveMilkTank() {
   });
 }
 
-/** Same honest-frontier numbered-page adapter as `useMedicinePagedList`/`useFeedItemPagedList`, over
- * the cursor-only `GET /inventory/milk-tanks/audit-log`. */
+/** Same shared-pager adapter as `useMedicinePagedList`/`useFeedItemPagedList`, over the cursor-only
+ * `GET /inventory/milk-tanks/audit-log`. Default 10/page (denser log rows) — no page-size selector
+ * exposed for this one, `initialPageSize` just keeps its previous fixed page size. */
 export function useMilkTankAuditLogPagedList() {
-  const filtersKey = "audit-log";
-  const [state, setState] = useState<PagerState>(() => initialPagerState(filtersKey));
-
-  const { pageIndex, cursors } = state;
-  const cursor = cursors[pageIndex];
-
-  const query = useQuery({
-    queryKey: ["inventory", "milk-tank", "audit-log", "paged", cursor],
-    queryFn: () => inventoryApi.milkTankAuditLog(undefined, cursor),
-    staleTime: STALE_TIME,
-    placeholderData: keepPreviousData,
-  });
-
-  const atFrontier = pageIndex === cursors.length - 1;
-  const hasUndiscoveredNext = atFrontier && Boolean(query.data?.meta.hasNextPage);
-  const totalPages = Math.max(cursors.length + (hasUndiscoveredNext ? 1 : 0), 1);
-
-  function goToPage(page: number) {
-    const idx = page - 1;
-    if (idx < 0 || idx === pageIndex) return;
-    if (idx < cursors.length) {
-      setState((s) => ({ ...s, pageIndex: idx }));
-      return;
-    }
-    if (idx === cursors.length && hasUndiscoveredNext) {
-      const nextCursor = query.data?.meta.endCursor ?? undefined;
-      setState((s) => ({ ...s, pageIndex: idx, cursors: [...s.cursors, nextCursor] }));
-    }
-  }
-
-  return {
-    items: query.data?.items ?? [],
-    page: pageIndex + 1,
-    totalPages,
-    isLoading: query.isLoading,
-    isError: query.isError,
-    isFetching: query.isFetching,
-    refetch: query.refetch,
-    goToPage,
-  };
+  return useCursorPager(
+    ["inventory", "milk-tank", "audit-log", "paged"],
+    (cursor, limit) => inventoryApi.milkTankAuditLog(undefined, cursor, limit),
+    { staleTime: STALE_TIME, initialPageSize: 10 },
+  );
 }
 
 export function useShedsForMilkTank() {
@@ -439,52 +317,14 @@ export function useArchiveSemenTank() {
   });
 }
 
-/** Same honest-frontier numbered-page adapter as `useMedicinePagedList`/`useFeedItemPagedList`, over
- * the cursor-only `GET /inventory/semen/batches`. */
+/** Same shared-pager adapter as `useMedicinePagedList`/`useFeedItemPagedList`, over the cursor-only
+ * `GET /inventory/semen/batches`. */
 export function useSemenBatchPagedList(filters: SemenBatchListFilters) {
-  const filtersKey = JSON.stringify(filters);
-  const [state, setState] = useState<PagerState>(() => initialPagerState(filtersKey));
-  if (state.filtersKey !== filtersKey) {
-    setState(initialPagerState(filtersKey));
-  }
-
-  const { pageIndex, cursors } = state;
-  const cursor = cursors[pageIndex];
-
-  const query = useQuery({
-    queryKey: ["inventory", "semen-batch", "list", "paged", filters as Record<string, string | undefined>, cursor],
-    queryFn: () => inventoryApi.listSemenBatches(filters, cursor),
-    staleTime: STALE_TIME,
-    placeholderData: keepPreviousData,
-  });
-
-  const atFrontier = pageIndex === cursors.length - 1;
-  const hasUndiscoveredNext = atFrontier && Boolean(query.data?.meta.hasNextPage);
-  const totalPages = Math.max(cursors.length + (hasUndiscoveredNext ? 1 : 0), 1);
-
-  function goToPage(page: number) {
-    const idx = page - 1;
-    if (idx < 0 || idx === pageIndex) return;
-    if (idx < cursors.length) {
-      setState((s) => ({ ...s, pageIndex: idx }));
-      return;
-    }
-    if (idx === cursors.length && hasUndiscoveredNext) {
-      const nextCursor = query.data?.meta.endCursor ?? undefined;
-      setState((s) => ({ ...s, pageIndex: idx, cursors: [...s.cursors, nextCursor] }));
-    }
-  }
-
-  return {
-    items: query.data?.items ?? [],
-    page: pageIndex + 1,
-    totalPages,
-    isLoading: query.isLoading,
-    isError: query.isError,
-    isFetching: query.isFetching,
-    refetch: query.refetch,
-    goToPage,
-  };
+  return useCursorPager(
+    ["inventory", "semen-batch", "list", "paged", filters as Record<string, string | undefined>],
+    (cursor, limit) => inventoryApi.listSemenBatches(filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
 }
 
 function useInvalidateSemenBatch() {
@@ -519,52 +359,14 @@ export function useArchiveSemenBatch() {
   });
 }
 
-/** Same honest-frontier numbered-page adapter as `useMedicinePagedList`, over the cursor-only
+/** Same shared-pager adapter as `useMedicinePagedList`, over the cursor-only
  * `GET /inventory/equipment`. */
 export function useEquipmentPagedList(filters: EquipmentListFilters) {
-  const filtersKey = JSON.stringify(filters);
-  const [state, setState] = useState<PagerState>(() => initialPagerState(filtersKey));
-  if (state.filtersKey !== filtersKey) {
-    setState(initialPagerState(filtersKey));
-  }
-
-  const { pageIndex, cursors } = state;
-  const cursor = cursors[pageIndex];
-
-  const query = useQuery({
-    queryKey: ["inventory", "equipment", "list", "paged", filters as Record<string, string | undefined>, cursor],
-    queryFn: () => inventoryApi.listEquipment(filters, cursor),
-    staleTime: STALE_TIME,
-    placeholderData: keepPreviousData,
-  });
-
-  const atFrontier = pageIndex === cursors.length - 1;
-  const hasUndiscoveredNext = atFrontier && Boolean(query.data?.meta.hasNextPage);
-  const totalPages = Math.max(cursors.length + (hasUndiscoveredNext ? 1 : 0), 1);
-
-  function goToPage(page: number) {
-    const idx = page - 1;
-    if (idx < 0 || idx === pageIndex) return;
-    if (idx < cursors.length) {
-      setState((s) => ({ ...s, pageIndex: idx }));
-      return;
-    }
-    if (idx === cursors.length && hasUndiscoveredNext) {
-      const nextCursor = query.data?.meta.endCursor ?? undefined;
-      setState((s) => ({ ...s, pageIndex: idx, cursors: [...s.cursors, nextCursor] }));
-    }
-  }
-
-  return {
-    items: query.data?.items ?? [],
-    page: pageIndex + 1,
-    totalPages,
-    isLoading: query.isLoading,
-    isError: query.isError,
-    isFetching: query.isFetching,
-    refetch: query.refetch,
-    goToPage,
-  };
+  return useCursorPager(
+    ["inventory", "equipment", "list", "paged", filters as Record<string, string | undefined>],
+    (cursor, limit) => inventoryApi.listEquipment(filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
 }
 
 function useInvalidateEquipment() {

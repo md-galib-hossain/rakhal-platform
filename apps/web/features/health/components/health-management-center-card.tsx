@@ -85,7 +85,14 @@ export function HealthManagementCenterCard({
             onManageCase={onManageCase}
           />
           {sickBay.totalPages > 1 ? (
-            <Pagination page={sickBay.page} totalPages={sickBay.totalPages} onPageChange={sickBay.goToPage} disabled={sickBay.isFetching} />
+            <Pagination
+              page={sickBay.page}
+              totalPages={sickBay.totalPages}
+              onPageChange={sickBay.goToPage}
+              isFetching={sickBay.isFetching}
+              pageSize={sickBay.pageSize}
+              onPageSizeChange={sickBay.setPageSize}
+            />
           ) : null}
         </div>
       ) : tab === "taskHub" ? (

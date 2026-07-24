@@ -1,79 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
+import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { cattleApi } from "../api";
 import type { BulkAction, CattleFormPayload, CattleListFilters } from "../types";
 import type { CattleArchiveInput, CattleStatusInput } from "../schemas";
 
 const STALE_TIME = 60_000;
 
-interface PagerState {
-  filtersKey: string;
-  pageIndex: number;
-  /** `cursors[i]` = the cursor needed to fetch page `i + 1`; `cursors[0]` is always `undefined`
-   * (page 1 needs none). Grows by one entry each time the user pages past the previously-known
-   * frontier — the backend is keyset-only (no `total`/offset), so a page number can only ever be
-   * "known" once its predecessor has actually been fetched and reported `hasNextPage`. */
-  cursors: (string | undefined)[];
-}
-
-function initialPagerState(filtersKey: string): PagerState {
-  return { filtersKey, pageIndex: 0, cursors: [undefined] };
-}
-
-/** Numbered-page adapter over the cursor-only `GET /cattle` endpoint, for the `Pagination` UI.
- * Never fetches by offset — every page is still reached by walking `endCursor`s in order, this
- * just caches the cursor trail so already-visited pages are instant `pageIndex` jumps and the
- * "next" page is a normal cursor fetch. `totalPages` is therefore always a lower bound (what's
- * been discovered so far), not a true count — honest given the backend never returns one. */
+/** Numbered-page adapter over the cursor-only `GET /cattle` endpoint, for the `Pagination` UI —
+ * thin wrapper around the shared `useCursorPager` (`lib/hooks/use-cursor-pager.ts`). */
 export function useCattlePagedList(filters: CattleListFilters) {
-  const filtersKey = JSON.stringify(filters);
-  const [state, setState] = useState<PagerState>(() => initialPagerState(filtersKey));
-  // Reset to page 1 when filters change — a render-time state adjustment (React's documented
-  // "adjusting state when a prop changes" pattern), not an effect, so it can't cascade.
-  if (state.filtersKey !== filtersKey) {
-    setState(initialPagerState(filtersKey));
-  }
-
-  const { pageIndex, cursors } = state;
-  const cursor = cursors[pageIndex];
-
-  const query = useQuery({
-    queryKey: ["cattle", "list", "paged", filters as Record<string, string | undefined>, cursor],
-    queryFn: () => cattleApi.list(filters, cursor),
-    staleTime: STALE_TIME,
-    placeholderData: keepPreviousData,
-  });
-
-  const atFrontier = pageIndex === cursors.length - 1;
-  const hasUndiscoveredNext = atFrontier && Boolean(query.data?.meta.hasNextPage);
-  const totalPages = Math.max(cursors.length + (hasUndiscoveredNext ? 1 : 0), 1);
-
-  function goToPage(page: number) {
-    const idx = page - 1;
-    if (idx < 0 || idx === pageIndex) return;
-    if (idx < cursors.length) {
-      setState((s) => ({ ...s, pageIndex: idx }));
-      return;
-    }
-    if (idx === cursors.length && hasUndiscoveredNext) {
-      const nextCursor = query.data?.meta.endCursor ?? undefined;
-      setState((s) => ({ ...s, pageIndex: idx, cursors: [...s.cursors, nextCursor] }));
-    }
-  }
-
-  return {
-    items: query.data?.items ?? [],
-    page: pageIndex + 1,
-    totalPages,
-    isLoading: query.isLoading,
-    isError: query.isError,
-    isFetching: query.isFetching,
-    refetch: query.refetch,
-    goToPage,
-  };
+  return useCursorPager(
+    ["cattle", "list", "paged", filters as Record<string, string | undefined>],
+    (cursor, limit) => cattleApi.list(filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
 }
 
 export function useCattleHighlights() {

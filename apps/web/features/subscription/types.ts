@@ -14,3 +14,68 @@ export interface SubscriptionSummary {
   limits: { max_cattle: number | null; max_farm_members: number | null };
   usage: { cattle: number; farm_members: number };
 }
+
+/* ---------------------------------------------------------------------------
+ * Billing (RFE-036) — shapes verified live against the backend
+ * (`PlanCatalogueService.listPlans`, `BillingService.PublicInvoice`/`checkout`,
+ * `LegalConsentService.getConsentStatus`). snake_case per the API convention.
+ * ------------------------------------------------------------------------- */
+
+export type BillingPeriod = "MONTHLY" | "YEARLY";
+
+/** Prisma `InvoiceStatus`. */
+export type InvoiceStatus = "DRAFT" | "PENDING" | "PAID" | "FAILED" | "VOID" | "REFUNDED";
+
+/** `GET /plans` item (public pricing catalogue). */
+export interface PublicPlan {
+  id: string;
+  name: string;
+  description: string | null;
+  monthly_price: number;
+  yearly_price: number | null;
+  limits: { max_cattle: number | null; max_farm_members: number | null };
+  features: string[];
+}
+
+/** `GET /billing/invoices` item. */
+export interface PublicInvoice {
+  id: string;
+  invoice_number: string | null;
+  plan_id: string;
+  billing_period: BillingPeriod;
+  currency: string;
+  subtotal: number;
+  discount_total: number;
+  referral_credit_applied: number;
+  tax_rate: number;
+  tax_amount: number;
+  total: number;
+  status: InvoiceStatus;
+  paid_at: string | null;
+  created_at: string;
+}
+
+/** `POST /billing/checkout` body. The client picks plan + period only — it **never** sends an
+ * amount; the server computes the total (PAY-01). */
+export interface CheckoutPayload {
+  planId: string;
+  billingPeriod: BillingPeriod;
+  couponCode?: string;
+}
+
+/** `POST /billing/checkout` result. `checkout.redirect_url` carries the bKash redirect for a paid
+ * invoice; `checkout` is `null` for a ৳0 invoice that is instantly PAID (PAY-07). */
+export interface CheckoutResult {
+  invoice: PublicInvoice;
+  checkout:
+    | { provider: string; provider_payment_id: string; redirect_url: string | null }
+    | { provider_configured: boolean; initiation_failed?: boolean }
+    | null;
+  idempotent: boolean;
+}
+
+/** `GET /legal/consent` — the ToS/Privacy gate `POST /billing/checkout` enforces. */
+export interface LegalConsentStatus {
+  documents: { id: string; type: string; version: string; title: string; accepted: boolean }[];
+  all_accepted: boolean;
+}

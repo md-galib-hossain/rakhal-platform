@@ -130,7 +130,12 @@ export function MedicineView({ view }: { view: "table" | "grid" }) {
           query.goToPage(page);
           setRowSelection({});
         }}
-        disabled={query.isFetching}
+        isFetching={query.isFetching}
+        pageSize={query.pageSize}
+        onPageSizeChange={(size) => {
+          query.setPageSize(size);
+          setRowSelection({});
+        }}
       />
 
       <MedicineFormDialog open={formOpen} onOpenChange={setFormOpen} medicine={editingMedicine} />

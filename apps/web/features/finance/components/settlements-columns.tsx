@@ -2,6 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Chip, type ChipProps } from "@/components/ui/chip";
+import { Button } from "@/components/ui/button";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
 import type { ReceivableStatus, Settlement } from "../types";
@@ -17,6 +18,7 @@ const STATUS_VARIANT: Record<ReceivableStatus, ChipProps["variant"]> = {
  * Buyer-Entity (+ reference subtitle) / Total / Paid / Outstanding / Due Date / Status. */
 export function buildSettlementsColumns(
   t: (key: string, values?: Record<string, string | number>) => string,
+  onRecordPayment: (settlement: Settlement) => void,
 ): ColumnDef<Settlement, unknown>[] {
   return [
     {
@@ -58,6 +60,16 @@ export function buildSettlementsColumns(
       id: "status",
       header: t("columns.status"),
       cell: ({ row }) => <Chip variant={STATUS_VARIANT[row.original.status]}>{t(`statusOptions.${row.original.status}`)}</Chip>,
+    },
+    {
+      id: "actions",
+      header: "",
+      cell: ({ row }) =>
+        row.original.status !== "COMPLETED" ? (
+          <Button size="sm" variant="secondary" onClick={() => onRecordPayment(row.original)}>
+            {t("recordPayment.action")}
+          </Button>
+        ) : null,
     },
   ];
 }
