@@ -4,6 +4,7 @@ import {
   Get,
   Headers,
   Param,
+  Patch,
   Post,
   Query,
   Res,
@@ -21,6 +22,8 @@ import { BillingService } from '../../application/services/billing.service';
 import { CheckoutDto } from '../dto/checkout.dto';
 import { ListInvoiceQueryDto } from '../dto/list-invoice-query.dto';
 import { RefundInvoiceDto } from '../dto/refund-invoice.dto';
+import { UpdateBillingProfileDto } from '../dto/update-billing-profile.dto';
+import { PreviewCheckoutDto } from '../dto/preview-checkout.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
@@ -49,6 +52,27 @@ export class BillingController {
     @Headers('idempotency-key') idempotencyKey?: string,
   ) {
     return this.billing.checkout(farmId, userId, dto, idempotencyKey);
+  }
+
+  @Post('checkout/preview')
+  @RequirePermission('subscription.manage')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  previewCheckout(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Body() dto: PreviewCheckoutDto,
+  ) {
+    return this.billing.previewCheckout(farmId, userId, dto);
+  }
+
+  @Patch('profile')
+  @RequirePermission('subscription.manage')
+  updateProfile(
+    @CurrentFarmId() farmId: string,
+    @Body() dto: UpdateBillingProfileDto,
+  ) {
+    return this.billing.updateProfile(farmId, dto);
   }
 
   @Get('invoices')

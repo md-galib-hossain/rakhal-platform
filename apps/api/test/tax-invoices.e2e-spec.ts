@@ -34,15 +34,36 @@ describe('Tax-ready invoices + receipt PDF (e2e)', () => {
   let proPlanId: string;
   let tempFarmId: string;
   let aPaidInvoiceId: string;
+  const extraFarmIds: string[] = [];
 
-  const checkoutFree = async (key: string): Promise<PublicInvoice> => {
+  const checkoutFree = async (
+    key: string,
+    farmId: string = tempFarmId,
+  ): Promise<PublicInvoice> => {
     const res = await billing.checkout(
-      tempFarmId,
+      farmId,
       ownerUserId,
       { planId: freePlanId, billingPeriod: BillingPeriod.MONTHLY },
       key,
     );
     return res.invoice;
+  };
+
+  // Free-plan checkout is now gated to once-ever-per-farm — the concurrency
+  // test below needs N independently-eligible farms, not N repeats on one.
+  const makeFreeEligibleFarm = async (name: string): Promise<string> => {
+    const farm = await prisma.farm.create({
+      data: {
+        name,
+        slug: `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        ownerId: ownerUserId,
+        phone: '01700000002',
+        address: '2 Tax Test Road, Dhaka',
+      },
+      select: { id: true },
+    });
+    extraFarmIds.push(farm.id);
+    return farm.id;
   };
 
   beforeAll(async () => {
@@ -73,6 +94,10 @@ describe('Tax-ready invoices + receipt PDF (e2e)', () => {
         name: 'E2E Tax Farm',
         slug: `e2e-tax-${Date.now()}`,
         ownerId: ownerUserId,
+        // Free-plan checkout is gated on a complete profile — this suite is
+        // about invoice numbering/receipts, not the profile gate itself.
+        phone: '01700000001',
+        address: '1 Tax Test Road, Dhaka',
       },
       select: { id: true },
     });
@@ -80,15 +105,11 @@ describe('Tax-ready invoices + receipt PDF (e2e)', () => {
   }, 30_000);
 
   afterAll(async () => {
-    if (tempFarmId) {
-      await prisma.payment.deleteMany({ where: { farmId: tempFarmId } });
-      await prisma.invoice.deleteMany({ where: { farmId: tempFarmId } });
-      await prisma.farmSubscription.deleteMany({
-        where: { farmId: tempFarmId },
-      });
-      await prisma.farm
-        .delete({ where: { id: tempFarmId } })
-        .catch(() => undefined);
+    for (const farmId of [tempFarmId, ...extraFarmIds].filter(Boolean)) {
+      await prisma.payment.deleteMany({ where: { farmId } });
+      await prisma.invoice.deleteMany({ where: { farmId } });
+      await prisma.farmSubscription.deleteMany({ where: { farmId } });
+      await prisma.farm.delete({ where: { id: farmId } }).catch(() => undefined);
     }
     await ctx.app.close();
   });
@@ -105,9 +126,17 @@ describe('Tax-ready invoices + receipt PDF (e2e)', () => {
 
   it('gapless + collision-free under concurrent checkout (TAX-02)', async () => {
     const N = 6;
-    const results = await Promise.all(
+    // Free-plan checkout is once-ever-per-farm — one farm per concurrent
+    // checkout, proving the invoice-counter is what stays gapless/collision-
+    // free across farms, not repeated activation of a single farm.
+    const farmIds = await Promise.all(
       Array.from({ length: N }, (_, i) =>
-        checkoutFree(`e2e-tax-conc-${Date.now()}-${i}`),
+        makeFreeEligibleFarm(`E2E Tax Conc ${i}`),
+      ),
+    );
+    const results = await Promise.all(
+      farmIds.map((farmId, i) =>
+        checkoutFree(`e2e-tax-conc-${Date.now()}-${i}`, farmId),
       ),
     );
     const numbers = results.map((r) => r.invoice_number);

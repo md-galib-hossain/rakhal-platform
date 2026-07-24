@@ -98,24 +98,24 @@ export class CouponService {
   }
 
   /**
-   * Validate a coupon and atomically reserve a seat (CPN-01..05) inside the
-   * caller's transaction. Throws on any rule violation — the caller's
-   * transaction then rolls the seat reservation back along with it. Does not
-   * write `CouponRedemption` (the invoice doesn't exist yet); call
-   * `recordRedemption` once it does.
+   * Pure rule check + pricing (existence/status/window/plan-applicability/
+   * min-spend/discount math/100%-off-needs-verified-phone) — shared by
+   * `reserve` (which adds the mutating per-farm-redemption check + atomic seat
+   * decrement) and `preview` (which mutates nothing). Accepts either the
+   * plain `PrismaService` (preview, outside any transaction) or a
+   * `Prisma.TransactionClient` (reserve, inside the checkout transaction).
    */
-  async reserve(
-    tx: Prisma.TransactionClient,
+  private async validateAndPrice(
+    db: PrismaService | Prisma.TransactionClient,
     params: {
       code: string;
-      farmId: string;
       planId: string;
       subtotal: Prisma.Decimal;
       phoneVerifiedAt: Date | null;
     },
-  ): Promise<CouponReservation> {
+  ): Promise<{ coupon: Coupon; discount: Prisma.Decimal }> {
     const code = params.code.trim().toUpperCase();
-    const coupon = await tx.coupon.findUnique({ where: { code } });
+    const coupon = await db.coupon.findUnique({ where: { code } });
     if (!coupon) throw new NotFoundException('Coupon not found');
 
     if (coupon.status !== CouponStatus.ACTIVE) {
@@ -144,6 +144,42 @@ export class CouponService {
         'A 100%-off coupon requires a phone-verified account',
       );
     }
+
+    return { coupon, discount };
+  }
+
+  /**
+   * Non-mutating preview for the upgrade modal's coupon stage. Runs the
+   * identical rule set as `reserve` but performs neither the seat decrement
+   * nor the per-farm-redemption check — a coupon this farm already redeemed
+   * still previews fine (so the UI can show the price); `checkout`/`reserve`
+   * remains the real, atomic gate.
+   */
+  async preview(params: {
+    code: string;
+    farmId: string;
+    planId: string;
+    subtotal: Prisma.Decimal;
+    phoneVerifiedAt: Date | null;
+  }): Promise<CouponReservation> {
+    const { coupon, discount } = await this.validateAndPrice(
+      this.prisma,
+      params,
+    );
+    return { couponId: coupon.id, discount };
+  }
+
+  async reserve(
+    tx: Prisma.TransactionClient,
+    params: {
+      code: string;
+      farmId: string;
+      planId: string;
+      subtotal: Prisma.Decimal;
+      phoneVerifiedAt: Date | null;
+    },
+  ): Promise<CouponReservation> {
+    const { coupon, discount } = await this.validateAndPrice(tx, params);
 
     // CPN-02: pre-check for a clean error; the unique index below is the
     // actual guard under concurrency.

@@ -1,9 +1,10 @@
 import request from 'supertest';
 import { bearer, createTestApp, loginAs, TestContext } from './utils/e2e';
 import type { AuthedUser } from './utils/e2e';
-import { BillingPeriod } from '@prisma/client';
+import { BillingPeriod, CouponType } from '@prisma/client';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { BillingService } from '../src/modules/billing/application/services/billing.service';
+import { CouponService } from '../src/modules/billing/application/services/coupon.service';
 import { SubscriptionAccessService } from '../src/modules/subscription/application/services/subscription-access.service';
 
 /**
@@ -34,6 +35,20 @@ describe('Billing core (e2e)', () => {
   let freePlanId: string;
   let ownerUserId: string;
   let tempFarmId: string | undefined;
+  const extraFarmIds: string[] = [];
+
+  const makeFarm = async (name: string) => {
+    const farm = await prisma.farm.create({
+      data: {
+        name,
+        slug: `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        ownerId: ownerUserId,
+      },
+      select: { id: true },
+    });
+    extraFarmIds.push(farm.id);
+    return farm.id;
+  };
 
   beforeAll(async () => {
     ctx = await createTestApp();
@@ -66,15 +81,23 @@ describe('Billing core (e2e)', () => {
   }, 30_000);
 
   afterAll(async () => {
-    if (tempFarmId) {
-      await prisma.payment.deleteMany({ where: { farmId: tempFarmId } });
-      await prisma.invoice.deleteMany({ where: { farmId: tempFarmId } });
-      await prisma.farmSubscription.deleteMany({
-        where: { farmId: tempFarmId },
-      });
-      await prisma.farm
-        .delete({ where: { id: tempFarmId } })
-        .catch(() => undefined);
+    // The PATCH /billing/profile HTTP test below sets phone/address on the
+    // shared demo owner's real farm — reset so other suites/agents sharing
+    // this dev DB see the original (null) state.
+    await prisma.farm
+      .update({
+        where: { id: owner.farmId },
+        data: { phone: null, address: null },
+      })
+      .catch(() => undefined);
+    for (const farmId of [tempFarmId, ...extraFarmIds].filter(
+      (id): id is string => !!id,
+    )) {
+      await prisma.couponRedemption.deleteMany({ where: { farmId } });
+      await prisma.payment.deleteMany({ where: { farmId } });
+      await prisma.invoice.deleteMany({ where: { farmId } });
+      await prisma.farmSubscription.deleteMany({ where: { farmId } });
+      await prisma.farm.delete({ where: { id: farmId } }).catch(() => undefined);
     }
     await ctx.app.close();
   });
@@ -143,6 +166,14 @@ describe('Billing core (e2e)', () => {
     });
     tempFarmId = farm.id;
 
+    // Free-plan checkout is gated on a complete profile (phone + address) —
+    // set directly via Prisma here since this test is about the ৳0/PAID/
+    // activation path, not the profile gate itself (covered below).
+    await prisma.farm.update({
+      where: { id: farm.id },
+      data: { phone: '01700000000', address: '123 Test Road, Dhaka' },
+    });
+
     const free = await billing.checkout(farm.id, ownerUserId, {
       planId: freePlanId,
       billingPeriod: BillingPeriod.MONTHLY,
@@ -166,5 +197,151 @@ describe('Billing core (e2e)', () => {
     await expect(
       billing.getInvoice(owner.farmId, starter.invoice.id),
     ).rejects.toThrow();
+  });
+
+  it('Free-plan checkout is rejected until the farm profile (phone+address) is complete', async () => {
+    const farmId = await makeFarm('Free Gate No Profile');
+
+    await request(ctx.app.getHttpServer())
+      .post(`${ctx.prefix}/billing/checkout`)
+      .set(...bearer(owner))
+      .send({ planId: freePlanId, billingPeriod: 'MONTHLY' })
+      .expect(403);
+
+    await expect(
+      billing.checkout(farmId, ownerUserId, {
+        planId: freePlanId,
+        billingPeriod: BillingPeriod.MONTHLY,
+      }),
+    ).rejects.toThrow(/complete your farm profile/i);
+  });
+
+  it('PATCH /billing/profile completes the profile, then Free-plan activates and marks the farm — a second attempt 409s', async () => {
+    const farmId = await makeFarm('Free Gate Once Only');
+
+    // Direct service call scoped to this temp farm (the HTTP route always acts
+    // on the caller's own active JWT farm, which is the demo owner's farm —
+    // exercised separately by the HTTP 403 case above).
+    await prisma.farm.update({
+      where: { id: farmId },
+      data: { phone: null, address: null },
+    });
+    await expect(
+      billing.checkout(farmId, ownerUserId, {
+        planId: freePlanId,
+        billingPeriod: BillingPeriod.MONTHLY,
+      }),
+    ).rejects.toThrow(/complete your farm profile/i);
+
+    await prisma.farm.update({
+      where: { id: farmId },
+      data: { phone: '01711111111', address: '456 Farm Lane, Chattogram' },
+    });
+
+    const first = await billing.checkout(farmId, ownerUserId, {
+      planId: freePlanId,
+      billingPeriod: BillingPeriod.MONTHLY,
+    });
+    expect(first.invoice.total).toBe(0);
+    expect(first.invoice.status).toBe('PAID');
+
+    const farmAfter = await prisma.farm.findUniqueOrThrow({
+      where: { id: farmId },
+      select: { freePlanActivatedAt: true },
+    });
+    expect(farmAfter.freePlanActivatedAt).not.toBeNull();
+
+    // Second Free-plan attempt on the same farm — already activated once.
+    await expect(
+      billing.checkout(farmId, ownerUserId, {
+        planId: freePlanId,
+        billingPeriod: BillingPeriod.MONTHLY,
+      }),
+    ).rejects.toThrow(/already been activated/i);
+  });
+
+  it('PATCH /billing/profile over HTTP updates phone/address (and optional farm_name)', async () => {
+    const res = await request(ctx.app.getHttpServer())
+      .patch(`${ctx.prefix}/billing/profile`)
+      .set(...bearer(owner))
+      .send({ phone: '01799999999', address: '789 Owner Street' })
+      .expect(200);
+    const body = (
+      res.body as {
+        data: { phone: string; address: string; farm_id: string };
+      }
+    ).data;
+    expect(body.phone).toBe('01799999999');
+    expect(body.address).toBe('789 Owner Street');
+  });
+
+  it('rejects an invalid phone shape on PATCH /billing/profile', async () => {
+    await request(ctx.app.getHttpServer())
+      .patch(`${ctx.prefix}/billing/profile`)
+      .set(...bearer(owner))
+      .send({ phone: '12345', address: 'Somewhere' })
+      .expect(400);
+  });
+
+  describe('POST /billing/checkout/preview', () => {
+    let coupons: CouponService;
+
+    beforeAll(() => {
+      coupons = ctx.app.get(CouponService);
+    });
+
+    it('previews a valid coupon without mutating redemption state', async () => {
+      const code = `PREVIEW-${Date.now()}`.toUpperCase();
+      await coupons.issue({
+        code,
+        type: CouponType.FIXED,
+        value: 150,
+        maxRedemptions: 5,
+        validFrom: new Date(Date.now() - 86_400_000),
+        validUntil: new Date(Date.now() + 30 * 86_400_000),
+      });
+      const coupon = await prisma.coupon.findUniqueOrThrow({
+        where: { code },
+      });
+
+      const res = await request(ctx.app.getHttpServer())
+        .post(`${ctx.prefix}/billing/checkout/preview`)
+        .set(...bearer(owner))
+        .send({
+          planId: proPlanId,
+          billingPeriod: 'MONTHLY',
+          couponCode: code,
+        })
+        .expect(201);
+      const body = (
+        res.body as {
+          data: { subtotal: number; discount_total: number; total: number };
+        }
+      ).data;
+      expect(body.subtotal).toBe(2500);
+      expect(body.discount_total).toBe(150);
+      expect(body.total).toBe(2350);
+
+      const redemptionCount = await prisma.couponRedemption.count({
+        where: { couponId: coupon.id },
+      });
+      expect(redemptionCount).toBe(0);
+      const unchanged = await prisma.coupon.findUniqueOrThrow({
+        where: { code },
+      });
+      expect(unchanged.redeemedCount).toBe(0);
+    });
+
+    it('rejects preview of an unknown coupon code', async () => {
+      await request(ctx.app.getHttpServer())
+        .post(`${ctx.prefix}/billing/checkout/preview`)
+        .set(...bearer(owner))
+        .send({
+          planId: proPlanId,
+          billingPeriod: 'MONTHLY',
+          couponCode: 'DOES-NOT-EXIST',
+        })
+        .expect(404);
+    });
   });
 });

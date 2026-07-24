@@ -1,4 +1,10 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import {
   AuditAction,
@@ -14,6 +20,7 @@ import { CursorPage, getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { env } from 'src/core/config/env';
 import { AuditService } from 'src/modules/audit/application/services/audit.service';
 import { SubscriptionLifecycleService } from 'src/modules/subscription/application/services/subscription-lifecycle.service';
+import { PLAN_NAMES } from 'src/modules/subscription/domain/subscription-features';
 import {
   clampNonNegative,
   computeGrandTotal,
@@ -29,6 +36,8 @@ import {
   type PaymentProvider,
 } from '../ports/payment-provider.port';
 import { CheckoutDto } from '../../presentation/dto/checkout.dto';
+import { UpdateBillingProfileDto } from '../../presentation/dto/update-billing-profile.dto';
+import { PreviewCheckoutDto } from '../../presentation/dto/preview-checkout.dto';
 import { ListInvoiceQueryDto } from '../../presentation/dto/list-invoice-query.dto';
 import { CouponService } from './coupon.service';
 import { ReferralService } from './referral.service';
@@ -109,6 +118,28 @@ export class BillingService {
       where: { id: dto.planId },
     });
     if (!plan) throw new NotFoundException('Subscription plan not found');
+
+    // Free-plan gate: profile must be complete, and a farm may activate Free
+    // only once ever (independent of the separate TrialGrant/auto-trial-at-
+    // signup system). Checked on the plan itself, not `total.isZero()` — a
+    // paid plan zeroed by a 100%-off coupon must not trip this.
+    const isFreePlan = plan.name === PLAN_NAMES.FREE;
+    if (isFreePlan) {
+      const farm = await this.prisma.farm.findUniqueOrThrow({
+        where: { id: farmId },
+        select: { phone: true, address: true, freePlanActivatedAt: true },
+      });
+      if (!farm.phone || !farm.address) {
+        throw new ForbiddenException(
+          'Complete your farm profile (phone and address) before activating the Free plan',
+        );
+      }
+      if (farm.freePlanActivatedAt) {
+        throw new ConflictException(
+          'The Free plan has already been activated for this farm',
+        );
+      }
+    }
 
     // Total computed here — the client never sends an amount (PAY-01).
     const subtotal =
@@ -197,6 +228,22 @@ export class BillingService {
           discount: discountTotal,
         });
       }
+
+      // Atomic conditional flip (mirrors CouponService.reserve's seat-decrement
+      // pattern) — closes the TOCTOU race between the pre-transaction check
+      // above and two concurrent Free-plan checkout requests from the same farm.
+      if (isFreePlan) {
+        const flip = await tx.farm.updateMany({
+          where: { id: farmId, freePlanActivatedAt: null },
+          data: { freePlanActivatedAt: new Date() },
+        });
+        if (flip.count === 0) {
+          throw new ConflictException(
+            'The Free plan has already been activated for this farm',
+          );
+        }
+      }
+
       return created;
     });
     const redeemedCouponId = invoice.couponId;
@@ -614,6 +661,91 @@ export class BillingService {
   /** `GET /billing/invoices/:id/receipt` — the tax-ready receipt PDF (TAX-03). */
   getReceipt(farmId: string, invoiceId: string): Promise<RenderedReceipt> {
     return this.receipts.renderForDownload(farmId, invoiceId);
+  }
+
+  /**
+   * `POST /billing/checkout/preview` — non-mutating price preview for the
+   * upgrade modal's coupon stage. Reuses the exact subtotal computation
+   * `checkout()` uses, and `CouponService.preview` for validation/pricing
+   * (identical rules to `reserve`, no seat decrement). The Rakhal Credit
+   * portion is a **read-only estimate** (current balance, not spent) — the
+   * real `checkout()` is the only place credit actually moves.
+   */
+  async previewCheckout(
+    farmId: string,
+    userId: string,
+    dto: PreviewCheckoutDto,
+  ) {
+    const plan = await this.prisma.subscriptionPlan.findUnique({
+      where: { id: dto.planId },
+    });
+    if (!plan) throw new NotFoundException('Subscription plan not found');
+
+    const subtotal =
+      dto.billingPeriod === BillingPeriod.YEARLY
+        ? (plan.yearlyPrice ?? plan.monthlyPrice.times(12))
+        : plan.monthlyPrice;
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { phoneVerifiedAt: true },
+    });
+
+    const { discount } = await this.coupons.preview({
+      code: dto.couponCode,
+      farmId,
+      planId: plan.id,
+      subtotal,
+      phoneVerifiedAt: user?.phoneVerifiedAt ?? null,
+    });
+
+    const vatRate = new Prisma.Decimal(env.VAT_ENABLED ? env.VAT_RATE : 0);
+    const netAfterDiscount = clampNonNegative(subtotal.minus(discount));
+    const taxAmount = computeTax(netAfterDiscount, vatRate);
+    const grossWithTax = netAfterDiscount.plus(taxAmount);
+
+    const walletBalance = await this.creditWallet.getBalance(farmId);
+    const estimatedCreditApplied = Prisma.Decimal.min(
+      walletBalance,
+      grossWithTax,
+    );
+    const total = computeGrandTotal(
+      subtotal,
+      discount,
+      taxAmount,
+      estimatedCreditApplied,
+    );
+
+    return {
+      plan_id: plan.id,
+      billing_period: dto.billingPeriod,
+      currency: 'BDT',
+      subtotal: subtotal.toNumber(),
+      discount_total: discount.toNumber(),
+      estimated_credit_applied: estimatedCreditApplied.toNumber(),
+      tax_rate: vatRate.toNumber(),
+      tax_amount: taxAmount.toNumber(),
+      total: total.toNumber(),
+    };
+  }
+
+  /** `PATCH /billing/profile` — the mandatory profile-completion step gating Free-plan checkout. */
+  async updateProfile(farmId: string, dto: UpdateBillingProfileDto) {
+    const updated = await this.prisma.farm.update({
+      where: { id: farmId },
+      data: {
+        phone: dto.phone,
+        address: dto.address,
+        ...(dto.farm_name ? { name: dto.farm_name } : {}),
+      },
+      select: { id: true, name: true, phone: true, address: true },
+    });
+    return {
+      farm_id: updated.id,
+      farm_name: updated.name,
+      phone: updated.phone,
+      address: updated.address,
+    };
   }
 
   private async farmOwnerId(farmId: string): Promise<string | null> {

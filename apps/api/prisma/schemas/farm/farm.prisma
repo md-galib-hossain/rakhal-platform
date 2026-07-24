@@ -10,6 +10,10 @@ model Farm {
   district           String?
   upazila            String?
   operationalPurpose String?
+  phone              String?
+  address            String?
+
+  freePlanActivatedAt DateTime?
 
   hasCompletedOnboarding Boolean @default(false)
 

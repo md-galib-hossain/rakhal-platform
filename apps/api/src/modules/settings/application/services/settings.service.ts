@@ -40,6 +40,8 @@ export class SettingsService {
         upazila: true,
         operationalPurpose: true,
         status: true,
+        phone: true,
+        address: true,
       },
     });
     return {
@@ -52,6 +54,11 @@ export class SettingsService {
       upazila: farm.upazila,
       operational_purpose: farm.operationalPurpose,
       status: farm.status,
+      // Read-only here — the mutation path for these two lives on
+      // `PATCH /billing/profile` (the Free-plan profile-completion gate),
+      // not this route.
+      phone: farm.phone,
+      address: farm.address,
     };
   }
 
@@ -91,6 +98,8 @@ export class SettingsService {
         upazila: true,
         operationalPurpose: true,
         status: true,
+        phone: true,
+        address: true,
       },
     });
 
@@ -312,6 +321,8 @@ export class SettingsService {
     upazila: string | null;
     operationalPurpose: string | null;
     status: string;
+    phone: string | null;
+    address: string | null;
   }) {
     return {
       farm_id: f.id,
@@ -323,6 +334,8 @@ export class SettingsService {
       upazila: f.upazila,
       operational_purpose: f.operationalPurpose,
       status: f.status,
+      phone: f.phone,
+      address: f.address,
     };
   }
 
