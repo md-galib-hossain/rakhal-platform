@@ -3,6 +3,8 @@ import { bearer, createTestApp, loginAs, TestContext } from './utils/e2e';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { SubscriptionAccessService } from '../src/modules/subscription/application/services/subscription-access.service';
 import { SubscriptionLifecycleService } from '../src/modules/subscription/application/services/subscription-lifecycle.service';
+import { BillingService } from '../src/modules/billing/application/services/billing.service';
+import { PLAN_NAMES } from '../src/modules/subscription/domain/subscription-features';
 
 /**
  * RAKHAL-218 — subscription lifecycle (`customer-api`, PRD §31.2/§31.3).
@@ -24,6 +26,7 @@ describe('Subscription lifecycle (e2e)', () => {
   let prisma: PrismaService;
   let lifecycle: SubscriptionLifecycleService;
   let access: SubscriptionAccessService;
+  let billing: BillingService;
   let tempFarmId: string | undefined;
 
   beforeAll(async () => {
@@ -31,6 +34,7 @@ describe('Subscription lifecycle (e2e)', () => {
     prisma = ctx.app.get(PrismaService);
     lifecycle = ctx.app.get(SubscriptionLifecycleService);
     access = ctx.app.get(SubscriptionAccessService);
+    billing = ctx.app.get(BillingService);
   }, 30_000);
 
   afterAll(async () => {
@@ -105,5 +109,125 @@ describe('Subscription lifecycle (e2e)', () => {
     ent = await access.resolveEntitlement(farm.id);
     expect(ent.status).toBe('EXPIRED');
     expect(ent.features).toEqual([]);
+  });
+
+  describe('Scheduled downgrade (RFE-036 follow-up)', () => {
+    let downgradeFarmId: string;
+    let starterPlanId: string;
+    let proPlanId: string;
+    let ownerUserId: string;
+
+    beforeAll(async () => {
+      const ownerUser = await prisma.user.findUnique({
+        where: { email: 'owner@demo.rakhal.test' },
+        select: { id: true },
+      });
+      if (!ownerUser) throw new Error('demo owner missing — run `pnpm seed`');
+      ownerUserId = ownerUser.id;
+
+      const [starter, pro] = await Promise.all([
+        prisma.subscriptionPlan.findUniqueOrThrow({
+          where: { name: PLAN_NAMES.STARTER },
+        }),
+        prisma.subscriptionPlan.findUniqueOrThrow({
+          where: { name: PLAN_NAMES.PRO },
+        }),
+      ]);
+      starterPlanId = starter.id;
+      proPlanId = pro.id;
+
+      const farm = await prisma.farm.create({
+        data: {
+          name: 'E2E Downgrade Farm',
+          slug: `e2e-downgrade-${Date.now()}`,
+          ownerId: ownerUserId,
+        },
+        select: { id: true },
+      });
+      downgradeFarmId = farm.id;
+      // Active Pro, 20 days remaining — the exact scenario the feature exists for.
+      await prisma.farmSubscription.create({
+        data: {
+          farmId: downgradeFarmId,
+          subscriptionPlanId: proPlanId,
+          status: 'ACTIVE',
+          startsAt: new Date(),
+          expiresAt: new Date(Date.now() + 20 * DAY_MS),
+        },
+      });
+    });
+
+    afterAll(async () => {
+      await prisma.farmSubscription.deleteMany({
+        where: { farmId: downgradeFarmId },
+      });
+      await prisma.farm
+        .delete({ where: { id: downgradeFarmId } })
+        .catch(() => undefined);
+    });
+
+    it('(a) schedules a downgrade to Starter with no Invoice created', async () => {
+      const before = await prisma.invoice.count({
+        where: { farmId: downgradeFarmId },
+      });
+      const schedule = await billing.scheduleDowngrade(
+        downgradeFarmId,
+        ownerUserId,
+        { planId: starterPlanId, billingPeriod: 'MONTHLY' as never },
+      );
+      expect(schedule.pending_plan_id).toBe(starterPlanId);
+
+      const after = await prisma.invoice.count({
+        where: { farmId: downgradeFarmId },
+      });
+      expect(after).toBe(before);
+
+      const row = await prisma.farmSubscription.findFirst({
+        where: { farmId: downgradeFarmId },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(row?.pendingPlanId).toBe(starterPlanId);
+      expect(row?.subscriptionPlanId).toBe(proPlanId); // still Pro until the switch lands
+    });
+
+    it('(b) rejects scheduling an equal-or-higher-priced plan', async () => {
+      await expect(
+        billing.scheduleDowngrade(downgradeFarmId, ownerUserId, {
+          planId: proPlanId,
+          billingPeriod: 'MONTHLY' as never,
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('(c) cancel clears the pending fields', async () => {
+      await billing.cancelScheduledDowngrade(downgradeFarmId, ownerUserId);
+      const row = await prisma.farmSubscription.findFirst({
+        where: { farmId: downgradeFarmId },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(row?.pendingPlanId).toBeNull();
+    });
+
+    it('(d) the sweep applies a pending switch instead of marking PAST_DUE, once expiry lands', async () => {
+      await billing.scheduleDowngrade(downgradeFarmId, ownerUserId, {
+        planId: starterPlanId,
+        billingPeriod: 'MONTHLY' as never,
+      });
+      // Backdate expiry into the past — as if the 20 days had elapsed.
+      await prisma.farmSubscription.updateMany({
+        where: { farmId: downgradeFarmId, status: 'ACTIVE' },
+        data: { expiresAt: new Date(Date.now() - 1000) },
+      });
+
+      await lifecycle.runExpirySweep();
+
+      const latest = await prisma.farmSubscription.findFirst({
+        where: { farmId: downgradeFarmId },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(latest?.subscriptionPlanId).toBe(starterPlanId);
+      expect(latest?.status).toBe('ACTIVE'); // not PAST_DUE — the switch landed seamlessly
+      expect(latest?.pendingPlanId).toBeNull(); // fresh row carries no pending fields
+    });
   });
 });

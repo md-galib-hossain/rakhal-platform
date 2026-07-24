@@ -126,13 +126,44 @@ export class SubscriptionLifecycleService {
    */
   async runExpirySweep(
     now: Date = new Date(),
-  ): Promise<{ pastDue: number; expired: number }> {
+  ): Promise<{ pastDue: number; expired: number; downgraded: number }> {
+    // A scheduled downgrade/lateral switch (RFE-036 follow-up, PAY-08) applies here — BEFORE the
+    // PAST_DUE transition below — so a farm that arranged a switch never sees a lapse: the new plan
+    // activates seamlessly the moment the old one would have expired. Selected first so the same rows
+    // are excluded from `toPastDue` (a farm subscription only ever holds one currently-relevant path).
+    const toDowngrade = await this.prisma.farmSubscription.findMany({
+      where: {
+        status: SubscriptionStatus.ACTIVE,
+        expiresAt: { lte: now },
+        pendingPlanId: { not: null },
+      },
+      select: {
+        id: true,
+        farmId: true,
+        pendingPlanId: true,
+        pendingBillingPeriod: true,
+      },
+    });
+    for (const row of toDowngrade) {
+      if (!row.pendingPlanId || !row.pendingBillingPeriod) continue;
+      await this.activate(
+        row.farmId,
+        row.pendingPlanId,
+        row.pendingBillingPeriod,
+      );
+      this.log.info('Scheduled downgrade applied', {
+        farmId: row.farmId,
+        planId: row.pendingPlanId,
+      });
+    }
+
     const toPastDue = await this.prisma.farmSubscription.findMany({
       where: {
         status: {
           in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING],
         },
         expiresAt: { lt: now },
+        id: { notIn: toDowngrade.map((r) => r.id) },
       },
       select: { id: true, farmId: true },
     });
@@ -168,7 +199,11 @@ export class SubscriptionLifecycleService {
     await this.sendExpiryEmails(toPastDue, SubscriptionStatus.PAST_DUE);
     await this.sendExpiryEmails(toExpired, SubscriptionStatus.EXPIRED);
 
-    const result = { pastDue: toPastDue.length, expired: toExpired.length };
+    const result = {
+      pastDue: toPastDue.length,
+      expired: toExpired.length,
+      downgraded: toDowngrade.length,
+    };
     this.log.info('Subscription expiry sweep complete', result);
     return result;
   }

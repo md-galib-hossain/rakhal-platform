@@ -109,7 +109,9 @@ describe('Tax-ready invoices + receipt PDF (e2e)', () => {
       await prisma.payment.deleteMany({ where: { farmId } });
       await prisma.invoice.deleteMany({ where: { farmId } });
       await prisma.farmSubscription.deleteMany({ where: { farmId } });
-      await prisma.farm.delete({ where: { id: farmId } }).catch(() => undefined);
+      await prisma.farm
+        .delete({ where: { id: farmId } })
+        .catch(() => undefined);
     }
     await ctx.app.close();
   });

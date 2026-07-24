@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Inject,
@@ -36,6 +37,7 @@ import {
   type PaymentProvider,
 } from '../ports/payment-provider.port';
 import { CheckoutDto } from '../../presentation/dto/checkout.dto';
+import { ScheduleDowngradeDto } from '../../presentation/dto/schedule-downgrade.dto';
 import { UpdateBillingProfileDto } from '../../presentation/dto/update-billing-profile.dto';
 import { PreviewCheckoutDto } from '../../presentation/dto/preview-checkout.dto';
 import { ListInvoiceQueryDto } from '../../presentation/dto/list-invoice-query.dto';
@@ -46,6 +48,15 @@ import { ReceiptService, type RenderedReceipt } from './receipt.service';
 import { LegalConsentService } from 'src/modules/compliance/application/services/legal-consent.service';
 import { TransactionalEmailService } from 'src/modules/email/application/services/transactional-email.service';
 import { EmailTemplate } from 'src/modules/email/domain/enums/email-template.enum';
+
+/** A pending downgrade/lateral plan change (RFE-036 follow-up) — the switch takes effect at
+ * `effective_at` (the current period's expiry), never charges. */
+export interface PublicSubscriptionSchedule {
+  pending_plan_id: string;
+  pending_plan_name: string;
+  pending_billing_period: BillingPeriod;
+  effective_at: string;
+}
 
 export interface PublicInvoice {
   id: string;
@@ -746,6 +757,104 @@ export class BillingService {
       phone: updated.phone,
       address: updated.address,
     };
+  }
+
+  /**
+   * Schedule a downgrade/lateral plan change (RFE-036 follow-up, PAY-08). Never charges and never
+   * creates an Invoice/Payment — the switch only takes effect at the current period's `expiresAt`,
+   * applied by `SubscriptionLifecycleService.runExpirySweep`. Rejects an equal-or-higher-priced
+   * target (that must go through the real `checkout()` — it needs a charge, this endpoint is
+   * deliberately free-of-charge and would otherwise be a way to sneak an unpaid upgrade).
+   */
+  async scheduleDowngrade(
+    farmId: string,
+    userId: string,
+    dto: ScheduleDowngradeDto,
+  ): Promise<PublicSubscriptionSchedule> {
+    const current = await this.prisma.farmSubscription.findFirst({
+      where: { farmId },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!current || current.status !== 'ACTIVE' || !current.expiresAt) {
+      throw new BadRequestException(
+        'No active subscription to schedule a change against',
+      );
+    }
+
+    const [currentPlan, targetPlan] = await Promise.all([
+      this.prisma.subscriptionPlan.findUnique({
+        where: { id: current.subscriptionPlanId },
+      }),
+      this.prisma.subscriptionPlan.findUnique({ where: { id: dto.planId } }),
+    ]);
+    if (!targetPlan) throw new NotFoundException('Subscription plan not found');
+    if (!currentPlan) {
+      throw new NotFoundException('Current subscription plan not found');
+    }
+
+    if (targetPlan.monthlyPrice.gte(currentPlan.monthlyPrice)) {
+      throw new BadRequestException(
+        'Use checkout for an upgrade or same-tier plan',
+      );
+    }
+
+    const updated = await this.prisma.farmSubscription.update({
+      where: { id: current.id },
+      data: {
+        pendingPlanId: targetPlan.id,
+        pendingBillingPeriod: dto.billingPeriod,
+        pendingScheduledBy: userId,
+      },
+    });
+
+    await this.audit.record({
+      actorUserId: userId,
+      action: AuditAction.SUBSCRIPTION_DOWNGRADE_SCHEDULED,
+      entityType: 'FarmSubscription',
+      entityId: updated.id,
+      farmId,
+      metadata: {
+        targetPlanId: targetPlan.id,
+        effectiveAt: current.expiresAt.toISOString(),
+      },
+    });
+
+    return {
+      pending_plan_id: targetPlan.id,
+      pending_plan_name: targetPlan.name,
+      pending_billing_period: dto.billingPeriod,
+      effective_at: current.expiresAt.toISOString(),
+    };
+  }
+
+  /** Cancel a previously-scheduled downgrade (RFE-036 follow-up). Idempotent — a no-op if nothing
+   * is scheduled, since there's nothing sensitive to leak by that (already farm-scoped). */
+  async cancelScheduledDowngrade(
+    farmId: string,
+    userId: string,
+  ): Promise<void> {
+    const current = await this.prisma.farmSubscription.findFirst({
+      where: { farmId, pendingPlanId: { not: null } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!current) return;
+
+    await this.prisma.farmSubscription.update({
+      where: { id: current.id },
+      data: {
+        pendingPlanId: null,
+        pendingBillingPeriod: null,
+        pendingScheduledBy: null,
+      },
+    });
+
+    await this.audit.record({
+      actorUserId: userId,
+      action: AuditAction.SUBSCRIPTION_DOWNGRADE_CANCELLED,
+      entityType: 'FarmSubscription',
+      entityId: current.id,
+      farmId,
+    });
   }
 
   private async farmOwnerId(farmId: string): Promise<string | null> {

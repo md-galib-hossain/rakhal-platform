@@ -27,10 +27,18 @@ export class SubscriptionController {
 
   @Get()
   async get(@CurrentFarmId() farmId: string) {
-    const [e, cattle, members] = await Promise.all([
+    const [e, cattle, members, current] = await Promise.all([
       this.access.resolveEntitlement(farmId),
       this.prisma.cattle.count({ where: { farmId, isActive: true } }),
       this.prisma.farmMember.count({ where: { farmId } }),
+      // Display-only — a scheduled downgrade (RFE-036 follow-up) doesn't affect the cached
+      // entitlement above, so it's read directly off the latest row rather than threaded through
+      // `resolveEntitlement`.
+      this.prisma.farmSubscription.findFirst({
+        where: { farmId },
+        orderBy: { createdAt: 'desc' },
+        include: { pendingPlan: { select: { id: true, name: true } } },
+      }),
     ]);
     return {
       status: e.status,
@@ -43,6 +51,11 @@ export class SubscriptionController {
         max_farm_members: e.limits.maxFarmMembers,
       },
       usage: { cattle, farm_members: members },
+      pending_plan_id: current?.pendingPlan?.id ?? null,
+      pending_plan_name: current?.pendingPlan?.name ?? null,
+      pending_effective_at: current?.pendingPlan
+        ? (current.expiresAt?.toISOString() ?? null)
+        : null,
     };
   }
 }

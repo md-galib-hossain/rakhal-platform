@@ -24,6 +24,7 @@ import { ListInvoiceQueryDto } from '../dto/list-invoice-query.dto';
 import { RefundInvoiceDto } from '../dto/refund-invoice.dto';
 import { UpdateBillingProfileDto } from '../dto/update-billing-profile.dto';
 import { PreviewCheckoutDto } from '../dto/preview-checkout.dto';
+import { ScheduleDowngradeDto } from '../dto/schedule-downgrade.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
@@ -73,6 +74,27 @@ export class BillingController {
     @Body() dto: UpdateBillingProfileDto,
   ) {
     return this.billing.updateProfile(farmId, dto);
+  }
+
+  @Post('downgrade/schedule')
+  @RequirePermission('subscription.manage')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  scheduleDowngrade(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Body() dto: ScheduleDowngradeDto,
+  ) {
+    return this.billing.scheduleDowngrade(farmId, userId, dto);
+  }
+
+  @Post('downgrade/cancel')
+  @RequirePermission('subscription.manage')
+  cancelScheduledDowngrade(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+  ) {
+    return this.billing.cancelScheduledDowngrade(farmId, userId);
   }
 
   @Get('invoices')
