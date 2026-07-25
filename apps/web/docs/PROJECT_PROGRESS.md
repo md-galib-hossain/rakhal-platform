@@ -546,7 +546,16 @@
   (filters), event dialogs: heat, AI (semen batch pick → inventory decrement), pregnancy check, calving
   (spawns calves — link), dry-off. Protocols (RAKHAL-214) list/enroll if UI-feasible; else follow-up ticket.
 - **API:** §5 · **PRD:** §9
-- **Status:** `TODO`
+- **Status:** `DONE` (2026-07-26) — no Figma frames for this module, user asked to build it self-designed
+  following the established widget-grid pattern (Milk/Cattle). Real backend wired throughout, verified
+  from source not the aspirational API §5 (which lists stale routes) — `GET /reproduction/dashboard` +
+  `/events` (RAKHAL-051), heat/breeding(AI, semen-batch picker → real inventory decrement)/pregnancy-
+  diagnosis/calving(dynamic calves array)/abortion create dialogs, and a RAKHAL-214 protocols panel
+  (apply + per-instance AI/outcome/close). **Dry-off has no backend route** (`DryPeriod` is schema-only)
+  — its dashboard panel is informational only, no create flow; flagged rather than faked. Protocol
+  instance rows show `cattle_id` only (backend's `mapInstance` doesn't join cattle name/tag) — a real
+  gap, not hidden. `CattlePicker` gained an optional `gender` filter (backward-compatible) for the
+  female-only/bull pickers. See `docs/IN_FLIGHT.md` Recently Done for full build notes.
 
 #### RFE-031 — Healthcare (dashboard, sick bay, cases)
 - **Lane:** `features/health/**`, `app/(app)/healthcare/**` · **Design:** Figma health frames

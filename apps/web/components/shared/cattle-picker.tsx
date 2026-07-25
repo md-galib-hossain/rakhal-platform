@@ -21,17 +21,29 @@ export interface CattlePickerProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  /** Narrows the `/cattle` list query — e.g. Reproduction's dam/bull pickers, which the backend
+   * 400s on if the wrong gender is submitted (`getFemaleCattle`). */
+  filters?: { gender?: "MALE" | "FEMALE" | "CASTRATED_MALE" };
 }
 
 /** Search-select of the farm's animals — used by milk log, health case, repro events, tasks. */
-export function CattlePicker({ value, onValueChange, placeholder = "Select cattle…", disabled, className }: CattlePickerProps) {
+export function CattlePicker({
+  value,
+  onValueChange,
+  placeholder = "Select cattle…",
+  disabled,
+  className,
+  filters,
+}: CattlePickerProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["cattle-picker", search],
+    queryKey: ["cattle-picker", search, filters?.gender],
     queryFn: () =>
-      apiFetchPage<CattleOption>("/cattle", { searchParams: { limit: 20, search: search || undefined } }),
+      apiFetchPage<CattleOption>("/cattle", {
+        searchParams: { limit: 20, search: search || undefined, gender: filters?.gender },
+      }),
     enabled: open,
     staleTime: 30_000,
   });

@@ -8,6 +8,35 @@ Feed is a unified tab with Purchased/Prepared segments as of 2026-07-19, see the
 Liabilities/Asset Distribution + Wallet hub (Add Funds/Withdraw) + the 4-type Record transaction
 wizard, all Figma-perfect; only the record-payment/void/create-asset modals remain (no Figma yet).
 
+## Reproduction module — RFE-030, self-designed (no Figma) (2026-07-26, user request)
+User asked to complete the Reproduction module with no Figma frames available, following the
+established widget-grid UI pattern from Milk/Cattle. `features/reproduction/**` and
+`app/(app)/reproduction/**` were both empty (RFE-030 was `TODO`) — the `/reproduction` nav route
+existed but rendered the generic `RouteStub` placeholder. Built end-to-end against the real backend
+(`reproduction.service.ts`/`repro-protocol.service.ts`, verified from source — the aspirational
+`Rakhal_API.md` §5 lists stale route names like `/reproduction/ai`/`/dryoff` that don't exist).
+Dashboard (4 KPI `StatCard`s, 5 action panels, 30-day calving forecast, open-cows `DataTable`) from
+`GET /reproduction/dashboard`; unified events feed (cow/type/date filters) from `GET
+/reproduction/events` (both RAKHAL-051). Create dialogs (`FormDialog` + react-hook-form + zod,
+mirroring `ReportSicknessDialog`'s no-Figma pattern): heat, breeding/AI (semen-batch picker → real
+`GET /inventory/semen/batches`, decrements a straw on the backend), pregnancy diagnosis, calving
+(`useFieldArray` calves[], each ALIVE calf becomes a real `Cattle` record server-side), abortion. A
+RAKHAL-214 protocols panel (protocol cards + apply-to-cows dialog + per-instance record-AI/record-
+outcome/close actions). `components/shared/cattle-picker.tsx` gained an optional `gender` filter
+(backward-compatible) so the female-only/bull pickers can't submit a cow the backend would 400 on.
+**Known gaps, flagged not hidden:** dry-off has no backend route (`DryPeriod` is schema-only) — its
+dashboard panel is informational only; protocol instance rows show `cattle_id` only (the backend's
+`mapInstance` doesn't join cattle name/tag). Full file list and API surface: `docs/PROJECT_PROGRESS.md`
+RFE-030 entry / `docs/IN_FLIGHT.md` Recently Done. **Live-verified** (demo owner, real backend): full
+dashboard/action-panels/forecast/open-cows/events-feed/protocols render with real seeded data, a
+breeding/AI dialog opens correctly pre-filled from an action-panel row. Caught and fixed one real bug
+during that pass — `GET /reproduction/events` actually returns its `{items, meta}` through the
+backend's cursor-envelope interceptor (`data` = the items array, not `{items, meta}` nested inside
+`data`), same convention `apiFetchPage` already models; `reproductionApi.events()` was calling plain
+`apiFetch` and expecting the nested shape, throwing "Cannot read properties of undefined (reading
+'length')" in `ReproductionEventsFeed`. Switched to `apiFetchPage`, fixed two more latent
+`data?.items.length`-without-`items?.` spots (events feed, protocols instances list).
+
 ## Migrate Cattle + Feed Formulator bulk bars onto the shared floating dock (2026-07-21, user request)
 Follow-up to the row below: after auditing every module for dock fit (2 parallel Explore agents),
 user picked Cattle + Feed Formulator next — both already had full inline bulk-action bars (Cattle:

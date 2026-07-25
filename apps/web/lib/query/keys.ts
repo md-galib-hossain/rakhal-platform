@@ -90,6 +90,22 @@ export const qk = {
   buyers: {
     statement: (id: string, month: string) => ["buyers", "statement", id, month] as const,
   },
+  reproduction: {
+    dashboard: () => ["reproduction", "dashboard"] as const,
+    events: (filters: Record<string, string | number | undefined>) =>
+      ["reproduction", "events", filters] as const,
+    heatEvents: (cattleId: string | undefined) => ["reproduction", "heat-events", cattleId] as const,
+    breedingEvents: (cattleId: string | undefined) => ["reproduction", "breeding-events", cattleId] as const,
+    pregnancies: (cattleId: string | undefined) => ["reproduction", "pregnancies", cattleId] as const,
+    calvingEvents: (cattleId: string | undefined) => ["reproduction", "calving-events", cattleId] as const,
+    abortionEvents: (cattleId: string | undefined) => ["reproduction", "abortion-events", cattleId] as const,
+    lactations: (cattleId: string | undefined) => ["reproduction", "lactations", cattleId] as const,
+    protocols: () => ["reproduction", "protocols", "list"] as const,
+    protocolKpis: () => ["reproduction", "protocols", "kpis"] as const,
+    protocol: (id: string) => ["reproduction", "protocols", "detail", id] as const,
+    protocolInstances: (filters: Record<string, string | undefined>) =>
+      ["reproduction", "protocols", "instances", filters] as const,
+  },
   feed: {
     ingredients: () => ["feed", "ingredients"] as const,
     concentrations: () => ["feed", "concentrations", "list"] as const,

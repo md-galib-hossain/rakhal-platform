@@ -1659,6 +1659,248 @@
       "reviewError": "Could not save the review. Please try again."
     }
   },
+  "reproduction": {
+    "actions": {
+      "recordHeat": "Record Heat",
+      "recordAi": "Record AI",
+      "recordAbortion": "Record Abortion"
+    },
+    "kpi": {
+      "heatDetectionRate": "Heat Detection Rate",
+      "conceptionRate": "Conception Rate",
+      "pregnancyRate": "Pregnancy Rate",
+      "avgCalvingInterval": "Avg. Calving Interval",
+      "daysValue": "{value} days",
+      "error": "Could not load the reproduction dashboard."
+    },
+    "actionPanels": {
+      "readyForAi": "Ready for AI",
+      "inHeatNow": "In Heat Now",
+      "pregnancyCheckDue": "Pregnancy Check Due",
+      "calvingNext7Days": "Calving in Next 7 Days",
+      "dryoffDue14Days": "Dry-off Due in 14 Days",
+      "emptyReadyForAi": "No cows ready for AI.",
+      "emptyInHeatNow": "No cows in heat right now.",
+      "emptyPregnancyCheckDue": "No pregnancy checks due.",
+      "emptyCalvingNext7Days": "No calvings expected in the next 7 days.",
+      "emptyDryoffDue14Days": "No dry-offs due in the next 14 days.",
+      "recordAi": "Record AI",
+      "recordCheck": "Record Check",
+      "recordCalving": "Record Calving",
+      "daysOpen": "{value}d open",
+      "daysRemaining": "{value}d left",
+      "dryoffTarget": "Target:",
+      "error": "Could not load the action panels."
+    },
+    "calvingForecast": {
+      "title": "Calving Forecast (30 Days)",
+      "empty": "No calvings expected in the next 30 days.",
+      "error": "Could not load the calving forecast."
+    },
+    "openCows": {
+      "title": "Open Cow List",
+      "empty": "No open cows past the voluntary waiting period.",
+      "columns": {
+        "cow": "Cow",
+        "dim": "DIM",
+        "daysOpen": "Days Open",
+        "lastAiDate": "Last AI Date",
+        "conceptionRate": "Prev. Conception Rate"
+      }
+    },
+    "eventsFeed": {
+      "title": "Reproduction Events",
+      "filterCow": "Cow",
+      "filterCowPlaceholder": "All cows",
+      "filterType": "Event type",
+      "allTypes": "All types",
+      "eventTypes": {
+        "heat": "Heat",
+        "breeding": "Breeding / AI",
+        "pregnancy_diagnosis": "Pregnancy Check",
+        "calving": "Calving",
+        "abortion": "Abortion"
+      },
+      "fromDate": "From date",
+      "toDate": "To date",
+      "clearFilters": "Clear filters",
+      "empty": "No reproduction events yet.",
+      "emptyFiltered": "Try clearing a filter.",
+      "resultCount": "{count} events",
+      "error": "Could not load the events feed."
+    },
+    "dialogs": {
+      "heat": {
+        "title": "Record Heat Observation",
+        "cattle": "Cow",
+        "heatDateTime": "Date & time observed",
+        "detectionMethod": "Detection method",
+        "detectionMethodValue": {
+          "VISUAL": "Visual",
+          "COLLAR_SENSOR": "Collar Sensor",
+          "PEDOMETER": "Pedometer",
+          "MANUAL": "Manual"
+        },
+        "symptoms": {
+          "standingHeat": "Standing heat",
+          "mucusDischarge": "Mucus discharge",
+          "mountingBehavior": "Mounting behavior",
+          "restlessness": "Restlessness"
+        },
+        "notes": "Notes",
+        "notesPlaceholder": "Optional notes",
+        "submit": "Save Heat Event",
+        "createdToast": "Heat event recorded.",
+        "genericError": "Could not record the heat event. Please try again."
+      },
+      "breeding": {
+        "title": "Record Breeding / AI Event",
+        "cattle": "Cow",
+        "breedingDate": "Breeding date",
+        "breedingMethod": "Breeding method",
+        "breedingMethodValue": {
+          "AI": "Artificial Insemination",
+          "NATURAL": "Natural Service",
+          "EMBRYO_TRANSFER": "Embryo Transfer"
+        },
+        "semenBatch": "Semen batch",
+        "semenBatchPlaceholder": "Select a semen batch",
+        "strawsLeft": "{count} straws left",
+        "bull": "Bull",
+        "inseminator": "Inseminator",
+        "inseminatorPlaceholder": "Technician name",
+        "notes": "Notes",
+        "notesPlaceholder": "Optional notes",
+        "submit": "Save Breeding Event",
+        "createdToast": "Breeding event recorded.",
+        "genericError": "Could not record the breeding event. Please try again."
+      },
+      "pregnancyDiagnosis": {
+        "title": "Record Pregnancy Check",
+        "cattle": "Cow",
+        "diagnosisDate": "Check date",
+        "diagnosisMethod": "Method",
+        "methodValue": {
+          "ULTRASOUND": "Ultrasound",
+          "PALPATION": "Rectal Palpation",
+          "LAB": "Lab Test"
+        },
+        "result": "Result",
+        "resultValue": {
+          "PREGNANT": "Pregnant",
+          "NOT_PREGNANT": "Open (Not Pregnant)",
+          "SUSPECTED": "Suspected"
+        },
+        "expectedCalvingDate": "Expected calving date",
+        "notes": "Notes",
+        "notesPlaceholder": "Optional notes",
+        "submit": "Save Pregnancy Check",
+        "createdToast": "Pregnancy check recorded.",
+        "genericError": "Could not record the pregnancy check. Please try again."
+      },
+      "calving": {
+        "title": "Record Calving",
+        "cattle": "Dam",
+        "calvingDate": "Calving date",
+        "calvingEase": "Calving ease",
+        "easeValue": {
+          "NORMAL": "Normal",
+          "ASSISTED": "Assisted",
+          "DIFFICULT": "Difficult",
+          "CESAREAN": "Cesarean"
+        },
+        "placentaExpelled": "Placenta expelled",
+        "retainedPlacenta": "Retained placenta",
+        "calves": "Calves",
+        "addCalf": "Add Calf",
+        "gender": "Gender",
+        "genderValue": {
+          "FEMALE": "Female",
+          "MALE": "Male"
+        },
+        "calfStatus": "Status",
+        "calfStatusValue": {
+          "ALIVE": "Alive",
+          "STILLBORN": "Stillborn",
+          "DIED_AFTER_BIRTH": "Died After Birth"
+        },
+        "tagNumber": "Tag Number",
+        "birthWeight": "Birth Weight (kg)",
+        "notes": "Notes",
+        "notesPlaceholder": "Optional notes",
+        "submit": "Save Calving Event",
+        "createdToast": "Calving event recorded.",
+        "genericError": "Could not record the calving event. Please try again."
+      },
+      "abortion": {
+        "title": "Record Abortion",
+        "cattle": "Cow",
+        "abortionDate": "Abortion date",
+        "gestationDay": "Gestation day",
+        "suspectedCause": "Suspected cause",
+        "suspectedCausePlaceholder": "Optional",
+        "notes": "Notes",
+        "notesPlaceholder": "Optional notes",
+        "submit": "Save Abortion Event",
+        "createdToast": "Abortion event recorded.",
+        "genericError": "Could not record the abortion event. Please try again."
+      },
+      "applyProtocol": {
+        "title": "Apply Protocol",
+        "protocol": "Protocol",
+        "protocolPlaceholder": "Select a protocol",
+        "stepCount": "{count} steps",
+        "cattle": "Cows",
+        "removeCow": "Remove",
+        "startDate": "Start date",
+        "submit": "Apply Protocol",
+        "appliedToast": "Protocol applied to {count} cow(s).",
+        "genericError": "Could not apply the protocol. Please try again."
+      },
+      "protocolInstance": {
+        "recordAi": "Record AI",
+        "recordOutcome": "Record Outcome",
+        "close": "Cancel/Fail",
+        "recordAiTitle": "Record Timed AI",
+        "aiDate": "AI date",
+        "inseminator": "Inseminator",
+        "notes": "Notes",
+        "submit": "Save",
+        "aiRecordedToast": "AI step recorded.",
+        "genericError": "Could not save. Please try again.",
+        "recordOutcomeTitle": "Record Pregnancy Outcome",
+        "outcome": "Outcome",
+        "outcomeValue": {
+          "PREGNANT": "Pregnant",
+          "OPEN": "Open",
+          "PREGNANCY_LOSS": "Pregnancy Loss"
+        },
+        "outcomeRecordedToast": "Outcome recorded.",
+        "closeTitle": "Cancel or Fail Instance",
+        "closeStatus": "Status",
+        "closeStatusValue": {
+          "CANCELLED": "Cancelled",
+          "FAILED": "Failed"
+        },
+        "reason": "Reason",
+        "closedToast": "Instance updated."
+      }
+    },
+    "protocols": {
+      "title": "Reproductive Protocols",
+      "applyProtocol": "Apply Protocol",
+      "error": "Could not load protocols.",
+      "emptyProtocols": "No protocols available.",
+      "systemDefault": "System Default",
+      "durationDays": "{value}-day protocol",
+      "applied": "{value} applied",
+      "inProgress": "{value} in progress",
+      "conceptionRate": "{value}% conception",
+      "activeInstances": "Active Instances",
+      "currentStepDay": "Day {value}",
+      "emptyInstances": "No active protocol instances."
+    }
+  },
   "health": {
     "kpis": {
       "title": "Key Metrics",
@@ -1682,9 +1924,15 @@
       "title": "Health Management Center",
       "tabs": {
         "sickBay": "Sick Bay",
-        "taskHub": "Task Hub",
+        "taskHub": "Treatment Schedule",
         "healthPlan": "Health Plan",
         "safetyWithdrawals": "Safety Withdrawals"
+      },
+      "tabDescriptions": {
+        "sickBay": "Animals currently sick — open a case to log treatment or update its progress.",
+        "taskHub": "Day-by-day treatment steps due from an applied Health Plan — not the same as the sidebar's Task Hub.",
+        "healthPlan": "Reusable treatment templates (vaccination schedules, checkups) you apply to one or more animals.",
+        "safetyWithdrawals": "Animals under an active milk/meat withholding period after treatment."
       },
       "searchPlaceholder": "Find Cow by cow ID or name",
       "reportSickness": "Report Sickness",
@@ -1826,7 +2074,7 @@
         "type": {
           "medical": "Medical",
           "prevention": "Prevention",
-          "breeding": "Breeding",
+          "breeding": "Fertility Care",
           "general": "General"
         },
         "actionSteps": "{count} Action Steps",
@@ -1847,8 +2095,8 @@
         "planTypes": {
           "treatment": "Treatment",
           "treatmentDesc": "Treatment & recovery protocol.",
-          "breeding": "Breeding",
-          "breedingDesc": "Reproductive cycle management.",
+          "breeding": "Fertility Care",
+          "breedingDesc": "Medical support around fertility (not a Reproduction protocol — see the Reproduction page for AI/synchronization).",
           "prevention": "Prevention",
           "preventionDesc": "Vaccination and health maintenance."
         },
@@ -1861,7 +2109,7 @@
         "categoryOptions": {
           "TREATMENT": "Treatment",
           "PREVENTION": "Prevention",
-          "BREEDING": "Breeding",
+          "BREEDING": "Fertility Care",
           "VACCINATION": "Vaccination",
           "DEWORMING": "Deworming",
           "ROUTINE": "Routine"

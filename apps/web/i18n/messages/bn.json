@@ -1659,6 +1659,248 @@
       "reviewError": "পর্যালোচনা সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।"
     }
   },
+  "reproduction": {
+    "actions": {
+      "recordHeat": "হিট রেকর্ড করুন",
+      "recordAi": "এআই রেকর্ড করুন",
+      "recordAbortion": "গর্ভপাত রেকর্ড করুন"
+    },
+    "kpi": {
+      "heatDetectionRate": "হিট শনাক্তকরণ হার",
+      "conceptionRate": "গর্ভধারণ হার",
+      "pregnancyRate": "গর্ভাবস্থার হার",
+      "avgCalvingInterval": "গড় বাছুর প্রসবের ব্যবধান",
+      "daysValue": "{value} দিন",
+      "error": "প্রজনন ড্যাশবোর্ড লোড করা যায়নি।"
+    },
+    "actionPanels": {
+      "readyForAi": "এআই-এর জন্য প্রস্তুত",
+      "inHeatNow": "এখন হিটে আছে",
+      "pregnancyCheckDue": "গর্ভধারণ পরীক্ষা বাকি",
+      "calvingNext7Days": "আগামী ৭ দিনে বাছুর প্রসব",
+      "dryoffDue14Days": "১৪ দিনের মধ্যে ড্রাই-অফ বাকি",
+      "emptyReadyForAi": "এআই-এর জন্য প্রস্তুত কোনো গরু নেই।",
+      "emptyInHeatNow": "এখন হিটে কোনো গরু নেই।",
+      "emptyPregnancyCheckDue": "কোনো গর্ভধারণ পরীক্ষা বাকি নেই।",
+      "emptyCalvingNext7Days": "আগামী ৭ দিনে কোনো বাছুর প্রসবের সম্ভাবনা নেই।",
+      "emptyDryoffDue14Days": "আগামী ১৪ দিনে কোনো ড্রাই-অফ বাকি নেই।",
+      "recordAi": "এআই রেকর্ড করুন",
+      "recordCheck": "পরীক্ষা রেকর্ড করুন",
+      "recordCalving": "বাছুর প্রসব রেকর্ড করুন",
+      "daysOpen": "{value} দিন ওপেন",
+      "daysRemaining": "{value} দিন বাকি",
+      "dryoffTarget": "লক্ষ্য:",
+      "error": "অ্যাকশন প্যানেল লোড করা যায়নি।"
+    },
+    "calvingForecast": {
+      "title": "বাছুর প্রসবের পূর্বাভাস (৩০ দিন)",
+      "empty": "আগামী ৩০ দিনে কোনো বাছুর প্রসবের সম্ভাবনা নেই।",
+      "error": "বাছুর প্রসবের পূর্বাভাস লোড করা যায়নি।"
+    },
+    "openCows": {
+      "title": "ওপেন গরুর তালিকা",
+      "empty": "প্রতীক্ষার সময়সীমা পার হওয়া কোনো ওপেন গরু নেই।",
+      "columns": {
+        "cow": "গরু",
+        "dim": "DIM",
+        "daysOpen": "ওপেন দিন",
+        "lastAiDate": "সর্বশেষ এআই তারিখ",
+        "conceptionRate": "পূর্ববর্তী গর্ভধারণ হার"
+      }
+    },
+    "eventsFeed": {
+      "title": "প্রজনন ইভেন্ট",
+      "filterCow": "গরু",
+      "filterCowPlaceholder": "সব গরু",
+      "filterType": "ইভেন্টের ধরন",
+      "allTypes": "সব ধরন",
+      "eventTypes": {
+        "heat": "হিট",
+        "breeding": "প্রজনন / এআই",
+        "pregnancy_diagnosis": "গর্ভধারণ পরীক্ষা",
+        "calving": "বাছুর প্রসব",
+        "abortion": "গর্ভপাত"
+      },
+      "fromDate": "শুরুর তারিখ",
+      "toDate": "শেষ তারিখ",
+      "clearFilters": "ফিল্টার মুছুন",
+      "empty": "এখনো কোনো প্রজনন ইভেন্ট নেই।",
+      "emptyFiltered": "একটি ফিল্টার মুছে দেখুন।",
+      "resultCount": "{count}টি ইভেন্ট",
+      "error": "ইভেন্ট ফিড লোড করা যায়নি।"
+    },
+    "dialogs": {
+      "heat": {
+        "title": "হিট পর্যবেক্ষণ রেকর্ড করুন",
+        "cattle": "গরু",
+        "heatDateTime": "পর্যবেক্ষণের তারিখ ও সময়",
+        "detectionMethod": "শনাক্তকরণ পদ্ধতি",
+        "detectionMethodValue": {
+          "VISUAL": "দৃষ্টিগত",
+          "COLLAR_SENSOR": "কলার সেন্সর",
+          "PEDOMETER": "পেডোমিটার",
+          "MANUAL": "ম্যানুয়াল"
+        },
+        "symptoms": {
+          "standingHeat": "স্ট্যান্ডিং হিট",
+          "mucusDischarge": "মিউকাস ডিসচার্জ",
+          "mountingBehavior": "মাউন্টিং আচরণ",
+          "restlessness": "অস্থিরতা"
+        },
+        "notes": "নোট",
+        "notesPlaceholder": "ঐচ্ছিক নোট",
+        "submit": "হিট ইভেন্ট সংরক্ষণ করুন",
+        "createdToast": "হিট ইভেন্ট রেকর্ড হয়েছে।",
+        "genericError": "হিট ইভেন্ট রেকর্ড করা যায়নি। আবার চেষ্টা করুন।"
+      },
+      "breeding": {
+        "title": "প্রজনন / এআই ইভেন্ট রেকর্ড করুন",
+        "cattle": "গরু",
+        "breedingDate": "প্রজননের তারিখ",
+        "breedingMethod": "প্রজনন পদ্ধতি",
+        "breedingMethodValue": {
+          "AI": "কৃত্রিম প্রজনন",
+          "NATURAL": "প্রাকৃতিক প্রজনন",
+          "EMBRYO_TRANSFER": "ভ্রূণ স্থানান্তর"
+        },
+        "semenBatch": "সিমেন ব্যাচ",
+        "semenBatchPlaceholder": "একটি সিমেন ব্যাচ নির্বাচন করুন",
+        "strawsLeft": "{count}টি স্ট্র বাকি",
+        "bull": "ষাঁড়",
+        "inseminator": "ইনসেমিনেটর",
+        "inseminatorPlaceholder": "টেকনিশিয়ানের নাম",
+        "notes": "নোট",
+        "notesPlaceholder": "ঐচ্ছিক নোট",
+        "submit": "প্রজনন ইভেন্ট সংরক্ষণ করুন",
+        "createdToast": "প্রজনন ইভেন্ট রেকর্ড হয়েছে।",
+        "genericError": "প্রজনন ইভেন্ট রেকর্ড করা যায়নি। আবার চেষ্টা করুন।"
+      },
+      "pregnancyDiagnosis": {
+        "title": "গর্ভধারণ পরীক্ষা রেকর্ড করুন",
+        "cattle": "গরু",
+        "diagnosisDate": "পরীক্ষার তারিখ",
+        "diagnosisMethod": "পদ্ধতি",
+        "methodValue": {
+          "ULTRASOUND": "আল্ট্রাসাউন্ড",
+          "PALPATION": "রেক্টাল প্যালপেশন",
+          "LAB": "ল্যাব পরীক্ষা"
+        },
+        "result": "ফলাফল",
+        "resultValue": {
+          "PREGNANT": "গর্ভবতী",
+          "NOT_PREGNANT": "ওপেন (গর্ভবতী নয়)",
+          "SUSPECTED": "সন্দেহভাজন"
+        },
+        "expectedCalvingDate": "প্রত্যাশিত বাছুর প্রসবের তারিখ",
+        "notes": "নোট",
+        "notesPlaceholder": "ঐচ্ছিক নোট",
+        "submit": "গর্ভধারণ পরীক্ষা সংরক্ষণ করুন",
+        "createdToast": "গর্ভধারণ পরীক্ষা রেকর্ড হয়েছে।",
+        "genericError": "গর্ভধারণ পরীক্ষা রেকর্ড করা যায়নি। আবার চেষ্টা করুন।"
+      },
+      "calving": {
+        "title": "বাছুর প্রসব রেকর্ড করুন",
+        "cattle": "মা গরু",
+        "calvingDate": "প্রসবের তারিখ",
+        "calvingEase": "প্রসবের সহজতা",
+        "easeValue": {
+          "NORMAL": "স্বাভাবিক",
+          "ASSISTED": "সহায়তাপ্রাপ্ত",
+          "DIFFICULT": "কঠিন",
+          "CESAREAN": "সিজারিয়ান"
+        },
+        "placentaExpelled": "প্লাসেন্টা নির্গত হয়েছে",
+        "retainedPlacenta": "প্লাসেন্টা আটকে আছে",
+        "calves": "বাছুর",
+        "addCalf": "বাছুর যোগ করুন",
+        "gender": "লিঙ্গ",
+        "genderValue": {
+          "FEMALE": "স্ত্রী",
+          "MALE": "পুরুষ"
+        },
+        "calfStatus": "অবস্থা",
+        "calfStatusValue": {
+          "ALIVE": "জীবিত",
+          "STILLBORN": "মৃত জন্ম",
+          "DIED_AFTER_BIRTH": "জন্মের পর মৃত্যু"
+        },
+        "tagNumber": "ট্যাগ নম্বর",
+        "birthWeight": "জন্ম ওজন (কেজি)",
+        "notes": "নোট",
+        "notesPlaceholder": "ঐচ্ছিক নোট",
+        "submit": "বাছুর প্রসব সংরক্ষণ করুন",
+        "createdToast": "বাছুর প্রসব রেকর্ড হয়েছে।",
+        "genericError": "বাছুর প্রসব রেকর্ড করা যায়নি। আবার চেষ্টা করুন।"
+      },
+      "abortion": {
+        "title": "গর্ভপাত রেকর্ড করুন",
+        "cattle": "গরু",
+        "abortionDate": "গর্ভপাতের তারিখ",
+        "gestationDay": "গর্ভকালীন দিন",
+        "suspectedCause": "সন্দেহভাজন কারণ",
+        "suspectedCausePlaceholder": "ঐচ্ছিক",
+        "notes": "নোট",
+        "notesPlaceholder": "ঐচ্ছিক নোট",
+        "submit": "গর্ভপাত সংরক্ষণ করুন",
+        "createdToast": "গর্ভপাত রেকর্ড হয়েছে।",
+        "genericError": "গর্ভপাত রেকর্ড করা যায়নি। আবার চেষ্টা করুন।"
+      },
+      "applyProtocol": {
+        "title": "প্রোটোকল প্রয়োগ করুন",
+        "protocol": "প্রোটোকল",
+        "protocolPlaceholder": "একটি প্রোটোকল নির্বাচন করুন",
+        "stepCount": "{count}টি ধাপ",
+        "cattle": "গরু",
+        "removeCow": "সরান",
+        "startDate": "শুরুর তারিখ",
+        "submit": "প্রোটোকল প্রয়োগ করুন",
+        "appliedToast": "{count}টি গরুতে প্রোটোকল প্রয়োগ হয়েছে।",
+        "genericError": "প্রোটোকল প্রয়োগ করা যায়নি। আবার চেষ্টা করুন।"
+      },
+      "protocolInstance": {
+        "recordAi": "এআই রেকর্ড করুন",
+        "recordOutcome": "ফলাফল রেকর্ড করুন",
+        "close": "বাতিল/ব্যর্থ",
+        "recordAiTitle": "টাইমড এআই রেকর্ড করুন",
+        "aiDate": "এআই তারিখ",
+        "inseminator": "ইনসেমিনেটর",
+        "notes": "নোট",
+        "submit": "সংরক্ষণ করুন",
+        "aiRecordedToast": "এআই ধাপ রেকর্ড হয়েছে।",
+        "genericError": "সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।",
+        "recordOutcomeTitle": "গর্ভধারণের ফলাফল রেকর্ড করুন",
+        "outcome": "ফলাফল",
+        "outcomeValue": {
+          "PREGNANT": "গর্ভবতী",
+          "OPEN": "ওপেন",
+          "PREGNANCY_LOSS": "গর্ভপাত"
+        },
+        "outcomeRecordedToast": "ফলাফল রেকর্ড হয়েছে।",
+        "closeTitle": "ইনস্ট্যান্স বাতিল বা ব্যর্থ করুন",
+        "closeStatus": "অবস্থা",
+        "closeStatusValue": {
+          "CANCELLED": "বাতিল",
+          "FAILED": "ব্যর্থ"
+        },
+        "reason": "কারণ",
+        "closedToast": "ইনস্ট্যান্স আপডেট হয়েছে।"
+      }
+    },
+    "protocols": {
+      "title": "প্রজনন প্রোটোকল",
+      "applyProtocol": "প্রোটোকল প্রয়োগ করুন",
+      "error": "প্রোটোকল লোড করা যায়নি।",
+      "emptyProtocols": "কোনো প্রোটোকল নেই।",
+      "systemDefault": "সিস্টেম ডিফল্ট",
+      "durationDays": "{value}-দিনের প্রোটোকল",
+      "applied": "{value}টি প্রয়োগ হয়েছে",
+      "inProgress": "{value}টি চলমান",
+      "conceptionRate": "{value}% গর্ভধারণ",
+      "activeInstances": "সক্রিয় ইনস্ট্যান্স",
+      "currentStepDay": "দিন {value}",
+      "emptyInstances": "কোনো সক্রিয় প্রোটোকল ইনস্ট্যান্স নেই।"
+    }
+  },
   "health": {
     "kpis": {
       "title": "মূল সূচক",
@@ -1682,9 +1924,15 @@
       "title": "স্বাস্থ্য ব্যবস্থাপনা কেন্দ্র",
       "tabs": {
         "sickBay": "সিক বে",
-        "taskHub": "টাস্ক হাব",
+        "taskHub": "চিকিৎসা সময়সূচী",
         "healthPlan": "স্বাস্থ্য পরিকল্পনা",
         "safetyWithdrawals": "সেফটি উইথড্রয়াল"
+      },
+      "tabDescriptions": {
+        "sickBay": "বর্তমানে অসুস্থ প্রাণী — চিকিৎসা লগ বা অগ্রগতি আপডেট করতে একটি কেস খুলুন।",
+        "taskHub": "প্রয়োগ করা স্বাস্থ্য পরিকল্পনা থেকে দৈনিক চিকিৎসার ধাপ — সাইডবারের টাস্ক হাবের মতো নয়।",
+        "healthPlan": "পুনর্ব্যবহারযোগ্য চিকিৎসা টেমপ্লেট (টিকা সময়সূচী, চেকআপ) যা এক বা একাধিক প্রাণীতে প্রয়োগ করা যায়।",
+        "safetyWithdrawals": "চিকিৎসার পর সক্রিয় দুধ/মাংস প্রত্যাহার সময়সীমায় থাকা প্রাণী।"
       },
       "searchPlaceholder": "গরুর আইডি বা নাম দিয়ে খুঁজুন",
       "reportSickness": "অসুস্থতা রিপোর্ট করুন",
@@ -1826,7 +2074,7 @@
         "type": {
           "medical": "মেডিকেল",
           "prevention": "প্রতিরোধ",
-          "breeding": "প্রজনন",
+          "breeding": "উর্বরতা যত্ন",
           "general": "সাধারণ"
         },
         "actionSteps": "{count} টি কর্ম ধাপ",
@@ -1847,8 +2095,8 @@
         "planTypes": {
           "treatment": "চিকিৎসা",
           "treatmentDesc": "চিকিৎসা ও পুনরুদ্ধার প্রোটোকল।",
-          "breeding": "প্রজনন",
-          "breedingDesc": "প্রজনন চক্র ব্যবস্থাপনা।",
+          "breeding": "উর্বরতা যত্ন",
+          "breedingDesc": "উর্বরতা সংক্রান্ত চিকিৎসা সহায়তা (প্রজনন প্রোটোকল নয় — এআই/সিঙ্ক্রোনাইজেশনের জন্য প্রজনন পাতা দেখুন)।",
           "prevention": "প্রতিরোধ",
           "preventionDesc": "টিকাদান ও স্বাস্থ্য রক্ষণাবেক্ষণ।"
         },
@@ -1861,7 +2109,7 @@
         "categoryOptions": {
           "TREATMENT": "চিকিৎসা",
           "PREVENTION": "প্রতিরোধ",
-          "BREEDING": "প্রজনন",
+          "BREEDING": "উর্বরতা যত্ন",
           "VACCINATION": "টিকাদান",
           "DEWORMING": "কৃমিনাশক",
           "ROUTINE": "নিয়মিত"

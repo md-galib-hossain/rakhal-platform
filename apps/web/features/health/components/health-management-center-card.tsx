@@ -59,6 +59,8 @@ export function HealthManagementCenterCard({
       }
       className="w-full"
     >
+      <p className="text-xs text-muted-foreground">{t(`tabDescriptions.${tab}`)}</p>
+
       {tab === "sickBay" ? (
         <div className="flex items-center justify-between gap-3">
           <FilterBar searchKey="q" searchPlaceholder={t("searchPlaceholder")} />
