@@ -4,6 +4,7 @@ import { AuthModule } from '../auth/auth.module';
 import { BillingModule } from '../billing/billing.module';
 import { ComplianceModule } from '../compliance/compliance.module';
 import { SupportModule } from '../support/support.module';
+import { SubscriptionModule } from '../subscription/subscription.module';
 import { EmailModule } from '../email/email.module';
 import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { FarmService } from './application/services/farm.service';
@@ -25,6 +26,7 @@ import { FarmController } from './presentation/controllers/farm.controller';
     AuthModule,
     LoggerModule,
     SupportModule,
+    SubscriptionModule,
     BillingModule,
     ComplianceModule,
     EmailModule,

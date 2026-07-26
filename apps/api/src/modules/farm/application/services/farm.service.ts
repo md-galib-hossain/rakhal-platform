@@ -10,6 +10,7 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { SYSTEM_ROLES } from 'src/modules/permission/domain/permission-catalogue';
 import { TrialAbuseService } from 'src/modules/support/application/services/trial-abuse.service';
+import { SubscriptionLifecycleService } from 'src/modules/subscription/application/services/subscription-lifecycle.service';
 import { ReferralService } from 'src/modules/billing/application/services/referral.service';
 import { LegalConsentService } from 'src/modules/compliance/application/services/legal-consent.service';
 import { TransactionalEmailService } from 'src/modules/email/application/services/transactional-email.service';
@@ -32,6 +33,7 @@ export class FarmService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly trialAbuse: TrialAbuseService,
+    private readonly subscriptionLifecycle: SubscriptionLifecycleService,
     private readonly referrals: ReferralService,
     private readonly legal: LegalConsentService,
     private readonly txEmail: TransactionalEmailService,
@@ -104,6 +106,16 @@ export class FarmService {
       await this.trialAbuse.grantTrialIfEligible(farm.id, userId);
     } catch (err) {
       this.log.error('Trial provisioning failed (farm still created)', err);
+    }
+
+    // No farm is ever born dead (PRD §31.1's Free floor): whether the trial
+    // was skipped (repeat owner) or failed above, this is a no-op if the farm
+    // already has a subscription and otherwise lands it on Free instead of
+    // the read-only `NONE` entitlement.
+    try {
+      await this.subscriptionLifecycle.ensureUsableSubscription(farm.id);
+    } catch (err) {
+      this.log.error('Free-plan fallback failed (farm still created)', err);
     }
 
     // REF-01: bind the referral captured at signup, once, permanently.

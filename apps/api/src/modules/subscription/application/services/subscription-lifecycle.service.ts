@@ -10,6 +10,7 @@ import { TransactionalEmailService } from 'src/modules/email/application/service
 import { EmailTemplate } from 'src/modules/email/domain/enums/email-template.enum';
 import {
   GRACE_PERIOD_DAYS,
+  PLAN_NAMES,
   TRIAL_DURATION_DAYS,
   TRIAL_PLAN_NAME,
 } from '../../domain/subscription-features';
@@ -116,6 +117,56 @@ export class SubscriptionLifecycleService {
   }
 
   /**
+   * Free-plan safety net (PRD §31.1: "then auto-downgrade to Free" — the Free
+   * tier is the floor every farm should land on, never `NONE`). Idempotent via
+   * `provision`'s existing-row check, so it's safe to call unconditionally
+   * after a trial attempt that was skipped (repeat-owner) or failed (missing
+   * plan seed, transient error) — a farm is never left with no subscription
+   * at all just because it didn't qualify for a trial.
+   */
+  async ensureUsableSubscription(
+    farmId: string,
+  ): Promise<FarmSubscription | null> {
+    return this.provision(farmId, {
+      planName: PLAN_NAMES.FREE,
+      status: SubscriptionStatus.ACTIVE,
+      durationDays: null,
+    });
+  }
+
+  /**
+   * Downgrade an EXPIRED farm onto Free (PRD §31.1's auto-downgrade promise —
+   * distinct from the `PAST_DUE` grace, which is for a paid plan that lapsed
+   * mid-cycle). Unlike `ensureUsableSubscription`, this always creates a fresh
+   * `ACTIVE` row even though one already exists (same "new row per state
+   * change" pattern as `activate()`), since the farm's *current* row is the
+   * just-expired one this replaces going forward.
+   */
+  private async downgradeToFree(farmId: string): Promise<void> {
+    const plan = await this.prisma.subscriptionPlan.findUnique({
+      where: { name: PLAN_NAMES.FREE },
+      select: { id: true },
+    });
+    if (!plan) {
+      this.log.warn('Free plan not seeded — cannot auto-downgrade', {
+        farmId,
+      });
+      return;
+    }
+
+    await this.prisma.farmSubscription.create({
+      data: {
+        farmId,
+        subscriptionPlanId: plan.id,
+        status: SubscriptionStatus.ACTIVE,
+        startsAt: new Date(),
+        expiresAt: null,
+      },
+    });
+    this.log.info('Farm auto-downgraded to Free after expiry', { farmId });
+  }
+
+  /**
    * Daily expiry transitions (SUB-03). Idempotent + re-run-safe (only rows
    * matching the time condition move; a re-run finds none). Self-correcting: a
    * subscription that expired while the sweep was down can advance
@@ -187,6 +238,11 @@ export class SubscriptionLifecycleService {
         where: { id: { in: toExpired.map((s) => s.id) } },
         data: { status: SubscriptionStatus.EXPIRED },
       });
+      // Auto-downgrade to Free (PRD §31.1) rather than leaving the farm on a
+      // dead `EXPIRED` row forever — this is the floor, not a dead end.
+      for (const row of toExpired) {
+        await this.downgradeToFree(row.farmId);
+      }
     }
 
     const affected = new Set([...toPastDue, ...toExpired].map((s) => s.farmId));

@@ -9,6 +9,7 @@ enum EmailTemplate {
   SUBSCRIPTION_RENEWAL
   FARM_REPORT
   OTP_VERIFICATION
+  TEAM_INVITE
 }
 
 enum EmailStatus {

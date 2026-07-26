@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { emailConfig } from 'src/core/config/env';
 import { PrismaModule } from 'src/core/database/prisma/prisma.module';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { AuthModule } from '../auth/auth.module';
@@ -6,6 +8,7 @@ import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { AuditModule } from '../audit/audit.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
+import { EmailModule } from '../email/email.module';
 import { SettingsService } from './application/services/settings.service';
 import { RolesService } from './application/services/roles.service';
 import { TeamService } from './application/services/team.service';
@@ -24,6 +27,8 @@ import { WorkspaceSettingsController } from './presentation/controllers/workspac
     PermissionModule,
     AuditModule,
     SubscriptionModule,
+    EmailModule,
+    ConfigModule.forFeature(emailConfig),
   ],
   controllers: [
     SettingsController,

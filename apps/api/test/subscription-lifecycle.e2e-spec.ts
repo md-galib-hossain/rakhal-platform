@@ -99,16 +99,73 @@ describe('Subscription lifecycle (e2e)', () => {
     expect(ent.status).toBe('PAST_DUE');
     expect(ent.features.length).toBeGreaterThan(0);
 
-    // Push past the 3-day grace → sweep → EXPIRED (no features).
+    // Push past the 3-day grace → sweep → EXPIRED, then auto-downgraded to
+    // Free (PRD §31.1 "then auto-downgrade to Free" — B7: never a dead end).
     await prisma.farmSubscription.updateMany({
       where: { farmId: farm.id },
       data: { expiresAt: new Date(Date.now() - 4 * DAY_MS) },
     });
     await access.invalidateFarm(farm.id);
     await lifecycle.runExpirySweep();
+
+    const expiredRow = await prisma.farmSubscription.findFirst({
+      where: { farmId: farm.id },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(expiredRow?.status).toBe('EXPIRED');
+
     ent = await access.resolveEntitlement(farm.id);
-    expect(ent.status).toBe('EXPIRED');
-    expect(ent.features).toEqual([]);
+    expect(ent.status).toBe('ACTIVE');
+    expect(ent.planName).toBe(PLAN_NAMES.FREE);
+    expect(ent.features.length).toBeGreaterThan(0);
+    expect(ent.limits.maxCattle).toBe(20);
+    expect(ent.limits.maxFarmMembers).toBe(2);
+  });
+
+  it('B6: a farm with no subscription at all lands on Free via ensureUsableSubscription', async () => {
+    const ownerUser = await prisma.user.findUnique({
+      where: { email: 'owner@demo.rakhal.test' },
+      select: { id: true },
+    });
+    if (!ownerUser) throw new Error('demo owner missing — run `pnpm seed`');
+
+    const farm = await prisma.farm.create({
+      data: {
+        name: 'E2E Second Farm (no trial)',
+        slug: `e2e-second-farm-${Date.now()}`,
+        ownerId: ownerUser.id,
+      },
+      select: { id: true },
+    });
+
+    try {
+      // Simulates a repeat-owner farm (TrialAbuseService blocks a 2nd trial) —
+      // no FarmSubscription row exists yet, so entitlement is `NONE`.
+      let ent = await access.resolveEntitlement(farm.id);
+      expect(ent.status).toBe('NONE');
+
+      await lifecycle.ensureUsableSubscription(farm.id);
+      await access.invalidateFarm(farm.id);
+      ent = await access.resolveEntitlement(farm.id);
+
+      expect(ent.status).toBe('ACTIVE');
+      expect(ent.planName).toBe(PLAN_NAMES.FREE);
+      expect(ent.features.length).toBeGreaterThan(0);
+
+      // Idempotent — calling it again on a farm that already has a
+      // subscription must not create a second row.
+      const before = await prisma.farmSubscription.count({
+        where: { farmId: farm.id },
+      });
+      await lifecycle.ensureUsableSubscription(farm.id);
+      const after = await prisma.farmSubscription.count({
+        where: { farmId: farm.id },
+      });
+      expect(after).toBe(before);
+    } finally {
+      await prisma.farmSubscription.deleteMany({ where: { farmId: farm.id } });
+      await prisma.farm.delete({ where: { id: farm.id } }).catch(() => undefined);
+    }
   });
 
   describe('Scheduled downgrade (RFE-036 follow-up)', () => {
@@ -173,7 +230,7 @@ describe('Subscription lifecycle (e2e)', () => {
       const schedule = await billing.scheduleDowngrade(
         downgradeFarmId,
         ownerUserId,
-        { planId: starterPlanId, billingPeriod: 'MONTHLY' as never },
+        { planId: starterPlanId, billingPeriod: 'MONTHLY' },
       );
       expect(schedule.pending_plan_id).toBe(starterPlanId);
 
@@ -194,7 +251,7 @@ describe('Subscription lifecycle (e2e)', () => {
       await expect(
         billing.scheduleDowngrade(downgradeFarmId, ownerUserId, {
           planId: proPlanId,
-          billingPeriod: 'MONTHLY' as never,
+          billingPeriod: 'MONTHLY',
         }),
       ).rejects.toThrow();
     });
@@ -211,7 +268,7 @@ describe('Subscription lifecycle (e2e)', () => {
     it('(d) the sweep applies a pending switch instead of marking PAST_DUE, once expiry lands', async () => {
       await billing.scheduleDowngrade(downgradeFarmId, ownerUserId, {
         planId: starterPlanId,
-        billingPeriod: 'MONTHLY' as never,
+        billingPeriod: 'MONTHLY',
       });
       // Backdate expiry into the past — as if the 20 days had elapsed.
       await prisma.farmSubscription.updateMany({

@@ -4,6 +4,7 @@
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -16,6 +17,7 @@ import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { TeamService } from '../../application/services/team.service';
 import { InviteTeamMemberDto } from '../dto/invite-team-member.dto';
+import { ChangeMemberRoleDto } from '../dto/change-member-role.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Settings â†’ Team (PRD Â§21.4 / API Â§18). `/api/v1/settings/team`. Token tenancy + RBAC. */
@@ -52,6 +54,23 @@ export class TeamController {
   @RequirePermission('team.invite')
   resend(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.teamService.resendInvite(farmId, id);
+  }
+
+  @Delete('invites/:id')
+  @RequirePermission('team.invite')
+  revokeInvite(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.teamService.revokeInvite(farmId, id);
+  }
+
+  @Patch(':id/role')
+  @RequirePermission('team.invite')
+  changeRole(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body() dto: ChangeMemberRoleDto,
+  ) {
+    return this.teamService.changeRole(farmId, userId, id, dto);
   }
 
   @Delete(':id')

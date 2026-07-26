@@ -1,23 +1,31 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import type { ConfigType } from '@nestjs/config';
 import { InvitationStatus } from '@prisma/client';
+import { AppLanguage } from 'src/common/i18n/language';
+import { emailConfig } from 'src/core/config/env';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { PermissionService } from 'src/modules/permission/application/services/permission.service';
+import { SubscriptionAccessService } from 'src/modules/subscription/application/services/subscription-access.service';
+import { TransactionalEmailService } from 'src/modules/email/application/services/transactional-email.service';
+import { EmailTemplate } from 'src/modules/email/domain/enums/email-template.enum';
 import { InviteTeamMemberDto } from '../../presentation/dto/invite-team-member.dto';
+import { ChangeMemberRoleDto } from '../../presentation/dto/change-member-role.dto';
 
 /** Invites live for this many days before they expire (PRD §21.4). */
 const INVITE_TTL_DAYS = 7;
 
 /**
  * Team & Invites (PRD §21.4 / API §18 — RAKHAL-030). Lists active members + pending
- * invites, invites by phone (SMS delivery stubbed until a provider is chosen — PRD
- * §5 blocked), and removes members (never self or the farm owner). `farmId` from the
- * token context.
+ * invites, invites by email (no SMS provider is wired — `phone` is optional metadata
+ * for a future SMS adapter), and removes members (never self or the farm owner).
+ * `farmId` from the token context.
  */
 @Injectable()
 export class TeamService {
@@ -26,6 +34,10 @@ export class TeamService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly permissions: PermissionService,
+    private readonly subscriptionAccess: SubscriptionAccessService,
+    private readonly txEmail: TransactionalEmailService,
+    @Inject(emailConfig.KEY)
+    private readonly email: ConfigType<typeof emailConfig>,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(TeamService.name);
@@ -73,7 +85,7 @@ export class TeamService {
       invite_id: i.id,
       name: i.name,
       phone: i.phone,
-      email: null,
+      email: i.email,
       role: i.role.name.toLowerCase(),
       status: i.expiresAt < now ? 'expired' : 'pending',
       last_active_at: null,
@@ -86,20 +98,33 @@ export class TeamService {
   async invite(farmId: string, userId: string, dto: InviteTeamMemberDto) {
     const roleId = await this.resolveRoleId(farmId, dto.role);
 
-    // Already an active member with this phone? (phone not on User yet — guard on pending invites only.)
     const existing = await this.prisma.farmInvitation.findFirst({
       where: {
         farmId,
-        phone: dto.phone,
+        email: { equals: dto.email, mode: 'insensitive' },
         status: InvitationStatus.PENDING,
       },
       select: { id: true },
     });
     if (existing) {
       throw new ConflictException(
-        'A pending invite already exists for this phone number',
+        'A pending invite already exists for this email',
       );
     }
+
+    // RAKHAL-219 / PRD §31.3 assertMemberLimit — check the seat ceiling at
+    // invite time (counting pending invites, not just accepted members), so
+    // the owner learns about a full plan before the invitee ever signs up.
+    const [memberCount, pendingInviteCount] = await Promise.all([
+      this.prisma.farmMember.count({ where: { farmId } }),
+      this.prisma.farmInvitation.count({
+        where: { farmId, status: InvitationStatus.PENDING },
+      }),
+    ]);
+    await this.subscriptionAccess.assertMemberSeatAvailable(
+      farmId,
+      memberCount + pendingInviteCount,
+    );
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + INVITE_TTL_DAYS);
@@ -107,20 +132,19 @@ export class TeamService {
     const invite = await this.prisma.farmInvitation.create({
       data: {
         farmId,
+        email: dto.email,
         phone: dto.phone,
         name: dto.name,
         roleId,
         invitedById: userId,
         expiresAt,
       },
-      select: { id: true, expiresAt: true },
+      select: { id: true, expiresAt: true, token: true },
     });
 
-    // SMS delivery is stubbed until an SMS provider is chosen (PRD §5 blocked).
-    this.log.info('Team invite created (SMS stubbed)', {
-      inviteId: invite.id,
-      farmId,
-    });
+    await this.sendInviteEmail({ farmId, userId, inviteId: invite.id });
+
+    this.log.info('Team invite created', { inviteId: invite.id, farmId });
     return {
       invite_id: invite.id,
       sms_sent: false,
@@ -145,12 +169,122 @@ export class TeamService {
       select: { id: true, expiresAt: true },
     });
 
-    this.log.info('Team invite resent (SMS stubbed)', { inviteId: id, farmId });
+    await this.sendInviteEmail({
+      farmId,
+      userId: invite.invitedById,
+      inviteId: id,
+    });
+
+    this.log.info('Team invite resent', { inviteId: id, farmId });
     return {
       invite_id: updated.id,
       sms_sent: false,
       expires_at: updated.expiresAt,
     };
+  }
+
+  /** `DELETE /settings/team/invites/:id` — cancel a pending invite. Never redeemable again. */
+  async revokeInvite(farmId: string, id: string) {
+    const invite = await this.prisma.farmInvitation.findFirst({
+      where: { id, farmId },
+      select: { id: true, status: true },
+    });
+    if (!invite) throw new NotFoundException('Invite not found');
+    if (invite.status === InvitationStatus.ACCEPTED) {
+      throw new BadRequestException('Invite has already been accepted');
+    }
+
+    await this.prisma.farmInvitation.update({
+      where: { id },
+      data: { status: InvitationStatus.REVOKED },
+    });
+
+    this.log.info('Team invite revoked', { inviteId: id, farmId });
+    return { id, revoked: true };
+  }
+
+  /** `PATCH /settings/team/:id/role` — reassign an existing member's role. */
+  async changeRole(
+    farmId: string,
+    requesterId: string,
+    memberId: string,
+    dto: ChangeMemberRoleDto,
+  ) {
+    const member = await this.prisma.farmMember.findFirst({
+      where: { id: memberId, farmId },
+      select: { id: true, userId: true },
+    });
+    if (!member) throw new NotFoundException('Team member not found');
+
+    const farm = await this.prisma.farm.findUniqueOrThrow({
+      where: { id: farmId },
+      select: { ownerId: true },
+    });
+    if (member.userId === farm.ownerId) {
+      throw new BadRequestException("The farm owner's role cannot be changed");
+    }
+
+    const roleId = await this.resolveRoleId(farmId, dto.role);
+    await this.prisma.farmMember.update({
+      where: { id: member.id },
+      data: { roleId },
+    });
+    await this.permissions.invalidateForFarm(member.userId, farmId);
+
+    this.log.info('Team member role changed', {
+      memberId,
+      farmId,
+      requesterId,
+    });
+    return { id: member.id, role: dto.role };
+  }
+
+  private async sendInviteEmail(input: {
+    farmId: string;
+    userId: string;
+    inviteId: string;
+  }): Promise<void> {
+    const invite = await this.prisma.farmInvitation.findUniqueOrThrow({
+      where: { id: input.inviteId },
+      select: {
+        token: true,
+        email: true,
+        expiresAt: true,
+        role: { select: { name: true } },
+        farm: { select: { name: true } },
+        invitedBy: { select: { name: true, preferredLanguage: true } },
+      },
+    });
+
+    const inviteLink = `${this.email.inviteBaseUrl}/${invite.token}`;
+
+    try {
+      await this.txEmail.sendOnce({
+        // A resend intentionally reuses the same key as the invite's own creation
+        // send — BullMQ/EmailLog idempotency is per (event, entity), and "resend"
+        // is a deliberate exception the caller opts into, not a replay to dedupe.
+        idempotencyKey: `team-invite:${input.inviteId}:${invite.expiresAt.getTime()}`,
+        to: invite.email,
+        subject: `${invite.invitedBy.name} invited you to join ${invite.farm.name} on Rakhal`,
+        template: EmailTemplate.TEAM_INVITE,
+        templateData: {
+          nameGreeting: '',
+          inviterName: invite.invitedBy.name,
+          farmName: invite.farm.name,
+          roleName: invite.role.name,
+          inviteLink,
+          expiresAt: invite.expiresAt.toDateString(),
+        },
+        tenantId: input.userId,
+        farmId: input.farmId,
+        userId: input.userId,
+        locale: invite.invitedBy.preferredLanguage.toLowerCase() as AppLanguage,
+      });
+    } catch (err) {
+      // Best-effort — mirrors the welcome-email pattern (FarmService.create):
+      // an email hiccup must never fail invite creation itself.
+      this.log.error('Team invite email failed (invite still created)', err);
+    }
   }
 
   async removeMember(farmId: string, requesterId: string, memberId: string) {

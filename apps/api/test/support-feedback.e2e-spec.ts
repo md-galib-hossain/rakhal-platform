@@ -143,7 +143,7 @@ describe('Support feedback + trial-abuse (e2e)', () => {
     expect(data.resolved_at).toBeTruthy();
   });
 
-  it('one free trial per owner — a second farm gets no trial (SUP-02)', async () => {
+  it('one free trial per owner — a second farm gets Free, not no subscription (SUP-02 + B6)', async () => {
     const user = await prisma.user.create({
       data: {
         email: `trial-abuse-${Date.now()}@e2e.test`,
@@ -169,7 +169,14 @@ describe('Support feedback + trial-abuse (e2e)', () => {
     tempFarmIds.push(farm2.id);
     const sub2 = await prisma.farmSubscription.findFirst({
       where: { farmId: farm2.id },
+      include: { subscriptionPlan: { select: { name: true } } },
     });
-    expect(sub2).toBeNull(); // second farm by the same owner → no free trial
+    // No 2nd trial (SUP-02) — but B6's Free-plan fallback means the farm is
+    // never left with `NONE` entitlement / read-only forever.
+    expect(sub2?.status).toBe('ACTIVE');
+    expect(sub2?.subscriptionPlan.name).toBe('Free');
+    expect(
+      await prisma.trialGrant.count({ where: { userId: user.id } }),
+    ).toBe(1); // still only ever one TrialGrant row
   });
 });

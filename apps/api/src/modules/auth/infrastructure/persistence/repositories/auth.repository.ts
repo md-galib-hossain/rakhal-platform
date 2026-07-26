@@ -22,6 +22,24 @@ export class AuthRepository implements EmailVerificationTokenPort {
     return this.prisma.user.findUnique({ where: { id: userId } });
   }
 
+  /** Active farm memberships for optional-`farmId` login resolution — 0/1/N
+   * drives whether login can auto-scope or must ask the client to pick.
+   * Mirrors `FarmService.listMine`'s shape so a multi-farm login response can
+   * render a picker without a second `GET /farms` round trip. */
+  async listActiveFarmMemberships(
+    userId: string,
+  ): Promise<{ id: string; name: string; slug: string; role: string }[]> {
+    const memberships = await this.prisma.farmMember.findMany({
+      where: { userId, farm: { deletedAt: null } },
+      select: {
+        role: { select: { name: true } },
+        farm: { select: { id: true, name: true, slug: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    return memberships.map((m) => ({ ...m.farm, role: m.role.name }));
+  }
+
   /** For anything returned to the client (`GET /auth/me`) — `findUserById` still carries
    * `passwordHash` for internal use (e.g. `changePassword`'s re-verification). */
   findSafeUserById(userId: string) {

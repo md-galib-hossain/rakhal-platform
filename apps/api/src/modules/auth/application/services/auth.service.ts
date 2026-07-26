@@ -23,7 +23,7 @@ import {
   RevokeSessionInput,
 } from '../dto/auth.inputs';
 import { LoginContext } from '../../domain/login-context.type';
-import { LoginResult } from '../../domain/login-result.type';
+import { LoginFarmSummary, LoginResult } from '../../domain/login-result.type';
 import { RegisterResult } from '../../domain/register-result.type';
 import { RegisteredUser } from '../../domain/registered-user.type';
 import { AuthTokenPayload } from '../../domain/auth-token-payload.type';
@@ -186,6 +186,8 @@ export class AuthService {
       refreshToken: nextRefreshToken,
       sessionId: rotationResult.session.id,
       user: this.toRegisteredUser(user),
+      farmId: dto.farmId,
+      needsFarm: dto.farmId === '',
     };
   }
 
@@ -504,6 +506,28 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Resolve the token's farmId. Explicit `dto.farmId` is passed through
+    // verbatim (unchanged behavior — includes the historical `"bootstrap"`
+    // placeholder some callers still send). Omitted → auto-resolve from the
+    // caller's real memberships: 0 → `""` + `needsFarm`, 1 → auto-scoped,
+    // 2+ → `""` + the farm list, so the client can `POST /auth/refresh
+    // {farmId}` to escalate without a second password-bearing login.
+    let farmId = dto.farmId;
+    let farms: LoginFarmSummary[] | undefined;
+    if (farmId === undefined) {
+      const memberships = await this.authRepository.listActiveFarmMemberships(
+        user.id,
+      );
+      if (memberships.length === 1) {
+        farmId = memberships[0].id;
+      } else {
+        farmId = '';
+        if (memberships.length > 1) {
+          farms = memberships;
+        }
+      }
+    }
+
     const refreshToken = this.refreshTokenService.generateToken();
     const sessionExpiresAt = this.parseExpiresInToDate(
       this.config.refreshExpiresIn,
@@ -527,7 +551,7 @@ export class AuthService {
       this.buildAccessTokenPayload({
         userId: user.id,
         sessionId: session.id,
-        farmId: dto.farmId,
+        farmId,
         permissionsVersion: user.permissionsVersion,
       }),
     );
@@ -537,7 +561,7 @@ export class AuthService {
     this.log.audit('auth.login', {
       userId: user.id,
       sessionId: session.id,
-      farmId: dto.farmId,
+      farmId,
       deviceName: context.deviceName ?? null,
     });
 
@@ -546,6 +570,9 @@ export class AuthService {
       refreshToken,
       sessionId: session.id,
       user: this.toRegisteredUser(user),
+      farmId,
+      needsFarm: farmId === '',
+      farms,
     };
   }
 

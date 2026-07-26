@@ -155,6 +155,9 @@ export const envSchema = z.object({
   EMAIL_FROM: z.string().email(),
   EMAIL_VERIFICATION_BASE_URL: z.string(),
   EMAIL_PASSWORD_RESET_BASE_URL: z.string(),
+  /** Team-invite accept link (RAKHAL-030 email delivery). Defaults off the
+   * verification URL's origin + `/invite` so a single deploy needs no new var. */
+  EMAIL_INVITE_BASE_URL: z.string().optional(),
   EMAIL_VERIFICATION_TOKEN_TTL_MINUTES: z.coerce
     .number()
     .int()

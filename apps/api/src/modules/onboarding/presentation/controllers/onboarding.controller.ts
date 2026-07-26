@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
@@ -44,6 +44,12 @@ export class OnboardingController {
   }
 
   // ── Accept invite (pre-membership: authenticated, but no farm context yet) ─
+
+  /** Unauthenticated — lets the accept page render before the invitee has an account. */
+  @Get('invites/:token')
+  previewInvite(@Param('token') token: string) {
+    return this.onboarding.previewInvite(token);
+  }
 
   @Post('accept-invite')
   @UseGuards(JwtAuthGuard, SessionGuard)

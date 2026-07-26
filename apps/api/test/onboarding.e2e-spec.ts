@@ -1,5 +1,8 @@
 import request from 'supertest';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
+import { SYSTEM_ROLES } from 'src/modules/permission/domain/permission-catalogue';
+import { PLAN_NAMES } from 'src/modules/subscription/domain/subscription-features';
+import { SubscriptionAccessService } from 'src/modules/subscription/application/services/subscription-access.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
 /**
@@ -20,6 +23,8 @@ describe('Onboarding (e2e)', () => {
   const api = (p: string): string => `${ctx.prefix}${p}`;
   const server = () => ctx.app.getHttpServer();
   const uniquePhone = (): string => `017${String(Date.now()).slice(-8)}`;
+  const uniqueEmail = (label: string): string =>
+    `${label}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}@demo.rakhal.test`;
 
   beforeAll(async () => {
     ctx = await createTestApp();
@@ -98,6 +103,73 @@ describe('Onboarding (e2e)', () => {
   });
 
   describe('accept-invite', () => {
+    // The shared demo farm has accumulated 50+ members/invites across parallel
+    // sessions' own live-testing (documented drift in docs/IN_FLIGHT.md) and
+    // currently sits on a plan with a real seat ceiling — exactly the B5 seat
+    // check this suite added would (correctly) reject invites against it. So
+    // invite/accept tests run against a dedicated scratch farm on Pro
+    // (unlimited seats) instead, owned by the same demo owner user.
+    let inviteFarmId: string;
+    let inviteOwner: AuthedUser;
+
+    beforeAll(async () => {
+      const ownerRole = await prisma.role.findFirstOrThrow({
+        where: { name: SYSTEM_ROLES.OWNER, farmId: null, isSystemRole: true },
+        select: { id: true },
+      });
+      const ownerUser = await prisma.user.findUniqueOrThrow({
+        where: { email: 'owner@demo.rakhal.test' },
+        select: { id: true },
+      });
+      const proPlan = await prisma.subscriptionPlan.findUniqueOrThrow({
+        where: { name: PLAN_NAMES.PRO },
+        select: { id: true },
+      });
+
+      const farm = await prisma.farm.create({
+        data: {
+          name: 'E2E Invite Farm',
+          slug: `e2e-invite-farm-${Date.now()}`,
+          ownerId: ownerUser.id,
+          members: { create: { userId: ownerUser.id, roleId: ownerRole.id } },
+        },
+        select: { id: true },
+      });
+      inviteFarmId = farm.id;
+      await prisma.farmSubscription.create({
+        data: {
+          farmId: farm.id,
+          subscriptionPlanId: proPlan.id,
+          status: 'ACTIVE',
+          startsAt: new Date(),
+          expiresAt: null,
+        },
+      });
+
+      const login = await request(server())
+        .post(api('/auth/login'))
+        .send({
+          email: 'owner@demo.rakhal.test',
+          password: 'DemoPass123',
+          farmId: inviteFarmId,
+        });
+      inviteOwner = {
+        token: login.body.data.accessToken as string,
+        farmId: inviteFarmId,
+      };
+    });
+
+    afterAll(async () => {
+      await prisma.farmMember.deleteMany({ where: { farmId: inviteFarmId } });
+      await prisma.farmInvitation.deleteMany({
+        where: { farmId: inviteFarmId },
+      });
+      await prisma.farmSubscription.deleteMany({
+        where: { farmId: inviteFarmId },
+      });
+      await prisma.farm.delete({ where: { id: inviteFarmId } });
+    });
+
     it('401 without auth, 400 on a too-short token', async () => {
       await request(server())
         .post(api('/onboarding/accept-invite'))
@@ -120,27 +192,81 @@ describe('Onboarding (e2e)', () => {
     });
 
     it('409 when the accepting user is already a member', async () => {
-      const phone = uniquePhone();
+      // Must invite the owner's own real email — B3's redeemer-email-match
+      // check runs before the already-a-member check, so a mismatched email
+      // would 403 first rather than exercising this case.
       await request(server())
         .post(api('/settings/team/invite'))
-        .set(...auth(owner))
-        .send({ phone, role: 'Worker' })
+        .set(...auth(inviteOwner))
+        .send({ email: 'owner@demo.rakhal.test', role: 'Worker' })
         .expect(201);
       const invite = await prisma.farmInvitation.findFirst({
-        where: { phone, status: 'PENDING' },
+        where: { email: 'owner@demo.rakhal.test', status: 'PENDING' },
         orderBy: { createdAt: 'desc' },
         select: { token: true },
       });
       await request(server())
         .post(api('/onboarding/accept-invite'))
-        .set(...auth(owner))
+        .set(...auth(inviteOwner))
         .send({ token: invite!.token })
         .expect(409);
     });
 
-    it('a fresh user redeems an invite and joins the farm', async () => {
-      const email = `invitee_${Date.now()}@demo.rakhal.test`;
+    it('403 when a different account tries to redeem the token', async () => {
+      const invitedEmail = uniqueEmail('invited');
+      await request(server())
+        .post(api('/settings/team/invite'))
+        .set(...auth(inviteOwner))
+        .send({ email: invitedEmail, role: 'Worker' })
+        .expect(201);
+      const invite = await prisma.farmInvitation.findFirst({
+        where: { email: invitedEmail, status: 'PENDING' },
+        orderBy: { createdAt: 'desc' },
+        select: { token: true },
+      });
+
+      // A different, unrelated fresh account holding the token must be rejected.
+      const strangerEmail = uniqueEmail('stranger');
       const password = 'Str0ng!Pass123';
+      await request(server())
+        .post(api('/auth/register'))
+        .send({ email: strangerEmail, name: 'Stranger', password })
+        .expect(201);
+      const strangerToken = (
+        await request(server())
+          .post(api('/auth/login'))
+          .send({ email: strangerEmail, password, farmId: 'bootstrap' })
+      ).body.data.accessToken as string;
+
+      await request(server())
+        .post(api('/onboarding/accept-invite'))
+        .set('Authorization', `Bearer ${strangerToken}`)
+        .send({ token: invite!.token })
+        .expect(403);
+    });
+
+    it('a fresh user previews then redeems an invite and joins the farm', async () => {
+      const email = uniqueEmail('invitee');
+      const password = 'Str0ng!Pass123';
+
+      await request(server())
+        .post(api('/settings/team/invite'))
+        .set(...auth(inviteOwner))
+        .send({ email, role: 'Worker', name: 'Invited User' })
+        .expect(201);
+      const invite = await prisma.farmInvitation.findFirst({
+        where: { email, status: 'PENDING' },
+        orderBy: { createdAt: 'desc' },
+        select: { token: true },
+      });
+
+      // Unauthenticated preview — the accept page can render before signup.
+      const preview = await request(server())
+        .get(api(`/onboarding/invites/${invite!.token}`))
+        .expect(200);
+      expect(preview.body.data.role).toBe('worker');
+      expect(preview.body.data.status).toBe('pending');
+
       await request(server())
         .post(api('/auth/register'))
         .send({ email, name: 'Invited User', password })
@@ -151,24 +277,12 @@ describe('Onboarding (e2e)', () => {
           .send({ email, password, farmId: 'bootstrap' })
       ).body.data.accessToken as string;
 
-      const phone = uniquePhone();
-      await request(server())
-        .post(api('/settings/team/invite'))
-        .set(...auth(owner))
-        .send({ phone, role: 'Worker', name: 'Invited User' })
-        .expect(201);
-      const invite = await prisma.farmInvitation.findFirst({
-        where: { phone, status: 'PENDING' },
-        orderBy: { createdAt: 'desc' },
-        select: { token: true },
-      });
-
       const accepted = await request(server())
         .post(api('/onboarding/accept-invite'))
         .set('Authorization', `Bearer ${freshToken}`)
         .send({ token: invite!.token })
         .expect(201);
-      expect(accepted.body.data.farm_id).toBe(owner.farmId);
+      expect(accepted.body.data.farm_id).toBe(inviteFarmId);
       expect(accepted.body.data.role).toBe('worker');
 
       // The invitee can now see the farm they joined.
@@ -178,9 +292,131 @@ describe('Onboarding (e2e)', () => {
         .expect(200);
       expect(
         (farms.body.data as Array<{ id: string }>).some(
-          (f) => f.id === owner.farmId,
+          (f) => f.id === inviteFarmId,
         ),
       ).toBe(true);
+    });
+
+    it('rejects an invite once the plan seat ceiling is reached (B5: at invite time, not accept)', async () => {
+      const freePlan = await prisma.subscriptionPlan.findUniqueOrThrow({
+        where: { name: PLAN_NAMES.FREE },
+        select: { id: true, maxFarmMembers: true },
+      });
+      // Temporarily drop this scratch farm to Free (2 seats) to exercise the
+      // ceiling deterministically, then restore Pro in `finally`.
+      await prisma.farmSubscription.create({
+        data: {
+          farmId: inviteFarmId,
+          subscriptionPlanId: freePlan.id,
+          status: 'ACTIVE',
+          startsAt: new Date(),
+          expiresAt: null,
+        },
+      });
+      const access = ctx.app.get(SubscriptionAccessService);
+      await access.invalidateFarm(inviteFarmId);
+
+      try {
+        // Farm already has 1 member (the owner) + invites created by earlier
+        // tests in this block — Free's ceiling is 2, so this must 403.
+        await request(server())
+          .post(api('/settings/team/invite'))
+          .set(...auth(inviteOwner))
+          .send({ email: uniqueEmail('over_seat_limit'), role: 'Worker' })
+          .expect(403);
+      } finally {
+        const proPlan = await prisma.subscriptionPlan.findUniqueOrThrow({
+          where: { name: PLAN_NAMES.PRO },
+          select: { id: true },
+        });
+        await prisma.farmSubscription.create({
+          data: {
+            farmId: inviteFarmId,
+            subscriptionPlanId: proPlan.id,
+            status: 'ACTIVE',
+            startsAt: new Date(),
+            expiresAt: null,
+          },
+        });
+        await access.invalidateFarm(inviteFarmId);
+      }
+    });
+
+    it('owner can revoke a pending invite', async () => {
+      const email = uniqueEmail('to_revoke');
+      await request(server())
+        .post(api('/settings/team/invite'))
+        .set(...auth(inviteOwner))
+        .send({ email, role: 'Worker' })
+        .expect(201);
+      const invite = await prisma.farmInvitation.findFirst({
+        where: { email, status: 'PENDING' },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, token: true },
+      });
+
+      await request(server())
+        .delete(api(`/settings/team/invites/${invite!.id}`))
+        .set(...auth(inviteOwner))
+        .expect(200);
+
+      const preview = await request(server())
+        .get(api(`/onboarding/invites/${invite!.token}`))
+        .expect(200);
+      expect(preview.body.data.status).toBe('revoked');
+      // Revoked invites are never PENDING again, so accepting the token now
+      // must fail past the ACCEPTED/PENDING check.
+      await request(server())
+        .post(api('/onboarding/accept-invite'))
+        .set(...auth(inviteOwner))
+        .send({ token: invite!.token })
+        .expect(400);
+    });
+
+    it('owner can change a member role', async () => {
+      const email = uniqueEmail('to_promote');
+      const password = 'Str0ng!Pass123';
+      await request(server())
+        .post(api('/settings/team/invite'))
+        .set(...auth(inviteOwner))
+        .send({ email, role: 'Worker', name: 'To Promote' })
+        .expect(201);
+      const invite = await prisma.farmInvitation.findFirst({
+        where: { email, status: 'PENDING' },
+        orderBy: { createdAt: 'desc' },
+        select: { token: true },
+      });
+      await request(server())
+        .post(api('/auth/register'))
+        .send({ email, name: 'To Promote', password })
+        .expect(201);
+      const freshToken = (
+        await request(server())
+          .post(api('/auth/login'))
+          .send({ email, password, farmId: 'bootstrap' })
+      ).body.data.accessToken as string;
+      await request(server())
+        .post(api('/onboarding/accept-invite'))
+        .set('Authorization', `Bearer ${freshToken}`)
+        .send({ token: invite!.token })
+        .expect(201);
+
+      const member = await prisma.farmMember.findFirst({
+        where: { farmId: inviteFarmId, user: { email } },
+        select: { id: true },
+      });
+
+      await request(server())
+        .patch(api(`/settings/team/${member!.id}/role`))
+        .set(...auth(inviteOwner))
+        .send({ role: 'Manager' })
+        .expect(200);
+
+      const updated = await prisma.farmMember.findUniqueOrThrow({
+        where: { id: member!.id },
+        include: { role: { select: { name: true } } },
+      });
+      expect(updated.role.name).toBe('Manager');
     });
   });
 });

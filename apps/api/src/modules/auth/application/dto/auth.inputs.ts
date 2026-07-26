@@ -1,7 +1,7 @@
 export interface LoginInput {
   email: string;
   password: string;
-  farmId: string;
+  farmId?: string;
 }
 
 export interface LogoutInput {

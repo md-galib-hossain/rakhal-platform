@@ -89,6 +89,9 @@ export class AuthController {
       accessToken: result.accessToken,
       sessionId: result.sessionId,
       user: result.user,
+      farmId: result.farmId,
+      needsFarm: result.needsFarm,
+      farms: result.farms,
     };
   }
 
@@ -161,6 +164,7 @@ export class AuthController {
         accessToken: result.accessToken,
         sessionId: result.sessionId,
         user: result.user,
+        farmId: result.farmId,
       };
     } catch (error) {
       response.clearCookie(

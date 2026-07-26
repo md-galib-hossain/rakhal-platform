@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   GoneException,
   Injectable,
   NotFoundException,
@@ -101,6 +102,38 @@ export class OnboardingService {
   }
 
   /**
+   * `GET /onboarding/invites/:token` — unauthenticated preview so the accept
+   * page can render (farm name, role, inviter, expiry) before the invitee has
+   * an account. Deliberately returns no more than this — never the invite's
+   * email/phone/id.
+   */
+  async previewInvite(token: string) {
+    const invite = await this.prisma.farmInvitation.findUnique({
+      where: { token },
+      select: {
+        status: true,
+        expiresAt: true,
+        farm: { select: { name: true } },
+        role: { select: { name: true } },
+        invitedBy: { select: { name: true } },
+      },
+    });
+    if (!invite) throw new NotFoundException('Invite not found');
+
+    const isExpired =
+      invite.status === InvitationStatus.EXPIRED ||
+      invite.expiresAt.getTime() < Date.now();
+
+    return {
+      farm_name: invite.farm.name,
+      role: invite.role.name.toLowerCase(),
+      invited_by: invite.invitedBy.name,
+      status: isExpired ? 'expired' : invite.status.toLowerCase(),
+      expires_at: invite.expiresAt,
+    };
+  }
+
+  /**
    * `POST /onboarding/accept-invite` — the authenticated user redeems an invite
    * token, joining the farm with the invited role. Pre-membership: no farm
    * context guard; the token is the authorization.
@@ -122,6 +155,19 @@ export class OnboardingService {
         data: { status: InvitationStatus.EXPIRED },
       });
       throw new GoneException('Invite has expired');
+    }
+
+    // Bind the redeemer: only the invited email may accept — otherwise anyone
+    // who obtains the token (it travels in plaintext by email) could join the
+    // farm with the invited role.
+    const caller = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { email: true },
+    });
+    if (caller.email.toLowerCase() !== invite.email.toLowerCase()) {
+      throw new ForbiddenException(
+        'This invite was sent to a different email address',
+      );
     }
 
     const existing = await this.prisma.farmMember.findUnique({
