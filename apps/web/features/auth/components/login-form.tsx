@@ -18,7 +18,7 @@ export function LoginForm() {
   const login = useLogin();
   const t = useTranslations("auth");
   const [farms, setFarms] = useState<FarmOption[] | null>(null);
-  const [credentials, setCredentials] = useState<LoginInput | null>(null);
+  const [selecting, setSelecting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
@@ -31,7 +31,6 @@ export function LoginForm() {
         router.push("/dashboard");
       } else if (result.status === "select-farm") {
         setFarms(result.farms);
-        setCredentials(values);
       } else if (result.status === "no-farms") {
         router.push("/onboarding");
       }
@@ -40,13 +39,23 @@ export function LoginForm() {
     }
   }
 
+  // I3: escalates the session already persisted by the login call above (real refresh cookie,
+  // farmId "") onto the chosen farm via /auth/refresh — no second password submission.
   async function selectFarm(farmId: string) {
-    if (!credentials) return;
     setFormError(null);
+    setSelecting(true);
     try {
-      const result = await login.mutateAsync({ ...credentials, farmId });
-      if (result.status === "ok") router.push("/dashboard");
+      const res = await fetch("/api/auth/select-farm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ farmId }),
+      });
+      const envelope = await res.json();
+      if (!envelope.success) throw new ApiError(envelope.code, envelope.message, res.status);
+      router.push("/dashboard");
     } catch (err) {
+      setSelecting(false);
       setFormError(err instanceof ApiError ? err.message : t("login.genericError"));
     }
   }
@@ -69,7 +78,7 @@ export function LoginForm() {
               <li key={farm.id}>
                 <button
                   type="button"
-                  disabled={login.isPending}
+                  disabled={selecting}
                   onClick={() => selectFarm(farm.id)}
                   className="flex w-full items-center justify-between rounded-[14px] border border-input bg-card px-4 py-3 text-left transition-colors hover:bg-muted disabled:opacity-50"
                 >
@@ -83,10 +92,9 @@ export function LoginForm() {
             type="button"
             variant="ghost"
             className="w-full"
-            disabled={login.isPending}
+            disabled={selecting}
             onClick={() => {
               setFarms(null);
-              setCredentials(null);
               setFormError(null);
             }}
           >

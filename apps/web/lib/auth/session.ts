@@ -24,6 +24,9 @@ interface BackendLoginData {
   accessToken: string;
   sessionId: string;
   user: SessionUser;
+  farmId: string;
+  needsFarm: boolean;
+  farms?: { id: string; name: string; slug: string; role: string }[];
 }
 
 async function backendFetch<T>(path: string, init: RequestInit & { cookieHeader?: string } = {}): Promise<{
@@ -80,9 +83,11 @@ export async function clearSessionCookies() {
 }
 
 /**
- * Two-step farm bootstrap (ARCHITECTURE.md §4): a `farmId`-less call logs in against the special
- * "bootstrap" farm to list the user's real farms, then auto-selects when there's exactly one.
- * Only callable from a Server Action or Route Handler (writes cookies on success).
+ * Single-call login (I2/I3 fix): the backend now resolves `farmId` server-side when omitted — 0
+ * memberships → `needsFarm` + no `farms`, 1 → auto-scoped, 2+ → `needsFarm` + a `farms` list — and
+ * issues a real session (refresh cookie included) in every case, so a multi-farm pick only needs
+ * `selectFarm` below (an `/auth/refresh`, no second password submission) rather than a second
+ * `/auth/login`. Only callable from a Server Action or Route Handler (writes cookies on success).
  */
 export type LoginResult =
   | { status: "ok"; user: SessionUser }
@@ -90,45 +95,39 @@ export type LoginResult =
   | { status: "no-farms" };
 
 export async function loginWithBackend(email: string, password: string, farmId?: string): Promise<LoginResult> {
-  if (farmId) {
-    const { envelope, setCookies } = await backendFetch<BackendLoginData>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password, farmId }),
-    });
-    if (!envelope.success) throw new ApiError(envelope.code, envelope.message, 401);
-    const refreshCookie = extractCookieValue(setCookies, "rakhal_refresh");
-    if (!refreshCookie) throw new ApiError("LOGIN_NO_REFRESH_COOKIE", "Backend did not issue a refresh cookie.", 500);
-    await setSessionCookies(envelope.data.accessToken, refreshCookie, envelope.data.user);
-    return { status: "ok", user: envelope.data.user };
-  }
-
-  // Bootstrap step: log in against the placeholder farm just to list real farms.
-  const bootstrap = await backendFetch<BackendLoginData>("/auth/login", {
+  const { envelope, setCookies } = await backendFetch<BackendLoginData>("/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email, password, farmId: "bootstrap" }),
+    body: JSON.stringify(farmId ? { email, password, farmId } : { email, password }),
   });
-  const farms = await backendFetch<{ id: string; name: string; slug: string; status: string; role: string }[]>(
-    "/farms",
-    { headers: { Authorization: `Bearer ${bootstrap.envelope.success ? bootstrap.envelope.data.accessToken : ""}` } },
-  );
-  if (!farms.envelope.success) throw new ApiError(farms.envelope.code, farms.envelope.message, 500);
+  if (!envelope.success) throw new ApiError(envelope.code, envelope.message, 401);
 
-  if (farms.envelope.data.length === 0) {
-    // No real farm yet — persist the bootstrap-scoped session so the onboarding page can call
-    // `createFirstFarm` below (it needs an authenticated request + the refresh cookie to
-    // escalate to a real farm-scoped token once the farm exists).
-    if (!bootstrap.envelope.success) throw new ApiError(bootstrap.envelope.code, bootstrap.envelope.message, 401);
-    const bootstrapRefreshCookie = extractCookieValue(bootstrap.setCookies, "rakhal_refresh");
-    if (!bootstrapRefreshCookie) {
-      throw new ApiError("LOGIN_NO_REFRESH_COOKIE", "Backend did not issue a refresh cookie.", 500);
-    }
-    await setSessionCookies(bootstrap.envelope.data.accessToken, bootstrapRefreshCookie, bootstrap.envelope.data.user);
-    return { status: "no-farms" };
+  const refreshCookie = extractCookieValue(setCookies, "rakhal_refresh");
+  if (!refreshCookie) throw new ApiError("LOGIN_NO_REFRESH_COOKIE", "Backend did not issue a refresh cookie.", 500);
+  await setSessionCookies(envelope.data.accessToken, refreshCookie, envelope.data.user);
+
+  if (!envelope.data.needsFarm) return { status: "ok", user: envelope.data.user };
+  if (envelope.data.farms && envelope.data.farms.length > 0) {
+    return { status: "select-farm", farms: envelope.data.farms };
   }
-  if (farms.envelope.data.length === 1) {
-    return loginWithBackend(email, password, farms.envelope.data[0].id);
-  }
-  return { status: "select-farm", farms: farms.envelope.data };
+  return { status: "no-farms" };
+}
+
+/**
+ * Escalate an already-persisted session (bootstrap-scoped, or "" from the multi-farm branch
+ * above) onto a chosen farm — reuses the refresh cookie `loginWithBackend` already set, so the
+ * farm picker never re-sends the password (I3). Only callable from a Server Action or Route
+ * Handler.
+ */
+export async function selectFarm(farmId: string): Promise<{ user: SessionUser }> {
+  const store = await cookies();
+  const refreshCookieValue = store.get(COOKIE_REFRESH)?.value;
+  if (!refreshCookieValue) throw new ApiError("NO_SESSION", "Not authenticated.", 401);
+
+  const refreshed = await performBackendRefresh(refreshCookieValue, farmId);
+  if (!refreshed) throw new ApiError("FARM_ACTIVATE_FAILED", "Selecting the farm failed. Please log in again.", 500);
+
+  await setSessionCookies(refreshed.accessToken, refreshed.refreshCookie, refreshed.user);
+  return { user: refreshed.user };
 }
 
 /**
@@ -172,6 +171,40 @@ export async function createFirstFarm(name: string, description?: string): Promi
 
   await setSessionCookies(refreshed.accessToken, refreshed.refreshCookie, refreshed.user);
   return { user: refreshed.user };
+}
+
+/**
+ * Redeem a team invite token with the already-authenticated caller, then escalate the session
+ * onto the invite's farm — same two-step shape as `createFirstFarm` above (backend call with the
+ * current token, then `performBackendRefresh` to mint a farm-scoped one; no password re-entry).
+ * The backend's `acceptInvite` rejects with 403 if the caller's account email doesn't match the
+ * invite's — that `ApiError` propagates to the caller of this function unchanged.
+ */
+export async function acceptTeamInvite(token: string): Promise<{ user: SessionUser; farmId: string }> {
+  const store = await cookies();
+  const accessToken = store.get(COOKIE_ACCESS)?.value;
+  const refreshCookieValue = store.get(COOKIE_REFRESH)?.value;
+  if (!accessToken || !refreshCookieValue) {
+    throw new ApiError("NO_SESSION", "Not authenticated.", 401);
+  }
+
+  const accepted = await backendFetch<{ farm_id: string; farm_name: string; role: string }>(
+    "/onboarding/accept-invite",
+    { method: "POST", body: JSON.stringify({ token }), headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!accepted.envelope.success) throw new ApiError(accepted.envelope.code, accepted.envelope.message, 500);
+
+  const refreshed = await performBackendRefresh(refreshCookieValue, accepted.envelope.data.farm_id);
+  if (!refreshed) {
+    throw new ApiError(
+      "INVITE_ACCEPT_ACTIVATE_FAILED",
+      "Invite accepted but activating the session failed. Please log in again.",
+      500,
+    );
+  }
+
+  await setSessionCookies(refreshed.accessToken, refreshed.refreshCookie, refreshed.user);
+  return { user: refreshed.user, farmId: accepted.envelope.data.farm_id };
 }
 
 /** Single-flight refresh, cookie access via `next/headers`. Route Handler / Server Action only. */

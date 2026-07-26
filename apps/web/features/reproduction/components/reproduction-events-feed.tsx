@@ -12,6 +12,8 @@ import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
+import { Pagination } from "@/components/shared/pagination";
+import { PAGE_SIZE_OPTIONS } from "@/lib/hooks/use-cursor-pager";
 import { useReproductionEvents } from "../hooks/use-reproduction";
 import type { ReproEventEntry, ReproEventType } from "../types";
 import { ReproductionCard } from "./reproduction-card";
@@ -50,23 +52,40 @@ function humanizeDetail(key: string, value: unknown): string | null {
  * Figma frame for this module: filter row built from the same primitives `FilterBar` uses
  * (`CattlePicker`, `Select`, date `Input`s) rather than `FilterBar` itself, since its URL-synced
  * select model doesn't fit a combobox + date-range cleanly — local component state instead. */
+/** The backend's `GET /reproduction/events` has no cursor/offset support (it just slices the top
+ * `limit` rows server-side, capped at 100 — `ReproEventsQueryDto`) — so pagination here is
+ * client-side over one fetch at the cap, same pattern `Pagination`'s own doc comment calls out for
+ * the Milk Log table. */
+const FETCH_LIMIT = 100;
+
 export function ReproductionEventsFeed() {
   const t = useTranslations("reproduction.eventsFeed");
   const [cattle, setCattle] = useState<CattleOption | null>(null);
   const [eventType, setEventType] = useState<ReproEventType | "all">("all");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
 
   const events = useReproductionEvents({
     cattleId: cattle?.id,
     eventType: eventType === "all" ? undefined : eventType,
     fromDate: fromDate || undefined,
     toDate: toDate || undefined,
-    limit: 50,
+    limit: FETCH_LIMIT,
   });
 
   const hasActiveFilters = !!cattle || eventType !== "all" || !!fromDate || !!toDate;
-  const count = events.data?.items?.length ?? 0;
+  const allItems = events.data?.items ?? [];
+  const count = allItems.length;
+  const totalPages = Math.max(1, Math.ceil(count / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageItems = allItems.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  function updateFilters(apply: () => void) {
+    apply();
+    setPage(1);
+  }
 
   return (
     <ReproductionCard
@@ -82,13 +101,16 @@ export function ReproductionEventsFeed() {
           <Label className="text-xs text-muted-foreground">{t("filterCow")}</Label>
           <CattlePicker
             value={cattle?.id}
-            onValueChange={(_id, option) => setCattle(option)}
+            onValueChange={(_id, option) => updateFilters(() => setCattle(option))}
             placeholder={t("filterCowPlaceholder")}
           />
         </div>
         <div className="flex min-w-[160px] flex-col gap-1.5">
           <Label className="text-xs text-muted-foreground">{t("filterType")}</Label>
-          <Select value={eventType} onValueChange={(v) => setEventType(v as ReproEventType | "all")}>
+          <Select
+            value={eventType}
+            onValueChange={(v) => updateFilters(() => setEventType(v as ReproEventType | "all"))}
+          >
             <SelectTrigger aria-label={t("filterType")}>
               <SelectValue placeholder={t("filterType")} />
             </SelectTrigger>
@@ -104,22 +126,34 @@ export function ReproductionEventsFeed() {
         </div>
         <div className="flex min-w-[140px] flex-col gap-1.5">
           <Label className="text-xs text-muted-foreground">{t("fromDate")}</Label>
-          <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} aria-label={t("fromDate")} />
+          <Input
+            type="date"
+            value={fromDate}
+            onChange={(e) => updateFilters(() => setFromDate(e.target.value))}
+            aria-label={t("fromDate")}
+          />
         </div>
         <div className="flex min-w-[140px] flex-col gap-1.5">
           <Label className="text-xs text-muted-foreground">{t("toDate")}</Label>
-          <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} aria-label={t("toDate")} />
+          <Input
+            type="date"
+            value={toDate}
+            onChange={(e) => updateFilters(() => setToDate(e.target.value))}
+            aria-label={t("toDate")}
+          />
         </div>
         {hasActiveFilters ? (
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => {
-              setCattle(null);
-              setEventType("all");
-              setFromDate("");
-              setToDate("");
-            }}
+            onClick={() =>
+              updateFilters(() => {
+                setCattle(null);
+                setEventType("all");
+                setFromDate("");
+                setToDate("");
+              })
+            }
           >
             {t("clearFilters")}
           </Button>
@@ -137,10 +171,24 @@ export function ReproductionEventsFeed() {
           className="py-8"
         />
       ) : (
-        <div className="flex max-h-[480px] flex-col overflow-y-auto pr-1">
-          {events.data?.items?.map((event) => (
-            <EventRow key={`${event.event_type}-${event.id}`} event={event} />
-          ))}
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col">
+            {pageItems.map((event) => (
+              <EventRow key={`${event.event_type}-${event.id}`} event={event} />
+            ))}
+          </div>
+          {count > PAGE_SIZE_OPTIONS[0] || totalPages > 1 ? (
+            <Pagination
+              page={safePage}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              pageSize={pageSize}
+              onPageSizeChange={(next) => {
+                setPageSize(next);
+                setPage(1);
+              }}
+            />
+          ) : null}
         </div>
       )}
     </ReproductionCard>

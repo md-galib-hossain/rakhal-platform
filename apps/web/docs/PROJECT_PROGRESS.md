@@ -581,7 +581,18 @@
 - List+KPIs, calf profile (care-schedule task links), log dialogs: colostrum, milk-feeding, weight (ADG),
   starter-feed, wean→herd.
 - **API:** §10 · **PRD:** §14 · **Design:** Figma if present else PRD-spec
-- **Status:** `TODO`
+- **Status:** `DONE` (2026-07-27) — no Figma frames for this module; user asked to build it self-designed
+  following the established widget-grid pattern (same precedent as RFE-030 Reproduction). Real backend
+  throughout (`calf.controller.ts`/`calf.service.ts`, verified from source): 4-KPI row from `GET /calves`'s
+  `meta.kpis`, cursor-paginated table (name/tag, age, dam, stage, weight, health, fed-today, weaning-due),
+  calf-profile drawer (`?view=`) with 6 tabs (Overview, Colostrum, Milk & Feeding, Weight, Starter Feed,
+  Tasks) each triggering its own `FormDialog` log action, Wean action in the profile header
+  (`calf.update`-gated, irreversible — moves the row into the Cattle module and out of this list).
+  No `calf.create` route exists (calves originate only from Reproduction's calving-event flow), so
+  deliberately no "Add Calf" button. Live-verified end-to-end against the real dev backend: list+KPIs
+  render real data (4 calves), detail sheet + tab switching + a real `POST /calves/:id/milk-feeding`
+  write (201, row appeared via cache invalidation) all confirmed; both locales (bn default + en) render.
+  `tsc`/`eslint` (0 new errors)/`next build` all green.
 
 #### RFE-034 — Inventory (5 tabs)
 - **Lane:** `features/inventory/**`, `app/(app)/inventory/**` · **Design:** Figma inventory frames
@@ -739,11 +750,37 @@
 - **Status:** `TODO`
 
 #### RFE-047 — Onboarding wizard
-- **Depends:** RFE-024 · **Lane:** `features/onboarding/**`, `app/(app)/onboarding/**`
+- **Depends:** RFE-024 · **Lane:** `features/onboarding/**`, `app/(onboarding)/onboarding/**`
 - Farm create → configure (modules/sessions) → optional cattle CSV import (reuse RFE-024 wizard) → complete.
   Entry point after first login with zero farms.
-- **API:** §2 · **PRD:** §5 · **Design:** Figma onboarding frames
-- **Status:** `TODO`
+- **API:** §2 · **PRD:** §5 · **Design:** PRD-spec (no Figma onboarding frames exist)
+- **Status:** `DONE` (2026-07-27) — 3-step wizard (Configure sheds/sessions → Add cattle → Invite team),
+  every step independently skippable, against the real `onboarding.controller.ts` (`GET /onboarding/status`,
+  `POST /onboarding/{configure,complete}`) + `POST /settings/team/invite` (called directly, RFE-045
+  isn't built yet). `app/(onboarding)/onboarding/layout.tsx`'s gate reworked: previously any real
+  `farmId` redirected straight to `/dashboard` (the actual bug this ticket fixes — a farm created via
+  `createFirstFarm` landed on the dashboard with zero sheds/cattle/team and no way back into a wizard);
+  now it fetches live status and only redirects once `has_completed_onboarding` is true.
+  `CreateFarmForm` (Step 1) now routes to `/onboarding` instead of `/dashboard` on success. New
+  `OnboardingShell` (wider than `AuthShell`'s 453px card, PRD-spec chrome). Cattle step reuses
+  `CattleFormDialog`/`CattleImportDialog` directly (cross-feature import, precedented elsewhere in
+  this codebase) — no bespoke onboarding-only create flow. **Live-verified end-to-end** against a
+  real farm-scoped session with real seeded data (412 cattle, real dashboard on finish): Configure →
+  skip → Cattle (real count shown) → skip → Team → **Finish setup** → real `POST /onboarding/complete
+  → 201` → redirected to the real Dashboard; re-visiting `/onboarding` after completion now redirects
+  straight back to `/dashboard`, confirming the gate works both directions. **Caught and fixed a real
+  bug during verification**: the Configure step's default one-blank-shed row failed `name` validation
+  silently (no visible error), permanently blocking "Continue" — fixed by defaulting to zero sheds and
+  relaxing the form-level schema to drop blank rows instead of rejecting them (`configureOnboardingFormSchema`
+  in `schemas.ts`, separate from the API-facing `configureOnboardingSchema`). `tsc`/`eslint` both clean.
+  **Known gap, flagged not hidden**: a user who abandons the wizard mid-way and logs back in via the
+  normal single-farm auto-login path lands straight on `/dashboard` (that path doesn't re-check
+  onboarding status) rather than resuming the wizard — acceptable for a wizard a user only ever sees
+  once at signup; full resume-detection would require adding a status check to `app/(app)/layout.tsx`,
+  the hottest shared file in the app, for a low-frequency edge case. `next build` blocked this session
+  by an unrelated in-progress file (`app/invite/[token]/page.tsx`, another agent's active
+  `onboarding-finalization` claim per `IN_FLIGHT.md`) — verified via `tsc`+`eslint`+live dev-server
+  click-through instead.
 
 #### RFE-048 — Support feedback widget
 - **Lane:** `features/support/**` · Feedback dialog (category/message/screenshot upload) from avatar menu.

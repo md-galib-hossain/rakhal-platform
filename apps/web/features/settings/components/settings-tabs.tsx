@@ -6,6 +6,7 @@ import { Building2, CreditCard, KeySquare, SlidersHorizontal } from "lucide-reac
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/shared/empty-state";
 import { BillingSettingsView } from "@/features/subscription/components/billing/billing-settings-view";
+import { TeamSettingsView } from "./team-settings-view";
 import { SETTINGS_TABS, type SettingsTabKey } from "../types";
 
 const TAB_KEYS = [...SETTINGS_TABS] as [SettingsTabKey, ...SettingsTabKey[]];
@@ -54,6 +55,8 @@ export function SettingsTabs() {
       <div className="min-w-0 flex-1 md:border-l md:border-border md:pl-8">
         {tab === "billing" ? (
           <BillingSettingsView />
+        ) : tab === "team" ? (
+          <TeamSettingsView />
         ) : (
           <EmptyState title={t("comingSoon")} description={t("comingSoonDescription")} />
         )}

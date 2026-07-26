@@ -175,6 +175,103 @@
       "submit": "Create Farm",
       "submitting": "Creating farm…",
       "genericError": "Something went wrong. Please try again."
+    },
+    "wizard": {
+      "title": "Let's finish setting up",
+      "subtitle": "A few quick steps — you can skip any of them and finish later from Settings.",
+      "genericError": "Something went wrong. Please try again.",
+      "steps": {
+        "configure": "Configure your farm",
+        "cattle": "Add your first animals",
+        "team": "Invite your team",
+        "counter": "Step {current} of {total}"
+      },
+      "configure": {
+        "shedsLabel": "Sheds",
+        "shedNamePlaceholder": "Shed name",
+        "shedCapacityPlaceholder": "Capacity",
+        "removeShed": "Remove shed",
+        "addShed": "Add another shed",
+        "sessionsLabel": "Milking sessions you use",
+        "sessions": {
+          "morning": "Morning",
+          "noon": "Noon",
+          "evening": "Evening",
+          "night": "Night"
+        },
+        "sessionRequired": "Pick at least one milking session.",
+        "milkUnitLabel": "Milk unit",
+        "milkUnit": {
+          "litres": "Litres",
+          "kg": "Kilograms"
+        },
+        "skip": "Skip for now",
+        "continue": "Continue",
+        "saving": "Saving…",
+        "savedToast": "Farm configured.",
+        "genericError": "Something went wrong. Please try again."
+      },
+      "cattle": {
+        "description": "Add a few animals now, or skip and do it later — you can always add or import cattle from the Cattle page.",
+        "countAdded": "{count, plural, one {# animal added} other {# animals added}}",
+        "addOne": "Add an animal",
+        "importCsv": "Import from CSV",
+        "skip": "Skip for now",
+        "continue": "Continue"
+      },
+      "team": {
+        "description": "Invite your manager or workers by email — they'll get a link to join your farm. You can also do this later from Settings.",
+        "email": "Email address",
+        "name": "Name (optional)",
+        "role": "Role",
+        "roles": {
+          "manager": "Manager",
+          "worker": "Worker"
+        },
+        "sendInvite": "Send invite",
+        "inviting": "Sending…",
+        "invitedToast": "Invited {email}.",
+        "finish": "Finish setup",
+        "finishing": "Finishing…",
+        "genericError": "Something went wrong. Please try again."
+      }
+    }
+  },
+  "invite": {
+    "metaTitle": "You are invited",
+    "title": "Join your team on Rakhal",
+    "subtitle": "{inviter} invited you to join {farm} as a {role}.",
+    "signedInAs": "Signed in as {email}.",
+    "accept": "Accept invite",
+    "accepting": "Joining…",
+    "tabs": {
+      "login": "Log in",
+      "register": "Create account"
+    },
+    "name": "Full name",
+    "email": "Email",
+    "password": "Password",
+    "loginAndAccept": "Log in and accept",
+    "registerAndAccept": "Create account and accept",
+    "genericError": "Something went wrong. Please try again.",
+    "networkError": "Could not reach the server. Please try again.",
+    "notFound": {
+      "title": "Invite not found",
+      "body": "This invite link is invalid. Ask the farm owner to resend it."
+    },
+    "status": {
+      "expired": {
+        "title": "This invite has expired",
+        "body": "Ask the owner of {farm} to send a new invite."
+      },
+      "accepted": {
+        "title": "Already accepted",
+        "body": "This invite to {farm} has already been used."
+      },
+      "revoked": {
+        "title": "Invite no longer valid",
+        "body": "This invite to {farm} was cancelled."
+      }
     }
   },
   "landing": {
@@ -2347,6 +2444,213 @@
       "genericError": "Something went wrong. Please try again."
     }
   },
+  "calves": {
+    "filters": {
+      "searchPlaceholder": "Search calves",
+      "stage": "Stage",
+      "stageOptions": {
+        "newborn": "Newborn (0-7d)",
+        "young": "Young (7-60d)",
+        "preWeaning": "Pre-weaning (60-90d)",
+        "postWeaning": "Post-weaning (90d+)"
+      },
+      "health": "Health",
+      "healthOptions": {
+        "healthy": "Healthy",
+        "concern": "Concern"
+      }
+    },
+    "columns": {
+      "calf": "Calf",
+      "age": "Age",
+      "dam": "Dam",
+      "stage": "Stage",
+      "weight": "Weight",
+      "health": "Health",
+      "fedToday": "Fed Today",
+      "weaningDue": "Weaning Due"
+    },
+    "ageDays": "{value}d",
+    "stage": {
+      "newborn": "Newborn (0-7d)",
+      "young": "Young (7-60d)",
+      "pre_weaning": "Pre-weaning (60-90d)",
+      "post_weaning": "Post-weaning (90d+)"
+    },
+    "healthStatus": {
+      "healthy": "Healthy",
+      "concern": "Concern"
+    },
+    "kpi": {
+      "totalCalves": "Total Calves",
+      "fedToday": "Fed Today",
+      "healthConcern": "Health Concern",
+      "weaningDueThisWeek": "Weaning Due This Week",
+      "error": "Could not load the calves dashboard."
+    },
+    "empty": {
+      "title": "No calves yet",
+      "description": "Calves born via Reproduction's calving flow will show up here."
+    },
+    "allCalvesView": "All Calves",
+    "detail": {
+      "title": "Calf Details",
+      "close": "Close",
+      "noDam": "No dam recorded",
+      "wean": "Wean",
+      "weaned": "Weaned",
+      "error": "Could not load this calf.",
+      "tabs": {
+        "overview": "Overview",
+        "colostrum": "Colostrum",
+        "milk": "Milk & Feeding",
+        "weight": "Weight",
+        "starterFeed": "Starter Feed",
+        "tasks": "Tasks"
+      },
+      "overview": {
+        "birthWeight": "Birth Weight",
+        "currentWeight": "Current Weight",
+        "adg": "ADG",
+        "daysToWeaning": "Days to Weaning",
+        "birthEase": "Birth Ease",
+        "weaningTarget": "Weaning Target",
+        "weaningWeightTarget": "target {value} kg",
+        "kg": "{value} kg",
+        "kgPerDay": "{value} kg/day",
+        "daysValue": "{value} days"
+      },
+      "colostrum": {
+        "total24h": "Total (24h)",
+        "ml": "{value} ml",
+        "logColostrum": "Log Colostrum",
+        "empty": "No colostrum records yet.",
+        "columns": {
+          "feedNumber": "Feed #",
+          "fedAt": "Fed At",
+          "volumeMl": "Volume",
+          "quality": "Quality",
+          "fedBy": "Fed By"
+        },
+        "qualityValue": {
+          "EXCELLENT": "Excellent",
+          "GOOD": "Good",
+          "POOR": "Poor",
+          "UNKNOWN": "Unknown"
+        }
+      },
+      "milk": {
+        "logFeeding": "Log Feeding",
+        "empty": "No milk feeding records yet.",
+        "columns": {
+          "date": "Date",
+          "morning": "Morning",
+          "evening": "Evening",
+          "total": "Total",
+          "type": "Type"
+        },
+        "typeValue": {
+          "DAM_MILK": "Dam Milk",
+          "WHOLE_MILK": "Whole Milk",
+          "MILK_REPLACER": "Milk Replacer"
+        }
+      },
+      "weight": {
+        "recordWeight": "Record Weight",
+        "empty": "No weight records yet.",
+        "weightKg": "Weight (kg)"
+      },
+      "starterFeed": {
+        "firstOffered": "First Offered",
+        "firstIntake": "First Intake",
+        "currentDailyIntake": "Current Daily Intake",
+        "grams": "{value} g",
+        "logStarterFeed": "Log Starter Feed"
+      },
+      "tasks": {
+        "empty": "No upcoming tasks for this calf."
+      }
+    },
+    "dialogs": {
+      "colostrum": {
+        "title": "Log Colostrum",
+        "feedNumber": "Feed Number",
+        "fedAt": "Fed At",
+        "volumeMl": "Volume (ml)",
+        "quality": "Quality",
+        "qualityValue": {
+          "EXCELLENT": "Excellent",
+          "GOOD": "Good",
+          "POOR": "Poor",
+          "UNKNOWN": "Unknown"
+        },
+        "fedBy": "Fed By",
+        "notes": "Notes",
+        "submit": "Save",
+        "createdToast": "Colostrum feeding logged.",
+        "genericError": "Something went wrong. Please try again."
+      },
+      "milkFeeding": {
+        "title": "Log Milk Feeding",
+        "date": "Date",
+        "type": "Type",
+        "typeValue": {
+          "DAM_MILK": "Dam Milk",
+          "WHOLE_MILK": "Whole Milk",
+          "MILK_REPLACER": "Milk Replacer"
+        },
+        "morningMl": "Morning (ml)",
+        "eveningMl": "Evening (ml)",
+        "notes": "Notes",
+        "submit": "Save",
+        "createdToast": "Milk feeding logged.",
+        "genericError": "Something went wrong. Please try again."
+      },
+      "weight": {
+        "title": "Record Weight",
+        "weightKg": "Weight (kg)",
+        "measuredDate": "Measured Date",
+        "notes": "Notes",
+        "submit": "Save",
+        "createdToast": "Weight recorded.",
+        "genericError": "Something went wrong. Please try again."
+      },
+      "starterFeed": {
+        "title": "Log Starter Feed",
+        "date": "Date",
+        "eventType": "Event Type",
+        "eventTypeValue": {
+          "FIRST_OFFERED": "First Offered",
+          "FIRST_INTAKE": "First Intake",
+          "DAILY_INTAKE": "Daily Intake"
+        },
+        "amountG": "Amount (g)",
+        "notes": "Notes",
+        "submit": "Save",
+        "createdToast": "Starter feed logged.",
+        "genericError": "Something went wrong. Please try again."
+      },
+      "wean": {
+        "title": "Wean Calf",
+        "warning": "This moves the calf into the Cattle module permanently and cannot be undone.",
+        "weaningDate": "Weaning Date",
+        "weaningWeightKg": "Weaning Weight (kg)",
+        "newPurpose": "New Purpose",
+        "newPurposeAuto": "Auto (based on gender)",
+        "newPurposeValue": {
+          "MILK": "Milk",
+          "BREEDING": "Breeding",
+          "MEAT": "Meat",
+          "BULL_SERVICE": "Bull Service",
+          "DUAL_PURPOSE": "Dual Purpose"
+        },
+        "notes": "Notes",
+        "submit": "Wean Calf",
+        "weanedToast": "Calf weaned and moved to Cattle.",
+        "genericError": "Something went wrong. Please try again."
+      }
+    }
+  },
   "activity": {
     "searchPlaceholder": "Search activity",
     "moduleFilter": "Module",
@@ -3275,7 +3579,51 @@
       "billing": "Billing & Subscription"
     },
     "comingSoon": "Coming soon",
-    "comingSoonDescription": "This settings tab isn't built yet — check back soon."
+    "comingSoonDescription": "This settings tab isn't built yet — check back soon.",
+    "team": {
+      "memberHeader": "Member",
+      "roleHeader": "Role",
+      "statusHeader": "Status",
+      "lastActiveHeader": "Last active",
+      "actionsHeader": "",
+      "statusValues": {
+        "active": "Active",
+        "pending": "Pending",
+        "expired": "Expired",
+        "revoked": "Revoked"
+      },
+      "owner": "Owner",
+      "never": "Never",
+      "inviteMember": "Invite member",
+      "resend": "Resend",
+      "revoke": "Revoke",
+      "remove": "Remove",
+      "changeRole": "Change role",
+      "removeConfirmTitle": "Remove {name} from the farm?",
+      "removeConfirmBody": "They will lose access immediately. This cannot be undone.",
+      "revokeConfirmTitle": "Revoke this invite?",
+      "revokeConfirmBody": "The invite link will stop working.",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "inviteModal": {
+        "title": "Invite a team member",
+        "description": "They will get an email with a link to join.",
+        "email": "Email address",
+        "phone": "Phone (optional)",
+        "name": "Name (optional)",
+        "role": "Role",
+        "submit": "Send invite",
+        "submitting": "Sending…",
+        "genericError": "Something went wrong. Please try again."
+      },
+      "invitedToast": "Invited {email}.",
+      "resentToast": "Invite resent.",
+      "revokedToast": "Invite revoked.",
+      "removedToast": "Member removed.",
+      "roleChangedToast": "Role updated.",
+      "loadError": "Could not load your team.",
+      "empty": "No team members yet."
+    }
   },
   "billing": {
     "stepper": {

@@ -1,12 +1,67 @@
 # Frontend — Current State
 
-**Last updated:** 2026-07-16 · **Completion:** Phase 0 done (RFE-001…010) + RFE-100 marketing landing +
+## Onboarding wizard — RFE-047, PRD-spec (no Figma) (2026-07-27, user request)
+Fixed the real beta-blocking bug: a first-login user with zero farms created a farm via
+`CreateFarmForm` and landed straight on `/dashboard` with zero sheds/cattle/team and no way back
+into any setup flow — `app/(onboarding)/onboarding/layout.tsx`'s gate redirected any real `farmId`
+away unconditionally. New 3-step wizard (`features/onboarding/**`): Configure (sheds + milking
+sessions + milk unit, `POST /onboarding/configure`) → Add cattle (reuses `CattleFormDialog`/
+`CattleImportDialog` from `features/cattle`, no bespoke create flow) → Invite team (`POST
+/settings/team/invite`, called directly since Settings' own Team tab isn't built yet, RFE-045).
+Every step independently skippable; "Finish setup" calls `POST /onboarding/complete` then redirects
+to the dashboard. The layout gate now fetches live `GET /onboarding/status` and only redirects to
+`/dashboard` once `has_completed_onboarding` is true, in both directions (re-visiting `/onboarding`
+post-completion correctly bounces back out). New `OnboardingShell` (wider than `AuthShell`'s 453px
+card — the sheds list needs more room). **Live-verified end-to-end** against a real farm-scoped
+session (412 real seeded cattle): Configure → skip → Cattle (real count shown) → skip → Team →
+Finish → real `POST /onboarding/complete → 201` → real Dashboard render. **Caught and fixed a real
+bug live**: the Configure step's default one-blank-shed row failed `name` validation silently (no
+error shown), permanently blocking "Continue" — fixed by defaulting to zero sheds + relaxing the
+form-level schema to drop blank rows client-side instead of rejecting them. `tsc`/`eslint` clean.
+**Known gap, flagged not hidden**: a user who abandons the wizard and logs back in via the normal
+single-farm auto-login path lands on `/dashboard` without resuming (that path doesn't re-check
+onboarding status) — acceptable for a once-ever wizard; full fix needs a status check in the
+hottest shared layout in the app for a low-frequency edge case. `next build` was blocked this
+session by an unrelated in-progress file (`app/invite/[token]/page.tsx`, another agent's active
+claim) — verified via `tsc`+`eslint`+live dev-server click-through instead. Full detail:
+`docs/PROJECT_PROGRESS.md` RFE-047 entry.
+
+**Last updated:** 2026-07-27 · **Completion:** Phase 0 done (RFE-001…010) + RFE-100 marketing landing +
 Phase 1 RFE-020 (Dashboard) + RFE-021 (Cattle list) + RFE-022 (Cattle add/edit) + RFE-023 (Cattle detail)
 + RFE-025 (Milk log) done · **Inventory tab now has all 5 categories built** (Medicine/Feed/Semen/Milk/Others —
 Feed is a unified tab with Purchased/Prepared segments as of 2026-07-19, see the entry below)
 · **Finance (RFE-035) 5 tabs + Wallet + Record wizard done** — Master Ledger/Receivables/Payables/
 Liabilities/Asset Distribution + Wallet hub (Add Funds/Withdraw) + the 4-type Record transaction
 wizard, all Figma-perfect; only the record-payment/void/create-asset modals remain (no Figma yet).
+
+## Calves module — RFE-033, self-designed (no Figma) (2026-07-27, user request)
+User asked to complete the Calves module with no Figma frames available, following the established
+widget-grid UI pattern — same precedent as RFE-030 Reproduction. `features/calves/**` and
+`app/(app)/calves/**` were both empty (RFE-033 was `TODO`) — the `/calves` nav route existed but
+rendered the generic `RouteStub` placeholder. Built end-to-end against the real backend
+(`calf.controller.ts`/`calf.service.ts`, verified from source). 4-KPI row (Total Calves/Fed Today/
+Health Concern/Weaning Due This Week) from `GET /calves`'s `meta.kpis` (same extended-cursor-meta
+convention as `TaskListPage`); cursor-paginated `DataTable` (name/tag, age, dam, stage, weight,
+health, fed-today, weaning-due). Calf-profile drawer (`?view=`, same `Sheet` shape as
+`CattleDetailSheet`) with 6 URL-synced tabs (Overview, Colostrum, Milk & Feeding, Weight, Starter
+Feed, Tasks) — each of the 5 log actions (colostrum/milk-feeding/weight/starter-feed) is a
+`FormDialog` triggered from inside its own tab (mirroring `OverviewTab`'s `RecordWeightDialog`
+pattern), not table row actions, since a per-row 5-item sub-menu would be worse UX. Wean lives in the
+profile header (`calf.update`-gated) — irreversible: flips the row's `purpose` away from `CALF`,
+moving it into the Cattle module and out of this list; the dialog carries explicit warning copy and
+the hook invalidates the list on success so the calf disappears on the next fetch. No `calf.create`
+route exists (calves originate only from Reproduction's calving-event flow), so deliberately no "Add
+Calf" button anywhere on this page. Weight tab reuses `features/cattle/components/detail/charts/
+trend-chart-inner.tsx` (dynamic-imported, generic chart primitive — cross-feature reuse, not
+duplication). `qk.calves.{list,detail}` appended to `lib/query/keys.ts`; `calves` i18n namespace
+appended to both `en.json`/`bn.json`, borrowing `dashboard.herdStatus.calves.*`'s stage wording
+(duplicated per the app's established per-feature convention, not cross-referenced). Gate:
+`tsc`(0)/`eslint`(0 new)/`next build`(0). **Live-verified** (demo owner, real backend): list+KPIs
+render real seeded data (4 calves, 1 health concern), the detail sheet opens with full profile data,
+tab switching works, and a real `POST /calves/:id/milk-feeding` write succeeded (201 Created) with
+the new row appearing immediately via cache invalidation; both locales (bn default + en) confirmed
+rendering correctly. Full detail: `docs/PROJECT_PROGRESS.md` RFE-033 entry / `docs/IN_FLIGHT.md`
+Recently Done.
 
 ## Reproduction module — RFE-030, self-designed (no Figma) (2026-07-26, user request)
 User asked to complete the Reproduction module with no Figma frames available, following the

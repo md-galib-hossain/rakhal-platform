@@ -19,6 +19,8 @@ export const qk = {
   },
   settings: {
     farm: () => ["settings", "farm"] as const,
+    team: () => ["settings", "team"] as const,
+    roles: () => ["settings", "roles"] as const,
   },
   legal: {
     consent: () => ["legal", "consent"] as const,
@@ -119,5 +121,12 @@ export const qk = {
       ["feed", "distributions", "list", params] as const,
     efficiency: (params: { feedGroupId?: string; cattleId?: string; month?: string }) =>
       ["feed", "efficiency", params] as const,
+  },
+  calves: {
+    list: (filters: Record<string, string | undefined>) => ["calves", "list", filters] as const,
+    detail: (id: string) => ["calves", "detail", id] as const,
+  },
+  onboarding: {
+    status: () => ["onboarding", "status"] as const,
   },
 };

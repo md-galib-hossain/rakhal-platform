@@ -26,6 +26,11 @@ const PUBLIC_PATHS = [
   "/billing/bkash/callback",
 ];
 
+// Dynamic-segment public routes an exact-match list can't express — `/invite/:token` must render
+// for a signed-out invitee (that's the whole point: preview + register/login inline, see
+// InviteAcceptView). Checked as a prefix, not a set membership.
+const PUBLIC_PATH_PREFIXES = ["/invite/"];
+
 const FARM_ORIGIN = process.env.NEXT_PUBLIC_FARM_URL ?? "https://farm.rakhal.app";
 const FARM_HOSTNAME = new URL(FARM_ORIGIN).hostname.toLowerCase();
 
@@ -36,7 +41,7 @@ const FARM_HOSTS = new Set([
 ]);
 
 function isPublicPath(pathname: string) {
-  return PUBLIC_PATHS.includes(pathname);
+  return PUBLIC_PATHS.includes(pathname) || PUBLIC_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
 function getHostname(request: NextRequest) {

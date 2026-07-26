@@ -175,6 +175,103 @@
       "submit": "খামার তৈরি করুন",
       "submitting": "খামার তৈরি হচ্ছে…",
       "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+    },
+    "wizard": {
+      "title": "সেটআপ শেষ করা যাক",
+      "subtitle": "কয়েকটি ছোট ধাপ — যেকোনো ধাপ এড়িয়ে যেতে পারেন এবং পরে সেটিংস থেকে শেষ করতে পারেন।",
+      "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।",
+      "steps": {
+        "configure": "আপনার খামার কনফিগার করুন",
+        "cattle": "আপনার প্রথম পশু যোগ করুন",
+        "team": "আপনার দলকে আমন্ত্রণ জানান",
+        "counter": "ধাপ {current} / {total}"
+      },
+      "configure": {
+        "shedsLabel": "শেড",
+        "shedNamePlaceholder": "শেডের নাম",
+        "shedCapacityPlaceholder": "ধারণক্ষমতা",
+        "removeShed": "শেড সরান",
+        "addShed": "আরেকটি শেড যোগ করুন",
+        "sessionsLabel": "আপনি যেসব দুধ দোহনের সময় ব্যবহার করেন",
+        "sessions": {
+          "morning": "সকাল",
+          "noon": "দুপুর",
+          "evening": "সন্ধ্যা",
+          "night": "রাত"
+        },
+        "sessionRequired": "অন্তত একটি দোহনের সময় বেছে নিন।",
+        "milkUnitLabel": "দুধের একক",
+        "milkUnit": {
+          "litres": "লিটার",
+          "kg": "কেজি"
+        },
+        "skip": "এখন এড়িয়ে যান",
+        "continue": "চালিয়ে যান",
+        "saving": "সংরক্ষণ হচ্ছে…",
+        "savedToast": "খামার কনফিগার হয়েছে।",
+        "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+      },
+      "cattle": {
+        "description": "এখন কিছু পশু যোগ করুন, অথবা এড়িয়ে যান — Cattle পাতা থেকে যেকোনো সময় পশু যোগ বা আমদানি করতে পারবেন।",
+        "countAdded": "{count}টি পশু যোগ হয়েছে",
+        "addOne": "একটি পশু যোগ করুন",
+        "importCsv": "CSV থেকে আমদানি করুন",
+        "skip": "এখন এড়িয়ে যান",
+        "continue": "চালিয়ে যান"
+      },
+      "team": {
+        "description": "ইমেইলের মাধ্যমে আপনার ম্যানেজার বা কর্মীদের আমন্ত্রণ জানান — তারা খামারে যোগ দেওয়ার একটি লিংক পাবেন। পরে সেটিংস থেকেও এটি করতে পারবেন।",
+        "email": "ইমেইল ঠিকানা",
+        "name": "নাম (ঐচ্ছিক)",
+        "role": "ভূমিকা",
+        "roles": {
+          "manager": "ম্যানেজার",
+          "worker": "কর্মী"
+        },
+        "sendInvite": "আমন্ত্রণ পাঠান",
+        "inviting": "পাঠানো হচ্ছে…",
+        "invitedToast": "{email}-কে আমন্ত্রণ জানানো হয়েছে।",
+        "finish": "সেটআপ শেষ করুন",
+        "finishing": "শেষ হচ্ছে…",
+        "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+      }
+    }
+  },
+  "invite": {
+    "metaTitle": "আপনাকে আমন্ত্রণ জানানো হয়েছে",
+    "title": "রাখাল-এ আপনার দলে যোগ দিন",
+    "subtitle": "{inviter} আপনাকে {farm}-এ {role} হিসেবে যোগ দেওয়ার আমন্ত্রণ জানিয়েছেন।",
+    "signedInAs": "{email} হিসেবে লগ ইন করা আছে।",
+    "accept": "আমন্ত্রণ গ্রহণ করুন",
+    "accepting": "যোগ দেওয়া হচ্ছে…",
+    "tabs": {
+      "login": "লগ ইন",
+      "register": "অ্যাকাউন্ট তৈরি করুন"
+    },
+    "name": "পুরো নাম",
+    "email": "ইমেইল",
+    "password": "পাসওয়ার্ড",
+    "loginAndAccept": "লগ ইন করে গ্রহণ করুন",
+    "registerAndAccept": "অ্যাকাউন্ট তৈরি করে গ্রহণ করুন",
+    "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।",
+    "networkError": "সার্ভারে পৌঁছানো যায়নি। আবার চেষ্টা করুন।",
+    "notFound": {
+      "title": "আমন্ত্রণ পাওয়া যায়নি",
+      "body": "এই আমন্ত্রণ লিংকটি সঠিক নয়। খামারের মালিককে আবার পাঠাতে বলুন।"
+    },
+    "status": {
+      "expired": {
+        "title": "আমন্ত্রণের মেয়াদ শেষ হয়ে গেছে",
+        "body": "{farm}-এর মালিককে নতুন আমন্ত্রণ পাঠাতে বলুন।"
+      },
+      "accepted": {
+        "title": "ইতিমধ্যে গৃহীত হয়েছে",
+        "body": "{farm}-এর এই আমন্ত্রণ ইতিমধ্যে ব্যবহার করা হয়েছে।"
+      },
+      "revoked": {
+        "title": "আমন্ত্রণ আর বৈধ নয়",
+        "body": "{farm}-এর এই আমন্ত্রণ বাতিল করা হয়েছে।"
+      }
     }
   },
   "landing": {
@@ -2347,6 +2444,213 @@
       "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
     }
   },
+  "calves": {
+    "filters": {
+      "searchPlaceholder": "বাছুর খুঁজুন",
+      "stage": "পর্যায়",
+      "stageOptions": {
+        "newborn": "নবজাতক (০-৭ দিন)",
+        "young": "কিশোর (৭-৬০ দিন)",
+        "preWeaning": "দুধ ছাড়ানোর আগে (৬০-৯০ দিন)",
+        "postWeaning": "দুধ ছাড়ানোর পরে (৯০+ দিন)"
+      },
+      "health": "স্বাস্থ্য",
+      "healthOptions": {
+        "healthy": "সুস্থ",
+        "concern": "উদ্বেগজনক"
+      }
+    },
+    "columns": {
+      "calf": "বাছুর",
+      "age": "বয়স",
+      "dam": "মা",
+      "stage": "পর্যায়",
+      "weight": "ওজন",
+      "health": "স্বাস্থ্য",
+      "fedToday": "আজ খাওয়ানো হয়েছে",
+      "weaningDue": "দুধ ছাড়ানোর তারিখ"
+    },
+    "ageDays": "{value} দিন",
+    "stage": {
+      "newborn": "নবজাতক (০-৭ দিন)",
+      "young": "কিশোর (৭-৬০ দিন)",
+      "pre_weaning": "দুধ ছাড়ানোর আগে (৬০-৯০ দিন)",
+      "post_weaning": "দুধ ছাড়ানোর পরে (৯০+ দিন)"
+    },
+    "healthStatus": {
+      "healthy": "সুস্থ",
+      "concern": "উদ্বেগজনক"
+    },
+    "kpi": {
+      "totalCalves": "মোট বাছুর",
+      "fedToday": "আজ খাওয়ানো হয়েছে",
+      "healthConcern": "স্বাস্থ্য উদ্বেগ",
+      "weaningDueThisWeek": "এই সপ্তাহে দুধ ছাড়ানো",
+      "error": "বাছুরের ড্যাশবোর্ড লোড করা যায়নি।"
+    },
+    "empty": {
+      "title": "এখনো কোনো বাছুর নেই",
+      "description": "প্রজনন মডিউলের বিয়ানোর তথ্য থেকে জন্ম নেওয়া বাছুর এখানে দেখা যাবে।"
+    },
+    "allCalvesView": "সব বাছুর",
+    "detail": {
+      "title": "বাছুরের বিবরণ",
+      "close": "বন্ধ করুন",
+      "noDam": "মায়ের তথ্য নেই",
+      "wean": "দুধ ছাড়ান",
+      "weaned": "দুধ ছাড়ানো হয়েছে",
+      "error": "এই বাছুরের তথ্য লোড করা যায়নি।",
+      "tabs": {
+        "overview": "সারসংক্ষেপ",
+        "colostrum": "শালদুধ",
+        "milk": "দুধ ও খাদ্য",
+        "weight": "ওজন",
+        "starterFeed": "স্টার্টার ফিড",
+        "tasks": "কাজ"
+      },
+      "overview": {
+        "birthWeight": "জন্ম ওজন",
+        "currentWeight": "বর্তমান ওজন",
+        "adg": "দৈনিক গড় বৃদ্ধি",
+        "daysToWeaning": "দুধ ছাড়ানো পর্যন্ত দিন",
+        "birthEase": "প্রসব সহজতা",
+        "weaningTarget": "দুধ ছাড়ানোর লক্ষ্য",
+        "weaningWeightTarget": "লক্ষ্য {value} কেজি",
+        "kg": "{value} কেজি",
+        "kgPerDay": "{value} কেজি/দিন",
+        "daysValue": "{value} দিন"
+      },
+      "colostrum": {
+        "total24h": "মোট (২৪ ঘণ্টা)",
+        "ml": "{value} মিলি",
+        "logColostrum": "শালদুধ লগ করুন",
+        "empty": "এখনো কোনো শালদুধের তথ্য নেই।",
+        "columns": {
+          "feedNumber": "খাওয়ানো নম্বর",
+          "fedAt": "খাওয়ানোর সময়",
+          "volumeMl": "পরিমাণ",
+          "quality": "মান",
+          "fedBy": "খাওয়িয়েছেন"
+        },
+        "qualityValue": {
+          "EXCELLENT": "চমৎকার",
+          "GOOD": "ভালো",
+          "POOR": "খারাপ",
+          "UNKNOWN": "অজানা"
+        }
+      },
+      "milk": {
+        "logFeeding": "খাওয়ানো লগ করুন",
+        "empty": "এখনো কোনো দুধ খাওয়ানোর তথ্য নেই।",
+        "columns": {
+          "date": "তারিখ",
+          "morning": "সকাল",
+          "evening": "সন্ধ্যা",
+          "total": "মোট",
+          "type": "ধরন"
+        },
+        "typeValue": {
+          "DAM_MILK": "মায়ের দুধ",
+          "WHOLE_MILK": "পূর্ণ দুধ",
+          "MILK_REPLACER": "দুধের বিকল্প"
+        }
+      },
+      "weight": {
+        "recordWeight": "ওজন রেকর্ড করুন",
+        "empty": "এখনো কোনো ওজনের তথ্য নেই।",
+        "weightKg": "ওজন (কেজি)"
+      },
+      "starterFeed": {
+        "firstOffered": "প্রথম দেওয়া হয়েছে",
+        "firstIntake": "প্রথম গ্রহণ",
+        "currentDailyIntake": "বর্তমান দৈনিক গ্রহণ",
+        "grams": "{value} গ্রাম",
+        "logStarterFeed": "স্টার্টার ফিড লগ করুন"
+      },
+      "tasks": {
+        "empty": "এই বাছুরের জন্য আসন্ন কোনো কাজ নেই।"
+      }
+    },
+    "dialogs": {
+      "colostrum": {
+        "title": "শালদুধ লগ করুন",
+        "feedNumber": "খাওয়ানো নম্বর",
+        "fedAt": "খাওয়ানোর সময়",
+        "volumeMl": "পরিমাণ (মিলি)",
+        "quality": "মান",
+        "qualityValue": {
+          "EXCELLENT": "চমৎকার",
+          "GOOD": "ভালো",
+          "POOR": "খারাপ",
+          "UNKNOWN": "অজানা"
+        },
+        "fedBy": "খাওয়িয়েছেন",
+        "notes": "নোট",
+        "submit": "সংরক্ষণ করুন",
+        "createdToast": "শালদুধ খাওয়ানো লগ করা হয়েছে।",
+        "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
+      },
+      "milkFeeding": {
+        "title": "দুধ খাওয়ানো লগ করুন",
+        "date": "তারিখ",
+        "type": "ধরন",
+        "typeValue": {
+          "DAM_MILK": "মায়ের দুধ",
+          "WHOLE_MILK": "পূর্ণ দুধ",
+          "MILK_REPLACER": "দুধের বিকল্প"
+        },
+        "morningMl": "সকাল (মিলি)",
+        "eveningMl": "সন্ধ্যা (মিলি)",
+        "notes": "নোট",
+        "submit": "সংরক্ষণ করুন",
+        "createdToast": "দুধ খাওয়ানো লগ করা হয়েছে।",
+        "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
+      },
+      "weight": {
+        "title": "ওজন রেকর্ড করুন",
+        "weightKg": "ওজন (কেজি)",
+        "measuredDate": "পরিমাপের তারিখ",
+        "notes": "নোট",
+        "submit": "সংরক্ষণ করুন",
+        "createdToast": "ওজন রেকর্ড করা হয়েছে।",
+        "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
+      },
+      "starterFeed": {
+        "title": "স্টার্টার ফিড লগ করুন",
+        "date": "তারিখ",
+        "eventType": "ইভেন্টের ধরন",
+        "eventTypeValue": {
+          "FIRST_OFFERED": "প্রথম দেওয়া হয়েছে",
+          "FIRST_INTAKE": "প্রথম গ্রহণ",
+          "DAILY_INTAKE": "দৈনিক গ্রহণ"
+        },
+        "amountG": "পরিমাণ (গ্রাম)",
+        "notes": "নোট",
+        "submit": "সংরক্ষণ করুন",
+        "createdToast": "স্টার্টার ফিড লগ করা হয়েছে।",
+        "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
+      },
+      "wean": {
+        "title": "বাছুরের দুধ ছাড়ান",
+        "warning": "এটি বাছুরটিকে স্থায়ীভাবে ক্যাটল মডিউলে সরিয়ে দেবে এবং এটি পূর্বাবস্থায় ফেরানো যাবে না।",
+        "weaningDate": "দুধ ছাড়ানোর তারিখ",
+        "weaningWeightKg": "দুধ ছাড়ানোর সময় ওজন (কেজি)",
+        "newPurpose": "নতুন উদ্দেশ্য",
+        "newPurposeAuto": "স্বয়ংক্রিয় (লিঙ্গ অনুযায়ী)",
+        "newPurposeValue": {
+          "MILK": "দুধ",
+          "BREEDING": "প্রজনন",
+          "MEAT": "মাংস",
+          "BULL_SERVICE": "ষাঁড় সেবা",
+          "DUAL_PURPOSE": "দ্বৈত উদ্দেশ্য"
+        },
+        "notes": "নোট",
+        "submit": "দুধ ছাড়ান",
+        "weanedToast": "বাছুরের দুধ ছাড়ানো হয়েছে এবং ক্যাটলে সরানো হয়েছে।",
+        "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
+      }
+    }
+  },
   "activity": {
     "searchPlaceholder": "কার্যক্রম খুঁজুন",
     "moduleFilter": "মডিউল",
@@ -3275,7 +3579,51 @@
       "billing": "বিলিং ও সাবস্ক্রিপশন"
     },
     "comingSoon": "শীঘ্রই আসছে",
-    "comingSoonDescription": "এই সেটিংস ট্যাবটি এখনও তৈরি হয়নি — শীঘ্রই দেখুন।"
+    "comingSoonDescription": "এই সেটিংস ট্যাবটি এখনও তৈরি হয়নি — শীঘ্রই দেখুন।",
+    "team": {
+      "memberHeader": "সদস্য",
+      "roleHeader": "ভূমিকা",
+      "statusHeader": "অবস্থা",
+      "lastActiveHeader": "সর্বশেষ সক্রিয়",
+      "actionsHeader": "",
+      "statusValues": {
+        "active": "সক্রিয়",
+        "pending": "মুলতুবি",
+        "expired": "মেয়াদোত্তীর্ণ",
+        "revoked": "বাতিল"
+      },
+      "owner": "মালিক",
+      "never": "কখনো না",
+      "inviteMember": "সদস্য আমন্ত্রণ করুন",
+      "resend": "পুনরায় পাঠান",
+      "revoke": "বাতিল করুন",
+      "remove": "অপসারণ করুন",
+      "changeRole": "ভূমিকা পরিবর্তন করুন",
+      "removeConfirmTitle": "{name}-কে খামার থেকে অপসারণ করবেন?",
+      "removeConfirmBody": "তারা সাথে সাথে প্রবেশাধিকার হারাবে। এটি পূর্বাবস্থায় ফেরানো যাবে না।",
+      "revokeConfirmTitle": "এই আমন্ত্রণটি বাতিল করবেন?",
+      "revokeConfirmBody": "আমন্ত্রণ লিংকটি আর কাজ করবে না।",
+      "cancel": "বাতিল",
+      "confirm": "নিশ্চিত করুন",
+      "inviteModal": {
+        "title": "একজন সদস্যকে আমন্ত্রণ করুন",
+        "description": "যোগ দেওয়ার লিংকসহ তারা একটি ইমেইল পাবেন।",
+        "email": "ইমেইল ঠিকানা",
+        "phone": "ফোন (ঐচ্ছিক)",
+        "name": "নাম (ঐচ্ছিক)",
+        "role": "ভূমিকা",
+        "submit": "আমন্ত্রণ পাঠান",
+        "submitting": "পাঠানো হচ্ছে…",
+        "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+      },
+      "invitedToast": "{email}-কে আমন্ত্রণ জানানো হয়েছে।",
+      "resentToast": "আমন্ত্রণ পুনরায় পাঠানো হয়েছে।",
+      "revokedToast": "আমন্ত্রণ বাতিল করা হয়েছে।",
+      "removedToast": "সদস্য অপসারণ করা হয়েছে।",
+      "roleChangedToast": "ভূমিকা হালনাগাদ করা হয়েছে।",
+      "loadError": "আপনার দল লোড করা যায়নি।",
+      "empty": "এখনো কোনো দলের সদস্য নেই।"
+    }
   },
   "billing": {
     "stepper": {
