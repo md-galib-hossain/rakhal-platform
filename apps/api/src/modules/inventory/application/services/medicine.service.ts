@@ -247,14 +247,14 @@ export class MedicineService {
 
   /**
    * Consume medicine stock for a treatment (HLT-07). The integration point the
-   * Healthcare `logTreatment` flow calls. Resolves the batch to draw from —
-   * either the explicit `medicineId`, or, given only a `medicineName`, the
-   * earliest-expiry non-expired in-stock batch (FIFO, INV-05). Enforces
-   * expired-blocked-from-treatment (HLT-02) and the never-negative floor
-   * (INV-02), and records an audited `TREATMENT` stock movement atomically.
-   *
-   * NOTE: a single dose is drawn from one batch; cross-batch splitting when one
-   * batch can't cover the quantity is deferred (tracked in TECH_DEBT RD-003).
+   * Healthcare `logTreatment` flow calls. Resolves the batch(es) to draw from —
+   * either the explicit `medicineId` (single batch, no splitting — the caller
+   * chose that specific batch on purpose), or, given only a `medicineName`,
+   * FIFO across every earliest-expiry-first non-expired in-stock batch
+   * (INV-05), **splitting the dose across multiple batches** when the first
+   * one can't cover the full quantity (RD-003). Enforces expired-blocked (HLT-02)
+   * and the never-negative floor (INV-02); all batch updates + movements commit
+   * in one transaction (all-or-nothing).
    */
   async decrementForTreatment(
     farmId: string,
@@ -269,6 +269,12 @@ export class MedicineService {
     medicineId: string;
     batchId: string | null;
     balanceAfter: number;
+    batchesUsed: {
+      medicineId: string;
+      batchId: string | null;
+      quantity: number;
+      balanceAfter: number;
+    }[];
   }> {
     if (!opts.quantity || opts.quantity <= 0) {
       throw new BadRequestException(
@@ -276,7 +282,50 @@ export class MedicineService {
       );
     }
 
-    const medicine = await this.resolveTreatmentBatch(farmId, opts);
+    if (opts.medicineId) {
+      return this.decrementSingleBatch(
+        farmId,
+        userId,
+        opts.medicineId,
+        opts.quantity,
+        opts.notes,
+      );
+    }
+
+    if (!opts.medicineName) {
+      throw new BadRequestException(
+        'A medicineId or medicineName is required to deduct treatment stock',
+      );
+    }
+
+    return this.decrementAcrossBatches(
+      farmId,
+      userId,
+      opts.medicineName,
+      opts.quantity,
+      opts.notes,
+    );
+  }
+
+  /** Explicit-batch path: no splitting — the caller chose this exact batch. */
+  private async decrementSingleBatch(
+    farmId: string,
+    userId: string,
+    medicineId: string,
+    quantity: number,
+    notes?: string,
+  ): Promise<{
+    medicineId: string;
+    batchId: string | null;
+    balanceAfter: number;
+    batchesUsed: {
+      medicineId: string;
+      batchId: string | null;
+      quantity: number;
+      balanceAfter: number;
+    }[];
+  }> {
+    const medicine = await this.getOrThrow(farmId, medicineId);
 
     if (medicine.expiryDate.getTime() < Date.now()) {
       throw new BadRequestException(
@@ -284,7 +333,7 @@ export class MedicineService {
       );
     }
 
-    const balanceAfter = medicine.currentStock - opts.quantity;
+    const balanceAfter = medicine.currentStock - quantity;
     if (balanceAfter < 0) {
       throw new BadRequestException(
         'Not enough medicine stock for this treatment',
@@ -301,9 +350,9 @@ export class MedicineService {
           medicineId: medicine.id,
           farmId,
           reason: MedicineStockMovementReason.TREATMENT,
-          delta: -opts.quantity,
+          delta: -quantity,
           balanceAfter,
-          notes: opts.notes ?? 'Treatment administered',
+          notes: notes ?? 'Treatment administered',
           createdBy: userId,
         },
       }),
@@ -312,12 +361,144 @@ export class MedicineService {
     this.log.info('Medicine decremented for treatment', {
       medicineId: medicine.id,
       farmId,
-      quantity: opts.quantity,
+      quantity,
       balanceAfter,
     });
 
-    // Low Medicine Stock alert (PRD §20.2) — fire only on the downward crossing
-    // (was above the threshold, now at/below) so it doesn't spam every dose.
+    await this.maybeAlertLowStock(farmId, medicine, balanceAfter);
+
+    return {
+      medicineId: medicine.id,
+      batchId: medicine.batchId,
+      balanceAfter,
+      batchesUsed: [
+        {
+          medicineId: medicine.id,
+          batchId: medicine.batchId,
+          quantity,
+          balanceAfter,
+        },
+      ],
+    };
+  }
+
+  /**
+   * FIFO-by-name path (INV-05): walks every non-expired in-stock batch of this
+   * medicine name, earliest-expiry first, drawing as much as each batch can
+   * cover before moving to the next — splitting the dose across batches when
+   * one alone is insufficient (RD-003). Throws if the combined stock across
+   * all eligible batches still can't cover the quantity; nothing is written.
+   */
+  private async decrementAcrossBatches(
+    farmId: string,
+    userId: string,
+    medicineName: string,
+    quantity: number,
+    notes?: string,
+  ): Promise<{
+    medicineId: string;
+    batchId: string | null;
+    balanceAfter: number;
+    batchesUsed: {
+      medicineId: string;
+      batchId: string | null;
+      quantity: number;
+      balanceAfter: number;
+    }[];
+  }> {
+    const batches = await this.prisma.medicine.findMany({
+      where: {
+        farmId,
+        isActive: true,
+        name: { equals: medicineName, mode: 'insensitive' },
+        currentStock: { gt: 0 },
+        expiryDate: { gte: new Date() },
+      },
+      // FIFO: earliest expiry first (INV-05).
+      orderBy: [{ expiryDate: 'asc' }, { id: 'asc' }],
+    });
+
+    if (batches.length === 0) {
+      throw new BadRequestException(
+        `No in-stock, non-expired batch found for medicine "${medicineName}"`,
+      );
+    }
+
+    const totalAvailable = batches.reduce(
+      (sum, batch) => sum + batch.currentStock,
+      0,
+    );
+    if (totalAvailable < quantity) {
+      throw new BadRequestException(
+        'Not enough medicine stock for this treatment',
+      );
+    }
+
+    let remaining = quantity;
+    const plan: { batch: Medicine; draw: number; balanceAfter: number }[] = [];
+    for (const batch of batches) {
+      if (remaining <= 0) break;
+      const draw = Math.min(batch.currentStock, remaining);
+      plan.push({ batch, draw, balanceAfter: batch.currentStock - draw });
+      remaining -= draw;
+    }
+
+    const isSplit = plan.length > 1;
+    const ops = plan.flatMap(({ batch, draw, balanceAfter }) => [
+      this.prisma.medicine.update({
+        where: { id: batch.id },
+        data: { currentStock: balanceAfter },
+      }),
+      this.prisma.medicineStockMovement.create({
+        data: {
+          medicineId: batch.id,
+          farmId,
+          reason: MedicineStockMovementReason.TREATMENT,
+          delta: -draw,
+          balanceAfter,
+          notes: isSplit
+            ? `${notes ?? 'Treatment administered'} (cross-batch split: ${draw} of ${quantity})`
+            : (notes ?? 'Treatment administered'),
+          createdBy: userId,
+        },
+      }),
+    ]);
+
+    await this.prisma.$transaction(ops);
+
+    this.log.info('Medicine decremented for treatment', {
+      farmId,
+      medicineName,
+      quantity,
+      batchesUsed: plan.map((p) => p.batch.id),
+      split: isSplit,
+    });
+
+    for (const { batch, balanceAfter } of plan) {
+      await this.maybeAlertLowStock(farmId, batch, balanceAfter);
+    }
+
+    const primary = plan[0];
+    return {
+      medicineId: primary.batch.id,
+      batchId: primary.batch.batchId,
+      balanceAfter: primary.balanceAfter,
+      batchesUsed: plan.map(({ batch, draw, balanceAfter }) => ({
+        medicineId: batch.id,
+        batchId: batch.batchId,
+        quantity: draw,
+        balanceAfter,
+      })),
+    };
+  }
+
+  // Low Medicine Stock alert (PRD §20.2) — fire only on the downward crossing
+  // (was above the threshold, now at/below) so it doesn't spam every dose.
+  private async maybeAlertLowStock(
+    farmId: string,
+    medicine: Medicine,
+    balanceAfter: number,
+  ): Promise<void> {
     const threshold = medicine.lowStockThreshold;
     if (
       threshold > 0 &&
@@ -337,41 +518,6 @@ export class MedicineService {
         link: '/inventory/medicine',
       });
     }
-
-    return { medicineId: medicine.id, batchId: medicine.batchId, balanceAfter };
-  }
-
-  /** Resolve the batch a treatment draws from: explicit id, else FIFO-by-name (INV-05). */
-  private async resolveTreatmentBatch(
-    farmId: string,
-    opts: { medicineId?: string; medicineName?: string },
-  ): Promise<Medicine> {
-    if (opts.medicineId) {
-      return this.getOrThrow(farmId, opts.medicineId);
-    }
-    if (!opts.medicineName) {
-      throw new BadRequestException(
-        'A medicineId or medicineName is required to deduct treatment stock',
-      );
-    }
-
-    const batch = await this.prisma.medicine.findFirst({
-      where: {
-        farmId,
-        isActive: true,
-        name: { equals: opts.medicineName, mode: 'insensitive' },
-        currentStock: { gt: 0 },
-        expiryDate: { gte: new Date() },
-      },
-      // FIFO: earliest expiry first (INV-05).
-      orderBy: [{ expiryDate: 'asc' }, { id: 'asc' }],
-    });
-    if (!batch) {
-      throw new BadRequestException(
-        `No in-stock, non-expired batch found for medicine "${opts.medicineName}"`,
-      );
-    }
-    return batch;
   }
 
   async archive(farmId: string, id: string): Promise<PresentedMedicine> {

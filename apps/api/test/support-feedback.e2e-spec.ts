@@ -175,8 +175,8 @@ describe('Support feedback + trial-abuse (e2e)', () => {
     // never left with `NONE` entitlement / read-only forever.
     expect(sub2?.status).toBe('ACTIVE');
     expect(sub2?.subscriptionPlan.name).toBe('Free');
-    expect(
-      await prisma.trialGrant.count({ where: { userId: user.id } }),
-    ).toBe(1); // still only ever one TrialGrant row
+    expect(await prisma.trialGrant.count({ where: { userId: user.id } })).toBe(
+      1,
+    ); // still only ever one TrialGrant row
   });
 });

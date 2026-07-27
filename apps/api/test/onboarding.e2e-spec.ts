@@ -146,13 +146,11 @@ describe('Onboarding (e2e)', () => {
         },
       });
 
-      const login = await request(server())
-        .post(api('/auth/login'))
-        .send({
-          email: 'owner@demo.rakhal.test',
-          password: 'DemoPass123',
-          farmId: inviteFarmId,
-        });
+      const login = await request(server()).post(api('/auth/login')).send({
+        email: 'owner@demo.rakhal.test',
+        password: 'DemoPass123',
+        farmId: inviteFarmId,
+      });
       inviteOwner = {
         token: login.body.data.accessToken as string,
         farmId: inviteFarmId,

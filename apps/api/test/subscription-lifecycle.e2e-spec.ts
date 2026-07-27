@@ -164,7 +164,9 @@ describe('Subscription lifecycle (e2e)', () => {
       expect(after).toBe(before);
     } finally {
       await prisma.farmSubscription.deleteMany({ where: { farmId: farm.id } });
-      await prisma.farm.delete({ where: { id: farm.id } }).catch(() => undefined);
+      await prisma.farm
+        .delete({ where: { id: farm.id } })
+        .catch(() => undefined);
     }
   });
 
