@@ -11,6 +11,7 @@ import {
   CattlePurpose,
   CattleSourceType,
   CattleStatus,
+  DryPeriod,
   LactationStatus,
   PregnancyDiagnosisResult,
   PregnancyStatus,
@@ -31,6 +32,7 @@ import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.ser
 import { CreateAbortionEventDto } from '../../presentation/dto/create-abortion-event.dto';
 import { CreateBreedingEventDto } from '../../presentation/dto/create-breeding-event.dto';
 import { CreateCalvingEventDto } from '../../presentation/dto/create-calving-event.dto';
+import { CreateDryOffDto } from '../../presentation/dto/create-dry-off.dto';
 import { CreateHeatEventDto } from '../../presentation/dto/create-heat-event.dto';
 import { CreatePregnancyDiagnosisDto } from '../../presentation/dto/create-pregnancy-diagnosis.dto';
 import { ReproductionListQueryDto } from '../../presentation/dto/common.dto';
@@ -516,6 +518,84 @@ export class ReproductionService {
     });
 
     return calvingEvent;
+  }
+
+  /**
+   * Record a dry-off (RD-038 — `DryPeriod` previously had no writer anywhere
+   * in the codebase). Ends the cow's active `Lactation`, opens a `DryPeriod`
+   * row (`expectedEndDate` projected from the farm's `reproDryPeriodTargetDays`
+   * setting, RD-016), and flips `Cattle.productionStatus` to `DRY` — the same
+   * lifecycle-transition pattern `createCalvingEvent` uses for `MILKING`.
+   */
+  async recordDryOff(
+    farmId: string,
+    cattleId: string,
+    dto: CreateDryOffDto,
+  ): Promise<DryPeriod> {
+    const cattle = await this.getFemaleCattle(farmId, cattleId);
+    const dryOffDate = dto.dryOffDate ? new Date(dto.dryOffDate) : new Date();
+
+    const activeLactation = await this.prisma.lactation.findFirst({
+      where: { cattleId, status: LactationStatus.ACTIVE },
+      orderBy: { startDate: 'desc' },
+    });
+    if (!activeLactation) {
+      throw new BadRequestException(
+        `[${cattle.tagNumber}] has no active lactation to dry off`,
+      );
+    }
+
+    const alreadyDry = await this.prisma.dryPeriod.findFirst({
+      where: { cattleId, actualEndDate: null },
+    });
+    if (alreadyDry) {
+      throw new BadRequestException(
+        `[${cattle.tagNumber}] already has an open dry period`,
+      );
+    }
+
+    const targetDays = await this.farmSettings.reproDryPeriodTargetDays(farmId);
+
+    const dryPeriod = await this.prisma.$transaction(async (tx) => {
+      await tx.lactation.update({
+        where: { id: activeLactation.id },
+        data: { status: LactationStatus.ENDED, endDate: dryOffDate },
+      });
+
+      const created = await tx.dryPeriod.create({
+        data: {
+          cattleId,
+          startDate: dryOffDate,
+          expectedEndDate: this.addDays(dryOffDate, targetDays),
+          notes: dto.notes,
+        },
+      });
+
+      // Lifecycle transition (mirrors createCalvingEvent's MILKING flip) — only
+      // auto-set when she isn't already SOLD/DECEASED (an archived cow shouldn't revive).
+      await tx.cattle.updateMany({
+        where: {
+          id: cattleId,
+          productionStatus: {
+            notIn: [ProductionStatus.SOLD, ProductionStatus.DECEASED],
+          },
+        },
+        data: { productionStatus: ProductionStatus.DRY },
+      });
+
+      return created;
+    });
+
+    await this.refreshProfile(cattleId);
+
+    this.log.info('Dry-off recorded', {
+      dryPeriodId: dryPeriod.id,
+      cattleId,
+      farmId,
+      lactationId: activeLactation.id,
+    });
+
+    return dryPeriod;
   }
 
   async listCalvingEvents(farmId: string, query: ReproductionListQueryDto) {

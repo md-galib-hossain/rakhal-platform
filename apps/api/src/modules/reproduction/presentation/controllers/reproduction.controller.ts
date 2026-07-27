@@ -20,6 +20,7 @@ import { ReproEventsQueryDto } from '../dto/repro-events-query.dto';
 import { CreateAbortionEventDto } from '../dto/create-abortion-event.dto';
 import { CreateBreedingEventDto } from '../dto/create-breeding-event.dto';
 import { CreateCalvingEventDto } from '../dto/create-calving-event.dto';
+import { CreateDryOffDto } from '../dto/create-dry-off.dto';
 import { CreateHeatEventDto } from '../dto/create-heat-event.dto';
 import { CreatePregnancyDiagnosisDto } from '../dto/create-pregnancy-diagnosis.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -139,6 +140,17 @@ export class ReproductionController {
     @Query() query: ReproductionListQueryDto,
   ) {
     return this.reproductionService.listAbortionEvents(farmId, query);
+  }
+
+  /** RD-038: record a dry-off — ends the active Lactation, opens a DryPeriod, flips Cattle to DRY. */
+  @Post('cattle/:id/dry-off')
+  @RequirePermission('reproduction.create')
+  recordDryOff(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @Body() dto: CreateDryOffDto,
+  ) {
+    return this.reproductionService.recordDryOff(farmId, id, dto);
   }
 
   @Get('lactations')

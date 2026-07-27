@@ -51,6 +51,11 @@ export class FarmSettingsService {
     return (await this.getEffective(farmId)).reproVwpDays;
   }
 
+  /** Dry-period target length, in days (PRD §9) — projects `DryPeriod.expectedEndDate`. */
+  async reproDryPeriodTargetDays(farmId: string): Promise<number> {
+    return (await this.getEffective(farmId)).reproDryPeriodTargetDays;
+  }
+
   /**
    * Milk-anomaly cutoff as a fraction of the 7-day average — a session below it is
    * flagged. `anomalyThresholdPct` is the drop %, so 30 → 0.70 (PRD §10.2).

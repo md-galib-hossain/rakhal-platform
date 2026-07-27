@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import {
   CattleStatus,
+  FinanceCategory,
   FinancePaymentType,
   FinanceTxnStatus,
   FinanceTxnType,
@@ -20,9 +21,12 @@ import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { NON_VOID_TXN } from 'src/common/finance/txn-filters';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
+import { renderCsv } from 'src/modules/reports/domain/csv-renderer';
+import { ReportData } from 'src/modules/reports/domain/report-data';
 import { CreateTransactionDto } from '../../presentation/dto/create-transaction.dto';
 import { CreateFixedAssetDto } from '../../presentation/dto/create-fixed-asset.dto';
 import {
+  ExportTransactionsQueryDto,
   LedgerQueryDto,
   ReceivableQueryDto,
 } from '../../presentation/dto/finance-query.dto';
@@ -202,7 +206,34 @@ export class FinanceService {
   }
 
   async ledger(farmId: string, query: LedgerQueryDto) {
-    const where: Prisma.FinanceTransactionWhereInput = {
+    const where = this.buildLedgerWhere(farmId, query);
+
+    const rows = await this.prisma.financeTransaction.findMany({
+      where,
+      orderBy: [{ date: query.sortOrder }, { id: query.sortOrder }],
+      ...getCursorArgs(query),
+    });
+    const page = toCursorPage(rows, query);
+    const chart = await this.ledgerChart(farmId);
+    return { items: page.items, meta: { ...page.meta, chart } };
+  }
+
+  /**
+   * Shared filter-building for the ledger list and the CSV export below —
+   * same filters (category/status/date-range/search), just without the
+   * cursor-pagination fields the export doesn't use.
+   */
+  private buildLedgerWhere(
+    farmId: string,
+    query: {
+      category?: FinanceCategory;
+      status?: FinanceTxnStatus;
+      from?: string;
+      to?: string;
+      search?: string;
+    },
+  ): Prisma.FinanceTransactionWhereInput {
+    return {
       farmId,
       ...(query.category ? { category: query.category } : {}),
       ...(query.status ? { status: query.status } : {}),
@@ -224,15 +255,77 @@ export class FinanceService {
           }
         : {}),
     };
+  }
+
+  /**
+   * RD-010(c) — transactions CSV export. Reuses the ledger's own filters
+   * (category/status/date-range/search) but returns every matching row (no
+   * cursor pagination) rendered through the Reports engine's generic CSV
+   * renderer (`renderCsv`/`ReportData`) — same shape, no new dependency.
+   * Intentionally includes voided/reversal rows, same as the ledger list
+   * (an audit export, not a money-sum aggregation — RD-017's `NON_VOID_TXN`
+   * filter is for sums, not this).
+   */
+  async exportTransactionsCsv(
+    farmId: string,
+    query: ExportTransactionsQueryDto,
+  ): Promise<{ buffer: Buffer; fileName: string }> {
+    const where = this.buildLedgerWhere(farmId, query);
 
     const rows = await this.prisma.financeTransaction.findMany({
       where,
-      orderBy: [{ date: query.sortOrder }, { id: query.sortOrder }],
-      ...getCursorArgs(query),
+      orderBy: [{ date: 'desc' }, { id: 'desc' }],
     });
-    const page = toCursorPage(rows, query);
-    const chart = await this.ledgerChart(farmId);
-    return { items: page.items, meta: { ...page.meta, chart } };
+
+    const period =
+      query.from || query.to
+        ? `${query.from ?? '…'} to ${query.to ?? '…'}`
+        : 'All time';
+
+    const report: ReportData = {
+      title: 'Finance Transactions Export',
+      period,
+      columns: [
+        'Date',
+        'Reference',
+        'Type',
+        'Category',
+        'Sub Type',
+        'Entity',
+        'Description',
+        'Amount',
+        'Paid Now',
+        'Payment Type',
+        'Payment Method',
+        'Status',
+        'Voided',
+      ],
+      rows: rows.map((t) => [
+        t.date.toISOString().slice(0, 10),
+        t.reference,
+        t.type,
+        t.category,
+        t.subType,
+        t.entityName,
+        t.description,
+        t.amount,
+        t.paidNow,
+        t.paymentType,
+        t.paymentMethod,
+        t.status,
+        t.isVoided ? 'yes' : 'no',
+      ]),
+    };
+
+    const buffer = renderCsv(report);
+    const fileName = `finance-transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+
+    this.log.info('Finance transactions exported', {
+      farmId,
+      rowCount: rows.length,
+    });
+
+    return { buffer, fileName };
   }
 
   async voidTransaction(
