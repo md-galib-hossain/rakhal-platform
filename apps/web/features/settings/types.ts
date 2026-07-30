@@ -35,3 +35,51 @@ export interface RoleOption {
 export interface RoleListResult {
   roles: RoleOption[];
 }
+
+/** `GET/PATCH /settings/farm` (`SettingsService#getFarm`/`mapFarm` — verified against backend source,
+ * not the (stale) API doc sample: also returns `farm_slug`/`status`/`phone`/`address`, the latter two
+ * read-only here since their mutation path is `PATCH /billing/profile`). */
+export interface FarmSettings {
+  farm_id: string;
+  farm_slug: string;
+  farm_name: string;
+  description: string | null;
+  division: string | null;
+  district: string | null;
+  upazila: string | null;
+  operational_purpose: string | null;
+  status: string;
+  phone: string | null;
+  address: string | null;
+}
+
+export type ShedPurpose = "MILKING" | "HEIFER" | "DRY" | "CALF" | "QUARANTINE" | "GENERAL";
+
+/** `GET /settings/sheds` row — the list route returns a bare array, not `{sheds: []}` (API doc sample
+ * is stale; `SettingsController#listSheds` returns the service result directly). */
+export interface Shed {
+  id: string;
+  name: string;
+  code: string | null;
+  description: string | null;
+  capacity: number | null;
+  purpose: ShedPurpose | null;
+  responsible_member: { id: string; name: string } | null;
+  current_count: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export type ShedListResult = Shed[];
+
+/** `GET /settings/feed-groups` row — bare array like sheds (`SettingsController#listFeedGroups`). */
+export interface FeedGroup {
+  id: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  assigned_count: number;
+  created_at: string;
+}
+
+export type FeedGroupListResult = FeedGroup[];

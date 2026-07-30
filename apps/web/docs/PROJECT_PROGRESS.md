@@ -711,11 +711,13 @@
   Verified live against two saved formulas with real nutrient data.
 
 #### RFE-041 — Reports
-- **Lane:** `features/reports/**`, `app/(app)/reports/**`
-- Catalogue (12 MVP reports grouped), generate dialog (params) → job poll → download (CSV/PDF).
-  Schedules UI **deferred** (backend V1.5). Premium-gated.
+- **Lane:** `features/reports/**`, `app/(app)/reports/**`, `app/api/reports/**`
+- Catalogue (12 MVP reports grouped), generate dialog (params) → async job poll → download (CSV/PDF).
+  **Schedules panel now built** (backend's V1.5 deferral shipped 2026-07-29 — RD-013c) — create/list/delete,
+  DAILY/WEEKLY/MONTHLY. Premium-gated on `reports.generate`/`reports.scheduled`.
 - **API:** §15 · **PRD:** §22 · **Design:** PRD-spec
-- **Status:** `TODO`
+- **Status:** `DONE` (2026-07-29) — `tsc`/`eslint`/`next build` gated green; live in-browser E2E verification
+  was inconclusive this session (dev-harness flakiness, not a static-check failure) and should be re-checked.
 
 #### RFE-042 — Activity Log
 - **Lane:** `features/activity/**` · Filterable feed (`GET /activity-log`), hash-chain badge, entity links.
@@ -741,8 +743,8 @@
 - Farm profile (location cascades, purpose), Sheds CRUD, Feed-groups CRUD, Team (invite/remove/resend,
   seat-limit UX from RFE-008), Roles & permissions matrix editor, Module settings (PRD §21.5 toggles),
   Suppliers CRUD, Billing summary (links RFE-036).
-- **API:** §18 · **PRD:** §21 · Large — may split per-tab into RFE-045a/b/c in IN_FLIGHT if two agents want it.
-- **Status:** `TODO`
+- **API:** §18 · **PRD:** §21 · Large — split per-tab into RFE-045a/b/c (see `IN_FLIGHT.md` Recently Done).
+- **Status:** `IN_PROGRESS` — 045a (Farm profile + Sheds CRUD + Feed-groups CRUD) done 2026-07-30, API-verified live, UI click-through pending a dev-server restart (browser-harness Suspense quirk, see `IN_FLIGHT.md`). Remaining: 045b (Roles matrix + Module toggles), 045c (Suppliers CRUD).
 
 #### RFE-046 — Scoreboard (V1.5 flag)
 - **Lane:** `features/scoreboard/**` · Highlights, leaderboard, join/leave. Premium+flag-gated; lowest priority.

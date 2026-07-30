@@ -47,9 +47,9 @@ export default function FinancialPerformanceChartInner({
               tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
             />
             <Tooltip
-              formatter={(value, key) => [
+              formatter={(value, _name, item) => [
                 `৳${Number(value).toLocaleString()}`,
-                key === "income" ? labels.income : key === "expense" ? labels.expense : labels.profit,
+                item.dataKey === "income" ? labels.income : item.dataKey === "expense" ? labels.expense : labels.profit,
               ]}
               contentStyle={{
                 backgroundColor: "var(--card)",

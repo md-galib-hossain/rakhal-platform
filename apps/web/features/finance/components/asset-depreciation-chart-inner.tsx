@@ -32,9 +32,9 @@ export default function AssetDepreciationChartInner({
             />
             <YAxis tickFormatter={formatK} tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
             <Tooltip
-              formatter={(value, key) => [
+              formatter={(value, _name, item) => [
                 `৳${Number(value).toLocaleString()}`,
-                key === "book_value" ? labels.bookValue : labels.accumulatedDepreciation,
+                item.dataKey === "book_value" ? labels.bookValue : labels.accumulatedDepreciation,
               ]}
               contentStyle={{
                 backgroundColor: "var(--card)",

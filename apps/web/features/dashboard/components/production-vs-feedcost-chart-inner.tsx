@@ -48,9 +48,9 @@ export default function ProductionVsFeedcostChartInner({
               tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}K` : `${v}`)}
             />
             <Tooltip
-              formatter={(value, key) => [
-                key === "productionL" ? `${value}L` : `৳${Number(value).toLocaleString()}`,
-                key === "productionL" ? labels.production : labels.feedcost,
+              formatter={(value, _name, item) => [
+                item.dataKey === "productionL" ? `${value}L` : `৳${Number(value).toLocaleString()}`,
+                item.dataKey === "productionL" ? labels.production : labels.feedcost,
               ]}
               contentStyle={{
                 backgroundColor: "var(--card)",

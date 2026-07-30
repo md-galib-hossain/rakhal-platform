@@ -52,9 +52,9 @@ export default function ConceptionRateChartInner({
               tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
             />
             <Tooltip
-              formatter={(value, key) => [
-                key === "ratePct" ? `${value}%` : value,
-                key === "ratePct" ? labels.avgRate : labels.monthlyConception,
+              formatter={(value, _name, item) => [
+                item.dataKey === "ratePct" ? `${value}%` : value,
+                item.dataKey === "ratePct" ? labels.avgRate : labels.monthlyConception,
               ]}
               contentStyle={{
                 backgroundColor: "var(--card)",

@@ -3623,6 +3623,85 @@
       "roleChangedToast": "Role updated.",
       "loadError": "Could not load your team.",
       "empty": "No team members yet."
+    },
+    "workspace": {
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "farm": {
+        "title": "Farm profile",
+        "farmName": "Farm name",
+        "farmId": "Farm ID",
+        "division": "Division",
+        "district": "District",
+        "upazila": "Upazila",
+        "purpose": "Operational purpose",
+        "description": "Description",
+        "save": "Save changes",
+        "saving": "Saving…",
+        "savedToast": "Farm profile updated.",
+        "loadError": "Could not load farm settings.",
+        "genericError": "Something went wrong. Please try again."
+      },
+      "sheds": {
+        "title": "Sheds",
+        "add": "Add shed",
+        "empty": "No sheds yet.",
+        "nameHeader": "Name",
+        "purposeHeader": "Purpose",
+        "capacityHeader": "Capacity",
+        "occupancyHeader": "Occupancy",
+        "actionsHeader": "",
+        "edit": "Edit",
+        "deactivate": "Deactivate",
+        "addTitle": "Add shed",
+        "editTitle": "Edit shed",
+        "dialogDescription": "Sheds group cattle by housing and purpose.",
+        "nameLabel": "Name",
+        "capacityLabel": "Capacity",
+        "purposeLabel": "Purpose",
+        "descriptionLabel": "Description (optional)",
+        "save": "Save",
+        "saving": "Saving…",
+        "createdToast": "Shed added.",
+        "updatedToast": "Shed updated.",
+        "deactivatedToast": "Shed deactivated.",
+        "deactivateConfirmTitle": "Deactivate {name}?",
+        "deactivateConfirmBody": "Blocked if any active cattle are still assigned to this shed.",
+        "loadError": "Could not load sheds.",
+        "genericError": "Something went wrong. Please try again.",
+        "purposeValues": {
+          "MILKING": "Milking",
+          "HEIFER": "Heifer",
+          "DRY": "Dry",
+          "CALF": "Calf",
+          "QUARANTINE": "Quarantine",
+          "GENERAL": "General"
+        }
+      },
+      "feedGroups": {
+        "title": "Feed groups",
+        "add": "Add feed group",
+        "empty": "No feed groups yet.",
+        "nameHeader": "Name",
+        "assignedHeader": "Assigned cattle",
+        "actionsHeader": "",
+        "edit": "Edit",
+        "delete": "Delete",
+        "addTitle": "Add feed group",
+        "editTitle": "Edit feed group",
+        "dialogDescription": "Feed groups drive concentration and requirement calculations in Feed Formulator.",
+        "nameLabel": "Name",
+        "descriptionLabel": "Description (optional)",
+        "save": "Save",
+        "saving": "Saving…",
+        "createdToast": "Feed group added.",
+        "updatedToast": "Feed group updated.",
+        "deletedToast": "Feed group deleted.",
+        "deleteConfirmTitle": "Delete {name}?",
+        "deleteConfirmBody": "Blocked if any active cattle are still assigned to this group. This cannot be undone.",
+        "loadError": "Could not load feed groups.",
+        "genericError": "Something went wrong. Please try again."
+      }
     }
   },
   "billing": {
@@ -3751,6 +3830,66 @@
       "tax": "Tax",
       "total": "Total",
       "back": "Back"
+    }
+  },
+  "reports": {
+    "categories": {
+      "production": "Production",
+      "reproduction": "Reproduction",
+      "health": "Health",
+      "financial": "Financial"
+    },
+    "generate": "Generate",
+    "regenerate": "Regenerate",
+    "format": "Format",
+    "lastGenerated": "Last generated {date}",
+    "neverGenerated": "Never generated",
+    "catalogueError": "Couldn't load the report catalogue.",
+    "schedulesError": "Couldn't load scheduled reports.",
+    "genericError": "Something went wrong. Please try again.",
+    "generating": "Generating your report — this can take a few seconds.",
+    "download": "Download",
+    "status": {
+      "queued": "Queued",
+      "generating": "Generating",
+      "completed": "Ready",
+      "failed": "Failed"
+    },
+    "params": {
+      "date": "Date",
+      "month": "Month",
+      "year": "Year",
+      "shedId": "Shed ID",
+      "cattleId": "Cattle ID",
+      "fromDate": "From date",
+      "toDate": "To date"
+    },
+    "schedules": {
+      "title": "Scheduled reports",
+      "new": "New schedule",
+      "empty": "No scheduled reports yet.",
+      "report": "Report",
+      "reportPlaceholder": "Choose a report",
+      "frequencyLabel": "Frequency",
+      "frequency": {
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly"
+      },
+      "dayOfWeek": "Day of week (1 = Mon, 7 = Sun)",
+      "dayOfMonth": "Day of month (1-28)",
+      "nextRun": "Next run: {date}",
+      "create": "Create schedule",
+      "delete": "Delete",
+      "deleteConfirmTitle": "Delete this scheduled report?",
+      "deleteConfirmDescription": "It will stop auto-generating. This can't be undone.",
+      "createdToast": "Schedule created.",
+      "deletedToast": "Schedule deleted."
+    },
+    "locked": {
+      "title": "Reports is a Pro feature",
+      "description": "Upgrade your plan to generate and schedule reports.",
+      "cta": "View plans"
     }
   }
 }

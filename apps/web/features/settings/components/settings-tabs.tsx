@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/shared/empty-state";
 import { BillingSettingsView } from "@/features/subscription/components/billing/billing-settings-view";
 import { TeamSettingsView } from "./team-settings-view";
+import { WorkspaceSettingsView } from "./workspace-settings-view";
 import { SETTINGS_TABS, type SettingsTabKey } from "../types";
 
 const TAB_KEYS = [...SETTINGS_TABS] as [SettingsTabKey, ...SettingsTabKey[]];
@@ -57,6 +58,8 @@ export function SettingsTabs() {
           <BillingSettingsView />
         ) : tab === "team" ? (
           <TeamSettingsView />
+        ) : tab === "workspace" ? (
+          <WorkspaceSettingsView />
         ) : (
           <EmptyState title={t("comingSoon")} description={t("comingSoonDescription")} />
         )}

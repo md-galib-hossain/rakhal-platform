@@ -3623,6 +3623,85 @@
       "roleChangedToast": "ভূমিকা হালনাগাদ করা হয়েছে।",
       "loadError": "আপনার দল লোড করা যায়নি।",
       "empty": "এখনো কোনো দলের সদস্য নেই।"
+    },
+    "workspace": {
+      "cancel": "বাতিল",
+      "confirm": "নিশ্চিত করুন",
+      "farm": {
+        "title": "ফার্ম প্রোফাইল",
+        "farmName": "ফার্মের নাম",
+        "farmId": "ফার্ম আইডি",
+        "division": "বিভাগ",
+        "district": "জেলা",
+        "upazila": "উপজেলা",
+        "purpose": "কার্যক্রমের উদ্দেশ্য",
+        "description": "বিবরণ",
+        "save": "পরিবর্তন সংরক্ষণ করুন",
+        "saving": "সংরক্ষণ হচ্ছে…",
+        "savedToast": "ফার্ম প্রোফাইল হালনাগাদ করা হয়েছে।",
+        "loadError": "ফার্ম সেটিংস লোড করা যায়নি।",
+        "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+      },
+      "sheds": {
+        "title": "শেড",
+        "add": "শেড যোগ করুন",
+        "empty": "এখনো কোনো শেড নেই।",
+        "nameHeader": "নাম",
+        "purposeHeader": "উদ্দেশ্য",
+        "capacityHeader": "ধারণক্ষমতা",
+        "occupancyHeader": "বর্তমান সংখ্যা",
+        "actionsHeader": "",
+        "edit": "সম্পাদনা",
+        "deactivate": "নিষ্ক্রিয় করুন",
+        "addTitle": "শেড যোগ করুন",
+        "editTitle": "শেড সম্পাদনা করুন",
+        "dialogDescription": "শেড আবাসন ও উদ্দেশ্য অনুযায়ী গবাদি পশুকে দলবদ্ধ করে।",
+        "nameLabel": "নাম",
+        "capacityLabel": "ধারণক্ষমতা",
+        "purposeLabel": "উদ্দেশ্য",
+        "descriptionLabel": "বিবরণ (ঐচ্ছিক)",
+        "save": "সংরক্ষণ করুন",
+        "saving": "সংরক্ষণ হচ্ছে…",
+        "createdToast": "শেড যোগ করা হয়েছে।",
+        "updatedToast": "শেড হালনাগাদ করা হয়েছে।",
+        "deactivatedToast": "শেড নিষ্ক্রিয় করা হয়েছে।",
+        "deactivateConfirmTitle": "{name} নিষ্ক্রিয় করবেন?",
+        "deactivateConfirmBody": "এই শেডে সক্রিয় গবাদি পশু থাকলে এটি করা যাবে না।",
+        "loadError": "শেড লোড করা যায়নি।",
+        "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।",
+        "purposeValues": {
+          "MILKING": "দুগ্ধ",
+          "HEIFER": "বকনা",
+          "DRY": "শুষ্ক",
+          "CALF": "বাছুর",
+          "QUARANTINE": "কোয়ারেন্টাইন",
+          "GENERAL": "সাধারণ"
+        }
+      },
+      "feedGroups": {
+        "title": "ফিড গ্রুপ",
+        "add": "ফিড গ্রুপ যোগ করুন",
+        "empty": "এখনো কোনো ফিড গ্রুপ নেই।",
+        "nameHeader": "নাম",
+        "assignedHeader": "নিযুক্ত গবাদি পশু",
+        "actionsHeader": "",
+        "edit": "সম্পাদনা",
+        "delete": "মুছুন",
+        "addTitle": "ফিড গ্রুপ যোগ করুন",
+        "editTitle": "ফিড গ্রুপ সম্পাদনা করুন",
+        "dialogDescription": "ফিড গ্রুপ ফিড ফর্মুলেটরের কনসেন্ট্রেশন ও চাহিদা হিসাব নির্ধারণ করে।",
+        "nameLabel": "নাম",
+        "descriptionLabel": "বিবরণ (ঐচ্ছিক)",
+        "save": "সংরক্ষণ করুন",
+        "saving": "সংরক্ষণ হচ্ছে…",
+        "createdToast": "ফিড গ্রুপ যোগ করা হয়েছে।",
+        "updatedToast": "ফিড গ্রুপ হালনাগাদ করা হয়েছে।",
+        "deletedToast": "ফিড গ্রুপ মুছে ফেলা হয়েছে।",
+        "deleteConfirmTitle": "{name} মুছবেন?",
+        "deleteConfirmBody": "এই গ্রুপে সক্রিয় গবাদি পশু থাকলে এটি করা যাবে না। এটি পূর্বাবস্থায় ফেরানো যাবে না।",
+        "loadError": "ফিড গ্রুপ লোড করা যায়নি।",
+        "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+      }
     }
   },
   "billing": {
@@ -3751,6 +3830,66 @@
       "tax": "কর",
       "total": "মোট",
       "back": "পিছনে"
+    }
+  },
+  "reports": {
+    "categories": {
+      "production": "উৎপাদন",
+      "reproduction": "প্রজনন",
+      "health": "স্বাস্থ্য",
+      "financial": "আর্থিক"
+    },
+    "generate": "তৈরি করুন",
+    "regenerate": "আবার তৈরি করুন",
+    "format": "ফরম্যাট",
+    "lastGenerated": "সর্বশেষ তৈরি {date}",
+    "neverGenerated": "এখনো তৈরি হয়নি",
+    "catalogueError": "রিপোর্ট তালিকা লোড করা যায়নি।",
+    "schedulesError": "নির্ধারিত রিপোর্ট লোড করা যায়নি।",
+    "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।",
+    "generating": "আপনার রিপোর্ট তৈরি হচ্ছে — কয়েক সেকেন্ড সময় লাগতে পারে।",
+    "download": "ডাউনলোড",
+    "status": {
+      "queued": "সারিবদ্ধ",
+      "generating": "তৈরি হচ্ছে",
+      "completed": "প্রস্তুত",
+      "failed": "ব্যর্থ"
+    },
+    "params": {
+      "date": "তারিখ",
+      "month": "মাস",
+      "year": "বছর",
+      "shedId": "শেড আইডি",
+      "cattleId": "গবাদি পশুর আইডি",
+      "fromDate": "শুরুর তারিখ",
+      "toDate": "শেষ তারিখ"
+    },
+    "schedules": {
+      "title": "নির্ধারিত রিপোর্ট",
+      "new": "নতুন সময়সূচি",
+      "empty": "এখনো কোনো নির্ধারিত রিপোর্ট নেই।",
+      "report": "রিপোর্ট",
+      "reportPlaceholder": "একটি রিপোর্ট নির্বাচন করুন",
+      "frequencyLabel": "পুনরাবৃত্তি",
+      "frequency": {
+        "daily": "প্রতিদিন",
+        "weekly": "সাপ্তাহিক",
+        "monthly": "মাসিক"
+      },
+      "dayOfWeek": "সপ্তাহের দিন (১ = সোম, ৭ = রবি)",
+      "dayOfMonth": "মাসের দিন (১-২৮)",
+      "nextRun": "পরবর্তী রান: {date}",
+      "create": "সময়সূচি তৈরি করুন",
+      "delete": "মুছুন",
+      "deleteConfirmTitle": "এই নির্ধারিত রিপোর্টটি মুছবেন?",
+      "deleteConfirmDescription": "এটি আর স্বয়ংক্রিয়ভাবে তৈরি হবে না। এটি পূর্বাবস্থায় ফেরানো যাবে না।",
+      "createdToast": "সময়সূচি তৈরি হয়েছে।",
+      "deletedToast": "সময়সূচি মুছে ফেলা হয়েছে।"
+    },
+    "locked": {
+      "title": "রিপোর্ট একটি প্রো ফিচার",
+      "description": "রিপোর্ট তৈরি ও নির্ধারণ করতে আপনার প্ল্যান আপগ্রেড করুন।",
+      "cta": "প্ল্যান দেখুন"
     }
   }
 }

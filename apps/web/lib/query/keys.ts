@@ -21,6 +21,8 @@ export const qk = {
     farm: () => ["settings", "farm"] as const,
     team: () => ["settings", "team"] as const,
     roles: () => ["settings", "roles"] as const,
+    sheds: () => ["settings", "sheds"] as const,
+    feedGroups: () => ["settings", "feed-groups"] as const,
   },
   legal: {
     consent: () => ["legal", "consent"] as const,
@@ -128,5 +130,10 @@ export const qk = {
   },
   onboarding: {
     status: () => ["onboarding", "status"] as const,
+  },
+  reports: {
+    catalogue: () => ["reports", "catalogue"] as const,
+    job: (id: string) => ["reports", "job", id] as const,
+    schedules: () => ["reports", "schedules"] as const,
   },
 };
