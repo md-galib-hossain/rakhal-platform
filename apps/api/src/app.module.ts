@@ -22,6 +22,7 @@ import {
   emailConfig,
   redisConfig,
   sentryConfig,
+  telegramConfig,
 } from 'src/core/config/env';
 import { DomainEventsModule } from 'src/common/events/domain-events.module';
 import { I18nModule } from 'src/common/i18n/i18n.module';
@@ -78,6 +79,7 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
         redisConfig,
         emailConfig,
         sentryConfig,
+        telegramConfig,
       ],
       expandVariables: true,
       cache: true,

@@ -24,6 +24,23 @@ export function renderCsv(report: ReportData): Buffer {
   if (report.period) {
     lines.push(escapeCell(`Period: ${report.period}`));
   }
+
+  if (report.sections?.length) {
+    lines.push('');
+    for (const section of report.sections) {
+      lines.push(escapeCell(`=== ${section.heading} ===`));
+      for (const item of section.summary ?? []) {
+        lines.push([escapeCell(item.label), escapeCell(item.value)].join(','));
+      }
+      lines.push(section.columns.map(escapeCell).join(','));
+      for (const row of section.rows) {
+        lines.push(row.map(escapeCell).join(','));
+      }
+      lines.push('');
+    }
+    return Buffer.from(lines.join('\r\n'), 'utf-8');
+  }
+
   for (const item of report.summary ?? []) {
     lines.push([escapeCell(item.label), escapeCell(item.value)].join(','));
   }

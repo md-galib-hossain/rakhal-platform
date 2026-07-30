@@ -506,28 +506,44 @@ export class FinanceService {
     const monthStart = new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
     );
-    const [liquidity, monthExpense, sellableLitres, avgDailyExpense, runway] =
-      await Promise.all([
+    const [liquidity, monthExpense, sellableLitres, runway] = await Promise.all(
+      [
         this.currentLiquidity(farmId),
         this.expenseSum(farmId, monthStart, now),
         this.sellableLitres(farmId, monthStart, now),
-        this.avgDailyExpense(farmId, now),
-        this.farmSettings.financeRunwayThresholds(farmId),
-      ]);
+        this.getRunwaySnapshot(farmId, now),
+      ],
+    );
 
     const costPerLitre =
       sellableLitres > 0 ? round2(monthExpense / sellableLitres) : null;
-    const runwayDays =
-      avgDailyExpense > 0 ? Math.floor(liquidity / avgDailyExpense) : null;
 
     return {
       availableLiquidity: liquidity,
       costPerLitreThisMonth: costPerLitre,
       // Herd valuation needs a per-animal market value (not modelled) — deferred.
       herdMarketValue: 0,
-      survivalRunwayDays: runwayDays,
-      survivalRunwayStatus: this.runwayStatus(runwayDays, runway),
+      survivalRunwayDays: runway.days,
+      survivalRunwayStatus: runway.status,
     };
+  }
+
+  /**
+   * Survival-runway snapshot (PRD §16/§20.2) — shared by `highlights()` and the
+   * `survival_runway_warning` scheduler sweep, so both read one computation.
+   */
+  async getRunwaySnapshot(
+    farmId: string,
+    now: Date = new Date(),
+  ): Promise<{ days: number | null; status: string }> {
+    const [liquidity, avgDailyExpense, thresholds] = await Promise.all([
+      this.currentLiquidity(farmId),
+      this.avgDailyExpense(farmId, now),
+      this.farmSettings.financeRunwayThresholds(farmId),
+    ]);
+    const days =
+      avgDailyExpense > 0 ? Math.floor(liquidity / avgDailyExpense) : null;
+    return { days, status: this.runwayStatus(days, thresholds) };
   }
 
   async assets(farmId: string) {

@@ -10,7 +10,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { NON_VOID_TXN } from 'src/common/finance/txn-filters';
-import { ReportData } from '../../domain/report-data';
+import { Cell, ReportData, ReportSection } from '../../domain/report-data';
 
 export interface ReportParams {
   date?: string;
@@ -69,6 +69,8 @@ export class ReportGeneratorsService {
         return this.annualHerdInventory(farmId, params);
       case 'rpt_feed_cost':
         return this.feedCost(farmId, params);
+      case 'rpt_monthly_farm_report':
+        return this.monthlyFarmReport(farmId, params);
       default:
         throw new BadRequestException(`Unknown report: ${reportId}`);
     }
@@ -754,6 +756,224 @@ export class ReportGeneratorsService {
       columns: ['Feed item', 'Spend (৳)', 'Share of feed (%)'],
       rows,
     };
+  }
+
+  // ---- Combined -------------------------------------------------------------
+
+  /**
+   * Monthly Farm Report: Cattle/Milk/Health/Finance combined into one
+   * multi-section document. Sections are re-derived via direct Prisma queries
+   * (not FinanceService.highlights()/MilkService.overview()/etc.) because
+   * those live-dashboard methods are "now"-relative with no month param —
+   * reusing them for a possibly-past month would silently mislabel today's
+   * data as the requested month. Matches this service's own established
+   * dashboard-aggregator convention (no cross-module coupling).
+   */
+  private async monthlyFarmReport(
+    farmId: string,
+    params: ReportParams,
+  ): Promise<ReportData> {
+    const { start, end, label } = this.monthRange(params.month);
+    const [cattle, milk, health, finance] = await Promise.all([
+      this.cattleSection(farmId, start, end),
+      this.milkSection(farmId, start, end),
+      this.healthSection(farmId, start, end),
+      this.financeSection(farmId, start, end),
+    ]);
+
+    return {
+      title: 'Monthly Farm Report',
+      period: label,
+      columns: [],
+      rows: [],
+      sections: [cattle, milk, health, finance],
+    };
+  }
+
+  private async cattleSection(
+    farmId: string,
+    start: Date,
+    end: Date,
+  ): Promise<ReportSection> {
+    const [activeHerd, additions, removals, openCows] = await Promise.all([
+      this.prisma.cattle.count({
+        where: {
+          farmId,
+          isActive: true,
+          productionStatus: { notIn: ACTIVE_PRODUCTION_EXCLUDE },
+        },
+      }),
+      this.prisma.cattle.count({
+        where: { farmId, createdAt: { gte: start, lt: end } },
+      }),
+      this.prisma.cattle.count({
+        where: {
+          farmId,
+          productionStatus: { in: ACTIVE_PRODUCTION_EXCLUDE },
+          updatedAt: { gte: start, lt: end },
+        },
+      }),
+      this.prisma.reproductionProfile.count({
+        where: {
+          cattle: { farmId, isActive: true },
+          reproductiveStatus: ReproductiveStatus.OPEN,
+        },
+      }),
+    ]);
+
+    return {
+      heading: 'Cattle',
+      summary: [
+        { label: 'Active herd', value: activeHerd },
+        { label: 'Added this month', value: additions },
+        { label: 'Removed this month', value: removals },
+      ],
+      columns: ['Metric', 'Value'],
+      rows: [
+        ['Active herd', activeHerd],
+        ['Added this month (born/purchased)', additions],
+        ['Removed this month (sold/deceased)', removals],
+        ['Open cows (as of report date)', openCows],
+      ],
+    };
+  }
+
+  private async milkSection(
+    farmId: string,
+    start: Date,
+    end: Date,
+  ): Promise<ReportSection> {
+    const monthRows = await this.prisma.milkLogEntry.findMany({
+      where: { farmId, logDate: { gte: start, lt: end } },
+      select: { cattleId: true, yieldL: true, tankType: true },
+    });
+
+    let total = 0;
+    let sellable = 0;
+    let withholding = 0;
+    const cows = new Set<string>();
+    for (const r of monthRows) {
+      total += r.yieldL;
+      cows.add(r.cattleId);
+      if (r.tankType === MilkTankType.WITHHOLDING) withholding += r.yieldL;
+      else sellable += r.yieldL;
+    }
+    const trend = await this.monthlyTrend(start, (mStart, mEnd) =>
+      this.litresTotal(farmId, mStart, mEnd),
+    );
+
+    return {
+      heading: 'Milk',
+      summary: [
+        { label: 'Total litres', value: this.round(total) },
+        { label: 'Cows contributing', value: cows.size },
+      ],
+      columns: ['Metric', 'Value'],
+      rows: [
+        ['Total litres', this.round(total)],
+        ['Sellable litres', this.round(sellable)],
+        ['Withholding litres', this.round(withholding)],
+        ...trend.map(([m, v]) => [`Litres — ${m}`, this.round(v)] as Cell[]),
+      ],
+    };
+  }
+
+  private async healthSection(
+    farmId: string,
+    start: Date,
+    end: Date,
+  ): Promise<ReportSection> {
+    const [newCases, treatments, recoveries, withholding] = await Promise.all([
+      this.prisma.healthCase.count({
+        where: { farmId, startDate: { gte: start, lt: end } },
+      }),
+      this.prisma.treatmentLog.count({
+        where: { farmId, administeredAt: { gte: start, lt: end } },
+      }),
+      this.prisma.healthCase.count({
+        where: {
+          farmId,
+          status: HealthCaseStatus.RECOVERED,
+          closedDate: { gte: start, lt: end },
+        },
+      }),
+      this.prisma.safetyWithdrawal.count({
+        where: { farmId, status: 'ACTIVE' },
+      }),
+    ]);
+
+    return {
+      heading: 'Health',
+      summary: [
+        { label: 'New cases', value: newCases },
+        { label: 'Treatments', value: treatments },
+      ],
+      columns: ['Metric', 'Value'],
+      rows: [
+        ['New cases', newCases],
+        ['Treatments administered', treatments],
+        ['Recoveries', recoveries],
+        ['Active withholding events (as of report date)', withholding],
+      ],
+    };
+  }
+
+  private async financeSection(
+    farmId: string,
+    start: Date,
+    end: Date,
+  ): Promise<ReportSection> {
+    const [income, expense, litres, trend] = await Promise.all([
+      this.revenueTotal(farmId, start, end),
+      this.expenseTotal(farmId, start, end),
+      this.litresTotal(farmId, start, end),
+      this.monthlyTrend(start, async (mStart, mEnd) => {
+        const [inc, exp] = await Promise.all([
+          this.revenueTotal(farmId, mStart, mEnd),
+          this.expenseTotal(farmId, mStart, mEnd),
+        ]);
+        return inc - exp;
+      }),
+    ]);
+    const net = income - expense;
+    const costPerLitre = litres > 0 ? this.round(expense / litres) : 0;
+
+    return {
+      heading: 'Finance',
+      summary: [
+        { label: 'Income (৳)', value: this.round(income) },
+        { label: 'Expenses (৳)', value: this.round(expense) },
+        { label: 'Net profit (৳)', value: this.round(net) },
+      ],
+      columns: ['Metric', 'Value'],
+      rows: [
+        ['Income (৳)', this.round(income)],
+        ['Expenses (৳)', this.round(expense)],
+        ['Net profit (৳)', this.round(net)],
+        ['Cost per litre (৳)', costPerLitre],
+        ...trend.map(
+          ([m, v]) => [`Net profit — ${m}`, this.round(v)] as Cell[],
+        ),
+      ],
+    };
+  }
+
+  /** Last 6 months (oldest→newest, ending at `monthStart`'s month) via `fetch`. */
+  private async monthlyTrend(
+    monthStart: Date,
+    fetch: (start: Date, end: Date) => Promise<number>,
+  ): Promise<[string, number][]> {
+    const bounds = Array.from({ length: 6 }, (_, idx) => {
+      const i = 5 - idx;
+      const start = this.monthsAgo(monthStart, i);
+      const end = this.monthsAgo(monthStart, i - 1);
+      const label = `${start.getUTCFullYear()}-${String(
+        start.getUTCMonth() + 1,
+      ).padStart(2, '0')}`;
+      return { start, end, label };
+    });
+    const values = await Promise.all(bounds.map((b) => fetch(b.start, b.end)));
+    return bounds.map((b, idx) => [b.label, values[idx]] as [string, number]);
   }
 
   // ---- shared aggregation helpers ----------------------------------------

@@ -1,17 +1,32 @@
+import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigType } from '@nestjs/config';
+import { redisConfig } from 'src/core/config/env';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { AuthModule } from '../auth/auth.module';
 import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
+import { MediaModule } from '../media/media.module';
 import { ReportGeneratorsService } from './application/services/report-generators.service';
 import { ReportsService } from './application/services/reports.service';
+import { ReportScheduleService } from './application/services/report-schedule.service';
+import { ReportsQueueService } from './infrastructure/queue/reports-queue.service';
+import { ReportsProcessor } from './infrastructure/queue/reports.processor';
+import { REPORTS_QUEUE } from './infrastructure/queue/reports.queue.constants';
+import { ReportScheduleRunner } from './infrastructure/cron/report-schedule.runner';
+import { ReportCleanupRunner } from './infrastructure/cron/report-cleanup.runner';
 import { ReportsController } from './presentation/controllers/reports.controller';
 
 /**
- * Reports module (PRD §22 / API §15). Read-only report generation; aggregates
- * the already-built modules' tables directly via Prisma (Dashboard pattern), so
- * it needs no cross-module service imports (and creates no cycles).
+ * Reports module (PRD §22 / API §15). Report generation aggregates the
+ * already-built modules' tables directly via Prisma (Dashboard pattern), so it
+ * needs no cross-module service imports (and creates no cycles), except
+ * `MediaModule` for the shared `OBJECT_STORAGE` (R2) seam (RD-013b). Generation
+ * itself runs off a BullMQ queue (RD-013a) via `ReportsProcessor`; scheduled
+ * reports (RD-013c) fire from `ReportScheduleRunner`'s hourly cron, and expired
+ * output is purged by `ReportCleanupRunner`'s hourly cron (RD-013b) onto/from
+ * the same queue/store.
  */
 @Module({
   imports: [
@@ -20,9 +35,36 @@ import { ReportsController } from './presentation/controllers/reports.controller
     TenantAccessModule,
     PermissionModule,
     SubscriptionModule,
+    MediaModule,
+    ConfigModule.forFeature(redisConfig),
+    BullModule.forRootAsync({
+      imports: [ConfigModule.forFeature(redisConfig)],
+      inject: [redisConfig.KEY],
+      useFactory: (config: ConfigType<typeof redisConfig>) => ({
+        connection: {
+          host: config.host,
+          port: config.port,
+          username: config.username,
+          password: config.password,
+          db: config.database,
+          tls: config.tlsEnabled ? {} : undefined,
+          connectTimeout: config.connectTimeoutMs,
+          maxRetriesPerRequest: null,
+        },
+      }),
+    }),
+    BullModule.registerQueue({ name: REPORTS_QUEUE }),
   ],
   controllers: [ReportsController],
-  providers: [ReportsService, ReportGeneratorsService],
-  exports: [ReportsService],
+  providers: [
+    ReportsService,
+    ReportGeneratorsService,
+    ReportScheduleService,
+    ReportsQueueService,
+    ReportsProcessor,
+    ReportScheduleRunner,
+    ReportCleanupRunner,
+  ],
+  exports: [ReportsService, ReportScheduleService],
 })
 export class ReportsModule {}

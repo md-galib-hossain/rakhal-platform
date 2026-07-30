@@ -8,7 +8,8 @@ export type ReportCategory =
   | 'production'
   | 'reproduction'
   | 'health'
-  | 'financial';
+  | 'financial'
+  | 'combined';
 
 export type ReportParamKey =
   | 'date'
@@ -181,6 +182,18 @@ export const REPORTS: ReportDef[] = [
     frequency: 'on_demand',
     params: ['month'],
   },
+  // Combined
+  {
+    id: 'rpt_monthly_farm_report',
+    name: 'Monthly Farm Report',
+    description:
+      'Combined Cattle, Milk, Health, and Finance summary for one farm and month in a single document.',
+    category: 'combined',
+    formats: ALL_FORMATS,
+    version: 'MVP',
+    frequency: 'on_demand',
+    params: ['month'],
+  },
 ];
 
 export const REPORT_IDS = new Set(REPORTS.map((r) => r.id));
@@ -199,6 +212,7 @@ export function groupedCatalogue(): {
     'reproduction',
     'health',
     'financial',
+    'combined',
   ];
   return order.map((category) => ({
     category,

@@ -46,4 +46,30 @@ describe('renderCsv', () => {
     }).toString('utf-8');
     expect(csv.split('\r\n')).toContain('x,');
   });
+
+  it('renders multi-section reports as labeled row groups', () => {
+    const csv = renderCsv({
+      title: 'Monthly Farm Report',
+      period: '2026-06',
+      columns: [],
+      rows: [],
+      sections: [
+        {
+          heading: 'Cattle',
+          summary: [{ label: 'Active herd', value: 40 }],
+          columns: ['Metric', 'Value'],
+          rows: [['Active herd', 40]],
+        },
+        {
+          heading: 'Milk',
+          columns: ['Metric', 'Value'],
+          rows: [['Total litres', 500]],
+        },
+      ],
+    }).toString('utf-8');
+    expect(csv).toContain('=== Cattle ===');
+    expect(csv).toContain('=== Milk ===');
+    expect(csv).toContain('Active herd,40');
+    expect(csv).toContain('Total litres,500');
+  });
 });

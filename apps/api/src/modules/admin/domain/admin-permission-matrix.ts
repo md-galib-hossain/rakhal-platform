@@ -9,7 +9,13 @@ import { PlatformAdminRole } from '@prisma/client';
  */
 const ADMIN_ROLE_GRANTS: Record<PlatformAdminRole, string[]> = {
   SUPER_ADMIN: ['*'],
-  SUPPORT_ADMIN: ['support.*', 'audit.read', 'coupon.read', 'referral.read'],
+  SUPPORT_ADMIN: [
+    'support.*',
+    'audit.read',
+    'coupon.read',
+    'referral.read',
+    'system.read',
+  ],
   BILLING_ADMIN: ['coupon.*', 'referral.*', 'reconciliation.*', 'audit.read'],
   CONTENT_ADMIN: ['audit.read', 'feed-ingredient.*'],
 };

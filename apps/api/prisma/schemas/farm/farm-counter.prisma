@@ -1,0 +1,11 @@
+/// Gapless per-year Farm ID counter (RAKHAL-021 remainder). Mirrors `InvoiceCounter`
+/// (RAKHAL-237): the next serial is taken by incrementing `value` inside the same
+/// transaction as the farm insert, so a rolled-back create releases the number and
+/// concurrent creates serialize on the row lock. Scoped `farm:<year>` so the serial
+/// resets each year (PRD §5.1: Farm ID = PREFIX-YEAR-SERIAL, e.g. GVD-2026-001).
+model FarmCounter {
+  scope String @id
+  value Int    @default(0)
+
+  updatedAt DateTime @updatedAt
+}

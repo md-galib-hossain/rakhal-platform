@@ -6,6 +6,8 @@ import { NotificationService } from 'src/modules/notification/application/servic
 import { SubscriptionLifecycleService } from 'src/modules/subscription/application/services/subscription-lifecycle.service';
 import { RenewalReminderService } from 'src/modules/renewal/application/services/renewal-reminder.service';
 import { ReconciliationService } from 'src/modules/billing/application/services/reconciliation.service';
+import { FinanceService } from 'src/modules/finance/application/services/finance.service';
+import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const BOSSES = ['Owner', 'Manager'];
@@ -14,11 +16,19 @@ const BOSSES = ['Owner', 'Manager'];
  * Scheduled-job runner (RAKHAL-095, PRD §20.2). A daily 5 AM cron fans out the
  * **time-based** notification sweeps — the events the engine (RAKHAL-098) can't
  * raise from an instantaneous trigger (calving-soon, payment overdue, tasks
- * overdue, medicine expiring). Sweeps read the data tables directly (the
- * Dashboard/Reports aggregator pattern — no cross-module service coupling) and
- * emit through `NotificationService` with a **dedupe key** so a re-run (or app
- * restart) on the same day doesn't double-notify. `runDailySweeps()` is public so
- * it can be invoked deterministically in tests instead of waiting for the cron.
+ * overdue, medicine expiring, heat-due, preg-check-due, dry-off-due,
+ * supplier-due, runway-warning, semen-LN2-low, today's-tasks,
+ * morbidity-outbreak). Sweeps read the data tables directly (the
+ * Dashboard/Reports aggregator pattern — no cross-module service coupling),
+ * **except `sweepSurvivalRunwayWarning`**, which calls `FinanceService` since
+ * runway has no dedicated table — it's a live computation over liquidity/spend
+ * shared with the Finance highlights endpoint. Sweeps emit through
+ * `NotificationService` with a **dedupe key** so a re-run (or app restart) on
+ * the same day doesn't double-notify. `runDailySweeps()` is public so it can be
+ * invoked deterministically in tests instead of waiting for the cron.
+ * `withholding_active` is deliberately NOT a sweep here — its PRD trigger is
+ * "treatment logged with withdrawal days", an instant event, emitted directly
+ * from `HealthService.logTreatment`.
  */
 @Injectable()
 export class SchedulerService {
@@ -30,6 +40,8 @@ export class SchedulerService {
     private readonly subscriptionLifecycle: SubscriptionLifecycleService,
     private readonly renewalReminders: RenewalReminderService,
     private readonly reconciliation: ReconciliationService,
+    private readonly financeService: FinanceService,
+    private readonly farmSettings: FarmSettingsService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(SchedulerService.name);
@@ -43,6 +55,14 @@ export class SchedulerService {
       ['payment_overdue', () => this.sweepPaymentOverdue()],
       ['task_overdue', () => this.sweepTasksOverdue()],
       ['medicine_expiring_30_days', () => this.sweepMedicineExpiring()],
+      ['cow_expected_in_heat', () => this.sweepHeatDue()],
+      ['pregnancy_check_due', () => this.sweepPregnancyCheckDue()],
+      ['dry_off_due_14_days', () => this.sweepDryOffDue()],
+      ['supplier_payment_due_soon', () => this.sweepSupplierPaymentDue()],
+      ['survival_runway_warning', () => this.sweepSurvivalRunwayWarning()],
+      ['semen_tank_low_ln2', () => this.sweepSemenTankLowLn2()],
+      ['todays_tasks_ready', () => this.sweepTodaysTasksReady()],
+      ['morbidity_outbreak', () => this.sweepMorbidityOutbreak()],
       ['subscription_expiry', () => this.sweepSubscriptionExpiry()],
       // Runs after the expiry sweep so EXPIRED status is current for win-back.
       ['renewal_reminders', () => this.sweepRenewalReminders()],
@@ -186,6 +206,307 @@ export class SchedulerService {
         link: '/inventory/medicine',
         // No date in the key → one alert per batch (avoids a 30-day daily drip).
         dedupeKey: `medicine_expiring_30_days:${m.id}`,
+      });
+    }
+    return emitted;
+  }
+
+  /** Cows ~19 days past their last heat with no newer heat/breeding since (PRD §20.2). Once per heat. */
+  private async sweepHeatDue(): Promise<number> {
+    const now = new Date();
+    const windowStart = new Date(now.getTime() - 20 * DAY_MS);
+    const windowEnd = new Date(now.getTime() - 19 * DAY_MS);
+    const candidates = await this.prisma.heatEvent.findMany({
+      where: { heatDateTime: { gte: windowStart, lt: windowEnd } },
+      select: {
+        id: true,
+        cattleId: true,
+        heatDateTime: true,
+        cattle: { select: { farmId: true, tagNumber: true, name: true } },
+      },
+    });
+
+    let emitted = 0;
+    for (const h of candidates) {
+      const [newerHeat, bredSince] = await Promise.all([
+        this.prisma.heatEvent.findFirst({
+          where: { cattleId: h.cattleId, heatDateTime: { gt: h.heatDateTime } },
+          select: { id: true },
+        }),
+        this.prisma.breedingEvent.findFirst({
+          where: {
+            cattleId: h.cattleId,
+            breedingDate: { gte: h.heatDateTime },
+          },
+          select: { id: true },
+        }),
+      ]);
+      if (newerHeat || bredSince) continue;
+      const label = h.cattle.name ?? h.cattle.tagNumber;
+      emitted += await this.emit({
+        farmId: h.cattle.farmId,
+        eventKey: 'cow_expected_in_heat',
+        title: 'Cow Expected in Heat',
+        message: `${label} (${h.cattle.tagNumber}) is expected back in heat (last heat ${this.ymd(h.heatDateTime)}).`,
+        params: {
+          name: label,
+          tagNumber: h.cattle.tagNumber,
+          date: this.ymd(h.heatDateTime),
+        },
+        link: '/reproduction',
+        dedupeKey: `cow_expected_in_heat:${h.id}`,
+      });
+    }
+    return emitted;
+  }
+
+  /** Breedings whose pregnancy-check date has arrived and are still pending (PRD §20.2). Once per breeding. */
+  private async sweepPregnancyCheckDue(): Promise<number> {
+    const now = new Date();
+    const events = await this.prisma.breedingEvent.findMany({
+      where: {
+        status: 'PENDING_CHECK',
+        expectedPregnancyCheckDate: { lte: now },
+      },
+      select: {
+        id: true,
+        expectedPregnancyCheckDate: true,
+        cattle: { select: { farmId: true, tagNumber: true, name: true } },
+      },
+    });
+
+    let emitted = 0;
+    for (const e of events) {
+      const label = e.cattle.name ?? e.cattle.tagNumber;
+      emitted += await this.emit({
+        farmId: e.cattle.farmId,
+        eventKey: 'pregnancy_check_due',
+        title: 'Pregnancy Check Due',
+        message: `${label} (${e.cattle.tagNumber}) is due for a pregnancy check (expected ${this.ymd(e.expectedPregnancyCheckDate!)}).`,
+        params: {
+          name: label,
+          tagNumber: e.cattle.tagNumber,
+          date: this.ymd(e.expectedPregnancyCheckDate!),
+        },
+        link: '/reproduction',
+        dedupeKey: `pregnancy_check_due:${e.id}`,
+      });
+    }
+    return emitted;
+  }
+
+  /** Active lactations within 14 days of the farm's dry-off target DIM (PRD §20.2). Once per lactation. */
+  private async sweepDryOffDue(): Promise<number> {
+    const now = new Date();
+    const lactations = await this.prisma.lactation.findMany({
+      where: { status: 'ACTIVE' },
+      select: {
+        id: true,
+        startDate: true,
+        cattle: { select: { farmId: true, tagNumber: true, name: true } },
+      },
+    });
+
+    const targetDaysCache = new Map<string, number>();
+    let emitted = 0;
+    for (const l of lactations) {
+      const farmId = l.cattle.farmId;
+      let targetDays = targetDaysCache.get(farmId);
+      if (targetDays === undefined) {
+        targetDays = await this.farmSettings.reproDryPeriodTargetDays(farmId);
+        targetDaysCache.set(farmId, targetDays);
+      }
+      const dim = Math.floor((now.getTime() - l.startDate.getTime()) / DAY_MS);
+      if (dim < targetDays - 14 || dim >= targetDays) continue;
+      const label = l.cattle.name ?? l.cattle.tagNumber;
+      emitted += await this.emit({
+        farmId,
+        eventKey: 'dry_off_due_14_days',
+        title: 'Dry-Off Due in 14 Days',
+        message: `${label} (${l.cattle.tagNumber}) is approaching dry-off (day ${dim} of ${targetDays}).`,
+        params: {
+          name: label,
+          tagNumber: l.cattle.tagNumber,
+          day: dim,
+          target: targetDays,
+        },
+        link: '/reproduction',
+        dedupeKey: `dry_off_due_14_days:${l.id}`,
+      });
+    }
+    return emitted;
+  }
+
+  /** Payables due within 3 days (PRD §20.2). Re-reminds daily until settled. */
+  private async sweepSupplierPaymentDue(): Promise<number> {
+    const now = new Date();
+    const horizon = new Date(now.getTime() + 3 * DAY_MS);
+    const payables = await this.prisma.financeReceivable.findMany({
+      where: {
+        kind: 'PAYABLE',
+        dueDate: { gte: now, lte: horizon },
+        status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] },
+      },
+      select: {
+        id: true,
+        farmId: true,
+        entityName: true,
+        total: true,
+        paid: true,
+        dueDate: true,
+      },
+    });
+
+    let emitted = 0;
+    for (const r of payables) {
+      const outstanding = Math.round((r.total - r.paid) * 100) / 100;
+      emitted += await this.emit({
+        farmId: r.farmId,
+        eventKey: 'supplier_payment_due_soon',
+        title: 'Supplier Payment Due Soon',
+        message: `${r.entityName ?? 'A payable'} is due soon: ৳${outstanding} (due ${this.ymd(r.dueDate!)}).`,
+        params: {
+          entityName: r.entityName ?? 'A payable',
+          amount: outstanding,
+          date: this.ymd(r.dueDate!),
+        },
+        link: '/finance',
+        dedupeKey: `supplier_payment_due_soon:${r.id}:${this.ymd(now)}`,
+      });
+    }
+    return emitted;
+  }
+
+  /** Cash runway below the farm's warning/critical thresholds (PRD §20.2). Re-reminds daily while unhealthy. */
+  private async sweepSurvivalRunwayWarning(): Promise<number> {
+    const now = new Date();
+    const farms = await this.prisma.farm.findMany({
+      where: { deletedAt: null, status: 'ACTIVE' },
+      select: { id: true },
+    });
+
+    let emitted = 0;
+    for (const f of farms) {
+      const snapshot = await this.financeService.getRunwaySnapshot(f.id, now);
+      if (snapshot.status !== 'warning' && snapshot.status !== 'critical')
+        continue;
+      emitted += await this.emit({
+        farmId: f.id,
+        eventKey: 'survival_runway_warning',
+        title: 'Survival Runway Warning',
+        message: `Cash runway is ${snapshot.status} — about ${snapshot.days ?? 0} day(s) left at current spend.`,
+        params: { status: snapshot.status, days: snapshot.days ?? 0 },
+        link: '/finance',
+        dedupeKey: `survival_runway_warning:${f.id}:${this.ymd(now)}`,
+      });
+    }
+    return emitted;
+  }
+
+  /** Active semen tanks with LN2 below 30% (PRD §20.2). Ongoing risk — re-reminds daily. */
+  private async sweepSemenTankLowLn2(): Promise<number> {
+    const now = new Date();
+    const tanks = await this.prisma.semenTank.findMany({
+      where: { isActive: true, ln2LevelPct: { lt: 30 } },
+      select: { id: true, farmId: true, name: true, ln2LevelPct: true },
+    });
+
+    let emitted = 0;
+    for (const t of tanks) {
+      emitted += await this.emit({
+        farmId: t.farmId,
+        eventKey: 'semen_tank_low_ln2',
+        title: 'Semen Tank Low LN2',
+        message: `${t.name}'s LN2 level is low (${t.ln2LevelPct}%).`,
+        params: { name: t.name, level: t.ln2LevelPct ?? 0 },
+        link: '/inventory',
+        dedupeKey: `semen_tank_low_ln2:${t.id}:${this.ymd(now)}`,
+      });
+    }
+    return emitted;
+  }
+
+  /**
+   * Each assignee's tasks due today (PRD §20.2) — per-user, unlike every other
+   * sweep (which notifies Owner+Manager). Unassigned tasks are skipped: there's
+   * no "your tasks" framing without an owner.
+   */
+  private async sweepTodaysTasksReady(): Promise<number> {
+    const now = new Date();
+    const startOfDay = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
+    const endOfDay = new Date(startOfDay.getTime() + DAY_MS);
+    const tasks = await this.prisma.task.findMany({
+      where: {
+        dueAt: { gte: startOfDay, lt: endOfDay },
+        status: { in: ['PENDING', 'IN_PROGRESS'] },
+        assignedToId: { not: null },
+      },
+      select: { farmId: true, assignedToId: true },
+    });
+
+    const byUser = new Map<string, { farmId: string; count: number }>();
+    for (const t of tasks) {
+      if (!t.assignedToId) continue;
+      const entry = byUser.get(t.assignedToId) ?? {
+        farmId: t.farmId,
+        count: 0,
+      };
+      entry.count += 1;
+      byUser.set(t.assignedToId, entry);
+    }
+
+    let emitted = 0;
+    for (const [userId, { farmId, count }] of byUser) {
+      const created = await this.notifications.notifyUsers({
+        farmId,
+        userIds: [userId],
+        eventKey: 'todays_tasks_ready',
+        title: "Today's Tasks Ready",
+        message: `You have ${count} task(s) due today.`,
+        params: { count },
+        link: '/tasks',
+        dedupeKey: `todays_tasks_ready:${userId}:${this.ymd(now)}`,
+      });
+      emitted += created.length;
+    }
+    return emitted;
+  }
+
+  /** >5% of a farm's active herd sick within the last 48h (PRD §20.2). Re-reminds daily while active. */
+  private async sweepMorbidityOutbreak(): Promise<number> {
+    const now = new Date();
+    const since = new Date(now.getTime() - 2 * DAY_MS);
+    const sickCounts = await this.prisma.healthCase.groupBy({
+      by: ['farmId'],
+      where: {
+        status: { in: ['ACTIVE', 'IMPROVING', 'WORSENING', 'STABLE'] },
+        startDate: { gte: since },
+      },
+      _count: { _all: true },
+    });
+
+    let emitted = 0;
+    for (const row of sickCounts) {
+      const herdSize = await this.prisma.cattle.count({
+        where: { farmId: row.farmId, status: 'ACTIVE' },
+      });
+      if (herdSize === 0) continue;
+      const rate = row._count._all / herdSize;
+      if (rate <= 0.05) continue;
+      emitted += await this.emit({
+        farmId: row.farmId,
+        eventKey: 'morbidity_outbreak',
+        title: 'Morbidity Outbreak Alert',
+        message: `${row._count._all} of ${herdSize} animals (${Math.round(rate * 100)}%) reported sick in the last 48 hours.`,
+        params: {
+          sick: row._count._all,
+          herd: herdSize,
+          pct: Math.round(rate * 100),
+        },
+        link: '/healthcare',
+        dedupeKey: `morbidity_outbreak:${row.farmId}:${this.ymd(now)}`,
       });
     }
     return emitted;

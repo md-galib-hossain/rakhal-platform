@@ -1,8 +1,11 @@
-/// Reports Module (PRD §22 / API §15). On-demand report generation. A
-/// `ReportJob` captures one generation request; generation is synchronous for
-/// the MVP (the async job is modelled so BullMQ can back it later without an
-/// API change). The rendered output is stored in `fileData` (bytea) and streamed
-/// from `GET /reports/jobs/:id/download` — no object storage/CDN needed yet.
+/// Reports Module (PRD §22 / API §15). Report generation. A `ReportJob`
+/// captures one generation request; generation runs off a BullMQ queue
+/// (`ReportProcessor`) so large-farm reports don't block the request thread
+/// (RD-013a). Rendered output is stored in Cloudflare R2 via the shared
+/// `OBJECT_STORAGE` seam (`storageKey`, RD-013b) and streamed from
+/// `GET /reports/jobs/:id/download` via a presigned URL. `fileData` (bytea) is
+/// kept only so pre-migration rows already holding bytes still download; new
+/// jobs no longer write it.
 
 model ReportJob {
   id     String @id @default(cuid())
@@ -12,12 +15,13 @@ model ReportJob {
   format   ReportFormat
   params   Json
 
-  status   ReportJobStatus @default(GENERATING)
-  title    String?
-  fileName String?
-  fileData Bytes? /// rendered CSV/PDF bytes, streamed on download
-  byteSize Int?
-  error    String?
+  status     ReportJobStatus @default(QUEUED)
+  title      String?
+  fileName   String?
+  fileData   Bytes? /// legacy: rendered bytes, pre-R2 rows only
+  storageKey String? /// R2 object key, e.g. reports/<farmId>/<jobId>.<ext>
+  byteSize   Int?
+  error      String?
 
   expiresAt DateTime?
 
@@ -25,7 +29,12 @@ model ReportJob {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  farm Farm @relation("FarmToReportJob", fields: [farmId], references: [id])
+  /// Set when this job was produced by a `ReportSchedule` firing, not a direct
+  /// user request — lets the download/history views distinguish the two.
+  scheduleId String?
+
+  farm     Farm            @relation("FarmToReportJob", fields: [farmId], references: [id])
+  schedule ReportSchedule? @relation(fields: [scheduleId], references: [id])
 
   @@index([farmId])
   @@index([farmId, status])
@@ -38,7 +47,47 @@ enum ReportFormat {
 }
 
 enum ReportJobStatus {
+  QUEUED
   GENERATING
   COMPLETED
   FAILED
+}
+
+/// Scheduled report (PRD §22.3, RD-013c, V1.5). A recurring instruction to
+/// auto-generate a catalogue report; `ReportScheduleRunner`'s daily cron fires
+/// any schedule whose `nextRunAt` has passed, enqueues a `ReportJob` (via the
+/// same queue as on-demand generation) with `scheduleId` set, then advances
+/// `nextRunAt` by `frequency`.
+model ReportSchedule {
+  id     String @id @default(cuid())
+  farmId String
+
+  reportId String /// catalogue id, must be a known report
+  format   ReportFormat
+  params   Json @default("{}")
+
+  frequency ReportScheduleFrequency
+  /// 1-7 (Mon-Sun) for WEEKLY, 1-28 for MONTHLY; ignored for DAILY.
+  dayOfWeek  Int?
+  dayOfMonth Int?
+
+  isActive  Boolean   @default(true)
+  nextRunAt DateTime
+  lastRunAt DateTime?
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm Farm        @relation("FarmToReportSchedule", fields: [farmId], references: [id])
+  jobs ReportJob[]
+
+  @@index([farmId])
+  @@index([isActive, nextRunAt])
+}
+
+enum ReportScheduleFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
 }

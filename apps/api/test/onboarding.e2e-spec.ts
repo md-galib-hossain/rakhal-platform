@@ -3,6 +3,7 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { SYSTEM_ROLES } from 'src/modules/permission/domain/permission-catalogue';
 import { PLAN_NAMES } from 'src/modules/subscription/domain/subscription-features';
 import { SubscriptionAccessService } from 'src/modules/subscription/application/services/subscription-access.service';
+import { LegalConsentService } from 'src/modules/compliance/application/services/legal-consent.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
 /**
@@ -415,6 +416,177 @@ describe('Onboarding (e2e)', () => {
         include: { role: { select: { name: true } } },
       });
       expect(updated.role.name).toBe('Manager');
+    });
+  });
+
+  describe('farm create — onboarding fields (RAKHAL-021 remainder)', () => {
+    let legal: LegalConsentService;
+    const tempUserIds: string[] = [];
+    const tempFarmIds: string[] = [];
+
+    beforeAll(() => {
+      legal = ctx.app.get(LegalConsentService);
+    });
+
+    afterAll(async () => {
+      await prisma.farmMember.deleteMany({
+        where: { farmId: { in: tempFarmIds } },
+      });
+      await prisma.farmSubscription.deleteMany({
+        where: { farmId: { in: tempFarmIds } },
+      });
+      for (const fid of tempFarmIds) {
+        await prisma.farm.delete({ where: { id: fid } }).catch(() => undefined);
+      }
+      await prisma.trialGrant.deleteMany({
+        where: { userId: { in: tempUserIds } },
+      });
+      await prisma.consentRecord.deleteMany({
+        where: { userId: { in: tempUserIds } },
+      });
+      for (const uid of tempUserIds) {
+        await prisma.user.delete({ where: { id: uid } }).catch(() => undefined);
+      }
+    });
+
+    /** Register + accept current legal docs (LGL-02 gate) so `POST /farms` proceeds. */
+    async function registerAndConsent(email: string): Promise<string> {
+      const password = 'Str0ng!Pass123';
+      await request(server())
+        .post(api('/auth/register'))
+        .send({ email, name: 'E2E Farm Create', password })
+        .expect(201);
+      const user = await prisma.user.findUniqueOrThrow({
+        where: { email },
+        select: { id: true },
+      });
+      tempUserIds.push(user.id);
+      await legal.recordConsent(user.id, []);
+      const login = await request(server())
+        .post(api('/auth/login'))
+        .send({ email, password, farmId: 'bootstrap' });
+      return login.body.data.accessToken as string;
+    }
+
+    it('creates a farm with location/purpose/herd-size fields and a generated PREFIX-YEAR-SERIAL farm code', async () => {
+      const token = await registerAndConsent(uniqueEmail('farmcreate_full'));
+
+      const res = await request(server())
+        .post(api('/farms'))
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          name: 'Green Valley Dairy',
+          division: 'Dhaka',
+          district: 'Gazipur',
+          upazila: 'Sreepur',
+          operationalPurpose: 'Dairy',
+          herdSizeBand: '51-200',
+          cattleIdPrefix: 'gvd',
+        })
+        .expect(201);
+      tempFarmIds.push(res.body.data.id as string);
+
+      expect(res.body.data.cattleIdPrefix).toBe('GVD');
+      expect(res.body.data.herdSizeBand).toBe('51-200');
+      expect(res.body.data.division).toBe('Dhaka');
+      expect(res.body.data.district).toBe('Gazipur');
+      expect(res.body.data.upazila).toBe('Sreepur');
+      expect(res.body.data.operationalPurpose).toBe('Dairy');
+      const year = new Date().getFullYear();
+      expect(res.body.data.farmCode as string).toMatch(
+        new RegExp(`^GVD-${year}-\\d{3}$`),
+      );
+    });
+
+    it('derives the ID prefix from the farm name when omitted', async () => {
+      const token = await registerAndConsent(uniqueEmail('farmcreate_derive'));
+
+      const res = await request(server())
+        .post(api('/farms'))
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Sunrise Dairy Farm' })
+        .expect(201);
+      tempFarmIds.push(res.body.data.id as string);
+
+      expect(res.body.data.cattleIdPrefix).toBe('SDF');
+      expect(res.body.data.farmCode as string).toMatch(/^SDF-\d{4}-\d{3}$/);
+    });
+
+    it('rejects an invalid herd-size band', async () => {
+      const token = await registerAndConsent(uniqueEmail('farmcreate_badband'));
+
+      await request(server())
+        .post(api('/farms'))
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Bad Band Farm', herdSizeBand: '9999-plus' })
+        .expect(400);
+    });
+
+    it('assigns unique, increasing serials to two farms sharing a prefix', async () => {
+      const token1 = await registerAndConsent(uniqueEmail('farmcreate_seq1'));
+      const res1 = await request(server())
+        .post(api('/farms'))
+        .set('Authorization', `Bearer ${token1}`)
+        .send({ name: 'Sequential One', cattleIdPrefix: 'SEQ' })
+        .expect(201);
+      tempFarmIds.push(res1.body.data.id as string);
+
+      const token2 = await registerAndConsent(uniqueEmail('farmcreate_seq2'));
+      const res2 = await request(server())
+        .post(api('/farms'))
+        .set('Authorization', `Bearer ${token2}`)
+        .send({ name: 'Sequential Two', cattleIdPrefix: 'SEQ' })
+        .expect(201);
+      tempFarmIds.push(res2.body.data.id as string);
+
+      const code1 = res1.body.data.farmCode as string;
+      const code2 = res2.body.data.farmCode as string;
+      expect(code1).not.toBe(code2);
+      const serial1 = Number(code1.split('-')[2]);
+      const serial2 = Number(code2.split('-')[2]);
+      // Not asserting exact adjacency — the shared dev DB may have other
+      // parallel sessions creating farms concurrently (documented in
+      // docs/IN_FLIGHT.md); only monotonic increase + uniqueness matter here.
+      expect(serial2).toBeGreaterThan(serial1);
+    });
+  });
+
+  describe('cattle import wrapper (RAKHAL-024)', () => {
+    const csvRow = (tag: string): Buffer =>
+      Buffer.from(
+        `Tag,Name,Breed,Gender,DateOfBirth\n${tag},Onboard Cow,Local,FEMALE,2023-01-01\n`,
+      );
+
+    it('owner previews a CSV import via the onboarding wrapper', async () => {
+      const res = await request(server())
+        .post(api('/onboarding/cattle/import'))
+        .set(...auth(owner))
+        .attach('file', csvRow(`E2E-ONB-${Date.now()}`), {
+          filename: 'cattle.csv',
+          contentType: 'text/csv',
+        })
+        .expect(201);
+      expect(typeof res.body.data.importSessionId).toBe('string');
+      expect(Array.isArray(res.body.data.rows)).toBe(true);
+    });
+
+    it('worker cannot preview an onboarding cattle import (FORBIDDEN)', async () => {
+      await request(server())
+        .post(api('/onboarding/cattle/import'))
+        .set(...auth(worker))
+        .attach('file', csvRow(`E2E-ONB-DENY-${Date.now()}`), {
+          filename: 'cattle.csv',
+          contentType: 'text/csv',
+        })
+        .expect(403);
+    });
+
+    it('400s confirming an unknown/expired import session', async () => {
+      await request(server())
+        .post(api('/onboarding/cattle/import/confirm'))
+        .set(...auth(owner))
+        .send({ importSessionId: 'not-a-real-session-id' })
+        .expect(400);
     });
   });
 });

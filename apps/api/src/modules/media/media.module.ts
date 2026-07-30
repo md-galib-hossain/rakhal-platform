@@ -44,6 +44,6 @@ import { MediaController } from './presentation/controllers/media.controller';
       inject: [R2StorageAdapter, MemoryStorageAdapter],
     },
   ],
-  exports: [MediaService],
+  exports: [MediaService, OBJECT_STORAGE],
 })
 export class MediaModule {}

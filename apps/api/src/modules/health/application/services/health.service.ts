@@ -578,6 +578,40 @@ export class HealthService {
       );
     }
 
+    // Notify Owner + Manager (PRD §20.2 `withholding_active`) — instant, fired
+    // from the treatment-logging path rather than a sweep, since the trigger is
+    // "treatment logged with withdrawal days" not a time boundary. PRD says
+    // "milkers for that shed", but no shed→milker roster model exists yet, so
+    // this falls back to Owner+Manager (same as every other sweep) pending a
+    // future ticket for shed-scoped recipients.
+    if (log.withdrawal) {
+      const cattle = await this.prisma.cattle.findUnique({
+        where: { id: healthCase.cattleId },
+        select: { name: true, tagNumber: true },
+      });
+      const label = cattle?.name ?? cattle?.tagNumber ?? 'Animal';
+      const milkUntil = log.withdrawal.milkWithdrawalUntil
+        ?.toISOString()
+        .slice(0, 10);
+      const meatUntil = log.withdrawal.meatWithdrawalUntil
+        ?.toISOString()
+        .slice(0, 10);
+      await this.notificationService.notifyOwnersAndManagers({
+        farmId,
+        eventKey: 'withholding_active',
+        title: 'Withholding Period Active',
+        message: `${label}${cattle?.tagNumber ? ` (${cattle.tagNumber})` : ''} is under withdrawal${milkUntil ? ` — milk until ${milkUntil}` : ''}${meatUntil ? `, meat until ${meatUntil}` : ''}.`,
+        params: {
+          name: label,
+          tagNumber: cattle?.tagNumber ?? '',
+          milkUntil: milkUntil ?? '',
+          meatUntil: meatUntil ?? '',
+        },
+        link: `/healthcare/cases/${id}`,
+        dedupeKey: `withholding_active:${log.withdrawal.id}`,
+      });
+    }
+
     this.log.info('Treatment logged', {
       healthCaseId: id,
       treatmentLogId: log.treatmentLog.id,

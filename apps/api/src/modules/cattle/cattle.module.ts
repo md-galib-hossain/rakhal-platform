@@ -37,6 +37,6 @@ import { ShedController } from './presentation/controllers/shed.controller';
     BreedService,
     ShedService,
   ],
-  exports: [CattleService, BreedService, ShedService],
+  exports: [CattleService, BreedService, ShedService, CattleImportService],
 })
 export class CattleModule {}

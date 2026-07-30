@@ -1,5 +1,5 @@
 import PDFDocument from 'pdfkit';
-import { Cell, ReportData } from './report-data';
+import { Cell, ReportData, ReportSection } from './report-data';
 
 /**
  * Render a {@link ReportData} to a simple tabular PDF (pdfkit), returning the
@@ -15,6 +15,65 @@ const CELL_FONT = 8;
 
 function cellText(value: Cell): string {
   return value === null || value === undefined ? '' : String(value);
+}
+
+/** Draws one section's summary list + paginated table at the doc's current y. */
+function renderSectionBody(
+  doc: PDFKit.PDFDocument,
+  pageWidth: number,
+  section: Pick<ReportSection, 'summary' | 'columns' | 'rows'>,
+): void {
+  if (section.summary?.length) {
+    doc.fontSize(10).font('Helvetica');
+    for (const item of section.summary) {
+      doc.text(`${item.label}: ${String(item.value)}`);
+    }
+    doc.moveDown(0.5);
+  }
+
+  const colCount = section.columns.length || 1;
+  const colWidth = pageWidth / colCount;
+
+  const drawRow = (cells: Cell[], bold: boolean) => {
+    if (doc.y + ROW_HEIGHT > doc.page.height - PAGE_MARGIN) {
+      doc.addPage();
+    }
+    const y = doc.y;
+    doc
+      .fontSize(bold ? HEADER_FONT : CELL_FONT)
+      .font(bold ? 'Helvetica-Bold' : 'Helvetica');
+    section.columns.forEach((_, i) => {
+      const x = PAGE_MARGIN + i * colWidth;
+      doc.text(cellText(cells[i]), x + 2, y + 4, {
+        width: colWidth - 4,
+        height: ROW_HEIGHT,
+        ellipsis: true,
+        lineBreak: false,
+      });
+    });
+    doc
+      .moveTo(PAGE_MARGIN, y + ROW_HEIGHT)
+      .lineTo(PAGE_MARGIN + pageWidth, y + ROW_HEIGHT)
+      .strokeColor('#ddd')
+      .stroke();
+    doc.y = y + ROW_HEIGHT;
+    doc.x = PAGE_MARGIN;
+  };
+
+  drawRow(section.columns, true);
+  if (section.rows.length === 0) {
+    doc
+      .moveDown(0.5)
+      .fontSize(9)
+      .font('Helvetica')
+      .fillColor('#777')
+      .text('No data for the selected period.');
+    doc.fillColor('black');
+  } else {
+    for (const row of section.rows) {
+      drawRow(row, false);
+    }
+  }
 }
 
 export function renderPdf(report: ReportData): Promise<Buffer> {
@@ -39,55 +98,25 @@ export function renderPdf(report: ReportData): Promise<Buffer> {
     }
     doc.moveDown(0.5);
 
-    if (report.summary?.length) {
-      doc.fontSize(10).font('Helvetica');
-      for (const item of report.summary) {
-        doc.text(`${item.label}: ${String(item.value)}`);
-      }
-      doc.moveDown(0.5);
-    }
-
-    const colCount = report.columns.length || 1;
-    const colWidth = pageWidth / colCount;
-
-    const drawRow = (cells: Cell[], bold: boolean) => {
-      if (doc.y + ROW_HEIGHT > doc.page.height - PAGE_MARGIN) {
-        doc.addPage();
-      }
-      const y = doc.y;
-      doc
-        .fontSize(bold ? HEADER_FONT : CELL_FONT)
-        .font(bold ? 'Helvetica-Bold' : 'Helvetica');
-      report.columns.forEach((_, i) => {
-        const x = PAGE_MARGIN + i * colWidth;
-        doc.text(cellText(cells[i]), x + 2, y + 4, {
-          width: colWidth - 4,
-          height: ROW_HEIGHT,
-          ellipsis: true,
-          lineBreak: false,
-        });
+    if (report.sections?.length) {
+      report.sections.forEach((section, i) => {
+        if (i > 0) doc.addPage();
+        doc.fontSize(13).font('Helvetica-Bold').text(section.heading);
+        doc.moveDown(0.3);
+        renderSectionBody(doc, pageWidth, section);
       });
-      doc
-        .moveTo(PAGE_MARGIN, y + ROW_HEIGHT)
-        .lineTo(PAGE_MARGIN + pageWidth, y + ROW_HEIGHT)
-        .strokeColor('#ddd')
-        .stroke();
-      doc.y = y + ROW_HEIGHT;
-      doc.x = PAGE_MARGIN;
-    };
-
-    drawRow(report.columns, true);
-    if (report.rows.length === 0) {
-      doc
-        .moveDown(0.5)
-        .fontSize(9)
-        .font('Helvetica')
-        .fillColor('#777')
-        .text('No data for the selected period.');
     } else {
-      for (const row of report.rows) {
-        drawRow(row, false);
+      if (report.summary?.length) {
+        doc.fontSize(10).font('Helvetica');
+        for (const item of report.summary) {
+          doc.text(`${item.label}: ${String(item.value)}`);
+        }
+        doc.moveDown(0.5);
       }
+      renderSectionBody(doc, pageWidth, {
+        columns: report.columns,
+        rows: report.rows,
+      });
     }
 
     doc.end();

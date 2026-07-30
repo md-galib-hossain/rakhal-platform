@@ -1,12 +1,16 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
   Res,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
@@ -18,7 +22,9 @@ import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/
 import { SubscriptionFeatureGuard } from 'src/modules/subscription/presentation/guards/subscription-feature.guard';
 import { RequireFeature } from 'src/modules/subscription/presentation/decorators/require-feature.decorator';
 import { ReportsService } from '../../application/services/reports.service';
+import { ReportScheduleService } from '../../application/services/report-schedule.service';
 import { GenerateReportDto } from '../dto/generate-report.dto';
+import { CreateReportScheduleDto } from '../dto/create-report-schedule.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
@@ -39,7 +45,10 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 )
 @RequireFeature('reports.generate')
 export class ReportsController {
-  constructor(private readonly reportsService: ReportsService) {}
+  constructor(
+    private readonly reportsService: ReportsService,
+    private readonly scheduleService: ReportScheduleService,
+  ) {}
 
   @Get()
   @RequirePermission('reports.read')
@@ -49,6 +58,8 @@ export class ReportsController {
 
   @Post('generate')
   @RequirePermission('reports.create')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   generate(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -80,5 +91,34 @@ export class ReportsController {
       'Content-Length': String(file.buffer.length),
     });
     res.send(file.buffer);
+  }
+
+  @Post('schedules')
+  @RequirePermission('reports.schedule')
+  @RequireFeature('reports.scheduled')
+  createSchedule(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Body() dto: CreateReportScheduleDto,
+  ) {
+    return this.scheduleService.create(farmId, userId, dto);
+  }
+
+  @Get('schedules')
+  @RequirePermission('reports.read')
+  @RequireFeature('reports.scheduled')
+  listSchedules(@CurrentFarmId() farmId: string) {
+    return this.scheduleService.list(farmId);
+  }
+
+  @Delete('schedules/:id')
+  @RequirePermission('reports.schedule')
+  @RequireFeature('reports.scheduled')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeSchedule(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+  ): Promise<void> {
+    await this.scheduleService.remove(farmId, id);
   }
 }

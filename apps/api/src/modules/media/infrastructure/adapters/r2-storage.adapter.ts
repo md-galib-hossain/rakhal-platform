@@ -51,6 +51,19 @@ export class R2StorageAdapter implements ObjectStoragePort {
     );
   }
 
+  async get(key: string): Promise<Buffer> {
+    const result = await this.getClient().send(
+      new GetObjectCommand({ Bucket: this.bucket(), Key: key }),
+    );
+    const body = result.Body;
+    if (!body) throw new Error(`R2 object not found: ${key}`);
+    const chunks: Buffer[] = [];
+    for await (const chunk of body as AsyncIterable<Buffer>) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
+  }
+
   async delete(key: string): Promise<void> {
     await this.getClient().send(
       new DeleteObjectCommand({ Bucket: this.bucket(), Key: key }),

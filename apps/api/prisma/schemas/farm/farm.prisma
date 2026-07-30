@@ -13,6 +13,13 @@ model Farm {
   phone              String?
   address            String?
 
+  /// PRD §5.1 Step 2 — approximate herd-size band ("10-50" / "51-200" / "201-500").
+  herdSizeBand String?
+  /// Tag/Farm-ID prefix (e.g. "GVD"), user-supplied or derived from `name` at create time.
+  cattleIdPrefix String?
+  /// Auto-generated PREFIX-YEAR-SERIAL (e.g. "GVD-2026-001"), assigned once at create (RAKHAL-021).
+  farmCode String? @unique
+
   freePlanActivatedAt DateTime?
 
   hasCompletedOnboarding Boolean @default(false)
@@ -56,6 +63,7 @@ model Farm {
   walletTransactions  WalletTransaction[]  @relation("FarmToWalletTransaction")
   feedGroups          FeedGroup[]          @relation("FarmToFeedGroup")
   reportJobs          ReportJob[]          @relation("FarmToReportJob")
+  reportSchedules     ReportSchedule[]     @relation("FarmToReportSchedule")
   feedIngredientOverrides FeedIngredientOverride[] @relation("FarmToFeedIngredientOverride")
   feedConcentrations      FeedConcentration[]      @relation("FarmToFeedConcentration")
   fixedAssets         FixedAsset[]         @relation("FarmToFixedAsset")

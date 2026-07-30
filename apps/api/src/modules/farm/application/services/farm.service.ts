@@ -17,6 +17,7 @@ import { TransactionalEmailService } from 'src/modules/email/application/service
 import { EmailTemplate } from 'src/modules/email/domain/enums/email-template.enum';
 import { AppLanguage } from 'src/common/i18n/language';
 import { CreateFarmDto } from '../../presentation/dto/create-farm.dto';
+import { deriveFarmPrefix, formatFarmCode } from '../../domain/farm-code';
 
 /**
  * Farm bootstrap (RAKHAL-021, partial). Creating a farm makes the caller its
@@ -60,16 +61,40 @@ export class FarmService {
 
     const slug = await this.uniqueSlug(dto.name);
 
-    const farm = await this.prisma.farm.create({
-      data: {
-        name: dto.name,
-        slug,
-        description: dto.description,
-        ownerId: userId,
-        members: {
-          create: { userId, roleId: ownerRole.id },
+    // Farm ID (PRD §5.1 Step 2): PREFIX-YEAR-SERIAL, e.g. GVD-2026-001. The
+    // serial is taken from FarmCounter inside the same transaction as the
+    // insert — gapless + collision-free, mirroring RAKHAL-237's invoice
+    // numbering (a rolled-back create releases the number).
+    const year = new Date().getFullYear();
+    const prefix =
+      dto.cattleIdPrefix?.toUpperCase() || deriveFarmPrefix(dto.name);
+
+    const farm = await this.prisma.$transaction(async (tx) => {
+      const counter = await tx.farmCounter.upsert({
+        where: { scope: `farm:${year}` },
+        create: { scope: `farm:${year}`, value: 1 },
+        update: { value: { increment: 1 } },
+      });
+      const farmCode = formatFarmCode(prefix, year, counter.value);
+
+      return tx.farm.create({
+        data: {
+          name: dto.name,
+          slug,
+          description: dto.description,
+          division: dto.division,
+          district: dto.district,
+          upazila: dto.upazila,
+          operationalPurpose: dto.operationalPurpose,
+          herdSizeBand: dto.herdSizeBand,
+          cattleIdPrefix: prefix,
+          farmCode,
+          ownerId: userId,
+          members: {
+            create: { userId, roleId: ownerRole.id },
+          },
         },
-      },
+      });
     });
 
     this.log.info('Farm created', { farmId: farm.id, ownerId: userId });

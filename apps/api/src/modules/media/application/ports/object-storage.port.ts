@@ -18,5 +18,7 @@ export interface ObjectStoragePort {
   put(input: PutObjectInput): Promise<void>;
   /** A presigned GET URL for `key`, valid for `expirySeconds`. */
   getSignedUrl(key: string, expirySeconds: number): Promise<string>;
+  /** Fetches the object's bytes directly (server-side proxy, no signed URL). */
+  get(key: string): Promise<Buffer>;
   delete(key: string): Promise<void>;
 }

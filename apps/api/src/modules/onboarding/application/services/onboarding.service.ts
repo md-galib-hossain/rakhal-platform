@@ -12,6 +12,8 @@ import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { SettingsService } from 'src/modules/settings/application/services/settings.service';
 import { WorkspaceSettingsService } from 'src/modules/settings/application/services/workspace-settings.service';
 import { SubscriptionAccessService } from 'src/modules/subscription/application/services/subscription-access.service';
+import { CattleImportService } from 'src/modules/cattle/application/services/cattle-import.service';
+import { ImportConfirmDto } from 'src/modules/cattle/presentation/dto/import-cattle.dto';
 import { ConfigureOnboardingDto } from '../../presentation/dto/configure-onboarding.dto';
 
 /**
@@ -32,6 +34,7 @@ export class OnboardingService {
     private readonly settings: SettingsService,
     private readonly workspace: WorkspaceSettingsService,
     private readonly subscriptionAccess: SubscriptionAccessService,
+    private readonly cattleImport: CattleImportService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(OnboardingService.name);
@@ -99,6 +102,24 @@ export class OnboardingService {
     });
     this.log.info('Onboarding completed', { farmId });
     return { has_completed_onboarding: true };
+  }
+
+  /**
+   * `POST /onboarding/cattle/import` (Step 4 preview) — thin wrapper over the
+   * RAKHAL-043 CSV importer so onboarding never duplicates its parsing/
+   * validation/Redis-session logic.
+   */
+  importCattlePreview(
+    farmId: string,
+    file: Express.Multer.File,
+    mapping?: string,
+  ) {
+    return this.cattleImport.preview(farmId, file, mapping);
+  }
+
+  /** `POST /onboarding/cattle/import/confirm` (Step 4 confirm). */
+  importCattleConfirm(farmId: string, userId: string, dto: ImportConfirmDto) {
+    return this.cattleImport.confirm(farmId, userId, dto);
   }
 
   /**

@@ -1,8 +1,8 @@
 import { groupedCatalogue, isKnownReport, REPORTS } from './report-catalogue';
 
 describe('report-catalogue', () => {
-  it('defines the 12 MVP reports + feed-cost', () => {
-    expect(REPORTS).toHaveLength(13);
+  it('defines the 12 MVP reports + feed-cost + monthly farm report', () => {
+    expect(REPORTS).toHaveLength(14);
   });
 
   it('every report id is unique', () => {
@@ -10,13 +10,14 @@ describe('report-catalogue', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('groups reports into the four categories in order', () => {
+  it('groups reports into the five categories in order', () => {
     const groups = groupedCatalogue();
     expect(groups.map((g) => g.category)).toEqual([
       'production',
       'reproduction',
       'health',
       'financial',
+      'combined',
     ]);
     // Every report lands in exactly one group.
     const total = groups.reduce((acc, g) => acc + g.reports.length, 0);

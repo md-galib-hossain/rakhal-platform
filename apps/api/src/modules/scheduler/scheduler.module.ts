@@ -4,6 +4,8 @@ import { NotificationModule } from '../notification/notification.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { RenewalModule } from '../renewal/renewal.module';
 import { BillingModule } from '../billing/billing.module';
+import { FinanceModule } from '../finance/finance.module';
+import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { SchedulerService } from './application/services/scheduler.service';
 
 /**
@@ -19,6 +21,8 @@ import { SchedulerService } from './application/services/scheduler.service';
     SubscriptionModule,
     RenewalModule,
     BillingModule,
+    FinanceModule,
+    FarmSettingsModule,
   ],
   providers: [SchedulerService],
   exports: [SchedulerService],

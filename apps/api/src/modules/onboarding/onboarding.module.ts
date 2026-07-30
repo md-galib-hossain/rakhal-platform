@@ -6,6 +6,7 @@ import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { SettingsModule } from '../settings/settings.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
+import { CattleModule } from '../cattle/cattle.module';
 import { OnboardingService } from './application/services/onboarding.service';
 import { OnboardingController } from './presentation/controllers/onboarding.controller';
 
@@ -18,6 +19,7 @@ import { OnboardingController } from './presentation/controllers/onboarding.cont
     PermissionModule,
     SettingsModule,
     SubscriptionModule,
+    CattleModule,
   ],
   controllers: [OnboardingController],
   providers: [OnboardingService],

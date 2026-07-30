@@ -226,6 +226,15 @@ export const envSchema = z.object({
   BKASH_CALLBACK_URL: z.string().optional(),
   /** Frontend page to send the user to after we finalize (with ?status=). */
   BKASH_RETURN_URL: z.string().default('/'),
+
+  // Telegram channel provider (RAKHAL-257, PRD §20.1/§28.3). Optional like the
+  // FCM push channel: unset token → `isConfigured() === false`, channel just
+  // defers (in-app still delivers). Webhook secret is the value passed to
+  // Telegram's `setWebhook` call and checked against the
+  // `X-Telegram-Bot-Api-Secret-Token` header on every incoming webhook call.
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_BOT_USERNAME: z.string().optional(),
+  TELEGRAM_WEBHOOK_SECRET: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
