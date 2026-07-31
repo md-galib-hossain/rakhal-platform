@@ -61,6 +61,10 @@ const HTTP_EXCEPTION_CODE_BY_STATUS: Partial<Record<number, ExceptionCode>> = {
   [HttpStatus.FORBIDDEN]: ExceptionCode.FORBIDDEN,
   [HttpStatus.NOT_FOUND]: ExceptionCode.NOT_FOUND,
   [HttpStatus.CONFLICT]: ExceptionCode.CONFLICT,
+  // Without this row a throttled request still carried `code: INTERNAL_ERROR`
+  // alongside its 429, so clients could not distinguish a rate limit from a
+  // server fault (and retried it as if it were transient).
+  [HttpStatus.TOO_MANY_REQUESTS]: ExceptionCode.RATE_LIMITED,
 };
 
 @Injectable()
