@@ -176,6 +176,18 @@ describe('Referral engine (e2e)', () => {
         .delete({ where: { id: farmId } })
         .catch(() => undefined);
     }
+    // Any stray Referral row still pointing at one of this owner's codes
+    // (e.g. leftover from a prior interrupted run) would otherwise FK-block
+    // the referralCode delete below.
+    const ownerCodes = await prisma.referralCode.findMany({
+      where: { farmId: owner.farmId },
+      select: { id: true },
+    });
+    if (ownerCodes.length) {
+      await prisma.referral.deleteMany({
+        where: { referralCodeId: { in: ownerCodes.map((c) => c.id) } },
+      });
+    }
     await prisma.referralCode.deleteMany({ where: { farmId: owner.farmId } });
     for (const userId of tempUserIds) {
       await prisma.user
@@ -219,24 +231,27 @@ describe('Referral engine (e2e)', () => {
     const first = await svc.finalizePayment('PID-ref-ok');
     expect(first.status).toBe('PAID');
 
+    // Launch kill switch (DEFAULT_REFERRAL_PROGRAM.creditingEnabled=false):
+    // the commission is still recorded but never touches the wallet — same
+    // held path as a flagged referral, pending manual/future auto-review.
     const wallet = await prisma.creditWallet.findUnique({
       where: { farmId: owner.farmId },
     });
-    expect(wallet?.balance.toNumber()).toBe(200);
+    expect(wallet?.balance.toNumber() ?? 0).toBe(0);
 
     const commission = await prisma.referralCommission.findUnique({
       where: { idempotencyKey: invoiceId },
     });
-    expect(commission?.status).toBe('APPROVED');
+    expect(commission?.status).toBe('PENDING');
     expect(commission?.amount.toNumber()).toBe(200);
 
     const updatedReferral = await prisma.referral.findUnique({
       where: { referredFarmId: referredFarm.id },
     });
-    expect(updatedReferral?.status).toBe('REWARDED');
+    expect(updatedReferral?.status).toBe('QUALIFIED');
 
     // Replay: finalize again (idempotent guard) AND call accrual directly a
-    // second time (REF-06) — neither may double-credit.
+    // second time (REF-06) — neither may create a second commission row.
     const second = await svc.finalizePayment('PID-ref-ok');
     expect(second.status).toBe('ALREADY_PAID');
     await referrals.accrueOnFirstPaidInvoice(referredFarm.id, invoiceId);
@@ -244,7 +259,7 @@ describe('Referral engine (e2e)', () => {
     const walletAfterReplay = await prisma.creditWallet.findUnique({
       where: { farmId: owner.farmId },
     });
-    expect(walletAfterReplay?.balance.toNumber()).toBe(200);
+    expect(walletAfterReplay?.balance.toNumber() ?? 0).toBe(0);
   });
 
   it('a self-referral is voided and never accrues a reward (REF-04)', async () => {
@@ -295,7 +310,7 @@ describe('Referral engine (e2e)', () => {
     );
   });
 
-  it('refunding the triggering invoice claws back the commission (REF-05)', async () => {
+  it('refunding a held (never-credited) invoice is a no-op clawback (REF-05, launch kill switch)', async () => {
     const referralCode = await referrals.getOrCreateCode(
       owner.farmId,
       ownerUserId,
@@ -321,10 +336,16 @@ describe('Referral engine (e2e)', () => {
     );
     await svc.finalizePayment('PID-clawback');
 
+    // Kill switch means nothing was ever credited — commission stays PENDING.
     const walletBefore = await prisma.creditWallet.findUnique({
       where: { farmId: owner.farmId },
     });
-    expect(walletBefore?.balance.toNumber()).toBeGreaterThanOrEqual(200);
+    expect(walletBefore?.balance.toNumber() ?? 0).toBe(0);
+
+    const commissionBefore = await prisma.referralCommission.findUnique({
+      where: { idempotencyKey: invoiceId },
+    });
+    expect(commissionBefore?.status).toBe('PENDING');
 
     const refunded = await svc.refundInvoice(
       referredFarm.id,
@@ -334,17 +355,16 @@ describe('Referral engine (e2e)', () => {
     );
     expect(refunded.status).toBe('REFUNDED');
 
+    // `clawback` no-ops on a PENDING commission — nothing to reverse.
     const commission = await prisma.referralCommission.findUnique({
       where: { idempotencyKey: invoiceId },
     });
-    expect(commission?.status).toBe('CLAWED_BACK');
+    expect(commission?.status).toBe('PENDING');
 
     const walletAfter = await prisma.creditWallet.findUnique({
       where: { farmId: owner.farmId },
     });
-    expect(walletAfter?.balance.toNumber()).toBe(
-      (walletBefore?.balance.toNumber() ?? 0) - 200,
-    );
+    expect(walletAfter?.balance.toNumber() ?? 0).toBe(0);
 
     // Idempotent: a repeat refund call is a no-op, not a double clawback.
     const repeat = await svc.refundInvoice(

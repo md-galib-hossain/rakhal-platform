@@ -2,6 +2,34 @@ import { EffectiveIngredient } from './ingredient-resolver';
 import { balanceScore, computeTotals, normalize } from './formula-math';
 import { Requirements } from './requirements';
 
+// RAKHAL-258 added fields to `Requirements` beyond the 5 legacy ones this spec exercises;
+// this stub fills them with harmless defaults so these fixtures keep compiling. Owned by
+// RAKHAL-260 to update meaningfully once formula-math.ts consumes the new fields.
+const reqStub = (partial: Partial<Requirements>): Requirements => ({
+  dmKg: 0,
+  cpKg: 0,
+  meMj: 0,
+  ndfKg: 0,
+  fatKg: 0,
+  neMcal: 0,
+  energyDensityMjPerKgDm: 0,
+  cpPctOfDm: 0,
+  tdnKg: 0,
+  calciumKg: 0,
+  phosphorusKg: 0,
+  adfKg: 0,
+  rdpPct: 0,
+  rupPct: 0,
+  ndfMaxKg: 0,
+  caPRatioTarget: 2.0,
+  breakdown: {
+    dm: { lactation: 0, pregnancy: 0, heiferGrowth: 0, bcsAdjustment: 0 },
+    me: { maintenance: 0, milk: 0, pregnancy: 0, heiferGrowth: 0 },
+    cp: { maintenance: 0, milk: 0, pregnancy: 0, heiferGrowth: 0 },
+  },
+  ...partial,
+});
+
 const eff = (
   id: string,
   partial: Partial<EffectiveIngredient>,
@@ -60,13 +88,13 @@ describe('formula-math', () => {
   });
 
   describe('balanceScore', () => {
-    const req: Requirements = {
+    const req: Requirements = reqStub({
       dmKg: 10,
       cpKg: 2,
       meMj: 100,
       ndfKg: 3,
       fatKg: 0.4,
-    };
+    });
     it('is 100 when all three governing nutrients are met', () => {
       const totals = {
         dm_kg: 12,
@@ -108,13 +136,13 @@ describe('formula-math', () => {
 
   describe('normalize', () => {
     it('scales amounts so total DM hits the requirement', () => {
-      const req: Requirements = {
+      const req: Requirements = reqStub({
         dmKg: 17.6,
         cpKg: 0,
         meMj: 0,
         ndfKg: 0,
         fatKg: 0,
-      };
+      });
       // current DM for 10kg of "a" (88%) = 8.8 → factor 2 → 20kg
       const out = normalize([{ ingredientId: 'a', amountKg: 10 }], req, byId);
       expect(out[0].amountKg).toBeCloseTo(20, 1);

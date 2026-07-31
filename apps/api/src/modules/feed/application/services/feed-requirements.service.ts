@@ -6,6 +6,7 @@ import {
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { MilkService } from 'src/modules/milk/application/services/milk.service';
 import {
+  AnimalType,
   computeRequirements,
   Requirements,
   RequirementsInput,
@@ -40,16 +41,37 @@ export class FeedRequirementsService {
       weightKg: query.weightKg as number,
       milkTargetL: query.milkTargetL as number,
       milkFatPct: query.milkFatPct,
+      milkProteinPct: query.milkProteinPct,
+      gestationDays: query.gestationDays,
+      bcs: query.bcs,
+      dim: query.dim,
+      animalType: query.animalType,
     });
     return {
       inputs: {
         weight_kg: query.weightKg as number,
         milk_target_l: query.milkTargetL as number,
         milk_fat_pct: query.milkFatPct ?? 4.0,
+        milk_protein_pct: query.milkProteinPct,
+        gestation_days: query.gestationDays,
+        bcs: query.bcs,
+        dim: query.dim,
+        animal_type: query.animalType ?? 'COW',
       },
       data_source: { weight: 'manual', milk_yield: 'manual' },
       requirements: this.reqShape(req),
     };
+  }
+
+  /** MILKING/FRESH → lactating cow; DRY → dry cow; GROWING → heifer (young stock, not yet
+   * in production). SOLD/DECEASED cows are excluded upstream (`isActive` scoping) and
+   * default to COW here as a harmless fallback. */
+  private inferAnimalType(
+    productionStatus: string | null | undefined,
+  ): AnimalType {
+    if (productionStatus === 'DRY') return 'DRY';
+    if (productionStatus === 'GROWING') return 'HEIFER';
+    return 'COW';
   }
 
   /** Single cow, auto-derived from `Cattle.lastWeightKg`/`lastBcs`, the active `Pregnancy` (if any,
@@ -63,9 +85,16 @@ export class FeedRequirementsService {
   ) {
     const cattle = await this.prisma.cattle.findFirst({
       where: { id: cattleId, farmId },
-      select: { id: true, lastWeightKg: true, lastBcs: true },
+      select: {
+        id: true,
+        lastWeightKg: true,
+        lastBcs: true,
+        productionStatus: true,
+      },
     });
     if (!cattle) throw new NotFoundException('Cattle not found');
+    const animalType =
+      query.animalType ?? this.inferAnimalType(cattle.productionStatus);
 
     const [gestationDays, avgYield] = await Promise.all([
       this.currentGestationDays(cattleId),
@@ -94,8 +123,11 @@ export class FeedRequirementsService {
       weightKg,
       milkTargetL,
       milkFatPct: query.milkFatPct,
-      gestationDays: gestationDays ?? undefined,
-      bcs: cattle.lastBcs ?? undefined,
+      milkProteinPct: query.milkProteinPct,
+      gestationDays: query.gestationDays ?? gestationDays ?? undefined,
+      bcs: query.bcs ?? cattle.lastBcs ?? undefined,
+      dim: query.dim,
+      animalType,
     };
     const req = computeRequirements(input);
 
@@ -104,8 +136,10 @@ export class FeedRequirementsService {
         weight_kg: weightKg,
         milk_target_l: milkTargetL,
         milk_fat_pct: query.milkFatPct ?? 4.0,
-        gestation_days: gestationDays,
-        bcs: cattle.lastBcs,
+        gestation_days: input.gestationDays,
+        bcs: input.bcs,
+        dim: query.dim,
+        animal_type: animalType,
       },
       data_source: { weight: weightSource, milk_yield: milkSource },
       requirements: this.reqShape(req),
@@ -167,7 +201,11 @@ export class FeedRequirementsService {
       weightKg,
       milkTargetL,
       milkFatPct: query.milkFatPct,
-      bcs,
+      milkProteinPct: query.milkProteinPct,
+      gestationDays: query.gestationDays,
+      bcs: query.bcs ?? bcs,
+      dim: query.dim,
+      animalType: query.animalType,
     });
 
     return {
@@ -175,7 +213,11 @@ export class FeedRequirementsService {
         weight_kg: round2(weightKg),
         milk_target_l: round2(milkTargetL),
         milk_fat_pct: query.milkFatPct ?? 4.0,
-        bcs: bcs != null ? round2(bcs) : null,
+        bcs:
+          (query.bcs ?? bcs) != null
+            ? round2((query.bcs ?? bcs) as number)
+            : null,
+        animal_type: query.animalType ?? 'COW',
         headcount,
         cattle_with_weight: weights.length,
         cattle_with_milk_data: yields.length,
@@ -223,6 +265,22 @@ export class FeedRequirementsService {
       me_mj: req.meMj,
       ndf_kg: req.ndfKg,
       fat_kg: req.fatKg,
+      ne_mcal: req.neMcal,
+      energy_density_mj_per_kg_dm: req.energyDensityMjPerKgDm,
+      cp_pct_of_dm: req.cpPctOfDm,
+      tdn_kg: req.tdnKg,
+      calcium_kg: req.calciumKg,
+      phosphorus_kg: req.phosphorusKg,
+      adf_kg: req.adfKg,
+      rdp_pct: req.rdpPct,
+      rup_pct: req.rupPct,
+      ndf_max_kg: req.ndfMaxKg,
+      ca_p_ratio_target: req.caPRatioTarget,
+      breakdown: {
+        dm: req.breakdown.dm,
+        me: req.breakdown.me,
+        cp: req.breakdown.cp,
+      },
     };
   }
 }
@@ -236,5 +294,36 @@ function scaleRequirements(req: Requirements, factor: number): Requirements {
     meMj: round2(req.meMj * factor),
     ndfKg: round2(req.ndfKg * factor),
     fatKg: round2(req.fatKg * factor),
+    neMcal: round2(req.neMcal * factor),
+    energyDensityMjPerKgDm: req.energyDensityMjPerKgDm,
+    cpPctOfDm: req.cpPctOfDm,
+    tdnKg: round2(req.tdnKg * factor),
+    calciumKg: round2(req.calciumKg * factor),
+    phosphorusKg: round2(req.phosphorusKg * factor),
+    adfKg: round2(req.adfKg * factor),
+    rdpPct: req.rdpPct,
+    rupPct: req.rupPct,
+    ndfMaxKg: round2(req.ndfMaxKg * factor),
+    caPRatioTarget: req.caPRatioTarget,
+    breakdown: {
+      dm: {
+        lactation: round2(req.breakdown.dm.lactation * factor),
+        pregnancy: round2(req.breakdown.dm.pregnancy * factor),
+        heiferGrowth: round2(req.breakdown.dm.heiferGrowth * factor),
+        bcsAdjustment: round2(req.breakdown.dm.bcsAdjustment * factor),
+      },
+      me: {
+        maintenance: round2(req.breakdown.me.maintenance * factor),
+        milk: round2(req.breakdown.me.milk * factor),
+        pregnancy: round2(req.breakdown.me.pregnancy * factor),
+        heiferGrowth: round2(req.breakdown.me.heiferGrowth * factor),
+      },
+      cp: {
+        maintenance: round2(req.breakdown.cp.maintenance * factor),
+        milk: round2(req.breakdown.cp.milk * factor),
+        pregnancy: round2(req.breakdown.cp.pregnancy * factor),
+        heiferGrowth: round2(req.breakdown.cp.heiferGrowth * factor),
+      },
+    },
   };
 }

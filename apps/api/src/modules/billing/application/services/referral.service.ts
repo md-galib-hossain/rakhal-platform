@@ -137,6 +137,9 @@ export class ReferralService {
    * REF-02/03/06 — accrue a commission on the referred farm's first real
    * (non-৳0) paid invoice. Idempotent on `triggerInvoiceId`. Never throws —
    * a failure here must not fail the payment finalize it's called from.
+   * Launch kill switch: while `DEFAULT_REFERRAL_PROGRAM.creditingEnabled`
+   * is false, the commission row is still recorded but always lands
+   * `PENDING` (no wallet credit) — same path as a flagged/held referral.
    */
   async accrueOnFirstPaidInvoice(
     farmId: string,
@@ -160,7 +163,8 @@ export class ReferralService {
       });
       if (priorPaid) return;
 
-      const approve = !referral.flagged;
+      const approve =
+        DEFAULT_REFERRAL_PROGRAM.creditingEnabled && !referral.flagged;
       let commission: ReferralCommission;
       try {
         commission = await this.prisma.referralCommission.create({

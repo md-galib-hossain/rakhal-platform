@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import {
+  FinanceCategory,
   FinanceTxnType,
   HealthActionType,
   HealthCaseStatus,
@@ -397,24 +398,26 @@ export class ReportGeneratorsService {
       ? this.dayStart(params.fromDate)
       : this.addDays(end, -6);
 
-    const [newCases, treatments, recoveries, withholding] = await Promise.all([
-      this.prisma.healthCase.count({
-        where: { farmId, startDate: { gte: start, lt: endNext } },
-      }),
-      this.prisma.treatmentLog.count({
-        where: { farmId, administeredAt: { gte: start, lt: endNext } },
-      }),
-      this.prisma.healthCase.count({
-        where: {
-          farmId,
-          status: HealthCaseStatus.RECOVERED,
-          closedDate: { gte: start, lt: endNext },
-        },
-      }),
-      this.prisma.safetyWithdrawal.count({
-        where: { farmId, status: 'ACTIVE' },
-      }),
-    ]);
+    const [newCases, treatments, recoveries, withholding, medicineCost] =
+      await Promise.all([
+        this.prisma.healthCase.count({
+          where: { farmId, startDate: { gte: start, lt: endNext } },
+        }),
+        this.prisma.treatmentLog.count({
+          where: { farmId, administeredAt: { gte: start, lt: endNext } },
+        }),
+        this.prisma.healthCase.count({
+          where: {
+            farmId,
+            status: HealthCaseStatus.RECOVERED,
+            closedDate: { gte: start, lt: endNext },
+          },
+        }),
+        this.prisma.safetyWithdrawal.count({
+          where: { farmId, status: 'ACTIVE' },
+        }),
+        this.treatmentMedicineCost(farmId, start, endNext),
+      ]);
 
     return {
       title: 'Weekly Herd Health Report',
@@ -424,6 +427,7 @@ export class ReportGeneratorsService {
         { label: 'Treatments', value: treatments },
         { label: 'Recoveries', value: recoveries },
         { label: 'Active withholding', value: withholding },
+        { label: 'Medicine cost (৳)', value: medicineCost },
       ],
       columns: ['Metric', 'Value'],
       rows: [
@@ -431,8 +435,52 @@ export class ReportGeneratorsService {
         ['Treatments administered', treatments],
         ['Recoveries', recoveries],
         ['Active withholding events', withholding],
+        ['Medicine cost (৳)', medicineCost],
       ],
     };
+  }
+
+  /**
+   * Sum of medicine cost for treatments in a window (RD-013e). `TreatmentLog`
+   * has no cost field and `medicineId` isn't a declared Prisma relation (a
+   * cross-batch dose split, RD-003, may only record the primary batch drawn),
+   * so this approximates: current `Medicine.costPerUnit` × the logged
+   * `stockDeductionQuantity` — not the historical unit price at the time of
+   * treatment, and not the full per-batch split cost.
+   */
+  private async treatmentMedicineCost(
+    farmId: string,
+    start: Date,
+    endExclusive: Date,
+  ): Promise<number> {
+    const treatments = await this.prisma.treatmentLog.findMany({
+      where: {
+        farmId,
+        administeredAt: { gte: start, lt: endExclusive },
+        stockDeducted: true,
+        medicineId: { not: null },
+      },
+      select: { medicineId: true, stockDeductionQuantity: true },
+    });
+    if (treatments.length === 0) return 0;
+
+    const medicineIds = [
+      ...new Set(treatments.map((t) => t.medicineId as string)),
+    ];
+    const medicines = await this.prisma.medicine.findMany({
+      where: { id: { in: medicineIds } },
+      select: { id: true, costPerUnit: true },
+    });
+    const costById = new Map(medicines.map((m) => [m.id, m.costPerUnit]));
+
+    const total = treatments.reduce(
+      (sum, t) =>
+        sum +
+        Number(t.stockDeductionQuantity ?? 0) *
+          (costById.get(t.medicineId as string) ?? 0),
+      0,
+    );
+    return this.round(total);
   }
 
   private async vaccinationCompliance(farmId: string): Promise<ReportData> {
@@ -636,28 +684,30 @@ export class ReportGeneratorsService {
     const yearStart = new Date(Date.UTC(year, 0, 1));
     const yearEnd = new Date(Date.UTC(year + 1, 0, 1));
 
-    const [opening, additions, removals, closing] = await Promise.all([
-      this.prisma.cattle.count({
-        where: { farmId, createdAt: { lt: yearStart } },
-      }),
-      this.prisma.cattle.count({
-        where: { farmId, createdAt: { gte: yearStart, lt: yearEnd } },
-      }),
-      this.prisma.cattle.count({
-        where: {
-          farmId,
-          productionStatus: { in: ACTIVE_PRODUCTION_EXCLUDE },
-          updatedAt: { gte: yearStart, lt: yearEnd },
-        },
-      }),
-      this.prisma.cattle.count({
-        where: {
-          farmId,
-          isActive: true,
-          productionStatus: { notIn: ACTIVE_PRODUCTION_EXCLUDE },
-        },
-      }),
-    ]);
+    const [opening, additions, removals, closing, herdValue] =
+      await Promise.all([
+        this.prisma.cattle.count({
+          where: { farmId, createdAt: { lt: yearStart } },
+        }),
+        this.prisma.cattle.count({
+          where: { farmId, createdAt: { gte: yearStart, lt: yearEnd } },
+        }),
+        this.prisma.cattle.count({
+          where: {
+            farmId,
+            productionStatus: { in: ACTIVE_PRODUCTION_EXCLUDE },
+            updatedAt: { gte: yearStart, lt: yearEnd },
+          },
+        }),
+        this.prisma.cattle.count({
+          where: {
+            farmId,
+            isActive: true,
+            productionStatus: { notIn: ACTIVE_PRODUCTION_EXCLUDE },
+          },
+        }),
+        this.herdPurchaseValue(farmId, yearEnd),
+      ]);
 
     return {
       title: 'Annual Herd Inventory',
@@ -665,6 +715,7 @@ export class ReportGeneratorsService {
       summary: [
         { label: 'Opening count', value: opening },
         { label: 'Closing count', value: closing },
+        { label: 'Estimated value (৳)', value: herdValue },
       ],
       columns: ['Metric', 'Value'],
       rows: [
@@ -672,9 +723,31 @@ export class ReportGeneratorsService {
         ['Additions (born/purchased)', additions],
         ['Removals (sold/deceased)', removals],
         ['Closing count', closing],
-        ['Estimated value (৳)', 'n/a — pending fixed-asset valuation (RD-010)'],
+        ['Estimated value (৳)', herdValue],
       ],
     };
+  }
+
+  /**
+   * Herd value as of a point in time (RD-013d/RD-010e): sum of non-voided
+   * ANIMAL inventory-purchase transactions up to that date — the same
+   * purchase-cost approximation `FinanceService.assets()` already uses for
+   * its `cattle_herd` allocation, not a true per-head market revaluation
+   * (still OPEN, RD-010e — no per-head market-price model exists yet).
+   */
+  private async herdPurchaseValue(farmId: string, asOf: Date): Promise<number> {
+    const agg = await this.prisma.financeTransaction.aggregate({
+      where: {
+        farmId,
+        ...NON_VOID_TXN,
+        type: FinanceTxnType.INVENTORY_PURCHASE,
+        category: FinanceCategory.INVENTORY,
+        subType: 'animal',
+        date: { lt: asOf },
+      },
+      _sum: { amount: true },
+    });
+    return this.round(agg._sum.amount ?? 0);
   }
 
   /**

@@ -83,8 +83,8 @@ describe('Feed Formulator — cow-driven requirements (e2e)', () => {
     expect(res.body.data.inputs.milk_target_l).toBe(20);
     expect(res.body.data.data_source.weight).toBe('cattle_record');
     expect(res.body.data.data_source.milk_yield).toBe('manual');
-    // DM = 0.025*450 + 0.1*20 = 13.25, matches the pure-function unit test.
-    expect(res.body.data.requirements.dm_kg).toBeCloseTo(13.25, 2);
+    // v2 (RAKHAL-258) NRC-2001 FCM/DIM formula, no dim supplied → mid-lactation curve default.
+    expect(res.body.data.requirements.dm_kg).toBeCloseTo(16.36, 1);
   });
 
   it('400s when neither the cattle record nor a manual weight is available', async () => {
