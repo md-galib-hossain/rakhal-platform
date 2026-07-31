@@ -33,8 +33,13 @@ describe('Rate limiting (RAKHAL-111)', () => {
     server = ctx.app.getHttpServer() as App;
     redis = ctx.app.get<RedisClient>(REDIS_CLIENT);
 
+    // Clear first: `loginAs` spends two requests per user against the 5/min
+    // `@ThrottleAuth()` tier, and that tier carries a 15-minute blockDuration —
+    // leftovers from a previous run would lock this suite out before it starts.
+    await flushThrottleKeys();
+
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
-    manager = await loginAs(ctx, 'manager@demo.rakhal.test', 'DemoPass123');
+    manager = await loginAs(ctx, 'manager@demo.rakhal.test', 'ManagerPass123');
   });
 
   afterAll(async () => {
@@ -46,10 +51,19 @@ describe('Rate limiting (RAKHAL-111)', () => {
     await flushThrottleKeys();
   });
 
+  /** node-redis v5's scanIterator yields *batches*, and DEL rejects an empty one. */
   async function flushThrottleKeys() {
-    for await (const key of redis.scanIterator({ MATCH: 'throttle:*' })) {
+    for (const key of await scanThrottleKeys()) {
       await redis.del(key);
     }
+  }
+
+  async function scanThrottleKeys(): Promise<string[]> {
+    const found: string[] = [];
+    for await (const batch of redis.scanIterator({ MATCH: 'throttle:*' })) {
+      found.push(...(Array.isArray(batch) ? batch : [batch]));
+    }
+    return found;
   }
 
   /** `@ThrottleExpensive()` = 10/min. Fire 11 and keep every status. */
@@ -130,10 +144,7 @@ describe('Rate limiting (RAKHAL-111)', () => {
   it('stores counters in Redis, not in process memory', async () => {
     await hammerReports(owner.token, 3);
 
-    const keys: string[] = [];
-    for await (const key of redis.scanIterator({ MATCH: 'throttle:*' })) {
-      keys.push(key as unknown as string);
-    }
+    const keys = await scanThrottleKeys();
 
     // Proves the PM2-cluster property: with the package's default in-memory
     // storage this array is empty and every worker would count separately.

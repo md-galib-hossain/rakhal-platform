@@ -55,7 +55,13 @@ export class RakhalThrottlerGuard extends ThrottlerGuard {
     super(options, storageService, reflector);
   }
 
-  protected async getTracker(req: Record<string, unknown>): Promise<string> {
+  // Returns a promise to satisfy the base signature; nothing here awaits, so
+  // it is deliberately not declared `async`.
+  protected getTracker(req: Record<string, unknown>): Promise<string> {
+    return Promise.resolve(this.resolveTracker(req));
+  }
+
+  private resolveTracker(req: Record<string, unknown>): string {
     const headers = req.headers as Record<string, string | undefined>;
     const raw = headers?.authorization;
 

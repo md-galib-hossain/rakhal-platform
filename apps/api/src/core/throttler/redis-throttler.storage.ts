@@ -86,7 +86,8 @@ export class RedisThrottlerStorage implements ThrottlerStorage {
     ttl: number,
     limit: number,
     blockDuration: number,
-    _throttlerName: string,
+    // (the interface also passes `throttlerName`; unused — the key already
+    // encodes it, see ThrottlerGuard.generateKey)
   ): Promise<ThrottlerStorageRecord> {
     try {
       const [hits, pttl, blocked, blockPttl] = (await this.redis.eval(
