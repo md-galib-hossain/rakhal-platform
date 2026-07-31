@@ -1,9 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ConfigType } from '@nestjs/config';
+import type { ConfigType } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import {
+  InjectThrottlerOptions,
+  InjectThrottlerStorage,
   ThrottlerGuard,
+} from '@nestjs/throttler';
+import type {
   ThrottlerModuleOptions,
   ThrottlerStorage,
 } from '@nestjs/throttler';
@@ -37,8 +41,12 @@ import type { AuthTokenPayload } from 'src/modules/auth/domain/auth-token-payloa
 @Injectable()
 export class RakhalThrottlerGuard extends ThrottlerGuard {
   constructor(
-    options: ThrottlerModuleOptions,
-    storageService: ThrottlerStorage,
+    // Injected by explicit token rather than by type metadata: the types have
+    // to be `import type` (isolatedModules + emitDecoratorMetadata), which
+    // erases the metadata Nest would otherwise resolve them from. These are
+    // the same decorators the base ThrottlerGuard uses on its own constructor.
+    @InjectThrottlerOptions() options: ThrottlerModuleOptions,
+    @InjectThrottlerStorage() storageService: ThrottlerStorage,
     reflector: Reflector,
     private readonly jwt: JwtService,
     @Inject(authConfig.KEY)

@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { RakhalThrottlerGuard } from '../../src/core/throttler/rakhal-throttler.guard';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
@@ -25,11 +25,30 @@ export interface TestContext {
   prefix: string;
 }
 
-export async function createTestApp(): Promise<TestContext> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-    .overrideGuard(ThrottlerGuard)
-    .useValue({ canActivate: () => true })
-    .compile();
+export interface CreateTestAppOptions {
+  /**
+   * Leave rate limiting switched on. Only `throttling.e2e-spec.ts` wants this —
+   * everything else would trip the 5-logins/min auth tier during setup.
+   */
+  throttling?: boolean;
+}
+
+export async function createTestApp(
+  options: CreateTestAppOptions = {},
+): Promise<TestContext> {
+  const builder = Test.createTestingModule({ imports: [AppModule] });
+
+  if (!options.throttling) {
+    // Must target the concrete class, not `ThrottlerGuard`: the guard is bound
+    // as `{ provide: APP_GUARD, useExisting: RakhalThrottlerGuard }`, and
+    // `overrideGuard(ThrottlerGuard)` does not intercept that binding — the
+    // suite would silently run fully rate-limited and fail on login.
+    builder
+      .overrideProvider(RakhalThrottlerGuard)
+      .useValue({ canActivate: () => true });
+  }
+
+  const moduleRef = await builder.compile();
 
   const app = moduleRef.createNestApplication();
   app.use(cookieParser());

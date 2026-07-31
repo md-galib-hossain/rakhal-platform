@@ -32,6 +32,8 @@ const COMMON_MESSAGE_KEYS: Record<string, string> = {
   'Session permissions are stale': 'common.sessionPermissionsStale',
   'Invalid credentials': 'common.invalidCredentials',
   'Forbidden resource': 'common.forbiddenResource',
+  // ThrottlerException's default message (@nestjs/throttler).
+  'ThrottlerException: Too many requests': 'common.rateLimited',
 };
 export interface ErrorResponse {
   success: false;

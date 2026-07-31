@@ -30,10 +30,11 @@ import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { RedisModule } from 'src/core/redis/redis.module';
 import { ThrottlerStorageModule } from 'src/core/throttler/throttler-storage.module';
 import { RedisThrottlerStorage } from 'src/core/throttler/redis-throttler.storage';
+import { RakhalThrottlerGuard } from 'src/core/throttler/rakhal-throttler.guard';
 import { CacheModule } from 'src/core/cache/cache.module';
 import { RequestContextMiddleware } from 'src/common/middleware/request-context.middleware';
 import { LoggerMiddleware } from 'src/core/logger/logger/logger.middleware';
-import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { GlobalExceptionFilter } from 'src/common/filters/global-exception.filter';
 import { ResponseEnvelopeInterceptor } from 'src/common/interceptors/response-envelope.interceptor';
 import { EmailModule } from './modules/email/email.module';
@@ -177,6 +178,19 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
   ],
   controllers: [HealthController],
   providers: [
+    // Rate limiting for EVERY route. Runs ahead of the per-route guard chain
+    // (JwtAuthGuard → SessionGuard → FarmContextGuard → PermissionGuard), which
+    // is the point: SessionGuard hits Redis and FarmContextGuard hits Postgres,
+    // so a flood has to be rejected before it reaches them.
+    //
+    // `useExisting`, not `useClass` — the guard must stay addressable under its
+    // own token or `Test.overrideProvider(RakhalThrottlerGuard)` in the e2e
+    // harness silently fails to intercept it.
+    RakhalThrottlerGuard,
+    {
+      provide: APP_GUARD,
+      useExisting: RakhalThrottlerGuard,
+    },
     {
       provide: APP_INTERCEPTOR,
       useClass: ResponseEnvelopeInterceptor,
