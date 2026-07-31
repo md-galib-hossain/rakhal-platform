@@ -12,7 +12,11 @@ import {
 } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Response } from 'express';
-import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
+import {
+  CurrentFarmId,
+  CurrentUserId,
+  ThrottleExpensive,
+} from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
@@ -59,7 +63,7 @@ export class ReportsController {
   @Post('generate')
   @RequirePermission('reports.create')
   @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  @ThrottleExpensive()
   generate(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,

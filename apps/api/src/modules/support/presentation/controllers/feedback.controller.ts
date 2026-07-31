@@ -9,7 +9,11 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { env } from 'src/core/config/env';
-import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
+import {
+  CurrentFarmId,
+  CurrentUserId,
+  ThrottleUpload,
+} from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
@@ -30,6 +34,7 @@ export class FeedbackController {
   constructor(private readonly feedback: FeedbackService) {}
 
   @Post()
+  @ThrottleUpload()
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: env.MEDIA_MAX_UPLOAD_BYTES },

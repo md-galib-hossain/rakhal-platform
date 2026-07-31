@@ -15,6 +15,7 @@ import {
 import type { ConfigType } from '@nestjs/config';
 import type { Response } from 'express';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottleAuth } from 'src/common/decorators';
 import { authConfig } from 'src/core/config/env';
 import {
   getClearRefreshCookieOptions,
@@ -53,7 +54,7 @@ export class AuthController {
 
   @Post('register')
   @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @ThrottleAuth()
   async register(@Body() dto: RegisterDto) {
     const result = await this.authService.register(dto);
 
@@ -64,7 +65,7 @@ export class AuthController {
 
   @Post('login')
   @UseGuards(ThrottlerGuard)
-  @Throttle({ login: { ttl: 60_000, limit: 5 } })
+  @ThrottleAuth()
   async login(
     @Body() dto: LoginDto,
     @Req() request: AuthenticatedHttpRequest,
@@ -104,14 +105,14 @@ export class AuthController {
 
   @Post('forgot-password')
   @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @ThrottleAuth()
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto.email);
   }
 
   @Post('reset-password')
   @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @ThrottleAuth()
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
   }
@@ -143,7 +144,7 @@ export class AuthController {
 
   @Post('refresh')
   @UseGuards(ThrottlerGuard, CsrfGuard)
-  @Throttle({ refresh: { ttl: 60_000, limit: 10 } })
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   async refresh(
     @Body() dto: RefreshTokenDto,
     @Req() request: AuthenticatedHttpRequest,

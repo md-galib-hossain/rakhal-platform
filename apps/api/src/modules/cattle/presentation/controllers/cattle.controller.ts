@@ -13,7 +13,11 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { env } from 'src/core/config/env';
-import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
+import {
+  CurrentFarmId,
+  CurrentUserId,
+  ThrottleUpload,
+} from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
@@ -94,6 +98,7 @@ export class CattleController {
 
   @Post('import/preview')
   @RequirePermission('cattle.create')
+  @ThrottleUpload()
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: CSV_MAX_BYTES } }),
   )
@@ -187,6 +192,7 @@ export class CattleController {
 
   @Post(':id/photo')
   @RequirePermission('cattle.update')
+  @ThrottleUpload()
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: PHOTO_MAX_BYTES } }),
   )

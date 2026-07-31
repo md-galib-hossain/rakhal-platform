@@ -9,7 +9,11 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
+import {
+  CurrentFarmId,
+  CurrentUserId,
+  ThrottleUpload,
+} from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
@@ -63,6 +67,7 @@ export class OnboardingController {
   @Post('cattle/import')
   @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
   @RequirePermission('cattle.create')
+  @ThrottleUpload()
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: CSV_MAX_BYTES } }),
   )

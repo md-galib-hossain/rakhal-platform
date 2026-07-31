@@ -1,7 +1,7 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUserId } from 'src/common/decorators';
+import { CurrentUserId, ThrottleAuth } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { OtpPurpose } from '@prisma/client';
@@ -23,7 +23,7 @@ export class OtpController {
 
   @Post('request')
   @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @ThrottleAuth()
   request(@CurrentUserId() userId: string) {
     return this.otp.request(userId, OtpPurpose.ACCOUNT_VERIFICATION);
   }

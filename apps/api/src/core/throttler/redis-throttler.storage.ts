@@ -1,11 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type {
-  ThrottlerStorage,
-  ThrottlerStorageRecord,
-} from '@nestjs/throttler';
+import type { ThrottlerStorage } from '@nestjs/throttler';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { REDIS_CLIENT } from 'src/core/redis/redis.constants';
 import type { RedisClient } from 'src/core/redis/redis.module';
+
+/**
+ * `ThrottlerStorageRecord` is declared in the package but not re-exported from
+ * its barrel, so derive it from the one name that is rather than reaching into
+ * a `dist/` path that a patch release could move.
+ */
+type ThrottlerStorageRecord = Awaited<
+  ReturnType<ThrottlerStorage['increment']>
+>;
 
 /**
  * Atomic hit-counter + block-gate in one round trip.
