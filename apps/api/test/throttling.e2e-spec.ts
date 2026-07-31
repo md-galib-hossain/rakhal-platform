@@ -72,8 +72,8 @@ describe('Rate limiting (RAKHAL-111)', () => {
     for (let i = 0; i < times; i++) {
       const res = await request(server)
         .post(`${ctx.prefix}/reports/generate`)
-        .set(bearer(user))
-        .send({ reportId: 'rpt_cattle_inventory', format: 'CSV' });
+        .set(...bearer(user))
+        .send({ reportId: 'rpt_daily_milk', format: 'CSV' });
       codes.push(res.status);
     }
     return codes;
@@ -89,8 +89,8 @@ describe('Rate limiting (RAKHAL-111)', () => {
     // filter had no 429 row and returned code INTERNAL_ERROR alongside a 429.
     const blocked = await request(server)
       .post(`${ctx.prefix}/reports/generate`)
-      .set(bearer(owner))
-      .send({ reportId: 'rpt_cattle_inventory', format: 'CSV' });
+      .set(...bearer(owner))
+      .send({ reportId: 'rpt_daily_milk', format: 'CSV' });
 
     expect(blocked.status).toBe(429);
     expect(blocked.body.success).toBe(false);
@@ -106,8 +106,8 @@ describe('Rate limiting (RAKHAL-111)', () => {
     // sharing its egress IP.
     const other = await request(server)
       .post(`${ctx.prefix}/reports/generate`)
-      .set(bearer(manager))
-      .send({ reportId: 'rpt_cattle_inventory', format: 'CSV' });
+      .set(...bearer(manager))
+      .send({ reportId: 'rpt_daily_milk', format: 'CSV' });
 
     expect(other.status).not.toBe(429);
   });
@@ -123,7 +123,7 @@ describe('Rate limiting (RAKHAL-111)', () => {
       const res = await request(server)
         .post(`${ctx.prefix}/reports/generate`)
         .set('Authorization', forged)
-        .send({ reportId: 'rpt_cattle_inventory', format: 'CSV' });
+        .send({ reportId: 'rpt_daily_milk', format: 'CSV' });
       codes.push(res.status);
     }
 
