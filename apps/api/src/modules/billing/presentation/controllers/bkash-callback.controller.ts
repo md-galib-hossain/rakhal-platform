@@ -1,5 +1,5 @@
 import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { env } from 'src/core/config/env';
 import { BillingService } from '../../application/services/billing.service';
@@ -21,7 +21,6 @@ export class BkashCallbackController {
   constructor(private readonly billing: BillingService) {}
 
   @Get('callback')
-  @UseGuards(ThrottlerGuard)
   @Throttle({ default: { ttl: 60_000, limit: 20 } })
   async callback(
     @Query('paymentID') paymentID: string | undefined,

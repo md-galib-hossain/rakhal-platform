@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 import type { Response } from 'express';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import { ThrottleAuth } from 'src/common/decorators';
 import { authConfig } from 'src/core/config/env';
 import {
@@ -53,7 +53,6 @@ export class AuthController {
   ) {}
 
   @Post('register')
-  @UseGuards(ThrottlerGuard)
   @ThrottleAuth()
   async register(@Body() dto: RegisterDto) {
     const result = await this.authService.register(dto);
@@ -64,7 +63,6 @@ export class AuthController {
   }
 
   @Post('login')
-  @UseGuards(ThrottlerGuard)
   @ThrottleAuth()
   async login(
     @Body() dto: LoginDto,
@@ -97,21 +95,18 @@ export class AuthController {
   }
 
   @Post('verify-email')
-  @UseGuards(ThrottlerGuard)
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   verifyEmail(@Body() dto: VerifyEmailDto) {
     return this.authService.verifyEmailToken(dto.token);
   }
 
   @Post('forgot-password')
-  @UseGuards(ThrottlerGuard)
   @ThrottleAuth()
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto.email);
   }
 
   @Post('reset-password')
-  @UseGuards(ThrottlerGuard)
   @ThrottleAuth()
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
@@ -119,7 +114,7 @@ export class AuthController {
 
   @Post('change-password')
   @ApiBearerAuth()
-  @UseGuards(ThrottlerGuard, CsrfGuard, JwtAuthGuard, SessionGuard)
+  @UseGuards(CsrfGuard, JwtAuthGuard, SessionGuard)
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   changePassword(
     @Body() dto: ChangePasswordDto,
@@ -131,7 +126,6 @@ export class AuthController {
   }
 
   @Get('csrf')
-  @UseGuards(ThrottlerGuard)
   @Throttle({ default: { ttl: 60_000, limit: 20 } })
   csrf(
     @Req() request: AuthenticatedHttpRequest,
@@ -143,7 +137,7 @@ export class AuthController {
   }
 
   @Post('refresh')
-  @UseGuards(ThrottlerGuard, CsrfGuard)
+  @UseGuards(CsrfGuard)
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   async refresh(
     @Body() dto: RefreshTokenDto,
@@ -178,7 +172,7 @@ export class AuthController {
 
   @Post('logout')
   @ApiBearerAuth()
-  @UseGuards(ThrottlerGuard, CsrfGuard, JwtAuthGuard, SessionGuard)
+  @UseGuards(CsrfGuard, JwtAuthGuard, SessionGuard)
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   logout(
     @Body() dto: LogoutDto,
@@ -204,7 +198,7 @@ export class AuthController {
 
   @Post('logout-all')
   @ApiBearerAuth()
-  @UseGuards(ThrottlerGuard, CsrfGuard, JwtAuthGuard, SessionGuard)
+  @UseGuards(CsrfGuard, JwtAuthGuard, SessionGuard)
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   logoutAll(
     @Req() request: AuthenticatedHttpRequest,
@@ -230,7 +224,7 @@ export class AuthController {
 
   @Delete('sessions/:sessionId')
   @ApiBearerAuth()
-  @UseGuards(ThrottlerGuard, JwtAuthGuard, SessionGuard)
+  @UseGuards(JwtAuthGuard, SessionGuard)
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   revokeSession(
     @Param('sessionId') sessionId: string,
@@ -246,7 +240,7 @@ export class AuthController {
 
   @Get('me')
   @ApiBearerAuth()
-  @UseGuards(ThrottlerGuard, JwtAuthGuard, SessionGuard)
+  @UseGuards(JwtAuthGuard, SessionGuard)
   me(@Req() request: AuthenticatedHttpRequest) {
     const auth = this.getAuthContext(request);
     return this.authService.me(
@@ -258,7 +252,7 @@ export class AuthController {
 
   @Patch('me/language')
   @ApiBearerAuth()
-  @UseGuards(ThrottlerGuard, JwtAuthGuard, SessionGuard)
+  @UseGuards(JwtAuthGuard, SessionGuard)
   updateLanguage(
     @Body() dto: UpdateLanguageDto,
     @Req() request: AuthenticatedHttpRequest,

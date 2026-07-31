@@ -67,12 +67,12 @@ describe('Rate limiting (RAKHAL-111)', () => {
   }
 
   /** `@ThrottleExpensive()` = 10/min. Fire 11 and keep every status. */
-  async function hammerReports(token: string, times: number) {
+  async function hammerReports(user: AuthedUser, times: number) {
     const codes: number[] = [];
     for (let i = 0; i < times; i++) {
       const res = await request(server)
         .post(`${ctx.prefix}/reports/generate`)
-        .set(bearer(token))
+        .set(bearer(user))
         .send({ reportId: 'rpt_cattle_inventory', format: 'CSV' });
       codes.push(res.status);
     }
@@ -80,7 +80,7 @@ describe('Rate limiting (RAKHAL-111)', () => {
   }
 
   it('429s past the tier limit and says RATE_LIMITED, not INTERNAL_ERROR', async () => {
-    const codes = await hammerReports(owner.token, 11);
+    const codes = await hammerReports(owner, 11);
 
     expect(codes.filter((c) => c === 429).length).toBeGreaterThan(0);
     expect(codes[0]).not.toBe(429);
@@ -89,7 +89,7 @@ describe('Rate limiting (RAKHAL-111)', () => {
     // filter had no 429 row and returned code INTERNAL_ERROR alongside a 429.
     const blocked = await request(server)
       .post(`${ctx.prefix}/reports/generate`)
-      .set(bearer(owner.token))
+      .set(bearer(owner))
       .send({ reportId: 'rpt_cattle_inventory', format: 'CSV' });
 
     expect(blocked.status).toBe(429);
@@ -99,14 +99,14 @@ describe('Rate limiting (RAKHAL-111)', () => {
   });
 
   it('buckets per user, not per IP (both users share 127.0.0.1 here)', async () => {
-    await hammerReports(owner.token, 11);
+    await hammerReports(owner, 11);
 
     // Same source address, different token — must still be served. This is the
     // carrier-grade-NAT case: one abusive account must not lock out everyone
     // sharing its egress IP.
     const other = await request(server)
       .post(`${ctx.prefix}/reports/generate`)
-      .set(bearer(manager.token))
+      .set(bearer(manager))
       .send({ reportId: 'rpt_cattle_inventory', format: 'CSV' });
 
     expect(other.status).not.toBe(429);
@@ -142,7 +142,7 @@ describe('Rate limiting (RAKHAL-111)', () => {
   });
 
   it('stores counters in Redis, not in process memory', async () => {
-    await hammerReports(owner.token, 3);
+    await hammerReports(owner, 3);
 
     const keys = await scanThrottleKeys();
 

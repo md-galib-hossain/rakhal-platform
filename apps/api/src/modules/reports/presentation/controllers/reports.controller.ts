@@ -10,7 +10,6 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ThrottlerGuard } from '@nestjs/throttler';
 import type { Response } from 'express';
 import {
   CurrentFarmId,
@@ -62,7 +61,6 @@ export class ReportsController {
 
   @Post('generate')
   @RequirePermission('reports.create')
-  @UseGuards(ThrottlerGuard)
   @ThrottleExpensive()
   generate(
     @CurrentFarmId() farmId: string,

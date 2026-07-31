@@ -11,7 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
@@ -44,7 +44,6 @@ export class BillingController {
 
   @Post('checkout')
   @RequirePermission('subscription.manage')
-  @UseGuards(ThrottlerGuard)
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   checkout(
     @CurrentFarmId() farmId: string,
@@ -57,7 +56,6 @@ export class BillingController {
 
   @Post('checkout/preview')
   @RequirePermission('subscription.manage')
-  @UseGuards(ThrottlerGuard)
   @Throttle({ default: { ttl: 60_000, limit: 20 } })
   previewCheckout(
     @CurrentFarmId() farmId: string,
@@ -78,7 +76,6 @@ export class BillingController {
 
   @Post('downgrade/schedule')
   @RequirePermission('subscription.manage')
-  @UseGuards(ThrottlerGuard)
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   scheduleDowngrade(
     @CurrentFarmId() farmId: string,
@@ -130,7 +127,6 @@ export class BillingController {
 
   @Post('invoices/:id/refund')
   @RequirePermission('subscription.manage')
-  @UseGuards(ThrottlerGuard)
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   refund(
     @CurrentFarmId() farmId: string,

@@ -1,5 +1,5 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUserId, ThrottleAuth } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
@@ -22,14 +22,12 @@ export class OtpController {
   constructor(private readonly otp: OtpService) {}
 
   @Post('request')
-  @UseGuards(ThrottlerGuard)
   @ThrottleAuth()
   request(@CurrentUserId() userId: string) {
     return this.otp.request(userId, OtpPurpose.ACCOUNT_VERIFICATION);
   }
 
   @Post('verify')
-  @UseGuards(ThrottlerGuard)
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   async verify(@CurrentUserId() userId: string, @Body() dto: VerifyOtpDto) {
     await this.otp.verify(userId, OtpPurpose.ACCOUNT_VERIFICATION, dto.code);
