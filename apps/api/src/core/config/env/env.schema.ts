@@ -96,9 +96,27 @@ export const envSchema = z.object({
 
   AUTH_CSRF_SECRET: z.string().min(32).optional(),
 
+  // Number of reverse-proxy hops in front of the app (Nginx on the same box = 1;
+  // 2 if Cloudflare's proxy is ever enabled). Drives `app.set('trust proxy', n)`.
+  // NEVER express this as a boolean: Nginx *appends* to X-Forwarded-For, so
+  // `trust proxy: true` makes Express walk to the leftmost (client-supplied)
+  // value — an attacker rotates the header per request and rate limiting,
+  // which keys on req.ip, becomes a no-op. A hop count reads from the right.
+  // 0 (the default) leaves trust proxy off, correct for local/dev with no proxy.
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
+
   RATE_LIMIT_TTL_SECONDS: z.coerce.number().int().positive().default(60),
 
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(100),
+
+  // Route-independent aggregate ceiling per identity. The `default` throttler is
+  // keyed per handler (sha256(Class-handler-name-tracker)), so on its own it
+  // grants a fresh budget on every one of ~200 endpoints — no API-wide cap.
+  RATE_LIMIT_GLOBAL_MAX_REQUESTS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(300),
 
   AUTH_LOGIN_RATE_LIMIT_TTL_SECONDS: z.coerce
     .number()

@@ -9,9 +9,12 @@ import { LoggerService } from 'src/core/logger/logger/logger.service';
 import cookieParser from 'cookie-parser';
 import { SentryService } from 'src/core/observability/sentry/sentry.service';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+  });
 
   const logger = await app.resolve(LoggerService);
   const sentry = await app.resolve(SentryService);
@@ -25,9 +28,18 @@ async function bootstrap() {
     credentials: true,
   });
 
-  const { apiPrefix, name, appVersion, swaggerEnabled } = app.get<
-    ConfigType<typeof appConfig>
-  >(appConfig.KEY);
+  const { apiPrefix, name, appVersion, swaggerEnabled, trustProxyHops } =
+    app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
+
+  // Behind Nginx (and optionally Cloudflare) req.ip is the proxy's own address
+  // unless Express is told how many hops to skip. Everything that keys on the
+  // client IP depends on this: the throttler's tracker and the IP recorded on
+  // audit/lockout rows. Set as a *count*, never `true` — see TRUST_PROXY_HOPS
+  // in env.schema.ts for why a boolean is spoofable.
+  if (trustProxyHops > 0) {
+    app.set('trust proxy', trustProxyHops);
+    logger.log(`Trusting ${trustProxyHops} reverse-proxy hop(s) for client IP`);
+  }
   // Health/readiness probes and the Prometheus scrape stay un-prefixed so
   // infra (k8s, Prometheus) keeps hitting /health, /ready, /live, /metrics.
   app.setGlobalPrefix(apiPrefix, {

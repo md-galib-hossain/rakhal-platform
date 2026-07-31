@@ -28,6 +28,8 @@ import { DomainEventsModule } from 'src/common/events/domain-events.module';
 import { I18nModule } from 'src/common/i18n/i18n.module';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { RedisModule } from 'src/core/redis/redis.module';
+import { ThrottlerStorageModule } from 'src/core/throttler/throttler-storage.module';
+import { RedisThrottlerStorage } from 'src/core/throttler/redis-throttler.storage';
 import { CacheModule } from 'src/core/cache/cache.module';
 import { RequestContextMiddleware } from 'src/common/middleware/request-context.middleware';
 import { LoggerMiddleware } from 'src/core/logger/logger/logger.middleware';
@@ -95,25 +97,37 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
         },
       }),
     }),
+    // Every registered throttler runs on EVERY guarded request — a named
+    // throttler is not *selected* by `@Throttle({ name: ... })`, that only
+    // overrides its numbers for that handler. So the set below is deliberately
+    // two entries that are both meant to apply everywhere. (The previous
+    // `login`/`refresh` entries silently capped unrelated routes at 5/min.)
     ThrottlerModule.forRootAsync({
-      imports: [ConfigModule.forFeature(authConfig)],
-      inject: [authConfig.KEY],
-      useFactory: (config: ConfigType<typeof authConfig>) => ({
+      imports: [ConfigModule.forFeature(authConfig), ThrottlerStorageModule],
+      inject: [authConfig.KEY, RedisThrottlerStorage],
+      useFactory: (
+        config: ConfigType<typeof authConfig>,
+        storage: RedisThrottlerStorage,
+      ) => ({
+        // Shared across processes — PM2 workers must not each keep their own
+        // counter (that multiplies every limit by the worker count).
+        storage,
         throttlers: [
           {
+            // The aggregate DoS ceiling. `generateKey` drops the class/handler
+            // so one identity gets ONE budget across the whole API, not a
+            // fresh one per endpoint.
+            name: 'global',
+            ttl: config.rateLimit.ttlSeconds * 1000,
+            limit: config.rateLimit.globalMaxRequests,
+            generateKey: (_ctx, tracker) => `g:${tracker}`,
+          },
+          {
+            // Per-endpoint fairness; per-route overrides live in
+            // src/common/decorators/throttle-tiers.ts.
             name: 'default',
             ttl: config.rateLimit.ttlSeconds * 1000,
             limit: config.rateLimit.maxRequests,
-          },
-          {
-            name: 'login',
-            ttl: config.rateLimit.login.ttlSeconds * 1000,
-            limit: config.rateLimit.login.maxRequests,
-          },
-          {
-            name: 'refresh',
-            ttl: config.rateLimit.refresh.ttlSeconds * 1000,
-            limit: config.rateLimit.refresh.maxRequests,
           },
         ],
       }),
