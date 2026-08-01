@@ -40,14 +40,9 @@ export const authConfig = registerAs('auth', () => ({
     // Aggregate, route-independent ceiling — the `default` throttler below is
     // keyed per handler, so it alone can never cap total API traffic.
     globalMaxRequests: env.RATE_LIMIT_GLOBAL_MAX_REQUESTS,
-    login: {
-      ttlSeconds: env.AUTH_LOGIN_RATE_LIMIT_TTL_SECONDS,
-      maxRequests: env.AUTH_LOGIN_RATE_LIMIT_MAX_REQUESTS,
-    },
-    refresh: {
-      ttlSeconds: env.AUTH_REFRESH_RATE_LIMIT_TTL_SECONDS,
-      maxRequests: env.AUTH_REFRESH_RATE_LIMIT_MAX_REQUESTS,
-    },
+    // No `login`/`refresh` here: those throttlers were removed in RAKHAL-111.
+    // Auth-route limits are now `@ThrottleAuth()` in
+    // src/common/decorators/throttle-tiers.ts.
   },
 
   lockout: {

@@ -6,6 +6,7 @@ import {
 import {
   CattleStatus,
   FinanceCategory,
+  FinancePaymentMethod,
   FinancePaymentType,
   FinanceTxnStatus,
   FinanceTxnType,
@@ -171,6 +172,41 @@ export class FinanceService {
       }
     }
 
+    // Wallet debit when an INVENTORY_PURCHASE is paid from the wallet — mirrors
+    // `withdraw()`'s balance-check + WalletTransaction pattern. CASH/BANK_TRANSFER/
+    // MFS purchases stay wallet-neutral, unchanged. Checked before the stock
+    // increment below so an insufficient-balance purchase fails before touching
+    // stock. Uses `paidNow`, not `amount`, so a partial-payment purchase only
+    // debits what's actually paid now.
+    let walletTransactionId: string | null = null;
+    if (
+      dto.type === FinanceTxnType.INVENTORY_PURCHASE &&
+      dto.paymentMethod === FinancePaymentMethod.WALLET
+    ) {
+      const balance = await this.currentLiquidity(farmId);
+      if (paidNow > balance) {
+        throw new BadRequestException(
+          'Insufficient wallet balance for this purchase',
+        );
+      }
+      const walletReference = await this.nextReference(farmId, 'WAL');
+      const walletTxn = await this.prisma.walletTransaction.create({
+        data: {
+          farmId,
+          reference: walletReference,
+          direction: WalletDirection.DEBIT,
+          description: dto.inventoryItemName
+            ? `Inventory purchase: ${dto.inventoryItemName}`
+            : 'Inventory purchase',
+          amount: paidNow,
+          paymentMethod: FinancePaymentMethod.WALLET,
+          date: dto.paymentDate ? new Date(dto.paymentDate) : new Date(),
+          createdBy: userId,
+        },
+      });
+      walletTransactionId = walletTxn.id;
+    }
+
     // Inventory auto-increment on INVENTORY_PURCHASE (RD-010).
     let inventoryUpdated = false;
     if (
@@ -202,6 +238,7 @@ export class FinanceService {
       loanCreated,
       cattleStatusUpdated,
       inventoryUpdated,
+      walletTransactionId,
     };
   }
 

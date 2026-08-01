@@ -5,6 +5,7 @@ import {
   HealthTaskStatus,
   MilkTankType,
   PregnancyStatus,
+  ProductionStatus,
   ReceivableKind,
   ReceivableStatus,
   ReproductiveStatus,
@@ -176,7 +177,7 @@ export class DashboardService {
 
   async herdStatus(farmId: string) {
     const now = new Date();
-    const [totalActive, repro, activeCases, withholding, calves] =
+    const [totalActive, repro, milkingCount, activeCases, withholding, calves] =
       await Promise.all([
         this.prisma.cattle.count({
           where: {
@@ -189,6 +190,17 @@ export class DashboardService {
           by: ['reproductiveStatus'],
           where: { cattle: { farmId, isActive: true } },
           _count: { _all: true },
+        }),
+        // "Milking" is deliberately sourced from `Cattle.productionStatus`, not
+        // `ReproductiveStatus.LACTATING` below — the two are independent
+        // dimensions of the multi-state cattle model, and `productionStatus`
+        // is the field the Cattle list badge + status dialog actually set/show.
+        this.prisma.cattle.count({
+          where: {
+            farmId,
+            isActive: true,
+            productionStatus: ProductionStatus.MILKING,
+          },
         }),
         this.prisma.healthCase.count({
           where: {
@@ -213,7 +225,7 @@ export class DashboardService {
     return {
       totalActive,
       productionBreakdown: {
-        milking: reproCount(ReproductiveStatus.LACTATING),
+        milking: milkingCount,
         dry: reproCount(ReproductiveStatus.DRY),
         fresh: reproCount(ReproductiveStatus.POSTPARTUM),
         growing: reproCount(ReproductiveStatus.HEIFER),

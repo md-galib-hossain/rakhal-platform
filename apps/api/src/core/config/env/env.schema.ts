@@ -118,29 +118,12 @@ export const envSchema = z.object({
     .positive()
     .default(300),
 
-  AUTH_LOGIN_RATE_LIMIT_TTL_SECONDS: z.coerce
-    .number()
-    .int()
-    .positive()
-    .default(60),
-
-  AUTH_LOGIN_RATE_LIMIT_MAX_REQUESTS: z.coerce
-    .number()
-    .int()
-    .positive()
-    .default(5),
-
-  AUTH_REFRESH_RATE_LIMIT_TTL_SECONDS: z.coerce
-    .number()
-    .int()
-    .positive()
-    .default(60),
-
-  AUTH_REFRESH_RATE_LIMIT_MAX_REQUESTS: z.coerce
-    .number()
-    .int()
-    .positive()
-    .default(10),
+  // NOTE: the former AUTH_LOGIN_RATE_LIMIT_* / AUTH_REFRESH_RATE_LIMIT_* vars
+  // were removed with the `login`/`refresh` named throttlers (RAKHAL-111).
+  // Those limits now live in src/common/decorators/throttle-tiers.ts —
+  // `@ThrottleAuth()` (5/min + 15-min block) and the per-route override on
+  // /auth/refresh. Deliberately constants, not env: they are a security
+  // posture, not a deployment tunable.
 
   AUTH_LOCKOUT_MAX_FAILED_ATTEMPTS: z.coerce
     .number()

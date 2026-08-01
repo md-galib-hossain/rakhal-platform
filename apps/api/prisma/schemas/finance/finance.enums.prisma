@@ -19,6 +19,7 @@ enum FinancePaymentMethod {
   CASH
   BANK_TRANSFER
   MFS
+  WALLET
 }
 
 enum FinancePaymentType {

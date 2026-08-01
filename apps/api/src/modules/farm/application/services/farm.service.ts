@@ -18,6 +18,7 @@ import { EmailTemplate } from 'src/modules/email/domain/enums/email-template.enu
 import { AppLanguage } from 'src/common/i18n/language';
 import { CreateFarmDto } from '../../presentation/dto/create-farm.dto';
 import { deriveFarmPrefix, formatFarmCode } from '../../domain/farm-code';
+import { DEFAULT_BREEDS } from '../../domain/default-breeds';
 
 /**
  * Farm bootstrap (RAKHAL-021, partial). Creating a farm makes the caller its
@@ -151,6 +152,21 @@ export class FarmService {
       } catch (err) {
         this.log.error('Referral attribution failed (farm still created)', err);
       }
+    }
+
+    // Default breeds: a fresh farm's `Breed` table is otherwise empty, which
+    // leaves the Add Cattle form's breed dropdown with nothing to show.
+    // Best-effort, same posture as the provisioning steps above.
+    try {
+      await this.prisma.breed.createMany({
+        data: DEFAULT_BREEDS.map((b) => ({
+          farmId: farm.id,
+          name: b.name,
+          description: b.description,
+        })),
+      });
+    } catch (err) {
+      this.log.error('Default breed seeding failed (farm still created)', err);
     }
 
     return farm;
