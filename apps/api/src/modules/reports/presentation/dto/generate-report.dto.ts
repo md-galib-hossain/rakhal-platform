@@ -41,6 +41,21 @@ export class ReportParametersDto {
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'toDate must be YYYY-MM-DD' })
   toDate?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  status?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  category?: string;
 }
 
 /** `POST /reports/generate` (PRD §22 / API §15, RAKHAL-103). */

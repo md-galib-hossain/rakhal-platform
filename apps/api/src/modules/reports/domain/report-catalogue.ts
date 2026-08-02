@@ -18,7 +18,10 @@ export type ReportParamKey =
   | 'shedId'
   | 'cattleId'
   | 'fromDate'
-  | 'toDate';
+  | 'toDate'
+  | 'status'
+  | 'search'
+  | 'category';
 
 export interface ReportDef {
   id: string;
@@ -193,6 +196,62 @@ export const REPORTS: ReportDef[] = [
     version: 'MVP',
     frequency: 'on_demand',
     params: ['month'],
+  },
+  // Record exports — raw list dumps of a module's own data, not aggregated
+  {
+    id: 'rpt_cattle_export',
+    name: 'Cattle Export',
+    description:
+      'Full cattle list with breed, status, production status, shed, BCS, and weight — optionally filtered by shed, status, or search.',
+    category: 'production',
+    formats: ALL_FORMATS,
+    version: 'MVP',
+    frequency: 'on_demand',
+    params: ['shedId', 'status', 'search'],
+  },
+  {
+    id: 'rpt_milk_export',
+    name: 'Milk Log Export',
+    description:
+      'Every milk log entry in a date range — cow, session, yield, tank type, submitted status.',
+    category: 'production',
+    formats: ALL_FORMATS,
+    version: 'MVP',
+    frequency: 'on_demand',
+    params: ['fromDate', 'toDate'],
+  },
+  {
+    id: 'rpt_finance_export',
+    name: 'Finance Transactions Export',
+    description:
+      'Every finance transaction in a date range, including voided/reversal rows — optionally filtered by category, status, or search.',
+    category: 'financial',
+    formats: ALL_FORMATS,
+    version: 'MVP',
+    frequency: 'on_demand',
+    params: ['fromDate', 'toDate', 'category', 'status', 'search'],
+  },
+  {
+    id: 'rpt_healthcare_export',
+    name: 'Healthcare Cases Export',
+    description:
+      'All health cases with diagnosis, priority, status, shed, and key dates — optionally filtered by status or search.',
+    category: 'health',
+    formats: ALL_FORMATS,
+    version: 'MVP',
+    frequency: 'on_demand',
+    params: ['status', 'search'],
+  },
+  {
+    id: 'rpt_dashboard_export',
+    name: 'Dashboard Export',
+    description:
+      'Snapshot of the live dashboard — production, reproduction, health, and finance — as one multi-section PDF.',
+    category: 'combined',
+    formats: ['pdf'],
+    version: 'MVP',
+    frequency: 'on_demand',
+    params: [],
   },
 ];
 

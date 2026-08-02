@@ -1,49 +1,56 @@
 import request from 'supertest';
-import { PrismaService } from '../src/core/database/prisma/prisma.service';
-import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
+import type { App } from 'supertest/types';
+import {
+  AuthedUser,
+  TestContext,
+  bearer,
+  createTestApp,
+  loginAs,
+} from './utils/e2e';
 
 /**
- * RD-010(c) — Finance transactions CSV export. `GET /finance/transactions/export`
- * reuses the ledger's own filters (category/status/date-range/search) but
- * returns every matching row (no cursor pagination) as a CSV file, rendered
- * through the Reports engine's generic `renderCsv`/`ReportData` (no new
- * dependency, no XLSX — CSV opens fine in any spreadsheet app).
- *
- * Creates its own isolated `FinanceTransaction` rows via the real API (a
- * unique `entityName` marker to filter on) rather than mutating shared seeded
- * finance data, since e2e suites run in parallel Jest workers against one
- * shared dev DB.
- *
- * Requires the dev stack up + `pnpm seed`.
+ * Finance transactions export — moved from the synchronous
+ * `GET /finance/transactions/export` (RD-010c) onto the Reports engine's
+ * async BullMQ job pipeline (`rpt_finance_export`) so it no longer blocks
+ * the request thread. Same filters (category/status/date-range/search),
+ * same intentional inclusion of voided/reversal rows.
  */
-describe('Finance — transactions CSV export (e2e)', () => {
+describe('Reports — Finance Transactions Export (async)', () => {
   let ctx: TestContext;
-  let prisma: PrismaService;
   let owner: AuthedUser;
-
-  const auth = (u: AuthedUser): [string, string] => [
-    'Authorization',
-    `Bearer ${u.token}`,
-  ];
-  const api = (p: string): string => `${ctx.prefix}${p}`;
-  const server = () => ctx.app.getHttpServer();
+  let worker: AuthedUser;
 
   beforeAll(async () => {
     ctx = await createTestApp();
-    prisma = ctx.app.get(PrismaService);
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
-  }, 30_000);
+    worker = await loginAs(ctx, 'worker@demo.rakhal.test', 'WorkerPass123');
+  });
 
   afterAll(async () => {
     await ctx.app.close();
   });
 
+  async function pollUntilCompleted(jobId: string): Promise<any> {
+    const deadline = Date.now() + 15_000;
+    while (Date.now() < deadline) {
+      const res = await request(ctx.app.getHttpServer() as App)
+        .get(`${ctx.prefix}/reports/jobs/${jobId}`)
+        .set(...bearer(owner));
+      const status = (res.body as { data: { status: string } }).data.status;
+      if (status === 'completed' || status === 'failed') {
+        return res.body;
+      }
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    throw new Error(`Report job ${jobId} did not settle within 15s`);
+  }
+
   it('returns a CSV file containing a just-recorded transaction', async () => {
     const marker = `E2E-EXPORT-${Date.now()}`;
 
-    await request(server())
-      .post(api('/finance/transactions'))
-      .set(...auth(owner))
+    await request(ctx.app.getHttpServer() as App)
+      .post(`${ctx.prefix}/finance/transactions`)
+      .set(...bearer(owner))
       .send({
         type: 'OPERATING_EXPENSE',
         category: 'OVERHEAD',
@@ -52,31 +59,40 @@ describe('Finance — transactions CSV export (e2e)', () => {
       })
       .expect(201);
 
-    const res = await request(server())
-      .get(api('/finance/transactions/export'))
-      .set(...auth(owner))
-      .query({ search: marker })
-      .expect(200);
+    const generateRes = await request(ctx.app.getHttpServer() as App)
+      .post(`${ctx.prefix}/reports/generate`)
+      .set(...bearer(owner))
+      .send({
+        reportId: 'rpt_finance_export',
+        format: 'csv',
+        parameters: { search: marker },
+      });
+    expect(generateRes.status).toBe(201);
+    const jobId = (generateRes.body as { data: { job_id: string } }).data
+      .job_id;
 
-    expect(res.headers['content-type']).toContain('text/csv');
-    expect(res.headers['content-disposition']).toContain('attachment');
-    expect(res.headers['content-disposition']).toMatch(
-      /filename="finance-transactions-.*\.csv"/,
+    const settled = await pollUntilCompleted(jobId);
+    expect((settled as { data: { status: string } }).data.status).toBe(
+      'completed',
     );
 
-    const csv = res.text;
-    expect(csv).toContain('Finance Transactions Export');
-    expect(csv).toContain('Date,Reference,Type,Category');
-    expect(csv).toContain(marker);
-    expect(csv).toContain('1234.5');
-  });
+    const download = await request(ctx.app.getHttpServer() as App)
+      .get(`${ctx.prefix}/reports/jobs/${jobId}/download`)
+      .set(...bearer(owner));
+    expect(download.status).toBe(200);
+    expect(download.headers['content-type']).toContain('text/csv');
+    expect(download.text).toContain('Finance Transactions Export');
+    expect(download.text).toContain('Date,Reference,Type,Category');
+    expect(download.text).toContain(marker);
+    expect(download.text).toContain('1234.5');
+  }, 20_000);
 
-  it('respects the category/status filters, excluding non-matching rows', async () => {
+  it('respects the category filter, excluding non-matching rows', async () => {
     const marker = `E2E-EXPORT-FILTER-${Date.now()}`;
 
-    await request(server())
-      .post(api('/finance/transactions'))
-      .set(...auth(owner))
+    await request(ctx.app.getHttpServer() as App)
+      .post(`${ctx.prefix}/finance/transactions`)
+      .set(...bearer(owner))
       .send({
         type: 'REVENUE',
         category: 'REVENUE',
@@ -85,41 +101,48 @@ describe('Finance — transactions CSV export (e2e)', () => {
       })
       .expect(201);
 
-    const wrongCategory = await request(server())
-      .get(api('/finance/transactions/export'))
-      .set(...auth(owner))
-      .query({ search: marker, category: 'OVERHEAD' })
-      .expect(200);
-    expect(wrongCategory.text).not.toContain(marker);
+    const wrongGenerate = await request(ctx.app.getHttpServer() as App)
+      .post(`${ctx.prefix}/reports/generate`)
+      .set(...bearer(owner))
+      .send({
+        reportId: 'rpt_finance_export',
+        format: 'csv',
+        parameters: { search: marker, category: 'OVERHEAD' },
+      });
+    const wrongJobId = (wrongGenerate.body as { data: { job_id: string } }).data
+      .job_id;
+    const wrongSettled = await pollUntilCompleted(wrongJobId);
+    const wrongUrl = (wrongSettled as { data: { download_url: string } }).data
+      .download_url;
+    const wrongDownload = await request(ctx.app.getHttpServer() as App)
+      .get(wrongUrl)
+      .set(...bearer(owner));
+    expect(wrongDownload.text).not.toContain(marker);
 
-    const rightCategory = await request(server())
-      .get(api('/finance/transactions/export'))
-      .set(...auth(owner))
-      .query({ search: marker, category: 'REVENUE' })
-      .expect(200);
-    expect(rightCategory.text).toContain(marker);
-  });
+    const rightGenerate = await request(ctx.app.getHttpServer() as App)
+      .post(`${ctx.prefix}/reports/generate`)
+      .set(...bearer(owner))
+      .send({
+        reportId: 'rpt_finance_export',
+        format: 'csv',
+        parameters: { search: marker, category: 'REVENUE' },
+      });
+    const rightJobId = (rightGenerate.body as { data: { job_id: string } }).data
+      .job_id;
+    const rightSettled = await pollUntilCompleted(rightJobId);
+    const rightUrl = (rightSettled as { data: { download_url: string } }).data
+      .download_url;
+    const rightDownload = await request(ctx.app.getHttpServer() as App)
+      .get(rightUrl)
+      .set(...bearer(owner));
+    expect(rightDownload.text).toContain(marker);
+  }, 25_000);
 
-  it('a worker without finance.read is forbidden', async () => {
-    const worker = await loginAs(
-      ctx,
-      'worker@demo.rakhal.test',
-      'WorkerPass123',
-    );
-    const workerPerms = await prisma.rolePermission.findMany({
-      where: { role: { name: 'Worker' } },
-      include: { permission: true },
-    });
-    const hasFinanceRead = workerPerms.some(
-      (p) => p.permission.name === 'finance.read',
-    );
-    // Guard the test's own premise: if seed data ever grants Worker finance.read,
-    // this assertion (not the export route) needs updating, not silently skipping.
-    expect(hasFinanceRead).toBe(false);
-
-    await request(server())
-      .get(api('/finance/transactions/export'))
-      .set(...auth(worker))
-      .expect(403);
+  it('worker is forbidden from generating the export (reports.create is manager+)', async () => {
+    const res = await request(ctx.app.getHttpServer() as App)
+      .post(`${ctx.prefix}/reports/generate`)
+      .set(...bearer(worker))
+      .send({ reportId: 'rpt_finance_export', format: 'csv' });
+    expect(res.status).toBe(403);
   });
 });

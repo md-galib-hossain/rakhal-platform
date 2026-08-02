@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import {
+  CattleStatus,
   FinanceCategory,
+  FinanceTxnStatus,
   FinanceTxnType,
   HealthActionType,
   HealthCaseStatus,
@@ -21,6 +23,9 @@ export interface ReportParams {
   cattleId?: string;
   fromDate?: string;
   toDate?: string;
+  status?: string;
+  search?: string;
+  category?: string;
 }
 
 const ACTIVE_PRODUCTION_EXCLUDE: ProductionStatus[] = [
@@ -72,6 +77,16 @@ export class ReportGeneratorsService {
         return this.feedCost(farmId, params);
       case 'rpt_monthly_farm_report':
         return this.monthlyFarmReport(farmId, params);
+      case 'rpt_cattle_export':
+        return this.cattleExport(farmId, params);
+      case 'rpt_milk_export':
+        return this.milkExport(farmId, params);
+      case 'rpt_finance_export':
+        return this.financeExport(farmId, params);
+      case 'rpt_healthcare_export':
+        return this.healthcareExport(farmId, params);
+      case 'rpt_dashboard_export':
+        return this.dashboardExport(farmId);
       default:
         throw new BadRequestException(`Unknown report: ${reportId}`);
     }
@@ -1047,6 +1062,375 @@ export class ReportGeneratorsService {
     });
     const values = await Promise.all(bounds.map((b) => fetch(b.start, b.end)));
     return bounds.map((b, idx) => [b.label, values[idx]] as [string, number]);
+  }
+
+  // ---- Record exports -------------------------------------------------------
+
+  /** Raw cattle list dump — not an aggregation, mirrors the live Cattle list's own filters. */
+  private async cattleExport(
+    farmId: string,
+    params: ReportParams,
+  ): Promise<ReportData> {
+    const cattle = await this.prisma.cattle.findMany({
+      where: {
+        farmId,
+        isActive: true,
+        ...(params.shedId ? { shedId: params.shedId } : {}),
+        ...(params.status ? { status: params.status as CattleStatus } : {}),
+        ...(params.search
+          ? {
+              OR: [
+                {
+                  tagNumber: {
+                    contains: params.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+                {
+                  name: {
+                    contains: params.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+              ],
+            }
+          : {}),
+      },
+      select: {
+        tagNumber: true,
+        name: true,
+        gender: true,
+        status: true,
+        productionStatus: true,
+        dateOfBirth: true,
+        purpose: true,
+        lastBcs: true,
+        lastWeightKg: true,
+        breed: { select: { name: true } },
+        shed: { select: { name: true } },
+      },
+      orderBy: { tagNumber: 'asc' },
+    });
+
+    const rows = cattle.map((c) => [
+      c.tagNumber,
+      c.name ?? '',
+      c.gender,
+      c.breed?.name ?? '',
+      c.dateOfBirth ? this.dateLabel(c.dateOfBirth) : '',
+      c.purpose,
+      c.status,
+      c.productionStatus,
+      c.shed?.name ?? '',
+      c.lastBcs ?? '',
+      c.lastWeightKg ?? '',
+    ]);
+
+    return {
+      title: 'Cattle Export',
+      period: `${cattle.length} record(s)`,
+      summary: [{ label: 'Total cattle', value: cattle.length }],
+      columns: [
+        'TAG',
+        'Name',
+        'Gender',
+        'Breed',
+        'DOB',
+        'Purpose',
+        'Status',
+        'Production Status',
+        'Shed',
+        'BCS',
+        'Weight (kg)',
+      ],
+      rows,
+    };
+  }
+
+  /** Raw milk log dump for a date range — not an aggregation. */
+  private async milkExport(
+    farmId: string,
+    params: ReportParams,
+  ): Promise<ReportData> {
+    const from = params.fromDate ? this.dayStart(params.fromDate) : undefined;
+    const to = params.toDate
+      ? this.addDays(this.dayStart(params.toDate), 1)
+      : undefined;
+
+    const entries = await this.prisma.milkLogEntry.findMany({
+      where: {
+        farmId,
+        ...(from || to
+          ? {
+              logDate: {
+                ...(from ? { gte: from } : {}),
+                ...(to ? { lt: to } : {}),
+              },
+            }
+          : {}),
+      },
+      select: {
+        logDate: true,
+        session: true,
+        yieldL: true,
+        tankType: true,
+        submitted: true,
+        cattle: { select: { tagNumber: true, name: true } },
+      },
+      orderBy: [{ logDate: 'desc' }, { session: 'asc' }],
+    });
+
+    const rows = entries.map((e) => [
+      this.dateLabel(e.logDate),
+      e.session,
+      e.cattle.tagNumber,
+      e.cattle.name ?? '',
+      this.round(e.yieldL),
+      e.tankType,
+      e.submitted ? 'Yes' : 'No',
+    ]);
+    const period =
+      params.fromDate || params.toDate
+        ? `${params.fromDate ?? '…'} to ${params.toDate ?? '…'}`
+        : 'All time';
+
+    return {
+      title: 'Milk Log Export',
+      period,
+      summary: [{ label: 'Entries', value: entries.length }],
+      columns: [
+        'Date',
+        'Session',
+        'TAG',
+        'Name',
+        'Yield (L)',
+        'Tank Type',
+        'Submitted',
+      ],
+      rows,
+    };
+  }
+
+  /**
+   * Raw finance transactions dump for a date range — moved here from
+   * `FinanceService.exportTransactionsCsv` (RD-010c) so both CSV and PDF go
+   * through the async job pipeline instead of running inline on the request
+   * thread. Same filters (category/status/date-range/search), same
+   * intentional inclusion of voided/reversal rows (an audit export, not a
+   * money-sum aggregation).
+   */
+  private async financeExport(
+    farmId: string,
+    params: ReportParams,
+  ): Promise<ReportData> {
+    const rows = await this.prisma.financeTransaction.findMany({
+      where: {
+        farmId,
+        ...(params.category
+          ? { category: params.category as FinanceCategory }
+          : {}),
+        ...(params.status ? { status: params.status as FinanceTxnStatus } : {}),
+        ...(params.fromDate || params.toDate
+          ? {
+              date: {
+                ...(params.fromDate ? { gte: new Date(params.fromDate) } : {}),
+                ...(params.toDate ? { lte: new Date(params.toDate) } : {}),
+              },
+            }
+          : {}),
+        ...(params.search
+          ? {
+              OR: [
+                {
+                  description: {
+                    contains: params.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+                {
+                  entityName: {
+                    contains: params.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+                {
+                  reference: {
+                    contains: params.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+              ],
+            }
+          : {}),
+      },
+      orderBy: [{ date: 'desc' }, { id: 'desc' }],
+    });
+
+    const period =
+      params.fromDate || params.toDate
+        ? `${params.fromDate ?? '…'} to ${params.toDate ?? '…'}`
+        : 'All time';
+
+    return {
+      title: 'Finance Transactions Export',
+      period,
+      summary: [{ label: 'Transactions', value: rows.length }],
+      columns: [
+        'Date',
+        'Reference',
+        'Type',
+        'Category',
+        'Sub Type',
+        'Entity',
+        'Description',
+        'Amount',
+        'Paid Now',
+        'Payment Type',
+        'Payment Method',
+        'Status',
+        'Voided',
+      ],
+      rows: rows.map((t) => [
+        this.dateLabel(t.date),
+        t.reference,
+        t.type,
+        t.category,
+        t.subType,
+        t.entityName,
+        t.description,
+        t.amount,
+        t.paidNow,
+        t.paymentType,
+        t.paymentMethod,
+        t.status,
+        t.isVoided ? 'yes' : 'no',
+      ]),
+    };
+  }
+
+  /** Raw health cases dump — not an aggregation. */
+  private async healthcareExport(
+    farmId: string,
+    params: ReportParams,
+  ): Promise<ReportData> {
+    const cases = await this.prisma.healthCase.findMany({
+      where: {
+        farmId,
+        isActive: true,
+        ...(params.status ? { status: params.status as HealthCaseStatus } : {}),
+        ...(params.search
+          ? {
+              OR: [
+                {
+                  diagnosis: {
+                    contains: params.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+                {
+                  caseCode: {
+                    contains: params.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+              ],
+            }
+          : {}),
+      },
+      select: {
+        caseCode: true,
+        diagnosis: true,
+        diagnosisType: true,
+        priority: true,
+        status: true,
+        startDate: true,
+        expectedRecoveryDate: true,
+        closedDate: true,
+        shedName: true,
+        cattle: { select: { tagNumber: true, name: true } },
+      },
+      orderBy: { startDate: 'desc' },
+    });
+
+    const rows = cases.map((c) => [
+      c.caseCode,
+      c.cattle.tagNumber,
+      c.cattle.name ?? '',
+      c.diagnosis,
+      c.diagnosisType,
+      c.priority,
+      c.status,
+      c.shedName ?? '',
+      this.dateLabel(c.startDate),
+      c.expectedRecoveryDate ? this.dateLabel(c.expectedRecoveryDate) : '',
+      c.closedDate ? this.dateLabel(c.closedDate) : '',
+    ]);
+
+    return {
+      title: 'Healthcare Cases Export',
+      period: `${cases.length} case(s)`,
+      summary: [{ label: 'Total cases', value: cases.length }],
+      columns: [
+        'Case',
+        'TAG',
+        'Name',
+        'Diagnosis',
+        'Type',
+        'Priority',
+        'Status',
+        'Shed',
+        'Start',
+        'Expected Recovery',
+        'Closed',
+      ],
+      rows,
+    };
+  }
+
+  /**
+   * Dashboard Export (PDF only) — a multi-section snapshot mirroring the live
+   * dashboard's own topics (production/reproduction/health/finance/feed),
+   * composed by reusing the existing single-topic generators' `ReportData`
+   * (converted to sections) rather than re-deriving the same aggregations —
+   * no server-side chart-image rendering (would need a new charting
+   * dependency and slower jobs); tables/numbers only, same as every other
+   * report this engine produces.
+   */
+  private async dashboardExport(farmId: string): Promise<ReportData> {
+    const params: ReportParams = {};
+    const [production, openCows, calvingForecast, health, finance, feed] =
+      await Promise.all([
+        this.monthlyProduction(farmId, params),
+        this.openCows(farmId),
+        this.calvingForecast(farmId),
+        this.weeklyHealth(farmId, params),
+        this.monthlyPl(farmId, params),
+        this.feedCost(farmId, params),
+      ]);
+
+    return {
+      title: 'Dashboard Export',
+      period: this.dateLabel(new Date()),
+      columns: [],
+      rows: [],
+      sections: [
+        this.toSection(production, 'Production'),
+        this.toSection(openCows, 'Reproduction — Open Cows'),
+        this.toSection(calvingForecast, 'Reproduction — Calving Forecast'),
+        this.toSection(health, 'Health'),
+        this.toSection(finance, 'Finance'),
+        this.toSection(feed, 'Feed Cost'),
+      ],
+    };
+  }
+
+  private toSection(data: ReportData, heading: string): ReportSection {
+    return {
+      heading,
+      summary: data.summary,
+      columns: data.columns,
+      rows: data.rows,
+    };
   }
 
   // ---- shared aggregation helpers ----------------------------------------

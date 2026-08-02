@@ -5,10 +5,8 @@
   Param,
   Post,
   Query,
-  Res,
   UseGuards,
 } from '@nestjs/common';
-import type { Response } from 'express';
 import { ReceivableKind } from '@prisma/client';
 import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
@@ -20,11 +18,7 @@ import { RequirePermission } from 'src/modules/permission/presentation/decorator
 import { FinanceService } from '../../application/services/finance.service';
 import { CreateTransactionDto } from '../dto/create-transaction.dto';
 import { CreateFixedAssetDto } from '../dto/create-fixed-asset.dto';
-import {
-  ExportTransactionsQueryDto,
-  LedgerQueryDto,
-  ReceivableQueryDto,
-} from '../dto/finance-query.dto';
+import { LedgerQueryDto, ReceivableQueryDto } from '../dto/finance-query.dto';
 import {
   AddFundsDto,
   RecordPaymentDto,
@@ -67,23 +61,6 @@ export class FinanceController {
     @Body() dto: CreateTransactionDto,
   ) {
     return this.financeService.recordTransaction(farmId, userId, dto);
-  }
-
-  /** RD-010(c) — transactions CSV export, same filters as the ledger. */
-  @Get('transactions/export')
-  @RequirePermission('finance.read')
-  async exportTransactions(
-    @CurrentFarmId() farmId: string,
-    @Query() query: ExportTransactionsQueryDto,
-    @Res() res: Response,
-  ): Promise<void> {
-    const file = await this.financeService.exportTransactionsCsv(farmId, query);
-    res.set({
-      'Content-Type': 'text/csv',
-      'Content-Disposition': `attachment; filename="${file.fileName}"`,
-      'Content-Length': String(file.buffer.length),
-    });
-    res.send(file.buffer);
   }
 
   @Post('transactions/:id/void')
