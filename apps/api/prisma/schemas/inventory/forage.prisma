@@ -41,9 +41,37 @@ model FeedItem {
   creator    User            @relation("ForageCreator", fields: [createdBy], references: [id])
   ingredient FeedIngredient? @relation(fields: [ingredientId], references: [id])
 
+  stockMovements FeedItemStockMovement[]
+
   @@index([farmId])
   @@index([feedClass])
   @@index([createdBy])
   @@index([ingredientId])
   @@map("Forage")
+}
+
+/// Append-only audit of every stock change on a FeedItem row — mirrors
+/// `MedicineStockMovement`. Currently only the Finance-purchase path writes
+/// these (RAKHAL-085); Feed Distribution's own consumption decrements are not
+/// yet routed through here (out of scope for this ticket). `balanceAfter`
+/// snapshots the running stock so history is reconstructable without replaying.
+model FeedItemStockMovement {
+  id String @id @default(cuid())
+
+  feedItemId String
+  farmId     String
+
+  reason       FeedItemStockMovementReason
+  delta        Float // signed: +purchase / -distribution
+  balanceAfter Float
+  notes        String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+
+  feedItem FeedItem @relation(fields: [feedItemId], references: [id])
+
+  @@index([feedItemId])
+  @@index([farmId])
+  @@index([createdAt])
 }

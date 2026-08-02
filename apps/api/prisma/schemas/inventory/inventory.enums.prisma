@@ -48,3 +48,25 @@ enum EquipmentType {
   SUPPLY
   OTHER
 }
+
+/// Which inventory table a cross-module reference (e.g. a Finance purchase
+/// transaction's `inventoryItemId`) points into — RAKHAL-085.
+enum InventoryItemType {
+  MEDICINE
+  FEED_ITEM
+  EQUIPMENT
+}
+
+enum EquipmentStockMovementReason {
+  PURCHASE
+  ADJUSTMENT
+  DISPOSED
+  CORRECTION
+}
+
+enum FeedItemStockMovementReason {
+  PURCHASE
+  DISTRIBUTION
+  ADJUSTMENT
+  CORRECTION
+}

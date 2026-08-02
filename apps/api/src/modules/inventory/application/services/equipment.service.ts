@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -11,6 +12,7 @@ import { computeStockStatus, StockStatus } from '../../domain/medicine-status';
 import { CreateEquipmentDto } from '../../presentation/dto/create-equipment.dto';
 import { ListEquipmentQueryDto } from '../../presentation/dto/list-equipment-query.dto';
 import { UpdateEquipmentDto } from '../../presentation/dto/update-equipment.dto';
+import { AdjustEquipmentStockDto } from '../../presentation/dto/adjust-equipment-stock.dto';
 
 /** An equipment row enriched with derived stock status. */
 type PresentedEquipment = Equipment & { stockStatus: StockStatus };
@@ -154,6 +156,54 @@ export class EquipmentService {
 
   async remove(farmId: string, id: string): Promise<PresentedEquipment> {
     return this.archive(farmId, id);
+  }
+
+  /**
+   * Apply a signed stock delta and record an audit movement, atomically.
+   * Rejects adjustments that would drive stock below zero. Mirrors
+   * `MedicineService.adjustStock`.
+   */
+  async adjustStock(
+    farmId: string,
+    userId: string,
+    id: string,
+    dto: AdjustEquipmentStockDto,
+  ): Promise<PresentedEquipment> {
+    const existing = await this.getOrThrow(farmId, id);
+    const balanceAfter = existing.currentStock + dto.adjustment;
+
+    if (dto.adjustment === 0) {
+      throw new BadRequestException('Adjustment must be non-zero');
+    }
+    if (balanceAfter < 0) {
+      throw new BadRequestException('Stock cannot go below zero');
+    }
+
+    const [equipment] = await this.prisma.$transaction([
+      this.prisma.equipment.update({
+        where: { id },
+        data: { currentStock: balanceAfter },
+      }),
+      this.prisma.equipmentStockMovement.create({
+        data: {
+          equipmentId: id,
+          farmId,
+          reason: dto.reason,
+          delta: dto.adjustment,
+          balanceAfter,
+          notes: dto.notes,
+          createdBy: userId,
+        },
+      }),
+    ]);
+
+    this.log.info('Equipment stock adjusted', {
+      equipmentId: id,
+      farmId,
+      delta: dto.adjustment,
+      balanceAfter,
+    });
+    return this.present(equipment);
   }
 
   /** Multi-select delete (bulk-action dock, 2026-07-21) — one `updateMany`, silently skipping any

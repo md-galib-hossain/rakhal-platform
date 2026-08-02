@@ -15,6 +15,7 @@ import {
   FinancePaymentMethod,
   FinancePaymentType,
   FinanceTxnType,
+  InventoryItemType,
 } from '@prisma/client';
 import { trimString } from 'src/common/dto';
 
@@ -83,6 +84,17 @@ export class CreateTransactionDto {
   @IsString()
   cattleId?: string;
 
+  /** Authoritative lookup for stock sync (RAKHAL-085) — pair with `inventoryItemType`. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  inventoryItemId?: string;
+
+  @IsOptional()
+  @IsEnum(InventoryItemType)
+  inventoryItemType?: InventoryItemType;
+
+  /** Display-only fallback label — no longer used to match the item. */
   @IsOptional()
   @Transform(trimString)
   @IsString()

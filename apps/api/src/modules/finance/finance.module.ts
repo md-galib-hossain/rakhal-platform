@@ -5,6 +5,7 @@ import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
+import { InventoryModule } from '../inventory/inventory.module';
 import { FinanceService } from './application/services/finance.service';
 import { FinanceController } from './presentation/controllers/finance.controller';
 
@@ -16,6 +17,7 @@ import { FinanceController } from './presentation/controllers/finance.controller
     PermissionModule,
     FarmSettingsModule,
     SubscriptionModule,
+    InventoryModule,
   ],
   controllers: [FinanceController],
   providers: [FinanceService],

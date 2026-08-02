@@ -24,6 +24,12 @@ model FinanceTransaction {
   // Optional cross-references resolved by the wizard.
   buyerId           String?
   cattleId          String?
+  /// Authoritative lookup pair for INVENTORY_PURCHASE stock sync (RAKHAL-085) —
+  /// which real Medicine/FeedItem/Equipment row to increment. `inventoryItemName`
+  /// is kept as a display-only label (derived from the item at write time), no
+  /// longer used to match the item.
+  inventoryItemId   String?
+  inventoryItemType InventoryItemType?
   inventoryItemName String?
   quantity          Float?
   costPerUnit       Float?

@@ -26,7 +26,33 @@ model Equipment {
   farm    Farm @relation("FarmToEquipment", fields: [farmId], references: [id])
   creator User @relation("EquipmentCreator", fields: [createdBy], references: [id])
 
+  stockMovements EquipmentStockMovement[]
+
   @@index([farmId])
   @@index([type])
   @@index([createdBy])
+}
+
+/// Append-only audit of every stock change on an Equipment row (purchase,
+/// manual adjustment, disposal) — mirrors `MedicineStockMovement`. `balanceAfter`
+/// snapshots the running stock so history is reconstructable without replaying.
+model EquipmentStockMovement {
+  id String @id @default(cuid())
+
+  equipmentId String
+  farmId      String
+
+  reason       EquipmentStockMovementReason
+  delta        Float // signed: +purchase / -disposal
+  balanceAfter Float
+  notes        String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+
+  equipment Equipment @relation(fields: [equipmentId], references: [id])
+
+  @@index([equipmentId])
+  @@index([farmId])
+  @@index([createdAt])
 }

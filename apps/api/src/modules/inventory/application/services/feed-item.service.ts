@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -11,6 +12,7 @@ import { computeStockStatus, StockStatus } from '../../domain/medicine-status';
 import { CreateFeedItemDto } from '../../presentation/dto/create-feed-item.dto';
 import { ListFeedItemQueryDto } from '../../presentation/dto/list-feed-item-query.dto';
 import { UpdateFeedItemDto } from '../../presentation/dto/update-feed-item.dto';
+import { AdjustFeedItemStockDto } from '../../presentation/dto/adjust-feed-item-stock.dto';
 
 /** A feed item row enriched with stock status and the kg equivalent of its stock. */
 type PresentedFeedItem = FeedItem & {
@@ -178,6 +180,54 @@ export class FeedItemService {
 
   async remove(farmId: string, id: string): Promise<PresentedFeedItem> {
     return this.archive(farmId, id);
+  }
+
+  /**
+   * Apply a signed stock delta and record an audit movement, atomically.
+   * Rejects adjustments that would drive stock below zero. Mirrors
+   * `MedicineService.adjustStock`.
+   */
+  async adjustStock(
+    farmId: string,
+    userId: string,
+    id: string,
+    dto: AdjustFeedItemStockDto,
+  ): Promise<PresentedFeedItem> {
+    const existing = await this.getOrThrow(farmId, id);
+    const balanceAfter = existing.currentStock + dto.adjustment;
+
+    if (dto.adjustment === 0) {
+      throw new BadRequestException('Adjustment must be non-zero');
+    }
+    if (balanceAfter < 0) {
+      throw new BadRequestException('Stock cannot go below zero');
+    }
+
+    const [feedItem] = await this.prisma.$transaction([
+      this.prisma.feedItem.update({
+        where: { id },
+        data: { currentStock: balanceAfter },
+      }),
+      this.prisma.feedItemStockMovement.create({
+        data: {
+          feedItemId: id,
+          farmId,
+          reason: dto.reason,
+          delta: dto.adjustment,
+          balanceAfter,
+          notes: dto.notes,
+          createdBy: userId,
+        },
+      }),
+    ]);
+
+    this.log.info('Feed item stock adjusted', {
+      feedItemId: id,
+      farmId,
+      delta: dto.adjustment,
+      balanceAfter,
+    });
+    return this.present(feedItem);
   }
 
   /** Multi-select delete (bulk-action dock, 2026-07-21) — one `updateMany`, silently skipping any

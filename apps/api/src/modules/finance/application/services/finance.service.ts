@@ -5,13 +5,17 @@ import {
 } from '@nestjs/common';
 import {
   CattleStatus,
+  EquipmentStockMovementReason,
+  FeedItemStockMovementReason,
   FinanceCategory,
   FinancePaymentMethod,
   FinancePaymentType,
   FinanceTxnStatus,
   FinanceTxnType,
   FixedAssetCategory,
+  InventoryItemType,
   LoanStatus,
+  MedicineStockMovementReason,
   Prisma,
   ReceivableKind,
   ReceivableStatus,
@@ -24,6 +28,9 @@ import { NON_VOID_TXN } from 'src/common/finance/txn-filters';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { renderCsv } from 'src/modules/reports/domain/csv-renderer';
 import { ReportData } from 'src/modules/reports/domain/report-data';
+import { MedicineService } from 'src/modules/inventory/application/services/medicine.service';
+import { FeedItemService } from 'src/modules/inventory/application/services/feed-item.service';
+import { EquipmentService } from 'src/modules/inventory/application/services/equipment.service';
 import { CreateTransactionDto } from '../../presentation/dto/create-transaction.dto';
 import { CreateFixedAssetDto } from '../../presentation/dto/create-fixed-asset.dto';
 import {
@@ -55,6 +62,9 @@ export class FinanceService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly farmSettings: FarmSettingsService,
+    private readonly medicineService: MedicineService,
+    private readonly feedItemService: FeedItemService,
+    private readonly equipmentService: EquipmentService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(FinanceService.name);
@@ -92,6 +102,8 @@ export class FinanceService {
         status: FinanceTxnStatus.COMPLETED,
         buyerId: dto.buyerId,
         cattleId: dto.cattleId,
+        inventoryItemId: dto.inventoryItemId,
+        inventoryItemType: dto.inventoryItemType,
         inventoryItemName: dto.inventoryItemName,
         quantity: dto.quantity,
         costPerUnit: dto.costPerUnit,
@@ -207,17 +219,24 @@ export class FinanceService {
       walletTransactionId = walletTxn.id;
     }
 
-    // Inventory auto-increment on INVENTORY_PURCHASE (RD-010).
+    // Inventory auto-increment on INVENTORY_PURCHASE, gated on the wizard's
+    // Yes/No/Skip `updateInventory` flag (RD-010, RAKHAL-085). Inventory-initiated
+    // restock creating a Finance expense record is the reverse direction and is
+    // intentionally NOT implemented here — deferred, see RAKHAL-085 follow-up.
     let inventoryUpdated = false;
-    if (
-      dto.type === FinanceTxnType.INVENTORY_PURCHASE &&
-      dto.inventoryItemName &&
-      dto.quantity
-    ) {
+    if (dto.type === FinanceTxnType.INVENTORY_PURCHASE && dto.updateInventory) {
+      if (!dto.inventoryItemId || !dto.inventoryItemType || !dto.quantity) {
+        throw new BadRequestException(
+          'inventoryItemId, inventoryItemType and quantity are required when updateInventory is true',
+        );
+      }
       inventoryUpdated = await this.incrementInventoryStock(
         farmId,
-        dto.inventoryItemName,
+        userId,
+        dto.inventoryItemType,
+        dto.inventoryItemId,
         dto.quantity,
+        reference,
       );
     }
 
@@ -725,38 +744,47 @@ export class FinanceService {
 
   // ---- Helpers -------------------------------------------------------------
 
-  /** Increment inventory stock for INVENTORY_PURCHASE transactions (RD-010). */
+  /**
+   * Increment real inventory stock for an INVENTORY_PURCHASE transaction
+   * (RD-010, RAKHAL-085). Dispatches to the same audited `adjustStock` each
+   * inventory service already uses for its own controller route, so this
+   * writes a `*StockMovement` row instead of a raw Prisma increment. Looked
+   * up by ID (not the old fuzzy name match) — a bad/foreign-farm id now
+   * correctly surfaces as `NotFoundException` (404) rather than silently
+   * no-op'ing.
+   */
   private async incrementInventoryStock(
     farmId: string,
-    itemName: string,
+    userId: string,
+    itemType: InventoryItemType,
+    itemId: string,
     quantity: number,
+    txnReference: string,
   ): Promise<boolean> {
-    const nameFilter = { contains: itemName, mode: 'insensitive' as const };
-    const [medicine, feedItem] = await Promise.all([
-      this.prisma.medicine.findFirst({
-        where: { farmId, name: nameFilter, isActive: true },
-        select: { id: true },
-      }),
-      this.prisma.feedItem.findFirst({
-        where: { farmId, name: nameFilter, isActive: true },
-        select: { id: true },
-      }),
-    ]);
-    if (medicine) {
-      await this.prisma.medicine.update({
-        where: { id: medicine.id },
-        data: { currentStock: { increment: quantity } },
-      });
-      return true;
+    const notes = `Finance purchase ${txnReference}`;
+    switch (itemType) {
+      case InventoryItemType.MEDICINE:
+        await this.medicineService.adjustStock(farmId, userId, itemId, {
+          adjustment: quantity,
+          reason: MedicineStockMovementReason.PURCHASE,
+          notes,
+        });
+        return true;
+      case InventoryItemType.FEED_ITEM:
+        await this.feedItemService.adjustStock(farmId, userId, itemId, {
+          adjustment: quantity,
+          reason: FeedItemStockMovementReason.PURCHASE,
+          notes,
+        });
+        return true;
+      case InventoryItemType.EQUIPMENT:
+        await this.equipmentService.adjustStock(farmId, userId, itemId, {
+          adjustment: quantity,
+          reason: EquipmentStockMovementReason.PURCHASE,
+          notes,
+        });
+        return true;
     }
-    if (feedItem) {
-      await this.prisma.feedItem.update({
-        where: { id: feedItem.id },
-        data: { currentStock: { increment: quantity } },
-      });
-      return true;
-    }
-    return false;
   }
 
   private async settlements(
