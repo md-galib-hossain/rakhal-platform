@@ -40,6 +40,7 @@ import { RecordBcsDto } from '../dto/record-bcs.dto';
 import { RecordWeightDto } from '../dto/record-weight.dto';
 import { UpdateCattleDto } from '../dto/update-cattle.dto';
 import { UpdateCattleStatusDto } from '../dto/update-cattle-status.dto';
+import { WeightHistoryQueryDto } from '../dto/weight-history-query.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Max CSV upload size for bulk import (PRD §8.4). */
@@ -169,6 +170,16 @@ export class CattleController {
   @RequirePermission('cattle.read')
   weightHistory(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.weightService.history(farmId, id);
+  }
+
+  @Get(':id/weight/history')
+  @RequirePermission('cattle.read')
+  weightPeriodHistory(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @Query() query: WeightHistoryQueryDto,
+  ) {
+    return this.weightService.periodHistory(farmId, id, query.period);
   }
 
   @Post(':id/weight')

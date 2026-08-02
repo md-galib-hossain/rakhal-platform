@@ -38,6 +38,13 @@ export class MilkLogEntryDto {
   @Transform(trimString)
   @IsString()
   tankId?: string;
+
+  /** Optional note when overwriting a session already `submitted` — the tank
+   * balance is reconciled automatically either way, this is just an audit trail. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  editReason?: string;
 }
 
 /** `POST /milk/log` — save/update draft entries for a session on a date. */

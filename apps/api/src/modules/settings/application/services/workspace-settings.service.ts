@@ -126,16 +126,17 @@ export class WorkspaceSettingsService {
 
   /**
    * Owner-only (`settings.milk-sessions-manage`, enforced by the guard chain).
-   * MORNING and EVENING are the always-on default pair — a payload that drops
-   * either is rejected rather than silently re-added, so the caller notices.
+   * Any of the 4 sessions may be locked/unlocked, but the farm must keep at
+   * least one active — a payload that drops the last one is rejected rather
+   * than silently re-added, so the caller notices.
    */
   async updateMilkSessions(farmId: string, dto: UpdateMilkSessionsDto) {
     await this.ensureModuleSettings(farmId);
 
     const sessions = new Set(dto.active_sessions.map((s) => s.toLowerCase()));
-    if (!sessions.has('morning') || !sessions.has('evening')) {
+    if (sessions.size === 0) {
       throw new BadRequestException(
-        'Morning and evening sessions cannot be disabled',
+        'At least one milk session must stay active',
       );
     }
 

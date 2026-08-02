@@ -139,6 +139,11 @@ export class MilkService {
           // saved session entry already named a tank, if any, so a reload doesn't lose it.
           tankId: cowEntries.find((e) => e.tankId)?.tankId ?? null,
           anomalyFlag: cowEntries.some((e) => e.anomalyFlag),
+          // Which sessions are already `submitted` — the frontend uses this to warn
+          // before an edit reconciles the tank balance instead of silently drifting.
+          submittedSessions: cowEntries
+            .filter((e) => e.submitted)
+            .map((e) => e.session),
         },
       };
     });
@@ -168,7 +173,7 @@ export class MilkService {
     }
 
     const from = this.shiftDays(logDate, -7);
-    const [withholding, avgRows] = await Promise.all([
+    const [withholding, avgRows, existingEntries] = await Promise.all([
       this.activeWithholding(farmId, ids),
       this.prisma.milkLogEntry.groupBy({
         by: ['cattleId'],
@@ -181,8 +186,15 @@ export class MilkService {
         },
         _avg: { yieldL: true },
       }),
+      // Pre-fetch today's entries for these cows — needed to detect an edit to an
+      // already-submitted entry (whose yield already moved into a tank balance) so the
+      // tank delta can be reconciled instead of silently drifting from the log.
+      this.prisma.milkLogEntry.findMany({
+        where: { farmId, logDate, session: dto.session, cattleId: { in: ids } },
+      }),
     ]);
     const avgMap = new Map(avgRows.map((r) => [r.cattleId, r._avg.yieldL]));
+    const existingByCow = new Map(existingEntries.map((e) => [e.cattleId, e]));
     const anomalyFraction = await this.farmSettings.milkAnomalyFraction(farmId);
 
     // Entries may name a specific tank (header default or a per-row override) — validate
@@ -208,55 +220,95 @@ export class MilkService {
 
     let anomaliesFlagged = 0;
     let sessionTotal = 0;
-    for (const entry of dto.entries) {
-      const tankType = withholding.has(entry.cattleId)
-        ? MilkTankType.WITHHOLDING
-        : MilkTankType.SELLABLE;
-      if (entry.tankId) {
-        const tank = tankById.get(entry.tankId)!;
-        if (tank.tankType !== tankType) {
-          throw new BadRequestException(
-            `Selected tank does not match the ${tankType.toLowerCase()} requirement for cattle ${entry.cattleId}`,
-          );
+    // A whole-session transaction: entry upserts and any submitted-entry tank
+    // reconciliation below must commit together, same as submit()'s pattern.
+    await this.prisma.$transaction(async (tx) => {
+      for (const entry of dto.entries) {
+        const tankType = withholding.has(entry.cattleId)
+          ? MilkTankType.WITHHOLDING
+          : MilkTankType.SELLABLE;
+        if (entry.tankId) {
+          const tank = tankById.get(entry.tankId)!;
+          if (tank.tankType !== tankType) {
+            throw new BadRequestException(
+              `Selected tank does not match the ${tankType.toLowerCase()} requirement for cattle ${entry.cattleId}`,
+            );
+          }
         }
-      }
-      const anomalyFlag = isAnomaly(
-        entry.yieldL,
-        avgMap.get(entry.cattleId) ?? null,
-        anomalyFraction,
-      );
-      if (anomalyFlag) anomaliesFlagged += 1;
-      sessionTotal += entry.yieldL;
+        const anomalyFlag = isAnomaly(
+          entry.yieldL,
+          avgMap.get(entry.cattleId) ?? null,
+          anomalyFraction,
+        );
+        if (anomalyFlag) anomaliesFlagged += 1;
+        sessionTotal += entry.yieldL;
 
-      await this.prisma.milkLogEntry.upsert({
-        where: {
-          cattleId_logDate_session: {
+        const newTankId = entry.tankId ?? null;
+        const existing = existingByCow.get(entry.cattleId);
+
+        await tx.milkLogEntry.upsert({
+          where: {
+            cattleId_logDate_session: {
+              cattleId: entry.cattleId,
+              logDate,
+              session: dto.session,
+            },
+          },
+          create: {
+            farmId,
             cattleId: entry.cattleId,
             logDate,
             session: dto.session,
+            yieldL: entry.yieldL,
+            tankType,
+            tankId: newTankId,
+            anomalyFlag,
+            anomalyNote: entry.anomalyNote,
+            editReason: entry.editReason ?? null,
+            createdBy: userId,
           },
-        },
-        create: {
-          farmId,
-          cattleId: entry.cattleId,
-          logDate,
-          session: dto.session,
-          yieldL: entry.yieldL,
-          tankType,
-          tankId: entry.tankId ?? null,
-          anomalyFlag,
-          anomalyNote: entry.anomalyNote,
-          createdBy: userId,
-        },
-        update: {
-          yieldL: entry.yieldL,
-          tankType,
-          tankId: entry.tankId ?? null,
-          anomalyFlag,
-          anomalyNote: entry.anomalyNote,
-        },
-      });
-    }
+          update: {
+            yieldL: entry.yieldL,
+            tankType,
+            tankId: newTankId,
+            anomalyFlag,
+            anomalyNote: entry.anomalyNote,
+            editReason: entry.editReason ?? null,
+          },
+        });
+
+        // The entry already contributed to a tank balance at submit time — a changed
+        // yield/tank/type here must reverse the old contribution and apply the new one,
+        // or the tank balance silently drifts from what the log actually says.
+        if (
+          existing?.submitted &&
+          (existing.yieldL !== entry.yieldL ||
+            existing.tankId !== newTankId ||
+            existing.tankType !== tankType)
+        ) {
+          await this.collectInto(
+            farmId,
+            userId,
+            existing.tankType,
+            existing.tankId,
+            -existing.yieldL,
+            dto.session,
+            tx,
+            MilkTankActivity.ADJUSTMENT,
+          );
+          await this.collectInto(
+            farmId,
+            userId,
+            tankType,
+            newTankId,
+            entry.yieldL,
+            dto.session,
+            tx,
+            MilkTankActivity.ADJUSTMENT,
+          );
+        }
+      }
+    });
 
     this.log.info('Milk log saved', {
       farmId,
@@ -467,13 +519,17 @@ export class MilkService {
   }
 
   /**
-   * `tx` is required — this only ever runs inside `submit()`'s transaction, so a
+   * `tx` is required — runs inside `submit()`'s or `saveLog()`'s transaction, so a
    * capacity/negative-balance rejection from `adjustVolume` propagates and rolls
-   * back the whole submit (see submit() above). A missing tank (farm never
-   * configured one for this type, or a named tank got archived after entries
-   * were saved) is a legitimate no-op, not an error. `tankIdOverride` targets one
-   * specific tank (header default / row override); omitted, falls back to "first
-   * active tank of this type" like before per-tank selection existed.
+   * back the whole call. A missing tank (farm never configured one for this type,
+   * or a named tank got archived after entries were saved) is a legitimate no-op,
+   * not an error. `tankIdOverride` targets one specific tank (header default / row
+   * override); omitted, falls back to "first active tank of this type" like before
+   * per-tank selection existed. `volume` may be negative — `saveLog()` reconciling
+   * an edited submitted entry passes a negative delta to reverse its old
+   * contribution before applying the new one; `activityType` labels which case
+   * this is in the tank's audit log (`COLLECTION` for a fresh submit, `ADJUSTMENT`
+   * for a post-submit edit reconciliation).
    */
   private async collectInto(
     farmId: string,
@@ -483,8 +539,9 @@ export class MilkService {
     volume: number,
     session: MilkSession,
     tx: Prisma.TransactionClient,
+    activityType: MilkTankActivity = MilkTankActivity.COLLECTION,
   ): Promise<boolean> {
-    if (volume <= 0) return false;
+    if (volume === 0) return false;
     const tank = tankIdOverride
       ? await tx.milkTank.findFirst({
           where: { id: tankIdOverride, farmId, tankType, isActive: true },
@@ -500,9 +557,15 @@ export class MilkService {
       tank.id,
       {
         delta: volume,
-        activityType: MilkTankActivity.COLLECTION,
-        source: 'milk_log_submission',
-        notes: `Session ${session.toLowerCase()}`,
+        activityType,
+        source:
+          activityType === MilkTankActivity.ADJUSTMENT
+            ? 'milk_log_edit'
+            : 'milk_log_submission',
+        notes:
+          activityType === MilkTankActivity.ADJUSTMENT
+            ? `Session ${session.toLowerCase()} — entry edited after submit`
+            : `Session ${session.toLowerCase()}`,
       },
       tx,
     );

@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { Workbook } from 'exceljs';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { SYSTEM_ROLES } from 'src/modules/permission/domain/permission-catalogue';
 import { PLAN_NAMES } from 'src/modules/subscription/domain/subscription-features';
@@ -552,18 +553,22 @@ describe('Onboarding (e2e)', () => {
   });
 
   describe('cattle import wrapper (RAKHAL-024)', () => {
-    const csvRow = (tag: string): Buffer =>
-      Buffer.from(
-        `Tag,Name,Breed,Gender,DateOfBirth\n${tag},Onboard Cow,Local,FEMALE,2023-01-01\n`,
-      );
+    const xlsxRow = async (tag: string): Promise<Buffer> => {
+      const workbook = new Workbook();
+      const sheet = workbook.addWorksheet('Cattle');
+      sheet.addRow(['Tag', 'Name', 'Breed', 'Gender', 'DateOfBirth']);
+      sheet.addRow([tag, 'Onboard Cow', 'Local', 'FEMALE', '2023-01-01']);
+      return (await workbook.xlsx.writeBuffer()) as unknown as Buffer;
+    };
 
-    it('owner previews a CSV import via the onboarding wrapper', async () => {
+    it('owner previews an Excel import via the onboarding wrapper', async () => {
       const res = await request(server())
         .post(api('/onboarding/cattle/import'))
         .set(...auth(owner))
-        .attach('file', csvRow(`E2E-ONB-${Date.now()}`), {
-          filename: 'cattle.csv',
-          contentType: 'text/csv',
+        .attach('file', await xlsxRow(`E2E-ONB-${Date.now()}`), {
+          filename: 'cattle.xlsx',
+          contentType:
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         })
         .expect(201);
       expect(typeof res.body.data.importSessionId).toBe('string');
@@ -574,9 +579,10 @@ describe('Onboarding (e2e)', () => {
       await request(server())
         .post(api('/onboarding/cattle/import'))
         .set(...auth(worker))
-        .attach('file', csvRow(`E2E-ONB-DENY-${Date.now()}`), {
-          filename: 'cattle.csv',
-          contentType: 'text/csv',
+        .attach('file', await xlsxRow(`E2E-ONB-DENY-${Date.now()}`), {
+          filename: 'cattle.xlsx',
+          contentType:
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         })
         .expect(403);
     });

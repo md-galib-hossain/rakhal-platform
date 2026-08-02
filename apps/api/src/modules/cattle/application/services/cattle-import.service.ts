@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { parse } from 'csv-parse/sync';
+import { Workbook, type CellValue } from 'exceljs';
 import {
   CattleGender,
   CattlePurpose,
@@ -103,13 +103,13 @@ export class CattleImportService {
     mappingJson?: string,
   ) {
     if (!file?.buffer?.length) {
-      throw new BadRequestException('A CSV file is required');
+      throw new BadRequestException('An Excel (.xlsx) file is required');
     }
 
     const mapping = this.parseMapping(mappingJson);
-    const records = this.parseCsv(file.buffer.toString('utf-8'));
+    const records = await this.parseWorkbook(file.buffer);
     if (records.length === 0) {
-      throw new BadRequestException('CSV file has no data rows');
+      throw new BadRequestException('Excel file has no data rows');
     }
 
     const [breeds, sheds, existingTags] = await Promise.all([
@@ -342,18 +342,59 @@ export class CattleImportService {
     };
   }
 
-  private parseCsv(content: string): Record<string, string>[] {
+  /** Row 1 = headers (case-insensitive, trimmed); every row after is one record,
+   * keyed the same way `csv-parse`'s `columns` option used to (lowercased header
+   * → cell value), so `validateRow` needed zero changes when this replaced CSV. */
+  private async parseWorkbook(
+    buffer: Buffer,
+  ): Promise<Record<string, string>[]> {
+    const workbook = new Workbook();
     try {
-      return parse(content, {
-        columns: (header: string[]) =>
-          header.map((h) => h.trim().toLowerCase()),
-        skip_empty_lines: true,
-        trim: true,
-        relax_column_count: true,
-      });
+      await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
     } catch (error) {
-      throw new BadRequestException(`Could not parse CSV: ${String(error)}`);
+      throw new BadRequestException(
+        `Could not parse Excel file: ${String(error)}`,
+      );
     }
+    const sheet = workbook.worksheets[0];
+    if (!sheet) {
+      throw new BadRequestException('Excel file has no worksheet');
+    }
+
+    const headers: string[] = [];
+    sheet.getRow(1).eachCell({ includeEmpty: false }, (cell, colNumber) => {
+      headers[colNumber] = this.cellToString(cell.value).toLowerCase();
+    });
+
+    const records: Record<string, string>[] = [];
+    for (let r = 2; r <= sheet.rowCount; r++) {
+      const row = sheet.getRow(r);
+      const record: Record<string, string> = {};
+      let hasValue = false;
+      row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+        const header = headers[colNumber];
+        if (!header) return;
+        const value = this.cellToString(cell.value);
+        if (value) hasValue = true;
+        record[header] = value;
+      });
+      if (hasValue) records.push(record);
+    }
+    return records;
+  }
+
+  private cellToString(value: CellValue): string {
+    if (value === null || value === undefined) return '';
+    if (value instanceof Date) return value.toISOString().slice(0, 10);
+    if (typeof value === 'object') {
+      const rich = value as { text?: string; result?: unknown };
+      if (typeof rich.text === 'string') return rich.text.trim();
+      if (typeof rich.result === 'string' || typeof rich.result === 'number') {
+        return String(rich.result).trim();
+      }
+      return '';
+    }
+    return String(value).trim();
   }
 
   private parseMapping(mappingJson?: string): Record<string, string> {

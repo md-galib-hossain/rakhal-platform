@@ -15,8 +15,9 @@ export class RecordWeightDto {
   @Max(2000)
   weightKg!: number;
 
+  @IsOptional()
   @IsDateString()
-  date!: string;
+  date?: string;
 
   @IsOptional()
   @IsString()

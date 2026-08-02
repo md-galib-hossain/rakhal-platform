@@ -49,18 +49,26 @@ describe('Milk sessions — owner-only toggle + write-side enforcement (e2e)', (
       .expect(403);
   });
 
-  it("rejects a payload that removes morning or evening — they're always on", async () => {
+  it('rejects a payload that drops every session — at least one must stay active', async () => {
     await request(server())
       .patch(api('/settings/modules/milk-sessions'))
       .set(...auth(owner))
-      .send({ active_sessions: ['evening', 'noon'] })
+      .send({ active_sessions: [] })
       .expect(400);
+  });
+
+  it('an Owner can now lock morning/evening too as long as one session remains', async () => {
+    await request(server())
+      .patch(api('/settings/modules/milk-sessions'))
+      .set(...auth(owner))
+      .send({ active_sessions: ['noon'] })
+      .expect(200);
 
     await request(server())
       .patch(api('/settings/modules/milk-sessions'))
       .set(...auth(owner))
-      .send({ active_sessions: ['morning', 'noon'] })
-      .expect(400);
+      .send({ active_sessions: ['morning', 'evening'] })
+      .expect(200);
   });
 
   it('an Owner can unlock NOON, and it is then reflected in the milk log sessionConfig', async () => {
