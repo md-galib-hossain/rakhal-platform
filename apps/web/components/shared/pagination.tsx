@@ -89,11 +89,11 @@ export function Pagination({
   return (
     <div
       className={cn(
-        "flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-3",
+        "flex flex-col gap-3 rounded-xl border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4",
         className,
       )}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           variant="outline"
           size="icon"
@@ -105,7 +105,7 @@ export function Pagination({
           <ChevronLeft className="size-4" aria-hidden />
         </Button>
 
-        <div className={cn("flex items-center gap-1 transition-opacity", isFetching && "opacity-60")}>
+        <div className={cn("flex flex-wrap items-center gap-1 transition-opacity", isFetching && "opacity-60")}>
           {items.map((item, i) =>
             item === ELLIPSIS ? (
               <div key={`ellipsis-${i}`} className="flex h-8 w-6 items-end justify-center">
@@ -143,7 +143,7 @@ export function Pagination({
         </Button>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-3 sm:gap-4">
         {pageSize != null && onPageSizeChange ? (
           <div className="flex items-center gap-2">
             <p className="text-xs text-muted-foreground whitespace-nowrap">Rows per page</p>

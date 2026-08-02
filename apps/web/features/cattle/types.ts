@@ -98,6 +98,10 @@ export interface CattleListFilters {
   feedGroupId?: string;
   productionStatus?: ProductionStatus;
   healthStatus?: HealthStatusFilter;
+  /** Category quick-filter above "All Cattle View" (`CattleCategoryTabs`) — both fields already
+   * supported by the backend's `ListCattleQueryDto`, just not previously exposed on the frontend. */
+  purpose?: CattlePurpose;
+  reproductiveStatus?: ReproductiveStatus;
 }
 
 export const BULK_ACTIONS = ["change_shed", "change_feed_group", "mark_sold", "export"] as const;

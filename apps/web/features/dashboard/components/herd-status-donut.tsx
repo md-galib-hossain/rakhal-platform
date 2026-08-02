@@ -2,12 +2,24 @@
 
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
+import Link from "next/link";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useHerdStatus } from "../hooks/use-dashboard-widgets";
 import { DashboardCard } from "./dashboard-card";
 import type { DonutSlice } from "./herd-status-chart-inner";
+
+/** Deep-links a legend slice to the matching Cattle-page filter (nuqs-synced query params
+ * `CattleFilters`/`CattleTable` already read) — `undefined` leaves the slice a plain "/cattle"
+ * link (e.g. calves, which the list page filters via `purpose=CALF` in the category tabs, not a
+ * dashboard-known param). */
+const PRODUCTION_SLICE_HREF: Record<string, string> = {
+  milking: "/cattle?productionStatus=MILKING",
+  dry: "/cattle?productionStatus=DRY",
+  fresh: "/cattle?productionStatus=FRESH",
+  growing: "/cattle?productionStatus=GROWING",
+};
 
 // Chart rendering is client/DOM-only and not needed for the initial paint — keep it out of the main bundle.
 const HerdStatusChartInner = dynamic(() => import("./herd-status-chart-inner"), {
@@ -34,24 +46,35 @@ export function HerdStatusDonut() {
   const data = query.data;
   if (!data) return null;
 
-  const slices: DonutSlice[] = [
-    { name: t("production.milking"), value: data.productionBreakdown.milking, color: "#065f46" },
-    { name: t("production.dry"), value: data.productionBreakdown.dry, color: "#047857" },
-    { name: t("production.fresh"), value: data.productionBreakdown.fresh, color: "#10b981" },
-    { name: t("production.growing"), value: data.productionBreakdown.growing, color: "#6ee7b7" },
-    { name: t("calvesTotal"), value: data.calves.total, color: "#d1fae5" },
+  const slices: (DonutSlice & { href?: string })[] = [
+    { name: t("production.milking"), value: data.productionBreakdown.milking, color: "#065f46", href: PRODUCTION_SLICE_HREF.milking },
+    { name: t("production.dry"), value: data.productionBreakdown.dry, color: "#047857", href: PRODUCTION_SLICE_HREF.dry },
+    { name: t("production.fresh"), value: data.productionBreakdown.fresh, color: "#10b981", href: PRODUCTION_SLICE_HREF.fresh },
+    { name: t("production.growing"), value: data.productionBreakdown.growing, color: "#6ee7b7", href: PRODUCTION_SLICE_HREF.growing },
+    { name: t("calvesTotal"), value: data.calves.total, color: "#d1fae5", href: "/cattle?purpose=CALF" },
   ];
 
   return (
-    <DashboardCard title={t("title")}>
+    <DashboardCard
+      title={t("title")}
+      headerRight={
+        <Link href="/cattle" className="text-xs font-medium text-primary hover:underline">
+          {t("viewAll")}
+        </Link>
+      }
+    >
       <div className="flex flex-1 flex-col items-center justify-between gap-6">
         <HerdStatusChartInner slices={slices} centerLabel={t("totalLabel")} centerValue={data.totalActive} />
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
           {slices.map((slice) => (
-            <div key={slice.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Link
+              key={slice.name}
+              href={slice.href ?? "/cattle"}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
               <span aria-hidden className="h-1.5 w-3 rounded-full" style={{ backgroundColor: slice.color }} />
               {slice.name}: <span className="font-medium text-foreground">{slice.value}</span>
-            </div>
+            </Link>
           ))}
         </div>
       </div>

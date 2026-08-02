@@ -87,7 +87,7 @@ function CreateTaskSheetBody({ onOpenChange }: { onOpenChange: (open: boolean) =
   return (
     <SheetContent
       showClose={false}
-      className="inset-y-2.5 right-2.5 flex h-[calc(100vh-20px)] w-[calc(100%-20px)] max-w-[560px] flex-col gap-0 rounded-[20px] border-2 border-border p-5 shadow-2xl sm:max-w-[560px]"
+      className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:max-w-[560px] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5"
     >
       <div className="flex items-start justify-between pb-6">
         <div className="flex items-center gap-1.5">

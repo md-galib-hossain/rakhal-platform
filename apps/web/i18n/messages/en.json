@@ -571,7 +571,8 @@
       },
       "error": "Could not load herd status.",
       "totalLabel": "Total",
-      "calvesTotal": "Calves"
+      "calvesTotal": "Calves",
+      "viewAll": "View all"
     },
     "livestockState": {
       "title": "Livestock State",
@@ -616,6 +617,18 @@
       "emptyTitle": "No tasks today",
       "emptyDescription": "Nothing scheduled for today.",
       "error": "Could not load tasks."
+    },
+    "activityLog": {
+      "title": "Activity Log",
+      "viewAll": "View all",
+      "emptyTitle": "No activity yet",
+      "emptyDescription": "Actions across the farm will show up here.",
+      "error": "Could not load the activity log."
+    },
+    "milkTrend": {
+      "title": "Production Trend Over Time",
+      "viewAll": "View all",
+      "error": "Could not load the milk trend."
     },
     "financialPerformance": {
       "title": "Financial Performance Over Time",
@@ -665,6 +678,13 @@
       "vsLastMonth": "vs last month",
       "vsYesterday": "vs yesterday",
       "error": "Could not load cattle highlights."
+    },
+    "categories": {
+      "all": "All",
+      "milking": "Milking",
+      "dry": "Dry",
+      "heifer": "Heifer",
+      "calf": "Calf"
     },
     "filters": {
       "searchPlaceholder": "Find Cow by name or id",

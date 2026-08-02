@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { PageCard } from "@/components/shared/page-card";
 import { CattleHighlightsBar } from "@/features/cattle/components/cattle-highlights-bar";
+import { CattleCategoryTabs } from "@/features/cattle/components/cattle-category-tabs";
 import { CattleFilters } from "@/features/cattle/components/cattle-filters";
 import { CattleTable } from "@/features/cattle/components/cattle-table";
 import { CattleAddButton } from "@/features/cattle/components/cattle-add-button";
@@ -32,6 +33,9 @@ export default async function CattlePage() {
   return (
     <PageCard title={t("cattle")}>
       <CattleHighlightsBar />
+      <Suspense fallback={null}>
+        <CattleCategoryTabs />
+      </Suspense>
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-2xl font-bold text-foreground">{tCattle("allCattleView")}</h2>

@@ -44,6 +44,8 @@ export const cattleApi = {
         feedGroupId: filters.feedGroupId,
         productionStatus: filters.productionStatus,
         healthStatus: filters.healthStatus,
+        purpose: filters.purpose,
+        reproductiveStatus: filters.reproductiveStatus,
         cursor,
         limit,
       },

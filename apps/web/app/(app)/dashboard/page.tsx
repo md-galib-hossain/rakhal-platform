@@ -14,6 +14,8 @@ import { UpcomingTasksCard } from "@/features/dashboard/components/upcoming-task
 import { FinancialPerformanceChart } from "@/features/dashboard/components/financial-performance-chart";
 import { ProductionVsFeedcostChart } from "@/features/dashboard/components/production-vs-feedcost-chart";
 import { ConceptionRateChart } from "@/features/dashboard/components/conception-rate-chart";
+import { ActivityLogCard } from "@/features/dashboard/components/activity-log-card";
+import { MilkTrendCard } from "@/features/dashboard/components/milk-trend-card";
 import type { Locale } from "@/lib/constants/i18n";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -85,6 +87,8 @@ export default async function DashboardPage() {
         <CalvingForecastCard />
         <FeedStockAlertsCard />
         <UpcomingTasksCard />
+        <ActivityLogCard />
+        <MilkTrendCard />
       </div>
     </PageCard>
   );

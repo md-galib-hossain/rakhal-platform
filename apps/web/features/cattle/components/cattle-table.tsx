@@ -28,7 +28,14 @@ import { CattleFormDialog } from "./cattle-form-dialog";
 import { CattleStatusDialog } from "./cattle-status-dialog";
 import { CattleArchiveDialog } from "./cattle-archive-dialog";
 import { CattleDetailSheet } from "./detail/cattle-detail-sheet";
-import type { CattleListFilters, CattleListItem, HealthStatusFilter, ProductionStatus } from "../types";
+import type {
+  CattleListFilters,
+  CattleListItem,
+  CattlePurpose,
+  HealthStatusFilter,
+  ProductionStatus,
+  ReproductiveStatus,
+} from "../types";
 
 /** Reads the URL params `CattleFilters` writes (both are siblings under the same page) and drives
  * the cursor-paginated table + bulk-selection dock. Bulk-action logic (change shed/feed-group,
@@ -62,6 +69,8 @@ export function CattleTable() {
     feedGroupId: searchParams.get("feedGroupId") ?? undefined,
     productionStatus: (searchParams.get("productionStatus") as ProductionStatus | null) ?? undefined,
     healthStatus: (searchParams.get("healthStatus") as HealthStatusFilter | null) ?? undefined,
+    purpose: (searchParams.get("purpose") as CattlePurpose | null) ?? undefined,
+    reproductiveStatus: (searchParams.get("reproductiveStatus") as ReproductiveStatus | null) ?? undefined,
   };
 
   const query = useCattlePagedList(filters);
