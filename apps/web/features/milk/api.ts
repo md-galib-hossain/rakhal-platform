@@ -1,8 +1,11 @@
 "use client";
 
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, apiUpload } from "@/lib/api/client";
 import type {
+  ExportMilkLogInput,
   MilkAnomaliesResponse,
+  MilkImportConfirmResult,
+  MilkImportPreview,
   MilkLogTableResponse,
   MilkOverviewResponse,
   ReviewAnomalyInput,
@@ -40,5 +43,30 @@ export const milkApi = {
       method: "PATCH",
       body: input,
     });
+  },
+  importPreview(file: File): Promise<MilkImportPreview> {
+    return apiUpload<MilkImportPreview>("/milk/import/preview", file);
+  },
+  importConfirm(importSessionId: string, skipErrors: boolean): Promise<MilkImportConfirmResult> {
+    return apiFetch<MilkImportConfirmResult>("/milk/import/confirm", {
+      method: "POST",
+      body: { importSessionId, skipErrors },
+    });
+  },
+  // Bypasses `apiFetch` (JSON-envelope only) — hits the bespoke same-origin proxy route
+  // (`app/api/milk/export/route.ts`) that byte-streams the raw .xlsx back, same reason
+  // Reports' download link does (see that route's own comment).
+  async exportLog(input: ExportMilkLogInput): Promise<Blob> {
+    const res = await fetch("/api/milk/export", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(text || `Export failed (${res.status})`);
+    }
+    return res.blob();
   },
 };

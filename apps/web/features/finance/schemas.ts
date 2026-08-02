@@ -54,6 +54,10 @@ export const recordTransactionFormSchema = z
     startDate: z.string().optional(),
     durationMonths: z.number().int().min(0).optional(),
     loanId: z.string().optional(),
+    // Inventory Purchase only — the wizard's real Figma frames don't show a Payment Method field
+    // for any type, but this one is a deliberate user-requested exception since it's the only type
+    // with a real backend behavior difference (wallet debit); see `record-transaction-dialog.tsx`.
+    paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "MFS", "WALLET"]).optional(),
   })
   .refine((v) => v.type === "INVENTORY_PURCHASE" || Boolean(v.subType), {
     message: "subType is required",
@@ -87,7 +91,7 @@ export type RecordTransactionFormInput = z.infer<typeof recordTransactionFormSch
 export const addFundsSchema = z.object({
   description: z.string().trim().min(1),
   amount: z.number().min(0.01),
-  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "MFS"]),
+  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "MFS", "WALLET"]),
 });
 export type AddFundsInput = z.infer<typeof addFundsSchema>;
 
@@ -95,7 +99,7 @@ export type AddFundsInput = z.infer<typeof addFundsSchema>;
 export const withdrawSchema = z.object({
   fundName: z.string().trim().min(1),
   amount: z.number().min(0.01),
-  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "MFS"]),
+  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "MFS", "WALLET"]),
 });
 export type WithdrawInput = z.infer<typeof withdrawSchema>;
 
@@ -104,7 +108,7 @@ export type WithdrawInput = z.infer<typeof withdrawSchema>;
 export const recordPaymentSchema = z.object({
   amountPaid: z.number().min(0.01),
   paymentDate: z.string().optional(),
-  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "MFS"]).optional(),
+  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "MFS", "WALLET"]).optional(),
   notes: z.string().trim().optional(),
 });
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;

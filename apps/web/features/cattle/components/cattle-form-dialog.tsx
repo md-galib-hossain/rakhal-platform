@@ -7,7 +7,13 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Info, Plus, Sparkles, X } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import {
   LabeledInput,
@@ -20,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import {
   useBreeds,
+  useCreateBreed,
   useCreateCattle,
   useFeedGroups,
   useRemoveCattlePhoto,
@@ -31,6 +38,7 @@ import { cattleFormSchema, type CattleFormInput } from "../schemas";
 import type { CattleDetail, CattleFormPayload } from "../types";
 
 const UNSET = "__unset__";
+const ADD_NEW_BREED = "__add_new_breed__";
 
 const GENDERS = ["MALE", "FEMALE", "CASTRATED_MALE"] as const;
 const PURPOSES = [
@@ -215,6 +223,7 @@ function CattleFormDialogBody({
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [clearExistingPhoto, setClearExistingPhoto] = useState(false);
+  const [addBreedOpen, setAddBreedOpen] = useState(false);
 
   const form = useForm<CattleFormInput>({
     resolver: zodResolver(cattleFormSchema),
@@ -272,6 +281,7 @@ function CattleFormDialogBody({
   }
 
   return (
+    <>
     <DialogContent className="flex max-h-[90vh] w-full max-w-[680px] flex-col gap-0 overflow-hidden rounded-[20px] border-2 border-border p-0 shadow-2xl">
       <div className="flex items-center justify-between px-6 py-5">
         <DialogTitle className="text-xl font-bold text-foreground">
@@ -320,7 +330,13 @@ function CattleFormDialogBody({
                 render={({ field }) => (
                   <Select
                     value={field.value || UNSET}
-                    onValueChange={field.onChange}
+                    onValueChange={(v) => {
+                      if (v === ADD_NEW_BREED) {
+                        setAddBreedOpen(true);
+                        return;
+                      }
+                      field.onChange(v);
+                    }}
                   >
                     <LabeledSelectTrigger
                       label={t("breed")}
@@ -333,6 +349,12 @@ function CattleFormDialogBody({
                           {b.name}
                         </SelectItem>
                       ))}
+                      <SelectItem value={ADD_NEW_BREED} className="text-primary">
+                        <span className="flex items-center gap-1.5">
+                          <Plus className="size-3.5" aria-hidden />
+                          {t("addBreed")}
+                        </span>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 )}
@@ -531,5 +553,75 @@ function CattleFormDialogBody({
         </div>
       </form>
     </DialogContent>
+    <AddBreedDialog
+      open={addBreedOpen}
+      onOpenChange={setAddBreedOpen}
+      onCreated={(id) => form.setValue("breedId", id, { shouldValidate: true })}
+    />
+    </>
+  );
+}
+
+function AddBreedDialog({
+  open,
+  onOpenChange,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreated: (breedId: string) => void;
+}) {
+  const t = useTranslations("cattle.form");
+  const createBreed = useCreateBreed();
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+
+  async function handleCreate() {
+    if (!name.trim()) return;
+    try {
+      const breed = await createBreed.mutateAsync({
+        name: name.trim(),
+        description: description.trim() || undefined,
+      });
+      onCreated(breed.id);
+      setName("");
+      setDescription("");
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("genericError"));
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[420px]">
+        <DialogHeader>
+          <DialogTitle>{t("addBreedTitle")}</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-4 py-2">
+          <LabeledInput
+            id="new-breed-name"
+            label={t("breedNameLabel")}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <LabeledInput
+            id="new-breed-description"
+            label={t("breedDescriptionLabel")}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            onClick={handleCreate}
+            disabled={createBreed.isPending || !name.trim()}
+          >
+            {createBreed.isPending ? "…" : t("save")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

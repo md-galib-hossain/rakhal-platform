@@ -27,6 +27,14 @@ export function useBreeds() {
   return useQuery({ queryKey: qk.cattle.breeds(), queryFn: cattleApi.breeds, staleTime: STALE_TIME });
 }
 
+export function useCreateBreed() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { name: string; description?: string }) => cattleApi.createBreed(input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.cattle.breeds() }),
+  });
+}
+
 export function useSheds() {
   return useQuery({ queryKey: qk.cattle.sheds(), queryFn: cattleApi.sheds, staleTime: STALE_TIME });
 }

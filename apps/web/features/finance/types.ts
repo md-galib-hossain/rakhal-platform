@@ -14,7 +14,7 @@
 
 export type FinanceTxnType = "OPERATING_EXPENSE" | "INVENTORY_PURCHASE" | "REVENUE" | "DEBT_LOAN";
 export type FinanceCategory = "REVENUE" | "INVENTORY" | "HEALTHCARE" | "OVERHEAD" | "DEBT";
-export type FinancePaymentMethod = "CASH" | "BANK_TRANSFER" | "MFS";
+export type FinancePaymentMethod = "CASH" | "BANK_TRANSFER" | "MFS" | "WALLET";
 export type FinanceTxnStatus = "COMPLETED" | "PENDING" | "VOIDED";
 export type ReceivableKind = "RECEIVABLE" | "PAYABLE";
 export type ReceivableStatus = "PENDING" | "PARTIAL" | "COMPLETED" | "OVERDUE";

@@ -51,10 +51,12 @@ export const recordBcsSchema = z.object({
 });
 export type RecordBcsInput = z.infer<typeof recordBcsSchema>;
 
-/** Mirrors `RecordWeightDto` (`POST /cattle/:id/weight`). */
+/** Mirrors `RecordWeightDto` (`POST /cattle/:id/weight`). `date` is a `datetime-local` input value
+ * (`YYYY-MM-DDTHH:mm`) — optional, left blank means "record as now" (backend already defaults to
+ * `new Date()` when `date` is absent). */
 export const recordWeightSchema = z.object({
   weightKg: z.number().min(10).max(2000),
-  date: z.string().min(1),
+  date: z.string().optional(),
   notes: z.string().trim().optional(),
 });
 export type RecordWeightInput = z.infer<typeof recordWeightSchema>;

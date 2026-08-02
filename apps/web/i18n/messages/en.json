@@ -762,6 +762,10 @@
       "dateOfBirth": "Date of birth",
       "weightKg": "Weight (kg)",
       "breed": "Breed",
+      "addBreed": "Add new breed",
+      "addBreedTitle": "Add a new breed",
+      "breedNameLabel": "Breed name",
+      "breedDescriptionLabel": "Description (optional)",
       "shed": "Shed Location",
       "feedGroup": "Feed group",
       "sourceType": "Source",
@@ -897,6 +901,12 @@
         "actual": "Actual",
         "weightKg": "Weight (kg)",
         "noWeightRecords": "No weight records yet.",
+        "weightPeriod": {
+          "day": "Daily",
+          "week": "Weekly",
+          "month": "Monthly",
+          "year": "Yearly"
+        },
         "lactationCurve": "Lactation Curve",
         "yieldL": "Yield (L)",
         "noLactationData": "No active lactation.",
@@ -928,7 +938,8 @@
         "recordWeightDialog": {
           "title": "Record Weight",
           "weightKg": "Weight (kg)",
-          "date": "Date",
+          "date": "Date & time",
+          "dateBlankHint": "Leave blank to record as now.",
           "notes": "Notes",
           "save": "Save",
           "cancel": "Cancel",
@@ -1024,10 +1035,10 @@
       }
     },
     "import": {
-      "trigger": "Import CSV",
-      "title": "Import Cattle from CSV",
-      "description": "Upload a CSV with columns name/tag/gender/purpose/date_of_birth/breed/shed/color/notes (case-insensitive headers). Preview validates every row before anything is imported.",
-      "chooseFile": "CSV file",
+      "trigger": "Import Excel",
+      "title": "Import Cattle from Excel",
+      "description": "Upload an .xlsx file with columns name/tag/gender/purpose/date_of_birth/breed/shed/color/notes (case-insensitive headers). Preview validates every row before anything is imported.",
+      "chooseFile": "Excel file (.xlsx)",
       "previewAction": "Preview",
       "confirmAction": "Confirm Import",
       "cancel": "Cancel",
@@ -1726,8 +1737,65 @@
       "disableSessionDescription": "This will lock {session} milking for this farm — team members won't be able to log or submit it until an owner unlocks it again.",
       "disableSessionSuccessToast": "{session} session locked.",
       "disableSessionError": "Could not lock this session. Please try again.",
+      "lastActiveSessionCannotLock": "{session} is the only active session left — at least one must stay active.",
       "tankDefaultDescription": "Set a default tank for each type — applies to every row below, and any row can still be changed individually.",
-      "tankSelectPlaceholder": "Select a tank"
+      "tankSelectPlaceholder": "Select a tank",
+      "sessionAlreadySubmitted": "Already submitted — editing will adjust the tank balance.",
+      "editSubmittedTitle": "Edit a submitted entry?",
+      "editSubmittedDescription": "One or more of these sessions were already submitted — their tank volume has already moved. Saving will adjust the tank balance to match your changes instead of leaving it out of sync.",
+      "editSubmittedConfirm": "Save and adjust tank",
+      "discardUnsavedTitle": "Discard unsaved entries?",
+      "discardUnsavedDescription": "Switching dates will discard the milk entries you haven't saved yet for the current date.",
+      "discardUnsavedConfirm": "Discard and switch"
+    },
+    "import": {
+      "trigger": "Import Excel",
+      "title": "Import Milk Log from Excel",
+      "description": "Upload an .xlsx file with columns Date/Cow Tag/Morning/Noon/Evening/Night/Tank (case-insensitive headers, one row per cow per day). Preview validates every row before anything is imported.",
+      "downloadTemplate": "Download template",
+      "chooseFile": "Excel file (.xlsx)",
+      "previewAction": "Preview",
+      "confirmAction": "Confirm Import",
+      "cancel": "Cancel",
+      "genericError": "Something went wrong. Please try again.",
+      "empty": "The file has no data rows.",
+      "skipErrors": "Skip invalid rows and import the rest",
+      "confirmedToast": "{imported} imported, {skipped} skipped.",
+      "summary": {
+        "total": "{count} total",
+        "ready": "{count} ready",
+        "errors": "{count} error(s)"
+      },
+      "columns": {
+        "row": "Row",
+        "date": "Date",
+        "tag": "Cow Tag",
+        "status": "Status",
+        "readyBadge": "Ready",
+        "errorBadge": "Error"
+      }
+    },
+    "export": {
+      "trigger": "Export",
+      "title": "Export Milk Log",
+      "description": "Choose which cows and date range to include, then download an .xlsx file.",
+      "scopeLabel": "Cows",
+      "scopeAll": "All cows",
+      "scopeSelect": "Select specific cows",
+      "cowsLabel": "Select cows",
+      "selectAll": "Select all",
+      "deselectAll": "Deselect all",
+      "noCowsSelected": "Select at least one cow, or switch to All cows.",
+      "rangeLabel": "Date range",
+      "rangeToday": "Today",
+      "rangeWeek": "This week",
+      "rangeMonth": "This month",
+      "rangeCustom": "Custom range",
+      "rangeTo": "to",
+      "cancel": "Cancel",
+      "exportAction": "Export",
+      "exportedToast": "Milk log exported.",
+      "exportError": "Could not export the milk log. Please try again."
     },
     "anomalies": {
       "title": "Anomalies",
@@ -2856,7 +2924,8 @@
       "methodOptions": {
         "CASH": "Cash",
         "BANK_TRANSFER": "Bank Transfer",
-        "MFS": "Mobile Financial Service"
+        "MFS": "Mobile Financial Service",
+        "WALLET": "Wallet"
       },
       "statusOptions": {
         "COMPLETED": "Completed",
@@ -3192,6 +3261,13 @@
       "quantity": "Quantity",
       "costPerUnit": "Cost Per Unit",
       "totalCost": "Total Cost",
+      "paymentMethodLabel": "Payment method",
+      "paymentMethodOptions": {
+        "WALLET": "Wallet",
+        "CASH": "Cash",
+        "BANK_TRANSFER": "Bank Transfer",
+        "MFS": "Mobile Financial Service"
+      },
       "dateShort": "Date",
       "monthlyEmi": "Monthly EMI",
       "durationMonths": "Duration (Months)",

@@ -43,6 +43,10 @@ const SUBTYPE_OPTIONS: Record<FinanceTxnType, string[]> = {
 
 const numberField = { setValueAs: (v: string) => (v === "" ? undefined : Number(v)) };
 
+// Inventory Purchase's Payment Method — defaulted to WALLET (see the type-select handler below) so
+// the common case needs no extra click, per user request.
+const PAYMENT_METHODS = ["WALLET", "CASH", "BANK_TRANSFER", "MFS"] as const;
+
 /** Standard reducing-balance EMI formula. `annualRatePercent` is the client-only `interestRate`
  * field (no backend equivalent, see `schemas.ts`) — used only to drive this live display value. */
 function computeMonthlyEmi(principal: number, annualRatePercent: number, months: number): number {
@@ -82,6 +86,9 @@ function toPayload(values: RecordTransactionFormInput): CreateTransactionPayload
     inventoryItemName: values.type === "INVENTORY_PURCHASE" ? values.inventoryItemName : undefined,
     quantity: values.type === "INVENTORY_PURCHASE" ? values.quantity : undefined,
     costPerUnit: values.type === "INVENTORY_PURCHASE" ? values.costPerUnit : undefined,
+    // Only Inventory Purchase gets a Payment Method — the only type with a real backend behavior
+    // difference (wallet debit); other 3 types keep "unset → backend defaults to CASH".
+    paymentMethod: values.type === "INVENTORY_PURCHASE" ? values.paymentMethod : undefined,
     monthlyEmi: values.type === "DEBT_LOAN" && values.subType === "new_loan" ? values.monthlyEmi : undefined,
     startDate: values.type === "DEBT_LOAN" && values.subType === "new_loan" ? values.startDate : undefined,
     durationMonths: values.type === "DEBT_LOAN" && values.subType === "new_loan" ? values.durationMonths : undefined,
@@ -146,9 +153,12 @@ function StepProgress({ step }: { step: 1 | 2 | 3 }) {
  * since `liabilities()` doesn't return `durationMonths`/`startDate` on the presented row, so there's no
  * real number to compute it from. Selecting a loan pre-fills EMI Amount from that loan's `monthlyEmi`
  * (editable after); EMI Amount + Payment Date + Notes complete the step, submitted as `amount`/
- * `paymentDate`/`loanId` against the real `applyEmiPayment` side effect. No Payment Method field
- * anywhere in this wizard — the real Figma frames don't show one either (`paymentMethod` left unset,
- * the backend defaults it to `CASH`).
+ * `paymentDate`/`loanId` against the real `applyEmiPayment` side effect. No Payment Method field for
+ * Operating Expense/Revenue/Debt-Loan — the real Figma frames don't show one for any of them either
+ * (`paymentMethod` left unset, the backend defaults it to `CASH`). **Exception**: Inventory Purchase
+ * *does* get one (deliberate deviation from the Figma frame, user-requested) — it's the only type
+ * with a real backend behavior difference (a `WALLET` selection debits the farm's wallet balance),
+ * defaulted to `WALLET` so the common case needs no extra click.
  */
 export function RecordTransactionDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
@@ -308,6 +318,7 @@ function RecordTransactionDialogBody({ onOpenChange }: { onOpenChange: (open: bo
                           onClick={() => {
                             field.onChange(value);
                             form.setValue("subType", "");
+                            if (value === "INVENTORY_PURCHASE") form.setValue("paymentMethod", "WALLET");
                           }}
                           className={cn(
                             "flex items-center gap-3 rounded-xl border p-3 text-left transition-colors",
@@ -406,6 +417,22 @@ function RecordTransactionDialogBody({ onOpenChange }: { onOpenChange: (open: bo
                     <LabeledInput id="costPerUnit" type="number" step="0.01" min={0} label={t("costPerUnit")} {...form.register("costPerUnit", numberField)} />
                   </div>
                   <LabeledInput id="totalCost" label={t("totalCost")} value={((quantity || 0) * (costPerUnit || 0)).toFixed(2)} disabled readOnly />
+                  <Controller
+                    control={form.control}
+                    name="paymentMethod"
+                    render={({ field }) => (
+                      <Select value={field.value ?? "WALLET"} onValueChange={field.onChange}>
+                        <LabeledSelectTrigger label={t("paymentMethodLabel")} />
+                        <SelectContent>
+                          {PAYMENT_METHODS.map((m) => (
+                            <SelectItem key={m} value={m}>
+                              {t(`paymentMethodOptions.${m}`)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                 </>
               ) : type === "REVENUE" && subType === "milk" ? (
                 <>

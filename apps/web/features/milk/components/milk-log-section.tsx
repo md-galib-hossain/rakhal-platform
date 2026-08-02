@@ -12,10 +12,13 @@ import { Table, TableBody } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { useMilkLogTable } from "../hooks/use-milk";
 import { MilkCard } from "./milk-card";
+import { MilkExportButton } from "./milk-export-button";
+import { MilkImportButton } from "./milk-import-button";
 import { MilkLogTable } from "./milk-log-table";
 
 function todayIso(): string {
@@ -38,7 +41,17 @@ export function MilkLogSection() {
   const [search, setSearch] = useState("");
   const [shed, setShed] = useState(ALL_SHEDS);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [pendingDate, setPendingDate] = useState<string | null>(null);
   const query = useMilkLogTable(date);
+
+  function requestDateChange(next: string) {
+    if (isDirty) {
+      setPendingDate(next);
+    } else {
+      setDate(next);
+    }
+  }
 
   const sessions = query.data?.sessionConfig ?? [];
   const shedOptions = useMemo(() => {
@@ -50,6 +63,9 @@ export function MilkLogSection() {
   const headerRight = (
     <div className="flex flex-col items-end gap-4">
       <div className="flex flex-wrap items-center gap-2.5">
+        <MilkImportButton />
+        <MilkExportButton cattleOptions={entries} />
+
         <Select value={shed} onValueChange={setShed}>
           <SelectTrigger className="h-9 w-[130px] rounded-lg text-xs shadow-xs" aria-label={t("shedLabel")}>
             <SelectValue placeholder={t("shedFilter")} />
@@ -81,7 +97,7 @@ export function MilkLogSection() {
               defaultMonth={new Date(date)}
               onSelect={(next) => {
                 if (!next) return;
-                setDate(format(next, "yyyy-MM-dd"));
+                requestDateChange(format(next, "yyyy-MM-dd"));
                 setCalendarOpen(false);
               }}
             />
@@ -120,8 +136,30 @@ export function MilkLogSection() {
       ) : sessions.length === 0 ? (
         <EmptyState title={t("noSessionsConfigured")} />
       ) : (
-        <MilkLogTable key={date} date={date} sessions={sessions} entries={entries} search={search} shed={shed === ALL_SHEDS ? null : shed} />
+        <MilkLogTable
+          key={date}
+          date={date}
+          sessions={sessions}
+          entries={entries}
+          search={search}
+          shed={shed === ALL_SHEDS ? null : shed}
+          onDirtyChange={setIsDirty}
+        />
       )}
+      <ConfirmDialog
+        open={pendingDate !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDate(null);
+        }}
+        title={t("discardUnsavedTitle")}
+        description={t("discardUnsavedDescription")}
+        confirmLabel={t("discardUnsavedConfirm")}
+        variant="destructive"
+        onConfirm={() => {
+          if (pendingDate) setDate(pendingDate);
+          setPendingDate(null);
+        }}
+      />
     </MilkCard>
   );
 }

@@ -17,7 +17,11 @@ import type { ApiEnvelope } from "@/types/api";
  * etc. and this forwards verbatim — nothing here needs updating as new features land.
  */
 
-async function forward(req: NextRequest, path: string[]): Promise<{ res: Response; accessToken: string | null }> {
+async function forward(
+  req: NextRequest,
+  path: string[],
+  body: string | ArrayBuffer | undefined,
+): Promise<{ res: Response; accessToken: string | null }> {
   const session = await getSession();
   const cookieStore = await cookies();
   const cookieLocale = cookieStore.get(localeCookieName)?.value;
@@ -25,15 +29,8 @@ async function forward(req: NextRequest, path: string[]): Promise<{ res: Respons
 
   const search = req.nextUrl.search;
   const url = `${serverEnv.API_BASE_URL}/${path.join("/")}${search}`;
-  // Multipart bodies (file uploads, e.g. cattle photo) must be forwarded as raw bytes with the
-  // original boundary-bearing Content-Type — `req.text()` would corrupt binary image data.
   const contentType = req.headers.get("content-type");
   const isMultipart = contentType?.startsWith("multipart/form-data") ?? false;
-  const body = ["GET", "HEAD"].includes(req.method)
-    ? undefined
-    : isMultipart
-      ? await req.arrayBuffer()
-      : await req.text();
 
   const res = await fetch(url, {
     method: req.method,
@@ -51,7 +48,18 @@ async function forward(req: NextRequest, path: string[]): Promise<{ res: Respons
 async function handler(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   const { path } = await ctx.params;
 
-  const first = await forward(req, path);
+  // Read the body once up front — `req`'s body stream can only be consumed once, but a 401
+  // retry below calls `forward` a second time with the same `req`; without this, the retried
+  // request went out with an empty body (silently dropping the payload on POST/PATCH).
+  const contentType = req.headers.get("content-type");
+  const isMultipart = contentType?.startsWith("multipart/form-data") ?? false;
+  const body = ["GET", "HEAD"].includes(req.method)
+    ? undefined
+    : isMultipart
+      ? await req.arrayBuffer()
+      : await req.text();
+
+  const first = await forward(req, path, body);
   let res = first.res;
 
   if (res.status === 401 && first.accessToken) {
@@ -59,7 +67,7 @@ async function handler(req: NextRequest, ctx: { params: Promise<{ path: string[]
     // (no session at all) means the caller should never have reached here.
     const refreshed = await refreshSession();
     if (refreshed) {
-      res = (await forward(req, path)).res;
+      res = (await forward(req, path, body)).res;
     }
   }
 

@@ -51,6 +51,7 @@ export const qk = {
     overview: (id: string) => ["cattle", "overview", id] as const,
     pedigree: (id: string) => ["cattle", "pedigree", id] as const,
     finance: (id: string, period: string | undefined) => ["cattle", "finance", id, period] as const,
+    weightHistory: (id: string, period: string) => ["cattle", "weight-history", id, period] as const,
     reproductionSummary: (id: string) => ["cattle", "reproduction-summary", id] as const,
     healthSummary: (id: string) => ["cattle", "health-summary", id] as const,
     calvingEvents: (id: string) => ["cattle", "calving-events", id] as const,

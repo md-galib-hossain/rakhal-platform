@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { cattleApi } from "../api";
+import type { WeightHistoryPeriod } from "../detail-types";
 import type { RecordBcsInput, RecordWeightInput } from "../schemas";
 
 const STALE_TIME = 60_000;
@@ -19,6 +20,14 @@ export function useCattleFinance(id: string, period?: string) {
   return useQuery({
     queryKey: qk.cattle.finance(id, period),
     queryFn: () => cattleApi.finance(id, period),
+    staleTime: STALE_TIME,
+  });
+}
+
+export function useWeightHistory(id: string, period: WeightHistoryPeriod) {
+  return useQuery({
+    queryKey: qk.cattle.weightHistory(id, period),
+    queryFn: () => cattleApi.weightHistory(id, period),
     staleTime: STALE_TIME,
   });
 }
@@ -71,6 +80,7 @@ export function useRecordWeight(id: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: qk.cattle.overview(id) });
       void queryClient.invalidateQueries({ queryKey: qk.cattle.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: ["cattle", "weight-history", id] });
     },
   });
 }

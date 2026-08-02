@@ -22,13 +22,14 @@ import { useImportCattleConfirm, useImportCattlePreview } from "../hooks/use-cat
 import type { CattleImportPreview } from "../types";
 
 /**
- * RFE-024 — Cattle CSV import (PRD §8.4, RAKHAL-043). Two real backend steps: `POST
- * /cattle/import/preview` (multipart, per-row validation cached 30 min under `importSessionId`)
- * then `POST /cattle/import/confirm` (imports the `ready` rows; `skipErrors` required if any row
- * failed validation). No column-mapping UI in this pass — the backend's canonical headers
- * (name/tag/gender/purpose/date_of_birth/breed/shed/color/notes, matched case-insensitively) are
- * documented in the dialog description instead of building a mapping picker, since `mapping` is
- * optional and a first cut should just work against a canonically-headed CSV.
+ * RFE-024 — Cattle Excel import (PRD §8.4, RAKHAL-043). Two real backend steps: `POST
+ * /cattle/import/preview` (multipart .xlsx, per-row validation cached 30 min under
+ * `importSessionId`) then `POST /cattle/import/confirm` (imports the `ready` rows; `skipErrors`
+ * required if any row failed validation). No column-mapping UI in this pass — the backend's
+ * canonical headers (name/tag/gender/purpose/date_of_birth/breed/shed/color/notes, matched
+ * case-insensitively) are documented in the dialog description instead of building a mapping
+ * picker, since `mapping` is optional and a first cut should just work against a
+ * canonically-headed sheet.
  */
 export function CattleImportDialog({
   open,
@@ -96,7 +97,7 @@ export function CattleImportDialog({
             <input
               id="cattle-import-file"
               type="file"
-              accept=".csv,text/csv"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               className="text-sm text-foreground file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium"
             />

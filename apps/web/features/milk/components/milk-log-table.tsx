@@ -1,9 +1,9 @@
 "use client"; // drafts across all sessions + save/submit mutations + client-side search/shed filter + pagination + keyboard nav refs
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
-import { ChevronDown, Lock, TrendingDown, TrendingUp, Unlock } from "lucide-react";
+import { ChevronDown, History, Lock, TrendingDown, TrendingUp, Unlock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pagination } from "@/components/shared/pagination";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Can, useCan } from "@/lib/auth/permissions";
 import { useMilkTanks } from "@/features/inventory/hooks/use-inventory";
 import type { MilkTank, MilkTankType as InventoryMilkTankType } from "@/features/inventory/types";
@@ -22,9 +23,9 @@ import { useSaveMilkLog, useSubmitMilk, useUpdateMilkSessions } from "../hooks/u
 import { MILK_SESSIONS } from "../types";
 import type { MilkLogRow, MilkSession, MilkSessionKey } from "../types";
 
-/** NOON/NIGHT are the only sessions an Owner can lock/unlock — MORNING/EVENING must always stay
- * on (the backend rejects a payload dropping either), so they never render a lock affordance. */
-const LOCKABLE_SESSIONS: MilkSession[] = ["NOON", "NIGHT"];
+/** Any of the 4 sessions can be locked/unlocked by the Owner — the backend only requires at
+ * least one to stay active, enforced below by disabling the last remaining session's unlock icon. */
+const LOCKABLE_SESSIONS: MilkSession[] = ["MORNING", "NOON", "EVENING", "NIGHT"];
 
 const SESSION_FIELD: Record<MilkSession, "morningL" | "noonL" | "eveningL" | "nightL"> = {
   MORNING: "morningL",
@@ -94,9 +95,9 @@ function buildInitialTankOverrides(rows: MilkLogRow[]): Record<string, string> {
   return overrides;
 }
 
-/** Header control for a session column. Active-and-locked-by-default sessions (NOON/NIGHT) that
- * aren't yet enabled show a lock icon; the farm Owner (`settings.milk-sessions-manage`) can click it
- * to unlock, everyone else sees a static muted label with no affordance. */
+/** Header control for a session column that's currently locked (not in `activeSessions`) — shows
+ * a lock icon; the farm Owner (`settings.milk-sessions-manage`) can click it to unlock, everyone
+ * else sees a static muted label with no affordance. */
 function SessionLockControl({ session, activeSessions }: { session: MilkSession; activeSessions: MilkSession[] }) {
   const t = useTranslations("milk.log");
   const can = useCan();
@@ -147,9 +148,10 @@ function SessionLockControl({ session, activeSessions }: { session: MilkSession;
   );
 }
 
-/** Mirror of `SessionLockControl` for the opposite direction — an already-active NOON/NIGHT
- * column header shows an open-lock icon the Owner can click to lock it back (MORNING/EVENING
- * never render this, see `LOCKABLE_SESSIONS`). Everyone else just sees the plain column label. */
+/** Mirror of `SessionLockControl` for the opposite direction — an active session's column header
+ * shows an open-lock icon the Owner can click to lock it back. The farm must always keep at least
+ * one session active (backend-enforced), so the last remaining active session shows a disabled
+ * icon instead of a clickable popover. Everyone else just sees the plain column label. */
 function SessionActiveControl({ session, activeSessions }: { session: MilkSession; activeSessions: MilkSession[] }) {
   const t = useTranslations("milk.log");
   const can = useCan();
@@ -161,6 +163,20 @@ function SessionActiveControl({ session, activeSessions }: { session: MilkSessio
 
   if (!LOCKABLE_SESSIONS.includes(session) || !canManage) {
     return <>{label}</>;
+  }
+
+  const isLastActive = activeSessions.length <= 1;
+
+  if (isLastActive) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 text-muted-foreground"
+        title={t("lastActiveSessionCannotLock", { session: sessionLabel })}
+      >
+        {label}
+        <Unlock className="size-3.5 shrink-0 opacity-40" aria-hidden />
+      </span>
+    );
   }
 
   async function handleDisable() {
@@ -270,23 +286,59 @@ export function MilkLogTable({
   entries,
   search,
   shed,
+  onDirtyChange,
 }: {
   date: string;
   sessions: MilkSession[];
   entries: MilkLogRow[];
   search: string;
   shed: string | null;
+  /** Bubbles up whenever drafts diverge from the last-saved snapshot, so the parent
+   * (which owns `date`) can warn before a date switch discards unsaved input. */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const t = useTranslations("milk.log");
   const saveLog = useSaveMilkLog();
   const submitMilk = useSubmitMilk();
-  const [drafts, setDrafts] = useState<Record<string, string>>(() => buildInitialDrafts(entries));
-  const [tankOverrides, setTankOverrides] = useState<Record<string, string>>(() => buildInitialTankOverrides(entries));
+  const initialDrafts = useMemo(() => buildInitialDrafts(entries), [entries]);
+  const initialTankOverrides = useMemo(() => buildInitialTankOverrides(entries), [entries]);
+  const [drafts, setDrafts] = useState<Record<string, string>>(() => initialDrafts);
+  const [tankOverrides, setTankOverrides] = useState<Record<string, string>>(() => initialTankOverrides);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const inputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const tanksQuery = useMilkTanks({});
   const tanks = tanksQuery.data ?? [];
+  const [confirmEditOpen, setConfirmEditOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"save" | "submit" | null>(null);
+
+  const isDirty = useMemo(() => {
+    for (const key of Object.keys(drafts)) {
+      if ((drafts[key] ?? "") !== (initialDrafts[key] ?? "")) return true;
+    }
+    for (const key of Object.keys(tankOverrides)) {
+      if ((tankOverrides[key] ?? "") !== (initialTankOverrides[key] ?? "")) return true;
+    }
+    return false;
+  }, [drafts, tankOverrides, initialDrafts, initialTankOverrides]);
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+
+  // A draft that differs from the last-saved value AND belongs to a session already
+  // `submitted` — re-saving it reconciles the tank balance (backend), not a plain
+  // overwrite, so it gets one confirmation instead of silently firing on every Save.
+  const touchesSubmittedEntry = useMemo(() => {
+    for (const row of entries) {
+      for (const session of row.log.submittedSessions) {
+        const key = draftKey(row.cattleId, session);
+        if ((drafts[key] ?? "") !== (initialDrafts[key] ?? "")) return true;
+      }
+    }
+    return false;
+  }, [entries, drafts, initialDrafts]);
 
   function handleSetDefaultTank(tankType: InventoryMilkTankType, tankId: string) {
     setTankOverrides((prev) => {
@@ -310,6 +362,22 @@ export function MilkLogTable({
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  // Live per-row total from `drafts`, not the stale `row.log.totalL` snapshot from the last
+  // fetch/save — otherwise the Total column never reacts to typing until a full Save round-trip.
+  const liveTotals = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const row of entries) {
+      let sum = 0;
+      for (const session of sessions) {
+        const raw = drafts[draftKey(row.cattleId, session)];
+        const value = Number(raw);
+        if (raw !== "" && Number.isFinite(value) && value >= 0) sum += value;
+      }
+      totals.set(row.cattleId, Math.round(sum * 100) / 100);
+    }
+    return totals;
+  }, [entries, sessions, drafts]);
 
   // `sessions` (from `FarmModuleSettings.milkActiveSessions`) isn't guaranteed to arrive in
   // chronological order — e.g. enabling Noon after Morning/Evening appends it last. Columns always
@@ -348,26 +416,46 @@ export function MilkLogTable({
     }
   }
 
-  async function handleSave() {
+  // Shared by `handleSave` (standalone) and `handleSubmit` (save-then-submit, see below) — the
+  // only thing that persists `drafts` state to the backend. Entries whose session was already
+  // `submitted` carry a fixed audit note — the backend reconciles the tank balance regardless.
+  async function persistDrafts(): Promise<{ saved: number; anomaliesFlagged: number }> {
     let saved = 0;
     let anomaliesFlagged = 0;
+    for (const session of sessions) {
+      const sessionEntries = entries
+        .map((row) => ({
+          cattleId: row.cattleId,
+          yieldL: Number(drafts[draftKey(row.cattleId, session)]),
+          tankId: tankOverrides[row.cattleId],
+          editReason: row.log.submittedSessions.includes(session)
+            ? "Edited after submit via Milk Log"
+            : undefined,
+        }))
+        .filter((entry) => {
+          const raw = drafts[draftKey(entry.cattleId, session)];
+          return raw !== "" && Number.isFinite(entry.yieldL) && entry.yieldL >= 0;
+        });
+      if (sessionEntries.length === 0) continue;
+      const result = await saveLog.mutateAsync({ date, session, entries: sessionEntries });
+      saved += result.saved;
+      anomaliesFlagged += result.anomaliesFlagged;
+    }
+    return { saved, anomaliesFlagged };
+  }
+
+  async function handleSave() {
+    if (touchesSubmittedEntry) {
+      setPendingAction("save");
+      setConfirmEditOpen(true);
+      return;
+    }
+    await runSave();
+  }
+
+  async function runSave() {
     try {
-      for (const session of sessions) {
-        const sessionEntries = entries
-          .map((row) => ({
-            cattleId: row.cattleId,
-            yieldL: Number(drafts[draftKey(row.cattleId, session)]),
-            tankId: tankOverrides[row.cattleId],
-          }))
-          .filter((entry) => {
-            const raw = drafts[draftKey(entry.cattleId, session)];
-            return raw !== "" && Number.isFinite(entry.yieldL) && entry.yieldL >= 0;
-          });
-        if (sessionEntries.length === 0) continue;
-        const result = await saveLog.mutateAsync({ date, session, entries: sessionEntries });
-        saved += result.saved;
-        anomaliesFlagged += result.anomaliesFlagged;
-      }
+      const { saved, anomaliesFlagged } = await persistDrafts();
       if (saved === 0) {
         toast.error(t("noEntries"));
         return;
@@ -378,8 +466,21 @@ export function MilkLogTable({
     }
   }
 
+  // Submit used to assume Save had already run — a user who typed values and hit Submit directly
+  // (never clicking Save first) got a confusing "no entries" error from the backend, since nothing
+  // had been persisted yet. Now Submit always saves whatever's pending first.
   async function handleSubmit() {
+    if (touchesSubmittedEntry) {
+      setPendingAction("submit");
+      setConfirmEditOpen(true);
+      return;
+    }
+    await runSubmit();
+  }
+
+  async function runSubmit() {
     try {
+      await persistDrafts();
       let totalCowsLogged = 0;
       for (const session of sessions) {
         const result = await submitMilk.mutateAsync({ date, session });
@@ -389,6 +490,12 @@ export function MilkLogTable({
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("submitError"));
     }
+  }
+
+  async function handleConfirmEdit() {
+    if (pendingAction === "save") await runSave();
+    else if (pendingAction === "submit") await runSubmit();
+    setPendingAction(null);
   }
 
   const isPending = saveLog.isPending || submitMilk.isPending;
@@ -477,6 +584,11 @@ export function MilkLogTable({
                                 SESSION_GLOW[session],
                               )}
                             >
+                              {row.log.submittedSessions.includes(session) ? (
+                                <span title={t("sessionAlreadySubmitted")}>
+                                  <History className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                                </span>
+                              ) : null}
                               <Input
                                 ref={(el) => {
                                   const key = draftKey(row.cattleId, session);
@@ -520,9 +632,9 @@ export function MilkLogTable({
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1.5">
-                        <span className="font-medium text-foreground">{row.log.totalL}L</span>
+                        <span className="font-medium text-foreground">{liveTotals.get(row.cattleId) ?? 0}L</span>
                         {row.avgYield7d != null ? (
-                          row.log.totalL >= row.avgYield7d ? (
+                          (liveTotals.get(row.cattleId) ?? 0) >= row.avgYield7d ? (
                             <TrendingUp className="size-3.5 text-success" aria-hidden />
                           ) : (
                             <TrendingDown className="size-3.5 text-destructive" aria-hidden />
@@ -561,6 +673,18 @@ export function MilkLogTable({
           </Button>
         </div>
       </Can>
+      <ConfirmDialog
+        open={confirmEditOpen}
+        onOpenChange={(open) => {
+          setConfirmEditOpen(open);
+          if (!open) setPendingAction(null);
+        }}
+        title={t("editSubmittedTitle")}
+        description={t("editSubmittedDescription")}
+        confirmLabel={t("editSubmittedConfirm")}
+        variant="primary"
+        onConfirm={handleConfirmEdit}
+      />
     </>
   );
 }

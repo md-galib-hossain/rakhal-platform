@@ -14,12 +14,14 @@ import { useWithdraw } from "../hooks/use-finance";
 import { withdrawSchema, type WithdrawInput } from "../schemas";
 import type { FinancePaymentMethod } from "../types";
 
-const METHOD_ICON: Record<FinancePaymentMethod, React.ComponentType<{ className?: string }>> = {
+// `WALLET` deliberately excluded — you can't withdraw wallet funds by paying yourself from the wallet.
+type NonWalletMethod = Exclude<FinancePaymentMethod, "WALLET">;
+const METHOD_ICON: Record<NonWalletMethod, React.ComponentType<{ className?: string }>> = {
   CASH: Banknote,
   BANK_TRANSFER: Landmark,
   MFS: Smartphone,
 };
-const METHODS: FinancePaymentMethod[] = ["CASH", "BANK_TRANSFER", "MFS"];
+const METHODS: NonWalletMethod[] = ["CASH", "BANK_TRANSFER", "MFS"];
 
 /** "Withdraw Funds" — Figma `1039:33295` (file `SCfMPdxP6vgW1uTxfqCtz7`). Mirrors `WithdrawDto`
  * exactly — unlike Add Funds, "Fund Name" is a real field here (`WithdrawDto.fundName`). No

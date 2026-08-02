@@ -27,6 +27,8 @@ import type {
   CattlePedigree,
   HealthSummary,
   ReproductionSummary,
+  WeightHistoryPeriod,
+  WeightHistoryResponse,
 } from "./detail-types";
 
 /** `GET/POST /cattle*` — real backend routes (`cattle.controller.ts`), `cattle.read`/`cattle.bulk`-gated.
@@ -63,6 +65,9 @@ export const cattleApi = {
   /** Generous `limit` — filter dropdowns want the farm's full (small) list, not one page. */
   breeds(): Promise<CursorPage<Breed>> {
     return apiFetchPage<Breed>("/breeds", { searchParams: { limit: 100 } });
+  },
+  createBreed(input: { name: string; description?: string }): Promise<Breed> {
+    return apiFetch<Breed>("/breeds", { method: "POST", body: input });
   },
   sheds(): Promise<CursorPage<Shed>> {
     return apiFetchPage<Shed>("/sheds", { searchParams: { limit: 100 } });
@@ -106,6 +111,9 @@ export const cattleApi = {
   /** `finance.read`-gated (separate from the rest of the cattle detail, which is `cattle.read`). */
   finance(id: string, period?: string): Promise<CattleFinance> {
     return apiFetch<CattleFinance>(`/cattle/${id}/finance`, { searchParams: { period } });
+  },
+  weightHistory(id: string, period: WeightHistoryPeriod): Promise<WeightHistoryResponse> {
+    return apiFetch<WeightHistoryResponse>(`/cattle/${id}/weight/history`, { searchParams: { period } });
   },
   /** Female cattle only — the backend 400s for male/castrated (`getFemaleCattle`), so callers must
    * gate this behind `gender === "FEMALE"` rather than rely on catching the error. */

@@ -762,6 +762,10 @@
       "dateOfBirth": "জন্ম তারিখ",
       "weightKg": "ওজন (কেজি)",
       "breed": "জাত",
+      "addBreed": "নতুন জাত যোগ করুন",
+      "addBreedTitle": "নতুন জাত যোগ করুন",
+      "breedNameLabel": "জাতের নাম",
+      "breedDescriptionLabel": "বিবরণ (ঐচ্ছিক)",
       "shed": "শেড অবস্থান",
       "feedGroup": "ফিড গ্রুপ",
       "sourceType": "উৎস",
@@ -897,6 +901,12 @@
         "actual": "প্রকৃত",
         "weightKg": "ওজন (কেজি)",
         "noWeightRecords": "এখনো কোনো ওজন রেকর্ড নেই।",
+        "weightPeriod": {
+          "day": "দৈনিক",
+          "week": "সাপ্তাহিক",
+          "month": "মাসিক",
+          "year": "বার্ষিক"
+        },
         "lactationCurve": "দুগ্ধদান বক্ররেখা",
         "yieldL": "উৎপাদন (লিটার)",
         "noLactationData": "কোনো সক্রিয় দুগ্ধদান পর্যায় নেই।",
@@ -928,7 +938,8 @@
         "recordWeightDialog": {
           "title": "ওজন রেকর্ড করুন",
           "weightKg": "ওজন (কেজি)",
-          "date": "তারিখ",
+          "date": "তারিখ ও সময়",
+          "dateBlankHint": "খালি রাখলে বর্তমান সময় হিসেবে রেকর্ড হবে।",
           "notes": "নোট",
           "save": "সংরক্ষণ করুন",
           "cancel": "বাতিল",
@@ -1024,10 +1035,10 @@
       }
     },
     "import": {
-      "trigger": "সিএসভি ইমপোর্ট করুন",
-      "title": "সিএসভি থেকে গবাদি পশু আমদানি করুন",
-      "description": "name/tag/gender/purpose/date_of_birth/breed/shed/color/notes কলামসহ একটি সিএসভি ফাইল আপলোড করুন (হেডার কেস-ইনসেনসিটিভ)। আমদানির আগে প্রতিটি সারি যাচাই করে দেখানো হবে।",
-      "chooseFile": "সিএসভি ফাইল",
+      "trigger": "এক্সেল ইমপোর্ট করুন",
+      "title": "এক্সেল থেকে গবাদি পশু আমদানি করুন",
+      "description": "name/tag/gender/purpose/date_of_birth/breed/shed/color/notes কলামসহ একটি .xlsx ফাইল আপলোড করুন (হেডার কেস-ইনসেনসিটিভ)। আমদানির আগে প্রতিটি সারি যাচাই করে দেখানো হবে।",
+      "chooseFile": "এক্সেল ফাইল (.xlsx)",
       "previewAction": "প্রিভিউ",
       "confirmAction": "আমদানি নিশ্চিত করুন",
       "cancel": "বাতিল",
@@ -1726,8 +1737,65 @@
       "disableSessionDescription": "এটি এই খামারের জন্য {session} দুধ দোহন লক করে দেবে — মালিক আবার চালু না করা পর্যন্ত টিম সদস্যরা এটি লগ বা জমা দিতে পারবেন না।",
       "disableSessionSuccessToast": "{session} সেশন লক করা হয়েছে।",
       "disableSessionError": "এই সেশনটি লক করা যায়নি। আবার চেষ্টা করুন।",
+      "lastActiveSessionCannotLock": "{session} শেষ সক্রিয় সেশন — অন্তত একটি সেশন সক্রিয় থাকতে হবে।",
       "tankDefaultDescription": "প্রতিটি ধরনের জন্য একটি ডিফল্ট ট্যাংক সেট করুন — এটি নিচের প্রতিটি সারিতে প্রযোজ্য হবে, তবে যেকোনো সারি আলাদাভাবে পরিবর্তন করা যাবে।",
-      "tankSelectPlaceholder": "একটি ট্যাংক নির্বাচন করুন"
+      "tankSelectPlaceholder": "একটি ট্যাংক নির্বাচন করুন",
+      "sessionAlreadySubmitted": "ইতিমধ্যে জমা দেওয়া হয়েছে — সম্পাদনা করলে ট্যাংক ব্যালেন্স সামঞ্জস্য হবে।",
+      "editSubmittedTitle": "জমা দেওয়া এন্ট্রি সম্পাদনা করবেন?",
+      "editSubmittedDescription": "এর মধ্যে এক বা একাধিক সেশন ইতিমধ্যে জমা দেওয়া হয়েছে — সেগুলোর ট্যাংক ভলিউম ইতিমধ্যে সরানো হয়েছে। সংরক্ষণ করলে ট্যাংক ব্যালেন্স আপনার পরিবর্তনের সাথে সামঞ্জস্য করা হবে, ভুলভাবে অমিল রাখা হবে না।",
+      "editSubmittedConfirm": "সংরক্ষণ করুন এবং ট্যাংক সামঞ্জস্য করুন",
+      "discardUnsavedTitle": "সংরক্ষণ না করা এন্ট্রি বাদ দেবেন?",
+      "discardUnsavedDescription": "তারিখ পরিবর্তন করলে বর্তমান তারিখের জন্য এখনও সংরক্ষণ না করা দুধের এন্ট্রিগুলো বাদ যাবে।",
+      "discardUnsavedConfirm": "বাদ দিন এবং পরিবর্তন করুন"
+    },
+    "import": {
+      "trigger": "এক্সেল ইমপোর্ট করুন",
+      "title": "এক্সেল থেকে মিল্ক লগ আমদানি করুন",
+      "description": "Date/Cow Tag/Morning/Noon/Evening/Night/Tank কলামসহ একটি .xlsx ফাইল আপলোড করুন (হেডার কেস-ইনসেনসিটিভ, প্রতিদিনের প্রতি গরুর জন্য একটি সারি)। আমদানির আগে প্রতিটি সারি যাচাই করে দেখানো হবে।",
+      "downloadTemplate": "টেমপ্লেট ডাউনলোড করুন",
+      "chooseFile": "এক্সেল ফাইল (.xlsx)",
+      "previewAction": "প্রিভিউ",
+      "confirmAction": "আমদানি নিশ্চিত করুন",
+      "cancel": "বাতিল",
+      "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।",
+      "empty": "ফাইলে কোনো ডেটা সারি নেই।",
+      "skipErrors": "ভুল সারিগুলো বাদ দিয়ে বাকিগুলো আমদানি করুন",
+      "confirmedToast": "{imported}টি আমদানি হয়েছে, {skipped}টি বাদ দেওয়া হয়েছে।",
+      "summary": {
+        "total": "মোট {count}",
+        "ready": "{count} প্রস্তুত",
+        "errors": "{count} ত্রুটি"
+      },
+      "columns": {
+        "row": "সারি",
+        "date": "তারিখ",
+        "tag": "গরুর ট্যাগ",
+        "status": "স্ট্যাটাস",
+        "readyBadge": "প্রস্তুত",
+        "errorBadge": "ত্রুটি"
+      }
+    },
+    "export": {
+      "trigger": "এক্সপোর্ট",
+      "title": "মিল্ক লগ এক্সপোর্ট করুন",
+      "description": "কোন গরু এবং তারিখের পরিসর অন্তর্ভুক্ত করবেন তা বেছে নিন, তারপর একটি .xlsx ফাইল ডাউনলোড করুন।",
+      "scopeLabel": "গরু",
+      "scopeAll": "সব গরু",
+      "scopeSelect": "নির্দিষ্ট গরু নির্বাচন করুন",
+      "cowsLabel": "গরু নির্বাচন করুন",
+      "selectAll": "সব নির্বাচন করুন",
+      "deselectAll": "নির্বাচন বাতিল করুন",
+      "noCowsSelected": "অন্তত একটি গরু নির্বাচন করুন, অথবা সব গরুতে পরিবর্তন করুন।",
+      "rangeLabel": "তারিখের পরিসর",
+      "rangeToday": "আজ",
+      "rangeWeek": "এই সপ্তাহ",
+      "rangeMonth": "এই মাস",
+      "rangeCustom": "কাস্টম পরিসর",
+      "rangeTo": "থেকে",
+      "cancel": "বাতিল",
+      "exportAction": "এক্সপোর্ট",
+      "exportedToast": "মিল্ক লগ এক্সপোর্ট হয়েছে।",
+      "exportError": "মিল্ক লগ এক্সপোর্ট করা যায়নি। আবার চেষ্টা করুন।"
     },
     "anomalies": {
       "title": "অস্বাভাবিকতা",
@@ -2856,7 +2924,8 @@
       "methodOptions": {
         "CASH": "নগদ",
         "BANK_TRANSFER": "ব্যাংক ট্রান্সফার",
-        "MFS": "মোবাইল ফিনান্সিয়াল সার্ভিস"
+        "MFS": "মোবাইল ফিনান্সিয়াল সার্ভিস",
+        "WALLET": "ওয়ালেট"
       },
       "statusOptions": {
         "COMPLETED": "সম্পন্ন",
@@ -3192,6 +3261,13 @@
       "quantity": "পরিমাণ (সংখ্যা)",
       "costPerUnit": "প্রতি ইউনিট খরচ",
       "totalCost": "মোট খরচ",
+      "paymentMethodLabel": "পেমেন্ট পদ্ধতি",
+      "paymentMethodOptions": {
+        "WALLET": "ওয়ালেট",
+        "CASH": "নগদ",
+        "BANK_TRANSFER": "ব্যাংক ট্রান্সফার",
+        "MFS": "মোবাইল ফিনান্সিয়াল সার্ভিস"
+      },
       "dateShort": "তারিখ",
       "monthlyEmi": "মাসিক কিস্তি",
       "durationMonths": "মেয়াদ (মাস)",

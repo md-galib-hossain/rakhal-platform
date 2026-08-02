@@ -19,6 +19,19 @@ export interface WeightHistoryRecord {
   weight_kg: number;
 }
 
+/** `GET /cattle/:id/weight/history` — day/week/month/year toggle for the Overview weight chart. */
+export type WeightHistoryPeriod = "day" | "week" | "month" | "year";
+
+export interface WeightHistoryPoint {
+  date: string;
+  weightKg: number;
+}
+
+export interface WeightHistoryResponse {
+  period: WeightHistoryPeriod;
+  points: WeightHistoryPoint[];
+}
+
 export interface LactationCurvePoint {
   dim: number;
   yield_l: number;

@@ -45,6 +45,10 @@ export interface MilkLogRow {
      * SELLABLE/WITHHOLDING type at submit time. */
     tankId: string | null;
     anomalyFlag: boolean;
+    /** Sessions already `submitted` for this cow today — their tank volume has
+     * already moved, so re-saving one now reconciles the balance instead of a
+     * plain overwrite. */
+    submittedSessions: MilkSession[];
   };
 }
 
@@ -61,6 +65,9 @@ export interface SaveMilkLogEntry {
   /** Specific `MilkTank.id` this cow's collection goes into (header default or a row
    * override) — omitted falls back to the backend's SELLABLE/WITHHOLDING type default. */
   tankId?: string;
+  /** Optional note when overwriting a session already submitted — the tank balance
+   * reconciles automatically either way, this is just an audit trail. */
+  editReason?: string;
 }
 
 export interface SaveMilkLogInput {
@@ -125,4 +132,34 @@ export interface UpdateMilkSessionsInput {
 
 export interface UpdateMilkSessionsResponse {
   active_sessions: MilkSessionKey[];
+}
+
+export interface MilkImportRow {
+  row: number;
+  date: string | null;
+  tag: string | null;
+  status: "ready" | "error";
+  error?: string;
+}
+
+/** `POST /milk/import/preview` response — cached server-side under `importSessionId` (30 min TTL). */
+export interface MilkImportPreview {
+  importSessionId: string;
+  total: number;
+  ready: number;
+  errors: number;
+  rows: MilkImportRow[];
+}
+
+/** `POST /milk/import/confirm` response. */
+export interface MilkImportConfirmResult {
+  imported: number;
+  skipped: number;
+  failedGroups: number;
+}
+
+export interface ExportMilkLogInput {
+  from: string;
+  to: string;
+  cattleIds?: string[];
 }

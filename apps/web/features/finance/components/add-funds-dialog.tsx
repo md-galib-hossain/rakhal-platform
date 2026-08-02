@@ -14,12 +14,14 @@ import { useAddFunds } from "../hooks/use-finance";
 import { addFundsSchema, type AddFundsInput } from "../schemas";
 import type { FinancePaymentMethod } from "../types";
 
-const METHOD_ICON: Record<FinancePaymentMethod, React.ComponentType<{ className?: string }>> = {
+// `WALLET` deliberately excluded — you can't fund the wallet from the wallet itself.
+type NonWalletMethod = Exclude<FinancePaymentMethod, "WALLET">;
+const METHOD_ICON: Record<NonWalletMethod, React.ComponentType<{ className?: string }>> = {
   CASH: Banknote,
   BANK_TRANSFER: Landmark,
   MFS: Smartphone,
 };
-const METHODS: FinancePaymentMethod[] = ["CASH", "BANK_TRANSFER", "MFS"];
+const METHODS: NonWalletMethod[] = ["CASH", "BANK_TRANSFER", "MFS"];
 
 /**
  * "Add Funds to Wallet" — Figma `1039:32932` (file `SCfMPdxP6vgW1uTxfqCtz7`). Mirrors `AddFundsDto`.

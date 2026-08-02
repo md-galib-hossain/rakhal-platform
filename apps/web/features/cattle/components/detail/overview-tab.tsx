@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Utensils } from "lucide-react";
 import { StatCard } from "@/components/shared/stat-card";
 import { ChartCard } from "@/components/shared/chart-card";
@@ -15,11 +15,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Can } from "@/lib/auth/permissions";
+import { formatDate } from "@/lib/format";
+import type { Locale } from "@/lib/constants/i18n";
 import { useConcentrations, useFeedEfficiency } from "@/features/feed/hooks/use-feed";
 import { LogDistributionDialog } from "@/features/feed/components/log-distribution-dialog";
-import { useCattleOverview } from "../../hooks/use-cattle-detail-tabs";
+import { useCattleOverview, useWeightHistory } from "../../hooks/use-cattle-detail-tabs";
+import type { WeightHistoryPeriod } from "../../detail-types";
 import { RecordBcsDialog } from "./record-bcs-dialog";
 import { RecordWeightDialog } from "./record-weight-dialog";
+import { WeightPeriodSelect } from "./charts/weight-period-select";
 
 const TrendChartInner = dynamic(() => import("./charts/trend-chart-inner"), {
   ssr: false,
@@ -89,9 +93,12 @@ function FeedTodayCard({ cattleId }: { cattleId: string }) {
  */
 export function OverviewTab({ cattleId }: { cattleId: string }) {
   const t = useTranslations("cattle.detail.overview");
+  const locale = useLocale() as Locale;
   const query = useCattleOverview(cattleId);
   const [bcsDialogOpen, setBcsDialogOpen] = useState(false);
   const [weightDialogOpen, setWeightDialogOpen] = useState(false);
+  const [weightPeriod, setWeightPeriod] = useState<WeightHistoryPeriod>("month");
+  const weightHistoryQuery = useWeightHistory(cattleId, weightPeriod);
 
   if (query.isLoading) {
     return (
@@ -108,10 +115,16 @@ export function OverviewTab({ cattleId }: { cattleId: string }) {
   const data = query.data;
   if (!data) return null;
 
-  const weightData = data.weight_history
-    .slice()
-    .reverse()
-    .map((r) => ({ date: r.date, weight: r.weight_kg }));
+  const weightDateFormat: Intl.DateTimeFormatOptions =
+    weightPeriod === "year"
+      ? { year: "numeric" }
+      : weightPeriod === "month"
+        ? { month: "short", year: "numeric" }
+        : { month: "short", day: "numeric" };
+  const weightData = (weightHistoryQuery.data?.points ?? []).map((p) => ({
+    date: formatDate(p.date, locale, weightDateFormat),
+    weight: p.weightKg,
+  }));
   const lactationData = data.lactation_curve.map((p) => ({ dim: p.dim, yield: p.yield_l }));
   const lifetimeData = data.lifetime_yield.map((p) => ({ year: p.year, total: p.total_l }));
 
@@ -152,7 +165,7 @@ export function OverviewTab({ cattleId }: { cattleId: string }) {
 
       <ChartCard
         title={t("weightHistory")}
-        subtitle={t("weightHistorySubtitle")}
+        rangeControl={<WeightPeriodSelect value={weightPeriod} onChange={setWeightPeriod} />}
         legend={
           <div className="flex items-center gap-2">
             <span className="h-1.5 w-3 rounded-full bg-success" />
@@ -160,7 +173,9 @@ export function OverviewTab({ cattleId }: { cattleId: string }) {
           </div>
         }
       >
-        {weightData.length === 0 ? (
+        {weightHistoryQuery.isLoading ? (
+          <Skeleton className="h-[200px] w-full" />
+        ) : weightData.length === 0 ? (
           <EmptyState title={t("noWeightRecords")} className="py-8" />
         ) : (
           <TrendChartInner

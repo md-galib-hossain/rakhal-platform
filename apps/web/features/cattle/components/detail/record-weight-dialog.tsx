@@ -26,14 +26,17 @@ export function RecordWeightDialog({
 
   const form = useForm<RecordWeightInput>({
     resolver: zodResolver(recordWeightSchema),
-    defaultValues: { weightKg: undefined, date: new Date().toISOString().slice(0, 10), notes: "" },
+    defaultValues: { weightKg: undefined, date: "", notes: "" },
   });
 
   async function onSubmit(values: RecordWeightInput) {
     try {
-      await recordWeight.mutateAsync(values);
+      // `date` is a `datetime-local` value (`YYYY-MM-DDTHH:mm`, no timezone) — convert to a real
+      // ISO instant before sending; left blank, omit it entirely so the backend defaults to now.
+      const date = values.date ? new Date(values.date).toISOString() : undefined;
+      await recordWeight.mutateAsync({ ...values, date });
       toast.success(t("recordedToast"));
-      form.reset({ weightKg: undefined, date: new Date().toISOString().slice(0, 10), notes: "" });
+      form.reset({ weightKg: undefined, date: "", notes: "" });
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
@@ -66,7 +69,8 @@ export function RecordWeightDialog({
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="record-weight-date">{t("date")}</Label>
-        <Input id="record-weight-date" type="date" {...form.register("date")} />
+        <Input id="record-weight-date" type="datetime-local" placeholder={t("dateBlankHint")} {...form.register("date")} />
+        <p className="text-xs text-muted-foreground">{t("dateBlankHint")}</p>
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="record-weight-notes">{t("notes")}</Label>
