@@ -13,12 +13,19 @@ import type { DonutSlice } from "./herd-status-chart-inner";
 /** Deep-links a legend slice to the matching Cattle-page filter (nuqs-synced query params
  * `CattleFilters`/`CattleTable` already read) — `undefined` leaves the slice a plain "/cattle"
  * link (e.g. calves, which the list page filters via `purpose=CALF` in the category tabs, not a
- * dashboard-known param). */
+ * dashboard-known param).
+ *
+ * `fresh`/`growing` used to link via `productionStatus=FRESH|GROWING` — RAKHAL-269 v2 dropped
+ * those values from `ProductionStatus` (trimmed to MILKING/DRY). The backend's own dashboard
+ * service now computes these two slice counts as proxies off `ReproductionState`
+ * (`POSTPARTUM_WAITING` for fresh, `NOT_ELIGIBLE` for growing — see
+ * `dashboard.service.ts`'s `productionBreakdown` comment) so the deep links follow suit onto
+ * `reproductiveStatus` instead, matching what `CattleTable`'s filters actually query. */
 const PRODUCTION_SLICE_HREF: Record<string, string> = {
   milking: "/cattle?productionStatus=MILKING",
   dry: "/cattle?productionStatus=DRY",
-  fresh: "/cattle?productionStatus=FRESH",
-  growing: "/cattle?productionStatus=GROWING",
+  fresh: "/cattle?reproductiveStatus=POSTPARTUM_WAITING",
+  growing: "/cattle?reproductiveStatus=NOT_ELIGIBLE",
 };
 
 // Chart rendering is client/DOM-only and not needed for the initial paint — keep it out of the main bundle.

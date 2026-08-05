@@ -9,16 +9,15 @@
  * yet (`DryPeriod` is schema-only, no controller endpoint) — not represented here.
  */
 
+/** RAKHAL-271 v2 correction — same 5-value `ReproductionState` `features/cattle/types.ts` uses.
+ * Unused within this file/module today (no import site found repo-wide as of this fix) but kept in
+ * sync so it doesn't silently document a shape the backend no longer returns. */
 export type ReproductiveStatus =
-  | "HEIFER"
+  | "NOT_ELIGIBLE"
+  | "POSTPARTUM_WAITING"
   | "OPEN"
-  | "BRED"
-  | "PREGNANT"
-  | "DRY"
-  | "LACTATING"
-  | "POSTPARTUM"
-  | "ABORTED"
-  | "RETIRED";
+  | "BRED_AWAITING_CONFIRMATION"
+  | "PREGNANT";
 
 export type HeatDetectionMethod = "VISUAL" | "COLLAR_SENSOR" | "PEDOMETER" | "MANUAL";
 export type BreedingMethod = "AI" | "NATURAL" | "EMBRYO_TRANSFER";

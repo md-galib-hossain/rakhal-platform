@@ -695,11 +695,7 @@
       "feedGroup": "ফিড গ্রুপ",
       "statusOptions": {
         "milking": "দুধ দেওয়া",
-        "dry": "শুকনো",
-        "fresh": "সদ্য বিয়ানো",
-        "growing": "বেড়ে ওঠা",
-        "sold": "বিক্রিত",
-        "deceased": "মৃত"
+        "dry": "শুকনো"
       },
       "healthOptions": {
         "healthy": "সুস্থ",
@@ -724,11 +720,7 @@
     },
     "statusOptions": {
       "milking": "দুধ দেওয়া",
-      "dry": "শুকনো",
-      "fresh": "সদ্য বিয়ানো",
-      "growing": "বেড়ে ওঠা",
-      "sold": "বিক্রিত",
-      "deceased": "মৃত"
+      "dry": "শুকনো"
     },
     "healthOptions": {
       "healthy": "সুস্থ",
@@ -812,23 +804,15 @@
       "productionStatus": "উৎপাদন অবস্থা",
       "productionOptions": {
         "MILKING": "দুধ দেওয়া",
-        "DRY": "শুকনো",
-        "FRESH": "সদ্য বিয়ানো",
-        "GROWING": "বেড়ে ওঠা",
-        "SOLD": "বিক্রিত",
-        "DECEASED": "মৃত"
+        "DRY": "শুকনো"
       },
       "reproductiveStatus": "প্রজনন অবস্থা",
       "reproductiveOptions": {
-        "HEIFER": "বকনা",
+        "NOT_ELIGIBLE": "প্রজননের অযোগ্য",
+        "POSTPARTUM_WAITING": "প্রসবোত্তর অপেক্ষারত",
         "OPEN": "খোলা",
-        "BRED": "প্রজননকৃত",
-        "PREGNANT": "গর্ভবতী",
-        "DRY": "শুকনো",
-        "LACTATING": "দুগ্ধদানকারী",
-        "POSTPARTUM": "প্রসবোত্তর",
-        "ABORTED": "গর্ভপাত হয়েছে",
-        "RETIRED": "অবসরপ্রাপ্ত"
+        "BRED_AWAITING_CONFIRMATION": "নিশ্চিতকরণের অপেক্ষায়",
+        "PREGNANT": "গর্ভবতী"
       },
       "unassigned": "নির্ধারিত নয়",
       "save": "সংরক্ষণ করুন",

@@ -12,11 +12,7 @@ import type { CattleDetail, ProductionStatus } from "../../types";
 
 const PRODUCTION_STATUS_VARIANT: Record<ProductionStatus, "primary" | "info" | "warning" | "muted" | "destructive"> = {
   MILKING: "primary",
-  FRESH: "info",
   DRY: "warning",
-  GROWING: "muted",
-  SOLD: "muted",
-  DECEASED: "destructive",
 };
 
 function ageFromDob(dob: string | null): string | null {
@@ -74,9 +70,13 @@ export function CattleProfileCard({ cattle }: { cattle: CattleDetail }) {
         <Field
           label={t("status")}
           value={
-            <Chip variant={PRODUCTION_STATUS_VARIANT[cattle.productionStatus]}>
-              {t(`statusOptions.${cattle.productionStatus.toLowerCase()}`)}
-            </Chip>
+            cattle.productionStatus ? (
+              <Chip variant={PRODUCTION_STATUS_VARIANT[cattle.productionStatus]}>
+                {t(`statusOptions.${cattle.productionStatus.toLowerCase()}`)}
+              </Chip>
+            ) : (
+              "—"
+            )
           }
         />
         <Field label={t("dim")} value={cattle.dim != null ? t("dimValue", { days: cattle.dim }) : "—"} />

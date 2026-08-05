@@ -13,17 +13,13 @@ import { cattleStatusSchema, type CattleStatusInput } from "../schemas";
 import type { CattleListItem } from "../types";
 
 const UNSET = "__unset__";
-const PRODUCTION_STATUSES = ["MILKING", "DRY", "FRESH", "GROWING", "SOLD", "DECEASED"] as const;
+const PRODUCTION_STATUSES = ["MILKING", "DRY"] as const;
 const REPRODUCTIVE_STATUSES = [
-  "HEIFER",
+  "NOT_ELIGIBLE",
+  "POSTPARTUM_WAITING",
   "OPEN",
-  "BRED",
+  "BRED_AWAITING_CONFIRMATION",
   "PREGNANT",
-  "DRY",
-  "LACTATING",
-  "POSTPARTUM",
-  "ABORTED",
-  "RETIRED",
 ] as const;
 
 /**
@@ -45,7 +41,7 @@ export function CattleStatusDialog({
   const form = useForm<CattleStatusInput>({
     resolver: zodResolver(cattleStatusSchema),
     values: {
-      productionStatus: cattle?.productionStatus,
+      productionStatus: cattle?.productionStatus ?? undefined,
       reproductiveStatus: cattle?.reproductiveStatus ?? undefined,
     },
   });
@@ -79,11 +75,15 @@ export function CattleStatusDialog({
           control={form.control}
           name="productionStatus"
           render={({ field }) => (
-            <Select value={field.value ?? UNSET} onValueChange={field.onChange}>
+            <Select
+              value={field.value ?? UNSET}
+              onValueChange={(v) => field.onChange(v === UNSET ? undefined : v)}
+            >
               <SelectTrigger aria-label={t("productionStatus")}>
-                <SelectValue />
+                <SelectValue placeholder={t("unassigned")} />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={UNSET}>{t("unassigned")}</SelectItem>
                 {PRODUCTION_STATUSES.map((s) => (
                   <SelectItem key={s} value={s}>
                     {t(`productionOptions.${s}`)}

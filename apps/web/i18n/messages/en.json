@@ -695,11 +695,7 @@
       "feedGroup": "Feed Group",
       "statusOptions": {
         "milking": "Milking",
-        "dry": "Dry",
-        "fresh": "Fresh",
-        "growing": "Growing",
-        "sold": "Sold",
-        "deceased": "Deceased"
+        "dry": "Dry"
       },
       "healthOptions": {
         "healthy": "Healthy",
@@ -724,11 +720,7 @@
     },
     "statusOptions": {
       "milking": "Milking",
-      "dry": "Dry",
-      "fresh": "Fresh",
-      "growing": "Growing",
-      "sold": "Sold",
-      "deceased": "Deceased"
+      "dry": "Dry"
     },
     "healthOptions": {
       "healthy": "Healthy",
@@ -812,23 +804,15 @@
       "productionStatus": "Production status",
       "productionOptions": {
         "MILKING": "Milking",
-        "DRY": "Dry",
-        "FRESH": "Fresh",
-        "GROWING": "Growing",
-        "SOLD": "Sold",
-        "DECEASED": "Deceased"
+        "DRY": "Dry"
       },
       "reproductiveStatus": "Reproductive status",
       "reproductiveOptions": {
-        "HEIFER": "Heifer",
+        "NOT_ELIGIBLE": "Not eligible",
+        "POSTPARTUM_WAITING": "Postpartum (waiting)",
         "OPEN": "Open",
-        "BRED": "Bred",
-        "PREGNANT": "Pregnant",
-        "DRY": "Dry",
-        "LACTATING": "Lactating",
-        "POSTPARTUM": "Postpartum",
-        "ABORTED": "Aborted",
-        "RETIRED": "Retired"
+        "BRED_AWAITING_CONFIRMATION": "Awaiting confirmation",
+        "PREGNANT": "Pregnant"
       },
       "unassigned": "Not set",
       "save": "Save",
@@ -896,11 +880,7 @@
       },
       "statusOptions": {
         "milking": "Milking",
-        "dry": "Dry",
-        "fresh": "Fresh",
-        "growing": "Growing",
-        "sold": "Sold",
-        "deceased": "Deceased"
+        "dry": "Dry"
       },
       "tabs": {
         "overview": "Overview",

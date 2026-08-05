@@ -18,7 +18,12 @@ const CATEGORIES: { key: CategoryKey; filters: CattleListFilters; icon: React.Co
   { key: "all", filters: {}, icon: Users, iconBg: "bg-accent-indigo-tint", iconFg: "text-accent-indigo" },
   { key: "milking", filters: { productionStatus: "MILKING" }, icon: Milk, iconBg: "bg-success-tint", iconFg: "text-success" },
   { key: "dry", filters: { productionStatus: "DRY" }, icon: Ban, iconBg: "bg-muted", iconFg: "text-muted-foreground" },
-  { key: "heifer", filters: { reproductiveStatus: "HEIFER" }, icon: Venus, iconBg: "bg-accent-purple-tint", iconFg: "text-accent-purple" },
+  // RAKHAL-271 v2 dropped the standalone HEIFER reproductive state (the backend's
+  // `ReproductionState` no longer has a heifer-specific value) — `NOT_ELIGIBLE` is the closest
+  // real proxy (immature/not-yet-bred females), even though it also covers other not-yet-eligible
+  // cases. Kept the "heifer" label as-is (no new UI for this fix) since it's still the dominant
+  // real-world case for this tile.
+  { key: "heifer", filters: { reproductiveStatus: "NOT_ELIGIBLE" }, icon: Venus, iconBg: "bg-accent-purple-tint", iconFg: "text-accent-purple" },
   { key: "calf", filters: { purpose: "CALF" }, icon: Baby, iconBg: "bg-info-tint", iconFg: "text-info" },
 ];
 

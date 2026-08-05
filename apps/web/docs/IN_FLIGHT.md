@@ -26,6 +26,7 @@
 
 | Agent | Ticket | Lane (file globs) | Started | Status |
 |-------|--------|-------------------|---------|--------|
+| main-agent | (no ticket #, backend RAKHAL-269/271 follow-up) | Cattle status dropdown | features/cattle/{types,schemas}.ts, features/cattle/components/cattle-status-dialog.tsx, i18n/messages/{bn,en}.json (productionOptions/reproductiveOptions keys only) | 2026-08-05 | claimed |
 
 ## 🟢 Recently Done (pending commit)
 

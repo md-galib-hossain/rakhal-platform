@@ -11,17 +11,20 @@
 export type CattleGender = "MALE" | "FEMALE" | "CASTRATED_MALE";
 export type CattlePurpose = "MILK" | "BREEDING" | "MEAT" | "CALF" | "BULL_SERVICE" | "DUAL_PURPOSE";
 export type CattleStatus = "ACTIVE" | "SOLD" | "DEAD" | "TRANSFERRED" | "MISSING" | "ARCHIVED";
-export type ProductionStatus = "MILKING" | "DRY" | "FRESH" | "GROWING" | "SOLD" | "DECEASED";
+/** RAKHAL-269 v2 correction: trimmed to the two real production states — lifecycle/archival
+ * (sold/deceased) now lives on `CattleStatus` + soft-delete instead of being overloaded onto this
+ * enum. */
+export type ProductionStatus = "MILKING" | "DRY";
+/** RAKHAL-271 v2 correction: replaces the old 9-value `ReproductiveStatus`. Time-bound alerts
+ * (in-heat/pregnancy-check-due/expected-to-calve) moved to a derived, not-stored
+ * `ReproductionAlert[]` on the backend — not represented on this frontend yet (out of scope for
+ * this fix). */
 export type ReproductiveStatus =
-  | "HEIFER"
+  | "NOT_ELIGIBLE"
+  | "POSTPARTUM_WAITING"
   | "OPEN"
-  | "BRED"
-  | "PREGNANT"
-  | "DRY"
-  | "LACTATING"
-  | "POSTPARTUM"
-  | "ABORTED"
-  | "RETIRED";
+  | "BRED_AWAITING_CONFIRMATION"
+  | "PREGNANT";
 export type HealthStatusFilter = "HEALTHY" | "SICK" | "IN_TREATMENT" | "WITHHOLDING" | "QUARANTINE";
 
 export interface MediaUrls {
@@ -63,7 +66,9 @@ export interface CattleListItem {
   dateOfBirth: string | null;
   purpose: CattlePurpose;
   status: CattleStatus;
-  productionStatus: ProductionStatus;
+  /** Nullable since RAKHAL-269 v2: immature/never-milked animals (and dry-period animals before
+   * their first freshening) carry no production state. */
+  productionStatus: ProductionStatus | null;
   shedId: string | null;
   feedGroupId: string | null;
   lastBcs: number | null;

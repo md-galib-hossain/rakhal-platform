@@ -32,11 +32,7 @@ function GenderGlyph({ gender }: { gender: CattleListItem["gender"] }) {
 
 const PRODUCTION_STATUS_VARIANT: Record<ProductionStatus, ChipProps["variant"]> = {
   MILKING: "primary",
-  FRESH: "info",
   DRY: "warning",
-  GROWING: "teal",
-  SOLD: "muted",
-  DECEASED: "destructive",
 };
 
 /**
@@ -46,8 +42,9 @@ const PRODUCTION_STATUS_VARIANT: Record<ProductionStatus, ChipProps["variant"]> 
  * fully real data — filterable via the existing Health select in `CattleFilters` and shown in the
  * "View Details" drawer's Health tab — just no longer a list column. Figma's own mock "Status"
  * values (e.g. "Active Breeder") don't map to any real field this backend has (not
- * `productionStatus`, not `reproductiveStatus`); `productionStatus` (Milking/Fresh/Dry/Growing/
- * Sold/Deceased) is the real closest match and is used here rather than fabricating a field.
+ * `productionStatus`, not `reproductiveStatus`); `productionStatus` (RAKHAL-269 v2: trimmed to
+ * Milking/Dry, nullable) is the real closest match and is used here rather than fabricating a
+ * field.
  */
 export function buildCattleColumns(
   t: (key: string, values?: Record<string, string | number | Date>) => string,
@@ -119,11 +116,13 @@ export function buildCattleColumns(
     {
       id: "productionStatus",
       header: t("columns.status"),
-      cell: ({ row }) => (
-        <Chip variant={PRODUCTION_STATUS_VARIANT[row.original.productionStatus]}>
-          {t(`statusOptions.${row.original.productionStatus.toLowerCase()}`)}
-        </Chip>
-      ),
+      cell: ({ row }) => {
+        const status = row.original.productionStatus;
+        if (!status) return "—";
+        return (
+          <Chip variant={PRODUCTION_STATUS_VARIANT[status]}>{t(`statusOptions.${status.toLowerCase()}`)}</Chip>
+        );
+      },
     },
     {
       id: "__actions__",

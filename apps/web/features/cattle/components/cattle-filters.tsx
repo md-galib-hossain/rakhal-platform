@@ -25,10 +25,6 @@ export function CattleFilters({ actions }: { actions?: React.ReactNode }) {
           options: [
             { value: "MILKING", label: t("statusOptions.milking") },
             { value: "DRY", label: t("statusOptions.dry") },
-            { value: "FRESH", label: t("statusOptions.fresh") },
-            { value: "GROWING", label: t("statusOptions.growing") },
-            { value: "SOLD", label: t("statusOptions.sold") },
-            { value: "DECEASED", label: t("statusOptions.deceased") },
           ],
         },
         {

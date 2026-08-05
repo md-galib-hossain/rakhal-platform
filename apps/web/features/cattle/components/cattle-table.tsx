@@ -115,7 +115,7 @@ export function CattleTable() {
       c.tagNumber,
       c.breed?.name ?? "",
       c.shed?.name ?? "",
-      c.productionStatus,
+      c.productionStatus ?? "",
       c.healthStatus,
       c.aqrScore ?? "",
     ]);

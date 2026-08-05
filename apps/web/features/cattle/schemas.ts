@@ -28,9 +28,9 @@ export type CattleFormInput = z.infer<typeof cattleFormSchema>;
 
 /** Mirrors `UpdateCattleStatusDto` (`PATCH /cattle/:id/status`, PRD §8.1). */
 export const cattleStatusSchema = z.object({
-  productionStatus: z.enum(["MILKING", "DRY", "FRESH", "GROWING", "SOLD", "DECEASED"]).optional(),
+  productionStatus: z.enum(["MILKING", "DRY"]).optional(),
   reproductiveStatus: z
-    .enum(["HEIFER", "OPEN", "BRED", "PREGNANT", "DRY", "LACTATING", "POSTPARTUM", "ABORTED", "RETIRED"])
+    .enum(["NOT_ELIGIBLE", "POSTPARTUM_WAITING", "OPEN", "BRED_AWAITING_CONFIRMATION", "PREGNANT"])
     .optional(),
 });
 export type CattleStatusInput = z.infer<typeof cattleStatusSchema>;
