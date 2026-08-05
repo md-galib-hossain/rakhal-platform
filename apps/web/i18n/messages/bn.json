@@ -707,6 +707,7 @@
     },
     "columns": {
       "cattle": "নাম",
+      "category": "শ্রেণি",
       "breed": "জাত",
       "age": "বয়স",
       "shed": "শেড",
@@ -721,6 +722,25 @@
     "statusOptions": {
       "milking": "দুধ দেওয়া",
       "dry": "শুকনো"
+    },
+    "animalCategory": {
+      "CALF": "বাছুর",
+      "HEIFER": "বকনা বাছুর",
+      "COW": "গাভী",
+      "BULL": "ষাঁড়",
+      "STEER": "খাসি গরু"
+    },
+    "reproductionAlerts": {
+      "count": "{count} টি প্রজনন সতর্কতা",
+      "HEAT_DETECTED": "মদগ্রহণ শনাক্ত",
+      "PREGNANCY_CHECK_DUE": "গর্ভধারণ পরীক্ষা বাকি",
+      "OVERDUE_PREGNANCY_CHECK": "গর্ভধারণ পরীক্ষার মেয়াদ পার হয়েছে",
+      "REPEAT_BREEDER": "বারবার প্রজনন ব্যর্থ",
+      "LONG_DAYS_OPEN": "দীর্ঘদিন গর্ভধারণ হয়নি",
+      "CALVING_DUE": "বাচ্চা প্রসবের সময় ঘনিয়ে এসেছে",
+      "CALVING_OVERDUE": "বাচ্চা প্রসবের মেয়াদ পার হয়েছে",
+      "ABORTION_HISTORY": "গর্ভপাতের ইতিহাস",
+      "REPRODUCTIVE_HOLD": "প্রজনন স্থগিত"
     },
     "healthOptions": {
       "healthy": "সুস্থ",
@@ -815,6 +835,9 @@
         "PREGNANT": "গর্ভবতী"
       },
       "unassigned": "নির্ধারিত নয়",
+      "lactationStartDate": "দুগ্ধদান শুরুর তারিখ",
+      "lactationStartDateHint": "এই গাভীর কোনো সক্রিয় দুগ্ধকাল রেকর্ড নেই — দুধ দেওয়া শুরু হওয়ার তারিখ দিন।",
+      "lactationStartDateRequired": "এই গাভীকে দুধ দেওয়া হিসেবে চিহ্নিত করতে দুগ্ধদান শুরুর তারিখ আবশ্যক।",
       "save": "সংরক্ষণ করুন",
       "cancel": "বাতিল",
       "updatedToast": "অবস্থা আপডেট করা হয়েছে।",
@@ -880,11 +903,57 @@
       },
       "statusOptions": {
         "milking": "দুধ দেওয়া",
-        "dry": "শুকনো",
-        "fresh": "সদ্য বিয়ানো",
-        "growing": "বেড়ে ওঠা",
-        "sold": "বিক্রিত",
-        "deceased": "মৃত"
+        "dry": "শুকনো"
+      },
+      "category": "শ্রেণি",
+      "animalCategoryOptions": {
+        "CALF": "বাছুর",
+        "HEIFER": "বকনা বাছুর",
+        "COW": "গাভী",
+        "BULL": "ষাঁড়",
+        "STEER": "খাসি গরু"
+      },
+      "lactationStage": "স্তন্যদান পর্যায়",
+      "lactationStageOptions": {
+        "FRESH": "সদ্য বিয়ানো",
+        "EARLY": "প্রাথমিক স্তন্যদান",
+        "MID": "মধ্য স্তন্যদান",
+        "LATE": "শেষ স্তন্যদান",
+        "DRY_PERIOD": "শুকনা সময়"
+      },
+      "pregnancyStage": "গর্ভাবস্থার পর্যায়",
+      "pregnancyStageOptions": {
+        "EARLY": "প্রাথমিক",
+        "MID": "মধ্য",
+        "LATE": "শেষ",
+        "CLOSE_UP": "প্রসবপূর্ব"
+      },
+      "reproductionAlerts": "প্রজনন সতর্কতা",
+      "reproductionAlertOptions": {
+        "HEAT_DETECTED": "মদগ্রহণ শনাক্ত",
+        "PREGNANCY_CHECK_DUE": "গর্ভধারণ পরীক্ষা বাকি",
+        "OVERDUE_PREGNANCY_CHECK": "গর্ভধারণ পরীক্ষার মেয়াদ পার হয়েছে",
+        "REPEAT_BREEDER": "বারবার প্রজনন ব্যর্থ",
+        "LONG_DAYS_OPEN": "দীর্ঘদিন গর্ভধারণ হয়নি",
+        "CALVING_DUE": "বাচ্চা প্রসবের সময় ঘনিয়ে এসেছে",
+        "CALVING_OVERDUE": "বাচ্চা প্রসবের মেয়াদ পার হয়েছে",
+        "ABORTION_HISTORY": "গর্ভপাতের ইতিহাস",
+        "REPRODUCTIVE_HOLD": "প্রজনন স্থগিত"
+      },
+      "milkEligibility": "দুধ বিক্রয়যোগ্যতা",
+      "milkEligibilityOptions": {
+        "SALEABLE": "বিক্রয়যোগ্য",
+        "WITHHELD": "আটকানো",
+        "COLOSTRUM": "শালদুধ",
+        "DISCARD_REQUIRED": "ফেলে দিতে হবে"
+      },
+      "milkRestrictionReasonOptions": {
+        "COLOSTRUM_PERIOD": "শালদুধ সময়কাল",
+        "MEDICINE_WITHDRAWAL": "ওষুধ প্রত্যাহার সময়কাল",
+        "MASTITIS": "স্তনপ্রদাহ",
+        "VETERINARY_HOLD": "পশু চিকিৎসক স্থগিতাদেশ",
+        "ABNORMAL_MILK": "অস্বাভাবিক দুধ",
+        "OTHER": "অন্যান্য"
       },
       "tabs": {
         "overview": "ওভারভিউ",
@@ -1750,7 +1819,15 @@
       "editSubmittedConfirm": "সংরক্ষণ করুন এবং ট্যাংক সামঞ্জস্য করুন",
       "discardUnsavedTitle": "সংরক্ষণ না করা এন্ট্রি বাদ দেবেন?",
       "discardUnsavedDescription": "তারিখ পরিবর্তন করলে বর্তমান তারিখের জন্য এখনও সংরক্ষণ না করা দুধের এন্ট্রিগুলো বাদ যাবে।",
-      "discardUnsavedConfirm": "বাদ দিন এবং পরিবর্তন করুন"
+      "discardUnsavedConfirm": "বাদ দিন এবং পরিবর্তন করুন",
+      "dispositionOptions": {
+        "SALEABLE": "বিক্রয়যোগ্য",
+        "WITHHELD": "আটকানো",
+        "COLOSTRUM": "শালদুধ",
+        "CALF_FEED": "বাছুরের খাদ্য",
+        "DISCARDED": "ফেলে দেওয়া হয়েছে",
+        "HOUSEHOLD_USE": "গৃহস্থালি ব্যবহার"
+      }
     },
     "import": {
       "trigger": "এক্সেল ইমপোর্ট করুন",
@@ -1856,6 +1933,7 @@
       "recordAi": "এআই রেকর্ড করুন",
       "recordCheck": "পরীক্ষা রেকর্ড করুন",
       "recordCalving": "বাছুর প্রসব রেকর্ড করুন",
+      "recordDryOff": "ড্রাই-অফ রেকর্ড করুন",
       "daysOpen": "{value} দিন ওপেন",
       "daysRemaining": "{value} দিন বাকি",
       "dryoffTarget": "লক্ষ্য:",
@@ -2014,6 +2092,24 @@
         "createdToast": "গর্ভপাত রেকর্ড হয়েছে।",
         "genericError": "গর্ভপাত রেকর্ড করা যায়নি। আবার চেষ্টা করুন।"
       },
+      "dryOff": {
+        "title": "ড্রাই-অফ রেকর্ড করুন",
+        "dryOffDate": "ড্রাই-অফের তারিখ",
+        "reason": "কারণ",
+        "reasonPlaceholder": "একটি কারণ নির্বাচন করুন (ঐচ্ছিক)",
+        "reasonValue": {
+          "SCHEDULED": "নির্ধারিত",
+          "LOW_PRODUCTION": "কম উৎপাদন",
+          "HEALTH": "স্বাস্থ্য",
+          "PREGNANCY": "গর্ভাবস্থা",
+          "MANAGEMENT_DECISION": "ব্যবস্থাপনার সিদ্ধান্ত"
+        },
+        "notes": "নোট",
+        "notesPlaceholder": "ঐচ্ছিক নোট",
+        "submit": "ড্রাই-অফ সংরক্ষণ করুন",
+        "createdToast": "ড্রাই-অফ রেকর্ড হয়েছে।",
+        "genericError": "ড্রাই-অফ রেকর্ড করা যায়নি। আবার চেষ্টা করুন।"
+      },
       "applyProtocol": {
         "title": "প্রোটোকল প্রয়োগ করুন",
         "protocol": "প্রোটোকল",
@@ -2122,7 +2218,17 @@
       "manageCase": "কেস পরিচালনা করুন",
       "error": "সিক বে তালিকা লোড করা যায়নি।",
       "emptyTitle": "কোনো সক্রিয় স্বাস্থ্য কেস নেই",
-      "emptyDescription": "এখানে ট্র্যাকিং শুরু করতে একটি অসুস্থতা রিপোর্ট করুন।"
+      "emptyDescription": "এখানে ট্র্যাকিং শুরু করতে একটি অসুস্থতা রিপোর্ট করুন।",
+      "conditionValue": {
+        "MASTITIS": "ম্যাস্টাইটিস",
+        "LAMENESS": "খোঁড়ানো",
+        "METRITIS": "মেট্রাইটিস",
+        "KETOSIS": "কিটোসিস",
+        "MILK_FEVER": "মিল্ক ফিভার",
+        "FEVER": "জ্বর",
+        "INJURY": "আঘাত",
+        "OTHER": "অন্যান্য"
+      }
     },
     "taskHub": {
       "error": "স্বাস্থ্য টাস্ক লোড করা যায়নি।",
@@ -2359,6 +2465,8 @@
       "cattle": "গবাদি পশু",
       "diagnosis": "রোগ নির্ণয়",
       "diagnosisPlaceholder": "যেমন: ম্যাস্টাইটিস",
+      "condition": "অবস্থা",
+      "conditionPlaceholder": "অবস্থা নির্বাচন করুন",
       "diagnosisType": "রোগের ধরন",
       "priority": "অগ্রাধিকার",
       "notes": "নোট",
@@ -2380,6 +2488,16 @@
         "MEDIUM": "মাঝারি",
         "HIGH": "উচ্চ",
         "CRITICAL": "গুরুতর"
+      },
+      "conditionValue": {
+        "MASTITIS": "ম্যাস্টাইটিস",
+        "LAMENESS": "খোঁড়ানো",
+        "METRITIS": "মেট্রাইটিস",
+        "KETOSIS": "কিটোসিস",
+        "MILK_FEVER": "মিল্ক ফিভার",
+        "FEVER": "জ্বর",
+        "INJURY": "আঘাত",
+        "OTHER": "অন্যান্য"
       }
     },
     "selectCase": {
@@ -2415,6 +2533,16 @@
           "MEDIUM": "মাঝারি",
           "HIGH": "উচ্চ",
           "CRITICAL": "গুরুতর"
+        },
+        "conditionValue": {
+          "MASTITIS": "ম্যাস্টাইটিস",
+          "LAMENESS": "খোঁড়ানো",
+          "METRITIS": "মেট্রাইটিস",
+          "KETOSIS": "কিটোসিস",
+          "MILK_FEVER": "মিল্ক ফিভার",
+          "FEVER": "জ্বর",
+          "INJURY": "আঘাত",
+          "OTHER": "অন্যান্য"
         }
       },
       "logTreatment": {
@@ -2504,15 +2632,20 @@
         "name": "পশু",
         "milkUntil": "দুধ উইথড্রয়াল পর্যন্ত",
         "meatUntil": "মাংস উইথড্রয়াল পর্যন্ত",
-        "status": "অবস্থা"
+        "status": "অবস্থা",
+        "action": "পদক্ষেপ"
       },
       "statusOptions": {
         "ALL": "সব",
         "ACTIVE": "সক্রিয়",
-        "COMPLETED": "পরিষ্কার"
+        "READY_FOR_RELEASE": "মুক্তির জন্য প্রস্তুত",
+        "RELEASED": "মুক্ত করা হয়েছে",
+        "CANCELLED": "বাতিল করা হয়েছে"
       },
       "refresh": "রিফ্রেশ",
       "refreshedToast": "{count}টি উইথড্রয়াল পরিষ্কার করা হয়েছে।",
+      "release": "মুক্ত করুন",
+      "releasedToast": "উইথড্রয়াল মুক্ত করা হয়েছে।",
       "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
     }
   },

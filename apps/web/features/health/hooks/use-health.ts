@@ -16,6 +16,7 @@ import type {
   LogTreatmentPayload,
   MortalityPayload,
   RescheduleTaskPayload,
+  SafetyWithdrawalStatus,
   SkipTaskPayload,
   UpdateHealthPlanPayload,
 } from "../types";
@@ -143,7 +144,7 @@ export function useSkipTask() {
   });
 }
 
-export function useSafetyWithdrawals(filters: { status?: "ACTIVE" | "COMPLETED" } = {}) {
+export function useSafetyWithdrawals(filters: { status?: SafetyWithdrawalStatus } = {}) {
   return useQuery({
     queryKey: [...qk.health.safetyWithdrawals(), filters],
     queryFn: () => healthApi.safetyWithdrawals(filters),
@@ -155,6 +156,15 @@ export function useRefreshSafetyWithdrawals() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => healthApi.refreshSafetyWithdrawals(),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: qk.health.safetyWithdrawals() }),
+  });
+}
+
+/** RAKHAL-276 — the only path to `RELEASED`, `healthcare.update`-gated. */
+export function useReleaseWithdrawal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => healthApi.releaseWithdrawal(id),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: qk.health.safetyWithdrawals() }),
   });
 }

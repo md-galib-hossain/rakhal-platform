@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { FormDialog } from "@/components/shared/form-dialog";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUpdateCattleStatus } from "../hooks/use-cattle";
 import { cattleStatusSchema, type CattleStatusInput } from "../schemas";
@@ -43,11 +44,23 @@ export function CattleStatusDialog({
     values: {
       productionStatus: cattle?.productionStatus ?? undefined,
       reproductiveStatus: cattle?.reproductiveStatus ?? undefined,
+      lactationStartDate: undefined,
     },
   });
 
+  const productionStatus = form.watch("productionStatus");
+  // RAKHAL-291: a cow with no active lactation (`lactationStage === null`, derived server-side by
+  // `composeStatus()`) needs a `lactationStartDate` supplied when it's being set to MILKING — the backend
+  // uses it to create a `Lactation` row (`startReason: PURCHASE_IMPORT`) instead of hard-erroring, covering
+  // e.g. a purchased cow that's already milking and never calved in this system.
+  const needsLactationStartDate = productionStatus === "MILKING" && cattle?.lactationStage === null;
+
   async function onSubmit(values: CattleStatusInput) {
     if (!cattle) return;
+    if (needsLactationStartDate && !values.lactationStartDate) {
+      form.setError("lactationStartDate", { type: "required", message: t("lactationStartDateRequired") });
+      return;
+    }
     try {
       await updateStatus.mutateAsync({ id: cattle.id, dto: values });
       toast.success(t("updatedToast"));
@@ -119,6 +132,16 @@ export function CattleStatusDialog({
           )}
         />
       </div>
+      {needsLactationStartDate && (
+        <div className="flex flex-col gap-1.5">
+          <Label>{t("lactationStartDate")}</Label>
+          <Input type="date" {...form.register("lactationStartDate")} aria-label={t("lactationStartDate")} />
+          <p className="text-muted-foreground text-xs">{t("lactationStartDateHint")}</p>
+          {form.formState.errors.lactationStartDate && (
+            <p className="text-destructive text-xs">{form.formState.errors.lactationStartDate.message}</p>
+          )}
+        </div>
+      )}
     </FormDialog>
   );
 }

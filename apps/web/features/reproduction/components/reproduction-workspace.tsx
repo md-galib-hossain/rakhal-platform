@@ -15,8 +15,9 @@ import { BreedingEventDialog } from "./dialogs/breeding-event-dialog";
 import { PregnancyDiagnosisDialog } from "./dialogs/pregnancy-diagnosis-dialog";
 import { CalvingEventDialog } from "./dialogs/calving-event-dialog";
 import { AbortionEventDialog } from "./dialogs/abortion-event-dialog";
+import { DryOffDialog } from "./dialogs/dry-off-dialog";
 
-type DialogKind = "heat" | "breeding" | "pregnancyDiagnosis" | "calving" | "abortion" | null;
+type DialogKind = "heat" | "breeding" | "pregnancyDiagnosis" | "calving" | "abortion" | "dryOff" | null;
 
 /**
  * Client-side shell for the Reproduction page — holds which create dialog is open and which
@@ -65,6 +66,7 @@ export function ReproductionWorkspace() {
             onRecordAi={(id) => open("breeding", id)}
             onRecordPregnancyCheck={(id) => open("pregnancyDiagnosis", id)}
             onRecordCalving={(id) => open("calving", id)}
+            onRecordDryOff={(id) => open("dryOff", id)}
           />
         </div>
         <ReproductionCalvingForecast />
@@ -95,6 +97,7 @@ export function ReproductionWorkspace() {
         onOpenChange={(next) => !next && close()}
         defaultCattleId={cattleId}
       />
+      <DryOffDialog cattleId={cattleId} open={dialog === "dryOff"} onOpenChange={(next) => !next && close()} />
     </>
   );
 }

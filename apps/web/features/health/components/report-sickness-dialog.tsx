@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateHealthCase } from "../hooks/use-health";
 import { reportSicknessSchema, type ReportSicknessInput } from "../schemas";
-import type { HealthDiagnosisType, HealthPriority } from "../types";
+import type { HealthCondition, HealthDiagnosisType, HealthPriority } from "../types";
 
 const DIAGNOSIS_TYPES: HealthDiagnosisType[] = [
   "DISEASE",
@@ -26,6 +26,17 @@ const DIAGNOSIS_TYPES: HealthDiagnosisType[] = [
   "OTHER",
 ];
 const PRIORITIES: HealthPriority[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
+const HEALTH_CONDITIONS: HealthCondition[] = [
+  "MASTITIS",
+  "LAMENESS",
+  "METRITIS",
+  "KETOSIS",
+  "MILK_FEVER",
+  "FEVER",
+  "INJURY",
+  "OTHER",
+];
+const UNSET = "__unset__";
 
 /** "Report Sickness" — no Figma frame was given for this modal (only the sick-bay page + Case
  * Management sheet), so it's a plain `FormDialog` mirroring `CreateHealthCaseDto`, needed so the
@@ -73,6 +84,32 @@ export function ReportSicknessDialog({ open, onOpenChange }: { open: boolean; on
       <div className="flex flex-col gap-2">
         <Label>{t("diagnosis")}</Label>
         <Input {...form.register("diagnosis")} placeholder={t("diagnosisPlaceholder")} />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label>{t("condition")}</Label>
+        <Controller
+          control={form.control}
+          name="condition"
+          render={({ field }) => (
+            <Select
+              value={field.value ?? UNSET}
+              onValueChange={(v) => field.onChange(v === UNSET ? undefined : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={t("conditionPlaceholder")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={UNSET}>{t("conditionPlaceholder")}</SelectItem>
+                {HEALTH_CONDITIONS.map((v) => (
+                  <SelectItem key={v} value={v}>
+                    {t(`conditionValue.${v}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-3">

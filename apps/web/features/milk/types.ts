@@ -49,6 +49,10 @@ export interface MilkLogRow {
      * already moved, so re-saving one now reconciles the balance instead of a
      * plain overwrite. */
     submittedSessions: MilkSession[];
+    /** RAKHAL-277's per-entry `disposition`, keyed by session — only populated for
+     * sessions that already have a logged `MilkLogEntry` (mirrors `milk.service.ts`'s
+     * `logTable()`: `Object.fromEntries(cowEntries.map((e) => [e.session, e.disposition]))`). */
+    dispositions: Partial<Record<MilkSession, MilkDisposition>>;
   };
 }
 
@@ -162,4 +166,36 @@ export interface ExportMilkLogInput {
   from: string;
   to: string;
   cattleIds?: string[];
+}
+
+/**
+ * RAKHAL-277/278 (backend `MilkDisposition` + `MilkEligibility`) — now wired. Confirmed by reading
+ * the backend source directly (not guessed): `GET /milk/log` (`logTable()`) now includes
+ * `log.dispositions` (per-session map, see `MilkLogRow` above) and `GET /milk/cattle/:id/eligibility`
+ * (`MilkController.eligibility` → `MilkService.getMilkEligibility`) returns `MilkEligibility` below.
+ */
+export const MILK_DISPOSITIONS = [
+  "SALEABLE",
+  "WITHHELD",
+  "COLOSTRUM",
+  "CALF_FEED",
+  "DISCARDED",
+  "HOUSEHOLD_USE",
+] as const;
+export type MilkDisposition = (typeof MILK_DISPOSITIONS)[number];
+
+export type MilkEligibilityStatus = "SALEABLE" | "WITHHELD" | "COLOSTRUM" | "DISCARD_REQUIRED";
+
+export type MilkRestrictionReason =
+  | "COLOSTRUM_PERIOD"
+  | "MEDICINE_WITHDRAWAL"
+  | "MASTITIS"
+  | "VETERINARY_HOLD"
+  | "ABNORMAL_MILK"
+  | "OTHER";
+
+export interface MilkEligibility {
+  isSaleable: boolean;
+  primaryStatus: MilkEligibilityStatus;
+  reasons: MilkRestrictionReason[];
 }

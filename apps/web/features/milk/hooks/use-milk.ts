@@ -65,6 +65,17 @@ export function useMilkAnomalies(date?: string) {
   });
 }
 
+/** RAKHAL-278 — a cow's current milk eligibility (`GET /milk/cattle/:id/eligibility`). Disabled
+ * until a `cattleId` is known, same pattern the detail-tab hooks in other features use. */
+export function useMilkEligibility(cattleId: string | undefined) {
+  return useQuery({
+    queryKey: qk.milk.eligibility(cattleId ?? ""),
+    queryFn: () => milkApi.eligibility(cattleId as string),
+    enabled: !!cattleId,
+    staleTime: STALE_TIME,
+  });
+}
+
 /** Owner-only session toggle — invalidates every `["milk","log"]` entry (all dates/shed filters
  * share the same `sessionConfig`, unlike save/submit which only affect one date). */
 export function useUpdateMilkSessions() {

@@ -26,12 +26,22 @@ export const cattleFormSchema = z.object({
 });
 export type CattleFormInput = z.infer<typeof cattleFormSchema>;
 
-/** Mirrors `UpdateCattleStatusDto` (`PATCH /cattle/:id/status`, PRD §8.1). */
+/**
+ * Mirrors `UpdateCattleStatusDto` (`PATCH /cattle/:id/status`, PRD §8.1, RAKHAL-291). `lactationStartDate`
+ * is only required by the backend when `productionStatus: "MILKING"` is set on a cow with no active
+ * lactation (`lactationStage === null`) — that condition depends on the cow's own data, not on anything in
+ * this form's state, so it's deliberately left optional here; `cattle-status-dialog.tsx`'s submit handler
+ * checks the condition (it has the cow's `lactationStage`) and blocks submission with a field-level error
+ * via `form.setError` before calling the mutation, rather than encoding external cow state into this schema.
+ */
 export const cattleStatusSchema = z.object({
   productionStatus: z.enum(["MILKING", "DRY"]).optional(),
   reproductiveStatus: z
     .enum(["NOT_ELIGIBLE", "POSTPARTUM_WAITING", "OPEN", "BRED_AWAITING_CONFIRMATION", "PREGNANT"])
     .optional(),
+  /** `YYYY-MM-DD` (`type="date"` input value). Creates a `Lactation` row (`startReason: PURCHASE_IMPORT`)
+   * server-side when supplied. */
+  lactationStartDate: z.string().optional(),
 });
 export type CattleStatusInput = z.infer<typeof cattleStatusSchema>;
 

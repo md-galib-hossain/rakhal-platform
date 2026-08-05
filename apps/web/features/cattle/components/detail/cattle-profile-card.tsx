@@ -7,12 +7,24 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Chip } from "@/components/ui/chip";
 import { Card } from "@/components/ui/card";
 import { DateText } from "@/components/shared/date-text";
+import { useMilkEligibility } from "@/features/milk/hooks/use-milk";
+import type { MilkEligibilityStatus } from "@/features/milk/types";
 import { avatarTint } from "../../avatar-tint";
-import type { CattleDetail, ProductionStatus } from "../../types";
+import type { AnimalCategory, CattleDetail, ProductionStatus } from "../../types";
 
 const PRODUCTION_STATUS_VARIANT: Record<ProductionStatus, "primary" | "info" | "warning" | "muted" | "destructive"> = {
   MILKING: "primary",
   DRY: "warning",
+};
+
+/** RAKHAL-270 — mirrors `cattle-columns.tsx`'s `ANIMAL_CATEGORY_VARIANT` (kept per-file, same
+ * pattern `PRODUCTION_STATUS_VARIANT` above already uses across both files). */
+const ANIMAL_CATEGORY_VARIANT: Record<AnimalCategory, "primary" | "info" | "warning" | "muted" | "destructive" | "teal" | "purple" | "indigo"> = {
+  CALF: "info",
+  HEIFER: "purple",
+  COW: "primary",
+  BULL: "indigo",
+  STEER: "teal",
 };
 
 function ageFromDob(dob: string | null): string | null {
@@ -35,6 +47,17 @@ function ageFromDob(dob: string | null): string | null {
  * `reproductiveStatus` (real data, no extra fetch) as Positive/Negative rather than the mock's
  * "Positive (90D)" — the days-pregnant count only exists behind the female-only reproduction-summary
  * call the Reproduction tab already owns, so it isn't duplicated here. */
+/** RAKHAL-278 — matches the backend's `MILKING_PURPOSES` (`milk.service.ts`), the same purposes
+ * `GET /milk/log` itself queries for, so eligibility is only fetched/shown where it's meaningful. */
+const MILK_ELIGIBLE_PURPOSES = ["MILK", "DUAL_PURPOSE"];
+
+const MILK_ELIGIBILITY_VARIANT: Record<MilkEligibilityStatus, "primary" | "destructive" | "info" | "warning"> = {
+  SALEABLE: "primary",
+  WITHHELD: "destructive",
+  COLOSTRUM: "info",
+  DISCARD_REQUIRED: "warning",
+};
+
 export function CattleProfileCard({ cattle }: { cattle: CattleDetail }) {
   const t = useTranslations("cattle.detail");
   const age = ageFromDob(cattle.dateOfBirth);
@@ -42,6 +65,9 @@ export function CattleProfileCard({ cattle }: { cattle: CattleDetail }) {
     cattle.gender === "FEMALE" && cattle.reproductiveStatus
       ? t(`pregnantOptions.${cattle.reproductiveStatus === "PREGNANT" ? "positive" : "negative"}`)
       : null;
+  const isMilkEligible = cattle.gender === "FEMALE" && MILK_ELIGIBLE_PURPOSES.includes(cattle.purpose);
+  const eligibilityQuery = useMilkEligibility(isMilkEligible ? cattle.id : undefined);
+  const eligibility = eligibilityQuery.data;
 
   return (
     <Card className="flex flex-col gap-6 rounded-xl p-4">
@@ -61,6 +87,14 @@ export function CattleProfileCard({ cattle }: { cattle: CattleDetail }) {
       </div>
 
       <div className="grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-3">
+        <Field
+          label={t("category")}
+          value={
+            <Chip variant={ANIMAL_CATEGORY_VARIANT[cattle.animalCategory]}>
+              {t(`animalCategoryOptions.${cattle.animalCategory}`)}
+            </Chip>
+          }
+        />
         <Field label={t("breed")} value={cattle.breed?.name ?? "—"} />
         <Field label={t("gender")} value={t(`genderOptions.${cattle.gender}`)} />
         <Field label={t("shed")} value={cattle.shed?.name ?? "—"} />
@@ -81,7 +115,51 @@ export function CattleProfileCard({ cattle }: { cattle: CattleDetail }) {
         />
         <Field label={t("dim")} value={cattle.dim != null ? t("dimValue", { days: cattle.dim }) : "—"} />
         {pregnantStatus ? <Field label={t("pregnantStatus")} value={pregnantStatus} /> : null}
+        {/* RAKHAL-273 — supplementary info, not filterable tiles (per the ticket's own guidance),
+            so plain `Field`s alongside the existing status/DIM/pregnant fields rather than a
+            separate section. Only rendered when applicable (null otherwise). */}
+        {cattle.lactationStage ? (
+          <Field label={t("lactationStage")} value={t(`lactationStageOptions.${cattle.lactationStage}`)} />
+        ) : null}
+        {cattle.pregnancyStage ? (
+          <Field label={t("pregnancyStage")} value={t(`pregnancyStageOptions.${cattle.pregnancyStage}`)} />
+        ) : null}
+        {/* RAKHAL-278 — animal-level milk eligibility (distinct from the per-session `disposition`
+            shown in the Milk Log table). Only fetched/rendered for milking-purpose females. */}
+        {eligibility ? (
+          <Field
+            label={t("milkEligibility")}
+            value={
+              <span
+                title={
+                  eligibility.reasons.length > 0
+                    ? eligibility.reasons.map((r) => t(`milkRestrictionReasonOptions.${r}`)).join(", ")
+                    : undefined
+                }
+              >
+                <Chip variant={MILK_ELIGIBILITY_VARIANT[eligibility.primaryStatus]}>
+                  {t(`milkEligibilityOptions.${eligibility.primaryStatus}`)}
+                </Chip>
+              </span>
+            }
+          />
+        ) : null}
       </div>
+
+      {/* RAKHAL-272 — full reproduction-alerts list (detail view gets the complete badge row; the
+          table only has room for a compact count, see `ReproductionAlertsIndicator`). */}
+      {cattle.reproductionAlerts.length > 0 ? (
+        <div className="flex flex-col gap-2 border-t border-border pt-4">
+          <p className="text-xs text-muted-foreground">{t("reproductionAlerts")}</p>
+          <div className="flex flex-wrap gap-2">
+            {cattle.reproductionAlerts.map((alert) => (
+              <Chip key={alert} variant="warning">
+                {t(`reproductionAlertOptions.${alert}`)}
+              </Chip>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </Card>
   );
 }

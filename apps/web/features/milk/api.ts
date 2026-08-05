@@ -4,6 +4,7 @@ import { apiFetch, apiUpload } from "@/lib/api/client";
 import type {
   ExportMilkLogInput,
   MilkAnomaliesResponse,
+  MilkEligibility,
   MilkImportConfirmResult,
   MilkImportPreview,
   MilkLogTableResponse,
@@ -33,6 +34,10 @@ export const milkApi = {
   },
   anomalies(date?: string): Promise<MilkAnomaliesResponse> {
     return apiFetch<MilkAnomaliesResponse>("/milk/anomalies", { searchParams: { date } });
+  },
+  // RAKHAL-278 — `MilkController.eligibility()` → `MilkService.getMilkEligibility(farmId, cattleId)`.
+  eligibility(cattleId: string): Promise<MilkEligibility> {
+    return apiFetch<MilkEligibility>(`/milk/cattle/${cattleId}/eligibility`);
   },
   reviewAnomaly(id: string, input: ReviewAnomalyInput): Promise<unknown> {
     return apiFetch(`/milk/anomalies/${id}/review`, { method: "POST", body: input });

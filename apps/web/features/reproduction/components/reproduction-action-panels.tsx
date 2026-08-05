@@ -33,16 +33,18 @@ export interface ReproductionActionPanelsProps {
   onRecordAi: (cattleId: string) => void;
   onRecordPregnancyCheck: (cattleId: string, breedingEventId?: string) => void;
   onRecordCalving: (cattleId: string) => void;
+  onRecordDryOff: (cattleId: string) => void;
 }
 
 /** "Cows Needing Action Today" (PRD §9.2) — 5 panels from the real dashboard's `action_required`.
  * No Figma frames for this module; laid out as a card-per-panel grid matching this app's other
- * dashboard widget density (Milk/Cattle), not a single cramped list. Dry-off has no backend route
- * yet (`DryPeriod` is schema-only) — that panel is informational only, no action button. */
+ * dashboard widget density (Milk/Cattle), not a single cramped list. Dry-off now has a real backend
+ * route (RD-038, `POST /reproduction/cattle/:id/dry-off`) — that panel gained an action button. */
 export function ReproductionActionPanels({
   onRecordAi,
   onRecordPregnancyCheck,
   onRecordCalving,
+  onRecordDryOff,
 }: ReproductionActionPanelsProps) {
   const t = useTranslations("reproduction.actionPanels");
   const dashboard = useReproductionDashboard();
@@ -144,9 +146,14 @@ export function ReproductionActionPanels({
           renderRow={(row: DryoffDue14DaysRow) => (
             <Row key={row.cattle_id}>
               <CowLabel name={row.name} tag={row.tag} />
-              <span className="text-xs text-muted-foreground">
-                {t("dryoffTarget")} <DateText date={row.dryoff_target_date} />
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {t("dryoffTarget")} <DateText date={row.dryoff_target_date} />
+                </span>
+                <Button size="sm" variant="outline" onClick={() => onRecordDryOff(row.cattle_id)}>
+                  {t("recordDryOff")}
+                </Button>
+              </div>
             </Row>
           )}
         />

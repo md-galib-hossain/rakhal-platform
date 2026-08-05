@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRefreshSafetyWithdrawals, useSafetyWithdrawals } from "../hooks/use-health";
 import { SafetyWithdrawalTable } from "./safety-withdrawal-table";
+import type { SafetyWithdrawalStatus } from "../types";
 
 const ALL = "__all__";
 
@@ -20,7 +21,7 @@ const ALL = "__all__";
  * is a manual trigger so a manager can force it and see the count of newly-cleared rows. */
 export function SafetyWithdrawalTab() {
   const t = useTranslations("health.safetyWithdrawals");
-  const [status, setStatus] = useState<"ACTIVE" | "COMPLETED" | typeof ALL>(ALL);
+  const [status, setStatus] = useState<SafetyWithdrawalStatus | typeof ALL>(ALL);
   const query = useSafetyWithdrawals(status === ALL ? {} : { status });
   const refresh = useRefreshSafetyWithdrawals();
 
@@ -43,7 +44,9 @@ export function SafetyWithdrawalTab() {
           <SelectContent>
             <SelectItem value={ALL}>{t("statusOptions.ALL")}</SelectItem>
             <SelectItem value="ACTIVE">{t("statusOptions.ACTIVE")}</SelectItem>
-            <SelectItem value="COMPLETED">{t("statusOptions.COMPLETED")}</SelectItem>
+            <SelectItem value="READY_FOR_RELEASE">{t("statusOptions.READY_FOR_RELEASE")}</SelectItem>
+            <SelectItem value="RELEASED">{t("statusOptions.RELEASED")}</SelectItem>
+            <SelectItem value="CANCELLED">{t("statusOptions.CANCELLED")}</SelectItem>
           </SelectContent>
         </Select>
         <Can I="healthcare.update">

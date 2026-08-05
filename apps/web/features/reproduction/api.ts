@@ -7,6 +7,7 @@ import type {
   ApplyProtocolResult,
   BreedingEventRow,
   CalvingEventRow,
+  DryPeriodRow,
   HeatEventRow,
   LactationRow,
   PregnancyRow,
@@ -23,6 +24,7 @@ import type {
   CreateAbortionEventInput,
   CreateBreedingEventInput,
   CreateCalvingEventInput,
+  CreateDryOffInput,
   CreateHeatEventInput,
   CreatePregnancyDiagnosisInput,
   RecordProtocolAiInput,
@@ -95,6 +97,11 @@ export const reproductionApi = {
 
   lactations(cattleId?: string, cursor?: string, limit = 20): Promise<CursorPage<LactationRow>> {
     return apiFetchPage<LactationRow>("/reproduction/lactations", { searchParams: { cattleId, cursor, limit } });
+  },
+
+  /** RD-038 + RAKHAL-274 — `cattleId` is the route param, not part of the body. */
+  recordDryOff(cattleId: string, input: CreateDryOffInput): Promise<DryPeriodRow> {
+    return apiFetch<DryPeriodRow>(`/reproduction/cattle/${cattleId}/dry-off`, { method: "POST", body: input });
   },
 
   // Protocols (RAKHAL-214) — `reproduction/protocols*`.

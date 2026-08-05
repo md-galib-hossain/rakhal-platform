@@ -81,6 +81,15 @@ export const abortionEventSchema = z.object({
 });
 export type CreateAbortionEventInput = z.infer<typeof abortionEventSchema>;
 
+/** Mirrors `CreateDryOffDto` (RD-038 + RAKHAL-274's `reason`) — `cattleId` is a route param
+ * (`POST /reproduction/cattle/:id/dry-off`), not part of the body, so it's not in this schema. */
+export const dryOffSchema = z.object({
+  dryOffDate: z.string().optional(),
+  reason: z.enum(["SCHEDULED", "LOW_PRODUCTION", "HEALTH", "PREGNANCY", "MANAGEMENT_DECISION"]).optional(),
+  notes: z.string().trim().optional(),
+});
+export type CreateDryOffInput = z.infer<typeof dryOffSchema>;
+
 /** Mirrors `ApplyProtocolDto` — `startDate` YYYY-MM-DD, defaults to today on the backend. */
 export const applyProtocolSchema = z.object({
   protocolId: z.string().min(1, "Select a protocol"),

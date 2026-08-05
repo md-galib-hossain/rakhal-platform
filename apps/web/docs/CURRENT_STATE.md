@@ -1,5 +1,48 @@
 # Frontend — Current State
 
+## RAKHAL-287 — MilkDisposition + MilkEligibility types (blocked on missing backend routes) (2026-08-06)
+Backend's "cattle status model rewrite" (RAKHAL-269…280) shipped two new Milk-module domain
+concepts with **no read-side wiring**, confirmed by reading the backend source directly (not
+guessed): `MilkDisposition` (RAKHAL-277, `src/modules/milk/domain/milk-disposition.ts`) is computed
+and stored on `MilkLogEntry.disposition` at `saveLog()` write time, but `GET /milk/log`
+(`MilkService.logTable()`) never selects/returns it — the response shapes one row per cow per day
+and has no per-entry `disposition` field, and no other route exposes raw `MilkLogEntry` rows either.
+`MilkEligibility` (RAKHAL-278, `MilkService.getMilkEligibility(farmId, cattleId)`) is fully
+implemented server-side but has **zero HTTP route** — `milk.controller.ts` has no `eligibility`
+endpoint, and the service method's own doc comment says so explicitly ("no new controller route
+since the ticket's acceptance criteria don't ask for one"). Grepped the whole backend `src/` for any
+caller of `getMilkEligibility` — none exists.
+
+Per the hard rule ("never guess API shapes — unclear → stop and note it"), did **not** fabricate a
+route or fake data. Delivered only what's honestly implementable: `MilkDisposition`/
+`MilkEligibilityStatus`/`MilkRestrictionReason`/`MilkEligibility` types added to `features/milk/types.ts`
+(doc-commented as not-yet-wired, ready for when the backend route ships), plus i18n labels for all 6
+disposition values and 4 eligibility `primaryStatus` values + 6 restriction reasons
+(`milk.log.dispositionOptions`, `cattle.detail.milkEligibility(Options)`,
+`cattle.detail.milkRestrictionReasonOptions`, bn+en). No API call, hook, log-entry chip, or cattle-
+profile-card wiring was added — there is nothing real to call. Logged in
+`docs/PROJECT_PROGRESS.md`'s backend-gaps table; needs a `GET /milk/eligibility/:cattleId`-shaped
+route (or similar) plus `logTable()`/`saveLog()` returning `disposition` before this ticket's UI can
+actually be built.
+
+**Step 6 reconciliation (dashboard withholding count) — confirmed NOT broken.** RAKHAL-279 dropped
+`WITHHOLDING` from `DerivedHealthStatus` (the per-cow health badge), but `DashboardService.herdStatus()`
+(`src/modules/dashboard/application/services/dashboard.service.ts`) never depended on that enum value —
+its `healthBreakdown.withholding` count is computed independently via
+`prisma.safetyWithdrawal.count({ where: { farmId, status: ACTIVE } })`, the same underlying fact
+`MilkEligibility`/`activeMilkWithholdingCattleIds()` also read. `features/dashboard/types.ts`'s
+`healthBreakdown.withholding` and `herd-status-donut.tsx`/`production-summary-card.tsx` are correct
+as-is — no frontend change made. Also confirmed `features/cattle/types.ts`'s
+`HealthStatusFilter` still lists `"WITHHOLDING"` as a list-filter value — intentional per backend
+ADR-020 (`?healthStatus=WITHHOLDING` filter kept even though the derived badge value was dropped),
+not stale.
+
+Gate: `pnpm typecheck` (0) / `pnpm lint` (0 errors, same 10 pre-existing
+`react-hooks/incompatible-library` warnings) / `pnpm build` (0, all 37 routes) / `pnpm test`
+(18 passed) — all green. Files: `features/milk/types.ts`, `i18n/messages/{en,bn}.json`
+(`milk.log.dispositionOptions`, `cattle.detail.milkEligibility*`/`milkRestrictionReasonOptions`),
+`docs/{CURRENT_STATE,PROJECT_PROGRESS,IN_FLIGHT}.md`.
+
 ## Export buttons: Cattle/Milk/Finance/Healthcare + Dashboard PDF (2026-08-02, user request)
 Frontend half of the backend Reports-engine export work (backend: `rakhal-backend` `docs/CURRENT_STATE.md`'s
 matching dated entry). Reused the existing `features/reports/` generate/poll/download implementation

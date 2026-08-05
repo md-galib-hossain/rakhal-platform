@@ -29,6 +29,7 @@ import { CattleStatusDialog } from "./cattle-status-dialog";
 import { CattleArchiveDialog } from "./cattle-archive-dialog";
 import { CattleDetailSheet } from "./detail/cattle-detail-sheet";
 import type {
+  AnimalCategory,
   CattleListFilters,
   CattleListItem,
   CattlePurpose,
@@ -71,6 +72,7 @@ export function CattleTable() {
     healthStatus: (searchParams.get("healthStatus") as HealthStatusFilter | null) ?? undefined,
     purpose: (searchParams.get("purpose") as CattlePurpose | null) ?? undefined,
     reproductiveStatus: (searchParams.get("reproductiveStatus") as ReproductiveStatus | null) ?? undefined,
+    animalCategory: (searchParams.get("animalCategory") as AnimalCategory | null) ?? undefined,
   };
 
   const query = useCattlePagedList(filters);

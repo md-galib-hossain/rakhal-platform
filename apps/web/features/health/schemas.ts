@@ -5,6 +5,9 @@ import { z } from "zod";
 export const reportSicknessSchema = z.object({
   cattleId: z.string().min(1),
   diagnosis: z.string().trim().min(1),
+  condition: z
+    .enum(["MASTITIS", "LAMENESS", "METRITIS", "KETOSIS", "MILK_FEVER", "FEVER", "INJURY", "OTHER"])
+    .optional(),
   diagnosisType: z.enum([
     "DISEASE",
     "INJURY",

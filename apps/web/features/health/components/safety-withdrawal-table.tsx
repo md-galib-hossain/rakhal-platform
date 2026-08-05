@@ -1,13 +1,25 @@
 "use client"; // no interactivity of its own, but matches sibling tab components' "use client" convention
 
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
+import { ApiError } from "@/lib/api/errors";
+import { Can } from "@/lib/auth/permissions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Chip } from "@/components/ui/chip";
+import { Button } from "@/components/ui/button";
+import { Chip, type ChipProps } from "@/components/ui/chip";
 import { DateText } from "@/components/shared/date-text";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
-import type { SafetyWithdrawalListItem } from "../types";
+import { useReleaseWithdrawal } from "../hooks/use-health";
+import type { SafetyWithdrawalListItem, SafetyWithdrawalStatus } from "../types";
+
+const STATUS_CHIP_VARIANT: Record<SafetyWithdrawalStatus, NonNullable<ChipProps["variant"]>> = {
+  ACTIVE: "warning",
+  READY_FOR_RELEASE: "info",
+  RELEASED: "muted",
+  CANCELLED: "muted",
+};
 
 /** Safety Withdrawals tab (no Figma frame — `GET /health/safety-withdrawals` had zero frontend
  * consumer despite the route existing; same raw-`<table>` convention as `SickBayTable`). Shows
@@ -25,6 +37,16 @@ export function SafetyWithdrawalTable({
   onRetry: () => void;
 }) {
   const t = useTranslations("health.safetyWithdrawals");
+  const release = useReleaseWithdrawal();
+
+  async function handleRelease(id: string) {
+    try {
+      await release.mutateAsync(id);
+      toast.success(t("releasedToast"));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("genericError"));
+    }
+  }
 
   if (isLoading) {
     return (
@@ -43,7 +65,7 @@ export function SafetyWithdrawalTable({
       <table className="w-full min-w-[640px] border-collapse text-sm">
         <thead className="bg-muted">
           <tr>
-            {["name", "milkUntil", "meatUntil", "status"].map((col) => (
+            {["name", "milkUntil", "meatUntil", "status", "action"].map((col) => (
               <th key={col} className="h-[54px] px-2 text-left text-sm font-medium text-muted-foreground">
                 {t(`columns.${col}`)}
               </th>
@@ -72,9 +94,23 @@ export function SafetyWithdrawalTable({
                 {item.meatWithdrawalUntil ? <DateText date={item.meatWithdrawalUntil} /> : "—"}
               </td>
               <td className="px-2 py-2">
-                <Chip variant={item.status === "ACTIVE" ? "destructive" : "primary"}>
-                  {t(`statusOptions.${item.status}`)}
-                </Chip>
+                <Chip variant={STATUS_CHIP_VARIANT[item.status]}>{t(`statusOptions.${item.status}`)}</Chip>
+              </td>
+              <td className="px-2 py-2">
+                {item.status === "READY_FOR_RELEASE" ? (
+                  <Can I="healthcare.update">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleRelease(item.id)}
+                      disabled={release.isPending}
+                    >
+                      {t("release")}
+                    </Button>
+                  </Can>
+                ) : (
+                  <span className="text-sm text-muted-foreground">—</span>
+                )}
               </td>
             </tr>
           ))}

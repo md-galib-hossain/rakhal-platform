@@ -21,7 +21,7 @@ import { useMilkTanks } from "@/features/inventory/hooks/use-inventory";
 import type { MilkTank, MilkTankType as InventoryMilkTankType } from "@/features/inventory/types";
 import { useSaveMilkLog, useSubmitMilk, useUpdateMilkSessions } from "../hooks/use-milk";
 import { MILK_SESSIONS } from "../types";
-import type { MilkLogRow, MilkSession, MilkSessionKey } from "../types";
+import type { MilkDisposition, MilkLogRow, MilkSession, MilkSessionKey } from "../types";
 
 /** Any of the 4 sessions can be locked/unlocked by the Owner — the backend only requires at
  * least one to stay active, enforced below by disabling the last remaining session's unlock icon. */
@@ -63,6 +63,18 @@ const SESSION_GLOW: Record<MilkSession, string> = {
   NOON: "shadow-[0_0_3px_color-mix(in_srgb,var(--color-session-noon)_40%,transparent)]",
   EVENING: "shadow-[0_0_3px_color-mix(in_srgb,var(--color-session-evening)_40%,transparent)]",
   NIGHT: "shadow-[0_0_3px_color-mix(in_srgb,var(--color-session-night)_40%,transparent)]",
+};
+
+/** RAKHAL-277 disposition chip colors — per session-cell, only shown for sessions that already
+ * have a logged entry (`row.log.dispositions[session]`). Distinct from the withholding status Chip
+ * (Status column) which reflects the cow's overall current tank routing, not one session's value. */
+const DISPOSITION_VARIANT: Record<MilkDisposition, "primary" | "destructive" | "info" | "teal" | "muted" | "purple"> = {
+  SALEABLE: "primary",
+  WITHHELD: "destructive",
+  COLOSTRUM: "info",
+  CALF_FEED: "teal",
+  DISCARDED: "muted",
+  HOUSEHOLD_USE: "purple",
 };
 
 const DEFAULT_PAGE_SIZE = 8;
@@ -578,34 +590,44 @@ export function MilkLogTable({
                       ) : (
                         <TableCell key={session}>
                           <Can I="milk.log">
-                            <div
-                              className={cn(
-                                "flex h-9 w-24 items-center gap-1 rounded-sm bg-card px-1.5",
-                                SESSION_GLOW[session],
-                              )}
-                            >
-                              {row.log.submittedSessions.includes(session) ? (
-                                <span title={t("sessionAlreadySubmitted")}>
-                                  <History className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                                </span>
+                            <div className="flex flex-col items-start gap-1">
+                              <div
+                                className={cn(
+                                  "flex h-9 w-24 items-center gap-1 rounded-sm bg-card px-1.5",
+                                  SESSION_GLOW[session],
+                                )}
+                              >
+                                {row.log.submittedSessions.includes(session) ? (
+                                  <span title={t("sessionAlreadySubmitted")}>
+                                    <History className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                                  </span>
+                                ) : null}
+                                <Input
+                                  ref={(el) => {
+                                    const key = draftKey(row.cattleId, session);
+                                    if (el) inputRefs.current.set(key, el);
+                                    else inputRefs.current.delete(key);
+                                  }}
+                                  type="number"
+                                  min={0}
+                                  step={0.1}
+                                  className="h-auto w-full border-none p-0 text-sm leading-none shadow-none focus-visible:ring-0"
+                                  value={drafts[draftKey(row.cattleId, session)] ?? ""}
+                                  onChange={(e) =>
+                                    setDrafts((prev) => ({ ...prev, [draftKey(row.cattleId, session)]: e.target.value }))
+                                  }
+                                  onKeyDown={(e) => handleCellKeyDown(e, rowIndex, session)}
+                                />
+                                <span className="shrink-0 text-xs text-muted-foreground">L</span>
+                              </div>
+                              {row.log.dispositions[session] ? (
+                                <Chip
+                                  variant={DISPOSITION_VARIANT[row.log.dispositions[session]!]}
+                                  className="px-1.5 py-0 text-[10px]"
+                                >
+                                  {t(`dispositionOptions.${row.log.dispositions[session]}`)}
+                                </Chip>
                               ) : null}
-                              <Input
-                                ref={(el) => {
-                                  const key = draftKey(row.cattleId, session);
-                                  if (el) inputRefs.current.set(key, el);
-                                  else inputRefs.current.delete(key);
-                                }}
-                                type="number"
-                                min={0}
-                                step={0.1}
-                                className="h-auto w-full border-none p-0 text-sm leading-none shadow-none focus-visible:ring-0"
-                                value={drafts[draftKey(row.cattleId, session)] ?? ""}
-                                onChange={(e) =>
-                                  setDrafts((prev) => ({ ...prev, [draftKey(row.cattleId, session)]: e.target.value }))
-                                }
-                                onKeyDown={(e) => handleCellKeyDown(e, rowIndex, session)}
-                              />
-                              <span className="shrink-0 text-xs text-muted-foreground">L</span>
                             </div>
                           </Can>
                         </TableCell>

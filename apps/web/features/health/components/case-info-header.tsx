@@ -52,7 +52,12 @@ export function CaseInfoHeader({ healthCase }: { healthCase: HealthCaseDetail })
           <p className="text-sm font-medium text-foreground">{healthCase.shedName ?? "—"}</p>
         </InfoTile>
         <InfoTile label={t("diagnosis")}>
-          <Chip variant={diagnosisChipVariant(healthCase.diagnosis)}>{healthCase.diagnosis}</Chip>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Chip variant={diagnosisChipVariant(healthCase.diagnosis)}>{healthCase.diagnosis}</Chip>
+            {healthCase.condition ? (
+              <Chip variant="muted">{t(`conditionValue.${healthCase.condition}`)}</Chip>
+            ) : null}
+          </div>
         </InfoTile>
         <InfoTile label={t("priority")}>
           <Chip variant={priorityChipVariant(healthCase.priority)}>{t(`priorityValue.${healthCase.priority}`)}</Chip>

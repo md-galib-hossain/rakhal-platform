@@ -5,8 +5,10 @@
  * exist on the real controller). `dashboard`/`events` return bespoke snake_case shapes (RAKHAL-051);
  * the six sub-resource lists (`heat-events`, `breeding-events`, `pregnancies`, `calving-events`,
  * `abortion-events`, `lactations`) are real cursor pages of raw Prisma rows (camelCase, no per-field
- * mapping) — same convention `cattleApi.calvingEvents()` already relies on. No dry-off route exists
- * yet (`DryPeriod` is schema-only, no controller endpoint) — not represented here.
+ * mapping) — same convention `cattleApi.calvingEvents()` already relies on. `POST
+ * /reproduction/cattle/:id/dry-off` (RD-038) returns the created `DryPeriod` row directly (not a
+ * cursor page — there's no GET list route for `DryPeriod` yet); RAKHAL-274 added its optional
+ * `reason: DryOffReason | null` field (`create-dry-off.dto.ts` / `reproduction.prisma`, verified live).
  */
 
 /** RAKHAL-271 v2 correction — same 5-value `ReproductionState` `features/cattle/types.ts` uses.
@@ -29,6 +31,9 @@ export type CalvingEase = "NORMAL" | "ASSISTED" | "DIFFICULT" | "CESAREAN";
 export type CalfBirthStatus = "ALIVE" | "STILLBORN" | "DIED_AFTER_BIRTH";
 export type LactationStatus = "ACTIVE" | "ENDED";
 export type ReproEventType = "heat" | "breeding" | "calving" | "abortion" | "pregnancy_diagnosis";
+
+/** RAKHAL-274 — `DryOffReason` enum, `prisma/schemas/reproduction/reproduction.enums.prisma`. */
+export type DryOffReason = "SCHEDULED" | "LOW_PRODUCTION" | "HEALTH" | "PREGNANCY" | "MANAGEMENT_DECISION";
 
 // ---- GET /reproduction/dashboard (RAKHAL-051) ------------------------------
 
@@ -206,6 +211,18 @@ export interface LactationRow {
   endDate: string | null;
   peakMilkDate: string | null;
   status: LactationStatus;
+  createdAt: string;
+}
+
+/** Return shape of `POST /reproduction/cattle/:id/dry-off` (RD-038 + RAKHAL-274's `reason`). */
+export interface DryPeriodRow {
+  id: string;
+  cattleId: string;
+  startDate: string;
+  expectedEndDate: string | null;
+  actualEndDate: string | null;
+  notes: string | null;
+  reason: DryOffReason | null;
   createdAt: string;
 }
 

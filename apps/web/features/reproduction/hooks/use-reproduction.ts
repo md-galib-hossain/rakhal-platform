@@ -9,6 +9,7 @@ import type {
   CreateAbortionEventInput,
   CreateBreedingEventInput,
   CreateCalvingEventInput,
+  CreateDryOffInput,
   CreateHeatEventInput,
   CreatePregnancyDiagnosisInput,
   RecordProtocolAiInput,
@@ -84,6 +85,19 @@ export function useCreateAbortionEvent() {
   return useMutation({
     mutationFn: (input: CreateAbortionEventInput) => reproductionApi.createAbortionEvent(input),
     onSuccess: () => invalidateReproductionCore(queryClient),
+  });
+}
+
+/** RD-038 + RAKHAL-274. Also invalidates `lactations` — a dry-off ends the cow's active lactation. */
+export function useRecordDryOff() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ cattleId, input }: { cattleId: string; input: CreateDryOffInput }) =>
+      reproductionApi.recordDryOff(cattleId, input),
+    onSuccess: () => {
+      invalidateReproductionCore(queryClient);
+      queryClient.invalidateQueries({ queryKey: ["reproduction", "lactations"] });
+    },
   });
 }
 

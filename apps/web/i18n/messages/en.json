@@ -707,6 +707,7 @@
     },
     "columns": {
       "cattle": "Name",
+      "category": "Category",
       "breed": "Breed",
       "age": "Age",
       "shed": "Shed",
@@ -721,6 +722,25 @@
     "statusOptions": {
       "milking": "Milking",
       "dry": "Dry"
+    },
+    "animalCategory": {
+      "CALF": "Calf",
+      "HEIFER": "Heifer",
+      "COW": "Cow",
+      "BULL": "Bull",
+      "STEER": "Steer"
+    },
+    "reproductionAlerts": {
+      "count": "{count} reproduction alerts",
+      "HEAT_DETECTED": "Heat detected",
+      "PREGNANCY_CHECK_DUE": "Pregnancy check due",
+      "OVERDUE_PREGNANCY_CHECK": "Pregnancy check overdue",
+      "REPEAT_BREEDER": "Repeat breeder",
+      "LONG_DAYS_OPEN": "Long days open",
+      "CALVING_DUE": "Calving due",
+      "CALVING_OVERDUE": "Calving overdue",
+      "ABORTION_HISTORY": "Abortion history",
+      "REPRODUCTIVE_HOLD": "Reproductive hold"
     },
     "healthOptions": {
       "healthy": "Healthy",
@@ -815,6 +835,9 @@
         "PREGNANT": "Pregnant"
       },
       "unassigned": "Not set",
+      "lactationStartDate": "Lactation start date",
+      "lactationStartDateHint": "This cow has no active lactation on record — provide the date it started milking to record it.",
+      "lactationStartDateRequired": "Lactation start date is required to mark this cow as milking.",
       "save": "Save",
       "cancel": "Cancel",
       "updatedToast": "Status updated.",
@@ -881,6 +904,56 @@
       "statusOptions": {
         "milking": "Milking",
         "dry": "Dry"
+      },
+      "category": "Category",
+      "animalCategoryOptions": {
+        "CALF": "Calf",
+        "HEIFER": "Heifer",
+        "COW": "Cow",
+        "BULL": "Bull",
+        "STEER": "Steer"
+      },
+      "lactationStage": "Lactation Stage",
+      "lactationStageOptions": {
+        "FRESH": "Fresh",
+        "EARLY": "Early lactation",
+        "MID": "Mid lactation",
+        "LATE": "Late lactation",
+        "DRY_PERIOD": "Dry period"
+      },
+      "pregnancyStage": "Pregnancy Stage",
+      "pregnancyStageOptions": {
+        "EARLY": "Early",
+        "MID": "Mid",
+        "LATE": "Late",
+        "CLOSE_UP": "Close-up"
+      },
+      "reproductionAlerts": "Reproduction Alerts",
+      "reproductionAlertOptions": {
+        "HEAT_DETECTED": "Heat detected",
+        "PREGNANCY_CHECK_DUE": "Pregnancy check due",
+        "OVERDUE_PREGNANCY_CHECK": "Pregnancy check overdue",
+        "REPEAT_BREEDER": "Repeat breeder",
+        "LONG_DAYS_OPEN": "Long days open",
+        "CALVING_DUE": "Calving due",
+        "CALVING_OVERDUE": "Calving overdue",
+        "ABORTION_HISTORY": "Abortion history",
+        "REPRODUCTIVE_HOLD": "Reproductive hold"
+      },
+      "milkEligibility": "Milk Eligibility",
+      "milkEligibilityOptions": {
+        "SALEABLE": "Saleable",
+        "WITHHELD": "Withheld",
+        "COLOSTRUM": "Colostrum",
+        "DISCARD_REQUIRED": "Discard required"
+      },
+      "milkRestrictionReasonOptions": {
+        "COLOSTRUM_PERIOD": "Colostrum period",
+        "MEDICINE_WITHDRAWAL": "Medicine withdrawal",
+        "MASTITIS": "Mastitis",
+        "VETERINARY_HOLD": "Veterinary hold",
+        "ABNORMAL_MILK": "Abnormal milk",
+        "OTHER": "Other"
       },
       "tabs": {
         "overview": "Overview",
@@ -1746,7 +1819,15 @@
       "editSubmittedConfirm": "Save and adjust tank",
       "discardUnsavedTitle": "Discard unsaved entries?",
       "discardUnsavedDescription": "Switching dates will discard the milk entries you haven't saved yet for the current date.",
-      "discardUnsavedConfirm": "Discard and switch"
+      "discardUnsavedConfirm": "Discard and switch",
+      "dispositionOptions": {
+        "SALEABLE": "Saleable",
+        "WITHHELD": "Withheld",
+        "COLOSTRUM": "Colostrum",
+        "CALF_FEED": "Calf feed",
+        "DISCARDED": "Discarded",
+        "HOUSEHOLD_USE": "Household use"
+      }
     },
     "import": {
       "trigger": "Import Excel",
@@ -1852,6 +1933,7 @@
       "recordAi": "Record AI",
       "recordCheck": "Record Check",
       "recordCalving": "Record Calving",
+      "recordDryOff": "Record Dry-off",
       "daysOpen": "{value}d open",
       "daysRemaining": "{value}d left",
       "dryoffTarget": "Target:",
@@ -2010,6 +2092,24 @@
         "createdToast": "Abortion event recorded.",
         "genericError": "Could not record the abortion event. Please try again."
       },
+      "dryOff": {
+        "title": "Record Dry-off",
+        "dryOffDate": "Dry-off date",
+        "reason": "Reason",
+        "reasonPlaceholder": "Select a reason (optional)",
+        "reasonValue": {
+          "SCHEDULED": "Scheduled",
+          "LOW_PRODUCTION": "Low Production",
+          "HEALTH": "Health",
+          "PREGNANCY": "Pregnancy",
+          "MANAGEMENT_DECISION": "Management Decision"
+        },
+        "notes": "Notes",
+        "notesPlaceholder": "Optional notes",
+        "submit": "Save Dry-off",
+        "createdToast": "Dry-off recorded.",
+        "genericError": "Could not record the dry-off. Please try again."
+      },
       "applyProtocol": {
         "title": "Apply Protocol",
         "protocol": "Protocol",
@@ -2118,7 +2218,17 @@
       "manageCase": "Manage Case",
       "error": "Could not load the sick bay list.",
       "emptyTitle": "No active health cases",
-      "emptyDescription": "Report a sickness to start tracking a case here."
+      "emptyDescription": "Report a sickness to start tracking a case here.",
+      "conditionValue": {
+        "MASTITIS": "Mastitis",
+        "LAMENESS": "Lameness",
+        "METRITIS": "Metritis",
+        "KETOSIS": "Ketosis",
+        "MILK_FEVER": "Milk Fever",
+        "FEVER": "Fever",
+        "INJURY": "Injury",
+        "OTHER": "Other"
+      }
     },
     "taskHub": {
       "error": "Could not load health tasks.",
@@ -2355,6 +2465,8 @@
       "cattle": "Cattle",
       "diagnosis": "Diagnosis",
       "diagnosisPlaceholder": "e.g. Mastitis",
+      "condition": "Condition",
+      "conditionPlaceholder": "Select condition",
       "diagnosisType": "Diagnosis Type",
       "priority": "Priority",
       "notes": "Notes",
@@ -2376,6 +2488,16 @@
         "MEDIUM": "Medium",
         "HIGH": "High",
         "CRITICAL": "Critical"
+      },
+      "conditionValue": {
+        "MASTITIS": "Mastitis",
+        "LAMENESS": "Lameness",
+        "METRITIS": "Metritis",
+        "KETOSIS": "Ketosis",
+        "MILK_FEVER": "Milk Fever",
+        "FEVER": "Fever",
+        "INJURY": "Injury",
+        "OTHER": "Other"
       }
     },
     "selectCase": {
@@ -2411,6 +2533,16 @@
           "MEDIUM": "Medium",
           "HIGH": "High",
           "CRITICAL": "Critical"
+        },
+        "conditionValue": {
+          "MASTITIS": "Mastitis",
+          "LAMENESS": "Lameness",
+          "METRITIS": "Metritis",
+          "KETOSIS": "Ketosis",
+          "MILK_FEVER": "Milk Fever",
+          "FEVER": "Fever",
+          "INJURY": "Injury",
+          "OTHER": "Other"
         }
       },
       "logTreatment": {
@@ -2500,15 +2632,20 @@
         "name": "Animal",
         "milkUntil": "Milk Withdrawal Until",
         "meatUntil": "Meat Withdrawal Until",
-        "status": "Status"
+        "status": "Status",
+        "action": "Action"
       },
       "statusOptions": {
         "ALL": "All",
         "ACTIVE": "Active",
-        "COMPLETED": "Cleared"
+        "READY_FOR_RELEASE": "Ready for Release",
+        "RELEASED": "Released",
+        "CANCELLED": "Cancelled"
       },
       "refresh": "Refresh",
       "refreshedToast": "{count} withdrawal(s) cleared.",
+      "release": "Release",
+      "releasedToast": "Withdrawal released.",
       "genericError": "Something went wrong. Please try again."
     }
   },

@@ -136,7 +136,10 @@ export interface WeanCalfResult {
   calfId: string;
   weaned: true;
   adgAtWeaning: number | null;
-  productionStatusUpdatedTo: "GROWING";
+  // No longer auto-set on weaning (RAKHAL-269 dropped GROWING from
+  // ProductionStatus) — backend always returns null now, kept as
+  // `string | null` for API-shape parity.
+  productionStatusUpdatedTo: string | null;
   newPurpose: CalfWeanPurpose;
   movedToCattleModule: true;
   removedFromCalfManagement: true;

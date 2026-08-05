@@ -22,6 +22,7 @@ import type {
   MortalityPayload,
   RescheduleTaskPayload,
   SafetyWithdrawalListItem,
+  SafetyWithdrawalStatus,
   SkipTaskPayload,
   TreatmentLog,
   UpdateHealthPlanPayload,
@@ -91,7 +92,7 @@ export const healthApi = {
   },
   /** Safety Withdrawals tab (no Figma frame — real backend routes had zero frontend consumer). */
   safetyWithdrawals(
-    filters: { status?: "ACTIVE" | "COMPLETED" } = {},
+    filters: { status?: SafetyWithdrawalStatus } = {},
     cursor?: string,
   ): Promise<CursorPage<SafetyWithdrawalListItem>> {
     return apiFetchPage<SafetyWithdrawalListItem>("/health/safety-withdrawals", {
@@ -100,6 +101,11 @@ export const healthApi = {
   },
   refreshSafetyWithdrawals(): Promise<{ updated: number }> {
     return apiFetch<{ updated: number }>("/health/safety-withdrawals/refresh", { method: "POST" });
+  },
+  /** RAKHAL-276: the only path to `RELEASED` — `POST /health/safety-withdrawals/:id/release`,
+   * `healthcare.update` (manager+, same as refresh). No body. */
+  releaseWithdrawal(id: string): Promise<SafetyWithdrawalListItem> {
+    return apiFetch<SafetyWithdrawalListItem>(`/health/safety-withdrawals/${id}/release`, { method: "POST" });
   },
   /** Health Plan tab (Figma 734:45281 + Create/Apply wizards). */
   listPlans(

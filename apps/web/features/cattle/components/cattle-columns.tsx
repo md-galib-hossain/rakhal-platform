@@ -1,13 +1,14 @@
 "use client"; // column defs consumed by the client-only DataTable
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Mars, Venus } from "lucide-react";
+import { Mars, TriangleAlert, Venus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Chip, type ChipProps } from "@/components/ui/chip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { avatarTint } from "../avatar-tint";
 import { formatCattleAge } from "../format";
 import { CattleRowActions } from "./cattle-row-actions";
-import type { CattleListItem, ProductionStatus } from "../types";
+import type { AnimalCategory, CattleListItem, ProductionStatus } from "../types";
 
 /** Radix `Avatar` (plain `<img>` under the hood) rather than `next/image` for the 32px list
  * thumbnail — the signed R2 URL's host isn't a fixed, config-time-known hostname (varies by
@@ -34,6 +35,45 @@ const PRODUCTION_STATUS_VARIANT: Record<ProductionStatus, ChipProps["variant"]> 
   MILKING: "primary",
   DRY: "warning",
 };
+
+/** RAKHAL-270 — `animalCategory` chip colors, distinct from the production-status chip above. */
+const ANIMAL_CATEGORY_VARIANT: Record<AnimalCategory, ChipProps["variant"]> = {
+  CALF: "info",
+  HEIFER: "purple",
+  COW: "primary",
+  BULL: "indigo",
+  STEER: "teal",
+};
+
+/** RAKHAL-272 — compact table indicator for `reproductionAlerts`: a small warning dot + count, full
+ * label list on hover. A full badge row (like the detail view gets) doesn't fit an 8-column table;
+ * this is deliberately the cheaper of the two per the ticket's own guidance. */
+function ReproductionAlertsIndicator({
+  alerts,
+  t,
+}: {
+  alerts: CattleListItem["reproductionAlerts"];
+  t: (key: string, values?: Record<string, string | number | Date>) => string;
+}) {
+  if (alerts.length === 0) return null;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex items-center gap-0.5 text-warning" aria-label={t("reproductionAlerts.count", { count: alerts.length })}>
+          <TriangleAlert className="size-3.5" aria-hidden />
+          <span className="text-xs font-semibold">{alerts.length}</span>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>
+        <ul className="flex flex-col gap-0.5">
+          {alerts.map((alert) => (
+            <li key={alert}>{t(`reproductionAlerts.${alert}`)}</li>
+          ))}
+        </ul>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 /**
  * Column set pixel-matched to the Figma "Cattle" table: Name/Breed/Age/Weight/Shed/AQR Score/
@@ -80,6 +120,14 @@ export function buildCattleColumns(
       },
     },
     {
+      id: "animalCategory",
+      header: t("columns.category"),
+      cell: ({ row }) => {
+        const category = row.original.animalCategory;
+        return <Chip variant={ANIMAL_CATEGORY_VARIANT[category]}>{t(`animalCategory.${category}`)}</Chip>;
+      },
+    },
+    {
       id: "breed",
       header: t("columns.breed"),
       cell: ({ row }) => row.original.breed?.name ?? "—",
@@ -118,9 +166,15 @@ export function buildCattleColumns(
       header: t("columns.status"),
       cell: ({ row }) => {
         const status = row.original.productionStatus;
-        if (!status) return "—";
         return (
-          <Chip variant={PRODUCTION_STATUS_VARIANT[status]}>{t(`statusOptions.${status.toLowerCase()}`)}</Chip>
+          <span className="flex items-center gap-1.5">
+            {status ? (
+              <Chip variant={PRODUCTION_STATUS_VARIANT[status]}>{t(`statusOptions.${status.toLowerCase()}`)}</Chip>
+            ) : (
+              "—"
+            )}
+            <ReproductionAlertsIndicator alerts={row.original.reproductionAlerts} t={t} />
+          </span>
         );
       },
     },

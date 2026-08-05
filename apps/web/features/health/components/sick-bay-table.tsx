@@ -80,7 +80,10 @@ export function SickBayTable({
                 </td>
                 <td className="px-2 py-2 text-sm text-foreground">{item.shedName ?? "—"}</td>
                 <td className="px-2 py-2">
-                  <Chip variant={diagnosisChipVariant(item.diagnosis)}>{item.diagnosis}</Chip>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Chip variant={diagnosisChipVariant(item.diagnosis)}>{item.diagnosis}</Chip>
+                    {item.condition ? <Chip variant="muted">{t(`conditionValue.${item.condition}`)}</Chip> : null}
+                  </div>
                 </td>
                 <td className="max-w-[180px] truncate px-2 py-2 text-sm text-foreground">{treatment}</td>
                 <td className="px-2 py-2">

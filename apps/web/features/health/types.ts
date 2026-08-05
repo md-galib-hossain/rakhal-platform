@@ -37,6 +37,25 @@ export type AppearanceStatus = "BRIGHT" | "DULL" | "DEPRESSED" | "WEAK";
 
 export type HealthCloseOutcome = "RECOVERED" | "MORTALITY";
 
+/** `HealthCondition` (Prisma enum, RAKHAL-275) — a new, optional structured category layered
+ * alongside the existing free-text `diagnosis` (both fields coexist on `HealthCase`, confirmed
+ * against `create-health-case.dto.ts`/`update-health-case.dto.ts`). */
+export type HealthCondition =
+  | "MASTITIS"
+  | "LAMENESS"
+  | "METRITIS"
+  | "KETOSIS"
+  | "MILK_FEVER"
+  | "FEVER"
+  | "INJURY"
+  | "OTHER";
+
+/** `SafetyWithdrawalStatus` (RAKHAL-276 migration `20260805150000_rakhal_276_safety_withdrawal_status`)
+ * — was `ACTIVE | COMPLETED`; `COMPLETED` renamed to `RELEASED` (only reachable via the new
+ * `POST /health/safety-withdrawals/:id/release`, never a read-path side effect), plus new
+ * `READY_FOR_RELEASE` (past-due, awaiting the explicit release action) and `CANCELLED`. */
+export type SafetyWithdrawalStatus = "ACTIVE" | "READY_FOR_RELEASE" | "RELEASED" | "CANCELLED";
+
 export type HealthPlanCategory = "TREATMENT" | "PREVENTION" | "BREEDING" | "VACCINATION" | "DEWORMING" | "ROUTINE";
 export type HealthPlanType = "MEDICAL" | "PREVENTION" | "BREEDING" | "GENERAL";
 
@@ -108,7 +127,7 @@ export interface SafetyWithdrawal {
   healthCaseId: string;
   milkWithdrawalUntil: string | null;
   meatWithdrawalUntil: string | null;
-  status: "ACTIVE" | "COMPLETED";
+  status: SafetyWithdrawalStatus;
   safeMilkDate: string | null;
   safeMeatDate: string | null;
 }
@@ -134,6 +153,8 @@ export interface HealthCaseListItem {
   id: string;
   caseCode: string;
   diagnosis: string;
+  /** New optional structured category (RAKHAL-275) alongside free-text `diagnosis` above. */
+  condition: HealthCondition | null;
   diagnosisType: HealthDiagnosisType;
   priority: HealthPriority;
   status: HealthCaseStatus;
@@ -210,6 +231,7 @@ export interface HealthDashboard {
 export interface CreateHealthCasePayload {
   cattleId: string;
   diagnosis: string;
+  condition?: HealthCondition;
   diagnosisType: HealthDiagnosisType;
   priority: HealthPriority;
   shedId?: string;

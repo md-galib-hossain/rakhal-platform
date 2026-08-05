@@ -17,8 +17,8 @@ export type CattleStatus = "ACTIVE" | "SOLD" | "DEAD" | "TRANSFERRED" | "MISSING
 export type ProductionStatus = "MILKING" | "DRY";
 /** RAKHAL-271 v2 correction: replaces the old 9-value `ReproductiveStatus`. Time-bound alerts
  * (in-heat/pregnancy-check-due/expected-to-calve) moved to a derived, not-stored
- * `ReproductionAlert[]` on the backend — not represented on this frontend yet (out of scope for
- * this fix). */
+ * `ReproductionAlert[]` on the backend — see `CattleListItem.reproductionAlerts`
+ * (RAKHAL-282/283/284, consumed on the table + cattle detail). */
 export type ReproductiveStatus =
   | "NOT_ELIGIBLE"
   | "POSTPARTUM_WAITING"
@@ -26,6 +26,33 @@ export type ReproductiveStatus =
   | "BRED_AWAITING_CONFIRMATION"
   | "PREGNANT";
 export type HealthStatusFilter = "HEALTHY" | "SICK" | "IN_TREATMENT" | "WITHHOLDING" | "QUARANTINE";
+
+/** RAKHAL-270 — derived from gender/age/calving history (`animal-category.ts#deriveAnimalCategory`).
+ * Always present on both list rows and detail (`composeStatus()` spreads it unconditionally). */
+export type AnimalCategory = "CALF" | "HEIFER" | "COW" | "BULL" | "STEER";
+
+/** RAKHAL-272 — derived, time-bound reproduction alerts layered on top of `reproductiveStatus`
+ * (`reproduction/domain/reproduction-alerts.ts#deriveReproductionAlerts`). Only computed for
+ * `FEMALE` animals with a non-null `reproductiveStatus`; otherwise an empty array (never null on
+ * the wire — `composeStatus()` defaults it to `[]`). */
+export type ReproductionAlert =
+  | "HEAT_DETECTED"
+  | "PREGNANCY_CHECK_DUE"
+  | "OVERDUE_PREGNANCY_CHECK"
+  | "REPEAT_BREEDER"
+  | "LONG_DAYS_OPEN"
+  | "CALVING_DUE"
+  | "CALVING_OVERDUE"
+  | "ABORTION_HISTORY"
+  | "REPRODUCTIVE_HOLD";
+
+/** RAKHAL-273 — `reproduction/domain/lactation-stage.ts#deriveLactationStage`. Null when the
+ * animal has no active lactation (e.g. a heifer, or a dry cow with no in-progress lactation). */
+export type LactationStage = "FRESH" | "EARLY" | "MID" | "LATE" | "DRY_PERIOD";
+
+/** RAKHAL-273 — `reproduction/domain/pregnancy-stage.ts#derivePregnancyStage`. Null unless the
+ * animal currently has an active pregnancy. */
+export type PregnancyStage = "EARLY" | "MID" | "LATE" | "CLOSE_UP";
 
 export interface MediaUrls {
   asset_id: string;
@@ -81,6 +108,12 @@ export interface CattleListItem {
   reproductiveStatus: ReproductiveStatus | null;
   healthStatus: HealthStatusFilter;
   dim: number | null;
+  /** RAKHAL-270/272/273 — see the type doc comments above. All 4 are composed on both the list
+   * and detail rows (`composeStatus()` spreads them unconditionally, not detail-only). */
+  animalCategory: AnimalCategory;
+  reproductionAlerts: ReproductionAlert[];
+  lactationStage: LactationStage | null;
+  pregnancyStage: PregnancyStage | null;
   /** Snake_case on the wire — see the header comment. */
   profile_photo: MediaUrls | null;
 }
@@ -107,6 +140,10 @@ export interface CattleListFilters {
    * supported by the backend's `ListCattleQueryDto`, just not previously exposed on the frontend. */
   purpose?: CattlePurpose;
   reproductiveStatus?: ReproductiveStatus;
+  /** RAKHAL-289 — real derived-category filter now supported server-side
+   * (`ListCattleQueryDto.animalCategory`, `list-cattle-query.dto.ts`). Replaces the old
+   * `reproductiveStatus`/`purpose` proxies for the Heifer/Calf highlight tiles. */
+  animalCategory?: AnimalCategory;
 }
 
 export const BULK_ACTIONS = ["change_shed", "change_feed_group", "mark_sold", "export"] as const;

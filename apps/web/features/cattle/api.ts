@@ -46,6 +46,7 @@ export const cattleApi = {
         healthStatus: filters.healthStatus,
         purpose: filters.purpose,
         reproductiveStatus: filters.reproductiveStatus,
+        animalCategory: filters.animalCategory,
         cursor,
         limit,
       },
