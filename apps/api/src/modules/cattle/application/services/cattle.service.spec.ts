@@ -12,12 +12,19 @@ import { CattleService } from './cattle.service';
  */
 describe('CattleService — RAKHAL-269 production status', () => {
   let prisma: {
-    cattle: { findFirst: jest.Mock; update: jest.Mock };
-    lactation: { findFirst: jest.Mock };
+    cattle: {
+      findFirst: jest.Mock;
+      findMany: jest.Mock;
+      update: jest.Mock;
+      count: jest.Mock;
+    };
+    lactation: { findFirst: jest.Mock; create: jest.Mock; count: jest.Mock };
     animalHold: { findMany: jest.Mock };
+    $transaction: jest.Mock;
   };
   let logger: { setContext: jest.Mock; info: jest.Mock; warn: jest.Mock };
   let farmSettings: { getEffective: jest.Mock };
+  let subscriptionAccess: { assertCattleLimit: jest.Mock };
 
   const baseRow = (overrides: Record<string, unknown> = {}) => ({
     id: 'cattle-1',
@@ -33,14 +40,35 @@ describe('CattleService — RAKHAL-269 production status', () => {
 
   beforeEach(() => {
     prisma = {
-      cattle: { findFirst: jest.fn(), update: jest.fn() },
-      lactation: { findFirst: jest.fn() },
+      cattle: {
+        findFirst: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
+        update: jest.fn(),
+        count: jest.fn().mockResolvedValue(0),
+      },
+      lactation: {
+        findFirst: jest.fn(),
+        create: jest.fn(),
+        count: jest.fn().mockResolvedValue(0),
+      },
       animalHold: { findMany: jest.fn().mockResolvedValue([]) },
+      // Both the array form (`$transaction([...])`) and the callback form
+      // (`$transaction(async (tx) => ...)`) are used elsewhere in this
+      // service — the mock `tx` is just `prisma` itself, since every mocked
+      // model method is already directly on this object.
+      $transaction: jest.fn((arg: unknown) =>
+        typeof arg === 'function'
+          ? (arg as (tx: unknown) => unknown)(prisma)
+          : Promise.all(arg as Promise<unknown>[]),
+      ),
     };
     logger = {
       setContext: jest.fn().mockReturnThis(),
       info: jest.fn(),
       warn: jest.fn(),
+    };
+    subscriptionAccess = {
+      assertCattleLimit: jest.fn().mockResolvedValue(undefined),
     };
     // RAKHAL-279: `updateStatus`/`archiveWithReason` end by calling
     // `findOne()`, which now builds a `ReproductionContext` via
@@ -67,8 +95,8 @@ describe('CattleService — RAKHAL-269 production status', () => {
   const make = () =>
     new CattleService(
       prisma as never,
-      {} as never, // AqrService — unused by these paths
-      {} as never, // SubscriptionAccessService — unused
+      { applyEvent: jest.fn().mockResolvedValue({ aqrScore: 0 }) } as never, // AqrService
+      subscriptionAccess as never, // SubscriptionAccessService
       { presentUrls: jest.fn(), signThumbs: jest.fn() } as never, // MediaService
       farmSettings as never, // FarmSettingsService (RAKHAL-279)
       logger as never,
@@ -111,6 +139,33 @@ describe('CattleService — RAKHAL-269 production status', () => {
         productionStatus: 'MILKING',
       });
 
+      expect(lastUpdateData()).toMatchObject({ productionStatus: 'MILKING' });
+    });
+
+    it('creates a purchase-intake Lactation (startReason PURCHASE_IMPORT) when lactationStartDate is supplied and no active Lactation exists', async () => {
+      prisma.cattle.findFirst
+        .mockResolvedValueOnce(baseRow()) // getCattleOrThrow guard check
+        .mockResolvedValueOnce(baseRow({ productionStatus: 'MILKING' })); // findOne() at the end of updateStatus
+      prisma.lactation.findFirst.mockResolvedValueOnce(null);
+      prisma.lactation.count.mockResolvedValueOnce(0);
+      prisma.lactation.create.mockResolvedValueOnce({ id: 'lactation-new' });
+      prisma.cattle.update.mockResolvedValueOnce({});
+
+      const service = make();
+      await service.updateStatus('farm-1', 'cattle-1', {
+        productionStatus: 'MILKING',
+        lactationStartDate: '2026-08-01',
+      });
+
+      expect(prisma.$transaction).toHaveBeenCalled();
+      expect(prisma.lactation.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          cattleId: 'cattle-1',
+          lactationNumber: 1,
+          status: 'ACTIVE',
+          startReason: 'PURCHASE_IMPORT',
+        }) as unknown,
+      });
       expect(lastUpdateData()).toMatchObject({ productionStatus: 'MILKING' });
     });
 
@@ -165,6 +220,52 @@ describe('CattleService — RAKHAL-269 production status', () => {
         productionStatus: null,
         status: CattleStatus.ARCHIVED,
       });
+    });
+  });
+
+  describe('findAll — RAKHAL-289 animalCategory filter', () => {
+    it('animalCategory=HEIFER matches a cow with no ReproductionProfile row (not just totalCalvings:0)', async () => {
+      const service = make();
+      await service.findAll('farm-1', {
+        limit: 20,
+        sortOrder: 'desc',
+        includeArchived: false,
+        animalCategory: 'HEIFER',
+      } as never);
+
+      const calls = prisma.cattle.findMany.mock.calls as unknown as Array<
+        [{ where: { AND: unknown[] } }]
+      >;
+      const heiferWhere = calls[0][0].where.AND;
+
+      expect(heiferWhere).toContainEqual({ gender: 'FEMALE' });
+      // The "no profile row at all" branch — this is the exact case RAKHAL-289
+      // was filed over: a heifer with zero reproduction history has NO
+      // `ReproductionProfile` row (`reproductiveStatus: null`), not a row with
+      // `totalCalvings: 0`, so the old `reproductiveStatus=NOT_ELIGIBLE`
+      // relation filter matched nothing.
+      expect(heiferWhere).toContainEqual({
+        OR: [
+          { reproductionProfile: null },
+          { reproductionProfile: { totalCalvings: 0 } },
+        ],
+      });
+    });
+  });
+
+  describe('create — RAKHAL-291 MILKING-at-intake guard', () => {
+    it('rejects productionStatus=MILKING at intake with no lactationStartDate', async () => {
+      const service = make();
+      await expect(
+        service.create('farm-1', 'user-1', {
+          tagNumber: 'TAG-1',
+          gender: 'FEMALE',
+          purpose: 'DAIRY',
+          productionStatus: 'MILKING',
+        } as never),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
   });
 });

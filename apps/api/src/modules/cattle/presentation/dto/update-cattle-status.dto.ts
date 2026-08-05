@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional } from 'class-validator';
 import { ProductionStatus, ReproductionState } from '@prisma/client';
 
 /**
@@ -11,6 +11,11 @@ import { ProductionStatus, ReproductionState } from '@prisma/client';
  * record to already exist (RAKHAL-269/271) — see `CattleService.updateStatus`.
  * `lactationStartDate` was removed (v2 correction): lactation start now lives
  * solely on `Lactation.startDate`, never on `Cattle`.
+ *
+ * RAKHAL-291: `lactationStartDate` is back, but only as an *input* here (not
+ * a `Cattle` column) — when no active `Lactation` exists yet, supplying it
+ * lets `updateStatus()` create one with `startReason: PURCHASE_IMPORT` (e.g.
+ * a purchased already-milking cow with no calving history in this system).
  */
 export class UpdateCattleStatusDto {
   @IsOptional()
@@ -20,4 +25,8 @@ export class UpdateCattleStatusDto {
   @IsOptional()
   @IsEnum(ReproductionState)
   reproductiveStatus?: ReproductionState;
+
+  @IsOptional()
+  @IsDateString()
+  lactationStartDate?: string;
 }

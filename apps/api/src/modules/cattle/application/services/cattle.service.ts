@@ -14,6 +14,7 @@ import {
   FarmModuleSettings,
   FinanceTxnType,
   HealthCaseStatus,
+  LactationStartReason,
   LactationStatus,
   MilkSession,
   PregnancyStatus,
@@ -37,8 +38,13 @@ import { VWP_DEFAULT_DAYS } from '../../domain/cattle.constants';
 import { deriveHealthStatus } from '../../domain/health-status';
 import {
   deriveAnimalCategory,
+  type AnimalCategory,
   type AnimalCategoryGender,
 } from '../../domain/animal-category';
+import {
+  DAY_MS,
+  DEFAULT_WEANING_DAYS,
+} from 'src/modules/calf/domain/calf-stage';
 // RAKHAL-279: reuse the reproduction module's already-exported PURE domain
 // functions/types directly (deliberately not `ReproductionService` itself —
 // see the `composeStatus()` doc comment below for why). These files have no
@@ -139,54 +145,98 @@ export class CattleService {
     await this.validateReferences(farmId, dto);
     await this.validateParentRules(farmId, undefined, dto);
 
+    // RAKHAL-291: registering straight into MILKING needs the same guarantee
+    // `updateStatus()` enforces — a fresh cattle row never has a prior
+    // `Lactation`, so a caller-supplied `lactationStartDate` is the only way
+    // to satisfy it here (e.g. a purchased already-milking cow with no
+    // calving history in this system).
+    if (
+      dto.productionStatus === ProductionStatus.MILKING &&
+      !dto.lactationStartDate
+    ) {
+      throw new BadRequestException(
+        'lactationStartDate is required when registering a cow with productionStatus MILKING (e.g. a purchased already-milking cow with no calving history in this system).',
+      );
+    }
+
     try {
-      const cattle = await this.prisma.cattle.create({
-        data: {
-          farmId,
-          name: dto.name,
-          tagNumber: dto.tagNumber,
-          image: dto.image,
-          breedId: dto.breedId,
-          gender: dto.gender,
-          dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
-          purpose: dto.purpose,
-          status: dto.status ?? CattleStatus.ACTIVE,
-          productionStatus: dto.productionStatus,
-          shedId: dto.shedId,
-          feedGroupId: dto.feedGroupId,
-          lastWeightKg: dto.weightKg,
-          lastBcs: dto.bcs,
-          motherId: dto.motherId,
-          fatherId: dto.fatherId,
-          sourceType: dto.sourceType ?? CattleSourceType.UNKNOWN,
-          color: dto.color,
-          notes: dto.notes,
-          isActive: dto.status !== CattleStatus.ARCHIVED,
-          createdBy: userId,
-          // Initial physical readings (PRD §8.4) — keep the denormalized
-          // `lastBcs` and the BCS history in sync from the start.
-          ...(dto.bcs
-            ? {
-                bcsRecords: {
-                  create: {
-                    score: dto.bcs,
-                    recordedDate: new Date(),
-                    recordedBy: userId,
+      const cattle = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.cattle.create({
+          data: {
+            farmId,
+            name: dto.name,
+            tagNumber: dto.tagNumber,
+            image: dto.image,
+            breedId: dto.breedId,
+            gender: dto.gender,
+            dateOfBirth: dto.dateOfBirth
+              ? new Date(dto.dateOfBirth)
+              : undefined,
+            purpose: dto.purpose,
+            status: dto.status ?? CattleStatus.ACTIVE,
+            productionStatus: dto.productionStatus,
+            shedId: dto.shedId,
+            feedGroupId: dto.feedGroupId,
+            lastWeightKg: dto.weightKg,
+            lastBcs: dto.bcs,
+            motherId: dto.motherId,
+            fatherId: dto.fatherId,
+            sourceType: dto.sourceType ?? CattleSourceType.UNKNOWN,
+            color: dto.color,
+            notes: dto.notes,
+            isActive: dto.status !== CattleStatus.ARCHIVED,
+            createdBy: userId,
+            // Initial physical readings (PRD §8.4) — keep the denormalized
+            // `lastBcs` and the BCS history in sync from the start.
+            ...(dto.bcs
+              ? {
+                  bcsRecords: {
+                    create: {
+                      score: dto.bcs,
+                      recordedDate: new Date(),
+                      recordedBy: userId,
+                    },
                   },
-                },
-              }
-            : {}),
-          // Seed a reproduction profile when an initial reproductive status is
-          // supplied so the status dimension has a home (PRD §8.1/§8.4).
-          ...(dto.reproductiveStatus
-            ? {
-                reproductionProfile: {
-                  create: { reproductiveStatus: dto.reproductiveStatus },
-                },
-              }
-            : {}),
-        },
-        include: this.defaultInclude(),
+                }
+              : {}),
+            // Seed a reproduction profile when an initial reproductive status is
+            // supplied so the status dimension has a home (PRD §8.1/§8.4).
+            ...(dto.reproductiveStatus
+              ? {
+                  reproductionProfile: {
+                    create: { reproductiveStatus: dto.reproductiveStatus },
+                  },
+                }
+              : {}),
+          },
+        });
+
+        // RAKHAL-291: purchase-intake Lactation, same shape/`startReason` as
+        // `updateStatus()`'s own branch — a brand-new cattle row has no prior
+        // Lactation, so this is always lactationNumber 1.
+        if (
+          dto.productionStatus === ProductionStatus.MILKING &&
+          dto.lactationStartDate
+        ) {
+          await tx.lactation.create({
+            data: {
+              cattleId: created.id,
+              lactationNumber: 1,
+              startDate: new Date(dto.lactationStartDate),
+              status: LactationStatus.ACTIVE,
+              startReason: LactationStartReason.PURCHASE_IMPORT,
+            },
+          });
+        }
+
+        // Re-fetch with the full include so a just-created Lactation (and its
+        // derived `dim`) is reflected in this response, not just on the next
+        // GET — `defaultInclude()`'s `lactations` snapshot was taken before
+        // the row above existed.
+        return tx.cattle.findUniqueOrThrow({
+          where: { id: created.id },
+          include: this.defaultInclude(),
+        });
       });
 
       this.log.info('Cattle created', { cattleId: cattle.id, farmId });
@@ -243,6 +293,9 @@ export class CattleService {
           }
         : {}),
       ...(query.healthStatus ? this.healthStatusWhere(query.healthStatus) : {}),
+      ...(query.animalCategory
+        ? this.animalCategoryWhere(query.animalCategory, new Date())
+        : {}),
     };
 
     const rows = await this.prisma.cattle.findMany({
@@ -334,25 +387,61 @@ export class CattleService {
       // v2 correction (RAKHAL-269/271): `Cattle.lactationStartDate` is gone —
       // lactation start now lives solely on `Lactation.startDate`. Moving to
       // MILKING requires an active `Lactation` row to already exist (created
-      // by `createCalvingEvent`, or by a future purchase-intake flow). This is
-      // a stub check — richer "does the newest Lactation actually belong to
-      // this cow's current cycle" logic is a later ticket's job.
+      // by `createCalvingEvent`, or — RAKHAL-291 — a purchase-intake flow
+      // right here). This is still a stub check — richer "does the newest
+      // Lactation actually belong to this cow's current cycle" logic is a
+      // later ticket's job.
       if (dto.productionStatus === ProductionStatus.MILKING) {
         const activeLactation = await this.prisma.lactation.findFirst({
           where: { cattleId: id, status: LactationStatus.ACTIVE },
           select: { id: true },
         });
-        if (!activeLactation) {
-          throw new BadRequestException(
-            'An active Lactation record is required to set productionStatus to MILKING',
-          );
-        }
-      }
 
-      await this.prisma.cattle.update({
-        where: { id },
-        data: { productionStatus: dto.productionStatus },
-      });
+        if (!activeLactation) {
+          // RAKHAL-291: no auto-stamped Lactation from a calving means either
+          // this cow has never calved in this system (e.g. purchased already
+          // milking) or her lactation genuinely ended — either way, without a
+          // caller-supplied start date there is nothing safe to create.
+          if (!dto.lactationStartDate) {
+            throw new BadRequestException(
+              'No active lactation on record. Provide lactationStartDate to record this cow as milking (e.g. for a purchased cow with no calving history in this system).',
+            );
+          }
+
+          const lactationCount = await this.prisma.lactation.count({
+            where: { cattleId: id },
+          });
+          const lactationStartDate = dto.lactationStartDate;
+
+          // Create the purchase-intake Lactation and flip productionStatus in
+          // the same transaction so the two never drift apart.
+          await this.prisma.$transaction(async (tx) => {
+            await tx.lactation.create({
+              data: {
+                cattleId: id,
+                lactationNumber: lactationCount + 1,
+                startDate: new Date(lactationStartDate),
+                status: LactationStatus.ACTIVE,
+                startReason: LactationStartReason.PURCHASE_IMPORT,
+              },
+            });
+            await tx.cattle.update({
+              where: { id },
+              data: { productionStatus: dto.productionStatus },
+            });
+          });
+        } else {
+          await this.prisma.cattle.update({
+            where: { id },
+            data: { productionStatus: dto.productionStatus },
+          });
+        }
+      } else {
+        await this.prisma.cattle.update({
+          where: { id },
+          data: { productionStatus: dto.productionStatus },
+        });
+      }
     }
 
     if (dto.reproductiveStatus) {
@@ -1367,6 +1456,62 @@ export class CattleService {
       default:
         // Quarantine is not tracked yet (deferred to Healthcare) — match none.
         return { id: '__none__' };
+    }
+  }
+
+  /** Prisma `where` fragment for the derived `animalCategory` list filter
+   * (RAKHAL-289, PRD §8.1) — `animalCategory` is never stored, so this
+   * mirrors `deriveAnimalCategory()` (`../../domain/animal-category.ts`)
+   * exactly rather than reading a column. CALF is age-only (any gender,
+   * `dateOfBirth` above the weaning cutoff — a missing `dateOfBirth` never
+   * matches CALF, same as the domain function's fallthrough). The other 4
+   * categories gate on gender + "not a calf by age" (a missing `dateOfBirth`
+   * passes this gate, same fallthrough) + calving count via the nullable
+   * `reproductionProfile` relation — a heifer with zero reproduction history
+   * has **no** profile row at all (not `totalCalvings: 0`), which is exactly
+   * bug RAKHAL-289 was filed over, so HEIFER matches `reproductionProfile:
+   * null` OR `totalCalvings: 0`. */
+  private animalCategoryWhere(
+    category: AnimalCategory,
+    now: Date,
+  ): Prisma.CattleWhereInput {
+    const weaningCutoff = new Date(
+      now.getTime() - DEFAULT_WEANING_DAYS * DAY_MS,
+    );
+    const notCalfByAge: Prisma.CattleWhereInput = {
+      OR: [{ dateOfBirth: null }, { dateOfBirth: { lt: weaningCutoff } }],
+    };
+
+    switch (category) {
+      case 'CALF':
+        return { dateOfBirth: { gte: weaningCutoff } };
+      case 'HEIFER':
+        return {
+          AND: [
+            { gender: CattleGender.FEMALE },
+            notCalfByAge,
+            {
+              OR: [
+                { reproductionProfile: null },
+                { reproductionProfile: { totalCalvings: 0 } },
+              ],
+            },
+          ],
+        };
+      case 'COW':
+        return {
+          AND: [
+            { gender: CattleGender.FEMALE },
+            notCalfByAge,
+            { reproductionProfile: { totalCalvings: { gt: 0 } } },
+          ],
+        };
+      case 'BULL':
+        return { AND: [{ gender: CattleGender.MALE }, notCalfByAge] };
+      case 'STEER':
+        return {
+          AND: [{ gender: CattleGender.CASTRATED_MALE }, notCalfByAge],
+        };
     }
   }
 

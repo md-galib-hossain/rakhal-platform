@@ -9,6 +9,10 @@ import {
 } from '@prisma/client';
 import { CursorPaginationQueryDto } from 'src/common/pagination';
 import { toBoolean, trimString } from 'src/common/dto';
+import {
+  ANIMAL_CATEGORIES,
+  type AnimalCategory,
+} from '../../domain/animal-category';
 
 /** Derived health-status filter values (PRD §8.1; health is not stored). */
 export const HEALTH_STATUS_FILTERS = [
@@ -50,6 +54,16 @@ export class ListCattleQueryDto extends CursorPaginationQueryDto {
   @IsOptional()
   @IsEnum(ReproductionState)
   reproductiveStatus?: ReproductionState;
+
+  /** Derived read-model category filter (RAKHAL-289, PRD §8.1) — never
+   * stored, computed in `CattleService.animalCategoryWhere()` mirroring
+   * `deriveAnimalCategory()` exactly. Replaces the frontend's old fallback of
+   * filtering `reproductiveStatus=NOT_ELIGIBLE`, which missed heifers with no
+   * `ReproductionProfile` row at all (a null relation, not `NOT_ELIGIBLE`). */
+  @IsOptional()
+  @Transform(trimString)
+  @IsIn(ANIMAL_CATEGORIES)
+  animalCategory?: AnimalCategory;
 
   @IsOptional()
   @Transform(trimString)

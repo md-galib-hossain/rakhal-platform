@@ -12,7 +12,14 @@ import {
 /** Mirrors `CattleGender` (`prisma/schemas/cattle/cattle.enums.prisma`) without a Prisma dependency. */
 export type AnimalCategoryGender = 'MALE' | 'FEMALE' | 'CASTRATED_MALE';
 
-export type AnimalCategory = 'CALF' | 'HEIFER' | 'COW' | 'BULL' | 'STEER';
+export const ANIMAL_CATEGORIES = [
+  'CALF',
+  'HEIFER',
+  'COW',
+  'BULL',
+  'STEER',
+] as const;
+export type AnimalCategory = (typeof ANIMAL_CATEGORIES)[number];
 
 export interface DeriveAnimalCategoryInput {
   gender: AnimalCategoryGender;

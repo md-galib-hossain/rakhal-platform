@@ -94,6 +94,12 @@ export class MilkController {
     return this.milkService.submit(farmId, userId, dto);
   }
 
+  @Get('cattle/:id/eligibility')
+  @RequirePermission('milk.read')
+  eligibility(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.milkService.getMilkEligibility(farmId, id);
+  }
+
   @Get('anomalies')
   @RequirePermission('milk.read')
   anomalies(

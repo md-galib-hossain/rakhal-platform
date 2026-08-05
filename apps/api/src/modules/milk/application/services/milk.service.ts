@@ -155,6 +155,12 @@ export class MilkService {
           submittedSessions: cowEntries
             .filter((e) => e.submitted)
             .map((e) => e.session),
+          // RAKHAL-277's per-entry `disposition` (SALEABLE/WITHHELD/COLOSTRUM/
+          // CALF_FEED/DISCARDED/HOUSEHOLD_USE), keyed by session since this row
+          // is one-per-cow-per-day but disposition is computed per log entry.
+          dispositions: Object.fromEntries(
+            cowEntries.map((e) => [e.session, e.disposition]),
+          ),
         },
       };
     });
@@ -169,10 +175,8 @@ export class MilkService {
   /**
    * RAKHAL-278: a cow's current, animal-level milk eligibility — distinct
    * from `resolveMilkDisposition()` (RAKHAL-277), which classifies a single
-   * per-log-entry row. No existing per-cow "detail" display path exists yet
-   * in this module, so this is a small new read method (per the ticket's own
-   * "your call" — kept minimal, no new controller route since the ticket's
-   * acceptance criteria don't ask for one).
+   * per-log-entry row. Exposed via `GET /milk/cattle/:id/eligibility`
+   * (`MilkController.eligibility`).
    */
   async getMilkEligibility(
     farmId: string,
@@ -182,7 +186,7 @@ export class MilkService {
       await Promise.all([
         this.healthService.activeMilkWithholdingCattleIds(farmId, [cattleId]),
         this.prisma.lactation.findFirst({
-          where: { cattleId, endDate: null },
+          where: { cattleId, endDate: null, cattle: { farmId } },
           select: { startDate: true },
         }),
         this.farmSettings.milkColostrumWindowDays(farmId),

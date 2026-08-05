@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import {
+  CattleGender,
   CattlePurpose,
   HealthCaseStatus,
   HealthTaskStatus,
+  LactationStatus,
   MilkTankType,
   PregnancyStatus,
   ProductionStatus,
@@ -19,6 +21,8 @@ import { FinanceService } from 'src/modules/finance/application/services/finance
 import { MilkService } from 'src/modules/milk/application/services/milk.service';
 import { HealthService } from 'src/modules/health/application/services/health.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
+import { deriveAnimalCategory } from 'src/modules/cattle/domain/animal-category';
+import { deriveLactationStage } from 'src/modules/reproduction/domain/lactation-stage';
 import { DashboardPeriod } from '../../presentation/dto/dashboard-query.dto';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -185,6 +189,8 @@ export class DashboardService {
       activeCases,
       withholding,
       calves,
+      femaleCattle,
+      settings,
     ] = await Promise.all([
       this.prisma.cattle.count({
         where: {
@@ -230,25 +236,74 @@ export class DashboardService {
         where: { farmId, isActive: true, purpose: CattlePurpose.CALF },
         select: { dateOfBirth: true },
       }),
+      // Backing data for the real "fresh"/"growing" counts below (RAKHAL-270's
+      // AnimalCategory + RAKHAL-273's LactationStage, now that both exist —
+      // this used to proxy off retired ReproductiveStatus values, see the
+      // removed comment this replaces).
+      this.prisma.cattle.findMany({
+        where: { farmId, isActive: true, gender: CattleGender.FEMALE },
+        select: {
+          dateOfBirth: true,
+          reproductionProfile: { select: { totalCalvings: true } },
+          lactations: {
+            where: { status: LactationStatus.ACTIVE, endDate: null },
+            select: { startDate: true },
+            orderBy: { startDate: 'desc' },
+            take: 1,
+          },
+          dryPeriods: {
+            where: { actualEndDate: null },
+            select: { id: true },
+            take: 1,
+          },
+        },
+      }),
+      this.farmSettings.getEffective(farmId),
     ]);
 
     const reproCount = (s: ReproductionState) =>
       repro.find((r) => r.reproductiveStatus === s)?._count._all ?? 0;
     const healthy = Math.max(totalActive - activeCases, 0);
 
+    // "Growing" = real AnimalCategory.HEIFER (not-yet-calved female past the
+    // calf-weaning cutoff); "Fresh" = real LactationStage.FRESH (early days in
+    // milk on the active lactation). Both now derived per-cow from the same
+    // pure functions the Cattle module uses (`deriveAnimalCategory`,
+    // `deriveLactationStage`), not a stale ReproductiveStatus proxy.
+    let growing = 0;
+    let fresh = 0;
+    for (const cow of femaleCattle) {
+      const category = deriveAnimalCategory({
+        gender: 'FEMALE',
+        dateOfBirth: cow.dateOfBirth,
+        totalCalvings: cow.reproductionProfile?.totalCalvings ?? 0,
+        now,
+      });
+      if (category === 'HEIFER') {
+        growing += 1;
+      }
+      const lactationStage = deriveLactationStage({
+        now,
+        lactationStartDate: cow.lactations[0]?.startDate ?? null,
+        isInActiveDryPeriod: cow.dryPeriods.length > 0,
+        farmSettings: {
+          freshDays: settings.lactationFreshDays,
+          earlyDays: settings.lactationEarlyDays,
+          midDays: settings.lactationMidDays,
+        },
+      });
+      if (lactationStage === 'FRESH') {
+        fresh += 1;
+      }
+    }
+
     return {
       totalActive,
       productionBreakdown: {
         milking: milkingCount,
         dry: dryCount,
-        // "fresh"/"growing" previously read off the retired HEIFER/POSTPARTUM
-        // ReproductiveStatus values (RAKHAL-271 dropped both — lactation stage
-        // now belongs on `Cattle`/RAKHAL-273's LactationStage, animal category
-        // on RAKHAL-270's AnimalCategory; neither is wired here yet). Closest
-        // available proxies until those land: POSTPARTUM_WAITING for "fresh",
-        // NOT_ELIGIBLE (not-yet-bred females) for "growing".
-        fresh: reproCount(ReproductionState.POSTPARTUM_WAITING),
-        growing: reproCount(ReproductionState.NOT_ELIGIBLE),
+        fresh,
+        growing,
       },
       reproductiveBreakdown: {
         open: reproCount(ReproductionState.OPEN),

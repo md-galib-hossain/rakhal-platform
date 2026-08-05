@@ -64,6 +64,14 @@ export class CreateCattleDto {
   @IsEnum(ReproductionState)
   reproductiveStatus?: ReproductionState;
 
+  /** RAKHAL-291: required when `productionStatus` is `MILKING` at intake and
+   * no active `Lactation` exists yet (a fresh cattle row never has one) —
+   * `CattleService.create()` uses it to create a `Lactation` row with
+   * `startReason: PURCHASE_IMPORT`, mirroring `updateStatus()`'s own rule. */
+  @IsOptional()
+  @IsDateString()
+  lactationStartDate?: string;
+
   @IsOptional()
   @IsNumber()
   @Min(0)
