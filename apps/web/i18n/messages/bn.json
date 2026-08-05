@@ -3933,8 +3933,10 @@
       "production": "উৎপাদন",
       "reproduction": "প্রজনন",
       "health": "স্বাস্থ্য",
-      "financial": "আর্থিক"
+      "financial": "আর্থিক",
+      "combined": "সম্মিলিত"
     },
+    "export": "এক্সপোর্ট",
     "generate": "তৈরি করুন",
     "regenerate": "আবার তৈরি করুন",
     "format": "ফরম্যাট",
@@ -3958,7 +3960,10 @@
       "shedId": "শেড আইডি",
       "cattleId": "গবাদি পশুর আইডি",
       "fromDate": "শুরুর তারিখ",
-      "toDate": "শেষ তারিখ"
+      "toDate": "শেষ তারিখ",
+      "status": "অবস্থা",
+      "search": "খুঁজুন",
+      "category": "বিভাগ"
     },
     "schedules": {
       "title": "নির্ধারিত রিপোর্ট",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { cattleApi } from "../api";
@@ -8,6 +8,24 @@ import type { BulkAction, CattleFormPayload, CattleListFilters } from "../types"
 import type { CattleArchiveInput, CattleStatusInput } from "../schemas";
 
 const STALE_TIME = 60_000;
+
+/** One `GET /cattle` request per category tile in `CattleCategoryHighlights`. `meta.count` is only
+ * the current page's row count (`toCursorPage`, `rakhal-backend/src/common/pagination`), NOT a
+ * true total — there's no dedicated counts endpoint, and `CursorPaginationQueryDto.limit` is
+ * server-capped at 100 (`@Max(100)`). One page covers most per-category subgroups even on a
+ * 500-animal farm; when a category's page comes back full (`meta.hasNextPage`), the tile shows
+ * "100+" instead of silently under-counting — see `CattleCategoryHighlights`. */
+const CATEGORY_COUNT_LIMIT = 100;
+
+export function useCattleCategoryCounts(categories: { key: string; filters: CattleListFilters }[]) {
+  return useQueries({
+    queries: categories.map(({ key, filters }) => ({
+      queryKey: ["cattle", "category-count", key, filters as Record<string, string | undefined>],
+      queryFn: () => cattleApi.list(filters, undefined, CATEGORY_COUNT_LIMIT),
+      staleTime: STALE_TIME,
+    })),
+  });
+}
 
 /** Numbered-page adapter over the cursor-only `GET /cattle` endpoint, for the `Pagination` UI —
  * thin wrapper around the shared `useCursorPager` (`lib/hooks/use-cursor-pager.ts`). */

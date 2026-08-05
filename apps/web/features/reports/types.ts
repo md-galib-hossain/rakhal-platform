@@ -1,6 +1,16 @@
-export type ReportCategory = "production" | "reproduction" | "health" | "financial";
+export type ReportCategory = "production" | "reproduction" | "health" | "financial" | "combined";
 export type ReportFormat = "pdf" | "csv";
-export type ReportParamKey = "date" | "month" | "year" | "shedId" | "cattleId" | "fromDate" | "toDate";
+export type ReportParamKey =
+  | "date"
+  | "month"
+  | "year"
+  | "shedId"
+  | "cattleId"
+  | "fromDate"
+  | "toDate"
+  | "status"
+  | "search"
+  | "category";
 
 export interface ReportDef {
   id: string;

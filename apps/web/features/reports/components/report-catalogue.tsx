@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useReportCatalogue, useGenerateReport, useReportJob } from "../hooks/use-reports";
 import type { ReportDef, ReportFormat } from "../types";
 
-const CATEGORY_ORDER = ["production", "reproduction", "health", "financial"] as const;
+const CATEGORY_ORDER = ["production", "reproduction", "health", "financial", "combined"] as const;
 
 export function ReportCatalogue() {
   const t = useTranslations("reports");
@@ -69,12 +69,17 @@ export function ReportCatalogue() {
   );
 }
 
-function GenerateReportDialog({
+/** Just the fields this dialog reads — lets callers pass static report metadata (a fixed
+ * `reportId`/`name`/`description`/`formats`/`params`) without fetching the full catalogue,
+ * e.g. a page-level "Export" button that already knows which report it targets. */
+export type GenerateReportDialogDef = Pick<ReportDef, "id" | "name" | "description" | "formats" | "params">;
+
+export function GenerateReportDialog({
   report,
   open,
   onOpenChange,
 }: {
-  report: ReportDef;
+  report: GenerateReportDialogDef;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {

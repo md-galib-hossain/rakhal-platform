@@ -9,6 +9,8 @@ import { WalletDialogContent } from "./wallet-dialog";
 import { AddFundsDialogContent } from "./add-funds-dialog";
 import { WithdrawDialogContent } from "./withdraw-dialog";
 import { RecordTransactionDialog } from "./record-transaction-dialog";
+import { ReportExportButton } from "@/features/reports/components/report-export-button";
+import { FINANCE_EXPORT_REPORT } from "@/features/reports/report-defs";
 
 type WalletFlow = "none" | "wallet" | "addFunds" | "withdraw";
 
@@ -29,6 +31,7 @@ export function FinanceHeaderActions() {
   return (
     <>
       <div className="flex items-center gap-2">
+        <ReportExportButton report={FINANCE_EXPORT_REPORT} variant="secondary" />
         <Button variant="secondary" className="gap-2" onClick={() => setWalletFlow("wallet")}>
           <WalletIcon className="size-[18px]" aria-hidden />
           {t("wallet")}

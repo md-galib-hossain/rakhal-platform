@@ -3,11 +3,12 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { PageCard } from "@/components/shared/page-card";
 import { CattleHighlightsBar } from "@/features/cattle/components/cattle-highlights-bar";
-import { CattleCategoryTabs } from "@/features/cattle/components/cattle-category-tabs";
 import { CattleFilters } from "@/features/cattle/components/cattle-filters";
 import { CattleTable } from "@/features/cattle/components/cattle-table";
 import { CattleAddButton } from "@/features/cattle/components/cattle-add-button";
 import { CattleImportButton } from "@/features/cattle/components/cattle-import-button";
+import { ReportExportButton } from "@/features/reports/components/report-export-button";
+import { CATTLE_EXPORT_REPORT } from "@/features/reports/report-defs";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("nav");
@@ -33,9 +34,6 @@ export default async function CattlePage() {
   return (
     <PageCard title={t("cattle")}>
       <CattleHighlightsBar />
-      <Suspense fallback={null}>
-        <CattleCategoryTabs />
-      </Suspense>
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-2xl font-bold text-foreground">{tCattle("allCattleView")}</h2>
@@ -43,6 +41,7 @@ export default async function CattlePage() {
             <CattleFilters
               actions={
                 <div className="flex items-center gap-2">
+                  <ReportExportButton report={CATTLE_EXPORT_REPORT} />
                   <CattleImportButton />
                   <CattleAddButton />
                 </div>

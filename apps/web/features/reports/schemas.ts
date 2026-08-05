@@ -9,6 +9,9 @@ export const reportParametersSchema = z.object({
   cattleId: z.string().optional(),
   fromDate: z.string().optional(),
   toDate: z.string().optional(),
+  status: z.string().optional(),
+  search: z.string().optional(),
+  category: z.string().optional(),
 });
 
 export const generateReportSchema = z.object({

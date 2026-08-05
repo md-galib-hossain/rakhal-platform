@@ -3933,8 +3933,10 @@
       "production": "Production",
       "reproduction": "Reproduction",
       "health": "Health",
-      "financial": "Financial"
+      "financial": "Financial",
+      "combined": "Combined"
     },
+    "export": "Export",
     "generate": "Generate",
     "regenerate": "Regenerate",
     "format": "Format",
@@ -3958,7 +3960,10 @@
       "shedId": "Shed ID",
       "cattleId": "Cattle ID",
       "fromDate": "From date",
-      "toDate": "To date"
+      "toDate": "To date",
+      "status": "Status",
+      "search": "Search",
+      "category": "Category"
     },
     "schedules": {
       "title": "Scheduled reports",

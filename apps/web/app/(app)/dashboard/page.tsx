@@ -16,6 +16,8 @@ import { ProductionVsFeedcostChart } from "@/features/dashboard/components/produ
 import { ConceptionRateChart } from "@/features/dashboard/components/conception-rate-chart";
 import { ActivityLogCard } from "@/features/dashboard/components/activity-log-card";
 import { MilkTrendCard } from "@/features/dashboard/components/milk-trend-card";
+import { ReportExportButton } from "@/features/reports/components/report-export-button";
+import { DASHBOARD_EXPORT_REPORT } from "@/features/reports/report-defs";
 import type { Locale } from "@/lib/constants/i18n";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -71,7 +73,15 @@ export default async function DashboardPage() {
   const locale = (await getLocale()) as Locale;
 
   return (
-    <PageCard title={t("title")} actions={<TodayDatePill locale={locale} />}>
+    <PageCard
+      title={t("title")}
+      actions={
+        <div className="flex items-center gap-2">
+          <ReportExportButton report={DASHBOARD_EXPORT_REPORT} variant="secondary" />
+          <TodayDatePill locale={locale} />
+        </div>
+      }
+    >
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <KpiBar />
         <HerdStatusDonut />

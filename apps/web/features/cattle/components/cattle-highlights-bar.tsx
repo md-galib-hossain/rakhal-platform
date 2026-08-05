@@ -1,5 +1,6 @@
 "use client"; // live query
 
+import { Suspense } from "react";
 import { useTranslations } from "next-intl";
 import { Award, Droplets, HeartPulse, TrendingDown, TrendingUp, Users } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -7,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { cn } from "@/lib/utils";
 import { useCattleHighlights } from "../hooks/use-cattle";
+import { CattleCategoryHighlights } from "./cattle-category-highlights";
 
 function TrendChip({ pct }: { pct: number }) {
   const positive = pct >= 0;
@@ -112,6 +114,12 @@ export function CattleHighlightsBar() {
           />
         </div>
       ) : null}
+
+      <div className="border-t border-border pt-4">
+        <Suspense fallback={<Skeleton className="h-[92px] w-full rounded-xl" />}>
+          <CattleCategoryHighlights />
+        </Suspense>
+      </div>
     </Card>
   );
 }

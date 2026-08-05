@@ -19,6 +19,8 @@ import { useMilkLogTable } from "../hooks/use-milk";
 import { MilkCard } from "./milk-card";
 import { MilkExportButton } from "./milk-export-button";
 import { MilkImportButton } from "./milk-import-button";
+import { ReportExportButton } from "@/features/reports/components/report-export-button";
+import { MILK_EXPORT_REPORT } from "@/features/reports/report-defs";
 import { MilkLogTable } from "./milk-log-table";
 
 function todayIso(): string {
@@ -65,6 +67,7 @@ export function MilkLogSection() {
       <div className="flex flex-wrap items-center gap-2.5">
         <MilkImportButton />
         <MilkExportButton cattleOptions={entries} />
+        <ReportExportButton report={MILK_EXPORT_REPORT} />
 
         <Select value={shed} onValueChange={setShed}>
           <SelectTrigger className="h-9 w-[130px] rounded-lg text-xs shadow-xs" aria-label={t("shedLabel")}>

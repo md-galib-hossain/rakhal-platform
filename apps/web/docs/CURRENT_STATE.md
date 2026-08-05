@@ -1,5 +1,14 @@
 # Frontend — Current State
 
+## Export buttons: Cattle/Milk/Finance/Healthcare + Dashboard PDF (2026-08-02, user request)
+Frontend half of the backend Reports-engine export work (backend: `rakhal-backend` `docs/CURRENT_STATE.md`'s
+matching dated entry). Reused the existing `features/reports/` generate/poll/download implementation
+(RFE-041) rather than building a new mechanism — exported `GenerateReportDialog` with a loosened prop
+type (`GenerateReportDialogDef`), new `report-defs.ts` (static metadata for the 5 new backend report
+ids), new `ReportExportButton` (gated on `reports.create` + the `reports.generate` Pro feature) wired
+into each page's existing action slot. Full narrative + live-verification notes: `docs/IN_FLIGHT.md`'s
+"Recently Done" entry.
+
 ## Onboarding wizard — RFE-047, PRD-spec (no Figma) (2026-07-27, user request)
 Fixed the real beta-blocking bug: a first-login user with zero farms created a farm via
 `CreateFarmForm` and landed straight on `/dashboard` with zero sheds/cattle/team and no way back
