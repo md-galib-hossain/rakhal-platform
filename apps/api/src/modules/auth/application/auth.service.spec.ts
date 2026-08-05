@@ -58,6 +58,10 @@ describe('AuthService', () => {
   let eventBus: {
     emit: jest.Mock;
   };
+  let cacheService: {
+    get: jest.Mock;
+    set: jest.Mock;
+  };
   let service: AuthService;
 
   beforeEach(() => {
@@ -95,6 +99,10 @@ describe('AuthService', () => {
     eventBus = {
       emit: jest.fn(),
     };
+    cacheService = {
+      get: jest.fn(),
+      set: jest.fn(),
+    };
     logger.setContext.mockReturnValue(logger);
 
     service = new AuthService(
@@ -108,6 +116,7 @@ describe('AuthService', () => {
       tokenService,
       eventBus as never,
       logger as never,
+      cacheService as never,
     );
   });
 

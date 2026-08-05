@@ -10,6 +10,7 @@ import { AppLanguage } from 'src/common/i18n/language';
 import { createHash, randomBytes } from 'crypto';
 import { DomainEventBusService } from 'src/common/events/domain-event-bus.service';
 import { authConfig } from 'src/core/config/env';
+import { CacheService } from 'src/core/cache/cache.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { USER_REGISTERED_EVENT } from 'src/modules/auth/domain/events/user-registered.event';
 import {
@@ -42,6 +43,9 @@ import { PASSWORD_RESET_SUCCESSFUL_EVENT } from 'src/modules/auth/domain/events/
 export class AuthService {
   private readonly log: LoggerService;
   private readonly passwordResetTokenTtlMinutes = 30;
+  /** Grace window a rotated refresh token's result stays replayable for a
+   * near-simultaneous duplicate request (see `refresh()`). */
+  private readonly refreshRotationGraceSeconds = 10;
 
   constructor(
     @Inject(authConfig.KEY)
@@ -55,6 +59,7 @@ export class AuthService {
     private readonly tokenService: TokenService,
     private readonly eventBus: DomainEventBusService,
     private readonly logger: LoggerService,
+    private readonly cacheService: CacheService,
   ) {
     this.log = this.logger.setContext(AuthService.name);
   }
@@ -106,6 +111,9 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token is required');
     }
 
+    const incomingTokenHash =
+      this.refreshTokenService.hashToken(rawRefreshToken);
+
     const storedToken =
       await this.refreshTokenService.findByRawToken(rawRefreshToken);
 
@@ -123,6 +131,20 @@ export class AuthService {
       session.status !== SessionStatus.ACTIVE ||
       session.expiresAt.getTime() <= now.getTime()
     ) {
+      // A near-simultaneous duplicate refresh call (two tabs, or the
+      // proactive middleware + reactive 401-retry both firing) can present
+      // the SAME just-rotated token a beat after another request already
+      // rotated it. Rather than treat that as an attack, replay the
+      // just-completed rotation's result within a short grace window —
+      // real reuse (replayed after this cache entry expires, or of a token
+      // that was never actually "current") still falls through below.
+      const replay = await this.cacheService.get<LoginResult>(
+        this.rotationCacheKey(incomingTokenHash),
+      );
+      if (replay) {
+        return replay;
+      }
+
       await this.refreshTokenService.markReuse({
         refreshTokenId: storedToken.id,
         tokenFamily: storedToken.tokenFamily,
@@ -181,7 +203,7 @@ export class AuthService {
       farmId: dto.farmId,
     });
 
-    return {
+    const result: LoginResult = {
       accessToken,
       refreshToken: nextRefreshToken,
       sessionId: rotationResult.session.id,
@@ -189,6 +211,18 @@ export class AuthService {
       farmId: dto.farmId,
       needsFarm: dto.farmId === '',
     };
+
+    await this.cacheService.set(
+      this.rotationCacheKey(incomingTokenHash),
+      result,
+      this.refreshRotationGraceSeconds,
+    );
+
+    return result;
+  }
+
+  private rotationCacheKey(tokenHash: string): string {
+    return `auth:refresh-rotated:${tokenHash}`;
   }
 
   async logoutCurrentSession(userId: string, sessionId: string) {

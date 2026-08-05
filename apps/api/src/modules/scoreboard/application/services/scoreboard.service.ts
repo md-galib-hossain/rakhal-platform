@@ -1,14 +1,13 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { ProductionStatus } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { JoinScoreboardDto } from '../../presentation/dto/join-scoreboard.dto';
 import { LeaderboardQueryDto } from '../../presentation/dto/leaderboard-query.dto';
 
-const EXCLUDED_STATUS: ProductionStatus[] = [
-  ProductionStatus.SOLD,
-  ProductionStatus.DECEASED,
-];
+// RAKHAL-269: lifecycle exits (sold/deceased) are now fully captured by
+// `isActive: false` — ProductionStatus dropped those values (trimmed to
+// MILKING|DRY), so the separate EXCLUDED_STATUS check is gone, `isActive:
+// true` alone is sufficient.
 const TOP_TIER_AQR = 90;
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -65,7 +64,6 @@ export class ScoreboardService {
     const herdWhere = {
       farmId,
       isActive: true,
-      productionStatus: { notIn: EXCLUDED_STATUS },
       aqrScore: { not: null },
     };
 
@@ -122,7 +120,6 @@ export class ScoreboardService {
     const where = {
       farmId: { in: scopedFarmIds },
       isActive: true,
-      productionStatus: { notIn: EXCLUDED_STATUS },
       aqrScore: { not: null },
     };
     const offset = (query.page - 1) * query.per_page;
@@ -182,7 +179,6 @@ export class ScoreboardService {
       where: {
         farmId: { in: scopedFarmIds },
         isActive: true,
-        productionStatus: { notIn: EXCLUDED_STATUS },
         aqrScore: { not: null },
       },
       _avg: { aqrScore: true },
@@ -272,7 +268,6 @@ export class ScoreboardService {
       where: {
         farmId: { in: participants.map((p) => p.farmId) },
         isActive: true,
-        productionStatus: { notIn: EXCLUDED_STATUS },
         aqrScore: { not: null },
       },
       _avg: { aqrScore: true },

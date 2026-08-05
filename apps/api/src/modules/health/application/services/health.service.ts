@@ -237,6 +237,7 @@ export class HealthService {
         cattleId: dto.cattleId,
         caseCode,
         diagnosis: dto.diagnosis,
+        condition: dto.condition,
         diagnosisType: dto.diagnosisType,
         priority: dto.priority,
         shedId: dto.shedId ?? cattle.shedId,
@@ -412,6 +413,7 @@ export class HealthService {
       where: { id },
       data: {
         diagnosis: dto.diagnosis,
+        condition: dto.condition,
         diagnosisType: dto.diagnosisType,
         priority: dto.priority,
         status: dto.status,

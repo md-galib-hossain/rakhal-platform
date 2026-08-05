@@ -20,18 +20,17 @@ enum CattleStatus {
   TRANSFERRED
   MISSING
   ARCHIVED
+  CULLED
 }
 
-/// Production dimension of the multi-state status model (PRD §8.1 / §24.2).
-/// Independent of reproductive status (`ReproductiveStatus`) and the derived
-/// health status. SOLD/DECEASED exclude the animal from active herd KPIs (CAT-08).
+/// Production dimension of the multi-state status model (PRD §8.1 / §24.2,
+/// RAKHAL-269). Independent of reproduction state (`ReproductionState`) and
+/// the derived health status. Trimmed to only the two real production states —
+/// lifecycle/archival (sold/deceased/culled/archived) lives on `CattleStatus` +
+/// `Cattle.isActive` instead (was previously overloaded onto this enum).
 enum ProductionStatus {
   MILKING
   DRY
-  FRESH
-  GROWING
-  SOLD
-  DECEASED
 }
 
 enum CattleSourceType {

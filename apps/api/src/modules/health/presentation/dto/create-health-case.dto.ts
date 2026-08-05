@@ -12,6 +12,7 @@ import {
 } from 'class-validator';
 import {
   AppetiteStatus,
+  HealthCondition,
   HealthDiagnosisType,
   HealthPriority,
 } from '@prisma/client';
@@ -27,6 +28,10 @@ export class CreateHealthCaseDto {
   @IsString()
   @IsNotEmpty()
   diagnosis!: string;
+
+  @IsOptional()
+  @IsEnum(HealthCondition)
+  condition?: HealthCondition;
 
   @IsEnum(HealthDiagnosisType)
   diagnosisType!: HealthDiagnosisType;

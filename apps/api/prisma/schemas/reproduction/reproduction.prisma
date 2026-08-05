@@ -4,7 +4,17 @@ model ReproductionProfile {
 
   pubertyDate DateTime?
 
-  reproductiveStatus     ReproductiveStatus @default(HEIFER)
+  /// Core breeding-cycle state (RAKHAL-271 v2). Nullable, **no default** — a
+  /// cow that was `DRY`/`LACTATING`/`HEIFER` under the old v1 enum is very
+  /// often still pregnant or fertile, so the migration does not CASE-guess a
+  /// value (a DB-level default would silently backfill every existing row on
+  /// `ADD COLUMN`, which is exactly the fabricated-fertility-data bug this
+  /// correction fixes). `prisma/backfill-reproduction-state.ts` re-derives the
+  /// real state per-cow from actual event history, leaving genuinely
+  /// ambiguous rows `NULL` ("not assessed") rather than guessing; new rows get
+  /// a real value from the first `refreshProfile()` call. Field name kept as
+  /// `reproductiveStatus` (only the type changed) to minimize call-site churn.
+  reproductiveStatus     ReproductionState?
   currentLactationNumber Int                @default(0)
 
   totalBreedings   Int @default(0)
@@ -216,6 +226,19 @@ model Lactation {
   endDate      DateTime?
   peakMilkDate DateTime?
   status       LactationStatus @default(ACTIVE)
+
+  /// Why this lactation began (RAKHAL-271 v2 correction). Replaces the
+  /// rejected `Cattle.lactationStartDate` — this is now the sole source of
+  /// truth for lactation start. Defaults `CALVING` (safe for the migration
+  /// backfill of existing rows — every pre-existing `Lactation` row genuinely
+  /// came from a calving).
+  startReason         LactationStartReason @default(CALVING)
+  /// The `CalvingEvent` that produced this lactation, when `startReason` is
+  /// `CALVING` (redundant with `calvingEventId` for that case, but kept
+  /// distinct/nullable so `PURCHASE_IMPORT`/`MANUAL_CORRECTION` lactations —
+  /// which have no `calvingEventId` — still have an explicit, typed home for
+  /// provenance instead of overloading `calvingEventId`).
+  sourceCalvingEventId String?
 
   createdAt DateTime @default(now())
 

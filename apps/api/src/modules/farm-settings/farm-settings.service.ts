@@ -57,6 +57,25 @@ export class FarmSettingsService {
   }
 
   /**
+   * Recent-heat lookback window, in days (RAKHAL-271) — a `HeatEvent` inside
+   * this window contributes the `HEAT_DETECTED` `ReproductionAlert` (v2: alerts
+   * are derived and layered on top of `ReproductionState`, not a state of
+   * their own).
+   */
+  async reproHeatWindowDays(farmId: string): Promise<number> {
+    return (await this.getEffective(farmId)).reproHeatWindowDays;
+  }
+
+  /**
+   * Close-up window before `Pregnancy.expectedCalvingDate`, in days
+   * (RAKHAL-271) — inside it, a `PREGNANT` cow gains the `CALVING_DUE`
+   * `ReproductionAlert` (v2: no longer a separate `ReproductionState`).
+   */
+  async reproCloseUpWindowDays(farmId: string): Promise<number> {
+    return (await this.getEffective(farmId)).reproCloseUpWindowDays;
+  }
+
+  /**
    * Milk-anomaly cutoff as a fraction of the 7-day average — a session below it is
    * flagged. `anomalyThresholdPct` is the drop %, so 30 → 0.70 (PRD §10.2).
    */

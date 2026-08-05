@@ -99,3 +99,17 @@ enum HealthCloseOutcome {
   RECOVERED
   MORTALITY
 }
+
+/// RAKHAL-275: structured condition classification, kept alongside the
+/// free-text `diagnosis` field (nullable/additive — diagnosis remains the
+/// source of detail, condition is a coarse structured bucket for reporting).
+enum HealthCondition {
+  MASTITIS
+  LAMENESS
+  METRITIS
+  KETOSIS
+  MILK_FEVER
+  FEVER
+  INJURY
+  OTHER
+}

@@ -1,0 +1,47 @@
+/// Generic per-animal "hold" mechanism (RAKHAL-280, v2 prerequisite). A hold is
+/// a farm-scoped restriction placed on a single animal for a reason that spans
+/// multiple domains — reproduction (`REPRODUCTIVE`, backs the future
+/// `REPRODUCTIVE_HOLD` alert, RAKHAL-272), milk (`MILK_DISCARD`, backs the
+/// future `DISCARD_REQUIRED` eligibility reason, RAKHAL-278), health
+/// (`QUARANTINE`), or an ad-hoc manager decision (`OTHER`). This is the ONE
+/// mechanism meant to back all of those — no ad-hoc booleans elsewhere.
+///
+/// `farmId`/`cattleId`/`createdBy`/`releasedBy` are plain scalar FKs, no Prisma
+/// `@relation` — same "isolated migration" precedent as `MediaAsset`
+/// (`prisma/schemas/media/media.prisma`) and `Cattle.profilePhotoAssetId`, kept
+/// deliberately loose-coupled here so this file doesn't need to touch the hot
+/// `cattle.prisma`/`farm.prisma` schemas. Farm/cattle scoping is enforced in
+/// `AnimalHoldService`, not via a DB-level foreign key.
+///
+/// A hold is active while `endedAt` is null; `releaseHold` sets both
+/// `endedAt` and `releasedBy`. Immutable once released (no un-release path) —
+/// a new hold should be opened instead.
+model AnimalHold {
+  id String @id @default(cuid())
+
+  farmId   String
+  cattleId String
+
+  type   AnimalHoldType
+  reason String
+
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  createdBy  String
+  releasedBy String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([farmId, cattleId])
+  @@index([farmId, type])
+  @@index([cattleId, endedAt])
+}
+
+enum AnimalHoldType {
+  REPRODUCTIVE
+  MILK_DISCARD
+  QUARANTINE
+  OTHER
+}

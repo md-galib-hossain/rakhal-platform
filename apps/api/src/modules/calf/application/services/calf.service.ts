@@ -11,7 +11,6 @@ import {
   CattlePurpose,
   HealthCaseStatus,
   Prisma,
-  ProductionStatus,
   TaskCategory,
   TaskPriority,
   TaskSource,
@@ -359,12 +358,12 @@ export class CalfService {
         },
       }),
       // Move the animal out of Calf Management into the main herd (PRD §14.4).
+      // productionStatus is left unset (RAKHAL-269 dropped the GROWING value —
+      // production status is now Milking/Dry-only; animal category/lifecycle
+      // stage is derived elsewhere, see RAKHAL-270).
       this.prisma.cattle.update({
         where: { id },
-        data: {
-          purpose: newPurpose,
-          productionStatus: ProductionStatus.GROWING,
-        },
+        data: { purpose: newPurpose },
       }),
     ]);
 
@@ -373,7 +372,9 @@ export class CalfService {
       calfId: id,
       weaned: true,
       adgAtWeaning,
-      productionStatusUpdatedTo: 'GROWING',
+      // productionStatus is no longer auto-set on weaning (RAKHAL-269 dropped
+      // GROWING from ProductionStatus) — kept as `null` for API-shape parity.
+      productionStatusUpdatedTo: null as string | null,
       newPurpose,
       movedToCattleModule: true,
       removedFromCalfManagement: true,

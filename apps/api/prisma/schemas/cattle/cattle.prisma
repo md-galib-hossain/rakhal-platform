@@ -18,8 +18,10 @@ model Cattle {
 
   /// Production dimension of the multi-state status (PRD §8.1). Reproductive
   /// status lives on `ReproductionProfile`; health status is derived from active
-  /// `HealthCase`/`SafetyWithdrawal` — neither is duplicated here.
-  productionStatus ProductionStatus @default(GROWING)
+  /// `HealthCase`/`SafetyWithdrawal` — neither is duplicated here. Nullable
+  /// (RAKHAL-269) — unset until a farm explicitly marks the animal
+  /// Milking/Dry; no default (was `GROWING`, now dropped from the enum).
+  productionStatus ProductionStatus?
 
   /// Denormalized latest physical readings (PRD §8.5 header / §24.2).
   /// `lastBcs` is maintained by BCS records (`BodyConditionScore`).

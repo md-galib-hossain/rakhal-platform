@@ -5,7 +5,7 @@ import {
   CattlePurpose,
   CattleStatus,
   ProductionStatus,
-  ReproductiveStatus,
+  ReproductionState,
 } from '@prisma/client';
 import { CursorPaginationQueryDto } from 'src/common/pagination';
 import { toBoolean, trimString } from 'src/common/dto';
@@ -48,8 +48,8 @@ export class ListCattleQueryDto extends CursorPaginationQueryDto {
   productionStatus?: ProductionStatus;
 
   @IsOptional()
-  @IsEnum(ReproductiveStatus)
-  reproductiveStatus?: ReproductiveStatus;
+  @IsEnum(ReproductionState)
+  reproductiveStatus?: ReproductionState;
 
   @IsOptional()
   @Transform(trimString)

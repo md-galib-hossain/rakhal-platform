@@ -5,6 +5,9 @@ model HealthCase {
 
   caseCode      String
   diagnosis     String
+  /// RAKHAL-275: structured condition bucket, additive/nullable — `diagnosis`
+  /// stays the free-text detail field (required for OTHER too).
+  condition     HealthCondition?
   diagnosisType HealthDiagnosisType
   priority      HealthPriority
   status        HealthCaseStatus    @default(ACTIVE)
@@ -55,6 +58,7 @@ model HealthCase {
   @@index([farmId, cattleId])
   @@index([farmId, status])
   @@index([farmId, diagnosis])
+  @@index([farmId, condition])
   @@index([farmId, priority])
   @@index([farmId, startDate])
 }

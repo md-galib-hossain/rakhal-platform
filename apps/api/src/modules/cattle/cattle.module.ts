@@ -6,6 +6,7 @@ import { PermissionModule } from '../permission/permission.module';
 import { ActivityModule } from '../activity/activity.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { MediaModule } from '../media/media.module';
+import { AnimalHoldService } from './application/services/animal-hold.service';
 import { BcsService } from './application/services/bcs.service';
 import { BreedService } from './application/services/breed.service';
 import { CattleService } from './application/services/cattle.service';
@@ -13,6 +14,7 @@ import { CattleDetailService } from './application/services/cattle-detail.servic
 import { CattleImportService } from './application/services/cattle-import.service';
 import { ShedService } from './application/services/shed.service';
 import { WeightService } from './application/services/weight.service';
+import { AnimalHoldController } from './presentation/controllers/animal-hold.controller';
 import { BreedController } from './presentation/controllers/breed.controller';
 import { CattleController } from './presentation/controllers/cattle.controller';
 import { ShedController } from './presentation/controllers/shed.controller';
@@ -27,7 +29,12 @@ import { ShedController } from './presentation/controllers/shed.controller';
     SubscriptionModule,
     MediaModule,
   ],
-  controllers: [CattleController, BreedController, ShedController],
+  controllers: [
+    CattleController,
+    BreedController,
+    ShedController,
+    AnimalHoldController,
+  ],
   providers: [
     CattleService,
     BcsService,
@@ -36,7 +43,14 @@ import { ShedController } from './presentation/controllers/shed.controller';
     CattleImportService,
     BreedService,
     ShedService,
+    AnimalHoldService,
   ],
-  exports: [CattleService, BreedService, ShedService, CattleImportService],
+  exports: [
+    CattleService,
+    BreedService,
+    ShedService,
+    CattleImportService,
+    AnimalHoldService,
+  ],
 })
 export class CattleModule {}

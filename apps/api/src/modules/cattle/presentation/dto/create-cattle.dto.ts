@@ -16,7 +16,7 @@ import {
   CattleSourceType,
   CattleStatus,
   ProductionStatus,
-  ReproductiveStatus,
+  ReproductionState,
 } from '@prisma/client';
 import { BCS_ALLOWED_SCORES } from '../../domain/cattle.constants';
 import { trimString } from './common.dto';
@@ -61,8 +61,8 @@ export class CreateCattleDto {
   productionStatus?: ProductionStatus;
 
   @IsOptional()
-  @IsEnum(ReproductiveStatus)
-  reproductiveStatus?: ReproductiveStatus;
+  @IsEnum(ReproductionState)
+  reproductiveStatus?: ReproductionState;
 
   @IsOptional()
   @IsNumber()

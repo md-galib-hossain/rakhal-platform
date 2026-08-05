@@ -18,6 +18,7 @@ import { AdminAuditController } from './presentation/controllers/admin-audit.con
 import { AdminHealthController } from './presentation/controllers/admin-health.controller';
 import { AdminFeedIngredientController } from './presentation/controllers/admin-feed-ingredient.controller';
 import { AdminSystemController } from './presentation/controllers/admin-system.controller';
+import { AdminUserSessionController } from './presentation/controllers/admin-user-session.controller';
 
 /**
  * Rakhal Admin (`admin-api`) — RAKHAL-224 (PRD §32.5 / ADR-016/019). The
@@ -47,6 +48,7 @@ import { AdminSystemController } from './presentation/controllers/admin-system.c
     AdminHealthController,
     AdminFeedIngredientController,
     AdminSystemController,
+    AdminUserSessionController,
   ],
   providers: [
     AdminTokenService,

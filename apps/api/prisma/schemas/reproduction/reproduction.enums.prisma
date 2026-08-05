@@ -1,13 +1,34 @@
-enum ReproductiveStatus {
-  HEIFER
+/// Pure breeding-cycle CORE state (RAKHAL-271, v2 correction). Deliberately
+/// excludes lactation state — `DRY`/`LACTATING` moved to
+/// `Cattle.productionStatus` (RAKHAL-269), `POSTPARTUM`/`RETIRED` (dead —
+/// never written) and `HEIFER`/`ABORTED` were dropped as terminal/redundant
+/// states. `refreshProfile()` always derives one of these 5 values, never
+/// leaving the cow in a dead-end status.
+///
+/// v2 split (see `docs/PROJECT_PROGRESS.md` MILESTONE 10 + the v1→v2 plan):
+/// this used to be an 8-value `ReproductiveStatus` that also encoded
+/// time-bound alerts (`IN_HEAT`/`PREGNANCY_CHECK_DUE`/`EXPECTED_TO_CALVE`) as
+/// if they were core states — a pregnant cow near calving is still PREGNANT,
+/// not a different state. Those three moved to the derived (not stored)
+/// `ReproductionAlert[]` (`src/modules/reproduction/domain/reproduction-alerts.ts`).
+/// `INSEMINATED` was renamed to `BRED_AWAITING_CONFIRMATION` — clearer that
+/// it's a waiting state, not an event type.
+enum ReproductionState {
+  NOT_ELIGIBLE
+  POSTPARTUM_WAITING
   OPEN
-  BRED
+  BRED_AWAITING_CONFIRMATION
   PREGNANT
-  DRY
-  LACTATING
-  POSTPARTUM
-  ABORTED
-  RETIRED
+}
+
+/// Why a `Lactation` row began (RAKHAL-271 v2 correction). Replaces the
+/// rejected `Cattle.lactationStartDate` (a duplicate source of truth against
+/// `Lactation.startDate`, dropped by RAKHAL-269's v2 correction) — lactation
+/// start now lives solely on `Lactation`.
+enum LactationStartReason {
+  CALVING
+  PURCHASE_IMPORT
+  MANUAL_CORRECTION
 }
 
 enum HeatDetectionMethod {

@@ -1,12 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Workbook, type CellValue } from 'exceljs';
-import {
-  CattleGender,
-  CattlePurpose,
-  CattleSourceType,
-  ProductionStatus,
-} from '@prisma/client';
+import { CattleGender, CattlePurpose, CattleSourceType } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { CacheService } from 'src/core/cache/cache.service';
@@ -208,7 +203,6 @@ export class CattleImportService {
             color: r.data.color ?? undefined,
             notes: r.data.notes ?? undefined,
             sourceType: CattleSourceType.PURCHASED,
-            productionStatus: ProductionStatus.GROWING,
             createdBy: userId,
           },
           select: { id: true },

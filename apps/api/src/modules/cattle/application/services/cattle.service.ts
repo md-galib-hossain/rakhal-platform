@@ -16,7 +16,7 @@ import {
   PregnancyStatus,
   Prisma,
   ProductionStatus,
-  ReproductiveStatus,
+  ReproductionState,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
@@ -55,12 +55,6 @@ const OPEN_HEALTH_CASE_STATUSES: HealthCaseStatus[] = [
   HealthCaseStatus.IMPROVING,
   HealthCaseStatus.WORSENING,
   HealthCaseStatus.STABLE,
-];
-
-/** Production statuses excluded from active herd KPIs and AQR averages (CAT-08). */
-const INACTIVE_PRODUCTION_STATUSES: ProductionStatus[] = [
-  ProductionStatus.SOLD,
-  ProductionStatus.DECEASED,
 ];
 
 /**
@@ -109,7 +103,7 @@ export class CattleService {
           dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
           purpose: dto.purpose,
           status: dto.status ?? CattleStatus.ACTIVE,
-          productionStatus: dto.productionStatus ?? ProductionStatus.GROWING,
+          productionStatus: dto.productionStatus,
           shedId: dto.shedId,
           feedGroupId: dto.feedGroupId,
           lastWeightKg: dto.weightKg,
@@ -281,10 +275,27 @@ export class CattleService {
     await this.getCattleOrThrow(farmId, id);
 
     if (dto.productionStatus) {
-      const lifecycle = this.lifecycleForProductionStatus(dto.productionStatus);
+      // v2 correction (RAKHAL-269/271): `Cattle.lactationStartDate` is gone —
+      // lactation start now lives solely on `Lactation.startDate`. Moving to
+      // MILKING requires an active `Lactation` row to already exist (created
+      // by `createCalvingEvent`, or by a future purchase-intake flow). This is
+      // a stub check — richer "does the newest Lactation actually belong to
+      // this cow's current cycle" logic is a later ticket's job.
+      if (dto.productionStatus === ProductionStatus.MILKING) {
+        const activeLactation = await this.prisma.lactation.findFirst({
+          where: { cattleId: id, status: LactationStatus.ACTIVE },
+          select: { id: true },
+        });
+        if (!activeLactation) {
+          throw new BadRequestException(
+            'An active Lactation record is required to set productionStatus to MILKING',
+          );
+        }
+      }
+
       await this.prisma.cattle.update({
         where: { id },
-        data: { productionStatus: dto.productionStatus, ...lifecycle },
+        data: { productionStatus: dto.productionStatus },
       });
     }
 
@@ -314,13 +325,18 @@ export class CattleService {
   async archiveWithReason(farmId: string, id: string, dto: ArchiveCattleDto) {
     await this.getCattleOrThrow(farmId, id);
 
-    const data: Prisma.CattleUpdateInput = { isActive: false };
+    // productionStatus can no longer hold lifecycle states (RAKHAL-269) — any
+    // archive path nulls it out, the lifecycle itself is recorded on `status`.
+    const data: Prisma.CattleUpdateInput = {
+      isActive: false,
+      productionStatus: null,
+    };
     if (dto.reason === 'sold') {
-      data.productionStatus = ProductionStatus.SOLD;
       data.status = CattleStatus.SOLD;
     } else if (dto.reason === 'deceased') {
-      data.productionStatus = ProductionStatus.DECEASED;
       data.status = CattleStatus.DEAD;
+    } else if (dto.reason === 'culled') {
+      data.status = CattleStatus.CULLED;
     } else {
       data.status = CattleStatus.ARCHIVED;
     }
@@ -367,7 +383,6 @@ export class CattleService {
     const activeWhere: Prisma.CattleWhereInput = {
       farmId,
       isActive: true,
-      productionStatus: { notIn: INACTIVE_PRODUCTION_STATUSES },
     };
 
     const [totalActive, prevActive, aqrAgg, breedingReady] = await Promise.all([
@@ -384,7 +399,7 @@ export class CattleService {
           ...activeWhere,
           productionStatus: ProductionStatus.MILKING,
           reproductionProfile: {
-            is: { reproductiveStatus: ReproductiveStatus.OPEN },
+            is: { reproductiveStatus: ReproductionState.OPEN },
           },
           lactations: {
             some: {
@@ -442,7 +457,7 @@ export class CattleService {
         const { count } = await this.prisma.cattle.updateMany({
           where: { ...scope, isActive: true },
           data: {
-            productionStatus: ProductionStatus.SOLD,
+            productionStatus: null,
             status: CattleStatus.SOLD,
             isActive: false,
           },
@@ -1058,8 +1073,10 @@ export class CattleService {
    */
   private composeStatus<
     T extends {
-      productionStatus: ProductionStatus;
-      reproductionProfile?: { reproductiveStatus: ReproductiveStatus } | null;
+      productionStatus: ProductionStatus | null;
+      reproductionProfile?: {
+        reproductiveStatus: ReproductionState | null;
+      } | null;
       healthCases?: {
         status: string;
         isSafetyWithholdingActive: boolean;
@@ -1116,19 +1133,6 @@ export class CattleService {
         // Quarantine is not tracked yet (deferred to Healthcare) — match none.
         return { id: '__none__' };
     }
-  }
-
-  /** Lifecycle (`status`/`isActive`) implied by a production-status change. */
-  private lifecycleForProductionStatus(
-    productionStatus: ProductionStatus,
-  ): Pick<Prisma.CattleUpdateInput, 'status' | 'isActive'> {
-    if (productionStatus === ProductionStatus.SOLD) {
-      return { status: CattleStatus.SOLD, isActive: false };
-    }
-    if (productionStatus === ProductionStatus.DECEASED) {
-      return { status: CattleStatus.DEAD, isActive: false };
-    }
-    return {};
   }
 
   /** Today's and yesterday's total logged yield (litres) for the farm. */

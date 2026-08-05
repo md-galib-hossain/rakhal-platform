@@ -1,8 +1,8 @@
 import { groupedCatalogue, isKnownReport, REPORTS } from './report-catalogue';
 
 describe('report-catalogue', () => {
-  it('defines the 12 MVP reports + feed-cost + monthly farm report', () => {
-    expect(REPORTS).toHaveLength(14);
+  it('defines the 12 MVP reports + feed-cost + monthly farm report + 5 record exports', () => {
+    expect(REPORTS).toHaveLength(19);
   });
 
   it('every report id is unique', () => {
@@ -29,8 +29,12 @@ describe('report-catalogue', () => {
     expect(isKnownReport('rpt_not_real')).toBe(false);
   });
 
-  it('every report offers both pdf and csv', () => {
+  it('every report offers both pdf and csv, except the PDF-only dashboard export', () => {
     for (const r of REPORTS) {
+      if (r.id === 'rpt_dashboard_export') {
+        expect(r.formats).toEqual(['pdf']);
+        continue;
+      }
       expect(r.formats).toEqual(expect.arrayContaining(['pdf', 'csv']));
     }
   });

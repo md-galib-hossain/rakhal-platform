@@ -96,16 +96,22 @@ GET /reproduction/breeding-events?farmId=farm_id&fromDate=2026-01-01&toDate=2026
 ## Enums
 
 ```txt
-ReproductiveStatus:
-HEIFER
+ReproductionState (RAKHAL-271 v2 — pure breeding-cycle CORE state, no lactation
+state, no time-bound alerts baked in):
+NOT_ELIGIBLE
+POSTPARTUM_WAITING
 OPEN
-BRED
+BRED_AWAITING_CONFIRMATION
 PREGNANT
-DRY
-LACTATING
-POSTPARTUM
-ABORTED
-RETIRED
+
+ReproductionAlert (RAKHAL-271/272 — derived, not stored, multi-valued;
+layered on top of ReproductionState, returned as `reproductionAlerts` on the
+summary response; this ticket implements only the date-window ones):
+HEAT_DETECTED          active HeatEvent within the farm's heat window
+PREGNANCY_CHECK_DUE    past expectedPregnancyCheckDate, no diagnosis yet
+CALVING_DUE            within the farm's close-up window, state=PREGNANT
+OVERDUE_PREGNANCY_CHECK, REPEAT_BREEDER, LONG_DAYS_OPEN, CALVING_OVERDUE,
+ABORTION_HISTORY, REPRODUCTIVE_HOLD — RAKHAL-272, not yet implemented
 
 HeatDetectionMethod:
 VISUAL
@@ -200,6 +206,7 @@ Response:
     "tagNumber": "COW-101"
   },
   "status": "PREGNANT",
+  "reproductionAlerts": ["CALVING_DUE"],
   "currentLactation": 3,
   "dim": 145,
   "totalCalvings": 4,
@@ -354,7 +361,10 @@ Side effects:
 
 ```txt
 Refreshes ReproductionProfile.
-If this is the latest pending breeding, profile status becomes BRED.
+If this is the latest pending breeding, profile status becomes
+BRED_AWAITING_CONFIRMATION (state does not change once
+expectedPregnancyCheckDate passes — that surfaces as the
+PREGNANCY_CHECK_DUE alert instead, RAKHAL-271 v2).
 ```
 
 ## GET /reproduction/breeding-events
@@ -545,7 +555,10 @@ Side effects:
 
 ```txt
 Creates CalvingEvent.
-Creates ACTIVE Lactation with startDate=calvingDate.
+Creates ACTIVE Lactation with startDate=calvingDate,
+  startReason=CALVING, sourceCalvingEventId=the new CalvingEvent's id.
+Flips Cattle.productionStatus to MILKING (Cattle.lactationStartDate does not
+  exist — RAKHAL-269/271 v2 correction; Lactation is the sole source of truth).
 If pregnancyId is supplied:
   marks Pregnancy as CALVED
   sets actualCalvingDate
@@ -629,7 +642,8 @@ Creates AbortionEvent.
 If pregnancyId is supplied:
   marks Pregnancy as ABORTED
   marks related BreedingEvent as ABORTED
-Updates ReproductionProfile status to ABORTED, then refreshes counters.
+Clears ReproductionProfile.currentPregnancyId, then refreshes — the cow
+returns to a derived status (typically OPEN), no dead-end ABORTED status.
 ```
 
 ## GET /reproduction/abortion-events
@@ -699,15 +713,28 @@ currentPregnancyId
 currentLactationId
 ```
 
-Status priority during refresh:
+Core-state priority during refresh (first match wins; RAKHAL-271 v2):
 
 ```txt
-DRY when an active dry period exists
-PREGNANT when an active pregnancy exists
-LACTATING when an active lactation exists
-BRED when the latest breeding is PENDING_CHECK
-OPEN otherwise
+NOT_ELIGIBLE               male, or female below breeding age with no breeding history
+PREGNANT                   any active pregnancy exists, regardless of closeness
+                            to calving (closeness is the CALVING_DUE alert, not a
+                            different state — v1's EXPECTED_TO_CALVE is gone)
+BRED_AWAITING_CONFIRMATION latest breeding is PENDING_CHECK (renamed from v1's
+                            INSEMINATED; staying past expectedPregnancyCheckDate
+                            surfaces as the PREGNANCY_CHECK_DUE alert, not a
+                            different state — v1's PREGNANCY_CHECK_DUE is gone)
+POSTPARTUM_WAITING         inside the farm's VWP window after the last calving
+OPEN                       otherwise
 ```
+
+`ReproductionAlert[]` (RAKHAL-271/272) is derived separately, at read time,
+never stored — see `deriveReproductionAlerts`
+(`src/modules/reproduction/domain/reproduction-alerts.ts`). v1's `IN_HEAT`
+became the `HEAT_DETECTED` alert.
+
+Lactation state (DRY/MILKING) lives on `Cattle.productionStatus`, not here —
+`refreshProfile()` no longer mixes it into `ReproductionState`.
 
 ## Error Behavior
 

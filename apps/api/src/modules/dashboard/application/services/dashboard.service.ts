@@ -8,7 +8,7 @@ import {
   ProductionStatus,
   ReceivableKind,
   ReceivableStatus,
-  ReproductiveStatus,
+  ReproductionState,
   SafetyWithdrawalStatus,
   TaskStatus,
 } from '@prisma/client';
@@ -177,48 +177,62 @@ export class DashboardService {
 
   async herdStatus(farmId: string) {
     const now = new Date();
-    const [totalActive, repro, milkingCount, activeCases, withholding, calves] =
-      await Promise.all([
-        this.prisma.cattle.count({
-          where: {
-            farmId,
-            isActive: true,
-            purpose: { not: CattlePurpose.CALF },
-          },
-        }),
-        this.prisma.reproductionProfile.groupBy({
-          by: ['reproductiveStatus'],
-          where: { cattle: { farmId, isActive: true } },
-          _count: { _all: true },
-        }),
-        // "Milking" is deliberately sourced from `Cattle.productionStatus`, not
-        // `ReproductiveStatus.LACTATING` below — the two are independent
-        // dimensions of the multi-state cattle model, and `productionStatus`
-        // is the field the Cattle list badge + status dialog actually set/show.
-        this.prisma.cattle.count({
-          where: {
-            farmId,
-            isActive: true,
-            productionStatus: ProductionStatus.MILKING,
-          },
-        }),
-        this.prisma.healthCase.count({
-          where: {
-            farmId,
-            isActive: true,
-            status: { in: ACTIVE_CASE_STATUSES },
-          },
-        }),
-        this.prisma.safetyWithdrawal.count({
-          where: { farmId, status: SafetyWithdrawalStatus.ACTIVE },
-        }),
-        this.prisma.cattle.findMany({
-          where: { farmId, isActive: true, purpose: CattlePurpose.CALF },
-          select: { dateOfBirth: true },
-        }),
-      ]);
+    const [
+      totalActive,
+      repro,
+      milkingCount,
+      dryCount,
+      activeCases,
+      withholding,
+      calves,
+    ] = await Promise.all([
+      this.prisma.cattle.count({
+        where: {
+          farmId,
+          isActive: true,
+          purpose: { not: CattlePurpose.CALF },
+        },
+      }),
+      this.prisma.reproductionProfile.groupBy({
+        by: ['reproductiveStatus'],
+        where: { cattle: { farmId, isActive: true } },
+        _count: { _all: true },
+      }),
+      // "Milking"/"Dry" are deliberately sourced from `Cattle.productionStatus`,
+      // not `ReproductiveStatus` — the two are independent dimensions of the
+      // multi-state cattle model (RAKHAL-269/271), and `productionStatus` is
+      // the field the Cattle list badge + status dialog actually set/show.
+      this.prisma.cattle.count({
+        where: {
+          farmId,
+          isActive: true,
+          productionStatus: ProductionStatus.MILKING,
+        },
+      }),
+      this.prisma.cattle.count({
+        where: {
+          farmId,
+          isActive: true,
+          productionStatus: ProductionStatus.DRY,
+        },
+      }),
+      this.prisma.healthCase.count({
+        where: {
+          farmId,
+          isActive: true,
+          status: { in: ACTIVE_CASE_STATUSES },
+        },
+      }),
+      this.prisma.safetyWithdrawal.count({
+        where: { farmId, status: SafetyWithdrawalStatus.ACTIVE },
+      }),
+      this.prisma.cattle.findMany({
+        where: { farmId, isActive: true, purpose: CattlePurpose.CALF },
+        select: { dateOfBirth: true },
+      }),
+    ]);
 
-    const reproCount = (s: ReproductiveStatus) =>
+    const reproCount = (s: ReproductionState) =>
       repro.find((r) => r.reproductiveStatus === s)?._count._all ?? 0;
     const healthy = Math.max(totalActive - activeCases, 0);
 
@@ -226,15 +240,23 @@ export class DashboardService {
       totalActive,
       productionBreakdown: {
         milking: milkingCount,
-        dry: reproCount(ReproductiveStatus.DRY),
-        fresh: reproCount(ReproductiveStatus.POSTPARTUM),
-        growing: reproCount(ReproductiveStatus.HEIFER),
+        dry: dryCount,
+        // "fresh"/"growing" previously read off the retired HEIFER/POSTPARTUM
+        // ReproductiveStatus values (RAKHAL-271 dropped both — lactation stage
+        // now belongs on `Cattle`/RAKHAL-273's LactationStage, animal category
+        // on RAKHAL-270's AnimalCategory; neither is wired here yet). Closest
+        // available proxies until those land: POSTPARTUM_WAITING for "fresh",
+        // NOT_ELIGIBLE (not-yet-bred females) for "growing".
+        fresh: reproCount(ReproductionState.POSTPARTUM_WAITING),
+        growing: reproCount(ReproductionState.NOT_ELIGIBLE),
       },
       reproductiveBreakdown: {
-        open: reproCount(ReproductiveStatus.OPEN),
-        inseminated: reproCount(ReproductiveStatus.BRED),
-        pregnant: reproCount(ReproductiveStatus.PREGNANT),
-        dryPeriod: reproCount(ReproductiveStatus.DRY),
+        open: reproCount(ReproductionState.OPEN),
+        // v2 correction: RAKHAL-271's split renamed INSEMINATED to
+        // BRED_AWAITING_CONFIRMATION (a waiting state, not an event type).
+        inseminated: reproCount(ReproductionState.BRED_AWAITING_CONFIRMATION),
+        pregnant: reproCount(ReproductionState.PREGNANT),
+        dryPeriod: dryCount,
       },
       healthBreakdown: {
         healthy,

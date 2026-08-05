@@ -30,6 +30,15 @@ model FarmModuleSettings {
   reproVwpDays                   Int @default(60)
   reproTargetCalvingIntervalDays Int @default(380)
   reproDryPeriodTargetDays       Int @default(60)
+  /// Recent-heat lookback window, in days — a `HeatEvent` inside this window
+  /// (and not yet followed by a breeding) contributes the `HEAT_DETECTED`
+  /// `ReproductionAlert` (RAKHAL-271 v2: alerts are derived, layered on top of
+  /// `ReproductionState`, not a state of their own).
+  reproHeatWindowDays            Int @default(3)
+  /// Close-up window before `Pregnancy.expectedCalvingDate`, in days — inside
+  /// it a `PREGNANT` cow gains the `CALVING_DUE` `ReproductionAlert` (RAKHAL-271
+  /// v2: no longer a separate `ReproductionState`).
+  reproCloseUpWindowDays         Int @default(21)
 
   // Finance
   financeCurrency          String @default("Tk")
