@@ -76,6 +76,69 @@ export class FarmSettingsService {
   }
 
   /**
+   * `LactationStage` day thresholds, in days since `Lactation.startDate`
+   * (RAKHAL-273) — `deriveLactationStage`'s FRESH/EARLY/MID cutoffs (LATE is
+   * everything beyond `mid` until dry-off).
+   */
+  async lactationStageThresholds(
+    farmId: string,
+  ): Promise<{ freshDays: number; earlyDays: number; midDays: number }> {
+    const s = await this.getEffective(farmId);
+    return {
+      freshDays: s.lactationFreshDays,
+      earlyDays: s.lactationEarlyDays,
+      midDays: s.lactationMidDays,
+    };
+  }
+
+  /**
+   * `PregnancyStage` day thresholds, in days since `Pregnancy.conceptionDate`
+   * (RAKHAL-273) — `derivePregnancyStage`'s EARLY/MID cutoffs (LATE runs from
+   * `mid` up to the close-up window, `reproCloseUpWindowDays`, which then
+   * becomes CLOSE_UP).
+   */
+  async pregnancyStageThresholds(
+    farmId: string,
+  ): Promise<{ earlyDays: number; midDays: number }> {
+    const s = await this.getEffective(farmId);
+    return { earlyDays: s.pregnancyEarlyDays, midDays: s.pregnancyMidDays };
+  }
+
+  /**
+   * Extra days past `expectedPregnancyCheckDate` (on top of the plain
+   * `PREGNANCY_CHECK_DUE` alert) before `OVERDUE_PREGNANCY_CHECK` fires
+   * (RAKHAL-272).
+   */
+  async reproOverduePregnancyCheckDays(farmId: string): Promise<number> {
+    return (await this.getEffective(farmId)).reproOverduePregnancyCheckDays;
+  }
+
+  /**
+   * `BreedingEvent` count since a cow's last successful outcome before
+   * `REPEAT_BREEDER` fires (RAKHAL-272).
+   */
+  async reproRepeatBreederThreshold(farmId: string): Promise<number> {
+    return (await this.getEffective(farmId)).reproRepeatBreederThreshold;
+  }
+
+  /**
+   * Days since a cow's last calving with no confirmed pregnancy since before
+   * `LONG_DAYS_OPEN` fires (RAKHAL-272).
+   */
+  async reproLongDaysOpenDays(farmId: string): Promise<number> {
+    return (await this.getEffective(farmId)).reproLongDaysOpenDays;
+  }
+
+  /**
+   * Extra days past `expectedCalvingDate` before `CALVING_OVERDUE` fires
+   * (RAKHAL-272 extension — see `reproduction-alerts.ts`'s file-level doc
+   * comment for why this alert is implemented here rather than deferred).
+   */
+  async reproCalvingOverdueDays(farmId: string): Promise<number> {
+    return (await this.getEffective(farmId)).reproCalvingOverdueDays;
+  }
+
+  /**
    * Milk-anomaly cutoff as a fraction of the 7-day average — a session below it is
    * flagged. `anomalyThresholdPct` is the drop %, so 30 → 0.70 (PRD §10.2).
    */
@@ -98,6 +161,14 @@ export class FarmSettingsService {
   /** Herd-health-score warning threshold, % (PRD §13 / dashboard KPI). */
   async healthScoreWarningPct(farmId: string): Promise<number> {
     return (await this.getEffective(farmId)).healthScoreWarningPct;
+  }
+
+  /**
+   * Days since `Lactation.startDate` a fresh cow's milk stays classified
+   * `MilkDisposition.COLOSTRUM` (RAKHAL-277).
+   */
+  async milkColostrumWindowDays(farmId: string): Promise<number> {
+    return (await this.getEffective(farmId)).milkColostrumWindowDays;
   }
 
   /**

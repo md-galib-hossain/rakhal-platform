@@ -208,6 +208,9 @@ model DryPeriod {
   actualEndDate   DateTime?
   notes           String?
 
+  /// RAKHAL-274: optional reason for the dry-off; nullable, no default.
+  reason DryOffReason?
+
   createdAt DateTime @default(now())
 
   cattle Cattle @relation(fields: [cattleId], references: [id])

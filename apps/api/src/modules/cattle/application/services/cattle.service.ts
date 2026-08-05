@@ -6,9 +6,12 @@ import {
 } from '@nestjs/common';
 import {
   BreedingMethod,
+  BreedingStatus,
   Cattle,
+  CattleGender,
   CattleSourceType,
   CattleStatus,
+  FarmModuleSettings,
   FinanceTxnType,
   HealthCaseStatus,
   LactationStatus,
@@ -24,6 +27,7 @@ import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { NON_VOID_TXN } from 'src/common/finance/txn-filters';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 import { SubscriptionAccessService } from 'src/modules/subscription/application/services/subscription-access.service';
+import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import {
   MediaService,
   type MediaUrls,
@@ -31,6 +35,30 @@ import {
 import { MediaCategory, MediaUsage } from '@prisma/client';
 import { VWP_DEFAULT_DAYS } from '../../domain/cattle.constants';
 import { deriveHealthStatus } from '../../domain/health-status';
+import {
+  deriveAnimalCategory,
+  type AnimalCategoryGender,
+} from '../../domain/animal-category';
+// RAKHAL-279: reuse the reproduction module's already-exported PURE domain
+// functions/types directly (deliberately not `ReproductionService` itself —
+// see the `composeStatus()` doc comment below for why). These files have no
+// Prisma/framework imports, so pulling them in here creates no NestJS module
+// dependency at all (only `@Module({ imports })` graphs can cycle), let alone
+// the real one that would form if `CattleModule` tried to import
+// `ReproductionModule` (which already imports `CattleModule` for
+// `AnimalHoldService` — see `reproduction.module.ts`'s own comment).
+import {
+  deriveReproductionAlerts,
+  type ReproductionAlert,
+} from 'src/modules/reproduction/domain/reproduction-alerts';
+import {
+  deriveLactationStage,
+  type LactationStage,
+} from 'src/modules/reproduction/domain/lactation-stage';
+import {
+  derivePregnancyStage,
+  type PregnancyStage,
+} from 'src/modules/reproduction/domain/pregnancy-stage';
 import { AncestryQueryDto } from '../../presentation/dto/ancestry-query.dto';
 import { ArchiveCattleDto } from '../../presentation/dto/archive-cattle.dto';
 import { BulkCattleDto } from '../../presentation/dto/bulk-cattle.dto';
@@ -57,6 +85,25 @@ const OPEN_HEALTH_CASE_STATUSES: HealthCaseStatus[] = [
   HealthCaseStatus.STABLE,
 ];
 
+/** Standard bovine gestation length, in days — mirrors the same fallback
+ * constant in `reproduction.service.ts` (`derivePregnancyStage`'s close-up
+ * projection). Duplicated rather than imported since it's a plain literal,
+ * not a function/type worth cross-module coupling for. */
+const DEFAULT_GESTATION_DAYS = 280;
+
+/** Bundle of already-fetched reproduction context (RAKHAL-279) shared across
+ * every row `composeStatus()` enriches in a single request — the farm's
+ * `FarmModuleSettings` (one row, one query) and the set of cattle IDs with an
+ * active `REPRODUCTIVE` `AnimalHold` (one bulk query for the whole page).
+ * `undefined` opts a caller out of reproduction enrichment entirely (used by
+ * the non-list/detail call sites — create/update/archive/restore/bulk-export
+ * — which the ticket's acceptance criteria don't ask to enrich, keeping their
+ * existing query cost unchanged). */
+interface ReproductionContext {
+  settings: FarmModuleSettings;
+  reproductiveHoldCattleIds: Set<string>;
+}
+
 /**
  * Cattle service (PRD §8). Farm-scoped: `farmId` is supplied by the controller
  * from the verified token context (`FarmContextGuard`), so every query is scoped
@@ -76,6 +123,7 @@ export class CattleService {
     private readonly aqrService: AqrService,
     private readonly subscriptionAccess: SubscriptionAccessService,
     private readonly media: MediaService,
+    private readonly farmSettings: FarmSettingsService,
     private readonly logger: LoggerService,
   ) {
     this.log = this.logger.setContext(CattleService.name);
@@ -204,8 +252,15 @@ export class CattleService {
       include: this.defaultInclude(),
     });
 
+    // RAKHAL-279: one settings row + one bulk hold query for the whole page,
+    // reused across every row's composeStatus() call (never per-row).
+    const reproCtx = await this.buildReproductionContext(
+      farmId,
+      rows.map((row) => row.id),
+    );
+
     const page = toCursorPage(
-      rows.map((row) => this.composeStatus(row)),
+      rows.map((row) => this.composeStatus(row, reproCtx)),
       query,
     );
     // List view carries only the thumbnail (RAKHAL-009) — cheap payload.
@@ -219,7 +274,8 @@ export class CattleService {
       id,
       this.defaultInclude(),
     );
-    return this.attachDetailPhoto(this.composeStatus(cattle));
+    const reproCtx = await this.buildReproductionContext(farmId, [id]);
+    return this.attachDetailPhoto(this.composeStatus(cattle, reproCtx));
   }
 
   async update(farmId: string, id: string, dto: UpdateCattleDto) {
@@ -1067,49 +1123,228 @@ export class CattleService {
   // ---- status composition -------------------------------------------------
 
   /**
-   * Augment a cattle row with the derived status dimensions (PRD §8.1):
-   * reproductive status from `ReproductionProfile`, health status derived from
+   * Augment a cattle row with the derived status dimensions (PRD §8.1,
+   * extended RAKHAL-279): reproductive status + reproduction alerts +
+   * lactation/pregnancy stage (sourced from `ReproductionProfile` plus the
+   * pure reproduction-domain derive functions), health status derived from
    * active Healthcare records, and DIM from the active lactation.
+   *
+   * **Design note (RAKHAL-279)**: this deliberately does NOT call
+   * `ReproductionService.summary()` even though that method already returns
+   * all four reproduction fields together. Two independent reasons:
+   *   1. **Circular module dependency**: `ReproductionModule` already imports
+   *      `CattleModule` (for `AnimalHoldService`, RAKHAL-280/272). Injecting
+   *      `ReproductionService` into `CattleService` (or `CattleController`)
+   *      would require `CattleModule` to import `ReproductionModule` back —
+   *      a genuine cycle, only fixable with `forwardRef()` on both sides
+   *      (touching `reproduction.module.ts`, outside this ticket's Lane).
+   *   2. **`summary()` isn't a pure read**: it calls `refreshProfile()`
+   *      first, which *writes* `ReproductionProfile` as a side effect. Doing
+   *      that once for a `GET /cattle/:id` is already borderline; doing it
+   *      once per row for a paginated `GET /cattle` would mean every list
+   *      page load silently mutates every cow's reproduction row — exactly
+   *      the "read method with a hidden write side-effect" anti-pattern the
+   *      v1→v2 adjudication flagged and fixed for `activeMilkWithholdingCattleIds()`.
+   *      Reintroducing it here at the Cattle layer would be a regression.
+   *
+   * Instead, this reuses the actual canonical derivation logic — the
+   * exported pure functions `deriveReproductionAlerts`/`deriveLactationStage`/
+   * `derivePregnancyStage` (no Prisma/framework imports, the same functions
+   * `ReproductionService.summary()` itself calls) — fed by data pulled
+   * through `defaultInclude()`'s relation fan-out (a handful of extra
+   * `include`s, batched by Prisma into flat `WHERE cattleId IN (...)`
+   * queries regardless of page size — not a per-row round trip) plus one
+   * settings row and one bulk `AnimalHold` query per request, both shared
+   * across every row via `reproCtx`. No reproduction data is re-derived with
+   * different logic than `summary()` uses — it's the same functions, just
+   * called directly instead of through the service, which sidesteps both
+   * problems above. See `docs/DECISIONS.md` for the full write-up.
+   *
+   * `reproCtx` is `undefined` for call sites that don't need the enrichment
+   * (create/update/archive/restore/bulk-export) — only `findAll`/`findOne`
+   * (the ticket's actual scope, `GET /cattle` + `GET /cattle/:id`) build and
+   * pass it. Reproduction alerts/stages are only meaningful for female cattle
+   * with an assessed `reproductiveStatus`; anyone else (male/calf/steer, or a
+   * female whose state hasn't been assessed yet, e.g. mid-migration-backfill)
+   * gets `reproductionAlerts: []`, `lactationStage: null`, `pregnancyStage: null`.
    */
   private composeStatus<
     T extends {
-      productionStatus: ProductionStatus | null;
+      id: string;
+      gender: AnimalCategoryGender;
+      dateOfBirth: Date | null;
       reproductionProfile?: {
         reproductiveStatus: ReproductionState | null;
+        totalCalvings?: number;
+        totalAbortions?: number;
+        lastCalvingDate?: Date | null;
       } | null;
       healthCases?: {
         status: string;
-        isSafetyWithholdingActive: boolean;
-        milkWithdrawalUntil: Date | null;
-      }[];
-      safetyWithdrawals?: {
-        milkWithdrawalUntil: Date | null;
-        meatWithdrawalUntil: Date | null;
       }[];
       lactations?: { startDate: Date }[];
+      heatEvents?: { heatDateTime: Date }[];
+      breedingEvents?: {
+        status: BreedingStatus;
+        breedingDate: Date;
+        expectedPregnancyCheckDate: Date | null;
+      }[];
+      pregnancies?: {
+        conceptionDate: Date;
+        expectedCalvingDate: Date | null;
+      }[];
+      dryPeriods?: { id: string }[];
     },
-  >(row: T) {
+  >(row: T, reproCtx?: ReproductionContext) {
     const now = new Date();
-    const healthStatus = deriveHealthStatus(
-      row.healthCases ?? [],
-      row.safetyWithdrawals ?? [],
-      now,
-    );
+    const healthStatus = deriveHealthStatus(row.healthCases ?? []);
 
     const activeLactation = (row.lactations ?? [])[0];
     const dim = activeLactation
       ? this.daysBetween(activeLactation.startDate, now)
       : null;
 
+    const animalCategory = deriveAnimalCategory({
+      gender: row.gender,
+      dateOfBirth: row.dateOfBirth,
+      totalCalvings: row.reproductionProfile?.totalCalvings ?? 0,
+      now,
+    });
+
+    const reproductionState =
+      row.reproductionProfile?.reproductiveStatus ?? null;
+
+    let reproductionAlerts: ReproductionAlert[] = [];
+    let lactationStage: LactationStage | null = null;
+    let pregnancyStage: PregnancyStage | null = null;
+
+    if (reproCtx && row.gender === CattleGender.FEMALE && reproductionState) {
+      const { settings, reproductiveHoldCattleIds } = reproCtx;
+      const recentHeat = (row.heatEvents ?? [])[0] ?? null;
+      const lastBreeding = (row.breedingEvents ?? [])[0] ?? null;
+      const currentPregnancy = (row.pregnancies ?? [])[0] ?? null;
+      const lastCalvingDate = row.reproductionProfile?.lastCalvingDate ?? null;
+
+      const breedingsSinceLastSuccess = (row.breedingEvents ?? []).filter(
+        (b) =>
+          !lastCalvingDate ||
+          b.breedingDate.getTime() > lastCalvingDate.getTime(),
+      ).length;
+      const daysOpen =
+        lastCalvingDate && reproductionState !== ReproductionState.PREGNANT
+          ? this.daysBetween(lastCalvingDate, now)
+          : null;
+
+      reproductionAlerts = deriveReproductionAlerts({
+        now,
+        reproductionState,
+        recentHeat: recentHeat
+          ? { heatDateTime: recentHeat.heatDateTime }
+          : null,
+        heatWindowDays: settings.reproHeatWindowDays,
+        lastBreeding: lastBreeding
+          ? {
+              status: lastBreeding.status,
+              expectedPregnancyCheckDate:
+                lastBreeding.expectedPregnancyCheckDate,
+            }
+          : null,
+        currentPregnancy: currentPregnancy
+          ? { expectedCalvingDate: currentPregnancy.expectedCalvingDate }
+          : null,
+        closeUpWindowDays: settings.reproCloseUpWindowDays,
+        overdueCheckDays: settings.reproOverduePregnancyCheckDays,
+        calvingOverdueDays: settings.reproCalvingOverdueDays,
+        breedingsSinceLastSuccess,
+        repeatBreederThreshold: settings.reproRepeatBreederThreshold,
+        daysOpen,
+        longDaysOpenThresholdDays: settings.reproLongDaysOpenDays,
+        totalAbortions: row.reproductionProfile?.totalAbortions ?? 0,
+        hasReproductiveHold: reproductiveHoldCattleIds.has(row.id),
+      });
+
+      lactationStage = deriveLactationStage({
+        now,
+        lactationStartDate: activeLactation?.startDate ?? null,
+        isInActiveDryPeriod: (row.dryPeriods ?? []).length > 0,
+        farmSettings: {
+          freshDays: settings.lactationFreshDays,
+          earlyDays: settings.lactationEarlyDays,
+          midDays: settings.lactationMidDays,
+        },
+      });
+
+      pregnancyStage = derivePregnancyStage({
+        now,
+        conceptionDate: currentPregnancy?.conceptionDate ?? null,
+        farmSettings: {
+          earlyDays: settings.pregnancyEarlyDays,
+          midDays: settings.pregnancyMidDays,
+          closeUpWindowDays: settings.reproCloseUpWindowDays,
+          gestationDays: DEFAULT_GESTATION_DAYS,
+        },
+      });
+    }
+
     return {
       ...row,
-      reproductiveStatus: row.reproductionProfile?.reproductiveStatus ?? null,
+      reproductiveStatus: reproductionState,
+      reproductionAlerts,
+      lactationStage,
+      pregnancyStage,
       healthStatus,
       dim,
+      animalCategory,
     };
   }
 
-  /** Prisma `where` fragment for a derived health-status list filter (PRD §8.1). */
+  /**
+   * Fetch the shared reproduction-enrichment context for a request: the
+   * farm's `FarmModuleSettings` (one row) + the set of cattle IDs among
+   * `cattleIds` that currently have an active `REPRODUCTIVE` `AnimalHold`
+   * (one bulk query). Computed once per `findAll`/`findOne` call and reused
+   * across every row `composeStatus()` enriches — never per row. `AnimalHold`
+   * has no Prisma relation to `Cattle` (plain scalar FKs, RAKHAL-280), so this
+   * is a direct query rather than an `include` — still a single query for the
+   * whole page/request, not one per cow.
+   */
+  private async buildReproductionContext(
+    farmId: string,
+    cattleIds: string[],
+  ): Promise<ReproductionContext> {
+    if (cattleIds.length === 0) {
+      const settings = await this.farmSettings.getEffective(farmId);
+      return { settings, reproductiveHoldCattleIds: new Set() };
+    }
+
+    const [settings, holds] = await Promise.all([
+      this.farmSettings.getEffective(farmId),
+      this.prisma.animalHold.findMany({
+        where: {
+          farmId,
+          cattleId: { in: cattleIds },
+          type: 'REPRODUCTIVE',
+          endedAt: null,
+        },
+        select: { cattleId: true },
+      }),
+    ]);
+
+    return {
+      settings,
+      reproductiveHoldCattleIds: new Set(holds.map((h) => h.cattleId)),
+    };
+  }
+
+  /** Prisma `where` fragment for a derived health-status list filter (PRD §8.1).
+   *
+   * `WITHHOLDING` is kept as a filter value (RAKHAL-279) even though
+   * `DerivedHealthStatus` no longer includes it as a *returned* value — the
+   * consumer frontend's cattle filters (`features/cattle/components/cattle-filters.tsx`)
+   * ship this option live today, and the underlying `where` (an active
+   * `SafetyWithdrawal`) is still a real, useful query regardless of which
+   * dimension conceptually "owns" the badge now. See `docs/DECISIONS.md`.
+   */
   private healthStatusWhere(
     filter: HealthStatusFilter,
   ): Prisma.CattleWhereInput {
@@ -1334,7 +1569,16 @@ export class CattleService {
       shed: true,
       mother: { select: this.summarySelect() },
       father: { select: this.summarySelect() },
-      reproductionProfile: { select: { reproductiveStatus: true } },
+      reproductionProfile: {
+        select: {
+          reproductiveStatus: true,
+          totalCalvings: true,
+          // RAKHAL-279: feed `deriveReproductionAlerts`'s ABORTION_HISTORY
+          // check + the daysOpen/breedingsSinceLastSuccess anchor.
+          totalAbortions: true,
+          lastCalvingDate: true,
+        },
+      },
       healthCases: {
         where: { status: { in: OPEN_HEALTH_CASE_STATUSES } },
         select: {
@@ -1353,6 +1597,38 @@ export class CattleService {
         where: { status: LactationStatus.ACTIVE },
         orderBy: { startDate: 'desc' as const },
         select: { startDate: true },
+        take: 1,
+      },
+      // RAKHAL-279 — reproduction enrichment (`composeStatus()`). Each of
+      // these is a single batched `WHERE cattleId IN (...)` query regardless
+      // of how many `Cattle` rows are in the page (Prisma's nested-`include`
+      // fan-out), not a per-row round trip.
+      heatEvents: {
+        orderBy: { heatDateTime: 'desc' as const },
+        select: { heatDateTime: true },
+        take: 1,
+      },
+      breedingEvents: {
+        orderBy: { breedingDate: 'desc' as const },
+        select: {
+          status: true,
+          breedingDate: true,
+          expectedPregnancyCheckDate: true,
+        },
+        // Bounded history window, not "since last calving" (Prisma can't
+        // express a per-row dynamic date filter declaratively) — 20 mirrors
+        // `tabReproduction()`'s own existing take limit for the same relation.
+        take: 20,
+      },
+      pregnancies: {
+        where: { status: PregnancyStatus.ACTIVE },
+        orderBy: { conceptionDate: 'desc' as const },
+        select: { conceptionDate: true, expectedCalvingDate: true },
+        take: 1,
+      },
+      dryPeriods: {
+        where: { actualEndDate: null },
+        select: { id: true },
         take: 1,
       },
     } satisfies Prisma.CattleInclude;

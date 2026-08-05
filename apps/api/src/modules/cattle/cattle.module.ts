@@ -6,6 +6,15 @@ import { PermissionModule } from '../permission/permission.module';
 import { ActivityModule } from '../activity/activity.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { MediaModule } from '../media/media.module';
+// RAKHAL-279: `CattleService.composeStatus()` reads farm-level reproduction
+// thresholds (heat/close-up windows, lactation/pregnancy stage buckets,
+// repeat-breeder/long-days-open/calving-overdue thresholds) to feed the
+// reproduction domain's pure derive functions directly — see
+// `cattle.service.ts`'s `composeStatus()` doc comment for why this avoids
+// injecting `ReproductionService` (a real circular-module risk) instead.
+// `FarmSettingsModule` is a lean, standalone module (Prisma + Logger only,
+// no back-reference to `CattleModule`) so this creates no cycle.
+import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { AnimalHoldService } from './application/services/animal-hold.service';
 import { BcsService } from './application/services/bcs.service';
 import { BreedService } from './application/services/breed.service';
@@ -28,6 +37,7 @@ import { ShedController } from './presentation/controllers/shed.controller';
     ActivityModule,
     SubscriptionModule,
     MediaModule,
+    FarmSettingsModule,
   ],
   controllers: [
     CattleController,

@@ -9,6 +9,7 @@ import { InventoryModule } from '../inventory/inventory.module';
 import { CalfModule } from '../calf/calf.module';
 import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
+import { CattleModule } from '../cattle/cattle.module';
 import { ReproductionService } from './application/services/reproduction.service';
 import { ReproProtocolService } from './application/services/repro-protocol.service';
 import { CattleReproductionController } from './presentation/controllers/cattle-reproduction.controller';
@@ -27,6 +28,11 @@ import { ReproProtocolController } from './presentation/controllers/repro-protoc
     CalfModule,
     FarmSettingsModule,
     SubscriptionModule,
+    // AnimalHoldService (RAKHAL-280) — read-only `activeHoldsForCattle` lookup
+    // for the `REPRODUCTIVE_HOLD` alert (RAKHAL-272). CattleModule doesn't
+    // import ReproductionModule anywhere, so this direction has no circular-
+    // dependency risk.
+    CattleModule,
   ],
   controllers: [
     ReproductionController,

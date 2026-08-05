@@ -25,6 +25,10 @@ model FarmModuleSettings {
   milkNightEnd            String   @default("23:59")
   milkUnit                String   @default("litres")
   milkAnomalyThresholdPct Int      @default(30)
+  /// Days since `Lactation.startDate` a fresh cow's milk is classified `COLOSTRUM`
+  /// (RAKHAL-277) — `0..this-1` days since calving = COLOSTRUM, beyond = SALEABLE
+  /// (absent an active safety withdrawal, which always wins as WITHHELD).
+  milkColostrumWindowDays Int      @default(5)
 
   // Reproduction
   reproVwpDays                   Int @default(60)
@@ -39,6 +43,38 @@ model FarmModuleSettings {
   /// it a `PREGNANT` cow gains the `CALVING_DUE` `ReproductionAlert` (RAKHAL-271
   /// v2: no longer a separate `ReproductionState`).
   reproCloseUpWindowDays         Int @default(21)
+  /// `LactationStage` day-threshold, in days since `Lactation.startDate`
+  /// (RAKHAL-273) — 0..this = FRESH.
+  lactationFreshDays             Int @default(21)
+  /// `LactationStage` day-threshold, in days since `Lactation.startDate`
+  /// (RAKHAL-273) — freshDays..this = EARLY, this..midDays = MID, beyond = LATE
+  /// (until dry-off).
+  lactationEarlyDays             Int @default(100)
+  /// `LactationStage` day-threshold, in days since `Lactation.startDate`
+  /// (RAKHAL-273) — earlyDays..this = MID, beyond = LATE (until dry-off).
+  lactationMidDays               Int @default(200)
+  /// `PregnancyStage` day-thresholds, in days since `Pregnancy.conceptionDate`
+  /// (RAKHAL-273) — 0..this = EARLY.
+  pregnancyEarlyDays             Int @default(90)
+  /// `PregnancyStage` day-threshold, in days since `Pregnancy.conceptionDate`
+  /// (RAKHAL-273) — earlyDays..this = MID, beyond (until the close-up window,
+  /// `reproCloseUpWindowDays`) = LATE.
+  pregnancyMidDays               Int @default(180)
+  /// Extra days past `BreedingEvent.expectedPregnancyCheckDate` (on top of the
+  /// plain `PREGNANCY_CHECK_DUE` trigger) before the `OVERDUE_PREGNANCY_CHECK`
+  /// `ReproductionAlert` also fires (RAKHAL-272).
+  reproOverduePregnancyCheckDays Int @default(7)
+  /// Count of `BreedingEvent`s since a cow's last calving (or her whole
+  /// history, if she's never calved) with no successful outcome before the
+  /// `REPEAT_BREEDER` `ReproductionAlert` fires (RAKHAL-272).
+  reproRepeatBreederThreshold    Int @default(3)
+  /// Days since a cow's last calving (with no confirmed pregnancy since)
+  /// before the `LONG_DAYS_OPEN` `ReproductionAlert` fires (RAKHAL-272).
+  reproLongDaysOpenDays          Int @default(120)
+  /// Extra days past `Pregnancy.expectedCalvingDate` before the
+  /// `CALVING_OVERDUE` `ReproductionAlert` fires (RAKHAL-272 extension — see
+  /// `reproduction-alerts.ts`'s file-level doc comment).
+  reproCalvingOverdueDays        Int @default(7)
 
   // Finance
   financeCurrency          String @default("Tk")

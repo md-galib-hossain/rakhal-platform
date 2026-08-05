@@ -1,4 +1,7 @@
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 import { BreedingStatus, CattleGender } from '@prisma/client';
+import { CreateDryOffDto } from '../../presentation/dto/create-dry-off.dto';
 import {
   deriveReproductionState,
   ReproductionStateInput,
@@ -130,5 +133,36 @@ describe('deriveReproductionState', () => {
         hasActivePregnancy: true,
       }),
     ).toBe('PREGNANT');
+  });
+});
+
+/**
+ * RAKHAL-274 — `CreateDryOffDto.reason` is optional (`recordDryOff` itself is
+ * exercised end-to-end by `test/reproduction-dry-off.e2e-spec.ts`; this suite
+ * just pins down the DTO validation contract without needing a Prisma
+ * double).
+ */
+describe('CreateDryOffDto — reason (RAKHAL-274)', () => {
+  it('validates with no reason supplied', async () => {
+    const dto = plainToInstance(CreateDryOffDto, { notes: 'routine dry-off' });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+    expect(dto.reason).toBeUndefined();
+  });
+
+  it('validates with a valid DryOffReason supplied', async () => {
+    const dto = plainToInstance(CreateDryOffDto, {
+      notes: 'low yield',
+      reason: 'LOW_PRODUCTION',
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+    expect(dto.reason).toBe('LOW_PRODUCTION');
+  });
+
+  it('rejects an invalid reason value', async () => {
+    const dto = plainToInstance(CreateDryOffDto, { reason: 'NOT_A_REASON' });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === 'reason')).toBe(true);
   });
 });

@@ -6,3 +6,20 @@ enum MilkSession {
   EVENING
   NIGHT
 }
+
+/// Business-meaning classification of a milk-log entry (RAKHAL-277). Distinct from
+/// `MilkTankType` (which physical tank the milk goes into) — `disposition` is *why*,
+/// `tankType` is *where*. Computed by `MilkService` before every insert (never a
+/// schema default — see `MilkLogEntry.disposition`'s doc comment): `WITHHELD` for a
+/// cow under an active safety withdrawal, `COLOSTRUM` for a cow inside her farm's
+/// configured colostrum window since `Lactation.startDate`, `SALEABLE` otherwise.
+/// `CALF_FEED`/`DISCARDED`/`HOUSEHOLD_USE` are manual/operator dispositions the
+/// schema supports but this ticket's derivation does not assign automatically.
+enum MilkDisposition {
+  SALEABLE
+  WITHHELD
+  COLOSTRUM
+  CALF_FEED
+  DISCARDED
+  HOUSEHOLD_USE
+}

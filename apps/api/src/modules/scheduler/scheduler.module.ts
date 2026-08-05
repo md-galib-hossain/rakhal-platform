@@ -6,6 +6,7 @@ import { RenewalModule } from '../renewal/renewal.module';
 import { BillingModule } from '../billing/billing.module';
 import { FinanceModule } from '../finance/finance.module';
 import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
+import { HealthModule } from '../health/health.module';
 import { SchedulerService } from './application/services/scheduler.service';
 
 /**
@@ -23,6 +24,7 @@ import { SchedulerService } from './application/services/scheduler.service';
     BillingModule,
     FinanceModule,
     FarmSettingsModule,
+    HealthModule,
   ],
   providers: [SchedulerService],
   exports: [SchedulerService],

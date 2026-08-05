@@ -17,6 +17,14 @@ model MilkLogEntry {
   /// Optional specific tank chosen by the worker/owner (header default or per-row override);
   /// null falls back to submit()'s "first active tank of the matching type" behavior.
   tankId   String?
+  /// Business-meaning classification (RAKHAL-277) — distinct from `tankType` (physical
+  /// routing). Deliberately **no DB default**: `MilkService.saveLog()` computes this from a
+  /// live withholding + colostrum-window check before every insert, in the same
+  /// transaction as the eligibility check, so a failed lookup can never silently fall
+  /// through to a default and ship milk that should have been withheld. Historical rows
+  /// predating this column were one-time backfilled to `SALEABLE` by this feature's
+  /// migration — see that migration's SQL comment; that backfill is not ongoing behavior.
+  disposition MilkDisposition
 
   /// session yield < 70% of the cow's 7-day average for that session (PRD §10.2)
   anomalyFlag Boolean @default(false)

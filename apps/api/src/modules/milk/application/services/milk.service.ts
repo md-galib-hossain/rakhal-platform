@@ -6,6 +6,7 @@ import {
 import {
   ActivityLogModule,
   CattlePurpose,
+  MilkDisposition,
   MilkSession,
   MilkTankActivity,
   MilkTankType,
@@ -19,7 +20,16 @@ import { ActivityLogService } from 'src/modules/activity/application/services/ac
 import { MilkTankService } from 'src/modules/inventory/application/services/milk-tank.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { HealthService } from 'src/modules/health/application/services/health.service';
+import { AnimalHoldService } from 'src/modules/cattle/application/services/animal-hold.service';
 import { dropPct, isAnomaly } from '../../domain/milk-anomaly';
+import {
+  isWithinColostrumWindow,
+  resolveMilkDisposition,
+} from '../../domain/milk-disposition';
+import {
+  deriveMilkEligibility,
+  MilkEligibility,
+} from '../../domain/milk-eligibility';
 import { MilkLogQueryDto } from '../../presentation/dto/milk-query.dto';
 import { ReviewAnomalyDto } from '../../presentation/dto/review-anomaly.dto';
 import { SaveMilkLogDto } from '../../presentation/dto/save-milk-log.dto';
@@ -47,6 +57,7 @@ export class MilkService {
     private readonly milkTankService: MilkTankService,
     private readonly farmSettings: FarmSettingsService,
     private readonly healthService: HealthService,
+    private readonly animalHoldService: AnimalHoldService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(MilkService.name);
@@ -155,6 +166,44 @@ export class MilkService {
     };
   }
 
+  /**
+   * RAKHAL-278: a cow's current, animal-level milk eligibility — distinct
+   * from `resolveMilkDisposition()` (RAKHAL-277), which classifies a single
+   * per-log-entry row. No existing per-cow "detail" display path exists yet
+   * in this module, so this is a small new read method (per the ticket's own
+   * "your call" — kept minimal, no new controller route since the ticket's
+   * acceptance criteria don't ask for one).
+   */
+  async getMilkEligibility(
+    farmId: string,
+    cattleId: string,
+  ): Promise<MilkEligibility> {
+    const [withholdingIds, activeLactation, colostrumWindowDays, discardHolds] =
+      await Promise.all([
+        this.healthService.activeMilkWithholdingCattleIds(farmId, [cattleId]),
+        this.prisma.lactation.findFirst({
+          where: { cattleId, endDate: null },
+          select: { startDate: true },
+        }),
+        this.farmSettings.milkColostrumWindowDays(farmId),
+        this.animalHoldService.activeHoldsForCattle(
+          farmId,
+          cattleId,
+          'MILK_DISCARD',
+        ),
+      ]);
+
+    return deriveMilkEligibility({
+      isWithheld: withholdingIds.has(cattleId),
+      isInColostrumWindow: isWithinColostrumWindow({
+        activeLactationStartDate: activeLactation?.startDate ?? null,
+        asOfDate: new Date(),
+        colostrumWindowDays,
+      }),
+      hasDiscardRequiredHold: discardHolds.length > 0,
+    });
+  }
+
   async saveLog(farmId: string, userId: string, dto: SaveMilkLogDto) {
     await this.assertSessionActive(farmId, dto.session);
     const logDate = this.normalizeDate(dto.date);
@@ -173,7 +222,13 @@ export class MilkService {
     }
 
     const from = this.shiftDays(logDate, -7);
-    const [withholding, avgRows, existingEntries] = await Promise.all([
+    const [
+      withholding,
+      avgRows,
+      existingEntries,
+      activeLactations,
+      colostrumWindowDays,
+    ] = await Promise.all([
       this.activeWithholding(farmId, ids),
       this.prisma.milkLogEntry.groupBy({
         by: ['cattleId'],
@@ -192,10 +247,21 @@ export class MilkService {
       this.prisma.milkLogEntry.findMany({
         where: { farmId, logDate, session: dto.session, cattleId: { in: ids } },
       }),
+      // RAKHAL-277: each cow's active `Lactation` (no `endDate`) gates the colostrum
+      // window check — queried directly off the reproduction module's Prisma model
+      // (a pure read, no cross-module service dependency needed for this).
+      this.prisma.lactation.findMany({
+        where: { cattleId: { in: ids }, endDate: null },
+        select: { cattleId: true, startDate: true },
+      }),
+      this.farmSettings.milkColostrumWindowDays(farmId),
     ]);
     const avgMap = new Map(avgRows.map((r) => [r.cattleId, r._avg.yieldL]));
     const existingByCow = new Map(existingEntries.map((e) => [e.cattleId, e]));
     const anomalyFraction = await this.farmSettings.milkAnomalyFraction(farmId);
+    const lactationStartByCow = new Map(
+      activeLactations.map((l) => [l.cattleId, l.startDate]),
+    );
 
     // Entries may name a specific tank (header default or a per-row override) — validate
     // up front that it belongs to this farm, is active, and matches the cow's required
@@ -224,9 +290,22 @@ export class MilkService {
     // reconciliation below must commit together, same as submit()'s pattern.
     await this.prisma.$transaction(async (tx) => {
       for (const entry of dto.entries) {
-        const tankType = withholding.has(entry.cattleId)
+        const isWithheld = withholding.has(entry.cattleId);
+        const tankType = isWithheld
           ? MilkTankType.WITHHOLDING
           : MilkTankType.SELLABLE;
+        // RAKHAL-277: business-meaning classification, computed pre-insert in the
+        // same transaction as the eligibility check above — never a schema default.
+        // `tankType` (physical routing, above) and `disposition` stay consistent: a
+        // WITHHELD-disposition entry always routes to the WITHHOLDING tank, since
+        // `isWithheld` gates both.
+        const disposition: MilkDisposition = resolveMilkDisposition({
+          isWithheld,
+          activeLactationStartDate:
+            lactationStartByCow.get(entry.cattleId) ?? null,
+          logDate,
+          colostrumWindowDays,
+        });
         if (entry.tankId) {
           const tank = tankById.get(entry.tankId)!;
           if (tank.tankType !== tankType) {
@@ -261,6 +340,7 @@ export class MilkService {
             session: dto.session,
             yieldL: entry.yieldL,
             tankType,
+            disposition,
             tankId: newTankId,
             anomalyFlag,
             anomalyNote: entry.anomalyNote,
@@ -270,6 +350,7 @@ export class MilkService {
           update: {
             yieldL: entry.yieldL,
             tankType,
+            disposition,
             tankId: newTankId,
             anomalyFlag,
             anomalyNote: entry.anomalyNote,

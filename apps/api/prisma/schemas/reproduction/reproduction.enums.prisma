@@ -88,3 +88,13 @@ enum LactationStatus {
   ACTIVE
   ENDED
 }
+
+/// RAKHAL-274: why a cow was dried off. Nullable on `DryPeriod` — optional,
+/// no default (unknown historical reason should stay null, not guess).
+enum DryOffReason {
+  SCHEDULED
+  LOW_PRODUCTION
+  HEALTH
+  PREGNANCY
+  MANAGEMENT_DECISION
+}

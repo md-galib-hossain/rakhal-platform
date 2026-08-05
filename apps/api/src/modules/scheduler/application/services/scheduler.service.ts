@@ -8,6 +8,7 @@ import { RenewalReminderService } from 'src/modules/renewal/application/services
 import { ReconciliationService } from 'src/modules/billing/application/services/reconciliation.service';
 import { FinanceService } from 'src/modules/finance/application/services/finance.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
+import { HealthService } from 'src/modules/health/application/services/health.service';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const BOSSES = ['Owner', 'Manager'];
@@ -28,7 +29,10 @@ const BOSSES = ['Owner', 'Manager'];
  * invoked deterministically in tests instead of waiting for the cron.
  * `withholding_active` is deliberately NOT a sweep here — its PRD trigger is
  * "treatment logged with withdrawal days", an instant event, emitted directly
- * from `HealthService.logTreatment`.
+ * from `HealthService.logTreatment`. **(2026-08-05, RAKHAL-276)** this file
+ * also hosts the daily `SafetyWithdrawal` `ACTIVE` -> `READY_FOR_RELEASE`
+ * sweep (`sweepSafetyWithdrawalsReadyForRelease`) — not a notification, just
+ * the status transition a query method must never perform as a side effect.
  */
 @Injectable()
 export class SchedulerService {
@@ -42,6 +46,7 @@ export class SchedulerService {
     private readonly reconciliation: ReconciliationService,
     private readonly financeService: FinanceService,
     private readonly farmSettings: FarmSettingsService,
+    private readonly healthService: HealthService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(SchedulerService.name);
@@ -67,6 +72,10 @@ export class SchedulerService {
       // Runs after the expiry sweep so EXPIRED status is current for win-back.
       ['renewal_reminders', () => this.sweepRenewalReminders()],
       ['settlement_reconciliation', () => this.sweepReconciliation()],
+      [
+        'safety_withdrawals_ready_for_release',
+        () => this.sweepSafetyWithdrawalsReadyForRelease(),
+      ],
     ] as const) {
       try {
         results[name] = await sweep();
@@ -542,6 +551,25 @@ export class SchedulerService {
   private async sweepReconciliation(): Promise<number> {
     const { flagged } = await this.reconciliation.runReconciliation();
     return flagged;
+  }
+
+  /**
+   * RAKHAL-276: the real home for the `ACTIVE` -> `READY_FOR_RELEASE`
+   * transition that a v1 design had incorrectly running as a side effect of
+   * `HealthService.activeMilkWithholdingCattleIds` (a query method). Across
+   * every farm, once a day — delegates to `HealthService` rather than
+   * duplicating the update query directly, since that service is the single
+   * source of truth for `SafetyWithdrawal` writes (mirrors this file's
+   * existing precedent of calling into `SubscriptionLifecycleService`/
+   * `RenewalReminderService`/`ReconciliationService`/`FinanceService` for
+   * their respective domains rather than hand-rolling the query here). Not a
+   * notification sweep — nothing to `emit()`, just the status transition; the
+   * count returned is rows swept, for the `runDailySweeps()` results summary.
+   */
+  private async sweepSafetyWithdrawalsReadyForRelease(): Promise<number> {
+    const { updated } =
+      await this.healthService.sweepWithdrawalsReadyForRelease();
+    return updated;
   }
 
   // ---- helpers ------------------------------------------------------------

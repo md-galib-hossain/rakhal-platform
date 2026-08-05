@@ -3,61 +3,51 @@
  * cattle row — it is computed from the animal's open Healthcare records. Pure
  * function (no Prisma/framework) so it is unit-testable and shared by the list
  * projection and any future detail endpoints.
+ *
+ * **RAKHAL-279 correction**: `WITHHOLDING` was dropped from this dimension.
+ * Milk eligibility (RAKHAL-278, `MilkService.getMilkEligibility()` /
+ * `deriveMilkEligibility()` in `src/modules/milk/domain/milk-eligibility.ts`)
+ * is now the sole owner of that signal — it already reads the same
+ * `SafetyWithdrawal`/`HealthCase` withholding facts via
+ * `HealthService.activeMilkWithholdingCattleIds()` (a pure read) and folds
+ * them into a richer `{ isSaleable, primaryStatus, reasons[] }` shape that
+ * also accounts for the colostrum window and discard holds — a plain
+ * `healthStatus === 'WITHHOLDING'` badge duplicated a strict subset of that
+ * and risked drifting out of sync with it. `deriveHealthStatus()` is now
+ * purely about the animal's health *condition* (sick / under treatment /
+ * healthy), not its milk-sale eligibility. See `docs/DECISIONS.md` for the
+ * full write-up of this call, including why the `?healthStatus=WITHHOLDING`
+ * list **filter** (`ListCattleQueryDto`/`healthStatusWhere()`) was
+ * deliberately left in place even though the derived value it used to
+ * describe no longer exists.
  */
 
 export type DerivedHealthStatus =
   | 'HEALTHY'
   | 'SICK'
   | 'IN_TREATMENT'
-  | 'WITHHOLDING'
   | 'QUARANTINE';
 
 export interface OpenHealthCaseInput {
   /** HealthCase status — `ACTIVE` = just reported (Sick); the others = under treatment. */
   status: string;
-  isSafetyWithholdingActive: boolean;
-  milkWithdrawalUntil: Date | null;
-}
-
-export interface ActiveWithdrawalInput {
-  milkWithdrawalUntil: Date | null;
-  meatWithdrawalUntil: Date | null;
 }
 
 /**
  * Resolve the health-status badge for a cow.
  *
- * Precedence (PRD §8.1): active milk/meat withholding wins (it gates milk sale);
- * then a case under treatment (status moved past `ACTIVE`) reads as in-treatment;
- * a freshly reported case (still `ACTIVE`) reads as sick (PRD §8.7); otherwise
- * healthy. Quarantine is not tracked yet (deferred to Healthcare) so it is never
- * returned here.
+ * Precedence (PRD §8.1, RAKHAL-279 correction): a case under treatment
+ * (status moved past `ACTIVE`) reads as in-treatment; a freshly reported case
+ * (still `ACTIVE`) reads as sick (PRD §8.7); otherwise healthy. Quarantine is
+ * not tracked yet (deferred to Healthcare) so it is never returned here.
+ * Milk/meat withholding no longer participates in this derivation — see the
+ * file-level doc comment.
  *
- * @param openCases   open `HealthCase` rows for the cow (already filtered to non-closed statuses)
- * @param withdrawals active `SafetyWithdrawal` rows for the cow
- * @param now         reference time (injected for testability)
+ * @param openCases open `HealthCase` rows for the cow (already filtered to non-closed statuses)
  */
 export function deriveHealthStatus(
   openCases: OpenHealthCaseInput[],
-  withdrawals: ActiveWithdrawalInput[],
-  now: Date = new Date(),
 ): DerivedHealthStatus {
-  const withholding =
-    withdrawals.some(
-      (w) =>
-        (w.milkWithdrawalUntil && w.milkWithdrawalUntil > now) ||
-        (w.meatWithdrawalUntil && w.meatWithdrawalUntil > now),
-    ) ||
-    openCases.some(
-      (c) =>
-        c.isSafetyWithholdingActive &&
-        c.milkWithdrawalUntil &&
-        c.milkWithdrawalUntil > now,
-    );
-
-  if (withholding) {
-    return 'WITHHOLDING';
-  }
   if (openCases.some((c) => c.status !== 'ACTIVE')) {
     return 'IN_TREATMENT';
   }

@@ -30,10 +30,19 @@ import { TaskService } from 'src/modules/task/application/services/task.service'
 import { SemenService } from 'src/modules/inventory/application/services/semen.service';
 import { CalfService } from 'src/modules/calf/application/services/calf.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
+import { AnimalHoldService } from 'src/modules/cattle/application/services/animal-hold.service';
 import {
   deriveReproductionAlerts,
   ReproductionAlert,
 } from '../../domain/reproduction-alerts';
+import {
+  deriveLactationStage,
+  LactationStage,
+} from '../../domain/lactation-stage';
+import {
+  derivePregnancyStage,
+  PregnancyStage,
+} from '../../domain/pregnancy-stage';
 import { CreateAbortionEventDto } from '../../presentation/dto/create-abortion-event.dto';
 import { CreateBreedingEventDto } from '../../presentation/dto/create-breeding-event.dto';
 import { CreateCalvingEventDto } from '../../presentation/dto/create-calving-event.dto';
@@ -51,6 +60,11 @@ type CattleForAccess = {
 
 /** ~15 months — typical heifer breeding-readiness threshold (PRD §9). */
 const MIN_BREEDING_AGE_DAYS = 450;
+/** Standard bovine gestation length, in days — same fallback used elsewhere
+ * in this service (`createPregnancyDiagnosis`) when no explicit
+ * `expectedCalvingDate` is recorded; reused by `derivePregnancyStage`'s
+ * close-up-window projection (RAKHAL-273). */
+const DEFAULT_GESTATION_DAYS = 280;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface ReproductionStateInput {
@@ -147,6 +161,7 @@ export class ReproductionService {
     private readonly semenService: SemenService,
     private readonly calfService: CalfService,
     private readonly farmSettings: FarmSettingsService,
+    private readonly animalHoldService: AnimalHoldService,
     private readonly logger: LoggerService,
   ) {
     this.log = this.logger.setContext(ReproductionService.name);
@@ -657,6 +672,7 @@ export class ReproductionService {
           startDate: dryOffDate,
           expectedEndDate: this.addDays(dryOffDate, targetDays),
           notes: dto.notes,
+          reason: dto.reason,
         },
       });
 
@@ -785,6 +801,14 @@ export class ReproductionService {
       recentHeat,
       heatWindowDays,
       closeUpWindowDays,
+      openDryPeriod,
+      lactationStageThresholds,
+      pregnancyStageThresholds,
+      overdueCheckDays,
+      repeatBreederThreshold,
+      longDaysOpenThresholdDays,
+      calvingOverdueDays,
+      reproductiveHolds,
     ] = await Promise.all([
       this.prisma.reproductionProfile.findUnique({ where: { cattleId } }),
       this.prisma.breedingEvent.findMany({
@@ -813,6 +837,23 @@ export class ReproductionService {
       }),
       this.farmSettings.reproHeatWindowDays(farmId),
       this.farmSettings.reproCloseUpWindowDays(farmId),
+      // RAKHAL-273: an open dry period (no actualEndDate) takes priority over
+      // the lactation-day thresholds for `LactationStage`.
+      this.prisma.dryPeriod.findFirst({
+        where: { cattleId, actualEndDate: null },
+      }),
+      this.farmSettings.lactationStageThresholds(farmId),
+      this.farmSettings.pregnancyStageThresholds(farmId),
+      // RAKHAL-272: extended alert thresholds/hold-lookup.
+      this.farmSettings.reproOverduePregnancyCheckDays(farmId),
+      this.farmSettings.reproRepeatBreederThreshold(farmId),
+      this.farmSettings.reproLongDaysOpenDays(farmId),
+      this.farmSettings.reproCalvingOverdueDays(farmId),
+      this.animalHoldService.activeHoldsForCattle(
+        farmId,
+        cattleId,
+        'REPRODUCTIVE',
+      ),
     ]);
 
     const successfulPregnancies = pregnancies.filter(
@@ -825,9 +866,23 @@ export class ReproductionService {
     const reproductionState =
       profile?.reproductiveStatus ?? ReproductionState.NOT_ELIGIBLE;
 
+    // RAKHAL-272: "since her last successful outcome" is anchored on the most
+    // recent calving — mirrors `this.daysOpen()`'s existing anchor below. A
+    // cow that's never calved has no anchor, so every recorded breeding
+    // counts (a heifer can still be a repeat-breeder before her first
+    // calving).
+    const lastCalvingForAlerts = calvings.at(-1) ?? null;
+    const breedingsSinceLastSuccess = breedings.filter(
+      (b) =>
+        !lastCalvingForAlerts ||
+        b.breedingDate.getTime() > lastCalvingForAlerts.calvingDate.getTime(),
+    ).length;
+    const daysOpenForAlerts = lastCalvingForAlerts
+      ? this.daysBetween(lastCalvingForAlerts.calvingDate, new Date())
+      : null;
+
     // Derived (not stored) alerts layered on top of the core state (RAKHAL-271
-    // v2 correction) — see `deriveReproductionAlerts` for what's implemented
-    // in this ticket vs deferred to RAKHAL-272.
+    // v2 correction + RAKHAL-272's extension) — see `deriveReproductionAlerts`.
     const reproductionAlerts: ReproductionAlert[] = deriveReproductionAlerts({
       now: new Date(),
       reproductionState,
@@ -843,6 +898,35 @@ export class ReproductionService {
         ? { expectedCalvingDate: currentPregnancy.expectedCalvingDate }
         : null,
       closeUpWindowDays,
+      overdueCheckDays,
+      calvingOverdueDays,
+      breedingsSinceLastSuccess,
+      repeatBreederThreshold,
+      daysOpen: daysOpenForAlerts,
+      longDaysOpenThresholdDays,
+      totalAbortions: abortions.length,
+      hasReproductiveHold: reproductiveHolds.length > 0,
+    });
+
+    // Derived (not stored) stage fields (RAKHAL-273), layered alongside the
+    // core state/alerts the same way — always computed at read time, both
+    // nullable (a dry cow with no active pregnancy has no `pregnancyStage`; a
+    // heifer with no active lactation has no `lactationStage`).
+    const lactationStage: LactationStage | null = deriveLactationStage({
+      now: new Date(),
+      lactationStartDate: currentLactation?.startDate ?? null,
+      isInActiveDryPeriod: Boolean(openDryPeriod),
+      farmSettings: lactationStageThresholds,
+    });
+
+    const pregnancyStage: PregnancyStage | null = derivePregnancyStage({
+      now: new Date(),
+      conceptionDate: currentPregnancy?.conceptionDate ?? null,
+      farmSettings: {
+        ...pregnancyStageThresholds,
+        closeUpWindowDays,
+        gestationDays: DEFAULT_GESTATION_DAYS,
+      },
     });
 
     return {
@@ -852,6 +936,8 @@ export class ReproductionService {
       },
       status: reproductionState,
       reproductionAlerts,
+      lactationStage,
+      pregnancyStage,
       currentLactation: profile?.currentLactationNumber ?? 0,
       dim: currentLactation
         ? this.daysBetween(currentLactation.startDate, new Date())

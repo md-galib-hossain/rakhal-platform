@@ -246,4 +246,19 @@ export class HealthController {
   refreshSafetyWithdrawals(@CurrentFarmId() farmId: string) {
     return this.healthService.refreshSafetyWithdrawals(farmId);
   }
+
+  /**
+   * RAKHAL-276: the only route that can move a withdrawal to `RELEASED` —
+   * an explicit, audited action (never a side effect of a read). Same
+   * permission as the sibling refresh route above (manager+, not worker).
+   */
+  @Post('safety-withdrawals/:id/release')
+  @RequirePermission('healthcare.update')
+  releaseWithdrawal(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+  ) {
+    return this.healthService.releaseWithdrawal(farmId, id, userId);
+  }
 }

@@ -90,9 +90,24 @@ enum AppearanceStatus {
   WEAK
 }
 
+/// RAKHAL-276 (v2 correction): was ACTIVE|COMPLETED. `COMPLETED` is renamed
+/// `RELEASED` and is now reached *only* via `HealthService.releaseWithdrawal`
+/// (an explicit, audited action) — never as a side effect of a read. The new
+/// `READY_FOR_RELEASE` value is the state a withdrawal sits in once its
+/// `until` date has passed but nobody has confirmed release yet; the daily
+/// sweep cron (`SchedulerService.runDailySweeps`) is the only place that
+/// transitions ACTIVE -> READY_FOR_RELEASE. `CANCELLED` covers a withdrawal
+/// voided before its window elapsed (e.g. logged in error).
+///
+/// Migration note: the Postgres enum type keeps the legacy `COMPLETED` value
+/// (Postgres can't cheaply drop enum values without a rename/recreate, and
+/// this ticket's migration is deliberately additive-only) — `COMPLETED` is
+/// simply never written or read by application code from this point on.
 enum SafetyWithdrawalStatus {
   ACTIVE
-  COMPLETED
+  READY_FOR_RELEASE
+  RELEASED
+  CANCELLED
 }
 
 enum HealthCloseOutcome {

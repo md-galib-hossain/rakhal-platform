@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  ActivityLogModule,
   ClinicalProgress,
   CattleStatus,
   HealthCaseStatus,
@@ -21,6 +22,7 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
+import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { MedicineService } from 'src/modules/inventory/application/services/medicine.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { NotificationService } from 'src/modules/notification/application/services/notification.service';
@@ -68,6 +70,7 @@ export class HealthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aqrService: AqrService,
+    private readonly activityLog: ActivityLogService,
     private readonly medicineService: MedicineService,
     private readonly taskService: TaskService,
     private readonly notificationService: NotificationService,
@@ -77,7 +80,6 @@ export class HealthService {
   }
 
   async getHealthDashboard(farmId: string) {
-    await this.refreshSafetyWithdrawalsForFarm(farmId);
     const now = new Date();
 
     const [
@@ -914,7 +916,6 @@ export class HealthService {
 
   async getCattleHealthSummary(farmId: string, cattleId: string) {
     await this.assertCattleInFarm(farmId, cattleId);
-    await this.refreshSafetyWithdrawalsForFarm(farmId);
     const [activeCases, treatmentHistory, activeWithdrawals, mortality] =
       await Promise.all([
         this.prisma.healthCase.findMany({
@@ -933,7 +934,16 @@ export class HealthService {
           take: 20,
         }),
         this.prisma.safetyWithdrawal.findMany({
-          where: { cattleId, farmId, status: SafetyWithdrawalStatus.ACTIVE },
+          where: {
+            cattleId,
+            farmId,
+            status: {
+              in: [
+                SafetyWithdrawalStatus.ACTIVE,
+                SafetyWithdrawalStatus.READY_FOR_RELEASE,
+              ],
+            },
+          },
         }),
         this.prisma.mortalityRecord.findFirst({
           where: { cattleId, farmId },
@@ -964,18 +974,50 @@ export class HealthService {
    * Single source of truth for "is this cow's milk currently withheld" — shared
    * across modules so the rule can't drift (previously the Milk module
    * duplicated this exact query independently).
+   *
+   * RAKHAL-276 (v2 correction): this is a **pure read** — it must never call
+   * `.update()`/`.updateMany()` on `SafetyWithdrawal`. v1's design had this
+   * method silently flip an expired-but-unconfirmed withdrawal's status as a
+   * query side effect (mutate-on-read), which is exactly the bug this ticket
+   * exists to fix — see `SchedulerService.runDailySweeps`'s
+   * `sweepSafetyWithdrawalsReadyForRelease` for where that transition
+   * actually belongs. A cow counts as withholding if it has a withdrawal
+   * that's `ACTIVE`/`READY_FOR_RELEASE` (status hasn't reached `RELEASED`
+   * yet, however it got there), OR is `ACTIVE` and past its `until` date but
+   * the daily sweep hasn't caught up to flip it to `READY_FOR_RELEASE` yet —
+   * "past-due but not yet swept" must still block milk sale.
    */
   async activeMilkWithholdingCattleIds(
     farmId: string,
     cattleIds: string[],
   ): Promise<Set<string>> {
     if (cattleIds.length === 0) return new Set();
+    const now = new Date();
     const rows = await this.prisma.safetyWithdrawal.findMany({
       where: {
         farmId,
         cattleId: { in: cattleIds },
-        status: SafetyWithdrawalStatus.ACTIVE,
-        milkWithdrawalUntil: { gt: new Date() },
+        // Only rows that actually restrict milk (a meat-only withdrawal has
+        // milkWithdrawalUntil: null and shouldn't block milk sale).
+        milkWithdrawalUntil: { not: null },
+        OR: [
+          // Still within its window, or confirmed-past-due-but-unreleased —
+          // either way, status alone says "still withholding".
+          {
+            status: {
+              in: [
+                SafetyWithdrawalStatus.ACTIVE,
+                SafetyWithdrawalStatus.READY_FOR_RELEASE,
+              ],
+            },
+          },
+          // Past-due but the daily sweep hasn't run/caught up yet — must
+          // still count, not silently drop off just because `until` elapsed.
+          {
+            status: SafetyWithdrawalStatus.ACTIVE,
+            milkWithdrawalUntil: { lte: now },
+          },
+        ],
       },
       select: { cattleId: true },
     });
@@ -1001,24 +1043,87 @@ export class HealthService {
     return toCursorPage(rows, query);
   }
 
+  /**
+   * Farm-scoped wrapper for the explicit `POST
+   * /health/safety-withdrawals/refresh` route — an explicit, user-triggered
+   * action, not a read-path side effect, so mutating here is fine.
+   */
   async refreshSafetyWithdrawals(farmId: string) {
-    return this.refreshSafetyWithdrawalsForFarm(farmId);
+    return this.sweepWithdrawalsReadyForRelease(farmId);
   }
 
-  private async refreshSafetyWithdrawalsForFarm(farmId: string) {
+  /**
+   * RAKHAL-276: the *only* place `ACTIVE` -> `READY_FOR_RELEASE` happens.
+   * Called with no `farmId` from `SchedulerService.runDailySweeps()` (every
+   * farm, once a day) and with a `farmId` from the manual refresh route
+   * above. Never called from a read path (see `activeMilkWithholdingCattleIds`'s
+   * doc comment for the bug this replaced).
+   */
+  async sweepWithdrawalsReadyForRelease(
+    farmId?: string,
+  ): Promise<{ updated: number }> {
     const now = new Date();
     const result = await this.prisma.safetyWithdrawal.updateMany({
       where: {
-        farmId,
+        ...(farmId ? { farmId } : {}),
         status: SafetyWithdrawalStatus.ACTIVE,
         OR: [
           { milkWithdrawalUntil: { lte: now } },
           { meatWithdrawalUntil: { lte: now } },
         ],
       },
-      data: { status: SafetyWithdrawalStatus.COMPLETED },
+      data: { status: SafetyWithdrawalStatus.READY_FOR_RELEASE },
     });
     return { updated: result.count };
+  }
+
+  /**
+   * RAKHAL-276: the *only* path to `RELEASED` — an explicit, audited action
+   * (never a side effect of a read or of the daily sweep). Idempotent: an
+   * already-`RELEASED` withdrawal is returned as-is rather than erroring
+   * (mirrors the `AnimalHoldService.releaseHold` precedent); an already-
+   * `CANCELLED` one 400s, since releasing something voided doesn't make sense.
+   *
+   * Audited via `ActivityLogService` (not `AuditService`), same call this
+   * repo already made for `AnimalHoldService.releaseHold` (RAKHAL-280):
+   * `AuditService`'s backing `AuditAction` enum
+   * (`prisma/schemas/audit/audit-enums.prisma`) is a closed set of
+   * auth/billing/admin-account events with no generic farm-domain-event
+   * member, and that schema file is out of this ticket's Lane. `ActivityLogService`
+   * is this repo's cross-cutting engine for exactly this kind of farm-domain
+   * event (free-text `eventTitle`/`actionDetails`, no schema change needed).
+   */
+  async releaseWithdrawal(farmId: string, id: string, releasedBy: string) {
+    const withdrawal = await this.prisma.safetyWithdrawal.findFirst({
+      where: { id, farmId },
+    });
+    if (!withdrawal) {
+      throw new NotFoundException('Safety withdrawal not found');
+    }
+    if (withdrawal.status === SafetyWithdrawalStatus.RELEASED) {
+      return withdrawal;
+    }
+    if (withdrawal.status === SafetyWithdrawalStatus.CANCELLED) {
+      throw new BadRequestException(
+        'Cannot release a cancelled safety withdrawal',
+      );
+    }
+
+    const updated = await this.prisma.safetyWithdrawal.update({
+      where: { id },
+      data: { status: SafetyWithdrawalStatus.RELEASED },
+    });
+
+    await this.activityLog.record({
+      farmId,
+      module: ActivityLogModule.HEALTH_SAFETY,
+      eventTitle: 'Safety withdrawal released',
+      actionDetails: `Milk/meat withholding released for safety withdrawal ${id} (was ${withdrawal.status}).`,
+      actorId: releasedBy,
+      relatedCattleId: withdrawal.cattleId,
+    });
+
+    return updated;
   }
 
   private async createSafetyWithdrawalIfNeeded(

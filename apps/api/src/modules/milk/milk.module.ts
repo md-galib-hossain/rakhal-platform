@@ -8,6 +8,7 @@ import { InventoryModule } from '../inventory/inventory.module';
 import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { HealthModule } from '../health/health.module';
+import { CattleModule } from '../cattle/cattle.module';
 import { MilkExportService } from './application/services/milk-export.service';
 import { MilkImportService } from './application/services/milk-import.service';
 import { MilkService } from './application/services/milk.service';
@@ -24,6 +25,11 @@ import { MilkController } from './presentation/controllers/milk.controller';
     FarmSettingsModule,
     SubscriptionModule,
     HealthModule,
+    // AnimalHoldService (RAKHAL-280) — read-only `activeHoldsForCattle` lookup
+    // for RAKHAL-278's `DISCARD_REQUIRED` milk-eligibility reason. CattleModule
+    // doesn't import MilkModule anywhere, so no circular-dependency risk (same
+    // pattern ReproductionModule already established for RAKHAL-272).
+    CattleModule,
   ],
   controllers: [MilkController],
   providers: [MilkService, MilkImportService, MilkExportService],

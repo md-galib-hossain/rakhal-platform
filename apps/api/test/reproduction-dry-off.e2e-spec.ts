@@ -106,6 +106,30 @@ describe('Reproduction — dry-off recording (e2e)', () => {
     expect(diffDays).toBe(60);
   });
 
+  it('RAKHAL-274: persists the optional structured reason when supplied', async () => {
+    const { cow } = await createMilkingCow();
+
+    const res = await request(server())
+      .post(api(`/reproduction/cattle/${cow.id}/dry-off`))
+      .set(...auth(owner))
+      .send({ notes: 'low yield', reason: 'LOW_PRODUCTION' })
+      .expect(201);
+
+    expect(res.body.data.reason).toBe('LOW_PRODUCTION');
+  });
+
+  it('RAKHAL-274: reason stays null when omitted', async () => {
+    const { cow } = await createMilkingCow();
+
+    const res = await request(server())
+      .post(api(`/reproduction/cattle/${cow.id}/dry-off`))
+      .set(...auth(owner))
+      .send({ notes: 'no reason given' })
+      .expect(201);
+
+    expect(res.body.data.reason).toBeNull();
+  });
+
   it('400s when the cow has no active lactation', async () => {
     const cow = await prisma.cattle.create({
       data: {

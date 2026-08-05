@@ -14,8 +14,10 @@ describe('CattleService — RAKHAL-269 production status', () => {
   let prisma: {
     cattle: { findFirst: jest.Mock; update: jest.Mock };
     lactation: { findFirst: jest.Mock };
+    animalHold: { findMany: jest.Mock };
   };
   let logger: { setContext: jest.Mock; info: jest.Mock; warn: jest.Mock };
+  let farmSettings: { getEffective: jest.Mock };
 
   const baseRow = (overrides: Record<string, unknown> = {}) => ({
     id: 'cattle-1',
@@ -33,11 +35,32 @@ describe('CattleService — RAKHAL-269 production status', () => {
     prisma = {
       cattle: { findFirst: jest.fn(), update: jest.fn() },
       lactation: { findFirst: jest.fn() },
+      animalHold: { findMany: jest.fn().mockResolvedValue([]) },
     };
     logger = {
       setContext: jest.fn().mockReturnThis(),
       info: jest.fn(),
       warn: jest.fn(),
+    };
+    // RAKHAL-279: `updateStatus`/`archiveWithReason` end by calling
+    // `findOne()`, which now builds a `ReproductionContext` via
+    // `buildReproductionContext()` — needs a `FarmModuleSettings`-shaped stub
+    // even though none of these paths exercise reproduction enrichment
+    // (all test rows are `reproductionProfile: null`).
+    farmSettings = {
+      getEffective: jest.fn().mockResolvedValue({
+        reproHeatWindowDays: 3,
+        reproCloseUpWindowDays: 21,
+        reproOverduePregnancyCheckDays: 7,
+        reproCalvingOverdueDays: 7,
+        reproRepeatBreederThreshold: 3,
+        reproLongDaysOpenDays: 120,
+        lactationFreshDays: 21,
+        lactationEarlyDays: 100,
+        lactationMidDays: 200,
+        pregnancyEarlyDays: 90,
+        pregnancyMidDays: 180,
+      }),
     };
   });
 
@@ -47,6 +70,7 @@ describe('CattleService — RAKHAL-269 production status', () => {
       {} as never, // AqrService — unused by these paths
       {} as never, // SubscriptionAccessService — unused
       { presentUrls: jest.fn(), signThumbs: jest.fn() } as never, // MediaService
+      farmSettings as never, // FarmSettingsService (RAKHAL-279)
       logger as never,
     );
 
