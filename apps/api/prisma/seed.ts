@@ -10,6 +10,7 @@ import {
   FinancePaymentType,
   FinanceTxnStatus,
   FinanceTxnType,
+  MilkDisposition,
   MilkSession,
   MilkTankType,
   PrismaClient,
@@ -192,7 +193,9 @@ async function seedPlatformAdmin(): Promise<void> {
       totpSecret: DEMO_ADMIN_TOTP_SECRET,
     },
   });
-  console.log(`✔ platform admin: ${email} / ${password} (2FA secret: ${DEMO_ADMIN_TOTP_SECRET})`);
+  console.log(
+    `✔ platform admin: ${email} / ${password} (2FA secret: ${DEMO_ADMIN_TOTP_SECRET})`,
+  );
 }
 
 /**
@@ -296,10 +299,38 @@ async function seedDemoFinance(
     amount: number;
     days: number;
   }> = [
-    { ref: 'SEED-TRX-REV-01', type: FinanceTxnType.REVENUE, category: FinanceCategory.REVENUE, subType: 'milk', amount: 42_000, days: 8 },
-    { ref: 'SEED-TRX-EXP-01', type: FinanceTxnType.OPERATING_EXPENSE, category: FinanceCategory.OVERHEAD, subType: 'salary', amount: 12_000, days: 5 },
-    { ref: 'SEED-TRX-EXP-02', type: FinanceTxnType.INVENTORY_PURCHASE, category: FinanceCategory.INVENTORY, subType: 'feed', amount: 18_000, days: 12 },
-    { ref: 'SEED-TRX-EXP-03', type: FinanceTxnType.OPERATING_EXPENSE, category: FinanceCategory.HEALTHCARE, subType: 'vet', amount: 4_000, days: 20 },
+    {
+      ref: 'SEED-TRX-REV-01',
+      type: FinanceTxnType.REVENUE,
+      category: FinanceCategory.REVENUE,
+      subType: 'milk',
+      amount: 42_000,
+      days: 8,
+    },
+    {
+      ref: 'SEED-TRX-EXP-01',
+      type: FinanceTxnType.OPERATING_EXPENSE,
+      category: FinanceCategory.OVERHEAD,
+      subType: 'salary',
+      amount: 12_000,
+      days: 5,
+    },
+    {
+      ref: 'SEED-TRX-EXP-02',
+      type: FinanceTxnType.INVENTORY_PURCHASE,
+      category: FinanceCategory.INVENTORY,
+      subType: 'feed',
+      amount: 18_000,
+      days: 12,
+    },
+    {
+      ref: 'SEED-TRX-EXP-03',
+      type: FinanceTxnType.OPERATING_EXPENSE,
+      category: FinanceCategory.HEALTHCARE,
+      subType: 'vet',
+      amount: 4_000,
+      days: 20,
+    },
   ];
   for (const t of txns) {
     const data = {
@@ -356,21 +387,216 @@ async function seedFeedIngredients(): Promise<void> {
   // SUPPLEMENT for lack of a MINERAL category; now correctly FORAGE is the umbrella-consistent
   // class name for roughage/silage, and minerals get their own class.
   const ingredients: Ing[] = [
-    { id: 'feed_napier', nameEn: 'Napier grass', nameBn: 'নেপিয়ার ঘাস', feedClass: 'FORAGE', feedSubType: 'ROUGHAGE', dmPct: 20, cpPct: 9, meMjPerKgDm: 8.5, fatPct: 2, ndfPct: 65, price: 5, source: 'BAU' },
-    { id: 'feed_green_maize', nameEn: 'Green maize fodder', nameBn: 'কাঁচা ভুট্টা', feedClass: 'FORAGE', feedSubType: 'ROUGHAGE', dmPct: 22, cpPct: 9, meMjPerKgDm: 9.5, fatPct: 2.5, ndfPct: 55, price: 6, source: 'INRA 2018' },
-    { id: 'feed_rice_straw', nameEn: 'Rice straw', nameBn: 'ধানের খড়', feedClass: 'FORAGE', feedSubType: 'ROUGHAGE', dmPct: 90, cpPct: 4, meMjPerKgDm: 6.5, fatPct: 1.5, ndfPct: 75, price: 8, source: 'BAU' },
-    { id: 'feed_maize_silage', nameEn: 'Maize silage', nameBn: 'ভুট্টা সাইলেজ', feedClass: 'FORAGE', feedSubType: 'SILAGE', dmPct: 30, cpPct: 8, meMjPerKgDm: 10, fatPct: 3, ndfPct: 45, price: 12, source: 'INRA 2018' },
-    { id: 'feed_wheat_bran', nameEn: 'Wheat bran', nameBn: 'গমের ভুসি', feedClass: 'CONCENTRATE', feedSubType: 'BY_PRODUCT', dmPct: 88, cpPct: 17, meMjPerKgDm: 11.5, fatPct: 4, ndfPct: 40, price: 38, source: 'NRC 2001' },
-    { id: 'feed_rice_polish', nameEn: 'Rice polish (bran)', nameBn: 'চালের কুঁড়া', feedClass: 'CONCENTRATE', feedSubType: 'BY_PRODUCT', dmPct: 90, cpPct: 13, meMjPerKgDm: 11, fatPct: 12, ndfPct: 25, price: 35, source: 'BAU' },
-    { id: 'feed_maize_grain', nameEn: 'Maize grain (crushed)', nameBn: 'ভুট্টার দানা', feedClass: 'CONCENTRATE', feedSubType: 'GRAIN', dmPct: 88, cpPct: 9, meMjPerKgDm: 13.5, fatPct: 4, ndfPct: 11, price: 42, source: 'NRC 2001' },
-    { id: 'feed_soybean_meal', nameEn: 'Soybean meal', nameBn: 'সয়াবিন মিল', feedClass: 'CONCENTRATE', feedSubType: 'GRAIN', dmPct: 90, cpPct: 44, meMjPerKgDm: 12.5, fatPct: 1.5, ndfPct: 13, price: 70, source: 'NRC 2001' },
-    { id: 'feed_mustard_cake', nameEn: 'Mustard oil cake', nameBn: 'সরিষার খৈল', feedClass: 'CONCENTRATE', feedSubType: 'GRAIN', dmPct: 90, cpPct: 32, meMjPerKgDm: 11, fatPct: 9, ndfPct: 30, price: 55, source: 'BAU' },
-    { id: 'feed_sesame_cake', nameEn: 'Sesame (til) oil cake', nameBn: 'তিলের খৈল', feedClass: 'CONCENTRATE', feedSubType: 'GRAIN', dmPct: 92, cpPct: 35, meMjPerKgDm: 11.5, fatPct: 10, ndfPct: 20, price: 60, source: 'BAU' },
-    { id: 'feed_khesari_bran', nameEn: 'Khesari (lentil) bran', nameBn: 'খেসারির ভুসি', feedClass: 'CONCENTRATE', feedSubType: 'BY_PRODUCT', dmPct: 89, cpPct: 18, meMjPerKgDm: 10.5, fatPct: 2, ndfPct: 35, price: 30, source: 'BAU' },
-    { id: 'feed_molasses', nameEn: 'Molasses', nameBn: 'চিটাগুড়', feedClass: 'CONCENTRATE', feedSubType: 'SUPPLEMENT', dmPct: 75, cpPct: 4, meMjPerKgDm: 12.5, fatPct: 0, ndfPct: 0, price: 28, source: 'INRA 2018' },
-    { id: 'feed_dcp', nameEn: 'Di-calcium phosphate (DCP)', nameBn: 'ডিসিপি', feedClass: 'MINERAL', feedSubType: 'PREMIX', dmPct: 97, cpPct: 0, meMjPerKgDm: 0, fatPct: 0, ndfPct: 0, price: 60, source: 'NRC 2001' },
-    { id: 'feed_mineral_mix', nameEn: 'Mineral & vitamin mixture', nameBn: 'মিনারেল মিক্সচার', feedClass: 'MINERAL', feedSubType: 'PREMIX', dmPct: 98, cpPct: 0, meMjPerKgDm: 0, fatPct: 0, ndfPct: 0, price: 80, source: 'NRC 2001' },
-    { id: 'feed_salt', nameEn: 'Common salt', nameBn: 'খাবার লবণ', feedClass: 'MINERAL', feedSubType: 'OTHER', dmPct: 99, cpPct: 0, meMjPerKgDm: 0, fatPct: 0, ndfPct: 0, price: 15, source: 'NRC 2001' },
+    {
+      id: 'feed_napier',
+      nameEn: 'Napier grass',
+      nameBn: 'নেপিয়ার ঘাস',
+      feedClass: 'FORAGE',
+      feedSubType: 'ROUGHAGE',
+      dmPct: 20,
+      cpPct: 9,
+      meMjPerKgDm: 8.5,
+      fatPct: 2,
+      ndfPct: 65,
+      price: 5,
+      source: 'BAU',
+    },
+    {
+      id: 'feed_green_maize',
+      nameEn: 'Green maize fodder',
+      nameBn: 'কাঁচা ভুট্টা',
+      feedClass: 'FORAGE',
+      feedSubType: 'ROUGHAGE',
+      dmPct: 22,
+      cpPct: 9,
+      meMjPerKgDm: 9.5,
+      fatPct: 2.5,
+      ndfPct: 55,
+      price: 6,
+      source: 'INRA 2018',
+    },
+    {
+      id: 'feed_rice_straw',
+      nameEn: 'Rice straw',
+      nameBn: 'ধানের খড়',
+      feedClass: 'FORAGE',
+      feedSubType: 'ROUGHAGE',
+      dmPct: 90,
+      cpPct: 4,
+      meMjPerKgDm: 6.5,
+      fatPct: 1.5,
+      ndfPct: 75,
+      price: 8,
+      source: 'BAU',
+    },
+    {
+      id: 'feed_maize_silage',
+      nameEn: 'Maize silage',
+      nameBn: 'ভুট্টা সাইলেজ',
+      feedClass: 'FORAGE',
+      feedSubType: 'SILAGE',
+      dmPct: 30,
+      cpPct: 8,
+      meMjPerKgDm: 10,
+      fatPct: 3,
+      ndfPct: 45,
+      price: 12,
+      source: 'INRA 2018',
+    },
+    {
+      id: 'feed_wheat_bran',
+      nameEn: 'Wheat bran',
+      nameBn: 'গমের ভুসি',
+      feedClass: 'CONCENTRATE',
+      feedSubType: 'BY_PRODUCT',
+      dmPct: 88,
+      cpPct: 17,
+      meMjPerKgDm: 11.5,
+      fatPct: 4,
+      ndfPct: 40,
+      price: 38,
+      source: 'NRC 2001',
+    },
+    {
+      id: 'feed_rice_polish',
+      nameEn: 'Rice polish (bran)',
+      nameBn: 'চালের কুঁড়া',
+      feedClass: 'CONCENTRATE',
+      feedSubType: 'BY_PRODUCT',
+      dmPct: 90,
+      cpPct: 13,
+      meMjPerKgDm: 11,
+      fatPct: 12,
+      ndfPct: 25,
+      price: 35,
+      source: 'BAU',
+    },
+    {
+      id: 'feed_maize_grain',
+      nameEn: 'Maize grain (crushed)',
+      nameBn: 'ভুট্টার দানা',
+      feedClass: 'CONCENTRATE',
+      feedSubType: 'GRAIN',
+      dmPct: 88,
+      cpPct: 9,
+      meMjPerKgDm: 13.5,
+      fatPct: 4,
+      ndfPct: 11,
+      price: 42,
+      source: 'NRC 2001',
+    },
+    {
+      id: 'feed_soybean_meal',
+      nameEn: 'Soybean meal',
+      nameBn: 'সয়াবিন মিল',
+      feedClass: 'CONCENTRATE',
+      feedSubType: 'GRAIN',
+      dmPct: 90,
+      cpPct: 44,
+      meMjPerKgDm: 12.5,
+      fatPct: 1.5,
+      ndfPct: 13,
+      price: 70,
+      source: 'NRC 2001',
+    },
+    {
+      id: 'feed_mustard_cake',
+      nameEn: 'Mustard oil cake',
+      nameBn: 'সরিষার খৈল',
+      feedClass: 'CONCENTRATE',
+      feedSubType: 'GRAIN',
+      dmPct: 90,
+      cpPct: 32,
+      meMjPerKgDm: 11,
+      fatPct: 9,
+      ndfPct: 30,
+      price: 55,
+      source: 'BAU',
+    },
+    {
+      id: 'feed_sesame_cake',
+      nameEn: 'Sesame (til) oil cake',
+      nameBn: 'তিলের খৈল',
+      feedClass: 'CONCENTRATE',
+      feedSubType: 'GRAIN',
+      dmPct: 92,
+      cpPct: 35,
+      meMjPerKgDm: 11.5,
+      fatPct: 10,
+      ndfPct: 20,
+      price: 60,
+      source: 'BAU',
+    },
+    {
+      id: 'feed_khesari_bran',
+      nameEn: 'Khesari (lentil) bran',
+      nameBn: 'খেসারির ভুসি',
+      feedClass: 'CONCENTRATE',
+      feedSubType: 'BY_PRODUCT',
+      dmPct: 89,
+      cpPct: 18,
+      meMjPerKgDm: 10.5,
+      fatPct: 2,
+      ndfPct: 35,
+      price: 30,
+      source: 'BAU',
+    },
+    {
+      id: 'feed_molasses',
+      nameEn: 'Molasses',
+      nameBn: 'চিটাগুড়',
+      feedClass: 'CONCENTRATE',
+      feedSubType: 'SUPPLEMENT',
+      dmPct: 75,
+      cpPct: 4,
+      meMjPerKgDm: 12.5,
+      fatPct: 0,
+      ndfPct: 0,
+      price: 28,
+      source: 'INRA 2018',
+    },
+    {
+      id: 'feed_dcp',
+      nameEn: 'Di-calcium phosphate (DCP)',
+      nameBn: 'ডিসিপি',
+      feedClass: 'MINERAL',
+      feedSubType: 'PREMIX',
+      dmPct: 97,
+      cpPct: 0,
+      meMjPerKgDm: 0,
+      fatPct: 0,
+      ndfPct: 0,
+      price: 60,
+      source: 'NRC 2001',
+    },
+    {
+      id: 'feed_mineral_mix',
+      nameEn: 'Mineral & vitamin mixture',
+      nameBn: 'মিনারেল মিক্সচার',
+      feedClass: 'MINERAL',
+      feedSubType: 'PREMIX',
+      dmPct: 98,
+      cpPct: 0,
+      meMjPerKgDm: 0,
+      fatPct: 0,
+      ndfPct: 0,
+      price: 80,
+      source: 'NRC 2001',
+    },
+    {
+      id: 'feed_salt',
+      nameEn: 'Common salt',
+      nameBn: 'খাবার লবণ',
+      feedClass: 'MINERAL',
+      feedSubType: 'OTHER',
+      dmPct: 99,
+      cpPct: 0,
+      meMjPerKgDm: 0,
+      fatPct: 0,
+      ndfPct: 0,
+      price: 15,
+      source: 'NRC 2001',
+    },
   ];
 
   const now = new Date();
@@ -433,14 +659,19 @@ async function seedReproProtocols(): Promise<void> {
       id: 'repro_ovsynch',
       name: 'Ovsynch',
       code: 'OVSYNCH',
-      description: 'GnRH → 7d PGF₂α → 2d GnRH → Timed AI (the classic Ovsynch).',
+      description:
+        'GnRH → 7d PGF₂α → 2d GnRH → Timed AI (the classic Ovsynch).',
       durationDays: 10,
       steps: [
         { dayNumber: 0, title: 'GnRH injection', stepType: 'GNRH' },
         { dayNumber: 7, title: 'PGF₂α injection', stepType: 'PGF2ALPHA' },
         { dayNumber: 9, title: 'GnRH injection', stepType: 'GNRH' },
         { dayNumber: 10, title: 'Timed AI', stepType: 'AI' },
-        { dayNumber: 40, title: 'Pregnancy check', stepType: 'PREGNANCY_CHECK' },
+        {
+          dayNumber: 40,
+          title: 'Pregnancy check',
+          stepType: 'PREGNANCY_CHECK',
+        },
       ],
     },
     {
@@ -457,7 +688,11 @@ async function seedReproProtocols(): Promise<void> {
         { dayNumber: 7, title: 'PGF₂α injection', stepType: 'PGF2ALPHA' },
         { dayNumber: 9, title: 'GnRH injection', stepType: 'GNRH' },
         { dayNumber: 10, title: 'Timed AI', stepType: 'AI' },
-        { dayNumber: 40, title: 'Pregnancy check', stepType: 'PREGNANCY_CHECK' },
+        {
+          dayNumber: 40,
+          title: 'Pregnancy check',
+          stepType: 'PREGNANCY_CHECK',
+        },
       ],
     },
     {
@@ -468,13 +703,29 @@ async function seedReproProtocols(): Promise<void> {
         'Two PGF₂α 14 days apart (presynch), then a standard Ovsynch — higher conception in cyclic cows.',
       durationDays: 36,
       steps: [
-        { dayNumber: 0, title: 'PGF₂α injection (Presynch 1)', stepType: 'PGF2ALPHA' },
-        { dayNumber: 14, title: 'PGF₂α injection (Presynch 2)', stepType: 'PGF2ALPHA' },
-        { dayNumber: 26, title: 'GnRH injection (Ovsynch start)', stepType: 'GNRH' },
+        {
+          dayNumber: 0,
+          title: 'PGF₂α injection (Presynch 1)',
+          stepType: 'PGF2ALPHA',
+        },
+        {
+          dayNumber: 14,
+          title: 'PGF₂α injection (Presynch 2)',
+          stepType: 'PGF2ALPHA',
+        },
+        {
+          dayNumber: 26,
+          title: 'GnRH injection (Ovsynch start)',
+          stepType: 'GNRH',
+        },
         { dayNumber: 33, title: 'PGF₂α injection', stepType: 'PGF2ALPHA' },
         { dayNumber: 35, title: 'GnRH injection', stepType: 'GNRH' },
         { dayNumber: 36, title: 'Timed AI', stepType: 'AI' },
-        { dayNumber: 66, title: 'Pregnancy check', stepType: 'PREGNANCY_CHECK' },
+        {
+          dayNumber: 66,
+          title: 'Pregnancy check',
+          stepType: 'PREGNANCY_CHECK',
+        },
       ],
     },
   ];
@@ -516,9 +767,9 @@ async function seedSubscriptionPlans(): Promise<void> {
   }
 
   const featureIdByKey = new Map(
-    (
-      await prisma.feature.findMany({ select: { id: true, key: true } })
-    ).map((f) => [f.key, f.id] as const),
+    (await prisma.feature.findMany({ select: { id: true, key: true } })).map(
+      (f) => [f.key, f.id] as const,
+    ),
   );
 
   for (const plan of PLAN_CATALOGUE) {
@@ -608,7 +859,10 @@ async function seedDemoSubscription(farmId: string): Promise<void> {
  * earlier runs. Seed a small stable herd so the suite is reproducible from a
  * clean `pnpm seed` / `prisma migrate reset`. Idempotent (skips if any exist).
  */
-async function seedDemoCattle(farmId: string, createdBy: string): Promise<void> {
+async function seedDemoCattle(
+  farmId: string,
+  createdBy: string,
+): Promise<void> {
   const existing = await prisma.cattle.count({ where: { farmId } });
   if (existing > 0) return;
 
@@ -646,11 +900,15 @@ async function seedDemoDashboardHistory(
     );
     const wave = Math.sin(((11 - i) / 11) * Math.PI * 1.5);
     const income = Math.round(150_000 + wave * 90_000);
-    const expense = Math.round(120_000 + Math.cos(((11 - i) / 11) * Math.PI) * 60_000);
+    const expense = Math.round(
+      120_000 + Math.cos(((11 - i) / 11) * Math.PI) * 60_000,
+    );
     const key = monthStart.toISOString().slice(0, 7);
 
     await prisma.financeTransaction.upsert({
-      where: { farmId_reference: { farmId, reference: `SEED-HIST-REV-${key}` } },
+      where: {
+        farmId_reference: { farmId, reference: `SEED-HIST-REV-${key}` },
+      },
       update: { date: monthStart, amount: income },
       create: {
         farmId,
@@ -668,7 +926,9 @@ async function seedDemoDashboardHistory(
       },
     });
     await prisma.financeTransaction.upsert({
-      where: { farmId_reference: { farmId, reference: `SEED-HIST-EXP-${key}` } },
+      where: {
+        farmId_reference: { farmId, reference: `SEED-HIST-EXP-${key}` },
+      },
       update: { date: monthStart, amount: expense },
       create: {
         farmId,
@@ -716,7 +976,9 @@ async function seedDemoDashboardHistory(
     }
 
     for (let day = 1; day <= daysSoFar; day += 1) {
-      const logDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), day));
+      const logDate = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), day),
+      );
       const dayWave = Math.sin((day / daysSoFar) * Math.PI * 2);
 
       for (const [idx, cow] of milkCows.entries()) {
@@ -729,7 +991,12 @@ async function seedDemoDashboardHistory(
               session: MilkSession.MORNING,
             },
           },
-          update: { yieldL, submitted: true, submittedAt: logDate },
+          update: {
+            yieldL,
+            disposition: MilkDisposition.SALEABLE,
+            submitted: true,
+            submittedAt: logDate,
+          },
           create: {
             farmId,
             cattleId: cow.id,
@@ -737,6 +1004,7 @@ async function seedDemoDashboardHistory(
             session: MilkSession.MORNING,
             yieldL,
             tankType: MilkTankType.SELLABLE,
+            disposition: MilkDisposition.SALEABLE,
             submitted: true,
             submittedAt: logDate,
             createdBy,
@@ -749,7 +1017,11 @@ async function seedDemoDashboardHistory(
       const lineCost = actualKg * pricePerKg;
       const distReference = `SEED-FEED-${logDate.toISOString().slice(0, 10)}`;
       const existingDist = await prisma.feedDistribution.findFirst({
-        where: { farmId, distributedAt: logDate, concentrationId: concentration.id },
+        where: {
+          farmId,
+          distributedAt: logDate,
+          concentrationId: concentration.id,
+        },
       });
       if (!existingDist) {
         await prisma.feedDistribution.create({
@@ -779,7 +1051,9 @@ async function seedDemoDashboardHistory(
         });
       }
     }
-    console.log(`✔ demo production/feedcost history: ${daysSoFar} day(s) this month`);
+    console.log(
+      `✔ demo production/feedcost history: ${daysSoFar} day(s) this month`,
+    );
   }
 
   // ---- Conception Rate: 12 months of breeding events ----------------------
@@ -788,7 +1062,11 @@ async function seedDemoDashboardHistory(
     select: { id: true },
   });
   const bull = await prisma.cattle.findFirst({
-    where: { farmId, purpose: CattlePurpose.BREEDING, gender: CattleGender.MALE },
+    where: {
+      farmId,
+      purpose: CattlePurpose.BREEDING,
+      gender: CattleGender.MALE,
+    },
     select: { id: true },
   });
   if (femaleCattle.length > 0) {
@@ -797,7 +1075,7 @@ async function seedDemoDashboardHistory(
       const breedingDate = new Date(
         Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 15),
       );
-      const wave = (Math.sin((((11 - i) / 11) * Math.PI * 2)) + 1) / 2; // 0..1
+      const wave = (Math.sin(((11 - i) / 11) * Math.PI * 2) + 1) / 2; // 0..1
       const perMonth = 2 + Math.round(wave * 2); // 2..4 events/month
       for (let j = 0; j < perMonth; j += 1) {
         const cow = femaleCattle[(i * 3 + j) % femaleCattle.length];
@@ -813,7 +1091,9 @@ async function seedDemoDashboardHistory(
               breedingDate,
               breedingMethod: BreedingMethod.AI,
               breedingNumber,
-              status: confirmed ? BreedingStatus.PREGNANT : BreedingStatus.FAILED,
+              status: confirmed
+                ? BreedingStatus.PREGNANT
+                : BreedingStatus.FAILED,
             },
           });
         }
