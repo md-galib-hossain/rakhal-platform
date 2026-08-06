@@ -8,7 +8,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { avatarTint } from "../avatar-tint";
 import { formatCattleAge } from "../format";
 import { CattleRowActions } from "./cattle-row-actions";
-import type { AnimalCategory, CattleListItem, ProductionStatus } from "../types";
+import type {
+  AnimalCategory,
+  CattleListItem,
+  HealthStatusFilter,
+  ProductionStatus,
+  ReproductiveStatus,
+} from "../types";
 
 /** Radix `Avatar` (plain `<img>` under the hood) rather than `next/image` for the 32px list
  * thumbnail — the signed R2 URL's host isn't a fixed, config-time-known hostname (varies by
@@ -45,6 +51,50 @@ const ANIMAL_CATEGORY_VARIANT: Record<AnimalCategory, ChipProps["variant"]> = {
   STEER: "teal",
 };
 
+/** Chip colors for the new dedicated "Reproduction status" column (see the doc comment on
+ * `buildCattleColumns` for why this column now exists). No prior chip mapping existed for the full
+ * 5-value `ReproductiveStatus` enum anywhere in the codebase — `cattle-profile-card.tsx` only ever
+ * collapsed it to a binary Positive/Negative pregnancy label — so this mapping is new, invented
+ * here following the same `Record<Enum, ChipProps["variant"]>` pattern the two chip maps above
+ * already use. `PREGNANT` mirrors `PRODUCTION_STATUS_VARIANT.MILKING` (primary = positive
+ * headline state); `NOT_ELIGIBLE` is `muted` (not applicable, same treatment `ANIMAL_CATEGORY`
+ * gives no non-applicable state but matches `Chip`'s own `muted` default); `OPEN` is `warning`
+ * (needs a breeding action); `POSTPARTUM_WAITING`/`BRED_AWAITING_CONFIRMATION` are `info`
+ * (in-progress, not yet actionable or confirmed). */
+const REPRODUCTIVE_STATUS_VARIANT: Record<ReproductiveStatus, ChipProps["variant"]> = {
+  NOT_ELIGIBLE: "muted",
+  POSTPARTUM_WAITING: "info",
+  OPEN: "warning",
+  BRED_AWAITING_CONFIRMATION: "info",
+  PREGNANT: "primary",
+};
+
+/** Chip colors for the new dedicated "Health status" column — `healthStatus` had zero table
+ * representation before this change (filter-only, per the old doc comment below). Variant choices
+ * mirror the same positive/restrictive logic `MILK_ELIGIBILITY_VARIANT` in
+ * `cattle-profile-card.tsx` already uses for its analogous saleable/withheld states: `HEALTHY` is
+ * `primary` (good), `SICK`/`QUARANTINE` are `destructive` (active problem / isolation), and
+ * `IN_TREATMENT`/`WITHHOLDING` are `warning` (recovering / temporarily restricted, not a fresh
+ * problem). */
+const HEALTH_STATUS_VARIANT: Record<HealthStatusFilter, ChipProps["variant"]> = {
+  HEALTHY: "primary",
+  SICK: "destructive",
+  IN_TREATMENT: "warning",
+  WITHHOLDING: "warning",
+  QUARANTINE: "destructive",
+};
+
+/** `HealthStatusFilter`'s wire values don't lower-camelCase mechanically (`IN_TREATMENT`), so this
+ * maps each to the existing `cattle.healthOptions.*` i18n keys (already used by the Health filter
+ * dropdown) rather than inventing new translation keys for the same five labels. */
+const HEALTH_STATUS_I18N_KEY: Record<HealthStatusFilter, string> = {
+  HEALTHY: "healthy",
+  SICK: "sick",
+  IN_TREATMENT: "inTreatment",
+  WITHHOLDING: "withholding",
+  QUARANTINE: "quarantine",
+};
+
 /** RAKHAL-272 — compact table indicator for `reproductionAlerts`: a small warning dot + count, full
  * label list on hover. A full badge row (like the detail view gets) doesn't fit an 8-column table;
  * this is deliberately the cheaper of the two per the ticket's own guidance. */
@@ -76,15 +126,18 @@ function ReproductionAlertsIndicator({
 }
 
 /**
- * Column set pixel-matched to the Figma "Cattle" table: Name/Breed/Age/Weight/Shed/AQR Score/
- * Status/Action, 8 columns — dropped the previous (real, but Figma-divergent) Health/DIM/BCS
- * columns to match. **Real information trade-off, not silently dropped**: Health status is still
- * fully real data — filterable via the existing Health select in `CattleFilters` and shown in the
- * "View Details" drawer's Health tab — just no longer a list column. Figma's own mock "Status"
- * values (e.g. "Active Breeder") don't map to any real field this backend has (not
- * `productionStatus`, not `reproductiveStatus`); `productionStatus` (RAKHAL-269 v2: trimmed to
- * Milking/Dry, nullable) is the real closest match and is used here rather than fabricating a
- * field.
+ * Column set. Originally pixel-matched to the Figma "Cattle" table (Name/Breed/Age/Weight/Shed/AQR
+ * Score/Status/Action, 8 columns, one combined "Status" cell folding `productionStatus` and the
+ * `reproductionAlerts` indicator together) — that constraint is **deliberately superseded** per
+ * explicit user request: each status dimension now gets its own column so `productionStatus`,
+ * `reproductiveStatus`, and `healthStatus` are each independently visible and scannable, rather
+ * than two of the three being buried behind a filter/detail-view-only presence. The table now runs
+ * wider than the original 8-column Figma frame; `CattleTable`'s wrapper relies on the shared
+ * `Table` UI primitive's built-in `overflow-x-auto` (see `components/ui/table.tsx`) for horizontal
+ * scroll on narrow viewports rather than any new column-hiding/truncation logic. Figma's own mock
+ * "Status" values (e.g. "Active Breeder") never mapped to any real field this backend has —
+ * `productionStatus` (RAKHAL-269 v2: trimmed to Milking/Dry, nullable) remains the real closest
+ * match for the "Production status" column.
  */
 export function buildCattleColumns(
   t: (key: string, values?: Record<string, string | number | Date>) => string,
@@ -163,19 +216,39 @@ export function buildCattleColumns(
     },
     {
       id: "productionStatus",
-      header: t("columns.status"),
+      header: t("columns.productionStatus"),
       cell: ({ row }) => {
         const status = row.original.productionStatus;
+        return status ? (
+          <Chip variant={PRODUCTION_STATUS_VARIANT[status]}>{t(`statusOptions.${status.toLowerCase()}`)}</Chip>
+        ) : (
+          "—"
+        );
+      },
+    },
+    {
+      id: "reproductiveStatus",
+      header: t("columns.reproductionStatus"),
+      cell: ({ row }) => {
+        const status = row.original.reproductiveStatus;
         return (
           <span className="flex items-center gap-1.5">
             {status ? (
-              <Chip variant={PRODUCTION_STATUS_VARIANT[status]}>{t(`statusOptions.${status.toLowerCase()}`)}</Chip>
+              <Chip variant={REPRODUCTIVE_STATUS_VARIANT[status]}>{t(`statusDialog.reproductiveOptions.${status}`)}</Chip>
             ) : (
               "—"
             )}
             <ReproductionAlertsIndicator alerts={row.original.reproductionAlerts} t={t} />
           </span>
         );
+      },
+    },
+    {
+      id: "healthStatus",
+      header: t("columns.healthStatus"),
+      cell: ({ row }) => {
+        const status = row.original.healthStatus;
+        return <Chip variant={HEALTH_STATUS_VARIANT[status]}>{t(`healthOptions.${HEALTH_STATUS_I18N_KEY[status]}`)}</Chip>;
       },
     },
     {

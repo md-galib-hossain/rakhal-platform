@@ -717,7 +717,10 @@
       "dim": "DIM",
       "weight": "Weight",
       "bcs": "BCS",
-      "action": "Action"
+      "action": "Action",
+      "productionStatus": "Production status",
+      "reproductionStatus": "Reproduction status",
+      "healthStatus": "Health status"
     },
     "statusOptions": {
       "milking": "Milking",
@@ -838,6 +841,9 @@
       "lactationStartDate": "Lactation start date",
       "lactationStartDateHint": "This cow has no active lactation on record — provide the date it started milking to record it.",
       "lactationStartDateRequired": "Lactation start date is required to mark this cow as milking.",
+      "hasCalvedBefore": "Has this cow calved before (outside this system)?",
+      "priorCalvings": "Number of prior calvings",
+      "priorCalvingsRequired": "A heifer cannot be set to Milking — check this box if she's calved before.",
       "save": "Save",
       "cancel": "Cancel",
       "updatedToast": "Status updated.",
