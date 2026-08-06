@@ -243,6 +243,22 @@ model Lactation {
   /// provenance instead of overloading `calvingEventId`).
   sourceCalvingEventId String?
 
+  /// RAKHAL-281: why this lactation ended. Nullable, set only when
+  /// `status=ENDED` — `recordDryOff()` doesn't set this yet (RAKHAL-290).
+  endReason LactationEndReason?
+
+  /// RAKHAL-281: purchased-lactating intake (`startReason:
+  /// PURCHASED_LACTATING`) has no `CalvingEvent` to derive DIM/lactation
+  /// number from — `isEstimated` flags that this lactation's DIM/number are
+  /// farmer-supplied estimates, never silently treated as verified.
+  /// `estimatedLactationNumber`/`estimatedDaysInMilk` capture what was
+  /// supplied at intake time (both null if the farmer supplied nothing),
+  /// kept distinct from the real `lactationNumber`/derived-DIM fields so a
+  /// later correction can't retroactively rewrite what was originally known.
+  isEstimated              Boolean @default(false)
+  estimatedLactationNumber Int?
+  estimatedDaysInMilk      Int?
+
   createdAt DateTime @default(now())
 
   cattle       Cattle        @relation(fields: [cattleId], references: [id])

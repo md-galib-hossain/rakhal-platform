@@ -25,10 +25,31 @@ enum ReproductionState {
 /// rejected `Cattle.lactationStartDate` (a duplicate source of truth against
 /// `Lactation.startDate`, dropped by RAKHAL-269's v2 correction) — lactation
 /// start now lives solely on `Lactation`.
+///
+/// RAKHAL-281 (breaking rename): `PURCHASE_IMPORT` → `PURCHASED_LACTATING`
+/// (clearer — this is a live purchased-cow intake, not a data import) +
+/// new `HISTORICAL_IMPORT` (paper-record migration into the system, a
+/// distinct provenance from a purchased-cow intake). Migration renames the
+/// Postgres enum value in place (`ALTER TYPE ... RENAME VALUE`), so every
+/// existing row's data is preserved with no separate backfill needed.
 enum LactationStartReason {
   CALVING
-  PURCHASE_IMPORT
+  PURCHASED_LACTATING
+  HISTORICAL_IMPORT
   MANUAL_CORRECTION
+}
+
+/// RAKHAL-281: why a `Lactation` row ended. Nullable on `Lactation`, set only
+/// when `status=ENDED` — a still-`ACTIVE` lactation has no end reason yet.
+/// `MISSING_DRY_OFF_RECORD` covers RAKHAL-290's future auto-close case (a new
+/// calving found while the prior lactation was never explicitly dried off).
+enum LactationEndReason {
+  DRY_OFF
+  SOLD
+  CULLED
+  DEATH
+  MANUAL_CORRECTION
+  MISSING_DRY_OFF_RECORD
 }
 
 enum HeatDetectionMethod {

@@ -23,6 +23,7 @@ import { CreateCalvingEventDto } from '../dto/create-calving-event.dto';
 import { CreateDryOffDto } from '../dto/create-dry-off.dto';
 import { CreateHeatEventDto } from '../dto/create-heat-event.dto';
 import { CreatePregnancyDiagnosisDto } from '../dto/create-pregnancy-diagnosis.dto';
+import { CreatePurchasedLactationDto } from '../dto/create-purchased-lactation.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Reproduction (PRD Â§9). `/api/v1/reproduction`. Token tenancy + RBAC. */
@@ -151,6 +152,24 @@ export class ReproductionController {
     @Body() dto: CreateDryOffDto,
   ) {
     return this.reproductionService.recordDryOff(farmId, id, dto);
+  }
+
+  /** RAKHAL-281: start a Lactation for a purchased-lactating cow with no
+   * CalvingEvent on record — mirrors the `cattle/:id/dry-off` route shape. */
+  @Post('cattle/:id/purchased-lactation')
+  @RequirePermission('reproduction.create')
+  createPurchasedLactation(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body() dto: CreatePurchasedLactationDto,
+  ) {
+    return this.reproductionService.createPurchasedLactation(
+      farmId,
+      userId,
+      id,
+      dto,
+    );
   }
 
   @Get('lactations')

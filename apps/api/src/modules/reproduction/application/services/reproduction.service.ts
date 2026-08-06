@@ -16,6 +16,7 @@ import {
   LactationStatus,
   PregnancyDiagnosisResult,
   PregnancyStatus,
+  Prisma,
   ProductionStatus,
   ReproductionState,
   TaskCategory,
@@ -47,6 +48,7 @@ import { CreateAbortionEventDto } from '../../presentation/dto/create-abortion-e
 import { CreateBreedingEventDto } from '../../presentation/dto/create-breeding-event.dto';
 import { CreateCalvingEventDto } from '../../presentation/dto/create-calving-event.dto';
 import { CreateDryOffDto } from '../../presentation/dto/create-dry-off.dto';
+import { CreatePurchasedLactationDto } from '../../presentation/dto/create-purchased-lactation.dto';
 import { CreateHeatEventDto } from '../../presentation/dto/create-heat-event.dto';
 import { CreatePregnancyDiagnosisDto } from '../../presentation/dto/create-pregnancy-diagnosis.dto';
 import { ReproductionListQueryDto } from '../../presentation/dto/common.dto';
@@ -559,14 +561,10 @@ export class ReproductionService {
       // calving is a real lifecycle transition, so flip the dam into MILKING.
       // `Cattle.lactationStartDate` is gone (v2 correction) — the `Lactation`
       // row created just above is now the sole source of truth for lactation
-      // start. `ProductionStatus` no longer holds SOLD/DECEASED (RAKHAL-269
-      // trimmed it to MILKING|DRY, archival now nulls productionStatus +
-      // flips isActive/status instead) — guard on isActive so an archived cow
-      // isn't revived.
-      await tx.cattle.updateMany({
-        where: { id: dto.cattleId, isActive: true },
-        data: { productionStatus: ProductionStatus.MILKING },
-      });
+      // start. Extracted to `flipToMilking` (RAKHAL-281) so the new
+      // purchased-lactating intake path (`createPurchasedLactation`) can reuse
+      // the exact same guarded transition instead of duplicating it.
+      await this.flipToMilking(tx, dto.cattleId);
 
       return tx.calvingEvent.findUnique({
         where: { id: created.id },
@@ -711,6 +709,108 @@ export class ReproductionService {
     });
 
     return dryPeriod;
+  }
+
+  /**
+   * RAKHAL-281: start a `Lactation` for a purchased-lactating cow with no
+   * `CalvingEvent` on record in this system — the farmer supplies whatever
+   * she knows (estimated calving date / known DIM / lactation number),
+   * possibly nothing at all. Mirrors `createCalvingEvent`'s
+   * `Cattle.productionStatus` flip (via the shared `flipToMilking`) and its
+   * `ReproductionProfile.currentLactationNumber`/`currentLactationId`
+   * bookkeeping, without duplicating the `CalvingEvent`/`CalfBirth`/AQR/Task
+   * side effects — there is no birth to register here.
+   *
+   * Deliberate scope decision (documented, not silently skipped): this does
+   * **not** touch `ReproductionProfile.totalCalvings` — `createCalvingEvent`
+   * derives that field from a real `CalvingEvent.count()`, which stays 0 here
+   * (no `CalvingEvent` exists for a purchased cow). A purchased-lactating cow
+   * may therefore still derive `AnimalCategory=HEIFER` (`totalCalvings===0`)
+   * in `CattleService`'s domain logic despite being `MILKING` here — the
+   * existing `priorCalvings` intake field on `CreateCattleDto`/
+   * `UpdateCattleStatusDto` (RAKHAL-291) is the supported way to also record
+   * real prior-calving history; wiring the two together is left to a future
+   * ticket rather than reaching into `CattleModule`'s `ReproductionProfile`
+   * invariant from here.
+   */
+  async createPurchasedLactation(
+    farmId: string,
+    userId: string,
+    cattleId: string,
+    dto: CreatePurchasedLactationDto,
+  ) {
+    const cattle = await this.getFemaleCattle(farmId, cattleId);
+
+    const existingActiveLactation = await this.prisma.lactation.findFirst({
+      where: { cattleId, status: LactationStatus.ACTIVE },
+    });
+    if (existingActiveLactation) {
+      throw new BadRequestException(
+        `[${cattle.tagNumber}] already has an active lactation on record`,
+      );
+    }
+
+    const now = new Date();
+    // Best available anchor for the required `Lactation.startDate` column:
+    // a known DIM (most current signal) > an estimated calving date > "now"
+    // (no information supplied at all — still a valid intake, just fully
+    // unestimated beyond "she is milking today").
+    const startDate =
+      dto.estimatedDaysInMilk !== undefined
+        ? this.addDays(now, -dto.estimatedDaysInMilk)
+        : dto.estimatedCalvingDate
+          ? new Date(dto.estimatedCalvingDate)
+          : now;
+
+    const existingLactationCount = await this.prisma.lactation.count({
+      where: { cattleId },
+    });
+    const lactationNumber =
+      dto.estimatedLactationNumber ?? existingLactationCount + 1;
+
+    const lactation = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.lactation.create({
+        data: {
+          cattleId,
+          lactationNumber,
+          startDate,
+          status: LactationStatus.ACTIVE,
+          startReason: LactationStartReason.PURCHASED_LACTATING,
+          isEstimated: true,
+          estimatedLactationNumber: dto.estimatedLactationNumber ?? null,
+          estimatedDaysInMilk: dto.estimatedDaysInMilk ?? null,
+        },
+      });
+
+      await tx.reproductionProfile.upsert({
+        where: { cattleId },
+        create: {
+          cattleId,
+          currentLactationNumber: lactationNumber,
+          currentLactationId: created.id,
+        },
+        update: {
+          currentLactationNumber: lactationNumber,
+          currentLactationId: created.id,
+        },
+      });
+
+      await this.flipToMilking(tx, cattleId);
+
+      return created;
+    });
+
+    await this.refreshProfile(farmId, cattleId);
+
+    this.log.info('Purchased-lactating cow intake recorded', {
+      lactationId: lactation.id,
+      cattleId,
+      farmId,
+      userId,
+      isEstimated: true,
+    });
+
+    return lactation;
   }
 
   async listCalvingEvents(farmId: string, query: ReproductionListQueryDto) {
@@ -955,6 +1055,10 @@ export class ReproductionService {
       dim: currentLactation
         ? this.daysBetween(currentLactation.startDate, new Date())
         : null,
+      // RAKHAL-281: a purchased-lactating cow's DIM/lactation-number above
+      // are farmer-supplied estimates (no CalvingEvent backs them) — surface
+      // that so the frontend can render "Approximately".
+      isEstimated: currentLactation?.isEstimated ?? false,
       totalCalvings: calvings.length,
       totalPregnancies: successfulPregnancies,
       totalAbortions: abortions.length,
@@ -1460,6 +1564,20 @@ export class ReproductionService {
 
   private round(value: number) {
     return Math.round(value * 100) / 100;
+  }
+
+  /**
+   * Flip a dam into `MILKING` (RAKHAL-281 extraction of `createCalvingEvent`'s
+   * inline transition, now shared with `createPurchasedLactation`).
+   * `ProductionStatus` no longer holds SOLD/DECEASED (RAKHAL-269 trimmed it to
+   * MILKING|DRY, archival now nulls productionStatus + flips isActive/status
+   * instead) — guard on isActive so an archived cow isn't revived.
+   */
+  private async flipToMilking(tx: Prisma.TransactionClient, cattleId: string) {
+    await tx.cattle.updateMany({
+      where: { id: cattleId, isActive: true },
+      data: { productionStatus: ProductionStatus.MILKING },
+    });
   }
 
   /** Resolve a female animal scoped to the active farm (tenant isolation). */

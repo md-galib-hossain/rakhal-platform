@@ -238,7 +238,7 @@ export class CattleService {
               lactationNumber: 1,
               startDate: new Date(dto.lactationStartDate),
               status: LactationStatus.ACTIVE,
-              startReason: LactationStartReason.PURCHASE_IMPORT,
+              startReason: LactationStartReason.PURCHASED_LACTATING,
             },
           });
         }
@@ -457,7 +457,7 @@ export class CattleService {
                 lactationNumber: lactationCount + 1,
                 startDate: new Date(lactationStartDate),
                 status: LactationStatus.ACTIVE,
-                startReason: LactationStartReason.PURCHASE_IMPORT,
+                startReason: LactationStartReason.PURCHASED_LACTATING,
               },
             });
             if (!reproductionProfile && dto.priorCalvings) {

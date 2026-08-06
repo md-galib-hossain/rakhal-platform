@@ -14,8 +14,9 @@ import { ProductionStatus, ReproductionState } from '@prisma/client';
  *
  * RAKHAL-291: `lactationStartDate` is back, but only as an *input* here (not
  * a `Cattle` column) — when no active `Lactation` exists yet, supplying it
- * lets `updateStatus()` create one with `startReason: PURCHASE_IMPORT` (e.g.
- * a purchased already-milking cow with no calving history in this system).
+ * lets `updateStatus()` create one with `startReason: PURCHASED_LACTATING`
+ * (renamed from `PURCHASE_IMPORT` by RAKHAL-281) (e.g. a purchased
+ * already-milking cow with no calving history in this system).
  */
 export class UpdateCattleStatusDto {
   @IsOptional()

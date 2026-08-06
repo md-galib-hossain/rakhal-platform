@@ -2,6 +2,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { BreedingStatus, CalvingEase, CattleGender } from '@prisma/client';
 import { CreateDryOffDto } from '../../presentation/dto/create-dry-off.dto';
+import { CreatePurchasedLactationDto } from '../../presentation/dto/create-purchased-lactation.dto';
 import {
   deriveReproductionState,
   ReproductionService,
@@ -317,5 +318,147 @@ describe('ReproductionService.createCalvingEvent — totalCalvings atomicity', (
       where: { id: 'cattle-1', isActive: true },
       data: { productionStatus: 'MILKING' },
     });
+  });
+});
+
+/**
+ * RAKHAL-281: purchased-lactating cow intake (no CalvingEvent). Same
+ * Prisma-double-as-tx pattern as the `totalCalvings atomicity` suite above.
+ */
+describe('ReproductionService.createPurchasedLactation', () => {
+  let prisma: {
+    cattle: {
+      findFirst: jest.Mock;
+      findUnique: jest.Mock;
+      updateMany: jest.Mock;
+    };
+    lactation: { create: jest.Mock; findFirst: jest.Mock; count: jest.Mock };
+    reproductionProfile: { upsert: jest.Mock };
+    breedingEvent: { count: jest.Mock; findFirst: jest.Mock };
+    pregnancy: { findMany: jest.Mock; findFirst: jest.Mock };
+    calvingEvent: { count: jest.Mock; findFirst: jest.Mock };
+    abortionEvent: { count: jest.Mock };
+    pregnancyDiagnosis: { findFirst: jest.Mock };
+    $transaction: jest.Mock;
+  };
+  let farmSettings: { reproVwpDays: jest.Mock };
+  let logger: { setContext: jest.Mock; info: jest.Mock; warn: jest.Mock };
+
+  const cattleRow = {
+    id: 'cattle-1',
+    farmId: 'farm-1',
+    gender: CattleGender.FEMALE,
+    tagNumber: 'TAG-1',
+  };
+
+  beforeEach(() => {
+    prisma = {
+      cattle: {
+        findFirst: jest.fn().mockResolvedValue(cattleRow),
+        findUnique: jest.fn().mockResolvedValue(cattleRow),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      lactation: {
+        create: jest.fn().mockResolvedValue({ id: 'lactation-purchased-1' }),
+        findFirst: jest.fn().mockResolvedValue(null),
+        count: jest.fn().mockResolvedValue(0),
+      },
+      reproductionProfile: { upsert: jest.fn().mockResolvedValue({}) },
+      breedingEvent: {
+        count: jest.fn().mockResolvedValue(0),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      pregnancy: {
+        findMany: jest.fn().mockResolvedValue([]),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      calvingEvent: {
+        count: jest.fn().mockResolvedValue(0),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      abortionEvent: { count: jest.fn().mockResolvedValue(0) },
+      pregnancyDiagnosis: { findFirst: jest.fn().mockResolvedValue(null) },
+      $transaction: jest.fn((arg: unknown) =>
+        typeof arg === 'function'
+          ? (arg as (tx: unknown) => unknown)(prisma)
+          : Promise.all(arg as Promise<unknown>[]),
+      ),
+    };
+    farmSettings = { reproVwpDays: jest.fn().mockResolvedValue(60) };
+    logger = {
+      setContext: jest.fn().mockReturnThis(),
+      info: jest.fn(),
+      warn: jest.fn(),
+    };
+  });
+
+  const make = () =>
+    new ReproductionService(
+      prisma as never,
+      { applyEvent: jest.fn() } as never, // AqrService (unused by this use-case)
+      { createInternal: jest.fn() } as never, // TaskService (unused)
+      {} as never, // SemenService (unused)
+      { scheduleCareReminders: jest.fn() } as never, // CalfService (unused)
+      farmSettings as never,
+      { activeHoldsForCattle: jest.fn() } as never, // AnimalHoldService (unused)
+      logger as never,
+    );
+
+  it('creates an ACTIVE, isEstimated Lactation with startReason PURCHASED_LACTATING and flips Cattle to MILKING', async () => {
+    const service = make();
+    const dto: CreatePurchasedLactationDto = {
+      estimatedDaysInMilk: 45,
+      estimatedLactationNumber: 3,
+    };
+
+    const result = await service.createPurchasedLactation(
+      'farm-1',
+      'user-1',
+      'cattle-1',
+      dto,
+    );
+
+    expect(result).toEqual({ id: 'lactation-purchased-1' });
+    expect(prisma.lactation.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        cattleId: 'cattle-1',
+        lactationNumber: 3,
+        status: 'ACTIVE',
+        startReason: 'PURCHASED_LACTATING',
+        isEstimated: true,
+        estimatedLactationNumber: 3,
+        estimatedDaysInMilk: 45,
+      }) as unknown,
+    });
+    expect(prisma.cattle.updateMany).toHaveBeenCalledWith({
+      where: { id: 'cattle-1', isActive: true },
+      data: { productionStatus: 'MILKING' },
+    });
+  });
+
+  it('defaults lactationNumber to the existing Lactation count + 1 and leaves estimated fields null when nothing is supplied', async () => {
+    prisma.lactation.count.mockResolvedValueOnce(2);
+    const service = make();
+
+    await service.createPurchasedLactation('farm-1', 'user-1', 'cattle-1', {});
+
+    expect(prisma.lactation.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        lactationNumber: 3,
+        isEstimated: true,
+        estimatedLactationNumber: null,
+        estimatedDaysInMilk: null,
+      }) as unknown,
+    });
+  });
+
+  it('rejects intake when the cow already has an active Lactation', async () => {
+    prisma.lactation.findFirst.mockResolvedValueOnce({ id: 'existing' });
+    const service = make();
+
+    await expect(
+      service.createPurchasedLactation('farm-1', 'user-1', 'cattle-1', {}),
+    ).rejects.toThrow('already has an active lactation on record');
+    expect(prisma.lactation.create).not.toHaveBeenCalled();
   });
 });

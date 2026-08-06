@@ -157,7 +157,7 @@ describe('CattleService — RAKHAL-269 production status', () => {
       expect(lastUpdateData()).toMatchObject({ productionStatus: 'MILKING' });
     });
 
-    it('creates a purchase-intake Lactation (startReason PURCHASE_IMPORT) when lactationStartDate + priorCalvings are supplied and no active Lactation exists', async () => {
+    it('creates a purchase-intake Lactation (startReason PURCHASED_LACTATING) when lactationStartDate + priorCalvings are supplied and no active Lactation exists', async () => {
       prisma.cattle.findFirst
         .mockResolvedValueOnce(baseRow()) // getCattleOrThrow guard check
         .mockResolvedValueOnce(baseRow({ productionStatus: 'MILKING' })); // findOne() at the end of updateStatus
@@ -180,7 +180,7 @@ describe('CattleService — RAKHAL-269 production status', () => {
           cattleId: 'cattle-1',
           lactationNumber: 1,
           status: 'ACTIVE',
-          startReason: 'PURCHASE_IMPORT',
+          startReason: 'PURCHASED_LACTATING',
         }) as unknown,
       });
       expect(prisma.reproductionProfile.create).toHaveBeenCalledWith({

@@ -68,7 +68,8 @@ export class CreateCattleDto {
   /** RAKHAL-291: required when `productionStatus` is `MILKING` at intake and
    * no active `Lactation` exists yet (a fresh cattle row never has one) —
    * `CattleService.create()` uses it to create a `Lactation` row with
-   * `startReason: PURCHASE_IMPORT`, mirroring `updateStatus()`'s own rule. */
+   * `startReason: PURCHASED_LACTATING` (renamed from `PURCHASE_IMPORT` by
+   * RAKHAL-281), mirroring `updateStatus()`'s own rule. */
   @IsOptional()
   @IsDateString()
   lactationStartDate?: string;
