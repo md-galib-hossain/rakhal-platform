@@ -11,6 +11,7 @@ import { HealthModule } from '../health/health.module';
 import { CattleModule } from '../cattle/cattle.module';
 import { MilkExportService } from './application/services/milk-export.service';
 import { MilkImportService } from './application/services/milk-import.service';
+import { MilkQualityService } from './application/services/milk-quality.service';
 import { MilkService } from './application/services/milk.service';
 import { MilkController } from './presentation/controllers/milk.controller';
 
@@ -32,7 +33,12 @@ import { MilkController } from './presentation/controllers/milk.controller';
     CattleModule,
   ],
   controllers: [MilkController],
-  providers: [MilkService, MilkImportService, MilkExportService],
-  exports: [MilkService],
+  providers: [
+    MilkService,
+    MilkImportService,
+    MilkExportService,
+    MilkQualityService,
+  ],
+  exports: [MilkService, MilkQualityService],
 })
 export class MilkModule {}

@@ -23,3 +23,12 @@ enum MilkDisposition {
   DISCARDED
   HOUSEHOLD_USE
 }
+
+/// Where a `MilkQualityTest` reading came from (RAKHAL-282). `LAB` = sent to an
+/// external lab; `DEVICE` = on-farm analyzer (e.g. Lactoscan/Ekomilk); `MANUAL`
+/// = hand-recorded from a paper slip with no instrument reference.
+enum MilkQualityTestSource {
+  LAB
+  DEVICE
+  MANUAL
+}

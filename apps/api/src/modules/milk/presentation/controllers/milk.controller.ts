@@ -25,9 +25,15 @@ import { RequirePermission } from 'src/modules/permission/presentation/decorator
 import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { MilkExportService } from '../../application/services/milk-export.service';
 import { MilkImportService } from '../../application/services/milk-import.service';
+import { MilkQualityService } from '../../application/services/milk-quality.service';
 import { MilkService } from '../../application/services/milk.service';
+import { CreateMilkQualityTestDto } from '../dto/create-milk-quality-test.dto';
 import { ExportMilkLogDto } from '../dto/export-milk-log.dto';
 import { ImportMilkConfirmDto } from '../dto/import-milk.dto';
+import {
+  LatestMilkQualityTestQueryDto,
+  ListMilkQualityTestQueryDto,
+} from '../dto/list-milk-quality-test-query.dto';
 import {
   MilkAnomalyQueryDto,
   MilkLogQueryDto,
@@ -57,6 +63,7 @@ export class MilkController {
     private readonly milkService: MilkService,
     private readonly importService: MilkImportService,
     private readonly exportService: MilkExportService,
+    private readonly milkQualityService: MilkQualityService,
   ) {}
 
   @Get('overview')
@@ -159,5 +166,33 @@ export class MilkController {
       'Content-Disposition': `attachment; filename="${filename}"`,
     });
     res.send(buffer);
+  }
+
+  @Post('quality-tests')
+  @RequirePermission('milk.quality.create')
+  createQualityTest(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Body() dto: CreateMilkQualityTestDto,
+  ) {
+    return this.milkQualityService.create(farmId, userId, dto);
+  }
+
+  @Get('quality-tests/latest')
+  @RequirePermission('milk.quality.read')
+  latestQualityTest(
+    @CurrentFarmId() farmId: string,
+    @Query() query: LatestMilkQualityTestQueryDto,
+  ) {
+    return this.milkQualityService.latestForCattle(farmId, query.cattleId);
+  }
+
+  @Get('quality-tests')
+  @RequirePermission('milk.quality.read')
+  listQualityTests(
+    @CurrentFarmId() farmId: string,
+    @Query() query: ListMilkQualityTestQueryDto,
+  ) {
+    return this.milkQualityService.list(farmId, query);
   }
 }

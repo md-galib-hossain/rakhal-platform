@@ -53,7 +53,16 @@ const RESOURCES: ResourceDef[] = [
   {
     resource: 'milk',
     group: PermissionGroup.MILK,
-    actions: [...BASE, 'log', 'withholding-override'],
+    // 'quality.create'/'quality.read' (RAKHAL-282) back MilkQualityTest
+    // (lab/device fat/protein/SCC/MUN readings), distinct from the daily-yield
+    // `log`/`withholding-override` actions above.
+    actions: [
+      ...BASE,
+      'log',
+      'withholding-override',
+      'quality.create',
+      'quality.read',
+    ],
   },
   {
     resource: 'feed',
@@ -181,6 +190,8 @@ export const ROLE_PERMISSIONS: Record<SystemRoleName, string[]> = {
     'milk.update',
     'milk.delete',
     'milk.log',
+    'milk.quality.create',
+    'milk.quality.read',
     // Finance minus owner-only void/billing
     'finance.read',
     'finance.create',
@@ -205,6 +216,7 @@ export const ROLE_PERMISSIONS: Record<SystemRoleName, string[]> = {
     'milk.read',
     'milk.create',
     'milk.log',
+    'milk.quality.read',
     'healthcare.read',
     'healthcare.report-sickness',
     'healthcare.log-treatment',

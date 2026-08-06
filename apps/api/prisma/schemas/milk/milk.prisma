@@ -53,3 +53,50 @@ model MilkLogEntry {
   @@index([cattleId])
   @@index([tankId])
 }
+
+/// Lab/device milk-quality reading (RAKHAL-282, PRD §10.6 groundwork) — fat/
+/// protein/lactose %, somatic cell count, milk urea nitrogen for one cow's
+/// sample on a given date. Distinct from `MilkLogEntry` (daily yield volume):
+/// this is periodic composition testing, not every session. Farm-scoped by a
+/// plain scalar `farmId` (no Prisma `@relation` to `Farm`) — same "isolated
+/// migration" precedent as `AnimalHold`/`MediaAsset`
+/// (`prisma/schemas/cattle/animal-hold.prisma`), kept loose-coupled so this
+/// file doesn't need to touch the hot `farm.prisma` schema; farm scoping is
+/// enforced in `MilkQualityService`, not via a DB-level FK. `lactationId` is
+/// likewise a plain scalar FK (no relation into `reproduction.prisma`) — that
+/// schema file had an active concurrent editor (RAKHAL-281) at the time this
+/// was written, so the cross-schema relation was deliberately deferred rather
+/// than risk a collision on a hot-under-edit file; `cattleId` DOES get a real
+/// Prisma relation (`cattle.prisma` was free) per this ticket's explicit ask.
+model MilkQualityTest {
+  id     String @id @default(cuid())
+  farmId String
+
+  cattleId    String
+  lactationId String
+  sampleDate  DateTime /// day the sample was taken (UTC midnight)
+
+  fatPct     Float
+  proteinPct Float
+  lactosePct Float?
+
+  /// Cells per mL. Elevated SCC is the primary mastitis/udder-health signal.
+  somaticCellCount Float?
+  /// mg/dL. Milk Urea Nitrogen — a feed-protein-balance indicator.
+  milkUreaNitrogen Float?
+
+  source MilkQualityTestSource
+  notes  String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cattle Cattle @relation(fields: [cattleId], references: [id])
+
+  @@index([farmId])
+  @@index([farmId, sampleDate])
+  @@index([cattleId])
+  @@index([cattleId, sampleDate])
+  @@index([lactationId])
+}
