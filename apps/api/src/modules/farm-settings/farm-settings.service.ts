@@ -182,4 +182,13 @@ export class FarmSettingsService {
       .map((s) => s.toUpperCase())
       .filter((s) => valid.has(s)) as MilkSession[];
   }
+
+  /**
+   * Minimum recorded days-in-milk before `standardized305DayYield` is exposed
+   * (RAKHAL-285) — below this, a 305-day projection from too few real days is
+   * unreliable and stays null.
+   */
+  async minDimFor305DayYield(farmId: string): Promise<number> {
+    return (await this.getEffective(farmId)).minDimFor305DayYield;
+  }
 }

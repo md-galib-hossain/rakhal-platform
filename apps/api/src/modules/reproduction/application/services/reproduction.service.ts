@@ -12,6 +12,7 @@ import {
   CattleSourceType,
   CattleStatus,
   DryPeriod,
+  LactationEndReason,
   LactationStartReason,
   LactationStatus,
   PregnancyDiagnosisResult,
@@ -44,6 +45,7 @@ import {
   derivePregnancyStage,
   PregnancyStage,
 } from '../../domain/pregnancy-stage';
+import { computeDryOffProjection } from '../../domain/lactation-dry-off-projection';
 import { CreateAbortionEventDto } from '../../presentation/dto/create-abortion-event.dto';
 import { CreateBreedingEventDto } from '../../presentation/dto/create-breeding-event.dto';
 import { CreateCalvingEventDto } from '../../presentation/dto/create-calving-event.dto';
@@ -312,6 +314,10 @@ export class ReproductionService {
     const breedingEvent = dto.breedingEventId
       ? await this.getBreedingEventForCattle(dto.breedingEventId, dto.cattleId)
       : null;
+    // RAKHAL-285: read once outside the transaction — only needed when the
+    // PREGNANT branch below recomputes `Lactation.recommendedDryOffAt`.
+    const dryPeriodDays =
+      await this.farmSettings.reproDryPeriodTargetDays(farmId);
 
     const diagnosis = await this.prisma.$transaction(async (tx) => {
       const created = await tx.pregnancyDiagnosis.create({
@@ -366,6 +372,26 @@ export class ReproductionService {
             currentPregnancyId: pregnancy.id,
           },
         });
+
+        // RAKHAL-285: recompute the dam's active Lactation's
+        // `recommendedDryOffAt` — pregnancy-driven, primary projection.
+        // `pregnancy.expectedCalvingDate` is always set (either the DTO's
+        // value or the 280-day fallback above), so this always fires
+        // whenever a PREGNANT diagnosis is recorded (new confirmation or
+        // re-diagnosis). No-ops (updateMany matches 0 rows) if she has no
+        // active Lactation right now — that's fine, it'll apply the moment
+        // one exists.
+        if (pregnancy.expectedCalvingDate) {
+          const { recommendedDryOffAt } = computeDryOffProjection({
+            isPregnant: true,
+            expectedCalvingDate: pregnancy.expectedCalvingDate,
+            dryPeriodDays,
+          });
+          await tx.lactation.updateMany({
+            where: { cattleId: dto.cattleId, status: LactationStatus.ACTIVE },
+            data: { recommendedDryOffAt },
+          });
+        }
       } else if (
         dto.breedingEventId &&
         dto.result === PregnancyDiagnosisResult.NOT_PREGNANT
@@ -431,7 +457,7 @@ export class ReproductionService {
         where: { cattleId: dto.cattleId },
       })) + 1;
 
-    const calvingEvent = await this.prisma.$transaction(async (tx) => {
+    const txResult = await this.prisma.$transaction(async (tx) => {
       const created = await tx.calvingEvent.create({
         data: {
           cattleId: dto.cattleId,
@@ -466,6 +492,29 @@ export class ReproductionService {
             data: { status: BreedingStatus.CALVED },
           });
         }
+      }
+
+      // RAKHAL-290: no two ACTIVE lactations for the same dam. A calving
+      // recorded while the prior lactation is still ACTIVE means the farmer
+      // missed (or skipped) the dry-off step for it — close it here rather
+      // than leaving two ACTIVE rows or silently overwriting the old one.
+      // `endDate` is the new calving date (the moment the old lactation
+      // stopped being current), and the closure is returned on the response
+      // (`closedMissingDryOff` below) so the caller/UI can flag it instead of
+      // this being a silent correction.
+      const missedDryOffLactation = await tx.lactation.findFirst({
+        where: { cattleId: dto.cattleId, status: LactationStatus.ACTIVE },
+        orderBy: { startDate: 'desc' },
+      });
+      if (missedDryOffLactation) {
+        await tx.lactation.update({
+          where: { id: missedDryOffLactation.id },
+          data: {
+            status: LactationStatus.ENDED,
+            endDate: calvingDate,
+            endReason: LactationEndReason.MISSING_DRY_OFF_RECORD,
+          },
+        });
       }
 
       // v2 correction (RAKHAL-269/271): lactation start now lives solely on
@@ -566,11 +615,25 @@ export class ReproductionService {
       // the exact same guarded transition instead of duplicating it.
       await this.flipToMilking(tx, dto.cattleId);
 
-      return tx.calvingEvent.findUnique({
+      const createdCalvingEvent = await tx.calvingEvent.findUnique({
         where: { id: created.id },
         include: { calfBirths: { include: { calf: true } }, lactations: true },
       });
+
+      return {
+        calvingEvent: createdCalvingEvent,
+        // RAKHAL-290: surfaced so the caller/UI can flag the missed dry-off
+        // record rather than this being a silent correction — null when the
+        // dam already had no ACTIVE lactation (the expected, normal case).
+        closedMissingDryOffLactation: missedDryOffLactation
+          ? await tx.lactation.findUniqueOrThrow({
+              where: { id: missedDryOffLactation.id },
+            })
+          : null,
+      };
     });
+
+    const { calvingEvent, closedMissingDryOffLactation } = txResult;
 
     await this.refreshProfile(farmId, dto.cattleId);
 
@@ -630,9 +693,10 @@ export class ReproductionService {
       calvingEventId: calvingEvent?.id,
       cattleId: dto.cattleId,
       farmId,
+      closedMissingDryOffLactationId: closedMissingDryOffLactation?.id ?? null,
     });
 
-    return calvingEvent;
+    return { ...calvingEvent, closedMissingDryOffLactation };
   }
 
   /**
@@ -674,7 +738,13 @@ export class ReproductionService {
     const dryPeriod = await this.prisma.$transaction(async (tx) => {
       await tx.lactation.update({
         where: { id: activeLactation.id },
-        data: { status: LactationStatus.ENDED, endDate: dryOffDate },
+        data: {
+          status: LactationStatus.ENDED,
+          endDate: dryOffDate,
+          // RAKHAL-290: closes RAKHAL-281's own note that `recordDryOff`
+          // didn't set this yet.
+          endReason: LactationEndReason.DRY_OFF,
+        },
       });
 
       const created = await tx.dryPeriod.create({
@@ -863,6 +933,14 @@ export class ReproductionService {
         where: { cattleId: dto.cattleId },
         create: { cattleId: dto.cattleId, currentPregnancyId: null },
         update: { currentPregnancyId: null },
+      });
+
+      // RAKHAL-285: an abortion means expected-calving is no longer valid,
+      // so the pregnancy-driven projection isn't either — clear it. The
+      // Lactation itself (status/endDate) is untouched — she keeps milking.
+      await tx.lactation.updateMany({
+        where: { cattleId: dto.cattleId, status: LactationStatus.ACTIVE },
+        data: { recommendedDryOffAt: null },
       });
 
       return created;

@@ -6,6 +6,7 @@ import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.ser
 import { DEFAULT_SESSION_CONFIG } from 'src/modules/milk/domain/milk-anomaly';
 import {
   averageDailyYield,
+  daysBetween,
   sumYieldForDay,
   totalsByDisposition,
   YieldEntry,
@@ -15,6 +16,15 @@ import {
   CurveEntry,
   DailyYieldPoint,
 } from '../../domain/lactation-curve';
+import {
+  computeLactationPersistency,
+  LactationPersistency,
+} from '../../domain/lactation-persistency';
+import {
+  computeDryOffProjection,
+  computeStandardized305DayYield,
+  DryOffProjectionResult,
+} from '../../domain/lactation-dry-off-projection';
 
 interface LactationForAccess {
   id: string;
@@ -22,6 +32,15 @@ interface LactationForAccess {
   startDate: Date;
   endDate: Date | null;
   cattleTagNumber: string;
+  /** RAKHAL-284: stored on `Lactation`, recomputed by `MilkService.saveLog()` — read-only here. */
+  peakMilkYield: number | null;
+  peakMilkDate: Date | null;
+  peakDaysInMilk: number | null;
+  /** RAKHAL-285: `recommendedDryOffAt` is system-computed/stored by
+   * `ReproductionService` (pregnancy-driven); `plannedDryOffAt` is
+   * farmer-writable, read-only here. */
+  recommendedDryOffAt: Date | null;
+  plannedDryOffAt: Date | null;
 }
 
 /**
@@ -59,6 +78,43 @@ export class LactationStatsService {
     const yieldEntries: YieldEntry[] = entries;
 
     const referenceDate = rangeEnd < now ? rangeEnd : now;
+    const sevenDayAvgYield = averageDailyYield(yieldEntries, {
+      referenceDate,
+      windowDays: 7,
+      lactationStart: lactation.startDate,
+    });
+
+    // RAKHAL-284: peak is stored on `Lactation` (recomputed on write by
+    // `MilkService.saveLog()`, not here — this is a read-only surface).
+    // Persistency is derived at read time from that stored peak + the
+    // 7-day average already computed above, so it's always fresh even
+    // between milk-log writes (e.g. the day-count-since-peak advances daily
+    // with no new write needed).
+    const peak =
+      lactation.peakMilkYield != null &&
+      lactation.peakDaysInMilk != null &&
+      lactation.peakMilkDate != null
+        ? {
+            yieldL: lactation.peakMilkYield,
+            date: lactation.peakMilkDate,
+            dim: lactation.peakDaysInMilk,
+          }
+        : null;
+    const persistency: LactationPersistency | null =
+      computeLactationPersistency({
+        currentSevenDayAvgYield: sevenDayAvgYield,
+        peakMilkYield: lactation.peakMilkYield,
+        peakDaysInMilk: lactation.peakDaysInMilk,
+        currentDaysInMilk: daysBetween(lactation.startDate, referenceDate),
+      });
+
+    const currentDaysInMilk = daysBetween(lactation.startDate, referenceDate);
+    const lactationToDate = totalsByDisposition(yieldEntries);
+    const dryOffProjection = await this.resolveDryOffProjection(
+      farmId,
+      lactation,
+    );
+    const minDim = await this.farmSettings.minDimFor305DayYield(farmId);
 
     return {
       lactationId: lactation.id,
@@ -67,18 +123,90 @@ export class LactationStatsService {
       startDate: lactation.startDate,
       endDate: lactation.endDate,
       today: sumYieldForDay(yieldEntries, referenceDate),
-      sevenDayAvgYield: averageDailyYield(yieldEntries, {
-        referenceDate,
-        windowDays: 7,
-        lactationStart: lactation.startDate,
-      }),
+      sevenDayAvgYield,
       thirtyDayAvgYield: averageDailyYield(yieldEntries, {
         referenceDate,
         windowDays: 30,
         lactationStart: lactation.startDate,
       }),
-      lactationToDate: totalsByDisposition(yieldEntries),
+      lactationToDate,
+      peak,
+      persistency,
+      // RAKHAL-285: pregnancy-driven dry-off projection (primary metric) +
+      // planned/farmer-set date, tracked separately so planned-vs-actual can
+      // be compared later.
+      recommendedDryOffAt: lactation.recommendedDryOffAt,
+      plannedDryOffAt: lactation.plannedDryOffAt,
+      managementEstimateDimRange: dryOffProjection.managementEstimateDimRange,
+      dryOffConfidence: dryOffProjection.confidence,
+      dryOffProjectionReason: dryOffProjection.reason,
+      // RAKHAL-285: optional secondary comparison metric only — never the
+      // primary projection/workflow driver (see this file's own domain
+      // module doc comment). Null below the configured DIM threshold.
+      standardized305DayYield: computeStandardized305DayYield({
+        producedToDateL: lactationToDate.produced,
+        daysInMilk: currentDaysInMilk,
+        minDimThreshold: minDim,
+      }),
     };
+  }
+
+  /**
+   * RAKHAL-285: farmer-writable target dry-off date — independent of
+   * `recommendedDryOffAt`, never touched by the system recompute
+   * (`ReproductionService`'s pregnancy-diagnosis/abortion hooks).
+   */
+  async updatePlannedDryOff(
+    farmId: string,
+    lactationId: string,
+    plannedDryOffAt: Date | null,
+  ) {
+    await this.getLactationOrThrow(farmId, lactationId);
+    return this.prisma.lactation.update({
+      where: { id: lactationId },
+      data: { plannedDryOffAt },
+    });
+  }
+
+  /**
+   * `recommendedDryOffAt` is already stored/kept fresh by
+   * `ReproductionService` (set on pregnancy confirmation, cleared on
+   * abortion) — a non-null value there directly reflects "the dam currently
+   * has an active pregnancy with a known expected-calving date", so the read
+   * path here trusts it rather than re-deriving pregnancy state. Only when
+   * it's null does this compute the not-pregnant management estimate, from
+   * this cow's own prior ended-lactation lengths (or the documented fallback
+   * range when she has none).
+   */
+  private async resolveDryOffProjection(
+    farmId: string,
+    lactation: LactationForAccess,
+  ): Promise<DryOffProjectionResult> {
+    if (lactation.recommendedDryOffAt) {
+      return {
+        recommendedDryOffAt: lactation.recommendedDryOffAt,
+        managementEstimateDimRange: null,
+        confidence: null,
+        reason: null,
+      };
+    }
+
+    const priorLactations = await this.prisma.lactation.findMany({
+      where: {
+        cattleId: lactation.cattleId,
+        id: { not: lactation.id },
+        endDate: { not: null },
+      },
+      select: { startDate: true, endDate: true },
+    });
+    const previousLactationLengthsDays = priorLactations
+      .filter((l): l is { startDate: Date; endDate: Date } => l.endDate != null)
+      .map((l) => daysBetween(l.startDate, l.endDate));
+
+    return computeDryOffProjection({
+      isPregnant: false,
+      previousLactationLengthsDays,
+    });
   }
 
   async getCurve(
@@ -162,6 +290,11 @@ export class LactationStatsService {
         cattleId: true,
         startDate: true,
         endDate: true,
+        peakMilkYield: true,
+        peakMilkDate: true,
+        peakDaysInMilk: true,
+        recommendedDryOffAt: true,
+        plannedDryOffAt: true,
         cattle: { select: { tagNumber: true } },
       },
     });
@@ -176,6 +309,11 @@ export class LactationStatsService {
       startDate: lactation.startDate,
       endDate: lactation.endDate,
       cattleTagNumber: lactation.cattle.tagNumber,
+      peakMilkYield: lactation.peakMilkYield,
+      peakMilkDate: lactation.peakMilkDate,
+      peakDaysInMilk: lactation.peakDaysInMilk,
+      recommendedDryOffAt: lactation.recommendedDryOffAt,
+      plannedDryOffAt: lactation.plannedDryOffAt,
     };
   }
 }

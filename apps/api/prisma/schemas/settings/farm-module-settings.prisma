@@ -75,6 +75,11 @@ model FarmModuleSettings {
   /// `CALVING_OVERDUE` `ReproductionAlert` fires (RAKHAL-272 extension — see
   /// `reproduction-alerts.ts`'s file-level doc comment).
   reproCalvingOverdueDays        Int @default(7)
+  /// RAKHAL-285: minimum recorded days-in-milk before `Lactation` stats expose
+  /// `standardized305DayYield` — below this, projecting a 305-day figure from
+  /// too few real days is unreliable, so it stays null (same
+  /// null-below-threshold convention already used elsewhere in this module).
+  minDimFor305DayYield           Int @default(30)
 
   // Finance
   financeCurrency          String @default("Tk")

@@ -322,6 +322,178 @@ describe('ReproductionService.createCalvingEvent — totalCalvings atomicity', (
 });
 
 /**
+ * RAKHAL-290 — "no two ACTIVE lactations": `createCalvingEvent()` must detect
+ * a dam whose prior `Lactation` is still `ACTIVE` (a missed dry-off record),
+ * close it with `endReason: MISSING_DRY_OFF_RECORD` and `endDate` = the new
+ * calving date, then open the new lactation — surfacing the closure on the
+ * response rather than silently overwriting it. Same Prisma-double-as-tx
+ * pattern as the `totalCalvings atomicity` suite above.
+ */
+interface MissingDryOffPrismaMock {
+  cattle: {
+    findFirst: jest.Mock;
+    findUnique: jest.Mock;
+    updateMany: jest.Mock;
+  };
+  calvingEvent: {
+    count: jest.Mock;
+    create: jest.Mock;
+    findUnique: jest.Mock;
+    findFirst: jest.Mock;
+  };
+  lactation: {
+    create: jest.Mock;
+    findFirst: jest.Mock;
+    update: jest.Mock;
+    findUniqueOrThrow: jest.Mock;
+  };
+  reproductionProfile: { upsert: jest.Mock };
+  breedingEvent: { count: jest.Mock; findFirst: jest.Mock };
+  pregnancy: { findMany: jest.Mock; findFirst: jest.Mock };
+  abortionEvent: { count: jest.Mock };
+  pregnancyDiagnosis: { findFirst: jest.Mock };
+  $transaction: jest.Mock;
+}
+
+describe('ReproductionService.createCalvingEvent — missing dry-off auto-close (RAKHAL-290)', () => {
+  let prisma: MissingDryOffPrismaMock;
+  let aqrService: { applyEvent: jest.Mock };
+  let taskService: { createInternal: jest.Mock };
+  let farmSettings: { reproVwpDays: jest.Mock };
+  let logger: { setContext: jest.Mock; info: jest.Mock; warn: jest.Mock };
+
+  const cattleRow = {
+    id: 'cattle-1',
+    farmId: 'farm-1',
+    gender: CattleGender.FEMALE,
+    tagNumber: 'TAG-1',
+  };
+  const priorActiveLactation = {
+    id: 'lactation-prior',
+    cattleId: 'cattle-1',
+    status: 'ACTIVE',
+    startDate: new Date('2025-01-01'),
+  };
+
+  function makePrisma(activeLactation: unknown): MissingDryOffPrismaMock {
+    const p: MissingDryOffPrismaMock = {
+      cattle: {
+        findFirst: jest.fn().mockResolvedValue(cattleRow),
+        findUnique: jest.fn().mockResolvedValue(cattleRow),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      calvingEvent: {
+        count: jest
+          .fn()
+          .mockResolvedValueOnce(0)
+          .mockResolvedValueOnce(1)
+          .mockResolvedValue(1),
+        create: jest.fn().mockResolvedValue({ id: 'calving-1' }),
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'calving-1',
+          calfBirths: [],
+        }),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      lactation: {
+        create: jest.fn().mockResolvedValue({ id: 'lactation-new' }),
+        findFirst: jest.fn().mockResolvedValue(activeLactation),
+        update: jest.fn().mockResolvedValue({}),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          ...priorActiveLactation,
+          status: 'ENDED',
+          endReason: 'MISSING_DRY_OFF_RECORD',
+        }),
+      },
+      reproductionProfile: { upsert: jest.fn().mockResolvedValue({}) },
+      breedingEvent: {
+        count: jest.fn().mockResolvedValue(0),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      pregnancy: {
+        findMany: jest.fn().mockResolvedValue([]),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      abortionEvent: { count: jest.fn().mockResolvedValue(0) },
+      pregnancyDiagnosis: { findFirst: jest.fn().mockResolvedValue(null) },
+      $transaction: jest.fn((arg: unknown) =>
+        typeof arg === 'function'
+          ? (arg as (tx: unknown) => unknown)(p)
+          : Promise.all(arg as Promise<unknown>[]),
+      ),
+    };
+    return p;
+  }
+
+  beforeEach(() => {
+    aqrService = { applyEvent: jest.fn().mockResolvedValue({ aqrScore: 0 }) };
+    taskService = { createInternal: jest.fn().mockResolvedValue({}) };
+    farmSettings = { reproVwpDays: jest.fn().mockResolvedValue(60) };
+    logger = {
+      setContext: jest.fn().mockReturnThis(),
+      info: jest.fn(),
+      warn: jest.fn(),
+    };
+  });
+
+  const make = () =>
+    new ReproductionService(
+      prisma as never,
+      aqrService as never,
+      taskService as never,
+      {} as never,
+      { scheduleCareReminders: jest.fn() } as never,
+      farmSettings as never,
+      { activeHoldsForCattle: jest.fn() } as never,
+      logger as never,
+    );
+
+  it('closes an already-ACTIVE lactation with MISSING_DRY_OFF_RECORD before opening the new one, and surfaces it on the response', async () => {
+    prisma = makePrisma(priorActiveLactation);
+    const service = make();
+
+    const result = await service.createCalvingEvent('farm-1', 'user-1', {
+      cattleId: 'cattle-1',
+      calvingDate: '2026-08-06',
+      calvingEase: CalvingEase.NORMAL,
+    });
+
+    expect(prisma.lactation.update).toHaveBeenCalledWith({
+      where: { id: 'lactation-prior' },
+      data: {
+        status: 'ENDED',
+        endDate: new Date('2026-08-06'),
+        endReason: 'MISSING_DRY_OFF_RECORD',
+      },
+    });
+    // The closure never silently overwrites — it's visible on the response.
+    expect(
+      (result as { closedMissingDryOffLactation: { id: string } | null })
+        .closedMissingDryOffLactation?.id,
+    ).toBe('lactation-prior');
+    // The new lactation is still created after the close.
+    expect(prisma.lactation.create).toHaveBeenCalled();
+  });
+
+  it('does nothing extra when the dam has no ACTIVE lactation (the normal case)', async () => {
+    prisma = makePrisma(null);
+    const service = make();
+
+    const result = await service.createCalvingEvent('farm-1', 'user-1', {
+      cattleId: 'cattle-1',
+      calvingDate: '2026-08-06',
+      calvingEase: CalvingEase.NORMAL,
+    });
+
+    expect(prisma.lactation.update).not.toHaveBeenCalled();
+    expect(
+      (result as { closedMissingDryOffLactation: unknown })
+        .closedMissingDryOffLactation,
+    ).toBeNull();
+  });
+});
+
+/**
  * RAKHAL-281: purchased-lactating cow intake (no CalvingEvent). Same
  * Prisma-double-as-tx pattern as the `totalCalvings atomicity` suite above.
  */
@@ -460,5 +632,287 @@ describe('ReproductionService.createPurchasedLactation', () => {
       service.createPurchasedLactation('farm-1', 'user-1', 'cattle-1', {}),
     ).rejects.toThrow('already has an active lactation on record');
     expect(prisma.lactation.create).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * RAKHAL-290 — `recordDryOff()` must stamp `Lactation.endReason: DRY_OFF`
+ * (RAKHAL-281 added the column but left this call site as a documented gap).
+ * Full end-to-end coverage (DryPeriod creation, productionStatus flip, DIM
+ * reads null afterward) already lives in `test/reproduction-dry-off.e2e-spec.ts`
+ * — this unit test isolates just the new `endReason` write.
+ */
+describe('ReproductionService.recordDryOff — endReason (RAKHAL-290)', () => {
+  let prisma: {
+    cattle: {
+      findFirst: jest.Mock;
+      findUnique: jest.Mock;
+      updateMany: jest.Mock;
+    };
+    lactation: { findFirst: jest.Mock; update: jest.Mock };
+    reproductionProfile: { upsert: jest.Mock };
+    dryPeriod: { findFirst: jest.Mock; create: jest.Mock };
+    breedingEvent: { count: jest.Mock; findFirst: jest.Mock };
+    pregnancy: { findMany: jest.Mock; findFirst: jest.Mock };
+    calvingEvent: { count: jest.Mock; findFirst: jest.Mock };
+    abortionEvent: { count: jest.Mock };
+    pregnancyDiagnosis: { findFirst: jest.Mock };
+    $transaction: jest.Mock;
+  };
+  let farmSettings: {
+    reproVwpDays: jest.Mock;
+    reproDryPeriodTargetDays: jest.Mock;
+  };
+  let logger: { setContext: jest.Mock; info: jest.Mock; warn: jest.Mock };
+
+  const cattleRow = {
+    id: 'cattle-1',
+    farmId: 'farm-1',
+    gender: CattleGender.FEMALE,
+    tagNumber: 'TAG-1',
+  };
+  const activeLactation = {
+    id: 'lactation-1',
+    cattleId: 'cattle-1',
+    status: 'ACTIVE',
+    startDate: new Date('2025-06-01'),
+  };
+
+  beforeEach(() => {
+    prisma = {
+      cattle: {
+        findFirst: jest.fn().mockResolvedValue(cattleRow),
+        findUnique: jest.fn().mockResolvedValue(cattleRow),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      lactation: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValueOnce(activeLactation) // recordDryOff's own active-lactation lookup
+          .mockResolvedValue(null), // refreshProfile()'s lookup afterward
+        update: jest.fn().mockResolvedValue({}),
+      },
+      reproductionProfile: { upsert: jest.fn().mockResolvedValue({}) },
+      dryPeriod: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest
+          .fn()
+          .mockResolvedValue({ id: 'dryperiod-1', cattleId: 'cattle-1' }),
+      },
+      breedingEvent: {
+        count: jest.fn().mockResolvedValue(0),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      pregnancy: {
+        findMany: jest.fn().mockResolvedValue([]),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      calvingEvent: {
+        count: jest.fn().mockResolvedValue(0),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      abortionEvent: { count: jest.fn().mockResolvedValue(0) },
+      pregnancyDiagnosis: { findFirst: jest.fn().mockResolvedValue(null) },
+      $transaction: jest.fn((arg: unknown) =>
+        typeof arg === 'function'
+          ? (arg as (tx: unknown) => unknown)(prisma)
+          : Promise.all(arg as Promise<unknown>[]),
+      ),
+    };
+    farmSettings = {
+      reproVwpDays: jest.fn().mockResolvedValue(60),
+      reproDryPeriodTargetDays: jest.fn().mockResolvedValue(60),
+    };
+    logger = {
+      setContext: jest.fn().mockReturnThis(),
+      info: jest.fn(),
+      warn: jest.fn(),
+    };
+  });
+
+  const make = () =>
+    new ReproductionService(
+      prisma as never,
+      { applyEvent: jest.fn() } as never, // AqrService (unused)
+      { createInternal: jest.fn() } as never, // TaskService (unused)
+      {} as never, // SemenService (unused)
+      { scheduleCareReminders: jest.fn() } as never, // CalfService (unused)
+      farmSettings as never,
+      { activeHoldsForCattle: jest.fn() } as never, // AnimalHoldService (unused)
+      logger as never,
+    );
+
+  it('stamps endReason: DRY_OFF on the closed Lactation', async () => {
+    const service = make();
+
+    await service.recordDryOff('farm-1', 'cattle-1', {});
+
+    expect(prisma.lactation.update).toHaveBeenCalledWith({
+      where: { id: 'lactation-1' },
+      data: expect.objectContaining({
+        status: 'ENDED',
+        endReason: 'DRY_OFF',
+      }) as unknown,
+    });
+  });
+});
+
+/**
+ * RAKHAL-285 — dynamic, pregnancy-driven `Lactation.recommendedDryOffAt`
+ * projection. `createPregnancyDiagnosis` recomputes it on a PREGNANT
+ * diagnosis (`expectedCalvingDate - reproDryPeriodTargetDays`);
+ * `createAbortionEvent` clears it back to null on pregnancy loss (the
+ * `Lactation` row itself — status/endDate — stays untouched, she keeps
+ * milking). Confirms the REDESIGNED spec (not a fixed 305-day target): the
+ * projected date tracks a live `Pregnancy.expectedCalvingDate`, and moves
+ * exactly with it.
+ */
+describe('ReproductionService — RAKHAL-285 dry-off projection recompute', () => {
+  let prisma: {
+    cattle: { findFirst: jest.Mock; findUnique: jest.Mock };
+    lactation: { updateMany: jest.Mock; findFirst: jest.Mock };
+    breedingEvent: {
+      count: jest.Mock;
+      findFirst: jest.Mock;
+      update: jest.Mock;
+    };
+    pregnancy: {
+      create: jest.Mock;
+      findMany: jest.Mock;
+      findFirst: jest.Mock;
+      update: jest.Mock;
+    };
+    pregnancyDiagnosis: { create: jest.Mock; findFirst: jest.Mock };
+    calvingEvent: { count: jest.Mock; findFirst: jest.Mock };
+    abortionEvent: { create: jest.Mock; count: jest.Mock };
+    reproductionProfile: { upsert: jest.Mock };
+    $transaction: jest.Mock;
+  };
+  let farmSettings: {
+    reproVwpDays: jest.Mock;
+    reproDryPeriodTargetDays: jest.Mock;
+  };
+  let logger: { setContext: jest.Mock; info: jest.Mock; warn: jest.Mock };
+
+  const cattleRow = {
+    id: 'cattle-1',
+    farmId: 'farm-1',
+    gender: CattleGender.FEMALE,
+    tagNumber: 'TAG-1',
+  };
+
+  beforeEach(() => {
+    prisma = {
+      cattle: {
+        findFirst: jest.fn().mockResolvedValue(cattleRow),
+        findUnique: jest.fn().mockResolvedValue(cattleRow),
+      },
+      lactation: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      breedingEvent: {
+        count: jest.fn().mockResolvedValue(0),
+        findFirst: jest.fn().mockResolvedValue(null),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      pregnancy: {
+        create: jest.fn().mockResolvedValue({
+          id: 'pregnancy-1',
+          expectedCalvingDate: new Date('2027-01-01T00:00:00.000Z'),
+          breedingEventId: null,
+        }),
+        findMany: jest.fn().mockResolvedValue([]),
+        findFirst: jest.fn().mockResolvedValue(null),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      pregnancyDiagnosis: {
+        create: jest.fn().mockResolvedValue({ id: 'diag-1' }),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      calvingEvent: {
+        count: jest.fn().mockResolvedValue(0),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      abortionEvent: {
+        create: jest.fn().mockResolvedValue({ id: 'abortion-1' }),
+        count: jest.fn().mockResolvedValue(0),
+      },
+      reproductionProfile: { upsert: jest.fn().mockResolvedValue({}) },
+      $transaction: jest.fn((arg: unknown) =>
+        typeof arg === 'function'
+          ? (arg as (tx: unknown) => unknown)(prisma)
+          : Promise.all(arg as Promise<unknown>[]),
+      ),
+    };
+    farmSettings = {
+      reproVwpDays: jest.fn().mockResolvedValue(60),
+      reproDryPeriodTargetDays: jest.fn().mockResolvedValue(60),
+    };
+    logger = {
+      setContext: jest.fn().mockReturnThis(),
+      info: jest.fn(),
+      warn: jest.fn(),
+    };
+  });
+
+  const make = () =>
+    new ReproductionService(
+      prisma as never,
+      { applyEvent: jest.fn() } as never, // AqrService (unused)
+      { createInternal: jest.fn() } as never, // TaskService (unused)
+      {} as never, // SemenService (unused)
+      { scheduleCareReminders: jest.fn() } as never, // CalfService (unused)
+      farmSettings as never,
+      { activeHoldsForCattle: jest.fn() } as never, // AnimalHoldService (unused)
+      logger as never,
+    );
+
+  it('createPregnancyDiagnosis(PREGNANT) recomputes recommendedDryOffAt = expectedCalvingDate - dryPeriodDays on the dam active Lactation', async () => {
+    const service = make();
+
+    await service.createPregnancyDiagnosis('farm-1', 'user-1', {
+      cattleId: 'cattle-1',
+      diagnosisDate: '2026-06-01',
+      result: 'PREGNANT',
+      diagnosisMethod: 'ULTRASOUND',
+      expectedCalvingDate: '2027-01-01',
+    } as never);
+
+    expect(farmSettings.reproDryPeriodTargetDays).toHaveBeenCalledWith(
+      'farm-1',
+    );
+    expect(prisma.lactation.updateMany).toHaveBeenCalledWith({
+      where: { cattleId: 'cattle-1', status: 'ACTIVE' },
+      data: { recommendedDryOffAt: new Date('2026-11-02T00:00:00.000Z') },
+    });
+  });
+
+  it('createPregnancyDiagnosis(NOT_PREGNANT) never touches recommendedDryOffAt', async () => {
+    const service = make();
+
+    await service.createPregnancyDiagnosis('farm-1', 'user-1', {
+      cattleId: 'cattle-1',
+      diagnosisDate: '2026-06-01',
+      result: 'NOT_PREGNANT',
+      diagnosisMethod: 'ULTRASOUND',
+    } as never);
+
+    expect(prisma.lactation.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('createAbortionEvent clears recommendedDryOffAt on the dam active Lactation without touching its status/endDate', async () => {
+    const service = make();
+
+    await service.createAbortionEvent('farm-1', {
+      cattleId: 'cattle-1',
+      abortionDate: '2026-08-01',
+    });
+
+    expect(prisma.lactation.updateMany).toHaveBeenCalledWith({
+      where: { cattleId: 'cattle-1', status: 'ACTIVE' },
+      data: { recommendedDryOffAt: null },
+    });
+    expect(prisma.lactation.updateMany).toHaveBeenCalledTimes(1);
   });
 });

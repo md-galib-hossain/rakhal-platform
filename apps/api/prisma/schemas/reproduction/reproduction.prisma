@@ -244,7 +244,10 @@ model Lactation {
   sourceCalvingEventId String?
 
   /// RAKHAL-281: why this lactation ended. Nullable, set only when
-  /// `status=ENDED` — `recordDryOff()` doesn't set this yet (RAKHAL-290).
+  /// `status=ENDED` — written by `recordDryOff()` (DRY_OFF),
+  /// `createCalvingEvent()` (MISSING_DRY_OFF_RECORD, for a dam whose prior
+  /// lactation was still ACTIVE), and `CattleService`'s sold/culled/death
+  /// lifecycle exits (SOLD/CULLED/DEATH) — all RAKHAL-290.
   endReason LactationEndReason?
 
   /// RAKHAL-281: purchased-lactating intake (`startReason:
@@ -258,6 +261,36 @@ model Lactation {
   isEstimated              Boolean @default(false)
   estimatedLactationNumber Int?
   estimatedDaysInMilk      Int?
+
+  /// RAKHAL-284: highest single "complete" day's yield recorded so far this
+  /// lactation (nullable — no complete day recorded yet). Recomputed on each
+  /// saleable-affecting milk-log write for this cow's active lactation
+  /// (`MilkService.saveLog()`), never guessed/backfilled otherwise.
+  /// `peakMilkDate` (above) already existed on this model — reused, not
+  /// duplicated. `peakDaysInMilk` is the DIM of that peak day, same 0-based
+  /// convention `lactation-curve.ts`'s `DailyYieldPoint.dim` already uses.
+  peakMilkYield  Float?
+  peakDaysInMilk Int?
+
+  /// RAKHAL-285: dynamic, pregnancy-driven dry-off projection — replaces a
+  /// fixed 305-day target (Bangladesh farms vary too widely in lactation
+  /// length to make that the primary metric). Set/recomputed by
+  /// `ReproductionService` whenever the dam's expected-calving date changes
+  /// (`createPregnancyDiagnosis` confirming/re-confirming PREGNANT) —
+  /// `expectedCalvingDate - farmModuleSettings.reproDryPeriodTargetDays`.
+  /// Nullable: null whenever the dam has no active `Pregnancy` with a known
+  /// expected-calving date (never pregnant yet, or `createAbortionEvent`
+  /// clears it back to null on pregnancy loss — the lactation itself is left
+  /// untouched, she keeps milking). The not-pregnant case is never guessed
+  /// onto this column — `LactationStatsService.getStats()` derives a labeled
+  /// `managementEstimateDimRange`/`confidence:LOW` estimate at read time
+  /// instead (`domain/lactation-dry-off-projection.ts`).
+  recommendedDryOffAt DateTime?
+  /// RAKHAL-285: farmer-set/adjustable target dry-off date, independent of
+  /// `recommendedDryOffAt` — both are tracked so planned-vs-actual can be
+  /// compared later. Never written by the recommended-value recompute;
+  /// only `LactationStatsService.updatePlannedDryOff()` writes this field.
+  plannedDryOffAt DateTime?
 
   createdAt DateTime @default(now())
 
