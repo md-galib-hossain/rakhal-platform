@@ -14,6 +14,7 @@ import {
   FarmModuleSettings,
   FinanceTxnType,
   HealthCaseStatus,
+  LactationEndReason,
   LactationStartReason,
   LactationStatus,
   MilkSession,
@@ -506,6 +507,14 @@ export class CattleService {
    * animal from active herd KPIs (CAT-08). The deceased → cancel-tasks /
    * close-cases side effects are owned by the Healthcare mortality flow
    * (RAKHAL-067) and are intentionally not done here.
+   *
+   * RAKHAL-290: `sold`/`deceased`/`culled` are real lifecycle exits — if the
+   * animal still has an ACTIVE `Lactation`, it auto-closes with the matching
+   * `LactationEndReason` in the same transaction as the status flip, so a
+   * sold/dead cow can never be left with a dangling open lactation (the
+   * `productionStatus: null` above already always fires; this just keeps the
+   * `Lactation` row consistent with it). A plain `archived` reason has no
+   * `LactationEndReason` counterpart and is left untouched, same as before.
    */
   async archiveWithReason(farmId: string, id: string, dto: ArchiveCattleDto) {
     await this.getCattleOrThrow(farmId, id);
@@ -516,25 +525,43 @@ export class CattleService {
       isActive: false,
       productionStatus: null,
     };
+    let lactationEndReason: LactationEndReason | null = null;
     if (dto.reason === 'sold') {
       data.status = CattleStatus.SOLD;
+      lactationEndReason = LactationEndReason.SOLD;
     } else if (dto.reason === 'deceased') {
       data.status = CattleStatus.DEAD;
+      lactationEndReason = LactationEndReason.DEATH;
     } else if (dto.reason === 'culled') {
       data.status = CattleStatus.CULLED;
+      lactationEndReason = LactationEndReason.CULLED;
     } else {
       data.status = CattleStatus.ARCHIVED;
     }
 
-    const cattle = await this.prisma.cattle.update({
-      where: { id },
-      data,
-      include: this.defaultInclude(),
+    const now = new Date();
+    const cattle = await this.prisma.$transaction(async (tx) => {
+      if (lactationEndReason) {
+        await tx.lactation.updateMany({
+          where: { cattleId: id, status: LactationStatus.ACTIVE },
+          data: {
+            status: LactationStatus.ENDED,
+            endDate: now,
+            endReason: lactationEndReason,
+          },
+        });
+      }
+      return tx.cattle.update({
+        where: { id },
+        data,
+        include: this.defaultInclude(),
+      });
     });
     this.log.info('Cattle archived', {
       cattleId: id,
       farmId,
       reason: dto.reason,
+      closedActiveLactation: lactationEndReason !== null,
     });
     return this.composeStatus(cattle);
   }
@@ -639,13 +666,38 @@ export class CattleService {
         return this.bulkResult(action, count, cattleIds.length);
       }
       case 'mark_sold': {
-        const { count } = await this.prisma.cattle.updateMany({
-          where: { ...scope, isActive: true },
-          data: {
-            productionStatus: null,
-            status: CattleStatus.SOLD,
-            isActive: false,
-          },
+        // RAKHAL-290: same lifecycle-exit auto-close as archiveWithReason's
+        // `sold` reason, applied to the whole selection in one transaction —
+        // a bulk-sold cow must not keep a dangling ACTIVE Lactation either.
+        const activeScope = { ...scope, isActive: true };
+        const count = await this.prisma.$transaction(async (tx) => {
+          const targets = await tx.cattle.findMany({
+            where: activeScope,
+            select: { id: true },
+          });
+          const targetIds = targets.map((t) => t.id);
+          if (targetIds.length === 0) return 0;
+
+          await tx.lactation.updateMany({
+            where: {
+              cattleId: { in: targetIds },
+              status: LactationStatus.ACTIVE,
+            },
+            data: {
+              status: LactationStatus.ENDED,
+              endDate: new Date(),
+              endReason: LactationEndReason.SOLD,
+            },
+          });
+          const { count: updated } = await tx.cattle.updateMany({
+            where: { id: { in: targetIds } },
+            data: {
+              productionStatus: null,
+              status: CattleStatus.SOLD,
+              isActive: false,
+            },
+          });
+          return updated;
         });
         return this.bulkResult(action, count, cattleIds.length);
       }

@@ -16,11 +16,18 @@ describe('CattleService — RAKHAL-269 production status', () => {
       findFirst: jest.Mock;
       findMany: jest.Mock;
       update: jest.Mock;
+      updateMany: jest.Mock;
       count: jest.Mock;
       create: jest.Mock;
       findUniqueOrThrow: jest.Mock;
     };
-    lactation: { findFirst: jest.Mock; create: jest.Mock; count: jest.Mock };
+    lactation: {
+      findFirst: jest.Mock;
+      create: jest.Mock;
+      count: jest.Mock;
+      updateMany: jest.Mock;
+      findMany: jest.Mock;
+    };
     reproductionProfile: { findUnique: jest.Mock; create: jest.Mock };
     animalHold: { findMany: jest.Mock };
     $transaction: jest.Mock;
@@ -47,6 +54,7 @@ describe('CattleService — RAKHAL-269 production status', () => {
         findFirst: jest.fn(),
         findMany: jest.fn().mockResolvedValue([]),
         update: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         count: jest.fn().mockResolvedValue(0),
         create: jest.fn(),
         findUniqueOrThrow: jest.fn(),
@@ -55,6 +63,8 @@ describe('CattleService — RAKHAL-269 production status', () => {
         findFirst: jest.fn(),
         create: jest.fn(),
         count: jest.fn().mockResolvedValue(0),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        findMany: jest.fn().mockResolvedValue([]),
       },
       reproductionProfile: {
         findUnique: jest.fn().mockResolvedValue(null),
@@ -240,6 +250,74 @@ describe('CattleService — RAKHAL-269 production status', () => {
         productionStatus: null,
         status: CattleStatus.ARCHIVED,
       });
+    });
+
+    // RAKHAL-290: sold/deceased/culled are real lifecycle exits — any ACTIVE
+    // Lactation must auto-close with the matching LactationEndReason, in the
+    // same $transaction as the status flip.
+    it.each([
+      ['sold', 'SOLD'],
+      ['deceased', 'DEATH'],
+      ['culled', 'CULLED'],
+    ])(
+      'reason=%s auto-closes an ACTIVE Lactation with endReason=%s',
+      async (reason, endReason) => {
+        prisma.cattle.findFirst.mockResolvedValueOnce(baseRow());
+        prisma.cattle.update.mockResolvedValueOnce(
+          baseRow({ isActive: false }),
+        );
+
+        const service = make();
+        await service.archiveWithReason('farm-1', 'cattle-1', {
+          reason: reason as 'sold' | 'deceased' | 'culled',
+        });
+
+        expect(prisma.lactation.updateMany).toHaveBeenCalledWith({
+          where: { cattleId: 'cattle-1', status: 'ACTIVE' },
+          data: expect.objectContaining({
+            status: 'ENDED',
+            endReason,
+          }) as unknown,
+        });
+      },
+    );
+
+    it('a plain archive (no reason) does not touch Lactation rows', async () => {
+      prisma.cattle.findFirst.mockResolvedValueOnce(baseRow());
+      prisma.cattle.update.mockResolvedValueOnce(baseRow({ isActive: false }));
+
+      const service = make();
+      await service.archiveWithReason('farm-1', 'cattle-1', {});
+
+      expect(prisma.lactation.updateMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('bulk — mark_sold (RAKHAL-290)', () => {
+    it("auto-closes every selected cow's ACTIVE Lactation with endReason=SOLD", async () => {
+      prisma.cattle.findMany.mockResolvedValueOnce([
+        { id: 'cattle-1' },
+        { id: 'cattle-2' },
+      ]);
+      prisma.cattle.updateMany.mockResolvedValueOnce({ count: 2 });
+
+      const service = make();
+      const result = await service.bulk('farm-1', {
+        cattleIds: ['cattle-1', 'cattle-2'],
+        action: 'mark_sold',
+      });
+
+      expect(prisma.lactation.updateMany).toHaveBeenCalledWith({
+        where: {
+          cattleId: { in: ['cattle-1', 'cattle-2'] },
+          status: 'ACTIVE',
+        },
+        data: expect.objectContaining({
+          status: 'ENDED',
+          endReason: 'SOLD',
+        }) as unknown,
+      });
+      expect(result).toMatchObject({ action: 'mark_sold', updated: 2 });
     });
   });
 

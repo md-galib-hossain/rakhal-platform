@@ -986,6 +986,11 @@ export class HealthService {
    * yet, however it got there), OR is `ACTIVE` and past its `until` date but
    * the daily sweep hasn't caught up to flip it to `READY_FOR_RELEASE` yet —
    * "past-due but not yet swept" must still block milk sale.
+   *
+   * RAKHAL-290 (verified): this is the single source `MilkService.saveLog()`
+   * calls to gate `disposition`/`tankType` on every write — there is no
+   * second, looser withholding check anywhere else in the milk write path
+   * for a caller to fall through to.
    */
   async activeMilkWithholdingCattleIds(
     farmId: string,
