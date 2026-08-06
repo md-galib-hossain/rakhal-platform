@@ -1,4 +1,4 @@
-import { IsDateString, IsEnum, IsOptional } from 'class-validator';
+import { IsDateString, IsEnum, IsInt, IsOptional, Min } from 'class-validator';
 import { ProductionStatus, ReproductionState } from '@prisma/client';
 
 /**
@@ -29,4 +29,15 @@ export class UpdateCattleStatusDto {
   @IsOptional()
   @IsDateString()
   lactationStartDate?: string;
+
+  /** A heifer (no calving history) can never be set to Milking. On a
+   * profile-less purchase-intake cow, supplying this alongside
+   * `lactationStartDate` records her real prior calving count on the same
+   * `ReproductionProfile` create this MILKING flow already does — see
+   * `CattleService.updateStatus`. Ignored (and unnecessary) once a
+   * `ReproductionProfile` already exists — its own `totalCalvings` wins. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  priorCalvings?: number;
 }

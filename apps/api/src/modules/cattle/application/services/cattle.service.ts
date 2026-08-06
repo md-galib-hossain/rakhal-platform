@@ -150,13 +150,22 @@ export class CattleService {
     // `Lactation`, so a caller-supplied `lactationStartDate` is the only way
     // to satisfy it here (e.g. a purchased already-milking cow with no
     // calving history in this system).
-    if (
-      dto.productionStatus === ProductionStatus.MILKING &&
-      !dto.lactationStartDate
-    ) {
-      throw new BadRequestException(
-        'lactationStartDate is required when registering a cow with productionStatus MILKING (e.g. a purchased already-milking cow with no calving history in this system).',
-      );
+    if (dto.productionStatus === ProductionStatus.MILKING) {
+      // Invariant guard (mirrors `updateStatus()`'s own MILKING branch): a
+      // fresh cattle row has no `ReproductionProfile` yet, so the only way
+      // its effective `totalCalvings` can be non-zero here is a caller-
+      // supplied `priorCalvings` (e.g. a purchased already-calved cow). A
+      // heifer (0 calvings) can never be registered straight into Milking.
+      if (!dto.priorCalvings) {
+        throw new BadRequestException(
+          'A heifer (no calving history) cannot be set to Milking. Record a calving event, or if she was purchased already-calved, supply priorCalvings.',
+        );
+      }
+      if (!dto.lactationStartDate) {
+        throw new BadRequestException(
+          'lactationStartDate is required when registering a cow with productionStatus MILKING (e.g. a purchased already-milking cow with no calving history in this system).',
+        );
+      }
     }
 
     try {
@@ -199,12 +208,21 @@ export class CattleService {
                   },
                 }
               : {}),
-            // Seed a reproduction profile when an initial reproductive status is
-            // supplied so the status dimension has a home (PRD §8.1/§8.4).
-            ...(dto.reproductiveStatus
+            // Seed a reproduction profile when an initial reproductive status
+            // and/or real prior calving history (`priorCalvings`) is supplied
+            // so the status dimension — and the MILKING/HEIFER invariant —
+            // has a home (PRD §8.1/§8.4).
+            ...(dto.reproductiveStatus || dto.priorCalvings
               ? {
                   reproductionProfile: {
-                    create: { reproductiveStatus: dto.reproductiveStatus },
+                    create: {
+                      ...(dto.reproductiveStatus
+                        ? { reproductiveStatus: dto.reproductiveStatus }
+                        : {}),
+                      ...(dto.priorCalvings
+                        ? { totalCalvings: dto.priorCalvings }
+                        : {}),
+                    },
                   },
                 }
               : {}),
@@ -392,10 +410,29 @@ export class CattleService {
       // Lactation actually belong to this cow's current cycle" logic is a
       // later ticket's job.
       if (dto.productionStatus === ProductionStatus.MILKING) {
-        const activeLactation = await this.prisma.lactation.findFirst({
-          where: { cattleId: id, status: LactationStatus.ACTIVE },
-          select: { id: true },
-        });
+        const [activeLactation, reproductionProfile] = await Promise.all([
+          this.prisma.lactation.findFirst({
+            where: { cattleId: id, status: LactationStatus.ACTIVE },
+            select: { id: true },
+          }),
+          this.prisma.reproductionProfile.findUnique({
+            where: { cattleId: id },
+            select: { totalCalvings: true },
+          }),
+        ]);
+
+        // Invariant guard: a heifer (no calving history) can never be set to
+        // Milking. An existing profile's own `totalCalvings` always wins; a
+        // profile-less cow (e.g. never assessed) falls back to a caller-
+        // supplied `priorCalvings` for this purchase-intake path.
+        const effectiveTotalCalvings = reproductionProfile
+          ? reproductionProfile.totalCalvings
+          : (dto.priorCalvings ?? 0);
+        if (effectiveTotalCalvings === 0) {
+          throw new BadRequestException(
+            'A heifer (no calving history) cannot be set to Milking. Record a calving event, or if she was purchased already-calved, supply priorCalvings.',
+          );
+        }
 
         if (!activeLactation) {
           // RAKHAL-291: no auto-stamped Lactation from a calving means either
@@ -414,7 +451,9 @@ export class CattleService {
           const lactationStartDate = dto.lactationStartDate;
 
           // Create the purchase-intake Lactation and flip productionStatus in
-          // the same transaction so the two never drift apart.
+          // the same transaction so the two never drift apart. A profile-less
+          // cow with a supplied `priorCalvings` also gets its
+          // `ReproductionProfile` created here — one write, not two.
           await this.prisma.$transaction(async (tx) => {
             await tx.lactation.create({
               data: {
@@ -425,6 +464,11 @@ export class CattleService {
                 startReason: LactationStartReason.PURCHASE_IMPORT,
               },
             });
+            if (!reproductionProfile && dto.priorCalvings) {
+              await tx.reproductionProfile.create({
+                data: { cattleId: id, totalCalvings: dto.priorCalvings },
+              });
+            }
             await tx.cattle.update({
               where: { id },
               data: { productionStatus: dto.productionStatus },

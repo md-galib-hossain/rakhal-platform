@@ -520,9 +520,20 @@ export class ReproductionService {
         });
       }
 
-      // reproductiveStatus is left to refreshProfile() below (post-transaction) —
+      // Atomicity fix: `totalCalvings` must be guaranteed consistent with the
+      // `productionStatus: MILKING` flip below (the HEIFER/MILKING invariant
+      // reads `totalCalvings`, not a separately-derived state) — counted
+      // inside this same transaction (the just-created `CalvingEvent` row is
+      // already visible to it) rather than left to the post-transaction
+      // `refreshProfile()` call, which previously left a real window where a
+      // reader could observe `productionStatus: MILKING` with a stale
+      // `totalCalvings` if it raced between commit and that follow-up call.
+      // reproductiveStatus itself is still left to refreshProfile() below —
       // it derives PREGNANT/EXPECTED_TO_CALVE/OPEN/etc. from live event state
-      // (RAKHAL-271), so this upsert only needs to keep the snapshot fields current.
+      // (RAKHAL-271), which this upsert doesn't need for that invariant.
+      const totalCalvings = await tx.calvingEvent.count({
+        where: { cattleId: dto.cattleId },
+      });
       await tx.reproductionProfile.upsert({
         where: { cattleId: dto.cattleId },
         create: {
@@ -532,6 +543,7 @@ export class ReproductionService {
           lastCalvingDate: calvingDate,
           currentLactationId: lactation.id,
           currentPregnancyId: null,
+          totalCalvings,
         },
         update: {
           currentLactationNumber: calvingNumber,
@@ -539,6 +551,7 @@ export class ReproductionService {
           lastCalvingDate: calvingDate,
           currentLactationId: lactation.id,
           currentPregnancyId: null,
+          totalCalvings,
         },
       });
 

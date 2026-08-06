@@ -17,8 +17,11 @@ describe('CattleService — RAKHAL-269 production status', () => {
       findMany: jest.Mock;
       update: jest.Mock;
       count: jest.Mock;
+      create: jest.Mock;
+      findUniqueOrThrow: jest.Mock;
     };
     lactation: { findFirst: jest.Mock; create: jest.Mock; count: jest.Mock };
+    reproductionProfile: { findUnique: jest.Mock; create: jest.Mock };
     animalHold: { findMany: jest.Mock };
     $transaction: jest.Mock;
   };
@@ -45,11 +48,17 @@ describe('CattleService — RAKHAL-269 production status', () => {
         findMany: jest.fn().mockResolvedValue([]),
         update: jest.fn(),
         count: jest.fn().mockResolvedValue(0),
+        create: jest.fn(),
+        findUniqueOrThrow: jest.fn(),
       },
       lactation: {
         findFirst: jest.fn(),
         create: jest.fn(),
         count: jest.fn().mockResolvedValue(0),
+      },
+      reproductionProfile: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn(),
       },
       animalHold: { findMany: jest.fn().mockResolvedValue([]) },
       // Both the array form (`$transaction([...])`) and the callback form
@@ -116,6 +125,9 @@ describe('CattleService — RAKHAL-269 production status', () => {
     it('rejects setting productionStatus=MILKING with no active Lactation row', async () => {
       prisma.cattle.findFirst.mockResolvedValueOnce(baseRow());
       prisma.lactation.findFirst.mockResolvedValueOnce(null);
+      prisma.reproductionProfile.findUnique.mockResolvedValueOnce({
+        totalCalvings: 1,
+      });
 
       const service = make();
       await expect(
@@ -132,6 +144,9 @@ describe('CattleService — RAKHAL-269 production status', () => {
         .mockResolvedValueOnce(baseRow()) // getCattleOrThrow guard check
         .mockResolvedValueOnce(baseRow({ productionStatus: 'MILKING' })); // findOne() at the end of updateStatus
       prisma.lactation.findFirst.mockResolvedValueOnce({ id: 'lactation-1' });
+      prisma.reproductionProfile.findUnique.mockResolvedValueOnce({
+        totalCalvings: 1,
+      });
       prisma.cattle.update.mockResolvedValueOnce({});
 
       const service = make();
@@ -142,11 +157,12 @@ describe('CattleService — RAKHAL-269 production status', () => {
       expect(lastUpdateData()).toMatchObject({ productionStatus: 'MILKING' });
     });
 
-    it('creates a purchase-intake Lactation (startReason PURCHASE_IMPORT) when lactationStartDate is supplied and no active Lactation exists', async () => {
+    it('creates a purchase-intake Lactation (startReason PURCHASE_IMPORT) when lactationStartDate + priorCalvings are supplied and no active Lactation exists', async () => {
       prisma.cattle.findFirst
         .mockResolvedValueOnce(baseRow()) // getCattleOrThrow guard check
         .mockResolvedValueOnce(baseRow({ productionStatus: 'MILKING' })); // findOne() at the end of updateStatus
       prisma.lactation.findFirst.mockResolvedValueOnce(null);
+      prisma.reproductionProfile.findUnique.mockResolvedValueOnce(null);
       prisma.lactation.count.mockResolvedValueOnce(0);
       prisma.lactation.create.mockResolvedValueOnce({ id: 'lactation-new' });
       prisma.cattle.update.mockResolvedValueOnce({});
@@ -155,6 +171,7 @@ describe('CattleService — RAKHAL-269 production status', () => {
       await service.updateStatus('farm-1', 'cattle-1', {
         productionStatus: 'MILKING',
         lactationStartDate: '2026-08-01',
+        priorCalvings: 2,
       });
 
       expect(prisma.$transaction).toHaveBeenCalled();
@@ -165,6 +182,9 @@ describe('CattleService — RAKHAL-269 production status', () => {
           status: 'ACTIVE',
           startReason: 'PURCHASE_IMPORT',
         }) as unknown,
+      });
+      expect(prisma.reproductionProfile.create).toHaveBeenCalledWith({
+        data: { cattleId: 'cattle-1', totalCalvings: 2 },
       });
       expect(lastUpdateData()).toMatchObject({ productionStatus: 'MILKING' });
     });
@@ -262,10 +282,128 @@ describe('CattleService — RAKHAL-269 production status', () => {
           gender: 'FEMALE',
           purpose: 'DAIRY',
           productionStatus: 'MILKING',
+          priorCalvings: 1,
         } as never),
       ).rejects.toBeInstanceOf(BadRequestException);
 
       expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('HEIFER/MILKING invariant — totalCalvings >= 1', () => {
+    const HEIFER_MESSAGE =
+      'A heifer (no calving history) cannot be set to Milking. Record a calving event, or if she was purchased already-calved, supply priorCalvings.';
+
+    it('create() rejects MILKING on a fresh cow (totalCalvings 0) with no priorCalvings', async () => {
+      const service = make();
+      await expect(
+        service.create('farm-1', 'user-1', {
+          tagNumber: 'TAG-4',
+          gender: 'FEMALE',
+          purpose: 'DAIRY',
+          productionStatus: 'MILKING',
+          lactationStartDate: '2026-08-01',
+        } as never),
+      ).rejects.toThrow(HEIFER_MESSAGE);
+
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('updateStatus() rejects MILKING on a cow with totalCalvings 0 (no profile, no priorCalvings)', async () => {
+      prisma.cattle.findFirst.mockResolvedValueOnce(baseRow());
+      prisma.reproductionProfile.findUnique.mockResolvedValueOnce(null);
+
+      const service = make();
+      await expect(
+        service.updateStatus('farm-1', 'cattle-1', {
+          productionStatus: 'MILKING',
+        }),
+      ).rejects.toThrow(HEIFER_MESSAGE);
+
+      expect(prisma.cattle.update).not.toHaveBeenCalled();
+    });
+
+    it('updateStatus() rejects MILKING when an existing ReproductionProfile has totalCalvings 0, even if priorCalvings is supplied', async () => {
+      prisma.cattle.findFirst.mockResolvedValueOnce(baseRow());
+      prisma.reproductionProfile.findUnique.mockResolvedValueOnce({
+        totalCalvings: 0,
+      });
+
+      const service = make();
+      await expect(
+        service.updateStatus('farm-1', 'cattle-1', {
+          productionStatus: 'MILKING',
+          priorCalvings: 5,
+        }),
+      ).rejects.toThrow(HEIFER_MESSAGE);
+
+      expect(prisma.cattle.update).not.toHaveBeenCalled();
+    });
+
+    it('create() with priorCalvings succeeds, seeds ReproductionProfile.totalCalvings, and the derived animalCategory reads COW', async () => {
+      prisma.cattle.create.mockResolvedValueOnce({ id: 'cattle-9' });
+      prisma.lactation.create.mockResolvedValueOnce({ id: 'lactation-x' });
+      prisma.cattle.findUniqueOrThrow.mockResolvedValueOnce(
+        baseRow({
+          id: 'cattle-9',
+          gender: 'FEMALE',
+          dateOfBirth: new Date('2020-01-01'),
+          productionStatus: 'MILKING',
+          reproductionProfile: { reproductiveStatus: null, totalCalvings: 3 },
+        }),
+      );
+
+      const service = make();
+      const result = await service.create('farm-1', 'user-1', {
+        tagNumber: 'TAG-5',
+        gender: 'FEMALE',
+        purpose: 'DAIRY',
+        productionStatus: 'MILKING',
+        lactationStartDate: '2026-08-01',
+        priorCalvings: 3,
+      } as never);
+
+      expect(prisma.cattle.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            reproductionProfile: { create: { totalCalvings: 3 } },
+          }) as unknown,
+        }) as unknown,
+      );
+      expect((result as { animalCategory: string }).animalCategory).toBe('COW');
+    });
+
+    it('updateStatus() with priorCalvings on a profile-less cow succeeds and animalCategory subsequently reads COW via findOne', async () => {
+      prisma.cattle.findFirst
+        .mockResolvedValueOnce(baseRow()) // getCattleOrThrow guard check
+        .mockResolvedValueOnce(
+          baseRow({
+            gender: 'FEMALE',
+            dateOfBirth: new Date('2020-01-01'),
+            productionStatus: 'MILKING',
+            reproductionProfile: {
+              reproductiveStatus: null,
+              totalCalvings: 4,
+            },
+          }),
+        ); // findOne() at the end of updateStatus
+      prisma.lactation.findFirst.mockResolvedValueOnce(null);
+      prisma.reproductionProfile.findUnique.mockResolvedValueOnce(null);
+      prisma.lactation.count.mockResolvedValueOnce(0);
+      prisma.lactation.create.mockResolvedValueOnce({ id: 'lactation-y' });
+      prisma.cattle.update.mockResolvedValueOnce({});
+
+      const service = make();
+      const result = await service.updateStatus('farm-1', 'cattle-1', {
+        productionStatus: 'MILKING',
+        lactationStartDate: '2026-08-01',
+        priorCalvings: 4,
+      });
+
+      expect(prisma.reproductionProfile.create).toHaveBeenCalledWith({
+        data: { cattleId: 'cattle-1', totalCalvings: 4 },
+      });
+      expect((result as { animalCategory: string }).animalCategory).toBe('COW');
     });
   });
 });

@@ -3,6 +3,7 @@ import {
   IsDateString,
   IsEnum,
   IsIn,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -71,6 +72,17 @@ export class CreateCattleDto {
   @IsOptional()
   @IsDateString()
   lactationStartDate?: string;
+
+  /** Lets intake record a cow's real prior calving history — e.g. a purchased
+   * already-calved cow — instead of always defaulting to 0 via
+   * `ReproductionProfile`'s Prisma schema default. Required (alongside
+   * `lactationStartDate`) to register a cow straight into `MILKING`: a
+   * heifer (0 calvings) can never be Milking. When supplied, `create()`
+   * seeds `ReproductionProfile.totalCalvings` with this value. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  priorCalvings?: number;
 
   @IsOptional()
   @IsNumber()

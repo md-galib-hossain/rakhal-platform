@@ -18,7 +18,8 @@ type CanonicalField =
   | 'breed'
   | 'shed'
   | 'color'
-  | 'notes';
+  | 'notes'
+  | 'prior_calvings';
 
 const GENDER_ALIASES: Record<string, CattleGender> = {
   female: CattleGender.FEMALE,
@@ -56,6 +57,11 @@ interface ImportRowData {
   shedId: string | null;
   color: string | null;
   notes: string | null;
+  /** Real prior calving history for an already-calved purchased cow — lets
+   * bulk import seed `ReproductionProfile.totalCalvings` the same way
+   * `CreateCattleDto.priorCalvings` does for a single intake, instead of
+   * every imported row always defaulting to 0. */
+  priorCalvings: number | null;
 }
 
 interface PreviewRow {
@@ -204,6 +210,18 @@ export class CattleImportService {
             notes: r.data.notes ?? undefined,
             sourceType: CattleSourceType.PURCHASED,
             createdBy: userId,
+            // Same seam as `CattleService.create()`'s `priorCalvings` — an
+            // already-calved purchased cow can record her real calving count
+            // at intake instead of defaulting to 0 via the Prisma schema
+            // default, which is what let a purchased-milking cow miscategorize
+            // as a heifer.
+            ...(r.data.priorCalvings
+              ? {
+                  reproductionProfile: {
+                    create: { totalCalvings: r.data.priorCalvings },
+                  },
+                }
+              : {}),
           },
           select: { id: true },
         }),
@@ -315,6 +333,19 @@ export class CattleImportService {
       }
     }
 
+    const priorCalvingsRaw = read('prior_calvings');
+    let priorCalvings: number | null = null;
+    if (priorCalvingsRaw) {
+      const parsed = Number(priorCalvingsRaw);
+      if (!Number.isInteger(parsed) || parsed < 1) {
+        return {
+          ...base,
+          error: `Invalid prior_calvings: "${priorCalvingsRaw}" (must be a whole number >= 1)`,
+        };
+      }
+      priorCalvings = parsed;
+    }
+
     ctx.seenInFile.add(tagKey);
 
     return {
@@ -332,6 +363,7 @@ export class CattleImportService {
         shedId,
         color: read('color'),
         notes: read('notes'),
+        priorCalvings,
       },
     };
   }
