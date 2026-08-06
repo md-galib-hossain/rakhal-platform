@@ -17,15 +17,23 @@ import type { DonutSlice } from "./herd-status-chart-inner";
  *
  * `fresh`/`growing` used to link via `productionStatus=FRESH|GROWING` — RAKHAL-269 v2 dropped
  * those values from `ProductionStatus` (trimmed to MILKING/DRY). The backend's own dashboard
- * service now computes these two slice counts as proxies off `ReproductionState`
- * (`POSTPARTUM_WAITING` for fresh, `NOT_ELIGIBLE` for growing — see
- * `dashboard.service.ts`'s `productionBreakdown` comment) so the deep links follow suit onto
- * `reproductiveStatus` instead, matching what `CattleTable`'s filters actually query. */
+ * service computes these two slice counts as proxies off `ReproductionState`
+ * (`POSTPARTUM_WAITING` for fresh, `NOT_ELIGIBLE` for growing — see `dashboard.service.ts`'s
+ * `productionBreakdown` comment).
+ *
+ * RAKHAL-290: `growing` is really the `AnimalCategory.HEIFER` count (the label was just stale
+ * i18n — fixed in `dashboard.herdStatus.production.growing` — same underlying data). Its
+ * deep-link now uses the real `animalCategory` filter (`ListCattleQueryDto.animalCategory`,
+ * RAKHAL-289) instead of the `reproductiveStatus=NOT_ELIGIBLE` proxy, which missed heifers with
+ * no `ReproductionProfile` row at all. `fresh` has no equivalent real filter yet — no
+ * `lactationStage` param exists on `ListCattleQueryDto` (checked `list-cattle-query.dto.ts`
+ * directly) — so it's left on the `reproductiveStatus=POSTPARTUM_WAITING` proxy pending a
+ * `lactationStage` filter ticket. */
 const PRODUCTION_SLICE_HREF: Record<string, string> = {
   milking: "/cattle?productionStatus=MILKING",
   dry: "/cattle?productionStatus=DRY",
   fresh: "/cattle?reproductiveStatus=POSTPARTUM_WAITING",
-  growing: "/cattle?reproductiveStatus=NOT_ELIGIBLE",
+  growing: "/cattle?animalCategory=HEIFER",
 };
 
 // Chart rendering is client/DOM-only and not needed for the initial paint — keep it out of the main bundle.
