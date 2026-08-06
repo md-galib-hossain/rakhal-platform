@@ -1,10 +1,13 @@
 import { MilkDisposition } from '@prisma/client';
 import {
   averageDailyYield,
+  computeLactationPeak,
+  daysBetween,
   sumYieldForDay,
   totalsByDisposition,
   YieldEntry,
 } from './lactation-yield';
+import { DailyYieldPoint } from './lactation-curve';
 
 describe('lactation-yield', () => {
   const day = (iso: string) => new Date(iso);
@@ -102,6 +105,95 @@ describe('lactation-yield', () => {
         discarded: 0,
         householdUse: 0,
       });
+    });
+  });
+
+  describe('daysBetween', () => {
+    it('is 0-based (same day = 0)', () => {
+      expect(
+        daysBetween(
+          day('2026-08-01T00:00:00.000Z'),
+          day('2026-08-01T23:00:00.000Z'),
+        ),
+      ).toBe(0);
+    });
+
+    it('counts whole UTC days elapsed', () => {
+      expect(
+        daysBetween(
+          day('2026-08-01T00:00:00.000Z'),
+          day('2026-08-11T00:00:00.000Z'),
+        ),
+      ).toBe(10);
+    });
+  });
+
+  describe('computeLactationPeak', () => {
+    const point = (overrides: Partial<DailyYieldPoint>): DailyYieldPoint => ({
+      dim: 0,
+      date: '2026-08-01',
+      yieldL: 0,
+      sessionsRecorded: 0,
+      sessionsExpected: 2,
+      dataQuality: 'complete',
+      ...overrides,
+    });
+
+    it('returns null when no day is complete', () => {
+      const series = [
+        point({
+          dim: 0,
+          date: '2026-08-01',
+          yieldL: 20,
+          dataQuality: 'missing',
+        }),
+        point({
+          dim: 1,
+          date: '2026-08-02',
+          yieldL: 25,
+          dataQuality: 'incomplete',
+        }),
+      ];
+      expect(computeLactationPeak(series)).toBeNull();
+    });
+
+    it('picks the highest-yield complete day, ignoring incomplete/missing days even when they are higher', () => {
+      const series = [
+        point({
+          dim: 0,
+          date: '2026-08-01',
+          yieldL: 18,
+          dataQuality: 'complete',
+        }),
+        // Would be the highest overall, but incomplete — must not win.
+        point({
+          dim: 1,
+          date: '2026-08-02',
+          yieldL: 30,
+          dataQuality: 'incomplete',
+        }),
+        point({
+          dim: 2,
+          date: '2026-08-03',
+          yieldL: 22,
+          dataQuality: 'complete',
+        }),
+        point({
+          dim: 3,
+          date: '2026-08-04',
+          yieldL: 0,
+          dataQuality: 'missing',
+        }),
+      ];
+      expect(computeLactationPeak(series)).toEqual({
+        peakMilkYield: 22,
+        peakMilkDate: new Date('2026-08-03T00:00:00.000Z'),
+        peakDaysInMilk: 2,
+      });
+    });
+
+    it('returns an empty-series null safely', () => {
+      expect(computeLactationPeak([])).toBeNull();
     });
   });
 });

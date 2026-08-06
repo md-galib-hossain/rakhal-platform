@@ -21,7 +21,11 @@ import { MilkTankService } from 'src/modules/inventory/application/services/milk
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { HealthService } from 'src/modules/health/application/services/health.service';
 import { AnimalHoldService } from 'src/modules/cattle/application/services/animal-hold.service';
-import { dropPct, isAnomaly } from '../../domain/milk-anomaly';
+import {
+  DEFAULT_SESSION_CONFIG,
+  dropPct,
+  isAnomaly,
+} from '../../domain/milk-anomaly';
 import {
   isWithinColostrumWindow,
   resolveMilkDisposition,
@@ -30,6 +34,17 @@ import {
   deriveMilkEligibility,
   MilkEligibility,
 } from '../../domain/milk-eligibility';
+// RAKHAL-284: reused from Reproduction's domain layer directly (same
+// direct-cross-module-read precedent RAKHAL-277/278 already established the
+// other direction) — pure TS, no framework/Prisma imports in either file, so
+// importing them here doesn't require `MilkModule` to import
+// `ReproductionModule` (which would be the first import in that direction;
+// avoided to keep this change inside this ticket's own Lane).
+import {
+  buildDailyYieldSeries,
+  CurveEntry,
+} from 'src/modules/reproduction/domain/lactation-curve';
+import { computeLactationPeak } from 'src/modules/reproduction/domain/lactation-yield';
 import { MilkLogQueryDto } from '../../presentation/dto/milk-query.dto';
 import { ReviewAnomalyDto } from '../../presentation/dto/review-anomaly.dto';
 import { SaveMilkLogDto } from '../../presentation/dto/save-milk-log.dto';
@@ -254,9 +269,12 @@ export class MilkService {
       // RAKHAL-277: each cow's active `Lactation` (no `endDate`) gates the colostrum
       // window check — queried directly off the reproduction module's Prisma model
       // (a pure read, no cross-module service dependency needed for this).
+      // RAKHAL-284: also select `id` — the same active-lactation rows already
+      // fetched for the colostrum check double as the peak-recompute target,
+      // no second query needed.
       this.prisma.lactation.findMany({
         where: { cattleId: { in: ids }, endDate: null },
-        select: { cattleId: true, startDate: true },
+        select: { id: true, cattleId: true, startDate: true },
       }),
       this.farmSettings.milkColostrumWindowDays(farmId),
     ]);
@@ -265,6 +283,9 @@ export class MilkService {
     const anomalyFraction = await this.farmSettings.milkAnomalyFraction(farmId);
     const lactationStartByCow = new Map(
       activeLactations.map((l) => [l.cattleId, l.startDate]),
+    );
+    const activeLactationIdByCow = new Map(
+      activeLactations.map((l) => [l.cattleId, l.id]),
     );
 
     // Entries may name a specific tank (header default or a per-row override) — validate
@@ -303,6 +324,15 @@ export class MilkService {
         // `tankType` (physical routing, above) and `disposition` stay consistent: a
         // WITHHELD-disposition entry always routes to the WITHHOLDING tank, since
         // `isWithheld` gates both.
+        // RAKHAL-290 (verified, not bypassable): `isWithheld` is re-derived from
+        // `HealthService.activeMilkWithholdingCattleIds` on every call to this
+        // method — `saveLog()` is the sole writer of `MilkLogEntry.disposition`/
+        // `tankType` (`submit()` only flips `submitted`; `MilkImportService
+        // .confirm()` replays every imported row back through this same method
+        // rather than writing `MilkLogEntry` directly) and `SaveMilkLogDto`
+        // exposes no `disposition`/`tankType` field a caller could supply to
+        // override this — so `disposition=SALEABLE` while `isWithheld` is true
+        // is structurally impossible, not just discouraged.
         const disposition: MilkDisposition = resolveMilkDisposition({
           isWithheld,
           activeLactationStartDate:
@@ -392,6 +422,20 @@ export class MilkService {
             MilkTankActivity.ADJUSTMENT,
           );
         }
+      }
+
+      // RAKHAL-284: recompute each cow's active-lactation peak inside the same
+      // transaction as the entry upserts above — a write that changes a day's
+      // yield (or its data-quality via a session recorded) must never leave a
+      // stale peak. Deduped per cow (saveLog's dto is one session's worth of
+      // entries across possibly many cows, not per-entry).
+      const cowsToRecompute = new Set(
+        dto.entries
+          .map((e) => activeLactationIdByCow.get(e.cattleId))
+          .filter((id): id is string => !!id),
+      );
+      for (const lactationId of cowsToRecompute) {
+        await this.recomputeLactationPeak(farmId, lactationId, tx);
       }
     });
 
@@ -655,6 +699,70 @@ export class MilkService {
       tx,
     );
     return true;
+  }
+
+  /**
+   * RAKHAL-284: recompute `Lactation.peakMilkYield`/`peakMilkDate`/
+   * `peakDaysInMilk` for one active lactation, run inside `saveLog()`'s
+   * transaction so the peak can never observe a partially-written session.
+   * Rebuilds the full daily-yield series from scratch each time (same
+   * `buildDailyYieldSeries` RAKHAL-283's `GET /curve` uses) rather than
+   * comparing today's total against the stored peak — a single day's
+   * `dataQuality` can flip from `incomplete` to `complete` (or vice versa,
+   * on an edit) as a byproduct of this very write, which could change which
+   * day the true peak-so-far is, not just today's. A `null` result (no
+   * `complete` day recorded yet) intentionally leaves the stored columns
+   * untouched rather than clearing them — a lactation can't "lose" a
+   * previously-earned peak just because a later write briefly computed no
+   * peak (which can't actually happen once one complete day exists, but the
+   * guard is defensive).
+   */
+  private async recomputeLactationPeak(
+    farmId: string,
+    lactationId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<void> {
+    const lactation = await tx.lactation.findFirst({
+      where: { id: lactationId, cattle: { farmId } },
+      select: { id: true, cattleId: true, startDate: true, endDate: true },
+    });
+    if (!lactation) return;
+
+    const rangeEnd = lactation.endDate ?? new Date();
+    const entries = await tx.milkLogEntry.findMany({
+      where: {
+        cattleId: lactation.cattleId,
+        logDate: { gte: lactation.startDate, lte: rangeEnd },
+      },
+      select: { logDate: true, session: true, yieldL: true },
+    });
+    const curveEntries: CurveEntry[] = entries;
+
+    const configuredSessions =
+      await this.farmSettings.milkActiveSessions(farmId);
+    const expectedSessions =
+      configuredSessions.length > 0
+        ? configuredSessions
+        : DEFAULT_SESSION_CONFIG;
+
+    const series = buildDailyYieldSeries({
+      startDate: lactation.startDate,
+      endDate: rangeEnd,
+      entries: curveEntries,
+      expectedSessions,
+    });
+
+    const peak = computeLactationPeak(series);
+    if (!peak) return;
+
+    await tx.lactation.update({
+      where: { id: lactation.id },
+      data: {
+        peakMilkYield: peak.peakMilkYield,
+        peakMilkDate: peak.peakMilkDate,
+        peakDaysInMilk: peak.peakDaysInMilk,
+      },
+    });
   }
 
   // Delegates to HealthService — single source of truth shared with the Cattle

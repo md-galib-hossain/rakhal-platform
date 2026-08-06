@@ -7,6 +7,7 @@
  * today/7-day/30-day yields and lactation-to-date totals by `MilkDisposition`.
  */
 import { MilkDisposition } from '@prisma/client';
+import { DailyYieldPoint } from './lactation-curve';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -23,7 +24,14 @@ export function startOfUtcDay(date: Date): Date {
   );
 }
 
-function daysBetween(start: Date, end: Date): number {
+/**
+ * 0-based day count from `start` to `end` (both UTC-day-truncated) — same
+ * convention `lactation-curve.ts`'s `DailyYieldPoint.dim` uses, so a "days in
+ * milk" value means the same thing everywhere in this codebase (RAKHAL-284
+ * exports this for `LactationStatsService`'s persistency calc, which needs
+ * "current DIM" as an input alongside the stored `peakDaysInMilk`).
+ */
+export function daysBetween(start: Date, end: Date): number {
   return Math.floor(
     (startOfUtcDay(end).getTime() - startOfUtcDay(start).getTime()) / DAY_MS,
   );
@@ -133,4 +141,39 @@ export function totalsByDisposition(
 
 function round(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+export interface LactationPeak {
+  peakMilkYield: number;
+  peakMilkDate: Date;
+  peakDaysInMilk: number;
+}
+
+/**
+ * Highest single day's yield recorded so far this lactation (RAKHAL-284),
+ * from the already-built `DailyYieldPoint[]` series `buildDailyYieldSeries`
+ * (`lactation-curve.ts`) produces for RAKHAL-283's `GET /curve` — reusing it
+ * rather than a second yield-summing pass means peak and curve can never
+ * disagree about which days count. Days flagged `incomplete`/`missing` are
+ * skipped per the ticket's explicit "ignoring flagged-incomplete days"
+ * acceptance criterion — a partial-session day can't falsely set a new peak.
+ * Returns `null` when no `complete` day exists yet (brand-new lactation).
+ */
+export function computeLactationPeak(
+  series: DailyYieldPoint[],
+): LactationPeak | null {
+  let best: DailyYieldPoint | null = null;
+  for (const point of series) {
+    if (point.dataQuality !== 'complete') continue;
+    if (!best || point.yieldL > best.yieldL) {
+      best = point;
+    }
+  }
+  if (!best) return null;
+
+  return {
+    peakMilkYield: best.yieldL,
+    peakMilkDate: new Date(`${best.date}T00:00:00.000Z`),
+    peakDaysInMilk: best.dim,
+  };
 }
