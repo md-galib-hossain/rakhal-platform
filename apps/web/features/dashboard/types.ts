@@ -63,7 +63,16 @@ export interface CalvingForecastResponse {
 
 export interface HerdStatusResponse {
   totalActive: number;
-  productionBreakdown: { milking: number; dry: number; fresh: number; growing: number };
+  /** `growing` (an `AnimalCategory.HEIFER` proxy) was dropped — see `categoryBreakdown` below for
+   * the real, mutually-exclusive partition. `milking`/`dry`/`fresh` stay (independent, overlapping
+   * production-state dimensions, not a partition — still the real shape `LivestockStateChart`'s
+   * backing data conceptually mirrors, even though that widget reads its own separate
+   * `LivestockStateResponse` endpoint, not this field, directly). */
+  productionBreakdown: { milking: number; dry: number; fresh: number };
+  /** Real partition by construction: every active cow has exactly one `AnimalCategory`, so these 5
+   * values always sum to `totalActive` (fixes the old `productionBreakdown` donut, which mixed 4
+   * independent overlapping dimensions as if they were pie slices). */
+  categoryBreakdown: { calf: number; heifer: number; cow: number; bull: number; steer: number };
   reproductiveBreakdown: { open: number; inseminated: number; pregnant: number; dryPeriod: number };
   healthBreakdown: { healthy: number; sick: number; inTreatment: number; withholding: number };
   calves: {

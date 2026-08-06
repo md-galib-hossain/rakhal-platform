@@ -10,30 +10,46 @@ import { useHerdStatus } from "../hooks/use-dashboard-widgets";
 import { DashboardCard } from "./dashboard-card";
 import type { DonutSlice } from "./herd-status-chart-inner";
 
-/** Deep-links a legend slice to the matching Cattle-page filter (nuqs-synced query params
- * `CattleFilters`/`CattleTable` already read) — `undefined` leaves the slice a plain "/cattle"
- * link (e.g. calves, which the list page filters via `purpose=CALF` in the category tabs, not a
- * dashboard-known param).
- *
- * `fresh`/`growing` used to link via `productionStatus=FRESH|GROWING` — RAKHAL-269 v2 dropped
- * those values from `ProductionStatus` (trimmed to MILKING/DRY). The backend's own dashboard
- * service computes these two slice counts as proxies off `ReproductionState`
- * (`POSTPARTUM_WAITING` for fresh, `NOT_ELIGIBLE` for growing — see `dashboard.service.ts`'s
- * `productionBreakdown` comment).
- *
- * RAKHAL-290: `growing` is really the `AnimalCategory.HEIFER` count (the label was just stale
- * i18n — fixed in `dashboard.herdStatus.production.growing` — same underlying data). Its
- * deep-link now uses the real `animalCategory` filter (`ListCattleQueryDto.animalCategory`,
- * RAKHAL-289) instead of the `reproductiveStatus=NOT_ELIGIBLE` proxy, which missed heifers with
- * no `ReproductionProfile` row at all. `fresh` has no equivalent real filter yet — no
- * `lactationStage` param exists on `ListCattleQueryDto` (checked `list-cattle-query.dto.ts`
- * directly) — so it's left on the `reproductiveStatus=POSTPARTUM_WAITING` proxy pending a
- * `lactationStage` filter ticket. */
-const PRODUCTION_SLICE_HREF: Record<string, string> = {
-  milking: "/cattle?productionStatus=MILKING",
-  dry: "/cattle?productionStatus=DRY",
-  fresh: "/cattle?reproductiveStatus=POSTPARTUM_WAITING",
-  growing: "/cattle?animalCategory=HEIFER",
+type CategoryKey = "calf" | "heifer" | "cow" | "bull" | "steer";
+/** Cow-first display order (biggest/most-relevant category first) — the wire shape
+ * (`categoryBreakdown`) has no inherent order since it's a plain object. */
+const CATEGORY_ORDER: CategoryKey[] = ["cow", "heifer", "calf", "bull", "steer"];
+
+/** Maps each `categoryBreakdown` key to the matching `cattle.animalCategory.*` i18n key (the
+ * codebase's existing `AnimalCategory` enum casing) — reused verbatim rather than duplicating new
+ * labels for the same 5 values (see `cattle-columns.tsx`'s `ANIMAL_CATEGORY_VARIANT`). */
+const CATEGORY_I18N_KEY: Record<CategoryKey, "CALF" | "HEIFER" | "COW" | "BULL" | "STEER"> = {
+  calf: "CALF",
+  heifer: "HEIFER",
+  cow: "COW",
+  bull: "BULL",
+  steer: "STEER",
+};
+
+/** Deep-links each of the 5 `categoryBreakdown` slices to the matching Cattle-page
+ * `animalCategory` filter (`ListCattleQueryDto.animalCategory`, RAKHAL-289 — already wired into
+ * `CattleFilters`/`CattleTable`). Real partition by construction, so no proxy filters needed
+ * anymore (the old `productionBreakdown`-based donut had to fall back to `reproductiveStatus`/
+ * `purpose` proxies for `fresh`/`growing`/calves — moot now, see `types.ts`'s `HerdStatusResponse`
+ * doc comment). */
+const CATEGORY_SLICE_HREF: Record<CategoryKey, string> = {
+  calf: "/cattle?animalCategory=CALF",
+  heifer: "/cattle?animalCategory=HEIFER",
+  cow: "/cattle?animalCategory=COW",
+  bull: "/cattle?animalCategory=BULL",
+  steer: "/cattle?animalCategory=STEER",
+};
+
+/** Reuses `cattle-columns.tsx`'s `ANIMAL_CATEGORY_VARIANT` chip-color convention (info/purple/
+ * primary/indigo/teal) instead of inventing new colors for the same 5 `AnimalCategory` values —
+ * expressed as the matching CSS custom properties (theme-aware, same pattern this dashboard's
+ * other recharts widgets already use for `stroke`/`color`, e.g. `milk-trend-chart-inner.tsx`). */
+const CATEGORY_SLICE_COLOR: Record<CategoryKey, string> = {
+  calf: "var(--info)",
+  heifer: "var(--accent-purple)",
+  cow: "var(--primary)",
+  bull: "var(--accent-indigo)",
+  steer: "var(--accent-teal)",
 };
 
 // Chart rendering is client/DOM-only and not needed for the initial paint — keep it out of the main bundle.
@@ -43,11 +59,16 @@ const HerdStatusChartInner = dynamic(() => import("./herd-status-chart-inner"), 
 });
 
 /** Matches the Figma "Livestock Count" card (732:1737) exactly: one donut, "Total" center label,
- * a legend row below. Figma's mock legend is Cows/Heifers/Bulls/Weiners/Calves (a sex/age split
- * this backend doesn't track) — used the real `productionBreakdown` categories instead (the
- * closest real "what state is the herd in" split `herd-status.ts` actually returns). */
+ * a legend row below. Figma's mock legend is Cows/Heifers/Bulls/Weiners/Calves — now the real
+ * thing: `categoryBreakdown` is a genuine `AnimalCategory` partition (every active cow counted
+ * exactly once), fixing the old donut's math bug where 4 independent overlapping
+ * `productionBreakdown` dimensions were rendered as if they were mutually-exclusive pie slices
+ * (confirmed: a 1-cow farm could show 3 non-zero "slices" for the same cow). Labels/colors reuse
+ * `cattle-columns.tsx`'s `cattle.animalCategory.*` i18n + `ANIMAL_CATEGORY_VARIANT` chip-color
+ * convention rather than inventing new ones for the same 5 values. */
 export function HerdStatusDonut() {
   const t = useTranslations("dashboard.herdStatus");
+  const tCategory = useTranslations("cattle.animalCategory");
   const query = useHerdStatus();
 
   if (query.isLoading) return <CardSkeleton lines={4} className="rounded-2xl" />;
@@ -61,13 +82,12 @@ export function HerdStatusDonut() {
   const data = query.data;
   if (!data) return null;
 
-  const slices: (DonutSlice & { href?: string })[] = [
-    { name: t("production.milking"), value: data.productionBreakdown.milking, color: "#065f46", href: PRODUCTION_SLICE_HREF.milking },
-    { name: t("production.dry"), value: data.productionBreakdown.dry, color: "#047857", href: PRODUCTION_SLICE_HREF.dry },
-    { name: t("production.fresh"), value: data.productionBreakdown.fresh, color: "#10b981", href: PRODUCTION_SLICE_HREF.fresh },
-    { name: t("production.growing"), value: data.productionBreakdown.growing, color: "#6ee7b7", href: PRODUCTION_SLICE_HREF.growing },
-    { name: t("calvesTotal"), value: data.calves.total, color: "#d1fae5", href: "/cattle?purpose=CALF" },
-  ];
+  const slices: (DonutSlice & { href?: string })[] = CATEGORY_ORDER.map((key) => ({
+    name: tCategory(CATEGORY_I18N_KEY[key]),
+    value: data.categoryBreakdown[key],
+    color: CATEGORY_SLICE_COLOR[key],
+    href: CATEGORY_SLICE_HREF[key],
+  }));
 
   return (
     <DashboardCard

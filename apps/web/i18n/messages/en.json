@@ -548,8 +548,7 @@
       "production": {
         "milking": "Milking",
         "dry": "Dry",
-        "fresh": "Fresh",
-        "growing": "Heifer"
+        "fresh": "Fresh"
       },
       "reproductive": {
         "open": "Open",
