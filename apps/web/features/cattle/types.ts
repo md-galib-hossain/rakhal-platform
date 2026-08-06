@@ -191,6 +191,10 @@ export interface CattleFormPayload {
   weightKg?: number;
   color?: string;
   notes?: string;
+  /** RAKHAL-297 — mirrors `CreateCattleDto.priorCalvings` (`@IsOptional() @IsInt() @Min(1)`),
+   * already accepted by the backend. Lets a purchased already-calved cow be recorded correctly as
+   * `COW` (not `HEIFER`) from creation, instead of only via the later status-change dialog. */
+  priorCalvings?: number;
 }
 
 // ---- RFE-023 follow-up: BCS + weight recording (`cattle.constants.ts#BCS_ALLOWED_SCORES`) --------

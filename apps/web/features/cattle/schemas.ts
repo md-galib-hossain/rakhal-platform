@@ -23,6 +23,12 @@ export const cattleFormSchema = z.object({
   weightKg: z.number().min(0).max(2000).optional(),
   color: z.string().trim().optional(),
   notes: z.string().trim().optional(),
+  /** RAKHAL-297: only meaningful when `gender === "FEMALE"` — e.g. a purchased already-calved cow,
+   * so the backend's `deriveAnimalCategory()` correctly lands her as `COW` not `HEIFER` on create.
+   * Same field/validation as `cattleStatusSchema.priorCalvings` above; kept separate rather than
+   * shared since this schema's field is create-time-only and this one has no analogous
+   * `needsPriorCalvings` external-state gate — it's just always offered for a female. */
+  priorCalvings: z.number().int().min(1).optional(),
 });
 export type CattleFormInput = z.infer<typeof cattleFormSchema>;
 

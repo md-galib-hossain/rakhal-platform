@@ -1,14 +1,29 @@
 "use client"; // URL-synced selection + per-category count queries
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { parseAsString, useQueryState } from "nuqs";
-import { Ban, Baby, Milk, Users, Venus } from "lucide-react";
+import { Ban, Baby, Milk, Plus, Users, Venus } from "lucide-react";
+import { Can } from "@/lib/auth/permissions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useCattleCategoryCounts } from "../hooks/use-cattle";
+import { CattleFormDialog } from "./cattle-form-dialog";
+import type { CattleFormInput } from "../schemas";
 import type { CattleListFilters } from "../types";
 
 type CategoryKey = "all" | "milking" | "dry" | "heifer" | "calf";
+
+/** RAKHAL-298 — quick-add prefill per tile. Only Heifer/Calf get one (category tiles); the
+ * production-status tiles (Milking/Dry) aren't a creation concept, and no Bull/Cow/Steer tiles
+ * exist today (a separate, out-of-scope UX decision) so there's nothing to prefill for those. */
+const QUICK_ADD_PREFILL: Partial<Record<CategoryKey, Partial<CattleFormInput>>> = {
+  heifer: { gender: "FEMALE" },
+  calf: {
+    purpose: "CALF",
+    dateOfBirth: new Date().toISOString().slice(0, 10),
+  },
+};
 
 /**
  * RAKHAL-282/283/284: "milking"/"dry" still map onto a real backend query filter
@@ -56,6 +71,10 @@ export function CattleCategoryHighlights() {
   const [, setPurpose] = useQueryState("purpose", parseAsString);
   const counts = useCattleCategoryCounts(CATEGORIES.map(({ key, filters }) => ({ key, filters })));
 
+  // RAKHAL-298: quick-add dialog, owned here rather than duplicating `CattleFormDialog` — opened
+  // with a per-tile prefill (`QUICK_ADD_PREFILL`), `quickAddKey` also picks the prefill back out.
+  const [quickAddKey, setQuickAddKey] = useState<CategoryKey | null>(null);
+
   const active: CategoryKey =
     CATEGORIES.find((c) => {
       if (c.key === "all") return false;
@@ -78,37 +97,67 @@ export function CattleCategoryHighlights() {
         const Icon = cfg.icon;
         const isActive = cfg.key === active;
         const result = counts[i];
+        const quickAddPrefill = QUICK_ADD_PREFILL[cfg.key];
         return (
-          <button
-            key={cfg.key}
-            type="button"
-            onClick={() => selectCategory(cfg.key)}
-            aria-pressed={isActive}
-            className={cn(
-              "flex flex-1 flex-col justify-between gap-3 rounded-xl border p-3 text-left transition-colors",
-              isActive ? "border-primary bg-primary-tint" : "border-border bg-card hover:bg-muted",
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", cfg.iconBg)}>
-                <Icon className={cn("size-4", cfg.iconFg)} />
-              </span>
-              <p className="text-sm font-medium text-foreground">{t(cfg.key)}</p>
-            </div>
-            {result.isLoading ? (
-              <Skeleton className="h-8 w-12" />
-            ) : (
-              <p className="text-2xl font-bold text-foreground">
-                {result.data
-                  ? result.data.meta.hasNextPage
-                    ? `${result.data.items.length}+`
-                    : result.data.items.length
-                  : 0}
-              </p>
-            )}
-          </button>
+          // `relative` wrapper (not the tile itself) carries the quick-add button — the tile stays
+          // a plain <button> (nesting a <button> inside one is invalid HTML/a11y), so quick-add is
+          // a sibling positioned over its top-right corner instead.
+          <div key={cfg.key} className="relative flex-1">
+            <button
+              type="button"
+              onClick={() => selectCategory(cfg.key)}
+              aria-pressed={isActive}
+              className={cn(
+                "flex w-full flex-col justify-between gap-3 rounded-xl border p-3 text-left transition-colors",
+                isActive ? "border-primary bg-primary-tint" : "border-border bg-card hover:bg-muted",
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", cfg.iconBg)}>
+                  <Icon className={cn("size-4", cfg.iconFg)} />
+                </span>
+                <p className="text-sm font-medium text-foreground">{t(cfg.key)}</p>
+              </div>
+              {result.isLoading ? (
+                <Skeleton className="h-8 w-12" />
+              ) : (
+                <p className="text-2xl font-bold text-foreground">
+                  {result.data
+                    ? result.data.meta.hasNextPage
+                      ? `${result.data.items.length}+`
+                      : result.data.items.length
+                    : 0}
+                </p>
+              )}
+            </button>
+            {quickAddPrefill ? (
+              <Can I="cattle.create">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setQuickAddKey(cfg.key);
+                  }}
+                  aria-label={t("quickAdd", { category: t(cfg.key) })}
+                  title={t("quickAdd", { category: t(cfg.key) })}
+                  className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xs transition-colors hover:bg-primary/90"
+                >
+                  <Plus className="size-3" aria-hidden />
+                </button>
+              </Can>
+            ) : null}
+          </div>
         );
       })}
+      {quickAddKey ? (
+        <CattleFormDialog
+          open={Boolean(quickAddKey)}
+          onOpenChange={(open) => {
+            if (!open) setQuickAddKey(null);
+          }}
+          initialValues={QUICK_ADD_PREFILL[quickAddKey]}
+        />
+      ) : null}
     </div>
   );
 }

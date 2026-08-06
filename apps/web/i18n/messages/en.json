@@ -684,7 +684,8 @@
       "milking": "Milking",
       "dry": "Dry",
       "heifer": "Heifer",
-      "calf": "Calf"
+      "calf": "Calf",
+      "quickAdd": "Quick-add {category}"
     },
     "filters": {
       "searchPlaceholder": "Find Cow by name or id",
@@ -820,7 +821,11 @@
       "createdToast": "Cattle added.",
       "updatedToast": "Cattle updated.",
       "genericError": "Something went wrong. Please try again.",
-      "photoGenericError": "Cattle saved, but the photo failed to upload. Try again from Edit."
+      "photoGenericError": "Cattle saved, but the photo failed to upload. Try again from Edit.",
+      "priorCalvings": "Number of prior calvings",
+      "priorCalvingsHint": "If this cow has already calved before (e.g. purchased), enter how many times so she's correctly recorded as a Cow, not a Heifer.",
+      "willBeAddedAs": "Will be added as:",
+      "currentCategory": "Category:"
     },
     "statusDialog": {
       "title": "Change status — {name}",

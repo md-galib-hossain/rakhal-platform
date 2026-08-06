@@ -1,7 +1,7 @@
 "use client"; // form state + mutation + staged photo upload
 
 import { useRef, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CattlePicker } from "@/components/shared/cattle-picker";
+import { Chip, type ChipProps } from "@/components/ui/chip";
 import {
   LabeledInput,
   LabeledSelectTrigger,
@@ -35,7 +36,8 @@ import {
   useUpdateCattle,
 } from "../hooks/use-cattle";
 import { cattleFormSchema, type CattleFormInput } from "../schemas";
-import type { CattleDetail, CattleFormPayload } from "../types";
+import { deriveAnimalCategoryPreview } from "../utils/animal-category-preview";
+import type { AnimalCategory, CattleDetail, CattleFormPayload } from "../types";
 
 const UNSET = "__unset__";
 const ADD_NEW_BREED = "__add_new_breed__";
@@ -50,6 +52,17 @@ const PURPOSES = [
   "DUAL_PURPOSE",
 ] as const;
 const SOURCE_TYPES = ["BORN", "PURCHASED", "GIFTED", "UNKNOWN"] as const;
+
+/** RAKHAL-270 chip colors — mirrors `cattle-columns.tsx`'s `ANIMAL_CATEGORY_VARIANT` (kept
+ * per-file, same reasoning as `cattle-profile-card.tsx`'s own copy: no shared cross-feature
+ * constants module exists for this yet). */
+const ANIMAL_CATEGORY_VARIANT: Record<AnimalCategory, ChipProps["variant"]> = {
+  CALF: "info",
+  HEIFER: "purple",
+  COW: "primary",
+  BULL: "indigo",
+  STEER: "teal",
+};
 
 /** Strips the `""`/`UNSET` sentinel back to `undefined` before hitting the API — the backend's
  * optional string fields reject an empty string differently than an omitted key in some paths
@@ -72,13 +85,15 @@ function toPayload(values: CattleFormInput): CattleFormPayload {
     weightKg: values.weightKg,
     color: clean(values.color),
     notes: clean(values.notes),
+    priorCalvings: values.gender === "FEMALE" ? values.priorCalvings : undefined,
   };
 }
 
 function toFormDefaults(
   cattle: CattleDetail | undefined,
+  initialValues: Partial<CattleFormInput> | undefined,
 ): Partial<CattleFormInput> {
-  if (!cattle) return { gender: "FEMALE", purpose: "MILK" };
+  if (!cattle) return { gender: "FEMALE", purpose: "MILK", ...initialValues };
   return {
     name: cattle.name ?? "",
     tagNumber: cattle.tagNumber,
@@ -179,10 +194,15 @@ export function CattleFormDialog({
   open,
   onOpenChange,
   cattle,
+  initialValues,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   cattle?: CattleDetail;
+  /** RAKHAL-298 — create-mode-only prefill (e.g. the category-highlight tiles' quick-add: Heifer
+   * prefills `gender: "FEMALE"`, Calf prefills `purpose: "CALF"` + today's `dateOfBirth`). Ignored
+   * when `cattle` is set (edit mode always loads the existing cow's own values). */
+  initialValues?: Partial<CattleFormInput>;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -196,6 +216,7 @@ export function CattleFormDialog({
           key={cattle?.id ?? "create"}
           onOpenChange={onOpenChange}
           cattle={cattle}
+          initialValues={initialValues}
         />
       ) : null}
     </Dialog>
@@ -205,11 +226,14 @@ export function CattleFormDialog({
 function CattleFormDialogBody({
   onOpenChange,
   cattle,
+  initialValues,
 }: {
   onOpenChange: (open: boolean) => void;
   cattle?: CattleDetail;
+  initialValues?: Partial<CattleFormInput>;
 }) {
   const t = useTranslations("cattle.form");
+  const tCategory = useTranslations("cattle.animalCategory");
   const isEdit = Boolean(cattle);
 
   const breeds = useBreeds();
@@ -227,8 +251,21 @@ function CattleFormDialogBody({
 
   const form = useForm<CattleFormInput>({
     resolver: zodResolver(cattleFormSchema),
-    defaultValues: toFormDefaults(cattle),
+    defaultValues: toFormDefaults(cattle, initialValues),
   });
+
+  // RAKHAL-297: recompute the create-mode category preview as gender/DOB/priorCalvings change —
+  // `useWatch` (not `form.watch`) so only this subscription re-renders, not the whole form.
+  const watchedGender = useWatch({ control: form.control, name: "gender" });
+  const watchedDob = useWatch({ control: form.control, name: "dateOfBirth" });
+  const watchedPriorCalvings = useWatch({ control: form.control, name: "priorCalvings" });
+  const previewCategory: AnimalCategory | null = isEdit
+    ? null
+    : deriveAnimalCategoryPreview({
+        gender: watchedGender,
+        dateOfBirth: watchedDob,
+        priorCalvings: watchedPriorCalvings,
+      });
 
   const pending =
     createCattle.isPending ||
@@ -429,8 +466,46 @@ function CattleFormDialogBody({
                   </Select>
                 )}
               />
+              {/* RAKHAL-297: only meaningful for a female (a purchased already-calved cow needs
+                  this so she lands as `COW` not `HEIFER` on create) — hidden entirely for
+                  MALE/CASTRATED_MALE rather than disabled, since it has no effect for them. */}
+              {watchedGender === "FEMALE" ? (
+                <div className="col-span-2 flex flex-col gap-1.5">
+                  <LabeledInput
+                    id="priorCalvings"
+                    type="number"
+                    min={1}
+                    step={1}
+                    label={t("priorCalvings")}
+                    error={form.formState.errors.priorCalvings?.message}
+                    {...form.register("priorCalvings", {
+                      setValueAs: (v) => (v === "" ? undefined : Number(v)),
+                    })}
+                  />
+                  <p className="text-muted-foreground text-xs">{t("priorCalvingsHint")}</p>
+                </div>
+              ) : null}
             </div>
           </div>
+
+          {/* RAKHAL-297: create-mode live preview of the derived `AnimalCategory` (UI-mirror only,
+              see `animal-category-preview.ts` doc comment) — on the edit path this shows the real
+              server-provided `cattle.animalCategory` instead of guessing from form state. */}
+          {previewCategory ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              {t("willBeAddedAs")}
+              <Chip variant={ANIMAL_CATEGORY_VARIANT[previewCategory]}>
+                {tCategory(previewCategory)}
+              </Chip>
+            </div>
+          ) : isEdit && cattle ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              {t("currentCategory")}
+              <Chip variant={ANIMAL_CATEGORY_VARIANT[cattle.animalCategory]}>
+                {tCategory(cattle.animalCategory)}
+              </Chip>
+            </div>
+          ) : null}
 
           {/* Not pictured in Figma (only "Basic Info" is designed) — same visual language,
                 covers the remaining CreateCattleDto fields per PRD §8 rather than dropping them. */}
