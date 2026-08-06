@@ -21,7 +21,10 @@ import { FinanceService } from 'src/modules/finance/application/services/finance
 import { MilkService } from 'src/modules/milk/application/services/milk.service';
 import { HealthService } from 'src/modules/health/application/services/health.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
-import { deriveAnimalCategory } from 'src/modules/cattle/domain/animal-category';
+import {
+  ANIMAL_CATEGORIES,
+  buildAnimalCategoryWhere,
+} from 'src/modules/cattle/domain/animal-category';
 import { deriveLactationStage } from 'src/modules/reproduction/domain/lactation-stage';
 import { DashboardPeriod } from '../../presentation/dto/dashboard-query.dto';
 
@@ -186,11 +189,12 @@ export class DashboardService {
       repro,
       milkingCount,
       dryCount,
-      activeCases,
+      healthCaseByStatus,
       withholding,
       calves,
       femaleCattle,
       settings,
+      categoryCounts,
     ] = await Promise.all([
       this.prisma.cattle.count({
         where: {
@@ -222,12 +226,17 @@ export class DashboardService {
           productionStatus: ProductionStatus.DRY,
         },
       }),
-      this.prisma.healthCase.count({
+      // Grouped by status (not a flat count) so `sick`/`inTreatment` below can
+      // mirror `deriveHealthStatus()`'s own precedence (`domain/health-status.ts`)
+      // instead of both reusing the same combined number.
+      this.prisma.healthCase.groupBy({
+        by: ['status'],
         where: {
           farmId,
           isActive: true,
           status: { in: ACTIVE_CASE_STATUSES },
         },
+        _count: { _all: true },
       }),
       this.prisma.safetyWithdrawal.count({
         where: { farmId, status: SafetyWithdrawalStatus.ACTIVE },
@@ -236,10 +245,9 @@ export class DashboardService {
         where: { farmId, isActive: true, purpose: CattlePurpose.CALF },
         select: { dateOfBirth: true },
       }),
-      // Backing data for the real "fresh"/"growing" counts below (RAKHAL-270's
-      // AnimalCategory + RAKHAL-273's LactationStage, now that both exist —
-      // this used to proxy off retired ReproductiveStatus values, see the
-      // removed comment this replaces).
+      // Backing data for the real "fresh" count below (RAKHAL-273's
+      // LactationStage — this used to proxy off retired ReproductiveStatus
+      // values, see the removed comment this replaces).
       this.prisma.cattle.findMany({
         where: { farmId, isActive: true, gender: CattleGender.FEMALE },
         select: {
@@ -259,29 +267,51 @@ export class DashboardService {
         },
       }),
       this.farmSettings.getEffective(farmId),
+      // The one TRUE mutually-exclusive partition of the herd (every active
+      // cow has exactly one AnimalCategory) — reuses the same pure
+      // `buildAnimalCategoryWhere()` the Cattle list filter uses (RAKHAL-289),
+      // so this can never drift from that filter's own definition.
+      Promise.all(
+        ANIMAL_CATEGORIES.map((category) =>
+          this.prisma.cattle.count({
+            where: {
+              farmId,
+              isActive: true,
+              ...buildAnimalCategoryWhere(category, now),
+            },
+          }),
+        ),
+      ),
     ]);
 
     const reproCount = (s: ReproductionState) =>
       repro.find((r) => r.reproductiveStatus === s)?._count._all ?? 0;
+
+    // Mirrors `deriveHealthStatus()`'s precedence (`domain/health-status.ts`):
+    // any open case whose status has moved past ACTIVE reads as in-treatment;
+    // a still-ACTIVE case reads as sick.
+    const sick =
+      healthCaseByStatus.find((r) => r.status === HealthCaseStatus.ACTIVE)
+        ?._count._all ?? 0;
+    const inTreatment = healthCaseByStatus
+      .filter((r) => r.status !== HealthCaseStatus.ACTIVE)
+      .reduce((sum, r) => sum + r._count._all, 0);
+    const activeCases = sick + inTreatment;
     const healthy = Math.max(totalActive - activeCases, 0);
 
-    // "Growing" = real AnimalCategory.HEIFER (not-yet-calved female past the
-    // calf-weaning cutoff); "Fresh" = real LactationStage.FRESH (early days in
-    // milk on the active lactation). Both now derived per-cow from the same
-    // pure functions the Cattle module uses (`deriveAnimalCategory`,
-    // `deriveLactationStage`), not a stale ReproductiveStatus proxy.
-    let growing = 0;
+    const categoryBreakdown = Object.fromEntries(
+      ANIMAL_CATEGORIES.map((category, i) => [
+        category.toLowerCase(),
+        categoryCounts[i],
+      ]),
+    ) as Record<Lowercase<(typeof ANIMAL_CATEGORIES)[number]>, number>;
+
+    // "Fresh" = real LactationStage.FRESH (early days in milk on the active
+    // lactation), derived per-cow via the same pure function the Cattle
+    // module uses (`deriveLactationStage`), not a stale ReproductiveStatus
+    // proxy.
     let fresh = 0;
     for (const cow of femaleCattle) {
-      const category = deriveAnimalCategory({
-        gender: 'FEMALE',
-        dateOfBirth: cow.dateOfBirth,
-        totalCalvings: cow.reproductionProfile?.totalCalvings ?? 0,
-        now,
-      });
-      if (category === 'HEIFER') {
-        growing += 1;
-      }
       const lactationStage = deriveLactationStage({
         now,
         lactationStartDate: cow.lactations[0]?.startDate ?? null,
@@ -303,8 +333,8 @@ export class DashboardService {
         milking: milkingCount,
         dry: dryCount,
         fresh,
-        growing,
       },
+      categoryBreakdown,
       reproductiveBreakdown: {
         open: reproCount(ReproductionState.OPEN),
         // v2 correction: RAKHAL-271's split renamed INSEMINATED to
@@ -315,8 +345,8 @@ export class DashboardService {
       },
       healthBreakdown: {
         healthy,
-        sick: activeCases,
-        inTreatment: activeCases,
+        sick,
+        inTreatment,
         withholding,
       },
       calves: this.calfStageCounts(

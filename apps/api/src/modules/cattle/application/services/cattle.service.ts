@@ -37,14 +37,10 @@ import { MediaCategory, MediaUsage } from '@prisma/client';
 import { VWP_DEFAULT_DAYS } from '../../domain/cattle.constants';
 import { deriveHealthStatus } from '../../domain/health-status';
 import {
+  buildAnimalCategoryWhere,
   deriveAnimalCategory,
-  type AnimalCategory,
   type AnimalCategoryGender,
 } from '../../domain/animal-category';
-import {
-  DAY_MS,
-  DEFAULT_WEANING_DAYS,
-} from 'src/modules/calf/domain/calf-stage';
 // RAKHAL-279: reuse the reproduction module's already-exported PURE domain
 // functions/types directly (deliberately not `ReproductionService` itself —
 // see the `composeStatus()` doc comment below for why). These files have no
@@ -312,7 +308,7 @@ export class CattleService {
         : {}),
       ...(query.healthStatus ? this.healthStatusWhere(query.healthStatus) : {}),
       ...(query.animalCategory
-        ? this.animalCategoryWhere(query.animalCategory, new Date())
+        ? buildAnimalCategoryWhere(query.animalCategory, new Date())
         : {}),
     };
 
@@ -1500,62 +1496,6 @@ export class CattleService {
       default:
         // Quarantine is not tracked yet (deferred to Healthcare) — match none.
         return { id: '__none__' };
-    }
-  }
-
-  /** Prisma `where` fragment for the derived `animalCategory` list filter
-   * (RAKHAL-289, PRD §8.1) — `animalCategory` is never stored, so this
-   * mirrors `deriveAnimalCategory()` (`../../domain/animal-category.ts`)
-   * exactly rather than reading a column. CALF is age-only (any gender,
-   * `dateOfBirth` above the weaning cutoff — a missing `dateOfBirth` never
-   * matches CALF, same as the domain function's fallthrough). The other 4
-   * categories gate on gender + "not a calf by age" (a missing `dateOfBirth`
-   * passes this gate, same fallthrough) + calving count via the nullable
-   * `reproductionProfile` relation — a heifer with zero reproduction history
-   * has **no** profile row at all (not `totalCalvings: 0`), which is exactly
-   * bug RAKHAL-289 was filed over, so HEIFER matches `reproductionProfile:
-   * null` OR `totalCalvings: 0`. */
-  private animalCategoryWhere(
-    category: AnimalCategory,
-    now: Date,
-  ): Prisma.CattleWhereInput {
-    const weaningCutoff = new Date(
-      now.getTime() - DEFAULT_WEANING_DAYS * DAY_MS,
-    );
-    const notCalfByAge: Prisma.CattleWhereInput = {
-      OR: [{ dateOfBirth: null }, { dateOfBirth: { lt: weaningCutoff } }],
-    };
-
-    switch (category) {
-      case 'CALF':
-        return { dateOfBirth: { gte: weaningCutoff } };
-      case 'HEIFER':
-        return {
-          AND: [
-            { gender: CattleGender.FEMALE },
-            notCalfByAge,
-            {
-              OR: [
-                { reproductionProfile: null },
-                { reproductionProfile: { totalCalvings: 0 } },
-              ],
-            },
-          ],
-        };
-      case 'COW':
-        return {
-          AND: [
-            { gender: CattleGender.FEMALE },
-            notCalfByAge,
-            { reproductionProfile: { totalCalvings: { gt: 0 } } },
-          ],
-        };
-      case 'BULL':
-        return { AND: [{ gender: CattleGender.MALE }, notCalfByAge] };
-      case 'STEER':
-        return {
-          AND: [{ gender: CattleGender.CASTRATED_MALE }, notCalfByAge],
-        };
     }
   }
 
