@@ -13,6 +13,7 @@ import { CattleModule } from '../cattle/cattle.module';
 import { ReproductionService } from './application/services/reproduction.service';
 import { ReproProtocolService } from './application/services/repro-protocol.service';
 import { LactationStatsService } from './application/services/lactation-stats.service';
+import { LactationEconomicsService } from './application/services/lactation-economics.service';
 import { CattleReproductionController } from './presentation/controllers/cattle-reproduction.controller';
 import { ReproductionController } from './presentation/controllers/reproduction.controller';
 import { ReproProtocolController } from './presentation/controllers/repro-protocol.controller';
@@ -42,7 +43,12 @@ import { LactationController } from './presentation/lactation.controller';
     ReproProtocolController,
     LactationController,
   ],
-  providers: [ReproductionService, ReproProtocolService, LactationStatsService],
+  providers: [
+    ReproductionService,
+    ReproProtocolService,
+    LactationStatsService,
+    LactationEconomicsService,
+  ],
   exports: [ReproductionService],
 })
 export class ReproductionModule {}

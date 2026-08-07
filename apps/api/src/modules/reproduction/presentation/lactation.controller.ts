@@ -16,6 +16,7 @@ import { PermissionGuard } from 'src/modules/permission/presentation/guards/perm
 import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { LactationStatsService } from '../application/services/lactation-stats.service';
+import { LactationEconomicsService } from '../application/services/lactation-economics.service';
 import { LactationCurveQueryDto } from './dto/lactation-curve-query.dto';
 import { UpdatePlannedDryOffDto } from './dto/update-planned-dry-off.dto';
 import { CompareLactationQueryDto } from './dto/compare-lactation-query.dto';
@@ -45,7 +46,10 @@ import { CompareLactationGroupsQueryDto } from './dto/compare-lactation-groups-q
   SubscriptionGuard,
 )
 export class LactationController {
-  constructor(private readonly lactationStatsService: LactationStatsService) {}
+  constructor(
+    private readonly lactationStatsService: LactationStatsService,
+    private readonly lactationEconomicsService: LactationEconomicsService,
+  ) {}
 
   /**
    * RAKHAL-287: current vs. previous lactation for one cow, DIM-aligned.
@@ -97,6 +101,17 @@ export class LactationController {
       id,
       query.compareLactationId,
     );
+  }
+
+  /**
+   * RAKHAL-289: milk revenue minus allocated feed/medicine/breeding/
+   * discarded-withheld-milk cost, alongside the biological view — the two
+   * are returned side by side, never blended into one score.
+   */
+  @Get(':id/economics')
+  @RequirePermission('reproduction.read')
+  getEconomics(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.lactationEconomicsService.getEconomics(farmId, id);
   }
 
   /**
