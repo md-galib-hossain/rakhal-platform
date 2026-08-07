@@ -3,6 +3,7 @@ import { Transform } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
@@ -98,4 +99,13 @@ export class UpdateCattleDto implements Partial<CreateCattleDto> {
   @Transform(trimString)
   @IsString()
   notes?: string;
+
+  /** RAKHAL-291 profile-edit counterpart: same field as `CreateCattleDto`/
+   * `UpdateCattleStatusDto` — corrects/backfills real prior-calving history
+   * (e.g. a purchased already-calved cow) so the derived `animalCategory`
+   * (HEIFER→COW) reflects it. See `CattleService.update()`. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  priorCalvings?: number;
 }

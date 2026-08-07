@@ -352,31 +352,52 @@ export class CattleService {
     await this.validateParentRules(farmId, id, dto);
 
     try {
-      const cattle = await this.prisma.cattle.update({
-        where: { id },
-        data: {
-          name: dto.name,
-          tagNumber: dto.tagNumber,
-          image: dto.image,
-          breedId: dto.breedId,
-          gender: dto.gender,
-          dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
-          purpose: dto.purpose,
-          status: dto.status,
-          productionStatus: dto.productionStatus,
-          shedId: dto.shedId,
-          feedGroupId: dto.feedGroupId,
-          lastWeightKg: dto.weightKg,
-          motherId: dto.motherId,
-          fatherId: dto.fatherId,
-          sourceType: dto.sourceType,
-          color: dto.color,
-          notes: dto.notes,
-          ...(dto.status
-            ? { isActive: dto.status !== CattleStatus.ARCHIVED }
-            : {}),
-        },
-        include: this.defaultInclude(),
+      const cattle = await this.prisma.$transaction(async (tx) => {
+        const updated = await tx.cattle.update({
+          where: { id },
+          data: {
+            name: dto.name,
+            tagNumber: dto.tagNumber,
+            image: dto.image,
+            breedId: dto.breedId,
+            gender: dto.gender,
+            dateOfBirth: dto.dateOfBirth
+              ? new Date(dto.dateOfBirth)
+              : undefined,
+            purpose: dto.purpose,
+            status: dto.status,
+            productionStatus: dto.productionStatus,
+            shedId: dto.shedId,
+            feedGroupId: dto.feedGroupId,
+            lastWeightKg: dto.weightKg,
+            motherId: dto.motherId,
+            fatherId: dto.fatherId,
+            sourceType: dto.sourceType,
+            color: dto.color,
+            notes: dto.notes,
+            ...(dto.status
+              ? { isActive: dto.status !== CattleStatus.ARCHIVED }
+              : {}),
+          },
+        });
+
+        // RAKHAL-291 profile-edit counterpart: `priorCalvings` here backfills/
+        // corrects real prior-calving history on the profile-edit form (as
+        // opposed to `updateStatus()`'s purchase-intake MILKING flow), so the
+        // read-derived `animalCategory` (HEIFER→COW, see `animal-category.ts`)
+        // reflects it immediately rather than needing a calving event.
+        if (dto.priorCalvings !== undefined) {
+          await tx.reproductionProfile.upsert({
+            where: { cattleId: id },
+            update: { totalCalvings: dto.priorCalvings },
+            create: { cattleId: id, totalCalvings: dto.priorCalvings },
+          });
+        }
+
+        return tx.cattle.findUniqueOrThrow({
+          where: { id: updated.id },
+          include: this.defaultInclude(),
+        });
       });
 
       this.log.info('Cattle updated', { cattleId: id, farmId });
