@@ -212,6 +212,70 @@ export interface LactationRow {
   peakMilkDate: string | null;
   status: LactationStatus;
   createdAt: string;
+  /** RAKHAL-285/290 — always present on the raw Prisma row (no `select` narrowing on the
+   * `GET /reproduction/lactations` list route, verified live), just not previously typed. */
+  endReason: string | null;
+  recommendedDryOffAt: string | null;
+  plannedDryOffAt: string | null;
+}
+
+/** `POST /reproduction/calving-events` response (RAKHAL-290) — the created `CalvingEventRow` plus,
+ * when the dam still had an ACTIVE lactation (a missed dry-off), the now-auto-closed `LactationRow`
+ * so the UI can surface it instead of this being a silent correction. Null in the normal case. */
+export interface CreateCalvingEventResult extends CalvingEventRow {
+  closedMissingDryOffLactation: LactationRow | null;
+}
+
+/** Lactation-to-date totals, split by `MilkDisposition` — `LactationStatsService`'s
+ * `totalsByDisposition()` (`reproduction/domain/lactation-yield.ts`), confirmed by reading the
+ * backend source directly. */
+export interface LactationTotalsByDisposition {
+  produced: number;
+  saleable: number;
+  withheld: number;
+  colostrum: number;
+  calfFeed: number;
+  discarded: number;
+  householdUse: number;
+}
+
+export interface LactationPeak {
+  yieldL: number;
+  date: string;
+  dim: number;
+}
+
+/** `reproduction/domain/lactation-persistency.ts#computeLactationPersistency` — always returned
+ * with every input value alongside the derived percentages, per that file's own doc comment, so a
+ * consumer never has to show `persistencyPct` without its inputs. */
+export interface LactationPersistency {
+  currentSevenDayAvgYield: number;
+  peakMilkYield: number;
+  peakDaysInMilk: number;
+  daysSincePeak: number;
+  persistencyPct: number;
+  declinePct: number;
+}
+
+/**
+ * `GET /reproduction/lactations/:id/stats` (RAKHAL-283/284, `LactationController.getStats` →
+ * `LactationStatsService.getStats`) — verified against the backend source directly, not guessed.
+ * The backend also returns dry-off-projection + `standardized305DayYield` fields (RAKHAL-285/289)
+ * that belong to other tickets' UI (dry-off flow, 305-day comparisons) — deliberately left off
+ * this type rather than partially modeled; extend here if a future card needs them.
+ */
+export interface LactationStatsResponse {
+  lactationId: string;
+  cattleId: string;
+  tagNumber: string;
+  startDate: string;
+  endDate: string | null;
+  today: number;
+  sevenDayAvgYield: number;
+  thirtyDayAvgYield: number;
+  lactationToDate: LactationTotalsByDisposition;
+  peak: LactationPeak | null;
+  persistency: LactationPersistency | null;
 }
 
 /** Return shape of `POST /reproduction/cattle/:id/dry-off` (RD-038 + RAKHAL-274's `reason`). */
@@ -312,4 +376,68 @@ export interface ProtocolInstanceListFilters {
   protocolId?: string;
   cattleId?: string;
   status?: ProtocolInstanceStatus;
+}
+
+// ---- Lactation curve + comparisons (RAKHAL-283/287) ------------------------
+
+/** Per-day data-quality marker (`lactation-curve.ts`'s `buildDailyYieldSeries`) — a day is flagged
+ * rather than silently zero-filled: `missing` (no session recorded), `incomplete` (some but not all
+ * of the farm's configured active sessions recorded), `complete` otherwise. */
+export type DimDataQuality = "complete" | "incomplete" | "missing";
+
+export interface DailyYieldPoint {
+  dim: number;
+  date: string;
+  yieldL: number;
+  sessionsRecorded: number;
+  sessionsExpected: number;
+  dataQuality: DimDataQuality;
+}
+
+/** `GET /reproduction/lactations/:id/curve` (RAKHAL-283) response — `compareSeries` present only
+ * when `?compareLactationId=` was passed, each series independently DIM-indexed from its own `dim=0`. */
+export interface LactationCurveResponse {
+  lactationId: string;
+  cattleId: string;
+  series: DailyYieldPoint[];
+  compareLactationId: string | null;
+  compareCattleId: string | null;
+  compareSeries: DailyYieldPoint[] | null;
+}
+
+/** One side of `GET /reproduction/lactations/compare` (RAKHAL-287) — partial mirror of the backend's
+ * `LactationComparisonSummary`, only the fields this frontend reads. */
+export interface LactationComparisonSummary {
+  lactationId: string;
+  lactationNumber: number;
+  startDate: string;
+  endDate: string | null;
+  dim: number;
+  sevenDayAvgYield: number;
+}
+
+/** `GET /reproduction/lactations/compare?cattleId=&byLactationNumber=` — current vs. previous
+ * lactation for one cow, DIM-aligned (not calendar-date aligned). `previous`/`alignedSeries`'
+ * `previousYieldL` are `null` when the cow has no previous lactation yet. */
+export interface LactationCompareResponse {
+  cattleId: string;
+  tagNumber: string;
+  byLactationNumber: boolean;
+  current: LactationComparisonSummary;
+  previous: LactationComparisonSummary | null;
+  alignedSeries: { dim: number; currentYieldL: number | null; previousYieldL: number | null }[];
+}
+
+export type LactationComparisonGroupBy = "parity" | "shed" | "feedGroup" | "dimRange";
+
+/** One bucket of `GET /reproduction/lactations/compare/groups?groupBy=` — farm-level average
+ * yield/peak/persistency across all active lactations, partitioned by `groupBy`. */
+export interface LactationGroupBucketResult {
+  bucketKey: string;
+  bucketLabel: string;
+  cowCount: number;
+  avgDim: number;
+  avgSevenDayYield: number;
+  avgPeakMilkYield: number | null;
+  avgPersistencyPct: number | null;
 }

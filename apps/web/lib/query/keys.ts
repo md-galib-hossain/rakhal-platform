@@ -61,6 +61,7 @@ export const qk = {
     log: (date: string | undefined, shedId: string | undefined) => ["milk", "log", date, shedId] as const,
     anomalies: (date: string | undefined) => ["milk", "anomalies", date] as const,
     eligibility: (cattleId: string) => ["milk", "eligibility", cattleId] as const,
+    qualityTests: (cattleId: string) => ["milk", "quality-tests", cattleId] as const,
   },
   inventory: {
     medicineDetail: (id: string) => ["inventory", "medicine", "detail", id] as const,
@@ -106,6 +107,14 @@ export const qk = {
     calvingEvents: (cattleId: string | undefined) => ["reproduction", "calving-events", cattleId] as const,
     abortionEvents: (cattleId: string | undefined) => ["reproduction", "abortion-events", cattleId] as const,
     lactations: (cattleId: string | undefined) => ["reproduction", "lactations", cattleId] as const,
+    lactationCurve: (lactationId: string | undefined, compareLactationId: string | undefined) =>
+      ["reproduction", "lactations", "curve", lactationId, compareLactationId] as const,
+    /** RAKHAL-291-F. */
+    lactationStats: (lactationId: string | undefined) => ["reproduction", "lactations", "stats", lactationId] as const,
+    lactationCompare: (cattleId: string | undefined, byLactationNumber: boolean) =>
+      ["reproduction", "lactations", "compare", cattleId, byLactationNumber] as const,
+    lactationCompareGroups: (groupBy: string) =>
+      ["reproduction", "lactations", "compare-groups", groupBy] as const,
     protocols: () => ["reproduction", "protocols", "list"] as const,
     protocolKpis: () => ["reproduction", "protocols", "kpis"] as const,
     protocol: (id: string) => ["reproduction", "protocols", "detail", id] as const,

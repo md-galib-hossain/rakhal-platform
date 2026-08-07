@@ -7,9 +7,15 @@ import type {
   ApplyProtocolResult,
   BreedingEventRow,
   CalvingEventRow,
+  CreateCalvingEventResult,
   DryPeriodRow,
   HeatEventRow,
+  LactationCompareResponse,
+  LactationComparisonGroupBy,
+  LactationCurveResponse,
+  LactationGroupBucketResult,
   LactationRow,
+  LactationStatsResponse,
   PregnancyRow,
   ProtocolDetail,
   ProtocolInstance,
@@ -82,8 +88,10 @@ export const reproductionApi = {
       searchParams: { cattleId, cursor, limit },
     });
   },
-  createCalvingEvent(input: CreateCalvingEventInput): Promise<CalvingEventRow> {
-    return apiFetch<CalvingEventRow>("/reproduction/calving-events", { method: "POST", body: input });
+  /** RAKHAL-297-F: return type widened to `CreateCalvingEventResult` — the backend now also returns
+   * `closedMissingDryOffLactation` (RAKHAL-290) when the dam still had an ACTIVE lactation. */
+  createCalvingEvent(input: CreateCalvingEventInput): Promise<CreateCalvingEventResult> {
+    return apiFetch<CreateCalvingEventResult>("/reproduction/calving-events", { method: "POST", body: input });
   },
 
   abortionEvents(cattleId?: string, cursor?: string, limit = 20): Promise<CursorPage<AbortionEventRow>> {
@@ -98,10 +106,43 @@ export const reproductionApi = {
   lactations(cattleId?: string, cursor?: string, limit = 20): Promise<CursorPage<LactationRow>> {
     return apiFetchPage<LactationRow>("/reproduction/lactations", { searchParams: { cattleId, cursor, limit } });
   },
+  /** RAKHAL-291-F/283/284 — today/7d/30d yield, lactation-to-date totals by disposition, peak,
+   * persistency for the cow profile's Lactation Summary card. */
+  lactationStats(lactationId: string): Promise<LactationStatsResponse> {
+    return apiFetch<LactationStatsResponse>(`/reproduction/lactations/${lactationId}/stats`);
+  },
+
+  /** RAKHAL-292-F. Daily-yield-by-DIM series with data-quality markers (RAKHAL-283); optional
+   * `compareLactationId` requests a second DIM-aligned series for overlay charting. */
+  lactationCurve(lactationId: string, compareLactationId?: string): Promise<LactationCurveResponse> {
+    return apiFetch<LactationCurveResponse>(`/reproduction/lactations/${lactationId}/curve`, {
+      searchParams: { compareLactationId },
+    });
+  },
+  /** RAKHAL-287 — current vs. previous lactation for one cow, DIM-aligned. */
+  compareLactations(cattleId: string, byLactationNumber = true): Promise<LactationCompareResponse> {
+    return apiFetch<LactationCompareResponse>("/reproduction/lactations/compare", {
+      searchParams: { cattleId, byLactationNumber },
+    });
+  },
+  /** RAKHAL-287 — farm-level average yield/peak/persistency, bucketed by `groupBy`. */
+  compareLactationGroups(groupBy: LactationComparisonGroupBy): Promise<LactationGroupBucketResult[]> {
+    return apiFetch<LactationGroupBucketResult[]>("/reproduction/lactations/compare/groups", {
+      searchParams: { groupBy },
+    });
+  },
 
   /** RD-038 + RAKHAL-274 — `cattleId` is the route param, not part of the body. */
   recordDryOff(cattleId: string, input: CreateDryOffInput): Promise<DryPeriodRow> {
     return apiFetch<DryPeriodRow>(`/reproduction/cattle/${cattleId}/dry-off`, { method: "POST", body: input });
+  },
+  /** RAKHAL-285/297-F — farmer-set target dry-off date, lighter-weight than `recordDryOff` (doesn't
+   * end the lactation). `plannedDryOffAt: null` clears it back to unset. */
+  updatePlannedDryOff(lactationId: string, plannedDryOffAt: string | null): Promise<LactationRow> {
+    return apiFetch<LactationRow>(`/reproduction/lactations/${lactationId}/planned-dry-off`, {
+      method: "PATCH",
+      body: { plannedDryOffAt },
+    });
   },
 
   // Protocols (RAKHAL-214) — `reproduction/protocols*`.

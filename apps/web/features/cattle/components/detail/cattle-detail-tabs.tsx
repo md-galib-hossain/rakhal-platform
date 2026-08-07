@@ -10,7 +10,7 @@ import { ReproductionTab } from "./reproduction-tab";
 import { HealthTab } from "./health-tab";
 import { FinanceTab } from "./finance-tab";
 import { PedigreeTab } from "./pedigree-tab";
-import type { CattleGender } from "../../types";
+import type { CattleGender, LactationStage } from "../../types";
 
 const TABS = ["overview", "reproduction", "health", "finance", "pedigree"] as const;
 type TabKey = (typeof TABS)[number];
@@ -19,7 +19,17 @@ type TabKey = (typeof TABS)[number];
  * 5 detail tabs — muted track, active tab a raised white pill with a primary-green icon+label,
  * inactive tabs plain muted-grey. URL-synced (`?tab=`) so a tab is bookmarkable/shareable, same
  * `nuqs` pattern the cattle list's filters already use. */
-export function CattleDetailTabs({ cattleId, gender }: { cattleId: string; gender: CattleGender }) {
+export function CattleDetailTabs({
+  cattleId,
+  gender,
+  lactationStage,
+}: {
+  cattleId: string;
+  gender: CattleGender;
+  /** RAKHAL-291-F — already computed server-side on `CattleDetail` (RAKHAL-273); threaded through
+   * so the Reproduction tab's Lactation Summary card doesn't need a second fetch for it. */
+  lactationStage?: LactationStage | null;
+}) {
   const t = useTranslations("cattle.detail.tabs");
   const [tab, setTab] = useQueryState("tab", parseAsString.withDefault("overview"));
   const active: TabKey = (TABS as readonly string[]).includes(tab) ? (tab as TabKey) : "overview";
@@ -45,7 +55,7 @@ export function CattleDetailTabs({ cattleId, gender }: { cattleId: string; gende
         <OverviewTab cattleId={cattleId} />
       </TabsContent>
       <TabsContent value="reproduction">
-        <ReproductionTab cattleId={cattleId} gender={gender} />
+        <ReproductionTab cattleId={cattleId} gender={gender} lactationStage={lactationStage} />
       </TabsContent>
       <TabsContent value="health">
         <HealthTab cattleId={cattleId} />

@@ -57,7 +57,11 @@ export function CattleDetailSheet({
           ) : (
             <div className="flex flex-col gap-6">
               <CattleProfileCard cattle={query.data} />
-              <CattleDetailTabs cattleId={query.data.id} gender={query.data.gender} />
+              <CattleDetailTabs
+                cattleId={query.data.id}
+                gender={query.data.gender}
+                lactationStage={query.data.lactationStage}
+              />
             </div>
           )}
         </div>
