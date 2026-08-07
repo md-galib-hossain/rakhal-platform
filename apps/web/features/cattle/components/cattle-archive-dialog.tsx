@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,6 +21,11 @@ import type { CattleArchiveInput } from "../schemas";
 import type { CattleListItem } from "../types";
 
 const REASONS: CattleArchiveInput["reason"][] = ["sold", "deceased", "archived"];
+
+/** RAKHAL-290/297-F: `sold`/`deceased` (and backend `culled`, not yet a frontend reason option —
+ * pre-existing gap, out of scope here) are real lifecycle exits that auto-close any ACTIVE
+ * `Lactation` server-side. `archived` alone never touches the lactation. */
+const REASONS_CLOSING_LACTATION: ReadonlySet<CattleArchiveInput["reason"]> = new Set(["sold", "deceased"]);
 
 /**
  * `DELETE /cattle/:id` with an `ArchiveCattleDto` reason (CAT-08/09/10) — sold/deceased keep
@@ -75,6 +81,12 @@ export function CattleArchiveDialog({
             </SelectContent>
           </Select>
         </div>
+        {cattle.productionStatus === "MILKING" && REASONS_CLOSING_LACTATION.has(reason) ? (
+          <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning-tint px-3 py-2 text-sm text-warning">
+            <AlertTriangle className="size-4 shrink-0" aria-hidden />
+            <p>{t("closesLactationWarning")}</p>
+          </div>
+        ) : null}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={archive.isPending}>
             {t("cancel")}

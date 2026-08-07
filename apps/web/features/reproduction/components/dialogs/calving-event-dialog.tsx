@@ -56,7 +56,7 @@ export function CalvingEventDialog({
 
   async function onSubmit(values: CreateCalvingEventInput) {
     try {
-      await createCalvingEvent.mutateAsync({
+      const result = await createCalvingEvent.mutateAsync({
         ...values,
         calves: values.calves?.map((calf) => ({
           ...calf,
@@ -64,6 +64,18 @@ export function CalvingEventDialog({
         })),
       });
       toast.success(t("createdToast"));
+      // RAKHAL-290/297-F: the backend auto-closed a still-ACTIVE prior lactation (a missed dry-off)
+      // rather than silently overwriting it — surface that explicitly instead of it going unnoticed.
+      const closed = result.closedMissingDryOffLactation;
+      if (closed) {
+        toast.warning(
+          t("missingDryOffToast", {
+            startDate: closed.startDate.slice(0, 10),
+            endDate: (closed.endDate ?? "").slice(0, 10),
+          }),
+          { duration: 10000 },
+        );
+      }
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));

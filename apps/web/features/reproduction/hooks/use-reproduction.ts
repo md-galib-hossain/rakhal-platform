@@ -34,6 +34,19 @@ export function useReproductionDashboard() {
   });
 }
 
+/** RAKHAL-297-F — the one ACTIVE `Lactation` for a cow (there is at most one by construction,
+ * RAKHAL-290), used to prefill the Dry-off dialog's suggested/planned dates. Small dedicated query
+ * rather than a full `useLactations` list hook (out of scope here — that's RAKHAL-291-F's lane). */
+export function useActiveLactation(cattleId?: string) {
+  return useQuery({
+    queryKey: qk.reproduction.lactations(cattleId),
+    queryFn: () => reproductionApi.lactations(cattleId),
+    select: (page) => page.items.find((l) => l.status === "ACTIVE") ?? null,
+    enabled: Boolean(cattleId),
+    staleTime: STALE_TIME,
+  });
+}
+
 export function useReproductionEvents(query: ReproEventsQuery) {
   return useQuery({
     queryKey: qk.reproduction.events({
@@ -96,6 +109,19 @@ export function useRecordDryOff() {
       reproductionApi.recordDryOff(cattleId, input),
     onSuccess: () => {
       invalidateReproductionCore(queryClient);
+      queryClient.invalidateQueries({ queryKey: ["reproduction", "lactations"] });
+    },
+  });
+}
+
+/** RAKHAL-285/297-F — lighter-weight than `useRecordDryOff`: only writes `plannedDryOffAt`, doesn't
+ * end the lactation. */
+export function useUpdatePlannedDryOff() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ lactationId, plannedDryOffAt }: { lactationId: string; plannedDryOffAt: string | null }) =>
+      reproductionApi.updatePlannedDryOff(lactationId, plannedDryOffAt),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reproduction", "lactations"] });
     },
   });
