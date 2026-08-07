@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import {
+  MilkSession,
+  TaskCategory,
+  TaskPriority,
+  TaskSource,
+} from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { NotificationService } from 'src/modules/notification/application/services/notification.service';
@@ -9,9 +15,30 @@ import { ReconciliationService } from 'src/modules/billing/application/services/
 import { FinanceService } from 'src/modules/finance/application/services/finance.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { HealthService } from 'src/modules/health/application/services/health.service';
+import { TaskService } from 'src/modules/task/application/services/task.service';
+import { DEFAULT_SESSION_CONFIG } from 'src/modules/milk/domain/milk-anomaly';
+import { buildDailyYieldSeries } from 'src/modules/reproduction/domain/lactation-curve';
+import { daysBetween } from 'src/modules/reproduction/domain/lactation-yield';
+import {
+  DEFAULT_DRY_OFF_APPROACHING_LEAD_DAYS,
+  DEFAULT_LOW_PEAK_BY_DIM_DAYS,
+  DEFAULT_LOW_PEAK_MIN_YIELD_L,
+  DEFAULT_LOW_PRODUCTION_DRY_OFF_CONSECUTIVE_DAYS,
+  DEFAULT_LOW_PRODUCTION_DRY_OFF_THRESHOLD_L,
+  detectDryOffApproaching,
+  detectDryOffOverdue,
+  detectLongLactationNotPregnant,
+  detectLowPeakByDim,
+  detectLowProductionDryOffReview,
+  detectMissingSession,
+  detectPlannedDryOffDue,
+  detectSuddenDrop,
+} from 'src/modules/reproduction/domain/lactation-alerts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const BOSSES = ['Owner', 'Manager'];
+/** 7 baseline days + the evaluated day (RAKHAL-286's sudden-drop/low-production window). */
+const LACTATION_ALERT_WINDOW_DAYS = 8;
 
 /**
  * Scheduled-job runner (RAKHAL-095, PRD §20.2). A daily 5 AM cron fans out the
@@ -47,6 +74,7 @@ export class SchedulerService {
     private readonly financeService: FinanceService,
     private readonly farmSettings: FarmSettingsService,
     private readonly healthService: HealthService,
+    private readonly taskService: TaskService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(SchedulerService.name);
@@ -76,6 +104,7 @@ export class SchedulerService {
         'safety_withdrawals_ready_for_release',
         () => this.sweepSafetyWithdrawalsReadyForRelease(),
       ],
+      ['lactation_alerts', () => this.sweepLactationAlerts()],
     ] as const) {
       try {
         results[name] = await sweep();
@@ -570,6 +599,299 @@ export class SchedulerService {
     const { updated } =
       await this.healthService.sweepWithdrawalsReadyForRelease();
     return updated;
+  }
+
+  /**
+   * RAKHAL-286: the 8-alert lactation set (missing session / sudden drop /
+   * low-peak-by-DIM / long-lactation-not-pregnant / dry-off-approaching /
+   * planned-dry-off-due / dry-off-overdue / low-production-dry-off-review).
+   * Surfaces via the existing Task Hub (`TaskService.createInternal`) — **not**
+   * a new notification channel, per the ticket's own explicit AC. Dedupe is a
+   * marker embedded in `Task.details` (see `raiseLactationAlertTask`) rather
+   * than this file's usual `NotificationService` `dedupeKey`, since these are
+   * Tasks, not notifications. Detection logic itself is pure
+   * (`domain/lactation-alerts.ts`) — this method only queries + assembles
+   * inputs + raises tasks, mirroring every other sweep in this file.
+   */
+  private async sweepLactationAlerts(): Promise<number> {
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - DAY_MS);
+    const windowStart = new Date(
+      now.getTime() - LACTATION_ALERT_WINDOW_DAYS * DAY_MS,
+    );
+
+    const lactations = await this.prisma.lactation.findMany({
+      where: { status: 'ACTIVE' },
+      select: {
+        id: true,
+        cattleId: true,
+        startDate: true,
+        recommendedDryOffAt: true,
+        plannedDryOffAt: true,
+        peakMilkYield: true,
+        cattle: { select: { farmId: true, tagNumber: true, name: true } },
+      },
+    });
+
+    const sessionsCache = new Map<string, MilkSession[]>();
+    let created = 0;
+
+    for (const l of lactations) {
+      const farmId = l.cattle.farmId;
+      const label = l.cattle.name ?? l.cattle.tagNumber;
+      const tagNumber = l.cattle.tagNumber;
+
+      let expectedSessions = sessionsCache.get(farmId);
+      if (!expectedSessions) {
+        const configured = await this.farmSettings.milkActiveSessions(farmId);
+        expectedSessions =
+          configured.length > 0 ? configured : DEFAULT_SESSION_CONFIG;
+        sessionsCache.set(farmId, expectedSessions);
+      }
+
+      const entries = await this.prisma.milkLogEntry.findMany({
+        where: {
+          cattleId: l.cattleId,
+          logDate: { gte: windowStart, lte: yesterday },
+        },
+        select: { logDate: true, session: true, yieldL: true },
+      });
+      const series = buildDailyYieldSeries({
+        startDate: windowStart,
+        endDate: yesterday,
+        entries,
+        expectedSessions,
+      });
+      if (series.length === 0) continue;
+
+      const evalPoint = series[series.length - 1]; // yesterday — the most recent fully-elapsed day
+      const baseline = series.slice(0, -1); // the (up to 7) days preceding it
+      const currentDim = daysBetween(l.startDate, now);
+
+      // 1. Missing session
+      if (detectMissingSession({ dataQuality: evalPoint.dataQuality })) {
+        created += await this.raiseLactationAlertTask({
+          farmId,
+          cattleId: l.cattleId,
+          tag: `MISSING_SESSION:${evalPoint.date}`,
+          dedupeOpenOnly: false,
+          name: `Missing milk-log session — ${label}`,
+          details: `No milk-log session was recorded for ${label} (${tagNumber}) on ${evalPoint.date}.`,
+          category: TaskCategory.MILKING,
+          priority: TaskPriority.MEDIUM,
+          dueAt: now,
+        });
+      }
+
+      // 2. Sudden drop vs the preceding 7-day average
+      if (baseline.length > 0) {
+        const baselineAvgYieldL =
+          Math.round(
+            (baseline.reduce((sum, p) => sum + p.yieldL, 0) / baseline.length) *
+              100,
+          ) / 100;
+        const dropThresholdPct =
+          await this.farmSettings.lactationSuddenDropThresholdPct(farmId);
+        const drop = detectSuddenDrop({
+          evaluatedDayYieldL: evalPoint.yieldL,
+          evaluatedDayDataQuality: evalPoint.dataQuality,
+          baselineDaysDataQuality: baseline.map((p) => p.dataQuality),
+          baselineAvgYieldL,
+          dropThresholdPct,
+        });
+        if (drop.fired) {
+          created += await this.raiseLactationAlertTask({
+            farmId,
+            cattleId: l.cattleId,
+            tag: `SUDDEN_DROP:${evalPoint.date}`,
+            dedupeOpenOnly: false,
+            name: `Sudden milk-yield drop — ${label}`,
+            details: `${label} (${tagNumber}) produced ${evalPoint.yieldL}L on ${evalPoint.date}, a ${drop.dropPct}% drop vs the preceding 7-day average (${baselineAvgYieldL}L).`,
+            category: TaskCategory.MILKING,
+            priority: TaskPriority.HIGH,
+            dueAt: now,
+          });
+        }
+      }
+
+      // 3. Low-peak-by-DIM
+      if (
+        detectLowPeakByDim({
+          currentDim,
+          peakMilkYield: l.peakMilkYield,
+          lowPeakByDimDays: DEFAULT_LOW_PEAK_BY_DIM_DAYS,
+          minExpectedPeakYieldL: DEFAULT_LOW_PEAK_MIN_YIELD_L,
+        })
+      ) {
+        created += await this.raiseLactationAlertTask({
+          farmId,
+          cattleId: l.cattleId,
+          tag: 'LOW_PEAK_BY_DIM',
+          dedupeOpenOnly: true,
+          name: `Low peak yield by DIM — ${label}`,
+          details: `${label} (${tagNumber}) is at day ${currentDim} of milk without approaching a reasonable peak (recorded peak: ${l.peakMilkYield ?? 'none'} L).`,
+          category: TaskCategory.MILKING,
+          priority: TaskPriority.MEDIUM,
+          dueAt: now,
+        });
+      }
+
+      // 4. Long-lactation-not-pregnant (doubles as RAKHAL-285's "projection unavailable" surface)
+      const longLactationDimThresholdDays =
+        await this.farmSettings.lactationLongNotPregnantDimDays(farmId);
+      if (currentDim >= longLactationDimThresholdDays) {
+        const activePregnancy = await this.prisma.pregnancy.findFirst({
+          where: { cattleId: l.cattleId, status: 'ACTIVE' },
+          select: { id: true },
+        });
+        if (
+          detectLongLactationNotPregnant({
+            currentDim,
+            longLactationDimThresholdDays,
+            hasActivePregnancy: !!activePregnancy,
+          })
+        ) {
+          created += await this.raiseLactationAlertTask({
+            farmId,
+            cattleId: l.cattleId,
+            tag: 'LONG_LACTATION_NOT_PREGNANT',
+            dedupeOpenOnly: true,
+            name: `Long lactation, not pregnant — ${label}`,
+            details: `${label} (${tagNumber}) is at day ${currentDim} of milk with no active pregnancy on record — dry-off projection is a management estimate only.`,
+            category: TaskCategory.BREEDING,
+            priority: TaskPriority.MEDIUM,
+            dueAt: now,
+          });
+        }
+      }
+
+      // 5. Recommended-dry-off-approaching
+      if (
+        detectDryOffApproaching({
+          recommendedDryOffAt: l.recommendedDryOffAt,
+          now,
+          leadDays: DEFAULT_DRY_OFF_APPROACHING_LEAD_DAYS,
+        })
+      ) {
+        created += await this.raiseLactationAlertTask({
+          farmId,
+          cattleId: l.cattleId,
+          tag: 'DRY_OFF_APPROACHING',
+          dedupeOpenOnly: true,
+          name: `Dry-off approaching — ${label}`,
+          details: `${label} (${tagNumber}) has a recommended dry-off date of ${this.ymd(l.recommendedDryOffAt!)}.`,
+          category: TaskCategory.BREEDING,
+          priority: TaskPriority.MEDIUM,
+          dueAt: l.recommendedDryOffAt!,
+        });
+      }
+
+      // 6. Planned-dry-off-due (today)
+      if (detectPlannedDryOffDue({ plannedDryOffAt: l.plannedDryOffAt, now })) {
+        created += await this.raiseLactationAlertTask({
+          farmId,
+          cattleId: l.cattleId,
+          tag: `PLANNED_DRY_OFF_DUE:${this.ymd(now)}`,
+          dedupeOpenOnly: false,
+          name: `Planned dry-off due today — ${label}`,
+          details: `${label} (${tagNumber}) is scheduled for dry-off today (${this.ymd(now)}).`,
+          category: TaskCategory.BREEDING,
+          priority: TaskPriority.HIGH,
+          dueAt: now,
+        });
+      }
+
+      // 7. Dry-off-overdue
+      if (
+        detectDryOffOverdue({ recommendedDryOffAt: l.recommendedDryOffAt, now })
+      ) {
+        created += await this.raiseLactationAlertTask({
+          farmId,
+          cattleId: l.cattleId,
+          tag: 'DRY_OFF_OVERDUE',
+          dedupeOpenOnly: true,
+          name: `Dry-off overdue — ${label}`,
+          details: `${label} (${tagNumber})'s recommended dry-off date (${this.ymd(l.recommendedDryOffAt!)}) has passed with no dry-off recorded.`,
+          category: TaskCategory.BREEDING,
+          priority: TaskPriority.HIGH,
+          dueAt: now,
+        });
+      }
+
+      // 8. Low-production-dry-off-review — a recommendation only, never an automatic dry-off
+      if (
+        detectLowProductionDryOffReview({
+          recentDailyYieldsL: series.map((p) => p.yieldL),
+          thresholdL: DEFAULT_LOW_PRODUCTION_DRY_OFF_THRESHOLD_L,
+          consecutiveDaysRequired:
+            DEFAULT_LOW_PRODUCTION_DRY_OFF_CONSECUTIVE_DAYS,
+        })
+      ) {
+        created += await this.raiseLactationAlertTask({
+          farmId,
+          cattleId: l.cattleId,
+          tag: 'LOW_PRODUCTION_DRY_OFF_REVIEW',
+          dedupeOpenOnly: true,
+          name: `Low production — review for dry-off — ${label}`,
+          details: `${label} (${tagNumber}) has produced at or below ${DEFAULT_LOW_PRODUCTION_DRY_OFF_THRESHOLD_L}L/day for ${DEFAULT_LOW_PRODUCTION_DRY_OFF_CONSECUTIVE_DAYS}+ consecutive days — recommend reviewing for dry-off (this is a suggestion, not an automatic dry-off).`,
+          category: TaskCategory.BREEDING,
+          priority: TaskPriority.MEDIUM,
+          dueAt: now,
+        });
+      }
+    }
+
+    return created;
+  }
+
+  /**
+   * Raises a Task Hub task for one lactation alert, deduped via a
+   * `[LACTATION_ALERT:<tag>]` marker embedded in `Task.details` (Tasks have
+   * no `dedupeKey` column the way notifications do). Date-scoped alerts
+   * (`tag` includes an ISO date) dedupe against ANY existing task carrying
+   * that exact marker — it's a one-time historical record, never re-raised.
+   * Ongoing-condition alerts (`dedupeOpenOnly: true`) dedupe against any
+   * still-OPEN (`PENDING`/`IN_PROGRESS`/`BLOCKED`) task with that marker, so
+   * they re-fire once the farmer completes/dismisses the previous one rather
+   * than spamming a fresh task every single day the condition persists.
+   */
+  private async raiseLactationAlertTask(params: {
+    farmId: string;
+    cattleId: string;
+    tag: string;
+    dedupeOpenOnly: boolean;
+    name: string;
+    details: string;
+    category: TaskCategory;
+    priority: TaskPriority;
+    dueAt: Date;
+  }): Promise<number> {
+    const marker = `[LACTATION_ALERT:${params.tag}]`;
+    const existing = await this.prisma.task.findFirst({
+      where: {
+        farmId: params.farmId,
+        relatedCattleId: params.cattleId,
+        details: { contains: marker },
+        ...(params.dedupeOpenOnly
+          ? { status: { in: ['PENDING', 'IN_PROGRESS', 'BLOCKED'] } }
+          : {}),
+      },
+      select: { id: true },
+    });
+    if (existing) return 0;
+
+    await this.taskService.createInternal({
+      farmId: params.farmId,
+      createdBy: 'SYSTEM',
+      name: params.name,
+      details: `${marker} ${params.details}`,
+      category: params.category,
+      priority: params.priority,
+      dueAt: params.dueAt,
+      source: TaskSource.SYSTEM_AUTO,
+      relatedCattleId: params.cattleId,
+    });
+    return 1;
   }
 
   // ---- helpers ------------------------------------------------------------
