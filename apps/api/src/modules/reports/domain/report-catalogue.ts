@@ -17,6 +17,7 @@ export type ReportParamKey =
   | 'year'
   | 'shedId'
   | 'cattleId'
+  | 'lactationId'
   | 'fromDate'
   | 'toDate'
   | 'status'
@@ -184,6 +185,28 @@ export const REPORTS: ReportDef[] = [
     version: 'MVP',
     frequency: 'on_demand',
     params: ['month'],
+  },
+  {
+    id: 'rpt_lactation_individual',
+    name: 'Individual Lactation Report',
+    description:
+      'Dates, DIM, totals by disposition, peak, persistency, quality tests, health incidents, feed/shed assignment, breeding timeline, and dry-off reason for one lactation.',
+    category: 'reproduction',
+    formats: ALL_FORMATS,
+    version: 'MVP',
+    frequency: 'on_demand',
+    params: ['cattleId', 'lactationId'],
+  },
+  {
+    id: 'rpt_lactation_herd_dashboard',
+    name: 'Herd Lactation Dashboard',
+    description:
+      'Currently-milking count by lactation stage, average milk per cow per day, average DIM, highest producer, and milk withheld today.',
+    category: 'reproduction',
+    formats: ALL_FORMATS,
+    version: 'MVP',
+    frequency: 'on_demand',
+    params: [],
   },
   // Combined
   {

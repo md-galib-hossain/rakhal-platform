@@ -35,6 +35,11 @@ export class ReportParametersDto {
   cattleId?: string;
 
   @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  lactationId?: string;
+
+  @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'fromDate must be YYYY-MM-DD' })
   fromDate?: string;
 

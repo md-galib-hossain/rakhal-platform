@@ -7,11 +7,27 @@ import {
   HealthActionType,
   HealthCaseStatus,
   HealthTaskStatus,
+  LactationStatus,
   MilkTankType,
   ReproductionState,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { NON_VOID_TXN } from 'src/common/finance/txn-filters';
+import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
+import {
+  averageDailyYield,
+  daysBetween as lactationDaysBetween,
+  totalsByDisposition,
+  YieldEntry,
+} from 'src/modules/reproduction/domain/lactation-yield';
+import {
+  computeLactationPersistency,
+  LactationPersistency,
+} from 'src/modules/reproduction/domain/lactation-persistency';
+import {
+  deriveLactationStage,
+  LactationStage,
+} from 'src/modules/reproduction/domain/lactation-stage';
 import { Cell, ReportData, ReportSection } from '../../domain/report-data';
 
 export interface ReportParams {
@@ -20,6 +36,7 @@ export interface ReportParams {
   year?: string; // YYYY
   shedId?: string;
   cattleId?: string;
+  lactationId?: string;
   fromDate?: string;
   toDate?: string;
   status?: string;
@@ -42,7 +59,10 @@ const REMOVED_CATTLE_STATUSES: CattleStatus[] = [
  */
 @Injectable()
 export class ReportGeneratorsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly farmSettings: FarmSettingsService,
+  ) {}
 
   async generate(
     farmId: string,
@@ -88,6 +108,10 @@ export class ReportGeneratorsService {
         return this.healthcareExport(farmId, params);
       case 'rpt_dashboard_export':
         return this.dashboardExport(farmId);
+      case 'rpt_lactation_individual':
+        return this.lactationIndividual(farmId, params);
+      case 'rpt_lactation_herd_dashboard':
+        return this.lactationHerdDashboard(farmId);
       default:
         throw new BadRequestException(`Unknown report: ${reportId}`);
     }
@@ -1419,6 +1443,544 @@ export class ReportGeneratorsService {
       summary: data.summary,
       columns: data.columns,
       rows: data.rows,
+    };
+  }
+
+  // ---- Lactation (RAKHAL-288) ----------------------------------------------
+
+  /**
+   * Individual Lactation Report (RAKHAL-288, Milestone 16). Reads
+   * `lactationId` directly when supplied, otherwise resolves it from
+   * `cattleId` — the cow's current `ACTIVE` lactation, or her most recently
+   * ended one if she has none (mirrors `LactationStatsService`'s own
+   * fallback shape). Reuses the pure domain functions RAKHAL-283/284
+   * (`lactation-yield.ts`/`lactation-persistency.ts`) already built rather
+   * than re-deriving totals/persistency — same "peak/persistency here can
+   * never disagree with `GET /reproduction/lactations/:id/stats`" guarantee
+   * that service's own doc comments establish. Direct-Prisma throughout (no
+   * `ReproductionModule`/`MilkModule` service injection), matching this
+   * generator's own established no-cross-module-coupling convention.
+   */
+  private async lactationIndividual(
+    farmId: string,
+    params: ReportParams,
+  ): Promise<ReportData> {
+    const lactation = await this.resolveLactationForReport(farmId, params);
+    const now = new Date();
+    const rangeEnd = lactation.endDate ?? now;
+    const referenceDate = rangeEnd < now ? rangeEnd : now;
+
+    const [
+      entries,
+      qualityTests,
+      healthCases,
+      breedingEvents,
+      pregnancies,
+      dryPeriod,
+    ] = await Promise.all([
+      this.prisma.milkLogEntry.findMany({
+        where: {
+          cattleId: lactation.cattleId,
+          logDate: { gte: lactation.startDate, lte: rangeEnd },
+        },
+        select: { logDate: true, yieldL: true, disposition: true },
+      }),
+      this.prisma.milkQualityTest.findMany({
+        where: { lactationId: lactation.id },
+        orderBy: [{ sampleDate: 'desc' }],
+        take: 20,
+      }),
+      this.prisma.healthCase.findMany({
+        where: {
+          cattleId: lactation.cattleId,
+          startDate: { lte: rangeEnd },
+          OR: [
+            { closedDate: null },
+            { closedDate: { gte: lactation.startDate } },
+          ],
+        },
+        select: {
+          diagnosis: true,
+          priority: true,
+          status: true,
+          startDate: true,
+          closedDate: true,
+        },
+        orderBy: { startDate: 'desc' },
+        take: 50,
+      }),
+      this.prisma.breedingEvent.findMany({
+        where: {
+          cattleId: lactation.cattleId,
+          breedingDate: { gte: lactation.startDate, lte: rangeEnd },
+        },
+        select: {
+          breedingDate: true,
+          breedingMethod: true,
+          breedingNumber: true,
+          status: true,
+        },
+        orderBy: { breedingDate: 'asc' },
+      }),
+      this.prisma.pregnancy.findMany({
+        where: {
+          cattleId: lactation.cattleId,
+          conceptionDate: { gte: lactation.startDate, lte: rangeEnd },
+        },
+        select: {
+          conceptionDate: true,
+          expectedCalvingDate: true,
+          actualCalvingDate: true,
+          status: true,
+        },
+        orderBy: { conceptionDate: 'asc' },
+      }),
+      this.prisma.dryPeriod.findFirst({
+        where: { cattleId: lactation.cattleId },
+        select: {
+          startDate: true,
+          actualEndDate: true,
+          reason: true,
+          notes: true,
+        },
+        orderBy: { startDate: 'desc' },
+      }),
+    ]);
+    const yieldEntries: YieldEntry[] = entries;
+
+    const dim = lactationDaysBetween(lactation.startDate, referenceDate);
+    const sevenDayAvgYield = averageDailyYield(yieldEntries, {
+      referenceDate,
+      windowDays: 7,
+      lactationStart: lactation.startDate,
+    });
+    const totals = totalsByDisposition(yieldEntries);
+    const peak =
+      lactation.peakMilkYield != null &&
+      lactation.peakDaysInMilk != null &&
+      lactation.peakMilkDate != null
+        ? {
+            yieldL: lactation.peakMilkYield,
+            date: lactation.peakMilkDate,
+            dim: lactation.peakDaysInMilk,
+          }
+        : null;
+    const persistency: LactationPersistency | null =
+      computeLactationPersistency({
+        currentSevenDayAvgYield: sevenDayAvgYield,
+        peakMilkYield: lactation.peakMilkYield,
+        peakDaysInMilk: lactation.peakDaysInMilk,
+        currentDaysInMilk: dim,
+      });
+
+    const overview: ReportSection = {
+      heading: 'Overview',
+      summary: [
+        { label: 'DIM', value: lactation.endDate ? `${dim} (ended)` : dim },
+        { label: 'Produced (L)', value: totals.produced },
+        {
+          label: 'Peak (L)',
+          value: peak ? `${peak.yieldL} @ DIM ${peak.dim}` : 'Not yet recorded',
+        },
+        {
+          label: 'Persistency (%)',
+          value: persistency ? persistency.persistencyPct : 'N/A',
+        },
+      ],
+      columns: ['Field', 'Value'],
+      rows: [
+        ['Cow', `${lactation.cattleTagNumber} (${lactation.cattleName ?? ''})`],
+        ['Lactation number', lactation.lactationNumber],
+        ['Estimated intake', lactation.isEstimated ? 'Yes' : 'No'],
+        ['Start date', this.dateLabel(lactation.startDate)],
+        [
+          'End date',
+          lactation.endDate ? this.dateLabel(lactation.endDate) : 'Ongoing',
+        ],
+        ['Status', lactation.status],
+        ['DIM', dim],
+        ['Shed', lactation.shedName ?? ''],
+        ['Feed group', lactation.feedGroupName ?? ''],
+      ],
+    };
+
+    const totalsSection: ReportSection = {
+      heading: 'Totals & Yield',
+      columns: ['Metric', 'Value'],
+      rows: [
+        ['7-day avg yield (L)', sevenDayAvgYield],
+        ['Produced to date (L)', totals.produced],
+        ['Saleable (L)', totals.saleable],
+        ['Withheld (L)', totals.withheld],
+        ['Colostrum (L)', totals.colostrum],
+        ['Calf feed (L)', totals.calfFeed],
+        ['Discarded (L)', totals.discarded],
+        ['Household use (L)', totals.householdUse],
+      ],
+    };
+
+    const peakSection: ReportSection = {
+      heading: 'Peak & Persistency',
+      columns: ['Metric', 'Value'],
+      rows: peak
+        ? [
+            ['Peak yield (L)', peak.yieldL],
+            ['Peak date', this.dateLabel(peak.date)],
+            ['Peak DIM', peak.dim],
+            ['Current 7-day avg (L)', sevenDayAvgYield],
+            ['Persistency (%)', persistency?.persistencyPct ?? ''],
+            ['Decline from peak (%)', persistency?.declinePct ?? ''],
+            ['Days since peak', persistency?.daysSincePeak ?? ''],
+          ]
+        : [['Peak', 'Not yet recorded (no complete-quality day on record)']],
+    };
+
+    const qualitySection: ReportSection = {
+      heading: 'Milk Quality Tests',
+      summary: [{ label: 'Tests recorded', value: qualityTests.length }],
+      columns: [
+        'Date',
+        'Fat %',
+        'Protein %',
+        'Lactose %',
+        'SCC',
+        'MUN',
+        'Source',
+      ],
+      rows: qualityTests.map((t) => [
+        this.dateLabel(t.sampleDate),
+        t.fatPct,
+        t.proteinPct,
+        t.lactosePct,
+        t.somaticCellCount,
+        t.milkUreaNitrogen,
+        t.source,
+      ]),
+    };
+
+    const healthSection: ReportSection = {
+      heading: 'Health Incidents',
+      summary: [
+        {
+          label: 'Cases overlapping this lactation',
+          value: healthCases.length,
+        },
+      ],
+      columns: ['Diagnosis', 'Priority', 'Status', 'Started', 'Closed'],
+      rows: healthCases.map((c) => [
+        c.diagnosis,
+        c.priority,
+        c.status,
+        this.dateLabel(c.startDate),
+        c.closedDate ? this.dateLabel(c.closedDate) : '',
+      ]),
+    };
+
+    const breedingRows: Cell[][] = [
+      ...breedingEvents.map((b) => [
+        this.dateLabel(b.breedingDate),
+        `Breeding #${b.breedingNumber} (${b.breedingMethod})`,
+        b.status,
+      ]),
+      ...pregnancies.map((p) => [
+        this.dateLabel(p.conceptionDate),
+        `Pregnancy confirmed (expected calving ${
+          p.expectedCalvingDate
+            ? this.dateLabel(p.expectedCalvingDate)
+            : 'unknown'
+        })`,
+        p.status,
+      ]),
+    ].sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+    const breedingSection: ReportSection = {
+      heading: 'Breeding Timeline',
+      columns: ['Date', 'Event', 'Status'],
+      rows: breedingRows,
+    };
+
+    const dryOffRows: Cell[][] = [];
+    if (lactation.endReason) {
+      dryOffRows.push(['End reason', lactation.endReason]);
+    }
+    if (dryPeriod && lactation.endDate) {
+      dryOffRows.push([
+        'Last milking (dry-off start)',
+        this.dateLabel(dryPeriod.startDate),
+      ]);
+      dryOffRows.push(['Dry-off reason (recorded)', dryPeriod.reason ?? '']);
+      dryOffRows.push([
+        'Actual end of dry period',
+        dryPeriod.actualEndDate
+          ? this.dateLabel(dryPeriod.actualEndDate)
+          : 'Ongoing',
+      ]);
+      dryOffRows.push(['Notes / dry-cow treatment', dryPeriod.notes ?? '']);
+    }
+    const dryOffSection: ReportSection = {
+      heading: 'Dry-off',
+      columns: ['Field', 'Value'],
+      rows: dryOffRows.length
+        ? dryOffRows
+        : [
+            [
+              'Status',
+              lactation.endDate
+                ? 'Ended, no dry-off record found'
+                : 'Still lactating',
+            ],
+          ],
+    };
+
+    return {
+      title: `Individual Lactation Report — ${lactation.cattleTagNumber}`,
+      period: `Lactation #${lactation.lactationNumber}`,
+      columns: [],
+      rows: [],
+      sections: [
+        overview,
+        totalsSection,
+        peakSection,
+        qualitySection,
+        healthSection,
+        breedingSection,
+        dryOffSection,
+      ],
+    };
+  }
+
+  private async resolveLactationForReport(
+    farmId: string,
+    params: ReportParams,
+  ): Promise<{
+    id: string;
+    cattleId: string;
+    cattleTagNumber: string;
+    cattleName: string | null;
+    lactationNumber: number;
+    isEstimated: boolean;
+    startDate: Date;
+    endDate: Date | null;
+    status: LactationStatus;
+    endReason: string | null;
+    peakMilkYield: number | null;
+    peakMilkDate: Date | null;
+    peakDaysInMilk: number | null;
+    shedName: string | null;
+    feedGroupName: string | null;
+  }> {
+    const select = {
+      id: true,
+      cattleId: true,
+      lactationNumber: true,
+      isEstimated: true,
+      startDate: true,
+      endDate: true,
+      status: true,
+      endReason: true,
+      peakMilkYield: true,
+      peakMilkDate: true,
+      peakDaysInMilk: true,
+      cattle: {
+        select: {
+          tagNumber: true,
+          name: true,
+          shed: { select: { name: true } },
+          feedGroup: { select: { name: true } },
+        },
+      },
+    } as const;
+
+    let row: {
+      id: string;
+      cattleId: string;
+      lactationNumber: number;
+      isEstimated: boolean;
+      startDate: Date;
+      endDate: Date | null;
+      status: LactationStatus;
+      endReason: string | null;
+      peakMilkYield: number | null;
+      peakMilkDate: Date | null;
+      peakDaysInMilk: number | null;
+      cattle: {
+        tagNumber: string;
+        name: string | null;
+        shed: { name: string } | null;
+        feedGroup: { name: string } | null;
+      };
+    } | null = null;
+
+    if (params.lactationId) {
+      row = await this.prisma.lactation.findFirst({
+        where: { id: params.lactationId, cattle: { farmId } },
+        select,
+      });
+    } else if (params.cattleId) {
+      row = await this.prisma.lactation.findFirst({
+        where: {
+          cattleId: params.cattleId,
+          cattle: { farmId },
+          status: LactationStatus.ACTIVE,
+        },
+        select,
+      });
+      if (!row) {
+        row = await this.prisma.lactation.findFirst({
+          where: {
+            cattleId: params.cattleId,
+            cattle: { farmId },
+            endDate: { not: null },
+          },
+          orderBy: { endDate: 'desc' },
+          select,
+        });
+      }
+    } else {
+      throw new BadRequestException(
+        'cattleId or lactationId is required for this report',
+      );
+    }
+
+    if (!row) {
+      throw new BadRequestException('No lactation found for this cow');
+    }
+
+    return {
+      id: row.id,
+      cattleId: row.cattleId,
+      cattleTagNumber: row.cattle.tagNumber,
+      cattleName: row.cattle.name,
+      lactationNumber: row.lactationNumber,
+      isEstimated: row.isEstimated,
+      startDate: row.startDate,
+      endDate: row.endDate,
+      status: row.status,
+      endReason: row.endReason,
+      peakMilkYield: row.peakMilkYield,
+      peakMilkDate: row.peakMilkDate,
+      peakDaysInMilk: row.peakDaysInMilk,
+      shedName: row.cattle.shed?.name ?? null,
+      feedGroupName: row.cattle.feedGroup?.name ?? null,
+    };
+  }
+
+  /**
+   * Herd Lactation Dashboard (RAKHAL-288). Currently-milking (`ACTIVE`
+   * lactation) cows bucketed by `LactationStage` (reuses `deriveLactationStage`,
+   * RAKHAL-273 — a cow with an `ACTIVE` lactation is never `DRY_PERIOD`, so
+   * that bucket never appears here), plus farm-wide today/DIM/withholding
+   * figures matching `dailyMilk`'s own conventions.
+   */
+  private async lactationHerdDashboard(farmId: string): Promise<ReportData> {
+    const now = new Date();
+    const today = this.dayStart();
+    const tomorrow = this.addDays(today, 1);
+    const thresholds = await this.farmSettings.lactationStageThresholds(farmId);
+
+    const activeLactations = await this.prisma.lactation.findMany({
+      where: {
+        status: LactationStatus.ACTIVE,
+        cattle: { farmId, isActive: true },
+      },
+      select: {
+        cattleId: true,
+        startDate: true,
+        cattle: { select: { tagNumber: true, name: true } },
+      },
+    });
+
+    const cattleIds = activeLactations.map((l) => l.cattleId);
+    const [todayRows, withheldTodayAgg] = await Promise.all([
+      cattleIds.length
+        ? this.prisma.milkLogEntry.findMany({
+            where: {
+              farmId,
+              cattleId: { in: cattleIds },
+              logDate: { gte: today, lt: tomorrow },
+            },
+            select: { cattleId: true, yieldL: true },
+          })
+        : Promise.resolve([]),
+      this.prisma.milkLogEntry.aggregate({
+        where: {
+          farmId,
+          logDate: { gte: today, lt: tomorrow },
+          tankType: MilkTankType.WITHHOLDING,
+        },
+        _sum: { yieldL: true },
+      }),
+    ]);
+
+    const todayByCow = new Map<string, number>();
+    for (const r of todayRows) {
+      todayByCow.set(r.cattleId, (todayByCow.get(r.cattleId) ?? 0) + r.yieldL);
+    }
+
+    const stageBuckets = new Map<LactationStage, number>();
+    let dimTotal = 0;
+    let highestProducer: {
+      tagNumber: string;
+      name: string | null;
+      yieldL: number;
+    } | null = null;
+    for (const lactation of activeLactations) {
+      const stage = deriveLactationStage({
+        now,
+        lactationStartDate: lactation.startDate,
+        isInActiveDryPeriod: false,
+        farmSettings: thresholds,
+      });
+      if (stage) stageBuckets.set(stage, (stageBuckets.get(stage) ?? 0) + 1);
+      dimTotal += lactationDaysBetween(lactation.startDate, now);
+
+      const todayYield = todayByCow.get(lactation.cattleId) ?? 0;
+      if (!highestProducer || todayYield > highestProducer.yieldL) {
+        highestProducer = {
+          tagNumber: lactation.cattle.tagNumber,
+          name: lactation.cattle.name,
+          yieldL: todayYield,
+        };
+      }
+    }
+
+    const milkingCount = activeLactations.length;
+    const cowsWithYieldToday = [...todayByCow.values()].filter(
+      (v) => v > 0,
+    ).length;
+    const totalYieldToday = [...todayByCow.values()].reduce((a, b) => a + b, 0);
+    const avgMilkPerCowPerDay = cowsWithYieldToday
+      ? this.round(totalYieldToday / cowsWithYieldToday)
+      : 0;
+    const avgDim = milkingCount ? Math.round(dimTotal / milkingCount) : 0;
+    const withheldToday = this.round(withheldTodayAgg._sum.yieldL ?? 0);
+
+    const stageOrder: LactationStage[] = [
+      'FRESH',
+      'EARLY',
+      'MID',
+      'LATE',
+      'DRY_PERIOD',
+    ];
+
+    return {
+      title: 'Herd Lactation Dashboard',
+      period: this.dateLabel(now),
+      summary: [
+        { label: 'Currently milking', value: milkingCount },
+        { label: 'Avg milk/cow/day (L)', value: avgMilkPerCowPerDay },
+        { label: 'Avg DIM', value: avgDim },
+        {
+          label: 'Highest producer',
+          value: highestProducer
+            ? `${highestProducer.tagNumber} (${this.round(highestProducer.yieldL)} L)`
+            : 'N/A',
+        },
+        { label: 'Milk withheld today (L)', value: withheldToday },
+      ],
+      columns: ['Stage', 'Cows milking'],
+      rows: stageOrder
+        .filter((s) => stageBuckets.has(s))
+        .map((s) => [s, stageBuckets.get(s) ?? 0]),
     };
   }
 

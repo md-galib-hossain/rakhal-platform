@@ -1,8 +1,8 @@
 import { groupedCatalogue, isKnownReport, REPORTS } from './report-catalogue';
 
 describe('report-catalogue', () => {
-  it('defines the 12 MVP reports + feed-cost + monthly farm report + 5 record exports', () => {
-    expect(REPORTS).toHaveLength(19);
+  it('defines the 12 MVP reports + feed-cost + monthly farm report + 5 record exports + 2 lactation reports (RAKHAL-288)', () => {
+    expect(REPORTS).toHaveLength(21);
   });
 
   it('every report id is unique', () => {

@@ -8,6 +8,7 @@ import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { MediaModule } from '../media/media.module';
+import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { ReportGeneratorsService } from './application/services/report-generators.service';
 import { ReportsService } from './application/services/reports.service';
 import { ReportScheduleService } from './application/services/report-schedule.service';
@@ -22,7 +23,10 @@ import { ReportsController } from './presentation/controllers/reports.controller
  * Reports module (PRD §22 / API §15). Report generation aggregates the
  * already-built modules' tables directly via Prisma (Dashboard pattern), so it
  * needs no cross-module service imports (and creates no cycles), except
- * `MediaModule` for the shared `OBJECT_STORAGE` (R2) seam (RD-013b). Generation
+ * `MediaModule` for the shared `OBJECT_STORAGE` (R2) seam (RD-013b) and
+ * `FarmSettingsModule` (RAKHAL-288, same precedent `DashboardModule` already
+ * set) for the Herd Lactation Dashboard's configurable stage thresholds.
+ * Generation
  * itself runs off a BullMQ queue (RD-013a) via `ReportsProcessor`; scheduled
  * reports (RD-013c) fire from `ReportScheduleRunner`'s hourly cron, and expired
  * output is purged by `ReportCleanupRunner`'s hourly cron (RD-013b) onto/from
@@ -36,6 +40,7 @@ import { ReportsController } from './presentation/controllers/reports.controller
     PermissionModule,
     SubscriptionModule,
     MediaModule,
+    FarmSettingsModule,
     ConfigModule.forFeature(redisConfig),
     BullModule.forRootAsync({
       imports: [ConfigModule.forFeature(redisConfig)],
