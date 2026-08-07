@@ -255,7 +255,10 @@ export class SchedulerService {
     const windowStart = new Date(now.getTime() - 20 * DAY_MS);
     const windowEnd = new Date(now.getTime() - 19 * DAY_MS);
     const candidates = await this.prisma.heatEvent.findMany({
-      where: { heatDateTime: { gte: windowStart, lt: windowEnd } },
+      where: {
+        heatDateTime: { gte: windowStart, lt: windowEnd },
+        resolvedAt: null,
+      },
       select: {
         id: true,
         cattleId: true,
@@ -266,20 +269,6 @@ export class SchedulerService {
 
     let emitted = 0;
     for (const h of candidates) {
-      const [newerHeat, bredSince] = await Promise.all([
-        this.prisma.heatEvent.findFirst({
-          where: { cattleId: h.cattleId, heatDateTime: { gt: h.heatDateTime } },
-          select: { id: true },
-        }),
-        this.prisma.breedingEvent.findFirst({
-          where: {
-            cattleId: h.cattleId,
-            breedingDate: { gte: h.heatDateTime },
-          },
-          select: { id: true },
-        }),
-      ]);
-      if (newerHeat || bredSince) continue;
       const label = h.cattle.name ?? h.cattle.tagNumber;
       emitted += await this.emit({
         farmId: h.cattle.farmId,

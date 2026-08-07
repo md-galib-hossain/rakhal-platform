@@ -24,6 +24,7 @@ import { CreateDryOffDto } from '../dto/create-dry-off.dto';
 import { CreateHeatEventDto } from '../dto/create-heat-event.dto';
 import { CreatePregnancyDiagnosisDto } from '../dto/create-pregnancy-diagnosis.dto';
 import { CreatePurchasedLactationDto } from '../dto/create-purchased-lactation.dto';
+import { ResolveHeatEventDto } from '../dto/resolve-heat-event.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Reproduction (PRD Â§9). `/api/v1/reproduction`. Token tenancy + RBAC. */
@@ -56,6 +57,17 @@ export class ReproductionController {
     @Query() query: ReproductionListQueryDto,
   ) {
     return this.reproductionService.listHeatEvents(farmId, query);
+  }
+
+  /** RAKHAL-298: manually close an open heat (FALSE_ALARM/SKIPPED_CYCLE). */
+  @Post('heat-events/:id/resolve')
+  @RequirePermission('reproduction.heat')
+  resolveHeatEvent(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @Body() dto: ResolveHeatEventDto,
+  ) {
+    return this.reproductionService.resolveHeatEvent(farmId, id, dto);
   }
 
   @Post('breeding-events')

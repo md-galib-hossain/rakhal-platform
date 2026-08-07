@@ -12,6 +12,7 @@ import {
   CattleSourceType,
   CattleStatus,
   DryPeriod,
+  HeatResolutionReason,
   LactationEndReason,
   LactationStartReason,
   LactationStatus,
@@ -53,6 +54,7 @@ import { CreateDryOffDto } from '../../presentation/dto/create-dry-off.dto';
 import { CreatePurchasedLactationDto } from '../../presentation/dto/create-purchased-lactation.dto';
 import { CreateHeatEventDto } from '../../presentation/dto/create-heat-event.dto';
 import { CreatePregnancyDiagnosisDto } from '../../presentation/dto/create-pregnancy-diagnosis.dto';
+import { ResolveHeatEventDto } from '../../presentation/dto/resolve-heat-event.dto';
 import { ReproductionListQueryDto } from '../../presentation/dto/common.dto';
 
 type CattleForAccess = {
@@ -207,6 +209,28 @@ export class ReproductionService {
     return toCursorPage(rows, query);
   }
 
+  /** RAKHAL-298: manually close an open heat (`FALSE_ALARM`/`SKIPPED_CYCLE`); `INSEMINATED` is normally stamped by `createBreedingEvent` instead. */
+  async resolveHeatEvent(farmId: string, id: string, dto: ResolveHeatEventDto) {
+    const heatEvent = await this.prisma.heatEvent.findFirst({
+      where: { id, cattle: { farmId } },
+    });
+    if (!heatEvent) {
+      throw new NotFoundException('Heat event not found');
+    }
+    if (heatEvent.resolvedAt) {
+      throw new BadRequestException('Heat event is already resolved');
+    }
+
+    return this.prisma.heatEvent.update({
+      where: { id },
+      data: {
+        resolvedAt: new Date(),
+        resolutionReason: dto.reason,
+        notes: dto.notes ?? heatEvent.notes,
+      },
+    });
+  }
+
   async createBreedingEvent(
     farmId: string,
     userId: string,
@@ -230,24 +254,56 @@ export class ReproductionService {
         where: { cattleId: dto.cattleId },
       })) + 1;
 
-    const breedingEvent = await this.prisma.breedingEvent.create({
-      data: {
-        cattleId: dto.cattleId,
-        breedingDate: new Date(dto.breedingDate),
-        breedingMethod: dto.breedingMethod,
-        bullId: dto.bullId,
-        semenBatchId: dto.semenBatchId,
-        inseminator: dto.inseminator,
-        breedingNumber,
-        expectedPregnancyCheckDate: dto.expectedPregnancyCheckDate
-          ? new Date(dto.expectedPregnancyCheckDate)
-          : this.addDays(new Date(dto.breedingDate), 35),
-        status: dto.status ?? BreedingStatus.PENDING_CHECK,
-        notes: dto.notes,
-      },
-      include: {
-        bull: { select: { id: true, tagNumber: true, name: true } },
-      },
+    const heatWindowDays = await this.farmSettings.reproHeatWindowDays(farmId);
+    const breedingDate = new Date(dto.breedingDate);
+
+    const breedingEvent = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.breedingEvent.create({
+        data: {
+          cattleId: dto.cattleId,
+          breedingDate,
+          breedingMethod: dto.breedingMethod,
+          bullId: dto.bullId,
+          semenBatchId: dto.semenBatchId,
+          inseminator: dto.inseminator,
+          breedingNumber,
+          expectedPregnancyCheckDate: dto.expectedPregnancyCheckDate
+            ? new Date(dto.expectedPregnancyCheckDate)
+            : this.addDays(breedingDate, 35),
+          status: dto.status ?? BreedingStatus.PENDING_CHECK,
+          notes: dto.notes,
+        },
+        include: {
+          bull: { select: { id: true, tagNumber: true, name: true } },
+        },
+      });
+
+      // RAKHAL-298: an AI closes the open heat it responds to. Stamps the
+      // most recent unresolved heat within the farm's window; silent no-op
+      // when none exists (an AI can be recorded without a logged heat).
+      const openHeat = await tx.heatEvent.findFirst({
+        where: {
+          cattleId: dto.cattleId,
+          resolvedAt: null,
+          heatDateTime: {
+            gte: this.addDays(breedingDate, -heatWindowDays),
+            lte: breedingDate,
+          },
+        },
+        orderBy: { heatDateTime: 'desc' },
+      });
+      if (openHeat) {
+        await tx.heatEvent.update({
+          where: { id: openHeat.id },
+          data: {
+            resolvedAt: breedingDate,
+            resolvedByBreedingEventId: created.id,
+            resolutionReason: HeatResolutionReason.INSEMINATED,
+          },
+        });
+      }
+
+      return created;
     });
 
     await this.refreshProfile(farmId, dto.cattleId);
@@ -1023,7 +1079,7 @@ export class ReproductionService {
         orderBy: { startDate: 'desc' },
       }),
       this.prisma.heatEvent.findFirst({
-        where: { cattleId },
+        where: { cattleId, resolvedAt: null },
         orderBy: { heatDateTime: 'desc' },
       }),
       this.farmSettings.reproHeatWindowDays(farmId),
@@ -1291,6 +1347,7 @@ export class ReproductionService {
         where: {
           cattle: { farmId },
           heatDateTime: { gte: in24h },
+          resolvedAt: null,
         },
         include: {
           cattle: { select: { id: true, name: true, tagNumber: true } },

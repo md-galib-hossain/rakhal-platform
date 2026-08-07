@@ -51,10 +51,19 @@ model HeatEvent {
 
   createdAt DateTime @default(now())
 
-  cattle Cattle @relation(fields: [cattleId], references: [id])
+  /// RAKHAL-298: when/why this heat was closed. Nullable — an open heat has
+  /// both null. `resolvedByBreedingEventId` is the back-link an AI stamps
+  /// when it closes the heat that led to it (INSEMINATED only).
+  resolvedAt                DateTime?
+  resolvedByBreedingEventId String?               @unique
+  resolutionReason          HeatResolutionReason?
+
+  cattle             Cattle         @relation(fields: [cattleId], references: [id])
+  resolvedByBreeding BreedingEvent? @relation("HeatEventResolution", fields: [resolvedByBreedingEventId], references: [id])
 
   @@index([cattleId])
   @@index([heatDateTime])
+  @@index([cattleId, resolvedAt])
 }
 
 model BreedingEvent {
@@ -78,8 +87,9 @@ model BreedingEvent {
   cattle Cattle  @relation("BreedingEventCattle", fields: [cattleId], references: [id])
   bull   Cattle? @relation("BreedingEventBull", fields: [bullId], references: [id])
 
-  diagnoses   PregnancyDiagnosis[]
-  pregnancies Pregnancy[]
+  diagnoses         PregnancyDiagnosis[]
+  pregnancies       Pregnancy[]
+  resolvedHeatEvent HeatEvent? @relation("HeatEventResolution")
 
   @@index([cattleId])
   @@index([bullId])

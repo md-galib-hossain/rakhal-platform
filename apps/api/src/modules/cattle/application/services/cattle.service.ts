@@ -1785,6 +1785,7 @@ export class CattleService {
       // of how many `Cattle` rows are in the page (Prisma's nested-`include`
       // fan-out), not a per-row round trip.
       heatEvents: {
+        where: { resolvedAt: null },
         orderBy: { heatDateTime: 'desc' as const },
         select: { heatDateTime: true },
         take: 1,

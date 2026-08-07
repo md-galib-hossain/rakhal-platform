@@ -59,6 +59,15 @@ enum HeatDetectionMethod {
   MANUAL
 }
 
+/// RAKHAL-298: why an open `HeatEvent` was closed. No `EXPIRED` — expiry is a
+/// pure function of (heatDateTime, now, reproHeatWindowDays), not a stored
+/// state (see docs/REPRODUCTION_CORRECTIONS_DESIGN.md §2.2).
+enum HeatResolutionReason {
+  INSEMINATED
+  FALSE_ALARM
+  SKIPPED_CYCLE
+}
+
 enum BreedingMethod {
   AI
   NATURAL
