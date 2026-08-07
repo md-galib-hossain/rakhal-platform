@@ -58,6 +58,29 @@ export const cattleStatusSchema = z.object({
 });
 export type CattleStatusInput = z.infer<typeof cattleStatusSchema>;
 
+/**
+ * RAKHAL-296-F — mirrors the backend's `CreatePurchasedLactationDto`
+ * (`POST /reproduction/cattle/:id/purchased-lactation`, RAKHAL-281). Every field is optional — a
+ * farmer marking a purchased cow as already-milking may know none, some, or all of these; whatever
+ * is omitted is stored as `null` server-side and the resulting `Lactation` is always
+ * `isEstimated: true`. This is the alternative to `cattleStatusSchema`'s exact `lactationStartDate`
+ * path in `cattle-status-dialog.tsx` — offered when the farmer doesn't know the precise date.
+ */
+export const purchasedLactationSchema = z.object({
+  estimatedCalvingDate: z.string().optional(),
+  estimatedDaysInMilk: z.number().int().min(0).optional(),
+  estimatedLactationNumber: z.number().int().min(1).optional(),
+});
+export type PurchasedLactationInput = z.infer<typeof purchasedLactationSchema>;
+
+/** `cattle-status-dialog.tsx` runs one `useForm` covering both the exact-date MILKING path
+ * (`cattleStatusSchema`) and the estimated-intake path (`purchasedLactationSchema`) — merged so
+ * both sets of fields type-check together under a single resolver rather than juggling two forms
+ * in one dialog. Which path's fields actually get submitted is decided at submit time by the
+ * dialog's own "estimated intake" toggle, not by this schema. */
+export const cattleStatusWithEstimatedIntakeSchema = cattleStatusSchema.merge(purchasedLactationSchema);
+export type CattleStatusWithEstimatedIntakeInput = z.infer<typeof cattleStatusWithEstimatedIntakeSchema>;
+
 /** Mirrors `ArchiveCattleDto` (`DELETE /cattle/:id`) — `sold`/`deceased` keep production status
  * distinct (CAT-09), `archived` is a plain archive. */
 export const cattleArchiveSchema = z.object({

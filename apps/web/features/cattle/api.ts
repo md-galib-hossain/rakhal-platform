@@ -16,10 +16,17 @@ import type {
   CattleListItem,
   FeedGroup,
   MediaUrls,
+  PurchasedLactationResult,
   Shed,
   WeightRecordResult,
 } from "./types";
-import type { CattleArchiveInput, CattleStatusInput, RecordBcsInput, RecordWeightInput } from "./schemas";
+import type {
+  CattleArchiveInput,
+  CattleStatusInput,
+  PurchasedLactationInput,
+  RecordBcsInput,
+  RecordWeightInput,
+} from "./schemas";
 import type {
   CalvingEventRow,
   CattleFinance,
@@ -89,6 +96,20 @@ export const cattleApi = {
   },
   updateStatus(id: string, dto: CattleStatusInput): Promise<CattleDetail> {
     return apiFetch<CattleDetail>(`/cattle/${id}/status`, { method: "PATCH", body: dto });
+  },
+  /** RAKHAL-296-F — `POST /reproduction/cattle/:id/purchased-lactation` (RAKHAL-281). Reproduction
+   * module's own route (not `/cattle/*`), called from the cattle status flow: the alternative to
+   * `updateStatus`'s exact `lactationStartDate` when the farmer only knows an estimate (or nothing)
+   * about a purchased already-milking cow's lactation. Also flips `productionStatus` to MILKING
+   * server-side (`flipToMilking`), same as the exact-date path. */
+  createPurchasedLactation(
+    id: string,
+    dto: PurchasedLactationInput,
+  ): Promise<PurchasedLactationResult> {
+    return apiFetch<PurchasedLactationResult>(`/reproduction/cattle/${id}/purchased-lactation`, {
+      method: "POST",
+      body: dto,
+    });
   },
   /** `DELETE /cattle/:id` — soft-archive with an optional reason (sold/deceased/archived). */
   archive(id: string, dto: CattleArchiveInput): Promise<CattleDetail> {

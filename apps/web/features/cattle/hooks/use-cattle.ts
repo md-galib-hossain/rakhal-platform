@@ -5,7 +5,7 @@ import { qk } from "@/lib/query/keys";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { cattleApi } from "../api";
 import type { BulkAction, CattleFormPayload, CattleListFilters } from "../types";
-import type { CattleArchiveInput, CattleStatusInput } from "../schemas";
+import type { CattleArchiveInput, CattleStatusInput, PurchasedLactationInput } from "../schemas";
 
 const STALE_TIME = 60_000;
 
@@ -119,6 +119,17 @@ export function useUpdateCattleStatus() {
   const invalidate = useInvalidateCattle();
   return useMutation({
     mutationFn: ({ id, dto }: { id: string; dto: CattleStatusInput }) => cattleApi.updateStatus(id, dto),
+    onSuccess: (_data, { id }) => invalidate(id),
+  });
+}
+
+/** RAKHAL-296-F — mirrors `useUpdateCattleStatus`'s invalidation (this mutation flips
+ * `productionStatus` to MILKING server-side too, same as that route). */
+export function useCreatePurchasedLactation() {
+  const invalidate = useInvalidateCattle();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: PurchasedLactationInput }) =>
+      cattleApi.createPurchasedLactation(id, dto),
     onSuccess: (_data, { id }) => invalidate(id),
   });
 }

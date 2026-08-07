@@ -218,6 +218,21 @@ export interface WeightRecordResult {
   notes: string | null;
 }
 
+/** RAKHAL-296-F — `POST /reproduction/cattle/:id/purchased-lactation` response (RAKHAL-281's
+ * `createPurchasedLactation`, returns the created `Lactation` row). Only the fields this feature
+ * actually consumes are modeled here (not the full `Lactation` shape — that's `LactationRow` in
+ * `features/reproduction/types.ts`, deliberately not imported to avoid a dependency on that
+ * feature's in-progress lane). */
+export interface PurchasedLactationResult {
+  id: string;
+  cattleId: string;
+  lactationNumber: number;
+  startDate: string;
+  isEstimated: boolean;
+  estimatedDaysInMilk: number | null;
+  estimatedLactationNumber: number | null;
+}
+
 // ---- RFE-024 — Cattle CSV import (`cattle-import.service.ts`) -------------------------------------
 
 /** One row of a `POST /cattle/import/preview` response. */
