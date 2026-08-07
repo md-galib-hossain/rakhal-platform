@@ -358,4 +358,284 @@ describe('LactationStatsService', () => {
       expect(result.series[0].sessionsExpected).toBe(3);
     });
   });
+
+  describe('compareLactations (RAKHAL-287)', () => {
+    const currentLactationRow = {
+      id: 'lact-cur',
+      cattleId: 'cattle-1',
+      lactationNumber: 2,
+      startDate: new Date('2026-07-01T00:00:00.000Z'),
+      endDate: null,
+      peakMilkYield: 25,
+      peakMilkDate: new Date('2026-07-10T00:00:00.000Z'),
+      peakDaysInMilk: 9,
+      recommendedDryOffAt: null,
+      plannedDryOffAt: null,
+      cattle: { tagNumber: 'T-001' },
+    };
+    const previousLactationRow = {
+      id: 'lact-prev',
+      cattleId: 'cattle-1',
+      lactationNumber: 1,
+      startDate: new Date('2025-01-01T00:00:00.000Z'),
+      endDate: new Date('2025-10-28T00:00:00.000Z'),
+      peakMilkYield: 20,
+      peakMilkDate: new Date('2025-01-15T00:00:00.000Z'),
+      peakDaysInMilk: 14,
+      recommendedDryOffAt: null,
+      plannedDryOffAt: null,
+      cattle: { tagNumber: 'T-001' },
+    };
+
+    it('404s when the cow has no active lactation on this farm', async () => {
+      prisma.lactation.findFirst.mockResolvedValueOnce(null);
+      const service = make();
+
+      await expect(
+        service.compareLactations('farm-1', 'cattle-1', true),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('byLactationNumber=true resolves the previous lactation as lactationNumber - 1', async () => {
+      prisma.lactation.findFirst
+        .mockResolvedValueOnce(currentLactationRow) // getCurrentLactationOrThrow
+        .mockResolvedValueOnce(previousLactationRow); // findLactationByNumber
+      prisma.milkLogEntry.findMany.mockResolvedValue([]);
+      const service = make();
+
+      const result = await service.compareLactations(
+        'farm-1',
+        'cattle-1',
+        true,
+      );
+
+      expect(prisma.lactation.findFirst).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          where: {
+            cattleId: 'cattle-1',
+            lactationNumber: 1,
+            cattle: { farmId: 'farm-1' },
+          },
+        }),
+      );
+      expect(result.current.lactationId).toBe('lact-cur');
+      expect(result.previous?.lactationId).toBe('lact-prev');
+      expect(result.byLactationNumber).toBe(true);
+    });
+
+    it('byLactationNumber=false resolves the previous lactation as the most recently ended one', async () => {
+      prisma.lactation.findFirst
+        .mockResolvedValueOnce(currentLactationRow)
+        .mockResolvedValueOnce(previousLactationRow);
+      prisma.milkLogEntry.findMany.mockResolvedValue([]);
+      const service = make();
+
+      await service.compareLactations('farm-1', 'cattle-1', false);
+
+      expect(prisma.lactation.findFirst).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          where: {
+            cattleId: 'cattle-1',
+            id: { not: 'lact-cur' },
+            endDate: { not: null },
+            cattle: { farmId: 'farm-1' },
+          },
+          orderBy: [{ endDate: 'desc' }],
+        }),
+      );
+    });
+
+    it('previous is null (not an error) when the cow has no prior lactation', async () => {
+      prisma.lactation.findFirst
+        .mockResolvedValueOnce(currentLactationRow)
+        .mockResolvedValueOnce(null);
+      prisma.milkLogEntry.findMany.mockResolvedValue([]);
+      const service = make();
+
+      const result = await service.compareLactations(
+        'farm-1',
+        'cattle-1',
+        true,
+      );
+
+      expect(result.previous).toBeNull();
+      expect(result.alignedSeries.every((p) => p.previousYieldL === null)).toBe(
+        true,
+      );
+    });
+
+    it('DIM-aligns the two series by dim, not calendar date (integration-level check — pure-function behavior is covered in lactation-comparison.spec.ts)', async () => {
+      prisma.lactation.findFirst
+        .mockResolvedValueOnce(currentLactationRow)
+        .mockResolvedValueOnce(previousLactationRow);
+      // current: 6L on its own dim 0 (2026-07-01). previous: 4L on its own dim 0 (2025-01-01).
+      prisma.milkLogEntry.findMany
+        .mockResolvedValueOnce([]) // buildSeriesFor(current) curve entries
+        .mockResolvedValueOnce([]) // buildSeriesFor(previous) curve entries
+        .mockResolvedValueOnce([]) // buildComparisonSummary(current) yield entries
+        .mockResolvedValueOnce([]); // buildComparisonSummary(previous) yield entries
+      const service = make();
+
+      const result = await service.compareLactations(
+        'farm-1',
+        'cattle-1',
+        true,
+      );
+
+      expect(result.alignedSeries[0].dim).toBe(0);
+    });
+  });
+
+  describe('compareGroups (RAKHAL-287)', () => {
+    it('returns an empty array when the farm has no active lactations', async () => {
+      prisma.lactation.findMany.mockResolvedValueOnce([]);
+      const service = make();
+
+      const result = await service.compareGroups('farm-1', 'parity');
+
+      expect(result).toEqual([]);
+      expect(prisma.milkLogEntry.findMany).not.toHaveBeenCalled();
+    });
+
+    it('buckets by parity and averages sevenDayAvgYield across cows in the same bucket', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-07-15T00:00:00.000Z'));
+      prisma.lactation.findMany.mockResolvedValueOnce([
+        {
+          id: 'lact-a',
+          cattleId: 'cattle-a',
+          lactationNumber: 1,
+          startDate: new Date('2026-07-01T00:00:00.000Z'),
+          endDate: null,
+          peakMilkYield: 20,
+          peakDaysInMilk: 5,
+          cattle: {
+            shedId: null,
+            feedGroupId: null,
+            shed: null,
+            feedGroup: null,
+          },
+        },
+        {
+          id: 'lact-b',
+          cattleId: 'cattle-b',
+          lactationNumber: 1,
+          startDate: new Date('2026-07-01T00:00:00.000Z'),
+          endDate: null,
+          peakMilkYield: 30,
+          peakDaysInMilk: 5,
+          cattle: {
+            shedId: null,
+            feedGroupId: null,
+            shed: null,
+            feedGroup: null,
+          },
+        },
+      ]);
+      prisma.milkLogEntry.findMany.mockResolvedValueOnce([
+        {
+          cattleId: 'cattle-a',
+          logDate: new Date('2026-07-14T00:00:00.000Z'),
+          yieldL: 10,
+          disposition: MilkDisposition.SALEABLE,
+        },
+        {
+          cattleId: 'cattle-b',
+          logDate: new Date('2026-07-14T00:00:00.000Z'),
+          yieldL: 20,
+          disposition: MilkDisposition.SALEABLE,
+        },
+      ]);
+      const service = make();
+
+      const result = await service.compareGroups('farm-1', 'parity');
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        bucketKey: '1',
+        bucketLabel: 'Parity 1',
+        cowCount: 2,
+      });
+      jest.useRealTimers();
+    });
+
+    it('buckets by shed, labeling an unassigned cow as "Unassigned"', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-07-15T00:00:00.000Z'));
+      prisma.lactation.findMany.mockResolvedValueOnce([
+        {
+          id: 'lact-a',
+          cattleId: 'cattle-a',
+          lactationNumber: 1,
+          startDate: new Date('2026-07-01T00:00:00.000Z'),
+          endDate: null,
+          peakMilkYield: null,
+          peakDaysInMilk: null,
+          cattle: {
+            shedId: 'shed-1',
+            feedGroupId: null,
+            shed: { name: 'Shed A' },
+            feedGroup: null,
+          },
+        },
+        {
+          id: 'lact-b',
+          cattleId: 'cattle-b',
+          lactationNumber: 1,
+          startDate: new Date('2026-07-01T00:00:00.000Z'),
+          endDate: null,
+          peakMilkYield: null,
+          peakDaysInMilk: null,
+          cattle: {
+            shedId: null,
+            feedGroupId: null,
+            shed: null,
+            feedGroup: null,
+          },
+        },
+      ]);
+      prisma.milkLogEntry.findMany.mockResolvedValueOnce([]);
+      const service = make();
+
+      const result = await service.compareGroups('farm-1', 'shed');
+
+      expect(result).toHaveLength(2);
+      expect(result.find((b) => b.bucketKey === 'shed-1')?.bucketLabel).toBe(
+        'Shed A',
+      );
+      expect(
+        result.find((b) => b.bucketKey === 'UNASSIGNED')?.bucketLabel,
+      ).toBe('Unassigned');
+      jest.useRealTimers();
+    });
+
+    it('buckets by dimRange', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-09-15T00:00:00.000Z')); // DIM ~76 from 2026-07-01
+      prisma.lactation.findMany.mockResolvedValueOnce([
+        {
+          id: 'lact-a',
+          cattleId: 'cattle-a',
+          lactationNumber: 1,
+          startDate: new Date('2026-07-01T00:00:00.000Z'),
+          endDate: null,
+          peakMilkYield: null,
+          peakDaysInMilk: null,
+          cattle: {
+            shedId: null,
+            feedGroupId: null,
+            shed: null,
+            feedGroup: null,
+          },
+        },
+      ]);
+      prisma.milkLogEntry.findMany.mockResolvedValueOnce([]);
+      const service = make();
+
+      const result = await service.compareGroups('farm-1', 'dimRange');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].bucketKey).toBe('61-120');
+      jest.useRealTimers();
+    });
+  });
 });

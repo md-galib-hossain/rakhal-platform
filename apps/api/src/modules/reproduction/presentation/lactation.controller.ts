@@ -18,6 +18,8 @@ import { RequirePermission } from 'src/modules/permission/presentation/decorator
 import { LactationStatsService } from '../application/services/lactation-stats.service';
 import { LactationCurveQueryDto } from './dto/lactation-curve-query.dto';
 import { UpdatePlannedDryOffDto } from './dto/update-planned-dry-off.dto';
+import { CompareLactationQueryDto } from './dto/compare-lactation-query.dto';
+import { CompareLactationGroupsQueryDto } from './dto/compare-lactation-groups-query.dto';
 
 /**
  * Lactation stats + curve (RAKHAL-283). `/api/v1/reproduction/lactations`.
@@ -44,6 +46,36 @@ import { UpdatePlannedDryOffDto } from './dto/update-planned-dry-off.dto';
 )
 export class LactationController {
   constructor(private readonly lactationStatsService: LactationStatsService) {}
+
+  /**
+   * RAKHAL-287: current vs. previous lactation for one cow, DIM-aligned.
+   * Registered ahead of the `:id/...` routes below (specific literal paths
+   * before param routes) — `compare`/`compare/groups` never has a literal
+   * second segment of `stats`/`curve`/`planned-dry-off` so there's no real
+   * ambiguity, but this ordering keeps intent obvious.
+   */
+  @Get('compare')
+  @RequirePermission('reproduction.read')
+  compareLactations(
+    @CurrentFarmId() farmId: string,
+    @Query() query: CompareLactationQueryDto,
+  ) {
+    return this.lactationStatsService.compareLactations(
+      farmId,
+      query.cattleId,
+      query.byLactationNumber ?? true,
+    );
+  }
+
+  /** Farm-level average yield/peak/persistency, bucketed by parity/shed/feedGroup/dimRange. */
+  @Get('compare/groups')
+  @RequirePermission('reproduction.read')
+  compareGroups(
+    @CurrentFarmId() farmId: string,
+    @Query() query: CompareLactationGroupsQueryDto,
+  ) {
+    return this.lactationStatsService.compareGroups(farmId, query.groupBy);
+  }
 
   /** Today/7-day-avg/30-day-avg yield + lactation-to-date totals by MilkDisposition. */
   @Get(':id/stats')
