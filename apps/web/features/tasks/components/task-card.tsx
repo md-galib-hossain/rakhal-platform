@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { avatarTint, initials } from "../avatar-tint";
 import { PRIORITY_CHIP_VARIANT } from "../task-style";
+import { LACTATION_ALERT_ICON, lactationAlertSeverity, parseLactationAlert } from "../lactation-alert";
 import type { Task } from "../types";
 
 /** Pixel-matched to the Figma "Task Card" (1039:48345/861:14663). */
@@ -18,13 +19,26 @@ export function TaskCard({ task, onSeeDetails }: { task: Task; onSeeDetails: (ta
       ? t("card.overdueBy", { hours: task.overdueByHours })
       : formatDate(task.dueAt, locale, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 
+  // RAKHAL-286's lactation alerts (8 kinds) ride the generic Task Hub — decode the
+  // `[LACTATION_ALERT:<TAG>]` dedupe marker the backend embeds in `details` so it doesn't leak
+  // to the farmer, and surface a type-specific icon/label chip instead.
+  const lactationAlert = parseLactationAlert(task.details);
+  const LactationIcon = lactationAlert ? LACTATION_ALERT_ICON[lactationAlert.kind] : null;
+  const visibleDetails = lactationAlert ? lactationAlert.cleanDetails : task.details;
+
   return (
     <div className="flex w-full flex-col gap-5 rounded-2xl border border-border bg-card p-4">
       <div className="flex flex-col gap-2">
         <p className="text-xs font-bold text-muted-foreground">{task.reference}</p>
         <div className="flex flex-col gap-2">
+          {lactationAlert && LactationIcon ? (
+            <Chip variant={lactationAlertSeverity(lactationAlert.kind)} subtle className="w-fit gap-1.5">
+              <LactationIcon className="size-3.5" aria-hidden />
+              {t(`lactationAlert.${lactationAlert.kind}`)}
+            </Chip>
+          ) : null}
           <p className="text-xl font-bold text-foreground">{task.name}</p>
-          {task.details ? <p className="line-clamp-2 text-sm font-medium text-muted-foreground">{task.details}</p> : null}
+          {visibleDetails ? <p className="line-clamp-2 text-sm font-medium text-muted-foreground">{visibleDetails}</p> : null}
         </div>
       </div>
 

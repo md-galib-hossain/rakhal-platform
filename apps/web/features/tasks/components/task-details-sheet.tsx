@@ -16,6 +16,7 @@ import type { Locale } from "@/lib/constants/i18n";
 import { useCheckTaskStep, useCompleteTask, useUpdateTask } from "../hooks/use-tasks";
 import { avatarTint, initials } from "../avatar-tint";
 import { PRIORITY_CHIP_VARIANT } from "../task-style";
+import { LACTATION_ALERT_ICON, lactationAlertSeverity, parseLactationAlert } from "../lactation-alert";
 import { AssigneePicker } from "./assignee-picker";
 import type { Task } from "../types";
 
@@ -87,6 +88,12 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
       ? t("overdueBy", { hours: task.overdueByHours })
       : formatDate(task.dueAt, locale, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 
+  // See task-card.tsx — strips the backend's `[LACTATION_ALERT:<TAG>]` dedupe marker off
+  // `details` and surfaces a type-specific chip instead of the raw bracket.
+  const lactationAlert = parseLactationAlert(task.details);
+  const LactationIcon = lactationAlert ? LACTATION_ALERT_ICON[lactationAlert.kind] : null;
+  const visibleDetails = lactationAlert ? lactationAlert.cleanDetails : task.details;
+
   return (
     <SheetContent
       showClose={false}
@@ -96,6 +103,12 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
         <div className="flex items-start justify-between">
           <div className="flex flex-col gap-1">
             <p className="text-xs font-bold text-muted-foreground">{task.reference}</p>
+            {lactationAlert && LactationIcon ? (
+              <Chip variant={lactationAlertSeverity(lactationAlert.kind)} subtle className="w-fit gap-1.5">
+                <LactationIcon className="size-3.5" aria-hidden />
+                {tCommon(`lactationAlert.${lactationAlert.kind}`)}
+              </Chip>
+            ) : null}
             <SheetTitle className="text-xl font-bold text-foreground">{task.name}</SheetTitle>
           </div>
           <button
@@ -147,10 +160,10 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
           </InfoTile>
         </div>
 
-        {task.details ? (
+        {visibleDetails ? (
           <div className="flex flex-col gap-3">
             <p className="text-xs font-medium text-muted-foreground">{t("description")}</p>
-            <p className="text-sm text-foreground">{task.details}</p>
+            <p className="text-sm text-foreground">{visibleDetails}</p>
           </div>
         ) : null}
 
