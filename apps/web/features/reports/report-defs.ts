@@ -50,3 +50,27 @@ export const DASHBOARD_EXPORT_REPORT: GenerateReportDialogDef = {
   formats: ["pdf"],
   params: [],
 };
+
+/**
+ * RAKHAL-295-F — lactation reports (backend RAKHAL-288/287, `report-catalogue.ts` `reproduction`
+ * category). Individual report resolves `lactationId` when given, else falls back to the cow's
+ * ACTIVE lactation, else its most-recently-ended one — so `cattleId` alone is enough from a cow
+ * profile; `lactationId` stays available for precision when the caller has it.
+ */
+export const LACTATION_INDIVIDUAL_REPORT: GenerateReportDialogDef = {
+  id: "rpt_lactation_individual",
+  name: "Individual Lactation Report",
+  description:
+    "Dates, DIM, totals by disposition, peak, persistency, quality tests, health incidents, feed/shed assignment, breeding timeline, and dry-off reason for one lactation.",
+  formats: ["pdf", "csv"],
+  params: ["cattleId", "lactationId"],
+};
+
+export const LACTATION_HERD_DASHBOARD_REPORT: GenerateReportDialogDef = {
+  id: "rpt_lactation_herd_dashboard",
+  name: "Herd Lactation Dashboard",
+  description:
+    "Currently-milking count by lactation stage, average milk per cow per day, average DIM, highest producer, and milk withheld today.",
+  formats: ["pdf", "csv"],
+  params: [],
+};

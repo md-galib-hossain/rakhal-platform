@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { PageCard } from "@/components/shared/page-card";
 import { ReproductionWorkspace } from "@/features/reproduction/components/reproduction-workspace";
+import { ReportExportButton } from "@/features/reports/components/report-export-button";
+import { LACTATION_HERD_DASHBOARD_REPORT } from "@/features/reports/report-defs";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("nav");
@@ -21,7 +23,10 @@ export default async function ReproductionPage() {
   const t = await getTranslations("nav");
 
   return (
-    <PageCard title={t("reproduction")}>
+    <PageCard
+      title={t("reproduction")}
+      actions={<ReportExportButton report={LACTATION_HERD_DASHBOARD_REPORT} variant="secondary" />}
+    >
       <ReproductionWorkspace />
     </PageCard>
   );

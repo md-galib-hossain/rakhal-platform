@@ -78,15 +78,19 @@ export function GenerateReportDialog({
   report,
   open,
   onOpenChange,
+  defaultParams,
 }: {
   report: GenerateReportDialogDef;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Pre-fill (still-editable) param values, e.g. `{ cattleId }` from a cow profile page so the
+   * caller doesn't have to retype an ID it already knows (RAKHAL-295-F). */
+  defaultParams?: Record<string, string>;
 }) {
   const t = useTranslations("reports");
   const generate = useGenerateReport();
   const [format, setFormat] = useState<ReportFormat>(report.formats[0]);
-  const [params, setParams] = useState<Record<string, string>>({});
+  const [params, setParams] = useState<Record<string, string>>(defaultParams ?? {});
   const [jobId, setJobId] = useState<string | undefined>(undefined);
   const job = useReportJob(jobId);
 

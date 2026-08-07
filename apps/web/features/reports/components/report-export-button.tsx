@@ -22,10 +22,14 @@ export function ReportExportButton({
   report,
   size = "sm",
   variant = "outline",
+  defaultParams,
 }: {
   report: GenerateReportDialogDef;
   size?: "sm" | "md";
   variant?: "outline" | "secondary";
+  /** Pre-fill (still-editable) param values, e.g. `{ cattleId }` from a cow profile page
+   * (RAKHAL-295-F). */
+  defaultParams?: Record<string, string>;
 }) {
   const t = useTranslations("reports");
   const hasFeature = useHasFeature();
@@ -39,7 +43,9 @@ export function ReportExportButton({
         <Download className="size-3.5" aria-hidden />
         {t("export")}
       </Button>
-      {open ? <GenerateReportDialog report={report} open onOpenChange={setOpen} /> : null}
+      {open ? (
+        <GenerateReportDialog report={report} open onOpenChange={setOpen} defaultParams={defaultParams} />
+      ) : null}
     </Can>
   );
 }

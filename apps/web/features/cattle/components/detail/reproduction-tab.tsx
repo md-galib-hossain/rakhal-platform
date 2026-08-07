@@ -8,8 +8,12 @@ import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ReportExportButton } from "@/features/reports/components/report-export-button";
+import { LACTATION_INDIVIDUAL_REPORT } from "@/features/reports/report-defs";
 import { useCattleCalvingEvents, useCattleReproductionSummary } from "../../hooks/use-cattle-detail-tabs";
-import type { CattleGender } from "../../types";
+import type { CattleGender, LactationStage } from "../../types";
+import { LactationCurveChart } from "./charts/lactation-curve-chart";
+import { LactationSummaryCard } from "./lactation-summary-card"; // RAKHAL-291-F
 
 interface CalvingRow {
   eventId: string;
@@ -27,7 +31,15 @@ function GenderGlyph({ gender }: { gender: CattleGender }) {
 /** Reproduction tab (Figma B1-S7) — `GET /cattle/:id/reproduction-summary` + `GET
  * /reproduction/calving-events?cattleId=` for the history table. Female-only on the backend
  * (`getFemaleCattle` 400s for male/castrated) — gated here rather than firing a doomed request. */
-export function ReproductionTab({ cattleId, gender }: { cattleId: string; gender: CattleGender }) {
+export function ReproductionTab({
+  cattleId,
+  gender,
+  lactationStage, // RAKHAL-291-F — threaded from CattleDetail, no second fetch
+}: {
+  cattleId: string;
+  gender: CattleGender;
+  lactationStage?: LactationStage | null;
+}) {
   const t = useTranslations("cattle.detail.reproduction");
   const isFemale = gender === "FEMALE";
   const summary = useCattleReproductionSummary(cattleId, isFemale);
@@ -60,6 +72,10 @@ export function ReproductionTab({ cattleId, gender }: { cattleId: string; gender
 
   return (
     <div className="flex flex-col gap-4">
+      {/* RAKHAL-291-F — Lactation Summary card (today/7d/30d yield, totals by disposition, peak,
+          persistency, milk eligibility). Top section, ahead of the calving-focused stats below. */}
+      <LactationSummaryCard cattleId={cattleId} lactationStage={lactationStage} />
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label={t("totalCalvings")} value={data.totalCalvings} />
         <StatCard
@@ -109,6 +125,21 @@ export function ReproductionTab({ cattleId, gender }: { cattleId: string; gender
             </TableBody>
           </Table>
         )}
+      </div>
+
+      {/* RAKHAL-292-F — lactation curve (current lactation, DIM-indexed, per-day data-quality
+          markers) with a toggle to overlay the previous lactation or the farm-wide DIM-range average. */}
+      <LactationCurveChart cattleId={cattleId} />
+
+      {/* RAKHAL-295-F — export the current/most-recent lactation as a PDF/CSV report; cattleId is
+          enough on its own (backend falls back to the ACTIVE lactation, else the most-recently-ended
+          one), so it's pre-filled and the dialog's lactationId field stays optional/manual. */}
+      <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-4">
+        <div className="flex flex-col gap-0.5">
+          <h3 className="text-sm font-semibold text-foreground">{t("lactationReport.title")}</h3>
+          <p className="text-xs text-muted-foreground">{t("lactationReport.description")}</p>
+        </div>
+        <ReportExportButton report={LACTATION_INDIVIDUAL_REPORT} defaultParams={{ cattleId }} />
       </div>
     </div>
   );

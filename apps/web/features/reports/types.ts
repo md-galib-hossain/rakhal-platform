@@ -6,6 +6,7 @@ export type ReportParamKey =
   | "year"
   | "shedId"
   | "cattleId"
+  | "lactationId"
   | "fromDate"
   | "toDate"
   | "status"

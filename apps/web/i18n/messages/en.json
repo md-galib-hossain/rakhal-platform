@@ -762,7 +762,7 @@
       "changeFeedGroupDescription": "Move {count} cattle to a different feed group.",
       "feedGroupLabel": "Feed group",
       "markSold": "Mark as sold",
-      "markSoldDescription": "Mark {count} cattle as sold. This archives them from the active herd.",
+      "markSoldDescription": "Mark {count} cattle as sold. This archives them from the active herd. Any of them still actively milking will have that lactation closed.",
       "export": "Export",
       "cancel": "Cancel",
       "apply": "Apply",
@@ -848,6 +848,11 @@
       "hasCalvedBefore": "Has this cow calved before (outside this system)?",
       "priorCalvings": "Number of prior calvings",
       "priorCalvingsRequired": "A heifer cannot be set to Milking — check this box if she's calved before.",
+      "useEstimatedIntake": "I don't know the exact start date — use an estimate instead",
+      "estimatedIntakeHint": "Leave any of these blank if you're not sure. They'll be recorded as an estimate.",
+      "estimatedCalvingDate": "Estimated calving date",
+      "estimatedDaysInMilk": "Known days in milk",
+      "estimatedLactationNumber": "Which lactation is this (e.g. her 3rd)?",
       "save": "Save",
       "cancel": "Cancel",
       "updatedToast": "Status updated.",
@@ -865,7 +870,8 @@
       "cancel": "Cancel",
       "confirm": "Archive",
       "archivedToast": "Cattle archived.",
-      "genericError": "Something went wrong. Please try again."
+      "genericError": "Something went wrong. Please try again.",
+      "closesLactationWarning": "This cow's active lactation will be closed."
     },
     "actions": {
       "menu": "Row actions",
@@ -1028,6 +1034,53 @@
           "cancel": "Cancel",
           "recordedToast": "Weight recorded.",
           "genericError": "Something went wrong. Please try again."
+        },
+        "qualityTests": {
+          "title": "Quality Tests",
+          "recordTest": "Record Test",
+          "pctValue": "{value}%",
+          "columns": {
+            "sampleDate": "Date",
+            "fatPct": "Fat",
+            "proteinPct": "Protein",
+            "lactosePct": "Lactose",
+            "somaticCellCount": "SCC",
+            "milkUreaNitrogen": "MUN",
+            "source": "Source"
+          },
+          "sourceOptions": {
+            "LAB": "Lab",
+            "DEVICE": "Device",
+            "MANUAL": "Manual"
+          },
+          "empty": {
+            "title": "No quality tests recorded yet.",
+            "description": "Record a lab, device, or manual composition reading for this cow."
+          },
+          "dialog": {
+            "title": "Record Quality Test",
+            "lactation": "Lactation",
+            "lactationPlaceholder": "Select a lactation",
+            "lactationOption": "Lactation #{number} ({status})",
+            "noLactations": "This cow has no lactation records — a quality test needs one.",
+            "sampleDate": "Sample date",
+            "fatPct": "Fat %",
+            "proteinPct": "Protein %",
+            "lactosePct": "Lactose % (optional)",
+            "somaticCellCount": "Somatic cell count (optional)",
+            "milkUreaNitrogen": "Milk urea nitrogen (optional)",
+            "source": "Source",
+            "sourceOptions": {
+              "LAB": "Lab",
+              "DEVICE": "Device",
+              "MANUAL": "Manual"
+            },
+            "notes": "Notes",
+            "save": "Save",
+            "cancel": "Cancel",
+            "recordedToast": "Quality test recorded.",
+            "genericError": "Something went wrong. Please try again."
+          }
         }
       },
       "reproduction": {
@@ -1051,6 +1104,33 @@
           "MALE": "Male",
           "FEMALE": "Female",
           "CASTRATED_MALE": "Castrated male"
+        },
+        "lactationCurve": {
+          "title": "Lactation Curve",
+          "yieldL": "Yield (L)",
+          "noData": "No lactation curve data yet.",
+          "error": "Could not load the lactation curve.",
+          "overlay": {
+            "label": "Compare",
+            "none": "Current lactation",
+            "previous": "Previous lactation",
+            "group": "Farm average"
+          },
+          "series": {
+            "current": "Current",
+            "previous": "Previous",
+            "farmAverage": "Farm average"
+          },
+          "quality": {
+            "complete": "Complete",
+            "incomplete": "Incomplete",
+            "missing": "Missing"
+          },
+          "noPreviousLactation": "This cow has no previous lactation to compare."
+        },
+        "lactationReport": {
+          "title": "Lactation Report",
+          "description": "Export a detailed report for this cow's current (or most recent) lactation."
         }
       },
       "health": {
@@ -1115,6 +1195,33 @@
           "FEMALE": "Female",
           "CASTRATED_MALE": "Castrated male"
         }
+      },
+      "lactation": {
+        "title": "Lactation Summary",
+        "notLactating": "Not currently lactating",
+        "dryDescription": "This cow is in her dry period.",
+        "noLactationDescription": "This cow has no lactation records yet.",
+        "error": "Could not load lactation data.",
+        "dim": "Days in Milk",
+        "days": "{value} days",
+        "today": "Today",
+        "sevenDayAvg": "7-Day Avg",
+        "thirtyDayAvg": "30-Day Avg",
+        "litres": "{value} L",
+        "lactationToDate": "Lactation-to-Date",
+        "produced": "Produced",
+        "saleable": "Saleable",
+        "withheld": "Withheld",
+        "colostrum": "Colostrum",
+        "calfFeed": "Calf Feed",
+        "discarded": "Discarded",
+        "householdUse": "Household Use",
+        "peak": "Peak Yield",
+        "peakDetail": "at {dim} DIM",
+        "noPeakYet": "Not enough data yet.",
+        "persistency": "Persistency",
+        "persistencyPct": "{value}%",
+        "persistencyDetail": "{current} L now vs {peak} L peak ({daysSincePeak} days since peak)"
       }
     },
     "import": {
@@ -2087,7 +2194,8 @@
         "notesPlaceholder": "Optional notes",
         "submit": "Save Calving Event",
         "createdToast": "Calving event recorded.",
-        "genericError": "Could not record the calving event. Please try again."
+        "genericError": "Could not record the calving event. Please try again.",
+        "missingDryOffToast": "Previous lactation auto-closed — no dry-off was recorded (started {startDate}, closed {endDate})."
       },
       "abortion": {
         "title": "Record Abortion",
@@ -2118,7 +2226,13 @@
         "notesPlaceholder": "Optional notes",
         "submit": "Save Dry-off",
         "createdToast": "Dry-off recorded.",
-        "genericError": "Could not record the dry-off. Please try again."
+        "genericError": "Could not record the dry-off. Please try again.",
+        "recommendedDate": "System-recommended dry-off date: {date}",
+        "useRecommendedDate": "Use this date",
+        "plannedDate": "Planned dry-off date",
+        "plannedDateHint": "A lighter target date you can set/adjust anytime — doesn't end the lactation like recording the dry-off above.",
+        "savePlannedDate": "Save planned date",
+        "plannedDateSavedToast": "Planned dry-off date saved."
       },
       "applyProtocol": {
         "title": "Apply Protocol",
@@ -2912,6 +3026,16 @@
       "DAILY": "Daily",
       "WEEKLY": "Weekly",
       "MONTHLY": "Monthly"
+    },
+    "lactationAlert": {
+      "MISSING_SESSION": "Missing milk-log session",
+      "SUDDEN_DROP": "Sudden milk-yield drop",
+      "LOW_PEAK_BY_DIM": "Low peak yield for days in milk",
+      "LONG_LACTATION_NOT_PREGNANT": "Long lactation, not pregnant",
+      "DRY_OFF_APPROACHING": "Dry-off approaching",
+      "PLANNED_DRY_OFF_DUE": "Planned dry-off due today",
+      "DRY_OFF_OVERDUE": "Dry-off overdue",
+      "LOW_PRODUCTION_DRY_OFF_REVIEW": "Low production — review for dry-off"
     },
     "filters": {
       "my_tasks": "My Tasks",
@@ -4086,6 +4210,7 @@
       "year": "Year",
       "shedId": "Shed ID",
       "cattleId": "Cattle ID",
+      "lactationId": "Lactation ID",
       "fromDate": "From date",
       "toDate": "To date",
       "status": "Status",
