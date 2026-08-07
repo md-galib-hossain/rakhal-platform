@@ -7,6 +7,7 @@ import { BillingModule } from '../billing/billing.module';
 import { FinanceModule } from '../finance/finance.module';
 import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { HealthModule } from '../health/health.module';
+import { TaskModule } from '../task/task.module';
 import { SchedulerService } from './application/services/scheduler.service';
 
 /**
@@ -25,6 +26,7 @@ import { SchedulerService } from './application/services/scheduler.service';
     FinanceModule,
     FarmSettingsModule,
     HealthModule,
+    TaskModule,
   ],
   providers: [SchedulerService],
   exports: [SchedulerService],

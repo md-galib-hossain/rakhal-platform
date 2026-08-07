@@ -191,4 +191,26 @@ export class FarmSettingsService {
   async minDimFor305DayYield(farmId: string): Promise<number> {
     return (await this.getEffective(farmId)).minDimFor305DayYield;
   }
+
+  /**
+   * Day-over-day production drop %, e.g. 30 → a >=30% drop flags (RAKHAL-286).
+   * Reuses the **existing** `milkAnomalyThresholdPct` (RD-016/RAKHAL-277's
+   * per-session anomaly cutoff) rather than adding a duplicate column — the
+   * same "% drop from a rolling average" number, applied per-day here instead
+   * of per-session.
+   */
+  async lactationSuddenDropThresholdPct(farmId: string): Promise<number> {
+    return (await this.getEffective(farmId)).milkAnomalyThresholdPct;
+  }
+
+  /**
+   * DIM threshold, with no active pregnancy, before a lactation is flagged
+   * "long and not pregnant" (RAKHAL-286). Reuses the **existing**
+   * `reproLongDaysOpenDays` (RAKHAL-272) — for a cow still in an active
+   * lactation who hasn't rebred since her last calving, "days open" and
+   * "days in milk" are the same clock, so no duplicate column is needed.
+   */
+  async lactationLongNotPregnantDimDays(farmId: string): Promise<number> {
+    return (await this.getEffective(farmId)).reproLongDaysOpenDays;
+  }
 }
