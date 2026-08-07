@@ -19,6 +19,7 @@ import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { useConcentrations, useFeedEfficiency } from "@/features/feed/hooks/use-feed";
 import { LogDistributionDialog } from "@/features/feed/components/log-distribution-dialog";
+import { MilkQualityTestsSection } from "@/features/milk/components/milk-quality-tests-section";
 import { useCattleOverview, useWeightHistory } from "../../hooks/use-cattle-detail-tabs";
 import type { WeightHistoryPeriod } from "../../detail-types";
 import { RecordBcsDialog } from "./record-bcs-dialog";
@@ -240,6 +241,8 @@ export function OverviewTab({ cattleId }: { cattleId: string }) {
           </Table>
         )}
       </div>
+
+      <MilkQualityTestsSection cattleId={cattleId} />
     </div>
   );
 }

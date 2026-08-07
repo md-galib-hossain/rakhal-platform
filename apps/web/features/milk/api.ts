@@ -1,14 +1,18 @@
 "use client";
 
-import { apiFetch, apiUpload } from "@/lib/api/client";
+import { apiFetch, apiFetchPage, apiUpload } from "@/lib/api/client";
+import type { CursorPage } from "@/types/api";
 import type {
+  CreateMilkQualityTestInput,
   ExportMilkLogInput,
+  ListMilkQualityTestsParams,
   MilkAnomaliesResponse,
   MilkEligibility,
   MilkImportConfirmResult,
   MilkImportPreview,
   MilkLogTableResponse,
   MilkOverviewResponse,
+  MilkQualityTest,
   ReviewAnomalyInput,
   SaveMilkLogInput,
   SaveMilkLogResponse,
@@ -73,5 +77,23 @@ export const milkApi = {
       throw new Error(text || `Export failed (${res.status})`);
     }
     return res.blob();
+  },
+
+  // RAKHAL-282/293-F — `MilkController` quality-test routes (`milk.quality.create`/`milk.quality.read`).
+  qualityTests({
+    cattleId,
+    lactationId,
+    cursor,
+    limit,
+  }: ListMilkQualityTestsParams): Promise<CursorPage<MilkQualityTest>> {
+    return apiFetchPage<MilkQualityTest>("/milk/quality-tests", {
+      searchParams: { cattleId, lactationId, cursor, limit },
+    });
+  },
+  createQualityTest(input: CreateMilkQualityTestInput): Promise<MilkQualityTest> {
+    return apiFetch<MilkQualityTest>("/milk/quality-tests", { method: "POST", body: input });
+  },
+  latestQualityTest(cattleId: string): Promise<MilkQualityTest | null> {
+    return apiFetch<MilkQualityTest | null>("/milk/quality-tests/latest", { searchParams: { cattleId } });
   },
 };

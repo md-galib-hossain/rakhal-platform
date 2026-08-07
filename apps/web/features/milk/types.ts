@@ -199,3 +199,53 @@ export interface MilkEligibility {
   primaryStatus: MilkEligibilityStatus;
   reasons: MilkRestrictionReason[];
 }
+
+/**
+ * RAKHAL-282/293-F — milk quality testing (lab/device composition readings, distinct from the
+ * daily-yield `MilkLogEntry` above). Mirrors `MilkQualityTest` (Prisma model,
+ * `rakhal-backend/prisma/schemas/milk/milk.prisma`) and `MilkQualityService` exactly, verified by
+ * reading the backend source (routes + DTOs + service), not guessed. `POST/GET /milk/quality-tests`
+ * (+ `GET /milk/quality-tests/latest`) are `milk.quality.create`/`milk.quality.read`-gated — not
+ * yet in the aspirational `Rakhal_API.md` §6.
+ */
+export const MILK_QUALITY_TEST_SOURCES = ["LAB", "DEVICE", "MANUAL"] as const;
+export type MilkQualityTestSource = (typeof MILK_QUALITY_TEST_SOURCES)[number];
+
+export interface MilkQualityTest {
+  id: string;
+  cattleId: string;
+  lactationId: string;
+  sampleDate: string;
+  fatPct: number;
+  proteinPct: number;
+  lactosePct: number | null;
+  /** Cells per mL. */
+  somaticCellCount: number | null;
+  /** mg/dL. */
+  milkUreaNitrogen: number | null;
+  source: MilkQualityTestSource;
+  notes: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateMilkQualityTestInput {
+  cattleId: string;
+  lactationId: string;
+  sampleDate: string;
+  fatPct: number;
+  proteinPct: number;
+  lactosePct?: number;
+  somaticCellCount?: number;
+  milkUreaNitrogen?: number;
+  source: MilkQualityTestSource;
+  notes?: string;
+}
+
+export interface ListMilkQualityTestsParams {
+  cattleId?: string;
+  lactationId?: string;
+  cursor?: string;
+  limit?: number;
+}
