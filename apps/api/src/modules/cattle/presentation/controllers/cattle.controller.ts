@@ -7,11 +7,13 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import { env } from 'src/core/config/env';
 import {
   CurrentFarmId,
@@ -95,6 +97,19 @@ export class CattleController {
   @RequirePermission('cattle.bulk')
   bulk(@CurrentFarmId() farmId: string, @Body() dto: BulkCattleDto) {
     return this.cattleService.bulk(farmId, dto);
+  }
+
+  @Get('import/template')
+  @RequirePermission('cattle.create')
+  async downloadImportTemplate(@Res() res: Response) {
+    const buffer = await this.importService.buildTemplate();
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition':
+        'attachment; filename="cattle-import-template.xlsx"',
+    });
+    res.send(buffer);
   }
 
   @Post('import/preview')

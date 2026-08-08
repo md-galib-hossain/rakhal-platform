@@ -8,11 +8,13 @@ import { PermissionGuard } from 'src/modules/permission/presentation/guards/perm
 import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { ReproductionEditService } from '../../application/services/reproduction-edit.service';
+import { ReproductionCalvingEditService } from '../../application/services/reproduction-calving-edit.service';
 import { EditHeatEventDto } from '../dto/edit-heat-event.dto';
 import { EditBreedingEventDto } from '../dto/edit-breeding-event.dto';
 import { EditPregnancyDiagnosisDto } from '../dto/edit-pregnancy-diagnosis.dto';
 import { EditAbortionEventDto } from '../dto/edit-abortion-event.dto';
 import { EditDryOffDto } from '../dto/edit-dry-off.dto';
+import { EditCalvingEventDto } from '../dto/edit-calving-event.dto';
 
 /**
  * RAKHAL-305: edit routes for the five correctable event types. `/api/v1/reproduction`.
@@ -29,7 +31,10 @@ import { EditDryOffDto } from '../dto/edit-dry-off.dto';
   SubscriptionGuard,
 )
 export class ReproductionEditController {
-  constructor(private readonly editService: ReproductionEditService) {}
+  constructor(
+    private readonly editService: ReproductionEditService,
+    private readonly calvingEditService: ReproductionCalvingEditService,
+  ) {}
 
   @Patch('heat-events/:id')
   @RequirePermission('reproduction.update')
@@ -84,5 +89,16 @@ export class ReproductionEditController {
     @Body() dto: EditDryOffDto,
   ) {
     return this.editService.editDryOff(farmId, userId, id, dto);
+  }
+
+  @Patch('calving-events/:id')
+  @RequirePermission('reproduction.update')
+  editCalvingEvent(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body() dto: EditCalvingEventDto,
+  ) {
+    return this.calvingEditService.editCalvingEvent(farmId, userId, id, dto);
   }
 }

@@ -13,6 +13,7 @@ import { CattleModule } from '../cattle/cattle.module';
 import { ReproductionService } from './application/services/reproduction.service';
 import { ReproductionDerivationService } from './application/services/reproduction-derivation.service';
 import { ReproductionEditService } from './application/services/reproduction-edit.service';
+import { ReproductionCalvingEditService } from './application/services/reproduction-calving-edit.service';
 import { ReproProtocolService } from './application/services/repro-protocol.service';
 import { LactationStatsService } from './application/services/lactation-stats.service';
 import { LactationEconomicsService } from './application/services/lactation-economics.service';
@@ -51,6 +52,7 @@ import { LactationController } from './presentation/lactation.controller';
     ReproductionService,
     ReproductionDerivationService,
     ReproductionEditService,
+    ReproductionCalvingEditService,
     ReproProtocolService,
     LactationStatsService,
     LactationEconomicsService,
