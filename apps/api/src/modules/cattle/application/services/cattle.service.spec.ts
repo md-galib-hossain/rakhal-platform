@@ -35,6 +35,7 @@ describe('CattleService — RAKHAL-269 production status', () => {
   let logger: { setContext: jest.Mock; info: jest.Mock; warn: jest.Mock };
   let farmSettings: { getEffective: jest.Mock };
   let subscriptionAccess: { assertCattleLimit: jest.Mock };
+  let derivation: { refreshDerivedState: jest.Mock };
 
   const baseRow = (overrides: Record<string, unknown> = {}) => ({
     id: 'cattle-1',
@@ -109,6 +110,12 @@ describe('CattleService — RAKHAL-269 production status', () => {
         pregnancyMidDays: 180,
       }),
     };
+    // RAKHAL-307: `create()`/`update()` now end certain paths with
+    // `refreshDerivedState()` — a no-op stub here, its own behavior is
+    // covered by `reproduction-derivation.service.spec.ts`.
+    derivation = {
+      refreshDerivedState: jest.fn().mockResolvedValue(undefined),
+    };
   });
 
   const make = () =>
@@ -118,6 +125,7 @@ describe('CattleService — RAKHAL-269 production status', () => {
       subscriptionAccess as never, // SubscriptionAccessService
       { presentUrls: jest.fn(), signThumbs: jest.fn() } as never, // MediaService
       farmSettings as never, // FarmSettingsService (RAKHAL-279)
+      derivation as never, // ReproductionDerivationService (RAKHAL-307)
       logger as never,
     );
 

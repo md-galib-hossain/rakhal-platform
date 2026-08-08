@@ -40,6 +40,11 @@ export interface CreateTaskInternalInput {
   relatedCattleId?: string;
   steps?: string[];
   safetyCritical?: boolean;
+  /** RAKHAL-303 edit substrate: the domain event this task was generated
+   * from (e.g. "BREEDING_EVENT"), paired with `sourceEventId`. Lets
+   * `rescheduleBySourceEvent` find it when that event is later edited. */
+  sourceEventType?: string;
+  sourceEventId?: string;
 }
 
 type TaskWithAssignee = Task & {
@@ -109,7 +114,57 @@ export class TaskService {
       source: input.source,
       relatedCattleId: input.relatedCattleId,
       assignedToId: input.assignedToId,
+      sourceEventType: input.sourceEventType,
+      sourceEventId: input.sourceEventId,
     });
+  }
+
+  /**
+   * RAKHAL-303: move `dueAt` on every non-completed task generated from a
+   * given domain event, in one `updateMany` — called by an edit handler
+   * (RAKHAL-305/306) when the event's date changes (e.g. a moved breeding
+   * date shifts its pregnancy-check task). Already-completed tasks are left
+   * untouched and reported back so the caller can surface "1 task was
+   * already done" rather than silently rewriting history. Never deletes —
+   * `remove()` stays manual-only.
+   */
+  async rescheduleBySourceEvent(
+    farmId: string,
+    sourceEventType: string,
+    sourceEventId: string,
+    newDueAt: Date,
+  ): Promise<{
+    rescheduledTaskIds: string[];
+    alreadyCompletedTaskIds: string[];
+  }> {
+    const tasks = await this.prisma.task.findMany({
+      where: { farmId, sourceEventType, sourceEventId },
+      select: { id: true, status: true },
+    });
+    const pending = tasks.filter((t) => t.status !== TaskStatus.COMPLETED);
+    const alreadyCompleted = tasks.filter(
+      (t) => t.status === TaskStatus.COMPLETED,
+    );
+
+    if (pending.length > 0) {
+      await this.prisma.task.updateMany({
+        where: { id: { in: pending.map((t) => t.id) } },
+        data: { dueAt: newDueAt },
+      });
+    }
+
+    this.log.info('Tasks rescheduled by source event', {
+      farmId,
+      sourceEventType,
+      sourceEventId,
+      rescheduled: pending.length,
+      alreadyCompleted: alreadyCompleted.length,
+    });
+
+    return {
+      rescheduledTaskIds: pending.map((t) => t.id),
+      alreadyCompletedTaskIds: alreadyCompleted.map((t) => t.id),
+    };
   }
 
   async update(farmId: string, id: string, dto: UpdateTaskDto) {
@@ -332,6 +387,8 @@ export class TaskService {
     source: TaskSource;
     relatedCattleId?: string;
     assignedToId?: string;
+    sourceEventType?: string;
+    sourceEventId?: string;
   }): Promise<Task> {
     // Sequential per-farm reference with a small retry on the unique race.
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -359,6 +416,8 @@ export class TaskService {
             source: data.source,
             relatedCattleId: data.relatedCattleId,
             assignedToId: data.assignedToId,
+            sourceEventType: data.sourceEventType,
+            sourceEventId: data.sourceEventId,
             createdBy: data.createdBy,
           },
         });

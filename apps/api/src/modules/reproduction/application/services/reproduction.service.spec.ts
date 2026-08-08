@@ -209,6 +209,7 @@ describe('ReproductionService.createCalvingEvent — totalCalvings atomicity', (
   let taskService: { createInternal: jest.Mock };
   let farmSettings: { reproVwpDays: jest.Mock };
   let logger: { setContext: jest.Mock; info: jest.Mock; warn: jest.Mock };
+  let derivation: { refreshDerivedState: jest.Mock };
 
   const cattleRow = {
     id: 'cattle-1',
@@ -225,18 +226,14 @@ describe('ReproductionService.createCalvingEvent — totalCalvings atomicity', (
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       calvingEvent: {
-        // First call (outside the transaction) computes `calvingNumber` from
-        // the pre-existing count; second call (inside the transaction, after
-        // the new CalvingEvent row is created) computes `totalCalvings` —
-        // this cow's very first calving, so both resolve consistently. A
-        // third call happens inside `refreshProfile()`'s own independent
-        // re-derivation after the transaction — same value, falls back to
-        // the default `mockResolvedValue`.
-        count: jest
-          .fn()
-          .mockResolvedValueOnce(0)
-          .mockResolvedValueOnce(1)
-          .mockResolvedValue(1),
+        // Outside the transaction computes `calvingNumber` from the
+        // pre-existing count; inside the transaction, after the new
+        // CalvingEvent row is created, computes `totalCalvings` — this cow's
+        // very first calving, so both resolve consistently.
+        // `refreshDerivedState()`'s own post-transaction re-derivation is a
+        // separately-mocked collaborator now (RAKHAL-301), not a further
+        // call on this same mock.
+        count: jest.fn().mockResolvedValueOnce(0).mockResolvedValueOnce(1),
         create: jest.fn().mockResolvedValue({ id: 'calving-1' }),
         findUnique: jest.fn().mockResolvedValue({
           id: 'calving-1',
@@ -273,6 +270,9 @@ describe('ReproductionService.createCalvingEvent — totalCalvings atomicity', (
       info: jest.fn(),
       warn: jest.fn(),
     };
+    derivation = {
+      refreshDerivedState: jest.fn().mockResolvedValue(undefined),
+    };
   });
 
   const make = () =>
@@ -285,9 +285,10 @@ describe('ReproductionService.createCalvingEvent — totalCalvings atomicity', (
       farmSettings as never, // FarmSettingsService
       { activeHoldsForCattle: jest.fn() } as never, // AnimalHoldService (unused here)
       logger as never,
+      derivation as never, // ReproductionDerivationService
     );
 
-  it('writes ReproductionProfile.totalCalvings inside the same $transaction as the CalvingEvent + MILKING flip, before refreshProfile() runs again', async () => {
+  it('writes ReproductionProfile.totalCalvings inside the same $transaction as the CalvingEvent + MILKING flip, before refreshDerivedState() runs', async () => {
     const service = make();
 
     await service.createCalvingEvent('farm-1', 'user-1', {
@@ -296,15 +297,12 @@ describe('ReproductionService.createCalvingEvent — totalCalvings atomicity', (
       calvingEase: CalvingEase.NORMAL,
     });
 
-    // Two reproductionProfile.upsert calls total: the in-transaction write
-    // this fix adds, then refreshProfile()'s own post-transaction write.
-    expect(prisma.reproductionProfile.upsert).toHaveBeenCalledTimes(2);
-
-    // The FIRST call — proven by call order, not by re-deriving from a
-    // second refreshProfile() round-trip — already carries the correct
-    // totalCalvings, computed from a `tx.calvingEvent.count()` that ran
-    // inside the same transaction as the CalvingEvent create + the
-    // productionStatus:MILKING flip.
+    // The in-transaction write (this fix adds) is the ONLY
+    // reproductionProfile.upsert call on this mock now — the post-transaction
+    // recompute moved to the separately-mocked `ReproductionDerivationService`
+    // (RAKHAL-301), so it's asserted independently below instead of via a
+    // second call on this same mock.
+    expect(prisma.reproductionProfile.upsert).toHaveBeenCalledTimes(1);
     const upsertCalls = prisma.reproductionProfile.upsert.mock.calls as Array<
       [{ create: { totalCalvings: number }; update: { totalCalvings: number } }]
     >;
@@ -318,6 +316,12 @@ describe('ReproductionService.createCalvingEvent — totalCalvings atomicity', (
       where: { id: 'cattle-1', isActive: true },
       data: { productionStatus: 'MILKING' },
     });
+
+    // refreshDerivedState() still runs after the transaction commits.
+    expect(derivation.refreshDerivedState).toHaveBeenCalledWith(
+      'farm-1',
+      'cattle-1',
+    );
   });
 });
 
@@ -446,6 +450,7 @@ describe('ReproductionService.createCalvingEvent — missing dry-off auto-close 
       farmSettings as never,
       { activeHoldsForCattle: jest.fn() } as never,
       logger as never,
+      { refreshDerivedState: jest.fn().mockResolvedValue(undefined) } as never, // ReproductionDerivationService
     );
 
   it('closes an already-ACTIVE lactation with MISSING_DRY_OFF_RECORD before opening the new one, and surfaces it on the response', async () => {
@@ -574,6 +579,7 @@ describe('ReproductionService.createPurchasedLactation', () => {
       farmSettings as never,
       { activeHoldsForCattle: jest.fn() } as never, // AnimalHoldService (unused)
       logger as never,
+      { refreshDerivedState: jest.fn().mockResolvedValue(undefined) } as never, // ReproductionDerivationService
     );
 
   it('creates an ACTIVE, isEstimated Lactation with startReason PURCHASED_LACTATING and flips Cattle to MILKING', async () => {
@@ -740,6 +746,7 @@ describe('ReproductionService.recordDryOff — endReason (RAKHAL-290)', () => {
       farmSettings as never,
       { activeHoldsForCattle: jest.fn() } as never, // AnimalHoldService (unused)
       logger as never,
+      { refreshDerivedState: jest.fn().mockResolvedValue(undefined) } as never, // ReproductionDerivationService
     );
 
   it('stamps endReason: DRY_OFF on the closed Lactation', async () => {
@@ -866,6 +873,7 @@ describe('ReproductionService — RAKHAL-285 dry-off projection recompute', () =
       farmSettings as never,
       { activeHoldsForCattle: jest.fn() } as never, // AnimalHoldService (unused)
       logger as never,
+      { refreshDerivedState: jest.fn().mockResolvedValue(undefined) } as never, // ReproductionDerivationService
     );
 
   it('createPregnancyDiagnosis(PREGNANT) recomputes recommendedDryOffAt = expectedCalvingDate - dryPeriodDays on the dam active Lactation', async () => {

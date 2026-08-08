@@ -47,6 +47,11 @@ import {
   PregnancyStage,
 } from '../../domain/pregnancy-stage';
 import { computeDryOffProjection } from '../../domain/lactation-dry-off-projection';
+import {
+  ReproductionDerivationService,
+  deriveReproductionState,
+  type ReproductionStateInput,
+} from './reproduction-derivation.service';
 import { CreateAbortionEventDto } from '../../presentation/dto/create-abortion-event.dto';
 import { CreateBreedingEventDto } from '../../presentation/dto/create-breeding-event.dto';
 import { CreateCalvingEventDto } from '../../presentation/dto/create-calving-event.dto';
@@ -64,89 +69,17 @@ type CattleForAccess = {
   tagNumber: string;
 };
 
-/** ~15 months — typical heifer breeding-readiness threshold (PRD §9). */
-const MIN_BREEDING_AGE_DAYS = 450;
 /** Standard bovine gestation length, in days — same fallback used elsewhere
  * in this service (`createPregnancyDiagnosis`) when no explicit
  * `expectedCalvingDate` is recorded; reused by `derivePregnancyStage`'s
  * close-up-window projection (RAKHAL-273). */
 const DEFAULT_GESTATION_DAYS = 280;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
-export interface ReproductionStateInput {
-  now: Date;
-  gender: CattleGender | null | undefined;
-  dateOfBirth: Date | null;
-  /** Ever bred/pregnant/calved — guards NOT_ELIGIBLE from overriding real history. */
-  hasBreedingHistory: boolean;
-  hasActivePregnancy: boolean;
-  lastBreeding: { status: BreedingStatus } | null;
-  lastCalving: { calvingDate: Date } | null;
-  vwpDays: number;
-}
-
-/**
- * Pure breeding-cycle CORE-STATE derivation (RAKHAL-271, v2 correction).
- * Priority (first match wins): NOT_ELIGIBLE (male / under breeding age with
- * no history) → PREGNANT (any active pregnancy, regardless of closeness to
- * calving — that's the derived `CALVING_DUE` alert's job, not a different
- * state) → BRED_AWAITING_CONFIRMATION (pending-check breeding) →
- * POSTPARTUM_WAITING (inside VWP after last calving) → OPEN.
- *
- * v2 dropped the v1 `IN_HEAT`/`PREGNANCY_CHECK_DUE`/`EXPECTED_TO_CALVE`
- * branches entirely — those were time-bound alerts baked into the core
- * enum, not core biological states. See `deriveReproductionAlerts`
- * (`../../domain/reproduction-alerts.ts`) for the derived, multi-valued,
- * read-time-only replacement.
- *
- * Exported (not just a private service method) so it's unit-testable without
- * a Prisma double.
- */
-export function deriveReproductionState(
-  input: ReproductionStateInput,
-): ReproductionState {
-  const {
-    now,
-    gender,
-    dateOfBirth,
-    hasBreedingHistory,
-    hasActivePregnancy,
-    lastBreeding,
-    lastCalving,
-    vwpDays,
-  } = input;
-
-  const ageDays = dateOfBirth
-    ? Math.floor((now.getTime() - dateOfBirth.getTime()) / DAY_MS)
-    : null;
-  const underBreedingAge = ageDays !== null && ageDays < MIN_BREEDING_AGE_DAYS;
-
-  if (
-    gender !== CattleGender.FEMALE ||
-    (underBreedingAge && !hasBreedingHistory)
-  ) {
-    return ReproductionState.NOT_ELIGIBLE;
-  }
-
-  if (hasActivePregnancy) {
-    return ReproductionState.PREGNANT;
-  }
-
-  if (lastBreeding?.status === BreedingStatus.PENDING_CHECK) {
-    return ReproductionState.BRED_AWAITING_CONFIRMATION;
-  }
-
-  if (lastCalving) {
-    const daysSinceCalving = Math.floor(
-      (now.getTime() - lastCalving.calvingDate.getTime()) / DAY_MS,
-    );
-    if (daysSinceCalving < vwpDays) {
-      return ReproductionState.POSTPARTUM_WAITING;
-    }
-  }
-
-  return ReproductionState.OPEN;
-}
+// RAKHAL-301: `deriveReproductionState`/`ReproductionStateInput` moved to
+// `ReproductionDerivationService` — re-exported here so existing import
+// paths (incl. this file's own unit test suite) don't churn.
+export { deriveReproductionState };
+export type { ReproductionStateInput };
 
 /**
  * Reproduction service (PRD §9). Farm-scoped: `farmId` is supplied by the
@@ -169,6 +102,7 @@ export class ReproductionService {
     private readonly farmSettings: FarmSettingsService,
     private readonly animalHoldService: AnimalHoldService,
     private readonly logger: LoggerService,
+    private readonly derivation: ReproductionDerivationService,
   ) {
     this.log = this.logger.setContext(ReproductionService.name);
   }
@@ -306,7 +240,7 @@ export class ReproductionService {
       return created;
     });
 
-    await this.refreshProfile(farmId, dto.cattleId);
+    await this.derivation.refreshDerivedState(farmId, dto.cattleId);
 
     // Task Hub: schedule the pregnancy check for this service (PRD §9.3, §17.6).
     await this.taskService.createInternal({
@@ -321,6 +255,8 @@ export class ReproductionService {
         this.addDays(new Date(dto.breedingDate), 35),
       source: TaskSource.SYSTEM_AUTO,
       relatedCattleId: dto.cattleId,
+      sourceEventType: 'BREEDING_EVENT',
+      sourceEventId: breedingEvent.id,
     });
 
     this.log.info('Breeding event created', {
@@ -404,6 +340,9 @@ export class ReproductionService {
               : this.addDays(conceptionDate, 280),
             gestationDays: dto.gestationDay,
             status: PregnancyStatus.ACTIVE,
+            // RAKHAL-299/305: back-link so an edit to this diagnosis (e.g.
+            // PREGNANT→NOT_PREGNANT) can find the Pregnancy it produced.
+            sourceDiagnosisId: created.id,
           },
         });
 
@@ -461,7 +400,7 @@ export class ReproductionService {
       return created;
     });
 
-    await this.refreshProfile(farmId, dto.cattleId);
+    await this.derivation.refreshDerivedState(farmId, dto.cattleId);
 
     // AQR: Pregnancy Confirmed (+5) + immutable Activity Log entry (PRD §19.2).
     if (dto.result === PregnancyDiagnosisResult.PREGNANT) {
@@ -632,10 +571,11 @@ export class ReproductionService {
       // reads `totalCalvings`, not a separately-derived state) — counted
       // inside this same transaction (the just-created `CalvingEvent` row is
       // already visible to it) rather than left to the post-transaction
-      // `refreshProfile()` call, which previously left a real window where a
-      // reader could observe `productionStatus: MILKING` with a stale
-      // `totalCalvings` if it raced between commit and that follow-up call.
-      // reproductiveStatus itself is still left to refreshProfile() below —
+      // `refreshDerivedState()` call, which previously left a real window
+      // where a reader could observe `productionStatus: MILKING` with a
+      // stale `totalCalvings` if it raced between commit and that follow-up
+      // call. reproductiveStatus itself is still left to
+      // `refreshDerivedState()` below —
       // it derives PREGNANT/EXPECTED_TO_CALVE/OPEN/etc. from live event state
       // (RAKHAL-271), which this upsert doesn't need for that invariant.
       const totalCalvings = await tx.calvingEvent.count({
@@ -691,7 +631,7 @@ export class ReproductionService {
 
     const { calvingEvent, closedMissingDryOffLactation } = txResult;
 
-    await this.refreshProfile(farmId, dto.cattleId);
+    await this.derivation.refreshDerivedState(farmId, dto.cattleId);
 
     // AQR: register each live-born calf (+50) just like CattleService does, then
     // spin up the age-based calf-care schedule (PRD §14.5, RD-009).
@@ -713,6 +653,7 @@ export class ReproductionService {
           calfId: birth.calfId,
           birthDate: calvingDate,
           gender: birth.gender,
+          sourceEventId: calvingEvent?.id,
         });
       }
     }
@@ -743,6 +684,8 @@ export class ReproductionService {
       source: TaskSource.SYSTEM_AUTO,
       relatedCattleId: dto.cattleId,
       safetyCritical: true,
+      sourceEventType: 'CALVING_EVENT',
+      sourceEventId: calvingEvent?.id,
     });
 
     this.log.info('Calving event created', {
@@ -825,7 +768,7 @@ export class ReproductionService {
       return created;
     });
 
-    await this.refreshProfile(farmId, cattleId);
+    await this.derivation.refreshDerivedState(farmId, cattleId);
 
     this.log.info('Dry-off recorded', {
       dryPeriodId: dryPeriod.id,
@@ -926,7 +869,7 @@ export class ReproductionService {
       return created;
     });
 
-    await this.refreshProfile(farmId, cattleId);
+    await this.derivation.refreshDerivedState(farmId, cattleId);
 
     this.log.info('Purchased-lactating cow intake recorded', {
       lactationId: lactation.id,
@@ -983,7 +926,7 @@ export class ReproductionService {
       }
 
       // ReproductionState has no dead-end ABORTED value (RAKHAL-271) — clear
-      // the pregnancy pointer here, then refreshProfile() below derives the
+      // the pregnancy pointer here, then refreshDerivedState() below derives the
       // cow back to OPEN (or whatever the live event state now implies).
       await tx.reproductionProfile.upsert({
         where: { cattleId: dto.cattleId },
@@ -1002,7 +945,7 @@ export class ReproductionService {
       return created;
     });
 
-    await this.refreshProfile(farmId, dto.cattleId);
+    await this.derivation.refreshDerivedState(farmId, dto.cattleId);
     this.log.info('Abortion event created', {
       abortionEventId: abortion.id,
       cattleId: dto.cattleId,
@@ -1035,7 +978,7 @@ export class ReproductionService {
 
   async summary(farmId: string, cattleId: string) {
     const cattle = await this.getFemaleCattle(farmId, cattleId);
-    await this.refreshProfile(farmId, cattleId);
+    await this.derivation.refreshDerivedState(farmId, cattleId);
 
     const [
       profile,
@@ -1807,116 +1750,6 @@ export class ReproductionService {
       where: { cattleId },
       create: { cattleId },
       update: {},
-    });
-  }
-
-  /**
-   * Recomputes `ReproductionProfile` from live event state (RAKHAL-271).
-   * `farmId` is needed to read the farm's VWP/heat-window/close-up-window
-   * settings (`FarmSettingsService`, RD-016 pattern).
-   */
-  private async refreshProfile(farmId: string, cattleId: string) {
-    // Only the inputs `deriveReproductionState` actually needs (RAKHAL-271 v2
-    // correction) — heat/close-up-window data moved out to
-    // `deriveReproductionAlerts`, computed separately at read time (e.g.
-    // `summary()`), not stored on the profile.
-    const [
-      cattle,
-      vwpDays,
-      totalBreedings,
-      pregnancies,
-      totalCalvings,
-      totalAbortions,
-      firstCalving,
-      lastBreeding,
-      lastDiagnosis,
-      lastCalving,
-      currentPregnancy,
-      currentLactation,
-    ] = await Promise.all([
-      this.prisma.cattle.findUnique({
-        where: { id: cattleId },
-        select: { gender: true, dateOfBirth: true },
-      }),
-      this.farmSettings.reproVwpDays(farmId),
-      this.prisma.breedingEvent.count({ where: { cattleId } }),
-      this.prisma.pregnancy.findMany({
-        where: { cattleId, status: { not: PregnancyStatus.FAILED } },
-        select: { id: true, status: true },
-      }),
-      this.prisma.calvingEvent.count({ where: { cattleId } }),
-      this.prisma.abortionEvent.count({ where: { cattleId } }),
-      this.prisma.calvingEvent.findFirst({
-        where: { cattleId },
-        orderBy: { calvingDate: 'asc' },
-      }),
-      this.prisma.breedingEvent.findFirst({
-        where: { cattleId },
-        orderBy: { breedingDate: 'desc' },
-      }),
-      this.prisma.pregnancyDiagnosis.findFirst({
-        where: { cattleId },
-        orderBy: { diagnosisDate: 'desc' },
-      }),
-      this.prisma.calvingEvent.findFirst({
-        where: { cattleId },
-        orderBy: { calvingDate: 'desc' },
-      }),
-      this.prisma.pregnancy.findFirst({
-        where: { cattleId, status: PregnancyStatus.ACTIVE },
-        orderBy: { conceptionDate: 'desc' },
-      }),
-      this.prisma.lactation.findFirst({
-        where: { cattleId, status: LactationStatus.ACTIVE },
-        orderBy: { startDate: 'desc' },
-      }),
-    ]);
-
-    const status = deriveReproductionState({
-      now: new Date(),
-      gender: cattle?.gender,
-      dateOfBirth: cattle?.dateOfBirth ?? null,
-      hasBreedingHistory:
-        totalBreedings > 0 || pregnancies.length > 0 || totalCalvings > 0,
-      hasActivePregnancy: Boolean(currentPregnancy),
-      lastBreeding: lastBreeding ? { status: lastBreeding.status } : null,
-      lastCalving: lastCalving
-        ? { calvingDate: lastCalving.calvingDate }
-        : null,
-      vwpDays,
-    });
-
-    await this.prisma.reproductionProfile.upsert({
-      where: { cattleId },
-      create: {
-        cattleId,
-        reproductiveStatus: status,
-        currentLactationNumber: currentLactation?.lactationNumber ?? 0,
-        totalBreedings,
-        totalPregnancies: pregnancies.length,
-        totalCalvings,
-        totalAbortions,
-        firstCalvingDate: firstCalving?.calvingDate,
-        lastBreedingDate: lastBreeding?.breedingDate,
-        lastPregnancyCheckDate: lastDiagnosis?.diagnosisDate,
-        lastCalvingDate: lastCalving?.calvingDate,
-        currentPregnancyId: currentPregnancy?.id,
-        currentLactationId: currentLactation?.id,
-      },
-      update: {
-        reproductiveStatus: status,
-        currentLactationNumber: currentLactation?.lactationNumber ?? 0,
-        totalBreedings,
-        totalPregnancies: pregnancies.length,
-        totalCalvings,
-        totalAbortions,
-        firstCalvingDate: firstCalving?.calvingDate,
-        lastBreedingDate: lastBreeding?.breedingDate,
-        lastPregnancyCheckDate: lastDiagnosis?.diagnosisDate,
-        lastCalvingDate: lastCalving?.calvingDate,
-        currentPregnancyId: currentPregnancy?.id,
-        currentLactationId: currentLactation?.id,
-      },
     });
   }
 

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { AuthModule } from '../auth/auth.module';
 import { TenantAccessModule } from '../tenant-access/tenant-access.module';
@@ -15,6 +15,12 @@ import { MediaModule } from '../media/media.module';
 // `FarmSettingsModule` is a lean, standalone module (Prisma + Logger only,
 // no back-reference to `CattleModule`) so this creates no cycle.
 import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
+// RAKHAL-307: CattleService.create() needs ReproductionDerivationService to
+// end intake with the same refreshDerivedState() recompute every other
+// reproduction write uses. ReproductionModule already imports CattleModule
+// (AnimalHoldService), so this direction is a real cycle — forwardRef() on
+// both sides (see reproduction.module.ts's own updated comment).
+import { ReproductionModule } from '../reproduction/reproduction.module';
 import { AnimalHoldService } from './application/services/animal-hold.service';
 import { BcsService } from './application/services/bcs.service';
 import { BreedService } from './application/services/breed.service';
@@ -38,6 +44,7 @@ import { ShedController } from './presentation/controllers/shed.controller';
     SubscriptionModule,
     MediaModule,
     FarmSettingsModule,
+    forwardRef(() => ReproductionModule),
   ],
   controllers: [
     CattleController,

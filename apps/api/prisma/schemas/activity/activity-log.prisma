@@ -28,6 +28,13 @@ model ActivityLog {
   aqrImpact       Float?
   financialImpact Float?
 
+  /// RAKHAL-299: edit substrate — the cow's AQR score immediately before this
+  /// entry's `aqrImpact` was applied. `AqrService`'s clamp (`aqr.service.ts:69`)
+  /// is lossy, so an edit that needs to reverse an event cannot just subtract
+  /// the delta — it must know the pre-clamp score to restore correctly.
+  /// Nullable — entries with no `aqrImpact` never set this.
+  previousAqrScore Float?
+
   actorId         String? // null = System-generated event
   relatedCattleId String?
 

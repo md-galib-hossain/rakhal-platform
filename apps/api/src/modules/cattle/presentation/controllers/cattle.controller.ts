@@ -272,8 +272,9 @@ export class CattleController {
     @CurrentFarmId() farmId: string,
     @Param('id') id: string,
     @Body() dto: UpdateCattleDto,
+    @CurrentUserId() userId: string,
   ) {
-    return this.cattleService.update(farmId, id, dto);
+    return this.cattleService.update(farmId, id, dto, userId);
   }
 
   @Patch(':id/archive')

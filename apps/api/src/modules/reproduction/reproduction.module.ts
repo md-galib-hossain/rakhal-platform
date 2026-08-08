@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { AuthModule } from '../auth/auth.module';
 import { TenantAccessModule } from '../tenant-access/tenant-access.module';
@@ -11,11 +11,14 @@ import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { CattleModule } from '../cattle/cattle.module';
 import { ReproductionService } from './application/services/reproduction.service';
+import { ReproductionDerivationService } from './application/services/reproduction-derivation.service';
+import { ReproductionEditService } from './application/services/reproduction-edit.service';
 import { ReproProtocolService } from './application/services/repro-protocol.service';
 import { LactationStatsService } from './application/services/lactation-stats.service';
 import { LactationEconomicsService } from './application/services/lactation-economics.service';
 import { CattleReproductionController } from './presentation/controllers/cattle-reproduction.controller';
 import { ReproductionController } from './presentation/controllers/reproduction.controller';
+import { ReproductionEditController } from './presentation/controllers/reproduction-edit.controller';
 import { ReproProtocolController } from './presentation/controllers/repro-protocol.controller';
 import { LactationController } from './presentation/lactation.controller';
 
@@ -32,23 +35,26 @@ import { LactationController } from './presentation/lactation.controller';
     FarmSettingsModule,
     SubscriptionModule,
     // AnimalHoldService (RAKHAL-280) — read-only `activeHoldsForCattle` lookup
-    // for the `REPRODUCTIVE_HOLD` alert (RAKHAL-272). CattleModule doesn't
-    // import ReproductionModule anywhere, so this direction has no circular-
-    // dependency risk.
-    CattleModule,
+    // for the `REPRODUCTIVE_HOLD` alert (RAKHAL-272). RAKHAL-307 made this a
+    // real cycle (CattleService.create() now also needs
+    // ReproductionDerivationService) — forwardRef() on both sides.
+    forwardRef(() => CattleModule),
   ],
   controllers: [
     ReproductionController,
+    ReproductionEditController,
     CattleReproductionController,
     ReproProtocolController,
     LactationController,
   ],
   providers: [
     ReproductionService,
+    ReproductionDerivationService,
+    ReproductionEditService,
     ReproProtocolService,
     LactationStatsService,
     LactationEconomicsService,
   ],
-  exports: [ReproductionService],
+  exports: [ReproductionService, ReproductionDerivationService],
 })
 export class ReproductionModule {}

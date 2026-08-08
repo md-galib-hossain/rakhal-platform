@@ -18,6 +18,8 @@ import {
   LactationStartReason,
   LactationStatus,
   MilkSession,
+  PregnancyDiagnosisMethod,
+  PregnancyDiagnosisResult,
   PregnancyStatus,
   Prisma,
   ProductionStatus,
@@ -62,6 +64,11 @@ import {
   derivePregnancyStage,
   type PregnancyStage,
 } from 'src/modules/reproduction/domain/pregnancy-stage';
+// RAKHAL-307: unlike the pure-domain imports above, this is a real injected
+// service (writes ReproductionProfile/BreedingEvent/Pregnancy/Lactation
+// derived state) — CattleModule now imports ReproductionModule via
+// forwardRef() to get it (see cattle.module.ts's own comment for why).
+import { ReproductionDerivationService } from 'src/modules/reproduction/application/services/reproduction-derivation.service';
 import { AncestryQueryDto } from '../../presentation/dto/ancestry-query.dto';
 import { ArchiveCattleDto } from '../../presentation/dto/archive-cattle.dto';
 import { BulkCattleDto } from '../../presentation/dto/bulk-cattle.dto';
@@ -127,6 +134,7 @@ export class CattleService {
     private readonly subscriptionAccess: SubscriptionAccessService,
     private readonly media: MediaService,
     private readonly farmSettings: FarmSettingsService,
+    private readonly derivation: ReproductionDerivationService,
     private readonly logger: LoggerService,
   ) {
     this.log = this.logger.setContext(CattleService.name);
@@ -142,11 +150,11 @@ export class CattleService {
     await this.validateReferences(farmId, dto);
     await this.validateParentRules(farmId, undefined, dto);
 
-    // RAKHAL-291: registering straight into MILKING needs the same guarantee
-    // `updateStatus()` enforces — a fresh cattle row never has a prior
-    // `Lactation`, so a caller-supplied `lactationStartDate` is the only way
-    // to satisfy it here (e.g. a purchased already-milking cow with no
-    // calving history in this system).
+    // RAKHAL-291/307: registering straight into MILKING needs the same
+    // guarantee `updateStatus()` enforces — a fresh cattle row never has a
+    // prior `Lactation`, so a caller-supplied `lactationStartDate` or
+    // `intakeLactation` is the only way to satisfy it here (e.g. a purchased
+    // already-milking cow with no calving history in this system).
     if (dto.productionStatus === ProductionStatus.MILKING) {
       // Invariant guard (mirrors `updateStatus()`'s own MILKING branch): a
       // fresh cattle row has no `ReproductionProfile` yet, so the only way
@@ -158,16 +166,16 @@ export class CattleService {
           'A heifer (no calving history) cannot be set to Milking. Record a calving event, or if she was purchased already-calved, supply priorCalvings.',
         );
       }
-      if (!dto.lactationStartDate) {
+      if (!dto.lactationStartDate && !dto.intakeLactation) {
         throw new BadRequestException(
-          'lactationStartDate is required when registering a cow with productionStatus MILKING (e.g. a purchased already-milking cow with no calving history in this system).',
+          'lactationStartDate or intakeLactation is required when registering a cow with productionStatus MILKING (e.g. a purchased already-milking cow with no calving history in this system).',
         );
       }
     }
 
     try {
-      const cattle = await this.prisma.$transaction(async (tx) => {
-        const created = await tx.cattle.create({
+      const created = await this.prisma.$transaction(async (tx) => {
+        const cattle = await tx.cattle.create({
           data: {
             farmId,
             name: dto.name,
@@ -205,17 +213,18 @@ export class CattleService {
                   },
                 }
               : {}),
-            // Seed a reproduction profile when an initial reproductive status
-            // and/or real prior calving history (`priorCalvings`) is supplied
-            // so the status dimension — and the MILKING/HEIFER invariant —
-            // has a home (PRD §8.1/§8.4).
-            ...(dto.reproductiveStatus || dto.priorCalvings
+            // RAKHAL-307: every FEMALE gets a ReproductionProfile on create —
+            // previously conditional on an initial reproductiveStatus/
+            // priorCalvings being supplied, which left the status dimension
+            // (and composeStatus()'s alert gate at `reproductionState &&`)
+            // silently disabled forever for any female registered without
+            // one. `reproductiveStatus` itself is no longer settable here
+            // (derived by `refreshDerivedState` below); `priorCalvings`
+            // still seeds real prior-calving history when supplied.
+            ...(dto.gender === CattleGender.FEMALE
               ? {
                   reproductionProfile: {
                     create: {
-                      ...(dto.reproductiveStatus
-                        ? { reproductiveStatus: dto.reproductiveStatus }
-                        : {}),
                       ...(dto.priorCalvings
                         ? { totalCalvings: dto.priorCalvings }
                         : {}),
@@ -226,32 +235,121 @@ export class CattleService {
           },
         });
 
-        // RAKHAL-291: purchase-intake Lactation, same shape/`startReason` as
-        // `updateStatus()`'s own branch — a brand-new cattle row has no prior
-        // Lactation, so this is always lactationNumber 1.
-        if (
-          dto.productionStatus === ProductionStatus.MILKING &&
-          dto.lactationStartDate
-        ) {
-          await tx.lactation.create({
+        // RAKHAL-307: "she is already pregnant" — a synthetic
+        // PregnancyDiagnosis (method PURCHASE_INTAKE) + its Pregnancy, same
+        // shape `createPregnancyDiagnosis` writes, so the intake declaration
+        // is editable via RAKHAL-305 and shows in the events feed (not a
+        // bare Pregnancy row).
+        if (dto.intakePregnancy) {
+          const conceptionDate = dto.intakePregnancy.conceptionDate
+            ? new Date(dto.intakePregnancy.conceptionDate)
+            : this.addDays(
+                new Date(dto.intakePregnancy.expectedCalvingDate!),
+                -DEFAULT_GESTATION_DAYS,
+              );
+          const expectedCalvingDate = dto.intakePregnancy.expectedCalvingDate
+            ? new Date(dto.intakePregnancy.expectedCalvingDate)
+            : this.addDays(conceptionDate, DEFAULT_GESTATION_DAYS);
+
+          const diagnosis = await tx.pregnancyDiagnosis.create({
             data: {
-              cattleId: created.id,
-              lactationNumber: 1,
-              startDate: new Date(dto.lactationStartDate),
-              status: LactationStatus.ACTIVE,
-              startReason: LactationStartReason.PURCHASED_LACTATING,
+              cattleId: cattle.id,
+              diagnosisDate: new Date(),
+              result: PregnancyDiagnosisResult.PREGNANT,
+              diagnosisMethod: PregnancyDiagnosisMethod.PURCHASE_INTAKE,
+              expectedCalvingDate,
+            },
+          });
+          await tx.pregnancy.create({
+            data: {
+              cattleId: cattle.id,
+              conceptionDate,
+              expectedCalvingDate,
+              status: PregnancyStatus.ACTIVE,
+              sourceDiagnosisId: diagnosis.id,
             },
           });
         }
 
-        // Re-fetch with the full include so a just-created Lactation (and its
-        // derived `dim`) is reflected in this response, not just on the next
-        // GET — `defaultInclude()`'s `lactations` snapshot was taken before
-        // the row above existed.
-        return tx.cattle.findUniqueOrThrow({
-          where: { id: created.id },
-          include: this.defaultInclude(),
-        });
+        // RAKHAL-307: "she is already milking" — preferred over the older
+        // bare `lactationStartDate` field when both are supplied; reuses
+        // `createPurchasedLactation`'s exact start-date precedence (DIM >
+        // estimated calving date > now).
+        if (dto.productionStatus === ProductionStatus.MILKING) {
+          if (dto.intakeLactation) {
+            const now = new Date();
+            const startDate =
+              dto.intakeLactation.estimatedDaysInMilk !== undefined
+                ? this.addDays(now, -dto.intakeLactation.estimatedDaysInMilk)
+                : dto.intakeLactation.estimatedCalvingDate
+                  ? new Date(dto.intakeLactation.estimatedCalvingDate)
+                  : now;
+            await tx.lactation.create({
+              data: {
+                cattleId: cattle.id,
+                lactationNumber:
+                  dto.intakeLactation.estimatedLactationNumber ?? 1,
+                startDate,
+                status: LactationStatus.ACTIVE,
+                startReason: LactationStartReason.PURCHASED_LACTATING,
+                isEstimated: true,
+                estimatedLactationNumber:
+                  dto.intakeLactation.estimatedLactationNumber ?? null,
+                estimatedDaysInMilk:
+                  dto.intakeLactation.estimatedDaysInMilk ?? null,
+              },
+            });
+          } else if (dto.lactationStartDate) {
+            // RAKHAL-291: purchase-intake Lactation, same shape/`startReason`
+            // as `updateStatus()`'s own branch — a brand-new cattle row has
+            // no prior Lactation, so this is always lactationNumber 1.
+            await tx.lactation.create({
+              data: {
+                cattleId: cattle.id,
+                lactationNumber: 1,
+                startDate: new Date(dto.lactationStartDate),
+                status: LactationStatus.ACTIVE,
+                startReason: LactationStartReason.PURCHASED_LACTATING,
+              },
+            });
+          }
+        }
+
+        // RAKHAL-307: "she has a current health condition" — an open
+        // HealthCase written directly (not via `HealthService.createHealthCase`,
+        // whose AQR sickness penalty / task / notification side effects don't
+        // fit a fresh intake declaration) so the derived health chip is
+        // correct from the create response onward.
+        if (dto.intakeHealthCondition) {
+          const caseCode = await this.nextHealthCaseCode(tx, farmId);
+          await tx.healthCase.create({
+            data: {
+              farmId,
+              cattleId: cattle.id,
+              caseCode,
+              diagnosis: dto.intakeHealthCondition.diagnosis,
+              condition: dto.intakeHealthCondition.condition,
+              diagnosisType: dto.intakeHealthCondition.diagnosisType,
+              priority: dto.intakeHealthCondition.priority,
+              startDate: new Date(),
+              symptoms: [],
+              notes: dto.intakeHealthCondition.notes,
+            },
+          });
+        }
+
+        return cattle.id;
+      });
+
+      // RAKHAL-307: end intake with the same recompute every other
+      // reproduction/lactation write uses, so the create response's derived
+      // fields (animalCategory, healthStatus, lactationStage, pregnancyStage,
+      // reproductionAlerts) are already correct — not just on the next GET.
+      await this.derivation.refreshDerivedState(farmId, created);
+
+      const cattle = await this.prisma.cattle.findUniqueOrThrow({
+        where: { id: created },
+        include: this.defaultInclude(),
       });
 
       this.log.info('Cattle created', { cattleId: cattle.id, farmId });
@@ -346,10 +444,31 @@ export class CattleService {
     return this.attachDetailPhoto(this.composeStatus(cattle, reproCtx));
   }
 
-  async update(farmId: string, id: string, dto: UpdateCattleDto) {
+  async update(
+    farmId: string,
+    id: string,
+    dto: UpdateCattleDto,
+    userId: string,
+  ) {
     await this.getCattleOrThrow(farmId, id);
     await this.validateReferences(farmId, dto);
     await this.validateParentRules(farmId, id, dto);
+
+    // RAKHAL-307: an edit, not an intake — 400 when an ACTIVE lactation
+    // already exists rather than silently creating a second one or clobbering
+    // the existing `startDate`. Correcting an in-progress lactation's start
+    // date is out of this field's scope (no such write path exists yet).
+    if (dto.lactationStartDate !== undefined) {
+      const activeLactation = await this.prisma.lactation.findFirst({
+        where: { cattleId: id, status: LactationStatus.ACTIVE },
+        select: { id: true },
+      });
+      if (activeLactation) {
+        throw new BadRequestException(
+          'This cow already has an active lactation. lactationStartDate on PATCH /cattle/:id only starts a new one — record a calving event, or edit the existing lactation directly, instead.',
+        );
+      }
+    }
 
     try {
       const cattle = await this.prisma.$transaction(async (tx) => {
@@ -370,6 +489,7 @@ export class CattleService {
             shedId: dto.shedId,
             feedGroupId: dto.feedGroupId,
             lastWeightKg: dto.weightKg,
+            lastBcs: dto.bcs,
             motherId: dto.motherId,
             fatherId: dto.fatherId,
             sourceType: dto.sourceType,
@@ -377,6 +497,19 @@ export class CattleService {
             notes: dto.notes,
             ...(dto.status
               ? { isActive: dto.status !== CattleStatus.ARCHIVED }
+              : {}),
+            // RAKHAL-307: mirrors create()'s own BCS write — keeps the
+            // denormalized `lastBcs` (set above) and the BCS history in sync.
+            ...(dto.bcs
+              ? {
+                  bcsRecords: {
+                    create: {
+                      score: dto.bcs,
+                      recordedDate: new Date(),
+                      recordedBy: userId,
+                    },
+                  },
+                }
               : {}),
           },
         });
@@ -394,14 +527,48 @@ export class CattleService {
           });
         }
 
+        // RAKHAL-307: backfill/correction path — the pre-check above already
+        // 400'd if an ACTIVE lactation exists, so reaching here means it's
+        // safe to start one (same shape as `updateStatus()`'s own
+        // purchase-intake branch).
+        if (dto.lactationStartDate) {
+          const lactationCount = await tx.lactation.count({
+            where: { cattleId: id },
+          });
+          await tx.lactation.create({
+            data: {
+              cattleId: id,
+              lactationNumber: lactationCount + 1,
+              startDate: new Date(dto.lactationStartDate),
+              status: LactationStatus.ACTIVE,
+              startReason: LactationStartReason.PURCHASED_LACTATING,
+            },
+          });
+        }
+
         return tx.cattle.findUniqueOrThrow({
           where: { id: updated.id },
           include: this.defaultInclude(),
         });
       });
 
+      // RAKHAL-307: an edit here can flip derived reproduction/production
+      // state (e.g. a heifer→cow priorCalvings correction, or a new
+      // lactation starting) — same recompute create() now ends with.
+      const needsRecompute =
+        dto.priorCalvings !== undefined || Boolean(dto.lactationStartDate);
+      if (needsRecompute) {
+        await this.derivation.refreshDerivedState(farmId, id);
+      }
+      const fresh = needsRecompute
+        ? await this.prisma.cattle.findUniqueOrThrow({
+            where: { id },
+            include: this.defaultInclude(),
+          })
+        : cattle;
+
       this.log.info('Cattle updated', { cattleId: id, farmId });
-      return this.composeStatus(cattle);
+      return this.composeStatus(fresh);
     } catch (error) {
       if (this.isUniqueError(error)) {
         throw new ConflictException('Tag number already exists for this farm');
@@ -1872,6 +2039,34 @@ export class CattleService {
       0,
       Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
     );
+  }
+
+  /** Mirrors `ReproductionService`'s own private `addDays` — plain literal
+   * helper, not worth cross-module coupling for. */
+  private addDays(date: Date, days: number): Date {
+    return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+  }
+
+  /**
+   * RAKHAL-307: next per-farm `HC-XXXXX` code, same collision-safe shape as
+   * `HealthService`'s own private `nextCaseCode` (duplicated rather than
+   * cross-module-injected — see `create()`'s intakeHealthCondition doc
+   * comment for why `HealthService` itself isn't reused here). Runs inside
+   * the caller's transaction so a concurrent farm-scoped create can't race it.
+   */
+  private async nextHealthCaseCode(
+    tx: Prisma.TransactionClient,
+    farmId: string,
+  ): Promise<string> {
+    const rows = await tx.healthCase.findMany({
+      where: { farmId, caseCode: { startsWith: 'HC-' } },
+      select: { caseCode: true },
+    });
+    const n = rows.reduce((max, row) => {
+      const match = /^HC-(\d+)$/.exec(row.caseCode);
+      return match ? Math.max(max, parseInt(match[1], 10)) : max;
+    }, 0);
+    return `HC-${String(n + 1).padStart(5, '0')}`;
   }
 
   private isUniqueError(error: unknown) {

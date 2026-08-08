@@ -92,6 +92,10 @@ enum PregnancyDiagnosisMethod {
   ULTRASOUND
   PALPATION
   LAB
+  /// RAKHAL-307: cattle-intake declaration ("she is already pregnant" at
+  /// purchase) — doubles as the "estimated" flag for that synthetic
+  /// diagnosis row, no new column needed.
+  PURCHASE_INTAKE
 }
 
 enum PregnancyStatus {

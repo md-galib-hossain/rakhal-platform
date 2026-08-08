@@ -64,7 +64,45 @@ model SemenBatch {
   creator User       @relation("SemenBatchCreator", fields: [createdBy], references: [id])
   tank    SemenTank? @relation(fields: [tankId], references: [id])
 
+  strawMovements SemenStrawMovement[]
+
   @@index([farmId])
   @@index([tankId])
   @@index([createdBy])
+}
+
+enum SemenStrawMovementReason {
+  AI_USE // decrementStraw — an AI event consumed a straw (REP-05)
+  REVERSAL // restoreStraw — an edited/undone AI event's straw count is restored
+  OPENING_BALANCE // backfill-only: pre-RAKHAL-302 usage with no reconstructable per-event history
+}
+
+/// Append-only audit of every straw-count change on a SemenBatch — mirrors
+/// `EquipmentStockMovement`/`MedicineStockMovement`. `balanceAfter` snapshots
+/// the running count so history is reconstructable without replaying deltas.
+/// `sourceEventId` optionally links a movement back to the `BreedingEvent`
+/// that caused it (no FK — `BreedingEvent` lives in a different schema file
+/// and the id is farm-scoped-unique, same loose-coupling precedent
+/// `Task.sourceEventId` (RAKHAL-299) already set).
+model SemenStrawMovement {
+  id String @id @default(cuid())
+
+  batchId String
+  farmId  String
+
+  reason       SemenStrawMovementReason
+  delta        Int // signed: -1 AI_USE / +n REVERSAL / +n OPENING_BALANCE
+  balanceAfter Int
+  notes        String? // e.g. free-text reason a REVERSAL was issued
+
+  sourceEventId String?
+
+  createdBy String? // nullable: decrementStraw's existing callers (Reproduction AI flow, repro-protocol) have no actor in scope today
+  createdAt DateTime @default(now())
+
+  batch SemenBatch @relation(fields: [batchId], references: [id])
+
+  @@index([batchId])
+  @@index([farmId])
+  @@index([createdAt])
 }

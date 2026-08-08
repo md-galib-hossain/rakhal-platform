@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { AqrEventDef, AqrEventKey } from '../../domain/aqr-events';
@@ -19,6 +23,18 @@ export interface ApplyEventOptions {
   actorId?: string | null;
   actionDetails?: string;
   taggedValues?: ActivityTaggedValue[];
+}
+
+export interface ReverseEventOptions {
+  actorId?: string | null;
+  actionDetails?: string;
+}
+
+export interface ReverseEventResult {
+  cattleId: string;
+  sourceEventTitle: string;
+  delta: number;
+  aqrScore: number;
 }
 
 /**
@@ -80,6 +96,7 @@ export class AqrService {
       eventTitle: def.title,
       actionDetails: options.actionDetails ?? `${def.title} for [${label}].`,
       aqrImpact: def.nullify ? null : def.delta,
+      previousAqrScore: cattle.aqrScore,
       actorId: options.actorId ?? null,
       relatedCattleId: cattleId,
       taggedValues: options.taggedValues ?? [
@@ -100,6 +117,95 @@ export class AqrService {
       cattleId,
       eventKey,
       delta: def.nullify ? null : def.delta,
+      aqrScore: newScore,
+    };
+  }
+
+  /**
+   * Reverses a prior {@link applyEvent} call as recorded by a specific
+   * `ActivityLog` entry — restores `Cattle.aqrScore` to that entry's
+   * `previousAqrScore` **exactly** when available. Older entries recorded
+   * before RAKHAL-304 have no `previousAqrScore`; for those the clamp-loss
+   * approximation `clamp(currentScore - delta)` is used instead (logged as a
+   * warning, since it can't undo a clamp that already happened at the bound).
+   * Append-only: writes a new hash-chained entry, never mutates the source.
+   */
+  async reverseEvent(
+    farmId: string,
+    cattleId: string,
+    activityLogId: string,
+    options: ReverseEventOptions = {},
+  ): Promise<ReverseEventResult> {
+    const source = await this.prisma.activityLog.findFirst({
+      where: { id: activityLogId, farmId, relatedCattleId: cattleId },
+    });
+    if (!source) {
+      throw new NotFoundException('Activity log entry not found');
+    }
+    if (source.aqrImpact === null) {
+      throw new BadRequestException(
+        'Activity log entry has no AQR impact to reverse',
+      );
+    }
+
+    const cattle = await this.prisma.cattle.findFirst({
+      where: { id: cattleId, farmId },
+      select: { id: true, name: true, tagNumber: true, aqrScore: true },
+    });
+    if (!cattle) {
+      throw new NotFoundException('Cattle not found');
+    }
+
+    let newScore: number;
+    if (source.previousAqrScore !== null) {
+      newScore = source.previousAqrScore;
+    } else {
+      const bounds = await this.config.resolveBounds(farmId);
+      newScore = this.clamp(
+        (cattle.aqrScore ?? 0) - source.aqrImpact,
+        bounds.min,
+        bounds.max,
+      );
+      this.log.warn(
+        'Reversing pre-RAKHAL-304 AQR event with no previousAqrScore — using clamp(score - delta) approximation, may not restore the true prior value',
+        { cattleId, farmId, activityLogId },
+      );
+    }
+
+    await this.prisma.cattle.update({
+      where: { id: cattleId },
+      data: { aqrScore: newScore },
+    });
+
+    const label = cattle.name ?? cattle.tagNumber;
+    await this.activityLog.record({
+      farmId,
+      module: source.module,
+      eventTitle: `Reversal: ${source.eventTitle}`,
+      actionDetails:
+        options.actionDetails ?? `Reversed AQR event for [${label}].`,
+      aqrImpact: -source.aqrImpact,
+      previousAqrScore: cattle.aqrScore,
+      actorId: options.actorId ?? null,
+      relatedCattleId: cattleId,
+      taggedValues: [
+        { key: 'cattle', value: label },
+        { key: 'tag', value: cattle.tagNumber },
+      ],
+    });
+
+    this.log.info('AQR event reversed', {
+      cattleId,
+      farmId,
+      activityLogId,
+      delta: -source.aqrImpact,
+      newScore,
+    });
+
+    return {
+      cattleId,
+      sourceEventTitle: source.eventTitle,
+      delta: -source.aqrImpact,
       aqrScore: newScore,
     };
   }

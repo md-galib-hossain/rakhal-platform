@@ -184,6 +184,8 @@ export class ReproProtocolService {
           dueAt: this.addDays(start, step.dayNumber),
           source: TaskSource.SYSTEM_AUTO,
           relatedCattleId: cattleId,
+          sourceEventType: 'REPRO_PROTOCOL_INSTANCE',
+          sourceEventId: instance.id,
         });
       }
       instanceIds.push(instance.id);

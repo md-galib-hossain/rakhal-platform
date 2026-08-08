@@ -79,6 +79,9 @@ export class CalfService {
     calfId: string;
     birthDate: Date;
     gender: CattleGender;
+    /** RAKHAL-303: the `CalvingEvent.id` that produced this calf — lets a
+     * calving-date edit (RAKHAL-306) reschedule the whole cascade in one call. */
+    sourceEventId?: string;
   }): Promise<number> {
     const schedule = buildCalfCareSchedule(input.birthDate, input.gender);
     for (const item of schedule) {
@@ -92,6 +95,8 @@ export class CalfService {
         dueAt: item.dueAt,
         source: TaskSource.SYSTEM_AUTO,
         relatedCattleId: input.calfId,
+        sourceEventType: input.sourceEventId ? 'CALVING_EVENT' : undefined,
+        sourceEventId: input.sourceEventId,
       });
     }
     this.log.info('Calf care schedule generated', {

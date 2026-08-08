@@ -4,7 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, SemenBatch, SemenTank } from '@prisma/client';
+import {
+  Prisma,
+  SemenBatch,
+  SemenStrawMovementReason,
+  SemenTank,
+} from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { CursorPage, getCursorArgs, toCursorPage } from 'src/common/pagination';
@@ -23,6 +28,14 @@ type PresentedTank = SemenTank & {
   availableCapacity: number;
 };
 type PresentedBatch = SemenBatch & { lowStraw: boolean };
+
+export interface RestoreStrawResult {
+  batch: PresentedBatch;
+  /** Set when the batch is archived — the count is restored anyway (correct
+   * bookkeeping) but the caller should surface this, since an archived
+   * batch's physical straws may no longer exist to be "un-thawed". */
+  warning: string | null;
+}
 
 /**
  * Inventory → Semen tab (PRD §15.4, RAKHAL-077): LN2 tanks + straw batches.
@@ -244,11 +257,14 @@ export class SemenService {
   /**
    * Decrement a batch's straw count (default 1) — called when an AI event is
    * recorded (Reproduction module, REP-05). Rejects going below zero (INV-02).
+   * Writes a `-by` `AI_USE` movement onto the straw ledger, atomically.
    */
   async decrementStraw(
     farmId: string,
     batchId: string,
     by = 1,
+    actorId?: string | null,
+    sourceEventId?: string | null,
   ): Promise<PresentedBatch> {
     const existing = await this.getBatchOrThrow(farmId, batchId);
     const next = existing.strawQuantity - by;
@@ -256,12 +272,77 @@ export class SemenService {
       throw new BadRequestException('Not enough straws in this batch');
     }
 
-    const batch = await this.prisma.semenBatch.update({
-      where: { id: batchId },
-      data: { strawQuantity: next },
-    });
+    const [batch] = await this.prisma.$transaction([
+      this.prisma.semenBatch.update({
+        where: { id: batchId },
+        data: { strawQuantity: next },
+      }),
+      this.prisma.semenStrawMovement.create({
+        data: {
+          batchId,
+          farmId,
+          reason: SemenStrawMovementReason.AI_USE,
+          delta: -by,
+          balanceAfter: next,
+          sourceEventId: sourceEventId ?? null,
+          createdBy: actorId ?? null,
+        },
+      }),
+    ]);
     this.log.info('Semen straw decremented', { batchId, farmId, by });
     return this.presentBatch(batch);
+  }
+
+  /**
+   * Restore `by` straws to a batch — used when an AI event that consumed a
+   * straw is edited/undone (RAKHAL-305). Writes a `+by` `REVERSAL` movement.
+   *
+   * Honest-accounting note: restoring the count is correct bookkeeping (the
+   * AI never happened against this batch, so the straw was never truly
+   * spoken for) but it is **not** correct about physical stock — the straw
+   * itself was thawed and cannot be un-thawed. The `REVERSAL` row on the
+   * ledger is what keeps both facts visible: the count goes back up, but the
+   * ledger still shows the original `AI_USE` entry that consumed a real straw.
+   *
+   * Never throws for an archived batch — returns a `warning` instead, so an
+   * edit elsewhere is never blocked by an unrelated archive decision.
+   */
+  async restoreStraw(
+    farmId: string,
+    batchId: string,
+    by: number,
+    reason?: string | null,
+    sourceEventId?: string | null,
+    actorId?: string | null,
+  ): Promise<RestoreStrawResult> {
+    const existing = await this.getBatchOrThrow(farmId, batchId);
+    const next = existing.strawQuantity + by;
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.semenBatch.update({
+        where: { id: batchId },
+        data: { strawQuantity: next },
+      }),
+      this.prisma.semenStrawMovement.create({
+        data: {
+          batchId,
+          farmId,
+          reason: SemenStrawMovementReason.REVERSAL,
+          delta: by,
+          balanceAfter: next,
+          notes: reason ?? null,
+          sourceEventId: sourceEventId ?? null,
+          createdBy: actorId ?? null,
+        },
+      }),
+    ]);
+
+    this.log.info('Semen straw restored', { batchId, farmId, by });
+    return {
+      batch: this.presentBatch(updated),
+      warning: existing.isActive
+        ? null
+        : 'This batch is archived — the straw count was restored, but the physical straw cannot be un-thawed.',
+    };
   }
 
   // ---- Helpers -------------------------------------------------------------

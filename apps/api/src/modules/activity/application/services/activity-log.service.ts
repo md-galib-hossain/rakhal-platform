@@ -20,6 +20,7 @@ export interface RecordActivityInput {
   relatedCattleId?: string | null;
   aqrImpact?: number | null;
   financialImpact?: number | null;
+  previousAqrScore?: number | null;
   taggedValues?: ActivityTaggedValue[] | null;
 }
 
@@ -78,6 +79,7 @@ export class ActivityLogService {
             : {}),
           aqrImpact: input.aqrImpact ?? null,
           financialImpact: input.financialImpact ?? null,
+          previousAqrScore: input.previousAqrScore ?? null,
           actorId: input.actorId ?? null,
           relatedCattleId: input.relatedCattleId ?? null,
           prevHash,

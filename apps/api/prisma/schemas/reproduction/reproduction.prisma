@@ -61,6 +61,9 @@ model HeatEvent {
   cattle             Cattle         @relation(fields: [cattleId], references: [id])
   resolvedByBreeding BreedingEvent? @relation("HeatEventResolution", fields: [resolvedByBreedingEventId], references: [id])
 
+  /// RAKHAL-299: distinguishes an edited row from an original (edit substrate).
+  updatedAt DateTime @updatedAt
+
   @@index([cattleId])
   @@index([heatDateTime])
   @@index([cattleId, resolvedAt])
@@ -83,6 +86,8 @@ model BreedingEvent {
   notes                      String?
 
   createdAt DateTime @default(now())
+  /// RAKHAL-299: distinguishes an edited row from an original (edit substrate).
+  updatedAt DateTime @updatedAt
 
   cattle Cattle  @relation("BreedingEventCattle", fields: [cattleId], references: [id])
   bull   Cattle? @relation("BreedingEventBull", fields: [bullId], references: [id])
@@ -110,9 +115,13 @@ model PregnancyDiagnosis {
   notes               String?
 
   createdAt DateTime @default(now())
+  /// RAKHAL-299: distinguishes an edited row from an original (edit substrate).
+  updatedAt DateTime @updatedAt
 
   cattle        Cattle         @relation(fields: [cattleId], references: [id])
   breedingEvent BreedingEvent? @relation(fields: [breedingEventId], references: [id])
+
+  sourcedPregnancies Pregnancy[] @relation("PregnancySourceDiagnosis")
 
   @@index([cattleId])
   @@index([breedingEventId])
@@ -131,10 +140,18 @@ model Pregnancy {
   gestationDays       Int?
   status              PregnancyStatus @default(ACTIVE)
 
-  createdAt DateTime @default(now())
+  /// RAKHAL-299: which `PregnancyDiagnosis` produced this row — today
+  /// `createPregnancyDiagnosis` creates the `Pregnancy` with no back-link, so
+  /// an edit to the diagnosis (e.g. PREGNANT→NOT_PREGNANT) cannot find what to
+  /// update. Nullable, no backfill guess (ambiguous for pre-existing rows).
+  sourceDiagnosisId String?
 
-  cattle        Cattle         @relation(fields: [cattleId], references: [id])
-  breedingEvent BreedingEvent? @relation(fields: [breedingEventId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cattle          Cattle              @relation(fields: [cattleId], references: [id])
+  breedingEvent   BreedingEvent?      @relation(fields: [breedingEventId], references: [id])
+  sourceDiagnosis PregnancyDiagnosis? @relation("PregnancySourceDiagnosis", fields: [sourceDiagnosisId], references: [id])
 
   calvingEvents  CalvingEvent[]
   abortionEvents AbortionEvent[]
@@ -142,6 +159,7 @@ model Pregnancy {
   @@index([cattleId])
   @@index([breedingEventId])
   @@index([status])
+  @@index([sourceDiagnosisId])
 }
 
 model CalvingEvent {
@@ -159,6 +177,8 @@ model CalvingEvent {
   notes            String?
 
   createdAt DateTime @default(now())
+  /// RAKHAL-299: distinguishes an edited row from an original (edit substrate).
+  updatedAt DateTime @updatedAt
 
   cattle    Cattle     @relation(fields: [cattleId], references: [id])
   pregnancy Pregnancy? @relation(fields: [pregnancyId], references: [id])
@@ -200,6 +220,8 @@ model AbortionEvent {
   notes          String?
 
   createdAt DateTime @default(now())
+  /// RAKHAL-299: distinguishes an edited row from an original (edit substrate).
+  updatedAt DateTime @updatedAt
 
   cattle    Cattle     @relation(fields: [cattleId], references: [id])
   pregnancy Pregnancy? @relation(fields: [pregnancyId], references: [id])
@@ -222,6 +244,8 @@ model DryPeriod {
   reason DryOffReason?
 
   createdAt DateTime @default(now())
+  /// RAKHAL-299: distinguishes an edited row from an original (edit substrate).
+  updatedAt DateTime @updatedAt
 
   cattle Cattle @relation(fields: [cattleId], references: [id])
 
@@ -303,6 +327,8 @@ model Lactation {
   plannedDryOffAt DateTime?
 
   createdAt DateTime @default(now())
+  /// RAKHAL-299: distinguishes an edited row from an original (edit substrate).
+  updatedAt DateTime @updatedAt
 
   cattle       Cattle        @relation(fields: [cattleId], references: [id])
   calvingEvent CalvingEvent? @relation(fields: [calvingEventId], references: [id])

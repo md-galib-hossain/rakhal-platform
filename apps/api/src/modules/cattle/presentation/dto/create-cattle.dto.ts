@@ -1,4 +1,4 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
@@ -10,6 +10,7 @@ import {
   IsString,
   Max,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import {
   CattleGender,
@@ -17,10 +18,14 @@ import {
   CattleSourceType,
   CattleStatus,
   ProductionStatus,
-  ReproductionState,
 } from '@prisma/client';
 import { BCS_ALLOWED_SCORES } from '../../domain/cattle.constants';
 import { trimString } from './common.dto';
+import {
+  IntakeHealthConditionDto,
+  IntakeLactationDto,
+  IntakePregnancyDto,
+} from './intake.dto';
 
 export class CreateCattleDto {
   @IsOptional()
@@ -61,9 +66,33 @@ export class CreateCattleDto {
   @IsEnum(ProductionStatus)
   productionStatus?: ProductionStatus;
 
+  /** RAKHAL-307: "she is already pregnant" at intake — creates a synthetic
+   * `PregnancyDiagnosis` (`method: PURCHASE_INTAKE`) + `Pregnancy` inline in
+   * `create()`'s transaction, so the reproductive status is derived from a
+   * real event row, not a raw enum the caller could set arbitrarily
+   * (superseding the old `reproductiveStatus` field, removed). */
   @IsOptional()
-  @IsEnum(ReproductionState)
-  reproductiveStatus?: ReproductionState;
+  @ValidateNested()
+  @Type(() => IntakePregnancyDto)
+  intakePregnancy?: IntakePregnancyDto;
+
+  /** RAKHAL-307: "she is already milking" at intake — reuses
+   * `createPurchasedLactation`'s exact start-date precedence (DIM > estimated
+   * calving date > now) to create an `isEstimated` `PURCHASED_LACTATING`
+   * `Lactation`. Preferred over the older bare `lactationStartDate` field
+   * below when both are supplied. */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => IntakeLactationDto)
+  intakeLactation?: IntakeLactationDto;
+
+  /** RAKHAL-307: "she has a current health condition" at intake — creates an
+   * open `HealthCase` inline so the derived health chip is correct from the
+   * very first read, not just after a separate Report Sickness call. */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => IntakeHealthConditionDto)
+  intakeHealthCondition?: IntakeHealthConditionDto;
 
   /** RAKHAL-291: required when `productionStatus` is `MILKING` at intake and
    * no active `Lactation` exists yet (a fresh cattle row never has one) —

@@ -3,6 +3,7 @@ import { Transform } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -17,6 +18,7 @@ import {
   CattleStatus,
   ProductionStatus,
 } from '@prisma/client';
+import { BCS_ALLOWED_SCORES } from '../../domain/cattle.constants';
 import { trimString } from './common.dto';
 
 export class UpdateCattleDto implements Partial<CreateCattleDto> {
@@ -108,4 +110,22 @@ export class UpdateCattleDto implements Partial<CreateCattleDto> {
   @IsInt()
   @Min(1)
   priorCalvings?: number;
+
+  /** RAKHAL-307: profile-edit counterpart to `CreateCattleDto.bcs` — writes a
+   * new `BodyConditionScore` row + refreshes the denormalized `lastBcs`,
+   * mirroring `create()`'s own BCS write instead of only updating the stored
+   * snapshot value. */
+  @IsOptional()
+  @IsNumber()
+  @IsIn(BCS_ALLOWED_SCORES)
+  bcs?: number;
+
+  /** RAKHAL-307: corrects/backfills the active lactation's start date after
+   * the fact (e.g. a purchase-intake estimate later confirmed). 400 when the
+   * cow has no ACTIVE `Lactation` — this is an edit, not an intake path; use
+   * `productionStatus: MILKING` + this field together at create time, or
+   * `POST /reproduction/cattle/:id/purchased-lactation` to start a new one. */
+  @IsOptional()
+  @IsDateString()
+  lactationStartDate?: string;
 }
