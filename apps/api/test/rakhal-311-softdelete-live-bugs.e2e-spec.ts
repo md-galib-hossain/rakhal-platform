@@ -46,9 +46,7 @@ describe('RAKHAL-311 — soft-delete live bugs (e2e)', () => {
   afterAll(async () => {
     for (const id of healthCaseIds) {
       await prisma.healthTask.deleteMany({ where: { healthCaseId: id } });
-      await prisma.healthCase
-        .delete({ where: { id } })
-        .catch(() => undefined);
+      await prisma.healthCase.delete({ where: { id } }).catch(() => undefined);
     }
     for (const id of cattleIds) {
       await prisma.cattle.delete({ where: { id } }).catch(() => undefined);
@@ -80,6 +78,8 @@ describe('RAKHAL-311 — soft-delete live bugs (e2e)', () => {
         caseCode: `HC-E2E-311-${Date.now()}`,
         diagnosis: 'Test diagnosis',
         condition: 'OTHER',
+        diagnosisType: 'DISEASE',
+        priority: 'MEDIUM',
         status: 'ACTIVE',
         startDate: new Date(),
       },
@@ -90,8 +90,8 @@ describe('RAKHAL-311 — soft-delete live bugs (e2e)', () => {
       .get(api('/health/dashboard'))
       .set(...bearer(owner))
       .expect(200);
-    const beforeCount = (before.body as { data: { sickBayCount: number } })
-      .data.sickBayCount;
+    const beforeCount = (before.body as { data: { sickBayCount: number } }).data
+      .sickBayCount;
 
     // Simulate archival — the exact silent-desync scenario the audit found:
     // a list-facing isActive:false flip that the badge count must also honor.
@@ -191,8 +191,7 @@ describe('RAKHAL-311 — soft-delete live bugs (e2e)', () => {
       .post(api('/admin/auth/2fa/setup'))
       .set('Authorization', `Bearer ${setupToken}`)
       .expect(201);
-    const secret = (secretRes.body as { data: { secret: string } }).data
-      .secret;
+    const secret = (secretRes.body as { data: { secret: string } }).data.secret;
 
     await request(server())
       .post(api('/admin/auth/2fa/enable'))

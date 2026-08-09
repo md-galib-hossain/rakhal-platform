@@ -185,6 +185,75 @@ describe('Reproduction — ReproductionState/Alert lifecycle (e2e)', () => {
     );
   }, 30_000);
 
+  it('RAKHAL-320: a SUSPECTED diagnosis completes the pregnancy-check task, rolls the due date to the recheck window, and drops off the dashboard until then', async () => {
+    const cow = await createCow('SUSPECTED');
+    const now = Date.now();
+    const daysMs = (n: number) => n * 86_400_000;
+
+    const breedingRes = await request(server())
+      .post(api('/reproduction/breeding-events'))
+      .set(...auth(owner))
+      .send({
+        cattleId: cow.id,
+        breedingDate: new Date(now).toISOString(),
+        breedingMethod: 'NATURAL',
+      })
+      .expect(201);
+    const breedingEventId = breedingRes.body.data.id;
+
+    // Push the check date into the past -> shows up on the "due" dashboard.
+    await prisma.breedingEvent.update({
+      where: { id: breedingEventId },
+      data: { expectedPregnancyCheckDate: new Date(now - daysMs(2)) },
+    });
+
+    let dash = await request(server())
+      .get(api('/reproduction/dashboard'))
+      .set(...auth(owner))
+      .expect(200);
+    expect(
+      dash.body.data.action_required.pregnancy_check_due.some(
+        (b: { cattle_id: string }) => b.cattle_id === cow.id,
+      ),
+    ).toBe(true);
+
+    await request(server())
+      .post(api('/reproduction/pregnancy-diagnoses'))
+      .set(...auth(owner))
+      .send({
+        cattleId: cow.id,
+        breedingEventId,
+        diagnosisDate: new Date(now).toISOString(),
+        result: 'SUSPECTED',
+        diagnosisMethod: 'PALPATION',
+      })
+      .expect(201);
+
+    // Breeding stays PENDING_CHECK (still genuinely unresolved) — no
+    // fabricated PREGNANT/NOT_PREGNANT outcome — but the stale due date is
+    // gone from the "due now" dashboard panel.
+    const breedingAfter = await prisma.breedingEvent.findUniqueOrThrow({
+      where: { id: breedingEventId },
+    });
+    expect(breedingAfter.status).toBe('PENDING_CHECK');
+    expect(breedingAfter.expectedPregnancyCheckDate!.getTime()).toBeGreaterThan(
+      now,
+    );
+
+    dash = await request(server())
+      .get(api('/reproduction/dashboard'))
+      .set(...auth(owner))
+      .expect(200);
+    expect(
+      dash.body.data.action_required.pregnancy_check_due.some(
+        (b: { cattle_id: string }) => b.cattle_id === cow.id,
+      ),
+    ).toBe(false);
+
+    const s = await summary(cow.id);
+    expect(s.status).toBe('BRED_AWAITING_CONFIRMATION');
+  }, 30_000);
+
   it('returns a cow to OPEN after an abortion instead of a dead-end status', async () => {
     const cow = await createCow('ABORT');
     const now = Date.now();

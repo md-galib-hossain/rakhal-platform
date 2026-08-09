@@ -316,7 +316,10 @@ export class ReproductionService {
           resolvedAt: null,
           heatDateTime: {
             gte: this.addDays(breedingDate, -heatWindowDays),
-            lte: breedingDate,
+            // RAKHAL-320: compare against end-of-day, not the raw timestamp —
+            // a date-only breedingDate parses to midnight, which would wrongly
+            // exclude a heat recorded earlier the same calendar day.
+            lte: this.endOfDay(breedingDate),
           },
         },
         orderBy: { heatDateTime: 'desc' },
@@ -521,6 +524,10 @@ export class ReproductionService {
       // SUSPECTED: never fabricate a NOT_PREGNANT/PREGNANT outcome — hold the
       // cow BRED_AWAITING_CONFIRMATION and schedule a real recheck instead.
       if (dto.result === PregnancyDiagnosisResult.SUSPECTED) {
+        const recheckDueDate = this.addDays(
+          new Date(dto.diagnosisDate),
+          PREGNANCY_RECHECK_DAYS,
+        );
         await this.taskService.createInternal({
           farmId,
           createdBy: userId,
@@ -528,14 +535,22 @@ export class ReproductionService {
           details: `Diagnosis on ${dto.diagnosisDate} was inconclusive; recheck breeding #${breedingEvent?.breedingNumber ?? '?'} of [${cattle.tagNumber}].`,
           category: TaskCategory.BREEDING,
           priority: TaskPriority.MEDIUM,
-          dueAt: this.addDays(
-            new Date(dto.diagnosisDate),
-            PREGNANCY_RECHECK_DAYS,
-          ),
+          dueAt: recheckDueDate,
           source: TaskSource.SYSTEM_AUTO,
           relatedCattleId: dto.cattleId,
           sourceEventType: 'BREEDING_EVENT',
           sourceEventId: dto.breedingEventId,
+        });
+
+        // RAKHAL-320: breeding stays PENDING_CHECK (still unresolved — see
+        // reproduction-alerts.ts's PREGNANCY_CHECK_DUE derivation), but its
+        // due date rolls to the recheck date. Otherwise the dashboard's
+        // "Pregnancy Check Due" query (status=PENDING_CHECK AND
+        // expectedPregnancyCheckDate<=today+3d) keeps matching the original,
+        // already-actioned due date forever.
+        await this.prisma.breedingEvent.update({
+          where: { id: dto.breedingEventId },
+          data: { expectedPregnancyCheckDate: recheckDueDate },
         });
       }
     }
@@ -1505,6 +1520,8 @@ export class ReproductionService {
         tag: b.cattle.tagNumber,
         ai_date: b.breedingDate,
         check_due_date: b.expectedPregnancyCheckDate,
+        // RAKHAL-316-F: needed by the frontend's Return-to-Heat action.
+        breeding_event_id: b.id,
       })),
       calving_next_7_days: calvingNext7Days.map((p) => ({
         cattle_id: p.cattle.id,
@@ -1961,6 +1978,19 @@ export class ReproductionService {
   private addDays(date: Date, days: number) {
     const result = new Date(date);
     result.setDate(result.getDate() + days);
+    return result;
+  }
+
+  /**
+   * RAKHAL-320: end of `date`'s calendar day (23:59:59.999). Used to compare
+   * an event-time timestamp (e.g. `HeatEvent.heatDateTime`) against a
+   * date-only input (e.g. a breeding date with no time component) without
+   * the date-only value's implicit midnight losing same-day events recorded
+   * later in the day.
+   */
+  private endOfDay(date: Date) {
+    const result = new Date(date);
+    result.setHours(23, 59, 59, 999);
     return result;
   }
 

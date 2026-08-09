@@ -85,6 +85,45 @@ describe('Reproduction — heat resolution (e2e)', () => {
     expect(heat.resolutionReason).toBe('INSEMINATED');
   });
 
+  it('RAKHAL-320: resolves a same-calendar-day heat even when breedingDate is date-only (midnight)', async () => {
+    const cow = await createCow('AI-SAME-DAY');
+
+    // Heat observed mid-morning today.
+    const today = new Date();
+    today.setHours(10, 0, 0, 0);
+    const heatRes = await request(server())
+      .post(api('/reproduction/heat-events'))
+      .set(...auth(owner))
+      .send({
+        cattleId: cow.id,
+        heatDateTime: today.toISOString(),
+        detectionMethod: 'VISUAL',
+        standingHeat: true,
+      })
+      .expect(201);
+    const heatEventId = heatRes.body.data.id;
+
+    // AI recorded later the same day, but with a date-only breedingDate
+    // (parses to midnight) — before RAKHAL-320 this failed the openHeat
+    // `lte: breedingDate` comparison and left the heat unresolved.
+    const dateOnly = today.toISOString().slice(0, 10);
+    await request(server())
+      .post(api('/reproduction/breeding-events'))
+      .set(...auth(owner))
+      .send({
+        cattleId: cow.id,
+        breedingDate: dateOnly,
+        breedingMethod: 'NATURAL',
+      })
+      .expect(201);
+
+    const heat = await prisma.heatEvent.findUniqueOrThrow({
+      where: { id: heatEventId },
+    });
+    expect(heat.resolvedAt).not.toBeNull();
+    expect(heat.resolutionReason).toBe('INSEMINATED');
+  });
+
   it('createBreedingEvent is a silent no-op when no open heat exists', async () => {
     const cow = await createCow('AI-NOOP');
 
