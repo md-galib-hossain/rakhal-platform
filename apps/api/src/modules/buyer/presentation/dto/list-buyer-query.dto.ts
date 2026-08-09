@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsOptional, IsString } from 'class-validator';
 import { CursorPaginationQueryDto } from 'src/common/pagination';
 import { toBoolean, trimString } from 'src/common/dto';
 
@@ -12,5 +12,6 @@ export class ListBuyerQueryDto extends CursorPaginationQueryDto {
 
   @IsOptional()
   @Transform(toBoolean)
-  includeInactive = false;
+  @IsBoolean()
+  includeArchived = false;
 }

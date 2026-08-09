@@ -124,18 +124,14 @@ describe('Cattle — xlsx import real-state columns (e2e)', () => {
     expect(lactation.startReason).toBe('PURCHASED_LACTATING');
     expect(lactation.lactationNumber).toBe(2);
 
-    // `refreshDerivedState`'s own `refreshReproductionProfile` (RAKHAL-271)
-    // recomputes `totalCalvings` from real `CalvingEvent` rows, so a
-    // purchase-intake `prior_calvings` value doesn't survive the post-commit
-    // recompute — the same pre-existing behavior `CattleService.create()`'s
-    // own `priorCalvings` has (RD tracked separately; out of this ticket's
-    // Lane, which doesn't touch `reproduction-derivation.service.ts`). Assert
-    // the profile row itself was created, which is what `prior_calvings`
-    // actually gates (the MILKING-without-history guard).
+    // RD-055 (fixed): `refreshDerivedState`'s `refreshReproductionProfile`
+    // now takes MAX(real CalvingEvent count, existing profile value), so the
+    // `prior_calvings` seed survives the post-commit recompute instead of
+    // being reset to 0.
     const profile = await prisma.reproductionProfile.findFirstOrThrow({
       where: { cattleId: cattle.id },
     });
-    expect(profile).toBeDefined();
+    expect(profile.totalCalvings).toBe(2);
   });
 
   it('imports a pregnant (not milking) cow via is_pregnant + expected_calving_date', async () => {

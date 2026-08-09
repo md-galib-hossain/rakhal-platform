@@ -1190,7 +1190,10 @@ export class ReproductionService {
           gender: 'FEMALE',
         },
       }),
-      // Heat events recorded in the last 12 months
+      // Heat events recorded in the last 12 months. The next 4 queries are
+      // trailing-year KPIs (detection/conception/pregnancy rate, calving
+      // interval) — deliberately herd-wide, including cows since sold/dead
+      // within the window, so the rate reflects the whole period's activity.
       this.prisma.heatEvent.count({
         where: {
           cattle: { farmId },
@@ -1288,7 +1291,7 @@ export class ReproductionService {
       // In heat now: heat events in the last 24 hours
       this.prisma.heatEvent.findMany({
         where: {
-          cattle: { farmId },
+          cattle: { farmId, isActive: true },
           heatDateTime: { gte: in24h },
           resolvedAt: null,
         },
@@ -1301,7 +1304,7 @@ export class ReproductionService {
       // Pregnancy check due: breeding events with pending check due ≤ today + 3d
       this.prisma.breedingEvent.findMany({
         where: {
-          cattle: { farmId },
+          cattle: { farmId, isActive: true },
           status: BreedingStatus.PENDING_CHECK,
           expectedPregnancyCheckDate: { lte: in3d },
         },
@@ -1314,7 +1317,7 @@ export class ReproductionService {
       // Calving next 7 days
       this.prisma.pregnancy.findMany({
         where: {
-          cattle: { farmId },
+          cattle: { farmId, isActive: true },
           status: PregnancyStatus.ACTIVE,
           expectedCalvingDate: { gte: now, lte: in7d },
         },
@@ -1327,7 +1330,7 @@ export class ReproductionService {
       // Dry-off due in 14 days: active lactations approaching 265+ DIM
       this.prisma.lactation.findMany({
         where: {
-          cattle: { farmId },
+          cattle: { farmId, isActive: true },
           status: LactationStatus.ACTIVE,
           startDate: { lte: this.addDays(now, -dryoffDimThreshold) },
         },
@@ -1671,6 +1674,11 @@ export class ReproductionService {
     return cattle;
   }
 
+  // Deliberately includes archived cattle — shared by both the create-event
+  // guard (getFemaleCattle/assertCattleInFarm) and the read-only events()/
+  // cattleId-filter validation, and a sold/dead cow's history must stay
+  // viewable. Splitting the guard so creation additionally rejects archived
+  // cattle is real debt (RD-056), out of this ticket's sweep scope.
   private async getCattleOrThrow(
     farmId: string,
     cattleId: string,

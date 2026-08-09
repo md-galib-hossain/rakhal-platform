@@ -48,11 +48,11 @@ export class FeedIngredientService {
    * farm's overrides). `isLatestVersion: true` excludes a superseded promoted-concentration version
    * (see `FeedIngredient`'s doc comment) — every other row defaults `true` so this is a no-op filter
    * for the catalogue and plain quick-add ingredients. */
-  async listMerged(farmId: string) {
+  async listMerged(farmId: string, includeArchived = false) {
     const [ingredients, overrides] = await Promise.all([
       this.prisma.feedIngredient.findMany({
         where: {
-          isActive: true,
+          ...(includeArchived ? {} : { isActive: true }),
           isLatestVersion: true,
           OR: [{ farmId: null }, { farmId }],
         },

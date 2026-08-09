@@ -127,6 +127,7 @@ export class SchedulerService {
       where: {
         status: 'ACTIVE',
         expectedCalvingDate: { gte: now, lte: horizon },
+        cattle: { isActive: true },
       },
       select: {
         id: true,
@@ -258,6 +259,7 @@ export class SchedulerService {
       where: {
         heatDateTime: { gte: windowStart, lt: windowEnd },
         resolvedAt: null,
+        cattle: { isActive: true },
       },
       select: {
         id: true,
@@ -294,6 +296,7 @@ export class SchedulerService {
       where: {
         status: 'PENDING_CHECK',
         expectedPregnancyCheckDate: { lte: now },
+        cattle: { isActive: true },
       },
       select: {
         id: true,
@@ -326,7 +329,7 @@ export class SchedulerService {
   private async sweepDryOffDue(): Promise<number> {
     const now = new Date();
     const lactations = await this.prisma.lactation.findMany({
-      where: { status: 'ACTIVE' },
+      where: { status: 'ACTIVE', cattle: { isActive: true } },
       select: {
         id: true,
         startDate: true,
@@ -508,16 +511,21 @@ export class SchedulerService {
     const sickCounts = await this.prisma.healthCase.groupBy({
       by: ['farmId'],
       where: {
+        isActive: true,
         status: { in: ['ACTIVE', 'IMPROVING', 'WORSENING', 'STABLE'] },
         startDate: { gte: since },
+        cattle: { isActive: true },
       },
       _count: { _all: true },
     });
 
     let emitted = 0;
     for (const row of sickCounts) {
+      // Normalized to isActive (RAKHAL-310) — status: 'ACTIVE' was a redundant,
+      // less-reliable outlier: archival always flips isActive false alongside
+      // status (SOLD/DEAD/ARCHIVED/CULLED), isActive is the single source of truth.
       const herdSize = await this.prisma.cattle.count({
-        where: { farmId: row.farmId, status: 'ACTIVE' },
+        where: { farmId: row.farmId, isActive: true },
       });
       if (herdSize === 0) continue;
       const rate = row._count._all / herdSize;
@@ -610,7 +618,7 @@ export class SchedulerService {
     );
 
     const lactations = await this.prisma.lactation.findMany({
-      where: { status: 'ACTIVE' },
+      where: { status: 'ACTIVE', cattle: { isActive: true } },
       select: {
         id: true,
         cattleId: true,

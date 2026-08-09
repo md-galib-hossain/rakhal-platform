@@ -26,7 +26,7 @@ export class FeedGroupAssignService {
   async assignCattle(farmId: string, groupId: string, cattleIds: string[]) {
     await this.assertGroupInFarm(farmId, groupId);
     const { count } = await this.prisma.cattle.updateMany({
-      where: { id: { in: cattleIds }, farmId },
+      where: { id: { in: cattleIds }, farmId, isActive: true },
       data: { feedGroupId: groupId },
     });
     this.log.info('Cattle assigned to feed group', {

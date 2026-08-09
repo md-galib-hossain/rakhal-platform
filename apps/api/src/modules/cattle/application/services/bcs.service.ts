@@ -104,7 +104,7 @@ export class BcsService {
 
   private async assertCattleInFarm(farmId: string, cattleId: string) {
     const cattle = await this.prisma.cattle.findFirst({
-      where: { id: cattleId, farmId },
+      where: { id: cattleId, farmId, isActive: true },
       select: { id: true },
     });
     if (!cattle) {

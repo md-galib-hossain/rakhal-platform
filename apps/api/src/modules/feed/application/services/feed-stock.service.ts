@@ -144,9 +144,9 @@ export class FeedStockService {
     return this.mapStock(updated);
   }
 
-  async list(farmId: string) {
+  async list(farmId: string, includeArchived = false) {
     const rows = await this.prisma.feedStock.findMany({
-      where: { farmId, isActive: true },
+      where: { farmId, ...(includeArchived ? {} : { isActive: true }) },
       orderBy: { producedAt: 'desc' },
     });
     return rows.map((r) => this.mapStock(r));

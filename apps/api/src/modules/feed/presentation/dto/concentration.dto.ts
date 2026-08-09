@@ -2,6 +2,7 @@ import { Transform, Type } from 'class-transformer';
 import {
   ArrayNotEmpty,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -12,7 +13,20 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { FeedConcentrationKind, FeedTargetType } from '@prisma/client';
-import { trimString } from 'src/common/dto';
+import { toBoolean, trimString } from 'src/common/dto';
+
+/** Query for `GET /feed/concentrations` (RAKHAL-310 — not cursor-paginated, this list is small and
+ * farm-scoped, so it stays a plain array response; only the archived-toggle was missing). */
+export class ListConcentrationsQueryDto {
+  @IsOptional()
+  @IsEnum(FeedConcentrationKind)
+  kind?: FeedConcentrationKind;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  includeArchived = false;
+}
 
 /** One ingredient line in a concentration formula. */
 export class ConcentrationItemDto {

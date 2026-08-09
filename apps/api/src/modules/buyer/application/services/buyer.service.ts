@@ -75,7 +75,7 @@ export class BuyerService {
   async listBuyers(farmId: string, query: ListBuyerQueryDto) {
     const where: Prisma.MilkBuyerWhereInput = {
       farmId,
-      ...(query.includeInactive ? {} : { isActive: true }),
+      ...(query.includeArchived ? {} : { isActive: true }),
       ...(query.search
         ? {
             OR: [

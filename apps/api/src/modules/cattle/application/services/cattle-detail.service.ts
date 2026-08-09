@@ -113,6 +113,9 @@ export class CattleDetailService {
   // ---- Tab 5: Pedigree ----------------------------------------------------
 
   async pedigree(farmId: string, cattleId: string) {
+    // Pedigree exception (RAKHAL-310, no `isActive` filter throughout this
+    // method): the subject, its siblings, and its offspring must all resolve
+    // even when archived/sold — pedigree history doesn't change on exit.
     const self = await this.prisma.cattle.findFirst({
       where: { id: cattleId, farmId },
       include: {
@@ -453,6 +456,8 @@ export class CattleDetailService {
     id: string,
     include?: T,
   ) {
+    // No `isActive` filter (RAKHAL-310): detail-page tabs (Overview, Finance)
+    // must still open for an archived/sold animal.
     const cattle = await this.prisma.cattle.findFirst({
       where: { id, farmId },
       include,

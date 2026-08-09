@@ -84,7 +84,7 @@ export class FeedRequirementsService {
     query: FeedRequirementsQueryDto,
   ) {
     const cattle = await this.prisma.cattle.findFirst({
-      where: { id: cattleId, farmId },
+      where: { id: cattleId, farmId, isActive: true },
       select: {
         id: true,
         lastWeightKg: true,
@@ -156,7 +156,7 @@ export class FeedRequirementsService {
     query: FeedRequirementsQueryDto,
   ) {
     const group = await this.prisma.feedGroup.findFirst({
-      where: { id: feedGroupId, farmId },
+      where: { id: feedGroupId, farmId, isActive: true },
       select: { id: true },
     });
     if (!group) throw new NotFoundException('Feed group not found');

@@ -135,6 +135,8 @@ export class CalfService {
   }
 
   async profile(farmId: string, id: string) {
+    // No `isActive` filter (RAKHAL-310): the calf detail profile must still
+    // open for an archived/weaned-out animal, same as Cattle's own detail tabs.
     const calf = await this.prisma.cattle.findFirst({
       where: { id, farmId },
       include: { mother: { select: this.summarySelect() } },
@@ -414,7 +416,9 @@ export class CalfService {
         this.prisma.cattle.count({
           where: {
             ...calfWhere,
-            healthCases: { some: { status: { in: ACTIVE_CASE_STATUSES } } },
+            healthCases: {
+              some: { isActive: true, status: { in: ACTIVE_CASE_STATUSES } },
+            },
           },
         }),
         this.prisma.cattle.count({
@@ -460,7 +464,11 @@ export class CalfService {
       }),
       this.prisma.healthCase.groupBy({
         by: ['cattleId'],
-        where: { cattleId: { in: ids }, status: { in: ACTIVE_CASE_STATUSES } },
+        where: {
+          cattleId: { in: ids },
+          isActive: true,
+          status: { in: ACTIVE_CASE_STATUSES },
+        },
       }),
     ]);
 
@@ -525,8 +533,10 @@ export class CalfService {
   }
 
   private async getCattleOrThrow(farmId: string, id: string): Promise<Cattle> {
+    // Used only by write paths (assertCalf → record*/wean), so `isActive`
+    // is enforced here — an archived/dead calf must not accept new records.
     const cattle = await this.prisma.cattle.findFirst({
-      where: { id, farmId },
+      where: { id, farmId, isActive: true },
     });
     if (!cattle) {
       throw new NotFoundException('Calf not found');

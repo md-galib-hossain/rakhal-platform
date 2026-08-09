@@ -336,7 +336,7 @@ export class ReproductionDerivationService {
       vwpDays,
       totalBreedings,
       pregnancies,
-      totalCalvings,
+      realCalvingCount,
       totalAbortions,
       firstCalving,
       lastBreeding,
@@ -344,6 +344,7 @@ export class ReproductionDerivationService {
       lastCalving,
       currentPregnancy,
       currentLactation,
+      existingProfile,
     ] = await Promise.all([
       this.prisma.cattle.findUnique({
         where: { id: cattleId },
@@ -381,7 +382,27 @@ export class ReproductionDerivationService {
         where: { cattleId, status: LactationStatus.ACTIVE },
         orderBy: { startDate: 'desc' },
       }),
+      // RD-055: a purchase-intake `priorCalvings`/`prior_calvings` seeds this
+      // profile's `totalCalvings` with real prior history that has no
+      // `CalvingEvent` row backing it (the calving happened before the cow
+      // was in this system) — `realCalvingCount` alone would silently reset
+      // that seed back to 0 the moment this recompute runs post-commit.
+      // Reading the existing value here lets `totalCalvings` below take
+      // whichever is larger, so an intake seed is never lost.
+      this.prisma.reproductionProfile.findUnique({
+        where: { cattleId },
+        select: { totalCalvings: true },
+      }),
     ]);
+
+    // A real CalvingEvent recorded in this system is always at least as
+    // trustworthy as an intake estimate, so it can only raise the count,
+    // never lower it below whatever was already on the profile (intake
+    // seed, or a prior recompute).
+    const totalCalvings = Math.max(
+      realCalvingCount,
+      existingProfile?.totalCalvings ?? 0,
+    );
 
     const status = deriveReproductionState({
       now: new Date(),

@@ -55,9 +55,17 @@ export class FeedConcentrationService {
     this.log = this.logger.setContext(FeedConcentrationService.name);
   }
 
-  async list(farmId: string, kind?: FeedConcentrationKind) {
+  async list(
+    farmId: string,
+    kind?: FeedConcentrationKind,
+    includeArchived = false,
+  ) {
     const rows = await this.prisma.feedConcentration.findMany({
-      where: { farmId, isActive: true, ...(kind ? { kind } : {}) },
+      where: {
+        farmId,
+        ...(includeArchived ? {} : { isActive: true }),
+        ...(kind ? { kind } : {}),
+      },
       orderBy: { createdAt: 'desc' },
       include: { items: true },
     });
@@ -97,6 +105,9 @@ export class FeedConcentrationService {
     // `in: []` is a safe no-op query (returns `[]`), so both queries can always run — no need to
     // branch on whether either id list is non-empty, which sidesteps a TS inference gotcha where a
     // ternary's two `Promise.all` branches (a real query vs `Promise.resolve([])`) collapse to `any`.
+    // No `isActive` filter on either read (RAKHAL-310): this only asks
+    // "has this concentration ever been finalized", which must stay true
+    // even if the resulting ingredient/stock row was later archived.
     const [ingredientRows, stockRows] = await Promise.all([
       this.prisma.feedIngredient.findMany({
         where: { farmId, sourceConcentrationId: { in: templateIds } },
@@ -493,6 +504,9 @@ export class FeedConcentrationService {
     ingredientIds: string[],
   ): Promise<Map<string, EffectiveIngredient>> {
     const ids = [...new Set(ingredientIds)];
+    // No `isActive` filter (RAKHAL-310): `ids` come from an existing
+    // formula's saved line items, which must keep resolving nutrition/price
+    // even if that ingredient was archived after the formula was built.
     const [ingredients, overrides] = await Promise.all([
       this.prisma.feedIngredient.findMany({ where: { id: { in: ids } } }),
       this.prisma.feedIngredientOverride.findMany({
@@ -579,6 +593,9 @@ export class FeedConcentrationService {
     farmId: string,
     row: ConcentrationWithItems,
   ) {
+    // No `isActive` filter (RAKHAL-310) — mirrors `finalize()`'s own upsert,
+    // which resurrects (`isActive: true`) a previously-archived promoted
+    // ingredient on refinalize, so the lookup here must find it either way.
     const promoted = await this.prisma.feedIngredient.findFirst({
       where: { sourceConcentrationId: row.id },
     });
@@ -607,6 +624,9 @@ export class FeedConcentrationService {
     });
   }
 
+  // No `isActive` filter (RAKHAL-310): resolves display names for an
+  // existing formula's line items, which must still show a name even for an
+  // ingredient archived after the formula was built.
   private async ingredientNames(ids: string[]) {
     const rows = await this.prisma.feedIngredient.findMany({
       where: { id: { in: ids } },
@@ -632,7 +652,7 @@ export class FeedConcentrationService {
   ) {
     if (feedGroupId) {
       const group = await this.prisma.feedGroup.findFirst({
-        where: { id: feedGroupId, farmId },
+        where: { id: feedGroupId, farmId, isActive: true },
         select: { id: true },
       });
       if (!group)
@@ -640,7 +660,7 @@ export class FeedConcentrationService {
     }
     if (cattleId) {
       const cattle = await this.prisma.cattle.findFirst({
-        where: { id: cattleId, farmId },
+        where: { id: cattleId, farmId, isActive: true },
         select: { id: true },
       });
       if (!cattle)

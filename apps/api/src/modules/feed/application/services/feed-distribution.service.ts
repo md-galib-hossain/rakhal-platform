@@ -266,7 +266,7 @@ export class FeedDistributionService {
 
     if (query.cattleId) {
       const cattle = await this.prisma.cattle.findFirst({
-        where: { id: query.cattleId, farmId },
+        where: { id: query.cattleId, farmId, isActive: true },
         select: { id: true, tagNumber: true, name: true },
       });
       if (!cattle) throw new NotFoundException('Cattle not found');
@@ -301,7 +301,7 @@ export class FeedDistributionService {
     }
 
     const group = await this.prisma.feedGroup.findFirst({
-      where: { id: query.feedGroupId, farmId },
+      where: { id: query.feedGroupId, farmId, isActive: true },
       select: { id: true, name: true },
     });
     if (!group) throw new NotFoundException('Feed group not found');
@@ -316,7 +316,7 @@ export class FeedDistributionService {
         select: this.EFFICIENCY_DISTRIBUTION_SELECT,
       }),
       this.prisma.cattle.findMany({
-        where: { farmId, feedGroupId: group.id },
+        where: { farmId, feedGroupId: group.id, isActive: true },
         select: { id: true },
       }),
     ]);
@@ -453,6 +453,9 @@ export class FeedDistributionService {
     });
   }
 
+  // No `isActive` filter (RAKHAL-310): `ingredientIds` come from an existing
+  // concentration's line items, which must keep pricing even if the
+  // ingredient was archived after the distribution was logged.
   private async effectiveMap(farmId: string, ingredientIds: string[]) {
     const ids = [...new Set(ingredientIds)];
     const [ingredients, overrides] = await Promise.all([
@@ -470,6 +473,8 @@ export class FeedDistributionService {
     );
   }
 
+  // No `isActive` filter (RAKHAL-310) — same historical-resolve rationale as
+  // `effectiveMap()` above.
   private async ingredientNames(ids: string[]) {
     const rows = await this.prisma.feedIngredient.findMany({
       where: { id: { in: [...new Set(ids)] } },

@@ -146,7 +146,7 @@ export class DashboardService {
       where: {
         status: PregnancyStatus.ACTIVE,
         expectedCalvingDate: { gte: now, lte: horizon },
-        cattle: { farmId },
+        cattle: { farmId, isActive: true },
       },
       orderBy: { expectedCalvingDate: 'asc' },
       include: {
@@ -528,7 +528,10 @@ export class DashboardService {
     const months = this.lastNMonths(12);
     const rangeStart = months[0].start;
     const events = await this.prisma.breedingEvent.findMany({
-      where: { breedingDate: { gte: rangeStart }, cattle: { farmId } },
+      where: {
+        breedingDate: { gte: rangeStart },
+        cattle: { farmId, isActive: true },
+      },
       select: { breedingDate: true, status: true },
     });
     const buckets = new Map<string, { total: number; confirmed: number }>(
@@ -716,7 +719,7 @@ export class DashboardService {
         where: {
           status: PregnancyStatus.ACTIVE,
           expectedCalvingDate: { gte: now, lte: calvingHorizon },
-          cattle: { farmId },
+          cattle: { farmId, isActive: true },
         },
         orderBy: { expectedCalvingDate: 'asc' },
         include: {

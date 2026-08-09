@@ -890,6 +890,10 @@ export class CattleService {
         return this.bulkResult(action, count, cattleIds.length);
       }
       case 'export': {
+        // No `isActive` filter here (RAKHAL-310): export operates on the
+        // caller's explicit `cattleIds` selection, which may deliberately
+        // include archived rows already shown in an "include archived" view —
+        // it must export exactly what was selected, not a re-filtered subset.
         const rows = await this.prisma.cattle.findMany({
           where: scope,
           orderBy: { tagNumber: 'asc' },
@@ -912,6 +916,8 @@ export class CattleService {
       this.defaultInclude(),
     );
 
+    // Pedigree lookup exception (RAKHAL-310): a child stays a child in the
+    // pedigree count even after being archived/sold.
     const childrenCount = await this.prisma.cattle.count({
       where: { farmId, OR: [{ motherId: id }, { fatherId: id }] },
     });
@@ -990,6 +996,8 @@ export class CattleService {
   // ---- RAKHAL-040: Cattle Detail Tabs -----------------------------------------
 
   async tabOverview(farmId: string, id: string) {
+    // No `isActive` filter (RAKHAL-310) — same detail-view exception as
+    // `getCattleOrThrow`: an archived animal's overview tab must still open.
     const cattle = await this.prisma.cattle.findFirst({
       where: { id, farmId },
       include: {
@@ -1228,6 +1236,7 @@ export class CattleService {
         where: {
           cattleId: id,
           farmId,
+          isActive: true,
           status: { in: OPEN_HEALTH_CASE_STATUSES },
         },
         orderBy: { startDate: 'desc' },
@@ -1243,6 +1252,7 @@ export class CattleService {
         where: {
           cattleId: id,
           farmId,
+          isActive: true,
           status: { notIn: OPEN_HEALTH_CASE_STATUSES },
         },
         orderBy: { closedDate: 'desc' },
@@ -1833,6 +1843,8 @@ export class CattleService {
       return;
     }
 
+    // Pedigree lookup exception (RAKHAL-310): a mother/father must still
+    // resolve here even if archived/sold since the calving/parentage.
     const parents = await this.prisma.cattle.findMany({
       where: { id: { in: parentIds }, farmId },
       select: { id: true },
@@ -1864,6 +1876,9 @@ export class CattleService {
       if (currentId === targetId) return true;
 
       visited.add(currentId);
+      // Pedigree cycle-check exception (RAKHAL-310): must walk the full
+      // parentage graph, including archived/sold descendants, to correctly
+      // reject a circular mother/father assignment.
       const children = await this.prisma.cattle.findMany({
         where: { OR: [{ motherId: currentId }, { fatherId: currentId }] },
         select: { id: true },
@@ -1886,6 +1901,8 @@ export class CattleService {
 
     visited.add(id);
 
+    // Pedigree lookup exception (RAKHAL-310): ancestry must resolve archived/
+    // sold ancestors too, or the tree would truncate at the first exited animal.
     const cattle = await this.prisma.cattle.findUnique({
       where: { id },
       select: {
@@ -1919,6 +1936,10 @@ export class CattleService {
     id: string,
     include?: T,
   ) {
+    // RAKHAL-310 named exception: deliberately no `isActive` filter — archive/
+    // restore/detail-view flows all route through this helper and must be able
+    // to load an already-archived animal (e.g. to restore it or view its detail
+    // tabs post-archive).
     const cattle = await this.prisma.cattle.findFirst({
       where: { id, farmId },
       include,
@@ -2058,6 +2079,8 @@ export class CattleService {
     tx: Prisma.TransactionClient,
     farmId: string,
   ): Promise<string> {
+    // No `isActive` filter (RAKHAL-310) — code-sequence generation must scan
+    // every case ever issued, archived or not, to never reuse a code.
     const rows = await tx.healthCase.findMany({
       where: { farmId, caseCode: { startsWith: 'HC-' } },
       select: { caseCode: true },

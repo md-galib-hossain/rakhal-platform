@@ -72,6 +72,14 @@ describe('Cattle — intake real current state (e2e)', () => {
     expect(pregnancy.sourceDiagnosisId).toBe(diagnosis.id);
     expect(pregnancy.status).toBe('ACTIVE');
 
+    // RD-055 regression guard: `priorCalvings` must survive the
+    // `refreshDerivedState` recompute that runs at the end of `create()`,
+    // not get reset to 0 by the real-CalvingEvent-count recompute.
+    const profile = await prisma.reproductionProfile.findFirstOrThrow({
+      where: { cattleId },
+    });
+    expect(profile.totalCalvings).toBe(1);
+
     const dash = await request(server())
       .get(api('/reproduction/dashboard'))
       .set(...auth(owner))

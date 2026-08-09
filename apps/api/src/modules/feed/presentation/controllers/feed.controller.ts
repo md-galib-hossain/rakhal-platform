@@ -29,10 +29,12 @@ import { BulkDeleteStockDto } from '../dto/bulk-delete-stock.dto';
 import {
   BulkDeleteConcentrationDto,
   CreateConcentrationDto,
+  ListConcentrationsQueryDto,
   NormalizeConcentrationDto,
   UpdateConcentrationDto,
 } from '../dto/concentration.dto';
-import { FeedConcentrationKind } from '@prisma/client';
+import { ListIngredientsQueryDto } from '../dto/list-ingredients-query.dto';
+import { ListFeedStockQueryDto } from '../dto/list-feed-stock-query.dto';
 import { FeedRequirementsQueryDto } from '../dto/feed-requirements-query.dto';
 import { SetFeedOverrideDto } from '../dto/set-feed-override.dto';
 import { CreateCustomIngredientDto } from '../dto/create-custom-ingredient.dto';
@@ -73,8 +75,11 @@ export class FeedController {
   // ---- Ingredients --------------------------------------------------------
   @Get('ingredients')
   @RequirePermission('feed.read')
-  listIngredients(@CurrentFarmId() farmId: string) {
-    return this.ingredients.listMerged(farmId);
+  listIngredients(
+    @CurrentFarmId() farmId: string,
+    @Query() query: ListIngredientsQueryDto,
+  ) {
+    return this.ingredients.listMerged(farmId, query.includeArchived);
   }
 
   @Post('ingredients/custom')
@@ -119,9 +124,9 @@ export class FeedController {
   @RequirePermission('feed.read')
   listConcentrations(
     @CurrentFarmId() farmId: string,
-    @Query('kind') kind?: FeedConcentrationKind,
+    @Query() query: ListConcentrationsQueryDto,
   ) {
-    return this.concentrations.list(farmId, kind);
+    return this.concentrations.list(farmId, query.kind, query.includeArchived);
   }
 
   @Post('concentrations')
@@ -247,8 +252,11 @@ export class FeedController {
   // ---- Feed stock (§12.5 follow-up — TMR ↔ Inventory linkage) -------------
   @Get('stock')
   @RequirePermission('feed.read')
-  listStock(@CurrentFarmId() farmId: string) {
-    return this.stock.list(farmId);
+  listStock(
+    @CurrentFarmId() farmId: string,
+    @Query() query: ListFeedStockQueryDto,
+  ) {
+    return this.stock.list(farmId, query.includeArchived);
   }
 
   /** Multi-select delete (bulk-action dock, 2026-07-21) — registered before `stock/:id` so Nest
