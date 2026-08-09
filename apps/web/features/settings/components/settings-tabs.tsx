@@ -6,6 +6,7 @@ import { Building2, CreditCard, KeySquare, SlidersHorizontal } from "lucide-reac
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/shared/empty-state";
 import { BillingSettingsView } from "@/features/subscription/components/billing/billing-settings-view";
+import { ModulesSettingsView } from "./modules-settings-view";
 import { TeamSettingsView } from "./team-settings-view";
 import { WorkspaceSettingsView } from "./workspace-settings-view";
 import { SETTINGS_TABS, type SettingsTabKey } from "../types";
@@ -22,8 +23,10 @@ const TAB_ICONS: Record<SettingsTabKey, React.ComponentType<{ className?: string
 };
 
 /**
- * Settings vertical tab-rail (Figma `1039:51236`) + routed content. Defaults to `billing` — the one
- * tab built this pass; the other three are placeholders until the rest of RFE-045 lands.
+ * Settings vertical tab-rail (Figma `1039:51236`) + routed content. `billing`/`team`/`workspace`
+ * have real content (RFE-036/RFE-045a); `modules` now covers Suppliers CRUD (RFE-045c) — its
+ * remaining Module-toggle editor (RFE-045b) is still a placeholder, see `ModulesSettingsView`'s
+ * own doc comment.
  */
 export function SettingsTabs() {
   const t = useTranslations("settings");
@@ -60,6 +63,8 @@ export function SettingsTabs() {
           <TeamSettingsView />
         ) : tab === "workspace" ? (
           <WorkspaceSettingsView />
+        ) : tab === "modules" ? (
+          <ModulesSettingsView />
         ) : (
           <EmptyState title={t("comingSoon")} description={t("comingSoonDescription")} />
         )}

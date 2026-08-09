@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { settingsApi } from "../api";
-import type { FeedGroupFormInput, ShedFormInput, UpdateFarmInput } from "../schemas";
+import type { FeedGroupFormInput, ShedFormInput, SupplierFormInput, UpdateFarmInput } from "../schemas";
 
 export function useUpdateFarm() {
   const queryClient = useQueryClient();
@@ -59,5 +59,29 @@ export function useDeleteFeedGroup() {
   return useMutation({
     mutationFn: (id: string) => settingsApi.deleteFeedGroup(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.feedGroups() }),
+  });
+}
+
+export function useCreateSupplier() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SupplierFormInput) => settingsApi.createSupplier(input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.suppliers() }),
+  });
+}
+
+export function useUpdateSupplier() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: SupplierFormInput }) => settingsApi.updateSupplier(id, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.suppliers() }),
+  });
+}
+
+export function useDeleteSupplier() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => settingsApi.deleteSupplier(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.suppliers() }),
   });
 }

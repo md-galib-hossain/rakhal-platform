@@ -49,3 +49,14 @@ export const feedGroupFormSchema = z.object({
   description: z.string().trim().max(500).optional().or(z.literal("")),
 });
 export type FeedGroupFormInput = z.infer<typeof feedGroupFormSchema>;
+
+/** Mirrors `CreateSupplierDto`/`UpdateSupplierDto` (single form covers both). */
+export const supplierFormSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  contact: z.string().trim().max(120).optional().or(z.literal("")),
+  phone: z.string().trim().max(30).optional().or(z.literal("")),
+  category: z.string().trim().max(40).optional().or(z.literal("")),
+  payment_terms: z.string().trim().max(40).optional().or(z.literal("")),
+  notes: z.string().trim().max(500).optional().or(z.literal("")),
+});
+export type SupplierFormInput = z.infer<typeof supplierFormSchema>;

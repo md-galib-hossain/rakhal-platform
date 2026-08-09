@@ -719,12 +719,20 @@
       "bcs": "BCS",
       "action": "Action",
       "productionStatus": "Production status",
+      "lactationStage": "Lactation Stage",
       "reproductionStatus": "Reproduction status",
       "healthStatus": "Health status"
     },
     "statusOptions": {
       "milking": "Milking",
       "dry": "Dry"
+    },
+    "lactationStageOptions": {
+      "FRESH": "Fresh",
+      "EARLY": "Early lactation",
+      "MID": "Mid lactation",
+      "LATE": "Late lactation",
+      "DRY_PERIOD": "Dry period"
     },
     "animalCategory": {
       "CALF": "Calf",
@@ -4047,6 +4055,40 @@
         "deleteConfirmTitle": "Delete {name}?",
         "deleteConfirmBody": "Blocked if any active cattle are still assigned to this group. This cannot be undone.",
         "loadError": "Could not load feed groups.",
+        "genericError": "Something went wrong. Please try again."
+      }
+    },
+    "modules": {
+      "suppliers": {
+        "title": "Suppliers",
+        "add": "Add supplier",
+        "empty": "No suppliers yet.",
+        "nameHeader": "Name",
+        "contactHeader": "Contact",
+        "categoryHeader": "Category",
+        "paymentTermsHeader": "Payment terms",
+        "actionsHeader": "",
+        "edit": "Edit",
+        "deactivate": "Deactivate",
+        "cancel": "Cancel",
+        "confirm": "Confirm",
+        "addTitle": "Add supplier",
+        "editTitle": "Edit supplier",
+        "dialogDescription": "Suppliers you buy feed, medicine, or equipment from.",
+        "nameLabel": "Name",
+        "contactLabel": "Contact person (optional)",
+        "phoneLabel": "Phone (optional)",
+        "categoryLabel": "Category (optional)",
+        "paymentTermsLabel": "Payment terms (optional)",
+        "notesLabel": "Notes (optional)",
+        "save": "Save",
+        "saving": "Saving…",
+        "createdToast": "Supplier added.",
+        "updatedToast": "Supplier updated.",
+        "deactivatedToast": "Supplier deactivated.",
+        "deactivateConfirmTitle": "Deactivate {name}?",
+        "deactivateConfirmBody": "This supplier will be hidden from new records but existing history is kept.",
+        "loadError": "Could not load suppliers.",
         "genericError": "Something went wrong. Please try again."
       }
     }

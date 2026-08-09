@@ -83,3 +83,19 @@ export interface FeedGroup {
 }
 
 export type FeedGroupListResult = FeedGroup[];
+
+/** `GET/POST/PATCH /settings/suppliers` row (`WorkspaceSettingsService#mapSupplier`, RAKHAL-032). */
+export interface Supplier {
+  id: string;
+  name: string;
+  contact: string | null;
+  phone: string | null;
+  category: string | null;
+  payment_terms: string | null;
+  notes: string | null;
+  is_active: boolean;
+}
+
+export interface SupplierListResult {
+  suppliers: Supplier[];
+}

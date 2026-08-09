@@ -12,6 +12,7 @@ import type {
   AnimalCategory,
   CattleListItem,
   HealthStatusFilter,
+  LactationStage,
   ProductionStatus,
   ReproductiveStatus,
 } from "../types";
@@ -40,6 +41,14 @@ function GenderGlyph({ gender }: { gender: CattleListItem["gender"] }) {
 const PRODUCTION_STATUS_VARIANT: Record<ProductionStatus, ChipProps["variant"]> = {
   MILKING: "primary",
   DRY: "warning",
+};
+
+const LACTATION_STAGE_VARIANT: Record<LactationStage, ChipProps["variant"]> = {
+  FRESH: "primary",
+  EARLY: "primary",
+  MID: "info",
+  LATE: "warning",
+  DRY_PERIOD: "muted",
 };
 
 /** RAKHAL-270 — `animalCategory` chip colors, distinct from the production-status chip above. */
@@ -221,6 +230,18 @@ export function buildCattleColumns(
         const status = row.original.productionStatus;
         return status ? (
           <Chip variant={PRODUCTION_STATUS_VARIANT[status]}>{t(`statusOptions.${status.toLowerCase()}`)}</Chip>
+        ) : (
+          "—"
+        );
+      },
+    },
+    {
+      id: "lactationStage",
+      header: t("columns.lactationStage"),
+      cell: ({ row }) => {
+        const stage = row.original.lactationStage;
+        return stage ? (
+          <Chip variant={LACTATION_STAGE_VARIANT[stage]}>{t(`lactationStageOptions.${stage}`)}</Chip>
         ) : (
           "—"
         );

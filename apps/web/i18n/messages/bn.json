@@ -719,12 +719,20 @@
       "bcs": "BCS",
       "action": "অ্যাকশন",
       "productionStatus": "উৎপাদন অবস্থা",
+      "lactationStage": "স্তন্যদান পর্যায়",
       "reproductionStatus": "প্রজনন অবস্থা",
       "healthStatus": "স্বাস্থ্য অবস্থা"
     },
     "statusOptions": {
       "milking": "দুধ দেওয়া",
       "dry": "শুকনো"
+    },
+    "lactationStageOptions": {
+      "FRESH": "সদ্য বিয়ানো",
+      "EARLY": "প্রাথমিক স্তন্যদান",
+      "MID": "মধ্য স্তন্যদান",
+      "LATE": "শেষ স্তন্যদান",
+      "DRY_PERIOD": "শুকনা সময়"
     },
     "animalCategory": {
       "CALF": "বাছুর",
@@ -4047,6 +4055,40 @@
         "deleteConfirmTitle": "{name} মুছবেন?",
         "deleteConfirmBody": "এই গ্রুপে সক্রিয় গবাদি পশু থাকলে এটি করা যাবে না। এটি পূর্বাবস্থায় ফেরানো যাবে না।",
         "loadError": "ফিড গ্রুপ লোড করা যায়নি।",
+        "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+      }
+    },
+    "modules": {
+      "suppliers": {
+        "title": "সরবরাহকারী",
+        "add": "সরবরাহকারী যোগ করুন",
+        "empty": "এখনো কোনো সরবরাহকারী নেই।",
+        "nameHeader": "নাম",
+        "contactHeader": "যোগাযোগ",
+        "categoryHeader": "শ্রেণি",
+        "paymentTermsHeader": "পেমেন্ট শর্ত",
+        "actionsHeader": "",
+        "edit": "সম্পাদনা",
+        "deactivate": "নিষ্ক্রিয় করুন",
+        "cancel": "বাতিল",
+        "confirm": "নিশ্চিত করুন",
+        "addTitle": "সরবরাহকারী যোগ করুন",
+        "editTitle": "সরবরাহকারী সম্পাদনা করুন",
+        "dialogDescription": "যাদের কাছ থেকে আপনি ফিড, ওষুধ বা সরঞ্জাম কেনেন।",
+        "nameLabel": "নাম",
+        "contactLabel": "যোগাযোগকারী (ঐচ্ছিক)",
+        "phoneLabel": "ফোন (ঐচ্ছিক)",
+        "categoryLabel": "শ্রেণি (ঐচ্ছিক)",
+        "paymentTermsLabel": "পেমেন্ট শর্ত (ঐচ্ছিক)",
+        "notesLabel": "নোট (ঐচ্ছিক)",
+        "save": "সংরক্ষণ করুন",
+        "saving": "সংরক্ষণ হচ্ছে…",
+        "createdToast": "সরবরাহকারী যোগ করা হয়েছে।",
+        "updatedToast": "সরবরাহকারী হালনাগাদ করা হয়েছে।",
+        "deactivatedToast": "সরবরাহকারী নিষ্ক্রিয় করা হয়েছে।",
+        "deactivateConfirmTitle": "{name} নিষ্ক্রিয় করবেন?",
+        "deactivateConfirmBody": "নতুন রেকর্ডে এই সরবরাহকারী আর দেখাবে না, তবে পুরনো ইতিহাস সংরক্ষিত থাকবে।",
+        "loadError": "সরবরাহকারী লোড করা যায়নি।",
         "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
       }
     }

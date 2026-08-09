@@ -23,6 +23,7 @@ export const qk = {
     roles: () => ["settings", "roles"] as const,
     sheds: () => ["settings", "sheds"] as const,
     feedGroups: () => ["settings", "feed-groups"] as const,
+    suppliers: () => ["settings", "suppliers"] as const,
   },
   legal: {
     consent: () => ["legal", "consent"] as const,

@@ -1,7 +1,7 @@
 "use client";
 
 import { apiFetch } from "@/lib/api/client";
-import type { FeedGroupFormInput, InviteTeamMemberInput, ShedFormInput, UpdateFarmInput } from "./schemas";
+import type { FeedGroupFormInput, InviteTeamMemberInput, ShedFormInput, SupplierFormInput, UpdateFarmInput } from "./schemas";
 import type {
   FarmSettings,
   FeedGroup,
@@ -9,6 +9,8 @@ import type {
   RoleListResult,
   Shed,
   ShedListResult,
+  Supplier,
+  SupplierListResult,
   TeamListResult,
 } from "./types";
 
@@ -66,6 +68,18 @@ export const settingsApi = {
   },
   deleteFeedGroup(id: string): Promise<{ id: string; deleted: true }> {
     return apiFetch(`/settings/feed-groups/${id}`, { method: "DELETE" });
+  },
+  listSuppliers(): Promise<SupplierListResult> {
+    return apiFetch<SupplierListResult>("/settings/suppliers");
+  },
+  createSupplier(input: SupplierFormInput): Promise<Supplier> {
+    return apiFetch<Supplier>("/settings/suppliers", { method: "POST", body: input });
+  },
+  updateSupplier(id: string, input: SupplierFormInput): Promise<Supplier> {
+    return apiFetch<Supplier>(`/settings/suppliers/${id}`, { method: "PATCH", body: input });
+  },
+  deleteSupplier(id: string): Promise<{ id: string; is_active: false }> {
+    return apiFetch(`/settings/suppliers/${id}`, { method: "DELETE" });
   },
 };
 
