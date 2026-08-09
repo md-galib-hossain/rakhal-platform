@@ -201,10 +201,14 @@ describe('Reproduction — ReproductionState/Alert lifecycle (e2e)', () => {
       .expect(201);
     const breedingEventId = breedingRes.body.data.id;
 
-    // Push the check date into the past -> shows up on the "due" dashboard.
-    await prisma.breedingEvent.update({
-      where: { id: breedingEventId },
-      data: { expectedPregnancyCheckDate: new Date(now - daysMs(2)) },
+    // RAKHAL-321: the dashboard's "due" panel is Task-sourced now — push the
+    // Task's own dueAt into the past (not BreedingEvent.expectedPregnancyCheckDate).
+    await prisma.task.updateMany({
+      where: {
+        sourceEventType: 'BREEDING_EVENT',
+        sourceEventId: breedingEventId,
+      },
+      data: { dueAt: new Date(now - daysMs(2)) },
     });
 
     let dash = await request(server())
@@ -249,6 +253,35 @@ describe('Reproduction — ReproductionState/Alert lifecycle (e2e)', () => {
         (b: { cattle_id: string }) => b.cattle_id === cow.id,
       ),
     ).toBe(false);
+
+    // RAKHAL-321: the recheck task exists but isn't due for ~10 days yet, so
+    // it's correctly absent from the "due now" recheck panel too.
+    expect(
+      dash.body.data.action_required.pregnancy_recheck_due.some(
+        (b: { cattle_id: string }) => b.cattle_id === cow.id,
+      ),
+    ).toBe(false);
+
+    // Push the recheck task's own due date into the past -> it now appears
+    // on the split pregnancy_recheck_due panel, sourced from the same live
+    // Task row (not a second BreedingEvent field).
+    await prisma.task.updateMany({
+      where: {
+        sourceEventType: 'BREEDING_EVENT',
+        sourceEventId: breedingEventId,
+        name: { startsWith: 'Pregnancy recheck — ' },
+      },
+      data: { dueAt: new Date(now - daysMs(1)) },
+    });
+    dash = await request(server())
+      .get(api('/reproduction/dashboard'))
+      .set(...auth(owner))
+      .expect(200);
+    expect(
+      dash.body.data.action_required.pregnancy_recheck_due.some(
+        (b: { cattle_id: string }) => b.cattle_id === cow.id,
+      ),
+    ).toBe(true);
 
     const s = await summary(cow.id);
     expect(s.status).toBe('BRED_AWAITING_CONFIRMATION');

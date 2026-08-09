@@ -26,6 +26,7 @@ import {
   TaskCategory,
   TaskPriority,
   TaskSource,
+  TaskStatus,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
@@ -1406,7 +1407,7 @@ export class ReproductionService {
     const [
       readyForAi,
       inHeatNow,
-      pregnancyCheckDue,
+      pregnancyCheckTasks,
       calvingNext7Days,
       dryoffDue14Days,
     ] = await Promise.all([
@@ -1454,18 +1455,27 @@ export class ReproductionService {
         orderBy: { heatDateTime: 'desc' },
         take: 20,
       }),
-      // Pregnancy check due: breeding events with pending check due ≤ today + 3d
-      this.prisma.breedingEvent.findMany({
+      // RAKHAL-321: pregnancy check/recheck due, sourced from the live Task
+      // Hub row instead of `BreedingEvent.status` — the Task's own
+      // completion is what "the check is done" actually means (events tell
+      // us what happened, tasks tell us what needs to happen). Recheck tasks
+      // (RAKHAL-315's SUSPECTED branch) share the same
+      // `sourceEventType`/`category` as the original check — distinguished
+      // by the `name` prefix each is created with below, no schema change.
+      this.prisma.task.findMany({
         where: {
-          cattle: { farmId, isActive: true },
-          status: BreedingStatus.PENDING_CHECK,
-          expectedPregnancyCheckDate: { lte: in3d },
+          farmId,
+          category: TaskCategory.BREEDING,
+          sourceEventType: 'BREEDING_EVENT',
+          status: { not: TaskStatus.COMPLETED },
+          dueAt: { lte: in3d },
+          OR: [
+            { name: { startsWith: 'Pregnancy check — ' } },
+            { name: { startsWith: 'Pregnancy recheck — ' } },
+          ],
         },
-        include: {
-          cattle: { select: { id: true, name: true, tagNumber: true } },
-        },
-        orderBy: { expectedPregnancyCheckDate: 'asc' },
-        take: 20,
+        orderBy: { dueAt: 'asc' },
+        take: 40,
       }),
       // Calving next 7 days
       this.prisma.pregnancy.findMany({
@@ -1495,6 +1505,83 @@ export class ReproductionService {
       }),
     ]);
 
+    // RAKHAL-321: enrich the Task-sourced check/recheck rows — `Task` has no
+    // Prisma relation to `Cattle`/`BreedingEvent` (a plain string FK shared
+    // across modules, see `Task.relatedCattleId`/`sourceEventId`'s doc
+    // comment), so batch-fetch both and join in memory. Cattle lookup also
+    // re-applies the `isActive` filter the old `cattle: { isActive: true }`
+    // nested where used to give for free.
+    const checkCattleIds = [
+      ...new Set(
+        pregnancyCheckTasks
+          .map((t) => t.relatedCattleId)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+    const checkBreedingEventIds = [
+      ...new Set(
+        pregnancyCheckTasks
+          .map((t) => t.sourceEventId)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+    const [checkCattleRows, checkBreedingRows] = await Promise.all([
+      this.prisma.cattle.findMany({
+        where: { id: { in: checkCattleIds }, farmId, isActive: true },
+        select: { id: true, name: true, tagNumber: true },
+      }),
+      this.prisma.breedingEvent.findMany({
+        where: { id: { in: checkBreedingEventIds } },
+        select: { id: true, breedingDate: true },
+      }),
+    ]);
+    const checkCattleById = new Map(checkCattleRows.map((c) => [c.id, c]));
+    const checkBreedingById = new Map(checkBreedingRows.map((b) => [b.id, b]));
+    const pregnancyCheckDue = pregnancyCheckTasks
+      .filter(
+        (t) => t.name.startsWith('Pregnancy check — ') && t.relatedCattleId,
+      )
+      .map((t) => {
+        const cattle = checkCattleById.get(t.relatedCattleId!);
+        const breeding = t.sourceEventId
+          ? checkBreedingById.get(t.sourceEventId)
+          : undefined;
+        return cattle
+          ? {
+              cattle_id: cattle.id,
+              name: cattle.name,
+              tag: cattle.tagNumber,
+              ai_date: breeding?.breedingDate ?? null,
+              check_due_date: t.dueAt,
+              breeding_event_id: t.sourceEventId ?? null,
+            }
+          : null;
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null)
+      .slice(0, 20);
+    const pregnancyRecheckDue = pregnancyCheckTasks
+      .filter(
+        (t) => t.name.startsWith('Pregnancy recheck — ') && t.relatedCattleId,
+      )
+      .map((t) => {
+        const cattle = checkCattleById.get(t.relatedCattleId!);
+        const breeding = t.sourceEventId
+          ? checkBreedingById.get(t.sourceEventId)
+          : undefined;
+        return cattle
+          ? {
+              cattle_id: cattle.id,
+              name: cattle.name,
+              tag: cattle.tagNumber,
+              ai_date: breeding?.breedingDate ?? null,
+              recheck_due_date: t.dueAt,
+              breeding_event_id: t.sourceEventId ?? null,
+            }
+          : null;
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null)
+      .slice(0, 20);
+
     const action_required = {
       ready_for_ai: readyForAi.map((c) => {
         const lactationStart = c.lactations[0]?.startDate;
@@ -1514,15 +1601,10 @@ export class ReproductionService {
         tag: h.cattle.tagNumber,
         heat_observed_at: h.heatDateTime,
       })),
-      pregnancy_check_due: pregnancyCheckDue.map((b) => ({
-        cattle_id: b.cattle.id,
-        name: b.cattle.name,
-        tag: b.cattle.tagNumber,
-        ai_date: b.breedingDate,
-        check_due_date: b.expectedPregnancyCheckDate,
-        // RAKHAL-316-F: needed by the frontend's Return-to-Heat action.
-        breeding_event_id: b.id,
-      })),
+      pregnancy_check_due: pregnancyCheckDue,
+      // RAKHAL-321: new panel, split out of the old combined `pregnancy_check_due`
+      // now that both are Task-sourced and distinguishable by task name.
+      pregnancy_recheck_due: pregnancyRecheckDue,
       calving_next_7_days: calvingNext7Days.map((p) => ({
         cattle_id: p.cattle.id,
         name: p.cattle.name,
