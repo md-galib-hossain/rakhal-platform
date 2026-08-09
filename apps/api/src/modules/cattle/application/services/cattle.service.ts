@@ -14,6 +14,7 @@ import {
   FarmModuleSettings,
   FinanceTxnType,
   HealthCaseStatus,
+  HeatDetectionMethod,
   LactationEndReason,
   LactationStartReason,
   LactationStatus,
@@ -69,6 +70,11 @@ import {
 // derived state) — CattleModule now imports ReproductionModule via
 // forwardRef() to get it (see cattle.module.ts's own comment for why).
 import { ReproductionDerivationService } from 'src/modules/reproduction/application/services/reproduction-derivation.service';
+// RAKHAL-319: same forwardRef() cycle as ReproductionDerivationService above
+// (CattleModule already imports ReproductionModule via forwardRef) — reused
+// here to call the real createBreedingEvent/createHeatEvent for intake
+// instead of duplicating their logic inline.
+import { ReproductionService } from 'src/modules/reproduction/application/services/reproduction.service';
 import { AncestryQueryDto } from '../../presentation/dto/ancestry-query.dto';
 import { ArchiveCattleDto } from '../../presentation/dto/archive-cattle.dto';
 import { BulkCattleDto } from '../../presentation/dto/bulk-cattle.dto';
@@ -135,6 +141,7 @@ export class CattleService {
     private readonly media: MediaService,
     private readonly farmSettings: FarmSettingsService,
     private readonly derivation: ReproductionDerivationService,
+    private readonly reproductionService: ReproductionService,
     private readonly logger: LoggerService,
   ) {
     this.log = this.logger.setContext(CattleService.name);
@@ -340,6 +347,31 @@ export class CattleService {
 
         return cattle.id;
       });
+
+      // RAKHAL-319: "bred but pregnancy unknown" / "currently in heat" at
+      // intake — routed through the real ReproductionService methods (not
+      // duplicated here) so they pick up 313's derive-only status, 314's
+      // active-pregnancy guard, and a real pregnancy-check task/HeatEvent,
+      // same as if recorded any other way. Runs after the cattle row commits
+      // (both need a real cattleId FK) — each method does its own recompute
+      // internally, so this can't race the final refreshDerivedState below.
+      if (dto.intakeBreeding) {
+        await this.reproductionService.createBreedingEvent(farmId, userId, {
+          cattleId: created,
+          breedingDate: dto.intakeBreeding.breedingDate,
+          breedingMethod:
+            dto.intakeBreeding.breedingMethod ?? BreedingMethod.AI,
+          notes: dto.intakeBreeding.notes,
+        });
+      }
+      if (dto.intakeHeat) {
+        await this.reproductionService.createHeatEvent(farmId, {
+          cattleId: created,
+          heatDateTime: dto.intakeHeat.heatDateTime,
+          detectionMethod: HeatDetectionMethod.MANUAL,
+          notes: dto.intakeHeat.notes,
+        });
+      }
 
       // RAKHAL-307: end intake with the same recompute every other
       // reproduction/lactation write uses, so the create response's derived

@@ -25,6 +25,7 @@ import { CreateHeatEventDto } from '../dto/create-heat-event.dto';
 import { CreatePregnancyDiagnosisDto } from '../dto/create-pregnancy-diagnosis.dto';
 import { CreatePurchasedLactationDto } from '../dto/create-purchased-lactation.dto';
 import { ResolveHeatEventDto } from '../dto/resolve-heat-event.dto';
+import { ReturnToHeatDto } from '../dto/return-to-heat.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Reproduction (PRD Â§9). `/api/v1/reproduction`. Token tenancy + RBAC. */
@@ -93,6 +94,18 @@ export class ReproductionController {
   @RequirePermission('reproduction.read')
   getBreedingEvent(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.reproductionService.getBreedingEvent(farmId, id);
+  }
+
+  /** RAKHAL-316: farmer-confirmed return to heat before a pregnancy check was due. */
+  @Post('breeding-events/:id/return-to-heat')
+  @RequirePermission('reproduction.heat')
+  returnToHeat(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body() dto: ReturnToHeatDto,
+  ) {
+    return this.reproductionService.returnToHeat(farmId, userId, id, dto);
   }
 
   @Post('pregnancy-diagnoses')

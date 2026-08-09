@@ -80,6 +80,10 @@ enum BreedingStatus {
   FAILED
   ABORTED
   CALVED
+  /// RAKHAL-316: farmer-confirmed return to heat before a pregnancy check —
+  /// distinct from FAILED (which requires a real NOT_PREGNANT diagnosis).
+  /// Never fabricates a diagnosis that didn't happen.
+  RETURNED_TO_HEAT
 }
 
 enum PregnancyDiagnosisResult {
@@ -96,6 +100,14 @@ enum PregnancyDiagnosisMethod {
   /// purchase) — doubles as the "estimated" flag for that synthetic
   /// diagnosis row, no new column needed.
   PURCHASE_INTAKE
+}
+
+/// RAKHAL-317: whether `Pregnancy.expectedCalvingDate` is still the system's
+/// own calculation or a farmer override. `Pregnancy.calculatedCalvingDate`
+/// keeps the original system estimate forever, regardless of this value.
+enum ExpectedCalvingDateSource {
+  SYSTEM
+  MANUAL
 }
 
 enum PregnancyStatus {

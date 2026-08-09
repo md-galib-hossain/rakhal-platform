@@ -167,6 +167,57 @@ export class TaskService {
     };
   }
 
+  /**
+   * RAKHAL-315: complete every non-completed task tagged with this source
+   * event in one shot — used when a domain event resolves the task's whole
+   * reason for existing (e.g. a pregnancy diagnosis closes its pregnancy-check
+   * task, a return-to-heat closes the one it superseded). Mirrors
+   * `rescheduleBySourceEvent`'s shape. Already-completed tasks are a no-op,
+   * not an error. No `TaskStatus.CANCELLED` exists (MILESTONE 17 dropped a
+   * cancel substrate on purpose) — `note` lets a caller like return-to-heat
+   * record *why* it closed without a distinct status.
+   */
+  async completeBySourceEvent(
+    farmId: string,
+    sourceEventType: string,
+    sourceEventId: string,
+    userId: string,
+    note?: string,
+  ): Promise<{ completedTaskIds: string[] }> {
+    const tasks = await this.prisma.task.findMany({
+      where: {
+        farmId,
+        sourceEventType,
+        sourceEventId,
+        status: { not: TaskStatus.COMPLETED },
+      },
+      select: { id: true, details: true },
+    });
+
+    await Promise.all(
+      tasks.map((t) =>
+        this.prisma.task.update({
+          where: { id: t.id },
+          data: {
+            status: TaskStatus.COMPLETED,
+            completedAt: new Date(),
+            completedById: userId,
+            details: note ? `${t.details ?? ''}\n${note}`.trim() : t.details,
+          },
+        }),
+      ),
+    );
+
+    this.log.info('Tasks completed by source event', {
+      farmId,
+      sourceEventType,
+      sourceEventId,
+      completed: tasks.length,
+    });
+
+    return { completedTaskIds: tasks.map((t) => t.id) };
+  }
+
   async update(farmId: string, id: string, dto: UpdateTaskDto) {
     await this.getOrThrow(farmId, id);
     await this.assertAssignee(farmId, dto.assignedToId);

@@ -9,6 +9,7 @@ describe('deriveBreedingStatus', () => {
         hasAbortion: true,
         hasActivePregnancy: true,
         hasFailedDiagnosis: true,
+        hasReturnedToHeat: true,
       }),
     ).toBe(BreedingStatus.CALVED);
   });
@@ -20,6 +21,7 @@ describe('deriveBreedingStatus', () => {
         hasAbortion: true,
         hasActivePregnancy: true,
         hasFailedDiagnosis: true,
+        hasReturnedToHeat: true,
       }),
     ).toBe(BreedingStatus.ABORTED);
   });
@@ -31,6 +33,7 @@ describe('deriveBreedingStatus', () => {
         hasAbortion: false,
         hasActivePregnancy: true,
         hasFailedDiagnosis: true,
+        hasReturnedToHeat: true,
       }),
     ).toBe(BreedingStatus.PREGNANT);
   });
@@ -42,8 +45,21 @@ describe('deriveBreedingStatus', () => {
         hasAbortion: false,
         hasActivePregnancy: false,
         hasFailedDiagnosis: true,
+        hasReturnedToHeat: true,
       }),
     ).toBe(BreedingStatus.FAILED);
+  });
+
+  it('returns RETURNED_TO_HEAT when only that fact exists', () => {
+    expect(
+      deriveBreedingStatus({
+        hasCalving: false,
+        hasAbortion: false,
+        hasActivePregnancy: false,
+        hasFailedDiagnosis: false,
+        hasReturnedToHeat: true,
+      }),
+    ).toBe(BreedingStatus.RETURNED_TO_HEAT);
   });
 
   it('returns PENDING_CHECK when no downstream facts exist', () => {
@@ -53,6 +69,7 @@ describe('deriveBreedingStatus', () => {
         hasAbortion: false,
         hasActivePregnancy: false,
         hasFailedDiagnosis: false,
+        hasReturnedToHeat: false,
       }),
     ).toBe(BreedingStatus.PENDING_CHECK);
   });

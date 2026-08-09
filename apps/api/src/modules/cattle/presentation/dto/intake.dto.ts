@@ -11,6 +11,7 @@ import {
 } from 'class-validator';
 import {
   AppetiteStatus,
+  BreedingMethod,
   HealthCondition,
   HealthDiagnosisType,
   HealthPriority,
@@ -84,6 +85,43 @@ export class IntakeHealthConditionDto {
   @IsOptional()
   @IsEnum(AppetiteStatus)
   appetite?: AppetiteStatus;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  notes?: string;
+}
+
+/**
+ * RAKHAL-319: "she was AI'd/served but I don't know the result" declared at
+ * intake — routes through `ReproductionService.createBreedingEvent` itself
+ * (not a duplicated bespoke path), so it also gets RAKHAL-313's derive-only
+ * status, RAKHAL-314's active-pregnancy guard, and a real pregnancy-check
+ * task, same as a breeding recorded any other way.
+ */
+export class IntakeBreedingDto {
+  @IsDateString()
+  breedingDate!: string;
+
+  @IsOptional()
+  @IsEnum(BreedingMethod)
+  breedingMethod?: BreedingMethod;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  notes?: string;
+}
+
+/**
+ * RAKHAL-319: "she's currently in heat" declared at intake — routes through
+ * `ReproductionService.createHeatEvent`, so it's a real unresolved
+ * `HeatEvent`, editable and resolvable through the same machinery as any
+ * heat recorded after the fact.
+ */
+export class IntakeHeatDto {
+  @IsDateString()
+  heatDateTime!: string;
 
   @IsOptional()
   @Transform(trimString)

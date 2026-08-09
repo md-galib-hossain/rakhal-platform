@@ -58,8 +58,17 @@ model HeatEvent {
   resolvedByBreedingEventId String?               @unique
   resolutionReason          HeatResolutionReason?
 
-  cattle             Cattle         @relation(fields: [cattleId], references: [id])
-  resolvedByBreeding BreedingEvent? @relation("HeatEventResolution", fields: [resolvedByBreedingEventId], references: [id])
+  /// RAKHAL-316: this heat is a farmer-confirmed return to heat that
+  /// invalidates an unresolved (PENDING_CHECK) earlier breeding — the
+  /// opposite direction from `resolvedByBreedingEventId` above (that one
+  /// points backward from a breeding to the heat it closed; this points
+  /// forward from a new heat to the breeding it's invalidating). Set only by
+  /// `POST /reproduction/breeding-events/:id/return-to-heat`.
+  returnedFromBreedingEventId String?
+
+  cattle               Cattle         @relation(fields: [cattleId], references: [id])
+  resolvedByBreeding   BreedingEvent? @relation("HeatEventResolution", fields: [resolvedByBreedingEventId], references: [id])
+  returnedFromBreeding BreedingEvent? @relation("HeatEventReturnToHeat", fields: [returnedFromBreedingEventId], references: [id])
 
   /// RAKHAL-299: distinguishes an edited row from an original (edit substrate).
   updatedAt DateTime @updatedAt
@@ -67,6 +76,7 @@ model HeatEvent {
   @@index([cattleId])
   @@index([heatDateTime])
   @@index([cattleId, resolvedAt])
+  @@index([returnedFromBreedingEventId])
 }
 
 model BreedingEvent {
@@ -92,9 +102,10 @@ model BreedingEvent {
   cattle Cattle  @relation("BreedingEventCattle", fields: [cattleId], references: [id])
   bull   Cattle? @relation("BreedingEventBull", fields: [bullId], references: [id])
 
-  diagnoses         PregnancyDiagnosis[]
-  pregnancies       Pregnancy[]
-  resolvedHeatEvent HeatEvent? @relation("HeatEventResolution")
+  diagnoses          PregnancyDiagnosis[]
+  pregnancies        Pregnancy[]
+  resolvedHeatEvent  HeatEvent?  @relation("HeatEventResolution")
+  returnedToHeatEvents HeatEvent[] @relation("HeatEventReturnToHeat")
 
   @@index([cattleId])
   @@index([bullId])
@@ -139,6 +150,13 @@ model Pregnancy {
   actualCalvingDate   DateTime?
   gestationDays       Int?
   status              PregnancyStatus @default(ACTIVE)
+
+  /// RAKHAL-317: the system's own conception+gestation-days estimate,
+  /// written once at creation, **never overwritten** by any edit handler —
+  /// `expectedCalvingDate` above is the farmer-facing value and may diverge
+  /// from this once `expectedCalvingDateSource` flips to MANUAL.
+  calculatedCalvingDate     DateTime?
+  expectedCalvingDateSource ExpectedCalvingDateSource @default(SYSTEM)
 
   /// RAKHAL-299: which `PregnancyDiagnosis` produced this row — today
   /// `createPregnancyDiagnosis` creates the `Pregnancy` with no back-link, so

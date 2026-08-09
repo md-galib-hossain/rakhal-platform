@@ -12,6 +12,8 @@ import {
   CattleSourceType,
   CattleStatus,
   DryPeriod,
+  ExpectedCalvingDateSource,
+  HeatDetectionMethod,
   HeatResolutionReason,
   LactationEndReason,
   LactationStartReason,
@@ -60,6 +62,7 @@ import { CreatePurchasedLactationDto } from '../../presentation/dto/create-purch
 import { CreateHeatEventDto } from '../../presentation/dto/create-heat-event.dto';
 import { CreatePregnancyDiagnosisDto } from '../../presentation/dto/create-pregnancy-diagnosis.dto';
 import { ResolveHeatEventDto } from '../../presentation/dto/resolve-heat-event.dto';
+import { ReturnToHeatDto } from '../../presentation/dto/return-to-heat.dto';
 import { ReproductionListQueryDto } from '../../presentation/dto/common.dto';
 
 type CattleForAccess = {
@@ -74,6 +77,11 @@ type CattleForAccess = {
  * `expectedCalvingDate` is recorded; reused by `derivePregnancyStage`'s
  * close-up-window projection (RAKHAL-273). */
 const DEFAULT_GESTATION_DAYS = 280;
+
+/** RAKHAL-315: how far out a pregnancy recheck task is due after a
+ * SUSPECTED diagnosis. No dedicated farm setting yet — fixed like the
+ * gestation-days fallback above; revisit if farms need it configurable. */
+const PREGNANCY_RECHECK_DAYS = 10;
 
 // RAKHAL-301: `deriveReproductionState`/`ReproductionStateInput` moved to
 // `ReproductionDerivationService` — re-exported here so existing import
@@ -123,12 +131,31 @@ export class ReproductionService {
       },
     });
 
+    // RAKHAL-318: a real heat observation is never silently dropped, even on
+    // an actively-pregnant cow — the row is created regardless, but the
+    // caller gets a conflict flag (and `deriveReproductionAlerts` surfaces
+    // `HEAT_ON_ACTIVE_PREGNANCY` on every later read) instead of the
+    // pregnancy being assumed over.
+    const activePregnancy = await this.prisma.pregnancy.findFirst({
+      where: { cattleId: dto.cattleId, status: PregnancyStatus.ACTIVE },
+      select: { id: true },
+    });
+
     await this.ensureProfile(dto.cattleId);
     this.log.info('Heat event created', {
       heatEventId: heatEvent.id,
       cattleId: dto.cattleId,
       farmId: cattle.farmId,
+      activePregnancyConflict: Boolean(activePregnancy),
     });
+
+    if (activePregnancy) {
+      return {
+        ...heatEvent,
+        activePregnancyConflict: true,
+        pregnancyId: activePregnancy.id,
+      };
+    }
 
     return heatEvent;
   }
@@ -165,12 +192,80 @@ export class ReproductionService {
     });
   }
 
+  /**
+   * RAKHAL-316: farmer-confirmed return to heat before a pregnancy check was
+   * due. Creates a real HeatEvent and marks the breeding RETURNED_TO_HEAT
+   * (via `returnedFromBreedingEventId` + `refreshDerivedState`) — never
+   * fabricates a `PregnancyDiagnosis`, since no examination happened.
+   */
+  async returnToHeat(
+    farmId: string,
+    userId: string,
+    breedingEventId: string,
+    dto: ReturnToHeatDto,
+  ) {
+    const breedingEvent = await this.prisma.breedingEvent.findFirst({
+      where: { id: breedingEventId, cattle: { farmId } },
+      include: { cattle: { select: { tagNumber: true } } },
+    });
+    if (!breedingEvent) {
+      throw new NotFoundException('Breeding event not found');
+    }
+    if (breedingEvent.status !== BreedingStatus.PENDING_CHECK) {
+      throw new BadRequestException(
+        `Breeding #${breedingEvent.breedingNumber} for [${breedingEvent.cattle.tagNumber}] is already resolved (${breedingEvent.status}) — return-to-heat only applies while a pregnancy check is still pending.`,
+      );
+    }
+
+    const heatEvent = await this.prisma.heatEvent.create({
+      data: {
+        cattleId: breedingEvent.cattleId,
+        heatDateTime: new Date(dto.heatDateTime),
+        detectionMethod: dto.detectionMethod ?? HeatDetectionMethod.MANUAL,
+        notes: dto.notes,
+        returnedFromBreedingEventId: breedingEvent.id,
+      },
+    });
+
+    await this.ensureProfile(breedingEvent.cattleId);
+    await this.derivation.refreshDerivedState(farmId, breedingEvent.cattleId);
+    await this.taskService.completeBySourceEvent(
+      farmId,
+      'BREEDING_EVENT',
+      breedingEvent.id,
+      userId,
+      `Superseded — return to heat recorded ${dto.heatDateTime}.`,
+    );
+
+    this.log.info('Breeding event returned to heat', {
+      breedingEventId: breedingEvent.id,
+      heatEventId: heatEvent.id,
+      cattleId: breedingEvent.cattleId,
+      farmId,
+    });
+
+    return heatEvent;
+  }
+
   async createBreedingEvent(
     farmId: string,
     userId: string,
     dto: CreateBreedingEventDto,
   ) {
     const cattle = await this.getFemaleCattle(farmId, dto.cattleId);
+
+    // RAKHAL-314: a breeding is meaningless on an already-pregnant cow — block
+    // before any side effect (straw decrement, task creation). Correction path
+    // is editing/retiring the active Pregnancy first (MILESTONE 17's edit
+    // substrate), then recording the new breeding.
+    const activePregnancy = await this.prisma.pregnancy.findFirst({
+      where: { cattleId: dto.cattleId, status: PregnancyStatus.ACTIVE },
+    });
+    if (activePregnancy) {
+      throw new BadRequestException(
+        `[${cattle.tagNumber}] already has an active pregnancy (id ${activePregnancy.id}, expected calving ${activePregnancy.expectedCalvingDate?.toISOString().slice(0, 10) ?? 'unknown'}). Resolve or correct it before recording a new breeding.`,
+      );
+    }
 
     if (dto.bullId) {
       await this.assertCattleInFarm(farmId, dto.bullId);
@@ -204,7 +299,7 @@ export class ReproductionService {
           expectedPregnancyCheckDate: dto.expectedPregnancyCheckDate
             ? new Date(dto.expectedPregnancyCheckDate)
             : this.addDays(breedingDate, 35),
-          status: dto.status ?? BreedingStatus.PENDING_CHECK,
+          status: BreedingStatus.PENDING_CHECK,
           notes: dto.notes,
         },
         include: {
@@ -330,14 +425,24 @@ export class ReproductionService {
       if (dto.result === PregnancyDiagnosisResult.PREGNANT) {
         const conceptionDate =
           breedingEvent?.breedingDate ?? new Date(dto.diagnosisDate);
+        // RAKHAL-317: the system's own estimate, kept forever regardless of
+        // any later farmer override — never recomputed after this.
+        const calculatedCalvingDate = this.addDays(
+          conceptionDate,
+          DEFAULT_GESTATION_DAYS,
+        );
         const pregnancy = await tx.pregnancy.create({
           data: {
             cattleId: dto.cattleId,
             breedingEventId: dto.breedingEventId,
             conceptionDate,
+            calculatedCalvingDate,
             expectedCalvingDate: dto.expectedCalvingDate
               ? new Date(dto.expectedCalvingDate)
-              : this.addDays(conceptionDate, 280),
+              : calculatedCalvingDate,
+            expectedCalvingDateSource: dto.expectedCalvingDate
+              ? ExpectedCalvingDateSource.MANUAL
+              : ExpectedCalvingDateSource.SYSTEM,
             gestationDays: dto.gestationDay,
             status: PregnancyStatus.ACTIVE,
             // RAKHAL-299/305: back-link so an edit to this diagnosis (e.g.
@@ -401,6 +506,39 @@ export class ReproductionService {
     });
 
     await this.derivation.refreshDerivedState(farmId, dto.cattleId);
+
+    // RAKHAL-315: any diagnosis result resolves the breeding's original
+    // pregnancy-check task — before this, none of the three results ever
+    // completed it, so it sat PENDING forever.
+    if (dto.breedingEventId) {
+      await this.taskService.completeBySourceEvent(
+        farmId,
+        'BREEDING_EVENT',
+        dto.breedingEventId,
+        userId,
+      );
+
+      // SUSPECTED: never fabricate a NOT_PREGNANT/PREGNANT outcome — hold the
+      // cow BRED_AWAITING_CONFIRMATION and schedule a real recheck instead.
+      if (dto.result === PregnancyDiagnosisResult.SUSPECTED) {
+        await this.taskService.createInternal({
+          farmId,
+          createdBy: userId,
+          name: `Pregnancy recheck — ${cattle.tagNumber}`,
+          details: `Diagnosis on ${dto.diagnosisDate} was inconclusive; recheck breeding #${breedingEvent?.breedingNumber ?? '?'} of [${cattle.tagNumber}].`,
+          category: TaskCategory.BREEDING,
+          priority: TaskPriority.MEDIUM,
+          dueAt: this.addDays(
+            new Date(dto.diagnosisDate),
+            PREGNANCY_RECHECK_DAYS,
+          ),
+          source: TaskSource.SYSTEM_AUTO,
+          relatedCattleId: dto.cattleId,
+          sourceEventType: 'BREEDING_EVENT',
+          sourceEventId: dto.breedingEventId,
+        });
+      }
+    }
 
     // AQR: Pregnancy Confirmed (+5) + immutable Activity Log entry (PRD §19.2).
     if (dto.result === PregnancyDiagnosisResult.PREGNANT) {

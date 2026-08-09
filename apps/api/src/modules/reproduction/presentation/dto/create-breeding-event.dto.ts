@@ -8,7 +8,7 @@ import {
   IsString,
   Min,
 } from 'class-validator';
-import { BreedingMethod, BreedingStatus } from '@prisma/client';
+import { BreedingMethod } from '@prisma/client';
 import { trimString } from './common.dto';
 
 export class CreateBreedingEventDto {
@@ -47,10 +47,6 @@ export class CreateBreedingEventDto {
   @IsOptional()
   @IsDateString()
   expectedPregnancyCheckDate?: string;
-
-  @IsOptional()
-  @IsEnum(BreedingStatus)
-  status?: BreedingStatus;
 
   @IsOptional()
   @Transform(trimString)

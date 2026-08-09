@@ -7,6 +7,7 @@ import {
   ActivityLogModule,
   BreedingMethod,
   CattleGender,
+  ExpectedCalvingDateSource,
   LactationEndReason,
   LactationStatus,
   PregnancyDiagnosisResult,
@@ -331,15 +332,23 @@ export class ReproductionEditService {
         : null;
       const conceptionDate =
         breedingEvent?.breedingDate ?? updated.diagnosisDate;
+      // RAKHAL-317: same two-date split as createPregnancyDiagnosis's
+      // PREGNANT branch — calculatedCalvingDate is the system estimate, kept
+      // forever regardless of any farmer override.
+      const calculatedCalvingDate = this.addDays(conceptionDate, 280);
       const expectedCalvingDate =
-        newExpectedCalvingDate ?? this.addDays(conceptionDate, 280);
+        newExpectedCalvingDate ?? calculatedCalvingDate;
 
       const newPregnancy = await this.prisma.pregnancy.create({
         data: {
           cattleId: newCattleId,
           breedingEventId: updated.breedingEventId,
           conceptionDate,
+          calculatedCalvingDate,
           expectedCalvingDate,
+          expectedCalvingDateSource: newExpectedCalvingDate
+            ? ExpectedCalvingDateSource.MANUAL
+            : ExpectedCalvingDateSource.SYSTEM,
           gestationDays: updated.gestationDay,
           status: PregnancyStatus.ACTIVE,
           sourceDiagnosisId: id,
@@ -372,6 +381,8 @@ export class ReproductionEditService {
     }
 
     // §3.2 row 5: expectedCalvingDate change on a still-active pregnancy.
+    // RAKHAL-317: this is always a farmer override — flips the source to
+    // MANUAL; calculatedCalvingDate is never touched by an edit handler.
     if (
       newExpectedCalvingDate &&
       linkedPregnancy &&
@@ -379,7 +390,10 @@ export class ReproductionEditService {
     ) {
       await this.prisma.pregnancy.update({
         where: { id: linkedPregnancy.id },
-        data: { expectedCalvingDate: newExpectedCalvingDate },
+        data: {
+          expectedCalvingDate: newExpectedCalvingDate,
+          expectedCalvingDateSource: ExpectedCalvingDateSource.MANUAL,
+        },
       });
     }
 

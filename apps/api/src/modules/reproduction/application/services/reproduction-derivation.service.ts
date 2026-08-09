@@ -192,19 +192,26 @@ export class ReproductionDerivationService {
     if (events.length === 0) return;
 
     const eventIds = events.map((e) => e.id);
-    const [pregnancies, failedDiagnoses] = await Promise.all([
-      this.prisma.pregnancy.findMany({
-        where: { breedingEventId: { in: eventIds } },
-        select: { breedingEventId: true, status: true },
-      }),
-      this.prisma.pregnancyDiagnosis.findMany({
-        where: {
-          breedingEventId: { in: eventIds },
-          result: PregnancyDiagnosisResult.NOT_PREGNANT,
-        },
-        select: { breedingEventId: true },
-      }),
-    ]);
+    const [pregnancies, failedDiagnoses, returnedToHeatEvents] =
+      await Promise.all([
+        this.prisma.pregnancy.findMany({
+          where: { breedingEventId: { in: eventIds } },
+          select: { breedingEventId: true, status: true },
+        }),
+        this.prisma.pregnancyDiagnosis.findMany({
+          where: {
+            breedingEventId: { in: eventIds },
+            result: PregnancyDiagnosisResult.NOT_PREGNANT,
+          },
+          select: { breedingEventId: true },
+        }),
+        // RAKHAL-316: a HeatEvent pointing back at this breeding means the
+        // farmer confirmed a return to heat — no diagnosis was performed.
+        this.prisma.heatEvent.findMany({
+          where: { returnedFromBreedingEventId: { in: eventIds } },
+          select: { returnedFromBreedingEventId: true },
+        }),
+      ]);
 
     const statusesByEvent = new Map<string, PregnancyStatus[]>();
     for (const pregnancy of pregnancies) {
@@ -218,6 +225,11 @@ export class ReproductionDerivationService {
         .map((d) => d.breedingEventId)
         .filter((id): id is string => id !== null),
     );
+    const returnedToHeatEventIds = new Set(
+      returnedToHeatEvents
+        .map((h) => h.returnedFromBreedingEventId)
+        .filter((id): id is string => id !== null),
+    );
 
     await Promise.all(
       events.map((event) => {
@@ -227,6 +239,7 @@ export class ReproductionDerivationService {
           hasAbortion: statuses.includes(PregnancyStatus.ABORTED),
           hasActivePregnancy: statuses.includes(PregnancyStatus.ACTIVE),
           hasFailedDiagnosis: failedDiagnosisEventIds.has(event.id),
+          hasReturnedToHeat: returnedToHeatEventIds.has(event.id),
         });
 
         if (next === event.status) return Promise.resolve();

@@ -35,7 +35,11 @@ export type ReproductionAlert =
   | 'CALVING_DUE'
   | 'CALVING_OVERDUE'
   | 'ABORTION_HISTORY'
-  | 'REPRODUCTIVE_HOLD';
+  | 'REPRODUCTIVE_HOLD'
+  /** RAKHAL-318: a HeatEvent was recorded while the cow has an active
+   * Pregnancy — a genuine data conflict the software must surface, not
+   * silently resolve by assuming the pregnancy ended. */
+  | 'HEAT_ON_ACTIVE_PREGNANCY';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -133,6 +137,12 @@ export function deriveReproductionAlerts(
     const heatCutoff = new Date(now.getTime() - heatWindowDays * DAY_MS);
     if (recentHeat.heatDateTime >= heatCutoff) {
       alerts.push('HEAT_DETECTED');
+
+      // RAKHAL-318: never silently treat a heat observation as ending an
+      // active pregnancy — surface the conflict instead.
+      if (reproductionState === 'PREGNANT') {
+        alerts.push('HEAT_ON_ACTIVE_PREGNANCY');
+      }
     }
   }
 

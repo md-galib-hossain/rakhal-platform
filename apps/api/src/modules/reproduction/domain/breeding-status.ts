@@ -9,8 +9,9 @@ import { BreedingStatus } from '@prisma/client';
  * to recompute the status instead of hand-patching it.
  *
  * Priority order, first match wins: `CALVED > ABORTED > PREGNANT > FAILED >
- * PENDING_CHECK`. A breeding that led to both a diagnosis and a calving is
- * `CALVED`, not `PREGNANT` — the most-progressed fact always wins.
+ * RETURNED_TO_HEAT > PENDING_CHECK`. A breeding that led to both a diagnosis
+ * and a calving is `CALVED`, not `PREGNANT` — the most-progressed fact
+ * always wins.
  */
 export interface BreedingStatusFacts {
   /** At least one `CalvingEvent` traces back to this breeding (via its `Pregnancy`). */
@@ -21,6 +22,9 @@ export interface BreedingStatusFacts {
   hasActivePregnancy: boolean;
   /** This breeding's most recent `PregnancyDiagnosis` result is `NOT_PREGNANT`. */
   hasFailedDiagnosis: boolean;
+  /** RAKHAL-316: a `HeatEvent.returnedFromBreedingEventId` references this
+   * breeding — farmer-confirmed return to heat, no diagnosis performed. */
+  hasReturnedToHeat: boolean;
 }
 
 export function deriveBreedingStatus(
@@ -30,5 +34,6 @@ export function deriveBreedingStatus(
   if (facts.hasAbortion) return BreedingStatus.ABORTED;
   if (facts.hasActivePregnancy) return BreedingStatus.PREGNANT;
   if (facts.hasFailedDiagnosis) return BreedingStatus.FAILED;
+  if (facts.hasReturnedToHeat) return BreedingStatus.RETURNED_TO_HEAT;
   return BreedingStatus.PENDING_CHECK;
 }

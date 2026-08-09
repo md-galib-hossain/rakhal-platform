@@ -118,6 +118,14 @@ describe('CattleService — RAKHAL-269 production status', () => {
     };
   });
 
+  // RAKHAL-319: create()'s intakeBreeding/intakeHeat branches call these;
+  // no test row in this file sets either field, so both stay unreachable —
+  // stub is here only to satisfy the constructor.
+  const reproductionService = {
+    createBreedingEvent: jest.fn().mockResolvedValue(undefined),
+    createHeatEvent: jest.fn().mockResolvedValue(undefined),
+  };
+
   const make = () =>
     new CattleService(
       prisma as never,
@@ -126,6 +134,7 @@ describe('CattleService — RAKHAL-269 production status', () => {
       { presentUrls: jest.fn(), signThumbs: jest.fn() } as never, // MediaService
       farmSettings as never, // FarmSettingsService (RAKHAL-279)
       derivation as never, // ReproductionDerivationService (RAKHAL-307)
+      reproductionService as never, // ReproductionService (RAKHAL-319)
       logger as never,
     );
 

@@ -313,6 +313,7 @@ describe('deriveReproductionAlerts', () => {
       }),
     ).toEqual([
       'HEAT_DETECTED',
+      'HEAT_ON_ACTIVE_PREGNANCY',
       'CALVING_DUE',
       'ABORTION_HISTORY',
       'REPRODUCTIVE_HOLD',

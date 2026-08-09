@@ -22,7 +22,9 @@ import {
 import { BCS_ALLOWED_SCORES } from '../../domain/cattle.constants';
 import { trimString } from './common.dto';
 import {
+  IntakeBreedingDto,
   IntakeHealthConditionDto,
+  IntakeHeatDto,
   IntakeLactationDto,
   IntakePregnancyDto,
 } from './intake.dto';
@@ -93,6 +95,21 @@ export class CreateCattleDto {
   @ValidateNested()
   @Type(() => IntakeHealthConditionDto)
   intakeHealthCondition?: IntakeHealthConditionDto;
+
+  /** RAKHAL-319: "she was AI'd/served but pregnancy result is unknown" at
+   * intake — creates a real `BreedingEvent` via `createBreedingEvent` itself
+   * (own pregnancy-check task, same guards as any other breeding). */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => IntakeBreedingDto)
+  intakeBreeding?: IntakeBreedingDto;
+
+  /** RAKHAL-319: "she's currently in heat" at intake — creates a real
+   * unresolved `HeatEvent` via `createHeatEvent` itself. */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => IntakeHeatDto)
+  intakeHeat?: IntakeHeatDto;
 
   /** RAKHAL-291: required when `productionStatus` is `MILKING` at intake and
    * no active `Lactation` exists yet (a fresh cattle row never has one) —
