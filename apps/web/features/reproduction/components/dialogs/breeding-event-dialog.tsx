@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateBreedingEvent } from "../../hooks/use-reproduction";
+import { useBreedingEvent, useCreateBreedingEvent, useEditBreedingEvent } from "../../hooks/use-reproduction";
 import { breedingEventSchema, type CreateBreedingEventInput } from "../../schemas";
 
 const BREEDING_METHODS = ["AI", "NATURAL", "EMBRYO_TRANSFER"] as const;
@@ -39,9 +39,17 @@ function useSemenBatches(enabled: boolean) {
   });
 }
 
+/** `datetime-local` input value in the browser's own timezone (RAKHAL-305-F: `breedingDate` is a
+ * full `DateTime` column, `@IsDateString()` accepts either shape — only the form was date-only). */
+function toDateTimeLocal(iso: string): string {
+  const d = new Date(iso);
+  d.setSeconds(0, 0);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
 const EMPTY_DEFAULTS: CreateBreedingEventInput = {
   cattleId: "",
-  breedingDate: new Date().toISOString().slice(0, 10),
+  breedingDate: toDateTimeLocal(new Date().toISOString()),
   breedingMethod: "AI",
 };
 
@@ -52,13 +60,19 @@ export function BreedingEventDialog({
   open,
   onOpenChange,
   defaultCattleId,
+  eventId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultCattleId?: string;
+  /** When set, the dialog edits this existing `BreedingEvent` (RAKHAL-305) instead of creating one. */
+  eventId?: string;
 }) {
   const t = useTranslations("reproduction.dialogs.breeding");
+  const isEdit = !!eventId;
   const createBreedingEvent = useCreateBreedingEvent();
+  const editBreedingEvent = useEditBreedingEvent();
+  const existing = useBreedingEvent(open ? eventId : undefined);
   const form = useForm<CreateBreedingEventInput>({
     resolver: zodResolver(breedingEventSchema),
     defaultValues: { ...EMPTY_DEFAULTS, cattleId: defaultCattleId ?? "" },
@@ -67,18 +81,41 @@ export function BreedingEventDialog({
   const semenBatches = useSemenBatches(open && breedingMethod === "AI");
 
   useEffect(() => {
-    if (open) form.reset({ ...EMPTY_DEFAULTS, cattleId: defaultCattleId ?? "" });
+    if (!open) return;
+    if (!isEdit) {
+      form.reset({ ...EMPTY_DEFAULTS, cattleId: defaultCattleId ?? "" });
+      return;
+    }
+    if (existing.data) {
+      const row = existing.data;
+      form.reset({
+        cattleId: row.cattleId,
+        breedingDate: toDateTimeLocal(row.breedingDate),
+        breedingMethod: row.breedingMethod,
+        bullId: row.bullId ?? undefined,
+        semenBatchId: row.semenBatchId ?? undefined,
+        inseminator: row.inseminator ?? undefined,
+        notes: row.notes ?? undefined,
+      });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, defaultCattleId]);
+  }, [open, defaultCattleId, isEdit, existing.data]);
 
   async function onSubmit(values: CreateBreedingEventInput) {
     try {
-      await createBreedingEvent.mutateAsync({
+      const payload = {
         ...values,
+        breedingDate: new Date(values.breedingDate).toISOString(),
         bullId: values.bullId || undefined,
         semenBatchId: values.breedingMethod === "AI" ? values.semenBatchId || undefined : undefined,
-      });
-      toast.success(t("createdToast"));
+      };
+      if (isEdit && eventId) {
+        await editBreedingEvent.mutateAsync({ id: eventId, input: payload });
+        toast.success(t("editedToast"));
+      } else {
+        await createBreedingEvent.mutateAsync(payload);
+        toast.success(t("createdToast"));
+      }
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
@@ -92,10 +129,10 @@ export function BreedingEventDialog({
         if (!next) form.reset();
         onOpenChange(next);
       }}
-      title={t("title")}
+      title={isEdit ? t("editTitle") : t("title")}
       onSubmit={form.handleSubmit(onSubmit)}
-      pending={createBreedingEvent.isPending}
-      submitLabel={t("submit")}
+      pending={createBreedingEvent.isPending || editBreedingEvent.isPending}
+      submitLabel={isEdit ? t("saveChanges") : t("submit")}
     >
       <div className="flex flex-col gap-2">
         <Label>{t("cattle")}</Label>
@@ -111,7 +148,7 @@ export function BreedingEventDialog({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-2">
           <Label>{t("breedingDate")}</Label>
-          <Input type="date" {...form.register("breedingDate")} />
+          <Input type="datetime-local" {...form.register("breedingDate")} />
         </div>
         <div className="flex flex-col gap-2">
           <Label>{t("breedingMethod")}</Label>

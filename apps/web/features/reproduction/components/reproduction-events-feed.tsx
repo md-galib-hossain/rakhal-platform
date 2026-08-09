@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Baby, Heart, HeartCrack, Microscope, Syringe } from "lucide-react";
+import { Baby, Heart, HeartCrack, Microscope, Pencil, Syringe } from "lucide-react";
 import { CattlePicker, type CattleOption } from "@/components/shared/cattle-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -14,9 +14,11 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
 import { Pagination } from "@/components/shared/pagination";
 import { PAGE_SIZE_OPTIONS } from "@/lib/hooks/use-cursor-pager";
+import { Can } from "@/lib/auth/permissions";
 import { useReproductionEvents } from "../hooks/use-reproduction";
 import type { ReproEventEntry, ReproEventType } from "../types";
 import { ReproductionCard } from "./reproduction-card";
+import { BreedingEventDialog } from "./dialogs/breeding-event-dialog";
 
 const EVENT_ICONS: Record<ReproEventType, React.ElementType> = {
   heat: Heart,
@@ -60,6 +62,7 @@ const FETCH_LIMIT = 100;
 
 export function ReproductionEventsFeed() {
   const t = useTranslations("reproduction.eventsFeed");
+  const [editingBreedingEventId, setEditingBreedingEventId] = useState<string | null>(null);
   const [cattle, setCattle] = useState<CattleOption | null>(null);
   const [eventType, setEventType] = useState<ReproEventType | "all">("all");
   const [fromDate, setFromDate] = useState("");
@@ -174,7 +177,11 @@ export function ReproductionEventsFeed() {
         <div className="flex flex-col gap-3">
           <div className="flex flex-col">
             {pageItems.map((event) => (
-              <EventRow key={`${event.event_type}-${event.id}`} event={event} />
+              <EventRow
+                key={`${event.event_type}-${event.id}`}
+                event={event}
+                onEdit={event.event_type === "breeding" ? () => setEditingBreedingEventId(event.id) : undefined}
+              />
             ))}
           </div>
           {count > PAGE_SIZE_OPTIONS[0] || totalPages > 1 ? (
@@ -191,11 +198,19 @@ export function ReproductionEventsFeed() {
           ) : null}
         </div>
       )}
+
+      <BreedingEventDialog
+        open={editingBreedingEventId !== null}
+        onOpenChange={(next) => {
+          if (!next) setEditingBreedingEventId(null);
+        }}
+        eventId={editingBreedingEventId ?? undefined}
+      />
     </ReproductionCard>
   );
 }
 
-function EventRow({ event }: { event: ReproEventEntry }) {
+function EventRow({ event, onEdit }: { event: ReproEventEntry; onEdit?: () => void }) {
   const t = useTranslations("reproduction.eventsFeed");
   const Icon = EVENT_ICONS[event.event_type];
   const details = Object.entries(event.details)
@@ -221,6 +236,13 @@ function EventRow({ event }: { event: ReproEventEntry }) {
           </p>
         ) : null}
       </div>
+      {onEdit ? (
+        <Can I="reproduction.update">
+          <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={onEdit} aria-label={t("edit")}>
+            <Pencil className="size-3.5" aria-hidden />
+          </Button>
+        </Can>
+      ) : null}
     </div>
   );
 }

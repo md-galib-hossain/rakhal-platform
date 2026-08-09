@@ -32,6 +32,20 @@ export const breedingEventSchema = z.object({
 });
 export type CreateBreedingEventInput = z.infer<typeof breedingEventSchema>;
 
+/** Mirrors `EditBreedingEventDto` (RAKHAL-305) — every field optional, no `status` (derived-only). */
+export const editBreedingEventSchema = z.object({
+  cattleId: z.string().min(1, "Select a cow").optional(),
+  breedingDate: z.string().min(1).optional(),
+  breedingMethod: z.enum(["AI", "NATURAL", "EMBRYO_TRANSFER"]).optional(),
+  bullId: z.string().optional(),
+  semenBatchId: z.string().optional(),
+  inseminator: z.string().trim().optional(),
+  breedingNumber: z.number().min(1).optional(),
+  expectedPregnancyCheckDate: z.string().optional(),
+  notes: z.string().trim().optional(),
+});
+export type EditBreedingEventInput = z.infer<typeof editBreedingEventSchema>;
+
 /** Mirrors `ReturnToHeatDto` (RAKHAL-316) — `:id` (the `BreedingEvent`) is a route param. */
 export const returnToHeatSchema = z.object({
   heatDateTime: z.string().min(1),

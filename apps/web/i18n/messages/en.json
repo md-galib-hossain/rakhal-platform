@@ -2034,6 +2034,7 @@
     "actions": {
       "recordHeat": "Record Heat",
       "recordAi": "Record AI",
+      "recordPregnancyCheck": "Record Pregnancy Check",
       "recordAbortion": "Record Abortion"
     },
     "kpi": {
@@ -2100,7 +2101,8 @@
       "empty": "No reproduction events yet.",
       "emptyFiltered": "Try clearing a filter.",
       "resultCount": "{count} events",
-      "error": "Could not load the events feed."
+      "error": "Could not load the events feed.",
+      "edit": "Edit"
     },
     "dialogs": {
       "heat": {
@@ -2129,6 +2131,9 @@
       },
       "breeding": {
         "title": "Record Breeding / AI Event",
+        "editTitle": "Edit Breeding / AI Event",
+        "saveChanges": "Save Changes",
+        "editedToast": "Breeding event updated.",
         "cattle": "Cow",
         "breedingDate": "Breeding date",
         "breedingMethod": "Breeding method",

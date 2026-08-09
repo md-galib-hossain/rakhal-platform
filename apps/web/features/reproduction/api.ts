@@ -33,6 +33,7 @@ import type {
   CreateDryOffInput,
   CreateHeatEventInput,
   CreatePregnancyDiagnosisInput,
+  EditBreedingEventInput,
   RecordProtocolAiInput,
   RecordProtocolOutcomeInput,
   CloseProtocolInstanceInput,
@@ -75,6 +76,13 @@ export const reproductionApi = {
   },
   createBreedingEvent(input: CreateBreedingEventInput): Promise<BreedingEventRow> {
     return apiFetch<BreedingEventRow>("/reproduction/breeding-events", { method: "POST", body: input });
+  },
+  breedingEvent(id: string): Promise<BreedingEventRow> {
+    return apiFetch<BreedingEventRow>(`/reproduction/breeding-events/${id}`);
+  },
+  /** RAKHAL-305 — `ReproductionEditController.editBreedingEvent`. */
+  editBreedingEvent(id: string, input: EditBreedingEventInput): Promise<BreedingEventRow> {
+    return apiFetch<BreedingEventRow>(`/reproduction/breeding-events/${id}`, { method: "PATCH", body: input });
   },
   /** RAKHAL-316: farmer-confirmed return to heat before a pregnancy check was due — creates a real
    * `HeatEvent`, never a fake `PregnancyDiagnosis`. */

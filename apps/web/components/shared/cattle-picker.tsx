@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetchPage } from "@/lib/api/client";
+import { cattleApi } from "@/features/cattle/api";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -49,7 +50,20 @@ export function CattlePicker({
   });
 
   const options = useMemo(() => data?.items ?? [], [data]);
-  const selected = options.find((option) => option.id === value);
+  const foundInOptions = options.find((option) => option.id === value);
+
+  // Falls back to a direct fetch when `value` is prefilled (edit dialogs) but the popover
+  // list hasn't been opened yet, or the cow isn't on the fetched page.
+  const { data: selectedCattle } = useQuery({
+    queryKey: ["cattle-picker-selected", value],
+    queryFn: () => cattleApi.findOne(value as string),
+    enabled: Boolean(value) && !foundInOptions,
+    staleTime: 30_000,
+  });
+
+  const selected: CattleOption | undefined =
+    foundInOptions ??
+    (selectedCattle ? { id: selectedCattle.id, tagNumber: selectedCattle.tagNumber, name: selectedCattle.name } : undefined);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

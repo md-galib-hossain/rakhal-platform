@@ -104,6 +104,7 @@ export const qk = {
       ["reproduction", "events", filters] as const,
     heatEvents: (cattleId: string | undefined) => ["reproduction", "heat-events", cattleId] as const,
     breedingEvents: (cattleId: string | undefined) => ["reproduction", "breeding-events", cattleId] as const,
+    breedingEventDetail: (id: string | undefined) => ["reproduction", "breeding-events", "detail", id] as const,
     pregnancies: (cattleId: string | undefined) => ["reproduction", "pregnancies", cattleId] as const,
     calvingEvents: (cattleId: string | undefined) => ["reproduction", "calving-events", cattleId] as const,
     abortionEvents: (cattleId: string | undefined) => ["reproduction", "abortion-events", cattleId] as const,

@@ -12,6 +12,7 @@ import type {
   CreateDryOffInput,
   CreateHeatEventInput,
   CreatePregnancyDiagnosisInput,
+  EditBreedingEventInput,
   RecordProtocolAiInput,
   RecordProtocolOutcomeInput,
   ReturnToHeatInput,
@@ -75,6 +76,28 @@ export function useCreateBreedingEvent() {
   return useMutation({
     mutationFn: (input: CreateBreedingEventInput) => reproductionApi.createBreedingEvent(input),
     onSuccess: () => invalidateReproductionCore(queryClient),
+  });
+}
+
+/** Fetches the full row to prefill the edit dialog — the events feed's own `details` is a
+ * stripped summary, not enough to populate a form. */
+export function useBreedingEvent(id?: string) {
+  return useQuery({
+    queryKey: qk.reproduction.breedingEventDetail(id),
+    queryFn: () => reproductionApi.breedingEvent(id!),
+    enabled: Boolean(id),
+  });
+}
+
+export function useEditBreedingEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: EditBreedingEventInput }) =>
+      reproductionApi.editBreedingEvent(id, input),
+    onSuccess: () => {
+      invalidateReproductionCore(queryClient);
+      queryClient.invalidateQueries({ queryKey: ["reproduction", "breeding-events"] });
+    },
   });
 }
 

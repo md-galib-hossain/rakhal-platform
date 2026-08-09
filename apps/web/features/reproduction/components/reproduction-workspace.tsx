@@ -61,6 +61,9 @@ export function ReproductionWorkspace() {
           <Button variant="outline" size="sm" onClick={() => open("breeding")}>
             {t("actions.recordAi")}
           </Button>
+          <Button variant="outline" size="sm" onClick={() => open("pregnancyDiagnosis")}>
+            {t("actions.recordPregnancyCheck")}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => open("abortion")}>
             {t("actions.recordAbortion")}
           </Button>
