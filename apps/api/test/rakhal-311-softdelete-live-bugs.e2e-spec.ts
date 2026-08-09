@@ -22,6 +22,7 @@ describe('RAKHAL-311 — soft-delete live bugs (e2e)', () => {
   let ctx: TestContext;
   let prisma: PrismaService;
   let owner: AuthedUser;
+  let ownerUserId: string;
   const cattleIds: string[] = [];
   const healthCaseIds: string[] = [];
   const adminIds: string[] = [];
@@ -35,6 +36,11 @@ describe('RAKHAL-311 — soft-delete live bugs (e2e)', () => {
     ctx = await createTestApp();
     prisma = ctx.app.get(PrismaService);
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
+    const user = await prisma.user.findFirstOrThrow({
+      where: { email: 'owner@demo.rakhal.test' },
+      select: { id: true },
+    });
+    ownerUserId = user.id;
   }, 30_000);
 
   afterAll(async () => {
@@ -62,6 +68,7 @@ describe('RAKHAL-311 — soft-delete live bugs (e2e)', () => {
         tagNumber: tag('CASE'),
         gender: 'FEMALE',
         purpose: 'MILK',
+        createdBy: ownerUserId,
       },
     });
     cattleIds.push(cattle.id);
@@ -72,7 +79,7 @@ describe('RAKHAL-311 — soft-delete live bugs (e2e)', () => {
         cattleId: cattle.id,
         caseCode: `HC-E2E-311-${Date.now()}`,
         diagnosis: 'Test diagnosis',
-        condition: 'STABLE',
+        condition: 'OTHER',
         status: 'ACTIVE',
         startDate: new Date(),
       },
@@ -110,13 +117,13 @@ describe('RAKHAL-311 — soft-delete live bugs (e2e)', () => {
         tagNumber: tag('PREG7D'),
         gender: 'FEMALE',
         purpose: 'MILK',
+        createdBy: ownerUserId,
       },
     });
     cattleIds.push(cattle.id);
 
     const pregnancy = await prisma.pregnancy.create({
       data: {
-        farmId: owner.farmId,
         cattleId: cattle.id,
         status: 'ACTIVE',
         conceptionDate: new Date(Date.now() - 200 * 24 * 60 * 60 * 1000),
