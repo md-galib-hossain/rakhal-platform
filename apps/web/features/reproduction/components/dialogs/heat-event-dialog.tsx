@@ -53,8 +53,17 @@ export function HeatEventDialog({
 
   async function onSubmit(values: CreateHeatEventInput) {
     try {
-      await createHeatEvent.mutateAsync({ ...values, heatDateTime: new Date(values.heatDateTime).toISOString() });
-      toast.success(t("createdToast"));
+      const created = await createHeatEvent.mutateAsync({
+        ...values,
+        heatDateTime: new Date(values.heatDateTime).toISOString(),
+      });
+      // RAKHAL-318: the row is still created (real data, never dropped) but flagged when the cow
+      // has an active pregnancy — surface the conflict instead of a plain success toast.
+      if (created.activePregnancyConflict) {
+        toast.warning(t("activePregnancyConflictToast"));
+      } else {
+        toast.success(t("createdToast"));
+      }
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));

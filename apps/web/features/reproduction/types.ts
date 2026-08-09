@@ -23,7 +23,9 @@ export type ReproductiveStatus =
 
 export type HeatDetectionMethod = "VISUAL" | "COLLAR_SENSOR" | "PEDOMETER" | "MANUAL";
 export type BreedingMethod = "AI" | "NATURAL" | "EMBRYO_TRANSFER";
-export type BreedingStatus = "PENDING_CHECK" | "PREGNANT" | "FAILED" | "ABORTED" | "CALVED";
+export type BreedingStatus = "PENDING_CHECK" | "PREGNANT" | "FAILED" | "ABORTED" | "CALVED" | "RETURNED_TO_HEAT";
+/** RAKHAL-317: `SYSTEM` until a farmer edits `expectedCalvingDate`, then `MANUAL` forever. */
+export type ExpectedCalvingDateSource = "SYSTEM" | "MANUAL";
 export type PregnancyDiagnosisResult = "PREGNANT" | "NOT_PREGNANT" | "SUSPECTED";
 export type PregnancyDiagnosisMethod = "ULTRASOUND" | "PALPATION" | "LAB";
 export type PregnancyStatus = "ACTIVE" | "CALVED" | "ABORTED" | "FAILED";
@@ -62,6 +64,8 @@ export interface InHeatNowRow extends ReproCattleRef {
 export interface PregnancyCheckDueRow extends ReproCattleRef {
   ai_date: string;
   check_due_date: string | null;
+  /** RAKHAL-316-F: needed to call `returnToHeat`. */
+  breeding_event_id: string;
 }
 
 export interface CalvingNext7DaysRow extends ReproCattleRef {
@@ -134,6 +138,13 @@ export interface HeatEventRow {
   restlessness: boolean;
   notes: string | null;
   createdAt: string;
+  /** RAKHAL-318: present only when this heat was recorded on an actively-pregnant cow —
+   * `createHeatEvent` still creates the row (never drops real data) but flags the conflict. */
+  activePregnancyConflict?: boolean;
+  pregnancyId?: string;
+  /** RAKHAL-316: set when this heat resulted from a confirmed return-to-heat, points at the
+   * `BreedingEvent` it invalidated. */
+  returnedFromBreedingEventId?: string | null;
 }
 
 export interface BreedingEventRow {
@@ -162,6 +173,10 @@ export interface PregnancyRow {
   gestationDays: number | null;
   status: PregnancyStatus;
   createdAt: string;
+  /** RAKHAL-317: the system's own conception+280-day estimate — written once, never changes even
+   * after `expectedCalvingDate` is farmer-edited. */
+  calculatedCalvingDate: string | null;
+  expectedCalvingDateSource: ExpectedCalvingDateSource;
 }
 
 export interface CalfBirthRow {

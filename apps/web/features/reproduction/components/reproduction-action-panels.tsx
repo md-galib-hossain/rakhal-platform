@@ -32,6 +32,7 @@ function CowLabel({ name, tag }: { name: string | null; tag: string }) {
 export interface ReproductionActionPanelsProps {
   onRecordAi: (cattleId: string) => void;
   onRecordPregnancyCheck: (cattleId: string, breedingEventId?: string) => void;
+  onReturnToHeat: (breedingEventId: string) => void;
   onRecordCalving: (cattleId: string) => void;
   onRecordDryOff: (cattleId: string) => void;
 }
@@ -43,6 +44,7 @@ export interface ReproductionActionPanelsProps {
 export function ReproductionActionPanels({
   onRecordAi,
   onRecordPregnancyCheck,
+  onReturnToHeat,
   onRecordCalving,
   onRecordDryOff,
 }: ReproductionActionPanelsProps) {
@@ -110,7 +112,18 @@ export function ReproductionActionPanels({
               <CowLabel name={row.name} tag={row.tag} />
               <div className="flex items-center gap-2">
                 <DateText date={row.ai_date} className="text-xs text-muted-foreground" />
-                <Button size="sm" variant="outline" onClick={() => onRecordPregnancyCheck(row.cattle_id)}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onReturnToHeat(row.breeding_event_id)}
+                >
+                  {t("returnToHeat")}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onRecordPregnancyCheck(row.cattle_id, row.breeding_event_id)}
+                >
                   {t("recordCheck")}
                 </Button>
               </div>

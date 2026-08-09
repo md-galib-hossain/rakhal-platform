@@ -32,6 +32,13 @@ export const breedingEventSchema = z.object({
 });
 export type CreateBreedingEventInput = z.infer<typeof breedingEventSchema>;
 
+/** Mirrors `ReturnToHeatDto` (RAKHAL-316) — `:id` (the `BreedingEvent`) is a route param. */
+export const returnToHeatSchema = z.object({
+  heatDateTime: z.string().min(1),
+  notes: z.string().trim().optional(),
+});
+export type ReturnToHeatInput = z.infer<typeof returnToHeatSchema>;
+
 export const pregnancyDiagnosisSchema = z.object({
   cattleId: z.string().min(1, "Select a cow"),
   breedingEventId: z.string().optional(),

@@ -2057,6 +2057,7 @@
       "emptyDryoffDue14Days": "No dry-offs due in the next 14 days.",
       "recordAi": "Record AI",
       "recordCheck": "Record Check",
+      "returnToHeat": "Return to Heat",
       "recordCalving": "Record Calving",
       "recordDryOff": "Record Dry-off",
       "daysOpen": "{value}d open",
@@ -2123,6 +2124,7 @@
         "notesPlaceholder": "Optional notes",
         "submit": "Save Heat Event",
         "createdToast": "Heat event recorded.",
+        "activePregnancyConflictToast": "Heat recorded, but this cow has an active pregnancy — view her pregnancy record, record a pregnancy loss, or correct the pregnancy if this observation was in error.",
         "genericError": "Could not record the heat event. Please try again."
       },
       "breeding": {
@@ -2146,6 +2148,16 @@
         "submit": "Save Breeding Event",
         "createdToast": "Breeding event recorded.",
         "genericError": "Could not record the breeding event. Please try again."
+      },
+      "returnToHeat": {
+        "title": "Return to Heat",
+        "description": "This cow came back into heat before her pregnancy check was due. This marks the earlier breeding as unsuccessful — no pregnancy check will be fabricated.",
+        "heatDateTime": "Date & time observed",
+        "notes": "Notes",
+        "notesPlaceholder": "Optional notes",
+        "submit": "Confirm Return to Heat",
+        "createdToast": "Return to heat recorded — the earlier breeding is now marked unsuccessful.",
+        "genericError": "Could not record the return to heat. Please try again."
       },
       "pregnancyDiagnosis": {
         "title": "Record Pregnancy Check",

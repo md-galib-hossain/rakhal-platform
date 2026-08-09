@@ -16,8 +16,17 @@ import { PregnancyDiagnosisDialog } from "./dialogs/pregnancy-diagnosis-dialog";
 import { CalvingEventDialog } from "./dialogs/calving-event-dialog";
 import { AbortionEventDialog } from "./dialogs/abortion-event-dialog";
 import { DryOffDialog } from "./dialogs/dry-off-dialog";
+import { ReturnToHeatDialog } from "./dialogs/return-to-heat-dialog";
 
-type DialogKind = "heat" | "breeding" | "pregnancyDiagnosis" | "calving" | "abortion" | "dryOff" | null;
+type DialogKind =
+  | "heat"
+  | "breeding"
+  | "pregnancyDiagnosis"
+  | "calving"
+  | "abortion"
+  | "dryOff"
+  | "returnToHeat"
+  | null;
 
 /**
  * Client-side shell for the Reproduction page — holds which create dialog is open and which
@@ -65,6 +74,7 @@ export function ReproductionWorkspace() {
           <ReproductionActionPanels
             onRecordAi={(id) => open("breeding", id)}
             onRecordPregnancyCheck={(id) => open("pregnancyDiagnosis", id)}
+            onReturnToHeat={(breedingEventId) => open("returnToHeat", breedingEventId)}
             onRecordCalving={(id) => open("calving", id)}
             onRecordDryOff={(id) => open("dryOff", id)}
           />
@@ -98,6 +108,11 @@ export function ReproductionWorkspace() {
         defaultCattleId={cattleId}
       />
       <DryOffDialog cattleId={cattleId} open={dialog === "dryOff"} onOpenChange={(next) => !next && close()} />
+      <ReturnToHeatDialog
+        open={dialog === "returnToHeat"}
+        onOpenChange={(next) => !next && close()}
+        breedingEventId={cattleId}
+      />
     </>
   );
 }

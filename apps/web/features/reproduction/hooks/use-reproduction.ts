@@ -14,6 +14,7 @@ import type {
   CreatePregnancyDiagnosisInput,
   RecordProtocolAiInput,
   RecordProtocolOutcomeInput,
+  ReturnToHeatInput,
 } from "../schemas";
 import type { ProtocolInstanceListFilters, ReproEventsQuery } from "../types";
 
@@ -74,6 +75,20 @@ export function useCreateBreedingEvent() {
   return useMutation({
     mutationFn: (input: CreateBreedingEventInput) => reproductionApi.createBreedingEvent(input),
     onSuccess: () => invalidateReproductionCore(queryClient),
+  });
+}
+
+/** RAKHAL-316: also invalidates the Task Hub list — closes the superseded pregnancy-check task
+ * and, once a follow-up AI is recorded, its own new one shows up there. */
+export function useReturnToHeat() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ breedingEventId, input }: { breedingEventId: string; input: ReturnToHeatInput }) =>
+      reproductionApi.returnToHeat(breedingEventId, input),
+    onSuccess: () => {
+      invalidateReproductionCore(queryClient);
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
   });
 }
 

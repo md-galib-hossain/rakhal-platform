@@ -36,6 +36,7 @@ import type {
   RecordProtocolAiInput,
   RecordProtocolOutcomeInput,
   CloseProtocolInstanceInput,
+  ReturnToHeatInput,
 } from "./schemas";
 
 /** `/reproduction*` — real backend routes (`reproduction.controller.ts`, `repro-protocol.controller.ts`),
@@ -74,6 +75,14 @@ export const reproductionApi = {
   },
   createBreedingEvent(input: CreateBreedingEventInput): Promise<BreedingEventRow> {
     return apiFetch<BreedingEventRow>("/reproduction/breeding-events", { method: "POST", body: input });
+  },
+  /** RAKHAL-316: farmer-confirmed return to heat before a pregnancy check was due — creates a real
+   * `HeatEvent`, never a fake `PregnancyDiagnosis`. */
+  returnToHeat(breedingEventId: string, input: ReturnToHeatInput): Promise<HeatEventRow> {
+    return apiFetch<HeatEventRow>(`/reproduction/breeding-events/${breedingEventId}/return-to-heat`, {
+      method: "POST",
+      body: input,
+    });
   },
 
   pregnancies(cattleId?: string, cursor?: string, limit = 20): Promise<CursorPage<PregnancyRow>> {

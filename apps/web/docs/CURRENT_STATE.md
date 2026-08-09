@@ -1,5 +1,16 @@
 # Frontend — Current State
 
+## RAKHAL-316-F/318-F — Return-to-heat dialog + heat-on-pregnant conflict toast (2026-08-09)
+Frontend companions to backend MILESTONE 19. New "Return to Heat" action on the Reproduction page's
+"Pregnancy Check Due" panel (opens a small dialog, calls the new `POST
+/reproduction/breeding-events/:id/return-to-heat`); `createHeatEvent`'s dialog now shows a warning
+toast instead of a plain success toast when the response flags `activePregnancyConflict`. Full
+writeup: `docs/IN_FLIGHT.md` Recently Done (agent-m19f). **Remaining from this milestone**:
+RAKHAL-317-F (calculated-vs-expected calving date badge) blocked on no edit-dialog surface existing
+in this frontend yet; RAKHAL-319-F (intake form "Bred / AI given" + "Currently in heat" sections)
+not started. Backend side (RAKHAL-313→319) is fully `DONE` — see
+`D:\Projects\Rakhal\docs\PROJECT_PROGRESS.md` MILESTONE 19.
+
 ## RAKHAL-287 — MilkDisposition + MilkEligibility types (blocked on missing backend routes) (2026-08-06)
 Backend's "cattle status model rewrite" (RAKHAL-269…280) shipped two new Milk-module domain
 concepts with **no read-side wiring**, confirmed by reading the backend source directly (not
