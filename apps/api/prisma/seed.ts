@@ -29,6 +29,7 @@ import {
   PLAN_CATALOGUE,
 } from '../src/modules/subscription/domain/subscription-features';
 import { seedDemoDataset } from './seed-demo-data';
+import { seedTestAccounts } from './seed-test-accounts';
 
 /**
  * RBAC + dev-data seed (RAKHAL-019). Idempotent — safe to run repeatedly.
@@ -1152,6 +1153,7 @@ async function main(): Promise<void> {
   if (demo.farmId) {
     await seedDemoSubscription(demo.farmId);
   }
+  await seedTestAccounts(prisma, ownerRoleId);
 }
 
 main()
