@@ -873,6 +873,7 @@
       "reasonOptions": {
         "sold": "Sold",
         "deceased": "Deceased",
+        "culled": "Culled",
         "archived": "Archived (other)"
       },
       "cancel": "Cancel",
@@ -1159,6 +1160,27 @@
           "medicine": "Medicine",
           "dose": "Dose"
         }
+      },
+      "holds": {
+        "title": "Holds",
+        "place": "Place hold",
+        "placeDescription": "Records a reproductive, milk-discard, quarantine, or other hold on this animal.",
+        "type": "Hold type",
+        "reason": "Reason",
+        "typeOptions": {
+          "REPRODUCTIVE": "Reproductive",
+          "MILK_DISCARD": "Milk discard",
+          "QUARANTINE": "Quarantine",
+          "OTHER": "Other"
+        },
+        "emptyTitle": "No holds on record.",
+        "release": "Release",
+        "releasedOn": "released",
+        "cancel": "Cancel",
+        "confirm": "Place hold",
+        "createdToast": "Hold placed.",
+        "releasedToast": "Hold released.",
+        "genericError": "Something went wrong. Please try again."
       },
       "finance": {
         "error": "Could not load finance data.",

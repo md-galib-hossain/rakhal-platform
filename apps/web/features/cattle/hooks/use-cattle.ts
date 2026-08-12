@@ -5,7 +5,13 @@ import { qk } from "@/lib/query/keys";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { cattleApi } from "../api";
 import type { BulkAction, CattleFormPayload, CattleListFilters } from "../types";
-import type { CattleArchiveInput, CattleStatusInput, PurchasedLactationInput } from "../schemas";
+import type {
+  CattleArchiveInput,
+  CattleStatusInput,
+  CreateAnimalHoldInput,
+  PurchasedLactationInput,
+  ReleaseAnimalHoldInput,
+} from "../schemas";
 
 const STALE_TIME = 60_000;
 
@@ -178,5 +184,42 @@ export function useImportCattleConfirm() {
     mutationFn: ({ importSessionId, skipErrors }: { importSessionId: string; skipErrors: boolean }) =>
       cattleApi.importConfirm(importSessionId, skipErrors),
     onSuccess: () => invalidate(),
+  });
+}
+
+// MILESTONE 10 gap closure — generic per-animal hold (RAKHAL-280).
+export function useAnimalHolds(cattleId: string | undefined) {
+  return useQuery({
+    queryKey: qk.cattle.holds(cattleId ?? ""),
+    queryFn: () => cattleApi.holds(cattleId!),
+    enabled: Boolean(cattleId),
+    staleTime: STALE_TIME,
+  });
+}
+
+export function useCreateAnimalHold() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ cattleId, dto }: { cattleId: string; dto: CreateAnimalHoldInput }) =>
+      cattleApi.createHold(cattleId, dto),
+    onSuccess: (_data, { cattleId }) =>
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.holds(cattleId) }),
+  });
+}
+
+export function useReleaseAnimalHold() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      cattleId,
+      holdId,
+      dto,
+    }: {
+      cattleId: string;
+      holdId: string;
+      dto?: ReleaseAnimalHoldInput;
+    }) => cattleApi.releaseHold(cattleId, holdId, dto),
+    onSuccess: (_data, { cattleId }) =>
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.holds(cattleId) }),
   });
 }

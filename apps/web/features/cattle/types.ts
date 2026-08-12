@@ -10,7 +10,8 @@
 
 export type CattleGender = "MALE" | "FEMALE" | "CASTRATED_MALE";
 export type CattlePurpose = "MILK" | "BREEDING" | "MEAT" | "CALF" | "BULL_SERVICE" | "DUAL_PURPOSE";
-export type CattleStatus = "ACTIVE" | "SOLD" | "DEAD" | "TRANSFERRED" | "MISSING" | "ARCHIVED";
+/** RAKHAL-269 v2: gained `CULLED` (distinct from `DEAD`/`SOLD`) — see `ArchiveCattleDto`. */
+export type CattleStatus = "ACTIVE" | "SOLD" | "DEAD" | "CULLED" | "TRANSFERRED" | "MISSING" | "ARCHIVED";
 /** RAKHAL-269 v2 correction: trimmed to the two real production states — lifecycle/archival
  * (sold/deceased) now lives on `CattleStatus` + soft-delete instead of being overloaded onto this
  * enum. */
@@ -157,6 +158,23 @@ export interface BulkCattleResult {
 }
 
 export type CattleSourceType = "BORN" | "PURCHASED" | "GIFTED" | "UNKNOWN";
+
+/** RAKHAL-280 — generic per-animal hold (`AnimalHoldController`, `cattle.hold`-gated), the one
+ * mechanism backing `REPRODUCTIVE_HOLD` (reproduction alert) and `DISCARD_REQUIRED` (milk
+ * eligibility) — no ad-hoc booleans elsewhere. Mirrors the raw Prisma `AnimalHold` row. */
+export type AnimalHoldType = "REPRODUCTIVE" | "MILK_DISCARD" | "QUARANTINE" | "OTHER";
+
+export interface AnimalHold {
+  id: string;
+  farmId: string;
+  cattleId: string;
+  type: AnimalHoldType;
+  reason: string;
+  startedAt: string;
+  endedAt: string | null;
+  createdBy: string;
+  releasedBy: string | null;
+}
 
 /**
  * `GET/POST/PATCH /cattle(/:id)` single-resource shape (`cattle.service.ts#composeStatus` +

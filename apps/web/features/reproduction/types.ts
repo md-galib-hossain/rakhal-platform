@@ -232,6 +232,11 @@ export interface LactationRow {
   endReason: string | null;
   recommendedDryOffAt: string | null;
   plannedDryOffAt: string | null;
+  /** RAKHAL-271 v2 correction — the calving lactation-start stamp lives here now (moved off
+   * `Cattle.lactationStartDate`, which was removed entirely). Always present on the raw row
+   * (same "no `select` narrowing" reasoning as `endReason` above), not yet consumed by any UI. */
+  startReason: string | null;
+  sourceCalvingEventId: string | null;
 }
 
 /** `POST /reproduction/calving-events` response (RAKHAL-290) — the created `CalvingEventRow` plus,

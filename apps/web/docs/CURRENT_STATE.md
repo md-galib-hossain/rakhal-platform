@@ -1,5 +1,16 @@
 # Frontend — Current State
 
+## MILESTONE 10 enum migration gap closure (2026-08-12)
+Scoped the backend's Cattle Status Model Rewrite v2 (RAKHAL-269→280) against the frontend — found
+most of it already fully migrated. Closed the 2 real gaps: **`CULLED`** now a selectable archive
+reason (was missing despite the backend accepting it since RAKHAL-269); **`AnimalHold`** (RAKHAL-280)
+now has a full frontend surface — new `AnimalHoldsPanel` on the cattle detail Health tab (place/list/
+release, `cattle.hold`-gated) — the backend route existed with zero frontend consumer before this.
+Also typed `LactationRow.startReason`/`sourceCalvingEventId` (present on the wire, previously
+untyped). Full writeup: `docs/IN_FLIGHT.md` Recently Done (agent-m10-enum). Still open from the
+original pasted task list: RAKHAL-317-F/319-F (MILESTONE 19), Cattle detail UI (RAKHAL-042) — separate
+follow-up passes.
+
 ## RAKHAL-316-F/318-F — Return-to-heat dialog + heat-on-pregnant conflict toast (2026-08-09)
 Frontend companions to backend MILESTONE 19. New "Return to Heat" action on the Reproduction page's
 "Pregnancy Check Due" panel (opens a small dialog, calls the new `POST

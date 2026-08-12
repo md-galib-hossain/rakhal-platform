@@ -3,6 +3,7 @@
 import { apiFetch, apiFetchPage, apiUpload } from "@/lib/api/client";
 import type { CursorPage } from "@/types/api";
 import type {
+  AnimalHold,
   BcsRecordResult,
   Breed,
   BulkAction,
@@ -23,9 +24,11 @@ import type {
 import type {
   CattleArchiveInput,
   CattleStatusInput,
+  CreateAnimalHoldInput,
   PurchasedLactationInput,
   RecordBcsInput,
   RecordWeightInput,
+  ReleaseAnimalHoldInput,
 } from "./schemas";
 import type {
   CalvingEventRow,
@@ -169,6 +172,20 @@ export const cattleApi = {
     return apiFetch<CattleImportConfirmResult>("/cattle/import/confirm", {
       method: "POST",
       body: { importSessionId, skipErrors },
+    });
+  },
+
+  // MILESTONE 10 gap closure — generic per-animal hold (RAKHAL-280, `cattle.hold`-gated).
+  holds(cattleId: string): Promise<CursorPage<AnimalHold>> {
+    return apiFetchPage<AnimalHold>(`/cattle/${cattleId}/holds`, { searchParams: { limit: 50 } });
+  },
+  createHold(cattleId: string, dto: CreateAnimalHoldInput): Promise<AnimalHold> {
+    return apiFetch<AnimalHold>(`/cattle/${cattleId}/holds`, { method: "POST", body: dto });
+  },
+  releaseHold(cattleId: string, holdId: string, dto?: ReleaseAnimalHoldInput): Promise<AnimalHold> {
+    return apiFetch<AnimalHold>(`/cattle/${cattleId}/holds/${holdId}/release`, {
+      method: "PATCH",
+      body: dto,
     });
   },
 };

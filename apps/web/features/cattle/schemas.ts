@@ -81,13 +81,26 @@ export type PurchasedLactationInput = z.infer<typeof purchasedLactationSchema>;
 export const cattleStatusWithEstimatedIntakeSchema = cattleStatusSchema.merge(purchasedLactationSchema);
 export type CattleStatusWithEstimatedIntakeInput = z.infer<typeof cattleStatusWithEstimatedIntakeSchema>;
 
-/** Mirrors `ArchiveCattleDto` (`DELETE /cattle/:id`) — `sold`/`deceased` keep production status
- * distinct (CAT-09), `archived` is a plain archive. */
+/** Mirrors `ArchiveCattleDto` (`DELETE /cattle/:id`) — `sold`/`deceased`/`culled` keep production
+ * status distinct (CAT-09), `archived` is a plain archive. */
 export const cattleArchiveSchema = z.object({
-  reason: z.enum(["sold", "deceased", "archived"]),
+  reason: z.enum(["sold", "deceased", "culled", "archived"]),
   notes: z.string().trim().optional(),
 });
 export type CattleArchiveInput = z.infer<typeof cattleArchiveSchema>;
+
+/** Mirrors `CreateAnimalHoldDto` (`POST /cattle/:cattleId/holds`, RAKHAL-280). */
+export const createAnimalHoldSchema = z.object({
+  type: z.enum(["REPRODUCTIVE", "MILK_DISCARD", "QUARANTINE", "OTHER"]),
+  reason: z.string().trim().min(2).max(500),
+});
+export type CreateAnimalHoldInput = z.infer<typeof createAnimalHoldSchema>;
+
+/** Mirrors `ReleaseAnimalHoldDto` (`PATCH /cattle/:cattleId/holds/:holdId/release`). */
+export const releaseAnimalHoldSchema = z.object({
+  note: z.string().trim().max(500).optional(),
+});
+export type ReleaseAnimalHoldInput = z.infer<typeof releaseAnimalHoldSchema>;
 
 /** Mirrors `RecordBcsDto` (`POST /cattle/:id/bcs`, PRD §8.6) — score is one of 17 quarter-steps. */
 export const recordBcsSchema = z.object({

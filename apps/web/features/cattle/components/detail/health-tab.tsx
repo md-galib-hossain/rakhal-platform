@@ -13,6 +13,7 @@ import { DateText } from "@/components/shared/date-text";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCattleHealthSummary } from "../../hooks/use-cattle-detail-tabs";
 import type { HealthCaseRow } from "../../detail-types";
+import { AnimalHoldsPanel } from "./animal-holds-panel";
 
 const CASE_STATUS_VARIANT: Record<string, "warning" | "success" | "destructive" | "secondary" | "info"> = {
   ACTIVE: "warning",
@@ -137,6 +138,8 @@ export function HealthTab({ cattleId }: { cattleId: string }) {
           ))}
         </div>
       ) : null}
+
+      <AnimalHoldsPanel cattleId={cattleId} />
 
       <div className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold text-foreground">{t("treatmentHistory")}</h3>

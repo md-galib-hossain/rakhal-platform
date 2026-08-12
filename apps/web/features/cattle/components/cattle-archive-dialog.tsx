@@ -20,12 +20,15 @@ import { useArchiveCattle } from "../hooks/use-cattle";
 import type { CattleArchiveInput } from "../schemas";
 import type { CattleListItem } from "../types";
 
-const REASONS: CattleArchiveInput["reason"][] = ["sold", "deceased", "archived"];
+const REASONS: CattleArchiveInput["reason"][] = ["sold", "deceased", "culled", "archived"];
 
-/** RAKHAL-290/297-F: `sold`/`deceased` (and backend `culled`, not yet a frontend reason option —
- * pre-existing gap, out of scope here) are real lifecycle exits that auto-close any ACTIVE
- * `Lactation` server-side. `archived` alone never touches the lactation. */
-const REASONS_CLOSING_LACTATION: ReadonlySet<CattleArchiveInput["reason"]> = new Set(["sold", "deceased"]);
+/** RAKHAL-290/297-F: `sold`/`deceased`/`culled` are real lifecycle exits that auto-close any
+ * ACTIVE `Lactation` server-side (`archiveWithReason`). `archived` alone never touches it. */
+const REASONS_CLOSING_LACTATION: ReadonlySet<CattleArchiveInput["reason"]> = new Set([
+  "sold",
+  "deceased",
+  "culled",
+]);
 
 /**
  * `DELETE /cattle/:id` with an `ArchiveCattleDto` reason (CAT-08/09/10) — sold/deceased keep
