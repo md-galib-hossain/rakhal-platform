@@ -1,5 +1,13 @@
 # Frontend — Current State
 
+## RAKHAL-319-F — Onboarding intake: bred/AI-given + currently-in-heat (2026-08-12)
+Closed the last open MILESTONE 19 frontend gap besides 317-F. `CattleFormDialog` gained a
+create-mode/female-only "Reproduction status at intake" section — mutually-exclusive toggle
+(none/bred/heat) wiring the backend's already-shipped `intakeBreeding`/`intakeHeat` (`CreateCattleDto`)
+fields, previously unconsumed. Full writeup: `docs/IN_FLIGHT.md` Recently Done (agent-319f).
+**RAKHAL-317-F remains open** — needs a real edit-dialog surface (none exists in this frontend) or a
+backend detail-payload change before the calculated-vs-expected calving date badge can attach anywhere.
+
 ## MILESTONE 10 enum migration gap closure (2026-08-12)
 Scoped the backend's Cattle Status Model Rewrite v2 (RAKHAL-269→280) against the frontend — found
 most of it already fully migrated. Closed the 2 real gaps: **`CULLED`** now a selectable archive

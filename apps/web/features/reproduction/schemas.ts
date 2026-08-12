@@ -65,6 +65,18 @@ export const pregnancyDiagnosisSchema = z.object({
 });
 export type CreatePregnancyDiagnosisInput = z.infer<typeof pregnancyDiagnosisSchema>;
 
+/** RAKHAL-317-F — mirrors `EditPregnancyDiagnosisDto` (RAKHAL-305), every field optional. */
+export const editPregnancyDiagnosisSchema = z.object({
+  breedingEventId: z.string().optional(),
+  diagnosisDate: z.string().optional(),
+  result: z.enum(["PREGNANT", "NOT_PREGNANT", "SUSPECTED"]).optional(),
+  diagnosisMethod: z.enum(["ULTRASOUND", "PALPATION", "LAB"]).optional(),
+  gestationDay: z.number().min(0).optional(),
+  expectedCalvingDate: z.string().optional(),
+  notes: z.string().trim().optional(),
+});
+export type EditPregnancyDiagnosisInput = z.infer<typeof editPregnancyDiagnosisSchema>;
+
 export const calfBirthSchema = z
   .object({
     gender: z.enum(["MALE", "FEMALE"]),

@@ -213,6 +213,11 @@ export interface CattleFormPayload {
    * already accepted by the backend. Lets a purchased already-calved cow be recorded correctly as
    * `COW` (not `HEIFER`) from creation, instead of only via the later status-change dialog. */
   priorCalvings?: number;
+  /** RAKHAL-319-F — mirrors `CreateCattleDto.intakeBreeding`/`intakeHeat` (`IntakeBreedingDto`/
+   * `IntakeHeatDto`). Create-only, mutually exclusive, sent by `cattle-form-dialog.tsx`'s
+   * `toPayload()` based on the local `intakeReproductionMode` toggle. */
+  intakeBreeding?: { breedingDate: string; breedingMethod?: "AI" | "NATURAL" | "EMBRYO_TRANSFER"; notes?: string };
+  intakeHeat?: { heatDateTime: string; notes?: string };
 }
 
 // ---- RFE-023 follow-up: BCS + weight recording (`cattle.constants.ts#BCS_ALLOWED_SCORES`) --------

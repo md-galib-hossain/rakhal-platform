@@ -29,6 +29,18 @@ export const cattleFormSchema = z.object({
    * shared since this schema's field is create-time-only and this one has no analogous
    * `needsPriorCalvings` external-state gate — it's just always offered for a female. */
   priorCalvings: z.number().int().min(1).optional(),
+  /** RAKHAL-319-F — create-mode-only intake declarations, mirror `IntakeBreedingDto`/`IntakeHeatDto`
+   * (`create-cattle.dto.ts`'s `intakeBreeding`/`intakeHeat`). `intakeReproductionMode` is local UI
+   * state (which of the two mutually-exclusive sections is open), not sent to the backend itself —
+   * `cattle-form-dialog.tsx`'s submit handler builds the nested payload from it, same reasoning as
+   * `cattleStatusSchema`'s `needsLactationStartDate` pattern (external/local UI state, not encoded
+   * as a `.superRefine()`, since no `superRefine` precedent exists elsewhere in this codebase). */
+  intakeReproductionMode: z.enum(["none", "bred", "heat"]).optional(),
+  intakeBreedingDate: z.string().optional(),
+  intakeBreedingMethod: z.enum(["AI", "NATURAL", "EMBRYO_TRANSFER"]).optional(),
+  intakeBreedingNotes: z.string().trim().optional(),
+  intakeHeatDateTime: z.string().optional(),
+  intakeHeatNotes: z.string().trim().optional(),
 });
 export type CattleFormInput = z.infer<typeof cattleFormSchema>;
 

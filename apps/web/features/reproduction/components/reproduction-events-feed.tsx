@@ -19,6 +19,7 @@ import { useReproductionEvents } from "../hooks/use-reproduction";
 import type { ReproEventEntry, ReproEventType } from "../types";
 import { ReproductionCard } from "./reproduction-card";
 import { BreedingEventDialog } from "./dialogs/breeding-event-dialog";
+import { PregnancyDiagnosisDialog } from "./dialogs/pregnancy-diagnosis-dialog";
 
 const EVENT_ICONS: Record<ReproEventType, React.ElementType> = {
   heat: Heart,
@@ -63,6 +64,7 @@ const FETCH_LIMIT = 100;
 export function ReproductionEventsFeed() {
   const t = useTranslations("reproduction.eventsFeed");
   const [editingBreedingEventId, setEditingBreedingEventId] = useState<string | null>(null);
+  const [editingDiagnosisEvent, setEditingDiagnosisEvent] = useState<ReproEventEntry | null>(null);
   const [cattle, setCattle] = useState<CattleOption | null>(null);
   const [eventType, setEventType] = useState<ReproEventType | "all">("all");
   const [fromDate, setFromDate] = useState("");
@@ -180,7 +182,13 @@ export function ReproductionEventsFeed() {
               <EventRow
                 key={`${event.event_type}-${event.id}`}
                 event={event}
-                onEdit={event.event_type === "breeding" ? () => setEditingBreedingEventId(event.id) : undefined}
+                onEdit={
+                  event.event_type === "breeding"
+                    ? () => setEditingBreedingEventId(event.id)
+                    : event.event_type === "pregnancy_diagnosis"
+                      ? () => setEditingDiagnosisEvent(event)
+                      : undefined
+                }
               />
             ))}
           </div>
@@ -205,6 +213,13 @@ export function ReproductionEventsFeed() {
           if (!next) setEditingBreedingEventId(null);
         }}
         eventId={editingBreedingEventId ?? undefined}
+      />
+      <PregnancyDiagnosisDialog
+        open={editingDiagnosisEvent !== null}
+        onOpenChange={(next) => {
+          if (!next) setEditingDiagnosisEvent(null);
+        }}
+        editingEvent={editingDiagnosisEvent ?? undefined}
       />
     </ReproductionCard>
   );

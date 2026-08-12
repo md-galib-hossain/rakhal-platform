@@ -21,6 +21,7 @@ import {
   LabeledSelectTrigger,
 } from "@/components/ui/labeled-field";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ const PURPOSES = [
   "DUAL_PURPOSE",
 ] as const;
 const SOURCE_TYPES = ["BORN", "PURCHASED", "GIFTED", "UNKNOWN"] as const;
+const BREEDING_METHODS = ["AI", "NATURAL", "EMBRYO_TRANSFER"] as const;
 
 /** RAKHAL-270 chip colors — mirrors `cattle-columns.tsx`'s `ANIMAL_CATEGORY_VARIANT` (kept
  * per-file, same reasoning as `cattle-profile-card.tsx`'s own copy: no shared cross-feature
@@ -67,7 +69,9 @@ const ANIMAL_CATEGORY_VARIANT: Record<AnimalCategory, ChipProps["variant"]> = {
 /** Strips the `""`/`UNSET` sentinel back to `undefined` before hitting the API — the backend's
  * optional string fields reject an empty string differently than an omitted key in some paths
  * (`@IsOptional` only skips `undefined`), so never send `""`/sentinel on the wire. */
-function toPayload(values: CattleFormInput): CattleFormPayload {
+/** RAKHAL-319-F — only sent create-mode (an edit is always a `PATCH`, and the backend's intake
+ * fields live on `CreateCattleDto` only). Mode is exclusive: `bred` and `heat` never both fire. */
+function toPayload(values: CattleFormInput, isEdit: boolean): CattleFormPayload {
   const clean = <T,>(v: T | "" | typeof UNSET | undefined): T | undefined =>
     v === "" || v === UNSET || v === undefined ? undefined : v;
   return {
@@ -86,6 +90,18 @@ function toPayload(values: CattleFormInput): CattleFormPayload {
     color: clean(values.color),
     notes: clean(values.notes),
     priorCalvings: values.gender === "FEMALE" ? values.priorCalvings : undefined,
+    intakeBreeding:
+      !isEdit && values.intakeReproductionMode === "bred" && values.intakeBreedingDate
+        ? {
+            breedingDate: values.intakeBreedingDate,
+            breedingMethod: values.intakeBreedingMethod,
+            notes: clean(values.intakeBreedingNotes),
+          }
+        : undefined,
+    intakeHeat:
+      !isEdit && values.intakeReproductionMode === "heat" && values.intakeHeatDateTime
+        ? { heatDateTime: values.intakeHeatDateTime, notes: clean(values.intakeHeatNotes) }
+        : undefined,
   };
 }
 
@@ -234,6 +250,10 @@ function CattleFormDialogBody({
 }) {
   const t = useTranslations("cattle.form");
   const tCategory = useTranslations("cattle.animalCategory");
+  /** RAKHAL-319-F — reuses the reproduction module's already-translated `breedingMethodValue.*`
+   * labels rather than duplicating them (same reasoning as `tCategory` above reusing
+   * `cattle.animalCategory.*` for the create-mode preview badge). */
+  const tBreedingMethod = useTranslations("reproduction.dialogs.breeding");
   const isEdit = Boolean(cattle);
 
   const breeds = useBreeds();
@@ -259,6 +279,7 @@ function CattleFormDialogBody({
   const watchedGender = useWatch({ control: form.control, name: "gender" });
   const watchedDob = useWatch({ control: form.control, name: "dateOfBirth" });
   const watchedPriorCalvings = useWatch({ control: form.control, name: "priorCalvings" });
+  const watchedIntakeMode = useWatch({ control: form.control, name: "intakeReproductionMode" }) ?? "none";
   const previewCategory: AnimalCategory | null = isEdit
     ? null
     : deriveAnimalCategoryPreview({
@@ -291,7 +312,15 @@ function CattleFormDialogBody({
   }
 
   async function onSubmit(values: CattleFormInput) {
-    const payload = toPayload(values);
+    if (!isEdit && values.intakeReproductionMode === "bred" && !values.intakeBreedingDate) {
+      form.setError("intakeBreedingDate", { message: t("intake.breedingDateRequired") });
+      return;
+    }
+    if (!isEdit && values.intakeReproductionMode === "heat" && !values.intakeHeatDateTime) {
+      form.setError("intakeHeatDateTime", { message: t("intake.heatDateRequired") });
+      return;
+    }
+    const payload = toPayload(values, isEdit);
     try {
       const savedId =
         isEdit && cattle
@@ -505,6 +534,87 @@ function CattleFormDialogBody({
                 {tCategory(cattle.animalCategory)}
               </Chip>
             </div>
+          ) : null}
+
+          {/* RAKHAL-319-F — create-mode-only, female-only intake declarations (`IntakeBreedingDto`/
+              `IntakeHeatDto`). Mutually exclusive via a 3-way toggle (none/bred/heat) rather than
+              two independent checkboxes — a cow can't be both freshly bred and currently in heat. */}
+          {!isEdit && watchedGender === "FEMALE" ? (
+            <>
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-2.5 text-sm font-semibold text-foreground">
+                <Sparkles className="size-4 text-primary" aria-hidden />
+                {t("intake.title")}
+              </div>
+              <div className="flex flex-col gap-3">
+                <Controller
+                  control={form.control}
+                  name="intakeReproductionMode"
+                  render={({ field }) => (
+                    <Select value={field.value ?? "none"} onValueChange={field.onChange}>
+                      <LabeledSelectTrigger label={t("intake.mode")} />
+                      <SelectContent>
+                        <SelectItem value="none">{t("intake.modeOptions.none")}</SelectItem>
+                        <SelectItem value="bred">{t("intake.modeOptions.bred")}</SelectItem>
+                        <SelectItem value="heat">{t("intake.modeOptions.heat")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {watchedIntakeMode === "bred" ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <Label>{t("intake.breedingDate")}</Label>
+                      <Input
+                        type="datetime-local"
+                        {...form.register("intakeBreedingDate")}
+                      />
+                      {form.formState.errors.intakeBreedingDate ? (
+                        <p className="text-xs text-destructive">
+                          {form.formState.errors.intakeBreedingDate.message}
+                        </p>
+                      ) : null}
+                    </div>
+                    <Controller
+                      control={form.control}
+                      name="intakeBreedingMethod"
+                      render={({ field }) => (
+                        <Select value={field.value ?? "AI"} onValueChange={field.onChange}>
+                          <LabeledSelectTrigger label={tBreedingMethod("breedingMethod")} />
+                          <SelectContent>
+                            {BREEDING_METHODS.map((v) => (
+                              <SelectItem key={v} value={v}>
+                                {tBreedingMethod(`breedingMethodValue.${v}`)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    <div className="col-span-2 flex flex-col gap-1.5">
+                      <Label htmlFor="intakeBreedingNotes">{t("intake.notes")}</Label>
+                      <Textarea id="intakeBreedingNotes" {...form.register("intakeBreedingNotes")} />
+                    </div>
+                  </div>
+                ) : null}
+                {watchedIntakeMode === "heat" ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2 flex flex-col gap-1.5">
+                      <Label>{t("intake.heatDateTime")}</Label>
+                      <Input type="datetime-local" {...form.register("intakeHeatDateTime")} />
+                      {form.formState.errors.intakeHeatDateTime ? (
+                        <p className="text-xs text-destructive">
+                          {form.formState.errors.intakeHeatDateTime.message}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="col-span-2 flex flex-col gap-1.5">
+                      <Label htmlFor="intakeHeatNotes">{t("intake.notes")}</Label>
+                      <Textarea id="intakeHeatNotes" {...form.register("intakeHeatNotes")} />
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </>
           ) : null}
 
           {/* Not pictured in Figma (only "Basic Info" is designed) — same visual language,

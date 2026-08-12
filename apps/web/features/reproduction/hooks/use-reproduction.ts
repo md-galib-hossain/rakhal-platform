@@ -13,6 +13,7 @@ import type {
   CreateHeatEventInput,
   CreatePregnancyDiagnosisInput,
   EditBreedingEventInput,
+  EditPregnancyDiagnosisInput,
   RecordProtocolAiInput,
   RecordProtocolOutcomeInput,
   ReturnToHeatInput,
@@ -119,6 +120,16 @@ export function useCreatePregnancyDiagnosis() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreatePregnancyDiagnosisInput) => reproductionApi.createPregnancyDiagnosis(input),
+    onSuccess: () => invalidateReproductionCore(queryClient),
+  });
+}
+
+/** RAKHAL-317-F/305 */
+export function useEditPregnancyDiagnosis() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: EditPregnancyDiagnosisInput }) =>
+      reproductionApi.editPregnancyDiagnosis(id, input),
     onSuccess: () => invalidateReproductionCore(queryClient),
   });
 }

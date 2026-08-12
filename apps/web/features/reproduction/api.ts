@@ -34,6 +34,7 @@ import type {
   CreateHeatEventInput,
   CreatePregnancyDiagnosisInput,
   EditBreedingEventInput,
+  EditPregnancyDiagnosisInput,
   RecordProtocolAiInput,
   RecordProtocolOutcomeInput,
   CloseProtocolInstanceInput,
@@ -98,6 +99,12 @@ export const reproductionApi = {
   },
   createPregnancyDiagnosis(input: CreatePregnancyDiagnosisInput): Promise<PregnancyRow> {
     return apiFetch<PregnancyRow>("/reproduction/pregnancy-diagnoses", { method: "POST", body: input });
+  },
+  /** RAKHAL-317-F/305 — `ReproductionEditController.editPregnancyDiagnosis`. No dedicated GET-by-id
+   * route exists for a `PregnancyDiagnosis`; the edit dialog seeds its form from the unified events
+   * feed's own row (`ReproEventEntry.details`) instead. */
+  editPregnancyDiagnosis(id: string, input: EditPregnancyDiagnosisInput): Promise<PregnancyRow> {
+    return apiFetch<PregnancyRow>(`/reproduction/pregnancy-diagnoses/${id}`, { method: "PATCH", body: input });
   },
 
   calvingEvents(cattleId?: string, cursor?: string, limit = 20): Promise<CursorPage<CalvingEventRow>> {

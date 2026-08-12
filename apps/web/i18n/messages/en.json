@@ -832,7 +832,21 @@
       "priorCalvings": "Number of prior calvings",
       "priorCalvingsHint": "If this cow has already calved before (e.g. purchased), enter how many times so she's correctly recorded as a Cow, not a Heifer.",
       "willBeAddedAs": "Will be added as:",
-      "currentCategory": "Category:"
+      "currentCategory": "Category:",
+      "intake": {
+        "title": "Reproduction status at intake",
+        "mode": "Situation",
+        "modeOptions": {
+          "none": "None of the below",
+          "bred": "Bred / AI given",
+          "heat": "Currently in heat"
+        },
+        "breedingDate": "Breeding date",
+        "breedingDateRequired": "Breeding date is required.",
+        "heatDateTime": "Heat date/time",
+        "heatDateRequired": "Heat date/time is required.",
+        "notes": "Notes"
+      }
     },
     "statusDialog": {
       "title": "Change status — {name}",
@@ -2207,7 +2221,10 @@
         "notesPlaceholder": "Optional notes",
         "submit": "Save Pregnancy Check",
         "createdToast": "Pregnancy check recorded.",
-        "genericError": "Could not record the pregnancy check. Please try again."
+        "genericError": "Could not record the pregnancy check. Please try again.",
+        "editTitle": "Edit Pregnancy Check",
+        "saveChanges": "Save Changes",
+        "editedToast": "Pregnancy check updated."
       },
       "calving": {
         "title": "Record Calving",
