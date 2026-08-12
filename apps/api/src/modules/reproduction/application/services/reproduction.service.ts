@@ -2010,7 +2010,17 @@ export class ReproductionService {
         cattle_id: d.cattle.id,
         cattle_name: d.cattle.name,
         cattle_tag: d.cattle.tagNumber,
-        details: { result: d.result, method: d.diagnosisMethod },
+        // RAKHAL-317-F: expected_calving_date/gestation_day/notes/breeding_event_id added so the
+        // frontend can seed an edit form from this feed row directly (`EditPregnancyDiagnosisDto`
+        // has no dedicated GET-by-id route) instead of guessing current values.
+        details: {
+          result: d.result,
+          method: d.diagnosisMethod,
+          gestation_day: d.gestationDay,
+          expected_calving_date: d.expectedCalvingDate,
+          breeding_event_id: d.breedingEventId,
+          notes: d.notes,
+        },
       })),
     ]
       .sort((a, b) => b.event_date.getTime() - a.event_date.getTime())
