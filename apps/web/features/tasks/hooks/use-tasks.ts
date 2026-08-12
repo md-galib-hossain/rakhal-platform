@@ -59,6 +59,14 @@ export function useCompleteTask() {
   });
 }
 
+export function useReopenTask() {
+  const invalidate = useInvalidateTasks();
+  return useMutation({
+    mutationFn: (id: string) => tasksApi.reopen(id),
+    onSuccess: () => invalidate(),
+  });
+}
+
 export function useCheckTaskStep() {
   const invalidate = useInvalidateTasks();
   return useMutation({

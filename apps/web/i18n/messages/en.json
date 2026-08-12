@@ -3201,6 +3201,8 @@
       "completed": "Completed",
       "completedToast": "Task marked complete",
       "reassignedToast": "Task reassigned",
+      "reopen": "Reopen",
+      "reopenedToast": "Task reopened",
       "genericError": "Something went wrong. Please try again."
     }
   },

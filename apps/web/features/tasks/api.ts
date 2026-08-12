@@ -41,6 +41,10 @@ export const tasksApi = {
   complete(id: string, dto: CompleteTaskPayload): Promise<Task & { nextRecurrenceCreated: boolean; nextTaskId: string | null }> {
     return apiFetch(`/tasks/${id}/complete`, { method: "POST", body: dto });
   },
+  /** `POST /tasks/:id/reopen` (`task.update`-gated) — undo a mistaken `complete()`. */
+  reopen(id: string): Promise<Task> {
+    return apiFetch<Task>(`/tasks/${id}/reopen`, { method: "POST" });
+  },
   checkStep(id: string, stepId: string, completed: boolean): Promise<Task> {
     return apiFetch<Task>(`/tasks/${id}/steps/${stepId}/check`, { method: "POST", body: { completed } });
   },

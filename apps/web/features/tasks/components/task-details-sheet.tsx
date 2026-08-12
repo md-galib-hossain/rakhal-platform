@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { ArrowRightToLine, Check } from "lucide-react";
+import { ArrowRightToLine, Check, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -11,9 +11,10 @@ import { Chip } from "@/components/ui/chip";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { Can } from "@/lib/auth/permissions";
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
-import { useCheckTaskStep, useCompleteTask, useUpdateTask } from "../hooks/use-tasks";
+import { useCheckTaskStep, useCompleteTask, useReopenTask, useUpdateTask } from "../hooks/use-tasks";
 import { avatarTint, initials } from "../avatar-tint";
 import { PRIORITY_CHIP_VARIANT } from "../task-style";
 import { LACTATION_ALERT_ICON, lactationAlertSeverity, parseLactationAlert } from "../lactation-alert";
@@ -56,6 +57,7 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
   const [task, setTask] = useState(initialTask);
 
   const completeTask = useCompleteTask();
+  const reopenTask = useReopenTask();
   const updateTask = useUpdateTask();
   const checkStep = useCheckTaskStep();
 
@@ -67,6 +69,17 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
       setTask(updated);
       toast.success(t("completedToast"));
       onOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("genericError"));
+    }
+  }
+
+  /** Undo a mistaken complete — keeps the sheet open so the reopened state is visible. */
+  async function handleReopen() {
+    try {
+      const updated = await reopenTask.mutateAsync(task.id);
+      setTask(updated);
+      toast.success(t("reopenedToast"));
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
     }
@@ -210,6 +223,20 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
           >
             {t("reassign")}
           </Button>
+          {isCompleted ? (
+            <Can I="task.update">
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-[52px] flex-1 rounded-xl"
+                onClick={() => void handleReopen()}
+                disabled={reopenTask.isPending}
+              >
+                <RotateCcw className="size-4" aria-hidden />
+                {reopenTask.isPending ? "…" : t("reopen")}
+              </Button>
+            </Can>
+          ) : null}
           <Button
             type="button"
             className="h-[52px] flex-1 rounded-xl"
