@@ -794,6 +794,7 @@ describe('ReproductionService — RAKHAL-285 dry-off projection recompute', () =
     abortionEvent: { create: jest.Mock; count: jest.Mock };
     reproductionProfile: { upsert: jest.Mock };
     $transaction: jest.Mock;
+    $queryRaw: jest.Mock;
   };
   let farmSettings: {
     reproVwpDays: jest.Mock;
@@ -851,6 +852,7 @@ describe('ReproductionService — RAKHAL-285 dry-off projection recompute', () =
           ? (arg as (tx: unknown) => unknown)(prisma)
           : Promise.all(arg as Promise<unknown>[]),
       ),
+      $queryRaw: jest.fn().mockResolvedValue([]),
     };
     farmSettings = {
       reproVwpDays: jest.fn().mockResolvedValue(60),

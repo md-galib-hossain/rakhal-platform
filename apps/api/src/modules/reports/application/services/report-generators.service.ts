@@ -9,6 +9,7 @@ import {
   HealthTaskStatus,
   LactationStatus,
   MilkTankType,
+  PregnancyStatus,
   ReproductionState,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
@@ -335,6 +336,9 @@ export class ReportGeneratorsService {
         where: {
           cattleId: { in: cattleIds },
           conceptionDate: { gte: start, lt: end },
+          // RAKHAL-325: a correction (data-entry mistake) must not count
+          // toward the reported conception rate.
+          status: { not: PregnancyStatus.CANCELLED_CORRECTION },
         },
       }),
       this.prisma.reproductionProfile.count({

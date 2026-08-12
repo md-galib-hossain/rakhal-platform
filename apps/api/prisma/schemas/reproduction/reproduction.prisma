@@ -164,6 +164,15 @@ model Pregnancy {
   /// update. Nullable, no backfill guess (ambiguous for pre-existing rows).
   sourceDiagnosisId String?
 
+  /// RAKHAL-325: set only when `status=CANCELLED_CORRECTION` — the explicit
+  /// "this was a data-entry mistake, not a real biological event" path.
+  /// `correctedBy` is a `User.id`, kept as a plain string (no relation) to
+  /// match this file's existing style (`PregnancyDiagnosis`/`BreedingEvent`
+  /// carry no actor FK either).
+  correctionReason String?
+  correctedBy      String?
+  correctedAt      DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

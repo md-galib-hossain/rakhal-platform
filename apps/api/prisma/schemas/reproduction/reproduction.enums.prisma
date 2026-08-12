@@ -115,6 +115,13 @@ enum PregnancyStatus {
   CALVED
   ABORTED
   FAILED
+  /// RAKHAL-325: an entry mistake ("she was never really pregnant, the row
+  /// was a data-entry error"), distinct from ABORTED/FAILED (real biological
+  /// outcomes). Never a hard delete — `correctionReason`/`correctedBy`/
+  /// `correctedAt` on `Pregnancy` carry the audit trail. Excluded from
+  /// conception-rate/services-per-conception KPIs and reports so a fixed
+  /// typo doesn't skew farm analytics.
+  CANCELLED_CORRECTION
 }
 
 enum CalvingEase {

@@ -2,6 +2,7 @@
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   Post,
   Query,
@@ -23,6 +24,7 @@ import { CreateCalvingEventDto } from '../dto/create-calving-event.dto';
 import { CreateDryOffDto } from '../dto/create-dry-off.dto';
 import { CreateHeatEventDto } from '../dto/create-heat-event.dto';
 import { CreatePregnancyDiagnosisDto } from '../dto/create-pregnancy-diagnosis.dto';
+import { CorrectPregnancyDto } from '../dto/correct-pregnancy.dto';
 import { CreatePurchasedLactationDto } from '../dto/create-purchased-lactation.dto';
 import { ResolveHeatEventDto } from '../dto/resolve-heat-event.dto';
 import { ReturnToHeatDto } from '../dto/return-to-heat.dto';
@@ -47,8 +49,13 @@ export class ReproductionController {
   createHeatEvent(
     @CurrentFarmId() farmId: string,
     @Body() dto: CreateHeatEventDto,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ) {
-    return this.reproductionService.createHeatEvent(farmId, dto);
+    return this.reproductionService.createHeatEvent(
+      farmId,
+      dto,
+      idempotencyKey,
+    );
   }
 
   @Get('heat-events')
@@ -77,8 +84,14 @@ export class ReproductionController {
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
     @Body() dto: CreateBreedingEventDto,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ) {
-    return this.reproductionService.createBreedingEvent(farmId, userId, dto);
+    return this.reproductionService.createBreedingEvent(
+      farmId,
+      userId,
+      dto,
+      idempotencyKey,
+    );
   }
 
   @Get('breeding-events')
@@ -114,11 +127,13 @@ export class ReproductionController {
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
     @Body() dto: CreatePregnancyDiagnosisDto,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ) {
     return this.reproductionService.createPregnancyDiagnosis(
       farmId,
       userId,
       dto,
+      idempotencyKey,
     );
   }
 
@@ -131,14 +146,32 @@ export class ReproductionController {
     return this.reproductionService.listPregnancies(farmId, query);
   }
 
+  /** RAKHAL-325: explicit "this was a data-entry mistake" correction — never a hard delete. */
+  @Post('pregnancies/:id/correct')
+  @RequirePermission('reproduction.create')
+  correctPregnancy(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body() dto: CorrectPregnancyDto,
+  ) {
+    return this.reproductionService.correctPregnancy(farmId, userId, id, dto);
+  }
+
   @Post('calving-events')
   @RequirePermission('reproduction.create')
   createCalvingEvent(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
     @Body() dto: CreateCalvingEventDto,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ) {
-    return this.reproductionService.createCalvingEvent(farmId, userId, dto);
+    return this.reproductionService.createCalvingEvent(
+      farmId,
+      userId,
+      dto,
+      idempotencyKey,
+    );
   }
 
   @Get('calving-events')

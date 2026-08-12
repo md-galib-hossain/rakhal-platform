@@ -161,13 +161,19 @@ export class ReproductionDerivationService {
 
     await Promise.all(
       pregnancies.map((pregnancy) => {
+        // RAKHAL-325: CANCELLED_CORRECTION is a terminal, explicitly-written
+        // status (only `ReproductionService.correctPregnancy` writes it) —
+        // preserved here the same way FAILED already is, never guessed back
+        // to ACTIVE by this recompute.
         const next = calvedIds.has(pregnancy.id)
           ? PregnancyStatus.CALVED
           : abortedIds.has(pregnancy.id)
             ? PregnancyStatus.ABORTED
             : pregnancy.status === PregnancyStatus.FAILED
               ? PregnancyStatus.FAILED
-              : PregnancyStatus.ACTIVE;
+              : pregnancy.status === PregnancyStatus.CANCELLED_CORRECTION
+                ? PregnancyStatus.CANCELLED_CORRECTION
+                : PregnancyStatus.ACTIVE;
 
         if (next === pregnancy.status) return Promise.resolve();
         return this.prisma.pregnancy.update({
@@ -365,8 +371,20 @@ export class ReproductionDerivationService {
       }),
       this.farmSettings.reproVwpDays(farmId),
       this.prisma.breedingEvent.count({ where: { cattleId } }),
+      // RAKHAL-325: totalPregnancies feeds farm-level KPIs/reports —
+      // CANCELLED_CORRECTION (a data-entry mistake, not a real pregnancy)
+      // must not inflate it, same reasoning FAILED's existing exclusion
+      // already applies.
       this.prisma.pregnancy.findMany({
-        where: { cattleId, status: { not: PregnancyStatus.FAILED } },
+        where: {
+          cattleId,
+          status: {
+            notIn: [
+              PregnancyStatus.FAILED,
+              PregnancyStatus.CANCELLED_CORRECTION,
+            ],
+          },
+        },
         select: { id: true, status: true },
       }),
       this.prisma.calvingEvent.count({ where: { cattleId } }),

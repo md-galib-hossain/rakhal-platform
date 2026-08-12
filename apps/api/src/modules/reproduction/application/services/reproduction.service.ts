@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -62,6 +63,7 @@ import { CreateDryOffDto } from '../../presentation/dto/create-dry-off.dto';
 import { CreatePurchasedLactationDto } from '../../presentation/dto/create-purchased-lactation.dto';
 import { CreateHeatEventDto } from '../../presentation/dto/create-heat-event.dto';
 import { CreatePregnancyDiagnosisDto } from '../../presentation/dto/create-pregnancy-diagnosis.dto';
+import { CorrectPregnancyDto } from '../../presentation/dto/correct-pregnancy.dto';
 import { ResolveHeatEventDto } from '../../presentation/dto/resolve-heat-event.dto';
 import { ReturnToHeatDto } from '../../presentation/dto/return-to-heat.dto';
 import { ReproductionListQueryDto } from '../../presentation/dto/common.dto';
@@ -116,7 +118,20 @@ export class ReproductionService {
     this.log = this.logger.setContext(ReproductionService.name);
   }
 
-  async createHeatEvent(farmId: string, dto: CreateHeatEventDto) {
+  async createHeatEvent(
+    farmId: string,
+    dto: CreateHeatEventDto,
+    idempotencyKey?: string,
+  ) {
+    return this.withIdempotency(
+      farmId,
+      idempotencyKey,
+      'reproduction.createHeatEvent',
+      () => this.createHeatEventInner(farmId, dto),
+    );
+  }
+
+  private async createHeatEventInner(farmId: string, dto: CreateHeatEventDto) {
     const cattle = await this.getFemaleCattle(farmId, dto.cattleId);
 
     const heatEvent = await this.prisma.heatEvent.create({
@@ -218,14 +233,35 @@ export class ReproductionService {
       );
     }
 
-    const heatEvent = await this.prisma.heatEvent.create({
-      data: {
-        cattleId: breedingEvent.cattleId,
-        heatDateTime: new Date(dto.heatDateTime),
-        detectionMethod: dto.detectionMethod ?? HeatDetectionMethod.MANUAL,
-        notes: dto.notes,
-        returnedFromBreedingEventId: breedingEvent.id,
-      },
+    // RAKHAL-324: lock the cow row, then re-read the breeding's live status
+    // inside the transaction — closes the race against a concurrent
+    // `createPregnancyDiagnosis` resolving the same breeding between the
+    // unlocked check above and this write (e.g. a vet confirming pregnancy
+    // while a worker records return-to-heat at the same moment).
+    const heatEvent = await this.prisma.$transaction(async (tx) => {
+      await this.lockCattleForUpdate(tx, breedingEvent.cattleId);
+      const freshBreedingEvent = await tx.breedingEvent.findFirst({
+        where: { id: breedingEventId },
+        select: { status: true },
+      });
+      if (
+        !freshBreedingEvent ||
+        freshBreedingEvent.status !== BreedingStatus.PENDING_CHECK
+      ) {
+        throw new BadRequestException(
+          `Breeding #${breedingEvent.breedingNumber} for [${breedingEvent.cattle.tagNumber}] is already resolved (${freshBreedingEvent?.status ?? 'unknown'}) — return-to-heat only applies while a pregnancy check is still pending.`,
+        );
+      }
+
+      return tx.heatEvent.create({
+        data: {
+          cattleId: breedingEvent.cattleId,
+          heatDateTime: new Date(dto.heatDateTime),
+          detectionMethod: dto.detectionMethod ?? HeatDetectionMethod.MANUAL,
+          notes: dto.notes,
+          returnedFromBreedingEventId: breedingEvent.id,
+        },
+      });
     });
 
     await this.ensureProfile(breedingEvent.cattleId);
@@ -252,13 +288,29 @@ export class ReproductionService {
     farmId: string,
     userId: string,
     dto: CreateBreedingEventDto,
+    idempotencyKey?: string,
+  ) {
+    return this.withIdempotency(
+      farmId,
+      idempotencyKey,
+      'reproduction.createBreedingEvent',
+      () => this.createBreedingEventInner(farmId, userId, dto),
+    );
+  }
+
+  private async createBreedingEventInner(
+    farmId: string,
+    userId: string,
+    dto: CreateBreedingEventDto,
   ) {
     const cattle = await this.getFemaleCattle(farmId, dto.cattleId);
 
     // RAKHAL-314: a breeding is meaningless on an already-pregnant cow — block
-    // before any side effect (straw decrement, task creation). Correction path
-    // is editing/retiring the active Pregnancy first (MILESTONE 17's edit
-    // substrate), then recording the new breeding.
+    // before any side effect. Correction path is editing/retiring the active
+    // Pregnancy first (MILESTONE 17's edit substrate), then recording the new
+    // breeding. Read here for the straw-decrement/breedingNumber fast-fail
+    // (unlocked, best-effort); RAKHAL-324's authoritative re-check happens
+    // inside the transaction below, after the row lock.
     const activePregnancy = await this.prisma.pregnancy.findFirst({
       where: { cattleId: dto.cattleId, status: PregnancyStatus.ACTIVE },
     });
@@ -288,6 +340,21 @@ export class ReproductionService {
     const breedingDate = new Date(dto.breedingDate);
 
     const breedingEvent = await this.prisma.$transaction(async (tx) => {
+      // RAKHAL-324: lock the cow row, then re-validate the active-pregnancy
+      // guard against live, transaction-consistent state — closes the race
+      // where a concurrent `createPregnancyDiagnosis` PREGNANT confirmation
+      // commits between the unlocked check above and this write.
+      await this.lockCattleForUpdate(tx, dto.cattleId);
+      const activePregnancyInTx = await tx.pregnancy.findFirst({
+        where: { cattleId: dto.cattleId, status: PregnancyStatus.ACTIVE },
+        select: { id: true },
+      });
+      if (activePregnancyInTx) {
+        throw new BadRequestException(
+          `[${cattle.tagNumber}] already has an active pregnancy (id ${activePregnancyInTx.id}). Resolve or correct it before recording a new breeding.`,
+        );
+      }
+
       const created = await tx.breedingEvent.create({
         data: {
           cattleId: dto.cattleId,
@@ -342,21 +409,25 @@ export class ReproductionService {
     await this.derivation.refreshDerivedState(farmId, dto.cattleId);
 
     // Task Hub: schedule the pregnancy check for this service (PRD §9.3, §17.6).
-    await this.taskService.createInternal({
-      farmId,
-      createdBy: userId,
-      name: `Pregnancy check — ${cattle.tagNumber}`,
-      details: `Confirm pregnancy for breeding #${breedingEvent.breedingNumber} of [${cattle.tagNumber}].`,
-      category: TaskCategory.BREEDING,
-      priority: TaskPriority.MEDIUM,
-      dueAt:
-        breedingEvent.expectedPregnancyCheckDate ??
-        this.addDays(new Date(dto.breedingDate), 35),
-      source: TaskSource.SYSTEM_AUTO,
-      relatedCattleId: dto.cattleId,
-      sourceEventType: 'BREEDING_EVENT',
-      sourceEventId: breedingEvent.id,
-    });
+    // RAKHAL-322: guarded against duplicates — see createBreedingTaskUnlessDuplicate.
+    await this.createBreedingTaskUnlessDuplicate(
+      {
+        farmId,
+        createdBy: userId,
+        name: `Pregnancy check — ${cattle.tagNumber}`,
+        details: `Confirm pregnancy for breeding #${breedingEvent.breedingNumber} of [${cattle.tagNumber}].`,
+        category: TaskCategory.BREEDING,
+        priority: TaskPriority.MEDIUM,
+        dueAt:
+          breedingEvent.expectedPregnancyCheckDate ??
+          this.addDays(new Date(dto.breedingDate), 35),
+        source: TaskSource.SYSTEM_AUTO,
+        relatedCattleId: dto.cattleId,
+        sourceEventType: 'BREEDING_EVENT',
+        sourceEventId: breedingEvent.id,
+      },
+      'Pregnancy check — ',
+    );
 
     this.log.info('Breeding event created', {
       breedingEventId: breedingEvent.id,
@@ -400,6 +471,20 @@ export class ReproductionService {
     farmId: string,
     userId: string,
     dto: CreatePregnancyDiagnosisDto,
+    idempotencyKey?: string,
+  ) {
+    return this.withIdempotency(
+      farmId,
+      idempotencyKey,
+      'reproduction.createPregnancyDiagnosis',
+      () => this.createPregnancyDiagnosisInner(farmId, userId, dto),
+    );
+  }
+
+  private async createPregnancyDiagnosisInner(
+    farmId: string,
+    userId: string,
+    dto: CreatePregnancyDiagnosisDto,
   ) {
     const cattle = await this.getFemaleCattle(farmId, dto.cattleId);
     const breedingEvent = dto.breedingEventId
@@ -411,6 +496,12 @@ export class ReproductionService {
       await this.farmSettings.reproDryPeriodTargetDays(farmId);
 
     const diagnosis = await this.prisma.$transaction(async (tx) => {
+      // RAKHAL-324: same cow-row lock `createBreedingEvent`/`returnToHeat`
+      // take — this PREGNANT branch is the other side of both of those races
+      // (it's the write that flips Pregnancy/BreedingEvent state they guard
+      // against).
+      await this.lockCattleForUpdate(tx, dto.cattleId);
+
       const created = await tx.pregnancyDiagnosis.create({
         data: {
           cattleId: dto.cattleId,
@@ -529,19 +620,24 @@ export class ReproductionService {
           new Date(dto.diagnosisDate),
           PREGNANCY_RECHECK_DAYS,
         );
-        await this.taskService.createInternal({
-          farmId,
-          createdBy: userId,
-          name: `Pregnancy recheck — ${cattle.tagNumber}`,
-          details: `Diagnosis on ${dto.diagnosisDate} was inconclusive; recheck breeding #${breedingEvent?.breedingNumber ?? '?'} of [${cattle.tagNumber}].`,
-          category: TaskCategory.BREEDING,
-          priority: TaskPriority.MEDIUM,
-          dueAt: recheckDueDate,
-          source: TaskSource.SYSTEM_AUTO,
-          relatedCattleId: dto.cattleId,
-          sourceEventType: 'BREEDING_EVENT',
-          sourceEventId: dto.breedingEventId,
-        });
+        // RAKHAL-322: guarded against duplicates — two rapid SUSPECTED
+        // diagnoses on the same breeding must not open two recheck cards.
+        await this.createBreedingTaskUnlessDuplicate(
+          {
+            farmId,
+            createdBy: userId,
+            name: `Pregnancy recheck — ${cattle.tagNumber}`,
+            details: `Diagnosis on ${dto.diagnosisDate} was inconclusive; recheck breeding #${breedingEvent?.breedingNumber ?? '?'} of [${cattle.tagNumber}].`,
+            category: TaskCategory.BREEDING,
+            priority: TaskPriority.MEDIUM,
+            dueAt: recheckDueDate,
+            source: TaskSource.SYSTEM_AUTO,
+            relatedCattleId: dto.cattleId,
+            sourceEventType: 'BREEDING_EVENT',
+            sourceEventId: dto.breedingEventId,
+          },
+          'Pregnancy recheck — ',
+        );
 
         // RAKHAL-320: breeding stays PENDING_CHECK (still unresolved — see
         // reproduction-alerts.ts's PREGNANCY_CHECK_DUE derivation), but its
@@ -589,7 +685,72 @@ export class ReproductionService {
     return toCursorPage(rows, query);
   }
 
+  /**
+   * RAKHAL-325: mark a `Pregnancy` row as a data-entry mistake ("she was
+   * never really pregnant"), distinct from `ABORTED`/`FAILED` (real
+   * biological outcomes) — never a hard delete, the row and its audit trail
+   * (`correctionReason`/`correctedBy`/`correctedAt`) stay forever. Already
+   * `CANCELLED_CORRECTION` is a no-op-guarded error, not silently re-applied.
+   * `refreshDerivedState` afterwards clears any `ReproductionProfile`/
+   * `Lactation.recommendedDryOffAt` pointer that was keyed off this
+   * pregnancy while it still read as ACTIVE.
+   */
+  async correctPregnancy(
+    farmId: string,
+    userId: string,
+    pregnancyId: string,
+    dto: CorrectPregnancyDto,
+  ) {
+    const pregnancy = await this.prisma.pregnancy.findFirst({
+      where: { id: pregnancyId, cattle: { farmId } },
+      include: { cattle: { select: { tagNumber: true } } },
+    });
+    if (!pregnancy) {
+      throw new NotFoundException('Pregnancy not found');
+    }
+    if (pregnancy.status === PregnancyStatus.CANCELLED_CORRECTION) {
+      throw new BadRequestException(
+        `Pregnancy for [${pregnancy.cattle.tagNumber}] is already marked as a correction`,
+      );
+    }
+
+    const corrected = await this.prisma.pregnancy.update({
+      where: { id: pregnancyId },
+      data: {
+        status: PregnancyStatus.CANCELLED_CORRECTION,
+        correctionReason: dto.reason,
+        correctedBy: userId,
+        correctedAt: new Date(),
+      },
+    });
+
+    await this.derivation.refreshDerivedState(farmId, pregnancy.cattleId);
+
+    this.log.info('Pregnancy marked as correction', {
+      pregnancyId,
+      cattleId: pregnancy.cattleId,
+      farmId,
+      correctedBy: userId,
+    });
+
+    return corrected;
+  }
+
   async createCalvingEvent(
+    farmId: string,
+    userId: string,
+    dto: CreateCalvingEventDto,
+    idempotencyKey?: string,
+  ) {
+    return this.withIdempotency(
+      farmId,
+      idempotencyKey,
+      'reproduction.createCalvingEvent',
+      () => this.createCalvingEventInner(farmId, userId, dto),
+    );
+  }
+
+  private async createCalvingEventInner(
     farmId: string,
     userId: string,
     dto: CreateCalvingEventDto,
@@ -1896,6 +2057,106 @@ export class ReproductionService {
       where: { id: cattleId, isActive: true },
       data: { productionStatus: ProductionStatus.MILKING },
     });
+  }
+
+  /**
+   * RAKHAL-324: take a Postgres row lock on the cow for the lifetime of the
+   * caller's transaction. Two near-concurrent writes on the same cow (e.g. a
+   * pregnancy confirmation racing a new breeding, or a return-to-heat racing
+   * a diagnosis) serialize on this lock — the second transaction blocks here
+   * until the first commits, then its own re-read of live state (the guard
+   * that runs immediately after this call) sees the first transaction's
+   * effect and can 400 cleanly instead of both succeeding inconsistently.
+   */
+  private async lockCattleForUpdate(
+    tx: Prisma.TransactionClient,
+    cattleId: string,
+  ): Promise<void> {
+    await tx.$queryRaw(
+      Prisma.sql`SELECT id FROM "Cattle" WHERE id = ${cattleId} FOR UPDATE`,
+    );
+  }
+
+  /**
+   * RAKHAL-322: at most one active (non-completed) pregnancy-check/recheck
+   * task per breeding event. `namePrefix` is the same discriminator
+   * RAKHAL-321's dashboard panels already split on ("Pregnancy check — " vs
+   * "Pregnancy recheck — ") — reused here instead of a new column. Guards
+   * against a double-submit or a race between two workers spawning two open
+   * dashboard cards for the same check.
+   */
+  private async createBreedingTaskUnlessDuplicate(
+    input: Parameters<TaskService['createInternal']>[0],
+    namePrefix: string,
+  ) {
+    if (input.sourceEventType && input.sourceEventId) {
+      const existing = await this.prisma.task.findFirst({
+        where: {
+          farmId: input.farmId,
+          sourceEventType: input.sourceEventType,
+          sourceEventId: input.sourceEventId,
+          status: { not: TaskStatus.COMPLETED },
+          name: { startsWith: namePrefix },
+        },
+        select: { id: true },
+      });
+      if (existing) {
+        this.log.info('Duplicate pregnancy-check/recheck task suppressed', {
+          farmId: input.farmId,
+          sourceEventId: input.sourceEventId,
+          existingTaskId: existing.id,
+        });
+        return existing;
+      }
+    }
+    return this.taskService.createInternal(input);
+  }
+
+  /**
+   * RAKHAL-323: generic per-farm idempotency guard. A caller-supplied
+   * `Idempotency-Key` header reserves a row before `fn()` runs — the unique
+   * `(farmId, key, endpoint)` index is the race-safe guard (the DB, not a
+   * pre-check, decides who wins a true concurrent double-submit). A replay
+   * of the same key (sequential retry, or the loser of a race once the
+   * winner has finished) returns the original stored response instead of
+   * creating a second row. No key supplied → `fn()` just runs, unguarded, as
+   * every caller behaved before this ticket.
+   */
+  private async withIdempotency<T>(
+    farmId: string,
+    key: string | undefined,
+    endpoint: string,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    if (!key) return fn();
+
+    try {
+      await this.prisma.idempotencyKey.create({
+        data: { farmId, key, endpoint },
+      });
+    } catch (error) {
+      if (!this.isUniqueError(error)) throw error;
+      const existing = await this.prisma.idempotencyKey.findUnique({
+        where: { farmId_key_endpoint: { farmId, key, endpoint } },
+      });
+      if (existing?.responseBody) {
+        return existing.responseBody as T;
+      }
+      throw new ConflictException(
+        'An identical request with this Idempotency-Key is already in progress',
+      );
+    }
+
+    const result = await fn();
+    await this.prisma.idempotencyKey.update({
+      where: { farmId_key_endpoint: { farmId, key, endpoint } },
+      data: { responseBody: result as unknown as Prisma.InputJsonValue },
+    });
+    return result;
+  }
+
+  private isUniqueError(error: unknown): boolean {
+    return (error as { code?: string }).code === 'P2002';
   }
 
   /** Resolve a female animal scoped to the active farm (tenant isolation). */
