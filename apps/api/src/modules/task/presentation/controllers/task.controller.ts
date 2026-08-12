@@ -88,6 +88,13 @@ export class TaskController {
     return this.taskService.complete(farmId, userId, id, dto);
   }
 
+  /** Undo a mistaken `complete()` — manager+ only (task.update), keeps the source-event link. */
+  @Post(':id/reopen')
+  @RequirePermission('task.update')
+  reopen(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.taskService.reopen(farmId, id);
+  }
+
   @Post(':id/steps/:stepId/check')
   @RequirePermission('task.complete')
   checkStep(

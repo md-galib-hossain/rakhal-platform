@@ -487,6 +487,26 @@ export class ReproductionService {
     dto: CreatePregnancyDiagnosisDto,
   ) {
     const cattle = await this.getFemaleCattle(farmId, dto.cattleId);
+
+    // RAKHAL-(pregnancy-check-orphan): the "Record Pregnancy Check" quick
+    // action lets a diagnosis be submitted without picking a breeding event
+    // (a genuine standalone check is allowed) — but when the cow has exactly
+    // one open PENDING_CHECK breeding, that's unambiguously the one this
+    // diagnosis answers. Auto-link it so the breeding's pregnancy-check task
+    // actually completes below, instead of sitting PENDING forever. Left
+    // unresolved (dto.breedingEventId stays undefined) when zero or more
+    // than one candidate exists — never guess between two open breedings.
+    if (!dto.breedingEventId) {
+      const openBreedings = await this.prisma.breedingEvent.findMany({
+        where: { cattleId: dto.cattleId, status: BreedingStatus.PENDING_CHECK },
+        select: { id: true },
+        take: 2,
+      });
+      if (openBreedings.length === 1) {
+        dto.breedingEventId = openBreedings[0].id;
+      }
+    }
+
     const breedingEvent = dto.breedingEventId
       ? await this.getBreedingEventForCattle(dto.breedingEventId, dto.cattleId)
       : null;
@@ -1488,6 +1508,7 @@ export class ReproductionService {
     const now = new Date();
     const twelveMonthsAgo = this.addDays(now, -365);
     const vwpDays = await this.farmSettings.reproVwpDays(farmId);
+    const heatWindowDays = await this.farmSettings.reproHeatWindowDays(farmId);
 
     // ---- Farm-level KPIs (rolling 12 months) ----------------------------
     const [
@@ -1559,7 +1580,7 @@ export class ReproductionService {
 
     // ---- Action panels --------------------------------------------------
     const vwpCutoff = this.addDays(now, -vwpDays); // per-farm VWP (RD-016)
-    const in24h = this.addHours(now, -24);
+    const in24h = this.addDays(now, -heatWindowDays);
     const in3d = this.addDays(now, 3);
     const in7d = this.addDays(now, 7);
 
@@ -1603,7 +1624,7 @@ export class ReproductionService {
         },
         take: 20,
       }),
-      // In heat now: heat events in the last 24 hours
+      // In heat now: heat events within the farm's heat window (RD-016-adjacent)
       this.prisma.heatEvent.findMany({
         where: {
           cattle: { farmId, isActive: true },

@@ -284,6 +284,34 @@ export class TaskService {
     };
   }
 
+  /**
+   * Undo an accidental `complete()` (e.g. a farm owner mistouching the Task
+   * Hub checkbox). Reverts status to PENDING and clears the completion
+   * stamp; the task keeps its original `sourceEventType`/`sourceEventId`
+   * link, so it reappears wherever it was sourced from (e.g. the
+   * reproduction dashboard's pregnancy-check-due panel).
+   */
+  async reopen(farmId: string, id: string) {
+    const existing = await this.getOrThrow(farmId, id);
+    if (existing.status !== TaskStatus.COMPLETED) {
+      throw new BadRequestException('Task is not completed');
+    }
+
+    const task = await this.prisma.task.update({
+      where: { id },
+      data: {
+        status: TaskStatus.PENDING,
+        completedAt: null,
+        completedById: null,
+        completionPhotoUrl: null,
+      },
+      include: this.assigneeInclude(),
+    });
+
+    this.log.info('Task reopened', { taskId: id, farmId });
+    return this.present(task);
+  }
+
   async checkStep(
     farmId: string,
     id: string,
