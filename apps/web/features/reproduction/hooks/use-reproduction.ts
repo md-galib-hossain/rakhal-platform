@@ -50,6 +50,18 @@ export function useActiveLactation(cattleId?: string) {
   });
 }
 
+/** RAKHAL-317-F — the one ACTIVE `Pregnancy` for a cow, used to surface the calculated-vs-expected
+ * calving date comparison on the Reproduction tab. Mirrors `useActiveLactation`'s shape. */
+export function useActivePregnancy(cattleId?: string) {
+  return useQuery({
+    queryKey: qk.reproduction.pregnancies(cattleId),
+    queryFn: () => reproductionApi.pregnancies(cattleId),
+    select: (page) => page.items.find((p) => p.status === "ACTIVE") ?? null,
+    enabled: Boolean(cattleId),
+    staleTime: STALE_TIME,
+  });
+}
+
 export function useReproductionEvents(query: ReproEventsQuery) {
   return useQuery({
     queryKey: qk.reproduction.events({

@@ -775,7 +775,12 @@
       "cancel": "Cancel",
       "apply": "Apply",
       "resultToast": "{updated} updated, {failed} failed",
-      "failedToast": "Bulk action failed."
+      "failedToast": "Bulk action failed.",
+      "selectCard": "Select {name}"
+    },
+    "view": {
+      "gridView": "Grid view",
+      "tableView": "Table view"
     },
     "form": {
       "addCattle": "Add New Cow",
@@ -1266,6 +1271,15 @@
         "persistency": "Persistency",
         "persistencyPct": "{value}%",
         "persistencyDetail": "{current} L now vs {peak} L peak ({daysSincePeak} days since peak)"
+      },
+      "pregnancy": {
+        "title": "Calving Forecast",
+        "error": "Could not load pregnancy data.",
+        "systemEstimate": "System estimate:",
+        "source": {
+          "SYSTEM": "System calculated",
+          "MANUAL": "Farm confirmed"
+        }
       }
     },
     "import": {

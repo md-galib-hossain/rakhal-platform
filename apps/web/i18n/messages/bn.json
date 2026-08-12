@@ -775,7 +775,12 @@
       "cancel": "বাতিল",
       "apply": "প্রয়োগ করুন",
       "resultToast": "{updated} টি আপডেট, {failed} টি ব্যর্থ",
-      "failedToast": "বাল্ক অ্যাকশন ব্যর্থ হয়েছে।"
+      "failedToast": "বাল্ক অ্যাকশন ব্যর্থ হয়েছে।",
+      "selectCard": "{name} নির্বাচন করুন"
+    },
+    "view": {
+      "gridView": "গ্রিড ভিউ",
+      "tableView": "টেবিল ভিউ"
     },
     "form": {
       "addCattle": "নতুন গরু যোগ করুন",
@@ -1266,6 +1271,15 @@
         "persistency": "স্থিতিশীলতা",
         "persistencyPct": "{value}%",
         "persistencyDetail": "বর্তমানে {current} লি বনাম সর্বোচ্চ {peak} লি (সর্বোচ্চের পর {daysSincePeak} দিন)"
+      },
+      "pregnancy": {
+        "title": "প্রসবের পূর্বাভাস",
+        "error": "গর্ভাবস্থার তথ্য লোড করা যায়নি।",
+        "systemEstimate": "সিস্টেম অনুমান:",
+        "source": {
+          "SYSTEM": "সিস্টেম গণনাকৃত",
+          "MANUAL": "খামার নিশ্চিত"
+        }
       }
     },
     "import": {

@@ -6,12 +6,14 @@ import { toast } from "sonner";
 import type { RowSelectionState } from "@tanstack/react-table";
 import { useSearchParams } from "next/navigation";
 import { parseAsString, useQueryState } from "nuqs";
+import { LayoutGrid, List } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCan } from "@/lib/auth/permissions";
+import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { DataTable } from "@/components/shared/data-table";
 import { Pagination } from "@/components/shared/pagination";
 import { BulkActionDock } from "@/components/shared/bulk-action-dock";
-import { useTableBulkSelection } from "@/lib/hooks/use-bulk-selection";
+import { useTableBulkSelection, useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBulkCattle, useCattleDetail, useCattlePagedList, useFeedGroups, useSheds } from "../hooks/use-cattle";
 import { buildCattleColumns } from "./cattle-columns";
+import { CattleGrid } from "./cattle-grid";
 import { CattleFormDialog } from "./cattle-form-dialog";
 import { CattleStatusDialog } from "./cattle-status-dialog";
 import { CattleArchiveDialog } from "./cattle-archive-dialog";
@@ -62,6 +65,14 @@ export function CattleTable() {
    * now (no standalone `/cattle/:id` page), so its own deep link has to live here for the redirect
    * in `app/(app)/cattle/[id]/page.tsx` to have somewhere to land. */
   const [viewId, setViewId] = useQueryState("view", parseAsString);
+  /** RAKHAL-042's "cards (mobile default)" AC — seeded from viewport width on mount (SSR-safe
+   * `useMediaQuery`, starts `false`/table so it never fights hydration), then a manual toggle
+   * (same `LayoutGrid`/`List` pair `InventoryTabs` already uses) lets either device switch freely
+   * afterward. Not URL-synced like `?view=` above — that param is the detail-drawer deep link,
+   * unrelated to this list/grid presentation toggle. */
+  const isMobile = useMediaQuery("(max-width: 767px)");
+  const [listMode, setListMode] = useState<"table" | "grid" | null>(null);
+  const mode = listMode ?? (isMobile ? "grid" : "table");
 
   const filters: CattleListFilters = {
     search: searchParams.get("search") ?? undefined,
@@ -96,7 +107,9 @@ export function CattleTable() {
   );
 
   const allIds = items.map((c) => c.id);
-  const selection = useTableBulkSelection(rowSelection, setRowSelection, allIds);
+  const tableSelection = useTableBulkSelection(rowSelection, setRowSelection, allIds);
+  const gridSelection = useGridBulkSelection(allIds);
+  const selection = mode === "table" ? tableSelection : gridSelection;
   const selectedItems = items.filter((c) => selection.selectedIds.includes(c.id));
   const tBulk = useTranslations("cattle.bulk");
 
@@ -133,30 +146,78 @@ export function CattleTable() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div
-        className={cn(
-          "overflow-hidden rounded-2xl border border-border",
-          // Figma "Cattle" table spec, scoped to this instance only (not the shared `Table`
-          // primitive, which every other page's table also uses): 54px normal-case header row,
-          // 56px body rows (achieved by trimming `TableCell`'s default py-3 to py-2).
-          "[&_thead_tr]:border-b-0 [&_thead_tr]:bg-muted",
-          "[&_thead_th]:h-[54px] [&_thead_th]:text-sm [&_thead_th]:font-medium [&_thead_th]:normal-case [&_thead_th]:tracking-normal [&_thead_th]:text-muted-foreground",
-          "[&_tbody_td]:py-2",
-        )}
-      >
-        <DataTable
-          columns={columns}
-          data={items}
-          getRowId={(row) => row.id}
+      <div className="flex items-center justify-end gap-0.5 rounded-lg bg-muted p-0.5">
+        <button
+          type="button"
+          onClick={() => setListMode("grid")}
+          aria-label={t("view.gridView")}
+          aria-pressed={mode === "grid"}
+          className={cn(
+            "flex size-[30px] items-center justify-center rounded-md transition-colors",
+            mode === "grid" ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <LayoutGrid className="size-4" aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={() => setListMode("table")}
+          aria-label={t("view.tableView")}
+          aria-pressed={mode === "table"}
+          className={cn(
+            "flex size-[30px] items-center justify-center rounded-md transition-colors",
+            mode === "table" ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <List className="size-4" aria-hidden />
+        </button>
+      </div>
+
+      {mode === "table" ? (
+        <div
+          className={cn(
+            "overflow-hidden rounded-2xl border border-border",
+            // Figma "Cattle" table spec, scoped to this instance only (not the shared `Table`
+            // primitive, which every other page's table also uses): 54px normal-case header row,
+            // 56px body rows (achieved by trimming `TableCell`'s default py-3 to py-2).
+            "[&_thead_tr]:border-b-0 [&_thead_tr]:bg-muted",
+            "[&_thead_th]:h-[54px] [&_thead_th]:text-sm [&_thead_th]:font-medium [&_thead_th]:normal-case [&_thead_th]:tracking-normal [&_thead_th]:text-muted-foreground",
+            "[&_tbody_td]:py-2",
+          )}
+        >
+          <DataTable
+            columns={columns}
+            data={items}
+            getRowId={(row) => row.id}
+            isLoading={query.isLoading}
+            isError={query.isError}
+            onRetry={() => query.refetch()}
+            emptyState={{ title: t("empty.title"), description: t("empty.description") }}
+            enableRowSelection={canBulk}
+            rowSelection={rowSelection}
+            onRowSelectionChange={setRowSelection}
+          />
+        </div>
+      ) : (
+        <CattleGrid
+          items={items}
           isLoading={query.isLoading}
           isError={query.isError}
           onRetry={() => query.refetch()}
-          emptyState={{ title: t("empty.title"), description: t("empty.description") }}
-          enableRowSelection={canBulk}
-          rowSelection={rowSelection}
-          onRowSelectionChange={setRowSelection}
+          rowActions={{
+            onView: (cattle) => void setViewId(cattle.id),
+            onEdit: (cattle) => {
+              setEditingId(cattle.id);
+              setFormOpen(true);
+            },
+            onChangeStatus: setStatusTarget,
+            onArchive: setArchiveTarget,
+          }}
+          canSelect={canBulk}
+          isSelected={gridSelection.isSelected}
+          onToggleSelect={gridSelection.toggle}
         />
-      </div>
+      )}
       <Pagination
         page={query.page}
         totalPages={query.totalPages}

@@ -14,6 +14,7 @@ import { useCattleCalvingEvents, useCattleReproductionSummary } from "../../hook
 import type { CattleGender, LactationStage } from "../../types";
 import { LactationCurveChart } from "./charts/lactation-curve-chart";
 import { LactationSummaryCard } from "./lactation-summary-card"; // RAKHAL-291-F
+import { PregnancyCalvingCard } from "./pregnancy-calving-card"; // RAKHAL-317-F
 
 interface CalvingRow {
   eventId: string;
@@ -75,6 +76,9 @@ export function ReproductionTab({
       {/* RAKHAL-291-F — Lactation Summary card (today/7d/30d yield, totals by disposition, peak,
           persistency, milk eligibility). Top section, ahead of the calving-focused stats below. */}
       <LactationSummaryCard cattleId={cattleId} lactationStage={lactationStage} />
+
+      {/* RAKHAL-317-F — calculated-vs-farmer-expected calving date, only renders when pregnant. */}
+      <PregnancyCalvingCard cattleId={cattleId} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label={t("totalCalvings")} value={data.totalCalvings} />

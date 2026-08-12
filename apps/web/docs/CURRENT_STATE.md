@@ -1,5 +1,18 @@
 # Frontend — Current State
 
+## RAKHAL-042 — Cattle list mobile card view, the AC MILESTONE 10's scoping pass left open (2026-08-12)
+Closed the one real gap `docs/IN_FLIGHT.md`'s `agent-m10-enum` entry flagged as out of scope: the top-level
+`docs/PROJECT_PROGRESS.md` RAKHAL-042 ticket's `[ ] List table + cards (mobile default)` AC was still
+unchecked despite this repo's own RFE-021/022/023 tickets shipping list/add/detail long ago — no
+`CattleCard`/grid file existed anywhere. New `CattleGrid`/`CattleCard` (`features/cattle/components/
+cattle-grid.tsx`) mirrors Inventory's `FeedItemCard` anatomy; new `useMediaQuery` hook seeds the
+default view from viewport width, plus a manual `LayoutGrid`/`List` toggle so either device can switch.
+Gate green (typecheck/eslint/build, all 37 routes, both locales valid JSON). **Live click-through not
+verified this pass** — the Browser pane didn't composite at all this session (confirmed via zero-size
+`getBoundingClientRect()` on real elements and `.click()` not reaching React), same class of harness
+limitation this board's `agent-317f-badge`/`agent-045c` entries already documented. Full writeup:
+`docs/IN_FLIGHT.md` Recently Done (agent-042).
+
 ## RAKHAL-319-F — Onboarding intake: bred/AI-given + currently-in-heat (2026-08-12)
 Closed the last open MILESTONE 19 frontend gap besides 317-F. `CattleFormDialog` gained a
 create-mode/female-only "Reproduction status at intake" section — mutually-exclusive toggle
