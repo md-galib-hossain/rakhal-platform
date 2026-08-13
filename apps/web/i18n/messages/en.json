@@ -29,14 +29,13 @@
     "groupWorkspace": "Workspace",
     "groupSystem": "System",
     "dashboard": "Dashboard",
-    "cattle": "Cattle",
+    "animals": "Animal",
     "feedFormulator": "Feed Formulator",
     "milk": "Milk",
     "buyers": "Buyers",
     "finance": "Finance",
     "healthcare": "Healthcare",
     "reproduction": "Reproduction",
-    "calves": "Calves",
     "inventory": "Inventory",
     "scoreboard": "Scoreboard",
     "taskHub": "Task Hub",
@@ -212,7 +211,7 @@
         "genericError": "Something went wrong. Please try again."
       },
       "cattle": {
-        "description": "Add a few animals now, or skip and do it later — you can always add or import cattle from the Cattle page.",
+        "description": "Add a few animals now, or skip and do it later — you can always add or import animals from the Animal page.",
         "countAdded": "{count, plural, one {# animal added} other {# animals added}}",
         "addOne": "Add an animal",
         "importCsv": "Import from CSV",
@@ -657,7 +656,7 @@
     }
   },
   "cattle": {
-    "allCattleView": "All Cattle View",
+    "allCattleView": "All Animals",
     "age": {
       "year": "{value} year",
       "years": "{value} years",
@@ -665,18 +664,18 @@
       "months": "{value} months"
     },
     "empty": {
-      "title": "No cattle found",
+      "title": "No animals found",
       "description": "Try adjusting your search or filters."
     },
     "highlights": {
-      "title": "Cattle Highlights",
-      "totalActive": "Total Cattle",
+      "title": "Animal Highlights",
+      "totalActive": "Total Animals",
       "avgHerdAqr": "Avg. Herd AQR",
       "breedingReady": "Breeding Ready",
       "todaysYield": "Today's Yield",
       "vsLastMonth": "vs last month",
       "vsYesterday": "vs yesterday",
-      "error": "Could not load cattle highlights."
+      "error": "Could not load animal highlights."
     },
     "categories": {
       "all": "All",
@@ -684,15 +683,20 @@
       "dry": "Dry",
       "heifer": "Heifer",
       "calf": "Calf",
+      "cow": "Cow",
+      "bull": "Bull",
+      "steer": "Steer",
       "quickAdd": "Quick-add {category}"
     },
     "filters": {
-      "searchPlaceholder": "Find Cow by name or id",
+      "searchPlaceholder": "Find animal by name or id",
       "status": "Status",
       "health": "Health",
       "breed": "Breed",
       "shed": "Shed",
       "feedGroup": "Feed Group",
+      "animalCategory": "Category",
+      "stage": "Calf Stage",
       "statusOptions": {
         "milking": "Milking",
         "dry": "Dry"
@@ -783,11 +787,12 @@
       "tableView": "Table view"
     },
     "form": {
-      "addCattle": "Add New Cow",
-      "createTitle": "Add New Cattle",
-      "editTitle": "Edit Cattle",
+      "addCattle": "Add New Animal",
+      "createTitle": "Add New Animal",
+      "editTitle": "Edit Animal",
       "basicInfo": "Basic Info",
       "additionalInfo": "Additional Info",
+      "statusSectionTitle": "Status",
       "cowName": "Cow Name",
       "addCowImage": "Add Cow Image",
       "tagNumber": "ID",
@@ -905,14 +910,13 @@
       "menu": "Row actions",
       "viewDetails": "View Details",
       "edit": "Edit",
-      "changeStatus": "Change status",
       "archive": "Archive",
       "restore": "Restore",
       "restoredToast": "Cattle restored.",
       "genericError": "Something went wrong. Please try again."
     },
     "detail": {
-      "title": "Cattle Details",
+      "title": "Animal Details",
       "back": "Back",
       "cancel": "Cancel",
       "editProfile": "Edit Profile",
@@ -2085,7 +2089,8 @@
       "recordHeat": "Record Heat",
       "recordAi": "Record AI",
       "recordPregnancyCheck": "Record Pregnancy Check",
-      "recordAbortion": "Record Abortion"
+      "recordAbortion": "Record Abortion",
+      "recordCalving": "Record Calving"
     },
     "kpi": {
       "heatDetectionRate": "Heat Detection Rate",
@@ -2113,6 +2118,7 @@
       "recordDryOff": "Record Dry-off",
       "daysOpen": "{value}d open",
       "daysRemaining": "{value}d left",
+      "daysOverdue": "{value}d overdue",
       "dryoffTarget": "Target:",
       "error": "Could not load the action panels."
     },
@@ -2243,6 +2249,8 @@
       "calving": {
         "title": "Record Calving",
         "cattle": "Dam",
+        "noPregnancyOnFile": "Can't find her? Record without a linked pregnancy",
+        "backToPregnantCows": "Back to pregnant cows",
         "calvingDate": "Calving date",
         "calvingEase": "Calving ease",
         "easeValue": {

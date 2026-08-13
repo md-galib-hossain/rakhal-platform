@@ -38,15 +38,24 @@ export function ReproductionWorkspace() {
   const t = useTranslations("reproduction");
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [cattleId, setCattleId] = useState<string | undefined>(undefined);
+  const [calvingPregnancyId, setCalvingPregnancyId] = useState<string | undefined>(undefined);
 
   function open(kind: DialogKind, forCattleId?: string) {
     setCattleId(forCattleId);
     setDialog(kind);
   }
 
+  /** Calving needs a second id (`pregnancyId`) alongside the cow, kept separate from the generic
+   * `cattleId` prefill so the other dialogs' wiring stays untouched. */
+  function openCalving(forCattleId?: string, forPregnancyId?: string) {
+    setCalvingPregnancyId(forPregnancyId);
+    open("calving", forCattleId);
+  }
+
   function close() {
     setDialog(null);
     setCattleId(undefined);
+    setCalvingPregnancyId(undefined);
   }
 
   return (
@@ -67,6 +76,9 @@ export function ReproductionWorkspace() {
           <Button variant="outline" size="sm" onClick={() => open("abortion")}>
             {t("actions.recordAbortion")}
           </Button>
+          <Button variant="outline" size="sm" onClick={() => openCalving()}>
+            {t("actions.recordCalving")}
+          </Button>
         </Can>
       </div>
 
@@ -78,7 +90,7 @@ export function ReproductionWorkspace() {
             onRecordAi={(id) => open("breeding", id)}
             onRecordPregnancyCheck={(id) => open("pregnancyDiagnosis", id)}
             onReturnToHeat={(breedingEventId) => open("returnToHeat", breedingEventId)}
-            onRecordCalving={(id) => open("calving", id)}
+            onRecordCalving={(id, pregnancyId) => openCalving(id, pregnancyId)}
             onRecordDryOff={(id) => open("dryOff", id)}
           />
         </div>
@@ -104,6 +116,7 @@ export function ReproductionWorkspace() {
         open={dialog === "calving"}
         onOpenChange={(next) => !next && close()}
         defaultCattleId={cattleId}
+        defaultPregnancyId={calvingPregnancyId}
       />
       <AbortionEventDialog
         open={dialog === "abortion"}

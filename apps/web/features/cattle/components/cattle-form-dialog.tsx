@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Info, Plus, Sparkles, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ApiError } from "@/lib/api/errors";
 import {
   Dialog,
@@ -30,13 +31,15 @@ import {
   useBreeds,
   useCreateBreed,
   useCreateCattle,
+  useCreatePurchasedLactation,
   useFeedGroups,
   useRemoveCattlePhoto,
   useSetCattlePhoto,
   useSheds,
   useUpdateCattle,
+  useUpdateCattleStatus,
 } from "../hooks/use-cattle";
-import { cattleFormSchema, type CattleFormInput } from "../schemas";
+import { cattleEditFormSchema, type CattleEditFormInput } from "../schemas";
 import { deriveAnimalCategoryPreview } from "../utils/animal-category-preview";
 import type { AnimalCategory, CattleDetail, CattleFormPayload } from "../types";
 
@@ -54,6 +57,15 @@ const PURPOSES = [
 ] as const;
 const SOURCE_TYPES = ["BORN", "PURCHASED", "GIFTED", "UNKNOWN"] as const;
 const BREEDING_METHODS = ["AI", "NATURAL", "EMBRYO_TRANSFER"] as const;
+// RAKHAL-status-fold: ported from `CattleStatusDialog`.
+const PRODUCTION_STATUSES = ["MILKING", "DRY"] as const;
+const REPRODUCTIVE_STATUSES = [
+  "NOT_ELIGIBLE",
+  "POSTPARTUM_WAITING",
+  "OPEN",
+  "BRED_AWAITING_CONFIRMATION",
+  "PREGNANT",
+] as const;
 
 /** RAKHAL-270 chip colors — mirrors `cattle-columns.tsx`'s `ANIMAL_CATEGORY_VARIANT` (kept
  * per-file, same reasoning as `cattle-profile-card.tsx`'s own copy: no shared cross-feature
@@ -71,7 +83,7 @@ const ANIMAL_CATEGORY_VARIANT: Record<AnimalCategory, ChipProps["variant"]> = {
  * (`@IsOptional` only skips `undefined`), so never send `""`/sentinel on the wire. */
 /** RAKHAL-319-F — only sent create-mode (an edit is always a `PATCH`, and the backend's intake
  * fields live on `CreateCattleDto` only). Mode is exclusive: `bred` and `heat` never both fire. */
-function toPayload(values: CattleFormInput, isEdit: boolean): CattleFormPayload {
+function toPayload(values: CattleEditFormInput, isEdit: boolean): CattleFormPayload {
   const clean = <T,>(v: T | "" | typeof UNSET | undefined): T | undefined =>
     v === "" || v === UNSET || v === undefined ? undefined : v;
   return {
@@ -107,8 +119,8 @@ function toPayload(values: CattleFormInput, isEdit: boolean): CattleFormPayload 
 
 function toFormDefaults(
   cattle: CattleDetail | undefined,
-  initialValues: Partial<CattleFormInput> | undefined,
-): Partial<CattleFormInput> {
+  initialValues: Partial<CattleEditFormInput> | undefined,
+): Partial<CattleEditFormInput> {
   if (!cattle) return { gender: "FEMALE", purpose: "MILK", ...initialValues };
   return {
     name: cattle.name ?? "",
@@ -125,6 +137,9 @@ function toFormDefaults(
     weightKg: cattle.lastWeightKg ?? undefined,
     color: cattle.color ?? "",
     notes: cattle.notes ?? "",
+    // RAKHAL-status-fold: former `CattleStatusDialog` defaults, folded in for edit mode.
+    productionStatus: cattle.productionStatus ?? undefined,
+    reproductiveStatus: cattle.reproductiveStatus ?? undefined,
   };
 }
 
@@ -211,6 +226,7 @@ export function CattleFormDialog({
   onOpenChange,
   cattle,
   initialValues,
+  onRequestReproductionAction,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -218,7 +234,17 @@ export function CattleFormDialog({
   /** RAKHAL-298 — create-mode-only prefill (e.g. the category-highlight tiles' quick-add: Heifer
    * prefills `gender: "FEMALE"`, Calf prefills `purpose: "CALF"` + today's `dateOfBirth`). Ignored
    * when `cattle` is set (edit mode always loads the existing cow's own values). */
-  initialValues?: Partial<CattleFormInput>;
+  initialValues?: Partial<CattleEditFormInput>;
+  /** RAKHAL-status-fold-p4 — edit-mode only. Picking a status value that has a dedicated
+   * Reproduction-module recorder (breeding/pregnancy/heat/dry-off) fires this instead of writing
+   * a raw status PATCH, so the real dated record (and its downstream sync — Reproduction
+   * dashboard, heat-detection list, lactation curve) is what actually gets created. The caller
+   * (`CattleTable`) owns mounting the four target dialogs. Omitted entirely by create-mode
+   * callers (e.g. the category-highlight tiles) since the Status section never renders there. */
+  onRequestReproductionAction?: (
+    action: "breeding" | "pregnancy" | "heat" | "dryoff",
+    cattle: CattleDetail,
+  ) => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -233,6 +259,7 @@ export function CattleFormDialog({
           onOpenChange={onOpenChange}
           cattle={cattle}
           initialValues={initialValues}
+          onRequestReproductionAction={onRequestReproductionAction}
         />
       ) : null}
     </Dialog>
@@ -243,10 +270,15 @@ function CattleFormDialogBody({
   onOpenChange,
   cattle,
   initialValues,
+  onRequestReproductionAction,
 }: {
   onOpenChange: (open: boolean) => void;
   cattle?: CattleDetail;
-  initialValues?: Partial<CattleFormInput>;
+  initialValues?: Partial<CattleEditFormInput>;
+  onRequestReproductionAction?: (
+    action: "breeding" | "pregnancy" | "heat" | "dryoff",
+    cattle: CattleDetail,
+  ) => void;
 }) {
   const t = useTranslations("cattle.form");
   const tCategory = useTranslations("cattle.animalCategory");
@@ -254,6 +286,9 @@ function CattleFormDialogBody({
    * labels rather than duplicating them (same reasoning as `tCategory` above reusing
    * `cattle.animalCategory.*` for the create-mode preview badge). */
   const tBreedingMethod = useTranslations("reproduction.dialogs.breeding");
+  /** Status section (edit-mode only) reuses the former `CattleStatusDialog`'s own i18n namespace
+   * verbatim — field labels/options didn't move, only the dialog they lived in did. */
+  const tStatus = useTranslations("cattle.statusDialog");
   const isEdit = Boolean(cattle);
 
   const breeds = useBreeds();
@@ -263,14 +298,20 @@ function CattleFormDialogBody({
   const updateCattle = useUpdateCattle();
   const setPhoto = useSetCattlePhoto();
   const removePhotoMutation = useRemoveCattlePhoto();
+  const updateStatus = useUpdateCattleStatus();
+  const createPurchasedLactation = useCreatePurchasedLactation();
 
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [clearExistingPhoto, setClearExistingPhoto] = useState(false);
   const [addBreedOpen, setAddBreedOpen] = useState(false);
+  // RAKHAL-status-fold: ported from `CattleStatusDialog` as-is — toggles the exact
+  // `lactationStartDate` path vs the estimated-intake path when setting MILKING on a cow with no
+  // active lactation.
+  const [useEstimatedIntake, setUseEstimatedIntake] = useState(false);
 
-  const form = useForm<CattleFormInput>({
-    resolver: zodResolver(cattleFormSchema),
+  const form = useForm<CattleEditFormInput>({
+    resolver: zodResolver(cattleEditFormSchema),
     defaultValues: toFormDefaults(cattle, initialValues),
   });
 
@@ -288,11 +329,22 @@ function CattleFormDialogBody({
         priorCalvings: watchedPriorCalvings,
       });
 
+  // RAKHAL-status-fold: ported from `CattleStatusDialog` as-is.
+  const watchedProductionStatus = useWatch({ control: form.control, name: "productionStatus" });
+  const watchedStatusPriorCalvings = useWatch({ control: form.control, name: "statusPriorCalvings" });
+  const needsLactationStartDate =
+    isEdit && watchedProductionStatus === "MILKING" && cattle?.lactationStage === null;
+  const needsPriorCalvings =
+    needsLactationStartDate && !useEstimatedIntake && cattle?.animalCategory === "HEIFER";
+  const hasCalvedBefore = watchedStatusPriorCalvings !== undefined;
+
   const pending =
     createCattle.isPending ||
     updateCattle.isPending ||
     setPhoto.isPending ||
-    removePhotoMutation.isPending;
+    removePhotoMutation.isPending ||
+    updateStatus.isPending ||
+    createPurchasedLactation.isPending;
   const displayedPhotoUrl =
     photoPreviewUrl ??
     (!clearExistingPhoto ? (cattle?.profile_photo?.thumb_url ?? null) : null);
@@ -311,13 +363,24 @@ function CattleFormDialogBody({
     setClearExistingPhoto(true);
   }
 
-  async function onSubmit(values: CattleFormInput) {
+  async function onSubmit(values: CattleEditFormInput) {
     if (!isEdit && values.intakeReproductionMode === "bred" && !values.intakeBreedingDate) {
       form.setError("intakeBreedingDate", { message: t("intake.breedingDateRequired") });
       return;
     }
     if (!isEdit && values.intakeReproductionMode === "heat" && !values.intakeHeatDateTime) {
       form.setError("intakeHeatDateTime", { message: t("intake.heatDateRequired") });
+      return;
+    }
+    // RAKHAL-status-fold: same required-field guards `CattleStatusDialog.onSubmit` had, run before
+    // anything hits the wire so a status validation failure never leaves the basic-info save as a
+    // silent partial success.
+    if (isEdit && needsLactationStartDate && !useEstimatedIntake && !values.lactationStartDate) {
+      form.setError("lactationStartDate", { message: tStatus("lactationStartDateRequired") });
+      return;
+    }
+    if (isEdit && needsPriorCalvings && !values.statusPriorCalvings) {
+      form.setError("statusPriorCalvings", { message: tStatus("priorCalvingsRequired") });
       return;
     }
     const payload = toPayload(values, isEdit);
@@ -338,6 +401,43 @@ function CattleFormDialogBody({
             ? photoErr.message
             : t("photoGenericError"),
         );
+      }
+      // RAKHAL-status-fold: former `CattleStatusDialog.onSubmit` branching, ported as-is —
+      // estimated-intake path creates the Lactation via a separate endpoint, then a follow-up
+      // status PATCH only if reproductiveStatus also changed; otherwise a single status PATCH,
+      // only fired when production/reproductive status actually changed (avoids a no-op write).
+      if (isEdit && cattle) {
+        if (needsLactationStartDate && useEstimatedIntake) {
+          await createPurchasedLactation.mutateAsync({
+            id: cattle.id,
+            dto: {
+              estimatedCalvingDate: values.estimatedCalvingDate || undefined,
+              estimatedDaysInMilk: values.estimatedDaysInMilk,
+              estimatedLactationNumber: values.estimatedLactationNumber,
+            },
+          });
+          if (values.reproductiveStatus && values.reproductiveStatus !== cattle.reproductiveStatus) {
+            await updateStatus.mutateAsync({
+              id: cattle.id,
+              dto: { reproductiveStatus: values.reproductiveStatus },
+            });
+          }
+        } else {
+          const statusChanged =
+            (values.productionStatus ?? undefined) !== (cattle.productionStatus ?? undefined) ||
+            (values.reproductiveStatus ?? undefined) !== (cattle.reproductiveStatus ?? undefined);
+          if (statusChanged) {
+            await updateStatus.mutateAsync({
+              id: cattle.id,
+              dto: {
+                productionStatus: values.productionStatus,
+                reproductiveStatus: values.reproductiveStatus,
+                lactationStartDate: values.lactationStartDate,
+                priorCalvings: values.statusPriorCalvings,
+              },
+            });
+          }
+        }
       }
       toast.success(isEdit ? t("updatedToast") : t("createdToast"));
       onOpenChange(false);
@@ -534,6 +634,212 @@ function CattleFormDialogBody({
                 {tCategory(cattle.animalCategory)}
               </Chip>
             </div>
+          ) : null}
+
+          {/* RAKHAL-status-fold: former `CattleStatusDialog`, folded into Edit Animal so status is
+              changeable from the same modal instead of a separate row action — ported verbatim
+              (fields, conditional lactation-start-date/estimated-intake/prior-calvings sub-forms),
+              edit-mode only (a not-yet-created animal has no status to change). */}
+          {isEdit ? (
+            <>
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-2.5 text-sm font-semibold text-foreground">
+                <Sparkles className="size-4 text-primary" aria-hidden />
+                {t("statusSectionTitle")}
+              </div>
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label>{tStatus("productionStatus")}</Label>
+                  <Controller
+                    control={form.control}
+                    name="productionStatus"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ?? UNSET}
+                        onValueChange={(v) => {
+                          // RAKHAL-status-fold-p4: DRY has a dedicated recorder (closes the
+                          // Lactation, opens a DryPeriod, projects the next expected end date) —
+                          // a raw status PATCH here would only flip the flag, leaving the rest of
+                          // the app blind to it. Redirect instead of writing the field.
+                          if (v === "DRY" && cattle) {
+                            onRequestReproductionAction?.("dryoff", cattle);
+                            onOpenChange(false);
+                            return;
+                          }
+                          field.onChange(v === UNSET ? undefined : v);
+                        }}
+                      >
+                        <LabeledSelectTrigger
+                          label={tStatus("productionStatus")}
+                          placeholder={tStatus("unassigned")}
+                        />
+                        <SelectContent>
+                          <SelectItem value={UNSET}>{tStatus("unassigned")}</SelectItem>
+                          {PRODUCTION_STATUSES.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {tStatus(`productionOptions.${s}`)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>{tStatus("reproductiveStatus")}</Label>
+                  <Controller
+                    control={form.control}
+                    name="reproductiveStatus"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ?? UNSET}
+                        onValueChange={(v) => {
+                          // RAKHAL-status-fold-p4: BRED_AWAITING_CONFIRMATION/PREGNANT/OPEN
+                          // (heat detected) each have a dedicated recorder that captures the real
+                          // date and writes the record the rest of the app (Reproduction
+                          // dashboard, heat-detection list, lactation curve) actually reads from —
+                          // a raw status PATCH would silently diverge from that. NOT_ELIGIBLE and
+                          // POSTPARTUM_WAITING have no companion record, so they stay plain picks.
+                          const REDIRECT: Partial<Record<string, "breeding" | "pregnancy" | "heat">> = {
+                            BRED_AWAITING_CONFIRMATION: "breeding",
+                            PREGNANT: "pregnancy",
+                            OPEN: "heat",
+                          };
+                          const action = REDIRECT[v];
+                          if (action && cattle) {
+                            onRequestReproductionAction?.(action, cattle);
+                            onOpenChange(false);
+                            return;
+                          }
+                          field.onChange(v === UNSET ? undefined : v);
+                        }}
+                      >
+                        <LabeledSelectTrigger
+                          label={tStatus("reproductiveStatus")}
+                          placeholder={tStatus("unassigned")}
+                        />
+                        <SelectContent>
+                          <SelectItem value={UNSET}>{tStatus("unassigned")}</SelectItem>
+                          {REPRODUCTIVE_STATUSES.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {tStatus(`reproductiveOptions.${s}`)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+                {needsLactationStartDate && (
+                  <>
+                    <label className="flex items-center gap-2 text-sm text-foreground">
+                      <Checkbox
+                        checked={useEstimatedIntake}
+                        onCheckedChange={(v) => setUseEstimatedIntake(v === true)}
+                      />
+                      {tStatus("useEstimatedIntake")}
+                    </label>
+                    {useEstimatedIntake ? (
+                      <div className="flex flex-col gap-3 rounded-lg border border-border p-3">
+                        <p className="text-muted-foreground text-xs">{tStatus("estimatedIntakeHint")}</p>
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="estimatedCalvingDate">{tStatus("estimatedCalvingDate")}</Label>
+                          <Input
+                            id="estimatedCalvingDate"
+                            type="date"
+                            {...form.register("estimatedCalvingDate")}
+                            aria-label={tStatus("estimatedCalvingDate")}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="estimatedDaysInMilk">{tStatus("estimatedDaysInMilk")}</Label>
+                          <Input
+                            id="estimatedDaysInMilk"
+                            type="number"
+                            min={0}
+                            step={1}
+                            {...form.register("estimatedDaysInMilk", {
+                              setValueAs: (v) => (v === "" ? undefined : Number(v)),
+                            })}
+                            aria-label={tStatus("estimatedDaysInMilk")}
+                          />
+                          {form.formState.errors.estimatedDaysInMilk && (
+                            <p className="text-destructive text-xs">
+                              {form.formState.errors.estimatedDaysInMilk.message}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="estimatedLactationNumber">{tStatus("estimatedLactationNumber")}</Label>
+                          <Input
+                            id="estimatedLactationNumber"
+                            type="number"
+                            min={1}
+                            step={1}
+                            {...form.register("estimatedLactationNumber", {
+                              setValueAs: (v) => (v === "" ? undefined : Number(v)),
+                            })}
+                            aria-label={tStatus("estimatedLactationNumber")}
+                          />
+                          {form.formState.errors.estimatedLactationNumber && (
+                            <p className="text-destructive text-xs">
+                              {form.formState.errors.estimatedLactationNumber.message}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-1.5">
+                        <Label>{tStatus("lactationStartDate")}</Label>
+                        <Input
+                          type="date"
+                          {...form.register("lactationStartDate")}
+                          aria-label={tStatus("lactationStartDate")}
+                        />
+                        <p className="text-muted-foreground text-xs">{tStatus("lactationStartDateHint")}</p>
+                        {form.formState.errors.lactationStartDate && (
+                          <p className="text-destructive text-xs">
+                            {form.formState.errors.lactationStartDate.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+                {needsPriorCalvings && (
+                  <div className="flex flex-col gap-1.5">
+                    <label className="flex items-center gap-2 text-sm text-foreground">
+                      <Checkbox
+                        checked={hasCalvedBefore}
+                        onCheckedChange={(v) =>
+                          form.setValue("statusPriorCalvings", v === true ? 1 : undefined, {
+                            shouldValidate: true,
+                          })
+                        }
+                      />
+                      {tStatus("hasCalvedBefore")}
+                    </label>
+                    {hasCalvedBefore && (
+                      <>
+                        <Label htmlFor="statusPriorCalvings">{tStatus("priorCalvings")}</Label>
+                        <Input
+                          id="statusPriorCalvings"
+                          type="number"
+                          min={1}
+                          step={1}
+                          {...form.register("statusPriorCalvings", { valueAsNumber: true })}
+                          aria-label={tStatus("priorCalvings")}
+                        />
+                      </>
+                    )}
+                    {form.formState.errors.statusPriorCalvings && (
+                      <p className="text-destructive text-xs">
+                        {form.formState.errors.statusPriorCalvings.message}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
           ) : null}
 
           {/* RAKHAL-319-F — create-mode-only, female-only intake declarations (`IntakeBreedingDto`/

@@ -69,6 +69,7 @@ export interface PregnancyCheckDueRow extends ReproCattleRef {
 }
 
 export interface CalvingNext7DaysRow extends ReproCattleRef {
+  pregnancy_id: string;
   expected_date: string | null;
   days_remaining: number | null;
 }
@@ -177,6 +178,9 @@ export interface PregnancyRow {
    * after `expectedCalvingDate` is farmer-edited. */
   calculatedCalvingDate: string | null;
   expectedCalvingDateSource: ExpectedCalvingDateSource;
+  /** Present on `GET /reproduction/pregnancies` responses (backend now `include`s it) — absent
+   * elsewhere (e.g. the unified events feed's own pregnancy_diagnosis mapping). */
+  cattle?: { id: string; name: string | null; tagNumber: string };
 }
 
 export interface CalfBirthRow {

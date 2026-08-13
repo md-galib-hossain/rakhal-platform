@@ -4,12 +4,22 @@ import { useTranslations } from "next-intl";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { useBreeds, useFeedGroups, useSheds } from "../hooks/use-cattle";
 
-/** Search + status/breed/shed/feed-group/health selects (PRD §8.1 list filters, ticket RFE-021) —
- * all URL-synced via the shared `FilterBar`, read back by `CattleTable` for the actual query.
- * `actions` (the "Add New Cow" button) renders after the filters, matching the Figma "All Cattle
- * View" row where search/filter/add all sit together, right-aligned next to the section title. */
+/** Search + category/status/breed/shed/feed-group/health selects (PRD §8.1 list filters, ticket
+ * RFE-021) — all URL-synced via the shared `FilterBar`, read back by `CattleTable` for the actual
+ * query. `actions` (the "Add New Cow" button) renders after the filters, matching the Figma "All
+ * Cattle View" row where search/filter/add all sit together, right-aligned next to the section
+ * title.
+ *
+ * The `animalCategory` select folds the former standalone Calves page in as a filter (Calves are
+ * just `animalCategory: "CALF"` rows) — same URL param the category-highlight tiles already
+ * read/write, so this dropdown and the tiles stay in sync in either direction. Calves' own
+ * age-bucket "Stage" filter isn't exposed here — it has no equivalent on `GET /cattle`
+ * (`ListCattleQueryDto` has no stage param, only the calf module's own `GET /calves` does), so
+ * adding it would be a dead control; the calf KPI cards (below, on the page) already surface
+ * weaning/feeding timing without it. */
 export function CattleFilters({ actions }: { actions?: React.ReactNode }) {
   const t = useTranslations("cattle.filters");
+  const tCategories = useTranslations("cattle.categories");
   const breeds = useBreeds();
   const sheds = useSheds();
   const feedGroups = useFeedGroups();
@@ -19,6 +29,17 @@ export function CattleFilters({ actions }: { actions?: React.ReactNode }) {
       searchKey="search"
       searchPlaceholder={t("searchPlaceholder")}
       selects={[
+        {
+          key: "animalCategory",
+          label: t("animalCategory"),
+          options: [
+            { value: "CALF", label: tCategories("calf") },
+            { value: "HEIFER", label: tCategories("heifer") },
+            { value: "COW", label: tCategories("cow") },
+            { value: "BULL", label: tCategories("bull") },
+            { value: "STEER", label: tCategories("steer") },
+          ],
+        },
         {
           key: "productionStatus",
           label: t("status"),

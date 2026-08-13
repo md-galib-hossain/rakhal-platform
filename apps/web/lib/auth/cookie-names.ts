@@ -6,6 +6,10 @@
 export const COOKIE_ACCESS = "rk_at";
 export const COOKIE_REFRESH = "rk_rt";
 export const COOKIE_USER = "rk_user";
+// Long-lived (matches rk_rt's 30-day maxAge) so farmId survives the access token's own ~15min
+// cookie expiry — deriving it by decoding rk_at breaks the moment that cookie ages out on its
+// own, well before the refresh token does.
+export const COOKIE_FARM = "rk_farm";
 
 export const sessionCookieOpts = {
   httpOnly: true,

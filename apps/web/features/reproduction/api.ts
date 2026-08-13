@@ -17,6 +17,7 @@ import type {
   LactationRow,
   LactationStatsResponse,
   PregnancyRow,
+  PregnancyStatus,
   ProtocolDetail,
   ProtocolInstance,
   ProtocolInstanceListFilters,
@@ -94,8 +95,13 @@ export const reproductionApi = {
     });
   },
 
-  pregnancies(cattleId?: string, cursor?: string, limit = 20): Promise<CursorPage<PregnancyRow>> {
-    return apiFetchPage<PregnancyRow>("/reproduction/pregnancies", { searchParams: { cattleId, cursor, limit } });
+  pregnancies(
+    cattleId?: string,
+    cursor?: string,
+    limit = 20,
+    status?: PregnancyStatus,
+  ): Promise<CursorPage<PregnancyRow>> {
+    return apiFetchPage<PregnancyRow>("/reproduction/pregnancies", { searchParams: { cattleId, cursor, limit, status } });
   },
   createPregnancyDiagnosis(input: CreatePregnancyDiagnosisInput): Promise<PregnancyRow> {
     return apiFetch<PregnancyRow>("/reproduction/pregnancy-diagnoses", { method: "POST", body: input });

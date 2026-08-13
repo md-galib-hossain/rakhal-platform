@@ -15,19 +15,19 @@ import {
 import { useRestoreCattle } from "../hooks/use-cattle";
 import type { CattleListItem } from "../types";
 
-/** Per-row menu (edit / change status / archive / restore) — RFE-022's entry points into the
- * add/edit form, status dialog, and archive dialog owned by the parent `CattleTable`. */
+/** Per-row menu (edit / archive / restore) — RFE-022's entry points into the add/edit form and
+ * archive dialog owned by the parent `CattleTable`. Status change (production/reproductive) is
+ * folded into the Edit Animal modal itself (`CattleFormDialog`'s Status section) rather than a
+ * separate menu item/dialog. */
 export function CattleRowActions({
   cattle,
   onView,
   onEdit,
-  onChangeStatus,
   onArchive,
 }: {
   cattle: CattleListItem;
   onView: (cattle: CattleListItem) => void;
   onEdit: (cattle: CattleListItem) => void;
-  onChangeStatus: (cattle: CattleListItem) => void;
   onArchive: (cattle: CattleListItem) => void;
 }) {
   const t = useTranslations("cattle.actions");
@@ -56,9 +56,6 @@ export function CattleRowActions({
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={() => onView(cattle)}>{t("viewDetails")}</DropdownMenuItem>
         {canUpdate ? <DropdownMenuItem onSelect={() => onEdit(cattle)}>{t("edit")}</DropdownMenuItem> : null}
-        {canUpdate ? (
-          <DropdownMenuItem onSelect={() => onChangeStatus(cattle)}>{t("changeStatus")}</DropdownMenuItem>
-        ) : null}
         {isArchived
           ? canUpdate && <DropdownMenuItem onSelect={handleRestore}>{t("restore")}</DropdownMenuItem>
           : canArchive && (

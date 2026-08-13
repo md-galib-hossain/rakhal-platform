@@ -61,6 +61,7 @@ export function CattleDetailSheet({
                 cattleId={query.data.id}
                 gender={query.data.gender}
                 lactationStage={query.data.lactationStage}
+                animalCategory={query.data.animalCategory}
               />
             </div>
           )}

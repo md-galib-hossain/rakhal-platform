@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import {
   COOKIE_ACCESS,
+  COOKIE_FARM,
   COOKIE_REFRESH,
   COOKIE_USER,
   REFRESH_COOKIE_MAX_AGE,
@@ -30,6 +31,29 @@ const PUBLIC_PATHS = [
 // for a signed-out invitee (that's the whole point: preview + register/login inline, see
 // InviteAcceptView). Checked as a prefix, not a set membership.
 const PUBLIC_PATH_PREFIXES = ["/invite/"];
+
+// Same-isolate single-flight for the proactive refresh below, keyed by the raw refresh token —
+// several near-simultaneous navigations (real click + Next's own prefetch, or multiple tabs
+// sharing this isolate) can each see the same expiring access token and each try to refresh with
+// the same stale cookie. Coalescing here cuts that down to one backend call; it does NOT replace
+// the backend's own atomic-rotation guard (auth.service.ts `refresh()`), which is what actually
+// makes a genuine cross-isolate/cross-request race safe — this is just cheaper than relying on
+// that guard alone.
+const inFlightRefreshes = new Map<
+  string,
+  ReturnType<typeof performBackendRefresh>
+>();
+
+function refreshOnce(refreshToken: string, farmId: string) {
+  const existing = inFlightRefreshes.get(refreshToken);
+  if (existing) return existing;
+
+  const promise = performBackendRefresh(refreshToken, farmId).finally(() => {
+    inFlightRefreshes.delete(refreshToken);
+  });
+  inFlightRefreshes.set(refreshToken, promise);
+  return promise;
+}
 
 const FARM_ORIGIN = process.env.NEXT_PUBLIC_FARM_URL ?? "https://farm.rakhal.app";
 const FARM_HOSTNAME = new URL(FARM_ORIGIN).hostname.toLowerCase();
@@ -80,6 +104,7 @@ function clearedRedirect(request: NextRequest, next?: string) {
   response.cookies.delete(COOKIE_ACCESS);
   response.cookies.delete(COOKIE_REFRESH);
   response.cookies.delete(COOKIE_USER);
+  response.cookies.delete(COOKIE_FARM);
 
   return response;
 }
@@ -128,18 +153,19 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const farmId = accessToken
-    ? decodeAccessToken(accessToken)?.farmId
-    : undefined;
+  // rk_farm (30-day) outlives rk_at (~15min) — a stale session that comes back after the access
+  // token cookie has already aged out must still be able to refresh, so farmId can't depend on
+  // decoding rk_at (which is exactly the token that's already gone at this point). Fall back to
+  // it only for cookies set before rk_farm existed.
+  const farmId =
+    request.cookies.get(COOKIE_FARM)?.value ??
+    (accessToken ? decodeAccessToken(accessToken)?.farmId : undefined);
 
   if (!farmId) {
     return clearedRedirect(request, pathname);
   }
 
-  const refreshed = await performBackendRefresh(
-    refreshToken,
-    farmId,
-  );
+  const refreshed = await refreshOnce(refreshToken, farmId);
 
   if (!refreshed) {
     return clearedRedirect(request, pathname);
@@ -167,6 +193,15 @@ export async function proxy(request: NextRequest) {
   response.cookies.set(
     COOKIE_REFRESH,
     refreshed.refreshCookie,
+    {
+      ...sessionCookieOpts,
+      maxAge: REFRESH_COOKIE_MAX_AGE,
+    },
+  );
+
+  response.cookies.set(
+    COOKIE_FARM,
+    farmId,
     {
       ...sessionCookieOpts,
       maxAge: REFRESH_COOKIE_MAX_AGE,

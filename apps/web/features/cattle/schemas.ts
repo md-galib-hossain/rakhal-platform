@@ -93,6 +93,25 @@ export type PurchasedLactationInput = z.infer<typeof purchasedLactationSchema>;
 export const cattleStatusWithEstimatedIntakeSchema = cattleStatusSchema.merge(purchasedLactationSchema);
 export type CattleStatusWithEstimatedIntakeInput = z.infer<typeof cattleStatusWithEstimatedIntakeSchema>;
 
+/** Edit-mode form schema — `cattleFormSchema` (basic info) extended with the former status
+ * dialog's own fields, folding "change status" into the Edit Animal modal instead of a separate
+ * dialog/route. Create mode still resolves against plain `cattleFormSchema` (status fields make no
+ * sense before the animal exists). The status schema's own `priorCalvings` (confirms a heifer
+ * already calved outside this system, unblocks a MILKING status change) is renamed
+ * `statusPriorCalvings` here — `cattleFormSchema` already has an unrelated `priorCalvings` (create
+ * intake: lands a purchased already-calved cow as `COW` not `HEIFER`), and both are shown on the
+ * same edit form, so they can't share one field name. */
+export const cattleEditFormSchema = cattleFormSchema.extend({
+  productionStatus: cattleStatusSchema.shape.productionStatus,
+  reproductiveStatus: cattleStatusSchema.shape.reproductiveStatus,
+  lactationStartDate: cattleStatusSchema.shape.lactationStartDate,
+  statusPriorCalvings: cattleStatusSchema.shape.priorCalvings,
+  estimatedCalvingDate: purchasedLactationSchema.shape.estimatedCalvingDate,
+  estimatedDaysInMilk: purchasedLactationSchema.shape.estimatedDaysInMilk,
+  estimatedLactationNumber: purchasedLactationSchema.shape.estimatedLactationNumber,
+});
+export type CattleEditFormInput = z.infer<typeof cattleEditFormSchema>;
+
 /** Mirrors `ArchiveCattleDto` (`DELETE /cattle/:id`) — `sold`/`deceased`/`culled` keep production
  * status distinct (CAT-09), `archived` is a plain archive. */
 export const cattleArchiveSchema = z.object({

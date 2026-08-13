@@ -33,7 +33,7 @@ export interface ReproductionActionPanelsProps {
   onRecordAi: (cattleId: string) => void;
   onRecordPregnancyCheck: (cattleId: string, breedingEventId?: string) => void;
   onReturnToHeat: (breedingEventId: string) => void;
-  onRecordCalving: (cattleId: string) => void;
+  onRecordCalving: (cattleId: string, pregnancyId?: string) => void;
   onRecordDryOff: (cattleId: string) => void;
 }
 
@@ -140,10 +140,20 @@ export function ReproductionActionPanels({
             <Row key={row.cattle_id}>
               <CowLabel name={row.name} tag={row.tag} />
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  {row.days_remaining != null ? t("daysRemaining", { value: row.days_remaining }) : "—"}
+                <span
+                  className={
+                    row.days_remaining != null && row.days_remaining < 0
+                      ? "text-xs font-medium text-destructive"
+                      : "text-xs text-muted-foreground"
+                  }
+                >
+                  {row.days_remaining == null
+                    ? "—"
+                    : row.days_remaining < 0
+                      ? t("daysOverdue", { value: Math.abs(row.days_remaining) })
+                      : t("daysRemaining", { value: row.days_remaining })}
                 </span>
-                <Button size="sm" variant="outline" onClick={() => onRecordCalving(row.cattle_id)}>
+                <Button size="sm" variant="outline" onClick={() => onRecordCalving(row.cattle_id, row.pregnancy_id)}>
                   {t("recordCalving")}
                 </Button>
               </div>

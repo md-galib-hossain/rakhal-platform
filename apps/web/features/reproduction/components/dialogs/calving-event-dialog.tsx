@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -9,6 +9,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { FormDialog } from "@/components/shared/form-dialog";
 import { CattlePicker } from "@/components/shared/cattle-picker";
+import { PregnantCowPicker } from "../pregnant-cow-picker";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,23 +37,31 @@ export function CalvingEventDialog({
   open,
   onOpenChange,
   defaultCattleId,
+  defaultPregnancyId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultCattleId?: string;
+  defaultPregnancyId?: string;
 }) {
   const t = useTranslations("reproduction.dialogs.calving");
   const createCalvingEvent = useCreateCalvingEvent();
+  // Cows without a tracked pregnancy (paper-record backfills) still need a way in — this toggle
+  // swaps the default "eligible for calving" picker for the plain all-female one.
+  const [useAllCows, setUseAllCows] = useState(false);
   const form = useForm<CreateCalvingEventInput>({
     resolver: zodResolver(calvingEventSchema),
-    defaultValues: { ...EMPTY_DEFAULTS, cattleId: defaultCattleId ?? "" },
+    defaultValues: { ...EMPTY_DEFAULTS, cattleId: defaultCattleId ?? "", pregnancyId: defaultPregnancyId },
   });
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "calves" });
 
   useEffect(() => {
-    if (open) form.reset({ ...EMPTY_DEFAULTS, cattleId: defaultCattleId ?? "" });
+    if (open) {
+      form.reset({ ...EMPTY_DEFAULTS, cattleId: defaultCattleId ?? "", pregnancyId: defaultPregnancyId });
+      setUseAllCows(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, defaultCattleId]);
+  }, [open, defaultCattleId, defaultPregnancyId]);
 
   async function onSubmit(values: CreateCalvingEventInput) {
     try {
@@ -97,13 +106,40 @@ export function CalvingEventDialog({
     >
       <div className="flex flex-col gap-2">
         <Label>{t("cattle")}</Label>
-        <Controller
-          control={form.control}
-          name="cattleId"
-          render={({ field }) => (
-            <CattlePicker value={field.value} onValueChange={(id) => field.onChange(id)} filters={{ gender: "FEMALE" }} />
-          )}
-        />
+        {useAllCows ? (
+          <Controller
+            control={form.control}
+            name="cattleId"
+            render={({ field }) => (
+              <CattlePicker value={field.value} onValueChange={(id) => field.onChange(id)} filters={{ gender: "FEMALE" }} />
+            )}
+          />
+        ) : (
+          <Controller
+            control={form.control}
+            name="cattleId"
+            render={({ field }) => (
+              <PregnantCowPicker
+                value={field.value}
+                onValueChange={(cattleId, pregnancyId) => {
+                  field.onChange(cattleId);
+                  form.setValue("pregnancyId", pregnancyId);
+                }}
+              />
+            )}
+          />
+        )}
+        <button
+          type="button"
+          className="w-fit text-xs text-muted-foreground underline-offset-2 hover:underline"
+          onClick={() => {
+            setUseAllCows((v) => !v);
+            form.setValue("pregnancyId", undefined);
+            form.setValue("cattleId", "");
+          }}
+        >
+          {useAllCows ? t("backToPregnantCows") : t("noPregnancyOnFile")}
+        </button>
       </div>
 
       <div className="grid grid-cols-2 gap-3">

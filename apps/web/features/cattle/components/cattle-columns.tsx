@@ -153,7 +153,6 @@ export function buildCattleColumns(
   rowActions: {
     onView: (cattle: CattleListItem) => void;
     onEdit: (cattle: CattleListItem) => void;
-    onChangeStatus: (cattle: CattleListItem) => void;
     onArchive: (cattle: CattleListItem) => void;
   },
 ): ColumnDef<CattleListItem, unknown>[] {
@@ -282,7 +281,6 @@ export function buildCattleColumns(
             cattle={row.original}
             onView={rowActions.onView}
             onEdit={rowActions.onEdit}
-            onChangeStatus={rowActions.onChangeStatus}
             onArchive={rowActions.onArchive}
           />
         </div>

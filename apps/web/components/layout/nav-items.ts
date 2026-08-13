@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   ListChecks,
   Milk,
-  PawPrint,
   Settings,
   Store,
   Syringe,
@@ -52,9 +51,8 @@ export const navGroups: { key: NavGroupKey; labelKey: string }[] = [
 /** Sidebar module list per PRD §6.1, grouped per the IA above. */
 export const navItems: NavItem[] = [
   { labelKey: "dashboard", href: "/dashboard", icon: LayoutDashboard, group: "overview" },
-  { labelKey: "cattle", href: "/cattle", icon: Beef, group: "herdManagement" },
+  { labelKey: "animals", href: "/animals", icon: Beef, group: "herdManagement" },
   { labelKey: "reproduction", href: "/reproduction", icon: CalendarHeart, group: "herdManagement" },
-  { labelKey: "calves", href: "/calves", icon: PawPrint, group: "herdManagement" },
   { labelKey: "healthcare", href: "/healthcare", icon: Syringe, group: "herdManagement" },
   { labelKey: "milk", href: "/milk", icon: Milk, group: "production" },
   { labelKey: "feedFormulator", href: "/feed", icon: Wheat, group: "production" },

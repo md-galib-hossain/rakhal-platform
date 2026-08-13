@@ -33,11 +33,11 @@ const CATEGORY_I18N_KEY: Record<CategoryKey, "CALF" | "HEIFER" | "COW" | "BULL" 
  * `purpose` proxies for `fresh`/`growing`/calves — moot now, see `types.ts`'s `HerdStatusResponse`
  * doc comment). */
 const CATEGORY_SLICE_HREF: Record<CategoryKey, string> = {
-  calf: "/cattle?animalCategory=CALF",
-  heifer: "/cattle?animalCategory=HEIFER",
-  cow: "/cattle?animalCategory=COW",
-  bull: "/cattle?animalCategory=BULL",
-  steer: "/cattle?animalCategory=STEER",
+  calf: "/animals?animalCategory=CALF",
+  heifer: "/animals?animalCategory=HEIFER",
+  cow: "/animals?animalCategory=COW",
+  bull: "/animals?animalCategory=BULL",
+  steer: "/animals?animalCategory=STEER",
 };
 
 /** Reuses `cattle-columns.tsx`'s `ANIMAL_CATEGORY_VARIANT` chip-color convention (info/purple/
@@ -93,7 +93,7 @@ export function HerdStatusDonut() {
     <DashboardCard
       title={t("title")}
       headerRight={
-        <Link href="/cattle" className="text-xs font-medium text-primary hover:underline">
+        <Link href="/animals" className="text-xs font-medium text-primary hover:underline">
           {t("viewAll")}
         </Link>
       }
@@ -104,7 +104,7 @@ export function HerdStatusDonut() {
           {slices.map((slice) => (
             <Link
               key={slice.name}
-              href={slice.href ?? "/cattle"}
+              href={slice.href ?? "/animals"}
               className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
               <span aria-hidden className="h-1.5 w-3 rounded-full" style={{ backgroundColor: slice.color }} />

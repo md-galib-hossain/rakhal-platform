@@ -29,14 +29,13 @@
     "groupWorkspace": "ওয়ার্কস্পেস",
     "groupSystem": "সিস্টেম",
     "dashboard": "ড্যাশবোর্ড",
-    "cattle": "গবাদি পশু",
+    "animals": "পশু",
     "feedFormulator": "ফিড ফরমুলেটর",
     "milk": "দুধ",
     "buyers": "ক্রেতা",
     "finance": "অর্থ",
     "healthcare": "স্বাস্থ্যসেবা",
     "reproduction": "প্রজনন",
-    "calves": "বাছুর",
     "inventory": "ইনভেন্টরি",
     "scoreboard": "স্কোরবোর্ড",
     "taskHub": "টাস্ক হাব",
@@ -212,7 +211,7 @@
         "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
       },
       "cattle": {
-        "description": "এখন কিছু পশু যোগ করুন, অথবা এড়িয়ে যান — Cattle পাতা থেকে যেকোনো সময় পশু যোগ বা আমদানি করতে পারবেন।",
+        "description": "এখন কিছু পশু যোগ করুন, অথবা এড়িয়ে যান — Animal পাতা থেকে যেকোনো সময় পশু যোগ বা আমদানি করতে পারবেন।",
         "countAdded": "{count}টি পশু যোগ হয়েছে",
         "addOne": "একটি পশু যোগ করুন",
         "importCsv": "CSV থেকে আমদানি করুন",
@@ -657,7 +656,7 @@
     }
   },
   "cattle": {
-    "allCattleView": "সব গবাদি পশুর তালিকা",
+    "allCattleView": "সব পশুর তালিকা",
     "age": {
       "year": "{value} বছর",
       "years": "{value} বছর",
@@ -665,18 +664,18 @@
       "months": "{value} মাস"
     },
     "empty": {
-      "title": "কোনো গবাদি পশু পাওয়া যায়নি",
+      "title": "কোনো পশু পাওয়া যায়নি",
       "description": "আপনার অনুসন্ধান বা ফিল্টার সামঞ্জস্য করার চেষ্টা করুন।"
     },
     "highlights": {
-      "title": "গবাদি পশুর হাইলাইট",
-      "totalActive": "মোট গবাদি পশু",
+      "title": "পশুর হাইলাইট",
+      "totalActive": "মোট পশু",
       "avgHerdAqr": "গড় AQR",
       "breedingReady": "প্রজননের জন্য প্রস্তুত",
       "todaysYield": "আজকের উৎপাদন",
       "vsLastMonth": "গত মাসের তুলনায়",
       "vsYesterday": "গতকালের তুলনায়",
-      "error": "গবাদি পশুর হাইলাইট লোড করা যায়নি।"
+      "error": "পশুর হাইলাইট লোড করা যায়নি।"
     },
     "categories": {
       "all": "সব",
@@ -684,15 +683,20 @@
       "dry": "শুকনা",
       "heifer": "বকনা বাছুর",
       "calf": "বাছুর",
+      "cow": "গরু",
+      "bull": "ষাঁড়",
+      "steer": "খাসি",
       "quickAdd": "দ্রুত {category} যোগ করুন"
     },
     "filters": {
-      "searchPlaceholder": "নাম বা আইডি দিয়ে গরু খুঁজুন",
+      "searchPlaceholder": "নাম বা আইডি দিয়ে পশু খুঁজুন",
       "status": "অবস্থা",
       "health": "স্বাস্থ্য",
       "breed": "জাত",
       "shed": "শেড",
       "feedGroup": "ফিড গ্রুপ",
+      "animalCategory": "ক্যাটাগরি",
+      "stage": "বাছুরের ধাপ",
       "statusOptions": {
         "milking": "দুধ দেওয়া",
         "dry": "শুকনো"
@@ -783,11 +787,12 @@
       "tableView": "টেবিল ভিউ"
     },
     "form": {
-      "addCattle": "নতুন গরু যোগ করুন",
-      "createTitle": "নতুন গবাদি পশু যোগ করুন",
-      "editTitle": "গবাদি পশু সম্পাদনা করুন",
+      "addCattle": "নতুন প্রাণী যোগ করুন",
+      "createTitle": "নতুন প্রাণী যোগ করুন",
+      "editTitle": "প্রাণী সম্পাদনা করুন",
       "basicInfo": "মৌলিক তথ্য",
       "additionalInfo": "অতিরিক্ত তথ্য",
+      "statusSectionTitle": "অবস্থা",
       "cowName": "গরুর নাম",
       "addCowImage": "গরুর ছবি যোগ করুন",
       "tagNumber": "আইডি",
@@ -905,14 +910,13 @@
       "menu": "সারির অ্যাকশন",
       "viewDetails": "বিস্তারিত দেখুন",
       "edit": "সম্পাদনা করুন",
-      "changeStatus": "অবস্থা পরিবর্তন করুন",
       "archive": "সংরক্ষণাগারে পাঠান",
       "restore": "পুনরুদ্ধার করুন",
       "restoredToast": "গবাদি পশু পুনরুদ্ধার করা হয়েছে।",
       "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
     },
     "detail": {
-      "title": "গবাদি পশুর বিবরণ",
+      "title": "প্রাণীর বিবরণ",
       "back": "ফিরে যান",
       "cancel": "বাতিল",
       "editProfile": "প্রোফাইল সম্পাদনা করুন",
@@ -2085,7 +2089,8 @@
       "recordHeat": "হিট রেকর্ড করুন",
       "recordAi": "এআই রেকর্ড করুন",
       "recordPregnancyCheck": "গর্ভধারণ পরীক্ষা রেকর্ড করুন",
-      "recordAbortion": "গর্ভপাত রেকর্ড করুন"
+      "recordAbortion": "গর্ভপাত রেকর্ড করুন",
+      "recordCalving": "বাছুর জন্ম রেকর্ড করুন"
     },
     "kpi": {
       "heatDetectionRate": "হিট শনাক্তকরণ হার",
@@ -2113,6 +2118,7 @@
       "recordDryOff": "ড্রাই-অফ রেকর্ড করুন",
       "daysOpen": "{value} দিন ওপেন",
       "daysRemaining": "{value} দিন বাকি",
+      "daysOverdue": "{value} দিন বিলম্বিত",
       "dryoffTarget": "লক্ষ্য:",
       "error": "অ্যাকশন প্যানেল লোড করা যায়নি।"
     },
@@ -2243,6 +2249,8 @@
       "calving": {
         "title": "বাছুর প্রসব রেকর্ড করুন",
         "cattle": "মা গরু",
+        "noPregnancyOnFile": "খুঁজে পাচ্ছেন না? গর্ভাবস্থার তথ্য ছাড়াই রেকর্ড করুন",
+        "backToPregnantCows": "গর্ভবতী গরুর তালিকায় ফিরুন",
         "calvingDate": "প্রসবের তারিখ",
         "calvingEase": "প্রসবের সহজতা",
         "easeValue": {

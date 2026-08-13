@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { ApiError, NetworkError } from "@/lib/api/errors";
 import { serverEnv } from "@/lib/env";
 import type { ApiEnvelope } from "@/types/api";
-import { COOKIE_ACCESS, COOKIE_REFRESH, COOKIE_USER, REFRESH_COOKIE_MAX_AGE, sessionCookieOpts } from "./cookie-names";
+import { COOKIE_ACCESS, COOKIE_FARM, COOKIE_REFRESH, COOKIE_USER, REFRESH_COOKIE_MAX_AGE, sessionCookieOpts } from "./cookie-names";
 import { decodeAccessToken } from "./jwt";
 import { performBackendRefresh } from "./refresh-core";
 import type { Session, SessionUser } from "./session-types";
@@ -64,14 +64,23 @@ function extractCookieValue(setCookieHeaders: string[], name: string): string | 
   return undefined;
 }
 
-/** Only callable from a Server Action or Route Handler. */
-async function setSessionCookies(accessToken: string, refreshCookieValue: string, user: SessionUser) {
+/** Only callable from a Server Action or Route Handler. `farmId` is persisted in its own
+ * 30-day cookie (matches rk_rt) rather than re-derived by decoding rk_at each time — rk_at's
+ * cookie expires with the access token itself (~15min), well before the refresh token does, so
+ * a farmId sourced only from it disappears exactly when a stale-session refresh needs it most. */
+async function setSessionCookies(
+  accessToken: string,
+  refreshCookieValue: string,
+  user: SessionUser,
+  farmId: string,
+) {
   const store = await cookies();
   const claims = decodeAccessToken(accessToken);
   const accessMaxAge = claims ? Math.max(claims.exp - Math.floor(Date.now() / 1000), 0) : 900;
   store.set(COOKIE_ACCESS, accessToken, { ...sessionCookieOpts, maxAge: accessMaxAge });
   store.set(COOKIE_REFRESH, refreshCookieValue, { ...sessionCookieOpts, maxAge: REFRESH_COOKIE_MAX_AGE });
   store.set(COOKIE_USER, JSON.stringify(user), { ...sessionCookieOpts, maxAge: REFRESH_COOKIE_MAX_AGE });
+  store.set(COOKIE_FARM, farmId, { ...sessionCookieOpts, maxAge: REFRESH_COOKIE_MAX_AGE });
 }
 
 /** Only callable from a Server Action or Route Handler. */
@@ -80,6 +89,7 @@ export async function clearSessionCookies() {
   store.delete(COOKIE_ACCESS);
   store.delete(COOKIE_REFRESH);
   store.delete(COOKIE_USER);
+  store.delete(COOKIE_FARM);
 }
 
 /**
@@ -103,7 +113,7 @@ export async function loginWithBackend(email: string, password: string, farmId?:
 
   const refreshCookie = extractCookieValue(setCookies, "rakhal_refresh");
   if (!refreshCookie) throw new ApiError("LOGIN_NO_REFRESH_COOKIE", "Backend did not issue a refresh cookie.", 500);
-  await setSessionCookies(envelope.data.accessToken, refreshCookie, envelope.data.user);
+  await setSessionCookies(envelope.data.accessToken, refreshCookie, envelope.data.user, envelope.data.farmId);
 
   if (!envelope.data.needsFarm) return { status: "ok", user: envelope.data.user };
   if (envelope.data.farms && envelope.data.farms.length > 0) {
@@ -126,7 +136,7 @@ export async function selectFarm(farmId: string): Promise<{ user: SessionUser }>
   const refreshed = await performBackendRefresh(refreshCookieValue, farmId);
   if (!refreshed) throw new ApiError("FARM_ACTIVATE_FAILED", "Selecting the farm failed. Please log in again.", 500);
 
-  await setSessionCookies(refreshed.accessToken, refreshed.refreshCookie, refreshed.user);
+  await setSessionCookies(refreshed.accessToken, refreshed.refreshCookie, refreshed.user, farmId);
   return { user: refreshed.user };
 }
 
@@ -169,7 +179,7 @@ export async function createFirstFarm(name: string, description?: string): Promi
     );
   }
 
-  await setSessionCookies(refreshed.accessToken, refreshed.refreshCookie, refreshed.user);
+  await setSessionCookies(refreshed.accessToken, refreshed.refreshCookie, refreshed.user, created.envelope.data.id);
   return { user: refreshed.user };
 }
 
@@ -203,7 +213,7 @@ export async function acceptTeamInvite(token: string): Promise<{ user: SessionUs
     );
   }
 
-  await setSessionCookies(refreshed.accessToken, refreshed.refreshCookie, refreshed.user);
+  await setSessionCookies(refreshed.accessToken, refreshed.refreshCookie, refreshed.user, accepted.envelope.data.farm_id);
   return { user: refreshed.user, farmId: accepted.envelope.data.farm_id };
 }
 
@@ -221,8 +231,15 @@ export async function refreshSession(): Promise<Session | null> {
 async function doRefresh(): Promise<Session | null> {
   const store = await cookies();
   const refreshCookieValue = store.get(COOKIE_REFRESH)?.value;
-  const cachedAccess = store.get(COOKIE_ACCESS)?.value;
-  const farmId = cachedAccess ? decodeAccessToken(cachedAccess)?.farmId : undefined;
+  // rk_farm (30-day) outlives rk_at (~15min) — a stale session that comes back after the access
+  // token cookie has already aged out must still be able to refresh, so farmId can't depend on
+  // decoding rk_at. Fall back to it only for cookies set before rk_farm existed.
+  const farmId =
+    store.get(COOKIE_FARM)?.value ??
+    (() => {
+      const cachedAccess = store.get(COOKIE_ACCESS)?.value;
+      return cachedAccess ? decodeAccessToken(cachedAccess)?.farmId : undefined;
+    })();
   if (!refreshCookieValue || !farmId) {
     await clearSessionCookies();
     return null;
@@ -238,7 +255,7 @@ async function doRefresh(): Promise<Session | null> {
   // to carry a stale `isEmailVerified` claim vs. login's.
   const cachedUser = store.get(COOKIE_USER)?.value;
   const user: SessionUser = cachedUser ? JSON.parse(cachedUser) : result.user;
-  await setSessionCookies(result.accessToken, result.refreshCookie, user);
+  await setSessionCookies(result.accessToken, result.refreshCookie, user, farmId);
 
   const claims = decodeAccessToken(result.accessToken);
   return { accessToken: result.accessToken, farmId, sessionId: claims?.sessionId ?? "", user };

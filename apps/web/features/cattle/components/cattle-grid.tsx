@@ -83,7 +83,6 @@ function CattleCard({
   rowActions: {
     onView: (cattle: CattleListItem) => void;
     onEdit: (cattle: CattleListItem) => void;
-    onChangeStatus: (cattle: CattleListItem) => void;
     onArchive: (cattle: CattleListItem) => void;
   };
 }) {
@@ -115,7 +114,6 @@ function CattleCard({
             cattle={cattle}
             onView={rowActions.onView}
             onEdit={rowActions.onEdit}
-            onChangeStatus={rowActions.onChangeStatus}
             onArchive={rowActions.onArchive}
           />
         </div>
@@ -233,7 +231,6 @@ export function CattleGrid({
   rowActions: {
     onView: (cattle: CattleListItem) => void;
     onEdit: (cattle: CattleListItem) => void;
-    onChangeStatus: (cattle: CattleListItem) => void;
     onArchive: (cattle: CattleListItem) => void;
   };
   canSelect: boolean;
