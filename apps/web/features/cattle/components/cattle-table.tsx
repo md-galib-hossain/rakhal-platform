@@ -30,13 +30,8 @@ import { CattleGrid } from "./cattle-grid";
 import { CattleFormDialog } from "./cattle-form-dialog";
 import { CattleArchiveDialog } from "./cattle-archive-dialog";
 import { CattleDetailSheet } from "./detail/cattle-detail-sheet";
-import { BreedingEventDialog } from "@/features/reproduction/components/dialogs/breeding-event-dialog";
-import { PregnancyDiagnosisDialog } from "@/features/reproduction/components/dialogs/pregnancy-diagnosis-dialog";
-import { HeatEventDialog } from "@/features/reproduction/components/dialogs/heat-event-dialog";
-import { DryOffDialog } from "@/features/reproduction/components/dialogs/dry-off-dialog";
 import type {
   AnimalCategory,
-  CattleDetail,
   CattleListFilters,
   CattleListItem,
   CattlePurpose,
@@ -44,8 +39,6 @@ import type {
   ProductionStatus,
   ReproductiveStatus,
 } from "../types";
-
-type ReproductionAction = "breeding" | "pregnancy" | "heat" | "dryoff";
 
 /** Reads the URL params `CattleFilters` writes (both are siblings under the same page) and drives
  * the cursor-paginated table + bulk-selection dock. Bulk-action logic (change shed/feed-group,
@@ -62,12 +55,6 @@ export function CattleTable() {
   const [editingId, setEditingId] = useState<string | undefined>(undefined);
   const [formOpen, setFormOpen] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<CattleListItem | null>(null);
-  // RAKHAL-status-fold-p4: which dedicated Reproduction dialog to open (and for which cow), when
-  // the Edit Animal modal's Status section redirects a risky status pick here instead of PATCHing
-  // it directly.
-  const [reproAction, setReproAction] = useState<{ action: ReproductionAction; cattle: CattleDetail } | null>(
-    null,
-  );
   const [shedDialogOpen, setShedDialogOpen] = useState(false);
   const [feedGroupDialogOpen, setFeedGroupDialogOpen] = useState(false);
   const [shedId, setShedId] = useState<string | undefined>(undefined);
@@ -258,35 +245,12 @@ export function CattleTable() {
           if (!open) setEditingId(undefined);
         }}
         cattle={editingDetail.data}
-        onRequestReproductionAction={(action, cattle) => setReproAction({ action, cattle })}
+        loading={Boolean(editingId) && !editingDetail.data}
       />
       <CattleArchiveDialog
         open={archiveTarget !== null}
         onOpenChange={(open) => !open && setArchiveTarget(null)}
         cattle={archiveTarget}
-      />
-      {/* RAKHAL-status-fold-p4: the real recorders behind the Edit Animal Status section's
-          redirected picks — each owns its own mutation/date fields/side effects, keeping the
-          Reproduction dashboard, heat-detection list, and dry-off tracking in sync. */}
-      <BreedingEventDialog
-        open={reproAction?.action === "breeding"}
-        onOpenChange={(open) => !open && setReproAction(null)}
-        defaultCattleId={reproAction?.cattle.id}
-      />
-      <PregnancyDiagnosisDialog
-        open={reproAction?.action === "pregnancy"}
-        onOpenChange={(open) => !open && setReproAction(null)}
-        defaultCattleId={reproAction?.cattle.id}
-      />
-      <HeatEventDialog
-        open={reproAction?.action === "heat"}
-        onOpenChange={(open) => !open && setReproAction(null)}
-        defaultCattleId={reproAction?.cattle.id}
-      />
-      <DryOffDialog
-        open={reproAction?.action === "dryoff"}
-        onOpenChange={(open) => !open && setReproAction(null)}
-        cattleId={reproAction?.cattle.id}
       />
 
       <Dialog open={shedDialogOpen} onOpenChange={setShedDialogOpen}>

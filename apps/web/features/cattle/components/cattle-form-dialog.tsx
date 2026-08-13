@@ -5,7 +5,7 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Info, Plus, Sparkles, X } from "lucide-react";
+import { ChevronLeft, Info, Plus, Sparkles, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ApiError } from "@/lib/api/errors";
 import {
@@ -41,6 +41,10 @@ import {
 } from "../hooks/use-cattle";
 import { cattleEditFormSchema, type CattleEditFormInput } from "../schemas";
 import { deriveAnimalCategoryPreview } from "../utils/animal-category-preview";
+import { BreedingEventStep } from "@/features/reproduction/components/dialogs/breeding-event-step";
+import { PregnancyDiagnosisStep } from "@/features/reproduction/components/dialogs/pregnancy-diagnosis-step";
+import { HeatEventStep } from "@/features/reproduction/components/dialogs/heat-event-step";
+import { DryOffStep } from "@/features/reproduction/components/dialogs/dry-off-step";
 import type { AnimalCategory, CattleDetail, CattleFormPayload } from "../types";
 
 const UNSET = "__unset__";
@@ -57,6 +61,13 @@ const PURPOSES = [
 ] as const;
 const SOURCE_TYPES = ["BORN", "PURCHASED", "GIFTED", "UNKNOWN"] as const;
 const BREEDING_METHODS = ["AI", "NATURAL", "EMBRYO_TRANSFER"] as const;
+// RAKHAL-status-fold-p5: step titles borrow each target's own dialog title, no new i18n needed.
+const STEP_TITLE_KEY: Record<"breeding" | "pregnancy" | "heat" | "dryoff", string> = {
+  breeding: "reproduction.dialogs.breeding.title",
+  pregnancy: "reproduction.dialogs.pregnancyDiagnosis.title",
+  heat: "reproduction.dialogs.heat.title",
+  dryoff: "reproduction.dialogs.dryOff.title",
+};
 // RAKHAL-status-fold: ported from `CattleStatusDialog`.
 const PRODUCTION_STATUSES = ["MILKING", "DRY"] as const;
 const REPRODUCTIVE_STATUSES = [
@@ -226,7 +237,7 @@ export function CattleFormDialog({
   onOpenChange,
   cattle,
   initialValues,
-  onRequestReproductionAction,
+  loading,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -235,16 +246,13 @@ export function CattleFormDialog({
    * prefills `gender: "FEMALE"`, Calf prefills `purpose: "CALF"` + today's `dateOfBirth`). Ignored
    * when `cattle` is set (edit mode always loads the existing cow's own values). */
   initialValues?: Partial<CattleEditFormInput>;
-  /** RAKHAL-status-fold-p4 — edit-mode only. Picking a status value that has a dedicated
-   * Reproduction-module recorder (breeding/pregnancy/heat/dry-off) fires this instead of writing
-   * a raw status PATCH, so the real dated record (and its downstream sync — Reproduction
-   * dashboard, heat-detection list, lactation curve) is what actually gets created. The caller
-   * (`CattleTable`) owns mounting the four target dialogs. Omitted entirely by create-mode
-   * callers (e.g. the category-highlight tiles) since the Status section never renders there. */
-  onRequestReproductionAction?: (
-    action: "breeding" | "pregnancy" | "heat" | "dryoff",
-    cattle: CattleDetail,
-  ) => void;
+  /** True while an edit target's `CattleDetail` is still being fetched (caller opens the dialog
+   * immediately on row-action click, before the detail query resolves). Without this the body
+   * below would mount once with `cattle` still `undefined` (create-mode UI, `key="create"`) and
+   * then remount into edit-mode the instant the fetch resolves — a full create→edit UI swap
+   * mid-open-animation that reads as a flicker on every cold (uncached) edit click. Renders a
+   * skeleton instead so the body only ever mounts once, already in the right mode. */
+  loading?: boolean;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -253,32 +261,51 @@ export function CattleFormDialog({
           from a previous edit target) without an imperative reset-on-open effect, which would
           trip the `set-state-in-effect` cascading-render lint rule since this outer component
           itself never unmounts (the parent keeps it mounted regardless of `open`). */}
-      {open ? (
+      {open && loading ? (
+        <CattleFormDialogSkeleton />
+      ) : open ? (
         <CattleFormDialogBody
           key={cattle?.id ?? "create"}
           onOpenChange={onOpenChange}
           cattle={cattle}
           initialValues={initialValues}
-          onRequestReproductionAction={onRequestReproductionAction}
         />
       ) : null}
     </Dialog>
   );
 }
 
+/** Placeholder shown while an edit target's detail is still loading — see `loading` prop above.
+ * Roughly matches the real body's header + footer chrome so the dialog doesn't jump size once the
+ * real form swaps in. */
+function CattleFormDialogSkeleton() {
+  return (
+    <DialogContent className="flex max-h-[90vh] w-full max-w-[680px] flex-col gap-0 overflow-hidden rounded-[20px] border-2 border-border p-0 shadow-2xl">
+      <div className="flex min-h-[460px] flex-1 flex-col gap-4 overflow-y-auto px-6 py-5">
+        <div className="h-9 w-40 animate-pulse rounded-xl bg-muted" />
+        <div className="flex gap-4">
+          <div className="size-[110px] shrink-0 animate-pulse rounded-xl bg-muted" />
+          <div className="grid flex-1 grid-cols-2 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-14 animate-pulse rounded-xl bg-muted" />
+            ))}
+          </div>
+        </div>
+      </div>
+    </DialogContent>
+  );
+}
+
+type ReproductionStep = "basic" | "breeding" | "pregnancy" | "heat" | "dryoff";
+
 function CattleFormDialogBody({
   onOpenChange,
   cattle,
   initialValues,
-  onRequestReproductionAction,
 }: {
   onOpenChange: (open: boolean) => void;
   cattle?: CattleDetail;
   initialValues?: Partial<CattleEditFormInput>;
-  onRequestReproductionAction?: (
-    action: "breeding" | "pregnancy" | "heat" | "dryoff",
-    cattle: CattleDetail,
-  ) => void;
 }) {
   const t = useTranslations("cattle.form");
   const tCategory = useTranslations("cattle.animalCategory");
@@ -289,6 +316,10 @@ function CattleFormDialogBody({
   /** Status section (edit-mode only) reuses the former `CattleStatusDialog`'s own i18n namespace
    * verbatim — field labels/options didn't move, only the dialog they lived in did. */
   const tStatus = useTranslations("cattle.statusDialog");
+  // RAKHAL-status-fold-p5: root-scoped (no namespace) so `STEP_TITLE_KEY`'s full dotted paths
+  // resolve across multiple reproduction dialog namespaces; `common` for the Back/step chrome.
+  const tRoot = useTranslations();
+  const tCommon = useTranslations("common");
   const isEdit = Boolean(cattle);
 
   const breeds = useBreeds();
@@ -309,6 +340,11 @@ function CattleFormDialogBody({
   // `lactationStartDate` path vs the estimated-intake path when setting MILKING on a cow with no
   // active lactation.
   const [useEstimatedIntake, setUseEstimatedIntake] = useState(false);
+  // RAKHAL-status-fold-p5: which wizard step is showing. Picking a status value that has a
+  // dedicated Reproduction-module recorder (breeding/pregnancy/heat/dry-off) swaps the modal body
+  // to that step instead of writing a raw status PATCH or popping a second dialog — same modal,
+  // Back returns to "basic" with step 1's values intact.
+  const [step, setStep] = useState<ReproductionStep>("basic");
 
   const form = useForm<CattleEditFormInput>({
     resolver: zodResolver(cattleEditFormSchema),
@@ -449,13 +485,34 @@ function CattleFormDialogBody({
   return (
     <>
     <DialogContent className="flex max-h-[90vh] w-full max-w-[680px] flex-col gap-0 overflow-hidden rounded-[20px] border-2 border-border p-0 shadow-2xl">
-      <div className="flex items-center justify-between px-6 py-5">
+      <div className="flex items-center gap-2 px-6 py-5">
+        {step !== "basic" ? (
+          <button
+            type="button"
+            onClick={() => setStep("basic")}
+            aria-label={tCommon("back")}
+            className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <ChevronLeft className="size-5" aria-hidden />
+          </button>
+        ) : null}
         <DialogTitle className="text-xl font-bold text-foreground">
-          {isEdit ? t("editTitle") : t("createTitle")}
+          {step === "basic" ? (isEdit ? t("editTitle") : t("createTitle")) : tRoot(STEP_TITLE_KEY[step])}
         </DialogTitle>
       </div>
       <div className="border-t border-border" />
 
+      {step !== "basic" && cattle ? (
+        step === "breeding" ? (
+          <BreedingEventStep cattleId={cattle.id} onBack={() => setStep("basic")} onDone={() => onOpenChange(false)} />
+        ) : step === "pregnancy" ? (
+          <PregnancyDiagnosisStep cattleId={cattle.id} onBack={() => setStep("basic")} onDone={() => onOpenChange(false)} />
+        ) : step === "heat" ? (
+          <HeatEventStep cattleId={cattle.id} onBack={() => setStep("basic")} onDone={() => onOpenChange(false)} />
+        ) : (
+          <DryOffStep cattleId={cattle.id} onBack={() => setStep("basic")} onDone={() => onOpenChange(false)} />
+        )
+      ) : (
       <form
         onSubmit={form.handleSubmit(onSubmit)}
         noValidate
@@ -463,8 +520,10 @@ function CattleFormDialogBody({
       >
         {/* `min-h-0 flex-1` pins the footer to the bottom — without it this div sizes to its
             content and the outer Sheet/Dialog's own `overflow-y-auto` scrolls header+form+footer
-            as one unit instead of just this middle section. */}
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-5">
+            as one unit instead of just this middle section. `min-h-[460px]` keeps the dialog a
+            consistent height whether step 1 (long) or a wizard step (short, e.g. Heat) is
+            showing, per the same reasoning as each step's own scroll area. */}
+        <div className="flex min-h-[460px] flex-1 flex-col gap-4 overflow-y-auto px-6 py-5">
           <div className="flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-2.5 text-sm font-semibold text-foreground">
             <Sparkles className="size-4 text-primary" aria-hidden />
             {t("basicInfo")}
@@ -661,8 +720,7 @@ function CattleFormDialogBody({
                           // a raw status PATCH here would only flip the flag, leaving the rest of
                           // the app blind to it. Redirect instead of writing the field.
                           if (v === "DRY" && cattle) {
-                            onRequestReproductionAction?.("dryoff", cattle);
-                            onOpenChange(false);
+                            setStep("dryoff");
                             return;
                           }
                           field.onChange(v === UNSET ? undefined : v);
@@ -706,8 +764,7 @@ function CattleFormDialogBody({
                           };
                           const action = REDIRECT[v];
                           if (action && cattle) {
-                            onRequestReproductionAction?.(action, cattle);
-                            onOpenChange(false);
+                            setStep(action);
                             return;
                           }
                           field.onChange(v === UNSET ? undefined : v);
@@ -1043,6 +1100,7 @@ function CattleFormDialogBody({
           </Button>
         </div>
       </form>
+      )}
     </DialogContent>
     <AddBreedDialog
       open={addBreedOpen}
