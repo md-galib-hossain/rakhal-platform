@@ -67,6 +67,7 @@ import { CorrectPregnancyDto } from '../../presentation/dto/correct-pregnancy.dt
 import { ResolveHeatEventDto } from '../../presentation/dto/resolve-heat-event.dto';
 import { ReturnToHeatDto } from '../../presentation/dto/return-to-heat.dto';
 import { ReproductionListQueryDto } from '../../presentation/dto/common.dto';
+import { ListPregnanciesQueryDto } from '../../presentation/dto/list-pregnancies-query.dto';
 
 type CattleForAccess = {
   id: string;
@@ -695,12 +696,17 @@ export class ReproductionService {
     return diagnosis;
   }
 
-  async listPregnancies(farmId: string, query: ReproductionListQueryDto) {
+  async listPregnancies(farmId: string, query: ListPregnanciesQueryDto) {
     const where = await this.buildScopedWhere(farmId, query, 'conceptionDate');
     const rows = await this.prisma.pregnancy.findMany({
-      where,
+      where: { ...where, ...(query.status ? { status: query.status } : {}) },
       orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
       ...getCursorArgs(query),
+      // "eligible for calving" pickers need the cow's tag/name without an
+      // extra round-trip per row.
+      include: {
+        cattle: { select: { id: true, name: true, tagNumber: true } },
+      },
     });
     return toCursorPage(rows, query);
   }
@@ -776,6 +782,23 @@ export class ReproductionService {
     dto: CreateCalvingEventDto,
   ) {
     const cattle = await this.getFemaleCattle(farmId, dto.cattleId);
+
+    // Same gap/fix as createPregnancyDiagnosisInner's auto-resolve above: a
+    // calving submitted without pregnancyId (e.g. a caller that forgets it,
+    // or a UI path that hasn't been threaded through yet) otherwise never
+    // closes the Pregnancy/BreedingEvent it belongs to. Auto-link when the
+    // cow has exactly one ACTIVE pregnancy — never guess between two.
+    if (!dto.pregnancyId) {
+      const activePregnancies = await this.prisma.pregnancy.findMany({
+        where: { cattleId: dto.cattleId, status: PregnancyStatus.ACTIVE },
+        select: { id: true },
+        take: 2,
+      });
+      if (activePregnancies.length === 1) {
+        dto.pregnancyId = activePregnancies[0].id;
+      }
+    }
+
     const pregnancy = dto.pregnancyId
       ? await this.getPregnancyForCattle(dto.pregnancyId, dto.cattleId)
       : null;
@@ -1659,12 +1682,14 @@ export class ReproductionService {
         orderBy: { dueAt: 'asc' },
         take: 40,
       }),
-      // Calving next 7 days
+      // Calving next 7 days (and overdue — no calving recorded yet past the
+      // expected date; "Record Calving" is the action, so overdue belongs
+      // here rather than dropping off the dashboard silently)
       this.prisma.pregnancy.findMany({
         where: {
           cattle: { farmId, isActive: true },
           status: PregnancyStatus.ACTIVE,
-          expectedCalvingDate: { gte: now, lte: in7d },
+          expectedCalvingDate: { lte: in7d },
         },
         include: {
           cattle: { select: { id: true, name: true, tagNumber: true } },
@@ -1789,6 +1814,7 @@ export class ReproductionService {
       pregnancy_recheck_due: pregnancyRecheckDue,
       calving_next_7_days: calvingNext7Days.map((p) => ({
         cattle_id: p.cattle.id,
+        pregnancy_id: p.id,
         name: p.cattle.name,
         tag: p.cattle.tagNumber,
         expected_date: p.expectedCalvingDate,

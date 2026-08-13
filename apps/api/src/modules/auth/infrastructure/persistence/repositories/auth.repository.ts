@@ -10,6 +10,18 @@ import { createHash } from 'crypto';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { EmailVerificationTokenPort } from 'src/modules/auth/application/ports/email-verification-token.port';
 
+/** Thrown when `completeRefreshRotation` loses the atomic claim on the
+ * incoming token — a concurrent request already rotated it first (two tabs,
+ * or the proactive middleware + reactive 401-retry firing near-simultaneously
+ * on the same stale cookie). Not the same as real token reuse: the caller
+ * should fall back to replaying the winner's result, not revoke the family. */
+export class RefreshTokenAlreadyRotatedError extends Error {
+  constructor() {
+    super('Refresh token was already rotated by a concurrent request');
+    this.name = 'RefreshTokenAlreadyRotatedError';
+  }
+}
+
 @Injectable()
 export class AuthRepository implements EmailVerificationTokenPort {
   constructor(private readonly prisma: PrismaService) {}
@@ -547,12 +559,20 @@ export class AuthRepository implements EmailVerificationTokenPort {
     refreshReason: string;
   }) {
     return this.prisma.$transaction(async (prisma) => {
-      const previousToken = await prisma.refreshToken.update({
-        where: { id: data.refreshTokenId },
+      const claim = await prisma.refreshToken.updateMany({
+        where: { id: data.refreshTokenId, isRevoked: false },
         data: {
           isRevoked: true,
           revokedAt: new Date(),
         },
+      });
+
+      if (claim.count === 0) {
+        throw new RefreshTokenAlreadyRotatedError();
+      }
+
+      const previousToken = await prisma.refreshToken.findUniqueOrThrow({
+        where: { id: data.refreshTokenId },
       });
 
       const nextToken = await prisma.refreshToken.create({

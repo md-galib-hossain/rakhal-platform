@@ -28,7 +28,10 @@ import { LoginFarmSummary, LoginResult } from '../../domain/login-result.type';
 import { RegisterResult } from '../../domain/register-result.type';
 import { RegisteredUser } from '../../domain/registered-user.type';
 import { AuthTokenPayload } from '../../domain/auth-token-payload.type';
-import { AuthRepository } from '../../infrastructure/persistence/repositories/auth.repository';
+import {
+  AuthRepository,
+  RefreshTokenAlreadyRotatedError,
+} from '../../infrastructure/persistence/repositories/auth.repository';
 import { PermissionService } from 'src/modules/permission/application/services/permission.service';
 import { PasswordService } from './password.service';
 import { PermissionsVersionCacheService } from './permissions-version-cache.service';
@@ -131,39 +134,14 @@ export class AuthService {
       session.status !== SessionStatus.ACTIVE ||
       session.expiresAt.getTime() <= now.getTime()
     ) {
-      // A near-simultaneous duplicate refresh call (two tabs, or the
-      // proactive middleware + reactive 401-retry both firing) can present
-      // the SAME just-rotated token a beat after another request already
-      // rotated it. Rather than treat that as an attack, replay the
-      // just-completed rotation's result within a short grace window —
-      // real reuse (replayed after this cache entry expires, or of a token
-      // that was never actually "current") still falls through below.
-      const replay = await this.cacheService.get<LoginResult>(
-        this.rotationCacheKey(incomingTokenHash),
-      );
-      if (replay) {
-        return replay;
-      }
-
-      await this.refreshTokenService.markReuse({
-        refreshTokenId: storedToken.id,
+      return this.replayRotationOrMarkReuse({
+        incomingTokenHash,
+        storedTokenId: storedToken.id,
         tokenFamily: storedToken.tokenFamily,
-        sessionId: session.id,
-        userId: user.id,
-        ipAddress: undefined,
-        userAgent: undefined,
-        deviceName: session.deviceName ?? undefined,
+        session,
+        user,
         farmId: dto.farmId,
       });
-
-      this.log.warn('Refresh token reuse detected', {
-        userId: user.id,
-        sessionId: session.id,
-        tokenFamily: storedToken.tokenFamily,
-        farmId: dto.farmId,
-      });
-
-      throw new UnauthorizedException('Invalid refresh token');
     }
 
     const nextRefreshToken = this.refreshTokenService.generateToken();
@@ -173,17 +151,38 @@ export class AuthService {
       now.getTime() + this.parseDurationToMs(this.config.refreshExpiresIn),
     );
 
-    const rotationResult = await this.refreshTokenService.completeRotation({
-      refreshTokenId: storedToken.id,
-      tokenFamily: storedToken.tokenFamily,
-      tokenHash: nextRefreshTokenHash,
-      tokenExpiresAt: nextRefreshTokenExpiresAt,
-      parentTokenId: storedToken.id,
-      sessionId: session.id,
-      userId: user.id,
-      farmId: dto.farmId,
-      deviceName: session.deviceName ?? undefined,
-    });
+    let rotationResult;
+    try {
+      rotationResult = await this.refreshTokenService.completeRotation({
+        refreshTokenId: storedToken.id,
+        tokenFamily: storedToken.tokenFamily,
+        tokenHash: nextRefreshTokenHash,
+        tokenExpiresAt: nextRefreshTokenExpiresAt,
+        parentTokenId: storedToken.id,
+        sessionId: session.id,
+        userId: user.id,
+        farmId: dto.farmId,
+        deviceName: session.deviceName ?? undefined,
+      });
+    } catch (error) {
+      if (error instanceof RefreshTokenAlreadyRotatedError) {
+        // Lost the atomic claim to a near-simultaneous duplicate call (two
+        // tabs, or the proactive middleware + reactive 401-retry both
+        // firing on the same stale cookie). The winner is finishing its own
+        // transaction right now — give it a moment to publish its replay
+        // entry before treating this as real reuse.
+        return this.replayRotationOrMarkReuse({
+          incomingTokenHash,
+          storedTokenId: storedToken.id,
+          tokenFamily: storedToken.tokenFamily,
+          session,
+          user,
+          farmId: dto.farmId,
+          retries: 3,
+        });
+      }
+      throw error;
+    }
 
     const accessToken = await this.tokenService.signAccessToken(
       this.buildAccessTokenPayload({
@@ -223,6 +222,67 @@ export class AuthService {
 
   private rotationCacheKey(tokenHash: string): string {
     return `auth:refresh-rotated:${tokenHash}`;
+  }
+
+  /** Shared by both the pre-check "already revoked/expired" branch and the
+   * "lost the atomic rotation claim" catch in `refresh()`. A near-simultaneous
+   * duplicate refresh call (two tabs, or the proactive middleware + reactive
+   * 401-retry both firing on the same stale cookie) can present a token a
+   * beat after another request already rotated it. Rather than treat that as
+   * an attack, replay the just-completed rotation's result within a short
+   * grace window — real reuse (replayed after this cache entry expires, or
+   * of a token that was never actually "current") still falls through to
+   * revoking the whole family below. */
+  private async replayRotationOrMarkReuse(params: {
+    incomingTokenHash: string;
+    storedTokenId: string;
+    tokenFamily: string;
+    session: { id: string; deviceName: string | null };
+    user: { id: string };
+    farmId: string;
+    retries?: number;
+  }): Promise<LoginResult> {
+    const {
+      incomingTokenHash,
+      storedTokenId,
+      tokenFamily,
+      session,
+      user,
+      farmId,
+    } = params;
+    const retries = params.retries ?? 0;
+
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+      const replay = await this.cacheService.get<LoginResult>(
+        this.rotationCacheKey(incomingTokenHash),
+      );
+      if (replay) {
+        return replay;
+      }
+      if (attempt < retries) {
+        await new Promise((resolve) => setTimeout(resolve, 75));
+      }
+    }
+
+    await this.refreshTokenService.markReuse({
+      refreshTokenId: storedTokenId,
+      tokenFamily,
+      sessionId: session.id,
+      userId: user.id,
+      ipAddress: undefined,
+      userAgent: undefined,
+      deviceName: session.deviceName ?? undefined,
+      farmId,
+    });
+
+    this.log.warn('Refresh token reuse detected', {
+      userId: user.id,
+      sessionId: session.id,
+      tokenFamily,
+      farmId,
+    });
+
+    throw new UnauthorizedException('Invalid refresh token');
   }
 
   async logoutCurrentSession(userId: string, sessionId: string) {

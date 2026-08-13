@@ -17,6 +17,7 @@ import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { ReproductionService } from '../../application/services/reproduction.service';
 import { ReproductionListQueryDto } from '../dto/common.dto';
+import { ListPregnanciesQueryDto } from '../dto/list-pregnancies-query.dto';
 import { ReproEventsQueryDto } from '../dto/repro-events-query.dto';
 import { CreateAbortionEventDto } from '../dto/create-abortion-event.dto';
 import { CreateBreedingEventDto } from '../dto/create-breeding-event.dto';
@@ -141,7 +142,7 @@ export class ReproductionController {
   @RequirePermission('reproduction.read')
   listPregnancies(
     @CurrentFarmId() farmId: string,
-    @Query() query: ReproductionListQueryDto,
+    @Query() query: ListPregnanciesQueryDto,
   ) {
     return this.reproductionService.listPregnancies(farmId, query);
   }

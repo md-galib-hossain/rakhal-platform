@@ -32,6 +32,7 @@ class MilkModuleDto {
   @IsOptional() @IsString() @MaxLength(5) night_end?: string;
   @IsOptional() @IsIn(['litres', 'kg']) milk_unit?: string;
   @IsOptional() @IsInt() @Min(1) @Max(100) anomaly_threshold_pct?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(30) colostrum_window_days?: number;
 }
 
 class ReproductionModuleDto {

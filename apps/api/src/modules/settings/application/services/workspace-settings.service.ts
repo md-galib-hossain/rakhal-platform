@@ -65,6 +65,11 @@ export class WorkspaceSettingsService {
         'milkAnomalyThresholdPct',
         dto.milk.anomaly_threshold_pct,
       );
+      this.assign(
+        data,
+        'milkColostrumWindowDays',
+        dto.milk.colostrum_window_days,
+      );
     }
     if (dto.reproduction) {
       this.assign(data, 'reproVwpDays', dto.reproduction.vwp_days);
@@ -310,6 +315,7 @@ export class WorkspaceSettingsService {
         night_end: s.milkNightEnd,
         milk_unit: s.milkUnit,
         anomaly_threshold_pct: s.milkAnomalyThresholdPct,
+        colostrum_window_days: s.milkColostrumWindowDays,
       },
       reproduction: {
         vwp_days: s.reproVwpDays,
