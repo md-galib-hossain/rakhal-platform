@@ -125,7 +125,12 @@ function QuickFeedDialogBody({
           value={feedItemId}
           onValueChange={(v) => {
             if (v === CREATE_NEW_FEED_ITEM) {
-              setCreateItemOpen(true);
+              // Deferred: opening a Sheet synchronously from a Select's `onValueChange` lets the new
+              // Sheet's dismissable-layer catch the tail of the same click/pointer event as an
+              // "outside click" and close itself on the same frame it opened — visible as a flicker,
+              // not a real open. Pushing the state update to the next tick lets that event finish
+              // first.
+              setTimeout(() => setCreateItemOpen(true), 0);
               return;
             }
             setFeedItemId(v);
