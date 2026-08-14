@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
+import { UnitPicker } from "./unit-picker";
 import { useCreateEquipment, useUpdateEquipment } from "../hooks/use-inventory";
 import { equipmentFormSchema, type EquipmentFormInput } from "../schemas";
 import type { CreateEquipmentPayload, Equipment, UpdateEquipmentPayload } from "../types";
@@ -24,7 +25,7 @@ function toCreatePayload(values: EquipmentFormInput): CreateEquipmentPayload {
     name: values.name,
     assetId: values.assetId || undefined,
     type: values.type,
-    unit: values.unit || undefined,
+    unitId: values.unitId || undefined,
     currentStock: values.currentStock,
     costPerUnit: values.costPerUnit,
     lowStockThreshold: values.lowStockThreshold,
@@ -43,7 +44,7 @@ function toFormDefaults(equipment: Equipment | undefined): Partial<EquipmentForm
     name: equipment.name,
     assetId: equipment.assetId ?? "",
     type: equipment.type,
-    unit: equipment.unit ?? "",
+    unitId: equipment.unit?.id ?? "",
     currentStock: equipment.currentStock,
     costPerUnit: equipment.costPerUnit,
     lowStockThreshold: equipment.lowStockThreshold,
@@ -92,7 +93,11 @@ export function EquipmentFormDialog({
   equipment?: Equipment;
 }) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    // `modal={false}` — same fix as `create-feed-dialog.tsx`'s Sheet: the modal Dialog's
+    // document-level scroll lock (`react-remove-scroll`) intercepts wheel events for anything
+    // portaled outside it, including this form's `UnitPicker` popover, even with `modal={false}`
+    // set on the popover itself. See that file's doc comment for the confirmed root cause.
+    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
       {open ? <EquipmentFormDialogBody key={equipment?.id ?? "create"} onOpenChange={onOpenChange} equipment={equipment} /> : null}
     </Sheet>
   );
@@ -164,7 +169,13 @@ function EquipmentFormDialogBody({
                 label={t("currentStock")}
                 {...form.register("currentStock", { setValueAs: (v) => (v === "" ? undefined : Number(v)) })}
               />
-              <LabeledInput id="unit" label={t("unit")} placeholder={t("unitPlaceholder")} {...form.register("unit")} />
+              <Controller
+                control={form.control}
+                name="unitId"
+                render={({ field, fieldState }) => (
+                  <UnitPicker value={field.value} onChange={field.onChange} error={fieldState.error?.message} />
+                )}
+              />
               <LabeledInput
                 id="costPerUnit"
                 type="number"

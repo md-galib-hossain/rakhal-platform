@@ -55,6 +55,9 @@ function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenCha
   // Explicit user edits only — defaults to each line's planned amount until the farmer types over
   // it, avoiding a setState-in-effect resync once `detail.data` loads (see react-hooks/set-state-in-effect).
   const [actualOverrides, setActualOverrides] = useState<Record<string, number>>({});
+  // Refusal/leftover — same-day estimate (2026-08-13, user request). Defaults to 0; a farmer who
+  // doesn't know the leftover yet can skip this and record it next-day via `usePatchRefusal`.
+  const [refusalOverrides, setRefusalOverrides] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState("");
   const [distributedAt, setDistributedAt] = useState(todayStr());
   const [submitting, setSubmitting] = useState(false);
@@ -84,6 +87,7 @@ function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenCha
         items: detail.data.ingredients.map((line) => ({
           ingredientId: line.ingredient_id,
           actualKg: actualByIngredient[line.ingredient_id] ?? line.amount_kg,
+          refusalKg: refusalOverrides[line.ingredient_id] ?? 0,
         })),
       });
       toast.success(t("loggedToast"));
@@ -152,21 +156,42 @@ function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenCha
                         {t("planned")}: {line.amount_kg} kg
                       </span>
                     </div>
-                    <div className="flex h-9 w-24 items-center gap-1 rounded-lg bg-muted px-2 shadow-xs">
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={actualByIngredient[line.ingredient_id] ?? line.amount_kg}
-                        onChange={(e) =>
-                          setActualOverrides((prev) => ({
-                            ...prev,
-                            [line.ingredient_id]: Number(e.target.value) || 0,
-                          }))
-                        }
-                        className="w-full border-0 bg-transparent p-0 text-sm text-foreground outline-none"
-                      />
-                      <span className="text-xs text-muted-foreground">kg</span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-9 w-24 items-center gap-1 rounded-lg bg-muted px-2 shadow-xs">
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={actualByIngredient[line.ingredient_id] ?? line.amount_kg}
+                          onChange={(e) =>
+                            setActualOverrides((prev) => ({
+                              ...prev,
+                              [line.ingredient_id]: Number(e.target.value) || 0,
+                            }))
+                          }
+                          className="w-full border-0 bg-transparent p-0 text-sm text-foreground outline-none"
+                          aria-label={t("actualKg")}
+                        />
+                        <span className="text-xs text-muted-foreground">kg</span>
+                      </div>
+                      <div className="flex h-9 w-20 flex-col items-center justify-center rounded-lg bg-muted px-2 shadow-xs">
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          placeholder="0"
+                          value={refusalOverrides[line.ingredient_id] ?? ""}
+                          onChange={(e) =>
+                            setRefusalOverrides((prev) => ({
+                              ...prev,
+                              [line.ingredient_id]: Number(e.target.value) || 0,
+                            }))
+                          }
+                          className="w-full border-0 bg-transparent p-0 text-center text-sm text-foreground outline-none"
+                          aria-label={t("refusalKg")}
+                        />
+                        <span className="text-[10px] text-muted-foreground">{t("refusalShort")}</span>
+                      </div>
                     </div>
                   </div>
                 ))}

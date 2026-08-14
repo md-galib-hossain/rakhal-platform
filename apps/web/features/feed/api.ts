@@ -6,21 +6,33 @@ import type {
   BulkDeleteConcentrationPayload,
   CreateCustomIngredientPayload,
   CreateFeedConcentrationPayload,
+  DmiComparison,
   FeedConcentrationDetail,
   FeedConcentrationKind,
   FeedConcentrationSummary,
+  FeedConcentrationVersion,
+  FeedCostSummary,
   FeedDistribution,
   FeedDistributionSummary,
   FeedEfficiencyResult,
   FeedGroup,
   FeedIngredient,
   FeedRequirementsResult,
+  IngredientListFilters,
   FeedStock,
   FeedStockDetail,
+  FinalizeConcentrationPayload,
   FinalizeConcentrationResult,
   LogDistributionPayload,
   NormalizeConcentrationPayload,
   NormalizeConcentrationResult,
+  PatchRefusalPayload,
+  QuickFeedPayload,
+  RefusalTrend,
+  ResolvedRation,
+  SetFeedOverridePayload,
+  TodaysFeedRequirement,
+  UpdateCustomIngredientPayload,
   UpdateFeedConcentrationPayload,
 } from "./types";
 
@@ -32,8 +44,39 @@ export const feedApi = {
   listIngredients(): Promise<FeedIngredient[]> {
     return apiFetch<FeedIngredient[]>("/feed/ingredients");
   },
+  /** `GET /feed/ingredients/paged` — cursor-paginated + filterable, for the Ingredients management
+   * table (2026-08-14). Kept separate from `listIngredients` above, which stays the plain unpaginated
+   * array the picker/create-dialog/detail-sheet need for full-catalogue selection. */
+  listIngredientsPaged(
+    filters: IngredientListFilters,
+    cursor?: string,
+    limit = 20,
+  ): Promise<CursorPage<FeedIngredient>> {
+    return apiFetchPage<FeedIngredient>("/feed/ingredients/paged", {
+      searchParams: {
+        search: filters.search,
+        feedClass: filters.feedClass,
+        priceMin: filters.priceMin,
+        priceMax: filters.priceMax,
+        cursor,
+        limit,
+      },
+    });
+  },
   createCustomIngredient(dto: CreateCustomIngredientPayload): Promise<FeedIngredient> {
     return apiFetch<FeedIngredient>("/feed/ingredients/custom", { method: "POST", body: dto });
+  },
+  updateCustomIngredient(id: string, dto: UpdateCustomIngredientPayload): Promise<FeedIngredient> {
+    return apiFetch<FeedIngredient>(`/feed/ingredients/custom/${id}`, { method: "PATCH", body: dto });
+  },
+  deleteCustomIngredient(id: string): Promise<FeedIngredient> {
+    return apiFetch<FeedIngredient>(`/feed/ingredients/custom/${id}`, { method: "DELETE" });
+  },
+  setIngredientOverride(id: string, dto: SetFeedOverridePayload): Promise<unknown> {
+    return apiFetch(`/feed/ingredients/${id}/override`, { method: "POST", body: dto });
+  },
+  resetIngredientOverride(id: string): Promise<unknown> {
+    return apiFetch(`/feed/ingredients/${id}/override`, { method: "DELETE" });
   },
   /** `weightKg`/`milkTargetL` (manual mode) vs `cattleId`/`feedGroupId` (cow-driven mode, added
    * 2026-07-18 for the standalone nutrition calculator — see `types.ts`'s `FeedRequirementsResult`
@@ -69,15 +112,23 @@ export const feedApi = {
   },
   /** Promote a Concentrate Mixer template into a reusable ingredient + stock batch (user request
    * 2026-07-17/18) — only valid on a `CONCENTRATE_TEMPLATE`. */
-  finalizeConcentration(id: string): Promise<FinalizeConcentrationResult> {
-    return apiFetch<FinalizeConcentrationResult>(`/feed/concentrations/${id}/finalize`, { method: "POST" });
+  finalizeConcentration(id: string, dto?: FinalizeConcentrationPayload): Promise<FinalizeConcentrationResult> {
+    return apiFetch<FinalizeConcentrationResult>(`/feed/concentrations/${id}/finalize`, { method: "POST", body: dto });
   },
   normalize(dto: NormalizeConcentrationPayload): Promise<NormalizeConcentrationResult> {
     return apiFetch<NormalizeConcentrationResult>("/feed/concentrations/normalize", { method: "POST", body: dto });
   },
-  // ---- Feed groups (Settings-owned, `/settings/feed-groups` — read-only from this feature) -----
+  // ---- Feed groups (Settings-owned, `/settings/feed-groups` — read-only from this feature except
+  // for setting a group's default recipe below, 2026-08-14) -------------------------------------
   listFeedGroups(): Promise<FeedGroup[]> {
     return apiFetch<FeedGroup[]>("/settings/feed-groups");
+  },
+  /** "Set as default for this group" (Concentrate Mixer/TMR card action) — `null` clears it. */
+  setGroupDefaultConcentration(groupId: string, concentrationId: string | null): Promise<FeedGroup> {
+    return apiFetch<FeedGroup>(`/settings/feed-groups/${groupId}`, {
+      method: "PATCH",
+      body: { defaultConcentrationId: concentrationId },
+    });
   },
   // ---- Feed stock + distribution (Phase 12.4, 2026-07-18 — the backend for these has existed
   // since Phase 4, this is the first frontend consumer) ---------------------------------------
@@ -115,5 +166,47 @@ export const feedApi = {
   /** Exactly one of `feedGroupId`/`cattleId` (backend `@ValidateIf` cross-check). */
   getEfficiency(params: { feedGroupId?: string; cattleId?: string; month?: string }): Promise<FeedEfficiencyResult> {
     return apiFetch<FeedEfficiencyResult>("/feed/efficiency", { searchParams: params });
+  },
+
+  // ---- Feeding-system upgrade (2026-08-13, user request) -------------------------------------
+
+  /** Layered targeting resolution — which active ration this cow is actually on. */
+  getResolvedRation(cattleId: string): Promise<ResolvedRation> {
+    return apiFetch<ResolvedRation>(`/feed/cattle/${cattleId}/resolved-ration`);
+  },
+  getDmi(cattleId: string, date?: string): Promise<DmiComparison> {
+    return apiFetch<DmiComparison>(`/feed/cattle/${cattleId}/dmi`, { searchParams: date ? { date } : undefined });
+  },
+  getTodaysRequirement(): Promise<TodaysFeedRequirement> {
+    return apiFetch<TodaysFeedRequirement>("/feed/today-requirement");
+  },
+  /** Feed a raw inventory item straight to a cow/group/herd, no Concentration involved. */
+  quickFeed(dto: QuickFeedPayload): Promise<FeedDistribution> {
+    return apiFetch<FeedDistribution>("/feed/quick-feed", { method: "POST", body: dto });
+  },
+  /** Next-day leftover weigh-in. */
+  patchRefusal(distributionId: string, dto: PatchRefusalPayload): Promise<FeedDistribution> {
+    return apiFetch<FeedDistribution>(`/feed/distributions/${distributionId}/refusal`, {
+      method: "PATCH",
+      body: dto,
+    });
+  },
+  getRefusalTrend(feedGroupId: string, days?: number): Promise<RefusalTrend> {
+    return apiFetch<RefusalTrend>(`/feed/groups/${feedGroupId}/refusal-trend`, {
+      searchParams: days ? { days } : undefined,
+    });
+  },
+  /** Explicit-checkpoint versioning, `FEED_MIXTURE` only — day-to-day edits stay live-sync. */
+  saveVersion(concentrationId: string, name?: string): Promise<FeedConcentrationVersion> {
+    return apiFetch<FeedConcentrationVersion>(`/feed/concentrations/${concentrationId}/save-version`, {
+      method: "POST",
+      body: name ? { name } : undefined,
+    });
+  },
+  listVersions(concentrationId: string): Promise<FeedConcentrationVersion[]> {
+    return apiFetch<FeedConcentrationVersion[]>(`/feed/concentrations/${concentrationId}/versions`);
+  },
+  getCostSummary(days?: number): Promise<FeedCostSummary> {
+    return apiFetch<FeedCostSummary>("/feed/cost-summary", { searchParams: days ? { days } : undefined });
   },
 };

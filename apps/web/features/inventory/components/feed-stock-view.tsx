@@ -1,12 +1,14 @@
 "use client"; // live query, joins stock lots against the cached concentrations list for source name+kind
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Package } from "lucide-react";
 import type { RowSelectionState } from "@tanstack/react-table";
 import { ApiError } from "@/lib/api/errors";
 import { useCan } from "@/lib/auth/permissions";
+import { Button } from "@/components/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -97,7 +99,19 @@ export function FeedStockView({ view }: { view: "table" | "grid" }) {
 
   if (stock.isLoading) return <CardSkeleton lines={3} />;
   if (stock.isError) return <ErrorState onRetry={() => stock.refetch()} />;
-  if (items.length === 0) return <EmptyState icon={Package} title={t("empty")} />;
+  if (items.length === 0)
+    return (
+      <EmptyState
+        icon={Package}
+        title={t("empty")}
+        description={t("emptyDescription")}
+        action={
+          <Button asChild size="sm">
+            <Link href="/feed">{t("emptyCta")}</Link>
+          </Button>
+        }
+      />
+    );
 
   return (
     <>

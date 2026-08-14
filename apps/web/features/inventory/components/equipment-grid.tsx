@@ -85,7 +85,7 @@ function EquipmentCard({
           </span>
           <span className="flex items-baseline gap-1">
             <span className={cn("text-[28px] font-bold leading-none", STOCK_COLOR[equipment.stockStatus])}>{equipment.currentStock}</span>
-            <span className="text-sm font-medium text-muted-foreground">{equipment.unit || t("piece")}</span>
+            <span className="text-sm font-medium text-muted-foreground">{equipment.unit?.symbol || t("piece")}</span>
           </span>
         </div>
       </div>

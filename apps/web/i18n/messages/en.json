@@ -30,6 +30,7 @@
     "groupSystem": "System",
     "dashboard": "Dashboard",
     "animals": "Animal",
+    "feeding": "Feeding",
     "feedFormulator": "Feed Formulator",
     "milk": "Milk",
     "buyers": "Buyers",
@@ -607,6 +608,15 @@
       "emptyDescription": "No low-stock items right now.",
       "error": "Could not load stock alerts."
     },
+    "feedCost": {
+      "title": "Feed Cost",
+      "costPerCowDay": "Cost/cow/day",
+      "costPerLitre": "Cost/litre",
+      "totalCost7d": "7-day spend",
+      "headcount": "Active herd",
+      "currencyValue": "৳{value}",
+      "error": "Could not load feed cost."
+    },
     "upcomingTasks": {
       "title": "Upcoming Tasks",
       "viewAll": "View all",
@@ -820,7 +830,13 @@
       "breedNameLabel": "Breed name",
       "breedDescriptionLabel": "Description (optional)",
       "shed": "Shed Location",
+      "addShed": "Create new shed",
+      "shedNamePlaceholder": "Shed name",
+      "addShedError": "Could not create shed.",
       "feedGroup": "Feed group",
+      "addFeedGroup": "Create new feed group",
+      "feedGroupNamePlaceholder": "Feed group name",
+      "addFeedGroupError": "Could not create feed group.",
       "sourceType": "Source",
       "sourceTypeOptions": {
         "BORN": "Born on farm",
@@ -1008,7 +1024,27 @@
         "reproduction": "Reproduction",
         "health": "Health",
         "finance": "Finance",
-        "pedigree": "Ancestry"
+        "pedigree": "Ancestry",
+        "feeding": "Feeding"
+      },
+      "feeding": {
+        "feedNow": "Feed this cow now",
+        "assignedRation": "Assigned Ration",
+        "noRation": "No ration assigned",
+        "noRationDescription": "This cow has no herd, group, or individual ration active.",
+        "costPerDay": "৳{value}/day",
+        "matchLevel": {
+          "INDIVIDUAL": "Individual override",
+          "GROUP": "Group ration",
+          "HERD": "Herd default"
+        },
+        "dmiTitle": "Dry Matter Intake",
+        "expectedDmi": "Expected",
+        "actualDmi": "Actual (today)",
+        "kgValue": "{value} kg",
+        "deltaPct": "{value}%",
+        "noDmi": "No feeding data yet",
+        "noDmiDescription": "No feeding logged for this cow today."
       },
       "overview": {
         "error": "Could not load the overview.",
@@ -1335,6 +1371,27 @@
       "restore": "Restore",
       "restoredToast": "Medicine restored.",
       "genericError": "Something went wrong. Please try again."
+    },
+    "unitPicker": {
+      "unit": "Unit",
+      "selectUnit": "Select unit",
+      "searchUnit": "Search units",
+      "loading": "Loading…",
+      "noUnitsFound": "No units found.",
+      "addCustomUnit": "Add custom unit",
+      "unitName": "Unit name",
+      "unitNamePlaceholder": "e.g. Kilogram",
+      "unitSymbol": "Symbol",
+      "unitSymbolPlaceholder": "e.g. kg",
+      "unitDimension": "Type",
+      "dimensionWeight": "Weight",
+      "dimensionVolume": "Volume",
+      "dimensionCount": "Count",
+      "conversionToBase": "Conversion to base unit",
+      "conversionToBaseHintWeight": "e.g. 1 = 1 kg",
+      "conversionToBaseHintVolume": "e.g. 1 = 1 L",
+      "back": "Back",
+      "addItem": "Add"
     },
     "medicine": {
       "empty": {
@@ -3782,6 +3839,47 @@
     }
   },
   "feed": {
+    "ingredientsManager": {
+      "title": "Ingredients",
+      "addIngredient": "Add Ingredient",
+      "addTitle": "Add Ingredient",
+      "editTitle": "Edit Ingredient",
+      "saveChanges": "Save Changes",
+      "empty": "No ingredients yet",
+      "colName": "Name",
+      "colClass": "Class",
+      "colPrice": "Price/kg",
+      "colCp": "CP",
+      "colMe": "ME",
+      "colSource": "Source",
+      "colActions": "Actions",
+      "sourceCustom": "Your ingredient",
+      "sourceCatalogue": "Rakhal catalogue",
+      "edit": "Edit",
+      "delete": "Delete",
+      "resetOverride": "Reset to default",
+      "addedToast": "Ingredient added",
+      "editedToast": "Ingredient updated",
+      "deletedToast": "Ingredient deleted",
+      "resetToast": "Reset to Rakhal's default price/nutrition",
+      "deleteConfirmTitle": "Delete this ingredient?",
+      "deleteConfirmDescription": "This can't be undone. If it's still used in an active Concentrate Mixer or TMR, remove it from that formula first.",
+      "filters": {
+        "searchPlaceholder": "Find ingredient by name",
+        "class": "Class",
+        "classOptions": {
+          "FORAGE": "Forage",
+          "CONCENTRATE": "Concentrate",
+          "MINERAL": "Mineral",
+          "VITAMIN": "Vitamin",
+          "ADDITIVE": "Additive",
+          "OTHER": "Other"
+        },
+        "priceRange": "Price/kg range",
+        "priceMinPlaceholder": "Min ৳",
+        "priceMaxPlaceholder": "Max ৳"
+      }
+    },
     "concentrationTemplate": "Concentrate Mixer",
     "createNewTemplate": "Create New Concentrate Mixer",
     "feedMixture": "Total Mixed Ration (TMR)",
@@ -3836,8 +3934,13 @@
       "statusDraft": "Draft — not usable yet",
       "statusFinalized": "Finalized",
       "finalizeCtaTemplate": "Finalize to use in a TMR",
-      "finalizeCtaMixture": "Finalize to add to inventory"
+      "finalizeCtaMixture": "Finalize to add to inventory",
+      "setDefault": "Set as default for group",
+      "unsetDefault": "Unset as default",
+      "defaultBadge": "Default"
     },
+    "defaultSetToast": "Set as this group's default recipe",
+    "defaultUnsetToast": "No longer this group's default recipe",
     "deleteConfirmTitle": "Delete this formula?",
     "deleteConfirmDescription": "This can't be undone. Any Total Mixed Ration (TMR) that already reused an ingredient promoted from this formula will keep working.",
     "deletedToast": "Formula deleted",
@@ -3847,6 +3950,8 @@
     "finalizeConfirmDescriptionMixture": "This adds a new inventory stock batch matching today's total amount, under this feed's name. A TMR never becomes a reusable ingredient — it stays the final ration fed to cows.",
     "finalizedToast": "Concentrate Mixer finalized",
     "finalizedToastMixture": "Total Mixed Ration (TMR) finalized — stock added",
+    "finalizeMixtureConfirm": "Finalize & Pay",
+    "finalizeMixtureCancel": "Cancel",
     "genericError": "Something went wrong. Please try again.",
     "bulk": {
       "selectedCount": "{count} selected",
@@ -3862,6 +3967,8 @@
       "title": "Feed Stock (Inventory)",
       "subtitle": "Batches produced by finalizing a Total Mixed Ration (TMR)",
       "empty": "No stock yet — Finalize a Total Mixed Ration (TMR) to produce a batch",
+      "emptyDescription": "Build a TMR on the Feed Formulator page and finalize it to add a batch here.",
+      "emptyCta": "Go to Feed Formulator",
       "producedOn": "Produced",
       "producedQty": "Produced",
       "remaining": "Remaining",
@@ -3945,8 +4052,10 @@
       "feedDuration": "Feed Duration",
       "targetType": {
         "GROUP": "Cow Group",
-        "INDIVIDUAL": "Individual Cow"
+        "INDIVIDUAL": "Individual Cow",
+        "HERD": "Whole Herd"
       },
+      "herdTargetHint": "Applies to the whole active herd by default — used when a cow has no individual or group ration assigned.",
       "selectGroup": "Select Group",
       "selectGroupPlaceholder": "Select a cow group",
       "cowCount": "{count} cows",
@@ -3999,11 +4108,60 @@
       "notes": "Notes",
       "notesPlaceholder": "Optional note (e.g. leftover, why actual differs from planned)",
       "totalActual": "Total actual: {value} kg",
+      "actualKg": "Actual kg fed",
+      "refusalKg": "Refusal kg",
+      "refusalShort": "refusal",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "loggedToast": "Feeding logged — stock updated",
+      "genericError": "Something went wrong. Please try again."
+    },
+    "quickFeed": {
+      "title": "Quick Feed",
+      "close": "Close",
+      "selectItem": "Feed item",
+      "selectItemPlaceholder": "Select a purchased feed item",
+      "createItem": "Create feed item",
+      "quantityKg": "Quantity (kg)",
+      "estimatedCost": "Estimated cost: ৳{value}",
+      "target": {
+        "GROUP": "Cow Group",
+        "INDIVIDUAL": "Individual Cow",
+        "HERD": "Whole Herd"
+      },
+      "herdTargetHint": "Applies to the whole active herd by default.",
+      "selectGroup": "Select Group",
+      "selectGroupPlaceholder": "Select a cow group",
+      "cowCount": "{count} cows",
+      "selectAnimal": "Select Animal",
+      "date": "Date",
+      "notes": "Notes",
+      "notesPlaceholder": "Optional note",
       "cancel": "Cancel",
       "confirm": "Confirm",
       "loggedToast": "Feeding logged — stock updated",
       "genericError": "Something went wrong. Please try again."
     }
+  },
+  "feeding": {
+    "subtitle": "Today's feed requirement, cost, and quick actions.",
+    "quickFeedAction": "Quick Feed",
+    "stats": {
+      "todaysRequirement": "Today's Requirement",
+      "costPerCowDay": "Cost/cow/day",
+      "costPerLitre": "Cost/litre",
+      "headcount": "Active Herd"
+    },
+    "kgValue": "{value} kg",
+    "currencyValue": "৳{value}",
+    "todaysRequirement": "Today's Feed Requirement",
+    "noRequirement": "No active rations",
+    "noRequirementDescription": "Build a Total Mixed Ration in Feed Formulator to see today's requirement here.",
+    "feedGroupsTitle": "Feeding Groups",
+    "noGroups": "No feeding groups yet",
+    "noGroupsDescription": "Create a feeding group in Settings to organize daily feeding.",
+    "cowCount": "{count} cows",
+    "feedToday": "Feed Today"
   },
   "settings": {
     "title": "Settings",

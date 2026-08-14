@@ -30,6 +30,7 @@
     "groupSystem": "সিস্টেম",
     "dashboard": "ড্যাশবোর্ড",
     "animals": "পশু",
+    "feeding": "খাওয়ানো",
     "feedFormulator": "ফিড ফরমুলেটর",
     "milk": "দুধ",
     "buyers": "ক্রেতা",
@@ -607,6 +608,15 @@
       "emptyDescription": "এই মুহূর্তে কোনো কম-মজুদ আইটেম নেই।",
       "error": "মজুদ সতর্কতা লোড করা যায়নি।"
     },
+    "feedCost": {
+      "title": "ফিড খরচ",
+      "costPerCowDay": "খরচ/গরু/দিন",
+      "costPerLitre": "খরচ/লিটার",
+      "totalCost7d": "৭ দিনের খরচ",
+      "headcount": "সক্রিয় পাল",
+      "currencyValue": "৳{value}",
+      "error": "ফিড খরচ লোড করা যায়নি।"
+    },
     "upcomingTasks": {
       "title": "আসন্ন কাজ",
       "viewAll": "সব দেখুন",
@@ -820,7 +830,13 @@
       "breedNameLabel": "জাতের নাম",
       "breedDescriptionLabel": "বিবরণ (ঐচ্ছিক)",
       "shed": "শেড অবস্থান",
+      "addShed": "নতুন শেড তৈরি করুন",
+      "shedNamePlaceholder": "শেডের নাম",
+      "addShedError": "শেড তৈরি করা যায়নি।",
       "feedGroup": "ফিড গ্রুপ",
+      "addFeedGroup": "নতুন ফিড গ্রুপ তৈরি করুন",
+      "feedGroupNamePlaceholder": "ফিড গ্রুপের নাম",
+      "addFeedGroupError": "ফিড গ্রুপ তৈরি করা যায়নি।",
       "sourceType": "উৎস",
       "sourceTypeOptions": {
         "BORN": "খামারে জন্ম",
@@ -1008,7 +1024,27 @@
         "reproduction": "প্রজনন",
         "health": "স্বাস্থ্য",
         "finance": "অর্থ",
-        "pedigree": "বংশতালিকা"
+        "pedigree": "বংশতালিকা",
+        "feeding": "খাওয়ানো"
+      },
+      "feeding": {
+        "feedNow": "এই গরুকে এখনই খাওয়ান",
+        "assignedRation": "নির্ধারিত রেশন",
+        "noRation": "কোনো রেশন নির্ধারিত নেই",
+        "noRationDescription": "এই গরুর কোনো পাল, গ্রুপ বা একক রেশন সক্রিয় নেই।",
+        "costPerDay": "৳{value}/দিন",
+        "matchLevel": {
+          "INDIVIDUAL": "একক ওভাররাইড",
+          "GROUP": "গ্রুপ রেশন",
+          "HERD": "পাল ডিফল্ট"
+        },
+        "dmiTitle": "শুষ্ক পদার্থ গ্রহণ",
+        "expectedDmi": "প্রত্যাশিত",
+        "actualDmi": "প্রকৃত (আজ)",
+        "kgValue": "{value} কেজি",
+        "deltaPct": "{value}%",
+        "noDmi": "এখনো কোনো খাওয়ানোর তথ্য নেই",
+        "noDmiDescription": "আজ এই গরুর জন্য কোনো খাওয়ানো লগ করা হয়নি।"
       },
       "overview": {
         "error": "ওভারভিউ লোড করা যায়নি।",
@@ -1335,6 +1371,27 @@
       "restore": "পুনরুদ্ধার করুন",
       "restoredToast": "ওষুধ পুনরুদ্ধার করা হয়েছে।",
       "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+    },
+    "unitPicker": {
+      "unit": "একক",
+      "selectUnit": "একক নির্বাচন করুন",
+      "searchUnit": "একক খুঁজুন",
+      "loading": "লোড হচ্ছে…",
+      "noUnitsFound": "কোনো একক পাওয়া যায়নি।",
+      "addCustomUnit": "কাস্টম একক যোগ করুন",
+      "unitName": "এককের নাম",
+      "unitNamePlaceholder": "যেমন: কিলোগ্রাম",
+      "unitSymbol": "সংকেত",
+      "unitSymbolPlaceholder": "যেমন: kg",
+      "unitDimension": "ধরন",
+      "dimensionWeight": "ওজন",
+      "dimensionVolume": "আয়তন",
+      "dimensionCount": "সংখ্যা",
+      "conversionToBase": "মূল এককে রূপান্তর",
+      "conversionToBaseHintWeight": "যেমন: ১ = ১ kg",
+      "conversionToBaseHintVolume": "যেমন: ১ = ১ L",
+      "back": "পেছনে",
+      "addItem": "যোগ করুন"
     },
     "medicine": {
       "empty": {
@@ -3782,6 +3839,47 @@
     }
   },
   "feed": {
+    "ingredientsManager": {
+      "title": "উপাদানসমূহ",
+      "addIngredient": "উপাদান যোগ করুন",
+      "addTitle": "উপাদান যোগ করুন",
+      "editTitle": "উপাদান সম্পাদনা করুন",
+      "saveChanges": "পরিবর্তন সংরক্ষণ করুন",
+      "empty": "এখনো কোনো উপাদান নেই",
+      "colName": "নাম",
+      "colClass": "শ্রেণি",
+      "colPrice": "মূল্য/কেজি",
+      "colCp": "সিপি",
+      "colMe": "এমই",
+      "colSource": "উৎস",
+      "colActions": "কার্যক্রম",
+      "sourceCustom": "আপনার উপাদান",
+      "sourceCatalogue": "রাখাল ক্যাটালগ",
+      "edit": "সম্পাদনা",
+      "delete": "মুছুন",
+      "resetOverride": "ডিফল্টে ফিরিয়ে নিন",
+      "addedToast": "উপাদান যোগ হয়েছে",
+      "editedToast": "উপাদান হালনাগাদ হয়েছে",
+      "deletedToast": "উপাদান মুছে ফেলা হয়েছে",
+      "resetToast": "রাখালের ডিফল্ট মূল্য/পুষ্টিতে ফিরিয়ে নেওয়া হয়েছে",
+      "deleteConfirmTitle": "এই উপাদানটি মুছবেন?",
+      "deleteConfirmDescription": "এটি পূর্বাবস্থায় ফেরানো যাবে না। যদি এটি এখনো কোনো সক্রিয় কনসেনট্রেট মিক্সার বা টিএমআর-এ ব্যবহৃত হয়, প্রথমে সেই ফর্মুলা থেকে এটি সরিয়ে ফেলুন।",
+      "filters": {
+        "searchPlaceholder": "নাম দিয়ে উপাদান খুঁজুন",
+        "class": "শ্রেণি",
+        "classOptions": {
+          "FORAGE": "খড়/ঘাস",
+          "CONCENTRATE": "কনসেনট্রেট",
+          "MINERAL": "খনিজ",
+          "VITAMIN": "ভিটামিন",
+          "ADDITIVE": "সংযোজক",
+          "OTHER": "অন্যান্য"
+        },
+        "priceRange": "মূল্য/কেজি সীমা",
+        "priceMinPlaceholder": "সর্বনিম্ন ৳",
+        "priceMaxPlaceholder": "সর্বোচ্চ ৳"
+      }
+    },
     "concentrationTemplate": "কনসেনট্রেট মিক্সার",
     "createNewTemplate": "নতুন কনসেনট্রেট মিক্সার তৈরি করুন",
     "feedMixture": "টোটাল মিক্সড রেশন (টিএমআর)",
@@ -3836,8 +3934,13 @@
       "statusDraft": "খসড়া — এখনো ব্যবহারযোগ্য নয়",
       "statusFinalized": "চূড়ান্ত করা হয়েছে",
       "finalizeCtaTemplate": "টিএমআরে ব্যবহার করতে চূড়ান্ত করুন",
-      "finalizeCtaMixture": "ইনভেন্টরিতে যোগ করতে চূড়ান্ত করুন"
+      "finalizeCtaMixture": "ইনভেন্টরিতে যোগ করতে চূড়ান্ত করুন",
+      "setDefault": "গ্রুপের ডিফল্ট হিসেবে সেট করুন",
+      "unsetDefault": "ডিফল্ট থেকে সরান",
+      "defaultBadge": "ডিফল্ট"
     },
+    "defaultSetToast": "এই গ্রুপের ডিফল্ট রেসিপি হিসেবে সেট হয়েছে",
+    "defaultUnsetToast": "আর এই গ্রুপের ডিফল্ট রেসিপি নয়",
     "deleteConfirmTitle": "এই ফর্মুলা মুছবেন?",
     "deleteConfirmDescription": "এটি পূর্বাবস্থায় ফেরানো যাবে না। এই ফর্মুলা থেকে তৈরি কোনো উপাদান ইতিমধ্যে কোনো টোটাল মিক্সড রেশনে (টিএমআর) ব্যবহৃত হলে সেটি ঠিকভাবে কাজ করতে থাকবে।",
     "deletedToast": "ফর্মুলা মুছে ফেলা হয়েছে",
@@ -3847,6 +3950,8 @@
     "finalizeConfirmDescriptionMixture": "এটি আজকের মোট পরিমাণ অনুযায়ী এই ফিডের নামে একটি নতুন ইনভেন্টরি স্টক ব্যাচ যোগ করবে। টিএমআর কখনো পুনরায় ব্যবহারযোগ্য উপাদান হয় না — এটি সবসময় গরুকে খাওয়ানো চূড়ান্ত রেশন হিসেবেই থাকে।",
     "finalizedToast": "কনসেনট্রেট মিক্সার চূড়ান্ত হয়েছে",
     "finalizedToastMixture": "টোটাল মিক্সড রেশন (টিএমআর) চূড়ান্ত হয়েছে — স্টক যোগ হয়েছে",
+    "finalizeMixtureConfirm": "চূড়ান্ত করুন ও পরিশোধ করুন",
+    "finalizeMixtureCancel": "বাতিল",
     "bulk": {
       "selectedCount": "{count}টি নির্বাচিত",
       "selectAll": "সব {count}টি নির্বাচন করুন",
@@ -3862,6 +3967,8 @@
       "title": "ফিড স্টক (ইনভেন্টরি)",
       "subtitle": "টোটাল মিক্সড রেশন (টিএমআর) চূড়ান্ত করে তৈরি হওয়া ব্যাচ",
       "empty": "এখনো কোনো স্টক নেই — একটি ব্যাচ তৈরি করতে কোনো টোটাল মিক্সড রেশন (টিএমআর) চূড়ান্ত করুন",
+      "emptyDescription": "ফিড ফরমুলেটর পৃষ্ঠায় একটি টিএমআর তৈরি করে চূড়ান্ত করুন, তাহলে এখানে একটি ব্যাচ যোগ হবে।",
+      "emptyCta": "ফিড ফরমুলেটরে যান",
       "producedOn": "তৈরি হয়েছে",
       "producedQty": "উৎপাদিত",
       "remaining": "অবশিষ্ট",
@@ -3945,8 +4052,10 @@
       "feedDuration": "ফিড মেয়াদ",
       "targetType": {
         "GROUP": "গরুর গ্রুপ",
-        "INDIVIDUAL": "একক গরু"
+        "INDIVIDUAL": "একক গরু",
+        "HERD": "পুরো পাল"
       },
+      "herdTargetHint": "ডিফল্টভাবে পুরো সক্রিয় পালের জন্য প্রযোজ্য — যখন কোনো গরুর একক বা গ্রুপ রেশন নির্ধারিত নেই তখন ব্যবহৃত হয়।",
       "selectGroup": "গ্রুপ নির্বাচন করুন",
       "selectGroupPlaceholder": "একটি গরুর গ্রুপ নির্বাচন করুন",
       "cowCount": "{count} টি গরু",
@@ -3999,11 +4108,60 @@
       "notes": "নোট",
       "notesPlaceholder": "ঐচ্ছিক নোট (যেমন অবশিষ্ট, কেন প্রকৃত পরিমাণ পরিকল্পিত থেকে ভিন্ন)",
       "totalActual": "মোট প্রকৃত: {value} কেজি",
+      "actualKg": "প্রকৃত খাওয়ানো কেজি",
+      "refusalKg": "অবশিষ্ট কেজি",
+      "refusalShort": "অবশিষ্ট",
+      "cancel": "বাতিল",
+      "confirm": "নিশ্চিত করুন",
+      "loggedToast": "খাওয়ানো লগ করা হয়েছে — স্টক আপডেট হয়েছে",
+      "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+    },
+    "quickFeed": {
+      "title": "দ্রুত খাওয়ান",
+      "close": "বন্ধ করুন",
+      "selectItem": "ফিড আইটেম",
+      "selectItemPlaceholder": "একটি ক্রয়কৃত ফিড আইটেম নির্বাচন করুন",
+      "createItem": "নতুন ফিড আইটেম তৈরি করুন",
+      "quantityKg": "পরিমাণ (কেজি)",
+      "estimatedCost": "আনুমানিক খরচ: ৳{value}",
+      "target": {
+        "GROUP": "গরুর গ্রুপ",
+        "INDIVIDUAL": "একক গরু",
+        "HERD": "পুরো পাল"
+      },
+      "herdTargetHint": "ডিফল্টভাবে পুরো সক্রিয় পালের জন্য প্রযোজ্য।",
+      "selectGroup": "গ্রুপ নির্বাচন করুন",
+      "selectGroupPlaceholder": "একটি গরুর গ্রুপ নির্বাচন করুন",
+      "cowCount": "{count} টি গরু",
+      "selectAnimal": "প্রাণী নির্বাচন করুন",
+      "date": "তারিখ",
+      "notes": "নোট",
+      "notesPlaceholder": "ঐচ্ছিক নোট",
       "cancel": "বাতিল",
       "confirm": "নিশ্চিত করুন",
       "loggedToast": "খাওয়ানো লগ করা হয়েছে — স্টক আপডেট হয়েছে",
       "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
     }
+  },
+  "feeding": {
+    "subtitle": "আজকের ফিড প্রয়োজনীয়তা, খরচ এবং দ্রুত অ্যাকশন।",
+    "quickFeedAction": "দ্রুত খাওয়ান",
+    "stats": {
+      "todaysRequirement": "আজকের প্রয়োজনীয়তা",
+      "costPerCowDay": "খরচ/গরু/দিন",
+      "costPerLitre": "খরচ/লিটার",
+      "headcount": "সক্রিয় পাল"
+    },
+    "kgValue": "{value} কেজি",
+    "currencyValue": "৳{value}",
+    "todaysRequirement": "আজকের ফিড প্রয়োজনীয়তা",
+    "noRequirement": "কোনো সক্রিয় রেশন নেই",
+    "noRequirementDescription": "আজকের প্রয়োজনীয়তা দেখতে ফিড ফরমুলেটরে একটি টোটাল মিক্সড রেশন তৈরি করুন।",
+    "feedGroupsTitle": "ফিডিং গ্রুপ",
+    "noGroups": "এখনো কোনো ফিডিং গ্রুপ নেই",
+    "noGroupsDescription": "দৈনিক খাওয়ানো সংগঠিত করতে সেটিংসে একটি ফিডিং গ্রুপ তৈরি করুন।",
+    "cowCount": "{count} টি গরু",
+    "feedToday": "আজ খাওয়ান"
   },
   "settings": {
     "title": "সেটিংস",

@@ -7,6 +7,7 @@ import { Plus } from "lucide-react";
 import { Wheat } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -20,11 +21,14 @@ import {
   useFeedGroups,
   useFinalizeConcentration,
   useRemoveConcentration,
+  useSetGroupDefaultConcentration,
 } from "../hooks/use-feed";
 import { ConcentrationCard } from "./concentration-card";
+import { IngredientManagementTable } from "./ingredient-management-table";
 import { CreateFeedDialog } from "./create-feed-dialog";
 import { ConcentrationDetailSheet } from "./concentration-detail-sheet";
 import { LogDistributionDialog } from "./log-distribution-dialog";
+import { FinalizeTmrDialog } from "./finalize-tmr-dialog";
 import type { FeedConcentrationKind, FeedConcentrationSummary, FeedGroup } from "../types";
 
 function ConcentrationSection({
@@ -42,6 +46,7 @@ function ConcentrationSection({
   onDelete,
   onFinalize,
   onFeedToday,
+  onSetDefault,
   selection,
 }: {
   title: string;
@@ -58,6 +63,7 @@ function ConcentrationSection({
   onDelete: (concentration: FeedConcentrationSummary) => void;
   onFinalize?: (concentration: FeedConcentrationSummary) => void;
   onFeedToday?: (concentration: FeedConcentrationSummary) => void;
+  onSetDefault?: (concentration: FeedConcentrationSummary) => void;
   selection: { isSelected: (id: string) => boolean; toggle: (id: string) => void };
 }) {
   return (
@@ -94,6 +100,11 @@ function ConcentrationSection({
               onDelete={() => onDelete(item)}
               onFinalize={onFinalize ? () => onFinalize(item) : undefined}
               onFeedToday={onFeedToday ? () => onFeedToday(item) : undefined}
+              onSetDefault={onSetDefault ? () => onSetDefault(item) : undefined}
+              isDefaultForGroup={
+                item.feed_group_id != null &&
+                feedGroupById.get(item.feed_group_id)?.default_concentration_id === item.id
+              }
               selected={selection.isSelected(item.id)}
               onToggleSelect={() => selection.toggle(item.id)}
             />
@@ -140,12 +151,14 @@ export function FeedView() {
   const feedGroups = useFeedGroups();
   const removeConcentration = useRemoveConcentration();
   const finalizeConcentration = useFinalizeConcentration();
+  const setGroupDefault = useSetGroupDefaultConcentration();
   const [createOpen, setCreateOpen] = useState(false);
   const [createKind, setCreateKind] = useState<FeedConcentrationKind>("CONCENTRATE_TEMPLATE");
   const [editId, setEditId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FeedConcentrationSummary | null>(null);
   const [finalizeTarget, setFinalizeTarget] = useState<FeedConcentrationSummary | null>(null);
+  const [finalizeMixtureTarget, setFinalizeMixtureTarget] = useState<FeedConcentrationSummary | null>(null);
   const [feedTodayId, setFeedTodayId] = useState<string | null>(null);
   const bulkDeleteConcentrations = useBulkDeleteConcentrations();
   const tBulk = useTranslations("feed.bulk");
@@ -217,11 +230,29 @@ export function FeedView() {
     }
   }
 
+  async function handleSetDefault(concentration: FeedConcentrationSummary) {
+    if (!concentration.feed_group_id) return;
+    const group = feedGroupById.get(concentration.feed_group_id);
+    const alreadyDefault = group?.default_concentration_id === concentration.id;
+    try {
+      await setGroupDefault.mutateAsync({
+        groupId: concentration.feed_group_id,
+        concentrationId: alreadyDefault ? null : concentration.id,
+      });
+      toast.success(alreadyDefault ? t("defaultUnsetToast") : t("defaultSetToast"));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("genericError"));
+    }
+  }
+
+  // Only the CONCENTRATE_TEMPLATE path (free/virtual) stays on this plain confirm — a FEED_MIXTURE
+  // (TMR) finalize costs real money and is handled by `FinalizeTmrDialog` below instead, which owns
+  // its own mutation call (payment method is required there).
   async function handleFinalizeConfirm() {
     if (!finalizeTarget) return;
     try {
-      await finalizeConcentration.mutateAsync(finalizeTarget.id);
-      toast.success(finalizeTarget.kind === "FEED_MIXTURE" ? t("finalizedToastMixture") : t("finalizedToast"));
+      await finalizeConcentration.mutateAsync({ id: finalizeTarget.id });
+      toast.success(t("finalizedToast"));
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
     }
@@ -229,39 +260,60 @@ export function FeedView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <ConcentrationSection
-        title={t("concentrationTemplate")}
-        createLabel={t("createNewTemplate")}
-        items={templates}
-        isLoading={concentrations.isLoading}
-        isError={concentrations.isError}
-        onRetry={() => concentrations.refetch()}
-        emptyDescription={t("noTemplates")}
-        feedGroupById={feedGroupById}
-        onSeeDetails={setDetailId}
-        onCreate={() => openCreate("CONCENTRATE_TEMPLATE")}
-        onEdit={openEdit}
-        onDelete={setDeleteTarget}
-        onFinalize={setFinalizeTarget}
-        selection={{ isSelected: templateSelection.isSelected, toggle: toggleTemplate }}
-      />
-      <ConcentrationSection
-        title={t("feedMixture")}
-        createLabel={t("createNewFeed")}
-        items={mixtures}
-        isLoading={concentrations.isLoading}
-        isError={concentrations.isError}
-        onRetry={() => concentrations.refetch()}
-        emptyDescription={t("noFeeds")}
-        feedGroupById={feedGroupById}
-        onSeeDetails={setDetailId}
-        onCreate={() => openCreate("FEED_MIXTURE")}
-        onEdit={openEdit}
-        onDelete={setDeleteTarget}
-        onFinalize={setFinalizeTarget}
-        onFeedToday={(c) => setFeedTodayId(c.id)}
-        selection={{ isSelected: mixtureSelection.isSelected, toggle: toggleMixture }}
-      />
+      <Tabs defaultValue="ingredients">
+        <TabsList className="h-auto w-full flex-wrap items-stretch justify-between gap-1 rounded-xl border border-border bg-muted p-1 text-muted-foreground">
+          <TabsTrigger value="ingredients" className="flex-1">
+            {t("ingredientsManager.title")}
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="flex-1">
+            {t("concentrationTemplate")}
+          </TabsTrigger>
+          <TabsTrigger value="mixtures" className="flex-1">
+            {t("feedMixture")}
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="ingredients">
+          <IngredientManagementTable />
+        </TabsContent>
+        <TabsContent value="templates">
+          <ConcentrationSection
+            title={t("concentrationTemplate")}
+            createLabel={t("createNewTemplate")}
+            items={templates}
+            isLoading={concentrations.isLoading}
+            isError={concentrations.isError}
+            onRetry={() => concentrations.refetch()}
+            emptyDescription={t("noTemplates")}
+            feedGroupById={feedGroupById}
+            onSeeDetails={setDetailId}
+            onCreate={() => openCreate("CONCENTRATE_TEMPLATE")}
+            onEdit={openEdit}
+            onDelete={setDeleteTarget}
+            onFinalize={setFinalizeTarget}
+            selection={{ isSelected: templateSelection.isSelected, toggle: toggleTemplate }}
+          />
+        </TabsContent>
+        <TabsContent value="mixtures">
+          <ConcentrationSection
+            title={t("feedMixture")}
+            createLabel={t("createNewFeed")}
+            items={mixtures}
+            isLoading={concentrations.isLoading}
+            isError={concentrations.isError}
+            onRetry={() => concentrations.refetch()}
+            emptyDescription={t("noFeeds")}
+            feedGroupById={feedGroupById}
+            onSeeDetails={setDetailId}
+            onCreate={() => openCreate("FEED_MIXTURE")}
+            onEdit={openEdit}
+            onDelete={setDeleteTarget}
+            onFinalize={setFinalizeMixtureTarget}
+            onFeedToday={(c) => setFeedTodayId(c.id)}
+            onSetDefault={handleSetDefault}
+            selection={{ isSelected: mixtureSelection.isSelected, toggle: toggleMixture }}
+          />
+        </TabsContent>
+      </Tabs>
 
       <CreateFeedDialog
         open={createOpen}
@@ -285,19 +337,15 @@ export function FeedView() {
       <ConfirmDialog
         open={finalizeTarget != null}
         onOpenChange={(open) => !open && setFinalizeTarget(null)}
-        title={
-          finalizeTarget?.kind === "FEED_MIXTURE"
-            ? t("finalizeConfirmTitleMixture")
-            : t("finalizeConfirmTitle")
-        }
-        description={
-          finalizeTarget?.kind === "FEED_MIXTURE"
-            ? t("finalizeConfirmDescriptionMixture")
-            : t("finalizeConfirmDescription")
-        }
+        title={t("finalizeConfirmTitle")}
+        description={t("finalizeConfirmDescription")}
         confirmLabel={t("card.finalize")}
         variant="primary"
         onConfirm={handleFinalizeConfirm}
+      />
+      <FinalizeTmrDialog
+        target={finalizeMixtureTarget}
+        onOpenChange={(open) => !open && setFinalizeMixtureTarget(null)}
       />
 
       {/* Two dock instances, one per section — safe because each no-ops at selectedCount === 0 and

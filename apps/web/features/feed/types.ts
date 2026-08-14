@@ -1,3 +1,5 @@
+import type { FinancePaymentMethod } from "@/features/finance/types";
+
 /**
  * Feed Formulator types — matched directly to `feed.controller.ts`/`feed-*.service.ts` response
  * shapes (Repos/rakhal-backend), which are genuinely **snake_case** (unlike every other module's
@@ -23,7 +25,10 @@
  * titles, confirmations, toasts — after these two names had drifted inconsistently across the UI.)
  */
 
-export type FeedTargetType = "GROUP" | "INDIVIDUAL";
+/** `HERD` added 2026-08-13 (user request — "herd default -> group -> individual override, most
+ * specific wins"): a whole-herd default ration, falls through to when a cow has no INDIVIDUAL
+ * override and no GROUP-targeted concentration for her `feedGroupId`. */
+export type FeedTargetType = "GROUP" | "INDIVIDUAL" | "HERD";
 /** See this file's top-of-file doc comment — explicit, immutable, server-enforced. */
 export type FeedConcentrationKind = "CONCENTRATE_TEMPLATE" | "FEED_MIXTURE";
 /** Feed is the umbrella term; `FeedClass` is its scientific class (replaces the old
@@ -84,6 +89,17 @@ export interface FeedIngredient {
   override_notes: string | null;
 }
 
+/** `GET /feed/ingredients/paged` query — cursor pagination (`limit`/`cursor`/`sortOrder`) plus
+ * search/class/price-range filters, mirroring Inventory's `FeedItemListFilters` pattern (2026-08-14,
+ * user request). Price range filters the catalogue/admin `rakhal_price_per_kg`, not the per-farm
+ * `effective_price_per_kg` (see backend `listPaged`'s doc comment). */
+export interface IngredientListFilters {
+  search?: string;
+  feedClass?: FeedClass;
+  priceMin?: number;
+  priceMax?: number;
+}
+
 /** `POST /feed/ingredients/custom` — a farm's own ingredient. `name`/`pricePerKg` are the only
  * required fields (quick-add — no nutrition breakdown, backend defaults `dmPct` to 100 and every
  * other nutrient to 0, so the line contributes real ৳ cost but 0 nutrients until a profile is
@@ -110,6 +126,30 @@ export interface CreateCustomIngredientPayload {
   calciumPct?: number;
   phosphorusPct?: number;
   tdnPct?: number;
+}
+
+/** `PATCH /feed/ingredients/custom/:id` — every field optional (partial update of a farm's own
+ * quick-add ingredient). Rejects a catalogue row or another farm's row (backend-enforced). */
+export type UpdateCustomIngredientPayload = Partial<CreateCustomIngredientPayload>;
+
+/** `POST /feed/ingredients/:id/override` — a farm's own price/nutrition override layered on top of
+ * a Rakhal-catalogue (or another farm's) ingredient, never mutating the shared row itself. `null`
+ * on any field clears just that field back to the catalogue default. */
+export interface SetFeedOverridePayload {
+  customPricePerKg?: number;
+  customDmPct?: number;
+  customCpPct?: number;
+  customMeMjPerKgDm?: number;
+  customFatPct?: number;
+  customNdfPct?: number;
+  customRdpPct?: number;
+  customRupPct?: number;
+  customStarchPct?: number;
+  customAdfPct?: number;
+  customCalciumPct?: number;
+  customPhosphorusPct?: number;
+  customTdnPct?: number;
+  notes?: string;
 }
 
 export interface FeedRequirements {
@@ -259,6 +299,16 @@ export interface FinalizeConcentrationResult {
   concentration_id: string;
   stock: FeedStock | null;
   ingredient: { id: string; name_en: string } | null;
+  /** Populated only for a `FEED_MIXTURE` finalize — the `FinanceTransaction` (and, if paid via
+   * `WALLET`, the `WalletTransaction`) created to pay for the produced batch. `null` for a
+   * `CONCENTRATE_TEMPLATE` finalize, which is free/virtual. */
+  finance: { transaction_id: string; reference: string; wallet_transaction_id: string | null } | null;
+}
+
+/** `POST /feed/concentrations/:id/finalize` body — only required when finalizing a `FEED_MIXTURE`
+ * (TMR); a `CONCENTRATE_TEMPLATE` finalize incurs no cost and ignores this. */
+export interface FinalizeConcentrationPayload {
+  paymentMethod?: FinancePaymentMethod;
 }
 
 /** `POST /feed/concentrations/bulk-delete` — multi-select delete (user request 2026-07-18). */
@@ -279,6 +329,12 @@ export interface FeedGroup {
   id: string;
   name: string;
   description: string | null;
+  /** Refusal-rate target, % of planned kg (2026-08-13, feeding-system upgrade). Per-group, not
+   * farm-wide — doc explicitly warns against one universal refusal target. Null = not configured. */
+  refusal_target_pct: number | null;
+  /** Default recipe for one-click "Feed Today" (2026-08-14) — a `FEED_MIXTURE` concentration id,
+   * or null if none is set (falls back to "one active GROUP-targeted TMR" heuristic). */
+  default_concentration_id: string | null;
   is_active: boolean;
   assigned_count: number;
   created_at: string;
@@ -385,4 +441,90 @@ export interface FeedEfficiencyResult {
   refusal_pct: number | null;
   litres_produced: number;
   feed_cost_per_litre: number | null;
+}
+
+// ==== Feeding-system upgrade (2026-08-13, user request) =====================================
+
+/** `GET /feed/cattle/:cattleId/resolved-ration` — layered targeting resolution: which active
+ * `FEED_MIXTURE` ration this cow is actually on, most-specific-wins (INDIVIDUAL > GROUP > HERD). */
+export interface ResolvedRation {
+  match_level: "INDIVIDUAL" | "GROUP" | "HERD" | null;
+  concentration: FeedConcentrationDetail | null;
+}
+
+/** `GET /feed/cattle/:cattleId/dmi` — actual vs expected dry-matter intake for a cow. */
+export interface DmiComparison {
+  expected_dmi_kg: number;
+  actual_dmi_kg: number | null;
+  delta_pct: number | null;
+  match_level: "INDIVIDUAL" | "GROUP" | "HERD" | null;
+}
+
+/** `GET /feed/today-requirement` — farm-wide rollup of every active ration's ingredient
+ * requirement for today, aggregated across all rations by ingredient. */
+export interface TodaysFeedRequirement {
+  by_ingredient: { ingredient_id: string; name: string; total_kg: number }[];
+  by_group: {
+    feed_group_id: string | null;
+    name: string;
+    headcount: number;
+    total_kg: number;
+  }[];
+  grand_total_kg: number;
+}
+
+/** `POST /feed/quick-feed` — feed a single raw inventory item straight to a cow/group/herd, no
+ * Concentration involved (user's own confirmed preference — own lightweight path). */
+export interface QuickFeedPayload {
+  feedItemId: string;
+  quantityKg: number;
+  targetType: FeedTargetType;
+  feedGroupId?: string;
+  cattleId?: string;
+  distributedAt?: string;
+  notes?: string;
+}
+
+/** `PATCH /feed/distributions/:id/refusal` — next-day leftover weigh-in. */
+export interface PatchRefusalPayload {
+  items: { ingredientId: string; refusalKg: number }[];
+}
+
+/** `GET /feed/groups/:id/refusal-trend` — refusal-rate history vs the group's configured target. */
+export interface RefusalTrend {
+  feed_group_id: string;
+  feed_group_name: string;
+  refusal_target_pct: number | null;
+  days: {
+    date: string;
+    planned_kg: number;
+    actual_kg: number;
+    refusal_kg: number;
+    refusal_pct: number | null;
+    over_target: boolean | null;
+  }[];
+}
+
+/** `GET /feed/concentrations/:id/versions` — explicit-checkpoint version history (`FEED_MIXTURE`
+ * only). Day-to-day edits stay live-sync; a version is only created on an explicit "Save as
+ * Template" or the first `finalize()`. */
+export interface FeedConcentrationVersion {
+  id: string;
+  version_number: number;
+  name: string | null;
+  items?: { ingredientId: string; ingredientName: string; amountKg: number; pricePerKg: number }[];
+  total_cost_per_day: number;
+  created_at: string;
+}
+
+/** `GET /feed/cost-summary` — farm-wide feed cost/cow/day + cost/litre + trend, for the
+ * Dashboard widget. */
+export interface FeedCostSummary {
+  days: number;
+  total_cost: number;
+  cost_per_cow_per_day: number | null;
+  cost_per_litre: number | null;
+  headcount: number;
+  total_litres: number;
+  trend: { date: string; total_cost: number }[];
 }

@@ -61,6 +61,8 @@ export function ConcentrationCard({
   onDelete,
   onFinalize,
   onFeedToday,
+  onSetDefault,
+  isDefaultForGroup = false,
   selected = false,
   onToggleSelect,
 }: {
@@ -71,6 +73,9 @@ export function ConcentrationCard({
   onDelete?: () => void;
   onFinalize?: () => void;
   onFeedToday?: () => void;
+  /** "Set as default for this group" / "Unset default" — GROUP-targeted TMR only (2026-08-14). */
+  onSetDefault?: () => void;
+  isDefaultForGroup?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
 }) {
@@ -83,6 +88,12 @@ export function ConcentrationCard({
   const canDelete = can("feed.delete");
   const canFinalize = canUpdate && Boolean(onFinalize);
   const canFeedToday = can("feed.distribution-log") && concentration.kind === "FEED_MIXTURE" && Boolean(onFeedToday);
+  const canSetDefault =
+    canUpdate &&
+    Boolean(onSetDefault) &&
+    concentration.kind === "FEED_MIXTURE" &&
+    concentration.target_type === "GROUP" &&
+    concentration.feed_group_id != null;
 
   return (
     <div className="flex flex-1 flex-col gap-5 rounded-2xl border border-border bg-card p-4">
@@ -99,8 +110,9 @@ export function ConcentrationCard({
           <Badge variant={concentration.is_finalized ? "success" : "warning"}>
             {t(concentration.is_finalized ? "statusFinalized" : "statusDraft")}
           </Badge>
+          {isDefaultForGroup ? <Badge variant="secondary">{t("defaultBadge")}</Badge> : null}
         </div>
-        {(canUpdate && onEdit) || (canDelete && onDelete) || canFinalize || canFeedToday ? (
+        {(canUpdate && onEdit) || (canDelete && onDelete) || canFinalize || canFeedToday || canSetDefault ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" aria-label={t("moreActions")} className="size-8 shrink-0">
@@ -109,6 +121,11 @@ export function ConcentrationCard({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {canFeedToday ? <DropdownMenuItem onSelect={onFeedToday}>{t("feedToday")}</DropdownMenuItem> : null}
+              {canSetDefault ? (
+                <DropdownMenuItem onSelect={onSetDefault}>
+                  {isDefaultForGroup ? t("unsetDefault") : t("setDefault")}
+                </DropdownMenuItem>
+              ) : null}
               {canFinalize ? <DropdownMenuItem onSelect={onFinalize}>{t("finalize")}</DropdownMenuItem> : null}
               {canUpdate && onEdit ? <DropdownMenuItem onSelect={onEdit}>{t("edit")}</DropdownMenuItem> : null}
               {canDelete && onDelete ? (

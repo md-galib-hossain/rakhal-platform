@@ -84,7 +84,7 @@ export function buildMedicineColumns(
       cell: ({ row }) => (
         <span className="flex items-center gap-2">
           <span className="text-sm font-medium text-foreground">
-            {row.original.currentStock} <span className="font-normal text-muted-foreground">{row.original.unit}</span>
+            {row.original.currentStock} <span className="font-normal text-muted-foreground">{row.original.unit.symbol}</span>
           </span>
           <StockStatusIcon status={row.original.stockStatus} />
         </span>

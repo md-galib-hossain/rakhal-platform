@@ -73,6 +73,8 @@ export const qk = {
     teamMembers: () => ["inventory", "milk-tank", "team-members"] as const,
     semenTanks: () => ["inventory", "semen-tank", "list"] as const,
     equipmentDetail: (id: string) => ["inventory", "equipment", "detail", id] as const,
+    /** RAKHAL-326 unit catalog. */
+    units: (dimension?: string) => ["inventory", "units", "list", dimension] as const,
   },
   health: {
     dashboard: () => ["health", "dashboard"] as const,
@@ -126,6 +128,8 @@ export const qk = {
   },
   feed: {
     ingredients: () => ["feed", "ingredients"] as const,
+    ingredientsPaged: (filters: Record<string, string | number | undefined>) =>
+      ["feed", "ingredients", "paged", filters] as const,
     concentrations: () => ["feed", "concentrations", "list"] as const,
     concentrationDetail: (id: string) => ["feed", "concentrations", "detail", id] as const,
     requirementsFor: (params: { cattleId?: string; feedGroupId?: string; weightKg?: number; milkTargetL?: number }) =>
@@ -137,6 +141,12 @@ export const qk = {
       ["feed", "distributions", "list", params] as const,
     efficiency: (params: { feedGroupId?: string; cattleId?: string; month?: string }) =>
       ["feed", "efficiency", params] as const,
+    resolvedRation: (cattleId: string) => ["feed", "resolved-ration", cattleId] as const,
+    dmi: (cattleId: string, date?: string) => ["feed", "dmi", cattleId, date] as const,
+    todaysRequirement: () => ["feed", "today-requirement"] as const,
+    refusalTrend: (feedGroupId: string) => ["feed", "refusal-trend", feedGroupId] as const,
+    versions: (concentrationId: string) => ["feed", "versions", concentrationId] as const,
+    costSummary: () => ["feed", "cost-summary"] as const,
   },
   calves: {
     list: (filters: Record<string, string | undefined>) => ["calves", "list", filters] as const,

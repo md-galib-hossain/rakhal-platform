@@ -3,6 +3,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
+import { settingsApi } from "@/features/settings/api";
 import { cattleApi } from "../api";
 import type { BulkAction, CattleFormPayload, CattleListFilters } from "../types";
 import type {
@@ -65,6 +66,37 @@ export function useSheds() {
 
 export function useFeedGroups() {
   return useQuery({ queryKey: qk.cattle.feedGroups(), queryFn: cattleApi.feedGroups, staleTime: STALE_TIME });
+}
+
+/** Inline "+ Create new shed" (`CreatableSelect`, `components/shared/creatable-select.tsx`) — same
+ * `POST /settings/sheds` the Settings feature's own create form uses, but invalidates every query
+ * key a shed picker anywhere in the app reads from (`cattle.sheds` + `settings.sheds`) so a shed
+ * created from the Cattle page or a bulk "change shed" dialog shows up everywhere immediately,
+ * not just where it was created. */
+export function useCreateShedInline() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => settingsApi.createShed({ name }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.sheds() });
+      void queryClient.invalidateQueries({ queryKey: qk.settings.sheds() });
+    },
+  });
+}
+
+/** Inline "+ Create new feed group" counterpart to `useCreateShedInline` — invalidates
+ * `cattle.feedGroups` + `settings.feedGroups` + `feed.feedGroups` (the Feed Formulator module's
+ * own picker reads a third, independent query key for the same backend resource). */
+export function useCreateFeedGroupInline() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => settingsApi.createFeedGroup({ name }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.feedGroups() });
+      void queryClient.invalidateQueries({ queryKey: qk.settings.feedGroups() });
+      void queryClient.invalidateQueries({ queryKey: qk.feed.feedGroups() });
+    },
+  });
 }
 
 export function useBulkCattle() {

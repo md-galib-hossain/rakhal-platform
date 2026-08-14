@@ -104,7 +104,7 @@ function MedicineCard({
           </span>
           <span className="flex items-baseline gap-1">
             <span className={cn("text-[28px] font-bold leading-none", STOCK_COLOR[medicine.stockStatus])}>{medicine.currentStock}</span>
-            <span className="text-sm font-medium text-muted-foreground">{medicine.unit}</span>
+            <span className="text-sm font-medium text-muted-foreground">{medicine.unit.symbol}</span>
           </span>
         </div>
       </div>

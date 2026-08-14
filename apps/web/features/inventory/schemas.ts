@@ -10,7 +10,7 @@ import { z } from "zod";
 export const medicineFormSchema = z.object({
   name: z.string().trim().min(1),
   currentStock: z.number().min(0),
-  unit: z.string().trim().min(1),
+  unitId: z.string().min(1),
   costPerUnit: z.number().min(0),
   type: z.enum(["LIQUID", "POWDER", "TABLET", "INJECTABLE", "BOLUS", "OINTMENT", "OTHER"]),
   category: z.enum([
@@ -48,7 +48,7 @@ export const feedItemFormSchema = z.object({
     .optional(),
   category: z.string().trim().optional(),
   ingredientId: z.string().trim().min(1),
-  unit: z.string().trim().min(1),
+  unitId: z.string().min(1),
   kgPerUnit: z.number().min(0).optional(),
   currentStock: z.number().min(0),
   costPerUnit: z.number().min(0),
@@ -151,7 +151,7 @@ export const equipmentFormSchema = z.object({
   name: z.string().trim().min(1),
   assetId: z.string().trim().optional(),
   type: z.enum(["EQUIPMENT", "MACHINERY", "TOOL", "SUPPLY", "OTHER"]),
-  unit: z.string().trim().optional(),
+  unitId: z.string().min(1).optional(),
   currentStock: z.number().min(0),
   costPerUnit: z.number().min(0),
   lowStockThreshold: z.number().min(0).optional(),

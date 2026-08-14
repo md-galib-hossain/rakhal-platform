@@ -2,18 +2,34 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
+import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { feedApi } from "../api";
 import type {
   CreateCustomIngredientPayload,
+  IngredientListFilters,
+  SetFeedOverridePayload,
+  UpdateCustomIngredientPayload,
   CreateFeedConcentrationPayload,
+  FinalizeConcentrationPayload,
   LogDistributionPayload,
   NormalizeConcentrationPayload,
+  PatchRefusalPayload,
+  QuickFeedPayload,
   UpdateFeedConcentrationPayload,
 } from "../types";
 
+/** Invalidates both the plain unpaginated ingredients list (`qk.feed.ingredients()`, used by pickers)
+ * and every paged/filtered variant (`["feed", "ingredients", "paged", ...]`, used by the management
+ * table) — a plain `invalidateQueries({ queryKey: qk.feed.ingredients() })` only prefix-matches the
+ * former, not the paged branch's own key shape. */
 function useInvalidateFeedIngredients() {
   const queryClient = useQueryClient();
-  return () => void queryClient.invalidateQueries({ queryKey: qk.feed.ingredients() });
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: qk.feed.ingredients() });
+    void queryClient.invalidateQueries({
+      predicate: (query) => query.queryKey[0] === "feed" && query.queryKey[1] === "ingredients",
+    });
+  };
 }
 
 const STALE_TIME = 60_000;
@@ -26,11 +42,31 @@ export function useFeedIngredients() {
   });
 }
 
+/** Cursor-paginated + filterable ingredients list for the Ingredients management table
+ * (2026-08-14, user request) — mirrors Inventory's `useFeedItemPagedList`. `useFeedIngredients()`
+ * above stays the plain unpaginated array pickers/dialogs need for full-catalogue selection. */
+export function useIngredientPagedList(filters: IngredientListFilters) {
+  return useCursorPager(
+    qk.feed.ingredientsPaged({ ...filters }),
+    (cursor, limit) => feedApi.listIngredientsPaged(filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
+}
+
 export function useFeedGroups() {
   return useQuery({
     queryKey: qk.feed.feedGroups(),
     queryFn: () => feedApi.listFeedGroups(),
     staleTime: STALE_TIME,
+  });
+}
+
+export function useSetGroupDefaultConcentration() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ groupId, concentrationId }: { groupId: string; concentrationId: string | null }) =>
+      feedApi.setGroupDefaultConcentration(groupId, concentrationId),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: qk.feed.feedGroups() }),
   });
 }
 
@@ -143,11 +179,16 @@ export function useFinalizeConcentration() {
   const invalidateIngredients = useInvalidateFeedIngredients();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => feedApi.finalizeConcentration(id),
+    mutationFn: ({ id, dto }: { id: string; dto?: FinalizeConcentrationPayload }) =>
+      feedApi.finalizeConcentration(id, dto),
     onSuccess: () => {
       invalidateConcentrations();
       invalidateIngredients();
       void queryClient.invalidateQueries({ queryKey: qk.feed.stock() });
+      // A FEED_MIXTURE finalize may have just paid for the batch out of the farm wallet —
+      // refresh the wallet balance/history so it isn't stale. No-op cost for a
+      // CONCENTRATE_TEMPLATE finalize (nothing paid, cache just re-fetches unchanged data).
+      void queryClient.invalidateQueries({ queryKey: qk.finance.wallet() });
     },
   });
 }
@@ -166,6 +207,40 @@ export function useCreateCustomIngredient() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dto: CreateCustomIngredientPayload) => feedApi.createCustomIngredient(dto),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: qk.feed.ingredients() }),
+  });
+}
+
+export function useUpdateCustomIngredient() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: UpdateCustomIngredientPayload }) =>
+      feedApi.updateCustomIngredient(id, dto),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: qk.feed.ingredients() }),
+  });
+}
+
+export function useDeleteCustomIngredient() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => feedApi.deleteCustomIngredient(id),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: qk.feed.ingredients() }),
+  });
+}
+
+export function useSetIngredientOverride() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: SetFeedOverridePayload }) =>
+      feedApi.setIngredientOverride(id, dto),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: qk.feed.ingredients() }),
+  });
+}
+
+export function useResetIngredientOverride() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => feedApi.resetIngredientOverride(id),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: qk.feed.ingredients() }),
   });
 }
@@ -250,6 +325,107 @@ export function useFeedEfficiency(params: { feedGroupId?: string; cattleId?: str
     queryKey: qk.feed.efficiency(params),
     queryFn: () => feedApi.getEfficiency(params),
     enabled: Boolean(params.feedGroupId || params.cattleId),
+    staleTime: STALE_TIME,
+  });
+}
+
+// ---- Feeding-system upgrade (2026-08-13, user request) -------------------------------------
+
+/** Layered targeting resolution — which active ration this cow is actually on right now. */
+export function useResolvedRation(cattleId: string | undefined) {
+  return useQuery({
+    queryKey: qk.feed.resolvedRation(cattleId ?? ""),
+    queryFn: () => feedApi.getResolvedRation(cattleId as string),
+    enabled: Boolean(cattleId),
+    staleTime: STALE_TIME,
+  });
+}
+
+export function useDmi(cattleId: string | undefined, date?: string) {
+  return useQuery({
+    queryKey: qk.feed.dmi(cattleId ?? "", date),
+    queryFn: () => feedApi.getDmi(cattleId as string, date),
+    enabled: Boolean(cattleId),
+    staleTime: STALE_TIME,
+  });
+}
+
+export function useTodaysRequirement() {
+  return useQuery({
+    queryKey: qk.feed.todaysRequirement(),
+    queryFn: () => feedApi.getTodaysRequirement(),
+    staleTime: STALE_TIME,
+  });
+}
+
+/** Feed a raw inventory item straight to a cow/group/herd, no Concentration involved. Invalidates
+ * the same stock/distribution/efficiency queries `useLogDistribution` does, plus today's requirement
+ * (headcount-derived, doesn't actually change, but the dashboard's "fed today" tally does). */
+export function useQuickFeed() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: QuickFeedPayload) => feedApi.quickFeed(dto),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.feed.stock() });
+      void queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "feed" && query.queryKey[1] === "distributions",
+      });
+    },
+  });
+}
+
+export function usePatchRefusal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ distributionId, dto }: { distributionId: string; dto: PatchRefusalPayload }) =>
+      feedApi.patchRefusal(distributionId, dto),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "feed" && query.queryKey[1] === "distributions",
+      });
+      void queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "feed" && query.queryKey[1] === "refusal-trend",
+      });
+    },
+  });
+}
+
+export function useRefusalTrend(feedGroupId: string | undefined, days?: number) {
+  return useQuery({
+    queryKey: qk.feed.refusalTrend(feedGroupId ?? ""),
+    queryFn: () => feedApi.getRefusalTrend(feedGroupId as string, days),
+    enabled: Boolean(feedGroupId),
+    staleTime: STALE_TIME,
+  });
+}
+
+/** Explicit-checkpoint versioning, `FEED_MIXTURE` only — "Save as Template". */
+export function useSaveVersion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ concentrationId, name }: { concentrationId: string; name?: string }) =>
+      feedApi.saveVersion(concentrationId, name),
+    onSuccess: (_data, { concentrationId }) => {
+      void queryClient.invalidateQueries({ queryKey: qk.feed.versions(concentrationId) });
+      void queryClient.invalidateQueries({ queryKey: qk.feed.concentrationDetail(concentrationId) });
+    },
+  });
+}
+
+export function useVersions(concentrationId: string | undefined) {
+  return useQuery({
+    queryKey: qk.feed.versions(concentrationId ?? ""),
+    queryFn: () => feedApi.listVersions(concentrationId as string),
+    enabled: Boolean(concentrationId),
+    staleTime: STALE_TIME,
+  });
+}
+
+/** Farm-wide feed cost/cow/day + cost/litre, for the Dashboard widget. */
+export function useFeedCostSummary(days?: number) {
+  return useQuery({
+    queryKey: qk.feed.costSummary(),
+    queryFn: () => feedApi.getCostSummary(days),
     staleTime: STALE_TIME,
   });
 }

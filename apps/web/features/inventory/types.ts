@@ -13,6 +13,41 @@
  * `useMilkTanks()`.
  */
 
+/** `GET/POST /inventory/units` row shape (`unit.service.ts`, RAKHAL-326) — system-seeded
+ * (`farmId: null`, visible to every farm) or farm-custom (`farmId` set, this farm only) unit
+ * catalog entry. Embedded verbatim (not trimmed to `{id,name,symbol}`) on Medicine/FeedItem/
+ * Equipment's `unit` relation — confirmed live: `medicine.service.ts`/`equipment.service.ts`/
+ * `feed-item.service.ts` all use `include: { unit: true }`, the full Prisma `Unit` row. */
+export type UnitDimension = "WEIGHT" | "VOLUME" | "COUNT";
+
+export interface Unit {
+  id: string;
+  name: string;
+  symbol: string;
+  dimension: UnitDimension;
+  /** Conversion to this dimension's base unit (kg for WEIGHT, L for VOLUME). Null for COUNT. */
+  conversionToBase: number | null;
+  isSystemDefault: boolean;
+  isActive: boolean;
+  farmId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UnitListFilters {
+  dimension?: UnitDimension;
+  includeArchived?: boolean;
+}
+
+/** `POST /inventory/units` body (`CreateUnitDto`) — a farm's own custom unit, used only when the
+ * seeded system catalog doesn't already cover it. `farmId` comes from the token, never in the body. */
+export interface CreateUnitPayload {
+  name: string;
+  symbol: string;
+  dimension: UnitDimension;
+  conversionToBase?: number;
+}
+
 export type MedicineType = "LIQUID" | "POWDER" | "TABLET" | "INJECTABLE" | "BOLUS" | "OINTMENT" | "OTHER";
 export type MedicineCategory =
   | "ANTIBIOTIC"
@@ -40,7 +75,7 @@ export interface Medicine {
   category: MedicineCategory;
   manufacturer: string | null;
   batchId: string | null;
-  unit: string;
+  unit: Unit;
   currentStock: number;
   costPerUnit: number;
   lowStockThreshold: number;
@@ -68,7 +103,7 @@ export interface CreateMedicinePayload {
   category: MedicineCategory;
   manufacturer?: string;
   batchId?: string;
-  unit: string;
+  unitId: string;
   currentStock: number;
   costPerUnit: number;
   lowStockThreshold?: number;
@@ -139,7 +174,7 @@ export interface FeedItem {
   feedSubType: FeedSubType | null;
   category: string | null;
   ingredientId: string | null;
-  unit: string;
+  unit: Unit;
   kgPerUnit: number | null;
   currentStock: number;
   costPerUnit: number;
@@ -167,7 +202,7 @@ export interface CreateFeedItemPayload {
   feedSubType?: FeedSubType;
   category?: string;
   ingredientId: string;
-  unit: string;
+  unitId: string;
   kgPerUnit?: number;
   currentStock: number;
   costPerUnit: number;
@@ -433,7 +468,7 @@ export interface Equipment {
   name: string;
   assetId: string | null;
   type: EquipmentType;
-  unit: string | null;
+  unit: Unit | null;
   currentStock: number;
   costPerUnit: number;
   lowStockThreshold: number;
@@ -453,7 +488,7 @@ export interface CreateEquipmentPayload {
   name: string;
   assetId?: string;
   type?: EquipmentType;
-  unit?: string;
+  unitId?: string;
   currentStock: number;
   costPerUnit: number;
   lowStockThreshold?: number;

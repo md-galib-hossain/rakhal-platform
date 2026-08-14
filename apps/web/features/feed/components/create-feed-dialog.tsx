@@ -364,7 +364,7 @@ function CreateFeedDialogBody({
                       name="feedGroupId"
                       render={({ field }) => (
                         <Select value={field.value} onValueChange={field.onChange}>
-                          <LabeledSelectTrigger label={t("selectGroup")} placeholder={t("selectGroupPlaceholder")} className="h-11" />
+                          <LabeledSelectTrigger label={t("selectGroup")} placeholder={t("selectGroupPlaceholder")} />
                           <SelectContent>
                             {(feedGroups.data ?? []).map((group) => (
                               <SelectItem key={group.id} value={group.id}>
@@ -375,7 +375,7 @@ function CreateFeedDialogBody({
                         </Select>
                       )}
                     />
-                  ) : (
+                  ) : targetType === "INDIVIDUAL" ? (
                     <Controller
                       control={form.control}
                       name="cattleId"
@@ -386,6 +386,9 @@ function CreateFeedDialogBody({
                         </div>
                       )}
                     />
+                  ) : (
+                    // HERD (2026-08-13, user request) — no picker needed, applies farm-wide by default.
+                    <p className="text-xs text-muted-foreground">{t("herdTargetHint")}</p>
                   )}
                   {form.formState.errors.feedGroupId || form.formState.errors.cattleId ? (
                     <p className="-mt-3 text-sm text-destructive">

@@ -27,7 +27,10 @@ import { z } from "zod";
  * plain optional numeric fields — a farmer can still type an override, and the backend falls back to
  * it when the target's own records are incomplete.
  */
-export const feedTargetTypes = ["GROUP", "INDIVIDUAL"] as const;
+/** `HERD` added 2026-08-13 (user request — "herd default -> group -> individual override, most
+ * specific wins"): requires neither `feedGroupId` nor `cattleId`, so it deliberately isn't named
+ * in either `.refine()` below — those only fire when `targetType` is GROUP/INDIVIDUAL. */
+export const feedTargetTypes = ["GROUP", "INDIVIDUAL", "HERD"] as const;
 export const feedConcentrationKinds = ["CONCENTRATE_TEMPLATE", "FEED_MIXTURE"] as const;
 
 export const createFeedConcentrationItemSchema = z.object({

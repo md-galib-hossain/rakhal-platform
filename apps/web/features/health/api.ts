@@ -133,7 +133,9 @@ export interface MedicineOption {
   id: string;
   name: string;
   currentStock: number;
-  unit: string;
+  /** Nested unit-catalog relation (RAKHAL-326) — `GET /inventory/medicines` now returns the full
+   * `Unit` row here, not a free-text string. Only `symbol` is used by this picker's preview row. */
+  unit: { id: string; name: string; symbol: string };
 }
 
 /** Search-select source for the Log Treatment tab's medicine picker — reuses the real

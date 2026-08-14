@@ -1,5 +1,20 @@
 # Frontend — Current State
 
+## RAKHAL-326 — Inventory Unit catalog, frontend half (2026-08-14)
+Closes the user's "unit should be a dropdown, not free text, also check edit" request — backend half
+(`D:\Projects\Rakhal\docs\IN_FLIGHT.md`) already shipped a real `Unit` catalog (system-seeded + farm-custom,
+same convention as `FeedIngredient`). New `UnitPicker` (`features/inventory/components/unit-picker.tsx`,
+mirrors `IngredientPicker`'s Popover+Command shape, grouped by dimension Weight/Volume/Count) replaces the
+free-text unit input on Medicine/Equipment/FeedItem's create+edit forms via `Controller`-bound `unitId`,
+with a "+ Add custom unit" inline quick-add. `unit: string` → `unit: Unit` (nested `{id,name,symbol,
+dimension,conversionToBase,...}`) across `types.ts`/`schemas.ts`/every display site in
+`features/inventory`+`features/feed`+`features/health` (health's `medicine-picker.tsx` reads the same
+`GET /inventory/medicines` shape, fixed as a consequential out-of-lane touch). Gate green (lint/typecheck/
+build 37 routes/test 18/18, both locales). **Live smoke test**: hit this board's pre-existing Suspense-stuck
+quirk on `/inventory`, verified via direct `fetch()` in-page instead — full create(existing unit)→create
+(custom unit)→edit-shows-backfilled-unit cycle proven live for Medicine, plus Equipment's optional-unit and
+FeedItem's required-unit paths, all archived after. Full writeup: `docs/IN_FLIGHT.md` Recently Done.
+
 ## RAKHAL-042 — Cattle list mobile card view, the AC MILESTONE 10's scoping pass left open (2026-08-12)
 Closed the one real gap `docs/IN_FLIGHT.md`'s `agent-m10-enum` entry flagged as out of scope: the top-level
 `docs/PROJECT_PROGRESS.md` RAKHAL-042 ticket's `[ ] List table + cards (mobile default)` AC was still

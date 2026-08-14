@@ -104,7 +104,7 @@ export function FeedItemDetailSheet({
                     />
                     <StatCard
                       label={t("currentStock")}
-                      value={`${query.data.currentStock} ${query.data.unit}`}
+                      value={`${query.data.currentStock} ${query.data.unit.symbol}`}
                       icon={<Package className="size-4" aria-hidden />}
                       iconClassName="bg-info-tint text-info"
                     />

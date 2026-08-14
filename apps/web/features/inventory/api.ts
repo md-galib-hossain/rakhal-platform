@@ -11,6 +11,7 @@ import type {
   CreateMilkTankPayload,
   CreateSemenBatchPayload,
   CreateSemenTankPayload,
+  CreateUnitPayload,
   Equipment,
   EquipmentListFilters,
   FeedItem,
@@ -26,6 +27,8 @@ import type {
   SemenBatch,
   SemenBatchListFilters,
   SemenTank,
+  Unit,
+  UnitDimension,
   UpdateEquipmentPayload,
   UpdateFeedItemPayload,
   UpdateMedicinePayload,
@@ -193,5 +196,14 @@ export const inventoryApi = {
   /** Multi-select delete (bulk-action dock, 2026-07-21). */
   bulkDeleteEquipment(ids: string[]): Promise<{ deleted: number }> {
     return apiFetch("/inventory/equipment/bulk-delete", { method: "POST", body: { ids } });
+  },
+
+  /** `/inventory/units*` — real backend routes (`unit.controller.ts`, RAKHAL-326). Merged system +
+   * farm catalog, no cursor pager (same small-list convention as milk tanks/semen tanks). */
+  listUnits(dimension?: UnitDimension): Promise<Unit[]> {
+    return apiFetch<Unit[]>("/inventory/units", { searchParams: dimension ? { dimension } : undefined });
+  },
+  createUnit(dto: CreateUnitPayload): Promise<Unit> {
+    return apiFetch<Unit>("/inventory/units", { method: "POST", body: dto });
   },
 };

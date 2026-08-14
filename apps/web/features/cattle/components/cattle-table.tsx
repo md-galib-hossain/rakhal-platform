@@ -13,6 +13,7 @@ import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { DataTable } from "@/components/shared/data-table";
 import { Pagination } from "@/components/shared/pagination";
 import { BulkActionDock } from "@/components/shared/bulk-action-dock";
+import { CreatableSelect } from "@/components/shared/creatable-select";
 import { useTableBulkSelection, useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
 import {
   Dialog,
@@ -23,8 +24,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useBulkCattle, useCattleDetail, useCattlePagedList, useFeedGroups, useSheds } from "../hooks/use-cattle";
+import { SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  useBulkCattle,
+  useCattleDetail,
+  useCattlePagedList,
+  useCreateFeedGroupInline,
+  useCreateShedInline,
+  useFeedGroups,
+  useSheds,
+} from "../hooks/use-cattle";
 import { buildCattleColumns } from "./cattle-columns";
 import { CattleGrid } from "./cattle-grid";
 import { CattleFormDialog } from "./cattle-form-dialog";
@@ -89,6 +98,8 @@ export function CattleTable() {
   const bulk = useBulkCattle();
   const sheds = useSheds();
   const feedGroups = useFeedGroups();
+  const createShedInline = useCreateShedInline();
+  const createFeedGroupInline = useCreateFeedGroupInline();
   const items = query.items;
   const columns = useMemo(
     () =>
@@ -259,18 +270,20 @@ export function CattleTable() {
             <DialogTitle>{tBulk("changeShed")}</DialogTitle>
             <DialogDescription>{tBulk("changeShedDescription", { count: selection.selectedCount })}</DialogDescription>
           </DialogHeader>
-          <Select value={shedId} onValueChange={setShedId}>
-            <SelectTrigger aria-label={tBulk("shedLabel")}>
-              <SelectValue placeholder={tBulk("shedLabel")} />
-            </SelectTrigger>
-            <SelectContent>
-              {(sheds.data?.items ?? []).map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CreatableSelect
+            value={shedId}
+            onValueChange={setShedId}
+            options={sheds.data?.items ?? []}
+            trigger={
+              <SelectTrigger aria-label={tBulk("shedLabel")}>
+                <SelectValue placeholder={tBulk("shedLabel")} />
+              </SelectTrigger>
+            }
+            createLabel={t("form.addShed")}
+            namePlaceholder={t("form.shedNamePlaceholder")}
+            createErrorMessage={t("form.addShedError")}
+            onCreate={(name) => createShedInline.mutateAsync(name)}
+          />
           <DialogFooter>
             <Button variant="outline" onClick={() => setShedDialogOpen(false)}>
               {tBulk("cancel")}
@@ -295,18 +308,20 @@ export function CattleTable() {
             <DialogTitle>{tBulk("changeFeedGroup")}</DialogTitle>
             <DialogDescription>{tBulk("changeFeedGroupDescription", { count: selection.selectedCount })}</DialogDescription>
           </DialogHeader>
-          <Select value={feedGroupId} onValueChange={setFeedGroupId}>
-            <SelectTrigger aria-label={tBulk("feedGroupLabel")}>
-              <SelectValue placeholder={tBulk("feedGroupLabel")} />
-            </SelectTrigger>
-            <SelectContent>
-              {(feedGroups.data ?? []).map((g) => (
-                <SelectItem key={g.id} value={g.id}>
-                  {g.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CreatableSelect
+            value={feedGroupId}
+            onValueChange={setFeedGroupId}
+            options={feedGroups.data ?? []}
+            trigger={
+              <SelectTrigger aria-label={tBulk("feedGroupLabel")}>
+                <SelectValue placeholder={tBulk("feedGroupLabel")} />
+              </SelectTrigger>
+            }
+            createLabel={t("form.addFeedGroup")}
+            namePlaceholder={t("form.feedGroupNamePlaceholder")}
+            createErrorMessage={t("form.addFeedGroupError")}
+            onCreate={(name) => createFeedGroupInline.mutateAsync(name)}
+          />
           <DialogFooter>
             <Button variant="outline" onClick={() => setFeedGroupDialogOpen(false)}>
               {tBulk("cancel")}

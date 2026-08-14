@@ -19,9 +19,10 @@ import { ReproductionTab } from "./reproduction-tab";
 import { HealthTab } from "./health-tab";
 import { FinanceTab } from "./finance-tab";
 import { PedigreeTab } from "./pedigree-tab";
+import { FeedingTab } from "./feeding-tab";
 import type { AnimalCategory, CattleGender, LactationStage } from "../../types";
 
-const BASE_TABS = ["overview", "reproduction", "health", "finance", "pedigree"] as const;
+const BASE_TABS = ["overview", "reproduction", "health", "finance", "pedigree", "feeding"] as const;
 const CALF_TABS = ["colostrum", "milk", "weight", "starterFeed", "tasks"] as const;
 type BaseTabKey = (typeof BASE_TABS)[number];
 type CalfTabKey = (typeof CALF_TABS)[number];
@@ -103,6 +104,9 @@ export function CattleDetailTabs({
       </TabsContent>
       <TabsContent value="pedigree">
         <PedigreeTab cattleId={cattleId} />
+      </TabsContent>
+      <TabsContent value="feeding">
+        <FeedingTab cattleId={cattleId} />
       </TabsContent>
       {isCalf ? (
         <>

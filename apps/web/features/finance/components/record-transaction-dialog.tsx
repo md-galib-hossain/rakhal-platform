@@ -354,7 +354,7 @@ function RecordTransactionDialogBody({ onOpenChange }: { onOpenChange: (open: bo
                   name="subType"
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={field.onChange}>
-                      <LabeledSelectTrigger label={t(`subTypeLabel.${type}`)} placeholder={t("selectOption")} className="h-11" />
+                      <LabeledSelectTrigger label={t(`subTypeLabel.${type}`)} placeholder={t("selectOption")} />
                       <SelectContent>
                         {SUBTYPE_OPTIONS[type].map((s) => (
                           <SelectItem key={s} value={s}>

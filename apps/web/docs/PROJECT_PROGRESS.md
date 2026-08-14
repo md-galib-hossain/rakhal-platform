@@ -11,6 +11,11 @@
 
 **Last updated:** 2026-07-09 · **Status legend:** `TODO` · `IN-PROGRESS` (must have an IN_FLIGHT row) · `DONE` · `BLOCKED`
 
+> **RAKHAL-326 (backend-numbered, no RFE assigned)** — Inventory Unit catalog, frontend half `DONE`
+> (2026-08-14): free-text `unit` on Medicine/Equipment/FeedItem replaced by a real `Unit` catalog picker
+> (`UnitPicker`, system+farm-custom, same convention as the Feed Formulator's `IngredientPicker`). Full
+> writeup: `docs/CURRENT_STATE.md` / `docs/IN_FLIGHT.md` Recently Done.
+
 ---
 
 ## Phase 0 — Foundation 🏗️ (mostly serial; blocks everything below)

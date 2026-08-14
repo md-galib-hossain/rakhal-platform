@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CattlePicker } from "@/components/shared/cattle-picker";
+import { CreatableSelect } from "@/components/shared/creatable-select";
 import { Chip, type ChipProps } from "@/components/ui/chip";
 import {
   LabeledInput,
@@ -31,7 +32,9 @@ import {
   useBreeds,
   useCreateBreed,
   useCreateCattle,
+  useCreateFeedGroupInline,
   useCreatePurchasedLactation,
+  useCreateShedInline,
   useFeedGroups,
   useRemoveCattlePhoto,
   useSetCattlePhoto,
@@ -325,6 +328,8 @@ function CattleFormDialogBody({
   const breeds = useBreeds();
   const sheds = useSheds();
   const feedGroups = useFeedGroups();
+  const createShedInline = useCreateShedInline();
+  const createFeedGroupInline = useCreateFeedGroupInline();
   const createCattle = useCreateCattle();
   const updateCattle = useUpdateCattle();
   const setPhoto = useSetCattlePhoto();
@@ -604,23 +609,17 @@ function CattleFormDialogBody({
                 control={form.control}
                 name="shedId"
                 render={({ field }) => (
-                  <Select
+                  <CreatableSelect
                     value={field.value || UNSET}
                     onValueChange={field.onChange}
-                  >
-                    <LabeledSelectTrigger
-                      label={t("shed")}
-                      placeholder={t("unassigned")}
-                    />
-                    <SelectContent>
-                      <SelectItem value={UNSET}>{t("unassigned")}</SelectItem>
-                      {(sheds.data?.items ?? []).map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={sheds.data?.items ?? []}
+                    trigger={<LabeledSelectTrigger label={t("shed")} placeholder={t("unassigned")} />}
+                    extraItems={<SelectItem value={UNSET}>{t("unassigned")}</SelectItem>}
+                    createLabel={t("addShed")}
+                    namePlaceholder={t("shedNamePlaceholder")}
+                    createErrorMessage={t("addShedError")}
+                    onCreate={(name) => createShedInline.mutateAsync(name)}
+                  />
                 )}
               />
               <Controller
@@ -991,23 +990,17 @@ function CattleFormDialogBody({
               control={form.control}
               name="feedGroupId"
               render={({ field }) => (
-                <Select
+                <CreatableSelect
                   value={field.value || UNSET}
                   onValueChange={field.onChange}
-                >
-                  <LabeledSelectTrigger
-                    label={t("feedGroup")}
-                    placeholder={t("unassigned")}
-                  />
-                  <SelectContent>
-                    <SelectItem value={UNSET}>{t("unassigned")}</SelectItem>
-                    {(feedGroups.data ?? []).map((g) => (
-                      <SelectItem key={g.id} value={g.id}>
-                        {g.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={feedGroups.data ?? []}
+                  trigger={<LabeledSelectTrigger label={t("feedGroup")} placeholder={t("unassigned")} />}
+                  extraItems={<SelectItem value={UNSET}>{t("unassigned")}</SelectItem>}
+                  createLabel={t("addFeedGroup")}
+                  namePlaceholder={t("feedGroupNamePlaceholder")}
+                  createErrorMessage={t("addFeedGroupError")}
+                  onCreate={(name) => createFeedGroupInline.mutateAsync(name)}
+                />
               )}
             />
             <Controller

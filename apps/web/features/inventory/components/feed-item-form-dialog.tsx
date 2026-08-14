@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import { IngredientPicker } from "@/features/feed/components/ingredient-picker";
 import { useFeedIngredients } from "@/features/feed/hooks/use-feed";
+import { UnitPicker } from "./unit-picker";
 import { useCreateFeedItem, useUpdateFeedItem } from "../hooks/use-inventory";
 import { feedItemFormSchema, type FeedItemFormInput } from "../schemas";
 import type { CreateFeedItemPayload, FeedItem, UpdateFeedItemPayload } from "../types";
@@ -29,7 +30,7 @@ function toCreatePayload(values: FeedItemFormInput): CreateFeedItemPayload {
     feedSubType: values.feedSubType,
     category: values.category || undefined,
     ingredientId: values.ingredientId,
-    unit: values.unit,
+    unitId: values.unitId,
     kgPerUnit: values.kgPerUnit,
     currentStock: values.currentStock,
     costPerUnit: values.costPerUnit,
@@ -57,7 +58,7 @@ function toFormDefaults(feedItem: FeedItem | undefined): Partial<FeedItemFormInp
     feedSubType: feedItem.feedSubType ?? undefined,
     category: feedItem.category ?? "",
     ingredientId: feedItem.ingredientId ?? "",
-    unit: feedItem.unit,
+    unitId: feedItem.unit.id,
     kgPerUnit: feedItem.kgPerUnit ?? undefined,
     currentStock: feedItem.currentStock,
     costPerUnit: feedItem.costPerUnit,
@@ -108,14 +109,24 @@ export function FeedItemFormDialog({
   open,
   onOpenChange,
   feedItem,
+  onCreated,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   feedItem?: FeedItem;
+  /** Called with the newly created item right before the sheet closes. Only fires on create, not edit
+   * — used by callers that need to auto-select the item they just created (e.g. Quick Feed). */
+  onCreated?: (item: FeedItem) => void;
 }) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      {open ? <FeedItemFormDialogBody key={feedItem?.id ?? "create"} onOpenChange={onOpenChange} feedItem={feedItem} /> : null}
+    // `modal={false}` — same fix as `create-feed-dialog.tsx`'s Sheet: the modal Dialog's
+    // document-level scroll lock (`react-remove-scroll`) intercepts wheel events for anything
+    // portaled outside it, including this form's `UnitPicker` popover, even with `modal={false}`
+    // set on the popover itself. See that file's doc comment for the confirmed root cause.
+    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
+      {open ? (
+        <FeedItemFormDialogBody key={feedItem?.id ?? "create"} onOpenChange={onOpenChange} feedItem={feedItem} onCreated={onCreated} />
+      ) : null}
     </Sheet>
   );
 }
@@ -123,9 +134,11 @@ export function FeedItemFormDialog({
 function FeedItemFormDialogBody({
   onOpenChange,
   feedItem,
+  onCreated,
 }: {
   onOpenChange: (open: boolean) => void;
   feedItem?: FeedItem;
+  onCreated?: (item: FeedItem) => void;
 }) {
   const t = useTranslations("inventory.feed.form");
   const tOptions = useTranslations("inventory.feed");
@@ -151,7 +164,8 @@ function FeedItemFormDialogBody({
       if (isEdit && feedItem) {
         await updateFeedItem.mutateAsync({ id: feedItem.id, dto: toUpdatePayload(values) });
       } else {
-        await createFeedItem.mutateAsync(toCreatePayload(values));
+        const created = await createFeedItem.mutateAsync(toCreatePayload(values));
+        onCreated?.(created);
       }
       toast.success(isEdit ? t("updatedToast") : t("createdToast"));
       onOpenChange(false);
@@ -193,7 +207,13 @@ function FeedItemFormDialogBody({
                 label={t("currentStock")}
                 {...form.register("currentStock", { setValueAs: (v) => (v === "" ? undefined : Number(v)) })}
               />
-              <LabeledInput id="unit" label={t("unit")} placeholder={t("unitPlaceholder")} {...form.register("unit")} error={form.formState.errors.unit?.message} />
+              <Controller
+                control={form.control}
+                name="unitId"
+                render={({ field, fieldState }) => (
+                  <UnitPicker value={field.value} onChange={field.onChange} error={fieldState.error?.message} />
+                )}
+              />
               <LabeledInput
                 id="kgPerUnit"
                 type="number"

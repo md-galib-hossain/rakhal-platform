@@ -82,7 +82,7 @@ export function MedicinePicker({ value, onValueChange, disabled }: MedicinePicke
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">
-              {t("stock")}: <span className="font-medium text-foreground">{value.currentStock}</span> {value.unit}
+              {t("stock")}: <span className="font-medium text-foreground">{value.currentStock}</span> {value.unit.symbol}
             </span>
             <button type="button" onClick={() => onValueChange(null)} aria-label={t("clearMedicine")}>
               <Trash2 className="size-4 text-destructive" aria-hidden />

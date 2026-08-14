@@ -138,7 +138,7 @@ function CreateTaskSheetBody({ onOpenChange }: { onOpenChange: (open: boolean) =
               name="category"
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <LabeledSelectTrigger label={t("category")} placeholder={t("selectCategory")} className="h-11" />
+                  <LabeledSelectTrigger label={t("category")} placeholder={t("selectCategory")} />
                   <SelectContent>
                     {CATEGORY_ORDER.map((c) => (
                       <SelectItem key={c} value={c}>
@@ -217,7 +217,7 @@ function CreateTaskSheetBody({ onOpenChange }: { onOpenChange: (open: boolean) =
               name="recurrenceType"
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <LabeledSelectTrigger label={t("repeats")} placeholder={t("selectRepeats")} className="h-11" />
+                  <LabeledSelectTrigger label={t("repeats")} placeholder={t("selectRepeats")} />
                   <SelectContent>
                     {RECURRENCE_TYPES.map((r) => (
                       <SelectItem key={r} value={r}>

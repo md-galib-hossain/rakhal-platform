@@ -13,12 +13,14 @@ import type {
   CreateMilkTankPayload,
   CreateSemenBatchPayload,
   CreateSemenTankPayload,
+  CreateUnitPayload,
   EquipmentListFilters,
   FeedItemListFilters,
   MedicineListFilters,
   MilkTankListFilters,
   MilkTankTeamMember,
   SemenBatchListFilters,
+  UnitDimension,
   UpdateEquipmentPayload,
   UpdateFeedItemPayload,
   UpdateMedicinePayload,
@@ -415,5 +417,29 @@ export function useRestoreEquipment() {
   return useMutation({
     mutationFn: (id: string) => inventoryApi.restoreEquipment(id),
     onSuccess: (_data, id) => invalidate(id),
+  });
+}
+
+/** Unit catalog (RAKHAL-326) — merged system + farm units, small list, no cursor pager. Used by
+ * `UnitPicker` (`features/inventory/components/unit-picker.tsx`), same pattern as
+ * `useFeedIngredients()`. */
+export function useUnits(dimension?: UnitDimension) {
+  return useQuery({
+    queryKey: qk.inventory.units(dimension),
+    queryFn: () => inventoryApi.listUnits(dimension),
+    staleTime: STALE_TIME,
+  });
+}
+
+/** "+ Add custom unit" quick-add — invalidates every dimension-filtered units query so the new unit
+ * shows up in the picker immediately (same broad-invalidate shape `useCreateCustomIngredient` uses). */
+export function useCreateCustomUnit() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: CreateUnitPayload) => inventoryApi.createUnit(dto),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "inventory" && query.queryKey[1] === "units",
+      }),
   });
 }

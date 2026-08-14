@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
+import { UnitPicker } from "./unit-picker";
 import {
   useCreateMedicine,
   useRemoveMedicinePhoto,
@@ -43,7 +44,7 @@ function toCreatePayload(values: MedicineFormInput): CreateMedicinePayload {
     category: values.category,
     manufacturer: values.manufacturer || undefined,
     batchId: values.batchId || undefined,
-    unit: values.unit,
+    unitId: values.unitId,
     currentStock: values.currentStock,
     costPerUnit: values.costPerUnit,
     lowStockThreshold: values.lowStockThreshold,
@@ -65,7 +66,7 @@ function toUpdatePayload(values: MedicineFormInput): UpdateMedicinePayload {
     category: values.category,
     manufacturer: values.manufacturer || undefined,
     batchId: values.batchId || undefined,
-    unit: values.unit,
+    unitId: values.unitId,
     costPerUnit: values.costPerUnit,
     lowStockThreshold: values.lowStockThreshold,
     purchaseDate: values.purchaseDate,
@@ -84,7 +85,7 @@ function toFormDefaults(medicine: Medicine | undefined): Partial<MedicineFormInp
     category: medicine.category,
     manufacturer: medicine.manufacturer ?? "",
     batchId: medicine.batchId ?? "",
-    unit: medicine.unit,
+    unitId: medicine.unit.id,
     currentStock: medicine.currentStock,
     costPerUnit: medicine.costPerUnit,
     lowStockThreshold: medicine.lowStockThreshold,
@@ -185,7 +186,11 @@ export function MedicineFormDialog({
   medicine?: Medicine;
 }) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    // `modal={false}` — same fix as `create-feed-dialog.tsx`'s Sheet: the modal Dialog's
+    // document-level scroll lock (`react-remove-scroll`) intercepts wheel events for anything
+    // portaled outside it, including this form's `UnitPicker` popover, even with `modal={false}`
+    // set on the popover itself. See that file's doc comment for the confirmed root cause.
+    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
       {open ? <MedicineFormDialogBody key={medicine?.id ?? "create"} onOpenChange={onOpenChange} medicine={medicine} /> : null}
     </Sheet>
   );
@@ -294,7 +299,13 @@ function MedicineFormDialogBody({
                 disabled={isEdit}
                 {...form.register("currentStock", { setValueAs: (v) => (v === "" ? undefined : Number(v)) })}
               />
-              <LabeledInput id="unit" label={t("unit")} placeholder={t("unitPlaceholder")} {...form.register("unit")} error={form.formState.errors.unit?.message} />
+              <Controller
+                control={form.control}
+                name="unitId"
+                render={({ field, fieldState }) => (
+                  <UnitPicker value={field.value} onChange={field.onChange} error={fieldState.error?.message} />
+                )}
+              />
               <LabeledInput
                 id="costPerUnit"
                 type="number"

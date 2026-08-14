@@ -16,6 +16,7 @@ import { ProductionVsFeedcostChart } from "@/features/dashboard/components/produ
 import { ConceptionRateChart } from "@/features/dashboard/components/conception-rate-chart";
 import { ActivityLogCard } from "@/features/dashboard/components/activity-log-card";
 import { MilkTrendCard } from "@/features/dashboard/components/milk-trend-card";
+import { FeedCostCard } from "@/features/dashboard/components/feed-cost-card";
 import { ReportExportButton } from "@/features/reports/components/report-export-button";
 import { DASHBOARD_EXPORT_REPORT } from "@/features/reports/report-defs";
 import type { Locale } from "@/lib/constants/i18n";
@@ -99,6 +100,7 @@ export default async function DashboardPage() {
         <UpcomingTasksCard />
         <ActivityLogCard />
         <MilkTrendCard />
+        <FeedCostCard />
       </div>
     </PageCard>
   );

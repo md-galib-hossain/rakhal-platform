@@ -74,7 +74,7 @@ export function buildEquipmentColumns(
       cell: ({ row }) => (
         <span className="flex items-center gap-2">
           <span className="text-sm font-medium text-foreground">
-            {row.original.currentStock} <span className="font-normal text-muted-foreground">{row.original.unit || t("piece")}</span>
+            {row.original.currentStock} <span className="font-normal text-muted-foreground">{row.original.unit?.symbol || t("piece")}</span>
           </span>
           <StockStatusIcon status={row.original.stockStatus} />
         </span>

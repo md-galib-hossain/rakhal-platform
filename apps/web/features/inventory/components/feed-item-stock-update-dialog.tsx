@@ -58,10 +58,10 @@ export function FeedItemStockUpdateDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t("title")}</DialogTitle>
-          <DialogDescription>{t("description", { name: feedItem?.name ?? "", unit: feedItem?.unit ?? "" })}</DialogDescription>
+          <DialogDescription>{t("description", { name: feedItem?.name ?? "", unit: feedItem?.unit?.symbol ?? "" })}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-          <Label htmlFor="stock-update-value">{t("label", { unit: feedItem?.unit ?? "" })}</Label>
+          <Label htmlFor="stock-update-value">{t("label", { unit: feedItem?.unit?.symbol ?? "" })}</Label>
           <Input
             id="stock-update-value"
             type="number"
