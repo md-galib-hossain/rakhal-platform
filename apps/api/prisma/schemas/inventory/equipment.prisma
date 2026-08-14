@@ -10,7 +10,10 @@ model Equipment {
   assetId String?
   type    EquipmentType @default(EQUIPMENT)
 
-  unit              String? // unit label when counted in something other than pieces
+  /// Unit catalog (RAKHAL-326) — replaces the old free-text `unit` string. Stays optional
+  /// (mirrors the old `unit String?` behavior — some equipment is just counted in pieces).
+  unitId String?
+  unit   Unit?   @relation(fields: [unitId], references: [id])
   currentStock      Float   @default(0)
   costPerUnit       Float
   lowStockThreshold Float   @default(0)
@@ -31,6 +34,7 @@ model Equipment {
   @@index([farmId])
   @@index([type])
   @@index([createdBy])
+  @@index([unitId])
 }
 
 /// Append-only audit of every stock change on an Equipment row (purchase,

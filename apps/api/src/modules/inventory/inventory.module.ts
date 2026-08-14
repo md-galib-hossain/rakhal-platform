@@ -11,11 +11,13 @@ import { FeedItemService } from './application/services/feed-item.service';
 import { SemenService } from './application/services/semen.service';
 import { MilkTankService } from './application/services/milk-tank.service';
 import { EquipmentService } from './application/services/equipment.service';
+import { UnitService } from './application/services/unit.service';
 import { MedicineController } from './presentation/controllers/medicine.controller';
 import { FeedItemController } from './presentation/controllers/feed-item.controller';
 import { SemenController } from './presentation/controllers/semen.controller';
 import { MilkTankController } from './presentation/controllers/milk-tank.controller';
 import { EquipmentController } from './presentation/controllers/equipment.controller';
+import { UnitController } from './presentation/controllers/unit.controller';
 
 /**
  * Inventory module (PRD §15). Tabs: Medicine (RAKHAL-074), Feed (075, purchased
@@ -46,6 +48,7 @@ import { EquipmentController } from './presentation/controllers/equipment.contro
     SemenController,
     MilkTankController,
     EquipmentController,
+    UnitController,
   ],
   providers: [
     MedicineService,
@@ -53,6 +56,7 @@ import { EquipmentController } from './presentation/controllers/equipment.contro
     SemenService,
     MilkTankService,
     EquipmentService,
+    UnitService,
   ],
   exports: [
     MedicineService,
@@ -60,6 +64,7 @@ import { EquipmentController } from './presentation/controllers/equipment.contro
     SemenService,
     MilkTankService,
     EquipmentService,
+    UnitService,
   ],
 })
 export class InventoryModule {}

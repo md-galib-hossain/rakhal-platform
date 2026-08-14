@@ -38,7 +38,7 @@ describe('Feed item (Purchased) bulk-delete (e2e)', () => {
         name,
         feedClass: 'CONCENTRATE',
         ingredientId: ingredient.body.data.id,
-        unit: 'kg',
+        unitId: 'unit_kg',
         currentStock: 50,
         costPerUnit: 8,
         purchaseDate: new Date().toISOString(),

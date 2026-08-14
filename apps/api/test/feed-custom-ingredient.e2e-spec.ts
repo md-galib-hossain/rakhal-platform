@@ -169,4 +169,104 @@ describe('Feed Formulator — custom ingredient (e2e)', () => {
     expect(detail.totals.me_mj).toBe(0);
     expect(detail.totals.dm_kg).toBe(10); // dmPct=100 → whole 10kg counts as DM
   });
+
+  it('edits a custom ingredient — name, price, and nutrition profile', async () => {
+    const created = await request(server())
+      .post(api('/feed/ingredients/custom'))
+      .set(...auth(owner))
+      .send({ name: `E2E Edit Me ${Date.now()}`, pricePerKg: 20 })
+      .expect(201);
+    const id = created.body.data.id as string;
+
+    const updated = await request(server())
+      .patch(api(`/feed/ingredients/custom/${id}`))
+      .set(...auth(owner))
+      .send({ name: 'E2E Edited Name', pricePerKg: 25, cpPct: 12 })
+      .expect(200);
+
+    expect(updated.body.data.name_en).toBe('E2E Edited Name');
+    expect(updated.body.data.effective_price_per_kg).toBe(25);
+    expect(updated.body.data.nutrition.cp_pct).toBe(12);
+  });
+
+  it('deletes (archives) a custom ingredient, removing it from the ingredient list', async () => {
+    const created = await request(server())
+      .post(api('/feed/ingredients/custom'))
+      .set(...auth(owner))
+      .send({ name: `E2E Delete Me ${Date.now()}`, pricePerKg: 15 })
+      .expect(201);
+    const id = created.body.data.id as string;
+
+    await request(server())
+      .delete(api(`/feed/ingredients/custom/${id}`))
+      .set(...auth(owner))
+      .expect(200);
+
+    const list = await request(server())
+      .get(api('/feed/ingredients'))
+      .set(...auth(owner))
+      .expect(200);
+    expect(
+      (list.body.data as Array<{ id: string }>).some((i) => i.id === id),
+    ).toBe(false);
+  });
+
+  it('blocks deleting a custom ingredient still used by an active concentration', async () => {
+    const created = await request(server())
+      .post(api('/feed/ingredients/custom'))
+      .set(...auth(owner))
+      .send({ name: `E2E In-Use Ingredient ${Date.now()}`, pricePerKg: 12 })
+      .expect(201);
+    const id = created.body.data.id as string;
+
+    await request(server())
+      .post(api('/feed/concentrations'))
+      .set(...auth(owner))
+      .send({
+        kind: 'CONCENTRATE_TEMPLATE',
+        name: `E2E In-Use Formula ${Date.now()}`,
+        items: [{ ingredientId: id, amountKg: 5 }],
+      })
+      .expect(201);
+
+    await request(server())
+      .delete(api(`/feed/ingredients/custom/${id}`))
+      .set(...auth(owner))
+      .expect(409);
+  });
+
+  it("rejects edit/delete on a catalogue ingredient (not farm-owned) and on another farm's ingredient", async () => {
+    const catalogue = await request(server())
+      .get(api('/feed/ingredients'))
+      .set(...auth(owner))
+      .expect(200);
+    const catalogueRow = (
+      catalogue.body.data as Array<{ id: string; is_custom: boolean }>
+    ).find((i) => !i.is_custom);
+    expect(catalogueRow).toBeDefined();
+
+    await request(server())
+      .patch(api(`/feed/ingredients/custom/${catalogueRow!.id}`))
+      .set(...auth(owner))
+      .send({ pricePerKg: 999 })
+      .expect(404);
+
+    await request(server())
+      .delete(api(`/feed/ingredients/custom/${catalogueRow!.id}`))
+      .set(...auth(owner))
+      .expect(404);
+
+    const ownerOwned = await request(server())
+      .post(api('/feed/ingredients/custom'))
+      .set(...auth(owner))
+      .send({ name: `E2E Owner-Only Ingredient ${Date.now()}`, pricePerKg: 7 })
+      .expect(201);
+    const ownerOwnedId = ownerOwned.body.data.id as string;
+
+    await request(server())
+      .patch(api(`/feed/ingredients/custom/${ownerOwnedId}`))
+      .set(...auth(neighbor))
+      .send({ pricePerKg: 999 })
+      .expect(404);
+  });
 });

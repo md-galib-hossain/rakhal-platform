@@ -29,7 +29,7 @@ describe('Medicine bulk-delete (e2e)', () => {
         name,
         type: 'LIQUID',
         category: 'ANTIBIOTIC',
-        unit: 'ml',
+        unitId: 'unit_ml',
         currentStock: 10,
         costPerUnit: 5,
         purchaseDate: new Date().toISOString(),

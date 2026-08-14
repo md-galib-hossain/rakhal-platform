@@ -1,0 +1,40 @@
+/// Unit catalog (RAKHAL-326) — replaces the free-text `unit` string previously stored
+/// directly on Medicine/Equipment/FeedItem ("kg", "KG", "Kg", "kilogram", ...) with a
+/// controlled system-seeded + farm-custom catalogue. Same "system catalogue + farm-custom
+/// rows" convention as `FeedIngredient` (`prisma/schemas/feed/feed.prisma`).
+enum UnitDimension {
+  WEIGHT
+  VOLUME
+  COUNT
+}
+
+model Unit {
+  id        String        @id @default(cuid())
+  name      String // "Kilogram"
+  symbol    String // "kg" — used for isKg-style comparisons (feed-item/feed-distribution)
+  dimension UnitDimension
+
+  /// Conversion to this dimension's base unit (kg for WEIGHT, L for VOLUME).
+  /// Null for COUNT (pieces/bag/sack/etc — no inherent weight/volume; per-item
+  /// kg-equivalence for those stays on `FeedItem.kgPerUnit`, unchanged by this ticket).
+  conversionToBase Float?
+
+  isSystemDefault Boolean @default(false)
+  isActive        Boolean @default(true)
+
+  /// null = Rakhal system unit (seeded, visible to every farm). Non-null = one
+  /// farm's own custom unit, invisible to other farms. Same convention as
+  /// `FeedIngredient.farmId` (feed.prisma).
+  farmId String?
+  farm   Farm?  @relation("FarmToUnit", fields: [farmId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  medicines  Medicine[]
+  equipments Equipment[]
+  feedItems  FeedItem[]
+
+  @@index([farmId])
+  @@index([dimension])
+}

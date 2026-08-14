@@ -32,9 +32,8 @@ export class UpdateEquipmentDto {
   type?: EquipmentType;
 
   @IsOptional()
-  @Transform(trimString)
   @IsString()
-  unit?: string;
+  unitId?: string;
 
   @IsOptional()
   @IsNumber()

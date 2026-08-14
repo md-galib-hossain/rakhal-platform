@@ -69,7 +69,7 @@ describe('Medicine — cross-batch dose splitting (e2e)', () => {
         type: 'INJECTABLE',
         category: 'ANTIBIOTIC',
         batchId,
-        unit: 'ml',
+        unitId: 'unit_ml',
         currentStock,
         costPerUnit: 10,
         lowStockThreshold: 0,

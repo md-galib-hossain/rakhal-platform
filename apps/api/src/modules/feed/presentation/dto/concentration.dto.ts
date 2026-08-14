@@ -12,7 +12,11 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { FeedConcentrationKind, FeedTargetType } from '@prisma/client';
+import {
+  FeedConcentrationKind,
+  FeedTargetType,
+  FinancePaymentMethod,
+} from '@prisma/client';
 import { toBoolean, trimString } from 'src/common/dto';
 
 /** Query for `GET /feed/concentrations` (RAKHAL-310 — not cursor-paginated, this list is small and
@@ -87,6 +91,17 @@ export class CreateConcentrationDto {
   @ValidateNested({ each: true })
   @Type(() => ConcentrationItemDto)
   items!: ConcentrationItemDto[];
+}
+
+/** `POST /feed/concentrations/:id/finalize` body. `paymentMethod` is required only when
+ * finalizing a `FEED_MIXTURE` (TMR) — that's the only kind that incurs a real cost against the
+ * farm's money; a `CONCENTRATE_TEMPLATE` finalize stays free/virtual and ignores this field.
+ * Service-level check (not `@IsNotEmpty`), since the requirement is conditional on the row's
+ * own `kind`, not statically knowable from the body alone. */
+export class FinalizeConcentrationDto {
+  @IsOptional()
+  @IsEnum(FinancePaymentMethod)
+  paymentMethod?: FinancePaymentMethod;
 }
 
 /** `PATCH /feed/concentrations/:id` — partial update; `items` replaces the lines if present. */

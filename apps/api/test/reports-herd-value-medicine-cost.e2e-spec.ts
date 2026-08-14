@@ -138,7 +138,7 @@ describe('Reports — herd value + medicine cost (RD-013d/e)', () => {
         name: `E2E-RD013E-Med-${Date.now()}`,
         type: 'INJECTABLE',
         category: 'ANTIBIOTIC',
-        unit: 'ml',
+        unitId: 'unit_ml',
         currentStock: 100,
         costPerUnit: 12,
         lowStockThreshold: 0,

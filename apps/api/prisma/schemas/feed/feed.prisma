@@ -35,7 +35,13 @@ model FeedIngredient {
   tdnPct       Float? // Total Digestible Nutrients, % of DM
   sugarsPct    Float?
 
-  nutritionSource  String? // e.g. INRA 2018 / NRC 2001 / BAU
+  /// Structured provenance (RAKHAL-329, additive — replaces the old free-text field, renamed
+  /// below to `nutritionSourceNote` and kept for existing citations like "INRA 2018/NRC 2001").
+  /// Ranked LAB > MANUFACTURER > FARM_ESTIMATE > REFERENCE by `resolveEffective()` when a farm
+  /// override also carries a source — see `ingredient-resolver.ts`.
+  nutritionSource     NutritionSource @default(REFERENCE)
+  nutritionSourceNote String? // e.g. INRA 2018 / NRC 2001 / BAU
+  sourceRef           String? // lab report id/date, manufacturer spec sheet ref, etc.
   currentPricePerKg Float // Tk/kg, Admin-updated weekly
   priceUpdatedAt    DateTime?
 
@@ -108,6 +114,12 @@ model FeedIngredientOverride {
   customCalciumPct   Float?
   customPhosphorusPct Float?
   customTdnPct       Float?
+  /// RAKHAL-329: this override's own provenance, ranked against the catalogue row's
+  /// `nutritionSource` by `resolveEffective()`. Null = not specified (treated as absent,
+  /// not as REFERENCE — an override with no stated source shouldn't outrank a catalogue
+  /// row that explicitly says LAB).
+  nutritionSource NutritionSource?
+  sourceRef       String?
   notes            String?
 
   createdBy String
@@ -147,11 +159,12 @@ model FeedConcentration {
   targetWeightKg Float?
   targetMilkL    Float?
 
-  /// Vestigial as of 2026-07-18 — `finalize()` no longer bumps this (the
-  /// version-history mechanic it drove was retired in favor of live-sync, see
-  /// `FeedIngredient.sourceConcentrationVersion`'s doc comment). Left in place
-  /// rather than dropped since it's unused by any code path, confirmed via a
-  /// full-frontend grep; safe to remove in a future cleanup pass.
+  /// Was vestigial 2026-07-18→2026-08-13 (version-history retired in favor of live-sync,
+  /// see `FeedIngredient.sourceConcentrationVersion`'s doc comment). Un-retired 2026-08-13
+  /// (user request) as an **explicit-checkpoint** counter, `FEED_MIXTURE` kind only: bumped
+  /// only by `FeedConcentrationService.saveAsVersion()`, never on a plain edit — day-to-day
+  /// tweaks stay live-sync (matches Concentrate Mixer behavior, which never versions). See
+  /// `FeedConcentrationVersion` below.
   versionNumber Int @default(1)
 
   isActive  Boolean  @default(true)
@@ -159,13 +172,42 @@ model FeedConcentration {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  farm                Farm                    @relation("FarmToFeedConcentration", fields: [farmId], references: [id])
+  farm                Farm                       @relation("FarmToFeedConcentration", fields: [farmId], references: [id])
   items               FeedConcentrationItem[]
   promotedIngredients FeedIngredient[]
   stocks              FeedStock[]
+  versions            FeedConcentrationVersion[]
 
   @@index([farmId])
   @@index([farmId, feedGroupId])
+}
+
+/// Explicit checkpoint snapshot of a `FEED_MIXTURE` concentration, taken only on
+/// `saveAsVersion()` (user names it, e.g. "v3 — added soybean meal") or on first
+/// `finalize()` if no version exists yet — never on a plain edit (see
+/// `FeedConcentration.versionNumber`'s doc comment). `snapshotItems` freezes the
+/// ingredient lines + nutrient totals at save time so history survives later edits
+/// to the live concentration or catalogue price changes.
+model FeedConcentrationVersion {
+  id              String @id @default(cuid())
+  farmId          String
+  concentrationId String
+
+  versionNumber   Int
+  name            String?
+  snapshotItems   Json /// frozen [{ ingredientId, ingredientName, amountKg, pricePerKg }]
+  totalCostPerDay Float
+
+  effectiveFrom DateTime @default(now())
+  createdBy     String
+  createdAt     DateTime @default(now())
+
+  farm          Farm              @relation("FarmToFeedConcentrationVersion", fields: [farmId], references: [id])
+  concentration FeedConcentration @relation(fields: [concentrationId], references: [id], onDelete: Cascade)
+
+  @@unique([concentrationId, versionNumber])
+  @@index([farmId])
+  @@index([concentrationId])
 }
 
 model FeedConcentrationItem {
@@ -192,11 +234,22 @@ model FeedDistribution {
   id String @id @default(cuid())
 
   farmId          String
-  concentrationId String
+  /// Nullable as of 2026-08-13 (user request — "quick-feed" a raw single item without wrapping
+  /// it in a fake 1-ingredient Concentration). Null iff `sourceType=QUICK_FEED`.
+  concentrationId String?
+  /// Which snapshot of the concentration was live when this was logged (see
+  /// `FeedConcentrationVersion`). Null = either no version has ever been saved for this
+  /// concentration (matches current live state) or this is a `QUICK_FEED` row.
+  concentrationVersionId String?
+  /// CONCENTRATION = normal TMR "Feed Today" flow; QUICK_FEED = single raw item fed directly,
+  /// no Concentration involved (2026-08-13).
+  sourceType FeedDistributionSourceType @default(CONCENTRATION)
   /// Denormalized from the concentration at log time — exactly one of these two is set, matching
-  /// the source TMR's own `targetType` (GROUP → `feedGroupId`, INDIVIDUAL → `cattleId`). Added
-  /// 2026-07-18 (Phase 12.4, user request — "feed a single cow, not just a group") alongside
-  /// `feedGroupId`, which predates this and was the only target this model supported until now.
+  /// the source TMR's own `targetType` (GROUP → `feedGroupId`, INDIVIDUAL → `cattleId`, HERD →
+  /// neither). Added 2026-07-18 (Phase 12.4, user request — "feed a single cow, not just a
+  /// group") alongside `feedGroupId`, which predates this and was the only target this model
+  /// supported until now. For `QUICK_FEED` rows these are set directly from the quick-feed
+  /// target choice, not denormalized from any concentration.
   feedGroupId String?
   cattleId    String?
 
@@ -247,6 +300,17 @@ model FeedDistributionItem {
 enum FeedTargetType {
   GROUP
   INDIVIDUAL
+  /// Whole-herd default ration — falls through to this when a cow has no INDIVIDUAL
+  /// override and its `feedGroupId` (or its group) has no GROUP-targeted concentration.
+  /// Added 2026-08-13 (user request — "herd default -> group -> individual override,
+  /// most specific wins"). Uses neither `feedGroupId` nor `cattleId`.
+  HERD
+}
+
+/// See `FeedDistribution.sourceType`'s doc comment.
+enum FeedDistributionSourceType {
+  CONCENTRATION
+  QUICK_FEED
 }
 
 /// See `FeedConcentration.kind`'s doc comment.
@@ -261,4 +325,14 @@ enum FeedNutrientGroup {
   PROTEIN
   ENERGY
   FIBER
+}
+
+/// Nutrition-data provenance (RAKHAL-329). Ranked LAB > MANUFACTURER > FARM_ESTIMATE > REFERENCE
+/// by `resolveEffective()` (`ingredient-resolver.ts`) when both a catalogue row and its farm
+/// override carry a source.
+enum NutritionSource {
+  REFERENCE
+  MANUFACTURER
+  LAB
+  FARM_ESTIMATE
 }

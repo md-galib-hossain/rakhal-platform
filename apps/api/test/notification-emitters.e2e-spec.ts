@@ -101,7 +101,7 @@ describe('Notification emitters (e2e)', () => {
         name: `E2E LowStock Med ${Date.now()}`,
         type: 'LIQUID',
         category: 'ANTIBIOTIC',
-        unit: 'vial',
+        unitId: 'unit_bottle',
         currentStock: 6,
         lowStockThreshold: 5,
         costPerUnit: 10,

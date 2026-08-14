@@ -66,6 +66,7 @@ model Farm {
   reportSchedules     ReportSchedule[]     @relation("FarmToReportSchedule")
   feedIngredientOverrides FeedIngredientOverride[] @relation("FarmToFeedIngredientOverride")
   feedConcentrations      FeedConcentration[]      @relation("FarmToFeedConcentration")
+  feedConcentrationVersions FeedConcentrationVersion[] @relation("FarmToFeedConcentrationVersion")
   fixedAssets         FixedAsset[]         @relation("FarmToFixedAsset")
   invitations         FarmInvitation[]     @relation("FarmToInvitation")
   suppliers           Supplier[]           @relation("FarmToSupplier")
@@ -77,6 +78,7 @@ model Farm {
   notifications           Notification[]           @relation("FarmToNotification")
   reproProtocols          ReproProtocol[]          @relation("FarmToReproProtocol")
   reproProtocolInstances  ReproProtocolInstance[]  @relation("FarmToReproProtocolInstance")
+  units                   Unit[]                   @relation("FarmToUnit")
 
   @@index([ownerId])
   @@index([slug])

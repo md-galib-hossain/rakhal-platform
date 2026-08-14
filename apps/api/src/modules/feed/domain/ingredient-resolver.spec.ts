@@ -72,4 +72,33 @@ describe('resolveEffective', () => {
     expect(eff.pricePerKg).toBe(0);
     expect(eff.priceSource).toBe('farm_override');
   });
+
+  it('defaults nutritionSource to REFERENCE when neither side states one', () => {
+    const eff = resolveEffective(base, emptyOverride);
+    expect(eff.nutritionSource).toBe('REFERENCE');
+  });
+
+  it("prefers the override's LAB source over the catalogue's REFERENCE default", () => {
+    const eff = resolveEffective(base, {
+      ...emptyOverride,
+      nutritionSource: 'LAB',
+    });
+    expect(eff.nutritionSource).toBe('LAB');
+  });
+
+  it("never lets an unset override outrank the catalogue's own LAB source", () => {
+    const eff = resolveEffective(
+      { ...base, nutritionSource: 'LAB' },
+      emptyOverride,
+    );
+    expect(eff.nutritionSource).toBe('LAB');
+  });
+
+  it("keeps the catalogue's higher-ranked LAB source over an override's lower-ranked FARM_ESTIMATE", () => {
+    const eff = resolveEffective(
+      { ...base, nutritionSource: 'LAB' },
+      { ...emptyOverride, nutritionSource: 'FARM_ESTIMATE' },
+    );
+    expect(eff.nutritionSource).toBe('LAB');
+  });
 });

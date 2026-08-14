@@ -9,6 +9,21 @@
  * contribution off `cp_kg`, not `dm_kg`. Never blur the two bases.
  */
 
+/** RAKHAL-329: provenance ranking, LAB is the most trustworthy, REFERENCE (Rakhal's own seeded
+ * default) the least. Mirrors `prisma/schemas/feed/feed.prisma`'s `NutritionSource` enum. */
+export type NutritionSource =
+  | 'REFERENCE'
+  | 'MANUFACTURER'
+  | 'LAB'
+  | 'FARM_ESTIMATE';
+
+const SOURCE_RANK: Record<NutritionSource, number> = {
+  REFERENCE: 0,
+  FARM_ESTIMATE: 1,
+  MANUFACTURER: 2,
+  LAB: 3,
+};
+
 export interface CatalogueIngredient {
   id: string;
   dmPct: number;
@@ -24,6 +39,7 @@ export interface CatalogueIngredient {
   phosphorusPct: number | null;
   tdnPct: number | null;
   currentPricePerKg: number;
+  nutritionSource?: NutritionSource;
 }
 
 export interface IngredientOverride {
@@ -40,6 +56,8 @@ export interface IngredientOverride {
   customCalciumPct: number | null;
   customPhosphorusPct: number | null;
   customTdnPct: number | null;
+  /** Null/absent = not specified — never outranks a catalogue row's stated source. */
+  nutritionSource?: NutritionSource | null;
 }
 
 export type PriceSource = 'rakhal_market' | 'farm_override';
@@ -61,6 +79,7 @@ export interface EffectiveIngredient {
   calciumPct: number;
   phosphorusPct: number;
   tdnPct: number;
+  nutritionSource: NutritionSource;
 }
 
 const pick = <T>(custom: T | null | undefined, standard: T): T =>
@@ -89,6 +108,14 @@ export function resolveEffective(
     override?.customPricePerKg !== null &&
     override?.customPricePerKg !== undefined;
 
+  const catalogueSource = ingredient.nutritionSource ?? 'REFERENCE';
+  const overrideSource = override?.nutritionSource ?? null;
+  const nutritionSource =
+    overrideSource !== null &&
+    SOURCE_RANK[overrideSource] > SOURCE_RANK[catalogueSource]
+      ? overrideSource
+      : catalogueSource;
+
   return {
     id: ingredient.id,
     pricePerKg: pick(override?.customPricePerKg, ingredient.currentPricePerKg),
@@ -109,5 +136,6 @@ export function resolveEffective(
       ingredient.phosphorusPct ?? 0,
     ),
     tdnPct: pick(override?.customTdnPct, ingredient.tdnPct ?? 0),
+    nutritionSource,
   };
 }

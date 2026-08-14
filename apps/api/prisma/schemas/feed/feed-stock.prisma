@@ -18,6 +18,29 @@ model FeedStock {
   currentStockKg Float
   producedCostTk Float /// snapshot of the formula's total_cost_tk at production time
 
+  /// RAKHAL-327: nutrient snapshot at production time, back-derived from the recipe's computed
+  /// `FormulaTotals` (same math `FeedConcentrationService.buildIngredientNutrition` uses to promote
+  /// a concentrate into a reusable ingredient) — until now `finalize()` recorded cost but nothing
+  /// about what this specific batch actually contained. `nutritionSource` starts `REFERENCE`
+  /// (computed from the recipe's on-paper values, not measured) — a farm can overwrite these fields
+  /// after a lab test comes back (`FeedStockService.updateNutrition`), which also lets it flag
+  /// `LAB`/`MANUFACTURER`/`FARM_ESTIMATE`. Basis matches `FeedIngredient`'s doc comment (rdp/rup =
+  /// % of CP, everything else = % of DM).
+  dmPct           Float
+  cpPct           Float
+  meMjPerKgDm     Float
+  fatPct          Float
+  ndfPct          Float
+  rdpPct          Float
+  rupPct          Float
+  starchPct       Float
+  adfPct          Float
+  calciumPct      Float
+  phosphorusPct   Float
+  tdnPct          Float
+  nutritionSource NutritionSource @default(REFERENCE)
+  sourceRef       String?
+
   /// Soft-delete (user request 2026-07-19 — "form inventory it can be also deleted"), same
   /// archive-not-hard-delete convention as every other inventory model. Never filtered out of
   /// `get()`/movement history, only from the default `list()`.

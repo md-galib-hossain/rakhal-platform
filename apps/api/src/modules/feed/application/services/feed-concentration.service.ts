@@ -8,6 +8,9 @@ import {
   FeedConcentrationItem,
   FeedConcentrationKind,
   FeedIngredient,
+  FinanceCategory,
+  FinancePaymentMethod,
+  FinanceTxnType,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
@@ -28,8 +31,9 @@ import {
   NormalizeConcentrationDto,
   UpdateConcentrationDto,
 } from '../../presentation/dto/concentration.dto';
-import { FeedStockService } from './feed-stock.service';
+import { FeedStockService, StockNutritionSnapshot } from './feed-stock.service';
 import { FeedRequirementsService } from './feed-requirements.service';
+import { FinanceService } from 'src/modules/finance/application/services/finance.service';
 
 type ConcentrationWithItems = FeedConcentration & {
   items: FeedConcentrationItem[];
@@ -51,6 +55,7 @@ export class FeedConcentrationService {
     private readonly logger: LoggerService,
     private readonly feedStock: FeedStockService,
     private readonly feedRequirements: FeedRequirementsService,
+    private readonly finance: FinanceService,
   ) {
     this.log = this.logger.setContext(FeedConcentrationService.name);
   }
@@ -316,8 +321,18 @@ export class FeedConcentrationService {
    * produces another lot) — only the Concentrate Mixer's ingredient-promotion half is idempotent; a
    * plain edit-save (`update()`) can refresh nutrition on either kind, but never produces stock.
    */
-  async finalize(farmId: string, userId: string, id: string) {
+  async finalize(
+    farmId: string,
+    userId: string,
+    id: string,
+    paymentMethod?: FinancePaymentMethod,
+  ) {
     const row = await this.getOrThrow(farmId, id);
+    if (row.kind === 'FEED_MIXTURE' && !paymentMethod) {
+      throw new BadRequestException(
+        'paymentMethod is required to finalize a Total Mixed Ration',
+      );
+    }
     if (row.items.length === 0) {
       throw new BadRequestException(
         'Cannot finalize an empty concentration — add ingredients first',
@@ -385,6 +400,28 @@ export class FeedConcentrationService {
     // Only a Total Mixed Ration becomes real inventory. A Concentrate Mixer is a virtual
     // calculator — its finalize above already did the only thing it's supposed to (promote/
     // refresh the reusable ingredient); it must never also fabricate a physical stock lot.
+    //
+    // Payment happens *before* stock is produced (mirrors `FinanceService.recordTransaction`'s own
+    // "check wallet balance before touching stock" ordering) — an insufficient-wallet-balance
+    // TMR finalize throws here and never reaches `produceFromConcentration`, so no `FeedStock` is
+    // fabricated for a batch that was never actually paid for. Reuses `recordTransaction` itself
+    // rather than re-implementing the wallet-debit/liquidity-check logic locally; `updateInventory`
+    // stays false because the inventory effect here is `FeedStock` (below), not a `FeedItem`/
+    // Medicine/Equipment row that `recordTransaction`'s own auto-increment path knows how to touch.
+    let financeResult: Awaited<
+      ReturnType<FinanceService['recordTransaction']>
+    > | null = null;
+    if (row.kind === 'FEED_MIXTURE') {
+      financeResult = await this.finance.recordTransaction(farmId, userId, {
+        type: FinanceTxnType.INVENTORY_PURCHASE,
+        category: FinanceCategory.INVENTORY,
+        entityName: row.name,
+        amount: totals.total_cost_tk,
+        paymentMethod,
+        updateInventory: false,
+      });
+    }
+
     const stock =
       row.kind === 'FEED_MIXTURE'
         ? await this.feedStock.produceFromConcentration(farmId, userId, {
@@ -392,14 +429,134 @@ export class FeedConcentrationService {
             version: 1,
             qtyKg: totalAsFedKg,
             costTk: totals.total_cost_tk,
+            // RAKHAL-327: batch nutrient snapshot, same back-derivation math as
+            // `buildIngredientNutrition` (a Concentrate Mixer's promoted-ingredient path) —
+            // this is the recipe's on-paper composition, not a lab measurement, hence the
+            // service-side `nutritionSource: REFERENCE` default.
+            nutrition: this.buildStockNutritionSnapshot(totals, totalAsFedKg),
           })
         : null;
+
+    // Auto-checkpoint on first finalize (2026-08-13) — every produced TMR batch should have
+    // at least one traceable version, even if the farmer never explicitly clicked "Save as
+    // Template" first. No-op if a version already exists (explicit saves take priority).
+    if (row.kind === 'FEED_MIXTURE') {
+      const hasVersion = await this.prisma.feedConcentrationVersion.findFirst({
+        where: { concentrationId: row.id },
+        select: { id: true },
+      });
+      if (!hasVersion) {
+        await this.saveAsVersion(farmId, userId, row.id);
+      }
+    }
 
     return {
       concentration_id: row.id,
       stock,
       ingredient: ingredientResult,
+      finance: financeResult
+        ? {
+            transaction_id: financeResult.transactionId,
+            reference: financeResult.reference,
+            wallet_transaction_id: financeResult.walletTransactionId,
+          }
+        : null,
     };
+  }
+
+  /**
+   * Explicit-checkpoint versioning (2026-08-13, user request — "develop his existing ration
+   * day by day... save it as template"), `FEED_MIXTURE` only: a Concentrate Mixer stays
+   * live-sync-only, never versioned (see `FeedConcentration.versionNumber`'s doc comment).
+   * Freezes the current ingredient lines + cost into a `FeedConcentrationVersion` row and
+   * bumps `versionNumber` — day-to-day edits between checkpoints stay live-sync, only an
+   * explicit save (or a first `finalize()`, see that method) creates a checkpoint.
+   */
+  async saveAsVersion(
+    farmId: string,
+    userId: string,
+    id: string,
+    name?: string,
+  ) {
+    const row = await this.getOrThrow(farmId, id);
+    if (row.kind !== 'FEED_MIXTURE') {
+      throw new BadRequestException(
+        'Only a Total Mixed Ration can be versioned — a Concentrate Mixer stays live-sync',
+      );
+    }
+    if (row.items.length === 0) {
+      throw new BadRequestException(
+        'Cannot version an empty concentration — add ingredients first',
+      );
+    }
+
+    const [effById, nameById] = await Promise.all([
+      this.effectiveMap(
+        farmId,
+        row.items.map((i) => i.ingredientId),
+      ),
+      this.ingredientNames(row.items.map((i) => i.ingredientId)),
+    ]);
+    const lines: FormulaLine[] = row.items.map((i) => ({
+      ingredientId: i.ingredientId,
+      amountKg: i.amountKg,
+    }));
+    const { totals } = computeTotals(lines, effById);
+
+    const nextVersionNumber = row.versionNumber;
+    const snapshotItems = row.items.map((i) => ({
+      ingredientId: i.ingredientId,
+      ingredientName: nameById.get(i.ingredientId) ?? i.ingredientId,
+      amountKg: i.amountKg,
+      pricePerKg: effById.get(i.ingredientId)?.pricePerKg ?? 0,
+    }));
+
+    const [version] = await this.prisma.$transaction([
+      this.prisma.feedConcentrationVersion.create({
+        data: {
+          farmId,
+          concentrationId: id,
+          versionNumber: nextVersionNumber,
+          name,
+          snapshotItems,
+          totalCostPerDay: totals.total_cost_tk,
+          createdBy: userId,
+        },
+      }),
+      this.prisma.feedConcentration.update({
+        where: { id },
+        data: { versionNumber: nextVersionNumber + 1 },
+      }),
+    ]);
+
+    this.log.info('Feed concentration version saved', {
+      farmId,
+      concentrationId: id,
+      versionNumber: version.versionNumber,
+    });
+    return {
+      id: version.id,
+      version_number: version.versionNumber,
+      name: version.name,
+      total_cost_per_day: version.totalCostPerDay,
+      created_at: version.createdAt,
+    };
+  }
+
+  async listVersions(farmId: string, id: string) {
+    await this.getOrThrow(farmId, id);
+    const rows = await this.prisma.feedConcentrationVersion.findMany({
+      where: { farmId, concentrationId: id },
+      orderBy: { versionNumber: 'desc' },
+    });
+    return rows.map((v) => ({
+      id: v.id,
+      version_number: v.versionNumber,
+      name: v.name,
+      items: v.snapshotItems,
+      total_cost_per_day: v.totalCostPerDay,
+      created_at: v.createdAt,
+    }));
   }
 
   /** Scale a draft formula's amounts so total DM meets the requirement (§12.4). */
@@ -552,6 +709,34 @@ export class FeedConcentrationService {
       phosphorusPct: pctOfDm(totals.phosphorus_kg),
       tdnPct: pctOfDm(totals.tdn_kg),
       currentPricePerKg: totals.total_cost_tk / totalAsFedKg,
+    };
+  }
+
+  /** RAKHAL-327: the same DM/CP back-derivation `buildIngredientNutrition` uses, trimmed to just
+   * the nutrient fields `FeedStock`'s batch snapshot needs (no name/class/price). Kept as its own
+   * method rather than reusing `buildIngredientNutrition`'s output directly so the two call sites
+   * (promoted-ingredient vs. produced-stock) can diverge later without coupling. */
+  private buildStockNutritionSnapshot(
+    totals: FormulaTotals,
+    totalAsFedKg: number,
+  ): StockNutritionSnapshot {
+    const pctOfDm = (kg: number) =>
+      totals.dm_kg > 0 ? (kg / totals.dm_kg) * 100 : 0;
+    const pctOfCp = (kg: number) =>
+      totals.cp_kg > 0 ? (kg / totals.cp_kg) * 100 : 0;
+    return {
+      dmPct: (totalAsFedKg > 0 ? totals.dm_kg / totalAsFedKg : 0) * 100,
+      cpPct: pctOfDm(totals.cp_kg),
+      meMjPerKgDm: totals.dm_kg > 0 ? totals.me_mj / totals.dm_kg : 0,
+      fatPct: pctOfDm(totals.fat_kg),
+      ndfPct: pctOfDm(totals.ndf_kg),
+      rdpPct: pctOfCp(totals.rdp_kg),
+      rupPct: pctOfCp(totals.rup_kg),
+      starchPct: pctOfDm(totals.starch_kg),
+      adfPct: pctOfDm(totals.adf_kg),
+      calciumPct: pctOfDm(totals.calcium_kg),
+      phosphorusPct: pctOfDm(totals.phosphorus_kg),
+      tdnPct: pctOfDm(totals.tdn_kg),
     };
   }
 

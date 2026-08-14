@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Equipment, Prisma } from '@prisma/client';
+import { Equipment, Prisma, Unit } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { CursorPage, getCursorArgs, toCursorPage } from 'src/common/pagination';
@@ -14,8 +14,12 @@ import { ListEquipmentQueryDto } from '../../presentation/dto/list-equipment-que
 import { UpdateEquipmentDto } from '../../presentation/dto/update-equipment.dto';
 import { AdjustEquipmentStockDto } from '../../presentation/dto/adjust-equipment-stock.dto';
 
+/** An equipment row with its `Unit` relation resolved (RAKHAL-326, optional — mirrors the
+ * old optional `unit` column). */
+type EquipmentWithUnit = Equipment & { unit: Unit | null };
+
 /** An equipment row enriched with derived stock status. */
-type PresentedEquipment = Equipment & { stockStatus: StockStatus };
+type PresentedEquipment = EquipmentWithUnit & { stockStatus: StockStatus };
 
 /**
  * Inventory → Others/Equipment tab (PRD §15.6, RAKHAL-076). `farmId` is supplied
@@ -44,7 +48,7 @@ export class EquipmentService {
           name: dto.name,
           assetId: dto.assetId,
           type: dto.type,
-          unit: dto.unit,
+          unitId: dto.unitId,
           currentStock: dto.currentStock,
           costPerUnit: dto.costPerUnit,
           lowStockThreshold: dto.lowStockThreshold ?? 0,
@@ -52,6 +56,7 @@ export class EquipmentService {
           notes: dto.notes,
           createdBy: userId,
         },
+        include: { unit: true },
       });
 
       this.log.info('Equipment created', { equipmentId: equipment.id, farmId });
@@ -85,6 +90,7 @@ export class EquipmentService {
     const rows = await this.prisma.equipment.findMany({
       where,
       orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
+      include: { unit: true },
       ...getCursorArgs(query),
     });
 
@@ -113,7 +119,7 @@ export class EquipmentService {
           name: dto.name,
           assetId: dto.assetId,
           type: dto.type,
-          unit: dto.unit,
+          unitId: dto.unitId,
           currentStock: dto.currentStock,
           costPerUnit: dto.costPerUnit,
           lowStockThreshold: dto.lowStockThreshold,
@@ -122,6 +128,7 @@ export class EquipmentService {
             : {}),
           notes: dto.notes,
         },
+        include: { unit: true },
       });
 
       this.log.info('Equipment updated', { equipmentId: id, farmId });
@@ -139,6 +146,7 @@ export class EquipmentService {
     const equipment = await this.prisma.equipment.update({
       where: { id },
       data: { isActive: false },
+      include: { unit: true },
     });
     this.log.info('Equipment archived', { equipmentId: id, farmId });
     return this.present(equipment);
@@ -149,6 +157,7 @@ export class EquipmentService {
     const equipment = await this.prisma.equipment.update({
       where: { id },
       data: { isActive: true },
+      include: { unit: true },
     });
     this.log.info('Equipment restored', { equipmentId: id, farmId });
     return this.present(equipment);
@@ -183,6 +192,7 @@ export class EquipmentService {
       this.prisma.equipment.update({
         where: { id },
         data: { currentStock: balanceAfter },
+        include: { unit: true },
       }),
       this.prisma.equipmentStockMovement.create({
         data: {
@@ -224,9 +234,13 @@ export class EquipmentService {
     return { deleted: result.count };
   }
 
-  private async getOrThrow(farmId: string, id: string): Promise<Equipment> {
+  private async getOrThrow(
+    farmId: string,
+    id: string,
+  ): Promise<EquipmentWithUnit> {
     const equipment = await this.prisma.equipment.findFirst({
       where: { id, farmId },
+      include: { unit: true },
     });
     if (!equipment) {
       throw new NotFoundException('Equipment item not found');
@@ -234,7 +248,7 @@ export class EquipmentService {
     return equipment;
   }
 
-  private present(equipment: Equipment): PresentedEquipment {
+  private present(equipment: EquipmentWithUnit): PresentedEquipment {
     return {
       ...equipment,
       stockStatus: computeStockStatus(

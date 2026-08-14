@@ -224,6 +224,8 @@ export class SettingsService {
       id: g.id,
       name: g.name,
       description: g.description,
+      refusal_target_pct: g.refusalTargetPct,
+      default_concentration_id: g.defaultConcentrationId,
       is_active: g.isActive,
       assigned_count: g._count.cattle,
       created_at: g.createdAt,
@@ -237,6 +239,7 @@ export class SettingsService {
           farmId,
           name: dto.name,
           description: dto.description,
+          refusalTargetPct: dto.refusalTargetPct,
         },
       });
       this.log.info('Feed group created', { groupId: group.id, farmId });
@@ -255,6 +258,23 @@ export class SettingsService {
   async updateFeedGroup(farmId: string, id: string, dto: UpdateFeedGroupDto) {
     await this.getFeedGroupOrThrow(farmId, id);
 
+    if (dto.defaultConcentrationId) {
+      const recipe = await this.prisma.feedConcentration.findFirst({
+        where: {
+          id: dto.defaultConcentrationId,
+          farmId,
+          isActive: true,
+          kind: 'FEED_MIXTURE',
+        },
+        select: { id: true },
+      });
+      if (!recipe) {
+        throw new BadRequestException(
+          'Default recipe must be an active Total Mixed Ration (TMR) belonging to this farm',
+        );
+      }
+    }
+
     try {
       return await this.prisma.feedGroup.update({
         where: { id },
@@ -262,6 +282,12 @@ export class SettingsService {
           ...(dto.name ? { name: dto.name } : {}),
           ...(dto.description !== undefined
             ? { description: dto.description }
+            : {}),
+          ...(dto.refusalTargetPct !== undefined
+            ? { refusalTargetPct: dto.refusalTargetPct }
+            : {}),
+          ...(dto.defaultConcentrationId !== undefined
+            ? { defaultConcentrationId: dto.defaultConcentrationId }
             : {}),
         },
       });

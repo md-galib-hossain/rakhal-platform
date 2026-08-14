@@ -161,7 +161,7 @@ describe('Feed Distribution (e2e)', () => {
         name: ingredientA.name,
         feedClass: 'FORAGE',
         ingredientId: ingredientA.id,
-        unit: 'kg',
+        unitId: 'unit_kg',
         currentStock: 100,
         costPerUnit: 10,
         purchaseDate: new Date().toISOString(),
@@ -228,5 +228,138 @@ describe('Feed Distribution (e2e)', () => {
         .set(...auth(worker))
         .expect(403);
     });
+  });
+});
+
+/**
+ * Stock enforcement (user request 2026-08-14 — "we shouldnt able to feed anything which is not in
+ * inventory because feed item will be come from inventory"). Previously both
+ * `planForageDecrements()` (the `FeedItem.ingredientId`-match path every "Feed Today" call uses)
+ * and `quickFeed()` silently floored the resulting stock at 0 instead of rejecting an
+ * over-consuming log — a farm could feed more of an ingredient than it actually had in Inventory.
+ * Both now throw 400 and leave stock untouched, matching `assertSufficientStock`'s existing
+ * behavior for the `stockId`-lot path (`feed-distribution-stock.e2e-spec.ts`).
+ */
+describe('Feed Distribution — stock enforcement (e2e)', () => {
+  let ctx: TestContext;
+  let owner: AuthedUser;
+
+  const auth = (u: AuthedUser): [string, string] => [
+    'Authorization',
+    `Bearer ${u.token}`,
+  ];
+  const api = (p: string): string => `${ctx.prefix}${p}`;
+  const server = () => ctx.app.getHttpServer();
+
+  beforeAll(async () => {
+    ctx = await createTestApp();
+    owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
+  }, 30_000);
+
+  afterAll(async () => {
+    await ctx.app.close();
+  });
+
+  async function createIngredientAndFeedItem(currentStock: number) {
+    const ingredient = await request(server())
+      .post(api('/feed/ingredients/custom'))
+      .set(...auth(owner))
+      .send({
+        name: `E2E Stock-Enforce Ingredient ${Date.now()}-${Math.random()}`,
+        pricePerKg: 10,
+      })
+      .expect(201);
+    const ingredientId = ingredient.body.data.id as string;
+
+    const feedItem = await request(server())
+      .post(api('/inventory/feed-items'))
+      .set(...auth(owner))
+      .send({
+        name: `E2E Stock-Enforce Feed Item ${Date.now()}`,
+        feedClass: 'CONCENTRATE',
+        ingredientId,
+        unitId: 'unit_kg',
+        currentStock,
+        costPerUnit: 10,
+        purchaseDate: new Date().toISOString(),
+      })
+      .expect(201);
+    const feedItemId = feedItem.body.data.id as string;
+
+    return { ingredientId, feedItemId };
+  }
+
+  it('blocks "Feed Today" (concentration-based) logging more than the matching FeedItem has in stock', async () => {
+    const { ingredientId, feedItemId } = await createIngredientAndFeedItem(5);
+
+    const conc = await request(server())
+      .post(api('/feed/concentrations'))
+      .set(...auth(owner))
+      .send({
+        kind: 'CONCENTRATE_TEMPLATE',
+        name: `E2E Stock-Enforce Formula ${Date.now()}`,
+        items: [{ ingredientId, amountKg: 5 }],
+      })
+      .expect(201);
+
+    await request(server())
+      .post(api('/feed/distributions'))
+      .set(...auth(owner))
+      .send({
+        concentrationId: conc.body.data.id,
+        items: [{ ingredientId, actualKg: 999 }],
+      })
+      .expect(400);
+
+    const item = await request(server())
+      .get(api(`/inventory/feed-items/${feedItemId}`))
+      .set(...auth(owner))
+      .expect(200);
+    expect(item.body.data.currentStock).toBe(5); // untouched
+  });
+
+  it('allows logging exactly what is in stock', async () => {
+    const { ingredientId, feedItemId } = await createIngredientAndFeedItem(5);
+
+    const conc = await request(server())
+      .post(api('/feed/concentrations'))
+      .set(...auth(owner))
+      .send({
+        kind: 'CONCENTRATE_TEMPLATE',
+        name: `E2E Stock-Enforce Exact Formula ${Date.now()}`,
+        items: [{ ingredientId, amountKg: 5 }],
+      })
+      .expect(201);
+
+    await request(server())
+      .post(api('/feed/distributions'))
+      .set(...auth(owner))
+      .send({
+        concentrationId: conc.body.data.id,
+        items: [{ ingredientId, actualKg: 5 }],
+      })
+      .expect(201);
+
+    const item = await request(server())
+      .get(api(`/inventory/feed-items/${feedItemId}`))
+      .set(...auth(owner))
+      .expect(200);
+    expect(item.body.data.currentStock).toBe(0);
+  });
+
+  it('blocks Quick Feed logging more than the FeedItem has in stock', async () => {
+    const { feedItemId } = await createIngredientAndFeedItem(3);
+
+    await request(server())
+      .post(api('/feed/quick-feed'))
+      .set(...auth(owner))
+      .send({ feedItemId, quantityKg: 10, targetType: 'HERD' })
+      .expect(400);
+
+    const item = await request(server())
+      .get(api(`/inventory/feed-items/${feedItemId}`))
+      .set(...auth(owner))
+      .expect(200);
+    expect(item.body.data.currentStock).toBe(3); // untouched
   });
 });

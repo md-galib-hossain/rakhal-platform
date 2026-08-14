@@ -27,11 +27,10 @@ export class CreateEquipmentDto {
   @IsEnum(EquipmentType)
   type?: EquipmentType;
 
-  /** Optional unit label when counted in something other than pieces. */
+  /** Optional Unit catalog id (`Unit.id`) when counted in something other than pieces. */
   @IsOptional()
-  @Transform(trimString)
   @IsString()
-  unit?: string;
+  unitId?: string;
 
   @IsNumber()
   @Min(0)

@@ -53,7 +53,7 @@ describe('Finance — inventory purchase stock sync (e2e)', () => {
         name: `E2E RAKHAL085 Med ${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         type: 'LIQUID',
         category: 'ANTIBIOTIC',
-        unit: 'ml',
+        unitId: 'unit_ml',
         currentStock,
         costPerUnit: 10,
         lowStockThreshold: 0,

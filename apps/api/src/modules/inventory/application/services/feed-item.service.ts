@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { FeedItem, Prisma } from '@prisma/client';
+import { FeedItem, Prisma, Unit } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { CursorPage, getCursorArgs, toCursorPage } from 'src/common/pagination';
@@ -14,8 +14,11 @@ import { ListFeedItemQueryDto } from '../../presentation/dto/list-feed-item-quer
 import { UpdateFeedItemDto } from '../../presentation/dto/update-feed-item.dto';
 import { AdjustFeedItemStockDto } from '../../presentation/dto/adjust-feed-item-stock.dto';
 
+/** A feed item row with its `Unit` relation resolved (RAKHAL-326). */
+type FeedItemWithUnit = FeedItem & { unit: Unit };
+
 /** A feed item row enriched with stock status and the kg equivalent of its stock. */
-type PresentedFeedItem = FeedItem & {
+type PresentedFeedItem = FeedItemWithUnit & {
   stockStatus: StockStatus;
   kgEquivalent: number | null;
 };
@@ -52,7 +55,7 @@ export class FeedItemService {
           feedSubType: dto.feedSubType,
           category: dto.category,
           ingredientId: dto.ingredientId,
-          unit: dto.unit,
+          unitId: dto.unitId,
           kgPerUnit: dto.kgPerUnit,
           currentStock: dto.currentStock,
           costPerUnit: dto.costPerUnit,
@@ -63,6 +66,7 @@ export class FeedItemService {
           notes: dto.notes,
           createdBy: userId,
         },
+        include: { unit: true },
       });
 
       await this.syncIngredientPrice(farmId, userId, feedItem);
@@ -99,6 +103,7 @@ export class FeedItemService {
     const rows = await this.prisma.feedItem.findMany({
       where,
       orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
+      include: { unit: true },
       ...getCursorArgs(query),
     });
 
@@ -130,7 +135,7 @@ export class FeedItemService {
           feedSubType: dto.feedSubType,
           category: dto.category,
           ingredientId: dto.ingredientId,
-          unit: dto.unit,
+          unitId: dto.unitId,
           kgPerUnit: dto.kgPerUnit,
           currentStock: dto.currentStock,
           costPerUnit: dto.costPerUnit,
@@ -142,6 +147,7 @@ export class FeedItemService {
             : {}),
           notes: dto.notes,
         },
+        include: { unit: true },
       });
 
       if (dto.costPerUnit != null || dto.kgPerUnit != null) {
@@ -163,6 +169,7 @@ export class FeedItemService {
     const feedItem = await this.prisma.feedItem.update({
       where: { id },
       data: { isActive: false },
+      include: { unit: true },
     });
     this.log.info('Feed item archived', { feedItemId: id, farmId });
     return this.present(feedItem);
@@ -173,6 +180,7 @@ export class FeedItemService {
     const feedItem = await this.prisma.feedItem.update({
       where: { id },
       data: { isActive: true },
+      include: { unit: true },
     });
     this.log.info('Feed item restored', { feedItemId: id, farmId });
     return this.present(feedItem);
@@ -207,6 +215,7 @@ export class FeedItemService {
       this.prisma.feedItem.update({
         where: { id },
         data: { currentStock: balanceAfter },
+        include: { unit: true },
       }),
       this.prisma.feedItemStockMovement.create({
         data: {
@@ -248,9 +257,13 @@ export class FeedItemService {
     return { deleted: result.count };
   }
 
-  private async getOrThrow(farmId: string, id: string): Promise<FeedItem> {
+  private async getOrThrow(
+    farmId: string,
+    id: string,
+  ): Promise<FeedItemWithUnit> {
     const feedItem = await this.prisma.feedItem.findFirst({
       where: { id, farmId },
+      include: { unit: true },
     });
     if (!feedItem) {
       throw new NotFoundException('Feed item not found');
@@ -277,10 +290,10 @@ export class FeedItemService {
   private async syncIngredientPrice(
     farmId: string,
     userId: string,
-    feedItem: FeedItem,
+    feedItem: FeedItemWithUnit,
   ): Promise<void> {
     if (!feedItem.ingredientId) return;
-    const isKg = feedItem.unit.trim().toLowerCase() === 'kg';
+    const isKg = feedItem.unit.symbol === 'kg';
     if (!isKg && (!feedItem.kgPerUnit || feedItem.kgPerUnit <= 0)) return;
 
     const pricePerKg = isKg
@@ -303,7 +316,7 @@ export class FeedItemService {
     });
   }
 
-  private present(feedItem: FeedItem): PresentedFeedItem {
+  private present(feedItem: FeedItemWithUnit): PresentedFeedItem {
     return {
       ...feedItem,
       stockStatus: computeStockStatus(

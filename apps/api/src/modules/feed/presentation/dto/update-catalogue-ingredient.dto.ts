@@ -9,7 +9,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { FeedClass, FeedSubType } from '@prisma/client';
+import { FeedClass, FeedSubType, NutritionSource } from '@prisma/client';
 import { trimString } from 'src/common/dto';
 
 /** `PATCH /admin/feed-ingredients/:id` (RAKHAL-233 / PRD ADM-13/14, admin-only). Partial update of an
@@ -119,7 +119,16 @@ export class UpdateCatalogueIngredientDto {
   @IsOptional()
   @Transform(trimString)
   @IsString()
-  nutritionSource?: string;
+  nutritionSourceNote?: string;
+
+  @IsOptional()
+  @IsEnum(NutritionSource)
+  nutritionSource?: NutritionSource;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  sourceRef?: string;
 
   @IsOptional()
   @IsBoolean()

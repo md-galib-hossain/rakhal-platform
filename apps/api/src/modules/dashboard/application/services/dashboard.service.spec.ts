@@ -122,6 +122,7 @@ describe('DashboardService — herdStatus', () => {
       {} as never, // MilkService — unused by herdStatus
       {} as never, // HealthService — unused by herdStatus
       farmSettings as never,
+      {} as never, // FeedDistributionService — unused by herdStatus
       logger as never,
     );
 

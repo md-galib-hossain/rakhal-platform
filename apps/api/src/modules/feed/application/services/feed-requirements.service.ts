@@ -236,6 +236,120 @@ export class FeedRequirementsService {
     };
   }
 
+  /**
+   * Farm-wide "Today's Feed Requirement" rollup (2026-08-13, user request — doc's §5/§12
+   * mockup: "Corn silage 300kg, Grass 180kg..."). Every active `FEED_MIXTURE` concentration's
+   * per-cow-per-day ingredient lines, multiplied by that ration's resolved headcount (GROUP =
+   * active cattle in that `feedGroupId`, INDIVIDUAL = 1, HERD = whole active herd), aggregated
+   * by ingredient across every ration on the farm. Read-only aggregation, no persisted state.
+   */
+  async getTodaysRequirement(farmId: string) {
+    const rations = await this.prisma.feedConcentration.findMany({
+      where: { farmId, isActive: true, kind: 'FEED_MIXTURE' },
+      include: { items: true },
+    });
+    if (rations.length === 0) {
+      return { by_ingredient: [], by_group: [], grand_total_kg: 0 };
+    }
+
+    const groupIds = [
+      ...new Set(
+        rations
+          .filter((r) => r.targetType === 'GROUP' && r.feedGroupId)
+          .map((r) => r.feedGroupId as string),
+      ),
+    ];
+    const [groupCounts, herdCount, groups, ingredientNames] = await Promise.all(
+      [
+        this.prisma.cattle.groupBy({
+          by: ['feedGroupId'],
+          where: { farmId, isActive: true, feedGroupId: { in: groupIds } },
+          _count: { _all: true },
+        }),
+        this.prisma.cattle.count({ where: { farmId, isActive: true } }),
+        this.prisma.feedGroup.findMany({
+          where: { farmId, id: { in: groupIds } },
+          select: { id: true, name: true },
+        }),
+        this.prisma.feedIngredient.findMany({
+          where: {
+            id: {
+              in: [
+                ...new Set(
+                  rations.flatMap((r) => r.items.map((i) => i.ingredientId)),
+                ),
+              ],
+            },
+          },
+          select: { id: true, nameEn: true },
+        }),
+      ],
+    );
+    const headcountByGroup = new Map(
+      groupCounts.map((g) => [g.feedGroupId as string, g._count._all]),
+    );
+    const groupNameById = new Map(groups.map((g) => [g.id, g.name]));
+    const nameByIngredient = new Map(
+      ingredientNames.map((i) => [i.id, i.nameEn]),
+    );
+
+    const totalsByIngredient = new Map<string, number>();
+    const byGroup: {
+      feed_group_id: string | null;
+      name: string;
+      headcount: number;
+      total_kg: number;
+    }[] = [];
+
+    for (const ration of rations) {
+      const headcount =
+        ration.targetType === 'INDIVIDUAL'
+          ? 1
+          : ration.targetType === 'GROUP'
+            ? (headcountByGroup.get(ration.feedGroupId ?? '') ?? 0)
+            : herdCount;
+      if (headcount <= 0) continue;
+
+      let rationTotalKg = 0;
+      for (const item of ration.items) {
+        const kg = round2(item.amountKg * headcount);
+        rationTotalKg += kg;
+        totalsByIngredient.set(
+          item.ingredientId,
+          round2((totalsByIngredient.get(item.ingredientId) ?? 0) + kg),
+        );
+      }
+
+      byGroup.push({
+        feed_group_id: ration.feedGroupId,
+        name:
+          ration.targetType === 'HERD'
+            ? 'Whole Herd'
+            : ration.targetType === 'INDIVIDUAL'
+              ? ration.name
+              : (groupNameById.get(ration.feedGroupId ?? '') ?? ration.name),
+        headcount,
+        total_kg: round2(rationTotalKg),
+      });
+    }
+
+    const byIngredient = [...totalsByIngredient.entries()]
+      .map(([ingredientId, totalKg]) => ({
+        ingredient_id: ingredientId,
+        name: nameByIngredient.get(ingredientId) ?? ingredientId,
+        total_kg: round2(totalKg),
+      }))
+      .sort((a, b) => b.total_kg - a.total_kg);
+
+    return {
+      by_ingredient: byIngredient,
+      by_group: byGroup,
+      grand_total_kg: round2(
+        byIngredient.reduce((sum, i) => sum + i.total_kg, 0),
+      ),
+    };
+  }
+
   /** Live gestation day count from the cow's active pregnancy (`ReproductionProfile.currentPregnancyId`
    * → `Pregnancy.conceptionDate`), not the stored `Pregnancy.gestationDays` snapshot (which is only
    * set at diagnosis time and would go stale). `null` when the cow has no active pregnancy. */

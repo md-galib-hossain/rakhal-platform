@@ -3,10 +3,28 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { NutritionSource } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
+
+/** RAKHAL-327: the batch-level nutrient snapshot `FeedStock` carries. Defaulted from the recipe's
+ * computed totals at production time, farm-editable afterward via `updateNutrition`. */
+export interface StockNutritionSnapshot {
+  dmPct: number;
+  cpPct: number;
+  meMjPerKgDm: number;
+  fatPct: number;
+  ndfPct: number;
+  rdpPct: number;
+  rupPct: number;
+  starchPct: number;
+  adfPct: number;
+  calciumPct: number;
+  phosphorusPct: number;
+  tdnPct: number;
+}
 
 /**
  * Feed batch inventory (§12.5 follow-up — "TMR ↔ Inventory" real linkage, user request
@@ -38,6 +56,7 @@ export class FeedStockService {
       version: number;
       qtyKg: number;
       costTk: number;
+      nutrition: StockNutritionSnapshot;
     },
   ) {
     const stock = await this.prisma.$transaction(async (tx) => {
@@ -50,6 +69,7 @@ export class FeedStockService {
           producedQtyKg: round2(params.qtyKg),
           currentStockKg: round2(params.qtyKg),
           producedCostTk: round2(params.costTk),
+          ...params.nutrition,
           createdBy: userId,
         },
       });
@@ -144,6 +164,38 @@ export class FeedStockService {
     return this.mapStock(updated);
   }
 
+  /** RAKHAL-327: let a farm correct a produced batch's nutrient snapshot once real data comes back
+   * (e.g. a lab report), instead of it being permanently stuck at the recipe's on-paper values.
+   * Every field optional/partial — updates only what's supplied. `nutritionSource` defaults to
+   * `LAB` on this path (the whole point of calling this route is "I have better data now"); pass
+   * it explicitly to record `MANUFACTURER`/`FARM_ESTIMATE` instead. */
+  async updateNutrition(
+    farmId: string,
+    id: string,
+    patch: Partial<StockNutritionSnapshot> & {
+      nutritionSource?: NutritionSource;
+      sourceRef?: string | null;
+    },
+  ) {
+    const row = await this.prisma.feedStock.findFirst({
+      where: { id, farmId },
+    });
+    if (!row) throw new NotFoundException('Feed stock lot not found');
+    const updated = await this.prisma.feedStock.update({
+      where: { id },
+      data: {
+        ...patch,
+        nutritionSource: patch.nutritionSource ?? 'LAB',
+      },
+    });
+    this.log.info('Feed stock nutrition snapshot updated', {
+      farmId,
+      stockId: id,
+      nutritionSource: updated.nutritionSource,
+    });
+    return this.mapStock(updated);
+  }
+
   async list(farmId: string, includeArchived = false) {
     const rows = await this.prisma.feedStock.findMany({
       where: { farmId, ...(includeArchived ? {} : { isActive: true }) },
@@ -206,16 +258,19 @@ export class FeedStockService {
     };
   }
 
-  private mapStock(row: {
-    id: string;
-    sourceConcentrationId: string;
-    sourceConcentrationVersion: number;
-    producedAt: Date;
-    producedQtyKg: number;
-    currentStockKg: number;
-    producedCostTk: number;
-    createdAt: Date;
-  }) {
+  private mapStock(
+    row: {
+      id: string;
+      sourceConcentrationId: string;
+      sourceConcentrationVersion: number;
+      producedAt: Date;
+      producedQtyKg: number;
+      currentStockKg: number;
+      producedCostTk: number;
+      createdAt: Date;
+      sourceRef: string | null;
+    } & StockNutritionSnapshot & { nutritionSource: NutritionSource },
+  ) {
     return {
       id: row.id,
       source_concentration_id: row.sourceConcentrationId,
@@ -225,6 +280,22 @@ export class FeedStockService {
       current_stock_kg: row.currentStockKg,
       produced_cost_tk: row.producedCostTk,
       created_at: row.createdAt,
+      nutrition: {
+        dm_pct: row.dmPct,
+        cp_pct: row.cpPct,
+        me_mj_per_kg_dm: row.meMjPerKgDm,
+        fat_pct: row.fatPct,
+        ndf_pct: row.ndfPct,
+        rdp_pct: row.rdpPct,
+        rup_pct: row.rupPct,
+        starch_pct: row.starchPct,
+        adf_pct: row.adfPct,
+        calcium_pct: row.calciumPct,
+        phosphorus_pct: row.phosphorusPct,
+        tdn_pct: row.tdnPct,
+      },
+      nutrition_source: row.nutritionSource,
+      source_ref: row.sourceRef,
     };
   }
 }

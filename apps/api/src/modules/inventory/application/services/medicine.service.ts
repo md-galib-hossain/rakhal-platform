@@ -10,6 +10,7 @@ import {
   MediaUsage,
   MedicineStockMovementReason,
   Prisma,
+  Unit,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
@@ -30,8 +31,11 @@ import { CreateMedicineDto } from '../../presentation/dto/create-medicine.dto';
 import { ListMedicineQueryDto } from '../../presentation/dto/list-medicine-query.dto';
 import { UpdateMedicineDto } from '../../presentation/dto/update-medicine.dto';
 
+/** A medicine row with its `Unit` relation resolved (RAKHAL-326). */
+type MedicineWithUnit = Medicine & { unit: Unit };
+
 /** A medicine row enriched with derived stock/expiry status for the API. */
-type PresentedMedicine = Medicine & {
+type PresentedMedicine = MedicineWithUnit & {
   stockStatus: StockStatus;
   expiryStatus: ExpiryStatus;
 };
@@ -78,7 +82,7 @@ export class MedicineService {
           category: dto.category,
           manufacturer: dto.manufacturer,
           batchId: dto.batchId,
-          unit: dto.unit,
+          unitId: dto.unitId,
           currentStock: dto.currentStock,
           costPerUnit: dto.costPerUnit,
           lowStockThreshold: dto.lowStockThreshold ?? 0,
@@ -103,6 +107,7 @@ export class MedicineService {
               }
             : {}),
         },
+        include: { unit: true },
       });
 
       this.log.info('Medicine created', { medicineId: medicine.id, farmId });
@@ -138,6 +143,7 @@ export class MedicineService {
     const rows = await this.prisma.medicine.findMany({
       where,
       orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
+      include: { unit: true },
       ...getCursorArgs(query),
     });
 
@@ -177,7 +183,7 @@ export class MedicineService {
           category: dto.category,
           manufacturer: dto.manufacturer,
           batchId: dto.batchId,
-          unit: dto.unit,
+          unitId: dto.unitId,
           costPerUnit: dto.costPerUnit,
           lowStockThreshold: dto.lowStockThreshold,
           ...(dto.purchaseDate ? { purchaseDate } : {}),
@@ -186,6 +192,7 @@ export class MedicineService {
           meatWithdrawalDays: dto.meatWithdrawalDays,
           notes: dto.notes,
         },
+        include: { unit: true },
       });
 
       this.log.info('Medicine updated', { medicineId: id, farmId });
@@ -222,6 +229,7 @@ export class MedicineService {
       this.prisma.medicine.update({
         where: { id },
         data: { currentStock: balanceAfter },
+        include: { unit: true },
       }),
       this.prisma.medicineStockMovement.create({
         data: {
@@ -525,6 +533,7 @@ export class MedicineService {
     const medicine = await this.prisma.medicine.update({
       where: { id },
       data: { isActive: false },
+      include: { unit: true },
     });
     this.log.info('Medicine archived', { medicineId: id, farmId });
     return this.presentOne(medicine);
@@ -535,6 +544,7 @@ export class MedicineService {
     const medicine = await this.prisma.medicine.update({
       where: { id },
       data: { isActive: true },
+      include: { unit: true },
     });
     this.log.info('Medicine restored', { medicineId: id, farmId });
     return this.presentOne(medicine);
@@ -619,9 +629,13 @@ export class MedicineService {
     return { removed: true };
   }
 
-  private async getOrThrow(farmId: string, id: string): Promise<Medicine> {
+  private async getOrThrow(
+    farmId: string,
+    id: string,
+  ): Promise<MedicineWithUnit> {
     const medicine = await this.prisma.medicine.findFirst({
       where: { id, farmId },
+      include: { unit: true },
     });
     if (!medicine) {
       this.log.warn('Medicine not found', { medicineId: id, farmId });
@@ -651,7 +665,9 @@ export class MedicineService {
   /** Single-resource presentation — resolves `photoAssetId` to a signed thumb URL (falling back to
    * the legacy plain-string `imageUrl` column when there's no uploaded photo), same
    * `presentUrls`-per-item pattern as `CattleService#attachDetailPhoto`. */
-  private async presentOne(medicine: Medicine): Promise<PresentedMedicine> {
+  private async presentOne(
+    medicine: MedicineWithUnit,
+  ): Promise<PresentedMedicine> {
     const resolvedImageUrl = medicine.photoAssetId
       ? await this.media
           .presentUrls(medicine.farmId, medicine.photoAssetId, false)
@@ -673,7 +689,7 @@ export class MedicineService {
    * `CattleService#attachListPhotos` pattern) instead of N individual signing round-trips. */
   private async presentList(
     farmId: string,
-    medicines: Medicine[],
+    medicines: MedicineWithUnit[],
   ): Promise<PresentedMedicine[]> {
     const ids = medicines
       .map((m) => m.photoAssetId)

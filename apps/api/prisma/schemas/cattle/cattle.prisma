@@ -183,6 +183,16 @@ model FeedGroup {
   farmId      String
   name        String
   description String?
+  /// Refusal-rate target, % of planned kg (e.g. 3.0). Null = no target configured. Per-group,
+  /// not farm-wide — fresh/high-producing groups intentionally run higher refusal than late-
+  /// lactation groups (2026-08-13, feeding-system upgrade).
+  refusalTargetPct Float?
+  /// Default recipe (user request 2026-08-14 — "pre-define the feed to feed groups... so all
+  /// inputs will be filled, just submit to record the feeding"). Plain validated FK to a
+  /// `FeedConcentration` (`kind: FEED_MIXTURE`, GROUP-targeted at this group), not a Prisma
+  /// relation — same "no cross-module coupling" convention `FeedConcentration.feedGroupId` already
+  /// uses. Null = no default set, "Feed Today" still requires manually picking a TMR.
+  defaultConcentrationId String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

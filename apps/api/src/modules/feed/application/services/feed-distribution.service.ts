@@ -8,12 +8,17 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { resolveEffective } from '../../domain/ingredient-resolver';
+import { computeTotals, FormulaLine } from '../../domain/formula-math';
 import { LogDistributionDto } from '../../presentation/dto/log-distribution.dto';
+import { PatchRefusalDto } from '../../presentation/dto/patch-refusal.dto';
+import { QuickFeedDto } from '../../presentation/dto/quick-feed.dto';
 import {
   FeedEfficiencyQueryDto,
   ListDistributionQueryDto,
 } from '../../presentation/dto/list-distribution-query.dto';
 import { FeedStockService } from './feed-stock.service';
+import { FeedRationResolverService } from './feed-ration-resolver.service';
+import { FeedRequirementsService } from './feed-requirements.service';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -40,6 +45,8 @@ export class FeedDistributionService {
     private readonly prisma: PrismaService,
     logger: LoggerService,
     private readonly feedStock: FeedStockService,
+    private readonly rationResolver: FeedRationResolverService,
+    private readonly feedRequirements: FeedRequirementsService,
   ) {
     this.log = logger.setContext(FeedDistributionService.name);
   }
@@ -156,6 +163,23 @@ export class FeedDistributionService {
       ? this.dayStart(dto.distributedAt)
       : this.dayStart();
 
+    // Stamp which checkpoint was live when this was logged (2026-08-13, ration versioning) —
+    // `concentration.versionNumber` is the *next* counter (see `FeedConcentration.versionNumber`'s
+    // doc comment), so the current live version's row is one behind it. Null if no checkpoint has
+    // ever been saved yet (matches current live state, same as before versioning existed).
+    const currentVersion =
+      concentration.versionNumber > 1
+        ? await this.prisma.feedConcentrationVersion.findUnique({
+            where: {
+              concentrationId_versionNumber: {
+                concentrationId: concentration.id,
+                versionNumber: concentration.versionNumber - 1,
+              },
+            },
+            select: { id: true },
+          })
+        : null;
+
     const decrements = await this.planForageDecrements(farmId, lines);
     const itemsForCreate = lines.map((line) => ({
       ingredientId: line.ingredientId,
@@ -180,6 +204,7 @@ export class FeedDistributionService {
         data: {
           farmId,
           concentrationId: concentration.id,
+          concentrationVersionId: currentVersion?.id,
           ...targetFields,
           distributedAt,
           totalPlannedKg: round2(totals.plannedKg),
@@ -226,6 +251,112 @@ export class FeedDistributionService {
     return this.mapDistribution(created, decrements);
   }
 
+  /** Feed a single raw `FeedItem` straight to a cow/group/herd, no `FeedConcentration`
+   * involved (2026-08-13, user request). Fed-and-logged in one step — `plannedKg` always
+   * equals `actualKg`, there's no separate "plan" for a quick single-item feed. Decrements
+   * the `FeedItem`'s own stock directly (converting through `kgPerUnit` for a non-kg unit,
+   * same conversion `planForageDecrements` uses for the concentration-based path). */
+  async quickFeed(farmId: string, userId: string, dto: QuickFeedDto) {
+    const feedItem = await this.prisma.feedItem.findFirst({
+      where: { id: dto.feedItemId, farmId, isActive: true },
+      include: { unit: true },
+    });
+    if (!feedItem) throw new NotFoundException('Feed item not found');
+
+    if (dto.targetType === 'GROUP') {
+      const group = await this.prisma.feedGroup.findFirst({
+        where: { id: dto.feedGroupId, farmId, isActive: true },
+        select: { id: true },
+      });
+      if (!group)
+        throw new BadRequestException('Feed group must belong to the farm');
+    }
+    if (dto.targetType === 'INDIVIDUAL') {
+      const cattle = await this.prisma.cattle.findFirst({
+        where: { id: dto.cattleId, farmId, isActive: true },
+        select: { id: true },
+      });
+      if (!cattle)
+        throw new BadRequestException('Cattle must belong to the farm');
+    }
+
+    const isKg = feedItem.unit.symbol === 'kg';
+    const pricePerKg = isKg
+      ? feedItem.costPerUnit
+      : feedItem.kgPerUnit && feedItem.kgPerUnit > 0
+        ? feedItem.costPerUnit / feedItem.kgPerUnit
+        : 0;
+    const lineCost = round2(dto.quantityKg * pricePerKg);
+
+    const usedInUnit = isKg
+      ? dto.quantityKg
+      : feedItem.kgPerUnit && feedItem.kgPerUnit > 0
+        ? dto.quantityKg / feedItem.kgPerUnit
+        : 0;
+    if (usedInUnit > feedItem.currentStock) {
+      throw new BadRequestException(
+        `Not enough ${feedItem.name} in stock (${feedItem.currentStock} ${feedItem.unit.symbol} available, ${round2(usedInUnit)} needed)`,
+      );
+    }
+    const newStock = round2(feedItem.currentStock - usedInUnit);
+
+    const distributedAt = dto.distributedAt
+      ? this.dayStart(dto.distributedAt)
+      : this.dayStart();
+    const targetFields =
+      dto.targetType === 'INDIVIDUAL'
+        ? { feedGroupId: null, cattleId: dto.cattleId }
+        : dto.targetType === 'GROUP'
+          ? { feedGroupId: dto.feedGroupId, cattleId: null }
+          : { feedGroupId: null, cattleId: null };
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      const dist = await tx.feedDistribution.create({
+        data: {
+          farmId,
+          concentrationId: null,
+          sourceType: 'QUICK_FEED',
+          ...targetFields,
+          distributedAt,
+          totalPlannedKg: round2(dto.quantityKg),
+          totalActualKg: round2(dto.quantityKg),
+          totalRefusalKg: 0,
+          totalPlannedCost: lineCost,
+          totalActualCost: lineCost,
+          notes: dto.notes,
+          createdBy: userId,
+          items: {
+            create: [
+              {
+                ingredientId: feedItem.ingredientId ?? feedItem.id,
+                ingredientName: feedItem.name,
+                plannedKg: round2(dto.quantityKg),
+                actualKg: round2(dto.quantityKg),
+                refusalKg: 0,
+                pricePerKg: round2(pricePerKg),
+                lineCost,
+              },
+            ],
+          },
+        },
+        include: { items: true },
+      });
+      await tx.feedItem.update({
+        where: { id: feedItem.id },
+        data: { currentStock: newStock },
+      });
+      return dist;
+    });
+
+    this.log.info('Quick-feed logged', {
+      farmId,
+      id: created.id,
+      feedItemId: feedItem.id,
+      quantityKg: dto.quantityKg,
+    });
+    return this.mapDistribution(created);
+  }
+
   async list(farmId: string, query: ListDistributionQueryDto) {
     const dateFilter = this.dateRange(query.fromDate, query.toDate);
     const rows = await this.prisma.feedDistribution.findMany({
@@ -255,6 +386,103 @@ export class FeedDistributionService {
     });
     if (!row) throw new NotFoundException('Feed distribution not found');
     return this.mapDistribution(row);
+  }
+
+  /** Next-day leftover weigh-in (2026-08-13, user request) — updates each named line's
+   * `refusalKg` and recomputes `totalRefusalKg`; lines not mentioned in `dto.items` keep
+   * their existing value. Refusal is informational only (see class doc comment) — it never
+   * touches `lineCost`/`totalActualCost`, only `refusalKg`/`totalRefusalKg`. */
+  async patchRefusal(farmId: string, id: string, dto: PatchRefusalDto) {
+    const row = await this.prisma.feedDistribution.findFirst({
+      where: { id, farmId },
+      include: { items: true },
+    });
+    if (!row) throw new NotFoundException('Feed distribution not found');
+
+    const byIngredient = new Map(dto.items.map((i) => [i.ingredientId, i]));
+    for (const id of byIngredient.keys()) {
+      if (!row.items.some((it) => it.ingredientId === id)) {
+        throw new BadRequestException(
+          `Ingredient ${id} is not part of this distribution`,
+        );
+      }
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      for (const item of row.items) {
+        const patch = byIngredient.get(item.ingredientId);
+        if (!patch) continue;
+        await tx.feedDistributionItem.update({
+          where: { id: item.id },
+          data: { refusalKg: round2(patch.refusalKg) },
+        });
+      }
+      const items = await tx.feedDistributionItem.findMany({
+        where: { distributionId: id },
+      });
+      const totalRefusalKg = round2(
+        items.reduce((sum, i) => sum + i.refusalKg, 0),
+      );
+      return tx.feedDistribution.update({
+        where: { id },
+        data: { totalRefusalKg },
+        include: { items: true },
+      });
+    });
+
+    this.log.info('Feed distribution refusal recorded', {
+      farmId,
+      id,
+      totalRefusalKg: updated.totalRefusalKg,
+    });
+    return this.mapDistribution(updated);
+  }
+
+  /** Refusal-rate trend for a feed group, most-recent-first (feeds the Feeding dashboard and
+   * the Cattle-detail group view). Compares each day's rate against the group's configured
+   * `refusalTargetPct` (2026-08-13) — doc explicitly warns against one universal target, so
+   * this is per-group, not farm-wide. */
+  async getRefusalTrend(farmId: string, feedGroupId: string, days = 30) {
+    const group = await this.prisma.feedGroup.findFirst({
+      where: { id: feedGroupId, farmId, isActive: true },
+      select: { id: true, name: true, refusalTargetPct: true },
+    });
+    if (!group) throw new NotFoundException('Feed group not found');
+
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const rows = await this.prisma.feedDistribution.findMany({
+      where: { farmId, feedGroupId, distributedAt: { gte: since } },
+      orderBy: { distributedAt: 'desc' },
+      select: {
+        distributedAt: true,
+        totalPlannedKg: true,
+        totalActualKg: true,
+        totalRefusalKg: true,
+      },
+    });
+
+    return {
+      feed_group_id: group.id,
+      feed_group_name: group.name,
+      refusal_target_pct: group.refusalTargetPct,
+      days: rows.map((r) => {
+        const refusalPct =
+          r.totalActualKg > 0
+            ? round2((r.totalRefusalKg / r.totalActualKg) * 100)
+            : null;
+        return {
+          date: r.distributedAt,
+          planned_kg: r.totalPlannedKg,
+          actual_kg: r.totalActualKg,
+          refusal_kg: r.totalRefusalKg,
+          refusal_pct: refusalPct,
+          over_target:
+            group.refusalTargetPct != null && refusalPct != null
+              ? refusalPct > group.refusalTargetPct
+              : null,
+        };
+      }),
+    };
   }
 
   /** Planned-vs-actual + feed cost per litre for a group OR a single cow, over a month (§12.5,
@@ -341,6 +569,163 @@ export class FeedDistributionService {
     };
   }
 
+  /**
+   * Actual vs expected dry-matter intake for a cow (2026-08-13, user request). Expected
+   * comes from `FeedRequirementsService`'s NRC-2001 calc for this cow; actual sums that
+   * day's distribution(s) that reach her, converted to DM via each line's ingredient `dmPct`
+   * (same `computeTotals` the formula builder itself uses). A GROUP- or HERD-targeted
+   * ration's distribution is shared across many cows, so actual DMI is pro-rated by
+   * headcount at that level — the same "divide the shared total by who's eating from it"
+   * idea `lactation-economics.service.ts`'s `computeAllocatedFeedCost` uses for cost, kept
+   * as its own query here rather than a cross-module call (feed module already reads
+   * `Cattle` directly elsewhere, e.g. `validateTargets` — same established pattern).
+   */
+  async getDmiComparison(farmId: string, cattleId: string, date?: string) {
+    const [resolved, reqResult] = await Promise.all([
+      this.rationResolver.resolveActiveRation(farmId, cattleId),
+      this.feedRequirements.calc(farmId, { cattleId }),
+    ]);
+    // `calc({ cattleId })` always takes the single-cow branch at runtime, but its return type
+    // is a union across all three call shapes (cattle/group/manual) — narrow explicitly.
+    const expectedDmiKg =
+      'requirements' in reqResult ? reqResult.requirements.dm_kg : 0;
+
+    if (!resolved) {
+      return {
+        expected_dmi_kg: expectedDmiKg,
+        actual_dmi_kg: null,
+        delta_pct: null,
+        match_level: null,
+      };
+    }
+
+    const day = this.dayStart(date);
+    const nextDay = new Date(day.getTime() + 24 * 60 * 60 * 1000);
+    const dateFilter = { gte: day, lt: nextDay };
+
+    let distributions: {
+      items: { ingredientId: string; actualKg: number }[];
+    }[];
+    let headcount = 1;
+
+    if (resolved.matchLevel === 'INDIVIDUAL') {
+      distributions = await this.prisma.feedDistribution.findMany({
+        where: { farmId, cattleId, distributedAt: dateFilter },
+        include: { items: true },
+      });
+    } else if (resolved.matchLevel === 'GROUP') {
+      const cattle = await this.prisma.cattle.findFirst({
+        where: { id: cattleId, farmId },
+        select: { feedGroupId: true },
+      });
+      const feedGroupId = cattle?.feedGroupId;
+      [distributions, headcount] = await Promise.all([
+        this.prisma.feedDistribution.findMany({
+          where: { farmId, feedGroupId, distributedAt: dateFilter },
+          include: { items: true },
+        }),
+        this.prisma.cattle.count({
+          where: { farmId, feedGroupId, isActive: true },
+        }),
+      ]);
+      headcount = Math.max(1, headcount);
+    } else {
+      [distributions, headcount] = await Promise.all([
+        this.prisma.feedDistribution.findMany({
+          where: {
+            farmId,
+            feedGroupId: null,
+            cattleId: null,
+            distributedAt: dateFilter,
+            concentrationId: resolved.concentration.id,
+          },
+          include: { items: true },
+        }),
+        this.prisma.cattle.count({ where: { farmId, isActive: true } }),
+      ]);
+      headcount = Math.max(1, headcount);
+    }
+
+    const allItems = distributions.flatMap((d) => d.items);
+    if (allItems.length === 0) {
+      return {
+        expected_dmi_kg: expectedDmiKg,
+        actual_dmi_kg: null,
+        delta_pct: null,
+        match_level: resolved.matchLevel,
+      };
+    }
+
+    const ingredientIds = allItems.map((i) => i.ingredientId);
+    const effById = await this.effectiveMap(farmId, ingredientIds);
+    const lines: FormulaLine[] = allItems.map((i) => ({
+      ingredientId: i.ingredientId,
+      amountKg: i.actualKg,
+    }));
+    const { totals } = computeTotals(lines, effById);
+    const actualDmiKg = round2(totals.dm_kg / headcount);
+    const deltaPct =
+      expectedDmiKg > 0
+        ? round2(((actualDmiKg - expectedDmiKg) / expectedDmiKg) * 100)
+        : null;
+
+    return {
+      expected_dmi_kg: expectedDmiKg,
+      actual_dmi_kg: actualDmiKg,
+      delta_pct: deltaPct,
+      match_level: resolved.matchLevel,
+    };
+  }
+
+  /**
+   * Farm-wide feed cost summary (2026-08-13, user request — "Feed cost/cow, cost/litre...
+   * on main Dashboard or Reports"). Per-cow allocation already exists for a single lactation
+   * via `lactation-economics.service.ts`'s `computeAllocatedFeedCost` (kept where it is —
+   * it's tightly coupled to that service's lactation date-range plumbing); this is the
+   * farm-wide counterpart Dashboard/Reports actually need: total feed spend over the window
+   * divided by active headcount (cost/cow/day) and by total milk litres produced in the same
+   * window (cost/litre), plus a day-by-day trend for a sparkline.
+   */
+  async getFarmFeedCostSummary(farmId: string, days = 7) {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const [distributions, milkAgg, headcount] = await Promise.all([
+      this.prisma.feedDistribution.findMany({
+        where: { farmId, distributedAt: { gte: since } },
+        select: { distributedAt: true, totalActualCost: true },
+      }),
+      this.prisma.milkLogEntry.aggregate({
+        where: { farmId, logDate: { gte: since } },
+        _sum: { yieldL: true },
+      }),
+      this.prisma.cattle.count({ where: { farmId, isActive: true } }),
+    ]);
+
+    const totalCost = round2(
+      distributions.reduce((sum, d) => sum + d.totalActualCost, 0),
+    );
+    const totalLitres = milkAgg._sum.yieldL ?? 0;
+
+    const byDay = new Map<string, number>();
+    for (const d of distributions) {
+      const key = d.distributedAt.toISOString().slice(0, 10);
+      byDay.set(key, round2((byDay.get(key) ?? 0) + d.totalActualCost));
+    }
+    const trend = [...byDay.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, cost]) => ({ date, total_cost: cost }));
+
+    return {
+      days,
+      total_cost: totalCost,
+      cost_per_cow_per_day:
+        headcount > 0 ? round2(totalCost / days / headcount) : null,
+      cost_per_litre: totalLitres > 0 ? round2(totalCost / totalLitres) : null,
+      headcount,
+      total_litres: round2(totalLitres),
+      trend,
+    };
+  }
+
   // ---- internals ----------------------------------------------------------
 
   /** Shared `Prisma.FeedDistribution` field selection for `efficiency()`'s two branches (group /
@@ -420,7 +805,7 @@ export class FeedDistributionService {
       select: {
         id: true,
         ingredientId: true,
-        unit: true,
+        unit: { select: { symbol: true } },
         kgPerUnit: true,
         currentStock: true,
       },
@@ -435,7 +820,7 @@ export class FeedDistributionService {
     for (const line of lines) {
       const f = byIngredient.get(line.ingredientId);
       if (!f || line.actualKg <= 0) continue;
-      const isKg = f.unit.trim().toLowerCase() === 'kg';
+      const isKg = f.unit.symbol === 'kg';
       // Convert the fed kg into "units" for a non-kg item (bag/sack), then back to
       // a unit-count decrement — kgPerUnit is required to do that conversion safely.
       const usedInUnit = isKg
@@ -449,7 +834,12 @@ export class FeedDistributionService {
 
     return [...usageByFeedItem.entries()].map(([forageId, used]) => {
       const f = feedItems.find((x) => x.id === forageId)!;
-      return { forageId, newStock: round2(Math.max(0, f.currentStock - used)) };
+      if (used > f.currentStock) {
+        throw new BadRequestException(
+          `Not enough stock for this feeding — need ${round2(used)} ${f.unit.symbol}, only ${f.currentStock} ${f.unit.symbol} available. Check Inventory before feeding.`,
+        );
+      }
+      return { forageId, newStock: round2(f.currentStock - used) };
     });
   }
 
@@ -515,7 +905,7 @@ export class FeedDistributionService {
 
   private mapSummary(row: {
     id: string;
-    concentrationId: string;
+    concentrationId: string | null;
     feedGroupId: string | null;
     cattleId: string | null;
     distributedAt: Date;

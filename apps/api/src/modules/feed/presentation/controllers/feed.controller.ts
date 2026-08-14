@@ -24,11 +24,13 @@ import { FeedIngredientService } from '../../application/services/feed-ingredien
 import { FeedRequirementsService } from '../../application/services/feed-requirements.service';
 import { FeedDistributionService } from '../../application/services/feed-distribution.service';
 import { FeedStockService } from '../../application/services/feed-stock.service';
+import { FeedRationResolverService } from '../../application/services/feed-ration-resolver.service';
 import { AssignCattleDto } from '../dto/assign-cattle.dto';
 import { BulkDeleteStockDto } from '../dto/bulk-delete-stock.dto';
 import {
   BulkDeleteConcentrationDto,
   CreateConcentrationDto,
+  FinalizeConcentrationDto,
   ListConcentrationsQueryDto,
   NormalizeConcentrationDto,
   UpdateConcentrationDto,
@@ -38,7 +40,11 @@ import { ListFeedStockQueryDto } from '../dto/list-feed-stock-query.dto';
 import { FeedRequirementsQueryDto } from '../dto/feed-requirements-query.dto';
 import { SetFeedOverrideDto } from '../dto/set-feed-override.dto';
 import { CreateCustomIngredientDto } from '../dto/create-custom-ingredient.dto';
+import { UpdateCustomIngredientDto } from '../dto/update-custom-ingredient.dto';
 import { LogDistributionDto } from '../dto/log-distribution.dto';
+import { PatchRefusalDto } from '../dto/patch-refusal.dto';
+import { UpdateStockNutritionDto } from '../dto/update-stock-nutrition.dto';
+import { QuickFeedDto } from '../dto/quick-feed.dto';
 import {
   FeedEfficiencyQueryDto,
   ListDistributionQueryDto,
@@ -70,6 +76,7 @@ export class FeedController {
     private readonly groups: FeedGroupAssignService,
     private readonly distributions: FeedDistributionService,
     private readonly stock: FeedStockService,
+    private readonly rationResolver: FeedRationResolverService,
   ) {}
 
   // ---- Ingredients --------------------------------------------------------
@@ -82,6 +89,19 @@ export class FeedController {
     return this.ingredients.listMerged(farmId, query.includeArchived);
   }
 
+  /** Cursor-paginated + filterable ingredients list (search/`feedClass`/price-range) for the
+   * Ingredients management table (2026-08-14) — registered before `ingredients/:id/override` so
+   * Nest doesn't try to match "paged" as an `:id` (no real conflict, GET vs the override routes'
+   * POST/DELETE, kept static for clarity/precedent per this controller's other bulk/static routes). */
+  @Get('ingredients/paged')
+  @RequirePermission('feed.read')
+  listIngredientsPaged(
+    @CurrentFarmId() farmId: string,
+    @Query() query: ListIngredientsQueryDto,
+  ) {
+    return this.ingredients.listPaged(farmId, query);
+  }
+
   @Post('ingredients/custom')
   @RequirePermission('feed.create')
   createCustomIngredient(
@@ -90,6 +110,25 @@ export class FeedController {
     @Body() dto: CreateCustomIngredientDto,
   ) {
     return this.ingredients.createCustom(farmId, userId, dto);
+  }
+
+  @Patch('ingredients/custom/:id')
+  @RequirePermission('feed.update')
+  updateCustomIngredient(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateCustomIngredientDto,
+  ) {
+    return this.ingredients.updateCustomIngredient(farmId, id, dto);
+  }
+
+  @Delete('ingredients/custom/:id')
+  @RequirePermission('feed.delete')
+  deactivateCustomIngredient(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+  ) {
+    return this.ingredients.deactivateCustomIngredient(farmId, id);
   }
 
   @Post('ingredients/:id/override')
@@ -117,6 +156,13 @@ export class FeedController {
     @Query() query: FeedRequirementsQueryDto,
   ) {
     return this.requirements.calc(farmId, query);
+  }
+
+  /** Farm-wide "Today's Feed Requirement" rollup (2026-08-13, user request). */
+  @Get('today-requirement')
+  @RequirePermission('feed.read')
+  todaysRequirement(@CurrentFarmId() farmId: string) {
+    return this.requirements.getTodaysRequirement(farmId);
   }
 
   // ---- Concentration templates -------------------------------------------
@@ -185,6 +231,24 @@ export class FeedController {
     return this.concentrations.remove(farmId, id);
   }
 
+  /** Explicit-checkpoint versioning, `FEED_MIXTURE` only (2026-08-13, user request). */
+  @Post('concentrations/:id/save-version')
+  @RequirePermission('feed.update')
+  saveVersion(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body('name') name?: string,
+  ) {
+    return this.concentrations.saveAsVersion(farmId, userId, id, name);
+  }
+
+  @Get('concentrations/:id/versions')
+  @RequirePermission('feed.read')
+  listVersions(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.concentrations.listVersions(farmId, id);
+  }
+
   /** Promote this concentration into a reusable, versioned `FeedIngredient` (user request
    * 2026-07-17, "concentrates become reusable ingredients") — see `FeedConcentrationService.finalize`. */
   @Post('concentrations/:id/finalize')
@@ -193,8 +257,43 @@ export class FeedController {
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
     @Param('id') id: string,
+    @Body() dto: FinalizeConcentrationDto,
   ) {
-    return this.concentrations.finalize(farmId, userId, id);
+    return this.concentrations.finalize(farmId, userId, id, dto.paymentMethod);
+  }
+
+  // ---- Layered ration resolution (herd -> group -> individual) ------------
+  /** Which active `FEED_MIXTURE` ration this cow is actually on right now, most-specific-wins
+   * (2026-08-13, user request). Used by the Cattle feeding tab and DMI comparison. */
+  @Get('cattle/:cattleId/resolved-ration')
+  @RequirePermission('feed.read')
+  async resolvedRation(
+    @CurrentFarmId() farmId: string,
+    @Param('cattleId') cattleId: string,
+  ) {
+    const resolved = await this.rationResolver.resolveActiveRation(
+      farmId,
+      cattleId,
+    );
+    if (!resolved) return { match_level: null, concentration: null };
+    return {
+      match_level: resolved.matchLevel,
+      concentration: await this.concentrations.get(
+        farmId,
+        resolved.concentration.id,
+      ),
+    };
+  }
+
+  /** Actual vs expected dry-matter intake for a cow (2026-08-13, user request). */
+  @Get('cattle/:cattleId/dmi')
+  @RequirePermission('feed.read')
+  dmiComparison(
+    @CurrentFarmId() farmId: string,
+    @Param('cattleId') cattleId: string,
+    @Query('date') date?: string,
+  ) {
+    return this.distributions.getDmiComparison(farmId, cattleId, date);
   }
 
   // ---- Feed group ↔ cattle ------------------------------------------------
@@ -234,6 +333,29 @@ export class FeedController {
     return this.distributions.create(farmId, userId, dto);
   }
 
+  /** Feed a raw inventory item straight to a cow/group/herd, no Concentration involved
+   * (2026-08-13, user request). */
+  @Post('quick-feed')
+  @RequirePermission('feed.distribution-log')
+  quickFeed(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Body() dto: QuickFeedDto,
+  ) {
+    return this.distributions.quickFeed(farmId, userId, dto);
+  }
+
+  /** Farm-wide feed cost/cow/day + cost/litre + trend (2026-08-13, user request — Dashboard +
+   * Reports need this, not just the per-lactation view Reproduction already has). */
+  @Get('cost-summary')
+  @RequirePermission('feed.read')
+  costSummary(@CurrentFarmId() farmId: string, @Query('days') days?: string) {
+    return this.distributions.getFarmFeedCostSummary(
+      farmId,
+      days ? Number(days) : undefined,
+    );
+  }
+
   @Get('efficiency')
   @RequirePermission('feed.read')
   efficiency(
@@ -247,6 +369,31 @@ export class FeedController {
   @RequirePermission('feed.read')
   getDistribution(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.distributions.get(farmId, id);
+  }
+
+  /** Next-day leftover weigh-in (2026-08-13, user request). */
+  @Patch('distributions/:id/refusal')
+  @RequirePermission('feed.distribution-log')
+  patchRefusal(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @Body() dto: PatchRefusalDto,
+  ) {
+    return this.distributions.patchRefusal(farmId, id, dto);
+  }
+
+  @Get('groups/:id/refusal-trend')
+  @RequirePermission('feed.read')
+  refusalTrend(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @Query('days') days?: string,
+  ) {
+    return this.distributions.getRefusalTrend(
+      farmId,
+      id,
+      days ? Number(days) : undefined,
+    );
   }
 
   // ---- Feed stock (§12.5 follow-up — TMR ↔ Inventory linkage) -------------
@@ -283,5 +430,17 @@ export class FeedController {
   @RequirePermission('feed.delete')
   archiveStock(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.stock.archive(farmId, id);
+  }
+
+  /** RAKHAL-327: correct a produced batch's nutrient snapshot once real data comes back (e.g. a
+   * lab report) — the recipe's on-paper values at finalize time are only a starting estimate. */
+  @Patch('stock/:id/nutrition')
+  @RequirePermission('feed.update')
+  updateStockNutrition(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateStockNutritionDto,
+  ) {
+    return this.stock.updateNutrition(farmId, id, dto);
   }
 }

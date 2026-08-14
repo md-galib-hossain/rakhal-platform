@@ -18,7 +18,9 @@ model Medicine {
   manufacturer String?
   batchId      String?
 
-  unit              String // doses, ml, g, etc.
+  /// Unit catalog (RAKHAL-326) — replaces the old free-text `unit` string.
+  unitId String
+  unit   Unit   @relation(fields: [unitId], references: [id])
   currentStock      Float  @default(0)
   costPerUnit       Float
   lowStockThreshold Float  @default(0)
@@ -45,6 +47,7 @@ model Medicine {
   @@index([category])
   @@index([expiryDate])
   @@index([createdBy])
+  @@index([unitId])
 }
 
 /// Append-only audit of every stock change on a Medicine (purchase, treatment

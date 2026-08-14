@@ -20,7 +20,9 @@ model FeedItem {
 
   ingredientId String?
 
-  unit              String // bag, kg, sack
+  /// Unit catalog (RAKHAL-326) — replaces the old free-text `unit` string.
+  unitId String
+  unit   Unit   @relation(fields: [unitId], references: [id])
   kgPerUnit         Float? // kg per unit (for bag → kg display)
   currentStock      Float  @default(0)
   costPerUnit       Float
@@ -47,6 +49,7 @@ model FeedItem {
   @@index([feedClass])
   @@index([createdBy])
   @@index([ingredientId])
+  @@index([unitId])
   @@map("Forage")
 }
 

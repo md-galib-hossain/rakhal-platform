@@ -1,16 +1,20 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { FeedIngredient, FeedIngredientOverride } from '@prisma/client';
+import { FeedIngredient, FeedIngredientOverride, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { CursorPage, getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { resolveEffective } from '../../domain/ingredient-resolver';
 import { SetFeedOverrideDto } from '../../presentation/dto/set-feed-override.dto';
 import { CreateCustomIngredientDto } from '../../presentation/dto/create-custom-ingredient.dto';
+import { UpdateCustomIngredientDto } from '../../presentation/dto/update-custom-ingredient.dto';
 import { CreateCatalogueIngredientDto } from '../../presentation/dto/create-catalogue-ingredient.dto';
 import { UpdateCatalogueIngredientDto } from '../../presentation/dto/update-catalogue-ingredient.dto';
+import { ListIngredientsQueryDto } from '../../presentation/dto/list-ingredients-query.dto';
 
 /**
  * Feed ingredient catalogue + per-farm overrides (PRD §12.1 / §4.3, RAKHAL-080).
@@ -69,6 +73,71 @@ export class FeedIngredientService {
     );
   }
 
+  /** Cursor-paginated + filterable ingredients list for the Ingredients management table
+   * (search / `feedClass` / catalogue-price range on top of `listMerged`'s farm+archive scoping) —
+   * a separate method from `listMerged` on purpose: pickers (`IngredientPicker`, create-feed dialog,
+   * concentration detail sheet) need the *full* unpaginated catalogue for selection, so that plain
+   * array endpoint stays untouched. Price-range filters `currentPricePerKg` (the catalogue/admin
+   * price) rather than the per-farm resolved `effective_price_per_kg`, since the latter is computed
+   * in JS after merging overrides and can't be pushed into the Prisma `where`. */
+  async listPaged(
+    farmId: string,
+    query: ListIngredientsQueryDto,
+  ): Promise<CursorPage<ReturnType<FeedIngredientService['toMerged']>>> {
+    const where: Prisma.FeedIngredientWhereInput = {
+      ...(query.includeArchived ? {} : { isActive: true }),
+      isLatestVersion: true,
+      OR: [{ farmId: null }, { farmId }],
+      ...(query.feedClass ? { feedClass: query.feedClass } : {}),
+      ...(query.priceMin != null || query.priceMax != null
+        ? {
+            currentPricePerKg: {
+              ...(query.priceMin != null ? { gte: query.priceMin } : {}),
+              ...(query.priceMax != null ? { lte: query.priceMax } : {}),
+            },
+          }
+        : {}),
+      ...(query.search
+        ? {
+            AND: [
+              {
+                OR: [
+                  { nameEn: { contains: query.search, mode: 'insensitive' } },
+                  { nameBn: { contains: query.search, mode: 'insensitive' } },
+                ],
+              },
+            ],
+          }
+        : {}),
+    };
+
+    const rows = await this.prisma.feedIngredient.findMany({
+      where,
+      orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
+      ...getCursorArgs(query),
+    });
+
+    const page = toCursorPage(rows, query);
+    const overrides = page.items.length
+      ? await this.prisma.feedIngredientOverride.findMany({
+          where: {
+            farmId,
+            ingredientId: { in: page.items.map((ing) => ing.id) },
+          },
+        })
+      : [];
+    const overrideByIngredient = new Map(
+      overrides.map((o) => [o.ingredientId, o]),
+    );
+
+    return {
+      items: page.items.map((ing) =>
+        this.toMerged(ing, overrideByIngredient.get(ing.id) ?? null),
+      ),
+      meta: page.meta,
+    };
+  }
+
   /** Create this farm's own ingredient — name/category/cost only (quick-add, no nutrition
    * breakdown, `dmPct` defaults 100 / everything else 0) or a full 12-nutrient profile when the
    * farm supplies one (see `CreateCustomIngredientDto`'s doc comment). */
@@ -107,6 +176,82 @@ export class FeedIngredientService {
       id: created.id,
     });
     return this.toMerged(created, null);
+  }
+
+  /** Partial update of this farm's own quick-added ingredient (name/price/nutrition). Rejects a
+   * catalogue row (`farmId: null`) or another farm's row — a farm can only edit what it owns; the
+   * global catalogue is Admin-managed and other farms' custom rows are never visible to this farm
+   * anyway (`listMerged`'s `OR: [{ farmId: null }, { farmId }]` scoping). */
+  async updateCustomIngredient(
+    farmId: string,
+    id: string,
+    dto: UpdateCustomIngredientDto,
+  ) {
+    const existing = await this.assertOwnedCustomIngredient(farmId, id);
+    const priceChanged =
+      dto.pricePerKg != null && dto.pricePerKg !== existing.currentPricePerKg;
+    const updated = await this.prisma.feedIngredient.update({
+      where: { id },
+      data: {
+        nameEn: dto.name,
+        nutrientGroup: dto.nutrientGroup,
+        currentPricePerKg: dto.pricePerKg,
+        dmPct: dto.dmPct,
+        cpPct: dto.cpPct,
+        meMjPerKgDm: dto.meMjPerKgDm,
+        fatPct: dto.fatPct,
+        ndfPct: dto.ndfPct,
+        rdpPct: dto.rdpPct,
+        rupPct: dto.rupPct,
+        starchPct: dto.starchPct,
+        adfPct: dto.adfPct,
+        calciumPct: dto.calciumPct,
+        phosphorusPct: dto.phosphorusPct,
+        tdnPct: dto.tdnPct,
+        ...(priceChanged ? { priceUpdatedAt: new Date() } : {}),
+      },
+    });
+    this.log.info('Custom feed ingredient updated', { farmId, id });
+    return this.toMerged(updated, null);
+  }
+
+  /** Archive this farm's own quick-added ingredient (soft-delete, matches every other module's
+   * convention). Blocked if the ingredient is still used by an active concentration (Concentrate
+   * Mixer or TMR) — the farm must remove it from those formulas first — or if it's a row promoted
+   * from a finalized concentration (that link is owned by `FeedConcentrationService.finalize`, not
+   * this endpoint). */
+  async deactivateCustomIngredient(farmId: string, id: string) {
+    await this.assertOwnedCustomIngredient(farmId, id);
+    const referencedBy = await this.prisma.feedConcentrationItem.findFirst({
+      where: { ingredientId: id, concentration: { isActive: true } },
+      select: { id: true },
+    });
+    if (referencedBy) {
+      throw new ConflictException(
+        'Ingredient is used by an active concentration — remove it from that formula first',
+      );
+    }
+    const updated = await this.prisma.feedIngredient.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    this.log.info('Custom feed ingredient archived', { farmId, id });
+    return this.toMerged(updated, null);
+  }
+
+  private async assertOwnedCustomIngredient(farmId: string, id: string) {
+    const existing = await this.prisma.feedIngredient.findFirst({
+      where: { id, farmId },
+    });
+    if (!existing) {
+      throw new NotFoundException('Ingredient not found');
+    }
+    if (existing.sourceConcentrationId) {
+      throw new BadRequestException(
+        'This ingredient was promoted from a Concentrate Mixer — edit the source concentration instead',
+      );
+    }
+    return existing;
   }
 
   /** Upsert this farm's override for an ingredient. */
@@ -187,7 +332,9 @@ export class FeedIngredientService {
         tdnPct: dto.tdnPct ?? 0,
         currentPricePerKg: dto.currentPricePerKg,
         priceUpdatedAt: new Date(),
+        nutritionSourceNote: dto.nutritionSourceNote,
         nutritionSource: dto.nutritionSource,
+        sourceRef: dto.sourceRef,
         isAvailableBd: dto.isAvailableBd ?? true,
         isSystemDefault: true,
       },
@@ -239,7 +386,9 @@ export class FeedIngredientService {
         phosphorusPct: dto.phosphorusPct,
         tdnPct: dto.tdnPct,
         currentPricePerKg: dto.currentPricePerKg,
+        nutritionSourceNote: dto.nutritionSourceNote,
         nutritionSource: dto.nutritionSource,
+        sourceRef: dto.sourceRef,
         isAvailableBd: dto.isAvailableBd,
         ...(priceChanged ? { priceUpdatedAt: new Date() } : {}),
       },
@@ -285,7 +434,9 @@ export class FeedIngredientService {
       feed_sub_type: ing.feedSubType,
       nutrient_group: ing.nutrientGroup,
       is_custom: ing.farmId != null,
-      nutrition_source: ing.nutritionSource,
+      nutrition_source: ing.nutritionSourceNote,
+      nutrition_source_type: eff.nutritionSource,
+      source_ref: ing.sourceRef,
       rakhal_price_per_kg: ing.currentPricePerKg,
       price_updated_at: ing.priceUpdatedAt,
       effective_price_per_kg: eff.pricePerKg,

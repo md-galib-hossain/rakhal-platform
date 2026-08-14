@@ -21,6 +21,7 @@ import { FinanceService } from 'src/modules/finance/application/services/finance
 import { MilkService } from 'src/modules/milk/application/services/milk.service';
 import { HealthService } from 'src/modules/health/application/services/health.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
+import { FeedDistributionService } from 'src/modules/feed/application/services/feed-distribution.service';
 import {
   ANIMAL_CATEGORIES,
   buildAnimalCategoryWhere,
@@ -53,9 +54,17 @@ export class DashboardService {
     private readonly milk: MilkService,
     private readonly health: HealthService,
     private readonly farmSettings: FarmSettingsService,
+    private readonly feedDistribution: FeedDistributionService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(DashboardService.name);
+  }
+
+  /** Feed cost/cow/day + cost/litre widget (2026-08-13, user request) — distinct from the
+   * existing `productionVsFeedcost()` raw daily chart above: this surfaces the per-unit
+   * metrics the user actually asked for, not just two parallel series. */
+  async feedCostSummary(farmId: string) {
+    return this.feedDistribution.getFarmFeedCostSummary(farmId, 7);
   }
 
   // ---- Headline KPI bar (§7.2) --------------------------------------------
@@ -570,7 +579,7 @@ export class DashboardService {
         select: {
           id: true,
           name: true,
-          unit: true,
+          unit: { select: { symbol: true } },
           currentStock: true,
           lowStockThreshold: true,
         },
@@ -580,7 +589,7 @@ export class DashboardService {
         select: {
           id: true,
           name: true,
-          unit: true,
+          unit: { select: { symbol: true } },
           currentStock: true,
           lowStockThreshold: true,
         },
@@ -616,7 +625,7 @@ export class DashboardService {
       (i: {
         id: string;
         name: string;
-        unit: string;
+        unit: { symbol: string };
         currentStock: number;
         lowStockThreshold: number;
       }) => ({
@@ -624,7 +633,7 @@ export class DashboardService {
         itemType: type,
         name: i.name,
         currentStock: i.currentStock,
-        unit: i.unit,
+        unit: i.unit.symbol,
         threshold: i.lowStockThreshold,
         daysRemainingEstimate:
           type === 'medicine' ? calcDaysRemaining(i.id, i.currentStock) : null,
@@ -734,6 +743,7 @@ export class DashboardService {
           currentStock: { lte: this.prisma.medicine.fields.lowStockThreshold },
         },
         orderBy: { currentStock: 'asc' },
+        include: { unit: true },
       }),
       this.prisma.financeReceivable.findFirst({
         where: {
@@ -788,7 +798,7 @@ export class DashboardService {
       priorities.push({
         priority: 'important',
         icon: '🟡',
-        message: `${lowMed.name} stock: ${lowMed.currentStock} ${lowMed.unit} remaining (low)`,
+        message: `${lowMed.name} stock: ${lowMed.currentStock} ${lowMed.unit.symbol} remaining (low)`,
         actionLabel: 'Reorder',
         link: `/inventory/medicines/${lowMed.id}`,
         count: lowMed.currentStock,

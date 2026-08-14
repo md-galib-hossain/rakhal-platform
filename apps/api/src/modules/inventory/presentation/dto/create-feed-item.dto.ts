@@ -40,11 +40,10 @@ export class CreateFeedItemDto {
   @IsNotEmpty()
   ingredientId!: string;
 
-  /** Stock unit label, e.g. "bag", "kg", "sack". */
-  @Transform(trimString)
+  /** Unit catalog id (`Unit.id`, `GET /inventory/units`) — replaces the old free-text unit label. */
   @IsString()
   @IsNotEmpty()
-  unit!: string;
+  unitId!: string;
 
   /** Kg per unit, for bag → kg equivalent display. */
   @IsOptional()

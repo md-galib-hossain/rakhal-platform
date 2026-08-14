@@ -15,6 +15,7 @@ import {
   MilkTankType,
   PrismaClient,
   SubscriptionStatus,
+  UnitDimension,
   WalletDirection,
 } from '@prisma/client';
 import * as argon2 from 'argon2';
@@ -356,6 +357,129 @@ async function seedDemoFinance(
 }
 
 /**
+ * Global unit catalogue (RAKHAL-326) — replaces the free-text `unit` string previously
+ * stored directly on Medicine/Equipment/FeedItem. `isSystemDefault` rows, `farmId: null`,
+ * visible to every farm; a farm can additionally create its own custom `Unit` row (`farmId`
+ * set) via `POST /inventory/units`. Same "system catalogue + farm-custom rows" seam as
+ * `seedFeedIngredients` below. Stable ids so re-seeding is idempotent.
+ */
+async function seedUnits(): Promise<void> {
+  type UnitDef = {
+    id: string;
+    name: string;
+    symbol: string;
+    dimension: UnitDimension;
+    conversionToBase: number | null;
+  };
+  const units: UnitDef[] = [
+    // WEIGHT — base unit is kg (factor 1).
+    {
+      id: 'unit_kg',
+      name: 'Kilogram',
+      symbol: 'kg',
+      dimension: 'WEIGHT',
+      conversionToBase: 1,
+    },
+    {
+      id: 'unit_g',
+      name: 'Gram',
+      symbol: 'g',
+      dimension: 'WEIGHT',
+      conversionToBase: 0.001,
+    },
+    {
+      id: 'unit_ton',
+      name: 'Ton',
+      symbol: 'ton',
+      dimension: 'WEIGHT',
+      conversionToBase: 1000,
+    },
+    // VOLUME — base unit is L (factor 1).
+    {
+      id: 'unit_l',
+      name: 'Litre',
+      symbol: 'L',
+      dimension: 'VOLUME',
+      conversionToBase: 1,
+    },
+    {
+      id: 'unit_ml',
+      name: 'Millilitre',
+      symbol: 'mL',
+      dimension: 'VOLUME',
+      conversionToBase: 0.001,
+    },
+    // COUNT — no inherent weight/volume, conversionToBase stays null.
+    {
+      id: 'unit_pcs',
+      name: 'Pieces',
+      symbol: 'pcs',
+      dimension: 'COUNT',
+      conversionToBase: null,
+    },
+    {
+      id: 'unit_bag',
+      name: 'Bag',
+      symbol: 'bag',
+      dimension: 'COUNT',
+      conversionToBase: null,
+    },
+    {
+      id: 'unit_sack',
+      name: 'Sack',
+      symbol: 'sack',
+      dimension: 'COUNT',
+      conversionToBase: null,
+    },
+    {
+      id: 'unit_bale',
+      name: 'Bale',
+      symbol: 'bale',
+      dimension: 'COUNT',
+      conversionToBase: null,
+    },
+    {
+      id: 'unit_box',
+      name: 'Box',
+      symbol: 'box',
+      dimension: 'COUNT',
+      conversionToBase: null,
+    },
+    {
+      id: 'unit_bottle',
+      name: 'Bottle',
+      symbol: 'bottle',
+      dimension: 'COUNT',
+      conversionToBase: null,
+    },
+    {
+      id: 'unit_dose',
+      name: 'Dose',
+      symbol: 'dose',
+      dimension: 'COUNT',
+      conversionToBase: null,
+    },
+  ];
+
+  for (const u of units) {
+    const data = {
+      name: u.name,
+      symbol: u.symbol,
+      dimension: u.dimension,
+      conversionToBase: u.conversionToBase,
+      isSystemDefault: true,
+      isActive: true,
+    };
+    await prisma.unit.upsert({
+      where: { id: u.id },
+      update: data,
+      create: { id: u.id, ...data },
+    });
+  }
+  console.log(`✔ units seeded (${units.length})`);
+}
+
+/**
  * Global feed-ingredient catalogue (PRD §4.1 / §12.1). These are Rakhal-Admin
  * defaults; until the Admin panel exists (RAKHAL-110) they ship as seeded
  * `isSystemDefault` rows. Values are plausible INRA/NRC/BAU references for common
@@ -612,7 +736,8 @@ async function seedFeedIngredients(): Promise<void> {
       meMjPerKgDm: i.meMjPerKgDm,
       fatPct: i.fatPct,
       ndfPct: i.ndfPct,
-      nutritionSource: i.source,
+      nutritionSourceNote: i.source,
+      nutritionSource: 'REFERENCE' as const,
       currentPricePerKg: i.price,
       priceUpdatedAt: now,
       isAvailableBd: true,
@@ -1110,6 +1235,9 @@ async function main(): Promise<void> {
   const ownerRoleId = await seedRole(SYSTEM_ROLES.OWNER);
   const managerRoleId = await seedRole(SYSTEM_ROLES.MANAGER);
   const workerRoleId = await seedRole(SYSTEM_ROLES.WORKER);
+  // Units (RAKHAL-326) seeded early — `prisma/backfill-unit-catalog.ts` (run once,
+  // after this seed + the additive migration) depends on the system rows existing.
+  await seedUnits();
   // Moved ahead of the demo block: the full demo dataset (seedDemoDataset)
   // references feed ingredients, repro protocols, subscription plans, and the
   // legal documents by id, so those catalogues must exist before it runs.

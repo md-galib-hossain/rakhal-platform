@@ -43,11 +43,10 @@ export class CreateMedicineDto {
   @IsString()
   batchId?: string;
 
-  /** Stock unit label, e.g. "doses", "ml", "g". */
-  @Transform(trimString)
+  /** Unit catalog id (`Unit.id`, `GET /inventory/units`) — replaces the old free-text unit label. */
   @IsString()
   @IsNotEmpty()
-  unit!: string;
+  unitId!: string;
 
   @IsNumber()
   @Min(0)

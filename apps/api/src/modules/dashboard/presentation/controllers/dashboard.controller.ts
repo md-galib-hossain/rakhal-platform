@@ -83,6 +83,12 @@ export class DashboardController {
     return this.dashboardService.conceptionRate(farmId);
   }
 
+  @Get('feed-cost-summary')
+  @RequirePermission('dashboard.read')
+  feedCostSummary(@CurrentFarmId() farmId: string) {
+    return this.dashboardService.feedCostSummary(farmId);
+  }
+
   @Get('feed-stock-alerts')
   @RequirePermission('dashboard.read')
   feedStockAlerts(@CurrentFarmId() farmId: string) {

@@ -5,12 +5,14 @@ import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { MilkModule } from '../milk/milk.module';
+import { FinanceModule } from '../finance/finance.module';
 import { FeedConcentrationService } from './application/services/feed-concentration.service';
 import { FeedGroupAssignService } from './application/services/feed-group-assign.service';
 import { FeedIngredientService } from './application/services/feed-ingredient.service';
 import { FeedRequirementsService } from './application/services/feed-requirements.service';
 import { FeedDistributionService } from './application/services/feed-distribution.service';
 import { FeedStockService } from './application/services/feed-stock.service';
+import { FeedRationResolverService } from './application/services/feed-ration-resolver.service';
 import { FeedController } from './presentation/controllers/feed.controller';
 
 /**
@@ -29,6 +31,7 @@ import { FeedController } from './presentation/controllers/feed.controller';
     PermissionModule,
     SubscriptionModule,
     MilkModule,
+    FinanceModule,
   ],
   controllers: [FeedController],
   providers: [
@@ -38,7 +41,12 @@ import { FeedController } from './presentation/controllers/feed.controller';
     FeedGroupAssignService,
     FeedDistributionService,
     FeedStockService,
+    FeedRationResolverService,
   ],
-  exports: [FeedIngredientService, FeedConcentrationService],
+  exports: [
+    FeedIngredientService,
+    FeedConcentrationService,
+    FeedDistributionService,
+  ],
 })
 export class FeedModule {}

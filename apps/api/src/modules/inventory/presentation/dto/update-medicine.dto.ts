@@ -48,10 +48,9 @@ export class UpdateMedicineDto {
   batchId?: string;
 
   @IsOptional()
-  @Transform(trimString)
   @IsString()
   @IsNotEmpty()
-  unit?: string;
+  unitId?: string;
 
   @IsOptional()
   @IsNumber()
