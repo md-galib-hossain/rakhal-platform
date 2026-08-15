@@ -9,6 +9,8 @@ import {
   SemenBatch,
   SemenStrawMovementReason,
   SemenTank,
+  SemenType,
+  TargetSex,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
@@ -90,7 +92,6 @@ export class SemenService {
         modelManufacturer: dto.modelManufacturer,
         strawCapacity: dto.strawCapacity,
         numCanisters: dto.numCanisters,
-        numCanes: dto.numCanes,
         numGoblets: dto.numGoblets,
         storageLocation: dto.storageLocation,
         currentTempC: dto.currentTempC,
@@ -118,7 +119,6 @@ export class SemenService {
         modelManufacturer: dto.modelManufacturer,
         strawCapacity: dto.strawCapacity,
         numCanisters: dto.numCanisters,
-        numCanes: dto.numCanes,
         numGoblets: dto.numGoblets,
         storageLocation: dto.storageLocation,
         currentTempC: dto.currentTempC,
@@ -183,6 +183,11 @@ export class SemenService {
       await this.assertTankCapacity(farmId, dto.tankId, dto.strawQuantity);
     }
 
+    const { semenType, targetSex } = this.resolveSemenTypeFields(
+      dto.semenType,
+      dto.targetSex,
+    );
+
     const batch = await this.prisma.semenBatch.create({
       data: {
         farmId,
@@ -194,11 +199,12 @@ export class SemenService {
         initialVitalityPct: dto.initialVitalityPct,
         strawQuantity: dto.strawQuantity,
         lowStrawThreshold: dto.lowStrawThreshold ?? 5,
+        semenType,
+        targetSex,
         fatherId: dto.fatherId,
         motherId: dto.motherId,
         tankId: dto.tankId,
         canister: dto.canister,
-        cane: dto.cane,
         goblet: dto.goblet,
         notes: dto.notes,
         createdBy: userId,
@@ -222,6 +228,11 @@ export class SemenService {
       await this.assertTankCapacity(farmId, tankId, strawQuantity, id);
     }
 
+    const { semenType, targetSex } = this.resolveSemenTypeFields(
+      dto.semenType ?? existing.semenType ?? undefined,
+      dto.targetSex ?? existing.targetSex ?? undefined,
+    );
+
     const batch = await this.prisma.semenBatch.update({
       where: { id },
       data: {
@@ -233,9 +244,10 @@ export class SemenService {
         initialVitalityPct: dto.initialVitalityPct,
         strawQuantity: dto.strawQuantity,
         lowStrawThreshold: dto.lowStrawThreshold,
+        semenType,
+        targetSex,
         tankId: dto.tankId,
         canister: dto.canister,
-        cane: dto.cane,
         goblet: dto.goblet,
         notes: dto.notes,
       },
@@ -402,6 +414,18 @@ export class SemenService {
         `Tank capacity exceeded (${others + incomingStraws}/${tank.strawCapacity} straws)`,
       );
     }
+  }
+
+  /** targetSex only meaningful when semenType === SEX_SORTED — nulled out otherwise. */
+  private resolveSemenTypeFields(
+    semenType?: SemenType,
+    targetSex?: TargetSex,
+  ): { semenType: SemenType | null; targetSex: TargetSex | null } {
+    return {
+      semenType: semenType ?? null,
+      targetSex:
+        semenType === SemenType.SEX_SORTED ? (targetSex ?? null) : null,
+    };
   }
 
   private assertSubZeroTemp(tempC?: number): void {

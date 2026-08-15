@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import {
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -8,6 +9,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
+import { SemenType, TargetSex } from '@prisma/client';
 import { CursorPaginationQueryDto } from 'src/common/pagination';
 import { toBoolean, trimString } from 'src/common/dto';
 
@@ -52,6 +54,14 @@ export class CreateSemenBatchDto {
   @IsInt()
   @Min(0)
   lowStrawThreshold?: number;
+
+  @IsOptional()
+  @IsEnum(SemenType)
+  semenType?: SemenType;
+
+  @IsOptional()
+  @IsEnum(TargetSex)
+  targetSex?: TargetSex;
 
   @IsOptional()
   @Transform(trimString)
@@ -134,6 +144,14 @@ export class UpdateSemenBatchDto {
   lowStrawThreshold?: number;
 
   @IsOptional()
+  @IsEnum(SemenType)
+  semenType?: SemenType;
+
+  @IsOptional()
+  @IsEnum(TargetSex)
+  targetSex?: TargetSex;
+
+  @IsOptional()
   @Transform(trimString)
   @IsString()
   tankId?: string;
@@ -142,11 +160,6 @@ export class UpdateSemenBatchDto {
   @Transform(trimString)
   @IsString()
   canister?: string;
-
-  @IsOptional()
-  @Transform(trimString)
-  @IsString()
-  cane?: string;
 
   @IsOptional()
   @Transform(trimString)

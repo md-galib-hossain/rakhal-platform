@@ -88,7 +88,9 @@ export class FeedIngredientService {
       ...(query.includeArchived ? {} : { isActive: true }),
       isLatestVersion: true,
       OR: [{ farmId: null }, { farmId }],
-      ...(query.feedClass ? { feedClass: query.feedClass } : {}),
+      ...(query.feedClass?.length
+        ? { feedClass: { in: query.feedClass } }
+        : {}),
       ...(query.priceMin != null || query.priceMax != null
         ? {
             currentPricePerKg: {

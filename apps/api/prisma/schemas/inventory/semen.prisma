@@ -8,7 +8,6 @@ model SemenTank {
   modelManufacturer String?
   strawCapacity     Int
   numCanisters      Int?
-  numCanes          Int?
   numGoblets        Int?
   storageLocation   String?
   currentTempC      Float?
@@ -45,12 +44,16 @@ model SemenBatch {
   strawQuantity      Int     @default(0)
   lowStrawThreshold  Int     @default(5)
 
+  /// Conventional vs Sex-Sorted straws in this batch. `targetSex` only
+  /// meaningful when this is SEX_SORTED — nulled out otherwise (service rule).
+  semenType SemenType?
+  targetSex TargetSex?
+
   fatherId String?
   motherId String?
 
   tankId   String?
   canister String?
-  cane     String?
   goblet   String?
 
   notes String?

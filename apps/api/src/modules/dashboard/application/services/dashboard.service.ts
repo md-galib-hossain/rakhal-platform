@@ -36,6 +36,27 @@ const ACTIVE_CASE_STATUSES = [
   HealthCaseStatus.WORSENING,
   HealthCaseStatus.STABLE,
 ];
+/** Max per-cow rows returned inside a grouped priority item (see `priorities()`). */
+const PRIORITY_CATTLE_LIMIT = 50;
+
+export interface DashboardPriorityCattleRef {
+  id: string;
+  name: string | null;
+  tag: string;
+}
+
+export interface DashboardPriorityItem {
+  priority: 'critical' | 'urgent' | 'important' | 'operational' | 'routine';
+  icon: string;
+  message: string;
+  actionLabel: string;
+  link: string;
+  count?: number;
+  cattleId?: string;
+  expectedDate?: Date;
+  cattle?: DashboardPriorityCattleRef[];
+  truncated?: boolean;
+}
 
 /**
  * Dashboard — "Morning Briefing" (PRD §7, API §3). A **read-only** cross-module
@@ -709,20 +730,26 @@ export class DashboardService {
     const calvingHorizon = new Date(now.getTime() + 3 * DAY_MS);
 
     const [
-      overdueDoses,
+      overdueDoseCattle,
       soonCalving,
       lowMed,
       overdueRec,
       dueTasks,
       completedTasks,
     ] = await Promise.all([
-      this.prisma.healthTask.count({
+      this.prisma.healthTask.findMany({
         where: {
           farmId,
           isActive: true,
           status: { in: [HealthTaskStatus.PENDING, HealthTaskStatus.OVERDUE] },
           dueDateTime: { lt: now },
         },
+        select: {
+          cattle: { select: { id: true, name: true, tagNumber: true } },
+        },
+        distinct: ['cattleId'],
+        orderBy: { dueDateTime: 'asc' },
+        take: PRIORITY_CATTLE_LIMIT + 1,
       }),
       this.prisma.pregnancy.findFirst({
         where: {
@@ -766,15 +793,29 @@ export class DashboardService {
       }),
     ]);
 
-    const priorities: Array<Record<string, unknown>> = [];
-    if (overdueDoses > 0) {
+    const priorities: DashboardPriorityItem[] = [];
+    if (overdueDoseCattle.length > 0) {
+      const overdueTruncated = overdueDoseCattle.length > PRIORITY_CATTLE_LIMIT;
+      const overdueShown = overdueDoseCattle.slice(0, PRIORITY_CATTLE_LIMIT);
+      // `take` fetches one extra row to detect truncation cheaply; the exact
+      // count beyond the limit is unknown, so the shown-list length is the
+      // reported count in that case (matches the "50+" display convention).
+      const overdueCount = overdueTruncated
+        ? PRIORITY_CATTLE_LIMIT
+        : overdueDoseCattle.length;
       priorities.push({
         priority: 'critical',
         icon: '🔴',
-        message: `${overdueDoses} cow(s) overdue for treatment dose`,
+        message: `${overdueCount}${overdueTruncated ? '+' : ''} cow(s) overdue for treatment dose`,
         actionLabel: 'Log now',
         link: '/healthcare/sick-bay',
-        count: overdueDoses,
+        count: overdueCount,
+        cattle: overdueShown.map((d) => ({
+          id: d.cattle.id,
+          name: d.cattle.name,
+          tag: d.cattle.tagNumber,
+        })),
+        truncated: overdueTruncated,
       });
     }
     if (soonCalving?.expectedCalvingDate) {
@@ -816,14 +857,22 @@ export class DashboardService {
         link: `/finance/receivables/${overdueRec.id}`,
       });
     }
-    const pendingMilk = await this.pendingMilkCount(farmId, dayStart, dayEnd);
-    if (pendingMilk > 0) {
+    const pendingMilkCattle = await this.pendingMilkCattle(
+      farmId,
+      dayStart,
+      dayEnd,
+    );
+    if (pendingMilkCattle.length > 0) {
+      const pendingTruncated = pendingMilkCattle.length > PRIORITY_CATTLE_LIMIT;
       priorities.push({
         priority: 'operational',
         icon: '🟢',
-        message: `Milk log pending — ${pendingMilk} cow(s) not yet logged`,
+        message: `Milk log pending — ${pendingMilkCattle.length} cow(s) not yet logged`,
         actionLabel: 'Log milk',
         link: '/milk?session=morning',
+        count: pendingMilkCattle.length,
+        cattle: pendingMilkCattle.slice(0, PRIORITY_CATTLE_LIMIT),
+        truncated: pendingTruncated,
       });
     }
     if (dueTasks > 0) {
@@ -840,24 +889,30 @@ export class DashboardService {
 
   // ---- Helpers -------------------------------------------------------------
 
-  private async pendingMilkCount(
+  private async pendingMilkCattle(
     farmId: string,
     dayStart: Date,
     dayEnd: Date,
-  ): Promise<number> {
-    const milkingCows = await this.prisma.cattle.count({
-      where: {
-        farmId,
-        isActive: true,
-        purpose: { in: [CattlePurpose.MILK, CattlePurpose.DUAL_PURPOSE] },
-      },
-    });
-    const logged = await this.prisma.milkLogEntry.findMany({
-      where: { farmId, logDate: { gte: dayStart, lt: dayEnd } },
-      select: { cattleId: true },
-      distinct: ['cattleId'],
-    });
-    return Math.max(0, milkingCows - logged.length);
+  ): Promise<DashboardPriorityCattleRef[]> {
+    const [milkingCows, logged] = await Promise.all([
+      this.prisma.cattle.findMany({
+        where: {
+          farmId,
+          isActive: true,
+          purpose: { in: [CattlePurpose.MILK, CattlePurpose.DUAL_PURPOSE] },
+        },
+        select: { id: true, name: true, tagNumber: true },
+      }),
+      this.prisma.milkLogEntry.findMany({
+        where: { farmId, logDate: { gte: dayStart, lt: dayEnd } },
+        select: { cattleId: true },
+        distinct: ['cattleId'],
+      }),
+    ]);
+    const loggedIds = new Set(logged.map((l) => l.cattleId));
+    return milkingCows
+      .filter((c) => !loggedIds.has(c.id))
+      .map((c) => ({ id: c.id, name: c.name, tag: c.tagNumber }));
   }
 
   private async txnSum(

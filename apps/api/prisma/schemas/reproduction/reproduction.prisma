@@ -90,6 +90,26 @@ model BreedingEvent {
   semenBatchId   String?
   inseminator    String?
 
+  /// Explicit semen provenance — required (DTO-level) only when
+  /// breedingMethod === AI; null for NATURAL/EMBRYO_TRANSFER.
+  semenSource       SemenSource?
+  serviceProviderId String?
+  serviceProvider   ServiceProvider? @relation(fields: [serviceProviderId], references: [id])
+
+  /// Progressive-optional traceability for TECHNICIAN_SUPPLIED / EXTERNAL,
+  /// where there's no SemenBatch to read this off of. Free text: describes a
+  /// bull the farm doesn't own and may have no structured record of.
+  sireNameOrCode String?
+  sireBreed      String?
+  semenType      SemenType?
+  /// Only meaningful when semenType === SEX_SORTED; mirrors the selected
+  /// SemenBatch's targetSex for FARM_INVENTORY, or the farmer's manual pick
+  /// for TECHNICIAN_SUPPLIED/EXTERNAL.
+  targetSex      TargetSex?
+  strawBatchCode String?
+  semenCompany   String?
+  serviceCost    Float?
+
   breedingNumber             Int
   expectedPregnancyCheckDate DateTime?
   status                     BreedingStatus @default(PENDING_CHECK)
@@ -111,6 +131,7 @@ model BreedingEvent {
   @@index([bullId])
   @@index([breedingDate])
   @@index([status])
+  @@index([semenSource])
 }
 
 model PregnancyDiagnosis {

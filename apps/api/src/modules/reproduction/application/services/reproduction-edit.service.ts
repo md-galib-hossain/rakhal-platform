@@ -12,6 +12,9 @@ import {
   LactationStatus,
   PregnancyDiagnosisResult,
   PregnancyStatus,
+  SemenSource,
+  SemenType,
+  TargetSex,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
@@ -121,17 +124,79 @@ export class ReproductionEditService {
     if (dto.bullId) await this.assertCattleInFarm(farmId, dto.bullId);
 
     const mergedMethod = dto.breedingMethod ?? existing.breedingMethod;
-    const mergedSemenBatchId =
-      dto.semenBatchId !== undefined ? dto.semenBatchId : existing.semenBatchId;
+    const mergedSemenSource =
+      dto.semenSource !== undefined ? dto.semenSource : existing.semenSource;
+
+    // Source switched — auto-clear the fields that no longer apply so a stale
+    // batch/provider/traceability blob doesn't linger from the old source.
+    const sourceChangedAwayFromInventory =
+      dto.semenSource !== undefined &&
+      dto.semenSource !== SemenSource.FARM_INVENTORY;
+    const sourceChangedToInventory =
+      dto.semenSource !== undefined &&
+      dto.semenSource === SemenSource.FARM_INVENTORY;
+
+    const mergedSemenBatchId = sourceChangedAwayFromInventory
+      ? null
+      : dto.semenBatchId !== undefined
+        ? dto.semenBatchId
+        : existing.semenBatchId;
+    const mergedServiceProviderId = sourceChangedToInventory
+      ? null
+      : dto.serviceProviderId !== undefined
+        ? dto.serviceProviderId
+        : existing.serviceProviderId;
+
+    if (
+      mergedSemenSource &&
+      mergedSemenSource !== SemenSource.FARM_INVENTORY &&
+      mergedSemenBatchId
+    ) {
+      throw new BadRequestException(
+        'semenBatchId is only valid when semenSource is FARM_INVENTORY',
+      );
+    }
+    if (
+      mergedSemenSource === SemenSource.TECHNICIAN_SUPPLIED &&
+      !mergedServiceProviderId
+    ) {
+      throw new BadRequestException(
+        'serviceProviderId is required when semenSource is TECHNICIAN_SUPPLIED',
+      );
+    }
+    if (dto.serviceProviderId) {
+      await this.assertServiceProviderInFarm(farmId, dto.serviceProviderId);
+    }
+
     const newBreedingDate = dto.breedingDate
       ? new Date(dto.breedingDate)
       : existing.breedingDate;
 
     const hadStraw =
-      existing.breedingMethod === BreedingMethod.AI && !!existing.semenBatchId;
+      existing.breedingMethod === BreedingMethod.AI &&
+      existing.semenSource === SemenSource.FARM_INVENTORY &&
+      !!existing.semenBatchId;
     const willHaveStraw =
-      mergedMethod === BreedingMethod.AI && !!mergedSemenBatchId;
+      mergedMethod === BreedingMethod.AI &&
+      mergedSemenSource === SemenSource.FARM_INVENTORY &&
+      !!mergedSemenBatchId;
     const batchChanged = mergedSemenBatchId !== existing.semenBatchId;
+
+    // Same inheritance rule as create: a FARM_INVENTORY pick's semenType/
+    // targetSex always comes from the batch, never a manual dto value.
+    let inventorySemenType: SemenType | null | undefined;
+    let inventoryTargetSex: TargetSex | null | undefined;
+    if (
+      mergedSemenSource === SemenSource.FARM_INVENTORY &&
+      mergedSemenBatchId
+    ) {
+      const batch = await this.prisma.semenBatch.findFirst({
+        where: { id: mergedSemenBatchId, farmId },
+        select: { semenType: true, targetSex: true },
+      });
+      inventorySemenType = batch?.semenType ?? null;
+      inventoryTargetSex = batch?.targetSex ?? null;
+    }
 
     const updated = await this.prisma.breedingEvent.update({
       where: { id },
@@ -140,8 +205,29 @@ export class ReproductionEditService {
         breedingDate: dto.breedingDate ? newBreedingDate : undefined,
         breedingMethod: dto.breedingMethod,
         bullId: dto.bullId,
-        semenBatchId: dto.semenBatchId,
+        semenBatchId: sourceChangedAwayFromInventory ? null : dto.semenBatchId,
         inseminator: dto.inseminator,
+        semenSource: dto.semenSource,
+        serviceProviderId: sourceChangedToInventory
+          ? null
+          : dto.serviceProviderId,
+        sireNameOrCode: sourceChangedToInventory ? null : dto.sireNameOrCode,
+        sireBreed: sourceChangedToInventory ? null : dto.sireBreed,
+        semenType:
+          mergedSemenSource === SemenSource.FARM_INVENTORY
+            ? inventorySemenType
+            : sourceChangedToInventory
+              ? null
+              : dto.semenType,
+        targetSex:
+          mergedSemenSource === SemenSource.FARM_INVENTORY
+            ? inventoryTargetSex
+            : sourceChangedToInventory
+              ? null
+              : dto.targetSex,
+        strawBatchCode: sourceChangedToInventory ? null : dto.strawBatchCode,
+        semenCompany: sourceChangedToInventory ? null : dto.semenCompany,
+        serviceCost: sourceChangedToInventory ? null : dto.serviceCost,
         breedingNumber: dto.breedingNumber,
         expectedPregnancyCheckDate: dto.expectedPregnancyCheckDate
           ? new Date(dto.expectedPregnancyCheckDate)
@@ -554,6 +640,22 @@ export class ReproductionEditService {
       );
     }
     return cattle;
+  }
+
+  /** Assert a referenced `ServiceProvider` (AI technician) belongs to the same farm and is active. */
+  private async assertServiceProviderInFarm(
+    farmId: string,
+    serviceProviderId: string,
+  ) {
+    const provider = await this.prisma.serviceProvider.findFirst({
+      where: { id: serviceProviderId, farmId, isActive: true },
+    });
+    if (!provider) {
+      throw new BadRequestException(
+        'serviceProviderId does not refer to an active service provider on this farm',
+      );
+    }
+    return provider;
   }
 
   private async getBreedingEventForCattle(id: string, cattleId: string) {

@@ -26,4 +26,11 @@ export class ListTaskQueryDto extends CursorPaginationQueryDto {
   @Transform(trimString)
   @IsString()
   search?: string;
+
+  /** Per-animal Task Hub view (unified animal-profile redesign, no ticket #) — filters on
+   * `Task.relatedCattleId`, already stored/returned but previously never filterable back out. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  cattleId?: string;
 }

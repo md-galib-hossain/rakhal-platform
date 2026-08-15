@@ -3,11 +3,17 @@ import {
   IsDateString,
   IsEnum,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   Min,
 } from 'class-validator';
-import { BreedingMethod } from '@prisma/client';
+import {
+  BreedingMethod,
+  SemenSource,
+  SemenType,
+  TargetSex,
+} from '@prisma/client';
 import { trimString } from './common.dto';
 
 /**
@@ -46,6 +52,49 @@ export class EditBreedingEventDto {
   @Transform(trimString)
   @IsString()
   inseminator?: string;
+
+  @IsOptional()
+  @IsEnum(SemenSource)
+  semenSource?: SemenSource;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  serviceProviderId?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  sireNameOrCode?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  sireBreed?: string;
+
+  @IsOptional()
+  @IsEnum(SemenType)
+  semenType?: SemenType;
+
+  @IsOptional()
+  @IsEnum(TargetSex)
+  targetSex?: TargetSex;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  strawBatchCode?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  semenCompany?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @Min(0)
+  serviceCost?: number;
 
   @IsOptional()
   @Transform(({ value }) => Number(value))

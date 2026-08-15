@@ -151,3 +151,33 @@ enum DryOffReason {
   PREGNANCY
   MANAGEMENT_DECISION
 }
+
+/// Where the semen used for an AI event came from — explicit instead of
+/// inferred from whether `semenBatchId` happens to be set. Nullable on
+/// `BreedingEvent`, required (DTO-level) only when `breedingMethod === AI`;
+/// NATURAL/EMBRYO_TRANSFER don't have a "semen source" concept.
+enum SemenSource {
+  /// Farm-owned `SemenBatch` selected — straw decremented (existing flow).
+  FARM_INVENTORY
+  /// A `ServiceProvider` (AI technician) brought semen the farm doesn't own —
+  /// no inventory touched.
+  TECHNICIAN_SUPPLIED
+  /// No technician on record, no inventory (farmer-administered or unknown
+  /// provenance).
+  EXTERNAL
+}
+
+enum SemenType {
+  CONVENTIONAL
+  /// RAKHAL semen-type feature: renamed from `SEXED` — "Sex-Sorted" is the
+  /// clearer industry term (semen processed to skew calf sex probability).
+  SEX_SORTED
+}
+
+/// The sex a `SEX_SORTED` semen batch/AI event was processed to favor.
+/// Only meaningful when `semenType === SEX_SORTED` — nulled out otherwise
+/// (service-level rule, not a DB constraint).
+enum TargetSex {
+  FEMALE
+  MALE
+}

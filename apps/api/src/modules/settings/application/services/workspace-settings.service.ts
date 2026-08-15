@@ -9,6 +9,8 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { CreateSupplierDto } from '../../presentation/dto/create-supplier.dto';
 import { UpdateSupplierDto } from '../../presentation/dto/update-supplier.dto';
+import { CreateServiceProviderDto } from '../../presentation/dto/create-service-provider.dto';
+import { UpdateServiceProviderDto } from '../../presentation/dto/update-service-provider.dto';
 import { UpdateModuleSettingsDto } from '../../presentation/dto/update-module-settings.dto';
 import { UpdateMilkSessionsDto } from '../../presentation/dto/update-milk-sessions.dto';
 
@@ -221,6 +223,77 @@ export class WorkspaceSettingsService {
     return { id, is_active: false };
   }
 
+  // ── Service Providers ────────────────────────────────────────────────────────
+
+  async listServiceProviders(farmId: string) {
+    const providers = await this.prisma.serviceProvider.findMany({
+      where: { farmId, isActive: true },
+      orderBy: { name: 'asc' },
+    });
+    return {
+      service_providers: providers.map((p) => this.mapServiceProvider(p)),
+    };
+  }
+
+  async createServiceProvider(farmId: string, dto: CreateServiceProviderDto) {
+    try {
+      const provider = await this.prisma.serviceProvider.create({
+        data: {
+          farmId,
+          name: dto.name,
+          phone: dto.phone,
+          type: dto.type,
+        },
+      });
+      this.log.info('Service provider created', {
+        serviceProviderId: provider.id,
+        farmId,
+      });
+      return this.mapServiceProvider(provider);
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'A service provider with that name already exists',
+        );
+      }
+      throw e;
+    }
+  }
+
+  async updateServiceProvider(
+    farmId: string,
+    id: string,
+    dto: UpdateServiceProviderDto,
+  ) {
+    await this.getServiceProviderOrThrow(farmId, id);
+    const provider = await this.prisma.serviceProvider.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
+        ...(dto.type !== undefined ? { type: dto.type } : {}),
+        ...(dto.is_active !== undefined ? { isActive: dto.is_active } : {}),
+      },
+    });
+    return this.mapServiceProvider(provider);
+  }
+
+  async deleteServiceProvider(farmId: string, id: string) {
+    await this.getServiceProviderOrThrow(farmId, id);
+    await this.prisma.serviceProvider.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    this.log.info('Service provider deactivated', {
+      serviceProviderId: id,
+      farmId,
+    });
+    return { id, is_active: false };
+  }
+
   // ── Billing ───────────────────────────────────────────────────────────────--
 
   async getBilling(farmId: string) {
@@ -266,6 +339,14 @@ export class WorkspaceSettingsService {
     return supplier;
   }
 
+  private async getServiceProviderOrThrow(farmId: string, id: string) {
+    const provider = await this.prisma.serviceProvider.findFirst({
+      where: { id, farmId },
+    });
+    if (!provider) throw new NotFoundException('Service provider not found');
+    return provider;
+  }
+
   private assign<K extends keyof Prisma.FarmModuleSettingsUpdateInput>(
     data: Prisma.FarmModuleSettingsUpdateInput,
     key: K,
@@ -293,6 +374,22 @@ export class WorkspaceSettingsService {
       payment_terms: s.paymentTerms,
       notes: s.notes,
       is_active: s.isActive,
+    };
+  }
+
+  private mapServiceProvider(p: {
+    id: string;
+    name: string;
+    phone: string | null;
+    type: string;
+    isActive: boolean;
+  }) {
+    return {
+      id: p.id,
+      name: p.name,
+      phone: p.phone,
+      type: p.type,
+      is_active: p.isActive,
     };
   }
 

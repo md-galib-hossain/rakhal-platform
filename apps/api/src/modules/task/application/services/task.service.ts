@@ -350,6 +350,7 @@ export class TaskService {
       ...this.filterClause(query.filter, userId, now),
       ...(query.category ? { category: query.category } : {}),
       ...(query.priority ? { priority: query.priority } : {}),
+      ...(query.cattleId ? { relatedCattleId: query.cattleId } : {}),
       ...(query.search
         ? {
             OR: [

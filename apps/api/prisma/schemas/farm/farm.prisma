@@ -79,6 +79,8 @@ model Farm {
   reproProtocols          ReproProtocol[]          @relation("FarmToReproProtocol")
   reproProtocolInstances  ReproProtocolInstance[]  @relation("FarmToReproProtocolInstance")
   units                   Unit[]                   @relation("FarmToUnit")
+  feedingDrafts           FeedFeedingDraft[]       @relation("FarmToFeedFeedingDraft")
+  serviceProviders        ServiceProvider[]        @relation("FarmToServiceProvider")
 
   @@index([ownerId])
   @@index([slug])

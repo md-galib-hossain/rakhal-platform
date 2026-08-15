@@ -24,6 +24,9 @@ import {
   Prisma,
   ProductionStatus,
   ReproductionState,
+  SemenSource,
+  SemenType,
+  TargetSex,
   TaskCategory,
   TaskPriority,
   TaskSource,
@@ -325,10 +328,61 @@ export class ReproductionService {
       await this.assertCattleInFarm(farmId, dto.bullId);
     }
 
+    // Explicit semen source (was implicitly inferred from semenBatchId
+    // presence). Backward-compat: old clients that omit semenSource on an AI
+    // event get it inferred server-side, matching pre-change behavior.
+    const semenSource: SemenSource | undefined =
+      dto.breedingMethod === BreedingMethod.AI
+        ? (dto.semenSource ??
+          (dto.semenBatchId
+            ? SemenSource.FARM_INVENTORY
+            : SemenSource.EXTERNAL))
+        : undefined;
+
+    if (
+      semenSource &&
+      semenSource !== SemenSource.FARM_INVENTORY &&
+      dto.semenBatchId
+    ) {
+      throw new BadRequestException(
+        'semenBatchId is only valid when semenSource is FARM_INVENTORY',
+      );
+    }
+    if (
+      semenSource === SemenSource.TECHNICIAN_SUPPLIED &&
+      !dto.serviceProviderId
+    ) {
+      throw new BadRequestException(
+        'serviceProviderId is required when semenSource is TECHNICIAN_SUPPLIED',
+      );
+    }
+    if (dto.serviceProviderId) {
+      await this.assertServiceProviderInFarm(farmId, dto.serviceProviderId);
+    }
+
     // Inventory decrement (REP-05): consume one straw for an AI service before
     // recording it, so a missing/empty batch (INV-02) aborts the breeding.
-    if (dto.breedingMethod === BreedingMethod.AI && dto.semenBatchId) {
-      await this.semenService.decrementStraw(farmId, dto.semenBatchId, 1);
+    // The batch is also the source of truth for semenType/targetSex — a
+    // FARM_INVENTORY pick inherits both from the batch rather than any
+    // manual dto value (which the frontend never sends for this source).
+    let inventorySemenType: SemenType | undefined;
+    let inventoryTargetSex: TargetSex | undefined;
+    if (
+      dto.breedingMethod === BreedingMethod.AI &&
+      semenSource === SemenSource.FARM_INVENTORY
+    ) {
+      if (!dto.semenBatchId) {
+        throw new BadRequestException(
+          'semenBatchId is required when semenSource is FARM_INVENTORY',
+        );
+      }
+      const batch = await this.semenService.decrementStraw(
+        farmId,
+        dto.semenBatchId,
+        1,
+      );
+      inventorySemenType = batch.semenType ?? undefined;
+      inventoryTargetSex = batch.targetSex ?? undefined;
     }
 
     const breedingNumber =
@@ -364,6 +418,21 @@ export class ReproductionService {
           bullId: dto.bullId,
           semenBatchId: dto.semenBatchId,
           inseminator: dto.inseminator,
+          semenSource,
+          serviceProviderId: dto.serviceProviderId,
+          sireNameOrCode: dto.sireNameOrCode,
+          sireBreed: dto.sireBreed,
+          semenType:
+            semenSource === SemenSource.FARM_INVENTORY
+              ? inventorySemenType
+              : dto.semenType,
+          targetSex:
+            semenSource === SemenSource.FARM_INVENTORY
+              ? inventoryTargetSex
+              : dto.targetSex,
+          strawBatchCode: dto.strawBatchCode,
+          semenCompany: dto.semenCompany,
+          serviceCost: dto.serviceCost,
           breedingNumber,
           expectedPregnancyCheckDate: dto.expectedPregnancyCheckDate
             ? new Date(dto.expectedPregnancyCheckDate)
@@ -2258,6 +2327,22 @@ export class ReproductionService {
   /** Assert a referenced animal (e.g. a service bull) belongs to the same farm. */
   private async assertCattleInFarm(farmId: string, cattleId: string) {
     return this.getCattleOrThrow(farmId, cattleId);
+  }
+
+  /** Assert a referenced `ServiceProvider` (AI technician) belongs to the same farm and is active. */
+  private async assertServiceProviderInFarm(
+    farmId: string,
+    serviceProviderId: string,
+  ) {
+    const provider = await this.prisma.serviceProvider.findFirst({
+      where: { id: serviceProviderId, farmId, isActive: true },
+    });
+    if (!provider) {
+      throw new BadRequestException(
+        'serviceProviderId does not refer to an active service provider on this farm',
+      );
+    }
+    return provider;
   }
 
   private async getBreedingEventForCattle(id: string, cattleId: string) {

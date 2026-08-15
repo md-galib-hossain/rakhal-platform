@@ -18,6 +18,8 @@ import { RequirePermission } from 'src/modules/permission/presentation/decorator
 import { WorkspaceSettingsService } from '../../application/services/workspace-settings.service';
 import { CreateSupplierDto } from '../dto/create-supplier.dto';
 import { UpdateSupplierDto } from '../dto/update-supplier.dto';
+import { CreateServiceProviderDto } from '../dto/create-service-provider.dto';
+import { UpdateServiceProviderDto } from '../dto/update-service-provider.dto';
 import { UpdateModuleSettingsDto } from '../dto/update-module-settings.dto';
 import { UpdateMilkSessionsDto } from '../dto/update-milk-sessions.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -95,6 +97,42 @@ export class WorkspaceSettingsController {
   @RequirePermission('settings.update')
   deleteSupplier(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.workspace.deleteSupplier(farmId, id);
+  }
+
+  // ── Service Providers ───────────────────────────────────────────────────────
+
+  @Get('service-providers')
+  @RequirePermission('settings.read')
+  listServiceProviders(@CurrentFarmId() farmId: string) {
+    return this.workspace.listServiceProviders(farmId);
+  }
+
+  @Post('service-providers')
+  @RequirePermission('settings.update')
+  createServiceProvider(
+    @CurrentFarmId() farmId: string,
+    @Body() dto: CreateServiceProviderDto,
+  ) {
+    return this.workspace.createServiceProvider(farmId, dto);
+  }
+
+  @Patch('service-providers/:id')
+  @RequirePermission('settings.update')
+  updateServiceProvider(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateServiceProviderDto,
+  ) {
+    return this.workspace.updateServiceProvider(farmId, id, dto);
+  }
+
+  @Delete('service-providers/:id')
+  @RequirePermission('settings.update')
+  deleteServiceProvider(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+  ) {
+    return this.workspace.deleteServiceProvider(farmId, id);
   }
 
   // â”€â”€ Billing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€--

@@ -178,3 +178,127 @@ describe('DashboardService — herdStatus', () => {
     expect(result.healthBreakdown.healthy).toBe(TOTAL_ACTIVE);
   });
 });
+
+/**
+ * `priorities()` — grouped rows carry the underlying cattle list (not just a
+ * count) so the frontend can expand a row like "5 cow(s) overdue for
+ * treatment dose" into its 5 individual cows. Only the two groupable
+ * categories (overdue doses, pending milk log) are covered here; the other
+ * three priority types are single-entity `findFirst` alerts, unaffected by
+ * this change.
+ */
+describe('DashboardService — priorities (grouped cattle rows)', () => {
+  const cow = (id: string, name: string | null, tag: string) => ({
+    cattle: { id, name, tagNumber: tag },
+  });
+
+  let prisma: {
+    healthTask: { findMany: jest.Mock };
+    pregnancy: { findFirst: jest.Mock };
+    medicine: { findFirst: jest.Mock; fields: { lowStockThreshold: string } };
+    financeReceivable: { findFirst: jest.Mock };
+    task: { count: jest.Mock };
+    cattle: { findMany: jest.Mock };
+    milkLogEntry: { findMany: jest.Mock };
+  };
+  let logger: { setContext: jest.Mock };
+
+  beforeEach(() => {
+    prisma = {
+      healthTask: { findMany: jest.fn().mockResolvedValue([]) },
+      pregnancy: { findFirst: jest.fn().mockResolvedValue(null) },
+      medicine: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        fields: { lowStockThreshold: 'lowStockThreshold' },
+      },
+      financeReceivable: { findFirst: jest.fn().mockResolvedValue(null) },
+      task: { count: jest.fn().mockResolvedValue(0) },
+      cattle: { findMany: jest.fn().mockResolvedValue([]) },
+      milkLogEntry: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+    logger = { setContext: jest.fn().mockReturnThis() };
+  });
+
+  const make = () =>
+    new DashboardService(
+      prisma as never,
+      {} as never, // FinanceService — unused by priorities()
+      {} as never, // MilkService — unused by priorities()
+      {} as never, // HealthService — unused by priorities()
+      {} as never, // FarmSettingsService — unused by priorities()
+      {} as never, // FeedDistributionService — unused by priorities()
+      logger as never,
+    );
+
+  it('omits the overdue-dose and pending-milk rows entirely when there are none', async () => {
+    const service = make();
+    const result = await service.priorities('farm-1');
+    expect(
+      result.priorities.some((p) =>
+        p.message.includes('overdue for treatment'),
+      ),
+    ).toBe(false);
+    expect(
+      result.priorities.some((p) => p.message.includes('Milk log pending')),
+    ).toBe(false);
+  });
+
+  it('groups >1 overdue-dose cows into one row carrying the full cattle list', async () => {
+    prisma.healthTask.findMany.mockResolvedValue([
+      cow('c1', 'Bella', 'T1'),
+      cow('c2', 'Rosie', 'T2'),
+    ]);
+    const service = make();
+    const result = await service.priorities('farm-1');
+    const row = result.priorities.find((p) => p.priority === 'critical');
+    expect(row?.message).toBe('2 cow(s) overdue for treatment dose');
+    expect(row?.count).toBe(2);
+    expect(row?.truncated).toBe(false);
+    expect(row?.cattle).toEqual([
+      { id: 'c1', name: 'Bella', tag: 'T1' },
+      { id: 'c2', name: 'Rosie', tag: 'T2' },
+    ]);
+  });
+
+  it('caps overdue-dose cattle at 50 and marks the row truncated beyond that', async () => {
+    const rows = Array.from({ length: 51 }, (_, i) =>
+      cow(`c${i}`, `Cow ${i}`, `T${i}`),
+    );
+    prisma.healthTask.findMany.mockResolvedValue(rows);
+    const service = make();
+    const result = await service.priorities('farm-1');
+    const row = result.priorities.find((p) => p.priority === 'critical');
+    expect(row?.truncated).toBe(true);
+    expect(row?.count).toBe(50);
+    expect(row?.cattle).toHaveLength(50);
+    expect(row?.message).toBe('50+ cow(s) overdue for treatment dose');
+  });
+
+  it('groups pending milk-log cows into one row carrying the not-yet-logged cattle', async () => {
+    prisma.cattle.findMany.mockResolvedValue([
+      { id: 'c1', name: 'Bella', tagNumber: 'T1' },
+      { id: 'c2', name: 'Rosie', tagNumber: 'T2' },
+      { id: 'c3', name: null, tagNumber: 'T3' },
+    ]);
+    prisma.milkLogEntry.findMany.mockResolvedValue([{ cattleId: 'c1' }]);
+    const service = make();
+    const result = await service.priorities('farm-1');
+    const row = result.priorities.find((p) => p.priority === 'operational');
+    expect(row?.message).toBe('Milk log pending — 2 cow(s) not yet logged');
+    expect(row?.count).toBe(2);
+    expect(row?.truncated).toBe(false);
+    expect(row?.cattle).toEqual([
+      { id: 'c2', name: 'Rosie', tag: 'T2' },
+      { id: 'c3', name: null, tag: 'T3' },
+    ]);
+  });
+
+  it('a single overdue-dose cow still returns a one-item cattle array (frontend hides the chevron itself)', async () => {
+    prisma.healthTask.findMany.mockResolvedValue([cow('c1', 'Bella', 'T1')]);
+    const service = make();
+    const result = await service.priorities('farm-1');
+    const row = result.priorities.find((p) => p.priority === 'critical');
+    expect(row?.cattle).toHaveLength(1);
+    expect(row?.message).toBe('1 cow(s) overdue for treatment dose');
+  });
+});

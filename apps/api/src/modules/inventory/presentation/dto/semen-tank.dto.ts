@@ -84,11 +84,6 @@ export class UpdateSemenTankDto {
   @IsOptional()
   @IsInt()
   @Min(0)
-  numCanes?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
   numGoblets?: number;
 
   @IsOptional()
