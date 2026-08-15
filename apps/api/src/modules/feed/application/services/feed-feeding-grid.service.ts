@@ -13,6 +13,23 @@ import { ConfirmFeedDraftDto } from '../../presentation/dto/confirm-feed-draft.d
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/** Frozen per-line nutrient snapshot (RAKHAL-327/328 follow-up) — same field set/names as
+ * `FeedStock`'s own snapshot and `FeedDistributionItem`'s new nullable columns. */
+type NutrientSnapshot = {
+  dmPct: number;
+  cpPct: number;
+  meMjPerKgDm: number;
+  fatPct: number;
+  ndfPct: number;
+  rdpPct: number;
+  rupPct: number;
+  starchPct: number;
+  adfPct: number;
+  calciumPct: number;
+  phosphorusPct: number;
+  tdnPct: number;
+} | null;
+
 /**
  * Feeding Grid (2026-08-15) — replaces Quick Feed. A per-cow, spreadsheet-style feeding session:
  * a farmer opens the grid for a day (optionally scoped to one feed group), sees every cow with its
@@ -76,7 +93,7 @@ export class FeedFeedingGridService {
         tag_number: c.tagNumber,
         feed_group_id: c.feedGroupId,
         drafts: (draftsByCattle.get(c.id) ?? []).map((d) => this.mapDraft(d)),
-        default_quantity_kg: defaults.get(c.id) ?? null,
+        default_offered_kg: defaults.get(c.id) ?? null,
       })),
     };
   }
@@ -114,7 +131,7 @@ export class FeedFeedingGridService {
         const row = existing
           ? await tx.feedFeedingDraft.update({
               where: { id: existing.id },
-              data: { quantityKg: round2(entry.quantityKg) },
+              data: { offeredKg: round2(entry.offeredKg) },
             })
           : await tx.feedFeedingDraft.create({
               data: {
@@ -125,7 +142,7 @@ export class FeedFeedingGridService {
                 sourceType: dto.sourceType,
                 feedItemId,
                 feedStockId,
-                quantityKg: round2(entry.quantityKg),
+                offeredKg: round2(entry.offeredKg),
                 createdBy: userId,
               },
             });
@@ -182,7 +199,7 @@ export class FeedFeedingGridService {
     const feedStockId = dto.feedStockId ?? null;
 
     const entriesMap = new Map(
-      (dto.entries ?? []).map((e) => [e.cattleId, e.quantityKg]),
+      (dto.entries ?? []).map((e) => [e.cattleId, e.offeredKg]),
     );
     const [drafts, defaults] = await Promise.all([
       this.prisma.feedFeedingDraft.findMany({
@@ -197,7 +214,7 @@ export class FeedFeedingGridService {
       }),
       this.computeDefaults(farmId, cattleIds),
     ]);
-    const draftMap = new Map(drafts.map((d) => [d.cattleId, d.quantityKg]));
+    const draftMap = new Map(drafts.map((d) => [d.cattleId, d.offeredKg]));
 
     const lines = cattleIds
       .map((cattleId) => {
@@ -206,16 +223,16 @@ export class FeedFeedingGridService {
           draftMap.get(cattleId) ??
           defaults.get(cattleId) ??
           0;
-        return { cattleId, quantityKg: round2(qty) };
+        return { cattleId, offeredKg: round2(qty) };
       })
-      .filter((l) => l.quantityKg > 0);
+      .filter((l) => l.offeredKg > 0);
 
     if (lines.length === 0) {
       throw new BadRequestException(
         'No determinable quantity for any cow in scope',
       );
     }
-    const totalKg = round2(lines.reduce((sum, l) => sum + l.quantityKg, 0));
+    const totalKg = round2(lines.reduce((sum, l) => sum + l.offeredKg, 0));
 
     // Resolve the aggregate ingredient line + validate stock BEFORE the transaction — same
     // "fail fast before creating the distribution row" pattern `create()`/`assertSufficientStock`
@@ -223,6 +240,7 @@ export class FeedFeedingGridService {
     let ingredientId: string;
     let ingredientName: string;
     let pricePerKg: number;
+    let nutritionSnapshot: NutrientSnapshot = null;
     let applyDecrement: (tx: Prisma.TransactionClient) => Promise<void>;
     let postCommit: (distributionId: string) => Promise<void>;
 
@@ -235,6 +253,32 @@ export class FeedFeedingGridService {
       ingredientId = usage.ingredientId;
       ingredientName = usage.ingredientName;
       pricePerKg = usage.pricePerKg;
+      // RAKHAL-327/328 follow-up: freeze the SAME live nutrition lookup used to price this line
+      // (see `FeedDistributionService.create()`'s identical pattern) instead of leaving it to be
+      // re-resolved from a possibly-later-edited catalogue every time `getDmiComparison()` runs.
+      // `getEffectiveNutrition()` returns the full `EffectiveIngredient` shape (price/source/etc
+      // too) — narrow it down to just the 12 nutrient fields `FeedDistributionItem` has columns
+      // for, otherwise Prisma rejects the extra keys on create.
+      const eff = await this.feedDistribution.getEffectiveNutrition(
+        farmId,
+        ingredientId,
+      );
+      nutritionSnapshot = eff
+        ? {
+            dmPct: eff.dmPct,
+            cpPct: eff.cpPct,
+            meMjPerKgDm: eff.meMjPerKgDm,
+            fatPct: eff.fatPct,
+            ndfPct: eff.ndfPct,
+            rdpPct: eff.rdpPct,
+            rupPct: eff.rupPct,
+            starchPct: eff.starchPct,
+            adfPct: eff.adfPct,
+            calciumPct: eff.calciumPct,
+            phosphorusPct: eff.phosphorusPct,
+            tdnPct: eff.tdnPct,
+          }
+        : null;
       applyDecrement = async (tx) => {
         await tx.feedItem.update({
           where: { id: usage.feedItem.id },
@@ -256,6 +300,23 @@ export class FeedFeedingGridService {
         stock.producedQtyKg > 0
           ? round2(stock.producedCostTk / stock.producedQtyKg)
           : 0;
+      // A `FeedStock` lot already carries its own produce-time nutrient snapshot
+      // (`FeedStock.dmPct`/etc, RAKHAL-327) — reuse it directly rather than re-deriving from the
+      // concentration's live recipe.
+      nutritionSnapshot = {
+        dmPct: stock.dmPct,
+        cpPct: stock.cpPct,
+        meMjPerKgDm: stock.meMjPerKgDm,
+        fatPct: stock.fatPct,
+        ndfPct: stock.ndfPct,
+        rdpPct: stock.rdpPct,
+        rupPct: stock.rupPct,
+        starchPct: stock.starchPct,
+        adfPct: stock.adfPct,
+        calciumPct: stock.calciumPct,
+        phosphorusPct: stock.phosphorusPct,
+        tdnPct: stock.tdnPct,
+      };
       applyDecrement = async () => {};
       postCommit = async (distributionId: string) => {
         await this.feedStock.decrementForDistribution(farmId, userId, {
@@ -295,13 +356,14 @@ export class FeedFeedingGridService {
                 refusalKg: 0,
                 pricePerKg,
                 lineCost,
+                ...(nutritionSnapshot ?? {}),
               },
             ],
           },
           cattleItems: {
             create: lines.map((l) => ({
               cattleId: l.cattleId,
-              quantityKg: l.quantityKg,
+              offeredKg: l.offeredKg,
             })),
           },
         },
@@ -343,7 +405,7 @@ export class FeedFeedingGridService {
       total_actual_cost: created.totalActualCost,
       cows: created.cattleItems.map((c) => ({
         cattle_id: c.cattleId,
-        quantity_kg: c.quantityKg,
+        offered_kg: c.offeredKg,
       })),
     };
   }
@@ -400,14 +462,14 @@ export class FeedFeedingGridService {
       },
       select: {
         cattleId: true,
-        quantityKg: true,
+        offeredKg: true,
         distribution: { select: { distributedAt: true } },
       },
       orderBy: { distribution: { distributedAt: 'desc' } },
     });
     const map = new Map<string, number>();
     for (const row of rows) {
-      if (!map.has(row.cattleId)) map.set(row.cattleId, row.quantityKg);
+      if (!map.has(row.cattleId)) map.set(row.cattleId, row.offeredKg);
     }
     return map;
   }
@@ -429,7 +491,7 @@ export class FeedFeedingGridService {
     sourceType: FeedGridSourceType;
     feedItemId: string | null;
     feedStockId: string | null;
-    quantityKg: number;
+    offeredKg: number;
     updatedAt: Date;
   }) {
     return {
@@ -437,7 +499,7 @@ export class FeedFeedingGridService {
       source_type: row.sourceType,
       feed_item_id: row.feedItemId,
       feed_stock_id: row.feedStockId,
-      quantity_kg: row.quantityKg,
+      offered_kg: row.offeredKg,
       updated_at: row.updatedAt,
     };
   }

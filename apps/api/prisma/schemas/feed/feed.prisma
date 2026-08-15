@@ -292,6 +292,26 @@ model FeedDistributionItem {
   pricePerKg Float
   lineCost   Float /// actualKg * pricePerKg
 
+  /// Nutrient snapshot at logging time (RAKHAL-327/328 follow-up, 2026-08-15), frozen from the SAME
+  /// live `effectiveMap()`/`resolveEffective()` lookup already made to price this line — same field
+  /// set/names as `FeedStock`'s own snapshot (`feed-stock.prisma`) for consistency. Nullable because
+  /// existing rows predate this column and are never backfilled (a null here means "nutrient data not
+  /// available for this historical entry", not zero). Once populated, `getDmiComparison()` reads these
+  /// frozen values directly instead of re-resolving the live catalogue for a historical distribution —
+  /// so a farmer editing an ingredient's nutrients later can never silently rewrite a past DMI report.
+  dmPct         Float?
+  cpPct         Float?
+  meMjPerKgDm   Float?
+  fatPct        Float?
+  ndfPct        Float?
+  rdpPct        Float?
+  rupPct        Float?
+  starchPct     Float?
+  adfPct        Float?
+  calciumPct    Float?
+  phosphorusPct Float?
+  tdnPct        Float?
+
   distribution FeedDistribution @relation(fields: [distributionId], references: [id], onDelete: Cascade)
 
   @@index([distributionId])
@@ -308,8 +328,11 @@ model FeedDistributionCattleItem {
   id             String @id @default(cuid())
   distributionId String
 
-  cattleId   String
-  quantityKg Float
+  cattleId String
+  /// What was **offered** to this cow, not what she actually ate — a real farm can't reliably
+  /// measure per-cow intake, only what was put in front of her (2026-08-15 rename from
+  /// `quantityKg`, user request — the field/API/UI must never imply "consumed").
+  offeredKg Float
 
   distribution FeedDistribution @relation(fields: [distributionId], references: [id], onDelete: Cascade)
 
@@ -344,7 +367,10 @@ model FeedFeedingDraft {
   feedItemId  String?
   feedStockId String?
 
-  quantityKg Float
+  /// What was **offered** to this cow, not what she actually ate (2026-08-15 rename from
+  /// `quantityKg`, user request — see `FeedDistributionCattleItem.offeredKg`'s doc comment,
+  /// same rationale).
+  offeredKg Float
 
   createdBy String
   createdAt DateTime @default(now())

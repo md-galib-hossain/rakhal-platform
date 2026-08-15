@@ -1,4 +1,4 @@
-import request from 'supertest';
+﻿import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
@@ -7,7 +7,7 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
  * GET the grid back reflects it; (2) confirm with no draft falls back to the carried-forward default
  * from a prior confirmed feeding; (3) confirm decrements `FeedItem.currentStock` and creates
  * `FeedDistribution` + `FeedDistributionCattleItem` rows; (4) a second day's `GET /feed/grid` shows
- * `default_quantity_kg` prefilled from the first day's confirmed per-cow quantity; (5) RBAC — a
+ * `default_offered_kg` prefilled from the first day's confirmed per-cow quantity; (5) RBAC — a
  * worker without `feed.read` can't view the grid but can save/confirm via
  * `feed.distribution-log`; manager/owner both succeed at every step.
  *
@@ -22,6 +22,7 @@ describe('Feeding Grid (e2e)', () => {
 
   let feedGroupId: string;
   let feedItemId: string;
+  let ingredientId: string;
   let cowA: string;
   let cowB: string;
 
@@ -74,9 +75,11 @@ describe('Feeding Grid (e2e)', () => {
       .send({
         name: `E2E Grid Ingredient ${Date.now()}`,
         pricePerKg: 10,
+        dmPct: 90,
+        cpPct: 16,
       })
       .expect(201);
-    const ingredientId = ingredient.body.data.id as string;
+    ingredientId = ingredient.body.data.id as string;
 
     const feedItem = await request(server())
       .post(api('/inventory/feed-items'))
@@ -108,8 +111,8 @@ describe('Feeding Grid (e2e)', () => {
         sourceType: 'FEED_ITEM',
         feedItemId,
         entries: [
-          { cattleId: cowA, quantityKg: 5 },
-          { cattleId: cowB, quantityKg: 6 },
+          { cattleId: cowA, offeredKg: 5 },
+          { cattleId: cowB, offeredKg: 6 },
         ],
       })
       .expect(201);
@@ -124,7 +127,9 @@ describe('Feeding Grid (e2e)', () => {
       drafts: Array<{
         source_type: string;
         feed_item_id: string | null;
-        quantity_kg: number;
+        offered_kg: number;
+        // The API must never expose the pre-rename field name again.
+        quantity_kg?: number;
       }>;
     }>;
     const rowA = cows.find((c) => c.cattle_id === cowA)!;
@@ -133,9 +138,10 @@ describe('Feeding Grid (e2e)', () => {
     expect(rowA.drafts[0]).toMatchObject({
       source_type: 'FEED_ITEM',
       feed_item_id: feedItemId,
-      quantity_kg: 5,
+      offered_kg: 5,
     });
-    expect(rowB.drafts[0].quantity_kg).toBe(6);
+    expect(rowA.drafts[0].quantity_kg).toBeUndefined();
+    expect(rowB.drafts[0].offered_kg).toBe(6);
   });
 
   it('confirms from the saved draft, decrements FeedItem stock, and creates the aggregate + per-cow rows', async () => {
@@ -175,10 +181,35 @@ describe('Feeding Grid (e2e)', () => {
     expect(distribution!.items).toHaveLength(1);
     expect(distribution!.cattleItems).toHaveLength(2);
     const byCattle = new Map(
-      distribution!.cattleItems.map((c) => [c.cattleId, c.quantityKg]),
+      distribution!.cattleItems.map((c) => [c.cattleId, c.offeredKg]),
     );
     expect(byCattle.get(cowA)).toBe(5);
     expect(byCattle.get(cowB)).toBe(6);
+
+    // RAKHAL-327/328 follow-up: the aggregate line carries a frozen nutrient snapshot matching the
+    // ingredient's values AT CONFIRM TIME (dmPct: 90, cpPct: 16, set on ingredient creation above).
+    const line = distribution!.items[0];
+    expect(line.dmPct).toBe(90);
+    expect(line.cpPct).toBe(16);
+
+    // Editing the ingredient's nutrition AFTER confirming must not change the already-frozen line.
+    await request(server())
+      .patch(api(`/feed/ingredients/custom/${ingredientId}`))
+      .set(...auth(owner))
+      .send({ cpPct: 30 })
+      .expect(200);
+
+    const afterEdit = await prisma.feedDistributionItem.findUnique({
+      where: { id: line.id },
+    });
+    expect(afterEdit!.cpPct).toBe(16); // unchanged — still the value at confirm time
+    expect(afterEdit!.dmPct).toBe(90);
+
+    const distAfterEdit = await request(server())
+      .get(api(`/feed/distributions/${distributionId}`))
+      .set(...auth(owner))
+      .expect(200);
+    expect(distAfterEdit.body.data.items[0].line_cost).toBe(line.lineCost); // cost untouched too
 
     // Confirming consumes the day's drafts.
     const grid = await request(server())
@@ -191,21 +222,21 @@ describe('Feeding Grid (e2e)', () => {
     expect(rowA.drafts).toHaveLength(0);
   });
 
-  it("a second day's grid shows default_quantity_kg prefilled from the first day's confirmed quantity, and confirming with no draft falls back to it", async () => {
+  it("a second day's grid shows default_offered_kg prefilled from the first day's confirmed quantity, and confirming with no draft falls back to it", async () => {
     const grid = await request(server())
       .get(api(`/feed/grid?date=2026-05-02&feedGroupId=${feedGroupId}`))
       .set(...auth(owner))
       .expect(200);
     const cows = grid.body.data.cows as Array<{
       cattle_id: string;
-      default_quantity_kg: number | null;
+      default_offered_kg: number | null;
       drafts: unknown[];
     }>;
     const rowA = cows.find((c) => c.cattle_id === cowA)!;
     const rowB = cows.find((c) => c.cattle_id === cowB)!;
     expect(rowA.drafts).toHaveLength(0);
-    expect(rowA.default_quantity_kg).toBe(5);
-    expect(rowB.default_quantity_kg).toBe(6);
+    expect(rowA.default_offered_kg).toBe(5);
+    expect(rowB.default_offered_kg).toBe(6);
 
     const before = await request(server())
       .get(api(`/inventory/feed-items/${feedItemId}`))
@@ -242,7 +273,7 @@ describe('Feeding Grid (e2e)', () => {
           date: '2026-05-03',
           sourceType: 'FEED_ITEM',
           feedItemId,
-          entries: [{ cattleId: cowA, quantityKg: 1 }],
+          entries: [{ cattleId: cowA, offeredKg: 1 }],
           farmId: 'x',
         })
         .expect(400);
@@ -256,7 +287,7 @@ describe('Feeding Grid (e2e)', () => {
           date: '2026-05-03',
           sourceType: 'FEED_ITEM',
           feedItemId: 'does-not-exist',
-          entries: [{ cattleId: cowA, quantityKg: 1 }],
+          entries: [{ cattleId: cowA, offeredKg: 1 }],
         })
         .expect(404);
     });
@@ -277,7 +308,7 @@ describe('Feeding Grid (e2e)', () => {
           feedGroupId,
           sourceType: 'FEED_ITEM',
           feedItemId,
-          entries: [{ cattleId: cowA, quantityKg: 2 }],
+          entries: [{ cattleId: cowA, offeredKg: 2 }],
         })
         .expect(201);
 
@@ -289,7 +320,7 @@ describe('Feeding Grid (e2e)', () => {
           feedGroupId,
           sourceType: 'FEED_ITEM',
           feedItemId,
-          entries: [{ cattleId: cowA, quantityKg: 2 }],
+          entries: [{ cattleId: cowA, offeredKg: 2 }],
         })
         .expect(201);
     });
@@ -308,7 +339,7 @@ describe('Feeding Grid (e2e)', () => {
           feedGroupId,
           sourceType: 'FEED_ITEM',
           feedItemId,
-          entries: [{ cattleId: cowB, quantityKg: 3 }],
+          entries: [{ cattleId: cowB, offeredKg: 3 }],
         })
         .expect(201);
     });

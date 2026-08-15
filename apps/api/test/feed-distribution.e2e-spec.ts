@@ -362,7 +362,7 @@ describe('Feed Distribution — stock enforcement (e2e)', () => {
         date: '2026-06-20',
         sourceType: 'FEED_ITEM',
         feedItemId,
-        entries: [{ cattleId, quantityKg: 10 }],
+        entries: [{ cattleId, offeredKg: 10 }],
       })
       .expect(400);
 

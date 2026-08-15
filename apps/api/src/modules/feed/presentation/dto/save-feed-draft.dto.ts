@@ -22,9 +22,11 @@ export class FeedDraftEntryDto {
   @IsNotEmpty()
   cattleId!: string;
 
+  /** What was offered to this cow, not what she actually ate — a real farm can't reliably
+   * measure per-cow intake (2026-08-15 rename from `quantityKg`). */
   @IsNumber()
   @Min(0)
-  quantityKg!: number;
+  offeredKg!: number;
 }
 
 /** `POST /feed/grid/draft` — auto-save a day's per-cow feeding-grid quantities for one feed

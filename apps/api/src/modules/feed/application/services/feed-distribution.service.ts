@@ -8,7 +8,6 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { resolveEffective } from '../../domain/ingredient-resolver';
-import { computeTotals, FormulaLine } from '../../domain/formula-math';
 import { LogDistributionDto } from '../../presentation/dto/log-distribution.dto';
 import { PatchRefusalDto } from '../../presentation/dto/patch-refusal.dto';
 import {
@@ -98,6 +97,25 @@ export class FeedDistributionService {
         pricePerKg: round2(price),
         lineCost: round2(actualKg * price),
         stockId: override?.stockId,
+        // RAKHAL-327/328 follow-up: freeze the SAME live `effectiveMap()` lookup already made to
+        // price this line, so a later edit to the ingredient's nutrients in the catalogue can't
+        // silently rewrite this historical distribution's nutrient totals.
+        ...(eff
+          ? {
+              dmPct: eff.dmPct,
+              cpPct: eff.cpPct,
+              meMjPerKgDm: eff.meMjPerKgDm,
+              fatPct: eff.fatPct,
+              ndfPct: eff.ndfPct,
+              rdpPct: eff.rdpPct,
+              rupPct: eff.rupPct,
+              starchPct: eff.starchPct,
+              adfPct: eff.adfPct,
+              calciumPct: eff.calciumPct,
+              phosphorusPct: eff.phosphorusPct,
+              tdnPct: eff.tdnPct,
+            }
+          : {}),
       };
     });
 
@@ -188,6 +206,18 @@ export class FeedDistributionService {
       refusalKg: line.refusalKg,
       pricePerKg: line.pricePerKg,
       lineCost: line.lineCost,
+      dmPct: line.dmPct ?? null,
+      cpPct: line.cpPct ?? null,
+      meMjPerKgDm: line.meMjPerKgDm ?? null,
+      fatPct: line.fatPct ?? null,
+      ndfPct: line.ndfPct ?? null,
+      rdpPct: line.rdpPct ?? null,
+      rupPct: line.rupPct ?? null,
+      starchPct: line.starchPct ?? null,
+      adfPct: line.adfPct ?? null,
+      calciumPct: line.calciumPct ?? null,
+      phosphorusPct: line.phosphorusPct ?? null,
+      tdnPct: line.tdnPct ?? null,
     }));
 
     // Target is derived from the source TMR, never supplied by the caller directly (Phase 12.4,
@@ -512,8 +542,9 @@ export class FeedDistributionService {
   /**
    * Actual vs expected dry-matter intake for a cow (2026-08-13, user request). Expected
    * comes from `FeedRequirementsService`'s NRC-2001 calc for this cow; actual sums that
-   * day's distribution(s) that reach her, converted to DM via each line's ingredient `dmPct`
-   * (same `computeTotals` the formula builder itself uses). A GROUP- or HERD-targeted
+   * day's distribution(s) that reach her, converted to DM via each line's FROZEN `dmPct`
+   * snapshot (RAKHAL-327/328 follow-up, 2026-08-15 — no live catalogue lookup for historical
+   * rows anymore, see the inline comment below). A GROUP- or HERD-targeted
    * ration's distribution is shared across many cows, so actual DMI is pro-rated by
    * headcount at that level — the same "divide the shared total by who's eating from it"
    * idea `lactation-economics.service.ts`'s `computeAllocatedFeedCost` uses for cost, kept
@@ -544,7 +575,7 @@ export class FeedDistributionService {
     const dateFilter = { gte: day, lt: nextDay };
 
     let distributions: {
-      items: { ingredientId: string; actualKg: number }[];
+      items: { ingredientId: string; actualKg: number; dmPct: number | null }[];
     }[];
     let headcount = 1;
 
@@ -596,14 +627,16 @@ export class FeedDistributionService {
       };
     }
 
-    const ingredientIds = allItems.map((i) => i.ingredientId);
-    const effById = await this.effectiveMap(farmId, ingredientIds);
-    const lines: FormulaLine[] = allItems.map((i) => ({
-      ingredientId: i.ingredientId,
-      amountKg: i.actualKg,
-    }));
-    const { totals } = computeTotals(lines, effById);
-    const actualDmiKg = round2(totals.dm_kg / headcount);
+    // RAKHAL-327/328 follow-up: read each line's FROZEN `dmPct` snapshot (taken at logging time,
+    // `create()`/`FeedFeedingGridService#confirm`) instead of re-resolving the live catalogue via
+    // `effectiveMap()` — a farmer editing an ingredient's nutrients later can no longer silently
+    // rewrite a past DMI comparison. Lines predating this snapshot (`dmPct === null`) are excluded
+    // rather than re-derived, matching this column's "no backfill, don't fabricate" convention.
+    const dmKgTotal = allItems.reduce((sum, i) => {
+      if (i.dmPct == null) return sum;
+      return sum + i.actualKg * (i.dmPct / 100);
+    }, 0);
+    const actualDmiKg = round2(dmKgTotal / headcount);
     const deltaPct =
       expectedDmiKg > 0
         ? round2(((actualDmiKg - expectedDmiKg) / expectedDmiKg) * 100)
@@ -781,6 +814,14 @@ export class FeedDistributionService {
       }
       return { forageId, newStock: round2(f.currentStock - used) };
     });
+  }
+
+  /** Public single-id wrapper around `effectiveMap()` (RAKHAL-327/328 follow-up) — lets
+   * `FeedFeedingGridService#confirm`'s `FEED_ITEM` path freeze the same live nutrition lookup
+   * this service uses internally, without duplicating the ingredient+override query here. */
+  async getEffectiveNutrition(farmId: string, ingredientId: string) {
+    const map = await this.effectiveMap(farmId, [ingredientId]);
+    return map.get(ingredientId) ?? null;
   }
 
   // No `isActive` filter (RAKHAL-310): `ingredientIds` come from an existing
