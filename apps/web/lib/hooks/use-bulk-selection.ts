@@ -45,8 +45,9 @@ export function useTableBulkSelection(
  * TanStack row model to hang a `RowSelectionState` off of. */
 export function useGridBulkSelection(
   allIds: string[],
+  initialSelected: string[] = [],
 ): BulkSelectionAdapter & { isSelected: (id: string) => boolean; toggle: (id: string) => void } {
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(initialSelected));
   const isAllSelected = allIds.length > 0 && allIds.every((id) => selected.has(id));
 
   return {

@@ -95,7 +95,9 @@ export interface FeedIngredient {
  * `effective_price_per_kg` (see backend `listPaged`'s doc comment). */
 export interface IngredientListFilters {
   search?: string;
-  feedClass?: FeedClass;
+  /** Multi-select (2026-08-15, reusable FilterBar checklist) — sent to the backend comma-joined,
+   * matched there with an `in`. */
+  feedClass?: FeedClass[];
   priceMin?: number;
   priceMax?: number;
 }
@@ -473,16 +475,85 @@ export interface TodaysFeedRequirement {
   grand_total_kg: number;
 }
 
-/** `POST /feed/quick-feed` — feed a single raw inventory item straight to a cow/group/herd, no
- * Concentration involved (user's own confirmed preference — own lightweight path). */
-export interface QuickFeedPayload {
-  feedItemId: string;
+/** Which raw inventory catalogue a Feeding Grid entry pulls from — a Purchased `FeedItem` (bought
+ * ingredient) or a Prepared `FeedStock` lot (a finalized Total Mixed Ration batch). */
+export type FeedGridSourceType = "FEED_ITEM" | "FEED_STOCK";
+
+/** One already-saved (not yet confirmed) draft line for a cow on the Feeding Grid, as returned by
+ * `GET /feed/grid`. A cow can carry more than one draft (e.g. two different items across two
+ * separate Save actions on the same date), though the grid's own bulk-assign flow only ever writes
+ * one source item per Save/Confirm call. */
+export interface FeedGridDraft {
+  id: string;
+  source_type: FeedGridSourceType;
+  feed_item_id: string | null;
+  feed_stock_id: string | null;
+  quantity_kg: number;
+}
+
+/** `GET /feed/grid` row — one cow. `default_quantity_kg` is the backend-computed carry-forward
+ * value (yesterday's confirmed per-head amount) — the frontend only ever displays/edits it, never
+ * recomputes it. `null` when the cow has no prior confirmed feeding to carry forward (confirmed
+ * live against the real dev stack — a fresh group with no feeding history returns `null`, not `0`). */
+export interface FeedGridCow {
+  cattle_id: string;
+  name: string | null;
+  tag_number: string;
+  feed_group_id: string | null;
+  drafts: FeedGridDraft[];
+  default_quantity_kg: number | null;
+}
+
+/** `GET /feed/grid?date&feedGroupId?` — the Feeding Grid's own per-day, per-cow view; replaces the
+ * single-item Quick Feed dialog (2026-08-15). */
+export interface FeedGridResult {
+  date: string;
+  feed_group_id: string | null;
+  cows: FeedGridCow[];
+}
+
+export interface FeedGridEntryInput {
+  cattleId: string;
   quantityKg: number;
-  targetType: FeedTargetType;
+}
+
+/** `POST /feed/grid/draft` — saves per-cow quantities against one source item, no inventory effect. */
+export interface SaveFeedGridDraftPayload {
+  date: string;
   feedGroupId?: string;
-  cattleId?: string;
-  distributedAt?: string;
-  notes?: string;
+  sourceType: FeedGridSourceType;
+  feedItemId?: string;
+  feedStockId?: string;
+  entries: FeedGridEntryInput[];
+}
+
+export interface SaveFeedGridDraftResult {
+  saved: number;
+  drafts: FeedGridDraft[];
+}
+
+/** `POST /feed/grid/confirm` — same shared fields as the draft save; `entries` is optional per cow —
+ * when omitted for a cow, the backend falls back to that cow's own `default_quantity_kg`. Decrements
+ * inventory — "the feeding actually happened" step. */
+export interface ConfirmFeedGridPayload {
+  date: string;
+  feedGroupId?: string;
+  sourceType: FeedGridSourceType;
+  feedItemId?: string;
+  feedStockId?: string;
+  entries?: FeedGridEntryInput[];
+}
+
+export interface ConfirmFeedGridResult {
+  id: string;
+  date: string;
+  feed_group_id: string | null;
+  source_type: FeedGridSourceType;
+  feed_item_id: string | null;
+  feed_stock_id: string | null;
+  total_actual_kg: number;
+  total_actual_cost: number;
+  cows: { cattle_id: string; quantity_kg: number }[];
 }
 
 /** `PATCH /feed/distributions/:id/refusal` — next-day leftover weigh-in. */

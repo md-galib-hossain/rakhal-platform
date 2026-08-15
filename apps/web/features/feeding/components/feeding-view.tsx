@@ -1,8 +1,8 @@
-"use client"; // dashboard stats + quick-feed/feed-today dialog open state
+"use client"; // dashboard stats + feed-today dialog open state
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Plus, Wheat } from "lucide-react";
+import { Wheat } from "lucide-react";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Can } from "@/lib/auth/permissions";
 import { useConcentrations, useFeedCostSummary, useFeedGroups, useTodaysRequirement } from "@/features/feed/hooks/use-feed";
 import { LogDistributionDialog } from "@/features/feed/components/log-distribution-dialog";
-import { QuickFeedDialog } from "@/features/feed/components/quick-feed-dialog";
 import type { FeedGroup } from "@/features/feed/types";
+import { FeedingGrid } from "./feeding-grid";
 
 function StatTile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
@@ -29,8 +29,8 @@ function StatTile({ label, value, sub }: { label: string; value: string; sub?: s
  * TMRs are *built*). Composes existing hooks/dialogs rather than adding new backend routes: today's
  * farm-wide feed requirement (`useTodaysRequirement`), feed cost summary (`useFeedCostSummary`), a
  * per-group "Feed Today" quick-action list (reusing the existing `LogDistributionDialog`, keyed by
- * each group's own GROUP-targeted TMR if one exists), and a "Quick Feed" button for single-item
- * feeding (`QuickFeedDialog`).
+ * each group's own GROUP-targeted TMR if one exists), and — at the top, replacing the old single-item
+ * Quick Feed dialog (2026-08-15) — the per-day, per-cow `FeedingGrid`.
  */
 export function FeedingView() {
   const t = useTranslations("feeding");
@@ -40,7 +40,6 @@ export function FeedingView() {
   const concentrations = useConcentrations();
 
   const [feedTodayId, setFeedTodayId] = useState<string | null>(null);
-  const [quickFeedOpen, setQuickFeedOpen] = useState(false);
 
   // One active GROUP-targeted TMR per feed group, if any — used to route a group's "Feed Today"
   // click straight to the existing distribution dialog without the user picking a Concentration
@@ -62,15 +61,9 @@ export function FeedingView() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
-        <Can I="feed.distribution-log">
-          <Button onClick={() => setQuickFeedOpen(true)}>
-            <Plus className="size-4" aria-hidden />
-            {t("quickFeedAction")}
-          </Button>
-        </Can>
-      </div>
+      <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+
+      <FeedingGrid />
 
       {isLoading ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -146,7 +139,6 @@ export function FeedingView() {
       )}
 
       <LogDistributionDialog concentrationId={feedTodayId} onOpenChange={(open) => !open && setFeedTodayId(null)} />
-      <QuickFeedDialog open={quickFeedOpen} onOpenChange={setQuickFeedOpen} />
     </div>
   );
 }

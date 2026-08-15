@@ -1,7 +1,7 @@
-"use client"; // live queries + quick-feed shortcut dialog state
+"use client"; // live queries only — the feeding action itself now lives on the /feeding grid
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
+import Link from "next/link";
 import { Wheat } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,6 @@ import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Can } from "@/lib/auth/permissions";
 import { useDmi, useResolvedRation } from "@/features/feed/hooks/use-feed";
-import { QuickFeedDialog } from "@/features/feed/components/quick-feed-dialog";
 
 const MATCH_LEVEL_VARIANT: Record<string, "success" | "info" | "secondary"> = {
   INDIVIDUAL: "success",
@@ -22,15 +21,15 @@ const MATCH_LEVEL_VARIANT: Record<string, "success" | "info" | "secondary"> = {
 /**
  * Cattle-detail Feeding tab (2026-08-13, user request). Shows the cow's resolved active ration
  * (layered targeting — Individual override > Group > Herd default, see `useResolvedRation`) and
- * her actual-vs-expected dry-matter intake (`useDmi`), plus a "Feed this cow now" shortcut
- * pre-targeting `QuickFeedDialog` at this `cattleId`. No new backend routes — composes the
- * feeding-system-upgrade endpoints already built.
+ * her actual-vs-expected dry-matter intake (`useDmi`). The single-item "Feed this cow now" shortcut
+ * (`QuickFeedDialog`) was removed 2026-08-15 in favor of the per-day, per-cow Feeding Grid — this
+ * tab now just links there instead of duplicating a feeding entry point. No new backend routes —
+ * composes the feeding-system-upgrade endpoints already built.
  */
 export function FeedingTab({ cattleId }: { cattleId: string }) {
   const t = useTranslations("cattle.detail.feeding");
   const ration = useResolvedRation(cattleId);
   const dmi = useDmi(cattleId);
-  const [quickFeedOpen, setQuickFeedOpen] = useState(false);
 
   const isLoading = ration.isLoading || dmi.isLoading;
   const isError = ration.isError || dmi.isError;
@@ -51,8 +50,8 @@ export function FeedingTab({ cattleId }: { cattleId: string }) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-end">
         <Can I="feed.distribution-log">
-          <Button variant="secondary" size="sm" onClick={() => setQuickFeedOpen(true)}>
-            {t("feedNow")}
+          <Button variant="secondary" size="sm" asChild>
+            <Link href="/feeding">{t("goToFeedingGrid")}</Link>
           </Button>
         </Can>
       </div>
@@ -102,8 +101,6 @@ export function FeedingTab({ cattleId }: { cattleId: string }) {
           <EmptyState icon={Wheat} title={t("noDmi")} description={t("noDmiDescription")} />
         )}
       </Card>
-
-      <QuickFeedDialog open={quickFeedOpen} onOpenChange={setQuickFeedOpen} initialCattleId={cattleId} />
     </div>
   );
 }

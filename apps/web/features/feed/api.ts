@@ -4,6 +4,8 @@ import { apiFetch, apiFetchPage } from "@/lib/api/client";
 import type { CursorPage } from "@/types/api";
 import type {
   BulkDeleteConcentrationPayload,
+  ConfirmFeedGridPayload,
+  ConfirmFeedGridResult,
   CreateCustomIngredientPayload,
   CreateFeedConcentrationPayload,
   DmiComparison,
@@ -15,6 +17,7 @@ import type {
   FeedDistribution,
   FeedDistributionSummary,
   FeedEfficiencyResult,
+  FeedGridResult,
   FeedGroup,
   FeedIngredient,
   FeedRequirementsResult,
@@ -27,9 +30,10 @@ import type {
   NormalizeConcentrationPayload,
   NormalizeConcentrationResult,
   PatchRefusalPayload,
-  QuickFeedPayload,
   RefusalTrend,
   ResolvedRation,
+  SaveFeedGridDraftPayload,
+  SaveFeedGridDraftResult,
   SetFeedOverridePayload,
   TodaysFeedRequirement,
   UpdateCustomIngredientPayload,
@@ -55,7 +59,7 @@ export const feedApi = {
     return apiFetchPage<FeedIngredient>("/feed/ingredients/paged", {
       searchParams: {
         search: filters.search,
-        feedClass: filters.feedClass,
+        feedClass: filters.feedClass?.length ? filters.feedClass.join(",") : undefined,
         priceMin: filters.priceMin,
         priceMax: filters.priceMax,
         cursor,
@@ -180,9 +184,16 @@ export const feedApi = {
   getTodaysRequirement(): Promise<TodaysFeedRequirement> {
     return apiFetch<TodaysFeedRequirement>("/feed/today-requirement");
   },
-  /** Feed a raw inventory item straight to a cow/group/herd, no Concentration involved. */
-  quickFeed(dto: QuickFeedPayload): Promise<FeedDistribution> {
-    return apiFetch<FeedDistribution>("/feed/quick-feed", { method: "POST", body: dto });
+  /** Feeding Grid (2026-08-15) — replaces the single-item Quick Feed dialog. One row per cow, one
+   * source item per Save/Confirm call, `entries` is per-cow quantity. */
+  getFeedGrid(params: { date: string; feedGroupId?: string }): Promise<FeedGridResult> {
+    return apiFetch<FeedGridResult>("/feed/grid", { searchParams: params });
+  },
+  saveFeedGridDraft(dto: SaveFeedGridDraftPayload): Promise<SaveFeedGridDraftResult> {
+    return apiFetch<SaveFeedGridDraftResult>("/feed/grid/draft", { method: "POST", body: dto });
+  },
+  confirmFeedGrid(dto: ConfirmFeedGridPayload): Promise<ConfirmFeedGridResult> {
+    return apiFetch<ConfirmFeedGridResult>("/feed/grid/confirm", { method: "POST", body: dto });
   },
   /** Next-day leftover weigh-in. */
   patchRefusal(distributionId: string, dto: PatchRefusalPayload): Promise<FeedDistribution> {

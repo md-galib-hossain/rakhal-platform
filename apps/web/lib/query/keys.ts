@@ -144,6 +144,7 @@ export const qk = {
     resolvedRation: (cattleId: string) => ["feed", "resolved-ration", cattleId] as const,
     dmi: (cattleId: string, date?: string) => ["feed", "dmi", cattleId, date] as const,
     todaysRequirement: () => ["feed", "today-requirement"] as const,
+    grid: (date: string, feedGroupId: string | undefined) => ["feed", "grid", date, feedGroupId] as const,
     refusalTrend: (feedGroupId: string) => ["feed", "refusal-trend", feedGroupId] as const,
     versions: (concentrationId: string) => ["feed", "versions", concentrationId] as const,
     costSummary: () => ["feed", "cost-summary"] as const,

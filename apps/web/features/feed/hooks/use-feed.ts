@@ -5,6 +5,7 @@ import { qk } from "@/lib/query/keys";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { feedApi } from "../api";
 import type {
+  ConfirmFeedGridPayload,
   CreateCustomIngredientPayload,
   IngredientListFilters,
   SetFeedOverridePayload,
@@ -14,7 +15,7 @@ import type {
   LogDistributionPayload,
   NormalizeConcentrationPayload,
   PatchRefusalPayload,
-  QuickFeedPayload,
+  SaveFeedGridDraftPayload,
   UpdateFeedConcentrationPayload,
 } from "../types";
 
@@ -47,7 +48,7 @@ export function useFeedIngredients() {
  * above stays the plain unpaginated array pickers/dialogs need for full-catalogue selection. */
 export function useIngredientPagedList(filters: IngredientListFilters) {
   return useCursorPager(
-    qk.feed.ingredientsPaged({ ...filters }),
+    qk.feed.ingredientsPaged({ ...filters, feedClass: filters.feedClass?.join(",") }),
     (cursor, limit) => feedApi.listIngredientsPaged(filters, cursor, limit),
     { staleTime: STALE_TIME },
   );
@@ -358,18 +359,44 @@ export function useTodaysRequirement() {
   });
 }
 
-/** Feed a raw inventory item straight to a cow/group/herd, no Concentration involved. Invalidates
- * the same stock/distribution/efficiency queries `useLogDistribution` does, plus today's requirement
- * (headcount-derived, doesn't actually change, but the dashboard's "fed today" tally does). */
-export function useQuickFeed() {
+/** Feeding Grid (2026-08-15) — per-day, per-cow grid replacing the single-item Quick Feed dialog. */
+export function useFeedGrid(date: string, feedGroupId?: string) {
+  return useQuery({
+    queryKey: qk.feed.grid(date, feedGroupId),
+    queryFn: () => feedApi.getFeedGrid({ date, feedGroupId }),
+    staleTime: STALE_TIME,
+  });
+}
+
+/** Saves the grid's staged per-cow quantities against one source item — no inventory effect.
+ * Invalidates just this date+group's grid query. */
+export function useSaveFeedDraft() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (dto: QuickFeedPayload) => feedApi.quickFeed(dto),
-    onSuccess: () => {
+    mutationFn: (dto: SaveFeedGridDraftPayload) => feedApi.saveFeedGridDraft(dto),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: qk.feed.grid(variables.date, variables.feedGroupId) });
+    },
+  });
+}
+
+/** Confirms the grid's staged (or freshly entered) per-cow quantities — decrements inventory, this
+ * is the "feeding actually happened" step. Invalidates the grid itself plus stock/distribution/
+ * efficiency/today's-requirement, same set `useLogDistribution` does. */
+export function useConfirmFeedDraft() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: ConfirmFeedGridPayload) => feedApi.confirmFeedGrid(dto),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: qk.feed.grid(variables.date, variables.feedGroupId) });
       void queryClient.invalidateQueries({ queryKey: qk.feed.stock() });
       void queryClient.invalidateQueries({
         predicate: (query) => query.queryKey[0] === "feed" && query.queryKey[1] === "distributions",
       });
+      void queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "feed" && query.queryKey[1] === "efficiency",
+      });
+      void queryClient.invalidateQueries({ queryKey: qk.feed.todaysRequirement() });
     },
   });
 }
