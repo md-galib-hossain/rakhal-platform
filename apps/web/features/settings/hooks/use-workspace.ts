@@ -19,3 +19,7 @@ export function useFeedGroups() {
 export function useSuppliers() {
   return useQuery({ queryKey: qk.settings.suppliers(), queryFn: settingsApi.listSuppliers });
 }
+
+export function useServiceProviders() {
+  return useQuery({ queryKey: qk.settings.serviceProviders(), queryFn: settingsApi.listServiceProviders });
+}

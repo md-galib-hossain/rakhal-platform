@@ -25,7 +25,7 @@ export function RecordBcsDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const t = useTranslations("cattle.detail.overview.recordBcsDialog");
+  const t = useTranslations("cattle.detail.performance.recordBcsDialog");
   const recordBcs = useRecordBcs(cattleId);
 
   const form = useForm<RecordBcsInput>({

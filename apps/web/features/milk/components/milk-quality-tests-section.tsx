@@ -24,7 +24,7 @@ const SOURCE_VARIANT: Record<MilkQualityTestSource, ChipProps["variant"]> = {
  * Records": both are milk-production data for this cow, quality tests are the lab/device composition
  * counterpart to the daily-yield table above it. */
 export function MilkQualityTestsSection({ cattleId }: { cattleId: string }) {
-  const t = useTranslations("cattle.detail.overview.qualityTests");
+  const t = useTranslations("cattle.detail.performance.qualityTests");
   const [dialogOpen, setDialogOpen] = useState(false);
   const query = useMilkQualityTests(cattleId);
 

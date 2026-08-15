@@ -1,27 +1,49 @@
 "use client"; // live query
 
 import { useLocale, useTranslations } from "next-intl";
-import { DollarSign, Droplets, HeartPulse, Wallet } from "lucide-react";
+import { ArrowDown, ArrowUp, DollarSign, Droplets, HeartPulse, Wallet } from "lucide-react";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { formatMoney } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { Locale } from "@/lib/constants/i18n";
 import { useKpis } from "../hooks/use-dashboard-widgets";
 import { DashboardCard } from "./dashboard-card";
 
+/** Small up/down delta badge next to a KPI value — currently only wired for Today's Yield
+ * (the only KPI whose backend comparison, `changePct`/`changeDirection`, is populated). */
+function KpiDeltaBadge({ pct, direction }: { pct: number; direction: "up" | "down" }) {
+  const t = useTranslations("dashboard.kpis");
+  const Icon = direction === "up" ? ArrowUp : ArrowDown;
+  return (
+    <span
+      className={cn(
+        "flex shrink-0 items-center gap-0.5 text-xs font-medium",
+        direction === "up" ? "text-success" : "text-destructive",
+      )}
+    >
+      <Icon className="size-3" aria-hidden />
+      {Math.abs(pct)}% {t("vsYesterday")}
+    </span>
+  );
+}
+
 /** One 2x2 tile — matches the Figma "Production Key Metrics" card's "KPI" component (732:1732):
- * colored icon badge, label, big bold value, no delta shown (Figma's mock doesn't show deltas
- * either — kept out to stay pixel-close rather than bolted on). */
+ * colored icon badge, label, big bold value. Figma's mock doesn't show deltas, but Today's Yield
+ * now renders one when the backend has a prior-day comparison (`delta` optional, other tiles
+ * unaffected). */
 function KpiTile({
   icon,
   iconBg,
   label,
   value,
+  delta,
 }: {
   icon: React.ReactNode;
   iconBg: string;
   label: string;
   value: React.ReactNode;
+  delta?: { pct: number; direction: "up" | "down" } | null;
 }) {
   return (
     <div className="flex h-full flex-1 flex-col justify-between gap-3 rounded-xl border border-border p-3">
@@ -29,7 +51,10 @@ function KpiTile({
         <span className={`flex size-7 shrink-0 items-center justify-center rounded-lg ${iconBg}`}>{icon}</span>
         <p className="text-sm font-medium text-foreground">{label}</p>
       </div>
-      <p className="text-2xl font-bold text-foreground">{value}</p>
+      <div className="flex items-end justify-between gap-2">
+        <p className="text-2xl font-bold text-foreground">{value}</p>
+        {delta && <KpiDeltaBadge pct={delta.pct} direction={delta.direction} />}
+      </div>
     </div>
   );
 }
@@ -58,6 +83,11 @@ export function KpiBar() {
           iconBg="bg-success-tint"
           label={t("todaysYield")}
           value={`${data.todaysYield.value} ${data.todaysYield.unit}`}
+          delta={
+            data.todaysYield.changePct !== null && data.todaysYield.changeDirection !== null
+              ? { pct: data.todaysYield.changePct, direction: data.todaysYield.changeDirection }
+              : null
+          }
         />
         <KpiTile
           icon={<HeartPulse className="size-4 text-info" aria-hidden />}

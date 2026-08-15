@@ -373,7 +373,6 @@ export interface SemenTank {
   modelManufacturer: string | null;
   strawCapacity: number;
   numCanisters: number | null;
-  numCanes: number | null;
   numGoblets: number | null;
   storageLocation: string | null;
   currentTempC: number | null;
@@ -392,7 +391,6 @@ export interface CreateSemenTankPayload {
   modelManufacturer?: string;
   strawCapacity: number;
   numCanisters?: number;
-  numCanes?: number;
   numGoblets?: number;
   storageLocation?: string;
   /** Must be below 0 °C (INV-07), enforced server-side. */
@@ -402,6 +400,9 @@ export interface CreateSemenTankPayload {
 
 /** `PATCH /inventory/semen/tanks/:id` body (`UpdateSemenTankDto`) — same shape, all optional. */
 export type UpdateSemenTankPayload = Partial<CreateSemenTankPayload>;
+
+export type SemenType = "CONVENTIONAL" | "SEX_SORTED";
+export type TargetSex = "FEMALE" | "MALE";
 
 /** `GET/POST /inventory/semen/batches(/:id)` row shape (`semen.service.ts#presentBatch`) — the raw
  * Prisma `SemenBatch` row plus a derived `lowStraw` flag (`strawQuantity <= lowStrawThreshold`). */
@@ -415,11 +416,12 @@ export interface SemenBatch {
   initialVitalityPct: number | null;
   strawQuantity: number;
   lowStrawThreshold: number;
+  semenType: SemenType | null;
+  targetSex: TargetSex | null;
   fatherId: string | null;
   motherId: string | null;
   tankId: string | null;
   canister: string | null;
-  cane: string | null;
   goblet: string | null;
   notes: string | null;
   isActive: boolean;
@@ -445,11 +447,12 @@ export interface CreateSemenBatchPayload {
   initialVitalityPct?: number;
   strawQuantity: number;
   lowStrawThreshold?: number;
+  semenType?: SemenType;
+  targetSex?: TargetSex;
   fatherId?: string;
   motherId?: string;
   tankId?: string;
   canister?: string;
-  cane?: string;
   goblet?: string;
   notes?: string;
 }

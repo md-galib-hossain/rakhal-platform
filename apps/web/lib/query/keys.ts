@@ -24,6 +24,7 @@ export const qk = {
     sheds: () => ["settings", "sheds"] as const,
     feedGroups: () => ["settings", "feed-groups"] as const,
     suppliers: () => ["settings", "suppliers"] as const,
+    serviceProviders: () => ["settings", "service-providers"] as const,
   },
   legal: {
     consent: () => ["legal", "consent"] as const,

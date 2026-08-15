@@ -23,6 +23,7 @@ const EMPTY_DEFAULTS: CreateBreedingEventInput = {
   cattleId: "",
   breedingDate: toDateTimeLocal(new Date().toISOString()),
   breedingMethod: "AI",
+  semenSource: "FARM_INVENTORY",
 };
 
 /** "Record AI Event" (PRD §9.4) — no Figma frame for this module. Mirrors `CreateBreedingEventDto`;
@@ -64,6 +65,15 @@ export function BreedingEventDialog({
         bullId: row.bullId ?? undefined,
         semenBatchId: row.semenBatchId ?? undefined,
         inseminator: row.inseminator ?? undefined,
+        semenSource: row.semenSource ?? "FARM_INVENTORY",
+        serviceProviderId: row.serviceProviderId ?? undefined,
+        sireNameOrCode: row.sireNameOrCode ?? undefined,
+        sireBreed: row.sireBreed ?? undefined,
+        semenType: row.semenType ?? undefined,
+        targetSex: row.targetSex ?? undefined,
+        strawBatchCode: row.strawBatchCode ?? undefined,
+        semenCompany: row.semenCompany ?? undefined,
+        serviceCost: row.serviceCost ?? undefined,
         notes: row.notes ?? undefined,
       });
     }
@@ -72,11 +82,23 @@ export function BreedingEventDialog({
 
   async function onSubmit(values: CreateBreedingEventInput) {
     try {
+      const isAi = values.breedingMethod === "AI";
+      const isFarmInventory = isAi && values.semenSource === "FARM_INVENTORY";
+      const isTechnicianSupplied = isAi && values.semenSource === "TECHNICIAN_SUPPLIED";
       const payload = {
         ...values,
         breedingDate: new Date(values.breedingDate).toISOString(),
         bullId: values.bullId || undefined,
-        semenBatchId: values.breedingMethod === "AI" ? values.semenBatchId || undefined : undefined,
+        semenSource: isAi ? values.semenSource : undefined,
+        semenBatchId: isFarmInventory ? values.semenBatchId || undefined : undefined,
+        serviceProviderId: isTechnicianSupplied ? values.serviceProviderId || undefined : undefined,
+        sireNameOrCode: isAi && !isFarmInventory ? values.sireNameOrCode || undefined : undefined,
+        sireBreed: isAi && !isFarmInventory ? values.sireBreed || undefined : undefined,
+        semenType: isAi && !isFarmInventory ? values.semenType || undefined : undefined,
+        targetSex: isAi && !isFarmInventory ? values.targetSex || undefined : undefined,
+        strawBatchCode: isAi && !isFarmInventory ? values.strawBatchCode || undefined : undefined,
+        semenCompany: isAi && !isFarmInventory ? values.semenCompany || undefined : undefined,
+        serviceCost: isAi && !isFarmInventory ? values.serviceCost : undefined,
       };
       if (isEdit && eventId) {
         await editBreedingEvent.mutateAsync({ id: eventId, input: payload });

@@ -148,6 +148,10 @@ export interface HeatEventRow {
   returnedFromBreedingEventId?: string | null;
 }
 
+export type SemenSource = "FARM_INVENTORY" | "TECHNICIAN_SUPPLIED" | "EXTERNAL";
+export type SemenType = "CONVENTIONAL" | "SEX_SORTED";
+export type TargetSex = "FEMALE" | "MALE";
+
 export interface BreedingEventRow {
   id: string;
   cattleId: string;
@@ -157,6 +161,19 @@ export interface BreedingEventRow {
   bull: { id: string; tagNumber: string; name: string | null } | null;
   semenBatchId: string | null;
   inseminator: string | null;
+  /** Explicit semen provenance (no ticket #, 2026-08-15) — null for NATURAL/EMBRYO_TRANSFER, always
+   * set for AI (server-inferred when an old client omits it). */
+  semenSource: SemenSource | null;
+  serviceProviderId: string | null;
+  /** Progressive-optional traceability, only meaningful for TECHNICIAN_SUPPLIED/EXTERNAL — a bull the
+   * farm doesn't own and may have no structured record of. */
+  sireNameOrCode: string | null;
+  sireBreed: string | null;
+  semenType: SemenType | null;
+  targetSex: TargetSex | null;
+  strawBatchCode: string | null;
+  semenCompany: string | null;
+  serviceCost: number | null;
   breedingNumber: number;
   expectedPregnancyCheckDate: string | null;
   status: BreedingStatus;

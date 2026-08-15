@@ -50,7 +50,7 @@ export function MilkQualityTestDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const t = useTranslations("cattle.detail.overview.qualityTests.dialog");
+  const t = useTranslations("cattle.detail.performance.qualityTests.dialog");
   const createTest = useCreateMilkQualityTest(cattleId);
 
   const lactationsQuery = useQuery({

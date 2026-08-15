@@ -346,34 +346,45 @@ function FeedingGridTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {cows.map((cow) => (
-                <TableRow key={cow.cattle_id}>
-                  <TableCell>
-                    <Checkbox
-                      checked={selection.isSelected(cow.cattle_id)}
-                      onCheckedChange={() => selection.toggle(cow.cattle_id)}
-                      aria-label={t("selectCow", { name: cow.name ?? cow.tag_number })}
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium text-foreground">{cow.tag_number}</TableCell>
-                  <TableCell className="text-foreground">{cow.name ?? cow.tag_number}</TableCell>
-                  <TableCell>
-                    <div className="flex h-9 w-28 items-center gap-1 rounded-sm bg-muted px-1.5">
-                      <Input
-                        type="number"
-                        min={0}
-                        step={0.1}
-                        className="h-auto w-full border-none p-0 text-sm leading-none shadow-none focus-visible:ring-0"
-                        value={quantities[cow.cattle_id] ?? ""}
-                        onChange={(e) =>
-                          setQuantities((prev) => ({ ...prev, [cow.cattle_id]: e.target.value }))
-                        }
+              {cows.map((cow) => {
+                const isSelected = selection.isSelected(cow.cattle_id);
+                return (
+                  <TableRow key={cow.cattle_id} className={cn(isSelected && "bg-primary/5")}>
+                    <TableCell>
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => selection.toggle(cow.cattle_id)}
+                        aria-label={t("selectCow", { name: cow.name ?? cow.tag_number })}
                       />
-                      <span className="shrink-0 text-xs text-muted-foreground">kg</span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell className="font-medium text-foreground">{cow.tag_number}</TableCell>
+                    <TableCell className="text-foreground">{cow.name ?? cow.tag_number}</TableCell>
+                    <TableCell>
+                      <div
+                        className={cn(
+                          "flex h-9 w-28 items-center gap-1 rounded-sm bg-card px-1.5 shadow-xs transition-opacity",
+                          !isSelected && "opacity-50",
+                        )}
+                      >
+                        <Input
+                          type="number"
+                          min={0}
+                          step={0.1}
+                          className="h-auto w-full border-none p-0 text-sm leading-none shadow-none focus-visible:ring-0"
+                          value={quantities[cow.cattle_id] ?? ""}
+                          onChange={(e) =>
+                            setQuantities((prev) => ({ ...prev, [cow.cattle_id]: e.target.value }))
+                          }
+                          onFocus={() => {
+                            if (!isSelected) selection.toggle(cow.cattle_id);
+                          }}
+                        />
+                        <span className="shrink-0 text-xs text-muted-foreground">kg</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>

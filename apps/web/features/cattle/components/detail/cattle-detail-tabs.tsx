@@ -2,45 +2,56 @@
 
 import { useTranslations } from "next-intl";
 import { parseAsString, useQueryState } from "nuqs";
-import { Box } from "lucide-react";
+import {
+  LayoutDashboard,
+  TrendingUp,
+  Utensils,
+  HeartPulse,
+  Stethoscope,
+  Wallet,
+  GitBranch,
+  ListChecks,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
-import { useCalfDetail } from "@/features/calves/hooks/use-calves";
-import { OverviewTab as CalfOverviewTab } from "@/features/calves/components/detail/overview-tab";
-import { ColostrumTab } from "@/features/calves/components/detail/colostrum-tab";
-import { MilkFeedingTab } from "@/features/calves/components/detail/milk-feeding-tab";
-import { WeightTab as CalfWeightTab } from "@/features/calves/components/detail/weight-tab";
-import { StarterFeedTab } from "@/features/calves/components/detail/starter-feed-tab";
-import { TasksTab as CalfTasksTab } from "@/features/calves/components/detail/tasks-tab";
 import { OverviewTab } from "./overview-tab";
+import { PerformanceTab } from "./performance-tab";
+import { FeedingTab } from "./feeding-tab";
 import { ReproductionTab } from "./reproduction-tab";
 import { HealthTab } from "./health-tab";
 import { FinanceTab } from "./finance-tab";
 import { PedigreeTab } from "./pedigree-tab";
-import { FeedingTab } from "./feeding-tab";
+import { TasksTab } from "./tasks-tab";
 import type { AnimalCategory, CattleGender, LactationStage } from "../../types";
 
-const BASE_TABS = ["overview", "reproduction", "health", "finance", "pedigree", "feeding"] as const;
-const CALF_TABS = ["colostrum", "milk", "weight", "starterFeed", "tasks"] as const;
-type BaseTabKey = (typeof BASE_TABS)[number];
-type CalfTabKey = (typeof CALF_TABS)[number];
-type TabKey = BaseTabKey | CalfTabKey;
+const TABS = ["overview", "performance", "feeding", "reproduction", "health", "finance", "pedigree", "tasks"] as const;
+type TabKey = (typeof TABS)[number];
 
-/** Segmented pill tab bar (Figma "Single Cow Details" frame 1042:57994, node 1042:58064) over the
- * base 5 detail tabs — muted track, active tab a raised white pill with a primary-green icon+label,
- * inactive tabs plain muted-grey. URL-synced (`?tab=`) so a tab is bookmarkable/shareable, same
- * `nuqs` pattern the cattle list's filters already use.
- *
- * **Calves merge (no ticket #):** for `animalCategory === "CALF"` rows, the single "Overview" tab
- * swaps its content to the calf module's own overview (`CalfOverviewTab`, `useCalfDetail(cattleId)`
- * — a calf IS this same `Cattle` row, just a second real backend resource, `GET /calves/:id`) and
- * the tab bar gains four more calf-rearing tabs (colostrum/milk/weight/starter-feed/tasks) reused
- * as-is from the former standalone Calves module (`features/calves/components/detail/*`) — no
- * second "Overview" tab. Non-calf animals never mount `useCalfDetail`. Each calf tab's own content
- * handles `calfQuery`'s loading/error state independently (same skeleton/`ErrorState` pattern the
- * base tabs' own per-tab fetches already use) so the tab bar itself never has to wait. */
+const TAB_ICONS: Record<TabKey, typeof LayoutDashboard> = {
+  overview: LayoutDashboard,
+  performance: TrendingUp,
+  feeding: Utensils,
+  reproduction: HeartPulse,
+  health: Stethoscope,
+  finance: Wallet,
+  pedigree: GitBranch,
+  tasks: ListChecks,
+};
+
+/**
+ * Fixed 8-tab profile shell (unified animal-profile redesign, no ticket #, superseding the earlier
+ * per-category variable-length tab list — see the plan doc for the full rationale). Every
+ * `animalCategory` (Calf/Heifer/Cow/Bull/Steer) gets the **same** top-level tab set —
+ * Overview/Performance/Feeding/Reproduction/Health/Finance/Ancestry("pedigree" key kept internally
+ * to avoid an `?tab=` breaking change, label-only rename)/Tasks — so a farmer doesn't relearn the
+ * profile layout as an animal ages from calf to cow. What changes is each tab's *content*, branched
+ * internally by the individual tab component on `animalCategory` (`OverviewTab`/`PerformanceTab`/
+ * `FeedingTab`/`ReproductionTab` each do this themselves now); `HealthTab`/`FinanceTab`/`PedigreeTab`
+ * were already category-agnostic and are unchanged. `TasksTab` is the same live per-animal Task Hub
+ * view for every category, including `CALF` (upgraded from the old read-only calf-only tasks list).
+ * Segmented pill tab bar styling (Figma "Single Cow Details" frame 1042:57994, node 1042:58064)
+ * unchanged from the previous version. URL-synced (`?tab=`) so a tab is bookmarkable/shareable.
+ */
 export function CattleDetailTabs({
   cattleId,
   gender,
@@ -55,46 +66,40 @@ export function CattleDetailTabs({
   animalCategory: AnimalCategory;
 }) {
   const t = useTranslations("cattle.detail.tabs");
-  const tCalf = useTranslations("calves.detail.tabs");
-  const tCalfDetail = useTranslations("calves.detail");
-  const isCalf = animalCategory === "CALF";
-  const calfQuery = useCalfDetail(isCalf ? cattleId : undefined);
-  const tabs: readonly TabKey[] = isCalf ? [...BASE_TABS, ...CALF_TABS] : BASE_TABS;
   const [tab, setTab] = useQueryState("tab", parseAsString.withDefault("overview"));
-  const active: TabKey = (tabs as readonly string[]).includes(tab) ? (tab as TabKey) : "overview";
+  const active: TabKey = (TABS as readonly string[]).includes(tab) ? (tab as TabKey) : "overview";
 
   return (
     <Tabs value={active} onValueChange={(v) => void setTab(v)}>
-      <TabsList className="h-auto w-full flex-wrap items-stretch justify-between gap-1 rounded-xl border border-border bg-muted p-1 text-muted-foreground">
-        {tabs.map((key) => (
-          <TabsTrigger
-            key={key}
-            value={key}
-            className={cn(
-              "flex-1 gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium text-muted-foreground shadow-none",
-              "data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm",
-            )}
-          >
-            <Box className="size-[18px]" aria-hidden />
-            {(CALF_TABS as readonly string[]).includes(key) ? tCalf(key as CalfTabKey) : t(key)}
-          </TabsTrigger>
-        ))}
+      <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl border border-border bg-muted p-1 text-muted-foreground sm:grid-cols-4">
+        {TABS.map((key) => {
+          const Icon = TAB_ICONS[key];
+          return (
+            <TabsTrigger
+              key={key}
+              value={key}
+              className={cn(
+                "gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground shadow-none",
+                "data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm",
+              )}
+            >
+              <Icon className="size-[18px]" aria-hidden />
+              {t(key)}
+            </TabsTrigger>
+          );
+        })}
       </TabsList>
       <TabsContent value="overview">
-        {isCalf ? (
-          calfQuery.isLoading ? (
-            <CardSkeleton lines={3} />
-          ) : calfQuery.isError || !calfQuery.data ? (
-            <ErrorState description={tCalfDetail("error")} onRetry={() => calfQuery.refetch()} />
-          ) : (
-            <CalfOverviewTab data={calfQuery.data} />
-          )
-        ) : (
-          <OverviewTab cattleId={cattleId} />
-        )}
+        <OverviewTab cattleId={cattleId} animalCategory={animalCategory} />
+      </TabsContent>
+      <TabsContent value="performance">
+        <PerformanceTab cattleId={cattleId} gender={gender} lactationStage={lactationStage} animalCategory={animalCategory} />
+      </TabsContent>
+      <TabsContent value="feeding">
+        <FeedingTab cattleId={cattleId} animalCategory={animalCategory} />
       </TabsContent>
       <TabsContent value="reproduction">
-        <ReproductionTab cattleId={cattleId} gender={gender} lactationStage={lactationStage} />
+        <ReproductionTab cattleId={cattleId} gender={gender} animalCategory={animalCategory} />
       </TabsContent>
       <TabsContent value="health">
         <HealthTab cattleId={cattleId} />
@@ -105,58 +110,9 @@ export function CattleDetailTabs({
       <TabsContent value="pedigree">
         <PedigreeTab cattleId={cattleId} />
       </TabsContent>
-      <TabsContent value="feeding">
-        <FeedingTab cattleId={cattleId} />
+      <TabsContent value="tasks">
+        <TasksTab cattleId={cattleId} />
       </TabsContent>
-      {isCalf ? (
-        <>
-          <TabsContent value="colostrum">
-            {calfQuery.isLoading ? (
-              <CardSkeleton lines={3} />
-            ) : calfQuery.isError || !calfQuery.data ? (
-              <ErrorState description={tCalfDetail("error")} onRetry={() => calfQuery.refetch()} />
-            ) : (
-              <ColostrumTab calfId={cattleId} data={calfQuery.data} />
-            )}
-          </TabsContent>
-          <TabsContent value="milk">
-            {calfQuery.isLoading ? (
-              <CardSkeleton lines={3} />
-            ) : calfQuery.isError || !calfQuery.data ? (
-              <ErrorState description={tCalfDetail("error")} onRetry={() => calfQuery.refetch()} />
-            ) : (
-              <MilkFeedingTab calfId={cattleId} data={calfQuery.data} />
-            )}
-          </TabsContent>
-          <TabsContent value="weight">
-            {calfQuery.isLoading ? (
-              <CardSkeleton lines={3} />
-            ) : calfQuery.isError || !calfQuery.data ? (
-              <ErrorState description={tCalfDetail("error")} onRetry={() => calfQuery.refetch()} />
-            ) : (
-              <CalfWeightTab calfId={cattleId} data={calfQuery.data} />
-            )}
-          </TabsContent>
-          <TabsContent value="starterFeed">
-            {calfQuery.isLoading ? (
-              <CardSkeleton lines={3} />
-            ) : calfQuery.isError || !calfQuery.data ? (
-              <ErrorState description={tCalfDetail("error")} onRetry={() => calfQuery.refetch()} />
-            ) : (
-              <StarterFeedTab calfId={cattleId} data={calfQuery.data} />
-            )}
-          </TabsContent>
-          <TabsContent value="tasks">
-            {calfQuery.isLoading ? (
-              <CardSkeleton lines={3} />
-            ) : calfQuery.isError || !calfQuery.data ? (
-              <ErrorState description={tCalfDetail("error")} onRetry={() => calfQuery.refetch()} />
-            ) : (
-              <CalfTasksTab data={calfQuery.data} />
-            )}
-          </TabsContent>
-        </>
-      ) : null}
     </Tabs>
   );
 }

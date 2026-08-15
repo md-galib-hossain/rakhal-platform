@@ -61,10 +61,6 @@ export function FeedingView() {
 
   return (
     <div className="flex flex-col gap-5">
-      <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
-
-      <FeedingGrid />
-
       {isLoading ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <CardSkeleton lines={2} />
@@ -75,20 +71,26 @@ export function FeedingView() {
       ) : isError ? (
         <ErrorState onRetry={() => { requirement.refetch(); costSummary.refetch(); feedGroups.refetch(); }} />
       ) : (
-        <>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <StatTile label={t("stats.todaysRequirement")} value={t("kgValue", { value: requirement.data?.grand_total_kg.toFixed(1) ?? "0" })} />
-            <StatTile
-              label={t("stats.costPerCowDay")}
-              value={costSummary.data?.cost_per_cow_per_day != null ? t("currencyValue", { value: costSummary.data.cost_per_cow_per_day.toFixed(2) }) : "—"}
-            />
-            <StatTile
-              label={t("stats.costPerLitre")}
-              value={costSummary.data?.cost_per_litre != null ? t("currencyValue", { value: costSummary.data.cost_per_litre.toFixed(2) }) : "—"}
-            />
-            <StatTile label={t("stats.headcount")} value={String(costSummary.data?.headcount ?? 0)} />
-          </div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatTile label={t("stats.todaysRequirement")} value={t("kgValue", { value: requirement.data?.grand_total_kg.toFixed(1) ?? "0" })} />
+          <StatTile
+            label={t("stats.costPerCowDay")}
+            value={costSummary.data?.cost_per_cow_per_day != null ? t("currencyValue", { value: costSummary.data.cost_per_cow_per_day.toFixed(2) }) : "—"}
+          />
+          <StatTile
+            label={t("stats.costPerLitre")}
+            value={costSummary.data?.cost_per_litre != null ? t("currencyValue", { value: costSummary.data.cost_per_litre.toFixed(2) }) : "—"}
+          />
+          <StatTile label={t("stats.headcount")} value={String(costSummary.data?.headcount ?? 0)} />
+        </div>
+      )}
 
+      <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+
+      <FeedingGrid />
+
+      {!isLoading && !isError ? (
+        <>
           <div className="flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-card">
             <p className="text-lg font-medium text-foreground">{t("todaysRequirement")}</p>
             {(requirement.data?.by_ingredient.length ?? 0) === 0 ? (
@@ -136,7 +138,7 @@ export function FeedingView() {
             )}
           </div>
         </>
-      )}
+      ) : null}
 
       <LogDistributionDialog concentrationId={feedTodayId} onOpenChange={(open) => !open && setFeedTodayId(null)} />
     </div>

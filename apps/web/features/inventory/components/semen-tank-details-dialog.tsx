@@ -114,7 +114,6 @@ function SemenTankDetailsDialogBody({ tank, onOpenChange }: { tank: SemenTank; o
                 <InfoField label={t("modelManufacturer")} value={tank.modelManufacturer ?? "—"} />
                 <InfoField label={t("strawCapacity")} value={`${tank.strawCapacity}`} />
                 <InfoField label={t("numCanisters")} value={tank.numCanisters != null ? `${tank.numCanisters}` : "—"} />
-                <InfoField label={t("numCanes")} value={tank.numCanes != null ? `${tank.numCanes}` : "—"} />
                 <InfoField label={t("numGoblets")} value={tank.numGoblets != null ? `${tank.numGoblets}` : "—"} />
                 <InfoField label={t("storageLocation")} value={tank.storageLocation ?? "—"} />
                 <InfoField label={t("currentTemperature")} value={tank.currentTempC != null ? `${tank.currentTempC} °C` : "—"} />

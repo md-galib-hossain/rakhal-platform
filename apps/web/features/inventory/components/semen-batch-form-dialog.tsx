@@ -10,6 +10,8 @@ import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { CattlePicker } from "@/components/shared/cattle-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useCreateSemenBatch, useSemenTanks, useUpdateSemenBatch } from "../hooks/use-inventory";
@@ -39,11 +41,12 @@ function toPayload(values: SemenBatchFormInput): CreateSemenBatchPayload {
     strawColor: values.strawColor || undefined,
     initialVitalityPct: values.initialVitalityPct,
     strawQuantity: values.strawQuantity,
+    semenType: values.semenType,
+    targetSex: values.semenType === "SEX_SORTED" ? values.targetSex : undefined,
     fatherId: values.fatherId || undefined,
     motherId: values.motherId || undefined,
     tankId: values.tankId || undefined,
     canister: values.canister || undefined,
-    cane: values.cane || undefined,
     goblet: values.goblet || undefined,
     notes: values.notes || undefined,
   };
@@ -59,11 +62,12 @@ function toFormDefaults(batch: SemenBatch | undefined): Partial<SemenBatchFormIn
     strawColor: batch.strawColor ?? "",
     initialVitalityPct: batch.initialVitalityPct ?? undefined,
     strawQuantity: batch.strawQuantity,
+    semenType: batch.semenType ?? undefined,
+    targetSex: batch.targetSex ?? undefined,
     fatherId: batch.fatherId ?? "",
     motherId: batch.motherId ?? "",
     tankId: batch.tankId ?? "",
     canister: batch.canister ?? "",
-    cane: batch.cane ?? "",
     goblet: batch.goblet ?? "",
     notes: batch.notes ?? "",
   };
@@ -110,6 +114,7 @@ function SemenBatchFormDialogBody({ onOpenChange, batch }: { onOpenChange: (open
     resolver: zodResolver(semenBatchFormSchema),
     defaultValues: toFormDefaults(batch),
   });
+  const semenType = form.watch("semenType");
 
   async function onSubmit(values: SemenBatchFormInput) {
     try {
@@ -152,7 +157,16 @@ function SemenBatchFormDialogBody({ onOpenChange, batch }: { onOpenChange: (open
           <div className="flex flex-col gap-3">
             <LabeledInput id="name" label={t("batchName")} placeholder={t("batchNamePlaceholder")} {...form.register("name")} error={form.formState.errors.name?.message} />
             <div className="grid grid-cols-2 gap-3">
-              <LabeledInput id="bullId" label={t("bullId")} placeholder={t("bullIdPlaceholder")} {...form.register("bullId")} />
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">{t("bullId")}</Label>
+                <Controller
+                  control={form.control}
+                  name="bullId"
+                  render={({ field }) => (
+                    <CattlePicker value={field.value} onValueChange={(id) => field.onChange(id)} filters={{ gender: "MALE" }} placeholder={t("bullIdPlaceholder")} />
+                  )}
+                />
+              </div>
               <LabeledInput id="breed" label={t("breed")} placeholder={t("breedPlaceholder")} {...form.register("breed")} />
               <LabeledInput id="batchCode" label={t("batchCode")} placeholder={t("batchCodePlaceholder")} {...form.register("batchCode")} />
               <Controller
@@ -184,6 +198,40 @@ function SemenBatchFormDialogBody({ onOpenChange, batch }: { onOpenChange: (open
                 {...form.register("initialVitalityPct", numberField)}
                 error={form.formState.errors.initialVitalityPct?.message}
               />
+              <Controller
+                control={form.control}
+                name="semenType"
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      if (value !== "SEX_SORTED") form.setValue("targetSex", undefined);
+                    }}
+                  >
+                    <LabeledSelectTrigger label={t("semenType")} placeholder={t("selectSemenType")} />
+                    <SelectContent>
+                      <SelectItem value="CONVENTIONAL">{t("semenTypeValue.CONVENTIONAL")}</SelectItem>
+                      <SelectItem value="SEX_SORTED">{t("semenTypeValue.SEX_SORTED")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {semenType === "SEX_SORTED" ? (
+                <Controller
+                  control={form.control}
+                  name="targetSex"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <LabeledSelectTrigger label={t("targetSex")} placeholder={t("selectTargetSex")} />
+                      <SelectContent>
+                        <SelectItem value="FEMALE">{t("targetSexValue.FEMALE")}</SelectItem>
+                        <SelectItem value="MALE">{t("targetSexValue.MALE")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              ) : null}
             </div>
           </div>
 
@@ -198,8 +246,26 @@ function SemenBatchFormDialogBody({ onOpenChange, batch }: { onOpenChange: (open
               error={form.formState.errors.strawQuantity?.message}
             />
             <div className="grid grid-cols-2 gap-3">
-              <LabeledInput id="fatherId" label={t("fatherId")} placeholder={t("fatherIdPlaceholder")} {...form.register("fatherId")} />
-              <LabeledInput id="motherId" label={t("motherId")} placeholder={t("motherIdPlaceholder")} {...form.register("motherId")} />
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">{t("fatherId")}</Label>
+                <Controller
+                  control={form.control}
+                  name="fatherId"
+                  render={({ field }) => (
+                    <CattlePicker value={field.value} onValueChange={(id) => field.onChange(id)} filters={{ gender: "MALE" }} placeholder={t("fatherIdPlaceholder")} />
+                  )}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">{t("motherId")}</Label>
+                <Controller
+                  control={form.control}
+                  name="motherId"
+                  render={({ field }) => (
+                    <CattlePicker value={field.value} onValueChange={(id) => field.onChange(id)} filters={{ gender: "FEMALE" }} placeholder={t("motherIdPlaceholder")} />
+                  )}
+                />
+              </div>
             </div>
           </div>
 
@@ -225,7 +291,6 @@ function SemenBatchFormDialogBody({ onOpenChange, batch }: { onOpenChange: (open
               <LabeledInput id="canister" label={t("canister")} placeholder={t("canisterPlaceholder")} {...form.register("canister")} />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <LabeledInput id="cane" label={t("cane")} placeholder={t("canePlaceholder")} {...form.register("cane")} />
               <LabeledInput id="goblet" label={t("goblet")} placeholder={t("gobletPlaceholder")} {...form.register("goblet")} />
             </div>
           </div>

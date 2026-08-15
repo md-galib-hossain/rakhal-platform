@@ -43,9 +43,11 @@ function PriceBoundInput({ paramKey, placeholder }: { paramKey: string; placehol
   );
 }
 
-/** Search + class select + price/kg range — Ingredients management table's filter row
- * (2026-08-14, user request), mirroring `FeedItemFilters`' anatomy. Price range is a plain pair of
- * number inputs passed via `FilterBar`'s `extra` slot since no shared range-input control exists. */
+/** Search + class checklist + price/kg range — Ingredients management table's filter row
+ * (2026-08-14, user request; 2026-08-15 class filter upgraded from single-select to the reusable
+ * multi-select `FilterBar` checklist — a farm often wants "Forage + Mineral" at once, not one
+ * class at a time). Price range is a plain pair of number inputs passed via `FilterBar`'s `extra`
+ * slot since no shared range-input control exists. */
 export function IngredientFilters({ actions }: { actions?: React.ReactNode }) {
   const t = useTranslations("feed.ingredientsManager.filters");
 
@@ -54,7 +56,7 @@ export function IngredientFilters({ actions }: { actions?: React.ReactNode }) {
       layout="split"
       searchKey="search"
       searchPlaceholder={t("searchPlaceholder")}
-      selects={[
+      checklists={[
         {
           key: "feedClass",
           label: t("class"),

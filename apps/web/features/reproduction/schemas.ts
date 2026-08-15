@@ -20,6 +20,11 @@ export const heatEventSchema = z.object({
 });
 export type CreateHeatEventInput = z.infer<typeof heatEventSchema>;
 
+/** Explicit semen provenance (no ticket #, 2026-08-15) — see `SemenSource` in `types.ts`. */
+const semenSourceEnum = z.enum(["FARM_INVENTORY", "TECHNICIAN_SUPPLIED", "EXTERNAL"]);
+const semenTypeEnum = z.enum(["CONVENTIONAL", "SEX_SORTED"]);
+const targetSexEnum = z.enum(["FEMALE", "MALE"]);
+
 export const breedingEventSchema = z.object({
   cattleId: z.string().min(1, "Select a cow"),
   breedingDate: z.string().min(1),
@@ -27,6 +32,15 @@ export const breedingEventSchema = z.object({
   bullId: z.string().optional(),
   semenBatchId: z.string().optional(),
   inseminator: z.string().trim().optional(),
+  semenSource: semenSourceEnum.optional(),
+  serviceProviderId: z.string().optional(),
+  sireNameOrCode: z.string().trim().optional(),
+  sireBreed: z.string().trim().optional(),
+  semenType: semenTypeEnum.optional(),
+  targetSex: targetSexEnum.optional(),
+  strawBatchCode: z.string().trim().optional(),
+  semenCompany: z.string().trim().optional(),
+  serviceCost: z.number().min(0).optional(),
   expectedPregnancyCheckDate: z.string().optional(),
   notes: z.string().trim().optional(),
 });
@@ -40,6 +54,15 @@ export const editBreedingEventSchema = z.object({
   bullId: z.string().optional(),
   semenBatchId: z.string().optional(),
   inseminator: z.string().trim().optional(),
+  semenSource: semenSourceEnum.optional(),
+  serviceProviderId: z.string().optional(),
+  sireNameOrCode: z.string().trim().optional(),
+  sireBreed: z.string().trim().optional(),
+  semenType: semenTypeEnum.optional(),
+  targetSex: targetSexEnum.optional(),
+  strawBatchCode: z.string().trim().optional(),
+  semenCompany: z.string().trim().optional(),
+  serviceCost: z.number().min(0).optional(),
   breedingNumber: z.number().min(1).optional(),
   expectedPregnancyCheckDate: z.string().optional(),
   notes: z.string().trim().optional(),

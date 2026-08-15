@@ -496,7 +496,10 @@
       "title": "Today's Priorities",
       "error": "Could not load priorities.",
       "emptyTitle": "All clear",
-      "emptyDescription": "No urgent items right now."
+      "emptyDescription": "No urgent items right now.",
+      "expand": "Show details",
+      "collapse": "Hide details",
+      "moreNotShown": "+{count} more"
     },
     "kpis": {
       "costPerLitre": "Cost per litre",
@@ -1019,16 +1022,40 @@
         "ABNORMAL_MILK": "Abnormal milk",
         "OTHER": "Other"
       },
+      "sections": {
+        "identity": "Identity",
+        "lifeStage": "Life Stage",
+        "production": "Performance & Breeding"
+      },
+      "notApplicable": {
+        "male": "N/A — male animal",
+        "immature": "Not yet milking",
+        "notMilkingPurpose": "Not raised for milk"
+      },
       "tabs": {
         "overview": "Overview",
+        "performance": "Performance",
         "reproduction": "Reproduction",
         "health": "Health",
         "finance": "Finance",
         "pedigree": "Ancestry",
-        "feeding": "Feeding"
+        "feeding": "Feeding",
+        "tasks": "Tasks"
+      },
+      "snapshot": {
+        "title": "Overview",
+        "error": "Could not load the overview.",
+        "alerts": "Needs Attention",
+        "noAlerts": "No alerts — everything looks on track.",
+        "nextTask": "Next Task",
+        "noNextTask": "No upcoming tasks.",
+        "latestWeight": "Latest Weight",
+        "latestBcs": "Latest BCS",
+        "currentStatus": "Current Status",
+        "kg": "{value} kg"
       },
       "feeding": {
-        "feedNow": "Feed this cow now",
+        "goToFeedingGrid": "Go to Feeding Grid",
         "assignedRation": "Assigned Ration",
         "noRation": "No ration assigned",
         "noRationDescription": "This cow has no herd, group, or individual ration active.",
@@ -1046,7 +1073,7 @@
         "noDmi": "No feeding data yet",
         "noDmiDescription": "No feeding logged for this cow today."
       },
-      "overview": {
+      "performance": {
         "error": "Could not load the overview.",
         "aqrScore": "AQR Score",
         "avgDailyYield": "Avg. Daily Yield",
@@ -1064,9 +1091,6 @@
           "month": "Monthly",
           "year": "Yearly"
         },
-        "lactationCurve": "Lactation Curve",
-        "yieldL": "Yield (L)",
-        "noLactationData": "No active lactation.",
         "lifetimeYield": "Lifetime Yield",
         "noLifetimeData": "No milk records yet.",
         "feedToday": "Feed Today",
@@ -1154,6 +1178,8 @@
       "reproduction": {
         "notApplicable": "Not applicable",
         "notApplicableDescription": "Reproduction records apply to female cattle only.",
+        "notApplicableImmature": "Too young",
+        "notApplicableImmatureDescription": "This calf is not yet old enough for reproduction records.",
         "error": "Could not load reproduction data.",
         "totalCalvings": "Total Calvings",
         "calvingInterval": "Calving Interval",
@@ -1791,7 +1817,6 @@
         "modelManufacturerPlaceholder": "e.g. 'MVE XC 20'",
         "strawCapacity": "Straw Capacity",
         "numCanisters": "Number of Canister",
-        "numCanes": "Number of Cane",
         "numGoblets": "Number of Goblet",
         "storageLocation": "Storage Location",
         "storageLocationPlaceholder": "e.g. 'Warehouse A'",
@@ -1814,7 +1839,6 @@
         "modelManufacturer": "Model/Manufacturer",
         "strawCapacity": "Straw Capacity",
         "numCanisters": "Number of Canister",
-        "numCanes": "Number of Cane",
         "numGoblets": "Number of Goblet",
         "storageLocation": "Storage Location",
         "currentTemperature": "Current Temperature",
@@ -1829,12 +1853,20 @@
         "menu": "Row actions",
         "edit": "Edit",
         "archive": "Archive",
-        "bullId": "Bull ID",
+        "bullId": "Bull",
         "breed": "Breed",
         "strawColor": "Straw Color",
+        "semenType": "Semen Type",
+        "semenTypeValue": {
+          "CONVENTIONAL": "Conventional",
+          "SEX_SORTED": "Sex-Sorted"
+        },
+        "targetSexValue": {
+          "FEMALE": "Female",
+          "MALE": "Male"
+        },
         "tank": "Tank",
         "canister": "Cannister",
-        "cane": "Cane",
         "goblet": "Goblet",
         "strawLeft": "Straw Left",
         "archivedToast": "Straw batch archived.",
@@ -1854,8 +1886,8 @@
         "batchInfo": "Batch Info",
         "batchName": "Batch/Straw Name",
         "batchNamePlaceholder": "e.g. \"Holstein Frisian Premium\"",
-        "bullId": "Bull ID/Name",
-        "bullIdPlaceholder": "e.g. \"HF-9982\"",
+        "bullId": "Bull",
+        "bullIdPlaceholder": "Select bull…",
         "breed": "Breed",
         "breedPlaceholder": "e.g. \"Holstein Frisian\"",
         "batchCode": "Batch ID",
@@ -1863,19 +1895,29 @@
         "strawColor": "Straw Color",
         "selectColor": "Select Color",
         "initialVitality": "Initial Vitality",
+        "semenType": "Semen Type",
+        "selectSemenType": "Select semen type",
+        "semenTypeValue": {
+          "CONVENTIONAL": "Conventional",
+          "SEX_SORTED": "Sex-Sorted"
+        },
+        "targetSex": "Target Sex",
+        "selectTargetSex": "Select target sex",
+        "targetSexValue": {
+          "FEMALE": "Female",
+          "MALE": "Male"
+        },
         "strawInventory": "Straw Inventory",
         "strawQuantity": "Straw Quantity",
-        "fatherId": "Father ID",
-        "fatherIdPlaceholder": "e.g. \"HF-1212\"",
-        "motherId": "Mother ID",
-        "motherIdPlaceholder": "e.g. \"HFW-1234\"",
+        "fatherId": "Sire",
+        "fatherIdPlaceholder": "Select sire…",
+        "motherId": "Dam",
+        "motherIdPlaceholder": "Select dam…",
         "storageLocationInfo": "Storage Location Info",
         "tank": "Tank",
         "selectTank": "Select tank",
         "canister": "Canister",
         "canisterPlaceholder": "e.g. \"Canister A\"",
-        "cane": "Cane",
-        "canePlaceholder": "e.g. \"Cane 05\"",
         "goblet": "Goblet",
         "gobletPlaceholder": "e.g. \"Goblet 1\"",
         "note": "Note",
@@ -2255,9 +2297,39 @@
           "NATURAL": "Natural Service",
           "EMBRYO_TRANSFER": "Embryo Transfer"
         },
+        "semenSource": "Semen source",
+        "semenSourceValue": {
+          "FARM_INVENTORY": "Farm Inventory",
+          "TECHNICIAN_SUPPLIED": "Technician Supplied",
+          "EXTERNAL": "Other / External"
+        },
         "semenBatch": "Semen batch",
         "semenBatchPlaceholder": "Select a semen batch",
         "strawsLeft": "{count} straws left",
+        "serviceProvider": "Technician",
+        "serviceProviderPlaceholder": "Select or add a technician",
+        "sireNameOrCode": "Bull name / code",
+        "sireNameOrCodePlaceholder": "Optional",
+        "sireBreed": "Breed",
+        "sireBreedPlaceholder": "Optional",
+        "semenType": "Semen type",
+        "semenTypePlaceholder": "Optional",
+        "semenTypeValue": {
+          "CONVENTIONAL": "Conventional",
+          "SEX_SORTED": "Sex-Sorted"
+        },
+        "targetSex": "Target sex",
+        "targetSexPlaceholder": "Optional",
+        "targetSexValue": {
+          "FEMALE": "Female",
+          "MALE": "Male"
+        },
+        "strawBatchCode": "Straw / batch no.",
+        "strawBatchCodePlaceholder": "Optional",
+        "semenCompany": "Semen company / station",
+        "semenCompanyPlaceholder": "Optional",
+        "serviceCost": "Service cost (৳)",
+        "serviceCostPlaceholder": "Optional",
         "bull": "Bull",
         "inseminator": "Inseminator",
         "inseminatorPlaceholder": "Technician name",
@@ -4115,37 +4187,10 @@
       "confirm": "Confirm",
       "loggedToast": "Feeding logged — stock updated",
       "genericError": "Something went wrong. Please try again."
-    },
-    "quickFeed": {
-      "title": "Quick Feed",
-      "close": "Close",
-      "selectItem": "Feed item",
-      "selectItemPlaceholder": "Select a purchased feed item",
-      "createItem": "Create feed item",
-      "quantityKg": "Quantity (kg)",
-      "estimatedCost": "Estimated cost: ৳{value}",
-      "target": {
-        "GROUP": "Cow Group",
-        "INDIVIDUAL": "Individual Cow",
-        "HERD": "Whole Herd"
-      },
-      "herdTargetHint": "Applies to the whole active herd by default.",
-      "selectGroup": "Select Group",
-      "selectGroupPlaceholder": "Select a cow group",
-      "cowCount": "{count} cows",
-      "selectAnimal": "Select Animal",
-      "date": "Date",
-      "notes": "Notes",
-      "notesPlaceholder": "Optional note",
-      "cancel": "Cancel",
-      "confirm": "Confirm",
-      "loggedToast": "Feeding logged — stock updated",
-      "genericError": "Something went wrong. Please try again."
     }
   },
   "feeding": {
     "subtitle": "Today's feed requirement, cost, and quick actions.",
-    "quickFeedAction": "Quick Feed",
     "stats": {
       "todaysRequirement": "Today's Requirement",
       "costPerCowDay": "Cost/cow/day",
@@ -4161,7 +4206,43 @@
     "noGroups": "No feeding groups yet",
     "noGroupsDescription": "Create a feeding group in Settings to organize daily feeding.",
     "cowCount": "{count} cows",
-    "feedToday": "Feed Today"
+    "feedToday": "Feed Today",
+    "grid": {
+      "title": "Feeding Grid",
+      "error": "Could not load the feeding grid.",
+      "groupFilter": "All Groups",
+      "groupFilterLabel": "Filter by cow group",
+      "sourceType": {
+        "FEED_ITEM": "Purchased",
+        "FEED_STOCK": "Prepared"
+      },
+      "itemLabel": "Feed source",
+      "itemPlaceholder": "Select an item or stock lot",
+      "unknownStock": "Unknown batch",
+      "kgPerHeadPlaceholder": "kg/head",
+      "applyToSelected": "Apply to selected ({count})",
+      "noCattle": "No cattle to feed.",
+      "columns": {
+        "cowId": "Cow ID",
+        "name": "Name",
+        "quantity": "Offered (kg)"
+      },
+      "selectAll": "Select all cows",
+      "selectCow": "Select {name}",
+      "save": "Save",
+      "saving": "Saving…",
+      "confirm": "Confirm",
+      "confirming": "Confirming…",
+      "noEntries": "No feed offered for the selected cows.",
+      "savedToast": "Saved {count} draft entries — no inventory change yet.",
+      "confirmedToast": "Confirmed feeding for {count} cows — inventory updated.",
+      "genericError": "Something went wrong. Please try again.",
+      "confirmDialog": {
+        "title": "Confirm feeding?",
+        "description": "This decrements inventory for {count} selected cows and cannot be undone. Leave a cow's offered amount as-is to confirm its prefilled default, or edit it first.",
+        "confirm": "Confirm feeding"
+      }
+    }
   },
   "settings": {
     "title": "Settings",
@@ -4173,6 +4254,25 @@
     },
     "comingSoon": "Coming soon",
     "comingSoonDescription": "This settings tab isn't built yet — check back soon.",
+    "serviceProviderPicker": {
+      "selectProvider": "Select a technician",
+      "searchProvider": "Search technicians…",
+      "loading": "Loading…",
+      "noProvidersFound": "No technicians found.",
+      "addProvider": "+ Add technician",
+      "providerName": "Name",
+      "providerNamePlaceholder": "Technician or vet's name",
+      "providerPhone": "Phone",
+      "providerPhonePlaceholder": "Optional",
+      "providerType": "Type",
+      "typeValue": {
+        "AI_TECHNICIAN": "AI Technician",
+        "VETERINARIAN": "Veterinarian",
+        "OTHER": "Other"
+      },
+      "back": "Back",
+      "addItem": "Add"
+    },
     "team": {
       "memberHeader": "Member",
       "roleHeader": "Role",

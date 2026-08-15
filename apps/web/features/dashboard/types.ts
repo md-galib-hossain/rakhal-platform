@@ -16,6 +16,10 @@ export interface PriorityItem {
   count?: number;
   cattleId?: string;
   expectedDate?: string;
+  /** Per-cow detail for a grouped row (e.g. "5 cow(s) overdue") — expandable in the UI when >1. */
+  cattle?: Array<{ id: string; name: string | null; tag: string }>;
+  /** True when `cattle` was capped server-side (more rows exist than are listed). */
+  truncated?: boolean;
 }
 
 export interface PrioritiesResponse {

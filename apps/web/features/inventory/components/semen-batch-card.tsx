@@ -1,6 +1,7 @@
-"use client"; // action button callback
+"use client"; // action button callback + bull-name lookup
 
 import { useTranslations } from "next-intl";
+import { useQuery } from "@tanstack/react-query";
 import { MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Chip } from "@/components/ui/chip";
@@ -10,8 +11,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cattleApi } from "@/features/cattle/api";
 import type { SemenBatch, SemenTank } from "../types";
 import { STRAW_COLOR_SWATCHES } from "./semen-batch-form-dialog";
+
+/** `bullId` now stores a `Cattle.id` (picked via `CattlePicker`), not a free-text bull name/tag —
+ * resolve it to a tag/name for display instead of showing the raw cuid. */
+function useBullLabel(bullId: string | null) {
+  const { data } = useQuery({
+    queryKey: ["semen-batch-bull", bullId],
+    queryFn: () => cattleApi.findOne(bullId as string),
+    enabled: Boolean(bullId),
+    staleTime: 30_000,
+  });
+  if (!bullId) return "—";
+  if (!data) return "…";
+  return data.name ? `${data.tagNumber} — ${data.name}` : data.tagNumber;
+}
 
 function InfoTile({ label, value }: { label: string; value: string }) {
   return (
@@ -42,6 +58,7 @@ export function SemenBatchCard({
 }) {
   const t = useTranslations("inventory.semen.batchCard");
   const swatch = STRAW_COLOR_SWATCHES.find((s) => s.value.toLowerCase() === (batch.strawColor ?? "").toLowerCase());
+  const bullLabel = useBullLabel(batch.bullId);
 
   return (
     <div className="flex flex-1 flex-col gap-6 rounded-2xl bg-card p-4 shadow-[0px_0px_3px_rgba(0,0,0,0.1)]">
@@ -68,7 +85,7 @@ export function SemenBatchCard({
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{t("bullId")}</span>
-          <span className="font-medium text-foreground">{batch.bullId || "—"}</span>
+          <span className="font-medium text-foreground">{bullLabel}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{t("breed")}</span>
@@ -87,6 +104,15 @@ export function SemenBatchCard({
             )}
           </span>
         </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">{t("semenType")}</span>
+          <span className="font-medium text-foreground">
+            {batch.semenType ? t(`semenTypeValue.${batch.semenType}`) : "—"}
+            {batch.semenType === "SEX_SORTED" && batch.targetSex
+              ? ` (${t(`targetSexValue.${batch.targetSex}`)})`
+              : ""}
+          </span>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -95,7 +121,6 @@ export function SemenBatchCard({
           <InfoTile label={t("canister")} value={batch.canister || "—"} />
         </div>
         <div className="flex items-center gap-3">
-          <InfoTile label={t("cane")} value={batch.cane || "—"} />
           <InfoTile label={t("goblet")} value={batch.goblet || "—"} />
         </div>
       </div>

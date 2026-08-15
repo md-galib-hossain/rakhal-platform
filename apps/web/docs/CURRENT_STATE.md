@@ -1,5 +1,56 @@
 # Frontend — Current State
 
+## Unified 8-tab animal profile IA — Overview/Performance/Feeding/Reproduction/Health/Finance/Ancestry/Tasks (no ticket #, 2026-08-15)
+Follow-up to the row below: user pasted an external reviewer's critique arguing the animal-detail tab
+*list itself* should never change shape by category — one fixed 8-tab set for every Calf/Heifer/Cow/
+Bull/Steer, with only each tab's *content* branching by life stage. Implemented per an approved
+6-phase plan (all 6 phases done this session): `cattle-detail-tabs.tsx` now renders a fixed
+`TABS = [overview, performance, feeding, reproduction, health, finance, pedigree, tasks]` for every
+category — no more `CALF_TABS`/`REST_BASE_TABS` variable-length split. `Weight`/`Colostrum`/`Milk &
+Feeding`/`Starter Feed` are no longer top-level tabs — Weight lives inside `PerformanceTab` (renamed
+from the old `overview-tab.tsx`, "Production" renamed "Performance" — reads correctly for a growing
+calf, not just a lactating cow), Colostrum/Milk/Starter Feed are card sections inside a rewritten
+`FeedingTab`. New lightweight `OverviewTab` (quick-glance: health alerts, latest weight/BCS, next
+task) for non-calf categories, reusing the exact same query keys `PerformanceTab`/`TasksTab`/
+`HealthTab` already fetch (react-query dedupes). New `TasksTab` — one component for every category,
+including a newly-upgraded Calf (was read-only, now the same live `GET /tasks?cattleId=` view as
+everyone else) — needed a small backend companion (`rakhal-backend`'s own `docs/IN_FLIGHT.md`,
+same date): `Task.relatedCattleId` existed but had no query filter, now does.
+**⚠️ Flagged, not hidden**: this session's `feeding-tab.tsx` rewrite landed inside another still-
+`claimed` row's lane (`Feeding grid: per-cow feed session`) — no visible WIP conflict found when
+read immediately before editing, but the other session needs to reconcile against this on resume.
+Gate green: `pnpm typecheck`/`pnpm lint`(0 errors)/`pnpm build`(37 routes)/both locale JSON valid;
+backend `nest build`/`eslint`(0). RBAC gates (`cattle.bcs`/`cattle.update`/`feed.distribution-log`/
+`cattle.hold`) grepped before/after, all intact. Live click-through not verified — same pre-existing
+Suspense-stuck browser-harness quirk on `/animals` documented elsewhere on this board. Full writeup:
+`docs/IN_FLIGHT.md` Recently Done.
+
+## Animal profile redesign: grouped field sections + not-applicable reasons + calf-tab fix (no ticket #, 2026-08-15)
+User compared 2 real animals (a Cow and a Calf) and suspected the differing "Animal Details" panels
+were a bug. Root-caused: no bug — both come from the same merged `CattleDetailSheet` →
+`CattleProfileCard`/`CattleDetailTabs` (`features/cattle/components/detail/`), correctly branching
+on `animalCategory`. The one real rough edge was the tab bar relabeling the same `"overview"` key
+to `t("production")` for non-calves at render time (`key === "overview" && !isCalf`) — same tab,
+different label, which also silently broke the `?tab=` URL default for non-calf animals (`"overview"`
+was never in their tab list). Fixed by giving the first tab a genuinely distinct key per category
+(`"overview"` for Calf, `"production"` for everything else) instead of relabeling; calf-rearing tabs
+now lead the tab bar for calves. `CattleProfileCard`'s field grid restructured into 3 labeled
+sections (Identity / Life Stage / Production & Breeding) instead of one flat grid; `Status`/`DIM` —
+the only 2 header fields that always render something rather than being conditionally omitted like
+Pregnant Status/Lactation Stage/Milk Eligibility — now show a category-aware reason
+(`getProductionUnavailableReason`: male animal / immature / not raised for milk) instead of a bare
+`"—"` when there's genuinely no production state, rather than reading as a data gap. Also found and
+removed dead code while in the area: `features/calves`' own `CalvesTable`/`CalfDetailSheet`/
+`CalfDetailTabs` were no longer imported from any `app/` route (superseded by the merge into
+`features/cattle` per that file's own "Calves merge" doc comment) — deleted; the 5 calf tab-content
+components (`overview-tab.tsx`, `colostrum-tab.tsx`, etc.) they shared stay, still actively reused by
+`CattleDetailTabs`. Gate green (`pnpm typecheck`/`pnpm lint` 0 errors/`pnpm build` 37 routes, both
+locale JSON files validated). **Live click-through not verified this pass** — hit this board's
+pre-existing Suspense-stuck quirk on `/animals` (table stayed on skeleton rows indefinitely, confirmed
+the dev server itself was healthy via a direct in-page `fetch()` to the backend proxy returning real
+data), same class of harness limitation `RAKHAL-326`/`RAKHAL-042`'s entries above already documented.
+Full writeup: `docs/IN_FLIGHT.md` Recently Done.
+
 ## RAKHAL-326 — Inventory Unit catalog, frontend half (2026-08-14)
 Closes the user's "unit should be a dropdown, not free text, also check edit" request — backend half
 (`D:\Projects\Rakhal\docs\IN_FLIGHT.md`) already shipped a real `Unit` catalog (system-seeded + farm-custom,

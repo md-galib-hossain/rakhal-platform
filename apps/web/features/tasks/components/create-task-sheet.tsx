@@ -33,7 +33,7 @@ const PRIORITY_BORDER: Record<TaskPriority, string> = {
   LOW: "border-primary",
 };
 
-function toPayload(values: CreateTaskFormInput): CreateTaskPayload {
+function toPayload(values: CreateTaskFormInput, defaultCattleId?: string): CreateTaskPayload {
   return {
     name: values.name,
     details: values.details || undefined,
@@ -44,6 +44,7 @@ function toPayload(values: CreateTaskFormInput): CreateTaskPayload {
     recurring: values.recurring,
     recurrenceType: values.recurring ? values.recurrenceType : undefined,
     safetyCritical: values.safetyCritical,
+    relatedCattleId: defaultCattleId,
   };
 }
 
@@ -53,15 +54,31 @@ function toPayload(values: CreateTaskFormInput): CreateTaskPayload {
  * glyph). The mock has no checklist-step builder — `CreateTaskDto.steps` is left unset (a task can
  * still be created and later checked off if steps exist from some other source), not invented here.
  */
-export function CreateTaskSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function CreateTaskSheet({
+  open,
+  onOpenChange,
+  defaultCattleId,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Per-animal Task Hub view (unified animal-profile redesign, no ticket #) — pre-fills
+   * `CreateTaskDto.relatedCattleId` when created from an animal's own Tasks tab. */
+  defaultCattleId?: string;
+}) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      {open ? <CreateTaskSheetBody onOpenChange={onOpenChange} /> : null}
+      {open ? <CreateTaskSheetBody onOpenChange={onOpenChange} defaultCattleId={defaultCattleId} /> : null}
     </Sheet>
   );
 }
 
-function CreateTaskSheetBody({ onOpenChange }: { onOpenChange: (open: boolean) => void }) {
+function CreateTaskSheetBody({
+  onOpenChange,
+  defaultCattleId,
+}: {
+  onOpenChange: (open: boolean) => void;
+  defaultCattleId?: string;
+}) {
   const t = useTranslations("tasks.createSheet");
   const tCommon = useTranslations("tasks");
   const createTask = useCreateTask();
@@ -73,7 +90,7 @@ function CreateTaskSheetBody({ onOpenChange }: { onOpenChange: (open: boolean) =
 
   async function onSubmit(values: CreateTaskFormInput) {
     try {
-      await createTask.mutateAsync(toPayload(values));
+      await createTask.mutateAsync(toPayload(values, defaultCattleId));
       toast.success(t("createdToast"));
       form.reset({ priority: "HIGH", recurring: false, safetyCritical: false });
       onOpenChange(false);

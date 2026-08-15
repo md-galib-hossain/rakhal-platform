@@ -21,7 +21,7 @@ export function RecordWeightDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const t = useTranslations("cattle.detail.overview.recordWeightDialog");
+  const t = useTranslations("cattle.detail.performance.recordWeightDialog");
   const recordWeight = useRecordWeight(cattleId);
 
   const form = useForm<RecordWeightInput>({

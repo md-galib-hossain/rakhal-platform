@@ -12,6 +12,20 @@ import type { MilkEligibilityStatus } from "@/features/milk/types";
 import { avatarTint } from "../../avatar-tint";
 import type { AnimalCategory, CattleDetail, ProductionStatus } from "../../types";
 
+/** RAKHAL — profile redesign (no ticket #): `Status`/`DIM` are the only two header fields that
+ * always render something (never conditionally omitted like Pregnant Status/Lactation
+ * Stage/Milk Eligibility below), so a bare "—" there reads as a data gap even when it's actually
+ * category-driven (a Calf/Heifer/male/non-milking-purpose animal genuinely has no production
+ * state — see `ProductionStatus`'s doc comment in `types.ts`). Surface *why* instead of a dash. */
+type ProductionUnavailableReason = "male" | "immature" | "notMilkingPurpose";
+
+function getProductionUnavailableReason(cattle: CattleDetail): ProductionUnavailableReason | null {
+  if (cattle.gender !== "FEMALE") return "male";
+  if (cattle.animalCategory === "CALF" || cattle.animalCategory === "HEIFER") return "immature";
+  if (!MILK_ELIGIBLE_PURPOSES.includes(cattle.purpose)) return "notMilkingPurpose";
+  return null;
+}
+
 const PRODUCTION_STATUS_VARIANT: Record<ProductionStatus, "primary" | "info" | "warning" | "muted" | "destructive"> = {
   MILKING: "primary",
   DRY: "warning",
@@ -68,6 +82,7 @@ export function CattleProfileCard({ cattle }: { cattle: CattleDetail }) {
   const isMilkEligible = cattle.gender === "FEMALE" && MILK_ELIGIBLE_PURPOSES.includes(cattle.purpose);
   const eligibilityQuery = useMilkEligibility(isMilkEligible ? cattle.id : undefined);
   const eligibility = eligibilityQuery.data;
+  const productionUnavailableReason = getProductionUnavailableReason(cattle);
 
   return (
     <Card className="flex flex-col gap-6 rounded-xl p-4">
@@ -86,7 +101,11 @@ export function CattleProfileCard({ cattle }: { cattle: CattleDetail }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-3">
+      {/* RAKHAL — profile redesign (no ticket #): 3 labeled sections instead of one flat grid, so
+          a farmer can scan by purpose (who / how old & where / production+breeding state) instead
+          of hunting through a uniform wall of fields — same grouping for every `animalCategory`,
+          just with fewer applicable values for immature/male animals. */}
+      <FieldSection label={t("sections.identity")}>
         <Field
           label={t("category")}
           value={
@@ -97,10 +116,16 @@ export function CattleProfileCard({ cattle }: { cattle: CattleDetail }) {
         />
         <Field label={t("breed")} value={cattle.breed?.name ?? "—"} />
         <Field label={t("gender")} value={t(`genderOptions.${cattle.gender}`)} />
+      </FieldSection>
+
+      <FieldSection label={t("sections.lifeStage")} bordered>
         <Field label={t("shed")} value={cattle.shed?.name ?? "—"} />
         <Field label={t("dateOfBirth")} value={cattle.dateOfBirth ? <DateText date={cattle.dateOfBirth} /> : "—"} />
         <Field label={t("age")} value={age ?? "—"} />
         <Field label={t("purpose")} value={t(`purposeOptions.${cattle.purpose}`)} />
+      </FieldSection>
+
+      <FieldSection label={t("sections.production")} bordered>
         <Field
           label={t("status")}
           value={
@@ -108,12 +133,25 @@ export function CattleProfileCard({ cattle }: { cattle: CattleDetail }) {
               <Chip variant={PRODUCTION_STATUS_VARIANT[cattle.productionStatus]}>
                 {t(`statusOptions.${cattle.productionStatus.toLowerCase()}`)}
               </Chip>
+            ) : productionUnavailableReason ? (
+              <span className="font-normal text-muted-foreground">
+                {t(`notApplicable.${productionUnavailableReason}`)}
+              </span>
             ) : (
               "—"
             )
           }
         />
-        <Field label={t("dim")} value={cattle.dim != null ? t("dimValue", { days: cattle.dim }) : "—"} />
+        <Field
+          label={t("dim")}
+          value={
+            cattle.dim != null
+              ? t("dimValue", { days: cattle.dim })
+              : productionUnavailableReason
+                ? <span className="font-normal text-muted-foreground">{t(`notApplicable.${productionUnavailableReason}`)}</span>
+                : "—"
+          }
+        />
         {pregnantStatus ? <Field label={t("pregnantStatus")} value={pregnantStatus} /> : null}
         {/* RAKHAL-273 — supplementary info, not filterable tiles (per the ticket's own guidance),
             so plain `Field`s alongside the existing status/DIM/pregnant fields rather than a
@@ -144,7 +182,7 @@ export function CattleProfileCard({ cattle }: { cattle: CattleDetail }) {
             }
           />
         ) : null}
-      </div>
+      </FieldSection>
 
       {/* RAKHAL-272 — full reproduction-alerts list (detail view gets the complete badge row; the
           table only has room for a compact count, see `ReproductionAlertsIndicator`). */}
@@ -161,6 +199,25 @@ export function CattleProfileCard({ cattle }: { cattle: CattleDetail }) {
         </div>
       ) : null}
     </Card>
+  );
+}
+
+/** Labeled group of `Field`s. `bordered` matches the reproduction-alerts block below (`border-t
+ * border-border pt-4`) so every section boundary in the card reads the same way. */
+function FieldSection({
+  label,
+  bordered,
+  children,
+}: {
+  label: string;
+  bordered?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={cn("flex flex-col gap-3", bordered && "border-t border-border pt-4")}>
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <div className="grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-3">{children}</div>
+    </div>
   );
 }
 

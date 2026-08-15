@@ -23,6 +23,7 @@ export const tasksApi = {
         category: filters.category,
         priority: filters.priority,
         search: filters.search,
+        cattleId: filters.cattleId,
         cursor,
         limit,
         sortOrder: "asc",

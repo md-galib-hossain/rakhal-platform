@@ -8,12 +8,8 @@ import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ReportExportButton } from "@/features/reports/components/report-export-button";
-import { LACTATION_INDIVIDUAL_REPORT } from "@/features/reports/report-defs";
 import { useCattleCalvingEvents, useCattleReproductionSummary } from "../../hooks/use-cattle-detail-tabs";
-import type { CattleGender, LactationStage } from "../../types";
-import { LactationCurveChart } from "./charts/lactation-curve-chart";
-import { LactationSummaryCard } from "./lactation-summary-card"; // RAKHAL-291-F
+import type { AnimalCategory, CattleGender } from "../../types";
 import { PregnancyCalvingCard } from "./pregnancy-calving-card"; // RAKHAL-317-F
 
 interface CalvingRow {
@@ -35,17 +31,27 @@ function GenderGlyph({ gender }: { gender: CattleGender }) {
 export function ReproductionTab({
   cattleId,
   gender,
-  lactationStage, // RAKHAL-291-F — threaded from CattleDetail, no second fetch
+  animalCategory,
 }: {
   cattleId: string;
   gender: CattleGender;
-  lactationStage?: LactationStage | null;
+  animalCategory: AnimalCategory;
 }) {
   const t = useTranslations("cattle.detail.reproduction");
   const isFemale = gender === "FEMALE";
-  const summary = useCattleReproductionSummary(cattleId, isFemale);
-  const calvings = useCattleCalvingEvents(cattleId, isFemale);
+  const isImmature = animalCategory === "CALF";
+  const summary = useCattleReproductionSummary(cattleId, isFemale && !isImmature);
+  const calvings = useCattleCalvingEvents(cattleId, isFemale && !isImmature);
 
+  if (isImmature) {
+    return (
+      <EmptyState
+        title={t("notApplicableImmature")}
+        description={t("notApplicableImmatureDescription")}
+        className="py-16"
+      />
+    );
+  }
   if (!isFemale) {
     return <EmptyState title={t("notApplicable")} description={t("notApplicableDescription")} className="py-16" />;
   }
@@ -73,10 +79,6 @@ export function ReproductionTab({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* RAKHAL-291-F — Lactation Summary card (today/7d/30d yield, totals by disposition, peak,
-          persistency, milk eligibility). Top section, ahead of the calving-focused stats below. */}
-      <LactationSummaryCard cattleId={cattleId} lactationStage={lactationStage} />
-
       {/* RAKHAL-317-F — calculated-vs-farmer-expected calving date, only renders when pregnant. */}
       <PregnancyCalvingCard cattleId={cattleId} />
 
@@ -129,21 +131,6 @@ export function ReproductionTab({
             </TableBody>
           </Table>
         )}
-      </div>
-
-      {/* RAKHAL-292-F — lactation curve (current lactation, DIM-indexed, per-day data-quality
-          markers) with a toggle to overlay the previous lactation or the farm-wide DIM-range average. */}
-      <LactationCurveChart cattleId={cattleId} />
-
-      {/* RAKHAL-295-F — export the current/most-recent lactation as a PDF/CSV report; cattleId is
-          enough on its own (backend falls back to the ACTIVE lactation, else the most-recently-ended
-          one), so it's pre-filled and the dialog's lactationId field stays optional/manual. */}
-      <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-4">
-        <div className="flex flex-col gap-0.5">
-          <h3 className="text-sm font-semibold text-foreground">{t("lactationReport.title")}</h3>
-          <p className="text-xs text-muted-foreground">{t("lactationReport.description")}</p>
-        </div>
-        <ReportExportButton report={LACTATION_INDIVIDUAL_REPORT} defaultParams={{ cattleId }} />
       </div>
     </div>
   );

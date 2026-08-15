@@ -1,0 +1,250 @@
+"use client"; // live query + dynamic chart imports
+
+import { useState } from "react";
+import dynamic from "next/dynamic";
+import { useLocale, useTranslations } from "next-intl";
+import { StatCard } from "@/components/shared/stat-card";
+import { ChartCard } from "@/components/shared/chart-card";
+import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { ErrorState } from "@/components/shared/error-state";
+import { EmptyState } from "@/components/shared/empty-state";
+import { DateText } from "@/components/shared/date-text";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Can } from "@/lib/auth/permissions";
+import { formatDate } from "@/lib/format";
+import type { Locale } from "@/lib/constants/i18n";
+import { useCalfDetail } from "@/features/calves/hooks/use-calves";
+import { WeightTab as CalfWeightTab } from "@/features/calves/components/detail/weight-tab";
+import { MilkQualityTestsSection } from "@/features/milk/components/milk-quality-tests-section";
+import { ReportExportButton } from "@/features/reports/components/report-export-button";
+import { LACTATION_INDIVIDUAL_REPORT } from "@/features/reports/report-defs";
+import { useCattleOverview, useWeightHistory } from "../../hooks/use-cattle-detail-tabs";
+import type { WeightHistoryPeriod } from "../../detail-types";
+import type { AnimalCategory, CattleGender, LactationStage } from "../../types";
+import { RecordBcsDialog } from "./record-bcs-dialog";
+import { RecordWeightDialog } from "./record-weight-dialog";
+import { WeightPeriodSelect } from "./charts/weight-period-select";
+import { LactationSummaryCard } from "./lactation-summary-card";
+import { LactationCurveChart } from "./charts/lactation-curve-chart";
+
+const TrendChartInner = dynamic(() => import("./charts/trend-chart-inner"), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[220px] w-full" />,
+});
+const BarChartInner = dynamic(() => import("./charts/bar-chart-inner"), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[200px] w-full" />,
+});
+
+/**
+ * Performance tab (unified animal-profile redesign, no ticket #) — renamed from the former
+ * "Overview"/"Production" tab (Figma B1-S5/B1-S6, `GET /cattle/:id/overview`), since "Production"
+ * only made sense for a lactating cow; "Performance" reads correctly across every life stage
+ * (growth for a calf/heifer, milk+body performance for a cow). `FeedTodayCard` moved to `FeedingTab`
+ * — feeding content belongs in Feeding, not Performance. For `CALF` rows this tab is just the calf's
+ * own weight/growth content (`CalfWeightTab`, reused from the calf module) — birth weight/ADG/
+ * weaning-target stay on the (calf-only) Overview tab, unchanged. The Figma "Weight vs Target" chart
+ * has no `target` counterpart in the backend (no per-animal weight-target concept anywhere in the
+ * schema) — rendered as actual weight only rather than fabricating a target line, flagged here not
+ * silently dropped.
+ */
+export function PerformanceTab({
+  cattleId,
+  gender,
+  lactationStage,
+  animalCategory,
+}: {
+  cattleId: string;
+  gender: CattleGender;
+  lactationStage?: LactationStage | null;
+  animalCategory: AnimalCategory;
+}) {
+  const isCalf = animalCategory === "CALF";
+  const calfQuery = useCalfDetail(isCalf ? cattleId : undefined);
+
+  if (isCalf) {
+    if (calfQuery.isLoading) return <CardSkeleton lines={3} />;
+    if (calfQuery.isError || !calfQuery.data) {
+      return <ErrorState onRetry={() => calfQuery.refetch()} />;
+    }
+    return <CalfWeightTab calfId={cattleId} data={calfQuery.data} />;
+  }
+
+  return <NonCalfPerformanceTab cattleId={cattleId} gender={gender} lactationStage={lactationStage} />;
+}
+
+function NonCalfPerformanceTab({
+  cattleId,
+  gender,
+  lactationStage,
+}: {
+  cattleId: string;
+  gender: CattleGender;
+  lactationStage?: LactationStage | null;
+}) {
+  const t = useTranslations("cattle.detail.performance");
+  const tReproduction = useTranslations("cattle.detail.reproduction");
+  const locale = useLocale() as Locale;
+  const isFemale = gender === "FEMALE";
+  const query = useCattleOverview(cattleId);
+  const [bcsDialogOpen, setBcsDialogOpen] = useState(false);
+  const [weightDialogOpen, setWeightDialogOpen] = useState(false);
+  const [weightPeriod, setWeightPeriod] = useState<WeightHistoryPeriod>("month");
+  const weightHistoryQuery = useWeightHistory(cattleId, weightPeriod);
+
+  if (query.isLoading) {
+    return (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <CardSkeleton />
+        <CardSkeleton />
+        <CardSkeleton />
+      </div>
+    );
+  }
+  if (query.isError) {
+    return <ErrorState description={t("error")} onRetry={() => query.refetch()} />;
+  }
+  const data = query.data;
+  if (!data) return null;
+
+  const weightDateFormat: Intl.DateTimeFormatOptions =
+    weightPeriod === "year"
+      ? { year: "numeric" }
+      : weightPeriod === "month"
+        ? { month: "short", year: "numeric" }
+        : { month: "short", day: "numeric" };
+  const weightData = (weightHistoryQuery.data?.points ?? []).map((p) => ({
+    date: formatDate(p.date, locale, weightDateFormat),
+    weight: p.weightKg,
+  }));
+  const lifetimeData = data.lifetime_yield.map((p) => ({ year: p.year, total: p.total_l }));
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard label={t("aqrScore")} value={data.aqr_score ?? "—"} delta={data.aqr_change_pct ?? undefined} deltaLabel="%" />
+        <StatCard
+          label={t("avgDailyYield")}
+          value={t("litres", { value: data.avg_daily_yield_7d })}
+          delta={data.yield_change_pct ?? undefined}
+          deltaLabel="%"
+        />
+        <StatCard
+          label={t("liveWeight")}
+          value={data.last_weight_kg != null ? t("kg", { value: data.last_weight_kg }) : "—"}
+          delta={data.weight_change_pct ?? undefined}
+          deltaLabel="%"
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Can I="cattle.bcs">
+          <Button variant="outline" size="sm" onClick={() => setBcsDialogOpen(true)}>
+            {t("recordBcs")}
+          </Button>
+        </Can>
+        <Can I="cattle.update">
+          <Button variant="outline" size="sm" onClick={() => setWeightDialogOpen(true)}>
+            {t("recordWeight")}
+          </Button>
+        </Can>
+      </div>
+      <RecordBcsDialog cattleId={cattleId} open={bcsDialogOpen} onOpenChange={setBcsDialogOpen} />
+      <RecordWeightDialog cattleId={cattleId} open={weightDialogOpen} onOpenChange={setWeightDialogOpen} />
+
+      <ChartCard
+        title={t("weightHistory")}
+        rangeControl={<WeightPeriodSelect value={weightPeriod} onChange={setWeightPeriod} />}
+        legend={
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-3 rounded-full bg-success" />
+            <p className="text-xs font-medium text-muted-foreground">{t("actual")}</p>
+          </div>
+        }
+      >
+        {weightHistoryQuery.isLoading ? (
+          <Skeleton className="h-[200px] w-full" />
+        ) : weightData.length === 0 ? (
+          <EmptyState title={t("noWeightRecords")} className="py-8" />
+        ) : (
+          <TrendChartInner
+            data={weightData}
+            xKey="date"
+            series={[{ key: "weight", label: t("weightKg"), color: "var(--success)" }]}
+          />
+        )}
+      </ChartCard>
+
+      {isFemale ? (
+        <>
+          {/* RAKHAL-291-F — Lactation Summary card (today/7d/30d yield, totals by disposition, peak,
+              persistency, milk eligibility). Pure milk-yield content belongs on Performance, not
+              alongside breeding/calving data. */}
+          <LactationSummaryCard cattleId={cattleId} lactationStage={lactationStage} />
+
+          {/* RAKHAL-292-F — lactation curve (current lactation, DIM-indexed, per-day data-quality
+              markers) with a toggle to overlay the previous lactation or the farm-wide DIM-range
+              average. */}
+          <LactationCurveChart cattleId={cattleId} />
+        </>
+      ) : null}
+
+      <ChartCard title={t("lifetimeYield")}>
+        {lifetimeData.length === 0 ? (
+          <EmptyState title={t("noLifetimeData")} className="py-8" />
+        ) : (
+          <BarChartInner data={lifetimeData} xKey="year" yKey="total" minWidth={280} />
+        )}
+      </ChartCard>
+
+      <div className="flex flex-col gap-2">
+        <h3 className="text-sm font-semibold text-foreground">{t("recentRecords")}</h3>
+        {data.recent_milk_records.length === 0 ? (
+          <EmptyState title={t("noRecentRecords")} className="py-8" />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("columns.date")}</TableHead>
+                <TableHead>{t("columns.morning")}</TableHead>
+                <TableHead>{t("columns.noon")}</TableHead>
+                <TableHead>{t("columns.evening")}</TableHead>
+                <TableHead>{t("columns.total")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.recent_milk_records.map((r) => (
+                <TableRow key={r.date}>
+                  <TableCell>
+                    <DateText date={r.date} />
+                  </TableCell>
+                  <TableCell>{r.morning_l} L</TableCell>
+                  <TableCell>{r.noon_l} L</TableCell>
+                  <TableCell>{r.evening_l} L</TableCell>
+                  <TableCell className="font-medium text-success">{r.total_l} L</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+
+      <MilkQualityTestsSection cattleId={cattleId} />
+
+      {isFemale ? (
+        /* RAKHAL-295-F — export the current/most-recent lactation as a PDF/CSV report; cattleId is
+           enough on its own (backend falls back to the ACTIVE lactation, else the most-recently-ended
+           one), so it's pre-filled and the dialog's lactationId field stays optional/manual. */
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-4">
+          <div className="flex flex-col gap-0.5">
+            <h3 className="text-sm font-semibold text-foreground">{tReproduction("lactationReport.title")}</h3>
+            <p className="text-xs text-muted-foreground">{tReproduction("lactationReport.description")}</p>
+          </div>
+          <ReportExportButton report={LACTATION_INDIVIDUAL_REPORT} defaultParams={{ cattleId }} />
+        </div>
+      ) : null}
+    </div>
+  );
+}

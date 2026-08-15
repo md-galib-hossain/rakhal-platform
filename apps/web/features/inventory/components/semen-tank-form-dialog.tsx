@@ -21,7 +21,6 @@ function toPayload(values: SemenTankFormInput): CreateSemenTankPayload {
     modelManufacturer: values.modelManufacturer || undefined,
     strawCapacity: values.strawCapacity,
     numCanisters: values.numCanisters,
-    numCanes: values.numCanes,
     numGoblets: values.numGoblets,
     storageLocation: values.storageLocation || undefined,
     currentTempC: values.currentTempC,
@@ -36,7 +35,6 @@ function toFormDefaults(tank: SemenTank | undefined): Partial<SemenTankFormInput
     modelManufacturer: tank.modelManufacturer ?? "",
     strawCapacity: tank.strawCapacity,
     numCanisters: tank.numCanisters ?? undefined,
-    numCanes: tank.numCanes ?? undefined,
     numGoblets: tank.numGoblets ?? undefined,
     storageLocation: tank.storageLocation ?? "",
     currentTempC: tank.currentTempC ?? undefined,
@@ -134,7 +132,6 @@ function SemenTankFormDialogBody({ onOpenChange, tank }: { onOpenChange: (open: 
               error={form.formState.errors.strawCapacity?.message}
             />
             <LabeledInput id="numCanisters" type="number" min={0} label={t("numCanisters")} {...form.register("numCanisters", numberField)} />
-            <LabeledInput id="numCanes" type="number" min={0} label={t("numCanes")} {...form.register("numCanes", numberField)} />
             <LabeledInput id="numGoblets" type="number" min={0} label={t("numGoblets")} {...form.register("numGoblets", numberField)} />
             <LabeledInput id="storageLocation" label={t("storageLocation")} placeholder={t("storageLocationPlaceholder")} {...form.register("storageLocation")} />
           </div>

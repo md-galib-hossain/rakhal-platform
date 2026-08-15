@@ -177,7 +177,7 @@ export function IngredientManagementTable() {
   const searchParams = useSearchParams();
   const filters = {
     search: searchParams.get("search") ?? undefined,
-    feedClass: (searchParams.get("feedClass") as FeedClass | null) ?? undefined,
+    feedClass: searchParams.get("feedClass")?.split(",").filter(Boolean) as FeedClass[] | undefined,
     priceMin: searchParams.get("priceMin") ? Number(searchParams.get("priceMin")) : undefined,
     priceMax: searchParams.get("priceMax") ? Number(searchParams.get("priceMax")) : undefined,
   };

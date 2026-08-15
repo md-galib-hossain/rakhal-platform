@@ -3,7 +3,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { settingsApi } from "../api";
-import type { FeedGroupFormInput, ShedFormInput, SupplierFormInput, UpdateFarmInput } from "../schemas";
+import type {
+  FeedGroupFormInput,
+  ServiceProviderFormInput,
+  ShedFormInput,
+  SupplierFormInput,
+  UpdateFarmInput,
+} from "../schemas";
 
 export function useUpdateFarm() {
   const queryClient = useQueryClient();
@@ -83,5 +89,30 @@ export function useDeleteSupplier() {
   return useMutation({
     mutationFn: (id: string) => settingsApi.deleteSupplier(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.suppliers() }),
+  });
+}
+
+export function useCreateServiceProvider() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ServiceProviderFormInput) => settingsApi.createServiceProvider(input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.serviceProviders() }),
+  });
+}
+
+export function useUpdateServiceProvider() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: ServiceProviderFormInput }) =>
+      settingsApi.updateServiceProvider(id, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.serviceProviders() }),
+  });
+}
+
+export function useDeleteServiceProvider() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => settingsApi.deleteServiceProvider(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.serviceProviders() }),
   });
 }

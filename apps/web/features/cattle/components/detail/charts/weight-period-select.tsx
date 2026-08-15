@@ -14,7 +14,7 @@ export function WeightPeriodSelect({
   value: WeightHistoryPeriod;
   onChange: (period: WeightHistoryPeriod) => void;
 }) {
-  const t = useTranslations("cattle.detail.overview.weightPeriod");
+  const t = useTranslations("cattle.detail.performance.weightPeriod");
   return (
     <Select value={value} onValueChange={(v) => onChange(v as WeightHistoryPeriod)}>
       <SelectTrigger className="h-auto w-auto gap-1.5 rounded-md border-border px-2 py-1.5 text-xs font-medium text-muted-foreground shadow-xs [&_svg]:size-3.5">

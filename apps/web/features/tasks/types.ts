@@ -66,6 +66,9 @@ export interface TaskListFilters {
   category?: TaskCategory;
   priority?: TaskPriority;
   search?: string;
+  /** Per-animal Task Hub view (unified animal-profile redesign, no ticket #) — filters on
+   * `Task.relatedCattleId` server-side. */
+  cattleId?: string;
 }
 
 /** Mirrors `CreateTaskDto`. */

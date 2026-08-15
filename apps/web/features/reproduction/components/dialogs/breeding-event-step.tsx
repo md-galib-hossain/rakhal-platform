@@ -38,16 +38,29 @@ export function BreedingEventStep({
       cattleId,
       breedingDate: toDateTimeLocal(new Date().toISOString()),
       breedingMethod: "AI",
+      semenSource: "FARM_INVENTORY",
     },
   });
 
   async function onSubmit(values: CreateBreedingEventInput) {
     try {
+      const isAi = values.breedingMethod === "AI";
+      const isFarmInventory = isAi && values.semenSource === "FARM_INVENTORY";
+      const isTechnicianSupplied = isAi && values.semenSource === "TECHNICIAN_SUPPLIED";
       await createBreedingEvent.mutateAsync({
         ...values,
         breedingDate: new Date(values.breedingDate).toISOString(),
         bullId: values.bullId || undefined,
-        semenBatchId: values.breedingMethod === "AI" ? values.semenBatchId || undefined : undefined,
+        semenSource: isAi ? values.semenSource : undefined,
+        semenBatchId: isFarmInventory ? values.semenBatchId || undefined : undefined,
+        serviceProviderId: isTechnicianSupplied ? values.serviceProviderId || undefined : undefined,
+        sireNameOrCode: isAi && !isFarmInventory ? values.sireNameOrCode || undefined : undefined,
+        sireBreed: isAi && !isFarmInventory ? values.sireBreed || undefined : undefined,
+        semenType: isAi && !isFarmInventory ? values.semenType || undefined : undefined,
+        targetSex: isAi && !isFarmInventory ? values.targetSex || undefined : undefined,
+        strawBatchCode: isAi && !isFarmInventory ? values.strawBatchCode || undefined : undefined,
+        semenCompany: isAi && !isFarmInventory ? values.semenCompany || undefined : undefined,
+        serviceCost: isAi && !isFarmInventory ? values.serviceCost : undefined,
       });
       toast.success(t("createdToast"));
       onDone();

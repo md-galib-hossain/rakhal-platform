@@ -60,3 +60,11 @@ export const supplierFormSchema = z.object({
   notes: z.string().trim().max(500).optional().or(z.literal("")),
 });
 export type SupplierFormInput = z.infer<typeof supplierFormSchema>;
+
+/** Mirrors `CreateServiceProviderDto`/`UpdateServiceProviderDto` (single form covers both). */
+export const serviceProviderFormSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  phone: z.string().trim().max(30).optional().or(z.literal("")),
+  type: z.enum(["AI_TECHNICIAN", "VETERINARIAN", "OTHER"]),
+});
+export type ServiceProviderFormInput = z.infer<typeof serviceProviderFormSchema>;

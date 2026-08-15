@@ -496,7 +496,10 @@
       "title": "আজকের অগ্রাধিকার",
       "error": "অগ্রাধিকার লোড করা যায়নি।",
       "emptyTitle": "সব ঠিক আছে",
-      "emptyDescription": "এই মুহূর্তে জরুরি কিছু নেই।"
+      "emptyDescription": "এই মুহূর্তে জরুরি কিছু নেই।",
+      "expand": "বিস্তারিত দেখুন",
+      "collapse": "বিস্তারিত লুকান",
+      "moreNotShown": "+{count} আরও"
     },
     "kpis": {
       "costPerLitre": "প্রতি লিটার খরচ",
@@ -1019,16 +1022,40 @@
         "ABNORMAL_MILK": "অস্বাভাবিক দুধ",
         "OTHER": "অন্যান্য"
       },
+      "sections": {
+        "identity": "পরিচয়",
+        "lifeStage": "বয়স ও অবস্থান",
+        "production": "কর্মক্ষমতা ও প্রজনন"
+      },
+      "notApplicable": {
+        "male": "প্রযোজ্য নয় — পুরুষ প্রাণী",
+        "immature": "এখনো দুধ দেয়নি",
+        "notMilkingPurpose": "দুধের জন্য পালিত নয়"
+      },
       "tabs": {
         "overview": "ওভারভিউ",
+        "performance": "কর্মক্ষমতা",
         "reproduction": "প্রজনন",
         "health": "স্বাস্থ্য",
         "finance": "অর্থ",
         "pedigree": "বংশতালিকা",
-        "feeding": "খাওয়ানো"
+        "feeding": "খাওয়ানো",
+        "tasks": "টাস্ক"
+      },
+      "snapshot": {
+        "title": "ওভারভিউ",
+        "error": "ওভারভিউ লোড করা যায়নি।",
+        "alerts": "মনোযোগ প্রয়োজন",
+        "noAlerts": "কোনো সতর্কতা নেই — সবকিছু ঠিক আছে।",
+        "nextTask": "পরবর্তী টাস্ক",
+        "noNextTask": "কোনো আসন্ন টাস্ক নেই।",
+        "latestWeight": "সর্বশেষ ওজন",
+        "latestBcs": "সর্বশেষ BCS",
+        "currentStatus": "বর্তমান অবস্থা",
+        "kg": "{value} কেজি"
       },
       "feeding": {
-        "feedNow": "এই গরুকে এখনই খাওয়ান",
+        "goToFeedingGrid": "ফিডিং গ্রিডে যান",
         "assignedRation": "নির্ধারিত রেশন",
         "noRation": "কোনো রেশন নির্ধারিত নেই",
         "noRationDescription": "এই গরুর কোনো পাল, গ্রুপ বা একক রেশন সক্রিয় নেই।",
@@ -1046,7 +1073,7 @@
         "noDmi": "এখনো কোনো খাওয়ানোর তথ্য নেই",
         "noDmiDescription": "আজ এই গরুর জন্য কোনো খাওয়ানো লগ করা হয়নি।"
       },
-      "overview": {
+      "performance": {
         "error": "ওভারভিউ লোড করা যায়নি।",
         "aqrScore": "AQR স্কোর",
         "avgDailyYield": "গড় দৈনিক উৎপাদন",
@@ -1064,9 +1091,6 @@
           "month": "মাসিক",
           "year": "বার্ষিক"
         },
-        "lactationCurve": "দুগ্ধদান বক্ররেখা",
-        "yieldL": "উৎপাদন (লিটার)",
-        "noLactationData": "কোনো সক্রিয় দুগ্ধদান পর্যায় নেই।",
         "lifetimeYield": "জীবনকালীন উৎপাদন",
         "noLifetimeData": "এখনো কোনো দুধের রেকর্ড নেই।",
         "feedToday": "আজ খাওয়ান",
@@ -1154,6 +1178,8 @@
       "reproduction": {
         "notApplicable": "প্রযোজ্য নয়",
         "notApplicableDescription": "প্রজনন রেকর্ড শুধুমাত্র স্ত্রী গবাদি পশুর জন্য প্রযোজ্য।",
+        "notApplicableImmature": "খুব কম বয়সী",
+        "notApplicableImmatureDescription": "এই বাছুর এখনো প্রজনন রেকর্ডের জন্য যথেষ্ট বয়সী নয়।",
         "error": "প্রজনন তথ্য লোড করা যায়নি।",
         "totalCalvings": "মোট প্রসব",
         "calvingInterval": "প্রসব ব্যবধান",
@@ -1791,7 +1817,6 @@
         "modelManufacturerPlaceholder": "যেমন 'MVE XC 20'",
         "strawCapacity": "স্ট্র ধারণক্ষমতা",
         "numCanisters": "ক্যানিস্টার সংখ্যা",
-        "numCanes": "কেইন সংখ্যা",
         "numGoblets": "গবলেট সংখ্যা",
         "storageLocation": "স্টোরেজ অবস্থান",
         "storageLocationPlaceholder": "যেমন 'ওয়্যারহাউস এ'",
@@ -1814,7 +1839,6 @@
         "modelManufacturer": "মডেল/প্রস্তুতকারক",
         "strawCapacity": "স্ট্র ধারণক্ষমতা",
         "numCanisters": "ক্যানিস্টার সংখ্যা",
-        "numCanes": "কেইন সংখ্যা",
         "numGoblets": "গবলেট সংখ্যা",
         "storageLocation": "স্টোরেজ অবস্থান",
         "currentTemperature": "বর্তমান তাপমাত্রা",
@@ -1829,12 +1853,20 @@
         "menu": "রো অ্যাকশন",
         "edit": "সম্পাদনা",
         "archive": "আর্কাইভ",
-        "bullId": "ষাঁড়ের আইডি",
+        "bullId": "ষাঁড়",
         "breed": "জাত",
         "strawColor": "স্ট্র রঙ",
+        "semenType": "সিমেনের ধরন",
+        "semenTypeValue": {
+          "CONVENTIONAL": "প্রচলিত",
+          "SEX_SORTED": "সেক্স-সর্টেড"
+        },
+        "targetSexValue": {
+          "FEMALE": "স্ত্রী",
+          "MALE": "পুরুষ"
+        },
         "tank": "ট্যাংক",
         "canister": "ক্যানিস্টার",
-        "cane": "কেইন",
         "goblet": "গবলেট",
         "strawLeft": "অবশিষ্ট স্ট্র",
         "archivedToast": "স্ট্র ব্যাচ আর্কাইভ করা হয়েছে।",
@@ -1854,8 +1886,8 @@
         "batchInfo": "ব্যাচ তথ্য",
         "batchName": "ব্যাচ/স্ট্র নাম",
         "batchNamePlaceholder": "যেমন \"হলস্টেইন ফ্রিজিয়ান প্রিমিয়াম\"",
-        "bullId": "ষাঁড়ের আইডি/নাম",
-        "bullIdPlaceholder": "যেমন \"HF-9982\"",
+        "bullId": "ষাঁড়",
+        "bullIdPlaceholder": "ষাঁড় নির্বাচন করুন…",
         "breed": "জাত",
         "breedPlaceholder": "যেমন \"হলস্টেইন ফ্রিজিয়ান\"",
         "batchCode": "ব্যাচ আইডি",
@@ -1863,19 +1895,29 @@
         "strawColor": "স্ট্র রঙ",
         "selectColor": "রঙ নির্বাচন করুন",
         "initialVitality": "প্রাথমিক ভাইটালিটি",
+        "semenType": "সিমেনের ধরন",
+        "selectSemenType": "সিমেনের ধরন নির্বাচন করুন",
+        "semenTypeValue": {
+          "CONVENTIONAL": "প্রচলিত",
+          "SEX_SORTED": "সেক্স-সর্টেড"
+        },
+        "targetSex": "লক্ষ্য লিঙ্গ",
+        "selectTargetSex": "লক্ষ্য লিঙ্গ নির্বাচন করুন",
+        "targetSexValue": {
+          "FEMALE": "স্ত্রী",
+          "MALE": "পুরুষ"
+        },
         "strawInventory": "স্ট্র ইনভেন্টরি",
         "strawQuantity": "স্ট্র পরিমাণ",
-        "fatherId": "পিতার আইডি",
-        "fatherIdPlaceholder": "যেমন \"HF-1212\"",
-        "motherId": "মাতার আইডি",
-        "motherIdPlaceholder": "যেমন \"HFW-1234\"",
+        "fatherId": "সায়ার",
+        "fatherIdPlaceholder": "সায়ার নির্বাচন করুন…",
+        "motherId": "ড্যাম",
+        "motherIdPlaceholder": "ড্যাম নির্বাচন করুন…",
         "storageLocationInfo": "স্টোরেজ অবস্থানের তথ্য",
         "tank": "ট্যাংক",
         "selectTank": "ট্যাংক নির্বাচন করুন",
         "canister": "ক্যানিস্টার",
         "canisterPlaceholder": "যেমন \"ক্যানিস্টার এ\"",
-        "cane": "কেইন",
-        "canePlaceholder": "যেমন \"কেইন ০৫\"",
         "goblet": "গবলেট",
         "gobletPlaceholder": "যেমন \"গবলেট ১\"",
         "note": "নোট",
@@ -2255,9 +2297,39 @@
           "NATURAL": "প্রাকৃতিক প্রজনন",
           "EMBRYO_TRANSFER": "ভ্রূণ স্থানান্তর"
         },
+        "semenSource": "সিমেনের উৎস",
+        "semenSourceValue": {
+          "FARM_INVENTORY": "খামারের মজুদ",
+          "TECHNICIAN_SUPPLIED": "টেকনিশিয়ান সরবরাহকৃত",
+          "EXTERNAL": "অন্যান্য / বাহ্যিক"
+        },
         "semenBatch": "সিমেন ব্যাচ",
         "semenBatchPlaceholder": "একটি সিমেন ব্যাচ নির্বাচন করুন",
         "strawsLeft": "{count}টি স্ট্র বাকি",
+        "serviceProvider": "টেকনিশিয়ান",
+        "serviceProviderPlaceholder": "টেকনিশিয়ান নির্বাচন বা যোগ করুন",
+        "sireNameOrCode": "ষাঁড়ের নাম / কোড",
+        "sireNameOrCodePlaceholder": "ঐচ্ছিক",
+        "sireBreed": "জাত",
+        "sireBreedPlaceholder": "ঐচ্ছিক",
+        "semenType": "সিমেনের ধরন",
+        "semenTypePlaceholder": "ঐচ্ছিক",
+        "semenTypeValue": {
+          "CONVENTIONAL": "প্রচলিত",
+          "SEX_SORTED": "সেক্স-সর্টেড"
+        },
+        "targetSex": "লক্ষ্য লিঙ্গ",
+        "targetSexPlaceholder": "ঐচ্ছিক",
+        "targetSexValue": {
+          "FEMALE": "স্ত্রী",
+          "MALE": "পুরুষ"
+        },
+        "strawBatchCode": "স্ট্র / ব্যাচ নম্বর",
+        "strawBatchCodePlaceholder": "ঐচ্ছিক",
+        "semenCompany": "সিমেন কোম্পানি / স্টেশন",
+        "semenCompanyPlaceholder": "ঐচ্ছিক",
+        "serviceCost": "সেবার খরচ (৳)",
+        "serviceCostPlaceholder": "ঐচ্ছিক",
         "bull": "ষাঁড়",
         "inseminator": "ইনসেমিনেটর",
         "inseminatorPlaceholder": "টেকনিশিয়ানের নাম",
@@ -4115,37 +4187,10 @@
       "confirm": "নিশ্চিত করুন",
       "loggedToast": "খাওয়ানো লগ করা হয়েছে — স্টক আপডেট হয়েছে",
       "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
-    },
-    "quickFeed": {
-      "title": "দ্রুত খাওয়ান",
-      "close": "বন্ধ করুন",
-      "selectItem": "ফিড আইটেম",
-      "selectItemPlaceholder": "একটি ক্রয়কৃত ফিড আইটেম নির্বাচন করুন",
-      "createItem": "নতুন ফিড আইটেম তৈরি করুন",
-      "quantityKg": "পরিমাণ (কেজি)",
-      "estimatedCost": "আনুমানিক খরচ: ৳{value}",
-      "target": {
-        "GROUP": "গরুর গ্রুপ",
-        "INDIVIDUAL": "একক গরু",
-        "HERD": "পুরো পাল"
-      },
-      "herdTargetHint": "ডিফল্টভাবে পুরো সক্রিয় পালের জন্য প্রযোজ্য।",
-      "selectGroup": "গ্রুপ নির্বাচন করুন",
-      "selectGroupPlaceholder": "একটি গরুর গ্রুপ নির্বাচন করুন",
-      "cowCount": "{count} টি গরু",
-      "selectAnimal": "প্রাণী নির্বাচন করুন",
-      "date": "তারিখ",
-      "notes": "নোট",
-      "notesPlaceholder": "ঐচ্ছিক নোট",
-      "cancel": "বাতিল",
-      "confirm": "নিশ্চিত করুন",
-      "loggedToast": "খাওয়ানো লগ করা হয়েছে — স্টক আপডেট হয়েছে",
-      "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
     }
   },
   "feeding": {
     "subtitle": "আজকের ফিড প্রয়োজনীয়তা, খরচ এবং দ্রুত অ্যাকশন।",
-    "quickFeedAction": "দ্রুত খাওয়ান",
     "stats": {
       "todaysRequirement": "আজকের প্রয়োজনীয়তা",
       "costPerCowDay": "খরচ/গরু/দিন",
@@ -4161,7 +4206,43 @@
     "noGroups": "এখনো কোনো ফিডিং গ্রুপ নেই",
     "noGroupsDescription": "দৈনিক খাওয়ানো সংগঠিত করতে সেটিংসে একটি ফিডিং গ্রুপ তৈরি করুন।",
     "cowCount": "{count} টি গরু",
-    "feedToday": "আজ খাওয়ান"
+    "feedToday": "আজ খাওয়ান",
+    "grid": {
+      "title": "ফিডিং গ্রিড",
+      "error": "ফিডিং গ্রিড লোড করা যায়নি।",
+      "groupFilter": "সব গ্রুপ",
+      "groupFilterLabel": "গরুর গ্রুপ অনুযায়ী ফিল্টার করুন",
+      "sourceType": {
+        "FEED_ITEM": "ক্রয়কৃত",
+        "FEED_STOCK": "প্রস্তুতকৃত"
+      },
+      "itemLabel": "ফিড উৎস",
+      "itemPlaceholder": "একটি আইটেম বা স্টক লট নির্বাচন করুন",
+      "unknownStock": "অজানা ব্যাচ",
+      "kgPerHeadPlaceholder": "কেজি/মাথা",
+      "applyToSelected": "নির্বাচিতদের প্রয়োগ করুন ({count})",
+      "noCattle": "খাওয়ানোর জন্য কোনো গবাদি পশু নেই।",
+      "columns": {
+        "cowId": "গরুর আইডি",
+        "name": "নাম",
+        "quantity": "প্রদত্ত (কেজি)"
+      },
+      "selectAll": "সব গরু নির্বাচন করুন",
+      "selectCow": "{name} নির্বাচন করুন",
+      "save": "সংরক্ষণ করুন",
+      "saving": "সংরক্ষণ হচ্ছে…",
+      "confirm": "নিশ্চিত করুন",
+      "confirming": "নিশ্চিত করা হচ্ছে…",
+      "noEntries": "নির্বাচিত গরুদের জন্য কোনো খাবার দেওয়া হয়নি।",
+      "savedToast": "{count} টি ড্রাফট এন্ট্রি সংরক্ষিত হয়েছে — এখনো ইনভেন্টরি পরিবর্তন হয়নি।",
+      "confirmedToast": "{count} টি গরুর খাওয়ানো নিশ্চিত হয়েছে — ইনভেন্টরি আপডেট হয়েছে।",
+      "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।",
+      "confirmDialog": {
+        "title": "খাওয়ানো নিশ্চিত করবেন?",
+        "description": "এটি {count} টি নির্বাচিত গরুর ইনভেন্টরি কমিয়ে দেবে এবং এটি পূর্বাবস্থায় ফেরানো যাবে না। ডিফল্ট প্রদত্ত পরিমাণ নিশ্চিত করতে অপরিবর্তিত রাখুন, অথবা আগে সম্পাদনা করুন।",
+        "confirm": "খাওয়ানো নিশ্চিত করুন"
+      }
+    }
   },
   "settings": {
     "title": "সেটিংস",
@@ -4173,6 +4254,25 @@
     },
     "comingSoon": "শীঘ্রই আসছে",
     "comingSoonDescription": "এই সেটিংস ট্যাবটি এখনও তৈরি হয়নি — শীঘ্রই দেখুন।",
+    "serviceProviderPicker": {
+      "selectProvider": "একজন টেকনিশিয়ান নির্বাচন করুন",
+      "searchProvider": "টেকনিশিয়ান খুঁজুন…",
+      "loading": "লোড হচ্ছে…",
+      "noProvidersFound": "কোনো টেকনিশিয়ান পাওয়া যায়নি।",
+      "addProvider": "+ টেকনিশিয়ান যোগ করুন",
+      "providerName": "নাম",
+      "providerNamePlaceholder": "টেকনিশিয়ান বা ডাক্তারের নাম",
+      "providerPhone": "ফোন",
+      "providerPhonePlaceholder": "ঐচ্ছিক",
+      "providerType": "ধরন",
+      "typeValue": {
+        "AI_TECHNICIAN": "এআই টেকনিশিয়ান",
+        "VETERINARIAN": "পশুচিকিৎসক",
+        "OTHER": "অন্যান্য"
+      },
+      "back": "পিছনে",
+      "addItem": "যোগ করুন"
+    },
     "team": {
       "memberHeader": "সদস্য",
       "roleHeader": "ভূমিকা",

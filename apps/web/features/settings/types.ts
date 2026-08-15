@@ -99,3 +99,20 @@ export interface Supplier {
 export interface SupplierListResult {
   suppliers: Supplier[];
 }
+
+export type ServiceProviderType = "AI_TECHNICIAN" | "VETERINARIAN" | "OTHER";
+
+/** `GET/POST/PATCH /settings/service-providers` row (`WorkspaceSettingsService#mapServiceProvider`).
+ * Farm-scoped contact directory for AI technicians/vets, referenced by `BreedingEvent.serviceProviderId`
+ * when Reproduction's Record AI form uses `semenSource: "TECHNICIAN_SUPPLIED"`. */
+export interface ServiceProvider {
+  id: string;
+  name: string;
+  phone: string | null;
+  type: ServiceProviderType;
+  is_active: boolean;
+}
+
+export interface ServiceProviderListResult {
+  service_providers: ServiceProvider[];
+}
