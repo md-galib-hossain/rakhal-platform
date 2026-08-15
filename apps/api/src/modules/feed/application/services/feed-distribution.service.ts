@@ -11,7 +11,6 @@ import { resolveEffective } from '../../domain/ingredient-resolver';
 import { computeTotals, FormulaLine } from '../../domain/formula-math';
 import { LogDistributionDto } from '../../presentation/dto/log-distribution.dto';
 import { PatchRefusalDto } from '../../presentation/dto/patch-refusal.dto';
-import { QuickFeedDto } from '../../presentation/dto/quick-feed.dto';
 import {
   FeedEfficiencyQueryDto,
   ListDistributionQueryDto,
@@ -251,34 +250,24 @@ export class FeedDistributionService {
     return this.mapDistribution(created, decrements);
   }
 
-  /** Feed a single raw `FeedItem` straight to a cow/group/herd, no `FeedConcentration`
-   * involved (2026-08-13, user request). Fed-and-logged in one step — `plannedKg` always
-   * equals `actualKg`, there's no separate "plan" for a quick single-item feed. Decrements
-   * the `FeedItem`'s own stock directly (converting through `kgPerUnit` for a non-kg unit,
-   * same conversion `planForageDecrements` uses for the concentration-based path). */
-  async quickFeed(farmId: string, userId: string, dto: QuickFeedDto) {
+  /**
+   * Direct-by-id `FeedItem` usage computation — validates sufficient stock and converts through
+   * `kgPerUnit` for a non-kg unit, same conversion `planForageDecrements` uses for the
+   * concentration-based path. Read-only (doesn't persist); the caller applies `newStock` inside its
+   * own transaction. Extracted from the old `quickFeed()` (removed 2026-08-15, replaced by the
+   * Feeding Grid) so `FeedFeedingGridService#confirm`'s `FEED_ITEM` source path can reuse the same
+   * validated conversion math without re-deriving it.
+   */
+  async computeFeedItemUsage(
+    farmId: string,
+    feedItemId: string,
+    quantityKg: number,
+  ) {
     const feedItem = await this.prisma.feedItem.findFirst({
-      where: { id: dto.feedItemId, farmId, isActive: true },
+      where: { id: feedItemId, farmId, isActive: true },
       include: { unit: true },
     });
     if (!feedItem) throw new NotFoundException('Feed item not found');
-
-    if (dto.targetType === 'GROUP') {
-      const group = await this.prisma.feedGroup.findFirst({
-        where: { id: dto.feedGroupId, farmId, isActive: true },
-        select: { id: true },
-      });
-      if (!group)
-        throw new BadRequestException('Feed group must belong to the farm');
-    }
-    if (dto.targetType === 'INDIVIDUAL') {
-      const cattle = await this.prisma.cattle.findFirst({
-        where: { id: dto.cattleId, farmId, isActive: true },
-        select: { id: true },
-      });
-      if (!cattle)
-        throw new BadRequestException('Cattle must belong to the farm');
-    }
 
     const isKg = feedItem.unit.symbol === 'kg';
     const pricePerKg = isKg
@@ -286,12 +275,11 @@ export class FeedDistributionService {
       : feedItem.kgPerUnit && feedItem.kgPerUnit > 0
         ? feedItem.costPerUnit / feedItem.kgPerUnit
         : 0;
-    const lineCost = round2(dto.quantityKg * pricePerKg);
 
     const usedInUnit = isKg
-      ? dto.quantityKg
+      ? quantityKg
       : feedItem.kgPerUnit && feedItem.kgPerUnit > 0
-        ? dto.quantityKg / feedItem.kgPerUnit
+        ? quantityKg / feedItem.kgPerUnit
         : 0;
     if (usedInUnit > feedItem.currentStock) {
       throw new BadRequestException(
@@ -300,61 +288,13 @@ export class FeedDistributionService {
     }
     const newStock = round2(feedItem.currentStock - usedInUnit);
 
-    const distributedAt = dto.distributedAt
-      ? this.dayStart(dto.distributedAt)
-      : this.dayStart();
-    const targetFields =
-      dto.targetType === 'INDIVIDUAL'
-        ? { feedGroupId: null, cattleId: dto.cattleId }
-        : dto.targetType === 'GROUP'
-          ? { feedGroupId: dto.feedGroupId, cattleId: null }
-          : { feedGroupId: null, cattleId: null };
-
-    const created = await this.prisma.$transaction(async (tx) => {
-      const dist = await tx.feedDistribution.create({
-        data: {
-          farmId,
-          concentrationId: null,
-          sourceType: 'QUICK_FEED',
-          ...targetFields,
-          distributedAt,
-          totalPlannedKg: round2(dto.quantityKg),
-          totalActualKg: round2(dto.quantityKg),
-          totalRefusalKg: 0,
-          totalPlannedCost: lineCost,
-          totalActualCost: lineCost,
-          notes: dto.notes,
-          createdBy: userId,
-          items: {
-            create: [
-              {
-                ingredientId: feedItem.ingredientId ?? feedItem.id,
-                ingredientName: feedItem.name,
-                plannedKg: round2(dto.quantityKg),
-                actualKg: round2(dto.quantityKg),
-                refusalKg: 0,
-                pricePerKg: round2(pricePerKg),
-                lineCost,
-              },
-            ],
-          },
-        },
-        include: { items: true },
-      });
-      await tx.feedItem.update({
-        where: { id: feedItem.id },
-        data: { currentStock: newStock },
-      });
-      return dist;
-    });
-
-    this.log.info('Quick-feed logged', {
-      farmId,
-      id: created.id,
-      feedItemId: feedItem.id,
-      quantityKg: dto.quantityKg,
-    });
-    return this.mapDistribution(created);
+    return {
+      feedItem,
+      ingredientId: feedItem.ingredientId ?? feedItem.id,
+      ingredientName: feedItem.name,
+      pricePerKg: round2(pricePerKg),
+      newStock,
+    };
   }
 
   async list(farmId: string, query: ListDistributionQueryDto) {

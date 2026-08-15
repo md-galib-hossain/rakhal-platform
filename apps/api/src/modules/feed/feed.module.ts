@@ -13,6 +13,7 @@ import { FeedRequirementsService } from './application/services/feed-requirement
 import { FeedDistributionService } from './application/services/feed-distribution.service';
 import { FeedStockService } from './application/services/feed-stock.service';
 import { FeedRationResolverService } from './application/services/feed-ration-resolver.service';
+import { FeedFeedingGridService } from './application/services/feed-feeding-grid.service';
 import { FeedController } from './presentation/controllers/feed.controller';
 
 /**
@@ -42,6 +43,7 @@ import { FeedController } from './presentation/controllers/feed.controller';
     FeedDistributionService,
     FeedStockService,
     FeedRationResolverService,
+    FeedFeedingGridService,
   ],
   exports: [
     FeedIngredientService,

@@ -347,13 +347,23 @@ describe('Feed Distribution — stock enforcement (e2e)', () => {
     expect(item.body.data.currentStock).toBe(0);
   });
 
-  it('blocks Quick Feed logging more than the FeedItem has in stock', async () => {
+  it('blocks a Feeding Grid confirm logging more than the FeedItem has in stock', async () => {
     const { feedItemId } = await createIngredientAndFeedItem(3);
+    const cow = await request(server())
+      .get(api('/cattle?limit=1'))
+      .set(...auth(owner))
+      .expect(200);
+    const cattleId = cow.body.data[0].id as string;
 
     await request(server())
-      .post(api('/feed/quick-feed'))
+      .post(api('/feed/grid/confirm'))
       .set(...auth(owner))
-      .send({ feedItemId, quantityKg: 10, targetType: 'HERD' })
+      .send({
+        date: '2026-06-20',
+        sourceType: 'FEED_ITEM',
+        feedItemId,
+        entries: [{ cattleId, quantityKg: 10 }],
+      })
       .expect(400);
 
     const item = await request(server())

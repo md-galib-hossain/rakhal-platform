@@ -44,11 +44,14 @@ import { UpdateCustomIngredientDto } from '../dto/update-custom-ingredient.dto';
 import { LogDistributionDto } from '../dto/log-distribution.dto';
 import { PatchRefusalDto } from '../dto/patch-refusal.dto';
 import { UpdateStockNutritionDto } from '../dto/update-stock-nutrition.dto';
-import { QuickFeedDto } from '../dto/quick-feed.dto';
 import {
   FeedEfficiencyQueryDto,
   ListDistributionQueryDto,
 } from '../dto/list-distribution-query.dto';
+import { FeedGridQueryDto } from '../dto/feed-grid-query.dto';
+import { SaveFeedDraftDto } from '../dto/save-feed-draft.dto';
+import { ConfirmFeedDraftDto } from '../dto/confirm-feed-draft.dto';
+import { FeedFeedingGridService } from '../../application/services/feed-feeding-grid.service';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
@@ -77,6 +80,7 @@ export class FeedController {
     private readonly distributions: FeedDistributionService,
     private readonly stock: FeedStockService,
     private readonly rationResolver: FeedRationResolverService,
+    private readonly feedingGrid: FeedFeedingGridService,
   ) {}
 
   // ---- Ingredients --------------------------------------------------------
@@ -333,16 +337,38 @@ export class FeedController {
     return this.distributions.create(farmId, userId, dto);
   }
 
-  /** Feed a raw inventory item straight to a cow/group/herd, no Concentration involved
-   * (2026-08-13, user request). */
-  @Post('quick-feed')
+  // ---- Feeding Grid (2026-08-15, replaces Quick Feed) ---------------------
+  /** One day's per-cow feeding grid — existing drafts for that day + each cow's carried-forward
+   * default (most recent confirmed per-head quantity), optionally scoped to one feed group. */
+  @Get('grid')
+  @RequirePermission('feed.read')
+  getFeedingGrid(
+    @CurrentFarmId() farmId: string,
+    @Query() query: FeedGridQueryDto,
+  ) {
+    return this.feedingGrid.getGrid(farmId, query.date, query.feedGroupId);
+  }
+
+  /** Auto-save a day's per-cow grid quantities for one feed source. No inventory effect. */
+  @Post('grid/draft')
   @RequirePermission('feed.distribution-log')
-  quickFeed(
+  saveFeedDraft(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
-    @Body() dto: QuickFeedDto,
+    @Body() dto: SaveFeedDraftDto,
   ) {
-    return this.distributions.quickFeed(farmId, userId, dto);
+    return this.feedingGrid.saveDraft(farmId, userId, dto);
+  }
+
+  /** Turn a day's feeding-grid quantities into one real `FeedDistribution` + inventory decrement. */
+  @Post('grid/confirm')
+  @RequirePermission('feed.distribution-log')
+  confirmFeedDraft(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Body() dto: ConfirmFeedDraftDto,
+  ) {
+    return this.feedingGrid.confirm(farmId, userId, dto);
   }
 
   /** Farm-wide feed cost/cow/day + cost/litre + trend (2026-08-13, user request — Dashboard +

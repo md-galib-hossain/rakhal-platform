@@ -267,8 +267,9 @@ model FeedDistribution {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  farm  Farm                   @relation("FarmToFeedDistribution", fields: [farmId], references: [id])
-  items FeedDistributionItem[]
+  farm       Farm                          @relation("FarmToFeedDistribution", fields: [farmId], references: [id])
+  items      FeedDistributionItem[]
+  cattleItems FeedDistributionCattleItem[]
 
   @@index([farmId])
   @@index([farmId, feedGroupId])
@@ -297,6 +298,65 @@ model FeedDistributionItem {
   @@index([ingredientId])
 }
 
+/// Per-cow breakdown of an aggregate `FeedDistribution` (Feeding Grid, 2026-08-15). A grid confirm
+/// sums every cow's per-head quantity into one `FeedDistribution` + one aggregate
+/// `FeedDistributionItem` line (matching the old `quickFeed()`'s single-line shape) — this table is
+/// what lets that aggregate be broken back down per cow for the grid's "yesterday's per-head value"
+/// default and any future per-cow reporting. `cattleId` is a plain validated FK (no Prisma relation),
+/// matching `FeedDistribution.cattleId`'s own "no cross-module coupling" convention in this file.
+model FeedDistributionCattleItem {
+  id             String @id @default(cuid())
+  distributionId String
+
+  cattleId   String
+  quantityKg Float
+
+  distribution FeedDistribution @relation(fields: [distributionId], references: [id], onDelete: Cascade)
+
+  @@index([distributionId])
+  @@index([cattleId])
+}
+
+/// Feeding Grid pre-confirm editable state (2026-08-15, replaces Quick Feed). One row per
+/// cow × feed source × day — a farmer opens the grid, edits per-cow quantities freely (auto-saved
+/// as drafts, zero inventory effect), then "Confirm" turns the day's drafts into one real
+/// `FeedDistribution`. `cattleId`/`feedItemId`/`feedStockId` are plain validated FKs (no Prisma
+/// relation), same "no cross-module coupling" convention as `FeedDistribution.cattleId` /
+/// `FeedConcentration.cattleId` elsewhere in this file. `feedGroupId` is a **snapshot** of the group
+/// the grid was viewed under when the draft was saved (not re-derived later), so a cow moved to a
+/// different group mid-day doesn't retroactively change which grid load shows its draft.
+///
+/// No DB `@@unique` constraint: Postgres treats every NULL as distinct, so a composite unique across
+/// the two mutually-exclusive optional `feedItemId`/`feedStockId` columns can't actually enforce
+/// "one draft per cow per source per day" (two rows with the same `feedStockId` but both `feedItemId
+/// = NULL` would never collide). Uniqueness is enforced at the application layer instead
+/// (`FeedFeedingGridService#saveDraft` does a `findFirst` scoped on every one of these columns, then
+/// updates that row or creates a new one) — see that method's comment for the exact match shape.
+model FeedFeedingDraft {
+  id     String @id @default(cuid())
+  farmId String
+
+  cattleId    String
+  feedGroupId String?
+  logDate     DateTime
+
+  sourceType  FeedGridSourceType
+  feedItemId  String?
+  feedStockId String?
+
+  quantityKg Float
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm Farm @relation("FarmToFeedFeedingDraft", fields: [farmId], references: [id])
+
+  @@index([farmId])
+  @@index([farmId, cattleId, logDate])
+  @@index([farmId, logDate])
+}
+
 enum FeedTargetType {
   GROUP
   INDIVIDUAL
@@ -307,10 +367,21 @@ enum FeedTargetType {
   HERD
 }
 
-/// See `FeedDistribution.sourceType`'s doc comment.
+/// See `FeedDistribution.sourceType`'s doc comment. `QUICK_FEED` is retired going forward (Feeding
+/// Grid, 2026-08-15, replaces the old Quick Feed route) but kept for historical rows already
+/// carrying it — never drop an enum value existing data references. `FEEDING_GRID` covers a grid
+/// confirm from either a `FEED_ITEM` or a `FEED_STOCK` source; which one is recoverable from the
+/// aggregate `FeedDistributionItem` line's `ingredientId` if ever needed.
 enum FeedDistributionSourceType {
   CONCENTRATION
   QUICK_FEED
+  FEEDING_GRID
+}
+
+/// See `FeedFeedingDraft.sourceType`'s doc comment.
+enum FeedGridSourceType {
+  FEED_ITEM
+  FEED_STOCK
 }
 
 /// See `FeedConcentration.kind`'s doc comment.
