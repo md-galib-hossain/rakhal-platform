@@ -34,12 +34,12 @@ const ALL_GROUPS = "__all__";
 
 /** Sums a cow's already-saved (not yet confirmed) draft lines for this date/group — the value shown
  * when the grid is reopened on a date that already has staged entries. Falls back to the backend's
- * own carry-forward `default_quantity_kg` when nothing is staged yet — which is `null`, not `0`,
+ * own carry-forward `default_offered_kg` when nothing is staged yet — which is `null`, not `0`,
  * whenever the cow has no prior confirmed feeding to carry forward (confirmed live against the real
  * dev stack), so that case renders as an empty, must-fill cell rather than a misleading "0". */
 function initialQuantity(cow: FeedGridCow): string {
-  if (cow.drafts.length > 0) return String(cow.drafts.reduce((sum, d) => sum + d.quantity_kg, 0));
-  return cow.default_quantity_kg == null ? "" : String(cow.default_quantity_kg);
+  if (cow.drafts.length > 0) return String(cow.drafts.reduce((sum, d) => sum + d.offered_kg, 0));
+  return cow.default_offered_kg == null ? "" : String(cow.default_offered_kg);
 }
 
 function buildInitialQuantities(cows: FeedGridCow[]): Record<string, string> {
@@ -200,8 +200,8 @@ function FeedingGridTable({
 
   function buildEntries(): FeedGridEntryInput[] {
     return selection.selectedIds
-      .map((cattleId) => ({ cattleId, quantityKg: Number(quantities[cattleId]) }))
-      .filter((e) => Number.isFinite(e.quantityKg) && e.quantityKg > 0);
+      .map((cattleId) => ({ cattleId, offeredKg: Number(quantities[cattleId]) }))
+      .filter((e) => Number.isFinite(e.offeredKg) && e.offeredKg > 0);
   }
 
   const canSubmit = Boolean(itemId) && selection.selectedIds.length > 0;

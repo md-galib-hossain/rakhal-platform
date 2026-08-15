@@ -27,6 +27,7 @@
 | Agent | Ticket | Lane (file globs) | Started | Status |
 |-------|--------|-------------------|---------|--------|
 | claude | (no ticket) Feeding grid: per-cow feed session replacing Quick Feed (2026-08-15) | Feed | rakhal-consumer-frontend/features/feeding/**, rakhal-consumer-frontend/features/feed/**, rakhal-consumer-frontend/features/cattle/components/detail/feeding-tab.tsx, rakhal-consumer-frontend/i18n/messages/{en,bn}.json | 2026-08-15 | claimed |
+| claude | (no ticket) Animal profile redesign: grouped field sections + not-applicable reasons + calf tab fix + remove dead features/calves table/detail-sheet (2026-08-15) | Cattle | rakhal-consumer-frontend/features/cattle/components/detail/{cattle-profile-card.tsx,cattle-detail-tabs.tsx}, rakhal-consumer-frontend/features/calves/components/{calves-table.tsx,detail/calf-detail-sheet.tsx,detail/calf-detail-tabs.tsx} (delete), rakhal-consumer-frontend/i18n/messages/{en,bn}.json (append `cattle.detail.*` keys only) | 2026-08-15 | claimed |
 
 ## 🟢 Recently Done (pending commit)
 

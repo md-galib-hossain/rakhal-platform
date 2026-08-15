@@ -488,10 +488,10 @@ export interface FeedGridDraft {
   source_type: FeedGridSourceType;
   feed_item_id: string | null;
   feed_stock_id: string | null;
-  quantity_kg: number;
+  offered_kg: number;
 }
 
-/** `GET /feed/grid` row — one cow. `default_quantity_kg` is the backend-computed carry-forward
+/** `GET /feed/grid` row — one cow. `default_offered_kg` is the backend-computed carry-forward
  * value (yesterday's confirmed per-head amount) — the frontend only ever displays/edits it, never
  * recomputes it. `null` when the cow has no prior confirmed feeding to carry forward (confirmed
  * live against the real dev stack — a fresh group with no feeding history returns `null`, not `0`). */
@@ -501,7 +501,7 @@ export interface FeedGridCow {
   tag_number: string;
   feed_group_id: string | null;
   drafts: FeedGridDraft[];
-  default_quantity_kg: number | null;
+  default_offered_kg: number | null;
 }
 
 /** `GET /feed/grid?date&feedGroupId?` — the Feeding Grid's own per-day, per-cow view; replaces the
@@ -514,7 +514,7 @@ export interface FeedGridResult {
 
 export interface FeedGridEntryInput {
   cattleId: string;
-  quantityKg: number;
+  offeredKg: number;
 }
 
 /** `POST /feed/grid/draft` — saves per-cow quantities against one source item, no inventory effect. */
@@ -533,7 +533,7 @@ export interface SaveFeedGridDraftResult {
 }
 
 /** `POST /feed/grid/confirm` — same shared fields as the draft save; `entries` is optional per cow —
- * when omitted for a cow, the backend falls back to that cow's own `default_quantity_kg`. Decrements
+ * when omitted for a cow, the backend falls back to that cow's own `default_offered_kg`. Decrements
  * inventory — "the feeding actually happened" step. */
 export interface ConfirmFeedGridPayload {
   date: string;
@@ -553,7 +553,7 @@ export interface ConfirmFeedGridResult {
   feed_stock_id: string | null;
   total_actual_kg: number;
   total_actual_cost: number;
-  cows: { cattle_id: string; quantity_kg: number }[];
+  cows: { cattle_id: string; offered_kg: number }[];
 }
 
 /** `PATCH /feed/distributions/:id/refusal` — next-day leftover weigh-in. */
