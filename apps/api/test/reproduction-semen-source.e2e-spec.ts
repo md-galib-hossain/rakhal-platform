@@ -61,6 +61,9 @@ describe('Reproduction — AI semen source (e2e)', () => {
         strawQuantity,
         semenType,
         targetSex,
+        // RAKHAL-330: cost per straw is now mandatory for a batch to be
+        // usable in an AI event — give every test batch a default.
+        costPerUnit: 500,
         createdBy: ownerUserId,
       },
     });
@@ -89,6 +92,7 @@ describe('Reproduction — AI semen source (e2e)', () => {
         breedingMethod: 'AI',
         semenSource: 'FARM_INVENTORY',
         semenBatchId: batch.id,
+        paymentMethod: 'CASH',
       })
       .expect(201);
     expect(res.body.data.semenSource).toBe('FARM_INVENTORY');
@@ -135,6 +139,7 @@ describe('Reproduction — AI semen source (e2e)', () => {
         sireBreed: 'Holstein',
         semenType: 'CONVENTIONAL',
         serviceCost: 1000,
+        paymentMethod: 'CASH',
       })
       .expect(201);
     expect(res.body.data.semenSource).toBe('TECHNICIAN_SUPPLIED');
@@ -216,6 +221,8 @@ describe('Reproduction — AI semen source (e2e)', () => {
         breedingDate: new Date().toISOString(),
         breedingMethod: 'AI',
         semenSource: 'EXTERNAL',
+        serviceCost: 800,
+        paymentMethod: 'CASH',
       })
       .expect(201);
     expect(res.body.data.semenSource).toBe('EXTERNAL');
@@ -232,6 +239,7 @@ describe('Reproduction — AI semen source (e2e)', () => {
         breedingDate: new Date().toISOString(),
         breedingMethod: 'AI',
         semenBatchId: batch.id,
+        paymentMethod: 'CASH',
       })
       .expect(201);
     expect(withBatch.body.data.semenSource).toBe('FARM_INVENTORY');
@@ -248,6 +256,8 @@ describe('Reproduction — AI semen source (e2e)', () => {
         cattleId: cowNoBatch.id,
         breedingDate: new Date().toISOString(),
         breedingMethod: 'AI',
+        serviceCost: 800,
+        paymentMethod: 'CASH',
       })
       .expect(201);
     expect(noBatch.body.data.semenSource).toBe('EXTERNAL');
@@ -267,6 +277,7 @@ describe('Reproduction — AI semen source (e2e)', () => {
         breedingMethod: 'AI',
         semenSource: 'FARM_INVENTORY',
         semenBatchId: batch.id,
+        paymentMethod: 'CASH',
       })
       .expect(201);
     const id = created.body.data.id;
@@ -282,6 +293,9 @@ describe('Reproduction — AI semen source (e2e)', () => {
       .send({
         semenSource: 'TECHNICIAN_SUPPLIED',
         serviceProviderId: provider.id,
+        // RAKHAL-330: switching away from FARM_INVENTORY needs its own
+        // serviceCost — the batch cost no longer applies.
+        serviceCost: 900,
       })
       .expect(200);
     expect(edited.body.data.semenBatchId).toBeNull();
@@ -307,6 +321,8 @@ describe('Reproduction — AI semen source (e2e)', () => {
         breedingMethod: 'AI',
         semenSource: 'TECHNICIAN_SUPPLIED',
         serviceProviderId: provider.id,
+        serviceCost: 900,
+        paymentMethod: 'CASH',
       })
       .expect(201);
     const id = created.body.data.id;
@@ -327,7 +343,12 @@ describe('Reproduction — AI semen source (e2e)', () => {
 
   it('FARM_INVENTORY inherits semenType/targetSex from the selected SEX_SORTED batch', async () => {
     const cow = await createCow('SEXSORTED');
-    const batch = await createSemenBatch('SEXSORTED', 10, 'SEX_SORTED', 'FEMALE');
+    const batch = await createSemenBatch(
+      'SEXSORTED',
+      10,
+      'SEX_SORTED',
+      'FEMALE',
+    );
 
     const res = await request(server())
       .post(api('/reproduction/breeding-events'))
@@ -338,6 +359,7 @@ describe('Reproduction — AI semen source (e2e)', () => {
         breedingMethod: 'AI',
         semenSource: 'FARM_INVENTORY',
         semenBatchId: batch.id,
+        paymentMethod: 'CASH',
       })
       .expect(201);
     expect(res.body.data.semenType).toBe('SEX_SORTED');
@@ -357,6 +379,7 @@ describe('Reproduction — AI semen source (e2e)', () => {
         breedingMethod: 'AI',
         semenSource: 'FARM_INVENTORY',
         semenBatchId: batch.id,
+        paymentMethod: 'CASH',
       })
       .expect(201);
     expect(res.body.data.semenType).toBe('CONVENTIONAL');
@@ -382,6 +405,7 @@ describe('Reproduction — AI semen source (e2e)', () => {
         breedingMethod: 'AI',
         semenSource: 'FARM_INVENTORY',
         semenBatchId: batchA.id,
+        paymentMethod: 'CASH',
       })
       .expect(201);
     expect(created.body.data.semenType).toBe('CONVENTIONAL');

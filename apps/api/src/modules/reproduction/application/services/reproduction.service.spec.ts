@@ -281,6 +281,7 @@ describe('ReproductionService.createCalvingEvent — totalCalvings atomicity', (
       aqrService as never, // AqrService
       taskService as never, // TaskService
       {} as never, // SemenService (unused by createCalvingEvent)
+      {} as never, // FinanceService (unused by createCalvingEvent)
       { scheduleCareReminders: jest.fn() } as never, // CalfService
       farmSettings as never, // FarmSettingsService
       { activeHoldsForCattle: jest.fn() } as never, // AnimalHoldService (unused here)
@@ -446,6 +447,7 @@ describe('ReproductionService.createCalvingEvent — missing dry-off auto-close 
       aqrService as never,
       taskService as never,
       {} as never,
+      {} as never, // FinanceService (unused)
       { scheduleCareReminders: jest.fn() } as never,
       farmSettings as never,
       { activeHoldsForCattle: jest.fn() } as never,
@@ -575,6 +577,7 @@ describe('ReproductionService.createPurchasedLactation', () => {
       { applyEvent: jest.fn() } as never, // AqrService (unused by this use-case)
       { createInternal: jest.fn() } as never, // TaskService (unused)
       {} as never, // SemenService (unused)
+      {} as never, // FinanceService (unused)
       { scheduleCareReminders: jest.fn() } as never, // CalfService (unused)
       farmSettings as never,
       { activeHoldsForCattle: jest.fn() } as never, // AnimalHoldService (unused)
@@ -742,6 +745,7 @@ describe('ReproductionService.recordDryOff — endReason (RAKHAL-290)', () => {
       { applyEvent: jest.fn() } as never, // AqrService (unused)
       { createInternal: jest.fn() } as never, // TaskService (unused)
       {} as never, // SemenService (unused)
+      {} as never, // FinanceService (unused)
       { scheduleCareReminders: jest.fn() } as never, // CalfService (unused)
       farmSettings as never,
       { activeHoldsForCattle: jest.fn() } as never, // AnimalHoldService (unused)
@@ -871,6 +875,7 @@ describe('ReproductionService — RAKHAL-285 dry-off projection recompute', () =
       { applyEvent: jest.fn() } as never, // AqrService (unused)
       { createInternal: jest.fn() } as never, // TaskService (unused)
       {} as never, // SemenService (unused)
+      {} as never, // FinanceService (unused)
       { scheduleCareReminders: jest.fn() } as never, // CalfService (unused)
       farmSettings as never,
       { activeHoldsForCattle: jest.fn() } as never, // AnimalHoldService (unused)

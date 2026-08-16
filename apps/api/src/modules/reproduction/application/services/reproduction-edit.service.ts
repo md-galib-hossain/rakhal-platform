@@ -8,6 +8,8 @@ import {
   BreedingMethod,
   CattleGender,
   ExpectedCalvingDateSource,
+  FinanceCategory,
+  FinanceTxnType,
   LactationEndReason,
   LactationStatus,
   PregnancyDiagnosisResult,
@@ -25,6 +27,7 @@ import {
 } from 'src/modules/activity/application/services/activity-log.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { SemenService } from 'src/modules/inventory/application/services/semen.service';
+import { FinanceService } from 'src/modules/finance/application/services/finance.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { computeDryOffProjection } from '../../domain/lactation-dry-off-projection';
 import { ReproductionDerivationService } from './reproduction-derivation.service';
@@ -54,6 +57,7 @@ export class ReproductionEditService {
     private readonly prisma: PrismaService,
     private readonly derivation: ReproductionDerivationService,
     private readonly semenService: SemenService,
+    private readonly financeService: FinanceService,
     private readonly taskService: TaskService,
     private readonly aqrService: AqrService,
     private readonly activityLog: ActivityLogService,
@@ -164,9 +168,9 @@ export class ReproductionEditService {
         'serviceProviderId is required when semenSource is TECHNICIAN_SUPPLIED',
       );
     }
-    if (dto.serviceProviderId) {
-      await this.assertServiceProviderInFarm(farmId, dto.serviceProviderId);
-    }
+    const serviceProvider = dto.serviceProviderId
+      ? await this.assertServiceProviderInFarm(farmId, dto.serviceProviderId)
+      : null;
 
     const newBreedingDate = dto.breedingDate
       ? new Date(dto.breedingDate)
@@ -186,19 +190,88 @@ export class ReproductionEditService {
     // targetSex always comes from the batch, never a manual dto value.
     let inventorySemenType: SemenType | null | undefined;
     let inventoryTargetSex: TargetSex | null | undefined;
+    let inventoryBatch: {
+      name: string;
+      semenType: SemenType | null;
+      targetSex: TargetSex | null;
+      costPerUnit: number | null;
+    } | null = null;
     if (
       mergedSemenSource === SemenSource.FARM_INVENTORY &&
       mergedSemenBatchId
     ) {
       const batch = await this.prisma.semenBatch.findFirst({
         where: { id: mergedSemenBatchId, farmId },
-        select: { semenType: true, targetSex: true },
+        select: {
+          name: true,
+          semenType: true,
+          targetSex: true,
+          costPerUnit: true,
+        },
       });
       inventorySemenType = batch?.semenType ?? null;
       inventoryTargetSex = batch?.targetSex ?? null;
+      inventoryBatch = batch ?? null;
     }
 
-    const updated = await this.prisma.breedingEvent.update({
+    // RAKHAL-330: only re-resolve the cost basis when a field that could
+    // actually change it was touched — an unrelated edit (e.g. notes) leaves
+    // the existing FinanceTransaction (if any) untouched.
+    const costRelevantFieldsChanged =
+      dto.breedingMethod !== undefined ||
+      dto.semenSource !== undefined ||
+      dto.semenBatchId !== undefined ||
+      dto.serviceCost !== undefined ||
+      dto.paymentMethod !== undefined;
+
+    const mergedServiceCost = sourceChangedToInventory
+      ? null
+      : dto.serviceCost !== undefined
+        ? dto.serviceCost
+        : existing.serviceCost;
+    const mergedPaymentMethod =
+      dto.paymentMethod !== undefined
+        ? dto.paymentMethod
+        : existing.paymentMethod;
+
+    let resolvedCost = 0;
+    let costEntityName: string | undefined;
+    if (costRelevantFieldsChanged) {
+      if (mergedMethod === BreedingMethod.AI) {
+        if (mergedSemenSource === SemenSource.FARM_INVENTORY) {
+          if (inventoryBatch?.costPerUnit == null) {
+            throw new BadRequestException(
+              `Semen batch [${inventoryBatch?.name ?? mergedSemenBatchId}] has no cost per straw set — set its cost before recording an AI event against it.`,
+            );
+          }
+          resolvedCost = inventoryBatch.costPerUnit;
+          costEntityName = inventoryBatch.name;
+        } else {
+          if (mergedServiceCost == null) {
+            throw new BadRequestException(
+              'serviceCost is required for AI breeding when semen is not sourced from farm inventory',
+            );
+          }
+          resolvedCost = mergedServiceCost;
+          costEntityName =
+            serviceProvider?.name ??
+            dto.semenCompany ??
+            existing.semenCompany ??
+            'AI service';
+        }
+      } else {
+        resolvedCost = mergedServiceCost ?? 0;
+        costEntityName =
+          serviceProvider?.name ?? existing.semenCompany ?? 'Breeding service';
+      }
+      if (resolvedCost > 0 && !mergedPaymentMethod) {
+        throw new BadRequestException(
+          'paymentMethod is required when a breeding cost is being recorded',
+        );
+      }
+    }
+
+    let updated = await this.prisma.breedingEvent.update({
       where: { id },
       data: {
         cattleId: dto.cattleId,
@@ -228,6 +301,7 @@ export class ReproductionEditService {
         strawBatchCode: sourceChangedToInventory ? null : dto.strawBatchCode,
         semenCompany: sourceChangedToInventory ? null : dto.semenCompany,
         serviceCost: sourceChangedToInventory ? null : dto.serviceCost,
+        paymentMethod: dto.paymentMethod,
         breedingNumber: dto.breedingNumber,
         expectedPregnancyCheckDate: dto.expectedPregnancyCheckDate
           ? new Date(dto.expectedPregnancyCheckDate)
@@ -237,6 +311,42 @@ export class ReproductionEditService {
         notes: dto.notes,
       },
     });
+
+    // RAKHAL-330: void the old cost transaction (if any) and repost the
+    // resolved one, so the ledger never drifts from what's on the event.
+    if (costRelevantFieldsChanged) {
+      if (existing.financeTransactionId) {
+        await this.financeService.voidTransaction(
+          farmId,
+          userId,
+          existing.financeTransactionId,
+          { reasonCategory: 'Breeding event edited' },
+        );
+      }
+      let newFinanceTransactionId: string | null = null;
+      if (resolvedCost > 0) {
+        const posted = await this.financeService.recordTransaction(
+          farmId,
+          userId,
+          {
+            type: FinanceTxnType.OPERATING_EXPENSE,
+            category: FinanceCategory.OVERHEAD,
+            subType: `breeding_${mergedMethod.toLowerCase()}`,
+            cattleId: newCattleId,
+            entityName: costEntityName ?? 'Breeding service',
+            amount: resolvedCost,
+            paymentMethod: mergedPaymentMethod ?? undefined,
+            notes: `Breeding #${updated.breedingNumber} (${mergedMethod}) — edited`,
+            updateInventory: false,
+          },
+        );
+        newFinanceTransactionId = posted.transactionId;
+      }
+      updated = await this.prisma.breedingEvent.update({
+        where: { id },
+        data: { financeTransactionId: newFinanceTransactionId },
+      });
+    }
 
     // §3.2 row 1: semenBatchId change — restore old, decrement new.
     if (hadStraw && (!willHaveStraw || batchChanged) && existing.semenBatchId) {

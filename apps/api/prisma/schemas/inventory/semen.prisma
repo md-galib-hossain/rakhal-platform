@@ -49,6 +49,11 @@ model SemenBatch {
   semenType SemenType?
   targetSex TargetSex?
 
+  /// RAKHAL-330: cost per straw — mandatory (DTO-level) on create so every
+  /// FARM_INVENTORY AI event has a real cost basis to post to Finance; an AI
+  /// event against a batch with this still null is blocked service-side.
+  costPerUnit Float?
+
   fatherId String?
   motherId String?
 

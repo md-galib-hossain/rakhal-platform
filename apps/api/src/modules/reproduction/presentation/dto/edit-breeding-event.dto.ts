@@ -10,6 +10,7 @@ import {
 } from 'class-validator';
 import {
   BreedingMethod,
+  FinancePaymentMethod,
   SemenSource,
   SemenType,
   TargetSex,
@@ -95,6 +96,12 @@ export class EditBreedingEventDto {
   @IsNumber()
   @Min(0)
   serviceCost?: number;
+
+  /// RAKHAL-330: how the breeding/AI cost gets paid — required (service-level)
+  /// whenever a cost > 0 is actually being posted to Finance.
+  @IsOptional()
+  @IsEnum(FinancePaymentMethod)
+  paymentMethod?: FinancePaymentMethod;
 
   @IsOptional()
   @Transform(({ value }) => Number(value))

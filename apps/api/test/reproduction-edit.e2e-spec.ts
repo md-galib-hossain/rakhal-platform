@@ -65,6 +65,9 @@ describe('Reproduction — edit (RAKHAL-305, e2e)', () => {
         farmId: owner.farmId,
         name: `E2E-EDIT-BATCH-${prefix}-${Date.now()}`,
         strawQuantity,
+        // RAKHAL-330: cost per straw is now mandatory for a batch to be
+        // usable in an AI event — give every test batch a default.
+        costPerUnit: 500,
         createdBy: ownerUserId,
       },
     });
@@ -84,6 +87,7 @@ describe('Reproduction — edit (RAKHAL-305, e2e)', () => {
         breedingDate: new Date().toISOString(),
         breedingMethod: 'AI',
         semenBatchId: oldBatch.id,
+        paymentMethod: 'CASH',
       })
       .expect(201);
     const breedingEventId = created.body.data.id;

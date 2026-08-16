@@ -170,8 +170,13 @@ export function deriveReproductionAlerts(
     alerts.push('REPEAT_BREEDER');
   }
 
+  // Gated on the two genuinely-open states, not just "not PREGNANT" — a cow
+  // with a pending AI (BRED_AWAITING_CONFIRMATION) already has a breeding
+  // attempt in flight; PREGNANCY_CHECK_DUE/OVERDUE_PREGNANCY_CHECK are the
+  // correct alerts for that wait, not LONG_DAYS_OPEN.
   if (
-    reproductionState !== 'PREGNANT' &&
+    (reproductionState === 'OPEN' ||
+      reproductionState === 'POSTPARTUM_WAITING') &&
     daysOpen !== null &&
     daysOpen >= longDaysOpenThresholdDays
   ) {

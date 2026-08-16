@@ -55,6 +55,12 @@ export class CreateSemenBatchDto {
   @Min(0)
   lowStrawThreshold?: number;
 
+  /// RAKHAL-330: cost per straw — required so every FARM_INVENTORY AI event
+  /// drawn from this batch has a real cost basis to post to Finance.
+  @IsNumber()
+  @Min(0)
+  costPerUnit!: number;
+
   @IsOptional()
   @IsEnum(SemenType)
   semenType?: SemenType;
@@ -142,6 +148,11 @@ export class UpdateSemenBatchDto {
   @IsInt()
   @Min(0)
   lowStrawThreshold?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  costPerUnit?: number;
 
   @IsOptional()
   @IsEnum(SemenType)

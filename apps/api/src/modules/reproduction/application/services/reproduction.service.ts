@@ -14,6 +14,8 @@ import {
   CattleStatus,
   DryPeriod,
   ExpectedCalvingDateSource,
+  FinanceCategory,
+  FinanceTxnType,
   HeatDetectionMethod,
   HeatResolutionReason,
   LactationEndReason,
@@ -38,6 +40,7 @@ import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { SemenService } from 'src/modules/inventory/application/services/semen.service';
+import { FinanceService } from 'src/modules/finance/application/services/finance.service';
 import { CalfService } from 'src/modules/calf/application/services/calf.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { AnimalHoldService } from 'src/modules/cattle/application/services/animal-hold.service';
@@ -113,6 +116,7 @@ export class ReproductionService {
     private readonly aqrService: AqrService,
     private readonly taskService: TaskService,
     private readonly semenService: SemenService,
+    private readonly financeService: FinanceService,
     private readonly calfService: CalfService,
     private readonly farmSettings: FarmSettingsService,
     private readonly animalHoldService: AnimalHoldService,
@@ -356,8 +360,20 @@ export class ReproductionService {
         'serviceProviderId is required when semenSource is TECHNICIAN_SUPPLIED',
       );
     }
-    if (dto.serviceProviderId) {
-      await this.assertServiceProviderInFarm(farmId, dto.serviceProviderId);
+    const serviceProvider = dto.serviceProviderId
+      ? await this.assertServiceProviderInFarm(farmId, dto.serviceProviderId)
+      : null;
+
+    // RAKHAL-330: AI with a manual (non-inventory) semen source has no
+    // per-straw cost to fall back on — the cost has to come from the farmer.
+    if (
+      dto.breedingMethod === BreedingMethod.AI &&
+      semenSource !== SemenSource.FARM_INVENTORY &&
+      dto.serviceCost == null
+    ) {
+      throw new BadRequestException(
+        'serviceCost is required for AI breeding when semen is not sourced from farm inventory',
+      );
     }
 
     // Inventory decrement (REP-05): consume one straw for an AI service before
@@ -367,6 +383,8 @@ export class ReproductionService {
     // manual dto value (which the frontend never sends for this source).
     let inventorySemenType: SemenType | undefined;
     let inventoryTargetSex: TargetSex | undefined;
+    let inventoryCostPerUnit: number | undefined;
+    let inventoryBatchName: string | undefined;
     if (
       dto.breedingMethod === BreedingMethod.AI &&
       semenSource === SemenSource.FARM_INVENTORY
@@ -376,6 +394,23 @@ export class ReproductionService {
           'semenBatchId is required when semenSource is FARM_INVENTORY',
         );
       }
+      // RAKHAL-330: check the batch has a cost *before* decrementing its straw
+      // count — a missing-cost rejection must not leave a straw silently
+      // consumed with no breeding event to show for it.
+      const batchPreview = await this.prisma.semenBatch.findFirst({
+        where: { id: dto.semenBatchId, farmId },
+        select: { name: true, costPerUnit: true },
+      });
+      if (!batchPreview) {
+        throw new BadRequestException(
+          'semenBatchId does not refer to a batch on this farm',
+        );
+      }
+      if (batchPreview.costPerUnit == null) {
+        throw new BadRequestException(
+          `Semen batch [${batchPreview.name}] has no cost per straw set — set its cost before recording an AI event against it.`,
+        );
+      }
       const batch = await this.semenService.decrementStraw(
         farmId,
         dto.semenBatchId,
@@ -383,6 +418,28 @@ export class ReproductionService {
       );
       inventorySemenType = batch.semenType ?? undefined;
       inventoryTargetSex = batch.targetSex ?? undefined;
+      inventoryCostPerUnit = batchPreview.costPerUnit;
+      inventoryBatchName = batchPreview.name;
+    }
+
+    // RAKHAL-330: resolve the breeding's cost basis — AI always has one
+    // (batch cost or manual serviceCost, both enforced above); NATURAL/
+    // EMBRYO_TRANSFER stay optional. Whenever a real cost is being posted,
+    // paymentMethod becomes mandatory (no silent default payment source).
+    const resolvedCost =
+      dto.breedingMethod === BreedingMethod.AI
+        ? (semenSource === SemenSource.FARM_INVENTORY
+            ? inventoryCostPerUnit
+            : dto.serviceCost)!
+        : (dto.serviceCost ?? 0);
+    const costEntityName =
+      semenSource === SemenSource.FARM_INVENTORY
+        ? inventoryBatchName
+        : (serviceProvider?.name ?? dto.semenCompany ?? 'Breeding service');
+    if (resolvedCost > 0 && !dto.paymentMethod) {
+      throw new BadRequestException(
+        'paymentMethod is required when a breeding cost is being recorded',
+      );
     }
 
     const breedingNumber =
@@ -394,7 +451,7 @@ export class ReproductionService {
     const heatWindowDays = await this.farmSettings.reproHeatWindowDays(farmId);
     const breedingDate = new Date(dto.breedingDate);
 
-    const breedingEvent = await this.prisma.$transaction(async (tx) => {
+    let breedingEvent = await this.prisma.$transaction(async (tx) => {
       // RAKHAL-324: lock the cow row, then re-validate the active-pregnancy
       // guard against live, transaction-consistent state — closes the race
       // where a concurrent `createPregnancyDiagnosis` PREGNANT confirmation
@@ -433,6 +490,7 @@ export class ReproductionService {
           strawBatchCode: dto.strawBatchCode,
           semenCompany: dto.semenCompany,
           serviceCost: dto.serviceCost,
+          paymentMethod: dto.paymentMethod,
           breedingNumber,
           expectedPregnancyCheckDate: dto.expectedPregnancyCheckDate
             ? new Date(dto.expectedPregnancyCheckDate)
@@ -475,6 +533,34 @@ export class ReproductionService {
 
       return created;
     });
+
+    // RAKHAL-330: post the breeding's cost to Finance after the event commits
+    // (same after-commit convention Task Hub scheduling below already uses) —
+    // needs the real breedingEvent.id/breedingNumber for the transaction note.
+    if (resolvedCost > 0) {
+      const posted = await this.financeService.recordTransaction(
+        farmId,
+        userId,
+        {
+          type: FinanceTxnType.OPERATING_EXPENSE,
+          category: FinanceCategory.OVERHEAD,
+          subType: `breeding_${dto.breedingMethod.toLowerCase()}`,
+          cattleId: dto.cattleId,
+          entityName: costEntityName ?? 'Breeding service',
+          amount: resolvedCost,
+          paymentMethod: dto.paymentMethod,
+          notes: `Breeding #${breedingEvent.breedingNumber} (${dto.breedingMethod})`,
+          updateInventory: false,
+        },
+      );
+      breedingEvent = await this.prisma.breedingEvent.update({
+        where: { id: breedingEvent.id },
+        data: { financeTransactionId: posted.transactionId },
+        include: {
+          bull: { select: { id: true, tagNumber: true, name: true } },
+        },
+      });
+    }
 
     await this.derivation.refreshDerivedState(farmId, dto.cattleId);
 
