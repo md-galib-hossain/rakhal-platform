@@ -41,6 +41,7 @@ function toPayload(values: SemenBatchFormInput): CreateSemenBatchPayload {
     strawColor: values.strawColor || undefined,
     initialVitalityPct: values.initialVitalityPct,
     strawQuantity: values.strawQuantity,
+    costPerUnit: values.costPerUnit,
     semenType: values.semenType,
     targetSex: values.semenType === "SEX_SORTED" ? values.targetSex : undefined,
     fatherId: values.fatherId || undefined,
@@ -62,6 +63,7 @@ function toFormDefaults(batch: SemenBatch | undefined): Partial<SemenBatchFormIn
     strawColor: batch.strawColor ?? "",
     initialVitalityPct: batch.initialVitalityPct ?? undefined,
     strawQuantity: batch.strawQuantity,
+    costPerUnit: batch.costPerUnit ?? undefined,
     semenType: batch.semenType ?? undefined,
     targetSex: batch.targetSex ?? undefined,
     fatherId: batch.fatherId ?? "",
@@ -237,14 +239,26 @@ function SemenBatchFormDialogBody({ onOpenChange, batch }: { onOpenChange: (open
 
           <SectionHeader>{t("strawInventory")}</SectionHeader>
           <div className="flex flex-col gap-3">
-            <LabeledInput
-              id="strawQuantity"
-              type="number"
-              min={0}
-              label={t("strawQuantity")}
-              {...form.register("strawQuantity", numberField)}
-              error={form.formState.errors.strawQuantity?.message}
-            />
+            <div className="grid grid-cols-2 gap-3">
+              <LabeledInput
+                id="strawQuantity"
+                type="number"
+                min={0}
+                label={t("strawQuantity")}
+                {...form.register("strawQuantity", numberField)}
+                error={form.formState.errors.strawQuantity?.message}
+              />
+              <LabeledInput
+                id="costPerUnit"
+                type="number"
+                min={0}
+                step="0.01"
+                label={t("costPerUnit")}
+                endIcon={<span className="text-xs text-muted-foreground">৳</span>}
+                {...form.register("costPerUnit", numberField)}
+                error={form.formState.errors.costPerUnit?.message}
+              />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
                 <Label className="text-xs font-medium text-muted-foreground">{t("fatherId")}</Label>

@@ -1188,11 +1188,24 @@
         "kg": "{value} kg",
         "calvingHistory": "Calving History",
         "noCalvings": "No calving records yet.",
+        "breedingHistory": "Breeding / AI History",
+        "noBreedings": "No breeding records yet.",
+        "breedingStatusValue": {
+          "PENDING_CHECK": "Awaiting pregnancy check",
+          "PREGNANT": "Confirmed pregnant",
+          "FAILED": "Not pregnant",
+          "ABORTED": "Aborted",
+          "CALVED": "Calved",
+          "RETURNED_TO_HEAT": "Returned to heat"
+        },
         "columns": {
           "date": "Date",
           "calfId": "Calf ID",
           "calfGender": "Calf Gender",
-          "birthWeight": "Birth Weight"
+          "birthWeight": "Birth Weight",
+          "method": "Method",
+          "status": "Status",
+          "checkDue": "Check Due"
         },
         "genderOptions": {
           "MALE": "Male",
@@ -1909,6 +1922,7 @@
         },
         "strawInventory": "Straw Inventory",
         "strawQuantity": "Straw Quantity",
+        "costPerUnit": "Cost per Straw",
         "fatherId": "Sire",
         "fatherIdPlaceholder": "Select sire…",
         "motherId": "Dam",
@@ -2329,7 +2343,16 @@
         "semenCompany": "Semen company / station",
         "semenCompanyPlaceholder": "Optional",
         "serviceCost": "Service cost (৳)",
-        "serviceCostPlaceholder": "Optional",
+        "serviceCostPlaceholder": "e.g. 500",
+        "paymentMethod": "Payment method",
+        "paymentMethodPlaceholder": "Select payment method",
+        "paymentMethodValue": {
+          "CASH": "Cash",
+          "BANK_TRANSFER": "Bank transfer",
+          "MFS": "Mobile financial service (MFS)",
+          "WALLET": "Wallet"
+        },
+        "costFromBatch": "Cost: ৳{cost} (from batch)",
         "bull": "Bull",
         "inseminator": "Inseminator",
         "inseminatorPlaceholder": "Technician name",
@@ -4259,7 +4282,8 @@
       "searchProvider": "Search technicians…",
       "loading": "Loading…",
       "noProvidersFound": "No technicians found.",
-      "addProvider": "+ Add technician",
+      "addProvider": "Add technician",
+      "unknownOption": "Unknown",
       "providerName": "Name",
       "providerNamePlaceholder": "Technician or vet's name",
       "providerPhone": "Phone",

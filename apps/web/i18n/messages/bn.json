@@ -1188,11 +1188,24 @@
         "kg": "{value} কেজি",
         "calvingHistory": "প্রসবের ইতিহাস",
         "noCalvings": "এখনো কোনো প্রসব রেকর্ড নেই।",
+        "breedingHistory": "প্রজনন / এআই ইতিহাস",
+        "noBreedings": "এখনো কোনো প্রজনন রেকর্ড নেই।",
+        "breedingStatusValue": {
+          "PENDING_CHECK": "গর্ভধারণ পরীক্ষার অপেক্ষায়",
+          "PREGNANT": "গর্ভধারণ নিশ্চিত",
+          "FAILED": "গর্ভবতী নয়",
+          "ABORTED": "গর্ভপাত",
+          "CALVED": "প্রসব হয়েছে",
+          "RETURNED_TO_HEAT": "পুনরায় হিটে ফিরেছে"
+        },
         "columns": {
           "date": "তারিখ",
           "calfId": "বাছুরের আইডি",
           "calfGender": "বাছুরের লিঙ্গ",
-          "birthWeight": "জন্ম ওজন"
+          "birthWeight": "জন্ম ওজন",
+          "method": "পদ্ধতি",
+          "status": "অবস্থা",
+          "checkDue": "পরীক্ষার তারিখ"
         },
         "genderOptions": {
           "MALE": "পুরুষ",
@@ -1909,6 +1922,7 @@
         },
         "strawInventory": "স্ট্র ইনভেন্টরি",
         "strawQuantity": "স্ট্র পরিমাণ",
+        "costPerUnit": "প্রতি স্ট্র খরচ",
         "fatherId": "সায়ার",
         "fatherIdPlaceholder": "সায়ার নির্বাচন করুন…",
         "motherId": "ড্যাম",
@@ -2329,7 +2343,16 @@
         "semenCompany": "সিমেন কোম্পানি / স্টেশন",
         "semenCompanyPlaceholder": "ঐচ্ছিক",
         "serviceCost": "সেবার খরচ (৳)",
-        "serviceCostPlaceholder": "ঐচ্ছিক",
+        "serviceCostPlaceholder": "যেমন ৫০০",
+        "paymentMethod": "পেমেন্ট পদ্ধতি",
+        "paymentMethodPlaceholder": "পেমেন্ট পদ্ধতি নির্বাচন করুন",
+        "paymentMethodValue": {
+          "CASH": "নগদ",
+          "BANK_TRANSFER": "ব্যাংক ট্রান্সফার",
+          "MFS": "মোবাইল ফাইন্যান্সিয়াল সার্ভিস (এমএফএস)",
+          "WALLET": "ওয়ালেট"
+        },
+        "costFromBatch": "খরচ: ৳{cost} (ব্যাচ থেকে)",
         "bull": "ষাঁড়",
         "inseminator": "ইনসেমিনেটর",
         "inseminatorPlaceholder": "টেকনিশিয়ানের নাম",
@@ -4259,7 +4282,8 @@
       "searchProvider": "টেকনিশিয়ান খুঁজুন…",
       "loading": "লোড হচ্ছে…",
       "noProvidersFound": "কোনো টেকনিশিয়ান পাওয়া যায়নি।",
-      "addProvider": "+ টেকনিশিয়ান যোগ করুন",
+      "addProvider": "টেকনিশিয়ান যোগ করুন",
+      "unknownOption": "অজানা",
       "providerName": "নাম",
       "providerNamePlaceholder": "টেকনিশিয়ান বা ডাক্তারের নাম",
       "providerPhone": "ফোন",

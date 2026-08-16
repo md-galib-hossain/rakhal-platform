@@ -493,12 +493,23 @@ export function MilkLogTable({
   async function runSubmit() {
     try {
       await persistDrafts();
-      let totalCowsLogged = 0;
       for (const session of sessions) {
-        const result = await submitMilk.mutateAsync({ date, session });
-        totalCowsLogged += result.totalCowsLogged;
+        await submitMilk.mutateAsync({ date, session });
       }
-      toast.success(t("submittedToast", { count: totalCowsLogged }));
+      // Distinct cows, not summed per-session counts — a cow logged in both Morning and
+      // Evening is one cow, and summing `totalCowsLogged` across sessions double-counted it.
+      const loggedCattleIds = new Set<string>();
+      for (const row of entries) {
+        for (const session of sessions) {
+          const raw = drafts[draftKey(row.cattleId, session)];
+          const value = Number(raw);
+          if (raw !== "" && Number.isFinite(value) && value >= 0) {
+            loggedCattleIds.add(row.cattleId);
+            break;
+          }
+        }
+      }
+      toast.success(t("submittedToast", { count: loggedCattleIds.size }));
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("submitError"));
     }

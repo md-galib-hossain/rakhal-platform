@@ -1,7 +1,21 @@
 "use client"; // reads the active locale for date formatting
 
 import { useTranslations } from "next-intl";
-import { Calendar } from "lucide-react";
+import {
+  Activity,
+  Baby,
+  Calendar,
+  CalendarClock,
+  Clock,
+  Droplet,
+  Heart,
+  Home,
+  Milk,
+  Tag,
+  Target,
+  VenusAndMars,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Chip } from "@/components/ui/chip";
@@ -107,6 +121,7 @@ export function CattleProfileCard({ cattle }: { cattle: CattleDetail }) {
           just with fewer applicable values for immature/male animals. */}
       <FieldSection label={t("sections.identity")}>
         <Field
+          icon={Tag}
           label={t("category")}
           value={
             <Chip variant={ANIMAL_CATEGORY_VARIANT[cattle.animalCategory]}>
@@ -114,19 +129,24 @@ export function CattleProfileCard({ cattle }: { cattle: CattleDetail }) {
             </Chip>
           }
         />
-        <Field label={t("breed")} value={cattle.breed?.name ?? "—"} />
-        <Field label={t("gender")} value={t(`genderOptions.${cattle.gender}`)} />
+        <Field icon={Tag} label={t("breed")} value={cattle.breed?.name ?? "—"} />
+        <Field icon={VenusAndMars} label={t("gender")} value={t(`genderOptions.${cattle.gender}`)} />
       </FieldSection>
 
       <FieldSection label={t("sections.lifeStage")} bordered>
-        <Field label={t("shed")} value={cattle.shed?.name ?? "—"} />
-        <Field label={t("dateOfBirth")} value={cattle.dateOfBirth ? <DateText date={cattle.dateOfBirth} /> : "—"} />
-        <Field label={t("age")} value={age ?? "—"} />
-        <Field label={t("purpose")} value={t(`purposeOptions.${cattle.purpose}`)} />
+        <Field icon={Home} label={t("shed")} value={cattle.shed?.name ?? "—"} />
+        <Field
+          icon={Calendar}
+          label={t("dateOfBirth")}
+          value={cattle.dateOfBirth ? <DateText date={cattle.dateOfBirth} /> : "—"}
+        />
+        <Field icon={Clock} label={t("age")} value={age ?? "—"} />
+        <Field icon={Target} label={t("purpose")} value={t(`purposeOptions.${cattle.purpose}`)} />
       </FieldSection>
 
       <FieldSection label={t("sections.production")} bordered>
         <Field
+          icon={Activity}
           label={t("status")}
           value={
             cattle.productionStatus ? (
@@ -143,6 +163,7 @@ export function CattleProfileCard({ cattle }: { cattle: CattleDetail }) {
           }
         />
         <Field
+          icon={CalendarClock}
           label={t("dim")}
           value={
             cattle.dim != null
@@ -152,20 +173,21 @@ export function CattleProfileCard({ cattle }: { cattle: CattleDetail }) {
                 : "—"
           }
         />
-        {pregnantStatus ? <Field label={t("pregnantStatus")} value={pregnantStatus} /> : null}
+        {pregnantStatus ? <Field icon={Baby} label={t("pregnantStatus")} value={pregnantStatus} /> : null}
         {/* RAKHAL-273 — supplementary info, not filterable tiles (per the ticket's own guidance),
             so plain `Field`s alongside the existing status/DIM/pregnant fields rather than a
             separate section. Only rendered when applicable (null otherwise). */}
         {cattle.lactationStage ? (
-          <Field label={t("lactationStage")} value={t(`lactationStageOptions.${cattle.lactationStage}`)} />
+          <Field icon={Milk} label={t("lactationStage")} value={t(`lactationStageOptions.${cattle.lactationStage}`)} />
         ) : null}
         {cattle.pregnancyStage ? (
-          <Field label={t("pregnancyStage")} value={t(`pregnancyStageOptions.${cattle.pregnancyStage}`)} />
+          <Field icon={Heart} label={t("pregnancyStage")} value={t(`pregnancyStageOptions.${cattle.pregnancyStage}`)} />
         ) : null}
         {/* RAKHAL-278 — animal-level milk eligibility (distinct from the per-session `disposition`
             shown in the Milk Log table). Only fetched/rendered for milking-purpose females. */}
         {eligibility ? (
           <Field
+            icon={Droplet}
             label={t("milkEligibility")}
             value={
               <span
@@ -221,10 +243,10 @@ function FieldSection({
   );
 }
 
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
+function Field({ label, value, icon: Icon }: { label: string; value: React.ReactNode; icon: LucideIcon }) {
   return (
     <div className="flex items-start gap-2">
-      <Calendar className="mt-0.5 size-[18px] shrink-0 text-muted-foreground" aria-hidden />
+      <Icon className="mt-0.5 size-[18px] shrink-0 text-muted-foreground" aria-hidden />
       <div className="flex flex-col gap-1">
         <p className="text-xs text-muted-foreground">{label}</p>
         <p className="text-sm font-bold text-foreground">{value}</p>

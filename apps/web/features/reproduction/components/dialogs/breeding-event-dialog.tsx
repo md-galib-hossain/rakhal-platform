@@ -98,7 +98,10 @@ export function BreedingEventDialog({
         targetSex: isAi && !isFarmInventory ? values.targetSex || undefined : undefined,
         strawBatchCode: isAi && !isFarmInventory ? values.strawBatchCode || undefined : undefined,
         semenCompany: isAi && !isFarmInventory ? values.semenCompany || undefined : undefined,
-        serviceCost: isAi && !isFarmInventory ? values.serviceCost : undefined,
+        // RAKHAL-330: a FARM_INVENTORY cost comes from the batch server-side, never a manual value —
+        // every other method (AI-manual-source, NATURAL, EMBRYO_TRANSFER) keeps whatever was entered.
+        serviceCost: isFarmInventory ? undefined : values.serviceCost,
+        paymentMethod: values.paymentMethod || undefined,
       };
       if (isEdit && eventId) {
         await editBreedingEvent.mutateAsync({ id: eventId, input: payload });

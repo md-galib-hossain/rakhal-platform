@@ -133,6 +133,7 @@ export const semenBatchFormSchema = z.object({
   strawColor: z.string().trim().optional(),
   initialVitalityPct: z.number().min(0).max(100),
   strawQuantity: z.number().int().min(0),
+  costPerUnit: z.number().min(0),
   semenType: z.enum(["CONVENTIONAL", "SEX_SORTED"]).optional(),
   targetSex: z.enum(["FEMALE", "MALE"]).optional(),
   fatherId: z.string().trim().optional(),

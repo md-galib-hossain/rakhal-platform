@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCattleCalvingEvents, useCattleReproductionSummary } from "../../hooks/use-cattle-detail-tabs";
+import { useCattleBreedingEvents } from "@/features/reproduction/hooks/use-reproduction";
 import type { AnimalCategory, CattleGender } from "../../types";
 import { PregnancyCalvingCard } from "./pregnancy-calving-card"; // RAKHAL-317-F
 
@@ -38,10 +39,12 @@ export function ReproductionTab({
   animalCategory: AnimalCategory;
 }) {
   const t = useTranslations("cattle.detail.reproduction");
+  const tBreedingMethod = useTranslations("reproduction.dialogs.breeding.breedingMethodValue");
   const isFemale = gender === "FEMALE";
   const isImmature = animalCategory === "CALF";
   const summary = useCattleReproductionSummary(cattleId, isFemale && !isImmature);
   const calvings = useCattleCalvingEvents(cattleId, isFemale && !isImmature);
+  const breedings = useCattleBreedingEvents(isFemale && !isImmature ? cattleId : undefined);
 
   if (isImmature) {
     return (
@@ -92,6 +95,38 @@ export function ReproductionTab({
           label={t("conceptionRate")}
           value={data.conceptionRate != null ? `${Math.round(data.conceptionRate * 100)}%` : "—"}
         />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <h3 className="text-sm font-semibold text-foreground">{t("breedingHistory")}</h3>
+        {!breedings.data || breedings.data.items.length === 0 ? (
+          <EmptyState title={t("noBreedings")} className="py-8" />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("columns.date")}</TableHead>
+                <TableHead>{t("columns.method")}</TableHead>
+                <TableHead>{t("columns.status")}</TableHead>
+                <TableHead>{t("columns.checkDue")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {breedings.data.items.map((event) => (
+                <TableRow key={event.id}>
+                  <TableCell>
+                    <DateText date={event.breedingDate} />
+                  </TableCell>
+                  <TableCell>{tBreedingMethod(event.breedingMethod)}</TableCell>
+                  <TableCell>{t(`breedingStatusValue.${event.status}`)}</TableCell>
+                  <TableCell>
+                    {event.expectedPregnancyCheckDate ? <DateText date={event.expectedPregnancyCheckDate} /> : "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </div>
 
       <div className="flex flex-col gap-2">

@@ -416,6 +416,7 @@ export interface SemenBatch {
   initialVitalityPct: number | null;
   strawQuantity: number;
   lowStrawThreshold: number;
+  costPerUnit: number | null;
   semenType: SemenType | null;
   targetSex: TargetSex | null;
   fatherId: string | null;
@@ -447,6 +448,7 @@ export interface CreateSemenBatchPayload {
   initialVitalityPct?: number;
   strawQuantity: number;
   lowStrawThreshold?: number;
+  costPerUnit: number;
   semenType?: SemenType;
   targetSex?: TargetSex;
   fatherId?: string;

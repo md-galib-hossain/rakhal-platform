@@ -16,6 +16,8 @@ const BREEDING_METHODS = ["AI", "NATURAL", "EMBRYO_TRANSFER"] as const;
 const SEMEN_SOURCES = ["FARM_INVENTORY", "TECHNICIAN_SUPPLIED", "EXTERNAL"] as const;
 const SEMEN_TYPES = ["CONVENTIONAL", "SEX_SORTED"] as const;
 const TARGET_SEXES = ["FEMALE", "MALE"] as const;
+/** RAKHAL-330: mirrors backend `FinancePaymentMethod` — how a breeding/AI cost was paid. */
+const PAYMENT_METHODS = ["CASH", "BANK_TRANSFER", "MFS", "WALLET"] as const;
 
 interface SemenBatchOption {
   id: string;
@@ -25,6 +27,41 @@ interface SemenBatchOption {
   strawQuantity: number;
   semenType: "CONVENTIONAL" | "SEX_SORTED" | null;
   targetSex: "FEMALE" | "MALE" | null;
+  /** RAKHAL-330: per-straw cost — mandatory on the batch itself, drives the read-only cost line
+   * shown once a batch is picked (the actual Finance posting is resolved server-side from this). */
+  costPerUnit: number | null;
+}
+
+/** RAKHAL-330: shared payment-method picker — AI-from-inventory cost, manual serviceCost, and
+ * NATURAL/EMBRYO_TRANSFER's own optional cost all funnel through this same control. */
+function PaymentMethodField({ form }: { form: UseFormReturn<CreateBreedingEventInput> }) {
+  const t = useTranslations("reproduction.dialogs.breeding");
+  return (
+    <div className="flex flex-col gap-2">
+      <Label>{t("paymentMethod")}</Label>
+      <Controller
+        control={form.control}
+        name="paymentMethod"
+        render={({ field }) => (
+          <Select value={field.value ?? ""} onValueChange={field.onChange}>
+            <SelectTrigger>
+              <SelectValue placeholder={t("paymentMethodPlaceholder")} />
+            </SelectTrigger>
+            <SelectContent>
+              {PAYMENT_METHODS.map((v) => (
+                <SelectItem key={v} value={v}>
+                  {t(`paymentMethodValue.${v}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      />
+      {form.formState.errors.paymentMethod ? (
+        <p className="text-xs text-destructive">{form.formState.errors.paymentMethod.message}</p>
+      ) : null}
+    </div>
+  );
 }
 
 /** `GET /inventory/semen/batches` (`inventory.read`-gated) — only batches with straws left, so an
@@ -116,6 +153,7 @@ export function BreedingEventFormFields({ form }: { form: UseFormReturn<CreateBr
                       form.setValue("serviceCost", undefined);
                     }
                     if (v !== "TECHNICIAN_SUPPLIED") form.setValue("serviceProviderId", undefined);
+                    if (v === "TECHNICIAN_SUPPLIED") form.setValue("inseminator", undefined);
                   }}
                 >
                   <SelectTrigger>
@@ -158,16 +196,26 @@ export function BreedingEventFormFields({ form }: { form: UseFormReturn<CreateBr
                 const selectedBatch = (semenBatches.data ?? []).find(
                   (b) => b.id === form.watch("semenBatchId"),
                 );
-                if (!selectedBatch?.semenType) return null;
+                if (!selectedBatch) return null;
                 return (
-                  <p className="text-xs text-muted-foreground">
-                    {t(`semenTypeValue.${selectedBatch.semenType}`)}
-                    {selectedBatch.semenType === "SEX_SORTED" && selectedBatch.targetSex
-                      ? ` — ${t(`targetSexValue.${selectedBatch.targetSex}`)}`
-                      : ""}
-                  </p>
+                  <div className="flex flex-col gap-1">
+                    {selectedBatch.semenType ? (
+                      <p className="text-xs text-muted-foreground">
+                        {t(`semenTypeValue.${selectedBatch.semenType}`)}
+                        {selectedBatch.semenType === "SEX_SORTED" && selectedBatch.targetSex
+                          ? ` — ${t(`targetSexValue.${selectedBatch.targetSex}`)}`
+                          : ""}
+                      </p>
+                    ) : null}
+                    {/* RAKHAL-330: cost comes from the batch, resolved server-side — read-only here,
+                        the farmer only picks how it's paid below. */}
+                    <p className="text-xs text-muted-foreground">
+                      {t("costFromBatch", { cost: selectedBatch.costPerUnit ?? 0 })}
+                    </p>
+                  </div>
                 );
               })()}
+              <PaymentMethodField form={form} />
             </div>
           ) : (
             <>
@@ -229,15 +277,21 @@ export function BreedingEventFormFields({ form }: { form: UseFormReturn<CreateBr
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label>{t("serviceCost")}</Label>
+                  <Label>
+                    {t("serviceCost")} <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     type="number"
                     min={0}
                     {...form.register("serviceCost", { setValueAs: (v) => (v === "" ? undefined : Number(v)) })}
                     placeholder={t("serviceCostPlaceholder")}
                   />
+                  {form.formState.errors.serviceCost ? (
+                    <p className="text-xs text-destructive">{form.formState.errors.serviceCost.message}</p>
+                  ) : null}
                 </div>
               </div>
+              <PaymentMethodField form={form} />
               {form.watch("semenType") === "SEX_SORTED" ? (
                 <div className="flex flex-col gap-2">
                   <Label>{t("targetSex")}</Label>
@@ -261,36 +315,47 @@ export function BreedingEventFormFields({ form }: { form: UseFormReturn<CreateBr
                   />
                 </div>
               ) : null}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-2">
-                  <Label>{t("strawBatchCode")}</Label>
-                  <Input {...form.register("strawBatchCode")} placeholder={t("strawBatchCodePlaceholder")} />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label>{t("semenCompany")}</Label>
-                  <Input {...form.register("semenCompany")} placeholder={t("semenCompanyPlaceholder")} />
-                </div>
-              </div>
             </>
           )}
         </>
       ) : (
-        <div className="flex flex-col gap-2">
-          <Label>{t("bull")}</Label>
-          <Controller
-            control={form.control}
-            name="bullId"
-            render={({ field }) => (
-              <CattlePicker value={field.value} onValueChange={(id) => field.onChange(id)} filters={{ gender: "MALE" }} />
-            )}
-          />
-        </div>
+        <>
+          <div className="flex flex-col gap-2">
+            <Label>{t("bull")}</Label>
+            <Controller
+              control={form.control}
+              name="bullId"
+              render={({ field }) => (
+                <CattlePicker value={field.value} onValueChange={(id) => field.onChange(id)} filters={{ gender: "MALE" }} />
+              )}
+            />
+          </div>
+          {/* RAKHAL-330: not every natural/embryo-transfer breeding costs money (e.g. the farm's own
+              bull) — cost stays optional here, but paying a real amount still needs a payment source. */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-2">
+              <Label>{t("serviceCost")}</Label>
+              <Input
+                type="number"
+                min={0}
+                {...form.register("serviceCost", { setValueAs: (v) => (v === "" ? undefined : Number(v)) })}
+                placeholder={t("serviceCostPlaceholder")}
+              />
+              {form.formState.errors.serviceCost ? (
+                <p className="text-xs text-destructive">{form.formState.errors.serviceCost.message}</p>
+              ) : null}
+            </div>
+            <PaymentMethodField form={form} />
+          </div>
+        </>
       )}
 
-      <div className="flex flex-col gap-2">
-        <Label>{t("inseminator")}</Label>
-        <Input {...form.register("inseminator")} placeholder={t("inseminatorPlaceholder")} />
-      </div>
+      {semenSource !== "TECHNICIAN_SUPPLIED" ? (
+        <div className="flex flex-col gap-2">
+          <Label>{t("inseminator")}</Label>
+          <Input {...form.register("inseminator")} placeholder={t("inseminatorPlaceholder")} />
+        </div>
+      ) : null}
 
       <div className="flex flex-col gap-2">
         <Label>{t("notes")}</Label>

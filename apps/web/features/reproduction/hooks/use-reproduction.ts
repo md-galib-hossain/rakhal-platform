@@ -50,6 +50,17 @@ export function useActiveLactation(cattleId?: string) {
   });
 }
 
+/** Breeding-event history (AI/natural service) for one cow — used by the cattle-detail Reproduction
+ * tab, which previously showed calving history only, with no record of the breedings that led to it. */
+export function useCattleBreedingEvents(cattleId?: string) {
+  return useQuery({
+    queryKey: qk.reproduction.breedingEvents(cattleId),
+    queryFn: () => reproductionApi.breedingEvents(cattleId),
+    enabled: Boolean(cattleId),
+    staleTime: STALE_TIME,
+  });
+}
+
 /** RAKHAL-317-F — the one ACTIVE `Pregnancy` for a cow, used to surface the calculated-vs-expected
  * calving date comparison on the Reproduction tab. Mirrors `useActiveLactation`'s shape. */
 export function useActivePregnancy(cattleId?: string) {

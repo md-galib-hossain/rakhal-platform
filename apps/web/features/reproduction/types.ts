@@ -174,6 +174,10 @@ export interface BreedingEventRow {
   strawBatchCode: string | null;
   semenCompany: string | null;
   serviceCost: number | null;
+  /** RAKHAL-330: how the breeding/AI cost was paid — null when no cost was recorded. */
+  paymentMethod: "CASH" | "BANK_TRANSFER" | "MFS" | "WALLET" | null;
+  /** RAKHAL-330: the posted `FinanceTransaction.id` this event's cost was linked to, if any. */
+  financeTransactionId: string | null;
   breedingNumber: number;
   expectedPregnancyCheckDate: string | null;
   status: BreedingStatus;

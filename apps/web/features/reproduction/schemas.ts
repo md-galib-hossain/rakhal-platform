@@ -24,8 +24,44 @@ export type CreateHeatEventInput = z.infer<typeof heatEventSchema>;
 const semenSourceEnum = z.enum(["FARM_INVENTORY", "TECHNICIAN_SUPPLIED", "EXTERNAL"]);
 const semenTypeEnum = z.enum(["CONVENTIONAL", "SEX_SORTED"]);
 const targetSexEnum = z.enum(["FEMALE", "MALE"]);
+/** RAKHAL-330: how a breeding/AI cost was paid — mirrors backend `FinancePaymentMethod`. */
+const paymentMethodEnum = z.enum(["CASH", "BANK_TRANSFER", "MFS", "WALLET"]);
 
-export const breedingEventSchema = z.object({
+/** RAKHAL-330: shared cost-validation rule for both the create and edit breeding-event schemas —
+ * AI sourced from anything other than farm inventory needs its own `serviceCost` (a farm-inventory
+ * pick's cost comes from the selected batch, resolved server-side); `paymentMethod` becomes required
+ * whenever a real cost is actually being submitted, so a cost never posts to Finance with no payment
+ * source recorded. */
+function withBreedingCostValidation<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
+  return schema.superRefine((data, ctx) => {
+    const values = data as {
+      breedingMethod?: string;
+      semenSource?: string;
+      serviceCost?: number;
+      paymentMethod?: string;
+    };
+    const isAiFromManualSource =
+      values.breedingMethod === "AI" && values.semenSource && values.semenSource !== "FARM_INVENTORY";
+    if (isAiFromManualSource && (values.serviceCost === undefined || values.serviceCost === null)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["serviceCost"],
+        message: "Cost is required when semen is not from farm inventory",
+      });
+    }
+    const costIsBeingSubmitted =
+      (values.serviceCost !== undefined && values.serviceCost > 0) || values.semenSource === "FARM_INVENTORY";
+    if (costIsBeingSubmitted && !values.paymentMethod) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["paymentMethod"],
+        message: "Payment method is required when recording a cost",
+      });
+    }
+  });
+}
+
+const breedingEventBaseSchema = z.object({
   cattleId: z.string().min(1, "Select a cow"),
   breedingDate: z.string().min(1),
   breedingMethod: z.enum(["AI", "NATURAL", "EMBRYO_TRANSFER"]),
@@ -41,13 +77,15 @@ export const breedingEventSchema = z.object({
   strawBatchCode: z.string().trim().optional(),
   semenCompany: z.string().trim().optional(),
   serviceCost: z.number().min(0).optional(),
+  paymentMethod: paymentMethodEnum.optional(),
   expectedPregnancyCheckDate: z.string().optional(),
   notes: z.string().trim().optional(),
 });
-export type CreateBreedingEventInput = z.infer<typeof breedingEventSchema>;
+export const breedingEventSchema = withBreedingCostValidation(breedingEventBaseSchema);
+export type CreateBreedingEventInput = z.infer<typeof breedingEventBaseSchema>;
 
 /** Mirrors `EditBreedingEventDto` (RAKHAL-305) — every field optional, no `status` (derived-only). */
-export const editBreedingEventSchema = z.object({
+const editBreedingEventBaseSchema = z.object({
   cattleId: z.string().min(1, "Select a cow").optional(),
   breedingDate: z.string().min(1).optional(),
   breedingMethod: z.enum(["AI", "NATURAL", "EMBRYO_TRANSFER"]).optional(),
@@ -63,11 +101,13 @@ export const editBreedingEventSchema = z.object({
   strawBatchCode: z.string().trim().optional(),
   semenCompany: z.string().trim().optional(),
   serviceCost: z.number().min(0).optional(),
+  paymentMethod: paymentMethodEnum.optional(),
   breedingNumber: z.number().min(1).optional(),
   expectedPregnancyCheckDate: z.string().optional(),
   notes: z.string().trim().optional(),
 });
-export type EditBreedingEventInput = z.infer<typeof editBreedingEventSchema>;
+export const editBreedingEventSchema = withBreedingCostValidation(editBreedingEventBaseSchema);
+export type EditBreedingEventInput = z.infer<typeof editBreedingEventBaseSchema>;
 
 /** Mirrors `ReturnToHeatDto` (RAKHAL-316) — `:id` (the `BreedingEvent`) is a route param. */
 export const returnToHeatSchema = z.object({
