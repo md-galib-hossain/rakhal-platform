@@ -83,7 +83,9 @@ const RESOURCES: ResourceDef[] = [
   {
     resource: 'finance',
     group: PermissionGroup.FINANCE,
-    actions: [...BASE, 'void', 'billing'],
+    // 'accounts' (RAKHAL-335, Finance V2) backs Financial Accounts (Cash/Bank/
+    // MFS) — Owner+Manager per the existing finance grant pattern, not Worker.
+    actions: [...BASE, 'void', 'billing', 'accounts'],
   },
   {
     resource: 'task',
@@ -196,6 +198,8 @@ export const ROLE_PERMISSIONS: Record<SystemRoleName, string[]> = {
     'finance.read',
     'finance.create',
     'finance.update',
+    // Financial Accounts (RAKHAL-335) — Owner+Manager, not Worker
+    'finance.accounts',
     // Settings minus owner-only team/roles/billing management
     'settings.read',
     'settings.update',

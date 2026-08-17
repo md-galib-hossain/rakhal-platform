@@ -25,6 +25,9 @@ import {
   telegramConfig,
 } from 'src/core/config/env';
 import { DomainEventsModule } from 'src/common/events/domain-events.module';
+import { OutboxModule } from 'src/common/outbox/outbox.module';
+import { FinanceV2LedgerModule } from 'src/modules/finance-v2/ledger/finance-v2-ledger.module';
+import { FinanceV2AccountsModule } from 'src/modules/finance-v2/accounts/finance-v2-accounts.module';
 import { I18nModule } from 'src/common/i18n/i18n.module';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { RedisModule } from 'src/core/redis/redis.module';
@@ -145,6 +148,9 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     RedisModule,
     CacheModule,
     DomainEventsModule,
+    OutboxModule,
+    FinanceV2LedgerModule,
+    FinanceV2AccountsModule,
     I18nModule,
     EmailModule,
     SentryModule,

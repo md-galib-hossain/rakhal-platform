@@ -1,0 +1,90 @@
+enum JournalTransactionStatus {
+  /// A normal posting — a sale, a payment, a transfer, an expense, etc.
+  /// Set once at creation and **never changed** — there is no "void in place"
+  /// in this engine, only reversal (a brand-new transaction).
+  POSTED
+  /// A transaction whose sole purpose is to reverse an earlier `POSTED`
+  /// transaction (`reversalOfId` points at it). Also set once at creation,
+  /// never changed. The transaction being reversed keeps its own `POSTED`
+  /// status forever — reversal never mutates the original row; whether an
+  /// original has already been reversed is derived by checking for an
+  /// existing row with `reversalOfId` pointing at it, not by flipping a flag
+  /// on the original.
+  REVERSED
+}
+
+/// Posting header for the double-entry journal (RAKHAL-334, Finance V2 —
+/// `FINANCE_V2_DESIGN.md` §4.5, §6). **Immutable once written**: no service
+/// in `finance-v2/ledger/**` exposes an update or delete for this model —
+/// deliberately no `updatedAt` column, since this row is written exactly
+/// once and never touched again. A correction is always a new `POSTED`
+/// transaction, or a `REVERSED` transaction that nets an earlier one to
+/// zero via `reversalOfId`.
+///
+/// `sourceType`/`sourceId` name the domain document that caused this posting
+/// (e.g. `sourceType:'SALE', sourceId:'<Sale.id>'`) — later Finance V2
+/// tickets (342 SellMilk, 345 SellAnimal, 337 Payment, 338 Transfer, ...)
+/// each define their own `sourceType` string; this model does not enumerate
+/// them, by design (new source types must never require a migration here).
+model JournalTransaction {
+  id     String @id @default(cuid())
+  farmId String
+
+  sourceType String
+  sourceId   String
+
+  transactionDate DateTime
+  description     String
+
+  status JournalTransactionStatus @default(POSTED)
+
+  /// Set only on a reversal transaction — the `JournalTransaction` this one
+  /// reverses. Null for every normal posting. Self-relation; the referenced
+  /// row is never itself updated by the reversal.
+  reversalOfId String?
+
+  /// Idempotency key, unique per farm — `JournalService.postJournal` treats a
+  /// replayed call with the same `(farmId, idempotencyKey)` as a no-op that
+  /// returns the original transaction rather than posting a duplicate. Same
+  /// convention as `OutboxEvent.idempotencyKey` (RAKHAL-332).
+  idempotencyKey String
+
+  createdById String
+  createdAt   DateTime @default(now())
+
+  farm Farm @relation("FarmToJournalTransaction", fields: [farmId], references: [id])
+
+  reversalOf JournalTransaction?  @relation("JournalTransactionReversal", fields: [reversalOfId], references: [id])
+  reversedBy JournalTransaction[] @relation("JournalTransactionReversal")
+
+  entries JournalEntry[]
+
+  @@unique([farmId, idempotencyKey])
+  @@index([farmId, sourceType, sourceId])
+  @@index([farmId, transactionDate])
+  @@index([reversalOfId])
+}
+
+/// One debit-or-credit line of a `JournalTransaction`. Invariant enforced in
+/// the domain layer before any DB write (`assertBalanced`, RAKHAL-334):
+/// `SUM(debit) == SUM(credit)` across every entry of the same transaction.
+/// Both `debit` and `credit` are carried on every row (one of the pair is
+/// `0.00`) rather than a signed single `amount` column — this is the
+/// standard double-entry shape and keeps "total debits" / "total credits"
+/// trivial aggregate queries per `ledgerAccountId`.
+model JournalEntry {
+  id                   String @id @default(cuid())
+  journalTransactionId String
+  ledgerAccountId      String
+
+  debit  Decimal @default(0) @db.Decimal(18, 2)
+  credit Decimal @default(0) @db.Decimal(18, 2)
+
+  createdAt DateTime @default(now())
+
+  journalTransaction JournalTransaction @relation(fields: [journalTransactionId], references: [id])
+  ledgerAccount       LedgerAccount     @relation(fields: [ledgerAccountId], references: [id])
+
+  @@index([journalTransactionId])
+  @@index([ledgerAccountId])
+}

@@ -1,0 +1,100 @@
+enum FinancialAccountType {
+  CASH
+  BANK
+  MFS
+}
+
+/// Mobile Financial Service provider — a **provider**, not an account type.
+/// `FinancialAccount.type` is always `MFS` for a mobile-money account; this
+/// enum only names which provider (bKash/Nagad/...) the `MfsAccountDetail`
+/// row belongs to. Do not conflate with `FinancialAccountType`.
+enum MfsProvider {
+  BKASH
+  NAGAD
+  ROCKET
+  UPAY
+  OTHER
+}
+
+/// Farmer-facing money container (RAKHAL-335, Finance V2 —
+/// `FINANCE_V2_DESIGN.md` §3, §4.4). Replaces the old accountless
+/// `WalletTransaction` — every real place money can sit (cash box, a named
+/// bank account, a named MFS account) is now its own row here, linked to the
+/// internal accounting-side `LedgerAccount` (RAKHAL-333) it posts against.
+///
+/// **No `balance` column** — the whole point of RAKHAL-335's AC. A balance is
+/// always derived by summing `JournalEntry` rows for `ledgerAccountId`
+/// (RAKHAL-336's balance projection), never stored here, so it can never
+/// drift from the ledger.
+///
+/// Archive-not-delete: `isActive:false` + `archivedAt` is the only removal
+/// path (`ArchiveFinancialAccountDto`/`archiveAccount`) — an account with
+/// transaction history is never hard-deleted. `assertAccountActive` is the
+/// checkable guard later money-movement tickets (Payment/Transfer, RAKHAL-337/338)
+/// must call before posting anything new against an account.
+model FinancialAccount {
+  id     String @id @default(cuid())
+  farmId String
+
+  name            String
+  type            FinancialAccountType
+  /// The accounting-side account this posts against (RAKHAL-333). Set once at
+  /// creation, immutable afterward — same as `type`.
+  ledgerAccountId String
+
+  /// Single currency today (BDT/৳) per `FINANCE_V2_DESIGN.md` §2.1 — stored,
+  /// not hardcoded, so a future multi-currency milestone doesn't need a
+  /// migration to add the column, only to start varying it.
+  currency String @default("BDT")
+
+  isActive   Boolean   @default(true)
+  archivedAt DateTime?
+
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  farm          Farm           @relation("FarmToFinancialAccount", fields: [farmId], references: [id])
+  ledgerAccount LedgerAccount  @relation("LedgerAccountToFinancialAccount", fields: [ledgerAccountId], references: [id])
+
+  bankDetail BankAccountDetail?
+  mfsDetail  MfsAccountDetail?
+
+  @@index([farmId])
+  @@index([farmId, type])
+  @@index([ledgerAccountId])
+}
+
+/// Type-specific metadata for a `type: BANK` `FinancialAccount`. One-to-one —
+/// only created when the account is a bank account (CASH has no detail row).
+model BankAccountDetail {
+  id                  String @id @default(cuid())
+  financialAccountId  String @unique
+
+  bankName      String
+  accountNumber String
+  branch        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  financialAccount FinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Cascade)
+}
+
+/// Type-specific metadata for a `type: MFS` `FinancialAccount`. One-to-one —
+/// only created when the account is a mobile-money account.
+model MfsAccountDetail {
+  id                 String @id @default(cuid())
+  financialAccountId String @unique
+
+  provider    MfsProvider
+  phoneNumber String
+  /// Free text, e.g. "personal"/"merchant" — the provider distinguishes these
+  /// but there is no fixed enum of account kinds across bKash/Nagad/etc.
+  accountType String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  financialAccount FinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Cascade)
+}

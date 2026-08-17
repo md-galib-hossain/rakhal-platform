@@ -81,6 +81,10 @@ model Farm {
   units                   Unit[]                   @relation("FarmToUnit")
   feedingDrafts           FeedFeedingDraft[]       @relation("FarmToFeedFeedingDraft")
   serviceProviders        ServiceProvider[]        @relation("FarmToServiceProvider")
+  outboxEvents            OutboxEvent[]            @relation("FarmToOutboxEvent")
+  ledgerAccounts          LedgerAccount[]          @relation("FarmToLedgerAccount")
+  journalTransactions     JournalTransaction[]     @relation("FarmToJournalTransaction")
+  financialAccounts       FinancialAccount[]       @relation("FarmToFinancialAccount")
 
   @@index([ownerId])
   @@index([slug])

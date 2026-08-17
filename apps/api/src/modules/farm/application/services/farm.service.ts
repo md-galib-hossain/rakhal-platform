@@ -16,6 +16,7 @@ import { LegalConsentService } from 'src/modules/compliance/application/services
 import { TransactionalEmailService } from 'src/modules/email/application/services/transactional-email.service';
 import { EmailTemplate } from 'src/modules/email/domain/enums/email-template.enum';
 import { AppLanguage } from 'src/common/i18n/language';
+import { LedgerAccountService } from 'src/modules/finance-v2/ledger/application/ledger-account.service';
 import { CreateFarmDto } from '../../presentation/dto/create-farm.dto';
 import { deriveFarmPrefix, formatFarmCode } from '../../domain/farm-code';
 import { DEFAULT_BREEDS } from '../../domain/default-breeds';
@@ -39,6 +40,7 @@ export class FarmService {
     private readonly referrals: ReferralService,
     private readonly legal: LegalConsentService,
     private readonly txEmail: TransactionalEmailService,
+    private readonly ledgerAccounts: LedgerAccountService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(FarmService.name);
@@ -167,6 +169,19 @@ export class FarmService {
       });
     } catch (err) {
       this.log.error('Default breed seeding failed (farm still created)', err);
+    }
+
+    // Finance V2 chart of accounts (RAKHAL-333, `FINANCE_V2_DESIGN.md` §4.4):
+    // every farm needs its ledger accounts seeded before any future
+    // sale/payment/journal posting can resolve one. Internal-only, never
+    // farmer-facing. Best-effort, same posture as the steps above.
+    try {
+      await this.ledgerAccounts.seedDefaultChart(farm.id);
+    } catch (err) {
+      this.log.error(
+        'Chart of accounts seeding failed (farm still created)',
+        err,
+      );
     }
 
     return farm;

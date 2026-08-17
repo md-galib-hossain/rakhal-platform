@@ -29,6 +29,7 @@ import {
   FEATURE_CATALOGUE,
   PLAN_CATALOGUE,
 } from '../src/modules/subscription/domain/subscription-features';
+import { DEFAULT_CHART_OF_ACCOUNTS } from '../src/modules/finance-v2/ledger/domain/default-chart-of-accounts';
 import { seedDemoDataset } from './seed-demo-data';
 import { seedTestAccounts } from './seed-test-accounts';
 
@@ -262,6 +263,30 @@ async function seedLegalConsent(ownerUserId: string | null): Promise<void> {
     }
     console.log('✔ demo owner consent: ToS + Privacy accepted');
   }
+}
+
+/**
+ * Finance V2 chart of accounts (RAKHAL-333, `FINANCE_V2_DESIGN.md` §4.4) for
+ * the demo farm. Mirrors `LedgerAccountService.seedDefaultChart` — this
+ * standalone seed script uses raw `PrismaClient` rather than the Nest
+ * service, so the write is inlined here, but the account list itself is
+ * imported (not duplicated) from the shared domain constant. Idempotent
+ * (`skipDuplicates` against `@@unique([farmId, code])`).
+ */
+async function seedLedgerAccounts(farmId: string): Promise<void> {
+  const result = await prisma.ledgerAccount.createMany({
+    data: DEFAULT_CHART_OF_ACCOUNTS.map((account) => ({
+      farmId,
+      category: account.category,
+      code: account.code,
+      name: account.name,
+      isSystem: true,
+    })),
+    skipDuplicates: true,
+  });
+  console.log(
+    `✔ ledger accounts (finance-v2): farmId=${farmId} created=${result.count}`,
+  );
 }
 
 /**
@@ -1261,6 +1286,7 @@ async function main(): Promise<void> {
       demo.farmId,
       workerRoleId,
     );
+    await seedLedgerAccounts(demo.farmId);
     await seedDemoFinance(demo.farmId, demo.ownerUserId);
     // Full farm-facing dataset (prisma/demo-data/*.json) — runs before the
     // older 8-cow stub below so seedDemoCattle's idempotency guard

@@ -1,0 +1,49 @@
+enum OutboxEventStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+/// Durable transactional outbox (RAKHAL-332, repays RD-014, precondition for
+/// PRD §28-§30 AI/IoT work). A caller writes a row here **inside the same
+/// `$transaction`** that produced the business change it describes — never
+/// fire-and-forget — so the event can never be lost to a crash between commit
+/// and dispatch. This is exactly the class of defect `FINANCE_V2_DESIGN.md`
+/// §1.2 documents in the old Finance module (milk dispatch committed, the
+/// finance post ran after the transaction in a try/catch that only logged on
+/// failure). A BullMQ drainer (`OutboxProcessor`) periodically claims PENDING
+/// rows and dispatches each to a registered handler (falling back to the
+/// existing in-memory `DomainEventBus`, kept per `FINANCE_V2_DESIGN.md` §5.1
+/// for non-critical fan-out only). `idempotencyKey` is unique per farm +
+/// operation so a replayed/duplicated write can never enqueue — and therefore
+/// never dispatch — the same business event twice; `OutboxWriterService.write`
+/// upserts on the key and returns the original row unchanged on a repeat.
+model OutboxEvent {
+  id     String @id @default(cuid())
+  farmId String
+
+  eventType String
+  payload   Json
+
+  status    OutboxEventStatus @default(PENDING)
+  /// Dispatch attempts made so far. Incremented each time the drainer claims
+  /// the row, before the handler runs — so a crash mid-dispatch still counts.
+  attempts  Int               @default(0)
+  lastError String?
+
+  /// Unique per farm + operation. Callers should derive this from something
+  /// stable about the originating command (e.g. a client-supplied request id,
+  /// or `${sourceType}:${sourceId}:${eventType}`), never a random value —
+  /// randomness defeats the whole point of the constraint.
+  idempotencyKey String
+
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+
+  farm Farm @relation("FarmToOutboxEvent", fields: [farmId], references: [id])
+
+  @@unique([farmId, idempotencyKey])
+  @@index([status, createdAt])
+  @@index([farmId])
+}

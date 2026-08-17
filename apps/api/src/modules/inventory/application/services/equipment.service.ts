@@ -172,11 +172,18 @@ export class EquipmentService {
    * Rejects adjustments that would drive stock below zero. Mirrors
    * `MedicineService.adjustStock`.
    */
+  /**
+   * `tx` lets a caller (e.g. a future atomic sale/purchase use case, RAKHAL-341)
+   * fold this write into its own transaction, so a caller-side failure rolls
+   * back the stock change and its audit movement together instead of leaving
+   * them out of sync — mirrors `milkTankService.adjustVolume`.
+   */
   async adjustStock(
     farmId: string,
     userId: string,
     id: string,
     dto: AdjustEquipmentStockDto,
+    tx?: Prisma.TransactionClient,
   ): Promise<PresentedEquipment> {
     const existing = await this.getOrThrow(farmId, id);
     const balanceAfter = existing.currentStock + dto.adjustment;
@@ -188,13 +195,13 @@ export class EquipmentService {
       throw new BadRequestException('Stock cannot go below zero');
     }
 
-    const [equipment] = await this.prisma.$transaction([
-      this.prisma.equipment.update({
+    const write = async (client: Prisma.TransactionClient) => {
+      const updatedEquipment = await client.equipment.update({
         where: { id },
         data: { currentStock: balanceAfter },
         include: { unit: true },
-      }),
-      this.prisma.equipmentStockMovement.create({
+      });
+      await client.equipmentStockMovement.create({
         data: {
           equipmentId: id,
           farmId,
@@ -204,8 +211,13 @@ export class EquipmentService {
           notes: dto.notes,
           createdBy: userId,
         },
-      }),
-    ]);
+      });
+      return updatedEquipment;
+    };
+
+    const equipment = tx
+      ? await write(tx)
+      : await this.prisma.$transaction((t) => write(t));
 
     this.log.info('Equipment stock adjusted', {
       equipmentId: id,
