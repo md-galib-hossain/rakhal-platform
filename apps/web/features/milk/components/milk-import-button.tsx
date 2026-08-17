@@ -15,8 +15,8 @@ export function MilkImportButton() {
 
   return (
     <Can I="milk.log">
-      <Button variant="outline" size="sm" className="rounded-lg text-xs" onClick={() => setOpen(true)}>
-        <Upload className="size-3.5" aria-hidden />
+      <Button variant="outline" onClick={() => setOpen(true)}>
+        <Upload className="size-4" aria-hidden />
         {t("trigger")}
       </Button>
       <MilkImportDialog open={open} onOpenChange={setOpen} />

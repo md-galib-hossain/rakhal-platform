@@ -71,8 +71,8 @@ function ConcentrationSection({
       <div className="flex items-center justify-between">
         <p className="text-xl font-medium text-foreground">{title}</p>
         <Can I="feed.create">
-          <Button variant="primary" size="sm" className="gap-2" onClick={onCreate}>
-            <Plus className="size-[18px]" aria-hidden />
+          <Button onClick={onCreate}>
+            <Plus className="size-4" aria-hidden />
             {createLabel}
           </Button>
         </Can>

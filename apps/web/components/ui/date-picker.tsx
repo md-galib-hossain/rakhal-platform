@@ -32,6 +32,10 @@ export interface DatePickerProps {
   disabled?: boolean;
   /** Restrict selectable calendar days (e.g. `{ after: new Date() }` for a birth date). */
   disabledDates?: Matcher | Matcher[];
+  /** Extra classes on the trigger button — e.g. tighter padding/font size to line up its height
+   * with a `Button`/`Select` (`h-11`) sitting in the same row (no fixed height by default, since
+   * the stacked label+value text sizes itself). */
+  className?: string;
 }
 
 export function DatePicker({
@@ -44,6 +48,7 @@ export function DatePicker({
   error,
   disabled,
   disabledDates,
+  className,
 }: DatePickerProps) {
   const locale = useLocale() as Locale;
   const [open, setOpen] = useState(false);
@@ -59,16 +64,14 @@ export function DatePicker({
             disabled={disabled}
             onBlur={onBlur}
             className={cn(
-              "flex w-full items-center gap-2 rounded-xl border border-input bg-card px-4 py-2 text-left shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+              "flex h-11 w-full items-center gap-2 rounded-md border border-input bg-card px-3.5 text-left shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
               error && "border-destructive focus-visible:ring-destructive",
             )}
           >
-            <div className="flex min-w-0 flex-1 flex-col">
-              <span className="text-xs text-muted-foreground">{label}</span>
-              <span className={cn("truncate text-sm", selected ? "text-foreground" : "text-muted-foreground")}>
-                {selected ? formatDate(selected, locale) : (placeholder ?? "")}
-              </span>
-            </div>
+            <span className="sr-only">{label}</span>
+            <span className={cn("min-w-0 flex-1 truncate text-sm", selected ? "text-foreground" : "text-muted-foreground")}>
+              {selected ? formatDate(selected, locale) : (placeholder ?? label)}
+            </span>
             {/* Custom brand-colored glyph — replaces the native date input's own picker icon. */}
             <CalendarDays className="size-4 shrink-0 text-primary" aria-hidden />
           </button>

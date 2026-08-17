@@ -182,7 +182,7 @@ export function UnitPicker({
               />
               <div className="flex flex-col gap-1.5">
                 <Select value={customDimension} onValueChange={(v) => setCustomDimension(v as UnitDimension)}>
-                  <SelectTrigger className="h-11">
+                  <SelectTrigger>
                     <SelectValue placeholder={t("unitDimension")} />
                   </SelectTrigger>
                   <SelectContent>

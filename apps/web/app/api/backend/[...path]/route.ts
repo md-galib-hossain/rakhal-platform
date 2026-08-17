@@ -21,8 +21,15 @@ async function forward(
   req: NextRequest,
   path: string[],
   body: string | ArrayBuffer | undefined,
+  overrideAccessToken?: string,
 ): Promise<{ res: Response; accessToken: string | null }> {
-  const session = await getSession();
+  // On a retry, the caller passes the token `refreshSession()` just minted rather than letting us
+  // re-read `getSession()` here: `cookies().set()` inside `refreshSession()` only touches the
+  // response of whichever concurrent request actually ran the refresh — sibling requests (e.g. a
+  // page firing several widget fetches at once) each hold their own request-scoped cookie
+  // snapshot from before the rotation, so re-reading it would resend the same stale/expired
+  // token and 401 again even though the refresh itself succeeded.
+  const accessToken = overrideAccessToken ?? (await getSession())?.accessToken ?? null;
   const cookieStore = await cookies();
   const cookieLocale = cookieStore.get(localeCookieName)?.value;
   const locale = cookieLocale && isLocale(cookieLocale) ? cookieLocale : defaultLocale;
@@ -37,12 +44,12 @@ async function forward(
     cache: "no-store",
     headers: {
       "Accept-Language": locale,
-      ...(session ? { Authorization: `Bearer ${session.accessToken}` } : {}),
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...(body !== undefined ? { "Content-Type": isMultipart ? contentType! : "application/json" } : {}),
     },
     body,
   });
-  return { res, accessToken: session?.accessToken ?? null };
+  return { res, accessToken };
 }
 
 async function handler(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
@@ -62,12 +69,14 @@ async function handler(req: NextRequest, ctx: { params: Promise<{ path: string[]
   const first = await forward(req, path, body);
   let res = first.res;
 
-  if (res.status === 401 && first.accessToken) {
-    // Only worth retrying if we actually had a token to begin with — an anonymous 401
-    // (no session at all) means the caller should never have reached here.
+  if (res.status === 401) {
+    // Also fires when `first.accessToken` was null: rk_at's cookie maxAge matches the JWT's own
+    // exp, so the browser deletes it the moment it expires — an idle SPA tab (no navigation, so
+    // proxy.ts's proactive refresh never runs against this path) hits this route with no access
+    // token at all, not just a stale one. refreshSession() itself no-ops if rk_rt is also gone.
     const refreshed = await refreshSession();
     if (refreshed) {
-      res = (await forward(req, path, body)).res;
+      res = (await forward(req, path, body, refreshed.accessToken)).res;
     }
   }
 

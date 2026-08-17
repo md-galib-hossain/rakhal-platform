@@ -2059,6 +2059,7 @@
       "searchPlaceholder": "Find cow by cow ID or name",
       "shedFilter": "All Sheds",
       "shedLabel": "Shed",
+      "dateLabel": "Date",
       "session": {
         "morning": "Morning",
         "noon": "Noon",
@@ -4235,6 +4236,7 @@
       "error": "Could not load the feeding grid.",
       "groupFilter": "All Groups",
       "groupFilterLabel": "Filter by cow group",
+      "dateLabel": "Date",
       "sourceType": {
         "FEED_ITEM": "Purchased",
         "FEED_STOCK": "Prepared"

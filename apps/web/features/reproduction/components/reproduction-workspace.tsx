@@ -62,21 +62,21 @@ export function ReproductionWorkspace() {
     <>
       <div className="flex flex-wrap items-center justify-end gap-2">
         <Can I="reproduction.heat">
-          <Button variant="outline" size="sm" onClick={() => open("heat")}>
+          <Button variant="outline" onClick={() => open("heat")}>
             {t("actions.recordHeat")}
           </Button>
         </Can>
         <Can I="reproduction.create">
-          <Button variant="outline" size="sm" onClick={() => open("breeding")}>
+          <Button variant="outline" onClick={() => open("breeding")}>
             {t("actions.recordAi")}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => open("pregnancyDiagnosis")}>
+          <Button variant="outline" onClick={() => open("pregnancyDiagnosis")}>
             {t("actions.recordPregnancyCheck")}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => open("abortion")}>
+          <Button variant="outline" onClick={() => open("abortion")}>
             {t("actions.recordAbortion")}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => openCalving()}>
+          <Button variant="outline" onClick={() => openCalving()}>
             {t("actions.recordCalving")}
           </Button>
         </Can>

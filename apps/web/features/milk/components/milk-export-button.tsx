@@ -17,8 +17,8 @@ export function MilkExportButton({ cattleOptions }: { cattleOptions: MilkLogRow[
 
   return (
     <Can I="milk.read">
-      <Button variant="outline" size="sm" className="rounded-lg text-xs" onClick={() => setOpen(true)}>
-        <Download className="size-3.5" aria-hidden />
+      <Button variant="outline" onClick={() => setOpen(true)}>
+        <Download className="size-4" aria-hidden />
         {t("trigger")}
       </Button>
       <MilkExportDialog open={open} onOpenChange={setOpen} cattleOptions={cattleOptions} />

@@ -126,7 +126,7 @@ export function MilkExportDialog({
           <div className="space-y-2">
             <Label>{t("scopeLabel")}</Label>
             <Select value={scope} onValueChange={(v) => setScope(v as Scope)}>
-              <SelectTrigger className="h-9 text-sm">
+              <SelectTrigger size="sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -172,7 +172,7 @@ export function MilkExportDialog({
           <div className="space-y-2">
             <Label>{t("rangeLabel")}</Label>
             <Select value={preset} onValueChange={(v) => setPreset(v as Preset)}>
-              <SelectTrigger className="h-9 text-sm">
+              <SelectTrigger size="sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

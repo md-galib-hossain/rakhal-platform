@@ -156,7 +156,7 @@ export function ServiceProviderPicker({
               />
               <div className="flex flex-col gap-1.5">
                 <Select value={customType} onValueChange={(v) => setCustomType(v as ServiceProviderType)}>
-                  <SelectTrigger className="h-11">
+                  <SelectTrigger>
                     <SelectValue placeholder={t("providerType")} />
                   </SelectTrigger>
                   <SelectContent>

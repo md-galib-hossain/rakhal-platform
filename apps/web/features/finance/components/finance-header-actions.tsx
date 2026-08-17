@@ -31,7 +31,7 @@ export function FinanceHeaderActions() {
   return (
     <>
       <div className="flex items-center gap-2">
-        <ReportExportButton report={FINANCE_EXPORT_REPORT} variant="secondary" />
+        <ReportExportButton report={FINANCE_EXPORT_REPORT} variant="secondary" size="md" />
         <Button variant="secondary" className="gap-2" onClick={() => setWalletFlow("wallet")}>
           <WalletIcon className="size-[18px]" aria-hidden />
           {t("wallet")}

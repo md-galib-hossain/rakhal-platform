@@ -52,7 +52,7 @@ export default async function CattlePage() {
             <CattleFilters
               actions={
                 <div className="flex items-center gap-2">
-                  <ReportExportButton report={CATTLE_EXPORT_REPORT} />
+                  <ReportExportButton report={CATTLE_EXPORT_REPORT} size="md" />
                   <CattleImportButton />
                   <CattleAddButton />
                 </div>

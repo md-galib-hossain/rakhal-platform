@@ -1,17 +1,14 @@
 "use client"; // date/group filter state + per-cow draft quantities + bulk-assign source item + save/confirm mutations
 
 import { useMemo, useState } from "react";
-import { format } from "date-fns";
 import { toast } from "sonner";
-import { useLocale, useTranslations } from "next-intl";
-import { CalendarDays } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { ApiError } from "@/lib/api/errors";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
@@ -19,8 +16,6 @@ import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Can } from "@/lib/auth/permissions";
-import { formatDate } from "@/lib/format";
-import type { Locale } from "@/lib/constants/i18n";
 import { useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
 import { useFeedItemPagedList } from "@/features/inventory/hooks/use-inventory";
 import { useConcentrations, useFeedGroups, useFeedGrid, useConfirmFeedDraft, useSaveFeedDraft, useFeedStock } from "../../feed/hooks/use-feed";
@@ -81,10 +76,8 @@ function initialSource(cows: FeedGridCow[]): { sourceType: FeedGridSourceType; i
  */
 export function FeedingGrid() {
   const t = useTranslations("feeding.grid");
-  const locale = useLocale() as Locale;
   const [date, setDate] = useState(todayIso());
   const [feedGroupId, setFeedGroupId] = useState(ALL_GROUPS);
-  const [calendarOpen, setCalendarOpen] = useState(false);
   const groupFilter = feedGroupId === ALL_GROUPS ? undefined : feedGroupId;
   const query = useFeedGrid(date, groupFilter);
   const feedGroups = useFeedGroups();
@@ -97,7 +90,7 @@ export function FeedingGrid() {
         <p className="text-lg font-medium text-foreground">{t("title")}</p>
         <div className="flex flex-wrap items-center gap-2.5">
           <Select value={feedGroupId} onValueChange={setFeedGroupId}>
-            <SelectTrigger className="h-9 w-[160px] rounded-lg text-xs shadow-xs" aria-label={t("groupFilterLabel")}>
+            <SelectTrigger className="w-[160px]" aria-label={t("groupFilterLabel")}>
               <SelectValue placeholder={t("groupFilter")} />
             </SelectTrigger>
             <SelectContent>
@@ -110,29 +103,14 @@ export function FeedingGrid() {
             </SelectContent>
           </Select>
 
-          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs font-medium text-muted-foreground shadow-xs"
-              >
-                {formatDate(date, locale)}
-                <CalendarDays className="size-3.5" aria-hidden />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-auto p-0">
-              <Calendar
-                mode="single"
-                selected={new Date(date)}
-                defaultMonth={new Date(date)}
-                onSelect={(next) => {
-                  if (!next) return;
-                  setDate(format(next, "yyyy-MM-dd"));
-                  setCalendarOpen(false);
-                }}
-              />
-            </PopoverContent>
-          </Popover>
+          <div className="w-[160px] shrink-0">
+            <DatePicker
+              label={t("dateLabel")}
+              value={date}
+              onChange={setDate}
+              disabledDates={{ after: new Date() }}
+            />
+          </div>
         </div>
       </div>
 
@@ -196,6 +174,7 @@ function FeedingGridTable({
       for (const id of selection.selectedIds) next[id] = String(kg);
       return next;
     });
+    selection.clear();
   }
 
   function buildEntries(): FeedGridEntryInput[] {
@@ -270,7 +249,7 @@ function FeedingGridTable({
   return (
     <>
       <div className="flex flex-wrap items-end gap-2.5 rounded-xl border border-border bg-muted/40 p-3">
-        <div className="flex h-9 gap-1 rounded-lg border border-border bg-card p-1">
+        <div className="flex h-9 gap-1 rounded-md border border-border bg-card p-1">
           {(["FEED_ITEM", "FEED_STOCK"] as const).map((value) => (
             <button
               key={value}
@@ -290,7 +269,7 @@ function FeedingGridTable({
         </div>
 
         <Select value={itemId} onValueChange={setItemId}>
-          <SelectTrigger className="h-9 w-[220px] rounded-lg text-xs shadow-xs" aria-label={t("itemLabel")}>
+          <SelectTrigger size="sm" className="w-[220px]" aria-label={t("itemLabel")}>
             <SelectValue placeholder={t("itemPlaceholder")} />
           </SelectTrigger>
           <SelectContent>
@@ -308,7 +287,7 @@ function FeedingGridTable({
           </SelectContent>
         </Select>
 
-        <div className="flex h-9 w-28 items-center gap-1 rounded-lg border border-border bg-card px-2 text-sm">
+        <div className="flex h-9 w-28 items-center gap-1 rounded-md border border-border bg-card px-2 text-sm">
           <Input
             type="number"
             min={0}
@@ -362,7 +341,7 @@ function FeedingGridTable({
                     <TableCell>
                       <div
                         className={cn(
-                          "flex h-9 w-28 items-center gap-1 rounded-sm bg-card px-1.5 shadow-xs transition-opacity",
+                          "flex h-9 w-28 items-center gap-1 rounded-md bg-card px-1.5 shadow-xs transition-opacity",
                           !isSelected && "opacity-50",
                         )}
                       >

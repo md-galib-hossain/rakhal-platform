@@ -154,7 +154,7 @@ export function CattleTable() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-end gap-0.5 rounded-lg bg-muted p-0.5">
+      <div className="ml-auto flex w-fit items-center gap-0.5 rounded-lg bg-muted p-0.5">
         <button
           type="button"
           onClick={() => setListMode("grid")}

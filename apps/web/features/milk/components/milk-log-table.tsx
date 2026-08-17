@@ -254,7 +254,7 @@ function TankColumnHeaderControl({
         <div className="space-y-1.5">
           <span className="text-xs font-medium text-foreground">{t("tankSellable")}</span>
           <Select onValueChange={(v) => onSetDefault("SELLABLE", v)}>
-            <SelectTrigger className="h-9 text-xs">
+            <SelectTrigger size="sm" className="text-xs">
               <SelectValue placeholder={t("tankSelectPlaceholder")} />
             </SelectTrigger>
             <SelectContent>
@@ -269,7 +269,7 @@ function TankColumnHeaderControl({
         <div className="space-y-1.5">
           <span className="text-xs font-medium text-foreground">{t("tankWithholding")}</span>
           <Select onValueChange={(v) => onSetDefault("WITHHOLDING", v)}>
-            <SelectTrigger className="h-9 text-xs">
+            <SelectTrigger size="sm" className="text-xs">
               <SelectValue placeholder={t("tankSelectPlaceholder")} />
             </SelectTrigger>
             <SelectContent>
@@ -649,7 +649,7 @@ export function MilkLogTable({
                         value={tankOverrides[row.cattleId] ?? ""}
                         onValueChange={(v) => setTankOverrides((prev) => ({ ...prev, [row.cattleId]: v }))}
                       >
-                        <SelectTrigger className="h-9 w-[130px] rounded-sm border-none bg-card px-1.5 text-xs shadow-card">
+                        <SelectTrigger size="sm" className="w-[130px] rounded-sm border-none bg-card px-1.5 text-xs shadow-card">
                           <SelectValue placeholder={row.withholding ? t("tankWithholding") : t("tankSellable")} />
                         </SelectTrigger>
                         <SelectContent>

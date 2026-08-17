@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   error?: string;
+  /** Default min-height is `min-h-24`; pass e.g. `className="min-h-20"` to override per-caller. */
 }
 
 export function Textarea({ className, error, ...props }: TextareaProps) {

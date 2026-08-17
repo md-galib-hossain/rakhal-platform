@@ -22,7 +22,7 @@ import { useRecordPayment } from "../hooks/use-finance";
 import { recordPaymentSchema, type RecordPaymentInput } from "../schemas";
 import type { ReceivableKind, Settlement } from "../types";
 
-const METHODS = ["CASH", "BANK_TRANSFER", "MFS"] as const;
+const METHODS = ["CASH", "BANK_TRANSFER", "MFS", "WALLET"] as const;
 
 /**
  * Record Payment (Receivables/Payables settlement row action). No Figma frame for this modal —

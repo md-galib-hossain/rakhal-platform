@@ -301,7 +301,7 @@ export function IngredientManagementTable() {
       <div className="flex items-center justify-between">
         <p className="text-xl font-medium text-foreground">{tm("title")}</p>
         <Can I="feed.create">
-          <Button variant="primary" size="sm" className="gap-2" onClick={openAdd}>
+          <Button variant="primary" className="gap-2" onClick={openAdd}>
             <Plus className="size-[18px]" aria-hidden />
             {tm("addIngredient")}
           </Button>

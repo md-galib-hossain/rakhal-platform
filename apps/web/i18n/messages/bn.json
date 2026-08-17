@@ -2059,6 +2059,7 @@
       "searchPlaceholder": "গরুর আইডি বা নাম দিয়ে খুঁজুন",
       "shedFilter": "সব শেড",
       "shedLabel": "শেড",
+      "dateLabel": "তারিখ",
       "session": {
         "morning": "সকাল",
         "noon": "দুপুর",
@@ -4235,6 +4236,7 @@
       "error": "ফিডিং গ্রিড লোড করা যায়নি।",
       "groupFilter": "সব গ্রুপ",
       "groupFilterLabel": "গরুর গ্রুপ অনুযায়ী ফিল্টার করুন",
+      "dateLabel": "তারিখ",
       "sourceType": {
         "FEED_ITEM": "ক্রয়কৃত",
         "FEED_STOCK": "প্রস্তুতকৃত"
