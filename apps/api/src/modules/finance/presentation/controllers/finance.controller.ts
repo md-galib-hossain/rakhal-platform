@@ -87,11 +87,13 @@ export class FinanceController {
   @RequirePermission('finance.create')
   recordReceivablePayment(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: RecordPaymentDto,
   ) {
     return this.financeService.recordPayment(
       farmId,
+      userId,
       ReceivableKind.RECEIVABLE,
       id,
       dto,
@@ -111,11 +113,13 @@ export class FinanceController {
   @RequirePermission('finance.create')
   recordPayablePayment(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: RecordPaymentDto,
   ) {
     return this.financeService.recordPayment(
       farmId,
+      userId,
       ReceivableKind.PAYABLE,
       id,
       dto,

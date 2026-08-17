@@ -373,6 +373,7 @@ export class FinanceService {
 
   async recordPayment(
     farmId: string,
+    userId: string,
     kind: ReceivableKind,
     id: string,
     dto: RecordPaymentDto,
@@ -386,14 +387,87 @@ export class FinanceService {
     }
 
     const paid = round2(Math.min(row.total, row.paid + dto.amountPaid));
+    // Actual amount this call applies — dto.amountPaid may overshoot the
+    // outstanding balance, so use the capped delta for the wallet/ledger
+    // side-effects below, not the raw request value.
+    const appliedAmount = round2(paid - row.paid);
     const status =
       paid >= row.total ? ReceivableStatus.COMPLETED : ReceivableStatus.PARTIAL;
+
+    // A settlement previously only bumped `FinanceReceivable.paid` — the
+    // payment method was accepted but discarded, so no money ever actually
+    // moved: the wallet balance never changed and the originating
+    // `FinanceTransaction.paidNow` stayed stuck at its creation-time value
+    // (e.g. 0 for a milk-dispatch receivable). Both are fixed here, mirroring
+    // `addFunds()`/`withdraw()`'s WalletTransaction pattern and
+    // `recordTransaction()`'s WALLET-gated debit for INVENTORY_PURCHASE.
+    let walletTransactionId: string | null = null;
+    if (
+      appliedAmount > 0 &&
+      dto.paymentMethod === FinancePaymentMethod.WALLET
+    ) {
+      if (kind === ReceivableKind.PAYABLE) {
+        const balance = await this.currentLiquidity(farmId);
+        if (appliedAmount > balance) {
+          throw new BadRequestException(
+            'Insufficient wallet balance for this payment',
+          );
+        }
+      }
+      const walletReference = await this.nextReference(farmId, 'WAL');
+      const walletTxn = await this.prisma.walletTransaction.create({
+        data: {
+          farmId,
+          reference: walletReference,
+          direction:
+            kind === ReceivableKind.RECEIVABLE
+              ? WalletDirection.CREDIT
+              : WalletDirection.DEBIT,
+          description: row.entityName
+            ? `${kind === ReceivableKind.RECEIVABLE ? 'Settlement received from' : 'Settlement paid to'} ${row.entityName}`
+            : 'Settlement payment',
+          amount: appliedAmount,
+          paymentMethod: FinancePaymentMethod.WALLET,
+          date: dto.paymentDate ? new Date(dto.paymentDate) : new Date(),
+          createdBy: userId,
+        },
+      });
+      walletTransactionId = walletTxn.id;
+    }
+
+    if (appliedAmount > 0 && row.sourceTransactionId) {
+      const txn = await this.prisma.financeTransaction.findUnique({
+        where: { id: row.sourceTransactionId },
+        select: { paidNow: true, amount: true },
+      });
+      if (txn) {
+        await this.prisma.financeTransaction.update({
+          where: { id: row.sourceTransactionId },
+          data: {
+            paidNow: round2(Math.min(txn.amount, txn.paidNow + appliedAmount)),
+            paymentMethod: dto.paymentMethod,
+          },
+        });
+      }
+    }
+
     const updated = await this.prisma.financeReceivable.update({
       where: { id },
       data: { paid, status },
     });
-    this.log.info('Settlement payment recorded', { id, farmId, kind, paid });
-    return { ...updated, outstanding: round2(updated.total - updated.paid) };
+    this.log.info('Settlement payment recorded', {
+      id,
+      farmId,
+      kind,
+      paid,
+      paymentMethod: dto.paymentMethod,
+      walletTransactionId,
+    });
+    return {
+      ...updated,
+      outstanding: round2(updated.total - updated.paid),
+      walletTransactionId,
+    };
   }
 
   // ---- Liabilities ---------------------------------------------------------
