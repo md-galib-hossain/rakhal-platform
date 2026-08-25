@@ -859,6 +859,16 @@ export class HealthService {
     return deleted;
   }
 
+  async deleteCase(farmId: string, id: string) {
+    await this.getCaseOrThrow(farmId, id);
+    const deleted = await this.prisma.healthCase.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    this.log.info('Health case archived', { healthCaseId: id, farmId });
+    return deleted;
+  }
+
   async getTasks(farmId: string, query: HealthTaskQueryDto) {
     const where: Prisma.HealthTaskWhereInput = {
       farmId,

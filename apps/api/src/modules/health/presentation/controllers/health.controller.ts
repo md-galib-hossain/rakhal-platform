@@ -93,6 +93,12 @@ export class HealthController {
     return this.healthService.updateHealthCase(farmId, id, dto);
   }
 
+  @Delete('cases/:id')
+  @RequirePermission('healthcare.delete')
+  deleteCase(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.healthService.deleteCase(farmId, id);
+  }
+
   @Post('cases/:id/apply-plan')
   @RequirePermission('healthcare.update')
   applyPlan(

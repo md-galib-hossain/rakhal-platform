@@ -93,7 +93,7 @@ export class MilkService {
 
   async overview(farmId: string, dateStr?: string, range?: MilkTrendRange) {
     const day = this.normalizeDate(dateStr ?? new Date().toISOString());
-    const [today, yesterday, lastWeek, lastYear, sessions, trend] =
+    const [today, yesterday, lastWeek, lastYear, sessions, trend, milkPrice] =
       await Promise.all([
         this.dayBreakdown(farmId, day),
         this.dayTotal(farmId, this.shiftDays(day, -1)),
@@ -101,6 +101,7 @@ export class MilkService {
         this.dayTotal(farmId, this.shiftDays(day, -365)),
         this.sessionStatuses(farmId, day),
         this.trend(farmId, day, TREND_RANGE_DAYS[range ?? '30d']),
+        this.estimatedMilkPricePerLitre(farmId),
       ]);
 
     return {
@@ -109,13 +110,33 @@ export class MilkService {
       yesterday: { totalL: yesterday },
       sameDayLastWeek: { totalL: lastWeek },
       sameDayLastYear: { totalL: lastYear },
-      // Cost/price data come from Finance + Settings (not yet built).
+      // Production-cost side (Finance + Settings) isn't built yet — leave null.
       costPerLitreToday: null,
-      marketValueToday: null,
+      // Sale-value side: farm's active MilkBuyer contracts (`basePricePerLitre`,
+      // PRD §11.4) are the only real price data that exists today, so the
+      // estimate is today's SELLABLE litres × the average base price across
+      // those buyers. `null` only when the farm has no active buyer to price
+      // against — shown honestly rather than guessing a number.
+      marketValueToday:
+        milkPrice != null
+          ? Math.round(today.sellableL * milkPrice * 100) / 100
+          : null,
       sessionsStatus: sessions,
       trendRange: range ?? '30d',
       trend,
     };
+  }
+
+  /** Average `basePricePerLitre` across the farm's active buyer contracts — the closest thing
+   * to a "market rate" that exists without a dedicated pricing/Settings feature. */
+  private async estimatedMilkPricePerLitre(
+    farmId: string,
+  ): Promise<number | null> {
+    const { _avg } = await this.prisma.milkBuyer.aggregate({
+      where: { farmId, isActive: true },
+      _avg: { basePricePerLitre: true },
+    });
+    return _avg.basePricePerLitre ?? null;
   }
 
   async logTable(farmId: string, query: MilkLogQueryDto) {
@@ -136,12 +157,13 @@ export class MilkService {
     });
     const ids = cows.map((c) => c.id);
 
-    const [entries, withholding, avg7d] = await Promise.all([
+    const [entries, withholding, avg7d, prevDay] = await Promise.all([
       this.prisma.milkLogEntry.findMany({
         where: { farmId, logDate: day, cattleId: { in: ids } },
       }),
       this.activeWithholding(farmId, ids),
       this.avgDailyYield(farmId, ids, day),
+      this.prevDayYield(farmId, ids, day),
     ]);
 
     const byCow = new Map<string, typeof entries>();
@@ -163,6 +185,7 @@ export class MilkService {
         tag: cow.tagNumber,
         shed: cow.shed?.name ?? null,
         avgYield7d: avg7d.get(cow.id) ?? null,
+        prevDayYieldL: prevDay.get(cow.id) ?? null,
         productionStatus: 'milking',
         withholding: isWithholding,
         log: {
@@ -823,6 +846,29 @@ export class MilkService {
         r.cattleId,
         Math.round(((r._sum.yieldL ?? 0) / 7) * 10) / 10,
       ]),
+    );
+  }
+
+  /** Actual total yield for the single day before `day`, per cow. */
+  private async prevDayYield(
+    farmId: string,
+    ids: string[],
+    day: Date,
+  ): Promise<Map<string, number>> {
+    if (ids.length === 0) return new Map();
+    const prevDay = this.shiftDays(day, -1);
+    const rows = await this.prisma.milkLogEntry.groupBy({
+      by: ['cattleId'],
+      where: {
+        farmId,
+        submitted: true,
+        cattleId: { in: ids },
+        logDate: prevDay,
+      },
+      _sum: { yieldL: true },
+    });
+    return new Map(
+      rows.map((r) => [r.cattleId, Math.round((r._sum.yieldL ?? 0) * 10) / 10]),
     );
   }
 
