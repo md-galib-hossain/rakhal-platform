@@ -90,13 +90,11 @@ export const healthPlanDetailsSchema = z.object({
 });
 export type HealthPlanDetailsInput = z.infer<typeof healthPlanDetailsSchema>;
 
-/** Step 3 "Action Sequence Builder" (Figma 734:48743) — one row per `HealthPlanStepDto`. The mock
- * has no visible `title` field even though it's required on the wire — the typed "Action" text
- * doubles as both `title` and `instruction` when submitted (`create-health-plan-dialog.tsx`), rather
- * than adding an input the mock doesn't picture. */
+/** Step 3 "Action Sequence Builder" (Figma 734:48743) — one row per `HealthPlanStepDto`. No
+ * "Action" text input (removed per user request) — `title`/`instruction` on the wire are derived
+ * from day number + medicine name in `create-health-plan-dialog.tsx`. */
 export const healthPlanStepRowSchema = z.object({
   dayNumber: z.number().int().min(1),
-  instruction: z.string().trim().min(1),
   medicineName: z.string().trim().optional(),
   doseAmount: z.number().min(0).optional(),
 });

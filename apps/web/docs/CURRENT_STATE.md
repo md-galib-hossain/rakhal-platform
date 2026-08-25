@@ -1,5 +1,41 @@
 # Frontend — Current State
 
+## RAKHAL-361 — Domain entry points + retire V1 finance UI + Playwright coverage, closes MILESTONE 21's frontend track (2026-08-24)
+Last frontend ticket of the Finance V2 rebuild — all 6 Finance quick-actions (Record Sale/Expense,
+Other Income, Receive/Make Payment, Transfer Money) are now live-wired (no more "coming soon"),
+V1's Wallet/Add Funds/Withdraw/4-type transaction wizard and settlements UI are deleted (Loans/
+FixedAssets UI kept, out of scope), Cattle-detail/`/milk`/Inventory row "Sell" entry points open
+the same `RecordSaleDialog` wizard (Milk fully wired, Animal/Inventory honestly
+reachable-but-blocked pending backend routes), one real RBAC gap fixed (Receive/Make Payment
+dialogs), and a new `tests/e2e/sales.spec.ts` proves the Milk-sale flow live — found and fixed a
+pre-existing `playwright.config.ts` stale port (3001→3005) that had silently broken the whole
+Playwright suite in this environment. **Backend RAKHAL-354 (drop V1 tables) is now fully
+unblocked.** Full writeup: `docs/IN_FLIGHT.md`'s Recently Done row.
+
+## RAKHAL-355 — Finance V2 shared primitives, first frontend ticket of MILESTONE 21 (2026-08-24)
+First frontend ticket of the Finance V2 rebuild (`D:\Projects\Rakhal\docs\FINANCE_V2_DESIGN.md`) —
+unblocks RAKHAL-356…361. New `components/shared/money-input.tsx` (controlled ৳ input, raw digits
+while focused / lakh-grouped display on blur, `Controller`-wired like `DatePicker`) and
+`components/shared/wizard.tsx` (generic multi-step chrome extracted from
+`record-transaction-dialog.tsx`/`create-health-plan-dialog.tsx`'s hand-rolled `StepProgress`
+pattern, form-library-agnostic via an `onValidateStep(fields, index)` callback). New
+`features/finance/components/account-picker.tsx` — `UnitPicker`'s exact template, live against
+`GET`/`POST /finance/accounts` (RAKHAL-335) via new `features/finance/{api-v2,types-v2}.ts` +
+`hooks/use-finance-v2.ts` (kept separate from V1's frozen `api.ts`/`types.ts`). New canonical
+WALLET-less `lib/types/payment.ts#PaymentMethod` (matches the V2 backend enum). Payment-method
+judgment call: V1's WALLET-inclusive `FinancePaymentMethod` was **not** collapsed into the new
+type — 3 of 6 duplicate sites (`features/finance/schemas.ts`, `features/reproduction/{schemas.ts,
+components/dialogs/breeding-event-form-fields.tsx}`, `features/feed/components/
+finalize-tmr-dialog.tsx`) still post through the live WALLET-accepting V1 backend route, so they
+were deduped onto one shared V1 source (`FINANCE_PAYMENT_METHODS`, `features/finance/schemas.ts`)
+instead — real dedup, zero runtime change; full reasoning in `docs/IN_FLIGHT.md`'s Recently Done
+row. `features/buyers/types.ts`'s already-WALLET-less variant was safely re-exported as a type
+alias of the new canonical type. `.claude/launch.json` port 3001→3005 fix. New Vitest suites
+(`components/shared/{money-input,wizard}.test.tsx`, 13 tests, real logic not snapshots). Gate:
+`typecheck`(0)/`lint`(0 errors)/`build`(0, 37 routes)/`test`(34/34). No live Playwright/manual
+click-through of `AccountPicker` this session — no screen exists yet to mount it in (RAKHAL-356 is
+the first consumer).
+
 ## Unified 8-tab animal profile IA — Overview/Performance/Feeding/Reproduction/Health/Finance/Ancestry/Tasks (no ticket #, 2026-08-15)
 Follow-up to the row below: user pasted an external reviewer's critique arguing the animal-detail tab
 *list itself* should never change shape by category — one fixed 8-tab set for every Calf/Heifer/Cow/

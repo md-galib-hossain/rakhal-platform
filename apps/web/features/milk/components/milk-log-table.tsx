@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
-import { ChevronDown, History, Lock, TrendingDown, TrendingUp, Unlock } from "lucide-react";
+import { ChevronDown, History, Lock, Minus, TrendingDown, TrendingUp, Unlock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -494,7 +494,22 @@ export function MilkLogTable({
     try {
       await persistDrafts();
       for (const session of sessions) {
-        await submitMilk.mutateAsync({ date, session });
+        try {
+          await submitMilk.mutateAsync({ date, session });
+        } catch (err) {
+          // A session with nothing pending (already submitted, or never touched today) is
+          // not a real failure here — `sessions` is every active column, not just the ones
+          // this submit actually wrote to. Only that specific backend message means "skip
+          // it and keep going"; any other error still aborts the loop.
+          if (
+            err instanceof ApiError &&
+            err.isValidation &&
+            err.message === "No new milk log entries to submit for this session"
+          ) {
+            continue;
+          }
+          throw err;
+        }
       }
       // Distinct cows, not summed per-session counts — a cow logged in both Morning and
       // Evening is one cow, and summing `totalCowsLogged` across sessions double-counted it.
@@ -666,12 +681,17 @@ export function MilkLogTable({
                     <TableCell>
                       <div className="flex items-center gap-1.5">
                         <span className="font-medium text-foreground">{liveTotals.get(row.cattleId) ?? 0}L</span>
-                        {row.avgYield7d != null ? (
-                          (liveTotals.get(row.cattleId) ?? 0) >= row.avgYield7d ? (
-                            <TrendingUp className="size-3.5 text-success" aria-hidden />
-                          ) : (
-                            <TrendingDown className="size-3.5 text-destructive" aria-hidden />
-                          )
+                        {row.prevDayYieldL != null ? (
+                          (() => {
+                            const live = liveTotals.get(row.cattleId) ?? 0;
+                            if (live > row.prevDayYieldL) {
+                              return <TrendingUp className="size-3.5 text-success" aria-hidden />;
+                            }
+                            if (live < row.prevDayYieldL) {
+                              return <TrendingDown className="size-3.5 text-destructive" aria-hidden />;
+                            }
+                            return <Minus className="size-3.5 text-muted-foreground" aria-hidden />;
+                          })()
                         ) : null}
                       </div>
                     </TableCell>

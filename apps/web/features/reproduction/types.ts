@@ -106,6 +106,20 @@ export interface ReproDashboardResponse {
   open_cows: OpenCowRow[];
 }
 
+// ---- GET /reproduction/cows (RAKHAL-363) ----------------------------------
+
+/** Every cow currently in an active reproductive cycle (OPEN/BRED_AWAITING_CONFIRMATION/PREGNANT),
+ * cursor-paginated — replaces `ReproDashboardResponse.open_cows` (OPEN-only, uncapped, no pagination)
+ * as the Reproduction page's cow-list data source. */
+export interface ReproductionCowRow extends ReproCattleRef {
+  status: ReproductiveStatus | null;
+  last_ai_date: string | null;
+  pregnancy_checked: boolean;
+  days_open: number | null;
+  days_pregnant: number | null;
+  expected_calving_date: string | null;
+}
+
 // ---- GET /reproduction/events (RAKHAL-051) --------------------------------
 
 export interface ReproEventEntry {

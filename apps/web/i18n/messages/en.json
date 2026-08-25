@@ -35,6 +35,7 @@
     "milk": "Milk",
     "buyers": "Buyers",
     "finance": "Finance",
+    "purchasing": "Purchasing",
     "healthcare": "Healthcare",
     "reproduction": "Reproduction",
     "inventory": "Inventory",
@@ -939,6 +940,7 @@
       "back": "Back",
       "cancel": "Cancel",
       "editProfile": "Edit Profile",
+      "sell": "Sell",
       "close": "Close",
       "error": "Could not load this cattle record.",
       "breed": "Breed",
@@ -1238,6 +1240,18 @@
         "lactationReport": {
           "title": "Lactation Report",
           "description": "Export a detailed report for this cow's current (or most recent) lactation."
+        },
+        "timeline": {
+          "title": "Reproduction Timeline",
+          "empty": "No reproduction events recorded yet.",
+          "error": "Could not load the reproduction timeline.",
+          "eventTitle": {
+            "heat": "Heat Observed",
+            "breeding": "Inseminated",
+            "pregnancy_diagnosis": "Pregnancy Check",
+            "calving": "Calved",
+            "abortion": "Pregnancy Loss"
+          }
         }
       },
       "health": {
@@ -1406,6 +1420,7 @@
       "menu": "Row actions",
       "viewDetails": "View Details",
       "edit": "Edit",
+      "sell": "Sell",
       "archive": "Archive",
       "restore": "Restore",
       "restoredToast": "Medicine restored.",
@@ -2030,6 +2045,9 @@
     }
   },
   "milk": {
+    "page": {
+      "sellMilk": "Sell Milk"
+    },
     "kpi": {
       "title": "Production Key Metrics",
       "error": "Could not load milk overview.",
@@ -2047,7 +2065,14 @@
       "title": "Production Trend Over Time",
       "error": "Could not load the trend chart.",
       "legend": "Total Litres",
-      "rangeLabel": "Last 30 Days"
+      "range": {
+        "7d": "7 Days",
+        "30d": "30 Days",
+        "3m": "3 Months",
+        "6m": "6 Months",
+        "1y": "1 Year",
+        "lifetime": "Lifetime"
+      }
     },
     "log": {
       "title": "Milk Log",
@@ -2251,6 +2276,26 @@
         "lastAiDate": "Last AI Date",
         "conceptionRate": "Prev. Conception Rate"
       }
+    },
+    "cowList": {
+      "title": "Reproduction Cow List",
+      "empty": "No cows currently in an active reproductive cycle.",
+      "columns": {
+        "cow": "Cow",
+        "status": "Status",
+        "lastAiDate": "AI Date",
+        "pregnancyChecked": "Checked",
+        "daysOpen": "Days Open",
+        "daysPregnant": "Days Pregnant",
+        "expectedCalvingDate": "Expected Calving Date"
+      },
+      "statusValues": {
+        "OPEN": "Open",
+        "BRED_AWAITING_CONFIRMATION": "Inseminated",
+        "PREGNANT": "Pregnant"
+      },
+      "checkedYes": "Yes",
+      "checkedNo": "No"
     },
     "eventsFeed": {
       "title": "Reproduction Events",
@@ -2579,9 +2624,18 @@
       "today": "Today",
       "tomorrow": "Tomorrow",
       "manageCase": "Manage Case",
+      "deleteCase": "Delete case",
       "error": "Could not load the sick bay list.",
       "emptyTitle": "No active health cases",
       "emptyDescription": "Report a sickness to start tracking a case here.",
+      "deleteDialog": {
+        "title": "Delete this health case?",
+        "description": "The case will be archived and removed from Sick Bay. This can be restored later if needed.",
+        "confirm": "Delete",
+        "cancel": "Cancel"
+      },
+      "deletedToast": "Health case deleted.",
+      "deleteError": "Could not delete the health case.",
       "conditionValue": {
         "MASTITIS": "Mastitis",
         "LAMENESS": "Lameness",
@@ -2820,7 +2874,9 @@
       "eyeDischarge": "Eye Discharge",
       "udderSwelling": "Udder Swelling",
       "nasalDischarge": "Nasal Discharge",
-      "fever": "Fever"
+      "fever": "Fever",
+      "otherPlaceholder": "Other symptom — type and press Enter",
+      "removeOther": "Remove"
     },
     "reportSickness": {
       "title": "Report Sickness",
@@ -2832,6 +2888,7 @@
       "conditionPlaceholder": "Select condition",
       "diagnosisType": "Diagnosis Type",
       "priority": "Priority",
+      "symptoms": "Signs & Symptoms",
       "notes": "Notes",
       "notesPlaceholder": "Any additional notes",
       "createdToast": "Health case reported.",
@@ -3814,6 +3871,321 @@
       "submit": "Submit",
       "createdToast": "Transaction recorded",
       "genericError": "Something went wrong. Please try again."
+    },
+    "accountPicker": {
+      "account": "Account",
+      "selectAccount": "Select account",
+      "searchAccount": "Search accounts",
+      "loading": "Loading…",
+      "noAccountsFound": "No accounts found.",
+      "addAccount": "Add account",
+      "accountType": "Account type",
+      "typeCash": "Cash",
+      "typeBank": "Bank",
+      "typeMfs": "Mobile Financial Service",
+      "accountName": "Account name",
+      "accountNamePlaceholder": "e.g. Farm Cash Box",
+      "bankName": "Bank name",
+      "bankAccountNumber": "Account number",
+      "bankBranch": "Branch",
+      "mfsProvider": "Provider",
+      "mfsProviderOptions": {
+        "BKASH": "bKash",
+        "NAGAD": "Nagad",
+        "ROCKET": "Rocket",
+        "UPAY": "Upay",
+        "OTHER": "Other"
+      },
+      "mfsPhoneNumber": "Phone number",
+      "openingBalance": "Opening balance",
+      "back": "Back",
+      "addItem": "Add"
+    },
+    "accountsPage": {
+      "title": "Accounts",
+      "transferAction": "Transfer",
+      "transferOwnerOnlyTooltip": "Only the farm owner can transfer between accounts",
+      "balance": {
+        "title": "Rakhal Balance",
+        "subtitle": "Cash + Bank + MFS across all your active accounts",
+        "cash": "Cash",
+        "bank": "Bank",
+        "mfs": "MFS",
+        "positionTitle": "Receivable / Payable position",
+        "receivable": "Total receivable",
+        "payable": "Total payable",
+        "notYetAvailable": "Not yet available — this figure isn't wired up on the backend yet.",
+        "positionCaption": "Not included in Rakhal Balance — this money hasn't arrived (or gone out) yet.",
+        "error": "Could not load your Rakhal Balance."
+      },
+      "list": {
+        "title": "Your Accounts",
+        "addAccount": "Add Account",
+        "error": "Could not load your accounts.",
+        "empty": {
+          "title": "No accounts yet",
+          "description": "Add a Cash, Bank, or MFS account to start tracking where your money is."
+        },
+        "rowActions": "Account actions",
+        "edit": "Edit",
+        "archive": "Archive",
+        "typeOptions": {
+          "CASH": "Cash",
+          "BKASH": "bKash",
+          "NAGAD": "Nagad",
+          "ROCKET": "Rocket",
+          "UPAY": "Upay",
+          "OTHER": "Other"
+        }
+      },
+      "form": {
+        "createTitle": "Add Account",
+        "editTitle": "Edit Account",
+        "close": "Close",
+        "accountType": "Account type",
+        "typeCash": "Cash",
+        "typeBank": "Bank",
+        "typeMfs": "Mobile Financial Service",
+        "typeImmutable": "{type} account — type can't be changed after creation",
+        "accountName": "Account name",
+        "accountNamePlaceholder": "e.g. Farm Cash Box",
+        "bankName": "Bank name",
+        "bankAccountNumber": "Account number",
+        "bankBranch": "Branch",
+        "mfsProvider": "Provider",
+        "mfsProviderOptions": {
+          "BKASH": "bKash",
+          "NAGAD": "Nagad",
+          "ROCKET": "Rocket",
+          "UPAY": "Upay",
+          "OTHER": "Other"
+        },
+        "mfsPhoneNumber": "Phone number",
+        "openingBalance": "Opening balance",
+        "cancel": "Cancel",
+        "save": "Save Changes",
+        "createdToastAction": "Add Account",
+        "createdToast": "Account created.",
+        "updatedToast": "Account updated.",
+        "genericError": "Could not save the account."
+      },
+      "archiveDialog": {
+        "title": "Archive Account",
+        "description": "Archiving \"{name}\" removes it from pickers and new transactions. Its history is kept.",
+        "confirm": "Archive",
+        "cancel": "Cancel",
+        "successToast": "Account archived.",
+        "genericError": "Could not archive the account."
+      },
+      "transfer": {
+        "title": "Transfer Funds",
+        "close": "Close",
+        "ownerOnlyNotice": "Only the farm owner can transfer between accounts.",
+        "fromPlaceholder": "From account",
+        "toPlaceholder": "To account",
+        "amount": "Amount",
+        "feeAmount": "Fee (optional)",
+        "transactionDate": "Date",
+        "notes": "Notes",
+        "summaryAmount": "Amount",
+        "summaryFee": "Fee",
+        "summaryTotal": "Total debited from source",
+        "cancel": "Cancel",
+        "submit": "Transfer",
+        "successToast": "Transfer completed.",
+        "genericError": "Could not complete the transfer."
+      }
+    },
+    "settlementsV2": {
+      "receivables": {
+        "title": "Receivables",
+        "columns": {
+          "reference": "Sale Reference",
+          "customer": "Customer",
+          "total": "Total",
+          "outstanding": "Outstanding",
+          "dueDate": "Due Date",
+          "status": "Status"
+        },
+        "noReference": "Unknown sale",
+        "noCustomer": "Walk-up sale",
+        "receivePayment": "Receive Payment",
+        "empty": {
+          "title": "No receivables yet",
+          "description": "Sales that weren't paid in full will show up here."
+        }
+      },
+      "payables": {
+        "title": "Payables",
+        "columns": {
+          "reference": "Purchase / Expense",
+          "customer": "Supplier",
+          "total": "Total",
+          "outstanding": "Outstanding",
+          "dueDate": "Due Date",
+          "status": "Status"
+        },
+        "noReference": "Unknown document",
+        "noCustomer": "No supplier",
+        "makePayment": "Make Payment",
+        "empty": {
+          "title": "No payables yet",
+          "description": "Purchases or expenses that weren't paid in full will show up here."
+        }
+      },
+      "statusOptions": {
+        "UNPAID": "Unpaid",
+        "PARTIALLY_PAID": "Partially Paid",
+        "PAID": "Paid",
+        "OVERDUE": "Overdue"
+      },
+      "methodOptions": {
+        "CASH": "Cash",
+        "BANK_TRANSFER": "Bank Transfer",
+        "MFS": "Mobile Financial Service"
+      },
+      "receivePaymentDialog": {
+        "title": "Receive Payment",
+        "description": "Outstanding: ৳{outstanding}.",
+        "account": "Deposit to account",
+        "amount": "Amount received",
+        "method": "Payment method",
+        "transactionDate": "Payment date",
+        "referenceNumber": "Reference number",
+        "notes": "Notes",
+        "cancel": "Cancel",
+        "saving": "Saving…",
+        "submit": "Receive Payment",
+        "successToast": "Payment received.",
+        "genericError": "Could not record payment."
+      },
+      "makePaymentDialog": {
+        "title": "Make Payment",
+        "description": "Outstanding: ৳{outstanding}.",
+        "account": "Pay from account",
+        "amount": "Amount paid",
+        "method": "Payment method",
+        "transactionDate": "Payment date",
+        "referenceNumber": "Reference number",
+        "notes": "Notes",
+        "cancel": "Cancel",
+        "saving": "Saving…",
+        "submit": "Make Payment",
+        "successToast": "Payment made.",
+        "genericError": "Could not record payment."
+      },
+      "paymentHistory": {
+        "title": "Payment History",
+        "viewAction": "History",
+        "runningOutstanding": "Outstanding after this payment",
+        "loading": "Loading payment history…",
+        "empty": "No payments recorded yet.",
+        "documentTotal": "Document total",
+        "currentOutstanding": "Current outstanding"
+      }
+    },
+    "balance": {
+      "title": "Rakhal Balance",
+      "subtitle": "Cash + Bank + MFS across all active accounts",
+      "error": "Could not load your Rakhal Balance.",
+      "accountType": {
+        "CASH": "Cash",
+        "BANK": "Bank",
+        "MFS": "Mobile Financial Service"
+      },
+      "receivablePosition": "Total Receivable",
+      "payablePosition": "Total Payable",
+      "notYetAvailable": "Not yet available",
+      "income": "Income",
+      "expenses": "Expenses",
+      "netCashFlow": "Net Cash Flow"
+    },
+    "ledgerV2": {
+      "segments": {
+        "sales": "Sales",
+        "purchases": "Purchases",
+        "payments": "Payments",
+        "transfers": "Transfers"
+      },
+      "actions": {
+        "recordSale": "Record Sale",
+        "recordExpense": "Record Expense",
+        "otherIncome": "Other Income",
+        "receivePayment": "Receive Payment",
+        "makePayment": "Make Payment",
+        "transferMoney": "Transfer Money",
+        "comingSoon": "Coming soon ({ticket})"
+      },
+      "sales": {
+        "columns": {
+          "date": "Date",
+          "document": "Document",
+          "whatWasSold": "What was sold",
+          "customer": "Customer",
+          "amount": "Amount",
+          "status": "Status"
+        },
+        "statusOptions": {
+          "DRAFT": "Draft",
+          "CONFIRMED": "Confirmed",
+          "CANCELLED": "Cancelled",
+          "REFUNDED": "Refunded",
+          "PARTIALLY_REFUNDED": "Partially Refunded"
+        },
+        "empty": {
+          "title": "No sales yet",
+          "description": "Recorded sales will show up here."
+        }
+      },
+      "purchases": {
+        "columns": {
+          "date": "Date",
+          "document": "Document",
+          "whatWasBought": "What was bought",
+          "supplier": "Supplier",
+          "amount": "Amount"
+        },
+        "itemCount": "{count} item(s)",
+        "empty": {
+          "title": "No purchases yet",
+          "description": "Recorded purchases will show up here."
+        }
+      },
+      "payments": {
+        "columns": {
+          "date": "Date",
+          "direction": "Direction",
+          "account": "Account",
+          "method": "Method",
+          "reference": "Reference",
+          "amount": "Amount"
+        },
+        "directionOptions": {
+          "INCOMING": "Received",
+          "OUTGOING": "Paid"
+        },
+        "methodOptions": {
+          "CASH": "Cash",
+          "BANK_TRANSFER": "Bank Transfer",
+          "MFS": "Mobile Financial Service"
+        },
+        "empty": {
+          "title": "No payments yet",
+          "description": "Recorded payments will show up here."
+        }
+      },
+      "transfers": {
+        "columns": {
+          "date": "Date",
+          "route": "From → To",
+          "amount": "Amount",
+          "fee": "Fee"
+        },
+        "empty": {
+          "title": "No transfers yet",
+          "description": "Money moved between your accounts will show up here."
+        }
+      }
     }
   },
   "buyers": {
@@ -4649,6 +5021,186 @@
       "title": "Reports is a Pro feature",
       "description": "Upgrade your plan to generate and schedule reports.",
       "cta": "View plans"
+    }
+  },
+  "purchasing": {
+    "tabs": {
+      "expenses": "Expenses",
+      "purchases": "Purchases"
+    },
+    "recordExpenseCta": "Record Expense",
+    "recordPurchaseCta": "Record Purchase",
+    "permissionDenied": "You don't have permission to view this.",
+    "itemPicker": {
+      "itemType": "Item type",
+      "kind": {
+        "MEDICINE": "Medicine",
+        "FEED_ITEM": "Feed Item",
+        "EQUIPMENT": "Equipment"
+      },
+      "selectItemPlaceholder": "Select an item",
+      "searchItem": "Search item…",
+      "searching": "Searching…",
+      "noItemsFound": "No items found.",
+      "currentStockLabel": "Current stock"
+    },
+    "recordExpense": {
+      "title": "Record Expense",
+      "close": "Close",
+      "category": "Category",
+      "categoryOptions": {
+        "SALARY": "Salary",
+        "UTILITIES": "Utilities",
+        "BREEDING": "Breeding",
+        "TRANSFER_FEE": "Transfer Fee",
+        "DEPRECIATION": "Depreciation"
+      },
+      "postsTo": "posts to Expense · {code}",
+      "description": "Description",
+      "amount": "Amount",
+      "expenseDate": "Expense date",
+      "paidNow": "Paid now",
+      "paidNowHint": "Off raises the full amount as a Payable to settle later.",
+      "payFromAccount": "Pay from account",
+      "dueDateOptional": "Due date (optional)",
+      "notes": "Notes",
+      "cancel": "Cancel",
+      "record": "Record",
+      "createdToast": "Expense recorded.",
+      "genericError": "Something went wrong. Please try again."
+    },
+    "recordPurchase": {
+      "title": "Record Purchase",
+      "close": "Close",
+      "supplier": "Supplier",
+      "supplierPlaceholder": "Supplier name (optional)",
+      "purchaseDate": "Purchase date",
+      "lines": "Items purchased",
+      "quantity": "Quantity",
+      "unitCost": "Unit cost",
+      "lineTotal": "Line total",
+      "removeLine": "Remove line",
+      "addLine": "Add another item",
+      "purchaseTotal": "Purchase total",
+      "payNow": "Pay now",
+      "payNowHint": "Pay part or all of the total immediately from an account.",
+      "amountPaid": "Amount paid",
+      "payFromAccount": "Pay from account",
+      "payableRaised": "Payable raised (unpaid remainder)",
+      "dueDateOptional": "Due date (optional)",
+      "notes": "Notes",
+      "cancel": "Cancel",
+      "record": "Record",
+      "createdToast": "Purchase {number} recorded — stock updated.",
+      "genericError": "Something went wrong. Please try again.",
+      "paidAmountExceedsTotal": "Amount paid cannot exceed the purchase total."
+    },
+    "payableStatus": {
+      "paidInFull": "Paid in full",
+      "paySupplier": "Pay Supplier",
+      "status": {
+        "UNPAID": "Unpaid",
+        "PARTIALLY_PAID": "Partially Paid",
+        "PAID": "Paid",
+        "OVERDUE": "Overdue"
+      }
+    },
+    "expensesTable": {
+      "date": "Date",
+      "category": "Category",
+      "description": "Description",
+      "amount": "Amount",
+      "status": "Status",
+      "errorTitle": "Couldn't load expenses",
+      "emptyTitle": "No expenses recorded yet",
+      "emptyDescription": "Record an expense to see it here."
+    },
+    "purchasesTable": {
+      "number": "Purchase #",
+      "date": "Date",
+      "supplier": "Supplier",
+      "total": "Total",
+      "status": "Status",
+      "noSupplier": "—",
+      "errorTitle": "Couldn't load purchases",
+      "emptyTitle": "No purchases recorded yet",
+      "emptyDescription": "Record a purchase to see it here."
+    }
+  },
+  "sales": {
+    "record": {
+      "title": "Record Sale",
+      "trigger": "Record Sale",
+      "pageDescription": "Record a milk, animal, or other-income sale and where the money landed.",
+      "stepOf": "Step {step} of {total}",
+      "step1Title": "What are you recording?",
+      "step1Subtitle": "Choose what you're selling",
+      "step2Title": "Payment",
+      "step2Subtitle": "How much has been received, and where did it land?",
+      "step2SubtitleOtherIncome": "Where did the money land?",
+      "step3Title": "Review",
+      "step3Subtitle": "Confirm before recording",
+      "types": {
+        "PRODUCT": {
+          "label": "Product Sale",
+          "description": "Milk, manure, or an inventory item"
+        },
+        "ANIMAL": {
+          "label": "Animal Sale",
+          "description": "Sell a cow from the herd"
+        },
+        "OTHER_INCOME": {
+          "label": "Other Income",
+          "description": "Subsidy, rent, or other non-sale revenue"
+        }
+      },
+      "selectTypeFirst": "Choose what you're recording first",
+      "selectProductFirst": "Choose which product you're selling",
+      "productSubtype": "Product",
+      "productSubtypeOptions": {
+        "MILK": "Milk",
+        "MANURE": "Manure",
+        "INVENTORY": "Inventory item"
+      },
+      "notAvailableYet": "Not available yet — this sale type has no backend route to submit to.",
+      "buyer": "Buyer",
+      "buyerPlaceholder": "Select buyer",
+      "volumeL": "Volume (L)",
+      "availableNow": "Available now: {amount} L",
+      "fatPct": "Fat %",
+      "scc": "SCC",
+      "description": "Description",
+      "descriptionPlaceholder": "e.g. 2 bags of dry manure",
+      "quantity": "Quantity",
+      "unitPrice": "Unit Price",
+      "saleTotal": "Sale Total",
+      "selectAnimalLabel": "Select Animal",
+      "selectAnimal": "Select animal",
+      "salePrice": "Sale Price",
+      "incomeCategory": "Category",
+      "selectOption": "Select an option",
+      "amount": "Amount",
+      "saleDate": "Sale Date",
+      "selectDate": "Select date",
+      "notes": "Notes",
+      "notesPlaceholder": "Optional notes",
+      "amountReceived": "Amount Received",
+      "due": "Due",
+      "paymentMethod": "Payment Method",
+      "paymentMethodOptions": {
+        "CASH": "Cash",
+        "BANK_TRANSFER": "Bank Transfer",
+        "MFS": "Mobile Financial Service"
+      },
+      "otherIncomePaidInFull": "Other income is recorded and posted in full to this account immediately — there's no partial/due for this type.",
+      "createdToast": "Recorded — ৳{amount}",
+      "genericError": "Something went wrong recording this sale",
+      "paymentRecordedNoReceivable": "Payment was recorded but couldn't be matched to this sale's receivable — check Receivables and allocate it manually.",
+      "paymentFailedAfterSale": "The sale was recorded, but recording the payment failed — the sale is unpaid for now. Try recording the payment again from Receivables.",
+      "cancel": "Cancel",
+      "back": "Back",
+      "continue": "Continue",
+      "submit": "Submit"
     }
   }
 }

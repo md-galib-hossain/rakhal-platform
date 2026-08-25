@@ -11,6 +11,9 @@ export type MilkSession = (typeof MILK_SESSIONS)[number];
 export type SessionStatus = "submitted" | "pending" | "not_configured";
 export type MilkTankType = "SELLABLE" | "WITHHOLDING";
 
+export const MILK_TREND_RANGES = ["7d", "30d", "3m", "6m", "1y", "lifetime"] as const;
+export type MilkTrendRange = (typeof MILK_TREND_RANGES)[number];
+
 export interface MilkOverviewResponse {
   date: string;
   today: { totalL: number; sellableL: number; withholdingL: number; calfL: number };
@@ -21,7 +24,8 @@ export interface MilkOverviewResponse {
   costPerLitreToday: number | null;
   marketValueToday: number | null;
   sessionsStatus: Record<string, SessionStatus>;
-  trend30Days: Array<{ date: string; totalL: number }>;
+  trendRange: MilkTrendRange;
+  trend: Array<{ date: string; totalL: number }>;
 }
 
 export interface MilkLogRow {
@@ -30,6 +34,7 @@ export interface MilkLogRow {
   tag: string;
   shed: string | null;
   avgYield7d: number | null;
+  prevDayYieldL: number | null;
   productionStatus: string;
   withholding: boolean;
   log: {

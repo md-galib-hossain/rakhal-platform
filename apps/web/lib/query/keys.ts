@@ -60,7 +60,7 @@ export const qk = {
     holds: (id: string) => ["cattle", "holds", id] as const,
   },
   milk: {
-    overview: (date: string | undefined) => ["milk", "overview", date] as const,
+    overview: (date: string | undefined, range?: string) => ["milk", "overview", date, range] as const,
     log: (date: string | undefined, shedId: string | undefined) => ["milk", "log", date, shedId] as const,
     anomalies: (date: string | undefined) => ["milk", "anomalies", date] as const,
     eligibility: (cattleId: string) => ["milk", "eligibility", cattleId] as const,
@@ -98,12 +98,48 @@ export const qk = {
     liabilities: () => ["finance", "liabilities"] as const,
     assets: () => ["finance", "assets"] as const,
     wallet: () => ["finance", "wallet"] as const,
+    /** RAKHAL-355, Finance V2 — `FinancialAccount` list (`AccountPicker`). Namespaced "v2" so a
+     * broad `queryKey[0] === "finance"` invalidate predicate (none exists today, but V1's finance
+     * hooks are the kind of file that could grow one) can't accidentally sweep this in or vice versa. */
+    accountsV2: () => ["finance", "v2", "accounts"] as const,
+    /** RAKHAL-356 — Rakhal Balance projection (`GET /finance/balance`). */
+    balanceV2: () => ["finance", "v2", "balance"] as const,
+    /** RAKHAL-356 — Transfer history (`GET /finance/transfers`). */
+    transfersV2: () => ["finance", "v2", "transfers"] as const,
+    /** RAKHAL-358 — Receivables/Payables cursor lists (`GET /finance/receivables`,
+     * `GET /purchasing/payables`). */
+    receivablesV2: (filters: Record<string, string | undefined>) => ["finance", "v2", "receivables", "list", filters] as const,
+    payablesV2: (filters: Record<string, string | undefined>) => ["finance", "v2", "payables", "list", filters] as const,
+    /** RAKHAL-358 — un-paginated Payments list + one payment's own detail (with allocations). */
+    paymentsV2: () => ["finance", "v2", "payments", "list"] as const,
+    paymentDetailV2: (id: string) => ["finance", "v2", "payments", "detail", id] as const,
+    /** RAKHAL-358 — read-only reference lookups (`GET /sales`, `GET /purchasing/purchases`,
+     * `GET /purchasing/expenses`), used only to decorate a Receivable/Payable row with a human
+     * sale/purchase/expense reference — see `types-v2.ts#SaleSummary`'s doc comment. */
+    salesLookupV2: () => ["finance", "v2", "sales-lookup"] as const,
+    purchasesLookupV2: () => ["finance", "v2", "purchases-lookup"] as const,
+    expensesLookupV2: () => ["finance", "v2", "expenses-lookup"] as const,
+    /** RAKHAL-357 — Record Sale wizard: milk tank availability + Other Income categories. */
+    milkAvailabilityV2: (tankId: string | undefined) => ["finance", "v2", "milk-availability", tankId] as const,
+    incomeCategoriesV2: () => ["finance", "v2", "income-categories"] as const,
+    /** RAKHAL-360 — redesigned Ledger view's "business document list" segments. `salesV2`/
+     * `purchasesV2` are deliberately separate keys from RAKHAL-358's `salesLookupV2`/
+     * `purchasesLookupV2` above even though both hit the same `GET /sales`/`GET /purchasing/
+     * purchases` endpoints — this ticket's queryFn types the response as the full `Sale`/`Purchase`
+     * shape (incl. `lines[]`) the Ledger's Sales/Purchases segments need to build a "what was
+     * sold/bought" description, not the narrower `SaleSummary`/`PurchaseSummary` those two keys
+     * cache; sharing one key across two differently-typed queryFns would be unsound. `paymentsV2`
+     * is reused as-is (`FinancePayment[]`, identical shape both tickets need). */
+    salesV2: () => ["finance", "v2", "sales", "list"] as const,
+    purchasesV2: () => ["finance", "v2", "purchases", "list"] as const,
   },
   buyers: {
     statement: (id: string, month: string) => ["buyers", "statement", id, month] as const,
   },
   reproduction: {
     dashboard: () => ["reproduction", "dashboard"] as const,
+    /** RAKHAL-363: OPEN/BRED_AWAITING_CONFIRMATION/PREGNANT cow list, `GET /reproduction/cows`. */
+    cows: (status: string | undefined) => ["reproduction", "cows", status] as const,
     events: (filters: Record<string, string | number | undefined>) =>
       ["reproduction", "events", filters] as const,
     heatEvents: (cattleId: string | undefined) => ["reproduction", "heat-events", cattleId] as const,
@@ -161,5 +197,14 @@ export const qk = {
     catalogue: () => ["reports", "catalogue"] as const,
     job: (id: string) => ["reports", "job", id] as const,
     schedules: () => ["reports", "schedules"] as const,
+  },
+  /** RAKHAL-359, Finance V2 Purchasing — Expenses/Purchases/Payables (`purchasing/purchases`,
+   * `purchasing/expenses`, `purchasing/payables`, RAKHAL-348/349). Own top-level namespace (not
+   * nested under `finance`) since Purchasing is its own backend module, mirroring `sales`'s own
+   * planned namespace. */
+  purchasing: {
+    expenses: () => ["purchasing", "expenses", "list"] as const,
+    purchases: () => ["purchasing", "purchases", "list"] as const,
+    payables: () => ["purchasing", "payables", "list"] as const,
   },
 };

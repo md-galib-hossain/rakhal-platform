@@ -27,6 +27,20 @@ const PLAN_TYPES = [
 
 const CATEGORIES = ["TREATMENT", "PREVENTION", "BREEDING", "VACCINATION", "DEWORMING", "ROUTINE"] as const;
 
+// Step 1's `planType` and Step 2's `category` are two real, separate `CreateHealthPlanDto` fields
+// (backend `HealthPlanType` vs `HealthPlanCategory`) — not a UI duplicate. But their enum values
+// overlap (both have PREVENTION/BREEDING), so showing every category unfiltered in Step 2 reads as
+// "didn't my Step-1 pick count?". Narrowing Step 2's options to the ones that actually make sense
+// for the chosen `planType`, and pre-selecting the obvious match, keeps both fields but removes the
+// re-ask feel. GENERAL (Step-1's 4th enum value, no card for it in this UI) falls back to every
+// category since it has no natural subset.
+const CATEGORIES_BY_PLAN_TYPE: Record<CreateHealthPlanFormInput["planType"], readonly (typeof CATEGORIES)[number][]> = {
+  MEDICAL: ["TREATMENT", "ROUTINE"],
+  PREVENTION: ["PREVENTION", "VACCINATION", "DEWORMING", "ROUTINE"],
+  BREEDING: ["BREEDING"],
+  GENERAL: CATEGORIES,
+};
+
 function toPayload(values: CreateHealthPlanFormInput): CreateHealthPlanPayload {
   return {
     name: values.name,
@@ -34,22 +48,23 @@ function toPayload(values: CreateHealthPlanFormInput): CreateHealthPlanPayload {
     planType: values.planType,
     cycleLengthDays: values.cycleLengthDays,
     description: values.description || undefined,
-    steps: values.steps.map((step, index) => ({
-      dayNumber: step.dayNumber,
-      // The mock has no separate "title" field even though it's required on the wire — the typed
-      // instruction doubles as both (see schemas.ts doc comment), truncated to a short title.
-      title: step.instruction.slice(0, 80) || `Day ${step.dayNumber} action ${index + 1}`,
-      actionType: step.medicineName ? "MEDICINE" : "OBSERVATION",
-      instruction: step.instruction,
-      medicineName: step.medicineName || undefined,
-      doseAmount: step.doseAmount,
-    })),
+    steps: values.steps.map((step, index) => {
+      const title = step.medicineName || `Day ${step.dayNumber} action ${index + 1}`;
+      return {
+        dayNumber: step.dayNumber,
+        title,
+        actionType: step.medicineName ? "MEDICINE" : "OBSERVATION",
+        instruction: title,
+        medicineName: step.medicineName || undefined,
+        doseAmount: step.doseAmount,
+      };
+    }),
   };
 }
 
 function toFormDefaults(plan: HealthPlanListItem | undefined): Partial<CreateHealthPlanFormInput> {
   if (!plan) {
-    return { planType: "MEDICAL", steps: [{ dayNumber: 1, instruction: "" }] };
+    return { planType: "MEDICAL", steps: [{ dayNumber: 1 }] };
   }
   return {
     planType: plan.planType,
@@ -59,7 +74,6 @@ function toFormDefaults(plan: HealthPlanListItem | undefined): Partial<CreateHea
     description: plan.description ?? "",
     steps: plan.steps.map((step) => ({
       dayNumber: step.dayNumber,
-      instruction: step.instruction ?? step.title,
       medicineName: step.medicineName ?? "",
       doseAmount: step.doseAmount ?? undefined,
     })),
@@ -162,7 +176,14 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
                       <button
                         key={value}
                         type="button"
-                        onClick={() => field.onChange(value)}
+                        onClick={() => {
+                          field.onChange(value);
+                          const allowed = CATEGORIES_BY_PLAN_TYPE[value];
+                          const currentCategory = form.getValues("category");
+                          if (!currentCategory || !allowed.includes(currentCategory)) {
+                            form.setValue("category", allowed[0]);
+                          }
+                        }}
                         className={cn(
                           "flex items-center gap-3 rounded-xl border p-3 text-left transition-colors",
                           field.value === value ? "border-primary bg-success-tint" : "border-border",
@@ -193,18 +214,21 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
               <Controller
                 control={form.control}
                 name="category"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <LabeledSelectTrigger label={t("category")} placeholder={t("selectCategory")} />
-                    <SelectContent>
-                      {CATEGORIES.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {t(`categoryOptions.${c}`)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                render={({ field }) => {
+                  const allowedCategories = CATEGORIES_BY_PLAN_TYPE[form.watch("planType")] ?? CATEGORIES;
+                  return (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <LabeledSelectTrigger label={t("category")} placeholder={t("selectCategory")} />
+                      <SelectContent>
+                        {allowedCategories.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {t(`categoryOptions.${c}`)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  );
+                }}
               />
               <LabeledInput
                 id="cycleLengthDays"
@@ -238,15 +262,6 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
                         <LabeledInput id={`steps.${index}.dayNumber`} type="number" min={1} label={t("day")} {...form.register(`steps.${index}.dayNumber`, numberField)} />
                       </div>
                       <div className="flex-1">
-                        <LabeledInput
-                          id={`steps.${index}.instruction`}
-                          label={t("action")}
-                          placeholder={t("actionPlaceholder")}
-                          {...form.register(`steps.${index}.instruction`)}
-                          error={form.formState.errors.steps?.[index]?.instruction?.message}
-                        />
-                      </div>
-                      <div className="flex-1">
                         <LabeledInput id={`steps.${index}.medicineName`} label={t("medicine")} placeholder={t("medicinePlaceholder")} {...form.register(`steps.${index}.medicineName`)} />
                       </div>
                       <div className="w-[72px] shrink-0">
@@ -268,7 +283,7 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
               <button
                 type="button"
                 className="flex w-fit items-center gap-1.5 text-xs font-medium text-primary"
-                onClick={() => append({ dayNumber: fields.length + 1, instruction: "" })}
+                onClick={() => append({ dayNumber: fields.length + 1 })}
               >
                 {t("addAnotherDay")}
                 <Plus className="size-4" aria-hidden />

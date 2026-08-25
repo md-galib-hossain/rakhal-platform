@@ -15,17 +15,21 @@ function todayIso(): string {
 }
 
 /** "Production Key Metrics" — 2x2 KPI grid (Figma node 734:32330). Today's yield/vs-yesterday and
- * withholding volume come from the real `GET /milk/overview` — the same (dateless, defaults to
- * "today" server-side) query `MilkTrendChart` uses, so TanStack Query dedupes the two calls into
- * one request. "Avg. Per Cow (7D)" is computed from today's `GET /milk/log` rows' `avgYield7d`
- * (a second, separate request from whatever date the Milk Log section below happens to be browsing
- * — this KPI is always about today). Market value stays "—": `costPerLitreToday`/`marketValueToday`
- * are always `null` on the real backend (Finance/Settings wiring not built yet) — shown honestly
- * rather than a fake ৳0/12,000 (Figma has a static mock value here). */
+ * withholding volume come from the real `GET /milk/overview` — pinned to the same explicit `range:
+ * "30d"` `MilkTrendChart`'s default state uses, so both land on the identical TanStack Query cache
+ * key and truly dedupe into one request/one invalidation (calling `useMilkOverview()` bare here used
+ * to produce a *second*, independently-cached `range: undefined` entry — same data, but a save/
+ * submit's invalidate could resolve one before the other, so this card could visibly lag behind the
+ * trend chart after submitting new data). "Avg. Per Cow (7D)" is computed from today's `GET /milk/log`
+ * rows' `avgYield7d` (a second, separate request from whatever date the Milk Log section below
+ * happens to be browsing — this KPI is always about today). Market value stays "—":
+ * `costPerLitreToday`/`marketValueToday` are always `null` on the real backend (Finance/Settings
+ * wiring not built yet) — shown honestly rather than a fake ৳0/12,000 (Figma has a static mock value
+ * here). */
 export function MilkKeyMetricsCard() {
   const t = useTranslations("milk.kpi");
   const locale = useLocale() as Locale;
-  const overview = useMilkOverview();
+  const overview = useMilkOverview(undefined, "30d");
   const logTable = useMilkLogTable(todayIso());
 
   if (overview.isLoading || logTable.isLoading) return <CardSkeleton lines={4} className="rounded-2xl" />;

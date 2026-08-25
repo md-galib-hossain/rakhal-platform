@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { LabeledSelectTrigger } from "@/components/ui/labeled-field";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
+import { FINANCE_PAYMENT_METHODS } from "@/features/finance/schemas";
 import { useFinalizeConcentration } from "../hooks/use-feed";
 import type { FeedConcentrationSummary } from "../types";
 
@@ -22,7 +23,12 @@ import type { FeedConcentrationSummary } from "../types";
 // WALLET debits the farm's one wallet ledger (with a balance check), the other three just log the
 // expense with no wallet side effect. Defaulted to WALLET for the same reason that dialog does:
 // the common case needs no extra click.
-const PAYMENT_METHODS = ["WALLET", "CASH", "BANK_TRANSFER", "MFS"] as const;
+// RAKHAL-355: this dialog still posts through the V1 finance route (WALLET debit), so it stays on
+// the WALLET-inclusive set — kept as an explicit literal tuple (WALLET first, for this dialog's own
+// default-first UX) rather than derived from the shared `FINANCE_PAYMENT_METHODS` array, but typed
+// against it (`satisfies`) so a future change to the shared V1 value set is a compile error here
+// instead of a silent drift.
+const PAYMENT_METHODS = ["WALLET", "CASH", "BANK_TRANSFER", "MFS"] as const satisfies readonly (typeof FINANCE_PAYMENT_METHODS)[number][];
 
 /**
  * Finalizing a Total Mixed Ration (TMR, `kind=FEED_MIXTURE`) is the one Feed Formulator action that

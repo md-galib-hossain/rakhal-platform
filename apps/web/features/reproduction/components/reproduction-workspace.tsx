@@ -7,7 +7,7 @@ import { Can } from "@/lib/auth/permissions";
 import { ReproductionKpiCards } from "./reproduction-kpi-cards";
 import { ReproductionActionPanels } from "./reproduction-action-panels";
 import { ReproductionCalvingForecast } from "./reproduction-calving-forecast";
-import { ReproductionOpenCows } from "./reproduction-open-cows";
+import { ReproductionCowList } from "./reproduction-cow-list";
 import { ReproductionEventsFeed } from "./reproduction-events-feed";
 import { ProtocolsPanel } from "./protocols/protocols-panel";
 import { HeatEventDialog } from "./dialogs/heat-event-dialog";
@@ -97,7 +97,7 @@ export function ReproductionWorkspace() {
         <ReproductionCalvingForecast />
       </div>
 
-      <ReproductionOpenCows />
+      <ReproductionCowList />
       <ReproductionEventsFeed />
       <ProtocolsPanel />
 

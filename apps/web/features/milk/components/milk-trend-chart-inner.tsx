@@ -9,7 +9,7 @@ export default function MilkTrendChartInner({
   trend,
   label,
 }: {
-  trend: MilkOverviewResponse["trend30Days"];
+  trend: MilkOverviewResponse["trend"];
   label: string;
 }) {
   return (

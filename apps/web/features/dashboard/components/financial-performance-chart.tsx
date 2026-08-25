@@ -22,7 +22,13 @@ const LEGEND = [
 
 /** Matches the Figma "Financial Performance Over Time" card: a 12-month Income/Expense/Profit
  * line trend, backed by the real `GET /dashboard/financial-performance` route (12 monthly
- * `FinanceTransaction` sums — see `dashboard.service.ts#financialPerformance`). */
+ * `FinanceTransaction` sums — see `dashboard.service.ts#financialPerformance`).
+ *
+ * RAKHAL-360 note: this route's month buckets now additively also sum `JournalEntry` rows against
+ * REVENUE/EXPENSE `LedgerAccount`s (Finance V2 activity, RAKHAL-351) on top of the pre-existing V1
+ * `FinanceTransaction` sums — confirmed by reading `dashboard.service.ts#financialPerformance`
+ * directly. No frontend change needed; this component already renders whatever `months[]` the
+ * backend returns. */
 export function FinancialPerformanceChart() {
   const t = useTranslations("dashboard.financialPerformance");
   const query = useFinancialPerformance();

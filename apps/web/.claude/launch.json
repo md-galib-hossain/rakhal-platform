@@ -5,7 +5,7 @@
       "name": "rakhal-consumer-frontend",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dev"],
-      "port": 3001,
+      "port": 3005,
       "autoPort": true
     }
   ]

@@ -14,6 +14,11 @@
 
 export type FinanceTxnType = "OPERATING_EXPENSE" | "INVENTORY_PURCHASE" | "REVENUE" | "DEBT_LOAN";
 export type FinanceCategory = "REVENUE" | "INVENTORY" | "HEALTHCARE" | "OVERHEAD" | "DEBT";
+/** V1's payment method, WALLET-inclusive — kept exactly as-is (RAKHAL-355 doesn't touch this value
+ * set, only dedupes its 4 re-declarations inside `schemas.ts` into `financePaymentMethodEnum`/
+ * `FINANCE_PAYMENT_METHODS` there). The new WALLET-less canonical `PaymentMethod` for Finance V2
+ * surfaces lives at `@/lib/types/payment` instead — see that file's doc comment for why V1 and V2
+ * are deliberately two different types rather than one shared union. */
 export type FinancePaymentMethod = "CASH" | "BANK_TRANSFER" | "MFS" | "WALLET";
 export type FinanceTxnStatus = "COMPLETED" | "PENDING" | "VOIDED";
 export type ReceivableKind = "RECEIVABLE" | "PAYABLE";

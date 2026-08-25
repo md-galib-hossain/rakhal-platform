@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Controller, type UseFormReturn } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { CattlePicker } from "@/components/shared/cattle-picker";
@@ -11,6 +12,15 @@ import type { CreatePregnancyDiagnosisInput } from "../../schemas";
 
 const RESULTS = ["PREGNANT", "NOT_PREGNANT", "SUSPECTED"] as const;
 const METHODS = ["ULTRASOUND", "PALPATION", "LAB"] as const;
+/** Average bovine gestation length (days) used to auto-derive the expected calving date. */
+const GESTATION_DAYS = 283;
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return "";
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 
 /** Pure field markup for a pregnancy-diagnosis form, extracted out of
  * `pregnancy-diagnosis-dialog.tsx` so `pregnancy-diagnosis-step.tsx` (Edit Animal's wizard step)
@@ -27,6 +37,14 @@ export function PregnancyDiagnosisFormFields({
 }) {
   const t = useTranslations("reproduction.dialogs.pregnancyDiagnosis");
   const result = form.watch("result");
+  const diagnosisDate = form.watch("diagnosisDate");
+
+  useEffect(() => {
+    if (result !== "PREGNANT" || !diagnosisDate) return;
+    if (form.formState.dirtyFields.expectedCalvingDate) return;
+    form.setValue("expectedCalvingDate", addDays(diagnosisDate, GESTATION_DAYS), { shouldValidate: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result, diagnosisDate]);
 
   return (
     <>

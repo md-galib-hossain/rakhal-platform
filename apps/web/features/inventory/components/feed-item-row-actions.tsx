@@ -1,5 +1,6 @@
 "use client"; // dropdown menu + mutation
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
@@ -13,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { RecordSaleDialog } from "@/features/sales/components/record-sale-wizard";
 import { useRestoreFeedItem } from "../hooks/use-inventory";
 import type { FeedItem } from "../types";
 
@@ -40,6 +42,8 @@ export function FeedItemRowActions({
   const can = useCan();
   const restore = useRestoreFeedItem();
   const canUpdate = can("inventory.update");
+  const canSell = can("finance.create");
+  const [sellOpen, setSellOpen] = useState(false);
 
   async function handleRestore() {
     try {
@@ -51,23 +55,36 @@ export function FeedItemRowActions({
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={t("menu")} className={cn(triggerClassName)}>
-          <MoreHorizontal className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={() => onView(feedItem)}>{t("viewDetails")}</DropdownMenuItem>
-        {canUpdate ? <DropdownMenuItem onSelect={() => onEdit(feedItem)}>{t("edit")}</DropdownMenuItem> : null}
-        {feedItem.isActive
-          ? canUpdate && (
-              <DropdownMenuItem onSelect={() => onArchive(feedItem)} className="text-destructive">
-                {t("archive")}
-              </DropdownMenuItem>
-            )
-          : canUpdate && <DropdownMenuItem onSelect={handleRestore}>{t("restore")}</DropdownMenuItem>}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label={t("menu")} className={cn(triggerClassName)}>
+            <MoreHorizontal className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => onView(feedItem)}>{t("viewDetails")}</DropdownMenuItem>
+          {canUpdate ? <DropdownMenuItem onSelect={() => onEdit(feedItem)}>{t("edit")}</DropdownMenuItem> : null}
+          {/* RAKHAL-361 — same "Sell" entry point as Medicine's row actions; see that file's doc
+              comment for why this is honestly reachable-but-blocked (`SellInventoryUseCase` has no
+              HTTP route yet). */}
+          {canSell && feedItem.isActive ? (
+            <DropdownMenuItem onSelect={() => setSellOpen(true)}>{t("sell")}</DropdownMenuItem>
+          ) : null}
+          {feedItem.isActive
+            ? canUpdate && (
+                <DropdownMenuItem onSelect={() => onArchive(feedItem)} className="text-destructive">
+                  {t("archive")}
+                </DropdownMenuItem>
+              )
+            : canUpdate && <DropdownMenuItem onSelect={handleRestore}>{t("restore")}</DropdownMenuItem>}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <RecordSaleDialog
+        open={sellOpen}
+        onOpenChange={setSellOpen}
+        initial={{ type: "PRODUCT", productSubtype: "INVENTORY", description: feedItem.name }}
+      />
+    </>
   );
 }

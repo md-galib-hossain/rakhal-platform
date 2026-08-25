@@ -18,6 +18,23 @@ import { z } from "zod";
  */
 export const TRANSACTION_TYPES = ["OPERATING_EXPENSE", "INVENTORY_PURCHASE", "REVENUE", "DEBT_LOAN"] as const;
 
+/**
+ * RAKHAL-355 payment-method consolidation, V1 half: the single source for V1's WALLET-inclusive
+ * `FinancePaymentMethod` (`../finance/types.ts`) as a runtime array + zod enum, replacing 4 separate
+ * inline `z.enum(["CASH", "BANK_TRANSFER", "MFS", "WALLET"])` literals that used to live in this
+ * file alone (one per schema below) plus 2 more hand-rolled copies outside it
+ * (`features/reproduction/schemas.ts`, `features/reproduction/components/dialogs/
+ * breeding-event-form-fields.tsx`, `features/feed/components/finalize-tmr-dialog.tsx` — all three
+ * now import `FINANCE_PAYMENT_METHODS`/`financePaymentMethodEnum` from here instead of redeclaring).
+ * Kept WALLET-inclusive and left inside the (frozen-for-new-features, not frozen-for-dedup) V1
+ * finance module deliberately — every one of those call sites still posts against the V1 backend
+ * route (`finance.controller.ts`), which still accepts `WALLET`. The WALLET-less V2 replacement
+ * (`lib/types/payment.ts#PaymentMethod`) is a *different* type for a *different* backend surface,
+ * not a superset/subset of this one — see that file's doc comment for the full reasoning.
+ */
+export const FINANCE_PAYMENT_METHODS = ["CASH", "BANK_TRANSFER", "MFS", "WALLET"] as const;
+export const financePaymentMethodEnum = z.enum(FINANCE_PAYMENT_METHODS);
+
 /** One flat schema for the whole 3-step wizard (Step 1 picks `type`, Step 2 fills the rest, Step 3
  * is a read-only review of Steps 1-2) — same "one form, `trigger()` a step's fields before advancing"
  * shape as `CreateHealthPlanDialog`'s `createHealthPlanFormSchema`, not three separate forms. */
@@ -57,7 +74,7 @@ export const recordTransactionFormSchema = z
     // Inventory Purchase only — the wizard's real Figma frames don't show a Payment Method field
     // for any type, but this one is a deliberate user-requested exception since it's the only type
     // with a real backend behavior difference (wallet debit); see `record-transaction-dialog.tsx`.
-    paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "MFS", "WALLET"]).optional(),
+    paymentMethod: financePaymentMethodEnum.optional(),
   })
   .refine((v) => v.type === "INVENTORY_PURCHASE" || Boolean(v.subType), {
     message: "subType is required",
@@ -91,7 +108,7 @@ export type RecordTransactionFormInput = z.infer<typeof recordTransactionFormSch
 export const addFundsSchema = z.object({
   description: z.string().trim().min(1),
   amount: z.number().min(0.01),
-  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "MFS", "WALLET"]),
+  paymentMethod: financePaymentMethodEnum,
 });
 export type AddFundsInput = z.infer<typeof addFundsSchema>;
 
@@ -99,7 +116,7 @@ export type AddFundsInput = z.infer<typeof addFundsSchema>;
 export const withdrawSchema = z.object({
   fundName: z.string().trim().min(1),
   amount: z.number().min(0.01),
-  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "MFS", "WALLET"]),
+  paymentMethod: financePaymentMethodEnum,
 });
 export type WithdrawInput = z.infer<typeof withdrawSchema>;
 
@@ -108,7 +125,7 @@ export type WithdrawInput = z.infer<typeof withdrawSchema>;
 export const recordPaymentSchema = z.object({
   amountPaid: z.number().min(0.01),
   paymentDate: z.string().optional(),
-  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "MFS", "WALLET"]).optional(),
+  paymentMethod: financePaymentMethodEnum.optional(),
   notes: z.string().trim().optional(),
 });
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;

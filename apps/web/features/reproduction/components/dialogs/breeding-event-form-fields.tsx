@@ -10,14 +10,17 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ServiceProviderPicker } from "@/features/settings/components/service-provider-picker";
+import { FINANCE_PAYMENT_METHODS } from "@/features/finance/schemas";
 import type { CreateBreedingEventInput } from "../../schemas";
 
 const BREEDING_METHODS = ["AI", "NATURAL", "EMBRYO_TRANSFER"] as const;
 const SEMEN_SOURCES = ["FARM_INVENTORY", "TECHNICIAN_SUPPLIED", "EXTERNAL"] as const;
 const SEMEN_TYPES = ["CONVENTIONAL", "SEX_SORTED"] as const;
 const TARGET_SEXES = ["FEMALE", "MALE"] as const;
-/** RAKHAL-330: mirrors backend `FinancePaymentMethod` — how a breeding/AI cost was paid. */
-const PAYMENT_METHODS = ["CASH", "BANK_TRANSFER", "MFS", "WALLET"] as const;
+/** RAKHAL-330: mirrors backend `FinancePaymentMethod` — how a breeding/AI cost was paid.
+ * RAKHAL-355: imports the shared V1 array (`features/finance/schemas.ts`) instead of re-declaring
+ * its own copy — this form still posts through the V1 finance route, which still accepts WALLET. */
+const PAYMENT_METHODS = FINANCE_PAYMENT_METHODS;
 
 interface SemenBatchOption {
   id: string;

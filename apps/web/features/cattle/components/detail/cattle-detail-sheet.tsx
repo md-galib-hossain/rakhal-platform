@@ -1,11 +1,12 @@
 "use client"; // live query + sheet open state
 
 import { useTranslations } from "next-intl";
-import { ArrowRightToLine } from "lucide-react";
+import { ArrowRightToLine, Banknote } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
+import { RecordSaleTrigger } from "@/features/sales/components/record-sale-trigger";
 import { useCattleDetail } from "../../hooks/use-cattle";
 import { CattleProfileCard } from "./cattle-profile-card";
 import { CattleDetailTabs } from "./cattle-detail-tabs";
@@ -72,6 +73,18 @@ export function CattleDetailSheet({
           <Button type="button" variant="secondary" className="h-12 flex-1" onClick={() => onOpenChange(false)}>
             {t("cancel")}
           </Button>
+          {query.data && query.data.status === "ACTIVE" ? (
+            <RecordSaleTrigger
+              initial={{
+                type: "ANIMAL",
+                cattleId: query.data.id,
+                cattleLabel: `${query.data.tagNumber}${query.data.name ? ` — ${query.data.name}` : ""}`,
+              }}
+              label={t("sell")}
+              icon={Banknote}
+              buttonProps={{ variant: "outline", className: "h-12 flex-1" }}
+            />
+          ) : null}
           <Button
             type="button"
             className="h-12 flex-1"

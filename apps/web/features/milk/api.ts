@@ -12,6 +12,7 @@ import type {
   MilkImportPreview,
   MilkLogTableResponse,
   MilkOverviewResponse,
+  MilkTrendRange,
   MilkQualityTest,
   ReviewAnomalyInput,
   SaveMilkLogInput,
@@ -24,8 +25,8 @@ import type {
 
 /** `/milk/*` — real backend routes (`milk.controller.ts`), all `milk.read`/`milk.log`/`milk.update`-gated. */
 export const milkApi = {
-  overview(date?: string): Promise<MilkOverviewResponse> {
-    return apiFetch<MilkOverviewResponse>("/milk/overview", { searchParams: { date } });
+  overview(date?: string, range?: MilkTrendRange): Promise<MilkOverviewResponse> {
+    return apiFetch<MilkOverviewResponse>("/milk/overview", { searchParams: { date, range } });
   },
   logTable(params: { date?: string; shedId?: string }): Promise<MilkLogTableResponse> {
     return apiFetch<MilkLogTableResponse>("/milk/log", { searchParams: params });

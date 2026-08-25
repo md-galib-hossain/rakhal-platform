@@ -103,6 +103,14 @@ export function useLogMortality() {
   });
 }
 
+export function useDeleteHealthCase() {
+  const invalidate = useInvalidateHealth();
+  return useMutation({
+    mutationFn: (id: string) => healthApi.deleteCase(id),
+    onSuccess: (_data, id) => invalidate(id),
+  });
+}
+
 export function useHealthTasks() {
   return useQuery({
     queryKey: qk.health.tasks(),

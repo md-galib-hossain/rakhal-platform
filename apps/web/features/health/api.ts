@@ -69,6 +69,10 @@ export const healthApi = {
   logMortality(id: string, dto: MortalityPayload): Promise<HealthCaseDetail> {
     return apiFetch<HealthCaseDetail>(`/health/cases/${id}/mortality`, { method: "POST", body: dto });
   },
+  /** Sick Bay delete — soft delete (`isActive:false`), `healthcare.delete` (manager+). */
+  deleteCase(id: string): Promise<HealthCaseDetail> {
+    return apiFetch<HealthCaseDetail>(`/health/cases/${id}`, { method: "DELETE" });
+  },
 
   /** Task Hub tab (Figma 734:40931/43007/44187/45177). Generous `limit` — the grid groups every
    * open task into "Scheduled Task Cards" client-side (see `task-grouping.ts`), so a numbered pager

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { financePaymentMethodEnum } from "@/features/finance/schemas";
 
 /**
  * Mirrors the backend's reproduction create DTOs exactly (`create-heat-event.dto.ts`,
@@ -24,8 +25,13 @@ export type CreateHeatEventInput = z.infer<typeof heatEventSchema>;
 const semenSourceEnum = z.enum(["FARM_INVENTORY", "TECHNICIAN_SUPPLIED", "EXTERNAL"]);
 const semenTypeEnum = z.enum(["CONVENTIONAL", "SEX_SORTED"]);
 const targetSexEnum = z.enum(["FEMALE", "MALE"]);
-/** RAKHAL-330: how a breeding/AI cost was paid — mirrors backend `FinancePaymentMethod`. */
-const paymentMethodEnum = z.enum(["CASH", "BANK_TRANSFER", "MFS", "WALLET"]);
+/** RAKHAL-330: how a breeding/AI cost was paid — mirrors backend `FinancePaymentMethod`.
+ * RAKHAL-355: was a local `z.enum(["CASH", "BANK_TRANSFER", "MFS", "WALLET"])` re-declaration,
+ * now imports the one shared V1 (WALLET-inclusive) enum from `features/finance/schemas.ts` instead
+ * — this still posts through the V1 `FinanceService.recordTransaction` route, which still accepts
+ * WALLET, so it stays on the WALLET-inclusive type rather than the new V2 `PaymentMethod`
+ * (`lib/types/payment.ts`), which the backend for this call site doesn't support. */
+const paymentMethodEnum = financePaymentMethodEnum;
 
 /** RAKHAL-330: shared cost-validation rule for both the create and edit breeding-event schemas —
  * AI sourced from anything other than farm inventory needs its own `serviceCost` (a farm-inventory

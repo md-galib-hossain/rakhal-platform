@@ -35,6 +35,7 @@
     "milk": "দুধ",
     "buyers": "ক্রেতা",
     "finance": "অর্থ",
+    "purchasing": "ক্রয়",
     "healthcare": "স্বাস্থ্যসেবা",
     "reproduction": "প্রজনন",
     "inventory": "ইনভেন্টরি",
@@ -939,6 +940,7 @@
       "back": "ফিরে যান",
       "cancel": "বাতিল",
       "editProfile": "প্রোফাইল সম্পাদনা করুন",
+      "sell": "বিক্রি করুন",
       "close": "বন্ধ করুন",
       "error": "এই গবাদি পশুর তথ্য লোড করা যায়নি।",
       "breed": "জাত",
@@ -1238,6 +1240,18 @@
         "lactationReport": {
           "title": "দুগ্ধকাল প্রতিবেদন",
           "description": "এই গাভীর বর্তমান (বা সাম্প্রতিকতম) দুগ্ধকালের বিস্তারিত প্রতিবেদন এক্সপোর্ট করুন।"
+        },
+        "timeline": {
+          "title": "প্রজনন টাইমলাইন",
+          "empty": "এখনো কোনো প্রজনন ইভেন্ট রেকর্ড করা হয়নি।",
+          "error": "প্রজনন টাইমলাইন লোড করা যায়নি।",
+          "eventTitle": {
+            "heat": "মদগ্রাহিতা পর্যবেক্ষণ",
+            "breeding": "প্রজননকৃত",
+            "pregnancy_diagnosis": "গর্ভধারণ পরীক্ষা",
+            "calving": "প্রসব",
+            "abortion": "গর্ভপাত"
+          }
         }
       },
       "health": {
@@ -1406,6 +1420,7 @@
       "menu": "সারির অ্যাকশন",
       "viewDetails": "বিস্তারিত দেখুন",
       "edit": "সম্পাদনা করুন",
+      "sell": "বিক্রি করুন",
       "archive": "সংরক্ষণাগারে পাঠান",
       "restore": "পুনরুদ্ধার করুন",
       "restoredToast": "ওষুধ পুনরুদ্ধার করা হয়েছে।",
@@ -2030,6 +2045,9 @@
     }
   },
   "milk": {
+    "page": {
+      "sellMilk": "দুধ বিক্রি করুন"
+    },
     "kpi": {
       "title": "উৎপাদন মূল সূচক",
       "error": "দুধের ওভারভিউ লোড করা যায়নি।",
@@ -2047,7 +2065,14 @@
       "title": "সময়ের সাথে উৎপাদনের ট্রেন্ড",
       "error": "ট্রেন্ড চার্ট লোড করা যায়নি।",
       "legend": "মোট লিটার",
-      "rangeLabel": "গত ৩০ দিন"
+      "range": {
+        "7d": "৭ দিন",
+        "30d": "৩০ দিন",
+        "3m": "৩ মাস",
+        "6m": "৬ মাস",
+        "1y": "১ বছর",
+        "lifetime": "সম্পূর্ণ সময়কাল"
+      }
     },
     "log": {
       "title": "দুধ লগ",
@@ -2251,6 +2276,26 @@
         "lastAiDate": "সর্বশেষ এআই তারিখ",
         "conceptionRate": "পূর্ববর্তী গর্ভধারণ হার"
       }
+    },
+    "cowList": {
+      "title": "প্রজনন গরুর তালিকা",
+      "empty": "বর্তমানে সক্রিয় প্রজনন চক্রে কোনো গরু নেই।",
+      "columns": {
+        "cow": "গরু",
+        "status": "অবস্থা",
+        "lastAiDate": "এআই তারিখ",
+        "pregnancyChecked": "পরীক্ষিত",
+        "daysOpen": "ওপেন দিন",
+        "daysPregnant": "গর্ভধারণের দিন",
+        "expectedCalvingDate": "প্রত্যাশিত প্রসবের তারিখ"
+      },
+      "statusValues": {
+        "OPEN": "ওপেন",
+        "BRED_AWAITING_CONFIRMATION": "প্রজননকৃত",
+        "PREGNANT": "গর্ভবতী"
+      },
+      "checkedYes": "হ্যাঁ",
+      "checkedNo": "না"
     },
     "eventsFeed": {
       "title": "প্রজনন ইভেন্ট",
@@ -2579,9 +2624,18 @@
       "today": "আজ",
       "tomorrow": "আগামীকাল",
       "manageCase": "কেস পরিচালনা করুন",
+      "deleteCase": "কেস মুছুন",
       "error": "সিক বে তালিকা লোড করা যায়নি।",
       "emptyTitle": "কোনো সক্রিয় স্বাস্থ্য কেস নেই",
       "emptyDescription": "এখানে ট্র্যাকিং শুরু করতে একটি অসুস্থতা রিপোর্ট করুন।",
+      "deleteDialog": {
+        "title": "এই স্বাস্থ্য কেসটি মুছবেন?",
+        "description": "কেসটি আর্কাইভ করা হবে এবং সিক বে থেকে সরিয়ে ফেলা হবে। প্রয়োজনে পরে পুনরুদ্ধার করা যাবে।",
+        "confirm": "মুছুন",
+        "cancel": "বাতিল"
+      },
+      "deletedToast": "স্বাস্থ্য কেস মুছে ফেলা হয়েছে।",
+      "deleteError": "স্বাস্থ্য কেস মুছতে সমস্যা হয়েছে।",
       "conditionValue": {
         "MASTITIS": "ম্যাস্টাইটিস",
         "LAMENESS": "খোঁড়ানো",
@@ -2820,7 +2874,9 @@
       "eyeDischarge": "চোখ দিয়ে স্রাব",
       "udderSwelling": "স্তনে ফোলাভাব",
       "nasalDischarge": "নাক দিয়ে স্রাব",
-      "fever": "জ্বর"
+      "fever": "জ্বর",
+      "otherPlaceholder": "অন্য লক্ষণ — লিখুন এবং এন্টার চাপুন",
+      "removeOther": "মুছুন"
     },
     "reportSickness": {
       "title": "অসুস্থতা রিপোর্ট করুন",
@@ -2832,6 +2888,7 @@
       "conditionPlaceholder": "অবস্থা নির্বাচন করুন",
       "diagnosisType": "রোগের ধরন",
       "priority": "অগ্রাধিকার",
+      "symptoms": "লক্ষণ ও উপসর্গ",
       "notes": "নোট",
       "notesPlaceholder": "অতিরিক্ত কোনো নোট",
       "createdToast": "স্বাস্থ্য কেস রিপোর্ট করা হয়েছে।",
@@ -3814,6 +3871,321 @@
       "submit": "জমা দিন",
       "createdToast": "লেনদেন রেকর্ড হয়েছে",
       "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+    },
+    "accountPicker": {
+      "account": "অ্যাকাউন্ট",
+      "selectAccount": "অ্যাকাউন্ট নির্বাচন করুন",
+      "searchAccount": "অ্যাকাউন্ট খুঁজুন",
+      "loading": "লোড হচ্ছে…",
+      "noAccountsFound": "কোনো অ্যাকাউন্ট পাওয়া যায়নি।",
+      "addAccount": "অ্যাকাউন্ট যোগ করুন",
+      "accountType": "অ্যাকাউন্টের ধরন",
+      "typeCash": "নগদ",
+      "typeBank": "ব্যাংক",
+      "typeMfs": "মোবাইল ফাইন্যান্সিয়াল সার্ভিস",
+      "accountName": "অ্যাকাউন্টের নাম",
+      "accountNamePlaceholder": "যেমন Farm Cash Box",
+      "bankName": "ব্যাংকের নাম",
+      "bankAccountNumber": "অ্যাকাউন্ট নম্বর",
+      "bankBranch": "শাখা",
+      "mfsProvider": "প্রোভাইডার",
+      "mfsProviderOptions": {
+        "BKASH": "বিকাশ",
+        "NAGAD": "নগদ",
+        "ROCKET": "রকেট",
+        "UPAY": "উপায়",
+        "OTHER": "অন্যান্য"
+      },
+      "mfsPhoneNumber": "ফোন নম্বর",
+      "openingBalance": "প্রারম্ভিক ব্যালেন্স",
+      "back": "পেছনে",
+      "addItem": "যোগ করুন"
+    },
+    "accountsPage": {
+      "title": "অ্যাকাউন্ট",
+      "transferAction": "স্থানান্তর",
+      "transferOwnerOnlyTooltip": "শুধুমাত্র খামারের মালিক অ্যাকাউন্টের মধ্যে স্থানান্তর করতে পারেন",
+      "balance": {
+        "title": "রাখাল ব্যালেন্স",
+        "subtitle": "আপনার সক্রিয় অ্যাকাউন্টগুলোর নগদ + ব্যাংক + এমএফএস",
+        "cash": "নগদ",
+        "bank": "ব্যাংক",
+        "mfs": "এমএফএস",
+        "positionTitle": "পাওনা / দেনা অবস্থান",
+        "receivable": "মোট পাওনা",
+        "payable": "মোট দেনা",
+        "notYetAvailable": "এখনও পাওয়া যাচ্ছে না — এই তথ্যটি এখনও ব্যাকএন্ডে যুক্ত করা হয়নি।",
+        "positionCaption": "রাখাল ব্যালেন্সে অন্তর্ভুক্ত নয় — এই টাকা এখনও আসেনি (বা যায়নি)।",
+        "error": "আপনার রাখাল ব্যালেন্স লোড করা যায়নি।"
+      },
+      "list": {
+        "title": "আপনার অ্যাকাউন্টসমূহ",
+        "addAccount": "অ্যাকাউন্ট যোগ করুন",
+        "error": "আপনার অ্যাকাউন্টগুলো লোড করা যায়নি।",
+        "empty": {
+          "title": "এখনও কোনো অ্যাকাউন্ট নেই",
+          "description": "আপনার টাকা কোথায় আছে তা ট্র্যাক করতে একটি নগদ, ব্যাংক বা এমএফএস অ্যাকাউন্ট যোগ করুন।"
+        },
+        "rowActions": "অ্যাকাউন্ট অ্যাকশন",
+        "edit": "সম্পাদনা",
+        "archive": "সংরক্ষণাগারে পাঠান",
+        "typeOptions": {
+          "CASH": "নগদ",
+          "BKASH": "বিকাশ",
+          "NAGAD": "নগদ (এমএফএস)",
+          "ROCKET": "রকেট",
+          "UPAY": "উপায়",
+          "OTHER": "অন্যান্য"
+        }
+      },
+      "form": {
+        "createTitle": "অ্যাকাউন্ট যোগ করুন",
+        "editTitle": "অ্যাকাউন্ট সম্পাদনা",
+        "close": "বন্ধ করুন",
+        "accountType": "অ্যাকাউন্টের ধরন",
+        "typeCash": "নগদ",
+        "typeBank": "ব্যাংক",
+        "typeMfs": "মোবাইল ফাইন্যান্সিয়াল সার্ভিস",
+        "typeImmutable": "{type} অ্যাকাউন্ট — তৈরির পর ধরন পরিবর্তন করা যায় না",
+        "accountName": "অ্যাকাউন্টের নাম",
+        "accountNamePlaceholder": "যেমন: ফার্ম ক্যাশ বক্স",
+        "bankName": "ব্যাংকের নাম",
+        "bankAccountNumber": "অ্যাকাউন্ট নম্বর",
+        "bankBranch": "শাখা",
+        "mfsProvider": "প্রদানকারী",
+        "mfsProviderOptions": {
+          "BKASH": "বিকাশ",
+          "NAGAD": "নগদ (এমএফএস)",
+          "ROCKET": "রকেট",
+          "UPAY": "উপায়",
+          "OTHER": "অন্যান্য"
+        },
+        "mfsPhoneNumber": "ফোন নম্বর",
+        "openingBalance": "প্রারম্ভিক ব্যালেন্স",
+        "cancel": "বাতিল",
+        "save": "পরিবর্তন সংরক্ষণ করুন",
+        "createdToastAction": "অ্যাকাউন্ট যোগ করুন",
+        "createdToast": "অ্যাকাউন্ট তৈরি হয়েছে।",
+        "updatedToast": "অ্যাকাউন্ট আপডেট হয়েছে।",
+        "genericError": "অ্যাকাউন্ট সংরক্ষণ করা যায়নি।"
+      },
+      "archiveDialog": {
+        "title": "অ্যাকাউন্ট সংরক্ষণাগারে পাঠান",
+        "description": "\"{name}\" সংরক্ষণাগারে পাঠালে এটি পিকার ও নতুন লেনদেন থেকে সরে যাবে। এর ইতিহাস সংরক্ষিত থাকবে।",
+        "confirm": "সংরক্ষণাগারে পাঠান",
+        "cancel": "বাতিল",
+        "successToast": "অ্যাকাউন্ট সংরক্ষণাগারে পাঠানো হয়েছে।",
+        "genericError": "অ্যাকাউন্ট সংরক্ষণাগারে পাঠানো যায়নি।"
+      },
+      "transfer": {
+        "title": "তহবিল স্থানান্তর",
+        "close": "বন্ধ করুন",
+        "ownerOnlyNotice": "শুধুমাত্র খামারের মালিক অ্যাকাউন্টের মধ্যে স্থানান্তর করতে পারেন।",
+        "fromPlaceholder": "কোন অ্যাকাউন্ট থেকে",
+        "toPlaceholder": "কোন অ্যাকাউন্টে",
+        "amount": "পরিমাণ",
+        "feeAmount": "ফি (ঐচ্ছিক)",
+        "transactionDate": "তারিখ",
+        "notes": "নোট",
+        "summaryAmount": "পরিমাণ",
+        "summaryFee": "ফি",
+        "summaryTotal": "উৎস থেকে মোট কর্তন",
+        "cancel": "বাতিল",
+        "submit": "স্থানান্তর",
+        "successToast": "স্থানান্তর সম্পন্ন হয়েছে।",
+        "genericError": "স্থানান্তর সম্পন্ন করা যায়নি।"
+      }
+    },
+    "settlementsV2": {
+      "receivables": {
+        "title": "প্রাপ্য",
+        "columns": {
+          "reference": "বিক্রয় রেফারেন্স",
+          "customer": "ক্রেতা",
+          "total": "মোট",
+          "outstanding": "বকেয়া",
+          "dueDate": "নির্ধারিত তারিখ",
+          "status": "অবস্থা"
+        },
+        "noReference": "অজানা বিক্রয়",
+        "noCustomer": "সরাসরি বিক্রয়",
+        "receivePayment": "পেমেন্ট গ্রহণ করুন",
+        "empty": {
+          "title": "এখনো কোনো প্রাপ্য নেই",
+          "description": "পুরোপুরি পরিশোধ হয়নি এমন বিক্রয় এখানে দেখা যাবে।"
+        }
+      },
+      "payables": {
+        "title": "প্রদেয়",
+        "columns": {
+          "reference": "ক্রয় / খরচ",
+          "customer": "সরবরাহকারী",
+          "total": "মোট",
+          "outstanding": "বকেয়া",
+          "dueDate": "নির্ধারিত তারিখ",
+          "status": "অবস্থা"
+        },
+        "noReference": "অজানা নথি",
+        "noCustomer": "সরবরাহকারী নেই",
+        "makePayment": "পেমেন্ট করুন",
+        "empty": {
+          "title": "এখনো কোনো প্রদেয় নেই",
+          "description": "পুরোপুরি পরিশোধ হয়নি এমন ক্রয় বা খরচ এখানে দেখা যাবে।"
+        }
+      },
+      "statusOptions": {
+        "UNPAID": "অপরিশোধিত",
+        "PARTIALLY_PAID": "আংশিক পরিশোধিত",
+        "PAID": "পরিশোধিত",
+        "OVERDUE": "মেয়াদোত্তীর্ণ"
+      },
+      "methodOptions": {
+        "CASH": "নগদ",
+        "BANK_TRANSFER": "ব্যাংক স্থানান্তর",
+        "MFS": "মোবাইল আর্থিক সেবা"
+      },
+      "receivePaymentDialog": {
+        "title": "পেমেন্ট গ্রহণ করুন",
+        "description": "বকেয়া: ৳{outstanding}।",
+        "account": "যে অ্যাকাউন্টে জমা হবে",
+        "amount": "প্রাপ্ত পরিমাণ",
+        "method": "পেমেন্ট পদ্ধতি",
+        "transactionDate": "পেমেন্টের তারিখ",
+        "referenceNumber": "রেফারেন্স নম্বর",
+        "notes": "নোট",
+        "cancel": "বাতিল",
+        "saving": "সংরক্ষণ হচ্ছে…",
+        "submit": "পেমেন্ট গ্রহণ করুন",
+        "successToast": "পেমেন্ট গ্রহণ করা হয়েছে।",
+        "genericError": "পেমেন্ট রেকর্ড করা যায়নি।"
+      },
+      "makePaymentDialog": {
+        "title": "পেমেন্ট করুন",
+        "description": "বকেয়া: ৳{outstanding}।",
+        "account": "যে অ্যাকাউন্ট থেকে পরিশোধ হবে",
+        "amount": "পরিশোধিত পরিমাণ",
+        "method": "পেমেন্ট পদ্ধতি",
+        "transactionDate": "পেমেন্টের তারিখ",
+        "referenceNumber": "রেফারেন্স নম্বর",
+        "notes": "নোট",
+        "cancel": "বাতিল",
+        "saving": "সংরক্ষণ হচ্ছে…",
+        "submit": "পেমেন্ট করুন",
+        "successToast": "পেমেন্ট করা হয়েছে।",
+        "genericError": "পেমেন্ট রেকর্ড করা যায়নি।"
+      },
+      "paymentHistory": {
+        "title": "পেমেন্টের ইতিহাস",
+        "viewAction": "ইতিহাস",
+        "runningOutstanding": "এই পেমেন্টের পর বকেয়া",
+        "loading": "পেমেন্টের ইতিহাস লোড হচ্ছে…",
+        "empty": "এখনো কোনো পেমেন্ট রেকর্ড করা হয়নি।",
+        "documentTotal": "নথির মোট পরিমাণ",
+        "currentOutstanding": "বর্তমান বকেয়া"
+      }
+    },
+    "balance": {
+      "title": "রাখাল ব্যালেন্স",
+      "subtitle": "সক্রিয় সকল অ্যাকাউন্টের নগদ + ব্যাংক + এমএফএস",
+      "error": "আপনার রাখাল ব্যালেন্স লোড করা যায়নি।",
+      "accountType": {
+        "CASH": "নগদ",
+        "BANK": "ব্যাংক",
+        "MFS": "মোবাইল ফিন্যান্সিয়াল সার্ভিস"
+      },
+      "receivablePosition": "মোট পাওনা",
+      "payablePosition": "মোট দেনা",
+      "notYetAvailable": "এখনো পাওয়া যাচ্ছে না",
+      "income": "আয়",
+      "expenses": "ব্যয়",
+      "netCashFlow": "নিট নগদ প্রবাহ"
+    },
+    "ledgerV2": {
+      "segments": {
+        "sales": "বিক্রয়",
+        "purchases": "ক্রয়",
+        "payments": "পেমেন্ট",
+        "transfers": "ট্রান্সফার"
+      },
+      "actions": {
+        "recordSale": "বিক্রয় রেকর্ড করুন",
+        "recordExpense": "ব্যয় রেকর্ড করুন",
+        "otherIncome": "অন্যান্য আয়",
+        "receivePayment": "পেমেন্ট গ্রহণ করুন",
+        "makePayment": "পেমেন্ট করুন",
+        "transferMoney": "টাকা ট্রান্সফার করুন",
+        "comingSoon": "শীঘ্রই আসছে ({ticket})"
+      },
+      "sales": {
+        "columns": {
+          "date": "তারিখ",
+          "document": "নথি",
+          "whatWasSold": "কী বিক্রি হয়েছে",
+          "customer": "ক্রেতা",
+          "amount": "পরিমাণ",
+          "status": "অবস্থা"
+        },
+        "statusOptions": {
+          "DRAFT": "খসড়া",
+          "CONFIRMED": "নিশ্চিত",
+          "CANCELLED": "বাতিল",
+          "REFUNDED": "ফেরত দেওয়া হয়েছে",
+          "PARTIALLY_REFUNDED": "আংশিক ফেরত দেওয়া হয়েছে"
+        },
+        "empty": {
+          "title": "এখনো কোনো বিক্রয় নেই",
+          "description": "রেকর্ড করা বিক্রয়গুলো এখানে দেখাবে।"
+        }
+      },
+      "purchases": {
+        "columns": {
+          "date": "তারিখ",
+          "document": "নথি",
+          "whatWasBought": "কী কেনা হয়েছে",
+          "supplier": "সরবরাহকারী",
+          "amount": "পরিমাণ"
+        },
+        "itemCount": "{count}টি আইটেম",
+        "empty": {
+          "title": "এখনো কোনো ক্রয় নেই",
+          "description": "রেকর্ড করা ক্রয়গুলো এখানে দেখাবে।"
+        }
+      },
+      "payments": {
+        "columns": {
+          "date": "তারিখ",
+          "direction": "ধরন",
+          "account": "অ্যাকাউন্ট",
+          "method": "পদ্ধতি",
+          "reference": "রেফারেন্স",
+          "amount": "পরিমাণ"
+        },
+        "directionOptions": {
+          "INCOMING": "গৃহীত",
+          "OUTGOING": "পরিশোধিত"
+        },
+        "methodOptions": {
+          "CASH": "নগদ",
+          "BANK_TRANSFER": "ব্যাংক ট্রান্সফার",
+          "MFS": "মোবাইল ফিন্যান্সিয়াল সার্ভিস"
+        },
+        "empty": {
+          "title": "এখনো কোনো পেমেন্ট নেই",
+          "description": "রেকর্ড করা পেমেন্টগুলো এখানে দেখাবে।"
+        }
+      },
+      "transfers": {
+        "columns": {
+          "date": "তারিখ",
+          "route": "থেকে → পর্যন্ত",
+          "amount": "পরিমাণ",
+          "fee": "ফি"
+        },
+        "empty": {
+          "title": "এখনো কোনো ট্রান্সফার নেই",
+          "description": "আপনার অ্যাকাউন্টগুলোর মধ্যে সরানো টাকা এখানে দেখাবে।"
+        }
+      }
     }
   },
   "buyers": {
@@ -4649,6 +5021,186 @@
       "title": "রিপোর্ট একটি প্রো ফিচার",
       "description": "রিপোর্ট তৈরি ও নির্ধারণ করতে আপনার প্ল্যান আপগ্রেড করুন।",
       "cta": "প্ল্যান দেখুন"
+    }
+  },
+  "purchasing": {
+    "tabs": {
+      "expenses": "খরচ",
+      "purchases": "ক্রয়"
+    },
+    "recordExpenseCta": "খরচ লিখুন",
+    "recordPurchaseCta": "ক্রয় লিখুন",
+    "permissionDenied": "এটি দেখার অনুমতি আপনার নেই।",
+    "itemPicker": {
+      "itemType": "আইটেমের ধরন",
+      "kind": {
+        "MEDICINE": "ওষুধ",
+        "FEED_ITEM": "ফিড আইটেম",
+        "EQUIPMENT": "সরঞ্জাম"
+      },
+      "selectItemPlaceholder": "একটি আইটেম নির্বাচন করুন",
+      "searchItem": "আইটেম খুঁজুন…",
+      "searching": "খোঁজা হচ্ছে…",
+      "noItemsFound": "কোনো আইটেম পাওয়া যায়নি।",
+      "currentStockLabel": "বর্তমান মজুদ"
+    },
+    "recordExpense": {
+      "title": "খরচ লিখুন",
+      "close": "বন্ধ করুন",
+      "category": "বিভাগ",
+      "categoryOptions": {
+        "SALARY": "বেতন",
+        "UTILITIES": "ইউটিলিটি",
+        "BREEDING": "প্রজনন",
+        "TRANSFER_FEE": "ট্রান্সফার ফি",
+        "DEPRECIATION": "অবচয়"
+      },
+      "postsTo": "খরচ লেজারে যোগ হবে · {code}",
+      "description": "বিবরণ",
+      "amount": "পরিমাণ",
+      "expenseDate": "খরচের তারিখ",
+      "paidNow": "এখনই পরিশোধ",
+      "paidNowHint": "বন্ধ থাকলে পুরো পরিমাণ বকেয়া (Payable) হিসেবে যুক্ত হবে, পরে পরিশোধ করা যাবে।",
+      "payFromAccount": "যে হিসাব থেকে পরিশোধ",
+      "dueDateOptional": "শেষ তারিখ (ঐচ্ছিক)",
+      "notes": "নোট",
+      "cancel": "বাতিল",
+      "record": "লিখুন",
+      "createdToast": "খরচ লেখা হয়েছে।",
+      "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+    },
+    "recordPurchase": {
+      "title": "ক্রয় লিখুন",
+      "close": "বন্ধ করুন",
+      "supplier": "সরবরাহকারী",
+      "supplierPlaceholder": "সরবরাহকারীর নাম (ঐচ্ছিক)",
+      "purchaseDate": "ক্রয়ের তারিখ",
+      "lines": "ক্রয়কৃত আইটেম",
+      "quantity": "পরিমাণ",
+      "unitCost": "প্রতি ইউনিট মূল্য",
+      "lineTotal": "লাইন মোট",
+      "removeLine": "লাইন সরান",
+      "addLine": "আরেকটি আইটেম যোগ করুন",
+      "purchaseTotal": "ক্রয়ের মোট",
+      "payNow": "এখনই পরিশোধ",
+      "payNowHint": "মোট পরিমাণের কিছু অংশ বা পুরোটা এখনই একটি হিসাব থেকে পরিশোধ করুন।",
+      "amountPaid": "পরিশোধিত পরিমাণ",
+      "payFromAccount": "যে হিসাব থেকে পরিশোধ",
+      "payableRaised": "বকেয়া তৈরি হবে (অপরিশোধিত অংশ)",
+      "dueDateOptional": "শেষ তারিখ (ঐচ্ছিক)",
+      "notes": "নোট",
+      "cancel": "বাতিল",
+      "record": "লিখুন",
+      "createdToast": "ক্রয় {number} লেখা হয়েছে — মজুদ হালনাগাদ হয়েছে।",
+      "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।",
+      "paidAmountExceedsTotal": "পরিশোধিত পরিমাণ ক্রয়ের মোট পরিমাণের চেয়ে বেশি হতে পারবে না।"
+    },
+    "payableStatus": {
+      "paidInFull": "সম্পূর্ণ পরিশোধিত",
+      "paySupplier": "সরবরাহকারীকে পরিশোধ করুন",
+      "status": {
+        "UNPAID": "অপরিশোধিত",
+        "PARTIALLY_PAID": "আংশিক পরিশোধিত",
+        "PAID": "পরিশোধিত",
+        "OVERDUE": "মেয়াদোত্তীর্ণ"
+      }
+    },
+    "expensesTable": {
+      "date": "তারিখ",
+      "category": "বিভাগ",
+      "description": "বিবরণ",
+      "amount": "পরিমাণ",
+      "status": "অবস্থা",
+      "errorTitle": "খরচ লোড করা যায়নি",
+      "emptyTitle": "এখনো কোনো খরচ লেখা হয়নি",
+      "emptyDescription": "একটি খরচ লিখুন, এখানে দেখা যাবে।"
+    },
+    "purchasesTable": {
+      "number": "ক্রয় #",
+      "date": "তারিখ",
+      "supplier": "সরবরাহকারী",
+      "total": "মোট",
+      "status": "অবস্থা",
+      "noSupplier": "—",
+      "errorTitle": "ক্রয় লোড করা যায়নি",
+      "emptyTitle": "এখনো কোনো ক্রয় লেখা হয়নি",
+      "emptyDescription": "একটি ক্রয় লিখুন, এখানে দেখা যাবে।"
+    }
+  },
+  "sales": {
+    "record": {
+      "title": "বিক্রয় রেকর্ড করুন",
+      "trigger": "বিক্রয় রেকর্ড করুন",
+      "pageDescription": "দুধ, পশু, বা অন্যান্য আয়ের বিক্রয় এবং টাকা কোথায় গেল তা রেকর্ড করুন।",
+      "stepOf": "ধাপ {step}/{total}",
+      "step1Title": "আপনি কী রেকর্ড করছেন?",
+      "step1Subtitle": "আপনি কী বিক্রি করছেন তা বেছে নিন",
+      "step2Title": "পেমেন্ট",
+      "step2Subtitle": "কত টাকা পাওয়া গেছে, এবং তা কোথায় জমা হলো?",
+      "step2SubtitleOtherIncome": "টাকা কোথায় জমা হলো?",
+      "step3Title": "পর্যালোচনা",
+      "step3Subtitle": "রেকর্ড করার আগে নিশ্চিত করুন",
+      "types": {
+        "PRODUCT": {
+          "label": "পণ্য বিক্রয়",
+          "description": "দুধ, গোবর, বা ইনভেন্টরি আইটেম"
+        },
+        "ANIMAL": {
+          "label": "পশু বিক্রয়",
+          "description": "পাল থেকে একটি গরু বিক্রি করুন"
+        },
+        "OTHER_INCOME": {
+          "label": "অন্যান্য আয়",
+          "description": "ভর্তুকি, ভাড়া, বা অন্যান্য আয়"
+        }
+      },
+      "selectTypeFirst": "প্রথমে আপনি কী রেকর্ড করছেন তা বেছে নিন",
+      "selectProductFirst": "আপনি কোন পণ্য বিক্রি করছেন তা বেছে নিন",
+      "productSubtype": "পণ্য",
+      "productSubtypeOptions": {
+        "MILK": "দুধ",
+        "MANURE": "গোবর",
+        "INVENTORY": "ইনভেন্টরি আইটেম"
+      },
+      "notAvailableYet": "এখনো উপলব্ধ নয় — এই বিক্রয় প্রকারের জন্য কোনো ব্যাকএন্ড রুট নেই।",
+      "buyer": "ক্রেতা",
+      "buyerPlaceholder": "ক্রেতা নির্বাচন করুন",
+      "volumeL": "পরিমাণ (লিটার)",
+      "availableNow": "এখন উপলব্ধ: {amount} লিটার",
+      "fatPct": "ফ্যাট %",
+      "scc": "এসসিসি",
+      "description": "বিবরণ",
+      "descriptionPlaceholder": "যেমন ২ ব্যাগ শুকনো গোবর",
+      "quantity": "পরিমাণ",
+      "unitPrice": "একক মূল্য",
+      "saleTotal": "মোট বিক্রয়",
+      "selectAnimalLabel": "পশু নির্বাচন করুন",
+      "selectAnimal": "পশু নির্বাচন করুন",
+      "salePrice": "বিক্রয় মূল্য",
+      "incomeCategory": "ক্যাটাগরি",
+      "selectOption": "একটি অপশন নির্বাচন করুন",
+      "amount": "পরিমাণ",
+      "saleDate": "বিক্রয়ের তারিখ",
+      "selectDate": "তারিখ নির্বাচন করুন",
+      "notes": "নোট",
+      "notesPlaceholder": "ঐচ্ছিক নোট",
+      "amountReceived": "প্রাপ্ত পরিমাণ",
+      "due": "বকেয়া",
+      "paymentMethod": "পেমেন্ট পদ্ধতি",
+      "paymentMethodOptions": {
+        "CASH": "নগদ",
+        "BANK_TRANSFER": "ব্যাংক ট্রান্সফার",
+        "MFS": "মোবাইল ফাইন্যান্সিয়াল সার্ভিস"
+      },
+      "otherIncomePaidInFull": "অন্যান্য আয় সম্পূর্ণরূপে এই অ্যাকাউন্টে সাথে সাথে রেকর্ড ও জমা হয় — এই প্রকারের জন্য আংশিক/বকেয়া নেই।",
+      "createdToast": "রেকর্ড করা হয়েছে — ৳{amount}",
+      "genericError": "এই বিক্রয় রেকর্ড করতে সমস্যা হয়েছে",
+      "paymentRecordedNoReceivable": "পেমেন্ট রেকর্ড হয়েছে কিন্তু এই বিক্রয়ের বকেয়ার সাথে মেলানো যায়নি — বকেয়া তালিকায় গিয়ে ম্যানুয়ালি বরাদ্দ করুন।",
+      "paymentFailedAfterSale": "বিক্রয় রেকর্ড হয়েছে, কিন্তু পেমেন্ট রেকর্ড করতে ব্যর্থ হয়েছে — বিক্রয়টি আপাতত অপরিশোধিত। বকেয়া থেকে আবার পেমেন্ট রেকর্ড করার চেষ্টা করুন।",
+      "cancel": "বাতিল",
+      "back": "পিছনে",
+      "continue": "চালিয়ে যান",
+      "submit": "জমা দিন"
     }
   }
 }

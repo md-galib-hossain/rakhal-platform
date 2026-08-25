@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { milkApi } from "../api";
 import type {
+  MilkTrendRange,
   ReviewAnomalyInput,
   SaveMilkLogInput,
   SubmitMilkInput,
@@ -12,10 +13,10 @@ import type {
 
 const STALE_TIME = 60_000;
 
-export function useMilkOverview(date?: string) {
+export function useMilkOverview(date?: string, range?: MilkTrendRange) {
   return useQuery({
-    queryKey: qk.milk.overview(date),
-    queryFn: () => milkApi.overview(date),
+    queryKey: qk.milk.overview(date, range),
+    queryFn: () => milkApi.overview(date, range),
     staleTime: STALE_TIME,
   });
 }
@@ -29,16 +30,19 @@ export function useMilkLogTable(date?: string, shedId?: string) {
 }
 
 /** Saves a session's draft entries — invalidates the log table + overview (totals/session status
- * change). Overview invalidation matches the `["milk", "overview"]` prefix rather than
- * `qk.milk.overview(variables.date)` exactly: `MilkKeyMetricsCard`/`MilkTrendChart` query with no
- * `date` (server defaults to today), a different cache key from a save/submit for an explicit
- * `date` string even when that string IS today — an exact-key invalidation would silently miss them. */
+ * change). Both invalidations use their broad `["milk", X]` prefix rather than an exact key:
+ * `avgYield7d` is a *trailing* 7-day average (backend excludes the queried day itself, see
+ * `avgDailyYield`), so editing e.g. Aug 21's log changes what today's `["milk","log",<today>]`
+ * query should show even though today's own date was never touched — an exact-key invalidation
+ * on the edited date alone leaves that other cache entry stale until a full reload. Same reasoning
+ * covers `MilkKeyMetricsCard`/`MilkTrendChart`'s no-`date` overview query landing on a different
+ * cache key from a save/submit for an explicit `date` string even when that string IS today. */
 export function useSaveMilkLog() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: SaveMilkLogInput) => milkApi.saveLog(input),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: qk.milk.log(variables.date, undefined) });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["milk", "log"] });
       queryClient.invalidateQueries({ queryKey: ["milk", "overview"] });
     },
   });
@@ -50,7 +54,7 @@ export function useSubmitMilk() {
   return useMutation({
     mutationFn: (input: SubmitMilkInput) => milkApi.submit(input),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: qk.milk.log(variables.date, undefined) });
+      queryClient.invalidateQueries({ queryKey: ["milk", "log"] });
       queryClient.invalidateQueries({ queryKey: ["milk", "overview"] });
       queryClient.invalidateQueries({ queryKey: qk.milk.anomalies(variables.date) });
     },

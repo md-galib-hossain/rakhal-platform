@@ -26,6 +26,8 @@ import type {
   ReproDashboardResponse,
   ReproEventEntry,
   ReproEventsQuery,
+  ReproductionCowRow,
+  ReproductiveStatus,
 } from "./types";
 import type {
   CreateAbortionEventInput,
@@ -62,6 +64,15 @@ export const reproductionApi = {
         limit: query.limit,
       },
     });
+  },
+  /** RAKHAL-363: every cow currently OPEN / BRED_AWAITING_CONFIRMATION / PREGNANT, real cursor page —
+   * replaces the old dashboard-embedded, uncapped, OPEN-only `open_cows[]` list. */
+  reproductionCows(
+    status?: ReproductiveStatus,
+    cursor?: string,
+    limit = 20,
+  ): Promise<CursorPage<ReproductionCowRow>> {
+    return apiFetchPage<ReproductionCowRow>("/reproduction/cows", { searchParams: { status, cursor, limit } });
   },
 
   heatEvents(cattleId?: string, cursor?: string, limit = 20): Promise<CursorPage<HeatEventRow>> {

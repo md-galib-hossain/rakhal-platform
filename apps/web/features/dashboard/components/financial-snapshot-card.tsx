@@ -24,6 +24,12 @@ function Row({ label, current, changePct }: { label: string; current: number; ch
   );
 }
 
+/** RAKHAL-360 note: `GET /dashboard/financial-snapshot` was additively re-pointed at Finance V2
+ * ledger activity by RAKHAL-351 (V1 `FinanceTransaction` rows still count too, until RAKHAL-354
+ * deletes V1) — confirmed by reading `dashboard.service.ts#financialSnapshot`/`txnSum` directly.
+ * This component's own shape/logic is unchanged; it already consumed exactly this route and needed
+ * no code change, only this confirmation note. `features/finance/components/finance-highlights.tsx`
+ * (Finance module's own summary card) reuses this same hook for its month-KPI row. */
 export function FinancialSnapshotCard() {
   const t = useTranslations("dashboard.financialSnapshot");
   const query = useFinancialSnapshot();

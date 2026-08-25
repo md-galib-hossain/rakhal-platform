@@ -6,7 +6,15 @@
  */
 
 export type BuyerType = "DAIRY_COMPANY" | "COOPERATIVE" | "LOCAL_TRADER" | "DIRECT_CONSUMER";
-export type FinancePaymentMethod = "CASH" | "BANK_TRANSFER" | "MFS";
+/**
+ * RAKHAL-355: re-exported from the new canonical `@/lib/types/payment` instead of the local
+ * 3-value literal this used to be. Zero runtime/shape risk — the values were already identical
+ * (CASH/BANK_TRANSFER/MFS, already missing WALLET, "ironically closest to correct already" per the
+ * ticket) — and grep confirms this type isn't actually consumed as a field anywhere in
+ * `features/buyers/**` today (no `paymentMethod` field on any buyer/dispatch interface), so this is
+ * a type-only consolidation with no behavior change to the live `POST /milk/dispatch` flow.
+ */
+export type { PaymentMethod as FinancePaymentMethod } from "@/lib/types/payment";
 
 export interface Buyer {
   id: string;
@@ -112,7 +120,15 @@ export interface RecordDispatchResult {
   priceBreakdown: MilkPriceBreakdown;
   paymentDueDate: string | null;
   tankUpdated: boolean;
-  financeTransactionId: string | null;
+  /**
+   * RAKHAL-357 — corrected from a stale `financeTransactionId: string | null` field that never
+   * matched the real backend response even before Finance V2: `BuyerService.recordDispatch`
+   * (`buyer.service.ts`) returns `saleId` (the `Sale` `SellMilkUseCase` created, RAKHAL-342/343),
+   * not a `financeTransactionId` — that field never existed server-side for this route. Read
+   * directly off `buyer.service.ts`'s own return statement, not assumed. `null` only for a
+   * zero-volume dispatch (logged for record purposes only, posts no sale at all).
+   */
+  saleId: string | null;
 }
 
 export interface BuyerStatement {

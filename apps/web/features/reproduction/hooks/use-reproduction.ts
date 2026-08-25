@@ -1,8 +1,9 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { reproductionApi } from "../api";
+import type { ReproductiveStatus } from "../types";
 import type {
   ApplyProtocolInput,
   CloseProtocolInstanceInput,
@@ -69,6 +70,20 @@ export function useActivePregnancy(cattleId?: string) {
     queryFn: () => reproductionApi.pregnancies(cattleId),
     select: (page) => page.items.find((p) => p.status === "ACTIVE") ?? null,
     enabled: Boolean(cattleId),
+    staleTime: STALE_TIME,
+  });
+}
+
+/** RAKHAL-363: OPEN/BRED_AWAITING_CONFIRMATION/PREGNANT cow list, cursor "load more" via `DataTable`
+ * (same `useInfiniteQuery` contract `useMilkQualityTests` established). Replaces the dashboard-embedded
+ * `open_cows[]` list as the Reproduction page's cow-list data source. */
+export function useReproductionCows(status?: ReproductiveStatus) {
+  return useInfiniteQuery({
+    queryKey: qk.reproduction.cows(status),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      reproductionApi.reproductionCows(status, pageParam, 20),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => (lastPage.meta.hasNextPage ? lastPage.meta.endCursor : undefined),
     staleTime: STALE_TIME,
   });
 }

@@ -1,14 +1,21 @@
-"use client"; // row actions open the Case Management sheet
+"use client"; // row actions open the Case Management sheet + a delete confirm dialog
 
+import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 import type { Locale } from "@/lib/constants/i18n";
+import { Can } from "@/lib/auth/permissions";
+import { ApiError } from "@/lib/api/errors";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Chip } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { diagnosisChipVariant, formatDoseWhen } from "../format";
+import { useDeleteHealthCase } from "../hooks/use-health";
 import { ProgressRing } from "./progress-ring";
 import type { HealthCaseListItem } from "../types";
 
@@ -32,6 +39,18 @@ export function SickBayTable({
 }) {
   const t = useTranslations("health.sickBay");
   const locale = useLocale() as Locale;
+  const [deleteTarget, setDeleteTarget] = useState<HealthCaseListItem | null>(null);
+  const deleteCase = useDeleteHealthCase();
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    try {
+      await deleteCase.mutateAsync(deleteTarget.id);
+      toast.success(t("deletedToast"));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("deleteError"));
+    }
+  }
 
   if (isLoading) {
     return (
@@ -110,15 +129,36 @@ export function SickBayTable({
                   )}
                 </td>
                 <td className="px-2 py-2">
-                  <Button variant="outline" size="sm" onClick={() => onManageCase(item.id)}>
-                    {t("manageCase")}
-                  </Button>
+                  <div className="flex items-center gap-1.5">
+                    <Button variant="outline" size="sm" onClick={() => onManageCase(item.id)}>
+                      {t("manageCase")}
+                    </Button>
+                    <Can I="healthcare.delete">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={t("deleteCase")}
+                        onClick={() => setDeleteTarget(item)}
+                      >
+                        <Trash2 className="size-4 text-destructive" aria-hidden />
+                      </Button>
+                    </Can>
+                  </div>
                 </td>
               </tr>
             );
           })}
         </tbody>
       </table>
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title={t("deleteDialog.title")}
+        description={t("deleteDialog.description")}
+        confirmLabel={t("deleteDialog.confirm")}
+        cancelLabel={t("deleteDialog.cancel")}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

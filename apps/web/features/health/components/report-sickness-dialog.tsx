@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCreateHealthCase } from "../hooks/use-health";
 import { reportSicknessSchema, type ReportSicknessInput } from "../schemas";
 import type { HealthCondition, HealthDiagnosisType, HealthPriority } from "../types";
+import { SymptomChips } from "./symptom-chips";
 
 const DIAGNOSIS_TYPES: HealthDiagnosisType[] = [
   "DISEASE",
@@ -155,6 +156,15 @@ export function ReportSicknessDialog({ open, onOpenChange }: { open: boolean; on
             )}
           />
         </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label>{t("symptoms")}</Label>
+        <Controller
+          control={form.control}
+          name="symptoms"
+          render={({ field }) => <SymptomChips value={field.value ?? []} onChange={field.onChange} />}
+        />
       </div>
 
       <div className="flex flex-col gap-2">
