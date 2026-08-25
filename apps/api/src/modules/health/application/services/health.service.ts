@@ -26,6 +26,7 @@ import { ActivityLogService } from 'src/modules/activity/application/services/ac
 import { MedicineService } from 'src/modules/inventory/application/services/medicine.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { NotificationService } from 'src/modules/notification/application/services/notification.service';
+import { isPreventiveDiagnosisType } from 'src/modules/cattle/domain/health-status';
 import {
   ApplyHealthPlanDto,
   CloseHealthCaseDto,
@@ -282,45 +283,61 @@ export class HealthService {
       });
     }
 
-    // AQR: Animal Sickness Reported (−10) + immutable Activity Log entry.
-    await this.aqrService.applyEvent(
-      farmId,
-      dto.cattleId,
-      'sickness_reported',
-      {
-        actorId: userId,
-        actionDetails: `Sickness reported for [${cattle.tagNumber}] — ${dto.diagnosis}.`,
-      },
-    );
+    if (!isPreventiveDiagnosisType(dto.diagnosisType)) {
+      // AQR: Animal Sickness Reported (−10) + immutable Activity Log entry.
+      await this.aqrService.applyEvent(
+        farmId,
+        dto.cattleId,
+        'sickness_reported',
+        {
+          actorId: userId,
+          actionDetails: `Sickness reported for [${cattle.tagNumber}] — ${dto.diagnosis}.`,
+        },
+      );
 
-    // Notify Owner + Manager (PRD §8.7 / §20.2 `animal_sickness_reported`). Two
-    // distinct artefacts: an **actionable Task** to review, and a **push alert**
-    // via the notification engine (RAKHAL-098) — in-app now, SMS once a provider
-    // lands (the delivery seam is wired).
-    await this.taskService.createInternal({
-      farmId,
-      createdBy: userId,
-      name: `Review reported sickness — ${cattle.tagNumber}`,
-      details: `Sickness reported for [${cattle.name ?? cattle.tagNumber}] (${cattle.tagNumber}) — ${dto.diagnosis}. Priority: ${dto.priority}.`,
-      category: TaskCategory.HEALTHCARE,
-      priority: this.toTaskPriority(dto.priority),
-      dueAt: new Date(),
-      source: TaskSource.SYSTEM_AUTO,
-      relatedCattleId: dto.cattleId,
-    });
-    await this.notificationService.notifyOwnersAndManagers({
-      farmId,
-      eventKey: 'animal_sickness_reported',
-      title: 'Animal Sickness Reported',
-      message: `${cattle.name ?? cattle.tagNumber} (${cattle.tagNumber}) — ${dto.diagnosis} reported (priority: ${dto.priority}).`,
-      params: {
-        name: cattle.name ?? cattle.tagNumber,
-        tagNumber: cattle.tagNumber,
-        diagnosis: dto.diagnosis,
-        priority: dto.priority,
-      },
-      link: `/healthcare/cases/${healthCase.id}`,
-    });
+      // Notify Owner + Manager (PRD §8.7 / §20.2 `animal_sickness_reported`). Two
+      // distinct artefacts: an **actionable Task** to review, and a **push alert**
+      // via the notification engine (RAKHAL-098) — in-app now, SMS once a provider
+      // lands (the delivery seam is wired).
+      await this.taskService.createInternal({
+        farmId,
+        createdBy: userId,
+        name: `Review reported sickness — ${cattle.tagNumber}`,
+        details: `Sickness reported for [${cattle.name ?? cattle.tagNumber}] (${cattle.tagNumber}) — ${dto.diagnosis}. Priority: ${dto.priority}.`,
+        category: TaskCategory.HEALTHCARE,
+        priority: this.toTaskPriority(dto.priority),
+        dueAt: new Date(),
+        source: TaskSource.SYSTEM_AUTO,
+        relatedCattleId: dto.cattleId,
+      });
+      await this.notificationService.notifyOwnersAndManagers({
+        farmId,
+        eventKey: 'animal_sickness_reported',
+        title: 'Animal Sickness Reported',
+        message: `${cattle.name ?? cattle.tagNumber} (${cattle.tagNumber}) — ${dto.diagnosis} reported (priority: ${dto.priority}).`,
+        params: {
+          name: cattle.name ?? cattle.tagNumber,
+          tagNumber: cattle.tagNumber,
+          diagnosis: dto.diagnosis,
+          priority: dto.priority,
+        },
+        link: `/healthcare/cases/${healthCase.id}`,
+      });
+    } else {
+      // Preventive care (vaccine/deworming/routine checkup/etc.) is not
+      // sickness — no sickness AQR penalty, no "review sickness" task, no
+      // owner/manager sickness alert. Zero-impact AQR event keeps an Activity
+      // Log trail without penalizing the score.
+      await this.aqrService.applyEvent(
+        farmId,
+        dto.cattleId,
+        'preventive_care_logged',
+        {
+          actorId: userId,
+          actionDetails: `Preventive care logged for [${cattle.tagNumber}] — ${dto.diagnosis}.`,
+        },
+      );
+    }
 
     this.log.info('Health case created', {
       healthCaseId: healthCase.id,

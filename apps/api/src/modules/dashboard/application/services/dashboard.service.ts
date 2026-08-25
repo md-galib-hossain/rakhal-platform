@@ -3,25 +3,30 @@ import {
   CattleGender,
   CattlePurpose,
   HealthCaseStatus,
+  HealthDiagnosisType,
   HealthTaskStatus,
   LactationStatus,
+  LedgerAccountCategory,
   MilkTankType,
   PregnancyStatus,
   ProductionStatus,
-  ReceivableKind,
-  ReceivableStatus,
   ReproductionState,
   SafetyWithdrawalStatus,
   TaskStatus,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
-import { NON_VOID_TXN } from 'src/common/finance/txn-filters';
-import { FinanceService } from 'src/modules/finance/application/services/finance.service';
+import {
+  deriveOutstanding,
+  ledgerCategoryNet,
+} from 'src/common/finance/txn-filters';
+import { computeRunwaySnapshot } from 'src/common/finance/runway';
+import { BalanceService } from 'src/modules/finance-v2/accounts/application/balance.service';
 import { MilkService } from 'src/modules/milk/application/services/milk.service';
 import { HealthService } from 'src/modules/health/application/services/health.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { FeedDistributionService } from 'src/modules/feed/application/services/feed-distribution.service';
+import { PREVENTIVE_DIAGNOSIS_TYPES } from 'src/modules/cattle/domain/health-status';
 import {
   ANIMAL_CATEGORIES,
   buildAnimalCategoryWhere,
@@ -71,7 +76,7 @@ export class DashboardService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly finance: FinanceService,
+    private readonly balance: BalanceService,
     private readonly milk: MilkService,
     private readonly health: HealthService,
     private readonly farmSettings: FarmSettingsService,
@@ -92,7 +97,7 @@ export class DashboardService {
 
   async kpis(farmId: string) {
     const [finance, milk, health, healthThreshold] = await Promise.all([
-      this.finance.highlights(farmId),
+      this.financeSnapshot(farmId),
       this.milk.overview(farmId),
       this.health.getHealthDashboard(farmId),
       this.farmSettings.healthScoreWarningPct(farmId),
@@ -265,6 +270,10 @@ export class DashboardService {
           farmId,
           isActive: true,
           status: { in: ACTIVE_CASE_STATUSES },
+          diagnosisType: {
+            notIn:
+              PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
+          },
         },
         _count: { _all: true },
       }),
@@ -436,7 +445,7 @@ export class DashboardService {
         this.txnSum(farmId, false, monthStart, now),
         this.txnSum(farmId, true, prevStart, monthStart),
         this.txnSum(farmId, false, prevStart, monthStart),
-        this.finance.highlights(farmId),
+        this.financeSnapshot(farmId),
       ]);
 
     return {
@@ -472,24 +481,47 @@ export class DashboardService {
   async financialPerformance(farmId: string) {
     const months = this.lastNMonths(12);
     const rangeStart = months[0].start;
-    const txns = await this.prisma.financeTransaction.findMany({
+    // RAKHAL-354: V1 `FinanceTransaction` dropped — this used to sum it
+    // alongside `JournalEntry` (RAKHAL-351's additive re-point, "V1 stays
+    // alive until RAKHAL-354 drops it"). Now V2's ledger is the only source;
+    // any pre-cutover V1 history no longer counts (V1 data was dropped
+    // wholesale in the same migration, per `FINANCE_V2_DESIGN.md` §2's
+    // "drop and rebuild" decision — dev/seed data only).
+    const ledgerEntries = await this.prisma.journalEntry.findMany({
       where: {
-        farmId,
-        status: 'COMPLETED',
-        date: { gte: rangeStart },
-        ...NON_VOID_TXN,
+        ledgerAccount: {
+          farmId,
+          category: {
+            in: [LedgerAccountCategory.REVENUE, LedgerAccountCategory.EXPENSE],
+          },
+        },
+        journalTransaction: { transactionDate: { gte: rangeStart } },
       },
-      select: { date: true, type: true, amount: true },
+      select: {
+        debit: true,
+        credit: true,
+        ledgerAccount: { select: { category: true } },
+        journalTransaction: { select: { transactionDate: true } },
+      },
     });
     const buckets = new Map<string, { income: number; expense: number }>(
       months.map((m) => [m.key, { income: 0, expense: 0 }]),
     );
-    for (const t of txns) {
-      const key = this.monthKey(t.date);
+    // Reversal entries (RAKHAL-334) are an exact debit/credit mirror of the
+    // transaction they reverse, so summing every entry — original + reversal
+    // — nets a voided posting to zero without needing a `NON_VOID_TXN`-style
+    // filter.
+    for (const e of ledgerEntries) {
+      const key = this.monthKey(e.journalTransaction.transactionDate);
       const bucket = buckets.get(key);
       if (!bucket) continue;
-      if (t.type === 'REVENUE') bucket.income += t.amount;
-      else bucket.expense += t.amount;
+      const debit = Number(e.debit);
+      const credit = Number(e.credit);
+      if (e.ledgerAccount.category === LedgerAccountCategory.REVENUE) {
+        bucket.income += credit - debit;
+      } else {
+        bucket.expense += debit - credit;
+      }
     }
     return {
       months: months.map((m) => {
@@ -733,7 +765,7 @@ export class DashboardService {
       overdueDoseCattle,
       soonCalving,
       lowMed,
-      overdueRec,
+      overdueRecV2,
       dueTasks,
       completedTasks,
     ] = await Promise.all([
@@ -772,14 +804,19 @@ export class DashboardService {
         orderBy: { currentStock: 'asc' },
         include: { unit: true },
       }),
-      this.prisma.financeReceivable.findFirst({
-        where: {
-          farmId,
-          kind: ReceivableKind.RECEIVABLE,
-          status: { not: ReceivableStatus.COMPLETED },
-          dueDate: { lt: now },
-        },
+      // `closedAt: null` already excludes a fully-paid receivable
+      // (`ReceivableService.closeIfSettled` sets it exactly when outstanding
+      // reaches zero), so this candidate only needs its outstanding amount
+      // computed below, not a re-derivation of PAID/UNPAID/PARTIALLY_PAID.
+      this.prisma.receivable.findFirst({
+        where: { farmId, dueDate: { lt: now }, closedAt: null },
         orderBy: { dueDate: 'asc' },
+        select: {
+          id: true,
+          totalAmount: true,
+          dueDate: true,
+          sale: { select: { saleNumber: true } },
+        },
       }),
       this.prisma.task.count({
         where: { farmId, dueAt: { gte: dayStart, lt: dayEnd } },
@@ -845,14 +882,41 @@ export class DashboardService {
         count: lowMed.currentStock,
       });
     }
+    // RAKHAL-354: V1 `FinanceReceivable` dropped — this used to merge a V1
+    // candidate with the V2 one below (RAKHAL-351's additive re-point). V2
+    // `Receivable` is now the only source.
+    let overdueRec: {
+      id: string;
+      entityName: string;
+      outstanding: number;
+      dueDate: Date;
+    } | null = null;
+    if (overdueRecV2) {
+      const allocated = await this.prisma.paymentAllocation.aggregate({
+        where: { receivableId: overdueRecV2.id },
+        _sum: { amount: true },
+      });
+      const outstanding = deriveOutstanding(
+        overdueRecV2.totalAmount,
+        allocated._sum.amount ?? 0,
+      );
+      if (outstanding > 0) {
+        overdueRec = {
+          id: overdueRecV2.id,
+          entityName: overdueRecV2.sale.saleNumber,
+          outstanding,
+          dueDate: overdueRecV2.dueDate!,
+        };
+      }
+    }
     if (overdueRec) {
-      const daysOver = overdueRec.dueDate
-        ? Math.floor((now.getTime() - overdueRec.dueDate.getTime()) / DAY_MS)
-        : 0;
+      const daysOver = Math.floor(
+        (now.getTime() - overdueRec.dueDate.getTime()) / DAY_MS,
+      );
       priorities.push({
         priority: 'important',
         icon: '🟡',
-        message: `${overdueRec.entityName ?? 'Buyer'} payment: Tk ${this.round(overdueRec.total - overdueRec.paid)} overdue by ${daysOver} day(s)`,
+        message: `${overdueRec.entityName} payment: Tk ${overdueRec.outstanding} overdue by ${daysOver} day(s)`,
         actionLabel: 'Follow up',
         link: `/finance/receivables/${overdueRec.id}`,
       });
@@ -915,23 +979,88 @@ export class DashboardService {
       .map((c) => ({ id: c.id, name: c.name, tag: c.tagNumber }));
   }
 
+  /**
+   * The "financial snapshot" KPI's income/expense/profit widget — RAKHAL-354:
+   * reads Finance V2's ledger only (`JournalEntry` summed by REVENUE/EXPENSE
+   * ledger category); V1 `FinanceTransaction` dropped.
+   */
   private async txnSum(
     farmId: string,
     revenue: boolean,
     from: Date,
     to: Date,
   ): Promise<number> {
-    const agg = await this.prisma.financeTransaction.aggregate({
-      where: {
-        farmId,
-        status: 'COMPLETED',
-        type: revenue ? 'REVENUE' : { not: 'REVENUE' },
-        date: { gte: from, lt: to },
-        ...NON_VOID_TXN,
-      },
-      _sum: { amount: true },
-    });
-    return this.round(agg._sum.amount ?? 0);
+    // RAKHAL-354: V1 `FinanceTransaction` dropped — V2 ledger is now the
+    // sole source (was additive with V1 per RAKHAL-351, see that ticket's
+    // writeup in `docs/IN_FLIGHT.md`).
+    const v2 = await ledgerCategoryNet(
+      this.prisma,
+      farmId,
+      revenue ? LedgerAccountCategory.REVENUE : LedgerAccountCategory.EXPENSE,
+      { gte: from, lt: to },
+    );
+    return this.round(v2);
+  }
+
+  /**
+   * RAKHAL-354: replaces the deleted V1 `FinanceService.highlights()` +
+   * `getRunwaySnapshot()` (which read `WalletTransaction`/`FinanceTransaction`,
+   * both dropped). Liquidity now comes from Finance V2's `BalanceService`
+   * (`Rakhal Balance = Cash + Bank + MFS`, `FINANCE_V2_DESIGN.md` §3); the
+   * 30-day average expense and this-month expense both come from
+   * `ledgerCategoryNet` over the EXPENSE ledger-account category — same
+   * derivation V1's `avgDailyExpense`/`expenseSum` used, just off the ledger
+   * instead of `FinanceTransaction`. `herdMarketValue` (V1 always returned 0,
+   * "not modelled") is dropped from the return shape since no caller read it.
+   */
+  private async financeSnapshot(farmId: string): Promise<{
+    availableLiquidity: number;
+    costPerLitreThisMonth: number | null;
+    survivalRunwayDays: number | null;
+    survivalRunwayStatus: string;
+  }> {
+    const now = new Date();
+    const monthStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    );
+
+    const [rakhalBalance, monthExpense, sellable, thresholds] =
+      await Promise.all([
+        this.balance.getRakhalBalance(farmId),
+        ledgerCategoryNet(this.prisma, farmId, LedgerAccountCategory.EXPENSE, {
+          gte: monthStart,
+          lt: now,
+        }),
+        this.prisma.milkLogEntry.aggregate({
+          where: {
+            farmId,
+            tankType: MilkTankType.SELLABLE,
+            submitted: true,
+            logDate: { gte: monthStart, lte: now },
+          },
+          _sum: { yieldL: true },
+        }),
+        this.farmSettings.financeRunwayThresholds(farmId),
+      ]);
+
+    const liquidity = Number(rakhalBalance.rakhalBalance);
+    const sellableLitres = sellable._sum.yieldL ?? 0;
+    const costPerLitreThisMonth =
+      sellableLitres > 0 ? this.round(monthExpense / sellableLitres) : null;
+    const runway = await computeRunwaySnapshot(
+      this.prisma,
+      farmId,
+      liquidity,
+      thresholds,
+      now,
+    );
+
+    return {
+      availableLiquidity: this.round(liquidity),
+      costPerLitreThisMonth,
+      survivalRunwayDays: runway.days,
+      survivalRunwayStatus: runway.status,
+    };
   }
 
   private calfStageCounts(dobs: Array<Date | null>, now: Date) {

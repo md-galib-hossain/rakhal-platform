@@ -22,4 +22,12 @@ export class AdjustEquipmentStockDto {
   @Transform(trimString)
   @IsString()
   notes?: string;
+
+  /** Names the `SaleLine` that caused this adjustment — set only by
+   * `SellInventoryUseCase` (RAKHAL-346) when `reason === SALE`. See
+   * `AdjustStockDto.saleLineId` (Medicine) for why this stays a validated
+   * DTO field rather than being omitted. */
+  @IsOptional()
+  @IsString()
+  saleLineId?: string;
 }

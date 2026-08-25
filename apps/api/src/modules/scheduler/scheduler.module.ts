@@ -4,7 +4,7 @@ import { NotificationModule } from '../notification/notification.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { RenewalModule } from '../renewal/renewal.module';
 import { BillingModule } from '../billing/billing.module';
-import { FinanceModule } from '../finance/finance.module';
+import { FinanceV2AccountsModule } from '../finance-v2/accounts/finance-v2-accounts.module';
 import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { HealthModule } from '../health/health.module';
 import { TaskModule } from '../task/task.module';
@@ -23,7 +23,7 @@ import { SchedulerService } from './application/services/scheduler.service';
     SubscriptionModule,
     RenewalModule,
     BillingModule,
-    FinanceModule,
+    FinanceV2AccountsModule,
     FarmSettingsModule,
     HealthModule,
     TaskModule,

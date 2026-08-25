@@ -1,18 +1,19 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
-  FinanceTxnType,
+  ExpenseCategory,
   LactationStatus,
   MilkSession,
   Prisma,
+  SaleStatus,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
-import { NON_VOID_TXN } from 'src/common/finance/txn-filters';
 import {
   buildLactationCurve,
   DailyYield,
   trendPct,
 } from '../../domain/lactation-curve';
+import { computeCattleFinance } from './cattle-finance-aggregation';
 
 /**
  * Read-only aggregator for the Cattle detail page tabs (PRD §8.5 / API §4):
@@ -202,56 +203,55 @@ export class CattleDetailService {
     await this.getCattleOrThrow(farmId, cattleId);
     const { start, end, label } = this.monthRange(period);
 
-    const [periodTxns, monthlyTxns] = await Promise.all([
-      this.prisma.financeTransaction.findMany({
+    // RAKHAL-352: single shared aggregation (`cattle-finance-aggregation.ts`)
+    // — see that file's doc comment for exactly what's V2 vs a documented gap.
+    const chartStart = this.monthsAgo(start, 5);
+    const [totals, animalSaleLines, breedingExpenses] = await Promise.all([
+      computeCattleFinance(this.prisma, farmId, cattleId, start, end),
+      // Last 6 months for the income-vs-cost chart. RAKHAL-354: V1
+      // `FinanceTransaction` dropped — same two V2 sources
+      // `computeCattleFinance` uses, bucketed by month instead of summed
+      // over one period.
+      this.prisma.animalSaleLine.findMany({
         where: {
-          farmId,
           cattleId,
-          ...NON_VOID_TXN,
-          date: { gte: start, lt: end },
+          saleLine: {
+            sale: {
+              farmId,
+              status: SaleStatus.CONFIRMED,
+              saleDate: { gte: chartStart },
+            },
+          },
         },
-        select: { type: true, category: true, subType: true, amount: true },
+        select: {
+          saleLine: {
+            select: { totalAmount: true, sale: { select: { saleDate: true } } },
+          },
+        },
       }),
-      // Last 6 months for the income-vs-cost chart.
-      this.prisma.financeTransaction.findMany({
+      this.prisma.expense.findMany({
         where: {
           farmId,
           cattleId,
-          ...NON_VOID_TXN,
-          date: { gte: this.monthsAgo(start, 5) },
+          category: ExpenseCategory.BREEDING,
+          expenseDate: { gte: chartStart },
         },
-        select: { type: true, amount: true, date: true },
+        select: { amount: true, expenseDate: true },
       }),
     ]);
 
-    let totalIncome = 0;
-    let totalCost = 0;
-    const expense = { feed: 0, health: 0, breeding: 0, others: 0 };
-    const income = { milk_sales: 0, calf_sales: 0 };
-
-    for (const txn of periodTxns) {
-      if (txn.type === FinanceTxnType.REVENUE) {
-        totalIncome += txn.amount;
-        if (txn.subType === 'milk') income.milk_sales += txn.amount;
-        else if (txn.subType === 'animal' || txn.subType === 'calf')
-          income.calf_sales += txn.amount;
-      } else if (
-        txn.type === FinanceTxnType.OPERATING_EXPENSE ||
-        txn.type === FinanceTxnType.INVENTORY_PURCHASE
-      ) {
-        totalCost += txn.amount;
-        expense[this.expenseBucket(txn.category, txn.subType)] += txn.amount;
-      }
-    }
-
     return {
       period: label,
-      total_income: this.round(totalIncome),
-      total_cost: this.round(totalCost),
-      net_profit: this.round(totalIncome - totalCost),
-      expense_breakdown: this.roundAll(expense),
-      income_breakdown: this.roundAll(income),
-      monthly_chart: this.monthlyChart(monthlyTxns, start),
+      total_income: this.round(totals.totalIncome),
+      total_cost: this.round(totals.totalCost),
+      net_profit: this.round(totals.totalIncome - totals.totalCost),
+      expense_breakdown: this.roundAll(totals.expense),
+      income_breakdown: this.roundAll(totals.income),
+      monthly_chart: this.monthlyChart(
+        animalSaleLines,
+        breedingExpenses,
+        start,
+      ),
     };
   }
 
@@ -340,7 +340,16 @@ export class CattleDetailService {
   }
 
   private monthlyChart(
-    rows: { type: FinanceTxnType; amount: number; date: Date }[],
+    animalSaleLines: {
+      saleLine: {
+        totalAmount: number | { toString(): string };
+        sale: { saleDate: Date };
+      };
+    }[],
+    breedingExpenses: {
+      amount: number | { toString(): string };
+      expenseDate: Date;
+    }[],
     start: Date,
   ) {
     const months: { month: string; income: number; cost: number }[] = [];
@@ -349,31 +358,21 @@ export class CattleDetailService {
       months.push({ month: this.monthLabel(m), income: 0, cost: 0 });
     }
     const index = new Map(months.map((m, i) => [m.month, i]));
-    for (const txn of rows) {
-      const i = index.get(this.monthLabel(txn.date));
+    for (const line of animalSaleLines) {
+      const i = index.get(this.monthLabel(line.saleLine.sale.saleDate));
       if (i === undefined) continue;
-      if (txn.type === FinanceTxnType.REVENUE) months[i].income += txn.amount;
-      else if (
-        txn.type === FinanceTxnType.OPERATING_EXPENSE ||
-        txn.type === FinanceTxnType.INVENTORY_PURCHASE
-      )
-        months[i].cost += txn.amount;
+      months[i].income += Number(line.saleLine.totalAmount);
+    }
+    for (const e of breedingExpenses) {
+      const i = index.get(this.monthLabel(e.expenseDate));
+      if (i === undefined) continue;
+      months[i].cost += Number(e.amount);
     }
     return months.map((m) => ({
       month: m.month,
       income: this.round(m.income),
       cost: this.round(m.cost),
     }));
-  }
-
-  private expenseBucket(
-    category: string,
-    subType: string | null,
-  ): 'feed' | 'health' | 'breeding' | 'others' {
-    if (category === 'INVENTORY') return 'feed';
-    if (category === 'HEALTHCARE') return 'health';
-    if (subType && /breed|semen|ai/i.test(subType)) return 'breeding';
-    return 'others';
   }
 
   private sumOnOrAfter(daily: DailyYield[], from: Date) {

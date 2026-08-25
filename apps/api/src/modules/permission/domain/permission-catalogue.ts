@@ -85,7 +85,46 @@ const RESOURCES: ResourceDef[] = [
     group: PermissionGroup.FINANCE,
     // 'accounts' (RAKHAL-335, Finance V2) backs Financial Accounts (Cash/Bank/
     // MFS) — Owner+Manager per the existing finance grant pattern, not Worker.
-    actions: [...BASE, 'void', 'billing', 'accounts'],
+    // 'transfer' (RAKHAL-338, Finance V2) backs account-to-account Transfers.
+    // RAKHAL-338's own AC shipped this as Owner+Manager; RAKHAL-353
+    // (governance pass, `FINANCE_V2_DESIGN.md` §4.2/§6) tightens it to
+    // **owner-only**, same tier as 'void' below — moving real money between
+    // accounts (and the fee it can post) is judged sensitive enough to match
+    // void, not the read/write tier of 'accounts'. See ROLE_PERMISSIONS: this
+    // key is deliberately absent from Manager's grant.
+    // 'reverse' (RAKHAL-353, `JournalService.reverseJournal`, RAKHAL-334) backs
+    // reversing an immutable posted journal transaction — owner-only, same
+    // reasoning as 'transfer'/'void'. No controller currently exposes
+    // `reverseJournal` over HTTP (it is invoked internally, e.g. by voided
+    // payments/sales use cases); the permission is added now so the seam is
+    // gated the moment a route calls it, per this ticket's own governance
+    // scope — nothing to wire today.
+    actions: [...BASE, 'void', 'billing', 'accounts', 'transfer', 'reverse'],
+  },
+  {
+    // Sales (RAKHAL-339, Sales module — `FINANCE_V2_DESIGN.md` §4.3, §5.1). Reuses
+    // the existing FINANCE permission group (no new `PermissionGroup` enum value
+    // added — sales documents are financial/commercial data, same sensitivity
+    // class as `finance`, and `PermissionGroup` is schema-backed so adding a value
+    // would need its own migration for what is otherwise a UI-grouping label).
+    // 'update'/'delete' added by RAKHAL-353 for completeness of the catalogue —
+    // `SaleController` still exposes only create+read (no route calls them yet,
+    // same as 'finance.reverse' above); Manager already holds 'sales.*' so these
+    // are gated automatically the moment an edit/cancel route is built.
+    resource: 'sales',
+    group: PermissionGroup.FINANCE,
+    actions: ['read', 'create', 'update', 'delete'],
+  },
+  // Purchasing (RAKHAL-348) — same reasoning as `sales` immediately above:
+  // reuses `PermissionGroup.FINANCE` (a purchase/expense/payable document is
+  // the same sensitivity tier as `finance`/`sales`, and `PermissionGroup` is
+  // schema-backed so a new value would need its own migration for what is
+  // otherwise a UI-grouping label). Only `read`/`create` — no update/delete
+  // route exists yet either, mirroring `sales`'s own scoping.
+  {
+    resource: 'purchasing',
+    group: PermissionGroup.FINANCE,
+    actions: ['read', 'create'],
   },
   {
     resource: 'task',
@@ -194,12 +233,21 @@ export const ROLE_PERMISSIONS: Record<SystemRoleName, string[]> = {
     'milk.log',
     'milk.quality.create',
     'milk.quality.read',
-    // Finance minus owner-only void/billing
+    // Finance minus owner-only void/billing/transfer/reverse
     'finance.read',
     'finance.create',
     'finance.update',
     // Financial Accounts (RAKHAL-335) — Owner+Manager, not Worker
     'finance.accounts',
+    // Transfers (RAKHAL-338) were originally Owner+Manager; RAKHAL-353
+    // (governance pass) moves 'finance.transfer' to owner-only, alongside the
+    // new 'finance.reverse' — both intentionally excluded from this list, same
+    // as 'finance.void'/'finance.billing' above.
+    // Sales (RAKHAL-339) — Owner+Manager, not Worker (same tier as finance —
+    // a sale document is financial/commercial data, not a field task).
+    'sales.*',
+    // Purchasing (RAKHAL-348) — Owner+Manager, not Worker, same tier as `sales`.
+    'purchasing.*',
     // Settings minus owner-only team/roles/billing management
     'settings.read',
     'settings.update',

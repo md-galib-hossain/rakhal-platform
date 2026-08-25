@@ -246,6 +246,7 @@ export class MedicineService {
           delta: dto.adjustment,
           balanceAfter,
           notes: dto.notes,
+          saleLineId: dto.saleLineId ?? null,
           createdBy: userId,
         },
       });

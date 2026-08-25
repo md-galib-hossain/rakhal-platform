@@ -1,18 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import {
-  FinanceCategory,
-  FinancePaymentType,
-  FinanceTxnType,
-  MilkBuyer,
-  MilkTankActivity,
-  MilkTankType,
-  Prisma,
-} from '@prisma/client';
+import { MilkBuyer, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
-import { MilkTankService } from 'src/modules/inventory/application/services/milk-tank.service';
-import { FinanceService } from 'src/modules/finance/application/services/finance.service';
+import { SellMilkUseCase } from 'src/modules/sales/application/use-cases/sell-milk/sell-milk.use-case';
 import { computeMilkPrice } from '../../domain/milk-price';
 import { CreateBuyerDto } from '../../presentation/dto/create-buyer.dto';
 import { UpdateBuyerDto } from '../../presentation/dto/update-buyer.dto';
@@ -28,9 +19,19 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /**
  * Milk Sales & Buyer Management (PRD §11). Farm-scoped (`farmId` from the token
  * context). Recording a dispatch prices the milk (quality-adjusted, §11.4) and
- * decrements the Inventory SELLABLE tank via a SALE adjustment
- * (`MilkTankService.adjustVolume`); a monthly statement reconciles dispatched vs
- * accepted volume and amount due vs paid (§11.3).
+ * atomically posts the whole sale — the milk tank decrement, the `Sale`/
+ * `Receivable`/journal posting, all in one transaction — via `SellMilkUseCase`
+ * (RAKHAL-342, Finance V2). A monthly statement reconciles dispatched vs
+ * accepted volume and amount due vs paid (§11.3) against that same `Sale`'s
+ * `Receivable`.
+ *
+ * **RAKHAL-342 replaced the old split path** (`FINANCE_V2_DESIGN.md` §1.2):
+ * `recordDispatch` used to open its own `$transaction` for the dispatch row +
+ * tank decrement, then post to V1 Finance in a best-effort `try/catch` *after*
+ * that transaction had already committed — so a Finance hiccup left milk gone
+ * from the tank with no ledger entry anywhere. Now the dispatch row, the tank
+ * decrement, the `Sale`, the `Receivable` and the journal posting are all one
+ * atomic unit: a dispatch can no longer exist without a corresponding sale.
  */
 @Injectable()
 export class BuyerService {
@@ -38,8 +39,7 @@ export class BuyerService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly milkTankService: MilkTankService,
-    private readonly financeService: FinanceService,
+    private readonly sellMilkUseCase: SellMilkUseCase,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(BuyerService.name);
@@ -164,10 +164,23 @@ export class BuyerService {
         ? new Date(dispatchedAt.getTime() + buyer.paymentTermsDays * DAY_MS)
         : null;
 
-    // Dispatch creation and the tank SALE decrement commit atomically: if the
-    // tank can't absorb the sale (insufficient volume), the dispatch record must
-    // not be created either (previously this failure was swallowed silently).
-    const { dispatch, tankUpdated } = await this.prisma.$transaction(
+    // RAKHAL-342: dispatch creation, the tank SALE decrement, the Sale/
+    // SaleLine/MilkSaleLine, the Accounts-Receivable/Milk-Sales journal
+    // posting and the Receivable now all commit as ONE transaction — a
+    // dispatch can no longer exist without a corresponding sale, and an
+    // insufficient-volume rejection (or any other failure in that chain)
+    // rolls back every one of them, dispatch row included.
+    //
+    // `pricePerLitre` passed to `SellMilkUseCase` is the dispatch's own
+    // *effective* rate (`breakdown.total / volumeDispatchedL`), not
+    // `buyer.basePricePerLitre` — so `Sale.totalAmount` matches `MilkDispatch
+    // .calculatedAmount` exactly, fat-bonus/SCC-penalty included, without
+    // `SellMilkUseCase` needing to know anything about quality adjustments
+    // (that pricing logic stays owned by `computeMilkPrice`/this module).
+    const effectivePricePerLitre =
+      dto.volumeDispatchedL > 0 ? breakdown.total / dto.volumeDispatchedL : 0;
+
+    const { dispatch, tankUpdated, saleId } = await this.prisma.$transaction(
       async (tx) => {
         const dispatch = await tx.milkDispatch.create({
           data: {
@@ -190,16 +203,40 @@ export class BuyerService {
           },
         });
 
-        // Inventory (RD-005 SALE hook): dispatched milk leaves the SELLABLE tank.
-        const tankUpdated = await this.sellFromTank(
-          farmId,
-          userId,
-          dto.volumeDispatchedL,
-          buyer.name,
-          tx,
-        );
+        // A zero-volume dispatch (logged for record purposes only) posts no
+        // sale at all — same no-op the old `sellFromTank` had for
+        // `volumeL <= 0`. Every real dispatch posts through SellMilkUseCase:
+        // Sale + SaleLine(MILK) + MilkSaleLine, tank decrement, journal,
+        // Receivable — unpaid at record time (`amountReceived` 0, PRD §11.3's
+        // own convention — settled later via the generic
+        // `POST /finance/payments` + `/allocations` routes).
+        let tankUpdated = false;
+        let saleId: string | null = null;
+        if (dto.volumeDispatchedL > 0) {
+          const result = await this.sellMilkUseCase.execute(
+            farmId,
+            userId,
+            {
+              volumeL: dto.volumeDispatchedL,
+              pricePerLitre: effectivePricePerLitre,
+              customerId: buyer.id,
+              saleDate: dispatchedAt.toISOString(),
+              description: `Milk dispatch to ${buyer.name}`,
+              notes: `Milk dispatch ${dispatch.id}`,
+              dueDate: paymentDueDate,
+            },
+            tx,
+          );
+          tankUpdated = result.tankUpdated;
+          saleId = result.sale.id;
 
-        return { dispatch, tankUpdated };
+          await tx.milkDispatch.update({
+            where: { id: dispatch.id },
+            data: { saleId },
+          });
+        }
+
+        return { dispatch, tankUpdated, saleId };
       },
     );
 
@@ -208,45 +245,8 @@ export class BuyerService {
       farmId,
       buyerId: buyer.id,
       amount: breakdown.total,
+      saleId,
     });
-
-    // Finance linkage (was previously entirely disconnected — milk revenue
-    // never became a real ledger entry). Recorded as a separate step, not
-    // folded into the dispatch/tank transaction above: this mirrors how AQR/
-    // Activity Log run after Milk's own tank-commit transaction elsewhere in
-    // this module — a secondary side effect, not the core money/volume
-    // invariant that must be atomic. Best-effort: a Finance hiccup shouldn't
-    // block the physical dispatch that already happened.
-    let financeTransactionId: string | null = null;
-    try {
-      const finance = await this.financeService.recordTransaction(
-        farmId,
-        userId,
-        {
-          type: FinanceTxnType.REVENUE,
-          category: FinanceCategory.REVENUE,
-          subType: 'milk',
-          entityName: buyer.name,
-          amount: breakdown.total,
-          paymentType: FinancePaymentType.PARTIAL,
-          paidNow: 0,
-          dueDate: paymentDueDate?.toISOString(),
-          buyerId: buyer.id,
-          notes: `Milk dispatch ${dispatch.id}`,
-        },
-      );
-      financeTransactionId = finance.transactionId;
-      await this.prisma.milkDispatch.update({
-        where: { id: dispatch.id },
-        data: { financeTransactionId },
-      });
-    } catch (error) {
-      this.log.warn('Finance receivable creation failed for dispatch', {
-        dispatchId: dispatch.id,
-        farmId,
-        reason: (error as Error).message,
-      });
-    }
 
     return {
       id: dispatch.id,
@@ -259,7 +259,7 @@ export class BuyerService {
       priceBreakdown: breakdown,
       paymentDueDate,
       tankUpdated,
-      financeTransactionId,
+      saleId,
     };
   }
 
@@ -312,28 +312,49 @@ export class BuyerService {
     const totalDue = round2(
       dispatches.reduce((s, d) => s + d.calculatedAmount, 0),
     );
-    // paidAmount was a dead field (nothing ever wrote it) — real payments now
-    // live on the linked FinanceReceivable (via record-payment on the
-    // FinanceTransaction this dispatch created). Fall back to the legacy field
-    // only for dispatches recorded before that linkage existed.
-    const financeTxnIds = dispatches
-      .map((d) => d.financeTransactionId)
+    // paidAmount was a dead field (nothing ever wrote it) — real payments
+    // live on the V2 `Receivable` (via `PaymentAllocation`) linked from this
+    // dispatch's `saleId` (RAKHAL-342). RAKHAL-354: dropped the legacy V1
+    // `FinanceReceivable`/`financeTransactionId` fallback along with
+    // `FinanceReceivable` itself — a dispatch with no `saleId` (recorded
+    // before RAKHAL-342 shipped, dev/seed data only per `FINANCE_V2_DESIGN.md`
+    // §2's "drop and rebuild" decision) now falls back straight to
+    // `d.paidAmount` (always 0, the same dead field this comment already
+    // documented), same honest-zero treatment every other RAKHAL-354 gap in
+    // this codebase gets.
+    const saleIds = dispatches
+      .map((d) => d.saleId)
       .filter((id): id is string => id != null);
-    const receivables = financeTxnIds.length
-      ? await this.prisma.financeReceivable.findMany({
-          where: { farmId, sourceTransactionId: { in: financeTxnIds } },
-          select: { sourceTransactionId: true, paid: true },
+    const v2Receivables = saleIds.length
+      ? await this.prisma.receivable.findMany({
+          where: { farmId, saleId: { in: saleIds } },
+          select: { saleId: true, id: true },
         })
       : [];
-    const paidByTxn = new Map(
-      receivables.map((r) => [r.sourceTransactionId as string, r.paid]),
+    const v2ReceivableIdBySale = new Map(
+      v2Receivables.map((r) => [r.saleId, r.id]),
     );
+    const v2Allocations = v2Receivables.length
+      ? await this.prisma.paymentAllocation.groupBy({
+          by: ['receivableId'],
+          where: { receivableId: { in: v2Receivables.map((r) => r.id) } },
+          _sum: { amount: true },
+        })
+      : [];
+    const v2PaidByReceivable = new Map(
+      v2Allocations.map((a) => [a.receivableId as string, a._sum.amount ?? 0]),
+    );
+
     const totalPaid = round2(
       dispatches.reduce((s, d) => {
-        const linkedPaid = d.financeTransactionId
-          ? paidByTxn.get(d.financeTransactionId)
-          : undefined;
-        return s + (linkedPaid ?? d.paidAmount);
+        if (d.saleId) {
+          const receivableId = v2ReceivableIdBySale.get(d.saleId);
+          const paid = receivableId
+            ? Number(v2PaidByReceivable.get(receivableId) ?? 0)
+            : 0;
+          return s + paid;
+        }
+        return s + d.paidAmount;
       }, 0),
     );
     const baseAmount = round2(totalDue - qualityAdjustments);
@@ -353,43 +374,6 @@ export class BuyerService {
   }
 
   // ---- Helpers -------------------------------------------------------------
-
-  /**
-   * `tx` is required — this only ever runs inside `recordDispatch()`'s
-   * transaction, so an insufficient-volume rejection from `adjustVolume`
-   * propagates and rolls back the whole dispatch (see recordDispatch() above).
-   * A missing tank (farm never configured a SELLABLE tank) is a legitimate
-   * no-op, not an error.
-   */
-  private async sellFromTank(
-    farmId: string,
-    userId: string,
-    volumeL: number,
-    buyerName: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<boolean> {
-    if (volumeL <= 0) return false;
-    // Sell from the fullest SELLABLE tank so the dispatch draws from where the
-    // milk actually is (and never an empty tank when several exist).
-    const tank = await tx.milkTank.findFirst({
-      where: { farmId, tankType: MilkTankType.SELLABLE, isActive: true },
-      orderBy: { currentVolumeL: 'desc' },
-    });
-    if (!tank) return false;
-    await this.milkTankService.adjustVolume(
-      farmId,
-      userId,
-      tank.id,
-      {
-        delta: -volumeL,
-        activityType: MilkTankActivity.SALE,
-        source: 'milk_dispatch',
-        notes: `Dispatch to ${buyerName}`,
-      },
-      tx,
-    );
-    return true;
-  }
 
   private async getBuyerOrThrow(
     farmId: string,

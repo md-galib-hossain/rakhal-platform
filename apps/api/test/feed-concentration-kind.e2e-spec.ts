@@ -175,6 +175,7 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
     const mixtureFinalized = await request(server())
       .post(api(`/feed/concentrations/${mixture.body.data.id}/finalize`))
       .set(...auth(owner))
+      .send({ paymentMethod: 'CASH' })
       .expect(201);
     // A Feed Mixture (TMR) is the final ration, not an intermediate recipe — finalize produces
     // only a FeedStock lot, never a reusable ingredient (user request 2026-07-18).

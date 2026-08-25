@@ -28,6 +28,14 @@ import { DomainEventsModule } from 'src/common/events/domain-events.module';
 import { OutboxModule } from 'src/common/outbox/outbox.module';
 import { FinanceV2LedgerModule } from 'src/modules/finance-v2/ledger/finance-v2-ledger.module';
 import { FinanceV2AccountsModule } from 'src/modules/finance-v2/accounts/finance-v2-accounts.module';
+import { FinanceV2PaymentsModule } from 'src/modules/finance-v2/payments/finance-v2-payments.module';
+import { FinanceV2TransfersModule } from 'src/modules/finance-v2/transfers/finance-v2-transfers.module';
+import { FinanceV2ReceivablesModule } from 'src/modules/finance-v2/receivables/finance-v2-receivables.module';
+import { FinanceV2IncomeModule } from 'src/modules/finance-v2/income/finance-v2-income.module';
+import { SalesModule } from 'src/modules/sales/sales.module';
+import { SellAnimalModule } from 'src/modules/sales/application/use-cases/sell-animal/sell-animal.module';
+import { SellManureModule } from 'src/modules/sales/application/use-cases/sell-manure/sell-manure.module';
+import { PurchasingModule } from 'src/modules/purchasing/purchasing.module';
 import { I18nModule } from 'src/common/i18n/i18n.module';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { RedisModule } from 'src/core/redis/redis.module';
@@ -151,6 +159,14 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     OutboxModule,
     FinanceV2LedgerModule,
     FinanceV2AccountsModule,
+    FinanceV2ReceivablesModule,
+    FinanceV2PaymentsModule,
+    FinanceV2TransfersModule,
+    FinanceV2IncomeModule,
+    SalesModule,
+    SellAnimalModule,
+    SellManureModule,
+    PurchasingModule,
     I18nModule,
     EmailModule,
     SentryModule,

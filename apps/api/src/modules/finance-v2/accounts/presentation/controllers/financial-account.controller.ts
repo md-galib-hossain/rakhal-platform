@@ -76,7 +76,11 @@ export class FinancialAccountController {
 
   @Patch(':id/archive')
   @RequirePermission('finance.accounts')
-  archive(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.accounts.archiveAccount(farmId, id);
+  archive(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+  ) {
+    return this.accounts.archiveAccount(farmId, id, userId);
   }
 }

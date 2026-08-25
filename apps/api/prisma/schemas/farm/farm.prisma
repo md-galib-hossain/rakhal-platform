@@ -57,10 +57,11 @@ model Farm {
   milkLogEntries    MilkLogEntry[]     @relation("FarmToMilkLogEntry")
   milkBuyers        MilkBuyer[]        @relation("FarmToMilkBuyer")
   milkDispatches    MilkDispatch[]     @relation("FarmToMilkDispatch")
-  financeTransactions FinanceTransaction[] @relation("FarmToFinanceTransaction")
-  financeReceivables  FinanceReceivable[]  @relation("FarmToFinanceReceivable")
+  // RAKHAL-354: `financeTransactions`/`financeReceivables`/`walletTransactions`
+  // relations dropped along with `FinanceTransaction`/`FinanceReceivable`/
+  // `WalletTransaction` (Finance V1) — see `finance/finance.prisma`'s own
+  // top doc comment. `financeLoans` survives (`FinanceLoan` kept, `FINANCE_V2_DESIGN.md` §5.2).
   financeLoans        FinanceLoan[]        @relation("FarmToFinanceLoan")
-  walletTransactions  WalletTransaction[]  @relation("FarmToWalletTransaction")
   feedGroups          FeedGroup[]          @relation("FarmToFeedGroup")
   reportJobs          ReportJob[]          @relation("FarmToReportJob")
   reportSchedules     ReportSchedule[]     @relation("FarmToReportSchedule")
@@ -85,6 +86,16 @@ model Farm {
   ledgerAccounts          LedgerAccount[]          @relation("FarmToLedgerAccount")
   journalTransactions     JournalTransaction[]     @relation("FarmToJournalTransaction")
   financialAccounts       FinancialAccount[]       @relation("FarmToFinancialAccount")
+  financePayments         FinancePayment[]         @relation("FarmToFinancePayment")
+  transfers               Transfer[]               @relation("FarmToTransfer")
+  sales                    Sale[]                   @relation("FarmToSale")
+  receivables              Receivable[]             @relation("FarmToReceivable")
+  cattleDispositions       CattleDisposition[]      @relation("FarmToCattleDisposition")
+  incomeCategories         IncomeCategory[]         @relation("FarmToIncomeCategory")
+  otherIncomes             OtherIncome[]             @relation("FarmToOtherIncome")
+  purchases                Purchase[]                @relation("FarmToPurchase")
+  expenses                 Expense[]                 @relation("FarmToExpense")
+  payables                 Payable[]                 @relation("FarmToPayable")
 
   @@index([ownerId])
   @@index([slug])

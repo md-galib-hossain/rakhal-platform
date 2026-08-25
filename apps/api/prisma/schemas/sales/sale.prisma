@@ -1,0 +1,68 @@
+/// A commercial sale document — the root of every farm sale (milk/animal/inventory/
+/// manure), RAKHAL-339, Sales module — `FINANCE_V2_DESIGN.md` §4.3, §5.1.
+///
+/// **Real typed detail tables, not a polymorphic `referenceId` string** — this is
+/// the design doc's own core decision (§5.1): `SaleLine.type` discriminates which of
+/// `MilkSaleLine`/`AnimalSaleLine`/`InventorySaleLine`/`ManureSaleLine` (sale-line.prisma)
+/// carries the real foreign key for that line.
+///
+/// **This ticket's scope is the document model + persistence + numbering only** — no
+/// journal posting, no `Receivable`, no stock decrement. Those are RAKHAL-340
+/// (Receivable v2) and the per-sale-type use cases (RAKHAL-342/345/346/347), which call
+/// `SaleService.createSale` as their first atomic step and then continue the same
+/// `$transaction` with their own stock/ledger side effects.
+///
+/// **`customerId` — judgment call**: no generic `Customer` entity exists in this
+/// codebase yet. `MilkBuyer` (`prisma/schemas/buyer/buyer.prisma`) is milk-sale-specific
+/// (price agreements, collection days) and does not fit an animal/inventory/manure
+/// buyer. Rather than force every sale onto `MilkBuyer` or invent a new `Customer`
+/// model this ticket wasn't asked to design, `customerId` stays a **plain nullable
+/// scalar** — a free-form reference a caller may point at a `MilkBuyer.id`, a
+/// `ServiceProvider.id`, or nothing at all (walk-up cash sale). Not a Prisma
+/// `@relation` — same "can't FK a shape that doesn't exist yet" reasoning
+/// `PaymentAllocation.receivableId`/`payableId` (RAKHAL-337, `payment.prisma`)
+/// documents for its own placeholder columns. A future ticket that designs a real
+/// unified Customer entity would replace this column with a real FK, additively.
+model Sale {
+  id     String @id @default(cuid())
+  farmId String
+
+  /// Human-readable document number, e.g. `SALE-000123` — allocated via the existing
+  /// `FarmCounter` model (`prisma/schemas/farm/farm-counter.prisma`), never
+  /// `count()+1` (the V1 race this milestone exists to fix, `finance.service.ts:1014-1023`).
+  /// See `sale-number.ts` for the exact format + allocation helper.
+  saleNumber String
+
+  /// See this model's own doc comment above for the judgment call on why this is a
+  /// plain nullable scalar, not a `@relation`.
+  customerId String?
+
+  saleDate DateTime
+
+  subtotal       Decimal @db.Decimal(18, 2)
+  discountAmount Decimal @default(0) @db.Decimal(18, 2)
+  /// `subtotal - discountAmount`, computed by `SaleService` at create time (not a
+  /// generated column — Decimal generated columns are out of scope here).
+  totalAmount Decimal @db.Decimal(18, 2)
+
+  status SaleStatus @default(DRAFT)
+  notes  String?
+
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  farm  Farm       @relation("FarmToSale", fields: [farmId], references: [id])
+  lines SaleLine[]
+
+  /// The `Receivable` raised for this sale, if any (RAKHAL-340) — a sale
+  /// paid in full at creation has none. One-to-one: `Receivable.saleId` is
+  /// `@unique`.
+  receivable Receivable? @relation("SaleToReceivable")
+
+  @@unique([farmId, saleNumber])
+  @@index([farmId])
+  @@index([farmId, saleDate])
+  @@index([farmId, status])
+  @@index([farmId, customerId])
+}

@@ -32,6 +32,7 @@ describe('FinancialAccountService', () => {
   let ledgerAccountService: { findByCode: jest.Mock };
   let journalService: { postJournal: jest.Mock };
   let logger: { setContext: jest.Mock; info: jest.Mock; warn: jest.Mock };
+  let activityLog: { record: jest.Mock };
 
   beforeEach(() => {
     prisma = {
@@ -54,6 +55,10 @@ describe('FinancialAccountService', () => {
       info: jest.fn(),
       warn: jest.fn(),
     };
+    // RAKHAL-353: `ActivityLogService.record(...)` mocked as a no-op — this
+    // spec covers `FinancialAccountService`'s own contract, not the Activity
+    // Log's behaviour.
+    activityLog = { record: jest.fn().mockResolvedValue(undefined) };
   });
 
   const make = () =>
@@ -61,15 +66,16 @@ describe('FinancialAccountService', () => {
       prisma as never,
       ledgerAccountService as never,
       journalService as never,
+      activityLog as never,
       logger as never,
     );
 
   describe('createAccount', () => {
     it('creates a CASH account with no detail row and no journal posting when openingBalance is omitted', async () => {
-      prisma.farmCounter.upsert.mockResolvedValue({ value: 1300 });
+      prisma.farmCounter.upsert.mockResolvedValue({ value: 9000 });
       prisma.ledgerAccount.create.mockResolvedValue({
         id: 'ledger-1',
-        code: '1300',
+        code: '9000',
       });
       prisma.financialAccount.create.mockResolvedValue({
         id: 'fa-1',
@@ -94,7 +100,7 @@ describe('FinancialAccountService', () => {
       };
       expect(ledgerCreateArgs.data).toMatchObject({
         farmId: 'farm-1',
-        code: '1300',
+        code: '9000',
         isSystem: false,
       });
       expect(prisma.bankAccountDetail.create).not.toHaveBeenCalled();
@@ -105,7 +111,7 @@ describe('FinancialAccountService', () => {
     });
 
     it('rejects a BANK account with no bankDetail', async () => {
-      prisma.farmCounter.upsert.mockResolvedValue({ value: 1300 });
+      prisma.farmCounter.upsert.mockResolvedValue({ value: 9000 });
       prisma.ledgerAccount.create.mockResolvedValue({ id: 'ledger-1' });
       const service = make();
 
@@ -119,10 +125,10 @@ describe('FinancialAccountService', () => {
     });
 
     it('creates a BANK account with its detail row', async () => {
-      prisma.farmCounter.upsert.mockResolvedValue({ value: 1301 });
+      prisma.farmCounter.upsert.mockResolvedValue({ value: 9001 });
       prisma.ledgerAccount.create.mockResolvedValue({
         id: 'ledger-2',
-        code: '1301',
+        code: '9001',
       });
       prisma.financialAccount.create.mockResolvedValue({
         id: 'fa-2',
@@ -165,10 +171,10 @@ describe('FinancialAccountService', () => {
     });
 
     it('creates an MFS account with its detail row', async () => {
-      prisma.farmCounter.upsert.mockResolvedValue({ value: 1302 });
+      prisma.farmCounter.upsert.mockResolvedValue({ value: 9002 });
       prisma.ledgerAccount.create.mockResolvedValue({
         id: 'ledger-3',
-        code: '1302',
+        code: '9002',
       });
       prisma.financialAccount.create.mockResolvedValue({
         id: 'fa-3',
@@ -214,10 +220,10 @@ describe('FinancialAccountService', () => {
     });
 
     it('posts a journal debiting the new account and crediting Opening Balance Equity for a non-zero opening balance', async () => {
-      prisma.farmCounter.upsert.mockResolvedValue({ value: 1300 });
+      prisma.farmCounter.upsert.mockResolvedValue({ value: 9000 });
       prisma.ledgerAccount.create.mockResolvedValue({
         id: 'ledger-1',
-        code: '1300',
+        code: '9000',
       });
       prisma.financialAccount.create.mockResolvedValue({
         id: 'fa-1',
@@ -268,7 +274,7 @@ describe('FinancialAccountService', () => {
     });
 
     it('never posts a journal when openingBalance is 0', async () => {
-      prisma.farmCounter.upsert.mockResolvedValue({ value: 1300 });
+      prisma.farmCounter.upsert.mockResolvedValue({ value: 9000 });
       prisma.ledgerAccount.create.mockResolvedValue({ id: 'ledger-1' });
       prisma.financialAccount.create.mockResolvedValue({
         id: 'fa-1',
@@ -289,7 +295,7 @@ describe('FinancialAccountService', () => {
 
     it('honors a supplied external tx instead of opening its own $transaction', async () => {
       const tx = {
-        farmCounter: { upsert: jest.fn().mockResolvedValue({ value: 1300 }) },
+        farmCounter: { upsert: jest.fn().mockResolvedValue({ value: 9000 }) },
         ledgerAccount: {
           create: jest.fn().mockResolvedValue({ id: 'ledger-1' }),
         },
@@ -312,6 +318,57 @@ describe('FinancialAccountService', () => {
 
       expect(prisma.$transaction).not.toHaveBeenCalled();
       expect(tx.financialAccount.create).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('nextCustomLedgerCode (RD-061 — bound + range)', () => {
+    it('rejects account creation once the counter walks past the dedicated 9000-9999 range instead of colliding with whatever code comes next', async () => {
+      prisma.farmCounter.upsert.mockResolvedValue({ value: 10000 });
+      const service = make();
+
+      await expect(
+        service.createAccount('farm-1', 'user-1', {
+          name: 'One Too Many',
+          type: FinancialAccountType.CASH,
+        }),
+      ).rejects.toThrow(ConflictException);
+      // Never reaches ledgerAccount.create with a code outside the dedicated range.
+      expect(prisma.ledgerAccount.create).not.toHaveBeenCalled();
+    });
+
+    it('allocates exactly the counter value as the code, never a fixed/stale constant', async () => {
+      prisma.farmCounter.upsert.mockResolvedValue({ value: 9042 });
+      prisma.ledgerAccount.create.mockResolvedValue({
+        id: 'ledger-42',
+        code: '9042',
+      });
+      prisma.financialAccount.create.mockResolvedValue({
+        id: 'fa-42',
+        type: FinancialAccountType.CASH,
+        ledgerAccountId: 'ledger-42',
+      });
+      const service = make();
+
+      await service.createAccount('farm-1', 'user-1', {
+        name: 'Petty Cash',
+        type: FinancialAccountType.CASH,
+      });
+
+      const ledgerCreateArgs = (
+        prisma.ledgerAccount.create.mock.calls as unknown[][]
+      )[0][0] as { data: { code: string } };
+      expect(ledgerCreateArgs.data.code).toBe('9042');
+      // The counter allocation happens on the SAME transaction client used
+      // for the rest of the create — an aborted create (e.g. a later
+      // failure inside the same $transaction) rolls the counter back too,
+      // so no code is ever burned by a failed attempt (matches
+      // `SaleNumberAllocator`'s documented "a rolled-back create releases
+      // the number" guarantee).
+      expect(prisma.farmCounter.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { scope: 'finance-v2-account:farm-1' },
+        }),
+      );
     });
   });
 

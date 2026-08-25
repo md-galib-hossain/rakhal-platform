@@ -1,7 +1,0 @@
-[
-  { "id": "sd_wallet_001", "farmId": "@farm", "reference": "SEED-DW-01", "direction": "CREDIT", "description": "Milk payment received — Aarong", "amount": 6215, "paymentMethod": "BANK_TRANSFER", "date": "@daysAgo:9", "createdBy": "@user:manager" },
-  { "id": "sd_wallet_002", "farmId": "@farm", "reference": "SEED-DW-02", "direction": "DEBIT", "description": "Feed purchase — wheat bran", "amount": 24000, "paymentMethod": "MFS", "date": "@daysAgo:12", "createdBy": "@user:manager" },
-  { "id": "sd_wallet_003", "farmId": "@farm", "reference": "SEED-DW-03", "direction": "DEBIT", "description": "Krishi Bank EMI", "amount": 10000, "paymentMethod": "BANK_TRANSFER", "date": "@daysAgo:15", "createdBy": "@user:owner" },
-  { "id": "sd_wallet_004", "farmId": "@farm", "reference": "SEED-DW-04", "direction": "CREDIT", "description": "Cattle sale — RKL-017", "amount": 85000, "paymentMethod": "CASH", "date": "@daysAgo:30", "createdBy": "@user:owner" },
-  { "id": "sd_wallet_005", "farmId": "@farm", "reference": "SEED-DW-05", "direction": "DEBIT", "description": "Staff wages", "amount": 30000, "paymentMethod": "CASH", "date": "@daysAgo:10", "createdBy": "@user:owner" }
-]

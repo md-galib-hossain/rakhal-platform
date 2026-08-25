@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  ActivityLogModule,
   BankAccountDetail,
   FinancialAccount,
   FinancialAccountType,
@@ -17,6 +18,7 @@ import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { isZero, toStorage } from 'src/common/money';
 import { LedgerAccountService } from 'src/modules/finance-v2/ledger/application/ledger-account.service';
 import { JournalService } from 'src/modules/finance-v2/ledger/application/journal.service';
+import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { CreateFinancialAccountDto } from '../presentation/dto/create-financial-account.dto';
 import { UpdateFinancialAccountDto } from '../presentation/dto/update-financial-account.dto';
 
@@ -29,11 +31,31 @@ export type FinancialAccountWithDetail = FinancialAccount & {
  * (`default-chart-of-accounts.ts`). Every farm has this row from bootstrap. */
 const OPENING_BALANCE_EQUITY_CODE = '3000';
 
-/** Farm-custom `LedgerAccount` codes for individually named Cash/Bank/MFS accounts start
- * here — the 1300-1900 asset range `default-chart-of-accounts.ts`'s own doc comment
- * reserves for exactly this purpose, so a per-account sub-ledger can never collide with the
- * 1000/1010/1020/1100/1200 system rows. */
-const CUSTOM_LEDGER_CODE_START = 1300;
+/**
+ * Farm-custom `LedgerAccount` codes for individually named Cash/Bank/MFS accounts start
+ * here (RD-061 fix, 2026-08-17). The original range (`1300`, matching
+ * `default-chart-of-accounts.ts`'s own "1300-1900 asset range" doc comment) had no upper
+ * bound on the counter — a farm with enough custom accounts eventually walked the counter
+ * straight into the seeded system chart's own `2000`/`3000`/`4000+`/`5000+` codes
+ * (`default-chart-of-accounts.ts`), permanently 500ing every subsequent
+ * `POST /finance/accounts` on that farm (a Postgres unique-constraint violation on
+ * `(farmId, code)`, which rolls back the same transaction that incremented the counter —
+ * so the counter never advances past the colliding value and every retry fails identically).
+ * `9000` is a dedicated range far above any plausible future system-chart addition
+ * (system codes today top out at `5600`), so a collision can no longer happen by walking
+ * into seeded territory — the only way to hit trouble now is truly exhausting the range,
+ * which `CUSTOM_LEDGER_CODE_MAX` below turns into a loud, clear error instead of a silent
+ * collision. Pre-existing per-farm counters already advanced into the old 1300-1999 range
+ * were bumped forward by the one-off `prisma/fix-custom-ledger-code-counters.ts` script so
+ * their *next* allocation lands at `9000`, not `2000` — already-created `LedgerAccount` rows
+ * in 1300-1999 are left as-is, they don't collide with anything.
+ */
+const CUSTOM_LEDGER_CODE_START = 9000;
+
+/** Upper bound of the dedicated custom-account code range. Exceeding it throws
+ * (`nextCustomLedgerCode` below) rather than silently colliding with whatever code comes
+ * next — see the doc comment on `CUSTOM_LEDGER_CODE_START`. */
+const CUSTOM_LEDGER_CODE_MAX = 9999;
 
 const DETAIL_INCLUDE = { bankDetail: true, mfsDetail: true } as const;
 
@@ -61,6 +83,7 @@ export class FinancialAccountService {
     private readonly prisma: PrismaService,
     private readonly ledgerAccountService: LedgerAccountService,
     private readonly journalService: JournalService,
+    private readonly activityLog: ActivityLogService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(FinancialAccountService.name);
@@ -81,7 +104,23 @@ export class FinancialAccountService {
   ): Promise<FinancialAccountWithDetail> {
     const run = (client: Prisma.TransactionClient) =>
       this.createWithClient(client, farmId, userId, dto);
-    return tx ? run(tx) : this.prisma.$transaction((t) => run(t));
+
+    // RAKHAL-353: same standalone-vs-nested reasoning as
+    // `PaymentService.recordPayment` — only the top-level call (today,
+    // always `POST /finance/accounts`; no caller supplies its own `tx` yet)
+    // logs here.
+    if (!tx) {
+      const account = await this.prisma.$transaction((t) => run(t));
+      await this.activityLog.record({
+        farmId,
+        module: ActivityLogModule.FINANCE,
+        eventTitle: 'Financial Account Created',
+        actionDetails: `${account.type} account "${account.name}" created${dto.openingBalance ? ` with ৳${dto.openingBalance} opening balance` : ''}.`,
+        actorId: userId,
+      });
+      return account;
+    }
+    return run(tx);
   }
 
   private async createWithClient(
@@ -266,6 +305,7 @@ export class FinancialAccountService {
   async archiveAccount(
     farmId: string,
     id: string,
+    userId?: string,
   ): Promise<FinancialAccountWithDetail> {
     const existing = await this.getOrThrow(farmId, id);
     if (!existing.isActive) {
@@ -279,6 +319,21 @@ export class FinancialAccountService {
     this.log.info('Financial account archived', {
       farmId,
       financialAccountId: id,
+    });
+
+    // RAKHAL-353: account archival is one of this ticket's own named
+    // "sensitive" actions (irreversible via this route — archive-not-delete
+    // per `FINANCE_V2_DESIGN.md` §6, but a real state change on a farmer-
+    // facing money container). `userId` is an added optional param (the
+    // controller already resolves `@CurrentUserId()`; only the actor
+    // attribution on this log entry needed it, no existing caller broke).
+    await this.activityLog.record({
+      farmId,
+      module: ActivityLogModule.FINANCE,
+      eventTitle: 'Financial Account Archived',
+      actionDetails: `${account.type} account "${account.name}" archived.`,
+      actorId: userId ?? null,
+      taggedValues: [{ key: 'sensitive', value: 'account-archived' }],
     });
     return account;
   }
@@ -302,7 +357,13 @@ export class FinancialAccountService {
 
   /** Allocates the next farm-custom `LedgerAccount.code` for a new `FinancialAccount`, gapless
    * and collision-free — same `FarmCounter` upsert-inside-transaction pattern as
-   * `FarmService.create`'s farm-code serial (a rolled-back create releases the number). */
+   * `FarmService.create`'s farm-code serial and `SaleNumberAllocator` (a rolled-back create
+   * releases the number). The upsert is atomic (Postgres row-level lock on the counter row
+   * for the life of the transaction), so concurrent calls always serialize onto distinct
+   * values — that part was never the bug. RD-061's bug was the missing upper bound: nothing
+   * stopped the counter from walking into the seeded system chart's own code range. Throws
+   * a clear, loud error if the dedicated range is ever actually exhausted, instead of
+   * silently colliding with the next code (see `CUSTOM_LEDGER_CODE_START`/`_MAX` above). */
   private async nextCustomLedgerCode(
     client: Prisma.TransactionClient,
     farmId: string,
@@ -315,6 +376,11 @@ export class FinancialAccountService {
       },
       update: { value: { increment: 1 } },
     });
+    if (counter.value > CUSTOM_LEDGER_CODE_MAX) {
+      throw new ConflictException(
+        `Custom ledger account code space (${CUSTOM_LEDGER_CODE_START}-${CUSTOM_LEDGER_CODE_MAX}) is exhausted for this farm. Contact support.`,
+      );
+    }
     return String(counter.value);
   }
 

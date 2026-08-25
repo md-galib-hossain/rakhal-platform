@@ -87,32 +87,22 @@ describe('Reports — herd value + medicine cost (RD-013d/e)', () => {
     return line.split(',')[1];
   }
 
-  it('Annual Herd Inventory: estimated value reflects animal-purchase spend, not "n/a"', async () => {
+  // RAKHAL-354: `herdPurchaseValue()` used to read V1 `FinanceTransaction`
+  // rows (`type: INVENTORY_PURCHASE, category: INVENTORY, subType: 'animal'`)
+  // — the same read this test used to seed directly. That table is dropped;
+  // no V2 "animal acquisition cost" concept exists to re-point it at
+  // (RAKHAL-351 already flagged the gap, tech debt RD-065 tracks it). The
+  // report still generates a real "Estimated value" number, it's just
+  // permanently 0 now, not "n/a" (the original RD-013d bug this test
+  // guarded against) and not silently missing from the CSV.
+  it('Annual Herd Inventory: estimated value is a real number (0, not "n/a") — no V2 herd-acquisition-cost source exists (RD-065)', async () => {
     const year = 2019; // isolated year, unlikely to collide with other specs' fixtures
-    const before = await generateCsv('rpt_annual_herd_inventory', {
+    const csv = await generateCsv('rpt_annual_herd_inventory', {
       year: String(year),
     });
-    const baseline = Number(metricValue(before, 'Estimated value (৳)'));
-    expect(Number.isNaN(baseline)).toBe(false);
-
-    await prisma.financeTransaction.create({
-      data: {
-        farmId: owner.farmId,
-        reference: `E2E-RD013D-${Date.now()}`,
-        date: new Date(Date.UTC(year, 5, 15)),
-        type: 'INVENTORY_PURCHASE',
-        category: 'INVENTORY',
-        subType: 'animal',
-        amount: 15000,
-        createdBy: ownerUserId,
-      },
-    });
-
-    const after = await generateCsv('rpt_annual_herd_inventory', {
-      year: String(year),
-    });
-    const updated = Number(metricValue(after, 'Estimated value (৳)'));
-    expect(updated).toBeCloseTo(baseline + 15000, 2);
+    const value = Number(metricValue(csv, 'Estimated value (৳)'));
+    expect(Number.isNaN(value)).toBe(false);
+    expect(value).toBe(0);
   }, 30_000);
 
   it('Weekly Herd Health: medicine cost reflects deducted treatments', async () => {

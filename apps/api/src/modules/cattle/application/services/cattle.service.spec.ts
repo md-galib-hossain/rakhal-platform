@@ -30,6 +30,7 @@ describe('CattleService — RAKHAL-269 production status', () => {
     };
     reproductionProfile: { findUnique: jest.Mock; create: jest.Mock };
     animalHold: { findMany: jest.Mock };
+    cattleDisposition: { findFirst: jest.Mock; create: jest.Mock };
     $transaction: jest.Mock;
   };
   let logger: { setContext: jest.Mock; info: jest.Mock; warn: jest.Mock };
@@ -72,6 +73,10 @@ describe('CattleService — RAKHAL-269 production status', () => {
         create: jest.fn(),
       },
       animalHold: { findMany: jest.fn().mockResolvedValue([]) },
+      cattleDisposition: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn(),
+      },
       // Both the array form (`$transaction([...])`) and the callback form
       // (`$transaction(async (tx) => ...)`) are used elsewhere in this
       // service — the mock `tx` is just `prisma` itself, since every mocked
@@ -499,6 +504,127 @@ describe('CattleService — RAKHAL-269 production status', () => {
         data: { cattleId: 'cattle-1', totalCalvings: 4 },
       });
       expect((result as { animalCategory: string }).animalCategory).toBe('COW');
+    });
+  });
+
+  // RAKHAL-344: the new consolidated SALE/DEATH/CULL/TRANSFER exit path.
+  describe('recordDisposition', () => {
+    it('SALE closes the ACTIVE lactation with LactationEndReason.SOLD and flips status/isActive/soldAt/dispositionId', async () => {
+      prisma.cattle.findFirst.mockResolvedValueOnce(baseRow());
+      prisma.cattleDisposition.findFirst.mockResolvedValueOnce(null);
+      prisma.cattleDisposition.create.mockResolvedValueOnce({
+        id: 'disposition-1',
+        type: 'SALE',
+        cattleId: 'cattle-1',
+      });
+      prisma.cattle.update.mockResolvedValueOnce({});
+
+      const service = make();
+      const disposition = await service.recordDisposition(
+        'farm-1',
+        'user-1',
+        'cattle-1',
+        { type: 'SALE', date: new Date('2026-08-22') },
+      );
+
+      expect(disposition).toMatchObject({ id: 'disposition-1', type: 'SALE' });
+      expect(prisma.cattleDisposition.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          farmId: 'farm-1',
+          cattleId: 'cattle-1',
+          type: 'SALE',
+          createdById: 'user-1',
+        }) as unknown,
+      });
+      expect(prisma.lactation.updateMany).toHaveBeenCalledWith({
+        where: { cattleId: 'cattle-1', status: 'ACTIVE' },
+        data: expect.objectContaining({
+          status: 'ENDED',
+          endReason: 'SOLD',
+        }) as unknown,
+      });
+      expect(lastUpdateData()).toMatchObject({
+        status: CattleStatus.SOLD,
+        isActive: false,
+        productionStatus: null,
+        dispositionId: 'disposition-1',
+        soldAt: new Date('2026-08-22'),
+      });
+    });
+
+    it('rejects re-selling a cow that already has a SALE disposition', async () => {
+      prisma.cattle.findFirst.mockResolvedValueOnce(baseRow());
+      prisma.cattleDisposition.findFirst.mockResolvedValueOnce({
+        id: 'existing-disposition',
+      });
+
+      const service = make();
+      await expect(
+        service.recordDisposition('farm-1', 'user-1', 'cattle-1', {
+          type: 'SALE',
+          date: new Date(),
+        }),
+      ).rejects.toThrow(
+        'This animal has already been sold and cannot be sold again.',
+      );
+
+      expect(prisma.cattleDisposition.create).not.toHaveBeenCalled();
+      expect(prisma.cattle.update).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['DEATH', 'DEATH', CattleStatus.DEAD],
+      ['CULL', 'CULLED', CattleStatus.CULLED],
+    ])(
+      '%s closes the ACTIVE lactation with LactationEndReason.%s and sets status %s',
+      async (type, endReason, status) => {
+        prisma.cattle.findFirst.mockResolvedValueOnce(baseRow());
+        prisma.cattleDisposition.findFirst.mockResolvedValueOnce(null);
+        prisma.cattleDisposition.create.mockResolvedValueOnce({
+          id: 'disposition-2',
+          type,
+          cattleId: 'cattle-1',
+        });
+        prisma.cattle.update.mockResolvedValueOnce({});
+
+        const service = make();
+        await service.recordDisposition('farm-1', 'user-1', 'cattle-1', {
+          type: type as never,
+          date: new Date(),
+        });
+
+        expect(prisma.lactation.updateMany).toHaveBeenCalledWith({
+          where: { cattleId: 'cattle-1', status: 'ACTIVE' },
+          data: expect.objectContaining({
+            status: 'ENDED',
+            endReason,
+          }) as unknown,
+        });
+        expect(lastUpdateData()).toMatchObject({ status, isActive: false });
+      },
+    );
+
+    it('TRANSFER sets status TRANSFERRED and does not touch any Lactation row', async () => {
+      prisma.cattle.findFirst.mockResolvedValueOnce(baseRow());
+      prisma.cattleDisposition.findFirst.mockResolvedValueOnce(null);
+      prisma.cattleDisposition.create.mockResolvedValueOnce({
+        id: 'disposition-3',
+        type: 'TRANSFER',
+        cattleId: 'cattle-1',
+      });
+      prisma.cattle.update.mockResolvedValueOnce({});
+
+      const service = make();
+      await service.recordDisposition('farm-1', 'user-1', 'cattle-1', {
+        type: 'TRANSFER',
+        date: new Date(),
+      });
+
+      expect(prisma.lactation.updateMany).not.toHaveBeenCalled();
+      expect(lastUpdateData()).toMatchObject({
+        status: CattleStatus.TRANSFERRED,
+        isActive: false,
+      });
     });
   });
 });

@@ -5,11 +5,18 @@ import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
-import { FinanceModule } from '../finance/finance.module';
+import { SalesModule } from '../sales/sales.module';
 import { BuyerService } from './application/services/buyer.service';
 import { BuyerController } from './presentation/controllers/buyer.controller';
 import { MilkDispatchController } from './presentation/controllers/milk-dispatch.controller';
 
+/**
+ * RAKHAL-342 update: `FinanceModule` (V1) is no longer imported —
+ * `BuyerService.recordDispatch` posts revenue through `SalesModule`'s
+ * `SellMilkUseCase` now, not V1's `FinanceService.recordTransaction`. See
+ * `buyer.service.ts`'s own doc comment for the full defect this replaces
+ * (`FINANCE_V2_DESIGN.md` §1.2).
+ */
 @Module({
   imports: [
     AuthModule,
@@ -18,7 +25,7 @@ import { MilkDispatchController } from './presentation/controllers/milk-dispatch
     PermissionModule,
     InventoryModule,
     SubscriptionModule,
-    FinanceModule,
+    SalesModule,
   ],
   controllers: [BuyerController, MilkDispatchController],
   providers: [BuyerService],

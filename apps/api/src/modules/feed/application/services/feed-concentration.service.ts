@@ -8,9 +8,7 @@ import {
   FeedConcentrationItem,
   FeedConcentrationKind,
   FeedIngredient,
-  FinanceCategory,
-  FinancePaymentMethod,
-  FinanceTxnType,
+  PaymentMethod,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
@@ -33,7 +31,11 @@ import {
 } from '../../presentation/dto/concentration.dto';
 import { FeedStockService, StockNutritionSnapshot } from './feed-stock.service';
 import { FeedRequirementsService } from './feed-requirements.service';
-import { FinanceService } from 'src/modules/finance/application/services/finance.service';
+import { JournalService } from 'src/modules/finance-v2/ledger/application/journal.service';
+import { LedgerAccountService } from 'src/modules/finance-v2/ledger/application/ledger-account.service';
+import { FinancialAccountService } from 'src/modules/finance-v2/accounts/application/financial-account.service';
+import { resolveFinancialAccountId } from 'src/common/finance/resolve-account';
+import { randomUUID } from 'crypto';
 
 type ConcentrationWithItems = FeedConcentration & {
   items: FeedConcentrationItem[];
@@ -55,7 +57,9 @@ export class FeedConcentrationService {
     private readonly logger: LoggerService,
     private readonly feedStock: FeedStockService,
     private readonly feedRequirements: FeedRequirementsService,
-    private readonly finance: FinanceService,
+    private readonly journalService: JournalService,
+    private readonly ledgerAccountService: LedgerAccountService,
+    private readonly financialAccountService: FinancialAccountService,
   ) {
     this.log = this.logger.setContext(FeedConcentrationService.name);
   }
@@ -325,7 +329,7 @@ export class FeedConcentrationService {
     farmId: string,
     userId: string,
     id: string,
-    paymentMethod?: FinancePaymentMethod,
+    paymentMethod?: PaymentMethod,
   ) {
     const row = await this.getOrThrow(farmId, id);
     if (row.kind === 'FEED_MIXTURE' && !paymentMethod) {
@@ -401,25 +405,65 @@ export class FeedConcentrationService {
     // calculator — its finalize above already did the only thing it's supposed to (promote/
     // refresh the reusable ingredient); it must never also fabricate a physical stock lot.
     //
-    // Payment happens *before* stock is produced (mirrors `FinanceService.recordTransaction`'s own
-    // "check wallet balance before touching stock" ordering) — an insufficient-wallet-balance
-    // TMR finalize throws here and never reaches `produceFromConcentration`, so no `FeedStock` is
-    // fabricated for a batch that was never actually paid for. Reuses `recordTransaction` itself
-    // rather than re-implementing the wallet-debit/liquidity-check logic locally; `updateInventory`
-    // stays false because the inventory effect here is `FeedStock` (below), not a `FeedItem`/
-    // Medicine/Equipment row that `recordTransaction`'s own auto-increment path knows how to touch.
-    let financeResult: Awaited<
-      ReturnType<FinanceService['recordTransaction']>
-    > | null = null;
+    // Payment happens *before* stock is produced (mirrors the old V1 "check wallet balance
+    // before touching stock" ordering) — an insufficient-balance TMR finalize throws here and
+    // never reaches `produceFromConcentration`, so no `FeedStock` is fabricated for a batch that
+    // was never actually paid for.
+    //
+    // RAKHAL-354: migrated off V1 `FinanceService.recordTransaction` (`INVENTORY_PURCHASE`) onto
+    // a direct `JournalService.postJournal` call — debits Inventory (ledger code `1200`, the
+    // asset `FeedStock` becomes), credits the resolved `FinancialAccount`. This is deliberately
+    // NOT `ExpenseService.recordExpense`: a TMR batch becomes `FeedStock`, a real inventory
+    // asset (mirrors `PurchaseService.createPurchase`'s own Inventory-debit treatment for a
+    // Medicine/FeedItem/Equipment purchase), not a consumed expense — booking it as an expense
+    // would double-count once real feed-consumption costing exists. `paymentMethod` resolves to
+    // a concrete `FinancialAccount` via `resolveFinancialAccountId` (documented stopgap — this
+    // route has no `financialAccountId`/`AccountPicker` in its own DTO yet, same gap
+    // `ReproductionService`'s breeding-cost posting has — see that helper's own doc comment).
+    // Always paid in full immediately, same as V1 (no partial-payment/Payable concept existed
+    // for this route before, and none is added now).
+    const INVENTORY_LEDGER_CODE = '1200';
+    let financeResult: { journalTransactionId: string } | null = null;
     if (row.kind === 'FEED_MIXTURE') {
-      financeResult = await this.finance.recordTransaction(farmId, userId, {
-        type: FinanceTxnType.INVENTORY_PURCHASE,
-        category: FinanceCategory.INVENTORY,
-        entityName: row.name,
-        amount: totals.total_cost_tk,
-        paymentMethod,
-        updateInventory: false,
+      const financialAccountId = await resolveFinancialAccountId(
+        this.prisma,
+        farmId,
+        paymentMethod!,
+      );
+      await this.financialAccountService.assertAccountActive(
+        farmId,
+        financialAccountId,
+      );
+      const account = await this.prisma.financialAccount.findFirstOrThrow({
+        where: { id: financialAccountId, farmId },
+        select: { ledgerAccountId: true },
       });
+      const inventoryAccount = await this.ledgerAccountService.findByCode(
+        farmId,
+        INVENTORY_LEDGER_CODE,
+      );
+      if (!inventoryAccount) {
+        throw new BadRequestException(
+          'Inventory ledger account is not seeded for this farm',
+        );
+      }
+      const posted = await this.journalService.postJournal({
+        farmId,
+        sourceType: 'FEED_MIXTURE_FINALIZE',
+        sourceId: row.id,
+        transactionDate: new Date(),
+        description: `TMR finalize: ${row.name}`,
+        idempotencyKey: `feed-mixture-finalize:${row.id}:${randomUUID()}`,
+        createdById: userId,
+        entries: [
+          { ledgerAccountId: inventoryAccount.id, debit: totals.total_cost_tk },
+          {
+            ledgerAccountId: account.ledgerAccountId,
+            credit: totals.total_cost_tk,
+          },
+        ],
+      });
+      financeResult = { journalTransactionId: posted.id };
     }
 
     const stock =
@@ -455,11 +499,7 @@ export class FeedConcentrationService {
       stock,
       ingredient: ingredientResult,
       finance: financeResult
-        ? {
-            transaction_id: financeResult.transactionId,
-            reference: financeResult.reference,
-            wallet_transaction_id: financeResult.walletTransactionId,
-          }
+        ? { journal_transaction_id: financeResult.journalTransactionId }
         : null,
     };
   }

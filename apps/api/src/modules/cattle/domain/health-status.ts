@@ -28,9 +28,33 @@ export type DerivedHealthStatus =
   | 'IN_TREATMENT'
   | 'QUARANTINE';
 
+/**
+ * Diagnosis types that represent proactive/preventive care rather than actual
+ * illness or injury. A HealthCase opened for one of these (e.g. giving a
+ * vaccine) must not read the cow as SICK — only DISEASE/INJURY/OTHER cases
+ * should.
+ */
+export const PREVENTIVE_DIAGNOSIS_TYPES = [
+  'VACCINATION',
+  'PREVENTIVE',
+  'DEWORMING',
+  'ROUTINE_CHECKUP',
+  'BREEDING_RELATED',
+] as const;
+
+const PREVENTIVE_DIAGNOSIS_TYPE_SET = new Set<string>(
+  PREVENTIVE_DIAGNOSIS_TYPES,
+);
+
+export function isPreventiveDiagnosisType(diagnosisType: string): boolean {
+  return PREVENTIVE_DIAGNOSIS_TYPE_SET.has(diagnosisType);
+}
+
 export interface OpenHealthCaseInput {
   /** HealthCase status — `ACTIVE` = just reported (Sick); the others = under treatment. */
   status: string;
+  /** HealthDiagnosisType — preventive types are excluded from SICK/IN_TREATMENT derivation. */
+  diagnosisType: string;
 }
 
 /**
@@ -48,10 +72,13 @@ export interface OpenHealthCaseInput {
 export function deriveHealthStatus(
   openCases: OpenHealthCaseInput[],
 ): DerivedHealthStatus {
-  if (openCases.some((c) => c.status !== 'ACTIVE')) {
+  const sicknessCases = openCases.filter(
+    (c) => !isPreventiveDiagnosisType(c.diagnosisType),
+  );
+  if (sicknessCases.some((c) => c.status !== 'ACTIVE')) {
     return 'IN_TREATMENT';
   }
-  if (openCases.length > 0) {
+  if (sicknessCases.length > 0) {
     return 'SICK';
   }
   return 'HEALTHY';

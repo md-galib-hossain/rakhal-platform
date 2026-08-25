@@ -1,0 +1,119 @@
+/// One line of a `Sale` (RAKHAL-339, `FINANCE_V2_DESIGN.md` §4.3, §5.1). `type`
+/// discriminates which typed detail table below carries this line's real foreign
+/// key(s) — `SaleService` enforces that exactly the matching detail row exists per
+/// line (application-level, Prisma has no first-class "exactly one of N optional
+/// 1:1s" constraint, same limitation `PaymentAllocation`'s own doc comment notes).
+model SaleLine {
+  id     String       @id @default(cuid())
+  saleId String
+  type   SaleLineType
+
+  description String
+
+  quantity Decimal @db.Decimal(18, 2)
+
+  /// Unit catalog (RAKHAL-326). Nullable — a MANURE line, for instance, may carry
+  /// only a total with no meaningful per-unit quantity (RD-058).
+  unitId String?
+
+  unitPrice   Decimal @db.Decimal(18, 2)
+  totalAmount Decimal @db.Decimal(18, 2)
+
+  createdAt DateTime @default(now())
+
+  sale Sale  @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  unit Unit? @relation(fields: [unitId], references: [id])
+
+  milkDetail      MilkSaleLine?
+  animalDetail    AnimalSaleLine?
+  inventoryDetail InventorySaleLine?
+  manureDetail    ManureSaleLine?
+
+  @@index([saleId])
+  @@index([unitId])
+  @@index([type])
+}
+
+/// Milk sale-line detail (RAKHAL-339). **Deliberately minimal** — per the ticket's
+/// own scoping note, a milk sale isn't tied to one specific `MilkLogEntry`, it's tied
+/// to available tank volume at sale time. The real tank-decrement + concurrency-lock
+/// logic belongs to RAKHAL-342 (`SellMilk`) / RAKHAL-343 (availability read model),
+/// neither of which exists yet — this table exists so `SaleLineType.MILK` has a
+/// concrete row to point at; `RAKHAL-342` will extend it (additively) once it knows
+/// what it actually needs (e.g. a `milkTankId`/audit-log FK).
+model MilkSaleLine {
+  id         String @id @default(cuid())
+  saleLineId String @unique
+
+  createdAt DateTime @default(now())
+
+  saleLine SaleLine @relation(fields: [saleLineId], references: [id], onDelete: Cascade)
+}
+
+/// Animal sale-line detail (RAKHAL-339) — real FK to the sold `Cattle` row. The
+/// actual lifecycle flip (status → SOLD, lactation close) is `CattleDisposition`'s
+/// job (RAKHAL-344), not this ticket's.
+model AnimalSaleLine {
+  id         String @id @default(cuid())
+  saleLineId String @unique
+  cattleId   String
+
+  createdAt DateTime @default(now())
+
+  saleLine SaleLine @relation(fields: [saleLineId], references: [id], onDelete: Cascade)
+  cattle   Cattle   @relation("CattleToAnimalSaleLine", fields: [cattleId], references: [id])
+
+  @@index([cattleId])
+}
+
+/// Inventory sale-line detail (RAKHAL-339) — sells a Medicine/FeedItem/Equipment
+/// row. **FK shape judgment call**: V1 (`finance.prisma`) used a single
+/// `inventoryItemId String?` + `inventoryItemType InventoryItemType?` discriminator
+/// pair — a soft reference that can't be a real FK because it points at one of three
+/// unrelated tables depending on a sibling enum column. That is exactly the
+/// "polymorphic reference" shape `FINANCE_V2_DESIGN.md` §5.1 says this milestone
+/// must NOT repeat. Chose **three nullable real FK columns, exactly one non-null**
+/// (enforced in `SaleService`, not the DB — Postgres has no native "exactly one of N
+/// nullable FKs" constraint short of a `CHECK` this ticket didn't add) over a
+/// three-way split into `MedicineSaleLine`/`FeedItemSaleLine`/`EquipmentSaleLine`:
+/// the three item types share the exact same sale semantics (decrement stock, no
+/// type-specific fields), so three sibling tables would be pure duplication for no
+/// behavioural difference — a single table with three optional real FKs keeps the
+/// "real FK, not a string" property the design doc requires while avoiding that
+/// duplication. RAKHAL-346 (`SellInventoryItem`) is the first real consumer.
+model InventorySaleLine {
+  id         String @id @default(cuid())
+  saleLineId String @unique
+
+  medicineId  String?
+  feedItemId  String?
+  equipmentId String?
+
+  createdAt DateTime @default(now())
+
+  saleLine  SaleLine   @relation(fields: [saleLineId], references: [id], onDelete: Cascade)
+  medicine  Medicine?  @relation("MedicineToInventorySaleLine", fields: [medicineId], references: [id])
+  feedItem  FeedItem?  @relation("FeedItemToInventorySaleLine", fields: [feedItemId], references: [id])
+  equipment Equipment? @relation("EquipmentToInventorySaleLine", fields: [equipmentId], references: [id])
+
+  @@index([medicineId])
+  @@index([feedItemId])
+  @@index([equipmentId])
+}
+
+/// Manure sale-line detail (RAKHAL-339, RD-058 — manure production/stock tracking is
+/// explicitly out of scope for this milestone). Revenue-first: the required total
+/// already lives on the base `SaleLine` (`quantity`/`unitPrice`/`totalAmount`, all
+/// optional-in-spirit since manure is often sold by cartload/estimate rather than a
+/// tracked stock unit). This table is kept intentionally minimal/honest — a marker
+/// row + an optional note, nothing invented ahead of a real requirement.
+model ManureSaleLine {
+  id         String @id @default(cuid())
+  saleLineId String @unique
+
+  notes String?
+
+  createdAt DateTime @default(now())
+
+  saleLine SaleLine @relation(fields: [saleLineId], references: [id], onDelete: Cascade)
+}

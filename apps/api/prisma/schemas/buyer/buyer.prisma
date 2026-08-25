@@ -57,10 +57,23 @@ model MilkDispatch {
   paymentDueDate    DateTime?
   paidAmount        Float     @default(0)
 
+  /// V1 finance linkage — dead for any dispatch recorded after RAKHAL-342.
   /// Loose reference (no FK — cross-module, matches FinanceTransaction.buyerId
-  /// convention) to the FinanceTransaction created for this dispatch's revenue.
-  /// Null for dispatches recorded before this linkage existed.
+  /// convention) to the V1 `FinanceTransaction` this dispatch's revenue used
+  /// to post to. Kept only so historical dispatches (recorded before
+  /// RAKHAL-342) keep their old linkage; never written by
+  /// `BuyerService.recordDispatch` again.
   financeTransactionId String?
+
+  /// RAKHAL-342 (`SellMilk`, Finance V2): the `Sale` this dispatch's revenue
+  /// actually posts to (Sale + SaleLine(MILK) + Receivable + journal, all in
+  /// the same transaction as this dispatch row). Loose reference (no FK) —
+  /// same "cross-module, no FK" convention `financeTransactionId` already
+  /// used, since `Sales` is a separate top-level module this Buyer-owned
+  /// table must not depend on directly. Null only for a zero-volume dispatch
+  /// (no sale is posted for a physically-empty dispatch, same as the old
+  /// `sellFromTank` no-op).
+  saleId String?
 
   notes     String?
   createdBy String

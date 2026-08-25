@@ -1,0 +1,160 @@
+/// A commercial purchase document (RAKHAL-348, Purchasing —
+/// `FINANCE_V2_DESIGN.md` §5.1). Structurally mirrors `Sale`
+/// (`prisma/schemas/sales/sale.prisma`, RAKHAL-339) but on the other side of
+/// the ledger: a `Purchase` always **increases an inventory asset** — buying
+/// Medicine/FeedItem/Equipment stock — never a generic expense. See `Expense`
+/// (this same file's sibling model) for the deliberately separate concept: a
+/// bill that is consumed immediately (electricity, salary) and never becomes
+/// stock (`FINANCE_V2_DESIGN.md` §5.1's own worked example).
+///
+/// **This ticket's scope is the document model + persistence + numbering +
+/// atomic stock increment + journal posting + `Payable`** — mirrors
+/// `SaleService.createSale` plus the receivable/journal side effects the
+/// not-yet-built sale-type use cases (RAKHAL-342/345/346/347) will add for
+/// `Sale`. `PurchaseService.createPurchase` does all of this in one
+/// `$transaction`, since (unlike `Sale`, which was deliberately split into a
+/// document-only ticket plus four follow-on use-case tickets) RAKHAL-348's own
+/// AC text requires a single worked e2e example — "৳30,000 feed purchase,
+/// ৳20,000 paid from Bank → Payable 10,000, inventory +quantity" — that only
+/// makes sense as one atomic operation.
+///
+/// **`supplierId` — same judgment call as `Sale.customerId`**
+/// (`sale.prisma`): no generic Supplier entity exists in this codebase yet,
+/// so this stays a plain nullable scalar, not a `@relation` — a future ticket
+/// that designs a real Supplier entity would replace this column with a real
+/// FK, additively.
+model Purchase {
+  id     String @id @default(cuid())
+  farmId String
+
+  /// Human-readable document number, e.g. `PUR-000123` — allocated via the
+  /// existing `FarmCounter` model, same gapless/collision-free
+  /// upsert-inside-transaction pattern as `Sale.saleNumber`
+  /// (`sales/infrastructure/sale-number.allocator.ts`), never `count()+1`
+  /// (the V1 race this milestone exists to fix).
+  purchaseNumber String
+
+  /// See this model's own doc comment above for the judgment call on why
+  /// this is a plain nullable scalar, not a `@relation`.
+  supplierId String?
+
+  purchaseDate DateTime
+
+  /// `SUM(PurchaseLine.totalAmount)`, computed by `PurchaseService` at create
+  /// time — never trusted from the client, same convention as
+  /// `Sale.totalAmount`.
+  totalAmount Decimal @db.Decimal(18, 2)
+
+  notes String?
+
+  createdById String
+  createdAt   DateTime @default(now())
+
+  farm  Farm           @relation("FarmToPurchase", fields: [farmId], references: [id])
+  lines PurchaseLine[]
+
+  /// The `Payable` raised for this purchase, if any — a purchase paid in
+  /// full at creation has none. One-to-one: `Payable.purchaseId` is
+  /// `@unique`.
+  payable Payable? @relation("PurchaseToPayable")
+
+  @@unique([farmId, purchaseNumber])
+  @@index([farmId])
+  @@index([farmId, purchaseDate])
+  @@index([farmId, supplierId])
+}
+
+/// One line of a `Purchase` (RAKHAL-348). Exactly one of `medicineId` /
+/// `feedItemId` / `equipmentId` must be set — mirrors `InventorySaleLine`'s
+/// own judgment call (`sales/sale-line.prisma`) for the identical reason: the
+/// three item types share the exact same purchase semantics (increment
+/// stock, no type-specific fields), so three sibling tables would be pure
+/// duplication for no behavioural difference. Enforced in `PurchaseService`,
+/// not the DB (Postgres has no native "exactly one of N nullable FKs"
+/// constraint short of a `CHECK` this ticket didn't add).
+model PurchaseLine {
+  id         String @id @default(cuid())
+  purchaseId String
+
+  medicineId  String?
+  feedItemId  String?
+  equipmentId String?
+
+  quantity Decimal @db.Decimal(18, 2)
+  unitCost Decimal @db.Decimal(18, 2)
+  /// `quantity * unitCost`, computed by `PurchaseService` at create time.
+  totalAmount Decimal @db.Decimal(18, 2)
+
+  createdAt DateTime @default(now())
+
+  purchase  Purchase   @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  medicine  Medicine?  @relation("MedicineToPurchaseLine", fields: [medicineId], references: [id])
+  feedItem  FeedItem?  @relation("FeedItemToPurchaseLine", fields: [feedItemId], references: [id])
+  equipment Equipment? @relation("EquipmentToPurchaseLine", fields: [equipmentId], references: [id])
+
+  @@index([purchaseId])
+  @@index([medicineId])
+  @@index([feedItemId])
+  @@index([equipmentId])
+}
+
+/// A farm operating expense — consumed immediately, never becomes inventory
+/// (RAKHAL-348, Purchasing — `FINANCE_V2_DESIGN.md` §5.1's own worked
+/// example: "an electricity bill is an expense"). See `ExpenseCategory`
+/// (`purchase.enums.prisma`) for the closed set of categories this ticket
+/// supports, aligned to RAKHAL-333's already-seeded 5xxx expense ledger
+/// accounts.
+///
+/// **`financialAccountId` is nullable** — an expense may be paid immediately
+/// (set) or become a `Payable` to settle later (null at creation, a real
+/// `FinancialAccount` only chosen once `PaySupplier`/an equivalent settlement
+/// flow pays it — out of this ticket's scope, RAKHAL-349-adjacent). Deliberately
+/// **not** a `@relation` to `FinancialAccount` for the same reason
+/// `Sale.customerId` stays a plain scalar rather than forcing a premature
+/// coupling — `ExpenseService.recordExpense` still validates the account is
+/// real/active via `FinancialAccountService.assertAccountActive` before using
+/// it, same as `PaymentService.recordWithClient` does for `FinancePayment`.
+model Expense {
+  id     String @id @default(cuid())
+  farmId String
+
+  category    ExpenseCategory
+  description String
+
+  amount Decimal @db.Decimal(18, 2)
+
+  expenseDate DateTime
+
+  /// See this model's own doc comment above for the judgment call on why
+  /// this stays a plain nullable scalar, not a `@relation`.
+  financialAccountId String?
+
+  /// RAKHAL-354: which animal this expense is attributable to, if any — a
+  /// plain nullable scalar, same "no hard relation" precedent as
+  /// `financialAccountId` above and `Sale.customerId`
+  /// (`prisma/schemas/sales/sale.prisma`). Added specifically so
+  /// `ReproductionService`/`ReproductionEditService`'s breeding-cost posting
+  /// (RAKHAL-330, migrated off V1 `FinanceTransaction.cattleId` by this
+  /// ticket) has a real per-animal join for
+  /// `cattle-finance-aggregation.ts#computeCattleFinance` to read instead of
+  /// regexing a `subType` string. Not populated by `PurchaseService`/general
+  /// `ExpenseService.recordExpense` callers — `undefined` there, same as
+  /// every other optional `RecordExpenseDto` field.
+  cattleId String?
+
+  notes String?
+
+  createdById String
+  createdAt   DateTime @default(now())
+
+  farm Farm @relation("FarmToExpense", fields: [farmId], references: [id])
+
+  /// The `Payable` raised for this expense, if any — an expense paid in full
+  /// at creation has none. One-to-one: `Payable.expenseId` is `@unique`.
+  payable Payable? @relation("ExpenseToPayable")
+
+  @@index([farmId])
+  @@index([farmId, expenseDate])
+  @@index([farmId, category])
+  @@index([farmId, cattleId])
+}

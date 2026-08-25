@@ -143,3 +143,88 @@ describe('Health — structured HealthCondition (RAKHAL-275)', () => {
     expect(patchRes.status).toBe(403);
   });
 });
+
+/**
+ * Bug fix (2026-08-22, user report): applying a preventive/vaccination
+ * HealthCase to a healthy cow wrongly flipped her derived healthStatus to
+ * SICK and fired a sickness AQR penalty/task/notification. Preventive
+ * diagnosisTypes (VACCINATION/PREVENTIVE/DEWORMING/ROUTINE_CHECKUP/
+ * BREEDING_RELATED) must not read as sickness; real DISEASE/INJURY cases
+ * must still work exactly as before.
+ */
+describe('Health — preventive/vaccine care does not mark a healthy cow SICK', () => {
+  let ctx: TestContext;
+  let prisma: PrismaService;
+  let owner: AuthedUser;
+  let cattleId: string;
+
+  const auth = (u: AuthedUser): [string, string] => [
+    'Authorization',
+    `Bearer ${u.token}`,
+  ];
+  const api = (p: string): string => `${ctx.prefix}${p}`;
+  const server = () => ctx.app.getHttpServer();
+
+  beforeAll(async () => {
+    ctx = await createTestApp();
+    prisma = ctx.app.get(PrismaService);
+    owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
+    const ownerUser = await prisma.user.findFirstOrThrow({
+      where: { email: 'owner@demo.rakhal.test' },
+      select: { id: true },
+    });
+
+    const cow = await prisma.cattle.create({
+      data: {
+        farmId: owner.farmId,
+        tagNumber: `E2E-PREVENTIVE-${Date.now()}`,
+        gender: 'FEMALE',
+        purpose: 'MILK',
+        createdBy: ownerUser.id,
+      },
+    });
+    cattleId = cow.id;
+  }, 30_000);
+
+  afterAll(async () => {
+    await ctx.app.close();
+  });
+
+  it('a VACCINATION case leaves the cow HEALTHY', async () => {
+    const createRes = await request(server())
+      .post(api('/health/cases'))
+      .set(...auth(owner))
+      .send({
+        cattleId,
+        diagnosis: 'Annual FMD vaccine',
+        diagnosisType: 'VACCINATION',
+        priority: 'LOW',
+      });
+    expect(createRes.status).toBe(201);
+
+    const detailRes = await request(server())
+      .get(api(`/cattle/${cattleId}`))
+      .set(...auth(owner));
+    expect(detailRes.status).toBe(200);
+    expect(detailRes.body.data.healthStatus).toBe('HEALTHY');
+  });
+
+  it('a real DISEASE case still flips the cow to SICK', async () => {
+    const createRes = await request(server())
+      .post(api('/health/cases'))
+      .set(...auth(owner))
+      .send({
+        cattleId,
+        diagnosis: 'Actual sickness after the vaccine case above',
+        diagnosisType: 'DISEASE',
+        priority: 'HIGH',
+      });
+    expect(createRes.status).toBe(201);
+
+    const detailRes = await request(server())
+      .get(api(`/cattle/${cattleId}`))
+      .set(...auth(owner));
+    expect(detailRes.status).toBe(200);
+    expect(detailRes.body.data.healthStatus).toBe('SICK');
+  });
+});

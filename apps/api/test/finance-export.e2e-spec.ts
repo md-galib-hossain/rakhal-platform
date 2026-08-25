@@ -1,5 +1,7 @@
 import request from 'supertest';
 import type { App } from 'supertest/types';
+import { FinancialAccountType } from '@prisma/client';
+import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import {
   AuthedUser,
   TestContext,
@@ -9,31 +11,68 @@ import {
 } from './utils/e2e';
 
 /**
- * Finance transactions export — moved from the synchronous
- * `GET /finance/transactions/export` (RD-010c) onto the Reports engine's
- * async BullMQ job pipeline (`rpt_finance_export`) so it no longer blocks
- * the request thread. Same filters (category/status/date-range/search),
- * same intentional inclusion of voided/reversal rows.
+ * Finance transactions export, async BullMQ job pipeline (`rpt_finance_export`).
+ *
+ * RAKHAL-354: rewritten off V1's `POST /finance/transactions` (deleted along
+ * with `FinanceTransaction`) onto Finance V2's `POST /finance/income`
+ * (RAKHAL-350, `OtherIncome` — a real journal posting), matching
+ * `report-generators.service.ts#financeExport`'s own rewrite onto
+ * `JournalTransaction`. `category`/`entityName`/`Reference` no longer exist
+ * as report columns — the filter is now `sourceType` and the search target
+ * is `description` (see that method's own doc comment).
  */
 describe('Reports — Finance Transactions Export (async)', () => {
   let ctx: TestContext;
+  let prisma: PrismaService;
   let owner: AuthedUser;
   let worker: AuthedUser;
 
+  const api = (p: string): string => `${ctx.prefix}${p}`;
+  const server = () => ctx.app.getHttpServer() as App;
+
+  const createdAccountIds: string[] = [];
+  const createdLedgerAccountIds: string[] = [];
+  const createdOtherIncomeIds: string[] = [];
+
+  const uniqueName = (prefix: string) =>
+    `${prefix} ${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
   beforeAll(async () => {
     ctx = await createTestApp();
+    prisma = ctx.app.get(PrismaService);
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
     worker = await loginAs(ctx, 'worker@demo.rakhal.test', 'WorkerPass123');
   });
 
   afterAll(async () => {
+    await prisma.journalEntry
+      .deleteMany({
+        where: { ledgerAccountId: { in: createdLedgerAccountIds } },
+      })
+      .catch(() => undefined);
+    await prisma.journalTransaction
+      .deleteMany({
+        where: {
+          sourceId: { in: [...createdOtherIncomeIds, ...createdAccountIds] },
+        },
+      })
+      .catch(() => undefined);
+    await prisma.otherIncome
+      .deleteMany({ where: { id: { in: createdOtherIncomeIds } } })
+      .catch(() => undefined);
+    await prisma.financialAccount
+      .deleteMany({ where: { id: { in: createdAccountIds } } })
+      .catch(() => undefined);
+    await prisma.ledgerAccount
+      .deleteMany({ where: { id: { in: createdLedgerAccountIds } } })
+      .catch(() => undefined);
     await ctx.app.close();
   });
 
   async function pollUntilCompleted(jobId: string): Promise<any> {
     const deadline = Date.now() + 15_000;
     while (Date.now() < deadline) {
-      const res = await request(ctx.app.getHttpServer() as App)
+      const res = await request(server())
         .get(`${ctx.prefix}/reports/jobs/${jobId}`)
         .set(...bearer(owner));
       const status = (res.body as { data: { status: string } }).data.status;
@@ -45,21 +84,48 @@ describe('Reports — Finance Transactions Export (async)', () => {
     throw new Error(`Report job ${jobId} did not settle within 15s`);
   }
 
-  it('returns a CSV file containing a just-recorded transaction', async () => {
-    const marker = `E2E-EXPORT-${Date.now()}`;
-
-    await request(ctx.app.getHttpServer() as App)
-      .post(`${ctx.prefix}/finance/transactions`)
+  async function recordOtherIncome(marker: string, amount: number) {
+    const accountRes = await request(server())
+      .post(api('/finance/accounts'))
       .set(...bearer(owner))
       .send({
-        type: 'OPERATING_EXPENSE',
-        category: 'OVERHEAD',
-        entityName: marker,
-        amount: 1234.5,
+        name: uniqueName('FinExport-Cash'),
+        type: FinancialAccountType.CASH,
       })
       .expect(201);
+    const account = (
+      accountRes.body as { data: { id: string; ledgerAccountId: string } }
+    ).data;
+    createdAccountIds.push(account.id);
+    createdLedgerAccountIds.push(account.ledgerAccountId);
 
-    const generateRes = await request(ctx.app.getHttpServer() as App)
+    const categoriesRes = await request(server())
+      .get(api('/finance/income/categories'))
+      .set(...bearer(owner))
+      .expect(200);
+    const category = (categoriesRes.body as { data: Array<{ id: string }> })
+      .data[0];
+
+    const incomeRes = await request(server())
+      .post(api('/finance/income'))
+      .set(...bearer(owner))
+      .send({
+        categoryId: category.id,
+        description: marker,
+        amount,
+        date: new Date().toISOString(),
+        financialAccountId: account.id,
+      })
+      .expect(201);
+    const otherIncome = (incomeRes.body as { data: { id: string } }).data;
+    createdOtherIncomeIds.push(otherIncome.id);
+  }
+
+  it('returns a CSV file containing a just-posted V2 journal transaction', async () => {
+    const marker = `E2E-EXPORT-${Date.now()}`;
+    await recordOtherIncome(marker, 1234.5);
+
+    const generateRes = await request(server())
       .post(`${ctx.prefix}/reports/generate`)
       .set(...bearer(owner))
       .send({
@@ -76,70 +142,62 @@ describe('Reports — Finance Transactions Export (async)', () => {
       'completed',
     );
 
-    const download = await request(ctx.app.getHttpServer() as App)
+    const download = await request(server())
       .get(`${ctx.prefix}/reports/jobs/${jobId}/download`)
       .set(...bearer(owner));
     expect(download.status).toBe(200);
     expect(download.headers['content-type']).toContain('text/csv');
     expect(download.text).toContain('Finance Transactions Export');
-    expect(download.text).toContain('Date,Reference,Type,Category');
+    expect(download.text).toContain(
+      'Date,Source Type,Source Reference,Description,Amount,Status',
+    );
     expect(download.text).toContain(marker);
     expect(download.text).toContain('1234.5');
   }, 20_000);
 
-  it('respects the category filter, excluding non-matching rows', async () => {
+  it('respects the sourceType (category) filter, excluding non-matching rows', async () => {
     const marker = `E2E-EXPORT-FILTER-${Date.now()}`;
+    await recordOtherIncome(marker, 500);
 
-    await request(ctx.app.getHttpServer() as App)
-      .post(`${ctx.prefix}/finance/transactions`)
-      .set(...bearer(owner))
-      .send({
-        type: 'REVENUE',
-        category: 'REVENUE',
-        entityName: marker,
-        amount: 500,
-      })
-      .expect(201);
-
-    const wrongGenerate = await request(ctx.app.getHttpServer() as App)
+    const wrongGenerate = await request(server())
       .post(`${ctx.prefix}/reports/generate`)
       .set(...bearer(owner))
       .send({
         reportId: 'rpt_finance_export',
         format: 'csv',
-        parameters: { search: marker, category: 'OVERHEAD' },
+        parameters: { search: marker, category: 'SALE' },
       });
     const wrongJobId = (wrongGenerate.body as { data: { job_id: string } }).data
       .job_id;
     const wrongSettled = await pollUntilCompleted(wrongJobId);
     const wrongUrl = (wrongSettled as { data: { download_url: string } }).data
       .download_url;
-    const wrongDownload = await request(ctx.app.getHttpServer() as App)
+    const wrongDownload = await request(server())
       .get(wrongUrl)
       .set(...bearer(owner));
     expect(wrongDownload.text).not.toContain(marker);
 
-    const rightGenerate = await request(ctx.app.getHttpServer() as App)
+    const rightGenerate = await request(server())
       .post(`${ctx.prefix}/reports/generate`)
       .set(...bearer(owner))
       .send({
         reportId: 'rpt_finance_export',
         format: 'csv',
-        parameters: { search: marker, category: 'REVENUE' },
+        parameters: { search: marker, category: 'OTHER_INCOME' },
       });
     const rightJobId = (rightGenerate.body as { data: { job_id: string } }).data
       .job_id;
     const rightSettled = await pollUntilCompleted(rightJobId);
     const rightUrl = (rightSettled as { data: { download_url: string } }).data
       .download_url;
-    const rightDownload = await request(ctx.app.getHttpServer() as App)
+    const rightDownload = await request(server())
       .get(rightUrl)
       .set(...bearer(owner));
     expect(rightDownload.text).toContain(marker);
   }, 25_000);
 
   it('worker is forbidden from generating the export (reports.create is manager+)', async () => {
-    const res = await request(ctx.app.getHttpServer() as App)
+    const res = await request(server())
       .post(`${ctx.prefix}/reports/generate`)
       .set(...bearer(worker))
       .send({ reportId: 'rpt_finance_export', format: 'csv' });

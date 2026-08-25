@@ -58,7 +58,9 @@ function resolveToken(s: string, ctx: TokenContext): unknown {
   m = s.match(/^@dayStart:(-?\d+(?:\.\d+)?)$/);
   if (m) {
     const d = new Date(ctx.now.getTime() - parseFloat(m[1]) * 86_400_000);
-    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    return new Date(
+      Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
+    );
   }
   m = s.match(/^@monthsAgo:(-?\d+(?:\.\d+)?)$/);
   if (m) {
@@ -204,9 +206,7 @@ export async function seedDemoDataset(
     where: { version: '1.0' },
     select: { id: true, type: true },
   });
-  const legalDocIds = Object.fromEntries(
-    legalDocs.map((d) => [d.type, d.id]),
-  );
+  const legalDocIds = Object.fromEntries(legalDocs.map((d) => [d.type, d.id]));
 
   const ctx: TokenContext = {
     now: new Date(),
@@ -277,10 +277,7 @@ export async function seedDemoDataset(
     prisma.calfColostrumRecord,
     loadJson('calf-colostrum-records.json', ctx),
   );
-  await upAll(
-    prisma.calfMilkFeeding,
-    loadJson('calf-milk-feedings.json', ctx),
-  );
+  await upAll(prisma.calfMilkFeeding, loadJson('calf-milk-feedings.json', ctx));
   await upAll(
     prisma.calfWeightRecord,
     loadJson('calf-weight-records.json', ctx),
@@ -302,10 +299,7 @@ export async function seedDemoDataset(
   await upAll(prisma.healthTask, loadJson('health-tasks.json', ctx));
   await upAll(prisma.treatmentLog, loadJson('treatment-logs.json', ctx));
   await upAll(prisma.healthUpdate, loadJson('health-updates.json', ctx));
-  await upAll(
-    prisma.mortalityRecord,
-    loadJson('mortality-records.json', ctx),
-  );
+  await upAll(prisma.mortalityRecord, loadJson('mortality-records.json', ctx));
   await upAll(
     prisma.safetyWithdrawal,
     loadJson('safety-withdrawals.json', ctx),
@@ -326,24 +320,40 @@ export async function seedDemoDataset(
   await upAll(prisma.equipment, loadJson('equipment.json', ctx));
 
   // ---- Phase E — milk & buyers -----------------------------------------------
-  await upAll(prisma.milkLogEntry, loadJson('milk-log-entries.json', ctx));
+  // Delete-then-recreate, not `upAll`/`upAllByKey` — every row's `logDate` is
+  // `@dayStart:N`, relative to `now` at seed time, so both this fixture's
+  // fixed `id`s AND its `(cattleId, logDate, session)` natural keys drift onto
+  // different calendar dates on every later run. A stale row from an earlier
+  // run's date can collide with either key depending on which one a later run
+  // happens to hit first (id-based `upAll` hit the natural-key collision;
+  // switching to natural-key `upAllByKey` just hit the mirror-image id
+  // collision on the *other* stale row on some other date). Wiping every log
+  // entry for exactly this fixture's cattle first — not just its own fixed
+  // ids — clears both the id-collision and the natural-key-collision culprits
+  // in one pass, since this dataset is the sole owner of these `sd_cattle_*`
+  // demo cows' milk history.
+  const milkLogRows = loadJson('milk-log-entries.json', ctx);
+  const milkLogCattleIds = [
+    ...new Set(milkLogRows.map((r) => r.cattleId as string)),
+  ];
+  await prisma.milkLogEntry.deleteMany({
+    where: { farmId: ctx.farmId, cattleId: { in: milkLogCattleIds } },
+  });
+  await prisma.milkLogEntry.createMany({ data: milkLogRows as never[] });
   await upAll(prisma.milkBuyer, loadJson('milk-buyers.json', ctx));
   await upAll(prisma.milkDispatch, loadJson('milk-dispatches.json', ctx));
 
   // ---- Phase F — finance -------------------------------------------------
-  await upAll(
-    prisma.financeTransaction,
-    loadJson('finance-transactions.json', ctx),
-  );
-  await upAll(
-    prisma.financeReceivable,
-    loadJson('finance-receivables.json', ctx),
-  );
+  // RAKHAL-354: `finance-transactions.json`/`finance-receivables.json`/
+  // `wallet-transactions.json` deleted along with `FinanceTransaction`/
+  // `FinanceReceivable`/`WalletTransaction` (V1, dropped this ticket) — no
+  // row-for-row V2 fixture replaces them; `prisma/seed.ts`'s own
+  // `seedDemoFinance`/`seedDemoDashboardHistory` post a smaller hand-written
+  // set of real V2 `FinancialAccount`/`JournalTransaction`/`Sale`/
+  // `Receivable` rows instead (not JSON-fixture-driven, see those functions'
+  // own doc comments). `FinanceLoan`/`FixedAsset` survive unchanged —
+  // `FINANCE_V2_DESIGN.md` §5.2, no V2 replacement exists for either.
   await upAll(prisma.financeLoan, loadJson('finance-loans.json', ctx));
-  await upAll(
-    prisma.walletTransaction,
-    loadJson('wallet-transactions.json', ctx),
-  );
   await upAll(prisma.fixedAsset, loadJson('fixed-assets.json', ctx));
 
   // ---- Phase G — settings/tasks -------------------------------------------

@@ -13,9 +13,8 @@ import {
   CattleSourceType,
   CattleStatus,
   DryPeriod,
+  ExpenseCategory,
   ExpectedCalvingDateSource,
-  FinanceCategory,
-  FinanceTxnType,
   HeatDetectionMethod,
   HeatResolutionReason,
   LactationEndReason,
@@ -40,7 +39,8 @@ import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { SemenService } from 'src/modules/inventory/application/services/semen.service';
-import { FinanceService } from 'src/modules/finance/application/services/finance.service';
+import { ExpenseService } from 'src/modules/purchasing/application/expense.service';
+import { resolveFinancialAccountId } from 'src/common/finance/resolve-account';
 import { CalfService } from 'src/modules/calf/application/services/calf.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { AnimalHoldService } from 'src/modules/cattle/application/services/animal-hold.service';
@@ -74,6 +74,7 @@ import { ResolveHeatEventDto } from '../../presentation/dto/resolve-heat-event.d
 import { ReturnToHeatDto } from '../../presentation/dto/return-to-heat.dto';
 import { ReproductionListQueryDto } from '../../presentation/dto/common.dto';
 import { ListPregnanciesQueryDto } from '../../presentation/dto/list-pregnancies-query.dto';
+import { ListReproductionCowsQueryDto } from '../../presentation/dto/list-reproduction-cows-query.dto';
 
 type CattleForAccess = {
   id: string;
@@ -116,7 +117,7 @@ export class ReproductionService {
     private readonly aqrService: AqrService,
     private readonly taskService: TaskService,
     private readonly semenService: SemenService,
-    private readonly financeService: FinanceService,
+    private readonly expenseService: ExpenseService,
     private readonly calfService: CalfService,
     private readonly farmSettings: FarmSettingsService,
     private readonly animalHoldService: AnimalHoldService,
@@ -537,25 +538,30 @@ export class ReproductionService {
     // RAKHAL-330: post the breeding's cost to Finance after the event commits
     // (same after-commit convention Task Hub scheduling below already uses) —
     // needs the real breedingEvent.id/breedingNumber for the transaction note.
+    // RAKHAL-354: migrated off V1 `FinanceService.recordTransaction` onto
+    // Finance V2's `ExpenseService.recordExpense` (`category: BREEDING`,
+    // ledger account `5300`) — the real per-animal expense join
+    // `cattle-finance-aggregation.ts#computeCattleFinance` now reads
+    // directly via `Expense.cattleId`, no `subType` regex. `paymentMethod`
+    // resolves to a real `FinancialAccount` via `resolveFinancialAccountId`
+    // (documented stopgap — see that helper's own doc comment).
     if (resolvedCost > 0) {
-      const posted = await this.financeService.recordTransaction(
+      const financialAccountId = await resolveFinancialAccountId(
+        this.prisma,
         farmId,
-        userId,
-        {
-          type: FinanceTxnType.OPERATING_EXPENSE,
-          category: FinanceCategory.OVERHEAD,
-          subType: `breeding_${dto.breedingMethod.toLowerCase()}`,
-          cattleId: dto.cattleId,
-          entityName: costEntityName ?? 'Breeding service',
-          amount: resolvedCost,
-          paymentMethod: dto.paymentMethod,
-          notes: `Breeding #${breedingEvent.breedingNumber} (${dto.breedingMethod})`,
-          updateInventory: false,
-        },
+        dto.paymentMethod!,
       );
+      const posted = await this.expenseService.recordExpense(farmId, userId, {
+        category: ExpenseCategory.BREEDING,
+        description: `${costEntityName ?? 'Breeding service'} — Breeding #${breedingEvent.breedingNumber} (${dto.breedingMethod})`,
+        amount: resolvedCost,
+        expenseDate: breedingDate.toISOString(),
+        financialAccountId,
+        cattleId: dto.cattleId,
+      });
       breedingEvent = await this.prisma.breedingEvent.update({
         where: { id: breedingEvent.id },
-        data: { financeTransactionId: posted.transactionId },
+        data: { financeTransactionId: posted.id },
         include: {
           bull: { select: { id: true, tagNumber: true, name: true } },
         },
@@ -2059,6 +2065,81 @@ export class ReproductionService {
     });
 
     return { kpis, action_required, calving_forecast_30_days, open_cows };
+  }
+
+  /**
+   * RAKHAL-363: every cow currently in an active reproductive cycle (OPEN /
+   * BRED_AWAITING_CONFIRMATION / PREGNANT), cursor-paginated — replaces the old
+   * dashboard-embedded, uncapped, OPEN-only `open_cows[]` list above. Unlike that
+   * list's `days_open` (a pre-existing bug aliasing DIM), this computes a real
+   * running days-open counter from `lastCalvingDate` (same shape as
+   * `daysOpenForAlerts` in `summary()`), not the historical `daysOpen()` KPI
+   * (which is only meaningful for a *completed* open period).
+   */
+  async listReproductionCows(
+    farmId: string,
+    query: ListReproductionCowsQueryDto,
+  ) {
+    const statuses = query.status
+      ? [query.status]
+      : [
+          ReproductionState.OPEN,
+          ReproductionState.BRED_AWAITING_CONFIRMATION,
+          ReproductionState.PREGNANT,
+        ];
+
+    const rows = await this.prisma.cattle.findMany({
+      where: {
+        farmId,
+        isActive: true,
+        gender: CattleGender.FEMALE,
+        reproductionProfile: { is: { reproductiveStatus: { in: statuses } } },
+      },
+      orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
+      ...getCursorArgs(query),
+      include: {
+        reproductionProfile: true,
+        breedingEvents: {
+          orderBy: { breedingDate: 'desc' },
+          take: 1,
+          include: {
+            diagnoses: { orderBy: { diagnosisDate: 'desc' }, take: 1 },
+          },
+        },
+        pregnancies: {
+          where: { status: PregnancyStatus.ACTIVE },
+          take: 1,
+        },
+      },
+    });
+
+    const page = toCursorPage(rows, query);
+    const now = new Date();
+
+    return {
+      ...page,
+      items: page.items.map((c) => {
+        const profile = c.reproductionProfile;
+        const lastBreeding = c.breedingEvents[0] ?? null;
+        const activePregnancy = c.pregnancies[0] ?? null;
+
+        return {
+          cattle_id: c.id,
+          name: c.name,
+          tag: c.tagNumber,
+          status: profile?.reproductiveStatus ?? null,
+          last_ai_date: profile?.lastBreedingDate ?? null,
+          pregnancy_checked: Boolean(lastBreeding?.diagnoses.length),
+          days_open: profile?.lastCalvingDate
+            ? this.daysBetween(profile.lastCalvingDate, now)
+            : null,
+          days_pregnant: activePregnancy
+            ? this.daysBetween(activePregnancy.conceptionDate, now)
+            : null,
+          expected_calving_date: activePregnancy?.expectedCalvingDate ?? null,
+        };
+      }),
+    };
   }
 
   /**

@@ -23,6 +23,7 @@ import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/
 import { PermissionGuard } from 'src/modules/permission/presentation/guards/permission.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
+import { MilkAvailabilityService } from '../../application/services/milk-availability.service';
 import { MilkExportService } from '../../application/services/milk-export.service';
 import { MilkImportService } from '../../application/services/milk-import.service';
 import { MilkQualityService } from '../../application/services/milk-quality.service';
@@ -36,6 +37,7 @@ import {
 } from '../dto/list-milk-quality-test-query.dto';
 import {
   MilkAnomalyQueryDto,
+  MilkAvailabilityQueryDto,
   MilkLogQueryDto,
   MilkOverviewQueryDto,
 } from '../dto/milk-query.dto';
@@ -64,7 +66,20 @@ export class MilkController {
     private readonly importService: MilkImportService,
     private readonly exportService: MilkExportService,
     private readonly milkQualityService: MilkQualityService,
+    private readonly milkAvailabilityService: MilkAvailabilityService,
   ) {}
+
+  /** RAKHAL-343 — available-to-sell volume per SELLABLE tank. Unlocked
+   * snapshot for display; `SellMilkUseCase` takes its own row lock via
+   * `MilkAvailabilityService.lockAndValidate` at actual sale time. */
+  @Get('availability')
+  @RequirePermission('milk.read')
+  availability(
+    @CurrentFarmId() farmId: string,
+    @Query() query: MilkAvailabilityQueryDto,
+  ) {
+    return this.milkAvailabilityService.getAvailability(farmId, query.tankId);
+  }
 
   @Get('overview')
   @RequirePermission('milk.read')
@@ -72,7 +87,7 @@ export class MilkController {
     @CurrentFarmId() farmId: string,
     @Query() query: MilkOverviewQueryDto,
   ) {
-    return this.milkService.overview(farmId, query.date);
+    return this.milkService.overview(farmId, query.date, query.range);
   }
 
   @Get('log')

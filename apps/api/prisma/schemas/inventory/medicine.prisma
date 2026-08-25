@@ -42,6 +42,10 @@ model Medicine {
   creator User @relation("MedicineCreator", fields: [createdBy], references: [id])
 
   stockMovements MedicineStockMovement[]
+  inventorySaleLines InventorySaleLine[] @relation("MedicineToInventorySaleLine")
+  /// Back-relation for `PurchaseLine.medicineId` (RAKHAL-348, `purchasing/**`) —
+  /// every purchase line that restocked this medicine.
+  purchaseLines PurchaseLine[] @relation("MedicineToPurchaseLine")
 
   @@index([farmId])
   @@index([category])
@@ -64,6 +68,13 @@ model MedicineStockMovement {
   balanceAfter Float
   notes        String?
 
+  /// Names the `SaleLine` that caused this movement, set only when
+  /// `reason == SALE` (RAKHAL-346, `SellInventoryUseCase`). Plain scalar, not
+  /// a `@relation` — same judgment call `CattleDisposition.saleId`/
+  /// `Sale.customerId` already document: `sales/**` is a different ticket's
+  /// lane, this column only needs to persist the id.
+  saleLineId String?
+
   createdBy String
   createdAt DateTime @default(now())
 
@@ -72,4 +83,5 @@ model MedicineStockMovement {
   @@index([medicineId])
   @@index([farmId])
   @@index([createdAt])
+  @@index([saleLineId])
 }

@@ -70,6 +70,7 @@ describe('Feed Formulator — distribution decrements a named feed stock lot (e2
     const finalized = await request(server())
       .post(api(`/feed/concentrations/${conc.body.data.id}/finalize`))
       .set(...auth(owner))
+      .send({ paymentMethod: 'CASH' })
       .expect(201);
     return {
       concentrationId: conc.body.data.id as string,

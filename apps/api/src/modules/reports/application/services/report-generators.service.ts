@@ -1,19 +1,18 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   CattleStatus,
-  FinanceCategory,
-  FinanceTxnStatus,
-  FinanceTxnType,
   HealthActionType,
   HealthCaseStatus,
   HealthTaskStatus,
+  JournalTransactionStatus,
   LactationStatus,
+  LedgerAccountCategory,
   MilkTankType,
   PregnancyStatus,
   ReproductionState,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
-import { NON_VOID_TXN } from 'src/common/finance/txn-filters';
+import { ledgerCategoryNet } from 'src/common/finance/txn-filters';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import {
   averageDailyYield,
@@ -764,7 +763,7 @@ export class ReportGeneratorsService {
         this.prisma.cattle.count({
           where: { farmId, isActive: true },
         }),
-        this.herdPurchaseValue(farmId, yearEnd),
+        this.herdPurchaseValue(),
       ]);
 
     return {
@@ -787,34 +786,46 @@ export class ReportGeneratorsService {
   }
 
   /**
-   * Herd value as of a point in time (RD-013d/RD-010e): sum of non-voided
-   * ANIMAL inventory-purchase transactions up to that date — the same
-   * purchase-cost approximation `FinanceService.assets()` already uses for
-   * its `cattle_herd` allocation, not a true per-head market revaluation
-   * (still OPEN, RD-010e — no per-head market-price model exists yet).
+   * Herd value as of a point in time (RD-013d/RD-010e): sum of ANIMAL
+   * acquisition cost up to that date — a purchase-cost approximation, not a
+   * true per-head market revaluation (still OPEN, RD-010e — no per-head
+   * market-price model exists yet).
+   *
+   * **RAKHAL-354 regression, documented not silent**: this used to read V1
+   * `FinanceTransaction` (`type: INVENTORY_PURCHASE, category: INVENTORY,
+   * subType: 'animal'`), the same read `FinanceService.assets()` used for its
+   * `cattle_herd` allocation — RAKHAL-351 already flagged there is no V2
+   * "animal acquisition cost" concept to re-point this at (`PurchaseLine`
+   * only carries `medicineId`/`feedItemId`/`equipmentId`; an animal enters
+   * the herd via the Cattle module, not Purchasing; `AnimalSaleLine` only
+   * covers the *sale* side). Now that RAKHAL-354 drops V1's table outright,
+   * this genuinely has zero data source and returns 0 rather than reading a
+   * dropped table — filed as new tech debt (`docs/TECH_DEBT.md`) rather than
+   * silently faked. A future ticket that designs animal acquisition cost
+   * tracking in Finance V2 (e.g. a `Purchase`/`Expense` with a `cattleId`,
+   * mirroring this same ticket's `Expense.cattleId` addition for breeding
+   * cost) should replace this method's body.
    */
-  private async herdPurchaseValue(farmId: string, asOf: Date): Promise<number> {
-    const agg = await this.prisma.financeTransaction.aggregate({
-      where: {
-        farmId,
-        ...NON_VOID_TXN,
-        type: FinanceTxnType.INVENTORY_PURCHASE,
-        category: FinanceCategory.INVENTORY,
-        subType: 'animal',
-        date: { lt: asOf },
-      },
-      _sum: { amount: true },
-    });
-    return this.round(agg._sum.amount ?? 0);
+  private async herdPurchaseValue(): Promise<number> {
+    return Promise.resolve(0);
   }
 
   /**
-   * Feed Cost Report (PRD §1.5 North-Star: ৳/L). Feed spend is identified by the
-   * existing Finance↔FeedItem linkage (RD-010): non-voided transactions whose
-   * `inventoryItemName` matches a feed item for the farm. Reported
-   * against litres produced → feed cost per litre, feed's share of total expense,
-   * and cost per cow per day, with a per-item breakdown. No feed-distribution
-   * tracking yet (V1.5), so this is purchase-based, not consumption-based.
+   * Feed Cost Report (PRD §1.5 North-Star: ৳/L). Feed spend source
+   * (RAKHAL-351/354): a real FK join — `PurchaseLine.feedItemId`
+   * (`prisma/schemas/purchasing/purchase.prisma`) — no string matching.
+   * RAKHAL-351 originally added this V2 join *alongside* V1's old
+   * `inventoryItemName` string-match read (`FinanceTransaction`, kept alive
+   * so pre-cutover spend still counted); RAKHAL-354 drops that V1 table
+   * outright, so this is now the sole source — a farm's pre-cutover feed
+   * spend (recorded before Finance V2 existed) no longer counts here, same
+   * "drop and rebuild" tradeoff `FINANCE_V2_DESIGN.md` §2 made for all V1
+   * data (dev/seed only).
+   *
+   * Reported against litres produced → feed cost per litre, feed's share of
+   * total expense, and cost per cow per day, with a per-item breakdown. No
+   * feed-distribution tracking yet (V1.5), so this is purchase-based, not
+   * consumption-based.
    */
   private async feedCost(
     farmId: string,
@@ -825,37 +836,30 @@ export class ReportGeneratorsService {
     const effectiveEnd = end > now ? now : end;
     const days = Math.max(1, this.daysBetween(start, effectiveEnd) || 1);
 
-    const [feedItems, txns, litres, totalExpense, activeCows] =
-      await Promise.all([
-        // No `isActive` filter (RAKHAL-310): this only builds a name-match
-        // set against historical finance transactions, so an item archived
-        // after being purchased must still match its own past spend.
-        this.prisma.feedItem.findMany({
-          where: { farmId },
-          select: { name: true },
-        }),
-        this.prisma.financeTransaction.findMany({
-          where: {
-            farmId,
-            ...NON_VOID_TXN,
-            inventoryItemName: { not: null },
-            date: { gte: start, lt: end },
-          },
-          select: { inventoryItemName: true, amount: true },
-        }),
-        this.litresTotal(farmId, start, end),
-        this.expenseTotal(farmId, start, end),
-        this.prisma.cattle.count({
-          where: { farmId, isActive: true },
-        }),
-      ]);
+    const [v2Lines, litres, totalExpense, activeCows] = await Promise.all([
+      // V2: real FK join, no name matching involved.
+      this.prisma.purchaseLine.findMany({
+        where: {
+          feedItemId: { not: null },
+          purchase: { farmId, purchaseDate: { gte: start, lt: end } },
+        },
+        select: {
+          totalAmount: true,
+          feedItem: { select: { name: true } },
+        },
+      }),
+      this.litresTotal(farmId, start, end),
+      this.expenseTotal(farmId, start, end),
+      this.prisma.cattle.count({
+        where: { farmId, isActive: true },
+      }),
+    ]);
 
-    const feedNames = new Set(feedItems.map((f) => f.name.toLowerCase()));
     const byItem = new Map<string, number>();
-    for (const t of txns) {
-      const name = t.inventoryItemName;
-      if (!name || !feedNames.has(name.toLowerCase())) continue;
-      byItem.set(name, (byItem.get(name) ?? 0) + t.amount);
+    for (const line of v2Lines) {
+      const name = line.feedItem?.name;
+      if (!name) continue;
+      byItem.set(name, (byItem.get(name) ?? 0) + Number(line.totalAmount));
     }
 
     const feedCost = [...byItem.values()].reduce((a, b) => a + b, 0);
@@ -1254,27 +1258,38 @@ export class ReportGeneratorsService {
   }
 
   /**
-   * Raw finance transactions dump for a date range — moved here from
-   * `FinanceService.exportTransactionsCsv` (RD-010c) so both CSV and PDF go
-   * through the async job pipeline instead of running inline on the request
-   * thread. Same filters (category/status/date-range/search), same
-   * intentional inclusion of voided/reversal rows (an audit export, not a
-   * money-sum aggregation).
+   * Raw finance transactions dump for a date range. RAKHAL-354: rewritten
+   * off the dropped V1 `FinanceTransaction` onto Finance V2's
+   * `JournalTransaction` — every Sale/Purchase/Payment/Transfer/Expense/
+   * OtherIncome posting, one row per transaction (not per debit/credit
+   * line — `FINANCE_V2_DESIGN.md` §9's AC forbids exposing raw ledger
+   * debit/credit rows to farmer-facing surfaces, same rule RAKHAL-360
+   * followed for the frontend's own Ledger tab). `amount` is each posting's
+   * total debit (== total credit for a balanced entry, `JournalService`'s
+   * own invariant), computed once per transaction rather than joining in
+   * every `JournalEntry` line. `params.category` filters on `sourceType`
+   * (`SALE`/`PURCHASE`/`PAYMENT`/`TRANSFER`/`EXPENSE`/`OTHER_INCOME`);
+   * `params.status` filters on `JournalTransactionStatus`
+   * (`POSTED`/`REVERSED`) — both best-effort remaps of the old free-string
+   * filters, since neither V1 concept (`FinanceCategory`/`FinanceTxnStatus`)
+   * exists anymore. Reversal rows are intentionally included (an audit
+   * export, not a money-sum aggregation, same precedent the V1 version
+   * documented).
    */
   private async financeExport(
     farmId: string,
     params: ReportParams,
   ): Promise<ReportData> {
-    const rows = await this.prisma.financeTransaction.findMany({
+    const rows = await this.prisma.journalTransaction.findMany({
       where: {
         farmId,
-        ...(params.category
-          ? { category: params.category as FinanceCategory }
+        ...(params.category ? { sourceType: params.category } : {}),
+        ...(params.status
+          ? { status: params.status as JournalTransactionStatus }
           : {}),
-        ...(params.status ? { status: params.status as FinanceTxnStatus } : {}),
         ...(params.fromDate || params.toDate
           ? {
-              date: {
+              transactionDate: {
                 ...(params.fromDate ? { gte: new Date(params.fromDate) } : {}),
                 ...(params.toDate ? { lte: new Date(params.toDate) } : {}),
               },
@@ -1282,30 +1297,24 @@ export class ReportGeneratorsService {
           : {}),
         ...(params.search
           ? {
-              OR: [
-                {
-                  description: {
-                    contains: params.search,
-                    mode: 'insensitive' as const,
-                  },
-                },
-                {
-                  entityName: {
-                    contains: params.search,
-                    mode: 'insensitive' as const,
-                  },
-                },
-                {
-                  reference: {
-                    contains: params.search,
-                    mode: 'insensitive' as const,
-                  },
-                },
-              ],
+              description: {
+                contains: params.search,
+                mode: 'insensitive' as const,
+              },
             }
           : {}),
       },
-      orderBy: [{ date: 'desc' }, { id: 'desc' }],
+      orderBy: [{ transactionDate: 'desc' }, { id: 'desc' }],
+      select: {
+        id: true,
+        transactionDate: true,
+        sourceType: true,
+        sourceId: true,
+        description: true,
+        status: true,
+        reversalOfId: true,
+        entries: { select: { debit: true } },
+      },
     });
 
     const period =
@@ -1319,33 +1328,21 @@ export class ReportGeneratorsService {
       summary: [{ label: 'Transactions', value: rows.length }],
       columns: [
         'Date',
-        'Reference',
-        'Type',
-        'Category',
-        'Sub Type',
-        'Entity',
+        'Source Type',
+        'Source Reference',
         'Description',
         'Amount',
-        'Paid Now',
-        'Payment Type',
-        'Payment Method',
         'Status',
-        'Voided',
+        'Reversal',
       ],
       rows: rows.map((t) => [
-        this.dateLabel(t.date),
-        t.reference,
-        t.type,
-        t.category,
-        t.subType,
-        t.entityName,
+        this.dateLabel(t.transactionDate),
+        t.sourceType,
+        t.sourceId,
         t.description,
-        t.amount,
-        t.paidNow,
-        t.paymentType,
-        t.paymentMethod,
+        this.round(t.entries.reduce((s, e) => s + Number(e.debit), 0)),
         t.status,
-        t.isVoided ? 'yes' : 'no',
+        t.reversalOfId ? 'yes' : 'no',
       ]),
     };
   }
@@ -2027,35 +2024,36 @@ export class ReportGeneratorsService {
     return rows.map((r) => r.id);
   }
 
+  /**
+   * RAKHAL-354: V1 `FinanceTransaction` dropped — this used to add it to
+   * `JournalEntry` (RAKHAL-351's additive re-point; every report that calls
+   * this — Monthly Farm Report, Financial Summary, Feed Cost's
+   * `totalExpense` sibling call, etc — needed both sources while V1 was
+   * still frozen-but-alive). V2's ledger is now the sole source.
+   */
   private async revenueTotal(farmId: string, start: Date, end: Date) {
-    const agg = await this.prisma.financeTransaction.aggregate({
-      where: {
-        farmId,
-        ...NON_VOID_TXN,
-        type: FinanceTxnType.REVENUE,
-        date: { gte: start, lt: end },
+    return ledgerCategoryNet(
+      this.prisma,
+      farmId,
+      LedgerAccountCategory.REVENUE,
+      {
+        gte: start,
+        lt: end,
       },
-      _sum: { amount: true },
-    });
-    return agg._sum.amount ?? 0;
+    );
   }
 
+  /** Same as {@link revenueTotal}, on the EXPENSE side. */
   private async expenseTotal(farmId: string, start: Date, end: Date) {
-    const agg = await this.prisma.financeTransaction.aggregate({
-      where: {
-        farmId,
-        ...NON_VOID_TXN,
-        type: {
-          in: [
-            FinanceTxnType.OPERATING_EXPENSE,
-            FinanceTxnType.INVENTORY_PURCHASE,
-          ],
-        },
-        date: { gte: start, lt: end },
+    return ledgerCategoryNet(
+      this.prisma,
+      farmId,
+      LedgerAccountCategory.EXPENSE,
+      {
+        gte: start,
+        lt: end,
       },
-      _sum: { amount: true },
-    });
-    return agg._sum.amount ?? 0;
+    );
   }
 
   private async litresTotal(farmId: string, start: Date, end: Date) {

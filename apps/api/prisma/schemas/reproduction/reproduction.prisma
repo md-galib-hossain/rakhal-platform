@@ -112,11 +112,18 @@ model BreedingEvent {
 
   /// RAKHAL-330: how the breeding/AI cost was paid; only meaningful when a
   /// cost was actually posted to Finance (serviceCost/batch cost > 0).
-  paymentMethod FinancePaymentMethod?
-  /// RAKHAL-330: loose link to the `FinanceTransaction` this event's cost was
-  /// posted as — no FK (Finance lives in a different schema file), same
+  /// RAKHAL-354: repointed from the dropped V1 `FinancePaymentMethod` to
+  /// Finance V2's own `PaymentMethod` (`finance-v2/payment.prisma`) — already
+  /// WALLET-less, so no separate migration of this field's semantics needed.
+  paymentMethod PaymentMethod?
+  /// RAKHAL-330: loose link to the cost-posting this event's cost was posted
+  /// as — no FK (Finance lives in a different schema file), same
   /// loose-coupling precedent `SemenStrawMovement.sourceEventId` already set.
-  /// Lets an edit void the old transaction and repost instead of drifting.
+  /// RAKHAL-354: now holds a V2 `Expense.id` (was a V1 `FinanceTransaction.id`)
+  /// — `ReproductionEditService` looks up that expense's own `JournalTransaction`
+  /// (by `sourceType:'EXPENSE', sourceId`) to reverse it on edit, instead of
+  /// storing the journal transaction id directly, so the value stays a stable
+  /// handle even if the posting is re-derived.
   financeTransactionId String?
 
   breedingNumber             Int

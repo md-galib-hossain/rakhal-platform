@@ -3,9 +3,15 @@ import { deriveHealthStatus, OpenHealthCaseInput } from './health-status';
 describe('deriveHealthStatus', () => {
   const activeCase: OpenHealthCaseInput = {
     status: 'ACTIVE',
+    diagnosisType: 'DISEASE',
   };
   const treatingCase: OpenHealthCaseInput = {
     status: 'IMPROVING',
+    diagnosisType: 'DISEASE',
+  };
+  const vaccinationCase: OpenHealthCaseInput = {
+    status: 'ACTIVE',
+    diagnosisType: 'VACCINATION',
   };
 
   it('returns HEALTHY when there are no open cases', () => {
@@ -22,6 +28,14 @@ describe('deriveHealthStatus', () => {
 
   it('IN_TREATMENT wins over SICK when both an active and a treating case are open', () => {
     expect(deriveHealthStatus([activeCase, treatingCase])).toBe('IN_TREATMENT');
+  });
+
+  it('returns HEALTHY for an open VACCINATION case — preventive care is not sickness', () => {
+    expect(deriveHealthStatus([vaccinationCase])).toBe('HEALTHY');
+  });
+
+  it('SICK still wins when a real DISEASE case is open alongside a VACCINATION case', () => {
+    expect(deriveHealthStatus([activeCase, vaccinationCase])).toBe('SICK');
   });
 
   // RAKHAL-279: WITHHOLDING dropped from this dimension — milk eligibility

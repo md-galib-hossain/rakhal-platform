@@ -1,31 +1,37 @@
 import request from 'supertest';
+import { FinancialAccountType, PaymentMethod } from '@prisma/client';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
 /**
- * Cattle → Milk → Inventory gap-closure (no ticket #, 2026-07-18). Two things
- * that used to be broken in `BuyerService.recordDispatch()`:
+ * Cattle → Milk → Inventory gap-closure (no ticket #, 2026-07-18), updated by
+ * RAKHAL-342 (Finance V2 — `FINANCE_V2_DESIGN.md` §1.2, §4.3).
  *
  * 1. `sellFromTank()` swallowed `MilkTankService.adjustVolume`'s negative-
- *    balance guard (try/catch → `log.warn` + return `false`) — a `MilkDispatch`
- *    row was still created even when the tank couldn't actually supply the
- *    volume. Dispatch creation + the tank SALE decrement now run in one Prisma
- *    transaction, so an insufficient-volume rejection rolls back the whole
- *    dispatch.
- * 2. Milk revenue never became a real Finance record — `MilkDispatch
- *    .paidAmount` was written nowhere. `recordDispatch()` now also creates a
- *    `FinanceTransaction` (+ a `FinanceReceivable`, PRD §16.8 partial-payment
- *    convention) via the same `FinanceService.recordTransaction()` the Finance
- *    UI itself uses, and the buyer statement now reads real payments off that
- *    receivable instead of the dead `paidAmount` field.
+ *    balance guard — a `MilkDispatch` row was still created even when the
+ *    tank couldn't actually supply the volume. Dispatch creation + the tank
+ *    SALE decrement run in one Prisma transaction, so an insufficient-volume
+ *    rejection rolls back the whole dispatch. Still true.
+ * 2. **RAKHAL-342 update**: milk revenue used to post to V1 Finance in a
+ *    best-effort `try/catch` *after* the dispatch/tank transaction had
+ *    already committed (`FINANCE_V2_DESIGN.md` §1.2's own worked defect) —
+ *    so a Finance hiccup left milk gone from the tank with no ledger entry
+ *    anywhere. `recordDispatch()` now posts through `SellMilkUseCase`
+ *    (Sale + SaleLine(MILK) + Receivable + journal) inside the SAME
+ *    transaction as the dispatch row and the tank decrement — a dispatch can
+ *    no longer exist without a corresponding sale. The response no longer
+ *    carries `financeTransactionId` (V1); it carries `saleId` (V2), and the
+ *    buyer statement now reads real payments off the V2 `Receivable` via
+ *    that `saleId` instead of the V1 `FinanceReceivable`.
  *
  * Requires the dev stack up + `pnpm seed`.
  */
-describe('Buyer dispatch → tank decrement + Finance linkage (e2e)', () => {
+describe('Buyer dispatch → tank decrement + Sale/Receivable linkage (e2e)', () => {
   let ctx: TestContext;
   let owner: AuthedUser;
   let buyerId: string;
   let buyerName: string;
   let tankId: string;
+  let cashAccountId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -52,7 +58,7 @@ describe('Buyer dispatch → tank decrement + Finance linkage (e2e)', () => {
     buyerId = buyer.body.data.id as string;
 
     // A dedicated, deliberately-overfull tank so it is unambiguously "the
-    // fullest active SELLABLE tank" that sellFromTank() will pick, regardless
+    // fullest active SELLABLE tank" that SellMilkUseCase will pick, regardless
     // of whatever seeded/other-agent tanks exist in the shared dev DB.
     const tank = await request(server())
       .post(api('/inventory/milk-tanks'))
@@ -65,13 +71,23 @@ describe('Buyer dispatch → tank decrement + Finance linkage (e2e)', () => {
       })
       .expect(201);
     tankId = tank.body.data.id as string;
+
+    const account = await request(server())
+      .post(api('/finance/accounts'))
+      .set(...auth(owner))
+      .send({
+        name: `E2E Dispatch Cash ${Date.now()}`,
+        type: FinancialAccountType.CASH,
+      })
+      .expect(201);
+    cashAccountId = account.body.data.id as string;
   }, 30_000);
 
   afterAll(async () => {
     await ctx.app.close();
   });
 
-  it('decrements the tank and creates a Finance receivable on a successful dispatch, then reflects a recorded payment in the statement', async () => {
+  it('decrements the tank and creates a V2 Sale+Receivable on a successful dispatch, then reflects a recorded payment in the statement', async () => {
     const before = await request(server())
       .get(api(`/inventory/milk-tanks/${tankId}`))
       .set(...auth(owner))
@@ -85,9 +101,8 @@ describe('Buyer dispatch → tank decrement + Finance linkage (e2e)', () => {
       .expect(201);
 
     expect(dispatch.body.data.tankUpdated).toBe(true);
-    expect(dispatch.body.data.financeTransactionId).toBeTruthy();
-    const financeTransactionId = dispatch.body.data
-      .financeTransactionId as string;
+    expect(dispatch.body.data.saleId).toBeTruthy();
+    const saleId = dispatch.body.data.saleId as string;
     const calculatedAmount = dispatch.body.data.calculatedAmount as number;
 
     const after = await request(server())
@@ -99,8 +114,8 @@ describe('Buyer dispatch → tank decrement + Finance linkage (e2e)', () => {
       1,
     );
 
-    // The dispatch created a real FinanceReceivable — find it by the linked
-    // FinanceTransaction id, since that's the only handle we have back to it.
+    // The dispatch created a real V2 Receivable — find it by the linked
+    // Sale id, since that's the only handle we have back to it.
     const receivables = await request(server())
       .get(api('/finance/receivables?limit=50'))
       .set(...auth(owner))
@@ -108,23 +123,36 @@ describe('Buyer dispatch → tank decrement + Finance linkage (e2e)', () => {
     const receivable = (
       receivables.body.data as Array<{
         id: string;
-        sourceTransactionId: string | null;
-        total: number;
-        paid: number;
+        saleId: string;
+        totalAmount: string | number;
+        outstanding: string | number;
       }>
-    ).find((r) => r.sourceTransactionId === financeTransactionId);
+    ).find((r) => r.saleId === saleId);
     expect(receivable).toBeTruthy();
-    expect(receivable!.total).toBeCloseTo(calculatedAmount, 2);
-    expect(receivable!.paid).toBe(0);
+    expect(Number(receivable!.totalAmount)).toBeCloseTo(calculatedAmount, 2);
+    expect(Number(receivable!.outstanding)).toBeCloseTo(calculatedAmount, 2);
 
-    // Record a partial payment against it and confirm the buyer statement
-    // (previously always 0, since MilkDispatch.paidAmount was never written)
-    // now reflects it.
+    // Record a partial payment against it via the generic V2 payment routes
+    // and confirm the buyer statement (previously always 0, since
+    // MilkDispatch.paidAmount was never written) now reflects it.
     const partial = round2(calculatedAmount / 2);
-    await request(server())
-      .post(api(`/finance/receivables/${receivable!.id}/record-payment`))
+    const payment = await request(server())
+      .post(api('/finance/payments'))
       .set(...auth(owner))
-      .send({ amountPaid: partial })
+      .send({
+        direction: 'INCOMING',
+        financialAccountId: cashAccountId,
+        amount: partial,
+        method: PaymentMethod.CASH,
+        transactionDate: new Date().toISOString(),
+      })
+      .expect(201);
+    await request(server())
+      .post(api(`/finance/payments/${payment.body.data.id}/allocations`))
+      .set(...auth(owner))
+      .send({
+        allocations: [{ receivableId: receivable!.id, amount: partial }],
+      })
       .expect(201);
 
     const [year, month] = dispatchedAt.slice(0, 7).split('-');
@@ -139,7 +167,7 @@ describe('Buyer dispatch → tank decrement + Finance linkage (e2e)', () => {
     );
   });
 
-  it('rejects a dispatch the tank cannot supply (no partial state — no dispatch row, no tank change)', async () => {
+  it('rejects a dispatch the tank cannot supply (no partial state — no dispatch row, no tank change, no Sale)', async () => {
     const before = await request(server())
       .get(api(`/inventory/milk-tanks/${tankId}`))
       .set(...auth(owner))

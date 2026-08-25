@@ -165,6 +165,7 @@ export class MilkTankService {
           balanceAfterL,
           source: dto.source,
           notes: dto.notes,
+          saleLineId: dto.saleLineId,
           createdBy: userId,
         },
       });

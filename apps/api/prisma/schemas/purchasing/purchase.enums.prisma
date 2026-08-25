@@ -1,0 +1,31 @@
+/// Category of a farm operating expense (RAKHAL-348, Purchasing —
+/// `FINANCE_V2_DESIGN.md` §5.1). Deliberately restricted to exactly the
+/// **non-Purchase** expense ledger accounts RAKHAL-333 already seeded
+/// (`finance-v2/ledger/domain/default-chart-of-accounts.ts`, 5xxx range):
+/// `SALARY` (5200), `UTILITIES` (5400, the design doc's own worked example —
+/// "an electricity bill is an expense"), `BREEDING` (5300), `TRANSFER_FEE`
+/// (5500), `DEPRECIATION` (5600).
+///
+/// **`FEED` (5000) / `MEDICINE` (5100) are deliberately excluded** — a feed or
+/// medicine purchase is a `Purchase` (increases the Inventory asset), never an
+/// `Expense`, per this ticket's own core split (`FINANCE_V2_DESIGN.md` §5.1:
+/// "a feed purchase increases an asset, an electricity bill is an expense —
+/// not both recorded as generic expense"). Those two seeded expense-category
+/// ledger accounts exist for a different, later purpose (e.g. RAKHAL-351/352's
+/// per-animal/report cost bucketing), not for this model.
+///
+/// **No `OTHER` value** — unlike Revenue's `4900 Other Income`
+/// (`IncomeCategory`/`OtherIncome`, RAKHAL-350), RAKHAL-333's seeded chart has
+/// no catch-all "Other Expense" ledger account in the 5xxx range. Adding an
+/// `OTHER` category here would have nothing real to post against without
+/// editing `default-chart-of-accounts.ts` — out of this ticket's lane
+/// (`finance-v2/ledger/**` is RAKHAL-333/334's read-only lane). Flagged as
+/// `RD-060` in `TECH_DEBT.md` for a future ticket to add a seeded `5900 Other
+/// Expense` account and extend this enum additively.
+enum ExpenseCategory {
+  SALARY
+  UTILITIES
+  BREEDING
+  TRANSFER_FEE
+  DEPRECIATION
+}

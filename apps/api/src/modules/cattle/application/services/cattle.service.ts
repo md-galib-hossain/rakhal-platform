@@ -8,12 +8,13 @@ import {
   BreedingMethod,
   BreedingStatus,
   Cattle,
+  CattleDispositionType,
   CattleGender,
   CattleSourceType,
   CattleStatus,
   FarmModuleSettings,
-  FinanceTxnType,
   HealthCaseStatus,
+  HealthDiagnosisType,
   HeatDetectionMethod,
   LactationEndReason,
   LactationStartReason,
@@ -29,7 +30,6 @@ import {
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
-import { NON_VOID_TXN } from 'src/common/finance/txn-filters';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 import { SubscriptionAccessService } from 'src/modules/subscription/application/services/subscription-access.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
@@ -39,7 +39,10 @@ import {
 } from 'src/modules/media/application/services/media.service';
 import { MediaCategory, MediaUsage } from '@prisma/client';
 import { VWP_DEFAULT_DAYS } from '../../domain/cattle.constants';
-import { deriveHealthStatus } from '../../domain/health-status';
+import {
+  deriveHealthStatus,
+  PREVENTIVE_DIAGNOSIS_TYPES,
+} from '../../domain/health-status';
 import {
   buildAnimalCategoryWhere,
   deriveAnimalCategory,
@@ -119,6 +122,46 @@ interface ReproductionContext {
   settings: FarmModuleSettings;
   reproductiveHoldCattleIds: Set<string>;
 }
+
+/** Input to {@link CattleService.recordDisposition} (RAKHAL-344). Plain TS
+ * interface, not a class-validator DTO — no controller route exposes this
+ * method yet (that's for whichever ticket wires the real HTTP entry point;
+ * RAKHAL-345's `SellAnimal` use case calls this directly as a service-to-
+ * service call). `saleId`/`price`/`reason` are all optional: only `SALE`
+ * realistically carries a `saleId` (RAKHAL-339's `Sale` document), and
+ * DEATH/CULL/TRANSFER may have no price at all. */
+export interface RecordCattleDispositionInput {
+  type: CattleDispositionType;
+  saleId?: string | null;
+  date: Date;
+  price?: Prisma.Decimal | number | string | null;
+  reason?: string | null;
+}
+
+/** `Cattle.status` each disposition type resolves to (RAKHAL-344) — mirrors
+ * `archiveWithReason`'s own `sold`/`deceased`/`culled` → `CattleStatus`
+ * mapping (`:750-760` above), plus `TRANSFER` → `TRANSFERRED`, which
+ * `archiveWithReason` has no reason string for. */
+const DISPOSITION_CATTLE_STATUS: Record<CattleDispositionType, CattleStatus> = {
+  [CattleDispositionType.SALE]: CattleStatus.SOLD,
+  [CattleDispositionType.DEATH]: CattleStatus.DEAD,
+  [CattleDispositionType.CULL]: CattleStatus.CULLED,
+  [CattleDispositionType.TRANSFER]: CattleStatus.TRANSFERRED,
+};
+
+/** Which disposition types end the animal's ACTIVE `Lactation`, and with
+ * which `LactationEndReason` (RAKHAL-344 AC: "if type is SALE or DEATH or
+ * CULL"). `TRANSFER` deliberately has no entry — a transferred animal is
+ * leaving this farm's herd, not exiting production the way a sale/death/cull
+ * does, so its lactation is left open (mirrors that `archiveWithReason` has
+ * no `LactationEndReason` for a plain `archived` reason either). */
+const DISPOSITION_LACTATION_END_REASON: Partial<
+  Record<CattleDispositionType, LactationEndReason>
+> = {
+  [CattleDispositionType.SALE]: LactationEndReason.SOLD,
+  [CattleDispositionType.DEATH]: LactationEndReason.DEATH,
+  [CattleDispositionType.CULL]: LactationEndReason.CULLED,
+};
 
 /**
  * Cattle service (PRD §8). Farm-scoped: `farmId` is supplied by the controller
@@ -786,6 +829,148 @@ export class CattleService {
     return this.composeStatus(cattle);
   }
 
+  /**
+   * The single consolidated SOLD/DEATH/CULL/TRANSFER path (RAKHAL-344,
+   * `FINANCE_V2_DESIGN.md` §1.1/§5.1) — replaces the three divergent paths
+   * that used to each flip a cow's lifecycle their own way: Finance's inline
+   * string-matched `cattle.update({status: SOLD})` (`finance.service.ts:
+   * 164-182`, outside any transaction, never closes the lactation),
+   * `archiveWithReason()`'s `sold`/`deceased`/`culled` reasons above
+   * (`:739-788`), and the bulk `mark_sold` action (`:865-` `bulk()`).
+   *
+   * **This ticket does not delete or call into either of those two
+   * `cattle.service.ts` paths** — per RAKHAL-344's acceptance criteria this
+   * method is additive; RAKHAL-345 (`SellAnimal` use case) is what switches
+   * the real sell-animal flow onto `recordDisposition` and only then does
+   * `finance.service.ts:164-182` get deleted (RAKHAL-345's job, not this
+   * one). `archiveWithReason`/`bulk('mark_sold')` keep working exactly as
+   * before.
+   *
+   * A `CattleDisposition` row is a permanent audit fact — the animal record
+   * itself is never deleted, only `status`/`isActive`/`soldAt`/
+   * `dispositionId` change; every milk/health/reproduction/feeding record
+   * this cow ever produced stays untouched (this method never reads or
+   * writes any of those tables).
+   *
+   * Follows the same `tx ?? this.prisma.$transaction(...)` seam every other
+   * Finance V2 / Sales service on this milestone uses (RAKHAL-335/337/339)
+   * so a later use-case ticket (RAKHAL-345) can pass its own already-open
+   * transaction client straight through and get one atomic unit covering
+   * `Sale`+`CattleDisposition`+cattle-status-flip+its own ledger/receivable
+   * side effects.
+   */
+  async recordDisposition(
+    farmId: string,
+    userId: string,
+    cattleId: string,
+    dto: RecordCattleDispositionInput,
+    tx?: Prisma.TransactionClient,
+  ) {
+    await this.getCattleOrThrow(farmId, cattleId);
+
+    // Invariant (FINANCE_V2_DESIGN.md §6): "A sold animal cannot be sold
+    // again." Checked outside the transaction — read-only, and failing fast
+    // here avoids opening a transaction for a request that's going to be
+    // rejected anyway. Scoped by `cattleId` alone (already farm-scoped via
+    // `getCattleOrThrow` above, and `CattleDisposition.cattleId` only ever
+    // points at one farm's animal).
+    const existingSale = await this.prisma.cattleDisposition.findFirst({
+      where: { cattleId, type: CattleDispositionType.SALE },
+      select: { id: true },
+    });
+    if (existingSale) {
+      throw new ConflictException(
+        'This animal has already been sold and cannot be sold again.',
+      );
+    }
+
+    const run = (client: Prisma.TransactionClient) =>
+      this.recordDispositionWithClient(client, farmId, userId, cattleId, dto);
+    const disposition = tx
+      ? await run(tx)
+      : await this.prisma.$transaction((t) => run(t));
+
+    this.log.info('Cattle disposition recorded', {
+      cattleId,
+      farmId,
+      type: dto.type,
+      dispositionId: disposition.id,
+    });
+    return disposition;
+  }
+
+  private async recordDispositionWithClient(
+    client: Prisma.TransactionClient,
+    farmId: string,
+    userId: string,
+    cattleId: string,
+    dto: RecordCattleDispositionInput,
+  ) {
+    const disposition = await client.cattleDisposition.create({
+      data: {
+        farmId,
+        cattleId,
+        type: dto.type,
+        saleId: dto.saleId ?? null,
+        date: dto.date,
+        price: dto.price ?? null,
+        reason: dto.reason ?? null,
+        createdById: userId,
+      },
+    });
+
+    const status = DISPOSITION_CATTLE_STATUS[dto.type];
+    const lactationEndReason = DISPOSITION_LACTATION_END_REASON[dto.type];
+
+    if (lactationEndReason) {
+      // Reuses the exact lactation-closing logic `archiveWithReason` uses at
+      // `:762-773` above — one ACTIVE lactation, ended with the matching
+      // `LactationEndReason`, inside this same transaction.
+      await this.closeActiveLactation(client, cattleId, lactationEndReason);
+    }
+
+    await client.cattle.update({
+      where: { id: cattleId },
+      data: {
+        status,
+        isActive: false,
+        productionStatus: null,
+        dispositionId: disposition.id,
+        ...(dto.type === CattleDispositionType.SALE
+          ? { soldAt: dto.date }
+          : {}),
+      },
+    });
+
+    return disposition;
+  }
+
+  /**
+   * Shared lactation-close step: ends the animal's ACTIVE `Lactation` (if
+   * any) with the given `LactationEndReason`, inside the caller's already-
+   * open transaction. Faithfully mirrors `archiveWithReason`'s own inline
+   * `tx.lactation.updateMany(...)` block (`:762-773`) — kept as its own
+   * private helper here rather than refactoring `archiveWithReason` to call
+   * it, since this ticket's lane is disposition paths only and
+   * `archiveWithReason`'s existing behavior must stay untouched (RAKHAL-345
+   * decides whether to consolidate further, once it switches the real
+   * sell-animal flow over).
+   */
+  private async closeActiveLactation(
+    client: Prisma.TransactionClient,
+    cattleId: string,
+    endReason: LactationEndReason,
+  ) {
+    await client.lactation.updateMany({
+      where: { cattleId, status: LactationStatus.ACTIVE },
+      data: {
+        status: LactationStatus.ENDED,
+        endDate: new Date(),
+        endReason,
+      },
+    });
+  }
+
   async restore(farmId: string, id: string) {
     await this.getCattleOrThrow(farmId, id);
     const cattle = await this.prisma.cattle.update({
@@ -1324,96 +1509,15 @@ export class CattleService {
     };
   }
 
-  async tabFinance(farmId: string, id: string, period?: string) {
-    await this.getCattleOrThrow(farmId, id);
-
-    const now = new Date();
-    const p =
-      period ??
-      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const [year, month] = p.split('-').map(Number);
-    const start = new Date(year, month - 1, 1);
-    const end = new Date(year, month, 1);
-
-    const txns = await this.prisma.financeTransaction.findMany({
-      where: {
-        farmId,
-        cattleId: id,
-        date: { gte: start, lt: end },
-        ...NON_VOID_TXN,
-      },
-      orderBy: { date: 'asc' },
-    });
-
-    let total_income = 0;
-    let total_cost = 0;
-    const expense_breakdown = { feed: 0, health: 0, breeding: 0, others: 0 };
-    const income_breakdown = { milk_sales: 0, calf_sales: 0 };
-
-    const EXPENSE_TYPES: FinanceTxnType[] = [
-      FinanceTxnType.OPERATING_EXPENSE,
-      FinanceTxnType.INVENTORY_PURCHASE,
-    ];
-    for (const t of txns) {
-      if (t.type === FinanceTxnType.REVENUE) {
-        total_income += t.amount;
-        if (t.subType === 'milk') income_breakdown.milk_sales += t.amount;
-        else if (t.subType === 'animal')
-          income_breakdown.calf_sales += t.amount;
-      } else if (EXPENSE_TYPES.includes(t.type)) {
-        total_cost += t.amount;
-        const sub = t.subType ?? '';
-        if (sub === 'feed') expense_breakdown.feed += t.amount;
-        else if (sub === 'health') expense_breakdown.health += t.amount;
-        else if (sub === 'breeding') expense_breakdown.breeding += t.amount;
-        else expense_breakdown.others += t.amount;
-      }
-    }
-
-    // Monthly chart: last 6 months
-    const sixMonthsAgo = new Date(year, month - 7, 1);
-    const allTxns = await this.prisma.financeTransaction.findMany({
-      where: {
-        farmId,
-        cattleId: id,
-        date: { gte: sixMonthsAgo, lt: end },
-        ...NON_VOID_TXN,
-      },
-      select: { date: true, type: true, amount: true },
-    });
-    const monthlyMap: Record<string, { income: number; cost: number }> = {};
-    for (const t of allTxns) {
-      const key = `${t.date.getFullYear()}-${String(t.date.getMonth() + 1).padStart(2, '0')}`;
-      if (!monthlyMap[key]) monthlyMap[key] = { income: 0, cost: 0 };
-      if (t.type === FinanceTxnType.REVENUE) monthlyMap[key].income += t.amount;
-      else if (EXPENSE_TYPES.includes(t.type)) monthlyMap[key].cost += t.amount;
-    }
-    const monthly_chart = Object.entries(monthlyMap)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, v]) => ({
-        month,
-        income: this.round(v.income),
-        cost: this.round(v.cost),
-      }));
-
-    return {
-      period: p,
-      total_income: this.round(total_income),
-      total_cost: this.round(total_cost),
-      net_profit: this.round(total_income - total_cost),
-      expense_breakdown: {
-        feed: this.round(expense_breakdown.feed),
-        health: this.round(expense_breakdown.health),
-        breeding: this.round(expense_breakdown.breeding),
-        others: this.round(expense_breakdown.others),
-      },
-      income_breakdown: {
-        milk_sales: this.round(income_breakdown.milk_sales),
-        calf_sales: this.round(income_breakdown.calf_sales),
-      },
-      monthly_chart,
-    };
-  }
+  // RAKHAL-352: `tabFinance()` deleted — it was dead code (no controller
+  // route ever called it; `GET /cattle/:id/finance` calls
+  // `CattleDetailService.cattleFinance()`), and its `expense_breakdown`
+  // branch was one of three disagreeing per-animal finance bucketers found
+  // by `FINANCE_V2_DESIGN.md` §1.4 (exact-matched `subType === 'feed' |
+  // 'health' | 'breeding'`, which never matched real data — see
+  // `cattle-finance-aggregation.ts`'s doc comment for the full detail and
+  // the single shared replacement now used by `CattleDetailService` and
+  // `LactationEconomicsService`).
 
   async siblings(farmId: string, id: string) {
     const cattle = await this.getCattleOrThrow(farmId, id);
@@ -1592,6 +1696,7 @@ export class CattleService {
       } | null;
       healthCases?: {
         status: string;
+        diagnosisType: string;
       }[];
       lactations?: { startDate: Date }[];
       heatEvents?: { heatDateTime: Date }[];
@@ -1767,11 +1872,27 @@ export class CattleService {
       case 'SICK':
       case 'IN_TREATMENT':
         return {
-          healthCases: { some: { status: { in: OPEN_HEALTH_CASE_STATUSES } } },
+          healthCases: {
+            some: {
+              status: { in: OPEN_HEALTH_CASE_STATUSES },
+              diagnosisType: {
+                notIn:
+                  PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
+              },
+            },
+          },
         };
       case 'HEALTHY':
         return {
-          healthCases: { none: { status: { in: OPEN_HEALTH_CASE_STATUSES } } },
+          healthCases: {
+            none: {
+              status: { in: OPEN_HEALTH_CASE_STATUSES },
+              diagnosisType: {
+                notIn:
+                  PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
+              },
+            },
+          },
           safetyWithdrawals: { none: { status: 'ACTIVE' } },
         };
       case 'QUARANTINE':
@@ -2005,6 +2126,7 @@ export class CattleService {
         where: { status: { in: OPEN_HEALTH_CASE_STATUSES } },
         select: {
           status: true,
+          diagnosisType: true,
           isSafetyWithholdingActive: true,
           milkWithdrawalUntil: true,
         },

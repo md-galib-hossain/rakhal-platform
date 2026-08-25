@@ -5,18 +5,19 @@ import {
   BreedingStatus,
   CattleGender,
   CattlePurpose,
-  FinanceCategory,
-  FinancePaymentMethod,
-  FinancePaymentType,
-  FinanceTxnStatus,
-  FinanceTxnType,
+  FinancialAccountType,
+  LedgerAccountCategory,
   MilkDisposition,
   MilkSession,
   MilkTankType,
+  PaymentDirection,
+  PaymentMethod,
+  Prisma,
   PrismaClient,
+  SaleLineType,
+  SaleStatus,
   SubscriptionStatus,
   UnitDimension,
-  WalletDirection,
 } from '@prisma/client';
 import * as argon2 from 'argon2';
 import {
@@ -30,6 +31,7 @@ import {
   PLAN_CATALOGUE,
 } from '../src/modules/subscription/domain/subscription-features';
 import { DEFAULT_CHART_OF_ACCOUNTS } from '../src/modules/finance-v2/ledger/domain/default-chart-of-accounts';
+import { isAnomaly } from '../src/modules/milk/domain/milk-anomaly';
 import { seedDemoDataset } from './seed-demo-data';
 import { seedTestAccounts } from './seed-test-accounts';
 
@@ -290,11 +292,156 @@ async function seedLedgerAccounts(farmId: string): Promise<void> {
 }
 
 /**
+ * RAKHAL-354 finance-v2 seed helpers. Standalone `PrismaClient` script (no
+ * Nest DI), so these are thin, raw-Prisma stand-ins for
+ * `LedgerAccountService.findByCode`/`FinancialAccountService.createAccount`/
+ * `JournalService.postJournal` — same shape, deliberately not imported
+ * directly (those services expect a Nest-injected `PrismaService`, not this
+ * script's bare `PrismaClient`).
+ */
+async function seedLedgerAccountId(
+  farmId: string,
+  code: string,
+): Promise<string> {
+  const account = await prisma.ledgerAccount.findFirst({
+    where: { farmId, code },
+    select: { id: true },
+  });
+  if (!account) {
+    throw new Error(
+      `Seed: ledger account ${code} not found for farm ${farmId} — run seedLedgerAccounts first`,
+    );
+  }
+  return account.id;
+}
+
+/** Mirrors `FinancialAccountService`'s custom-code allocator
+ * (`nextCustomLedgerCode`, `finance-v2/accounts/application/financial-account.service.ts`)
+ * exactly — same `FarmCounter` scope key — so a farm's later real
+ * `POST /finance/accounts` calls never collide with a seed-allocated code. */
+async function seedNextCustomLedgerCode(farmId: string): Promise<string> {
+  const counter = await prisma.farmCounter.upsert({
+    where: { scope: `finance-v2-account:${farmId}` },
+    create: { scope: `finance-v2-account:${farmId}`, value: 9000 },
+    update: { value: { increment: 1 } },
+  });
+  return String(counter.value);
+}
+
+async function seedFinancialAccount(
+  farmId: string,
+  userId: string,
+  name: string,
+  type: FinancialAccountType,
+  openingBalance: number,
+  openingDate: Date,
+): Promise<{ id: string; ledgerAccountId: string }> {
+  const existing = await prisma.financialAccount.findFirst({
+    where: { farmId, name },
+    select: { id: true, ledgerAccountId: true },
+  });
+  if (existing) return existing;
+
+  const code = await seedNextCustomLedgerCode(farmId);
+  const ledgerAccount = await prisma.ledgerAccount.create({
+    data: {
+      farmId,
+      category: LedgerAccountCategory.ASSET,
+      code,
+      name,
+      isSystem: false,
+    },
+  });
+  const account = await prisma.financialAccount.create({
+    data: {
+      farmId,
+      name,
+      type,
+      ledgerAccountId: ledgerAccount.id,
+      createdById: userId,
+    },
+  });
+
+  if (openingBalance > 0) {
+    const equityAccountId = await seedLedgerAccountId(farmId, '3000');
+    await seedPostJournal(
+      farmId,
+      userId,
+      'FINANCIAL_ACCOUNT_OPENING_BALANCE',
+      account.id,
+      openingDate,
+      `Opening balance for ${name}`,
+      `financial-account-opening-balance:${account.id}`,
+      [
+        { ledgerAccountId: ledgerAccount.id, debit: openingBalance },
+        { ledgerAccountId: equityAccountId, credit: openingBalance },
+      ],
+    );
+  }
+  return { id: account.id, ledgerAccountId: ledgerAccount.id };
+}
+
+/** Mirrors `JournalService.postJournal` — a balanced double-entry posting.
+ * Idempotent by `(farmId, idempotencyKey)`, same convention the real
+ * service uses, so re-running `pnpm seed` never double-posts. */
+async function seedPostJournal(
+  farmId: string,
+  userId: string,
+  sourceType: string,
+  sourceId: string,
+  date: Date,
+  description: string,
+  idempotencyKey: string,
+  entries: Array<{ ledgerAccountId: string; debit?: number; credit?: number }>,
+): Promise<string> {
+  const existing = await prisma.journalTransaction.findUnique({
+    where: { farmId_idempotencyKey: { farmId, idempotencyKey } },
+    select: { id: true },
+  });
+  if (existing) return existing.id;
+
+  const totalDebit = entries.reduce((s, e) => s + (e.debit ?? 0), 0);
+  const totalCredit = entries.reduce((s, e) => s + (e.credit ?? 0), 0);
+  if (Math.round(totalDebit * 100) !== Math.round(totalCredit * 100)) {
+    throw new Error(
+      `Seed: unbalanced journal posting ${idempotencyKey} (debit ${totalDebit} != credit ${totalCredit})`,
+    );
+  }
+
+  const txn = await prisma.journalTransaction.create({
+    data: {
+      farmId,
+      sourceType,
+      sourceId,
+      transactionDate: date,
+      description,
+      idempotencyKey,
+      createdById: userId,
+      entries: {
+        create: entries.map((e) => ({
+          ledgerAccountId: e.ledgerAccountId,
+          debit: new Prisma.Decimal(e.debit ?? 0),
+          credit: new Prisma.Decimal(e.credit ?? 0),
+        })),
+      },
+    },
+  });
+  return txn.id;
+}
+
+/**
  * A little operational finance data so the dashboard/finance KPIs render
- * meaningfully (not nulls): a wallet credit gives liquidity and a few recent
- * expenses give an average daily burn, so `survivalRunwayDays`/status compute.
- * Idempotent (upsert by reference); dates are relative to run time so they stay
- * inside the trailing-30-day window.
+ * meaningfully (not nulls): two `FinancialAccount`s (Cash/Bank) with opening
+ * balances give liquidity, and a few recent postings give an average daily
+ * burn, so `survivalRunwayDays`/status (`computeRunwaySnapshot`) compute.
+ *
+ * RAKHAL-354: rewritten off V1 `WalletTransaction`/`FinanceTransaction`
+ * (dropped) onto real Finance V2 `FinancialAccount`/`JournalTransaction`
+ * postings — same balanced double-entry every other V2 write case produces,
+ * hand-written here since this script has no Nest DI to call
+ * `ExpenseService`/`IncomeService` directly. Idempotent (by name for
+ * accounts, by `idempotencyKey` for postings); dates are relative to run
+ * time so they stay inside the trailing-30-day window.
  */
 async function seedDemoFinance(
   farmId: string,
@@ -303,82 +450,88 @@ async function seedDemoFinance(
   const now = Date.now();
   const daysAgo = (n: number): Date => new Date(now - n * 86_400_000);
 
-  await prisma.walletTransaction.upsert({
-    where: { farmId_reference: { farmId, reference: 'SEED-WAL-01' } },
-    update: { amount: 300_000, date: daysAgo(40) },
-    create: {
-      farmId,
-      reference: 'SEED-WAL-01',
-      direction: WalletDirection.CREDIT,
-      amount: 300_000,
-      paymentMethod: FinancePaymentMethod.BANK_TRANSFER,
-      description: 'Seed: initial working capital',
-      date: daysAgo(40),
-      createdBy,
-    },
-  });
+  const cash = await seedFinancialAccount(
+    farmId,
+    createdBy,
+    'Cash',
+    FinancialAccountType.CASH,
+    300_000,
+    daysAgo(40),
+  );
+  const bank = await seedFinancialAccount(
+    farmId,
+    createdBy,
+    'Bank',
+    FinancialAccountType.BANK,
+    100_000,
+    daysAgo(40),
+  );
 
-  const txns: Array<{
-    ref: string;
-    type: FinanceTxnType;
-    category: FinanceCategory;
-    subType: string;
-    amount: number;
-    days: number;
-  }> = [
-    {
-      ref: 'SEED-TRX-REV-01',
-      type: FinanceTxnType.REVENUE,
-      category: FinanceCategory.REVENUE,
-      subType: 'milk',
-      amount: 42_000,
-      days: 8,
-    },
-    {
-      ref: 'SEED-TRX-EXP-01',
-      type: FinanceTxnType.OPERATING_EXPENSE,
-      category: FinanceCategory.OVERHEAD,
-      subType: 'salary',
-      amount: 12_000,
-      days: 5,
-    },
-    {
-      ref: 'SEED-TRX-EXP-02',
-      type: FinanceTxnType.INVENTORY_PURCHASE,
-      category: FinanceCategory.INVENTORY,
-      subType: 'feed',
-      amount: 18_000,
-      days: 12,
-    },
-    {
-      ref: 'SEED-TRX-EXP-03',
-      type: FinanceTxnType.OPERATING_EXPENSE,
-      category: FinanceCategory.HEALTHCARE,
-      subType: 'vet',
-      amount: 4_000,
-      days: 20,
-    },
-  ];
-  for (const t of txns) {
-    const data = {
-      date: daysAgo(t.days),
-      type: t.type,
-      category: t.category,
-      subType: t.subType,
-      amount: t.amount,
-      paidNow: t.amount,
-      paymentType: FinancePaymentType.FULL,
-      paymentMethod: FinancePaymentMethod.CASH,
-      status: FinanceTxnStatus.COMPLETED,
-      createdBy,
-    };
-    await prisma.financeTransaction.upsert({
-      where: { farmId_reference: { farmId, reference: t.ref } },
-      update: data,
-      create: { farmId, reference: t.ref, ...data },
-    });
-  }
-  console.log('✔ demo finance: wallet credit + 1 revenue + 3 expenses');
+  const milkSalesId = await seedLedgerAccountId(farmId, '4000');
+  const salaryId = await seedLedgerAccountId(farmId, '5200');
+  const feedId = await seedLedgerAccountId(farmId, '5000');
+  const medicineId = await seedLedgerAccountId(farmId, '5100');
+
+  // Revenue: milk sale settled into Cash.
+  await seedPostJournal(
+    farmId,
+    createdBy,
+    'SEED_OTHER_INCOME',
+    'seed-rev-01',
+    daysAgo(8),
+    'Seed: milk dispatch payment',
+    'seed-finance:rev-01',
+    [
+      { ledgerAccountId: cash.ledgerAccountId, debit: 42_000 },
+      { ledgerAccountId: milkSalesId, credit: 42_000 },
+    ],
+  );
+  // Expense: salary paid from Cash.
+  await seedPostJournal(
+    farmId,
+    createdBy,
+    'SEED_EXPENSE',
+    'seed-exp-01',
+    daysAgo(5),
+    'Seed: staff salary',
+    'seed-finance:exp-01',
+    [
+      { ledgerAccountId: salaryId, debit: 12_000 },
+      { ledgerAccountId: cash.ledgerAccountId, credit: 12_000 },
+    ],
+  );
+  // Expense: feed purchase paid from Bank.
+  await seedPostJournal(
+    farmId,
+    createdBy,
+    'SEED_EXPENSE',
+    'seed-exp-02',
+    daysAgo(12),
+    'Seed: feed purchase',
+    'seed-finance:exp-02',
+    [
+      { ledgerAccountId: feedId, debit: 18_000 },
+      { ledgerAccountId: bank.ledgerAccountId, credit: 18_000 },
+    ],
+  );
+  // Expense: vet visit paid from Cash.
+  await seedPostJournal(
+    farmId,
+    createdBy,
+    'SEED_EXPENSE',
+    'seed-exp-03',
+    daysAgo(20),
+    'Seed: vet visit',
+    'seed-finance:exp-03',
+    [
+      { ledgerAccountId: medicineId, debit: 4_000 },
+      { ledgerAccountId: cash.ledgerAccountId, credit: 4_000 },
+    ],
+  );
+
+  console.log(
+    '✔ demo finance (v2): Cash + Bank accounts (opening balances) + 1 revenue + 3 expense postings',
+  );
 }
 
 /**
@@ -502,6 +655,35 @@ async function seedUnits(): Promise<void> {
     });
   }
   console.log(`✔ units seeded (${units.length})`);
+}
+
+/**
+ * Global `IncomeCategory` catalogue (RAKHAL-350, `FINANCE_V2_DESIGN.md`
+ * §1.3, §5.1). Same "system catalogue + farm-custom rows" convention as
+ * `seedUnits` above (RAKHAL-326) — `farmId: null`, `isSystem: true`, visible
+ * to every farm; a farm can additionally add its own custom category via
+ * `POST /finance/income/categories`. Stable ids so re-seeding is idempotent.
+ */
+async function seedIncomeCategories(): Promise<void> {
+  const categories: Array<{ id: string; name: string }> = [
+    { id: 'income_category_government_subsidy', name: 'Government Subsidy' },
+    { id: 'income_category_insurance', name: 'Insurance' },
+    { id: 'income_category_rent', name: 'Rent' },
+    { id: 'income_category_service_income', name: 'Service Income' },
+    { id: 'income_category_interest', name: 'Interest' },
+    { id: 'income_category_compensation', name: 'Compensation' },
+    { id: 'income_category_miscellaneous', name: 'Miscellaneous' },
+  ];
+
+  for (const c of categories) {
+    const data = { name: c.name, isSystem: true, farmId: null };
+    await prisma.incomeCategory.upsert({
+      where: { id: c.id },
+      update: data,
+      create: { id: c.id, ...data },
+    });
+  }
+  console.log(`✔ income categories seeded (${categories.length})`);
 }
 
 /**
@@ -1044,7 +1226,21 @@ async function seedDemoDashboardHistory(
 ): Promise<void> {
   const now = new Date();
 
-  // ---- Financial Performance: 12 monthly income/expense transactions ------
+  // ---- Financial Performance: 12 monthly income/expense postings -----------
+  // RAKHAL-354: rewritten off V1 `FinanceTransaction` (dropped) onto balanced
+  // V2 `JournalTransaction` postings against Cash + the seeded chart of
+  // accounts — `dashboard.service.ts#financialPerformance` now reads
+  // `JournalEntry` exclusively (V1 dropped, no longer an additive V1+V2 read).
+  const cashForHistory = await seedFinancialAccount(
+    farmId,
+    createdBy,
+    'Cash',
+    FinancialAccountType.CASH,
+    0,
+    now,
+  );
+  const milkSalesIdForHistory = await seedLedgerAccountId(farmId, '4000');
+  const salaryIdForHistory = await seedLedgerAccountId(farmId, '5200');
   for (let i = 11; i >= 0; i -= 1) {
     const monthStart = new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 5),
@@ -1056,48 +1252,34 @@ async function seedDemoDashboardHistory(
     );
     const key = monthStart.toISOString().slice(0, 7);
 
-    await prisma.financeTransaction.upsert({
-      where: {
-        farmId_reference: { farmId, reference: `SEED-HIST-REV-${key}` },
-      },
-      update: { date: monthStart, amount: income },
-      create: {
-        farmId,
-        reference: `SEED-HIST-REV-${key}`,
-        date: monthStart,
-        type: FinanceTxnType.REVENUE,
-        category: FinanceCategory.REVENUE,
-        subType: 'milk',
-        amount: income,
-        paidNow: income,
-        paymentType: FinancePaymentType.FULL,
-        paymentMethod: FinancePaymentMethod.BANK_TRANSFER,
-        status: FinanceTxnStatus.COMPLETED,
-        createdBy,
-      },
-    });
-    await prisma.financeTransaction.upsert({
-      where: {
-        farmId_reference: { farmId, reference: `SEED-HIST-EXP-${key}` },
-      },
-      update: { date: monthStart, amount: expense },
-      create: {
-        farmId,
-        reference: `SEED-HIST-EXP-${key}`,
-        date: monthStart,
-        type: FinanceTxnType.OPERATING_EXPENSE,
-        category: FinanceCategory.OVERHEAD,
-        subType: 'salary',
-        amount: expense,
-        paidNow: expense,
-        paymentType: FinancePaymentType.FULL,
-        paymentMethod: FinancePaymentMethod.CASH,
-        status: FinanceTxnStatus.COMPLETED,
-        createdBy,
-      },
-    });
+    await seedPostJournal(
+      farmId,
+      createdBy,
+      'SEED_OTHER_INCOME',
+      `seed-hist-rev-${key}`,
+      monthStart,
+      `Seed: monthly milk revenue ${key}`,
+      `seed-finance:hist-rev-${key}`,
+      [
+        { ledgerAccountId: cashForHistory.ledgerAccountId, debit: income },
+        { ledgerAccountId: milkSalesIdForHistory, credit: income },
+      ],
+    );
+    await seedPostJournal(
+      farmId,
+      createdBy,
+      'SEED_EXPENSE',
+      `seed-hist-exp-${key}`,
+      monthStart,
+      `Seed: monthly salary ${key}`,
+      `seed-finance:hist-exp-${key}`,
+      [
+        { ledgerAccountId: salaryIdForHistory, debit: expense },
+        { ledgerAccountId: cashForHistory.ledgerAccountId, credit: expense },
+      ],
+    );
   }
-  console.log('✔ demo finance history: 12 monthly income/expense pairs');
+  console.log('✔ demo finance history (v2): 12 monthly income/expense pairs');
 
   // ---- Production vs Feedcost: current-month daily milk + feed cost -------
   const milkCows = await prisma.cattle.findMany({
@@ -1105,6 +1287,123 @@ async function seedDemoDashboardHistory(
     select: { id: true },
     take: 6,
   });
+
+  // ---- Sale + Receivable (RAKHAL-354 AC: "accounts, sales, receivables and
+  // a balanced ledger") — a real animal sale, partially paid, so both
+  // `GET /sales` and `GET /finance/receivables`-equivalent (V2's
+  // `Receivable`) surfaces have a non-empty demo row. Not JSON-fixture-
+  // driven (no `sales.json`/`receivables.json` exists) — hand-written here,
+  // same standalone-script constraint every other helper in this section
+  // documents. Idempotent by `Sale.saleNumber`.
+  if (milkCows.length > 0) {
+    const saleTotal = 45_000;
+    const paidNow = 20_000;
+    const saleDate = now;
+    const existingSale = await prisma.sale.findFirst({
+      where: { farmId, saleNumber: 'SEED-SALE-0001' },
+      select: { id: true },
+    });
+    if (!existingSale) {
+      const sale = await prisma.sale.create({
+        data: {
+          farmId,
+          saleNumber: 'SEED-SALE-0001',
+          saleDate,
+          subtotal: saleTotal,
+          totalAmount: saleTotal,
+          status: SaleStatus.CONFIRMED,
+          notes: 'Seed: demo animal sale',
+          createdById: createdBy,
+          lines: {
+            create: [
+              {
+                type: SaleLineType.ANIMAL,
+                description: 'Demo animal sale',
+                quantity: 1,
+                unitPrice: saleTotal,
+                totalAmount: saleTotal,
+              },
+            ],
+          },
+        },
+        include: { lines: true },
+      });
+      await prisma.animalSaleLine.create({
+        data: { saleLineId: sale.lines[0].id, cattleId: milkCows[0].id },
+      });
+
+      const receivableId = 'seed-receivable-0001';
+      await prisma.receivable.create({
+        data: {
+          id: receivableId,
+          farmId,
+          saleId: sale.id,
+          totalAmount: saleTotal,
+          dueDate: new Date(now.getTime() + 14 * 86_400_000),
+        },
+      });
+
+      const arId = await seedLedgerAccountId(farmId, '1100');
+      const animalSalesId = await seedLedgerAccountId(farmId, '4100');
+      await seedPostJournal(
+        farmId,
+        createdBy,
+        'SALE',
+        sale.id,
+        saleDate,
+        `Sale ${sale.saleNumber}`,
+        `sale:${sale.id}`,
+        [
+          { ledgerAccountId: arId, debit: saleTotal },
+          { ledgerAccountId: animalSalesId, credit: saleTotal },
+        ],
+      );
+
+      // Partial payment — leaves a real outstanding balance on the
+      // Receivable (RAKHAL-340's `PARTIALLY_PAID` status, derived not
+      // stored) so the demo farm's receivables list isn't all-or-nothing.
+      const cashForSale = await seedFinancialAccount(
+        farmId,
+        createdBy,
+        'Cash',
+        FinancialAccountType.CASH,
+        0,
+        now,
+      );
+      const payment = await prisma.financePayment.create({
+        data: {
+          farmId,
+          direction: PaymentDirection.INCOMING,
+          financialAccountId: cashForSale.id,
+          amount: paidNow,
+          method: PaymentMethod.CASH,
+          transactionDate: now,
+          referenceNumber: 'SEED-PAY-0001',
+          createdById: createdBy,
+        },
+      });
+      await prisma.paymentAllocation.create({
+        data: { paymentId: payment.id, receivableId, amount: paidNow },
+      });
+      await seedPostJournal(
+        farmId,
+        createdBy,
+        'PAYMENT',
+        payment.id,
+        now,
+        `Payment ${payment.id} (INCOMING)`,
+        `payment:${payment.id}`,
+        [
+          { ledgerAccountId: cashForSale.ledgerAccountId, debit: paidNow },
+          { ledgerAccountId: arId, credit: paidNow },
+        ],
+      );
+      console.log(
+        `✔ demo sale + receivable (v2): SEED-SALE-0001 ৳${saleTotal}, paid ৳${paidNow}, outstanding ৳${saleTotal - paidNow}`,
+      );
+    }
+  }
+
   if (milkCows.length > 0) {
     const monthStart = new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
@@ -1126,6 +1425,12 @@ async function seedDemoDashboardHistory(
       });
     }
 
+    // Mirrors `MilkService`'s own 7-day-submitted-average + `isAnomaly()` domain
+    // rule — this loop writes `MilkLogEntry` rows directly via Prisma (not
+    // through `saveLog()`), so without this the anomaly pipeline never runs on
+    // seed data and `anomalyFlag` stays permanently false: the Anomalies panel
+    // reads real empty and looks broken however low a seeded yield is.
+    const yieldHistory = new Map<string, number[]>();
     for (let day = 1; day <= daysSoFar; day += 1) {
       const logDate = new Date(
         Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), day),
@@ -1133,7 +1438,21 @@ async function seedDemoDashboardHistory(
       const dayWave = Math.sin((day / daysSoFar) * Math.PI * 2);
 
       for (const [idx, cow] of milkCows.entries()) {
-        const yieldL = Math.round((28 + dayWave * 6 + idx) * 10) / 10;
+        let yieldL = Math.round((28 + dayWave * 6 + idx) * 10) / 10;
+        // Force one guaranteed, unmissable anomaly on the last seeded day so
+        // QA/demo always has something to review in the Anomalies panel.
+        if (day === daysSoFar && idx === 0) {
+          yieldL = Math.round(yieldL * 0.4 * 10) / 10;
+        }
+
+        const history = yieldHistory.get(cow.id) ?? [];
+        const avg7d =
+          history.length > 0
+            ? history.slice(-7).reduce((a, b) => a + b, 0) /
+              Math.min(history.length, 7)
+            : null;
+        const anomalyFlag = isAnomaly(yieldL, avg7d);
+
         await prisma.milkLogEntry.upsert({
           where: {
             cattleId_logDate_session: {
@@ -1147,6 +1466,7 @@ async function seedDemoDashboardHistory(
             disposition: MilkDisposition.SALEABLE,
             submitted: true,
             submittedAt: logDate,
+            anomalyFlag,
           },
           create: {
             farmId,
@@ -1158,9 +1478,13 @@ async function seedDemoDashboardHistory(
             disposition: MilkDisposition.SALEABLE,
             submitted: true,
             submittedAt: logDate,
+            anomalyFlag,
             createdBy,
           },
         });
+
+        history.push(yieldL);
+        yieldHistory.set(cow.id, history);
       }
 
       const actualKg = Math.round(80 + dayWave * 20);
@@ -1263,6 +1587,8 @@ async function main(): Promise<void> {
   // Units (RAKHAL-326) seeded early — `prisma/backfill-unit-catalog.ts` (run once,
   // after this seed + the additive migration) depends on the system rows existing.
   await seedUnits();
+  // Income categories (RAKHAL-350) — same global catalogue seam as Units.
+  await seedIncomeCategories();
   // Moved ahead of the demo block: the full demo dataset (seedDemoDataset)
   // references feed ingredients, repro protocols, subscription plans, and the
   // legal documents by id, so those catalogues must exist before it runs.

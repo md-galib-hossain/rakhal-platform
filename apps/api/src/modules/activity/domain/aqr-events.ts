@@ -50,6 +50,11 @@ export const AQR_EVENTS = {
     module: ActivityLogModule.HEALTH_SAFETY,
     title: 'Animal Sickness Reported',
   },
+  preventive_care_logged: {
+    delta: 0,
+    module: ActivityLogModule.HEALTH_SAFETY,
+    title: 'Preventive Care Logged',
+  },
   recovered: {
     delta: 5,
     module: ActivityLogModule.HEALTH_SAFETY,

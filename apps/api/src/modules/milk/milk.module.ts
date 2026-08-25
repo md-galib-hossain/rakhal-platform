@@ -9,6 +9,7 @@ import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { HealthModule } from '../health/health.module';
 import { CattleModule } from '../cattle/cattle.module';
+import { MilkAvailabilityService } from './application/services/milk-availability.service';
 import { MilkExportService } from './application/services/milk-export.service';
 import { MilkImportService } from './application/services/milk-import.service';
 import { MilkQualityService } from './application/services/milk-quality.service';
@@ -38,7 +39,11 @@ import { MilkController } from './presentation/controllers/milk.controller';
     MilkImportService,
     MilkExportService,
     MilkQualityService,
+    // RAKHAL-343: exported so `SalesModule`'s `SellMilkUseCase` can take a
+    // row lock on the same tank it is about to decrement, in the same
+    // transaction — see `MilkAvailabilityService`'s own class doc.
+    MilkAvailabilityService,
   ],
-  exports: [MilkService, MilkQualityService],
+  exports: [MilkService, MilkQualityService, MilkAvailabilityService],
 })
 export class MilkModule {}

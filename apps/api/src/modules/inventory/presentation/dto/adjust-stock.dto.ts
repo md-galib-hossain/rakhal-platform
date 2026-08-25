@@ -22,4 +22,14 @@ export class AdjustStockDto {
   @Transform(trimString)
   @IsString()
   notes?: string;
+
+  /** Names the `SaleLine` that caused this adjustment — set only by
+   * `SellInventoryUseCase` (RAKHAL-346) when `reason === SALE`. Not meant to
+   * be supplied over HTTP by a human-facing adjustment; kept as a normal
+   * optional/validated field (rather than omitted from the DTO) so the
+   * `ValidationPipe`'s `whitelist` doesn't strip it when the use case calls
+   * this service in-process with the field set. */
+  @IsOptional()
+  @IsString()
+  saleLineId?: string;
 }

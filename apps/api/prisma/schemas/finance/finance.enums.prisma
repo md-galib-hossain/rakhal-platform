@@ -1,59 +1,18 @@
-/// Finance Module enums (PRD §16).
-
-enum FinanceTxnType {
-  OPERATING_EXPENSE
-  INVENTORY_PURCHASE
-  REVENUE
-  DEBT_LOAN
-}
-
-enum FinanceCategory {
-  REVENUE
-  INVENTORY
-  HEALTHCARE
-  OVERHEAD
-  DEBT
-}
-
-enum FinancePaymentMethod {
-  CASH
-  BANK_TRANSFER
-  MFS
-  WALLET
-}
-
-enum FinancePaymentType {
-  FULL
-  PARTIAL
-}
-
-enum FinanceTxnStatus {
-  COMPLETED
-  PENDING
-  VOIDED
-}
-
-/// A `FinanceReceivable` row models both sides of a partial settlement.
-enum ReceivableKind {
-  RECEIVABLE
-  PAYABLE
-}
-
-enum ReceivableStatus {
-  PENDING
-  PARTIAL
-  COMPLETED
-  OVERDUE
-}
+/// Finance Module enums (PRD §16). RAKHAL-354: `FinanceTxnType`/
+/// `FinanceCategory`/`FinancePaymentMethod`/`FinancePaymentType`/
+/// `FinanceTxnStatus`/`ReceivableKind`/`ReceivableStatus`/`WalletDirection`
+/// dropped along with `FinanceTransaction`/`FinanceReceivable`/
+/// `WalletTransaction` (see `finance.prisma`'s doc comment). Fields that used
+/// to carry `FinancePaymentMethod` (`BreedingEvent.paymentMethod`,
+/// `FeedConcentrationService.finalize`'s payment param) now use Finance V2's
+/// own `PaymentMethod` (`prisma/schemas/finance-v2/payment.prisma`, already
+/// WALLET-less) instead of a parallel duplicate enum. Only `LoanStatus`
+/// (`FinanceLoan`) and `FixedAssetCategory` (`FixedAsset`) survive — both
+/// models are explicitly kept, see `finance.prisma`.
 
 enum LoanStatus {
   ACTIVE
   CLOSED
-}
-
-enum WalletDirection {
-  CREDIT
-  DEBIT
 }
 
 enum FixedAssetCategory {

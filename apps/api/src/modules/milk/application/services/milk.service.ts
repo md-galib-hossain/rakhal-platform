@@ -45,13 +45,26 @@ import {
   CurveEntry,
 } from 'src/modules/reproduction/domain/lactation-curve';
 import { computeLactationPeak } from 'src/modules/reproduction/domain/lactation-yield';
-import { MilkLogQueryDto } from '../../presentation/dto/milk-query.dto';
+import {
+  MilkLogQueryDto,
+  MilkTrendRange,
+} from '../../presentation/dto/milk-query.dto';
 import { ReviewAnomalyDto } from '../../presentation/dto/review-anomaly.dto';
 import { SaveMilkLogDto } from '../../presentation/dto/save-milk-log.dto';
 import { SubmitMilkDto } from '../../presentation/dto/submit-milk.dto';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MILKING_PURPOSES = [CattlePurpose.MILK, CattlePurpose.DUAL_PURPOSE];
+
+/** `null` = lifetime (no lower date bound on the trend query). */
+const TREND_RANGE_DAYS: Record<MilkTrendRange, number | null> = {
+  '7d': 7,
+  '30d': 30,
+  '3m': 90,
+  '6m': 180,
+  '1y': 365,
+  lifetime: null,
+};
 
 /**
  * Milk Module service (PRD §10). Farm-scoped (`farmId` from the token context).
@@ -78,7 +91,7 @@ export class MilkService {
     this.log = logger.setContext(MilkService.name);
   }
 
-  async overview(farmId: string, dateStr?: string) {
+  async overview(farmId: string, dateStr?: string, range?: MilkTrendRange) {
     const day = this.normalizeDate(dateStr ?? new Date().toISOString());
     const [today, yesterday, lastWeek, lastYear, sessions, trend] =
       await Promise.all([
@@ -87,7 +100,7 @@ export class MilkService {
         this.dayTotal(farmId, this.shiftDays(day, -7)),
         this.dayTotal(farmId, this.shiftDays(day, -365)),
         this.sessionStatuses(farmId, day),
-        this.trend(farmId, day, 30),
+        this.trend(farmId, day, TREND_RANGE_DAYS[range ?? '30d']),
       ]);
 
     return {
@@ -100,7 +113,8 @@ export class MilkService {
       costPerLitreToday: null,
       marketValueToday: null,
       sessionsStatus: sessions,
-      trend30Days: trend,
+      trendRange: range ?? '30d',
+      trend,
     };
   }
 
@@ -887,11 +901,15 @@ export class MilkService {
     return status;
   }
 
-  private async trend(farmId: string, day: Date, days: number) {
-    const from = this.shiftDays(day, -(days - 1));
+  private async trend(farmId: string, day: Date, days: number | null) {
+    const from = days == null ? null : this.shiftDays(day, -(days - 1));
     const rows = await this.prisma.milkLogEntry.groupBy({
       by: ['logDate'],
-      where: { farmId, submitted: true, logDate: { gte: from, lte: day } },
+      where: {
+        farmId,
+        submitted: true,
+        logDate: from == null ? { lte: day } : { gte: from, lte: day },
+      },
       _sum: { yieldL: true },
     });
     return rows

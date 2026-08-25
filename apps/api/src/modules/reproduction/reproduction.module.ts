@@ -9,7 +9,7 @@ import { InventoryModule } from '../inventory/inventory.module';
 import { CalfModule } from '../calf/calf.module';
 import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
-import { FinanceModule } from '../finance/finance.module';
+import { PurchasingModule } from '../purchasing/purchasing.module';
 import { CattleModule } from '../cattle/cattle.module';
 import { ReproductionService } from './application/services/reproduction.service';
 import { ReproductionDerivationService } from './application/services/reproduction-derivation.service';
@@ -36,7 +36,9 @@ import { LactationController } from './presentation/lactation.controller';
     CalfModule,
     FarmSettingsModule,
     SubscriptionModule,
-    FinanceModule,
+    // RAKHAL-354: `PurchasingModule` (was `FinanceModule`, V1) — breeding-cost
+    // posting migrated to `ExpenseService.recordExpense`/`.reverseExpense`.
+    PurchasingModule,
     // AnimalHoldService (RAKHAL-280) — read-only `activeHoldsForCattle` lookup
     // for the `REPRODUCTIVE_HOLD` alert (RAKHAL-272). RAKHAL-307 made this a
     // real cycle (CattleService.create() now also needs

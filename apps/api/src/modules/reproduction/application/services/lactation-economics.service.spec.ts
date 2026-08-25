@@ -1,5 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
-import { FinanceTxnType } from '@prisma/client';
+import { ExpenseCategory } from '@prisma/client';
 import { LactationEconomicsService } from './lactation-economics.service';
 
 /**
@@ -15,7 +15,8 @@ describe('LactationEconomicsService', () => {
     milkBuyer: { findMany: jest.Mock };
     feedDistribution: { findMany: jest.Mock };
     cattle: { count: jest.Mock };
-    financeTransaction: { findMany: jest.Mock };
+    expense: { findMany: jest.Mock };
+    animalSaleLine: { findMany: jest.Mock };
   };
   let logger: { setContext: jest.Mock };
   let lactationStatsService: { getStats: jest.Mock };
@@ -59,7 +60,8 @@ describe('LactationEconomicsService', () => {
       milkBuyer: { findMany: jest.fn().mockResolvedValue([]) },
       feedDistribution: { findMany: jest.fn().mockResolvedValue([]) },
       cattle: { count: jest.fn().mockResolvedValue(0) },
-      financeTransaction: { findMany: jest.fn().mockResolvedValue([]) },
+      expense: { findMany: jest.fn().mockResolvedValue([]) },
+      animalSaleLine: { findMany: jest.fn().mockResolvedValue([]) },
     };
     logger = { setContext: jest.fn() };
     lactationStatsService = {
@@ -195,35 +197,38 @@ describe('LactationEconomicsService', () => {
       expect(call.where.OR).toEqual([{ cattleId: 'cattle-1' }]);
     });
 
-    it('sums medicine and breeding costs from non-void FinanceTransaction rows by subType', async () => {
-      prisma.financeTransaction.findMany
-        .mockResolvedValueOnce([{ amount: 300 }, { amount: 200 }]) // health
-        .mockResolvedValueOnce([{ amount: 150 }]); // breeding
+    it('sums breeding cost via the shared computeCattleFinance aggregation; medicine reads 0 (RAKHAL-352/354)', async () => {
+      // RAKHAL-352: `getEconomics` reads both buckets off a single
+      // `computeCattleFinance()` call (the same shared aggregation
+      // `CattleDetailService.cattleFinance()` uses). RAKHAL-354: V1
+      // `FinanceTransaction` (the health/breeding source at the time
+      // RAKHAL-352 landed) is dropped — breeding now reads real V2
+      // `Expense.cattleId` rows (`category: BREEDING`); health has no V2
+      // source yet and structurally reads 0 (documented gap, not a bug).
+      prisma.expense.findMany.mockResolvedValueOnce([{ amount: 150 }]);
       const service = make();
       const result = await service.getEconomics('farm-1', 'lact-1');
 
-      expect(result.financial.medicineCost).toBe(500);
+      expect(result.financial.medicineCost).toBe(0);
       expect(result.financial.breedingCost).toBe(150);
-      const financeCalls = prisma.financeTransaction.findMany.mock
-        .calls as unknown[][];
-      const firstCall = financeCalls[0][0] as {
+      const expenseCalls = prisma.expense.findMany.mock.calls as unknown[][];
+      const firstCall = expenseCalls[0][0] as {
         where: Record<string, unknown>;
       };
       expect(firstCall.where).toEqual(
         expect.objectContaining({
           farmId: 'farm-1',
           cattleId: 'cattle-1',
-          subType: 'health',
-          type: {
-            in: [
-              FinanceTxnType.OPERATING_EXPENSE,
-              FinanceTxnType.INVENTORY_PURCHASE,
-            ],
-          },
-          isVoided: false,
-          reversedTransactionId: null,
+          category: ExpenseCategory.BREEDING,
         }),
       );
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment -- nested `expect.objectContaining` typed `any` by @jest/expect, same pre-existing pattern elsewhere in this suite */
+      expect(prisma.animalSaleLine.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ cattleId: 'cattle-1' }),
+        }),
+      );
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
     });
 
     it('computes margin = milkRevenue - (feed + medicine + breeding + discardedWithheldValue)', async () => {
@@ -233,17 +238,18 @@ describe('LactationEconomicsService', () => {
       prisma.feedDistribution.findMany.mockResolvedValueOnce([
         { cattleId: 'cattle-1', feedGroupId: null, totalActualCost: 100 },
       ]);
-      prisma.financeTransaction.findMany
-        .mockResolvedValueOnce([{ amount: 50 }])
-        .mockResolvedValueOnce([{ amount: 25 }]);
+      // RAKHAL-354: health has no V2 source (reads 0); breeding reads real
+      // V2 `Expense.cattleId` rows.
+      prisma.expense.findMany.mockResolvedValueOnce([{ amount: 25 }]);
       const service = make();
       const result = await service.getEconomics('farm-1', 'lact-1');
 
       // milkRevenue = 450 * 10 = 4500; discardedWithheldValue = 50 * 10 = 500
-      // totalCost = 100 + 50 + 25 + 500 = 675; margin = 4500 - 675 = 3825
+      // totalCost = 100 (feed) + 0 (health) + 25 (breeding) + 500 = 625
+      // margin = 4500 - 625 = 3875
       expect(result.financial.milkRevenue).toBe(4500);
-      expect(result.financial.totalCost).toBe(675);
-      expect(result.financial.margin).toBe(3825);
+      expect(result.financial.totalCost).toBe(625);
+      expect(result.financial.margin).toBe(3875);
     });
   });
 });

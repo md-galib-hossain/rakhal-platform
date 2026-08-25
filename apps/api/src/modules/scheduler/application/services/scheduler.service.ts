@@ -8,11 +8,13 @@ import {
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { deriveOutstanding } from 'src/common/finance/txn-filters';
+import { computeRunwaySnapshot } from 'src/common/finance/runway';
 import { NotificationService } from 'src/modules/notification/application/services/notification.service';
 import { SubscriptionLifecycleService } from 'src/modules/subscription/application/services/subscription-lifecycle.service';
 import { RenewalReminderService } from 'src/modules/renewal/application/services/renewal-reminder.service';
 import { ReconciliationService } from 'src/modules/billing/application/services/reconciliation.service';
-import { FinanceService } from 'src/modules/finance/application/services/finance.service';
+import { BalanceService } from 'src/modules/finance-v2/accounts/application/balance.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { HealthService } from 'src/modules/health/application/services/health.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
@@ -48,9 +50,11 @@ const LACTATION_ALERT_WINDOW_DAYS = 8;
  * supplier-due, runway-warning, semen-LN2-low, today's-tasks,
  * morbidity-outbreak). Sweeps read the data tables directly (the
  * Dashboard/Reports aggregator pattern — no cross-module service coupling),
- * **except `sweepSurvivalRunwayWarning`**, which calls `FinanceService` since
- * runway has no dedicated table — it's a live computation over liquidity/spend
- * shared with the Finance highlights endpoint. Sweeps emit through
+ * **except `sweepSurvivalRunwayWarning`**, which calls Finance V2's
+ * `BalanceService` + the shared `computeRunwaySnapshot` (`src/common/finance/
+ * runway.ts`, RAKHAL-354) since runway has no dedicated table — it's a live
+ * computation over liquidity/spend, same helper `DashboardService`'s
+ * `financeSnapshot()` uses. Sweeps emit through
  * `NotificationService` with a **dedupe key** so a re-run (or app restart) on
  * the same day doesn't double-notify. `runDailySweeps()` is public so it can be
  * invoked deterministically in tests instead of waiting for the cron.
@@ -71,7 +75,7 @@ export class SchedulerService {
     private readonly subscriptionLifecycle: SubscriptionLifecycleService,
     private readonly renewalReminders: RenewalReminderService,
     private readonly reconciliation: ReconciliationService,
-    private readonly financeService: FinanceService,
+    private readonly balance: BalanceService,
     private readonly farmSettings: FarmSettingsService,
     private readonly healthService: HealthService,
     private readonly taskService: TaskService,
@@ -156,35 +160,60 @@ export class SchedulerService {
     return emitted;
   }
 
-  /** Receivables past their due date (PRD §20.2). Re-reminds daily until settled. */
+  /**
+   * Receivables past their due date (PRD §20.2). Re-reminds daily until
+   * settled. RAKHAL-354: V1 `FinanceReceivable` dropped — this used to sweep
+   * it alongside V2 `Receivable` (RAKHAL-351's additive re-point, "V1 stays
+   * live until RAKHAL-354 drops it"). V2 is now the sole source.
+   */
   private async sweepPaymentOverdue(): Promise<number> {
+    return this.sweepPaymentOverdueV2();
+  }
+
+  /**
+   * `closedAt: null` already excludes
+   * a fully-settled receivable (`ReceivableService.closeIfSettled` sets it
+   * exactly when outstanding reaches zero); outstanding for the remaining
+   * candidates is derived from `PaymentAllocation` in one batched query,
+   * mirroring `ReceivableService.listReceivables`'s own approach.
+   */
+  private async sweepPaymentOverdueV2(): Promise<number> {
     const now = new Date();
-    const overdue = await this.prisma.financeReceivable.findMany({
-      where: {
-        kind: 'RECEIVABLE',
-        dueDate: { lt: now },
-        status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] },
-      },
+    const overdue = await this.prisma.receivable.findMany({
+      where: { dueDate: { lt: now }, closedAt: null },
       select: {
         id: true,
         farmId: true,
-        entityName: true,
-        total: true,
-        paid: true,
+        totalAmount: true,
         dueDate: true,
+        sale: { select: { saleNumber: true } },
       },
     });
+    if (overdue.length === 0) return 0;
+
+    const sums = await this.prisma.paymentAllocation.groupBy({
+      by: ['receivableId'],
+      where: { receivableId: { in: overdue.map((r) => r.id) } },
+      _sum: { amount: true },
+    });
+    const allocatedById = new Map(
+      sums.map((s) => [s.receivableId as string, s._sum.amount ?? 0]),
+    );
 
     let emitted = 0;
     for (const r of overdue) {
-      const outstanding = Math.round((r.total - r.paid) * 100) / 100;
+      const outstanding = deriveOutstanding(
+        r.totalAmount,
+        allocatedById.get(r.id) ?? 0,
+      );
+      if (outstanding <= 0) continue;
       emitted += await this.emit({
         farmId: r.farmId,
         eventKey: 'payment_overdue',
         title: 'Payment Overdue',
-        message: `${r.entityName ?? 'A receivable'} is overdue: ৳${outstanding} (due ${this.ymd(r.dueDate!)}).`,
+        message: `${r.sale.saleNumber} is overdue: ৳${outstanding} (due ${this.ymd(r.dueDate!)}).`,
         params: {
-          entityName: r.entityName ?? 'A receivable',
+          entityName: r.sale.saleNumber,
           amount: outstanding,
           date: this.ymd(r.dueDate!),
         },
@@ -367,41 +396,71 @@ export class SchedulerService {
     return emitted;
   }
 
-  /** Payables due within 3 days (PRD §20.2). Re-reminds daily until settled. */
+  /**
+   * Payables due within 3 days (PRD §20.2). Re-reminds daily until settled.
+   * RAKHAL-354: V1 `FinanceReceivable(kind: PAYABLE)` dropped — this used to
+   * sweep it alongside V2 `Payable` (RAKHAL-351's additive re-point). V2
+   * (Purchasing module, RAKHAL-348 — a Purchase/Expense not fully paid at
+   * creation) is now the sole source.
+   */
   private async sweepSupplierPaymentDue(): Promise<number> {
+    return this.sweepSupplierPaymentDueV2();
+  }
+
+  /**
+   * `closedAt: null` already
+   * excludes a fully-settled payable (`PayableService.closeIfSettled`), same
+   * derived-outstanding batching as {@link sweepPaymentOverdueV2}. Display
+   * name comes from whichever of `purchase.purchaseNumber`/`expense.
+   * description` is set — exactly one always is (`Payable`'s own schema
+   * invariant, `purchasing/payable.prisma`).
+   */
+  private async sweepSupplierPaymentDueV2(): Promise<number> {
     const now = new Date();
     const horizon = new Date(now.getTime() + 3 * DAY_MS);
-    const payables = await this.prisma.financeReceivable.findMany({
-      where: {
-        kind: 'PAYABLE',
-        dueDate: { gte: now, lte: horizon },
-        status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] },
-      },
+    const payables = await this.prisma.payable.findMany({
+      where: { dueDate: { gte: now, lte: horizon }, closedAt: null },
       select: {
         id: true,
         farmId: true,
-        entityName: true,
-        total: true,
-        paid: true,
+        totalAmount: true,
         dueDate: true,
+        purchase: { select: { purchaseNumber: true } },
+        expense: { select: { description: true } },
       },
     });
+    if (payables.length === 0) return 0;
+
+    const sums = await this.prisma.paymentAllocation.groupBy({
+      by: ['payableId'],
+      where: { payableId: { in: payables.map((p) => p.id) } },
+      _sum: { amount: true },
+    });
+    const allocatedById = new Map(
+      sums.map((s) => [s.payableId as string, s._sum.amount ?? 0]),
+    );
 
     let emitted = 0;
-    for (const r of payables) {
-      const outstanding = Math.round((r.total - r.paid) * 100) / 100;
+    for (const p of payables) {
+      const outstanding = deriveOutstanding(
+        p.totalAmount,
+        allocatedById.get(p.id) ?? 0,
+      );
+      if (outstanding <= 0) continue;
+      const entityName =
+        p.purchase?.purchaseNumber ?? p.expense?.description ?? 'A payable';
       emitted += await this.emit({
-        farmId: r.farmId,
+        farmId: p.farmId,
         eventKey: 'supplier_payment_due_soon',
         title: 'Supplier Payment Due Soon',
-        message: `${r.entityName ?? 'A payable'} is due soon: ৳${outstanding} (due ${this.ymd(r.dueDate!)}).`,
+        message: `${entityName} is due soon: ৳${outstanding} (due ${this.ymd(p.dueDate!)}).`,
         params: {
-          entityName: r.entityName ?? 'A payable',
+          entityName,
           amount: outstanding,
-          date: this.ymd(r.dueDate!),
+          date: this.ymd(p.dueDate!),
         },
         link: '/finance',
-        dedupeKey: `supplier_payment_due_soon:${r.id}:${this.ymd(now)}`,
+        dedupeKey: `supplier_payment_due_soon:${p.id}:${this.ymd(now)}`,
       });
     }
     return emitted;
@@ -417,7 +476,17 @@ export class SchedulerService {
 
     let emitted = 0;
     for (const f of farms) {
-      const snapshot = await this.financeService.getRunwaySnapshot(f.id, now);
+      const [rakhalBalance, thresholds] = await Promise.all([
+        this.balance.getRakhalBalance(f.id),
+        this.farmSettings.financeRunwayThresholds(f.id),
+      ]);
+      const snapshot = await computeRunwaySnapshot(
+        this.prisma,
+        f.id,
+        Number(rakhalBalance.rakhalBalance),
+        thresholds,
+        now,
+      );
       if (snapshot.status !== 'warning' && snapshot.status !== 'critical')
         continue;
       emitted += await this.emit({
@@ -587,7 +656,7 @@ export class SchedulerService {
    * duplicating the update query directly, since that service is the single
    * source of truth for `SafetyWithdrawal` writes (mirrors this file's
    * existing precedent of calling into `SubscriptionLifecycleService`/
-   * `RenewalReminderService`/`ReconciliationService`/`FinanceService` for
+   * `RenewalReminderService`/`ReconciliationService`/`BalanceService` for
    * their respective domains rather than hand-rolling the query here). Not a
    * notification sweep — nothing to `emit()`, just the status transition; the
    * count returned is rows swept, for the `runDailySweeps()` results summary.

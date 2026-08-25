@@ -18,6 +18,7 @@ import { RequirePermission } from 'src/modules/permission/presentation/decorator
 import { ReproductionService } from '../../application/services/reproduction.service';
 import { ReproductionListQueryDto } from '../dto/common.dto';
 import { ListPregnanciesQueryDto } from '../dto/list-pregnancies-query.dto';
+import { ListReproductionCowsQueryDto } from '../dto/list-reproduction-cows-query.dto';
 import { ReproEventsQueryDto } from '../dto/repro-events-query.dto';
 import { CreateAbortionEventDto } from '../dto/create-abortion-event.dto';
 import { CreateBreedingEventDto } from '../dto/create-breeding-event.dto';
@@ -245,6 +246,18 @@ export class ReproductionController {
   @RequirePermission('reproduction.read')
   dashboard(@CurrentFarmId() farmId: string) {
     return this.reproductionService.dashboard(farmId);
+  }
+
+  /** RAKHAL-363: every cow currently in an active reproductive cycle (OPEN /
+   * BRED_AWAITING_CONFIRMATION / PREGNANT) — replaces the dashboard's embedded,
+   * uncapped, OPEN-only `open_cows[]` list with a proper paginated endpoint. */
+  @Get('cows')
+  @RequirePermission('reproduction.read')
+  listReproductionCows(
+    @CurrentFarmId() farmId: string,
+    @Query() query: ListReproductionCowsQueryDto,
+  ) {
+    return this.reproductionService.listReproductionCows(farmId, query);
   }
 
   /** RAKHAL-051: Unified reproduction events feed with optional filters. */

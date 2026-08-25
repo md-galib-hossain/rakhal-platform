@@ -3,11 +3,27 @@ import { IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
 import { MilkSession } from '@prisma/client';
 import { trimString } from 'src/common/dto';
 
+/** Trend window for `GET /milk/overview`'s `trend` series (dashboard + Milk page
+ * "Production Trend Over Time" range picker). `lifetime` omits the lower date bound. */
+export const MILK_TREND_RANGES = [
+  '7d',
+  '30d',
+  '3m',
+  '6m',
+  '1y',
+  'lifetime',
+] as const;
+export type MilkTrendRange = (typeof MILK_TREND_RANGES)[number];
+
 /** Query for `GET /milk/overview`. */
 export class MilkOverviewQueryDto {
   @IsOptional()
   @IsDateString()
   date?: string;
+
+  @IsOptional()
+  @IsEnum(MILK_TREND_RANGES)
+  range?: MilkTrendRange;
 }
 
 /** Query for `GET /milk/log`. */
@@ -31,4 +47,13 @@ export class MilkAnomalyQueryDto {
   @IsOptional()
   @IsDateString()
   date?: string;
+}
+
+/** Query for `GET /milk/availability` (RAKHAL-343). Omit `tankId` for every
+ * active SELLABLE tank; pass it to scope to one. */
+export class MilkAvailabilityQueryDto {
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  tankId?: string;
 }

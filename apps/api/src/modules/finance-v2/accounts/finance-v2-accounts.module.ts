@@ -4,6 +4,7 @@ import { AuthModule } from 'src/modules/auth/auth.module';
 import { TenantAccessModule } from 'src/modules/tenant-access/tenant-access.module';
 import { PermissionModule } from 'src/modules/permission/permission.module';
 import { SubscriptionModule } from 'src/modules/subscription/subscription.module';
+import { ActivityModule } from 'src/modules/activity/activity.module';
 import { FinancialAccountService } from './application/financial-account.service';
 import { BalanceService } from './application/balance.service';
 import { FinancialAccountController } from './presentation/controllers/financial-account.controller';
@@ -34,6 +35,8 @@ import { BalanceController } from './presentation/controllers/balance.controller
     PermissionModule,
     LoggerModule,
     SubscriptionModule,
+    // RAKHAL-353: ActivityLogService for the new money-moving log entries.
+    ActivityModule,
   ],
   controllers: [FinancialAccountController, BalanceController],
   providers: [FinancialAccountService, BalanceService],

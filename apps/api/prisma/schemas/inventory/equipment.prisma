@@ -30,6 +30,10 @@ model Equipment {
   creator User @relation("EquipmentCreator", fields: [createdBy], references: [id])
 
   stockMovements EquipmentStockMovement[]
+  inventorySaleLines InventorySaleLine[] @relation("EquipmentToInventorySaleLine")
+  /// Back-relation for `PurchaseLine.equipmentId` (RAKHAL-348, `purchasing/**`) —
+  /// every purchase line that restocked this equipment row.
+  purchaseLines PurchaseLine[] @relation("EquipmentToPurchaseLine")
 
   @@index([farmId])
   @@index([type])
@@ -51,6 +55,13 @@ model EquipmentStockMovement {
   balanceAfter Float
   notes        String?
 
+  /// Names the `SaleLine` that caused this movement, set only when
+  /// `reason == SALE` (RAKHAL-346, `SellInventoryUseCase`). Plain scalar, not
+  /// a `@relation` — same judgment call `CattleDisposition.saleId`/
+  /// `Sale.customerId` already document: `sales/**` is a different ticket's
+  /// lane, this column only needs to persist the id.
+  saleLineId String?
+
   createdBy String
   createdAt DateTime @default(now())
 
@@ -59,4 +70,5 @@ model EquipmentStockMovement {
   @@index([equipmentId])
   @@index([farmId])
   @@index([createdAt])
+  @@index([saleLineId])
 }

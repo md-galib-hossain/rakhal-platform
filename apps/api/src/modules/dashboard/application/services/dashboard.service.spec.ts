@@ -118,7 +118,7 @@ describe('DashboardService — herdStatus', () => {
   const make = () =>
     new DashboardService(
       prisma as never,
-      {} as never, // FinanceService — unused by herdStatus
+      {} as never, // BalanceService — unused by herdStatus
       {} as never, // MilkService — unused by herdStatus
       {} as never, // HealthService — unused by herdStatus
       farmSettings as never,
@@ -196,7 +196,8 @@ describe('DashboardService — priorities (grouped cattle rows)', () => {
     healthTask: { findMany: jest.Mock };
     pregnancy: { findFirst: jest.Mock };
     medicine: { findFirst: jest.Mock; fields: { lowStockThreshold: string } };
-    financeReceivable: { findFirst: jest.Mock };
+    receivable: { findFirst: jest.Mock };
+    paymentAllocation: { aggregate: jest.Mock };
     task: { count: jest.Mock };
     cattle: { findMany: jest.Mock };
     milkLogEntry: { findMany: jest.Mock };
@@ -211,7 +212,12 @@ describe('DashboardService — priorities (grouped cattle rows)', () => {
         findFirst: jest.fn().mockResolvedValue(null),
         fields: { lowStockThreshold: 'lowStockThreshold' },
       },
-      financeReceivable: { findFirst: jest.fn().mockResolvedValue(null) },
+      // RAKHAL-354: V1 `FinanceReceivable` dropped — `priorities()` checks
+      // only the V2 `Receivable` model for an overdue candidate now.
+      receivable: { findFirst: jest.fn().mockResolvedValue(null) },
+      paymentAllocation: {
+        aggregate: jest.fn().mockResolvedValue({ _sum: { amount: null } }),
+      },
       task: { count: jest.fn().mockResolvedValue(0) },
       cattle: { findMany: jest.fn().mockResolvedValue([]) },
       milkLogEntry: { findMany: jest.fn().mockResolvedValue([]) },
@@ -222,7 +228,7 @@ describe('DashboardService — priorities (grouped cattle rows)', () => {
   const make = () =>
     new DashboardService(
       prisma as never,
-      {} as never, // FinanceService — unused by priorities()
+      {} as never, // BalanceService — unused by priorities()
       {} as never, // MilkService — unused by priorities()
       {} as never, // HealthService — unused by priorities()
       {} as never, // FarmSettingsService — unused by priorities()

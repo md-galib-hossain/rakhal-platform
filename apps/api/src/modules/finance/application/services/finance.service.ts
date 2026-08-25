@@ -1,56 +1,46 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import {
-  CattleStatus,
-  EquipmentStockMovementReason,
-  FeedItemStockMovementReason,
-  FinanceCategory,
-  FinancePaymentMethod,
-  FinancePaymentType,
-  FinanceTxnStatus,
-  FinanceTxnType,
-  FixedAssetCategory,
-  InventoryItemType,
-  LoanStatus,
-  MedicineStockMovementReason,
-  Prisma,
-  ReceivableKind,
-  ReceivableStatus,
-  WalletDirection,
-} from '@prisma/client';
+import { Injectable } from '@nestjs/common';
+import { FixedAssetCategory, LoanStatus } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
-import { getCursorArgs, toCursorPage } from 'src/common/pagination';
-import { NON_VOID_TXN } from 'src/common/finance/txn-filters';
-import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
-import { MedicineService } from 'src/modules/inventory/application/services/medicine.service';
-import { FeedItemService } from 'src/modules/inventory/application/services/feed-item.service';
-import { EquipmentService } from 'src/modules/inventory/application/services/equipment.service';
-import { CreateTransactionDto } from '../../presentation/dto/create-transaction.dto';
+import { BalanceService } from 'src/modules/finance-v2/accounts/application/balance.service';
 import { CreateFixedAssetDto } from '../../presentation/dto/create-fixed-asset.dto';
-import {
-  LedgerQueryDto,
-  ReceivableQueryDto,
-} from '../../presentation/dto/finance-query.dto';
-import {
-  AddFundsDto,
-  RecordPaymentDto,
-  VoidTransactionDto,
-  WithdrawDto,
-} from '../../presentation/dto/finance-actions.dto';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
- * Finance Module service (PRD §16). Farm-scoped (`farmId` from the token
- * context). Records ledger transactions (4 wizard types), auto-creates
- * receivables/payables from partial settlements, manages loans (liabilities)
- * and the wallet (cash position, parallel to the ledger — §16.7), and computes
- * the headline KPIs incl. cost-per-litre.
+ * Finance Module service — **RAKHAL-354 survivor**. Originally PRD §16's
+ * full ledger/wallet/settlements engine; RAKHAL-354 (`FINANCE_V2_DESIGN.md`
+ * §5.3) deleted `recordTransaction`/`voidTransaction`/`ledger`/`receivables`/
+ * `payables`/`recordPayment`/`wallet`/`addFunds`/`withdraw`/`highlights` —
+ * every method reading the dropped `FinanceTransaction`/`FinanceReceivable`/
+ * `WalletTransaction` tables — since Finance V2 (`finance-v2/**` +
+ * `purchasing/**`) fully replaces them.
+ *
+ * **What's left, and why**: `liabilities()`/`assets()`/`createFixedAsset()`
+ * — `FinanceLoan` and `FixedAsset` (`FINANCE_V2_DESIGN.md` §5.2's "survives,
+ * re-pointed") never actually got a V2 loans/fixed-assets flow across the
+ * whole 32-ticket milestone, so the frontend's Liabilities/Assets tabs
+ * (`liabilities-view.tsx`/`asset-distribution-view.tsx`/
+ * `create-asset-dialog.tsx`, deliberately kept by RAKHAL-361) still depend
+ * on these 3 routes — confirmed by grepping the frontend repo before
+ * touching anything: `financeApi.liabilities()`/`assets()`/`createAsset()`
+ * (`features/finance/api.ts`) are the only V1 calls that survive there.
+ * Deleting this whole module (the design doc's original "delete
+ * `src/modules/finance/**`" instruction) would have broken those two live
+ * tabs with no replacement — so this ticket keeps a slimmed module instead.
+ * Filed as new tech debt (`docs/TECH_DEBT.md`) — a future ticket should give
+ * loans/fixed-assets a real Finance V2 home and let this module retire
+ * outright.
+ *
+ * `assets()`'s liquidity figure now sources from Finance V2's
+ * `BalanceService` (`Rakhal Balance = Cash + Bank + MFS`) instead of the
+ * dropped `WalletTransaction`. Its `cattle_herd` allocation — previously a
+ * sum of V1 `FinanceTransaction` rows tagged `subType: 'animal'` — has no V2
+ * replacement (RAKHAL-351 already documented this gap: no "animal
+ * acquisition cost" concept exists in Purchasing) and now returns 0 rather
+ * than reading a dropped table; see `report-generators.service.ts`'s
+ * `herdPurchaseValue()` for the same documented gap.
  */
 @Injectable()
 export class FinanceService {
@@ -58,419 +48,13 @@ export class FinanceService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly farmSettings: FarmSettingsService,
-    private readonly medicineService: MedicineService,
-    private readonly feedItemService: FeedItemService,
-    private readonly equipmentService: EquipmentService,
+    private readonly balanceService: BalanceService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(FinanceService.name);
   }
 
-  // ---- Transactions / ledger ----------------------------------------------
-
-  async recordTransaction(
-    farmId: string,
-    userId: string,
-    dto: CreateTransactionDto,
-  ) {
-    const amount = round2(dto.amount);
-    const isPartial = dto.paymentType === FinancePaymentType.PARTIAL;
-    const paidNow = isPartial ? round2(dto.paidNow ?? 0) : amount;
-    if (paidNow > amount) {
-      throw new BadRequestException('paidNow cannot exceed the total amount');
-    }
-
-    const reference = await this.nextReference(farmId, 'TRX');
-    const transaction = await this.prisma.financeTransaction.create({
-      data: {
-        farmId,
-        reference,
-        date: dto.paymentDate ? new Date(dto.paymentDate) : new Date(),
-        type: dto.type,
-        category: dto.category,
-        subType: dto.subType,
-        entityName: dto.entityName,
-        description: dto.notes,
-        amount,
-        paidNow,
-        paymentType: dto.paymentType ?? FinancePaymentType.FULL,
-        paymentMethod: dto.paymentMethod,
-        status: FinanceTxnStatus.COMPLETED,
-        buyerId: dto.buyerId,
-        cattleId: dto.cattleId,
-        inventoryItemId: dto.inventoryItemId,
-        inventoryItemType: dto.inventoryItemType,
-        inventoryItemName: dto.inventoryItemName,
-        quantity: dto.quantity,
-        costPerUnit: dto.costPerUnit,
-        createdBy: userId,
-      },
-    });
-
-    // Partial payment → receivable (income owed to us) or payable (we owe).
-    let receivableCreated: string | null = null;
-    let payableCreated: string | null = null;
-    if (isPartial && amount - paidNow > 0) {
-      const kind =
-        dto.type === FinanceTxnType.REVENUE
-          ? ReceivableKind.RECEIVABLE
-          : ReceivableKind.PAYABLE;
-      const ref = await this.nextReference(
-        farmId,
-        kind === ReceivableKind.RECEIVABLE ? 'REC' : 'PAY',
-      );
-      const created = await this.prisma.financeReceivable.create({
-        data: {
-          farmId,
-          reference: ref,
-          kind,
-          entityName: dto.entityName,
-          total: amount,
-          paid: paidNow,
-          dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
-          status:
-            paidNow > 0 ? ReceivableStatus.PARTIAL : ReceivableStatus.PENDING,
-          sourceTransactionId: transaction.id,
-          createdBy: userId,
-        },
-      });
-      if (kind === ReceivableKind.RECEIVABLE)
-        receivableCreated = created.reference;
-      else payableCreated = created.reference;
-    }
-
-    // Debt / loan side-effects.
-    let loanCreated: string | null = null;
-    if (dto.type === FinanceTxnType.DEBT_LOAN) {
-      if (dto.subType === 'new_loan') {
-        const loan = await this.prisma.financeLoan.create({
-          data: {
-            farmId,
-            lenderName: dto.entityName ?? 'Lender',
-            totalAmount: amount,
-            monthlyEmi: dto.monthlyEmi ?? 0,
-            startDate: dto.startDate ? new Date(dto.startDate) : new Date(),
-            durationMonths: dto.durationMonths ?? 0,
-            createdBy: userId,
-          },
-        });
-        loanCreated = loan.id;
-      } else if (dto.subType === 'emi_payment' && dto.loanId) {
-        await this.applyEmiPayment(farmId, dto.loanId, amount);
-      }
-    }
-
-    // Animal sale → mark the animal Sold (PRD §16.8).
-    let cattleStatusUpdated: string | null = null;
-    if (
-      dto.type === FinanceTxnType.REVENUE &&
-      dto.subType === 'animal' &&
-      dto.cattleId
-    ) {
-      const cattle = await this.prisma.cattle.findFirst({
-        where: { id: dto.cattleId, farmId },
-        select: { id: true },
-      });
-      if (cattle) {
-        await this.prisma.cattle.update({
-          where: { id: dto.cattleId },
-          data: { status: CattleStatus.SOLD, isActive: false },
-        });
-        cattleStatusUpdated = CattleStatus.SOLD;
-      }
-    }
-
-    // Wallet debit when an INVENTORY_PURCHASE is paid from the wallet — mirrors
-    // `withdraw()`'s balance-check + WalletTransaction pattern. CASH/BANK_TRANSFER/
-    // MFS purchases stay wallet-neutral, unchanged. Checked before the stock
-    // increment below so an insufficient-balance purchase fails before touching
-    // stock. Uses `paidNow`, not `amount`, so a partial-payment purchase only
-    // debits what's actually paid now.
-    let walletTransactionId: string | null = null;
-    if (
-      dto.type === FinanceTxnType.INVENTORY_PURCHASE &&
-      dto.paymentMethod === FinancePaymentMethod.WALLET
-    ) {
-      const balance = await this.currentLiquidity(farmId);
-      if (paidNow > balance) {
-        throw new BadRequestException(
-          'Insufficient wallet balance for this purchase',
-        );
-      }
-      const walletReference = await this.nextReference(farmId, 'WAL');
-      const walletTxn = await this.prisma.walletTransaction.create({
-        data: {
-          farmId,
-          reference: walletReference,
-          direction: WalletDirection.DEBIT,
-          description: dto.inventoryItemName
-            ? `Inventory purchase: ${dto.inventoryItemName}`
-            : 'Inventory purchase',
-          amount: paidNow,
-          paymentMethod: FinancePaymentMethod.WALLET,
-          date: dto.paymentDate ? new Date(dto.paymentDate) : new Date(),
-          createdBy: userId,
-        },
-      });
-      walletTransactionId = walletTxn.id;
-    }
-
-    // Inventory auto-increment on INVENTORY_PURCHASE, gated on the wizard's
-    // Yes/No/Skip `updateInventory` flag (RD-010, RAKHAL-085). Inventory-initiated
-    // restock creating a Finance expense record is the reverse direction and is
-    // intentionally NOT implemented here — deferred, see RAKHAL-085 follow-up.
-    let inventoryUpdated = false;
-    if (dto.type === FinanceTxnType.INVENTORY_PURCHASE && dto.updateInventory) {
-      if (!dto.inventoryItemId || !dto.inventoryItemType || !dto.quantity) {
-        throw new BadRequestException(
-          'inventoryItemId, inventoryItemType and quantity are required when updateInventory is true',
-        );
-      }
-      inventoryUpdated = await this.incrementInventoryStock(
-        farmId,
-        userId,
-        dto.inventoryItemType,
-        dto.inventoryItemId,
-        dto.quantity,
-        reference,
-      );
-    }
-
-    this.log.info('Finance transaction recorded', {
-      transactionId: transaction.id,
-      farmId,
-      type: dto.type,
-      amount,
-    });
-
-    return {
-      transactionId: transaction.id,
-      reference,
-      amount,
-      status: transaction.status,
-      receivableCreated,
-      payableCreated,
-      loanCreated,
-      cattleStatusUpdated,
-      inventoryUpdated,
-      walletTransactionId,
-    };
-  }
-
-  async ledger(farmId: string, query: LedgerQueryDto) {
-    const where = this.buildLedgerWhere(farmId, query);
-
-    const rows = await this.prisma.financeTransaction.findMany({
-      where,
-      orderBy: [{ date: query.sortOrder }, { id: query.sortOrder }],
-      ...getCursorArgs(query),
-    });
-    const page = toCursorPage(rows, query);
-    const chart = await this.ledgerChart(farmId);
-    return { items: page.items, meta: { ...page.meta, chart } };
-  }
-
-  /**
-   * Shared filter-building for the ledger list and the CSV export below —
-   * same filters (category/status/date-range/search), just without the
-   * cursor-pagination fields the export doesn't use.
-   */
-  private buildLedgerWhere(
-    farmId: string,
-    query: {
-      category?: FinanceCategory;
-      status?: FinanceTxnStatus;
-      from?: string;
-      to?: string;
-      search?: string;
-    },
-  ): Prisma.FinanceTransactionWhereInput {
-    return {
-      farmId,
-      ...(query.category ? { category: query.category } : {}),
-      ...(query.status ? { status: query.status } : {}),
-      ...(query.from || query.to
-        ? {
-            date: {
-              ...(query.from ? { gte: new Date(query.from) } : {}),
-              ...(query.to ? { lte: new Date(query.to) } : {}),
-            },
-          }
-        : {}),
-      ...(query.search
-        ? {
-            OR: [
-              { description: { contains: query.search, mode: 'insensitive' } },
-              { entityName: { contains: query.search, mode: 'insensitive' } },
-              { reference: { contains: query.search, mode: 'insensitive' } },
-            ],
-          }
-        : {}),
-    };
-  }
-
-  async voidTransaction(
-    farmId: string,
-    userId: string,
-    id: string,
-    dto: VoidTransactionDto,
-  ) {
-    const txn = await this.prisma.financeTransaction.findFirst({
-      where: { id, farmId },
-    });
-    if (!txn) throw new NotFoundException('Transaction not found');
-    if (txn.isVoided || txn.status === FinanceTxnStatus.VOIDED) {
-      throw new BadRequestException('Transaction is already voided');
-    }
-
-    const reversalRef = await this.nextReference(farmId, 'TRX');
-    const result = await this.prisma.$transaction(async (tx) => {
-      await tx.financeTransaction.update({
-        where: { id },
-        data: { isVoided: true, status: FinanceTxnStatus.VOIDED },
-      });
-      return tx.financeTransaction.create({
-        data: {
-          farmId,
-          reference: reversalRef,
-          date: new Date(),
-          type: txn.type,
-          category: txn.category,
-          subType: txn.subType,
-          entityName: txn.entityName,
-          description: `Reversal of ${txn.reference}: ${dto.reasonCategory}`,
-          amount: -txn.amount,
-          paidNow: -txn.paidNow,
-          paymentType: txn.paymentType,
-          paymentMethod: txn.paymentMethod,
-          status: FinanceTxnStatus.COMPLETED,
-          reversedTransactionId: txn.id,
-          reversalReason: dto.reasonNotes ?? dto.reasonCategory,
-          createdBy: userId,
-        },
-      });
-    });
-
-    this.log.info('Finance transaction voided', { originalId: id, farmId });
-    return {
-      originalTransactionId: txn.id,
-      reversalTransactionId: result.id,
-      originalStatus: FinanceTxnStatus.VOIDED,
-      reversalAmount: result.amount,
-    };
-  }
-
-  // ---- Receivables / payables ---------------------------------------------
-
-  async receivables(farmId: string, query: ReceivableQueryDto) {
-    return this.settlements(farmId, ReceivableKind.RECEIVABLE, query);
-  }
-
-  async payables(farmId: string, query: ReceivableQueryDto) {
-    return this.settlements(farmId, ReceivableKind.PAYABLE, query);
-  }
-
-  async recordPayment(
-    farmId: string,
-    userId: string,
-    kind: ReceivableKind,
-    id: string,
-    dto: RecordPaymentDto,
-  ) {
-    const row = await this.prisma.financeReceivable.findFirst({
-      where: { id, farmId, kind },
-    });
-    if (!row) throw new NotFoundException('Settlement not found');
-    if (row.status === ReceivableStatus.COMPLETED) {
-      throw new BadRequestException('Settlement is already fully paid');
-    }
-
-    const paid = round2(Math.min(row.total, row.paid + dto.amountPaid));
-    // Actual amount this call applies — dto.amountPaid may overshoot the
-    // outstanding balance, so use the capped delta for the wallet/ledger
-    // side-effects below, not the raw request value.
-    const appliedAmount = round2(paid - row.paid);
-    const status =
-      paid >= row.total ? ReceivableStatus.COMPLETED : ReceivableStatus.PARTIAL;
-
-    // A settlement previously only bumped `FinanceReceivable.paid` — the
-    // payment method was accepted but discarded, so no money ever actually
-    // moved: the wallet balance never changed and the originating
-    // `FinanceTransaction.paidNow` stayed stuck at its creation-time value
-    // (e.g. 0 for a milk-dispatch receivable). Both are fixed here, mirroring
-    // `addFunds()`/`withdraw()`'s WalletTransaction pattern and
-    // `recordTransaction()`'s WALLET-gated debit for INVENTORY_PURCHASE.
-    let walletTransactionId: string | null = null;
-    if (
-      appliedAmount > 0 &&
-      dto.paymentMethod === FinancePaymentMethod.WALLET
-    ) {
-      if (kind === ReceivableKind.PAYABLE) {
-        const balance = await this.currentLiquidity(farmId);
-        if (appliedAmount > balance) {
-          throw new BadRequestException(
-            'Insufficient wallet balance for this payment',
-          );
-        }
-      }
-      const walletReference = await this.nextReference(farmId, 'WAL');
-      const walletTxn = await this.prisma.walletTransaction.create({
-        data: {
-          farmId,
-          reference: walletReference,
-          direction:
-            kind === ReceivableKind.RECEIVABLE
-              ? WalletDirection.CREDIT
-              : WalletDirection.DEBIT,
-          description: row.entityName
-            ? `${kind === ReceivableKind.RECEIVABLE ? 'Settlement received from' : 'Settlement paid to'} ${row.entityName}`
-            : 'Settlement payment',
-          amount: appliedAmount,
-          paymentMethod: FinancePaymentMethod.WALLET,
-          date: dto.paymentDate ? new Date(dto.paymentDate) : new Date(),
-          createdBy: userId,
-        },
-      });
-      walletTransactionId = walletTxn.id;
-    }
-
-    if (appliedAmount > 0 && row.sourceTransactionId) {
-      const txn = await this.prisma.financeTransaction.findUnique({
-        where: { id: row.sourceTransactionId },
-        select: { paidNow: true, amount: true },
-      });
-      if (txn) {
-        await this.prisma.financeTransaction.update({
-          where: { id: row.sourceTransactionId },
-          data: {
-            paidNow: round2(Math.min(txn.amount, txn.paidNow + appliedAmount)),
-            paymentMethod: dto.paymentMethod,
-          },
-        });
-      }
-    }
-
-    const updated = await this.prisma.financeReceivable.update({
-      where: { id },
-      data: { paid, status },
-    });
-    this.log.info('Settlement payment recorded', {
-      id,
-      farmId,
-      kind,
-      paid,
-      paymentMethod: dto.paymentMethod,
-      walletTransactionId,
-    });
-    return {
-      ...updated,
-      outstanding: round2(updated.total - updated.paid),
-      walletTransactionId,
-    };
-  }
-
-  // ---- Liabilities ---------------------------------------------------------
+  // ---- Liabilities -----------------------------------------------------
 
   async liabilities(farmId: string) {
     const loans = await this.prisma.financeLoan.findMany({
@@ -497,110 +81,7 @@ export class FinanceService {
     };
   }
 
-  // ---- Wallet --------------------------------------------------------------
-
-  async wallet(farmId: string) {
-    const rows = await this.prisma.walletTransaction.findMany({
-      where: { farmId },
-      orderBy: { date: 'desc' },
-      take: 50,
-    });
-    return {
-      totalBalance: this.walletBalance(rows),
-      transactions: rows.map((w) => ({
-        id: w.id,
-        reference: w.reference,
-        type: w.direction === WalletDirection.CREDIT ? 'credit' : 'debit',
-        description: w.description,
-        paymentMethod: w.paymentMethod,
-        amount: w.amount,
-        date: w.date,
-      })),
-    };
-  }
-
-  async addFunds(farmId: string, userId: string, dto: AddFundsDto) {
-    const reference = await this.nextReference(farmId, 'WAL');
-    return this.prisma.walletTransaction.create({
-      data: {
-        farmId,
-        reference,
-        direction: WalletDirection.CREDIT,
-        description: dto.description,
-        amount: round2(dto.amount),
-        paymentMethod: dto.paymentMethod,
-        date: dto.date ? new Date(dto.date) : new Date(),
-        createdBy: userId,
-      },
-    });
-  }
-
-  async withdraw(farmId: string, userId: string, dto: WithdrawDto) {
-    const balance = await this.currentLiquidity(farmId);
-    if (dto.amount > balance) {
-      throw new BadRequestException('Withdrawal exceeds the wallet balance');
-    }
-    const reference = await this.nextReference(farmId, 'WAL');
-    return this.prisma.walletTransaction.create({
-      data: {
-        farmId,
-        reference,
-        direction: WalletDirection.DEBIT,
-        description: dto.fundName,
-        amount: round2(dto.amount),
-        paymentMethod: dto.paymentMethod,
-        date: dto.date ? new Date(dto.date) : new Date(),
-        createdBy: userId,
-      },
-    });
-  }
-
-  // ---- Highlights / assets -------------------------------------------------
-
-  async highlights(farmId: string) {
-    const now = new Date();
-    const monthStart = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
-    );
-    const [liquidity, monthExpense, sellableLitres, runway] = await Promise.all(
-      [
-        this.currentLiquidity(farmId),
-        this.expenseSum(farmId, monthStart, now),
-        this.sellableLitres(farmId, monthStart, now),
-        this.getRunwaySnapshot(farmId, now),
-      ],
-    );
-
-    const costPerLitre =
-      sellableLitres > 0 ? round2(monthExpense / sellableLitres) : null;
-
-    return {
-      availableLiquidity: liquidity,
-      costPerLitreThisMonth: costPerLitre,
-      // Herd valuation needs a per-animal market value (not modelled) — deferred.
-      herdMarketValue: 0,
-      survivalRunwayDays: runway.days,
-      survivalRunwayStatus: runway.status,
-    };
-  }
-
-  /**
-   * Survival-runway snapshot (PRD §16/§20.2) — shared by `highlights()` and the
-   * `survival_runway_warning` scheduler sweep, so both read one computation.
-   */
-  async getRunwaySnapshot(
-    farmId: string,
-    now: Date = new Date(),
-  ): Promise<{ days: number | null; status: string }> {
-    const [liquidity, avgDailyExpense, thresholds] = await Promise.all([
-      this.currentLiquidity(farmId),
-      this.avgDailyExpense(farmId, now),
-      this.farmSettings.financeRunwayThresholds(farmId),
-    ]);
-    const days =
-      avgDailyExpense > 0 ? Math.floor(liquidity / avgDailyExpense) : null;
-    return { days, status: this.runwayStatus(days, thresholds) };
-  }
+  // ---- Assets ------------------------------------------------------------
 
   async assets(farmId: string) {
     const [
@@ -608,9 +89,8 @@ export class FinanceService {
       feedItems,
       equipmentInv,
       fixedAssets,
-      liquidity,
+      rakhalBalance,
       loans,
-      cattlePurchases,
     ] = await Promise.all([
       this.prisma.medicine.findMany({
         where: { farmId, isActive: true },
@@ -635,23 +115,14 @@ export class FinanceService {
           salvageValue: true,
         },
       }),
-      this.currentLiquidity(farmId),
+      this.balanceService.getRakhalBalance(farmId),
       this.prisma.financeLoan.findMany({
         where: { farmId, status: LoanStatus.ACTIVE },
         select: { totalAmount: true, paidAmount: true },
       }),
-      this.prisma.financeTransaction.aggregate({
-        where: {
-          farmId,
-          type: FinanceTxnType.INVENTORY_PURCHASE,
-          category: 'INVENTORY' as const,
-          subType: 'animal',
-          ...NON_VOID_TXN,
-        },
-        _sum: { amount: true },
-      }),
     ]);
 
+    const liquidity = Number(rakhalBalance.rakhalBalance);
     const inventoryValue = round2(
       medicines.reduce((s, m) => s + m.currentStock * m.costPerUnit, 0) +
         feedItems.reduce((s, f) => s + f.currentStock * f.costPerUnit, 0) +
@@ -695,7 +166,10 @@ export class FinanceService {
       }
     }
 
-    const cattleHerdValue = round2(cattlePurchases._sum.amount ?? 0);
+    // RAKHAL-354: was a sum of V1 `FinanceTransaction` rows tagged
+    // `subType: 'animal'` — no V2 replacement exists (see this class's own
+    // doc comment / `report-generators.service.ts#herdPurchaseValue`).
+    const cattleHerdValue = 0;
     const totalLiabilities = round2(
       loans.reduce((s, l) => s + (l.totalAmount - l.paidAmount), 0),
     );
@@ -708,7 +182,7 @@ export class FinanceService {
         color: '#D97706',
       },
       { category: 'inventory', value: inventoryValue, color: '#7C3AED' },
-      { category: 'cash_bank', value: liquidity, color: '#DC2626' },
+      { category: 'cash_bank', value: round2(liquidity), color: '#DC2626' },
     ];
     const totalAssets = round2(allocation.reduce((s, a) => s + a.value, 0));
     return {
@@ -740,331 +214,5 @@ export class FinanceService {
     });
     this.log.info('Fixed asset created', { assetId: asset.id, farmId });
     return { assetId: asset.id, name: asset.name, category: asset.category };
-  }
-
-  // ---- Helpers -------------------------------------------------------------
-
-  /**
-   * Increment real inventory stock for an INVENTORY_PURCHASE transaction
-   * (RD-010, RAKHAL-085). Dispatches to the same audited `adjustStock` each
-   * inventory service already uses for its own controller route, so this
-   * writes a `*StockMovement` row instead of a raw Prisma increment. Looked
-   * up by ID (not the old fuzzy name match) — a bad/foreign-farm id now
-   * correctly surfaces as `NotFoundException` (404) rather than silently
-   * no-op'ing.
-   */
-  private async incrementInventoryStock(
-    farmId: string,
-    userId: string,
-    itemType: InventoryItemType,
-    itemId: string,
-    quantity: number,
-    txnReference: string,
-  ): Promise<boolean> {
-    const notes = `Finance purchase ${txnReference}`;
-    switch (itemType) {
-      case InventoryItemType.MEDICINE:
-        await this.medicineService.adjustStock(farmId, userId, itemId, {
-          adjustment: quantity,
-          reason: MedicineStockMovementReason.PURCHASE,
-          notes,
-        });
-        return true;
-      case InventoryItemType.FEED_ITEM:
-        await this.feedItemService.adjustStock(farmId, userId, itemId, {
-          adjustment: quantity,
-          reason: FeedItemStockMovementReason.PURCHASE,
-          notes,
-        });
-        return true;
-      case InventoryItemType.EQUIPMENT:
-        await this.equipmentService.adjustStock(farmId, userId, itemId, {
-          adjustment: quantity,
-          reason: EquipmentStockMovementReason.PURCHASE,
-          notes,
-        });
-        return true;
-    }
-  }
-
-  private async settlements(
-    farmId: string,
-    kind: ReceivableKind,
-    query: ReceivableQueryDto,
-  ) {
-    const now = new Date();
-    const where: Prisma.FinanceReceivableWhereInput = {
-      farmId,
-      kind,
-      ...(query.status ? { status: query.status } : {}),
-      ...(query.search
-        ? { entityName: { contains: query.search, mode: 'insensitive' } }
-        : {}),
-    };
-    const rows = await this.prisma.financeReceivable.findMany({
-      where,
-      orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
-      ...getCursorArgs(query),
-    });
-    const page = toCursorPage(rows, query);
-
-    const open = await this.prisma.financeReceivable.findMany({
-      where: { farmId, kind, status: { not: ReceivableStatus.COMPLETED } },
-    });
-    const isOverdue = (d: Date | null) =>
-      d != null && d.getTime() < now.getTime();
-    const stats = {
-      totalOutstanding: round2(
-        open.reduce((s, r) => s + (r.total - r.paid), 0),
-      ),
-      pendingToday: round2(
-        open
-          .filter((r) => r.dueDate && this.sameDay(r.dueDate, now))
-          .reduce((s, r) => s + (r.total - r.paid), 0),
-      ),
-      overdue: round2(
-        open
-          .filter((r) => isOverdue(r.dueDate))
-          .reduce((s, r) => s + (r.total - r.paid), 0),
-      ),
-    };
-
-    return {
-      items: page.items.map((r) => ({
-        ...r,
-        outstanding: round2(r.total - r.paid),
-        status:
-          r.status !== ReceivableStatus.COMPLETED && isOverdue(r.dueDate)
-            ? ReceivableStatus.OVERDUE
-            : r.status,
-      })),
-      meta: { ...page.meta, stats },
-    };
-  }
-
-  private async applyEmiPayment(
-    farmId: string,
-    loanId: string,
-    amount: number,
-  ) {
-    const loan = await this.prisma.financeLoan.findFirst({
-      where: { id: loanId, farmId },
-    });
-    if (!loan) throw new BadRequestException('Loan not found for EMI payment');
-    const paidAmount = round2(
-      Math.min(loan.totalAmount, loan.paidAmount + amount),
-    );
-    await this.prisma.financeLoan.update({
-      where: { id: loanId },
-      data: {
-        paidAmount,
-        status:
-          paidAmount >= loan.totalAmount
-            ? LoanStatus.CLOSED
-            : LoanStatus.ACTIVE,
-      },
-    });
-  }
-
-  private async ledgerChart(farmId: string) {
-    const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
-    const txns = await this.prisma.financeTransaction.findMany({
-      where: {
-        farmId,
-        status: FinanceTxnStatus.COMPLETED,
-        date: { gte: yearStart },
-        ...NON_VOID_TXN,
-      },
-      select: { date: true, type: true, amount: true },
-    });
-    const months = new Map<string, { income: number; expense: number }>();
-    let totalIncome = 0;
-    let totalExpense = 0;
-    for (const t of txns) {
-      const key = t.date.toISOString().slice(0, 7);
-      const row = months.get(key) ?? { income: 0, expense: 0 };
-      if (t.type === FinanceTxnType.REVENUE) {
-        row.income += t.amount;
-        totalIncome += t.amount;
-      } else {
-        row.expense += t.amount;
-        totalExpense += t.amount;
-      }
-      months.set(key, row);
-    }
-    const liabilities = await this.totalLiabilities(farmId);
-    const assets = await this.totalAssetsValue(farmId);
-    return {
-      yearly: [...months.entries()]
-        .map(([month, v]) => ({
-          month,
-          income: round2(v.income),
-          expense: round2(v.expense),
-          profit: round2(v.income - v.expense),
-        }))
-        .sort((a, b) => a.month.localeCompare(b.month)),
-      operatingMarginPct:
-        totalIncome > 0
-          ? round2(((totalIncome - totalExpense) / totalIncome) * 100)
-          : 0,
-      debtToAssetPct: assets > 0 ? round2((liabilities / assets) * 100) : 0,
-    };
-  }
-
-  private async currentLiquidity(farmId: string): Promise<number> {
-    const rows = await this.prisma.walletTransaction.findMany({
-      where: { farmId },
-      select: { direction: true, amount: true },
-    });
-    return this.walletBalance(rows);
-  }
-
-  private walletBalance(
-    rows: Array<{ direction: WalletDirection; amount: number }>,
-  ): number {
-    return round2(
-      rows.reduce(
-        (s, w) =>
-          s + (w.direction === WalletDirection.CREDIT ? w.amount : -w.amount),
-        0,
-      ),
-    );
-  }
-
-  private async expenseSum(
-    farmId: string,
-    from: Date,
-    to: Date,
-  ): Promise<number> {
-    const agg = await this.prisma.financeTransaction.aggregate({
-      where: {
-        farmId,
-        status: FinanceTxnStatus.COMPLETED,
-        type: { not: FinanceTxnType.REVENUE },
-        date: { gte: from, lte: to },
-        ...NON_VOID_TXN,
-      },
-      _sum: { amount: true },
-    });
-    return round2(agg._sum.amount ?? 0);
-  }
-
-  private async avgDailyExpense(farmId: string, now: Date): Promise<number> {
-    const from = new Date(now.getTime() - 30 * DAY_MS);
-    return round2((await this.expenseSum(farmId, from, now)) / 30);
-  }
-
-  private async sellableLitres(
-    farmId: string,
-    from: Date,
-    to: Date,
-  ): Promise<number> {
-    const agg = await this.prisma.milkLogEntry.aggregate({
-      where: {
-        farmId,
-        tankType: 'SELLABLE',
-        submitted: true,
-        logDate: { gte: from, lte: to },
-      },
-      _sum: { yieldL: true },
-    });
-    return round2(agg._sum.yieldL ?? 0);
-  }
-
-  private async totalLiabilities(farmId: string): Promise<number> {
-    const loans = await this.prisma.financeLoan.findMany({
-      where: { farmId, status: LoanStatus.ACTIVE },
-      select: { totalAmount: true, paidAmount: true },
-    });
-    return round2(
-      loans.reduce((s, l) => s + (l.totalAmount - l.paidAmount), 0),
-    );
-  }
-
-  private async totalAssetsValue(farmId: string): Promise<number> {
-    const [medicines, liquidity] = await Promise.all([
-      this.prisma.medicine.findMany({
-        where: { farmId, isActive: true },
-        select: { currentStock: true, costPerUnit: true },
-      }),
-      this.currentLiquidity(farmId),
-    ]);
-    const inventoryValue = medicines.reduce(
-      (s, m) => s + m.currentStock * m.costPerUnit,
-      0,
-    );
-    return round2(inventoryValue + liquidity);
-  }
-
-  private runwayStatus(
-    days: number | null,
-    thresholds: { warningDays: number; criticalDays: number },
-  ): string {
-    if (days == null) return 'unknown';
-    if (days < thresholds.criticalDays) return 'critical';
-    if (days < thresholds.warningDays) return 'warning';
-    return 'healthy';
-  }
-
-  private sameDay(a: Date, b: Date): boolean {
-    return a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10);
-  }
-
-  /** Per-farm sequential reference with a small retry on the unique race. */
-  private async nextReference(farmId: string, prefix: string): Promise<string> {
-    const counter = this.referenceCounter(prefix);
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const n = (await counter(farmId)) + 1 + attempt;
-      const reference = `${prefix}-${String(n).padStart(5, '0')}`;
-      const clash = await this.referenceExists(farmId, prefix, reference);
-      if (!clash) return reference;
-    }
-    return `${prefix}-${Date.now()}`;
-  }
-
-  private referenceCounter(
-    prefix: string,
-  ): (farmId: string) => Promise<number> {
-    if (prefix === 'WAL') {
-      return (farmId) =>
-        this.prisma.walletTransaction.count({ where: { farmId } });
-    }
-    if (prefix === 'REC' || prefix === 'PAY') {
-      const kind =
-        prefix === 'REC' ? ReceivableKind.RECEIVABLE : ReceivableKind.PAYABLE;
-      return (farmId) =>
-        this.prisma.financeReceivable.count({ where: { farmId, kind } });
-    }
-    return (farmId) =>
-      this.prisma.financeTransaction.count({ where: { farmId } });
-  }
-
-  private async referenceExists(
-    farmId: string,
-    prefix: string,
-    reference: string,
-  ): Promise<boolean> {
-    if (prefix === 'WAL') {
-      return Boolean(
-        await this.prisma.walletTransaction.findFirst({
-          where: { farmId, reference },
-          select: { id: true },
-        }),
-      );
-    }
-    if (prefix === 'REC' || prefix === 'PAY') {
-      return Boolean(
-        await this.prisma.financeReceivable.findFirst({
-          where: { farmId, reference },
-          select: { id: true },
-        }),
-      );
-    }
-    return Boolean(
-      await this.prisma.financeTransaction.findFirst({
-        where: { farmId, reference },
-        select: { id: true },
-      }),
-    );
   }
 }

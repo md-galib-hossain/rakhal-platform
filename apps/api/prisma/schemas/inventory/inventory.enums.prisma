@@ -26,6 +26,9 @@ enum MedicineStockMovementReason {
   ADJUSTMENT
   EXPIRED_DISPOSED
   CORRECTION
+  /// Sold via `SellInventoryUseCase` (RAKHAL-346, Finance V2 Sales). The
+  /// movement's `saleLineId` names the `SaleLine` that caused it.
+  SALE
 }
 
 enum MilkTankType {
@@ -62,6 +65,9 @@ enum EquipmentStockMovementReason {
   ADJUSTMENT
   DISPOSED
   CORRECTION
+  /// Sold via `SellInventoryUseCase` (RAKHAL-346, Finance V2 Sales). The
+  /// movement's `saleLineId` names the `SaleLine` that caused it.
+  SALE
 }
 
 enum FeedItemStockMovementReason {
@@ -69,4 +75,7 @@ enum FeedItemStockMovementReason {
   DISTRIBUTION
   ADJUSTMENT
   CORRECTION
+  /// Sold via `SellInventoryUseCase` (RAKHAL-346, Finance V2 Sales). The
+  /// movement's `saleLineId` names the `SaleLine` that caused it.
+  SALE
 }

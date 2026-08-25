@@ -1,8 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { FinanceTxnType } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
-import { NON_VOID_TXN } from 'src/common/finance/txn-filters';
 import {
   allocateGroupFeedCost,
   computeDiscardedWithheldValue,
@@ -12,12 +10,7 @@ import {
 } from '../../domain/lactation-economics';
 import { daysBetween } from '../../domain/lactation-yield';
 import { LactationStatsService } from './lactation-stats.service';
-
-/** Finance `FinanceTransaction.type` values that count as a real expense (mirrors `cattle.service.ts`'s `tabFinance`). */
-const EXPENSE_TYPES: FinanceTxnType[] = [
-  FinanceTxnType.OPERATING_EXPENSE,
-  FinanceTxnType.INVENTORY_PURCHASE,
-];
+import { computeCattleFinance } from '../../../cattle/application/services/cattle-finance-aggregation';
 
 interface LactationEconomicsAccess {
   id: string;
@@ -36,12 +29,11 @@ interface LactationEconomicsAccess {
  *
  * Entirely **read-only cross-module** — this service holds no Finance/Feed/
  * Health business logic of its own and never writes to those modules'
- * tables. It follows the exact precedent `CattleService.tabFinance()`
- * (`src/modules/cattle/application/services/cattle.service.ts`) already
- * established: plain `PrismaService` injection, no `FinanceModule` import,
- * scoped by `farmId` + `cattleId` + a date range, `NON_VOID_TXN` spread into
- * every money aggregation so a voided-then-reversed transaction doesn't
- * corrupt the total (see `src/common/finance/txn-filters.ts`).
+ * tables. Medicine/breeding cost figures are read via the shared
+ * `computeCattleFinance()` aggregation (RAKHAL-352,
+ * `src/modules/cattle/application/services/cattle-finance-aggregation.ts`) —
+ * the exact same function `CattleDetailService.cattleFinance()` (`GET
+ * /cattle/:id/finance`) uses, so the two surfaces can never disagree.
  */
 @Injectable()
 export class LactationEconomicsService {
@@ -77,20 +69,23 @@ export class LactationEconomicsService {
       lactation.startDate,
       rangeEnd,
     );
-    const medicineCost = await this.sumExpenseBySubType(
+    // RAKHAL-352: single shared aggregation (`cattle-finance-aggregation.ts`,
+    // also used by `CattleDetailService.cattleFinance()` — `GET
+    // /cattle/:id/finance`) so this figure and that route can never disagree
+    // again. `end` is exclusive (`lt`), unlike the deleted
+    // `sumExpenseBySubType()`'s inclusive `lte rangeEnd` — a negligible
+    // boundary normalization (a txn dated at exact UTC midnight of
+    // `rangeEnd` would previously count here and not there) traded for one
+    // real source of truth.
+    const cattleFinance = await computeCattleFinance(
+      this.prisma,
       farmId,
       lactation.cattleId,
-      'health',
       lactation.startDate,
       rangeEnd,
     );
-    const breedingCost = await this.sumExpenseBySubType(
-      farmId,
-      lactation.cattleId,
-      'breeding',
-      lactation.startDate,
-      rangeEnd,
-    );
+    const medicineCost = cattleFinance.expense.health;
+    const breedingCost = cattleFinance.expense.breeding;
 
     const milkRevenue = computeMilkRevenue(
       stats.lactationToDate.saleable,
@@ -215,34 +210,6 @@ export class LactationEconomicsService {
         total += allocateGroupFeedCost(d.totalActualCost, groupHeadcount ?? 0);
       }
     }
-    return Math.round(total * 100) / 100;
-  }
-
-  /**
-   * Sums this cow's `FinanceTransaction` expense rows for one informal
-   * `subType` bucket (`'health'`/`'breeding'`, matching the convention
-   * `cattle.service.ts`'s `tabFinance()` already uses) over the lactation's
-   * date range.
-   */
-  private async sumExpenseBySubType(
-    farmId: string,
-    cattleId: string,
-    subType: string,
-    startDate: Date,
-    rangeEnd: Date,
-  ): Promise<number> {
-    const rows = await this.prisma.financeTransaction.findMany({
-      where: {
-        farmId,
-        cattleId,
-        subType,
-        type: { in: EXPENSE_TYPES },
-        date: { gte: startDate, lte: rangeEnd },
-        ...NON_VOID_TXN,
-      },
-      select: { amount: true },
-    });
-    const total = rows.reduce((sum, r) => sum + r.amount, 0);
     return Math.round(total * 100) / 100;
   }
 

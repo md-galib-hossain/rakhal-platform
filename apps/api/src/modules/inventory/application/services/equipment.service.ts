@@ -209,6 +209,7 @@ export class EquipmentService {
           delta: dto.adjustment,
           balanceAfter,
           notes: dto.notes,
+          saleLineId: dto.saleLineId ?? null,
           createdBy: userId,
         },
       });

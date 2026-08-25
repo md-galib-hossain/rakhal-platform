@@ -60,6 +60,19 @@ model FinancialAccount {
   bankDetail BankAccountDetail?
   mfsDetail  MfsAccountDetail?
 
+  /// Back-relation for `FinancePayment.financialAccountId` (RAKHAL-337) —
+  /// every payment that has hit this account.
+  payments FinancePayment[] @relation("FinancialAccountToFinancePayment")
+
+  /// Back-relations for `Transfer.fromFinancialAccountId`/`toFinancialAccountId`
+  /// (RAKHAL-338) — every transfer this account was the source/destination of.
+  transfersOut Transfer[] @relation("FinancialAccountToTransferFrom")
+  transfersIn  Transfer[] @relation("FinancialAccountToTransferTo")
+
+  /// Back-relation for `OtherIncome.financialAccountId` (RAKHAL-350) — every
+  /// non-sale income record that landed in this account.
+  otherIncomes OtherIncome[] @relation("FinancialAccountToOtherIncome")
+
   @@index([farmId])
   @@index([farmId, type])
   @@index([ledgerAccountId])

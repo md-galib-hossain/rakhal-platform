@@ -44,6 +44,7 @@ describe('Feed Formulator — feed stock production (e2e)', () => {
     const finalized = await request(server())
       .post(api(`/feed/concentrations/${conc.body.data.id}/finalize`))
       .set(...auth(owner))
+      .send({ paymentMethod: 'CASH' })
       .expect(201);
     return finalized.body.data.stock.id as string;
   }
@@ -90,6 +91,7 @@ describe('Feed Formulator — feed stock production (e2e)', () => {
     const finalized = await request(server())
       .post(api(`/feed/concentrations/${conc.body.data.id}/finalize`))
       .set(...auth(owner))
+      .send({ paymentMethod: 'CASH' })
       .expect(201);
     const stockId = finalized.body.data.stock.id as string;
     // 30kg @ ৳10/kg = ৳300 total cost; batch qty = 30kg (as-fed).
@@ -133,6 +135,7 @@ describe('Feed Formulator — feed stock production (e2e)', () => {
     const v1 = await request(server())
       .post(api(`/feed/concentrations/${conc.body.data.id}/finalize`))
       .set(...auth(owner))
+      .send({ paymentMethod: 'CASH' })
       .expect(201);
     const v1StockId = v1.body.data.stock.id as string;
     expect(v1.body.data.stock.produced_qty_kg).toBeCloseTo(10, 1);
@@ -146,6 +149,7 @@ describe('Feed Formulator — feed stock production (e2e)', () => {
     const v2 = await request(server())
       .post(api(`/feed/concentrations/${conc.body.data.id}/finalize`))
       .set(...auth(owner))
+      .send({ paymentMethod: 'CASH' })
       .expect(201);
     const v2StockId = v2.body.data.stock.id as string;
     expect(v2StockId).not.toBe(v1StockId);

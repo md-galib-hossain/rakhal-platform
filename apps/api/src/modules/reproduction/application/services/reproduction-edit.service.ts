@@ -8,8 +8,7 @@ import {
   BreedingMethod,
   CattleGender,
   ExpectedCalvingDateSource,
-  FinanceCategory,
-  FinanceTxnType,
+  ExpenseCategory,
   LactationEndReason,
   LactationStatus,
   PregnancyDiagnosisResult,
@@ -27,7 +26,8 @@ import {
 } from 'src/modules/activity/application/services/activity-log.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { SemenService } from 'src/modules/inventory/application/services/semen.service';
-import { FinanceService } from 'src/modules/finance/application/services/finance.service';
+import { ExpenseService } from 'src/modules/purchasing/application/expense.service';
+import { resolveFinancialAccountId } from 'src/common/finance/resolve-account';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { computeDryOffProjection } from '../../domain/lactation-dry-off-projection';
 import { ReproductionDerivationService } from './reproduction-derivation.service';
@@ -57,7 +57,7 @@ export class ReproductionEditService {
     private readonly prisma: PrismaService,
     private readonly derivation: ReproductionDerivationService,
     private readonly semenService: SemenService,
-    private readonly financeService: FinanceService,
+    private readonly expenseService: ExpenseService,
     private readonly taskService: TaskService,
     private readonly aqrService: AqrService,
     private readonly activityLog: ActivityLogService,
@@ -314,33 +314,34 @@ export class ReproductionEditService {
 
     // RAKHAL-330: void the old cost transaction (if any) and repost the
     // resolved one, so the ledger never drifts from what's on the event.
+    // RAKHAL-354: migrated off V1 `FinanceService.voidTransaction`/
+    // `recordTransaction` onto Finance V2's `ExpenseService.reverseExpense`/
+    // `.recordExpense` — see `reproduction.service.ts`'s create-path doc
+    // comment for the full reasoning (same migration, same helper).
     if (costRelevantFieldsChanged) {
       if (existing.financeTransactionId) {
-        await this.financeService.voidTransaction(
+        await this.expenseService.reverseExpense(
           farmId,
-          userId,
           existing.financeTransactionId,
-          { reasonCategory: 'Breeding event edited' },
+          userId,
         );
       }
       let newFinanceTransactionId: string | null = null;
       if (resolvedCost > 0) {
-        const posted = await this.financeService.recordTransaction(
+        const financialAccountId = await resolveFinancialAccountId(
+          this.prisma,
           farmId,
-          userId,
-          {
-            type: FinanceTxnType.OPERATING_EXPENSE,
-            category: FinanceCategory.OVERHEAD,
-            subType: `breeding_${mergedMethod.toLowerCase()}`,
-            cattleId: newCattleId,
-            entityName: costEntityName ?? 'Breeding service',
-            amount: resolvedCost,
-            paymentMethod: mergedPaymentMethod ?? undefined,
-            notes: `Breeding #${updated.breedingNumber} (${mergedMethod}) — edited`,
-            updateInventory: false,
-          },
+          mergedPaymentMethod!,
         );
-        newFinanceTransactionId = posted.transactionId;
+        const posted = await this.expenseService.recordExpense(farmId, userId, {
+          category: ExpenseCategory.BREEDING,
+          description: `${costEntityName ?? 'Breeding service'} — Breeding #${updated.breedingNumber} (${mergedMethod}) — edited`,
+          amount: resolvedCost,
+          expenseDate: newBreedingDate.toISOString(),
+          financialAccountId,
+          cattleId: newCattleId,
+        });
+        newFinanceTransactionId = posted.id;
       }
       updated = await this.prisma.breedingEvent.update({
         where: { id },

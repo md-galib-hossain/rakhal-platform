@@ -5,7 +5,7 @@ import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { MilkModule } from '../milk/milk.module';
-import { FinanceModule } from '../finance/finance.module';
+import { FinanceV2AccountsModule } from '../finance-v2/accounts/finance-v2-accounts.module';
 import { FeedConcentrationService } from './application/services/feed-concentration.service';
 import { FeedGroupAssignService } from './application/services/feed-group-assign.service';
 import { FeedIngredientService } from './application/services/feed-ingredient.service';
@@ -22,7 +22,12 @@ import { FeedController } from './presentation/controllers/feed.controller';
  * + `ReproductionProfile`/`Pregnancy` directly via Prisma — no cross-module service
  * coupling for those (no cycles, simple denormalized-field reads). Imports
  * `MilkModule` for one real cross-service call: `MilkService.averageDailyYield`
- * (cow-driven requirements, `FeedRequirementsService`).
+ * (cow-driven requirements, `FeedRequirementsService`). RAKHAL-354:
+ * `FinanceModule` (V1) dropped — `FeedConcentrationService.finalize`'s TMR
+ * payment now posts directly via Finance V2's `JournalService`/
+ * `LedgerAccountService` (`@Global()` `FinanceV2LedgerModule`, no import
+ * needed) + `FinancialAccountService` (`FinanceV2AccountsModule`, imported
+ * below).
  */
 @Module({
   imports: [
@@ -32,7 +37,7 @@ import { FeedController } from './presentation/controllers/feed.controller';
     PermissionModule,
     SubscriptionModule,
     MilkModule,
-    FinanceModule,
+    FinanceV2AccountsModule,
   ],
   controllers: [FeedController],
   providers: [

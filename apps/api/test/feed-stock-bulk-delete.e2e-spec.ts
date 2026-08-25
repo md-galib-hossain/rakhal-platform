@@ -39,6 +39,7 @@ describe('Feed stock (Prepared) bulk-delete (e2e)', () => {
     const finalized = await request(server())
       .post(api(`/feed/concentrations/${conc.body.data.id}/finalize`))
       .set(...auth(owner))
+      .send({ paymentMethod: 'CASH' })
       .expect(201);
     return finalized.body.data.stock.id as string;
   }

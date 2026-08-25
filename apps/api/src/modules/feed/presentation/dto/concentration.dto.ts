@@ -15,7 +15,7 @@ import {
 import {
   FeedConcentrationKind,
   FeedTargetType,
-  FinancePaymentMethod,
+  PaymentMethod,
 } from '@prisma/client';
 import { toBoolean, trimString } from 'src/common/dto';
 
@@ -100,8 +100,8 @@ export class CreateConcentrationDto {
  * own `kind`, not statically knowable from the body alone. */
 export class FinalizeConcentrationDto {
   @IsOptional()
-  @IsEnum(FinancePaymentMethod)
-  paymentMethod?: FinancePaymentMethod;
+  @IsEnum(PaymentMethod)
+  paymentMethod?: PaymentMethod;
 }
 
 /** `PATCH /feed/concentrations/:id` — partial update; `items` replaces the lines if present. */

@@ -145,6 +145,15 @@ export class AdjustMilkTankVolumeDto {
   @Transform(trimString)
   @IsString()
   notes?: string;
+
+  /** RAKHAL-342 — the `SaleLine` (type MILK) whose atomic sale caused this
+   * SALE-activity decrement, so `MilkTankAuditLog` can be traced back to it.
+   * Not part of any HTTP route today (no controller passes it) — only
+   * `SellMilkUseCase` sets it via a direct in-process call. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  saleLineId?: string;
 }
 
 /** Query for `GET /inventory/milk-tanks` list. */

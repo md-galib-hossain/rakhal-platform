@@ -45,6 +45,12 @@ model Cattle {
   aqrScore Float? @default(0)
 
   isActive  Boolean  @default(true)
+  /// Set when this animal exits the herd via a SALE `CattleDisposition`
+  /// (RAKHAL-344, `FINANCE_V2_DESIGN.md` §1.1/§5.1). Null until sold.
+  soldAt        DateTime?
+  /// The `CattleDisposition` row that sold/disposed this animal (SALE/DEATH/
+  /// CULL/TRANSFER). Null until `CattleService.recordDisposition()` runs.
+  dispositionId String? @unique
   createdBy String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -86,6 +92,9 @@ model Cattle {
   safetyWithdrawals   SafetyWithdrawal[]
   bcsRecords          BodyConditionScore[]
   weightRecords       WeightRecord[]
+  animalSaleLines     AnimalSaleLine[]      @relation("CattleToAnimalSaleLine")
+  dispositions        CattleDisposition[]   @relation("CattleToCattleDisposition")
+  disposition         CattleDisposition?    @relation("CattleDispositionRecord", fields: [dispositionId], references: [id])
 
   @@unique([farmId, tagNumber])
   @@index([farmId])

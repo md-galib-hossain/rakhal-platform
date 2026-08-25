@@ -1,0 +1,72 @@
+/// `IncomeCategory` + `OtherIncome` (RAKHAL-350, Finance V2 —
+/// `FINANCE_V2_DESIGN.md` §1.3, §5.1). Closes the "Other income doesn't exist
+/// as a concept" gap: before this ticket, non-sale revenue (a subsidy, an
+/// insurance payout, rent) had no model at all — it was a free-text
+/// `subType` string on the old `FinanceTransaction`. `OtherIncome` is now a
+/// structurally distinct record from a product `Sale` — no `subType` string
+/// anywhere in this file.
+///
+/// `IncomeCategory` follows the exact same "system catalogue + farm-custom
+/// rows" convention as `Unit` (`prisma/schemas/inventory/unit.prisma`,
+/// RAKHAL-326) rather than `LedgerAccount`'s per-farm-seeded convention
+/// (RAKHAL-333): `farmId: null` rows are global Rakhal system categories,
+/// seeded once in `prisma/seed.ts` and visible to every farm; `farmId`-set
+/// rows are one farm's own custom category, invisible to other farms. This
+/// was the deliberate choice the ticket called out between the two existing
+/// precedents — a farmer-facing pick-list of income *reasons* is a shared
+/// vocabulary concept (like a unit of measure), not a per-farm accounting
+/// ledger row, so seeding it once globally avoids recreating the same 7 rows
+/// N times across N farms with no farm-specific meaning.
+model IncomeCategory {
+  id   String @id @default(cuid())
+  name String
+
+  /// True for every row `prisma/seed.ts`'s `seedIncomeCategories()` creates.
+  /// False for a farm-custom category added via `IncomeService.createCategory`.
+  isSystem Boolean @default(false)
+
+  /// null = Rakhal system category (seeded once, global, visible to every
+  /// farm). Non-null = one farm's own custom category, invisible to other
+  /// farms. Same convention as `Unit.farmId`.
+  farmId String?
+  farm   Farm?   @relation("FarmToIncomeCategory", fields: [farmId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  otherIncomes OtherIncome[]
+
+  @@index([farmId])
+}
+
+/// Structured non-sale income (RAKHAL-350). Money must land somewhere
+/// immediately — this is direct income, not a receivable — so
+/// `financialAccountId` is required and `IncomeService.recordOtherIncome`
+/// posts a journal entry debiting that account's own ledger account and
+/// crediting the shared "Other Income" revenue `LedgerAccount` (code `4900`,
+/// seeded per farm by RAKHAL-333's default chart) in the same transaction as
+/// this row's creation.
+model OtherIncome {
+  id     String @id @default(cuid())
+  farmId String
+
+  categoryId String
+  category   IncomeCategory @relation(fields: [categoryId], references: [id])
+
+  description String?
+  amount      Decimal  @db.Decimal(18, 2)
+  date        DateTime
+
+  /// Where the money landed — required, this is direct income (see model doc).
+  financialAccountId String
+  financialAccount   FinancialAccount @relation("FinancialAccountToOtherIncome", fields: [financialAccountId], references: [id])
+
+  createdById String
+  createdAt   DateTime @default(now())
+
+  farm Farm @relation("FarmToOtherIncome", fields: [farmId], references: [id])
+
+  @@index([farmId])
+  @@index([farmId, date])
+  @@index([categoryId])
+  @@index([financialAccountId])
+}
