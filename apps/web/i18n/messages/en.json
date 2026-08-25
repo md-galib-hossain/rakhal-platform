@@ -2784,20 +2784,6 @@
         "stepOf": "Step {step} of {total}",
         "step1Title": "Select Health Plan Category",
         "step1Subtitle": "Choose the type of health plan you want to create",
-        "planTypes": {
-          "treatment": "Treatment",
-          "treatmentDesc": "Treatment & recovery protocol.",
-          "breeding": "Fertility Care",
-          "breedingDesc": "Medical support around fertility (not a Reproduction protocol — see the Reproduction page for AI/synchronization).",
-          "prevention": "Prevention",
-          "preventionDesc": "Vaccination and health maintenance."
-        },
-        "step2Title": "Health Plan Details",
-        "step2Subtitle": "Define the basic information for this plan",
-        "planName": "Plan Name",
-        "planNamePlaceholder": "e.g. 5 Day Mastitis Treatment",
-        "category": "Category",
-        "selectCategory": "Select category",
         "categoryOptions": {
           "TREATMENT": "Treatment",
           "PREVENTION": "Prevention",
@@ -2806,6 +2792,18 @@
           "DEWORMING": "Deworming",
           "ROUTINE": "Routine"
         },
+        "categoryDescriptions": {
+          "TREATMENT": "Treatment & recovery protocol.",
+          "PREVENTION": "General prevention & health maintenance.",
+          "BREEDING": "Medical support around fertility (not a Reproduction protocol — see the Reproduction page for AI/synchronization).",
+          "VACCINATION": "Scheduled vaccine doses.",
+          "DEWORMING": "Scheduled deworming doses.",
+          "ROUTINE": "Regular check-ups and routine care."
+        },
+        "step2Title": "Health Plan Details",
+        "step2Subtitle": "Define the basic information for this plan",
+        "planName": "Plan Name",
+        "planNamePlaceholder": "e.g. 5 Day Mastitis Treatment",
         "cycleLength": "Cycle Length",
         "days": "Days",
         "description": "Description",

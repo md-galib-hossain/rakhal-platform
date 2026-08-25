@@ -5,12 +5,11 @@ import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { ArrowRightToLine, HeartPulse, Plus, Stethoscope, Trash2 } from "lucide-react";
+import { ArrowRightToLine, Bug, ClipboardList, HeartPulse, Plus, Stethoscope, Syringe, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
-import { Select, SelectContent, SelectItem } from "@/components/ui/select";
+import { LabeledInput } from "@/components/ui/labeled-field";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useCreatePlan, useUpdatePlan } from "../hooks/use-health";
@@ -19,26 +18,29 @@ import type { CreateHealthPlanPayload, HealthPlanListItem } from "../types";
 
 const numberField = { setValueAs: (v: string) => (v === "" ? undefined : Number(v)) };
 
-const PLAN_TYPES = [
-  { value: "MEDICAL", labelKey: "treatment", descKey: "treatmentDesc", icon: Stethoscope },
-  { value: "BREEDING", labelKey: "breeding", descKey: "breedingDesc", icon: HeartPulse },
-  { value: "PREVENTION", labelKey: "prevention", descKey: "preventionDesc", icon: Plus },
+const CATEGORY_CARDS = [
+  { value: "TREATMENT", icon: Stethoscope },
+  { value: "PREVENTION", icon: Plus },
+  { value: "VACCINATION", icon: Syringe },
+  { value: "DEWORMING", icon: Bug },
+  { value: "BREEDING", icon: HeartPulse },
+  { value: "ROUTINE", icon: ClipboardList },
 ] as const;
 
-const CATEGORIES = ["TREATMENT", "PREVENTION", "BREEDING", "VACCINATION", "DEWORMING", "ROUTINE"] as const;
-
-// Step 1's `planType` and Step 2's `category` are two real, separate `CreateHealthPlanDto` fields
-// (backend `HealthPlanType` vs `HealthPlanCategory`) — not a UI duplicate. But their enum values
-// overlap (both have PREVENTION/BREEDING), so showing every category unfiltered in Step 2 reads as
-// "didn't my Step-1 pick count?". Narrowing Step 2's options to the ones that actually make sense
-// for the chosen `planType`, and pre-selecting the obvious match, keeps both fields but removes the
-// re-ask feel. GENERAL (Step-1's 4th enum value, no card for it in this UI) falls back to every
-// category since it has no natural subset.
-const CATEGORIES_BY_PLAN_TYPE: Record<CreateHealthPlanFormInput["planType"], readonly (typeof CATEGORIES)[number][]> = {
-  MEDICAL: ["TREATMENT", "ROUTINE"],
-  PREVENTION: ["PREVENTION", "VACCINATION", "DEWORMING", "ROUTINE"],
-  BREEDING: ["BREEDING"],
-  GENERAL: CATEGORIES,
+// `CreateHealthPlanDto` needs both a fine-grained `category` (HealthPlanCategory, 6 values — drives
+// e.g. the diagnosis type when a plan is applied) and a coarse `planType` (HealthPlanType, 4 values —
+// drives the card's badge/list filter). Asking the user for both separately used to read as the same
+// question twice, since their values overlap (PREVENTION/BREEDING exist in both enums). `category`
+// is strictly the more specific of the two, so it's the only thing asked here — `planType` is derived
+// from it below and never shown as its own field. GENERAL (no `category` maps to it 1:1) is reserved
+// for ROUTINE, the one category with no obvious MEDICAL/PREVENTION/BREEDING home.
+const CATEGORY_TO_PLAN_TYPE: Record<CreateHealthPlanFormInput["category"], CreateHealthPlanFormInput["planType"]> = {
+  TREATMENT: "MEDICAL",
+  PREVENTION: "PREVENTION",
+  VACCINATION: "PREVENTION",
+  DEWORMING: "PREVENTION",
+  BREEDING: "BREEDING",
+  ROUTINE: "GENERAL",
 };
 
 function toPayload(values: CreateHealthPlanFormInput): CreateHealthPlanPayload {
@@ -64,7 +66,7 @@ function toPayload(values: CreateHealthPlanFormInput): CreateHealthPlanPayload {
 
 function toFormDefaults(plan: HealthPlanListItem | undefined): Partial<CreateHealthPlanFormInput> {
   if (!plan) {
-    return { planType: "MEDICAL", steps: [{ dayNumber: 1 }] };
+    return { steps: [{ dayNumber: 1 }] };
   }
   return {
     planType: plan.planType,
@@ -91,11 +93,12 @@ function StepProgress({ step }: { step: 1 | 2 | 3 }) {
 }
 
 /**
- * "Create New Health Plan" 3-step wizard — Figma 734:47059 (Step 1: pick `planType`)
- * /734:47993 (Step 2: name/category/cycleLength/description) /734:48743 (Step 3: Action Sequence
- * Builder — day-by-day rows), `get_design_context`. Mirrors `CreateHealthPlanDto`/`HealthPlanStepDto`
- * exactly. Reused for editing (`plan` prop set) — the mock only shows the create flow, but reusing it
- * for "Edit Plan" (rather than building a second near-identical dialog) needed no new fields, just a
+ * "Create New Health Plan" 3-step wizard — Figma 734:47059 (Step 1: pick `category`, see
+ * `CATEGORY_TO_PLAN_TYPE` for why the mock's `planType` picker was folded into this single question)
+ * /734:47993 (Step 2: name/cycleLength/description) /734:48743 (Step 3: Action Sequence Builder —
+ * day-by-day rows), `get_design_context`. Mirrors `CreateHealthPlanDto`/`HealthPlanStepDto` exactly.
+ * Reused for editing (`plan` prop set) — the mock only shows the create flow, but reusing it for
+ * "Edit Plan" (rather than building a second near-identical dialog) needed no new fields, just a
  * `PATCH` instead of `POST` on submit.
  */
 export function CreateHealthPlanDialog({ open, onOpenChange, plan }: { open: boolean; onOpenChange: (open: boolean) => void; plan?: HealthPlanListItem }) {
@@ -122,7 +125,7 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
 
   async function goNext() {
     const fieldsToValidate: (keyof CreateHealthPlanFormInput)[] =
-      step === 1 ? ["planType"] : step === 2 ? ["name", "category", "cycleLengthDays"] : [];
+      step === 1 ? ["category"] : step === 2 ? ["name", "cycleLengthDays"] : [];
     const valid = await form.trigger(fieldsToValidate);
     if (valid) setStep((s) => (s === 3 ? 3 : ((s + 1) as 1 | 2 | 3)));
   }
@@ -169,20 +172,16 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
               </div>
               <Controller
                 control={form.control}
-                name="planType"
+                name="category"
                 render={({ field }) => (
                   <div className="flex flex-col gap-3">
-                    {PLAN_TYPES.map(({ value, labelKey, descKey, icon: Icon }) => (
+                    {CATEGORY_CARDS.map(({ value, icon: Icon }) => (
                       <button
                         key={value}
                         type="button"
                         onClick={() => {
                           field.onChange(value);
-                          const allowed = CATEGORIES_BY_PLAN_TYPE[value];
-                          const currentCategory = form.getValues("category");
-                          if (!currentCategory || !allowed.includes(currentCategory)) {
-                            form.setValue("category", allowed[0]);
-                          }
+                          form.setValue("planType", CATEGORY_TO_PLAN_TYPE[value]);
                         }}
                         className={cn(
                           "flex items-center gap-3 rounded-xl border p-3 text-left transition-colors",
@@ -193,8 +192,8 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
                           <Icon className="size-5" aria-hidden />
                         </span>
                         <span className="flex flex-col">
-                          <span className="text-sm font-medium text-foreground">{t(`planTypes.${labelKey}`)}</span>
-                          <span className="text-xs text-muted-foreground">{t(`planTypes.${descKey}`)}</span>
+                          <span className="text-sm font-medium text-foreground">{t(`categoryOptions.${value}`)}</span>
+                          <span className="text-xs text-muted-foreground">{t(`categoryDescriptions.${value}`)}</span>
                         </span>
                       </button>
                     ))}
@@ -211,25 +210,6 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
                 <p className="text-xs text-muted-foreground">{t("step2Subtitle")}</p>
               </div>
               <LabeledInput id="name" label={t("planName")} placeholder={t("planNamePlaceholder")} {...form.register("name")} error={form.formState.errors.name?.message} />
-              <Controller
-                control={form.control}
-                name="category"
-                render={({ field }) => {
-                  const allowedCategories = CATEGORIES_BY_PLAN_TYPE[form.watch("planType")] ?? CATEGORIES;
-                  return (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <LabeledSelectTrigger label={t("category")} placeholder={t("selectCategory")} />
-                      <SelectContent>
-                        {allowedCategories.map((c) => (
-                          <SelectItem key={c} value={c}>
-                            {t(`categoryOptions.${c}`)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  );
-                }}
-              />
               <LabeledInput
                 id="cycleLengthDays"
                 type="number"
