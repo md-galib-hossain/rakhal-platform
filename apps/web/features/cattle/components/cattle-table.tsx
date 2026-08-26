@@ -43,7 +43,6 @@ import type {
   AnimalCategory,
   CattleListFilters,
   CattleListItem,
-  CattlePurpose,
   HealthStatusFilter,
   ProductionStatus,
   ReproductiveStatus,
@@ -88,7 +87,6 @@ export function CattleTable() {
     feedGroupId: searchParams.get("feedGroupId") ?? undefined,
     productionStatus: (searchParams.get("productionStatus") as ProductionStatus | null) ?? undefined,
     healthStatus: (searchParams.get("healthStatus") as HealthStatusFilter | null) ?? undefined,
-    purpose: (searchParams.get("purpose") as CattlePurpose | null) ?? undefined,
     reproductiveStatus: (searchParams.get("reproductiveStatus") as ReproductiveStatus | null) ?? undefined,
     animalCategory: (searchParams.get("animalCategory") as AnimalCategory | null) ?? undefined,
   };

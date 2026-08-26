@@ -2,9 +2,14 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { Can } from "@/lib/auth/permissions";
+import { ApiError } from "@/lib/api/errors";
 import { Chip } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { useDeletePlan } from "../hooks/use-health";
 import type { HealthPlanListItem } from "../types";
 
 const PLAN_TYPE_CHIP: Record<HealthPlanListItem["planType"], { variant: "info" | "indigo" | "muted"; labelKey: "medical" | "prevention" | "breeding" | "general" }> = {
@@ -36,9 +41,21 @@ export function HealthPlanCard({
 }) {
   const t = useTranslations("health.healthPlan.card");
   const [expanded, setExpanded] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const deletePlan = useDeletePlan();
+
   const chip = PLAN_TYPE_CHIP[plan.planType];
   const visibleSteps = expanded ? plan.steps : plan.steps.slice(0, 3);
   const hasMore = plan.steps.length > 3;
+
+  async function handleDelete() {
+    try {
+      await deletePlan.mutateAsync(plan.id);
+      toast.success(t("deletedToast"));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("deleteError"));
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6 rounded-2xl border border-border bg-card p-4">
@@ -84,7 +101,29 @@ export function HealthPlanCard({
         <Button type="button" className="h-11 flex-1 text-sm" onClick={() => onApply(plan)}>
           {t("apply")}
         </Button>
+        <Can I="healthcare.delete">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-11 w-11 shrink-0 border-border text-destructive hover:border-destructive hover:bg-destructive/5"
+            onClick={() => setDeleteOpen(true)}
+            aria-label={t("deletePlan")}
+          >
+            <Trash2 className="size-4" aria-hidden />
+          </Button>
+        </Can>
       </div>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={t("deleteDialog.title")}
+        description={t("deleteDialog.description")}
+        confirmLabel={t("deleteDialog.confirm")}
+        cancelLabel={t("deleteDialog.cancel")}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

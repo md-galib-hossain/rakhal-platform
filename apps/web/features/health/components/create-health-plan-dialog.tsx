@@ -66,7 +66,7 @@ function toPayload(values: CreateHealthPlanFormInput): CreateHealthPlanPayload {
 
 function toFormDefaults(plan: HealthPlanListItem | undefined): Partial<CreateHealthPlanFormInput> {
   if (!plan) {
-    return { steps: [{ dayNumber: 1 }] };
+    return { steps: [{ dayNumber: 1, medicineName: "" }] };
   }
   return {
     planType: plan.planType,
@@ -144,6 +144,14 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
     }
   }
 
+  async function handleFormSubmit(values: CreateHealthPlanFormInput) {
+    if (step < 3) {
+      await goNext();
+      return;
+    }
+    await onSubmit(values);
+  }
+
   return (
     <SheetContent
       showClose={false}
@@ -157,7 +165,17 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
       </div>
       <div className="border-t border-dashed border-border" />
 
-      <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
+      <form
+        onSubmit={form.handleSubmit(handleFormSubmit)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && step < 3 && e.target instanceof HTMLInputElement) {
+            e.preventDefault();
+            void goNext();
+          }
+        }}
+        noValidate
+        className="flex min-h-0 flex-1 flex-col"
+      >
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto py-4">
           <div className="flex flex-col gap-3">
             <p className="text-xs text-muted-foreground">{t("stepOf", { step, total: 3 })}</p>
@@ -242,7 +260,13 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
                         <LabeledInput id={`steps.${index}.dayNumber`} type="number" min={1} label={t("day")} {...form.register(`steps.${index}.dayNumber`, numberField)} />
                       </div>
                       <div className="flex-1">
-                        <LabeledInput id={`steps.${index}.medicineName`} label={t("medicine")} placeholder={t("medicinePlaceholder")} {...form.register(`steps.${index}.medicineName`)} />
+                        <LabeledInput
+                          id={`steps.${index}.medicineName`}
+                          label={t("medicine")}
+                          placeholder={t("medicinePlaceholder")}
+                          {...form.register(`steps.${index}.medicineName`)}
+                          error={form.formState.errors.steps?.[index]?.medicineName?.message}
+                        />
                       </div>
                       <div className="w-[72px] shrink-0">
                         <LabeledInput id={`steps.${index}.doseAmount`} type="number" min={0} label={t("dose")} {...form.register(`steps.${index}.doseAmount`, numberField)} />
@@ -263,7 +287,7 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
               <button
                 type="button"
                 className="flex w-fit items-center gap-1.5 text-xs font-medium text-primary"
-                onClick={() => append({ dayNumber: fields.length + 1 })}
+                onClick={() => append({ dayNumber: fields.length + 1, medicineName: "" })}
               >
                 {t("addAnotherDay")}
                 <Plus className="size-4" aria-hidden />

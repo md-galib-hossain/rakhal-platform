@@ -16,6 +16,7 @@ import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useArchiveCattle } from "../hooks/use-cattle";
 import type { CattleArchiveInput } from "../schemas";
 import type { CattleListItem } from "../types";
@@ -48,15 +49,17 @@ export function CattleArchiveDialog({
   const t = useTranslations("cattle.archiveDialog");
   const archive = useArchiveCattle();
   const [reason, setReason] = useState<CattleArchiveInput["reason"]>("sold");
+  const [notes, setNotes] = useState("");
 
   if (!cattle) return null;
 
   async function handleConfirm() {
     if (!cattle) return;
     try {
-      await archive.mutateAsync({ id: cattle.id, dto: { reason } });
+      await archive.mutateAsync({ id: cattle.id, dto: { reason, notes: notes.trim() || undefined } });
       toast.success(t("archivedToast"));
       onOpenChange(false);
+      setNotes("");
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
     }
@@ -83,6 +86,16 @@ export function CattleArchiveDialog({
               ))}
             </SelectContent>
           </Select>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="archive-notes">{t("notes")}</Label>
+          <Textarea
+            id="archive-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder={t("notesPlaceholder")}
+            rows={3}
+          />
         </div>
         {cattle.productionStatus === "MILKING" && REASONS_CLOSING_LACTATION.has(reason) ? (
           <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning-tint px-3 py-2 text-sm text-warning">

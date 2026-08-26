@@ -121,7 +121,10 @@ export function ApplyProtocolDialog({
 
       <div className="flex flex-col gap-2">
         <Label>{t("cattle")}</Label>
-        <CattlePicker onValueChange={(_id, option) => addCattle(option)} filters={{ gender: "FEMALE" }} />
+        <CattlePicker
+          onValueChange={(_id, option) => addCattle(option)}
+          filters={{ gender: "FEMALE", reproductiveStatus: "OPEN" }}
+        />
         {selectedCattle.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
             {selectedCattle.map((c) => (

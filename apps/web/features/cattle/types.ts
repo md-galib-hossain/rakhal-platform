@@ -9,9 +9,10 @@
  */
 
 export type CattleGender = "MALE" | "FEMALE" | "CASTRATED_MALE";
-export type CattlePurpose = "MILK" | "BREEDING" | "MEAT" | "CALF" | "BULL_SERVICE" | "DUAL_PURPOSE";
-/** RAKHAL-269 v2: gained `CULLED` (distinct from `DEAD`/`SOLD`) — see `ArchiveCattleDto`. */
-export type CattleStatus = "ACTIVE" | "SOLD" | "DEAD" | "CULLED" | "TRANSFERRED" | "MISSING" | "ARCHIVED";
+/** RAKHAL-399: matches backend `HerdStatus` exactly (`cattle.enums.prisma`) — was previously stale
+ * (`DEAD`/`TRANSFERRED`/`MISSING`/`ARCHIVED` never existed backend-side; `TRANSFERRED` folds into
+ * `SOLD`, plain archive is `deletedAt`, not a status value). */
+export type CattleStatus = "ACTIVE" | "SOLD" | "CULLED" | "DECEASED";
 /** RAKHAL-269 v2 correction: trimmed to the two real production states — lifecycle/archival
  * (sold/deceased) now lives on `CattleStatus` + soft-delete instead of being overloaded onto this
  * enum. */
@@ -92,7 +93,6 @@ export interface CattleListItem {
   tagNumber: string;
   gender: CattleGender;
   dateOfBirth: string | null;
-  purpose: CattlePurpose;
   status: CattleStatus;
   /** Nullable since RAKHAL-269 v2: immature/never-milked animals (and dry-period animals before
    * their first freshening) carry no production state. */
@@ -137,13 +137,9 @@ export interface CattleListFilters {
   feedGroupId?: string;
   productionStatus?: ProductionStatus;
   healthStatus?: HealthStatusFilter;
-  /** Category quick-filter above "All Cattle View" (`CattleCategoryTabs`) — both fields already
-   * supported by the backend's `ListCattleQueryDto`, just not previously exposed on the frontend. */
-  purpose?: CattlePurpose;
   reproductiveStatus?: ReproductiveStatus;
   /** RAKHAL-289 — real derived-category filter now supported server-side
-   * (`ListCattleQueryDto.animalCategory`, `list-cattle-query.dto.ts`). Replaces the old
-   * `reproductiveStatus`/`purpose` proxies for the Heifer/Calf highlight tiles. */
+   * (`ListCattleQueryDto.animalCategory`, `list-cattle-query.dto.ts`). */
   animalCategory?: AnimalCategory;
 }
 
@@ -200,7 +196,6 @@ export interface CattleFormPayload {
   breedId?: string;
   gender: CattleGender;
   dateOfBirth?: string;
-  purpose: CattlePurpose;
   shedId?: string;
   feedGroupId?: string;
   motherId?: string;

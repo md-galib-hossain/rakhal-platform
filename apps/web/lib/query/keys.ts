@@ -84,6 +84,7 @@ export const qk = {
     tasks: () => ["health", "tasks", "list"] as const,
     taskCalendar: (year: number, month: number) => ["health", "tasks", "calendar", year, month] as const,
     plans: () => ["health", "plans", "list"] as const,
+    appliedPlans: (filters: Record<string, string | undefined>) => ["health", "cases", "applied", filters] as const,
     safetyWithdrawals: () => ["health", "safety-withdrawals", "list"] as const,
   },
   activity: {

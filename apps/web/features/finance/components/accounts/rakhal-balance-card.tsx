@@ -75,9 +75,9 @@ export function RakhalBalanceCard() {
 
       {/* Position block — deliberately a visually distinct card, never merged into the balance total
           above (design brief: "Receivable/payable shown as a SEPARATE position block"). */}
-      <Card className={cn("flex flex-col gap-3 rounded-2xl border-dashed p-4", !data.receivablePayable.wired && "opacity-80")}>
+      <Card className={cn("flex flex-col gap-3 rounded-2xl border-dashed p-4", !data.receivablePayable?.wired && "opacity-80")}>
         <p className="text-sm font-medium text-foreground">{t("positionTitle")}</p>
-        {data.receivablePayable.wired ? (
+        {data.receivablePayable?.wired ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
               <p className="text-xs text-muted-foreground">{t("receivable")}</p>

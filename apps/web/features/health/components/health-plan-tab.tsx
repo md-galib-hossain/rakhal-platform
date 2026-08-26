@@ -12,6 +12,7 @@ import { useHealthPlans } from "../hooks/use-health";
 import { HealthPlanCard } from "./health-plan-card";
 import { CreateHealthPlanDialog } from "./create-health-plan-dialog";
 import { ApplyHealthPlanDialog } from "./apply-health-plan-dialog";
+import { ActivePlansSection } from "./active-plans-section";
 import type { HealthPlanListItem } from "../types";
 
 /**
@@ -98,6 +99,11 @@ export function HealthPlanTab() {
 
       <CreateHealthPlanDialog open={formOpen} onOpenChange={setFormOpen} plan={editingPlan} />
       <ApplyHealthPlanDialog plan={applyingPlan} onOpenChange={(open) => !open && setApplyingPlan(undefined)} />
+
+      {/* "Active Plans" — running applied plan instances, below the plan template list */}
+      <div className="mt-6 border-t border-border pt-6">
+        <ActivePlansSection />
+      </div>
     </div>
   );
 }

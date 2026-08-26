@@ -95,7 +95,7 @@ export type HealthPlanDetailsInput = z.infer<typeof healthPlanDetailsSchema>;
  * from day number + medicine name in `create-health-plan-dialog.tsx`. */
 export const healthPlanStepRowSchema = z.object({
   dayNumber: z.number().int().min(1),
-  medicineName: z.string().trim().optional(),
+  medicineName: z.string().trim().min(1, "Medicine is required"),
   doseAmount: z.number().min(0).optional(),
 });
 export type HealthPlanStepRowInput = z.infer<typeof healthPlanStepRowSchema>;

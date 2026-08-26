@@ -153,13 +153,13 @@ export function FinanceHighlights() {
         <div className="flex flex-col">
           <span className="text-xs text-muted-foreground">{t("receivablePosition")}</span>
           <span className="text-sm font-semibold text-foreground">
-            {receivablePayable.wired ? <MoneyText amount={Number(receivablePayable.totalReceivable)} /> : t("notYetAvailable")}
+            {receivablePayable?.wired ? <MoneyText amount={Number(receivablePayable.totalReceivable)} /> : t("notYetAvailable")}
           </span>
         </div>
         <div className="flex flex-col sm:text-right">
           <span className="text-xs text-muted-foreground">{t("payablePosition")}</span>
           <span className="text-sm font-semibold text-foreground">
-            {receivablePayable.wired ? <MoneyText amount={Number(receivablePayable.totalPayable)} /> : t("notYetAvailable")}
+            {receivablePayable?.wired ? <MoneyText amount={Number(receivablePayable.totalPayable)} /> : t("notYetAvailable")}
           </span>
         </div>
       </div>

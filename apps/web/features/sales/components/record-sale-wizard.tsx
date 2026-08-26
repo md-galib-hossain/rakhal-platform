@@ -23,7 +23,7 @@ import { PAYMENT_METHODS } from "@/lib/types/payment";
 import { clampAmountReceived, computeDue, computeLineTotal } from "../domain/sale-math";
 import { recordSaleFormSchema, type RecordSaleFormInput } from "../schemas";
 import { isSaleFlowWired, PRODUCT_SALE_SUBTYPES, RECORD_SALE_TYPES, type ProductSaleSubtype, type RecordSaleInitial, type RecordSaleType } from "../types";
-import { findReceivableBySale, useAllocatePayment, useCreatePayment, useIncomeCategories, useMilkAvailability, useRecordOtherIncome } from "../hooks/use-sales";
+import { findReceivableBySale, useAllocatePayment, useCreatePayment, useIncomeCategories, useMilkAvailability, useRecordOtherIncome, useSellAnimal } from "../hooks/use-sales";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -64,11 +64,11 @@ const PRODUCT_ICON: Record<ProductSaleSubtype, React.ComponentType<{ className?:
  * | Other Income | `POST /finance/income` (RAKHAL-350) | **wired** |
  * | Product Sale → Manure | `RecordManureSaleUseCase` (RAKHAL-347) | no HTTP route — form only |
  * | Product Sale → Inventory item | `SellInventoryUseCase` (RAKHAL-346) | no HTTP route — form only |
- * | Animal Sale | `SellAnimalUseCase` (RAKHAL-345) | no HTTP route — form only |
+ * | Animal Sale | `SellAnimalUseCase` (RAKHAL-345) | **wired** — `POST /sales/animal/:cattleId` (RAKHAL-399) |
  *
- * The 3 unwired combinations render their full field set (so the UI is ready the moment RAKHAL-361
- * or a backend ticket adds the route) but the wizard's final step blocks submission with a visible
- * "not available yet" state — never a silent 404, never a faked success.
+ * The 2 still-unwired combinations render their full field set (so the UI is ready the moment
+ * RAKHAL-361 or a backend ticket adds the route) but the wizard's final step blocks submission
+ * with a visible "not available yet" state — never a silent 404, never a faked success.
  *
  * **Sale Total / Due derivation** (this ticket's other core deliverable, `FINANCE_V2_DESIGN.md`
  * §4.6): the wizard never asks "Full or Partial?" — it asks "Amount Received" and computes Due
@@ -145,6 +145,7 @@ function RecordSaleWizardBody({ onClose, initial }: { onClose: () => void; initi
   const recordOtherIncome = useRecordOtherIncome();
   const createPayment = useCreatePayment();
   const allocatePayment = useAllocatePayment();
+  const sellAnimal = useSellAnimal();
 
   const wired = isSaleFlowWired(type, productSubtype);
 
@@ -207,6 +208,18 @@ function RecordSaleWizardBody({ onClose, initial }: { onClose: () => void; initi
       const values = form.getValues();
       if (values.type === "PRODUCT" && values.productSubtype === "MILK") {
         await submitMilkSale(values);
+      } else if (values.type === "ANIMAL") {
+        const result = await sellAnimal.mutateAsync({
+          cattleId: values.cattleId as string,
+          dto: {
+            salePrice: values.salePrice as number,
+            saleDate: values.saleDate,
+            financialAccountId: values.financialAccountId || undefined,
+            paymentMethod: values.paymentMethod || undefined,
+            amountReceived: values.amountReceived || undefined,
+          },
+        });
+        toast.success(t("createdToast", { amount: result.totalAmount }));
       } else if (values.type === "OTHER_INCOME") {
         await recordOtherIncome.mutateAsync({
           categoryId: values.categoryId as string,
@@ -393,7 +406,6 @@ function RecordSaleWizardBody({ onClose, initial }: { onClose: () => void; initi
 
           {type === "ANIMAL" ? (
             <>
-              <ComingSoonBanner label={t("notAvailableYet")} />
               <Controller
                 control={form.control}
                 name="cattleId"

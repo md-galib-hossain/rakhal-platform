@@ -54,14 +54,6 @@ const UNSET = "__unset__";
 const ADD_NEW_BREED = "__add_new_breed__";
 
 const GENDERS = ["MALE", "FEMALE", "CASTRATED_MALE"] as const;
-const PURPOSES = [
-  "MILK",
-  "BREEDING",
-  "MEAT",
-  "CALF",
-  "BULL_SERVICE",
-  "DUAL_PURPOSE",
-] as const;
 const SOURCE_TYPES = ["BORN", "PURCHASED", "GIFTED", "UNKNOWN"] as const;
 const BREEDING_METHODS = ["AI", "NATURAL", "EMBRYO_TRANSFER"] as const;
 // RAKHAL-status-fold-p5: step titles borrow each target's own dialog title, no new i18n needed.
@@ -106,7 +98,6 @@ function toPayload(values: CattleEditFormInput, isEdit: boolean): CattleFormPayl
     breedId: clean(values.breedId),
     gender: values.gender,
     dateOfBirth: clean(values.dateOfBirth),
-    purpose: values.purpose,
     shedId: clean(values.shedId),
     feedGroupId: clean(values.feedGroupId),
     motherId: clean(values.motherId),
@@ -135,14 +126,13 @@ function toFormDefaults(
   cattle: CattleDetail | undefined,
   initialValues: Partial<CattleEditFormInput> | undefined,
 ): Partial<CattleEditFormInput> {
-  if (!cattle) return { gender: "FEMALE", purpose: "MILK", ...initialValues };
+  if (!cattle) return { gender: "FEMALE", ...initialValues };
   return {
     name: cattle.name ?? "",
     tagNumber: cattle.tagNumber,
     breedId: cattle.breed?.id ?? undefined,
     gender: cattle.gender,
     dateOfBirth: cattle.dateOfBirth ? cattle.dateOfBirth.slice(0, 10) : "",
-    purpose: cattle.purpose,
     shedId: cattle.shedId ?? undefined,
     feedGroupId: cattle.feedGroupId ?? undefined,
     motherId: cattle.motherId ?? undefined,
@@ -635,22 +625,6 @@ function CattleFormDialogBody({
                     error={fieldState.error?.message}
                     disabledDates={{ after: new Date() }}
                   />
-                )}
-              />
-              <Controller
-                control={form.control}
-                name="purpose"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <LabeledSelectTrigger label={t("purpose")} />
-                    <SelectContent>
-                      {PURPOSES.map((p) => (
-                        <SelectItem key={p} value={p}>
-                          {t(`purposeOptions.${p}`)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 )}
               />
               {/* RAKHAL-297: only meaningful for a female (a purchased already-calved cow needs

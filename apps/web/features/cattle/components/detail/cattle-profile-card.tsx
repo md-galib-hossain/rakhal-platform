@@ -12,7 +12,6 @@ import {
   Home,
   Milk,
   Tag,
-  Target,
   VenusAndMars,
   type LucideIcon,
 } from "lucide-react";
@@ -29,14 +28,12 @@ import type { AnimalCategory, CattleDetail, ProductionStatus } from "../../types
 /** RAKHAL — profile redesign (no ticket #): `Status`/`DIM` are the only two header fields that
  * always render something (never conditionally omitted like Pregnant Status/Lactation
  * Stage/Milk Eligibility below), so a bare "—" there reads as a data gap even when it's actually
- * category-driven (a Calf/Heifer/male/non-milking-purpose animal genuinely has no production
- * state — see `ProductionStatus`'s doc comment in `types.ts`). Surface *why* instead of a dash. */
-type ProductionUnavailableReason = "male" | "immature" | "notMilkingPurpose";
+ * category-driven (a Calf/Heifer/male animal genuinely has no production state). Surface *why* instead of a dash. */
+type ProductionUnavailableReason = "male" | "immature";
 
 function getProductionUnavailableReason(cattle: CattleDetail): ProductionUnavailableReason | null {
   if (cattle.gender !== "FEMALE") return "male";
   if (cattle.animalCategory === "CALF" || cattle.animalCategory === "HEIFER") return "immature";
-  if (!MILK_ELIGIBLE_PURPOSES.includes(cattle.purpose)) return "notMilkingPurpose";
   return null;
 }
 
@@ -71,14 +68,7 @@ function ageFromDob(dob: string | null): string | null {
 
 /** Profile summary header — 64px square photo, name/tag, and the calendar-icon field grid (Figma
  * "Single Cow Details" frame 1042:57994, node 1042:58005) laid out Breed/Gender/Shed,
- * DOB/Age/Purpose, Status/DIM/Pregnant Status. Pregnant Status is derived from the base row's own
- * `reproductiveStatus` (real data, no extra fetch) as Positive/Negative rather than the mock's
- * "Positive (90D)" — the days-pregnant count only exists behind the female-only reproduction-summary
- * call the Reproduction tab already owns, so it isn't duplicated here. */
-/** RAKHAL-278 — matches the backend's `MILKING_PURPOSES` (`milk.service.ts`), the same purposes
- * `GET /milk/log` itself queries for, so eligibility is only fetched/shown where it's meaningful. */
-const MILK_ELIGIBLE_PURPOSES = ["MILK", "DUAL_PURPOSE"];
-
+ * DOB/Age, Status/DIM/Pregnant Status. */
 const MILK_ELIGIBILITY_VARIANT: Record<MilkEligibilityStatus, "primary" | "destructive" | "info" | "warning"> = {
   SALEABLE: "primary",
   WITHHELD: "destructive",
@@ -93,7 +83,7 @@ export function CattleProfileCard({ cattle }: { cattle: CattleDetail }) {
     cattle.gender === "FEMALE" && cattle.reproductiveStatus
       ? t(`pregnantOptions.${cattle.reproductiveStatus === "PREGNANT" ? "positive" : "negative"}`)
       : null;
-  const isMilkEligible = cattle.gender === "FEMALE" && MILK_ELIGIBLE_PURPOSES.includes(cattle.purpose);
+  const isMilkEligible = cattle.gender === "FEMALE";
   const eligibilityQuery = useMilkEligibility(isMilkEligible ? cattle.id : undefined);
   const eligibility = eligibilityQuery.data;
   const productionUnavailableReason = getProductionUnavailableReason(cattle);
@@ -141,7 +131,6 @@ export function CattleProfileCard({ cattle }: { cattle: CattleDetail }) {
           value={cattle.dateOfBirth ? <DateText date={cattle.dateOfBirth} /> : "—"}
         />
         <Field icon={Clock} label={t("age")} value={age ?? "—"} />
-        <Field icon={Target} label={t("purpose")} value={t(`purposeOptions.${cattle.purpose}`)} />
       </FieldSection>
 
       <FieldSection label={t("sections.production")} bordered>

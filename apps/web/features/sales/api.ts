@@ -12,6 +12,8 @@ import type {
   PaymentResult,
   ReceivableSummary,
   RecordOtherIncomePayload,
+  SellAnimalPayload,
+  SellAnimalResult,
 } from "./types";
 
 /**
@@ -25,6 +27,12 @@ export const salesApi = {
   /** `GET /milk/availability` (RAKHAL-343). */
   milkAvailability(tankId?: string): Promise<MilkAvailabilityResult> {
     return apiFetch<MilkAvailabilityResult>("/milk/availability", { searchParams: { tankId } });
+  },
+
+  /** `POST /sales/animal/:cattleId` (RAKHAL-345/399) — the real atomic animal-sale flow:
+   * `Sale`+`CattleDisposition`+ledger posting+optional `Payment`, all in one server transaction. */
+  sellAnimal(cattleId: string, dto: SellAnimalPayload): Promise<SellAnimalResult> {
+    return apiFetch<SellAnimalResult>(`/sales/animal/${cattleId}`, { method: "POST", body: dto });
   },
 
   /** `GET /finance/income/categories` (RAKHAL-350). */

@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
+import type { CattleGender, ReproductiveStatus } from "@/features/cattle/types";
+
 export interface CattleOption {
   id: string;
   tagNumber: string;
@@ -23,8 +25,11 @@ export interface CattlePickerProps {
   disabled?: boolean;
   className?: string;
   /** Narrows the `/cattle` list query — e.g. Reproduction's dam/bull pickers, which the backend
-   * 400s on if the wrong gender is submitted (`getFemaleCattle`). */
-  filters?: { gender?: "MALE" | "FEMALE" | "CASTRATED_MALE" };
+   * 400s on if the wrong gender is submitted (`getFemaleCattle`), or reproductive status filtering. */
+  filters?: {
+    gender?: CattleGender;
+    reproductiveStatus?: ReproductiveStatus;
+  };
 }
 
 /** Search-select of the farm's animals — used by milk log, health case, repro events, tasks. */
@@ -40,10 +45,15 @@ export function CattlePicker({
   const [search, setSearch] = useState("");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["cattle-picker", search, filters?.gender],
+    queryKey: ["cattle-picker", search, filters?.gender, filters?.reproductiveStatus],
     queryFn: () =>
       apiFetchPage<CattleOption>("/cattle", {
-        searchParams: { limit: 20, search: search || undefined, gender: filters?.gender },
+        searchParams: {
+          limit: 20,
+          search: search || undefined,
+          gender: filters?.gender,
+          reproductiveStatus: filters?.reproductiveStatus,
+        },
       }),
     enabled: open,
     staleTime: 30_000,

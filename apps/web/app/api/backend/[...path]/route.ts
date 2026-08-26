@@ -80,7 +80,25 @@ async function handler(req: NextRequest, ctx: { params: Promise<{ path: string[]
     }
   }
 
-  const envelope = (await res.json()) as ApiEnvelope<unknown>;
+  let envelope: ApiEnvelope<unknown>;
+  try {
+    envelope = (await res.json()) as ApiEnvelope<unknown>;
+  } catch {
+    // The backend returned a non-JSON body — a raw crash/HTML error page, an
+    // empty response, or a dropped connection (all observed during a backend
+    // restart/compile window). Without this, `res.json()` throws here with no
+    // catch, and Next.js shows its own generic route-handler crash page
+    // instead of a real error the client can render — the exact "something
+    // went wrong" symptom this was causing.
+    envelope = {
+      success: false,
+      message: "Backend is temporarily unavailable. Please try again.",
+      code: "BACKEND_UNAVAILABLE",
+      requestId: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+    };
+    return NextResponse.json(envelope, { status: 502 });
+  }
   return NextResponse.json(envelope, { status: res.status });
 }
 

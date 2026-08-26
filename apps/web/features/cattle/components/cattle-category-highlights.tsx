@@ -53,10 +53,9 @@ export function CattleCategoryHighlights() {
   const [productionStatus, setProductionStatus] = useQueryState("productionStatus", parseAsString);
   const [animalCategory, setAnimalCategory] = useQueryState("animalCategory", parseAsString);
   // Cleared (not read) on select below — no longer written by this component (RAKHAL-289 dropped
-  // the reproductiveStatus/purpose proxies) but a stale bookmarked/shared URL could still carry
+  // the reproductiveStatus proxy) but a stale bookmarked/shared URL could still carry
   // one, which would otherwise silently stack with the new animalCategory filter.
   const [, setReproductiveStatus] = useQueryState("reproductiveStatus", parseAsString);
-  const [, setPurpose] = useQueryState("purpose", parseAsString);
   const counts = useCattleCategoryCounts(CATEGORIES.map(({ key, filters }) => ({ key, filters })));
 
   const active: CategoryKey =
@@ -72,7 +71,6 @@ export function CattleCategoryHighlights() {
     void setProductionStatus(cfg.filters.productionStatus ?? null);
     void setAnimalCategory(cfg.filters.animalCategory ?? null);
     void setReproductiveStatus(null);
-    void setPurpose(null);
   }
 
   return (

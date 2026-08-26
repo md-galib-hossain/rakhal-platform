@@ -33,7 +33,10 @@ export function CattleRowActions({
   const t = useTranslations("cattle.actions");
   const can = useCan();
   const restore = useRestoreCattle();
-  const isArchived = cattle.status === "SOLD" || cattle.status === "DEAD" || cattle.status === "ARCHIVED";
+  // RAKHAL-399: matches real backend HerdStatus values — DEAD/ARCHIVED never existed
+  // server-side (DECEASED is the real value; ARCHIVED is `deletedAt`, a separate concept).
+  const isArchived =
+    cattle.status === "SOLD" || cattle.status === "CULLED" || cattle.status === "DECEASED";
   const canUpdate = can("cattle.update");
   const canArchive = can("cattle.archive");
 

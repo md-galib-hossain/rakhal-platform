@@ -26,18 +26,16 @@ const STATUS_VARIANT: Record<Sale["status"], ChipProps["variant"]> = {
   PARTIALLY_REFUNDED: "warning",
 };
 
-/** Builds the "what was sold" summary for one `Sale` from its `lines[]` — the honest plain-business-
- * fact description `FINANCE_V2_DESIGN.md` §9 requires (never a ledger-account name). A single-line
- * sale shows that line's own `description` (author-supplied at Record Sale time, RAKHAL-357); a
- * multi-line sale shows a joined summary capped at 2 lines + a "+N more" tail so the cell never grows
- * unbounded. */
+/** Builds the "what was sold" summary for one `Sale` from its `lineSummary` — the honest plain-
+ * business-fact description `FINANCE_V2_DESIGN.md` §9 requires (never a ledger-account name).
+ * `GET /sales`'s list projection (RAKHAL-368) collapses every sale to a single summary line (not a
+ * per-line array), so there is no multi-line join/"+N" case to build here anymore — that was
+ * RAKHAL-360's original design against a `lines[]` shape the backend list endpoint never actually
+ * returns (confirmed by reading `SaleService.findAll`'s real `SaleListRow` return type directly). */
 export function saleSummary(sale: Sale): { icon: typeof Droplets; text: string } {
-  if (sale.lines.length === 0) return { icon: Package, text: "—" };
-  const icon = LINE_TYPE_ICON[sale.lines[0].type];
-  if (sale.lines.length === 1) return { icon, text: sale.lines[0].description };
-  const shown = sale.lines.slice(0, 2).map((l) => l.description);
-  const rest = sale.lines.length - shown.length;
-  return { icon, text: rest > 0 ? `${shown.join(", ")} +${rest}` : shown.join(", ") };
+  const { type, description } = sale.lineSummary;
+  if (!type) return { icon: Package, text: "—" };
+  return { icon: LINE_TYPE_ICON[type], text: description ?? "—" };
 }
 
 /**
@@ -77,7 +75,7 @@ export function LedgerSalesTable() {
       {
         id: "customer",
         header: t("columns.customer"),
-        cell: ({ row }) => row.original.customerId ?? "—",
+        cell: ({ row }) => row.original.customer?.name ?? "—",
       },
       {
         id: "amount",

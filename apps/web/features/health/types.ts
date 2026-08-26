@@ -172,6 +172,21 @@ export interface HealthCaseListItem {
   tasks: HealthTask[]; // next pending task, take:1
 }
 
+/** `GET /health/cases/applied` row — applied health plan instance (a `HealthCase` with
+ * `healthPlanId != null`). Used by the "Active Plans" panel in the Health Plan tab. */
+export interface AppliedPlanListItem {
+  id: string; // healthCaseId — used for delete/edit operations
+  caseCode: string;
+  startDate: string;
+  currentStep: number;
+  totalSteps: number;
+  progressPercentage: number;
+  status: HealthCaseStatus;
+  diagnosisType: HealthDiagnosisType;
+  cattle: HealthCattleRef;
+  healthPlan: { id: string; name: string; category: HealthPlanCategory };
+}
+
 /** `GET /health/cases/:id` — full case detail behind "Manage Case" (`health.service.ts#getHealthCase`). */
 export interface HealthCaseDetail extends Omit<HealthCaseListItem, "tasks"> {
   treatmentLogs: TreatmentLog[];

@@ -302,7 +302,7 @@ export function usePaymentsV2() {
   });
 }
 
-/** `GET /sales`, un-paginated, full `Sale` shape (incl. `lines[]`) — backs the Ledger's Sales
+/** `GET /sales`, un-paginated, list-projection `Sale` shape (`lineSummary`, not `lines[]`) — backs the Ledger's Sales
  * segment. Separate cache key from RAKHAL-358's `useSalesLookup` (see `lib/query/keys.ts#salesV2`'s
  * doc comment for why). */
 export function useSalesV2() {

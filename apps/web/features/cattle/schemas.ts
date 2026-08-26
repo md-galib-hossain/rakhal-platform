@@ -14,7 +14,6 @@ export const cattleFormSchema = z.object({
   breedId: z.string().optional(),
   gender: z.enum(["MALE", "FEMALE", "CASTRATED_MALE"]),
   dateOfBirth: z.string().optional(),
-  purpose: z.enum(["MILK", "BREEDING", "MEAT", "CALF", "BULL_SERVICE", "DUAL_PURPOSE"]),
   shedId: z.string().optional(),
   feedGroupId: z.string().optional(),
   motherId: z.string().optional(),

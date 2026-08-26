@@ -817,15 +817,6 @@
         "FEMALE": "Female",
         "CASTRATED_MALE": "Castrated male"
       },
-      "purpose": "Purpose",
-      "purposeOptions": {
-        "MILK": "Milk",
-        "BREEDING": "Breeding",
-        "MEAT": "Meat",
-        "CALF": "Calf",
-        "BULL_SERVICE": "Bull service",
-        "DUAL_PURPOSE": "Dual purpose"
-      },
       "dateOfBirth": "Date of birth",
       "weightKg": "Weight (kg)",
       "breed": "Breed",
@@ -911,7 +902,7 @@
       "genericError": "Something went wrong. Please try again."
     },
     "archiveDialog": {
-      "title": "Archive — {name}",
+      "title": "Dispose Animal — {name}",
       "description": "This removes the animal from the active herd. Choose the reason that fits.",
       "reason": "Reason",
       "reasonOptions": {
@@ -920,9 +911,11 @@
         "culled": "Culled",
         "archived": "Archived (other)"
       },
+      "notes": "Note (optional)",
+      "notesPlaceholder": "e.g. buyer name, price, cause",
       "cancel": "Cancel",
-      "confirm": "Archive",
-      "archivedToast": "Cattle archived.",
+      "confirm": "Dispose Animal",
+      "archivedToast": "Animal disposed.",
       "genericError": "Something went wrong. Please try again.",
       "closesLactationWarning": "This cow's active lactation will be closed."
     },
@@ -930,7 +923,7 @@
       "menu": "Row actions",
       "viewDetails": "View Details",
       "edit": "Edit",
-      "archive": "Archive",
+      "archive": "Dispose Animal",
       "restore": "Restore",
       "restoredToast": "Cattle restored.",
       "genericError": "Something went wrong. Please try again."
@@ -948,7 +941,6 @@
       "shed": "Shed",
       "dateOfBirth": "Date of Birth",
       "age": "Age",
-      "purpose": "Purpose",
       "status": "Status",
       "dim": "DIM",
       "dimValue": "{days} Days",
@@ -961,14 +953,6 @@
         "MALE": "Male",
         "FEMALE": "Female",
         "CASTRATED_MALE": "Castrated male"
-      },
-      "purposeOptions": {
-        "MILK": "Milk",
-        "BREEDING": "Breeding",
-        "MEAT": "Meat",
-        "CALF": "Calf",
-        "BULL_SERVICE": "Bull service",
-        "DUAL_PURPOSE": "Dual purpose"
       },
       "statusOptions": {
         "milking": "Milking",
@@ -1031,8 +1015,7 @@
       },
       "notApplicable": {
         "male": "N/A — male animal",
-        "immature": "Not yet milking",
-        "notMilkingPurpose": "Not raised for milk"
+        "immature": "Not yet milking"
       },
       "tabs": {
         "overview": "Overview",
@@ -1378,7 +1361,7 @@
     "import": {
       "trigger": "Import Excel",
       "title": "Import Cattle from Excel",
-      "description": "Upload an .xlsx file with columns name/tag/gender/purpose/date_of_birth/breed/shed/color/notes (case-insensitive headers). Preview validates every row before anything is imported.",
+      "description": "Upload an .xlsx file with columns name/tag/gender/date_of_birth/breed/shed/color/notes (case-insensitive headers). Preview validates every row before anything is imported.",
       "chooseFile": "Excel file (.xlsx)",
       "previewAction": "Preview",
       "confirmAction": "Confirm Import",
@@ -2776,7 +2759,16 @@
         "showMore": "Show More",
         "showLess": "Show Less",
         "editPlan": "Edit Plan",
-        "apply": "Apply"
+        "apply": "Apply",
+        "deletePlan": "Delete Plan",
+        "deleteDialog": {
+          "title": "Delete this health plan?",
+          "description": "This health plan template will be archived and removed.",
+          "confirm": "Delete",
+          "cancel": "Cancel"
+        },
+        "deletedToast": "Health plan deleted.",
+        "deleteError": "Could not delete the health plan."
       },
       "createDialog": {
         "title": "Create New Health Plan",
@@ -2853,6 +2845,7 @@
         "step2Title": "Schedule Preview",
         "step2Subtitle": "See your daywise schedule",
         "day": "Day",
+        "date": "Date",
         "action": "Action",
         "medicine": "Medicine",
         "dose": "Dose",
@@ -2863,6 +2856,36 @@
         "noneSelectedError": "Select at least one animal.",
         "appliedToast": "{count, plural, one {1 animal} other {# animals}} enrolled in this plan.",
         "genericError": "Something went wrong. Please try again."
+      },
+      "activePlans": {
+        "sectionTitle": "Active Plans",
+        "searchPlaceholder": "Search by plan or animal…",
+        "emptyTitle": "No active plans",
+        "emptyDescription": "Applied health plans will appear here once you enrol animals.",
+        "error": "Could not load active plans.",
+        "editTitle": "Edit start date",
+        "deleteTitle": "Cancel plan",
+        "deleteConfirmTitle": "Cancel Applied Plan",
+        "deleteConfirmDescription": "This will cancel all pending tasks for {plan} on {animal}. Completed treatments will not be affected.",
+        "deleteConfirmLabel": "Yes, Cancel Plan",
+        "deleteToast": "Plan cancelled successfully.",
+        "deleteError": "Failed to cancel plan.",
+        "columns": {
+          "plan": "Plan",
+          "animal": "Animal",
+          "startDate": "Start Date",
+          "progress": "Progress",
+          "actions": "Actions"
+        },
+        "editDialog": {
+          "title": "Edit Applied Plan",
+          "newStartDate": "New Start Date",
+          "rescheduleNote": "All pending tasks will be cancelled and rescheduled from the new start date. Completed treatments are preserved.",
+          "cancel": "Cancel",
+          "save": "Save Changes",
+          "savedToast": "Plan rescheduled successfully.",
+          "saveError": "Failed to reschedule plan."
+        }
       }
     },
     "symptoms": {
@@ -3258,15 +3281,6 @@
         "warning": "This moves the calf into the Cattle module permanently and cannot be undone.",
         "weaningDate": "Weaning Date",
         "weaningWeightKg": "Weaning Weight (kg)",
-        "newPurpose": "New Purpose",
-        "newPurposeAuto": "Auto (based on gender)",
-        "newPurposeValue": {
-          "MILK": "Milk",
-          "BREEDING": "Breeding",
-          "MEAT": "Meat",
-          "BULL_SERVICE": "Bull Service",
-          "DUAL_PURPOSE": "Dual Purpose"
-        },
         "notes": "Notes",
         "submit": "Wean Calf",
         "weanedToast": "Calf weaned and moved to Cattle.",

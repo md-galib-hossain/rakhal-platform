@@ -12,17 +12,11 @@
  * - **Payment / allocation** (for the Milk path's "Amount Received" step) —
  *   `POST /finance/payments` + `POST /finance/payments/:id/allocations`
  *   (`PaymentController`, RAKHAL-337). Real, live.
- * - **Manure, Inventory item, Animal** — `RecordManureSaleUseCase` (RAKHAL-347),
- *   `SellInventoryUseCase` (RAKHAL-346), `SellAnimalUseCase` (RAKHAL-345) all exist
- *   server-side (grepped their own module files: `sell-manure.module.ts`/`sales.module.ts`/
- *   `sell-animal.module.ts`) but **none of the three has an HTTP controller** — confirmed by
- *   grepping every `*.controller.ts` in the backend for a caller of any of the three; the only
- *   controller in `sales/presentation/controllers/` (`SaleController`) calls
- *   `SaleService.createSale` directly, which only persists a bare `DRAFT` `Sale` document with
- *   **no** journal posting, stock decrement, or `Receivable` — not the atomic use case a real sale
- *   needs. These three sale types are therefore UI-only in this ticket (form fields + validation,
- *   submit disabled) — see `components/record-sale-wizard.tsx`'s doc comment for the exact
- *   per-type gating. **Not faked.**
+ * - **Manure, Inventory item** — `RecordManureSaleUseCase` (RAKHAL-347),
+ *   `SellInventoryUseCase` (RAKHAL-346) exist server-side but have no HTTP controller yet — these
+ *   two remain UI-only (form fields + validation, submit disabled).
+ * - **Animal** — `SellAnimalUseCase` (RAKHAL-345) is now wired: `POST /sales/animal/:cattleId`
+ *   (RAKHAL-399, `animal-sale.controller.ts`). **Wired.**
  */
 
 import type { PaymentMethod } from "@/lib/types/payment";
@@ -43,8 +37,9 @@ export type ProductSaleSubtype = (typeof PRODUCT_SALE_SUBTYPES)[number];
  * combination is wired against — drives the wizard's per-type "coming soon" gating. */
 export function isSaleFlowWired(type: RecordSaleType, productSubtype: ProductSaleSubtype | undefined): boolean {
   if (type === "OTHER_INCOME") return true;
+  if (type === "ANIMAL") return true; // RAKHAL-399: POST /sales/animal/:cattleId
   if (type === "PRODUCT") return productSubtype === "MILK";
-  return false; // ANIMAL — SellAnimalUseCase has no HTTP route yet (RAKHAL-345)
+  return false;
 }
 
 /** RAKHAL-361 — pre-fill for `RecordSaleDialog` when opened from a domain entry point (Cattle
@@ -132,6 +127,28 @@ export interface ReceivableSummary {
   closedAt: string | null;
   outstanding: string;
   status: "UNPAID" | "PARTIALLY_PAID" | "PAID" | "OVERDUE";
+}
+
+/** Mirrors `SellAnimalDto` — `POST /sales/animal/:cattleId` (RAKHAL-345/399). */
+export interface SellAnimalPayload {
+  salePrice: number;
+  buyerName?: string;
+  buyerId?: string;
+  financialAccountId?: string;
+  paymentMethod?: PaymentMethod;
+  amountReceived?: number;
+  saleDate: string;
+}
+
+/** Mirrors `SellAnimalResult`. */
+export interface SellAnimalResult {
+  saleId: string;
+  saleNumber: string;
+  totalAmount: string;
+  dispositionId: string;
+  receivableId: string;
+  paymentId: string | null;
+  journalTransactionId: string;
 }
 
 export type PaymentDirection = "INCOMING" | "OUTGOING";

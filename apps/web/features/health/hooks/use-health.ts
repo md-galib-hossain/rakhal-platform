@@ -5,6 +5,7 @@ import { qk } from "@/lib/query/keys";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { healthApi } from "../api";
 import type {
+  AppliedPlanListItem,
   ApplyHealthPlanPayload,
   CloseHealthCasePayload,
   CreateHealthCasePayload,
@@ -51,7 +52,7 @@ export function useHealthCaseDetail(id: string | undefined) {
 
 function useInvalidateHealth() {
   const queryClient = useQueryClient();
-  return (caseId?: string) => {
+  return (caseId?: string, cattleId?: string) => {
     void queryClient.invalidateQueries({ queryKey: ["health", "sick-bay"] });
     void queryClient.invalidateQueries({ queryKey: qk.health.dashboard() });
     // Completing/logging a treatment also flips its HealthTask's status — bust the Task Hub's
@@ -59,7 +60,21 @@ function useInvalidateHealth() {
     // Hub tab: previously the Task Hub grid went stale after any case-management action).
     void queryClient.invalidateQueries({ queryKey: qk.health.tasks() });
     void queryClient.invalidateQueries({ queryKey: ["health", "tasks", "calendar"] });
+    // Applied plans panel (Active Plans section in the Health Plan tab) must also refresh when
+    // a case is created, deleted, or has a plan applied — those are the three events that change
+    // what shows up there.
+    void queryClient.invalidateQueries({ queryKey: ["health", "cases", "applied"] });
     if (caseId) void queryClient.invalidateQueries({ queryKey: qk.health.caseDetail(caseId) });
+    // A health-case mutation flips the cow's status (e.g. report-sickness -> SICK) on the backend —
+    // bust Cattle's own list + this animal's detail/health-summary so the Cattle page isn't stale
+    // until a manual refresh (real bug: cattle detail showed the old "healthy" status post-mutation).
+    void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });
+    void queryClient.invalidateQueries({ queryKey: qk.cattle.highlights() });
+    if (cattleId) {
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.detail(cattleId) });
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.overview(cattleId) });
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.healthSummary(cattleId) });
+    }
   };
 }
 
@@ -67,7 +82,7 @@ export function useCreateHealthCase() {
   const invalidate = useInvalidateHealth();
   return useMutation({
     mutationFn: (dto: CreateHealthCasePayload) => healthApi.createCase(dto),
-    onSuccess: () => invalidate(),
+    onSuccess: (data) => invalidate(undefined, data.cattle?.id),
   });
 }
 
@@ -91,7 +106,7 @@ export function useCloseHealthCase() {
   const invalidate = useInvalidateHealth();
   return useMutation({
     mutationFn: ({ id, dto }: { id: string; dto: CloseHealthCasePayload }) => healthApi.closeCase(id, dto),
-    onSuccess: (_data, { id }) => invalidate(id),
+    onSuccess: (data, { id }) => invalidate(id, data.cattle?.id),
   });
 }
 
@@ -99,7 +114,7 @@ export function useLogMortality() {
   const invalidate = useInvalidateHealth();
   return useMutation({
     mutationFn: ({ id, dto }: { id: string; dto: MortalityPayload }) => healthApi.logMortality(id, dto),
-    onSuccess: (_data, { id }) => invalidate(id),
+    onSuccess: (data, { id }) => invalidate(id, data.cattle?.id),
   });
 }
 
@@ -107,7 +122,7 @@ export function useDeleteHealthCase() {
   const invalidate = useInvalidateHealth();
   return useMutation({
     mutationFn: (id: string) => healthApi.deleteCase(id),
-    onSuccess: (_data, id) => invalidate(id),
+    onSuccess: (data, id) => invalidate(id, data.cattle?.id),
   });
 }
 
@@ -206,6 +221,14 @@ export function useUpdatePlan() {
   });
 }
 
+export function useDeletePlan() {
+  const invalidate = useInvalidatePlans();
+  return useMutation({
+    mutationFn: (id: string) => healthApi.deletePlan(id),
+    onSuccess: () => invalidate(),
+  });
+}
+
 /** Applies a plan to one existing health case — see `api.ts#applyPlanToCase` for why there's no
  * bulk variant. `apply-health-plan-dialog.tsx` loops this (and, for animals with no open case yet,
  * `useCreateHealthCase` first) once per selected animal. */
@@ -216,3 +239,17 @@ export function useApplyPlanToCase() {
     onSuccess: (_data, { caseId }) => invalidate(caseId),
   });
 }
+
+/** Active Plans panel — returns all HealthCase rows where a health plan has been applied
+ * (`healthPlanId IS NOT NULL`, active status). One row per cow per plan application. */
+export function useAppliedHealthPlans(filters: { healthPlanId?: string } = {}) {
+  return useQuery({
+    queryKey: qk.health.appliedPlans(filters as Record<string, string | undefined>),
+    queryFn: () => healthApi.listAppliedPlans(filters),
+    staleTime: STALE_TIME,
+  });
+}
+
+/** Void the return type so callers can `void useAppliedHealthPlans` isn't needed separately —
+ * exposed only for the `AppliedPlanListItem` type if components import it from this module. */
+export type { AppliedPlanListItem };

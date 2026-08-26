@@ -26,7 +26,7 @@ import type { CattleImportPreview } from "../types";
  * /cattle/import/preview` (multipart .xlsx, per-row validation cached 30 min under
  * `importSessionId`) then `POST /cattle/import/confirm` (imports the `ready` rows; `skipErrors`
  * required if any row failed validation). No column-mapping UI in this pass — the backend's
- * canonical headers (name/tag/gender/purpose/date_of_birth/breed/shed/color/notes, matched
+ * canonical headers (name/tag/gender/date_of_birth/breed/shed/color/notes, matched
  * case-insensitively) are documented in the dialog description instead of building a mapping
  * picker, since `mapping` is optional and a first cut should just work against a
  * canonically-headed sheet.

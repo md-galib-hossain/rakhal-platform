@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { DateText } from "@/components/shared/date-text";
 import { cattleApi } from "@/features/cattle/api";
 import type { CattleListItem } from "@/features/cattle/types";
 import { useApplyPlanToCase, useCreateHealthCase } from "../hooks/use-health";
@@ -36,6 +37,13 @@ const CATEGORY_TO_DIAGNOSIS_TYPE: Record<HealthPlanListItem["category"], HealthD
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function getStepDate(startDateStr: string | undefined, dayNumber: number): Date {
+  const str = startDateStr || todayIso();
+  const [y, m, d] = str.split("-").map(Number);
+  const offset = Math.max(0, dayNumber - 1);
+  return new Date(y, (m || 1) - 1, (d || 1) + offset);
 }
 
 /**
@@ -76,6 +84,7 @@ function ApplyHealthPlanDialogBody({ plan, onOpenChange }: { plan: HealthPlanLis
   const shedId = useWatch({ control: form.control, name: "shedId" });
   const feedGroupId = useWatch({ control: form.control, name: "feedGroupId" });
   const excludePregnant = useWatch({ control: form.control, name: "excludePregnant" });
+  const startDate = useWatch({ control: form.control, name: "startDate" });
 
   const shedsQuery = useQuery({ queryKey: ["cattle", "sheds"], queryFn: () => cattleApi.sheds(), staleTime: 60_000 });
   const feedGroupsQuery = useQuery({ queryKey: ["cattle", "feed-groups"], queryFn: () => cattleApi.feedGroups(), staleTime: 60_000 });
@@ -299,20 +308,30 @@ function ApplyHealthPlanDialogBody({ plan, onOpenChange }: { plan: HealthPlanLis
               <p className="text-xs text-muted-foreground">{t("step2Subtitle")}</p>
             </div>
             <div className="overflow-hidden rounded-2xl border border-border">
-              <div className="grid grid-cols-[48px_1fr_160px_64px] bg-muted p-2 text-sm font-medium text-muted-foreground">
+              <div className="grid grid-cols-[48px_130px_1fr_80px] bg-muted p-2 text-sm font-medium text-muted-foreground">
                 <span className="px-2 py-3">{t("day")}</span>
-                <span className="px-2 py-3">{t("action")}</span>
+                <span className="px-2 py-3">{t("date")}</span>
                 <span className="px-2 py-3">{t("medicine")}</span>
                 <span className="px-2 py-3">{t("dose")}</span>
               </div>
-              {plan.steps.map((planStep) => (
-                <div key={planStep.id} className="grid grid-cols-[48px_1fr_160px_64px] border-b border-border p-2 text-sm text-foreground last:border-b-0">
-                  <span className="px-2 py-3">{planStep.dayNumber}</span>
-                  <span className="truncate px-2 py-3">{planStep.instruction || planStep.title}</span>
-                  <span className="truncate px-2 py-3">{planStep.medicineName ?? "—"}</span>
-                  <span className="px-2 py-3">{planStep.doseAmount != null ? `${planStep.doseAmount} ${planStep.doseUnit ?? ""}`.trim() : "—"}</span>
-                </div>
-              ))}
+              {plan.steps.map((planStep) => {
+                const stepDate = getStepDate(startDate, planStep.dayNumber);
+                return (
+                  <div
+                    key={planStep.id}
+                    className="grid grid-cols-[48px_130px_1fr_80px] border-b border-border p-2 text-sm text-foreground last:border-b-0"
+                  >
+                    <span className="px-2 py-3">{planStep.dayNumber}</span>
+                    <span className="truncate px-2 py-3 text-muted-foreground">
+                      <DateText date={stepDate} />
+                    </span>
+                    <span className="truncate px-2 py-3">{planStep.medicineName ?? "—"}</span>
+                    <span className="px-2 py-3">
+                      {planStep.doseAmount != null ? `${planStep.doseAmount} ${planStep.doseUnit ?? ""}`.trim() : "—"}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

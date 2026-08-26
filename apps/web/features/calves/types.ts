@@ -13,8 +13,6 @@ export type CalfGender = "MALE" | "FEMALE" | "CASTRATED_MALE";
 export type ColostrumQuality = "EXCELLENT" | "GOOD" | "POOR" | "UNKNOWN";
 export type CalfMilkType = "DAM_MILK" | "WHOLE_MILK" | "MILK_REPLACER";
 export type CalfStarterEventType = "FIRST_OFFERED" | "FIRST_INTAKE" | "DAILY_INTAKE";
-/** `WeanCalfDto.newPurpose` — any `CattlePurpose` value except `CALF` itself. */
-export type CalfWeanPurpose = "MILK" | "BREEDING" | "MEAT" | "BULL_SERVICE" | "DUAL_PURPOSE";
 
 export interface CalfDamRef {
   id: string;
@@ -140,7 +138,6 @@ export interface WeanCalfResult {
   // ProductionStatus) — backend always returns null now, kept as
   // `string | null` for API-shape parity.
   productionStatusUpdatedTo: string | null;
-  newPurpose: CalfWeanPurpose;
   movedToCattleModule: true;
   removedFromCalfManagement: true;
   weaningRecord: CalfWeaningRecord;

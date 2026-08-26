@@ -113,6 +113,7 @@ export function useBulkCattle() {
     }) => cattleApi.bulk(cattleIds, action, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });
+      void queryClient.invalidateQueries({ queryKey: ["cattle", "category-count"] });
       void queryClient.invalidateQueries({ queryKey: qk.cattle.highlights() });
     },
   });
@@ -132,6 +133,7 @@ function useInvalidateCattle() {
   const queryClient = useQueryClient();
   return (id?: string) => {
     void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });
+    void queryClient.invalidateQueries({ queryKey: ["cattle", "category-count"] });
     void queryClient.invalidateQueries({ queryKey: qk.cattle.highlights() });
     if (id) void queryClient.invalidateQueries({ queryKey: qk.cattle.detail(id) });
   };

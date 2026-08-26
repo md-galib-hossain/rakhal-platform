@@ -266,11 +266,12 @@ export interface UpdateFinancialAccountPayload {
 }
 
 /** `GET /finance/balance` response (`BalanceService.getRakhalBalance`). Every money field is a
- * Decimal-as-string. `receivablePayable.wired` is **still `false` today** — verified by reading
- * `BalanceService.getReceivablePayablePosition()` directly: despite `Receivable`/`Payable` v2
- * existing elsewhere (RAKHAL-340/348, both `DONE`), this specific endpoint was never re-pointed at
- * them and unconditionally returns a zeroed placeholder. Render `receivablePayable` as "not yet
- * available" rather than a fake ৳0 — do not treat `wired:false` as "the farm owes/is owed nothing." */
+ * Decimal-as-string. `receivablePayable` is **no longer returned at all** — RAKHAL-371 retired the
+ * fake always-zeroed placeholder block outright (confirmed by reading `getRakhalBalance()` directly:
+ * its return object has no such field), rather than re-pointing it at the real `Receivable`/`Payable`
+ * v2 data. The real replacement is the new `GET /finance/summary` (RAKHAL-371), not yet wired into
+ * this card. Kept optional here (was previously required, which crashed `FinanceHighlights` reading
+ * `.wired` off `undefined`) — render "not yet available" whenever it's absent. */
 export interface RakhalBalanceAccountItem {
   id: string;
   name: string;
@@ -296,7 +297,7 @@ export interface RakhalBalanceResult {
   rakhalBalance: string;
   breakdown: RakhalBalanceBreakdown;
   accounts: RakhalBalanceAccountItem[];
-  receivablePayable: ReceivablePayablePosition;
+  receivablePayable?: ReceivablePayablePosition;
 }
 
 /** Mirrors the `Transfer` row (`POST`/`GET /finance/transfers`). Field names confirmed against the
@@ -331,54 +332,45 @@ export interface CreateTransferPayload {
 /**
  * RAKHAL-360 additions below — the "business document list" the redesigned Ledger view reads:
  * `Sale`/`Purchase`/`FinancePayment` (Transfer already modeled above by RAKHAL-356, reused as-is).
- * Verified against the live backend source (`sales/sale.prisma`, `purchasing/purchase.prisma`,
- * `sales/application/sale.service.ts`, `purchasing/application/purchase.service.ts`) — `GET /sales`
- * and `GET /purchasing/purchases` both return the parent row with every line's typed detail eagerly
- * loaded (`SALE_INCLUDE`/`PURCHASE_INCLUDE`), not a bare row, despite `SaleService.findAll`'s own
- * `Promise<Sale[]>` return-type annotation being stale (a pre-existing backend typing looseness, not
- * fixed here — out of a frontend ticket's lane). **No debit/credit anywhere in this section** — per
- * `FINANCE_V2_DESIGN.md` §9's explicit risk callout, these types carry only the plain business facts
- * (what was sold/bought/paid, when, how much, to/from whom); `LedgerAccount`/`JournalEntry` are never
- * modeled on the frontend at all.
+ *
+ * **Corrected against the live backend source** (`sale.service.ts`'s `SaleListRow` interface +
+ * `findAll()`'s actual `include`/return shape, re-verified directly — RAKHAL-360's original doc
+ * comment here claimed `GET /sales` returns the parent row with every line's typed detail eagerly
+ * loaded (`lines: SaleLine[]`) and a bare `customerId` scalar; that was wrong, and crashed
+ * `LedgerSalesTable`/`saleSummary()` the first time a farm actually had `Sale` rows to render
+ * (`Cannot read properties of undefined (reading 'length')` on `sale.lines`). The real list
+ * projection (RAKHAL-368) is a single collapsed `lineSummary` object per sale, not a `lines[]`
+ * array, and `customer` is a resolved `{id,name}` object (or `null`), not a raw `customerId`. **No
+ * debit/credit anywhere in this section** — per `FINANCE_V2_DESIGN.md` §9's explicit risk callout,
+ * these types carry only the plain business facts (what was sold/bought/paid, when, how much, to/
+ * from whom); `LedgerAccount`/`JournalEntry` are never modeled on the frontend at all.
  */
 export type SaleLineType = "MILK" | "ANIMAL" | "INVENTORY" | "MANURE";
 export type SaleStatus = "DRAFT" | "CONFIRMED" | "CANCELLED" | "REFUNDED" | "PARTIALLY_REFUNDED";
+export type SalePaymentStatus = "UNPAID" | "PARTIALLY_PAID" | "PAID";
 
-/** Mirrors `SaleLine` + whichever typed detail table `type` selects — only the fields the ledger's
- * description-building logic actually reads (real FKs, not resolved names — no `Customer`/generic
- * buyer entity exists yet, see `Sale.customerId`'s own doc comment; a cattle/medicine/feedItem/
- * equipment *name* would need a separate lookup this ticket's read-only ledger list doesn't attempt). */
-export interface SaleLine {
-  id: string;
-  saleId: string;
-  type: SaleLineType;
-  description: string;
-  quantity: string;
-  unitId: string | null;
-  unit: { id: string; name: string; symbol: string } | null;
-  unitPrice: string;
-  totalAmount: string;
-  milkDetail: { id: string } | null;
-  animalDetail: { id: string; cattleId: string } | null;
-  inventoryDetail: { id: string; medicineId: string | null; feedItemId: string | null; equipmentId: string | null } | null;
-  manureDetail: { id: string; notes: string | null } | null;
+/** Mirrors `SaleListRow`'s own `lineSummary` field — the single collapsed first-line summary the
+ * list projection carries (RAKHAL-368), not a full per-line array. */
+export interface SaleLineSummary {
+  type: SaleLineType | null;
+  description: string | null;
+  quantity: number;
 }
 
-/** Mirrors `SaleWithLines` (`SaleService.findAll`/`findOne`). */
+/** Mirrors `SaleListRow` (`SaleService.findAll`'s real return shape) — `GET /sales`'s actual list
+ * projection, not the full `SaleWithLines` detail shape. */
 export interface Sale {
   id: string;
-  farmId: string;
   saleNumber: string;
-  customerId: string | null;
   saleDate: string;
-  subtotal: string;
-  discountAmount: string;
-  totalAmount: string;
   status: SaleStatus;
-  notes: string | null;
-  createdById: string;
-  createdAt: string;
-  lines: SaleLine[];
+  customer: { id: string; name: string } | null;
+  totalAmount: string;
+  paidAmount: string;
+  dueAmount: string;
+  paymentStatus: SalePaymentStatus;
+  dueDate: string | null;
+  lineSummary: SaleLineSummary;
 }
 
 /** Mirrors `PurchaseLine` (`purchasing/purchase.prisma`) — exactly one of `medicineId`/`feedItemId`/

@@ -43,7 +43,6 @@ export type RecordStarterFeedInput = z.infer<typeof recordStarterFeedSchema>;
 export const weanCalfSchema = z.object({
   weaningDate: z.string().min(1),
   weaningWeightKg: z.number().min(0).optional(),
-  newPurpose: z.enum(["MILK", "BREEDING", "MEAT", "BULL_SERVICE", "DUAL_PURPOSE"]).optional(),
   notes: z.string().trim().optional(),
 });
 export type WeanCalfInput = z.infer<typeof weanCalfSchema>;

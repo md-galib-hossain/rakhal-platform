@@ -8,6 +8,7 @@ import type {
   CreateIncomeCategoryPayload,
   CreatePaymentPayload,
   RecordOtherIncomePayload,
+  SellAnimalPayload,
 } from "../types";
 
 const STALE_TIME = 30_000;
@@ -48,6 +49,21 @@ export function useRecordOtherIncome() {
   return useMutation({
     mutationFn: (dto: RecordOtherIncomePayload) => salesApi.recordOtherIncome(dto),
     onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["finance"] });
+    },
+  });
+}
+
+/** `POST /sales/animal/:cattleId` (RAKHAL-345/399) — the real atomic sell-animal flow. Broad
+ * `["cattle"]` invalidation since the sold animal's `herdStatus` flips to SOLD and drops out of
+ * the active-herd list/detail views, plus `["finance"]` for the ledger posting this always makes. */
+export function useSellAnimal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ cattleId, dto }: { cattleId: string; dto: SellAnimalPayload }) =>
+      salesApi.sellAnimal(cattleId, dto),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["cattle"] });
       void queryClient.invalidateQueries({ queryKey: ["finance"] });
     },
   });

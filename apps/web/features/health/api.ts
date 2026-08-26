@@ -3,6 +3,7 @@
 import { apiFetch, apiFetchPage } from "@/lib/api/client";
 import type { CursorPage } from "@/types/api";
 import type {
+  AppliedPlanListItem,
   ApplyHealthPlanPayload,
   CloseHealthCasePayload,
   CreateHealthCasePayload,
@@ -126,10 +127,24 @@ export const healthApi = {
   updatePlan(id: string, dto: UpdateHealthPlanPayload): Promise<HealthPlanListItem> {
     return apiFetch<HealthPlanListItem>(`/health/plans/${id}`, { method: "PATCH", body: dto });
   },
+  deletePlan(id: string): Promise<HealthPlanListItem> {
+    return apiFetch<HealthPlanListItem>(`/health/plans/${id}`, { method: "DELETE" });
+  },
   /** No bulk/shed-wide apply endpoint exists — this always targets one existing case, see
    * `apply-health-plan-dialog.tsx` for how a multi-animal "Apply" is orchestrated from this. */
   applyPlanToCase(caseId: string, dto: ApplyHealthPlanPayload): Promise<HealthCaseDetail> {
     return apiFetch<HealthCaseDetail>(`/health/cases/${caseId}/apply-plan`, { method: "POST", body: dto });
+  },
+  /** Active Plans panel — `GET /health/cases/applied` returns HealthCase rows where
+   * `healthPlanId IS NOT NULL` (i.e. cases created via the Apply Health Plan flow).
+   * Separate from sick-bay which explicitly excludes preventive diagnosis types. */
+  listAppliedPlans(
+    filters: { healthPlanId?: string } = {},
+    cursor?: string,
+  ): Promise<CursorPage<AppliedPlanListItem>> {
+    return apiFetchPage<AppliedPlanListItem>("/health/cases/applied", {
+      searchParams: { healthPlanId: filters.healthPlanId, cursor, limit: 50 },
+    });
   },
 };
 
