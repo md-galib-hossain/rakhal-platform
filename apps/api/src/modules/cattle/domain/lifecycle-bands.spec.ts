@@ -115,6 +115,46 @@ describe('lifecycle-bands', () => {
     expect(() => buildLifecycleSubStageWhere('NOT_A_STAGE', now)).toThrow();
   });
 
+  it('respects custom farm boundaries (RAKHAL-401) instead of the hardcoded defaults', () => {
+    // 70 days: with the default 180-day growingStartDays, still WEANED_HEIFER.
+    expect(
+      deriveLifecycleSubStage({
+        gender: 'FEMALE',
+        dateOfBirth: daysAgo(70, now),
+        totalCalvings: 0,
+        now,
+      }),
+    ).toBe('WEANED_HEIFER');
+
+    // Same 70-day-old animal, but the farm has set a much earlier
+    // growingStartDays (65) — she's already GROWING_HEIFER under that
+    // configured boundary. weaningDays is left at the default (60) since it
+    // can't move the top-level `AnimalCategory` CALF→HEIFER cutoff below
+    // `DEFAULT_WEANING_DAYS` anyway (that cutoff lives in `animal-category.ts`,
+    // out of this ticket's scope).
+    const customBoundaries = {
+      weaningDays: 60,
+      growingStartDays: 65,
+      breedingAgeDays: 200,
+    };
+    expect(
+      deriveLifecycleSubStage({
+        gender: 'FEMALE',
+        dateOfBirth: daysAgo(70, now),
+        totalCalvings: 0,
+        now,
+        boundaries: customBoundaries,
+      }),
+    ).toBe('GROWING_HEIFER');
+
+    const where = buildLifecycleSubStageWhere(
+      'GROWING_HEIFER',
+      now,
+      customBoundaries,
+    );
+    expect(where).toBeTruthy();
+  });
+
   it('buildLifecycleSubStageWhere matches exactly what deriveLifecycleSubStage derives (property check over every band)', () => {
     for (const band of LIFECYCLE_BANDS) {
       const gender = band.category === 'HEIFER' ? 'FEMALE' : 'MALE';

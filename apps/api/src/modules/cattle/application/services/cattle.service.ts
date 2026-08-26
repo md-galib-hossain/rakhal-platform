@@ -51,7 +51,10 @@ import {
   deriveAnimalCategory,
   type AnimalCategoryGender,
 } from '../../domain/animal-category';
-import { deriveLifecycleSubStage } from '../../domain/lifecycle-bands';
+import {
+  deriveLifecycleSubStage,
+  buildLifecycleSubStageWhere,
+} from '../../domain/lifecycle-bands';
 // RAKHAL-279: reuse the reproduction module's already-exported PURE domain
 // functions/types directly (deliberately not `ReproductionService` itself —
 // see the `composeStatus()` doc comment below for why). These files have no
@@ -454,6 +457,14 @@ export class CattleService {
   }
 
   async findAll(farmId: string, query: ListCattleQueryDto) {
+    // RAKHAL-401: only fetched when the filter is actually used, so this list
+    // route's query cost is unchanged for every request that doesn't pass
+    // `lifecycleSubStage` — reused below for composeStatus's `reproCtx` too
+    // (never fetched twice for one request).
+    const presetSettings = query.lifecycleSubStage
+      ? await this.farmSettings.getEffective(farmId)
+      : undefined;
+
     // RAKHAL-400: `includeDeleted` and `status` are independent controls —
     // the old `includeArchived` conflated them (true meant "drop every scope
     // filter", which also silently dropped the default ACTIVE-only view and
@@ -488,6 +499,13 @@ export class CattleService {
       ...(query.animalCategory
         ? buildAnimalCategoryWhere(query.animalCategory, new Date())
         : {}),
+      ...(query.lifecycleSubStage
+        ? buildLifecycleSubStageWhere(
+            query.lifecycleSubStage,
+            new Date(),
+            this.lifecycleBoundaries(presetSettings!),
+          )
+        : {}),
     };
 
     const rows = await this.prisma.cattle.findMany({
@@ -499,9 +517,12 @@ export class CattleService {
 
     // RAKHAL-279: one settings row + one bulk hold query for the whole page,
     // reused across every row's composeStatus() call (never per-row).
+    // RAKHAL-401: reuses `presetSettings` when already fetched above for the
+    // `lifecycleSubStage` filter, instead of querying `FarmModuleSettings` twice.
     const reproCtx = await this.buildReproductionContext(
       farmId,
       rows.map((row) => row.id),
+      presetSettings,
     );
 
     const page = toCursorPage(
@@ -1770,6 +1791,9 @@ export class CattleService {
       dateOfBirth: row.dateOfBirth,
       totalCalvings: row.reproductionProfile?.totalCalvings ?? 0,
       now,
+      boundaries: reproCtx
+        ? this.lifecycleBoundaries(reproCtx.settings)
+        : undefined,
     });
 
     const reproductionState =
@@ -1870,17 +1894,33 @@ export class CattleService {
    * is a direct query rather than an `include` — still a single query for the
    * whole page/request, not one per cow.
    */
+  /** `FarmModuleSettings` → `LifecycleBoundaries` (RAKHAL-401) — the same
+   * columns `FarmSettingsService.lifecycleBoundaries` reads, but taken from an
+   * already-fetched `settings` row (avoids a second query when `reproCtx` is
+   * already in hand from `buildReproductionContext`). */
+  private lifecycleBoundaries(settings: FarmModuleSettings) {
+    return {
+      weaningDays: settings.cattleLifecycleWeaningDays,
+      growingStartDays: settings.cattleLifecycleGrowingStartDays,
+      breedingAgeDays: settings.cattleLifecycleBreedingAgeDays,
+    };
+  }
+
   private async buildReproductionContext(
     farmId: string,
     cattleIds: string[],
+    presetSettings?: FarmModuleSettings,
   ): Promise<ReproductionContext> {
     if (cattleIds.length === 0) {
-      const settings = await this.farmSettings.getEffective(farmId);
+      const settings =
+        presetSettings ?? (await this.farmSettings.getEffective(farmId));
       return { settings, reproductiveHoldCattleIds: new Set() };
     }
 
     const [settings, holds] = await Promise.all([
-      this.farmSettings.getEffective(farmId),
+      presetSettings
+        ? Promise.resolve(presetSettings)
+        : this.farmSettings.getEffective(farmId),
       this.prisma.animalHold.findMany({
         where: {
           farmId,

@@ -119,6 +119,12 @@ describe('CattleService — RAKHAL-269 production status', () => {
         lactationMidDays: 200,
         pregnancyEarlyDays: 90,
         pregnancyMidDays: 180,
+        // RAKHAL-401: lifecycle sub-stage boundaries — real defaults so
+        // `composeStatus()`'s `lifecycleSubStage` derivation behaves the same
+        // as the hardcoded fallback used when no `reproCtx` is supplied.
+        cattleLifecycleWeaningDays: 60,
+        cattleLifecycleGrowingStartDays: 180,
+        cattleLifecycleBreedingAgeDays: 390,
       }),
     };
     // RAKHAL-307: `create()`/`update()` now end certain paths with

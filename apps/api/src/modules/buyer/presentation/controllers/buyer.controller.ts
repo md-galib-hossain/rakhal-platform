@@ -56,6 +56,22 @@ export class BuyerController {
     return this.buyerService.createBuyer(farmId, userId, dto);
   }
 
+  // RAKHAL-372: `summary`/`groups` are literal path segments and must be
+  // registered before `GET :id` below — Nest/Express matches routes in
+  // registration order, not by specificity, so a param route registered
+  // first would swallow `/buyers/summary` as `id: 'summary'`.
+  @Get('summary')
+  @RequirePermission('finance.read')
+  summary(@CurrentFarmId() farmId: string) {
+    return this.buyerService.getBuyersSummary(farmId);
+  }
+
+  @Get('groups')
+  @RequirePermission('finance.read')
+  groups(@CurrentFarmId() farmId: string) {
+    return this.buyerService.getBuyerGroups(farmId);
+  }
+
   @Get(':id/statement')
   @RequirePermission('finance.read')
   statement(
@@ -64,6 +80,12 @@ export class BuyerController {
     @Query() query: StatementQueryDto,
   ) {
     return this.buyerService.statement(farmId, id, query);
+  }
+
+  @Get(':id/overview')
+  @RequirePermission('finance.read')
+  overview(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.buyerService.getBuyerOverview(farmId, id);
   }
 
   @Get(':id')

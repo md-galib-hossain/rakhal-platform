@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { MilkBuyer, Prisma } from '@prisma/client';
+import { BuyerType, MilkBuyer, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
+import { toStorage } from 'src/common/money';
 import { SellMilkUseCase } from 'src/modules/sales/application/use-cases/sell-milk/sell-milk.use-case';
 import { computeMilkPrice } from '../../domain/milk-price';
 import { deriveDispatchStatus } from '../../domain/dispatch-status';
@@ -96,7 +97,218 @@ export class BuyerService {
       orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
       ...getCursorArgs(query),
     });
-    return toCursorPage(rows, query);
+    const page = toCursorPage(rows, query);
+    if (page.items.length === 0) {
+      return { items: [], meta: page.meta };
+    }
+
+    const [purchaseAgg, outstanding] = await Promise.all([
+      this.purchaseAggByCustomer(farmId),
+      this.receivableOutstandingByCustomer(farmId),
+    ]);
+    const purchaseById = new Map(purchaseAgg.map((r) => [r.customerId, r]));
+    const outstandingById = new Map(
+      outstanding.map((r) => [r.customer_id, r.outstanding]),
+    );
+
+    const items = page.items.map((buyer) => {
+      const purchase = purchaseById.get(buyer.id);
+      return {
+        ...buyer,
+        totalPurchased: toStorage(purchase?.totalAmount ?? 0).toString(),
+        lastPurchaseAt: purchase?.lastSaleAt?.toISOString() ?? null,
+        outstanding: toStorage(outstandingById.get(buyer.id) ?? 0).toString(),
+        status: buyer.isActive ? 'ACTIVE' : 'INACTIVE',
+      };
+    });
+    return { items, meta: page.meta };
+  }
+
+  /** `GET /buyers/summary` (RAKHAL-372) — Total Buyers / Active Buyers /
+   * Total Sales / Total Outstanding across the farm's whole buyer book. */
+  async getBuyersSummary(farmId: string) {
+    const [totalBuyers, activeBuyers, purchaseAgg, outstanding] =
+      await Promise.all([
+        this.prisma.milkBuyer.count({ where: { farmId } }),
+        this.prisma.milkBuyer.count({ where: { farmId, isActive: true } }),
+        this.purchaseAggByCustomer(farmId),
+        this.receivableOutstandingByCustomer(farmId),
+      ]);
+
+    const totalSales = purchaseAgg.reduce(
+      (sum, r) => sum.plus(toStorage(r.totalAmount ?? 0)),
+      toStorage(0),
+    );
+    const totalOutstanding = outstanding.reduce(
+      (sum, r) => sum.plus(toStorage(r.outstanding ?? 0)),
+      toStorage(0),
+    );
+
+    return {
+      totalBuyers,
+      activeBuyers,
+      totalSales: totalSales.toString(),
+      totalOutstanding: totalOutstanding.toString(),
+    };
+  }
+
+  /** `GET /buyers/:id/overview` (RAKHAL-372) — the detail-header data: this
+   * year's purchases, current outstanding, the most recent payment applied
+   * to any of this buyer's receivables, and a handful of recent invoices. */
+  async getBuyerOverview(farmId: string, id: string) {
+    const buyer = await this.getBuyerOrThrow(farmId, id);
+    const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
+
+    const [thisYearAgg, outstandingRows, lastPaymentRows, recentInvoices] =
+      await Promise.all([
+        this.prisma.sale.aggregate({
+          where: { farmId, customerId: id, saleDate: { gte: yearStart } },
+          _sum: { totalAmount: true },
+        }),
+        this.receivableOutstandingByCustomer(farmId, id),
+        this.prisma.$queryRaw<{ amount: string; date: Date }[]>(Prisma.sql`
+        SELECT p."amount"::text AS amount, p."transactionDate" AS date
+        FROM "PaymentAllocation" pa
+        JOIN "FinancePayment" p ON p.id = pa."paymentId"
+        JOIN "Receivable" r ON r.id = pa."receivableId"
+        WHERE r."customerId" = ${id} AND r."farmId" = ${farmId}
+        ORDER BY p."transactionDate" DESC
+        LIMIT 1
+      `),
+        this.prisma.sale.findMany({
+          where: { farmId, customerId: id },
+          orderBy: [{ saleDate: 'desc' }, { id: 'desc' }],
+          take: 5,
+          select: {
+            id: true,
+            saleNumber: true,
+            saleDate: true,
+            totalAmount: true,
+            status: true,
+          },
+        }),
+      ]);
+
+    const lastPayment = lastPaymentRows[0]
+      ? {
+          amount: toStorage(lastPaymentRows[0].amount).toString(),
+          date: lastPaymentRows[0].date.toISOString(),
+        }
+      : null;
+
+    return {
+      outstandingAmount: toStorage(
+        outstandingRows[0]?.outstanding ?? 0,
+      ).toString(),
+      totalPurchasedThisYear: toStorage(
+        thisYearAgg._sum.totalAmount ?? 0,
+      ).toString(),
+      lastPayment,
+      recentInvoices: recentInvoices.map((s) => ({
+        id: s.id,
+        saleNumber: s.saleNumber,
+        saleDate: s.saleDate.toISOString(),
+        totalAmount: toStorage(s.totalAmount).toString(),
+        status: s.status,
+      })),
+      info: {
+        phone: buyer.phone,
+        // No `address` column exists on `MilkBuyer` — not in this ticket's
+        // Lane (application/presentation only, no migration) — always null
+        // until a future schema pass adds one.
+        address: null,
+        paymentTermsDays: buyer.paymentTermsDays,
+        basePricePerLitre: buyer.basePricePerLitre,
+        buyerType: buyer.buyerType,
+      },
+    };
+  }
+
+  /** `GET /buyers/groups` (RAKHAL-372) — "Buyer Groups" is the existing
+   * `BuyerType` enum, not a new model: one row per enum value with its
+   * buyer count and total sales, zero-filled for a value with no buyers. */
+  async getBuyerGroups(farmId: string) {
+    const [buyers, purchaseAgg] = await Promise.all([
+      this.prisma.milkBuyer.findMany({
+        where: { farmId },
+        select: { id: true, buyerType: true },
+      }),
+      this.purchaseAggByCustomer(farmId),
+    ]);
+    const purchaseById = new Map(purchaseAgg.map((r) => [r.customerId, r]));
+
+    const totals = new Map<
+      string,
+      { buyerCount: number; totalSales: ReturnType<typeof toStorage> }
+    >();
+    for (const buyer of buyers) {
+      const entry = totals.get(buyer.buyerType) ?? {
+        buyerCount: 0,
+        totalSales: toStorage(0),
+      };
+      entry.buyerCount += 1;
+      entry.totalSales = entry.totalSales.plus(
+        toStorage(purchaseById.get(buyer.id)?.totalAmount ?? 0),
+      );
+      totals.set(buyer.buyerType, entry);
+    }
+
+    return Object.values(BuyerType).map((buyerType) => {
+      const entry = totals.get(buyerType);
+      return {
+        buyerType,
+        buyerCount: entry?.buyerCount ?? 0,
+        totalSales: (entry?.totalSales ?? toStorage(0)).toString(),
+      };
+    });
+  }
+
+  /** `Sale.totalAmount` summed + `MAX(saleDate)`, grouped by `customerId` —
+   * plain Prisma `groupBy` suffices (no join needed), same shape
+   * `SupplierReadService.purchaseAggBySupplier` uses on the purchasing
+   * side. */
+  private async purchaseAggByCustomer(farmId: string) {
+    const rows = await this.prisma.sale.groupBy({
+      by: ['customerId'],
+      where: { farmId, customerId: { not: null } },
+      _sum: { totalAmount: true },
+      _max: { saleDate: true },
+    });
+    return rows.map((r) => ({
+      customerId: r.customerId,
+      totalAmount: r._sum.totalAmount?.toString() ?? null,
+      lastSaleAt: r._max.saleDate,
+    }));
+  }
+
+  /** Outstanding `Receivable` balance per buyer (`totalAmount -
+   * SUM(PaymentAllocation.amount)`), optionally scoped to one buyer —
+   * same raw-SQL CTE shape `AgingService`/`SupplierReadService` already
+   * established; a computed value needing a `LEFT JOIN` sum before
+   * `GROUP BY`, which `Prisma.groupBy` alone cannot express. `farmId`/
+   * `customerId` are real bound parameters, never string-concatenated. */
+  private async receivableOutstandingByCustomer(
+    farmId: string,
+    customerId?: string,
+  ): Promise<{ customer_id: string; outstanding: string | null }[]> {
+    return this.prisma.$queryRaw<
+      { customer_id: string; outstanding: string | null }[]
+    >(Prisma.sql`
+      WITH allocation_sums AS (
+        SELECT "receivableId" AS doc_id, SUM(amount) AS allocated
+        FROM "PaymentAllocation"
+        WHERE "receivableId" IS NOT NULL
+        GROUP BY "receivableId"
+      )
+      SELECT
+        d."customerId" AS customer_id,
+        SUM(d."totalAmount" - COALESCE(a.allocated, 0))::text AS outstanding
+      FROM "Receivable" d
+      LEFT JOIN allocation_sums a ON a.doc_id = d.id
+      WHERE d."farmId" = ${farmId} AND d."customerId" IS NOT NULL
+        ${customerId ? Prisma.sql`AND d."customerId" = ${customerId}` : Prisma.empty}
+      GROUP BY d."customerId"
+    `);
   }
 
   async getBuyer(farmId: string, id: string) {

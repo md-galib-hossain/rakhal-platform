@@ -3,15 +3,17 @@
  * Sub-stages nest under the existing top-level `AnimalCategory`
  * (`animal-category.ts`) — HEIFER gains WEANED/GROWING/BREEDING bands, BULL
  * gains WEANER/GROWING/MATURE bands. COW and STEER have none. Declarative:
- * adding a stage is a row in `LIFECYCLE_BANDS`, not a redesign — the
+ * adding a stage is a row in `buildLifecycleBands()`, not a redesign — the
  * derivation and its matching Prisma `where` builder are both generated from
- * this single table so they cannot drift apart (the failure mode
+ * the same table so they cannot drift apart (the failure mode
  * `buildAnimalCategoryWhere`'s own doc comment guards against by hand).
  *
- * Day boundaries are hardcoded defaults for this pass (mirrors the plan's
- * proposed values). Making them per-farm configurable via
- * `FarmModuleSettings` is a follow-up — deferred because that schema file
- * was under another agent's active claim at the time this was written.
+ * Day boundaries are now configurable per farm via three `FarmModuleSettings`
+ * columns (`cattleLifecycleWeaningDays`/`GrowingStartDays`/`BreedingAgeDays`)
+ * — callers that don't have a farm's settings loaded (create/update/archive/
+ * restore/bulk-export, same set `composeStatus`'s `ReproductionContext` doc
+ * comment already calls out) fall back to `DEFAULT_LIFECYCLE_BOUNDARIES`,
+ * which reproduce this ticket's original hardcoded values exactly.
  */
 
 import { Prisma, CattleGender as PrismaCattleGender } from '@prisma/client';
@@ -26,6 +28,18 @@ export const LIFECYCLE_WEANING_DAYS = 60;
 export const LIFECYCLE_GROWING_START_DAYS = 180;
 export const LIFECYCLE_BREEDING_AGE_DAYS = 390;
 
+export interface LifecycleBoundaries {
+  weaningDays: number;
+  growingStartDays: number;
+  breedingAgeDays: number;
+}
+
+export const DEFAULT_LIFECYCLE_BOUNDARIES: LifecycleBoundaries = {
+  weaningDays: LIFECYCLE_WEANING_DAYS,
+  growingStartDays: LIFECYCLE_GROWING_START_DAYS,
+  breedingAgeDays: LIFECYCLE_BREEDING_AGE_DAYS,
+};
+
 interface LifecycleBand {
   subStage: string;
   category: AnimalCategory;
@@ -33,54 +47,79 @@ interface LifecycleBand {
   maxDays: number | null;
 }
 
+/** The 6 sub-stage names, independent of the configured day boundaries — the
+ * fixed enum a DTO validates a `lifecycleSubStage` filter against. */
+export const LIFECYCLE_SUB_STAGES = [
+  'WEANED_HEIFER',
+  'GROWING_HEIFER',
+  'BREEDING_HEIFER',
+  'WEANER_BULL',
+  'GROWING_BULL',
+  'MATURE_BULL',
+] as const;
+export type LifecycleSubStage = (typeof LIFECYCLE_SUB_STAGES)[number];
+
 /** Ordered youngest-band-first; the first band whose `[minDays, maxDays)`
  * contains the animal's age wins. A category with no matching band (COW,
  * STEER, or an animal younger than its category's first band — i.e. still a
  * CALF) derives `null`. */
-export const LIFECYCLE_BANDS: readonly LifecycleBand[] = [
-  {
-    subStage: 'WEANED_HEIFER',
-    category: 'HEIFER',
-    minDays: LIFECYCLE_WEANING_DAYS,
-    maxDays: LIFECYCLE_GROWING_START_DAYS,
-  },
-  {
-    subStage: 'GROWING_HEIFER',
-    category: 'HEIFER',
-    minDays: LIFECYCLE_GROWING_START_DAYS,
-    maxDays: LIFECYCLE_BREEDING_AGE_DAYS,
-  },
-  {
-    subStage: 'BREEDING_HEIFER',
-    category: 'HEIFER',
-    minDays: LIFECYCLE_BREEDING_AGE_DAYS,
-    maxDays: null,
-  },
-  {
-    subStage: 'WEANER_BULL',
-    category: 'BULL',
-    minDays: LIFECYCLE_WEANING_DAYS,
-    maxDays: LIFECYCLE_GROWING_START_DAYS,
-  },
-  {
-    subStage: 'GROWING_BULL',
-    category: 'BULL',
-    minDays: LIFECYCLE_GROWING_START_DAYS,
-    maxDays: LIFECYCLE_BREEDING_AGE_DAYS,
-  },
-  {
-    subStage: 'MATURE_BULL',
-    category: 'BULL',
-    minDays: LIFECYCLE_BREEDING_AGE_DAYS,
-    maxDays: null,
-  },
-];
+function buildLifecycleBands(b: LifecycleBoundaries): readonly LifecycleBand[] {
+  return [
+    {
+      subStage: 'WEANED_HEIFER',
+      category: 'HEIFER',
+      minDays: b.weaningDays,
+      maxDays: b.growingStartDays,
+    },
+    {
+      subStage: 'GROWING_HEIFER',
+      category: 'HEIFER',
+      minDays: b.growingStartDays,
+      maxDays: b.breedingAgeDays,
+    },
+    {
+      subStage: 'BREEDING_HEIFER',
+      category: 'HEIFER',
+      minDays: b.breedingAgeDays,
+      maxDays: null,
+    },
+    {
+      subStage: 'WEANER_BULL',
+      category: 'BULL',
+      minDays: b.weaningDays,
+      maxDays: b.growingStartDays,
+    },
+    {
+      subStage: 'GROWING_BULL',
+      category: 'BULL',
+      minDays: b.growingStartDays,
+      maxDays: b.breedingAgeDays,
+    },
+    {
+      subStage: 'MATURE_BULL',
+      category: 'BULL',
+      minDays: b.breedingAgeDays,
+      maxDays: null,
+    },
+  ];
+}
+
+/** Bands built from the default boundaries — kept as a stable export since
+ * existing tests/call sites reference the default table directly. */
+export const LIFECYCLE_BANDS: readonly LifecycleBand[] = buildLifecycleBands(
+  DEFAULT_LIFECYCLE_BOUNDARIES,
+);
 
 export interface DeriveLifecycleSubStageInput {
   gender: AnimalCategoryGender;
   dateOfBirth: Date | null;
   totalCalvings: number;
   now?: Date;
+  /** Per-farm day boundaries (`FarmSettingsService.lifecycleBoundaries`) —
+   * defaults to `DEFAULT_LIFECYCLE_BOUNDARIES` when the caller has no farm
+   * settings loaded (same optional-enrichment precedent as `composeStatus`'s
+   * `ReproductionContext`). */
+  boundaries?: LifecycleBoundaries;
 }
 
 /** Derive the read-only lifecycle sub-stage, or `null` if the animal's
@@ -91,6 +130,7 @@ export function deriveLifecycleSubStage({
   dateOfBirth,
   totalCalvings,
   now = new Date(),
+  boundaries = DEFAULT_LIFECYCLE_BOUNDARIES,
 }: DeriveLifecycleSubStageInput): string | null {
   if (!dateOfBirth) return null;
 
@@ -102,7 +142,12 @@ export function deriveLifecycleSubStage({
   });
   const ageDays = ageInDays(dateOfBirth, now);
 
-  const band = LIFECYCLE_BANDS.find(
+  const bands =
+    boundaries === DEFAULT_LIFECYCLE_BOUNDARIES
+      ? LIFECYCLE_BANDS
+      : buildLifecycleBands(boundaries);
+
+  const band = bands.find(
     (b) =>
       b.category === category &&
       ageDays >= b.minDays &&
@@ -112,15 +157,20 @@ export function deriveLifecycleSubStage({
 }
 
 /** Prisma `where` fragment for a given lifecycle sub-stage — generated from
- * the same `LIFECYCLE_BANDS` table `deriveLifecycleSubStage` reads, so the
- * two cannot drift. Throws for an unknown sub-stage (a typo, not a valid
- * "no band" case — callers should validate against `LIFECYCLE_BANDS` first,
- * e.g. via a DTO enum). */
+ * the same bands table `deriveLifecycleSubStage` reads, so the two cannot
+ * drift. Throws for an unknown sub-stage (a typo, not a valid "no band" case
+ * — callers should validate against `LIFECYCLE_SUB_STAGES` first, e.g. via a
+ * DTO enum). */
 export function buildLifecycleSubStageWhere(
   subStage: string,
   now: Date,
+  boundaries: LifecycleBoundaries = DEFAULT_LIFECYCLE_BOUNDARIES,
 ): Prisma.CattleWhereInput {
-  const band = LIFECYCLE_BANDS.find((b) => b.subStage === subStage);
+  const bands =
+    boundaries === DEFAULT_LIFECYCLE_BOUNDARIES
+      ? LIFECYCLE_BANDS
+      : buildLifecycleBands(boundaries);
+  const band = bands.find((b) => b.subStage === subStage);
   if (!band) {
     throw new Error(`Unknown lifecycle sub-stage: ${subStage}`);
   }

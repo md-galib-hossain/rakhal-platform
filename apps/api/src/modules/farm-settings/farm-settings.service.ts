@@ -193,6 +193,24 @@ export class FarmSettingsService {
   }
 
   /**
+   * Lifecycle sub-stage day boundaries (RAKHAL-401) — `deriveLifecycleSubStage`'s
+   * `LifecycleBoundaries`, sourced from the farm's `FarmModuleSettings` instead
+   * of the hardcoded defaults.
+   */
+  async lifecycleBoundaries(farmId: string): Promise<{
+    weaningDays: number;
+    growingStartDays: number;
+    breedingAgeDays: number;
+  }> {
+    const s = await this.getEffective(farmId);
+    return {
+      weaningDays: s.cattleLifecycleWeaningDays,
+      growingStartDays: s.cattleLifecycleGrowingStartDays,
+      breedingAgeDays: s.cattleLifecycleBreedingAgeDays,
+    };
+  }
+
+  /**
    * Day-over-day production drop %, e.g. 30 → a >=30% drop flags (RAKHAL-286).
    * Reuses the **existing** `milkAnomalyThresholdPct` (RD-016/RAKHAL-277's
    * per-session anomaly cutoff) rather than adding a duplicate column — the

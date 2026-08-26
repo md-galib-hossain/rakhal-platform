@@ -12,6 +12,10 @@ import {
   ANIMAL_CATEGORIES,
   type AnimalCategory,
 } from '../../domain/animal-category';
+import {
+  LIFECYCLE_SUB_STAGES,
+  type LifecycleSubStage,
+} from '../../domain/lifecycle-bands';
 
 /** Derived health-status filter values (PRD §8.1; health is not stored). */
 export const HEALTH_STATUS_FILTERS = [
@@ -64,6 +68,14 @@ export class ListCattleQueryDto extends CursorPaginationQueryDto {
   @Transform(trimString)
   @IsIn(HEALTH_STATUS_FILTERS)
   healthStatus?: HealthStatusFilter;
+
+  /** Derived read-model lifecycle sub-stage filter (RAKHAL-401) — never
+   * stored, computed the same way `animalCategory` above is: mirrored exactly
+   * by `CattleService`'s `buildLifecycleSubStageWhere()` call. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsIn(LIFECYCLE_SUB_STAGES)
+  lifecycleSubStage?: LifecycleSubStage;
 
   @IsOptional()
   @Transform(trimString)

@@ -12,6 +12,15 @@ model FarmModuleSettings {
   cattleIdFormat           String  @default("{TAG}-{SERIAL}")
   cattleTagPrefix          String?
   cattleAvgMilkTargetRange String?
+  /// Lifecycle sub-stage day boundaries (RAKHAL-401) — `deriveLifecycleSubStage`'s
+  /// `LifecycleBoundaries`. 0..this-1 days = still a CALF (no sub-stage); this..
+  /// growingStartDays-1 = WEANED_HEIFER/WEANER_BULL.
+  cattleLifecycleWeaningDays Int @default(60)
+  /// growingStartDays..breedingAgeDays-1 = GROWING_HEIFER/GROWING_BULL.
+  cattleLifecycleGrowingStartDays Int @default(180)
+  /// breedingAgeDays.. = BREEDING_HEIFER/MATURE_BULL (until the animal calves,
+  /// which moves her out of HEIFER into COW regardless of age).
+  cattleLifecycleBreedingAgeDays Int @default(390)
 
   // Milk
   milkActiveSessions      String[] @default(["morning", "evening"])
