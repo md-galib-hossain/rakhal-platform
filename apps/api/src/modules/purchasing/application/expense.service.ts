@@ -20,6 +20,8 @@ import { LedgerAccountService } from 'src/modules/finance-v2/ledger/application/
 import { FinancialAccountService } from 'src/modules/finance-v2/accounts/application/financial-account.service';
 import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { RecordExpenseDto } from '../presentation/dto/record-expense.dto';
+import { assertSupplierBelongsToFarm } from '../domain/assert-supplier-in-farm';
+import { derivePayableDueDate } from '../domain/due-date';
 import { PayableService } from './payable.service';
 
 /** `LedgerAccount.code` for "Accounts Payable" — seeded by RAKHAL-333's
@@ -35,6 +37,8 @@ const EXPENSE_CATEGORY_LEDGER_CODE: Record<ExpenseCategory, string> = {
   [ExpenseCategory.BREEDING]: '5300',
   [ExpenseCategory.TRANSFER_FEE]: '5500',
   [ExpenseCategory.DEPRECIATION]: '5600',
+  // RAKHAL-367 (MILESTONE 22) — closes RD-060.
+  [ExpenseCategory.OTHER]: '5900',
 };
 
 /**
@@ -99,6 +103,10 @@ export class ExpenseService {
   ): Promise<Expense> {
     const amount = toStorage(dto.amount);
 
+    if (dto.supplierId) {
+      await assertSupplierBelongsToFarm(client, farmId, dto.supplierId);
+    }
+
     let financialAccountLedgerAccountId: string | null = null;
     if (dto.financialAccountId) {
       await this.financialAccountService.assertAccountActive(
@@ -123,6 +131,7 @@ export class ExpenseService {
         amount,
         expenseDate: new Date(dto.expenseDate),
         financialAccountId: dto.financialAccountId ?? null,
+        supplierId: dto.supplierId ?? null,
         notes: dto.notes ?? null,
         cattleId: dto.cattleId ?? null,
         createdById: userId,
@@ -177,12 +186,16 @@ export class ExpenseService {
     );
 
     if (!financialAccountLedgerAccountId) {
+      const dueDate = dto.dueDate
+        ? new Date(dto.dueDate)
+        : await this.deriveDueDate(client, dto.supplierId, expense.expenseDate);
       await this.payableService.createPayable(
         farmId,
         {
           expenseId: expense.id,
+          supplierId: dto.supplierId ?? null,
           totalAmount: amount,
-          dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+          dueDate,
         },
         client,
       );
@@ -197,6 +210,23 @@ export class ExpenseService {
     });
 
     return expense;
+  }
+
+  /** RAKHAL-365: mirrors `PurchaseService.deriveDueDate` exactly, on the
+   * expense side. */
+  private async deriveDueDate(
+    client: Prisma.TransactionClient,
+    supplierId: string | undefined,
+    expenseDate: Date,
+  ): Promise<Date | null> {
+    if (!supplierId) {
+      return null;
+    }
+    const supplier = await client.supplier.findUnique({
+      where: { id: supplierId },
+      select: { paymentTermsDays: true },
+    });
+    return derivePayableDueDate(expenseDate, supplier?.paymentTermsDays);
   }
 
   async findOne(farmId: string, id: string): Promise<Expense> {

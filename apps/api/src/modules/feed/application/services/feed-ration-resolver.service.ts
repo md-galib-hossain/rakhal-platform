@@ -27,7 +27,7 @@ export class FeedRationResolverService {
     cattleId: string,
   ): Promise<ResolvedRation | null> {
     const cattle = await this.prisma.cattle.findFirst({
-      where: { id: cattleId, farmId, isActive: true },
+      where: { id: cattleId, farmId, herdStatus: 'ACTIVE', deletedAt: null },
       select: { id: true, feedGroupId: true },
     });
     if (!cattle) throw new NotFoundException('Cattle not found');

@@ -70,7 +70,7 @@ describe('Scheduler sweeps (e2e)', () => {
     const taken = new Set(withPreg.map((p) => p.cattleId));
     const cow = (
       await prisma.cattle.findMany({
-        where: { farmId: owner.farmId, isActive: true },
+        where: { farmId: owner.farmId, herdStatus: 'ACTIVE', deletedAt: null },
         select: { id: true },
       })
     ).find((c) => !taken.has(c.id));
@@ -103,7 +103,7 @@ describe('Scheduler sweeps (e2e)', () => {
     // Breeding event whose pregnancy-check date is already due (pregnancy_check_due).
     const bredCow = (
       await prisma.cattle.findMany({
-        where: { farmId: owner.farmId, isActive: true },
+        where: { farmId: owner.farmId, herdStatus: 'ACTIVE', deletedAt: null },
         select: { id: true },
       })
     ).find((c) => !taken.has(c.id) && c.id !== cow?.id);

@@ -11,7 +11,7 @@ model Cattle {
   gender      CattleGender
   dateOfBirth DateTime?
   purpose     CattlePurpose
-  status      CattleStatus  @default(ACTIVE)
+  herdStatus  HerdStatus    @default(ACTIVE)
   shedId      String?
 
   feedGroupId String?
@@ -44,7 +44,13 @@ model Cattle {
   /// §25.7). Null = nullified (e.g. on mortality); excluded from the herd mean.
   aqrScore Float? @default(0)
 
-  isActive  Boolean  @default(true)
+  /// RAKHAL-397 (ADR-024): record-level soft delete, independent of
+  /// `herdStatus`. An animal leaves the active herd via a `CattleDisposition`
+  /// (`herdStatus` change) — it is deleted only when a duplicate/mistaken
+  /// entry needs removing. Active-herd membership is
+  /// `herdStatus == ACTIVE && deletedAt == null` (see `domain/herd-scope.ts`).
+  deletedAt   DateTime?
+  deletedById String?
   /// Set when this animal exits the herd via a SALE `CattleDisposition`
   /// (RAKHAL-344, `FINANCE_V2_DESIGN.md` §1.1/§5.1). Null until sold.
   soldAt        DateTime?
@@ -100,7 +106,8 @@ model Cattle {
   @@index([farmId])
   @@index([breedId])
   @@index([shedId])
-  @@index([status])
+  @@index([farmId, herdStatus])
+  @@index([farmId, deletedAt])
   @@index([farmId, productionStatus])
   @@index([motherId])
   @@index([fatherId])

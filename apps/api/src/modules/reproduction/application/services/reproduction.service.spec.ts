@@ -314,7 +314,7 @@ describe('ReproductionService.createCalvingEvent — totalCalvings atomicity', (
     // The MILKING flip itself happened in the same transaction (the mocked
     // tx === prisma, so this call is on the same mock).
     expect(prisma.cattle.updateMany).toHaveBeenCalledWith({
-      where: { id: 'cattle-1', isActive: true },
+      where: { id: 'cattle-1', herdStatus: 'ACTIVE', deletedAt: null },
       data: { productionStatus: 'MILKING' },
     });
 
@@ -612,7 +612,7 @@ describe('ReproductionService.createPurchasedLactation', () => {
       }) as unknown,
     });
     expect(prisma.cattle.updateMany).toHaveBeenCalledWith({
-      where: { id: 'cattle-1', isActive: true },
+      where: { id: 'cattle-1', herdStatus: 'ACTIVE', deletedAt: null },
       data: { productionStatus: 'MILKING' },
     });
   });

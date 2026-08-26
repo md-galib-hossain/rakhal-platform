@@ -21,6 +21,7 @@ import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 // (AnimalHoldService), so this direction is a real cycle — forwardRef() on
 // both sides (see reproduction.module.ts's own updated comment).
 import { ReproductionModule } from '../reproduction/reproduction.module';
+import { TaskModule } from '../task/task.module';
 import { AnimalHoldService } from './application/services/animal-hold.service';
 import { BcsService } from './application/services/bcs.service';
 import { BreedService } from './application/services/breed.service';
@@ -45,6 +46,7 @@ import { ShedController } from './presentation/controllers/shed.controller';
     MediaModule,
     FarmSettingsModule,
     forwardRef(() => ReproductionModule),
+    TaskModule,
   ],
   controllers: [
     CattleController,

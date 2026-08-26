@@ -35,6 +35,7 @@ import { RecordMilkFeedingDto } from '../../presentation/dto/record-milk-feeding
 import { RecordStarterFeedDto } from '../../presentation/dto/record-starter-feed.dto';
 import { RecordWeightDto } from '../../presentation/dto/record-weight.dto';
 import { WeanCalfDto } from '../../presentation/dto/wean-calf.dto';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 
 const ACTIVE_CASE_STATUSES = [
   HealthCaseStatus.ACTIVE,
@@ -110,9 +111,8 @@ export class CalfService {
   async list(farmId: string, query: ListCalfQueryDto) {
     const now = new Date();
     const where: Prisma.CattleWhereInput = {
-      farmId,
+      ...activeHerd(farmId),
       purpose: CattlePurpose.CALF,
-      isActive: true,
       ...(query.stage ? { dateOfBirth: stageDobRange(query.stage, now) } : {}),
     };
 
@@ -393,9 +393,8 @@ export class CalfService {
 
   private async dashboardKpis(farmId: string, now: Date) {
     const calfWhere: Prisma.CattleWhereInput = {
-      farmId,
+      ...activeHerd(farmId),
       purpose: CattlePurpose.CALF,
-      isActive: true,
     };
     const dayStart = new Date(now);
     dayStart.setHours(0, 0, 0, 0);
@@ -536,7 +535,7 @@ export class CalfService {
     // Used only by write paths (assertCalf → record*/wean), so `isActive`
     // is enforced here — an archived/dead calf must not accept new records.
     const cattle = await this.prisma.cattle.findFirst({
-      where: { id, farmId, isActive: true },
+      where: { id, ...activeHerd(farmId) },
     });
     if (!cattle) {
       throw new NotFoundException('Calf not found');

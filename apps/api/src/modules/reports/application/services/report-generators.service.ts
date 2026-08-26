@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import {
-  CattleStatus,
+  HerdStatus,
   HealthActionType,
   HealthCaseStatus,
   HealthTaskStatus,
@@ -44,11 +44,13 @@ export interface ReportParams {
   category?: string;
 }
 
-// RAKHAL-269: lifecycle exits (sold/deceased) live on CattleStatus now, not
+// RAKHAL-269: lifecycle exits (sold/deceased) live on HerdStatus now, not
 // ProductionStatus (trimmed to MILKING|DRY) — was ACTIVE_PRODUCTION_EXCLUDE.
-const REMOVED_CATTLE_STATUSES: CattleStatus[] = [
-  CattleStatus.SOLD,
-  CattleStatus.DEAD,
+// RAKHAL-397: gained CULLED (was silently excluded from removals before).
+const REMOVED_CATTLE_STATUSES: HerdStatus[] = [
+  HerdStatus.SOLD,
+  HerdStatus.CULLED,
+  HerdStatus.DECEASED,
 ];
 
 /**
@@ -129,7 +131,7 @@ export class ReportGeneratorsService {
 
     const shedWhere = params.shedId ? { shedId: params.shedId } : {};
     const cattle = await this.prisma.cattle.findMany({
-      where: { farmId, isActive: true, ...shedWhere },
+      where: { farmId, herdStatus: 'ACTIVE', deletedAt: null, ...shedWhere },
       select: {
         id: true,
         name: true,
@@ -373,7 +375,7 @@ export class ReportGeneratorsService {
     const profiles = await this.prisma.reproductionProfile.findMany({
       where: {
         reproductiveStatus: ReproductionState.OPEN,
-        cattle: { farmId, isActive: true },
+        cattle: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
       },
       select: {
         lastCalvingDate: true,
@@ -756,12 +758,12 @@ export class ReportGeneratorsService {
         this.prisma.cattle.count({
           where: {
             farmId,
-            status: { in: REMOVED_CATTLE_STATUSES },
+            herdStatus: { in: REMOVED_CATTLE_STATUSES },
             updatedAt: { gte: yearStart, lt: yearEnd },
           },
         }),
         this.prisma.cattle.count({
-          where: { farmId, isActive: true },
+          where: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
         }),
         this.herdPurchaseValue(),
       ]);
@@ -851,7 +853,7 @@ export class ReportGeneratorsService {
       this.litresTotal(farmId, start, end),
       this.expenseTotal(farmId, start, end),
       this.prisma.cattle.count({
-        where: { farmId, isActive: true },
+        where: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
       }),
     ]);
 
@@ -934,7 +936,7 @@ export class ReportGeneratorsService {
     // in-period still counts even if since archived/sold.
     const [activeHerd, additions, removals, openCows] = await Promise.all([
       this.prisma.cattle.count({
-        where: { farmId, isActive: true },
+        where: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
       }),
       this.prisma.cattle.count({
         where: { farmId, createdAt: { gte: start, lt: end } },
@@ -942,13 +944,13 @@ export class ReportGeneratorsService {
       this.prisma.cattle.count({
         where: {
           farmId,
-          status: { in: REMOVED_CATTLE_STATUSES },
+          herdStatus: { in: REMOVED_CATTLE_STATUSES },
           updatedAt: { gte: start, lt: end },
         },
       }),
       this.prisma.reproductionProfile.count({
         where: {
-          cattle: { farmId, isActive: true },
+          cattle: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
           reproductiveStatus: ReproductionState.OPEN,
         },
       }),
@@ -1120,9 +1122,10 @@ export class ReportGeneratorsService {
     const cattle = await this.prisma.cattle.findMany({
       where: {
         farmId,
-        isActive: true,
+        herdStatus: 'ACTIVE',
+        deletedAt: null,
         ...(params.shedId ? { shedId: params.shedId } : {}),
-        ...(params.status ? { status: params.status as CattleStatus } : {}),
+        ...(params.status ? { status: params.status as HerdStatus } : {}),
         ...(params.search
           ? {
               OR: [
@@ -1146,7 +1149,7 @@ export class ReportGeneratorsService {
         tagNumber: true,
         name: true,
         gender: true,
-        status: true,
+        herdStatus: true,
         productionStatus: true,
         dateOfBirth: true,
         purpose: true,
@@ -1165,7 +1168,7 @@ export class ReportGeneratorsService {
       c.breed?.name ?? '',
       c.dateOfBirth ? this.dateLabel(c.dateOfBirth) : '',
       c.purpose,
-      c.status,
+      c.herdStatus,
       c.productionStatus,
       c.shed?.name ?? '',
       c.lastBcs ?? '',
@@ -1907,7 +1910,7 @@ export class ReportGeneratorsService {
     const activeLactations = await this.prisma.lactation.findMany({
       where: {
         status: LactationStatus.ACTIVE,
-        cattle: { farmId, isActive: true },
+        cattle: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
       },
       select: {
         cattleId: true,

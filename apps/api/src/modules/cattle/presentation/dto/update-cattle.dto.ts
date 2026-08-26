@@ -15,7 +15,7 @@ import {
   CattleGender,
   CattlePurpose,
   CattleSourceType,
-  CattleStatus,
+  HerdStatus,
   ProductionStatus,
 } from '@prisma/client';
 import { BCS_ALLOWED_SCORES } from '../../domain/cattle.constants';
@@ -55,8 +55,8 @@ export class UpdateCattleDto implements Partial<CreateCattleDto> {
   purpose?: CattlePurpose;
 
   @IsOptional()
-  @IsEnum(CattleStatus)
-  status?: CattleStatus;
+  @IsEnum(HerdStatus)
+  status?: HerdStatus;
 
   @IsOptional()
   @IsEnum(ProductionStatus)
@@ -103,7 +103,7 @@ export class UpdateCattleDto implements Partial<CreateCattleDto> {
   notes?: string;
 
   /** RAKHAL-291 profile-edit counterpart: same field as `CreateCattleDto`/
-   * `UpdateCattleStatusDto` — corrects/backfills real prior-calving history
+   * `UpdateHerdStatusDto` — corrects/backfills real prior-calving history
    * (e.g. a purchased already-calved cow) so the derived `animalCategory`
    * (HEIFER→COW) reflects it. See `CattleService.update()`. */
   @IsOptional()

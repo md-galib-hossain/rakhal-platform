@@ -60,6 +60,15 @@ export class ReceivableService {
    * responsibility — this method does not re-read the `Sale` row itself,
    * keeping it decoupled from the Sales module per `FINANCE_V2_DESIGN.md`
    * §4.2's dependency-direction rule).
+   *
+   * **`customerId` (RAKHAL-364, MILESTONE 22)** — the caller passes
+   * `sale.customerId` straight through from the `Sale` row it just created
+   * (every call site already has it in hand). This method still does not
+   * *read* `Sale` itself (same decoupling as above) — it only *persists*
+   * what the caller supplies, exactly like `totalAmount`. This is what
+   * makes `Receivable.customerId === Sale.customerId` an invariant an e2e
+   * can assert rather than a convention callers might drift from, and
+   * closes RD-062 (this column was previously never written at all).
    */
   async createReceivable(
     farmId: string,
@@ -67,6 +76,7 @@ export class ReceivableService {
     totalAmount: Prisma.Decimal.Value,
     dueDate?: Date | null,
     tx?: Prisma.TransactionClient,
+    customerId?: string | null,
   ): Promise<Receivable> {
     const client = tx ?? this.prisma;
     const amount = toStorage(totalAmount);
@@ -80,6 +90,7 @@ export class ReceivableService {
       data: {
         farmId,
         saleId,
+        customerId: customerId ?? null,
         totalAmount: amount,
         dueDate: dueDate ?? null,
       },
@@ -89,6 +100,7 @@ export class ReceivableService {
       farmId,
       receivableId: receivable.id,
       saleId,
+      customerId: customerId ?? null,
       totalAmount: amount.toString(),
     });
 

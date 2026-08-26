@@ -25,6 +25,8 @@ import { FeedItemService } from 'src/modules/inventory/application/services/feed
 import { EquipmentService } from 'src/modules/inventory/application/services/equipment.service';
 import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { validatePurchaseLineDetailShape } from '../domain/purchase-line-shape';
+import { assertSupplierBelongsToFarm } from '../domain/assert-supplier-in-farm';
+import { derivePayableDueDate } from '../domain/due-date';
 import { PurchaseNumberAllocator } from '../infrastructure/purchase-number.allocator';
 import { CreatePurchaseDto } from '../presentation/dto/create-purchase.dto';
 import { CreatePurchaseLineDto } from '../presentation/dto/create-purchase-line.dto';
@@ -141,6 +143,10 @@ export class PurchaseService {
     }
     const outstanding = toStorage(subtract(totalAmount, paidAmount));
 
+    if (dto.supplierId) {
+      await assertSupplierBelongsToFarm(client, farmId, dto.supplierId);
+    }
+
     const purchaseNumber = await this.purchaseNumberAllocator.allocate(
       client,
       farmId,
@@ -232,13 +238,20 @@ export class PurchaseService {
     );
 
     if (gt(outstanding, 0)) {
+      const dueDate = dto.dueDate
+        ? new Date(dto.dueDate)
+        : await this.deriveDueDate(
+            client,
+            dto.supplierId,
+            purchase.purchaseDate,
+          );
       await this.payableService.createPayable(
         farmId,
         {
           purchaseId: purchase.id,
           supplierId: dto.supplierId ?? null,
           totalAmount: outstanding,
-          dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+          dueDate,
         },
         client,
       );
@@ -374,6 +387,24 @@ export class PurchaseService {
       where: { farmId },
       orderBy: [{ purchaseDate: 'desc' }, { id: 'desc' }],
     });
+  }
+
+  /** RAKHAL-365: `Payable.dueDate` defaults to `purchaseDate +
+   * Supplier.paymentTermsDays` when the caller doesn't pass one explicitly.
+   * `null` when there is no supplier or its `paymentTermsDays` is 0. */
+  private async deriveDueDate(
+    client: Prisma.TransactionClient,
+    supplierId: string | undefined,
+    purchaseDate: Date,
+  ): Promise<Date | null> {
+    if (!supplierId) {
+      return null;
+    }
+    const supplier = await client.supplier.findUnique({
+      where: { id: supplierId },
+      select: { paymentTermsDays: true },
+    });
+    return derivePayableDueDate(purchaseDate, supplier?.paymentTermsDays);
   }
 
   private async getOrThrow(

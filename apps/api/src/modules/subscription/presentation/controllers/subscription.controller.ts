@@ -5,6 +5,7 @@ import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guar
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
 import { SubscriptionAccessService } from '../../application/services/subscription-access.service';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
@@ -29,7 +30,9 @@ export class SubscriptionController {
   async get(@CurrentFarmId() farmId: string) {
     const [e, cattle, members, current] = await Promise.all([
       this.access.resolveEntitlement(farmId),
-      this.prisma.cattle.count({ where: { farmId, isActive: true } }),
+      this.prisma.cattle.count({
+        where: activeHerd(farmId),
+      }),
       this.prisma.farmMember.count({ where: { farmId } }),
       // Display-only — a scheduled downgrade (RFE-036 follow-up) doesn't affect the cached
       // entitlement above, so it's read directly off the latest row rather than threaded through

@@ -126,7 +126,9 @@ describe('Sales — Sale + SaleLine (e2e, RAKHAL-339)', () => {
       }>;
     };
 
-    expect(sale.saleNumber).toMatch(/^SALE-\d{6}$/);
+    // RAKHAL-368 (MILESTONE 22): prefix flipped SALE- -> INV- (the Sale IS
+    // the invoice); same FarmCounter scope, so format-only, no data change.
+    expect(sale.saleNumber).toMatch(/^INV-\d{6}$/);
     expect(sale.status).toBe(SaleStatus.DRAFT);
     expect(sale.subtotal).toBe('45000');
     expect(sale.totalAmount).toBe('45000');

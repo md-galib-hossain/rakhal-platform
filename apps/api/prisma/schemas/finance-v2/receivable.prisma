@@ -16,13 +16,18 @@
 /// — no column here duplicates that state, so it can never drift out of sync
 /// with the ledger the way V1's hand-set status could.
 ///
-/// **`customerId` — same judgment call as `Sale.customerId`**
-/// (`prisma/schemas/sales/sale.prisma`): no generic `Customer` entity exists
-/// yet, so this stays a plain nullable scalar, not a `@relation` — mirrors
-/// the sale it was created from (usually the identical value, but kept as
-/// its own column so a receivable's counterparty can be looked up without a
-/// join, and so a future ticket that adds a real `Customer` model can
-/// migrate this column additively without touching `Sale`).
+/// **`customerId` — real FK as of RAKHAL-364 (MILESTONE 22,
+/// `BUSINESS_IA_PRD.md` §7)**, same `MilkBuyer` target as `Sale.customerId`.
+/// **Kept as its own denormalized column, not a join through `sale.customer`**
+/// — `Receivable` already snapshots `Sale.totalAmount` by the same
+/// "never a live read of `Sale`" design; snapshotting the counterparty
+/// alongside the amount is consistent, not novel, and the existing
+/// `@@index([farmId, customerId])` is what keeps a buyer's outstanding-
+/// receivables lookup off a join. **`Receivable.customerId === Sale.customerId`,
+/// always** — `ReceivableService.createReceivable` derives it from the `Sale`
+/// row every sale-type use case already has in hand, and an e2e guards the
+/// invariant. This closes RD-062 (`customerId` was previously the one column
+/// here that was never actually written).
 ///
 /// Closes the `TODO(RAKHAL-340)` `PaymentAllocation.receivableId` left as a
 /// plain scalar by RAKHAL-337 (`payment.prisma`) — that column is now a real
@@ -38,8 +43,8 @@ model Receivable {
   /// created.
   saleId String @unique
 
-  /// See this model's own doc comment above for the judgment call on why
-  /// this is a plain nullable scalar, not a `@relation`.
+  /// FK column backing the `customer` relation below — see this model's own
+  /// doc comment for the naming-alias rationale.
   customerId String?
 
   /// Mirrors the `Sale.totalAmount` at the moment this receivable was
@@ -61,6 +66,9 @@ model Receivable {
 
   farm Farm @relation("FarmToReceivable", fields: [farmId], references: [id])
   sale Sale @relation("SaleToReceivable", fields: [saleId], references: [id])
+
+  /// RAKHAL-364 — see this model's own doc comment above.
+  customer MilkBuyer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
 
   allocations PaymentAllocation[] @relation("ReceivableToPaymentAllocation")
 

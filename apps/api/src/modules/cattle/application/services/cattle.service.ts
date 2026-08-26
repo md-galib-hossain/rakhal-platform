@@ -11,7 +11,7 @@ import {
   CattleDispositionType,
   CattleGender,
   CattleSourceType,
-  CattleStatus,
+  HerdStatus,
   FarmModuleSettings,
   HealthCaseStatus,
   HealthDiagnosisType,
@@ -33,12 +33,15 @@ import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 import { SubscriptionAccessService } from 'src/modules/subscription/application/services/subscription-access.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
+import { TaskService } from 'src/modules/task/application/services/task.service';
+import { AnimalHoldService } from './animal-hold.service';
 import {
   MediaService,
   type MediaUrls,
 } from 'src/modules/media/application/services/media.service';
 import { MediaCategory, MediaUsage } from '@prisma/client';
 import { VWP_DEFAULT_DAYS } from '../../domain/cattle.constants';
+import { activeHerd } from '../../domain/herd-scope';
 import {
   deriveHealthStatus,
   PREVENTIVE_DIAGNOSIS_TYPES,
@@ -87,7 +90,7 @@ import {
   ListCattleQueryDto,
 } from '../../presentation/dto/list-cattle-query.dto';
 import { UpdateCattleDto } from '../../presentation/dto/update-cattle.dto';
-import { UpdateCattleStatusDto } from '../../presentation/dto/update-cattle-status.dto';
+import { UpdateHerdStatusDto } from '../../presentation/dto/update-cattle-status.dto';
 
 type CattleSummary = Pick<Cattle, 'id' | 'name' | 'tagNumber'>;
 
@@ -139,14 +142,14 @@ export interface RecordCattleDispositionInput {
 }
 
 /** `Cattle.status` each disposition type resolves to (RAKHAL-344) — mirrors
- * `archiveWithReason`'s own `sold`/`deceased`/`culled` → `CattleStatus`
+ * `archiveWithReason`'s own `sold`/`deceased`/`culled` → `HerdStatus`
  * mapping (`:750-760` above), plus `TRANSFER` → `TRANSFERRED`, which
  * `archiveWithReason` has no reason string for. */
-const DISPOSITION_CATTLE_STATUS: Record<CattleDispositionType, CattleStatus> = {
-  [CattleDispositionType.SALE]: CattleStatus.SOLD,
-  [CattleDispositionType.DEATH]: CattleStatus.DEAD,
-  [CattleDispositionType.CULL]: CattleStatus.CULLED,
-  [CattleDispositionType.TRANSFER]: CattleStatus.TRANSFERRED,
+const DISPOSITION_CATTLE_STATUS: Record<CattleDispositionType, HerdStatus> = {
+  [CattleDispositionType.SALE]: HerdStatus.SOLD,
+  [CattleDispositionType.DEATH]: HerdStatus.DECEASED,
+  [CattleDispositionType.CULL]: HerdStatus.CULLED,
+  [CattleDispositionType.TRANSFER]: HerdStatus.SOLD, // RAKHAL-397: TRANSFERRED folded into SOLD; CattleDisposition.type keeps the real reason
 };
 
 /** Which disposition types end the animal's ACTIVE `Lactation`, and with
@@ -185,6 +188,8 @@ export class CattleService {
     private readonly farmSettings: FarmSettingsService,
     private readonly derivation: ReproductionDerivationService,
     private readonly reproductionService: ReproductionService,
+    private readonly taskService: TaskService,
+    private readonly animalHoldService: AnimalHoldService,
     private readonly logger: LoggerService,
   ) {
     this.log = this.logger.setContext(CattleService.name);
@@ -193,7 +198,7 @@ export class CattleService {
   async create(farmId: string, userId: string, dto: CreateCattleDto) {
     // Enforce the plan's herd ceiling before adding (RAKHAL-219, CAT limit).
     const activeCount = await this.prisma.cattle.count({
-      where: { farmId, isActive: true },
+      where: activeHerd(farmId),
     });
     await this.subscriptionAccess.assertCattleLimit(farmId, activeCount);
 
@@ -237,7 +242,7 @@ export class CattleService {
               ? new Date(dto.dateOfBirth)
               : undefined,
             purpose: dto.purpose,
-            status: dto.status ?? CattleStatus.ACTIVE,
+            herdStatus: dto.status ?? HerdStatus.ACTIVE,
             productionStatus: dto.productionStatus,
             shedId: dto.shedId,
             feedGroupId: dto.feedGroupId,
@@ -248,7 +253,6 @@ export class CattleService {
             sourceType: dto.sourceType ?? CattleSourceType.UNKNOWN,
             color: dto.color,
             notes: dto.notes,
-            isActive: dto.status !== CattleStatus.ARCHIVED,
             createdBy: userId,
             // Initial physical readings (PRD §8.4) — keep the denormalized
             // `lastBcs` and the BCS history in sync from the start.
@@ -451,10 +455,7 @@ export class CattleService {
 
   async findAll(farmId: string, query: ListCattleQueryDto) {
     const where: Prisma.CattleWhereInput = {
-      farmId,
-      ...(query.includeArchived
-        ? {}
-        : { isActive: true, status: { not: CattleStatus.ARCHIVED } }),
+      ...(query.includeArchived ? { farmId } : activeHerd(farmId)),
       ...(query.search
         ? {
             OR: [
@@ -467,7 +468,7 @@ export class CattleService {
       ...(query.breedId ? { breedId: query.breedId } : {}),
       ...(query.gender ? { gender: query.gender } : {}),
       ...(query.purpose ? { purpose: query.purpose } : {}),
-      ...(query.status ? { status: query.status } : {}),
+      ...(query.status ? { herdStatus: query.status } : {}),
       ...(query.productionStatus
         ? { productionStatus: query.productionStatus }
         : {}),
@@ -559,7 +560,7 @@ export class CattleService {
               ? new Date(dto.dateOfBirth)
               : undefined,
             purpose: dto.purpose,
-            status: dto.status,
+            herdStatus: dto.status,
             productionStatus: dto.productionStatus,
             shedId: dto.shedId,
             feedGroupId: dto.feedGroupId,
@@ -570,9 +571,6 @@ export class CattleService {
             sourceType: dto.sourceType,
             color: dto.color,
             notes: dto.notes,
-            ...(dto.status
-              ? { isActive: dto.status !== CattleStatus.ARCHIVED }
-              : {}),
             // RAKHAL-307: mirrors create()'s own BCS write — keeps the
             // denormalized `lastBcs` (set above) and the BCS history in sync.
             ...(dto.bcs
@@ -658,7 +656,7 @@ export class CattleService {
    * `ReproductionProfile`. Moving production status to Sold/Deceased also
    * archives the animal so it leaves active herd KPIs (CAT-08).
    */
-  async updateStatus(farmId: string, id: string, dto: UpdateCattleStatusDto) {
+  async updateStatus(farmId: string, id: string, dto: UpdateHerdStatusDto) {
     await this.getCattleOrThrow(farmId, id);
 
     if (dto.productionStatus) {
@@ -760,72 +758,60 @@ export class CattleService {
     return this.findOne(farmId, id);
   }
 
-  async archive(farmId: string, id: string) {
-    return this.archiveWithReason(farmId, id, {});
+  async archive(farmId: string, id: string, userId: string) {
+    return this.archiveWithReason(farmId, id, {}, userId);
   }
 
+  /** Maps `ArchiveCattleDto.reason` to a `CattleDispositionType` (RAKHAL-399
+   * consolidation) — `archiveWithReason` no longer flips `herdStatus` itself
+   * for a real herd exit, it just translates the legacy reason string and
+   * delegates to `recordDisposition`, the single writer of a non-ACTIVE
+   * `herdStatus`. */
+  private static readonly ARCHIVE_REASON_TO_DISPOSITION: Partial<
+    Record<string, CattleDispositionType>
+  > = {
+    sold: CattleDispositionType.SALE,
+    deceased: CattleDispositionType.DEATH,
+    culled: CattleDispositionType.CULL,
+  };
+
   /**
-   * Soft-archive with an optional reason (PRD §8.5, RAKHAL-036). `sold` and
-   * `deceased` keep production status distinct (CAT-09) and both exclude the
-   * animal from active herd KPIs (CAT-08). The deceased → cancel-tasks /
-   * close-cases side effects are owned by the Healthcare mortality flow
-   * (RAKHAL-067) and are intentionally not done here.
-   *
-   * RAKHAL-290: `sold`/`deceased`/`culled` are real lifecycle exits — if the
-   * animal still has an ACTIVE `Lactation`, it auto-closes with the matching
-   * `LactationEndReason` in the same transaction as the status flip, so a
-   * sold/dead cow can never be left with a dangling open lactation (the
-   * `productionStatus: null` above already always fires; this just keeps the
-   * `Lactation` row consistent with it). A plain `archived` reason has no
-   * `LactationEndReason` counterpart and is left untouched, same as before.
+   * Soft-archive (PRD §8.5, RAKHAL-036) — or, for `sold`/`deceased`/`culled`,
+   * a real herd exit delegated entirely to {@link recordDisposition}
+   * (RAKHAL-399: this method used to flip `herdStatus` inline; now
+   * `recordDisposition` is the only writer of a non-ACTIVE `herdStatus`, so
+   * every exit — this legacy reason-string entry point, the bulk `mark_sold`
+   * action, and Healthcare's mortality flow — always produces a
+   * `CattleDisposition` row and gets the same task-cancel/hold-release
+   * cleanup). A plain `archived` reason (or no reason) stays record-level
+   * soft delete — `deletedAt` only, `herdStatus` untouched.
    */
-  async archiveWithReason(farmId: string, id: string, dto: ArchiveCattleDto) {
+  async archiveWithReason(
+    farmId: string,
+    id: string,
+    dto: ArchiveCattleDto,
+    userId: string,
+  ) {
     await this.getCattleOrThrow(farmId, id);
 
-    // productionStatus can no longer hold lifecycle states (RAKHAL-269) — any
-    // archive path nulls it out, the lifecycle itself is recorded on `status`.
-    const data: Prisma.CattleUpdateInput = {
-      isActive: false,
-      productionStatus: null,
-    };
-    let lactationEndReason: LactationEndReason | null = null;
-    if (dto.reason === 'sold') {
-      data.status = CattleStatus.SOLD;
-      lactationEndReason = LactationEndReason.SOLD;
-    } else if (dto.reason === 'deceased') {
-      data.status = CattleStatus.DEAD;
-      lactationEndReason = LactationEndReason.DEATH;
-    } else if (dto.reason === 'culled') {
-      data.status = CattleStatus.CULLED;
-      lactationEndReason = LactationEndReason.CULLED;
-    } else {
-      data.status = CattleStatus.ARCHIVED;
+    const dispositionType = dto.reason
+      ? CattleService.ARCHIVE_REASON_TO_DISPOSITION[dto.reason]
+      : undefined;
+    if (dispositionType) {
+      await this.recordDisposition(farmId, userId, id, {
+        type: dispositionType,
+        date: new Date(),
+        reason: dto.notes ?? null,
+      });
+      return this.findOne(farmId, id);
     }
 
-    const now = new Date();
-    const cattle = await this.prisma.$transaction(async (tx) => {
-      if (lactationEndReason) {
-        await tx.lactation.updateMany({
-          where: { cattleId: id, status: LactationStatus.ACTIVE },
-          data: {
-            status: LactationStatus.ENDED,
-            endDate: now,
-            endReason: lactationEndReason,
-          },
-        });
-      }
-      return tx.cattle.update({
-        where: { id },
-        data,
-        include: this.defaultInclude(),
-      });
+    const cattle = await this.prisma.cattle.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+      include: this.defaultInclude(),
     });
-    this.log.info('Cattle archived', {
-      cattleId: id,
-      farmId,
-      reason: dto.reason,
-      closedActiveLactation: lactationEndReason !== null,
-    });
+    this.log.info('Cattle archived', { cattleId: id, farmId });
     return this.composeStatus(cattle);
   }
 
@@ -896,10 +882,34 @@ export class CattleService {
       type: dto.type,
       dispositionId: disposition.id,
     });
+
+    // RAKHAL-399: cancel this animal's open Task Hub tasks + release any open
+    // AnimalHolds once she's left the herd. Run after the transaction commits
+    // (both services use their own injected PrismaService, not this method's
+    // `tx`/`client`) — a failure here never rolls back the disposition itself,
+    // it's herd-exit cleanup, not part of the disposition's own invariants.
+    await this.cleanupOnDisposition(farmId, cattleId, userId, dto.type);
+
     return disposition;
   }
 
-  private async recordDispositionWithClient(
+  /** Task Hub has no `TaskStatus.CANCELLED` by design (MILESTONE 17 dropped a
+   * cancel substrate on purpose — see `TaskService.completeBySourceEvent`'s
+   * own doc comment) — so "cancel" here means the same thing that method
+   * already does: close the task as `COMPLETED` with a note explaining why,
+   * not invent a new status. */
+  async cleanupOnDisposition(
+    farmId: string,
+    cattleId: string,
+    userId: string,
+    type: CattleDispositionType,
+  ): Promise<void> {
+    const note = `Animal left the herd (${type}) — task closed automatically.`;
+    await this.taskService.completeForCattle(farmId, cattleId, userId, note);
+    await this.animalHoldService.releaseAllForCattle(farmId, cattleId, userId);
+  }
+
+  async recordDispositionWithClient(
     client: Prisma.TransactionClient,
     farmId: string,
     userId: string,
@@ -932,8 +942,7 @@ export class CattleService {
     await client.cattle.update({
       where: { id: cattleId },
       data: {
-        status,
-        isActive: false,
+        herdStatus: status,
         productionStatus: null,
         dispositionId: disposition.id,
         ...(dto.type === CattleDispositionType.SALE
@@ -973,17 +982,25 @@ export class CattleService {
 
   async restore(farmId: string, id: string) {
     await this.getCattleOrThrow(farmId, id);
+    // RAKHAL-397/400: restore only undoes a soft delete. `herdStatus` is
+    // never touched — a DECEASED animal restores as DECEASED, not ACTIVE
+    // (the old blind `status: ACTIVE` here could resurrect a dead animal).
     const cattle = await this.prisma.cattle.update({
       where: { id },
-      data: { status: CattleStatus.ACTIVE, isActive: true },
+      data: { deletedAt: null },
       include: this.defaultInclude(),
     });
     this.log.info('Cattle restored', { cattleId: id, farmId });
     return this.composeStatus(cattle);
   }
 
-  async remove(farmId: string, id: string, dto: ArchiveCattleDto = {}) {
-    return this.archiveWithReason(farmId, id, dto);
+  async remove(
+    farmId: string,
+    id: string,
+    dto: ArchiveCattleDto = {},
+    userId: string,
+  ) {
+    return this.archiveWithReason(farmId, id, dto, userId);
   }
 
   /**
@@ -997,10 +1014,7 @@ export class CattleService {
     const vwpCutoff = new Date(now);
     vwpCutoff.setDate(vwpCutoff.getDate() - VWP_DEFAULT_DAYS);
 
-    const activeWhere: Prisma.CattleWhereInput = {
-      farmId,
-      isActive: true,
-    };
+    const activeWhere: Prisma.CattleWhereInput = activeHerd(farmId);
 
     const [totalActive, prevActive, aqrAgg, breedingReady] = await Promise.all([
       this.prisma.cattle.count({ where: activeWhere }),
@@ -1047,7 +1061,7 @@ export class CattleService {
    * Farm-scoped: only rows belonging to `farmId` are affected; the rest count
    * as `failed`.
    */
-  async bulk(farmId: string, dto: BulkCattleDto) {
+  async bulk(farmId: string, dto: BulkCattleDto, userId: string) {
     const { cattleIds, action, payload } = dto;
     const scope: Prisma.CattleWhereInput = { id: { in: cattleIds }, farmId };
 
@@ -1071,40 +1085,47 @@ export class CattleService {
         return this.bulkResult(action, count, cattleIds.length);
       }
       case 'mark_sold': {
-        // RAKHAL-290: same lifecycle-exit auto-close as archiveWithReason's
-        // `sold` reason, applied to the whole selection in one transaction —
-        // a bulk-sold cow must not keep a dangling ACTIVE Lactation either.
-        const activeScope = { ...scope, isActive: true };
-        const count = await this.prisma.$transaction(async (tx) => {
-          const targets = await tx.cattle.findMany({
-            where: activeScope,
-            select: { id: true },
-          });
-          const targetIds = targets.map((t) => t.id);
-          if (targetIds.length === 0) return 0;
-
-          await tx.lactation.updateMany({
-            where: {
-              cattleId: { in: targetIds },
-              status: LactationStatus.ACTIVE,
-            },
-            data: {
-              status: LactationStatus.ENDED,
-              endDate: new Date(),
-              endReason: LactationEndReason.SOLD,
-            },
-          });
-          const { count: updated } = await tx.cattle.updateMany({
-            where: { id: { in: targetIds } },
-            data: {
-              productionStatus: null,
-              status: CattleStatus.SOLD,
-              isActive: false,
-            },
-          });
-          return updated;
+        // RAKHAL-399: consolidated onto `recordDispositionWithClient` — same
+        // lifecycle-exit auto-close + `CattleDisposition` row every other
+        // exit path now produces, applied to the whole selection in one
+        // transaction so a bulk-sold cow can never keep a dangling ACTIVE
+        // Lactation or skip the disposition audit trail.
+        const activeScope = {
+          ...scope,
+          ...activeHerd(farmId),
+        };
+        const targets = await this.prisma.cattle.findMany({
+          where: activeScope,
+          select: { id: true },
         });
-        return this.bulkResult(action, count, cattleIds.length);
+        const targetIds = targets.map((t) => t.id);
+        if (targetIds.length === 0) {
+          return this.bulkResult(action, 0, cattleIds.length);
+        }
+
+        await this.prisma.$transaction(async (tx) => {
+          for (const cattleId of targetIds) {
+            await this.recordDispositionWithClient(
+              tx,
+              farmId,
+              userId,
+              cattleId,
+              {
+                type: CattleDispositionType.SALE,
+                date: new Date(),
+              },
+            );
+          }
+        });
+        for (const cattleId of targetIds) {
+          await this.cleanupOnDisposition(
+            farmId,
+            cattleId,
+            userId,
+            CattleDispositionType.SALE,
+          );
+        }
+        return this.bulkResult(action, targetIds.length, cattleIds.length);
       }
       case 'export': {
         // No `isActive` filter here (RAKHAL-310): export operates on the
@@ -1162,8 +1183,7 @@ export class CattleService {
     await this.getCattleOrThrow(farmId, id);
     return this.prisma.cattle.findMany({
       where: {
-        farmId,
-        isActive: true,
+        ...activeHerd(farmId),
         OR: [{ motherId: id }, { fatherId: id }],
       },
       orderBy: { tagNumber: 'asc' },
@@ -1527,9 +1547,8 @@ export class CattleService {
 
     return this.prisma.cattle.findMany({
       where: {
-        farmId,
+        ...activeHerd(farmId),
         id: { not: id },
-        isActive: true,
         OR: [
           ...(cattle.motherId ? [{ motherId: cattle.motherId }] : []),
           ...(cattle.fatherId ? [{ fatherId: cattle.fatherId }] : []),

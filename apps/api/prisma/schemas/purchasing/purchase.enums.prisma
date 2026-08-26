@@ -28,4 +28,22 @@ enum ExpenseCategory {
   BREEDING
   TRANSFER_FEE
   DEPRECIATION
+
+  /// RAKHAL-367 (MILESTONE 22) — the catch-all this doc comment's own
+  /// "No `OTHER` value" note flagged as RD-060. Posts against the newly
+  /// seeded `5900 Other Expense` ledger account
+  /// (`finance-v2/ledger/domain/default-chart-of-accounts.ts`). Closes
+  /// RD-060.
+  OTHER
+}
+
+/// RAKHAL-367 (MILESTONE 22, `BUSINESS_IA_PRD.md` §9.4) — a `Purchase` has no
+/// `PATCH` that changes money on a posted document (journal immutability,
+/// RAKHAL-334 AC 3); the only correction is void + re-record. `Sale` already
+/// has this concept (`SaleStatus.CANCELLED`/`REFUNDED`) — `Purchase` needed
+/// its own since it has no status column at all today. The actual void route
+/// + reversal cascade is RAKHAL-377's job; this ticket only adds the column.
+enum PurchaseStatus {
+  CONFIRMED
+  VOIDED
 }

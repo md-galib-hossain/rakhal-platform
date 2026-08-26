@@ -79,3 +79,10 @@ export class SafetyWithdrawalQueryDto extends HealthListQueryDto {
   @IsEnum(SafetyWithdrawalStatus)
   status?: SafetyWithdrawalStatus;
 }
+
+export class AppliedPlansQueryDto extends HealthListQueryDto {
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  healthPlanId?: string;
+}

@@ -150,7 +150,7 @@ describe('RAKHAL-362 — Atomicity + invariant e2e suite', () => {
     const cattle = await prisma.cattle.findUniqueOrThrow({
       where: { id: cattleId },
     });
-    expect(cattle.status).toBe('SOLD');
+    expect(cattle.herdStatus).toBe('SOLD');
   });
 
   it('a receivable moves PARTIALLY_PAID -> PAID across two separate payments, outstanding reaching exactly zero', async () => {

@@ -203,12 +203,17 @@ export class SellInventoryUseCase {
     // (5) Receivable for the sale total — always created; a same-call
     // Payment (below) settles it immediately if the caller supplied
     // `amountReceived`.
+    // RAKHAL-364: no `customerId` input exists on this use case yet
+    // (out of this ticket's scope to add) — `sale.customerId` is always
+    // `null` here, passed through anyway so the call site stays uniform
+    // with every other sale-type use case.
     const receivable = await this.receivableService.createReceivable(
       farmId,
       sale.id,
       sale.totalAmount,
       null,
       client,
+      sale.customerId,
     );
 
     // (6) Optional payment collected at sale time. `PaymentService.

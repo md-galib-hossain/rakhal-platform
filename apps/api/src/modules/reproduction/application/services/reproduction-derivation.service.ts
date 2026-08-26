@@ -270,7 +270,7 @@ export class ReproductionDerivationService {
     const [cattle, openDryPeriod, activeLactation] = await Promise.all([
       this.prisma.cattle.findUnique({
         where: { id: cattleId },
-        select: { productionStatus: true, isActive: true },
+        select: { productionStatus: true, herdStatus: true, deletedAt: true },
       }),
       this.prisma.dryPeriod.findFirst({
         where: { cattleId, actualEndDate: null },
@@ -281,7 +281,7 @@ export class ReproductionDerivationService {
         select: { id: true },
       }),
     ]);
-    if (!cattle?.isActive) return;
+    if (!cattle || cattle.herdStatus !== 'ACTIVE' || cattle.deletedAt) return;
 
     const next = openDryPeriod
       ? ProductionStatus.DRY
@@ -291,7 +291,7 @@ export class ReproductionDerivationService {
     if (!next || next === cattle.productionStatus) return;
 
     await this.prisma.cattle.updateMany({
-      where: { id: cattleId, isActive: true },
+      where: { id: cattleId, herdStatus: 'ACTIVE', deletedAt: null },
       data: { productionStatus: next },
     });
   }

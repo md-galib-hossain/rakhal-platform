@@ -82,4 +82,14 @@ export const DEFAULT_CHART_OF_ACCOUNTS: ReadonlyArray<{
     code: '5600',
     name: 'Depreciation',
   },
+  {
+    // RAKHAL-367 (MILESTONE 22) — closes RD-060: `ExpenseCategory` had no
+    // catch-all category because this chart had no seeded account to post
+    // it against. `9000-9999` is reserved for farm-custom accounts
+    // (`nextCustomLedgerCode`, RD-061), so `5900` is safely inside the
+    // system expense range with no collision.
+    category: LedgerAccountCategory.EXPENSE,
+    code: '5900',
+    name: 'Other Expense',
+  },
 ];

@@ -13,7 +13,7 @@ export type ArchiveReason = (typeof ARCHIVE_REASONS)[number];
 
 /**
  * Soft-archive a cattle record (RAKHAL-036, +`culled` in RAKHAL-269). `sold` →
- * `CattleStatus.SOLD`, `deceased` → `DEAD`, `culled` → `CULLED` (CAT-09 keeps
+ * `HerdStatus.SOLD`, `deceased` → `DEAD`, `culled` → `CULLED` (CAT-09 keeps
  * these distinct); all exclude the animal from active herd KPIs (CAT-08) via
  * `isActive: false`. `productionStatus` can no longer hold lifecycle states
  * (RAKHAL-269) so every archive path also nulls it out. Body is optional — no

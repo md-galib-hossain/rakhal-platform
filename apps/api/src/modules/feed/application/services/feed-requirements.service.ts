@@ -84,7 +84,7 @@ export class FeedRequirementsService {
     query: FeedRequirementsQueryDto,
   ) {
     const cattle = await this.prisma.cattle.findFirst({
-      where: { id: cattleId, farmId, isActive: true },
+      where: { id: cattleId, farmId, herdStatus: 'ACTIVE', deletedAt: null },
       select: {
         id: true,
         lastWeightKg: true,
@@ -162,7 +162,7 @@ export class FeedRequirementsService {
     if (!group) throw new NotFoundException('Feed group not found');
 
     const cattle = await this.prisma.cattle.findMany({
-      where: { farmId, feedGroupId, isActive: true },
+      where: { farmId, feedGroupId, herdStatus: 'ACTIVE', deletedAt: null },
       select: { id: true, lastWeightKg: true, lastBcs: true },
     });
     const headcount = cattle.length;
@@ -263,10 +263,17 @@ export class FeedRequirementsService {
       [
         this.prisma.cattle.groupBy({
           by: ['feedGroupId'],
-          where: { farmId, isActive: true, feedGroupId: { in: groupIds } },
+          where: {
+            farmId,
+            herdStatus: 'ACTIVE',
+            deletedAt: null,
+            feedGroupId: { in: groupIds },
+          },
           _count: { _all: true },
         }),
-        this.prisma.cattle.count({ where: { farmId, isActive: true } }),
+        this.prisma.cattle.count({
+          where: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
+        }),
         this.prisma.feedGroup.findMany({
           where: { farmId, id: { in: groupIds } },
           select: { id: true, name: true },

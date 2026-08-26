@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { CattleStatus } from '@prisma/client';
+import { HerdStatus } from '@prisma/client';
 import { CattleService } from './cattle.service';
 
 /**
@@ -131,6 +131,17 @@ describe('CattleService — RAKHAL-269 production status', () => {
     createHeatEvent: jest.fn().mockResolvedValue(undefined),
   };
 
+  // RAKHAL-399: recordDisposition's post-commit cleanup calls these — no test
+  // row in this file exercises their behavior (covered by task.service.spec.ts
+  // / animal-hold.service.spec.ts), stubs are here only to satisfy the
+  // constructor and no-op quietly.
+  const taskService = {
+    completeForCattle: jest.fn().mockResolvedValue({ completedTaskIds: [] }),
+  };
+  const animalHoldService = {
+    releaseAllForCattle: jest.fn().mockResolvedValue(undefined),
+  };
+
   const make = () =>
     new CattleService(
       prisma as never,
@@ -140,6 +151,8 @@ describe('CattleService — RAKHAL-269 production status', () => {
       farmSettings as never, // FarmSettingsService (RAKHAL-279)
       derivation as never, // ReproductionDerivationService (RAKHAL-307)
       reproductionService as never, // ReproductionService (RAKHAL-319)
+      taskService as never, // TaskService (RAKHAL-399)
+      animalHoldService as never, // AnimalHoldService (RAKHAL-399)
       logger as never,
     );
 
@@ -238,40 +251,49 @@ describe('CattleService — RAKHAL-269 production status', () => {
   });
 
   describe('archiveWithReason', () => {
-    it('reason=culled sets CattleStatus.CULLED and nulls productionStatus', async () => {
-      prisma.cattle.findFirst.mockResolvedValueOnce(baseRow());
+    it('reason=culled sets HerdStatus.CULLED and nulls productionStatus', async () => {
+      // RAKHAL-399: culled now delegates to recordDisposition, which calls
+      // getCattleOrThrow (findFirst) a second time, then archiveWithReason
+      // ends with findOne() (a third findFirst) — persistent mock, not Once.
+      prisma.cattle.findFirst.mockResolvedValue(baseRow());
+      prisma.cattleDisposition.create.mockResolvedValueOnce({
+        id: 'disposition-culled',
+        type: 'CULL',
+        cattleId: 'cattle-1',
+      });
       prisma.cattle.update.mockResolvedValueOnce(
-        baseRow({ status: CattleStatus.CULLED, isActive: false }),
+        baseRow({ herdStatus: HerdStatus.CULLED, deletedAt: null }),
       );
 
       const service = make();
-      await service.archiveWithReason('farm-1', 'cattle-1', {
-        reason: 'culled',
-      });
+      await service.archiveWithReason(
+        'farm-1',
+        'cattle-1',
+        { reason: 'culled' },
+        'user-1',
+      );
 
       expect(lastUpdateData()).toMatchObject({
-        isActive: false,
         productionStatus: null,
-        status: CattleStatus.CULLED,
+        herdStatus: HerdStatus.CULLED,
       });
     });
 
-    it('a plain archive (no reason) also nulls productionStatus', async () => {
+    it('a plain archive (no reason) is a soft delete — herdStatus and productionStatus untouched', async () => {
       prisma.cattle.findFirst.mockResolvedValueOnce(
         baseRow({ productionStatus: 'MILKING' }),
       );
       prisma.cattle.update.mockResolvedValueOnce(
-        baseRow({ status: CattleStatus.ARCHIVED, isActive: false }),
+        baseRow({ herdStatus: HerdStatus.ACTIVE, deletedAt: new Date() }),
       );
 
       const service = make();
-      await service.archiveWithReason('farm-1', 'cattle-1', {});
+      await service.archiveWithReason('farm-1', 'cattle-1', {}, 'user-1');
 
-      expect(lastUpdateData()).toMatchObject({
-        isActive: false,
-        productionStatus: null,
-        status: CattleStatus.ARCHIVED,
-      });
+      const data = lastUpdateData();
+      expect(data.deletedAt).toBeInstanceOf(Date);
+      expect(data.herdStatus).toBeUndefined();
+      expect(data.productionStatus).toBeUndefined();
     });
 
     // RAKHAL-290: sold/deceased/culled are real lifecycle exits — any ACTIVE
@@ -284,15 +306,23 @@ describe('CattleService — RAKHAL-269 production status', () => {
     ])(
       'reason=%s auto-closes an ACTIVE Lactation with endReason=%s',
       async (reason, endReason) => {
-        prisma.cattle.findFirst.mockResolvedValueOnce(baseRow());
+        prisma.cattle.findFirst.mockResolvedValue(baseRow());
+        prisma.cattleDisposition.create.mockResolvedValueOnce({
+          id: 'disposition-x',
+          type: 'SALE',
+          cattleId: 'cattle-1',
+        });
         prisma.cattle.update.mockResolvedValueOnce(
           baseRow({ isActive: false }),
         );
 
         const service = make();
-        await service.archiveWithReason('farm-1', 'cattle-1', {
-          reason: reason as 'sold' | 'deceased' | 'culled',
-        });
+        await service.archiveWithReason(
+          'farm-1',
+          'cattle-1',
+          { reason: reason as 'sold' | 'deceased' | 'culled' },
+          'user-1',
+        );
 
         expect(prisma.lactation.updateMany).toHaveBeenCalledWith({
           where: { cattleId: 'cattle-1', status: 'ACTIVE' },
@@ -309,7 +339,7 @@ describe('CattleService — RAKHAL-269 production status', () => {
       prisma.cattle.update.mockResolvedValueOnce(baseRow({ isActive: false }));
 
       const service = make();
-      await service.archiveWithReason('farm-1', 'cattle-1', {});
+      await service.archiveWithReason('farm-1', 'cattle-1', {}, 'user-1');
 
       expect(prisma.lactation.updateMany).not.toHaveBeenCalled();
     });
@@ -321,19 +351,20 @@ describe('CattleService — RAKHAL-269 production status', () => {
         { id: 'cattle-1' },
         { id: 'cattle-2' },
       ]);
-      prisma.cattle.updateMany.mockResolvedValueOnce({ count: 2 });
+      prisma.cattleDisposition.create
+        .mockResolvedValueOnce({ id: 'd-1', type: 'SALE', cattleId: 'cattle-1' })
+        .mockResolvedValueOnce({ id: 'd-2', type: 'SALE', cattleId: 'cattle-2' });
+      prisma.cattle.update.mockResolvedValue({});
 
       const service = make();
-      const result = await service.bulk('farm-1', {
-        cattleIds: ['cattle-1', 'cattle-2'],
-        action: 'mark_sold',
-      });
+      const result = await service.bulk(
+        'farm-1',
+        { cattleIds: ['cattle-1', 'cattle-2'], action: 'mark_sold' },
+        'user-1',
+      );
 
       expect(prisma.lactation.updateMany).toHaveBeenCalledWith({
-        where: {
-          cattleId: { in: ['cattle-1', 'cattle-2'] },
-          status: 'ACTIVE',
-        },
+        where: { cattleId: 'cattle-1', status: 'ACTIVE' },
         data: expect.objectContaining({
           status: 'ENDED',
           endReason: 'SOLD',
@@ -544,8 +575,7 @@ describe('CattleService — RAKHAL-269 production status', () => {
         }) as unknown,
       });
       expect(lastUpdateData()).toMatchObject({
-        status: CattleStatus.SOLD,
-        isActive: false,
+        herdStatus: HerdStatus.SOLD,
         productionStatus: null,
         dispositionId: 'disposition-1',
         soldAt: new Date('2026-08-22'),
@@ -573,8 +603,8 @@ describe('CattleService — RAKHAL-269 production status', () => {
     });
 
     it.each([
-      ['DEATH', 'DEATH', CattleStatus.DEAD],
-      ['CULL', 'CULLED', CattleStatus.CULLED],
+      ['DEATH', 'DEATH', HerdStatus.DECEASED],
+      ['CULL', 'CULLED', HerdStatus.CULLED],
     ])(
       '%s closes the ACTIVE lactation with LactationEndReason.%s and sets status %s',
       async (type, endReason, status) => {
@@ -600,11 +630,11 @@ describe('CattleService — RAKHAL-269 production status', () => {
             endReason,
           }) as unknown,
         });
-        expect(lastUpdateData()).toMatchObject({ status, isActive: false });
+        expect(lastUpdateData()).toMatchObject({ herdStatus: status });
       },
     );
 
-    it('TRANSFER sets status TRANSFERRED and does not touch any Lactation row', async () => {
+    it('TRANSFER sets herdStatus SOLD (folded into SOLD, RAKHAL-397) and does not touch any Lactation row', async () => {
       prisma.cattle.findFirst.mockResolvedValueOnce(baseRow());
       prisma.cattleDisposition.findFirst.mockResolvedValueOnce(null);
       prisma.cattleDisposition.create.mockResolvedValueOnce({
@@ -622,8 +652,7 @@ describe('CattleService — RAKHAL-269 production status', () => {
 
       expect(prisma.lactation.updateMany).not.toHaveBeenCalled();
       expect(lastUpdateData()).toMatchObject({
-        status: CattleStatus.TRANSFERRED,
-        isActive: false,
+        herdStatus: HerdStatus.SOLD,
       });
     });
   });

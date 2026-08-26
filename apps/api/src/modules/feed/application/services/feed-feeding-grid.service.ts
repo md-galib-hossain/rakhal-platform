@@ -65,7 +65,8 @@ export class FeedFeedingGridService {
     const cattle = await this.prisma.cattle.findMany({
       where: {
         farmId,
-        isActive: true,
+        herdStatus: 'ACTIVE',
+        deletedAt: null,
         ...(feedGroupId ? { feedGroupId } : {}),
       },
       select: { id: true, name: true, tagNumber: true, feedGroupId: true },
@@ -183,7 +184,8 @@ export class FeedFeedingGridService {
     const cattle = await this.prisma.cattle.findMany({
       where: {
         farmId,
-        isActive: true,
+        herdStatus: 'ACTIVE',
+        deletedAt: null,
         ...(dto.feedGroupId ? { feedGroupId: dto.feedGroupId } : {}),
       },
       select: { id: true },
@@ -435,7 +437,7 @@ export class FeedFeedingGridService {
   private async assertCattleBelongToFarm(farmId: string, cattleIds: string[]) {
     const ids = [...new Set(cattleIds)];
     const found = await this.prisma.cattle.count({
-      where: { id: { in: ids }, farmId, isActive: true },
+      where: { id: { in: ids }, farmId, herdStatus: 'ACTIVE', deletedAt: null },
     });
     if (found !== ids.length) {
       throw new BadRequestException(

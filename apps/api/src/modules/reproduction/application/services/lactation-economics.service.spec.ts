@@ -178,7 +178,7 @@ describe('LactationEconomicsService', () => {
       const result = await service.getEconomics('farm-1', 'lact-1');
 
       expect(prisma.cattle.count).toHaveBeenCalledWith({
-        where: { farmId: 'farm-1', feedGroupId: 'fg-1', isActive: true },
+        where: { farmId: 'farm-1', feedGroupId: 'fg-1', herdStatus: 'ACTIVE', deletedAt: null },
       });
       expect(result.financial.feedCost).toBe(100);
     });

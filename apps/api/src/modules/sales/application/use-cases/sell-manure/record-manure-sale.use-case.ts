@@ -127,12 +127,16 @@ export class RecordManureSaleUseCase {
         tx,
       );
 
+      // RAKHAL-364: no `customerId` input exists on this use case yet
+      // (RD-058 — manure has no buyer concept) — `sale.customerId` is
+      // always `null` here, passed through anyway for call-site uniformity.
       const receivable = await this.receivableService.createReceivable(
         farmId,
         sale.id,
         sale.totalAmount,
         null,
         tx,
+        sale.customerId,
       );
 
       let paymentId: string | null = null;

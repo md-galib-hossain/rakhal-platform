@@ -13,14 +13,18 @@ enum CattlePurpose {
   DUAL_PURPOSE
 }
 
-enum CattleStatus {
+/// RAKHAL-397 (ADR-024): renamed from `CattleStatus`. Pure herd-membership
+/// state — never a record-deletion concept. `ARCHIVED` was dropped (that was
+/// always record-level deletion, now `Cattle.deletedAt`); `DEAD` renamed to
+/// `DECEASED`; `TRANSFERRED` folded into `SOLD` (an ownership transfer out is
+/// still an exit sale, `CattleDisposition.type` keeps the real TRANSFER
+/// reason); `MISSING` dropped (zero live rows at migration time). Written
+/// only by `CattleService.recordDisposition()` — see `herd-scope.ts`.
+enum HerdStatus {
   ACTIVE
   SOLD
-  DEAD
-  TRANSFERRED
-  MISSING
-  ARCHIVED
   CULLED
+  DECEASED
 }
 
 /// Production dimension of the multi-state status model (PRD §8.1 / §24.2,

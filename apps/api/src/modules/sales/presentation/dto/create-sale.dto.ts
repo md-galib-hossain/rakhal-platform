@@ -21,8 +21,10 @@ import { CreateSaleLineDto } from './create-sale-line.dto';
  * Amount` being the only money figure the caller actually chooses.
  */
 export class CreateSaleDto {
-  /** See `Sale`'s own schema doc comment for why this is a plain optional string,
-   * not a validated FK — no generic Customer entity exists yet. */
+  /** `MilkBuyer.id` — a real FK as of RAKHAL-364. Left as `@IsString()` rather
+   * than a stricter format check; existence + farm-tenancy is validated in
+   * `SaleService.assertCustomerBelongsToFarm`, not here. Optional — a
+   * walk-up cash sale has none. */
   @IsOptional()
   @Transform(trimString)
   @IsString()

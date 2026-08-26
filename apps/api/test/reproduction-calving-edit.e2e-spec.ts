@@ -165,8 +165,8 @@ describe('Reproduction — edit calving (e2e)', () => {
     const calf = await prisma.cattle.findUniqueOrThrow({
       where: { id: calfId },
     });
-    expect(calf.isActive).toBe(false);
-    expect(calf.status).toBe('ARCHIVED');
+    expect(calf.deletedAt).not.toBeNull();
+    expect(calf.herdStatus).toBe('ACTIVE');
     expect(calf.aqrScore).toBe(0);
 
     const stillExists = await prisma.calfBirth.findUnique({
@@ -207,6 +207,6 @@ describe('Reproduction — edit calving (e2e)', () => {
     const calf = await prisma.cattle.findUniqueOrThrow({
       where: { id: calfId },
     });
-    expect(calf.isActive).toBe(true);
+    expect(calf.deletedAt).toBeNull();
   });
 });

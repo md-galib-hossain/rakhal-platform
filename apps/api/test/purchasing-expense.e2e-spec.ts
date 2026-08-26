@@ -132,6 +132,35 @@ describe('Purchasing — Expense + Payable (e2e, RAKHAL-348)', () => {
     expect(Number(body.data.outstanding)).toBe(12000);
   });
 
+  it('RAKHAL-367: an OTHER-category expense posts against the 5900 Other Expense ledger account', async () => {
+    const cash = await createCashAccount();
+
+    const res = await request(server())
+      .post(api('/purchasing/expenses'))
+      .set(...bearer(owner))
+      .send({
+        category: ExpenseCategory.OTHER,
+        description: 'Miscellaneous farm expense',
+        amount: 750,
+        expenseDate: new Date().toISOString(),
+        financialAccountId: cash.id,
+      });
+
+    expect(res.status).toBe(201);
+    const expense = res.body.data as { id: string };
+
+    const journal = await prisma.journalTransaction.findFirstOrThrow({
+      where: {
+        farmId: owner.farmId,
+        sourceType: 'EXPENSE',
+        sourceId: expense.id,
+      },
+      include: { entries: { include: { ledgerAccount: true } } },
+    });
+    const expenseEntry = journal.entries.find((e) => Number(e.debit) === 750);
+    expect(expenseEntry?.ledgerAccount.code).toBe('5900');
+  });
+
   it('RBAC: Worker cannot record or read expenses', async () => {
     const res = await request(server())
       .post(api('/purchasing/expenses'))

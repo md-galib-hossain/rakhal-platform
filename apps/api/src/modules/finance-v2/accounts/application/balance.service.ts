@@ -16,17 +16,6 @@ export interface FarmBalances {
   byType: Record<FinancialAccountType, Money>;
 }
 
-/** Placeholder shape for the not-yet-built Receivable/Payable models
- * (RAKHAL-337 Payment/PaymentAllocation, RAKHAL-340 Receivable v2). Always
- * zero today — never fabricated data, see `getReceivablePayablePosition`'s
- * doc comment. */
-export interface ReceivablePayablePosition {
-  totalReceivable: Money;
-  totalPayable: Money;
-  wired: false;
-  note: string;
-}
-
 export interface RakhalBalanceResult {
   rakhalBalance: Money;
   breakdown: {
@@ -35,7 +24,6 @@ export interface RakhalBalanceResult {
     mfs: Money;
   };
   accounts: AccountBalance[];
-  receivablePayable: ReceivablePayablePosition;
 }
 
 /**
@@ -164,33 +152,6 @@ export class BalanceService {
         mfs: byType[FinancialAccountType.MFS],
       },
       accounts,
-      receivablePayable: this.getReceivablePayablePosition(),
-    };
-  }
-
-  /**
-   * Placeholder seam for RAKHAL-337 (`Payment`/`PaymentAllocation`) and
-   * RAKHAL-340 (`Receivable` v2) — neither `Receivable` nor `Payable` exists
-   * yet in `prisma/schemas/finance-v2/**` as of this ticket (confirmed by
-   * grep). Returns a clearly zero/placeholder block rather than inventing
-   * fake receivable data, per this ticket's own scoping note. A future
-   * RAKHAL-340 pass should replace this method's body with a real query once
-   * `Receivable`/`Payable` land, and flip `wired` to `true`.
-   *
-   * Note: a `CreditWallet` model *does* already exist (`billing/referral.prisma`,
-   * RAKHAL-223, PRD §33.2) — that is the Rakhal Credit (§37) concept this
-   * ticket must never reference or sum in, and this method (and every other
-   * method on this class) never imports or queries it.
-   */
-  private getReceivablePayablePosition(): ReceivablePayablePosition {
-    return {
-      totalReceivable: zero(),
-      totalPayable: zero(),
-      wired: false,
-      note:
-        'Receivable/Payable models do not exist yet (RAKHAL-337/340) — ' +
-        'this block is a placeholder and always reports zero until those ' +
-        'tickets land.',
     };
   }
 

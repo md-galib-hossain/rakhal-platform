@@ -218,8 +218,8 @@ describe('Lactation lifecycle hardening — dry-off/calving/lifecycle-exit/withd
     const cattleAfter = await prisma.cattle.findUniqueOrThrow({
       where: { id: cow.id },
     });
-    expect(cattleAfter.status).toBe('CULLED');
+    expect(cattleAfter.herdStatus).toBe('CULLED');
     expect(cattleAfter.productionStatus).toBeNull();
-    expect(cattleAfter.isActive).toBe(false);
+    expect(cattleAfter.deletedAt).toBeNull();
   });
 });

@@ -218,6 +218,52 @@ export class TaskService {
     return { completedTaskIds: tasks.map((t) => t.id) };
   }
 
+  /**
+   * RAKHAL-399: close every non-completed task tied to a cattle row once
+   * she's left the herd (sold/culled/deceased) — a disposed animal shouldn't
+   * keep generating "pregnancy check due" / "vaccination due" reminders.
+   * Mirrors {@link completeBySourceEvent}'s shape and the same reasoning: no
+   * `TaskStatus.CANCELLED` exists by design, so this closes as `COMPLETED`
+   * with `note` explaining why instead.
+   */
+  async completeForCattle(
+    farmId: string,
+    cattleId: string,
+    userId: string,
+    note: string,
+  ): Promise<{ completedTaskIds: string[] }> {
+    const tasks = await this.prisma.task.findMany({
+      where: {
+        farmId,
+        relatedCattleId: cattleId,
+        status: { not: TaskStatus.COMPLETED },
+      },
+      select: { id: true, details: true },
+    });
+
+    await Promise.all(
+      tasks.map((t) =>
+        this.prisma.task.update({
+          where: { id: t.id },
+          data: {
+            status: TaskStatus.COMPLETED,
+            completedAt: new Date(),
+            completedById: userId,
+            details: `${t.details ?? ''}\n${note}`.trim(),
+          },
+        }),
+      ),
+    );
+
+    this.log.info('Tasks closed on animal disposition', {
+      farmId,
+      cattleId,
+      completed: tasks.length,
+    });
+
+    return { completedTaskIds: tasks.map((t) => t.id) };
+  }
+
   async update(farmId: string, id: string, dto: UpdateTaskDto) {
     await this.getOrThrow(farmId, id);
     await this.assertAssignee(farmId, dto.assignedToId);

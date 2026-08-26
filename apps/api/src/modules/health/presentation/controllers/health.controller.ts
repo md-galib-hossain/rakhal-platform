@@ -33,6 +33,7 @@ import {
   UpdateHealthPlanDto,
 } from '../dto/health-plan.dto';
 import {
+  AppliedPlansQueryDto,
   HealthPlanQueryDto,
   HealthTaskCalendarQueryDto,
   HealthTaskQueryDto,
@@ -75,6 +76,15 @@ export class HealthController {
     @Body() dto: CreateHealthCaseDto,
   ) {
     return this.healthService.createHealthCase(farmId, userId, dto);
+  }
+
+  @Get('cases/applied')
+  @RequirePermission('healthcare.read')
+  getAppliedPlans(
+    @CurrentFarmId() farmId: string,
+    @Query() query: AppliedPlansQueryDto,
+  ) {
+    return this.healthService.getAppliedPlans(farmId, query);
   }
 
   @Get('cases/:id')

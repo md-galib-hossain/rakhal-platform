@@ -168,14 +168,5 @@ describe('BalanceService', () => {
       expect(keys).not.toContain('rakhalcredit');
       expect(keys).not.toContain('creditwallet');
     });
-
-    it('returns a zero, clearly-marked-unwired receivable/payable placeholder', async () => {
-      prisma.financialAccount.findMany.mockResolvedValue([]);
-      const result = await make().getRakhalBalance('farm-1');
-      expect(result.receivablePayable.wired).toBe(false);
-      expect(result.receivablePayable.totalReceivable.toString()).toBe('0');
-      expect(result.receivablePayable.totalPayable.toString()).toBe('0');
-      expect(result.receivablePayable.note).toMatch(/RAKHAL-337|RAKHAL-340/);
-    });
   });
 });

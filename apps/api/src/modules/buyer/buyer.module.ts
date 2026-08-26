@@ -9,6 +9,7 @@ import { SalesModule } from '../sales/sales.module';
 import { BuyerService } from './application/services/buyer.service';
 import { BuyerController } from './presentation/controllers/buyer.controller';
 import { MilkDispatchController } from './presentation/controllers/milk-dispatch.controller';
+import { DispatchNumberAllocator } from './infrastructure/dispatch-number.allocator';
 
 /**
  * RAKHAL-342 update: `FinanceModule` (V1) is no longer imported —
@@ -28,7 +29,7 @@ import { MilkDispatchController } from './presentation/controllers/milk-dispatch
     SalesModule,
   ],
   controllers: [BuyerController, MilkDispatchController],
-  providers: [BuyerService],
+  providers: [BuyerService, DispatchNumberAllocator],
   exports: [BuyerService],
 })
 export class BuyerModule {}

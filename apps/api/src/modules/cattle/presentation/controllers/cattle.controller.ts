@@ -36,12 +36,13 @@ import { ArchiveCattleDto } from '../dto/archive-cattle.dto';
 import { BulkCattleDto } from '../dto/bulk-cattle.dto';
 import { CattleFinanceQueryDto } from '../dto/cattle-finance-query.dto';
 import { CreateCattleDto } from '../dto/create-cattle.dto';
+import { DisposeCattleDto } from '../dto/dispose-cattle.dto';
 import { ImportConfirmDto, ImportPreviewDto } from '../dto/import-cattle.dto';
 import { ListCattleQueryDto } from '../dto/list-cattle-query.dto';
 import { RecordBcsDto } from '../dto/record-bcs.dto';
 import { RecordWeightDto } from '../dto/record-weight.dto';
 import { UpdateCattleDto } from '../dto/update-cattle.dto';
-import { UpdateCattleStatusDto } from '../dto/update-cattle-status.dto';
+import { UpdateHerdStatusDto } from '../dto/update-cattle-status.dto';
 import { WeightHistoryQueryDto } from '../dto/weight-history-query.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
@@ -95,8 +96,12 @@ export class CattleController {
 
   @Post('bulk')
   @RequirePermission('cattle.bulk')
-  bulk(@CurrentFarmId() farmId: string, @Body() dto: BulkCattleDto) {
-    return this.cattleService.bulk(farmId, dto);
+  bulk(
+    @CurrentFarmId() farmId: string,
+    @Body() dto: BulkCattleDto,
+    @CurrentUserId() userId: string,
+  ) {
+    return this.cattleService.bulk(farmId, dto, userId);
   }
 
   @Get('import/template')
@@ -276,7 +281,7 @@ export class CattleController {
   updateStatus(
     @CurrentFarmId() farmId: string,
     @Param('id') id: string,
-    @Body() dto: UpdateCattleStatusDto,
+    @Body() dto: UpdateHerdStatusDto,
   ) {
     return this.cattleService.updateStatus(farmId, id, dto);
   }
@@ -294,8 +299,12 @@ export class CattleController {
 
   @Patch(':id/archive')
   @RequirePermission('cattle.archive')
-  archive(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.cattleService.archive(farmId, id);
+  archive(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+  ) {
+    return this.cattleService.archive(farmId, id, userId);
   }
 
   @Patch(':id/restore')
@@ -304,13 +313,30 @@ export class CattleController {
     return this.cattleService.restore(farmId, id);
   }
 
+  @Post(':id/dispose')
+  @RequirePermission('cattle.dispose')
+  dispose(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body() dto: DisposeCattleDto,
+  ) {
+    return this.cattleService.recordDisposition(farmId, userId, id, {
+      type: dto.type,
+      date: new Date(dto.date),
+      reason: dto.reason,
+      price: dto.price,
+    });
+  }
+
   @Delete(':id')
   @RequirePermission('cattle.archive')
   remove(
     @CurrentFarmId() farmId: string,
     @Param('id') id: string,
     @Body() dto: ArchiveCattleDto,
+    @CurrentUserId() userId: string,
   ) {
-    return this.cattleService.remove(farmId, id, dto);
+    return this.cattleService.remove(farmId, id, dto, userId);
   }
 }

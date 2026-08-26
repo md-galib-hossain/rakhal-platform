@@ -20,9 +20,8 @@
 /// nullable FKs" constraint short of a `CHECK` neither this ticket nor
 /// `Sale`'s equivalent choice added).
 ///
-/// **`supplierId` — same judgment call as `Sale.customerId`/`Receivable.
-/// customerId`**: no generic Supplier entity exists yet, so this stays a
-/// plain nullable scalar, not a `@relation`.
+/// **`supplierId` — real FK (RAKHAL-365)**, same promotion and tenancy-assert
+/// discipline as `Purchase.supplierId`/`Expense.supplierId`.
 ///
 /// Closes the `TODO(RAKHAL-348)` `PaymentAllocation.payableId` left as a
 /// plain scalar by RAKHAL-337/340 (`finance-v2/payment.prisma`) — that
@@ -46,8 +45,7 @@ model Payable {
   /// one of `purchaseId`/`expenseId` is set.
   expenseId String? @unique
 
-  /// See this model's own doc comment above for the judgment call on why
-  /// this is a plain nullable scalar, not a `@relation`.
+  /// See this model's own doc comment above — real FK to `Supplier`.
   supplierId String?
 
   /// Mirrors the parent document's `totalAmount` (or its unpaid remainder at
@@ -68,6 +66,7 @@ model Payable {
   farm     Farm      @relation("FarmToPayable", fields: [farmId], references: [id])
   purchase Purchase? @relation("PurchaseToPayable", fields: [purchaseId], references: [id])
   expense  Expense?  @relation("ExpenseToPayable", fields: [expenseId], references: [id])
+  supplier Supplier? @relation("SupplierToPayable", fields: [supplierId], references: [id], onDelete: Restrict)
 
   allocations PaymentAllocation[] @relation("PayableToPaymentAllocation")
 

@@ -50,7 +50,7 @@ describe('Media / image upload (e2e)', () => {
       .toBuffer();
 
     const cattle = await prisma.cattle.findFirst({
-      where: { farmId: owner.farmId, isActive: true },
+      where: { farmId: owner.farmId, herdStatus: 'ACTIVE', deletedAt: null },
       select: { id: true },
     });
     if (!cattle) throw new Error('no demo cattle — run `pnpm seed`');

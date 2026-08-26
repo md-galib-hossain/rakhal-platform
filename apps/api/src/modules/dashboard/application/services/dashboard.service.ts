@@ -21,6 +21,7 @@ import {
   ledgerCategoryNet,
 } from 'src/common/finance/txn-filters';
 import { computeRunwaySnapshot } from 'src/common/finance/runway';
+import { derivePreviousPeriod } from 'src/common/finance/period';
 import { BalanceService } from 'src/modules/finance-v2/accounts/application/balance.service';
 import { MilkService } from 'src/modules/milk/application/services/milk.service';
 import { HealthService } from 'src/modules/health/application/services/health.service';
@@ -181,7 +182,7 @@ export class DashboardService {
       where: {
         status: PregnancyStatus.ACTIVE,
         expectedCalvingDate: { gte: now, lte: horizon },
-        cattle: { farmId, isActive: true },
+        cattle: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
       },
       orderBy: { expectedCalvingDate: 'asc' },
       include: {
@@ -234,13 +235,14 @@ export class DashboardService {
       this.prisma.cattle.count({
         where: {
           farmId,
-          isActive: true,
+          herdStatus: 'ACTIVE',
+          deletedAt: null,
           purpose: { not: CattlePurpose.CALF },
         },
       }),
       this.prisma.reproductionProfile.groupBy({
         by: ['reproductiveStatus'],
-        where: { cattle: { farmId, isActive: true } },
+        where: { cattle: { farmId, herdStatus: 'ACTIVE', deletedAt: null } },
         _count: { _all: true },
       }),
       // "Milking"/"Dry" are deliberately sourced from `Cattle.productionStatus`,
@@ -250,14 +252,16 @@ export class DashboardService {
       this.prisma.cattle.count({
         where: {
           farmId,
-          isActive: true,
+          herdStatus: 'ACTIVE',
+          deletedAt: null,
           productionStatus: ProductionStatus.MILKING,
         },
       }),
       this.prisma.cattle.count({
         where: {
           farmId,
-          isActive: true,
+          herdStatus: 'ACTIVE',
+          deletedAt: null,
           productionStatus: ProductionStatus.DRY,
         },
       }),
@@ -281,14 +285,24 @@ export class DashboardService {
         where: { farmId, status: SafetyWithdrawalStatus.ACTIVE },
       }),
       this.prisma.cattle.findMany({
-        where: { farmId, isActive: true, purpose: CattlePurpose.CALF },
+        where: {
+          farmId,
+          herdStatus: 'ACTIVE',
+          deletedAt: null,
+          purpose: CattlePurpose.CALF,
+        },
         select: { dateOfBirth: true },
       }),
       // Backing data for the real "fresh" count below (RAKHAL-273's
       // LactationStage — this used to proxy off retired ReproductiveStatus
       // values, see the removed comment this replaces).
       this.prisma.cattle.findMany({
-        where: { farmId, isActive: true, gender: CattleGender.FEMALE },
+        where: {
+          farmId,
+          herdStatus: 'ACTIVE',
+          deletedAt: null,
+          gender: CattleGender.FEMALE,
+        },
         select: {
           dateOfBirth: true,
           reproductionProfile: { select: { totalCalvings: true } },
@@ -315,7 +329,8 @@ export class DashboardService {
           this.prisma.cattle.count({
             where: {
               farmId,
-              isActive: true,
+              herdStatus: 'ACTIVE',
+              deletedAt: null,
               ...buildAnimalCategoryWhere(category, now),
             },
           }),
@@ -435,16 +450,18 @@ export class DashboardService {
     const monthStart = new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
     );
-    const prevStart = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1),
-    );
+    // RAKHAL-371: equal-length previous-period comparison, not the full
+    // prior calendar month — see `derivePreviousPeriod`'s own doc comment
+    // for the live defect this replaces (mid-month KPIs used to compare a
+    // partial current month against a full previous one).
+    const previous = derivePreviousPeriod({ from: monthStart, to: now });
 
     const [income, expense, prevIncome, prevExpense, finance] =
       await Promise.all([
         this.txnSum(farmId, true, monthStart, now),
         this.txnSum(farmId, false, monthStart, now),
-        this.txnSum(farmId, true, prevStart, monthStart),
-        this.txnSum(farmId, false, prevStart, monthStart),
+        this.txnSum(farmId, true, previous.from, previous.to),
+        this.txnSum(farmId, false, previous.from, previous.to),
         this.financeSnapshot(farmId),
       ]);
 
@@ -592,7 +609,7 @@ export class DashboardService {
     const events = await this.prisma.breedingEvent.findMany({
       where: {
         breedingDate: { gte: rangeStart },
-        cattle: { farmId, isActive: true },
+        cattle: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
       },
       select: { breedingDate: true, status: true },
     });
@@ -787,7 +804,7 @@ export class DashboardService {
         where: {
           status: PregnancyStatus.ACTIVE,
           expectedCalvingDate: { gte: now, lte: calvingHorizon },
-          cattle: { farmId, isActive: true },
+          cattle: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
         },
         orderBy: { expectedCalvingDate: 'asc' },
         include: {
@@ -962,7 +979,8 @@ export class DashboardService {
       this.prisma.cattle.findMany({
         where: {
           farmId,
-          isActive: true,
+          herdStatus: 'ACTIVE',
+          deletedAt: null,
           purpose: { in: [CattlePurpose.MILK, CattlePurpose.DUAL_PURPOSE] },
         },
         select: { id: true, name: true, tagNumber: true },

@@ -43,7 +43,10 @@ const RESOURCES: ResourceDef[] = [
   {
     resource: 'cattle',
     group: PermissionGroup.CATTLE,
-    actions: [...BASE, 'bcs', 'archive', 'bulk'],
+    // RAKHAL-399: `dispose` is its own explicit permission (not folded into
+    // `archive`) — disposing an animal (Sold/Culled/Deceased) is a distinct,
+    // higher-stakes action from a plain soft-delete archive.
+    actions: [...BASE, 'bcs', 'archive', 'bulk', 'dispose'],
   },
   {
     resource: 'reproduction',

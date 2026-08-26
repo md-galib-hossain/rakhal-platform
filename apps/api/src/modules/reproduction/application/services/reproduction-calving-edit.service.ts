@@ -10,7 +10,7 @@ import {
   CattleGender,
   CattlePurpose,
   CattleSourceType,
-  CattleStatus,
+  HerdStatus,
   TaskStatus,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
@@ -168,11 +168,10 @@ export class ReproductionCalvingEditService {
             gender: calf.gender,
             dateOfBirth: effectiveCalvingDate,
             purpose: CattlePurpose.CALF,
-            status: CattleStatus.ACTIVE,
+            herdStatus: HerdStatus.ACTIVE,
             motherId: newCattleId,
             fatherId: bull?.bullId ?? undefined,
             sourceType: CattleSourceType.BORN,
-            isActive: true,
             createdBy: userId,
           },
         });
@@ -218,9 +217,11 @@ export class ReproductionCalvingEditService {
       }
       if (birth.calfId) {
         const calf = await this.assertCalfHasNoOwnRecords(birth.calfId);
+        // RAKHAL-397: removing a mis-recorded calf is a data-entry correction,
+        // not a herd exit — soft delete only, herdStatus untouched.
         await this.prisma.cattle.update({
           where: { id: birth.calfId },
-          data: { isActive: false, status: CattleStatus.ARCHIVED },
+          data: { deletedAt: new Date() },
         });
 
         const registerLog = await this.prisma.activityLog.findFirst({

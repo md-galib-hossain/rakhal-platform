@@ -18,11 +18,12 @@
 /// ৳20,000 paid from Bank → Payable 10,000, inventory +quantity" — that only
 /// makes sense as one atomic operation.
 ///
-/// **`supplierId` — same judgment call as `Sale.customerId`**
-/// (`sale.prisma`): no generic Supplier entity exists in this codebase yet,
-/// so this stays a plain nullable scalar, not a `@relation` — a future ticket
-/// that designs a real Supplier entity would replace this column with a real
-/// FK, additively.
+/// **`supplierId` — real FK (RAKHAL-365, promoted from the plain scalar
+/// RAKHAL-348 left behind).** `onDelete: Restrict` — suppliers archive via
+/// `isActive`, never delete. A Prisma FK cannot express `Supplier.farmId ==
+/// Purchase.farmId`, so `PurchaseService` asserts tenancy in the application
+/// layer before create (`domain/assert-supplier-in-farm.ts`) — same pattern
+/// as `SaleService.assertCustomerBelongsToFarm` (RAKHAL-364).
 model Purchase {
   id     String @id @default(cuid())
   farmId String
@@ -34,11 +35,16 @@ model Purchase {
   /// (the V1 race this milestone exists to fix).
   purchaseNumber String
 
-  /// See this model's own doc comment above for the judgment call on why
-  /// this is a plain nullable scalar, not a `@relation`.
+  /// See this model's own doc comment above — real FK to `Supplier`.
   supplierId String?
 
   purchaseDate DateTime
+
+  /// RAKHAL-367 (MILESTONE 22) — journal immutability means no `PATCH` may
+  /// change money on a posted `Purchase`; void + re-record is the only
+  /// correction. Default `CONFIRMED` so every existing row backfills without
+  /// a data migration. The void route itself is RAKHAL-377's job.
+  status PurchaseStatus @default(CONFIRMED)
 
   /// `SUM(PurchaseLine.totalAmount)`, computed by `PurchaseService` at create
   /// time — never trusted from the client, same convention as
@@ -50,8 +56,9 @@ model Purchase {
   createdById String
   createdAt   DateTime @default(now())
 
-  farm  Farm           @relation("FarmToPurchase", fields: [farmId], references: [id])
-  lines PurchaseLine[]
+  farm     Farm           @relation("FarmToPurchase", fields: [farmId], references: [id])
+  lines    PurchaseLine[]
+  supplier Supplier?      @relation("SupplierToPurchase", fields: [supplierId], references: [id], onDelete: Restrict)
 
   /// The `Payable` raised for this purchase, if any — a purchase paid in
   /// full at creation has none. One-to-one: `Payable.purchaseId` is
@@ -125,9 +132,22 @@ model Expense {
 
   expenseDate DateTime
 
+  /// RAKHAL-367 (MILESTONE 22) — set only by the void flow (RAKHAL-377).
+  /// `Expense` has no `status` enum (unlike the new `Purchase.status`)
+  /// because it only ever has two states — active or voided — so a nullable
+  /// timestamp is sufficient, same discipline as `MilkDispatch.cancelledAt`
+  /// (RAKHAL-366).
+  voidedAt DateTime?
+
   /// See this model's own doc comment above for the judgment call on why
   /// this stays a plain nullable scalar, not a `@relation`.
   financialAccountId String?
+
+  /// RAKHAL-365: which supplier this expense was paid/owed to, if any — new
+  /// column (the mockup's expense rows show a party; no field existed for it
+  /// before this ticket). Real FK, same tenancy-assert discipline as
+  /// `Purchase.supplierId` above.
+  supplierId String?
 
   /// RAKHAL-354: which animal this expense is attributable to, if any — a
   /// plain nullable scalar, same "no hard relation" precedent as
@@ -147,7 +167,8 @@ model Expense {
   createdById String
   createdAt   DateTime @default(now())
 
-  farm Farm @relation("FarmToExpense", fields: [farmId], references: [id])
+  farm     Farm      @relation("FarmToExpense", fields: [farmId], references: [id])
+  supplier Supplier? @relation("SupplierToExpense", fields: [supplierId], references: [id], onDelete: Restrict)
 
   /// The `Payable` raised for this expense, if any — an expense paid in full
   /// at creation has none. One-to-one: `Payable.expenseId` is `@unique`.
@@ -157,4 +178,5 @@ model Expense {
   @@index([farmId, expenseDate])
   @@index([farmId, category])
   @@index([farmId, cattleId])
+  @@index([farmId, supplierId])
 }

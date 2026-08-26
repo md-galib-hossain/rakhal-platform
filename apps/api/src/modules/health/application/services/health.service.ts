@@ -6,10 +6,11 @@ import {
 } from '@nestjs/common';
 import {
   ActivityLogModule,
+  CattleDispositionType,
   ClinicalProgress,
-  CattleStatus,
   HealthCaseStatus,
   HealthCloseOutcome,
+  HealthDiagnosisType,
   HealthPriority,
   HealthTaskStatus,
   Prisma,
@@ -25,8 +26,12 @@ import { AqrService } from 'src/modules/activity/application/services/aqr.servic
 import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { MedicineService } from 'src/modules/inventory/application/services/medicine.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
+import { CattleService } from 'src/modules/cattle/application/services/cattle.service';
 import { NotificationService } from 'src/modules/notification/application/services/notification.service';
-import { isPreventiveDiagnosisType } from 'src/modules/cattle/domain/health-status';
+import {
+  PREVENTIVE_DIAGNOSIS_TYPES,
+  isPreventiveDiagnosisType,
+} from 'src/modules/cattle/domain/health-status';
 import {
   ApplyHealthPlanDto,
   CloseHealthCaseDto,
@@ -38,6 +43,7 @@ import {
 } from '../../presentation/dto/case-actions.dto';
 import { CreateHealthCaseDto } from '../../presentation/dto/create-health-case.dto';
 import {
+  AppliedPlansQueryDto,
   HealthPlanQueryDto,
   HealthTaskCalendarQueryDto,
   HealthTaskQueryDto,
@@ -75,6 +81,7 @@ export class HealthService {
     private readonly medicineService: MedicineService,
     private readonly taskService: TaskService,
     private readonly notificationService: NotificationService,
+    private readonly cattleService: CattleService,
     private readonly logger: LoggerService,
   ) {
     this.log = this.logger.setContext(HealthService.name);
@@ -94,10 +101,18 @@ export class HealthService {
       trendRows,
     ] = await Promise.all([
       this.prisma.cattle.count({
-        where: { farmId, isActive: true },
+        where: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
       }),
       this.prisma.healthCase.count({
-        where: { farmId, status: { in: ACTIVE_CASE_STATUSES }, isActive: true },
+        where: {
+          farmId,
+          status: { in: ACTIVE_CASE_STATUSES },
+          isActive: true,
+          diagnosisType: {
+            notIn:
+              PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
+          },
+        },
       }),
       this.prisma.safetyWithdrawal.count({
         where: { farmId, status: SafetyWithdrawalStatus.ACTIVE },
@@ -120,16 +135,37 @@ export class HealthService {
       }),
       this.prisma.healthCase.groupBy({
         by: ['diagnosis'],
-        where: { farmId, isActive: true },
+        where: {
+          farmId,
+          isActive: true,
+          diagnosisType: {
+            notIn:
+              PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
+          },
+        },
         _count: { diagnosis: true },
       }),
       this.prisma.healthCase.groupBy({
         by: ['shedName'],
-        where: { farmId, isActive: true },
+        where: {
+          farmId,
+          isActive: true,
+          diagnosisType: {
+            notIn:
+              PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
+          },
+        },
         _count: { shedName: true },
       }),
       this.prisma.healthCase.findMany({
-        where: { farmId, isActive: true },
+        where: {
+          farmId,
+          isActive: true,
+          diagnosisType: {
+            notIn:
+              PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
+          },
+        },
         select: { startDate: true },
         orderBy: { startDate: 'asc' },
       }),
@@ -166,6 +202,9 @@ export class HealthService {
       farmId,
       isActive: true,
       status: query.status ?? { in: ACTIVE_CASE_STATUSES },
+      diagnosisType: {
+        notIn: PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
+      },
       ...(query.search
         ? {
             OR: [
@@ -474,7 +513,10 @@ export class HealthService {
       });
       const tasks = await Promise.all(
         plan.steps.map((step, index) => {
-          const dueDateTime = this.addDays(startDate, step.dayNumber);
+          const dueDateTime = this.addDays(
+            startDate,
+            Math.max(0, step.dayNumber - 1),
+          );
           return tx.healthTask.create({
             data: {
               farmId: healthCase.farmId,
@@ -756,12 +798,33 @@ export class HealthService {
           isActive: false,
         },
       });
-      await tx.cattle.update({
-        where: { id: healthCase.cattleId },
-        data: { status: CattleStatus.DEAD, isActive: false },
-      });
+      // RAKHAL-399: goes through the same consolidated disposition path every
+      // other herd exit uses — creates the `CattleDisposition` row (was
+      // previously never created for a mortality) and flips `herdStatus` via
+      // the shared method, inside this same transaction.
+      await this.cattleService.recordDispositionWithClient(
+        tx,
+        healthCase.farmId,
+        userId,
+        healthCase.cattleId,
+        {
+          type: CattleDispositionType.DEATH,
+          date: new Date(dto.deathDate),
+          reason: dto.primaryCauseOfDeath,
+        },
+      );
       return { mortality, healthCase: closedCase };
     });
+
+    // RAKHAL-399: same post-commit herd-exit cleanup every other disposition
+    // path runs (cancel open tasks, release open holds) — see
+    // `CattleService.recordDisposition`'s own call to this same method.
+    await this.cattleService.cleanupOnDisposition(
+      farmId,
+      healthCase.cattleId,
+      userId,
+      CattleDispositionType.DEATH,
+    );
 
     // AQR: Animal Mortality — removes the animal from the herd mean (nullify).
     await this.aqrService.applyEvent(farmId, healthCase.cattleId, 'mortality', {
@@ -791,6 +854,50 @@ export class HealthService {
       orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
       ...getCursorArgs(query),
       include: { steps: { orderBy: { dayNumber: 'asc' } } },
+    });
+    return toCursorPage(rows, query);
+  }
+
+  async getAppliedPlans(farmId: string, query: AppliedPlansQueryDto) {
+    const where: Prisma.HealthCaseWhereInput = {
+      farmId,
+      isActive: true,
+      healthPlanId: { not: null },
+      status: { in: ACTIVE_CASE_STATUSES },
+      ...(query.healthPlanId ? { healthPlanId: query.healthPlanId } : {}),
+      ...(query.cattleId ? { cattleId: query.cattleId } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              {
+                healthPlan: {
+                  name: { contains: query.search, mode: 'insensitive' },
+                },
+              },
+              {
+                cattle: {
+                  tagNumber: { contains: query.search, mode: 'insensitive' },
+                },
+              },
+              {
+                cattle: {
+                  name: { contains: query.search, mode: 'insensitive' },
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+    const rows = await this.prisma.healthCase.findMany({
+      where,
+      orderBy: [{ startDate: 'desc' }, { id: 'desc' }],
+      ...getCursorArgs(query),
+      include: {
+        cattle: {
+          select: { id: true, name: true, tagNumber: true, image: true },
+        },
+        healthPlan: { select: { id: true, name: true, category: true } },
+      },
     });
     return toCursorPage(rows, query);
   }
@@ -990,7 +1097,9 @@ export class HealthService {
       ]);
     return {
       activeCases,
-      ongoingTreatment: activeCases.length > 0,
+      ongoingTreatment: activeCases.some(
+        (c) => !isPreventiveDiagnosisType(c.diagnosisType),
+      ),
       treatmentProgress: activeCases.map((healthCase) => ({
         healthCaseId: healthCase.id,
         progressPercentage: healthCase.progressPercentage,
@@ -1255,7 +1364,7 @@ export class HealthService {
 
   private async assertCattleInFarm(farmId: string, cattleId: string) {
     const cattle = await this.prisma.cattle.findFirst({
-      where: { id: cattleId, farmId, isActive: true },
+      where: { id: cattleId, farmId, herdStatus: 'ACTIVE', deletedAt: null },
     });
     if (!cattle) throw new BadRequestException('Cattle must belong to Farm');
     return cattle;
@@ -1277,7 +1386,7 @@ export class HealthService {
           name: true,
           tagNumber: true,
           image: true,
-          status: true,
+          herdStatus: true,
         },
       },
       healthPlan: { select: { id: true, name: true } },

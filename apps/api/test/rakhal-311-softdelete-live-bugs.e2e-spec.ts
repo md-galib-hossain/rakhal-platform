@@ -147,7 +147,7 @@ describe('RAKHAL-311 — soft-delete live bugs (e2e)', () => {
     // Sell/archive the cow — she must disappear from every action panel.
     await prisma.cattle.update({
       where: { id: cattle.id },
-      data: { isActive: false, status: 'SOLD' },
+      data: { herdStatus: 'SOLD' },
     });
 
     const after = await request(server())

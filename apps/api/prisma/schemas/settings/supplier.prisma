@@ -10,14 +10,26 @@ model Supplier {
   contact      String?
   phone        String?
   category     String? /// feed | medicine | equipment | services | other
-  paymentTerms String? /// cod | net_7 | net_15 | net_30 | …
-  notes        String?
+  paymentTerms String? /// cod | net_7 | net_15 | net_30 | … (user-visible free text, kept)
+
+  /// RAKHAL-365: numeric due-date offset `PurchaseService`/`ExpenseService`
+  /// derive `Payable.dueDate` from (`purchaseDate`/`expenseDate` +
+  /// `paymentTermsDays`), same pattern as `MilkBuyer.paymentTermsDays`
+  /// (RAKHAL-364). Coexists with the free-text `paymentTerms` above rather
+  /// than replacing it — filed as **RD-068** for the eventual collapse onto
+  /// one field.
+  paymentTermsDays Int @default(0)
+
+  notes String?
 
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  farm Farm @relation("FarmToSupplier", fields: [farmId], references: [id])
+  farm      Farm       @relation("FarmToSupplier", fields: [farmId], references: [id])
+  purchases Purchase[] @relation("SupplierToPurchase")
+  expenses  Expense[]  @relation("SupplierToExpense")
+  payables  Payable[]  @relation("SupplierToPayable")
 
   @@index([farmId])
   @@index([farmId, isActive])

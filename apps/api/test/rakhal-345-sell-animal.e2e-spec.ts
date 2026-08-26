@@ -109,8 +109,8 @@ describe('Sales — SellAnimal use case (e2e, RAKHAL-345)', () => {
     const cattle = await prisma.cattle.findUniqueOrThrow({
       where: { id: cattleId },
     });
-    expect(cattle.status).toBe('SOLD');
-    expect(cattle.isActive).toBe(false);
+    expect(cattle.herdStatus).toBe('SOLD');
+    expect(cattle.deletedAt).toBeNull();
 
     const receivable = await prisma.receivable.findUniqueOrThrow({
       where: { id: result.receivableId },
@@ -206,8 +206,8 @@ describe('Sales — SellAnimal use case (e2e, RAKHAL-345)', () => {
     const cattle = await prisma.cattle.findUniqueOrThrow({
       where: { id: cattleId },
     });
-    expect(cattle.status).not.toBe('SOLD');
-    expect(cattle.isActive).toBe(true);
+    expect(cattle.herdStatus).not.toBe('SOLD');
+    expect(cattle.deletedAt).toBeNull();
     expect(cattle.dispositionId).toBeNull();
 
     const saleCount = await prisma.sale.count({
@@ -285,7 +285,7 @@ describe('Sales — SellAnimal use case (e2e, RAKHAL-345)', () => {
     const cattle = await prisma.cattle.findUniqueOrThrow({
       where: { id: cattleId },
     });
-    expect(cattle.status).not.toBe('SOLD');
-    expect(cattle.isActive).toBe(true);
+    expect(cattle.herdStatus).not.toBe('SOLD');
+    expect(cattle.deletedAt).toBeNull();
   });
 });

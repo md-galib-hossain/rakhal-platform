@@ -30,9 +30,8 @@ import { CreatePurchaseLineDto } from './create-purchase-line.dto';
  * payment-shape columns of its own, leaving that to `Receivable`/`Payment`.
  */
 export class CreatePurchaseDto {
-  /** See `Purchase`'s own schema doc comment for why this is a plain
-   * optional string, not a validated FK — no generic Supplier entity exists
-   * yet. */
+  /** RAKHAL-365: real `Supplier` FK, validated via `PurchaseService.
+   * assertSupplierBelongsToFarm` before create. */
   @IsOptional()
   @Transform(trimString)
   @IsString()

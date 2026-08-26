@@ -144,7 +144,8 @@ export class MilkService {
     const cows = await this.prisma.cattle.findMany({
       where: {
         farmId,
-        isActive: true,
+        herdStatus: 'ACTIVE',
+        deletedAt: null,
         purpose: { in: MILKING_PURPOSES },
         // A cow marked DRY (manually, or auto-set at calving/dry-off) has no
         // milk to log — purpose alone doesn't capture that (purpose describes

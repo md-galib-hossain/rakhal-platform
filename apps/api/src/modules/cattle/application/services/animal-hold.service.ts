@@ -91,6 +91,27 @@ export class AnimalHoldService {
     return hold;
   }
 
+  /**
+   * RAKHAL-399: release every still-open hold on a cattle row once she's
+   * left the herd (sold/culled/deceased) — an open `REPRODUCTIVE`/
+   * `QUARANTINE`/etc. hold on an animal that no longer belongs to the active
+   * herd has no meaning. Bulk `updateMany`, no per-hold activity-log entry
+   * (unlike the single-hold `releaseHold` above) — this is herd-exit cleanup
+   * firing for every hold type at once, not an operator decision worth its
+   * own audit narrative; the `CattleDisposition` row already created by the
+   * caller is the audit record for why these ended.
+   */
+  async releaseAllForCattle(
+    farmId: string,
+    cattleId: string,
+    releasedBy: string,
+  ): Promise<void> {
+    await this.prisma.animalHold.updateMany({
+      where: { farmId, cattleId, endedAt: null },
+      data: { endedAt: new Date(), releasedBy },
+    });
+  }
+
   async releaseHold(
     farmId: string,
     cattleId: string,

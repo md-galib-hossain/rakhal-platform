@@ -144,7 +144,12 @@ export class ReproProtocolService {
 
     const cattleIds = [...new Set(dto.cattleIds)];
     const validCount = await this.prisma.cattle.count({
-      where: { id: { in: cattleIds }, farmId, isActive: true },
+      where: {
+        id: { in: cattleIds },
+        farmId,
+        herdStatus: 'ACTIVE',
+        deletedAt: null,
+      },
     });
     if (validCount !== cattleIds.length) {
       throw new BadRequestException(

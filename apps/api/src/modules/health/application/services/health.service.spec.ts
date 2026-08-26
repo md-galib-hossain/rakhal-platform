@@ -45,6 +45,7 @@ describe('HealthService — safety withdrawal release flow (RAKHAL-276)', () => 
       undefined as never, // medicineService
       undefined as never, // taskService
       undefined as never, // notificationService
+      undefined as never, // cattleService (RAKHAL-399)
       logger as never,
     );
 

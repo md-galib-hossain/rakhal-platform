@@ -5,6 +5,8 @@ import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { SellMilkUseCase } from 'src/modules/sales/application/use-cases/sell-milk/sell-milk.use-case';
 import { computeMilkPrice } from '../../domain/milk-price';
+import { deriveDispatchStatus } from '../../domain/dispatch-status';
+import { DispatchNumberAllocator } from '../../infrastructure/dispatch-number.allocator';
 import { CreateBuyerDto } from '../../presentation/dto/create-buyer.dto';
 import { UpdateBuyerDto } from '../../presentation/dto/update-buyer.dto';
 import { ListBuyerQueryDto } from '../../presentation/dto/list-buyer-query.dto';
@@ -40,6 +42,7 @@ export class BuyerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly sellMilkUseCase: SellMilkUseCase,
+    private readonly dispatchNumberAllocator: DispatchNumberAllocator,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(BuyerService.name);
@@ -182,10 +185,15 @@ export class BuyerService {
 
     const { dispatch, tankUpdated, saleId } = await this.prisma.$transaction(
       async (tx) => {
+        const dispatchNumber = await this.dispatchNumberAllocator.allocate(
+          tx,
+          farmId,
+        );
         const dispatch = await tx.milkDispatch.create({
           data: {
             farmId,
             buyerId: buyer.id,
+            dispatchNumber,
             dispatchedAt,
             volumeDispatchedL: dto.volumeDispatchedL,
             volumeReceivedL: dto.volumeReceivedL,
@@ -250,7 +258,9 @@ export class BuyerService {
 
     return {
       id: dispatch.id,
+      dispatchNumber: dispatch.dispatchNumber,
       buyerName: buyer.name,
+      driverName: dispatch.driverName,
       volumeDispatchedL: dispatch.volumeDispatchedL,
       volumeReceivedL: dispatch.volumeReceivedL,
       discrepancyL,
@@ -260,6 +270,7 @@ export class BuyerService {
       paymentDueDate,
       tankUpdated,
       saleId,
+      status: deriveDispatchStatus(dispatch),
     };
   }
 
@@ -282,7 +293,14 @@ export class BuyerService {
       ...getCursorArgs(query),
       include: { buyer: { select: { id: true, name: true } } },
     });
-    return toCursorPage(rows, query);
+    const page = toCursorPage(rows, query);
+    return {
+      ...page,
+      items: page.items.map((d) => ({
+        ...d,
+        status: deriveDispatchStatus(d),
+      })),
+    };
   }
 
   async statement(farmId: string, buyerId: string, query: StatementQueryDto) {

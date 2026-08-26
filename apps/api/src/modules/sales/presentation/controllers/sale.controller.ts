@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
@@ -9,6 +17,7 @@ import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { SaleService } from '../../application/sale.service';
 import { CreateSaleDto } from '../dto/create-sale.dto';
+import { ListSalesQueryDto } from '../dto/list-sales-query.dto';
 
 /**
  * Sales module (RAKHAL-339, `FINANCE_V2_DESIGN.md` §4.3, §5.1). Routes resolve
@@ -49,8 +58,8 @@ export class SaleController {
 
   @Get()
   @RequirePermission('sales.read')
-  findAll(@CurrentFarmId() farmId: string) {
-    return this.sales.findAll(farmId);
+  findAll(@CurrentFarmId() farmId: string, @Query() query: ListSalesQueryDto) {
+    return this.sales.findAll(farmId, query);
   }
 
   @Get(':id')

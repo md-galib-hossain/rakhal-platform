@@ -47,6 +47,8 @@ import * as path from 'path';
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const FINANCE_V2_DIR = path.join(REPO_ROOT, 'src', 'modules', 'finance-v2');
+const SRC_MODULES_DIR = path.join(REPO_ROOT, 'src', 'modules');
+const BUSINESS_REPORTING_DIR = path.join(SRC_MODULES_DIR, 'business-reporting');
 
 /** Domain modules Finance V2 must never import from (`FINANCE_V2_DESIGN.md`
  * §4.2's arrow diagram — "Never Finance -> Cattle / Milk / Inventory"). */
@@ -201,5 +203,61 @@ describe('Architecture — Finance V2 dependency direction (RAKHAL-353)', () => 
       const flagged = specifiers.some((s) => importsForbiddenModule(s));
       expect(flagged).toBe(false);
     }
+  });
+});
+
+/**
+ * RAKHAL-369 (MILESTONE 22, `BUSINESS_IA_PRD.md` §9.3) — `business-reporting`
+ * is a read-only leaf module: it may import Sales/Purchasing/Finance V2, but
+ * **nothing may import it**. Wiring it into any other module would let that
+ * module's own reporting logic leak back into a domain layer, defeating the
+ * whole reason this module exists (see `business-reporting.module.ts`'s own
+ * doc comment on the `Finance → Purchasing` edge it was built to avoid).
+ *
+ * Same static-scan technique as the RAKHAL-353 test above, scoped the other
+ * direction: scans **every** module directory except `business-reporting`
+ * itself for an import specifier naming it.
+ */
+describe('Architecture — business-reporting is a leaf, imported by nothing (RAKHAL-369)', () => {
+  it('business-reporting/** exists and contains real source files', () => {
+    expect(fs.existsSync(BUSINESS_REPORTING_DIR)).toBe(true);
+    const files = listSourceFiles(BUSINESS_REPORTING_DIR);
+    expect(files.length).toBeGreaterThan(2);
+  });
+
+  it('no module other than business-reporting itself imports it', () => {
+    const moduleDirs = fs
+      .readdirSync(SRC_MODULES_DIR, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && e.name !== 'business-reporting')
+      .map((e) => path.join(SRC_MODULES_DIR, e.name));
+
+    const violations: { file: string; specifier: string }[] = [];
+    for (const moduleDir of moduleDirs) {
+      const files = listSourceFiles(moduleDir);
+      for (const file of files) {
+        const content = fs.readFileSync(file, 'utf8');
+        for (const specifier of extractImportSpecifiers(content)) {
+          const segments = specifier.split('/');
+          if (segments.includes('business-reporting')) {
+            violations.push({
+              file: path.relative(REPO_ROOT, file),
+              specifier,
+            });
+          }
+        }
+      }
+    }
+
+    if (violations.length > 0) {
+      const report = violations
+        .map((v) => `  ${v.file} imports "${v.specifier}"`)
+        .join('\n');
+      throw new Error(
+        `business-reporting is a read-only leaf — nothing may import it ` +
+          `(BUSINESS_IA_PRD.md §9.3). Found ${violations.length} violation(s):\n${report}`,
+      );
+    }
+
+    expect(violations).toEqual([]);
   });
 });

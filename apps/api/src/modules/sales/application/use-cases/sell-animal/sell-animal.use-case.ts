@@ -20,6 +20,7 @@ import { PaymentService } from 'src/modules/finance-v2/payments/application/paym
 import { LedgerAccountService } from 'src/modules/finance-v2/ledger/application/ledger-account.service';
 import { JournalService } from 'src/modules/finance-v2/ledger/application/journal.service';
 import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
+import { deriveSaleDueDate } from 'src/modules/sales/domain/due-date';
 import { SellAnimalInput, SellAnimalResult } from './sell-animal.types';
 
 /** `LedgerAccount.code` for "Accounts Receivable" — RAKHAL-333's seeded default
@@ -118,7 +119,12 @@ export class SellAnimalUseCase {
         farmId,
         userId,
         {
-          customerId: dto.buyerId ?? dto.buyerName ?? undefined,
+          // RAKHAL-364: `customerId` is now a real `MilkBuyer` FK — a
+          // free-text `buyerName` can no longer be passed as the FK value
+          // (it would violate the constraint / fail the tenancy assert).
+          // `buyerName` stays on the input for display-only use by a future
+          // caller; it is never written to `Sale.customerId`.
+          customerId: dto.buyerId ?? undefined,
           saleDate: dto.saleDate,
           lines: [
             {
@@ -150,13 +156,28 @@ export class SellAnimalUseCase {
       );
 
       // 3. Receivable for the full sale total (RAKHAL-340) — outstanding is
-      // reduced below only if money is collected now.
+      // reduced below only if money is collected now. RAKHAL-364: due date
+      // defaults from the buyer's payment terms when the sale has one;
+      // `customerId` passes straight through from `sale` so
+      // `Receivable.customerId === Sale.customerId` always holds.
+      const dueDate = sale.customerId
+        ? deriveSaleDueDate(
+            sale.saleDate,
+            (
+              await tx.milkBuyer.findUnique({
+                where: { id: sale.customerId },
+                select: { paymentTermsDays: true },
+              })
+            )?.paymentTermsDays,
+          )
+        : null;
       const receivable = await this.receivableService.createReceivable(
         farmId,
         sale.id,
         sale.totalAmount,
-        null,
+        dueDate,
         tx,
+        sale.customerId,
       );
 
       // 4. Revenue-recognition journal posting — Debit Accounts Receivable,

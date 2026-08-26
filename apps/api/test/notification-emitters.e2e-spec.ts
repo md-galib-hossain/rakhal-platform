@@ -51,7 +51,7 @@ describe('Notification emitters (e2e)', () => {
     });
     const busy = new Set(openCases.map((c) => c.cattleId));
     const candidates = await prisma.cattle.findMany({
-      where: { farmId: owner.farmId, isActive: true },
+      where: { farmId: owner.farmId, herdStatus: 'ACTIVE', deletedAt: null },
       select: { id: true },
     });
     const cattleId = candidates.find((c) => !busy.has(c.id))?.id;

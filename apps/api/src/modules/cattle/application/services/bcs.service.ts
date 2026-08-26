@@ -3,6 +3,7 @@ import { PregnancyStatus } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { BCS_DROP_WINDOW_DAYS } from '../../domain/cattle.constants';
+import { activeHerd } from '../../domain/herd-scope';
 import { computeBcsAlerts } from '../../domain/bcs-alerts';
 import { RecordBcsDto } from '../../presentation/dto/record-bcs.dto';
 
@@ -104,7 +105,7 @@ export class BcsService {
 
   private async assertCattleInFarm(farmId: string, cattleId: string) {
     const cattle = await this.prisma.cattle.findFirst({
-      where: { id: cattleId, farmId, isActive: true },
+      where: { id: cattleId, ...activeHerd(farmId) },
       select: { id: true },
     });
     if (!cattle) {

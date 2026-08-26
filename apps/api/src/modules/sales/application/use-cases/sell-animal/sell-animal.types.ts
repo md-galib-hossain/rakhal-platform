@@ -11,9 +11,11 @@ import { PaymentMethod } from '@prisma/client';
 export interface SellAnimalInput {
   /** Sale price for this one animal — required, > 0. */
   salePrice: number;
-  /** Counterparty — plain string, same judgment call `Sale.customerId`
-   * documents (no generic `Customer` entity exists yet). Prefer `buyerId`
-   * over `buyerName` when both are given. */
+  /** RAKHAL-364: `Sale.customerId` is now a real `MilkBuyer` FK, so only
+   * `buyerId` is ever written there — it must be a real `MilkBuyer.id` for
+   * this farm (validated by `SaleService.assertCustomerBelongsToFarm`).
+   * `buyerName` is display-only free text (e.g. an ad-hoc walk-up buyer
+   * with no directory record) and is never persisted as the counterparty. */
   buyerName?: string;
   buyerId?: string;
   /** Required together with `paymentMethod` whenever `amountReceived > 0`. */

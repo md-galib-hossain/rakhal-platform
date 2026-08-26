@@ -198,7 +198,7 @@ export class LactationEconomicsService {
       distributions.some((d) => d.feedGroupId === feedGroupId)
     ) {
       groupHeadcount = await this.prisma.cattle.count({
-        where: { farmId, feedGroupId, isActive: true },
+        where: { farmId, feedGroupId, herdStatus: 'ACTIVE', deletedAt: null },
       });
     }
 

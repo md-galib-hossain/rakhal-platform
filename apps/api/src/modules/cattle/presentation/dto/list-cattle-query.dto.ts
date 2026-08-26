@@ -3,7 +3,7 @@ import { IsBoolean, IsEnum, IsIn, IsOptional, IsString } from 'class-validator';
 import {
   CattleGender,
   CattlePurpose,
-  CattleStatus,
+  HerdStatus,
   ProductionStatus,
   ReproductionState,
 } from '@prisma/client';
@@ -44,8 +44,8 @@ export class ListCattleQueryDto extends CursorPaginationQueryDto {
   purpose?: CattlePurpose;
 
   @IsOptional()
-  @IsEnum(CattleStatus)
-  status?: CattleStatus;
+  @IsEnum(HerdStatus)
+  status?: HerdStatus;
 
   @IsOptional()
   @IsEnum(ProductionStatus)

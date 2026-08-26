@@ -114,7 +114,11 @@ export class SettingsService {
       where: { farmId },
       include: {
         responsibleMember: { select: { id: true, name: true } },
-        _count: { select: { cattle: { where: { isActive: true } } } },
+        _count: {
+          select: {
+            cattle: { where: { herdStatus: 'ACTIVE', deletedAt: null } },
+          },
+        },
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -196,7 +200,7 @@ export class SettingsService {
     const shed = await this.getShedOrThrow(farmId, id);
 
     const assignedCount = await this.prisma.cattle.count({
-      where: { shedId: id, isActive: true },
+      where: { shedId: id, herdStatus: 'ACTIVE', deletedAt: null },
     });
     if (assignedCount > 0) {
       throw new BadRequestException(
@@ -215,7 +219,11 @@ export class SettingsService {
     const groups = await this.prisma.feedGroup.findMany({
       where: { farmId },
       include: {
-        _count: { select: { cattle: { where: { isActive: true } } } },
+        _count: {
+          select: {
+            cattle: { where: { herdStatus: 'ACTIVE', deletedAt: null } },
+          },
+        },
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -308,7 +316,7 @@ export class SettingsService {
     const group = await this.getFeedGroupOrThrow(farmId, id);
 
     const assignedCount = await this.prisma.cattle.count({
-      where: { feedGroupId: id, isActive: true },
+      where: { feedGroupId: id, herdStatus: 'ACTIVE', deletedAt: null },
     });
     if (assignedCount > 0) {
       throw new BadRequestException(

@@ -53,6 +53,13 @@ export class RecordExpenseDto {
   @IsDateString()
   dueDate?: string;
 
+  /** RAKHAL-365: real `Supplier` FK, validated via `ExpenseService.
+   * assertSupplierBelongsToFarm` before create. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  supplierId?: string;
+
   @IsOptional()
   @Transform(trimString)
   @IsString()

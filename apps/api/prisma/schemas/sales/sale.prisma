@@ -12,17 +12,18 @@
 /// `SaleService.createSale` as their first atomic step and then continue the same
 /// `$transaction` with their own stock/ledger side effects.
 ///
-/// **`customerId` — judgment call**: no generic `Customer` entity exists in this
-/// codebase yet. `MilkBuyer` (`prisma/schemas/buyer/buyer.prisma`) is milk-sale-specific
-/// (price agreements, collection days) and does not fit an animal/inventory/manure
-/// buyer. Rather than force every sale onto `MilkBuyer` or invent a new `Customer`
-/// model this ticket wasn't asked to design, `customerId` stays a **plain nullable
-/// scalar** — a free-form reference a caller may point at a `MilkBuyer.id`, a
-/// `ServiceProvider.id`, or nothing at all (walk-up cash sale). Not a Prisma
-/// `@relation` — same "can't FK a shape that doesn't exist yet" reasoning
-/// `PaymentAllocation.receivableId`/`payableId` (RAKHAL-337, `payment.prisma`)
-/// documents for its own placeholder columns. A future ticket that designs a real
-/// unified Customer entity would replace this column with a real FK, additively.
+/// **`customerId` — real FK as of RAKHAL-364 (MILESTONE 22, `BUSINESS_IA_PRD.md`
+/// §7).** Was a plain nullable scalar because no generic `Customer` entity existed;
+/// now points at `MilkBuyer` (`prisma/schemas/buyer/buyer.prisma`) — the **model
+/// keeps its name** (buyer-directory vocabulary), the **relation field is named
+/// `customer`** (sales vocabulary), one alias, not a rename (rejected as churn —
+/// `BUSINESS_IA_PRD.md` §7.5). Stays **nullable**: a walk-up cash sale, a manure
+/// sale (RD-058) and every Other Income row legitimately have no buyer.
+/// `onDelete: Restrict` — buyers are archived via `MilkBuyer.isActive`, never
+/// hard-deleted, so a sale can never point at a gone row. **A Prisma FK cannot
+/// enforce `Sale.farmId == MilkBuyer.farmId`** — `SaleService.createWithClient`
+/// asserts that in the application layer before every write; skipping that assert
+/// would let this FK open a cross-tenant hole it did not have as a bare scalar.
 model Sale {
   id     String @id @default(cuid())
   farmId String
@@ -33,8 +34,8 @@ model Sale {
   /// See `sale-number.ts` for the exact format + allocation helper.
   saleNumber String
 
-  /// See this model's own doc comment above for the judgment call on why this is a
-  /// plain nullable scalar, not a `@relation`.
+  /// FK column backing the `customer` relation below — see this model's own doc
+  /// comment for the naming-alias rationale.
   customerId String?
 
   saleDate DateTime
@@ -59,6 +60,10 @@ model Sale {
   /// paid in full at creation has none. One-to-one: `Receivable.saleId` is
   /// `@unique`.
   receivable Receivable? @relation("SaleToReceivable")
+
+  /// RAKHAL-364 — the buyer/customer, if any. See this model's own doc
+  /// comment for the `customer`-field/`MilkBuyer`-model naming alias.
+  customer MilkBuyer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
 
   @@unique([farmId, saleNumber])
   @@index([farmId])

@@ -48,9 +48,9 @@ describe('SaleNumberAllocator (real DB, RAKHAL-339)', () => {
       allocator.allocate(tx, farmId),
     );
 
-    expect(first).toBe('SALE-000001');
-    expect(second).toBe('SALE-000002');
-    expect(third).toBe('SALE-000003');
+    expect(first).toBe('INV-000001');
+    expect(second).toBe('INV-000002');
+    expect(third).toBe('INV-000003');
   });
 
   it('never hands out a duplicate number under real concurrency', async () => {
@@ -69,7 +69,7 @@ describe('SaleNumberAllocator (real DB, RAKHAL-339)', () => {
     // skipped/reused values, not merely "no two calls collided".
     const expected = Array.from(
       { length: concurrentCalls },
-      (_, i) => `SALE-${String(i + 1).padStart(6, '0')}`,
+      (_, i) => `INV-${String(i + 1).padStart(6, '0')}`,
     );
     expect([...numbers].sort()).toEqual([...expected].sort());
   });
@@ -83,7 +83,7 @@ describe('SaleNumberAllocator (real DB, RAKHAL-339)', () => {
       prisma.$transaction((tx) => allocator.allocate(tx, farmB)),
     ]);
 
-    expect(aFirst).toBe('SALE-000001');
-    expect(bFirst).toBe('SALE-000001');
+    expect(aFirst).toBe('INV-000001');
+    expect(bFirst).toBe('INV-000001');
   });
 });

@@ -464,7 +464,12 @@ export class FeedDistributionService {
 
     if (query.cattleId) {
       const cattle = await this.prisma.cattle.findFirst({
-        where: { id: query.cattleId, farmId, isActive: true },
+        where: {
+          id: query.cattleId,
+          farmId,
+          herdStatus: 'ACTIVE',
+          deletedAt: null,
+        },
         select: { id: true, tagNumber: true, name: true },
       });
       if (!cattle) throw new NotFoundException('Cattle not found');
@@ -514,7 +519,12 @@ export class FeedDistributionService {
         select: this.EFFICIENCY_DISTRIBUTION_SELECT,
       }),
       this.prisma.cattle.findMany({
-        where: { farmId, feedGroupId: group.id, isActive: true },
+        where: {
+          farmId,
+          feedGroupId: group.id,
+          herdStatus: 'ACTIVE',
+          deletedAt: null,
+        },
         select: { id: true },
       }),
     ]);
@@ -596,7 +606,7 @@ export class FeedDistributionService {
           include: { items: true },
         }),
         this.prisma.cattle.count({
-          where: { farmId, feedGroupId, isActive: true },
+          where: { farmId, feedGroupId, herdStatus: 'ACTIVE', deletedAt: null },
         }),
       ]);
       headcount = Math.max(1, headcount);
@@ -612,7 +622,9 @@ export class FeedDistributionService {
           },
           include: { items: true },
         }),
-        this.prisma.cattle.count({ where: { farmId, isActive: true } }),
+        this.prisma.cattle.count({
+          where: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
+        }),
       ]);
       headcount = Math.max(1, headcount);
     }
@@ -670,7 +682,9 @@ export class FeedDistributionService {
         where: { farmId, logDate: { gte: since } },
         _sum: { yieldL: true },
       }),
-      this.prisma.cattle.count({ where: { farmId, isActive: true } }),
+      this.prisma.cattle.count({
+        where: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
+      }),
     ]);
 
     const totalCost = round2(

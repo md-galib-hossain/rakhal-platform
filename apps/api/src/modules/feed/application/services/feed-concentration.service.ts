@@ -885,7 +885,7 @@ export class FeedConcentrationService {
     }
     if (cattleId) {
       const cattle = await this.prisma.cattle.findFirst({
-        where: { id: cattleId, farmId, isActive: true },
+        where: { id: cattleId, farmId, herdStatus: 'ACTIVE', deletedAt: null },
         select: { id: true },
       });
       if (!cattle)

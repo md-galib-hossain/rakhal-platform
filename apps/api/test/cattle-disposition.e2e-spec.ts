@@ -90,8 +90,8 @@ describe('Cattle — recordDisposition (e2e)', () => {
     const cattle = await prisma.cattle.findUniqueOrThrow({
       where: { id: cattleId },
     });
-    expect(cattle.status).toBe('SOLD');
-    expect(cattle.isActive).toBe(false);
+    expect(cattle.herdStatus).toBe('SOLD');
+    expect(cattle.deletedAt).toBeNull();
     expect(cattle.dispositionId).toBe(disposition.id);
     expect(cattle.soldAt).not.toBeNull();
 
@@ -159,8 +159,8 @@ describe('Cattle — recordDisposition (e2e)', () => {
     const cattle = await prisma.cattle.findUniqueOrThrow({
       where: { id: cattleId },
     });
-    expect(cattle.status).toBe('DEAD');
-    expect(cattle.isActive).toBe(false);
+    expect(cattle.herdStatus).toBe('DECEASED');
+    expect(cattle.deletedAt).toBeNull();
     expect(cattle.soldAt).toBeNull();
   });
 
@@ -190,7 +190,7 @@ describe('Cattle — recordDisposition (e2e)', () => {
     const cattle = await prisma.cattle.findUniqueOrThrow({
       where: { id: cattleId },
     });
-    expect(cattle.status).toBe('CULLED');
+    expect(cattle.herdStatus).toBe('CULLED');
   });
 
   it('TRANSFER sets status TRANSFERRED and leaves the ACTIVE lactation open', async () => {
@@ -213,8 +213,8 @@ describe('Cattle — recordDisposition (e2e)', () => {
     const cattle = await prisma.cattle.findUniqueOrThrow({
       where: { id: cattleId },
     });
-    expect(cattle.status).toBe('TRANSFERRED');
-    expect(cattle.isActive).toBe(false);
+    expect(cattle.herdStatus).toBe('SOLD');
+    expect(cattle.deletedAt).toBeNull();
 
     const untouchedLactation = await prisma.lactation.findUniqueOrThrow({
       where: { id: lactation.id },
@@ -247,7 +247,7 @@ describe('Cattle — recordDisposition (e2e)', () => {
     const cattle = await prisma.cattle.findUniqueOrThrow({
       where: { id: cattleId },
     });
-    expect(cattle.status).toBe('SOLD');
+    expect(cattle.herdStatus).toBe('SOLD');
     // The old path never writes `dispositionId`/`soldAt` — those are only
     // ever set by the new `recordDisposition` path (RAKHAL-344 leaves this
     // path untouched; RAKHAL-345 decides whether to switch it over).

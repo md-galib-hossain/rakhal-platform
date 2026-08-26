@@ -178,7 +178,8 @@ export class ScoreboardService {
       by: ['farmId'],
       where: {
         farmId: { in: scopedFarmIds },
-        isActive: true,
+        herdStatus: 'ACTIVE',
+        deletedAt: null,
         aqrScore: { not: null },
       },
       _avg: { aqrScore: true },
@@ -267,7 +268,8 @@ export class ScoreboardService {
       by: ['farmId'],
       where: {
         farmId: { in: participants.map((p) => p.farmId) },
-        isActive: true,
+        herdStatus: 'ACTIVE',
+        deletedAt: null,
         aqrScore: { not: null },
       },
       _avg: { aqrScore: true },

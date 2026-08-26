@@ -26,7 +26,12 @@ export class FeedGroupAssignService {
   async assignCattle(farmId: string, groupId: string, cattleIds: string[]) {
     await this.assertGroupInFarm(farmId, groupId);
     const { count } = await this.prisma.cattle.updateMany({
-      where: { id: { in: cattleIds }, farmId, isActive: true },
+      where: {
+        id: { in: cattleIds },
+        farmId,
+        herdStatus: 'ACTIVE',
+        deletedAt: null,
+      },
       data: { feedGroupId: groupId },
     });
     this.log.info('Cattle assigned to feed group', {
@@ -41,7 +46,12 @@ export class FeedGroupAssignService {
   async listCattle(farmId: string, groupId: string) {
     await this.assertGroupInFarm(farmId, groupId);
     return this.prisma.cattle.findMany({
-      where: { farmId, feedGroupId: groupId, isActive: true },
+      where: {
+        farmId,
+        feedGroupId: groupId,
+        herdStatus: 'ACTIVE',
+        deletedAt: null,
+      },
       orderBy: { tagNumber: 'asc' },
       select: { id: true, name: true, tagNumber: true, productionStatus: true },
     });

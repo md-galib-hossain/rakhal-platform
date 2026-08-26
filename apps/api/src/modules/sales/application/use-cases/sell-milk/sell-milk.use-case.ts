@@ -20,6 +20,7 @@ import { ReceivableService } from 'src/modules/finance-v2/receivables/applicatio
 import { PaymentService } from 'src/modules/finance-v2/payments/application/payment.service';
 import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { SaleService } from '../../sale.service';
+import { deriveSaleDueDate } from '../../../domain/due-date';
 import { SellMilkInput, SellMilkResult } from './sell-milk.types';
 
 /** `LedgerAccount.code` for "Accounts Receivable" — seeded per farm by
@@ -218,13 +219,19 @@ export class SellMilkUseCase {
 
     // 4. Receivable — always created, mirroring the design doc's worked
     // example; a same-call Payment (below) settles it immediately if the
-    // caller supplied `amountReceived`.
+    // caller supplied `amountReceived`. RAKHAL-364: `dueDate` defaults to
+    // `saleDate + MilkBuyer.paymentTermsDays` when the caller doesn't pass
+    // one explicitly and the sale has a customer; `customerId` is passed
+    // straight through from the just-created `sale` row so
+    // `Receivable.customerId === Sale.customerId` always holds.
+    const dueDate = input.dueDate ?? (await this.deriveDueDate(client, sale));
     const receivable = await this.receivableService.createReceivable(
       farmId,
       sale.id,
       sale.totalAmount,
-      input.dueDate ?? null,
+      dueDate,
       client,
+      sale.customerId,
     );
 
     // 5. Optional Payment + PaymentAllocation. `ReceivableService.
@@ -323,5 +330,25 @@ export class SellMilkUseCase {
       client,
     );
     return true;
+  }
+
+  /**
+   * RAKHAL-364 — `saleDate + MilkBuyer.paymentTermsDays` when the sale has
+   * a customer; `null` (no due date) when it doesn't, mirroring the
+   * "PAID/no-schedule" reading `due-date.ts`'s own doc comment describes.
+   * One extra read on `client` (the schema-level `MilkBuyer` FK, no
+   * `BuyerModule` import — same precedent `SaleService.
+   * assertCustomerBelongsToFarm` uses).
+   */
+  private async deriveDueDate(
+    client: Prisma.TransactionClient,
+    sale: { saleDate: Date; customerId: string | null },
+  ): Promise<Date | null> {
+    if (!sale.customerId) return null;
+    const buyer = await client.milkBuyer.findUnique({
+      where: { id: sale.customerId },
+      select: { paymentTermsDays: true },
+    });
+    return deriveSaleDueDate(sale.saleDate, buyer?.paymentTermsDays);
   }
 }

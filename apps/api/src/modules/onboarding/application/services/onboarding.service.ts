@@ -15,6 +15,7 @@ import { SubscriptionAccessService } from 'src/modules/subscription/application/
 import { CattleImportService } from 'src/modules/cattle/application/services/cattle-import.service';
 import { ImportConfirmDto } from 'src/modules/cattle/presentation/dto/import-cattle.dto';
 import { ConfigureOnboardingDto } from '../../presentation/dto/configure-onboarding.dto';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 
 /**
  * Onboarding (PRD §5.1 / API §2 — RAKHAL-022/023/025). Orchestrates the wizard's
@@ -48,7 +49,9 @@ export class OnboardingService {
         select: { hasCompletedOnboarding: true },
       }),
       this.prisma.shed.count({ where: { farmId, isActive: true } }),
-      this.prisma.cattle.count({ where: { farmId, isActive: true } }),
+      this.prisma.cattle.count({
+        where: activeHerd(farmId),
+      }),
       this.prisma.farmMember.count({ where: { farmId } }),
     ]);
     return {

@@ -6,6 +6,7 @@ import {
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { AqrEventDef, AqrEventKey } from '../../domain/aqr-events';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { AqrConfigService } from './aqr-config.service';
 import {
   ActivityLogService,
@@ -213,7 +214,10 @@ export class AqrService {
   /** Herd AQR = arithmetic mean of active, non-nullified cattle scores (AQR-03). */
   async herdAqr(farmId: string): Promise<number> {
     const agg = await this.prisma.cattle.aggregate({
-      where: { farmId, isActive: true, aqrScore: { not: null } },
+      where: {
+        ...activeHerd(farmId),
+        aqrScore: { not: null },
+      },
       _avg: { aqrScore: true },
     });
     return Math.round((agg._avg.aqrScore ?? 0) * 10) / 10;

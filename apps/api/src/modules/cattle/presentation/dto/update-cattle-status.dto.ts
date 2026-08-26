@@ -18,7 +18,7 @@ import { ProductionStatus, ReproductionState } from '@prisma/client';
  * (renamed from `PURCHASE_IMPORT` by RAKHAL-281) (e.g. a purchased
  * already-milking cow with no calving history in this system).
  */
-export class UpdateCattleStatusDto {
+export class UpdateHerdStatusDto {
   @IsOptional()
   @IsEnum(ProductionStatus)
   productionStatus?: ProductionStatus;

@@ -121,8 +121,8 @@ describe('LedgerAccountService', () => {
 });
 
 describe('DEFAULT_CHART_OF_ACCOUNTS', () => {
-  it('has 20 accounts, one per RAKHAL-333 AC', () => {
-    expect(DEFAULT_CHART_OF_ACCOUNTS).toHaveLength(20);
+  it('has 21 accounts (RAKHAL-333 AC + RAKHAL-367 5900 Other Expense)', () => {
+    expect(DEFAULT_CHART_OF_ACCOUNTS).toHaveLength(21);
   });
 
   it('has unique codes', () => {
