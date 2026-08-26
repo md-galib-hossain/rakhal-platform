@@ -389,6 +389,10 @@ export interface PurchaseLine {
 /** Mirrors `PurchaseWithLines` (`PurchaseService.findAll`/`findOne`) — `payable` is included but
  * intentionally not modeled here (the ledger list shows `Purchase.totalAmount` only; a payable's own
  * outstanding/status belongs to RAKHAL-358's settlements screen, not this read-only document list). */
+/** Mirrors `PurchaseService.findAll`'s real return shape — `GET /purchasing/purchases` never
+ * actually included `lines` (confirmed by reading the query directly: it had no `include` at all,
+ * so `lines` was always `undefined`, the same bug class `ledger-sales-table.tsx`'s `Sale` type had).
+ * Fixed backend-side to a real `_count.lines` instead of a full/fake array. */
 export interface Purchase {
   id: string;
   farmId: string;
@@ -399,7 +403,7 @@ export interface Purchase {
   notes: string | null;
   createdById: string;
   createdAt: string;
-  lines: PurchaseLine[];
+  _count: { lines: number };
 }
 
 /** Mirrors `Expense` (`purchasing/purchase.prisma`) — a farm operating cost that never becomes

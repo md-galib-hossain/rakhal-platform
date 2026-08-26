@@ -17,7 +17,7 @@ import type { Purchase } from "../types-v2";
  * doesn't attempt (a real gap, flagged not faked) — shown as a plain line count instead of a
  * fabricated item name. */
 export function purchaseSummary(purchase: Purchase): string {
-  const n = purchase.lines.length;
+  const n = purchase._count.lines;
   if (n === 0) return "—";
   return `${n}`;
 }
