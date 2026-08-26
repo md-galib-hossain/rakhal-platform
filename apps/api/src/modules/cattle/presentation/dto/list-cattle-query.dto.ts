@@ -2,7 +2,6 @@ import { Transform } from 'class-transformer';
 import { IsBoolean, IsEnum, IsIn, IsOptional, IsString } from 'class-validator';
 import {
   CattleGender,
-  CattlePurpose,
   HerdStatus,
   ProductionStatus,
   ReproductionState,
@@ -38,10 +37,6 @@ export class ListCattleQueryDto extends CursorPaginationQueryDto {
   @IsOptional()
   @IsEnum(CattleGender)
   gender?: CattleGender;
-
-  @IsOptional()
-  @IsEnum(CattlePurpose)
-  purpose?: CattlePurpose;
 
   @IsOptional()
   @IsEnum(HerdStatus)

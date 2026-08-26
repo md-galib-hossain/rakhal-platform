@@ -241,7 +241,6 @@ export class CattleService {
             dateOfBirth: dto.dateOfBirth
               ? new Date(dto.dateOfBirth)
               : undefined,
-            purpose: dto.purpose,
             herdStatus: dto.status ?? HerdStatus.ACTIVE,
             productionStatus: dto.productionStatus,
             shedId: dto.shedId,
@@ -440,7 +439,7 @@ export class CattleService {
         'animal_registered',
         {
           actorId: userId,
-          actionDetails: `New [${cattle.purpose}] [${cattle.name ?? cattle.tagNumber}] registered.`,
+          actionDetails: `New cattle [${cattle.name ?? cattle.tagNumber}] registered.`,
         },
       );
 
@@ -467,7 +466,6 @@ export class CattleService {
         : {}),
       ...(query.breedId ? { breedId: query.breedId } : {}),
       ...(query.gender ? { gender: query.gender } : {}),
-      ...(query.purpose ? { purpose: query.purpose } : {}),
       ...(query.status ? { herdStatus: query.status } : {}),
       ...(query.productionStatus
         ? { productionStatus: query.productionStatus }
@@ -559,7 +557,6 @@ export class CattleService {
             dateOfBirth: dto.dateOfBirth
               ? new Date(dto.dateOfBirth)
               : undefined,
-            purpose: dto.purpose,
             herdStatus: dto.status,
             productionStatus: dto.productionStatus,
             shedId: dto.shedId,

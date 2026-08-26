@@ -56,9 +56,11 @@ describe('DashboardService — herdStatus', () => {
         count: jest.fn((args: { where: WhereInput }) => {
           const { where } = args;
           if (
-            where.purpose &&
-            typeof where.purpose === 'object' &&
-            (where.purpose as { not?: string }).not === 'CALF'
+            where.herdStatus === 'ACTIVE' &&
+            where.deletedAt === null &&
+            !where.productionStatus &&
+            !where.AND &&
+            !where.dateOfBirth
           ) {
             return Promise.resolve(TOTAL_ACTIVE);
           }

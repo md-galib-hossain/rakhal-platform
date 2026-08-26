@@ -1,4 +1,4 @@
-import request from 'supertest';
+﻿import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
@@ -43,7 +43,6 @@ describe('Cattle — intake real current state (e2e)', () => {
       .send({
         tagNumber: tag('PREG'),
         gender: 'FEMALE',
-        purpose: 'MILK',
         priorCalvings: 1,
         intakePregnancy: { expectedCalvingDate },
       })
@@ -100,7 +99,6 @@ describe('Cattle — intake real current state (e2e)', () => {
       .send({
         tagNumber: tag('MILK'),
         gender: 'FEMALE',
-        purpose: 'MILK',
         priorCalvings: 2,
         productionStatus: 'MILKING',
         intakeLactation: {
@@ -133,7 +131,6 @@ describe('Cattle — intake real current state (e2e)', () => {
       .send({
         tagNumber: tag('SICK'),
         gender: 'FEMALE',
-        purpose: 'MILK',
         intakeHealthCondition: {
           diagnosis: 'Mild lameness observed at purchase',
           diagnosisType: 'INJURY',
@@ -159,7 +156,6 @@ describe('Cattle — intake real current state (e2e)', () => {
       .send({
         tagNumber: tag('PLAIN-FEMALE'),
         gender: 'FEMALE',
-        purpose: 'MILK',
       })
       .expect(201);
 
@@ -177,7 +173,6 @@ describe('Cattle — intake real current state (e2e)', () => {
       .send({
         tagNumber: tag('MILK-NO-HISTORY'),
         gender: 'FEMALE',
-        purpose: 'MILK',
         productionStatus: 'MILKING',
         priorCalvings: 1,
       })
@@ -188,7 +183,7 @@ describe('Cattle — intake real current state (e2e)', () => {
     const created = await request(server())
       .post(api('/cattle'))
       .set(...auth(owner))
-      .send({ tagNumber: tag('BCS'), gender: 'FEMALE', purpose: 'MILK' })
+      .send({ tagNumber: tag('BCS'), gender: 'FEMALE' })
       .expect(201);
     const cattleId = created.body.data.id;
 
@@ -212,7 +207,6 @@ describe('Cattle — intake real current state (e2e)', () => {
       .send({
         tagNumber: tag('DUP-LACT'),
         gender: 'FEMALE',
-        purpose: 'MILK',
         priorCalvings: 1,
         productionStatus: 'MILKING',
         intakeLactation: { estimatedDaysInMilk: 10 },

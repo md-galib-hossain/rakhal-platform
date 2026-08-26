@@ -10,7 +10,6 @@ model Cattle {
   breedId     String?
   gender      CattleGender
   dateOfBirth DateTime?
-  purpose     CattlePurpose
   herdStatus  HerdStatus    @default(ACTIVE)
   shedId      String?
 

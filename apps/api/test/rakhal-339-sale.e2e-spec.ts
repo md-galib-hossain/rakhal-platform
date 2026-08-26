@@ -1,4 +1,4 @@
-import request from 'supertest';
+﻿import request from 'supertest';
 import { SaleLineType, SaleStatus } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import {
@@ -67,7 +67,6 @@ describe('Sales — Sale + SaleLine (e2e, RAKHAL-339)', () => {
         farmId: owner.farmId,
         tagNumber: uniqueTag(),
         gender: 'FEMALE',
-        purpose: 'MILK',
         createdBy: ownerUserId,
       },
     });
@@ -295,7 +294,6 @@ describe('Sales — Sale + SaleLine (e2e, RAKHAL-339)', () => {
         farmId: otherFarm.id,
         tagNumber: uniqueTag(),
         gender: 'FEMALE',
-        purpose: 'MILK',
         createdBy: otherFarm.ownerId,
       },
     });

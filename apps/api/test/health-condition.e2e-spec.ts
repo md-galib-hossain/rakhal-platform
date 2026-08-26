@@ -1,4 +1,4 @@
-import request from 'supertest';
+﻿import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
@@ -42,7 +42,6 @@ describe('Health — structured HealthCondition (RAKHAL-275)', () => {
         farmId: owner.farmId,
         tagNumber: `E2E-RAKHAL275-${Date.now()}`,
         gender: 'FEMALE',
-        purpose: 'MILK',
         createdBy: ownerUser.id,
       },
     });
@@ -179,7 +178,6 @@ describe('Health — preventive/vaccine care does not mark a healthy cow SICK', 
         farmId: owner.farmId,
         tagNumber: `E2E-PREVENTIVE-${Date.now()}`,
         gender: 'FEMALE',
-        purpose: 'MILK',
         createdBy: ownerUser.id,
       },
     });

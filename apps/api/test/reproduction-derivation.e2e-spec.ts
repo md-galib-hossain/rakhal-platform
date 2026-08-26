@@ -1,4 +1,4 @@
-import request from 'supertest';
+﻿import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { ReproductionDerivationService } from '../src/modules/reproduction/application/services/reproduction-derivation.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
@@ -47,7 +47,6 @@ describe('Reproduction — derived state recompute (e2e)', () => {
         farmId: owner.farmId,
         tagNumber: `E2E-${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         gender: 'FEMALE',
-        purpose: 'MILK',
         dateOfBirth: new Date('2022-01-01'),
         createdBy: ownerUserId,
       },

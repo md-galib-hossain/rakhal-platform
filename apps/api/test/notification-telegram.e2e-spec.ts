@@ -1,4 +1,4 @@
-import request from 'supertest';
+﻿import request from 'supertest';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { TelegramLinkService } from '../src/modules/notification/application/services/telegram-link.service';
@@ -88,7 +88,6 @@ describe('Notifications — Telegram (e2e)', () => {
     // botUsername is unset in test env, so the deep link has no token to
     // parse out — sign the same payload shape directly for the test.
     const token = await jwt.signAsync({
-      purpose: 'telegram_link',
       userId: ownerUserId,
       farmId: owner.farmId,
     });

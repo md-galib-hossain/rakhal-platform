@@ -4,7 +4,6 @@ import {
   BreedingMethod,
   BreedingStatus,
   CattleGender,
-  CattlePurpose,
   FinancialAccountType,
   LedgerAccountCategory,
   MilkDisposition,
@@ -1204,7 +1203,6 @@ async function seedDemoCattle(
       farmId,
       tagNumber: `DEMO-${String(i + 1).padStart(3, '0')}`,
       gender: i < 6 ? CattleGender.FEMALE : CattleGender.MALE,
-      purpose: i < 6 ? CattlePurpose.MILK : CattlePurpose.BREEDING,
       aqrScore: 50,
       createdBy,
     })),
@@ -1283,7 +1281,7 @@ async function seedDemoDashboardHistory(
 
   // ---- Production vs Feedcost: current-month daily milk + feed cost -------
   const milkCows = await prisma.cattle.findMany({
-    where: { farmId, purpose: CattlePurpose.MILK },
+    where: { farmId, gender: CattleGender.FEMALE },
     select: { id: true },
     take: 6,
   });
@@ -1539,7 +1537,6 @@ async function seedDemoDashboardHistory(
   const bull = await prisma.cattle.findFirst({
     where: {
       farmId,
-      purpose: CattlePurpose.BREEDING,
       gender: CattleGender.MALE,
     },
     select: { id: true },

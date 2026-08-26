@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import {
   ActivityLogModule,
-  CattlePurpose,
+  CattleGender,
   MilkDisposition,
   MilkSession,
   MilkTankActivity,
@@ -54,7 +54,6 @@ import { SaveMilkLogDto } from '../../presentation/dto/save-milk-log.dto';
 import { SubmitMilkDto } from '../../presentation/dto/submit-milk.dto';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const MILKING_PURPOSES = [CattlePurpose.MILK, CattlePurpose.DUAL_PURPOSE];
 
 /** `null` = lifetime (no lower date bound on the trend query). */
 const TREND_RANGE_DAYS: Record<MilkTrendRange, number | null> = {
@@ -146,10 +145,9 @@ export class MilkService {
         farmId,
         herdStatus: 'ACTIVE',
         deletedAt: null,
-        purpose: { in: MILKING_PURPOSES },
+        gender: CattleGender.FEMALE,
         // A cow marked DRY (manually, or auto-set at calving/dry-off) has no
-        // milk to log — purpose alone doesn't capture that (purpose describes
-        // what the cow is raised for, not her current lactation state).
+        // milk to log.
         productionStatus: { not: ProductionStatus.DRY },
         ...(query.shedId ? { shedId: query.shedId } : {}),
       },

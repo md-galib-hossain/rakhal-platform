@@ -1,4 +1,4 @@
-import request from 'supertest';
+﻿import request from 'supertest';
 import { FinancialAccountType, PaymentMethod } from '@prisma/client';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { SellAnimalUseCase } from '../src/modules/sales/application/use-cases/sell-animal/sell-animal.use-case';
@@ -92,7 +92,7 @@ describe('RAKHAL-362 — Atomicity + invariant e2e suite', () => {
     const res = await request(server())
       .post(api('/cattle'))
       .set(...bearer(owner))
-      .send({ tagNumber: tag(), gender: 'FEMALE', purpose: 'MILK' })
+      .send({ tagNumber: tag(), gender: 'FEMALE' })
       .expect(201);
     return res.body.data.id as string;
   }

@@ -4,14 +4,6 @@ enum CattleGender {
   CASTRATED_MALE
 }
 
-enum CattlePurpose {
-  MILK
-  BREEDING
-  MEAT
-  CALF
-  BULL_SERVICE
-  DUAL_PURPOSE
-}
 
 /// RAKHAL-397 (ADR-024): renamed from `CattleStatus`. Pure herd-membership
 /// state — never a record-deletion concept. `ARCHIVED` was dropped (that was

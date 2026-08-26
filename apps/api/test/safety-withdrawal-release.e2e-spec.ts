@@ -1,4 +1,4 @@
-import request from 'supertest';
+﻿import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
@@ -44,7 +44,6 @@ describe('Health — SafetyWithdrawal release flow (RAKHAL-276)', () => {
         farmId: owner.farmId,
         tagNumber: `E2E-RAKHAL276-${Date.now()}`,
         gender: 'FEMALE',
-        purpose: 'MILK',
         productionStatus: 'MILKING',
         createdBy: ownerUser.id,
       },

@@ -52,14 +52,14 @@ describe('Feeding Grid (e2e)', () => {
     const cattleA = await request(server())
       .post(api('/cattle'))
       .set(...auth(owner))
-      .send({ tagNumber: tag('A'), gender: 'FEMALE', purpose: 'MILK' })
+      .send({ tagNumber: tag('A'), gender: 'FEMALE' })
       .expect(201);
     cowA = cattleA.body.data.id as string;
 
     const cattleB = await request(server())
       .post(api('/cattle'))
       .set(...auth(owner))
-      .send({ tagNumber: tag('B'), gender: 'FEMALE', purpose: 'MILK' })
+      .send({ tagNumber: tag('B'), gender: 'FEMALE' })
       .expect(201);
     cowB = cattleB.body.data.id as string;
 

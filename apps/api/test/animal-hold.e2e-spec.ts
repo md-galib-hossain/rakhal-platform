@@ -1,4 +1,4 @@
-import request from 'supertest';
+﻿import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
@@ -47,7 +47,6 @@ describe('Cattle — AnimalHold (RAKHAL-280)', () => {
         farmId: owner.farmId,
         tagNumber: `E2E-RAKHAL280-${Date.now()}`,
         gender: 'FEMALE',
-        purpose: 'MILK',
         createdBy: ownerUser.id,
       },
     });

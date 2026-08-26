@@ -3,7 +3,6 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { Workbook, type CellValue } from 'exceljs';
 import {
   CattleGender,
-  CattlePurpose,
   CattleSourceType,
   LactationStartReason,
   LactationStatus,
@@ -30,7 +29,6 @@ type CanonicalField =
   | 'name'
   | 'tag'
   | 'gender'
-  | 'purpose'
   | 'date_of_birth'
   | 'breed'
   | 'shed'
@@ -86,25 +84,11 @@ const GENDER_ALIASES: Record<string, CattleGender> = {
   steer: CattleGender.CASTRATED_MALE,
 };
 
-const PURPOSE_ALIASES: Record<string, CattlePurpose> = {
-  dairy: CattlePurpose.MILK,
-  milk: CattlePurpose.MILK,
-  breeding: CattlePurpose.BREEDING,
-  beef: CattlePurpose.MEAT,
-  meat: CattlePurpose.MEAT,
-  calf: CattlePurpose.CALF,
-  bull: CattlePurpose.BULL_SERVICE,
-  bull_service: CattlePurpose.BULL_SERVICE,
-  dual: CattlePurpose.DUAL_PURPOSE,
-  dual_purpose: CattlePurpose.DUAL_PURPOSE,
-};
-
 /** A normalized, import-ready row (only present for `ready` rows). */
 interface ImportRowData {
   name: string | null;
   tagNumber: string;
   gender: CattleGender;
-  purpose: CattlePurpose;
   dateOfBirth: string | null;
   breedId: string | null;
   shedId: string | null;
@@ -280,7 +264,6 @@ export class CattleImportService {
             name: r.data.name,
             tagNumber: r.data.tagNumber,
             gender: r.data.gender,
-            purpose: r.data.purpose,
             dateOfBirth: r.data.dateOfBirth
               ? new Date(r.data.dateOfBirth)
               : undefined,
@@ -518,17 +501,6 @@ export class CattleImportService {
       };
     }
 
-    const purposeRaw = read('purpose');
-    const purpose = purposeRaw
-      ? PURPOSE_ALIASES[purposeRaw.toLowerCase()]
-      : undefined;
-    if (!purpose) {
-      return {
-        ...base,
-        error: `Invalid or missing purpose: "${purposeRaw ?? ''}"`,
-      };
-    }
-
     const dobRaw = read('date_of_birth');
     let dateOfBirth: string | null = null;
     if (dobRaw) {
@@ -753,7 +725,6 @@ export class CattleImportService {
         name,
         tagNumber: tag,
         gender,
-        purpose,
         dateOfBirth,
         breedId,
         shedId,
@@ -867,7 +838,6 @@ export class CattleImportService {
       'tag',
       'name',
       'gender',
-      'purpose',
       'date_of_birth',
       'breed',
       'shed',
@@ -892,7 +862,6 @@ export class CattleImportService {
       'COW-001',
       'Laxmi',
       'FEMALE',
-      'MILK',
       '2021-05-14',
       '',
       '',

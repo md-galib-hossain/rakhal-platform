@@ -352,8 +352,16 @@ describe('CattleService — RAKHAL-269 production status', () => {
         { id: 'cattle-2' },
       ]);
       prisma.cattleDisposition.create
-        .mockResolvedValueOnce({ id: 'd-1', type: 'SALE', cattleId: 'cattle-1' })
-        .mockResolvedValueOnce({ id: 'd-2', type: 'SALE', cattleId: 'cattle-2' });
+        .mockResolvedValueOnce({
+          id: 'd-1',
+          type: 'SALE',
+          cattleId: 'cattle-1',
+        })
+        .mockResolvedValueOnce({
+          id: 'd-2',
+          type: 'SALE',
+          cattleId: 'cattle-2',
+        });
       prisma.cattle.update.mockResolvedValue({});
 
       const service = make();
@@ -411,7 +419,6 @@ describe('CattleService — RAKHAL-269 production status', () => {
         service.create('farm-1', 'user-1', {
           tagNumber: 'TAG-1',
           gender: 'FEMALE',
-          purpose: 'DAIRY',
           productionStatus: 'MILKING',
           priorCalvings: 1,
         } as never),
@@ -431,7 +438,6 @@ describe('CattleService — RAKHAL-269 production status', () => {
         service.create('farm-1', 'user-1', {
           tagNumber: 'TAG-4',
           gender: 'FEMALE',
-          purpose: 'DAIRY',
           productionStatus: 'MILKING',
           lactationStartDate: '2026-08-01',
         } as never),
@@ -488,7 +494,6 @@ describe('CattleService — RAKHAL-269 production status', () => {
       const result = await service.create('farm-1', 'user-1', {
         tagNumber: 'TAG-5',
         gender: 'FEMALE',
-        purpose: 'DAIRY',
         productionStatus: 'MILKING',
         lactationStartDate: '2026-08-01',
         priorCalvings: 3,

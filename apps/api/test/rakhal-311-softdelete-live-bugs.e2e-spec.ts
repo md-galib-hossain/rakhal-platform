@@ -1,4 +1,4 @@
-import request from 'supertest';
+﻿import request from 'supertest';
 import * as argon2 from 'argon2';
 import { bearer, createTestApp, loginAs, TestContext } from './utils/e2e';
 import type { AuthedUser } from './utils/e2e';
@@ -65,7 +65,6 @@ describe('RAKHAL-311 — soft-delete live bugs (e2e)', () => {
         farmId: owner.farmId,
         tagNumber: tag('CASE'),
         gender: 'FEMALE',
-        purpose: 'MILK',
         createdBy: ownerUserId,
       },
     });
@@ -116,7 +115,6 @@ describe('RAKHAL-311 — soft-delete live bugs (e2e)', () => {
         farmId: owner.farmId,
         tagNumber: tag('PREG7D'),
         gender: 'FEMALE',
-        purpose: 'MILK',
         createdBy: ownerUserId,
       },
     });

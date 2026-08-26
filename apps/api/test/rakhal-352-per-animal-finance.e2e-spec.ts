@@ -1,4 +1,4 @@
-import request from 'supertest';
+﻿import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { SellAnimalUseCase } from '../src/modules/sales/application/use-cases/sell-animal/sell-animal.use-case';
 import {
@@ -52,7 +52,7 @@ describe('Cattle/Reproduction — per-animal finance agreement (e2e, RAKHAL-352)
     const res = await request(server())
       .post(api('/cattle'))
       .set(...bearer(owner))
-      .send({ tagNumber: tag(), gender: 'FEMALE', purpose: 'MILK' })
+      .send({ tagNumber: tag(), gender: 'FEMALE' })
       .expect(201);
     return res.body.data.id as string;
   }

@@ -1,4 +1,4 @@
-import request from 'supertest';
+﻿import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
@@ -55,7 +55,6 @@ describe('Feed Formulator — cow-driven requirements (e2e)', () => {
         farmId: owner.farmId,
         tagNumber: `E2E-REQ-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         gender: 'FEMALE',
-        purpose: 'MILK',
         createdBy: ownerUserId,
         lastWeightKg: overrides.lastWeightKg,
         lastBcs: overrides.lastBcs,

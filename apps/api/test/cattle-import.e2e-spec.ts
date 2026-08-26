@@ -1,4 +1,4 @@
-import { Workbook } from 'exceljs';
+﻿import { Workbook } from 'exceljs';
 import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
@@ -29,7 +29,6 @@ describe('Cattle — xlsx import real-state columns (e2e)', () => {
     'tag',
     'name',
     'gender',
-    'purpose',
     'production_status',
     'lactation_start_date',
     'estimated_days_in_milk',

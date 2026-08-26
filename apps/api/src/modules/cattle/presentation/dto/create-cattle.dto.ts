@@ -14,7 +14,6 @@ import {
 } from 'class-validator';
 import {
   CattleGender,
-  CattlePurpose,
   CattleSourceType,
   HerdStatus,
   ProductionStatus,
@@ -56,9 +55,6 @@ export class CreateCattleDto {
   @IsOptional()
   @IsDateString()
   dateOfBirth?: string;
-
-  @IsEnum(CattlePurpose)
-  purpose!: CattlePurpose;
 
   @IsOptional()
   @IsEnum(HerdStatus)

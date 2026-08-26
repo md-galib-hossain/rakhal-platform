@@ -1,4 +1,4 @@
-import request from 'supertest';
+﻿import request from 'supertest';
 import { Workbook } from 'exceljs';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { SYSTEM_ROLES } from 'src/modules/permission/domain/permission-catalogue';
@@ -480,8 +480,7 @@ describe('Onboarding (e2e)', () => {
           division: 'Dhaka',
           district: 'Gazipur',
           upazila: 'Sreepur',
-          operationalPurpose: 'Dairy',
-          herdSizeBand: '51-200',
+          operationalherdSizeBand: '51-200',
           cattleIdPrefix: 'gvd',
         })
         .expect(201);

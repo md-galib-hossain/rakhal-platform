@@ -1,4 +1,4 @@
-import request from 'supertest';
+﻿import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
@@ -59,7 +59,6 @@ describe('Lactation lifecycle hardening — dry-off/calving/lifecycle-exit/withd
         farmId: owner.farmId,
         tagNumber: uniqueTag(prefix),
         gender: 'FEMALE',
-        purpose: 'MILK',
         productionStatus: 'MILKING',
         createdBy: ownerUserId,
       },

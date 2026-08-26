@@ -13,7 +13,6 @@ import {
 } from 'class-validator';
 import {
   CattleGender,
-  CattlePurpose,
   CattleSourceType,
   HerdStatus,
   ProductionStatus,
@@ -49,10 +48,6 @@ export class UpdateCattleDto implements Partial<CreateCattleDto> {
   @IsOptional()
   @IsDateString()
   dateOfBirth?: string;
-
-  @IsOptional()
-  @IsEnum(CattlePurpose)
-  purpose?: CattlePurpose;
 
   @IsOptional()
   @IsEnum(HerdStatus)

@@ -8,7 +8,6 @@ import {
   CalfStarterEventType,
   Cattle,
   CattleGender,
-  CattlePurpose,
   HealthCaseStatus,
   Prisma,
   TaskCategory,
@@ -19,6 +18,7 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { TaskService } from 'src/modules/task/application/services/task.service';
+import { buildAnimalCategoryWhere } from 'src/modules/cattle/domain/animal-category';
 import {
   ageInDays,
   computeAdg,
@@ -112,7 +112,8 @@ export class CalfService {
     const now = new Date();
     const where: Prisma.CattleWhereInput = {
       ...activeHerd(farmId),
-      purpose: CattlePurpose.CALF,
+      calfWeaningRecord: null,
+      ...buildAnimalCategoryWhere('CALF', now),
       ...(query.stage ? { dateOfBirth: stageDobRange(query.stage, now) } : {}),
     };
 
@@ -348,33 +349,18 @@ export class CalfService {
           ageInDays(calf.dateOfBirth, weaningDate),
         )
       : null;
-    const newPurpose =
-      dto.newPurpose ??
-      (calf.gender === CattleGender.FEMALE
-        ? CattlePurpose.BREEDING
-        : CattlePurpose.MEAT);
 
-    const [record] = await this.prisma.$transaction([
-      this.prisma.calfWeaningRecord.create({
-        data: {
-          calfId: id,
-          weaningDate,
-          weaningWeightKg: dto.weaningWeightKg,
-          adgAtWeaning,
-          notes: dto.notes,
-        },
-      }),
-      // Move the animal out of Calf Management into the main herd (PRD §14.4).
-      // productionStatus is left unset (RAKHAL-269 dropped the GROWING value —
-      // production status is now Milking/Dry-only; animal category/lifecycle
-      // stage is derived elsewhere, see RAKHAL-270).
-      this.prisma.cattle.update({
-        where: { id },
-        data: { purpose: newPurpose },
-      }),
-    ]);
+    const record = await this.prisma.calfWeaningRecord.create({
+      data: {
+        calfId: id,
+        weaningDate,
+        weaningWeightKg: dto.weaningWeightKg,
+        adgAtWeaning,
+        notes: dto.notes,
+      },
+    });
 
-    this.log.info('Calf weaned', { calfId: id, farmId, newPurpose });
+    this.log.info('Calf weaned', { calfId: id, farmId });
     return {
       calfId: id,
       weaned: true,
@@ -382,7 +368,6 @@ export class CalfService {
       // productionStatus is no longer auto-set on weaning (RAKHAL-269 dropped
       // GROWING from ProductionStatus) — kept as `null` for API-shape parity.
       productionStatusUpdatedTo: null as string | null,
-      newPurpose,
       movedToCattleModule: true,
       removedFromCalfManagement: true,
       weaningRecord: record,
@@ -394,7 +379,8 @@ export class CalfService {
   private async dashboardKpis(farmId: string, now: Date) {
     const calfWhere: Prisma.CattleWhereInput = {
       ...activeHerd(farmId),
-      purpose: CattlePurpose.CALF,
+      calfWeaningRecord: null,
+      ...buildAnimalCategoryWhere('CALF', now),
     };
     const dayStart = new Date(now);
     dayStart.setHours(0, 0, 0, 0);
@@ -522,10 +508,16 @@ export class CalfService {
   }
 
   private async assertCalf(farmId: string, id: string) {
-    const calf = await this.getCattleOrThrow(farmId, id);
-    if (calf.purpose !== CattlePurpose.CALF) {
+    const calf = await this.prisma.cattle.findFirst({
+      where: { id, ...activeHerd(farmId) },
+      include: { calfWeaningRecord: true },
+    });
+    if (!calf) {
+      throw new NotFoundException('Calf not found');
+    }
+    if (calf.calfWeaningRecord) {
       throw new BadRequestException(
-        'Animal is not an active calf (it may have been weaned)',
+        'Animal is not an active calf (it has been weaned)',
       );
     }
     return calf;

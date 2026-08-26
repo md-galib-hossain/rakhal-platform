@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
   CattleGender,
-  CattlePurpose,
   HealthCaseStatus,
   HealthDiagnosisType,
   HealthTaskStatus,
@@ -237,7 +236,6 @@ export class DashboardService {
           farmId,
           herdStatus: 'ACTIVE',
           deletedAt: null,
-          purpose: { not: CattlePurpose.CALF },
         },
       }),
       this.prisma.reproductionProfile.groupBy({
@@ -289,7 +287,8 @@ export class DashboardService {
           farmId,
           herdStatus: 'ACTIVE',
           deletedAt: null,
-          purpose: CattlePurpose.CALF,
+          calfWeaningRecord: null,
+          ...buildAnimalCategoryWhere('CALF', now),
         },
         select: { dateOfBirth: true },
       }),
@@ -981,7 +980,8 @@ export class DashboardService {
           farmId,
           herdStatus: 'ACTIVE',
           deletedAt: null,
-          purpose: { in: [CattlePurpose.MILK, CattlePurpose.DUAL_PURPOSE] },
+          gender: CattleGender.FEMALE,
+          productionStatus: { not: ProductionStatus.DRY },
         },
         select: { id: true, name: true, tagNumber: true },
       }),

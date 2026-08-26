@@ -1,4 +1,4 @@
-import request from 'supertest';
+﻿import request from 'supertest';
 import { LactationStatus } from '@prisma/client';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { CattleService } from '../src/modules/cattle/application/services/cattle.service';
@@ -52,7 +52,6 @@ describe('Cattle — recordDisposition (e2e)', () => {
       .send({
         tagNumber: tag('CAT'),
         gender: 'FEMALE',
-        purpose: 'MILK',
       })
       .expect(201);
     return res.body.data.id as string;

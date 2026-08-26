@@ -1,4 +1,4 @@
-import request from 'supertest';
+﻿import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
@@ -114,7 +114,6 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
         farmId: owner.farmId,
         tagNumber: `E2E-KIND-${Date.now()}`,
         gender: 'FEMALE',
-        purpose: 'MILK',
         createdBy: ownerUserId,
         lastWeightKg: 425,
       },

@@ -1,4 +1,4 @@
-import request from 'supertest';
+﻿import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
@@ -63,7 +63,6 @@ describe('Feed Formulator — individual-cow distribution + efficiency (e2e)', (
         farmId: owner.farmId,
         tagNumber: `E2E-DIST-${Date.now()}`,
         gender: 'FEMALE',
-        purpose: 'MILK',
         createdBy: ownerUserId,
         lastWeightKg: 410,
       },
@@ -110,7 +109,6 @@ describe('Feed Formulator — individual-cow distribution + efficiency (e2e)', (
         farmId: owner.farmId,
         tagNumber: `E2E-EFF-${Date.now()}`,
         gender: 'FEMALE',
-        purpose: 'MILK',
         createdBy: ownerUserId,
         lastWeightKg: 400,
       },

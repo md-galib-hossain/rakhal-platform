@@ -1,4 +1,4 @@
-import request from 'supertest';
+﻿import request from 'supertest';
 import {
   FinancialAccountType,
   LactationStatus,
@@ -54,7 +54,7 @@ describe('Sales — SellAnimal use case (e2e, RAKHAL-345)', () => {
     const res = await request(server())
       .post(api('/cattle'))
       .set(...bearer(owner))
-      .send({ tagNumber: tag(), gender: 'FEMALE', purpose: 'MILK' })
+      .send({ tagNumber: tag(), gender: 'FEMALE' })
       .expect(201);
     return res.body.data.id as string;
   }
