@@ -11,11 +11,13 @@ import { ActivityModule } from 'src/modules/activity/activity.module';
 import { PurchaseService } from './application/purchase.service';
 import { ExpenseService } from './application/expense.service';
 import { PayableService } from './application/payable.service';
+import { SupplierReadService } from './application/supplier-read.service';
 import { PaySupplierUseCase } from './application/use-cases/pay-supplier/pay-supplier.use-case';
 import { PurchaseNumberAllocator } from './infrastructure/purchase-number.allocator';
 import { PurchaseController } from './presentation/controllers/purchase.controller';
 import { ExpenseController } from './presentation/controllers/expense.controller';
 import { PayableController } from './presentation/controllers/payable.controller';
+import { SupplierReadController } from './presentation/controllers/supplier-read.controller';
 
 /**
  * Purchasing module (RAKHAL-348, Phase 4-8 — Purchasing, `FINANCE_V2_DESIGN.md`
@@ -56,11 +58,17 @@ import { PayableController } from './presentation/controllers/payable.controller
     // (PurchaseService/ExpenseService/PaySupplierUseCase).
     ActivityModule,
   ],
-  controllers: [PurchaseController, ExpenseController, PayableController],
+  controllers: [
+    PurchaseController,
+    ExpenseController,
+    PayableController,
+    SupplierReadController,
+  ],
   providers: [
     PurchaseService,
     ExpenseService,
     PayableService,
+    SupplierReadService,
     PurchaseNumberAllocator,
     PaySupplierUseCase,
   ],

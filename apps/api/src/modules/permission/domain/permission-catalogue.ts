@@ -45,8 +45,13 @@ const RESOURCES: ResourceDef[] = [
     group: PermissionGroup.CATTLE,
     // RAKHAL-399: `dispose` is its own explicit permission (not folded into
     // `archive`) — disposing an animal (Sold/Culled/Deceased) is a distinct,
-    // higher-stakes action from a plain soft-delete archive.
-    actions: [...BASE, 'bcs', 'archive', 'bulk', 'dispose'],
+    // higher-stakes action from a plain soft-delete archive. RAKHAL-400:
+    // `hold` closes a pre-existing gap — `AnimalHoldController`'s 3 routes
+    // have required `cattle.hold` since RAKHAL-280, but it was never added
+    // here, so no role had a real catalogue entry for it (PermissionGuard's
+    // wildcard match still let Owner/Manager through in practice — this was
+    // a missing-catalogue-row gap, not a live-broken route).
+    actions: [...BASE, 'bcs', 'archive', 'bulk', 'dispose', 'hold'],
   },
   {
     resource: 'reproduction',

@@ -75,8 +75,15 @@ export class ListCattleQueryDto extends CursorPaginationQueryDto {
   @IsString()
   feedGroupId?: string;
 
+  /** RAKHAL-400: renamed from `includeArchived` — this flag only ever
+   * controlled whether soft-deleted rows (`deletedAt`) were included; it had
+   * nothing to do with `HerdStatus`/disposition, which `status` above already
+   * filters independently. The old name conflated the two, and the old
+   * behavior (when true, drop every other scope filter including the
+   * default `herdStatus=ACTIVE`) let a soft-deleted row leak into a
+   * status-filtered read. */
   @IsOptional()
   @Transform(toBoolean)
   @IsBoolean()
-  includeArchived = false;
+  includeDeleted = false;
 }

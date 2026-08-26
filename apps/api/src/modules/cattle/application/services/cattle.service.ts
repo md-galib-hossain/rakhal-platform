@@ -41,7 +41,7 @@ import {
 } from 'src/modules/media/application/services/media.service';
 import { MediaCategory, MediaUsage } from '@prisma/client';
 import { VWP_DEFAULT_DAYS } from '../../domain/cattle.constants';
-import { activeHerd } from '../../domain/herd-scope';
+import { activeHerd, anyRecord, notDeleted } from '../../domain/herd-scope';
 import {
   deriveHealthStatus,
   PREVENTIVE_DIAGNOSIS_TYPES,
@@ -51,6 +51,7 @@ import {
   deriveAnimalCategory,
   type AnimalCategoryGender,
 } from '../../domain/animal-category';
+import { deriveLifecycleSubStage } from '../../domain/lifecycle-bands';
 // RAKHAL-279: reuse the reproduction module's already-exported PURE domain
 // functions/types directly (deliberately not `ReproductionService` itself —
 // see the `composeStatus()` doc comment below for why). These files have no
@@ -453,8 +454,13 @@ export class CattleService {
   }
 
   async findAll(farmId: string, query: ListCattleQueryDto) {
+    // RAKHAL-400: `includeDeleted` and `status` are independent controls —
+    // the old `includeArchived` conflated them (true meant "drop every scope
+    // filter", which also silently dropped the default ACTIVE-only view and
+    // let a soft-deleted row leak into a status-filtered read).
     const where: Prisma.CattleWhereInput = {
-      ...(query.includeArchived ? { farmId } : activeHerd(farmId)),
+      ...(query.includeDeleted ? anyRecord(farmId) : notDeleted(farmId)),
+      herdStatus: query.status ?? HerdStatus.ACTIVE,
       ...(query.search
         ? {
             OR: [
@@ -466,7 +472,6 @@ export class CattleService {
         : {}),
       ...(query.breedId ? { breedId: query.breedId } : {}),
       ...(query.gender ? { gender: query.gender } : {}),
-      ...(query.status ? { herdStatus: query.status } : {}),
       ...(query.productionStatus
         ? { productionStatus: query.productionStatus }
         : {}),
@@ -803,9 +808,26 @@ export class CattleService {
       return this.findOne(farmId, id);
     }
 
+    // RAKHAL-400: real soft-delete is for duplicate/mistake records only — an
+    // animal with any real history (milk logs, health cases, breeding events)
+    // has a legitimate operational trail and must be dispositioned instead,
+    // never deleted (deleting it would silently orphan that history from the
+    // active-herd views' "not deleted" scope).
+    const [milkLogCount, healthCaseCount, breedingEventCount] =
+      await Promise.all([
+        this.prisma.milkLogEntry.count({ where: { cattleId: id } }),
+        this.prisma.healthCase.count({ where: { cattleId: id } }),
+        this.prisma.breedingEvent.count({ where: { cattleId: id } }),
+      ]);
+    if (milkLogCount > 0 || healthCaseCount > 0 || breedingEventCount > 0) {
+      throw new ConflictException(
+        'This animal has real history (milk logs, health cases, or breeding events) and cannot be deleted — dispose it instead.',
+      );
+    }
+
     const cattle = await this.prisma.cattle.update({
       where: { id },
-      data: { deletedAt: new Date() },
+      data: { deletedAt: new Date(), deletedById: userId },
       include: this.defaultInclude(),
     });
     this.log.info('Cattle archived', { cattleId: id, farmId });
@@ -1743,6 +1765,13 @@ export class CattleService {
       now,
     });
 
+    const lifecycleSubStage = deriveLifecycleSubStage({
+      gender: row.gender,
+      dateOfBirth: row.dateOfBirth,
+      totalCalvings: row.reproductionProfile?.totalCalvings ?? 0,
+      now,
+    });
+
     const reproductionState =
       row.reproductionProfile?.reproductiveStatus ?? null;
 
@@ -1827,6 +1856,7 @@ export class CattleService {
       healthStatus,
       dim,
       animalCategory,
+      lifecycleSubStage,
     };
   }
 

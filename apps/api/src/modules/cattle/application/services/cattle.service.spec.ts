@@ -77,6 +77,12 @@ describe('CattleService — RAKHAL-269 production status', () => {
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn(),
       },
+      // RAKHAL-400: archiveWithReason's real-history guard checks these three
+      // before a plain (non-disposition) delete — default to 0 (no history)
+      // so existing plain-archive tests keep passing unless a test overrides.
+      milkLogEntry: { count: jest.fn().mockResolvedValue(0) },
+      healthCase: { count: jest.fn().mockResolvedValue(0) },
+      breedingEvent: { count: jest.fn().mockResolvedValue(0) },
       // Both the array form (`$transaction([...])`) and the callback form
       // (`$transaction(async (tx) => ...)`) are used elsewhere in this
       // service — the mock `tx` is just `prisma` itself, since every mocked
@@ -388,7 +394,7 @@ describe('CattleService — RAKHAL-269 production status', () => {
       await service.findAll('farm-1', {
         limit: 20,
         sortOrder: 'desc',
-        includeArchived: false,
+        includeDeleted: false,
         animalCategory: 'HEIFER',
       } as never);
 

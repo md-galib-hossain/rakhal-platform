@@ -382,10 +382,13 @@ export class PurchaseService {
     return this.getOrThrow(this.prisma, farmId, id);
   }
 
-  async findAll(farmId: string): Promise<Purchase[]> {
+  async findAll(
+    farmId: string,
+  ): Promise<(Purchase & { _count: { lines: number } })[]> {
     return this.prisma.purchase.findMany({
       where: { farmId },
       orderBy: [{ purchaseDate: 'desc' }, { id: 'desc' }],
+      include: { _count: { select: { lines: true } } },
     });
   }
 
