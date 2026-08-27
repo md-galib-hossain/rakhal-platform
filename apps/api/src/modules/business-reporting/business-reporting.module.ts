@@ -8,10 +8,12 @@ import { FinanceV2AccountsModule } from 'src/modules/finance-v2/accounts/finance
 import { AgingService } from './application/aging.service';
 import { TransactionFeedService } from './application/transaction-feed.service';
 import { PeriodSummaryService } from './application/period-summary.service';
+import { SalesSummaryService } from './application/sales-summary.service';
 import { ReceivableAgingController } from './presentation/controllers/receivable-aging.controller';
 import { PayableAgingController } from './presentation/controllers/payable-aging.controller';
 import { TransactionController } from './presentation/controllers/transaction.controller';
 import { SummaryController } from './presentation/controllers/summary.controller';
+import { SalesSummaryController } from './presentation/controllers/sales-summary.controller';
 
 /**
  * `business-reporting` (RAKHAL-369, MILESTONE 22, `BUSINESS_IA_PRD.md` §9.3).
@@ -49,8 +51,19 @@ import { SummaryController } from './presentation/controllers/summary.controller
     PayableAgingController,
     TransactionController,
     SummaryController,
+    SalesSummaryController,
   ],
-  providers: [AgingService, TransactionFeedService, PeriodSummaryService],
-  exports: [AgingService, TransactionFeedService, PeriodSummaryService],
+  providers: [
+    AgingService,
+    TransactionFeedService,
+    PeriodSummaryService,
+    SalesSummaryService,
+  ],
+  exports: [
+    AgingService,
+    TransactionFeedService,
+    PeriodSummaryService,
+    SalesSummaryService,
+  ],
 })
 export class BusinessReportingModule {}
