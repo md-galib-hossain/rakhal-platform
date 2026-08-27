@@ -14,6 +14,7 @@ import {
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { gt, multiply, subtract, sum, toStorage } from 'src/common/money';
+import { CursorPage, getCursorArgs, toCursorPage } from 'src/common/pagination';
 import {
   JournalService,
   PostJournalLine,
@@ -24,13 +25,68 @@ import { MedicineService } from 'src/modules/inventory/application/services/medi
 import { FeedItemService } from 'src/modules/inventory/application/services/feed-item.service';
 import { EquipmentService } from 'src/modules/inventory/application/services/equipment.service';
 import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
+import { PayableStatus } from '../domain/payable-status';
 import { validatePurchaseLineDetailShape } from '../domain/purchase-line-shape';
 import { assertSupplierBelongsToFarm } from '../domain/assert-supplier-in-farm';
 import { derivePayableDueDate } from '../domain/due-date';
 import { PurchaseNumberAllocator } from '../infrastructure/purchase-number.allocator';
 import { CreatePurchaseDto } from '../presentation/dto/create-purchase.dto';
 import { CreatePurchaseLineDto } from '../presentation/dto/create-purchase-line.dto';
+import { ListPurchasesQueryDto } from '../presentation/dto/list-purchases-query.dto';
 import { PayableService } from './payable.service';
+
+/**
+ * SQL `where` fragment for `?paymentStatus=` on `GET /purchasing/purchases`
+ * (RAKHAL-375, same SQL-expressible technique `sale.service.ts`'s
+ * `buildPaymentStatusWhere` established for RAKHAL-368) — expressed against
+ * the `payable` relation, never page post-filtering. A `Purchase` with no
+ * `Payable` was paid in full at creation, same rule `Sale`/`Receivable`
+ * follows.
+ */
+function buildPurchasePaymentStatusWhere(
+  status: PayableStatus,
+): Prisma.PurchaseWhereInput {
+  const now = new Date();
+  const notOverdue: Prisma.PurchaseWhereInput = {
+    OR: [
+      { payable: { dueDate: null } },
+      { payable: { dueDate: { gte: now } } },
+    ],
+  };
+
+  switch (status) {
+    case PayableStatus.PAID:
+      return {
+        OR: [{ payable: null }, { payable: { closedAt: { not: null } } }],
+      };
+    case PayableStatus.UNPAID:
+      return {
+        AND: [
+          { payable: { isNot: null } },
+          { payable: { closedAt: null } },
+          { payable: { allocations: { none: {} } } },
+          notOverdue,
+        ],
+      };
+    case PayableStatus.PARTIALLY_PAID:
+      return {
+        AND: [
+          { payable: { isNot: null } },
+          { payable: { closedAt: null } },
+          { payable: { allocations: { some: {} } } },
+          notOverdue,
+        ],
+      };
+    case PayableStatus.OVERDUE:
+      return {
+        AND: [
+          { payable: { isNot: null } },
+          { payable: { closedAt: null } },
+          { payable: { dueDate: { lt: now } } },
+        ],
+      };
+  }
+}
 
 /** `LedgerAccount.code` for "Inventory" — seeded by RAKHAL-333's default
  * chart (`default-chart-of-accounts.ts`). Every farm has this row from
@@ -382,14 +438,41 @@ export class PurchaseService {
     return this.getOrThrow(this.prisma, farmId, id);
   }
 
+  /**
+   * `GET /purchasing/purchases` v2 (RAKHAL-375, MILESTONE 22 —
+   * `BUSINESS_IA_PRD.md` §5.13). Cursor-paginated + filtered, same
+   * SQL-expressible `paymentStatus` technique RAKHAL-368's `SaleService.
+   * findAll` established (`buildPurchasePaymentStatusWhere`, this file's
+   * own module-level function) — never page post-filtering.
+   */
   async findAll(
     farmId: string,
-  ): Promise<(Purchase & { _count: { lines: number } })[]> {
-    return this.prisma.purchase.findMany({
-      where: { farmId },
-      orderBy: [{ purchaseDate: 'desc' }, { id: 'desc' }],
+    query: ListPurchasesQueryDto,
+  ): Promise<CursorPage<Purchase & { _count: { lines: number } }>> {
+    const where: Prisma.PurchaseWhereInput = {
+      farmId,
+      ...(query.supplierId ? { supplierId: query.supplierId } : {}),
+      ...(query.from || query.to
+        ? {
+            purchaseDate: {
+              ...(query.from ? { gte: new Date(query.from) } : {}),
+              ...(query.to ? { lte: new Date(query.to) } : {}),
+            },
+          }
+        : {}),
+      ...(query.paymentStatus
+        ? buildPurchasePaymentStatusWhere(query.paymentStatus)
+        : {}),
+    };
+
+    const rows = await this.prisma.purchase.findMany({
+      where,
+      orderBy: [{ purchaseDate: query.sortOrder }, { id: query.sortOrder }],
+      ...getCursorArgs(query),
       include: { _count: { select: { lines: true } } },
     });
+
+    return toCursorPage(rows, query);
   }
 
   /** RAKHAL-365: `Payable.dueDate` defaults to `purchaseDate +

@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
@@ -9,6 +17,7 @@ import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { PurchaseService } from '../../application/purchase.service';
 import { CreatePurchaseDto } from '../dto/create-purchase.dto';
+import { ListPurchasesQueryDto } from '../dto/list-purchases-query.dto';
 
 /**
  * Purchasing module (RAKHAL-348, `FINANCE_V2_DESIGN.md` §5.1). Routes
@@ -48,8 +57,11 @@ export class PurchaseController {
 
   @Get()
   @RequirePermission('purchasing.read')
-  findAll(@CurrentFarmId() farmId: string) {
-    return this.purchases.findAll(farmId);
+  findAll(
+    @CurrentFarmId() farmId: string,
+    @Query() query: ListPurchasesQueryDto,
+  ) {
+    return this.purchases.findAll(farmId, query);
   }
 
   @Get(':id')

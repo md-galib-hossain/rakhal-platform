@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
@@ -9,6 +17,7 @@ import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { ExpenseService } from '../../application/expense.service';
 import { RecordExpenseDto } from '../dto/record-expense.dto';
+import { ListExpensesQueryDto } from '../dto/list-expenses-query.dto';
 
 /**
  * Purchasing module → Expenses (RAKHAL-348, `FINANCE_V2_DESIGN.md` §5.1).
@@ -40,8 +49,11 @@ export class ExpenseController {
 
   @Get()
   @RequirePermission('purchasing.read')
-  findAll(@CurrentFarmId() farmId: string) {
-    return this.expenses.findAll(farmId);
+  findAll(
+    @CurrentFarmId() farmId: string,
+    @Query() query: ListExpensesQueryDto,
+  ) {
+    return this.expenses.findAll(farmId, query);
   }
 
   @Get(':id')

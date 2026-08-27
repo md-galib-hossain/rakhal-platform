@@ -12,6 +12,7 @@ import {
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { toStorage } from 'src/common/money';
+import { CursorPage, getCursorArgs, toCursorPage } from 'src/common/pagination';
 import {
   JournalService,
   PostJournalLine,
@@ -20,9 +21,66 @@ import { LedgerAccountService } from 'src/modules/finance-v2/ledger/application/
 import { FinancialAccountService } from 'src/modules/finance-v2/accounts/application/financial-account.service';
 import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { RecordExpenseDto } from '../presentation/dto/record-expense.dto';
+import { ListExpensesQueryDto } from '../presentation/dto/list-expenses-query.dto';
 import { assertSupplierBelongsToFarm } from '../domain/assert-supplier-in-farm';
 import { derivePayableDueDate } from '../domain/due-date';
+import { PayableStatus } from '../domain/payable-status';
 import { PayableService } from './payable.service';
+
+/**
+ * SQL `where` fragment for `?paymentStatus=` on `GET /purchasing/expenses`
+ * (RAKHAL-375) — same shape as `purchase.service.ts`'s
+ * `buildPurchasePaymentStatusWhere`, against `Expense`'s own `payable`
+ * relation. Kept as a second, file-local copy rather than a shared helper —
+ * same "no premature abstraction across two structurally-similar-but-
+ * distinct Prisma models" judgment call `sale.service.ts`'s
+ * `deriveSalePaymentStatus` doc comment already documents for this exact
+ * situation.
+ */
+function buildExpensePaymentStatusWhere(
+  status: PayableStatus,
+): Prisma.ExpenseWhereInput {
+  const now = new Date();
+  const notOverdue: Prisma.ExpenseWhereInput = {
+    OR: [
+      { payable: { dueDate: null } },
+      { payable: { dueDate: { gte: now } } },
+    ],
+  };
+
+  switch (status) {
+    case PayableStatus.PAID:
+      return {
+        OR: [{ payable: null }, { payable: { closedAt: { not: null } } }],
+      };
+    case PayableStatus.UNPAID:
+      return {
+        AND: [
+          { payable: { isNot: null } },
+          { payable: { closedAt: null } },
+          { payable: { allocations: { none: {} } } },
+          notOverdue,
+        ],
+      };
+    case PayableStatus.PARTIALLY_PAID:
+      return {
+        AND: [
+          { payable: { isNot: null } },
+          { payable: { closedAt: null } },
+          { payable: { allocations: { some: {} } } },
+          notOverdue,
+        ],
+      };
+    case PayableStatus.OVERDUE:
+      return {
+        AND: [
+          { payable: { isNot: null } },
+          { payable: { closedAt: null } },
+          { payable: { dueDate: { lt: now } } },
+        ],
+      };
+  }
+}
 
 /** `LedgerAccount.code` for "Accounts Payable" — seeded by RAKHAL-333's
  * default chart. */
@@ -239,11 +297,39 @@ export class ExpenseService {
     return expense;
   }
 
-  async findAll(farmId: string): Promise<Expense[]> {
-    return this.prisma.expense.findMany({
-      where: { farmId },
-      orderBy: [{ expenseDate: 'desc' }, { id: 'desc' }],
+  /**
+   * `GET /purchasing/expenses` v2 (RAKHAL-375, MILESTONE 22 —
+   * `BUSINESS_IA_PRD.md` §5.13). Cursor-paginated + filtered, mirrors
+   * `PurchaseService.findAll`'s own shape exactly.
+   */
+  async findAll(
+    farmId: string,
+    query: ListExpensesQueryDto,
+  ): Promise<CursorPage<Expense>> {
+    const where: Prisma.ExpenseWhereInput = {
+      farmId,
+      ...(query.supplierId ? { supplierId: query.supplierId } : {}),
+      ...(query.category ? { category: query.category } : {}),
+      ...(query.from || query.to
+        ? {
+            expenseDate: {
+              ...(query.from ? { gte: new Date(query.from) } : {}),
+              ...(query.to ? { lte: new Date(query.to) } : {}),
+            },
+          }
+        : {}),
+      ...(query.paymentStatus
+        ? buildExpensePaymentStatusWhere(query.paymentStatus)
+        : {}),
+    };
+
+    const rows = await this.prisma.expense.findMany({
+      where,
+      orderBy: [{ expenseDate: query.sortOrder }, { id: query.sortOrder }],
+      ...getCursorArgs(query),
     });
+
+    return toCursorPage(rows, query);
   }
 
   /**
