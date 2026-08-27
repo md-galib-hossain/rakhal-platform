@@ -37,12 +37,14 @@ import {
 import { buildCattleColumns } from "./cattle-columns";
 import { CattleGrid } from "./cattle-grid";
 import { CattleFormDialog } from "./cattle-form-dialog";
-import { CattleArchiveDialog } from "./cattle-archive-dialog";
+import { CattleDisposeDialog } from "./cattle-dispose-dialog";
+import { CattleDeleteDialog } from "./cattle-delete-dialog";
 import { CattleDetailSheet } from "./detail/cattle-detail-sheet";
 import type {
   AnimalCategory,
   CattleListFilters,
   CattleListItem,
+  CattleStatus,
   HealthStatusFilter,
   ProductionStatus,
   ReproductiveStatus,
@@ -62,7 +64,8 @@ export function CattleTable() {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [editingId, setEditingId] = useState<string | undefined>(undefined);
   const [formOpen, setFormOpen] = useState(false);
-  const [archiveTarget, setArchiveTarget] = useState<CattleListItem | null>(null);
+  const [disposeTarget, setDisposeTarget] = useState<CattleListItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CattleListItem | null>(null);
   const [shedDialogOpen, setShedDialogOpen] = useState(false);
   const [feedGroupDialogOpen, setFeedGroupDialogOpen] = useState(false);
   const [shedId, setShedId] = useState<string | undefined>(undefined);
@@ -89,6 +92,7 @@ export function CattleTable() {
     healthStatus: (searchParams.get("healthStatus") as HealthStatusFilter | null) ?? undefined,
     reproductiveStatus: (searchParams.get("reproductiveStatus") as ReproductiveStatus | null) ?? undefined,
     animalCategory: (searchParams.get("animalCategory") as AnimalCategory | null) ?? undefined,
+    status: (searchParams.get("herdStatus") as CattleStatus | null) ?? undefined,
   };
 
   const query = useCattlePagedList(filters);
@@ -107,7 +111,8 @@ export function CattleTable() {
           setEditingId(cattle.id);
           setFormOpen(true);
         },
-        onArchive: setArchiveTarget,
+        onDispose: setDisposeTarget,
+        onDelete: setDeleteTarget,
       }),
     [t, setViewId],
   );
@@ -216,7 +221,8 @@ export function CattleTable() {
               setEditingId(cattle.id);
               setFormOpen(true);
             },
-                onArchive: setArchiveTarget,
+                onDispose: setDisposeTarget,
+                onDelete: setDeleteTarget,
           }}
           canSelect={canBulk}
           isSelected={gridSelection.isSelected}
@@ -256,10 +262,15 @@ export function CattleTable() {
         cattle={editingDetail.data}
         loading={Boolean(editingId) && !editingDetail.data}
       />
-      <CattleArchiveDialog
-        open={archiveTarget !== null}
-        onOpenChange={(open) => !open && setArchiveTarget(null)}
-        cattle={archiveTarget}
+      <CattleDisposeDialog
+        open={disposeTarget !== null}
+        onOpenChange={(open) => !open && setDisposeTarget(null)}
+        cattle={disposeTarget}
+      />
+      <CattleDeleteDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        cattle={deleteTarget}
       />
 
       <Dialog open={shedDialogOpen} onOpenChange={setShedDialogOpen}>

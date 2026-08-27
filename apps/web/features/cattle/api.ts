@@ -22,7 +22,8 @@ import type {
   WeightRecordResult,
 } from "./types";
 import type {
-  CattleArchiveInput,
+  CattleDeleteInput,
+  CattleDisposeInput,
   CattleStatusInput,
   CreateAnimalHoldInput,
   PurchasedLactationInput,
@@ -56,6 +57,8 @@ export const cattleApi = {
         healthStatus: filters.healthStatus,
         reproductiveStatus: filters.reproductiveStatus,
         animalCategory: filters.animalCategory,
+        status: filters.status,
+        lifecycleSubStage: filters.lifecycleSubStage,
         cursor,
         limit,
       },
@@ -113,9 +116,19 @@ export const cattleApi = {
       body: dto,
     });
   },
-  /** `DELETE /cattle/:id` — soft-archive with an optional reason (sold/deceased/archived). */
-  archive(id: string, dto: CattleArchiveInput): Promise<CattleDetail> {
-    return apiFetch<CattleDetail>(`/cattle/${id}`, { method: "DELETE", body: dto });
+  /** RAKHAL-402 — real soft-delete only (`DELETE /cattle/:id`). Sends `reason: "archived"`, the
+   * only value that still routes to `archiveWithReason()`'s plain-archive branch; the backend
+   * refuses (409) when the animal has real history (milk logs/health cases/breeding events). */
+  deleteCattle(id: string, dto: CattleDeleteInput): Promise<CattleDetail> {
+    return apiFetch<CattleDetail>(`/cattle/${id}`, {
+      method: "DELETE",
+      body: { reason: "archived", notes: dto.notes },
+    });
+  },
+  /** `POST /cattle/:id/dispose` (RAKHAL-399/402) — Cull/Death. Sold goes through
+   * `features/sales`'s `RecordSaleTrigger`/`RecordSaleDialog` instead. */
+  dispose(id: string, dto: CattleDisposeInput): Promise<CattleDetail> {
+    return apiFetch<CattleDetail>(`/cattle/${id}/dispose`, { method: "POST", body: dto });
   },
   restore(id: string): Promise<CattleDetail> {
     return apiFetch<CattleDetail>(`/cattle/${id}/restore`, { method: "PATCH" });

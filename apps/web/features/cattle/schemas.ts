@@ -111,13 +111,25 @@ export const cattleEditFormSchema = cattleFormSchema.extend({
 });
 export type CattleEditFormInput = z.infer<typeof cattleEditFormSchema>;
 
-/** Mirrors `ArchiveCattleDto` (`DELETE /cattle/:id`) — `sold`/`deceased`/`culled` keep production
- * status distinct (CAT-09), `archived` is a plain archive. */
-export const cattleArchiveSchema = z.object({
-  reason: z.enum(["sold", "deceased", "culled", "archived"]),
+/** RAKHAL-402 — real soft-delete only (`DELETE /cattle/:id`, backend refuses with a real-history
+ * `ConflictException` for any animal with milk logs/health cases/breeding events). Split out from
+ * the old combined `cattleArchiveSchema`/`CattleArchiveDialog` — Sold/Culled/Deceased are now a
+ * disposition (`cattleDisposeSchema` below), not a delete reason. Sent as `reason: "archived"`
+ * (still the only value `ArchiveCattleDto` accepts for a plain delete) — see `api.ts#deleteCattle`. */
+export const cattleDeleteSchema = z.object({
   notes: z.string().trim().optional(),
 });
-export type CattleArchiveInput = z.infer<typeof cattleArchiveSchema>;
+export type CattleDeleteInput = z.infer<typeof cattleDeleteSchema>;
+
+/** Mirrors `DisposeCattleDto` (`POST /cattle/:id/dispose`, RAKHAL-399/402) — Cull/Death only. Sold
+ * goes through the existing `RecordSaleTrigger`/`RecordSaleDialog` (`features/sales`) instead,
+ * since a sale needs a price/buyer/payment this plain disposition record doesn't carry. */
+export const cattleDisposeSchema = z.object({
+  type: z.enum(["CULL", "DEATH"]),
+  date: z.string().min(1),
+  reason: z.string().trim().optional(),
+});
+export type CattleDisposeInput = z.infer<typeof cattleDisposeSchema>;
 
 /** Mirrors `CreateAnimalHoldDto` (`POST /cattle/:cattleId/holds`, RAKHAL-280). */
 export const createAnimalHoldSchema = z.object({

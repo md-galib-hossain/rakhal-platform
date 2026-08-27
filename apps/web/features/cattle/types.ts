@@ -87,6 +87,16 @@ export interface FeedGroup {
   name: string;
 }
 
+/** RAKHAL-401 — derived lifecycle sub-stage nested under `animalCategory` (HEIFER/BULL only;
+ * null for CALF/COW/STEER or an unset `dateOfBirth`). */
+export type LifecycleSubStage =
+  | "WEANED_HEIFER"
+  | "GROWING_HEIFER"
+  | "BREEDING_HEIFER"
+  | "WEANER_BULL"
+  | "GROWING_BULL"
+  | "MATURE_BULL";
+
 export interface CattleListItem {
   id: string;
   name: string | null;
@@ -94,6 +104,12 @@ export interface CattleListItem {
   gender: CattleGender;
   dateOfBirth: string | null;
   status: CattleStatus;
+  /** RAKHAL-400 — `deletedAt`/soft-delete is a separate dimension from `status`/`HerdStatus`
+   * (disposition): a SOLD/CULLED/DECEASED animal has left the active herd but keeps its real
+   * history; `deletedAt` set means the *record itself* was removed (duplicate/mistake). Only a
+   * `deletedAt`-set row is restorable — `restore()` clears `deletedAt` only, it never resets
+   * `status` back to ACTIVE. */
+  deletedAt: string | null;
   /** Nullable since RAKHAL-269 v2: immature/never-milked animals (and dry-period animals before
    * their first freshening) carry no production state. */
   productionStatus: ProductionStatus | null;
@@ -112,6 +128,8 @@ export interface CattleListItem {
   /** RAKHAL-270/272/273 — see the type doc comments above. All 4 are composed on both the list
    * and detail rows (`composeStatus()` spreads them unconditionally, not detail-only). */
   animalCategory: AnimalCategory;
+  /** RAKHAL-401 — see `LifecycleSubStage` doc comment above. */
+  lifecycleSubStage: LifecycleSubStage | null;
   reproductionAlerts: ReproductionAlert[];
   lactationStage: LactationStage | null;
   pregnancyStage: PregnancyStage | null;
@@ -141,6 +159,11 @@ export interface CattleListFilters {
   /** RAKHAL-289 — real derived-category filter now supported server-side
    * (`ListCattleQueryDto.animalCategory`, `list-cattle-query.dto.ts`). */
   animalCategory?: AnimalCategory;
+  /** RAKHAL-402 — herd status filter (`ListCattleQueryDto.status`). Defaults to ACTIVE
+   * server-side when omitted, same as before this filter existed. */
+  status?: CattleStatus;
+  /** RAKHAL-401 — lifecycle sub-stage filter (`ListCattleQueryDto.lifecycleSubStage`). */
+  lifecycleSubStage?: LifecycleSubStage;
 }
 
 export const BULK_ACTIONS = ["change_shed", "change_feed_group", "mark_sold", "export"] as const;
@@ -186,7 +209,6 @@ export interface CattleDetail extends CattleListItem {
   fatherId: string | null;
   sourceType: CattleSourceType | null;
   status: CattleStatus;
-  isActive: boolean;
 }
 
 /** `POST/PATCH /cattle(/:id)` body — mirrors `CreateCattleDto`/`UpdateCattleDto`. */

@@ -153,7 +153,8 @@ export function buildCattleColumns(
   rowActions: {
     onView: (cattle: CattleListItem) => void;
     onEdit: (cattle: CattleListItem) => void;
-    onArchive: (cattle: CattleListItem) => void;
+    onDispose: (cattle: CattleListItem) => void;
+    onDelete: (cattle: CattleListItem) => void;
   },
 ): ColumnDef<CattleListItem, unknown>[] {
   return [
@@ -281,7 +282,8 @@ export function buildCattleColumns(
             cattle={row.original}
             onView={rowActions.onView}
             onEdit={rowActions.onEdit}
-            onArchive={rowActions.onArchive}
+            onDispose={rowActions.onDispose}
+            onDelete={rowActions.onDelete}
           />
         </div>
       ),

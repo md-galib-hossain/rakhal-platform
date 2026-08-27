@@ -49,6 +49,19 @@ export function CattleFilters({ actions }: { actions?: React.ReactNode }) {
           ],
         },
         {
+          // RAKHAL-402 — herd status filter (`ListCattleQueryDto.status`). URL key `herdStatus`
+          // rather than `status` to avoid clashing with the shared `FilterBar`'s existing
+          // `productionStatus`-labeled "Status" select above, which this dropdown sits next to.
+          key: "herdStatus",
+          label: t("herdStatus"),
+          options: [
+            { value: "ACTIVE", label: t("herdStatusOptions.active") },
+            { value: "SOLD", label: t("herdStatusOptions.sold") },
+            { value: "CULLED", label: t("herdStatusOptions.culled") },
+            { value: "DECEASED", label: t("herdStatusOptions.deceased") },
+          ],
+        },
+        {
           key: "healthStatus",
           label: t("health"),
           options: [

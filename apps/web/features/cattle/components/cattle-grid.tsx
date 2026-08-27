@@ -83,7 +83,8 @@ function CattleCard({
   rowActions: {
     onView: (cattle: CattleListItem) => void;
     onEdit: (cattle: CattleListItem) => void;
-    onArchive: (cattle: CattleListItem) => void;
+    onDispose: (cattle: CattleListItem) => void;
+    onDelete: (cattle: CattleListItem) => void;
   };
 }) {
   const t = useTranslations("cattle");
@@ -114,7 +115,8 @@ function CattleCard({
             cattle={cattle}
             onView={rowActions.onView}
             onEdit={rowActions.onEdit}
-            onArchive={rowActions.onArchive}
+            onDispose={rowActions.onDispose}
+            onDelete={rowActions.onDelete}
           />
         </div>
 
@@ -231,7 +233,8 @@ export function CattleGrid({
   rowActions: {
     onView: (cattle: CattleListItem) => void;
     onEdit: (cattle: CattleListItem) => void;
-    onArchive: (cattle: CattleListItem) => void;
+    onDispose: (cattle: CattleListItem) => void;
+    onDelete: (cattle: CattleListItem) => void;
   };
   canSelect: boolean;
   isSelected: (id: string) => boolean;

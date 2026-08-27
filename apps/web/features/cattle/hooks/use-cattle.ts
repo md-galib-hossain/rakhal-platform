@@ -7,7 +7,8 @@ import { settingsApi } from "@/features/settings/api";
 import { cattleApi } from "../api";
 import type { BulkAction, CattleFormPayload, CattleListFilters } from "../types";
 import type {
-  CattleArchiveInput,
+  CattleDeleteInput,
+  CattleDisposeInput,
   CattleStatusInput,
   CreateAnimalHoldInput,
   PurchasedLactationInput,
@@ -174,10 +175,18 @@ export function useCreatePurchasedLactation() {
   });
 }
 
-export function useArchiveCattle() {
+export function useDeleteCattle() {
   const invalidate = useInvalidateCattle();
   return useMutation({
-    mutationFn: ({ id, dto }: { id: string; dto: CattleArchiveInput }) => cattleApi.archive(id, dto),
+    mutationFn: ({ id, dto }: { id: string; dto: CattleDeleteInput }) => cattleApi.deleteCattle(id, dto),
+    onSuccess: (_data, { id }) => invalidate(id),
+  });
+}
+
+export function useDisposeCattle() {
+  const invalidate = useInvalidateCattle();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: CattleDisposeInput }) => cattleApi.dispose(id, dto),
     onSuccess: (_data, { id }) => invalidate(id),
   });
 }

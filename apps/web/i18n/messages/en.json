@@ -711,9 +711,16 @@
       "feedGroup": "Feed Group",
       "animalCategory": "Category",
       "stage": "Calf Stage",
+      "herdStatus": "Herd Status",
       "statusOptions": {
         "milking": "Milking",
         "dry": "Dry"
+      },
+      "herdStatusOptions": {
+        "active": "Active",
+        "sold": "Sold",
+        "culled": "Culled",
+        "deceased": "Deceased"
       },
       "healthOptions": {
         "healthy": "Healthy",
@@ -901,29 +908,39 @@
       "updatedToast": "Status updated.",
       "genericError": "Something went wrong. Please try again."
     },
-    "archiveDialog": {
+    "disposeDialog": {
       "title": "Dispose Animal — {name}",
-      "description": "This removes the animal from the active herd. Choose the reason that fits.",
-      "reason": "Reason",
-      "reasonOptions": {
-        "sold": "Sold",
-        "deceased": "Deceased",
-        "culled": "Culled",
-        "archived": "Archived (other)"
+      "description": "This removes the animal from the active herd. Sold animals go through the Sell flow instead — this covers Culled or Deceased.",
+      "type": "Type",
+      "typeOptions": {
+        "CULL": "Culled",
+        "DEATH": "Deceased"
       },
-      "notes": "Note (optional)",
-      "notesPlaceholder": "e.g. buyer name, price, cause",
+      "date": "Date",
+      "reason": "Reason (optional)",
+      "reasonPlaceholder": "e.g. cause, notes",
       "cancel": "Cancel",
       "confirm": "Dispose Animal",
-      "archivedToast": "Animal disposed.",
+      "disposedToast": "Animal disposed.",
       "genericError": "Something went wrong. Please try again.",
       "closesLactationWarning": "This cow's active lactation will be closed."
+    },
+    "deleteDialog": {
+      "title": "Delete Record — {name}",
+      "description": "For a duplicate or mistaken entry only. An animal with real history (milk logs, health cases, breeding events) can't be deleted — dispose it instead.",
+      "notes": "Note (optional)",
+      "notesPlaceholder": "Why this record is being deleted",
+      "cancel": "Cancel",
+      "confirm": "Delete",
+      "deletedToast": "Record deleted.",
+      "genericError": "Something went wrong. Please try again."
     },
     "actions": {
       "menu": "Row actions",
       "viewDetails": "View Details",
       "edit": "Edit",
-      "archive": "Dispose Animal",
+      "dispose": "Dispose Animal",
+      "delete": "Delete",
       "restore": "Restore",
       "restoredToast": "Cattle restored.",
       "genericError": "Something went wrong. Please try again."
