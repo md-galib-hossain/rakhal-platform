@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { MilkService } from 'src/modules/milk/application/services/milk.service';
 import {
   AnimalType,
@@ -84,7 +85,7 @@ export class FeedRequirementsService {
     query: FeedRequirementsQueryDto,
   ) {
     const cattle = await this.prisma.cattle.findFirst({
-      where: { id: cattleId, farmId, herdStatus: 'ACTIVE', deletedAt: null },
+      where: { id: cattleId, ...activeHerd(farmId) },
       select: {
         id: true,
         lastWeightKg: true,
@@ -162,7 +163,7 @@ export class FeedRequirementsService {
     if (!group) throw new NotFoundException('Feed group not found');
 
     const cattle = await this.prisma.cattle.findMany({
-      where: { farmId, feedGroupId, herdStatus: 'ACTIVE', deletedAt: null },
+      where: { ...activeHerd(farmId), feedGroupId },
       select: { id: true, lastWeightKg: true, lastBcs: true },
     });
     const headcount = cattle.length;
@@ -264,15 +265,13 @@ export class FeedRequirementsService {
         this.prisma.cattle.groupBy({
           by: ['feedGroupId'],
           where: {
-            farmId,
-            herdStatus: 'ACTIVE',
-            deletedAt: null,
+            ...activeHerd(farmId),
             feedGroupId: { in: groupIds },
           },
           _count: { _all: true },
         }),
         this.prisma.cattle.count({
-          where: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
+          where: activeHerd(farmId),
         }),
         this.prisma.feedGroup.findMany({
           where: { farmId, id: { in: groupIds } },

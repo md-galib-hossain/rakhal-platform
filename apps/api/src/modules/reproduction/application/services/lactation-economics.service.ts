@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import {
   allocateGroupFeedCost,
   computeDiscardedWithheldValue,
@@ -198,7 +199,7 @@ export class LactationEconomicsService {
       distributions.some((d) => d.feedGroupId === feedGroupId)
     ) {
       groupHeadcount = await this.prisma.cattle.count({
-        where: { farmId, feedGroupId, herdStatus: 'ACTIVE', deletedAt: null },
+        where: { ...activeHerd(farmId), feedGroupId },
       });
     }
 

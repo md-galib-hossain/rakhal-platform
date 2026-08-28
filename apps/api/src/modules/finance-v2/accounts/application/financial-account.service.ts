@@ -49,13 +49,22 @@ const OPENING_BALANCE_EQUITY_CODE = '3000';
  * were bumped forward by the one-off `prisma/fix-custom-ledger-code-counters.ts` script so
  * their *next* allocation lands at `9000`, not `2000` — already-created `LedgerAccount` rows
  * in 1300-1999 are left as-is, they don't collide with anything.
+ *
+ * **`_MAX` widened 9999 → 9999999 (no ticket #, 2026-08-28):** the counter only ever
+ * increments, it is never reclaimed when a `FinancialAccount` row is deleted — so on a
+ * long-lived shared dev DB, months of e2e runs each burning a code (most never cleaned up
+ * by their spec's `afterAll`) walked the demo farm's counter to exactly `9999`, 409ing
+ * every subsequent `POST /finance/accounts`. A cleanup script deleting the orphaned rows
+ * does not fix this — the counter doesn't look at existing rows, so deleting them can't
+ * free codes back up. Widening the ceiling is the only real fix; the new range is ~10,000x
+ * the old one, which should outlast any realistic leak rate for years.
  */
 const CUSTOM_LEDGER_CODE_START = 9000;
 
 /** Upper bound of the dedicated custom-account code range. Exceeding it throws
  * (`nextCustomLedgerCode` below) rather than silently colliding with whatever code comes
  * next — see the doc comment on `CUSTOM_LEDGER_CODE_START`. */
-const CUSTOM_LEDGER_CODE_MAX = 9999;
+const CUSTOM_LEDGER_CODE_MAX = 9999999;
 
 const DETAIL_INCLUDE = { bankDetail: true, mfsDetail: true } as const;
 

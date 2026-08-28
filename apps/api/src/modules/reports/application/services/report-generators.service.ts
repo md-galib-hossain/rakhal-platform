@@ -12,6 +12,7 @@ import {
   ReproductionState,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
+import { activeHerd as activeHerdScope } from 'src/modules/cattle/domain/herd-scope';
 import { ledgerCategoryNet } from 'src/common/finance/txn-filters';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import {
@@ -131,7 +132,7 @@ export class ReportGeneratorsService {
 
     const shedWhere = params.shedId ? { shedId: params.shedId } : {};
     const cattle = await this.prisma.cattle.findMany({
-      where: { farmId, herdStatus: 'ACTIVE', deletedAt: null, ...shedWhere },
+      where: { ...activeHerdScope(farmId), ...shedWhere },
       select: {
         id: true,
         name: true,
@@ -375,7 +376,7 @@ export class ReportGeneratorsService {
     const profiles = await this.prisma.reproductionProfile.findMany({
       where: {
         reproductiveStatus: ReproductionState.OPEN,
-        cattle: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
+        cattle: activeHerdScope(farmId),
       },
       select: {
         lastCalvingDate: true,
@@ -767,7 +768,7 @@ export class ReportGeneratorsService {
           },
         }),
         this.prisma.cattle.count({
-          where: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
+          where: activeHerdScope(farmId),
         }),
         this.herdPurchaseValue(),
       ]);
@@ -857,7 +858,7 @@ export class ReportGeneratorsService {
       this.litresTotal(farmId, start, end),
       this.expenseTotal(farmId, start, end),
       this.prisma.cattle.count({
-        where: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
+        where: activeHerdScope(farmId),
       }),
     ]);
 
@@ -940,7 +941,7 @@ export class ReportGeneratorsService {
     // in-period still counts even if since archived/sold.
     const [activeHerd, additions, removals, openCows] = await Promise.all([
       this.prisma.cattle.count({
-        where: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
+        where: activeHerdScope(farmId),
       }),
       this.prisma.cattle.count({
         where: { farmId, createdAt: { gte: start, lt: end } },
@@ -954,7 +955,7 @@ export class ReportGeneratorsService {
       }),
       this.prisma.reproductionProfile.count({
         where: {
-          cattle: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
+          cattle: activeHerdScope(farmId),
           reproductiveStatus: ReproductionState.OPEN,
         },
       }),
@@ -1125,9 +1126,7 @@ export class ReportGeneratorsService {
   ): Promise<ReportData> {
     const cattle = await this.prisma.cattle.findMany({
       where: {
-        farmId,
-        herdStatus: 'ACTIVE',
-        deletedAt: null,
+        ...activeHerdScope(farmId),
         ...(params.shedId ? { shedId: params.shedId } : {}),
         ...(params.status ? { status: params.status as HerdStatus } : {}),
         ...(params.search
@@ -1911,7 +1910,7 @@ export class ReportGeneratorsService {
     const activeLactations = await this.prisma.lactation.findMany({
       where: {
         status: LactationStatus.ACTIVE,
-        cattle: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
+        cattle: activeHerdScope(farmId),
       },
       select: {
         cattleId: true,

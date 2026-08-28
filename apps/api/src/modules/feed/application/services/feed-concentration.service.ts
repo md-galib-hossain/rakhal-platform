@@ -12,6 +12,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import {
   EffectiveIngredient,
   resolveEffective,
@@ -885,7 +886,7 @@ export class FeedConcentrationService {
     }
     if (cattleId) {
       const cattle = await this.prisma.cattle.findFirst({
-        where: { id: cattleId, farmId, herdStatus: 'ACTIVE', deletedAt: null },
+        where: { id: cattleId, ...activeHerd(farmId) },
         select: { id: true },
       });
       if (!cattle)

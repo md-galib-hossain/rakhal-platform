@@ -7,6 +7,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { resolveEffective } from '../../domain/ingredient-resolver';
 import { LogDistributionDto } from '../../presentation/dto/log-distribution.dto';
 import { PatchRefusalDto } from '../../presentation/dto/patch-refusal.dto';
@@ -466,9 +467,7 @@ export class FeedDistributionService {
       const cattle = await this.prisma.cattle.findFirst({
         where: {
           id: query.cattleId,
-          farmId,
-          herdStatus: 'ACTIVE',
-          deletedAt: null,
+          ...activeHerd(farmId),
         },
         select: { id: true, tagNumber: true, name: true },
       });
@@ -520,10 +519,8 @@ export class FeedDistributionService {
       }),
       this.prisma.cattle.findMany({
         where: {
-          farmId,
+          ...activeHerd(farmId),
           feedGroupId: group.id,
-          herdStatus: 'ACTIVE',
-          deletedAt: null,
         },
         select: { id: true },
       }),
@@ -606,7 +603,7 @@ export class FeedDistributionService {
           include: { items: true },
         }),
         this.prisma.cattle.count({
-          where: { farmId, feedGroupId, herdStatus: 'ACTIVE', deletedAt: null },
+          where: { ...activeHerd(farmId), feedGroupId },
         }),
       ]);
       headcount = Math.max(1, headcount);
@@ -623,7 +620,7 @@ export class FeedDistributionService {
           include: { items: true },
         }),
         this.prisma.cattle.count({
-          where: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
+          where: activeHerd(farmId),
         }),
       ]);
       headcount = Math.max(1, headcount);
@@ -683,7 +680,7 @@ export class FeedDistributionService {
         _sum: { yieldL: true },
       }),
       this.prisma.cattle.count({
-        where: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
+        where: activeHerd(farmId),
       }),
     ]);
 

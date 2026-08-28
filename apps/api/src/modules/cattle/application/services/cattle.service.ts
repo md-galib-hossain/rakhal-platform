@@ -1214,6 +1214,53 @@ export class CattleService {
         }
         return this.bulkResult(action, targetIds.length, cattleIds.length);
       }
+      case 'dispose': {
+        // Generalizes the `mark_sold` case above to all 3 user-facing exit
+        // types (RAKHAL-399's `recordDispositionWithClient`, one transaction
+        // covering the whole selection) — the bulk dock's "Dispose" button
+        // now picks the type instead of always sending SALE.
+        if (!payload?.type) {
+          throw new BadRequestException('type is required for dispose');
+        }
+        const disposeType = payload.type as CattleDispositionType;
+        const activeScope = {
+          ...scope,
+          ...activeHerd(farmId),
+        };
+        const targets = await this.prisma.cattle.findMany({
+          where: activeScope,
+          select: { id: true },
+        });
+        const targetIds = targets.map((t) => t.id);
+        if (targetIds.length === 0) {
+          return this.bulkResult(action, 0, cattleIds.length);
+        }
+
+        await this.prisma.$transaction(async (tx) => {
+          for (const cattleId of targetIds) {
+            await this.recordDispositionWithClient(
+              tx,
+              farmId,
+              userId,
+              cattleId,
+              {
+                type: disposeType,
+                date: payload.date ? new Date(payload.date) : new Date(),
+                reason: payload.reason,
+              },
+            );
+          }
+        });
+        for (const cattleId of targetIds) {
+          await this.cleanupOnDisposition(
+            farmId,
+            cattleId,
+            userId,
+            disposeType,
+          );
+        }
+        return this.bulkResult(action, targetIds.length, cattleIds.length);
+      }
       case 'export': {
         // No `deletedAt` filter here (RAKHAL-310): export operates on the
         // caller's explicit `cattleIds` selection, which may deliberately

@@ -322,8 +322,8 @@ describe('FinancialAccountService', () => {
   });
 
   describe('nextCustomLedgerCode (RD-061 — bound + range)', () => {
-    it('rejects account creation once the counter walks past the dedicated 9000-9999 range instead of colliding with whatever code comes next', async () => {
-      prisma.farmCounter.upsert.mockResolvedValue({ value: 10000 });
+    it('rejects account creation once the counter walks past the dedicated 9000-9999999 range instead of colliding with whatever code comes next', async () => {
+      prisma.farmCounter.upsert.mockResolvedValue({ value: 10000000 });
       const service = make();
 
       await expect(

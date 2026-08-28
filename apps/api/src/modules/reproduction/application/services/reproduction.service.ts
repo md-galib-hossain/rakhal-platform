@@ -43,6 +43,7 @@ import { resolveFinancialAccountId } from 'src/common/finance/resolve-account';
 import { CalfService } from 'src/modules/calf/application/services/calf.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { AnimalHoldService } from 'src/modules/cattle/application/services/animal-hold.service';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import {
   deriveReproductionAlerts,
   ReproductionAlert,
@@ -1277,7 +1278,7 @@ export class ReproductionService {
       // revive; RAKHAL-269 trimmed ProductionStatus to MILKING|DRY only, so
       // isActive is the correct archival guard now, not a SOLD/DECEASED check).
       await tx.cattle.updateMany({
-        where: { id: cattleId, herdStatus: 'ACTIVE', deletedAt: null },
+        where: { id: cattleId, ...activeHerd(farmId) },
         data: { productionStatus: ProductionStatus.DRY },
       });
 
@@ -1702,9 +1703,7 @@ export class ReproductionService {
       // Eligible herd: active female cattle
       this.prisma.cattle.count({
         where: {
-          farmId,
-          herdStatus: 'ACTIVE',
-          deletedAt: null,
+          ...activeHerd(farmId),
           gender: 'FEMALE',
         },
       }),
@@ -1778,9 +1777,7 @@ export class ReproductionService {
       // Ready for AI: Open cows past VWP (active lactation started ≥60 days ago)
       this.prisma.cattle.findMany({
         where: {
-          farmId,
-          herdStatus: 'ACTIVE',
-          deletedAt: null,
+          ...activeHerd(farmId),
           gender: 'FEMALE',
           reproductionProfile: {
             is: { reproductiveStatus: ReproductionState.OPEN },
@@ -1810,7 +1807,7 @@ export class ReproductionService {
       // In heat now: heat events within the farm's heat window (RD-016-adjacent)
       this.prisma.heatEvent.findMany({
         where: {
-          cattle: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
+          cattle: activeHerd(farmId),
           heatDateTime: { gte: in24h },
           resolvedAt: null,
         },
@@ -1847,7 +1844,7 @@ export class ReproductionService {
       // here rather than dropping off the dashboard silently)
       this.prisma.pregnancy.findMany({
         where: {
-          cattle: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
+          cattle: activeHerd(farmId),
           status: PregnancyStatus.ACTIVE,
           expectedCalvingDate: { lte: in7d },
         },
@@ -1860,7 +1857,7 @@ export class ReproductionService {
       // Dry-off due in 14 days: active lactations approaching 265+ DIM
       this.prisma.lactation.findMany({
         where: {
-          cattle: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
+          cattle: activeHerd(farmId),
           status: LactationStatus.ACTIVE,
           startDate: { lte: this.addDays(now, -dryoffDimThreshold) },
         },
@@ -1896,9 +1893,7 @@ export class ReproductionService {
       this.prisma.cattle.findMany({
         where: {
           id: { in: checkCattleIds },
-          farmId,
-          herdStatus: 'ACTIVE',
-          deletedAt: null,
+          ...activeHerd(farmId),
         },
         select: { id: true, name: true, tagNumber: true },
       }),
@@ -2019,9 +2014,7 @@ export class ReproductionService {
     // ---- Open cows -------------------------------------------------------
     const openCows = await this.prisma.cattle.findMany({
       where: {
-        farmId,
-        herdStatus: 'ACTIVE',
-        deletedAt: null,
+        ...activeHerd(farmId),
         gender: 'FEMALE',
         reproductionProfile: {
           is: { reproductiveStatus: ReproductionState.OPEN },
@@ -2095,9 +2088,7 @@ export class ReproductionService {
 
     const rows = await this.prisma.cattle.findMany({
       where: {
-        farmId,
-        herdStatus: 'ACTIVE',
-        deletedAt: null,
+        ...activeHerd(farmId),
         gender: CattleGender.FEMALE,
         reproductionProfile: { is: { reproductiveStatus: { in: statuses } } },
       },

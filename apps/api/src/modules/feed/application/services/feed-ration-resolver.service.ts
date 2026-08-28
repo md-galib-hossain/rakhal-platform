@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { FeedConcentration, FeedTargetType } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 
 export type RationMatchLevel = 'INDIVIDUAL' | 'GROUP' | 'HERD';
 
@@ -27,7 +28,7 @@ export class FeedRationResolverService {
     cattleId: string,
   ): Promise<ResolvedRation | null> {
     const cattle = await this.prisma.cattle.findFirst({
-      where: { id: cattleId, farmId, herdStatus: 'ACTIVE', deletedAt: null },
+      where: { id: cattleId, ...activeHerd(farmId) },
       select: { id: true, feedGroupId: true },
     });
     if (!cattle) throw new NotFoundException('Cattle not found');

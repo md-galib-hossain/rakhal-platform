@@ -15,6 +15,7 @@ import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { SemenService } from 'src/modules/inventory/application/services/semen.service';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { summarizeProtocol } from '../../domain/protocol-metrics';
 import {
   ApplyProtocolDto,
@@ -146,9 +147,7 @@ export class ReproProtocolService {
     const validCount = await this.prisma.cattle.count({
       where: {
         id: { in: cattleIds },
-        farmId,
-        herdStatus: 'ACTIVE',
-        deletedAt: null,
+        ...activeHerd(farmId),
       },
     });
     if (validCount !== cattleIds.length) {

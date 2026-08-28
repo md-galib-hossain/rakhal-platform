@@ -6,6 +6,7 @@ import {
 import { FeedGridSourceType, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { FeedDistributionService } from './feed-distribution.service';
 import { FeedStockService } from './feed-stock.service';
 import { SaveFeedDraftDto } from '../../presentation/dto/save-feed-draft.dto';
@@ -64,9 +65,7 @@ export class FeedFeedingGridService {
     const logDate = this.dayStart(date);
     const cattle = await this.prisma.cattle.findMany({
       where: {
-        farmId,
-        herdStatus: 'ACTIVE',
-        deletedAt: null,
+        ...activeHerd(farmId),
         ...(feedGroupId ? { feedGroupId } : {}),
       },
       select: { id: true, name: true, tagNumber: true, feedGroupId: true },
@@ -183,9 +182,7 @@ export class FeedFeedingGridService {
     const logDate = this.dayStart(dto.date);
     const cattle = await this.prisma.cattle.findMany({
       where: {
-        farmId,
-        herdStatus: 'ACTIVE',
-        deletedAt: null,
+        ...activeHerd(farmId),
         ...(dto.feedGroupId ? { feedGroupId: dto.feedGroupId } : {}),
       },
       select: { id: true },
@@ -437,7 +434,7 @@ export class FeedFeedingGridService {
   private async assertCattleBelongToFarm(farmId: string, cattleIds: string[]) {
     const ids = [...new Set(cattleIds)];
     const found = await this.prisma.cattle.count({
-      where: { id: { in: ids }, farmId, herdStatus: 'ACTIVE', deletedAt: null },
+      where: { id: { in: ids }, ...activeHerd(farmId) },
     });
     if (found !== ids.length) {
       throw new BadRequestException(

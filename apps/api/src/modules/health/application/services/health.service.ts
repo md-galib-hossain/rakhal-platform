@@ -27,6 +27,7 @@ import { ActivityLogService } from 'src/modules/activity/application/services/ac
 import { MedicineService } from 'src/modules/inventory/application/services/medicine.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { CattleService } from 'src/modules/cattle/application/services/cattle.service';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { NotificationService } from 'src/modules/notification/application/services/notification.service';
 import {
   PREVENTIVE_DIAGNOSIS_TYPES,
@@ -101,7 +102,7 @@ export class HealthService {
       trendRows,
     ] = await Promise.all([
       this.prisma.cattle.count({
-        where: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
+        where: activeHerd(farmId),
       }),
       this.prisma.healthCase.count({
         where: {
@@ -1364,7 +1365,7 @@ export class HealthService {
 
   private async assertCattleInFarm(farmId: string, cattleId: string) {
     const cattle = await this.prisma.cattle.findFirst({
-      where: { id: cattleId, farmId, herdStatus: 'ACTIVE', deletedAt: null },
+      where: { id: cattleId, ...activeHerd(farmId) },
     });
     if (!cattle) throw new BadRequestException('Cattle must belong to Farm');
     return cattle;

@@ -11,10 +11,20 @@ import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { gt, toMoney } from 'src/common/money';
 import { ReceivableService } from 'src/modules/finance-v2/receivables/application/receivable.service';
 import { PaymentService } from 'src/modules/finance-v2/payments/application/payment.service';
+import { JournalService } from 'src/modules/finance-v2/ledger/application/journal.service';
+import { LedgerAccountService } from 'src/modules/finance-v2/ledger/application/ledger-account.service';
 import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { SaleService, SaleWithLines } from '../../sale.service';
 import { CreateSaleDto } from '../../../presentation/dto/create-sale.dto';
 import { RecordManureSaleInput } from './record-manure-sale.input';
+
+/** `LedgerAccount.code` for "Accounts Receivable" — matches
+ * `SellInventoryUseCase`'s own constant of the same value (RAKHAL-346). */
+const ACCOUNTS_RECEIVABLE_CODE = '1100';
+
+/** `LedgerAccount.code` for "Manure Sales" revenue — seeded per farm by
+ * RAKHAL-333's default chart of accounts. */
+const MANURE_SALES_REVENUE_CODE = '4200';
 
 export interface RecordManureSaleResult {
   sale: SaleWithLines;
@@ -64,6 +74,8 @@ export class RecordManureSaleUseCase {
     private readonly saleService: SaleService,
     private readonly receivableService: ReceivableService,
     private readonly paymentService: PaymentService,
+    private readonly ledgerAccountService: LedgerAccountService,
+    private readonly journalService: JournalService,
     private readonly activityLog: ActivityLogService,
     logger: LoggerService,
   ) {
@@ -124,6 +136,36 @@ export class RecordManureSaleUseCase {
         farmId,
         userId,
         saleDto,
+        tx,
+      );
+
+      // Revenue recognition: Dr Accounts Receivable, Cr Manure Sales Revenue
+      // — same journal leg `SellInventoryUseCase` posts for its sale type.
+      const [arAccount, revenueAccount] = await Promise.all([
+        this.ledgerAccountService.findByCode(farmId, ACCOUNTS_RECEIVABLE_CODE),
+        this.ledgerAccountService.findByCode(farmId, MANURE_SALES_REVENUE_CODE),
+      ]);
+      if (!arAccount || !revenueAccount) {
+        // Should never happen for a farm bootstrapped via FarmService.create
+        // (RAKHAL-333 seeds this row) — defensive, not expected in practice.
+        throw new BadRequestException(
+          'Accounts Receivable / Manure Sales ledger accounts are not seeded for this farm',
+        );
+      }
+      await this.journalService.postJournal(
+        {
+          farmId,
+          sourceType: 'SALE',
+          sourceId: sale.id,
+          transactionDate: sale.saleDate,
+          description: `Manure sale ${sale.saleNumber}`,
+          idempotencyKey: `sale:${sale.id}`,
+          createdById: userId,
+          entries: [
+            { ledgerAccountId: arAccount.id, debit: sale.totalAmount },
+            { ledgerAccountId: revenueAccount.id, credit: sale.totalAmount },
+          ],
+        },
         tx,
       );
 

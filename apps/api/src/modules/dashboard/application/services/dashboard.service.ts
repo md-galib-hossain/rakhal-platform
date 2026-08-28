@@ -27,6 +27,7 @@ import { HealthService } from 'src/modules/health/application/services/health.se
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { FeedDistributionService } from 'src/modules/feed/application/services/feed-distribution.service';
 import { PREVENTIVE_DIAGNOSIS_TYPES } from 'src/modules/cattle/domain/health-status';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import {
   ANIMAL_CATEGORIES,
   buildAnimalCategoryWhere,
@@ -181,7 +182,7 @@ export class DashboardService {
       where: {
         status: PregnancyStatus.ACTIVE,
         expectedCalvingDate: { gte: now, lte: horizon },
-        cattle: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
+        cattle: activeHerd(farmId),
       },
       orderBy: { expectedCalvingDate: 'asc' },
       include: {
@@ -232,15 +233,11 @@ export class DashboardService {
       categoryCounts,
     ] = await Promise.all([
       this.prisma.cattle.count({
-        where: {
-          farmId,
-          herdStatus: 'ACTIVE',
-          deletedAt: null,
-        },
+        where: activeHerd(farmId),
       }),
       this.prisma.reproductionProfile.groupBy({
         by: ['reproductiveStatus'],
-        where: { cattle: { farmId, herdStatus: 'ACTIVE', deletedAt: null } },
+        where: { cattle: activeHerd(farmId) },
         _count: { _all: true },
       }),
       // "Milking"/"Dry" are deliberately sourced from `Cattle.productionStatus`,
@@ -249,17 +246,13 @@ export class DashboardService {
       // the field the Cattle list badge + status dialog actually set/show.
       this.prisma.cattle.count({
         where: {
-          farmId,
-          herdStatus: 'ACTIVE',
-          deletedAt: null,
+          ...activeHerd(farmId),
           productionStatus: ProductionStatus.MILKING,
         },
       }),
       this.prisma.cattle.count({
         where: {
-          farmId,
-          herdStatus: 'ACTIVE',
-          deletedAt: null,
+          ...activeHerd(farmId),
           productionStatus: ProductionStatus.DRY,
         },
       }),
@@ -284,9 +277,7 @@ export class DashboardService {
       }),
       this.prisma.cattle.findMany({
         where: {
-          farmId,
-          herdStatus: 'ACTIVE',
-          deletedAt: null,
+          ...activeHerd(farmId),
           calfWeaningRecord: null,
           ...buildAnimalCategoryWhere('CALF', now),
         },
@@ -297,9 +288,7 @@ export class DashboardService {
       // values, see the removed comment this replaces).
       this.prisma.cattle.findMany({
         where: {
-          farmId,
-          herdStatus: 'ACTIVE',
-          deletedAt: null,
+          ...activeHerd(farmId),
           gender: CattleGender.FEMALE,
         },
         select: {
@@ -327,9 +316,7 @@ export class DashboardService {
         ANIMAL_CATEGORIES.map((category) =>
           this.prisma.cattle.count({
             where: {
-              farmId,
-              herdStatus: 'ACTIVE',
-              deletedAt: null,
+              ...activeHerd(farmId),
               ...buildAnimalCategoryWhere(category, now),
             },
           }),
@@ -608,7 +595,7 @@ export class DashboardService {
     const events = await this.prisma.breedingEvent.findMany({
       where: {
         breedingDate: { gte: rangeStart },
-        cattle: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
+        cattle: activeHerd(farmId),
       },
       select: { breedingDate: true, status: true },
     });
@@ -803,7 +790,7 @@ export class DashboardService {
         where: {
           status: PregnancyStatus.ACTIVE,
           expectedCalvingDate: { gte: now, lte: calvingHorizon },
-          cattle: { farmId, herdStatus: 'ACTIVE', deletedAt: null },
+          cattle: activeHerd(farmId),
         },
         orderBy: { expectedCalvingDate: 'asc' },
         include: {
@@ -977,9 +964,7 @@ export class DashboardService {
     const [milkingCows, logged] = await Promise.all([
       this.prisma.cattle.findMany({
         where: {
-          farmId,
-          herdStatus: 'ACTIVE',
-          deletedAt: null,
+          ...activeHerd(farmId),
           gender: CattleGender.FEMALE,
           productionStatus: { not: ProductionStatus.DRY },
         },

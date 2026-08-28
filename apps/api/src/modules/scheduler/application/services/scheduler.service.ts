@@ -8,6 +8,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { deriveOutstanding } from 'src/common/finance/txn-filters';
 import { computeRunwaySnapshot } from 'src/common/finance/runway';
 import { NotificationService } from 'src/modules/notification/application/services/notification.service';
@@ -597,7 +598,7 @@ export class SchedulerService {
       // less-reliable outlier: archival always sets deletedAt alongside
       // status (SOLD/DEAD/ARCHIVED/CULLED), deletedAt is the single source of truth.
       const herdSize = await this.prisma.cattle.count({
-        where: { farmId: row.farmId, herdStatus: 'ACTIVE', deletedAt: null },
+        where: activeHerd(row.farmId),
       });
       if (herdSize === 0) continue;
       const rate = row._count._all / herdSize;

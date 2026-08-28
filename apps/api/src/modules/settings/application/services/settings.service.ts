@@ -8,6 +8,7 @@ import {
 import { Prisma, ShedPurpose } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { UpdateFarmSettingsDto } from '../../presentation/dto/update-farm-settings.dto';
 import { CreateShedDto } from '../../presentation/dto/create-shed.dto';
 import { UpdateShedDto } from '../../presentation/dto/update-shed.dto';
@@ -116,7 +117,7 @@ export class SettingsService {
         responsibleMember: { select: { id: true, name: true } },
         _count: {
           select: {
-            cattle: { where: { herdStatus: 'ACTIVE', deletedAt: null } },
+            cattle: { where: activeHerd(farmId) },
           },
         },
       },
@@ -200,7 +201,7 @@ export class SettingsService {
     const shed = await this.getShedOrThrow(farmId, id);
 
     const assignedCount = await this.prisma.cattle.count({
-      where: { shedId: id, herdStatus: 'ACTIVE', deletedAt: null },
+      where: { shedId: id, ...activeHerd(farmId) },
     });
     if (assignedCount > 0) {
       throw new BadRequestException(
@@ -224,7 +225,7 @@ export class SettingsService {
       include: {
         _count: {
           select: {
-            cattle: { where: { herdStatus: 'ACTIVE', deletedAt: null } },
+            cattle: { where: activeHerd(farmId) },
           },
         },
       },
@@ -319,7 +320,7 @@ export class SettingsService {
     const group = await this.getFeedGroupOrThrow(farmId, id);
 
     const assignedCount = await this.prisma.cattle.count({
-      where: { feedGroupId: id, herdStatus: 'ACTIVE', deletedAt: null },
+      where: { feedGroupId: id, ...activeHerd(farmId) },
     });
     if (assignedCount > 0) {
       throw new BadRequestException(

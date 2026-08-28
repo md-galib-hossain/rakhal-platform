@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 
 /**
  * Feed group ↔ cattle assignment (PRD §12.2, RAKHAL-083). The `FeedGroup` model
@@ -28,9 +29,7 @@ export class FeedGroupAssignService {
     const { count } = await this.prisma.cattle.updateMany({
       where: {
         id: { in: cattleIds },
-        farmId,
-        herdStatus: 'ACTIVE',
-        deletedAt: null,
+        ...activeHerd(farmId),
       },
       data: { feedGroupId: groupId },
     });
@@ -47,10 +46,8 @@ export class FeedGroupAssignService {
     await this.assertGroupInFarm(farmId, groupId);
     return this.prisma.cattle.findMany({
       where: {
-        farmId,
+        ...activeHerd(farmId),
         feedGroupId: groupId,
-        herdStatus: 'ACTIVE',
-        deletedAt: null,
       },
       orderBy: { tagNumber: 'asc' },
       select: { id: true, name: true, tagNumber: true, productionStatus: true },

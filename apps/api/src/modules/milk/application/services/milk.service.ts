@@ -143,9 +143,7 @@ export class MilkService {
     const day = this.normalizeDate(query.date ?? new Date().toISOString());
     const cows = await this.prisma.cattle.findMany({
       where: {
-        farmId,
-        herdStatus: 'ACTIVE',
-        deletedAt: null,
+        ...activeHerd(farmId),
         gender: CattleGender.FEMALE,
         // A cow marked DRY (manually, or auto-set at calving/dry-off) has no
         // milk to log.

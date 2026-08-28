@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { FinancialAccountType, PaymentMethod } from '@prisma/client';
+import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
 /**
@@ -27,6 +28,7 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
  */
 describe('Buyer dispatch → tank decrement + Sale/Receivable linkage (e2e)', () => {
   let ctx: TestContext;
+  let prisma: PrismaService;
   let owner: AuthedUser;
   let buyerId: string;
   let buyerName: string;
@@ -42,6 +44,7 @@ describe('Buyer dispatch → tank decrement + Sale/Receivable linkage (e2e)', ()
 
   beforeAll(async () => {
     ctx = await createTestApp();
+    prisma = ctx.app.get(PrismaService);
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
 
     buyerName = `E2E Dispatch Buyer ${Date.now()}`;
@@ -84,6 +87,9 @@ describe('Buyer dispatch → tank decrement + Sale/Receivable linkage (e2e)', ()
   }, 30_000);
 
   afterAll(async () => {
+    await prisma.financialAccount
+      .deleteMany({ where: { id: cashAccountId } })
+      .catch(() => undefined);
     await ctx.app.close();
   });
 
