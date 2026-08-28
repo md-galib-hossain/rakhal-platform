@@ -1,5 +1,22 @@
 # Frontend — Current State
 
+## RAKHAL-382 — Flatten Finance to one tab bar; relocate V1 survivors (2026-08-28)
+Third frontend ticket of MILESTONE 22 Phase D, closes the phase. `features/finance/types.ts`'s
+`FINANCE_TABS` is now `Overview · Transactions · Receivables · Payables · Accounts · Reports` (was
+`Ledger · Receivables · Payables · Liabilities · Assets`) — `finance-tabs.tsx`'s icon map and both
+`.withDefault(...)` calls updated to match. `finance-view.tsx`: `Accounts` tab mounts the real
+`AccountsView` (same component `/finance/accounts` already used standalone); `Overview`/
+`Transactions`/`Reports` are `EmptyState` placeholders since their real content (383/385/387) all
+depend on this ticket landing first; `Receivables`/`Payables` unchanged. The old stacked `?doc=`
+segment bar inside Master Ledger is gone — `LedgerView`/`LiabilitiesView`/`AssetDistributionView`
+are unmounted from the tab bar (`ledger-view.tsx` + its 4 tables left on disk, deletion is
+RAKHAL-385's own lane). New `LegacyTabRedirect` sends stale `?tab=liabilities`/`?tab=assets`/
+`?tab=ledger` bookmarks to their new homes. `app/(app)/finance/{liabilities,assets}/page.tsx`
+(RAKHAL-381's scaffolds) now mount the real `LiabilitiesView`/`AssetDistributionView` in place of
+the placeholder shell. Gate: `typecheck`(0)/`lint`(0 new)/`build`(0, 45 routes unchanged)/
+`test`(93/93 unchanged). No live click-through — same precedent as 380/381. Unblocks 383, 384, 385,
+386, 387, 392 (all nine-way-parallel Phase E screens).
+
 ## RAKHAL-381 — Sidebar IA restructure + route scaffolds (2026-08-28)
 Second frontend ticket of MILESTONE 22 Phase D (no backend dependency). `components/layout/nav-items.ts`:
 new `NavGroupKey` `"finance"` ordered right after `"business"`; Business group narrowed+reordered to

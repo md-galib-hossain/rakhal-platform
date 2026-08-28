@@ -1,24 +1,44 @@
-"use client"; // active-tab read + quick-action dialog state
+"use client"; // active-tab read + quick-action dialog state + legacy ?tab= redirect
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { parseAsStringEnum, useQueryState } from "nuqs";
 import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Gift, Receipt, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Can } from "@/lib/auth/permissions";
+import { EmptyState } from "@/components/shared/empty-state";
 import { RecordSaleTrigger } from "@/features/sales/components/record-sale-trigger";
 import { TransferFormSheet } from "./accounts/transfer-form-sheet";
 import { FinanceHighlights } from "./finance-highlights";
 import { FinanceTabs, useActiveFinanceTab } from "./finance-tabs";
-import { LedgerView } from "./ledger-view";
+import { AccountsView } from "./accounts/accounts-view";
 import { ReceivablesView } from "./payments/receivables-view";
 import { PayablesView } from "./payments/payables-view";
-import { LiabilitiesView } from "./liabilities-view";
-import { AssetDistributionView } from "./asset-distribution-view";
 import { FINANCE_TABS, type FinanceTabKey } from "../types";
 
 const TAB_KEYS = FINANCE_TABS.map((t) => t.key) as [FinanceTabKey, ...FinanceTabKey[]];
+
+/** RAKHAL-382 — the old 5-tab bar's `?tab=ledger|liabilities|assets` values no longer name a tab
+ * (`ledger` folded into `transactions`; `liabilities`/`assets` relocated to their own URL-only
+ * routes). `nuqs`'s `parseAsStringEnum` already falls back to the new default (`overview`) for any
+ * unrecognized value, so a stale bookmark never 404s — this redirect additionally sends
+ * `liabilities`/`assets` bookmarks to where that content actually lives now, and `ledger` straight
+ * to its replacement tab, instead of silently landing on Overview. */
+function LegacyTabRedirect() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawTab = searchParams.get("tab");
+
+  useEffect(() => {
+    if (rawTab === "liabilities") router.replace("/finance/liabilities");
+    else if (rawTab === "assets") router.replace("/finance/assets");
+    else if (rawTab === "ledger") router.replace("/finance?tab=transactions");
+  }, [rawTab, router]);
+
+  return null;
+}
 
 /**
  * RAKHAL-361 — Finance-home quick-action row, wired to real destinations (was RAKHAL-360's
@@ -49,7 +69,7 @@ const TAB_KEYS = FINANCE_TABS.map((t) => t.key) as [FinanceTabKey, ...FinanceTab
 function QuickActions() {
   const t = useTranslations("finance.ledgerV2.actions");
   const tAccounts = useTranslations("finance.accountsPage");
-  const [, setTab] = useQueryState("tab", parseAsStringEnum<FinanceTabKey>(TAB_KEYS).withDefault("ledger"));
+  const [, setTab] = useQueryState("tab", parseAsStringEnum<FinanceTabKey>(TAB_KEYS).withDefault("overview"));
   const [transferOpen, setTransferOpen] = useState(false);
 
   return (
@@ -99,35 +119,45 @@ function QuickActions() {
   );
 }
 
-/** Top-level Finance page body — Figma "Finance" frame (file `SCfMPdxP6vgW1uTxfqCtz7`): "My
- * Highlights" KPI row (Finance V2's Rakhal Balance summary, RAKHAL-360) + the Quick Actions row
- * (RAKHAL-360's layout, RAKHAL-361's real wiring) + the 5-tab bar. **Receivables/Payables tabs now
- * mount RAKHAL-358's real V2 components** (`./payments/{receivables-view,payables-view}`) — V1's
- * `settlements-view.tsx` (and its `settlements-table.tsx`/`settlements-columns.tsx`/
- * `record-payment-dialog.tsx`) is deleted by this ticket, not just unmounted, since nothing else
- * referenced it (grepped first). Liabilities/Assets stay V1 (`liabilities-view.tsx`/
- * `asset-distribution-view.tsx`) untouched — `FinanceLoan`/`FixedAsset` explicitly survive V2
- * unchanged per `FINANCE_V2_DESIGN.md` §5.2, out of this milestone's scope. */
+/** Top-level Finance page body — RAKHAL-382 (MILESTONE 22, `BUSINESS_IA_PRD.md` §4.3) flattened
+ * this to one tab bar: `Overview | Transactions | Receivables | Payables | Accounts | Reports`.
+ * "My Highlights" KPI row (Finance V2's Rakhal Balance summary, RAKHAL-360) + the Quick Actions row
+ * (RAKHAL-360's layout, RAKHAL-361's real wiring) sit above the tab bar, unchanged by this ticket —
+ * both are RAKHAL-383's lane to rework into the Overview screen's Row A/quick-actions redesign.
+ * **Receivables/Payables tabs stay mounted on RAKHAL-358's real V2 components**
+ * (`./payments/{receivables-view,payables-view}`), unchanged. **Accounts** now mounts the same
+ * `AccountsView` `/finance/accounts` already used standalone — that route keeps working too, this
+ * is a second entry point onto the identical component, not a fork. **Overview/Transactions/
+ * Reports** are placeholder shells pending their own Phase-E tickets (383/385/387) — same
+ * `EmptyState` "coming soon" precedent RAKHAL-381 already established for the relocated Liabilities/
+ * Assets routes. **Ledger/Liabilities/Assets are gone from this tab bar** — Ledger's old
+ * `LedgerView`/`ledger-*-table.tsx` files are left in place, unmounted, cleanup deferred to
+ * RAKHAL-385 (which replaces them with the real Transactions screen); Liabilities/Assets moved to
+ * `/finance/liabilities`/`/finance/assets` (this same ticket, see those pages' own doc comments). */
 export function FinanceView() {
   const activeTab = useActiveFinanceTab();
+  const t = useTranslations("common");
 
   return (
     <div className="flex flex-col gap-4">
+      <LegacyTabRedirect />
       <FinanceHighlights />
       <QuickActions />
 
       <div className="flex flex-col gap-4 rounded-2xl bg-card p-4 shadow-card">
         <FinanceTabs />
-        {activeTab === "ledger" ? (
-          <LedgerView />
+        {activeTab === "overview" ? (
+          <EmptyState title={t("comingSoonTitle")} description={t("comingSoonDescription")} />
+        ) : activeTab === "transactions" ? (
+          <EmptyState title={t("comingSoonTitle")} description={t("comingSoonDescription")} />
         ) : activeTab === "receivables" ? (
           <ReceivablesView />
         ) : activeTab === "payables" ? (
           <PayablesView />
-        ) : activeTab === "liabilities" ? (
-          <LiabilitiesView />
-        ) : activeTab === "assets" ? (
-          <AssetDistributionView />
+        ) : activeTab === "accounts" ? (
+          <AccountsView />
+        ) : activeTab === "reports" ? (
+          <EmptyState title={t("comingSoonTitle")} description={t("comingSoonDescription")} />
         ) : null}
       </div>
     </div>

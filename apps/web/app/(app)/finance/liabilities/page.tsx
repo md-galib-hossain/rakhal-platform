@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { Wallet } from "lucide-react";
 import { PageCard } from "@/components/shared/page-card";
-import { EmptyState } from "@/components/shared/empty-state";
+import { LiabilitiesView } from "@/features/finance/components/liabilities-view";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("finance.liabilitiesPage");
@@ -10,15 +9,17 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * RAKHAL-381 — route scaffold only (MILESTONE 22, Phase D). RAKHAL-382 relocates the existing V1
- * Liabilities tab content here as a URL-only route (same precedent `/finance/accounts` already
- * set) — nothing is orphaned, `FinanceLoan` (RD-063) keeps its only UI.
+ * RAKHAL-382 (MILESTONE 22) — relocates the existing V1 Liabilities tab content here as a
+ * URL-only route, same precedent `/finance/accounts` already set. `LiabilitiesView` itself is
+ * untouched (RAKHAL-382's lane doesn't include `liabilities-view.tsx`) — this page just gives it a
+ * new home now that the Finance tab bar no longer has a `liabilities` tab. `FinanceLoan` (RD-063)
+ * keeps its only UI; nothing is orphaned.
  */
 export default async function FinanceLiabilitiesPage() {
-  const t = await getTranslations();
+  const t = await getTranslations("finance.liabilitiesPage");
   return (
-    <PageCard title={t("finance.liabilitiesPage.title")}>
-      <EmptyState icon={Wallet} title={t("common.comingSoonTitle")} description={t("common.comingSoonDescription")} />
+    <PageCard title={t("title")}>
+      <LiabilitiesView />
     </PageCard>
   );
 }
