@@ -13,6 +13,7 @@ import { ExpenseService } from './application/expense.service';
 import { PayableService } from './application/payable.service';
 import { SupplierReadService } from './application/supplier-read.service';
 import { PaySupplierUseCase } from './application/use-cases/pay-supplier/pay-supplier.use-case';
+import { VoidDocumentUseCase } from './application/use-cases/void-document/void-document.use-case';
 import { PurchaseNumberAllocator } from './infrastructure/purchase-number.allocator';
 import { PurchaseController } from './presentation/controllers/purchase.controller';
 import { ExpenseController } from './presentation/controllers/expense.controller';
@@ -71,12 +72,14 @@ import { SupplierReadController } from './presentation/controllers/supplier-read
     SupplierReadService,
     PurchaseNumberAllocator,
     PaySupplierUseCase,
+    VoidDocumentUseCase,
   ],
   exports: [
     PurchaseService,
     ExpenseService,
     PayableService,
     PaySupplierUseCase,
+    VoidDocumentUseCase,
   ],
 })
 export class PurchasingModule {}

@@ -44,7 +44,7 @@ export class BreedService {
   ): Promise<CursorPage<Breed>> {
     const where: Prisma.BreedWhereInput = {
       farmId,
-      ...(query.includeArchived ? {} : { isActive: true }),
+      ...(query.includeArchived ? {} : { deletedAt: null }),
       ...(query.search
         ? { name: { contains: query.search, mode: 'insensitive' } }
         : {}),
@@ -83,7 +83,7 @@ export class BreedService {
     await this.getOrThrow(farmId, id);
     const breed = await this.prisma.breed.update({
       where: { id },
-      data: { isActive: false },
+      data: { deletedAt: new Date() },
     });
     this.log.info('Breed archived', { breedId: id, farmId });
     return breed;
@@ -93,7 +93,7 @@ export class BreedService {
     await this.getOrThrow(farmId, id);
     const breed = await this.prisma.breed.update({
       where: { id },
-      data: { isActive: true },
+      data: { deletedAt: null },
     });
     this.log.info('Breed restored', { breedId: id, farmId });
     return breed;

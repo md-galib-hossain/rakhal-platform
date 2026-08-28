@@ -47,4 +47,9 @@ export class RecordDispatchDto {
   @Transform(trimString)
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  driverName?: string;
 }

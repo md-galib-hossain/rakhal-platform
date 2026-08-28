@@ -107,7 +107,7 @@ describe('BalanceService', () => {
 
       expect(prisma.financialAccount.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { farmId: 'farm-1', isActive: true },
+          where: { farmId: 'farm-1', deletedAt: null },
         }),
       );
       expect(result.accounts).toHaveLength(3);

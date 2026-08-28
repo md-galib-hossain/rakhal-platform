@@ -60,10 +60,10 @@ export class FeedGroupAssignService {
   private async assertGroupInFarm(farmId: string, groupId: string) {
     const group = await this.prisma.feedGroup.findFirst({
       where: { id: groupId, farmId },
-      select: { id: true, isActive: true },
+      select: { id: true, deletedAt: true },
     });
     if (!group) throw new NotFoundException('Feed group not found');
-    if (!group.isActive) {
+    if (group.deletedAt) {
       throw new BadRequestException('Feed group is archived');
     }
   }

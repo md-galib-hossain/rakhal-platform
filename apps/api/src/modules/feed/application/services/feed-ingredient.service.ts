@@ -56,7 +56,7 @@ export class FeedIngredientService {
     const [ingredients, overrides] = await Promise.all([
       this.prisma.feedIngredient.findMany({
         where: {
-          ...(includeArchived ? {} : { isActive: true }),
+          ...(includeArchived ? {} : { deletedAt: null }),
           isLatestVersion: true,
           OR: [{ farmId: null }, { farmId }],
         },
@@ -85,7 +85,7 @@ export class FeedIngredientService {
     query: ListIngredientsQueryDto,
   ): Promise<CursorPage<ReturnType<FeedIngredientService['toMerged']>>> {
     const where: Prisma.FeedIngredientWhereInput = {
-      ...(query.includeArchived ? {} : { isActive: true }),
+      ...(query.includeArchived ? {} : { deletedAt: null }),
       isLatestVersion: true,
       OR: [{ farmId: null }, { farmId }],
       ...(query.feedClass?.length
@@ -225,7 +225,7 @@ export class FeedIngredientService {
   async deactivateCustomIngredient(farmId: string, id: string) {
     await this.assertOwnedCustomIngredient(farmId, id);
     const referencedBy = await this.prisma.feedConcentrationItem.findFirst({
-      where: { ingredientId: id, concentration: { isActive: true } },
+      where: { ingredientId: id, concentration: { deletedAt: null } },
       select: { id: true },
     });
     if (referencedBy) {
@@ -235,7 +235,7 @@ export class FeedIngredientService {
     }
     const updated = await this.prisma.feedIngredient.update({
       where: { id },
-      data: { isActive: false },
+      data: { deletedAt: new Date() },
     });
     this.log.info('Custom feed ingredient archived', { farmId, id });
     return this.toMerged(updated, null);
@@ -412,7 +412,7 @@ export class FeedIngredientService {
       throw new NotFoundException('Catalogue ingredient not found');
     const updated = await this.prisma.feedIngredient.update({
       where: { id },
-      data: { isActive },
+      data: { deletedAt: isActive ? null : new Date() },
     });
     this.log.info(
       isActive

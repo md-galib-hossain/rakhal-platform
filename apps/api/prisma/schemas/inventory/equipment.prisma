@@ -21,7 +21,7 @@ model Equipment {
   purchaseDate DateTime
   notes        String?
 
-  isActive  Boolean  @default(true)
+  deletedAt DateTime?
   createdBy String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

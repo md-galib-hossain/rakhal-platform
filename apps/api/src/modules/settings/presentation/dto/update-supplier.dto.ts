@@ -1,6 +1,6 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
-import { toBoolean, trimString } from 'src/common/dto';
+import { IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
+import { trimString } from 'src/common/dto';
 
 /** `PATCH /settings/suppliers/:id` (RAKHAL-032). All fields optional. */
 export class UpdateSupplierDto {
@@ -39,8 +39,11 @@ export class UpdateSupplierDto {
   @MaxLength(500)
   notes?: string;
 
+  /** Archive/restore toggle: send `null` to restore, any non-null value to archive
+   * (the server always stamps its own `new Date()` — the client's value is never
+   * trusted as the actual timestamp). */
   @IsOptional()
-  @IsBoolean()
-  @Transform(toBoolean)
-  is_active?: boolean;
+  @ValidateIf((o: UpdateSupplierDto) => o.deleted_at !== null)
+  @IsString()
+  deleted_at?: string | null;
 }

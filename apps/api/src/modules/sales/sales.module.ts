@@ -6,14 +6,17 @@ import { PermissionModule } from 'src/modules/permission/permission.module';
 import { SubscriptionModule } from 'src/modules/subscription/subscription.module';
 import { InventoryModule } from 'src/modules/inventory/inventory.module';
 import { MilkModule } from 'src/modules/milk/milk.module';
+import { CattleModule } from 'src/modules/cattle/cattle.module';
 import { FinanceV2ReceivablesModule } from 'src/modules/finance-v2/receivables/finance-v2-receivables.module';
 import { FinanceV2PaymentsModule } from 'src/modules/finance-v2/payments/finance-v2-payments.module';
 import { ActivityModule } from 'src/modules/activity/activity.module';
 import { SaleService } from './application/sale.service';
 import { SellMilkUseCase } from './application/use-cases/sell-milk/sell-milk.use-case';
 import { SellInventoryUseCase } from './application/use-cases/sell-inventory/sell-inventory.use-case';
+import { VoidSaleUseCase } from './application/use-cases/void-sale/void-sale.use-case';
 import { SaleNumberAllocator } from './infrastructure/sale-number.allocator';
 import { SaleController } from './presentation/controllers/sale.controller';
+import { InventorySaleController } from './presentation/controllers/inventory-sale.controller';
 
 /**
  * Sales module (RAKHAL-339, Phase 3 — Sales foundation, `FINANCE_V2_DESIGN.md`
@@ -49,19 +52,29 @@ import { SaleController } from './presentation/controllers/sale.controller';
     SubscriptionModule,
     InventoryModule,
     MilkModule,
+    // RAKHAL-377 (MILESTONE 22): `VoidSaleUseCase` calls `CattleService.
+    // undoDisposition` to un-sell an animal when its sale is voided.
+    // `CattleModule` imports nothing from `sales/**` — no cycle.
+    CattleModule,
     FinanceV2ReceivablesModule,
     FinanceV2PaymentsModule,
     // RAKHAL-353: ActivityLogService, for SellMilkUseCase/SellInventoryUseCase's
     // new money-moving log entries (`FINANCE_V2_DESIGN.md` §1.4/§6).
     ActivityModule,
   ],
-  controllers: [SaleController],
+  controllers: [SaleController, InventorySaleController],
   providers: [
     SaleService,
     SaleNumberAllocator,
     SellMilkUseCase,
     SellInventoryUseCase,
+    VoidSaleUseCase,
   ],
-  exports: [SaleService, SellMilkUseCase, SellInventoryUseCase],
+  exports: [
+    SaleService,
+    SellMilkUseCase,
+    SellInventoryUseCase,
+    VoidSaleUseCase,
+  ],
 })
 export class SalesModule {}

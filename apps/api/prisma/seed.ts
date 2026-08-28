@@ -645,7 +645,7 @@ async function seedUnits(): Promise<void> {
       dimension: u.dimension,
       conversionToBase: u.conversionToBase,
       isSystemDefault: true,
-      isActive: true,
+      deletedAt: null,
     };
     await prisma.unit.upsert({
       where: { id: u.id },
@@ -948,7 +948,7 @@ async function seedFeedIngredients(): Promise<void> {
       priceUpdatedAt: now,
       isAvailableBd: true,
       isSystemDefault: true,
-      isActive: true,
+      deletedAt: null,
     };
     await prisma.feedIngredient.upsert({
       where: { id: i.id },
@@ -1069,7 +1069,7 @@ async function seedReproProtocols(): Promise<void> {
       description: p.description,
       durationDays: p.durationDays,
       isSystemDefault: true,
-      isActive: true,
+      deletedAt: null,
     };
     await prisma.reproProtocol.upsert({
       where: { id: p.id },

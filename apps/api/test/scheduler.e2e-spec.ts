@@ -128,7 +128,6 @@ describe('Scheduler sweeps (e2e)', () => {
         name: 'E2E Low Tank',
         strawCapacity: 100,
         ln2LevelPct: 15,
-        isActive: true,
         createdBy: ownerUserId,
       },
     });

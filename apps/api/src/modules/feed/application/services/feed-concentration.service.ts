@@ -72,7 +72,7 @@ export class FeedConcentrationService {
     const rows = await this.prisma.feedConcentration.findMany({
       where: {
         farmId,
-        ...(includeArchived ? {} : { isActive: true }),
+        ...(includeArchived ? {} : { deletedAt: null }),
         ...(kind ? { kind } : {}),
       },
       orderBy: { createdAt: 'desc' },
@@ -114,7 +114,7 @@ export class FeedConcentrationService {
     // `in: []` is a safe no-op query (returns `[]`), so both queries can always run — no need to
     // branch on whether either id list is non-empty, which sidesteps a TS inference gotcha where a
     // ternary's two `Promise.all` branches (a real query vs `Promise.resolve([])`) collapse to `any`.
-    // No `isActive` filter on either read (RAKHAL-310): this only asks
+    // No `deletedAt` filter on either read (RAKHAL-310): this only asks
     // "has this concentration ever been finalized", which must stay true
     // even if the resulting ingredient/stock row was later archived.
     const [ingredientRows, stockRows] = await Promise.all([
@@ -267,18 +267,18 @@ export class FeedConcentrationService {
 
   /** Archiving a concentration must also archive any `FeedIngredient` promoted from it
    * (`finalize()`'s `sourceConcentrationId`) — otherwise the ghost ingredient keeps passing
-   * `listMerged`'s `isActive: true` filter and stays selectable in every ingredient picker
+   * `listMerged`'s `deletedAt: null` filter and stays selectable in every ingredient picker
    * forever, even though the user believes they deleted it (user report 2026-07-18). */
   async remove(farmId: string, id: string) {
     await this.getOrThrow(farmId, id);
     await this.prisma.$transaction([
       this.prisma.feedConcentration.update({
         where: { id },
-        data: { isActive: false },
+        data: { deletedAt: new Date() },
       }),
       this.prisma.feedIngredient.updateMany({
-        where: { sourceConcentrationId: id, isActive: true },
-        data: { isActive: false },
+        where: { sourceConcentrationId: id, deletedAt: null },
+        data: { deletedAt: new Date() },
       }),
     ]);
     this.log.info('Feed concentration archived', { farmId, id });
@@ -291,12 +291,12 @@ export class FeedConcentrationService {
   async removeMany(farmId: string, ids: string[]) {
     const [result] = await this.prisma.$transaction([
       this.prisma.feedConcentration.updateMany({
-        where: { farmId, id: { in: ids }, isActive: true },
-        data: { isActive: false },
+        where: { farmId, id: { in: ids }, deletedAt: null },
+        data: { deletedAt: new Date() },
       }),
       this.prisma.feedIngredient.updateMany({
-        where: { sourceConcentrationId: { in: ids }, isActive: true },
-        data: { isActive: false },
+        where: { sourceConcentrationId: { in: ids }, deletedAt: null },
+        data: { deletedAt: new Date() },
       }),
     ]);
     this.log.info('Feed concentrations bulk-archived', {
@@ -374,7 +374,7 @@ export class FeedConcentrationService {
         if (existing) {
           return tx.feedIngredient.update({
             where: { id: existing.id },
-            data: { ...nutrition, isActive: true },
+            data: { ...nutrition, deletedAt: null },
           });
         }
         return tx.feedIngredient.create({
@@ -701,7 +701,7 @@ export class FeedConcentrationService {
     ingredientIds: string[],
   ): Promise<Map<string, EffectiveIngredient>> {
     const ids = [...new Set(ingredientIds)];
-    // No `isActive` filter (RAKHAL-310): `ids` come from an existing
+    // No `deletedAt` filter (RAKHAL-310): `ids` come from an existing
     // formula's saved line items, which must keep resolving nutrition/price
     // even if that ingredient was archived after the formula was built.
     const [ingredients, overrides] = await Promise.all([
@@ -818,8 +818,8 @@ export class FeedConcentrationService {
     farmId: string,
     row: ConcentrationWithItems,
   ) {
-    // No `isActive` filter (RAKHAL-310) — mirrors `finalize()`'s own upsert,
-    // which resurrects (`isActive: true`) a previously-archived promoted
+    // No `deletedAt` filter (RAKHAL-310) — mirrors `finalize()`'s own upsert,
+    // which resurrects (`deletedAt: null`) a previously-archived promoted
     // ingredient on refinalize, so the lookup here must find it either way.
     const promoted = await this.prisma.feedIngredient.findFirst({
       where: { sourceConcentrationId: row.id },
@@ -849,7 +849,7 @@ export class FeedConcentrationService {
     });
   }
 
-  // No `isActive` filter (RAKHAL-310): resolves display names for an
+  // No `deletedAt` filter (RAKHAL-310): resolves display names for an
   // existing formula's line items, which must still show a name even for an
   // ingredient archived after the formula was built.
   private async ingredientNames(ids: string[]) {
@@ -863,7 +863,7 @@ export class FeedConcentrationService {
   private async assertIngredients(ingredientIds: string[]) {
     const ids = [...new Set(ingredientIds)];
     const count = await this.prisma.feedIngredient.count({
-      where: { id: { in: ids }, isActive: true },
+      where: { id: { in: ids }, deletedAt: null },
     });
     if (count !== ids.length) {
       throw new BadRequestException('One or more ingredients are invalid');
@@ -877,7 +877,7 @@ export class FeedConcentrationService {
   ) {
     if (feedGroupId) {
       const group = await this.prisma.feedGroup.findFirst({
-        where: { id: feedGroupId, farmId, isActive: true },
+        where: { id: feedGroupId, farmId, deletedAt: null },
         select: { id: true },
       });
       if (!group)
@@ -898,7 +898,7 @@ export class FeedConcentrationService {
     id: string,
   ): Promise<ConcentrationWithItems> {
     const row = await this.prisma.feedConcentration.findFirst({
-      where: { id, farmId, isActive: true },
+      where: { id, farmId, deletedAt: null },
       include: { items: true },
     });
     if (!row) throw new NotFoundException('Concentration template not found');

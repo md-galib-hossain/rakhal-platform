@@ -16,6 +16,7 @@ import { PermissionGuard } from 'src/modules/permission/presentation/guards/perm
 import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { ExpenseService } from '../../application/expense.service';
+import { VoidDocumentUseCase } from '../../application/use-cases/void-document/void-document.use-case';
 import { RecordExpenseDto } from '../dto/record-expense.dto';
 import { ListExpensesQueryDto } from '../dto/list-expenses-query.dto';
 
@@ -23,6 +24,9 @@ import { ListExpensesQueryDto } from '../dto/list-expenses-query.dto';
  * Purchasing module → Expenses (RAKHAL-348, `FINANCE_V2_DESIGN.md` §5.1).
  * Routes resolve under the global prefix as `/api/v1/purchasing/expenses`.
  * Guard chain + permission reuse identical to `PurchaseController`.
+ *
+ * RAKHAL-377 (MILESTONE 22) added `POST :id/void` — `finance.reverse`
+ * (owner-only), the only correction mechanism for a posted `Expense`.
  */
 @ApiTags('Purchasing')
 @ApiBearerAuth()
@@ -35,7 +39,10 @@ import { ListExpensesQueryDto } from '../dto/list-expenses-query.dto';
   SubscriptionGuard,
 )
 export class ExpenseController {
-  constructor(private readonly expenses: ExpenseService) {}
+  constructor(
+    private readonly expenses: ExpenseService,
+    private readonly voidDocument: VoidDocumentUseCase,
+  ) {}
 
   @Post()
   @RequirePermission('purchasing.create')
@@ -60,5 +67,15 @@ export class ExpenseController {
   @RequirePermission('purchasing.read')
   findOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.expenses.findOne(farmId, id);
+  }
+
+  @Post(':id/void')
+  @RequirePermission('finance.reverse')
+  void(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.voidDocument.voidExpense(farmId, userId, id);
   }
 }

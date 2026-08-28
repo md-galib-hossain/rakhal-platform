@@ -41,7 +41,7 @@ export class MilkTankService {
     const tanks = await this.prisma.milkTank.findMany({
       where: {
         farmId,
-        ...(query.includeArchived ? {} : { isActive: true }),
+        ...(query.includeArchived ? {} : { deletedAt: null }),
         ...(query.tankType ? { tankType: query.tankType } : {}),
       },
       orderBy: { createdAt: 'desc' },
@@ -189,7 +189,7 @@ export class MilkTankService {
     await this.getOrThrow(farmId, id);
     const tank = await this.prisma.milkTank.update({
       where: { id },
-      data: { isActive: false },
+      data: { deletedAt: new Date() },
     });
     return this.present(tank);
   }

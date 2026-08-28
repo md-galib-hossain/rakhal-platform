@@ -27,7 +27,7 @@ export class UnitService {
   async findAll(farmId: string, query: ListUnitQueryDto): Promise<Unit[]> {
     const where: Prisma.UnitWhereInput = {
       OR: [{ farmId: null }, { farmId }],
-      ...(query.includeArchived ? {} : { isActive: true }),
+      ...(query.includeArchived ? {} : { deletedAt: null }),
       ...(query.dimension ? { dimension: query.dimension } : {}),
     };
 
@@ -51,7 +51,6 @@ export class UnitService {
         dimension: dto.dimension,
         conversionToBase: dto.conversionToBase,
         isSystemDefault: false,
-        isActive: true,
       },
     });
     this.log.info('Farm-custom unit created', { unitId: unit.id, farmId });

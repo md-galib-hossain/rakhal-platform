@@ -162,7 +162,7 @@ export class WorkspaceSettingsService {
 
   async listSuppliers(farmId: string) {
     const suppliers = await this.prisma.supplier.findMany({
-      where: { farmId, isActive: true },
+      where: { farmId, deletedAt: null },
       orderBy: { name: 'asc' },
     });
     return { suppliers: suppliers.map((s) => this.mapSupplier(s)) };
@@ -207,7 +207,9 @@ export class WorkspaceSettingsService {
           ? { paymentTerms: dto.payment_terms }
           : {}),
         ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
-        ...(dto.is_active !== undefined ? { isActive: dto.is_active } : {}),
+        ...(dto.deleted_at !== undefined
+          ? { deletedAt: dto.deleted_at === null ? null : new Date() }
+          : {}),
       },
     });
     return this.mapSupplier(supplier);
@@ -217,17 +219,17 @@ export class WorkspaceSettingsService {
     await this.getSupplierOrThrow(farmId, id);
     await this.prisma.supplier.update({
       where: { id },
-      data: { isActive: false },
+      data: { deletedAt: new Date() },
     });
     this.log.info('Supplier deactivated', { supplierId: id, farmId });
-    return { id, is_active: false };
+    return { id, deleted_at: new Date() };
   }
 
   // ── Service Providers ────────────────────────────────────────────────────────
 
   async listServiceProviders(farmId: string) {
     const providers = await this.prisma.serviceProvider.findMany({
-      where: { farmId, isActive: true },
+      where: { farmId, deletedAt: null },
       orderBy: { name: 'asc' },
     });
     return {
@@ -275,7 +277,9 @@ export class WorkspaceSettingsService {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
         ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
         ...(dto.type !== undefined ? { type: dto.type } : {}),
-        ...(dto.is_active !== undefined ? { isActive: dto.is_active } : {}),
+        ...(dto.deleted_at !== undefined
+          ? { deletedAt: dto.deleted_at === null ? null : new Date() }
+          : {}),
       },
     });
     return this.mapServiceProvider(provider);
@@ -285,13 +289,13 @@ export class WorkspaceSettingsService {
     await this.getServiceProviderOrThrow(farmId, id);
     await this.prisma.serviceProvider.update({
       where: { id },
-      data: { isActive: false },
+      data: { deletedAt: new Date() },
     });
     this.log.info('Service provider deactivated', {
       serviceProviderId: id,
       farmId,
     });
-    return { id, is_active: false };
+    return { id, deleted_at: new Date() };
   }
 
   // ── Billing ───────────────────────────────────────────────────────────────--
@@ -363,7 +367,7 @@ export class WorkspaceSettingsService {
     category: string | null;
     paymentTerms: string | null;
     notes: string | null;
-    isActive: boolean;
+    deletedAt: Date | null;
   }) {
     return {
       id: s.id,
@@ -373,7 +377,7 @@ export class WorkspaceSettingsService {
       category: s.category,
       payment_terms: s.paymentTerms,
       notes: s.notes,
-      is_active: s.isActive,
+      deleted_at: s.deletedAt,
     };
   }
 
@@ -382,14 +386,14 @@ export class WorkspaceSettingsService {
     name: string;
     phone: string | null;
     type: string;
-    isActive: boolean;
+    deletedAt: Date | null;
   }) {
     return {
       id: p.id,
       name: p.name,
       phone: p.phone,
       type: p.type,
-      is_active: p.isActive,
+      deleted_at: p.deletedAt,
     };
   }
 

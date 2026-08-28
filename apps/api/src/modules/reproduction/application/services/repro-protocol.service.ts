@@ -62,7 +62,7 @@ export class ReproProtocolService {
     const [protocols, instances] = await Promise.all([
       this.prisma.reproProtocol.findMany({
         where: {
-          isActive: true,
+          deletedAt: null,
           OR: [{ farmId }, { farmId: null, isSystemDefault: true }],
         },
         include: { _count: { select: { steps: true } } },
@@ -103,7 +103,7 @@ export class ReproProtocolService {
     const protocol = await this.prisma.reproProtocol.findFirst({
       where: {
         id,
-        isActive: true,
+        deletedAt: null,
         OR: [{ farmId }, { farmId: null, isSystemDefault: true }],
       },
       include: { steps: { orderBy: { dayNumber: 'asc' } } },
@@ -132,7 +132,7 @@ export class ReproProtocolService {
     const protocol = await this.prisma.reproProtocol.findFirst({
       where: {
         id: dto.protocolId,
-        isActive: true,
+        deletedAt: null,
         OR: [{ farmId }, { farmId: null, isSystemDefault: true }],
       },
       include: { steps: { orderBy: { dayNumber: 'asc' } } },

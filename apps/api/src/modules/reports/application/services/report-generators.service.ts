@@ -258,7 +258,7 @@ export class ReportGeneratorsService {
     if (!params.cattleId) {
       throw new BadRequestException('cattleId is required for this report');
     }
-    // No `isActive` filter on the cattle lookup (RAKHAL-310): a per-animal
+    // No `deletedAt` filter on the cattle lookup (RAKHAL-310): a per-animal
     // history report must still generate for an archived/sold cow.
     const cattle = await this.prisma.cattle.findFirst({
       where: { id: params.cattleId, farmId },
@@ -273,7 +273,7 @@ export class ReportGeneratorsService {
       }),
       this.prisma.calvingEvent.count({ where: { cattleId: cattle.id } }),
       this.prisma.healthCase.findMany({
-        where: { cattleId: cattle.id, isActive: true },
+        where: { cattleId: cattle.id, deletedAt: null },
         select: { diagnosis: true, startDate: true, status: true },
         orderBy: { startDate: 'desc' },
         take: 20,
@@ -453,7 +453,7 @@ export class ReportGeneratorsService {
         this.prisma.healthCase.count({
           where: {
             farmId,
-            isActive: true,
+            deletedAt: null,
             startDate: { gte: start, lt: endNext },
           },
         }),
@@ -463,7 +463,7 @@ export class ReportGeneratorsService {
         this.prisma.healthCase.count({
           where: {
             farmId,
-            isActive: true,
+            deletedAt: null,
             status: HealthCaseStatus.RECOVERED,
             closedDate: { gte: start, lt: endNext },
           },
@@ -522,7 +522,7 @@ export class ReportGeneratorsService {
     const medicineIds = [
       ...new Set(treatments.map((t) => t.medicineId as string)),
     ];
-    // No `isActive` filter (RAKHAL-310): these ids come from historical
+    // No `deletedAt` filter (RAKHAL-310): these ids come from historical
     // treatment logs — a medicine archived since must still price its own
     // past usage correctly.
     const medicines = await this.prisma.medicine.findMany({
@@ -544,7 +544,11 @@ export class ReportGeneratorsService {
   private async vaccinationCompliance(farmId: string): Promise<ReportData> {
     const now = new Date();
     const tasks = await this.prisma.healthTask.findMany({
-      where: { farmId, isActive: true, taskType: HealthActionType.VACCINATION },
+      where: {
+        farmId,
+        deletedAt: null,
+        taskType: HealthActionType.VACCINATION,
+      },
       select: {
         title: true,
         dueDateTime: true,
@@ -743,7 +747,7 @@ export class ReportGeneratorsService {
     const yearEnd = new Date(Date.UTC(year + 1, 0, 1));
 
     // Herd-movement report exception (RAKHAL-310): `opening`/`additions`/
-    // `removals` deliberately omit `isActive` — the year's opening headcount
+    // `removals` deliberately omit `deletedAt` — the year's opening headcount
     // and any animal added during the year must count regardless of whether
     // it has since been archived/sold; only `closing` (the current tally)
     // filters to active.
@@ -932,7 +936,7 @@ export class ReportGeneratorsService {
     end: Date,
   ): Promise<ReportSection> {
     // Herd-movement exception (RAKHAL-310), same as `annualHerdInventory`:
-    // `additions`/`removals` deliberately omit `isActive` — an animal added
+    // `additions`/`removals` deliberately omit `deletedAt` — an animal added
     // in-period still counts even if since archived/sold.
     const [activeHerd, additions, removals, openCows] = await Promise.all([
       this.prisma.cattle.count({
@@ -1020,7 +1024,7 @@ export class ReportGeneratorsService {
   ): Promise<ReportSection> {
     const [newCases, treatments, recoveries, withholding] = await Promise.all([
       this.prisma.healthCase.count({
-        where: { farmId, isActive: true, startDate: { gte: start, lt: end } },
+        where: { farmId, deletedAt: null, startDate: { gte: start, lt: end } },
       }),
       this.prisma.treatmentLog.count({
         where: { farmId, administeredAt: { gte: start, lt: end } },
@@ -1028,7 +1032,7 @@ export class ReportGeneratorsService {
       this.prisma.healthCase.count({
         where: {
           farmId,
-          isActive: true,
+          deletedAt: null,
           status: HealthCaseStatus.RECOVERED,
           closedDate: { gte: start, lt: end },
         },
@@ -1355,7 +1359,7 @@ export class ReportGeneratorsService {
     const cases = await this.prisma.healthCase.findMany({
       where: {
         farmId,
-        isActive: true,
+        deletedAt: null,
         ...(params.status ? { status: params.status as HealthCaseStatus } : {}),
         ...(params.search
           ? {
@@ -1519,7 +1523,7 @@ export class ReportGeneratorsService {
       this.prisma.healthCase.findMany({
         where: {
           cattleId: lactation.cattleId,
-          isActive: true,
+          deletedAt: null,
           startDate: { lte: rangeEnd },
           OR: [
             { closedDate: null },
@@ -2014,7 +2018,7 @@ export class ReportGeneratorsService {
   // ---- shared aggregation helpers ----------------------------------------
 
   private async farmCattleIds(farmId: string): Promise<string[]> {
-    // No `isActive` filter (RAKHAL-310) — every caller uses this for
+    // No `deletedAt` filter (RAKHAL-310) — every caller uses this for
     // historical-period aggregation, where an animal that has since been
     // archived/sold must still count for events inside the reported period.
     const rows = await this.prisma.cattle.findMany({

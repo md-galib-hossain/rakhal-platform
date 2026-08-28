@@ -302,7 +302,7 @@ export class SellMilkUseCase {
     saleNumber: string,
   ): Promise<boolean> {
     const tank = await client.milkTank.findFirst({
-      where: { farmId, tankType: MilkTankType.SELLABLE, isActive: true },
+      where: { farmId, tankType: MilkTankType.SELLABLE, deletedAt: null },
       orderBy: { currentVolumeL: 'desc' },
     });
     if (!tank) return false;

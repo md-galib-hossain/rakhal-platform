@@ -169,11 +169,11 @@ export class CattleImportService {
 
     const [breeds, sheds, existingTags] = await Promise.all([
       this.prisma.breed.findMany({
-        where: { farmId, isActive: true },
+        where: { farmId, deletedAt: null },
         select: { id: true, name: true },
       }),
       this.prisma.shed.findMany({
-        where: { farmId, isActive: true },
+        where: { farmId, deletedAt: null },
         select: { id: true, name: true },
       }),
       this.prisma.cattle.findMany({

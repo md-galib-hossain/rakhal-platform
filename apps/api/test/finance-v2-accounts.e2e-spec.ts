@@ -16,7 +16,7 @@ import {
  * balance produces the account row, its `BankAccountDetail`, AND a real
  * balanced `JournalTransaction` (debit the account's own ledger account,
  * credit Opening Balance Equity) — never a stored balance column; archiving
- * sets `isActive:false`/`archivedAt` without deleting the row; RBAC holds
+ * sets `deletedAt` without deleting the row; RBAC holds
  * (`finance.accounts`: Owner + Manager, not Worker).
  *
  * Requires the dev stack up + `pnpm seed` (uses the seeded demo owner's
@@ -100,7 +100,7 @@ describe('Finance V2 — Financial Accounts (e2e)', () => {
           type: string;
           ledgerAccountId: string;
           currency: string;
-          isActive: boolean;
+          deletedAt: string | null;
           bankDetail: { bankName: string; accountNumber: string } | null;
           mfsDetail: unknown;
         };
@@ -112,7 +112,7 @@ describe('Finance V2 — Financial Accounts (e2e)', () => {
     expect(account.name).toBe(name);
     expect(account.type).toBe(FinancialAccountType.BANK);
     expect(account.currency).toBe('BDT');
-    expect(account.isActive).toBe(true);
+    expect(account.deletedAt).toBeNull();
     expect(account.bankDetail?.bankName).toBe('BRAC Bank');
     expect(account.mfsDetail).toBeNull();
     // No `balance` field anywhere on the wire shape.
@@ -298,7 +298,7 @@ describe('Finance V2 — Financial Accounts (e2e)', () => {
     expect(updated.ledgerAccountId).toBe(account.ledgerAccountId);
   });
 
-  it('archives an account (isActive:false + archivedAt) without deleting it, and rejects a double archive', async () => {
+  it('archives an account (deletedAt set) without deleting it, and rejects a double archive', async () => {
     const createRes = await request(server())
       .post(api('/finance/accounts'))
       .set(...bearer(owner))
@@ -316,11 +316,10 @@ describe('Finance V2 — Financial Accounts (e2e)', () => {
       .expect(200);
     const archived = (
       archiveRes.body as {
-        data: { isActive: boolean; archivedAt: string | null };
+        data: { deletedAt: string | null };
       }
     ).data;
-    expect(archived.isActive).toBe(false);
-    expect(archived.archivedAt).not.toBeNull();
+    expect(archived.deletedAt).not.toBeNull();
 
     // Not deleted — still fetchable by id.
     const stillThere = await prisma.financialAccount.findUnique({

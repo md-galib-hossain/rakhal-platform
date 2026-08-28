@@ -75,7 +75,7 @@ export class EquipmentService {
   ): Promise<CursorPage<PresentedEquipment>> {
     const where: Prisma.EquipmentWhereInput = {
       farmId,
-      ...(query.includeArchived ? {} : { isActive: true }),
+      ...(query.includeArchived ? {} : { deletedAt: null }),
       ...(query.type ? { type: query.type } : {}),
       ...(query.search
         ? {
@@ -145,7 +145,7 @@ export class EquipmentService {
     await this.getOrThrow(farmId, id);
     const equipment = await this.prisma.equipment.update({
       where: { id },
-      data: { isActive: false },
+      data: { deletedAt: new Date() },
       include: { unit: true },
     });
     this.log.info('Equipment archived', { equipmentId: id, farmId });
@@ -156,7 +156,7 @@ export class EquipmentService {
     await this.getOrThrow(farmId, id);
     const equipment = await this.prisma.equipment.update({
       where: { id },
-      data: { isActive: true },
+      data: { deletedAt: null },
       include: { unit: true },
     });
     this.log.info('Equipment restored', { equipmentId: id, farmId });
@@ -236,8 +236,8 @@ export class EquipmentService {
     ids: string[],
   ): Promise<{ deleted: number }> {
     const result = await this.prisma.equipment.updateMany({
-      where: { farmId, id: { in: ids }, isActive: true },
-      data: { isActive: false },
+      where: { farmId, id: { in: ids }, deletedAt: null },
+      data: { deletedAt: new Date() },
     });
     this.log.info('Equipment bulk-archived', {
       farmId,

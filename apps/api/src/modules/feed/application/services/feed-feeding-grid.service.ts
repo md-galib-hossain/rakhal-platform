@@ -55,7 +55,7 @@ export class FeedFeedingGridService {
   async getGrid(farmId: string, date: string, feedGroupId?: string) {
     if (feedGroupId) {
       const group = await this.prisma.feedGroup.findFirst({
-        where: { id: feedGroupId, farmId, isActive: true },
+        where: { id: feedGroupId, farmId, deletedAt: null },
         select: { id: true },
       });
       if (!group) throw new NotFoundException('Feed group not found');
@@ -174,7 +174,7 @@ export class FeedFeedingGridService {
     await this.validateSource(farmId, dto.sourceType, dto);
     if (dto.feedGroupId) {
       const group = await this.prisma.feedGroup.findFirst({
-        where: { id: dto.feedGroupId, farmId, isActive: true },
+        where: { id: dto.feedGroupId, farmId, deletedAt: null },
         select: { id: true },
       });
       if (!group) throw new NotFoundException('Feed group not found');
@@ -290,7 +290,7 @@ export class FeedFeedingGridService {
       postCommit = async () => {};
     } else {
       const stock = await this.prisma.feedStock.findFirst({
-        where: { id: dto.feedStockId, farmId, isActive: true },
+        where: { id: dto.feedStockId, farmId, deletedAt: null },
       });
       if (!stock) throw new NotFoundException('Feed stock lot not found');
       await this.feedStock.assertSufficientStock(farmId, [
@@ -421,13 +421,13 @@ export class FeedFeedingGridService {
   ) {
     if (sourceType === 'FEED_ITEM') {
       const item = await this.prisma.feedItem.findFirst({
-        where: { id: dto.feedItemId, farmId, isActive: true },
+        where: { id: dto.feedItemId, farmId, deletedAt: null },
         select: { id: true },
       });
       if (!item) throw new NotFoundException('Feed item not found');
     } else {
       const stock = await this.prisma.feedStock.findFirst({
-        where: { id: dto.feedStockId, farmId, isActive: true },
+        where: { id: dto.feedStockId, farmId, deletedAt: null },
         select: { id: true },
       });
       if (!stock) throw new NotFoundException('Feed stock lot not found');

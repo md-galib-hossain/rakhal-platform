@@ -132,7 +132,7 @@ export class SettingsService {
       purpose: s.purpose,
       responsible_member: s.responsibleMember,
       current_count: s._count.cattle,
-      is_active: s.isActive,
+      deleted_at: s.deletedAt,
       created_at: s.createdAt,
     }));
   }
@@ -208,9 +208,12 @@ export class SettingsService {
       );
     }
 
-    await this.prisma.shed.update({ where: { id }, data: { isActive: false } });
+    await this.prisma.shed.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
     this.log.info('Shed deactivated', { shedId: id, farmId });
-    return { id: shed.id, is_active: false };
+    return { id: shed.id, deleted_at: new Date() };
   }
 
   // ── Feed Groups ─────────────────────────────────────────────────────────────
@@ -234,7 +237,7 @@ export class SettingsService {
       description: g.description,
       refusal_target_pct: g.refusalTargetPct,
       default_concentration_id: g.defaultConcentrationId,
-      is_active: g.isActive,
+      deleted_at: g.deletedAt,
       assigned_count: g._count.cattle,
       created_at: g.createdAt,
     }));
@@ -271,7 +274,7 @@ export class SettingsService {
         where: {
           id: dto.defaultConcentrationId,
           farmId,
-          isActive: true,
+          deletedAt: null,
           kind: 'FEED_MIXTURE',
         },
         select: { id: true },

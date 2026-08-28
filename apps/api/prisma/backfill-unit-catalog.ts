@@ -103,7 +103,6 @@ async function resolveUnitId(
       dimension: UnitDimension.COUNT, // unknown provenance — COUNT is the safe default (no conversion math assumed)
       conversionToBase: null,
       isSystemDefault: false,
-      isActive: true,
     },
     select: { id: true },
   });

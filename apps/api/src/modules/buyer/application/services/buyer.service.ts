@@ -1,23 +1,51 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { BuyerType, MilkBuyer, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { toStorage } from 'src/common/money';
 import { SellMilkUseCase } from 'src/modules/sales/application/use-cases/sell-milk/sell-milk.use-case';
+import { VoidSaleUseCase } from 'src/modules/sales/application/use-cases/void-sale/void-sale.use-case';
 import { computeMilkPrice } from '../../domain/milk-price';
-import { deriveDispatchStatus } from '../../domain/dispatch-status';
+import {
+  DispatchStatus,
+  deriveDispatchStatus,
+} from '../../domain/dispatch-status';
 import { DispatchNumberAllocator } from '../../infrastructure/dispatch-number.allocator';
 import { CreateBuyerDto } from '../../presentation/dto/create-buyer.dto';
 import { UpdateBuyerDto } from '../../presentation/dto/update-buyer.dto';
 import { ListBuyerQueryDto } from '../../presentation/dto/list-buyer-query.dto';
 import { RecordDispatchDto } from '../../presentation/dto/record-dispatch.dto';
+import { RecordReceiptDto } from '../../presentation/dto/record-receipt.dto';
 import {
   DispatchQueryDto,
   StatementQueryDto,
 } from '../../presentation/dto/dispatch-query.dto';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Translates the derived `DispatchStatus` (RAKHAL-366) into a real Prisma
+ * `where` predicate against `cancelledAt`/`volumeReceivedL` — never
+ * page-post-filtered. Same convention `buildPurchasePaymentStatusWhere`
+ * (`purchase.service.ts`) established for `paymentStatus`. */
+function buildDispatchStatusWhere(
+  status?: DispatchStatus,
+): Prisma.MilkDispatchWhereInput {
+  switch (status) {
+    case 'CANCELLED':
+      return { cancelledAt: { not: null } };
+    case 'PENDING':
+      return { cancelledAt: null, volumeReceivedL: null };
+    case 'DELIVERED':
+      return { cancelledAt: null, volumeReceivedL: { not: null } };
+    default:
+      return {};
+  }
+}
 
 /**
  * Milk Sales & Buyer Management (PRD §11). Farm-scoped (`farmId` from the token
@@ -43,6 +71,7 @@ export class BuyerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly sellMilkUseCase: SellMilkUseCase,
+    private readonly voidSaleUseCase: VoidSaleUseCase,
     private readonly dispatchNumberAllocator: DispatchNumberAllocator,
     logger: LoggerService,
   ) {
@@ -79,7 +108,7 @@ export class BuyerService {
   async listBuyers(farmId: string, query: ListBuyerQueryDto) {
     const where: Prisma.MilkBuyerWhereInput = {
       farmId,
-      ...(query.includeArchived ? {} : { isActive: true }),
+      ...(query.includeArchived ? {} : { deletedAt: null }),
       ...(query.search
         ? {
             OR: [
@@ -118,7 +147,7 @@ export class BuyerService {
         totalPurchased: toStorage(purchase?.totalAmount ?? 0).toString(),
         lastPurchaseAt: purchase?.lastSaleAt?.toISOString() ?? null,
         outstanding: toStorage(outstandingById.get(buyer.id) ?? 0).toString(),
-        status: buyer.isActive ? 'ACTIVE' : 'INACTIVE',
+        status: !buyer.deletedAt ? 'ACTIVE' : 'INACTIVE',
       };
     });
     return { items, meta: page.meta };
@@ -130,7 +159,7 @@ export class BuyerService {
     const [totalBuyers, activeBuyers, purchaseAgg, outstanding] =
       await Promise.all([
         this.prisma.milkBuyer.count({ where: { farmId } }),
-        this.prisma.milkBuyer.count({ where: { farmId, isActive: true } }),
+        this.prisma.milkBuyer.count({ where: { farmId, deletedAt: null } }),
         this.purchaseAggByCustomer(farmId),
         this.receivableOutstandingByCustomer(farmId),
       ]);
@@ -344,7 +373,7 @@ export class BuyerService {
     await this.getBuyerOrThrow(farmId, id);
     const buyer = await this.prisma.milkBuyer.update({
       where: { id },
-      data: { isActive: false },
+      data: { deletedAt: new Date() },
     });
     this.log.info('Milk buyer deactivated', { buyerId: id, farmId });
     return buyer;
@@ -419,6 +448,7 @@ export class BuyerService {
             calculatedAmount: breakdown.total,
             paymentDueDate,
             notes: dto.notes,
+            driverName: dto.driverName,
             createdBy: userId,
           },
         });
@@ -498,6 +528,7 @@ export class BuyerService {
             },
           }
         : {}),
+      ...buildDispatchStatusWhere(query.status),
     };
     const rows = await this.prisma.milkDispatch.findMany({
       where,
@@ -512,6 +543,146 @@ export class BuyerService {
         ...d,
         status: deriveDispatchStatus(d),
       })),
+    };
+  }
+
+  /**
+   * `POST /buyers/dispatches/:id/cancel` (RAKHAL-377, MILESTONE 22,
+   * `BUSINESS_IA_PRD.md` §9.4, §16.2 — closes 366's own deferred AC). Gated
+   * `finance.reverse` at the controller.
+   *
+   * `assertDispatchCancellable` (RAKHAL-366, `domain/dispatch-status.ts`)
+   * used to unconditionally reject cancelling a dispatch with a posted
+   * `saleId` — this ticket is the promised follow-on that closes that gap:
+   * when the dispatch has a `saleId`, its sale is cascade-cancelled via
+   * `VoidSaleUseCase.cancelSale` **inside the same transaction** as the
+   * dispatch's own `cancelledAt` stamp, so a dispatch is never left
+   * cancelled while its `JournalTransaction` stays posted (the exact defect
+   * `assertDispatchCancellable`'s own doc comment warns about). If the sale
+   * already has a payment allocated, `cancelSale` throws — same "refund
+   * first" guard every other void path in this milestone enforces — and the
+   * whole cancel (dispatch included) rolls back.
+   */
+  async cancelDispatch(farmId: string, userId: string, dispatchId: string) {
+    const dispatch = await this.prisma.milkDispatch.findFirst({
+      where: { id: dispatchId, farmId },
+    });
+    if (!dispatch) {
+      throw new NotFoundException('Dispatch not found');
+    }
+    if (dispatch.cancelledAt) {
+      throw new BadRequestException('Dispatch is already cancelled');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      if (dispatch.saleId) {
+        await this.voidSaleUseCase.cancelSale(
+          farmId,
+          userId,
+          dispatch.saleId,
+          tx,
+        );
+      }
+      await tx.milkDispatch.update({
+        where: { id: dispatchId },
+        data: { cancelledAt: new Date() },
+      });
+    });
+
+    this.log.info('Dispatch cancelled', {
+      farmId,
+      dispatchId,
+      cascadedSaleId: dispatch.saleId,
+    });
+
+    const updated = await this.prisma.milkDispatch.findFirstOrThrow({
+      where: { id: dispatchId, farmId },
+    });
+    return { ...updated, status: deriveDispatchStatus(updated) };
+  }
+
+  /**
+   * `PATCH /buyers/dispatches/:id/receipt` (RAKHAL-378) — records the volume
+   * actually received (recomputes `discrepancyL`/`discrepancyFlagged` off
+   * the dispatch's own `volumeDispatchedL`, same formula `recordDispatch`
+   * uses), moving a PENDING dispatch to DELIVERED (derived, see
+   * `domain/dispatch-status.ts`). `driverName` is settable here too.
+   * Idempotent — re-confirming a DELIVERED dispatch just overwrites the
+   * figures; only a CANCELLED dispatch is rejected.
+   */
+  async recordReceipt(
+    farmId: string,
+    dispatchId: string,
+    dto: RecordReceiptDto,
+  ) {
+    const dispatch = await this.prisma.milkDispatch.findFirst({
+      where: { id: dispatchId, farmId },
+    });
+    if (!dispatch) {
+      throw new NotFoundException('Dispatch not found');
+    }
+    if (dispatch.cancelledAt) {
+      throw new BadRequestException(
+        'Dispatch is cancelled — receipt cannot be recorded',
+      );
+    }
+
+    const discrepancyL =
+      Math.round((dispatch.volumeDispatchedL - dto.volumeReceivedL) * 100) /
+      100;
+
+    const updated = await this.prisma.milkDispatch.update({
+      where: { id: dispatchId },
+      data: {
+        volumeReceivedL: dto.volumeReceivedL,
+        discrepancyL,
+        discrepancyFlagged: discrepancyL !== 0,
+        ...(dto.driverName !== undefined ? { driverName: dto.driverName } : {}),
+      },
+    });
+
+    this.log.info('Dispatch receipt recorded', {
+      farmId,
+      dispatchId,
+      volumeReceivedL: dto.volumeReceivedL,
+      discrepancyL,
+    });
+
+    return { ...updated, status: deriveDispatchStatus(updated) };
+  }
+
+  /** `GET /buyers/dispatches/summary` (RAKHAL-378) — Total / Delivered /
+   * In Transit (PENDING) / Cancelled with % of total. Counts derived in
+   * Node off a minimal-column fetch (`cancelledAt`/`volumeReceivedL`) —
+   * cheap enough at farm scale, same judgment call `getBuyerGroups` makes
+   * rather than reaching for raw SQL over a non-stored status. */
+  async getDispatchesSummary(farmId: string) {
+    const rows = await this.prisma.milkDispatch.findMany({
+      where: { farmId },
+      select: { cancelledAt: true, volumeReceivedL: true },
+    });
+
+    const counts = {
+      total: rows.length,
+      delivered: 0,
+      inTransit: 0,
+      cancelled: 0,
+    };
+    for (const row of rows) {
+      const status = deriveDispatchStatus(row);
+      if (status === 'DELIVERED') counts.delivered += 1;
+      else if (status === 'PENDING') counts.inTransit += 1;
+      else counts.cancelled += 1;
+    }
+
+    const pct = (n: number) =>
+      counts.total > 0 ? Math.round((n / counts.total) * 1000) / 10 : 0;
+
+    return {
+      total: counts.total,
+      delivered: { count: counts.delivered, pct: pct(counts.delivered) },
+      inTransit: { count: counts.inTransit, pct: pct(counts.inTransit) },
+      cancelled: { count: counts.cancelled, pct: pct(counts.cancelled) },
     };
   }
 

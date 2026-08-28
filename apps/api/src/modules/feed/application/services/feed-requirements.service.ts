@@ -64,7 +64,7 @@ export class FeedRequirementsService {
   }
 
   /** MILKING/FRESH → lactating cow; DRY → dry cow; GROWING → heifer (young stock, not yet
-   * in production). SOLD/DECEASED cows are excluded upstream (`isActive` scoping) and
+   * in production). SOLD/DECEASED cows are excluded upstream (`deletedAt` scoping) and
    * default to COW here as a harmless fallback. */
   private inferAnimalType(
     productionStatus: string | null | undefined,
@@ -156,7 +156,7 @@ export class FeedRequirementsService {
     query: FeedRequirementsQueryDto,
   ) {
     const group = await this.prisma.feedGroup.findFirst({
-      where: { id: feedGroupId, farmId, isActive: true },
+      where: { id: feedGroupId, farmId, deletedAt: null },
       select: { id: true },
     });
     if (!group) throw new NotFoundException('Feed group not found');
@@ -245,7 +245,7 @@ export class FeedRequirementsService {
    */
   async getTodaysRequirement(farmId: string) {
     const rations = await this.prisma.feedConcentration.findMany({
-      where: { farmId, isActive: true, kind: 'FEED_MIXTURE' },
+      where: { farmId, deletedAt: null, kind: 'FEED_MIXTURE' },
       include: { items: true },
     });
     if (rations.length === 0) {

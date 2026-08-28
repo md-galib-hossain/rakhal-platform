@@ -3,7 +3,7 @@
 /// only from `BreedingEvent.serviceProviderId` (Reproduction module's
 /// TECHNICIAN_SUPPLIED semen source), designed to be reused by other
 /// modules (e.g. Health vet visits) without change.
-/// Soft-deleted via `isActive` (CONV: archive, not hard delete).
+/// Soft-deleted via `deletedAt` (CONV: archive, not hard delete).
 
 enum ServiceProviderType {
   AI_TECHNICIAN
@@ -19,7 +19,7 @@ model ServiceProvider {
   phone String?
   type  ServiceProviderType
 
-  isActive  Boolean  @default(true)
+  deletedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -27,5 +27,5 @@ model ServiceProvider {
   breedingEvents BreedingEvent[]
 
   @@index([farmId])
-  @@index([farmId, isActive])
+  @@index([farmId, deletedAt])
 }

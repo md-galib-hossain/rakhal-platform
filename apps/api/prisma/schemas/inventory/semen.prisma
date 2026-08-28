@@ -13,7 +13,7 @@ model SemenTank {
   currentTempC      Float?
   ln2LevelPct       Float?
 
-  isActive  Boolean  @default(true)
+  deletedAt DateTime?
   createdBy String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -63,7 +63,7 @@ model SemenBatch {
 
   notes String?
 
-  isActive  Boolean  @default(true)
+  deletedAt DateTime?
   createdBy String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

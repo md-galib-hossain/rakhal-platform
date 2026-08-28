@@ -230,7 +230,7 @@ export class FinancialAccountService {
     includeArchived = false,
   ): Promise<FinancialAccountWithDetail[]> {
     return this.prisma.financialAccount.findMany({
-      where: { farmId, ...(includeArchived ? {} : { isActive: true }) },
+      where: { farmId, ...(includeArchived ? {} : { deletedAt: null }) },
       include: DETAIL_INCLUDE,
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
@@ -308,12 +308,12 @@ export class FinancialAccountService {
     userId?: string,
   ): Promise<FinancialAccountWithDetail> {
     const existing = await this.getOrThrow(farmId, id);
-    if (!existing.isActive) {
+    if (existing.deletedAt) {
       throw new ConflictException('Financial account is already archived');
     }
     const account = await this.prisma.financialAccount.update({
       where: { id },
-      data: { isActive: false, archivedAt: new Date() },
+      data: { deletedAt: new Date() },
       include: DETAIL_INCLUDE,
     });
     this.log.info('Financial account archived', {
@@ -348,7 +348,7 @@ export class FinancialAccountService {
    */
   async assertAccountActive(farmId: string, id: string): Promise<void> {
     const account = await this.getOrThrow(farmId, id);
-    if (!account.isActive) {
+    if (account.deletedAt) {
       throw new BadRequestException(
         'This financial account is archived and cannot receive new transactions',
       );

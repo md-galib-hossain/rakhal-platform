@@ -103,7 +103,7 @@ export class FeedStockService {
   ) {
     for (const { stockId, quantity } of requests) {
       const stock = await this.prisma.feedStock.findFirst({
-        where: { id: stockId, farmId, isActive: true },
+        where: { id: stockId, farmId, deletedAt: null },
       });
       if (!stock)
         throw new NotFoundException(`Feed stock lot ${stockId} not found`);
@@ -125,7 +125,7 @@ export class FeedStockService {
     opts: { stockId: string; quantity: number; distributionId?: string },
   ) {
     const stock = await this.prisma.feedStock.findFirst({
-      where: { id: opts.stockId, farmId, isActive: true },
+      where: { id: opts.stockId, farmId, deletedAt: null },
     });
     if (!stock) throw new NotFoundException('Feed stock lot not found');
     if (opts.quantity <= 0) {
@@ -198,7 +198,7 @@ export class FeedStockService {
 
   async list(farmId: string, includeArchived = false) {
     const rows = await this.prisma.feedStock.findMany({
-      where: { farmId, ...(includeArchived ? {} : { isActive: true }) },
+      where: { farmId, ...(includeArchived ? {} : { deletedAt: null }) },
       orderBy: { producedAt: 'desc' },
     });
     return rows.map((r) => this.mapStock(r));
@@ -215,7 +215,7 @@ export class FeedStockService {
     if (!row) throw new NotFoundException('Feed stock lot not found');
     const updated = await this.prisma.feedStock.update({
       where: { id },
-      data: { isActive: false },
+      data: { deletedAt: new Date() },
     });
     this.log.info('Feed stock archived', { farmId, stockId: id });
     return this.mapStock(updated);
@@ -229,8 +229,8 @@ export class FeedStockService {
     ids: string[],
   ): Promise<{ deleted: number }> {
     const result = await this.prisma.feedStock.updateMany({
-      where: { farmId, id: { in: ids }, isActive: true },
-      data: { isActive: false },
+      where: { farmId, id: { in: ids }, deletedAt: null },
+      data: { deletedAt: new Date() },
     });
     this.log.info('Feed stock bulk-archived', {
       farmId,

@@ -41,7 +41,7 @@ describe('MilkAvailabilityService', () => {
       const result = await service.getAvailability('farm-1');
 
       expect(prisma.milkTank.findMany).toHaveBeenCalledWith({
-        where: { farmId: 'farm-1', tankType: 'SELLABLE', isActive: true },
+        where: { farmId: 'farm-1', tankType: 'SELLABLE', deletedAt: null },
         select: {
           id: true,
           name: true,

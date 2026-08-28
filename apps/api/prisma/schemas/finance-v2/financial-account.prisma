@@ -27,9 +27,9 @@ enum MfsProvider {
 /// (RAKHAL-336's balance projection), never stored here, so it can never
 /// drift from the ledger.
 ///
-/// Archive-not-delete: `isActive:false` + `archivedAt` is the only removal
-/// path (`ArchiveFinancialAccountDto`/`archiveAccount`) — an account with
-/// transaction history is never hard-deleted. `assertAccountActive` is the
+/// Archive-not-delete: `deletedAt` is the single soft-delete marker (RAKHAL-397-style
+/// unification, replacing the old `isActive:false` + `archivedAt` hybrid) — an account
+/// with transaction history is never hard-deleted. `assertAccountActive` is the
 /// checkable guard later money-movement tickets (Payment/Transfer, RAKHAL-337/338)
 /// must call before posting anything new against an account.
 model FinancialAccount {
@@ -47,8 +47,7 @@ model FinancialAccount {
   /// migration to add the column, only to start varying it.
   currency String @default("BDT")
 
-  isActive   Boolean   @default(true)
-  archivedAt DateTime?
+  deletedAt DateTime?
 
   createdById String
   createdAt   DateTime @default(now())

@@ -29,7 +29,7 @@ model MilkBuyer {
   collectionTime     String?
   bankDetails        String?
 
-  isActive  Boolean  @default(true)
+  deletedAt DateTime?
   createdBy String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -45,7 +45,7 @@ model MilkBuyer {
   receivables Receivable[]
 
   @@index([farmId])
-  @@index([farmId, isActive])
+  @@index([farmId, deletedAt])
 }
 
 model MilkDispatch {

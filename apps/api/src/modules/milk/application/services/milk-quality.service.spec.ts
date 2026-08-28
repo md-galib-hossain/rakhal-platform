@@ -78,7 +78,12 @@ describe('MilkQualityService', () => {
       const result = await service.create('farm-1', 'user-1', baseDto);
 
       expect(prisma.cattle.findFirst).toHaveBeenCalledWith({
-        where: { id: 'cattle-1', farmId: 'farm-1' },
+        where: {
+          id: 'cattle-1',
+          farmId: 'farm-1',
+          herdStatus: 'ACTIVE',
+          deletedAt: null,
+        },
         select: { id: true },
       });
       expect(prisma.lactation.findFirst).toHaveBeenCalledWith({

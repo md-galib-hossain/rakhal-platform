@@ -18,7 +18,7 @@ model ReproProtocol {
   durationDays Int    @default(0)
 
   isSystemDefault Boolean @default(false)
-  isActive        Boolean @default(true)
+  deletedAt       DateTime?
   createdBy       String?
 
   createdAt DateTime @default(now())

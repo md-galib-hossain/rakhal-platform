@@ -64,7 +64,7 @@ export class FeedRationResolverService {
     return this.prisma.feedConcentration.findFirst({
       where: {
         farmId,
-        isActive: true,
+        deletedAt: null,
         kind: 'FEED_MIXTURE',
         ...where,
       },

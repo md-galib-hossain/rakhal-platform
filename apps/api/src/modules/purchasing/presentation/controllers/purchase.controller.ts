@@ -16,6 +16,7 @@ import { PermissionGuard } from 'src/modules/permission/presentation/guards/perm
 import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { PurchaseService } from '../../application/purchase.service';
+import { VoidDocumentUseCase } from '../../application/use-cases/void-document/void-document.use-case';
 import { CreatePurchaseDto } from '../dto/create-purchase.dto';
 import { ListPurchasesQueryDto } from '../dto/list-purchases-query.dto';
 
@@ -28,9 +29,9 @@ import { ListPurchasesQueryDto } from '../dto/list-purchases-query.dto';
  * PermissionGuard → SubscriptionGuard. The active farm is taken from the
  * verified token context, never the body.
  *
- * **Minimal on purpose, mirrors `SaleController`** — only create + read; no
- * update/cancel route (no permission for those actions exists yet either —
- * see `permission-catalogue.ts`'s `purchasing` resource comment).
+ * RAKHAL-377 (MILESTONE 22) added `POST :id/void` — `finance.reverse`
+ * (owner-only), the only correction mechanism for a posted `Purchase`
+ * (see `VoidDocumentUseCase`'s own doc comment).
  */
 @ApiTags('Purchasing')
 @ApiBearerAuth()
@@ -43,7 +44,10 @@ import { ListPurchasesQueryDto } from '../dto/list-purchases-query.dto';
   SubscriptionGuard,
 )
 export class PurchaseController {
-  constructor(private readonly purchases: PurchaseService) {}
+  constructor(
+    private readonly purchases: PurchaseService,
+    private readonly voidDocument: VoidDocumentUseCase,
+  ) {}
 
   @Post()
   @RequirePermission('purchasing.create')
@@ -68,5 +72,15 @@ export class PurchaseController {
   @RequirePermission('purchasing.read')
   findOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.purchases.findOne(farmId, id);
+  }
+
+  @Post(':id/void')
+  @RequirePermission('finance.reverse')
+  void(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.voidDocument.voidPurchase(farmId, userId, id);
   }
 }

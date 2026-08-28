@@ -124,7 +124,7 @@ describe('Business Reporting — Receivable/Payable aging (e2e, RAKHAL-369)', ()
     amount: number,
   ): Promise<void> {
     const account = await prisma.financialAccount.findFirst({
-      where: { farmId, isActive: true },
+      where: { farmId, deletedAt: null },
       select: { id: true },
     });
     let accountId = account?.id;

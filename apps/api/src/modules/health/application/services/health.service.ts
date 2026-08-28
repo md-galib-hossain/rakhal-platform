@@ -107,7 +107,7 @@ export class HealthService {
         where: {
           farmId,
           status: { in: ACTIVE_CASE_STATUSES },
-          isActive: true,
+          deletedAt: null,
           diagnosisType: {
             notIn:
               PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
@@ -120,7 +120,7 @@ export class HealthService {
       this.prisma.healthTask.count({
         where: {
           farmId,
-          isActive: true,
+          deletedAt: null,
           status: HealthTaskStatus.PENDING,
           dueDateTime: { gte: now },
         },
@@ -128,7 +128,7 @@ export class HealthService {
       this.prisma.healthTask.count({
         where: {
           farmId,
-          isActive: true,
+          deletedAt: null,
           status: { in: [HealthTaskStatus.PENDING, HealthTaskStatus.OVERDUE] },
           dueDateTime: { lt: now },
         },
@@ -137,7 +137,7 @@ export class HealthService {
         by: ['diagnosis'],
         where: {
           farmId,
-          isActive: true,
+          deletedAt: null,
           diagnosisType: {
             notIn:
               PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
@@ -149,7 +149,7 @@ export class HealthService {
         by: ['shedName'],
         where: {
           farmId,
-          isActive: true,
+          deletedAt: null,
           diagnosisType: {
             notIn:
               PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
@@ -160,7 +160,7 @@ export class HealthService {
       this.prisma.healthCase.findMany({
         where: {
           farmId,
-          isActive: true,
+          deletedAt: null,
           diagnosisType: {
             notIn:
               PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
@@ -200,7 +200,7 @@ export class HealthService {
   async getSickBay(farmId: string, query: SickBayQueryDto) {
     const where: Prisma.HealthCaseWhereInput = {
       farmId,
-      isActive: true,
+      deletedAt: null,
       status: query.status ?? { in: ACTIVE_CASE_STATUSES },
       diagnosisType: {
         notIn: PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
@@ -501,7 +501,7 @@ export class HealthService {
   ) {
     const healthCase = await this.getCaseOrThrow(farmId, id);
     const plan = await this.prisma.healthPlan.findFirst({
-      where: { id: dto.healthPlanId, farmId, isActive: true },
+      where: { id: dto.healthPlanId, farmId, deletedAt: null },
       include: { steps: { orderBy: { dayNumber: 'asc' } } },
     });
     if (!plan) throw new NotFoundException('Health plan not found');
@@ -568,7 +568,7 @@ export class HealthService {
     const healthCase = await this.getCaseOrThrow(farmId, id);
     const task = dto.healthTaskId
       ? await this.prisma.healthTask.findFirst({
-          where: { id: dto.healthTaskId, healthCaseId: id, isActive: true },
+          where: { id: dto.healthTaskId, healthCaseId: id, deletedAt: null },
         })
       : null;
     if (dto.healthTaskId && !task)
@@ -746,7 +746,7 @@ export class HealthService {
         status: HealthCaseStatus.RECOVERED,
         closedDate: new Date(),
         closeReason: dto.observation ?? 'Recovered',
-        isActive: false,
+        deletedAt: new Date(),
       },
     });
 
@@ -795,7 +795,7 @@ export class HealthService {
           closedDate: new Date(dto.deathDate),
           closeReason: dto.primaryCauseOfDeath,
           mortalityId: mortality.id,
-          isActive: false,
+          deletedAt: new Date(),
         },
       });
       // RAKHAL-399: goes through the same consolidated disposition path every
@@ -842,7 +842,7 @@ export class HealthService {
   async getPlans(farmId: string, query: HealthPlanQueryDto) {
     const where: Prisma.HealthPlanWhereInput = {
       farmId,
-      isActive: true,
+      deletedAt: null,
       ...(query.search
         ? { name: { contains: query.search, mode: 'insensitive' } }
         : {}),
@@ -861,7 +861,7 @@ export class HealthService {
   async getAppliedPlans(farmId: string, query: AppliedPlansQueryDto) {
     const where: Prisma.HealthCaseWhereInput = {
       farmId,
-      isActive: true,
+      deletedAt: null,
       healthPlanId: { not: null },
       status: { in: ACTIVE_CASE_STATUSES },
       ...(query.healthPlanId ? { healthPlanId: query.healthPlanId } : {}),
@@ -923,7 +923,7 @@ export class HealthService {
 
   async getPlan(farmId: string, id: string) {
     const plan = await this.prisma.healthPlan.findFirst({
-      where: { id, farmId, isActive: true },
+      where: { id, farmId, deletedAt: null },
       include: { steps: { orderBy: { dayNumber: 'asc' } } },
     });
     if (!plan) throw new NotFoundException('Health plan not found');
@@ -960,7 +960,7 @@ export class HealthService {
     await this.getPlan(farmId, id);
     const deleted = await this.prisma.healthPlan.update({
       where: { id },
-      data: { isActive: false },
+      data: { deletedAt: new Date() },
     });
     this.log.info('Health plan archived', { healthPlanId: id, farmId });
     return deleted;
@@ -970,7 +970,7 @@ export class HealthService {
     await this.getCaseOrThrow(farmId, id);
     const deleted = await this.prisma.healthCase.update({
       where: { id },
-      data: { isActive: false },
+      data: { deletedAt: new Date() },
     });
     this.log.info('Health case archived', { healthCaseId: id, farmId });
     return deleted;
@@ -979,7 +979,7 @@ export class HealthService {
   async getTasks(farmId: string, query: HealthTaskQueryDto) {
     const where: Prisma.HealthTaskWhereInput = {
       farmId,
-      isActive: true,
+      deletedAt: null,
       ...(query.cattleId ? { cattleId: query.cattleId } : {}),
       ...(query.healthCaseId ? { healthCaseId: query.healthCaseId } : {}),
       ...(query.status ? { status: query.status } : {}),
@@ -1008,7 +1008,7 @@ export class HealthService {
     const start = new Date(Date.UTC(query.year, query.month - 1, 1));
     const end = new Date(Date.UTC(query.year, query.month, 0, 23, 59, 59, 999));
     const tasks = await this.prisma.healthTask.findMany({
-      where: { farmId, isActive: true, dueDateTime: { gte: start, lte: end } },
+      where: { farmId, deletedAt: null, dueDateTime: { gte: start, lte: end } },
       select: { dueDateTime: true, status: true },
     });
     return this.groupTasksByDate(tasks);
@@ -1062,7 +1062,7 @@ export class HealthService {
           where: {
             cattleId,
             farmId,
-            isActive: true,
+            deletedAt: null,
             status: { in: ACTIVE_CASE_STATUSES },
           },
           include: {
@@ -1324,12 +1324,12 @@ export class HealthService {
     healthCaseId: string,
   ) {
     const [total, completed] = await Promise.all([
-      tx.healthTask.count({ where: { healthCaseId, isActive: true } }),
+      tx.healthTask.count({ where: { healthCaseId, deletedAt: null } }),
       tx.healthTask.count({
         where: {
           healthCaseId,
           status: HealthTaskStatus.COMPLETED,
-          isActive: true,
+          deletedAt: null,
         },
       }),
     ]);
@@ -1345,10 +1345,10 @@ export class HealthService {
   }
 
   // Mutation entry point only (update/apply-plan/log-treatment/close/mortality) —
-  // isActive:true so no path can act on an already-closed/archived case.
+  // deletedAt:null so no path can act on an already-closed/archived case.
   private async getCaseOrThrow(farmId: string, id: string) {
     const healthCase = await this.prisma.healthCase.findFirst({
-      where: { id, farmId, isActive: true },
+      where: { id, farmId, deletedAt: null },
     });
     if (!healthCase) throw new NotFoundException('Health case not found');
     return healthCase;
@@ -1356,7 +1356,7 @@ export class HealthService {
 
   private async getTaskOrThrow(farmId: string, id: string) {
     const task = await this.prisma.healthTask.findFirst({
-      where: { id, farmId, isActive: true },
+      where: { id, farmId, deletedAt: null },
     });
     if (!task) throw new NotFoundException('Health task not found');
     return task;
@@ -1372,7 +1372,7 @@ export class HealthService {
 
   private async assertShedInFarm(farmId: string, shedId: string) {
     const shed = await this.prisma.shed.findFirst({
-      where: { id: shedId, farmId, isActive: true },
+      where: { id: shedId, farmId, deletedAt: null },
     });
     if (!shed) throw new BadRequestException('Shed must belong to Farm');
     return shed;

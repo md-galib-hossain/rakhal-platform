@@ -270,7 +270,7 @@ export class DashboardService {
         by: ['status'],
         where: {
           farmId,
-          isActive: true,
+          deletedAt: null,
           status: { in: ACTIVE_CASE_STATUSES },
           diagnosisType: {
             notIn:
@@ -644,7 +644,7 @@ export class DashboardService {
 
     const [medicines, feedItems, medicineUsage] = await Promise.all([
       this.prisma.medicine.findMany({
-        where: { farmId, isActive: true, lowStockThreshold: { gt: 0 } },
+        where: { farmId, deletedAt: null, lowStockThreshold: { gt: 0 } },
         select: {
           id: true,
           name: true,
@@ -654,7 +654,7 @@ export class DashboardService {
         },
       }),
       this.prisma.feedItem.findMany({
-        where: { farmId, isActive: true, lowStockThreshold: { gt: 0 } },
+        where: { farmId, deletedAt: null, lowStockThreshold: { gt: 0 } },
         select: {
           id: true,
           name: true,
@@ -788,7 +788,7 @@ export class DashboardService {
       this.prisma.healthTask.findMany({
         where: {
           farmId,
-          isActive: true,
+          deletedAt: null,
           status: { in: [HealthTaskStatus.PENDING, HealthTaskStatus.OVERDUE] },
           dueDateTime: { lt: now },
         },
@@ -813,7 +813,7 @@ export class DashboardService {
       this.prisma.medicine.findFirst({
         where: {
           farmId,
-          isActive: true,
+          deletedAt: null,
           lowStockThreshold: { gt: 0 },
           currentStock: { lte: this.prisma.medicine.fields.lowStockThreshold },
         },

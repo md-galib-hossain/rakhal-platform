@@ -157,7 +157,7 @@ export class LactationEconomicsService {
     if (latestDispatch) return latestDispatch.basePricePerLitre;
 
     const activeBuyers = await this.prisma.milkBuyer.findMany({
-      where: { farmId, isActive: true },
+      where: { farmId, deletedAt: null },
       select: { basePricePerLitre: true },
     });
     if (activeBuyers.length === 0) return 0;

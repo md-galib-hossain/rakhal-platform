@@ -46,7 +46,7 @@ export async function resolveFinancialAccountId(
     );
   }
   const account = await prisma.financialAccount.findFirst({
-    where: { farmId, type: accountType, isActive: true },
+    where: { farmId, type: accountType, deletedAt: null },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     select: { id: true },
   });

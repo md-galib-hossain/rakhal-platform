@@ -20,7 +20,7 @@ model Unit {
   conversionToBase Float?
 
   isSystemDefault Boolean @default(false)
-  isActive        Boolean @default(true)
+  deletedAt       DateTime?
 
   /// null = Rakhal system unit (seeded, visible to every farm). Non-null = one
   /// farm's own custom unit, invisible to other farms. Same convention as

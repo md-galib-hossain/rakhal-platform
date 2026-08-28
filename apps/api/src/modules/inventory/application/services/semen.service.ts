@@ -60,13 +60,17 @@ export class SemenService {
 
   async listTanks(farmId: string): Promise<PresentedTank[]> {
     const tanks = await this.prisma.semenTank.findMany({
-      where: { farmId, isActive: true },
+      where: { farmId, deletedAt: null },
       orderBy: { createdAt: 'desc' },
     });
 
     const sums = await this.prisma.semenBatch.groupBy({
       by: ['tankId'],
-      where: { farmId, isActive: true, tankId: { in: tanks.map((t) => t.id) } },
+      where: {
+        farmId,
+        deletedAt: null,
+        tankId: { in: tanks.map((t) => t.id) },
+      },
       _sum: { strawQuantity: true },
     });
     const byTank = new Map(
@@ -134,7 +138,7 @@ export class SemenService {
     await this.getTankOrThrow(farmId, id);
     const tank = await this.prisma.semenTank.update({
       where: { id },
-      data: { isActive: false },
+      data: { deletedAt: new Date() },
     });
     return this.presentTank(tank, await this.tankStrawTotal(farmId, id));
   }
@@ -147,7 +151,7 @@ export class SemenService {
   ): Promise<CursorPage<PresentedBatch>> {
     const where: Prisma.SemenBatchWhereInput = {
       farmId,
-      ...(query.includeArchived ? {} : { isActive: true }),
+      ...(query.includeArchived ? {} : { deletedAt: null }),
       ...(query.tankId ? { tankId: query.tankId } : {}),
       ...(query.search
         ? {
@@ -263,7 +267,7 @@ export class SemenService {
     await this.getBatchOrThrow(farmId, id);
     const batch = await this.prisma.semenBatch.update({
       where: { id },
-      data: { isActive: false },
+      data: { deletedAt: new Date() },
     });
     return this.presentBatch(batch);
   }
@@ -353,7 +357,7 @@ export class SemenService {
     this.log.info('Semen straw restored', { batchId, farmId, by });
     return {
       batch: this.presentBatch(updated),
-      warning: existing.isActive
+      warning: !existing.deletedAt
         ? null
         : 'This batch is archived — the straw count was restored, but the physical straw cannot be un-thawed.',
     };
@@ -385,7 +389,7 @@ export class SemenService {
     tankId: string,
   ): Promise<number> {
     const sum = await this.prisma.semenBatch.aggregate({
-      where: { farmId, tankId, isActive: true },
+      where: { farmId, tankId, deletedAt: null },
       _sum: { strawQuantity: true },
     });
     return sum._sum.strawQuantity ?? 0;
@@ -404,7 +408,7 @@ export class SemenService {
       where: {
         farmId,
         tankId,
-        isActive: true,
+        deletedAt: null,
         ...(excludeBatchId ? { id: { not: excludeBatchId } } : {}),
       },
       _sum: { strawQuantity: true },

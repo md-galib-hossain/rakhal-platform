@@ -33,7 +33,7 @@ model Medicine {
 
   notes String?
 
-  isActive  Boolean  @default(true)
+  deletedAt DateTime?
   createdBy String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

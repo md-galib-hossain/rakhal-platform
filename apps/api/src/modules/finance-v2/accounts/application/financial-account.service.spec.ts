@@ -84,7 +84,7 @@ describe('FinancialAccountService', () => {
         type: FinancialAccountType.CASH,
         ledgerAccountId: 'ledger-1',
         currency: 'BDT',
-        isActive: true,
+        deletedAt: null,
       });
       const service = make();
 
@@ -373,16 +373,15 @@ describe('FinancialAccountService', () => {
   });
 
   describe('archiveAccount', () => {
-    it('archives an active account (isActive:false + archivedAt set), never deletes', async () => {
+    it('archives an active account (deletedAt set), never deletes', async () => {
       prisma.financialAccount.findFirst.mockResolvedValue({
         id: 'fa-1',
         farmId: 'farm-1',
-        isActive: true,
+        deletedAt: null,
       });
       prisma.financialAccount.update.mockResolvedValue({
         id: 'fa-1',
-        isActive: false,
-        archivedAt: new Date(),
+        deletedAt: new Date(),
         bankDetail: null,
         mfsDetail: null,
       });
@@ -392,10 +391,10 @@ describe('FinancialAccountService', () => {
 
       const updateArgs = (
         prisma.financialAccount.update.mock.calls as unknown[][]
-      )[0][0] as { where: { id: string }; data: { isActive: boolean } };
+      )[0][0] as { where: { id: string }; data: { deletedAt: Date } };
       expect(updateArgs.where).toEqual({ id: 'fa-1' });
-      expect(updateArgs.data.isActive).toBe(false);
-      expect(result.isActive).toBe(false);
+      expect(updateArgs.data.deletedAt).toBeInstanceOf(Date);
+      expect(result.deletedAt).toBeTruthy();
       expect(prisma.financialAccount).not.toHaveProperty('delete');
     });
 
@@ -403,7 +402,7 @@ describe('FinancialAccountService', () => {
       prisma.financialAccount.findFirst.mockResolvedValue({
         id: 'fa-1',
         farmId: 'farm-1',
-        isActive: false,
+        deletedAt: new Date(),
       });
       const service = make();
 
@@ -428,7 +427,7 @@ describe('FinancialAccountService', () => {
       prisma.financialAccount.findFirst.mockResolvedValue({
         id: 'fa-1',
         farmId: 'farm-1',
-        isActive: true,
+        deletedAt: null,
       });
       const service = make();
 
@@ -441,7 +440,7 @@ describe('FinancialAccountService', () => {
       prisma.financialAccount.findFirst.mockResolvedValue({
         id: 'fa-1',
         farmId: 'farm-1',
-        isActive: false,
+        deletedAt: new Date(),
       });
       const service = make();
 
@@ -458,7 +457,7 @@ describe('FinancialAccountService', () => {
           id: 'fa-1',
           farmId: 'farm-1',
           type: FinancialAccountType.CASH,
-          isActive: true,
+          deletedAt: null,
           bankDetail: null,
           mfsDetail: null,
         })
@@ -467,7 +466,7 @@ describe('FinancialAccountService', () => {
           farmId: 'farm-1',
           name: 'Renamed',
           type: FinancialAccountType.CASH,
-          isActive: true,
+          deletedAt: null,
           bankDetail: null,
           mfsDetail: null,
         });
@@ -488,7 +487,7 @@ describe('FinancialAccountService', () => {
         id: 'fa-1',
         farmId: 'farm-1',
         type: FinancialAccountType.CASH,
-        isActive: true,
+        deletedAt: null,
         bankDetail: null,
         mfsDetail: null,
       });

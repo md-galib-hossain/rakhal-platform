@@ -6,6 +6,7 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { CacheService } from 'src/core/cache/cache.service';
 import { MilkService } from './milk.service';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { ImportMilkConfirmDto } from '../../presentation/dto/import-milk.dto';
 
 /** One cow's session yields for one day, as read from a wide-format row. */
@@ -77,11 +78,11 @@ export class MilkImportService {
 
     const [cattle, tanks] = await Promise.all([
       this.prisma.cattle.findMany({
-        where: { farmId },
+        where: activeHerd(farmId),
         select: { id: true, tagNumber: true },
       }),
       this.prisma.milkTank.findMany({
-        where: { farmId, isActive: true },
+        where: { farmId, deletedAt: null },
         select: { id: true, name: true },
       }),
     ]);

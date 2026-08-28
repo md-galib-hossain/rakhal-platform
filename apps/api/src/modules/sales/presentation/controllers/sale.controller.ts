@@ -16,6 +16,7 @@ import { PermissionGuard } from 'src/modules/permission/presentation/guards/perm
 import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { SaleService } from '../../application/sale.service';
+import { VoidSaleUseCase } from '../../application/use-cases/void-sale/void-sale.use-case';
 import { CreateSaleDto } from '../dto/create-sale.dto';
 import { ListSalesQueryDto } from '../dto/list-sales-query.dto';
 
@@ -28,10 +29,10 @@ import { ListSalesQueryDto } from '../dto/list-sales-query.dto';
  * SubscriptionGuard. The active farm is taken from the verified token context,
  * never the body.
  *
- * **Minimal on purpose** — this ticket's scope is the document model, not the full
- * sales UX. Only create + read; no update/cancel/void route (no permission for
- * those actions exists yet either — see `permission-catalogue.ts`'s `sales`
- * resource comment).
+ * RAKHAL-377 (MILESTONE 22) added `POST :id/cancel`/`POST :id/refund` —
+ * `finance.reverse` (owner-only), the only correction mechanism for a posted
+ * `Sale` (`JournalTransaction` immutability forbids a money-changing `PATCH`,
+ * see `VoidSaleUseCase`'s own doc comment).
  */
 @ApiTags('Sales')
 @ApiBearerAuth()
@@ -44,7 +45,10 @@ import { ListSalesQueryDto } from '../dto/list-sales-query.dto';
   SubscriptionGuard,
 )
 export class SaleController {
-  constructor(private readonly sales: SaleService) {}
+  constructor(
+    private readonly sales: SaleService,
+    private readonly voidSale: VoidSaleUseCase,
+  ) {}
 
   @Post()
   @RequirePermission('sales.create')
@@ -66,5 +70,25 @@ export class SaleController {
   @RequirePermission('sales.read')
   findOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.sales.findOne(farmId, id);
+  }
+
+  @Post(':id/cancel')
+  @RequirePermission('finance.reverse')
+  cancel(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.voidSale.cancelSale(farmId, userId, id);
+  }
+
+  @Post(':id/refund')
+  @RequirePermission('finance.reverse')
+  refund(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.voidSale.refundSale(farmId, userId, id);
   }
 }

@@ -82,7 +82,7 @@ export class MilkAvailabilityService {
     }
 
     const tanks = await this.prisma.milkTank.findMany({
-      where: { farmId, tankType: MilkTankType.SELLABLE, isActive: true },
+      where: { farmId, tankType: MilkTankType.SELLABLE, deletedAt: null },
       select: {
         id: true,
         name: true,

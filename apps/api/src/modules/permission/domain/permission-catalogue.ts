@@ -107,7 +107,21 @@ const RESOURCES: ResourceDef[] = [
     // payments/sales use cases); the permission is added now so the seam is
     // gated the moment a route calls it, per this ticket's own governance
     // scope — nothing to wire today.
-    actions: [...BASE, 'void', 'billing', 'accounts', 'transfer', 'reverse'],
+    // 'accounting' (RAKHAL-379, MILESTONE 22) backs `GET /finance/reports/
+    // trial-balance` — owner-only, same tier as 'void'/'transfer'/'reverse'.
+    // A trial balance is the chart of accounts with debit/credit columns,
+    // which ADR-022 forbids surfacing to a farmer role; this is the
+    // milestone's own designated exception (ledger-integrity check + RD-059's
+    // future reconciliation job), deliberately excluded from Manager's grant.
+    actions: [
+      ...BASE,
+      'void',
+      'billing',
+      'accounts',
+      'transfer',
+      'reverse',
+      'accounting',
+    ],
   },
   {
     // Sales (RAKHAL-339, Sales module — `FINANCE_V2_DESIGN.md` §4.3, §5.1). Reuses

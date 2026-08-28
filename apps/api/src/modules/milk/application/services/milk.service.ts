@@ -21,6 +21,7 @@ import { MilkTankService } from 'src/modules/inventory/application/services/milk
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { HealthService } from 'src/modules/health/application/services/health.service';
 import { AnimalHoldService } from 'src/modules/cattle/application/services/animal-hold.service';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import {
   DEFAULT_SESSION_CONFIG,
   dropPct,
@@ -132,7 +133,7 @@ export class MilkService {
     farmId: string,
   ): Promise<number | null> {
     const { _avg } = await this.prisma.milkBuyer.aggregate({
-      where: { farmId, isActive: true },
+      where: { farmId, deletedAt: null },
       _avg: { basePricePerLitre: true },
     });
     return _avg.basePricePerLitre ?? null;
@@ -265,14 +266,14 @@ export class MilkService {
     const ids = dto.entries.map((e) => e.cattleId);
 
     const cows = await this.prisma.cattle.findMany({
-      where: { id: { in: ids }, farmId },
+      where: { id: { in: ids }, ...activeHerd(farmId) },
       select: { id: true },
     });
     const valid = new Set(cows.map((c) => c.id));
     const missing = ids.find((id) => !valid.has(id));
     if (missing) {
       throw new BadRequestException(
-        `Cattle ${missing} does not belong to this farm`,
+        `Cattle ${missing} does not belong to this farm, is not in the active herd, or has been deleted`,
       );
     }
 
@@ -334,7 +335,7 @@ export class MilkService {
     ];
     const tanks = tankIds.length
       ? await this.prisma.milkTank.findMany({
-          where: { id: { in: tankIds }, farmId, isActive: true },
+          where: { id: { in: tankIds }, farmId, deletedAt: null },
         })
       : [];
     const tankById = new Map(tanks.map((t) => [t.id, t]));
@@ -709,10 +710,10 @@ export class MilkService {
     if (volume === 0) return false;
     const tank = tankIdOverride
       ? await tx.milkTank.findFirst({
-          where: { id: tankIdOverride, farmId, tankType, isActive: true },
+          where: { id: tankIdOverride, farmId, tankType, deletedAt: null },
         })
       : await tx.milkTank.findFirst({
-          where: { farmId, tankType, isActive: true },
+          where: { farmId, tankType, deletedAt: null },
           orderBy: { createdAt: 'asc' },
         });
     if (!tank) return false;

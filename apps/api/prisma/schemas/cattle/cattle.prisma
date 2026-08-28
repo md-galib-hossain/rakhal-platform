@@ -159,7 +159,7 @@ model Breed {
   farmId      String
   name        String
   description String?
-  isActive    Boolean  @default(true)
+  deletedAt   DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -180,7 +180,7 @@ model Shed {
   capacity            Int?
   purpose             ShedPurpose @default(GENERAL)
   responsibleMemberId String?
-  isActive            Boolean     @default(true)
+  deletedAt           DateTime?
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
@@ -208,7 +208,7 @@ model FeedGroup {
   /// relation — same "no cross-module coupling" convention `FeedConcentration.feedGroupId` already
   /// uses. Null = no default set, "Feed Today" still requires manually picking a TMR.
   defaultConcentrationId String?
-  isActive    Boolean  @default(true)
+  deletedAt   DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

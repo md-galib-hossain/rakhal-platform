@@ -54,7 +54,7 @@ export class SupplierReadService {
     const [suppliers, purchaseAgg, payableOutstanding] = await Promise.all([
       this.prisma.supplier.findMany({
         where: { farmId },
-        select: { id: true, name: true, phone: true, isActive: true },
+        select: { id: true, name: true, phone: true, deletedAt: true },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
       }),
       this.purchaseAggBySupplier(farmId),
@@ -75,7 +75,7 @@ export class SupplierReadService {
         totalPurchases: toStorage(purchase?.totalAmount ?? 0).toString(),
         payable: toStorage(payableById.get(s.id) ?? 0).toString(),
         lastPurchaseAt: purchase?.lastPurchaseAt?.toISOString() ?? null,
-        status: s.isActive ? 'ACTIVE' : 'INACTIVE',
+        status: !s.deletedAt ? 'ACTIVE' : 'INACTIVE',
       };
     });
   }
@@ -84,7 +84,7 @@ export class SupplierReadService {
     const [totalCount, activeCount, purchaseAgg, payableOutstanding] =
       await Promise.all([
         this.prisma.supplier.count({ where: { farmId } }),
-        this.prisma.supplier.count({ where: { farmId, isActive: true } }),
+        this.prisma.supplier.count({ where: { farmId, deletedAt: null } }),
         this.purchaseAggBySupplier(farmId),
         this.payableOutstandingBySupplier(farmId),
       ]);

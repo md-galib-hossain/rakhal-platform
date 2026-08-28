@@ -47,7 +47,7 @@ model FeedIngredient {
 
   isAvailableBd   Boolean @default(true)
   isSystemDefault Boolean @default(false)
-  isActive        Boolean @default(true)
+  deletedAt       DateTime?
 
   /// Farm-added "quick" ingredient (frontend "Add Custom Ingredient", RAKHAL-feed-custom): `null`
   /// = the global Rakhal-Admin catalogue (unchanged, `farmId` never set on those rows), non-null =
@@ -89,7 +89,7 @@ model FeedIngredient {
   feedItems           FeedItem[]
 
   @@index([feedClass])
-  @@index([isActive])
+  @@index([deletedAt])
   @@index([farmId])
   @@index([sourceConcentrationId])
 }
@@ -167,7 +167,7 @@ model FeedConcentration {
   /// `FeedConcentrationVersion` below.
   versionNumber Int @default(1)
 
-  isActive  Boolean  @default(true)
+  deletedAt DateTime?
   createdBy String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

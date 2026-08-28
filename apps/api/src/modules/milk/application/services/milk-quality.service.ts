@@ -5,6 +5,7 @@ import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { CursorPage, getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { CreateMilkQualityTestDto } from '../../presentation/dto/create-milk-quality-test.dto';
 import { ListMilkQualityTestQueryDto } from '../../presentation/dto/list-milk-quality-test-query.dto';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 
 /**
  * Milk quality testing (RAKHAL-282, PRD §10.6 groundwork). Lab/device
@@ -94,11 +95,13 @@ export class MilkQualityService {
     cattleId: string,
   ): Promise<void> {
     const cattle = await this.prisma.cattle.findFirst({
-      where: { id: cattleId, farmId },
+      where: { id: cattleId, ...activeHerd(farmId) },
       select: { id: true },
     });
     if (!cattle) {
-      throw new NotFoundException('Cattle not found in this farm.');
+      throw new NotFoundException(
+        'Cattle not found in this farm, not in the active herd, or deleted.',
+      );
     }
   }
 

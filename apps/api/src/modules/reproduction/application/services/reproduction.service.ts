@@ -2508,7 +2508,7 @@ export class ReproductionService {
     serviceProviderId: string,
   ) {
     const provider = await this.prisma.serviceProvider.findFirst({
-      where: { id: serviceProviderId, farmId, isActive: true },
+      where: { id: serviceProviderId, farmId, deletedAt: null },
     });
     if (!provider) {
       throw new BadRequestException(

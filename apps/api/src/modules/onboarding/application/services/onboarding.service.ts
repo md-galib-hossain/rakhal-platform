@@ -48,7 +48,7 @@ export class OnboardingService {
         where: { id: farmId },
         select: { hasCompletedOnboarding: true },
       }),
-      this.prisma.shed.count({ where: { farmId, isActive: true } }),
+      this.prisma.shed.count({ where: { farmId, deletedAt: null } }),
       this.prisma.cattle.count({
         where: activeHerd(farmId),
       }),

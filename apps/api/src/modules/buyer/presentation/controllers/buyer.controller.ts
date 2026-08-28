@@ -20,7 +20,8 @@ import { BuyerService } from '../../application/services/buyer.service';
 import { CreateBuyerDto } from '../dto/create-buyer.dto';
 import { UpdateBuyerDto } from '../dto/update-buyer.dto';
 import { ListBuyerQueryDto } from '../dto/list-buyer-query.dto';
-import { StatementQueryDto } from '../dto/dispatch-query.dto';
+import { DispatchQueryDto, StatementQueryDto } from '../dto/dispatch-query.dto';
+import { RecordReceiptDto } from '../dto/record-receipt.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
@@ -70,6 +71,49 @@ export class BuyerController {
   @RequirePermission('finance.read')
   groups(@CurrentFarmId() farmId: string) {
     return this.buyerService.getBuyerGroups(farmId);
+  }
+
+  // RAKHAL-378: dispatch lifecycle routes. `dispatches`/`dispatches/summary`
+  // are literal segments and, per the same Nest/Express registration-order
+  // rule the `summary`/`groups` comment above documents, must be registered
+  // before `GET :id` below.
+  @Get('dispatches')
+  @RequirePermission('finance.read')
+  listDispatches(
+    @CurrentFarmId() farmId: string,
+    @Query() query: DispatchQueryDto,
+  ) {
+    return this.buyerService.listDispatches(farmId, query);
+  }
+
+  @Get('dispatches/summary')
+  @RequirePermission('finance.read')
+  dispatchesSummary(@CurrentFarmId() farmId: string) {
+    return this.buyerService.getDispatchesSummary(farmId);
+  }
+
+  @Patch('dispatches/:id/receipt')
+  @RequirePermission('finance.update')
+  recordReceipt(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @Body() dto: RecordReceiptDto,
+  ) {
+    return this.buyerService.recordReceipt(farmId, id, dto);
+  }
+
+  // RAKHAL-377 (MILESTONE 22): the only correction mechanism for a
+  // MilkDispatch — cascades into cancelling its posted Sale, if any (see
+  // `BuyerService.cancelDispatch`'s own doc comment). `finance.reverse`
+  // (owner-only), same tier every other void route in this milestone uses.
+  @Post('dispatches/:id/cancel')
+  @RequirePermission('finance.reverse')
+  cancelDispatch(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.buyerService.cancelDispatch(farmId, userId, id);
   }
 
   @Get(':id/statement')

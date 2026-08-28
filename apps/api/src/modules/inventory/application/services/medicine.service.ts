@@ -126,7 +126,7 @@ export class MedicineService {
   ): Promise<CursorPage<PresentedMedicine>> {
     const where: Prisma.MedicineWhereInput = {
       farmId,
-      ...(query.includeArchived ? {} : { isActive: true }),
+      ...(query.includeArchived ? {} : { deletedAt: null }),
       ...(query.category ? { category: query.category } : {}),
       ...this.statusFilter(query.status),
       ...(query.search
@@ -430,7 +430,7 @@ export class MedicineService {
     const batches = await this.prisma.medicine.findMany({
       where: {
         farmId,
-        isActive: true,
+        deletedAt: null,
         name: { equals: medicineName, mode: 'insensitive' },
         currentStock: { gt: 0 },
         expiryDate: { gte: new Date() },
@@ -545,7 +545,7 @@ export class MedicineService {
     await this.getOrThrow(farmId, id);
     const medicine = await this.prisma.medicine.update({
       where: { id },
-      data: { isActive: false },
+      data: { deletedAt: new Date() },
       include: { unit: true },
     });
     this.log.info('Medicine archived', { medicineId: id, farmId });
@@ -556,7 +556,7 @@ export class MedicineService {
     await this.getOrThrow(farmId, id);
     const medicine = await this.prisma.medicine.update({
       where: { id },
-      data: { isActive: true },
+      data: { deletedAt: null },
       include: { unit: true },
     });
     this.log.info('Medicine restored', { medicineId: id, farmId });
@@ -576,8 +576,8 @@ export class MedicineService {
     ids: string[],
   ): Promise<{ deleted: number }> {
     const result = await this.prisma.medicine.updateMany({
-      where: { farmId, id: { in: ids }, isActive: true },
-      data: { isActive: false },
+      where: { farmId, id: { in: ids }, deletedAt: null },
+      data: { deletedAt: new Date() },
     });
     this.log.info('Medicines bulk-archived', {
       farmId,

@@ -143,7 +143,7 @@ describe('Cattle/Reproduction — per-animal finance agreement (e2e, RAKHAL-352)
     // already covered by the previous test) purely to prove the shared
     // aggregation reads it.
     const account = await prisma.financialAccount.findFirstOrThrow({
-      where: { farmId: owner.farmId, isActive: true },
+      where: { farmId: owner.farmId, deletedAt: null },
       select: { id: true },
     });
     await request(server())

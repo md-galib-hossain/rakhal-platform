@@ -1,6 +1,6 @@
 /// Supplier directory (PRD §21.6 / API §18 — RAKHAL-032). Farm-scoped contacts for
 /// feed/medicine/equipment vendors; referenced loosely by inventory/finance later.
-/// Soft-deleted via `isActive` (CONV: archive, not hard delete).
+/// Soft-deleted via `deletedAt` (CONV: archive, not hard delete).
 
 model Supplier {
   id     String @id @default(cuid())
@@ -22,7 +22,7 @@ model Supplier {
 
   notes String?
 
-  isActive  Boolean  @default(true)
+  deletedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -32,5 +32,5 @@ model Supplier {
   payables  Payable[]  @relation("SupplierToPayable")
 
   @@index([farmId])
-  @@index([farmId, isActive])
+  @@index([farmId, deletedAt])
 }

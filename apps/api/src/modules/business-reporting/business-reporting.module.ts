@@ -10,12 +10,16 @@ import { TransactionFeedService } from './application/transaction-feed.service';
 import { PeriodSummaryService } from './application/period-summary.service';
 import { SalesSummaryService } from './application/sales-summary.service';
 import { PurchasingSummaryService } from './application/purchasing-summary.service';
+import { ProfitLossReportService } from './application/reports/profit-loss-report.service';
+import { CashFlowReportService } from './application/reports/cash-flow-report.service';
+import { TrialBalanceReportService } from './application/reports/trial-balance-report.service';
 import { ReceivableAgingController } from './presentation/controllers/receivable-aging.controller';
 import { PayableAgingController } from './presentation/controllers/payable-aging.controller';
 import { TransactionController } from './presentation/controllers/transaction.controller';
 import { SummaryController } from './presentation/controllers/summary.controller';
 import { SalesSummaryController } from './presentation/controllers/sales-summary.controller';
 import { PurchasingSummaryController } from './presentation/controllers/purchasing-summary.controller';
+import { FinanceReportController } from './presentation/controllers/finance-report.controller';
 
 /**
  * `business-reporting` (RAKHAL-369, MILESTONE 22, `BUSINESS_IA_PRD.md` §9.3).
@@ -55,6 +59,7 @@ import { PurchasingSummaryController } from './presentation/controllers/purchasi
     SummaryController,
     SalesSummaryController,
     PurchasingSummaryController,
+    FinanceReportController,
   ],
   providers: [
     AgingService,
@@ -62,6 +67,9 @@ import { PurchasingSummaryController } from './presentation/controllers/purchasi
     PeriodSummaryService,
     SalesSummaryService,
     PurchasingSummaryService,
+    ProfitLossReportService,
+    CashFlowReportService,
+    TrialBalanceReportService,
   ],
   exports: [
     AgingService,
@@ -69,6 +77,9 @@ import { PurchasingSummaryController } from './presentation/controllers/purchasi
     PeriodSummaryService,
     SalesSummaryService,
     PurchasingSummaryService,
+    ProfitLossReportService,
+    CashFlowReportService,
+    TrialBalanceReportService,
   ],
 })
 export class BusinessReportingModule {}

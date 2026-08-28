@@ -1,9 +1,25 @@
 import { Transform } from 'class-transformer';
-import { IsDateString, IsOptional, IsString, Matches } from 'class-validator';
+import {
+  IsDateString,
+  IsIn,
+  IsOptional,
+  IsString,
+  Matches,
+} from 'class-validator';
 import { CursorPaginationQueryDto } from 'src/common/pagination';
 import { trimString } from 'src/common/dto';
+import type { DispatchStatus } from '../../domain/dispatch-status';
 
-/** Query for `GET /milk/dispatch` — cursor-paginated history. */
+const DISPATCH_STATUSES: DispatchStatus[] = [
+  'PENDING',
+  'DELIVERED',
+  'CANCELLED',
+];
+
+/** Query for `GET /milk/dispatch` / `GET /buyers/dispatches` (RAKHAL-378) —
+ * cursor-paginated history. `status` filters against the *derived* status
+ * (RAKHAL-366's `deriveDispatchStatus`) via a translated `where` predicate —
+ * not a stored column. */
 export class DispatchQueryDto extends CursorPaginationQueryDto {
   @IsOptional()
   @Transform(trimString)
@@ -17,6 +33,11 @@ export class DispatchQueryDto extends CursorPaginationQueryDto {
   @IsOptional()
   @IsDateString()
   to?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsIn(DISPATCH_STATUSES)
+  status?: DispatchStatus;
 }
 
 /** Query for `GET /buyers/:id/statement` — `?month=YYYY-MM`. */

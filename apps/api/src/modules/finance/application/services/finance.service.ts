@@ -93,19 +93,19 @@ export class FinanceService {
       loans,
     ] = await Promise.all([
       this.prisma.medicine.findMany({
-        where: { farmId, isActive: true },
+        where: { farmId, deletedAt: null },
         select: { currentStock: true, costPerUnit: true },
       }),
       this.prisma.feedItem.findMany({
-        where: { farmId, isActive: true },
+        where: { farmId, deletedAt: null },
         select: { currentStock: true, costPerUnit: true },
       }),
       this.prisma.equipment.findMany({
-        where: { farmId, isActive: true },
+        where: { farmId, deletedAt: null },
         select: { currentStock: true, costPerUnit: true },
       }),
       this.prisma.fixedAsset.findMany({
-        where: { farmId, isActive: true },
+        where: { farmId, deletedAt: null },
         select: {
           name: true,
           category: true,

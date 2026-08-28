@@ -995,6 +995,53 @@ export class CattleService {
   }
 
   /**
+   * Undoes a `SALE`-type disposition (RAKHAL-377, MILESTONE 22, `BUSINESS_IA_PRD.md`
+   * §9.4) — the physical-reversal half of voiding a `Sale` whose line sold this
+   * animal. Called by `VoidSaleUseCase` inside its own transaction, never
+   * directly by a controller. Deletes the `CattleDisposition` row (the sale
+   * "never happened" in business terms once voided — same judgment call
+   * `recordDisposition`'s own "cannot be sold again" guard depends on: that
+   * guard reads `cattleDisposition.findFirst({cattleId, type: SALE})`, so a
+   * left-behind row would forever block re-selling this animal after the
+   * void) and restores `herdStatus: ACTIVE` + clears `dispositionId`/`soldAt`.
+   *
+   * **Known limitation, out of this ticket's scope**: does not reopen a
+   * `Lactation` that `recordDispositionWithClient` closed — restoring a
+   * closed lactation's `endDate`/production history correctly is a separate
+   * concern from undoing the sale itself; a farm cancelling a mistaken sale
+   * keeps its lactation closed and can start a new one if the animal remains
+   * in milk. Throws if no `SALE` disposition exists for this animal (nothing
+   * to undo — the sale's own line/animal linkage is wrong, or it was already
+   * undone).
+   */
+  async undoDisposition(
+    farmId: string,
+    cattleId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const client = tx ?? this.prisma;
+    const disposition = await client.cattleDisposition.findFirst({
+      where: { farmId, cattleId, type: CattleDispositionType.SALE },
+      select: { id: true },
+    });
+    if (!disposition) {
+      throw new NotFoundException(
+        'No sale disposition found for this animal to undo',
+      );
+    }
+
+    await client.cattleDisposition.delete({ where: { id: disposition.id } });
+    await client.cattle.update({
+      where: { id: cattleId },
+      data: {
+        herdStatus: HerdStatus.ACTIVE,
+        dispositionId: null,
+        soldAt: null,
+      },
+    });
+  }
+
+  /**
    * Shared lactation-close step: ends the animal's ACTIVE `Lactation` (if
    * any) with the given `LactationEndReason`, inside the caller's already-
    * open transaction. Faithfully mirrors `archiveWithReason`'s own inline
@@ -1168,7 +1215,7 @@ export class CattleService {
         return this.bulkResult(action, targetIds.length, cattleIds.length);
       }
       case 'export': {
-        // No `isActive` filter here (RAKHAL-310): export operates on the
+        // No `deletedAt` filter here (RAKHAL-310): export operates on the
         // caller's explicit `cattleIds` selection, which may deliberately
         // include archived rows already shown in an "include archived" view —
         // it must export exactly what was selected, not a re-filtered subset.
@@ -1273,7 +1320,7 @@ export class CattleService {
   // ---- RAKHAL-040: Cattle Detail Tabs -----------------------------------------
 
   async tabOverview(farmId: string, id: string) {
-    // No `isActive` filter (RAKHAL-310) — same detail-view exception as
+    // No `deletedAt` filter (RAKHAL-310) — same detail-view exception as
     // `getCattleOrThrow`: an archived animal's overview tab must still open.
     const cattle = await this.prisma.cattle.findFirst({
       where: { id, farmId },
@@ -1513,7 +1560,7 @@ export class CattleService {
         where: {
           cattleId: id,
           farmId,
-          isActive: true,
+          deletedAt: null,
           status: { in: OPEN_HEALTH_CASE_STATUSES },
         },
         orderBy: { startDate: 'desc' },
@@ -1529,7 +1576,7 @@ export class CattleService {
         where: {
           cattleId: id,
           farmId,
-          isActive: true,
+          deletedAt: null,
           status: { notIn: OPEN_HEALTH_CASE_STATUSES },
         },
         orderBy: { closedDate: 'desc' },
@@ -2019,7 +2066,7 @@ export class CattleService {
 
   private async assertShedInFarm(farmId: string, shedId: string) {
     const shed = await this.prisma.shed.findFirst({
-      where: { id: shedId, farmId, isActive: true },
+      where: { id: shedId, farmId, deletedAt: null },
       select: { id: true },
     });
     if (!shed) {
@@ -2052,7 +2099,7 @@ export class CattleService {
   ) {
     if (dto.breedId) {
       const breed = await this.prisma.breed.findFirst({
-        where: { id: dto.breedId, farmId, isActive: true },
+        where: { id: dto.breedId, farmId, deletedAt: null },
         select: { id: true },
       });
       if (!breed) {
@@ -2175,7 +2222,7 @@ export class CattleService {
     id: string,
     include?: T,
   ) {
-    // RAKHAL-310 named exception: deliberately no `isActive` filter — archive/
+    // RAKHAL-310 named exception: deliberately no `deletedAt` filter — archive/
     // restore/detail-view flows all route through this helper and must be able
     // to load an already-archived animal (e.g. to restore it or view its detail
     // tabs post-archive).
@@ -2319,7 +2366,7 @@ export class CattleService {
     tx: Prisma.TransactionClient,
     farmId: string,
   ): Promise<string> {
-    // No `isActive` filter (RAKHAL-310) — code-sequence generation must scan
+    // No `deletedAt` filter (RAKHAL-310) — code-sequence generation must scan
     // every case ever issued, archived or not, to never reuse a code.
     const rows = await tx.healthCase.findMany({
       where: { farmId, caseCode: { startsWith: 'HC-' } },

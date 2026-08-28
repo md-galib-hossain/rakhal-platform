@@ -93,10 +93,10 @@ describe('RAKHAL-311 — soft-delete live bugs (e2e)', () => {
       .sickBayCount;
 
     // Simulate archival — the exact silent-desync scenario the audit found:
-    // a list-facing isActive:false flip that the badge count must also honor.
+    // a list-facing deletedAt flip that the badge count must also honor.
     await prisma.healthCase.update({
       where: { id: healthCase.id },
-      data: { isActive: false },
+      data: { deletedAt: new Date() },
     });
 
     const after = await request(server())

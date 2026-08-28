@@ -19,7 +19,7 @@ describe('SemenService', () => {
     id: 'batch-1',
     farmId: 'farm-1',
     strawQuantity: 10,
-    isActive: true,
+    deletedAt: null,
   };
 
   beforeEach(() => {
@@ -135,11 +135,11 @@ describe('SemenService', () => {
     it('returns a warning instead of throwing when the batch is archived', async () => {
       prisma.semenBatch.findFirst.mockResolvedValueOnce({
         ...batchRow,
-        isActive: false,
+        deletedAt: new Date(),
       });
       prisma.semenBatch.update.mockResolvedValueOnce({
         ...batchRow,
-        isActive: false,
+        deletedAt: new Date(),
         strawQuantity: 11,
       });
       const service = make();

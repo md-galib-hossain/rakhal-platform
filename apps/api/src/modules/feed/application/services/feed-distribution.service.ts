@@ -51,7 +51,7 @@ export class FeedDistributionService {
 
   async create(farmId: string, userId: string, dto: LogDistributionDto) {
     const concentration = await this.prisma.feedConcentration.findFirst({
-      where: { id: dto.concentrationId, farmId, isActive: true },
+      where: { id: dto.concentrationId, farmId, deletedAt: null },
       include: { items: true },
     });
     if (!concentration) {
@@ -165,7 +165,7 @@ export class FeedDistributionService {
               farmId,
               sourceConcentrationId: concentration.id,
               currentStockKg: { gt: 0 },
-              isActive: true,
+              deletedAt: null,
             },
             orderBy: { producedAt: 'asc' },
           })
@@ -294,7 +294,7 @@ export class FeedDistributionService {
     quantityKg: number,
   ) {
     const feedItem = await this.prisma.feedItem.findFirst({
-      where: { id: feedItemId, farmId, isActive: true },
+      where: { id: feedItemId, farmId, deletedAt: null },
       include: { unit: true },
     });
     if (!feedItem) throw new NotFoundException('Feed item not found');
@@ -414,7 +414,7 @@ export class FeedDistributionService {
    * this is per-group, not farm-wide. */
   async getRefusalTrend(farmId: string, feedGroupId: string, days = 30) {
     const group = await this.prisma.feedGroup.findFirst({
-      where: { id: feedGroupId, farmId, isActive: true },
+      where: { id: feedGroupId, farmId, deletedAt: null },
       select: { id: true, name: true, refusalTargetPct: true },
     });
     if (!group) throw new NotFoundException('Feed group not found');
@@ -504,7 +504,7 @@ export class FeedDistributionService {
     }
 
     const group = await this.prisma.feedGroup.findFirst({
-      where: { id: query.feedGroupId, farmId, isActive: true },
+      where: { id: query.feedGroupId, farmId, deletedAt: null },
       select: { id: true, name: true },
     });
     if (!group) throw new NotFoundException('Feed group not found');
@@ -788,7 +788,7 @@ export class FeedDistributionService {
   ): Promise<{ forageId: string; newStock: number }[]> {
     const ingredientIds = [...new Set(lines.map((l) => l.ingredientId))];
     const feedItems = await this.prisma.feedItem.findMany({
-      where: { farmId, isActive: true, ingredientId: { in: ingredientIds } },
+      where: { farmId, deletedAt: null, ingredientId: { in: ingredientIds } },
       select: {
         id: true,
         ingredientId: true,
@@ -838,7 +838,7 @@ export class FeedDistributionService {
     return map.get(ingredientId) ?? null;
   }
 
-  // No `isActive` filter (RAKHAL-310): `ingredientIds` come from an existing
+  // No `deletedAt` filter (RAKHAL-310): `ingredientIds` come from an existing
   // concentration's line items, which must keep pricing even if the
   // ingredient was archived after the distribution was logged.
   private async effectiveMap(farmId: string, ingredientIds: string[]) {
@@ -858,7 +858,7 @@ export class FeedDistributionService {
     );
   }
 
-  // No `isActive` filter (RAKHAL-310) — same historical-resolve rationale as
+  // No `deletedAt` filter (RAKHAL-310) — same historical-resolve rationale as
   // `effectiveMap()` above.
   private async ingredientNames(ids: string[]) {
     const rows = await this.prisma.feedIngredient.findMany({

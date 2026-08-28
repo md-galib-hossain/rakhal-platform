@@ -92,7 +92,7 @@ export class SearchService {
              "tagNumber" AS sublabel,
              GREATEST(similarity(coalesce(name, ''), ${q}), similarity("tagNumber", ${q})) AS score
       FROM "Cattle"
-      WHERE "farmId" = ${farmId} AND "isActive" = true
+      WHERE "farmId" = ${farmId} AND "deletedAt" IS NULL
         AND (coalesce(name, '') % ${q} OR "tagNumber" % ${q}
              OR name ILIKE ${like} OR "tagNumber" ILIKE ${like})
       ORDER BY score DESC, label ASC
@@ -122,7 +122,7 @@ export class SearchService {
       SELECT id, name AS label, phone AS sublabel,
              GREATEST(similarity(name, ${q}), similarity(coalesce(phone, ''), ${q})) AS score
       FROM "Supplier"
-      WHERE "farmId" = ${farmId} AND "isActive" = true
+      WHERE "farmId" = ${farmId} AND "deletedAt" IS NULL
         AND (name % ${q} OR name ILIKE ${like} OR coalesce(phone, '') ILIKE ${like})
       ORDER BY score DESC, label ASC
       LIMIT ${take}
@@ -136,7 +136,7 @@ export class SearchService {
       SELECT id, name AS label, phone AS sublabel,
              GREATEST(similarity(name, ${q}), similarity(coalesce(phone, ''), ${q})) AS score
       FROM "MilkBuyer"
-      WHERE "farmId" = ${farmId} AND "isActive" = true
+      WHERE "farmId" = ${farmId} AND "deletedAt" IS NULL
         AND (name % ${q} OR name ILIKE ${like} OR coalesce(phone, '') ILIKE ${like})
       ORDER BY score DESC, label ASC
       LIMIT ${take}
@@ -150,7 +150,7 @@ export class SearchService {
       SELECT id, name AS label, code AS sublabel,
              GREATEST(similarity(name, ${q}), similarity(code, ${q})) AS score
       FROM "Shed"
-      WHERE "farmId" = ${farmId} AND "isActive" = true
+      WHERE "farmId" = ${farmId} AND "deletedAt" IS NULL
         AND (name % ${q} OR code % ${q}
              OR name ILIKE ${like} OR code ILIKE ${like})
       ORDER BY score DESC, label ASC
@@ -165,7 +165,7 @@ export class SearchService {
       SELECT id, name AS label, manufacturer AS sublabel,
              GREATEST(similarity(name, ${q}), similarity(coalesce(manufacturer, ''), ${q})) AS score
       FROM "Medicine"
-      WHERE "farmId" = ${farmId} AND "isActive" = true
+      WHERE "farmId" = ${farmId} AND "deletedAt" IS NULL
         AND (name % ${q} OR name ILIKE ${like} OR coalesce(manufacturer, '') ILIKE ${like})
       ORDER BY score DESC, label ASC
       LIMIT ${take}

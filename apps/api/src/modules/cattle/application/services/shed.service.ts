@@ -50,7 +50,7 @@ export class ShedService {
   ): Promise<CursorPage<Shed>> {
     const where: Prisma.ShedWhereInput = {
       farmId,
-      ...(query.includeArchived ? {} : { isActive: true }),
+      ...(query.includeArchived ? {} : { deletedAt: null }),
       ...(query.search
         ? {
             OR: [
@@ -99,7 +99,7 @@ export class ShedService {
     await this.getOrThrow(farmId, id);
     const shed = await this.prisma.shed.update({
       where: { id },
-      data: { isActive: false },
+      data: { deletedAt: new Date() },
     });
     this.log.info('Shed archived', { shedId: id, farmId });
     return shed;
@@ -109,7 +109,7 @@ export class ShedService {
     await this.getOrThrow(farmId, id);
     const shed = await this.prisma.shed.update({
       where: { id },
-      data: { isActive: true },
+      data: { deletedAt: null },
     });
     this.log.info('Shed restored', { shedId: id, farmId });
     return shed;

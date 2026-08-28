@@ -87,7 +87,7 @@ export class FeedItemService {
   ): Promise<CursorPage<PresentedFeedItem>> {
     const where: Prisma.FeedItemWhereInput = {
       farmId,
-      ...(query.includeArchived ? {} : { isActive: true }),
+      ...(query.includeArchived ? {} : { deletedAt: null }),
       ...(query.feedClass ? { feedClass: query.feedClass } : {}),
       ...(query.search
         ? {
@@ -168,7 +168,7 @@ export class FeedItemService {
     await this.getOrThrow(farmId, id);
     const feedItem = await this.prisma.feedItem.update({
       where: { id },
-      data: { isActive: false },
+      data: { deletedAt: new Date() },
       include: { unit: true },
     });
     this.log.info('Feed item archived', { feedItemId: id, farmId });
@@ -179,7 +179,7 @@ export class FeedItemService {
     await this.getOrThrow(farmId, id);
     const feedItem = await this.prisma.feedItem.update({
       where: { id },
-      data: { isActive: true },
+      data: { deletedAt: null },
       include: { unit: true },
     });
     this.log.info('Feed item restored', { feedItemId: id, farmId });
@@ -259,8 +259,8 @@ export class FeedItemService {
     ids: string[],
   ): Promise<{ deleted: number }> {
     const result = await this.prisma.feedItem.updateMany({
-      where: { farmId, id: { in: ids }, isActive: true },
-      data: { isActive: false },
+      where: { farmId, id: { in: ids }, deletedAt: null },
+      data: { deletedAt: new Date() },
     });
     this.log.info('Feed items bulk-archived', {
       farmId,

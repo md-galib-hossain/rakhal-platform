@@ -42,7 +42,10 @@ async function main() {
   let uncomputablePrice = 0;
 
   for (const item of items) {
-    const nameFilter = { equals: item.name.trim(), mode: 'insensitive' as const };
+    const nameFilter = {
+      equals: item.name.trim(),
+      mode: 'insensitive' as const,
+    };
     const candidate = await prisma.feedIngredient.findFirst({
       where: {
         nameEn: nameFilter,
@@ -80,7 +83,6 @@ async function main() {
         currentPricePerKg: pricePerKg(item),
         isAvailableBd: true,
         isSystemDefault: false,
-        isActive: true,
       },
     });
     await prisma.feedItem.update({

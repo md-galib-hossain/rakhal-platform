@@ -97,7 +97,7 @@ export class BalanceService {
     includeArchived = false,
   ): Promise<FarmBalances> {
     const rows = await this.prisma.financialAccount.findMany({
-      where: { farmId, ...(includeArchived ? {} : { isActive: true }) },
+      where: { farmId, ...(includeArchived ? {} : { deletedAt: null }) },
       select: { id: true, name: true, type: true, ledgerAccountId: true },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });

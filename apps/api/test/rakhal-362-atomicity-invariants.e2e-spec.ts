@@ -269,7 +269,7 @@ describe('RAKHAL-362 — Atomicity + invariant e2e suite', () => {
       .expect(201);
 
     const tank = await prisma.milkTank.findFirst({
-      where: { farmId: owner.farmId, isActive: true, tankType: 'SELLABLE' },
+      where: { farmId: owner.farmId, deletedAt: null, tankType: 'SELLABLE' },
     });
     if (tank) {
       const milkAccount = await createAccount();
