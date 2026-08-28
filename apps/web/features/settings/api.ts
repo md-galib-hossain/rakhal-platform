@@ -63,7 +63,7 @@ export const settingsApi = {
   updateShed(id: string, input: ShedFormInput): Promise<Shed> {
     return apiFetch<Shed>(`/settings/sheds/${id}`, { method: "PATCH", body: toShedBody(input) });
   },
-  deleteShed(id: string): Promise<{ id: string; is_active: false }> {
+  deleteShed(id: string): Promise<{ id: string; deleted_at: string }> {
     return apiFetch(`/settings/sheds/${id}`, { method: "DELETE" });
   },
   listFeedGroups(): Promise<FeedGroupListResult> {
@@ -87,7 +87,7 @@ export const settingsApi = {
   updateSupplier(id: string, input: SupplierFormInput): Promise<Supplier> {
     return apiFetch<Supplier>(`/settings/suppliers/${id}`, { method: "PATCH", body: input });
   },
-  deleteSupplier(id: string): Promise<{ id: string; is_active: false }> {
+  deleteSupplier(id: string): Promise<{ id: string; deleted_at: string }> {
     return apiFetch(`/settings/suppliers/${id}`, { method: "DELETE" });
   },
   listServiceProviders(): Promise<ServiceProviderListResult> {
@@ -99,7 +99,7 @@ export const settingsApi = {
   updateServiceProvider(id: string, input: ServiceProviderFormInput): Promise<ServiceProvider> {
     return apiFetch<ServiceProvider>(`/settings/service-providers/${id}`, { method: "PATCH", body: input });
   },
-  deleteServiceProvider(id: string): Promise<{ id: string; is_active: false }> {
+  deleteServiceProvider(id: string): Promise<{ id: string; deleted_at: string }> {
     return apiFetch(`/settings/service-providers/${id}`, { method: "DELETE" });
   },
 };

@@ -337,7 +337,7 @@ export interface FeedGroup {
   /** Default recipe for one-click "Feed Today" (2026-08-14) — a `FEED_MIXTURE` concentration id,
    * or null if none is set (falls back to "one active GROUP-targeted TMR" heuristic). */
   default_concentration_id: string | null;
-  is_active: boolean;
+  deleted_at: string | null;
   assigned_count: number;
   created_at: string;
 }

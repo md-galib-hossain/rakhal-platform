@@ -3,12 +3,12 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { Mars, TriangleAlert, Venus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Chip, type ChipProps } from "@/components/ui/chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { avatarTint } from "../avatar-tint";
 import { formatCattleAge } from "../format";
 import { ANIMAL_CATEGORY_VARIANT } from "../utils/animal-category-style";
-import { CattleRowActions } from "./cattle-row-actions";
 import type {
   CattleListItem,
   HealthStatusFilter,
@@ -143,9 +143,6 @@ export function buildCattleColumns(
   t: (key: string, values?: Record<string, string | number | Date>) => string,
   rowActions: {
     onView: (cattle: CattleListItem) => void;
-    onEdit: (cattle: CattleListItem) => void;
-    onDispose: (cattle: CattleListItem) => void;
-    onDelete: (cattle: CattleListItem) => void;
   },
 ): ColumnDef<CattleListItem, unknown>[] {
   return [
@@ -266,16 +263,12 @@ export function buildCattleColumns(
     {
       id: "__actions__",
       header: t("columns.action"),
-      size: 72,
+      size: 96,
       cell: ({ row }) => (
         <div className="flex justify-center">
-          <CattleRowActions
-            cattle={row.original}
-            onView={rowActions.onView}
-            onEdit={rowActions.onEdit}
-            onDispose={rowActions.onDispose}
-            onDelete={rowActions.onDelete}
-          />
+          <Button variant="ghost" size="sm" onClick={() => rowActions.onView(row.original)}>
+            {t("actions.viewDetails")}
+          </Button>
         </div>
       ),
     },

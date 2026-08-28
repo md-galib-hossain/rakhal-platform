@@ -66,7 +66,7 @@ export interface Shed {
   purpose: ShedPurpose | null;
   responsible_member: { id: string; name: string } | null;
   current_count: number;
-  is_active: boolean;
+  deleted_at: string | null;
   created_at: string;
 }
 
@@ -77,7 +77,7 @@ export interface FeedGroup {
   id: string;
   name: string;
   description: string | null;
-  is_active: boolean;
+  deleted_at: string | null;
   assigned_count: number;
   created_at: string;
 }
@@ -93,7 +93,7 @@ export interface Supplier {
   category: string | null;
   payment_terms: string | null;
   notes: string | null;
-  is_active: boolean;
+  deleted_at: string | null;
 }
 
 export interface SupplierListResult {
@@ -110,7 +110,7 @@ export interface ServiceProvider {
   name: string;
   phone: string | null;
   type: ServiceProviderType;
-  is_active: boolean;
+  deleted_at: string | null;
 }
 
 export interface ServiceProviderListResult {

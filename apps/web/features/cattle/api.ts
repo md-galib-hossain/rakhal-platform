@@ -8,6 +8,7 @@ import type {
   Breed,
   BulkAction,
   BulkCattleResult,
+  BulkDisposeType,
   CattleDetail,
   CattleFormPayload,
   CattleHighlights,
@@ -70,7 +71,7 @@ export const cattleApi = {
   bulk(
     cattleIds: string[],
     action: BulkAction,
-    payload?: { shedId?: string; feedGroupId?: string },
+    payload?: { shedId?: string; feedGroupId?: string; type?: BulkDisposeType; reason?: string; date?: string },
   ): Promise<BulkCattleResult> {
     return apiFetch<BulkCattleResult>("/cattle/bulk", {
       method: "POST",

@@ -12,7 +12,6 @@ import { SelectableCardOverlay } from "@/components/shared/selectable-card-overl
 import { avatarTint } from "../avatar-tint";
 import { formatCattleAge } from "../format";
 import { ANIMAL_CATEGORY_VARIANT } from "../utils/animal-category-style";
-import { CattleRowActions } from "./cattle-row-actions";
 import type {
   CattleListItem,
   HealthStatusFilter,
@@ -76,9 +75,6 @@ function CattleCard({
   cattle: CattleListItem;
   rowActions: {
     onView: (cattle: CattleListItem) => void;
-    onEdit: (cattle: CattleListItem) => void;
-    onDispose: (cattle: CattleListItem) => void;
-    onDelete: (cattle: CattleListItem) => void;
   };
 }) {
   const t = useTranslations("cattle");
@@ -103,16 +99,6 @@ function CattleCard({
             </div>
           )}
         </button>
-
-        <div className="absolute right-2 top-2 z-10">
-          <CattleRowActions
-            cattle={cattle}
-            onView={rowActions.onView}
-            onEdit={rowActions.onEdit}
-            onDispose={rowActions.onDispose}
-            onDelete={rowActions.onDelete}
-          />
-        </div>
 
         <div className="pointer-events-none absolute left-2.5 top-2.5 flex flex-wrap items-center gap-1.5">
           <Chip variant={ANIMAL_CATEGORY_VARIANT[cattle.animalCategory]}>{t(`animalCategory.${cattle.animalCategory}`)}</Chip>
@@ -226,9 +212,6 @@ export function CattleGrid({
   onRetry: () => void;
   rowActions: {
     onView: (cattle: CattleListItem) => void;
-    onEdit: (cattle: CattleListItem) => void;
-    onDispose: (cattle: CattleListItem) => void;
-    onDelete: (cattle: CattleListItem) => void;
   };
   canSelect: boolean;
   isSelected: (id: string) => boolean;

@@ -103,12 +103,16 @@ export interface CattleListItem {
   tagNumber: string;
   gender: CattleGender;
   dateOfBirth: string | null;
-  status: CattleStatus;
-  /** RAKHAL-400 — `deletedAt`/soft-delete is a separate dimension from `status`/`HerdStatus`
+  /** Wire field is `herdStatus` (raw Prisma column, `composeStatus()` spreads the row as-is) —
+   * was mis-typed as `status` before (always `undefined` on the wire as a result, silently
+   * breaking every "is this animal active" gate: `RecordSaleTrigger`/dispose visibility never
+   * actually worked). Fixed alongside relocating dispose into `CattleDetailSheet` (no ticket #). */
+  herdStatus: CattleStatus;
+  /** RAKHAL-400 — `deletedAt`/soft-delete is a separate dimension from `herdStatus`
    * (disposition): a SOLD/CULLED/DECEASED animal has left the active herd but keeps its real
    * history; `deletedAt` set means the *record itself* was removed (duplicate/mistake). Only a
    * `deletedAt`-set row is restorable — `restore()` clears `deletedAt` only, it never resets
-   * `status` back to ACTIVE. */
+   * `herdStatus` back to ACTIVE. */
   deletedAt: string | null;
   /** Nullable since RAKHAL-269 v2: immature/never-milked animals (and dry-period animals before
    * their first freshening) carry no production state. */
@@ -166,8 +170,13 @@ export interface CattleListFilters {
   lifecycleSubStage?: LifecycleSubStage;
 }
 
-export const BULK_ACTIONS = ["change_shed", "change_feed_group", "mark_sold", "export"] as const;
+export const BULK_ACTIONS = ["change_shed", "change_feed_group", "mark_sold", "dispose", "export"] as const;
 export type BulkAction = (typeof BULK_ACTIONS)[number];
+
+/** Bulk `dispose` covers all 3 lifecycle exits in one dialog (sell/cull/dead) — replaces the old
+ * `mark_sold`-only bulk button (UX request, no ticket #). `mark_sold` stays wired backend-side for
+ * compat but the UI no longer offers it directly. */
+export type BulkDisposeType = "SALE" | "CULL" | "DEATH";
 
 export interface BulkCattleResult {
   action: BulkAction;
@@ -208,7 +217,6 @@ export interface CattleDetail extends CattleListItem {
   motherId: string | null;
   fatherId: string | null;
   sourceType: CattleSourceType | null;
-  status: CattleStatus;
 }
 
 /** `POST/PATCH /cattle(/:id)` body — mirrors `CreateCattleDto`/`UpdateCattleDto`. */

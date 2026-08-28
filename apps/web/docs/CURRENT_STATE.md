@@ -1,5 +1,35 @@
 # Frontend — Current State
 
+## RAKHAL-381 — Sidebar IA restructure + route scaffolds (2026-08-28)
+Second frontend ticket of MILESTONE 22 Phase D (no backend dependency). `components/layout/nav-items.ts`:
+new `NavGroupKey` `"finance"` ordered right after `"business"`; Business group narrowed+reordered to
+`Sales · Buyers · Purchasing · Suppliers · Inventory` (new `sales`/`suppliers` nav entries); the existing
+`finance` nav item moved from the `business` group into its own new `finance` group. 5 new route scaffolds
+(`page`+`loading`+`error`): `/suppliers`, `/finance/transactions`, `/finance/reports`, `/finance/liabilities`,
+`/finance/assets` — each a `PageCard`+`EmptyState` shell off a new shared `common.comingSoonTitle`/
+`comingSoonDescription` i18n pair, with a doc comment pointing at the real Phase-E ticket that replaces its
+content (390 Suppliers, 385 Transactions, 387 Reports, 382 relocates Liabilities/Assets). `/sales` already
+had `page`/`loading`/`error` from RAKHAL-357's stub — just gained a nav link, no file changes. Gate:
+`typecheck`(0)/`lint`(0 new, 1 pre-existing error on an untouched file)/`build`(0, 45 routes, 5 new)/
+`test`(93/93, unchanged). No live click-through — pure static nav config + scaffold shells, full gate green
+is the verification (same precedent RAKHAL-355/380). Unblocks 382, 388, 389, 390, 391.
+
+## RAKHAL-380 — `DateRangePicker` + `usePeriod` + period-keyed `qk` registry (2026-08-28)
+First frontend ticket of MILESTONE 22's Business Operations IA (Phase D — no backend dependency).
+New `lib/period/presets.ts` (`presetToRange`/`derivePreviousPeriod`/`toPeriodKey`, local-time date
+math, previous-period formula byte-for-byte ported from the backend's `common/finance/period.ts`),
+new `lib/hooks/use-period.ts` (nuqs `?preset&from&to` URL state, `{from,to,preset,label,setPreset,
+setRange}`), new `components/shared/date-range-picker.tsx` (`Popover`+`calendar.tsx` range mode +
+preset column, plain controlled props — no `usePeriod` coupling). `lib/query/keys.ts` gained a
+doc-comment convention for period-scoped cache keys (no literal refactor — no Finance V2 report is
+consumed by any screen yet, Phase E hasn't started). `i18n/messages/{en,bn}.json` gained `period.
+presets.*`. Gate: `typecheck`(0)/`lint`(0 new)/`build`(0, 40 routes)/`test`(93/93, +12 new). No live
+click-through — same precedent RAKHAL-355 documented (no screen mounts this yet). Full writeup:
+`docs/IN_FLIGHT.md`'s claim row, `D:\Projects\Rakhal\docs\PROJECT_PROGRESS.md`'s RAKHAL-380 entry.
+
+## (no ticket #) Backend `isActive`→`deletedAt` wire-contract follow-up (2026-08-27)
+Backend renamed `isActive: Boolean` to `deletedAt: DateTime?` across 23 models and the public wire contract (`is_active` → `deleted_at`) for Shed/FeedGroup/Supplier/ServiceProvider (among others). Fixed `features/settings/types.ts` (4 types) + `features/settings/api.ts` (3 `delete*` return types) + `features/feed/types.ts`'s `FeedGroup` mirror to match. Zero component logic actually read `.is_active` (confirmed via grep), so this was a pure type fix. Gate: `pnpm typecheck`(0)/`pnpm lint`(0)/`pnpm build`(0, 40 routes). Full writeup: `docs/IN_FLIGHT.md` Recently Done.
+
 ## RAKHAL-361 — Domain entry points + retire V1 finance UI + Playwright coverage, closes MILESTONE 21's frontend track (2026-08-24)
 Last frontend ticket of the Finance V2 rebuild — all 6 Finance quick-actions (Record Sale/Expense,
 Other Income, Receive/Make Payment, Transfer Money) are now live-wired (no more "coming soon"),

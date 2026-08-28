@@ -1,13 +1,15 @@
 "use client"; // live query + sheet open state
 
 import { useTranslations } from "next-intl";
-import { ArrowRightToLine, Banknote } from "lucide-react";
+import { ArrowRightToLine, RotateCcw, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { ApiError } from "@/lib/api/errors";
+import { useCan } from "@/lib/auth/permissions";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
-import { RecordSaleTrigger } from "@/features/sales/components/record-sale-trigger";
-import { useCattleDetail } from "../../hooks/use-cattle";
+import { useCattleDetail, useRestoreCattle } from "../../hooks/use-cattle";
 import { CattleProfileCard } from "./cattle-profile-card";
 import { CattleDetailTabs } from "./cattle-detail-tabs";
 import type { CattleDetail } from "../../types";
@@ -18,18 +20,49 @@ import type { CattleDetail } from "../../types";
  * radius, 2px border. This is the **only** cattle detail view (no standalone `/cattle/:id` page —
  * that route now just redirects here via the `?view=` param `CattleTable` owns), so the header's
  * arrow icon closes the drawer rather than linking anywhere.
+ *
+ * Edit/Dispose/Delete/Restore used to live in a per-row 3-dot menu (`CattleRowActions`) duplicating
+ * the "View Details" entry point this sheet already is — folded in here instead (UX request, no
+ * ticket #) so there's one way in for every animal action: Sell/Dispose sit in the primary footer
+ * next to Edit, Delete/Restore (rarer, destructive-or-recovery) sit behind the header kebab.
  */
 export function CattleDetailSheet({
   cattleId,
   onOpenChange,
   onEdit,
+  onDispose,
+  onDelete,
 }: {
   cattleId: string | undefined;
   onOpenChange: (open: boolean) => void;
   onEdit: (cattle: CattleDetail) => void;
+  onDispose: (cattle: CattleDetail) => void;
+  onDelete: (cattle: CattleDetail) => void;
 }) {
   const t = useTranslations("cattle.detail");
+  const tActions = useTranslations("cattle.actions");
+  const can = useCan();
+  const canUpdate = can("cattle.update");
+  const canDispose = can("cattle.dispose");
+  const canDelete = can("cattle.delete");
   const query = useCattleDetail(cattleId);
+  const restore = useRestoreCattle();
+  const cattle = query.data;
+  const isDeleted = cattle?.deletedAt != null;
+  const isActive = cattle?.herdStatus === "ACTIVE";
+
+  async function handleRestore() {
+    if (!cattle) return;
+    try {
+      await restore.mutateAsync(cattle.id);
+      toast.success(tActions("restoredToast"));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : tActions("genericError"));
+    }
+  }
+
+  const showRestore = Boolean(cattle) && isDeleted && canUpdate;
+  const showDelete = Boolean(cattle) && !isDeleted && canDelete;
 
   return (
     <Sheet open={Boolean(cattleId)} onOpenChange={onOpenChange}>
@@ -39,14 +72,32 @@ export function CattleDetailSheet({
       >
         <div className="flex items-center justify-between pb-5">
           <SheetTitle className="text-xl font-bold text-foreground">{t("title")}</SheetTitle>
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            aria-label={t("close")}
-            className="flex size-5 items-center justify-center text-foreground transition-opacity hover:opacity-70"
-          >
-            <ArrowRightToLine className="size-5" aria-hidden />
-          </button>
+          <div className="flex items-center gap-3">
+            {showRestore ? (
+              <Button variant="ghost" size="icon" aria-label={tActions("restore")} onClick={handleRestore}>
+                <RotateCcw className="size-4" />
+              </Button>
+            ) : null}
+            {showDelete ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={tActions("delete")}
+                className="text-destructive hover:text-destructive"
+                onClick={() => cattle && onDelete(cattle)}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              aria-label={t("close")}
+              className="flex size-5 items-center justify-center text-foreground transition-opacity hover:opacity-70"
+            >
+              <ArrowRightToLine className="size-5" aria-hidden />
+            </button>
+          </div>
         </div>
         <div className="border-t border-border" />
 
@@ -73,17 +124,15 @@ export function CattleDetailSheet({
           <Button type="button" variant="secondary" className="h-12 flex-1" onClick={() => onOpenChange(false)}>
             {t("cancel")}
           </Button>
-          {query.data && query.data.status === "ACTIVE" ? (
-            <RecordSaleTrigger
-              initial={{
-                type: "ANIMAL",
-                cattleId: query.data.id,
-                cattleLabel: `${query.data.tagNumber}${query.data.name ? ` — ${query.data.name}` : ""}`,
-              }}
-              label={t("sell")}
-              icon={Banknote}
-              buttonProps={{ variant: "outline", className: "h-12 flex-1" }}
-            />
+          {isActive && canDispose ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 flex-1 text-destructive hover:text-destructive"
+              onClick={() => cattle && onDispose(cattle)}
+            >
+              {tActions("dispose")}
+            </Button>
           ) : null}
           <Button
             type="button"

@@ -18,13 +18,16 @@
     "viewAll": "সব দেখুন",
     "back": "পেছনে",
     "next": "পরবর্তী",
-    "close": "বন্ধ করুন"
+    "close": "বন্ধ করুন",
+    "comingSoonTitle": "শীঘ্রই আসছে",
+    "comingSoonDescription": "এই স্ক্রিনের কাঠামো তৈরি হয়েছে — সম্পূর্ণ অভিজ্ঞতা পরবর্তী টিকিটে আসবে।"
   },
   "nav": {
     "groupOverview": "ওভারভিউ",
     "groupHerdManagement": "পশুপাল ব্যবস্থাপনা",
     "groupProduction": "উৎপাদন",
     "groupBusiness": "ব্যবসা",
+    "groupFinance": "অর্থ",
     "groupInsights": "ইনসাইটস",
     "groupWorkspace": "ওয়ার্কস্পেস",
     "groupSystem": "সিস্টেম",
@@ -33,9 +36,11 @@
     "feeding": "খাওয়ানো",
     "feedFormulator": "ফিড ফরমুলেটর",
     "milk": "দুধ",
+    "sales": "বিক্রয়",
     "buyers": "ক্রেতা",
     "finance": "অর্থ",
     "purchasing": "ক্রয়",
+    "suppliers": "সরবরাহকারী",
     "healthcare": "স্বাস্থ্যসেবা",
     "reproduction": "প্রজনন",
     "inventory": "ইনভেন্টরি",
@@ -800,6 +805,14 @@
       "feedGroupLabel": "ফিড গ্রুপ",
       "markSold": "বিক্রিত হিসেবে চিহ্নিত করুন",
       "markSoldDescription": "{count} টি গবাদি পশুকে বিক্রিত হিসেবে চিহ্নিত করুন। এটি সক্রিয় পাল থেকে সংরক্ষণাগারে সরিয়ে দেবে। এদের মধ্যে যেগুলো এখনও দুধ দিচ্ছে, তাদের ল্যাকটেশন বন্ধ হয়ে যাবে।",
+      "dispose": "বাদ দিন",
+      "disposeDescription": "{count} টি গবাদি পশু বাদ দিন। এটি সক্রিয় পাল থেকে সংরক্ষণাগারে সরিয়ে দেবে। এদের মধ্যে যেগুলো এখনও দুধ দিচ্ছে, তাদের ল্যাকটেশন বন্ধ হয়ে যাবে।",
+      "disposeTypeLabel": "ধরন",
+      "disposeTypeOptions": {
+        "SALE": "বিক্রিত",
+        "CULL": "বাদ দেওয়া হয়েছে",
+        "DEATH": "মৃত"
+      },
       "export": "রপ্তানি",
       "cancel": "বাতিল",
       "apply": "প্রয়োগ করুন",
@@ -914,15 +927,18 @@
     },
     "disposeDialog": {
       "title": "প্রাণী নিষ্পত্তি করুন — {name}",
-      "description": "এটি প্রাণীটিকে সক্রিয় পাল থেকে সরিয়ে দেবে। বিক্রিত প্রাণীর জন্য বিক্রয় প্রবাহ ব্যবহার করুন — এটি শুধু বাদ দেওয়া বা মৃত্যুর জন্য।",
+      "description": "এটি প্রাণীটিকে সক্রিয় পাল থেকে সরিয়ে দেবে — কীভাবে বেছে নিন।",
       "type": "ধরন",
       "typeOptions": {
+        "SALE": "বিক্রিত হয়েছে",
         "CULL": "বাদ দেওয়া হয়েছে",
         "DEATH": "মৃত"
       },
       "date": "তারিখ",
       "reason": "কারণ (ঐচ্ছিক)",
       "reasonPlaceholder": "যেমন: কারণ, নোট",
+      "saleHandoffNote": "পরের পর্দায় আপনি বিক্রয় মূল্য ও পেমেন্ট লিখবেন।",
+      "continue": "চালিয়ে যান",
       "cancel": "বাতিল",
       "confirm": "প্রাণী নিষ্পত্তি করুন",
       "disposedToast": "প্রাণী নিষ্পত্তি করা হয়েছে।",
@@ -3934,6 +3950,18 @@
       "back": "পেছনে",
       "addItem": "যোগ করুন"
     },
+    "transactionsPage": {
+      "title": "লেনদেন"
+    },
+    "reportsPage": {
+      "title": "প্রতিবেদন"
+    },
+    "liabilitiesPage": {
+      "title": "দায়"
+    },
+    "assetsPage": {
+      "title": "সম্পদ বণ্টন"
+    },
     "accountsPage": {
       "title": "অ্যাকাউন্ট",
       "transferAction": "স্থানান্তর",
@@ -5234,6 +5262,17 @@
       "back": "পিছনে",
       "continue": "চালিয়ে যান",
       "submit": "জমা দিন"
+    }
+  },
+  "period": {
+    "presets": {
+      "today": "আজ",
+      "this_week": "এই সপ্তাহ",
+      "this_month": "এই মাস",
+      "last_month": "গত মাস",
+      "this_quarter": "এই প্রান্তিক",
+      "this_year": "এই বছর",
+      "custom": "কাস্টম"
     }
   }
 }

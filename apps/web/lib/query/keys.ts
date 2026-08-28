@@ -1,4 +1,15 @@
-/** One registry, no string-typo cache bugs (framework doc 02 §7). Extend per-feature as built. */
+/** One registry, no string-typo cache bugs (framework doc 02 §7). Extend per-feature as built.
+ *
+ * **Period-keyed convention (RAKHAL-380, MILESTONE 22, `BUSINESS_IA_PRD.md` §4.4, §6.1)**: any
+ * `qk` entry backing a period-scoped read (a `from`/`to` finance/sales/purchasing report or
+ * summary) MUST take that period as an explicit key argument — build it with
+ * `toPeriodKey(usePeriod())` (`@/lib/period/presets`) so two different ranges never collide in
+ * the cache. A **point-in-time** read (a balance, an account list, a chart-of-accounts value —
+ * "where things stand right now") must NEVER take a period argument — `qk.finance.balanceV2`/
+ * `accountsV2` below are the existing examples. This is the Row A (point-in-time) vs Row B
+ * (period) split the design doc's own §4.4 draws: the key SHAPE itself enforces it, so a later
+ * agent adding a new period-scoped report can't accidentally reuse a period-free balance's cache
+ * entry (or vice versa) just by getting the arguments wrong. */
 export const qk = {
   auth: {
     session: () => ["auth", "session"] as const,

@@ -5,7 +5,7 @@ import { qk } from "@/lib/query/keys";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { settingsApi } from "@/features/settings/api";
 import { cattleApi } from "../api";
-import type { BulkAction, CattleFormPayload, CattleListFilters } from "../types";
+import type { BulkAction, BulkDisposeType, CattleFormPayload, CattleListFilters } from "../types";
 import type {
   CattleDeleteInput,
   CattleDisposeInput,
@@ -110,7 +110,7 @@ export function useBulkCattle() {
     }: {
       cattleIds: string[];
       action: BulkAction;
-      payload?: { shedId?: string; feedGroupId?: string };
+      payload?: { shedId?: string; feedGroupId?: string; type?: BulkDisposeType; reason?: string; date?: string };
     }) => cattleApi.bulk(cattleIds, action, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });

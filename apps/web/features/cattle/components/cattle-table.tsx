@@ -24,7 +24,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   useBulkCattle,
   useCattleDetail,
@@ -39,9 +40,11 @@ import { CattleGrid } from "./cattle-grid";
 import { CattleFormDialog } from "./cattle-form-dialog";
 import { CattleDisposeDialog } from "./cattle-dispose-dialog";
 import { CattleDeleteDialog } from "./cattle-delete-dialog";
+import { RecordSaleDialog } from "@/features/sales/components/record-sale-wizard";
 import { CattleDetailSheet } from "./detail/cattle-detail-sheet";
 import type {
   AnimalCategory,
+  BulkDisposeType,
   CattleListFilters,
   CattleListItem,
   CattleStatus,
@@ -53,10 +56,16 @@ import type {
 
 /** Reads the URL params `CattleFilters` writes (both are siblings under the same page) and drives
  * the cursor-paginated table + bulk-selection dock. Bulk-action logic (change shed/feed-group,
- * mark sold, export) used to live in a separate `CattleBulkActionsBar` rendered inline above the
+ * dispose, export) used to live in a separate `CattleBulkActionsBar` rendered inline above the
  * table; folded in directly here (2026-07-21, migration to the shared floating `BulkActionDock` —
  * same pattern `MedicineView`/`EquipmentView`/etc. already use) since a portal-rendered dock has no
- * reason to be wrapped in its own component once there's no inline DOM slot to own. */
+ * reason to be wrapped in its own component once there's no inline DOM slot to own.
+ *
+ * The dock's bulk action used to be a single "Mark as sold" button (`mark_sold`); replaced by a
+ * "Dispose" button opening a type picker (Sold/Culled/Deceased) so one dock action covers all 3
+ * lifecycle exits, matching the single-row `CattleDisposeDialog` for consistency (UX request, no
+ * ticket #). Row-level edit/dispose/delete/restore moved into `CattleDetailSheet` at the same time —
+ * the old per-row 3-dot menu duplicated the "View Details" entry point this sheet already is. */
 export function CattleTable() {
   const t = useTranslations("cattle");
   const can = useCan();
@@ -67,6 +76,7 @@ export function CattleTable() {
   const [formOpen, setFormOpen] = useState(false);
   const [disposeTarget, setDisposeTarget] = useState<CattleListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CattleListItem | null>(null);
+  const [saleTarget, setSaleTarget] = useState<CattleListItem | null>(null);
   const [shedDialogOpen, setShedDialogOpen] = useState(false);
   const [feedGroupDialogOpen, setFeedGroupDialogOpen] = useState(false);
   const [shedId, setShedId] = useState<string | undefined>(undefined);
@@ -105,16 +115,12 @@ export function CattleTable() {
   const createShedInline = useCreateShedInline();
   const createFeedGroupInline = useCreateFeedGroupInline();
   const items = query.items;
+  const [disposeDialogOpen, setDisposeDialogOpen] = useState(false);
+  const [disposeType, setDisposeType] = useState<BulkDisposeType>("SALE");
   const columns = useMemo(
     () =>
       buildCattleColumns(t, {
         onView: (cattle) => void setViewId(cattle.id),
-        onEdit: (cattle) => {
-          setEditingId(cattle.id);
-          setFormOpen(true);
-        },
-        onDispose: setDisposeTarget,
-        onDelete: setDeleteTarget,
       }),
     [t, setViewId],
   );
@@ -126,7 +132,10 @@ export function CattleTable() {
   const selectedItems = items.filter((c) => selection.selectedIds.includes(c.id));
   const tBulk = useTranslations("cattle.bulk");
 
-  async function run(action: "change_shed" | "change_feed_group" | "mark_sold", payload?: { shedId?: string; feedGroupId?: string }) {
+  async function run(
+    action: "change_shed" | "change_feed_group" | "dispose",
+    payload?: { shedId?: string; feedGroupId?: string; type?: BulkDisposeType; reason?: string; date?: string },
+  ) {
     try {
       const result = await bulk.mutateAsync({ cattleIds: selection.selectedIds, action, payload });
       toast.success(tBulk("resultToast", { updated: result.updated, failed: result.failed }));
@@ -219,12 +228,6 @@ export function CattleTable() {
           onRetry={() => query.refetch()}
           rowActions={{
             onView: (cattle) => void setViewId(cattle.id),
-            onEdit: (cattle) => {
-              setEditingId(cattle.id);
-              setFormOpen(true);
-            },
-                onDispose: setDisposeTarget,
-                onDelete: setDeleteTarget,
           }}
           canSelect={canBulk}
           isSelected={gridSelection.isSelected}
@@ -254,6 +257,14 @@ export function CattleTable() {
           setEditingId(cattle.id);
           setFormOpen(true);
         }}
+        onDispose={(cattle) => {
+          void setViewId(null);
+          setDisposeTarget(cattle);
+        }}
+        onDelete={(cattle) => {
+          void setViewId(null);
+          setDeleteTarget(cattle);
+        }}
       />
       <CattleFormDialog
         open={formOpen}
@@ -268,6 +279,20 @@ export function CattleTable() {
         open={disposeTarget !== null}
         onOpenChange={(open) => !open && setDisposeTarget(null)}
         cattle={disposeTarget}
+        onRequestSale={setSaleTarget}
+      />
+      <RecordSaleDialog
+        open={saleTarget !== null}
+        onOpenChange={(open) => !open && setSaleTarget(null)}
+        initial={
+          saleTarget
+            ? {
+                type: "ANIMAL",
+                cattleId: saleTarget.id,
+                cattleLabel: `${saleTarget.tagNumber}${saleTarget.name ? ` — ${saleTarget.name}` : ""}`,
+              }
+            : undefined
+        }
       />
       <CattleDeleteDialog
         open={deleteTarget !== null}
@@ -364,18 +389,51 @@ export function CattleTable() {
           { key: "change_shed", label: tBulk("changeShed"), variant: "outline", onRun: () => setShedDialogOpen(true) },
           { key: "change_feed_group", label: tBulk("changeFeedGroup"), variant: "outline", onRun: () => setFeedGroupDialogOpen(true) },
           {
-            key: "mark_sold",
-            label: tBulk("markSold"),
+            key: "dispose",
+            label: tBulk("dispose"),
             variant: "destructive",
-            requiresConfirm: true,
-            confirmTitle: tBulk("markSold"),
-            confirmDescription: tBulk("markSoldDescription", { count: selection.selectedCount }),
-            confirmLabel: tBulk("markSold"),
-            onRun: () => run("mark_sold"),
+            onRun: () => setDisposeDialogOpen(true),
           },
           { key: "export", label: tBulk("export"), variant: "outline", onRun: exportCsv },
         ]}
       />
+
+      <Dialog open={disposeDialogOpen} onOpenChange={setDisposeDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{tBulk("dispose")}</DialogTitle>
+            <DialogDescription>{tBulk("disposeDescription", { count: selection.selectedCount })}</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-1.5">
+            <Label>{tBulk("disposeTypeLabel")}</Label>
+            <Select value={disposeType} onValueChange={(v) => setDisposeType(v as BulkDisposeType)}>
+              <SelectTrigger aria-label={tBulk("disposeTypeLabel")}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="SALE">{tBulk("disposeTypeOptions.SALE")}</SelectItem>
+                <SelectItem value="CULL">{tBulk("disposeTypeOptions.CULL")}</SelectItem>
+                <SelectItem value="DEATH">{tBulk("disposeTypeOptions.DEATH")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDisposeDialogOpen(false)}>
+              {tBulk("cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={bulk.isPending}
+              onClick={async () => {
+                await run("dispose", { type: disposeType });
+                setDisposeDialogOpen(false);
+              }}
+            >
+              {tBulk("apply")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -18,13 +18,16 @@
     "viewAll": "View All",
     "back": "Back",
     "next": "Next",
-    "close": "Close"
+    "close": "Close",
+    "comingSoonTitle": "Coming soon",
+    "comingSoonDescription": "This screen is scaffolded — the full experience lands in a follow-up ticket."
   },
   "nav": {
     "groupOverview": "Overview",
     "groupHerdManagement": "Herd Management",
     "groupProduction": "Production",
     "groupBusiness": "Business",
+    "groupFinance": "Finance",
     "groupInsights": "Insights",
     "groupWorkspace": "Workspace",
     "groupSystem": "System",
@@ -33,9 +36,11 @@
     "feeding": "Feeding",
     "feedFormulator": "Feed Formulator",
     "milk": "Milk",
+    "sales": "Sales",
     "buyers": "Buyers",
     "finance": "Finance",
     "purchasing": "Purchasing",
+    "suppliers": "Suppliers",
     "healthcare": "Healthcare",
     "reproduction": "Reproduction",
     "inventory": "Inventory",
@@ -800,6 +805,14 @@
       "feedGroupLabel": "Feed group",
       "markSold": "Mark as sold",
       "markSoldDescription": "Mark {count} cattle as sold. This archives them from the active herd. Any of them still actively milking will have that lactation closed.",
+      "dispose": "Dispose",
+      "disposeDescription": "Dispose {count} cattle. This archives them from the active herd. Any of them still actively milking will have that lactation closed.",
+      "disposeTypeLabel": "Type",
+      "disposeTypeOptions": {
+        "SALE": "Sold",
+        "CULL": "Culled",
+        "DEATH": "Deceased"
+      },
       "export": "Export",
       "cancel": "Cancel",
       "apply": "Apply",
@@ -914,15 +927,18 @@
     },
     "disposeDialog": {
       "title": "Dispose Animal — {name}",
-      "description": "This removes the animal from the active herd. Sold animals go through the Sell flow instead — this covers Culled or Deceased.",
+      "description": "This removes the animal from the active herd — choose how.",
       "type": "Type",
       "typeOptions": {
+        "SALE": "Sold",
         "CULL": "Culled",
         "DEATH": "Deceased"
       },
       "date": "Date",
       "reason": "Reason (optional)",
       "reasonPlaceholder": "e.g. cause, notes",
+      "saleHandoffNote": "You'll enter the sale price and payment on the next screen.",
+      "continue": "Continue",
       "cancel": "Cancel",
       "confirm": "Dispose Animal",
       "disposedToast": "Animal disposed.",
@@ -3934,6 +3950,18 @@
       "back": "Back",
       "addItem": "Add"
     },
+    "transactionsPage": {
+      "title": "Transactions"
+    },
+    "reportsPage": {
+      "title": "Reports"
+    },
+    "liabilitiesPage": {
+      "title": "Liabilities"
+    },
+    "assetsPage": {
+      "title": "Asset Distribution"
+    },
     "accountsPage": {
       "title": "Accounts",
       "transferAction": "Transfer",
@@ -5234,6 +5262,17 @@
       "back": "Back",
       "continue": "Continue",
       "submit": "Submit"
+    }
+  },
+  "period": {
+    "presets": {
+      "today": "Today",
+      "this_week": "This Week",
+      "this_month": "This Month",
+      "last_month": "Last Month",
+      "this_quarter": "This Quarter",
+      "this_year": "This Year",
+      "custom": "Custom"
     }
   }
 }
