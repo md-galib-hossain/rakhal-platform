@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import { CreatableSelect } from "@/components/shared/creatable-select";
-import { Chip, type ChipProps } from "@/components/ui/chip";
+import { Chip } from "@/components/ui/chip";
 import {
   LabeledInput,
   LabeledSelectTrigger,
@@ -44,6 +44,7 @@ import {
 } from "../hooks/use-cattle";
 import { cattleEditFormSchema, type CattleEditFormInput } from "../schemas";
 import { deriveAnimalCategoryPreview } from "../utils/animal-category-preview";
+import { ANIMAL_CATEGORY_VARIANT } from "../utils/animal-category-style";
 import { BreedingEventStep } from "@/features/reproduction/components/dialogs/breeding-event-step";
 import { PregnancyDiagnosisStep } from "@/features/reproduction/components/dialogs/pregnancy-diagnosis-step";
 import { HeatEventStep } from "@/features/reproduction/components/dialogs/heat-event-step";
@@ -72,17 +73,6 @@ const REPRODUCTIVE_STATUSES = [
   "BRED_AWAITING_CONFIRMATION",
   "PREGNANT",
 ] as const;
-
-/** RAKHAL-270 chip colors — mirrors `cattle-columns.tsx`'s `ANIMAL_CATEGORY_VARIANT` (kept
- * per-file, same reasoning as `cattle-profile-card.tsx`'s own copy: no shared cross-feature
- * constants module exists for this yet). */
-const ANIMAL_CATEGORY_VARIANT: Record<AnimalCategory, ChipProps["variant"]> = {
-  CALF: "info",
-  HEIFER: "purple",
-  COW: "primary",
-  BULL: "indigo",
-  STEER: "teal",
-};
 
 /** Strips the `""`/`UNSET` sentinel back to `undefined` before hitting the API — the backend's
  * optional string fields reject an empty string differently than an omitted key in some paths

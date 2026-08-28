@@ -7,9 +7,9 @@ import { Chip, type ChipProps } from "@/components/ui/chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { avatarTint } from "../avatar-tint";
 import { formatCattleAge } from "../format";
+import { ANIMAL_CATEGORY_VARIANT } from "../utils/animal-category-style";
 import { CattleRowActions } from "./cattle-row-actions";
 import type {
-  AnimalCategory,
   CattleListItem,
   HealthStatusFilter,
   LactationStage,
@@ -49,15 +49,6 @@ const LACTATION_STAGE_VARIANT: Record<LactationStage, ChipProps["variant"]> = {
   MID: "info",
   LATE: "warning",
   DRY_PERIOD: "muted",
-};
-
-/** RAKHAL-270 — `animalCategory` chip colors, distinct from the production-status chip above. */
-const ANIMAL_CATEGORY_VARIANT: Record<AnimalCategory, ChipProps["variant"]> = {
-  CALF: "info",
-  HEIFER: "purple",
-  COW: "primary",
-  BULL: "indigo",
-  STEER: "teal",
 };
 
 /** Chip colors for the new dedicated "Reproduction status" column (see the doc comment on

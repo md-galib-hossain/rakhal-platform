@@ -46,6 +46,7 @@ import type {
   CattleListItem,
   CattleStatus,
   HealthStatusFilter,
+  LifecycleSubStage,
   ProductionStatus,
   ReproductiveStatus,
 } from "../types";
@@ -93,6 +94,7 @@ export function CattleTable() {
     reproductiveStatus: (searchParams.get("reproductiveStatus") as ReproductiveStatus | null) ?? undefined,
     animalCategory: (searchParams.get("animalCategory") as AnimalCategory | null) ?? undefined,
     status: (searchParams.get("herdStatus") as CattleStatus | null) ?? undefined,
+    lifecycleSubStage: (searchParams.get("lifecycleSubStage") as LifecycleSubStage | null) ?? undefined,
   };
 
   const query = useCattlePagedList(filters);

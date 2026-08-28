@@ -695,11 +695,6 @@
       "all": "সব",
       "milking": "দুধ দেওয়া",
       "dry": "শুকনা",
-      "heifer": "বকনা বাছুর",
-      "calf": "বাছুর",
-      "cow": "গরু",
-      "bull": "ষাঁড়",
-      "steer": "খাসি",
       "quickAdd": "দ্রুত {category} যোগ করুন"
     },
     "filters": {
@@ -712,6 +707,7 @@
       "animalCategory": "ক্যাটাগরি",
       "stage": "বাছুরের ধাপ",
       "herdStatus": "পালের অবস্থা",
+      "lifecycleSubStage": "জীবনচক্র ধাপ",
       "statusOptions": {
         "milking": "দুধ দেওয়া",
         "dry": "শুকনো"
@@ -721,6 +717,14 @@
         "sold": "বিক্রিত",
         "culled": "বাদ দেওয়া হয়েছে",
         "deceased": "মৃত"
+      },
+      "lifecycleSubStageOptions": {
+        "weanedHeifer": "দুধ ছাড়ানো বকনা",
+        "growingHeifer": "বর্ধনশীল বকনা",
+        "breedingHeifer": "প্রজননযোগ্য বকনা",
+        "weanerBull": "দুধ ছাড়ানো ষাঁড়",
+        "growingBull": "বর্ধনশীল ষাঁড়",
+        "matureBull": "পরিণত ষাঁড়"
       },
       "healthOptions": {
         "healthy": "সুস্থ",

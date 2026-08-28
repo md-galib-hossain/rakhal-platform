@@ -695,11 +695,6 @@
       "all": "All",
       "milking": "Milking",
       "dry": "Dry",
-      "heifer": "Heifer",
-      "calf": "Calf",
-      "cow": "Cow",
-      "bull": "Bull",
-      "steer": "Steer",
       "quickAdd": "Quick-add {category}"
     },
     "filters": {
@@ -712,6 +707,7 @@
       "animalCategory": "Category",
       "stage": "Calf Stage",
       "herdStatus": "Herd Status",
+      "lifecycleSubStage": "Lifecycle Stage",
       "statusOptions": {
         "milking": "Milking",
         "dry": "Dry"
@@ -721,6 +717,14 @@
         "sold": "Sold",
         "culled": "Culled",
         "deceased": "Deceased"
+      },
+      "lifecycleSubStageOptions": {
+        "weanedHeifer": "Weaned Heifer",
+        "growingHeifer": "Growing Heifer",
+        "breedingHeifer": "Breeding Heifer",
+        "weanerBull": "Weaner Bull",
+        "growingBull": "Growing Bull",
+        "matureBull": "Mature Bull"
       },
       "healthOptions": {
         "healthy": "Healthy",

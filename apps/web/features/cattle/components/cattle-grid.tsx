@@ -11,9 +11,9 @@ import { ErrorState } from "@/components/shared/error-state";
 import { SelectableCardOverlay } from "@/components/shared/selectable-card-overlay";
 import { avatarTint } from "../avatar-tint";
 import { formatCattleAge } from "../format";
+import { ANIMAL_CATEGORY_VARIANT } from "../utils/animal-category-style";
 import { CattleRowActions } from "./cattle-row-actions";
 import type {
-  AnimalCategory,
   CattleListItem,
   HealthStatusFilter,
   LactationStage,
@@ -21,19 +21,13 @@ import type {
   ReproductiveStatus,
 } from "../types";
 
-// Chip color maps duplicated from `cattle-columns.tsx` rather than imported — that file's maps
-// are module-private (not exported) and this card needs the exact same status→color meaning the
-// table already established, not a new mapping to keep consistent by hand.
+// Chip color map duplicated from `cattle-columns.tsx` rather than imported — that file's other
+// maps are module-private (not exported) and this card needs the exact same status→color meaning
+// the table already established, not a new mapping to keep consistent by hand.
+// `ANIMAL_CATEGORY_VARIANT` itself is shared (RAKHAL-402) via `../utils/animal-category-style`.
 const PRODUCTION_STATUS_VARIANT: Record<ProductionStatus, ChipProps["variant"]> = {
   MILKING: "primary",
   DRY: "warning",
-};
-const ANIMAL_CATEGORY_VARIANT: Record<AnimalCategory, ChipProps["variant"]> = {
-  CALF: "info",
-  HEIFER: "purple",
-  COW: "primary",
-  BULL: "indigo",
-  STEER: "teal",
 };
 const LACTATION_STAGE_VARIANT: Record<LactationStage, ChipProps["variant"]> = {
   FRESH: "primary",

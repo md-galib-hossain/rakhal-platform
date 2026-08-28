@@ -19,7 +19,10 @@ import { useBreeds, useFeedGroups, useSheds } from "../hooks/use-cattle";
  * weaning/feeding timing without it. */
 export function CattleFilters({ actions }: { actions?: React.ReactNode }) {
   const t = useTranslations("cattle.filters");
-  const tCategories = useTranslations("cattle.categories");
+  // RAKHAL-402 — shares `cattle.animalCategory` with the Chip labels (`cattle-columns.tsx` etc)
+  // instead of the old separate `cattle.categories.{calf,heifer,cow,bull,steer}` set, so a
+  // relabel can't silently drift between the filter dropdown and the rest of the app.
+  const tCategories = useTranslations("cattle.animalCategory");
   const breeds = useBreeds();
   const sheds = useSheds();
   const feedGroups = useFeedGroups();
@@ -33,11 +36,11 @@ export function CattleFilters({ actions }: { actions?: React.ReactNode }) {
           key: "animalCategory",
           label: t("animalCategory"),
           options: [
-            { value: "CALF", label: tCategories("calf") },
-            { value: "HEIFER", label: tCategories("heifer") },
-            { value: "COW", label: tCategories("cow") },
-            { value: "BULL", label: tCategories("bull") },
-            { value: "STEER", label: tCategories("steer") },
+            { value: "CALF", label: tCategories("CALF") },
+            { value: "HEIFER", label: tCategories("HEIFER") },
+            { value: "COW", label: tCategories("COW") },
+            { value: "BULL", label: tCategories("BULL") },
+            { value: "STEER", label: tCategories("STEER") },
           ],
         },
         {
@@ -59,6 +62,21 @@ export function CattleFilters({ actions }: { actions?: React.ReactNode }) {
             { value: "SOLD", label: t("herdStatusOptions.sold") },
             { value: "CULLED", label: t("herdStatusOptions.culled") },
             { value: "DECEASED", label: t("herdStatusOptions.deceased") },
+          ],
+        },
+        {
+          // RAKHAL-402 — lifecycle sub-stage filter (`ListCattleQueryDto.lifecycleSubStage`),
+          // nested under `animalCategory` (HEIFER/BULL only per `LifecycleSubStage`'s own doc
+          // comment) — sits next to the category select it refines.
+          key: "lifecycleSubStage",
+          label: t("lifecycleSubStage"),
+          options: [
+            { value: "WEANED_HEIFER", label: t("lifecycleSubStageOptions.weanedHeifer") },
+            { value: "GROWING_HEIFER", label: t("lifecycleSubStageOptions.growingHeifer") },
+            { value: "BREEDING_HEIFER", label: t("lifecycleSubStageOptions.breedingHeifer") },
+            { value: "WEANER_BULL", label: t("lifecycleSubStageOptions.weanerBull") },
+            { value: "GROWING_BULL", label: t("lifecycleSubStageOptions.growingBull") },
+            { value: "MATURE_BULL", label: t("lifecycleSubStageOptions.matureBull") },
           ],
         },
         {

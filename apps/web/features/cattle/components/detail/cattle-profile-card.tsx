@@ -23,7 +23,8 @@ import { DateText } from "@/components/shared/date-text";
 import { useMilkEligibility } from "@/features/milk/hooks/use-milk";
 import type { MilkEligibilityStatus } from "@/features/milk/types";
 import { avatarTint } from "../../avatar-tint";
-import type { AnimalCategory, CattleDetail, ProductionStatus } from "../../types";
+import { ANIMAL_CATEGORY_VARIANT } from "../../utils/animal-category-style";
+import type { CattleDetail, ProductionStatus } from "../../types";
 
 /** RAKHAL — profile redesign (no ticket #): `Status`/`DIM` are the only two header fields that
  * always render something (never conditionally omitted like Pregnant Status/Lactation
@@ -40,16 +41,6 @@ function getProductionUnavailableReason(cattle: CattleDetail): ProductionUnavail
 const PRODUCTION_STATUS_VARIANT: Record<ProductionStatus, "primary" | "info" | "warning" | "muted" | "destructive"> = {
   MILKING: "primary",
   DRY: "warning",
-};
-
-/** RAKHAL-270 — mirrors `cattle-columns.tsx`'s `ANIMAL_CATEGORY_VARIANT` (kept per-file, same
- * pattern `PRODUCTION_STATUS_VARIANT` above already uses across both files). */
-const ANIMAL_CATEGORY_VARIANT: Record<AnimalCategory, "primary" | "info" | "warning" | "muted" | "destructive" | "teal" | "purple" | "indigo"> = {
-  CALF: "info",
-  HEIFER: "purple",
-  COW: "primary",
-  BULL: "indigo",
-  STEER: "teal",
 };
 
 function ageFromDob(dob: string | null): string | null {

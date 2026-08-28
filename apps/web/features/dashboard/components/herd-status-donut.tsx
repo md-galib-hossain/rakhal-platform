@@ -6,6 +6,7 @@ import Link from "next/link";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ANIMAL_CATEGORY_SLICE_COLOR } from "@/features/cattle/utils/animal-category-style";
 import { useHerdStatus } from "../hooks/use-dashboard-widgets";
 import { DashboardCard } from "./dashboard-card";
 import type { DonutSlice } from "./herd-status-chart-inner";
@@ -40,16 +41,16 @@ const CATEGORY_SLICE_HREF: Record<CategoryKey, string> = {
   steer: "/animals?animalCategory=STEER",
 };
 
-/** Reuses `cattle-columns.tsx`'s `ANIMAL_CATEGORY_VARIANT` chip-color convention (info/purple/
- * primary/indigo/teal) instead of inventing new colors for the same 5 `AnimalCategory` values —
- * expressed as the matching CSS custom properties (theme-aware, same pattern this dashboard's
- * other recharts widgets already use for `stroke`/`color`, e.g. `milk-trend-chart-inner.tsx`). */
+/** RAKHAL-402 — reuses the shared `ANIMAL_CATEGORY_SLICE_COLOR` (info/purple/primary/indigo/teal,
+ * same convention `cattle-columns.tsx`'s `ANIMAL_CATEGORY_VARIANT` chips use) instead of a
+ * per-file copy, remapped from lowercase `CategoryKey` to the real `AnimalCategory` values via
+ * `CATEGORY_I18N_KEY` above. */
 const CATEGORY_SLICE_COLOR: Record<CategoryKey, string> = {
-  calf: "var(--info)",
-  heifer: "var(--accent-purple)",
-  cow: "var(--primary)",
-  bull: "var(--accent-indigo)",
-  steer: "var(--accent-teal)",
+  calf: ANIMAL_CATEGORY_SLICE_COLOR.CALF,
+  heifer: ANIMAL_CATEGORY_SLICE_COLOR.HEIFER,
+  cow: ANIMAL_CATEGORY_SLICE_COLOR.COW,
+  bull: ANIMAL_CATEGORY_SLICE_COLOR.BULL,
+  steer: ANIMAL_CATEGORY_SLICE_COLOR.STEER,
 };
 
 // Chart rendering is client/DOM-only and not needed for the initial paint — keep it out of the main bundle.

@@ -10,6 +10,19 @@ import type { CattleListFilters } from "../types";
 
 type CategoryKey = "all" | "milking" | "dry" | "heifer" | "calf" | "cow" | "bull" | "steer";
 
+/** RAKHAL-402 — the 5 animal-category tiles now share their label with `cattle.animalCategory`
+ * (the same set Chip labels/the filter dropdown use) instead of the old separate
+ * `cattle.categories.{heifer,calf,cow,bull,steer}` keys, so this tile row can't silently drift
+ * from the rest of the app's wording. "all"/"milking"/"dry" have no `AnimalCategory` equivalent
+ * and stay on `cattle.categories`. */
+const CATEGORY_I18N_KEY: Partial<Record<CategoryKey, "CALF" | "HEIFER" | "COW" | "BULL" | "STEER">> = {
+  heifer: "HEIFER",
+  calf: "CALF",
+  cow: "COW",
+  bull: "BULL",
+  steer: "STEER",
+};
+
 /**
  * RAKHAL-282/283/284: "milking"/"dry" still map onto a real backend query filter
  * (`productionStatus`, `ListCattleQueryDto`) — unchanged.
@@ -50,6 +63,7 @@ const CATEGORIES: {
  * select dropdowns write, so both controls stay in sync in either direction. */
 export function CattleCategoryHighlights() {
   const t = useTranslations("cattle.categories");
+  const tAnimalCategory = useTranslations("cattle.animalCategory");
   const [productionStatus, setProductionStatus] = useQueryState("productionStatus", parseAsString);
   const [animalCategory, setAnimalCategory] = useQueryState("animalCategory", parseAsString);
   // Cleared (not read) on select below — no longer written by this component (RAKHAL-289 dropped
@@ -94,7 +108,12 @@ export function CattleCategoryHighlights() {
               <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", cfg.iconBg)}>
                 <Icon className={cn("size-4", cfg.iconFg)} />
               </span>
-              <p className="text-sm font-medium text-foreground">{t(cfg.key)}</p>
+              <p className="text-sm font-medium text-foreground">
+                {(() => {
+                  const animalCategoryKey = CATEGORY_I18N_KEY[cfg.key];
+                  return animalCategoryKey ? tAnimalCategory(animalCategoryKey) : t(cfg.key);
+                })()}
+              </p>
             </div>
             {result.isLoading ? (
               <Skeleton className="h-8 w-12" />
