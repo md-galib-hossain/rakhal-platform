@@ -3480,9 +3480,13 @@
       "comingSoon": "Coming soon"
     },
     "tabs": {
+      "overview": "Overview",
+      "transactions": "Transactions",
       "ledger": "Master Ledger",
       "receivables": "Receivables",
       "payables": "Payables",
+      "accounts": "Accounts",
+      "reports": "Reports",
       "liabilities": "Liabilities",
       "assets": "Asset Distribution"
     },

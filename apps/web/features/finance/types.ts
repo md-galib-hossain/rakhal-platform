@@ -228,15 +228,22 @@ export interface CreateTransactionResult {
   inventoryUpdated: boolean;
 }
 
-/** Figma "Finance" frame's tab bar (node 1039:33905/34108, file `SCfMPdxP6vgW1uTxfqCtz7`), in
- * on-screen order. Wallet is a separate header button, not a 6th tab — no Figma frame for it was
- * supplied this pass. */
+/** RAKHAL-382 (MILESTONE 22, `BUSINESS_IA_PRD.md` §4.3) — flattened Finance tab bar. Replaces the
+ * old 5-tab set (`ledger`/`receivables`/`payables`/`liabilities`/`assets`, Figma node
+ * 1039:33905/34108) which stacked a second `?doc=` tab bar inside Master Ledger for
+ * Sales/Purchases/Payments/Transfers — that stacked bar is gone; those four document types become
+ * an "All Types" filter on the new `transactions` tab (RAKHAL-385). `accounts` folds
+ * `/finance/accounts` into the tab bar (same screen, same route still works standalone).
+ * `liabilities`/`assets` are RELOCATED, not deleted — they're URL-only routes now
+ * (`/finance/liabilities`, `/finance/assets`), same precedent `/finance/accounts` already set for
+ * `FinanceLoan`/`FixedAsset` (RD-063) — no tab entry for either. */
 export const FINANCE_TABS = [
-  { key: "ledger" },
+  { key: "overview" },
+  { key: "transactions" },
   { key: "receivables" },
   { key: "payables" },
-  { key: "liabilities" },
-  { key: "assets" },
+  { key: "accounts" },
+  { key: "reports" },
 ] as const;
 
 export type FinanceTabKey = (typeof FINANCE_TABS)[number]["key"];

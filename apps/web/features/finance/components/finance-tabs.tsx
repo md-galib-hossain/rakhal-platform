@@ -2,26 +2,26 @@
 
 import { useTranslations } from "next-intl";
 import { parseAsStringEnum, useQueryState } from "nuqs";
-import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, PieChart, Receipt } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, BarChart3, LayoutDashboard, Receipt, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FINANCE_TABS, type FinanceTabKey } from "../types";
 
 const TAB_KEYS = FINANCE_TABS.map((t) => t.key) as [FinanceTabKey, ...FinanceTabKey[]];
 
-/** Figma "Finance" tab bar (node 1039:33905, file `SCfMPdxP6vgW1uTxfqCtz7`) reuses one generic
- * decorative "package" icon for every tab — real semantically-matched `lucide-react` icons used
- * instead here, same precedent as the Task Hub/Activity Log tickets on this board. */
+/** RAKHAL-382 flattened tab bar (`BUSINESS_IA_PRD.md` §4.3) — real semantically-matched
+ * `lucide-react` icons, same precedent the old Figma-tab-bar mapping already established. */
 const TAB_ICONS: Record<FinanceTabKey, React.ComponentType<{ className?: string }>> = {
-  ledger: Receipt,
+  overview: LayoutDashboard,
+  transactions: Receipt,
   receivables: ArrowDownToLine,
   payables: ArrowUpFromLine,
-  liabilities: AlertTriangle,
-  assets: PieChart,
+  accounts: Wallet,
+  reports: BarChart3,
 };
 
 export function FinanceTabs() {
   const t = useTranslations("finance.tabs");
-  const [tab, setTab] = useQueryState("tab", parseAsStringEnum<FinanceTabKey>(TAB_KEYS).withDefault("ledger"));
+  const [tab, setTab] = useQueryState("tab", parseAsStringEnum<FinanceTabKey>(TAB_KEYS).withDefault("overview"));
 
   return (
     <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-muted p-1.5">
@@ -47,6 +47,6 @@ export function FinanceTabs() {
 }
 
 export function useActiveFinanceTab(): FinanceTabKey {
-  const [tab] = useQueryState("tab", parseAsStringEnum<FinanceTabKey>(TAB_KEYS).withDefault("ledger"));
+  const [tab] = useQueryState("tab", parseAsStringEnum<FinanceTabKey>(TAB_KEYS).withDefault("overview"));
   return tab;
 }

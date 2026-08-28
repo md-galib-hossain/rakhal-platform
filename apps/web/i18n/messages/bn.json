@@ -3480,9 +3480,13 @@
       "comingSoon": "শীঘ্রই আসছে"
     },
     "tabs": {
+      "overview": "ওভারভিউ",
+      "transactions": "লেনদেন",
       "ledger": "মাস্টার লেজার",
       "receivables": "পাওনা",
       "payables": "দেনা",
+      "accounts": "অ্যাকাউন্ট",
+      "reports": "প্রতিবেদন",
       "liabilities": "দায়",
       "assets": "সম্পদ বণ্টন"
     },
