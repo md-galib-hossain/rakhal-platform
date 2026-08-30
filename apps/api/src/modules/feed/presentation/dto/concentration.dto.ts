@@ -95,13 +95,24 @@ export class CreateConcentrationDto {
 
 /** `POST /feed/concentrations/:id/finalize` body. `paymentMethod` is required only when
  * finalizing a `FEED_MIXTURE` (TMR) — that's the only kind that incurs a real cost against the
- * farm's money; a `CONCENTRATE_TEMPLATE` finalize stays free/virtual and ignores this field.
- * Service-level check (not `@IsNotEmpty`), since the requirement is conditional on the row's
- * own `kind`, not statically knowable from the body alone. */
+ * farm's money; a `CONCENTRATE_TEMPLATE` finalize never posts a journal entry and ignores this
+ * field. Service-level check (not `@IsNotEmpty`), since the requirement is conditional on the
+ * row's own `kind`, not statically knowable from the body alone.
+ *
+ * `batchQuantityKg` (RAKHAL-406): only meaningful for `CONCENTRATE_TEMPLATE` — how many kg of
+ * this concentrate mix the farmer actually produced this batch, becomes the new `FeedItem`'s
+ * `currentStock`. Optional — defaults to the formula's own `totalAsFedKg` (sum of item
+ * `amountKg`) when omitted, so most calls need no override. Ignored for `FEED_MIXTURE`, which
+ * already derives its `FeedStock` quantity from `totalAsFedKg` unconditionally. */
 export class FinalizeConcentrationDto {
   @IsOptional()
   @IsEnum(PaymentMethod)
   paymentMethod?: PaymentMethod;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0.001)
+  batchQuantityKg?: number;
 }
 
 /** `PATCH /feed/concentrations/:id` — partial update; `items` replaces the lines if present. */

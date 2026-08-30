@@ -1,8 +1,10 @@
 ﻿import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -18,9 +20,11 @@ import { ReproProtocolService } from '../../application/services/repro-protocol.
 import {
   ApplyProtocolDto,
   CloseInstanceDto,
+  CreateProtocolDto,
   ListInstanceQueryDto,
   RecordAiDto,
   RecordOutcomeDto,
+  UpdateProtocolDto,
 } from '../dto/protocol.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
@@ -47,6 +51,16 @@ export class ReproProtocolController {
   @RequirePermission('reproduction.read')
   list(@CurrentFarmId() farmId: string) {
     return this.protocols.listProtocols(farmId);
+  }
+
+  @Post()
+  @RequirePermission('reproduction.create')
+  create(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Body() dto: CreateProtocolDto,
+  ) {
+    return this.protocols.createProtocol(farmId, userId, dto);
   }
 
   @Get('kpis')
@@ -117,5 +131,21 @@ export class ReproProtocolController {
   @RequirePermission('reproduction.read')
   getProtocol(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.protocols.getProtocol(farmId, id);
+  }
+
+  @Patch(':id')
+  @RequirePermission('reproduction.update')
+  update(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateProtocolDto,
+  ) {
+    return this.protocols.updateProtocol(farmId, id, dto);
+  }
+
+  @Delete(':id')
+  @RequirePermission('reproduction.delete')
+  remove(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.protocols.deleteProtocol(farmId, id);
   }
 }

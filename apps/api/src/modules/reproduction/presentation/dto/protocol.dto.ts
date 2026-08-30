@@ -1,14 +1,21 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayNotEmpty,
   ArrayUnique,
   IsArray,
+  IsBoolean,
+  IsEnum,
   IsIn,
+  IsInt,
+  IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
   MaxLength,
+  Min,
+  ValidateNested,
 } from 'class-validator';
+import { ReproStepType } from '@prisma/client';
 import { trimString } from 'src/common/dto';
 import { CursorPaginationQueryDto } from 'src/common/pagination';
 
@@ -77,6 +84,80 @@ export class CloseInstanceDto {
   @MaxLength(500)
   @Transform(trimString)
   reason?: string;
+}
+
+/** One day-by-day step of a protocol (GnRH/PGF₂α/AI/PD/...), used by
+ * `CreateProtocolDto`/`UpdateProtocolDto`'s `steps[]`. Mirrors `ReproProtocolStep`. */
+export class ProtocolStepDto {
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(0)
+  dayNumber!: number;
+
+  @Transform(trimString)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  title!: string;
+
+  @IsEnum(ReproStepType)
+  stepType!: ReproStepType;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  @MaxLength(500)
+  instruction?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isRequired?: boolean;
+}
+
+/** `POST /reproduction/protocols` — create a farm-owned protocol (RAKHAL-407). */
+export class CreateProtocolDto {
+  @Transform(trimString)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  name!: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+
+  @IsArray()
+  @ArrayNotEmpty()
+  @ValidateNested({ each: true })
+  @Type(() => ProtocolStepDto)
+  steps!: ProtocolStepDto[];
+}
+
+/** `PATCH /reproduction/protocols/:id` — edit a farm-owned protocol. `steps`, when present,
+ * wholesale-replaces the existing step list (delete+recreate — same convention
+ * `HealthPlanService#updatePlan` already established for this shape). */
+export class UpdateProtocolDto {
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  name?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty()
+  @ValidateNested({ each: true })
+  @Type(() => ProtocolStepDto)
+  steps?: ProtocolStepDto[];
 }
 
 /** `GET /reproduction/protocols/instances` — cursor list with filters. */

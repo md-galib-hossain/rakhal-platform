@@ -1,6 +1,7 @@
 import { Transform } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsEnum,
@@ -32,6 +33,10 @@ export class CreateTaskDto {
   @IsEnum(TaskPriority)
   priority?: TaskPriority;
 
+  @IsOptional()
+  @IsISO8601()
+  scheduledAt?: string;
+
   @IsISO8601()
   dueAt!: string;
 
@@ -39,13 +44,6 @@ export class CreateTaskDto {
   @Transform(trimString)
   @IsString()
   assignedToId?: string;
-
-  /** Checklist sub-steps as plain strings; ids are assigned server-side. */
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(50)
-  @IsString({ each: true })
-  steps?: string[];
 
   @IsOptional()
   @Transform(toBoolean)
@@ -65,8 +63,18 @@ export class CreateTaskDto {
   @IsBoolean()
   safetyCritical?: boolean;
 
+  /** Single-cow target. Mutually exclusive with `cattleIds` — the service rejects both set. */
   @IsOptional()
   @Transform(trimString)
   @IsString()
   relatedCattleId?: string;
+
+  /** Multi-cow target (user request, no ticket #) — a manual task can target several cows via the
+   * new `TaskCattle` join. Mutually exclusive with `relatedCattleId`. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  cattleIds?: string[];
 }

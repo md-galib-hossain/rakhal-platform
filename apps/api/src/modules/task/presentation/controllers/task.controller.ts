@@ -20,7 +20,7 @@ import { TaskService } from '../../application/services/task.service';
 import { CreateTaskDto } from '../dto/create-task.dto';
 import { UpdateTaskDto } from '../dto/update-task.dto';
 import { ListTaskQueryDto } from '../dto/list-task-query.dto';
-import { CheckStepDto, CompleteTaskDto } from '../dto/complete-task.dto';
+import { CompleteTaskDto, CancelTaskDto } from '../dto/complete-task.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
@@ -95,15 +95,16 @@ export class TaskController {
     return this.taskService.reopen(farmId, id);
   }
 
-  @Post(':id/steps/:stepId/check')
-  @RequirePermission('task.complete')
-  checkStep(
+  /** User-initiated cancellation — manager+ only (task.update), not valid from COMPLETED. */
+  @Post(':id/cancel')
+  @RequirePermission('task.update')
+  cancel(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
-    @Param('stepId') stepId: string,
-    @Body() dto: CheckStepDto,
+    @Body() dto: CancelTaskDto,
   ) {
-    return this.taskService.checkStep(farmId, id, stepId, dto.completed);
+    return this.taskService.cancel(farmId, userId, id, dto);
   }
 
   @Delete(':id')

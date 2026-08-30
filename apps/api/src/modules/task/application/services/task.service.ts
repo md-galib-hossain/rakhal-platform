@@ -15,16 +15,14 @@ import {
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
-import {
-  buildSteps,
-  displayStatus,
-  parseSteps,
-  TaskStep,
-} from '../../domain/task-step';
+import { displayStatus } from '../../domain/task-status';
 import { CreateTaskDto } from '../../presentation/dto/create-task.dto';
 import { ListTaskQueryDto } from '../../presentation/dto/list-task-query.dto';
 import { UpdateTaskDto } from '../../presentation/dto/update-task.dto';
-import { CompleteTaskDto } from '../../presentation/dto/complete-task.dto';
+import {
+  CompleteTaskDto,
+  CancelTaskDto,
+} from '../../presentation/dto/complete-task.dto';
 
 /** Input for module-to-module task creation (RAKHAL-097). */
 export interface CreateTaskInternalInput {
@@ -38,7 +36,6 @@ export interface CreateTaskInternalInput {
   details?: string;
   assignedToId?: string;
   relatedCattleId?: string;
-  steps?: string[];
   safetyCritical?: boolean;
   /** RAKHAL-303 edit substrate: the domain event this task was generated
    * from (e.g. "BREEDING_EVENT"), paired with `sourceEventId`. Lets
@@ -49,6 +46,7 @@ export interface CreateTaskInternalInput {
 
 type TaskWithAssignee = Task & {
   assignedTo: { id: string; name: string } | null;
+  cattles: { cattleId: string }[];
 };
 
 @Injectable()
@@ -68,6 +66,15 @@ export class TaskService {
   async create(farmId: string, userId: string, dto: CreateTaskDto) {
     await this.assertAssignee(farmId, dto.assignedToId);
 
+    if (dto.relatedCattleId && dto.cattleIds?.length) {
+      throw new BadRequestException(
+        'Provide either relatedCattleId or cattleIds, not both',
+      );
+    }
+    if (dto.cattleIds?.length) {
+      await this.assertCattleIds(farmId, dto.cattleIds);
+    }
+
     return this.present(
       await this.insert({
         farmId,
@@ -76,8 +83,8 @@ export class TaskService {
         details: dto.details,
         category: dto.category ?? TaskCategory.GENERAL,
         priority: dto.priority ?? TaskPriority.MEDIUM,
+        scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined,
         dueAt: new Date(dto.dueAt),
-        steps: buildSteps(dto.steps),
         recurring: dto.recurring ?? false,
         recurrenceType: dto.recurrenceType,
         recurrenceEndDate: dto.recurrenceEndDate
@@ -85,7 +92,10 @@ export class TaskService {
           : null,
         safetyCritical: dto.safetyCritical ?? false,
         source: TaskSource.MANUAL,
-        relatedCattleId: dto.relatedCattleId,
+        relatedCattleId: dto.cattleIds?.length
+          ? undefined
+          : dto.relatedCattleId,
+        cattleIds: dto.cattleIds,
         assignedToId: dto.assignedToId,
       }),
     );
@@ -106,7 +116,6 @@ export class TaskService {
       category: input.category,
       priority: input.priority ?? TaskPriority.MEDIUM,
       dueAt: input.dueAt,
-      steps: buildSteps(input.steps),
       recurring: false,
       recurrenceType: null,
       recurrenceEndDate: null,
@@ -141,9 +150,13 @@ export class TaskService {
       where: { farmId, sourceEventType, sourceEventId },
       select: { id: true, status: true },
     });
-    const pending = tasks.filter((t) => t.status !== TaskStatus.COMPLETED);
-    const alreadyCompleted = tasks.filter(
-      (t) => t.status === TaskStatus.COMPLETED,
+    const closedStatuses: TaskStatus[] = [
+      TaskStatus.COMPLETED,
+      TaskStatus.CANCELLED,
+    ];
+    const pending = tasks.filter((t) => !closedStatuses.includes(t.status));
+    const alreadyCompleted = tasks.filter((t) =>
+      closedStatuses.includes(t.status),
     );
 
     if (pending.length > 0) {
@@ -173,9 +186,10 @@ export class TaskService {
    * reason for existing (e.g. a pregnancy diagnosis closes its pregnancy-check
    * task, a return-to-heat closes the one it superseded). Mirrors
    * `rescheduleBySourceEvent`'s shape. Already-completed tasks are a no-op,
-   * not an error. No `TaskStatus.CANCELLED` exists (MILESTONE 17 dropped a
-   * cancel substrate on purpose) — `note` lets a caller like return-to-heat
-   * record *why* it closed without a distinct status.
+   * not an error. This is a *system* close, not the user-facing `cancel()` —
+   * MILESTONE 17 deliberately modeled a superseded task as COMPLETED+note
+   * rather than a distinct status, so a caller like return-to-heat records
+   * *why* it closed instead of using `cancel()` (RAKHAL-405).
    */
   async completeBySourceEvent(
     farmId: string,
@@ -189,7 +203,7 @@ export class TaskService {
         farmId,
         sourceEventType,
         sourceEventId,
-        status: { not: TaskStatus.COMPLETED },
+        status: { notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELLED] },
       },
       select: { id: true, details: true },
     });
@@ -222,9 +236,9 @@ export class TaskService {
    * RAKHAL-399: close every non-completed task tied to a cattle row once
    * she's left the herd (sold/culled/deceased) — a disposed animal shouldn't
    * keep generating "pregnancy check due" / "vaccination due" reminders.
-   * Mirrors {@link completeBySourceEvent}'s shape and the same reasoning: no
-   * `TaskStatus.CANCELLED` exists by design, so this closes as `COMPLETED`
-   * with `note` explaining why instead.
+   * Mirrors {@link completeBySourceEvent}'s shape and the same reasoning:
+   * this is a *system* close on COMPLETED+note (MILESTONE 17 convention),
+   * not the user-facing `cancel()` (RAKHAL-405).
    */
   async completeForCattle(
     farmId: string,
@@ -236,7 +250,7 @@ export class TaskService {
       where: {
         farmId,
         relatedCattleId: cattleId,
-        status: { not: TaskStatus.COMPLETED },
+        status: { notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELLED] },
       },
       select: { id: true, details: true },
     });
@@ -276,6 +290,7 @@ export class TaskService {
         category: dto.category,
         priority: dto.priority,
         status: dto.status,
+        ...(dto.scheduledAt ? { scheduledAt: new Date(dto.scheduledAt) } : {}),
         ...(dto.dueAt ? { dueAt: new Date(dto.dueAt) } : {}),
         assignedToId: dto.assignedToId,
         safetyCritical: dto.safetyCritical,
@@ -299,11 +314,6 @@ export class TaskService {
       throw new BadRequestException('Task is already completed');
     }
 
-    const completedSteps = parseSteps(existing.steps).map((s) => ({
-      ...s,
-      completed: true,
-    }));
-
     const task = await this.prisma.task.update({
       where: { id },
       data: {
@@ -311,7 +321,7 @@ export class TaskService {
         completedAt: new Date(),
         completedById: userId,
         completionPhotoUrl: dto.completionPhotoUrl,
-        steps: completedSteps,
+        completionNote: dto.notes,
       },
       include: this.assigneeInclude(),
     });
@@ -323,8 +333,9 @@ export class TaskService {
       farmId,
       nextRecurrenceCreated: Boolean(next),
     });
+    const presented = await this.present(task);
     return {
-      ...this.present(task),
+      ...presented,
       nextRecurrenceCreated: Boolean(next),
       nextTaskId: next?.id ?? null,
     };
@@ -358,25 +369,37 @@ export class TaskService {
     return this.present(task);
   }
 
-  async checkStep(
-    farmId: string,
-    id: string,
-    stepId: string,
-    completed: boolean,
-  ) {
+  /**
+   * User-initiated cancellation (abandoning a task, distinct from completing
+   * it). Not valid from COMPLETED — cancel a live task, don't rewrite a
+   * finished one. Distinct from `completeBySourceEvent`/`completeForCattle`,
+   * which close *system*-superseded tasks as COMPLETED+note (MILESTONE 17
+   * convention) — this is the user-facing counterpart for a task nobody
+   * else's event resolved.
+   */
+  async cancel(farmId: string, userId: string, id: string, dto: CancelTaskDto) {
     const existing = await this.getOrThrow(farmId, id);
-    const steps = parseSteps(existing.steps);
-    const target = steps.find((s) => s.id === stepId);
-    if (!target) {
-      throw new NotFoundException('Step not found');
+    if (existing.status === TaskStatus.COMPLETED) {
+      throw new BadRequestException(
+        'Cannot cancel a task that is already completed',
+      );
     }
-    target.completed = completed;
+    if (existing.status === TaskStatus.CANCELLED) {
+      throw new BadRequestException('Task is already cancelled');
+    }
 
     const task = await this.prisma.task.update({
       where: { id },
-      data: { steps: steps as unknown as Prisma.InputJsonValue },
+      data: {
+        status: TaskStatus.CANCELLED,
+        cancelledAt: new Date(),
+        cancelledById: userId,
+        completionNote: dto.notes,
+      },
       include: this.assigneeInclude(),
     });
+
+    this.log.info('Task cancelled', { taskId: id, farmId });
     return this.present(task);
   }
 
@@ -391,20 +414,32 @@ export class TaskService {
 
   async findAll(farmId: string, userId: string, query: ListTaskQueryDto) {
     const now = new Date();
+    // `cattleId` and `search` each need their own `OR` — combined via `AND` so a plain object
+    // spread never lets the second `OR` silently clobber the first when both filters are active.
+    const andClauses: Prisma.TaskWhereInput[] = [];
+    if (query.cattleId) {
+      andClauses.push({
+        OR: [
+          { relatedCattleId: query.cattleId },
+          { cattles: { some: { cattleId: query.cattleId } } },
+        ],
+      });
+    }
+    if (query.search) {
+      andClauses.push({
+        OR: [
+          { name: { contains: query.search, mode: 'insensitive' } },
+          { reference: { contains: query.search, mode: 'insensitive' } },
+        ],
+      });
+    }
+
     const where: Prisma.TaskWhereInput = {
       farmId,
       ...this.filterClause(query.filter, userId, now),
       ...(query.category ? { category: query.category } : {}),
       ...(query.priority ? { priority: query.priority } : {}),
-      ...(query.cattleId ? { relatedCattleId: query.cattleId } : {}),
-      ...(query.search
-        ? {
-            OR: [
-              { name: { contains: query.search, mode: 'insensitive' } },
-              { reference: { contains: query.search, mode: 'insensitive' } },
-            ],
-          }
-        : {}),
+      ...(andClauses.length ? { AND: andClauses } : {}),
     };
 
     const rows = await this.prisma.task.findMany({
@@ -417,8 +452,19 @@ export class TaskService {
     const page = toCursorPage(rows, query);
     const highlights = await this.highlights(farmId, now);
 
+    const ids = page.items
+      .flatMap((task) => [
+        task.relatedCattleId,
+        ...(task.cattles ?? []).map((c) => c.cattleId),
+      ])
+      .filter((id): id is string => !!id);
+    const cattleMap = await this.buildCattleLabelMap(farmId, ids);
+    const items = await Promise.all(
+      page.items.map((task) => this.present(task, cattleMap)),
+    );
+
     return {
-      items: page.items.map((task) => this.present(task)),
+      items,
       meta: { ...page.meta, highlights },
     };
   }
@@ -438,7 +484,10 @@ export class TaskService {
       case 'my_tasks':
         return { assignedToId: userId };
       case 'overdue':
-        return { status: { not: TaskStatus.COMPLETED }, dueAt: { lt: now } };
+        return {
+          status: { notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELLED] },
+          dueAt: { lt: now },
+        };
       case 'blocked':
         return { status: TaskStatus.BLOCKED };
       default:
@@ -457,14 +506,14 @@ export class TaskService {
       this.prisma.task.count({
         where: {
           farmId,
-          status: { not: TaskStatus.COMPLETED },
+          status: { notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELLED] },
           dueAt: { gte: dayStart, lt: dayEnd },
         },
       }),
       this.prisma.task.count({
         where: {
           farmId,
-          status: { not: TaskStatus.COMPLETED },
+          status: { notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELLED] },
           dueAt: { lt: now },
         },
       }),
@@ -504,18 +553,21 @@ export class TaskService {
     details?: string;
     category: TaskCategory;
     priority: TaskPriority;
+    scheduledAt?: Date;
     dueAt: Date;
-    steps: TaskStep[];
     recurring: boolean;
     recurrenceType?: TaskRecurrence | null;
     recurrenceEndDate?: Date | null;
     safetyCritical: boolean;
     source: TaskSource;
     relatedCattleId?: string;
+    /** Multi-cow target (user request, no ticket #) — creates one `TaskCattle` row per id after
+     * the task itself is created. Empty/undefined for every existing single-cow caller. */
+    cattleIds?: string[];
     assignedToId?: string;
     sourceEventType?: string;
     sourceEventId?: string;
-  }): Promise<Task> {
+  }): Promise<Task & { cattles: { cattleId: string }[] }> {
     // Sequential per-farm reference with a small retry on the unique race.
     for (let attempt = 0; attempt < 5; attempt++) {
       const count = await this.prisma.task.count({
@@ -523,7 +575,7 @@ export class TaskService {
       });
       const reference = `TSK-${String(count + 1 + attempt).padStart(3, '0')}`;
       try {
-        return await this.prisma.task.create({
+        const task = await this.prisma.task.create({
           data: {
             farmId: data.farmId,
             reference,
@@ -531,10 +583,8 @@ export class TaskService {
             details: data.details,
             category: data.category,
             priority: data.priority,
+            scheduledAt: data.scheduledAt,
             dueAt: data.dueAt,
-            steps: data.steps.length
-              ? (data.steps as unknown as Prisma.InputJsonValue)
-              : Prisma.JsonNull,
             recurring: data.recurring,
             recurrenceType: data.recurrenceType ?? null,
             recurrenceEndDate: data.recurrenceEndDate ?? null,
@@ -547,6 +597,20 @@ export class TaskService {
             createdBy: data.createdBy,
           },
         });
+
+        if (data.cattleIds?.length) {
+          await this.prisma.taskCattle.createMany({
+            data: data.cattleIds.map((cattleId) => ({
+              taskId: task.id,
+              cattleId,
+            })),
+          });
+        }
+
+        return {
+          ...task,
+          cattles: (data.cattleIds ?? []).map((cattleId) => ({ cattleId })),
+        };
       } catch (error) {
         if (this.isUniqueError(error)) continue;
         throw error;
@@ -556,7 +620,7 @@ export class TaskService {
   }
 
   private async maybeCreateNextRecurrence(
-    task: Task,
+    task: TaskWithAssignee,
     userId: string,
   ): Promise<Task | null> {
     if (!task.recurring || !task.recurrenceType) return null;
@@ -577,13 +641,15 @@ export class TaskService {
       category: task.category,
       priority: task.priority,
       dueAt: nextDue,
-      steps: parseSteps(task.steps).map((s) => ({ ...s, completed: false })),
       recurring: true,
       recurrenceType: task.recurrenceType,
       recurrenceEndDate: task.recurrenceEndDate,
       safetyCritical: task.safetyCritical,
       source: task.source,
       relatedCattleId: task.relatedCattleId ?? undefined,
+      cattleIds: task.cattles.length
+        ? task.cattles.map((c) => c.cattleId)
+        : undefined,
       assignedToId: task.assignedToId ?? undefined,
     });
   }
@@ -622,29 +688,88 @@ export class TaskService {
     return task;
   }
 
+  /** Standard `include` for every read/write path that returns a task through `present()`. */
   private assigneeInclude() {
     return {
       assignedTo: { select: { id: true, name: true } },
+      cattles: { select: { cattleId: true } },
     } satisfies Prisma.TaskInclude;
   }
 
-  private present(
-    task: Task & { assignedTo?: { id: string; name: string } | null },
+  /** Cow-name display (user request, no ticket #) — `relatedCattleId`/`TaskCattle.cattleId` are
+   * plain scalars (see `task.prisma`'s own doc comment on why), so the tag/name has to be joined
+   * here rather than via a Prisma `include`. `cattleMap` lets `findAll` batch one query for the
+   * whole page instead of N+1; single-item paths (create/update/complete/...) build their own
+   * 1-2-id map inline. A cow missing from the map (deleted, or map omitted) is simply left out of
+   * `relatedCattle`/`cattleTags` — `cattleIds` still round-trips for the edit form regardless. */
+  private async present(
+    task: Task & {
+      assignedTo?: { id: string; name: string } | null;
+      cattles?: { cattleId: string }[];
+    },
+    cattleMap?: Map<string, { tagNumber: string; name: string | null }>,
   ) {
-    const steps = parseSteps(task.steps);
     const now = new Date();
     const display = displayStatus(task.status, task.dueAt, now);
+    const { cattles, ...rest } = task;
+    const ids = [
+      task.relatedCattleId,
+      ...(cattles ?? []).map((c) => c.cattleId),
+    ].filter((id): id is string => !!id);
+    const map = cattleMap ?? (await this.buildCattleLabelMap(task.farmId, ids));
+    const relatedCattle =
+      task.relatedCattleId && map.has(task.relatedCattleId)
+        ? { id: task.relatedCattleId, ...map.get(task.relatedCattleId)! }
+        : null;
+    const cattleTags = (cattles ?? [])
+      .filter((c) => map.has(c.cattleId))
+      .map((c) => ({ id: c.cattleId, ...map.get(c.cattleId)! }));
     return {
-      ...task,
-      steps,
-      stepsTotal: steps.length,
-      stepsCompleted: steps.filter((s) => s.completed).length,
+      ...rest,
+      cattleIds: (cattles ?? []).map((c) => c.cattleId),
+      relatedCattle,
+      cattleTags,
       displayStatus: display,
       overdueByHours:
         display === 'overdue'
           ? Math.floor((now.getTime() - task.dueAt.getTime()) / 3_600_000)
           : null,
     };
+  }
+
+  private async buildCattleLabelMap(farmId: string, ids: string[]) {
+    const unique = Array.from(new Set(ids));
+    if (!unique.length) {
+      return new Map<string, { tagNumber: string; name: string | null }>();
+    }
+    const rows = await this.prisma.cattle.findMany({
+      where: { id: { in: unique }, farmId },
+      select: { id: true, tagNumber: true, name: true },
+    });
+    return new Map(
+      rows.map((r) => [r.id, { tagNumber: r.tagNumber, name: r.name }]),
+    );
+  }
+
+  /** Validates every id belongs to this farm's active herd (RAKHAL-398's `activeHerd` convention
+   * would apply here too, but Task doesn't import the Cattle module's domain layer — mirrors
+   * `assertAssignee`'s own simple existence-check style instead). */
+  private async assertCattleIds(farmId: string, cattleIds: string[]) {
+    const unique = Array.from(new Set(cattleIds));
+    const found = await this.prisma.cattle.findMany({
+      where: {
+        id: { in: unique },
+        farmId,
+        deletedAt: null,
+        herdStatus: 'ACTIVE',
+      },
+      select: { id: true },
+    });
+    if (found.length !== unique.length) {
+      throw new BadRequestException(
+        'One or more selected cows are not in this farm’s active herd',
+      );
+    }
   }
 
   private isUniqueError(error: unknown): boolean {

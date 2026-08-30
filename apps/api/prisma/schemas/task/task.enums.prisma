@@ -21,6 +21,7 @@ enum TaskStatus {
   IN_PROGRESS
   COMPLETED
   BLOCKED
+  CANCELLED
 }
 
 enum TaskSource {

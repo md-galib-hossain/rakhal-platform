@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -7,6 +8,7 @@ import {
   Prisma,
   ReproPregnancyOutcome,
   ReproProtocolStatus,
+  ReproStepType,
   TaskCategory,
   TaskSource,
 } from '@prisma/client';
@@ -20,9 +22,11 @@ import { summarizeProtocol } from '../../domain/protocol-metrics';
 import {
   ApplyProtocolDto,
   CloseInstanceDto,
+  CreateProtocolDto,
   ListInstanceQueryDto,
   RecordAiDto,
   RecordOutcomeDto,
+  UpdateProtocolDto,
 } from '../../presentation/dto/protocol.dto';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -124,6 +128,127 @@ export class ReproProtocolService {
         instruction: s.instruction,
         is_required: s.isRequired,
       })),
+    };
+  }
+
+  /** Farm-owned only — a system default (`farmId: null`) 404s here, matching `getProtocol`'s
+   * own "don't reveal what you can't touch" shape rather than a 403 that would confirm it exists. */
+  private async getOwnedProtocolOrThrow(farmId: string, id: string) {
+    const protocol = await this.prisma.reproProtocol.findFirst({
+      where: { id, farmId, deletedAt: null, isSystemDefault: false },
+    });
+    if (!protocol) throw new NotFoundException('Protocol not found');
+    return protocol;
+  }
+
+  /** RAKHAL-407 — create a farm-owned protocol (a system default is never editable). */
+  async createProtocol(farmId: string, userId: string, dto: CreateProtocolDto) {
+    const durationDays = Math.max(...dto.steps.map((s) => s.dayNumber));
+    const protocol = await this.prisma.reproProtocol.create({
+      data: {
+        farmId,
+        name: dto.name,
+        description: dto.description,
+        durationDays,
+        isSystemDefault: false,
+        createdBy: userId,
+        steps: { create: dto.steps.map((s) => this.stepCreateInput(s)) },
+      },
+      include: { steps: { orderBy: { dayNumber: 'asc' } } },
+    });
+    this.log.info('Protocol created', { farmId, protocolId: protocol.id });
+    return this.presentProtocol(protocol);
+  }
+
+  /** RAKHAL-407 — `steps`, when present, wholesale-replaces the existing step list (delete+recreate,
+   * same convention `HealthPlanService#updatePlan` already established for this exact shape). */
+  async updateProtocol(farmId: string, id: string, dto: UpdateProtocolDto) {
+    await this.getOwnedProtocolOrThrow(farmId, id);
+    const durationDays = dto.steps
+      ? Math.max(...dto.steps.map((s) => s.dayNumber))
+      : undefined;
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      if (dto.steps) {
+        await tx.reproProtocolStep.deleteMany({ where: { protocolId: id } });
+      }
+      return tx.reproProtocol.update({
+        where: { id },
+        data: {
+          name: dto.name,
+          description: dto.description,
+          durationDays,
+          ...(dto.steps
+            ? {
+                steps: {
+                  create: dto.steps.map((s) => this.stepCreateInput(s)),
+                },
+              }
+            : {}),
+        },
+        include: { steps: { orderBy: { dayNumber: 'asc' } } },
+      });
+    });
+    this.log.info('Protocol updated', { farmId, protocolId: id });
+    return this.presentProtocol(updated);
+  }
+
+  /** RAKHAL-407 — soft-delete. Blocked while any instance of this protocol is still mid-treatment
+   * (DRAFT/SCHEDULED/IN_PROGRESS) — a farm shouldn't be able to pull the plan out from under a cow
+   * that's actively on it; COMPLETED/CANCELLED/FAILED instances don't block (history, not in-flight). */
+  async deleteProtocol(farmId: string, id: string) {
+    await this.getOwnedProtocolOrThrow(farmId, id);
+    const activeCount = await this.prisma.reproProtocolInstance.count({
+      where: { protocolId: id, status: { in: ACTIVE_STATUSES } },
+    });
+    if (activeCount > 0) {
+      throw new ConflictException(
+        `Cannot delete: ${activeCount} cow(s) are currently on this protocol`,
+      );
+    }
+    await this.prisma.reproProtocol.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    this.log.info('Protocol deleted', { farmId, protocolId: id });
+    return { deleted: true };
+  }
+
+  private stepCreateInput(step: {
+    dayNumber: number;
+    title: string;
+    stepType: ReproStepType;
+    instruction?: string;
+    isRequired?: boolean;
+  }) {
+    return {
+      dayNumber: step.dayNumber,
+      title: step.title,
+      stepType: step.stepType,
+      instruction: step.instruction,
+      isRequired: step.isRequired ?? true,
+    };
+  }
+
+  private presentProtocol(
+    protocol: Prisma.ReproProtocolGetPayload<{ include: { steps: true } }>,
+  ) {
+    return {
+      id: protocol.id,
+      name: protocol.name,
+      code: protocol.code,
+      description: protocol.description,
+      duration_days: protocol.durationDays,
+      is_system_default: protocol.isSystemDefault,
+      steps: protocol.steps
+        .sort((a, b) => a.dayNumber - b.dayNumber)
+        .map((s) => ({
+          day_number: s.dayNumber,
+          title: s.title,
+          step_type: s.stepType,
+          instruction: s.instruction,
+          is_required: s.isRequired,
+        })),
     };
   }
 

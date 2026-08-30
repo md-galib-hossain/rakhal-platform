@@ -42,6 +42,10 @@ export class UpdateTaskDto {
 
   @IsOptional()
   @IsISO8601()
+  scheduledAt?: string;
+
+  @IsOptional()
+  @IsISO8601()
   dueAt?: string;
 
   @IsOptional()

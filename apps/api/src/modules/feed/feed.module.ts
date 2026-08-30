@@ -5,6 +5,7 @@ import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { MilkModule } from '../milk/milk.module';
+import { InventoryModule } from '../inventory/inventory.module';
 import { FinanceV2AccountsModule } from '../finance-v2/accounts/finance-v2-accounts.module';
 import { FeedConcentrationService } from './application/services/feed-concentration.service';
 import { FeedGroupAssignService } from './application/services/feed-group-assign.service';
@@ -27,7 +28,9 @@ import { FeedController } from './presentation/controllers/feed.controller';
  * payment now posts directly via Finance V2's `JournalService`/
  * `LedgerAccountService` (`@Global()` `FinanceV2LedgerModule`, no import
  * needed) + `FinancialAccountService` (`FinanceV2AccountsModule`, imported
- * below).
+ * below). RAKHAL-406: imports `InventoryModule` for one real cross-service call —
+ * `FeedItemService.create` — so a Concentrate Mixer finalize can produce a real
+ * inventory `FeedItem` batch (`InventoryModule` doesn't import `FeedModule`, no cycle).
  */
 @Module({
   imports: [
@@ -37,6 +40,7 @@ import { FeedController } from './presentation/controllers/feed.controller';
     PermissionModule,
     SubscriptionModule,
     MilkModule,
+    InventoryModule,
     FinanceV2AccountsModule,
   ],
   controllers: [FeedController],

@@ -263,7 +263,13 @@ export class FeedController {
     @Param('id') id: string,
     @Body() dto: FinalizeConcentrationDto,
   ) {
-    return this.concentrations.finalize(farmId, userId, id, dto.paymentMethod);
+    return this.concentrations.finalize(
+      farmId,
+      userId,
+      id,
+      dto.paymentMethod,
+      dto.batchQuantityKg,
+    );
   }
 
   // ---- Layered ration resolution (herd -> group -> individual) ------------

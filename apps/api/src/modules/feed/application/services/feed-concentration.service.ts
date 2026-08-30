@@ -36,6 +36,7 @@ import { JournalService } from 'src/modules/finance-v2/ledger/application/journa
 import { LedgerAccountService } from 'src/modules/finance-v2/ledger/application/ledger-account.service';
 import { FinancialAccountService } from 'src/modules/finance-v2/accounts/application/financial-account.service';
 import { resolveFinancialAccountId } from 'src/common/finance/resolve-account';
+import { FeedItemService } from 'src/modules/inventory/application/services/feed-item.service';
 import { randomUUID } from 'crypto';
 
 type ConcentrationWithItems = FeedConcentration & {
@@ -61,6 +62,7 @@ export class FeedConcentrationService {
     private readonly journalService: JournalService,
     private readonly ledgerAccountService: LedgerAccountService,
     private readonly financialAccountService: FinancialAccountService,
+    private readonly feedItemService: FeedItemService,
   ) {
     this.log = this.logger.setContext(FeedConcentrationService.name);
   }
@@ -309,28 +311,35 @@ export class FeedConcentrationService {
   }
 
   /**
-   * **Concentrate Mixer** (`kind=CONCENTRATE_TEMPLATE`) is a virtual recipe — a programmatic
-   * calculator for mixing ingredients, nothing more (user report 2026-07-19: "concentrate mixer...
-   * is nothing, it's just a programmatic calculator... there will be no change on inventory
-   * because it's kinda virtual"). A farm can create unlimited templates; finalizing one never
-   * touches inventory — it only promote-or-refreshes this concentration's formula into a reusable
+   * **Concentrate Mixer** (`kind=CONCENTRATE_TEMPLATE`) is a formula builder — a farm can create
+   * unlimited templates. Finalizing one promote-or-refreshes the formula into a reusable
    * `FeedIngredient` row, an **upsert by `sourceConcentrationId`**, not "always create a new frozen
    * version" (that versioning/freeze design was retired 2026-07-18 per user request: editing the
    * template must live-propagate to every TMR already using it, and since a TMR's line item
    * resolves nutrition via a live join on `ingredientId` — see `effectiveMap()` — updating this one
-   * row in place is all propagation needs). **Total Mixed Ration** (`kind=FEED_MIXTURE`) is the
-   * real ration actually fed to cows — finalizing one produces **only** a `FeedStock` inventory
-   * lot, no ingredient promotion at all (user request 2026-07-18: a TMR is the final ration, never
-   * a building block for another recipe). Producing a new physical stock batch on every
-   * `FEED_MIXTURE` finalize stays a **deliberate, unconditional action** (not idempotent — refinalizing
-   * produces another lot) — only the Concentrate Mixer's ingredient-promotion half is idempotent; a
-   * plain edit-save (`update()`) can refresh nutrition on either kind, but never produces stock.
+   * row in place is all propagation needs). RAKHAL-406 (2026-08-28, user request — the earlier
+   * "it's kinda virtual, no inventory" stance from 2026-07-19 is superseded): finalizing a
+   * Concentrate Mixer now **also** produces a real Inventory `FeedItem` batch/lot via
+   * `FeedItemService.create`, `currentStock` set from `batchQuantityKg` (defaults to the
+   * formula's own `totalAsFedKg` when omitted) — every finalize call creates a **new** `FeedItem`
+   * row (not an upsert, unlike the ingredient promotion above), since each finalize represents a
+   * distinct physical batch the farmer mixed. `FeedStock` stays untouched (`null`) for this kind —
+   * that stays reserved for `FEED_MIXTURE` below; this is additive, not a merge of the two paths.
+   * **Total Mixed Ration** (`kind=FEED_MIXTURE`) is the real ration actually fed to cows —
+   * finalizing one produces **only** a `FeedStock` inventory lot, no ingredient promotion and no
+   * `FeedItem` at all (user request 2026-07-18: a TMR is the final ration, never a building block
+   * for another recipe). Producing a new physical stock batch on every `FEED_MIXTURE` finalize
+   * stays a **deliberate, unconditional action** (not idempotent — refinalizing produces another
+   * lot) — same is now true of a Concentrate Mixer's `FeedItem` batch; only the ingredient-
+   * promotion half stays idempotent. A plain edit-save (`update()`) can refresh nutrition on
+   * either kind, but never produces stock or a FeedItem.
    */
   async finalize(
     farmId: string,
     userId: string,
     id: string,
     paymentMethod?: PaymentMethod,
+    batchQuantityKg?: number,
   ) {
     const row = await this.getOrThrow(farmId, id);
     if (row.kind === 'FEED_MIXTURE' && !paymentMethod) {
@@ -362,6 +371,9 @@ export class FeedConcentrationService {
     }
 
     let ingredientResult: ReturnType<typeof this.mapIngredient> | null = null;
+    let feedItemResult: Awaited<
+      ReturnType<typeof this.feedItemService.create>
+    > | null = null;
     if (row.kind === 'CONCENTRATE_TEMPLATE') {
       const nutrition = this.buildIngredientNutrition(
         row.name,
@@ -400,6 +412,42 @@ export class FeedConcentrationService {
         },
       );
       ingredientResult = this.mapIngredient(ingredient);
+
+      // RAKHAL-406: every finalize also produces a fresh inventory FeedItem batch — a distinct
+      // physical lot, not an upsert like the ingredient promotion above.
+      const kgUnit = await this.prisma.unit.findFirst({
+        where: { symbol: 'kg', OR: [{ farmId: null }, { farmId }] },
+        orderBy: { isSystemDefault: 'desc' },
+      });
+      if (!kgUnit) {
+        throw new BadRequestException(
+          'No "kg" unit found in the unit catalog — cannot produce a FeedItem batch',
+        );
+      }
+      const qtyKg = batchQuantityKg ?? totalAsFedKg;
+      if (qtyKg <= 0) {
+        throw new BadRequestException(
+          'batchQuantityKg must be greater than zero',
+        );
+      }
+      const feedItem = await this.feedItemService.create(farmId, userId, {
+        name: row.name,
+        feedClass: 'CONCENTRATE',
+        feedSubType: 'COMPOUND_PELLET',
+        ingredientId: ingredient.id,
+        unitId: kgUnit.id,
+        currentStock: qtyKg,
+        costPerUnit: totals.total_cost_tk / qtyKg,
+        purchaseDate: new Date().toISOString(),
+      });
+      this.log.info('Concentrate Mixer finalize produced a FeedItem batch', {
+        farmId,
+        concentrationId: row.id,
+        feedItemId: feedItem.id,
+        qtyKg,
+        userId,
+      });
+      feedItemResult = feedItem;
     }
 
     // Only a Total Mixed Ration becomes real inventory. A Concentrate Mixer is a virtual
@@ -499,6 +547,7 @@ export class FeedConcentrationService {
       concentration_id: row.id,
       stock,
       ingredient: ingredientResult,
+      feed_item: feedItemResult,
       finance: financeResult
         ? { journal_transaction_id: financeResult.journalTransactionId }
         : null,
