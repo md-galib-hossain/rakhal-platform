@@ -1,16 +1,17 @@
 "use client"; // list query + row action state
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Landmark, MoreVertical, Pencil, Plus, Smartphone, Wallet } from "lucide-react";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
-import { EmptyState } from "@/components/shared/empty-state";
-import { Can } from "@/lib/auth/permissions";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/shared/data-table";
+import { MoneyText } from "@/components/shared/money-text";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useFinancialAccounts } from "../../hooks/use-finance-v2";
+import { Can } from "@/lib/auth/permissions";
+import { useFinancialAccounts, useRakhalBalance } from "../../hooks/use-finance-v2";
 import { AccountFormSheet } from "./account-form-sheet";
 import { ArchiveAccountDialog } from "./archive-account-dialog";
 import type { FinancialAccount, FinancialAccountType } from "../../types-v2";
@@ -22,17 +23,29 @@ const TYPE_ICON: Record<FinancialAccountType, typeof Wallet> = {
 };
 
 /**
- * RAKHAL-356 — Account list/grid: create/edit/archive, gated by `finance.accounts` (Owner+Manager,
- * not Worker — confirmed against the live `permission-catalogue.ts`). No `balance` shown per account
- * here (the model has none, per `types-v2.ts`'s doc comment) — `RakhalBalanceCard` above this list is
- * where a per-account balance appears, sourced from `GET /finance/balance` instead.
+ * RAKHAL-384 — Accounts screen: `Account Name | Type | Account No / Info | Current Balance | Status |
+ * Actions`, one row per `FinancialAccount` (a farm with 3 banks + 2 MFS wallets shows 5 rows — never
+ * one aggregate "MFS" row; `GET /finance/accounts` already returns per-account rows, this table just
+ * stopped rendering a card grid without a balance column). `Current Balance` is joined client-side
+ * from `useRakhalBalance()`'s own `accounts[]` (same `GET /finance/balance` call `RakhalBalanceCard`
+ * above this table already makes — cached, no extra request) by `id`; both endpoints default to
+ * active-only so every row here has a match. `Status` is always "Active" today since neither endpoint
+ * has an `includeArchived` param wired on the frontend (an archived account simply drops off both
+ * lists) — the column is still real per the AC, not a placeholder, and is where a future archived-
+ * account toggle would render "Archived" instead.
  */
 export function AccountList() {
   const t = useTranslations("finance.accountsPage.list");
   const query = useFinancialAccounts();
+  const balanceQuery = useRakhalBalance();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<FinancialAccount | undefined>(undefined);
   const [archiving, setArchiving] = useState<FinancialAccount | null>(null);
+
+  const balanceById = useMemo(
+    () => new Map((balanceQuery.data?.accounts ?? []).map((a) => [a.id, a.balance])),
+    [balanceQuery.data],
+  );
 
   function openCreate() {
     setEditing(undefined);
@@ -42,6 +55,92 @@ export function AccountList() {
     setEditing(account);
     setFormOpen(true);
   }
+
+  const columns = useMemo<ColumnDef<FinancialAccount, unknown>[]>(
+    () => [
+      {
+        id: "name",
+        header: t("columns.name"),
+        cell: ({ row }) => {
+          const account = row.original;
+          const Icon = TYPE_ICON[account.type];
+          return (
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-info-tint text-info shadow-xs">
+                <Icon className="size-4" aria-hidden />
+              </span>
+              <span className="text-sm font-medium text-foreground">{account.name}</span>
+            </div>
+          );
+        },
+      },
+      {
+        id: "type",
+        header: t("columns.type"),
+        cell: ({ row }) => (
+          <span className="text-sm text-foreground">
+            {t(`typeOptions.${row.original.type === "MFS" && row.original.mfsDetail ? row.original.mfsDetail.provider : row.original.type}`)}
+          </span>
+        ),
+      },
+      {
+        id: "info",
+        header: t("columns.info"),
+        cell: ({ row }) => {
+          const account = row.original;
+          const info =
+            account.type === "BANK" && account.bankDetail
+              ? `${account.bankDetail.bankName} · ${account.bankDetail.accountNumber}`
+              : account.type === "MFS" && account.mfsDetail
+                ? account.mfsDetail.phoneNumber
+                : null;
+          return <span className="text-sm text-muted-foreground">{info ?? t("infoNone")}</span>;
+        },
+      },
+      {
+        id: "balance",
+        header: t("columns.balance"),
+        cell: ({ row }) => {
+          const balance = balanceById.get(row.original.id);
+          return balance != null ? <MoneyText amount={Number(balance)} /> : <span className="text-sm text-muted-foreground">—</span>;
+        },
+      },
+      {
+        id: "status",
+        header: t("columns.status"),
+        cell: ({ row }) => (
+          <Badge variant={row.original.isActive ? "success" : "outline"}>
+            {row.original.isActive ? t("status.active") : t("status.archived")}
+          </Badge>
+        ),
+      },
+      {
+        id: "actions",
+        header: "",
+        cell: ({ row }) => (
+          <Can I="finance.accounts">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" aria-label={t("rowActions")} className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
+                  <MoreVertical className="size-4" aria-hidden />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => openEdit(row.original)}>
+                  <Pencil className="mr-2 size-3.5" aria-hidden />
+                  {t("edit")}
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setArchiving(row.original)}>
+                  {t("archive")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </Can>
+        ),
+      },
+    ],
+    [t, balanceById],
+  );
 
   return (
     <Card className="flex flex-col gap-4 rounded-2xl p-4">
@@ -55,68 +154,28 @@ export function AccountList() {
         </Can>
       </div>
 
-      {query.isLoading ? (
-        <CardSkeleton lines={3} />
-      ) : query.isError ? (
-        <ErrorState description={t("error")} onRetry={() => void query.refetch()} />
-      ) : (query.data ?? []).length === 0 ? (
-        <EmptyState
-          icon={Wallet}
-          title={t("empty.title")}
-          description={t("empty.description")}
-          action={
-            <Can I="finance.accounts">
-              <Button size="sm" className="gap-1.5" onClick={openCreate}>
-                <Plus className="size-4" aria-hidden />
-                {t("addAccount")}
-              </Button>
-            </Can>
-          }
+      <div className="overflow-hidden rounded-xl border border-border [&_thead_tr]:border-b-0 [&_thead_tr]:bg-muted [&_thead_th]:h-[54px] [&_thead_th]:text-sm [&_thead_th]:font-medium [&_thead_th]:normal-case [&_thead_th]:tracking-normal [&_thead_th]:text-muted-foreground [&_tbody_td]:py-2">
+        <DataTable
+          columns={columns}
+          data={query.data ?? []}
+          getRowId={(row) => row.id}
+          isLoading={query.isLoading}
+          isError={query.isError}
+          onRetry={() => void query.refetch()}
+          emptyState={{
+            title: t("empty.title"),
+            description: t("empty.description"),
+            action: (
+              <Can I="finance.accounts">
+                <Button size="sm" className="gap-1.5" onClick={openCreate}>
+                  <Plus className="size-4" aria-hidden />
+                  {t("addAccount")}
+                </Button>
+              </Can>
+            ),
+          }}
         />
-      ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {(query.data ?? []).map((account) => {
-            const Icon = TYPE_ICON[account.type];
-            return (
-              <div key={account.id} className="flex items-start justify-between gap-2 rounded-xl border border-border p-3">
-                <div className="flex items-start gap-2.5">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-info-tint text-info shadow-xs">
-                    <Icon className="size-4" aria-hidden />
-                  </span>
-                  <div className="flex flex-col gap-0.5">
-                    <p className="text-sm font-medium text-foreground">{account.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {account.type === "BANK" && account.bankDetail
-                        ? `${account.bankDetail.bankName} · ${account.bankDetail.accountNumber}`
-                        : account.type === "MFS" && account.mfsDetail
-                          ? `${t(`typeOptions.${account.mfsDetail.provider}`)} · ${account.mfsDetail.phoneNumber}`
-                          : t("typeOptions.CASH")}
-                    </p>
-                  </div>
-                </div>
-                <Can I="finance.accounts">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button type="button" aria-label={t("rowActions")} className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
-                        <MoreVertical className="size-4" aria-hidden />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onSelect={() => openEdit(account)}>
-                        <Pencil className="mr-2 size-3.5" aria-hidden />
-                        {t("edit")}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setArchiving(account)}>
-                        {t("archive")}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </Can>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      </div>
 
       <AccountFormSheet open={formOpen} onOpenChange={setFormOpen} account={editing} />
       <ArchiveAccountDialog account={archiving} open={archiving != null} onOpenChange={(open) => !open && setArchiving(null)} />

@@ -4,14 +4,16 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Pagination } from "@/components/shared/pagination";
 import { usePayablesV2PagedList } from "../../hooks/use-finance-v2";
+import { AgingSummaryStrip } from "./aging-summary-strip";
 import { PayablesTable } from "./payables-table";
 import { MakePaymentDialog } from "./make-payment-dialog";
 import { PaymentHistorySheet } from "./payment-history-sheet";
 import type { Payable } from "../../types-v2";
 
-/** RAKHAL-358 — Payables (V2) tab body. Mirrors `ReceivablesView` exactly on the liability side —
- * see that file's own doc comment for the "not wired into `app/(app)/finance/page.tsx` yet" note,
- * which applies identically here. */
+/** RAKHAL-358 — Payables (V2) tab body. Mirrors `ReceivablesView` exactly on the liability side.
+ * Mounted as the `payables` tab inside `FinanceView` since RAKHAL-382. RAKHAL-386 added the
+ * `AgingSummaryStrip` + the required "Make Payment settles a bill — it does not create an expense"
+ * copy line. */
 export function PayablesView() {
   const query = usePayablesV2PagedList({});
   const [paymentTarget, setPaymentTarget] = useState<Payable | null>(null);
@@ -21,6 +23,9 @@ export function PayablesView() {
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-border p-4">
       <p className="text-xl font-medium text-foreground">{t("title")}</p>
+
+      <AgingSummaryStrip kind="PAYABLE" />
+      <p className="text-xs text-muted-foreground">{t("settlesBillCopy")}</p>
 
       <PayablesTable
         items={query.items}

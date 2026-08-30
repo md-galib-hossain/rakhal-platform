@@ -8,7 +8,7 @@ import { DataTable } from "@/components/shared/data-table";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
 import { Can } from "@/lib/auth/permissions";
-import { useSalesLookup } from "../../hooks/use-finance-v2";
+import { useSalesV2 } from "../../hooks/use-finance-v2";
 import { PaymentStatusBadge } from "./payment-status-badge";
 import type { Receivable } from "../../types-v2";
 
@@ -16,10 +16,14 @@ import type { Receivable } from "../../types-v2";
  * RAKHAL-358 — Receivables list, V2. Columns per the ticket brief: sale reference, customer, total,
  * outstanding (server-computed), status (derived, shown as a badge only — never an editable
  * input, `FINANCE_V2_DESIGN.md` §4.6). `Receivable` itself carries only `saleId`/`customerId`
- * scalars (no join — see `types-v2.ts#SaleSummary`'s doc comment on why), so the "sale reference"
- * column is decorated client-side from `useSalesLookup()`'s small un-paginated `GET /sales` list,
- * looked up by `saleId`; falls back to the raw id if the lookup hasn't loaded yet or the sale was
- * somehow not found (never silently blank).
+ * scalars (no join), so the "sale reference"/"customer" columns are decorated client-side from
+ * `useSalesV2()`'s small un-paginated `GET /sales` list, looked up by `saleId` — **RAKHAL-386**
+ * switched this from RAKHAL-358's original `useSalesLookup()` (narrower `SaleSummary`, no `customer`
+ * field) to `useSalesV2()`'s full `Sale` shape specifically to get the real joined `customer.name`
+ * (`Sale.customerId` is a real `MilkBuyer` FK since RAKHAL-364) instead of the raw id string this
+ * column previously rendered — closes the "No customer"/raw-id-placeholder gap the ticket's AC
+ * names. Falls back to a placeholder only if the lookup hasn't loaded yet or the sale was somehow
+ * not found (never silently blank).
  */
 export function ReceivablesTable({
   items,
@@ -38,7 +42,7 @@ export function ReceivablesTable({
 }) {
   const t = useTranslations("finance.settlementsV2.receivables");
   const tHistory = useTranslations("finance.settlementsV2.paymentHistory");
-  const { data: sales } = useSalesLookup();
+  const { data: sales } = useSalesV2();
   const saleById = useMemo(() => new Map((sales ?? []).map((s) => [s.id, s])), [sales]);
 
   const columns = useMemo<ColumnDef<Receivable, unknown>[]>(
@@ -61,9 +65,10 @@ export function ReceivablesTable({
       {
         id: "customer",
         header: t("columns.customer"),
-        cell: ({ row }) => (
-          <span className="text-sm text-foreground">{row.original.customerId ?? t("noCustomer")}</span>
-        ),
+        cell: ({ row }) => {
+          const sale = saleById.get(row.original.saleId);
+          return <span className="text-sm text-foreground">{sale?.customer?.name ?? t("noCustomer")}</span>;
+        },
       },
       {
         id: "total",

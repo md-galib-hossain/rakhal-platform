@@ -19,7 +19,12 @@ import type {
   RecordProtocolOutcomeInput,
   ReturnToHeatInput,
 } from "../schemas";
-import type { ProtocolInstanceListFilters, ReproEventsQuery } from "../types";
+import type {
+  CreateProtocolPayload,
+  ProtocolInstanceListFilters,
+  ReproEventsQuery,
+  UpdateProtocolPayload,
+} from "../types";
 
 const STALE_TIME = 60_000;
 
@@ -222,6 +227,17 @@ export function useProtocols() {
   });
 }
 
+/** Step definitions (day_number/title/instruction) for one protocol — used by the instance
+ * timeline to render the day-by-day plan. */
+export function useProtocol(id?: string) {
+  return useQuery({
+    queryKey: qk.reproduction.protocol(id ?? ""),
+    queryFn: () => reproductionApi.protocol(id!),
+    enabled: Boolean(id),
+    staleTime: STALE_TIME,
+  });
+}
+
 export function useProtocolKpis() {
   return useQuery({
     queryKey: qk.reproduction.protocolKpis(),
@@ -268,6 +284,39 @@ export function useRecordProtocolOutcome() {
   return useMutation({
     mutationFn: ({ instanceId, input }: { instanceId: string; input: RecordProtocolOutcomeInput }) =>
       reproductionApi.recordProtocolOutcome(instanceId, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reproduction", "protocols"] });
+    },
+  });
+}
+
+/** RAKHAL-407 — invalidates both the summary list (`step_count`/`editable`) and the detail cache
+ * for this new protocol's id, so a just-created protocol's edit form reads fresh if opened right after. */
+export function useCreateProtocol() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateProtocolPayload) => reproductionApi.createProtocol(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reproduction", "protocols"] });
+    },
+  });
+}
+
+export function useUpdateProtocol() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateProtocolPayload }) =>
+      reproductionApi.updateProtocol(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reproduction", "protocols"] });
+    },
+  });
+}
+
+export function useDeleteProtocol() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => reproductionApi.deleteProtocol(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reproduction", "protocols"] });
     },

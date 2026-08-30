@@ -2591,7 +2591,62 @@
       "conceptionRate": "{value}% conception",
       "activeInstances": "Active Instances",
       "currentStepDay": "Day {value}",
-      "emptyInstances": "No active protocol instances."
+      "emptyInstances": "No active protocol instances.",
+      "viewTimeline": "Timeline",
+      "timeline": {
+        "title": "{protocol} — Timeline",
+        "close": "Close",
+        "dayLabel": "Day {value}",
+        "statusDone": "Done",
+        "statusOverdue": "Overdue",
+        "statusUpcoming": "Upcoming",
+        "statusCurrent": "Current step",
+        "statusCancelled": "Cancelled",
+        "noTask": "No task recorded for this step",
+        "loading": "Loading timeline…",
+        "error": "Could not load the timeline."
+      },
+      "newProtocol": "New Protocol",
+      "edit": "Edit",
+      "deleteAction": "Delete",
+      "deleteConfirmTitle": "Delete protocol?",
+      "deleteConfirmDescription": "This cannot be undone. Blocked if any cow is currently on this protocol.",
+      "deletedToast": "Protocol deleted.",
+      "deleteError": "Could not delete the protocol.",
+      "formDialog": {
+        "createTitle": "New Protocol",
+        "editTitle": "Edit Protocol",
+        "close": "Close",
+        "name": "Name",
+        "namePlaceholder": "e.g. CIDR-Synch",
+        "description": "Description",
+        "steps": "Steps",
+        "day": "Day",
+        "title": "Title",
+        "titlePlaceholder": "e.g. CIDR insert + GnRH",
+        "removeStep": "Remove step",
+        "stepType": "Step type",
+        "required": "Required",
+        "instruction": "Instruction",
+        "instructionPlaceholder": "Optional notes for this step",
+        "addStep": "Add step",
+        "cancel": "Cancel",
+        "create": "Create",
+        "saveChanges": "Save changes",
+        "createdToast": "Protocol created.",
+        "updatedToast": "Protocol updated.",
+        "genericError": "Could not save. Please try again.",
+        "error": "Could not load the protocol."
+      },
+      "stepType": {
+        "GNRH": "GnRH",
+        "PGF2ALPHA": "PGF2α",
+        "CIDR_INSERT": "CIDR Insert",
+        "CIDR_REMOVE": "CIDR Remove",
+        "AI": "Timed AI",
+        "PREGNANCY_CHECK": "Pregnancy Check",
+        "OTHER": "Other"
+      }
     }
   },
   "health": {
@@ -3388,6 +3443,14 @@
       "overdue": "Overdue",
       "blocked": "Blocked"
     },
+    "status": {
+      "pending": "Pending",
+      "in_progress": "In Progress",
+      "completed": "Completed",
+      "blocked": "Blocked",
+      "cancelled": "Cancelled",
+      "overdue": "Overdue"
+    },
     "highlights": {
       "title": "Task Highlights",
       "dueToday": "Due Task Today",
@@ -3402,8 +3465,6 @@
       "priority": "Priority",
       "dueDate": "Due Date",
       "overdueBy": "Overdue by {hours}h",
-      "stepsCompleted": "Steps Completed",
-      "stepsCount": "{completed}/{total} steps",
       "category": "Category",
       "assignedTo": "Assigned to",
       "unassigned": "Unassigned",
@@ -3428,6 +3489,9 @@
       "dueDate": "Due Date",
       "dueDatePlaceholder": "Choose due date",
       "taskPriority": "Tasks Priority",
+      "targetCows": "Target cow(s) (optional)",
+      "targetCowsPlaceholder": "Add a cow…",
+      "removeCow": "Remove {cow}",
       "assignTo": "Assign to",
       "assignPlaceholder": "Type name to assign",
       "assignSearchPlaceholder": "Search team member…",
@@ -3457,11 +3521,9 @@
       "category": "Category",
       "recurrence": "Recurrence",
       "oneOff": "One-off",
-      "stepsCompleted": "Steps Completed",
       "assignTo": "Assign To",
       "unassigned": "Unassigned",
       "description": "Task Description",
-      "checklist": "Checklist",
       "reassignTo": "Reassign to",
       "reassign": "Reassign",
       "markComplete": "Completed",
@@ -3470,7 +3532,26 @@
       "reassignedToast": "Task reassigned",
       "reopen": "Reopen",
       "reopenedToast": "Task reopened",
+      "cancelTask": "Cancel Task",
+      "cancelled": "Cancelled",
+      "cancelReason": "Reason (optional)",
+      "cancelReasonPlaceholder": "Why is this task being cancelled?",
+      "cancelReasonBack": "Back",
+      "cancelReasonConfirm": "Cancel Task",
+      "cancelledToast": "Task cancelled",
+      "completedAt": "Completed {date}",
+      "cancelledAt": "Cancelled {date}",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deletedToast": "Task deleted",
+      "deleteConfirmTitle": "Delete this task?",
+      "deleteConfirmDescription": "This permanently removes the task. This can't be undone.",
       "genericError": "Something went wrong. Please try again."
+    },
+    "editSheet": {
+      "title": "Edit Task",
+      "save": "Save Changes",
+      "updatedToast": "Task updated"
     }
   },
   "finance": {
@@ -3502,6 +3583,122 @@
       "daysValue": "{days} Days",
       "runwayStatus": "Runway status: {status}",
       "error": "Could not load your finance highlights."
+    },
+    "overview": {
+      "rowA": {
+        "availableBalance": "Available Balance",
+        "acrossAccounts": "Across {count} accounts",
+        "totalReceivable": "Total Receivable",
+        "invoiceCount": "{count} invoices",
+        "totalPayable": "Total Payable",
+        "billCount": "{count} bills"
+      },
+      "rowB": {
+        "revenue": "Revenue",
+        "expenses": "Expenses",
+        "netProfit": "Net Profit",
+        "netCashFlow": "Net Cash Flow"
+      },
+      "quickActions": {
+        "newTransaction": "New Transaction",
+        "recordExpense": "Record Expense",
+        "receivePayment": "Receive Payment",
+        "makePayment": "Make Payment",
+        "transferMoney": "Transfer Money",
+        "transferOwnerOnlyTooltip": "Only the farm owner can transfer between accounts",
+        "recordSaleHint": "Recording a sale?",
+        "goToSales": "Go to Sales →",
+        "recordPurchaseHint": "Recording a purchase?",
+        "goToPurchasing": "Go to Purchasing →",
+        "transferCopy": "Transfers move money between your accounts. They are not income or expense."
+      },
+      "receivablesPanel": {
+        "title": "Outstanding Receivables",
+        "emptyTitle": "No outstanding receivables",
+        "unknownBuyer": "Unknown buyer",
+        "noDueDate": "No due date",
+        "dueToday": "Due today",
+        "overdueDays": "{count} days overdue",
+        "dueOn": "Due {date}",
+        "viewAll": "View all receivables →"
+      },
+      "transactionsPanel": {
+        "title": "Recent Transactions",
+        "emptyTitle": "No recent transactions",
+        "viewAll": "View all transactions →"
+      }
+    },
+    "transactionsV2": {
+      "title": "Transactions",
+      "subtitle": "All financial transactions",
+      "filters": {
+        "typeLabel": "Transaction type",
+        "allTypes": "All Types",
+        "statusLabel": "Status",
+        "allStatuses": "All Statuses"
+      },
+      "typeOptions": {
+        "SALE": "Sale",
+        "PURCHASE": "Purchase",
+        "EXPENSE": "Expense",
+        "FINANCE_PAYMENT": "Payment",
+        "FINANCE_TRANSFER": "Transfer",
+        "OTHER_INCOME": "Other Income",
+        "FEED_MIXTURE_FINALIZE": "Feed Mixture",
+        "FINANCIAL_ACCOUNT_OPENING_BALANCE": "Opening Balance"
+      },
+      "statusOptions": {
+        "POSTED": "Posted",
+        "REVERSED": "Voided"
+      },
+      "columns": {
+        "date": "Date",
+        "type": "Type",
+        "reference": "Reference",
+        "party": "Party",
+        "account": "Account",
+        "amount": "Amount",
+        "status": "Status"
+      },
+      "noReference": "—",
+      "noParty": "—",
+      "noAccount": "—",
+      "empty": {
+        "title": "No transactions yet",
+        "description": "Sales, purchases, payments, and transfers will show up here."
+      },
+      "error": "Could not load transactions."
+    },
+    "reportsV2": {
+      "segments": {
+        "profitLoss": "P&L",
+        "cashFlow": "Cash Flow",
+        "receivableAging": "Receivable Aging",
+        "payableAging": "Payable Aging"
+      },
+      "profitLoss": {
+        "revenue": "Revenue",
+        "expenses": "Expenses",
+        "totalRevenue": "Total Revenue",
+        "totalExpenses": "Total Expenses",
+        "netProfit": "Net Profit",
+        "noActivity": "No activity in this period.",
+        "error": "Could not load the P&L report."
+      },
+      "cashFlow": {
+        "columns": {
+          "account": "Account",
+          "opening": "Opening",
+          "inflow": "Inflow",
+          "outflow": "Outflow",
+          "closing": "Closing"
+        },
+        "totalClosing": "Total Closing Balance",
+        "empty": {
+          "title": "No accounts yet",
+          "description": "Add a Cash, Bank, or MFS account to see cash flow."
+        }
+      }
     },
     "ledger": {
       "tableTitle": "Transaction Ledger",
@@ -3994,8 +4191,21 @@
         "rowActions": "Account actions",
         "edit": "Edit",
         "archive": "Archive",
+        "columns": {
+          "name": "Account Name",
+          "type": "Type",
+          "info": "Account No / Info",
+          "balance": "Current Balance",
+          "status": "Status"
+        },
+        "infoNone": "—",
+        "status": {
+          "active": "Active",
+          "archived": "Archived"
+        },
         "typeOptions": {
           "CASH": "Cash",
+          "BANK": "Bank",
           "BKASH": "bKash",
           "NAGAD": "Nagad",
           "ROCKET": "Rocket",
@@ -4075,6 +4285,7 @@
         "noReference": "Unknown sale",
         "noCustomer": "Walk-up sale",
         "receivePayment": "Receive Payment",
+        "settlesInvoiceCopy": "Receive Payment settles an invoice — it does not create a sale.",
         "empty": {
           "title": "No receivables yet",
           "description": "Sales that weren't paid in full will show up here."
@@ -4093,10 +4304,16 @@
         "noReference": "Unknown document",
         "noCustomer": "No supplier",
         "makePayment": "Make Payment",
+        "settlesBillCopy": "Make Payment settles a bill — it does not create an expense.",
         "empty": {
           "title": "No payables yet",
           "description": "Purchases or expenses that weren't paid in full will show up here."
         }
+      },
+      "aging": {
+        "title": "Aging Summary",
+        "invoiceCount": "{count, plural, one {# invoice} other {# invoices}}",
+        "error": "Could not load the aging summary."
       },
       "statusOptions": {
         "UNPAID": "Unpaid",

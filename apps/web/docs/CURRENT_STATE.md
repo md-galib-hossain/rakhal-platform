@@ -1,5 +1,88 @@
 # Frontend — Current State
 
+## RAKHAL-387 — Finance Reports tab (2026-08-28)
+Fifth Phase E screen ticket, MILESTONE 22. New `features/finance/components/reports/**` — a
+4-segment tab (own `report` URL param): **P&L** off `GET /finance/reports/profit-loss?from&to`
+(rows already farmer-facing category names, never a ledger code); **Cash Flow** off `GET /finance/
+reports/cash-flow?from&to` (opening/inflow/outflow/closing per `FinancialAccount`); **Receivable/
+Payable Aging** reuse RAKHAL-386's `AgingSummaryStrip` as-is. P&L/Cash Flow share one
+`DateRangePicker`+`usePeriod()`, period-keyed cache. **Trial Balance deliberately has no client at
+all** — Owner-only, `finance.accounting`-gated, URL-reachable only, per ADR-022/§9.2's explicit
+"do not restore" instruction. Mounted as the `reports` tab in `FinanceView` and standalone at
+`/finance/reports`. Gate: `typecheck`(0)/`lint`(0 new)/`build`(0, 45 routes unchanged)/`test`(87/87
+unchanged). No live click-through — same documented precedent as prior rows on this board.
+
+## RAKHAL-386 — Receivables + Payables screens on aging + real party names (2026-08-28)
+Fourth Phase E screen ticket, MILESTONE 22. New shared `aging-summary-strip.tsx` — one component,
+`kind` prop picks `GET /finance/receivables/aging` (`finance.read`) or `GET /purchasing/payables/
+aging` (`purchasing.read`), both RAKHAL-369; bucket labels/amounts come straight off the API. Party
+names fixed: `ReceivablesTable` swapped `useSalesLookup()` (narrow, no `customer` field) for
+`useSalesV2()`'s full `Sale` shape to render real `customer.name` (`Sale.customerId` a real
+`MilkBuyer` FK since RAKHAL-364); `PayablesTable` added a `useSuppliers()` join keyed on
+`Payable.supplierId` directly (a real `Supplier` FK since RAKHAL-365) — covers both Purchase- and
+Expense-sourced payables in one lookup. Added the required "Receive Payment settles an invoice..."/
+"Make Payment settles a bill..." copy lines. Gate: `typecheck`(0)/`lint`(0 new)/`build`(0, 45 routes
+unchanged)/`test`(87/87 unchanged — `PaymentStatusBadge`'s 5-test guard still passes). No live
+click-through — same documented precedent as prior rows on this board.
+
+## RAKHAL-405 frontend twin (scoped) — Task Hub: status visibility + cancel action (2026-08-28)
+First slice of the Task Hub redesign, after a user critique of the live screenshot (no visible
+lifecycle, tasks looked identical regardless of status, no cancel action). Scoped to wiring the
+backend fields RAKHAL-405 just shipped into the existing Figma-locked components — the bigger
+date-filter/grouping/KPI restructure from that critique has no Figma frame and is deferred as its
+own ticket (this repo doesn't redesign ahead of Figma). `Task` gained `scheduledAt`/`completionNote`/
+`cancelledAt`/`cancelledById`; `TaskStatus`/`TaskDisplayStatus` gained `CANCELLED`/`cancelled`; new
+`useCancelTask()` (mirrors `useReopenTask()`). Every `TaskCard` now shows a status chip + muted/
+strikethrough when closed (previously zero status indicator existed on the card at all — the exact
+gap the user reported). `TaskDetailsSheet` gained a status chip, a "Cancel Task" button with an
+optional-reason panel, and completed/cancelled metadata display. Gate: `typecheck`(0)/`lint`(0 new)/
+`build`(0, 45 routes unchanged). Live-verified via direct `fetch()` (Suspense-stuck harness quirk
+blocked `/tasks` click-through, same pre-existing limitation other rows document): create with
+`scheduledAt` + cancel with a note both round-trip exactly. Full writeup: `docs/IN_FLIGHT.md`.
+
+## RAKHAL-385 — Transactions screen (2026-08-28)
+Third Phase E screen ticket, MILESTONE 22. New `features/finance/components/transactions/**` — a
+unified, filtered, cursor-paginated feed off `GET /finance/transactions` (RAKHAL-370), columns
+`Date | Type | Reference | Party | Account | Amount | Status`. `All Types ▾` filters on the real
+`TRANSACTION_SOURCE_REGISTRY` keys (SALE/PURCHASE/EXPENSE/FINANCE_PAYMENT/FINANCE_TRANSFER/
+OTHER_INCOME/FEED_MIXTURE_FINALIZE/FINANCIAL_ACCOUNT_OPENING_BALANCE) — the mockup's finer
+sub-type breakdown (Milk/Animal/Manure/Inventory Sale, Payment Received/Made as separate entries)
+has no backend column to filter on, flagged rather than faked. `+ New Transaction ▾` reuses the
+same 4 destinations RAKHAL-383's Quick Actions established. Deleted `ledger-view.tsx` + its 4
+segment tables + 2 test files (confirmed no other importer, confirmed no live `LedgerAccount`
+import existed per ADR-023). Mounted as the `transactions` tab in `FinanceView` and standalone at
+`/finance/transactions`. Gate: `typecheck`(0)/`lint`(0 new)/`build`(0, 45 routes unchanged)/
+`test`(87/87 — down from 93, the 2 deleted test files' 6 tests correctly gone). No live
+click-through — same documented precedent as prior rows on this board.
+
+## RAKHAL-384 — Accounts screen (2026-08-28)
+Second Phase E screen ticket, MILESTONE 22. `account-list.tsx` rewritten from a card grid to a real
+`DataTable`: `Account Name | Type | Account No / Info | Current Balance | Status | Actions`, one row
+per `FinancialAccount` (never one aggregate MFS row — a farm with 3 banks + 2 MFS wallets renders 5
+rows). `Current Balance` joined client-side by `id` from `useRakhalBalance()`'s existing `accounts[]`
+(same cached `GET /finance/balance` call `RakhalBalanceCard` above the table already makes, no new
+request). `Type` shows the MFS provider name (bKash/Nagad/...) when known instead of the literal enum.
+`Status` renders "Active" for every row today — neither list endpoint is called with `includeArchived`
+from the frontend, so an archived account simply isn't in either list; the column is real per the AC,
+not a placeholder. Edit/Archive actions unchanged. Gate: `typecheck`(0)/`lint`(0 new)/`build`(0, 45
+routes unchanged)/`test`(93/93 unchanged). No live click-through — same documented precedent as prior
+rows on this board.
+
+## RAKHAL-383 — Finance Overview screen (2026-08-28)
+First Phase E screen ticket, MILESTONE 22. Rebuilt Row A/B on the real `GET /finance/summary`
+(RAKHAL-371) — the literal "Not yet available" receivable/payable text is gone. Row A
+(`usePositionSummary()`) and Row B (`usePeriodSummary(range)`) are two separate queries with two
+separate cache keys specifically so Row A never refetches when the `DateRangePicker` (RAKHAL-380)
+changes period — a query-cache-level guarantee, not just a backend behavior. Quick Actions narrowed
+to 4 (Record Expense/Receive Payment/Make Payment/Transfer Money), Record Sale + Other Income
+removed with "Go to Sales →"/"Go to Purchasing →" links in their place. New Outstanding Receivables
+panel reuses the already-cached `useSalesV2()` list (has buyer name + `INV-` number + due date/amount
+in one place) rather than the joinless `GET /finance/receivables`. New Recent Transactions panel off
+`GET /finance/transactions` (RAKHAL-370), signed by `cashAmount` when non-zero. The former
+always-visible-above-every-tab highlights/actions row is now Overview-tab-exclusive content. Gate:
+`typecheck`(0)/`lint`(0 new)/`build`(0, 45 routes unchanged)/`test`(93/93 unchanged). No live
+click-through — same precedent as 380/381/382.
+
 ## RAKHAL-382 — Flatten Finance to one tab bar; relocate V1 survivors (2026-08-28)
 Third frontend ticket of MILESTONE 22 Phase D, closes the phase. `features/finance/types.ts`'s
 `FINANCE_TABS` is now `Overview · Transactions · Receivables · Payables · Accounts · Reports` (was

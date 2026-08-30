@@ -26,3 +26,17 @@ export const createTaskSchema = z
     path: ["recurrenceType"],
   });
 export type CreateTaskFormInput = z.infer<typeof createTaskSchema>;
+
+/** Edit an existing task (no ticket #, no Figma frame). Mirrors `UpdateTaskDto` — a narrower field
+ * set than create: no recurring/steps/cow-target, since the backend's `PATCH /tasks/:id` doesn't
+ * accept those (recurrence and cow-target are create-time-only decisions today). */
+export const editTaskSchema = z.object({
+  name: z.string().trim().min(1, "Task name is required"),
+  details: z.string().trim().optional(),
+  category: z.enum(["FEEDING", "HEALTHCARE", "BREEDING", "MAINTENANCE", "MILKING", "CALF_CARE", "GENERAL"]).optional(),
+  priority: z.enum(["HIGH", "MEDIUM", "LOW"]),
+  dueAt: z.string().min(1, "Due date is required"),
+  assignedToId: z.string().trim().optional(),
+  safetyCritical: z.boolean(),
+});
+export type EditTaskFormInput = z.infer<typeof editTaskSchema>;

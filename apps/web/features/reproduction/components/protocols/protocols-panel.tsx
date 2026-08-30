@@ -3,16 +3,23 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Can } from "@/lib/auth/permissions";
+import { ApiError } from "@/lib/api/errors";
 import { cattleApi } from "@/features/cattle/api";
-import { useProtocolInstances, useProtocols } from "../../hooks/use-reproduction";
+import { useDeleteProtocol, useProtocolInstances, useProtocols } from "../../hooks/use-reproduction";
 import { ReproductionCard } from "../reproduction-card";
 import { ApplyProtocolDialog } from "./apply-protocol-dialog";
+import { ProtocolFormDialog } from "./protocol-form-dialog";
 import { ProtocolInstanceActions } from "./protocol-instance-actions";
+import { ProtocolInstanceTimeline } from "./protocol-instance-timeline";
+import type { ProtocolInstance } from "../../types";
 
 /** Reproductive (Synchronization) Protocols (RAKHAL-214, PRD §9.8/§9.9) — compact panel, not a full
  * detail page: protocol cards with their own conception-rate metrics, an "Apply protocol" action,
@@ -25,16 +32,46 @@ export function ProtocolsPanel() {
   const protocols = useProtocols();
   const instances = useProtocolInstances({ status: "IN_PROGRESS" });
   const [applyOpen, setApplyOpen] = useState(false);
+  const [timelineInstance, setTimelineInstance] = useState<ProtocolInstance | null>(null);
+  const [formDialogOpen, setFormDialogOpen] = useState(false);
+  const [editingProtocolId, setEditingProtocolId] = useState<string | undefined>(undefined);
+  const [deletingProtocol, setDeletingProtocol] = useState<{ id: string; name: string } | null>(null);
+  const deleteProtocol = useDeleteProtocol();
+
+  function openCreate() {
+    setEditingProtocolId(undefined);
+    setFormDialogOpen(true);
+  }
+  function openEdit(id: string) {
+    setEditingProtocolId(id);
+    setFormDialogOpen(true);
+  }
+  async function confirmDelete() {
+    if (!deletingProtocol) return;
+    try {
+      await deleteProtocol.mutateAsync(deletingProtocol.id);
+      toast.success(t("deletedToast"));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("deleteError"));
+    }
+  }
 
   return (
     <ReproductionCard
       title={t("title")}
       headerRight={
-        <Can I="reproduction.create">
-          <Button size="sm" onClick={() => setApplyOpen(true)}>
-            {t("applyProtocol")}
-          </Button>
-        </Can>
+        <div className="flex items-center gap-2">
+          <Can I="reproduction.create">
+            <Button size="sm" variant="secondary" onClick={openCreate}>
+              {t("newProtocol")}
+            </Button>
+          </Can>
+          <Can I="reproduction.create">
+            <Button size="sm" onClick={() => setApplyOpen(true)}>
+              {t("applyProtocol")}
+            </Button>
+          </Can>
+        </div>
       }
     >
       {protocols.isLoading ? (
@@ -56,6 +93,29 @@ export function ProtocolsPanel() {
                   <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                     {t("systemDefault")}
                   </span>
+                ) : p.editable ? (
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Can I="reproduction.update">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(p.id)}
+                        aria-label={t("edit")}
+                        className="flex size-6 items-center justify-center rounded text-muted-foreground transition-opacity hover:opacity-70"
+                      >
+                        <Pencil className="size-3.5" aria-hidden />
+                      </button>
+                    </Can>
+                    <Can I="reproduction.delete">
+                      <button
+                        type="button"
+                        onClick={() => setDeletingProtocol({ id: p.id, name: p.name })}
+                        aria-label={t("deleteAction")}
+                        className="flex size-6 items-center justify-center rounded text-destructive transition-opacity hover:opacity-70"
+                      >
+                        <Trash2 className="size-3.5" aria-hidden />
+                      </button>
+                    </Can>
+                  </div>
                 ) : null}
               </div>
               <p className="text-xs text-muted-foreground">{t("durationDays", { value: p.duration_days })}</p>
@@ -96,9 +156,14 @@ export function ProtocolsPanel() {
                     {instance.protocol_name} · {t("currentStepDay", { value: instance.current_step_day })}
                   </span>
                 </div>
-                <Can I="reproduction.update">
-                  <ProtocolInstanceActions instance={instance} />
-                </Can>
+                <div className="flex items-center gap-1.5">
+                  <Button size="sm" variant="ghost" onClick={() => setTimelineInstance(instance)}>
+                    {t("viewTimeline")}
+                  </Button>
+                  <Can I="reproduction.update">
+                    <ProtocolInstanceActions instance={instance} />
+                  </Can>
+                </div>
               </div>
             ))}
           </div>
@@ -106,6 +171,24 @@ export function ProtocolsPanel() {
       </div>
 
       <ApplyProtocolDialog open={applyOpen} onOpenChange={setApplyOpen} />
+      <ProtocolFormDialog open={formDialogOpen} onOpenChange={setFormDialogOpen} protocolId={editingProtocolId} />
+      <ConfirmDialog
+        open={deletingProtocol !== null}
+        onOpenChange={(next) => {
+          if (!next) setDeletingProtocol(null);
+        }}
+        title={t("deleteConfirmTitle")}
+        description={t("deleteConfirmDescription")}
+        confirmLabel={t("deleteAction")}
+        onConfirm={confirmDelete}
+      />
+      <ProtocolInstanceTimeline
+        instance={timelineInstance}
+        open={timelineInstance !== null}
+        onOpenChange={(next) => {
+          if (!next) setTimelineInstance(null);
+        }}
+      />
     </ReproductionCard>
   );
 }

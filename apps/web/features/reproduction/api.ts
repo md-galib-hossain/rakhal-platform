@@ -8,6 +8,7 @@ import type {
   BreedingEventRow,
   CalvingEventRow,
   CreateCalvingEventResult,
+  CreateProtocolPayload,
   DryPeriodRow,
   HeatEventRow,
   LactationCompareResponse,
@@ -28,6 +29,7 @@ import type {
   ReproEventsQuery,
   ReproductionCowRow,
   ReproductiveStatus,
+  UpdateProtocolPayload,
 } from "./types";
 import type {
   CreateAbortionEventInput,
@@ -225,5 +227,18 @@ export const reproductionApi = {
       method: "POST",
       body: input,
     });
+  },
+  /** `POST /reproduction/protocols` (RAKHAL-407, `reproduction.create`-gated) — a farm-owned
+   * protocol only, a system default is never created this way. */
+  createProtocol(input: CreateProtocolPayload): Promise<ProtocolDetail> {
+    return apiFetch<ProtocolDetail>("/reproduction/protocols", { method: "POST", body: input });
+  },
+  /** `PATCH /reproduction/protocols/:id` — 404s on a system default (never editable). */
+  updateProtocol(id: string, input: UpdateProtocolPayload): Promise<ProtocolDetail> {
+    return apiFetch<ProtocolDetail>(`/reproduction/protocols/${id}`, { method: "PATCH", body: input });
+  },
+  /** `DELETE /reproduction/protocols/:id` — 409s while a cow is actively on it. */
+  deleteProtocol(id: string): Promise<{ deleted: boolean }> {
+    return apiFetch(`/reproduction/protocols/${id}`, { method: "DELETE" });
   },
 };

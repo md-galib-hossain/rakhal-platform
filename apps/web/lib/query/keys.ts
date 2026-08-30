@@ -144,6 +144,32 @@ export const qk = {
      * is reused as-is (`FinancePayment[]`, identical shape both tickets need). */
     salesV2: () => ["finance", "v2", "sales", "list"] as const,
     purchasesV2: () => ["finance", "v2", "purchases", "list"] as const,
+    /** RAKHAL-383 — Finance Overview, first real consumer of RAKHAL-380's period-scoped `qk`
+     * convention. `summaryPositionV2` deliberately carries **no period argument** — Row A
+     * (`position.*`) must never refetch when the `DateRangePicker` changes, so its query key stays
+     * constant regardless of what period is selected (`GET /finance/summary`'s `position` block
+     * ignores `from`/`to` server-side too, per `PeriodSummaryService`'s own doc comment — this key
+     * split makes that contract observable in the query cache, not just true by coincidence).
+     * `summaryPeriodV2` takes `toPeriodKey(range)` (`lib/period/presets.ts`) — the Row B slice of
+     * the exact same endpoint, correctly refetching per period. */
+    summaryPositionV2: () => ["finance", "v2", "summary", "position"] as const,
+    summaryPeriodV2: (periodKey: string) => ["finance", "v2", "summary", "period", periodKey] as const,
+    recentTransactionsV2: (limit: number) => ["finance", "v2", "transactions", "recent", limit] as const,
+    /** RAKHAL-385 — full Transactions screen: filtered, cursor "load more" feed off the same `GET
+     * /finance/transactions` (RAKHAL-370) `recentTransactionsV2` above hits with a fixed `limit:5`
+     * and no filters. Deliberately a separate key (not reused) — different `queryFn` shape
+     * (`useInfiniteQuery` pages vs a single flat array) and a distinct filter set. */
+    transactionsListV2: (filters: Record<string, string | undefined>) => ["finance", "v2", "transactions", "list", filters] as const,
+    /** RAKHAL-386 — aging summary strip on the Receivables/Payables screens (`GET /finance/
+     * receivables/aging`, `GET /purchasing/payables/aging`, both RAKHAL-369). No `asOf` argument —
+     * always "as of now", matching the backend's own default when the query param is omitted. */
+    receivablesAgingV2: () => ["finance", "v2", "receivables", "aging"] as const,
+    payablesAgingV2: () => ["finance", "v2", "payables", "aging"] as const,
+    /** RAKHAL-387 — Finance Reports tab. `GET /finance/reports/{profit-loss,cash-flow}?from&to`
+     * (RAKHAL-379), period-keyed like `summaryPeriodV2` (RAKHAL-383's Row B convention) since both
+     * always take an explicit `from`/`to`. */
+    profitLossReportV2: (periodKey: string) => ["finance", "v2", "reports", "profit-loss", periodKey] as const,
+    cashFlowReportV2: (periodKey: string) => ["finance", "v2", "reports", "cash-flow", periodKey] as const,
   },
   buyers: {
     statement: (id: string, month: string) => ["buyers", "statement", id, month] as const,

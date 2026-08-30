@@ -25,4 +25,5 @@ export const DISPLAY_STATUS_CHIP_VARIANT: Record<TaskDisplayStatus, NonNullable<
   in_progress: "info",
   pending: "muted",
   completed: "primary",
+  cancelled: "muted",
 };

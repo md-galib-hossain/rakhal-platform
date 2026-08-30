@@ -392,6 +392,30 @@ export interface ProtocolDetail {
   steps: ProtocolStep[];
 }
 
+/** One step of `CreateProtocolPayload`/`UpdateProtocolPayload`'s `steps[]` (RAKHAL-407),
+ * mirrors `ProtocolStepDto`. camelCase on the wire, unlike the snake_case read-side `ProtocolStep`. */
+export interface ProtocolStepPayload {
+  dayNumber: number;
+  title: string;
+  stepType: string;
+  instruction?: string;
+  isRequired?: boolean;
+}
+
+/** Mirrors `CreateProtocolDto`. */
+export interface CreateProtocolPayload {
+  name: string;
+  description?: string;
+  steps: ProtocolStepPayload[];
+}
+
+/** Mirrors `UpdateProtocolDto`. */
+export interface UpdateProtocolPayload {
+  name?: string;
+  description?: string;
+  steps?: ProtocolStepPayload[];
+}
+
 export interface ProtocolKpis {
   total_applied: number;
   in_progress: number;

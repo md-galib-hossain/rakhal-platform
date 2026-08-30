@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { tasksApi } from "../api";
-import type { CompleteTaskPayload, CreateTaskPayload, TaskHighlights, TaskListFilters, UpdateTaskPayload } from "../types";
+import type { CancelTaskPayload, CompleteTaskPayload, CreateTaskPayload, TaskHighlights, TaskListFilters, UpdateTaskPayload } from "../types";
 
 const STALE_TIME = 30_000;
 
@@ -67,11 +67,10 @@ export function useReopenTask() {
   });
 }
 
-export function useCheckTaskStep() {
+export function useCancelTask() {
   const invalidate = useInvalidateTasks();
   return useMutation({
-    mutationFn: ({ id, stepId, completed }: { id: string; stepId: string; completed: boolean }) =>
-      tasksApi.checkStep(id, stepId, completed),
+    mutationFn: ({ id, dto }: { id: string; dto: CancelTaskPayload }) => tasksApi.cancel(id, dto),
     onSuccess: () => invalidate(),
   });
 }

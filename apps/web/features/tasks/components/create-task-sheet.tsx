@@ -1,10 +1,11 @@
 "use client"; // form state
 
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { ArrowRightToLine, ClipboardList } from "lucide-react";
+import { ArrowRightToLine, ClipboardList, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -13,6 +14,7 @@ import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
+import { CattlePicker, type CattleOption } from "@/components/shared/cattle-picker";
 import { useCreateTask } from "../hooks/use-tasks";
 import { createTaskSchema, type CreateTaskFormInput } from "../schemas";
 import { CATEGORY_ORDER } from "../task-style";
@@ -33,7 +35,11 @@ const PRIORITY_BORDER: Record<TaskPriority, string> = {
   LOW: "border-primary",
 };
 
-function toPayload(values: CreateTaskFormInput, defaultCattleId?: string): CreateTaskPayload {
+function toPayload(
+  values: CreateTaskFormInput,
+  defaultCattleId?: string,
+  cattleIds?: string[],
+): CreateTaskPayload {
   return {
     name: values.name,
     details: values.details || undefined,
@@ -44,15 +50,18 @@ function toPayload(values: CreateTaskFormInput, defaultCattleId?: string): Creat
     recurring: values.recurring,
     recurrenceType: values.recurring ? values.recurrenceType : undefined,
     safetyCritical: values.safetyCritical,
-    relatedCattleId: defaultCattleId,
+    relatedCattleId: cattleIds?.length ? undefined : defaultCattleId,
+    cattleIds: cattleIds?.length ? cattleIds : undefined,
   };
 }
 
 /**
  * "Create New Task" (Figma 1039:48550) — mirrors `CreateTaskDto` exactly. Same rounded-[20px]
  * side-panel chrome as `CreateHealthPlanDialog` (dashed section rules, `ArrowRightToLine` close
- * glyph). The mock has no checklist-step builder — `CreateTaskDto.steps` is left unset (a task can
- * still be created and later checked off if steps exist from some other source), not invented here.
+ * glyph). Multi-cow targeting (user request, no ticket #) has no Figma frame — a minimal
+ * `CattlePicker`-add-then-remove-chip section, same "flag the gap, build the smallest real
+ * affordance" precedent this file's own Reassign field already sets. Shown only when the sheet
+ * wasn't opened with a `defaultCattleId` (an animal-profile Tasks tab already implies its own cow).
  */
 export function CreateTaskSheet({
   open,
@@ -82,6 +91,7 @@ function CreateTaskSheetBody({
   const t = useTranslations("tasks.createSheet");
   const tCommon = useTranslations("tasks");
   const createTask = useCreateTask();
+  const [cattle, setCattle] = useState<CattleOption[]>([]);
 
   const form = useForm<CreateTaskFormInput>({
     resolver: zodResolver(createTaskSchema),
@@ -90,9 +100,12 @@ function CreateTaskSheetBody({
 
   async function onSubmit(values: CreateTaskFormInput) {
     try {
-      await createTask.mutateAsync(toPayload(values, defaultCattleId));
+      await createTask.mutateAsync(
+        toPayload(values, defaultCattleId, cattle.map((c) => c.id)),
+      );
       toast.success(t("createdToast"));
       form.reset({ priority: "HIGH", recurring: false, safetyCritical: false });
+      setCattle([]);
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
@@ -215,6 +228,40 @@ function CreateTaskSheetBody({
               <AssigneePicker value={field.value} onValueChange={(id) => field.onChange(id)} />
             )}
           />
+
+          {!defaultCattleId ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-medium text-foreground">{t("targetCows")}</p>
+              <CattlePicker
+                value={undefined}
+                onValueChange={(id, option) =>
+                  setCattle((prev) => (prev.some((c) => c.id === id) ? prev : [...prev, option]))
+                }
+                placeholder={t("targetCowsPlaceholder")}
+              />
+              {cattle.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {cattle.map((c) => (
+                    <span
+                      key={c.id}
+                      className="flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-bold text-foreground"
+                    >
+                      {c.tagNumber}
+                      {c.name ? ` — ${c.name}` : ""}
+                      <button
+                        type="button"
+                        onClick={() => setCattle((prev) => prev.filter((x) => x.id !== c.id))}
+                        aria-label={t("removeCow", { cow: c.tagNumber })}
+                        className="text-muted-foreground transition-opacity hover:opacity-70"
+                      >
+                        <X className="size-3" aria-hidden />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="flex items-center gap-10 rounded-xl border border-border bg-muted p-3">
             <div className="flex flex-1 flex-col gap-1">

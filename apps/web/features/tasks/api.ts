@@ -3,6 +3,7 @@
 import { apiFetch, apiFetchPage } from "@/lib/api/client";
 import type { CursorMeta, CursorPage } from "@/types/api";
 import type {
+  CancelTaskPayload,
   CompleteTaskPayload,
   CreateTaskPayload,
   Task,
@@ -46,8 +47,10 @@ export const tasksApi = {
   reopen(id: string): Promise<Task> {
     return apiFetch<Task>(`/tasks/${id}/reopen`, { method: "POST" });
   },
-  checkStep(id: string, stepId: string, completed: boolean): Promise<Task> {
-    return apiFetch<Task>(`/tasks/${id}/steps/${stepId}/check`, { method: "POST", body: { completed } });
+  /** `POST /tasks/:id/cancel` (`task.update`-gated) — user-initiated abandonment, 400 from COMPLETED
+   * or already-CANCELLED (RAKHAL-405). */
+  cancel(id: string, dto: CancelTaskPayload): Promise<Task> {
+    return apiFetch<Task>(`/tasks/${id}/cancel`, { method: "POST", body: dto });
   },
   remove(id: string): Promise<{ deleted: boolean }> {
     return apiFetch(`/tasks/${id}`, { method: "DELETE" });

@@ -9,6 +9,7 @@ import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
 import { Can } from "@/lib/auth/permissions";
 import { useExpensesLookup, usePurchasesLookup } from "../../hooks/use-finance-v2";
+import { useSuppliers } from "@/features/settings/hooks/use-workspace";
 import { PaymentStatusBadge } from "./payment-status-badge";
 import type { Payable } from "../../types-v2";
 
@@ -17,7 +18,12 @@ import type { Payable } from "../../types-v2";
  * `Payable` is raised from exactly one of a `Purchase` (`purchaseId` set) or an `Expense`
  * (`expenseId` set) — see `payable.prisma`'s own doc comment — so the reference column checks
  * `purchaseId` first, falling back to `expenseId`'s lookup, mirroring `PayableService`'s own
- * "exactly one of the two" invariant rather than assuming purchases only.
+ * "exactly one of the two" invariant rather than assuming purchases only. **RAKHAL-386** — the
+ * "supplier" column now joins `Payable.supplierId` (a real `Supplier` FK since RAKHAL-365) against
+ * `useSuppliers()` (settings feature's own small un-paginated directory, `GET /settings/suppliers`)
+ * instead of rendering the raw id string — closes the "No supplier" placeholder gap the ticket's AC
+ * names. Neither `Purchase` nor `Expense` carries a supplier join of its own, but `Payable.supplierId`
+ * is set directly regardless of which document raised it, so this one lookup covers both cases.
  */
 export function PayablesTable({
   items,
@@ -38,8 +44,10 @@ export function PayablesTable({
   const tHistory = useTranslations("finance.settlementsV2.paymentHistory");
   const { data: purchases } = usePurchasesLookup();
   const { data: expenses } = useExpensesLookup();
+  const { data: suppliers } = useSuppliers();
   const purchaseById = useMemo(() => new Map((purchases ?? []).map((p) => [p.id, p])), [purchases]);
   const expenseById = useMemo(() => new Map((expenses ?? []).map((e) => [e.id, e])), [expenses]);
+  const supplierById = useMemo(() => new Map((suppliers?.suppliers ?? []).map((s) => [s.id, s])), [suppliers]);
 
   const columns = useMemo<ColumnDef<Payable, unknown>[]>(
     () => [
@@ -63,9 +71,10 @@ export function PayablesTable({
       {
         id: "supplier",
         header: t("columns.customer"),
-        cell: ({ row }) => (
-          <span className="text-sm text-foreground">{row.original.supplierId ?? t("noCustomer")}</span>
-        ),
+        cell: ({ row }) => {
+          const supplier = row.original.supplierId ? supplierById.get(row.original.supplierId) : undefined;
+          return <span className="text-sm text-foreground">{supplier?.name ?? t("noCustomer")}</span>;
+        },
       },
       {
         id: "total",
@@ -106,7 +115,7 @@ export function PayablesTable({
         ),
       },
     ],
-    [t, tHistory, purchaseById, expenseById, onMakePayment, onViewHistory],
+    [t, tHistory, purchaseById, expenseById, supplierById, onMakePayment, onViewHistory],
   );
 
   return (

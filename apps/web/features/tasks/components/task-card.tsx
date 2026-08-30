@@ -1,11 +1,12 @@
 import { useLocale, useTranslations } from "next-intl";
 import { ArrowRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Chip } from "@/components/ui/chip";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { avatarTint, initials } from "../avatar-tint";
-import { PRIORITY_CHIP_VARIANT } from "../task-style";
+import { DISPLAY_STATUS_CHIP_VARIANT, PRIORITY_CHIP_VARIANT } from "../task-style";
 import { LACTATION_ALERT_ICON, lactationAlertSeverity, parseLactationAlert } from "../lactation-alert";
 import type { Task } from "../types";
 
@@ -26,10 +27,19 @@ export function TaskCard({ task, onSeeDetails }: { task: Task; onSeeDetails: (ta
   const LactationIcon = lactationAlert ? LACTATION_ALERT_ICON[lactationAlert.kind] : null;
   const visibleDetails = lactationAlert ? lactationAlert.cleanDetails : task.details;
 
+  // A completed/cancelled task must never look identical to a live one — muted card, status chip,
+  // strikethrough title (not color alone).
+  const isClosed = task.displayStatus === "completed" || task.displayStatus === "cancelled";
+
   return (
-    <div className="flex w-full flex-col gap-5 rounded-2xl border border-border bg-card p-4">
+    <div className={cn("flex w-full flex-col gap-5 rounded-2xl border border-border bg-card p-4", isClosed && "opacity-70")}>
       <div className="flex flex-col gap-2">
-        <p className="text-xs font-bold text-muted-foreground">{task.reference}</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-bold text-muted-foreground">{task.reference}</p>
+          <Chip variant={DISPLAY_STATUS_CHIP_VARIANT[task.displayStatus]} subtle className="w-fit">
+            {t(`status.${task.displayStatus}`)}
+          </Chip>
+        </div>
         <div className="flex flex-col gap-2">
           {lactationAlert && LactationIcon ? (
             <Chip variant={lactationAlertSeverity(lactationAlert.kind)} subtle className="w-fit gap-1.5">
@@ -37,7 +47,7 @@ export function TaskCard({ task, onSeeDetails }: { task: Task; onSeeDetails: (ta
               {t(`lactationAlert.${lactationAlert.kind}`)}
             </Chip>
           ) : null}
-          <p className="text-xl font-bold text-foreground">{task.name}</p>
+          <p className={cn("text-xl font-bold text-foreground", isClosed && "line-through")}>{task.name}</p>
           {visibleDetails ? <p className="line-clamp-2 text-sm font-medium text-muted-foreground">{visibleDetails}</p> : null}
         </div>
       </div>
@@ -52,12 +62,6 @@ export function TaskCard({ task, onSeeDetails }: { task: Task; onSeeDetails: (ta
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-muted-foreground">{t("card.dueDate")}</p>
           <Chip variant={task.displayStatus === "overdue" ? "destructive" : "muted"}>{dueLabel}</Chip>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <p className="font-medium text-muted-foreground">{t("card.stepsCompleted")}</p>
-          <p className="font-bold text-foreground">
-            {t("card.stepsCount", { completed: task.stepsCompleted, total: task.stepsTotal })}
-          </p>
         </div>
         <div className="flex items-center justify-between text-sm">
           <p className="font-medium text-muted-foreground">{t("card.category")}</p>

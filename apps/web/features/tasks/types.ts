@@ -5,21 +5,15 @@ export type TaskPriority = "HIGH" | "MEDIUM" | "LOW";
 
 /** Stored status. `displayStatus` below is the derived, presentation-ready value (PRD §17) — a
  * non-completed task past its due date always reads as "overdue" regardless of this field. */
-export type TaskStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "BLOCKED";
+export type TaskStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "BLOCKED" | "CANCELLED";
 
-export type TaskDisplayStatus = "pending" | "in_progress" | "completed" | "blocked" | "overdue";
+export type TaskDisplayStatus = "pending" | "in_progress" | "completed" | "blocked" | "cancelled" | "overdue";
 
 export type TaskSource = "MANUAL" | "HEALTH_PLAN" | "SYSTEM_AUTO";
 
 export type TaskRecurrence = "DAILY" | "WEEKLY" | "MONTHLY";
 
 export type TaskListFilter = "my_tasks" | "all" | "overdue" | "blocked";
-
-export interface TaskStep {
-  id: string;
-  text: string;
-  completed: boolean;
-}
 
 /** `GET /tasks` row / `GET /tasks/:id`, as presented by `TaskService#present`. */
 export interface Task {
@@ -31,22 +25,33 @@ export interface Task {
   priority: TaskPriority;
   status: TaskStatus;
   displayStatus: TaskDisplayStatus;
+  scheduledAt: string | null;
   dueAt: string;
   overdueByHours: number | null;
-  steps: TaskStep[];
-  stepsTotal: number;
-  stepsCompleted: number;
   recurring: boolean;
   recurrenceType: TaskRecurrence | null;
   recurrenceEndDate: string | null;
   safetyCritical: boolean;
   source: TaskSource;
+  /** Present on `SYSTEM_AUTO` tasks only (e.g. a repro-protocol step) — the domain event that
+   * created this task, paired with `sourceEventId`. Raw pass-through from `TaskService#present`'s
+   * `...task` spread (Prisma column), not previously typed. */
+  sourceEventType: string | null;
+  sourceEventId: string | null;
+  /** Single-cow target — set for a system-generated task or a manual single-cow task. Null when
+   * the task targets multiple cows (see `cattleIds`) or none at all. */
   relatedCattleId: string | null;
+  /** Multi-cow target (user request, no ticket #) — always an array, empty when the task has no
+   * cow target or uses `relatedCattleId` instead. */
+  cattleIds: string[];
   assignedToId: string | null;
   assignedTo: { id: string; name: string } | null;
   completionPhotoUrl: string | null;
   completedById: string | null;
   completedAt: string | null;
+  completionNote: string | null;
+  cancelledAt: string | null;
+  cancelledById: string | null;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -77,14 +82,17 @@ export interface CreateTaskPayload {
   details?: string;
   category?: TaskCategory;
   priority?: TaskPriority;
+  scheduledAt?: string;
   dueAt: string;
   assignedToId?: string;
-  steps?: string[];
   recurring?: boolean;
   recurrenceType?: TaskRecurrence;
   recurrenceEndDate?: string;
   safetyCritical?: boolean;
+  /** Mutually exclusive with `cattleIds` — the backend rejects both set. */
   relatedCattleId?: string;
+  /** Multi-cow target (user request, no ticket #). Mutually exclusive with `relatedCattleId`. */
+  cattleIds?: string[];
 }
 
 /** Mirrors `UpdateTaskDto` — reassign/reschedule/edit. Completion goes through `CompleteTaskPayload`. */
@@ -94,6 +102,7 @@ export interface UpdateTaskPayload {
   category?: TaskCategory;
   priority?: TaskPriority;
   status?: "PENDING" | "IN_PROGRESS" | "BLOCKED";
+  scheduledAt?: string;
   dueAt?: string;
   assignedToId?: string;
   safetyCritical?: boolean;
@@ -104,6 +113,11 @@ export interface UpdateTaskPayload {
  * the UI, see `task-details-sheet.tsx`. */
 export interface CompleteTaskPayload {
   completionPhotoUrl?: string;
+  notes?: string;
+}
+
+/** Mirrors `CancelTaskDto`. User-initiated abandonment — distinct from completing a task. */
+export interface CancelTaskPayload {
   notes?: string;
 }
 

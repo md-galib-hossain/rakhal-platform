@@ -2591,7 +2591,62 @@
       "conceptionRate": "{value}% গর্ভধারণ",
       "activeInstances": "সক্রিয় ইনস্ট্যান্স",
       "currentStepDay": "দিন {value}",
-      "emptyInstances": "কোনো সক্রিয় প্রোটোকল ইনস্ট্যান্স নেই।"
+      "emptyInstances": "কোনো সক্রিয় প্রোটোকল ইনস্ট্যান্স নেই।",
+      "viewTimeline": "টাইমলাইন",
+      "timeline": {
+        "title": "{protocol} — টাইমলাইন",
+        "close": "বন্ধ করুন",
+        "dayLabel": "দিন {value}",
+        "statusDone": "সম্পন্ন",
+        "statusOverdue": "মেয়াদোত্তীর্ণ",
+        "statusUpcoming": "আসন্ন",
+        "statusCurrent": "বর্তমান ধাপ",
+        "statusCancelled": "বাতিল",
+        "noTask": "এই ধাপের জন্য কোনো টাস্ক পাওয়া যায়নি",
+        "loading": "টাইমলাইন লোড হচ্ছে…",
+        "error": "টাইমলাইন লোড করা যায়নি।"
+      },
+      "newProtocol": "নতুন প্রোটোকল",
+      "edit": "সম্পাদনা",
+      "deleteAction": "মুছুন",
+      "deleteConfirmTitle": "প্রোটোকল মুছবেন?",
+      "deleteConfirmDescription": "এটি ফিরিয়ে আনা যাবে না। কোনো গরু বর্তমানে এই প্রোটোকলে থাকলে মোছা যাবে না।",
+      "deletedToast": "প্রোটোকল মুছে ফেলা হয়েছে।",
+      "deleteError": "প্রোটোকল মুছতে ব্যর্থ হয়েছে।",
+      "formDialog": {
+        "createTitle": "নতুন প্রোটোকল",
+        "editTitle": "প্রোটোকল সম্পাদনা",
+        "close": "বন্ধ করুন",
+        "name": "নাম",
+        "namePlaceholder": "যেমন: CIDR-Synch",
+        "description": "বিবরণ",
+        "steps": "ধাপসমূহ",
+        "day": "দিন",
+        "title": "শিরোনাম",
+        "titlePlaceholder": "যেমন: CIDR ইনসার্ট + GnRH",
+        "removeStep": "ধাপ সরান",
+        "stepType": "ধাপের ধরন",
+        "required": "আবশ্যক",
+        "instruction": "নির্দেশনা",
+        "instructionPlaceholder": "এই ধাপের জন্য ঐচ্ছিক নোট",
+        "addStep": "ধাপ যোগ করুন",
+        "cancel": "বাতিল",
+        "create": "তৈরি করুন",
+        "saveChanges": "পরিবর্তন সংরক্ষণ করুন",
+        "createdToast": "প্রোটোকল তৈরি হয়েছে।",
+        "updatedToast": "প্রোটোকল আপডেট হয়েছে।",
+        "genericError": "সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।",
+        "error": "প্রোটোকল লোড করা যায়নি।"
+      },
+      "stepType": {
+        "GNRH": "GnRH",
+        "PGF2ALPHA": "PGF2α",
+        "CIDR_INSERT": "CIDR ইনসার্ট",
+        "CIDR_REMOVE": "CIDR রিমুভ",
+        "AI": "টাইমড এআই",
+        "PREGNANCY_CHECK": "গর্ভধারণ পরীক্ষা",
+        "OTHER": "অন্যান্য"
+      }
     }
   },
   "health": {
@@ -3388,6 +3443,14 @@
       "overdue": "মেয়াদোত্তীর্ণ",
       "blocked": "আটকে থাকা"
     },
+    "status": {
+      "pending": "মুলতুবি",
+      "in_progress": "চলমান",
+      "completed": "সম্পন্ন",
+      "blocked": "আটকে থাকা",
+      "cancelled": "বাতিল",
+      "overdue": "মেয়াদোত্তীর্ণ"
+    },
     "highlights": {
       "title": "টাস্ক হাইলাইটস",
       "dueToday": "আজকের বাকি টাস্ক",
@@ -3402,8 +3465,6 @@
       "priority": "অগ্রাধিকার",
       "dueDate": "নির্ধারিত তারিখ",
       "overdueBy": "{hours} ঘণ্টা দেরি",
-      "stepsCompleted": "সম্পন্ন ধাপ",
-      "stepsCount": "{completed}/{total} ধাপ",
       "category": "শ্রেণি",
       "assignedTo": "দায়িত্বপ্রাপ্ত",
       "unassigned": "অনির্ধারিত",
@@ -3428,6 +3489,9 @@
       "dueDate": "নির্ধারিত তারিখ",
       "dueDatePlaceholder": "নির্ধারিত তারিখ বাছাই করুন",
       "taskPriority": "টাস্কের অগ্রাধিকার",
+      "targetCows": "লক্ষ্য গরু (ঐচ্ছিক)",
+      "targetCowsPlaceholder": "একটি গরু যোগ করুন…",
+      "removeCow": "{cow} সরান",
       "assignTo": "দায়িত্ব দিন",
       "assignPlaceholder": "দায়িত্ব দিতে নাম লিখুন",
       "assignSearchPlaceholder": "টিম সদস্য খুঁজুন…",
@@ -3457,11 +3521,9 @@
       "category": "শ্রেণি",
       "recurrence": "পুনরাবৃত্তি",
       "oneOff": "একবারের",
-      "stepsCompleted": "সম্পন্ন ধাপ",
       "assignTo": "দায়িত্বপ্রাপ্ত",
       "unassigned": "অনির্ধারিত",
       "description": "টাস্কের বিবরণ",
-      "checklist": "চেকলিস্ট",
       "reassignTo": "নতুন দায়িত্ব দিন",
       "reassign": "পুনরায় নির্ধারণ",
       "markComplete": "সম্পন্ন",
@@ -3470,7 +3532,26 @@
       "reassignedToast": "টাস্ক পুনরায় নির্ধারিত হয়েছে",
       "reopen": "পুনরায় চালু করুন",
       "reopenedToast": "টাস্ক পুনরায় চালু হয়েছে",
+      "cancelTask": "টাস্ক বাতিল করুন",
+      "cancelled": "বাতিল হয়েছে",
+      "cancelReason": "কারণ (ঐচ্ছিক)",
+      "cancelReasonPlaceholder": "কেন এই টাস্কটি বাতিল করা হচ্ছে?",
+      "cancelReasonBack": "ফিরে যান",
+      "cancelReasonConfirm": "টাস্ক বাতিল করুন",
+      "cancelledToast": "টাস্ক বাতিল হয়েছে",
+      "completedAt": "সম্পন্ন হয়েছে {date}",
+      "cancelledAt": "বাতিল হয়েছে {date}",
+      "edit": "সম্পাদনা",
+      "delete": "মুছুন",
+      "deletedToast": "টাস্ক মুছে ফেলা হয়েছে",
+      "deleteConfirmTitle": "এই টাস্কটি মুছবেন?",
+      "deleteConfirmDescription": "এটি স্থায়ীভাবে টাস্কটি সরিয়ে দেবে। এটি পূর্বাবস্থায় ফেরানো যাবে না।",
       "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+    },
+    "editSheet": {
+      "title": "টাস্ক সম্পাদনা করুন",
+      "save": "পরিবর্তন সংরক্ষণ করুন",
+      "updatedToast": "টাস্ক আপডেট হয়েছে"
     }
   },
   "finance": {
@@ -3502,6 +3583,122 @@
       "daysValue": "{days} দিন",
       "runwayStatus": "সময়সীমার অবস্থা: {status}",
       "error": "আপনার আর্থিক হাইলাইটস লোড করা যায়নি।"
+    },
+    "overview": {
+      "rowA": {
+        "availableBalance": "উপলব্ধ ব্যালেন্স",
+        "acrossAccounts": "{count} টি অ্যাকাউন্ট জুড়ে",
+        "totalReceivable": "মোট পাওনা",
+        "invoiceCount": "{count} টি ইনভয়েস",
+        "totalPayable": "মোট দেনা",
+        "billCount": "{count} টি বিল"
+      },
+      "rowB": {
+        "revenue": "আয়",
+        "expenses": "খরচ",
+        "netProfit": "নিট মুনাফা",
+        "netCashFlow": "নিট নগদ প্রবাহ"
+      },
+      "quickActions": {
+        "newTransaction": "নতুন লেনদেন",
+        "recordExpense": "খরচ রেকর্ড করুন",
+        "receivePayment": "পেমেন্ট গ্রহণ করুন",
+        "makePayment": "পেমেন্ট করুন",
+        "transferMoney": "টাকা স্থানান্তর করুন",
+        "transferOwnerOnlyTooltip": "শুধুমাত্র খামারের মালিক অ্যাকাউন্টের মধ্যে স্থানান্তর করতে পারেন",
+        "recordSaleHint": "বিক্রয় রেকর্ড করছেন?",
+        "goToSales": "বিক্রয়ে যান →",
+        "recordPurchaseHint": "ক্রয় রেকর্ড করছেন?",
+        "goToPurchasing": "ক্রয়ে যান →",
+        "transferCopy": "স্থানান্তর আপনার অ্যাকাউন্টগুলোর মধ্যে টাকা সরায়। এটি আয় বা খরচ নয়।"
+      },
+      "receivablesPanel": {
+        "title": "বকেয়া পাওনা",
+        "emptyTitle": "কোনো বকেয়া পাওনা নেই",
+        "unknownBuyer": "অজানা ক্রেতা",
+        "noDueDate": "কোনো নির্ধারিত তারিখ নেই",
+        "dueToday": "আজ নির্ধারিত",
+        "overdueDays": "{count} দিন বিলম্বিত",
+        "dueOn": "নির্ধারিত {date}",
+        "viewAll": "সব পাওনা দেখুন →"
+      },
+      "transactionsPanel": {
+        "title": "সাম্প্রতিক লেনদেন",
+        "emptyTitle": "কোনো সাম্প্রতিক লেনদেন নেই",
+        "viewAll": "সব লেনদেন দেখুন →"
+      }
+    },
+    "transactionsV2": {
+      "title": "লেনদেন",
+      "subtitle": "সকল আর্থিক লেনদেন",
+      "filters": {
+        "typeLabel": "লেনদেনের ধরন",
+        "allTypes": "সব ধরন",
+        "statusLabel": "অবস্থা",
+        "allStatuses": "সব অবস্থা"
+      },
+      "typeOptions": {
+        "SALE": "বিক্রয়",
+        "PURCHASE": "ক্রয়",
+        "EXPENSE": "খরচ",
+        "FINANCE_PAYMENT": "পেমেন্ট",
+        "FINANCE_TRANSFER": "স্থানান্তর",
+        "OTHER_INCOME": "অন্যান্য আয়",
+        "FEED_MIXTURE_FINALIZE": "ফিড মিশ্রণ",
+        "FINANCIAL_ACCOUNT_OPENING_BALANCE": "প্রারম্ভিক ব্যালেন্স"
+      },
+      "statusOptions": {
+        "POSTED": "পোস্ট করা হয়েছে",
+        "REVERSED": "বাতিল করা হয়েছে"
+      },
+      "columns": {
+        "date": "তারিখ",
+        "type": "ধরন",
+        "reference": "রেফারেন্স",
+        "party": "পক্ষ",
+        "account": "অ্যাকাউন্ট",
+        "amount": "পরিমাণ",
+        "status": "অবস্থা"
+      },
+      "noReference": "—",
+      "noParty": "—",
+      "noAccount": "—",
+      "empty": {
+        "title": "এখনও কোনো লেনদেন নেই",
+        "description": "বিক্রয়, ক্রয়, পেমেন্ট এবং স্থানান্তর এখানে দেখা যাবে।"
+      },
+      "error": "লেনদেন লোড করা যায়নি।"
+    },
+    "reportsV2": {
+      "segments": {
+        "profitLoss": "লাভ-ক্ষতি",
+        "cashFlow": "নগদ প্রবাহ",
+        "receivableAging": "প্রাপ্য এজিং",
+        "payableAging": "প্রদেয় এজিং"
+      },
+      "profitLoss": {
+        "revenue": "আয়",
+        "expenses": "খরচ",
+        "totalRevenue": "মোট আয়",
+        "totalExpenses": "মোট খরচ",
+        "netProfit": "নিট মুনাফা",
+        "noActivity": "এই সময়ে কোনো কার্যক্রম নেই।",
+        "error": "লাভ-ক্ষতি প্রতিবেদন লোড করা যায়নি।"
+      },
+      "cashFlow": {
+        "columns": {
+          "account": "অ্যাকাউন্ট",
+          "opening": "শুরুর ব্যালেন্স",
+          "inflow": "প্রবাহ (ইন)",
+          "outflow": "প্রবাহ (আউট)",
+          "closing": "শেষের ব্যালেন্স"
+        },
+        "totalClosing": "মোট শেষের ব্যালেন্স",
+        "empty": {
+          "title": "এখনও কোনো অ্যাকাউন্ট নেই",
+          "description": "নগদ প্রবাহ দেখতে একটি নগদ, ব্যাংক বা এমএফএস অ্যাকাউন্ট যোগ করুন।"
+        }
+      }
     },
     "ledger": {
       "tableTitle": "লেনদেনের লেজার",
@@ -3994,8 +4191,21 @@
         "rowActions": "অ্যাকাউন্ট অ্যাকশন",
         "edit": "সম্পাদনা",
         "archive": "সংরক্ষণাগারে পাঠান",
+        "columns": {
+          "name": "অ্যাকাউন্টের নাম",
+          "type": "ধরন",
+          "info": "অ্যাকাউন্ট নং / তথ্য",
+          "balance": "বর্তমান ব্যালেন্স",
+          "status": "অবস্থা"
+        },
+        "infoNone": "—",
+        "status": {
+          "active": "সক্রিয়",
+          "archived": "সংরক্ষণাগারে"
+        },
         "typeOptions": {
           "CASH": "নগদ",
+          "BANK": "ব্যাংক",
           "BKASH": "বিকাশ",
           "NAGAD": "নগদ (এমএফএস)",
           "ROCKET": "রকেট",
@@ -4075,6 +4285,7 @@
         "noReference": "অজানা বিক্রয়",
         "noCustomer": "সরাসরি বিক্রয়",
         "receivePayment": "পেমেন্ট গ্রহণ করুন",
+        "settlesInvoiceCopy": "পেমেন্ট গ্রহণ একটি ইনভয়েস নিষ্পত্তি করে — এটি নতুন বিক্রয় তৈরি করে না।",
         "empty": {
           "title": "এখনো কোনো প্রাপ্য নেই",
           "description": "পুরোপুরি পরিশোধ হয়নি এমন বিক্রয় এখানে দেখা যাবে।"
@@ -4093,10 +4304,16 @@
         "noReference": "অজানা নথি",
         "noCustomer": "সরবরাহকারী নেই",
         "makePayment": "পেমেন্ট করুন",
+        "settlesBillCopy": "পেমেন্ট করা একটি বিল নিষ্পত্তি করে — এটি নতুন খরচ তৈরি করে না।",
         "empty": {
           "title": "এখনো কোনো প্রদেয় নেই",
           "description": "পুরোপুরি পরিশোধ হয়নি এমন ক্রয় বা খরচ এখানে দেখা যাবে।"
         }
+      },
+      "aging": {
+        "title": "এজিং সারাংশ",
+        "invoiceCount": "{count, plural, one {# ইনভয়েস} other {# ইনভয়েস}}",
+        "error": "এজিং সারাংশ লোড করা যায়নি।"
       },
       "statusOptions": {
         "UNPAID": "অপরিশোধিত",

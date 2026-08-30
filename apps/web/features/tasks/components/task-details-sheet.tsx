@@ -1,24 +1,25 @@
-"use client"; // reassign popover + step-check mutations
+"use client"; // reassign popover + mutations
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { ArrowRightToLine, Check, RotateCcw } from "lucide-react";
+import { ArrowRightToLine, Check, Pencil, RotateCcw, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Chip } from "@/components/ui/chip";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Can } from "@/lib/auth/permissions";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
-import { useCheckTaskStep, useCompleteTask, useReopenTask, useUpdateTask } from "../hooks/use-tasks";
+import { useCancelTask, useCompleteTask, useDeleteTask, useReopenTask, useUpdateTask } from "../hooks/use-tasks";
 import { avatarTint, initials } from "../avatar-tint";
-import { PRIORITY_CHIP_VARIANT } from "../task-style";
+import { DISPLAY_STATUS_CHIP_VARIANT, PRIORITY_CHIP_VARIANT } from "../task-style";
 import { LACTATION_ALERT_ICON, lactationAlertSeverity, parseLactationAlert } from "../lactation-alert";
 import { AssigneePicker } from "./assignee-picker";
+import { EditTaskSheet } from "./edit-task-sheet";
 import type { Task } from "../types";
 
 function InfoTile({ label, children }: { label: string; children: React.ReactNode }) {
@@ -34,10 +35,8 @@ function InfoTile({ label, children }: { label: string; children: React.ReactNod
  * "Task Details" (Figma 1039:48730) — mirrors `GET /tasks/:id`'s presented shape. "Reassign" has no
  * Figma frame of its own — a minimal inline `AssigneePicker` popover is used instead of a dead
  * button (same "flag the gap, build the smallest real affordance" precedent as several other tickets
- * on this board), calling the real `PATCH /tasks/:id`. A checklist section (checkable steps via
- * `POST /tasks/:id/steps/:stepId/check`) is shown below the description when the task has any steps
- * — the mock only shows a "Steps Completed 1/4" *count*, not the list itself, but PRD §17 explicitly
- * calls for checkable steps in this view and the count with no way to check them would be dead too.
+ * on this board), calling the real `PATCH /tasks/:id`. Checklist sub-steps were removed (user
+ * decision, no ticket #) — `Task` no longer has a `steps` field at all.
  */
 export function TaskDetailsSheet({ task, open, onOpenChange }: { task: Task | null; open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
@@ -52,16 +51,23 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
   const tCommon = useTranslations("tasks");
   const locale = useLocale() as Locale;
   const [reassigning, setReassigning] = useState(false);
-  // Local copy kept in sync with mutation responses so Reassign/step-check reflect immediately in
-  // this open sheet, instead of only after the underlying list refetches and it's reopened.
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelNote, setCancelNote] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  // Local copy kept in sync with mutation responses so Reassign reflects immediately in this open
+  // sheet, instead of only after the underlying list refetches and it's reopened.
   const [task, setTask] = useState(initialTask);
 
   const completeTask = useCompleteTask();
   const reopenTask = useReopenTask();
   const updateTask = useUpdateTask();
-  const checkStep = useCheckTaskStep();
+  const cancelTask = useCancelTask();
+  const deleteTask = useDeleteTask();
 
   const isCompleted = task.displayStatus === "completed";
+  const isCancelled = task.displayStatus === "cancelled";
+  const isClosed = isCompleted || isCancelled;
 
   async function handleComplete() {
     try {
@@ -80,6 +86,32 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
       const updated = await reopenTask.mutateAsync(task.id);
       setTask(updated);
       toast.success(t("reopenedToast"));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("genericError"));
+    }
+  }
+
+  /** User-initiated abandonment (RAKHAL-405) — distinct from `handleComplete`. 400 from the backend
+   * if already COMPLETED/CANCELLED, guarded here too by only rendering the button when live. */
+  async function handleCancel() {
+    try {
+      const updated = await cancelTask.mutateAsync({ id: task.id, dto: { notes: cancelNote.trim() || undefined } });
+      setTask(updated);
+      toast.success(t("cancelledToast"));
+      setCancelling(false);
+      setCancelNote("");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("genericError"));
+    }
+  }
+
+  /** Real `DELETE /tasks/:id` route (`task.delete`-gated) that had no UI before this — closes the
+   * sheet on success, `useDeleteTask`'s own `onSuccess` already invalidates the list query. */
+  async function handleDelete() {
+    try {
+      await deleteTask.mutateAsync(task.id);
+      toast.success(t("deletedToast"));
+      onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
     }
@@ -115,23 +147,50 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
       <div className="flex flex-col gap-5 pb-5">
         <div className="flex items-start justify-between">
           <div className="flex flex-col gap-1">
-            <p className="text-xs font-bold text-muted-foreground">{task.reference}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-bold text-muted-foreground">{task.reference}</p>
+              <Chip variant={DISPLAY_STATUS_CHIP_VARIANT[task.displayStatus]} subtle className="w-fit">
+                {tCommon(`status.${task.displayStatus}`)}
+              </Chip>
+            </div>
             {lactationAlert && LactationIcon ? (
               <Chip variant={lactationAlertSeverity(lactationAlert.kind)} subtle className="w-fit gap-1.5">
                 <LactationIcon className="size-3.5" aria-hidden />
                 {tCommon(`lactationAlert.${lactationAlert.kind}`)}
               </Chip>
             ) : null}
-            <SheetTitle className="text-xl font-bold text-foreground">{task.name}</SheetTitle>
+            <SheetTitle className={cn("text-xl font-bold text-foreground", isClosed && "line-through")}>{task.name}</SheetTitle>
           </div>
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            aria-label={t("close")}
-            className="flex size-5 shrink-0 items-center justify-center text-foreground transition-opacity hover:opacity-70"
-          >
-            <ArrowRightToLine className="size-5" aria-hidden />
-          </button>
+          <div className="flex shrink-0 items-center gap-3">
+            <Can I="task.update">
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                aria-label={t("edit")}
+                className="flex size-5 items-center justify-center text-foreground transition-opacity hover:opacity-70"
+              >
+                <Pencil className="size-5" aria-hidden />
+              </button>
+            </Can>
+            <Can I="task.delete">
+              <button
+                type="button"
+                onClick={() => setDeleting(true)}
+                aria-label={t("delete")}
+                className="flex size-5 items-center justify-center text-destructive transition-opacity hover:opacity-70"
+              >
+                <Trash2 className="size-5" aria-hidden />
+              </button>
+            </Can>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              aria-label={t("close")}
+              className="flex size-5 items-center justify-center text-foreground transition-opacity hover:opacity-70"
+            >
+              <ArrowRightToLine className="size-5" aria-hidden />
+            </button>
+          </div>
         </div>
         <div className="border-t border-dashed border-border" />
       </div>
@@ -156,9 +215,6 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
               {task.recurring && task.recurrenceType ? tCommon(`recurrence.${task.recurrenceType}`) : t("oneOff")}
             </p>
           </InfoTile>
-          <InfoTile label={t("stepsCompleted")}>
-            <p className="text-sm font-bold text-foreground">{task.stepsTotal > 0 ? `${task.stepsCompleted}/${task.stepsTotal}` : "—"}</p>
-          </InfoTile>
           <InfoTile label={t("assignTo")}>
             {task.assignedTo ? (
               <div className="flex items-center gap-1.5">
@@ -173,6 +229,24 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
           </InfoTile>
         </div>
 
+        {isCompleted && task.completedAt ? (
+          <div className="flex flex-col gap-1 rounded-xl border border-border bg-muted p-3">
+            <p className="text-xs font-medium text-muted-foreground">
+              {t("completedAt", { date: formatDate(task.completedAt, locale, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) })}
+            </p>
+            {task.completionNote ? <p className="text-sm text-foreground">{task.completionNote}</p> : null}
+          </div>
+        ) : null}
+
+        {isCancelled && task.cancelledAt ? (
+          <div className="flex flex-col gap-1 rounded-xl border border-border bg-muted p-3">
+            <p className="text-xs font-medium text-muted-foreground">
+              {t("cancelledAt", { date: formatDate(task.cancelledAt, locale, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) })}
+            </p>
+            {task.completionNote ? <p className="text-sm text-foreground">{task.completionNote}</p> : null}
+          </div>
+        ) : null}
+
         {visibleDetails ? (
           <div className="flex flex-col gap-3">
             <p className="text-xs font-medium text-muted-foreground">{t("description")}</p>
@@ -180,33 +254,31 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
           </div>
         ) : null}
 
-        {task.steps.length > 0 ? (
-          <div className="flex flex-col gap-3">
-            <p className="text-xs font-medium text-muted-foreground">{t("checklist")}</p>
-            <div className="flex flex-col gap-2">
-              {task.steps.map((step) => (
-                <label key={step.id} className="flex items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2.5">
-                  <Checkbox
-                    checked={step.completed}
-                    disabled={checkStep.isPending || isCompleted}
-                    onCheckedChange={(checked) =>
-                      checkStep.mutate(
-                        { id: task.id, stepId: step.id, completed: checked === true },
-                        { onSuccess: setTask },
-                      )
-                    }
-                  />
-                  <span className={cn("text-sm text-foreground", step.completed && "text-muted-foreground line-through")}>{step.text}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
         {reassigning ? (
           <div className="flex flex-col gap-2 rounded-xl border border-border bg-muted p-3">
             <p className="text-xs font-medium text-foreground">{t("reassignTo")}</p>
             <AssigneePicker value={task.assignedToId ?? undefined} onValueChange={(userId) => void handleReassign(userId)} disabled={updateTask.isPending} />
+          </div>
+        ) : null}
+
+        {cancelling ? (
+          <div className="flex flex-col gap-2 rounded-xl border border-border bg-muted p-3">
+            <p className="text-xs font-medium text-foreground">{t("cancelReason")}</p>
+            <textarea
+              value={cancelNote}
+              onChange={(e) => setCancelNote(e.target.value)}
+              placeholder={t("cancelReasonPlaceholder")}
+              rows={2}
+              className="w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            />
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="secondary" className="flex-1" onClick={() => { setCancelling(false); setCancelNote(""); }} disabled={cancelTask.isPending}>
+                {t("cancelReasonBack")}
+              </Button>
+              <Button type="button" variant="destructive" className="flex-1" onClick={() => void handleCancel()} disabled={cancelTask.isPending}>
+                {cancelTask.isPending ? "…" : t("cancelReasonConfirm")}
+              </Button>
+            </div>
           </div>
         ) : null}
       </div>
@@ -237,17 +309,33 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
               </Button>
             </Can>
           ) : null}
+          {!isClosed ? (
+            <Can I="task.update">
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-[52px] flex-1 rounded-xl"
+                onClick={() => setCancelling((v) => !v)}
+                disabled={cancelTask.isPending}
+              >
+                <X className="size-4" aria-hidden />
+                {t("cancelTask")}
+              </Button>
+            </Can>
+          ) : null}
           <Button
             type="button"
             className="h-[52px] flex-1 rounded-xl"
             onClick={() => void handleComplete()}
-            disabled={isCompleted || completeTask.isPending}
+            disabled={isClosed || completeTask.isPending}
           >
             {isCompleted ? (
               <>
                 <Check className="size-4" aria-hidden />
                 {t("completed")}
               </>
+            ) : isCancelled ? (
+              t("cancelled")
             ) : completeTask.isPending ? (
               "…"
             ) : (
@@ -256,6 +344,16 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
           </Button>
         </div>
       </div>
+
+      <EditTaskSheet task={editing ? task : null} open={editing} onOpenChange={setEditing} onUpdated={setTask} />
+      <ConfirmDialog
+        open={deleting}
+        onOpenChange={setDeleting}
+        title={t("deleteConfirmTitle")}
+        description={t("deleteConfirmDescription")}
+        confirmLabel={t("delete")}
+        onConfirm={handleDelete}
+      />
     </SheetContent>
   );
 }
