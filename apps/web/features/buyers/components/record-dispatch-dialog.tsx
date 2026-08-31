@@ -4,20 +4,15 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { ArrowRightToLine } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useBuyersPagedList, useRecordDispatch } from "../hooks/use-buyers";
+import { useRecordDispatch } from "../hooks/use-buyers";
 import { recordDispatchSchema, type RecordDispatchInput } from "../schemas";
+import { BuyerPicker } from "./buyer-picker";
 import type { Buyer } from "../types";
 
 function today(): string {
@@ -29,6 +24,10 @@ function today(): string {
  * `RecordDispatchDto`. Server-side this also decrements the Inventory SELLABLE tank (SALE) and
  * creates a Finance receivable — both surfaced via the success toast's real returned amount, not
  * fabricated.
+ *
+ * Right-side sheet — same floating-card chrome as `BuyerFormDialog`/`EquipmentFormDialog` (10px
+ * inset, 20px radius, 2px border, `arrow-right-03` header icon). Was previously a centered
+ * `Dialog` — moved to match every other form's side-sheet pattern in the app.
  */
 export function RecordDispatchDialog({
   buyer,
@@ -39,11 +38,22 @@ export function RecordDispatchDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
+      {open ? <RecordDispatchDialogBody key={buyer?.id ?? "no-buyer"} buyer={buyer} onOpenChange={onOpenChange} /> : null}
+    </Sheet>
+  );
+}
+
+function RecordDispatchDialogBody({
+  buyer,
+  onOpenChange,
+}: {
+  buyer: Buyer | null;
+  onOpenChange: (open: boolean) => void;
+}) {
   const t = useTranslations("buyers.dispatch");
   const recordDispatch = useRecordDispatch();
-  // Buyer picker only needed when opened from the Dispatch History tab (no pre-selected buyer);
-  // when opened from a buyer row, `buyer` is already fixed and this list isn't rendered.
-  const buyersList = useBuyersPagedList({});
 
   const form = useForm<RecordDispatchInput>({
     resolver: zodResolver(recordDispatchSchema),
@@ -62,12 +72,25 @@ export function RecordDispatchDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("title")}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+    <SheetContent
+      showClose={false}
+      className="inset-y-2.5 right-2.5 flex h-[calc(100vh-20px)] w-[calc(100%-20px)] max-w-[480px] flex-col gap-0 rounded-[20px] border-2 border-border p-5 shadow-2xl sm:max-w-[480px]"
+    >
+      <div className="flex items-center justify-between pb-5">
+        <SheetTitle className="text-xl font-bold text-foreground">{t("title")}</SheetTitle>
+        <button
+          type="button"
+          onClick={() => onOpenChange(false)}
+          aria-label={t("cancel")}
+          className="flex size-5 items-center justify-center text-foreground transition-opacity hover:opacity-70"
+        >
+          <ArrowRightToLine className="size-5" aria-hidden />
+        </button>
+      </div>
+      <div className="border-t border-dashed border-border" />
+
+      <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-4">
           {buyer ? (
             <div className="space-y-1.5">
               <Label>{t("buyer")}</Label>
@@ -75,28 +98,18 @@ export function RecordDispatchDialog({
             </div>
           ) : (
             <div className="space-y-1.5">
-              <Label>{t("buyer")}</Label>
               <Controller
                 control={form.control}
                 name="buyerId"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("buyerPlaceholder")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {buyersList.items.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>
-                          {b.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                render={({ field, fieldState }) => (
+                  <BuyerPicker
+                    value={field.value}
+                    onChange={(id) => field.onChange(id)}
+                    placeholder={t("buyerPlaceholder")}
+                    error={fieldState.error?.message}
+                  />
                 )}
               />
-              {form.formState.errors.buyerId ? (
-                <p className="text-sm text-destructive">{form.formState.errors.buyerId.message}</p>
-              ) : null}
             </div>
           )}
           <div className="space-y-1.5">
@@ -151,16 +164,18 @@ export function RecordDispatchDialog({
             <Label htmlFor="notes">{t("notes")}</Label>
             <Input id="notes" {...form.register("notes")} />
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={recordDispatch.isPending}>
-              {t("cancel")}
-            </Button>
-            <Button type="submit" disabled={recordDispatch.isPending}>
-              {recordDispatch.isPending ? t("saving") : t("submit")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </div>
+
+        <div className="border-t border-dashed border-border" />
+        <div className="flex gap-3 pt-5">
+          <Button type="button" variant="secondary" className="h-12 flex-1" onClick={() => onOpenChange(false)} disabled={recordDispatch.isPending}>
+            {t("cancel")}
+          </Button>
+          <Button type="submit" className="h-12 flex-1" disabled={recordDispatch.isPending}>
+            {recordDispatch.isPending ? t("saving") : t("submit")}
+          </Button>
+        </div>
+      </form>
+    </SheetContent>
   );
 }

@@ -41,7 +41,9 @@ export function ProtocolInstanceActions({ instance }: { instance: ProtocolInstan
 
   const canRecordAi = (ACTIVE_STATUSES as readonly string[]).includes(instance.status);
   const canRecordOutcome = !!instance.ai_completed_at;
-  const canClose = instance.status !== "COMPLETED";
+  /** A cancelled/failed/completed instance is a closed record — re-showing "Close" there let a
+   * user cancel an already-cancelled instance for no effect (real UX bug, not just cosmetic). */
+  const canClose = (ACTIVE_STATUSES as readonly string[]).includes(instance.status);
 
   return (
     <div className="flex items-center gap-1.5">

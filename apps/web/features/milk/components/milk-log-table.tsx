@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pagination } from "@/components/shared/pagination";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { AnimalLink } from "@/components/shared/animal-link";
 import { Can, useCan } from "@/lib/auth/permissions";
 import { useMilkTanks } from "@/features/inventory/hooks/use-inventory";
 import type { MilkTank, MilkTankType as InventoryMilkTankType } from "@/features/inventory/types";
@@ -582,19 +583,32 @@ export function MilkLogTable({
               <TableBody>
                 {pageRows.map((row, rowIndex) => (
                   <TableRow key={row.cattleId}>
-                    <TableCell className="font-medium text-foreground">{row.tag}</TableCell>
+                    <TableCell className="font-medium text-foreground">
+                      <AnimalLink
+                        id={row.cattleId}
+                        tagNumber={row.tag}
+                        className="text-foreground hover:text-primary"
+                      >
+                        {row.tag}
+                      </AnimalLink>
+                    </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
+                      <AnimalLink
+                        id={row.cattleId}
+                        animalName={row.name}
+                        tagNumber={row.tag}
+                        className="group flex items-center gap-2 text-left font-normal"
+                      >
                         <Avatar className="size-8">
                           <AvatarFallback>{(row.name ?? row.tag).slice(0, 1).toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col">
-                          <span className="text-sm font-medium text-foreground">{row.name ?? row.tag}</span>
+                          <span className="text-sm font-medium text-foreground group-hover:underline">{row.name ?? row.tag}</span>
                           <span className="text-xs text-muted-foreground">
                             {row.avgYield7d != null ? t("avgYieldCaption", { value: row.avgYield7d }) : "—"}
                           </span>
                         </div>
-                      </div>
+                      </AnimalLink>
                     </TableCell>
                     <TableCell>
                       <Chip variant={row.withholding ? "destructive" : "primary"}>

@@ -117,3 +117,91 @@ export function CattlePicker({
     </Popover>
   );
 }
+
+export interface CattleMultiPickerProps {
+  value: CattleOption[];
+  onValueChange: (next: CattleOption[]) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+  filters?: {
+    gender?: CattleGender;
+    reproductiveStatus?: ReproductiveStatus;
+  };
+}
+
+/** Multi-select variant of `CattlePicker` — task hub "target cows" (user request, no ticket #). Stays
+ * open across picks so a farmer can select several cows in one pass, and re-selecting a checked row
+ * unselects it (checkbox semantics), not just the external chip-list's own remove button. */
+export function CattleMultiPicker({
+  value,
+  onValueChange,
+  placeholder = "Select cattle…",
+  disabled,
+  className,
+  filters,
+}: CattleMultiPickerProps) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["cattle-picker", search, filters?.gender, filters?.reproductiveStatus],
+    queryFn: () =>
+      apiFetchPage<CattleOption>("/cattle", {
+        searchParams: {
+          limit: 20,
+          search: search || undefined,
+          gender: filters?.gender,
+          reproductiveStatus: filters?.reproductiveStatus,
+        },
+      }),
+    enabled: open,
+    staleTime: 30_000,
+  });
+
+  const options = useMemo(() => data?.items ?? [], [data]);
+  const selectedIds = useMemo(() => new Set(value.map((c) => c.id)), [value]);
+
+  function toggle(option: CattleOption) {
+    if (selectedIds.has(option.id)) {
+      onValueChange(value.filter((c) => c.id !== option.id));
+    } else {
+      onValueChange([...value, option]);
+    }
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          disabled={disabled}
+          className={cn("w-full justify-between font-normal", value.length === 0 && "text-muted-foreground", className)}
+        >
+          {value.length > 0 ? `${value.length} selected` : placeholder}
+          <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-(--radix-popover-trigger-width) p-0">
+        <Command shouldFilter={false}>
+          <CommandInput placeholder="Search tag or name…" value={search} onValueChange={setSearch} />
+          <CommandList>
+            <CommandEmpty>{isLoading ? "Searching…" : "No cattle found"}</CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => (
+                <CommandItem key={option.id} value={option.id} onSelect={() => toggle(option)}>
+                  <Check className={cn("mr-2 size-4", selectedIds.has(option.id) ? "opacity-100" : "opacity-0")} />
+                  {option.tagNumber}
+                  {option.name ? ` — ${option.name}` : ""}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}

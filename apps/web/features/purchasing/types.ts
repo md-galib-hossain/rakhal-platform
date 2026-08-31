@@ -36,6 +36,9 @@ export interface Expense {
   notes: string | null;
   createdById: string;
   createdAt: string;
+  /** RAKHAL-392 — `Expense` has no `status` enum (unlike `Purchase.status`); void is tracked by
+   * this timestamp instead (`VoidDocumentUseCase.voidExpense`). `null` means Posted. */
+  voidedAt: string | null;
 }
 
 export interface RecordExpensePayload {
@@ -78,6 +81,8 @@ export interface EmbeddedPayable {
   createdAt: string;
 }
 
+export type PurchaseStatus = "CONFIRMED" | "VOIDED";
+
 export interface Purchase {
   id: string;
   farmId: string;
@@ -88,6 +93,8 @@ export interface Purchase {
   notes: string | null;
   createdById: string;
   createdAt: string;
+  /** RAKHAL-367/392 — `Purchase.status` (`@default(CONFIRMED)`). */
+  status: PurchaseStatus;
   lines: PurchaseLine[];
   payable: EmbeddedPayable | null;
 }
@@ -148,4 +155,35 @@ export interface PurchasableItemOption {
   name: string;
   currentStock: number;
   unitSymbol: string;
+}
+
+/** RAKHAL-391 (MILESTONE 22) — `GET /purchasing/purchases`/`/purchasing/expenses` v2 filters
+ * (RAKHAL-375's `ListPurchasesQueryDto`/`ListExpensesQueryDto`, both `CursorPaginationQueryDto`
+ * subclasses). `paymentStatus` reuses `PayableStatus` — a real SQL `WHERE`, never post-filtering. */
+export interface PurchasingListFilters {
+  from?: string;
+  to?: string;
+  supplierId?: string;
+  paymentStatus?: PayableStatus;
+}
+
+export type ExpensesListFilters = PurchasingListFilters & { category?: ExpenseCategory };
+
+interface PeriodMetric {
+  current: number;
+  previous: number;
+  changePct: number | null;
+}
+
+/** `GET /purchasing/summary?from&to` (RAKHAL-375) — the AC's "This Month Summary": Total
+ * Purchases / Paid Amount / Payable / Purchase Orders, each with `previous`/`changePct`. */
+export interface PurchasingSummary {
+  period: { from: string; to: string };
+  previousPeriod: { from: string; to: string };
+  kpis: {
+    totalPurchases: PeriodMetric;
+    paidAmount: PeriodMetric;
+    payable: PeriodMetric;
+    purchaseOrders: PeriodMetric;
+  };
 }

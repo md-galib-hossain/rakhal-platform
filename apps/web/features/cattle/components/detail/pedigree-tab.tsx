@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
+import { useCattleDetailModal } from "../../context/cattle-detail-modal-context";
 import { avatarTint } from "../../avatar-tint";
 import { useCattlePedigree } from "../../hooks/use-cattle-detail-tabs";
 import type { PedigreeNode, PedigreeOffspring, PedigreeSibling } from "../../detail-types";
@@ -22,12 +23,19 @@ function NodeCard({
   highlight?: boolean;
 }) {
   const t = useTranslations("cattle.detail.pedigree");
+  const { openCattleDetail } = useCattleDetailModal();
   const label = node?.name ?? node?.tag ?? "?";
+  const isClickable = Boolean(node?.id);
+
   return (
     <div
+      onClick={() => {
+        if (node?.id) openCattleDetail(node.id);
+      }}
       className={cn(
-        "flex w-[220px] shrink-0 flex-col gap-2 rounded-xl border bg-card p-3 shadow-sm",
+        "flex w-[220px] shrink-0 flex-col gap-2 rounded-xl border bg-card p-3 shadow-sm transition-all",
         highlight ? "border-primary ring-1 ring-primary" : "border-border",
+        isClickable && "cursor-pointer hover:border-primary/50 hover:shadow-md",
       )}
     >
       <div className="flex items-center gap-2">
@@ -37,7 +45,9 @@ function NodeCard({
           </AvatarFallback>
         </Avatar>
         <div className="flex flex-col">
-          <p className="text-sm font-bold text-foreground">{node?.id ? label : t("unknown")}</p>
+          <p className={cn("text-sm font-bold text-foreground", isClickable && "hover:underline")}>
+            {node?.id ? label : t("unknown")}
+          </p>
           <p className="text-xs text-muted-foreground">{node?.tag ?? "—"}</p>
         </div>
       </div>
@@ -108,13 +118,18 @@ export function PedigreeTab({ cattleId }: { cattleId: string }) {
         ) : (
           <div className="flex flex-wrap gap-3">
             {data.offspring.map((o: PedigreeOffspring) => (
-              <div key={o.id} className="flex w-[220px] flex-col gap-1 rounded-xl border border-border bg-card p-3 shadow-sm">
-                <p className="text-sm font-bold text-foreground">{o.name ?? o.tag}</p>
+              <button
+                type="button"
+                key={o.id}
+                onClick={() => openCattleDetail(o.id)}
+                className="flex w-[220px] flex-col gap-1 rounded-xl border border-border bg-card p-3 text-left shadow-sm transition-all hover:border-primary/50 hover:shadow-md"
+              >
+                <p className="text-sm font-bold text-foreground hover:underline">{o.name ?? o.tag}</p>
                 <p className="text-xs text-muted-foreground">{o.tag}</p>
                 <Badge variant="secondary" className="w-fit">
                   {t(`genderOptions.${o.gender}`)}
                 </Badge>
-              </div>
+              </button>
             ))}
           </div>
         )}

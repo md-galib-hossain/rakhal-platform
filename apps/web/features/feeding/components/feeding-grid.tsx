@@ -15,6 +15,7 @@ import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { AnimalLink } from "@/components/shared/animal-link";
 import { Can } from "@/lib/auth/permissions";
 import { useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
 import { useFeedItemPagedList } from "@/features/inventory/hooks/use-inventory";
@@ -336,8 +337,25 @@ function FeedingGridTable({
                         aria-label={t("selectCow", { name: cow.name ?? cow.tag_number })}
                       />
                     </TableCell>
-                    <TableCell className="font-medium text-foreground">{cow.tag_number}</TableCell>
-                    <TableCell className="text-foreground">{cow.name ?? cow.tag_number}</TableCell>
+                    <TableCell className="font-medium text-foreground">
+                      <AnimalLink
+                        id={cow.cattle_id}
+                        tagNumber={cow.tag_number}
+                        className="text-foreground hover:text-primary"
+                      >
+                        {cow.tag_number}
+                      </AnimalLink>
+                    </TableCell>
+                    <TableCell className="text-foreground">
+                      <AnimalLink
+                        id={cow.cattle_id}
+                        animalName={cow.name}
+                        tagNumber={cow.tag_number}
+                        className="text-foreground hover:text-primary"
+                      >
+                        {cow.name ?? cow.tag_number}
+                      </AnimalLink>
+                    </TableCell>
                     <TableCell>
                       <div
                         className={cn(

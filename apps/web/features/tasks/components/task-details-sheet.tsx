@@ -210,6 +210,23 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
           <InfoTile label={t("category")}>
             <p className="text-sm font-bold text-foreground">{tCommon(`category.${task.category}`)}</p>
           </InfoTile>
+          {task.relatedCattle || task.cattleTags.length > 0 ? (
+            <InfoTile label={t("cow")}>
+              {task.relatedCattle ? (
+                <p className="text-sm font-bold text-foreground">
+                  {task.relatedCattle.name
+                    ? `${task.relatedCattle.tagNumber} — ${task.relatedCattle.name}`
+                    : task.relatedCattle.tagNumber}
+                </p>
+              ) : (
+                <p className="text-sm font-bold text-foreground">
+                  {task.cattleTags
+                    .map((c) => (c.name ? `${c.tagNumber} — ${c.name}` : c.tagNumber))
+                    .join(", ")}
+                </p>
+              )}
+            </InfoTile>
+          ) : null}
           <InfoTile label={t("recurrence")}>
             <p className="text-sm font-bold text-foreground">
               {task.recurring && task.recurrenceType ? tCommon(`recurrence.${task.recurrenceType}`) : t("oneOff")}
@@ -251,6 +268,28 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
           <div className="flex flex-col gap-3">
             <p className="text-xs font-medium text-muted-foreground">{t("description")}</p>
             <p className="text-sm text-foreground">{visibleDetails}</p>
+          </div>
+        ) : null}
+
+        {task.history.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-medium text-muted-foreground">{t("activity")}</p>
+            <div className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
+              {task.history.map((h, i) => (
+                <div key={h.id} className={cn("flex flex-col gap-0.5 pb-2", i < task.history.length - 1 && "border-b border-dashed border-border")}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-bold text-foreground">
+                      {t(`historyAction.${h.action}`)}
+                      {h.actorName ? ` — ${h.actorName}` : ""}
+                    </p>
+                    <p className="shrink-0 text-xs text-muted-foreground">
+                      {formatDate(h.createdAt, locale, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
+                    </p>
+                  </div>
+                  {h.note ? <p className="text-sm text-muted-foreground">{h.note}</p> : null}
+                </div>
+              ))}
+            </div>
           </div>
         ) : null}
 

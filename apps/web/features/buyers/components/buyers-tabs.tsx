@@ -2,17 +2,17 @@
 
 import { useTranslations } from "next-intl";
 import { parseAsStringEnum, useQueryState } from "nuqs";
-import { Truck, Users } from "lucide-react";
+import { Layers, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BUYER_TABS, type BuyerTabKey } from "../types";
 import { BuyersView } from "./buyers-view";
-import { DispatchesView } from "./dispatches-view";
+import { BuyerGroupsView } from "./buyer-groups-view";
 
 const TAB_KEYS = BUYER_TABS.map((t) => t.key) as [BuyerTabKey, ...BuyerTabKey[]];
 
 const TAB_ICONS: Record<BuyerTabKey, React.ComponentType<{ className?: string }>> = {
   buyers: Users,
-  dispatches: Truck,
+  groups: Layers,
 };
 
 export function BuyersTabs() {
@@ -41,7 +41,7 @@ export function BuyersTabs() {
         })}
       </div>
 
-      {tab === "buyers" ? <BuyersView /> : <DispatchesView />}
+      {tab === "buyers" ? <BuyersView /> : <BuyerGroupsView />}
     </div>
   );
 }

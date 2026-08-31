@@ -1,11 +1,12 @@
 "use client"; // list + review-dialog trigger state
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AnimalLink } from "@/components/shared/animal-link";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
@@ -17,11 +18,13 @@ import { ReviewAnomalyDialog } from "./review-anomaly-dialog";
 
 /** Flagged sessions (<70% of the cow's 7-day average, `domain/milk-anomaly.ts#isAnomaly`) — backed
  * by the real `GET /milk/anomalies` (all dates, not scoped to today, since a worker may only spot
- * and review a drop days later). */
+ * and review a drop days later). Cursor "load more" (RD-058) — a farm with 200+ flagged rows used
+ * to load them all in one unbounded response. */
 export function MilkAnomaliesPanel() {
   const t = useTranslations("milk.anomalies");
   const query = useMilkAnomalies();
   const [reviewing, setReviewing] = useState<MilkAnomaly | null>(null);
+  const anomalies = useMemo(() => query.data?.pages.flatMap((p) => p.items) ?? [], [query.data]);
 
   if (query.isLoading) {
     return (
@@ -41,8 +44,6 @@ export function MilkAnomaliesPanel() {
       </MilkCard>
     );
   }
-
-  const anomalies = query.data?.anomalies ?? [];
 
   return (
     <MilkCard title={t("title")} className="lg:col-span-5">
@@ -65,7 +66,7 @@ export function MilkAnomaliesPanel() {
             {anomalies.map((anomaly) => (
               <TableRow key={anomaly.id}>
                 <TableCell>
-                  <span className="font-medium text-foreground">{anomaly.name ?? anomaly.tag}</span>
+                  <AnimalLink id={anomaly.cattleId} animalName={anomaly.name} tagNumber={anomaly.tag} className="font-medium text-foreground" />
                   <span className="ml-1.5 text-xs text-muted-foreground">{anomaly.tag}</span>
                 </TableCell>
                 <TableCell className="text-muted-foreground">{anomaly.date}</TableCell>
@@ -95,6 +96,13 @@ export function MilkAnomaliesPanel() {
           </TableBody>
         </Table>
       )}
+      {query.hasNextPage ? (
+        <div className="flex justify-center pt-2">
+          <Button variant="outline" onClick={() => void query.fetchNextPage()} disabled={query.isFetchingNextPage}>
+            {query.isFetchingNextPage ? t("loading") : t("loadMore")}
+          </Button>
+        </div>
+      ) : null}
       <ReviewAnomalyDialog anomaly={reviewing} open={!!reviewing} onOpenChange={(open) => !open && setReviewing(null)} />
     </MilkCard>
   );

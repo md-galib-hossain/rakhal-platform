@@ -101,13 +101,12 @@ function RecordExpenseDialogBody({ onOpenChange }: { onOpenChange: (open: boolea
                 <LabeledSelectTrigger label={t("category")} />
                 <SelectContent>
                   {EXPENSE_CATEGORIES.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      <span className="flex flex-col">
-                        <span>{t(`categoryOptions.${category}`)}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {t("postsTo", { code: EXPENSE_CATEGORY_LEDGER_CODE[category] })}
-                        </span>
-                      </span>
+                    <SelectItem
+                      key={category}
+                      value={category}
+                      hint={t("postsTo", { code: EXPENSE_CATEGORY_LEDGER_CODE[category] })}
+                    >
+                      {t(`categoryOptions.${category}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -3,6 +3,7 @@
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { CattleDetailModalProvider } from "@/features/cattle/context/cattle-detail-modal-context";
 import { QueryProvider } from "./query-provider";
 import { ThemeProvider } from "./theme-provider";
 
@@ -12,8 +13,10 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       <NuqsAdapter>
         <QueryProvider>
           <TooltipProvider delayDuration={200}>
-            {children}
-            <Toaster richColors closeButton />
+            <CattleDetailModalProvider>
+              {children}
+              <Toaster richColors closeButton />
+            </CattleDetailModalProvider>
           </TooltipProvider>
         </QueryProvider>
       </NuqsAdapter>

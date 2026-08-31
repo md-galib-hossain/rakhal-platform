@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cattleApi } from "@/features/cattle/api";
+import { AnimalLink } from "@/components/shared/animal-link";
 import type { SemenBatch, SemenTank } from "../types";
 import { STRAW_COLOR_SWATCHES } from "./semen-batch-form-dialog";
 
@@ -85,7 +86,13 @@ export function SemenBatchCard({
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{t("bullId")}</span>
-          <span className="font-medium text-foreground">{bullLabel}</span>
+          {batch.bullId ? (
+            <AnimalLink id={batch.bullId} className="font-medium text-foreground hover:text-primary">
+              {bullLabel}
+            </AnimalLink>
+          ) : (
+            <span className="font-medium text-foreground">{bullLabel}</span>
+          )}
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{t("breed")}</span>

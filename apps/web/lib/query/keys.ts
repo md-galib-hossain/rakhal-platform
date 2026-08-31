@@ -173,6 +173,18 @@ export const qk = {
   },
   buyers: {
     statement: (id: string, month: string) => ["buyers", "statement", id, month] as const,
+    /** RAKHAL-389 — `GET /buyers/summary`/`.../groups`/`:id/overview` (RAKHAL-372). */
+    summaryV2: () => ["buyers", "v2", "summary"] as const,
+    groupsV2: () => ["buyers", "v2", "groups"] as const,
+    overviewV2: (id: string) => ["buyers", "v2", "overview", id] as const,
+    detailV2: (id: string) => ["buyers", "v2", "detail", id] as const,
+  },
+  /** RAKHAL-390 — Suppliers module read model (`GET /purchasing/suppliers`, `.../summary`,
+   * RAKHAL-373). Distinct from `settings.suppliers()` (`GET /settings/suppliers`, the CRUD list
+   * this module's writes still invalidate) — two different endpoints, two different cache entries. */
+  suppliers: {
+    listV2: () => ["suppliers", "v2", "list"] as const,
+    summaryV2: () => ["suppliers", "v2", "summary"] as const,
   },
   reproduction: {
     dashboard: () => ["reproduction", "dashboard"] as const,
@@ -200,6 +212,7 @@ export const qk = {
     protocol: (id: string) => ["reproduction", "protocols", "detail", id] as const,
     protocolInstances: (filters: Record<string, string | undefined>) =>
       ["reproduction", "protocols", "instances", filters] as const,
+    protocolInstance: (id: string | undefined) => ["reproduction", "protocols", "instances", "detail", id] as const,
   },
   feed: {
     ingredients: () => ["feed", "ingredients"] as const,
@@ -244,5 +257,22 @@ export const qk = {
     expenses: () => ["purchasing", "expenses", "list"] as const,
     purchases: () => ["purchasing", "purchases", "list"] as const,
     payables: () => ["purchasing", "payables", "list"] as const,
+    /** RAKHAL-391 (MILESTONE 22) — cursor-paginated, filtered `GET /purchasing/purchases` and
+     * `/purchasing/expenses` (RAKHAL-375). `filters` includes `from`/`to`/`supplierId`/`paymentStatus`
+     * (+`category` for expenses) so switching any filter or the shared `DateRangePicker` correctly
+     * refetches, same convention `finance.transactionsListV2` established. */
+    purchasesListV2: (filters: Record<string, string | undefined>) => ["purchasing", "v2", "purchases", "list", filters] as const,
+    expensesListV2: (filters: Record<string, string | undefined>) => ["purchasing", "v2", "expenses", "list", filters] as const,
+    /** `GET /purchasing/summary?from&to` (RAKHAL-375) — period-keyed like `finance.profitLossReportV2`. */
+    summaryV2: (periodKey: string) => ["purchasing", "v2", "summary", periodKey] as const,
+  },
+  /** RAKHAL-388 (MILESTONE 22) — Sales module Overview/Invoices/Dispatches. Own top-level
+   * namespace (not nested under `finance`), same reasoning `purchasing`'s own doc comment gives —
+   * Sales is its own backend module. */
+  sales: {
+    summaryV2: (periodKey: string) => ["sales", "v2", "summary", periodKey] as const,
+    invoicesListV2: (filters: Record<string, string | undefined>) => ["sales", "v2", "invoices", "list", filters] as const,
+    dispatchesListV2: (filters: Record<string, string | undefined>) => ["sales", "v2", "dispatches", "list", filters] as const,
+    dispatchesSummaryV2: () => ["sales", "v2", "dispatches", "summary"] as const,
   },
 };

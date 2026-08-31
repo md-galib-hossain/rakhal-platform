@@ -33,14 +33,75 @@ export interface Buyer {
   collectionDays: string[];
   collectionTime: string | null;
   bankDetails: string | null;
-  isActive: boolean;
+  /** RAKHAL-389 — corrected from a stale `isActive: boolean` that never matched the real schema:
+   * `MilkBuyer` (`prisma/schemas/buyer/buyer.prisma`) soft-deletes via `deletedAt`, not `isActive` —
+   * that field never existed server-side, so every buyer silently rendered "Inactive" everywhere
+   * this was read. Read directly off the schema, not assumed. */
+  deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface BuyerListFilters {
   search?: string;
-  includeInactive?: boolean;
+  /** Matches `ListBuyerQueryDto.includeArchived` exactly — was misnamed `includeInactive` and sent
+   * as a param the backend never read (`GET /buyers` always excluded archived buyers regardless of
+   * what this flag held). Fixed alongside the `isActive` correction above. */
+  includeArchived?: boolean;
+}
+
+/** One `GET /buyers` v2 list row (`BuyerService.listBuyers`, RAKHAL-372) — the plain `Buyer` fields
+ * plus 4 aggregate columns computed server-side, never re-derived client-side. */
+export interface BuyerListRow extends Buyer {
+  totalPurchased: string;
+  lastPurchaseAt: string | null;
+  outstanding: string;
+  status: "ACTIVE" | "INACTIVE";
+}
+
+/** `GET /buyers/summary` (RAKHAL-372) — the AC's 4-stat Buyer Summary. */
+export interface BuyersSummary {
+  totalBuyers: number;
+  activeBuyers: number;
+  totalSales: string;
+  totalOutstanding: string;
+}
+
+/** `GET /buyers/groups` (RAKHAL-372) — "Buyer Groups" is the existing `BuyerType` enum, not a new
+ * model: one row per enum value, zero-filled when a value has no buyers. */
+export interface BuyerGroupRow {
+  buyerType: BuyerType;
+  buyerCount: number;
+  totalSales: string;
+}
+
+/** One `GET /sales?customerId=` row for the buyer detail page's "Sales & Invoices" tab — a
+ * narrower local mirror of `features/sales/types.ts#InvoiceRow` (RAKHAL-368's `SaleListRow`)
+ * rather than a cross-feature type import, keeping this ticket's lane self-contained. */
+export interface BuyerInvoiceRow {
+  id: string;
+  saleNumber: string;
+  saleDate: string;
+  totalAmount: string;
+  paidAmount: string;
+  dueAmount: string;
+  paymentStatus: "UNPAID" | "PARTIALLY_PAID" | "PAID" | "OVERDUE";
+  dueDate: string | null;
+}
+
+/** `GET /buyers/:id/overview` (RAKHAL-372) — buyer detail page header stats + Overview tab panels. */
+export interface BuyerOverview {
+  outstandingAmount: string;
+  totalPurchasedThisYear: string;
+  lastPayment: { amount: string; date: string } | null;
+  recentInvoices: { id: string; saleNumber: string; saleDate: string; totalAmount: string; status: string }[];
+  info: {
+    phone: string | null;
+    address: string | null;
+    paymentTermsDays: number;
+    basePricePerLitre: number;
+    buyerType: BuyerType;
+  };
 }
 
 /** Mirrors `CreateBuyerDto` (also reused for update — `UpdateBuyerDto` is the same shape, all optional). */
@@ -70,11 +131,22 @@ export interface MilkPriceBreakdown {
   total: number;
 }
 
+/** Derived-only (not a stored column) — mirrors the backend's `DispatchStatus`
+ * (`domain/dispatch-status.ts`). Duplicated locally rather than imported from `features/sales/**`
+ * — a 3-value literal union, same "no cross-feature type coupling for a trivial enum" judgment
+ * call `PayableStatus` makes on the backend side. */
+export type DispatchStatus = "PENDING" | "DELIVERED" | "CANCELLED";
+
 export interface Dispatch {
   id: string;
   farmId: string;
   buyerId: string;
   buyer?: { id: string; name: string };
+  /** RAKHAL-366/389 — `DSP-NNNNNN`, real since MILESTONE 22 (`GET /milk/dispatch`/`GET
+   * /buyers/dispatches` share the same underlying `BuyerService.listDispatches` call). */
+  dispatchNumber: string;
+  driverName: string | null;
+  status: DispatchStatus;
   dispatchedAt: string;
   volumeDispatchedL: number;
   volumeReceivedL: number | null;
@@ -144,5 +216,13 @@ export interface BuyerStatement {
   dispatches: Dispatch[];
 }
 
-export const BUYER_TABS = [{ key: "buyers" }, { key: "dispatches" }] as const;
+/** RAKHAL-389 (MILESTONE 22, `BUSINESS_IA_PRD.md` §5.10) — the global "Dispatch History" tab is
+ * deleted from this page (moved to Sales → Dispatches, RAKHAL-388); replaced with "Buyer Groups"
+ * (the AC's own §5.10 tab set: `Buyers | Buyer Groups`). The per-buyer Dispatches tab still exists
+ * — it lives on the new buyer detail page (`BuyerDetailTabKey` below), not here. */
+export const BUYER_TABS = [{ key: "buyers" }, { key: "groups" }] as const;
 export type BuyerTabKey = (typeof BUYER_TABS)[number]["key"];
+
+/** Buyer detail page tabs (`BUSINESS_IA_PRD.md` §5.11). */
+export const BUYER_DETAIL_TABS = ["overview", "sales", "dispatches", "payments", "balance"] as const;
+export type BuyerDetailTabKey = (typeof BUYER_DETAIL_TABS)[number];

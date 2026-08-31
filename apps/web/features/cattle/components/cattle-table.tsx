@@ -15,6 +15,7 @@ import { Pagination } from "@/components/shared/pagination";
 import { BulkActionDock } from "@/components/shared/bulk-action-dock";
 import { CreatableSelect } from "@/components/shared/creatable-select";
 import { useTableBulkSelection, useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
+import { useCattleDetailModal } from "../context/cattle-detail-modal-context";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +29,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   useBulkCattle,
-  useCattleDetail,
   useCattlePagedList,
   useCreateFeedGroupInline,
   useCreateShedInline,
@@ -37,11 +37,6 @@ import {
 } from "../hooks/use-cattle";
 import { buildCattleColumns } from "./cattle-columns";
 import { CattleGrid } from "./cattle-grid";
-import { CattleFormDialog } from "./cattle-form-dialog";
-import { CattleDisposeDialog } from "./cattle-dispose-dialog";
-import { CattleDeleteDialog } from "./cattle-delete-dialog";
-import { RecordSaleDialog } from "@/features/sales/components/record-sale-wizard";
-import { CattleDetailSheet } from "./detail/cattle-detail-sheet";
 import type {
   AnimalCategory,
   BulkDisposeType,
@@ -71,20 +66,12 @@ export function CattleTable() {
   const can = useCan();
   const canBulk = can("cattle.bulk");
   const searchParams = useSearchParams();
+  const { openCattleDetail } = useCattleDetailModal();
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [editingId, setEditingId] = useState<string | undefined>(undefined);
-  const [formOpen, setFormOpen] = useState(false);
-  const [disposeTarget, setDisposeTarget] = useState<CattleListItem | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<CattleListItem | null>(null);
-  const [saleTarget, setSaleTarget] = useState<CattleListItem | null>(null);
   const [shedDialogOpen, setShedDialogOpen] = useState(false);
   const [feedGroupDialogOpen, setFeedGroupDialogOpen] = useState(false);
   const [shedId, setShedId] = useState<string | undefined>(undefined);
   const [feedGroupId, setFeedGroupId] = useState<string | undefined>(undefined);
-  /** URL-synced (`?view=`) rather than local state — the drawer is the *only* cattle detail view
-   * now (no standalone `/cattle/:id` page), so its own deep link has to live here for the redirect
-   * in `app/(app)/cattle/[id]/page.tsx` to have somewhere to land. */
-  const [viewId, setViewId] = useQueryState("view", parseAsString);
   /** RAKHAL-042's "cards (mobile default)" AC — seeded from viewport width on mount (SSR-safe
    * `useMediaQuery`, starts `false`/table so it never fights hydration), then a manual toggle
    * (same `LayoutGrid`/`List` pair `InventoryTabs` already uses) lets either device switch freely
@@ -108,7 +95,6 @@ export function CattleTable() {
   };
 
   const query = useCattlePagedList(filters);
-  const editingDetail = useCattleDetail(editingId);
   const bulk = useBulkCattle();
   const sheds = useSheds();
   const feedGroups = useFeedGroups();
@@ -120,9 +106,9 @@ export function CattleTable() {
   const columns = useMemo(
     () =>
       buildCattleColumns(t, {
-        onView: (cattle) => void setViewId(cattle.id),
+        onView: (cattle) => openCattleDetail(cattle.id),
       }),
-    [t, setViewId],
+    [t, openCattleDetail],
   );
 
   const allIds = items.map((c) => c.id);
@@ -227,7 +213,7 @@ export function CattleTable() {
           isError={query.isError}
           onRetry={() => query.refetch()}
           rowActions={{
-            onView: (cattle) => void setViewId(cattle.id),
+            onView: (cattle) => openCattleDetail(cattle.id),
           }}
           canSelect={canBulk}
           isSelected={gridSelection.isSelected}
@@ -247,57 +233,6 @@ export function CattleTable() {
           query.setPageSize(size);
           setRowSelection({});
         }}
-      />
-
-      <CattleDetailSheet
-        cattleId={viewId ?? undefined}
-        onOpenChange={(open) => !open && void setViewId(null)}
-        onEdit={(cattle) => {
-          void setViewId(null);
-          setEditingId(cattle.id);
-          setFormOpen(true);
-        }}
-        onDispose={(cattle) => {
-          void setViewId(null);
-          setDisposeTarget(cattle);
-        }}
-        onDelete={(cattle) => {
-          void setViewId(null);
-          setDeleteTarget(cattle);
-        }}
-      />
-      <CattleFormDialog
-        open={formOpen}
-        onOpenChange={(open) => {
-          setFormOpen(open);
-          if (!open) setEditingId(undefined);
-        }}
-        cattle={editingDetail.data}
-        loading={Boolean(editingId) && !editingDetail.data}
-      />
-      <CattleDisposeDialog
-        open={disposeTarget !== null}
-        onOpenChange={(open) => !open && setDisposeTarget(null)}
-        cattle={disposeTarget}
-        onRequestSale={setSaleTarget}
-      />
-      <RecordSaleDialog
-        open={saleTarget !== null}
-        onOpenChange={(open) => !open && setSaleTarget(null)}
-        initial={
-          saleTarget
-            ? {
-                type: "ANIMAL",
-                cattleId: saleTarget.id,
-                cattleLabel: `${saleTarget.tagNumber}${saleTarget.name ? ` — ${saleTarget.name}` : ""}`,
-              }
-            : undefined
-        }
-      />
-      <CattleDeleteDialog
-        open={deleteTarget !== null}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        cattle={deleteTarget}
       />
 
       <Dialog open={shedDialogOpen} onOpenChange={setShedDialogOpen}>

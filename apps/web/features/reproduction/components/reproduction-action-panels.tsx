@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
+import { AnimalLink } from "@/components/shared/animal-link";
 import { DateText } from "@/components/shared/date-text";
 import { useReproductionDashboard } from "../hooks/use-reproduction";
 import type {
@@ -20,12 +21,12 @@ function Row({ children }: { children: React.ReactNode }) {
   return <div className="flex items-center justify-between gap-3 border-b border-border py-2 last:border-0">{children}</div>;
 }
 
-function CowLabel({ name, tag }: { name: string | null; tag: string }) {
+function CowLabel({ cattleId, name, tag }: { cattleId: string; name: string | null; tag: string }) {
   return (
-    <div className="flex flex-col">
-      <span className="text-sm font-medium text-foreground">{name ?? tag}</span>
+    <AnimalLink id={cattleId} animalName={name} tagNumber={tag} className="flex flex-col text-left group font-normal">
+      <span className="text-sm font-medium text-foreground group-hover:underline">{name ?? tag}</span>
       {name ? <span className="text-xs text-muted-foreground">{tag}</span> : null}
-    </div>
+    </AnimalLink>
   );
 }
 
@@ -73,7 +74,7 @@ export function ReproductionActionPanels({
           emptyLabel={t("emptyReadyForAi")}
           renderRow={(row: ReadyForAiRow) => (
             <Row key={row.cattle_id}>
-              <CowLabel name={row.name} tag={row.tag} />
+              <CowLabel cattleId={row.cattle_id} name={row.name} tag={row.tag} />
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">{t("daysOpen", { value: row.days_open ?? 0 })}</span>
                 <Button size="sm" variant="outline" onClick={() => onRecordAi(row.cattle_id)}>
@@ -91,7 +92,7 @@ export function ReproductionActionPanels({
           emptyLabel={t("emptyInHeatNow")}
           renderRow={(row: InHeatNowRow) => (
             <Row key={row.cattle_id}>
-              <CowLabel name={row.name} tag={row.tag} />
+              <CowLabel cattleId={row.cattle_id} name={row.name} tag={row.tag} />
               <div className="flex items-center gap-2">
                 <DateText date={row.heat_observed_at} relative className="text-xs text-muted-foreground" />
                 <Button size="sm" variant="outline" onClick={() => onRecordAi(row.cattle_id)}>
@@ -109,7 +110,7 @@ export function ReproductionActionPanels({
           emptyLabel={t("emptyPregnancyCheckDue")}
           renderRow={(row: PregnancyCheckDueRow) => (
             <Row key={row.cattle_id}>
-              <CowLabel name={row.name} tag={row.tag} />
+              <CowLabel cattleId={row.cattle_id} name={row.name} tag={row.tag} />
               <div className="flex items-center gap-2">
                 <DateText date={row.ai_date} className="text-xs text-muted-foreground" />
                 <Button
@@ -138,7 +139,7 @@ export function ReproductionActionPanels({
           emptyLabel={t("emptyCalvingNext7Days")}
           renderRow={(row: CalvingNext7DaysRow) => (
             <Row key={row.cattle_id}>
-              <CowLabel name={row.name} tag={row.tag} />
+              <CowLabel cattleId={row.cattle_id} name={row.name} tag={row.tag} />
               <div className="flex items-center gap-2">
                 <span
                   className={
@@ -168,7 +169,7 @@ export function ReproductionActionPanels({
           emptyLabel={t("emptyDryoffDue14Days")}
           renderRow={(row: DryoffDue14DaysRow) => (
             <Row key={row.cattle_id}>
-              <CowLabel name={row.name} tag={row.tag} />
+              <CowLabel cattleId={row.cattle_id} name={row.name} tag={row.tag} />
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">
                   {t("dryoffTarget")} <DateText date={row.dryoff_target_date} />

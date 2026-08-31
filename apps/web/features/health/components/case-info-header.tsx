@@ -6,6 +6,7 @@ import type { Locale } from "@/lib/constants/i18n";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Chip } from "@/components/ui/chip";
 import { formatDate } from "@/lib/format";
+import { AnimalLink } from "@/components/shared/animal-link";
 import { diagnosisChipVariant, priorityChipVariant } from "../format";
 import { ProgressRing } from "./progress-ring";
 import type { HealthCaseDetail } from "../types";
@@ -31,14 +32,21 @@ export function CaseInfoHeader({ healthCase }: { healthCase: HealthCaseDetail })
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-border p-3">
       <div className="flex items-center gap-3">
-        <Avatar className="size-12">
-          {healthCase.cattle.image ? <AvatarImage src={healthCase.cattle.image} alt="" /> : null}
-          <AvatarFallback>{(healthCase.cattle.name ?? healthCase.cattle.tagNumber).slice(0, 1)}</AvatarFallback>
-        </Avatar>
-        <div className="flex flex-col">
-          <p className="text-base font-semibold text-foreground">{healthCase.cattle.name ?? healthCase.cattle.tagNumber}</p>
-          <p className="text-sm text-muted-foreground">{healthCase.cattle.tagNumber}</p>
-        </div>
+        <AnimalLink
+          id={healthCase.cattle.id}
+          animalName={healthCase.cattle.name}
+          tagNumber={healthCase.cattle.tagNumber}
+          className="flex items-center gap-3 text-left group font-normal"
+        >
+          <Avatar className="size-12">
+            {healthCase.cattle.image ? <AvatarImage src={healthCase.cattle.image} alt="" /> : null}
+            <AvatarFallback>{(healthCase.cattle.name ?? healthCase.cattle.tagNumber).slice(0, 1)}</AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col">
+            <p className="text-base font-semibold text-foreground group-hover:underline">{healthCase.cattle.name ?? healthCase.cattle.tagNumber}</p>
+            <p className="text-sm text-muted-foreground">{healthCase.cattle.tagNumber}</p>
+          </div>
+        </AnimalLink>
         {healthCase.isSafetyWithholdingActive && safeDate ? (
           <div className="flex flex-1 items-start gap-2 rounded-md bg-warning-tint px-3 py-2 text-warning">
             <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />

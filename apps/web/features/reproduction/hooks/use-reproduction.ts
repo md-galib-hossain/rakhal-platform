@@ -219,10 +219,14 @@ export function useUpdatePlannedDryOff() {
   });
 }
 
+/** Cursor "load more" (RAKHAL-407 follow-up) — same `useInfiniteQuery` contract
+ * `useReproductionCows`/`useMilkQualityTests` established. */
 export function useProtocols() {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: qk.reproduction.protocols(),
-    queryFn: () => reproductionApi.protocols(),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) => reproductionApi.protocols(pageParam, 10),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => (lastPage.meta.hasNextPage ? lastPage.meta.endCursor : undefined),
     staleTime: STALE_TIME,
   });
 }
@@ -246,14 +250,29 @@ export function useProtocolKpis() {
   });
 }
 
+/** Cursor "load more" for the protocol instances list (applied cows) — same pattern as
+ * `useProtocols`/`useReproductionCows`. */
 export function useProtocolInstances(filters: ProtocolInstanceListFilters) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: qk.reproduction.protocolInstances({
       protocolId: filters.protocolId,
       cattleId: filters.cattleId,
       status: filters.status,
     }),
-    queryFn: () => reproductionApi.protocolInstances(filters),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      reproductionApi.protocolInstances(filters, pageParam, 10),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => (lastPage.meta.hasNextPage ? lastPage.meta.endCursor : undefined),
+    staleTime: STALE_TIME,
+  });
+}
+
+/** Backs the "Apply Protocol" dialog's auto-opened timeline sheet (user request, no ticket #). */
+export function useProtocolInstance(id?: string) {
+  return useQuery({
+    queryKey: qk.reproduction.protocolInstance(id),
+    queryFn: () => reproductionApi.protocolInstance(id!),
+    enabled: Boolean(id),
     staleTime: STALE_TIME,
   });
 }

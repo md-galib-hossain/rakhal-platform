@@ -1,9 +1,11 @@
 /**
  * Mirrors `rakhal-backend/src/modules/milk/application/services/milk.service.ts` response shapes
  * exactly (read directly from the service, not the aspirational `Rakhal_API.md` §6 — e.g.
- * `logTable`/`anomalies` return flat objects, not cursor pages; `sessionsStatus`/`sessionConfig`
- * are real, not invented). `/milk/quality` (API §6) is skipped — V1.5, backend not built.
+ * `logTable` returns a flat object, not a cursor page; `sessionsStatus`/`sessionConfig` are real,
+ * not invented; `anomalies` IS cursor-paginated as of RD-058). `/milk/quality` (API §6) is
+ * skipped — V1.5, backend not built.
  */
+import type { CursorPage } from "@/types/api";
 
 export const MILK_SESSIONS = ["MORNING", "NOON", "EVENING", "NIGHT"] as const;
 export type MilkSession = (typeof MILK_SESSIONS)[number];
@@ -122,9 +124,10 @@ export interface MilkAnomaly {
   reviewed: boolean;
 }
 
-export interface MilkAnomaliesResponse {
-  anomalies: MilkAnomaly[];
-}
+/** `GET /milk/anomalies` — cursor-paginated (RD-058: an unbounded `findMany` used to load every
+ * flagged row for the farm in one response). Mirrors the shared `CursorPage<T>` envelope every
+ * other cursor list in this codebase returns. */
+export type MilkAnomaliesResponse = CursorPage<MilkAnomaly>;
 
 export interface ReviewAnomalyInput {
   action: string;

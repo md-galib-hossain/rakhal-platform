@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { AnimalLink } from "@/components/shared/animal-link";
 import { diagnosisChipVariant, formatDoseWhen } from "../format";
 import { useDeleteHealthCase } from "../hooks/use-health";
 import { ProgressRing } from "./progress-ring";
@@ -86,16 +87,21 @@ export function SickBayTable({
             return (
               <tr key={item.id} className="border-t border-border">
                 <td className="px-2 py-2">
-                  <div className="flex items-center gap-2">
+                  <AnimalLink
+                    id={item.cattle.id}
+                    animalName={item.cattle.name}
+                    tagNumber={item.cattle.tagNumber}
+                    className="flex items-center gap-2 text-left group font-normal"
+                  >
                     <Avatar className="size-8">
                       {item.cattle.image ? <AvatarImage src={item.cattle.image} alt="" /> : null}
                       <AvatarFallback>{(item.cattle.name ?? item.cattle.tagNumber).slice(0, 1)}</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col">
-                      <p className="text-sm font-medium text-foreground">{item.cattle.name ?? item.cattle.tagNumber}</p>
+                      <p className="text-sm font-medium text-foreground group-hover:underline">{item.cattle.name ?? item.cattle.tagNumber}</p>
                       <p className="text-xs text-muted-foreground">{item.cattle.tagNumber}</p>
                     </div>
-                  </div>
+                  </AnimalLink>
                 </td>
                 <td className="px-2 py-2 text-sm text-foreground">{item.shedName ?? "—"}</td>
                 <td className="px-2 py-2">

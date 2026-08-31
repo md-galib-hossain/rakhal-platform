@@ -12,19 +12,20 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { MoneyInput } from "@/components/shared/money-input";
 import { AccountPicker } from "@/features/finance/components/account-picker";
 import { formatMoney } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { ItemPicker } from "./item-picker";
+import { SupplierPicker } from "./supplier-picker";
 import { useCreatePurchase } from "../hooks/use-purchasing";
 import { computePurchaseOutstanding, computePurchaseTotal, purchaseFormSchema, type PurchaseFormInput } from "../schemas";
 import type { CreatePurchasePayload, PurchasableItemOption } from "../types";
 
 function toPayload(values: PurchaseFormInput): CreatePurchasePayload {
   return {
-    supplierId: values.supplierId?.trim() || undefined,
+    supplierId: values.supplierId,
     purchaseDate: values.purchaseDate,
     notes: values.notes?.trim() || undefined,
     lines: values.lines.map((line) => ({
@@ -50,11 +51,10 @@ const EMPTY_LINE = { itemKind: "MEDICINE" as const, itemId: "", itemName: "", qu
  * Posts to `POST /purchasing/purchases` (RAKHAL-348, live) — one atomic transaction server-side:
  * document + lines + real stock increment + journal + (if not fully paid) a `Payable`.
  *
- * **Supplier is free text**, not a picker — `CreatePurchaseDto.supplierId`'s own doc comment says
- * plainly "no generic Supplier entity exists yet" (a plain nullable scalar, not a `@relation`). A
- * `Supplier` entity *does* exist in `features/settings/**` (RAKHAL-032, milk-buyer context) but is
- * unrelated — wiring this field to that picker would misrepresent an unvalidated free-text column as
- * a real foreign key, so this form uses a plain text input instead, honestly matching the schema.
+ * **Supplier is now a required `SupplierPicker`** (RAKHAL-391, MILESTONE 22) — RAKHAL-365 promoted
+ * `Purchase.supplierId` to a real `Supplier` FK, and `BUSINESS_IA_PRD.md` §5.13's field table marks
+ * it required in this modal (stricter than the DTO, which stays optional server-side for a walk-up
+ * cash purchase). The stale RAKHAL-359 free-text field this doc comment used to describe is gone.
  *
  * Unlike Record Expense, payment here can be **partial** — `paidAmount` is a free amount up to the
  * computed total (not an implicit "full amount" flag), matching `CreatePurchaseDto.paidAmount`'s own
@@ -120,7 +120,13 @@ function RecordPurchaseDialogBody({ onOpenChange }: { onOpenChange: (open: boole
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-4">
           <div className="grid grid-cols-2 gap-3">
-            <LabeledInput id="supplierId" label={t("supplier")} placeholder={t("supplierPlaceholder")} {...form.register("supplierId")} />
+            <Controller
+              control={form.control}
+              name="supplierId"
+              render={({ field, fieldState }) => (
+                <SupplierPicker value={field.value} onChange={field.onChange} error={fieldState.error?.message} />
+              )}
+            />
             <Controller
               control={form.control}
               name="purchaseDate"
@@ -155,12 +161,28 @@ function RecordPurchaseDialogBody({ onOpenChange }: { onOpenChange: (open: boole
             <span className="text-base font-bold text-foreground">{formatMoney(total, locale)}</span>
           </div>
 
-          <div className="flex items-center justify-between rounded-xl border border-input bg-card px-4 py-3">
-            <div className="flex flex-col">
-              <Label htmlFor="paidNow">{t("payNow")}</Label>
-              <span className="text-xs text-muted-foreground">{t("payNowHint")}</span>
-            </div>
-            <Controller control={form.control} name="paidNow" render={({ field }) => <Switch id="paidNow" checked={field.value} onCheckedChange={field.onChange} />} />
+          <div className="flex flex-col gap-2">
+            <Label>{t("paymentType")}</Label>
+            <Controller
+              control={form.control}
+              name="paidNow"
+              render={({ field }) => (
+                <RadioGroup
+                  value={field.value ? "PAID_NOW" : "BUY_ON_CREDIT"}
+                  onValueChange={(v) => field.onChange(v === "PAID_NOW")}
+                  className="grid grid-cols-2 gap-3"
+                >
+                  <label className="flex items-center gap-2 rounded-xl border border-input bg-card px-4 py-3 text-sm font-medium text-foreground">
+                    <RadioGroupItem value="PAID_NOW" id="payment-type-paid-now" />
+                    {t("payNow")}
+                  </label>
+                  <label className="flex items-center gap-2 rounded-xl border border-input bg-card px-4 py-3 text-sm font-medium text-foreground">
+                    <RadioGroupItem value="BUY_ON_CREDIT" id="payment-type-credit" />
+                    {t("buyOnCredit")}
+                  </label>
+                </RadioGroup>
+              )}
+            />
           </div>
 
           {paidNow ? (

@@ -1,13 +1,13 @@
 "use client"; // infinite query + column defs
 
 import { useMemo } from "react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Chip, type ChipProps } from "@/components/ui/chip";
 import { DataTable } from "@/components/shared/data-table";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
+import { SourceReference } from "@/components/shared/source-reference";
 import { useTransactionsList } from "./hooks";
 import type { TransactionRow, TransactionsFilters } from "./types";
 
@@ -45,14 +45,7 @@ export function TransactionsTable({ filters }: { filters: TransactionsFilters })
         header: t("columns.reference"),
         cell: ({ row }) => {
           const { reference, source } = row.original;
-          const text = reference ?? t("noReference");
-          return source.href ? (
-            <Link href={source.href} className="text-sm font-medium text-primary hover:underline">
-              {text}
-            </Link>
-          ) : (
-            <span className="text-sm font-medium text-foreground">{text}</span>
-          );
+          return <SourceReference label={reference ?? t("noReference")} href={source.href} />;
         },
       },
       {

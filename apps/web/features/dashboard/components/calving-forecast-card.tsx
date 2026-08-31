@@ -6,11 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
+import { useCattleDetailModal } from "@/features/cattle/context/cattle-detail-modal-context";
 import { useCalvingForecast } from "../hooks/use-dashboard-widgets";
 import { DashboardCard } from "./dashboard-card";
 
 export function CalvingForecastCard() {
   const t = useTranslations("dashboard.calvingForecast");
+  const { openCattleDetail } = useCattleDetailModal();
   const query = useCalvingForecast();
 
   if (query.isLoading) return <CardSkeleton lines={3} className="rounded-2xl" />;
@@ -30,18 +32,19 @@ export function CalvingForecastCard() {
         <ul className="flex flex-1 flex-col gap-2">
           {query.data.forecast.map((item) => (
             <li key={item.cattleId}>
-              <Link
-                href={`/reproduction/calving/${item.cattleId}`}
-                className="flex items-center justify-between gap-3 rounded-md px-2 py-2 text-sm transition-colors hover:bg-muted"
-              >
-                <span className="min-w-0 truncate text-foreground">
-                  {item.name || item.tag}
+              <div className="flex items-center justify-between gap-3 rounded-md px-2 py-2 text-sm transition-colors hover:bg-muted">
+                <button
+                  type="button"
+                  onClick={() => openCattleDetail(item.cattleId)}
+                  className="min-w-0 truncate text-left text-foreground hover:underline focus-visible:outline-none"
+                >
+                  <span className="font-medium">{item.name || item.tag}</span>
                   {item.shed ? <span className="ml-1.5 text-xs text-muted-foreground">· {item.shed}</span> : null}
-                </span>
+                </button>
                 <Badge variant={item.daysRemaining != null && item.daysRemaining <= 3 ? "warning" : "outline"}>
                   {t("daysRemaining", { days: item.daysRemaining ?? "—" })}
                 </Badge>
-              </Link>
+              </div>
             </li>
           ))}
         </ul>

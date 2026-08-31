@@ -50,7 +50,9 @@ export function useLogout() {
       await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
     },
     onSuccess: () => {
-      queryClient.setQueryData(qk.auth.session(), null);
+      // Drop all farm-scoped cache (cattle, inventory, dashboard, ...), not just session —
+      // else next login shows stale data from the previous account/farm until refresh.
+      queryClient.clear();
       router.push("/login");
     },
   });

@@ -6,6 +6,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Chip, type ChipProps } from "@/components/ui/chip";
 import { DataTable } from "@/components/shared/data-table";
 import { DateText } from "@/components/shared/date-text";
+import { AnimalLink } from "@/components/shared/animal-link";
 import { useReproductionCows } from "../hooks/use-reproduction";
 import type { ReproductionCowRow, ReproductiveStatus } from "../types";
 import { ReproductionCard } from "./reproduction-card";
@@ -34,10 +35,15 @@ export function ReproductionCowList() {
         id: "cow",
         header: t("columns.cow"),
         cell: ({ row }) => (
-          <div className="flex flex-col">
-            <span className="font-medium text-foreground">{row.original.name ?? row.original.tag}</span>
+          <AnimalLink
+            id={row.original.cattle_id}
+            animalName={row.original.name}
+            tagNumber={row.original.tag}
+            className="flex flex-col text-left group font-normal"
+          >
+            <span className="font-medium text-foreground group-hover:underline">{row.original.name ?? row.original.tag}</span>
             {row.original.name ? <span className="text-xs text-muted-foreground">{row.original.tag}</span> : null}
-          </div>
+          </AnimalLink>
         ),
       },
       {

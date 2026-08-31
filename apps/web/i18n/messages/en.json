@@ -73,7 +73,10 @@
   "farmSelector": {
     "switchHint": "Switch farm",
     "yourFarm": "Your farm",
-    "switchComingSoon": "Switch organization (coming soon)"
+    "yourFarms": "Your farms",
+    "current": "Current",
+    "switching": "Switching…",
+    "onlyOneFarm": "You're only a member of this farm"
   },
   "upgrade": {
     "title": "Go PRO",
@@ -2240,7 +2243,9 @@
       "saving": "Saving…",
       "markReviewed": "Mark Reviewed",
       "reviewedToast": "Anomaly marked as reviewed.",
-      "reviewError": "Could not save the review. Please try again."
+      "reviewError": "Could not save the review. Please try again.",
+      "loadMore": "Load more",
+      "loading": "Loading…"
     }
   },
   "reproduction": {
@@ -2544,6 +2549,7 @@
         "protocolPlaceholder": "Select a protocol",
         "stepCount": "{count} steps",
         "cattle": "Cows",
+        "cattlePlaceholder": "Select cattle…",
         "removeCow": "Remove",
         "startDate": "Start date",
         "submit": "Apply Protocol",
@@ -2589,10 +2595,45 @@
       "applied": "{value} applied",
       "inProgress": "{value} in progress",
       "conceptionRate": "{value}% conception",
-      "activeInstances": "Active Instances",
+      "activeInstances": "Protocol Instances",
       "currentStepDay": "Day {value}",
-      "emptyInstances": "No active protocol instances.",
+      "emptyInstances": "No protocol instances.",
+      "loadMore": "Load more",
+      "loading": "Loading…",
+      "instanceTabs": {
+        "IN_PROGRESS": "In Progress",
+        "COMPLETED": "Completed",
+        "CANCELLED": "Cancelled",
+        "FAILED": "Failed",
+        "ALL": "All",
+        "empty": {
+          "IN_PROGRESS": "No protocol instances in progress.",
+          "COMPLETED": "No completed protocol instances.",
+          "CANCELLED": "No cancelled protocol instances.",
+          "FAILED": "No failed protocol instances.",
+          "ALL": "No protocol instances yet."
+        }
+      },
+      "statusValue": {
+        "DRAFT": "Draft",
+        "SCHEDULED": "Scheduled",
+        "IN_PROGRESS": "In Progress",
+        "COMPLETED": "Completed",
+        "CANCELLED": "Cancelled",
+        "FAILED": "Failed"
+      },
+      "pregnancyOutcome": {
+        "WAITING_PD": "Waiting for PD check",
+        "PREGNANT": "Pregnant",
+        "OPEN": "Open",
+        "PREGNANCY_LOSS": "Pregnancy loss"
+      },
       "viewTimeline": "Timeline",
+      "detail": {
+        "close": "Close",
+        "dayLabel": "Day {value}",
+        "noSteps": "No steps defined."
+      },
       "timeline": {
         "title": "{protocol} — Timeline",
         "close": "Close",
@@ -3443,6 +3484,12 @@
       "overdue": "Overdue",
       "blocked": "Blocked"
     },
+    "dateFilters": {
+      "all": "All Dates",
+      "today": "Today",
+      "week": "This Week",
+      "month": "This Month"
+    },
     "status": {
       "pending": "Pending",
       "in_progress": "In Progress",
@@ -3466,6 +3513,7 @@
       "dueDate": "Due Date",
       "overdueBy": "Overdue by {hours}h",
       "category": "Category",
+      "cow": "Cow",
       "assignedTo": "Assigned to",
       "unassigned": "Unassigned",
       "seeDetails": "See Details"
@@ -3519,11 +3567,20 @@
       "overdueBy": "Overdue by {hours}h",
       "taskPriority": "Task Priority",
       "category": "Category",
+      "cow": "Cow",
       "recurrence": "Recurrence",
       "oneOff": "One-off",
       "assignTo": "Assign To",
       "unassigned": "Unassigned",
       "description": "Task Description",
+      "activity": "Activity",
+      "historyAction": {
+        "CREATED": "Created",
+        "UPDATED": "Updated",
+        "COMPLETED": "Completed",
+        "REOPENED": "Reopened",
+        "CANCELLED": "Cancelled"
+      },
       "reassignTo": "Reassign to",
       "reassign": "Reassign",
       "markComplete": "Completed",
@@ -3555,6 +3612,28 @@
     }
   },
   "finance": {
+    "voidDocument": {
+      "cancelButton": "Cancel",
+      "genericError": "Something went wrong. Please try again.",
+      "cancel": {
+        "title": "Cancel {label}?",
+        "description": "This reverses its ledger entry and any physical side effect (stock/tank/animal). This cannot be undone.",
+        "confirm": "Cancel Document",
+        "successToast": "{label} cancelled."
+      },
+      "refund": {
+        "title": "Refund {label}?",
+        "description": "This reverses every payment allocated to this document, plus its ledger entry and any physical side effect. This cannot be undone.",
+        "confirm": "Refund Document",
+        "successToast": "{label} refunded."
+      },
+      "void": {
+        "title": "Void {label}?",
+        "description": "This reverses its ledger entry and any stock it added. A document with an allocated payment cannot be voided — refund the payment first.",
+        "confirm": "Void Document",
+        "successToast": "{label} voided."
+      }
+    },
     "actions": {
       "wallet": "Wallet",
       "record": "Record",
@@ -3598,19 +3677,6 @@
         "expenses": "Expenses",
         "netProfit": "Net Profit",
         "netCashFlow": "Net Cash Flow"
-      },
-      "quickActions": {
-        "newTransaction": "New Transaction",
-        "recordExpense": "Record Expense",
-        "receivePayment": "Receive Payment",
-        "makePayment": "Make Payment",
-        "transferMoney": "Transfer Money",
-        "transferOwnerOnlyTooltip": "Only the farm owner can transfer between accounts",
-        "recordSaleHint": "Recording a sale?",
-        "goToSales": "Go to Sales →",
-        "recordPurchaseHint": "Recording a purchase?",
-        "goToPurchasing": "Go to Purchasing →",
-        "transferCopy": "Transfers move money between your accounts. They are not income or expense."
       },
       "receivablesPanel": {
         "title": "Outstanding Receivables",
@@ -4473,18 +4539,34 @@
   "buyers": {
     "tabs": {
       "buyers": "Buyers",
-      "dispatches": "Dispatch History"
+      "groups": "Buyer Groups"
+    },
+    "summary": {
+      "totalBuyers": "Total Buyers",
+      "activeBuyers": "Active Buyers",
+      "totalSales": "Total Sales",
+      "totalOutstanding": "Total Outstanding",
+      "error": "Couldn't load the buyer summary."
+    },
+    "groups": {
+      "typeOptions": {
+        "DAIRY_COMPANY": "Dairy Company",
+        "COOPERATIVE": "Cooperative",
+        "LOCAL_TRADER": "Local Trader",
+        "DIRECT_CONSUMER": "Direct Consumer"
+      },
+      "buyerCount": "{count, plural, one {# buyer} other {# buyers}}",
+      "error": "Couldn't load buyer groups."
     },
     "list": {
       "searchPlaceholder": "Search buyers",
       "addBuyer": "Add Buyer",
       "columns": {
-        "name": "Name",
-        "type": "Type",
+        "name": "Buyer Name",
         "phone": "Phone",
-        "basePrice": "Base Price/L",
-        "paymentTerms": "Payment Terms",
-        "status": "Status"
+        "outstanding": "Outstanding",
+        "totalPurchased": "Total Purchased",
+        "lastPurchase": "Last Purchase"
       },
       "typeOptions": {
         "DAIRY_COMPANY": "Dairy Company",
@@ -4511,9 +4593,20 @@
       "deactivateDescription": "Deactivate {name}? They will no longer appear in the active buyer list.",
       "deactivateConfirm": "Deactivate"
     },
+    "picker": {
+      "buyer": "Buyer",
+      "selectBuyer": "Select a buyer",
+      "searchBuyer": "Search buyers",
+      "noBuyersFound": "No buyers found.",
+      "loading": "Loading…",
+      "addBuyer": "+ Add new buyer"
+    },
     "form": {
       "createTitle": "Add Buyer",
       "editTitle": "Edit Buyer",
+      "basicInfo": "Basic Info",
+      "pricingTerms": "Pricing & Terms",
+      "note": "Note",
       "name": "Buyer Name",
       "buyerType": "Buyer Type",
       "typeOptions": {
@@ -4570,21 +4663,59 @@
       "dispatchesTitle": "Dispatches",
       "noDispatches": "No dispatches this month."
     },
-    "dispatchHistory": {
-      "buyerFilter": "Buyer",
-      "recordDispatch": "Record Dispatch",
-      "columns": {
-        "date": "Date",
-        "buyer": "Buyer",
-        "volumeDispatched": "Dispatched",
-        "volumeReceived": "Received",
-        "discrepancy": "Discrepancy",
-        "amount": "Amount",
-        "paymentDueDate": "Due Date"
+    "detail": {
+      "backToBuyers": "Back to Buyers",
+      "editBuyer": "Edit Buyer",
+      "overviewError": "Couldn't load buyer overview.",
+      "outstandingAmount": "Outstanding Amount",
+      "totalPurchased": "Total Purchased",
+      "thisYear": "This year",
+      "lastPayment": "Last Payment",
+      "tabs": {
+        "overview": "Overview",
+        "sales": "Sales & Invoices",
+        "dispatches": "Dispatches",
+        "payments": "Payments",
+        "balance": "Balance"
       },
-      "empty": {
-        "title": "No dispatches yet",
-        "description": "Recorded dispatches will show up here."
+      "overview": {
+        "error": "Couldn't load buyer overview.",
+        "recentInvoices": "Recent Invoices",
+        "viewAllInvoices": "View all invoices →",
+        "noInvoices": "No invoices yet.",
+        "buyerInfo": "Buyer Info",
+        "phone": "Phone",
+        "address": "Address",
+        "paymentTerms": "Payment Terms",
+        "paymentTermsDays": "{days} days",
+        "defaultMilkRate": "Default Milk Rate",
+        "buyerGroup": "Buyer Group",
+        "typeOptions": {
+          "DAIRY_COMPANY": "Dairy Company",
+          "COOPERATIVE": "Cooperative",
+          "LOCAL_TRADER": "Local Trader",
+          "DIRECT_CONSUMER": "Direct Consumer"
+        }
+      },
+      "sales": {
+        "invoiceNo": "Invoice No",
+        "date": "Date",
+        "totalAmount": "Total Amount",
+        "status": "Status",
+        "dueDate": "Due Date",
+        "emptyTitle": "No invoices yet",
+        "emptyDescription": "This buyer's invoices will show up here."
+      },
+      "dispatches": {
+        "dispatchNo": "Dispatch No",
+        "date": "Date",
+        "volume": "Volume",
+        "status": "Status",
+        "driver": "Driver",
+        "amount": "Amount",
+        "statusOptions": { "PENDING": "Pending", "DELIVERED": "Delivered", "CANCELLED": "Cancelled" },
+        "emptyTitle": "No dispatches yet",
+        "emptyDescription": "This buyer's dispatches will show up here."
       }
     }
   },
@@ -5354,8 +5485,6 @@
     "recordPurchase": {
       "title": "Record Purchase",
       "close": "Close",
-      "supplier": "Supplier",
-      "supplierPlaceholder": "Supplier name (optional)",
       "purchaseDate": "Purchase date",
       "lines": "Items purchased",
       "quantity": "Quantity",
@@ -5364,18 +5493,43 @@
       "removeLine": "Remove line",
       "addLine": "Add another item",
       "purchaseTotal": "Purchase total",
-      "payNow": "Pay now",
-      "payNowHint": "Pay part or all of the total immediately from an account.",
+      "paymentType": "Payment type",
+      "payNow": "Paid Now",
+      "buyOnCredit": "Buy on Credit",
       "amountPaid": "Amount paid",
       "payFromAccount": "Pay from account",
       "payableRaised": "Payable raised (unpaid remainder)",
       "dueDateOptional": "Due date (optional)",
       "notes": "Notes",
       "cancel": "Cancel",
-      "record": "Record",
+      "record": "Save Purchase",
       "createdToast": "Purchase {number} recorded — stock updated.",
       "genericError": "Something went wrong. Please try again.",
       "paidAmountExceedsTotal": "Amount paid cannot exceed the purchase total."
+    },
+    "supplierPicker": {
+      "supplier": "Supplier",
+      "selectSupplier": "Select a supplier",
+      "searchSupplier": "Search supplier…",
+      "loading": "Loading…",
+      "noSuppliersFound": "No suppliers found."
+    },
+    "summary": {
+      "totalPurchases": "Total Purchases",
+      "paidAmount": "Paid Amount",
+      "payable": "Payable",
+      "purchaseOrders": "Purchase Orders",
+      "error": "Couldn't load the purchasing summary."
+    },
+    "filters": {
+      "statusLabel": "Payment status",
+      "allStatuses": "All Statuses",
+      "statusOptions": {
+        "UNPAID": "Unpaid",
+        "PARTIALLY_PAID": "Partially Paid",
+        "PAID": "Paid",
+        "OVERDUE": "Overdue"
+      }
     },
     "payableStatus": {
       "paidInFull": "Paid in full",
@@ -5393,20 +5547,42 @@
       "description": "Description",
       "amount": "Amount",
       "status": "Status",
+      "dueDate": "Due Date",
+      "paidInFull": "Paid in full",
+      "statusOptions": {
+        "UNPAID": "Unpaid",
+        "PARTIALLY_PAID": "Partially Paid",
+        "PAID": "Paid",
+        "OVERDUE": "Overdue"
+      },
+      "voided": "Voided",
+      "void": "Void",
       "errorTitle": "Couldn't load expenses",
       "emptyTitle": "No expenses recorded yet",
       "emptyDescription": "Record an expense to see it here."
     },
     "purchasesTable": {
-      "number": "Purchase #",
+      "reference": "Reference",
       "date": "Date",
       "supplier": "Supplier",
       "total": "Total",
+      "paidAmount": "Paid Amount",
       "status": "Status",
+      "dueDate": "Due Date",
       "noSupplier": "—",
+      "unknownSupplier": "Unknown supplier",
+      "paidInFull": "Paid in full",
+      "voided": "Voided",
+      "void": "Void",
+      "statusOptions": {
+        "UNPAID": "Unpaid",
+        "PARTIALLY_PAID": "Partially Paid",
+        "PAID": "Paid",
+        "OVERDUE": "Overdue"
+      },
       "errorTitle": "Couldn't load purchases",
       "emptyTitle": "No purchases recorded yet",
-      "emptyDescription": "Record a purchase to see it here."
+      "emptyDescription": "Purchases can automatically: update inventory · create supplier payables · record payment."
     }
   },
   "sales": {
@@ -5438,12 +5614,14 @@
       },
       "selectTypeFirst": "Choose what you're recording first",
       "selectProductFirst": "Choose which product you're selling",
+      "selectItemFirst": "Choose which item you're selling",
       "productSubtype": "Product",
       "productSubtypeOptions": {
         "MILK": "Milk",
         "MANURE": "Manure",
         "INVENTORY": "Inventory item"
       },
+      "manureTotalAmount": "Total Amount",
       "notAvailableYet": "Not available yet — this sale type has no backend route to submit to.",
       "buyer": "Buyer",
       "buyerPlaceholder": "Select buyer",
@@ -5483,6 +5661,127 @@
       "back": "Back",
       "continue": "Continue",
       "submit": "Submit"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "invoices": "Invoices",
+      "dispatches": "Dispatches"
+    },
+    "newSaleMenu": {
+      "trigger": "New Sale"
+    },
+    "overview": {
+      "title": "Sales Overview",
+      "subtitle": "Track all your sales and dispatches",
+      "summary": {
+        "totalSales": "Total Sales",
+        "totalInvoices": "Total Invoices",
+        "paidAmount": "Paid Amount",
+        "outstanding": "Outstanding",
+        "error": "Couldn't load the sales summary."
+      },
+      "trend": {
+        "title": "Sales Trend",
+        "legend": "Sales",
+        "granularityLabel": "Granularity",
+        "granularityOptions": { "day": "By Day", "week": "By Week", "month": "By Month" },
+        "error": "Couldn't load the sales trend."
+      },
+      "byProduct": {
+        "title": "Sales by Product",
+        "totalLabel": "Total",
+        "empty": "No sales in this period yet.",
+        "error": "Couldn't load sales by product.",
+        "lineType": { "MILK": "Milk", "ANIMAL": "Calves", "INVENTORY": "Inventory", "MANURE": "Manure" }
+      },
+      "recentSales": {
+        "title": "Recent Sales",
+        "viewAll": "View all →",
+        "invoiceNo": "Invoice No",
+        "date": "Date",
+        "buyer": "Buyer",
+        "product": "Product",
+        "qty": "Qty",
+        "totalAmount": "Total Amount",
+        "status": "Status",
+        "dueDate": "Due Date",
+        "noBuyer": "—",
+        "statusOptions": { "UNPAID": "Unpaid", "PARTIALLY_PAID": "Partial", "PAID": "Paid", "OVERDUE": "Overdue" },
+        "emptyTitle": "No sales recorded yet",
+        "emptyDescription": "Record a sale to see it here."
+      },
+      "topBuyers": {
+        "title": "Top Buyers",
+        "empty": "No buyers in this period yet.",
+        "error": "Couldn't load top buyers."
+      }
+    },
+    "invoices": {
+      "title": "Invoices",
+      "subtitle": "All your sale invoices",
+      "searchPlaceholder": "Search invoices…",
+      "tabs": { "all": "All Invoices", "unpaid": "Unpaid", "partial": "Partial", "paid": "Paid" },
+      "table": {
+        "invoiceNo": "Invoice No",
+        "date": "Date",
+        "buyer": "Buyer",
+        "totalAmount": "Total Amount",
+        "paidAmount": "Paid Amount",
+        "dueAmount": "Due Amount",
+        "status": "Status",
+        "dueDate": "Due Date",
+        "noBuyer": "—",
+        "statusOptions": { "UNPAID": "Unpaid", "PARTIALLY_PAID": "Partial", "PAID": "Paid", "OVERDUE": "Overdue" },
+        "voided": "Voided",
+        "cancel": "Cancel",
+        "refund": "Refund",
+        "emptyTitle": "No invoices found",
+        "emptyDescription": "Record a sale to see its invoice here."
+      }
+    },
+    "dispatches": {
+      "title": "Dispatches",
+      "subtitle": "Milk dispatch history and receipt confirmation",
+      "newDispatchCta": "New Dispatch",
+      "tabs": { "all": "All Dispatches", "pending": "Pending", "delivered": "Delivered", "cancelled": "Cancelled" },
+      "summary": {
+        "total": "Total Dispatches",
+        "delivered": "Delivered",
+        "inTransit": "In Transit",
+        "cancelled": "Cancelled",
+        "error": "Couldn't load the dispatch summary."
+      },
+      "table": {
+        "dispatchNo": "Dispatch No",
+        "date": "Date",
+        "buyer": "Buyer",
+        "product": "Product",
+        "productMilk": "Milk",
+        "quantity": "Quantity",
+        "status": "Status",
+        "driver": "Driver",
+        "amount": "Amount",
+        "noBuyer": "—",
+        "statusOptions": { "PENDING": "Pending", "DELIVERED": "Delivered", "CANCELLED": "Cancelled" },
+        "rowActions": "Row actions",
+        "confirmReceipt": "Confirm Receipt",
+        "cancelDispatch": "Cancel Dispatch",
+        "cancelledToast": "Dispatch cancelled.",
+        "genericError": "Something went wrong. Please try again.",
+        "cancelConfirmTitle": "Cancel this dispatch?",
+        "cancelConfirmDescription": "This also reverses its posted sale, if any. This cannot be undone.",
+        "emptyTitle": "No dispatches recorded yet",
+        "emptyDescription": "Record a milk dispatch to see it here."
+      },
+      "receiptDialog": {
+        "title": "Confirm Receipt — {number}",
+        "volumeReceivedL": "Volume Received (L)",
+        "driverName": "Driver",
+        "cancel": "Cancel",
+        "confirm": "Confirm",
+        "confirmedToast": "Receipt confirmed.",
+        "genericError": "Something went wrong. Please try again."
+      }
     }
   },
   "period": {
@@ -5494,6 +5793,59 @@
       "this_quarter": "This Quarter",
       "this_year": "This Year",
       "custom": "Custom"
+    }
+  },
+  "suppliers": {
+    "title": "Suppliers",
+    "subtitle": "Everyone you buy feed, medicine, or equipment from",
+    "summary": {
+      "totalSuppliers": "Total Suppliers",
+      "activeSuppliers": "Active Suppliers",
+      "totalPurchases": "Total Purchases",
+      "totalPayable": "Total Payable",
+      "error": "Could not load the supplier summary."
+    },
+    "table": {
+      "columns": {
+        "name": "Supplier Name",
+        "phone": "Phone",
+        "totalPurchases": "Total Purchases",
+        "payable": "Payable",
+        "lastPurchase": "Last Purchase"
+      },
+      "inactive": "Inactive",
+      "rowActions": "Supplier actions",
+      "edit": "Edit",
+      "deactivate": "Deactivate",
+      "addSupplier": "Add Supplier",
+      "empty": {
+        "title": "No suppliers yet",
+        "description": "Add the people and businesses you buy feed, medicine, or equipment from — you'll be able to record purchases and track what you owe them."
+      }
+    },
+    "form": {
+      "addTitle": "Add Supplier",
+      "editTitle": "Edit Supplier",
+      "dialogDescription": "Suppliers are who you buy feed, medicine, or equipment from.",
+      "nameLabel": "Supplier name",
+      "contactLabel": "Contact person",
+      "phoneLabel": "Phone",
+      "categoryLabel": "Category",
+      "paymentTermsLabel": "Payment terms",
+      "notesLabel": "Notes",
+      "save": "Save",
+      "saving": "Saving...",
+      "createdToast": "Supplier added.",
+      "updatedToast": "Supplier updated.",
+      "genericError": "Could not save the supplier."
+    },
+    "deleteDialog": {
+      "title": "Deactivate \"{name}\"?",
+      "description": "Deactivating removes this supplier from pickers and new purchases. Its history is kept.",
+      "confirm": "Deactivate",
+      "cancel": "Cancel",
+      "successToast": "Supplier deactivated.",
+      "genericError": "Could not deactivate the supplier."
     }
   }
 }

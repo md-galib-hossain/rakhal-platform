@@ -1,4 +1,4 @@
-"use client"; // dialog open state + tab state
+"use client"; // dialog open state + tab state + filter/period state
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -6,42 +6,50 @@ import { Plus, Receipt, ShoppingCart } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Can } from "@/lib/auth/permissions";
+import { usePeriod } from "@/lib/hooks/use-period";
 import { ExpensesTable } from "./expenses-table";
 import { PurchasesTable } from "./purchases-table";
+import { PurchasingFiltersBar } from "./purchasing-filters";
+import { PurchasingSummaryCards } from "./purchasing-summary-cards";
 import { RecordExpenseDialog } from "./record-expense-dialog";
 import { RecordPurchaseDialog } from "./record-purchase-dialog";
+import type { PayableStatus } from "../types";
 
 /**
- * RAKHAL-359 — Purchasing page: two clearly separate entry points, per `FINANCE_V2_DESIGN.md` §5.1's
- * deliberate Purchase/Expense split ("a feed purchase increases an asset, an electricity bill is an
- * expense"). Not a single form with a type toggle — two distinct dialogs, two distinct tabs, so a
- * farmer never has to guess which mode they're in.
+ * RAKHAL-391 (MILESTONE 22) — Purchasing overhaul (`BUSINESS_IA_PRD.md` §5.13). Tabs reordered to
+ * **`Purchases | Expenses`** (was `Expenses | Purchases`, RAKHAL-359's original order) — mockup 1's
+ * `Purchases | Suppliers` is superseded (Suppliers is its own top-level module since RAKHAL-390), the
+ * AC resolves as `Purchases | Expenses` with Purchases first and as the default tab. Gained the "This
+ * Month Summary" 4-stat panel (`PurchasingSummaryCards`, `GET /purchasing/summary`) and a shared
+ * `PurchasingFiltersBar` (payment-status + `DateRangePicker`) driving both tables' server-side
+ * filters — replacing RAKHAL-359's un-paginated, unfiltered `usePurchases()`/`useExpenses()`.
  *
- * Both "Record" buttons and the read views are gated on `purchasing.create`/`purchasing.read`
- * (`permission-catalogue.ts` — confirmed the exact resource/action strings from the backend
- * catalogue directly, not guessed) — a Worker without `purchasing.create` sees the lists but not the
- * buttons; a farm role with neither permission sees nothing at all on this page in practice (the
- * page itself doesn't hard-block on `purchasing.read` since a future role might have `create` but
- * not the default `read`, however unlikely — falling back to each table's own empty/error state is
- * safer than a full-page permission wall for a read-only miss).
+ * Both "Record" buttons and the read views stay gated on `purchasing.create`/`purchasing.read`
+ * (`permission-catalogue.ts`, confirmed directly) — unchanged from RAKHAL-359.
  */
 export function PurchasingView() {
   const t = useTranslations("purchasing");
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
+  const [status, setStatus] = useState<PayableStatus | undefined>(undefined);
+  const period = usePeriod("this_month");
+
+  const listFilters = { status, from: period.from.toISOString(), to: period.to.toISOString() };
 
   return (
     <div className="flex flex-col gap-4">
-      <Tabs defaultValue="expenses">
+      <PurchasingSummaryCards range={{ from: period.from, to: period.to }} />
+
+      <Tabs defaultValue="purchases">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <TabsList>
-            <TabsTrigger value="expenses">
-              <Receipt className="mr-1.5 size-4" aria-hidden />
-              {t("tabs.expenses")}
-            </TabsTrigger>
             <TabsTrigger value="purchases">
               <ShoppingCart className="mr-1.5 size-4" aria-hidden />
               {t("tabs.purchases")}
+            </TabsTrigger>
+            <TabsTrigger value="expenses">
+              <Receipt className="mr-1.5 size-4" aria-hidden />
+              {t("tabs.expenses")}
             </TabsTrigger>
           </TabsList>
           <Can I="purchasing.create">
@@ -58,14 +66,18 @@ export function PurchasingView() {
           </Can>
         </div>
 
-        <TabsContent value="expenses">
-          <Can I="purchasing.read" fallback={<PurchasingPermissionDenied />}>
-            <ExpensesTable />
-          </Can>
-        </TabsContent>
+        <div className="pt-3 pb-3">
+          <PurchasingFiltersBar status={status} onStatusChange={setStatus} period={period} />
+        </div>
+
         <TabsContent value="purchases">
           <Can I="purchasing.read" fallback={<PurchasingPermissionDenied />}>
-            <PurchasesTable />
+            <PurchasesTable filters={listFilters} />
+          </Can>
+        </TabsContent>
+        <TabsContent value="expenses">
+          <Can I="purchasing.read" fallback={<PurchasingPermissionDenied />}>
+            <ExpensesTable filters={listFilters} />
           </Can>
         </TabsContent>
       </Tabs>

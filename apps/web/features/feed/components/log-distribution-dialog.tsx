@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
+import { AnimalLink } from "@/components/shared/animal-link";
 import { useCattleDetail } from "@/features/cattle/hooks/use-cattle";
 import { useConcentrationDetail, useFeedGroups, useLogDistribution } from "../hooks/use-feed";
 
@@ -133,7 +134,11 @@ function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenCha
                 <span className="text-xs font-bold text-muted-foreground">
                   {detail.data.target_type === "GROUP" ? t("targetGroup") : t("targetCow")}
                 </span>
-                <p className="truncate text-sm text-foreground">{targetLabel}</p>
+                {detail.data.target_type === "INDIVIDUAL" && cattleId ? (
+                  <AnimalLink id={cattleId} animalName={cattle.data?.name} tagNumber={cattle.data?.tagNumber} className="truncate text-sm font-normal text-foreground" />
+                ) : (
+                  <p className="truncate text-sm text-foreground">{targetLabel}</p>
+                )}
               </div>
             </div>
 

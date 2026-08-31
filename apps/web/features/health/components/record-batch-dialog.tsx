@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useCompleteTask, useLogTreatment } from "../hooks/use-health";
 import { groupIncompleteTasks, taskCategoryChip, type ScheduledTaskGroup } from "../task-grouping";
 import { SkipTaskDialog } from "./skip-task-dialog";
+import { AnimalLink } from "@/components/shared/animal-link";
 import type { HealthTask } from "../types";
 
 /** AQR bump per completed dose — `AqrService`'s real `treatment_completed` rule
@@ -203,18 +204,31 @@ function RecordBatchDialogBody({ group, onOpenChange }: { group: ScheduledTaskGr
             {filtered.length === 0 ? (
               <p className="p-4 text-center text-sm text-muted-foreground">{t("noAnimals")}</p>
             ) : (
-              filtered.map((task) => (
-                <div key={task.id} className="flex items-center gap-3 p-3">
-                  <label className="flex flex-1 cursor-pointer items-center gap-3">
-                    <Checkbox checked={selected.has(task.id)} onCheckedChange={() => toggle(task.id)} />
-                    <Avatar className="size-8">
-                      <AvatarFallback>{(task.cattle?.name ?? task.cattle?.tagNumber ?? "?").slice(0, 1)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-foreground">{task.cattle?.name ?? task.cattle?.tagNumber ?? "—"}</span>
-                      {task.cattle?.name ? <span className="text-xs text-muted-foreground">{task.cattle.tagNumber}</span> : null}
-                    </div>
-                  </label>
+              filtered.map((task) => {
+                const cattleId = task.cattleId ?? (task.cattle as { id?: string })?.id;
+                return (
+                  <div key={task.id} className="flex items-center gap-3 p-3">
+                    <label className="flex flex-1 cursor-pointer items-center gap-3">
+                      <Checkbox checked={selected.has(task.id)} onCheckedChange={() => toggle(task.id)} />
+                      <Avatar className="size-8">
+                        <AvatarFallback>{(task.cattle?.name ?? task.cattle?.tagNumber ?? "?").slice(0, 1)}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col">
+                        {cattleId ? (
+                          <AnimalLink
+                            id={cattleId}
+                            animalName={task.cattle?.name}
+                            tagNumber={task.cattle?.tagNumber}
+                            className="text-sm font-medium text-foreground hover:text-primary"
+                          >
+                            {task.cattle?.name ?? task.cattle?.tagNumber ?? "—"}
+                          </AnimalLink>
+                        ) : (
+                          <span className="text-sm font-medium text-foreground">{task.cattle?.name ?? task.cattle?.tagNumber ?? "—"}</span>
+                        )}
+                        {task.cattle?.name ? <span className="text-xs text-muted-foreground">{task.cattle.tagNumber}</span> : null}
+                      </div>
+                    </label>
                   <div className="flex shrink-0 items-center gap-1">
                     {canQuickComplete ? (
                       <Can I="healthcare.log-treatment">
@@ -245,7 +259,8 @@ function RecordBatchDialogBody({ group, onOpenChange }: { group: ScheduledTaskGr
                     </Can>
                   </div>
                 </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

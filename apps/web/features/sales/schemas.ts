@@ -30,10 +30,17 @@ export const recordSaleFormSchema = z.object({
   fatPct: z.number().min(0).optional(),
   scc: z.number().min(0).optional(),
 
-  // Manure / Inventory item (UI-only — no live backend route yet)
-  description: z.string().optional(),
+  // Inventory item — `POST /sales/inventory` (RAKHAL-376): itemType/itemId real FK via ItemPicker,
+  // quantity*unitPrice computes the Sale Total.
+  itemKind: z.enum(["MEDICINE", "FEED_ITEM", "EQUIPMENT"]).optional(),
+  itemId: z.string().optional(),
+  itemName: z.string().optional(),
   quantity: z.number().positive().optional(),
   unitPrice: z.number().min(0).optional(),
+  // Manure — `POST /sales/manure` (RAKHAL-376): `totalAmount` is the only required money figure
+  // server-side (no quantity*unitPrice derivation), reuses the `amount` field Other Income already
+  // declares rather than adding a second identical numeric field.
+  description: z.string().optional(),
 
   // Animal (UI-only — no live backend route yet)
   cattleId: z.string().optional(),

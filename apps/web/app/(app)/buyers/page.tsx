@@ -9,10 +9,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t("buyers")} — Rakhal`, robots: { index: false } };
 }
 
-/** Milk Buyers & Dispatch (RFE-026, PRD §11 / API §7). No Figma frames supplied for this module —
- * built PRD-spec against the real `buyer.controller.ts`/`milk-dispatch.controller.ts` contract.
- * Buyers tab (directory + create/edit/deactivate + per-row Record Dispatch/Statement) and Dispatch
- * History tab (all dispatches, filterable by buyer, standalone Record Dispatch entry point). */
+/** Milk Buyers (RFE-026, RAKHAL-389 MILESTONE 22, PRD §11 / API §7 / `BUSINESS_IA_PRD.md` §5.10).
+ * Tabs `Buyers | Buyer Groups` — the global Dispatch History tab moved to Sales → Dispatches
+ * (RAKHAL-388); a per-buyer Dispatches tab still lives on the new `/buyers/:id` detail page. */
 export default async function BuyersPage() {
   const t = await getTranslations("nav");
   return (

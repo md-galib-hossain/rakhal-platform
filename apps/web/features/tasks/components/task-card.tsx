@@ -10,6 +10,19 @@ import { DISPLAY_STATUS_CHIP_VARIANT, PRIORITY_CHIP_VARIANT } from "../task-styl
 import { LACTATION_ALERT_ICON, lactationAlertSeverity, parseLactationAlert } from "../lactation-alert";
 import type { Task } from "../types";
 
+/** Cow-name display (user request, no ticket #) — Figma's card has no cow-target row at all, so this
+ * reuses the card's own existing label/value row style (see `card.category` below) rather than
+ * inventing a new visual, per the frontend's "smallest real affordance" precedent. */
+function cattleLabel(c: { tagNumber: string; name: string | null }) {
+  return c.name ? `${c.tagNumber} — ${c.name}` : c.tagNumber;
+}
+function cattleSummary(task: Task): string | null {
+  if (task.relatedCattle) return cattleLabel(task.relatedCattle);
+  if (task.cattleTags.length === 0) return null;
+  if (task.cattleTags.length === 1) return cattleLabel(task.cattleTags[0]);
+  return `${cattleLabel(task.cattleTags[0])} +${task.cattleTags.length - 1}`;
+}
+
 /** Pixel-matched to the Figma "Task Card" (1039:48345/861:14663). */
 export function TaskCard({ task, onSeeDetails }: { task: Task; onSeeDetails: (task: Task) => void }) {
   const t = useTranslations("tasks");
@@ -67,6 +80,12 @@ export function TaskCard({ task, onSeeDetails }: { task: Task; onSeeDetails: (ta
           <p className="font-medium text-muted-foreground">{t("card.category")}</p>
           <p className="font-bold text-foreground">{t(`category.${task.category}`)}</p>
         </div>
+        {cattleSummary(task) ? (
+          <div className="flex items-center justify-between text-sm">
+            <p className="font-medium text-muted-foreground">{t("card.cow")}</p>
+            <p className="font-bold text-foreground">{cattleSummary(task)}</p>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex w-full items-center justify-between rounded-xl border border-border bg-muted px-3 py-2">

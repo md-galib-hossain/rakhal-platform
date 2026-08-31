@@ -73,7 +73,10 @@
   "farmSelector": {
     "switchHint": "খামার পরিবর্তন করুন",
     "yourFarm": "আপনার খামার",
-    "switchComingSoon": "প্রতিষ্ঠান পরিবর্তন (শীঘ্রই আসছে)"
+    "yourFarms": "আপনার খামারসমূহ",
+    "current": "বর্তমান",
+    "switching": "পরিবর্তন হচ্ছে…",
+    "onlyOneFarm": "আপনি শুধু এই খামারের সদস্য"
   },
   "upgrade": {
     "title": "প্রো নিন",
@@ -2240,7 +2243,9 @@
       "saving": "সংরক্ষণ হচ্ছে…",
       "markReviewed": "পর্যালোচিত হিসেবে চিহ্নিত করুন",
       "reviewedToast": "অস্বাভাবিকতা পর্যালোচিত হিসেবে চিহ্নিত হয়েছে।",
-      "reviewError": "পর্যালোচনা সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।"
+      "reviewError": "পর্যালোচনা সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।",
+      "loadMore": "আরও দেখুন",
+      "loading": "লোড হচ্ছে…"
     }
   },
   "reproduction": {
@@ -2544,6 +2549,7 @@
         "protocolPlaceholder": "একটি প্রোটোকল নির্বাচন করুন",
         "stepCount": "{count}টি ধাপ",
         "cattle": "গরু",
+        "cattlePlaceholder": "গরু নির্বাচন করুন…",
         "removeCow": "সরান",
         "startDate": "শুরুর তারিখ",
         "submit": "প্রোটোকল প্রয়োগ করুন",
@@ -2589,10 +2595,45 @@
       "applied": "{value}টি প্রয়োগ হয়েছে",
       "inProgress": "{value}টি চলমান",
       "conceptionRate": "{value}% গর্ভধারণ",
-      "activeInstances": "সক্রিয় ইনস্ট্যান্স",
+      "activeInstances": "প্রোটোকল ইনস্ট্যান্স",
       "currentStepDay": "দিন {value}",
-      "emptyInstances": "কোনো সক্রিয় প্রোটোকল ইনস্ট্যান্স নেই।",
+      "emptyInstances": "কোনো প্রোটোকল ইনস্ট্যান্স নেই।",
+      "loadMore": "আরও দেখুন",
+      "loading": "লোড হচ্ছে…",
+      "instanceTabs": {
+        "IN_PROGRESS": "চলমান",
+        "COMPLETED": "সম্পন্ন",
+        "CANCELLED": "বাতিল",
+        "FAILED": "ব্যর্থ",
+        "ALL": "সব",
+        "empty": {
+          "IN_PROGRESS": "কোনো চলমান প্রোটোকল ইনস্ট্যান্স নেই।",
+          "COMPLETED": "কোনো সম্পন্ন প্রোটোকল ইনস্ট্যান্স নেই।",
+          "CANCELLED": "কোনো বাতিল প্রোটোকল ইনস্ট্যান্স নেই।",
+          "FAILED": "কোনো ব্যর্থ প্রোটোকল ইনস্ট্যান্স নেই।",
+          "ALL": "এখনো কোনো প্রোটোকল ইনস্ট্যান্স নেই।"
+        }
+      },
+      "statusValue": {
+        "DRAFT": "খসড়া",
+        "SCHEDULED": "নির্ধারিত",
+        "IN_PROGRESS": "চলমান",
+        "COMPLETED": "সম্পন্ন",
+        "CANCELLED": "বাতিল",
+        "FAILED": "ব্যর্থ"
+      },
+      "pregnancyOutcome": {
+        "WAITING_PD": "পিডি চেকের অপেক্ষায়",
+        "PREGNANT": "গর্ভবতী",
+        "OPEN": "ওপেন",
+        "PREGNANCY_LOSS": "গর্ভপাত"
+      },
       "viewTimeline": "টাইমলাইন",
+      "detail": {
+        "close": "বন্ধ করুন",
+        "dayLabel": "দিন {value}",
+        "noSteps": "কোনো ধাপ নির্ধারিত নেই।"
+      },
       "timeline": {
         "title": "{protocol} — টাইমলাইন",
         "close": "বন্ধ করুন",
@@ -3443,6 +3484,12 @@
       "overdue": "মেয়াদোত্তীর্ণ",
       "blocked": "আটকে থাকা"
     },
+    "dateFilters": {
+      "all": "সব তারিখ",
+      "today": "আজ",
+      "week": "এই সপ্তাহ",
+      "month": "এই মাস"
+    },
     "status": {
       "pending": "মুলতুবি",
       "in_progress": "চলমান",
@@ -3466,6 +3513,7 @@
       "dueDate": "নির্ধারিত তারিখ",
       "overdueBy": "{hours} ঘণ্টা দেরি",
       "category": "শ্রেণি",
+      "cow": "গরু",
       "assignedTo": "দায়িত্বপ্রাপ্ত",
       "unassigned": "অনির্ধারিত",
       "seeDetails": "বিস্তারিত দেখুন"
@@ -3519,11 +3567,20 @@
       "overdueBy": "{hours} ঘণ্টা দেরি",
       "taskPriority": "টাস্কের অগ্রাধিকার",
       "category": "শ্রেণি",
+      "cow": "গরু",
       "recurrence": "পুনরাবৃত্তি",
       "oneOff": "একবারের",
       "assignTo": "দায়িত্বপ্রাপ্ত",
       "unassigned": "অনির্ধারিত",
       "description": "টাস্কের বিবরণ",
+      "activity": "কার্যক্রম",
+      "historyAction": {
+        "CREATED": "তৈরি হয়েছে",
+        "UPDATED": "পরিবর্তিত হয়েছে",
+        "COMPLETED": "সম্পন্ন হয়েছে",
+        "REOPENED": "পুনরায় চালু হয়েছে",
+        "CANCELLED": "বাতিল হয়েছে"
+      },
       "reassignTo": "নতুন দায়িত্ব দিন",
       "reassign": "পুনরায় নির্ধারণ",
       "markComplete": "সম্পন্ন",
@@ -3555,6 +3612,28 @@
     }
   },
   "finance": {
+    "voidDocument": {
+      "cancelButton": "বাতিল",
+      "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।",
+      "cancel": {
+        "title": "{label} বাতিল করবেন?",
+        "description": "এটি এর লেজার এন্ট্রি এবং যেকোনো ভৌত প্রভাব (স্টক/ট্যাংক/পশু) বিপরীত করবে। এটি পূর্বাবস্থায় ফেরানো যাবে না।",
+        "confirm": "ডকুমেন্ট বাতিল করুন",
+        "successToast": "{label} বাতিল হয়েছে।"
+      },
+      "refund": {
+        "title": "{label} ফেরত দেবেন?",
+        "description": "এটি এই ডকুমেন্টে বরাদ্দকৃত প্রতিটি পরিশোধ, এর লেজার এন্ট্রি এবং যেকোনো ভৌত প্রভাব বিপরীত করবে। এটি পূর্বাবস্থায় ফেরানো যাবে না।",
+        "confirm": "ডকুমেন্ট ফেরত দিন",
+        "successToast": "{label} ফেরত দেওয়া হয়েছে।"
+      },
+      "void": {
+        "title": "{label} বাতিল (Void) করবেন?",
+        "description": "এটি এর লেজার এন্ট্রি এবং যোগ করা যেকোনো স্টক বিপরীত করবে। বরাদ্দকৃত পরিশোধ থাকা ডকুমেন্ট বাতিল করা যাবে না — আগে পরিশোধ ফেরত দিন।",
+        "confirm": "ডকুমেন্ট বাতিল করুন",
+        "successToast": "{label} বাতিল হয়েছে।"
+      }
+    },
     "actions": {
       "wallet": "ওয়ালেট",
       "record": "রেকর্ড করুন",
@@ -3598,19 +3677,6 @@
         "expenses": "খরচ",
         "netProfit": "নিট মুনাফা",
         "netCashFlow": "নিট নগদ প্রবাহ"
-      },
-      "quickActions": {
-        "newTransaction": "নতুন লেনদেন",
-        "recordExpense": "খরচ রেকর্ড করুন",
-        "receivePayment": "পেমেন্ট গ্রহণ করুন",
-        "makePayment": "পেমেন্ট করুন",
-        "transferMoney": "টাকা স্থানান্তর করুন",
-        "transferOwnerOnlyTooltip": "শুধুমাত্র খামারের মালিক অ্যাকাউন্টের মধ্যে স্থানান্তর করতে পারেন",
-        "recordSaleHint": "বিক্রয় রেকর্ড করছেন?",
-        "goToSales": "বিক্রয়ে যান →",
-        "recordPurchaseHint": "ক্রয় রেকর্ড করছেন?",
-        "goToPurchasing": "ক্রয়ে যান →",
-        "transferCopy": "স্থানান্তর আপনার অ্যাকাউন্টগুলোর মধ্যে টাকা সরায়। এটি আয় বা খরচ নয়।"
       },
       "receivablesPanel": {
         "title": "বকেয়া পাওনা",
@@ -4473,18 +4539,34 @@
   "buyers": {
     "tabs": {
       "buyers": "ক্রেতা",
-      "dispatches": "প্রেরণের ইতিহাস"
+      "groups": "ক্রেতা গোষ্ঠী"
+    },
+    "summary": {
+      "totalBuyers": "মোট ক্রেতা",
+      "activeBuyers": "সক্রিয় ক্রেতা",
+      "totalSales": "মোট বিক্রয়",
+      "totalOutstanding": "মোট বকেয়া",
+      "error": "ক্রেতা সারাংশ লোড করা যায়নি।"
+    },
+    "groups": {
+      "typeOptions": {
+        "DAIRY_COMPANY": "ডেইরি কোম্পানি",
+        "COOPERATIVE": "সমবায়",
+        "LOCAL_TRADER": "স্থানীয় ব্যবসায়ী",
+        "DIRECT_CONSUMER": "সরাসরি ভোক্তা"
+      },
+      "buyerCount": "{count} জন ক্রেতা",
+      "error": "ক্রেতা গোষ্ঠী লোড করা যায়নি।"
     },
     "list": {
       "searchPlaceholder": "ক্রেতা খুঁজুন",
       "addBuyer": "ক্রেতা যোগ করুন",
       "columns": {
-        "name": "নাম",
-        "type": "ধরন",
+        "name": "ক্রেতার নাম",
         "phone": "ফোন",
-        "basePrice": "মূল দাম/লিটার",
-        "paymentTerms": "পরিশোধের শর্ত",
-        "status": "অবস্থা"
+        "outstanding": "বকেয়া",
+        "totalPurchased": "মোট ক্রয়",
+        "lastPurchase": "শেষ ক্রয়"
       },
       "typeOptions": {
         "DAIRY_COMPANY": "দুগ্ধ কোম্পানি",
@@ -4511,9 +4593,20 @@
       "deactivateDescription": "{name} কে নিষ্ক্রিয় করবেন? এটি আর সক্রিয় ক্রেতা তালিকায় দেখাবে না।",
       "deactivateConfirm": "নিষ্ক্রিয় করুন"
     },
+    "picker": {
+      "buyer": "ক্রেতা",
+      "selectBuyer": "একজন ক্রেতা নির্বাচন করুন",
+      "searchBuyer": "ক্রেতা খুঁজুন",
+      "noBuyersFound": "কোনো ক্রেতা পাওয়া যায়নি।",
+      "loading": "লোড হচ্ছে…",
+      "addBuyer": "+ নতুন ক্রেতা যোগ করুন"
+    },
     "form": {
       "createTitle": "ক্রেতা যোগ করুন",
       "editTitle": "ক্রেতা সম্পাদনা করুন",
+      "basicInfo": "মৌলিক তথ্য",
+      "pricingTerms": "মূল্য ও শর্তাবলী",
+      "note": "নোট",
       "name": "ক্রেতার নাম",
       "buyerType": "ক্রেতার ধরন",
       "typeOptions": {
@@ -4570,21 +4663,59 @@
       "dispatchesTitle": "প্রেরণসমূহ",
       "noDispatches": "এই মাসে কোনো প্রেরণ নেই।"
     },
-    "dispatchHistory": {
-      "buyerFilter": "ক্রেতা",
-      "recordDispatch": "প্রেরণ রেকর্ড করুন",
-      "columns": {
-        "date": "তারিখ",
-        "buyer": "ক্রেতা",
-        "volumeDispatched": "প্রেরিত",
-        "volumeReceived": "প্রাপ্ত",
-        "discrepancy": "গরমিল",
-        "amount": "পরিমাণ",
-        "paymentDueDate": "নির্ধারিত তারিখ"
+    "detail": {
+      "backToBuyers": "ক্রেতাদের কাছে ফিরে যান",
+      "editBuyer": "ক্রেতা সম্পাদনা করুন",
+      "overviewError": "ক্রেতার ওভারভিউ লোড করা যায়নি।",
+      "outstandingAmount": "বকেয়া পরিমাণ",
+      "totalPurchased": "মোট ক্রয়",
+      "thisYear": "এই বছর",
+      "lastPayment": "শেষ পরিশোধ",
+      "tabs": {
+        "overview": "ওভারভিউ",
+        "sales": "বিক্রয় ও ইনভয়েস",
+        "dispatches": "ডেসপ্যাচ",
+        "payments": "পরিশোধ",
+        "balance": "ব্যালেন্স"
       },
-      "empty": {
-        "title": "এখনো কোনো প্রেরণ নেই",
-        "description": "রেকর্ড করা প্রেরণগুলো এখানে দেখাবে।"
+      "overview": {
+        "error": "ক্রেতার ওভারভিউ লোড করা যায়নি।",
+        "recentInvoices": "সাম্প্রতিক ইনভয়েস",
+        "viewAllInvoices": "সব ইনভয়েস দেখুন →",
+        "noInvoices": "এখনো কোনো ইনভয়েস নেই।",
+        "buyerInfo": "ক্রেতার তথ্য",
+        "phone": "ফোন",
+        "address": "ঠিকানা",
+        "paymentTerms": "পরিশোধের শর্ত",
+        "paymentTermsDays": "{days} দিন",
+        "defaultMilkRate": "নির্ধারিত দুধের দাম",
+        "buyerGroup": "ক্রেতা গোষ্ঠী",
+        "typeOptions": {
+          "DAIRY_COMPANY": "দুগ্ধ কোম্পানি",
+          "COOPERATIVE": "সমবায়",
+          "LOCAL_TRADER": "স্থানীয় ব্যবসায়ী",
+          "DIRECT_CONSUMER": "সরাসরি ভোক্তা"
+        }
+      },
+      "sales": {
+        "invoiceNo": "ইনভয়েস নং",
+        "date": "তারিখ",
+        "totalAmount": "মোট পরিমাণ",
+        "status": "অবস্থা",
+        "dueDate": "শেষ তারিখ",
+        "emptyTitle": "এখনো কোনো ইনভয়েস নেই",
+        "emptyDescription": "এই ক্রেতার ইনভয়েস এখানে দেখা যাবে।"
+      },
+      "dispatches": {
+        "dispatchNo": "ডেসপ্যাচ নং",
+        "date": "তারিখ",
+        "volume": "পরিমাণ",
+        "status": "অবস্থা",
+        "driver": "চালক",
+        "amount": "পরিমাণ",
+        "statusOptions": { "PENDING": "মুলতুবি", "DELIVERED": "সরবরাহকৃত", "CANCELLED": "বাতিল" },
+        "emptyTitle": "এখনো কোনো ডেসপ্যাচ নেই",
+        "emptyDescription": "এই ক্রেতার ডেসপ্যাচ এখানে দেখা যাবে।"
       }
     }
   },
@@ -5354,8 +5485,6 @@
     "recordPurchase": {
       "title": "ক্রয় লিখুন",
       "close": "বন্ধ করুন",
-      "supplier": "সরবরাহকারী",
-      "supplierPlaceholder": "সরবরাহকারীর নাম (ঐচ্ছিক)",
       "purchaseDate": "ক্রয়ের তারিখ",
       "lines": "ক্রয়কৃত আইটেম",
       "quantity": "পরিমাণ",
@@ -5364,18 +5493,43 @@
       "removeLine": "লাইন সরান",
       "addLine": "আরেকটি আইটেম যোগ করুন",
       "purchaseTotal": "ক্রয়ের মোট",
+      "paymentType": "পরিশোধের ধরন",
       "payNow": "এখনই পরিশোধ",
-      "payNowHint": "মোট পরিমাণের কিছু অংশ বা পুরোটা এখনই একটি হিসাব থেকে পরিশোধ করুন।",
+      "buyOnCredit": "বাকিতে ক্রয়",
       "amountPaid": "পরিশোধিত পরিমাণ",
       "payFromAccount": "যে হিসাব থেকে পরিশোধ",
       "payableRaised": "বকেয়া তৈরি হবে (অপরিশোধিত অংশ)",
       "dueDateOptional": "শেষ তারিখ (ঐচ্ছিক)",
       "notes": "নোট",
       "cancel": "বাতিল",
-      "record": "লিখুন",
+      "record": "ক্রয় সংরক্ষণ করুন",
       "createdToast": "ক্রয় {number} লেখা হয়েছে — মজুদ হালনাগাদ হয়েছে।",
       "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।",
       "paidAmountExceedsTotal": "পরিশোধিত পরিমাণ ক্রয়ের মোট পরিমাণের চেয়ে বেশি হতে পারবে না।"
+    },
+    "supplierPicker": {
+      "supplier": "সরবরাহকারী",
+      "selectSupplier": "একজন সরবরাহকারী নির্বাচন করুন",
+      "searchSupplier": "সরবরাহকারী খুঁজুন…",
+      "loading": "লোড হচ্ছে…",
+      "noSuppliersFound": "কোনো সরবরাহকারী পাওয়া যায়নি।"
+    },
+    "summary": {
+      "totalPurchases": "মোট ক্রয়",
+      "paidAmount": "পরিশোধিত পরিমাণ",
+      "payable": "বকেয়া",
+      "purchaseOrders": "ক্রয় অর্ডার",
+      "error": "ক্রয়ের সারাংশ লোড করা যায়নি।"
+    },
+    "filters": {
+      "statusLabel": "পরিশোধের অবস্থা",
+      "allStatuses": "সব অবস্থা",
+      "statusOptions": {
+        "UNPAID": "অপরিশোধিত",
+        "PARTIALLY_PAID": "আংশিক পরিশোধিত",
+        "PAID": "পরিশোধিত",
+        "OVERDUE": "মেয়াদোত্তীর্ণ"
+      }
     },
     "payableStatus": {
       "paidInFull": "সম্পূর্ণ পরিশোধিত",
@@ -5393,20 +5547,42 @@
       "description": "বিবরণ",
       "amount": "পরিমাণ",
       "status": "অবস্থা",
+      "dueDate": "শেষ তারিখ",
+      "paidInFull": "সম্পূর্ণ পরিশোধিত",
+      "statusOptions": {
+        "UNPAID": "অপরিশোধিত",
+        "PARTIALLY_PAID": "আংশিক পরিশোধিত",
+        "PAID": "পরিশোধিত",
+        "OVERDUE": "মেয়াদোত্তীর্ণ"
+      },
+      "voided": "বাতিল হয়েছে",
+      "void": "বাতিল করুন",
       "errorTitle": "খরচ লোড করা যায়নি",
       "emptyTitle": "এখনো কোনো খরচ লেখা হয়নি",
       "emptyDescription": "একটি খরচ লিখুন, এখানে দেখা যাবে।"
     },
     "purchasesTable": {
-      "number": "ক্রয় #",
+      "reference": "রেফারেন্স",
       "date": "তারিখ",
       "supplier": "সরবরাহকারী",
       "total": "মোট",
+      "paidAmount": "পরিশোধিত পরিমাণ",
       "status": "অবস্থা",
+      "dueDate": "শেষ তারিখ",
       "noSupplier": "—",
+      "unknownSupplier": "অজানা সরবরাহকারী",
+      "paidInFull": "সম্পূর্ণ পরিশোধিত",
+      "voided": "বাতিল হয়েছে",
+      "void": "বাতিল করুন",
+      "statusOptions": {
+        "UNPAID": "অপরিশোধিত",
+        "PARTIALLY_PAID": "আংশিক পরিশোধিত",
+        "PAID": "পরিশোধিত",
+        "OVERDUE": "মেয়াদোত্তীর্ণ"
+      },
       "errorTitle": "ক্রয় লোড করা যায়নি",
       "emptyTitle": "এখনো কোনো ক্রয় লেখা হয়নি",
-      "emptyDescription": "একটি ক্রয় লিখুন, এখানে দেখা যাবে।"
+      "emptyDescription": "ক্রয় স্বয়ংক্রিয়ভাবে করতে পারে: মজুদ হালনাগাদ · সরবরাহকারীর বকেয়া তৈরি · পরিশোধ রেকর্ড।"
     }
   },
   "sales": {
@@ -5438,12 +5614,14 @@
       },
       "selectTypeFirst": "প্রথমে আপনি কী রেকর্ড করছেন তা বেছে নিন",
       "selectProductFirst": "আপনি কোন পণ্য বিক্রি করছেন তা বেছে নিন",
+      "selectItemFirst": "আপনি কোন আইটেম বিক্রি করছেন তা বেছে নিন",
       "productSubtype": "পণ্য",
       "productSubtypeOptions": {
         "MILK": "দুধ",
         "MANURE": "গোবর",
         "INVENTORY": "ইনভেন্টরি আইটেম"
       },
+      "manureTotalAmount": "মোট পরিমাণ",
       "notAvailableYet": "এখনো উপলব্ধ নয় — এই বিক্রয় প্রকারের জন্য কোনো ব্যাকএন্ড রুট নেই।",
       "buyer": "ক্রেতা",
       "buyerPlaceholder": "ক্রেতা নির্বাচন করুন",
@@ -5483,6 +5661,127 @@
       "back": "পিছনে",
       "continue": "চালিয়ে যান",
       "submit": "জমা দিন"
+    },
+    "tabs": {
+      "overview": "ওভারভিউ",
+      "invoices": "ইনভয়েস",
+      "dispatches": "ডেসপ্যাচ"
+    },
+    "newSaleMenu": {
+      "trigger": "নতুন বিক্রয়"
+    },
+    "overview": {
+      "title": "বিক্রয় ওভারভিউ",
+      "subtitle": "আপনার সব বিক্রয় ও ডেসপ্যাচ ট্র্যাক করুন",
+      "summary": {
+        "totalSales": "মোট বিক্রয়",
+        "totalInvoices": "মোট ইনভয়েস",
+        "paidAmount": "পরিশোধিত পরিমাণ",
+        "outstanding": "বকেয়া",
+        "error": "বিক্রয়ের সারাংশ লোড করা যায়নি।"
+      },
+      "trend": {
+        "title": "বিক্রয় প্রবণতা",
+        "legend": "বিক্রয়",
+        "granularityLabel": "সময়কাল",
+        "granularityOptions": { "day": "দৈনিক", "week": "সাপ্তাহিক", "month": "মাসিক" },
+        "error": "বিক্রয় প্রবণতা লোড করা যায়নি।"
+      },
+      "byProduct": {
+        "title": "পণ্য অনুযায়ী বিক্রয়",
+        "totalLabel": "মোট",
+        "empty": "এই সময়ে কোনো বিক্রয় হয়নি।",
+        "error": "পণ্য অনুযায়ী বিক্রয় লোড করা যায়নি।",
+        "lineType": { "MILK": "দুধ", "ANIMAL": "বাছুর", "INVENTORY": "ইনভেন্টরি", "MANURE": "গোবর" }
+      },
+      "recentSales": {
+        "title": "সাম্প্রতিক বিক্রয়",
+        "viewAll": "সব দেখুন →",
+        "invoiceNo": "ইনভয়েস নং",
+        "date": "তারিখ",
+        "buyer": "ক্রেতা",
+        "product": "পণ্য",
+        "qty": "পরিমাণ",
+        "totalAmount": "মোট পরিমাণ",
+        "status": "অবস্থা",
+        "dueDate": "শেষ তারিখ",
+        "noBuyer": "—",
+        "statusOptions": { "UNPAID": "অপরিশোধিত", "PARTIALLY_PAID": "আংশিক", "PAID": "পরিশোধিত", "OVERDUE": "মেয়াদোত্তীর্ণ" },
+        "emptyTitle": "এখনো কোনো বিক্রয় রেকর্ড হয়নি",
+        "emptyDescription": "একটি বিক্রয় রেকর্ড করুন, এখানে দেখা যাবে।"
+      },
+      "topBuyers": {
+        "title": "শীর্ষ ক্রেতা",
+        "empty": "এই সময়ে কোনো ক্রেতা নেই।",
+        "error": "শীর্ষ ক্রেতা লোড করা যায়নি।"
+      }
+    },
+    "invoices": {
+      "title": "ইনভয়েস",
+      "subtitle": "আপনার সব বিক্রয় ইনভয়েস",
+      "searchPlaceholder": "ইনভয়েস খুঁজুন…",
+      "tabs": { "all": "সব ইনভয়েস", "unpaid": "অপরিশোধিত", "partial": "আংশিক", "paid": "পরিশোধিত" },
+      "table": {
+        "invoiceNo": "ইনভয়েস নং",
+        "date": "তারিখ",
+        "buyer": "ক্রেতা",
+        "totalAmount": "মোট পরিমাণ",
+        "paidAmount": "পরিশোধিত পরিমাণ",
+        "dueAmount": "বকেয়া পরিমাণ",
+        "status": "অবস্থা",
+        "dueDate": "শেষ তারিখ",
+        "noBuyer": "—",
+        "statusOptions": { "UNPAID": "অপরিশোধিত", "PARTIALLY_PAID": "আংশিক", "PAID": "পরিশোধিত", "OVERDUE": "মেয়াদোত্তীর্ণ" },
+        "voided": "বাতিল হয়েছে",
+        "cancel": "বাতিল",
+        "refund": "ফেরত",
+        "emptyTitle": "কোনো ইনভয়েস পাওয়া যায়নি",
+        "emptyDescription": "একটি বিক্রয় রেকর্ড করুন, এর ইনভয়েস এখানে দেখা যাবে।"
+      }
+    },
+    "dispatches": {
+      "title": "ডেসপ্যাচ",
+      "subtitle": "দুধ ডেসপ্যাচ ইতিহাস ও রসিদ নিশ্চিতকরণ",
+      "newDispatchCta": "নতুন ডেসপ্যাচ",
+      "tabs": { "all": "সব ডেসপ্যাচ", "pending": "মুলতুবি", "delivered": "সরবরাহকৃত", "cancelled": "বাতিল" },
+      "summary": {
+        "total": "মোট ডেসপ্যাচ",
+        "delivered": "সরবরাহকৃত",
+        "inTransit": "পথে",
+        "cancelled": "বাতিল",
+        "error": "ডেসপ্যাচ সারাংশ লোড করা যায়নি।"
+      },
+      "table": {
+        "dispatchNo": "ডেসপ্যাচ নং",
+        "date": "তারিখ",
+        "buyer": "ক্রেতা",
+        "product": "পণ্য",
+        "productMilk": "দুধ",
+        "quantity": "পরিমাণ",
+        "status": "অবস্থা",
+        "driver": "চালক",
+        "amount": "পরিমাণ",
+        "noBuyer": "—",
+        "statusOptions": { "PENDING": "মুলতুবি", "DELIVERED": "সরবরাহকৃত", "CANCELLED": "বাতিল" },
+        "rowActions": "সারির কার্যক্রম",
+        "confirmReceipt": "রসিদ নিশ্চিত করুন",
+        "cancelDispatch": "ডেসপ্যাচ বাতিল করুন",
+        "cancelledToast": "ডেসপ্যাচ বাতিল হয়েছে।",
+        "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।",
+        "cancelConfirmTitle": "এই ডেসপ্যাচ বাতিল করবেন?",
+        "cancelConfirmDescription": "এটি এর পোস্ট করা বিক্রয়ও (যদি থাকে) বাতিল করে দেবে। এটি পূর্বাবস্থায় ফেরানো যাবে না।",
+        "emptyTitle": "এখনো কোনো ডেসপ্যাচ রেকর্ড হয়নি",
+        "emptyDescription": "একটি দুধ ডেসপ্যাচ রেকর্ড করুন, এখানে দেখা যাবে।"
+      },
+      "receiptDialog": {
+        "title": "রসিদ নিশ্চিত করুন — {number}",
+        "volumeReceivedL": "প্রাপ্ত পরিমাণ (লিটার)",
+        "driverName": "চালক",
+        "cancel": "বাতিল",
+        "confirm": "নিশ্চিত করুন",
+        "confirmedToast": "রসিদ নিশ্চিত হয়েছে।",
+        "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+      }
     }
   },
   "period": {
@@ -5494,6 +5793,59 @@
       "this_quarter": "এই প্রান্তিক",
       "this_year": "এই বছর",
       "custom": "কাস্টম"
+    }
+  },
+  "suppliers": {
+    "title": "সরবরাহকারী",
+    "subtitle": "যাদের কাছ থেকে আপনি ফিড, ওষুধ বা সরঞ্জাম কেনেন",
+    "summary": {
+      "totalSuppliers": "মোট সরবরাহকারী",
+      "activeSuppliers": "সক্রিয় সরবরাহকারী",
+      "totalPurchases": "মোট ক্রয়",
+      "totalPayable": "মোট প্রদেয়",
+      "error": "সরবরাহকারী সারাংশ লোড করা যায়নি।"
+    },
+    "table": {
+      "columns": {
+        "name": "সরবরাহকারীর নাম",
+        "phone": "ফোন",
+        "totalPurchases": "মোট ক্রয়",
+        "payable": "প্রদেয়",
+        "lastPurchase": "সর্বশেষ ক্রয়"
+      },
+      "inactive": "নিষ্ক্রিয়",
+      "rowActions": "সরবরাহকারী অ্যাকশন",
+      "edit": "সম্পাদনা",
+      "deactivate": "নিষ্ক্রিয় করুন",
+      "addSupplier": "সরবরাহকারী যোগ করুন",
+      "empty": {
+        "title": "এখনও কোনো সরবরাহকারী নেই",
+        "description": "আপনি যাদের কাছ থেকে ফিড, ওষুধ বা সরঞ্জাম কেনেন তাদের যোগ করুন — আপনি ক্রয় রেকর্ড করতে এবং তাদের কাছে কত বকেয়া তা ট্র্যাক করতে পারবেন।"
+      }
+    },
+    "form": {
+      "addTitle": "সরবরাহকারী যোগ করুন",
+      "editTitle": "সরবরাহকারী সম্পাদনা",
+      "dialogDescription": "সরবরাহকারী হলেন যাদের কাছ থেকে আপনি ফিড, ওষুধ বা সরঞ্জাম কেনেন।",
+      "nameLabel": "সরবরাহকারীর নাম",
+      "contactLabel": "যোগাযোগকারী ব্যক্তি",
+      "phoneLabel": "ফোন",
+      "categoryLabel": "বিভাগ",
+      "paymentTermsLabel": "পেমেন্ট শর্তাবলী",
+      "notesLabel": "নোট",
+      "save": "সংরক্ষণ করুন",
+      "saving": "সংরক্ষণ হচ্ছে...",
+      "createdToast": "সরবরাহকারী যোগ করা হয়েছে।",
+      "updatedToast": "সরবরাহকারী আপডেট করা হয়েছে।",
+      "genericError": "সরবরাহকারী সংরক্ষণ করা যায়নি।"
+    },
+    "deleteDialog": {
+      "title": "\"{name}\" নিষ্ক্রিয় করবেন?",
+      "description": "নিষ্ক্রিয় করলে এই সরবরাহকারী পিকার ও নতুন ক্রয় থেকে সরে যাবে। এর ইতিহাস সংরক্ষিত থাকবে।",
+      "confirm": "নিষ্ক্রিয় করুন",
+      "cancel": "বাতিল",
+      "successToast": "সরবরাহকারী নিষ্ক্রিয় করা হয়েছে।",
+      "genericError": "সরবরাহকারী নিষ্ক্রিয় করা যায়নি।"
     }
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { milkApi } from "../api";
 import type {
@@ -61,10 +61,16 @@ export function useSubmitMilk() {
   });
 }
 
+/** RD-058 — cursor-paginated (`GET /milk/anomalies` used to `findMany` every flagged row for the
+ * farm with no `take`). `useInfiniteQuery` matches the `DataTable` "load more" contract other
+ * cursor lists here use (`useMilkQualityTests`). */
 export function useMilkAnomalies(date?: string) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: qk.milk.anomalies(date),
-    queryFn: () => milkApi.anomalies(date),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      milkApi.anomalies({ date, cursor: pageParam, limit: 20 }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => (lastPage.meta.hasNextPage ? lastPage.meta.endCursor : undefined),
     staleTime: STALE_TIME,
   });
 }

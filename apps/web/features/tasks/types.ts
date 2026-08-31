@@ -44,6 +44,22 @@ export interface Task {
   /** Multi-cow target (user request, no ticket #) — always an array, empty when the task has no
    * cow target or uses `relatedCattleId` instead. */
   cattleIds: string[];
+  /** Cow-name display (user request, no ticket #) — `relatedCattleId` joined to its tag/name by
+   * the backend. Null when there's no single-cow target, or that cow no longer exists. */
+  relatedCattle: { id: string; tagNumber: string; name: string | null } | null;
+  /** Same join as `relatedCattle`, for `cattleIds` — may be shorter than `cattleIds` if a cow was
+   * deleted since the task was created. */
+  cattleTags: { id: string; tagNumber: string; name: string | null }[];
+  /** Activity/history section (user request, no ticket #) — oldest first. `"CREATED"` is always
+   * the first entry, synthesized by the backend from `createdBy`/`createdAt` (never a stored row). */
+  history: {
+    id: string;
+    action: "CREATED" | "UPDATED" | "COMPLETED" | "REOPENED" | "CANCELLED";
+    actorId: string | null;
+    actorName: string | null;
+    note: string | null;
+    createdAt: string;
+  }[];
   assignedToId: string | null;
   assignedTo: { id: string; name: string } | null;
   completionPhotoUrl: string | null;
@@ -66,6 +82,8 @@ export interface TaskHighlights {
   lateCompletionRatePct: number;
 }
 
+export type TaskDatePreset = "today" | "week" | "month" | "all";
+
 export interface TaskListFilters {
   filter?: TaskListFilter;
   category?: TaskCategory;
@@ -74,6 +92,10 @@ export interface TaskListFilters {
   /** Per-animal Task Hub view (unified animal-profile redesign, no ticket #) — filters on
    * `Task.relatedCattleId` server-side. */
   cattleId?: string;
+  /** Date filter tabs (user request, no ticket #) — `dueAt` range, ISO date strings. Mirrors
+   * `ListTaskQueryDto.dueFrom`/`.dueTo` (inclusive start / exclusive end). */
+  dueFrom?: string;
+  dueTo?: string;
 }
 
 /** Mirrors `CreateTaskDto`. */

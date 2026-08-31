@@ -1,5 +1,96 @@
 # Frontend — Current State
 
+## RAKHAL-392 — Source-reference drill-through + Posted/Voided chips + void flows (2026-08-31)
+Last Phase E ticket, MILESTONE 22 — closes the nine-way-parallel screen-ticket wave (383-392 all
+done). New `components/shared/source-reference.tsx` (one shared `Link`-or-text renderer, now used
+by `TransactionsTable`'s reference column) + `features/finance/components/void-document-dialog.tsx`
+(one dialog for Sale cancel/refund + Purchase/Expense void — surfaces the backend's own real
+rejection message verbatim when a document has allocated payments, never a client-side guess).
+Wired Voided badges + void/cancel/refund row actions (`finance.reverse`-gated) into Sales Invoices,
+Purchasing Purchases, and Purchasing Expenses; added the previously-untyped `Purchase.status`/
+`Expense.voidedAt` fields to back them. Deliberately skipped Receivables/Payables (derived
+settlement status, not a document's own Posted/Voided state) and per-document detail pages for the
+backend's `TRANSACTION_SOURCE_REGISTRY` hrefs (none exist yet — a real backend/routing gap, flagged
+not faked). Gate: `typecheck` 0 in every touched file (repo-wide run's only remaining error is
+pre-existing/unrelated), `lint` 0 per-file, `test` 174/174.
+
+## (no ticket) Buyers: archived-buyer list/summary mismatch + BuyerPicker + right-side Add Buyer sheet (2026-08-31)
+Full writeup: `docs/IN_FLIGHT.md`'s matching Recently Done row, same date. Fixed `buyers-view.tsx` fetching
+the list without `includeArchived` (defaulted `false`) while `GET /buyers/summary` counts archived buyers
+too — a deactivated buyer showed "Total Buyers: 1" over an empty table. New `BuyerPicker` (search-select +
+inline "+ Add new buyer" opening the real `BuyerFormDialog`, auto-selects on create) replaces the plain
+`<Select>` in Record Dispatch and Record Sale's Milk step. `BuyerFormDialog`/`RecordDispatchDialog`
+converted from centered `Dialog` to the app's right-side `Sheet` chrome (`EquipmentFormDialog` precedent).
+
+## RAKHAL-389 — Buyers: list + summary + detail page + Buyer Groups (2026-08-31)
+Ninth Phase E screen ticket, MILESTONE 22 — last of the nine-way-parallel screen tickets to land.
+List columns `Buyer Name | Phone | Outstanding | Total Purchased | Last Purchase | Actions` +
+4-stat Buyer Summary (`GET /buyers/summary`), off `GET /buyers` v2's server-computed aggregates
+(RAKHAL-372). New buyer detail page (`/buyers/:id`): header (back link + name + Edit + 3 stats) +
+tabs `Overview | Sales & Invoices | Dispatches | Payments | Balance`. `Buyer Groups` tab replaces
+the deleted global "Dispatch History" tab (moved to Sales, RAKHAL-388) — `Buyers | Buyer Groups`,
+off `GET /buyers/groups`, no new model. Payments/Balance tabs reuse existing Finance/Buyers
+components as-is (`ReceivablesTable`, `useBuyerStatement`) rather than duplicating logic. **Caught
++ fixed 2 real pre-existing bugs**: `Buyer.isActive` never matched the schema (`MilkBuyer`
+soft-deletes via `deletedAt`, not `isActive` — every buyer silently rendered "Inactive"), and
+`BuyerListFilters` sent `includeInactive` where the DTO field is `includeArchived`. Also fixed 2
+real bugs in RAKHAL-388's own code once typecheck finally cleared an unrelated repo-wide blocker
+this session (`InvoicesView`'s `status`→`paymentStatus` filter, a recharts Tooltip type mismatch).
+Gate: `typecheck`/`lint` clean in this lane (repo-wide runs still show pre-existing unrelated
+errors elsewhere, one flagged as a separate background task); `test` unaffected; `build` blocked
+repo-wide by a second unrelated pre-existing error, also flagged separately.
+
+## RAKHAL-388 — Sales module: Overview + Invoices + Dispatches (2026-08-31)
+Eighth Phase E screen ticket, MILESTONE 22 (largest remaining — Critical/XL). New `/sales` module:
+**Overview** (4 KPIs+changePct, Sales Trend line chart with By Day/Week/Month toggle, Sales by
+Product donut, Recent Sales table, Top Buyers list, off `GET /sales/summary`), **Invoices**
+(status tabs All/Unpaid/Partial/Paid → `?paymentStatus=`, the AC's exact columns, reuses
+`AgingSummaryStrip` for the 4-tile Aging Summary), **Dispatches** (status tabs
+All/Pending/Delivered/Cancelled → `?status=` on `GET /buyers/dispatches` v2, Confirm Receipt +
+Cancel row actions, Dispatch Summary panel). `isSaleFlowWired` deleted — Manure/Inventory sale
+types are now wired for real (`POST /sales/manure`/`/sales/inventory`); Inventory gained a real
+`ItemPicker` (reused from Purchasing) replacing the old free-text placeholder. New `+ New Sale ▾`
+split button (5 sale types, one shared wizard) gates on `sales.create` **or** `finance.create`
+since its submit paths span both permission resources. `app/(app)/sales/page.tsx` now mounts the
+real `SalesView` (was RAKHAL-357's bare wizard-trigger scaffold). Gate: `lint` clean scoped to
+`features/sales/**`; `test` 87/87 unchanged. **`typecheck`/`build` not independently confirmed**
+this session — blocked repo-wide by an unrelated pre-existing parse error in
+`features/health/components/record-batch-dialog.tsx`, left uncommitted by a different concurrent
+agent (confirmed outside this ticket's lane); flagged as its own background task, not fixed here.
+Re-verify once that lands.
+
+## RAKHAL-391 — Purchasing overhaul + Record Purchase modal (2026-08-29)
+Seventh Phase E screen ticket, MILESTONE 22 (second Purchasing-module ticket). Tabs reordered to
+**`Purchases | Expenses`** (was `Expenses | Purchases`), Purchases now the default tab — mockup 1's
+`Purchases | Suppliers` superseded now that Suppliers is its own module (RAKHAL-390). New "This
+Month Summary" 4-stat panel (`GET /purchasing/summary?from&to`, RAKHAL-375) + a shared payment-status
++ `DateRangePicker` filter bar driving both tables. Rewrote `api.ts`/`hooks/use-purchasing.ts` onto
+RAKHAL-375's cursor+filter list routes — `usePurchasesList`/`useExpensesList` are `useInfiniteQuery`
++ `DataTable` "load more", replacing the old plain-array `usePurchases`/`useExpenses`. `PurchasesTable`
+now the AC's exact columns `Reference | Supplier | Date | Total | Paid Amount | Status | Due Date`
+(`Supplier` joined client-side from `/settings/suppliers` by the real FK RAKHAL-365 promoted).
+Record Purchase modal: new `SupplierPicker` replaces the old free-text Supplier field (now required
+client-side per spec, DTO stays optional server-side); Payment Type switched `Switch`→radio `Paid
+Now`/`Buy on Credit`. The atomic `POST /purchasing/purchases` call itself was already correct
+(RAKHAL-348/359's `$transaction`) — no backend change. Deleted dead `payable-status-badge.tsx`.
+Gate: `typecheck`(0)/`lint`(0 new)/`build`(0, 45 routes unchanged)/`test`(87/87 unchanged). No live
+click-through — same documented pre-existing Suspense-stuck harness quirk prior rows note.
+
+## RAKHAL-390 — Suppliers module (2026-08-29)
+Sixth Phase E screen ticket, MILESTONE 22 (first Purchasing-module ticket). New `features/
+suppliers/**` — aggregate-driven directory off `GET /purchasing/suppliers`/`.../summary`
+(RAKHAL-373): `Supplier Name | Phone | Total Purchases | Payable | Last Purchase | Actions` + a
+4-stat summary (Total/Active Suppliers, Total Purchases, Total Payable). Write side (create/edit/
+deactivate) reuses the existing `/settings/suppliers` CRUD as-is (`useCreateSupplier`/
+`useUpdateSupplier`/`useDeleteSupplier`, `supplierFormSchema` — `features/settings/**` untouched,
+read-only reuse). Caught + fixed a real permission-gate bug pre-ship: first draft gated Actions/Add
+on a non-existent `purchasing.update` (catalogue only has `purchasing.read`/`purchasing.create`) —
+the real write routes are `settings.update`, fixed to match. New `useInvalidateSuppliersV2()`
+bridges the two query-cache namespaces (settings mutations don't know this read-model view exists).
+Mounted at `/suppliers` (was RAKHAL-381's coming-soon scaffold). Gate: `typecheck`(0)/`lint`(0 new)/
+`build`(0, 45 routes unchanged)/`test`(87/87 unchanged). No live click-through — same documented
+precedent as prior rows on this board.
+
 ## RAKHAL-387 — Finance Reports tab (2026-08-28)
 Fifth Phase E screen ticket, MILESTONE 22. New `features/finance/components/reports/**` — a
 4-segment tab (own `report` URL param): **P&L** off `GET /finance/reports/profit-loss?from&to`

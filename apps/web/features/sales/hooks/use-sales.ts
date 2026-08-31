@@ -1,14 +1,21 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
+import { toPeriodKey, type PeriodRange } from "@/lib/period/presets";
 import { salesApi } from "../api";
 import type {
   AllocatePaymentPayload,
   CreateIncomeCategoryPayload,
   CreatePaymentPayload,
+  DispatchListFilters,
+  InvoiceListFilters,
   RecordOtherIncomePayload,
+  RecordReceiptPayload,
+  SalesTrendGranularity,
   SellAnimalPayload,
+  SellInventoryPayload,
+  SellManurePayload,
 } from "../types";
 
 const STALE_TIME = 30_000;
@@ -65,7 +72,130 @@ export function useSellAnimal() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["cattle"] });
       void queryClient.invalidateQueries({ queryKey: ["finance"] });
+      void queryClient.invalidateQueries({ queryKey: ["sales"] });
     },
+  });
+}
+
+/** `POST /sales/inventory` (RAKHAL-346/376) — real atomic inventory-sale flow. Invalidates
+ * `["inventory"]` too (the sold item's stock decrements), same convention `useCreatePurchase`
+ * (Purchasing) established for its own inventory-stock side effect. */
+export function useSellInventory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: SellInventoryPayload) => salesApi.sellInventory(dto),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      void queryClient.invalidateQueries({ queryKey: ["finance"] });
+      void queryClient.invalidateQueries({ queryKey: ["sales"] });
+    },
+  });
+}
+
+/** `POST /sales/manure` (RAKHAL-347/376) — no inventory side effect (RD-058: no manure stock model). */
+export function useSellManure() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: SellManurePayload) => salesApi.sellManure(dto),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["finance"] });
+      void queryClient.invalidateQueries({ queryKey: ["sales"] });
+    },
+  });
+}
+
+/** `GET /sales` v2 (RAKHAL-368), unpaginated small page — backs the Overview screen's "Recent
+ * Sales" table (5 newest, default `sortOrder` is newest-first per house cursor convention). */
+export function useRecentInvoices(limit = 5) {
+  return useQuery({
+    queryKey: qk.sales.invoicesListV2({ limit: String(limit) }),
+    queryFn: () => salesApi.listInvoices({}, undefined, limit),
+    staleTime: STALE_TIME,
+  });
+}
+
+/** `GET /sales` v2 (RAKHAL-368) — cursor "load more", backs the Invoices tab. */
+export function useInvoicesList(filters: InvoiceListFilters) {
+  return useInfiniteQuery({
+    queryKey: qk.sales.invoicesListV2(filters as Record<string, string | undefined>),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) => salesApi.listInvoices(filters, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => (lastPage.meta.hasNextPage ? lastPage.meta.endCursor : undefined),
+    staleTime: STALE_TIME,
+  });
+}
+
+/** `GET /sales/summary?from&to&granularity` (RAKHAL-374) — backs the Overview screen; period+
+ * granularity-keyed so switching either refetches. */
+export function useSalesSummary(range: PeriodRange, granularity: SalesTrendGranularity) {
+  const periodKey = `${toPeriodKey(range)}:${granularity}`;
+  return useQuery({
+    queryKey: qk.sales.summaryV2(periodKey),
+    queryFn: () => salesApi.getSummary(range.from.toISOString(), range.to.toISOString(), granularity),
+    staleTime: STALE_TIME,
+  });
+}
+
+/** `GET /buyers/dispatches` v2 (RAKHAL-378) — cursor "load more", backs the Dispatches tab. */
+export function useDispatchesList(filters: DispatchListFilters) {
+  return useInfiniteQuery({
+    queryKey: qk.sales.dispatchesListV2(filters as Record<string, string | undefined>),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) => salesApi.listDispatches(filters, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => (lastPage.meta.hasNextPage ? lastPage.meta.endCursor : undefined),
+    staleTime: STALE_TIME,
+  });
+}
+
+export function useDispatchesSummary() {
+  return useQuery({
+    queryKey: qk.sales.dispatchesSummaryV2(),
+    queryFn: () => salesApi.getDispatchesSummary(),
+    staleTime: STALE_TIME,
+  });
+}
+
+function invalidateDispatchLists(queryClient: ReturnType<typeof useQueryClient>) {
+  void queryClient.invalidateQueries({ queryKey: ["sales", "v2", "dispatches"] });
+  void queryClient.invalidateQueries({ queryKey: ["finance"] });
+}
+
+export function useRecordReceipt() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: RecordReceiptPayload }) => salesApi.recordReceipt(id, dto),
+    onSuccess: () => invalidateDispatchLists(queryClient),
+  });
+}
+
+export function useCancelDispatch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => salesApi.cancelDispatch(id),
+    onSuccess: () => invalidateDispatchLists(queryClient),
+  });
+}
+
+function invalidateSalesLists(queryClient: ReturnType<typeof useQueryClient>) {
+  void queryClient.invalidateQueries({ queryKey: ["sales"] });
+  void queryClient.invalidateQueries({ queryKey: ["finance"] });
+}
+
+/** `POST /sales/:id/cancel` (RAKHAL-377/392). */
+export function useCancelSale() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => salesApi.cancelSale(id),
+    onSuccess: () => invalidateSalesLists(queryClient),
+  });
+}
+
+/** `POST /sales/:id/refund` (RAKHAL-377/392). */
+export function useRefundSale() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => salesApi.refundSale(id),
+    onSuccess: () => invalidateSalesLists(queryClient),
   });
 }
 

@@ -67,7 +67,17 @@ export function SelectContent({
   );
 }
 
-export function SelectItem({ className, children, ...props }: React.ComponentProps<typeof SelectPrimitive.Item>) {
+export function SelectItem({
+  className,
+  children,
+  hint,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Item> & {
+  /** Secondary line shown under the item in the dropdown only — kept out of `ItemText` so it
+   * doesn't get echoed into the closed trigger's `SelectValue` (Radix mirrors `ItemText`'s
+   * children there; a two-line item made the trigger render both lines too). */
+  hint?: React.ReactNode;
+}) {
   return (
     <SelectPrimitive.Item
       className={cn(
@@ -81,7 +91,14 @@ export function SelectItem({ className, children, ...props }: React.ComponentPro
           <Check className="size-4" />
         </SelectPrimitive.ItemIndicator>
       </span>
-      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+      {hint ? (
+        <span className="flex min-w-0 flex-1 flex-col">
+          <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+          <span className="text-xs text-muted-foreground">{hint}</span>
+        </span>
+      ) : (
+        <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+      )}
     </SelectPrimitive.Item>
   );
 }

@@ -19,6 +19,7 @@ export function useCurrentFarm() {
   return {
     farm: query.data?.find((f) => f.id === session?.farmId),
     farmId: session?.farmId,
+    farms: query.data ?? [],
     isLoading: sessionLoading || query.isLoading,
     isError: query.isError,
   };

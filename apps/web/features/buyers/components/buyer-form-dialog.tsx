@@ -4,35 +4,59 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { ArrowRightToLine } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
+import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import { useCreateBuyer, useUpdateBuyer } from "../hooks/use-buyers";
 import { BUYER_TYPES, buyerFormSchema, type BuyerFormInput } from "../schemas";
 import type { Buyer } from "../types";
 
+/** Plain bold-text grey band — same anatomy as `EquipmentFormDialog`'s `SectionHeader`. */
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-xl bg-muted px-4 py-2.5 text-sm font-semibold text-foreground">{children}</div>;
+}
+
 /**
- * Create/Edit Buyer — one dialog for both (same pattern as `CattleFormDialog`). No Figma frame
- * for this module (RFE-026: "Design: Figma if present, else PRD-spec") — built against the real
- * `CreateBuyerDto`/`UpdateBuyerDto`.
+ * Create/Edit Buyer — right-side drawer, same floating-card chrome (10px inset, 20px radius, 2px
+ * border, `arrow-right-03` header icon, dashed section dividers) as `EquipmentFormDialog`/
+ * `MedicineFormDialog`. Was previously a centered `Dialog` — moved to match every other form's
+ * side-sheet pattern in the app.
+ *
+ * `onCreated` (optional) fires with the newly created `Buyer` right after a successful *create*
+ * (not edit) — `BuyerPicker`'s inline "+ Add new buyer" uses this to auto-select the buyer it just
+ * created without a second round trip.
  */
 export function BuyerFormDialog({
   buyer,
   open,
   onOpenChange,
+  onCreated,
 }: {
   buyer: Buyer | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCreated?: (buyer: Buyer) => void;
+}) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
+      {open ? (
+        <BuyerFormDialogBody key={buyer?.id ?? "create"} buyer={buyer} onOpenChange={onOpenChange} onCreated={onCreated} />
+      ) : null}
+    </Sheet>
+  );
+}
+
+function BuyerFormDialogBody({
+  buyer,
+  onOpenChange,
+  onCreated,
+}: {
+  buyer: Buyer | null;
+  onOpenChange: (open: boolean) => void;
+  onCreated?: (buyer: Buyer) => void;
 }) {
   const t = useTranslations("buyers.form");
   const createBuyer = useCreateBuyer();
@@ -42,7 +66,7 @@ export function BuyerFormDialog({
 
   const form = useForm<BuyerFormInput>({
     resolver: zodResolver(buyerFormSchema),
-    values: buyer
+    defaultValues: buyer
       ? {
           name: buyer.name,
           contactPerson: buyer.contactPerson ?? undefined,
@@ -63,13 +87,13 @@ export function BuyerFormDialog({
 
   async function onSubmit(values: BuyerFormInput) {
     try {
-      if (isEdit) {
+      if (isEdit && buyer) {
         await updateBuyer.mutateAsync({ id: buyer.id, dto: values });
         toast.success(t("updatedToast"));
       } else {
-        await createBuyer.mutateAsync(values);
+        const created = await createBuyer.mutateAsync(values);
         toast.success(t("createdToast"));
-        form.reset({ name: "", buyerType: "DAIRY_COMPANY", basePricePerLitre: 0 });
+        onCreated?.(created);
       }
       onOpenChange(false);
     } catch (err) {
@@ -78,130 +102,118 @@ export function BuyerFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? t("editTitle") : t("createTitle")}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
-          <div className="space-y-1.5">
-            <Label htmlFor="name">{t("name")}</Label>
-            <Input id="name" error={form.formState.errors.name?.message} {...form.register("name")} />
+    <SheetContent
+      showClose={false}
+      className="inset-y-2.5 right-2.5 flex h-[calc(100vh-20px)] w-[calc(100%-20px)] max-w-[560px] flex-col gap-0 rounded-[20px] border-2 border-border p-5 shadow-2xl sm:max-w-[560px]"
+    >
+      <div className="flex items-center justify-between pb-5">
+        <SheetTitle className="text-xl font-bold text-foreground">{isEdit ? t("editTitle") : t("createTitle")}</SheetTitle>
+        <button
+          type="button"
+          onClick={() => onOpenChange(false)}
+          aria-label={t("cancel")}
+          className="flex size-5 items-center justify-center text-foreground transition-opacity hover:opacity-70"
+        >
+          <ArrowRightToLine className="size-5" aria-hidden />
+        </button>
+      </div>
+      <div className="border-t border-dashed border-border" />
+
+      <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-4">
+          <SectionHeader>{t("basicInfo")}</SectionHeader>
+          <LabeledInput id="name" label={t("name")} error={form.formState.errors.name?.message} {...form.register("name")} />
+          <Controller
+            control={form.control}
+            name="buyerType"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <LabeledSelectTrigger label={t("buyerType")} />
+                <SelectContent>
+                  {BUYER_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {t(`typeOptions.${type}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <LabeledInput id="contactPerson" label={t("contactPerson")} {...form.register("contactPerson")} />
+            <LabeledInput id="phone" label={t("phone")} {...form.register("phone")} />
           </div>
-          <div className="space-y-1.5">
-            <Label>{t("buyerType")}</Label>
-            <Controller
-              control={form.control}
-              name="buyerType"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BUYER_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {t(`typeOptions.${type}`)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+          <LabeledInput id="email" type="email" label={t("email")} {...form.register("email")} />
+
+          <SectionHeader>{t("pricingTerms")}</SectionHeader>
+          <div className="grid grid-cols-2 gap-3">
+            <LabeledInput
+              id="basePricePerLitre"
+              type="number"
+              step="0.01"
+              min={0}
+              label={t("basePricePerLitre")}
+              error={form.formState.errors.basePricePerLitre?.message}
+              {...form.register("basePricePerLitre", { valueAsNumber: true })}
+            />
+            <LabeledInput
+              id="paymentTermsDays"
+              type="number"
+              min={0}
+              label={t("paymentTermsDays")}
+              {...form.register("paymentTermsDays", { setValueAs: (v: string) => (v === "" ? undefined : Number(v)) })}
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="contactPerson">{t("contactPerson")}</Label>
-              <Input id="contactPerson" {...form.register("contactPerson")} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="phone">{t("phone")}</Label>
-              <Input id="phone" {...form.register("phone")} />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="email">{t("email")}</Label>
-            <Input id="email" type="email" {...form.register("email")} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="basePricePerLitre">{t("basePricePerLitre")}</Label>
-              <Input
-                id="basePricePerLitre"
-                type="number"
-                step="0.01"
-                min={0}
-                error={form.formState.errors.basePricePerLitre?.message}
-                {...form.register("basePricePerLitre", { valueAsNumber: true })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="paymentTermsDays">{t("paymentTermsDays")}</Label>
-              <Input
-                id="paymentTermsDays"
-                type="number"
-                min={0}
-                {...form.register("paymentTermsDays", { setValueAs: (v: string) => (v === "" ? undefined : Number(v)) })}
-              />
-            </div>
+            <LabeledInput
+              id="baseFatPct"
+              type="number"
+              step="0.1"
+              min={0}
+              label={t("baseFatPct")}
+              {...form.register("baseFatPct", { setValueAs: (v: string) => (v === "" ? undefined : Number(v)) })}
+            />
+            <LabeledInput
+              id="fatBonusPer01Pct"
+              type="number"
+              step="0.01"
+              min={0}
+              label={t("fatBonusPer01Pct")}
+              {...form.register("fatBonusPer01Pct", { setValueAs: (v: string) => (v === "" ? undefined : Number(v)) })}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="baseFatPct">{t("baseFatPct")}</Label>
-              <Input
-                id="baseFatPct"
-                type="number"
-                step="0.1"
-                min={0}
-                {...form.register("baseFatPct", { setValueAs: (v: string) => (v === "" ? undefined : Number(v)) })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="fatBonusPer01Pct">{t("fatBonusPer01Pct")}</Label>
-              <Input
-                id="fatBonusPer01Pct"
-                type="number"
-                step="0.01"
-                min={0}
-                {...form.register("fatBonusPer01Pct", { setValueAs: (v: string) => (v === "" ? undefined : Number(v)) })}
-              />
-            </div>
+            <LabeledInput
+              id="sccThreshold"
+              type="number"
+              min={0}
+              label={t("sccThreshold")}
+              {...form.register("sccThreshold", { setValueAs: (v: string) => (v === "" ? undefined : Number(v)) })}
+            />
+            <LabeledInput
+              id="sccPenaltyPer100k"
+              type="number"
+              step="0.01"
+              min={0}
+              label={t("sccPenaltyPer100k")}
+              {...form.register("sccPenaltyPer100k", { setValueAs: (v: string) => (v === "" ? undefined : Number(v)) })}
+            />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="sccThreshold">{t("sccThreshold")}</Label>
-              <Input
-                id="sccThreshold"
-                type="number"
-                min={0}
-                {...form.register("sccThreshold", { setValueAs: (v: string) => (v === "" ? undefined : Number(v)) })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="sccPenaltyPer100k">{t("sccPenaltyPer100k")}</Label>
-              <Input
-                id="sccPenaltyPer100k"
-                type="number"
-                step="0.01"
-                min={0}
-                {...form.register("sccPenaltyPer100k", { setValueAs: (v: string) => (v === "" ? undefined : Number(v)) })}
-              />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="bankDetails">{t("bankDetails")}</Label>
-            <Input id="bankDetails" {...form.register("bankDetails")} />
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
-              {t("cancel")}
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? t("saving") : isEdit ? t("save") : t("create")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+
+          <SectionHeader>{t("note")}</SectionHeader>
+          <LabeledInput id="bankDetails" label={t("bankDetails")} {...form.register("bankDetails")} />
+        </div>
+
+        <div className="border-t border-dashed border-border" />
+        <div className="flex gap-3 pt-5">
+          <Button type="button" variant="secondary" className="h-12 flex-1" onClick={() => onOpenChange(false)} disabled={isPending}>
+            {t("cancel")}
+          </Button>
+          <Button type="submit" className="h-12 flex-1" disabled={isPending}>
+            {isPending ? t("saving") : isEdit ? t("save") : t("create")}
+          </Button>
+        </div>
+      </form>
+    </SheetContent>
   );
 }

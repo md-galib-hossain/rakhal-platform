@@ -18,12 +18,15 @@ import { MoneyText } from "@/components/shared/money-text";
 import { MoneyInput } from "@/components/shared/money-input";
 import { Wizard, type WizardStep } from "@/components/shared/wizard";
 import { AccountPicker } from "@/features/finance/components/account-picker";
+import { ItemPicker } from "@/features/purchasing/components/item-picker";
 import { useBuyersPagedList, useRecordDispatch } from "@/features/buyers/hooks/use-buyers";
+import { BuyerPicker } from "@/features/buyers/components/buyer-picker";
 import { PAYMENT_METHODS } from "@/lib/types/payment";
 import { clampAmountReceived, computeDue, computeLineTotal } from "../domain/sale-math";
 import { recordSaleFormSchema, type RecordSaleFormInput } from "../schemas";
-import { isSaleFlowWired, PRODUCT_SALE_SUBTYPES, RECORD_SALE_TYPES, type ProductSaleSubtype, type RecordSaleInitial, type RecordSaleType } from "../types";
-import { findReceivableBySale, useAllocatePayment, useCreatePayment, useIncomeCategories, useMilkAvailability, useRecordOtherIncome, useSellAnimal } from "../hooks/use-sales";
+import { PRODUCT_SALE_SUBTYPES, RECORD_SALE_TYPES, type ProductSaleSubtype, type RecordSaleInitial, type RecordSaleType } from "../types";
+import type { PurchasableItemOption } from "@/features/purchasing/types";
+import { findReceivableBySale, useAllocatePayment, useCreatePayment, useIncomeCategories, useMilkAvailability, useRecordOtherIncome, useSellAnimal, useSellInventory, useSellManure } from "../hooks/use-sales";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -62,13 +65,16 @@ const PRODUCT_ICON: Record<ProductSaleSubtype, React.ComponentType<{ className?:
  * |---|---|---|
  * | Product Sale → Milk | `POST /milk/dispatch` (RAKHAL-342/343) | **wired** |
  * | Other Income | `POST /finance/income` (RAKHAL-350) | **wired** |
- * | Product Sale → Manure | `RecordManureSaleUseCase` (RAKHAL-347) | no HTTP route — form only |
- * | Product Sale → Inventory item | `SellInventoryUseCase` (RAKHAL-346) | no HTTP route — form only |
+ * | Product Sale → Manure | `POST /sales/manure` (RAKHAL-347/376) | **wired** |
+ * | Product Sale → Inventory item | `POST /sales/inventory` (RAKHAL-346/376) | **wired** |
  * | Animal Sale | `SellAnimalUseCase` (RAKHAL-345) | **wired** — `POST /sales/animal/:cattleId` (RAKHAL-399) |
  *
- * The 2 still-unwired combinations render their full field set (so the UI is ready the moment
- * RAKHAL-361 or a backend ticket adds the route) but the wizard's final step blocks submission
- * with a visible "not available yet" state — never a silent 404, never a faked success.
+ * RAKHAL-388 (MILESTONE 22): all 5 combinations are now real routes — the old `isSaleFlowWired`
+ * per-type gate and its "not available yet" submit block are deleted. Inventory item selection
+ * uses `ItemPicker` (reused from `features/purchasing/**`, same Medicine/FeedItem/Equipment
+ * search-select `PurchaseLine` already uses); Manure takes a single `Total Amount` figure
+ * (`SellManureDto` has no quantity×unitPrice derivation server-side — RD-058, no manure
+ * production/stock model).
  *
  * **Sale Total / Due derivation** (this ticket's other core deliverable, `FINANCE_V2_DESIGN.md`
  * §4.6): the wizard never asks "Full or Partial?" — it asks "Amount Received" and computes Due
@@ -146,8 +152,8 @@ function RecordSaleWizardBody({ onClose, initial }: { onClose: () => void; initi
   const createPayment = useCreatePayment();
   const allocatePayment = useAllocatePayment();
   const sellAnimal = useSellAnimal();
-
-  const wired = isSaleFlowWired(type, productSubtype);
+  const sellInventory = useSellInventory();
+  const sellManure = useSellManure();
 
   const selectedBuyer = useMemo(() => buyersList.items.find((b) => b.id === buyerId), [buyersList.items, buyerId]);
 
@@ -156,11 +162,13 @@ function RecordSaleWizardBody({ onClose, initial }: { onClose: () => void; initi
   const saleTotal =
     type === "PRODUCT" && productSubtype === "MILK"
       ? computeLineTotal(volumeL, selectedBuyer?.basePricePerLitre)
-      : type === "PRODUCT"
+      : type === "PRODUCT" && productSubtype === "INVENTORY"
         ? computeLineTotal(quantity, unitPrice)
-        : type === "ANIMAL"
-          ? (salePrice ?? 0)
-          : (amount ?? 0);
+        : type === "PRODUCT" && productSubtype === "MANURE"
+          ? (amount ?? 0)
+          : type === "ANIMAL"
+            ? (salePrice ?? 0)
+            : (amount ?? 0);
 
   const due = computeDue(saleTotal, amountReceived);
   const needsPaymentMethod = type !== "OTHER_INCOME";
@@ -177,9 +185,12 @@ function RecordSaleWizardBody({ onClose, initial }: { onClose: () => void; initi
     form.setValue("volumeL", undefined);
     form.setValue("fatPct", undefined);
     form.setValue("scc", undefined);
-    form.setValue("description", "");
     form.setValue("quantity", undefined);
     form.setValue("unitPrice", undefined);
+    form.setValue("itemKind", undefined);
+    form.setValue("itemId", "");
+    form.setValue("itemName", "");
+    form.setValue("amount", undefined);
     setSelectedBuyerLabel("");
   }
 
@@ -194,20 +205,42 @@ function RecordSaleWizardBody({ onClose, initial }: { onClose: () => void; initi
     }
     const valid = await form.trigger(fields ?? []);
     if (!valid) return false;
-    if (stepIndex === steps.length - 1 && !wired) {
-      toast.error(t("notAvailableYet"));
+    if (stepIndex === 0 && type === "PRODUCT" && productSubtype === "INVENTORY" && !form.getValues("itemId")) {
+      toast.error(t("selectItemFirst"));
       return false;
     }
     return true;
   }
 
   async function handleSubmit() {
-    if (!wired) return;
     setSubmitting(true);
     try {
       const values = form.getValues();
       if (values.type === "PRODUCT" && values.productSubtype === "MILK") {
         await submitMilkSale(values);
+      } else if (values.type === "PRODUCT" && values.productSubtype === "INVENTORY") {
+        const result = await sellInventory.mutateAsync({
+          itemType: values.itemKind as "MEDICINE" | "FEED_ITEM" | "EQUIPMENT",
+          itemId: values.itemId as string,
+          quantity: values.quantity as number,
+          unitPrice: values.unitPrice as number,
+          notes: values.notes || undefined,
+          saleDate: values.saleDate,
+          financialAccountId: values.financialAccountId || undefined,
+          paymentMethod: values.paymentMethod || undefined,
+          amountReceived: values.amountReceived || undefined,
+        });
+        toast.success(t("createdToast", { amount: result.sale.totalAmount }));
+      } else if (values.type === "PRODUCT" && values.productSubtype === "MANURE") {
+        const result = await sellManure.mutateAsync({
+          totalAmount: values.amount as number,
+          notes: values.notes || undefined,
+          saleDate: values.saleDate,
+          financialAccountId: values.financialAccountId || undefined,
+          paymentMethod: values.paymentMethod || undefined,
+          amountReceived: values.amountReceived || undefined,
+        });
+        toast.success(t("createdToast", { amount: result.sale.totalAmount }));
       } else if (values.type === "ANIMAL") {
         const result = await sellAnimal.mutateAsync({
           cattleId: values.cattleId as string,
@@ -284,9 +317,11 @@ function RecordSaleWizardBody({ onClose, initial }: { onClose: () => void; initi
       fields:
         type === "PRODUCT" && productSubtype === "MILK"
           ? ["buyerId", "volumeL", "saleDate"]
-          : type === "PRODUCT"
-            ? ["description", "quantity", "unitPrice", "saleDate"]
-            : type === "ANIMAL"
+          : type === "PRODUCT" && productSubtype === "INVENTORY"
+            ? ["quantity", "unitPrice", "saleDate"]
+            : type === "PRODUCT" && productSubtype === "MANURE"
+              ? ["amount", "saleDate"]
+              : type === "ANIMAL"
               ? ["cattleId", "salePrice", "saleDate"]
               : type === "OTHER_INCOME"
                 ? ["categoryId", "amount", "saleDate"]
@@ -343,32 +378,22 @@ function RecordSaleWizardBody({ onClose, initial }: { onClose: () => void; initi
                 </div>
               </div>
 
-              {!wired && productSubtype ? <ComingSoonBanner label={t("notAvailableYet")} /> : null}
-
               {productSubtype === "MILK" ? (
                 <>
                   <div className="flex flex-col gap-1.5">
-                    <p className="text-xs text-muted-foreground">{t("buyer")}</p>
                     <Controller
                       control={form.control}
                       name="buyerId"
-                      render={({ field }) => (
-                        <Select
+                      render={({ field, fieldState }) => (
+                        <BuyerPicker
                           value={field.value}
-                          onValueChange={(v) => {
-                            field.onChange(v);
-                            setSelectedBuyerLabel(buyersList.items.find((b) => b.id === v)?.name ?? "");
+                          onChange={(id, b) => {
+                            field.onChange(id);
+                            setSelectedBuyerLabel(b.name);
                           }}
-                        >
-                          <LabeledSelectTrigger label={t("buyer")} placeholder={t("buyerPlaceholder")} />
-                          <SelectContent>
-                            {buyersList.items.map((b) => (
-                              <SelectItem key={b.id} value={b.id}>
-                                {b.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder={t("buyerPlaceholder")}
+                          error={fieldState.error?.message}
+                        />
                       )}
                     />
                   </div>
@@ -391,15 +416,47 @@ function RecordSaleWizardBody({ onClose, initial }: { onClose: () => void; initi
                     <LabeledInput id="scc" type="number" min={0} label={t("scc")} {...form.register("scc", numberField)} />
                   </div>
                 </>
-              ) : productSubtype === "MANURE" || productSubtype === "INVENTORY" ? (
+              ) : productSubtype === "INVENTORY" ? (
                 <>
-                  <LabeledInput id="description" label={t("description")} placeholder={t("descriptionPlaceholder")} {...form.register("description")} />
+                  <Controller
+                    control={form.control}
+                    name="itemKind"
+                    render={() => (
+                      <ItemPicker
+                        kind={(form.watch("itemKind") as "MEDICINE" | "FEED_ITEM" | "EQUIPMENT") ?? "MEDICINE"}
+                        onKindChange={(kind) => {
+                          form.setValue("itemKind", kind);
+                          form.setValue("itemId", "");
+                          form.setValue("itemName", "");
+                        }}
+                        value={
+                          form.watch("itemId")
+                            ? ({ id: form.watch("itemId"), name: form.watch("itemName"), currentStock: 0, unitSymbol: "" } as PurchasableItemOption)
+                            : null
+                        }
+                        onChange={(item) => {
+                          form.setValue("itemId", item?.id ?? "");
+                          form.setValue("itemName", item?.name ?? "");
+                        }}
+                      />
+                    )}
+                  />
                   <div className="flex gap-4">
                     <LabeledInput id="quantity" type="number" step="0.01" min={0} label={t("quantity")} {...form.register("quantity", numberField)} />
                     <LabeledInput id="unitPrice" type="number" step="0.01" min={0} label={t("unitPrice")} {...form.register("unitPrice", numberField)} />
                   </div>
                   <LabeledInput id="saleTotalPreview" label={t("saleTotal")} value={saleTotal.toFixed(2)} disabled readOnly />
                 </>
+              ) : productSubtype === "MANURE" ? (
+                <LabeledInput
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  label={t("manureTotalAmount")}
+                  error={form.formState.errors.amount?.message}
+                  {...form.register("amount", numberField)}
+                />
               ) : null}
             </>
           ) : null}
@@ -539,7 +596,6 @@ function RecordSaleWizardBody({ onClose, initial }: { onClose: () => void; initi
       subtitle: t("step3Subtitle"),
       content: (
         <div className="flex flex-col gap-4">
-          {!wired ? <ComingSoonBanner label={t("notAvailableYet")} /> : null}
           <div className="flex flex-col gap-3 rounded-xl border border-border p-4">
             <SummaryRow label={t("types.PRODUCT.label")} value={type ? t(`types.${type}.label`) : "—"} />
             {type === "PRODUCT" && productSubtype === "MILK" ? (
@@ -583,7 +639,7 @@ function RecordSaleWizardBody({ onClose, initial }: { onClose: () => void; initi
           onSubmit={handleSubmit}
           onCancel={onClose}
           submitting={submitting}
-          submitLabel={wired ? t("submit") : t("notAvailableYet")}
+          submitLabel={t("submit")}
           cancelLabel={t("cancel")}
           backLabel={t("back")}
           nextLabel={t("continue")}
@@ -591,14 +647,6 @@ function RecordSaleWizardBody({ onClose, initial }: { onClose: () => void; initi
         />
       </div>
     </SheetContent>
-  );
-}
-
-function ComingSoonBanner({ label }: { label: string }) {
-  return (
-    <div className="rounded-xl border border-dashed border-warning bg-warning-tint p-3 text-xs font-medium text-warning-foreground">
-      {label}
-    </div>
   );
 }
 

@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DateText } from "@/components/shared/date-text";
+import { AnimalLink } from "@/components/shared/animal-link";
 import { useAppliedHealthPlans, useDeleteHealthCase } from "../hooks/use-health";
 import { ProgressRing } from "./progress-ring";
 import { EditAppliedPlanDialog } from "./edit-applied-plan-dialog";
@@ -125,7 +126,12 @@ export function ActivePlansSection() {
 
                     {/* Animal */}
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
+                      <AnimalLink
+                        id={item.cattle.id}
+                        animalName={item.cattle.name}
+                        tagNumber={item.cattle.tagNumber}
+                        className="flex items-center gap-2 text-left group font-normal"
+                      >
                         <Avatar className="size-8 shrink-0">
                           {item.cattle.image && (
                             <AvatarImage src={item.cattle.image} alt={cattleName} />
@@ -135,10 +141,10 @@ export function ActivePlansSection() {
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{cattleName}</p>
+                          <p className="truncate text-sm font-medium group-hover:underline">{cattleName}</p>
                           <p className="text-xs text-muted-foreground">#{item.cattle.tagNumber}</p>
                         </div>
-                      </div>
+                      </AnimalLink>
                     </td>
 
                     {/* Start date */}

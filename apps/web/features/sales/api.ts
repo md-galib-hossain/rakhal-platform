@@ -6,14 +6,26 @@ import type {
   AllocatePaymentPayload,
   CreateIncomeCategoryPayload,
   CreatePaymentPayload,
+  DispatchListFilters,
+  DispatchRow,
+  DispatchesSummary,
   IncomeCategory,
+  InvoiceListFilters,
+  InvoiceRow,
   MilkAvailabilityResult,
   OtherIncomeResult,
   PaymentResult,
   ReceivableSummary,
   RecordOtherIncomePayload,
+  RecordReceiptPayload,
+  SalesSummary,
+  SalesTrendGranularity,
   SellAnimalPayload,
   SellAnimalResult,
+  SellInventoryPayload,
+  SellInventoryResult,
+  SellManurePayload,
+  SellManureResult,
 } from "./types";
 
 /**
@@ -79,5 +91,58 @@ export const salesApi = {
    */
   listRecentReceivables(): Promise<CursorPage<ReceivableSummary>> {
     return apiFetchPage<ReceivableSummary>("/finance/receivables", { searchParams: { limit: 5 } });
+  },
+
+  /** `POST /sales/inventory` (RAKHAL-346/376). */
+  sellInventory(dto: SellInventoryPayload): Promise<SellInventoryResult> {
+    return apiFetch<SellInventoryResult>("/sales/inventory", { method: "POST", body: dto });
+  },
+
+  /** `POST /sales/manure` (RAKHAL-347/376). */
+  sellManure(dto: SellManurePayload): Promise<SellManureResult> {
+    return apiFetch<SellManureResult>("/sales/manure", { method: "POST", body: dto });
+  },
+
+  /** `GET /sales` v2 (RAKHAL-368) — cursor-paginated, filtered. Backs the Invoices tab. */
+  listInvoices(filters: InvoiceListFilters, cursor: string | undefined, limit = 20): Promise<CursorPage<InvoiceRow>> {
+    return apiFetchPage<InvoiceRow>("/sales", { searchParams: { ...filters, cursor, limit } });
+  },
+
+  /** `GET /sales/summary?from&to&granularity` (RAKHAL-374). Backs the Overview screen. */
+  getSummary(from: string, to: string, granularity: SalesTrendGranularity): Promise<SalesSummary> {
+    return apiFetch<SalesSummary>("/sales/summary", { searchParams: { from, to, granularity } });
+  },
+
+  /** `GET /buyers/dispatches` v2 (RAKHAL-378) — cursor-paginated, `?status=` filter against the
+   * derived status. Backs the Dispatches tab (deliberately not `GET /milk/dispatch`, same
+   * underlying data but this is the literal route the ticket's PRD ref names). */
+  listDispatches(filters: DispatchListFilters, cursor: string | undefined, limit = 20): Promise<CursorPage<DispatchRow>> {
+    return apiFetchPage<DispatchRow>("/buyers/dispatches", { searchParams: { ...filters, cursor, limit } });
+  },
+
+  /** `GET /buyers/dispatches/summary` (RAKHAL-378). */
+  getDispatchesSummary(): Promise<DispatchesSummary> {
+    return apiFetch<DispatchesSummary>("/buyers/dispatches/summary");
+  },
+
+  /** `PATCH /buyers/dispatches/:id/receipt` (RAKHAL-378) — confirms received volume, PENDING → DELIVERED. */
+  recordReceipt(id: string, dto: RecordReceiptPayload): Promise<DispatchRow> {
+    return apiFetch<DispatchRow>(`/buyers/dispatches/${id}/receipt`, { method: "PATCH", body: dto });
+  },
+
+  /** `POST /buyers/dispatches/:id/cancel` (RAKHAL-377) — `finance.reverse`, cascades into
+   * cancelling the dispatch's posted `Sale` if any. */
+  cancelDispatch(id: string): Promise<DispatchRow> {
+    return apiFetch<DispatchRow>(`/buyers/dispatches/${id}/cancel`, { method: "POST" });
+  },
+
+  /** `POST /sales/:id/cancel` (RAKHAL-377/392) — `finance.reverse`, only valid when the sale has
+   * no `PaymentAllocation` yet (refuses otherwise — "refund the payment first"). */
+  cancelSale(id: string): Promise<unknown> {
+    return apiFetch(`/sales/${id}/cancel`, { method: "POST" });
+  },
+  /** `POST /sales/:id/refund` (RAKHAL-377/392) — the paid-sale counterpart to `cancelSale`. */
+  refundSale(id: string): Promise<unknown> {
+    return apiFetch(`/sales/${id}/refund`, { method: "POST" });
   },
 };

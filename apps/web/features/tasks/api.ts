@@ -25,6 +25,8 @@ export const tasksApi = {
         priority: filters.priority,
         search: filters.search,
         cattleId: filters.cattleId,
+        dueFrom: filters.dueFrom,
+        dueTo: filters.dueTo,
         cursor,
         limit,
         sortOrder: "asc",

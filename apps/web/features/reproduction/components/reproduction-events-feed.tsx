@@ -17,6 +17,7 @@ import { PAGE_SIZE_OPTIONS } from "@/lib/hooks/use-cursor-pager";
 import { Can } from "@/lib/auth/permissions";
 import { useReproductionEvents } from "../hooks/use-reproduction";
 import type { ReproEventEntry, ReproEventType } from "../types";
+import { AnimalLink } from "@/components/shared/animal-link";
 import { ReproductionCard } from "./reproduction-card";
 import { BreedingEventDialog } from "./dialogs/breeding-event-dialog";
 import { PregnancyDiagnosisDialog } from "./dialogs/pregnancy-diagnosis-dialog";
@@ -241,7 +242,14 @@ function EventRow({ event, onEdit }: { event: ReproEventEntry; onEdit?: () => vo
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
           <span className="text-sm font-medium text-foreground">
             {t(`eventTypes.${event.event_type}`)} <span className="text-muted-foreground">—</span>{" "}
-            {event.cattle_name ?? event.cattle_tag}
+            <AnimalLink
+              id={event.cattle_id}
+              animalName={event.cattle_name}
+              tagNumber={event.cattle_tag}
+              className="text-foreground hover:text-primary"
+            >
+              {event.cattle_name ?? event.cattle_tag}
+            </AnimalLink>
           </span>
           <DateText date={event.event_date} className="shrink-0 text-xs text-muted-foreground" />
         </div>

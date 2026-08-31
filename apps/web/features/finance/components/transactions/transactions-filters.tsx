@@ -4,7 +4,6 @@ import { useTranslations } from "next-intl";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRangePicker } from "@/components/shared/date-range-picker";
 import { usePeriod } from "@/lib/hooks/use-period";
-import { NewTransactionMenu } from "./new-transaction-menu";
 import { TRANSACTION_TYPE_OPTIONS } from "./types";
 
 const ALL_TYPES = "ALL";
@@ -61,10 +60,6 @@ export function TransactionsFiltersBar({ type, onTypeChange, status, onStatusCha
         onPresetChange={period.setPreset}
         onRangeChange={period.setRange}
       />
-
-      <div className="ml-auto">
-        <NewTransactionMenu />
-      </div>
     </div>
   );
 }

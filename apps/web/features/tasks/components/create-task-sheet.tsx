@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { ArrowRightToLine, ClipboardList, X } from "lucide-react";
+import { ArrowRightToLine, ClipboardList, Tag, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -14,7 +15,8 @@ import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
-import { CattlePicker, type CattleOption } from "@/components/shared/cattle-picker";
+import { CattleMultiPicker, type CattleOption } from "@/components/shared/cattle-picker";
+import { cattleApi } from "@/features/cattle/api";
 import { useCreateTask } from "../hooks/use-tasks";
 import { createTaskSchema, type CreateTaskFormInput } from "../schemas";
 import { CATEGORY_ORDER } from "../task-style";
@@ -59,9 +61,12 @@ function toPayload(
  * "Create New Task" (Figma 1039:48550) — mirrors `CreateTaskDto` exactly. Same rounded-[20px]
  * side-panel chrome as `CreateHealthPlanDialog` (dashed section rules, `ArrowRightToLine` close
  * glyph). Multi-cow targeting (user request, no ticket #) has no Figma frame — a minimal
- * `CattlePicker`-add-then-remove-chip section, same "flag the gap, build the smallest real
- * affordance" precedent this file's own Reassign field already sets. Shown only when the sheet
- * wasn't opened with a `defaultCattleId` (an animal-profile Tasks tab already implies its own cow).
+ * `CattleMultiPicker`-add/remove-chip section, same "flag the gap, build the smallest real
+ * affordance" precedent this file's own Reassign field already sets; the picker itself supports
+ * selecting and unselecting several cows in one open popover (checkbox semantics), not just one pick
+ * per open. Opened with a `defaultCattleId` (animal-profile Tasks tab) skips the picker entirely and
+ * shows a read-only "Target Cow" chip instead, so the pre-fill that already lands in
+ * `CreateTaskDto.relatedCattleId` on submit is visibly confirmed rather than silently applied.
  */
 export function CreateTaskSheet({
   open,
@@ -92,6 +97,13 @@ function CreateTaskSheetBody({
   const tCommon = useTranslations("tasks");
   const createTask = useCreateTask();
   const [cattle, setCattle] = useState<CattleOption[]>([]);
+
+  const { data: defaultCattle } = useQuery({
+    queryKey: ["cattle-picker-selected", defaultCattleId],
+    queryFn: () => cattleApi.findOne(defaultCattleId as string),
+    enabled: Boolean(defaultCattleId),
+    staleTime: 30_000,
+  });
 
   const form = useForm<CreateTaskFormInput>({
     resolver: zodResolver(createTaskSchema),
@@ -229,16 +241,18 @@ function CreateTaskSheetBody({
             )}
           />
 
-          {!defaultCattleId ? (
+          {defaultCattleId ? (
             <div className="flex flex-col gap-2">
               <p className="text-xs font-medium text-foreground">{t("targetCows")}</p>
-              <CattlePicker
-                value={undefined}
-                onValueChange={(id, option) =>
-                  setCattle((prev) => (prev.some((c) => c.id === id) ? prev : [...prev, option]))
-                }
-                placeholder={t("targetCowsPlaceholder")}
-              />
+              <span className="flex w-fit items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-bold text-foreground">
+                <Tag className="size-3" aria-hidden />
+                {defaultCattle ? `${defaultCattle.tagNumber}${defaultCattle.name ? ` — ${defaultCattle.name}` : ""}` : "…"}
+              </span>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-medium text-foreground">{t("targetCows")}</p>
+              <CattleMultiPicker value={cattle} onValueChange={setCattle} placeholder={t("targetCowsPlaceholder")} />
               {cattle.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
                   {cattle.map((c) => (
@@ -261,7 +275,7 @@ function CreateTaskSheetBody({
                 </div>
               ) : null}
             </div>
-          ) : null}
+          )}
 
           <div className="flex items-center gap-10 rounded-xl border border-border bg-muted p-3">
             <div className="flex flex-1 flex-col gap-1">

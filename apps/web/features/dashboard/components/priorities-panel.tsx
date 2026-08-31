@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
+import { AnimalLink } from "@/components/shared/animal-link";
 import { cn } from "@/lib/utils";
 import { usePriorities } from "../hooks/use-dashboard-widgets";
 import { DashboardCard } from "./dashboard-card";
@@ -21,9 +22,9 @@ const PRIORITY_STYLE: Record<PriorityItem["priority"], string> = {
 };
 
 /** A single priority row. When `item.cattle` has >1 entries (e.g. "5 cow(s) overdue for
- * treatment dose"), a chevron toggle expands a nested per-cow list — clicking a cow links to
- * its detail drawer (`/animals?view=<id>`, the only existing per-cow deep link). The row's own
- * link/action stays clickable exactly as before either way. */
+ * treatment dose"), a chevron toggle expands a nested per-cow list — clicking a cow opens the
+ * global `AnimalLink` detail modal in place (no page navigation away from the dashboard). The
+ * row's own link/action stays clickable exactly as before either way. */
 function PriorityRow({ item }: { item: PriorityItem }) {
   const t = useTranslations("dashboard.priorities");
   const [expanded, setExpanded] = useState(false);
@@ -68,13 +69,15 @@ function PriorityRow({ item }: { item: PriorityItem }) {
         <ul className="mt-1 flex flex-col gap-0.5 pl-6">
           {cattle.map((c) => (
             <li key={c.id}>
-              <Link
-                href={`/animals?view=${c.id}`}
-                className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              <AnimalLink
+                id={c.id}
+                animalName={c.name}
+                tagNumber={c.tag}
+                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs font-normal text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 <span className="truncate">{c.name ?? c.tag}</span>
                 {c.name && <span className="text-muted-foreground/70">#{c.tag}</span>}
-              </Link>
+              </AnimalLink>
             </li>
           ))}
           {item.truncated && (

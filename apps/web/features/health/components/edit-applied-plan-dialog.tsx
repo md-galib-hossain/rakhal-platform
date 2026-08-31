@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AnimalLink } from "@/components/shared/animal-link";
 import { useApplyPlanToCase, useCreateHealthCase, useDeleteHealthCase } from "../hooks/use-health";
 import type { AppliedPlanListItem } from "../types";
 
@@ -116,10 +117,12 @@ export function EditAppliedPlanDialog({
               {(item.cattle.name ?? item.cattle.tagNumber).slice(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{cattleName}</p>
-            <p className="truncate text-xs text-muted-foreground">#{item.cattle.tagNumber}</p>
-          </div>
+          <AnimalLink id={item.cattle.id} animalName={item.cattle.name} tagNumber={item.cattle.tagNumber} className="min-w-0 flex-1 font-normal group">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium group-hover:underline">{cattleName}</p>
+              <p className="truncate text-xs text-muted-foreground">#{item.cattle.tagNumber}</p>
+            </div>
+          </AnimalLink>
           <span className="shrink-0 text-sm font-medium text-foreground">{item.healthPlan.name}</span>
         </div>
 

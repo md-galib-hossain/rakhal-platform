@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Check, Mars, Venus, X } from "lucide-react";
 import { Chip, type ChipProps } from "@/components/ui/chip";
 import { DateText } from "@/components/shared/date-text";
+import { AnimalLink } from "@/components/shared/animal-link";
 import type { CalfListItem, CalfStage } from "../types";
 
 /** `CASTRATED_MALE` still reads as male — same convention as `cattle-columns.tsx`'s `GenderGlyph`. */
@@ -55,7 +56,19 @@ export function buildCalfColumns(
     {
       id: "dam",
       header: t("columns.dam"),
-      cell: ({ row }) => row.original.dam?.name ?? row.original.dam?.tagNumber ?? "—",
+      cell: ({ row }) => {
+        const dam = row.original.dam;
+        if (!dam) return "—";
+        return (
+          <AnimalLink
+            id={dam.id}
+            animalName={dam.name}
+            tagNumber={dam.tagNumber}
+            showTag
+            className="text-foreground hover:text-primary"
+          />
+        );
+      },
     },
     {
       id: "stage",

@@ -1,44 +1,42 @@
 "use client"; // column defs consumed by the client-only DataTable
 
+import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Chip, type ChipProps } from "@/components/ui/chip";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
-import type { Buyer, BuyerType } from "../types";
+import type { BuyerListRow } from "../types";
 
-const TYPE_VARIANT: Record<BuyerType, ChipProps["variant"]> = {
-  DAIRY_COMPANY: "primary",
-  COOPERATIVE: "indigo",
-  LOCAL_TRADER: "warning",
-  DIRECT_CONSUMER: "muted",
-};
-
+/** RAKHAL-389 (MILESTONE 22) — the AC's exact column set: `Buyer Name | Phone | Outstanding |
+ * Total Purchased | Last Purchase | Actions` (`BUSINESS_IA_PRD.md` §5.10), off `GET /buyers` v2's
+ * server-computed aggregates (`totalPurchased`/`lastPurchaseAt`/`outstanding`/`status`,
+ * RAKHAL-372) — never re-derived client-side. `status` (real `deletedAt`-derived, not the old
+ * nonexistent `isActive`) replaces the removed dedicated Status column as a small inline badge
+ * next to the name, since the AC's column list has no separate Status column here (unlike the
+ * Suppliers table, which does). */
 export function buildBuyerColumns(
   t: (key: string, values?: Record<string, string | number>) => string,
   actions: {
-    onEdit: (buyer: Buyer) => void;
-    onDeactivate: (buyer: Buyer) => void;
-    onStatement: (buyer: Buyer) => void;
-    onRecordDispatch: (buyer: Buyer) => void;
+    onEdit: (buyer: BuyerListRow) => void;
+    onDeactivate: (buyer: BuyerListRow) => void;
+    onStatement: (buyer: BuyerListRow) => void;
+    onRecordDispatch: (buyer: BuyerListRow) => void;
   },
-): ColumnDef<Buyer, unknown>[] {
+): ColumnDef<BuyerListRow, unknown>[] {
   return [
     {
       id: "name",
       header: t("columns.name"),
       cell: ({ row }) => (
-        <div className="flex flex-col gap-0.5">
-          <span className="text-sm font-medium text-foreground">{row.original.name}</span>
-          {row.original.contactPerson ? (
-            <span className="text-xs text-muted-foreground">{row.original.contactPerson}</span>
-          ) : null}
-        </div>
+        <Link href={`/buyers/${row.original.id}`} className="flex flex-col gap-0.5">
+          <span className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
+            {row.original.name}
+            {row.original.status === "INACTIVE" ? <Badge variant="outline">{t("statusInactive")}</Badge> : null}
+          </span>
+          {row.original.contactPerson ? <span className="text-xs text-muted-foreground">{row.original.contactPerson}</span> : null}
+        </Link>
       ),
-    },
-    {
-      id: "type",
-      header: t("columns.type"),
-      cell: ({ row }) => <Chip variant={TYPE_VARIANT[row.original.buyerType]}>{t(`typeOptions.${row.original.buyerType}`)}</Chip>,
     },
     {
       id: "phone",
@@ -46,23 +44,19 @@ export function buildBuyerColumns(
       cell: ({ row }) => row.original.phone ?? "—",
     },
     {
-      id: "basePrice",
-      header: t("columns.basePrice"),
-      cell: ({ row }) => <MoneyText amount={row.original.basePricePerLitre} />,
+      id: "outstanding",
+      header: t("columns.outstanding"),
+      cell: ({ row }) => <MoneyText amount={Number(row.original.outstanding)} colorize={Number(row.original.outstanding) > 0} />,
     },
     {
-      id: "paymentTerms",
-      header: t("columns.paymentTerms"),
-      cell: ({ row }) => t("paymentTermsDays", { days: row.original.paymentTermsDays }),
+      id: "totalPurchased",
+      header: t("columns.totalPurchased"),
+      cell: ({ row }) => <MoneyText amount={Number(row.original.totalPurchased)} className="font-medium" />,
     },
     {
-      id: "status",
-      header: t("columns.status"),
-      cell: ({ row }) => (
-        <Chip variant={row.original.isActive ? "primary" : "muted"}>
-          {row.original.isActive ? t("statusActive") : t("statusInactive")}
-        </Chip>
-      ),
+      id: "lastPurchase",
+      header: t("columns.lastPurchase"),
+      cell: ({ row }) => (row.original.lastPurchaseAt ? <DateText date={row.original.lastPurchaseAt} /> : "—"),
     },
     {
       id: "actions",
@@ -78,7 +72,7 @@ export function buildBuyerColumns(
           <Button size="sm" variant="ghost" onClick={() => actions.onEdit(row.original)}>
             {t("actionsColumn.edit")}
           </Button>
-          {row.original.isActive ? (
+          {row.original.status === "ACTIVE" ? (
             <Button size="sm" variant="ghost" onClick={() => actions.onDeactivate(row.original)}>
               {t("actionsColumn.deactivate")}
             </Button>

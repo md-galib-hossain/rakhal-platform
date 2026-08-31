@@ -7,6 +7,7 @@ import type {
   ExportMilkLogInput,
   ListMilkQualityTestsParams,
   MilkAnomaliesResponse,
+  MilkAnomaly,
   MilkEligibility,
   MilkImportConfirmResult,
   MilkImportPreview,
@@ -37,8 +38,8 @@ export const milkApi = {
   submit(input: SubmitMilkInput): Promise<SubmitMilkResponse> {
     return apiFetch<SubmitMilkResponse>("/milk/submit", { method: "POST", body: input });
   },
-  anomalies(date?: string): Promise<MilkAnomaliesResponse> {
-    return apiFetch<MilkAnomaliesResponse>("/milk/anomalies", { searchParams: { date } });
+  anomalies(params: { date?: string; cursor?: string; limit?: number }): Promise<MilkAnomaliesResponse> {
+    return apiFetchPage<MilkAnomaly>("/milk/anomalies", { searchParams: params });
   },
   // RAKHAL-278 — `MilkController.eligibility()` → `MilkService.getMilkEligibility(farmId, cattleId)`.
   eligibility(cattleId: string): Promise<MilkEligibility> {

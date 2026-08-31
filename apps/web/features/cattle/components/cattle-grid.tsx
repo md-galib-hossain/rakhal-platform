@@ -111,15 +111,19 @@ function CattleCard({
       </div>
 
       <div className="flex w-full flex-col gap-3 px-1.5 pb-1.5">
-        <div className="flex flex-col gap-0.5">
+        <button
+          type="button"
+          onClick={() => rowActions.onView(cattle)}
+          className="flex flex-col gap-0.5 text-left transition-opacity hover:opacity-80"
+        >
           <span className="flex items-center gap-1.5">
-            <span className="truncate text-lg font-bold text-foreground">{cattle.name ?? cattle.tagNumber}</span>
+            <span className="truncate text-lg font-bold text-foreground hover:underline">{cattle.name ?? cattle.tagNumber}</span>
             <GenderGlyph gender={cattle.gender} />
           </span>
           <span className="text-xs text-muted-foreground">
             {cattle.tagNumber} {cattle.breed?.name ? `· ${cattle.breed.name}` : ""}
           </span>
-        </div>
+        </button>
 
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">

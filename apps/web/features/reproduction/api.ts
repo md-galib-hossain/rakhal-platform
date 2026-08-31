@@ -189,8 +189,9 @@ export const reproductionApi = {
   },
 
   // Protocols (RAKHAL-214) — `reproduction/protocols*`.
-  protocols(): Promise<ProtocolSummary[]> {
-    return apiFetch<ProtocolSummary[]>("/reproduction/protocols");
+  /** Cursor-paginated (RAKHAL-407 follow-up) — system defaults first, then this farm's own. */
+  protocols(cursor?: string, limit = 20): Promise<CursorPage<ProtocolSummary>> {
+    return apiFetchPage<ProtocolSummary>("/reproduction/protocols", { searchParams: { cursor, limit } });
   },
   protocolKpis(): Promise<ProtocolKpis> {
     return apiFetch<ProtocolKpis>("/reproduction/protocols/kpis");
@@ -206,6 +207,11 @@ export const reproductionApi = {
     return apiFetchPage<ProtocolInstance>("/reproduction/protocols/instances", {
       searchParams: { ...filters, cursor, limit },
     });
+  },
+  /** `GET /reproduction/protocols/instances/:id` — used to auto-open the timeline sheet right
+   * after "Apply Protocol" succeeds (user request, no ticket #). */
+  protocolInstance(id: string): Promise<ProtocolInstance> {
+    return apiFetch<ProtocolInstance>(`/reproduction/protocols/instances/${id}`);
   },
   applyProtocol(input: { protocolId: string; cattleIds: string[]; startDate?: string }): Promise<ApplyProtocolResult> {
     return apiFetch<ApplyProtocolResult>("/reproduction/protocols/apply", { method: "POST", body: input });

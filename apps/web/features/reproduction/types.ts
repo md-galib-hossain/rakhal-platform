@@ -461,6 +461,11 @@ export interface ProtocolInstanceListFilters {
   status?: ProtocolInstanceStatus;
 }
 
+export interface ProtocolListFilters {
+  cursor?: string;
+  limit?: number;
+}
+
 // ---- Lactation curve + comparisons (RAKHAL-283/287) ------------------------
 
 /** Per-day data-quality marker (`lactation-curve.ts`'s `buildDailyYieldSeries`) — a day is flagged

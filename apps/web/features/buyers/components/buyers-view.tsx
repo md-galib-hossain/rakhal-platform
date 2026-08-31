@@ -11,26 +11,33 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { useBuyersPagedList, useDeactivateBuyer } from "../hooks/use-buyers";
+import { BuyerSummaryCards } from "./buyer-summary-cards";
 import { BuyerTable } from "./buyer-table";
 import { BuyerFormDialog } from "./buyer-form-dialog";
 import { RecordDispatchDialog } from "./record-dispatch-dialog";
 import { BuyerStatementDialog } from "./buyer-statement-dialog";
-import type { Buyer } from "../types";
+import type { BuyerListRow } from "../types";
 
-/** Buyers tab body — buyer directory (search + create/edit + deactivate) plus the per-row
- * Record Dispatch / Statement actions. No Figma frame supplied for this module (RFE-026's own
- * note: "Design: Figma if present, else PRD-spec") — built against the real backend contract. */
+/** Buyers tab body — the AC's 4-stat Buyer Summary (RAKHAL-389, `GET /buyers/summary`) above the
+ * directory (search + create/edit + deactivate) plus the per-row Record Dispatch / Statement
+ * actions. No Figma frame supplied for this module (RFE-026's own note: "Design: Figma if
+ * present, else PRD-spec") — built against the real backend contract. */
 export function BuyersView() {
   const t = useTranslations("buyers.list");
   const searchParams = useSearchParams();
-  const filters = { search: searchParams.get("search") ?? undefined };
+  // includeArchived: true — Total Buyers (`GET /buyers/summary`) counts every buyer ever created,
+  // deactivated ones included, but this list defaulted to active-only (`includeArchived: false`),
+  // so a farm whose one buyer had been deactivated showed "Total Buyers: 1" above an empty "No
+  // buyers yet" table. The row already renders an Inactive badge (`buyer-columns.tsx`) and only
+  // shows the Deactivate action when `status === "ACTIVE"`, so archived buyers are safe to list.
+  const filters = { search: searchParams.get("search") ?? undefined, includeArchived: true };
   const query = useBuyersPagedList(filters);
   const deactivateBuyer = useDeactivateBuyer();
 
-  const [formTarget, setFormTarget] = useState<Buyer | "new" | null>(null);
-  const [deactivateTarget, setDeactivateTarget] = useState<Buyer | null>(null);
-  const [dispatchTarget, setDispatchTarget] = useState<Buyer | null>(null);
-  const [statementTarget, setStatementTarget] = useState<Buyer | null>(null);
+  const [formTarget, setFormTarget] = useState<BuyerListRow | "new" | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<BuyerListRow | null>(null);
+  const [dispatchTarget, setDispatchTarget] = useState<BuyerListRow | null>(null);
+  const [statementTarget, setStatementTarget] = useState<BuyerListRow | null>(null);
 
   async function handleDeactivate() {
     if (!deactivateTarget) return;
@@ -43,34 +50,38 @@ export function BuyersView() {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-border p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <FilterBar searchKey="search" searchPlaceholder={t("searchPlaceholder")} />
-        <Button variant="primary" className="gap-2" onClick={() => setFormTarget("new")}>
-          <Plus className="size-[18px]" aria-hidden />
-          {t("addBuyer")}
-        </Button>
+    <div className="flex flex-col gap-4">
+      <BuyerSummaryCards />
+
+      <div className="flex flex-col gap-4 rounded-2xl border border-border p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <FilterBar searchKey="search" searchPlaceholder={t("searchPlaceholder")} />
+          <Button variant="primary" className="gap-2" onClick={() => setFormTarget("new")}>
+            <Plus className="size-[18px]" aria-hidden />
+            {t("addBuyer")}
+          </Button>
+        </div>
+
+        <BuyerTable
+          items={query.items}
+          isLoading={query.isLoading}
+          isError={query.isError}
+          onRetry={() => void query.refetch()}
+          onEdit={setFormTarget}
+          onDeactivate={setDeactivateTarget}
+          onStatement={setStatementTarget}
+          onRecordDispatch={setDispatchTarget}
+        />
+
+        <Pagination
+          page={query.page}
+          totalPages={query.totalPages}
+          onPageChange={query.goToPage}
+          isFetching={query.isFetching}
+          pageSize={query.pageSize}
+          onPageSizeChange={query.setPageSize}
+        />
       </div>
-
-      <BuyerTable
-        items={query.items}
-        isLoading={query.isLoading}
-        isError={query.isError}
-        onRetry={() => void query.refetch()}
-        onEdit={setFormTarget}
-        onDeactivate={setDeactivateTarget}
-        onStatement={setStatementTarget}
-        onRecordDispatch={setDispatchTarget}
-      />
-
-      <Pagination
-        page={query.page}
-        totalPages={query.totalPages}
-        onPageChange={query.goToPage}
-        isFetching={query.isFetching}
-        pageSize={query.pageSize}
-        onPageSizeChange={query.setPageSize}
-      />
 
       <BuyerFormDialog
         buyer={formTarget === "new" || formTarget === null ? null : formTarget}

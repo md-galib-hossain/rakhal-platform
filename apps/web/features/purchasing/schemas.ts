@@ -42,7 +42,10 @@ export type PurchaseLineFormInput = z.infer<typeof purchaseLineSchema>;
 
 export const purchaseFormSchema = z
   .object({
-    supplierId: z.string().optional(),
+    /** RAKHAL-391: `BUSINESS_IA_PRD.md` §5.13's field table marks Supplier `required` in this
+     * modal — a client-side UI requirement, stricter than `CreatePurchaseDto.supplierId` which
+     * stays optional server-side for a walk-up cash purchase with no counterparty. */
+    supplierId: z.string().min(1, "required"),
     purchaseDate: z.string().min(1),
     notes: z.string().optional(),
     lines: z.array(purchaseLineSchema).min(1),

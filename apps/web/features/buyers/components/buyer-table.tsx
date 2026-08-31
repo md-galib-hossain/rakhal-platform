@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { DataTable } from "@/components/shared/data-table";
 import { buildBuyerColumns } from "./buyer-columns";
-import type { Buyer } from "../types";
+import type { BuyerListRow } from "../types";
 
 export function BuyerTable({
   items,
@@ -17,14 +17,14 @@ export function BuyerTable({
   onStatement,
   onRecordDispatch,
 }: {
-  items: Buyer[];
+  items: BuyerListRow[];
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
-  onEdit: (buyer: Buyer) => void;
-  onDeactivate: (buyer: Buyer) => void;
-  onStatement: (buyer: Buyer) => void;
-  onRecordDispatch: (buyer: Buyer) => void;
+  onEdit: (buyer: BuyerListRow) => void;
+  onDeactivate: (buyer: BuyerListRow) => void;
+  onStatement: (buyer: BuyerListRow) => void;
+  onRecordDispatch: (buyer: BuyerListRow) => void;
 }) {
   const t = useTranslations("buyers.list");
   const columns = useMemo(

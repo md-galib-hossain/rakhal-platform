@@ -5,6 +5,7 @@ import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
+import { AnimalLink } from "@/components/shared/animal-link";
 import { useReproductionDashboard } from "../hooks/use-reproduction";
 import { ReproductionCard } from "./reproduction-card";
 
@@ -38,10 +39,15 @@ export function ReproductionCalvingForecast() {
               key={row.cattle_id}
               className="flex items-center justify-between gap-3 border-b border-border py-2 last:border-0"
             >
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-foreground">{row.name ?? row.tag}</span>
+              <AnimalLink
+                id={row.cattle_id}
+                animalName={row.name}
+                tagNumber={row.tag}
+                className="flex flex-col text-left group font-normal"
+              >
+                <span className="text-sm font-medium text-foreground group-hover:underline">{row.name ?? row.tag}</span>
                 {row.name ? <span className="text-xs text-muted-foreground">{row.tag}</span> : null}
-              </div>
+              </AnimalLink>
               <DateText date={row.expected_date} className="text-xs font-medium text-foreground" />
             </div>
           ))}

@@ -11,6 +11,9 @@ export function useLogin() {
     mutationFn: (input: LoginInput & { farmId?: string }) => authApi.login(input),
     onSuccess: (result) => {
       if (result.status === "ok") {
+        // Prior account/farm's cached data (cattle, inventory, dashboard, ...) must not
+        // leak into this session — clear before refetching session.
+        queryClient.clear();
         queryClient.invalidateQueries({ queryKey: qk.auth.session() });
       }
     },
