@@ -54,9 +54,10 @@ model Task {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  farm       Farm         @relation("FarmToTask", fields: [farmId], references: [id])
-  assignedTo User?        @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  farm       Farm            @relation("FarmToTask", fields: [farmId], references: [id])
+  assignedTo User?           @relation("TaskAssignee", fields: [assignedToId], references: [id])
   cattles    TaskCattle[]
+  history    TaskAuditLog[]
 
   @@unique([farmId, reference])
   @@index([farmId, status])
@@ -64,6 +65,23 @@ model Task {
   @@index([dueAt])
   @@index([category])
   @@index([sourceEventType, sourceEventId])
+}
+
+/// Task Hub activity/history section (user request, no ticket #). `actorId` is a plain scalar
+/// (matches `Task.relatedCattleId`'s own precedent in this file) — resolved to a display name in
+/// `TaskService#present` via a batched `User` lookup, same shape as the cow-name join. CREATED is
+/// never stored here (see `TaskAuditAction`'s own doc comment).
+model TaskAuditLog {
+  id        String           @id @default(cuid())
+  taskId    String
+  action    TaskAuditAction
+  actorId   String?
+  note      String?
+  createdAt DateTime         @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
 }
 
 /// Multi-cow join for a manual task targeting more than one animal (user request, no ticket #).

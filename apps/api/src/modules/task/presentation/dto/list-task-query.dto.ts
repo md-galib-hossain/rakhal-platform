@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsEnum, IsIn, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsIn, IsISO8601, IsOptional, IsString } from 'class-validator';
 import { TaskCategory, TaskPriority } from '@prisma/client';
 import { CursorPaginationQueryDto } from 'src/common/pagination';
 import { trimString } from 'src/common/dto';
@@ -33,4 +33,16 @@ export class ListTaskQueryDto extends CursorPaginationQueryDto {
   @Transform(trimString)
   @IsString()
   cattleId?: string;
+
+  /** Date filter tabs (user request, no ticket #) — `dueAt` range, inclusive start / exclusive end
+   * (matches the `dayStart`/`dayEnd` convention `highlights()` already uses for "due today"). */
+  @IsOptional()
+  @Transform(trimString)
+  @IsISO8601()
+  dueFrom?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsISO8601()
+  dueTo?: string;
 }

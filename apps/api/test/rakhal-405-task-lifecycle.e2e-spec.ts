@@ -230,4 +230,85 @@ describe('Task lifecycle hardening (e2e)', () => {
       expect(ids).toContain(taskId);
     });
   });
+
+  describe('activity/history section (TaskAuditLog, no ticket #)', () => {
+    type HistoryEntry = {
+      id: string;
+      action: string;
+      actorId: string | null;
+      actorName: string | null;
+      note: string | null;
+      createdAt: string;
+    };
+
+    it('a fresh task has exactly one synthesized CREATED entry', async () => {
+      const task = await createTask();
+      const res = await request(server())
+        .get(api(`/tasks/${task.id}`))
+        .set(...auth(owner))
+        .expect(200);
+      const history = res.body.data.history as HistoryEntry[];
+      expect(history).toHaveLength(1);
+      expect(history[0].action).toBe('CREATED');
+      expect(history[0].actorName).not.toBeNull();
+    });
+
+    it('PATCH appends an UPDATED entry', async () => {
+      const task = await createTask();
+      await request(server())
+        .patch(api(`/tasks/${task.id}`))
+        .set(...auth(owner))
+        .send({ name: 'Renamed' })
+        .expect(200);
+
+      const res = await request(server())
+        .get(api(`/tasks/${task.id}`))
+        .set(...auth(owner))
+        .expect(200);
+      const history = res.body.data.history as HistoryEntry[];
+      expect(history.map((h) => h.action)).toEqual(['CREATED', 'UPDATED']);
+    });
+
+    it('complete then reopen appends COMPLETED then REOPENED, in order', async () => {
+      const task = await createTask();
+      await request(server())
+        .post(api(`/tasks/${task.id}/complete`))
+        .set(...auth(owner))
+        .send({ notes: 'done' })
+        .expect(201);
+      await request(server())
+        .post(api(`/tasks/${task.id}/reopen`))
+        .set(...auth(owner))
+        .expect(201);
+
+      const res = await request(server())
+        .get(api(`/tasks/${task.id}`))
+        .set(...auth(owner))
+        .expect(200);
+      const history = res.body.data.history as HistoryEntry[];
+      expect(history.map((h) => h.action)).toEqual([
+        'CREATED',
+        'COMPLETED',
+        'REOPENED',
+      ]);
+      expect(history[1].note).toBe('done');
+    });
+
+    it('cancel appends a CANCELLED entry with the cancel note', async () => {
+      const task = await createTask();
+      await request(server())
+        .post(api(`/tasks/${task.id}/cancel`))
+        .set(...auth(owner))
+        .send({ notes: 'no longer needed' })
+        .expect(201);
+
+      const res = await request(server())
+        .get(api(`/tasks/${task.id}`))
+        .set(...auth(owner))
+        .expect(200);
+      const history = res.body.data.history as HistoryEntry[];
+      expect(history.map((h) => h.action)).toEqual(['CREATED', 'CANCELLED']);
+      expect(history[1].note).toBe('no longer needed');
+    });
+  });
 });

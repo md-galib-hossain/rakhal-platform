@@ -128,6 +128,20 @@ export class AuthService {
     const session = storedToken.session;
     const user = session.user;
 
+    // Farm-switch guard: `dto.farmId` used to be trusted verbatim, letting any
+    // authenticated caller mint a token scoped to a farm they don't belong to.
+    // `''` (needsFarm placeholder) and `'bootstrap'` (pre-first-farm onboarding
+    // sentinel) are not real farm ids, so they skip this check.
+    if (dto.farmId && dto.farmId !== 'bootstrap') {
+      const isMember = await this.authRepository.isActiveFarmMember(
+        user.id,
+        dto.farmId,
+      );
+      if (!isMember) {
+        throw new UnauthorizedException('Not a member of this farm');
+      }
+    }
+
     if (
       storedToken.isRevoked ||
       storedToken.expiresAt.getTime() <= now.getTime() ||

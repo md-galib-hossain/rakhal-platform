@@ -201,4 +201,53 @@ describe('Reproductive Protocol definitions CRUD (e2e)', () => {
       .set(...auth(owner))
       .expect(409);
   });
+
+  it('cursor-paginates the protocol list (limit=1, endCursor advances a distinct next page)', async () => {
+    const page1 = await request(server())
+      .get(api('/reproduction/protocols?limit=1'))
+      .set(...auth(owner))
+      .expect(200);
+    expect(page1.body.data).toHaveLength(1);
+    expect(page1.body.meta.hasNextPage).toBe(true);
+    const cursor = page1.body.meta.endCursor as string;
+
+    const page2 = await request(server())
+      .get(api(`/reproduction/protocols?limit=1&cursor=${cursor}`))
+      .set(...auth(owner))
+      .expect(200);
+    expect(page2.body.data).toHaveLength(1);
+    expect(page2.body.data[0].id).not.toBe(page1.body.data[0].id);
+  });
+
+  it('fetches one protocol instance by id (backs the Apply-Protocol dialog auto-opened timeline)', async () => {
+    const created = await request(server())
+      .post(api('/reproduction/protocols'))
+      .set(...auth(owner))
+      .send({
+        name: 'Instance detail source',
+        steps: [{ dayNumber: 0, title: 'Step A', stepType: 'OTHER' }],
+      })
+      .expect(201);
+    createdProtocolIds.push(created.body.data.id as string);
+
+    const applied = await request(server())
+      .post(api('/reproduction/protocols/apply'))
+      .set(...auth(owner))
+      .send({
+        protocolId: created.body.data.id,
+        cattleIds: [cattleA],
+        startDate: '2026-06-01',
+      })
+      .expect(201);
+    const instanceId = applied.body.data.instance_ids[0] as string;
+    createdInstanceIds.push(instanceId);
+
+    const res = await request(server())
+      .get(api(`/reproduction/protocols/instances/${instanceId}`))
+      .set(...auth(owner))
+      .expect(200);
+    expect(res.body.data.id).toBe(instanceId);
+    expect(res.body.data.protocol_name).toBe('Instance detail source');
+    expect(res.body.data.cattle_id).toBe(cattleA);
+  });
 });

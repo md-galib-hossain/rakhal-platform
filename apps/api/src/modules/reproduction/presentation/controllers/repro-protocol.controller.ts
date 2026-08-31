@@ -22,6 +22,7 @@ import {
   CloseInstanceDto,
   CreateProtocolDto,
   ListInstanceQueryDto,
+  ListProtocolQueryDto,
   RecordAiDto,
   RecordOutcomeDto,
   UpdateProtocolDto,
@@ -49,8 +50,8 @@ export class ReproProtocolController {
 
   @Get()
   @RequirePermission('reproduction.read')
-  list(@CurrentFarmId() farmId: string) {
-    return this.protocols.listProtocols(farmId);
+  list(@CurrentFarmId() farmId: string, @Query() query: ListProtocolQueryDto) {
+    return this.protocols.listProtocols(farmId, query);
   }
 
   @Post()

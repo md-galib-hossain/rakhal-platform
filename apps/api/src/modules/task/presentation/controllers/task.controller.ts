@@ -71,10 +71,11 @@ export class TaskController {
   @RequirePermission('task.update')
   update(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: UpdateTaskDto,
   ) {
-    return this.taskService.update(farmId, id, dto);
+    return this.taskService.update(farmId, userId, id, dto);
   }
 
   @Post(':id/complete')
@@ -91,8 +92,12 @@ export class TaskController {
   /** Undo a mistaken `complete()` — manager+ only (task.update), keeps the source-event link. */
   @Post(':id/reopen')
   @RequirePermission('task.update')
-  reopen(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.taskService.reopen(farmId, id);
+  reopen(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.taskService.reopen(farmId, userId, id);
   }
 
   /** User-initiated cancellation — manager+ only (task.update), not valid from COMPLETED. */

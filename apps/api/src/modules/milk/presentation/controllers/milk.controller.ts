@@ -128,7 +128,7 @@ export class MilkController {
     @CurrentFarmId() farmId: string,
     @Query() query: MilkAnomalyQueryDto,
   ) {
-    return this.milkService.anomalies(farmId, query.date);
+    return this.milkService.anomalies(farmId, query);
   }
 
   @Post('anomalies/:id/review')

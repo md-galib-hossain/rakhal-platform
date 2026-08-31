@@ -24,6 +24,7 @@ import {
   CloseInstanceDto,
   CreateProtocolDto,
   ListInstanceQueryDto,
+  ListProtocolQueryDto,
   RecordAiDto,
   RecordOutcomeDto,
   UpdateProtocolDto,
@@ -62,16 +63,19 @@ export class ReproProtocolService {
 
   // ---- protocols ----------------------------------------------------------
 
-  /** System-default + this farm's protocols, each with its card metrics. */
-  async listProtocols(farmId: string) {
-    const [protocols, instances] = await Promise.all([
+  /** System-default + this farm's protocols, each with its card metrics. Cursor-paginated
+   * (RAKHAL-407 follow-up); order is fixed (system defaults first, then name) rather than
+   * `query.sortOrder` — the cursor still anchors correctly since it's row-position based. */
+  async listProtocols(farmId: string, query: ListProtocolQueryDto) {
+    const [rows, instances] = await Promise.all([
       this.prisma.reproProtocol.findMany({
         where: {
           deletedAt: null,
           OR: [{ farmId }, { farmId: null, isSystemDefault: true }],
         },
         include: { _count: { select: { steps: true } } },
-        orderBy: [{ isSystemDefault: 'desc' }, { name: 'asc' }],
+        orderBy: [{ isSystemDefault: 'desc' }, { name: 'asc' }, { id: 'asc' }],
+        ...getCursorArgs(query),
       }),
       this.prisma.reproProtocolInstance.findMany({
         where: { farmId },
@@ -83,6 +87,7 @@ export class ReproProtocolService {
         },
       }),
     ]);
+    const page = toCursorPage(rows, query);
 
     const byProtocol = new Map<string, typeof instances>();
     for (const i of instances) {
@@ -91,17 +96,20 @@ export class ReproProtocolService {
       byProtocol.set(i.protocolId, arr);
     }
 
-    return protocols.map((p) => ({
-      id: p.id,
-      name: p.name,
-      code: p.code,
-      description: p.description,
-      duration_days: p.durationDays,
-      step_count: p._count.steps,
-      is_system_default: p.isSystemDefault,
-      editable: !p.isSystemDefault,
-      metrics: summarizeProtocol(byProtocol.get(p.id) ?? []),
-    }));
+    return {
+      items: page.items.map((p) => ({
+        id: p.id,
+        name: p.name,
+        code: p.code,
+        description: p.description,
+        duration_days: p.durationDays,
+        step_count: p._count.steps,
+        is_system_default: p.isSystemDefault,
+        editable: !p.isSystemDefault,
+        metrics: summarizeProtocol(byProtocol.get(p.id) ?? []),
+      })),
+      meta: page.meta,
+    };
   }
 
   async getProtocol(farmId: string, id: string) {

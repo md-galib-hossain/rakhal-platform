@@ -35,3 +35,13 @@ enum TaskRecurrence {
   WEEKLY
   MONTHLY
 }
+
+/// Task Hub activity/history section (user request, no ticket #). CREATED is never stored as a row
+/// here — synthesized in `TaskService#present` from the task's own `createdBy`/`createdAt`, which
+/// already carry that information.
+enum TaskAuditAction {
+  UPDATED
+  COMPLETED
+  REOPENED
+  CANCELLED
+}

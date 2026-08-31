@@ -6,6 +6,7 @@ import {
 import {
   Prisma,
   Task,
+  TaskAuditAction,
   TaskCategory,
   TaskPriority,
   TaskRecurrence,
@@ -278,7 +279,7 @@ export class TaskService {
     return { completedTaskIds: tasks.map((t) => t.id) };
   }
 
-  async update(farmId: string, id: string, dto: UpdateTaskDto) {
+  async update(farmId: string, userId: string, id: string, dto: UpdateTaskDto) {
     await this.getOrThrow(farmId, id);
     await this.assertAssignee(farmId, dto.assignedToId);
 
@@ -297,6 +298,7 @@ export class TaskService {
       },
       include: this.assigneeInclude(),
     });
+    await this.recordAudit(id, TaskAuditAction.UPDATED, userId);
 
     this.log.info('Task updated', { taskId: id, farmId });
     return this.present(task);
@@ -325,6 +327,12 @@ export class TaskService {
       },
       include: this.assigneeInclude(),
     });
+    await this.recordAudit(
+      id,
+      TaskAuditAction.COMPLETED,
+      userId,
+      dto.notes ?? null,
+    );
 
     const next = await this.maybeCreateNextRecurrence(existing, userId);
 
@@ -348,7 +356,7 @@ export class TaskService {
    * link, so it reappears wherever it was sourced from (e.g. the
    * reproduction dashboard's pregnancy-check-due panel).
    */
-  async reopen(farmId: string, id: string) {
+  async reopen(farmId: string, userId: string, id: string) {
     const existing = await this.getOrThrow(farmId, id);
     if (existing.status !== TaskStatus.COMPLETED) {
       throw new BadRequestException('Task is not completed');
@@ -364,6 +372,7 @@ export class TaskService {
       },
       include: this.assigneeInclude(),
     });
+    await this.recordAudit(id, TaskAuditAction.REOPENED, userId);
 
     this.log.info('Task reopened', { taskId: id, farmId });
     return this.present(task);
@@ -398,6 +407,12 @@ export class TaskService {
       },
       include: this.assigneeInclude(),
     });
+    await this.recordAudit(
+      id,
+      TaskAuditAction.CANCELLED,
+      userId,
+      dto.notes ?? null,
+    );
 
     this.log.info('Task cancelled', { taskId: id, farmId });
     return this.present(task);
@@ -439,6 +454,14 @@ export class TaskService {
       ...this.filterClause(query.filter, userId, now),
       ...(query.category ? { category: query.category } : {}),
       ...(query.priority ? { priority: query.priority } : {}),
+      ...(query.dueFrom || query.dueTo
+        ? {
+            dueAt: {
+              ...(query.dueFrom ? { gte: new Date(query.dueFrom) } : {}),
+              ...(query.dueTo ? { lt: new Date(query.dueTo) } : {}),
+            },
+          }
+        : {}),
       ...(andClauses.length ? { AND: andClauses } : {}),
     };
 
@@ -452,15 +475,24 @@ export class TaskService {
     const page = toCursorPage(rows, query);
     const highlights = await this.highlights(farmId, now);
 
-    const ids = page.items
+    const cattleIds = page.items
       .flatMap((task) => [
         task.relatedCattleId,
         ...(task.cattles ?? []).map((c) => c.cattleId),
       ])
       .filter((id): id is string => !!id);
-    const cattleMap = await this.buildCattleLabelMap(farmId, ids);
+    const actorIds = page.items
+      .flatMap((task) => [
+        task.createdBy,
+        ...(task.history ?? []).map((h) => h.actorId),
+      ])
+      .filter((id): id is string => !!id);
+    const [cattleMap, actorMap] = await Promise.all([
+      this.buildCattleLabelMap(farmId, cattleIds),
+      this.buildUserNameMap(actorIds),
+    ]);
     const items = await Promise.all(
-      page.items.map((task) => this.present(task, cattleMap)),
+      page.items.map((task) => this.present(task, cattleMap, actorMap)),
     );
 
     return {
@@ -688,12 +720,39 @@ export class TaskService {
     return task;
   }
 
-  /** Standard `include` for every read/write path that returns a task through `present()`. */
+  /** Standard `include` for every read/write path that returns a task through `present()`.
+   * `history` is ordered oldest-first so `present()` can append it straight after the synthesized
+   * CREATED entry with no re-sort. */
   private assigneeInclude() {
     return {
       assignedTo: { select: { id: true, name: true } },
       cattles: { select: { cattleId: true } },
+      history: {
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          action: true,
+          actorId: true,
+          note: true,
+          createdAt: true,
+        },
+      },
     } satisfies Prisma.TaskInclude;
+  }
+
+  /** One row per lifecycle transition (activity/history section, user request, no ticket #).
+   * CREATED is never written here — synthesized in `present()` from `createdBy`/`createdAt`,
+   * which the `Task` row already carries. Fire-and-forget relative to the caller's own write: a
+   * missing row here would only shorten the history list, never corrupt task state. */
+  private async recordAudit(
+    taskId: string,
+    action: TaskAuditAction,
+    actorId: string,
+    note?: string | null,
+  ) {
+    await this.prisma.taskAuditLog.create({
+      data: { taskId, action, actorId, note: note ?? null },
+    });
   }
 
   /** Cow-name display (user request, no ticket #) — `relatedCattleId`/`TaskCattle.cattleId` are
@@ -701,34 +760,70 @@ export class TaskService {
    * here rather than via a Prisma `include`. `cattleMap` lets `findAll` batch one query for the
    * whole page instead of N+1; single-item paths (create/update/complete/...) build their own
    * 1-2-id map inline. A cow missing from the map (deleted, or map omitted) is simply left out of
-   * `relatedCattle`/`cattleTags` — `cattleIds` still round-trips for the edit form regardless. */
+   * `relatedCattle`/`cattleTags` — `cattleIds` still round-trips for the edit form regardless.
+   * `actorMap` does the same batching for the activity/history section's actor names. */
   private async present(
     task: Task & {
       assignedTo?: { id: string; name: string } | null;
       cattles?: { cattleId: string }[];
+      history?: {
+        id: string;
+        action: TaskAuditAction;
+        actorId: string | null;
+        note: string | null;
+        createdAt: Date;
+      }[];
     },
     cattleMap?: Map<string, { tagNumber: string; name: string | null }>,
+    actorMap?: Map<string, string>,
   ) {
     const now = new Date();
     const display = displayStatus(task.status, task.dueAt, now);
-    const { cattles, ...rest } = task;
-    const ids = [
+    const { cattles, history: historyRows, ...rest } = task;
+    const cattleIds = [
       task.relatedCattleId,
       ...(cattles ?? []).map((c) => c.cattleId),
     ].filter((id): id is string => !!id);
-    const map = cattleMap ?? (await this.buildCattleLabelMap(task.farmId, ids));
+    const cMap =
+      cattleMap ?? (await this.buildCattleLabelMap(task.farmId, cattleIds));
     const relatedCattle =
-      task.relatedCattleId && map.has(task.relatedCattleId)
-        ? { id: task.relatedCattleId, ...map.get(task.relatedCattleId)! }
+      task.relatedCattleId && cMap.has(task.relatedCattleId)
+        ? { id: task.relatedCattleId, ...cMap.get(task.relatedCattleId)! }
         : null;
     const cattleTags = (cattles ?? [])
-      .filter((c) => map.has(c.cattleId))
-      .map((c) => ({ id: c.cattleId, ...map.get(c.cattleId)! }));
+      .filter((c) => cMap.has(c.cattleId))
+      .map((c) => ({ id: c.cattleId, ...cMap.get(c.cattleId)! }));
+
+    const actorIds = [
+      task.createdBy,
+      ...(historyRows ?? []).map((h) => h.actorId),
+    ].filter((id): id is string => !!id);
+    const aMap = actorMap ?? (await this.buildUserNameMap(actorIds));
+    const history = [
+      {
+        id: 'created',
+        action: 'CREATED' as const,
+        actorId: task.createdBy,
+        actorName: aMap.get(task.createdBy) ?? null,
+        note: null as string | null,
+        createdAt: task.createdAt,
+      },
+      ...(historyRows ?? []).map((h) => ({
+        id: h.id,
+        action: h.action,
+        actorId: h.actorId,
+        actorName: h.actorId ? (aMap.get(h.actorId) ?? null) : null,
+        note: h.note,
+        createdAt: h.createdAt,
+      })),
+    ];
+
     return {
       ...rest,
       cattleIds: (cattles ?? []).map((c) => c.cattleId),
       relatedCattle,
       cattleTags,
+      history,
       displayStatus: display,
       overdueByHours:
         display === 'overdue'
@@ -749,6 +844,18 @@ export class TaskService {
     return new Map(
       rows.map((r) => [r.id, { tagNumber: r.tagNumber, name: r.name }]),
     );
+  }
+
+  /** No `farmId` filter — mirrors `assignedTo`'s own `include` (a user's farm membership is
+   * validated at write time, not re-checked on every read). */
+  private async buildUserNameMap(ids: string[]) {
+    const unique = Array.from(new Set(ids));
+    if (!unique.length) return new Map<string, string>();
+    const rows = await this.prisma.user.findMany({
+      where: { id: { in: unique } },
+      select: { id: true, name: true },
+    });
+    return new Map(rows.map((r) => [r.id, r.name]));
   }
 
   /** Validates every id belongs to this farm's active herd (RAKHAL-398's `activeHerd` convention

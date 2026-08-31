@@ -47,9 +47,11 @@ import {
 } from 'src/modules/reproduction/domain/lactation-curve';
 import { computeLactationPeak } from 'src/modules/reproduction/domain/lactation-yield';
 import {
+  MilkAnomalyQueryDto,
   MilkLogQueryDto,
   MilkTrendRange,
 } from '../../presentation/dto/milk-query.dto';
+import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { ReviewAnomalyDto } from '../../presentation/dto/review-anomaly.dto';
 import { SaveMilkLogDto } from '../../presentation/dto/save-milk-log.dto';
 import { SubmitMilkDto } from '../../presentation/dto/submit-milk.dto';
@@ -605,22 +607,30 @@ export class MilkService {
     };
   }
 
-  async anomalies(farmId: string, dateStr?: string) {
+  async anomalies(farmId: string, query: MilkAnomalyQueryDto) {
     const where: Prisma.MilkLogEntryWhereInput = {
       farmId,
       anomalyFlag: true,
-      ...(dateStr ? { logDate: this.normalizeDate(dateStr) } : {}),
+      ...(query.date ? { logDate: this.normalizeDate(query.date) } : {}),
     };
     const rows = await this.prisma.milkLogEntry.findMany({
       where,
-      orderBy: [{ logDate: 'desc' }, { createdAt: 'desc' }],
+      // orderBy ends with `id` per this repo's cursor-pagination convention
+      // (src/common/pagination) — `getCursorArgs`/`toCursorPage` anchor on it.
+      orderBy: [
+        { logDate: query.sortOrder },
+        { createdAt: query.sortOrder },
+        { id: query.sortOrder },
+      ],
       include: {
         cattle: { select: { id: true, name: true, tagNumber: true } },
       },
+      ...getCursorArgs(query),
     });
+    const page = toCursorPage(rows, query);
 
     const anomalies = await Promise.all(
-      rows.map(async (row) => {
+      page.items.map(async (row) => {
         const avg = await this.sessionAvg(
           farmId,
           row.cattleId,
@@ -642,7 +652,7 @@ export class MilkService {
         };
       }),
     );
-    return { anomalies };
+    return { items: anomalies, meta: page.meta };
   }
 
   async reviewAnomaly(farmId: string, id: string, dto: ReviewAnomalyDto) {

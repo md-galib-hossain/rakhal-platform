@@ -52,6 +52,17 @@ export class AuthRepository implements EmailVerificationTokenPort {
     return memberships.map((m) => ({ ...m.farm, role: m.role.name }));
   }
 
+  /** Membership check for farm-switch (`POST /auth/refresh {farmId}`) — callers must not be
+   * able to mint a token scoped to a farm they don't belong to. Excludes the `''`/`'bootstrap'`
+   * sentinels the caller already skips before calling this. */
+  async isActiveFarmMember(userId: string, farmId: string): Promise<boolean> {
+    const membership = await this.prisma.farmMember.findFirst({
+      where: { userId, farmId, farm: { deletedAt: null } },
+      select: { id: true },
+    });
+    return membership !== null;
+  }
+
   /** For anything returned to the client (`GET /auth/me`) — `findUserById` still carries
    * `passwordHash` for internal use (e.g. `changePassword`'s re-verification). */
   findSafeUserById(userId: string) {

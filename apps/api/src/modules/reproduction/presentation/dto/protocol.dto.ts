@@ -160,6 +160,9 @@ export class UpdateProtocolDto {
   steps?: ProtocolStepDto[];
 }
 
+/** `GET /reproduction/protocols` — cursor list of system-default + farm-owned protocols. */
+export class ListProtocolQueryDto extends CursorPaginationQueryDto {}
+
 /** `GET /reproduction/protocols/instances` — cursor list with filters. */
 export class ListInstanceQueryDto extends CursorPaginationQueryDto {
   @IsOptional()
