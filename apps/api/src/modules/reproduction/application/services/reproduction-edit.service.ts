@@ -27,7 +27,6 @@ import {
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { SemenService } from 'src/modules/inventory/application/services/semen.service';
 import { ExpenseService } from 'src/modules/purchasing/application/expense.service';
-import { resolveFinancialAccountId } from 'src/common/finance/resolve-account';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { computeDryOffProjection } from '../../domain/lactation-dry-off-projection';
 import { ReproductionDerivationService } from './reproduction-derivation.service';
@@ -222,17 +221,19 @@ export class ReproductionEditService {
       dto.semenSource !== undefined ||
       dto.semenBatchId !== undefined ||
       dto.serviceCost !== undefined ||
-      dto.paymentMethod !== undefined;
+      dto.paymentMethod !== undefined ||
+      dto.financialAccountId !== undefined;
 
     const mergedServiceCost = sourceChangedToInventory
       ? null
       : dto.serviceCost !== undefined
         ? dto.serviceCost
         : existing.serviceCost;
-    const mergedPaymentMethod =
-      dto.paymentMethod !== undefined
-        ? dto.paymentMethod
-        : existing.paymentMethod;
+    // RAKHAL-393 (closes RD-066): unlike `paymentMethod`, `financialAccountId`
+    // is DTO-only (never persisted on `BreedingEvent`) — no stored fallback
+    // exists, so whenever a cost-relevant field is edited the caller's own
+    // `AccountPicker` must resend it (enforced by the guard below).
+    const mergedFinancialAccountId = dto.financialAccountId;
 
     let resolvedCost = 0;
     let costEntityName: string | undefined;
@@ -264,9 +265,9 @@ export class ReproductionEditService {
         costEntityName =
           serviceProvider?.name ?? existing.semenCompany ?? 'Breeding service';
       }
-      if (resolvedCost > 0 && !mergedPaymentMethod) {
+      if (resolvedCost > 0 && !mergedFinancialAccountId) {
         throw new BadRequestException(
-          'paymentMethod is required when a breeding cost is being recorded',
+          'financialAccountId is required when a breeding cost is being recorded',
         );
       }
     }
@@ -328,17 +329,12 @@ export class ReproductionEditService {
       }
       let newFinanceTransactionId: string | null = null;
       if (resolvedCost > 0) {
-        const financialAccountId = await resolveFinancialAccountId(
-          this.prisma,
-          farmId,
-          mergedPaymentMethod!,
-        );
         const posted = await this.expenseService.recordExpense(farmId, userId, {
           category: ExpenseCategory.BREEDING,
           description: `${costEntityName ?? 'Breeding service'} — Breeding #${updated.breedingNumber} (${mergedMethod}) — edited`,
           amount: resolvedCost,
+          financialAccountId: mergedFinancialAccountId!,
           expenseDate: newBreedingDate.toISOString(),
-          financialAccountId,
           cattleId: newCattleId,
         });
         newFinanceTransactionId = posted.id;

@@ -88,11 +88,19 @@ export class CreateBreedingEventDto {
   @Min(0)
   serviceCost?: number;
 
-  /// RAKHAL-330: how the breeding/AI cost gets paid — required (service-level)
-  /// whenever a cost > 0 is actually being posted to Finance.
+  /// RAKHAL-330: how the breeding/AI cost gets paid — stored for record-keeping.
   @IsOptional()
   @IsEnum(PaymentMethod)
   paymentMethod?: PaymentMethod;
+
+  /// RAKHAL-393 (closes RD-066): the real `FinancialAccount` to post the cost from
+  /// (`AccountPicker`) — required (service-level) whenever a cost > 0 is actually
+  /// being posted to Finance. Replaces the deleted `resolveFinancialAccountId`
+  /// "oldest active account of that type" stopgap.
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  financialAccountId?: string;
 
   @IsOptional()
   @Transform(({ value }) => Number(value))

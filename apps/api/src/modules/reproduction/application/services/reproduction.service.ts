@@ -39,7 +39,6 @@ import { AqrService } from 'src/modules/activity/application/services/aqr.servic
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { SemenService } from 'src/modules/inventory/application/services/semen.service';
 import { ExpenseService } from 'src/modules/purchasing/application/expense.service';
-import { resolveFinancialAccountId } from 'src/common/finance/resolve-account';
 import { CalfService } from 'src/modules/calf/application/services/calf.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { AnimalHoldService } from 'src/modules/cattle/application/services/animal-hold.service';
@@ -437,9 +436,9 @@ export class ReproductionService {
       semenSource === SemenSource.FARM_INVENTORY
         ? inventoryBatchName
         : (serviceProvider?.name ?? dto.semenCompany ?? 'Breeding service');
-    if (resolvedCost > 0 && !dto.paymentMethod) {
+    if (resolvedCost > 0 && !dto.financialAccountId) {
       throw new BadRequestException(
-        'paymentMethod is required when a breeding cost is being recorded',
+        'financialAccountId is required when a breeding cost is being recorded',
       );
     }
 
@@ -542,21 +541,17 @@ export class ReproductionService {
     // Finance V2's `ExpenseService.recordExpense` (`category: BREEDING`,
     // ledger account `5300`) — the real per-animal expense join
     // `cattle-finance-aggregation.ts#computeCattleFinance` now reads
-    // directly via `Expense.cattleId`, no `subType` regex. `paymentMethod`
-    // resolves to a real `FinancialAccount` via `resolveFinancialAccountId`
-    // (documented stopgap — see that helper's own doc comment).
+    // directly via `Expense.cattleId`, no `subType` regex. RAKHAL-393
+    // (closes RD-066): `financialAccountId` now comes straight from the
+    // frontend's `AccountPicker` — the `resolveFinancialAccountId` "oldest
+    // active account of that type" stopgap is deleted.
     if (resolvedCost > 0) {
-      const financialAccountId = await resolveFinancialAccountId(
-        this.prisma,
-        farmId,
-        dto.paymentMethod!,
-      );
       const posted = await this.expenseService.recordExpense(farmId, userId, {
         category: ExpenseCategory.BREEDING,
         description: `${costEntityName ?? 'Breeding service'} — Breeding #${breedingEvent.breedingNumber} (${dto.breedingMethod})`,
         amount: resolvedCost,
         expenseDate: breedingDate.toISOString(),
-        financialAccountId,
+        financialAccountId: dto.financialAccountId!,
         cattleId: dto.cattleId,
       });
       breedingEvent = await this.prisma.breedingEvent.update({

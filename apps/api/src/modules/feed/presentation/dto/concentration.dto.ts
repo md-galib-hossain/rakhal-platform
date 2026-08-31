@@ -109,6 +109,14 @@ export class FinalizeConcentrationDto {
   @IsEnum(PaymentMethod)
   paymentMethod?: PaymentMethod;
 
+  /** RAKHAL-393 (closes RD-066): the real `FinancialAccount` to pay a Total Mixed Ration finalize
+   * from (`AccountPicker`) — required (service-level) when finalizing a `FEED_MIXTURE`. Replaces
+   * the deleted `resolveFinancialAccountId` "oldest active account of that type" stopgap. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  financialAccountId?: string;
+
   @IsOptional()
   @IsNumber()
   @Min(0.001)

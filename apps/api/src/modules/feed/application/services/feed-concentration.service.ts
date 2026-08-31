@@ -8,7 +8,6 @@ import {
   FeedConcentrationItem,
   FeedConcentrationKind,
   FeedIngredient,
-  PaymentMethod,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
@@ -35,7 +34,6 @@ import { FeedRequirementsService } from './feed-requirements.service';
 import { JournalService } from 'src/modules/finance-v2/ledger/application/journal.service';
 import { LedgerAccountService } from 'src/modules/finance-v2/ledger/application/ledger-account.service';
 import { FinancialAccountService } from 'src/modules/finance-v2/accounts/application/financial-account.service';
-import { resolveFinancialAccountId } from 'src/common/finance/resolve-account';
 import { FeedItemService } from 'src/modules/inventory/application/services/feed-item.service';
 import { randomUUID } from 'crypto';
 
@@ -338,13 +336,13 @@ export class FeedConcentrationService {
     farmId: string,
     userId: string,
     id: string,
-    paymentMethod?: PaymentMethod,
+    financialAccountId?: string,
     batchQuantityKg?: number,
   ) {
     const row = await this.getOrThrow(farmId, id);
-    if (row.kind === 'FEED_MIXTURE' && !paymentMethod) {
+    if (row.kind === 'FEED_MIXTURE' && !financialAccountId) {
       throw new BadRequestException(
-        'paymentMethod is required to finalize a Total Mixed Ration',
+        'financialAccountId is required to finalize a Total Mixed Ration',
       );
     }
     if (row.items.length === 0) {
@@ -465,23 +463,17 @@ export class FeedConcentrationService {
     // NOT `ExpenseService.recordExpense`: a TMR batch becomes `FeedStock`, a real inventory
     // asset (mirrors `PurchaseService.createPurchase`'s own Inventory-debit treatment for a
     // Medicine/FeedItem/Equipment purchase), not a consumed expense — booking it as an expense
-    // would double-count once real feed-consumption costing exists. `paymentMethod` resolves to
-    // a concrete `FinancialAccount` via `resolveFinancialAccountId` (documented stopgap — this
-    // route has no `financialAccountId`/`AccountPicker` in its own DTO yet, same gap
-    // `ReproductionService`'s breeding-cost posting has — see that helper's own doc comment).
+    // would double-count once real feed-consumption costing exists. RAKHAL-393 (closes RD-066):
+    // `financialAccountId` now comes straight from the frontend's `AccountPicker` — the
+    // `resolveFinancialAccountId` "oldest active account of that type" stopgap is deleted.
     // Always paid in full immediately, same as V1 (no partial-payment/Payable concept existed
     // for this route before, and none is added now).
     const INVENTORY_LEDGER_CODE = '1200';
     let financeResult: { journalTransactionId: string } | null = null;
     if (row.kind === 'FEED_MIXTURE') {
-      const financialAccountId = await resolveFinancialAccountId(
-        this.prisma,
-        farmId,
-        paymentMethod!,
-      );
       await this.financialAccountService.assertAccountActive(
         farmId,
-        financialAccountId,
+        financialAccountId!,
       );
       const account = await this.prisma.financialAccount.findFirstOrThrow({
         where: { id: financialAccountId, farmId },

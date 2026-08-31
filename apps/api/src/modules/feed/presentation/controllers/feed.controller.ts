@@ -267,7 +267,7 @@ export class FeedController {
       farmId,
       userId,
       id,
-      dto.paymentMethod,
+      dto.financialAccountId,
       dto.batchQuantityKg,
     );
   }
