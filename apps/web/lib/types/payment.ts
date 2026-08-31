@@ -11,20 +11,17 @@ import { z } from "zod";
  * Deliberately placed under `lib/types/` rather than `features/finance/types.ts`: V1's finance
  * module (`features/finance/**`) is frozen (no new features — see `docs/IN_FLIGHT.md`/root
  * `CLAUDE.md`) and its own `FinancePaymentMethod` (`features/finance/types.ts`) still includes
- * `WALLET` because V1's backend routes (`finance.controller.ts`) still accept it and several
- * *currently live* flows depend on that exact value being selectable:
+ * `WALLET` because V1's backend routes (`finance.controller.ts`) still accept it — one live flow
+ * depends on that exact value being selectable:
  *   - `features/finance/components/{add-funds,withdraw}-dialog.tsx` — the V1 wallet itself.
- *   - `features/reproduction/schemas.ts`'s breeding-event AI costing (RAKHAL-330) — posts through
- *     `FinanceService.recordTransaction` (V1) via `paymentMethod`.
- *   - `features/feed/components/finalize-tmr-dialog.tsx` — TMR finalize's wallet debit, same V1 route.
- * None of those three call sites are safe to migrate onto this WALLET-less union today — the
- * backend enum they actually submit against isn't cut over until RAKHAL-354 (last ticket of
- * MILESTONE 21, deletes V1 wholesale). They keep importing V1's own `FinancePaymentMethod`
- * (`features/finance/types.ts`) instead, now via one shared array (`FINANCE_PAYMENT_METHODS`,
- * exported from `features/finance/schemas.ts`) instead of each hand-rolling its own copy — see that
- * file's doc comment for the dedup. This file is reserved for the new V2 primitives
- * (`AccountPicker`, and RAKHAL-357's Record Sale / RAKHAL-358's Payments wizard) that post against
- * the new `finance-v2` backend routes, which never accept `WALLET`.
+ * The other two call sites this comment used to list are migrated off V1 payment methods entirely:
+ * RAKHAL-393 (closes RD-066) moved `features/reproduction/schemas.ts`'s breeding-event AI costing
+ * and `features/feed/components/finalize-tmr-dialog.tsx`'s TMR finalize onto a real
+ * `financialAccountId` (`AccountPicker`) — deleting the backend's `resolveFinancialAccountId`
+ * "oldest active account of that type" stopgap — so neither posts a bare `paymentMethod` anymore.
+ * This file is reserved for the new V2 primitives (`AccountPicker`, and RAKHAL-357's Record Sale /
+ * RAKHAL-358's Payments wizard) that post against the new `finance-v2` backend routes, which never
+ * accept `WALLET`.
  */
 export const PAYMENT_METHODS = ["CASH", "BANK_TRANSFER", "MFS"] as const;
 

@@ -12,8 +12,10 @@ import { CattleMultiPicker, type CattleOption } from "@/components/shared/cattle
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { useApplyProtocol, useProtocolInstance, useProtocols } from "../../hooks/use-reproduction";
 import { applyProtocolSchema, type ApplyProtocolInput } from "../../schemas";
+import { ProtocolDetailSheet } from "./protocol-detail-sheet";
 import { ProtocolInstanceTimeline } from "./protocol-instance-timeline";
 
 /** "Apply Protocol" (RAKHAL-214, PRD §9.8) — no Figma frame for this module. Mirrors
@@ -38,6 +40,8 @@ export function ApplyProtocolDialog({
   const [selectedCattle, setSelectedCattle] = useState<CattleOption[]>([]);
   const [appliedInstanceId, setAppliedInstanceId] = useState<string | null>(null);
   const appliedInstance = useProtocolInstance(appliedInstanceId ?? undefined);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selectedProtocolId, setSelectedProtocolId] = useState("");
   const protocolOptions = useMemo(() => protocols.data?.pages.flatMap((p) => p.items) ?? [], [protocols.data]);
 
   const form = useForm<ApplyProtocolInput>({
@@ -55,6 +59,7 @@ export function ApplyProtocolDialog({
     if (open) {
       form.reset({ protocolId: "", cattleIds: defaultCattleId ? [defaultCattleId] : [] });
       setSelectedCattle([]);
+      setSelectedProtocolId("");
     }
   }
 
@@ -104,18 +109,35 @@ export function ApplyProtocolDialog({
             control={form.control}
             name="protocolId"
             render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("protocolPlaceholder")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {protocolOptions.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name} ({t("stepCount", { count: p.step_count })})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={field.value}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    setSelectedProtocolId(value);
+                  }}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder={t("protocolPlaceholder")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {protocolOptions.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name} ({t("stepCount", { count: p.step_count })})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={!field.value}
+                  onClick={() => setDetailOpen(true)}
+                >
+                  {t("viewDetails")}
+                </Button>
+              </div>
             )}
           />
         </div>
@@ -161,6 +183,12 @@ export function ApplyProtocolDialog({
         onOpenChange={(next) => {
           if (!next) setAppliedInstanceId(null);
         }}
+      />
+      <ProtocolDetailSheet
+        protocol={protocolOptions.find((p) => p.id === selectedProtocolId) ?? null}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        startDate={form.watch("startDate")}
       />
     </>
   );

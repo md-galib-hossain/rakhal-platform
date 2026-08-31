@@ -33,18 +33,20 @@ const targetSexEnum = z.enum(["FEMALE", "MALE"]);
  * (`lib/types/payment.ts`), which the backend for this call site doesn't support. */
 const paymentMethodEnum = financePaymentMethodEnum;
 
-/** RAKHAL-330: shared cost-validation rule for both the create and edit breeding-event schemas —
- * AI sourced from anything other than farm inventory needs its own `serviceCost` (a farm-inventory
- * pick's cost comes from the selected batch, resolved server-side); `paymentMethod` becomes required
- * whenever a real cost is actually being submitted, so a cost never posts to Finance with no payment
- * source recorded. */
+/** RAKHAL-330/393 (closes RD-066): shared cost-validation rule for both the create and edit
+ * breeding-event schemas — AI sourced from anything other than farm inventory needs its own
+ * `serviceCost` (a farm-inventory pick's cost comes from the selected batch, resolved
+ * server-side); `financialAccountId` (the real `AccountPicker` selection) becomes required
+ * whenever a real cost is actually being submitted, so a cost never posts to Finance with no
+ * account recorded. Replaces the old `paymentMethod`-required rule — that field stays in the
+ * schema for record-keeping but is no longer what the backend resolves an account from. */
 function withBreedingCostValidation<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
   return schema.superRefine((data, ctx) => {
     const values = data as {
       breedingMethod?: string;
       semenSource?: string;
       serviceCost?: number;
-      paymentMethod?: string;
+      financialAccountId?: string;
     };
     const isAiFromManualSource =
       values.breedingMethod === "AI" && values.semenSource && values.semenSource !== "FARM_INVENTORY";
@@ -57,11 +59,11 @@ function withBreedingCostValidation<T extends z.ZodRawShape>(schema: z.ZodObject
     }
     const costIsBeingSubmitted =
       (values.serviceCost !== undefined && values.serviceCost > 0) || values.semenSource === "FARM_INVENTORY";
-    if (costIsBeingSubmitted && !values.paymentMethod) {
+    if (costIsBeingSubmitted && !values.financialAccountId) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["paymentMethod"],
-        message: "Payment method is required when recording a cost",
+        path: ["financialAccountId"],
+        message: "Account is required when recording a cost",
       });
     }
   });
@@ -84,6 +86,7 @@ const breedingEventBaseSchema = z.object({
   semenCompany: z.string().trim().optional(),
   serviceCost: z.number().min(0).optional(),
   paymentMethod: paymentMethodEnum.optional(),
+  financialAccountId: z.string().optional(),
   expectedPregnancyCheckDate: z.string().optional(),
   notes: z.string().trim().optional(),
 });
@@ -108,6 +111,7 @@ const editBreedingEventBaseSchema = z.object({
   semenCompany: z.string().trim().optional(),
   serviceCost: z.number().min(0).optional(),
   paymentMethod: paymentMethodEnum.optional(),
+  financialAccountId: z.string().optional(),
   breedingNumber: z.number().min(1).optional(),
   expectedPregnancyCheckDate: z.string().optional(),
   notes: z.string().trim().optional(),

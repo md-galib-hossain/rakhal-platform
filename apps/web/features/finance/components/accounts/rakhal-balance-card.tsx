@@ -1,12 +1,12 @@
 "use client"; // live balance query
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Landmark, Smartphone, Wallet } from "lucide-react";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
 import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 import { useRakhalBalance } from "../../hooks/use-finance-v2";
 
 /**
@@ -17,11 +17,12 @@ import { useRakhalBalance } from "../../hooks/use-finance-v2";
  * handing to `MoneyText`, same discipline RAKHAL-358's `types-v2.ts` additions document for their own
  * money fields.
  *
- * Receivable/payable renders as a **visually separate position block** below the balance cards, per
- * the ticket brief — never summed into the total, and shown as "not yet available" rather than a
- * fake ৳0 while the backend's `receivablePayable.wired` is `false` (verified live against the current
- * `BalanceService` source — RAKHAL-340/348 landing did not re-point this specific endpoint; see
- * `types-v2.ts`'s doc comment for the full trail).
+ * RAKHAL-394 (closes the §5.15/§1.2 "delete the literal 'Not yet available' string" mandate): the
+ * "position block" this card used to render below the balance cards read `data.receivablePayable`,
+ * a field `GET /finance/balance` stopped returning entirely once RAKHAL-371 retired the fake
+ * always-zeroed placeholder — so the block was permanently stuck on its "not yet available" fallback,
+ * never a real number. RAKHAL-386 (Receivables/Payables screens) has since shipped the real thing;
+ * this card now links straight to those tabs instead of rendering a block that could never resolve.
  */
 export function RakhalBalanceCard() {
   const t = useTranslations("finance.accountsPage.balance");
@@ -73,29 +74,20 @@ export function RakhalBalanceCard() {
         </div>
       </Card>
 
-      {/* Position block — deliberately a visually distinct card, never merged into the balance total
-          above (design brief: "Receivable/payable shown as a SEPARATE position block"). */}
-      <Card className={cn("flex flex-col gap-3 rounded-2xl border-dashed p-4", !data.receivablePayable?.wired && "opacity-80")}>
+      {/* Position block — never summed into the balance total above (design brief: "Receivable/
+          payable shown as a SEPARATE position block"). Links to the real Receivables/Payables tabs
+          instead of rendering its own numbers — see the file's own doc comment for why. */}
+      <Card className="flex flex-col gap-3 rounded-2xl border-dashed p-4">
         <p className="text-sm font-medium text-foreground">{t("positionTitle")}</p>
-        {data.receivablePayable?.wired ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1">
-              <p className="text-xs text-muted-foreground">{t("receivable")}</p>
-              <p className="text-lg font-semibold text-success">
-                <MoneyText amount={Number(data.receivablePayable.totalReceivable)} />
-              </p>
-            </div>
-            <div className="flex flex-col gap-1">
-              <p className="text-xs text-muted-foreground">{t("payable")}</p>
-              <p className="text-lg font-semibold text-destructive">
-                <MoneyText amount={Number(data.receivablePayable.totalPayable)} />
-              </p>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">{t("notYetAvailable")}</p>
-        )}
         <p className="text-xs text-muted-foreground">{t("positionCaption")}</p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
+          <Link href="/finance?tab=receivables" className="text-sm font-medium text-primary hover:underline">
+            {t("viewReceivables")}
+          </Link>
+          <Link href="/finance?tab=payables" className="text-sm font-medium text-primary hover:underline">
+            {t("viewPayables")}
+          </Link>
+        </div>
       </Card>
     </div>
   );

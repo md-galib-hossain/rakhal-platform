@@ -1,5 +1,3 @@
-import type { FinancePaymentMethod } from "@/features/finance/types";
-
 /**
  * Feed Formulator types — matched directly to `feed.controller.ts`/`feed-*.service.ts` response
  * shapes (Repos/rakhal-backend), which are genuinely **snake_case** (unlike every other module's
@@ -307,10 +305,13 @@ export interface FinalizeConcentrationResult {
   finance: { transaction_id: string; reference: string; wallet_transaction_id: string | null } | null;
 }
 
-/** `POST /feed/concentrations/:id/finalize` body — only required when finalizing a `FEED_MIXTURE`
- * (TMR); a `CONCENTRATE_TEMPLATE` finalize incurs no cost and ignores this. */
+/** `POST /feed/concentrations/:id/finalize` body — `financialAccountId` only required when
+ * finalizing a `FEED_MIXTURE` (TMR); a `CONCENTRATE_TEMPLATE` finalize incurs no cost and ignores
+ * this. RAKHAL-393 (closes RD-066): replaces the old `paymentMethod` field — the backend's
+ * `resolveFinancialAccountId` "oldest active account of that type" stopgap is deleted, this form
+ * now posts a real `AccountPicker` selection instead. */
 export interface FinalizeConcentrationPayload {
-  paymentMethod?: FinancePaymentMethod;
+  financialAccountId?: string;
 }
 
 /** `POST /feed/concentrations/bulk-delete` — multi-select delete (user request 2026-07-18). */

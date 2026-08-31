@@ -10,17 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ServiceProviderPicker } from "@/features/settings/components/service-provider-picker";
-import { FINANCE_PAYMENT_METHODS } from "@/features/finance/schemas";
+import { AccountPicker } from "@/features/finance/components/account-picker";
 import type { CreateBreedingEventInput } from "../../schemas";
 
 const BREEDING_METHODS = ["AI", "NATURAL", "EMBRYO_TRANSFER"] as const;
 const SEMEN_SOURCES = ["FARM_INVENTORY", "TECHNICIAN_SUPPLIED", "EXTERNAL"] as const;
 const SEMEN_TYPES = ["CONVENTIONAL", "SEX_SORTED"] as const;
 const TARGET_SEXES = ["FEMALE", "MALE"] as const;
-/** RAKHAL-330: mirrors backend `FinancePaymentMethod` — how a breeding/AI cost was paid.
- * RAKHAL-355: imports the shared V1 array (`features/finance/schemas.ts`) instead of re-declaring
- * its own copy — this form still posts through the V1 finance route, which still accepts WALLET. */
-const PAYMENT_METHODS = FINANCE_PAYMENT_METHODS;
 
 interface SemenBatchOption {
   id: string;
@@ -35,33 +31,23 @@ interface SemenBatchOption {
   costPerUnit: number | null;
 }
 
-/** RAKHAL-330: shared payment-method picker — AI-from-inventory cost, manual serviceCost, and
- * NATURAL/EMBRYO_TRANSFER's own optional cost all funnel through this same control. */
-function PaymentMethodField({ form }: { form: UseFormReturn<CreateBreedingEventInput> }) {
+/** RAKHAL-393 (closes RD-066): shared financial-account picker — AI-from-inventory cost, manual
+ * serviceCost, and NATURAL/EMBRYO_TRANSFER's own optional cost all funnel through this same control.
+ * Replaces the old `paymentMethod` `Select` (which the backend resolved to "the farm's oldest active
+ * account of that type") with the real `AccountPicker` every other V2 money-movement form uses, so
+ * the farmer picks the exact account a breeding cost posts from. */
+function AccountField({ form }: { form: UseFormReturn<CreateBreedingEventInput> }) {
   const t = useTranslations("reproduction.dialogs.breeding");
   return (
     <div className="flex flex-col gap-2">
-      <Label>{t("paymentMethod")}</Label>
+      <Label>{t("financialAccount")}</Label>
       <Controller
         control={form.control}
-        name="paymentMethod"
-        render={({ field }) => (
-          <Select value={field.value ?? ""} onValueChange={field.onChange}>
-            <SelectTrigger>
-              <SelectValue placeholder={t("paymentMethodPlaceholder")} />
-            </SelectTrigger>
-            <SelectContent>
-              {PAYMENT_METHODS.map((v) => (
-                <SelectItem key={v} value={v}>
-                  {t(`paymentMethodValue.${v}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        name="financialAccountId"
+        render={({ field }) => <AccountPicker value={field.value} onChange={field.onChange} />}
       />
-      {form.formState.errors.paymentMethod ? (
-        <p className="text-xs text-destructive">{form.formState.errors.paymentMethod.message}</p>
+      {form.formState.errors.financialAccountId ? (
+        <p className="text-xs text-destructive">{form.formState.errors.financialAccountId.message}</p>
       ) : null}
     </div>
   );
@@ -218,7 +204,7 @@ export function BreedingEventFormFields({ form }: { form: UseFormReturn<CreateBr
                   </div>
                 );
               })()}
-              <PaymentMethodField form={form} />
+              <AccountField form={form} />
             </div>
           ) : (
             <>
@@ -294,7 +280,7 @@ export function BreedingEventFormFields({ form }: { form: UseFormReturn<CreateBr
                   ) : null}
                 </div>
               </div>
-              <PaymentMethodField form={form} />
+              <AccountField form={form} />
               {form.watch("semenType") === "SEX_SORTED" ? (
                 <div className="flex flex-col gap-2">
                   <Label>{t("targetSex")}</Label>
@@ -348,7 +334,7 @@ export function BreedingEventFormFields({ form }: { form: UseFormReturn<CreateBr
                 <p className="text-xs text-destructive">{form.formState.errors.serviceCost.message}</p>
               ) : null}
             </div>
-            <PaymentMethodField form={form} />
+            <AccountField form={form} />
           </div>
         </>
       )}

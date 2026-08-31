@@ -1,5 +1,38 @@
 # Frontend — Current State
 
+## RAKHAL-394 — Dead-code sweep + empty-state/copy pass (2026-09-01)
+Phase F closeout, MILESTONE 22. `features/finance/api.ts` trimmed from 12 `financeApi` methods to 3
+(`liabilities`/`assets`/`createAsset`, the only ones with a real consumer); `hooks/use-finance.ts`
+trimmed to exactly `useLiabilities`/`useAssets`/`useCreateAsset`, deleting 10 zero-consumer V1 hooks
+whose backend routes were dropped in RAKHAL-354. Deleted `ledger-filters.tsx` (zero importers). Found
+and fixed a real defect while verifying the PRD's "delete the literal 'Not yet available' string"
+mandate: `rakhal-balance-card.tsx`'s position block read `data.receivablePayable`, a field
+`GET /finance/balance` stopped returning entirely once RAKHAL-371 shipped — permanently stuck on
+"Not yet available". Replaced with real links to the now-live Receivables/Payables tabs (RAKHAL-386).
+Empty-state CTA/consequence-copy AC scoped to the Lane's literal `empty-state.tsx` consumers (3 small
+read-only summary panels, correctly minimal as-is); the PRD's full consequence-teaching pattern across
+the 9 `DataTable`-driven Business IA tables was **not** rolled out — flagged as a real remaining gap,
+not claimed done. `knip`/`ts-prune` not installed in this repo — verified manually via targeted grep
+instead. Gate: `typecheck` 0 new (1 pre-existing unrelated error), `eslint` 0 on all touched files,
+both locales parse clean.
+
+## RAKHAL-393 — Close RD-066: `AccountPicker` everywhere, frontend half (2026-09-01)
+Phase F closeout, MILESTONE 22. `features/feed/components/finalize-tmr-dialog.tsx` fully rewritten
+off its hardcoded `PAYMENT_METHODS` `Select` (still carried the deleted V1 `WALLET` value) onto the
+shared `AccountPicker` + `financialAccountId`. `features/reproduction/components/dialogs/
+breeding-event-form-fields.tsx`'s `PaymentMethodField` replaced with a new `AccountField` (same
+`AccountPicker`, bound via `Controller` to `financialAccountId`), wired across all 3 cost-entry call
+sites (AI from farm inventory, AI from a manual source, NATURAL/EMBRYO_TRANSFER). `features/
+reproduction/schemas.ts`'s `withBreedingCostValidation` now requires `financialAccountId` whenever a
+real cost is submitted; both breeding-event base schemas gained the field. `breeding-event-dialog.tsx`
+/`breeding-event-step.tsx` needed no submit-handler change (both spread `...values`, so the new field
+flows through). `lib/types/payment.ts`'s doc comment corrected — it previously named these two forms
+as blocked from the WALLET-less union pending RAKHAL-354; both are now fully off V1 payment methods.
+Backend half (deletes `resolve-account.ts`'s stopgap, requires `financialAccountId` on both routes)
+done in the same pass — see `rakhal-backend`'s own `docs/IN_FLIGHT.md`. Gate: `typecheck` 0 new (1
+pre-existing unrelated error in `features/cattle/components/detail/pedigree-tab.tsx`), `eslint` 0 on
+all 5 touched files, both locales updated same commit.
+
 ## RAKHAL-392 — Source-reference drill-through + Posted/Voided chips + void flows (2026-08-31)
 Last Phase E ticket, MILESTONE 22 — closes the nine-way-parallel screen-ticket wave (383-392 all
 done). New `components/shared/source-reference.tsx` (one shared `Link`-or-text renderer, now used

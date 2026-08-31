@@ -1,14 +1,22 @@
 "use client"; // live query + sheet state
 
 import { useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { ArrowRightToLine, Circle, CircleCheck } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { Timeline, type TimelineItem } from "@/components/ui/timeline";
+import { formatDate } from "@/lib/format";
+import type { Locale } from "@/lib/constants/i18n";
 import { useProtocol } from "../../hooks/use-reproduction";
 import type { ProtocolSummary } from "../../types";
+
+function addDays(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
 
 /** Read-only step-by-step view of a protocol template (RAKHAL-214 follow-up, no ticket # — user
  * asked why clicking a system-default protocol card showed nothing). Distinct from
@@ -19,13 +27,20 @@ export function ProtocolDetailSheet({
   protocol,
   open,
   onOpenChange,
+  startDate,
 }: {
   protocol: ProtocolSummary | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** When set (Apply Protocol dialog's own start-date field), steps show real calendar dates
+   * instead of "Day N" — same `addDays(start, day_number)` formula the backend/instance timeline
+   * use, but there's no task/instance yet so it's a projection, not an actual due date. */
+  startDate?: string;
 }) {
   const t = useTranslations("reproduction.protocols");
+  const locale = useLocale() as Locale;
   const detail = useProtocol(protocol?.id);
+  const start = startDate ? new Date(startDate) : null;
 
   const items: TimelineItem[] = useMemo(() => {
     if (!detail.data) return [];
@@ -37,9 +52,9 @@ export function ProtocolDetailSheet({
         tone: step.is_required ? "primary" : "muted",
         title: step.title,
         subtitle: step.instruction ?? undefined,
-        date: t("detail.dayLabel", { value: step.day_number }),
+        date: start ? formatDate(addDays(start, step.day_number), locale) : t("detail.dayLabel", { value: step.day_number }),
       }));
-  }, [detail.data, t]);
+  }, [detail.data, t, start, locale]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

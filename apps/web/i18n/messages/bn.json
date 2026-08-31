@@ -2423,6 +2423,7 @@
           "MFS": "মোবাইল ফাইন্যান্সিয়াল সার্ভিস (এমএফএস)",
           "WALLET": "ওয়ালেট"
         },
+        "financialAccount": "আর্থিক হিসাব",
         "costFromBatch": "খরচ: ৳{cost} (ব্যাচ থেকে)",
         "bull": "ষাঁড়",
         "inseminator": "ইনসেমিনেটর",
@@ -2547,6 +2548,7 @@
         "title": "প্রোটোকল প্রয়োগ করুন",
         "protocol": "প্রোটোকল",
         "protocolPlaceholder": "একটি প্রোটোকল নির্বাচন করুন",
+        "viewDetails": "বিস্তারিত",
         "stepCount": "{count}টি ধাপ",
         "cattle": "গরু",
         "cattlePlaceholder": "গরু নির্বাচন করুন…",
@@ -4240,10 +4242,9 @@
         "bank": "ব্যাংক",
         "mfs": "এমএফএস",
         "positionTitle": "পাওনা / দেনা অবস্থান",
-        "receivable": "মোট পাওনা",
-        "payable": "মোট দেনা",
-        "notYetAvailable": "এখনও পাওয়া যাচ্ছে না — এই তথ্যটি এখনও ব্যাকএন্ডে যুক্ত করা হয়নি।",
         "positionCaption": "রাখাল ব্যালেন্সে অন্তর্ভুক্ত নয় — এই টাকা এখনও আসেনি (বা যায়নি)।",
+        "viewReceivables": "পাওনা দেখুন",
+        "viewPayables": "দেনা দেখুন",
         "error": "আপনার রাখাল ব্যালেন্স লোড করা যায়নি।"
       },
       "list": {
@@ -4441,9 +4442,6 @@
         "BANK": "ব্যাংক",
         "MFS": "মোবাইল ফিন্যান্সিয়াল সার্ভিস"
       },
-      "receivablePosition": "মোট পাওনা",
-      "payablePosition": "মোট দেনা",
-      "notYetAvailable": "এখনো পাওয়া যাচ্ছে না",
       "income": "আয়",
       "expenses": "ব্যয়",
       "netCashFlow": "নিট নগদ প্রবাহ"

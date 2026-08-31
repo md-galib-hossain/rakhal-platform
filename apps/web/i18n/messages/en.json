@@ -2423,6 +2423,7 @@
           "MFS": "Mobile financial service (MFS)",
           "WALLET": "Wallet"
         },
+        "financialAccount": "Financial account",
         "costFromBatch": "Cost: ৳{cost} (from batch)",
         "bull": "Bull",
         "inseminator": "Inseminator",
@@ -2547,6 +2548,7 @@
         "title": "Apply Protocol",
         "protocol": "Protocol",
         "protocolPlaceholder": "Select a protocol",
+        "viewDetails": "Details",
         "stepCount": "{count} steps",
         "cattle": "Cows",
         "cattlePlaceholder": "Select cattle…",
@@ -4240,10 +4242,9 @@
         "bank": "Bank",
         "mfs": "MFS",
         "positionTitle": "Receivable / Payable position",
-        "receivable": "Total receivable",
-        "payable": "Total payable",
-        "notYetAvailable": "Not yet available — this figure isn't wired up on the backend yet.",
         "positionCaption": "Not included in Rakhal Balance — this money hasn't arrived (or gone out) yet.",
+        "viewReceivables": "View Receivables",
+        "viewPayables": "View Payables",
         "error": "Could not load your Rakhal Balance."
       },
       "list": {
@@ -4441,9 +4442,6 @@
         "BANK": "Bank",
         "MFS": "Mobile Financial Service"
       },
-      "receivablePosition": "Total Receivable",
-      "payablePosition": "Total Payable",
-      "notYetAvailable": "Not yet available",
       "income": "Income",
       "expenses": "Expenses",
       "netCashFlow": "Net Cash Flow"
