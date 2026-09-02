@@ -7,6 +7,9 @@ export default defineConfig({
   schema: './prisma',
   migrations: {
     path: 'prisma/migrations',
+    // Lets a bare `prisma migrate reset` reseed. Prefer `pnpm db:reset`
+    // (scripts/db-reset.ts) — it adds the remote-database confirmation guard.
+    seed: 'ts-node -r tsconfig-paths/register prisma/seed.ts',
   },
   datasource: {
     url: process.env['DATABASE_URL'],
