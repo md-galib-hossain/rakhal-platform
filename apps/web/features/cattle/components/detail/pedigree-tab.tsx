@@ -78,6 +78,7 @@ function NodeCard({
  */
 export function PedigreeTab({ cattleId }: { cattleId: string }) {
   const t = useTranslations("cattle.detail.pedigree");
+  const { openCattleDetail } = useCattleDetailModal();
   const query = useCattlePedigree(cattleId);
 
   if (query.isLoading) return <CardSkeleton lines={4} />;
