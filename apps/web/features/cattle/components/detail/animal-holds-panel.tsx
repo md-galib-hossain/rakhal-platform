@@ -12,13 +12,13 @@ import { DateText } from "@/components/shared/date-text";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -121,12 +121,12 @@ export function AnimalHoldsPanel({ cattleId }: { cattleId: string }) {
         </div>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("place")}</DialogTitle>
-            <DialogDescription>{t("placeDescription")}</DialogDescription>
-          </DialogHeader>
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>{t("place")}</SheetTitle>
+            <SheetDescription>{t("placeDescription")}</SheetDescription>
+          </SheetHeader>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
               <Label>{t("type")}</Label>
@@ -148,16 +148,16 @@ export function AnimalHoldsPanel({ cattleId }: { cattleId: string }) {
               <Input value={reason} onChange={(e) => setReason(e.target.value)} />
             </div>
           </div>
-          <DialogFooter>
+          <SheetFooter className="border-t border-dashed border-border pt-4">
             <Button variant="outline" onClick={() => setOpen(false)} disabled={createHold.isPending}>
               {t("cancel")}
             </Button>
             <Button onClick={handleCreate} disabled={createHold.isPending || reason.trim().length < 2}>
               {createHold.isPending ? "…" : t("confirm")}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

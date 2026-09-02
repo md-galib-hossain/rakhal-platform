@@ -23,8 +23,7 @@ component — it's very likely already built, just under a different name.
 | Subscription Bar / "Become a PRO!" card | `components/layout/upgrade-ad.tsx` (`UpgradeAd`) |
 | KPI (icon-tile stat card) | `components/shared/stat-card.tsx` (`StatCard`) for the dashboard's 2×2 grid; `HighlightTile` (local to `cattle-highlights-bar.tsx`) for the Cattle page's row-of-4 — same visual language, not yet unified into one shared component |
 | Avatar / thumbnail | `components/ui/avatar.tsx` |
-| Dialog (centered modal) | `components/ui/dialog.tsx` |
-| Sheet (right-side drawer) | `components/ui/sheet.tsx` |
+| Sheet (right-side drawer) | `components/ui/sheet.tsx` — the standard modal pattern app-wide (2026-09-03: `Dialog`/`DialogContent` retired for every form/confirm/detail modal in favor of this; `components/ui/dialog.tsx` remains only as the primitive backing `command.tsx`'s ⌘K palette, not for app modals) |
 | Tabs (pill tab bar) | `components/ui/tabs.tsx` |
 | Search (pill input + icon) | `components/shared/filter-bar.tsx`'s `SearchInput` (list pages), `components/shared/global-search.tsx` (topbar ⌘K) |
 | Checkbox (row selection) | `components/ui/checkbox.tsx` |
@@ -42,12 +41,12 @@ component — it's very likely already built, just under a different name.
 | Money / date formatting | `components/shared/money-text.tsx`, `components/shared/date-text.tsx` |
 | Cattle search-select | `components/shared/cattle-picker.tsx` (`CattlePicker`) |
 | File/photo upload | `components/shared/file-upload.tsx` (`FileUpload`) |
-| Create/edit form containers | `components/shared/form-dialog.tsx`, `components/shared/form-sheet.tsx` |
+| Create/edit form container | `components/shared/form-sheet.tsx` (`FormSheet`) — `form-dialog.tsx` was removed 2026-09-03 in the modal-unification sweep, all callers migrated |
 | Loading/empty/error states | `components/shared/card-skeleton.tsx`, `components/shared/table-skeleton.tsx`, `components/shared/empty-state.tsx`, `components/shared/error-state.tsx` |
 
 ## Feature-specific patterns worth reusing
 
-- **Dashed header/footer separator inside a modal/sheet** (`<div className="border-t border-dashed border-border" />` between the title row and body, and between body and the button row) — established by `cattle-form-dialog.tsx`, reused by `cattle-detail-sheet.tsx`. Use this instead of relying on `Dialog`/`Sheet`'s default solid border when a Figma frame shows the dashed style.
+- **Dashed header/footer separator inside a sheet** (`<div className="border-t border-dashed border-border" />` between the title row and body, and between body and the button row) — established by `cattle-form-dialog.tsx`, reused by `cattle-detail-sheet.tsx`, and applied to every `SheetFooter` app-wide as of the 2026-09-03 modal-unification sweep. Use this instead of relying on `Sheet`'s default solid border.
 - **Equal-width footer buttons** (`Cancel` secondary + primary action, both `h-12 flex-1`) — same two components above.
 - **Remount-key pattern for "fresh state on open"** (`key={targetId ?? "create"}` on an inner body component, outer wrapper stays mounted) — avoids a `set-state-in-effect` React Compiler violation. Established by `CattleFormDialogBody`, reused by `MilkSessionTable`.
 - **Outline `Chip` vs solid `Badge`**: use `Chip` only where the Figma frame shows a white-fill/colored-border pill (currently just the Cattle list's Status/Health columns). Everywhere else, `Badge` (solid tint) remains the default — don't swap existing `Badge` usages to `Chip` without a Figma frame confirming the outline style there too.

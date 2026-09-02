@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -48,18 +48,18 @@ export function FeedItemStockUpdateDialog({
   }
 
   return (
-    <Dialog
+    <Sheet
       open={open}
       onOpenChange={(next) => {
         if (next && feedItem) setValue(String(feedItem.currentStock));
         onOpenChange(next);
       }}
     >
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("title")}</DialogTitle>
-          <DialogDescription>{t("description", { name: feedItem?.name ?? "", unit: feedItem?.unit?.symbol ?? "" })}</DialogDescription>
-        </DialogHeader>
+      <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>{t("title")}</SheetTitle>
+          <SheetDescription>{t("description", { name: feedItem?.name ?? "", unit: feedItem?.unit?.symbol ?? "" })}</SheetDescription>
+        </SheetHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-2">
           <Label htmlFor="stock-update-value">{t("label", { unit: feedItem?.unit?.symbol ?? "" })}</Label>
           <Input
@@ -70,16 +70,16 @@ export function FeedItemStockUpdateDialog({
             value={value}
             onChange={(e) => setValue(e.target.value)}
           />
-          <DialogFooter className="pt-2">
+          <SheetFooter className="border-t border-dashed border-border pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={updateFeedItem.isPending}>
               {t("cancel")}
             </Button>
             <Button type="submit" disabled={updateFeedItem.isPending}>
               {updateFeedItem.isPending ? "…" : t("save")}
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

@@ -1,15 +1,16 @@
 "use client"; // form state + mutation
 
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { FormDialog } from "@/components/shared/form-dialog";
+import { FormSheet } from "@/components/shared/form-sheet";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useRecordWeight } from "../../hooks/use-cattle-detail-tabs";
 import { recordWeightSchema, type RecordWeightInput } from "../../schemas";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 
 /** `POST /cattle/:id/weight` (RAKHAL-039) — `cattle.update`-gated (manager+, no worker perm yet). */
 export function RecordWeightDialog({
@@ -44,7 +45,7 @@ export function RecordWeightDialog({
   }
 
   return (
-    <FormDialog
+    <FormSheet
       open={open}
       onOpenChange={onOpenChange}
       title={t("title")}
@@ -69,13 +70,28 @@ export function RecordWeightDialog({
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="record-weight-date">{t("date")}</Label>
-        <Input id="record-weight-date" type="datetime-local" placeholder={t("dateBlankHint")} {...form.register("date")} />
+        <Controller
+          control={form.control}
+          name="date"
+          render={({ field, fieldState }) => (
+            <DateTimePicker
+              id="record-weight-date"
+              label={t("date")}
+              placeholder={t("dateBlankHint")}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={fieldState.error?.message}
+              clearable
+            />
+          )}
+        />
         <p className="text-xs text-muted-foreground">{t("dateBlankHint")}</p>
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="record-weight-notes">{t("notes")}</Label>
         <Input id="record-weight-notes" {...form.register("notes")} />
       </div>
-    </FormDialog>
+    </FormSheet>
   );
 }

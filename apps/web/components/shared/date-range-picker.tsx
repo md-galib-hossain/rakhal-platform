@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { CalendarDays } from "lucide-react";
+import type { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -43,9 +44,26 @@ export function DateRangePicker({
 }: DateRangePickerProps) {
   const t = useTranslations("period.presets");
   const [open, setOpen] = useState(false);
+  /**
+   * In-progress range. react-day-picker reports the first click of a new range as
+   * `{ from, to: undefined }`; the old code discarded that update and kept feeding the *committed*
+   * range back in as `selected`, so the first click of a two-click selection appeared to do nothing
+   * (the reported "selecting date is not working properly for multiple date select"). The draft
+   * holds the half-made range so the start day highlights immediately, and only a complete
+   * `from`+`to` is pushed to the parent.
+   */
+  const [draft, setDraft] = useState<DateRange | undefined>(undefined);
+  const selectedRange: DateRange = draft ?? { from: range.from, to: range.to };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        // Abandon a half-made range when the popover closes, so reopening starts clean.
+        if (!next) setDraft(undefined);
+      }}
+    >
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -60,40 +78,59 @@ export function DateRangePicker({
           <span className="truncate">{label}</span>
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="flex w-auto gap-2 rounded-2xl p-2 shadow-lg">
-        <div className="flex w-40 flex-col gap-0.5 border-r border-border pr-2">
+      <PopoverContent align="start" className="flex w-auto gap-2 rounded-2xl p-3 shadow-lg">
+        <div className="flex w-40 flex-col gap-0.5 border-r border-border pr-3">
           {SELECTABLE_PRESETS.map((p) => (
             <button
               key={p}
               type="button"
               onClick={() => {
+                setDraft(undefined);
                 onPresetChange(p);
                 setOpen(false);
               }}
               className={cn(
-                "rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-accent",
+                "rounded-md px-3 py-2.5 text-left text-sm transition-colors hover:bg-accent",
                 preset === p ? "bg-accent font-medium text-accent-foreground" : "text-foreground",
               )}
             >
               {t(p)}
             </button>
           ))}
+          {/* Not a button: "Custom" isn't a preset you pick, it's the state the calendar puts you
+              in. It stays as a status row, but now explains how to get there instead of looking
+              like a dead menu item. */}
           <span
             className={cn(
-              "rounded-md px-3 py-2 text-left text-sm",
+              "mt-1 rounded-md px-3 py-2 text-left text-xs leading-snug",
               preset === "custom" ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground",
             )}
           >
             {t("custom")}
+            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{t("customHint")}</span>
           </span>
         </div>
         <Calendar
           mode="range"
           numberOfMonths={1}
-          defaultMonth={range.from}
-          selected={{ from: range.from, to: range.to }}
+          // Without this, react-day-picker only ever EXTENDS the committed range (a click after
+          // `from` just moves `to`), so a farmer trying to pick a fresh Aug 5 → Aug 12 window
+          // silently got Sep 1 → Aug 5 instead. `resetOnSelect` restores the expected two-click
+          // "click the start, click the end" flow.
+          resetOnSelect
+          defaultMonth={selectedRange.from}
+          selected={selectedRange}
           onSelect={(selected) => {
-            if (!selected?.from || !selected?.to) return;
+            if (!selected?.from) {
+              setDraft(undefined);
+              return;
+            }
+            if (!selected.to) {
+              // First click of a new range — keep the popover open and show the start day.
+              setDraft(selected);
+              return;
+            }
+            setDraft(undefined);
             onRangeChange(selected.from, selected.to);
             setOpen(false);
           }}

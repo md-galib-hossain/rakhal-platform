@@ -9,12 +9,12 @@ import { ChevronLeft, Info, Plus, Sparkles, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ApiError } from "@/lib/api/errors";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import { CreatableSelect } from "@/components/shared/creatable-select";
 import { Chip } from "@/components/ui/chip";
@@ -50,6 +50,7 @@ import { PregnancyDiagnosisStep } from "@/features/reproduction/components/dialo
 import { HeatEventStep } from "@/features/reproduction/components/dialogs/heat-event-step";
 import { DryOffStep } from "@/features/reproduction/components/dialogs/dry-off-step";
 import type { AnimalCategory, CattleDetail, CattleFormPayload } from "../types";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 
 const UNSET = "__unset__";
 const ADD_NEW_BREED = "__add_new_breed__";
@@ -238,7 +239,7 @@ export function CattleFormDialog({
   loading?: boolean;
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       {/* Mounted only while open, keyed per target cattle — gives `useForm`'s `defaultValues`
           and the local photo `useState`s a genuinely fresh mount on every open (no stale state
           from a previous edit target) without an imperative reset-on-open effect, which would
@@ -254,7 +255,7 @@ export function CattleFormDialog({
           initialValues={initialValues}
         />
       ) : null}
-    </Dialog>
+    </Sheet>
   );
 }
 
@@ -263,7 +264,7 @@ export function CattleFormDialog({
  * real form swaps in. */
 function CattleFormDialogSkeleton() {
   return (
-    <DialogContent className="flex max-h-[90vh] w-full max-w-[680px] flex-col gap-0 overflow-hidden rounded-[20px] border-2 border-border p-0 shadow-2xl">
+    <SheetContent side="right" className="flex h-full w-full max-w-[680px] flex-col gap-0 overflow-hidden p-0">
       <div className="flex min-h-[460px] flex-1 flex-col gap-4 overflow-y-auto px-6 py-5">
         <div className="h-9 w-40 animate-pulse rounded-xl bg-muted" />
         <div className="flex gap-4">
@@ -275,7 +276,7 @@ function CattleFormDialogSkeleton() {
           </div>
         </div>
       </div>
-    </DialogContent>
+    </SheetContent>
   );
 }
 
@@ -469,7 +470,7 @@ function CattleFormDialogBody({
 
   return (
     <>
-    <DialogContent className="flex max-h-[90vh] w-full max-w-[680px] flex-col gap-0 overflow-hidden rounded-[20px] border-2 border-border p-0 shadow-2xl">
+    <SheetContent side="right" className="flex h-full w-full max-w-[680px] flex-col gap-0 overflow-hidden p-0">
       <div className="flex items-center gap-2 px-6 py-5">
         {step !== "basic" ? (
           <button
@@ -481,9 +482,9 @@ function CattleFormDialogBody({
             <ChevronLeft className="size-5" aria-hidden />
           </button>
         ) : null}
-        <DialogTitle className="text-xl font-bold text-foreground">
+        <SheetTitle className="text-xl font-bold text-foreground">
           {step === "basic" ? (isEdit ? t("editTitle") : t("createTitle")) : tRoot(STEP_TITLE_KEY[step])}
-        </DialogTitle>
+        </SheetTitle>
       </div>
       <div className="border-t border-border" />
 
@@ -763,11 +764,19 @@ function CattleFormDialogBody({
                         <p className="text-muted-foreground text-xs">{tStatus("estimatedIntakeHint")}</p>
                         <div className="flex flex-col gap-1.5">
                           <Label htmlFor="estimatedCalvingDate">{tStatus("estimatedCalvingDate")}</Label>
-                          <Input
-                            id="estimatedCalvingDate"
-                            type="date"
-                            {...form.register("estimatedCalvingDate")}
-                            aria-label={tStatus("estimatedCalvingDate")}
+                          <Controller
+                            control={form.control}
+                            name="estimatedCalvingDate"
+                            render={({ field, fieldState }) => (
+                              <DatePicker
+                                id="estimatedCalvingDate"
+                                label={tStatus("estimatedCalvingDate")}
+                                value={field.value}
+                                onChange={field.onChange}
+                                onBlur={field.onBlur}
+                                error={fieldState.error?.message}
+                              />
+                            )}
                           />
                         </div>
                         <div className="flex flex-col gap-1.5">
@@ -810,10 +819,18 @@ function CattleFormDialogBody({
                     ) : (
                       <div className="flex flex-col gap-1.5">
                         <Label>{tStatus("lactationStartDate")}</Label>
-                        <Input
-                          type="date"
-                          {...form.register("lactationStartDate")}
-                          aria-label={tStatus("lactationStartDate")}
+                        <Controller
+                          control={form.control}
+                          name="lactationStartDate"
+                          render={({ field, fieldState }) => (
+                            <DatePicker
+                              label={tStatus("lactationStartDate")}
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              error={fieldState.error?.message}
+                            />
+                          )}
                         />
                         <p className="text-muted-foreground text-xs">{tStatus("lactationStartDateHint")}</p>
                         {form.formState.errors.lactationStartDate && (
@@ -890,9 +907,17 @@ function CattleFormDialogBody({
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1.5">
                       <Label>{t("intake.breedingDate")}</Label>
-                      <Input
-                        type="datetime-local"
-                        {...form.register("intakeBreedingDate")}
+                      <Controller
+                        control={form.control}
+                        name="intakeBreedingDate"
+                        render={({ field }) => (
+                          <DateTimePicker
+                            label={t("intake.breedingDate")}
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                          />
+                        )}
                       />
                       {form.formState.errors.intakeBreedingDate ? (
                         <p className="text-xs text-destructive">
@@ -926,7 +951,18 @@ function CattleFormDialogBody({
                   <div className="grid grid-cols-2 gap-3">
                     <div className="col-span-2 flex flex-col gap-1.5">
                       <Label>{t("intake.heatDateTime")}</Label>
-                      <Input type="datetime-local" {...form.register("intakeHeatDateTime")} />
+                      <Controller
+                        control={form.control}
+                        name="intakeHeatDateTime"
+                        render={({ field }) => (
+                          <DateTimePicker
+                            label={t("intake.heatDateTime")}
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                          />
+                        )}
+                      />
                       {form.formState.errors.intakeHeatDateTime ? (
                         <p className="text-xs text-destructive">
                           {form.formState.errors.intakeHeatDateTime.message}
@@ -1058,7 +1094,7 @@ function CattleFormDialogBody({
         </div>
       </form>
       )}
-    </DialogContent>
+    </SheetContent>
     <AddBreedDialog
       open={addBreedOpen}
       onOpenChange={setAddBreedOpen}
@@ -1099,11 +1135,11 @@ function AddBreedDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[420px]">
-        <DialogHeader>
-          <DialogTitle>{t("addBreedTitle")}</DialogTitle>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="flex w-full flex-col max-w-[420px]">
+        <SheetHeader>
+          <SheetTitle>{t("addBreedTitle")}</SheetTitle>
+        </SheetHeader>
         <div className="flex flex-col gap-4 py-2">
           <LabeledInput
             id="new-breed-name"
@@ -1118,7 +1154,7 @@ function AddBreedDialog({
             onChange={(e) => setDescription(e.target.value)}
           />
         </div>
-        <DialogFooter>
+        <SheetFooter className="border-t border-dashed border-border pt-4">
           <Button
             type="button"
             onClick={handleCreate}
@@ -1126,8 +1162,8 @@ function AddBreedDialog({
           >
             {createBreed.isPending ? "…" : t("save")}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

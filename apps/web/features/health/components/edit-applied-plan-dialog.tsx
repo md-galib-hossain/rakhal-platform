@@ -6,12 +6,12 @@ import { toast } from "sonner";
 import { AlertTriangle } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -103,11 +103,11 @@ export function EditAppliedPlanDialog({
   const cattleName = item.cattle.name ?? item.cattle.tagNumber;
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("title")}</DialogTitle>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
+      <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>{t("title")}</SheetTitle>
+        </SheetHeader>
 
         {/* Animal + plan context row */}
         <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3">
@@ -142,15 +142,15 @@ export function EditAppliedPlanDialog({
           <p className="text-xs leading-relaxed">{t("rescheduleNote")}</p>
         </div>
 
-        <DialogFooter className="mt-2">
+        <SheetFooter className="border-t border-dashed border-border pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
             {t("cancel")}
           </Button>
           <Button onClick={handleSave} disabled={pending || !startDate}>
             {pending ? "…" : t("save")}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

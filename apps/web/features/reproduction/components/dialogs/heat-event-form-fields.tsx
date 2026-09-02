@@ -4,11 +4,11 @@ import { Controller, type UseFormReturn } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { CreateHeatEventInput } from "../../schemas";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 
 const DETECTION_METHODS = ["VISUAL", "COLLAR_SENSOR", "PEDOMETER", "MANUAL"] as const;
 
@@ -34,7 +34,19 @@ export function HeatEventFormFields({ form }: { form: UseFormReturn<CreateHeatEv
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-2">
           <Label>{t("heatDateTime")}</Label>
-          <Input type="datetime-local" {...form.register("heatDateTime")} />
+          <Controller
+            control={form.control}
+            name="heatDateTime"
+            render={({ field, fieldState }) => (
+              <DateTimePicker
+                label={t("heatDateTime")}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+              />
+            )}
+          />
         </div>
         <div className="flex flex-col gap-2">
           <Label>{t("detectionMethod")}</Label>

@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { qk } from "@/lib/query/keys";
-import { FormDialog } from "@/components/shared/form-dialog";
+import { FormSheet } from "@/components/shared/form-sheet";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +17,7 @@ import { reproductionApi } from "@/features/reproduction/api";
 import { useCreateMilkQualityTest } from "../hooks/use-milk-quality-tests";
 import { createMilkQualityTestSchema, type CreateMilkQualityTestFormInput } from "../schemas";
 import { MILK_QUALITY_TEST_SOURCES } from "../types";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const DEFAULT_VALUES: CreateMilkQualityTestFormInput = {
   cattleId: "",
@@ -86,7 +87,7 @@ export function MilkQualityTestDialog({
   }
 
   return (
-    <FormDialog
+    <FormSheet
       open={open}
       onOpenChange={onOpenChange}
       title={t("title")}
@@ -125,7 +126,20 @@ export function MilkQualityTestDialog({
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="quality-test-sample-date">{t("sampleDate")}</Label>
-        <Input id="quality-test-sample-date" type="date" {...form.register("sampleDate")} />
+        <Controller
+          control={form.control}
+          name="sampleDate"
+          render={({ field, fieldState }) => (
+            <DatePicker
+              id="quality-test-sample-date"
+              label={t("sampleDate")}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={fieldState.error?.message}
+            />
+          )}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -220,6 +234,6 @@ export function MilkQualityTestDialog({
         <Label htmlFor="quality-test-notes">{t("notes")}</Label>
         <Textarea id="quality-test-notes" rows={2} {...form.register("notes")} />
       </div>
-    </FormDialog>
+    </FormSheet>
   );
 }

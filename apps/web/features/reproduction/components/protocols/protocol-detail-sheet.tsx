@@ -40,10 +40,10 @@ export function ProtocolDetailSheet({
   const t = useTranslations("reproduction.protocols");
   const locale = useLocale() as Locale;
   const detail = useProtocol(protocol?.id);
-  const start = startDate ? new Date(startDate) : null;
 
   const items: TimelineItem[] = useMemo(() => {
     if (!detail.data) return [];
+    const start = startDate ? new Date(startDate) : null;
     return [...detail.data.steps]
       .sort((a, b) => a.day_number - b.day_number)
       .map((step) => ({
@@ -54,7 +54,7 @@ export function ProtocolDetailSheet({
         subtitle: step.instruction ?? undefined,
         date: start ? formatDate(addDays(start, step.day_number), locale) : t("detail.dayLabel", { value: step.day_number }),
       }));
-  }, [detail.data, t, start, locale]);
+  }, [detail.data, t, startDate, locale]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { FormDialog } from "@/components/shared/form-dialog";
+import { FormSheet } from "@/components/shared/form-sheet";
 import { useBreedingEvent, useCreateBreedingEvent, useEditBreedingEvent } from "../../hooks/use-reproduction";
 import { breedingEventSchema, type CreateBreedingEventInput } from "../../schemas";
 import { BreedingEventFormFields } from "./breeding-event-form-fields";
@@ -117,7 +117,7 @@ export function BreedingEventDialog({
   }
 
   return (
-    <FormDialog
+    <FormSheet
       open={open}
       onOpenChange={(next) => {
         if (!next) form.reset();
@@ -129,6 +129,6 @@ export function BreedingEventDialog({
       submitLabel={isEdit ? t("saveChanges") : t("submit")}
     >
       <BreedingEventFormFields form={form} />
-    </FormDialog>
+    </FormSheet>
   );
 }

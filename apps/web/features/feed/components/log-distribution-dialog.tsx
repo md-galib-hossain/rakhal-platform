@@ -13,6 +13,8 @@ import { ErrorState } from "@/components/shared/error-state";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { useCattleDetail } from "@/features/cattle/hooks/use-cattle";
 import { useConcentrationDetail, useFeedGroups, useLogDistribution } from "../hooks/use-feed";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Label } from "@/components/ui/label";
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -142,13 +144,10 @@ function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenCha
               </div>
             </div>
 
-            <LabeledInput
-              id="distributedAt"
-              type="date"
-              label={t("date")}
-              value={distributedAt}
-              onChange={(e) => setDistributedAt(e.target.value)}
-            />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="distributedAt">{t("date")}</Label>
+              <DatePicker id="distributedAt" label={t("date")} value={distributedAt} onChange={setDistributedAt} />
+            </div>
 
             <div className="flex flex-col gap-3">
               <p className="text-sm font-semibold text-foreground">{t("ingredients")}</p>

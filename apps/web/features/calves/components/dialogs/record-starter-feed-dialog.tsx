@@ -5,12 +5,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { FormDialog } from "@/components/shared/form-dialog";
+import { FormSheet } from "@/components/shared/form-sheet";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRecordStarterFeed } from "../../hooks/use-calves";
 import { recordStarterFeedSchema, type RecordStarterFeedInput } from "../../schemas";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const EVENT_TYPE_VALUES = ["FIRST_OFFERED", "FIRST_INTAKE", "DAILY_INTAKE"] as const;
 
@@ -44,7 +45,7 @@ export function RecordStarterFeedDialog({
   }
 
   return (
-    <FormDialog
+    <FormSheet
       open={open}
       onOpenChange={(next) => {
         if (!next) form.reset(defaults());
@@ -58,7 +59,19 @@ export function RecordStarterFeedDialog({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <Label>{t("date")}</Label>
-          <Input type="date" {...form.register("date")} />
+          <Controller
+            control={form.control}
+            name="date"
+            render={({ field, fieldState }) => (
+              <DatePicker
+                label={t("date")}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+              />
+            )}
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label>{t("eventType")}</Label>
@@ -90,6 +103,6 @@ export function RecordStarterFeedDialog({
         <Label>{t("notes")}</Label>
         <Input {...form.register("notes")} />
       </div>
-    </FormDialog>
+    </FormSheet>
   );
 }

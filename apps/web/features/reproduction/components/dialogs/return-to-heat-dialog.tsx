@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { FormDialog } from "@/components/shared/form-dialog";
+import { FormSheet } from "@/components/shared/form-sheet";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useReturnToHeat } from "../../hooks/use-reproduction";
 import { returnToHeatSchema, type ReturnToHeatInput } from "../../schemas";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const EMPTY_DEFAULTS: ReturnToHeatInput = {
   heatDateTime: new Date().toISOString().slice(0, 10),
@@ -55,7 +55,7 @@ export function ReturnToHeatDialog({
   }
 
   return (
-    <FormDialog
+    <FormSheet
       open={open}
       onOpenChange={(next) => {
         if (!next) form.reset();
@@ -69,12 +69,24 @@ export function ReturnToHeatDialog({
     >
       <div className="flex flex-col gap-2">
         <Label>{t("heatDateTime")}</Label>
-        <Input type="date" {...form.register("heatDateTime")} />
+        <Controller
+          control={form.control}
+          name="heatDateTime"
+          render={({ field, fieldState }) => (
+            <DatePicker
+              label={t("heatDateTime")}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={fieldState.error?.message}
+            />
+          )}
+        />
       </div>
       <div className="flex flex-col gap-2">
         <Label>{t("notes")}</Label>
         <Textarea {...form.register("notes")} placeholder={t("notesPlaceholder")} rows={2} />
       </div>
-    </FormDialog>
+    </FormSheet>
   );
 }

@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { FormDialog } from "./form-dialog";
+import { FormSheet } from "./form-sheet";
 
-describe("FormDialog", () => {
+describe("FormSheet", () => {
   it("renders title, description, and children when open", () => {
     render(
-      <FormDialog open title="Add cattle" description="Create a new animal" onOpenChange={() => {}} onSubmit={() => {}}>
+      <FormSheet open title="Add cattle" description="Create a new animal" onOpenChange={() => {}} onSubmit={() => {}}>
         <input aria-label="Tag number" />
-      </FormDialog>,
+      </FormSheet>,
     );
 
     expect(screen.getByText("Add cattle")).toBeInTheDocument();
@@ -18,9 +18,9 @@ describe("FormDialog", () => {
 
   it("does not render content when closed", () => {
     render(
-      <FormDialog open={false} title="Add cattle" onOpenChange={() => {}} onSubmit={() => {}}>
+      <FormSheet open={false} title="Add cattle" onOpenChange={() => {}} onSubmit={() => {}}>
         <input aria-label="Tag number" />
-      </FormDialog>,
+      </FormSheet>,
     );
 
     expect(screen.queryByText("Add cattle")).not.toBeInTheDocument();
@@ -30,9 +30,9 @@ describe("FormDialog", () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     render(
-      <FormDialog open title="Add cattle" onOpenChange={() => {}} onSubmit={onSubmit} pending submitLabel="Save">
+      <FormSheet open title="Add cattle" onOpenChange={() => {}} onSubmit={onSubmit} pending submitLabel="Save">
         <input aria-label="Tag number" />
-      </FormDialog>,
+      </FormSheet>,
     );
 
     const submitButton = screen.getByRole("button", { name: "…" });
@@ -46,9 +46,9 @@ describe("FormDialog", () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
     render(
-      <FormDialog open title="Add cattle" onOpenChange={onOpenChange} onSubmit={() => {}}>
+      <FormSheet open title="Add cattle" onOpenChange={onOpenChange} onSubmit={() => {}}>
         <input aria-label="Tag number" />
-      </FormDialog>,
+      </FormSheet>,
     );
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));

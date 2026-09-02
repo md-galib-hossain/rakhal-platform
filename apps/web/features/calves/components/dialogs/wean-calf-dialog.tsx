@@ -1,15 +1,16 @@
 "use client"; // form state + mutation
 
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { FormDialog } from "@/components/shared/form-dialog";
+import { FormSheet } from "@/components/shared/form-sheet";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useWeanCalf } from "../../hooks/use-calves";
 import { weanCalfSchema, type WeanCalfInput } from "../../schemas";
+import { DatePicker } from "@/components/ui/date-picker";
 
 function defaults(): WeanCalfInput {
   return { weaningDate: new Date().toISOString().slice(0, 10), weaningWeightKg: undefined, notes: "" };
@@ -46,7 +47,7 @@ export function WeanCalfDialog({
   }
 
   return (
-    <FormDialog
+    <FormSheet
       open={open}
       onOpenChange={(next) => {
         if (!next) form.reset(defaults());
@@ -61,7 +62,19 @@ export function WeanCalfDialog({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <Label>{t("weaningDate")}</Label>
-          <Input type="date" {...form.register("weaningDate")} />
+          <Controller
+            control={form.control}
+            name="weaningDate"
+            render={({ field, fieldState }) => (
+              <DatePicker
+                label={t("weaningDate")}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+              />
+            )}
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label>{t("weaningWeightKg")}</Label>
@@ -72,6 +85,6 @@ export function WeanCalfDialog({
         <Label>{t("notes")}</Label>
         <Input {...form.register("notes")} />
       </div>
-    </FormDialog>
+    </FormSheet>
   );
 }

@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Check, CheckCircle2, Loader2, XCircle } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -308,7 +308,7 @@ export function UpgradePlanModal({
   const couponSubmitting = checkout.isPending || acceptConsent.isPending;
 
   return (
-    <Dialog
+    <Sheet
       open={isOpen}
       onOpenChange={(next) => {
         if (next) return;
@@ -319,8 +319,8 @@ export function UpgradePlanModal({
         onOpenChange(false);
       }}
     >
-      <DialogContent
-        className="flex max-w-3xl flex-col gap-5 overflow-y-auto max-h-[85vh] min-h-[560px]"
+      <SheetContent side="right"
+        className="flex w-full max-w-3xl flex-col gap-5 overflow-y-auto"
         showClose={stage !== "status" || outcome !== "polling"}
         onEscapeKeyDown={(e) => stage === "status" && outcome === "polling" && e.preventDefault()}
         onInteractOutside={(e) => stage === "status" && outcome === "polling" && e.preventDefault()}
@@ -353,12 +353,12 @@ export function UpgradePlanModal({
         <div className="flex flex-1 flex-col justify-center">
         {stage === "plan" ? (
           <>
-            <DialogHeader className="items-center text-center">
-              <DialogTitle className="text-2xl">
+            <SheetHeader className="items-center text-center">
+              <SheetTitle className="text-2xl">
                 {mode === "manage" ? t("planPicker.manageTitle") : t("planPicker.title")}
-              </DialogTitle>
-              <DialogDescription>{t("planPicker.description")}</DialogDescription>
-            </DialogHeader>
+              </SheetTitle>
+              <SheetDescription>{t("planPicker.description")}</SheetDescription>
+            </SheetHeader>
 
             {plansQuery.isError ? (
               <ErrorState description={t("planPicker.error")} onRetry={() => void plansQuery.refetch()} />
@@ -478,17 +478,17 @@ export function UpgradePlanModal({
 
         {stage === "confirm-downgrade" && selectedPlan ? (
           <>
-            <DialogHeader className="items-center text-center sm:text-center">
-              <DialogTitle>{t("planPicker.downgrade.title")}</DialogTitle>
-              <DialogDescription>
+            <SheetHeader className="items-center text-center sm:text-center">
+              <SheetTitle>{t("planPicker.downgrade.title")}</SheetTitle>
+              <SheetDescription>
                 {currentPlan && subscriptionQuery.data?.expires_at
                   ? t("planPicker.downgrade.description", {
                       currentPlan: currentPlan.name,
                       targetPlan: selectedPlan.name,
                     })
                   : null}
-              </DialogDescription>
-            </DialogHeader>
+              </SheetDescription>
+            </SheetHeader>
             <div className="flex flex-col gap-4">
               <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-foreground">
                 {currentPlan ? (
@@ -525,10 +525,10 @@ export function UpgradePlanModal({
 
         {stage === "profile" ? (
           <>
-            <DialogHeader className="items-center text-center sm:text-center">
-              <DialogTitle>{t("profile.title")}</DialogTitle>
-              <DialogDescription>{t("profile.description")}</DialogDescription>
-            </DialogHeader>
+            <SheetHeader className="items-center text-center sm:text-center">
+              <SheetTitle>{t("profile.title")}</SheetTitle>
+              <SheetDescription>{t("profile.description")}</SheetDescription>
+            </SheetHeader>
             <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-foreground">{t("profile.phoneLabel")}</label>
@@ -568,10 +568,10 @@ export function UpgradePlanModal({
 
         {stage === "coupon" && selectedPlan ? (
           <>
-            <DialogHeader className="items-center text-center sm:text-center">
-              <DialogTitle>{t("coupon.title")}</DialogTitle>
-              <DialogDescription>{selectedPlan.name}</DialogDescription>
-            </DialogHeader>
+            <SheetHeader className="items-center text-center sm:text-center">
+              <SheetTitle>{t("coupon.title")}</SheetTitle>
+              <SheetDescription>{selectedPlan.name}</SheetDescription>
+            </SheetHeader>
             <div className="flex flex-col gap-4">
               <div className="flex gap-2">
                 <Input
@@ -638,23 +638,23 @@ export function UpgradePlanModal({
         ) : null}
 
         {stage === "status" ? (
-          <DialogHeader className="items-center text-center sm:text-center">
+          <SheetHeader className="items-center text-center sm:text-center">
             {outcome === "polling" ? (
               <>
                 <Loader2 className="size-10 animate-spin text-primary" aria-hidden />
-                <DialogTitle>{t("return.polling")}</DialogTitle>
-                <DialogDescription>{t("return.pollingDescription")}</DialogDescription>
+                <SheetTitle>{t("return.polling")}</SheetTitle>
+                <SheetDescription>{t("return.pollingDescription")}</SheetDescription>
               </>
             ) : outcome === "success" ? (
               <>
                 <CheckCircle2 className="size-10 text-success" aria-hidden />
-                <DialogTitle>{t("return.success")}</DialogTitle>
+                <SheetTitle>{t("return.success")}</SheetTitle>
               </>
             ) : (
               <>
                 <XCircle className="size-10 text-destructive" aria-hidden />
-                <DialogTitle>{gatewayStatus === "failed" ? t("return.gatewayFailed") : t("return.timeout")}</DialogTitle>
-                <DialogDescription>{t("return.failedDescription")}</DialogDescription>
+                <SheetTitle>{gatewayStatus === "failed" ? t("return.gatewayFailed") : t("return.timeout")}</SheetTitle>
+                <SheetDescription>{t("return.failedDescription")}</SheetDescription>
               </>
             )}
             {outcome !== "polling" ? (
@@ -662,11 +662,11 @@ export function UpgradePlanModal({
                 {t("return.backToSettings")}
               </Button>
             ) : null}
-          </DialogHeader>
+          </SheetHeader>
         ) : null}
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
 

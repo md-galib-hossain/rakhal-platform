@@ -1,5 +1,45 @@
 # Frontend — Current State
 
+## (no ticket) Date & date-time picker UX overhaul (2026-09-03)
+
+**Problem (user-reported, with screenshots):** the Record Breeding/AI dialog rendered the browser's
+own blue `<input type="datetime-local">` panel — off-theme inside a Rakhal sheet; the calendar's nav
+arrows sat on the popover's own border (`nav` was `absolute inset-x-0 top-0` while its nearest
+positioned ancestor was the popover, not the calendar), day cells were 36px and hard to hit, and
+picking a range "did nothing" on the first click.
+
+**Shipped**
+- `components/ui/calendar.tsx` — nav is an in-flow row now (`« ‹ September 2026 › »`, 36px buttons,
+  real padding, month label inside the row for single-month calendars); `months` is no longer
+  `sm:flex-row` (that put the arrows *beside* the grid once the nav left absolute positioning);
+  40px day cells; custom `Day`/`DayButton` components so range start/middle/end and `today` resolve
+  in JS instead of fighting Tailwind class order (an in-progress range used to render as one solid
+  green block).
+- **New `components/ui/date-time-picker.tsx`** — themed replacement for `<input type="datetime-local">`:
+  the shared `Calendar` plus hour/minute/AM-PM columns and a `Now`/`Clear`/`Done` footer. Same
+  `"yyyy-MM-dd'T'HH:mm"` value shape, so zod schemas and API payloads are untouched.
+- `components/ui/date-picker.tsx` — `Today`/`Clear` footer, optional `clearable` (the inline ✕ is a
+  *sibling* of the trigger, never a nested button).
+- `components/shared/date-range-picker.tsx` — draft state so the first click of a two-click range
+  highlights immediately, plus `resetOnSelect` (react-day-picker otherwise only ever *extends* the
+  committed range — that is what the "multiple date select" report was about). "Custom" carries a
+  hint line.
+- `components/ui/popover.tsx` — `z-50` → `z-[60]`: popovers opened from a dialog/sheet (also z-50,
+  portalled later) were painted over by their own opener, so the date popover looked transparent.
+- **Every native date control in the app is gone** — 34 `<input type="date"|"datetime-local">` call
+  sites across cattle, calves, reproduction, health, milk, feed, finance, purchasing and buyers moved
+  to `DatePicker`/`DateTimePicker` (RHF `register()` → `Controller`; `dry-off-form-fields`'s
+  uncontrolled ref became state; `task-reschedule`'s read-only "current date" became plain text).
+- i18n: `common.{today,clear,now,done,time,hour,minute}` + `period.presets.customHint`, en + bn.
+
+**Verified live** against the running dev stack: the Record Breeding/AI date-time popover (day +
+hour + minute + PM → trigger reads "14 সেপ, 2026 · 5:30 PM") and the Sales period picker's two-click
+custom range (Aug 5 → Aug 12 committed, chart axis followed). Gate: `typecheck` 0 new errors,
+`eslint` 0 errors on touched files, `vitest` green. `pnpm build` is blocked by two **pre-existing**
+errors owned by other lanes (`features/cattle/components/detail/pedigree-tab.tsx` —
+`openCattleDetail` undefined, committed; `components/shared/confirm-dialog.tsx` — half-migrated
+Dialog→Sheet imports, another agent's uncommitted work).
+
 ## RAKHAL-394 — Dead-code sweep + empty-state/copy pass (2026-09-01)
 Phase F closeout, MILESTONE 22. `features/finance/api.ts` trimmed from 12 `financeApi` methods to 3
 (`liabilities`/`assets`/`createAsset`, the only ones with a real consumer); `hooks/use-finance.ts`

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 
 export type VoidDocumentVariant = "cancel" | "refund" | "void";
@@ -47,21 +47,21 @@ export function VoidDocumentDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t(`${variant}.title`, { label: documentLabel })}</DialogTitle>
-          <DialogDescription>{t(`${variant}.description`)}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>{t(`${variant}.title`, { label: documentLabel })}</SheetTitle>
+          <SheetDescription>{t(`${variant}.description`)}</SheetDescription>
+        </SheetHeader>
+        <SheetFooter className="border-t border-dashed border-border pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
             {t("cancelButton")}
           </Button>
           <Button variant="destructive" onClick={handleConfirm} disabled={pending}>
             {pending ? "…" : t(`${variant}.confirm`)}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

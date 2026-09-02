@@ -5,13 +5,13 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -84,12 +84,12 @@ export function CattleImportDialog({
   const canConfirm = Boolean(preview) && (!hasErrors || skipErrors);
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{t("title")}</DialogTitle>
-          <DialogDescription>{t("description")}</DialogDescription>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
+      <SheetContent side="right" className="flex w-full flex-col sm:max-w-2xl">
+        <SheetHeader>
+          <SheetTitle>{t("title")}</SheetTitle>
+          <SheetDescription>{t("description")}</SheetDescription>
+        </SheetHeader>
 
         {!preview ? (
           <div className="flex flex-col gap-3">
@@ -152,7 +152,7 @@ export function CattleImportDialog({
           </div>
         )}
 
-        <DialogFooter>
+        <SheetFooter className="border-t border-dashed border-border pt-4">
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             {t("cancel")}
           </Button>
@@ -165,12 +165,12 @@ export function CattleImportDialog({
               {confirmMutation.isPending ? "…" : t("confirmAction")}
             </Button>
           )}
-        </DialogFooter>
+        </SheetFooter>
 
         {preview && preview.rows.length === 0 ? (
           <EmptyState title={t("empty")} className="py-8" />
         ) : null}
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

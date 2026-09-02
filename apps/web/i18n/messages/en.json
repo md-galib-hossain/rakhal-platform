@@ -20,7 +20,14 @@
     "next": "Next",
     "close": "Close",
     "comingSoonTitle": "Coming soon",
-    "comingSoonDescription": "This screen is scaffolded — the full experience lands in a follow-up ticket."
+    "comingSoonDescription": "This screen is scaffolded — the full experience lands in a follow-up ticket.",
+    "today": "Today",
+    "clear": "Clear",
+    "now": "Now",
+    "done": "Done",
+    "time": "Time",
+    "hour": "Hour",
+    "minute": "Minute"
   },
   "nav": {
     "groupOverview": "Overview",
@@ -5790,7 +5797,8 @@
       "last_month": "Last Month",
       "this_quarter": "This Quarter",
       "this_year": "This Year",
-      "custom": "Custom"
+      "custom": "Custom",
+      "customHint": "Pick a start and end day on the calendar"
     }
   },
   "suppliers": {

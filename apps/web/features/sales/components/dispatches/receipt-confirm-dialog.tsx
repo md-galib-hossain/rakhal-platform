@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { Button } from "@/components/ui/button";
 import { useRecordReceipt } from "../../hooks/use-sales";
@@ -26,9 +26,9 @@ export function ReceiptConfirmDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       {open && dispatch ? <ReceiptConfirmDialogBody dispatch={dispatch} onOpenChange={onOpenChange} /> : null}
-    </Dialog>
+    </Sheet>
   );
 }
 
@@ -58,10 +58,10 @@ function ReceiptConfirmDialogBody({
   }
 
   return (
-    <DialogContent className="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle>{t("title", { number: dispatch.dispatchNumber })}</DialogTitle>
-      </DialogHeader>
+    <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+      <SheetHeader>
+        <SheetTitle>{t("title", { number: dispatch.dispatchNumber })}</SheetTitle>
+      </SheetHeader>
       <div className="flex flex-col gap-3">
         <LabeledInput
           id="volumeReceivedL"
@@ -74,14 +74,14 @@ function ReceiptConfirmDialogBody({
         />
         <LabeledInput id="driverName" label={t("driverName")} value={driverName} onChange={(e) => setDriverName(e.target.value)} />
       </div>
-      <DialogFooter>
+      <SheetFooter className="border-t border-dashed border-border pt-4">
         <Button variant="outline" onClick={() => onOpenChange(false)} disabled={recordReceipt.isPending}>
           {t("cancel")}
         </Button>
         <Button onClick={handleConfirm} disabled={recordReceipt.isPending || volumeReceivedL === ""}>
           {recordReceipt.isPending ? "…" : t("confirm")}
         </Button>
-      </DialogFooter>
-    </DialogContent>
+      </SheetFooter>
+    </SheetContent>
   );
 }

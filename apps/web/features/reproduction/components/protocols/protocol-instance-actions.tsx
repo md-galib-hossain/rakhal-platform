@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { FormDialog } from "@/components/shared/form-dialog";
+import { FormSheet } from "@/components/shared/form-sheet";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -26,12 +26,13 @@ import {
   type RecordProtocolOutcomeInput,
 } from "../../schemas";
 import type { ProtocolInstance } from "../../types";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const ACTIVE_STATUSES = ["DRAFT", "SCHEDULED", "IN_PROGRESS"] as const;
 
 /** Row actions for one protocol instance (RAKHAL-214 lifecycle) — record the timed-AI step, record
  * the pregnancy outcome at PD, or cancel/fail the instance. No Figma frame for this module; three
- * small inline `FormDialog`s rather than a full detail page, matching the compactness of the rest
+ * small inline `FormSheet`s rather than a full detail page, matching the compactness of the rest
  * of this protocols panel. */
 export function ProtocolInstanceActions({ instance }: { instance: ProtocolInstance }) {
   const t = useTranslations("reproduction.dialogs.protocolInstance");
@@ -95,7 +96,7 @@ function RecordAiDialog({
   }
 
   return (
-    <FormDialog
+    <FormSheet
       open={open}
       onOpenChange={(next) => {
         if (!next) form.reset();
@@ -108,7 +109,19 @@ function RecordAiDialog({
     >
       <div className="flex flex-col gap-2">
         <Label>{t("aiDate")}</Label>
-        <Input type="date" {...form.register("aiDate")} />
+        <Controller
+          control={form.control}
+          name="aiDate"
+          render={({ field, fieldState }) => (
+            <DatePicker
+              label={t("aiDate")}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={fieldState.error?.message}
+            />
+          )}
+        />
       </div>
       <div className="flex flex-col gap-2">
         <Label>{t("inseminator")}</Label>
@@ -118,7 +131,7 @@ function RecordAiDialog({
         <Label>{t("notes")}</Label>
         <Textarea {...form.register("notes")} rows={2} />
       </div>
-    </FormDialog>
+    </FormSheet>
   );
 }
 
@@ -150,7 +163,7 @@ function RecordOutcomeDialog({
   }
 
   return (
-    <FormDialog
+    <FormSheet
       open={open}
       onOpenChange={(next) => {
         if (!next) form.reset();
@@ -184,7 +197,7 @@ function RecordOutcomeDialog({
         <Label>{t("notes")}</Label>
         <Textarea {...form.register("notes")} rows={2} />
       </div>
-    </FormDialog>
+    </FormSheet>
   );
 }
 
@@ -216,7 +229,7 @@ function CloseInstanceDialog({
   }
 
   return (
-    <FormDialog
+    <FormSheet
       open={open}
       onOpenChange={(next) => {
         if (!next) form.reset();
@@ -249,6 +262,6 @@ function CloseInstanceDialog({
         <Label>{t("reason")}</Label>
         <Textarea {...form.register("reason")} rows={2} />
       </div>
-    </FormDialog>
+    </FormSheet>
   );
 }

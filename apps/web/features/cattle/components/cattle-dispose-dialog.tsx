@@ -5,22 +5,22 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useDisposeCattle } from "../hooks/use-cattle";
 import type { CattleDisposeInput } from "../schemas";
 import type { CattleListItem } from "../types";
+import { DatePicker } from "@/components/ui/date-picker";
 
 type DisposeType = "SALE" | CattleDisposeInput["type"];
 const TYPES: DisposeType[] = ["SALE", "CULL", "DEATH"];
@@ -70,12 +70,12 @@ export function CattleDisposeDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("title", { name: cattle.name ?? cattle.tagNumber })}</DialogTitle>
-          <DialogDescription>{t("description")}</DialogDescription>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>{t("title", { name: cattle.name ?? cattle.tagNumber })}</SheetTitle>
+          <SheetDescription>{t("description")}</SheetDescription>
+        </SheetHeader>
         <div className="flex flex-col gap-1.5">
           <Label>{t("type")}</Label>
           <Select value={type} onValueChange={(v) => setType(v as DisposeType)}>
@@ -97,7 +97,7 @@ export function CattleDisposeDialog({
           <>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="dispose-date">{t("date")}</Label>
-              <Input id="dispose-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <DatePicker id="dispose-date" label={t("date")} value={date} onChange={setDate} />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="dispose-reason">{t("reason")}</Label>
@@ -117,7 +117,7 @@ export function CattleDisposeDialog({
             ) : null}
           </>
         )}
-        <DialogFooter>
+        <SheetFooter className="border-t border-dashed border-border pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={dispose.isPending}>
             {t("cancel")}
           </Button>
@@ -128,8 +128,8 @@ export function CattleDisposeDialog({
           >
             {dispose.isPending ? "…" : type === "SALE" ? t("continue") : t("confirm")}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

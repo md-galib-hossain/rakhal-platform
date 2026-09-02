@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ServiceProviderPicker } from "@/features/settings/components/service-provider-picker";
 import { AccountPicker } from "@/features/finance/components/account-picker";
 import type { CreateBreedingEventInput } from "../../schemas";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 
 const BREEDING_METHODS = ["AI", "NATURAL", "EMBRYO_TRANSFER"] as const;
 const SEMEN_SOURCES = ["FARM_INVENTORY", "TECHNICIAN_SUPPLIED", "EXTERNAL"] as const;
@@ -91,7 +92,19 @@ export function BreedingEventFormFields({ form }: { form: UseFormReturn<CreateBr
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-2">
           <Label>{t("breedingDate")}</Label>
-          <Input type="datetime-local" {...form.register("breedingDate")} />
+          <Controller
+            control={form.control}
+            name="breedingDate"
+            render={({ field, fieldState }) => (
+              <DateTimePicker
+                label={t("breedingDate")}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+              />
+            )}
+          />
         </div>
         <div className="flex flex-col gap-2">
           <Label>{t("breedingMethod")}</Label>

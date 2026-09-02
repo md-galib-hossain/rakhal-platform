@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { FormDialog } from "@/components/shared/form-dialog";
+import { FormSheet } from "@/components/shared/form-sheet";
 import { useCreatePregnancyDiagnosis, useEditPregnancyDiagnosis } from "../../hooks/use-reproduction";
 import { pregnancyDiagnosisSchema, type CreatePregnancyDiagnosisInput } from "../../schemas";
 import type { ReproEventEntry } from "../../types";
@@ -109,7 +109,7 @@ export function PregnancyDiagnosisDialog({
   }
 
   return (
-    <FormDialog
+    <FormSheet
       open={open}
       onOpenChange={(next) => {
         if (!next) form.reset();
@@ -121,6 +121,6 @@ export function PregnancyDiagnosisDialog({
       submitLabel={isEdit ? t("saveChanges") : t("submit")}
     >
       <PregnancyDiagnosisFormFields form={form} cattleDisabled={isEdit} />
-    </FormDialog>
+    </FormSheet>
   );
 }

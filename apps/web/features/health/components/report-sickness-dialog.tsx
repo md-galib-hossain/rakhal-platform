@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { FormDialog } from "@/components/shared/form-dialog";
+import { FormSheet } from "@/components/shared/form-sheet";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -40,7 +40,7 @@ const HEALTH_CONDITIONS: HealthCondition[] = [
 const UNSET = "__unset__";
 
 /** "Report Sickness" — no Figma frame was given for this modal (only the sick-bay page + Case
- * Management sheet), so it's a plain `FormDialog` mirroring `CreateHealthCaseDto`, needed so the
+ * Management sheet), so it's a plain `FormSheet` mirroring `CreateHealthCaseDto`, needed so the
  * sick-bay table's primary action actually creates a real case. */
 export function ReportSicknessDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const t = useTranslations("health.reportSickness");
@@ -62,7 +62,7 @@ export function ReportSicknessDialog({ open, onOpenChange }: { open: boolean; on
   }
 
   return (
-    <FormDialog
+    <FormSheet
       open={open}
       onOpenChange={(next) => {
         if (!next) form.reset();
@@ -171,6 +171,6 @@ export function ReportSicknessDialog({ open, onOpenChange }: { open: boolean; on
         <Label>{t("notes")}</Label>
         <Textarea {...form.register("notes")} placeholder={t("notesPlaceholder")} rows={3} />
       </div>
-    </FormDialog>
+    </FormSheet>
   );
 }

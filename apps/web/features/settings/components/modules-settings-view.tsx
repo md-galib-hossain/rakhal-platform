@@ -10,13 +10,13 @@ import { ApiError } from "@/lib/api/errors";
 import { Can } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -132,13 +132,13 @@ function SuppliersSection() {
         supplier={dialogTarget !== "new" ? dialogTarget : null}
       />
 
-      <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("deactivateConfirmTitle", { name: deleteTarget?.name ?? "" })}</DialogTitle>
-            <DialogDescription>{t("deactivateConfirmBody")}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+      <Sheet open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <SheetContent side="right" className="flex w-full flex-col sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>{t("deactivateConfirmTitle", { name: deleteTarget?.name ?? "" })}</SheetTitle>
+            <SheetDescription>{t("deactivateConfirmBody")}</SheetDescription>
+          </SheetHeader>
+          <SheetFooter className="border-t border-dashed border-border pt-4">
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>
               {t("cancel")}
             </Button>
@@ -160,9 +160,9 @@ function SuppliersSection() {
             >
               {t("confirm")}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </section>
   );
 }
@@ -217,12 +217,12 @@ function SupplierFormDialog({
   const pending = createSupplier.isPending || updateSupplier.isPending;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{supplier ? t("editTitle") : t("addTitle")}</DialogTitle>
-          <DialogDescription>{t("dialogDescription")}</DialogDescription>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="flex w-full flex-col sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle>{supplier ? t("editTitle") : t("addTitle")}</SheetTitle>
+          <SheetDescription>{t("dialogDescription")}</SheetDescription>
+        </SheetHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
           {form.formState.errors.root ? (
             <p role="alert" className="rounded-md bg-destructive-tint px-3 py-2 text-sm text-destructive">
@@ -242,13 +242,13 @@ function SupplierFormDialog({
             <FloatingInput id="supplier-payment-terms" label={t("paymentTermsLabel")} {...form.register("payment_terms")} />
           </div>
           <FloatingInput id="supplier-notes" label={t("notesLabel")} {...form.register("notes")} />
-          <DialogFooter>
+          <SheetFooter className="border-t border-dashed border-border pt-4">
             <Button type="submit" disabled={pending}>
               {pending ? t("saving") : t("save")}
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

@@ -6,13 +6,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { FormDialog } from "@/components/shared/form-dialog";
+import { FormSheet } from "@/components/shared/form-sheet";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateAbortionEvent } from "../../hooks/use-reproduction";
 import { abortionEventSchema, type CreateAbortionEventInput } from "../../schemas";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const EMPTY_DEFAULTS: CreateAbortionEventInput = {
   cattleId: "",
@@ -54,7 +55,7 @@ export function AbortionEventDialog({
   }
 
   return (
-    <FormDialog
+    <FormSheet
       open={open}
       onOpenChange={(next) => {
         if (!next) form.reset();
@@ -79,7 +80,19 @@ export function AbortionEventDialog({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-2">
           <Label>{t("abortionDate")}</Label>
-          <Input type="date" {...form.register("abortionDate")} />
+          <Controller
+            control={form.control}
+            name="abortionDate"
+            render={({ field, fieldState }) => (
+              <DatePicker
+                label={t("abortionDate")}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+              />
+            )}
+          />
         </div>
         <div className="flex flex-col gap-2">
           <Label>{t("gestationDay")}</Label>
@@ -96,6 +109,6 @@ export function AbortionEventDialog({
         <Label>{t("notes")}</Label>
         <Textarea {...form.register("notes")} placeholder={t("notesPlaceholder")} rows={2} />
       </div>
-    </FormDialog>
+    </FormSheet>
   );
 }

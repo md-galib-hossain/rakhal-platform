@@ -10,13 +10,13 @@ import { ApiError } from "@/lib/api/errors";
 import { useCan } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -89,16 +89,16 @@ export function ReceivePaymentDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("title")}</DialogTitle>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>{t("title")}</SheetTitle>
           {receivable ? (
-            <DialogDescription>
+            <SheetDescription>
               {t("description", { outstanding: receivable.outstanding })}
-            </DialogDescription>
+            </SheetDescription>
           ) : null}
-        </DialogHeader>
+        </SheetHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <div className="space-y-1.5">
             <Label>{t("account")}</Label>
@@ -166,16 +166,16 @@ export function ReceivePaymentDialog({
             <Input id="receive-notes" {...form.register("notes")} />
           </div>
 
-          <DialogFooter>
+          <SheetFooter className="border-t border-dashed border-border pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={settlePayment.isPending}>
               {t("cancel")}
             </Button>
             <Button type="submit" disabled={settlePayment.isPending}>
               {settlePayment.isPending ? t("saving") : t("submit")}
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

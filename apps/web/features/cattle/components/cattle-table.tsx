@@ -17,13 +17,13 @@ import { CreatableSelect } from "@/components/shared/creatable-select";
 import { useTableBulkSelection, useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
 import { useCattleDetailModal } from "../context/cattle-detail-modal-context";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -235,12 +235,12 @@ export function CattleTable() {
         }}
       />
 
-      <Dialog open={shedDialogOpen} onOpenChange={setShedDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{tBulk("changeShed")}</DialogTitle>
-            <DialogDescription>{tBulk("changeShedDescription", { count: selection.selectedCount })}</DialogDescription>
-          </DialogHeader>
+      <Sheet open={shedDialogOpen} onOpenChange={setShedDialogOpen}>
+        <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>{tBulk("changeShed")}</SheetTitle>
+            <SheetDescription>{tBulk("changeShedDescription", { count: selection.selectedCount })}</SheetDescription>
+          </SheetHeader>
           <CreatableSelect
             value={shedId}
             onValueChange={setShedId}
@@ -255,7 +255,7 @@ export function CattleTable() {
             createErrorMessage={t("form.addShedError")}
             onCreate={(name) => createShedInline.mutateAsync(name)}
           />
-          <DialogFooter>
+          <SheetFooter className="border-t border-dashed border-border pt-4">
             <Button variant="outline" onClick={() => setShedDialogOpen(false)}>
               {tBulk("cancel")}
             </Button>
@@ -269,16 +269,16 @@ export function CattleTable() {
             >
               {tBulk("apply")}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
-      <Dialog open={feedGroupDialogOpen} onOpenChange={setFeedGroupDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{tBulk("changeFeedGroup")}</DialogTitle>
-            <DialogDescription>{tBulk("changeFeedGroupDescription", { count: selection.selectedCount })}</DialogDescription>
-          </DialogHeader>
+      <Sheet open={feedGroupDialogOpen} onOpenChange={setFeedGroupDialogOpen}>
+        <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>{tBulk("changeFeedGroup")}</SheetTitle>
+            <SheetDescription>{tBulk("changeFeedGroupDescription", { count: selection.selectedCount })}</SheetDescription>
+          </SheetHeader>
           <CreatableSelect
             value={feedGroupId}
             onValueChange={setFeedGroupId}
@@ -293,7 +293,7 @@ export function CattleTable() {
             createErrorMessage={t("form.addFeedGroupError")}
             onCreate={(name) => createFeedGroupInline.mutateAsync(name)}
           />
-          <DialogFooter>
+          <SheetFooter className="border-t border-dashed border-border pt-4">
             <Button variant="outline" onClick={() => setFeedGroupDialogOpen(false)}>
               {tBulk("cancel")}
             </Button>
@@ -307,9 +307,9 @@ export function CattleTable() {
             >
               {tBulk("apply")}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <BulkActionDock
         selectedCount={selection.selectedCount}
@@ -333,12 +333,12 @@ export function CattleTable() {
         ]}
       />
 
-      <Dialog open={disposeDialogOpen} onOpenChange={setDisposeDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{tBulk("dispose")}</DialogTitle>
-            <DialogDescription>{tBulk("disposeDescription", { count: selection.selectedCount })}</DialogDescription>
-          </DialogHeader>
+      <Sheet open={disposeDialogOpen} onOpenChange={setDisposeDialogOpen}>
+        <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>{tBulk("dispose")}</SheetTitle>
+            <SheetDescription>{tBulk("disposeDescription", { count: selection.selectedCount })}</SheetDescription>
+          </SheetHeader>
           <div className="flex flex-col gap-1.5">
             <Label>{tBulk("disposeTypeLabel")}</Label>
             <Select value={disposeType} onValueChange={(v) => setDisposeType(v as BulkDisposeType)}>
@@ -352,7 +352,7 @@ export function CattleTable() {
               </SelectContent>
             </Select>
           </div>
-          <DialogFooter>
+          <SheetFooter className="border-t border-dashed border-border pt-4">
             <Button variant="outline" onClick={() => setDisposeDialogOpen(false)}>
               {tBulk("cancel")}
             </Button>
@@ -366,9 +366,9 @@ export function CattleTable() {
             >
               {tBulk("apply")}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

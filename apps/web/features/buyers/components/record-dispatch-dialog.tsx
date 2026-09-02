@@ -14,6 +14,7 @@ import { useRecordDispatch } from "../hooks/use-buyers";
 import { recordDispatchSchema, type RecordDispatchInput } from "../schemas";
 import { BuyerPicker } from "./buyer-picker";
 import type { Buyer } from "../types";
+import { DatePicker } from "@/components/ui/date-picker";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -114,7 +115,20 @@ function RecordDispatchDialogBody({
           )}
           <div className="space-y-1.5">
             <Label htmlFor="dispatchedAt">{t("dispatchedAt")}</Label>
-            <Input id="dispatchedAt" type="date" {...form.register("dispatchedAt")} />
+            <Controller
+              control={form.control}
+              name="dispatchedAt"
+              render={({ field, fieldState }) => (
+                <DatePicker
+                  id="dispatchedAt"
+                  label={t("dispatchedAt")}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={fieldState.error?.message}
+                />
+              )}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

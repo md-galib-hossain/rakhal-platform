@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { FormDialog } from "@/components/shared/form-dialog";
+import { FormSheet } from "@/components/shared/form-sheet";
 import { useCreateHeatEvent } from "../../hooks/use-reproduction";
 import { heatEventSchema, type CreateHeatEventInput } from "../../schemas";
 import { HeatEventFormFields } from "./heat-event-form-fields";
@@ -64,7 +64,7 @@ export function HeatEventDialog({
   }
 
   return (
-    <FormDialog
+    <FormSheet
       open={open}
       onOpenChange={(next) => {
         if (!next) form.reset();
@@ -76,6 +76,6 @@ export function HeatEventDialog({
       submitLabel={t("submit")}
     >
       <HeatEventFormFields form={form} />
-    </FormDialog>
+    </FormSheet>
   );
 }

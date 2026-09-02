@@ -5,13 +5,13 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -54,12 +54,12 @@ export function CattleDeleteDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("title", { name: cattle.name ?? cattle.tagNumber })}</DialogTitle>
-          <DialogDescription>{t("description")}</DialogDescription>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>{t("title", { name: cattle.name ?? cattle.tagNumber })}</SheetTitle>
+          <SheetDescription>{t("description")}</SheetDescription>
+        </SheetHeader>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="delete-notes">{t("notes")}</Label>
           <Textarea
@@ -70,15 +70,15 @@ export function CattleDeleteDialog({
             rows={3}
           />
         </div>
-        <DialogFooter>
+        <SheetFooter className="border-t border-dashed border-border pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={deleteCattle.isPending}>
             {t("cancel")}
           </Button>
           <Button variant="destructive" onClick={handleConfirm} disabled={deleteCattle.isPending}>
             {deleteCattle.isPending ? "…" : t("confirm")}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

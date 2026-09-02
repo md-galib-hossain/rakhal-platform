@@ -5,12 +5,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { FormDialog } from "@/components/shared/form-dialog";
+import { FormSheet } from "@/components/shared/form-sheet";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRecordColostrum } from "../../hooks/use-calves";
 import { recordColostrumSchema, type RecordColostrumInput } from "../../schemas";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 
 const QUALITY_VALUES = ["EXCELLENT", "GOOD", "POOR", "UNKNOWN"] as const;
 
@@ -44,7 +45,7 @@ export function RecordColostrumDialog({
   }
 
   return (
-    <FormDialog
+    <FormSheet
       open={open}
       onOpenChange={(next) => {
         if (!next) form.reset(defaults());
@@ -62,7 +63,19 @@ export function RecordColostrumDialog({
         </div>
         <div className="flex flex-col gap-1.5">
           <Label>{t("fedAt")}</Label>
-          <Input type="datetime-local" {...form.register("fedAt")} />
+          <Controller
+            control={form.control}
+            name="fedAt"
+            render={({ field, fieldState }) => (
+              <DateTimePicker
+                label={t("fedAt")}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+              />
+            )}
+          />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -100,6 +113,6 @@ export function RecordColostrumDialog({
         <Label>{t("notes")}</Label>
         <Input {...form.register("notes")} />
       </div>
-    </FormDialog>
+    </FormSheet>
   );
 }

@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { FormDialog } from "@/components/shared/form-dialog";
+import { FormSheet } from "@/components/shared/form-sheet";
 import { useRecordDryOff } from "../../hooks/use-reproduction";
 import { dryOffSchema, type CreateDryOffInput } from "../../schemas";
 import { DryOffFormFields } from "./dry-off-form-fields";
@@ -61,7 +61,7 @@ export function DryOffDialog({
   }
 
   return (
-    <FormDialog
+    <FormSheet
       open={open}
       onOpenChange={(next) => {
         if (!next) form.reset();
@@ -73,6 +73,6 @@ export function DryOffDialog({
       submitLabel={t("submit")}
     >
       <DryOffFormFields form={form} cattleId={open ? cattleId : undefined} />
-    </FormDialog>
+    </FormSheet>
   );
 }

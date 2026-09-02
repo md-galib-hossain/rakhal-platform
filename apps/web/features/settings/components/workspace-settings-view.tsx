@@ -11,13 +11,13 @@ import { Can } from "@/lib/auth/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -304,12 +304,12 @@ function ShedFormDialog({
   const pending = createShed.isPending || updateShed.isPending;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{shed ? t("editTitle") : t("addTitle")}</DialogTitle>
-          <DialogDescription>{t("dialogDescription")}</DialogDescription>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="flex w-full flex-col sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle>{shed ? t("editTitle") : t("addTitle")}</SheetTitle>
+          <SheetDescription>{t("dialogDescription")}</SheetDescription>
+        </SheetHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
           {form.formState.errors.root ? (
             <p role="alert" className="rounded-md bg-destructive-tint px-3 py-2 text-sm text-destructive">
@@ -348,14 +348,14 @@ function ShedFormDialog({
             )}
           />
           <FloatingInput id="shed-description" label={t("descriptionLabel")} {...form.register("description")} />
-          <DialogFooter>
+          <SheetFooter className="border-t border-dashed border-border pt-4">
             <Button type="submit" disabled={pending}>
               {pending ? t("saving") : t("save")}
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -503,12 +503,12 @@ function FeedGroupFormDialog({
   const pending = createGroup.isPending || updateGroup.isPending;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{group ? t("editTitle") : t("addTitle")}</DialogTitle>
-          <DialogDescription>{t("dialogDescription")}</DialogDescription>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="flex w-full flex-col sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle>{group ? t("editTitle") : t("addTitle")}</SheetTitle>
+          <SheetDescription>{t("dialogDescription")}</SheetDescription>
+        </SheetHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
           {form.formState.errors.root ? (
             <p role="alert" className="rounded-md bg-destructive-tint px-3 py-2 text-sm text-destructive">
@@ -522,14 +522,14 @@ function FeedGroupFormDialog({
             {...form.register("name")}
           />
           <FloatingInput id="feed-group-description" label={t("descriptionLabel")} {...form.register("description")} />
-          <DialogFooter>
+          <SheetFooter className="border-t border-dashed border-border pt-4">
             <Button type="submit" disabled={pending}>
               {pending ? t("saving") : t("save")}
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -552,21 +552,21 @@ function ConfirmDialog({
 }) {
   const t = useTranslations("settings.workspace");
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{body}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="flex w-full flex-col sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle>{title}</SheetTitle>
+          <SheetDescription>{body}</SheetDescription>
+        </SheetHeader>
+        <SheetFooter className="border-t border-dashed border-border pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t("cancel")}
           </Button>
           <Button variant="destructive" disabled={pending} onClick={onConfirm}>
             {t("confirm")}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

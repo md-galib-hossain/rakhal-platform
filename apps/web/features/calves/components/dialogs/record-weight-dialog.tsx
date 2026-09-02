@@ -1,15 +1,16 @@
 "use client"; // form state + mutation
 
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { FormDialog } from "@/components/shared/form-dialog";
+import { FormSheet } from "@/components/shared/form-sheet";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useRecordWeight } from "../../hooks/use-calves";
 import { recordWeightSchema, type RecordWeightInput } from "../../schemas";
+import { DatePicker } from "@/components/ui/date-picker";
 
 function defaults(): RecordWeightInput {
   return { weightKg: undefined as unknown as number, measuredDate: new Date().toISOString().slice(0, 10), notes: "" };
@@ -41,7 +42,7 @@ export function RecordWeightDialog({
   }
 
   return (
-    <FormDialog
+    <FormSheet
       open={open}
       onOpenChange={(next) => {
         if (!next) form.reset(defaults());
@@ -61,12 +62,24 @@ export function RecordWeightDialog({
       </div>
       <div className="flex flex-col gap-1.5">
         <Label>{t("measuredDate")}</Label>
-        <Input type="date" {...form.register("measuredDate")} />
+        <Controller
+          control={form.control}
+          name="measuredDate"
+          render={({ field, fieldState }) => (
+            <DatePicker
+              label={t("measuredDate")}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={fieldState.error?.message}
+            />
+          )}
+        />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label>{t("notes")}</Label>
         <Input {...form.register("notes")} />
       </div>
-    </FormDialog>
+    </FormSheet>
   );
 }

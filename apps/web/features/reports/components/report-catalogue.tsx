@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FormDialog } from "@/components/shared/form-dialog";
+import { FormSheet } from "@/components/shared/form-sheet";
 import { ErrorState } from "@/components/shared/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useReportCatalogue, useGenerateReport, useReportJob } from "../hooks/use-reports";
@@ -110,7 +110,7 @@ export function GenerateReportDialog({
   const settled = job.data?.status === "completed" || job.data?.status === "failed";
 
   return (
-    <FormDialog
+    <FormSheet
       open={open}
       onOpenChange={onOpenChange}
       title={report.name}
@@ -173,6 +173,6 @@ export function GenerateReportDialog({
           )}
         </div>
       )}
-    </FormDialog>
+    </FormSheet>
   );
 }

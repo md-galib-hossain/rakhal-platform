@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { Baby, Heart, HeartCrack, Microscope, Pencil, Syringe } from "lucide-react";
 import { CattlePicker, type CattleOption } from "@/components/shared/cattle-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
@@ -21,6 +20,7 @@ import { AnimalLink } from "@/components/shared/animal-link";
 import { ReproductionCard } from "./reproduction-card";
 import { BreedingEventDialog } from "./dialogs/breeding-event-dialog";
 import { PregnancyDiagnosisDialog } from "./dialogs/pregnancy-diagnosis-dialog";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const EVENT_ICONS: Record<ReproEventType, React.ElementType> = {
   heat: Heart,
@@ -132,20 +132,22 @@ export function ReproductionEventsFeed() {
         </div>
         <div className="flex min-w-[140px] flex-col gap-1.5">
           <Label className="text-xs text-muted-foreground">{t("fromDate")}</Label>
-          <Input
-            type="date"
+          <DatePicker
+            label={t("fromDate")}
+            placeholder={t("fromDate")}
             value={fromDate}
-            onChange={(e) => updateFilters(() => setFromDate(e.target.value))}
-            aria-label={t("fromDate")}
+            onChange={(next) => updateFilters(() => setFromDate(next))}
+            clearable
           />
         </div>
         <div className="flex min-w-[140px] flex-col gap-1.5">
           <Label className="text-xs text-muted-foreground">{t("toDate")}</Label>
-          <Input
-            type="date"
+          <DatePicker
+            label={t("toDate")}
+            placeholder={t("toDate")}
             value={toDate}
-            onChange={(e) => updateFilters(() => setToDate(e.target.value))}
-            aria-label={t("toDate")}
+            onChange={(next) => updateFilters(() => setToDate(next))}
+            clearable
           />
         </div>
         {hasActiveFilters ? (

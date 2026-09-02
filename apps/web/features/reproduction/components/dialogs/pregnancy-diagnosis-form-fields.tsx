@@ -5,10 +5,10 @@ import { Controller, type UseFormReturn } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { CreatePregnancyDiagnosisInput } from "../../schemas";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const RESULTS = ["PREGNANT", "NOT_PREGNANT", "SUSPECTED"] as const;
 const METHODS = ["ULTRASOUND", "PALPATION", "LAB"] as const;
@@ -67,7 +67,19 @@ export function PregnancyDiagnosisFormFields({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-2">
           <Label>{t("diagnosisDate")}</Label>
-          <Input type="date" {...form.register("diagnosisDate")} />
+          <Controller
+            control={form.control}
+            name="diagnosisDate"
+            render={({ field, fieldState }) => (
+              <DatePicker
+                label={t("diagnosisDate")}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+              />
+            )}
+          />
         </div>
         <div className="flex flex-col gap-2">
           <Label>{t("diagnosisMethod")}</Label>
@@ -117,7 +129,19 @@ export function PregnancyDiagnosisFormFields({
       {result === "PREGNANT" ? (
         <div className="flex flex-col gap-2">
           <Label>{t("expectedCalvingDate")}</Label>
-          <Input type="date" {...form.register("expectedCalvingDate")} />
+          <Controller
+            control={form.control}
+            name="expectedCalvingDate"
+            render={({ field, fieldState }) => (
+              <DatePicker
+                label={t("expectedCalvingDate")}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+              />
+            )}
+          />
         </div>
       ) : null}
 

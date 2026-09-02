@@ -8,19 +8,20 @@ import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateAsset } from "../hooks/use-finance";
 import { createAssetSchema, type CreateAssetInput } from "../schemas";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const CATEGORIES = ["EQUIPMENT", "VEHICLE", "BUILDING", "OTHER"] as const;
 
@@ -51,12 +52,12 @@ export function CreateAssetDialog({ trigger }: { trigger: React.ReactNode }) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("title")}</DialogTitle>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>{trigger}</SheetTrigger>
+      <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>{t("title")}</SheetTitle>
+        </SheetHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <div className="space-y-1.5">
             <Label htmlFor="name">{t("name")}</Label>
@@ -85,11 +86,19 @@ export function CreateAssetDialog({ trigger }: { trigger: React.ReactNode }) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="purchaseDate">{t("purchaseDate")}</Label>
-            <Input
-              id="purchaseDate"
-              type="date"
-              error={form.formState.errors.purchaseDate?.message}
-              {...form.register("purchaseDate")}
+            <Controller
+              control={form.control}
+              name="purchaseDate"
+              render={({ field, fieldState }) => (
+                <DatePicker
+                  id="purchaseDate"
+                  label={t("purchaseDate")}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={fieldState.error?.message}
+                />
+              )}
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -128,16 +137,16 @@ export function CreateAssetDialog({ trigger }: { trigger: React.ReactNode }) {
             <Label htmlFor="description">{t("description")}</Label>
             <Textarea id="description" rows={2} {...form.register("description")} />
           </div>
-          <DialogFooter>
+          <SheetFooter className="border-t border-dashed border-border pt-4">
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={createAsset.isPending}>
               {t("cancel")}
             </Button>
             <Button type="submit" disabled={createAsset.isPending}>
               {createAsset.isPending ? t("saving") : t("submit")}
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

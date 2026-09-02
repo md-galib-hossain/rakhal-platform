@@ -5,13 +5,13 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { AccountPicker } from "@/features/finance/components/account-picker";
 import { useFinalizeConcentration } from "../hooks/use-feed";
@@ -55,24 +55,24 @@ export function FinalizeTmrDialog({
   }
 
   return (
-    <Dialog open={target != null} onOpenChange={(open) => { if (!open) setFinancialAccountId(undefined); onOpenChange(open); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("finalizeConfirmTitleMixture")}</DialogTitle>
-          <DialogDescription>{t("finalizeConfirmDescriptionMixture")}</DialogDescription>
-        </DialogHeader>
+    <Sheet open={target != null} onOpenChange={(open) => { if (!open) setFinancialAccountId(undefined); onOpenChange(open); }}>
+      <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>{t("finalizeConfirmTitleMixture")}</SheetTitle>
+          <SheetDescription>{t("finalizeConfirmDescriptionMixture")}</SheetDescription>
+        </SheetHeader>
 
         <AccountPicker value={financialAccountId} onChange={setFinancialAccountId} />
 
-        <DialogFooter>
+        <SheetFooter className="border-t border-dashed border-border pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
             {t("finalizeMixtureCancel")}
           </Button>
           <Button variant="primary" onClick={() => void handleConfirm()} disabled={pending || !financialAccountId}>
             {pending ? "…" : t("finalizeMixtureConfirm")}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

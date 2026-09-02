@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
-import { FormDialog } from "@/components/shared/form-dialog";
+import { FormSheet } from "@/components/shared/form-sheet";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import { PregnantCowPicker } from "../pregnant-cow-picker";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateCalvingEvent } from "../../hooks/use-reproduction";
 import { calvingEventSchema, type CreateCalvingEventInput } from "../../schemas";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const CALVING_EASE = ["NORMAL", "ASSISTED", "DIFFICULT", "CESAREAN"] as const;
 const CALF_STATUSES = ["ALIVE", "STILLBORN", "DIED_AFTER_BIRTH"] as const;
@@ -92,7 +93,7 @@ export function CalvingEventDialog({
   }
 
   return (
-    <FormDialog
+    <FormSheet
       open={open}
       onOpenChange={(next) => {
         if (!next) form.reset();
@@ -145,7 +146,19 @@ export function CalvingEventDialog({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-2">
           <Label>{t("calvingDate")}</Label>
-          <Input type="date" {...form.register("calvingDate")} />
+          <Controller
+            control={form.control}
+            name="calvingDate"
+            render={({ field, fieldState }) => (
+              <DatePicker
+                label={t("calvingDate")}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+              />
+            )}
+          />
         </div>
         <div className="flex flex-col gap-2">
           <Label>{t("calvingEase")}</Label>
@@ -269,6 +282,6 @@ export function CalvingEventDialog({
         <Label>{t("notes")}</Label>
         <Textarea {...form.register("notes")} placeholder={t("notesPlaceholder")} rows={2} />
       </div>
-    </FormDialog>
+    </FormSheet>
   );
 }

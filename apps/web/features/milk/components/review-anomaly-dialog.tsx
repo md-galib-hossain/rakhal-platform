@@ -7,13 +7,13 @@ import { useTranslations } from "next-intl";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,16 +52,16 @@ export function ReviewAnomalyDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("reviewTitle")}</DialogTitle>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>{t("reviewTitle")}</SheetTitle>
           {anomaly ? (
-            <DialogDescription>
+            <SheetDescription>
               {t("reviewDescription", { name: anomaly.name ?? anomaly.tag, yield: anomaly.yieldL })}
-            </DialogDescription>
+            </SheetDescription>
           ) : null}
-        </DialogHeader>
+        </SheetHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <div className="space-y-1.5">
             <Label htmlFor="action">{t("actionLabel")}</Label>
@@ -76,16 +76,16 @@ export function ReviewAnomalyDialog({
             <Label htmlFor="notes">{t("notesLabel")}</Label>
             <Textarea id="notes" rows={3} {...form.register("notes")} />
           </div>
-          <DialogFooter>
+          <SheetFooter className="border-t border-dashed border-border pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={reviewAnomaly.isPending}>
               {t("cancel")}
             </Button>
             <Button type="submit" disabled={reviewAnomaly.isPending}>
               {reviewAnomaly.isPending ? t("saving") : t("markReviewed")}
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

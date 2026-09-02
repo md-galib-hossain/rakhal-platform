@@ -5,12 +5,13 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ArrowLeftRight } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { LabeledInput } from "@/components/ui/labeled-field";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Chip } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
 import { useRescheduleTask } from "../hooks/use-health";
 import { groupIncompleteTasks, taskCategoryChip, type ScheduledTaskGroup } from "../task-grouping";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Label } from "@/components/ui/label";
 
 /**
  * "Task Reschedule" — Figma 734:44187 (`get_design_context`): current date → new date, Cancel/Confirm.
@@ -20,9 +21,9 @@ import { groupIncompleteTasks, taskCategoryChip, type ScheduledTaskGroup } from 
  */
 export function TaskRescheduleDialog({ group, onOpenChange }: { group: ScheduledTaskGroup | undefined; onOpenChange: (open: boolean) => void }) {
   return (
-    <Dialog open={Boolean(group)} onOpenChange={onOpenChange}>
+    <Sheet open={Boolean(group)} onOpenChange={onOpenChange}>
       {group ? <TaskRescheduleDialogBody key={group.key} group={group} onOpenChange={onOpenChange} /> : null}
-    </Dialog>
+    </Sheet>
   );
 }
 
@@ -51,11 +52,11 @@ function TaskRescheduleDialogBody({ group, onOpenChange }: { group: ScheduledTas
   }
 
   return (
-    <DialogContent showClose className="max-w-[520px] rounded-[20px] border-2 border-border p-5">
+    <SheetContent showClose side="right" className="flex w-full max-w-[520px] flex-col p-5">
       <div className="flex flex-col gap-2">
         <p className="text-sm text-muted-foreground">{t("title")}</p>
         <div className="flex items-center gap-2">
-          <DialogTitle className="text-xl font-bold text-foreground">{group.title}</DialogTitle>
+          <SheetTitle className="text-xl font-bold text-foreground">{group.title}</SheetTitle>
           <Chip variant={category.variant}>{t(`category.${category.labelKey}`)}</Chip>
         </div>
       </div>
@@ -63,11 +64,21 @@ function TaskRescheduleDialogBody({ group, onOpenChange }: { group: ScheduledTas
 
       <div className="flex items-center gap-3">
         <div className="flex-1">
-          <LabeledInput id="currentDate" type="date" label={t("currentDate")} value={currentDate} readOnly disabled />
+          <div className="flex flex-col gap-1.5">
+            <Label>{t("currentDate")}</Label>
+            {/* Read-only "from" side of the reschedule — a disabled native date input rendered the
+                browser's own picker chrome next to the themed one, so it's plain text now. */}
+            <p className="flex h-11 items-center rounded-md border border-input bg-muted px-3.5 text-sm text-muted-foreground">
+              {currentDate}
+            </p>
+          </div>
         </div>
         <ArrowLeftRight className="size-6 shrink-0 text-muted-foreground" aria-hidden />
         <div className="flex-1">
-          <LabeledInput id="newDate" type="date" label={t("newDate")} value={newDate} onChange={(e) => setNewDate(e.target.value)} />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="newDate">{t("newDate")}</Label>
+            <DatePicker id="newDate" label={t("newDate")} value={newDate} onChange={setNewDate} />
+          </div>
         </div>
       </div>
 
@@ -80,6 +91,6 @@ function TaskRescheduleDialogBody({ group, onOpenChange }: { group: ScheduledTas
           {reschedule.isPending ? "…" : t("confirm")}
         </Button>
       </div>
-    </DialogContent>
+    </SheetContent>
   );
 }

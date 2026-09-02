@@ -5,13 +5,13 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -49,27 +49,27 @@ export function SkipTaskDialog({
   }
 
   return (
-    <Dialog open={Boolean(task)} onOpenChange={onOpenChange}>
+    <Sheet open={Boolean(task)} onOpenChange={onOpenChange}>
       {task ? (
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("title", { name: task.cattle?.name ?? task.cattle?.tagNumber ?? "" })}</DialogTitle>
-            <DialogDescription>{t("description")}</DialogDescription>
-          </DialogHeader>
+        <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>{t("title", { name: task.cattle?.name ?? task.cattle?.tagNumber ?? "" })}</SheetTitle>
+            <SheetDescription>{t("description")}</SheetDescription>
+          </SheetHeader>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="skip-task-reason">{t("reason")}</Label>
             <Input id="skip-task-reason" value={reason} onChange={(e) => setReason(e.target.value)} />
           </div>
-          <DialogFooter>
+          <SheetFooter className="border-t border-dashed border-border pt-4">
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={skipTask.isPending}>
               {t("cancel")}
             </Button>
             <Button variant="destructive" onClick={handleConfirm} disabled={skipTask.isPending}>
               {skipTask.isPending ? "…" : t("confirm")}
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </SheetFooter>
+        </SheetContent>
       ) : null}
-    </Dialog>
+    </Sheet>
   );
 }

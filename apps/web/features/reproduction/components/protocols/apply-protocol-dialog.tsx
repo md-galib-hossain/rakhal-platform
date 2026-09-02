@@ -7,16 +7,16 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { X } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
-import { FormDialog } from "@/components/shared/form-dialog";
+import { FormSheet } from "@/components/shared/form-sheet";
 import { CattleMultiPicker, type CattleOption } from "@/components/shared/cattle-picker";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { useApplyProtocol, useProtocolInstance, useProtocols } from "../../hooks/use-reproduction";
 import { applyProtocolSchema, type ApplyProtocolInput } from "../../schemas";
 import { ProtocolDetailSheet } from "./protocol-detail-sheet";
 import { ProtocolInstanceTimeline } from "./protocol-instance-timeline";
+import { DatePicker } from "@/components/ui/date-picker";
 
 /** "Apply Protocol" (RAKHAL-214, PRD §9.8) — no Figma frame for this module. Mirrors
  * `ApplyProtocolDto` exactly. Cattle selection uses `CattleMultiPicker` (RAKHAL-214 follow-up,
@@ -42,6 +42,7 @@ export function ApplyProtocolDialog({
   const appliedInstance = useProtocolInstance(appliedInstanceId ?? undefined);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedProtocolId, setSelectedProtocolId] = useState("");
+  const [selectedStartDate, setSelectedStartDate] = useState("");
   const protocolOptions = useMemo(() => protocols.data?.pages.flatMap((p) => p.items) ?? [], [protocols.data]);
 
   const form = useForm<ApplyProtocolInput>({
@@ -60,6 +61,7 @@ export function ApplyProtocolDialog({
       form.reset({ protocolId: "", cattleIds: defaultCattleId ? [defaultCattleId] : [] });
       setSelectedCattle([]);
       setSelectedProtocolId("");
+      setSelectedStartDate("");
     }
   }
 
@@ -92,7 +94,7 @@ export function ApplyProtocolDialog({
 
   return (
     <>
-      <FormDialog
+      <FormSheet
         open={open}
         onOpenChange={(next) => {
           if (!next) form.reset();
@@ -173,9 +175,25 @@ export function ApplyProtocolDialog({
 
         <div className="flex flex-col gap-2">
           <Label>{t("startDate")}</Label>
-          <Input type="date" {...form.register("startDate")} />
+          <Controller
+            control={form.control}
+            name="startDate"
+            render={({ field, fieldState }) => (
+              <DatePicker
+                label={t("startDate")}
+                value={field.value}
+                onChange={(next) => {
+                  field.onChange(next);
+                  // Drives the protocol-timeline preview beside the form.
+                  setSelectedStartDate(next);
+                }}
+                onBlur={field.onBlur}
+                error={fieldState.error?.message}
+              />
+            )}
+          />
         </div>
-      </FormDialog>
+      </FormSheet>
 
       <ProtocolInstanceTimeline
         instance={appliedInstance.data ?? null}
@@ -188,7 +206,7 @@ export function ApplyProtocolDialog({
         protocol={protocolOptions.find((p) => p.id === selectedProtocolId) ?? null}
         open={detailOpen}
         onOpenChange={setDetailOpen}
-        startDate={form.watch("startDate")}
+        startDate={selectedStartDate}
       />
     </>
   );

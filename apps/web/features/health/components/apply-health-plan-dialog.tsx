@@ -21,6 +21,8 @@ import type { CattleListItem } from "@/features/cattle/types";
 import { useApplyPlanToCase, useCreateHealthCase } from "../hooks/use-health";
 import { applyHealthPlanStep1Schema, type ApplyHealthPlanStep1Input } from "../schemas";
 import type { HealthDiagnosisType, HealthPlanListItem } from "../types";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Label } from "@/components/ui/label";
 
 const ROUTES = ["IM", "IV", "SC", "ORAL"] as const;
 
@@ -299,7 +301,23 @@ function ApplyHealthPlanDialogBody({ plan, onOpenChange }: { plan: HealthPlanLis
               />
             </div>
 
-            <LabeledInput id="startDate" type="date" label={t("startDate")} {...form.register("startDate")} error={form.formState.errors.startDate?.message} />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="startDate">{t("startDate")}</Label>
+              <Controller
+                control={form.control}
+                name="startDate"
+                render={({ field, fieldState }) => (
+                  <DatePicker
+                    id="startDate"
+                    label={t("startDate")}
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={fieldState.error?.message}
+                  />
+                )}
+              />
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-4">

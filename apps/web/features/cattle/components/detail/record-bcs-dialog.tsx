@@ -5,13 +5,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { FormDialog } from "@/components/shared/form-dialog";
+import { FormSheet } from "@/components/shared/form-sheet";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRecordBcs } from "../../hooks/use-cattle-detail-tabs";
 import { recordBcsSchema, type RecordBcsInput } from "../../schemas";
 import { BCS_ALLOWED_SCORES } from "../../types";
+import { DatePicker } from "@/components/ui/date-picker";
 
 /** `POST /cattle/:id/bcs` (RAKHAL-038, PRD §8.6) — worker-permitted (`cattle.bcs`). Score is one of
  * 17 allowed 0.25-steps (1.0–5.0), rendered as a `Select` rather than a free-typed number input so an
@@ -45,7 +46,7 @@ export function RecordBcsDialog({
   }
 
   return (
-    <FormDialog
+    <FormSheet
       open={open}
       onOpenChange={onOpenChange}
       title={t("title")}
@@ -77,12 +78,25 @@ export function RecordBcsDialog({
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="record-bcs-date">{t("date")}</Label>
-        <Input id="record-bcs-date" type="date" {...form.register("date")} />
+        <Controller
+          control={form.control}
+          name="date"
+          render={({ field, fieldState }) => (
+            <DatePicker
+              id="record-bcs-date"
+              label={t("date")}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={fieldState.error?.message}
+            />
+          )}
+        />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="record-bcs-notes">{t("notes")}</Label>
         <Input id="record-bcs-notes" {...form.register("notes")} />
       </div>
-    </FormDialog>
+    </FormSheet>
   );
 }
