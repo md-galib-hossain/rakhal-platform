@@ -75,6 +75,17 @@ export function MilkView() {
               {tanks.map((tank) => (
                 <MilkTankCard key={tank.id} tank={tank} onSync={setSyncingTank} />
               ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingTank(undefined);
+                  setFormOpen(true);
+                }}
+                className="flex min-h-[200px] flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+              >
+                <Plus className="size-6" aria-hidden />
+                <span className="text-sm font-medium">{t("addNewTank")}</span>
+              </button>
             </div>
           )}
         </div>
