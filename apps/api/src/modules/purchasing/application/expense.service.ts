@@ -147,7 +147,7 @@ export class ExpenseService {
       eventTitle: 'Expense Recorded',
       actionDetails: `${dto.category} expense: ${dto.description} — ৳${expense.amount.toString()}${dto.financialAccountId ? ' (paid immediately)' : ' (unpaid, payable raised)'}.`,
       actorId: userId,
-      financialImpact: Number(expense.amount),
+      financialImpact: -Number(expense.amount),
     });
 
     return expense;

@@ -159,7 +159,7 @@ export class PurchaseService {
       eventTitle: 'Purchase Recorded',
       actionDetails: `Purchase ${purchase.purchaseNumber}: ৳${purchase.totalAmount.toString()} across ${purchase.lines.length} line(s).`,
       actorId: userId,
-      financialImpact: Number(purchase.totalAmount),
+      financialImpact: -Number(purchase.totalAmount),
     });
 
     return purchase;

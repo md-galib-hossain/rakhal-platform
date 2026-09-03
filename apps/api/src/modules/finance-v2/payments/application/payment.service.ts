@@ -134,7 +134,10 @@ export class PaymentService {
         eventTitle: 'Finance Payment Recorded',
         actionDetails: `${dto.direction === PaymentDirection.INCOMING ? 'Received' : 'Paid'} ৳${payment.amount.toString()} via ${dto.method}.`,
         actorId: userId,
-        financialImpact: Number(payment.amount),
+        financialImpact:
+          dto.direction === PaymentDirection.INCOMING
+            ? Number(payment.amount)
+            : -Number(payment.amount),
       });
       return payment;
     }

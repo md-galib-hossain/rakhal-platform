@@ -149,7 +149,7 @@ export class PaySupplierUseCase {
       eventTitle: 'Supplier Payment Recorded',
       actionDetails: `Paid ৳${dto.amount} against payable ${dto.payableId} via ${dto.method}. Status now ${result.payable.status}.`,
       actorId: userId,
-      financialImpact: Number(dto.amount),
+      financialImpact: -Number(dto.amount),
     });
 
     return result;
