@@ -67,14 +67,6 @@ export interface BuyersSummary {
   totalOutstanding: string;
 }
 
-/** `GET /buyers/groups` (RAKHAL-372) — "Buyer Groups" is the existing `BuyerType` enum, not a new
- * model: one row per enum value, zero-filled when a value has no buyers. */
-export interface BuyerGroupRow {
-  buyerType: BuyerType;
-  buyerCount: number;
-  totalSales: string;
-}
-
 /** One `GET /sales?customerId=` row for the buyer detail page's "Sales & Invoices" tab — a
  * narrower local mirror of `features/sales/types.ts#InvoiceRow` (RAKHAL-368's `SaleListRow`)
  * rather than a cross-feature type import, keeping this ticket's lane self-contained. */
@@ -215,13 +207,6 @@ export interface BuyerStatement {
   outstanding: number;
   dispatches: Dispatch[];
 }
-
-/** RAKHAL-389 (MILESTONE 22, `BUSINESS_IA_PRD.md` §5.10) — the global "Dispatch History" tab is
- * deleted from this page (moved to Sales → Dispatches, RAKHAL-388); replaced with "Buyer Groups"
- * (the AC's own §5.10 tab set: `Buyers | Buyer Groups`). The per-buyer Dispatches tab still exists
- * — it lives on the new buyer detail page (`BuyerDetailTabKey` below), not here. */
-export const BUYER_TABS = [{ key: "buyers" }, { key: "groups" }] as const;
-export type BuyerTabKey = (typeof BUYER_TABS)[number]["key"];
 
 /** Buyer detail page tabs (`BUSINESS_IA_PRD.md` §5.11). */
 export const BUYER_DETAIL_TABS = ["overview", "sales", "dispatches", "payments", "balance"] as const;

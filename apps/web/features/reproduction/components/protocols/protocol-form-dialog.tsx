@@ -164,7 +164,7 @@ function ProtocolFormDialogBody({
       <div className="border-t border-dashed border-border" />
 
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-1 py-4">
           <div className="flex flex-col gap-2">
             <Label>{t("name")}</Label>
             <Input {...form.register("name")} placeholder={t("namePlaceholder")} />

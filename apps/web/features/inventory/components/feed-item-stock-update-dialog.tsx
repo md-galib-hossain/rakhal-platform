@@ -55,7 +55,7 @@ export function FeedItemStockUpdateDialog({
         onOpenChange(next);
       }}
     >
-      <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+      <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-md">
         <SheetHeader>
           <SheetTitle>{t("title")}</SheetTitle>
           <SheetDescription>{t("description", { name: feedItem?.name ?? "", unit: feedItem?.unit?.symbol ?? "" })}</SheetDescription>

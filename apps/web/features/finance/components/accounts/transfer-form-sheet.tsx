@@ -92,7 +92,7 @@ function TransferFormSheetBody({ onOpenChange }: { onOpenChange: (open: boolean)
         </p>
       ) : null}
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto py-5" noValidate>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-1 py-5" noValidate>
         <fieldset disabled={!canTransfer || createTransfer.isPending} className="flex flex-col gap-3">
           <Controller
             control={form.control}

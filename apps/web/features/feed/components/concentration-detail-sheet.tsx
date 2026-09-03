@@ -66,7 +66,7 @@ function DetailBody({ id, onOpenChange }: { id: string; onOpenChange: (open: boo
       </div>
       <div className="border-t border-dashed border-border" />
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 py-4">
         {detail.isLoading ? (
           <CardSkeleton lines={4} />
         ) : detail.isError ? (

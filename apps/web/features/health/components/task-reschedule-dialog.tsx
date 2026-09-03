@@ -52,7 +52,7 @@ function TaskRescheduleDialogBody({ group, onOpenChange }: { group: ScheduledTas
   }
 
   return (
-    <SheetContent showClose side="right" className="flex w-full max-w-[520px] flex-col p-5">
+    <SheetContent showClose side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:max-w-[520px] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5">
       <div className="flex flex-col gap-2">
         <p className="text-sm text-muted-foreground">{t("title")}</p>
         <div className="flex items-center gap-2">

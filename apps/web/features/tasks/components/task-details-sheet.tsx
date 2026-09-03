@@ -195,7 +195,7 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
         <div className="border-t border-dashed border-border" />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-1">
         <div className="flex flex-col gap-5 rounded-xl border border-border bg-card p-4 sm:grid sm:grid-cols-2 sm:gap-x-10 sm:gap-y-5">
           <InfoTile label={t("dueDate")}>
             <Chip variant={task.displayStatus === "overdue" ? "destructive" : "muted"} className="w-fit">

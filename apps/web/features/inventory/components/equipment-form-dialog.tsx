@@ -155,7 +155,7 @@ function EquipmentFormDialogBody({
       <div className="border-t border-dashed border-border" />
 
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 py-4">
           <SectionHeader>{t("basicInfo")}</SectionHeader>
           <div className="flex gap-4">
             <PhotoPlaceholder label={t("noPhoto")} />

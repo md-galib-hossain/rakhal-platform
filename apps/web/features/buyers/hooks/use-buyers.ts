@@ -67,15 +67,6 @@ export function useBuyersSummary() {
   });
 }
 
-/** `GET /buyers/groups` (RAKHAL-372) — Buyer Groups tab. */
-export function useBuyerGroups() {
-  return useQuery({
-    queryKey: qk.buyers.groupsV2(),
-    queryFn: () => buyersApi.groups(),
-    staleTime: STALE_TIME,
-  });
-}
-
 /** `GET /buyers/:id/overview` (RAKHAL-372) — buyer detail header + Overview tab. */
 export function useBuyerOverview(id: string) {
   return useQuery({

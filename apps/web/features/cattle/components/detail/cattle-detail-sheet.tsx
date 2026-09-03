@@ -101,7 +101,7 @@ export function CattleDetailSheet({
         </div>
         <div className="border-t border-border" />
 
-        <div className="flex-1 overflow-y-auto py-4">
+        <div className="flex-1 overflow-y-auto px-1 py-4">
           {query.isLoading ? (
             <CardSkeleton lines={3} />
           ) : query.isError || !query.data ? (

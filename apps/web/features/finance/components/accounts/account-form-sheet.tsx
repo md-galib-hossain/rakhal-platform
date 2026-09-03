@@ -136,7 +136,7 @@ function AccountFormSheetBody({ onOpenChange, account }: { onOpenChange: (open: 
 
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto py-5"
+        className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-1 py-5"
         noValidate
       >
         {!isEdit ? (

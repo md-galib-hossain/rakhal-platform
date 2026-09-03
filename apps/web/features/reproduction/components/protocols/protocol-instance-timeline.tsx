@@ -166,7 +166,7 @@ export function ProtocolInstanceTimeline({
           </div>
           <div className="border-t border-dashed border-border" />
 
-          <div className="flex-1 overflow-y-auto py-4">
+          <div className="flex-1 overflow-y-auto px-1 py-4">
             <TimelineBody instance={instance} />
           </div>
         </SheetContent>

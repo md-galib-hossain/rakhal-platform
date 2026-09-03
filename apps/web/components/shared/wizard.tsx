@@ -127,7 +127,7 @@ export function Wizard<TFieldName extends string = string>({
         <WizardStepProgress step={stepIndex + 1} total={steps.length} />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1">
         <div>
           <p className="text-base font-medium text-foreground">{current.title}</p>
           {current.subtitle ? <p className="text-xs text-muted-foreground">{current.subtitle}</p> : null}

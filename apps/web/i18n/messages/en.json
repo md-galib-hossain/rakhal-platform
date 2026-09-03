@@ -1643,6 +1643,20 @@
         "ADDITIVE": "Additive",
         "OTHER": "Other"
       },
+      "subTypeOptions": {
+        "GREEN_FODDER": "Green fodder",
+        "ROUGHAGE": "Roughage",
+        "SILAGE": "Silage",
+        "HAY": "Hay",
+        "STRAW": "Straw",
+        "GRAIN": "Grain",
+        "OILCAKE": "Oilcake",
+        "BY_PRODUCT": "By-product",
+        "COMPOUND_PELLET": "Compound pellet",
+        "PREMIX": "Premix",
+        "SUPPLEMENT": "Supplement",
+        "OTHER": "Other"
+      },
       "filters": {
         "searchPlaceholder": "Find feed item by name",
         "class": "Class",
@@ -1674,7 +1688,7 @@
         "ingredientPlaceholder": "Search the feed catalogue…",
         "ingredientRequired": "Select a linked ingredient",
         "category": "Category",
-        "categoryPlaceholder": "e.g. Green fodder, Dry fodder",
+        "categoryPlaceholder": "Select category",
         "moisture": "Moisture",
         "supplier": "Supplier",
         "supplierPlaceholder": "Enter supplier name",
@@ -4542,26 +4556,12 @@
     }
   },
   "buyers": {
-    "tabs": {
-      "buyers": "Buyers",
-      "groups": "Buyer Groups"
-    },
     "summary": {
       "totalBuyers": "Total Buyers",
       "activeBuyers": "Active Buyers",
       "totalSales": "Total Sales",
       "totalOutstanding": "Total Outstanding",
       "error": "Couldn't load the buyer summary."
-    },
-    "groups": {
-      "typeOptions": {
-        "DAIRY_COMPANY": "Dairy Company",
-        "COOPERATIVE": "Cooperative",
-        "LOCAL_TRADER": "Local Trader",
-        "DIRECT_CONSUMER": "Direct Consumer"
-      },
-      "buyerCount": "{count, plural, one {# buyer} other {# buyers}}",
-      "error": "Couldn't load buyer groups."
     },
     "list": {
       "searchPlaceholder": "Search buyers",
@@ -5473,7 +5473,6 @@
         "TRANSFER_FEE": "Transfer Fee",
         "DEPRECIATION": "Depreciation"
       },
-      "postsTo": "posts to Expense · {code}",
       "description": "Description",
       "amount": "Amount",
       "expenseDate": "Expense date",

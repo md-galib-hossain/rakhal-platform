@@ -320,7 +320,7 @@ export function UpgradePlanModal({
       }}
     >
       <SheetContent side="right"
-        className="flex w-full max-w-3xl flex-col gap-5 overflow-y-auto"
+        className="inset-y-0 right-0 flex h-full w-full flex-col gap-5 border-0 p-4 shadow-2xl overflow-y-auto sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:max-w-3xl sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5"
         showClose={stage !== "status" || outcome !== "polling"}
         onEscapeKeyDown={(e) => stage === "status" && outcome === "polling" && e.preventDefault()}
         onInteractOutside={(e) => stage === "status" && outcome === "polling" && e.preventDefault()}

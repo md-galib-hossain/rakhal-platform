@@ -176,7 +176,7 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
         noValidate
         className="flex min-h-0 flex-1 flex-col"
       >
-        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-1 py-4">
           <div className="flex flex-col gap-3">
             <p className="text-xs text-muted-foreground">{t("stepOf", { step, total: 3 })}</p>
             <StepProgress step={step} />

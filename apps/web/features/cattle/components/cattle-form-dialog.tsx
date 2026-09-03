@@ -264,7 +264,7 @@ export function CattleFormDialog({
  * real form swaps in. */
 function CattleFormDialogSkeleton() {
   return (
-    <SheetContent side="right" className="flex h-full w-full max-w-[680px] flex-col gap-0 overflow-hidden p-0">
+    <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 overflow-hidden p-0 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:max-w-[680px]">
       <div className="flex min-h-[460px] flex-1 flex-col gap-4 overflow-y-auto px-6 py-5">
         <div className="h-9 w-40 animate-pulse rounded-xl bg-muted" />
         <div className="flex gap-4">
@@ -470,7 +470,7 @@ function CattleFormDialogBody({
 
   return (
     <>
-    <SheetContent side="right" className="flex h-full w-full max-w-[680px] flex-col gap-0 overflow-hidden p-0">
+    <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 overflow-hidden p-0 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:max-w-[680px]">
       <div className="flex items-center gap-2 px-6 py-5">
         {step !== "basic" ? (
           <button
@@ -1136,7 +1136,7 @@ function AddBreedDialog({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex w-full flex-col max-w-[420px]">
+      <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-[420px]">
         <SheetHeader>
           <SheetTitle>{t("addBreedTitle")}</SheetTitle>
         </SheetHeader>

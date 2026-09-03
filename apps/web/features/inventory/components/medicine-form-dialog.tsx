@@ -284,7 +284,7 @@ function MedicineFormDialogBody({
             the fold instead of pinning it, since the outer `SheetContent` also carries its own
             `overflow-y-auto` (base `Sheet` primitive) and will happily scroll the whole header+
             form+footer as one unit if this inner div doesn't claim the scrolling itself. */}
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 py-4">
           <SectionHeader>{t("basicInfo")}</SectionHeader>
           <div className="flex gap-4">
             <PhotoDropzone previewUrl={displayedPhotoUrl} onPick={handlePhotoPick} onClear={handlePhotoClear} label={t("addMedicineImage")} />

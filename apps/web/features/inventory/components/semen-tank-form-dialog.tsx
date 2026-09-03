@@ -118,7 +118,7 @@ function SemenTankFormDialogBody({ onOpenChange, tank }: { onOpenChange: (open: 
       <div className="border-t border-dashed border-border" />
 
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 py-4">
           <SectionHeader>{t("tankInfo")}</SectionHeader>
           <div className="grid grid-cols-2 gap-3">
             <LabeledInput id="name" label={t("tankName")} placeholder={t("tankNamePlaceholder")} {...form.register("name")} error={form.formState.errors.name?.message} />

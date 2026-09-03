@@ -313,12 +313,12 @@ function CreateFeedDialogBody({
       <div className="border-t border-dashed border-border" />
 
       {isEdit && editDetail.isLoading ? (
-        <div className="flex-1 overflow-y-auto py-4">
+        <div className="flex-1 overflow-y-auto px-1 py-4">
           <CardSkeleton lines={6} />
         </div>
       ) : (
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-1 py-4">
           <div className="flex flex-col gap-3">
             <p className="text-xs text-muted-foreground">{t("stepOf", { step, total: 2 })}</p>
             <StepProgress step={step} />

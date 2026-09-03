@@ -236,7 +236,7 @@ export function CattleTable() {
       />
 
       <Sheet open={shedDialogOpen} onOpenChange={setShedDialogOpen}>
-        <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+        <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-md">
           <SheetHeader>
             <SheetTitle>{tBulk("changeShed")}</SheetTitle>
             <SheetDescription>{tBulk("changeShedDescription", { count: selection.selectedCount })}</SheetDescription>
@@ -274,7 +274,7 @@ export function CattleTable() {
       </Sheet>
 
       <Sheet open={feedGroupDialogOpen} onOpenChange={setFeedGroupDialogOpen}>
-        <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+        <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-md">
           <SheetHeader>
             <SheetTitle>{tBulk("changeFeedGroup")}</SheetTitle>
             <SheetDescription>{tBulk("changeFeedGroupDescription", { count: selection.selectedCount })}</SheetDescription>
@@ -334,7 +334,7 @@ export function CattleTable() {
       />
 
       <Sheet open={disposeDialogOpen} onOpenChange={setDisposeDialogOpen}>
-        <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+        <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-md">
           <SheetHeader>
             <SheetTitle>{tBulk("dispose")}</SheetTitle>
             <SheetDescription>{tBulk("disposeDescription", { count: selection.selectedCount })}</SheetDescription>

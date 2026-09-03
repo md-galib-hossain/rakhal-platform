@@ -91,7 +91,7 @@ export function ProtocolDetailSheet({
 
           <div className="border-t border-dashed border-border" />
 
-          <div className="flex-1 overflow-y-auto py-4">
+          <div className="flex-1 overflow-y-auto px-1 py-4">
             {detail.isLoading ? (
               <CardSkeleton lines={4} />
             ) : detail.isError ? (

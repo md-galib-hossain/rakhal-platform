@@ -18,7 +18,7 @@ import { MoneyInput } from "@/components/shared/money-input";
 import { AccountPicker } from "@/features/finance/components/account-picker";
 import { useCreateExpense } from "../hooks/use-purchasing";
 import { expenseFormSchema, type ExpenseFormInput } from "../schemas";
-import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LEDGER_CODE } from "../types";
+import { EXPENSE_CATEGORIES } from "../types";
 import type { RecordExpensePayload } from "../types";
 
 function toPayload(values: ExpenseFormInput): RecordExpensePayload {
@@ -41,9 +41,9 @@ function toPayload(values: ExpenseFormInput): RecordExpensePayload {
  * **Category is a closed 5-value enum** (SALARY/UTILITIES/BREEDING/TRANSFER_FEE/DEPRECIATION) —
  * deliberately **no "Other" option**. The backend enum has no OTHER value (no ledger account exists
  * for one yet, filed as RD-060 in `TECH_DEBT.md`) — offering it here would just produce a 400 the
- * farmer can't explain, so it's surfaced honestly instead: only the 5 real categories are selectable,
- * and each option shows a small "posts to Expense · <code>" caption so the closed set doesn't read
- * as an oversight.
+ * farmer can't explain, so only the 5 real categories are selectable. Ledger account codes
+ * (`EXPENSE_CATEGORY_LEDGER_CODE`) stay backend-internal bookkeeping detail, not shown in this UI —
+ * farmers don't need a chart-of-accounts number to pick "Utilities".
  *
  * **Payment shape mirrors `RecordExpenseDto`'s own doc comment** — simpler than Purchase's: a "Paid
  * now" switch either requires an `AccountPicker` selection (paid in full immediately) or, left off,
@@ -92,7 +92,7 @@ function RecordExpenseDialogBody({ onOpenChange }: { onOpenChange: (open: boolea
       <div className="border-t border-dashed border-border" />
 
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 py-4">
           <Controller
             control={form.control}
             name="category"
@@ -101,11 +101,7 @@ function RecordExpenseDialogBody({ onOpenChange }: { onOpenChange: (open: boolea
                 <LabeledSelectTrigger label={t("category")} />
                 <SelectContent>
                   {EXPENSE_CATEGORIES.map((category) => (
-                    <SelectItem
-                      key={category}
-                      value={category}
-                      hint={t("postsTo", { code: EXPENSE_CATEGORY_LEDGER_CODE[category] })}
-                    >
+                    <SelectItem key={category} value={category}>
                       {t(`categoryOptions.${category}`)}
                     </SelectItem>
                   ))}

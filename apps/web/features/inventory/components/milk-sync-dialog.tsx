@@ -112,7 +112,7 @@ function MilkSyncDialogBody({ tank, onOpenChange }: { tank: MilkTank; onOpenChan
       <div className="border-t border-dashed border-border" />
 
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-1 py-4">
           <div className="flex items-center gap-4">
             <div className="flex h-[200px] w-[140px] shrink-0 flex-col items-center justify-center gap-3 rounded-2xl border border-border p-3">
               <Chip variant={isSellable ? "info" : "warning"}>{isSellable ? t("badgeSellable") : t("badgeWithholding")}</Chip>

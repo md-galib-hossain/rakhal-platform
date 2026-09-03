@@ -22,6 +22,20 @@ import { feedItemFormSchema, type FeedItemFormInput } from "../schemas";
 import type { CreateFeedItemPayload, FeedItem, UpdateFeedItemPayload } from "../types";
 
 const FEED_CLASSES = ["FORAGE", "CONCENTRATE", "MINERAL", "VITAMIN", "ADDITIVE", "OTHER"] as const;
+const FEED_SUB_TYPES = [
+  "GREEN_FODDER",
+  "ROUGHAGE",
+  "SILAGE",
+  "HAY",
+  "STRAW",
+  "GRAIN",
+  "OILCAKE",
+  "BY_PRODUCT",
+  "COMPOUND_PELLET",
+  "PREMIX",
+  "SUPPLEMENT",
+  "OTHER",
+] as const;
 
 function toCreatePayload(values: FeedItemFormInput): CreateFeedItemPayload {
   return {
@@ -193,7 +207,7 @@ function FeedItemFormDialogBody({
       <div className="border-t border-dashed border-border" />
 
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 py-4">
           <SectionHeader>{t("basicInfo")}</SectionHeader>
           <div className="flex gap-4">
             <PhotoPlaceholder label={t("noPhoto")} />
@@ -253,7 +267,22 @@ function FeedItemFormDialogBody({
                 </Select>
               )}
             />
-            <LabeledInput id="category" label={t("category")} placeholder={t("categoryPlaceholder")} {...form.register("category")} />
+            <Controller
+              control={form.control}
+              name="feedSubType"
+              render={({ field }) => (
+                <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                  <LabeledSelectTrigger label={t("category")} placeholder={t("categoryPlaceholder")} />
+                  <SelectContent>
+                    {FEED_SUB_TYPES.map((subType) => (
+                      <SelectItem key={subType} value={subType}>
+                        {tOptions(`subTypeOptions.${subType}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
             <LabeledInput
               id="moisturePct"
               type="number"

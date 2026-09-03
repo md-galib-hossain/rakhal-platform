@@ -1643,6 +1643,20 @@
         "ADDITIVE": "অ্যাডিটিভ",
         "OTHER": "অন্যান্য"
       },
+      "subTypeOptions": {
+        "GREEN_FODDER": "সবুজ ঘাস",
+        "ROUGHAGE": "রাফেজ",
+        "SILAGE": "সাইলেজ",
+        "HAY": "শুকনো ঘাস",
+        "STRAW": "খড়",
+        "GRAIN": "শস্যদানা",
+        "OILCAKE": "খৈল",
+        "BY_PRODUCT": "উপজাত",
+        "COMPOUND_PELLET": "কম্পাউন্ড পিলেট",
+        "PREMIX": "প্রিমিক্স",
+        "SUPPLEMENT": "সাপ্লিমেন্ট",
+        "OTHER": "অন্যান্য"
+      },
       "filters": {
         "searchPlaceholder": "নাম দিয়ে ফিড আইটেম খুঁজুন",
         "class": "শ্রেণী",
@@ -1674,7 +1688,7 @@
         "ingredientPlaceholder": "ফিড ক্যাটালগে খুঁজুন…",
         "ingredientRequired": "একটি যুক্ত উপাদান নির্বাচন করুন",
         "category": "বিভাগ",
-        "categoryPlaceholder": "যেমন: সবুজ ঘাস, শুকনো ঘাস",
+        "categoryPlaceholder": "বিভাগ নির্বাচন করুন",
         "moisture": "আর্দ্রতা",
         "supplier": "সরবরাহকারী",
         "supplierPlaceholder": "সরবরাহকারীর নাম লিখুন",
@@ -4542,26 +4556,12 @@
     }
   },
   "buyers": {
-    "tabs": {
-      "buyers": "ক্রেতা",
-      "groups": "ক্রেতা গোষ্ঠী"
-    },
     "summary": {
       "totalBuyers": "মোট ক্রেতা",
       "activeBuyers": "সক্রিয় ক্রেতা",
       "totalSales": "মোট বিক্রয়",
       "totalOutstanding": "মোট বকেয়া",
       "error": "ক্রেতা সারাংশ লোড করা যায়নি।"
-    },
-    "groups": {
-      "typeOptions": {
-        "DAIRY_COMPANY": "ডেইরি কোম্পানি",
-        "COOPERATIVE": "সমবায়",
-        "LOCAL_TRADER": "স্থানীয় ব্যবসায়ী",
-        "DIRECT_CONSUMER": "সরাসরি ভোক্তা"
-      },
-      "buyerCount": "{count} জন ক্রেতা",
-      "error": "ক্রেতা গোষ্ঠী লোড করা যায়নি।"
     },
     "list": {
       "searchPlaceholder": "ক্রেতা খুঁজুন",
@@ -5473,7 +5473,6 @@
         "TRANSFER_FEE": "ট্রান্সফার ফি",
         "DEPRECIATION": "অবচয়"
       },
-      "postsTo": "খরচ লেজারে যোগ হবে · {code}",
       "description": "বিবরণ",
       "amount": "পরিমাণ",
       "expenseDate": "খরচের তারিখ",

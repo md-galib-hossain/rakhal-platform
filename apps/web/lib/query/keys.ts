@@ -173,9 +173,8 @@ export const qk = {
   },
   buyers: {
     statement: (id: string, month: string) => ["buyers", "statement", id, month] as const,
-    /** RAKHAL-389 — `GET /buyers/summary`/`.../groups`/`:id/overview` (RAKHAL-372). */
+    /** RAKHAL-389 — `GET /buyers/summary`/`:id/overview` (RAKHAL-372). */
     summaryV2: () => ["buyers", "v2", "summary"] as const,
-    groupsV2: () => ["buyers", "v2", "groups"] as const,
     overviewV2: (id: string) => ["buyers", "v2", "overview", id] as const,
     detailV2: (id: string) => ["buyers", "v2", "detail", id] as const,
   },

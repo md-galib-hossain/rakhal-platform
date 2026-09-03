@@ -4,7 +4,6 @@ import { apiFetch, apiFetchPage } from "@/lib/api/client";
 import type { CursorPage } from "@/types/api";
 import type {
   Buyer,
-  BuyerGroupRow,
   BuyerInvoiceRow,
   BuyerListFilters,
   BuyerListRow,
@@ -48,10 +47,6 @@ export const buyersApi = {
   /** `GET /buyers/summary` (RAKHAL-372) — the AC's 4-stat Buyer Summary. */
   summary(): Promise<BuyersSummary> {
     return apiFetch<BuyersSummary>("/buyers/summary");
-  },
-  /** `GET /buyers/groups` (RAKHAL-372) — Buyer Groups tab, one row per `BuyerType`. */
-  groups(): Promise<BuyerGroupRow[]> {
-    return apiFetch<BuyerGroupRow[]>("/buyers/groups");
   },
   /** `GET /buyers/:id/overview` (RAKHAL-372) — buyer detail page header + Overview tab. */
   overview(id: string): Promise<BuyerOverview> {

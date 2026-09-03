@@ -305,12 +305,12 @@ function ShedFormDialog({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex w-full flex-col sm:max-w-lg">
+      <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>{shed ? t("editTitle") : t("addTitle")}</SheetTitle>
           <SheetDescription>{t("dialogDescription")}</SheetDescription>
         </SheetHeader>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="mt-4 flex flex-col gap-4" noValidate>
           {form.formState.errors.root ? (
             <p role="alert" className="rounded-md bg-destructive-tint px-3 py-2 text-sm text-destructive">
               {form.formState.errors.root.message}
@@ -504,12 +504,12 @@ function FeedGroupFormDialog({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex w-full flex-col sm:max-w-lg">
+      <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>{group ? t("editTitle") : t("addTitle")}</SheetTitle>
           <SheetDescription>{t("dialogDescription")}</SheetDescription>
         </SheetHeader>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="mt-4 flex flex-col gap-4" noValidate>
           {form.formState.errors.root ? (
             <p role="alert" className="rounded-md bg-destructive-tint px-3 py-2 text-sm text-destructive">
               {form.formState.errors.root.message}
@@ -553,7 +553,7 @@ function ConfirmDialog({
   const t = useTranslations("settings.workspace");
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex w-full flex-col sm:max-w-lg">
+      <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>{body}</SheetDescription>
