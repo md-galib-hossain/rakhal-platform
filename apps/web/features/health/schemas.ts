@@ -97,6 +97,7 @@ export const healthPlanStepRowSchema = z.object({
   dayNumber: z.number().int().min(1),
   medicineName: z.string().trim().min(1, "Medicine is required"),
   doseAmount: z.number().min(0).optional(),
+  doseUnit: z.string().trim().optional(),
 });
 export type HealthPlanStepRowInput = z.infer<typeof healthPlanStepRowSchema>;
 
