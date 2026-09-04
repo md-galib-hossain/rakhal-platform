@@ -15,7 +15,7 @@ import {
   UpdateMilkTankDto,
 } from '../../presentation/dto/milk-tank.dto';
 
-type PresentedMilkTank = MilkTank & { fillPct: number };
+type PresentedMilkTank = MilkTank & { fillPct: number; isActive: boolean };
 
 /**
  * Inventory → Milk tab (PRD §15.5, RAKHAL-078): sellable + withholding tanks
@@ -185,6 +185,24 @@ export class MilkTankService {
     return this.present(tank);
   }
 
+  /** Sets this tank as the farm's primary tank for its `tankType` — the Milk Log grid seeds each
+   * row's default tank from this. Only one primary per (farm, tankType); unsets any prior holder
+   * of that type in the same transaction, matching `MilkTank.isPrimary`'s doc-comment invariant. */
+  async setPrimary(farmId: string, id: string): Promise<PresentedMilkTank> {
+    const target = await this.getOrThrow(farmId, id);
+    const tank = await this.prisma.$transaction(async (tx) => {
+      await tx.milkTank.updateMany({
+        where: { farmId, tankType: target.tankType, isPrimary: true },
+        data: { isPrimary: false },
+      });
+      return tx.milkTank.update({
+        where: { id },
+        data: { isPrimary: true },
+      });
+    });
+    return this.present(tank);
+  }
+
   async archive(farmId: string, id: string): Promise<PresentedMilkTank> {
     await this.getOrThrow(farmId, id);
     const tank = await this.prisma.milkTank.update({
@@ -242,6 +260,7 @@ export class MilkTankService {
         tank.totalCapacityL > 0
           ? Math.round((tank.currentVolumeL / tank.totalCapacityL) * 1000) / 10
           : 0,
+      isActive: tank.deletedAt === null,
     };
   }
 }

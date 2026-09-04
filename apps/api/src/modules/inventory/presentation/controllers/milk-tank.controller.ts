@@ -85,6 +85,12 @@ export class MilkTankController {
     return this.milkTankService.update(farmId, id, dto);
   }
 
+  @Post(':id/set-primary')
+  @RequirePermission('inventory.update')
+  setPrimary(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    return this.milkTankService.setPrimary(farmId, id);
+  }
+
   @Post(':id/adjust-volume')
   @RequirePermission('inventory.update')
   adjustVolume(
