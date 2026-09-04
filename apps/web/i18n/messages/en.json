@@ -1749,7 +1749,12 @@
         "snf": "SNF",
         "syncToPhysical": "Sync to Physical",
         "routeSell": "Route/Sell",
-        "routeResolve": "Route/Resolve"
+        "routeResolve": "Route/Resolve",
+        "primaryBadge": "Primary",
+        "makePrimary": "Make primary",
+        "makePrimaryTooltip": "Set as the default tank for this type in the Milk Log",
+        "primarySetToast": "{name} set as primary {type} tank.",
+        "primarySetError": "Could not set this tank as primary. Please try again."
       },
       "form": {
         "editTitle": "Edit Tank",
@@ -2175,6 +2180,7 @@
       "lastActiveSessionCannotLock": "{session} is the only active session left — at least one must stay active.",
       "tankDefaultDescription": "Set a default tank for each type — applies to every row below, and any row can still be changed individually.",
       "tankSelectPlaceholder": "Select a tank",
+      "addNewTank": "Add new tank",
       "sessionAlreadySubmitted": "Already submitted — editing will adjust the tank balance.",
       "editSubmittedTitle": "Edit a submitted entry?",
       "editSubmittedDescription": "One or more of these sessions were already submitted — their tank volume has already moved. Saving will adjust the tank balance to match your changes instead of leaving it out of sync.",
@@ -2964,6 +2970,8 @@
         "medicine": "Medicine",
         "medicinePlaceholder": "e.g. Penicillin G",
         "dose": "Dose",
+        "doseUnit": "Unit",
+        "doseUnitPlaceholder": "ml, mg, bottle",
         "removeDay": "Remove day",
         "addAnotherDay": "Add Another Day",
         "cancel": "Cancel",

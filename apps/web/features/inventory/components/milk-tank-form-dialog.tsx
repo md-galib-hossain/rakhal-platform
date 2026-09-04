@@ -51,8 +51,8 @@ function toUpdatePayload(values: MilkTankFormInput): UpdateMilkTankPayload {
   };
 }
 
-function toFormDefaults(tank: MilkTank | undefined): Partial<MilkTankFormInput> {
-  if (!tank) return { tankType: "SELLABLE", totalCapacityL: 0, currentVolumeL: 0 };
+function toFormDefaults(tank: MilkTank | undefined, defaultTankType: MilkTankType): Partial<MilkTankFormInput> {
+  if (!tank) return { tankType: defaultTankType, totalCapacityL: 0, currentVolumeL: 0 };
   return {
     name: tank.name,
     tankType: tank.tankType,
@@ -113,19 +113,45 @@ export function MilkTankFormDialog({
   open,
   onOpenChange,
   tank,
+  defaultTankType = "SELLABLE",
+  onCreated,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   tank?: MilkTank;
+  /** Pre-selects the tank-type toggle on create — e.g. opened from a WITHHOLDING row's
+   * "Add new tank" dropdown item. Ignored when editing (`tank` set). */
+  defaultTankType?: MilkTankType;
+  /** Fires with the newly created tank after a successful create (not on edit) — lets a caller
+   * like `MilkLogTable`'s per-row picker auto-select the tank it just created. */
+  onCreated?: (tank: MilkTank) => void;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      {open ? <MilkTankFormDialogBody key={tank?.id ?? "create"} onOpenChange={onOpenChange} tank={tank} /> : null}
+      {open ? (
+        <MilkTankFormDialogBody
+          key={tank?.id ?? "create"}
+          onOpenChange={onOpenChange}
+          tank={tank}
+          defaultTankType={defaultTankType}
+          onCreated={onCreated}
+        />
+      ) : null}
     </Sheet>
   );
 }
 
-function MilkTankFormDialogBody({ onOpenChange, tank }: { onOpenChange: (open: boolean) => void; tank?: MilkTank }) {
+function MilkTankFormDialogBody({
+  onOpenChange,
+  tank,
+  defaultTankType,
+  onCreated,
+}: {
+  onOpenChange: (open: boolean) => void;
+  tank?: MilkTank;
+  defaultTankType: MilkTankType;
+  onCreated?: (tank: MilkTank) => void;
+}) {
   const t = useTranslations("inventory.milk.form");
   const isEdit = Boolean(tank);
   const sheds = useShedsForMilkTank();
@@ -135,7 +161,7 @@ function MilkTankFormDialogBody({ onOpenChange, tank }: { onOpenChange: (open: b
 
   const form = useForm<MilkTankFormInput>({
     resolver: zodResolver(milkTankFormSchema),
-    defaultValues: toFormDefaults(tank),
+    defaultValues: toFormDefaults(tank, defaultTankType),
   });
 
   async function onSubmit(values: MilkTankFormInput) {
@@ -143,7 +169,8 @@ function MilkTankFormDialogBody({ onOpenChange, tank }: { onOpenChange: (open: b
       if (isEdit && tank) {
         await updateTank.mutateAsync({ id: tank.id, dto: toUpdatePayload(values) });
       } else {
-        await createTank.mutateAsync(toCreatePayload(values));
+        const created = await createTank.mutateAsync(toCreatePayload(values));
+        onCreated?.(created);
       }
       toast.success(isEdit ? t("updatedToast") : t("createdToast"));
       onOpenChange(false);

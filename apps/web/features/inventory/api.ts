@@ -124,6 +124,10 @@ export const inventoryApi = {
   archiveMilkTank(id: string): Promise<MilkTank> {
     return apiFetch<MilkTank>(`/inventory/milk-tanks/${id}`, { method: "DELETE" });
   },
+  /** Sets this tank as the primary tank for its `tankType` — unsets any prior holder farm-side. */
+  setPrimaryMilkTank(id: string): Promise<MilkTank> {
+    return apiFetch<MilkTank>(`/inventory/milk-tanks/${id}/set-primary`, { method: "POST" });
+  },
   milkTankAuditLog(tankId: string | undefined, cursor?: string, limit = 10): Promise<CursorPage<MilkTankAuditLogEntry>> {
     return apiFetchPage<MilkTankAuditLogEntry>("/inventory/milk-tanks/audit-log", {
       searchParams: { tankId, cursor, limit },

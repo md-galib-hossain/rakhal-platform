@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
-import { ChevronDown, History, Lock, Minus, TrendingDown, TrendingUp, Unlock } from "lucide-react";
+import { ChevronDown, History, Lock, Minus, Plus, TrendingDown, TrendingUp, Unlock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -19,6 +19,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { Can, useCan } from "@/lib/auth/permissions";
 import { useMilkTanks } from "@/features/inventory/hooks/use-inventory";
+import { MilkTankFormDialog } from "@/features/inventory/components/milk-tank-form-dialog";
 import type { MilkTank, MilkTankType as InventoryMilkTankType } from "@/features/inventory/types";
 import { useSaveMilkLog, useSubmitMilk, useUpdateMilkSessions } from "../hooks/use-milk";
 import { MILK_SESSIONS } from "../types";
@@ -80,6 +81,11 @@ const DISPOSITION_VARIANT: Record<MilkDisposition, "primary" | "destructive" | "
 
 const DEFAULT_PAGE_SIZE = 8;
 
+/** Sentinel `SelectItem` value for the always-present "Add new tank" row appended to every tank
+ * dropdown (header default-picker + per-row picker) — Radix Select requires a real string value,
+ * so this is intercepted in each `onValueChange` handler before it ever reaches tank-id state. */
+const ADD_TANK_VALUE = "__add_tank__";
+
 function draftKey(cattleId: string, session: MilkSession): string {
   return `${cattleId}:${session}`;
 }
@@ -99,7 +105,10 @@ function buildInitialDrafts(rows: MilkLogRow[]): Record<string, string> {
 }
 
 // Seeds one tank choice per cow (keyed by cattleId, not per-session — the Tank column is one
-// selection per cow per day) from whichever saved entry already named a tank, if any.
+// selection per cow per day) from whichever saved entry already named a tank, if any. Rows with no
+// saved tank fall back to the farm's primary tank for that type at render/persist time (see
+// `tankIdFor` in `MilkLogTable`) rather than being baked into this initial state — that keeps the
+// primary-tank fallback out of the unsaved-changes (`isDirty`) comparison.
 function buildInitialTankOverrides(rows: MilkLogRow[]): Record<string, string> {
   const overrides: Record<string, string> = {};
   for (const row of rows) {
@@ -107,6 +116,10 @@ function buildInitialTankOverrides(rows: MilkLogRow[]): Record<string, string> {
   }
   return overrides;
 }
+
+/** Stable empty-array reference for `tanksQuery.data ?? EMPTY_TANKS` — `?? []` would allocate a new
+ * array identity every render, defeating `primaryTankByType`'s `useMemo` dependency on `tanks`. */
+const EMPTY_TANKS: MilkTank[] = [];
 
 /** Header control for a session column that's currently locked (not in `activeSessions`) — shows
  * a lock icon; the farm Owner (`settings.milk-sessions-manage`) can click it to unlock, everyone
@@ -230,14 +243,25 @@ function SessionActiveControl({ session, activeSessions }: { session: MilkSessio
 function TankColumnHeaderControl({
   tanks,
   onSetDefault,
+  onCreateTank,
 }: {
   tanks: MilkTank[];
   onSetDefault: (tankType: InventoryMilkTankType, tankId: string) => void;
+  onCreateTank: (tankType: InventoryMilkTankType) => void;
 }) {
   const t = useTranslations("milk.log");
   const [open, setOpen] = useState(false);
   const sellable = tanks.filter((tk) => tk.tankType === "SELLABLE" && tk.isActive);
   const withholding = tanks.filter((tk) => tk.tankType === "WITHHOLDING" && tk.isActive);
+
+  function handleChange(tankType: InventoryMilkTankType, v: string) {
+    if (v === ADD_TANK_VALUE) {
+      setOpen(false);
+      onCreateTank(tankType);
+      return;
+    }
+    onSetDefault(tankType, v);
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -254,7 +278,7 @@ function TankColumnHeaderControl({
         <p className="text-xs text-muted-foreground">{t("tankDefaultDescription")}</p>
         <div className="space-y-1.5">
           <span className="text-xs font-medium text-foreground">{t("tankSellable")}</span>
-          <Select onValueChange={(v) => onSetDefault("SELLABLE", v)}>
+          <Select onValueChange={(v) => handleChange("SELLABLE", v)}>
             <SelectTrigger size="sm" className="text-xs">
               <SelectValue placeholder={t("tankSelectPlaceholder")} />
             </SelectTrigger>
@@ -264,12 +288,18 @@ function TankColumnHeaderControl({
                   {tk.name}
                 </SelectItem>
               ))}
+              <SelectItem value={ADD_TANK_VALUE} className="text-primary">
+                <span className="inline-flex items-center gap-1">
+                  <Plus className="size-3.5 shrink-0" aria-hidden />
+                  {t("addNewTank")}
+                </span>
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1.5">
           <span className="text-xs font-medium text-foreground">{t("tankWithholding")}</span>
-          <Select onValueChange={(v) => onSetDefault("WITHHOLDING", v)}>
+          <Select onValueChange={(v) => handleChange("WITHHOLDING", v)}>
             <SelectTrigger size="sm" className="text-xs">
               <SelectValue placeholder={t("tankSelectPlaceholder")} />
             </SelectTrigger>
@@ -279,6 +309,12 @@ function TankColumnHeaderControl({
                   {tk.name}
                 </SelectItem>
               ))}
+              <SelectItem value={ADD_TANK_VALUE} className="text-primary">
+                <span className="inline-flex items-center gap-1">
+                  <Plus className="size-3.5 shrink-0" aria-hidden />
+                  {t("addNewTank")}
+                </span>
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -313,6 +349,19 @@ export function MilkLogTable({
   const t = useTranslations("milk.log");
   const saveLog = useSaveMilkLog();
   const submitMilk = useSubmitMilk();
+  const tanksQuery = useMilkTanks({});
+  const tanks = tanksQuery.data ?? EMPTY_TANKS;
+  // The farm's primary tank per type (`MilkTank.isPrimary`, set via "Make primary" on the tank
+  // card) — read at render/persist time via `tankIdFor` below, not baked into `tankOverrides`
+  // state, so a fresh day's log starts pre-filled without that fallback ever counting as a
+  // user "change" (see `isDirty`).
+  const primaryTankByType = useMemo(() => {
+    const map: Partial<Record<InventoryMilkTankType, string>> = {};
+    for (const tk of tanks) {
+      if (tk.isPrimary && tk.isActive) map[tk.tankType] = tk.id;
+    }
+    return map;
+  }, [tanks]);
   const initialDrafts = useMemo(() => buildInitialDrafts(entries), [entries]);
   const initialTankOverrides = useMemo(() => buildInitialTankOverrides(entries), [entries]);
   const [drafts, setDrafts] = useState<Record<string, string>>(() => initialDrafts);
@@ -320,10 +369,11 @@ export function MilkLogTable({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const inputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
-  const tanksQuery = useMilkTanks({});
-  const tanks = tanksQuery.data ?? [];
   const [confirmEditOpen, setConfirmEditOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<"save" | "submit" | null>(null);
+  // Which row (if any) triggered "Add new tank" from its own dropdown — set as the default
+  // tank override for that cow once the create succeeds, via MilkTankFormDialog's `defaultTankType`.
+  const [addTankFor, setAddTankFor] = useState<{ cattleId: string | null; tankType: InventoryMilkTankType } | null>(null);
 
   const isDirty = useMemo(() => {
     for (const key of Object.keys(drafts)) {
@@ -334,6 +384,13 @@ export function MilkLogTable({
     }
     return false;
   }, [drafts, tankOverrides, initialDrafts, initialTankOverrides]);
+
+  // Effective tank for a row: the saved/user-picked value in `tankOverrides` state, falling back
+  // to that type's primary tank — computed at read time (render + persist) rather than stored, so
+  // the fallback never has to be reconciled back into state once `tanks` finishes loading.
+  function tankIdFor(row: MilkLogRow): string {
+    return tankOverrides[row.cattleId] ?? primaryTankByType[row.withholding ? "WITHHOLDING" : "SELLABLE"] ?? "";
+  }
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -440,7 +497,7 @@ export function MilkLogTable({
         .map((row) => ({
           cattleId: row.cattleId,
           yieldL: Number(drafts[draftKey(row.cattleId, session)]),
-          tankId: tankOverrides[row.cattleId],
+          tankId: tankIdFor(row),
           editReason: row.log.submittedSessions.includes(session)
             ? "Edited after submit via Milk Log"
             : undefined,
@@ -575,7 +632,11 @@ export function MilkLogTable({
                     ),
                   )}
                   <TableHead>
-                    <TankColumnHeaderControl tanks={tanks} onSetDefault={handleSetDefaultTank} />
+                    <TankColumnHeaderControl
+                    tanks={tanks}
+                    onSetDefault={handleSetDefaultTank}
+                    onCreateTank={(tankType) => setAddTankFor({ cattleId: null, tankType })}
+                  />
                   </TableHead>
                   <TableHead>{t("columns.total")}</TableHead>
                 </TableRow>
@@ -675,11 +736,17 @@ export function MilkLogTable({
                     )}
                     <TableCell>
                       <Select
-                        value={tankOverrides[row.cattleId] ?? ""}
-                        onValueChange={(v) => setTankOverrides((prev) => ({ ...prev, [row.cattleId]: v }))}
+                        value={tankIdFor(row)}
+                        onValueChange={(v) => {
+                          if (v === ADD_TANK_VALUE) {
+                            setAddTankFor({ cattleId: row.cattleId, tankType: row.withholding ? "WITHHOLDING" : "SELLABLE" });
+                            return;
+                          }
+                          setTankOverrides((prev) => ({ ...prev, [row.cattleId]: v }));
+                        }}
                       >
                         <SelectTrigger size="sm" className="w-[130px] rounded-sm border-none bg-card px-1.5 text-xs shadow-card">
-                          <SelectValue placeholder={row.withholding ? t("tankWithholding") : t("tankSellable")} />
+                          <SelectValue placeholder={t("tankSelectPlaceholder")} />
                         </SelectTrigger>
                         <SelectContent>
                           {tanks
@@ -689,6 +756,12 @@ export function MilkLogTable({
                                 {tk.name}
                               </SelectItem>
                             ))}
+                          <SelectItem value={ADD_TANK_VALUE} className="text-primary">
+                            <span className="inline-flex items-center gap-1">
+                              <Plus className="size-3.5 shrink-0" aria-hidden />
+                              {t("addNewTank")}
+                            </span>
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </TableCell>
@@ -751,6 +824,18 @@ export function MilkLogTable({
         confirmLabel={t("editSubmittedConfirm")}
         variant="primary"
         onConfirm={handleConfirmEdit}
+      />
+      <MilkTankFormDialog
+        open={addTankFor != null}
+        onOpenChange={(open) => {
+          if (!open) setAddTankFor(null);
+        }}
+        defaultTankType={addTankFor?.tankType ?? "SELLABLE"}
+        onCreated={(created) => {
+          if (addTankFor?.cattleId) {
+            setTankOverrides((prev) => ({ ...prev, [addTankFor.cattleId as string]: created.id }));
+          }
+        }}
       />
     </>
   );

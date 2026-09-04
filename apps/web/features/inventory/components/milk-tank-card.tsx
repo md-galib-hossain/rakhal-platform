@@ -1,8 +1,12 @@
-"use client"; // action button callbacks
+"use client"; // action button callbacks + mutation
 
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
+import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
+import { useSetPrimaryMilkTank } from "../hooks/use-inventory";
 import type { MilkTank } from "../types";
 
 /**
@@ -54,6 +58,16 @@ function MetricTile({ label, value }: { label: string; value: string }) {
 export function MilkTankCard({ tank, onSync }: { tank: MilkTank; onSync: (tank: MilkTank) => void }) {
   const t = useTranslations("inventory.milk.tankCard");
   const isSellable = tank.tankType === "SELLABLE";
+  const setPrimary = useSetPrimaryMilkTank();
+
+  async function handleMakePrimary() {
+    try {
+      await setPrimary.mutateAsync(tank.id);
+      toast.success(t("primarySetToast", { name: tank.name, type: isSellable ? t("badgeSellable") : t("badgeWithholding") }));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("primarySetError"));
+    }
+  }
 
   return (
     <div className="relative overflow-hidden rounded-2xl bg-card p-4 shadow-[0px_0px_6px_0px_rgba(0,0,0,0.1)]">
@@ -69,7 +83,15 @@ export function MilkTankCard({ tank, onSync }: { tank: MilkTank; onSync: (tank: 
       <div className="flex items-end gap-5">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <p className="truncate text-xl font-bold text-foreground">{tank.name}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="truncate text-xl font-bold text-foreground">{tank.name}</p>
+              {tank.isPrimary ? (
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success-tint px-2 py-0.5 text-[10px] font-semibold text-success">
+                  <Star className="size-3 shrink-0 fill-current" aria-hidden />
+                  {t("primaryBadge")}
+                </span>
+              ) : null}
+            </div>
             <p className="text-xs text-muted-foreground">{t("totalCapacity", { value: tank.totalCapacityL })}</p>
           </div>
           <div className="flex flex-1 flex-col gap-3">
@@ -84,6 +106,20 @@ export function MilkTankCard({ tank, onSync }: { tank: MilkTank; onSync: (tank: 
       </div>
 
       <div className="mt-4 flex items-center gap-2">
+        {tank.isPrimary ? null : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 shrink-0 px-2 text-xs"
+            title={t("makePrimaryTooltip")}
+            aria-label={t("makePrimary")}
+            disabled={setPrimary.isPending}
+            onClick={handleMakePrimary}
+          >
+            <Star className="size-3.5 shrink-0" aria-hidden />
+          </Button>
+        )}
         <Button type="button" variant="outline" size="sm" className="h-8 flex-1 text-xs" onClick={() => onSync(tank)}>
           {t("syncToPhysical")}
         </Button>

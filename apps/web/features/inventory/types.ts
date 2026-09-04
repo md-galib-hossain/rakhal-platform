@@ -269,6 +269,7 @@ export interface MilkTank {
   agitationIntervalMin: number | null;
   assignedShedId: string | null;
   isActive: boolean;
+  isPrimary: boolean;
   createdBy: string;
   createdAt: string;
   updatedAt: string;

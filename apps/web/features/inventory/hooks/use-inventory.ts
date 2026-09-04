@@ -241,6 +241,14 @@ export function useArchiveMilkTank() {
   });
 }
 
+export function useSetPrimaryMilkTank() {
+  const invalidate = useInvalidateMilkTank();
+  return useMutation({
+    mutationFn: (id: string) => inventoryApi.setPrimaryMilkTank(id),
+    onSuccess: () => invalidate(),
+  });
+}
+
 /** Same shared-pager adapter as `useMedicinePagedList`/`useFeedItemPagedList`, over the cursor-only
  * `GET /inventory/milk-tanks/audit-log`. Default 10/page (denser log rows) — no page-size selector
  * exposed for this one, `initialPageSize` just keeps its previous fixed page size. */

@@ -78,6 +78,7 @@ function toFormDefaults(plan: HealthPlanListItem | undefined): Partial<CreateHea
       dayNumber: step.dayNumber,
       medicineName: step.medicineName ?? "",
       doseAmount: step.doseAmount ?? undefined,
+      doseUnit: step.doseUnit ?? "",
     })),
   };
 }
@@ -268,8 +269,11 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
                           error={form.formState.errors.steps?.[index]?.medicineName?.message}
                         />
                       </div>
-                      <div className="w-[72px] shrink-0">
+                      <div className="w-[64px] shrink-0">
                         <LabeledInput id={`steps.${index}.doseAmount`} type="number" min={0} label={t("dose")} {...form.register(`steps.${index}.doseAmount`, numberField)} />
+                      </div>
+                      <div className="w-[64px] shrink-0">
+                        <LabeledInput id={`steps.${index}.doseUnit`} label={t("doseUnit")} placeholder={t("doseUnitPlaceholder")} {...form.register(`steps.${index}.doseUnit`)} />
                       </div>
                     </div>
                     <button

@@ -5,7 +5,6 @@ import { MilkKeyMetricsCard } from "@/features/milk/components/milk-key-metrics-
 import { MilkTrendChart } from "@/features/milk/components/milk-trend-chart";
 import { MilkLogSection } from "@/features/milk/components/milk-log-section";
 import { MilkAnomaliesPanel } from "@/features/milk/components/milk-anomalies-panel";
-import { SellMilkButton } from "@/features/milk/components/sell-milk-button";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("nav");
@@ -26,7 +25,7 @@ export default async function MilkPage() {
   const t = await getTranslations("nav");
 
   return (
-    <PageCard title={t("milk")} actions={<SellMilkButton />}>
+    <PageCard title={t("milk")}>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         <div className="lg:col-span-2">
           <MilkKeyMetricsCard />
