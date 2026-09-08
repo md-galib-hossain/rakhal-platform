@@ -17,6 +17,7 @@ import { AdminReconciliationController } from './presentation/controllers/admin-
 import { AdminAuditController } from './presentation/controllers/admin-audit.controller';
 import { AdminHealthController } from './presentation/controllers/admin-health.controller';
 import { AdminFeedIngredientController } from './presentation/controllers/admin-feed-ingredient.controller';
+import { AdminRequirementPresetController } from './presentation/controllers/admin-requirement-preset.controller';
 import { AdminSystemController } from './presentation/controllers/admin-system.controller';
 import { AdminUserSessionController } from './presentation/controllers/admin-user-session.controller';
 
@@ -47,6 +48,7 @@ import { AdminUserSessionController } from './presentation/controllers/admin-use
     AdminAuditController,
     AdminHealthController,
     AdminFeedIngredientController,
+    AdminRequirementPresetController,
     AdminSystemController,
     AdminUserSessionController,
   ],

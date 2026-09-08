@@ -10,7 +10,9 @@ import { FinanceV2AccountsModule } from '../finance-v2/accounts/finance-v2-accou
 import { FeedConcentrationService } from './application/services/feed-concentration.service';
 import { FeedGroupAssignService } from './application/services/feed-group-assign.service';
 import { FeedIngredientService } from './application/services/feed-ingredient.service';
+import { AuditModule } from 'src/modules/audit/audit.module';
 import { FeedRequirementsService } from './application/services/feed-requirements.service';
+import { RequirementSettingsService } from './application/services/requirement-settings.service';
 import { FeedDistributionService } from './application/services/feed-distribution.service';
 import { FeedStockService } from './application/services/feed-stock.service';
 import { FeedRationResolverService } from './application/services/feed-ration-resolver.service';
@@ -35,6 +37,7 @@ import { FeedController } from './presentation/controllers/feed.controller';
 @Module({
   imports: [
     AuthModule,
+    AuditModule,
     LoggerModule,
     TenantAccessModule,
     PermissionModule,
@@ -47,6 +50,7 @@ import { FeedController } from './presentation/controllers/feed.controller';
   providers: [
     FeedIngredientService,
     FeedRequirementsService,
+    RequirementSettingsService,
     FeedConcentrationService,
     FeedGroupAssignService,
     FeedDistributionService,
@@ -56,6 +60,7 @@ import { FeedController } from './presentation/controllers/feed.controller';
   ],
   exports: [
     FeedIngredientService,
+    RequirementSettingsService,
     FeedConcentrationService,
     FeedDistributionService,
   ],

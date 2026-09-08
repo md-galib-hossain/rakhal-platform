@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -22,6 +23,7 @@ import { FeedConcentrationService } from '../../application/services/feed-concen
 import { FeedGroupAssignService } from '../../application/services/feed-group-assign.service';
 import { FeedIngredientService } from '../../application/services/feed-ingredient.service';
 import { FeedRequirementsService } from '../../application/services/feed-requirements.service';
+import { RequirementSettingsService } from '../../application/services/requirement-settings.service';
 import { FeedDistributionService } from '../../application/services/feed-distribution.service';
 import { FeedStockService } from '../../application/services/feed-stock.service';
 import { FeedRationResolverService } from '../../application/services/feed-ration-resolver.service';
@@ -38,6 +40,7 @@ import {
 import { ListIngredientsQueryDto } from '../dto/list-ingredients-query.dto';
 import { ListFeedStockQueryDto } from '../dto/list-feed-stock-query.dto';
 import { FeedRequirementsQueryDto } from '../dto/feed-requirements-query.dto';
+import { UpdateRequirementSettingsDto } from '../dto/update-requirement-settings.dto';
 import { SetFeedOverrideDto } from '../dto/set-feed-override.dto';
 import { CreateCustomIngredientDto } from '../dto/create-custom-ingredient.dto';
 import { UpdateCustomIngredientDto } from '../dto/update-custom-ingredient.dto';
@@ -75,6 +78,7 @@ export class FeedController {
   constructor(
     private readonly ingredients: FeedIngredientService,
     private readonly requirements: FeedRequirementsService,
+    private readonly requirementSettings: RequirementSettingsService,
     private readonly concentrations: FeedConcentrationService,
     private readonly groups: FeedGroupAssignService,
     private readonly distributions: FeedDistributionService,
@@ -167,6 +171,47 @@ export class FeedController {
   @RequirePermission('feed.read')
   todaysRequirement(@CurrentFarmId() farmId: string) {
     return this.requirements.getTodaysRequirement(farmId);
+  }
+
+  // ---- Requirement settings (RAKHAL-409, PRD §12.13) ----------------------
+  /**
+   * The tuning numbers behind every requirement calculation: the effective values, the
+   * layers that produced them (farm changes -> active preset -> built-in defaults), and
+   * the field metadata an editor needs to render them.
+   */
+  @Get('requirement-settings')
+  @RequirePermission('feed.read')
+  getRequirementSettings(@CurrentFarmId() farmId: string) {
+    return this.requirementSettings.describe(farmId);
+  }
+
+  /**
+   * Change this farm's requirement model. Sparse — only the supplied fields are stored.
+   * Applies to future calculations only; nothing already saved is recomputed.
+   */
+  @Put('requirement-settings')
+  @RequirePermission('feed.update')
+  updateRequirementSettings(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Body() dto: UpdateRequirementSettingsDto,
+  ) {
+    return this.requirementSettings.saveFarmChanges(
+      farmId,
+      userId,
+      dto.changes,
+      dto.notes,
+    );
+  }
+
+  /** Drop this farm's changes and go back to the standard model. */
+  @Delete('requirement-settings')
+  @RequirePermission('feed.update')
+  resetRequirementSettings(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+  ) {
+    return this.requirementSettings.resetFarmChanges(farmId, userId);
   }
 
   // ---- Concentration templates -------------------------------------------

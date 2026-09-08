@@ -24,6 +24,7 @@ import {
   normalize,
 } from '../../domain/formula-math';
 import { computeRequirements, Requirements } from '../../domain/requirements';
+import { RequirementSettingsService } from './requirement-settings.service';
 import {
   CreateConcentrationDto,
   NormalizeConcentrationDto,
@@ -57,6 +58,7 @@ export class FeedConcentrationService {
     private readonly logger: LoggerService,
     private readonly feedStock: FeedStockService,
     private readonly feedRequirements: FeedRequirementsService,
+    private readonly requirementSettings: RequirementSettingsService,
     private readonly journalService: JournalService,
     private readonly ledgerAccountService: LedgerAccountService,
     private readonly financialAccountService: FinancialAccountService,
@@ -648,11 +650,17 @@ export class FeedConcentrationService {
       farmId,
       dto.items.map((i) => i.ingredientId),
     );
-    const req = computeRequirements({
-      weightKg: dto.weightKg,
-      milkTargetL: dto.milkTargetL,
-      milkFatPct: dto.milkFatPct,
-    });
+    // RAKHAL-411: the farm's own tuned model, not the built-in defaults — otherwise a
+    // farm that adjusted its settings would still be balanced against stock numbers here.
+    const settings = await this.requirementSettings.resolve(farmId);
+    const req = computeRequirements(
+      {
+        weightKg: dto.weightKg,
+        milkTargetL: dto.milkTargetL,
+        milkFatPct: dto.milkFatPct,
+      },
+      settings,
+    );
     const lines: FormulaLine[] = dto.items.map((i) => ({
       ingredientId: i.ingredientId,
       amountKg: i.amountKg,
@@ -686,12 +694,20 @@ export class FeedConcentrationService {
     }));
     const comp = computeTotals(lines, effById);
 
+    // RAKHAL-411: resolved through the settings seam so a saved ration is scored against
+    // the farm's own model. Still uses the ration's stored target weight/milk rather than
+    // the live cow record — folding in BCS/gestation/days-in-milk here would change every
+    // saved ration's balance score and needs batching first (see the ticket's Notes).
+    const settings = await this.requirementSettings.resolve(farmId);
     const req: Requirements | null =
       row.targetWeightKg != null && row.targetMilkL != null
-        ? computeRequirements({
-            weightKg: row.targetWeightKg,
-            milkTargetL: row.targetMilkL,
-          })
+        ? computeRequirements(
+            {
+              weightKg: row.targetWeightKg,
+              milkTargetL: row.targetMilkL,
+            },
+            settings,
+          )
         : null;
     const balance = req ? balanceScore(comp.totals, req) : null;
 

@@ -68,6 +68,7 @@ model Farm {
   feedIngredientOverrides FeedIngredientOverride[] @relation("FarmToFeedIngredientOverride")
   feedConcentrations      FeedConcentration[]      @relation("FarmToFeedConcentration")
   feedConcentrationVersions FeedConcentrationVersion[] @relation("FarmToFeedConcentrationVersion")
+  requirementSettings       FarmRequirementSettings?   @relation("FarmToRequirementSettings")
   fixedAssets         FixedAsset[]         @relation("FarmToFixedAsset")
   invitations         FarmInvitation[]     @relation("FarmToInvitation")
   suppliers           Supplier[]           @relation("FarmToSupplier")

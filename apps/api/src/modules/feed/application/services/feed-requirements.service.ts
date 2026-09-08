@@ -13,6 +13,7 @@ import {
   RequirementsInput,
 } from '../../domain/requirements';
 import { FeedRequirementsQueryDto } from '../../presentation/dto/feed-requirements-query.dto';
+import { RequirementSettingsService } from './requirement-settings.service';
 
 const MS_PER_DAY = 86_400_000;
 
@@ -27,6 +28,7 @@ export class FeedRequirementsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly milk: MilkService,
+    private readonly requirementSettings: RequirementSettingsService,
   ) {}
 
   async calc(farmId: string, query: FeedRequirementsQueryDto) {
@@ -34,20 +36,24 @@ export class FeedRequirementsService {
       return this.calcForCattle(farmId, query.cattleId, query);
     if (query.feedGroupId)
       return this.calcForFeedGroup(farmId, query.feedGroupId, query);
-    return this.calcManual(query);
+    return this.calcManual(query, farmId);
   }
 
-  private calcManual(query: FeedRequirementsQueryDto) {
-    const req = computeRequirements({
-      weightKg: query.weightKg as number,
-      milkTargetL: query.milkTargetL as number,
-      milkFatPct: query.milkFatPct,
-      milkProteinPct: query.milkProteinPct,
-      gestationDays: query.gestationDays,
-      bcs: query.bcs,
-      dim: query.dim,
-      animalType: query.animalType,
-    });
+  private async calcManual(query: FeedRequirementsQueryDto, farmId: string) {
+    const settings = await this.requirementSettings.resolve(farmId);
+    const req = computeRequirements(
+      {
+        weightKg: query.weightKg as number,
+        milkTargetL: query.milkTargetL as number,
+        milkFatPct: query.milkFatPct,
+        milkProteinPct: query.milkProteinPct,
+        gestationDays: query.gestationDays,
+        bcs: query.bcs,
+        dim: query.dim,
+        animalType: query.animalType,
+      },
+      settings,
+    );
     return {
       inputs: {
         weight_kg: query.weightKg as number,
@@ -130,7 +136,8 @@ export class FeedRequirementsService {
       dim: query.dim,
       animalType,
     };
-    const req = computeRequirements(input);
+    const settings = await this.requirementSettings.resolve(farmId);
+    const req = computeRequirements(input, settings);
 
     return {
       inputs: {
@@ -198,16 +205,20 @@ export class FeedRequirementsService {
     const milkTargetL = avg(yields) ?? query.milkTargetL ?? 0;
     const bcs = avg(bcsValues);
 
-    const req = computeRequirements({
-      weightKg,
-      milkTargetL,
-      milkFatPct: query.milkFatPct,
-      milkProteinPct: query.milkProteinPct,
-      gestationDays: query.gestationDays,
-      bcs: query.bcs ?? bcs,
-      dim: query.dim,
-      animalType: query.animalType,
-    });
+    const settings = await this.requirementSettings.resolve(farmId);
+    const req = computeRequirements(
+      {
+        weightKg,
+        milkTargetL,
+        milkFatPct: query.milkFatPct,
+        milkProteinPct: query.milkProteinPct,
+        gestationDays: query.gestationDays,
+        bcs: query.bcs ?? bcs,
+        dim: query.dim,
+        animalType: query.animalType,
+      },
+      settings,
+    );
 
     return {
       inputs: {
@@ -238,6 +249,96 @@ export class FeedRequirementsService {
   }
 
   /**
+   * What the whole active herd needs today, from live cattle records (RAKHAL-412).
+   *
+   * The same averaging `calcForFeedGroup` does, across every active cow instead of one
+   * group. Returns `null` for a farm with no cattle — the caller reports that rather than
+   * inventing a number.
+   */
+  private async herdRequirementBlock(farmId: string) {
+    const cattle = await this.prisma.cattle.findMany({
+      where: activeHerd(farmId),
+      select: { id: true, lastWeightKg: true, lastBcs: true },
+    });
+    if (cattle.length === 0) return null;
+
+    const weights = cattle
+      .map((c) => c.lastWeightKg)
+      .filter((w): w is number => w != null);
+    if (weights.length === 0) return null;
+
+    const avgYields = await this.milk.averageDailyYield(
+      farmId,
+      cattle.map((c) => c.id),
+    );
+    const yields = cattle
+      .map((c) => avgYields.get(c.id))
+      .filter((y): y is number => y != null);
+    const bcsValues = cattle
+      .map((c) => c.lastBcs)
+      .filter((b): b is number => b != null);
+
+    const weightKg = avg(weights) as number;
+    const milkTargetL = avg(yields) ?? 0;
+    const bcs = avg(bcsValues);
+    const settings = await this.requirementSettings.resolve(farmId);
+    const req = computeRequirements(
+      { weightKg, milkTargetL, bcs: bcs ?? undefined },
+      settings,
+    );
+
+    return {
+      headcount: cattle.length,
+      inputs: {
+        weight_kg: round2(weightKg),
+        milk_target_l: round2(milkTargetL),
+        bcs: bcs != null ? round2(bcs) : null,
+        cattle_with_weight: weights.length,
+        cattle_with_milk_data: yields.length,
+      },
+      data_source: {
+        weight: 'cattle_record_avg',
+        milk_yield: yields.length > 0 ? 'milk_log_7d_avg' : 'assumed_zero',
+      },
+      per_cow: this.reqShape(req),
+      herd_total: this.reqShape(scaleRequirements(req, cattle.length)),
+    };
+  }
+
+  /**
+   * Per-feed-group requirement for every group that has cattle in it (RAKHAL-412).
+   * Groups with no active cattle are skipped rather than reported as zero.
+   */
+  private async groupRequirementBlocks(farmId: string) {
+    const groups = await this.prisma.feedGroup.findMany({
+      where: { farmId, deletedAt: null },
+      select: { id: true, name: true },
+    });
+
+    const blocks = await Promise.all(
+      groups.map(async (g) => {
+        try {
+          const res = await this.calcForFeedGroup(farmId, g.id, {});
+          return {
+            feed_group_id: g.id,
+            name: g.name,
+            headcount: res.inputs.headcount,
+            per_cow: res.per_cow,
+            group_total: res.group_total,
+            data_source: res.data_source,
+          };
+        } catch {
+          // An empty group, or one whose cattle have no recorded weight, has nothing to
+          // compute from — omit it rather than reporting a fabricated zero.
+          return null;
+        }
+      }),
+    );
+
+    return blocks.filter((b): b is NonNullable<typeof b> => b !== null);
+  }
+
+  /**
    * Farm-wide "Today's Feed Requirement" rollup (2026-08-13, user request — doc's §5/§12
    * mockup: "Corn silage 300kg, Grass 180kg..."). Every active `FEED_MIXTURE` concentration's
    * per-cow-per-day ingredient lines, multiplied by that ration's resolved headcount (GROUP =
@@ -245,12 +346,28 @@ export class FeedRequirementsService {
    * by ingredient across every ration on the farm. Read-only aggregation, no persisted state.
    */
   async getTodaysRequirement(farmId: string) {
-    const rations = await this.prisma.feedConcentration.findMany({
-      where: { farmId, deletedAt: null, kind: 'FEED_MIXTURE' },
-      include: { items: true },
-    });
+    const [rations, requirement, byGroupRequirement] = await Promise.all([
+      this.prisma.feedConcentration.findMany({
+        where: { farmId, deletedAt: null, kind: 'FEED_MIXTURE' },
+        include: { items: true },
+      }),
+      this.herdRequirementBlock(farmId),
+      this.groupRequirementBlocks(farmId),
+    ]);
+
+    // RAKHAL-412: what the animals need is computed from live cattle records and is
+    // returned whether or not a ration exists. Before this, a farm with no TMR got an
+    // empty payload and the Feeding page told it to go build one first — the requirement
+    // does not depend on having a ration, only on having cows.
     if (rations.length === 0) {
-      return { by_ingredient: [], by_group: [], grand_total_kg: 0 };
+      return {
+        by_ingredient: [],
+        by_group: [],
+        grand_total_kg: 0,
+        requirement,
+        by_group_requirement: byGroupRequirement,
+        has_active_ration: false,
+      };
     }
 
     const groupIds = [
@@ -353,6 +470,9 @@ export class FeedRequirementsService {
       grand_total_kg: round2(
         byIngredient.reduce((sum, i) => sum + i.total_kg, 0),
       ),
+      requirement,
+      by_group_requirement: byGroupRequirement,
+      has_active_ration: true,
     };
   }
 
@@ -406,6 +526,10 @@ export class FeedRequirementsService {
 }
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
+
+/** Mean of the values present, or `null` when there are none — never a fabricated zero. */
+const avg = (values: number[]): number | null =>
+  values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
 
 function scaleRequirements(req: Requirements, factor: number): Requirements {
   return {
