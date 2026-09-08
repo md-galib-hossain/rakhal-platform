@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { NutritionSource } from '@prisma/client';
+import { NutritionSource, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 
@@ -117,47 +117,91 @@ export class FeedStockService {
     }
   }
 
-  /** Decrement a stock lot for a logged distribution (validated + transactional + audited, same
-   * shape as `MedicineService.decrementForTreatment`). */
+  /**
+   * Decrement a stock lot for a logged distribution (validated + audited, same shape as
+   * `MedicineService.decrementForTreatment`).
+   *
+   * RD-036 fixed two separate races here:
+   *
+   * 1. **Lost updates.** This used to read `currentStockKg`, subtract in JavaScript, then write the
+   *    result. Two concurrent distributions could both read 10, both write 5, and 10 kg of feed
+   *    would leave the yard having decremented 5. The write is now a single conditional
+   *    `updateMany` guarded on `currentStockKg >= quantity`, so the database itself rejects the
+   *    second one — there is no read-modify-write window left to lose.
+   * 2. **Split commits.** The caller used to create the distribution row in its own transaction and
+   *    call this afterwards, so a failure here left a distribution logged against stock that never
+   *    moved. Pass `tx` and the decrement joins the caller's transaction, committing or rolling
+   *    back with it.
+   *
+   * Called without `tx` it still opens its own transaction, so the standalone callers are unchanged.
+   */
   async decrementForDistribution(
     farmId: string,
     userId: string,
     opts: { stockId: string; quantity: number; distributionId?: string },
+    tx?: Prisma.TransactionClient,
   ) {
-    const stock = await this.prisma.feedStock.findFirst({
-      where: { id: opts.stockId, farmId, deletedAt: null },
-    });
-    if (!stock) throw new NotFoundException('Feed stock lot not found');
     if (opts.quantity <= 0) {
       throw new BadRequestException('Quantity must be positive');
     }
-    if (stock.currentStockKg < opts.quantity) {
-      throw new BadRequestException(
-        `Insufficient feed stock: ${stock.currentStockKg}kg available, ${opts.quantity}kg requested`,
-      );
-    }
 
-    const newStock = round2(stock.currentStockKg - opts.quantity);
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const s = await tx.feedStock.update({
-        where: { id: stock.id },
-        data: { currentStockKg: newStock },
+    const run = async (client: Prisma.TransactionClient) => {
+      // Conditional decrement: the `gte` guard is the concurrency control. `count === 0` means
+      // either the lot is gone or somebody else got the stock first — both are worth telling the
+      // caller apart, so the slow path only runs when we already know we are failing.
+      const applied = await client.feedStock.updateMany({
+        where: {
+          id: opts.stockId,
+          farmId,
+          deletedAt: null,
+          currentStockKg: { gte: opts.quantity },
+        },
+        data: { currentStockKg: { decrement: opts.quantity } },
       });
-      await tx.feedStockMovement.create({
+
+      if (applied.count === 0) {
+        const stock = await client.feedStock.findFirst({
+          where: { id: opts.stockId, farmId, deletedAt: null },
+        });
+        if (!stock) throw new NotFoundException('Feed stock lot not found');
+        throw new BadRequestException(
+          `Insufficient feed stock: ${stock.currentStockKg}kg available, ${opts.quantity}kg requested`,
+        );
+      }
+
+      // `decrement` leaves float noise (10 - 0.1 - 0.2 style); normalise to the 2dp this service
+      // stores everywhere else. Inside the same transaction, so it cannot reintroduce a race.
+      const after = await client.feedStock.findUniqueOrThrow({
+        where: { id: opts.stockId },
+      });
+      const rounded = round2(after.currentStockKg);
+      const settled =
+        rounded === after.currentStockKg
+          ? after
+          : await client.feedStock.update({
+              where: { id: opts.stockId },
+              data: { currentStockKg: rounded },
+            });
+
+      await client.feedStockMovement.create({
         data: {
-          stockId: stock.id,
+          stockId: opts.stockId,
           changeKg: round2(-opts.quantity),
           reason: 'FED',
           distributionId: opts.distributionId ?? null,
           createdBy: userId,
         },
       });
-      return s;
-    });
+      return settled;
+    };
+
+    const updated = tx
+      ? await run(tx)
+      : await this.prisma.$transaction((client) => run(client));
 
     this.log.info('Feed stock decremented', {
       farmId,
-      stockId: stock.id,
+      stockId: opts.stockId,
       quantity: opts.quantity,
       distributionId: opts.distributionId,
     });

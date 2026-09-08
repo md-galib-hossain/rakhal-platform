@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
+import { seededCashAccountId } from './utils/finance';
 
 /**
  * Feed Formulator — Phase 4 + Phase 12.4 of the epic in
@@ -19,6 +20,8 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 describe('Feed Formulator — distribution decrements a named feed stock lot (e2e)', () => {
   let ctx: TestContext;
   let owner: AuthedUser;
+  /** RD-077: RAKHAL-393 made this mandatory on a TMR finalize. */
+  let financialAccountId: string;
   let ingredientId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
@@ -31,6 +34,7 @@ describe('Feed Formulator — distribution decrements a named feed stock lot (e2
   beforeAll(async () => {
     ctx = await createTestApp();
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
+    financialAccountId = await seededCashAccountId(ctx, owner);
 
     const created = await request(server())
       .post(api('/feed/ingredients/custom'))
@@ -70,7 +74,7 @@ describe('Feed Formulator — distribution decrements a named feed stock lot (e2
     const finalized = await request(server())
       .post(api(`/feed/concentrations/${conc.body.data.id}/finalize`))
       .set(...auth(owner))
-      .send({ paymentMethod: 'CASH' })
+      .send({ paymentMethod: 'CASH', financialAccountId })
       .expect(201);
     return {
       concentrationId: conc.body.data.id as string,

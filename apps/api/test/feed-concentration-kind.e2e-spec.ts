@@ -1,6 +1,7 @@
 ﻿import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
+import { seededCashAccountId } from './utils/finance';
 
 /**
  * Feed Formulator — Phase 7 of the epic in
@@ -20,6 +21,8 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
   let ctx: TestContext;
   let prisma: PrismaService;
   let owner: AuthedUser;
+  /** RD-077: RAKHAL-393 made this mandatory on a TMR finalize. */
+  let financialAccountId: string;
   let ownerUserId: string;
   let ingredientId: string;
 
@@ -34,6 +37,7 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
     ctx = await createTestApp();
     prisma = ctx.app.get(PrismaService);
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
+    financialAccountId = await seededCashAccountId(ctx, owner);
     const user = await prisma.user.findFirstOrThrow({
       where: { email: 'owner@demo.rakhal.test' },
       select: { id: true },
@@ -174,7 +178,7 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
     const mixtureFinalized = await request(server())
       .post(api(`/feed/concentrations/${mixture.body.data.id}/finalize`))
       .set(...auth(owner))
-      .send({ paymentMethod: 'CASH' })
+      .send({ paymentMethod: 'CASH', financialAccountId })
       .expect(201);
     // A Feed Mixture (TMR) is the final ration, not an intermediate recipe — finalize produces
     // only a FeedStock lot, never a reusable ingredient (user request 2026-07-18).

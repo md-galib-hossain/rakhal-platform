@@ -85,8 +85,31 @@ export class FeedConcentrationService {
       farmId,
       rows.map((r) => ({ id: r.id, kind: r.kind })),
     );
+    // One batched resolve for the whole page (RAKHAL-411) — resolving per row would be an
+    // O(N) round-trip to cattle/reproduction/milk for a list that is usually a handful of rows
+    // but need not stay that way.
+    // RD-079: price every ingredient on the page in one pass too. `enrich()` used to call
+    // `effectiveMap()` itself, which is two queries, so listing N rations cost 2N round-trips
+    // just to resolve prices — measured at 2691 for ~1345 rations, growing by exactly 2 per
+    // ration added. The map is keyed by ingredient id, so one shared map serves every row.
+    const [requirements, effById] = await Promise.all([
+      this.feedRequirements.resolveForConcentrations(farmId, rows),
+      this.effectiveMap(
+        farmId,
+        rows.flatMap((r) => r.items.map((i) => i.ingredientId)),
+      ),
+    ]);
     return Promise.all(
-      rows.map((r) => this.enrich(farmId, r, false, finalizedIds)),
+      rows.map((r) =>
+        this.enrich(
+          farmId,
+          r,
+          false,
+          finalizedIds,
+          requirements.get(r.id) ?? null,
+          effById,
+        ),
+      ),
     );
   }
 
@@ -685,30 +708,33 @@ export class FeedConcentrationService {
     row: ConcentrationWithItems,
     detailed = false,
     finalizedIds?: Set<string>,
+    /** Pre-resolved by the caller for a batch; omit and this row resolves its own. */
+    requirement?: Requirements | null,
+    /** Likewise for ingredient pricing and nutrition (RD-079) — the list path resolves the whole
+     * page's ingredients once instead of two queries per row. Keyed by ingredient id, so one
+     * shared map serves every row; single-row callers still resolve their own. */
+    effByIdForBatch?: Map<string, EffectiveIngredient>,
   ) {
     const ids = row.items.map((i) => i.ingredientId);
-    const effById = await this.effectiveMap(farmId, ids);
+    const effById = effByIdForBatch ?? (await this.effectiveMap(farmId, ids));
     const lines: FormulaLine[] = row.items.map((i) => ({
       ingredientId: i.ingredientId,
       amountKg: i.amountKg,
     }));
     const comp = computeTotals(lines, effById);
 
-    // RAKHAL-411: resolved through the settings seam so a saved ration is scored against
-    // the farm's own model. Still uses the ration's stored target weight/milk rather than
-    // the live cow record — folding in BCS/gestation/days-in-milk here would change every
-    // saved ration's balance score and needs batching first (see the ticket's Notes).
-    const settings = await this.requirementSettings.resolve(farmId);
+    // RAKHAL-411 (completed): the requirement now comes from the live cow record — her weight,
+    // body condition, gestation days and 7-day milk average — rather than the target weight/milk
+    // frozen into the ration when it was created. A saved ration and
+    // `GET /feed/requirements?cattleId=` for the same animal therefore agree, which they did not
+    // before. Callers pass it in pre-resolved so the list path resolves the whole page in one
+    // batch instead of once per row.
     const req: Requirements | null =
-      row.targetWeightKg != null && row.targetMilkL != null
-        ? computeRequirements(
-            {
-              weightKg: row.targetWeightKg,
-              milkTargetL: row.targetMilkL,
-            },
-            settings,
-          )
-        : null;
+      requirement !== undefined
+        ? requirement
+        : ((
+            await this.feedRequirements.resolveForConcentrations(farmId, [row])
+          ).get(row.id) ?? null);
     const balance = req ? balanceScore(comp.totals, req) : null;
 
     const base = {

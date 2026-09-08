@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
+import { seededCashAccountId } from './utils/finance';
 
 /**
  * `POST /feed/stock/bulk-delete` — the backend half of the shared bulk-select/bulk-delete "dock"
@@ -12,6 +13,8 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 describe('Feed stock (Prepared) bulk-delete (e2e)', () => {
   let ctx: TestContext;
   let owner: AuthedUser;
+  /** RD-077: RAKHAL-393 made this mandatory on a TMR finalize. */
+  let financialAccountId: string;
   let worker: AuthedUser;
   let ingredientId: string;
 
@@ -39,7 +42,7 @@ describe('Feed stock (Prepared) bulk-delete (e2e)', () => {
     const finalized = await request(server())
       .post(api(`/feed/concentrations/${conc.body.data.id}/finalize`))
       .set(...auth(owner))
-      .send({ paymentMethod: 'CASH' })
+      .send({ paymentMethod: 'CASH', financialAccountId })
       .expect(201);
     return finalized.body.data.stock.id as string;
   }
@@ -47,6 +50,7 @@ describe('Feed stock (Prepared) bulk-delete (e2e)', () => {
   beforeAll(async () => {
     ctx = await createTestApp();
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
+    financialAccountId = await seededCashAccountId(ctx, owner);
     worker = await loginAs(ctx, 'worker@demo.rakhal.test', 'WorkerPass123');
 
     const created = await request(server())

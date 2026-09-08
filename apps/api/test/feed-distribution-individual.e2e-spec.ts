@@ -120,6 +120,8 @@ describe('Feed Formulator — individual-cow distribution + efficiency (e2e)', (
         logDate: new Date(),
         session: 'MORNING',
         yieldL: 8,
+        // RD-077: `disposition` became required on MilkLogEntry; this fixture predates it.
+        disposition: 'SALEABLE',
         createdBy: ownerUserId,
       },
     });

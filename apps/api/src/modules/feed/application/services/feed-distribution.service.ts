@@ -254,23 +254,41 @@ export class FeedDistributionService {
           data: { currentStock: d.newStock },
         });
       }
+
+      // RD-036: the stock decrements now run inside this same transaction, threaded the client
+      // through rather than fired afterwards. Previously the distribution row committed first and
+      // these ran in their own transactions, so a shortfall here left a distribution logged against
+      // stock that never moved — and under concurrent load the pre-flight `assertSufficientStock`
+      // above could pass while another request drained the lot before the decrement landed. The
+      // decrement is itself a guarded conditional update now, so that second request fails cleanly
+      // and rolls this whole distribution back instead of silently over-drawing the lot.
+      for (const req of stockRequests) {
+        await this.feedStock.decrementForDistribution(
+          farmId,
+          userId,
+          {
+            stockId: req.stockId,
+            quantity: req.quantity,
+            distributionId: dist.id,
+          },
+          tx,
+        );
+      }
+      if (ownStock && totals.actualKg > 0) {
+        await this.feedStock.decrementForDistribution(
+          farmId,
+          userId,
+          {
+            stockId: ownStock.id,
+            quantity: totals.actualKg,
+            distributionId: dist.id,
+          },
+          tx,
+        );
+      }
+
       return dist;
     });
-
-    for (const req of stockRequests) {
-      await this.feedStock.decrementForDistribution(farmId, userId, {
-        stockId: req.stockId,
-        quantity: req.quantity,
-        distributionId: created.id,
-      });
-    }
-    if (ownStock && totals.actualKg > 0) {
-      await this.feedStock.decrementForDistribution(farmId, userId, {
-        stockId: ownStock.id,
-        quantity: totals.actualKg,
-        distributionId: created.id,
-      });
-    }
 
     this.log.info('Feed distribution logged', {
       farmId,

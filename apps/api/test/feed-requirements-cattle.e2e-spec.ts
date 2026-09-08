@@ -111,6 +111,8 @@ describe('Feed Formulator — cow-driven requirements (e2e)', () => {
           session: 'MORNING',
           yieldL: 15,
           submitted: true,
+          // RD-077: `disposition` became required on MilkLogEntry; these fixtures predate it.
+          disposition: 'SALEABLE',
           createdBy: ownerUserId,
         },
       });

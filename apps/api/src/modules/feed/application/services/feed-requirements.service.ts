@@ -479,6 +479,213 @@ export class FeedRequirementsService {
   /** Live gestation day count from the cow's active pregnancy (`ReproductionProfile.currentPregnancyId`
    * → `Pregnancy.conceptionDate`), not the stored `Pregnancy.gestationDays` snapshot (which is only
    * set at diagnosis time and would go stale). `null` when the cow has no active pregnancy. */
+  /**
+   * Requirements for a batch of saved rations, in a constant number of queries (RAKHAL-411).
+   *
+   * `FeedConcentrationService.enrich()` runs once per row on the list path, so resolving each
+   * ration's cow individually would be O(N) round-trips. This gathers every cow the batch refers
+   * to — directly for an INDIVIDUAL ration, via group membership for a GROUP one — and derives
+   * them all together: one cattle query, one reproduction-profile query, one pregnancy query, one
+   * batched milk average, one settings resolve. Adding rations does not add queries.
+   *
+   * Returns the raw domain object rather than the snake_case API shape, because the caller needs
+   * it to score a formula. `null` where nothing can be computed: a Concentrate Mixer carries no
+   * target at all, and a cow with no recorded weight has nothing to work from.
+   *
+   * The derivation deliberately mirrors `calcForCattle`/`calcForFeedGroup` field for field, so a
+   * saved ration and `GET /feed/requirements` for the same animal agree. That parity is asserted
+   * in `feed-requirements-parity.e2e-spec.ts`.
+   */
+  async resolveForConcentrations(
+    farmId: string,
+    rows: {
+      id: string;
+      kind: string;
+      targetType: string | null;
+      cattleId: string | null;
+      feedGroupId: string | null;
+      targetWeightKg: number | null;
+      targetMilkL: number | null;
+    }[],
+  ): Promise<Map<string, Requirements | null>> {
+    const out = new Map<string, Requirements | null>();
+    if (rows.length === 0) return out;
+
+    const settings = await this.requirementSettings.resolve(farmId);
+
+    // A Concentrate Mixer is a virtual recipe with no target — it has never carried a
+    // requirement and still does not.
+    const scorable = rows.filter((r) => r.kind !== 'CONCENTRATE_TEMPLATE');
+    for (const r of rows) {
+      if (r.kind === 'CONCENTRATE_TEMPLATE') out.set(r.id, null);
+    }
+    if (scorable.length === 0) return out;
+
+    const directCattleIds = [
+      ...new Set(
+        scorable
+          .filter((r) => r.targetType === 'INDIVIDUAL' && r.cattleId)
+          .map((r) => r.cattleId as string),
+      ),
+    ];
+    const groupIds = [
+      ...new Set(
+        scorable
+          .filter((r) => r.targetType === 'GROUP' && r.feedGroupId)
+          .map((r) => r.feedGroupId as string),
+      ),
+    ];
+
+    // Every cow the batch touches, in one query: the individually-targeted ones plus the members
+    // of every group referenced.
+    const cattle =
+      directCattleIds.length > 0 || groupIds.length > 0
+        ? await this.prisma.cattle.findMany({
+            where: {
+              ...activeHerd(farmId),
+              OR: [
+                ...(directCattleIds.length > 0
+                  ? [{ id: { in: directCattleIds } }]
+                  : []),
+                ...(groupIds.length > 0
+                  ? [{ feedGroupId: { in: groupIds } }]
+                  : []),
+              ],
+            },
+            select: {
+              id: true,
+              feedGroupId: true,
+              lastWeightKg: true,
+              lastBcs: true,
+              productionStatus: true,
+            },
+          })
+        : [];
+
+    const cattleById = new Map(cattle.map((c) => [c.id, c]));
+    const byGroup = new Map<string, typeof cattle>();
+    for (const c of cattle) {
+      if (!c.feedGroupId) continue;
+      const list = byGroup.get(c.feedGroupId) ?? [];
+      list.push(c);
+      byGroup.set(c.feedGroupId, list);
+    }
+
+    const allIds = cattle.map((c) => c.id);
+    const [gestationByCow, yieldByCow] = await Promise.all([
+      this.gestationDaysFor(allIds),
+      allIds.length > 0
+        ? this.milk.averageDailyYield(farmId, allIds)
+        : Promise.resolve(new Map<string, number>()),
+    ]);
+
+    for (const row of scorable) {
+      let req: Requirements | null = null;
+
+      if (row.targetType === 'INDIVIDUAL' && row.cattleId) {
+        const c = cattleById.get(row.cattleId);
+        // Fall back to the ration's stored target when the cow is gone (sold, deleted) or has
+        // no recorded weight — a saved ration must stay readable either way.
+        const weightKg = c?.lastWeightKg ?? row.targetWeightKg;
+        if (weightKg != null) {
+          req = computeRequirements(
+            {
+              weightKg,
+              milkTargetL:
+                (c ? yieldByCow.get(c.id) : undefined) ?? row.targetMilkL ?? 0,
+              gestationDays: c ? gestationByCow.get(c.id) : undefined,
+              bcs: c?.lastBcs ?? undefined,
+              animalType: c
+                ? this.inferAnimalType(c.productionStatus)
+                : undefined,
+            },
+            settings,
+          );
+        }
+      } else if (row.targetType === 'GROUP' && row.feedGroupId) {
+        const members = byGroup.get(row.feedGroupId) ?? [];
+        const weights = members
+          .map((m) => m.lastWeightKg)
+          .filter((w): w is number => w != null);
+        if (weights.length > 0) {
+          const yields = members
+            .map((m) => yieldByCow.get(m.id))
+            .filter((y): y is number => y != null);
+          const bcsValues = members
+            .map((m) => m.lastBcs)
+            .filter((b): b is number => b != null);
+          req = computeRequirements(
+            {
+              // Per cow, matching what `calcForFeedGroup` reports as `per_cow` — a formula is
+              // built for one animal, not for the whole group's batch.
+              weightKg: avg(weights) as number,
+              milkTargetL: avg(yields) ?? 0,
+              bcs: avg(bcsValues) ?? undefined,
+            },
+            settings,
+          );
+        }
+      }
+
+      // HERD-targeted rations, and any of the above whose cow/group yielded nothing, fall back
+      // to whatever target the ration itself stored — the pre-RAKHAL-411 behaviour.
+      if (
+        req == null &&
+        row.targetWeightKg != null &&
+        row.targetMilkL != null
+      ) {
+        req = computeRequirements(
+          { weightKg: row.targetWeightKg, milkTargetL: row.targetMilkL },
+          settings,
+        );
+      }
+
+      out.set(row.id, req);
+    }
+
+    return out;
+  }
+
+  /** Live gestation days for many cows at once — the batched twin of `currentGestationDays`. */
+  private async gestationDaysFor(
+    cattleIds: string[],
+  ): Promise<Map<string, number>> {
+    const out = new Map<string, number>();
+    if (cattleIds.length === 0) return out;
+
+    const profiles = await this.prisma.reproductionProfile.findMany({
+      where: { cattleId: { in: cattleIds }, currentPregnancyId: { not: null } },
+      select: { cattleId: true, currentPregnancyId: true },
+    });
+    if (profiles.length === 0) return out;
+
+    const pregnancies = await this.prisma.pregnancy.findMany({
+      where: {
+        id: { in: profiles.map((p) => p.currentPregnancyId as string) },
+        status: 'ACTIVE',
+      },
+      select: { id: true, conceptionDate: true },
+    });
+    const conceptionById = new Map(
+      pregnancies.map((p) => [p.id, p.conceptionDate]),
+    );
+
+    for (const profile of profiles) {
+      const conception = conceptionById.get(
+        profile.currentPregnancyId as string,
+      );
+      if (!conception) continue;
+      out.set(
+        profile.cattleId,
+        Math.max(
+          0,
+          Math.floor((Date.now() - conception.getTime()) / MS_PER_DAY),
+        ),
+      );
+    }
+    return out;
+  }
+
   private async currentGestationDays(cattleId: string): Promise<number | null> {
     const profile = await this.prisma.reproductionProfile.findUnique({
       where: { cattleId },

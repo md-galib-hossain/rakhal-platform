@@ -39,25 +39,49 @@ describe('Feed item ↔ ingredient linkage (e2e)', () => {
     await ctx.app.close();
   });
 
-  it('every FeedItem row has a non-null ingredientId (backfill proof)', async () => {
+  /**
+   * Proves the RAKHAL-075 taxonomy migration backfilled `ingredientId` onto real feed items.
+   *
+   * RD-077: this used to count **every** `FeedItem` in the database and expect zero, which made a
+   * migration proof hostage to test leakage — 177 unlinked rows had accumulated on the demo farm
+   * between 2026-08-17 and 2026-08-27, all E2E-created, none of them real data. `ingredientId` is
+   * an optional FK by design, so a spec creating an item without one is legal and will keep
+   * happening (same leak class as RD-074). Scoped to non-E2E rows so it still fails if the real
+   * backfill regresses, without failing because another suite left rubbish behind.
+   */
+  it('every real FeedItem row has a non-null ingredientId (backfill proof)', async () => {
     const unlinked = await prisma.feedItem.count({
-      where: { ingredientId: null },
+      where: {
+        ingredientId: null,
+        NOT: [
+          { name: { startsWith: 'E2E', mode: 'insensitive' } },
+          { name: { contains: 'test', mode: 'insensitive' } },
+        ],
+      },
     });
     expect(unlinked).toBe(0);
   });
 
   it('converts a non-kg unit through kgPerUnit when decrementing (bag-unit regression)', async () => {
-    const ings = await request(server())
-      .get(api('/feed/ingredients'))
+    // RD-036 sweep: this used to grab `ingredients[0]` from the shared farm catalogue and
+    // `deleteMany` that ingredient's feed items. Which ingredient sorted first varied as other
+    // specs created their own, and deleting a shared ingredient's items raced whoever else was
+    // using it — the suite failed here roughly one run in three. Owning a dedicated ingredient
+    // makes the test hermetic and drops the destructive cleanup entirely.
+    const createdIngredient = await request(server())
+      .post(api('/feed/ingredients/custom'))
       .set(...auth(owner))
-      .expect(200);
-    const ingredient = (
-      ings.body.data as Array<{ id: string; effective_price_per_kg: number }>
-    )[0];
+      .send({
+        name: `E2E Bag Regression Ingredient ${Date.now()}-${Math.random()}`,
+        nutrientGroup: 'ENERGY',
+        pricePerKg: 10,
+        dmPct: 90,
+        cpPct: 10,
+        meMjPerKgDm: 9,
+      })
+      .expect(201);
+    const ingredient = createdIngredient.body.data as { id: string };
 
-    await prisma.feedItem.deleteMany({
-      where: { farmId: owner.farmId, ingredientId: ingredient.id },
-    });
     const feedItem = await request(server())
       .post(api('/inventory/feed-items'))
       .set(...auth(owner))
@@ -99,6 +123,15 @@ describe('Feed item ↔ ingredient linkage (e2e)', () => {
     expect(after.body.data.currentStock).toBe(98); // 100 − (4kg / 2kg-per-bag)
 
     await prisma.feedItem.deleteMany({ where: { id: feedItemId } });
+    // Clean up the ingredient this test now owns. Leaving it behind would grow the farm's
+    // catalogue every run, which `feed-ingredients-paged-filter` (limit=50) is sensitive to.
+    // Soft-delete, not a hard delete: a custom ingredient carries a `FeedIngredientOverride`
+    // row, so removing it outright trips that FK. `deletedAt` is what the listing filters on,
+    // which is all this needs — the row stops counting against the catalogue.
+    await prisma.feedIngredient.updateMany({
+      where: { id: ingredient.id },
+      data: { deletedAt: new Date() },
+    });
   });
 
   it("a feed item's price change refreshes the linked ingredient's effective cost (PRD §15.3)", async () => {

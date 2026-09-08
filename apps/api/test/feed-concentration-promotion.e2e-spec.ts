@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
+import { seededCashAccountId } from './utils/finance';
 
 /**
  * Feed Formulator — Phase 12.1 (2026-07-18, no ticket #, plan `composed-pondering-teapot`):
@@ -20,6 +21,8 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => {
   let ctx: TestContext;
   let owner: AuthedUser;
+  /** RD-077: RAKHAL-393 made this mandatory on a TMR finalize. */
+  let financialAccountId: string;
   let ingredientId: string;
   let ingredientId2: string;
 
@@ -33,6 +36,7 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
   beforeAll(async () => {
     ctx = await createTestApp();
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
+    financialAccountId = await seededCashAccountId(ctx, owner);
 
     const created = await request(server())
       .post(api('/feed/ingredients/custom'))
@@ -179,22 +183,21 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
   });
 
   it('a plain PATCH on a template that has never been finalized creates no FeedIngredient', async () => {
+    // RD-077: asserted on the farm's *total* ingredient count before/after, so any spec running
+    // in a parallel worker that created an ingredient in between failed it (seen as 943 vs 941).
+    // Promotion names the ingredient after its template, so looking for that specific name proves
+    // the same thing — no ingredient was promoted — without depending on a global count.
+    const name = `E2E Never-Finalized Concentrate ${Date.now()}`;
     const conc = await request(server())
       .post(api('/feed/concentrations'))
       .set(...auth(owner))
       .send({
         kind: 'CONCENTRATE_TEMPLATE',
-        name: `E2E Never-Finalized Concentrate ${Date.now()}`,
+        name,
         items: [{ ingredientId, amountKg: 5 }],
       })
       .expect(201);
     const concId = conc.body.data.id as string;
-
-    const before = await request(server())
-      .get(api('/feed/ingredients'))
-      .set(...auth(owner))
-      .expect(200);
-    const countBefore = (before.body.data as Array<{ id: string }>).length;
 
     await request(server())
       .patch(api(`/feed/concentrations/${concId}`))
@@ -206,7 +209,10 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
       .get(api('/feed/ingredients'))
       .set(...auth(owner))
       .expect(200);
-    expect((after.body.data as Array<{ id: string }>).length).toBe(countBefore);
+    const promoted = (after.body.data as Array<{ name_en: string }>).filter(
+      (i) => i.name_en === name,
+    );
+    expect(promoted).toHaveLength(0);
   });
 
   it('deleting a finalized concentration also archives its promoted ingredient (single delete)', async () => {
@@ -349,7 +355,7 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
     const finalized = await request(server())
       .post(api(`/feed/concentrations/${tmrId}/finalize`))
       .set(...auth(owner))
-      .send({ paymentMethod: 'CASH' })
+      .send({ paymentMethod: 'CASH', financialAccountId })
       .expect(201);
 
     expect(finalized.body.data.feed_item).toBeNull();

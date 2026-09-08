@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
+import { seededCashAccountId } from './utils/finance';
 
 /**
  * Feed Formulator — Phase 4 of the epic in
@@ -17,6 +18,8 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 describe('Feed Formulator — feed stock production (e2e)', () => {
   let ctx: TestContext;
   let owner: AuthedUser;
+  /** RD-077: RAKHAL-393 made this mandatory on a TMR finalize. */
+  let financialAccountId: string;
   let worker: AuthedUser;
   let ingredientId: string;
 
@@ -44,7 +47,7 @@ describe('Feed Formulator — feed stock production (e2e)', () => {
     const finalized = await request(server())
       .post(api(`/feed/concentrations/${conc.body.data.id}/finalize`))
       .set(...auth(owner))
-      .send({ paymentMethod: 'CASH' })
+      .send({ paymentMethod: 'CASH', financialAccountId })
       .expect(201);
     return finalized.body.data.stock.id as string;
   }
@@ -52,6 +55,7 @@ describe('Feed Formulator — feed stock production (e2e)', () => {
   beforeAll(async () => {
     ctx = await createTestApp();
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
+    financialAccountId = await seededCashAccountId(ctx, owner);
     worker = await loginAs(ctx, 'worker@demo.rakhal.test', 'WorkerPass123');
 
     const created = await request(server())
@@ -91,7 +95,7 @@ describe('Feed Formulator — feed stock production (e2e)', () => {
     const finalized = await request(server())
       .post(api(`/feed/concentrations/${conc.body.data.id}/finalize`))
       .set(...auth(owner))
-      .send({ paymentMethod: 'CASH' })
+      .send({ paymentMethod: 'CASH', financialAccountId })
       .expect(201);
     const stockId = finalized.body.data.stock.id as string;
     // 30kg @ ৳10/kg = ৳300 total cost; batch qty = 30kg (as-fed).
@@ -135,7 +139,7 @@ describe('Feed Formulator — feed stock production (e2e)', () => {
     const v1 = await request(server())
       .post(api(`/feed/concentrations/${conc.body.data.id}/finalize`))
       .set(...auth(owner))
-      .send({ paymentMethod: 'CASH' })
+      .send({ paymentMethod: 'CASH', financialAccountId })
       .expect(201);
     const v1StockId = v1.body.data.stock.id as string;
     expect(v1.body.data.stock.produced_qty_kg).toBeCloseTo(10, 1);
@@ -149,7 +153,7 @@ describe('Feed Formulator — feed stock production (e2e)', () => {
     const v2 = await request(server())
       .post(api(`/feed/concentrations/${conc.body.data.id}/finalize`))
       .set(...auth(owner))
-      .send({ paymentMethod: 'CASH' })
+      .send({ paymentMethod: 'CASH', financialAccountId })
       .expect(201);
     const v2StockId = v2.body.data.stock.id as string;
     expect(v2StockId).not.toBe(v1StockId);
