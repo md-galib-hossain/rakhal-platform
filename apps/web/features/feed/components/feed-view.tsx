@@ -24,6 +24,7 @@ import {
   useSetGroupDefaultConcentration,
 } from "../hooks/use-feed";
 import { ConcentrationCard } from "./concentration-card";
+import { RequirementsTab } from "./requirements-tab";
 import { IngredientManagementTable } from "./ingredient-management-table";
 import { CreateFeedDialog } from "./create-feed-dialog";
 import { ConcentrationDetailSheet } from "./concentration-detail-sheet";
@@ -271,7 +272,14 @@ export function FeedView() {
           <TabsTrigger value="mixtures" className="flex-1">
             {t("feedMixture")}
           </TabsTrigger>
+          <TabsTrigger value="requirements" className="flex-1">
+            {t("requirements.tab")}
+          </TabsTrigger>
         </TabsList>
+        {/* RFE-103: appended, not a restructure — RAKHAL-264 owns this file's shell. */}
+        <TabsContent value="requirements">
+          <RequirementsTab />
+        </TabsContent>
         <TabsContent value="ingredients">
           <IngredientManagementTable />
         </TabsContent>

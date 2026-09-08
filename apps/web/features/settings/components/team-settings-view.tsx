@@ -31,6 +31,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { useRoles, useTeam } from "../hooks/use-team";
+import { RolesSection } from "./roles-section";
 import {
   useChangeMemberRole,
   useInviteTeamMember,
@@ -174,6 +175,8 @@ export function TeamSettingsView() {
           });
         }}
       />
+
+      <RolesSection />
     </div>
   );
 }

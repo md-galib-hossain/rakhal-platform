@@ -2,6 +2,7 @@
 
 import { apiFetch } from "@/lib/api/client";
 import type {
+  CreateRoleInput,
   FeedGroupFormInput,
   InviteTeamMemberInput,
   ServiceProviderFormInput,
@@ -13,7 +14,9 @@ import type {
   FarmSettings,
   FeedGroup,
   FeedGroupListResult,
+  PermissionCatalogueResult,
   RoleListResult,
+  RoleOption,
   ServiceProvider,
   ServiceProviderListResult,
   Shed,
@@ -25,12 +28,44 @@ import type {
 
 /** Team & Roles (`settings/team`, `settings/roles`) — RAKHAL-030/031, no bespoke cookie logic
  * needed (unlike auth/onboarding's login/create-farm), so this goes through the standard proxy. */
+/** The form holds the refusal target as a string (see `feedGroupFormSchema`); the API wants a
+ * number. Blank stays absent rather than becoming 0 — "no target" and "target zero refusal"
+ * are different instructions to a farmhand. */
+function feedGroupBody(input: FeedGroupFormInput) {
+  const { refusalTargetPct, ...rest } = input;
+  return {
+    ...rest,
+    refusalTargetPct:
+      refusalTargetPct === undefined || refusalTargetPct === "" ? undefined : Number(refusalTargetPct),
+  };
+}
+
 export const settingsApi = {
   listTeam(): Promise<TeamListResult> {
     return apiFetch<TeamListResult>("/settings/team");
   },
   listRoles(): Promise<RoleListResult> {
     return apiFetch<RoleListResult>("/settings/roles");
+  },
+  /** The grantable catalogue on its own — the roles list already embeds a copy, so this is
+   * only for screens that need it without the roles. */
+  listPermissions(): Promise<PermissionCatalogueResult> {
+    return apiFetch<PermissionCatalogueResult>("/settings/permissions");
+  },
+  /** Create a farm-scoped custom role. Either seed it from a system template (`base_role`)
+   * or pass an explicit grant set. Owner-only (`settings.roles-manage`). */
+  createRole(input: CreateRoleInput): Promise<RoleOption> {
+    return apiFetch<RoleOption>("/settings/roles", { method: "POST", body: input });
+  },
+  /** Replaces the role's grants wholesale — this is not a merge. */
+  updateRolePermissions(roleId: string, permissionKeys: string[]): Promise<RoleOption> {
+    return apiFetch<RoleOption>(`/settings/roles/${roleId}/permissions`, {
+      method: "PATCH",
+      body: { permission_keys: permissionKeys },
+    });
+  },
+  deleteRole(roleId: string): Promise<{ id: string; deleted: true }> {
+    return apiFetch(`/settings/roles/${roleId}`, { method: "DELETE" });
   },
   inviteTeamMember(input: InviteTeamMemberInput): Promise<{ invite_id: string; expires_at: string }> {
     return apiFetch("/settings/team/invite", { method: "POST", body: input });
@@ -70,10 +105,16 @@ export const settingsApi = {
     return apiFetch<FeedGroupListResult>("/settings/feed-groups");
   },
   createFeedGroup(input: FeedGroupFormInput): Promise<FeedGroup> {
-    return apiFetch<FeedGroup>("/settings/feed-groups", { method: "POST", body: input });
+    return apiFetch<FeedGroup>("/settings/feed-groups", {
+      method: "POST",
+      body: feedGroupBody(input),
+    });
   },
   updateFeedGroup(id: string, input: FeedGroupFormInput): Promise<FeedGroup> {
-    return apiFetch<FeedGroup>(`/settings/feed-groups/${id}`, { method: "PATCH", body: input });
+    return apiFetch<FeedGroup>(`/settings/feed-groups/${id}`, {
+      method: "PATCH",
+      body: feedGroupBody(input),
+    });
   },
   deleteFeedGroup(id: string): Promise<{ id: string; deleted: true }> {
     return apiFetch(`/settings/feed-groups/${id}`, { method: "DELETE" });

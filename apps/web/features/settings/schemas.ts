@@ -15,6 +15,27 @@ export const inviteTeamMemberSchema = z.object({
 export type InviteTeamMemberInput = z.infer<typeof inviteTeamMemberSchema>;
 
 /** Mirrors `UpdateFarmSettingsDto`. */
+/** Create a custom role (RFE-101). Mirrors `CreateRoleDto`: a 2-50 char name, an optional
+ * description, and *either* a base template to inherit from or an explicit grant list.
+ * Reserved system names (Owner/Manager/Worker) are rejected server-side with a 409, mapped
+ * back onto the name field. */
+export const createRoleFormSchema = z.object({
+  name: z.string().trim().min(2, "nameTooShort").max(50, "nameTooLong"),
+  description: z.string().trim().max(255, "descriptionTooLong").optional().or(z.literal("")),
+  base_role: z.enum(["owner", "manager", "worker"]),
+});
+
+export type CreateRoleFormInput = z.infer<typeof createRoleFormSchema>;
+
+/** What actually goes to the API — the form collects a base template, but the dialog lets the
+ * user tick the grid before saving, so the request carries concrete keys. */
+export interface CreateRoleInput {
+  name: string;
+  description?: string;
+  base_role?: "owner" | "manager" | "worker";
+  permission_keys?: string[];
+}
+
 export const updateFarmSchema = z.object({
   farm_name: z.string().trim().min(1).max(100),
   description: z.string().trim().max(500).optional().or(z.literal("")),
@@ -45,8 +66,19 @@ export type ShedFormInput = z.infer<typeof shedFormSchema>;
 
 /** Mirrors `CreateFeedGroupDto`/`UpdateFeedGroupDto`. */
 export const feedGroupFormSchema = z.object({
-  name: z.string().trim().min(1).max(100),
-  description: z.string().trim().max(500).optional().or(z.literal("")),
+  name: z.string().trim().min(1, "nameRequired").max(80, "nameTooLong"),
+  description: z.string().trim().max(255, "descriptionTooLong").optional().or(z.literal("")),
+  /** Kept as a string so the resolver's input and output types match (a `z.coerce` union
+   * widens the input to `unknown` and breaks `zodResolver`). Parsed to a number on submit;
+   * blank means "no target", which is not the same as a target of 0. */
+  refusalTargetPct: z
+    .string()
+    .trim()
+    .optional()
+    .refine(
+      (v) => !v || (!Number.isNaN(Number(v)) && Number(v) >= 0 && Number(v) <= 100),
+      "refusalRange",
+    ),
 });
 export type FeedGroupFormInput = z.infer<typeof feedGroupFormSchema>;
 

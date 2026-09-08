@@ -30,25 +30,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
-import { useFarmSettings, useFeedGroups, useSheds } from "../hooks/use-workspace";
+import { useFarmSettings, useSheds } from "../hooks/use-workspace";
 import {
-  useCreateFeedGroup,
   useCreateShed,
-  useDeleteFeedGroup,
   useDeleteShed,
   useUpdateFarm,
-  useUpdateFeedGroup,
   useUpdateShed,
 } from "../hooks/use-workspace-mutations";
 import {
-  feedGroupFormSchema,
   shedFormSchema,
   updateFarmSchema,
-  type FeedGroupFormInput,
   type ShedFormInput,
   type UpdateFarmInput,
 } from "../schemas";
-import type { FeedGroup, Shed } from "../types";
+import type { Shed } from "../types";
 
 const SHED_PURPOSES = ["MILKING", "HEIFER", "DRY", "CALF", "QUARANTINE", "GENERAL"] as const;
 
@@ -57,7 +52,6 @@ export function WorkspaceSettingsView() {
     <div className="flex flex-col gap-10">
       <FarmProfileSection />
       <ShedsSection />
-      <FeedGroupsSection />
     </div>
   );
 }
@@ -360,180 +354,6 @@ function ShedFormDialog({
 }
 
 // ── Feed groups ───────────────────────────────────────────────────────────
-
-function FeedGroupsSection() {
-  const t = useTranslations("settings.workspace.feedGroups");
-  const groups = useFeedGroups();
-  const deleteGroup = useDeleteFeedGroup();
-  const [dialogTarget, setDialogTarget] = useState<FeedGroup | "new" | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<FeedGroup | null>(null);
-
-  if (groups.isLoading) {
-    return (
-      <div className="flex flex-col gap-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full" />
-        ))}
-      </div>
-    );
-  }
-
-  if (groups.isError) {
-    return <ErrorState description={t("loadError")} onRetry={() => groups.refetch()} />;
-  }
-
-  const rows = groups.data ?? [];
-
-  return (
-    <section className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-foreground">{t("title")}</h2>
-        <Can I="settings.update">
-          <Button onClick={() => setDialogTarget("new")} className="gap-1.5" size="sm">
-            <Plus className="size-4" aria-hidden />
-            {t("add")}
-          </Button>
-        </Can>
-      </div>
-
-      {rows.length === 0 ? (
-        <EmptyState title={t("empty")} />
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("nameHeader")}</TableHead>
-              <TableHead>{t("assignedHeader")}</TableHead>
-              <TableHead>{t("actionsHeader")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell className="font-medium text-foreground">{row.name}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{row.assigned_count}</TableCell>
-                <TableCell>
-                  <Can I="settings.update">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="size-8">
-                          <MoreHorizontal className="size-4" aria-hidden />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setDialogTarget(row)}>{t("edit")}</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setDeleteTarget(row)} className="text-destructive">
-                          {t("delete")}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </Can>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-
-      <FeedGroupFormDialog
-        open={dialogTarget !== null}
-        onOpenChange={(open) => !open && setDialogTarget(null)}
-        group={dialogTarget !== "new" ? dialogTarget : null}
-      />
-
-      <ConfirmDialog
-        open={Boolean(deleteTarget)}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title={t("deleteConfirmTitle", { name: deleteTarget?.name ?? "" })}
-        body={t("deleteConfirmBody")}
-        pending={deleteGroup.isPending}
-        onConfirm={() => {
-          if (!deleteTarget) return;
-          deleteGroup.mutate(deleteTarget.id, {
-            onSuccess: () => {
-              toast.success(t("deletedToast"));
-              setDeleteTarget(null);
-            },
-            onError: (err) => {
-              toast.error(err instanceof ApiError ? err.message : t("genericError"));
-            },
-          });
-        }}
-      />
-    </section>
-  );
-}
-
-function FeedGroupFormDialog({
-  open,
-  onOpenChange,
-  group,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  group: FeedGroup | null;
-}) {
-  const t = useTranslations("settings.workspace.feedGroups");
-  const createGroup = useCreateFeedGroup();
-  const updateGroup = useUpdateFeedGroup();
-  const form = useForm<FeedGroupFormInput>({
-    resolver: zodResolver(feedGroupFormSchema),
-    defaultValues: { name: "", description: "" },
-  });
-
-  useEffect(() => {
-    if (!open) return;
-    form.reset(group ? { name: group.name, description: group.description ?? "" } : { name: "", description: "" });
-  }, [open, group, form]);
-
-  async function onSubmit(values: FeedGroupFormInput) {
-    try {
-      if (group) {
-        await updateGroup.mutateAsync({ id: group.id, input: values });
-      } else {
-        await createGroup.mutateAsync(values);
-      }
-      toast.success(group ? t("updatedToast") : t("createdToast"));
-      onOpenChange(false);
-    } catch (err) {
-      form.setError("root", { message: err instanceof ApiError ? err.message : t("genericError") });
-    }
-  }
-
-  const pending = createGroup.isPending || updateGroup.isPending;
-
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-lg">
-        <SheetHeader>
-          <SheetTitle>{group ? t("editTitle") : t("addTitle")}</SheetTitle>
-          <SheetDescription>{t("dialogDescription")}</SheetDescription>
-        </SheetHeader>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="mt-4 flex flex-col gap-4" noValidate>
-          {form.formState.errors.root ? (
-            <p role="alert" className="rounded-md bg-destructive-tint px-3 py-2 text-sm text-destructive">
-              {form.formState.errors.root.message}
-            </p>
-          ) : null}
-          <FloatingInput
-            id="feed-group-name"
-            label={t("nameLabel")}
-            error={form.formState.errors.name?.message}
-            {...form.register("name")}
-          />
-          <FloatingInput id="feed-group-description" label={t("descriptionLabel")} {...form.register("description")} />
-          <SheetFooter className="border-t border-dashed border-border pt-4">
-            <Button type="submit" disabled={pending}>
-              {pending ? t("saving") : t("save")}
-            </Button>
-          </SheetFooter>
-        </form>
-      </SheetContent>
-    </Sheet>
-  );
-}
-
-// ── Shared ────────────────────────────────────────────────────────────────
 
 function ConfirmDialog({
   open,

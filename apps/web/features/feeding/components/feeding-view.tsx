@@ -12,6 +12,7 @@ import { useConcentrations, useFeedCostSummary, useFeedGroups, useTodaysRequirem
 import { LogDistributionDialog } from "@/features/feed/components/log-distribution-dialog";
 import type { FeedGroup } from "@/features/feed/types";
 import { FeedingGrid } from "./feeding-grid";
+import { FeedGroupsSection } from "./feed-groups-section";
 
 function StatTile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
@@ -54,6 +55,8 @@ export function FeedingView() {
     return map;
   }, [concentrations.data]);
 
+  const herdRequirement = requirement.data?.requirement ?? null;
+
   const herdTmr = (concentrations.data ?? []).find((c) => c.kind === "FEED_MIXTURE" && c.target_type === "HERD");
 
   const isLoading = requirement.isLoading || costSummary.isLoading || feedGroups.isLoading;
@@ -91,52 +94,67 @@ export function FeedingView() {
 
       {!isLoading && !isError ? (
         <>
+          {/* RFE-105: what the animals need comes first and is always shown — it depends on
+              having cows, not on having built a ration. The old card led with the ration and
+              told a farm with no TMR to go build one before it would show anything at all. */}
           <div className="flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-card">
-            <p className="text-lg font-medium text-foreground">{t("todaysRequirement")}</p>
-            {(requirement.data?.by_ingredient.length ?? 0) === 0 ? (
-              <EmptyState icon={Wheat} title={t("noRequirement")} description={t("noRequirementDescription")} />
+            <div className="flex flex-col gap-0.5">
+              <p className="text-lg font-medium text-foreground">{t("requirementTitle")}</p>
+              <p className="text-xs text-muted-foreground">{t("requirementSubtitle")}</p>
+            </div>
+
+            {herdRequirement ? (
+              <>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <StatTile
+                    label={`${t("perCowLabel")} · ${t("dmLabel")}`}
+                    value={t("kgValue", { value: herdRequirement.per_cow.dm_kg.toFixed(1) })}
+                  />
+                  <StatTile
+                    label={`${t("perCowLabel")} · ${t("cpLabel")}`}
+                    value={t("kgValue", { value: herdRequirement.per_cow.cp_kg.toFixed(2) })}
+                  />
+                  <StatTile
+                    label={t("herdTotalLabel", { count: herdRequirement.headcount })}
+                    value={t("kgValue", { value: herdRequirement.herd_total.dm_kg.toFixed(0) })}
+                    sub={t("dmLabel")}
+                  />
+                  <StatTile
+                    label={t("herdTotalLabel", { count: herdRequirement.headcount })}
+                    value={t("kgValue", { value: herdRequirement.herd_total.cp_kg.toFixed(1) })}
+                    sub={t("cpLabel")}
+                  />
+                </div>
+                {requirement.data?.has_active_ration === false ? (
+                  <p className="text-xs text-muted-foreground">{t("noRationYet")}</p>
+                ) : null}
+              </>
             ) : (
+              <EmptyState
+                icon={Wheat}
+                title={t("noCattle")}
+                description={t("noCattleDescription")}
+              />
+            )}
+          </div>
+
+          {(requirement.data?.by_ingredient.length ?? 0) > 0 ? (
+            <div className="flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-card">
+              <p className="text-lg font-medium text-foreground">{t("plannedTitle")}</p>
               <div className="flex flex-col divide-y divide-border rounded-xl border border-border">
                 {requirement.data!.by_ingredient.map((row) => (
                   <div key={row.ingredient_id} className="flex items-center justify-between p-3">
                     <span className="text-sm text-foreground">{row.name}</span>
-                    <span className="text-sm font-semibold text-foreground">{t("kgValue", { value: row.total_kg.toFixed(1) })}</span>
+                    <span className="text-sm font-semibold text-foreground">
+                      {t("kgValue", { value: row.total_kg.toFixed(1) })}
+                    </span>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          ) : null}
 
-          <div className="flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-card">
-            <p className="text-lg font-medium text-foreground">{t("feedGroupsTitle")}</p>
-            {(feedGroups.data ?? []).length === 0 ? (
-              <EmptyState icon={Wheat} title={t("noGroups")} description={t("noGroupsDescription")} />
-            ) : (
-              <div className="flex flex-col divide-y divide-border rounded-xl border border-border">
-                {(feedGroups.data ?? []).map((group: FeedGroup) => {
-                  const tmrId = group.default_concentration_id ?? tmrByGroup.get(group.id) ?? herdTmr?.id;
-                  return (
-                    <div key={group.id} className="flex items-center justify-between p-3">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-foreground">{group.name}</span>
-                        <span className="text-xs text-muted-foreground">{t("cowCount", { count: group.assigned_count })}</span>
-                      </div>
-                      <Can I="feed.distribution-log">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          disabled={!tmrId}
-                          onClick={() => tmrId && setFeedTodayId(tmrId)}
-                        >
-                          {t("feedToday")}
-                        </Button>
-                      </Can>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <FeedGroupsSection onFeedToday={setFeedTodayId} />
         </>
       ) : null}
 

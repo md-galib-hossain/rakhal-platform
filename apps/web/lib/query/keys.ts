@@ -218,8 +218,23 @@ export const qk = {
     ingredientsPaged: (filters: Record<string, string | number | undefined>) =>
       ["feed", "ingredients", "paged", filters] as const,
     concentrations: () => ["feed", "concentrations", "list"] as const,
+    groupCattle: (groupId: string) => ["feed", "groups", groupId, "cattle"] as const,
+    requirementSettings: () => ["feed", "requirement-settings"] as const,
     concentrationDetail: (id: string) => ["feed", "concentrations", "detail", id] as const,
-    requirementsFor: (params: { cattleId?: string; feedGroupId?: string; weightKg?: number; milkTargetL?: number }) =>
+    /** Every input the requirement engine accepts — all of them belong in the key, or two
+     * different cows/settings would share a cached result (RFE-103). */
+    requirementsFor: (params: {
+      cattleId?: string;
+      feedGroupId?: string;
+      weightKg?: number;
+      milkTargetL?: number;
+      milkFatPct?: number;
+      milkProteinPct?: number;
+      gestationDays?: number;
+      bcs?: number;
+      dim?: number;
+      animalType?: string;
+    }) =>
       ["feed", "requirements", "for", params] as const,
     feedGroups: () => ["feed", "feed-groups"] as const,
     stock: () => ["feed", "stock", "list"] as const,

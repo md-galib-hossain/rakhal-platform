@@ -23,18 +23,46 @@ export interface TeamListResult {
   members: TeamRow[];
 }
 
+/** One resource's grantable actions (`buildCatalogue()` in the backend's `permission-matrix.ts`).
+ * Wildcard keys (`*`, `resource.*`) are excluded from the catalogue — they are a *storage*
+ * form, expanded into concrete actions by `matrix` below. */
+export interface PermissionCatalogueEntry {
+  /** Permission group the resource belongs to, e.g. `CATTLE`. Used to section the grid. */
+  group: string;
+  /** Resource segment of the key, e.g. `cattle`. */
+  resource: string;
+  /** Concrete actions, e.g. `["read","create","update","delete"]`. */
+  actions: string[];
+}
+
+/** `resource -> action -> granted`. Wildcards are already expanded, so the Owner role's
+ * single stored `*` arrives here as every action set to `true`. */
+export type PermissionMatrix = Record<string, Record<string, boolean>>;
+
 export interface RoleOption {
   id: string;
   name: string;
   description: string | null;
   is_system: boolean;
+  /** System templates are global rows shared by every farm, so they are never editable —
+   * a farm customises by creating its own role instead. */
   editable: boolean;
   member_count: number;
+  permission_keys: string[];
+  matrix: PermissionMatrix;
 }
 
 export interface RoleListResult {
   roles: RoleOption[];
+  /** Ships with the list so the editor can render the whole grid from one response. */
+  catalogue: PermissionCatalogueEntry[];
 }
+
+export interface PermissionCatalogueResult {
+  permissions: PermissionCatalogueEntry[];
+}
+
+export type RoleBase = "owner" | "manager" | "worker";
 
 /** `GET/PATCH /settings/farm` (`SettingsService#getFarm`/`mapFarm` — verified against backend source,
  * not the (stale) API doc sample: also returns `farm_slug`/`status`/`phone`/`address`, the latter two
@@ -77,6 +105,11 @@ export interface FeedGroup {
   id: string;
   name: string;
   description: string | null;
+  /** Target refusal (leftover) as a % of what was offered. The backend has always returned
+   * this and accepted it on create/update; the old Settings dialog just never showed it. */
+  refusal_target_pct: number | null;
+  /** The group's default Total Mixed Ration, used by "Feed Today" on `/feeding`. */
+  default_concentration_id: string | null;
   deleted_at: string | null;
   assigned_count: number;
   created_at: string;

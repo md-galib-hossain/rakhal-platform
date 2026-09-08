@@ -152,12 +152,39 @@ export interface SetFeedOverridePayload {
   notes?: string;
 }
 
+/** Component decomposition behind each headline number (RAKHAL-258's `breakdown`). */
+export interface FeedRequirementBreakdown {
+  dm: { lactation: number; pregnancy: number; heiferGrowth: number; bcsAdjustment: number };
+  me: { maintenance: number; milk: number; pregnancy: number; heiferGrowth: number };
+  cp: { maintenance: number; milk: number; pregnancy: number; heiferGrowth: number };
+}
+
+/** All 16 outputs the engine has returned since RAKHAL-258. The five originals kept their
+ * names; the rest were simply never declared here, which is why the wizard showed only five. */
 export interface FeedRequirements {
   dm_kg: number;
   cp_kg: number;
   me_mj: number;
   ndf_kg: number;
   fat_kg: number;
+  /** Net energy for lactation, Mcal/day. */
+  ne_mcal: number;
+  /** How energy-dense the ration has to be. */
+  energy_density_mj_per_kg_dm: number;
+  /** The diet-density target nutritionists actually formulate to. */
+  cp_pct_of_dm: number;
+  tdn_kg: number;
+  calcium_kg: number;
+  phosphorus_kg: number;
+  adf_kg: number;
+  /** Rumen-degradable protein, % of total CP. */
+  rdp_pct: number;
+  /** Rumen-undegradable protein, % of total CP. */
+  rup_pct: number;
+  /** `ndf_kg` is the minimum; over-supply depresses intake. */
+  ndf_max_kg: number;
+  ca_p_ratio_target: number;
+  breakdown?: FeedRequirementBreakdown;
 }
 
 /** `GET /feed/requirements` — shape varies by mode (`FeedRequirementsService.calc`): manual/`cattleId`
@@ -174,6 +201,9 @@ export interface FeedRequirementsResult {
     milk_fat_pct: number;
     gestation_days?: number | null;
     bcs?: number | null;
+    dim?: number | null;
+    milk_protein_pct?: number | null;
+    animal_type?: string;
     headcount?: number;
     cattle_with_weight?: number;
     cattle_with_milk_data?: number;
@@ -465,6 +495,32 @@ export interface DmiComparison {
 
 /** `GET /feed/today-requirement` — farm-wide rollup of every active ration's ingredient
  * requirement for today, aggregated across all rations by ingredient. */
+/** What the animals need, computed from live cattle records (RAKHAL-412). Present whenever the
+ * farm has cattle — it does not depend on a ration existing. `null` only for a farm with no
+ * cattle, or none with a recorded weight. */
+export interface HerdRequirementBlock {
+  headcount: number;
+  inputs: {
+    weight_kg: number;
+    milk_target_l: number;
+    bcs: number | null;
+    cattle_with_weight: number;
+    cattle_with_milk_data: number;
+  };
+  data_source: { weight: string; milk_yield: string };
+  per_cow: FeedRequirements;
+  herd_total: FeedRequirements;
+}
+
+export interface GroupRequirementBlock {
+  feed_group_id: string;
+  name: string;
+  headcount: number;
+  per_cow: FeedRequirements;
+  group_total: FeedRequirements;
+  data_source: { weight: string; milk_yield: string };
+}
+
 export interface TodaysFeedRequirement {
   by_ingredient: { ingredient_id: string; name: string; total_kg: number }[];
   by_group: {
@@ -474,6 +530,10 @@ export interface TodaysFeedRequirement {
     total_kg: number;
   }[];
   grand_total_kg: number;
+  /** RAKHAL-412 — the animal requirement, independent of any ration. */
+  requirement?: HerdRequirementBlock | null;
+  by_group_requirement?: GroupRequirementBlock[];
+  has_active_ration?: boolean;
 }
 
 /** Which raw inventory catalogue a Feeding Grid entry pulls from — a Purchased `FeedItem` (bought
@@ -599,4 +659,37 @@ export interface FeedCostSummary {
   headcount: number;
   total_litres: number;
   trend: { date: string; total_cost: number }[];
+}
+
+/** A cow as returned by `GET /feed/groups/:id/cattle` (RFE-102). */
+export interface FeedGroupCattle {
+  id: string;
+  name: string | null;
+  tagNumber: string;
+  productionStatus: string | null;
+}
+
+/** Which layer supplied a setting's effective value (RFE-104 / RAKHAL-409). */
+export type RequirementSettingSource = "farm" | "preset" | "default";
+
+/** Everything an editor needs to render one tuning number, straight from the backend so the
+ * labels, units and bounds have exactly one definition. */
+export interface RequirementSettingField {
+  group: string;
+  label: string;
+  /** Empty for dimensionless factors. */
+  unit: string;
+  min: number;
+  max: number;
+}
+
+/** `GET /feed/requirement-settings`. `fields` covers the 32 editable scalars; `sources` also
+ * includes `pregnancyIntakeStages`, the nested stage table, which this sheet does not edit. */
+export interface RequirementSettingsResult {
+  effective: Record<string, unknown>;
+  defaults: Record<string, unknown>;
+  preset: { id: string; name: string; version: number; effective_from: string } | null;
+  farm_changes: Record<string, number>;
+  sources: Record<string, RequirementSettingSource>;
+  fields: Record<string, RequirementSettingField>;
 }

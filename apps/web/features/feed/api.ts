@@ -19,6 +19,8 @@ import type {
   FeedEfficiencyResult,
   FeedGridResult,
   FeedGroup,
+  FeedGroupCattle,
+  RequirementSettingsResult,
   FeedIngredient,
   FeedRequirementsResult,
   IngredientListFilters,
@@ -89,6 +91,13 @@ export const feedApi = {
     weightKg?: number;
     milkTargetL?: number;
     milkFatPct?: number;
+    /** RFE-103: these five were accepted by the backend from the start but never forwarded,
+     * which is what limited the wizard to a weight/milk-only requirement. */
+    milkProteinPct?: number;
+    gestationDays?: number;
+    bcs?: number;
+    dim?: number;
+    animalType?: "COW" | "HEIFER" | "DRY";
     cattleId?: string;
     feedGroupId?: string;
   }): Promise<FeedRequirementsResult> {
@@ -126,6 +135,38 @@ export const feedApi = {
   // for setting a group's default recipe below, 2026-08-14) -------------------------------------
   listFeedGroups(): Promise<FeedGroup[]> {
     return apiFetch<FeedGroup[]>("/settings/feed-groups");
+  },
+  // ---- Requirement settings (RFE-104, backend RAKHAL-409) ------------------
+  /** The farm's effective tuning numbers plus the layers behind them and the field metadata. */
+  requirementSettings(): Promise<RequirementSettingsResult> {
+    return apiFetch<RequirementSettingsResult>("/feed/requirement-settings");
+  },
+  /** Sparse — only the fields being changed. Everything absent inherits. */
+  updateRequirementSettings(
+    changes: Record<string, number>,
+    notes?: string,
+  ): Promise<RequirementSettingsResult> {
+    return apiFetch<RequirementSettingsResult>("/feed/requirement-settings", {
+      method: "PUT",
+      body: { changes, notes },
+    });
+  },
+  /** Drop this farm's changes and go back to the standard model. */
+  resetRequirementSettings(): Promise<RequirementSettingsResult> {
+    return apiFetch<RequirementSettingsResult>("/feed/requirement-settings", { method: "DELETE" });
+  },
+  /** Cattle currently in a feed group (RFE-102 is the first consumer — the route has existed
+   * since Phase 4 with no UI). */
+  listGroupCattle(groupId: string): Promise<FeedGroupCattle[]> {
+    return apiFetch<FeedGroupCattle[]>(`/feed/groups/${groupId}/cattle`);
+  },
+  /** Move cattle into a feed group. Returns how many moved and how many were rejected
+   * (another farm's cow, or one already gone). */
+  assignCattleToGroup(groupId: string, cattleIds: string[]): Promise<{ assigned: number; failed: number }> {
+    return apiFetch(`/feed/groups/${groupId}/assign-cattle`, {
+      method: "POST",
+      body: { cattleIds },
+    });
   },
   /** "Set as default for this group" (Concentrate Mixer/TMR card action) — `null` clears it. */
   setGroupDefaultConcentration(groupId: string, concentrationId: string | null): Promise<FeedGroup> {

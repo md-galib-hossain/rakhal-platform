@@ -1283,3 +1283,22 @@ Dev backend must run for any data work: Docker Desktop → `rakhal-postgres` + `
 `pnpm start:dev` + `pnpm seed` in `Repos/rakhal-backend`. Demo: owner@demo.rakhal.test / DemoPass123,
 worker@demo.rakhal.test / WorkerPass123. Swagger: http://localhost:3000/api/docs.
 Frontend dev server: `pnpm dev` → `http://localhost:3001` (backend stays on 3000).
+## 2026-09-09 - RFE-101...105: roles editor, feed groups on /feeding, Requirements tab, feeding card
+
+Frontend half of the 2026-09-08 backend work (RAKHAL-408...413). **All five shipped and live-verified** against the real dev stack.
+RFE-104 landed last: changing `Protein per litre of milk` 85 -> 95 in the UI stored a sparse
+`{proteinPerLitreMilk: 95}`, flipped that field's source to `farm` while the rest stayed `default`, and
+moved `GET /feed/requirements` CP from 1.65 to 1.80 kg; reset-all restored both.
+
+Three of the user's four complaints turned out to be frontend-only gaps: the roles API (RAKHAL-031) and the
+standalone requirements endpoint (RAKHAL-081/258) had shipped with no consumer at all. Highlights: the
+permission grid is driven by the backend catalogue rather than a hardcoded list; `feedApi.requirements()`
+was silently dropping five of its ten params; `useCattleOrGroupRequirements` hard-blocked manual mode; and
+`/feeding` no longer tells a farm to build a Total Mixed Ration before it will show a requirement.
+
+Also cleared a stale `docs/IN_FLIGHT.md` claim from 2026-08-15 (the feeding-grid row) whose work had already
+shipped - it was holding `features/feeding/**` and `features/feed/**`.
+
+Gate: `tsc --noEmit` 0 - `eslint` 0 errors on the changeset (one pre-existing `import/no-cycle` in
+`log-distribution-dialog.tsx`, untouched by this work) - both locales render - live-verified in the browser.
+

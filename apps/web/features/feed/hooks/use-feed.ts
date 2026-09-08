@@ -95,19 +95,40 @@ export function useConcentrationDetail(id: string | undefined) {
  * the only caller, always passing a real `cattleId`/`feedGroupId` since a Total Mixed Ration (TMR)
  * always targets one). Manual `weightKg`/`milkTargetL` stay available as the fallback the backend already uses when
  * a record is incomplete. */
-export function useCattleOrGroupRequirements(params: {
+export interface RequirementParams {
   cattleId?: string;
   feedGroupId?: string;
   weightKg?: number;
   milkTargetL?: number;
-}) {
+  milkFatPct?: number;
+  milkProteinPct?: number;
+  gestationDays?: number;
+  bcs?: number;
+  dim?: number;
+  animalType?: "COW" | "HEIFER" | "DRY";
+}
+
+/**
+ * Cow requirements in any of the three modes the backend has always supported (RFE-103).
+ *
+ * The old `enabled: Boolean(cattleId || feedGroupId)` guard made a cow or group mandatory, so
+ * manual entry could never reach the endpoint even though `calcManual` has been there since
+ * RAKHAL-081. Now a request goes out whenever the inputs are sufficient for *some* mode:
+ * a cow, a group, or a weight plus a milk target.
+ */
+export function useRequirements(params: RequirementParams) {
+  const manualReady = params.weightKg != null && params.milkTargetL != null;
   return useQuery({
     queryKey: qk.feed.requirementsFor(params),
     queryFn: () => feedApi.requirements(params),
-    enabled: Boolean(params.cattleId || params.feedGroupId),
+    enabled: Boolean(params.cattleId || params.feedGroupId || manualReady),
     staleTime: STALE_TIME,
   });
 }
+
+/** @deprecated Use {@link useRequirements}. Kept so `create-feed-dialog.tsx` (RAKHAL-263's
+ * lane) does not have to change in this ticket. */
+export const useCattleOrGroupRequirements = useRequirements;
 
 /** Invalidates every `["feed", "concentrations", ...]` query — both the list (`qk.feed.concentrations()`)
  * and any open detail view (`qk.feed.concentrationDetail(id)`). A plain `invalidateQueries({ queryKey:
