@@ -52,7 +52,7 @@ export function FormSheet({
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            aria-label={cancelLabel}
+            aria-label="Close"
             className="flex size-5 shrink-0 items-center justify-center text-foreground transition-opacity hover:opacity-70"
           >
             <ArrowRightToLine className="size-5" aria-hidden />

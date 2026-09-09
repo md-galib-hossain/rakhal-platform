@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
@@ -19,8 +22,15 @@ import { AnimalLink } from "@/components/shared/animal-link";
 import { Can } from "@/lib/auth/permissions";
 import { useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
 import { useFeedItemPagedList } from "@/features/inventory/hooks/use-inventory";
+import { FeedItemFormDialog } from "@/features/inventory/components/feed-item-form-dialog";
+import { CreateFeedDialog } from "../../feed/components/create-feed-dialog";
 import { useConcentrations, useFeedGroups, useFeedGrid, useConfirmFeedDraft, useSaveFeedDraft, useFeedStock } from "../../feed/hooks/use-feed";
 import type { FeedGridCow, FeedGridEntryInput, FeedGridSourceType } from "../../feed/types";
+
+interface FeedSourceOption {
+  id: string;
+  label: string;
+}
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -157,8 +167,18 @@ function FeedingGridTable({
   const [sharedKg, setSharedKg] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<"save" | "confirm" | null>(null);
+  const [addFeedItemOpen, setAddFeedItemOpen] = useState(false);
+  const [createKind, setCreateKind] = useState<"CONCENTRATE_TEMPLATE" | "FEED_MIXTURE">("CONCENTRATE_TEMPLATE");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [itemPickerOpen, setItemPickerOpen] = useState(false);
+  const [itemSearch, setItemSearch] = useState("");
 
-  const stockOptions = useMemo(
+  const feedItemOptions: FeedSourceOption[] = useMemo(
+    () => feedItems.items.map((item) => ({ id: item.id, label: `${item.name} (${item.currentStock} ${item.unit.symbol})` })),
+    [feedItems.items],
+  );
+
+  const stockOptions: FeedSourceOption[] = useMemo(
     () =>
       (feedStock.data ?? []).map((s) => ({
         id: s.id,
@@ -166,6 +186,13 @@ function FeedingGridTable({
       })),
     [feedStock.data, concentrations.data, t],
   );
+
+  const sourceOptions = sourceType === "FEED_ITEM" ? feedItemOptions : stockOptions;
+  const filteredSourceOptions = useMemo(
+    () => sourceOptions.filter((opt) => opt.label.toLowerCase().includes(itemSearch.toLowerCase())),
+    [sourceOptions, itemSearch],
+  );
+  const selectedSourceOption = sourceOptions.find((opt) => opt.id === itemId);
 
   function handleApplyBulk() {
     const kg = Number(sharedKg);
@@ -258,6 +285,7 @@ function FeedingGridTable({
               onClick={() => {
                 setSourceType(value);
                 setItemId("");
+                setItemSearch("");
               }}
               className={cn(
                 "flex items-center justify-center rounded-md px-2.5 text-xs font-bold transition-colors",
@@ -269,24 +297,93 @@ function FeedingGridTable({
           ))}
         </div>
 
-        <Select value={itemId} onValueChange={setItemId}>
-          <SelectTrigger size="sm" className="w-[220px]" aria-label={t("itemLabel")}>
-            <SelectValue placeholder={t("itemPlaceholder")} />
-          </SelectTrigger>
-          <SelectContent>
-            {sourceType === "FEED_ITEM"
-              ? feedItems.items.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.name} ({item.currentStock} {item.unit.symbol})
-                  </SelectItem>
-                ))
-              : stockOptions.map((opt) => (
-                  <SelectItem key={opt.id} value={opt.id}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-          </SelectContent>
-        </Select>
+        <Popover
+          open={itemPickerOpen}
+          onOpenChange={(next) => {
+            setItemPickerOpen(next);
+            if (!next) setItemSearch("");
+          }}
+          // Non-modal — same defense-in-depth reason `ingredient-picker.tsx`/`cattle-picker.tsx`
+          // keep this off: no scroll-lock parent here, but the picker's own footer buttons
+          // (`onCreated` re-opens this same row) shouldn't ever fight a focus trap.
+          modal={false}
+        >
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              role="combobox"
+              aria-expanded={itemPickerOpen}
+              aria-label={t("itemLabel")}
+              className={cn("h-9 w-[220px] justify-between font-normal", !selectedSourceOption && "text-muted-foreground")}
+            >
+              <span className="truncate">{selectedSourceOption?.label ?? t("itemPlaceholder")}</span>
+              <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" aria-hidden />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-(--radix-popover-trigger-width) min-w-72 p-0">
+            <Command shouldFilter={false}>
+              <CommandInput placeholder={t("searchItemPlaceholder")} value={itemSearch} onValueChange={setItemSearch} />
+              <CommandList>
+                <CommandEmpty>{t("noItemsFound")}</CommandEmpty>
+                <CommandGroup>
+                  {filteredSourceOptions.map((opt) => (
+                    <CommandItem
+                      key={opt.id}
+                      value={opt.id}
+                      onSelect={() => {
+                        setItemId(opt.id);
+                        setItemPickerOpen(false);
+                      }}
+                    >
+                      <Check className={cn("mr-2 size-4", opt.id === itemId ? "opacity-100" : "opacity-0")} aria-hidden />
+                      {opt.label}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+            <div className="flex flex-col border-t border-border p-1">
+              {sourceType === "FEED_ITEM" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setItemPickerOpen(false);
+                    setAddFeedItemOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-primary transition-colors hover:bg-muted"
+                >
+                  <Plus className="size-4" aria-hidden /> {t("addFeedItem")}
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setItemPickerOpen(false);
+                      setCreateKind("CONCENTRATE_TEMPLATE");
+                      setCreateOpen(true);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-primary transition-colors hover:bg-muted"
+                  >
+                    <Plus className="size-4" aria-hidden /> {t("createConcentrate")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setItemPickerOpen(false);
+                      setCreateKind("FEED_MIXTURE");
+                      setCreateOpen(true);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-primary transition-colors hover:bg-muted"
+                  >
+                    <Plus className="size-4" aria-hidden /> {t("createTmr")}
+                  </button>
+                </>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
 
         <div className="flex h-9 w-28 items-center gap-1 rounded-md border border-border bg-card px-2 text-sm">
           <Input
@@ -407,6 +504,13 @@ function FeedingGridTable({
         variant="primary"
         onConfirm={handleConfirmDialog}
       />
+
+      <FeedItemFormDialog
+        open={addFeedItemOpen}
+        onOpenChange={setAddFeedItemOpen}
+        onCreated={(item) => setItemId(item.id)}
+      />
+      <CreateFeedDialog open={createOpen} onOpenChange={setCreateOpen} kind={createKind} />
     </>
   );
 }

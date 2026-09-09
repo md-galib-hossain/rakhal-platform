@@ -191,6 +191,17 @@ function FeedItemFormDialogBody({
   return (
     <SheetContent
       showClose={false}
+      onInteractOutside={(event) => {
+        // Same focus-return fix as `create-feed-dialog.tsx` (2026-07-18 comment there): opening
+        // this Sheet from a source that itself closes on click (e.g. `feeding-grid.tsx`'s item
+        // `Select`, closed by picking its own "Add Feed Item" option) returns focus to that
+        // trigger right after this Sheet mounts, and non-modal Dialog's `onInteractOutside`
+        // misreads that focus-return as a dismiss-worthy outside interaction — flash-closing the
+        // Sheet before the user ever sees it (user report 2026-09-09, "add feed item modal is not
+        // rendering"). Swallow only that focus-return case; a real pointer-down/keydown outside
+        // must still close it.
+        if (event.detail.originalEvent.type === "focusin") event.preventDefault();
+      }}
       className="inset-y-2.5 right-2.5 flex h-[calc(100vh-20px)] w-[calc(100%-20px)] max-w-[680px] flex-col gap-0 rounded-[20px] border-2 border-border p-5 shadow-2xl sm:max-w-[680px]"
     >
       <div className="flex items-center justify-between pb-5">

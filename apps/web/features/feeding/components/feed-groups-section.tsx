@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2, Users, Wheat } from "lucide-react";
+import { ArrowRightToLine, Pencil, Plus, Trash2, Users, Wheat } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiError } from "@/lib/api/errors";
@@ -11,14 +11,13 @@ import { Can } from "@/lib/auth/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { FormSheet } from "@/components/shared/form-sheet";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { FloatingInput } from "@/components/ui/floating-input";
 import {
   Select,
@@ -292,46 +291,37 @@ function FeedGroupFormDialog({
   const pending = createGroup.isPending || updateGroup.isPending;
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{group ? t("editTitle") : t("createTitle")}</DialogTitle>
-          <DialogDescription>{t("formDescription")}</DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={(e) => void onSubmit(e)} className="flex flex-col gap-4">
-          <FloatingInput
-            label={t("nameLabel")}
-            {...form.register("name")}
-            error={form.formState.errors.name?.message}
-          />
-          <FloatingInput
-            label={t("descriptionLabel")}
-            {...form.register("description")}
-            error={form.formState.errors.description?.message}
-          />
-          <div className="flex flex-col gap-1">
-            <FloatingInput
-              label={t("refusalLabel")}
-              type="number"
-              step="0.1"
-              {...form.register("refusalTargetPct")}
-              error={form.formState.errors.refusalTargetPct?.message}
-            />
-            <p className="text-xs text-muted-foreground">{t("refusalHint")}</p>
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="secondary" onClick={onClose}>
-              {t("cancel")}
-            </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? t("saving") : t("save")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormSheet
+      open
+      onOpenChange={(open) => !open && onClose()}
+      title={group ? t("editTitle") : t("createTitle")}
+      description={t("formDescription")}
+      onSubmit={onSubmit}
+      submitLabel={pending ? t("saving") : t("save")}
+      cancelLabel={t("cancel")}
+      pending={pending}
+    >
+      <FloatingInput
+        label={t("nameLabel")}
+        {...form.register("name")}
+        error={form.formState.errors.name?.message}
+      />
+      <FloatingInput
+        label={t("descriptionLabel")}
+        {...form.register("description")}
+        error={form.formState.errors.description?.message}
+      />
+      <div className="flex flex-col gap-1">
+        <FloatingInput
+          label={t("refusalLabel")}
+          type="number"
+          step="0.1"
+          {...form.register("refusalTargetPct")}
+          error={form.formState.errors.refusalTargetPct?.message}
+        />
+        <p className="text-xs text-muted-foreground">{t("refusalHint")}</p>
+      </div>
+    </FormSheet>
   );
 }
 
@@ -365,59 +355,80 @@ function AssignCattleDialog({ group, onClose }: { group: FeedGroup; onClose: () 
   const rows = members.data ?? [];
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{t("assignTitle", { name: group.name })}</DialogTitle>
-          <DialogDescription>{t("assignDescription")}</DialogDescription>
-        </DialogHeader>
+    <Sheet open onOpenChange={(open) => !open && onClose()}>
+      <SheetContent
+        side="right"
+        showClose={false}
+        className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:max-w-lg sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5"
+      >
+        <div className="flex items-center justify-between pb-5">
+          <SheetTitle className="text-xl font-bold text-foreground">
+            {t("assignTitle", { name: group.name })}
+          </SheetTitle>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="flex size-5 shrink-0 items-center justify-center text-foreground transition-opacity hover:opacity-70"
+          >
+            <ArrowRightToLine className="size-5" aria-hidden />
+          </button>
+        </div>
+        <div className="border-t border-dashed border-border" />
 
-        {members.isLoading ? (
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
-        ) : members.isError ? (
-          <ErrorState onRetry={() => void members.refetch()} />
-        ) : (
-          <>
-            <p className="text-xs text-muted-foreground">
-              {t("currentMembers", { count: rows.length })}
-            </p>
-            <div className="flex max-h-72 flex-col divide-y divide-border overflow-y-auto rounded-xl border border-border">
-              {rows.length === 0 ? (
-                <p className="p-3 text-sm text-muted-foreground">{t("noMembers")}</p>
-              ) : (
-                rows.map((cow) => (
-                  <label
-                    key={cow.id}
-                    className="flex cursor-pointer items-center gap-2 p-3 text-sm text-foreground"
-                  >
-                    <Checkbox
-                      checked={selected.has(cow.id)}
-                      onCheckedChange={(v) => toggle(cow.id, v === true)}
-                    />
-                    <span>{cow.name ?? cow.tagNumber}</span>
-                    <span className="text-xs text-muted-foreground">{cow.tagNumber}</span>
-                  </label>
-                ))
-              )}
+        <div className="flex flex-1 flex-col overflow-y-auto px-1 py-4 gap-4">
+          <SheetDescription>{t("assignDescription")}</SheetDescription>
+
+          {members.isLoading ? (
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
             </div>
-          </>
-        )}
+          ) : members.isError ? (
+            <ErrorState onRetry={() => void members.refetch()} />
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">
+                {t("currentMembers", { count: rows.length })}
+              </p>
+              <div className="flex max-h-72 flex-col divide-y divide-border overflow-y-auto rounded-xl border border-border">
+                {rows.length === 0 ? (
+                  <p className="p-3 text-sm text-muted-foreground">{t("noMembers")}</p>
+                ) : (
+                  rows.map((cow) => (
+                    <label
+                      key={cow.id}
+                      className="flex cursor-pointer items-center gap-2 p-3 text-sm text-foreground hover:bg-muted/50"
+                    >
+                      <Checkbox
+                        checked={selected.has(cow.id)}
+                        onCheckedChange={(v) => toggle(cow.id, v === true)}
+                      />
+                      <span>{cow.name ?? cow.tagNumber}</span>
+                      <span className="text-xs text-muted-foreground">{cow.tagNumber}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+        </div>
 
-        <DialogFooter>
-          <Button variant="secondary" onClick={onClose}>
+        <div className="border-t border-dashed border-border" />
+        <div className="flex gap-3 px-1 pt-5">
+          <Button type="button" variant="secondary" className="h-12 flex-1" onClick={onClose}>
             {t("cancel")}
           </Button>
           <Button
+            type="button"
+            className="h-12 flex-1"
             onClick={() => void handleAssign()}
             disabled={assign.isPending || selected.size === 0}
           >
             {assign.isPending ? t("assigning") : t("assignSelected", { count: selected.size })}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
