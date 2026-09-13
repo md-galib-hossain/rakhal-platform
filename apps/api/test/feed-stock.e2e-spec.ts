@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 import { seededCashAccountId } from './utils/finance';
+import { concentrateDerivedIngredientId } from './utils/feed';
 
 /**
  * Feed Formulator — Phase 4 of the epic in
@@ -22,6 +23,8 @@ describe('Feed Formulator — feed stock production (e2e)', () => {
   let financialAccountId: string;
   let worker: AuthedUser;
   let ingredientId: string;
+  /** RAKHAL-425: every TMR below needs one line using this. */
+  let concentrateIngredientId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -41,7 +44,10 @@ describe('Feed Formulator — feed stock production (e2e)', () => {
         targetWeightKg: 400,
         targetMilkL: 15,
         durationDays: 30,
-        items: [{ ingredientId, amountKg }],
+        items: [
+          { ingredientId, amountKg },
+          { ingredientId: concentrateIngredientId, amountKg: 0 },
+        ],
       })
       .expect(201);
     const finalized = await request(server())
@@ -71,6 +77,7 @@ describe('Feed Formulator — feed stock production (e2e)', () => {
       })
       .expect(201);
     ingredientId = created.body.data.id as string;
+    concentrateIngredientId = await concentrateDerivedIngredientId(ctx, owner);
   }, 30_000);
 
   afterAll(async () => {
@@ -88,7 +95,10 @@ describe('Feed Formulator — feed stock production (e2e)', () => {
         targetWeightKg: 400,
         targetMilkL: 15,
         durationDays: 30,
-        items: [{ ingredientId, amountKg: 30 }],
+        items: [
+          { ingredientId, amountKg: 30 },
+          { ingredientId: concentrateIngredientId, amountKg: 0 },
+        ],
       })
       .expect(201);
 
@@ -132,7 +142,10 @@ describe('Feed Formulator — feed stock production (e2e)', () => {
         targetWeightKg: 400,
         targetMilkL: 15,
         durationDays: 30,
-        items: [{ ingredientId, amountKg: 10 }],
+        items: [
+          { ingredientId, amountKg: 10 },
+          { ingredientId: concentrateIngredientId, amountKg: 0 },
+        ],
       })
       .expect(201);
 
@@ -147,7 +160,12 @@ describe('Feed Formulator — feed stock production (e2e)', () => {
     await request(server())
       .patch(api(`/feed/concentrations/${conc.body.data.id}`))
       .set(...auth(owner))
-      .send({ items: [{ ingredientId, amountKg: 25 }] })
+      .send({
+        items: [
+          { ingredientId, amountKg: 25 },
+          { ingredientId: concentrateIngredientId, amountKg: 0 },
+        ],
+      })
       .expect(200);
 
     const v2 = await request(server())

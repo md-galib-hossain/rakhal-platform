@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 import { seededCashAccountId } from './utils/finance';
+import { concentrateDerivedIngredientId } from './utils/feed';
 
 /**
  * Feed distribution ↔ stock atomicity (RD-036).
@@ -28,6 +29,8 @@ describe('Feed distribution ↔ stock atomicity (e2e)', () => {
   let owner: AuthedUser;
   let ingredientId: string;
   let financialAccountId: string;
+  /** RAKHAL-425: every TMR below needs one line using this. */
+  let concentrateIngredientId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -54,6 +57,7 @@ describe('Feed distribution ↔ stock atomicity (e2e)', () => {
       })
       .expect(201);
     ingredientId = created.body.data.id as string;
+    concentrateIngredientId = await concentrateDerivedIngredientId(ctx, owner);
   }, 30_000);
 
   afterAll(async () => {
@@ -72,7 +76,10 @@ describe('Feed distribution ↔ stock atomicity (e2e)', () => {
         targetWeightKg: 400,
         targetMilkL: 15,
         durationDays: 30,
-        items: [{ ingredientId, amountKg }],
+        items: [
+          { ingredientId, amountKg },
+          { ingredientId: concentrateIngredientId, amountKg: 0 },
+        ],
       })
       .expect(201);
     const finalized = await request(server())

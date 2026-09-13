@@ -12,6 +12,7 @@ import { HealthService } from './application/services/health.service';
 import { CattleHealthController } from './presentation/controllers/cattle-health.controller';
 import { HealthController } from './presentation/controllers/health.controller';
 import { SubscriptionModule } from '../subscription/subscription.module';
+import { PurchasingModule } from '../purchasing/purchasing.module';
 
 @Module({
   imports: [
@@ -25,6 +26,9 @@ import { SubscriptionModule } from '../subscription/subscription.module';
     NotificationModule,
     SubscriptionModule,
     CattleModule,
+    // RAKHAL-419: ExpenseService for treatment-cost posting (same wiring
+    // reproduction.module.ts already uses for breeding-cost posting).
+    PurchasingModule,
   ],
   controllers: [HealthController, CattleHealthController],
   providers: [HealthService],

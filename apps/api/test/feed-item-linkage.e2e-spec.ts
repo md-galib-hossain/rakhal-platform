@@ -134,6 +134,76 @@ describe('Feed item ↔ ingredient linkage (e2e)', () => {
     });
   });
 
+  /**
+   * RAKHAL-426: a COUNT/VOLUME-unit `FeedItem` with no `kgPerUnit` used to resolve to
+   * `kgPerUnit: null`, which `planForageDecrements` treated as "can't convert, skip" — the
+   * distribution posted successfully with `forageDecrements: 0` and stock never moved. Now the
+   * direct-by-id path (`computeFeedItemUsage`) throws instead of silently proceeding; this test
+   * covers that path via `GET /feed/grid`'s `FEED_ITEM` source
+   * (`FeedFeedingGridService#confirm` → `computeFeedItemUsage`).
+   */
+  it('rejects feeding a non-kg feed item with no kgPerUnit instead of silently skipping it (RAKHAL-426)', async () => {
+    const createdIngredient = await request(server())
+      .post(api('/feed/ingredients/custom'))
+      .set(...auth(owner))
+      .send({
+        name: `E2E Unitless Ingredient ${Date.now()}-${Math.random()}`,
+        nutrientGroup: 'ENERGY',
+        pricePerKg: 10,
+        dmPct: 90,
+        cpPct: 10,
+        meMjPerKgDm: 9,
+      })
+      .expect(201);
+    const ingredient = createdIngredient.body.data as { id: string };
+
+    const feedItem = await request(server())
+      .post(api('/inventory/feed-items'))
+      .set(...auth(owner))
+      .send({
+        name: `E2E Unitless Bag Item ${Date.now()}`,
+        feedClass: 'FORAGE',
+        ingredientId: ingredient.id,
+        unitId: 'unit_bag',
+        // kgPerUnit intentionally omitted — the defect scenario.
+        currentStock: 100,
+        costPerUnit: 20,
+        purchaseDate: new Date().toISOString(),
+      })
+      .expect(201);
+    const feedItemId = feedItem.body.data.id as string;
+
+    const cow = await prisma.cattle.findFirst({
+      where: { farmId: owner.farmId },
+      select: { id: true },
+    });
+    if (!cow) throw new Error('demo farm has no cattle to feed in this test');
+
+    const res = await request(server())
+      .post(api('/feed/grid/confirm'))
+      .set(...auth(owner))
+      .send({
+        date: new Date().toISOString().slice(0, 10),
+        sourceType: 'FEED_ITEM',
+        feedItemId,
+        entries: [{ cattleId: cow.id, offeredKg: 4 }],
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toContain('kg-per-unit');
+
+    const after = await request(server())
+      .get(api(`/inventory/feed-items/${feedItemId}`))
+      .set(...auth(owner))
+      .expect(200);
+    expect(after.body.data.currentStock).toBe(100); // unchanged — rejected, not silently skipped
+
+    await prisma.feedItem.deleteMany({ where: { id: feedItemId } });
+    await prisma.feedIngredient.updateMany({
+      where: { id: ingredient.id },
+      data: { deletedAt: new Date() },
+    });
+  });
+
   it("a feed item's price change refreshes the linked ingredient's effective cost (PRD §15.3)", async () => {
     const custom = await request(server())
       .post(api('/feed/ingredients/custom'))

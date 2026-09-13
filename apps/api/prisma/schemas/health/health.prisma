@@ -40,8 +40,8 @@ model HealthCase {
   meatWithdrawalUntil       DateTime?
 
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   farm       Farm        @relation("FarmToHealthCase", fields: [farmId], references: [id])
   cattle     Cattle      @relation(fields: [cattleId], references: [id])
@@ -78,11 +78,11 @@ model HealthPlan {
   successRate                Decimal?
   currentlyActiveAnimalCount Int      @default(0)
 
-  isTemplate Boolean  @default(false)
+  isTemplate Boolean   @default(false)
   deletedAt  DateTime?
   createdBy  String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   farm    Farm @relation("FarmToHealthPlan", fields: [farmId], references: [id])
   creator User @relation("HealthPlanCreator", fields: [createdBy], references: [id])
@@ -157,8 +157,8 @@ model HealthTask {
   notes           String?
 
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   farm       Farm        @relation("FarmToHealthTask", fields: [farmId], references: [id])
   cattle     Cattle      @relation(fields: [cattleId], references: [id])
@@ -194,6 +194,14 @@ model TreatmentLog {
   stockDeductionQuantity Decimal?
   batchNo                String?
   notes                  String?
+
+  /// RAKHAL-419: `Expense.id` once the medicine's consumption cost has been
+  /// posted to Finance (`ExpenseService.recordExpense`). Plain scalar, no
+  /// `@relation` — same cross-module-FK convention `BreedingEvent.
+  /// financeTransactionId` already uses (ADR-016: `health/**` must not join
+  /// `purchasing/**`'s tables directly). Null when the treatment had no
+  /// medicine or the medicine's `costPerUnit` was 0 — nothing to post.
+  financeTransactionId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -302,11 +310,11 @@ model DiseaseCatalog {
   defaultPriority HealthPriority?
   defaultSymptoms String[]
 
-  isContagious              Boolean @default(false)
-  recommendedIsolation      Boolean @default(false)
+  isContagious              Boolean   @default(false)
+  recommendedIsolation      Boolean   @default(false)
   defaultMilkWithdrawalDays Int?
   defaultMeatWithdrawalDays Int?
-  isSystemDefault           Boolean @default(false)
+  isSystemDefault           Boolean   @default(false)
   deletedAt                 DateTime?
 
   createdAt DateTime @default(now())

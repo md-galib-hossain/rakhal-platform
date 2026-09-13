@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 import { seededCashAccountId } from './utils/finance';
+import { concentrateDerivedIngredientId } from './utils/feed';
 
 /**
  * `POST /feed/stock/bulk-delete` — the backend half of the shared bulk-select/bulk-delete "dock"
@@ -17,6 +18,8 @@ describe('Feed stock (Prepared) bulk-delete (e2e)', () => {
   let financialAccountId: string;
   let worker: AuthedUser;
   let ingredientId: string;
+  /** RAKHAL-425: every TMR below needs one line using this. */
+  let concentrateIngredientId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -36,7 +39,10 @@ describe('Feed stock (Prepared) bulk-delete (e2e)', () => {
         targetWeightKg: 400,
         targetMilkL: 15,
         durationDays: 30,
-        items: [{ ingredientId, amountKg }],
+        items: [
+          { ingredientId, amountKg },
+          { ingredientId: concentrateIngredientId, amountKg: 0 },
+        ],
       })
       .expect(201);
     const finalized = await request(server())
@@ -66,6 +72,7 @@ describe('Feed stock (Prepared) bulk-delete (e2e)', () => {
       })
       .expect(201);
     ingredientId = created.body.data.id as string;
+    concentrateIngredientId = await concentrateDerivedIngredientId(ctx, owner);
   }, 30_000);
 
   afterAll(async () => {

@@ -9,6 +9,7 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { CursorPage, getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { computeStockStatus, StockStatus } from '../../domain/medicine-status';
+import { resolveKgPerUnit } from './unit.service';
 import { CreateFeedItemDto } from '../../presentation/dto/create-feed-item.dto';
 import { ListFeedItemQueryDto } from '../../presentation/dto/list-feed-item-query.dto';
 import { UpdateFeedItemDto } from '../../presentation/dto/update-feed-item.dto';
@@ -296,9 +297,10 @@ export class FeedItemService {
    * imported by `FeedModule`).
    * Only `customPricePerKg` is touched — never wipes a farm's existing
    * nutrition override on the same row. Best-effort: a missing link or an
-   * un-computable per-kg price (non-kg unit with no `kgPerUnit`) is skipped,
-   * not thrown. A `kg`-unit item needs no conversion factor at all — its
-   * `costPerUnit` already *is* a per-kg price.
+   * un-computable per-kg price (no resolvable kg-per-unit) is skipped, not
+   * thrown. A WEIGHT-dimension item (kg, g, ton…) needs no farmer-entered
+   * conversion factor at all — `resolveKgPerUnit()` reads it straight off the
+   * unit's own `conversionToBase`.
    */
   private async syncIngredientPrice(
     farmId: string,
@@ -306,12 +308,10 @@ export class FeedItemService {
     feedItem: FeedItemWithUnit,
   ): Promise<void> {
     if (!feedItem.ingredientId) return;
-    const isKg = feedItem.unit.symbol === 'kg';
-    if (!isKg && (!feedItem.kgPerUnit || feedItem.kgPerUnit <= 0)) return;
+    const kgPerUnit = resolveKgPerUnit(feedItem.unit, feedItem.kgPerUnit);
+    if (!kgPerUnit || kgPerUnit <= 0) return;
 
-    const pricePerKg = isKg
-      ? feedItem.costPerUnit
-      : feedItem.costPerUnit / feedItem.kgPerUnit!;
+    const pricePerKg = feedItem.costPerUnit / kgPerUnit;
     const ingredientId = feedItem.ingredientId;
     await this.prisma.feedIngredientOverride.upsert({
       where: { farmId_ingredientId: { farmId, ingredientId } },
@@ -330,6 +330,7 @@ export class FeedItemService {
   }
 
   private present(feedItem: FeedItemWithUnit): PresentedFeedItem {
+    const kgPerUnit = resolveKgPerUnit(feedItem.unit, feedItem.kgPerUnit);
     return {
       ...feedItem,
       stockStatus: computeStockStatus(
@@ -337,9 +338,7 @@ export class FeedItemService {
         feedItem.lowStockThreshold,
       ),
       kgEquivalent:
-        feedItem.kgPerUnit != null
-          ? feedItem.currentStock * feedItem.kgPerUnit
-          : null,
+        kgPerUnit != null ? feedItem.currentStock * kgPerUnit : null,
     };
   }
 

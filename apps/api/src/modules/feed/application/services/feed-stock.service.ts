@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { NutritionSource, Prisma } from '@prisma/client';
+import { FeedConcentrationKind, NutritionSource, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 
@@ -57,12 +57,18 @@ export class FeedStockService {
       qtyKg: number;
       costTk: number;
       nutrition: StockNutritionSnapshot;
+      kind: FeedConcentrationKind;
     },
+    /** RAKHAL-423: pass the caller's own transaction so a finalize's batch-link decrements and
+     * this production commit or roll back together, same shape `decrementForDistribution`
+     * already uses. Opens its own transaction when omitted, so standalone callers are unchanged. */
+    tx?: Prisma.TransactionClient,
   ) {
-    const stock = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.feedStock.create({
+    const run = async (client: Prisma.TransactionClient) => {
+      const created = await client.feedStock.create({
         data: {
           farmId,
+          kind: params.kind,
           sourceConcentrationId: params.concentrationId,
           sourceConcentrationVersion: params.version,
           producedAt: new Date(),
@@ -73,7 +79,7 @@ export class FeedStockService {
           createdBy: userId,
         },
       });
-      await tx.feedStockMovement.create({
+      await client.feedStockMovement.create({
         data: {
           stockId: created.id,
           changeKg: round2(params.qtyKg),
@@ -82,7 +88,10 @@ export class FeedStockService {
         },
       });
       return created;
-    });
+    };
+    const stock = tx
+      ? await run(tx)
+      : await this.prisma.$transaction((client) => run(client));
 
     this.log.info('Feed stock produced', {
       farmId,
@@ -305,6 +314,7 @@ export class FeedStockService {
   private mapStock(
     row: {
       id: string;
+      kind: FeedConcentrationKind;
       sourceConcentrationId: string;
       sourceConcentrationVersion: number;
       producedAt: Date;
@@ -317,6 +327,7 @@ export class FeedStockService {
   ) {
     return {
       id: row.id,
+      kind: row.kind,
       source_concentration_id: row.sourceConcentrationId,
       source_concentration_version: row.sourceConcentrationVersion,
       produced_at: row.producedAt,

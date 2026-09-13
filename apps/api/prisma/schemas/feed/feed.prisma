@@ -217,6 +217,13 @@ model FeedConcentrationItem {
 
   amountKg Float
 
+  /// RAKHAL-422: optional link to a real inventory batch this line actually consumes on
+  /// finalize — at most one of the two. `ingredientId` above stays required regardless (it
+  /// carries the nutrition/pricing math); absent = virtual catalogue line, present = real
+  /// stock deducted by RAKHAL-423.
+  feedItemId  String? // consume this purchased batch (Inventory FeedItem)
+  feedStockId String? // consume this prepared batch (Feed Formulator FeedStock)
+
   concentration FeedConcentration @relation(fields: [concentrationId], references: [id], onDelete: Cascade)
   ingredient    FeedIngredient    @relation(fields: [ingredientId], references: [id])
 

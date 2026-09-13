@@ -17,6 +17,7 @@ describe('LactationEconomicsService', () => {
     cattle: { count: jest.Mock };
     expense: { findMany: jest.Mock };
     animalSaleLine: { findMany: jest.Mock };
+    journalTransaction: { findMany: jest.Mock };
   };
   let logger: { setContext: jest.Mock };
   let lactationStatsService: { getStats: jest.Mock };
@@ -62,6 +63,7 @@ describe('LactationEconomicsService', () => {
       cattle: { count: jest.fn().mockResolvedValue(0) },
       expense: { findMany: jest.fn().mockResolvedValue([]) },
       animalSaleLine: { findMany: jest.fn().mockResolvedValue([]) },
+      journalTransaction: { findMany: jest.fn().mockResolvedValue([]) },
     };
     logger = { setContext: jest.fn() };
     lactationStatsService = {
@@ -202,14 +204,16 @@ describe('LactationEconomicsService', () => {
       expect(call.where.OR).toEqual([{ cattleId: 'cattle-1' }]);
     });
 
-    it('sums breeding cost via the shared computeCattleFinance aggregation; medicine reads 0 (RAKHAL-352/354)', async () => {
+    it('sums breeding cost via the shared computeCattleFinance aggregation; medicine reads 0 when no HEALTH expense exists (RAKHAL-352/354)', async () => {
       // RAKHAL-352: `getEconomics` reads both buckets off a single
       // `computeCattleFinance()` call (the same shared aggregation
       // `CattleDetailService.cattleFinance()` uses). RAKHAL-354: V1
       // `FinanceTransaction` (the health/breeding source at the time
       // RAKHAL-352 landed) is dropped — breeding now reads real V2
-      // `Expense.cattleId` rows (`category: BREEDING`); health has no V2
-      // source yet and structurally reads 0 (documented gap, not a bug).
+      // `Expense.cattleId` rows (`category: BREEDING`). Health also reads a
+      // real V2 source since RAKHAL-419 (`ExpenseCategory.HEALTH`, posted at
+      // treatment time) — `medicineCost` reads 0 here only because this test
+      // seeds no HEALTH expense row, not because of a structural gap (RD-085).
       prisma.expense.findMany.mockResolvedValueOnce([{ amount: 150 }]);
       const service = make();
       const result = await service.getEconomics('farm-1', 'lact-1');

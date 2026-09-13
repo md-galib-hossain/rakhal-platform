@@ -120,14 +120,29 @@ export class CattleDetailService {
     const self = await this.prisma.cattle.findFirst({
       where: { id: cattleId, farmId },
       include: {
-        mother: { select: this.pedigreeSelect() },
-        father: { select: this.pedigreeSelect() },
+        farm: { select: { name: true } },
       },
     });
     if (!self) {
       this.log.warn('Cattle not found', { cattleId, farmId });
       throw new NotFoundException('Cattle not found');
     }
+
+    const dam = self.motherId
+      ? await this.getAncestors(self.motherId, 5, new Set([cattleId]))
+      : null;
+    const sire = self.fatherId
+      ? await this.getAncestors(self.fatherId, 5, new Set([cattleId]))
+      : {
+          id: null,
+          name: null,
+          tag: null,
+          gender: 'male',
+          farm_name: null,
+          is_external: true,
+          dam: null,
+          sire: null,
+        };
 
     const siblings =
       self.motherId || self.fatherId
@@ -148,6 +163,7 @@ export class CattleDetailService {
               gender: true,
               motherId: true,
               fatherId: true,
+              farm: { select: { name: true } },
             },
           })
         : [];
@@ -161,21 +177,29 @@ export class CattleDetailService {
         tagNumber: true,
         gender: true,
         dateOfBirth: true,
+        farm: { select: { name: true } },
       },
     });
 
     return {
-      self: this.pedigreeNode(self),
-      dam: self.mother ? this.pedigreeNode(self.mother) : null,
+      self: {
+        ...this.pedigreeNode(self),
+        dam: dam ?? null,
+        sire: sire ?? null,
+      },
+      dam,
       // Sire is external when no in-herd father is linked (PRD §8.4 free-text bull).
-      sire: self.father
-        ? { ...this.pedigreeNode(self.father), is_external: false }
+      sire: sire
+        ? { ...sire, is_external: !self.fatherId }
         : {
             id: null,
             name: null,
             tag: null,
             gender: 'male',
+            farm_name: null,
             is_external: true,
+            dam: null,
+            sire: null,
           },
       siblings: siblings.map((s) => ({
         ...this.pedigreeNode(s),
@@ -193,6 +217,7 @@ export class CattleDetailService {
         tag: o.tagNumber,
         gender: o.gender,
         birth_date: o.dateOfBirth,
+        farm_name: o.farm?.name ?? null,
       })),
     };
   }
@@ -426,6 +451,7 @@ export class CattleDetailService {
       name: true,
       tagNumber: true,
       gender: true,
+      farm: { select: { name: true } },
     } satisfies Prisma.CattleSelect;
   }
 
@@ -434,8 +460,63 @@ export class CattleDetailService {
     name: string | null;
     tagNumber: string;
     gender: string;
+    farm?: { name: string } | null;
   }) {
-    return { id: c.id, name: c.name, tag: c.tagNumber, gender: c.gender };
+    return {
+      id: c.id,
+      name: c.name,
+      tag: c.tagNumber,
+      gender: c.gender,
+      farm_name: c.farm?.name ?? null,
+    };
+  }
+
+  private async getAncestors(
+    cattleId: string,
+    depth = 5,
+    visited = new Set<string>(),
+  ): Promise<{
+    id: string;
+    name: string | null;
+    tag: string;
+    gender: string;
+    farm_name: string | null;
+    dam: unknown | null;
+    sire: unknown | null;
+  } | null> {
+    if (depth < 1 || visited.has(cattleId)) return null;
+    visited.add(cattleId);
+
+    const cattle = await this.prisma.cattle.findUnique({
+      where: { id: cattleId },
+      select: {
+        id: true,
+        name: true,
+        tagNumber: true,
+        gender: true,
+        motherId: true,
+        fatherId: true,
+        farm: { select: { name: true } },
+      },
+    });
+    if (!cattle) return null;
+
+    const dam = cattle.motherId
+      ? await this.getAncestors(cattle.motherId, depth - 1, new Set(visited))
+      : null;
+    const sire = cattle.fatherId
+      ? await this.getAncestors(cattle.fatherId, depth - 1, new Set(visited))
+      : null;
+
+    return {
+      id: cattle.id,
+      name: cattle.name,
+      tag: cattle.tagNumber,
+      gender: cattle.gender,
+      farm_name: cattle.farm?.name ?? null,
+      dam: dam ?? null,
+      sire: sire ?? null,
+    };
   }
 
   private roundAll<T extends Record<string, number>>(obj: T): T {

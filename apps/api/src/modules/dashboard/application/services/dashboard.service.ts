@@ -848,7 +848,10 @@ export class DashboardService {
         icon: '🔴',
         message: `${overdueCount}${overdueTruncated ? '+' : ''} cow(s) overdue for treatment dose`,
         actionLabel: 'Log now',
-        link: '/healthcare/sick-bay',
+        // Sick Bay is a query-param tab on `/healthcare` (`?healthTab=sickBay`,
+        // `health-management-center-card.tsx`), not its own route — there is no
+        // `/healthcare/sick-bay` page (user report 2026-09-10, dead link from this card).
+        link: '/healthcare?healthTab=sickBay',
         count: overdueCount,
         cattle: overdueShown.map((d) => ({
           id: d.cattle.id,

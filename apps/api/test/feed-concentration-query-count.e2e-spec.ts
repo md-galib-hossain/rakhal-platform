@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
+import { concentrateDerivedIngredientId } from './utils/feed';
 
 /**
  * Listing rations must not scale its database round-trips with the number of rations (RD-079).
@@ -24,6 +25,8 @@ describe('Feed Formulator — list query count (e2e)', () => {
   let prisma: PrismaService;
   let owner: AuthedUser;
   const ingredientIds: string[] = [];
+  /** RAKHAL-425: every FEED_MIXTURE ration below needs one line using this. */
+  let concentrateIngredientId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -56,6 +59,7 @@ describe('Feed Formulator — list query count (e2e)', () => {
         .expect(201);
       ingredientIds.push(res.body.data.id as string);
     }
+    concentrateIngredientId = await concentrateDerivedIngredientId(ctx, owner);
   }, 60_000);
 
   afterAll(async () => {
@@ -76,7 +80,10 @@ describe('Feed Formulator — list query count (e2e)', () => {
         durationDays: 30,
         targetWeightKg: 450,
         targetMilkL: 12,
-        items: [{ ingredientId, amountKg: 5 }],
+        items: [
+          { ingredientId, amountKg: 5 },
+          { ingredientId: concentrateIngredientId, amountKg: 0 },
+        ],
       })
       .expect(201);
     createdConcentrationIds.push(res.body.data.id as string);

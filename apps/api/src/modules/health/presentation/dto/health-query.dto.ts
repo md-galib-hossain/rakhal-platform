@@ -1,5 +1,13 @@
 import { Transform } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 import {
   HealthActionType,
   HealthCaseStatus,
@@ -9,6 +17,7 @@ import {
   HealthTaskStatus,
   SafetyWithdrawalStatus,
 } from '@prisma/client';
+import { toBoolean } from 'src/common/dto';
 import { HealthListQueryDto, trimString } from './common.dto';
 
 export class SickBayQueryDto extends HealthListQueryDto {
@@ -78,6 +87,13 @@ export class SafetyWithdrawalQueryDto extends HealthListQueryDto {
   @IsOptional()
   @IsEnum(SafetyWithdrawalStatus)
   status?: SafetyWithdrawalStatus;
+
+  /** RAKHAL-420: rows still withholding (ACTIVE or READY_FOR_RELEASE) — the milk-room question
+   * ("who can't go in the tank today") in one request instead of the caller filtering client-side. */
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  activeOnly?: boolean;
 }
 
 export class AppliedPlansQueryDto extends HealthListQueryDto {

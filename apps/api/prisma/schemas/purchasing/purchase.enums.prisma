@@ -35,6 +35,22 @@ enum ExpenseCategory {
   /// (`finance-v2/ledger/domain/default-chart-of-accounts.ts`). Closes
   /// RD-060.
   OTHER
+
+  /// RAKHAL-419 (MILESTONE 24) — treatment-time medicine **consumption**
+  /// cost, not a medicine **purchase**. This does not contradict this enum's
+  /// own "`MEDICINE` deliberately excluded" note above: that note is about
+  /// buying medicine stock (still correctly a `Purchase`, still has no real
+  /// Finance posting anywhere in this codebase today — a separate,
+  /// pre-existing gap, not created or fixed by this value). `HEALTH` posts
+  /// the *value of medicine consumed* at treatment time against the already-
+  /// seeded `5100 Medicine` expense ledger account, mirroring the exact
+  /// precedent `BREEDING` already set for consumed inventory (RAKHAL-330
+  /// posts a `SemenBatch`'s cost as a fresh cash expense at AI-event time,
+  /// regardless of whether that batch was ever itself purchased through
+  /// Finance). Filed as `RD-084` for the day Medicine purchases do get wired
+  /// into `Purchase` — that ticket must confirm this doesn't then double-post
+  /// the same medicine's value (once at purchase, once again at consumption).
+  HEALTH
 }
 
 /// RAKHAL-367 (MILESTONE 22, `BUSINESS_IA_PRD.md` §9.4) — a `Purchase` has no

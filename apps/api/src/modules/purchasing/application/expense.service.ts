@@ -88,7 +88,8 @@ const ACCOUNTS_PAYABLE_CODE = '2000';
 
 /** `ExpenseCategory` -> seeded `LedgerAccount.code` (RAKHAL-333's default
  * chart, 5xxx range). See `purchase.enums.prisma`'s own doc comment on
- * `ExpenseCategory` for why this list is exactly these five categories. */
+ * `ExpenseCategory` for why the original five categories were exactly those
+ * five; `OTHER`/`HEALTH` were added later, each with its own doc comment. */
 const EXPENSE_CATEGORY_LEDGER_CODE: Record<ExpenseCategory, string> = {
   [ExpenseCategory.SALARY]: '5200',
   [ExpenseCategory.UTILITIES]: '5400',
@@ -97,6 +98,8 @@ const EXPENSE_CATEGORY_LEDGER_CODE: Record<ExpenseCategory, string> = {
   [ExpenseCategory.DEPRECIATION]: '5600',
   // RAKHAL-367 (MILESTONE 22) — closes RD-060.
   [ExpenseCategory.OTHER]: '5900',
+  // RAKHAL-419 (MILESTONE 24) — treatment-time medicine consumption cost.
+  [ExpenseCategory.HEALTH]: '5100',
 };
 
 /**

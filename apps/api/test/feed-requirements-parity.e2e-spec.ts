@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
+import { concentrateDerivedIngredientId } from './utils/feed';
 
 /**
  * A saved ration and `GET /feed/requirements` must agree (RAKHAL-411, second half).
@@ -23,6 +24,8 @@ describe('Feed Formulator — saved ration ↔ requirements parity (e2e)', () =>
   let owner: AuthedUser;
   let ownerUserId: string;
   let ingredientId: string;
+  /** RAKHAL-425: `createRation()`'s TMR needs one line using this. */
+  let concentrateIngredientId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -56,6 +59,7 @@ describe('Feed Formulator — saved ration ↔ requirements parity (e2e)', () =>
       })
       .expect(201);
     ingredientId = ing.body.data.id as string;
+    concentrateIngredientId = await concentrateDerivedIngredientId(ctx, owner);
   }, 30_000);
 
   afterAll(async () => {
@@ -96,7 +100,10 @@ describe('Feed Formulator — saved ration ↔ requirements parity (e2e)', () =>
         durationDays: 30,
         targetWeightKg: target.weightKg,
         targetMilkL: target.milkL,
-        items: [{ ingredientId, amountKg: 6 }],
+        items: [
+          { ingredientId, amountKg: 6 },
+          { ingredientId: concentrateIngredientId, amountKg: 0 },
+        ],
       })
       .expect(201);
     return res.body.data.id as string;

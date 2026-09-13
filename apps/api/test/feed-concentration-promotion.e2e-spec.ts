@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 import { seededCashAccountId } from './utils/finance';
+import { concentrateDerivedIngredientId } from './utils/feed';
 
 /**
  * Feed Formulator — Phase 12.1 (2026-07-18, no ticket #, plan `composed-pondering-teapot`):
@@ -11,10 +12,10 @@ import { seededCashAccountId } from './utils/finance';
  * it, automatically, with no extra click. `POST /feed/concentrations/:id/finalize` now **upserts**
  * the promoted `FeedIngredient` by `sourceConcentrationId` (update in place if one exists) instead
  * of always creating a new version; a plain `PATCH` on an already-finalized template also refreshes
- * that same row. Finalizing a Concentrate Mixer never produces a `FeedStock` inventory batch —
- * only a Total Mixed Ration does — but RAKHAL-406 (2026-08-28) reverses the earlier "no inventory
- * at all" stance: it now also produces a real Inventory `FeedItem` batch/lot on every finalize
- * (a new row each time, unlike the ingredient upsert above).
+ * that same row. RAKHAL-421 (2026-09-13, closes RD-080): finalizing a Concentrate Mixer now also
+ * produces a `FeedStock` batch (`kind: CONCENTRATE_TEMPLATE`) — the same table a Total Mixed
+ * Ration's finalize produces (`kind: FEED_MIXTURE`), replacing RAKHAL-406 (2026-08-28)'s earlier
+ * Inventory `FeedItem` batch, which put two incompatible "prepared feed" shapes in the database.
  *
  * Requires the dev stack up + `pnpm seed`.
  */
@@ -25,6 +26,8 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
   let financialAccountId: string;
   let ingredientId: string;
   let ingredientId2: string;
+  /** RAKHAL-425: the one FEED_MIXTURE below needs a line using this. */
+  let concentrateIngredientId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -69,6 +72,7 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
       })
       .expect(201);
     ingredientId2 = created2.body.data.id as string;
+    concentrateIngredientId = await concentrateDerivedIngredientId(ctx, owner);
   }, 30_000);
 
   afterAll(async () => {
@@ -119,13 +123,11 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
     // dmPct back-derived from totals: dm_kg = 20*0.9=18, totalAsFed=20 → dmPct=90
     expect(v1.body.data.ingredient.nutrition.dm_pct).toBeCloseTo(90, 1);
     expect(v1.body.data.ingredient.nutrition.cp_pct).toBeCloseTo(15, 1);
-    // FeedStock stays reserved for FEED_MIXTURE — never produced for a Concentrate Mixer.
-    expect(v1.body.data.stock).toBeNull();
-    // RAKHAL-406: finalize also produces a real Inventory FeedItem batch, qty defaulting to
-    // the formula's total as-fed kg (20kg of a single ingredient here).
-    expect(v1.body.data.feed_item).not.toBeNull();
-    expect(v1.body.data.feed_item.currentStock).toBeCloseTo(20, 2);
-    expect(v1.body.data.feed_item.ingredientId).toBe(ingredientId1);
+    // RAKHAL-421: finalize also produces a FeedStock batch, qty defaulting to the formula's
+    // total as-fed kg (20kg of a single ingredient here).
+    expect(v1.body.data.stock).not.toBeNull();
+    expect(v1.body.data.stock.kind).toBe('CONCENTRATE_TEMPLATE');
+    expect(v1.body.data.stock.current_stock_kg).toBeCloseTo(20, 2);
 
     // Use it as a line item in a TMR.
     const tmr = await request(server())
@@ -172,14 +174,15 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
       2,
     );
 
-    // Explicit re-finalize: same ingredient id (upsert-in-place, not a new version). Still no
-    // stock lot — re-finalizing a Concentrate Mixer any number of times never produces inventory.
+    // Explicit re-finalize: same ingredient id (upsert-in-place, not a new version). Produces a
+    // fresh FeedStock batch each time — the physical-lot half is never idempotent.
     const v2 = await request(server())
       .post(api(`/feed/concentrations/${concId}/finalize`))
       .set(...auth(owner))
       .expect(201);
     expect(v2.body.data.ingredient.id).toBe(ingredientId1);
-    expect(v2.body.data.stock).toBeNull();
+    expect(v2.body.data.stock).not.toBeNull();
+    expect(v2.body.data.stock.id).not.toBe(v1.body.data.stock.id);
   });
 
   it('a plain PATCH on a template that has never been finalized creates no FeedIngredient', async () => {
@@ -296,13 +299,13 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
     ).toBe(false);
   });
 
-  it('RAKHAL-406: each finalize produces a new inventory FeedItem batch, listed under /inventory/feed-items; batchQuantityKg overrides the default', async () => {
+  it('RAKHAL-421: each finalize produces a new FeedStock batch, listed under /feed/stock; batchQuantityKg overrides the default', async () => {
     const conc = await request(server())
       .post(api('/feed/concentrations'))
       .set(...auth(owner))
       .send({
         kind: 'CONCENTRATE_TEMPLATE',
-        name: `E2E Inventory-Batch Concentrate ${Date.now()}`,
+        name: `E2E Stock-Batch Concentrate ${Date.now()}`,
         items: [{ ingredientId, amountKg: 10 }],
       })
       .expect(201);
@@ -312,42 +315,49 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
       .post(api(`/feed/concentrations/${concId}/finalize`))
       .set(...auth(owner))
       .expect(201);
-    const feedItemId1 = v1.body.data.feed_item.id as string;
-    expect(v1.body.data.feed_item.currentStock).toBeCloseTo(10, 2);
+    const stockId1 = v1.body.data.stock.id as string;
+    expect(v1.body.data.stock.kind).toBe('CONCENTRATE_TEMPLATE');
+    expect(v1.body.data.stock.current_stock_kg).toBeCloseTo(10, 2);
 
     const v2 = await request(server())
       .post(api(`/feed/concentrations/${concId}/finalize`))
       .set(...auth(owner))
       .send({ batchQuantityKg: 25 })
       .expect(201);
-    const feedItemId2 = v2.body.data.feed_item.id as string;
-    expect(feedItemId2).not.toBe(feedItemId1);
-    expect(v2.body.data.feed_item.currentStock).toBeCloseTo(25, 2);
-    // The same promoted ingredient is reused (upsert), unlike the FeedItem batch above.
+    const stockId2 = v2.body.data.stock.id as string;
+    expect(stockId2).not.toBe(stockId1);
+    expect(v2.body.data.stock.current_stock_kg).toBeCloseTo(25, 2);
+    // batchQuantityKg scales the produced quantity, not the recipe's cost — producedCostTk is
+    // always the recipe's own total_cost_tk regardless of how much was produced.
+    expect(v2.body.data.stock.produced_cost_tk).toBe(
+      v1.body.data.stock.produced_cost_tk,
+    );
+    // The same promoted ingredient is reused (upsert), unlike the FeedStock batch above.
     expect(v2.body.data.ingredient.id).toBe(v1.body.data.ingredient.id);
-    // FeedStock still stays null for a Concentrate Mixer — additive, not a merge with FEED_MIXTURE.
-    expect(v2.body.data.stock).toBeNull();
 
-    const items = await request(server())
-      .get(api('/inventory/feed-items'))
+    const stockList = await request(server())
+      .get(api('/feed/stock'))
       .set(...auth(owner))
       .expect(200);
-    const ids = (items.body.data as Array<{ id: string }>).map((i) => i.id);
-    expect(ids).toContain(feedItemId1);
-    expect(ids).toContain(feedItemId2);
+    const ids = (stockList.body.data as Array<{ id: string }>).map((i) => i.id);
+    expect(ids).toContain(stockId1);
+    expect(ids).toContain(stockId2);
   });
 
-  it('RAKHAL-406: finalizing a Total Mixed Ration (FEED_MIXTURE) never produces a FeedItem', async () => {
+  it('RAKHAL-421: a Total Mixed Ration (FEED_MIXTURE) finalize produces stock with no ingredient promotion', async () => {
     const tmr = await request(server())
       .post(api('/feed/concentrations'))
       .set(...auth(owner))
       .send({
         kind: 'FEED_MIXTURE',
-        name: `E2E FEED_MIXTURE No-FeedItem ${Date.now()}`,
+        name: `E2E FEED_MIXTURE Stock-Kind ${Date.now()}`,
         durationDays: 1,
         targetWeightKg: 450,
         targetMilkL: 15,
-        items: [{ ingredientId, amountKg: 10 }],
+        items: [
+          { ingredientId, amountKg: 10 },
+          { ingredientId: concentrateIngredientId, amountKg: 0 },
+        ],
       })
       .expect(201);
     const tmrId = tmr.body.data.id as string;
@@ -358,8 +368,8 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
       .send({ paymentMethod: 'CASH', financialAccountId })
       .expect(201);
 
-    expect(finalized.body.data.feed_item).toBeNull();
     expect(finalized.body.data.ingredient).toBeNull();
     expect(finalized.body.data.stock).not.toBeNull();
+    expect(finalized.body.data.stock.kind).toBe('FEED_MIXTURE');
   });
 });

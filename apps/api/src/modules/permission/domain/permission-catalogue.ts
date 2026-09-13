@@ -297,6 +297,8 @@ export const ROLE_PERMISSIONS: Record<SystemRoleName, string[]> = {
     'calf.read',
     'calf.log-feeding',
     'feed.distribution-log',
+    // RAKHAL-427 — reads are worker-ok by convention; worker logs feeding, must be able to load the grid
+    'feed.read',
     'inventory.read',
     'task.read',
     'task.complete',

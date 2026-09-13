@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 import { seededCashAccountId } from './utils/finance';
+import { concentrateDerivedIngredientId } from './utils/feed';
 
 /**
  * Feed Formulator — Phase 4 + Phase 12.4 of the epic in
@@ -23,6 +24,8 @@ describe('Feed Formulator — distribution decrements a named feed stock lot (e2
   /** RD-077: RAKHAL-393 made this mandatory on a TMR finalize. */
   let financialAccountId: string;
   let ingredientId: string;
+  /** RAKHAL-425: every TMR below needs one line using this. */
+  let concentrateIngredientId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -49,6 +52,7 @@ describe('Feed Formulator — distribution decrements a named feed stock lot (e2
       })
       .expect(201);
     ingredientId = created.body.data.id as string;
+    concentrateIngredientId = await concentrateDerivedIngredientId(ctx, owner);
   }, 30_000);
 
   afterAll(async () => {
@@ -68,7 +72,10 @@ describe('Feed Formulator — distribution decrements a named feed stock lot (e2
         targetWeightKg: 400,
         targetMilkL: 15,
         durationDays: 30,
-        items: [{ ingredientId, amountKg }],
+        items: [
+          { ingredientId, amountKg },
+          { ingredientId: concentrateIngredientId, amountKg: 0 },
+        ],
       })
       .expect(201);
     const finalized = await request(server())

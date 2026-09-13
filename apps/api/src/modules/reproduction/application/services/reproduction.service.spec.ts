@@ -784,6 +784,7 @@ describe('ReproductionService — RAKHAL-285 dry-off projection recompute', () =
     lactation: { updateMany: jest.Mock; findFirst: jest.Mock };
     breedingEvent: {
       count: jest.Mock;
+      findMany: jest.Mock;
       findFirst: jest.Mock;
       update: jest.Mock;
     };
@@ -825,6 +826,7 @@ describe('ReproductionService — RAKHAL-285 dry-off projection recompute', () =
       },
       breedingEvent: {
         count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
         findFirst: jest.fn().mockResolvedValue(null),
         update: jest.fn().mockResolvedValue({}),
       },

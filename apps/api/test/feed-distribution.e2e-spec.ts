@@ -222,11 +222,11 @@ describe('Feed Distribution (e2e)', () => {
         .expect(201);
     });
 
-    it('forbids a worker from READING distributions (no feed.read)', async () => {
+    it('lets a worker READ distributions (feed.read, RAKHAL-427)', async () => {
       await request(server())
         .get(api('/feed/distributions'))
         .set(...auth(worker))
-        .expect(403);
+        .expect(200);
     });
   });
 });

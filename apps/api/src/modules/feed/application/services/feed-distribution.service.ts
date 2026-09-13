@@ -9,6 +9,7 @@ import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { resolveEffective } from '../../domain/ingredient-resolver';
+import { resolveKgPerUnit } from 'src/modules/inventory/application/services/unit.service';
 import { LogDistributionDto } from '../../presentation/dto/log-distribution.dto';
 import { PatchRefusalDto } from '../../presentation/dto/patch-refusal.dto';
 import {
@@ -301,11 +302,12 @@ export class FeedDistributionService {
 
   /**
    * Direct-by-id `FeedItem` usage computation — validates sufficient stock and converts through
-   * `kgPerUnit` for a non-kg unit, same conversion `planForageDecrements` uses for the
-   * concentration-based path. Read-only (doesn't persist); the caller applies `newStock` inside its
-   * own transaction. Extracted from the old `quickFeed()` (removed 2026-08-15, replaced by the
-   * Feeding Grid) so `FeedFeedingGridService#confirm`'s `FEED_ITEM` source path can reuse the same
-   * validated conversion math without re-deriving it.
+   * the resolved kg-per-unit for a non-kg unit (`resolveKgPerUnit()` — the same single source of
+   * truth `planForageDecrements` uses for the concentration-based path). Read-only (doesn't
+   * persist); the caller applies `newStock` inside its own transaction. Extracted from the old
+   * `quickFeed()` (removed 2026-08-15, replaced by the Feeding Grid) so
+   * `FeedFeedingGridService#confirm`'s `FEED_ITEM` source path can reuse the same validated
+   * conversion math without re-deriving it.
    */
   async computeFeedItemUsage(
     farmId: string,
@@ -318,18 +320,14 @@ export class FeedDistributionService {
     });
     if (!feedItem) throw new NotFoundException('Feed item not found');
 
-    const isKg = feedItem.unit.symbol === 'kg';
-    const pricePerKg = isKg
-      ? feedItem.costPerUnit
-      : feedItem.kgPerUnit && feedItem.kgPerUnit > 0
-        ? feedItem.costPerUnit / feedItem.kgPerUnit
-        : 0;
-
-    const usedInUnit = isKg
-      ? quantityKg
-      : feedItem.kgPerUnit && feedItem.kgPerUnit > 0
-        ? quantityKg / feedItem.kgPerUnit
-        : 0;
+    const kgPerUnit = resolveKgPerUnit(feedItem.unit, feedItem.kgPerUnit);
+    if (!kgPerUnit || kgPerUnit <= 0) {
+      throw new BadRequestException(
+        `${feedItem.name} has no kg-per-unit conversion set for its ${feedItem.unit.symbol} unit — set "Kg Per Unit" on the feed item before feeding it`,
+      );
+    }
+    const pricePerKg = feedItem.costPerUnit / kgPerUnit;
+    const usedInUnit = quantityKg / kgPerUnit;
     if (usedInUnit > feedItem.currentStock) {
       throw new BadRequestException(
         `Not enough ${feedItem.name} in stock (${feedItem.currentStock} ${feedItem.unit.symbol} available, ${round2(usedInUnit)} needed)`,
@@ -790,12 +788,13 @@ export class FeedDistributionService {
   /**
    * Feed item decrement (§15.3): match each line's ingredient by its real
    * `ingredientId` FK to an active `FeedItem` and subtract the actual kg
-   * (floored at 0), converting through `kgPerUnit` for a non-kg-unit item
-   * (bag/sack) instead of skipping it — previously this only matched by
-   * lowercased ingredient name and only decremented kg-unit rows, so e.g. a
-   * bag-unit "Wheat bran" purchase never moved on a feed log at all. Rows
-   * with neither a kg unit nor a `kgPerUnit` conversion factor still can't be
-   * converted and are skipped (kept, not floor-guessed).
+   * (floored at 0), converting through the resolved kg-per-unit
+   * (`resolveKgPerUnit()`) for a non-kg-unit item (bag/sack) instead of
+   * skipping it — previously this only matched by lowercased ingredient name
+   * and only decremented kg-unit rows, so e.g. a bag-unit "Wheat bran"
+   * purchase never moved on a feed log at all. A row with no resolvable
+   * kg-per-unit (a COUNT/VOLUME item with no farmer-entered `kgPerUnit`)
+   * still can't be converted and is skipped (kept, not floor-guessed).
    */
   private async planForageDecrements(
     farmId: string,
@@ -807,7 +806,9 @@ export class FeedDistributionService {
       select: {
         id: true,
         ingredientId: true,
-        unit: { select: { symbol: true } },
+        unit: {
+          select: { symbol: true, dimension: true, conversionToBase: true },
+        },
         kgPerUnit: true,
         currentStock: true,
       },
@@ -822,15 +823,20 @@ export class FeedDistributionService {
     for (const line of lines) {
       const f = byIngredient.get(line.ingredientId);
       if (!f || line.actualKg <= 0) continue;
-      const isKg = f.unit.symbol === 'kg';
       // Convert the fed kg into "units" for a non-kg item (bag/sack), then back to
-      // a unit-count decrement — kgPerUnit is required to do that conversion safely.
-      const usedInUnit = isKg
-        ? line.actualKg
-        : f.kgPerUnit && f.kgPerUnit > 0
-          ? line.actualKg / f.kgPerUnit
-          : null;
-      if (usedInUnit == null) continue;
+      // a unit-count decrement — a resolvable kg-per-unit is required to do that
+      // conversion safely.
+      const kgPerUnit = resolveKgPerUnit(f.unit, f.kgPerUnit);
+      const usedInUnit =
+        kgPerUnit && kgPerUnit > 0 ? line.actualKg / kgPerUnit : null;
+      if (usedInUnit == null) {
+        this.log.warn('Skipping forage decrement — no resolvable kg-per-unit', {
+          farmId,
+          feedItemId: f.id,
+          ingredientId: line.ingredientId,
+        });
+        continue;
+      }
       usageByFeedItem.set(f.id, (usageByFeedItem.get(f.id) ?? 0) + usedInUnit);
     }
 

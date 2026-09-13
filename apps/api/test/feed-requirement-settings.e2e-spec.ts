@@ -4,6 +4,7 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 import { currentTotpCode } from './utils/totp';
 import { DEFAULT_REQUIREMENT_SETTINGS } from '../src/modules/feed/domain/requirement-settings';
 import { RequirementSettingsService } from '../src/modules/feed/application/services/requirement-settings.service';
+import { concentrateDerivedIngredientId } from './utils/feed';
 
 /**
  * Requirement settings as data — both surfaces (RAKHAL-409 farm, RAKHAL-410 admin;
@@ -33,6 +34,8 @@ describe('Requirement settings (e2e)', () => {
   let owner: AuthedUser;
   let worker: AuthedUser;
   let adminToken: string;
+  /** RAKHAL-425: `createRation()`'s TMR needs one line using this. */
+  let concentrateIngredientId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -53,6 +56,7 @@ describe('Requirement settings (e2e)', () => {
     settingsService = ctx.app.get(RequirementSettingsService);
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
     worker = await loginAs(ctx, 'worker@demo.rakhal.test', 'WorkerPass123');
+    concentrateIngredientId = await concentrateDerivedIngredientId(ctx, owner);
 
     const login = await request(server())
       .post(api('/admin/auth/login'))
@@ -239,11 +243,11 @@ describe('Requirement settings (e2e)', () => {
   });
 
   describe('farm permissions', () => {
-    it('stops a worker reading them (Worker holds feed.distribution-log, not feed.read)', async () => {
+    it('lets a worker read them (feed.read, RAKHAL-427)', async () => {
       await request(server())
         .get(api('/feed/requirement-settings'))
         .set(...auth(worker))
-        .expect(403);
+        .expect(200);
     });
 
     it('stops a worker changing them', async () => {
@@ -513,7 +517,10 @@ describe('Requirement settings (e2e)', () => {
           durationDays: 30,
           targetWeightKg: 450,
           targetMilkL: 15,
-          items: [{ ingredientId: first.id, amountKg: 10 }],
+          items: [
+            { ingredientId: first.id, amountKg: 10 },
+            { ingredientId: concentrateIngredientId, amountKg: 0 },
+          ],
         })
         .expect(201);
       return res.body.data;

@@ -10,6 +10,13 @@ model FeedStock {
   id     String @id @default(cuid())
   farmId String
 
+  /// RAKHAL-421: which finalize path produced this lot — a Concentrate Mixer's virtual recipe
+  /// (`CONCENTRATE_TEMPLATE`, no purchase, no cash movement) vs. a real Total Mixed Ration
+  /// (`FEED_MIXTURE`). Defaulted to `FEED_MIXTURE` so the migration backfills every pre-existing
+  /// row correctly — all prior lots were TMR by construction, `CONCENTRATE_TEMPLATE` batches only
+  /// existed as `FeedItem` rows before this ticket (see `prisma/rakhal-421-migrate-concentrate-feeditems.ts`).
+  kind FeedConcentrationKind @default(FEED_MIXTURE)
+
   sourceConcentrationId      String
   sourceConcentrationVersion Int
 

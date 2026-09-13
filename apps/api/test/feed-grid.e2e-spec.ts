@@ -8,8 +8,9 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
  * from a prior confirmed feeding; (3) confirm decrements `FeedItem.currentStock` and creates
  * `FeedDistribution` + `FeedDistributionCattleItem` rows; (4) a second day's `GET /feed/grid` shows
  * `default_offered_kg` prefilled from the first day's confirmed per-cow quantity; (5) RBAC — a
- * worker without `feed.read` can't view the grid but can save/confirm via
- * `feed.distribution-log`; manager/owner both succeed at every step.
+ * worker can view the grid (`feed.read`, granted RAKHAL-427 — the role that logs feeding
+ * couldn't load the page it feeds from) and save/confirm via `feed.distribution-log`;
+ * manager/owner both succeed at every step.
  *
  * Requires the dev stack up + `pnpm seed`.
  */
@@ -292,11 +293,11 @@ describe('Feeding Grid (e2e)', () => {
         .expect(404);
     });
 
-    it('forbids a worker from READING the grid (no feed.read)', async () => {
+    it('lets a worker READ the grid (feed.read, RAKHAL-427)', async () => {
       await request(server())
         .get(api(`/feed/grid?date=2026-05-03&feedGroupId=${feedGroupId}`))
         .set(...auth(worker))
-        .expect(403);
+        .expect(200);
     });
 
     it('lets a worker SAVE a draft and CONFIRM (feed.distribution-log)', async () => {

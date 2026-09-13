@@ -1,6 +1,7 @@
 ﻿import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
+import { concentrateDerivedIngredientId } from './utils/feed';
 
 /**
  * Feed Formulator — Phase 12.4 (2026-07-18, no ticket #, plan `composed-pondering-teapot`):
@@ -20,6 +21,8 @@ describe('Feed Formulator — individual-cow distribution + efficiency (e2e)', (
   let owner: AuthedUser;
   let ownerUserId: string;
   let ingredientId: string;
+  /** RAKHAL-425: every TMR below needs one line using this. */
+  let concentrateIngredientId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -51,6 +54,7 @@ describe('Feed Formulator — individual-cow distribution + efficiency (e2e)', (
       })
       .expect(201);
     ingredientId = created.body.data.id as string;
+    concentrateIngredientId = await concentrateDerivedIngredientId(ctx, owner);
   }, 30_000);
 
   afterAll(async () => {
@@ -77,7 +81,10 @@ describe('Feed Formulator — individual-cow distribution + efficiency (e2e)', (
         targetType: 'INDIVIDUAL',
         cattleId: cow.id,
         durationDays: 30,
-        items: [{ ingredientId, amountKg: 10 }],
+        items: [
+          { ingredientId, amountKg: 10 },
+          { ingredientId: concentrateIngredientId, amountKg: 0 },
+        ],
       })
       .expect(201);
 
@@ -135,7 +142,10 @@ describe('Feed Formulator — individual-cow distribution + efficiency (e2e)', (
         targetType: 'INDIVIDUAL',
         cattleId: cow.id,
         durationDays: 30,
-        items: [{ ingredientId, amountKg: 10 }],
+        items: [
+          { ingredientId, amountKg: 10 },
+          { ingredientId: concentrateIngredientId, amountKg: 0 },
+        ],
       })
       .expect(201);
     await request(server())

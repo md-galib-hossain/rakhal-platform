@@ -2,6 +2,7 @@
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 import { seededCashAccountId } from './utils/finance';
+import { concentrateDerivedIngredientId } from './utils/feed';
 
 /**
  * Feed Formulator — Phase 7 of the epic in
@@ -10,9 +11,10 @@ import { seededCashAccountId } from './utils/finance';
  * the old implicit "does it have a target" heuristic. Covers: a template's target fields are nulled
  * server-side even if the caller sends them; a mixture without target fields is rejected; `finalize`
  * behaves differently by kind (updated Phase 12.2, 2026-07-18 — a mixture can now finalize too, but
- * produces stock only, no ingredient promotion; 2026-07-19 correction — a template's finalize
- * produces no stock at all, since a Concentrate Mixer is a virtual recipe/calculator, never real
- * inventory); `kind` filters `GET /feed/concentrations`;
+ * produces stock only, no ingredient promotion; RAKHAL-421 2026-09-13, closes RD-080 — a template's
+ * finalize also produces a `FeedStock` lot now (`kind: CONCENTRATE_TEMPLATE`), replacing the
+ * 2026-07-19-then-RAKHAL-406 detour through a plain Inventory `FeedItem`; only the ingredient
+ * promotion remains template-only); `kind` filters `GET /feed/concentrations`;
  * bulk-delete archives multiple rows scoped to the caller's farm.
  *
  * Requires the dev stack up + `pnpm seed`.
@@ -25,6 +27,8 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
   let financialAccountId: string;
   let ownerUserId: string;
   let ingredientId: string;
+  /** RAKHAL-425: every FEED_MIXTURE below needs one line using this. */
+  let concentrateIngredientId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -57,6 +61,7 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
       })
       .expect(201);
     ingredientId = created.body.data.id as string;
+    concentrateIngredientId = await concentrateDerivedIngredientId(ctx, owner);
   }, 30_000);
 
   afterAll(async () => {
@@ -112,6 +117,23 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
       .expect(400);
   });
 
+  it('a FEED_MIXTURE built purely from catalogue ingredients — no concentrate-derived line — is rejected (RAKHAL-425)', async () => {
+    const res = await request(server())
+      .post(api('/feed/concentrations'))
+      .set(...auth(owner))
+      .send({
+        kind: 'FEED_MIXTURE',
+        name: `E2E No Concentrate Line Mixture ${Date.now()}`,
+        targetType: 'INDIVIDUAL',
+        targetWeightKg: 400,
+        targetMilkL: 15,
+        durationDays: 30,
+        items: [{ ingredientId, amountKg: 10 }],
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toContain('Concentrate Mixer');
+  });
+
   it('a FEED_MIXTURE targeting a real cow resolves targetWeightKg/targetMilkL from her records when omitted (Phase 12.3, 2026-07-18)', async () => {
     const cow = await prisma.cattle.create({
       data: {
@@ -135,7 +157,10 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
         // targetWeightKg/targetMilkL deliberately omitted — must resolve from the cow's own
         // record (weight) and fall back to 0/assumed (no milk logs for this brand-new test cow),
         // not 400 just because the manual fields were left blank.
-        items: [{ ingredientId, amountKg: 10 }],
+        items: [
+          { ingredientId, amountKg: 10 },
+          { ingredientId: concentrateIngredientId, amountKg: 0 },
+        ],
       })
       .expect(201);
     expect(created.body.data.target_weight_kg).toBeCloseTo(425, 1);
@@ -153,14 +178,17 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
         targetWeightKg: 400,
         targetMilkL: 15,
         durationDays: 30,
-        items: [{ ingredientId, amountKg: 10 }],
+        items: [
+          { ingredientId, amountKg: 10 },
+          { ingredientId: concentrateIngredientId, amountKg: 0 },
+        ],
       })
       .expect(201);
     expect(created.body.data.kind).toBe('FEED_MIXTURE');
     expect(created.body.data.balance_score).not.toBeNull();
   });
 
-  it('finalize behaves differently by kind — CONCENTRATE_TEMPLATE promotes an ingredient, FEED_MIXTURE produces stock only (Phase 12.2, 2026-07-18)', async () => {
+  it('finalize behaves differently by kind — CONCENTRATE_TEMPLATE promotes an ingredient AND produces stock, FEED_MIXTURE produces stock only (RAKHAL-421)', async () => {
     const mixture = await request(server())
       .post(api('/feed/concentrations'))
       .set(...auth(owner))
@@ -171,7 +199,10 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
         targetWeightKg: 400,
         targetMilkL: 15,
         durationDays: 30,
-        items: [{ ingredientId, amountKg: 10 }],
+        items: [
+          { ingredientId, amountKg: 10 },
+          { ingredientId: concentrateIngredientId, amountKg: 0 },
+        ],
       })
       .expect(201);
 
@@ -210,10 +241,12 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
       .post(api(`/feed/concentrations/${template.body.data.id}/finalize`))
       .set(...auth(owner))
       .expect(201);
-    // A Concentrate Mixer is a virtual recipe/calculator (2026-07-19 correction) — finalizing one
-    // only promotes the reusable ingredient, it must never also fabricate a stock lot.
+    // RAKHAL-421 (closes RD-080): a Concentrate Mixer finalize now also produces a FeedStock
+    // batch (kind: CONCENTRATE_TEMPLATE) alongside the promoted ingredient — the earlier
+    // 2026-07-19 "virtual, no inventory at all" stance is superseded.
     expect(templateFinalized.body.data.ingredient).toBeTruthy();
-    expect(templateFinalized.body.data.stock).toBeNull();
+    expect(templateFinalized.body.data.stock).toBeTruthy();
+    expect(templateFinalized.body.data.stock.kind).toBe('CONCENTRATE_TEMPLATE');
   });
 
   it('GET /feed/concentrations?kind= filters server-side', async () => {
@@ -237,7 +270,10 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
         targetWeightKg: 400,
         targetMilkL: 15,
         durationDays: 30,
-        items: [{ ingredientId, amountKg: 5 }],
+        items: [
+          { ingredientId, amountKg: 5 },
+          { ingredientId: concentrateIngredientId, amountKg: 0 },
+        ],
       })
       .expect(201);
 

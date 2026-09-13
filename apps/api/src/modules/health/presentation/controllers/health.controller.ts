@@ -23,12 +23,14 @@ import {
   CreateHealthUpdateDto,
   LogTreatmentDto,
   MortalityDto,
+  RecordTreatmentDto,
   RescheduleHealthTaskDto,
   SkipHealthTaskDto,
 } from '../dto/case-actions.dto';
 import { CreateHealthCaseDto } from '../dto/create-health-case.dto';
 import { UpdateHealthCaseDto } from '../dto/update-health-case.dto';
 import {
+  ApplyPlanToAnimalsDto,
   CreateHealthPlanDto,
   UpdateHealthPlanDto,
 } from '../dto/health-plan.dto';
@@ -76,6 +78,16 @@ export class HealthController {
     @Body() dto: CreateHealthCaseDto,
   ) {
     return this.healthService.createHealthCase(farmId, userId, dto);
+  }
+
+  @Post('treatments')
+  @RequirePermission('healthcare.log-treatment')
+  recordTreatment(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Body() dto: RecordTreatmentDto,
+  ) {
+    return this.healthService.recordTreatment(farmId, userId, dto);
   }
 
   @Get('cases/applied')
@@ -204,6 +216,16 @@ export class HealthController {
     return this.healthService.deletePlan(farmId, id);
   }
 
+  @Post('plans/:id/apply')
+  @RequirePermission('healthcare.update')
+  applyPlanToAnimals(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @Body() dto: ApplyPlanToAnimalsDto,
+  ) {
+    return this.healthService.applyPlanToAnimals(farmId, id, dto);
+  }
+
   @Get('tasks')
   @RequirePermission('healthcare.read')
   getTasks(
@@ -224,8 +246,12 @@ export class HealthController {
 
   @Post('tasks/:id/complete')
   @RequirePermission('healthcare.log-treatment')
-  completeTask(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.healthService.completeTask(farmId, id);
+  completeTask(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.healthService.completeTask(farmId, userId, id);
   }
 
   @Post('tasks/:id/reschedule')

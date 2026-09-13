@@ -8,9 +8,11 @@ import {
   ActivityLogModule,
   CattleDispositionType,
   ClinicalProgress,
+  ExpenseCategory,
   HealthCaseStatus,
   HealthCloseOutcome,
   HealthDiagnosisType,
+  HealthPlanCategory,
   HealthPriority,
   HealthTaskStatus,
   Prisma,
@@ -27,6 +29,7 @@ import { ActivityLogService } from 'src/modules/activity/application/services/ac
 import { MedicineService } from 'src/modules/inventory/application/services/medicine.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { CattleService } from 'src/modules/cattle/application/services/cattle.service';
+import { ExpenseService } from 'src/modules/purchasing/application/expense.service';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { NotificationService } from 'src/modules/notification/application/services/notification.service';
 import {
@@ -39,6 +42,7 @@ import {
   CreateHealthUpdateDto,
   LogTreatmentDto,
   MortalityDto,
+  RecordTreatmentDto,
   RescheduleHealthTaskDto,
   SkipHealthTaskDto,
 } from '../../presentation/dto/case-actions.dto';
@@ -52,6 +56,7 @@ import {
   SickBayQueryDto,
 } from '../../presentation/dto/health-query.dto';
 import {
+  ApplyPlanToAnimalsDto,
   CreateHealthPlanDto,
   UpdateHealthPlanDto,
 } from '../../presentation/dto/health-plan.dto';
@@ -63,6 +68,21 @@ const ACTIVE_CASE_STATUSES = [
   HealthCaseStatus.WORSENING,
   HealthCaseStatus.STABLE,
 ];
+
+/** Mirrors the frontend's `CATEGORY_TO_DIAGNOSIS_TYPE` (`apply-health-plan-dialog.tsx`) — the
+ * bulk-apply case (RAKHAL-414) needs the same mapping server-side instead of trusting a
+ * client-supplied `diagnosisType` for a case it creates on the caller's behalf. */
+const PLAN_CATEGORY_TO_DIAGNOSIS_TYPE: Record<
+  HealthPlanCategory,
+  HealthDiagnosisType
+> = {
+  TREATMENT: HealthDiagnosisType.DISEASE,
+  PREVENTION: HealthDiagnosisType.PREVENTIVE,
+  BREEDING: HealthDiagnosisType.BREEDING_RELATED,
+  VACCINATION: HealthDiagnosisType.VACCINATION,
+  DEWORMING: HealthDiagnosisType.DEWORMING,
+  ROUTINE: HealthDiagnosisType.ROUTINE_CHECKUP,
+};
 
 /**
  * Healthcare service (PRD §13). Farm-scoped: `farmId` is supplied by the
@@ -83,6 +103,7 @@ export class HealthService {
     private readonly taskService: TaskService,
     private readonly notificationService: NotificationService,
     private readonly cattleService: CattleService,
+    private readonly expenseService: ExpenseService,
     private readonly logger: LoggerService,
   ) {
     this.log = this.logger.setContext(HealthService.name);
@@ -100,6 +121,7 @@ export class HealthService {
       diseaseRows,
       shedRows,
       trendRows,
+      medicineExpense,
     ] = await Promise.all([
       this.prisma.cattle.count({
         where: activeHerd(farmId),
@@ -170,6 +192,7 @@ export class HealthService {
         select: { startDate: true },
         orderBy: { startDate: 'asc' },
       }),
+      this.sumHealthExpense(farmId),
     ]);
 
     const healthyAnimalCount = Math.max(totalAnimalCount - sickBayCount, 0);
@@ -182,7 +205,7 @@ export class HealthService {
       healthyAnimalCount,
       totalAnimalCount,
       sickBayCount,
-      medicineExpense: 0,
+      medicineExpense,
       safetyWithdrawalCount,
       morbidityTrend: this.groupByDay(trendRows.map((row) => row.startDate)),
       diseaseBreakdown: diseaseRows.map((row) => ({
@@ -432,10 +455,15 @@ export class HealthService {
    * Only consider codes matching the real `HC-<digits>` shape when computing
    * the max suffix.
    */
-  private async nextCaseCode(farmId: string): Promise<string> {
+  private async nextCaseCode(
+    farmId: string,
+    client: Prisma.TransactionClient | PrismaService = this.prisma,
+  ): Promise<string> {
     // Deliberately includes archived cases — a code must never be reused even
-    // after its case is closed/archived.
-    const rows = await this.prisma.healthCase.findMany({
+    // after its case is closed/archived. Takes an optional tx client so a
+    // multi-case bulk create (RAKHAL-414's `applyPlanToAnimals`) sees its own
+    // just-created rows and never mints the same code twice within one call.
+    const rows = await client.healthCase.findMany({
       where: { farmId, caseCode: { startsWith: 'HC-' } },
       select: { caseCode: true },
     });
@@ -560,6 +588,152 @@ export class HealthService {
     return result;
   }
 
+  /**
+   * `POST /health/plans/:id/apply` (RAKHAL-414) — applies one plan to many animals in a single
+   * transaction, each getting its own new `HealthCase` + tasks. Replaces the frontend's old
+   * create-case-then-apply-plan loop (2N sequential requests, no partial-failure handling).
+   * An animal that already has an active case for this plan is **skipped, not duplicated** — the
+   * defect this ticket exists to close. A bad `cattleId` fails the whole call before anything is
+   * written; a partial failure inside the transaction rolls the whole batch back.
+   */
+  async applyPlanToAnimals(
+    farmId: string,
+    id: string,
+    dto: ApplyPlanToAnimalsDto,
+  ) {
+    const plan = await this.prisma.healthPlan.findFirst({
+      where: { id, farmId, deletedAt: null },
+      include: { steps: { orderBy: { dayNumber: 'asc' } } },
+    });
+    if (!plan) throw new NotFoundException('Health plan not found');
+    if (plan.steps.length === 0) {
+      throw new BadRequestException('Health plan has no steps to apply');
+    }
+
+    const cattleIds = dto.cattleIds;
+    if (cattleIds.length === 0) {
+      throw new BadRequestException('cattleIds must not be empty');
+    }
+
+    // Validate every animal belongs to this farm before writing anything —
+    // one bad id must fail the whole call with nothing written.
+    const cattleRows = await this.prisma.cattle.findMany({
+      where: { id: { in: cattleIds }, farmId, deletedAt: null },
+      select: { id: true, tagNumber: true, shedId: true },
+    });
+    const foundIds = new Set(cattleRows.map((c) => c.id));
+    const missing = cattleIds.filter((cattleId) => !foundIds.has(cattleId));
+    if (missing.length > 0) {
+      throw new NotFoundException(
+        `Cattle not found in this farm: ${missing.join(', ')}`,
+      );
+    }
+
+    const startDate = dto.startDate ? new Date(dto.startDate) : new Date();
+    const diagnosisType = PLAN_CATEGORY_TO_DIAGNOSIS_TYPE[plan.category];
+
+    // An animal already on this exact protocol is skipped, not duplicated —
+    // this is what the two-request create-then-apply frontend flow could not
+    // express (it always created a fresh case, every time).
+    const existing = await this.prisma.healthCase.findMany({
+      where: {
+        farmId,
+        cattleId: { in: cattleIds },
+        healthPlanId: plan.id,
+        status: { in: ACTIVE_CASE_STATUSES },
+      },
+      select: { cattleId: true },
+    });
+    const alreadyOnPlan = new Set(existing.map((c) => c.cattleId));
+
+    const toApply = cattleRows.filter((c) => !alreadyOnPlan.has(c.id));
+    const skipped = cattleRows
+      .filter((c) => alreadyOnPlan.has(c.id))
+      .map((c) => ({
+        cattleId: c.id,
+        status: 'skipped' as const,
+        reason: 'Animal already has an active case for this protocol',
+      }));
+
+    const applied: {
+      cattleId: string;
+      healthCaseId: string;
+      status: 'applied';
+    }[] = [];
+
+    if (toApply.length > 0) {
+      await this.prisma.$transaction(async (tx) => {
+        for (const cattle of toApply) {
+          const caseCode = await this.nextCaseCode(farmId, tx);
+          const healthCase = await tx.healthCase.create({
+            data: {
+              farmId,
+              cattleId: cattle.id,
+              caseCode,
+              diagnosis: plan.diagnosis ?? plan.name,
+              diagnosisType,
+              priority: HealthPriority.LOW,
+              shedId: cattle.shedId,
+              startDate,
+              healthPlanId: plan.id,
+              totalSteps: plan.steps.length,
+              currentStep: 0,
+              progressPercentage: 0,
+            },
+          });
+          await Promise.all(
+            plan.steps.map((step, index) => {
+              const dueDateTime = this.addDays(
+                startDate,
+                Math.max(0, step.dayNumber - 1),
+              );
+              return tx.healthTask.create({
+                data: {
+                  farmId,
+                  cattleId: cattle.id,
+                  healthCaseId: healthCase.id,
+                  healthPlanId: plan.id,
+                  taskCode: `${caseCode}-T${String(index + 1).padStart(2, '0')}`,
+                  taskDate: dueDateTime,
+                  dueDateTime,
+                  taskType: step.actionType,
+                  title: step.title,
+                  instruction: step.instruction,
+                  stepNumber: index + 1,
+                  totalSteps: plan.steps.length,
+                  medicineId: step.medicineId,
+                  medicineName: step.medicineName,
+                  doseAmount: step.doseAmount,
+                  doseUnit: step.doseUnit,
+                  route: step.route,
+                },
+              });
+            }),
+          );
+          applied.push({
+            cattleId: cattle.id,
+            healthCaseId: healthCase.id,
+            status: 'applied',
+          });
+        }
+      });
+    }
+
+    this.log.info('Health plan bulk-applied', {
+      farmId,
+      healthPlanId: plan.id,
+      appliedCount: applied.length,
+      skippedCount: skipped.length,
+    });
+
+    return {
+      healthPlanId: plan.id,
+      appliedCount: applied.length,
+      skippedCount: skipped.length,
+      results: [...applied, ...skipped],
+    };
+  }
+
   async logTreatment(
     farmId: string,
     userId: string,
@@ -590,6 +764,25 @@ export class HealthService {
             notes: `Treatment for case ${healthCase.caseCode}`,
           })
         : null;
+
+    // RAKHAL-419: resolve the treatment's cost from the medicine's own
+    // costPerUnit — a treatment with no medicine, or a free one, posts
+    // nothing to Finance and needs no financialAccountId.
+    let resolvedCost = 0;
+    if (deduction) {
+      const medicine = await this.prisma.medicine.findUnique({
+        where: { id: deduction.medicineId },
+        select: { costPerUnit: true },
+      });
+      resolvedCost = medicine?.costPerUnit
+        ? medicine.costPerUnit * quantity!
+        : 0;
+    }
+    if (resolvedCost > 0 && !dto.financialAccountId) {
+      throw new BadRequestException(
+        'financialAccountId is required when a treatment cost is being recorded',
+      );
+    }
 
     const log = await this.prisma.$transaction(async (tx) => {
       const treatmentLog = await tx.treatmentLog.create({
@@ -631,9 +824,31 @@ export class HealthService {
         treatmentLog,
         dto,
       );
-      await this.updateCaseProgress(tx, id);
-      return { treatmentLog, withdrawal };
+      const autoClosed = await this.updateCaseProgress(tx, id);
+      return { treatmentLog, withdrawal, autoClosed };
     });
+
+    // RAKHAL-419: post the treatment's cost to Finance after the log commits
+    // (same after-commit convention the AQR/notification calls below already
+    // use) — needs the real treatmentLog.id for `financeTransactionId`.
+    // Re-fetches the row onto `log.treatmentLog` rather than trusting the
+    // pre-update object, the exact stale-response class RAKHAL-330 found.
+    if (resolvedCost > 0) {
+      const posted = await this.expenseService.recordExpense(farmId, userId, {
+        category: ExpenseCategory.HEALTH,
+        description: `Medicine — Case ${healthCase.caseCode}`,
+        amount: resolvedCost,
+        expenseDate: log.treatmentLog.administeredAt.toISOString(),
+        financialAccountId: dto.financialAccountId!,
+        cattleId: healthCase.cattleId,
+      });
+      log.treatmentLog = await this.prisma.treatmentLog.update({
+        where: { id: log.treatmentLog.id },
+        data: { financeTransactionId: posted.id },
+      });
+    }
+
+    await this.notifyCaseAutoClosed(log.autoClosed, userId);
 
     // AQR: a completed, scheduled dose counts as a treatment completed (+3).
     if (task) {
@@ -687,6 +902,239 @@ export class HealthService {
       treatmentLogId: log.treatmentLog.id,
     });
     return log;
+  }
+
+  /**
+   * `POST /health/treatments` (RAKHAL-416) — records a treatment against one or more animals with
+   * no case id, Herdwatch-style (remedy -> date -> dose -> animals -> save). `HealthCase` stops
+   * being a concept the caller has to know about: an existing open case for the animal is reused,
+   * otherwise a minimal one is opened silently from `dto.reason`. Withdrawal is derived from the
+   * medicine's own `milkWithdrawalDays`/`meatWithdrawalDays` rather than typed by the caller — a
+   * medicine with `0`/`0` produces no hold. Stock decrements once per treated animal through the
+   * existing `MedicineService.decrementForTreatment` path.
+   *
+   * Deliberately does **not** fire the sickness AQR penalty / "review reported sickness" task /
+   * owner-manager alert that `createHealthCase` fires for a real Report Sickness — that live parity
+   * belongs to the heavier report-sickness flow; Quick Treat's whole point is a lighter one. It does
+   * fire the same `treatment_completed` AQR (+3) and `withholding_active` notification `logTreatment`
+   * already fires per treatment, since a real dose was administered either way.
+   */
+  async recordTreatment(
+    farmId: string,
+    userId: string,
+    dto: RecordTreatmentDto,
+  ) {
+    const cattleIds = dto.cattleIds;
+    if (cattleIds.length === 0) {
+      throw new BadRequestException('cattleIds must not be empty');
+    }
+
+    const medicine = await this.prisma.medicine.findFirst({
+      where: { id: dto.medicineId, farmId, deletedAt: null },
+      select: {
+        id: true,
+        name: true,
+        costPerUnit: true,
+        milkWithdrawalDays: true,
+        meatWithdrawalDays: true,
+      },
+    });
+    if (!medicine) throw new NotFoundException('Medicine not found');
+
+    // Validate every animal belongs to this farm before writing anything —
+    // same all-or-nothing rule RAKHAL-414's bulk apply uses. Checked before
+    // the cost/financialAccountId guard below: a request naming an animal
+    // that doesn't exist should 404 on that, not demand a payment account
+    // for a treatment that can never be recorded anyway.
+    const cattleRows = await this.prisma.cattle.findMany({
+      where: { id: { in: cattleIds }, farmId, deletedAt: null },
+      select: { id: true, tagNumber: true, name: true, shedId: true },
+    });
+    const foundIds = new Set(cattleRows.map((c) => c.id));
+    const missing = cattleIds.filter((cattleId) => !foundIds.has(cattleId));
+    if (missing.length > 0) {
+      throw new NotFoundException(
+        `Cattle not found in this farm: ${missing.join(', ')}`,
+      );
+    }
+
+    // RAKHAL-419: same cost basis per animal (same medicine, same dose) —
+    // resolved once rather than re-derived N times in the loop below.
+    const resolvedCost = medicine.costPerUnit
+      ? medicine.costPerUnit * dto.doseAmount
+      : 0;
+    if (resolvedCost > 0 && !dto.financialAccountId) {
+      throw new BadRequestException(
+        'financialAccountId is required when a treatment cost is being recorded',
+      );
+    }
+
+    const treatedAt = new Date(dto.treatedAt);
+    const results: {
+      cattleId: string;
+      healthCaseId: string;
+      treatmentLogId: string;
+      safetyWithdrawalId: string | null;
+      reusedExistingCase: boolean;
+    }[] = [];
+
+    for (const cattle of cattleRows) {
+      const openCase = await this.prisma.healthCase.findFirst({
+        where: {
+          farmId,
+          cattleId: cattle.id,
+          status: { in: ACTIVE_CASE_STATUSES },
+        },
+        orderBy: { startDate: 'desc' },
+      });
+      const reusedExistingCase = Boolean(openCase);
+
+      // Stock decrement happens once per animal, outside the record-writing
+      // transaction — same convention `logTreatment` already uses (a batch
+      // pick / insufficient-stock failure must abort before any log row for
+      // that animal is written, not roll back a shared multi-animal tx).
+      const deduction = await this.medicineService.decrementForTreatment(
+        farmId,
+        userId,
+        {
+          medicineId: dto.medicineId,
+          quantity: dto.doseAmount,
+          notes: `Quick treatment for ${cattle.tagNumber}`,
+        },
+      );
+
+      const { healthCaseId, treatmentLog, withdrawal, autoClosed } =
+        await this.prisma.$transaction(async (tx) => {
+          const targetCase =
+            openCase ??
+            (await tx.healthCase.create({
+              data: {
+                farmId,
+                cattleId: cattle.id,
+                caseCode: await this.nextCaseCode(farmId, tx),
+                diagnosis:
+                  dto.reason?.trim() || `Quick treatment — ${medicine.name}`,
+                diagnosisType: HealthDiagnosisType.OTHER,
+                priority: HealthPriority.LOW,
+                shedId: cattle.shedId,
+                startDate: treatedAt,
+              },
+            }));
+
+          const treatmentLog = await tx.treatmentLog.create({
+            data: {
+              farmId,
+              cattleId: cattle.id,
+              healthCaseId: targetCase.id,
+              medicineId: deduction.medicineId,
+              medicineName: medicine.name,
+              doseAmount: dto.doseAmount,
+              doseUnit: dto.doseUnit,
+              route: dto.route,
+              administeredAt: treatedAt,
+              administeredBy: userId,
+              stockDeducted: true,
+              stockDeductionQuantity: dto.doseAmount,
+              batchNo: deduction.batchId,
+              notes: dto.notes,
+            },
+          });
+
+          const withdrawal = await this.createSafetyWithdrawalIfNeeded(
+            tx,
+            targetCase,
+            treatmentLog,
+            {
+              milkWithdrawalDays: medicine.milkWithdrawalDays || undefined,
+              meatWithdrawalDays: medicine.meatWithdrawalDays || undefined,
+            },
+          );
+
+          const autoClosed = await this.updateCaseProgress(tx, targetCase.id);
+
+          return {
+            healthCaseId: targetCase.id,
+            treatmentLog,
+            withdrawal,
+            autoClosed,
+          };
+        });
+
+      // RAKHAL-419: post this animal's share of the cost after its own
+      // transaction commits (same after-commit convention `logTreatment`
+      // uses) — one Expense per animal, matching "stock decrements once per
+      // treated animal" already established for this route.
+      if (resolvedCost > 0) {
+        const posted = await this.expenseService.recordExpense(farmId, userId, {
+          category: ExpenseCategory.HEALTH,
+          description: `${medicine.name} — Quick treatment for [${cattle.tagNumber}]`,
+          amount: resolvedCost,
+          expenseDate: treatedAt.toISOString(),
+          financialAccountId: dto.financialAccountId!,
+          cattleId: cattle.id,
+        });
+        await this.prisma.treatmentLog.update({
+          where: { id: treatmentLog.id },
+          data: { financeTransactionId: posted.id },
+        });
+      }
+
+      await this.notifyCaseAutoClosed(autoClosed, userId);
+
+      await this.aqrService.applyEvent(
+        farmId,
+        cattle.id,
+        'treatment_completed',
+        {
+          actorId: userId,
+          actionDetails: `Quick treatment administered for [${cattle.tagNumber}] — ${medicine.name}.`,
+        },
+      );
+
+      if (withdrawal) {
+        const label = cattle.name ?? cattle.tagNumber;
+        const milkUntil = withdrawal.milkWithdrawalUntil
+          ?.toISOString()
+          .slice(0, 10);
+        const meatUntil = withdrawal.meatWithdrawalUntil
+          ?.toISOString()
+          .slice(0, 10);
+        await this.notificationService.notifyOwnersAndManagers({
+          farmId,
+          eventKey: 'withholding_active',
+          title: 'Withholding Period Active',
+          message: `${label} (${cattle.tagNumber}) is under withdrawal${milkUntil ? ` — milk until ${milkUntil}` : ''}${meatUntil ? `, meat until ${meatUntil}` : ''}.`,
+          params: {
+            name: label,
+            tagNumber: cattle.tagNumber,
+            milkUntil: milkUntil ?? '',
+            meatUntil: meatUntil ?? '',
+          },
+          link: `/healthcare/cases/${healthCaseId}`,
+          dedupeKey: `withholding_active:${withdrawal.id}`,
+        });
+      }
+
+      results.push({
+        cattleId: cattle.id,
+        healthCaseId,
+        treatmentLogId: treatmentLog.id,
+        safetyWithdrawalId: withdrawal?.id ?? null,
+        reusedExistingCase,
+      });
+    }
+
+    this.log.info('Quick treatment recorded', {
+      farmId,
+      medicineId: dto.medicineId,
+      animalCount: results.length,
+    });
+
+    return {
+      medicineId: dto.medicineId,
+      appliedCount: results.length,
+      results,
+    };
   }
 
   async createHealthUpdate(
@@ -1015,16 +1463,21 @@ export class HealthService {
     return this.groupTasksByDate(tasks);
   }
 
-  async completeTask(farmId: string, id: string) {
+  async completeTask(farmId: string, userId: string, id: string) {
     const task = await this.getTaskOrThrow(farmId, id);
     const updated = await this.prisma.healthTask.update({
       where: { id },
       data: {
         status: HealthTaskStatus.COMPLETED,
         completedAt: new Date(),
+        completedBy: userId,
       },
     });
-    await this.updateCaseProgress(this.prisma, task.healthCaseId);
+    const autoClosed = await this.updateCaseProgress(
+      this.prisma,
+      task.healthCaseId,
+    );
+    await this.notifyCaseAutoClosed(autoClosed, userId);
     return updated;
   }
 
@@ -1177,11 +1630,30 @@ export class HealthService {
     return new Set(rows.map((r) => r.cattleId));
   }
 
+  /** RAKHAL-420: whole days remaining until `until`, clamped to 0 once past — never negative, so
+   * the milk room reads "0 days" rather than "-2 days" once a hold has expired. `null` when the
+   * row never carried this kind of withdrawal at all (e.g. a milk-only medicine's meat side). */
+  private daysRemaining(until: Date | null): number | null {
+    if (!until) return null;
+    const ms = until.getTime() - Date.now();
+    return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
+  }
+
   async getSafetyWithdrawals(farmId: string, query: SafetyWithdrawalQueryDto) {
     const where: Prisma.SafetyWithdrawalWhereInput = {
       farmId,
       ...(query.cattleId ? { cattleId: query.cattleId } : {}),
       ...(query.status ? { status: query.status } : {}),
+      ...(query.activeOnly
+        ? {
+            status: {
+              in: [
+                SafetyWithdrawalStatus.ACTIVE,
+                SafetyWithdrawalStatus.READY_FOR_RELEASE,
+              ],
+            },
+          }
+        : {}),
     };
     const rows = await this.prisma.safetyWithdrawal.findMany({
       where,
@@ -1191,9 +1663,20 @@ export class HealthService {
         cattle: {
           select: { id: true, name: true, tagNumber: true, image: true },
         },
+        healthCase: { select: { caseCode: true } },
+        // Resolved through the treatment's own snapshot, not a live Medicine join — a medicine
+        // archived after the treatment must still show the name it was actually given under.
+        treatmentLog: { select: { medicineName: true } },
       },
     });
-    return toCursorPage(rows, query);
+    const projected = rows.map((row) => ({
+      ...row,
+      medicineName: row.treatmentLog?.medicineName ?? null,
+      caseCode: row.healthCase.caseCode,
+      milkDaysRemaining: this.daysRemaining(row.milkWithdrawalUntil),
+      meatDaysRemaining: this.daysRemaining(row.meatWithdrawalUntil),
+    }));
+    return toCursorPage(projected, query);
   }
 
   /**
@@ -1320,12 +1803,49 @@ export class HealthService {
     return withdrawal;
   }
 
+  /**
+   * RAKHAL-417: also auto-closes the case when its protocol finishes. `total` counts
+   * non-`SKIPPED` tasks only — a skipped step must not permanently cap progress below
+   * 100 % (the old query counted every task regardless of status, so a single skipped
+   * step meant the case could never read "done"). Only a case that got its tasks from
+   * a plan auto-closes: `totalSteps === 0` (a hand-opened case with no protocol) must
+   * never be misread as "all done", and neither `total`/`completed` being `0` (nothing
+   * to do yet) qualifies.
+   *
+   * Deliberately does **not** fire the AQR event itself: this runs with whatever
+   * client the caller passed (often a still-open `$transaction` callback's `tx`),
+   * and `AqrService` always writes through its own injected `PrismaService` — firing
+   * from inside an uncommitted outer transaction would run on a second connection
+   * against not-yet-committed rows. Returns the auto-close outcome instead, so each
+   * caller fires the AQR event itself after its own transaction has committed, the
+   * same place `logTreatment`/`recordTreatment` already fire their own AQR events.
+   */
   private async updateCaseProgress(
     tx: Prisma.TransactionClient | PrismaService,
     healthCaseId: string,
-  ) {
-    const [total, completed] = await Promise.all([
-      tx.healthTask.count({ where: { healthCaseId, deletedAt: null } }),
+  ): Promise<{
+    farmId: string;
+    cattleId: string;
+    caseCode: string;
+  } | null> {
+    const [healthCase, total, completed] = await Promise.all([
+      tx.healthCase.findUniqueOrThrow({
+        where: { id: healthCaseId },
+        select: {
+          farmId: true,
+          cattleId: true,
+          caseCode: true,
+          healthPlanId: true,
+          status: true,
+        },
+      }),
+      tx.healthTask.count({
+        where: {
+          healthCaseId,
+          deletedAt: null,
+          status: { not: HealthTaskStatus.SKIPPED },
+        },
+      }),
       tx.healthTask.count({
         where: {
           healthCaseId,
@@ -1335,13 +1855,66 @@ export class HealthService {
       }),
     ]);
     const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    const shouldAutoClose =
+      total > 0 &&
+      completed === total &&
+      healthCase.healthPlanId !== null &&
+      (ACTIVE_CASE_STATUSES as HealthCaseStatus[]).includes(healthCase.status);
+
     await tx.healthCase.update({
       where: { id: healthCaseId },
-      data: {
-        totalSteps: total,
-        currentStep: completed,
-        progressPercentage: progress,
+      data: shouldAutoClose
+        ? {
+            totalSteps: total,
+            currentStep: completed,
+            progressPercentage: 100,
+            status: HealthCaseStatus.CLOSED,
+            closedDate: new Date(),
+            closeReason: 'protocol_completed',
+            deletedAt: new Date(),
+          }
+        : {
+            totalSteps: total,
+            currentStep: completed,
+            progressPercentage: progress,
+          },
+    });
+
+    return shouldAutoClose
+      ? {
+          farmId: healthCase.farmId,
+          cattleId: healthCase.cattleId,
+          caseCode: healthCase.caseCode,
+        }
+      : null;
+  }
+
+  /**
+   * Fires once a case has actually auto-closed (see `updateCaseProgress`'s return),
+   * always after the caller's own transaction has committed. Same AQR/Activity trail
+   * a manual "Recovered" close fires (`closeCase`) — an active `SafetyWithdrawal` is
+   * untouched by this (it lives on its own table, not gated by the case's
+   * `deletedAt`), so a completed protocol's withholding hold keeps showing on Safety
+   * Withdrawals as required.
+   */
+  private async notifyCaseAutoClosed(
+    autoClosed: { farmId: string; cattleId: string; caseCode: string } | null,
+    actorId: string,
+  ) {
+    if (!autoClosed) return;
+    await this.aqrService.applyEvent(
+      autoClosed.farmId,
+      autoClosed.cattleId,
+      'recovered',
+      {
+        actorId,
+        actionDetails: `Case [${autoClosed.caseCode}] auto-closed — protocol completed.`,
       },
+    );
+    this.log.info('Health case auto-closed on protocol completion', {
+      caseCode: autoClosed.caseCode,
+      farmId: autoClosed.farmId,
     });
   }
 
@@ -1397,6 +1970,50 @@ export class HealthService {
   private calculateHerdHealthScore(healthy: number, total: number) {
     if (total === 0) return 100;
     return Math.round((healthy / total) * 100);
+  }
+
+  /**
+   * RAKHAL-419: the dashboard's `medicineExpense` tile — an all-time sum,
+   * matching every other metric on this dashboard (none of them are
+   * period-scoped; the route has no date-range query param). Excludes a
+   * reversed expense (`ExpenseService.reverseExpense`, fired on treatment
+   * edit/void) the same way `cattle-finance-aggregation.ts#
+   * sumUnreversedExpense` does for the per-animal breakdown — duplicated
+   * rather than cross-imported from the `cattle` module, matching this
+   * codebase's existing precedent of small per-module reversal checks
+   * rather than a shared cross-domain util.
+   */
+  private async sumHealthExpense(farmId: string): Promise<number> {
+    const rows = await this.prisma.expense.findMany({
+      where: { farmId, category: ExpenseCategory.HEALTH },
+      select: { id: true, amount: true },
+    });
+    if (rows.length === 0) return 0;
+
+    const journalTxns = await this.prisma.journalTransaction.findMany({
+      where: {
+        farmId,
+        sourceType: 'EXPENSE',
+        sourceId: { in: rows.map((r) => r.id) },
+        reversalOfId: null,
+      },
+      select: { id: true, sourceId: true },
+    });
+    const journalIdByExpenseId = new Map(
+      journalTxns.map((j) => [j.sourceId, j.id]),
+    );
+    const reversals = await this.prisma.journalTransaction.findMany({
+      where: { farmId, reversalOfId: { in: journalTxns.map((j) => j.id) } },
+      select: { reversalOfId: true },
+    });
+    const reversedJournalIds = new Set(
+      reversals.map((r) => r.reversalOfId as string),
+    );
+    const unreversed = rows.filter((r) => {
+      const journalId = journalIdByExpenseId.get(r.id);
+      return !journalId || !reversedJournalIds.has(journalId);
+    });
+    return unreversed.reduce((sum, r) => sum + Number(r.amount), 0);
   }
 
   private groupByDay(dates: Date[]) {

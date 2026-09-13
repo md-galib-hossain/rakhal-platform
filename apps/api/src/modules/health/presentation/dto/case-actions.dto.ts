@@ -97,6 +97,15 @@ export class LogTreatmentDto {
   @Transform(trimString)
   @IsString()
   notes?: string;
+
+  /** RAKHAL-419: required whenever `Medicine.costPerUnit × doseAmount` is a
+   * real cost being posted to Finance (RD-066's rule, per RAKHAL-393) — a
+   * zero-cost medicine or a treatment with no medicine posts nothing and
+   * needs no account. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  financialAccountId?: string;
 }
 
 export class CreateHealthUpdateDto {
@@ -210,4 +219,57 @@ export class SkipHealthTaskDto {
   @Transform(trimString)
   @IsString()
   reason?: string;
+}
+
+/** `POST /health/treatments` (RAKHAL-416) — record a treatment against one or more animals with
+ * no case id: an open case for each animal is reused, or a minimal one is opened silently.
+ * Withdrawal is derived from `Medicine.milkWithdrawalDays`/`meatWithdrawalDays`, not typed here. */
+export class RecordTreatmentDto {
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }: { value: unknown }): unknown =>
+    Array.isArray(value)
+      ? [...new Set(value.map((v) => String(v).trim()))]
+      : value,
+  )
+  cattleIds!: string[];
+
+  @Transform(trimString)
+  @IsString()
+  @IsNotEmpty()
+  medicineId!: string;
+
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @Min(0.01)
+  doseAmount!: number;
+
+  @Transform(trimString)
+  @IsString()
+  @IsNotEmpty()
+  doseUnit!: string;
+
+  @IsEnum(MedicineRoute)
+  route!: MedicineRoute;
+
+  @IsDateString()
+  treatedAt!: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  reason?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  notes?: string;
+
+  /** RAKHAL-419: required whenever `Medicine.costPerUnit × doseAmount` is a
+   * real cost being posted to Finance (RD-066's rule, per RAKHAL-393) — a
+   * zero-cost medicine posts nothing and needs no account. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  financialAccountId?: string;
 }

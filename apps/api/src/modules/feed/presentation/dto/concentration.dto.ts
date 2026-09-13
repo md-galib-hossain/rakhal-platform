@@ -42,6 +42,21 @@ export class ConcentrationItemDto {
   @IsNumber()
   @Min(0)
   amountKg!: number;
+
+  /** RAKHAL-422: optional link to a real inventory batch this line actually consumes on
+   * finalize (RAKHAL-423) — at most one of `feedItemId`/`feedStockId`, validated service-side
+   * against farm ownership and that the batch's own ingredient matches `ingredientId` above
+   * (a line cannot claim to be maize while consuming bran). Absent (the default) = a virtual
+   * catalogue line, unchanged from before this ticket. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  feedItemId?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  feedStockId?: string;
 }
 
 /** `POST /feed/concentrations` — create a concentration template (RAKHAL-082, §12.4). */
