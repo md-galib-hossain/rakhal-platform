@@ -7,6 +7,7 @@ import { healthApi } from "../api";
 import type {
   AppliedPlanListItem,
   ApplyHealthPlanPayload,
+  ApplyPlanToAnimalsPayload,
   CloseHealthCasePayload,
   CreateHealthCasePayload,
   CreateHealthPlanPayload,
@@ -229,14 +230,25 @@ export function useDeletePlan() {
   });
 }
 
-/** Applies a plan to one existing health case — see `api.ts#applyPlanToCase` for why there's no
- * bulk variant. `apply-health-plan-dialog.tsx` loops this (and, for animals with no open case yet,
- * `useCreateHealthCase` first) once per selected animal. */
+/** Applies a plan to one existing health case — used by Sick Bay's "Apply Protocol" row action
+ * (RFE-106) and `edit-applied-plan-dialog.tsx`'s reschedule flow. For a fresh multi-animal apply,
+ * use `useApplyPlanToAnimals` instead. */
 export function useApplyPlanToCase() {
   const invalidate = useInvalidateHealth();
   return useMutation({
     mutationFn: ({ caseId, dto }: { caseId: string; dto: ApplyHealthPlanPayload }) => healthApi.applyPlanToCase(caseId, dto),
     onSuccess: (_data, { caseId }) => invalidate(caseId),
+  });
+}
+
+/** RAKHAL-414's real bulk-apply route — one call applies a plan to N animals; the backend creates
+ * a case only for animals not already on this exact protocol and reports applied/skipped per
+ * animal. Replaces the old create-case-then-apply loop in `apply-health-plan-dialog.tsx`. */
+export function useApplyPlanToAnimals() {
+  const invalidate = useInvalidateHealth();
+  return useMutation({
+    mutationFn: ({ planId, dto }: { planId: string; dto: ApplyPlanToAnimalsPayload }) => healthApi.applyPlanToAnimals(planId, dto),
+    onSuccess: () => invalidate(),
   });
 }
 

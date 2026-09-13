@@ -49,6 +49,11 @@ import type {
   ReproductiveStatus,
 } from "../types";
 
+/** Sentinel for the bulk "Change feed group" dialog's "Unassigned" choice — same pattern as
+ * `cattle-form-dialog.tsx`'s own `UNSET`, kept as a separate constant since that file's `UNSET`
+ * isn't exported. */
+const UNSET_FEED_GROUP = "__unset_feed_group__";
+
 /** Reads the URL params `CattleFilters` writes (both are siblings under the same page) and drives
  * the cursor-paginated table + bulk-selection dock. Bulk-action logic (change shed/feed-group,
  * dispose, export) used to live in a separate `CattleBulkActionsBar` rendered inline above the
@@ -280,9 +285,10 @@ export function CattleTable() {
             <SheetDescription>{tBulk("changeFeedGroupDescription", { count: selection.selectedCount })}</SheetDescription>
           </SheetHeader>
           <CreatableSelect
-            value={feedGroupId}
+            value={feedGroupId || UNSET_FEED_GROUP}
             onValueChange={setFeedGroupId}
             options={feedGroups.data ?? []}
+            extraItems={<SelectItem value={UNSET_FEED_GROUP}>{tBulk("unassigned")}</SelectItem>}
             trigger={
               <SelectTrigger aria-label={tBulk("feedGroupLabel")}>
                 <SelectValue placeholder={tBulk("feedGroupLabel")} />
@@ -300,7 +306,14 @@ export function CattleTable() {
             <Button
               disabled={bulk.isPending}
               onClick={async () => {
-                await run("change_feed_group", { feedGroupId });
+                // `UNSET_FEED_GROUP` mirrors `cattle-form-dialog.tsx`'s own `UNSET` pattern — an
+                // omitted `feedGroupId` in the bulk payload is what `change_feed_group` reads as
+                // "clear it" server-side (`cattle.service.ts`'s `payload?.feedGroupId ?? null`),
+                // so the sentinel must not reach the request body (user request 2026-09-09: bulk
+                // "remove multiple cows from a feed group" had no way to target "none").
+                await run("change_feed_group", {
+                  feedGroupId: feedGroupId === UNSET_FEED_GROUP ? undefined : feedGroupId,
+                });
                 setFeedGroupDialogOpen(false);
                 setFeedGroupId(undefined);
               }}

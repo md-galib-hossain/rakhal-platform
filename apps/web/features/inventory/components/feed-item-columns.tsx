@@ -91,10 +91,11 @@ export function buildFeedItemColumns(
             </span>
             <StockStatusIcon status={row.original.stockStatus} />
           </span>
-          {row.original.kgPerUnit != null ? (
-            <span className="text-xs text-muted-foreground">
-              {row.original.kgPerUnit}kg/{row.original.unit.symbol}
-            </span>
+          {row.original.kgEquivalent != null ? (
+            // Server-computed via `resolveKgPerUnit()` — for a WEIGHT-dimension item this is
+            // always right (derived from the unit's own `conversionToBase`), never a possibly
+            // stale farmer-entered `kgPerUnit` copy.
+            <span className="text-xs text-muted-foreground">{t("columns.kgEquivalent", { kg: row.original.kgEquivalent })}</span>
           ) : null}
         </span>
       ),

@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { feedApi } from "@/features/feed/api";
+import { cattleApi } from "@/features/cattle/api";
 
 /**
  * Feed-group membership + default-ration hooks (RFE-102).
@@ -33,6 +34,28 @@ export function useAssignCattleToGroup() {
         queryClient.invalidateQueries({ queryKey: qk.feed.groupCattle(groupId) }),
         queryClient.invalidateQueries({ queryKey: qk.settings.feedGroups() }),
         queryClient.invalidateQueries({ queryKey: qk.cattle.feedGroups() }),
+      ]);
+    },
+  });
+}
+
+/** Removes one cow from a feed group. `POST /feed/groups/:id/assign-cattle` only ever moves a cow
+ * *into* a group (`Cattle.feedGroupId = groupId`, no null path) — there's no matching "unassign"
+ * route, so this reuses Cattle's own bulk endpoint (`change_feed_group` with no `feedGroupId` in
+ * the payload, which `cattle.service.ts` reads as "clear it") against a single-cow selection
+ * instead (user report 2026-09-09: could add cows to a group from `AssignCattleDialog` but not
+ * remove one from its current-members list). */
+export function useRemoveCattleFromGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ groupId, cattleId }: { groupId: string; cattleId: string }) =>
+      cattleApi.bulk([cattleId], "change_feed_group", {}),
+    onSuccess: async (_result, { groupId }) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: qk.feed.groupCattle(groupId) }),
+        queryClient.invalidateQueries({ queryKey: qk.settings.feedGroups() }),
+        queryClient.invalidateQueries({ queryKey: qk.cattle.feedGroups() }),
+        queryClient.invalidateQueries({ queryKey: ["cattle", "list"] }),
       ]);
     },
   });

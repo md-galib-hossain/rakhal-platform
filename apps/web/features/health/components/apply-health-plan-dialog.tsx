@@ -18,24 +18,13 @@ import { Button } from "@/components/ui/button";
 import { DateText } from "@/components/shared/date-text";
 import { cattleApi } from "@/features/cattle/api";
 import type { CattleListItem } from "@/features/cattle/types";
-import { useApplyPlanToCase, useCreateHealthCase } from "../hooks/use-health";
+import { useApplyPlanToAnimals } from "../hooks/use-health";
 import { applyHealthPlanStep1Schema, type ApplyHealthPlanStep1Input } from "../schemas";
-import type { HealthDiagnosisType, HealthPlanListItem } from "../types";
+import type { HealthPlanListItem } from "../types";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 
 const ROUTES = ["IM", "IV", "SC", "ORAL"] as const;
-
-/** `HealthPlanCategory` → `HealthDiagnosisType` — used to give the per-animal case this apply
- * flow must create (see doc comment below) a sensible diagnosis type instead of a fixed one. */
-const CATEGORY_TO_DIAGNOSIS_TYPE: Record<HealthPlanListItem["category"], HealthDiagnosisType> = {
-  TREATMENT: "DISEASE",
-  PREVENTION: "PREVENTIVE",
-  BREEDING: "BREEDING_RELATED",
-  VACCINATION: "VACCINATION",
-  DEWORMING: "DEWORMING",
-  ROUTINE: "ROUTINE_CHECKUP",
-};
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -50,15 +39,16 @@ function getStepDate(startDateStr: string | undefined, dayNumber: number): Date 
 
 /**
  * "Apply Health Plan Template" 2-step wizard — Figma 734:49979 (Step 1: target-animal selection)
- * /734:50881 (Step 2: Schedule Preview), `get_design_context`. **Real gap, flagged not faked**: the
- * backend's `applyHealthPlanToCase` (`POST /health/cases/:id/apply-plan`) always targets one
- * *existing* `HealthCase` — there's no shed/batch bulk-apply endpoint at all. So "Confirm Schedule"
- * here creates a lightweight `HealthCase` per selected animal first (`diagnosis: plan.name`,
- * `diagnosisType` mapped from the plan's own `category`, `priority: LOW`), then applies the plan to
- * that new case — two real calls per animal, looped, not a fabricated batch action. "Shed"/"Batch"
- * selection reuse the real `GET /sheds`/`GET /settings/feed-groups` + `GET /cattle?shedId=`/`?feedGroupId=`
- * (same endpoints Cattle's own bulk-ops/filters use); "Exclude Pregnant Animals" filters on the real
- * `reproductiveStatus` field.
+ * /734:50881 (Step 2: Schedule Preview), `get_design_context`. **RFE-106 (2026-09-14)**: "Confirm
+ * Schedule" used to loop `createCase` → `applyToCase` once per selected animal (2N sequential
+ * requests, no partial-failure handling) because the only apply route targeted one existing case.
+ * Now calls the real bulk `POST /health/plans/:id/apply` once with the full `cattleIds[]`
+ * (RAKHAL-414) — the backend creates a case per animal that needs one and reports each animal's
+ * real outcome (`applied` or `skipped` when already on this exact protocol), so the confirmation
+ * toast can say "48 applied, 2 skipped" instead of a bare count that can't tell the two apart.
+ * "Shed"/"Batch" selection reuse the real `GET /sheds`/`GET /settings/feed-groups` +
+ * `GET /cattle?shedId=`/`?feedGroupId=` (same endpoints Cattle's own bulk-ops/filters use);
+ * "Exclude Pregnant Animals" filters on the real `reproductiveStatus` field.
  */
 export function ApplyHealthPlanDialog({ plan, onOpenChange }: { plan: HealthPlanListItem | undefined; onOpenChange: (open: boolean) => void }) {
   return (
@@ -75,8 +65,7 @@ function ApplyHealthPlanDialogBody({ plan, onOpenChange }: { plan: HealthPlanLis
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
 
-  const createCase = useCreateHealthCase();
-  const applyToCase = useApplyPlanToCase();
+  const applyToAnimals = useApplyPlanToAnimals();
 
   const form = useForm<ApplyHealthPlanStep1Input>({
     resolver: zodResolver(applyHealthPlanStep1Schema),
@@ -126,22 +115,17 @@ function ApplyHealthPlanDialogBody({ plan, onOpenChange }: { plan: HealthPlanLis
 
   async function handleConfirm() {
     const values = form.getValues();
-    const animalIds = [...selected];
     setSubmitting(true);
-    let successCount = 0;
     try {
-      for (const cattleId of animalIds) {
-        const healthCase = await createCase.mutateAsync({
-          cattleId,
-          diagnosis: plan.name,
-          diagnosisType: CATEGORY_TO_DIAGNOSIS_TYPE[plan.category],
-          priority: "LOW",
-          startDate: values.startDate,
-        });
-        await applyToCase.mutateAsync({ caseId: healthCase.id, dto: { healthPlanId: plan.id, startDate: values.startDate } });
-        successCount += 1;
+      const result = await applyToAnimals.mutateAsync({
+        planId: plan.id,
+        dto: { cattleIds: [...selected], startDate: values.startDate },
+      });
+      if (result.skippedCount > 0) {
+        toast.success(t("appliedToastWithSkipped", { applied: result.appliedCount, skipped: result.skippedCount }));
+      } else {
+        toast.success(t("appliedToast", { count: result.appliedCount }));
       }
-      toast.success(t("appliedToast", { count: successCount }));
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));

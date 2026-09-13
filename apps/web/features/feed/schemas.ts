@@ -37,6 +37,11 @@ export const createFeedConcentrationItemSchema = z.object({
   ingredientId: z.string().min(1),
   ingredientName: z.string(),
   amountKg: z.number().min(0),
+  /** RAKHAL-422 — optional link to a specific inventory batch. At most one is ever set; the
+   * `BatchLinkPicker` UI enforces this by construction (a single-select control), so no `.refine`
+   * is added here — the backend validates the pair authoritatively regardless. */
+  feedItemId: z.string().optional(),
+  feedStockId: z.string().optional(),
 });
 
 export const createFeedFormSchema = z

@@ -26,6 +26,7 @@ import {
 import { createFeedFormSchema, feedTargetTypes, type CreateFeedFormInput } from "../schemas";
 import { FeedMixtureTable, toEffectiveMap } from "./feed-mixture-table";
 import { IngredientPicker } from "./ingredient-picker";
+import type { BatchLink } from "./batch-link-picker";
 import { RequirementTile } from "./requirement-tile";
 import { fromApiRequirements } from "../lib/formula-math";
 import type {
@@ -155,6 +156,8 @@ function CreateFeedDialogBody({
         ingredientId: i.ingredient_id,
         ingredientName: i.name ?? i.ingredient_id,
         amountKg: i.amount_kg,
+        feedItemId: i.feed_item_id ?? undefined,
+        feedStockId: i.feed_stock_id ?? undefined,
       })),
     });
   }, [editDetail.data, form]);
@@ -207,6 +210,22 @@ function CreateFeedDialogBody({
     );
   }
 
+  /** RAKHAL-422/RFE-112 — `link` is `undefined` to clear (both fields dropped), or names exactly
+   * one of `feedItemId`/`feedStockId` (`BatchLinkPicker` enforces that shape). Spreading `link` onto
+   * the previous item and explicitly nulling the other id keeps `react-hook-form`'s tracked fields
+   * stable rather than deleting/re-adding a key, which is what a naive `{...i, ...link}` without the
+   * explicit `undefined` would do when switching from a `FeedItem` link to a `FeedStock` one. */
+  function updateBatchLink(ingredientId: string, link: BatchLink | undefined) {
+    form.setValue(
+      "items",
+      items.map((i) =>
+        i.ingredientId === ingredientId
+          ? { ...i, feedItemId: link?.feedItemId ?? undefined, feedStockId: link?.feedStockId ?? undefined }
+          : i,
+      ),
+    );
+  }
+
   async function handleNormalize() {
     if (!targetWeightKg || targetMilkL == null || items.length === 0) return;
     const result = await normalizeMutation.mutateAsync({
@@ -214,13 +233,19 @@ function CreateFeedDialogBody({
       milkTargetL: targetMilkL,
       items: items.map((i) => ({ ingredientId: i.ingredientId, amountKg: i.amountKg })),
     });
-    const nameById = new Map(items.map((i) => [i.ingredientId, i.ingredientName]));
+    // RAKHAL-422/RFE-112: `/feed/concentrations/normalize` only ever rescales amounts — it knows
+    // nothing about a batch link and doesn't echo one back. Without this map, the fresh `items`
+    // array below would silently drop every `feedItemId`/`feedStockId` a normalize call happened
+    // to run after they were set.
+    const byId = new Map(items.map((i) => [i.ingredientId, i]));
     form.setValue(
       "items",
       result.items.map((r) => ({
         ingredientId: r.ingredient_id,
-        ingredientName: nameById.get(r.ingredient_id) ?? "",
+        ingredientName: byId.get(r.ingredient_id)?.ingredientName ?? "",
         amountKg: r.amount_kg,
+        feedItemId: byId.get(r.ingredient_id)?.feedItemId,
+        feedStockId: byId.get(r.ingredient_id)?.feedStockId,
       })),
     );
   }
@@ -244,7 +269,12 @@ function CreateFeedDialogBody({
         cattleId: !isTemplate && values.targetType === "INDIVIDUAL" ? values.cattleId : undefined,
         targetWeightKg: isTemplate ? undefined : values.targetWeightKg,
         targetMilkL: isTemplate ? undefined : values.targetMilkL,
-        items: values.items.map((i) => ({ ingredientId: i.ingredientId, amountKg: i.amountKg })),
+        items: values.items.map((i) => ({
+          ingredientId: i.ingredientId,
+          amountKg: i.amountKg,
+          feedItemId: i.feedItemId,
+          feedStockId: i.feedStockId,
+        })),
       };
       if (isEdit && editId) {
         await updateConcentration.mutateAsync({ id: editId, dto: payload });
@@ -486,6 +516,7 @@ function CreateFeedDialogBody({
                     showPerCow={!isTemplate}
                     onAmountChange={updateAmount}
                     onRemove={removeItem}
+                    onBatchLinkChange={updateBatchLink}
                   />
                   <Button
                     type="button"

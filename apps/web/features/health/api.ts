@@ -5,6 +5,8 @@ import type { CursorPage } from "@/types/api";
 import type {
   AppliedPlanListItem,
   ApplyHealthPlanPayload,
+  ApplyPlanToAnimalsPayload,
+  ApplyPlanToAnimalsResult,
   CloseHealthCasePayload,
   CreateHealthCasePayload,
   CreateHealthPlanPayload,
@@ -130,10 +132,15 @@ export const healthApi = {
   deletePlan(id: string): Promise<HealthPlanListItem> {
     return apiFetch<HealthPlanListItem>(`/health/plans/${id}`, { method: "DELETE" });
   },
-  /** No bulk/shed-wide apply endpoint exists — this always targets one existing case, see
-   * `apply-health-plan-dialog.tsx` for how a multi-animal "Apply" is orchestrated from this. */
+  /** Applies to one existing case (Sick Bay's "Apply Protocol" row action). For a fresh multi-animal
+   * apply, use `applyPlanToAnimals` instead — it's the real bulk route, not a client-side loop. */
   applyPlanToCase(caseId: string, dto: ApplyHealthPlanPayload): Promise<HealthCaseDetail> {
     return apiFetch<HealthCaseDetail>(`/health/cases/${caseId}/apply-plan`, { method: "POST", body: dto });
+  },
+  /** RAKHAL-414 — real bulk apply: one call for N animals, backend creates a case only for animals
+   * not already on this exact protocol and reports applied/skipped per animal. */
+  applyPlanToAnimals(planId: string, dto: ApplyPlanToAnimalsPayload): Promise<ApplyPlanToAnimalsResult> {
+    return apiFetch<ApplyPlanToAnimalsResult>(`/health/plans/${planId}/apply`, { method: "POST", body: dto });
   },
   /** Active Plans panel — `GET /health/cases/applied` returns HealthCase rows where
    * `healthPlanId IS NOT NULL` (i.e. cases created via the Apply Health Plan flow).

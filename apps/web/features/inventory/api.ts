@@ -210,4 +210,10 @@ export const inventoryApi = {
   createUnit(dto: CreateUnitPayload): Promise<Unit> {
     return apiFetch<Unit>("/inventory/units", { method: "POST", body: dto });
   },
+  /** Archive-only (RAKHAL-326 follow-up) — a farm-custom unit's `conversionToBase` can never be
+   * edited once created (would silently rewrite historical stock/cost math for every item that
+   * used it); archiving and recreating is the correct fix for a mis-entered one. */
+  archiveUnit(id: string): Promise<Unit> {
+    return apiFetch<Unit>(`/inventory/units/${id}/archive`, { method: "PATCH" });
+  },
 };

@@ -18,6 +18,7 @@ import {
   type Requirements,
 } from "../lib/formula-math";
 import type { CreateFeedFormItem } from "../schemas";
+import { BatchLinkPicker, type BatchLink } from "./batch-link-picker";
 
 export function toEffectiveMap(ingredients: FeedIngredient[]): Map<string, EffectiveIngredientNutrition> {
   return new Map(
@@ -115,6 +116,7 @@ export function FeedMixtureTable({
   cowCount,
   onAmountChange,
   onRemove,
+  onBatchLinkChange,
   readOnly = false,
   showPerCow = true,
   serverContributions,
@@ -128,6 +130,9 @@ export function FeedMixtureTable({
   cowCount: number;
   onAmountChange?: (ingredientId: string, amountKg: number) => void;
   onRemove?: (ingredientId: string) => void;
+  /** RAKHAL-422/RFE-112 — per-line inventory-batch link callback. Omitted (as the read-only detail
+   * sheet does) hides the `BatchLinkPicker` entirely rather than rendering a disabled control. */
+  onBatchLinkChange?: (ingredientId: string, link: BatchLink | undefined) => void;
   readOnly?: boolean;
   /** A Concentrate Mixer has no cow/group target at all (see `concentration-card.tsx`'s doc comment)
    * so a "per cow" daily figure is meaningless for it — `cowCount` would otherwise silently default
@@ -251,7 +256,18 @@ export function FeedMixtureTable({
                 const eff = effectiveById.get(item.ingredientId);
                 return (
                   <TableRow key={item.ingredientId}>
-                    <TableCell className="font-medium text-foreground">{item.ingredientName}</TableCell>
+                    <TableCell className="font-medium text-foreground">
+                      <div className="flex flex-col gap-1">
+                        <span>{item.ingredientName}</span>
+                        {onBatchLinkChange ? (
+                          <BatchLinkPicker
+                            ingredientId={item.ingredientId}
+                            link={item.feedItemId ? { feedItemId: item.feedItemId } : item.feedStockId ? { feedStockId: item.feedStockId } : undefined}
+                            onChange={(link) => onBatchLinkChange(item.ingredientId, link)}
+                          />
+                        ) : null}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       {readOnly ? (
                         <span>

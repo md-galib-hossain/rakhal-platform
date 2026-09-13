@@ -377,11 +377,35 @@ export interface CreateHealthPlanPayload {
 /** `PATCH /health/plans/:id` body (`UpdateHealthPlanDto`) — same shape, all optional. */
 export type UpdateHealthPlanPayload = Partial<CreateHealthPlanPayload>;
 
-/** `POST /health/cases/:id/apply-plan` body (`ApplyHealthPlanDto`) — applies to one existing case
- * (the backend has no bulk/shed-wide apply endpoint, see `apply-health-plan-dialog.tsx` doc comment). */
+/** `POST /health/cases/:id/apply-plan` body (`ApplyHealthPlanDto`) — applies to one existing case.
+ * For applying to N animals at once (creating a case per animal as needed), use
+ * `ApplyPlanToAnimalsPayload`/`healthApi.applyPlanToAnimals` instead (RAKHAL-414). */
 export interface ApplyHealthPlanPayload {
   healthPlanId: string;
   startDate?: string;
+}
+
+/** `POST /health/plans/:id/apply` body (`ApplyPlanToAnimalsDto`, RAKHAL-414) — the real bulk-apply
+ * route: one call per selection instead of the old create-case-then-apply loop, one per animal. */
+export interface ApplyPlanToAnimalsPayload {
+  cattleIds: string[];
+  startDate?: string;
+}
+
+/** One row of `ApplyPlanToAnimalsResult.results` — an animal already on this exact protocol comes
+ * back `skipped` (with `reason`) rather than getting a duplicate case. */
+export interface ApplyPlanToAnimalsResultRow {
+  cattleId: string;
+  status: "applied" | "skipped";
+  healthCaseId?: string;
+  reason?: string;
+}
+
+export interface ApplyPlanToAnimalsResult {
+  healthPlanId: string;
+  appliedCount: number;
+  skippedCount: number;
+  results: ApplyPlanToAnimalsResultRow[];
 }
 
 export const HEALTH_MANAGEMENT_TABS = ["sickBay", "taskHub", "healthPlan", "safetyWithdrawals"] as const;

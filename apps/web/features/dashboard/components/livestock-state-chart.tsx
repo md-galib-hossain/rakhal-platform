@@ -60,8 +60,8 @@ export function LivestockStateChart() {
                 {/* Figma (732:1788) pins the value pill near the track's right edge for every
                  * row, regardless of the bar's own fill length — not at the end of the fill. */}
                 <span
-                  className="absolute right-[5px] top-1/2 flex h-4 min-w-[25px] -translate-y-1/2 items-center justify-center rounded-[5px] px-[3px] bg-card text-[10px] font-bold shadow-[0px_1px_2px_rgba(0,0,0,0.15)]"
-                  style={{ color: style.text }}
+                  className="absolute right-[5px] top-1/2 flex h-4 min-w-[25px] -translate-y-1/2 items-center justify-center rounded-[5px] px-[3px] text-[10px] font-bold shadow-[0px_1px_2px_rgba(0,0,0,0.15)]"
+                  style={{ color: style.text, backgroundColor: style.tint }}
                 >
                   {count}
                 </span>

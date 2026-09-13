@@ -90,8 +90,11 @@ export default async function DashboardPage() {
         {/* Figma row: Financial Performance (2 cols) + Priorities (1 col) fill one row exactly */}
         <FinancialPerformanceChart />
         <PrioritiesPanel />
-        {/* Figma row: Production vs Feedcost (2 cols) + Conception Rate (1 col) fill one row exactly */}
+        {/* Production vs Feedcost (2 cols) + Production Trend/MilkTrend (1 col) fill one row;
+         * Conception Rate moved to next line where the grid's 3-col auto-flow fills it exactly
+         * alongside Production Summary + Financial Snapshot (user request, 2026-09-10). */}
         <ProductionVsFeedcostChart />
+        <MilkTrendCard />
         <ConceptionRateChart />
         <ProductionSummaryCard />
         <FinancialSnapshotCard />
@@ -99,7 +102,6 @@ export default async function DashboardPage() {
         <FeedStockAlertsCard />
         <UpcomingTasksCard />
         <ActivityLogCard />
-        <MilkTrendCard />
         <FeedCostCard />
       </div>
     </PageCard>

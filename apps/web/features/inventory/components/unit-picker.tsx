@@ -2,14 +2,17 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { Check, ChevronsUpDown, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateCustomUnit, useUnits } from "../hooks/use-inventory";
+import { useArchiveUnit, useCreateCustomUnit, useUnits } from "../hooks/use-inventory";
 import type { CreateUnitPayload, Unit, UnitDimension } from "../types";
 
 /** Dimension display order + i18n key — mirrors `features/feed/components/ingredient-picker.tsx`'s
@@ -63,6 +66,21 @@ export function UnitPicker({
 
   const { data, isLoading } = useUnits();
   const createCustom = useCreateCustomUnit();
+  const archiveUnit = useArchiveUnit();
+  const [archivingId, setArchivingId] = useState<string | null>(null);
+
+  async function handleArchive(unit: Unit) {
+    setArchivingId(unit.id);
+    try {
+      await archiveUnit.mutateAsync(unit.id);
+      toast.success(t("unitArchived", { name: unit.name }));
+      if (unit.id === value) onChange("");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("archiveUnitError"));
+    } finally {
+      setArchivingId(null);
+    }
+  }
 
   const selected = useMemo(() => data?.find((u) => u.id === value), [data, value]);
 
@@ -144,9 +162,35 @@ export function UnitPicker({
                 {groupsByDimension.map(({ dimension, labelKey, options }) => (
                   <CommandGroup key={dimension} heading={t(labelKey)}>
                     {options.map((unit) => (
-                      <CommandItem key={unit.id} value={unit.id} onSelect={() => selectUnit(unit)}>
-                        <Check className={cn("mr-2 size-4", unit.id === value ? "opacity-100" : "opacity-0")} aria-hidden />
-                        {unit.name} ({unit.symbol})
+                      <CommandItem
+                        key={unit.id}
+                        value={unit.id}
+                        onSelect={() => selectUnit(unit)}
+                        className="flex items-center justify-between"
+                      >
+                        <span className="flex items-center">
+                          <Check className={cn("mr-2 size-4", unit.id === value ? "opacity-100" : "opacity-0")} aria-hidden />
+                          {unit.name} ({unit.symbol})
+                          {!unit.isSystemDefault ? (
+                            <Badge variant="outline" className="ml-2 text-[10px]">
+                              {t("customUnitBadge")}
+                            </Badge>
+                          ) : null}
+                        </span>
+                        {!unit.isSystemDefault ? (
+                          <button
+                            type="button"
+                            disabled={archivingId === unit.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleArchive(unit);
+                            }}
+                            aria-label={t("archiveUnit", { name: unit.name })}
+                            className="text-muted-foreground transition-colors hover:text-destructive disabled:opacity-50"
+                          >
+                            <Trash2 className="size-3.5" aria-hidden />
+                          </button>
+                        ) : null}
                       </CommandItem>
                     ))}
                   </CommandGroup>

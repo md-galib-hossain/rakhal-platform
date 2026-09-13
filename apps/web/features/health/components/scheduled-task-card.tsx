@@ -55,6 +55,9 @@ export function ScheduledTaskCard({
   const isDone = completed >= total;
   const category = taskCategoryChip(group.taskType);
   const fillPct = total > 0 ? (completed / total) * 100 : 0;
+  const animalLabels = group.tasks.map((task) => task.cattle?.name ?? task.cattle?.tagNumber ?? task.cattleId);
+  const visibleAnimalLabels = animalLabels.slice(0, 3);
+  const extraAnimalCount = animalLabels.length - visibleAnimalLabels.length;
 
   return (
     <div className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-4">
@@ -89,6 +92,10 @@ export function ScheduledTaskCard({
         <div className="h-[17px] w-full rounded-md bg-muted">
           <div className="h-[17px] rounded-md bg-primary transition-[width] duration-500" style={{ width: `${fillPct}%` }} />
         </div>
+        <p className="truncate text-xs text-muted-foreground">
+          {visibleAnimalLabels.join(", ")}
+          {extraAnimalCount > 0 ? ` ${t("animalNamesMore", { count: extraAnimalCount })}` : ""}
+        </p>
       </div>
 
       <div className="flex items-center gap-2">

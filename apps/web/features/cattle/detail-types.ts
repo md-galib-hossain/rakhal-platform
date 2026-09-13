@@ -170,6 +170,10 @@ export interface PedigreeNode {
   name: string | null;
   tag: string | null;
   gender: string;
+  farm_name?: string | null;
+  is_external?: boolean;
+  dam?: PedigreeNode | null;
+  sire?: (PedigreeNode & { is_external?: boolean }) | null;
 }
 
 export interface PedigreeSibling extends PedigreeNode {
@@ -182,6 +186,7 @@ export interface PedigreeOffspring {
   tag: string;
   gender: CattleGender;
   birth_date: string | null;
+  farm_name?: string | null;
 }
 
 export interface CattlePedigree {

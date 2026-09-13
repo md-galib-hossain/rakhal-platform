@@ -1,9 +1,9 @@
-"use client"; // row actions open the Case Management sheet + a delete confirm dialog
+"use client"; // row actions open the Case Management sheet, an Apply Protocol sheet + a delete confirm dialog
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { ShieldPlus, Trash2 } from "lucide-react";
 import type { Locale } from "@/lib/constants/i18n";
 import { Can } from "@/lib/auth/permissions";
 import { ApiError } from "@/lib/api/errors";
@@ -15,10 +15,93 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { AnimalLink } from "@/components/shared/animal-link";
+import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Select, SelectContent, SelectItem } from "@/components/ui/select";
+import { LabeledSelectTrigger } from "@/components/ui/labeled-field";
+import { DatePicker } from "@/components/ui/date-picker";
 import { diagnosisChipVariant, formatDoseWhen } from "../format";
-import { useDeleteHealthCase } from "../hooks/use-health";
+import { useApplyPlanToCase, useDeleteHealthCase, useHealthPlans } from "../hooks/use-health";
 import { ProgressRing } from "./progress-ring";
 import type { HealthCaseListItem } from "../types";
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** RFE-106 — "Apply Protocol" row action: attaches a plan to a case that already exists (no UI
+ * path did this before; the only Apply flow always created a brand-new duplicate case). Same
+ * `POST /health/cases/:id/apply-plan` `edit-applied-plan-dialog.tsx` uses for its reschedule flow. */
+function ApplyProtocolDialog({
+  item,
+  onOpenChange,
+}: {
+  item: HealthCaseListItem | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const t = useTranslations("health.sickBay.applyProtocolDialog");
+  const [healthPlanId, setHealthPlanId] = useState<string | undefined>(undefined);
+  const [startDate, setStartDate] = useState(todayIso);
+  const [pending, setPending] = useState(false);
+  const plansQuery = useHealthPlans();
+  const applyPlan = useApplyPlanToCase();
+
+  function handleOpenChange(next: boolean) {
+    if (next) {
+      setHealthPlanId(undefined);
+      setStartDate(todayIso());
+    }
+    onOpenChange(next);
+  }
+
+  async function handleConfirm() {
+    if (!item || !healthPlanId) return;
+    setPending(true);
+    try {
+      await applyPlan.mutateAsync({ caseId: item.id, dto: { healthPlanId, startDate } });
+      toast.success(t("appliedToast"));
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("genericError"));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <Sheet open={item !== null} onOpenChange={handleOpenChange}>
+      {item ? (
+        <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>{t("title", { name: item.cattle.name ?? item.cattle.tagNumber })}</SheetTitle>
+          </SheetHeader>
+
+          <div className="flex flex-col gap-3 py-3">
+            <Select value={healthPlanId} onValueChange={setHealthPlanId}>
+              <LabeledSelectTrigger label={t("selectPlan")} placeholder={t("selectPlanPlaceholder")} />
+              <SelectContent>
+                {(plansQuery.data?.items ?? []).map((plan) => (
+                  <SelectItem key={plan.id} value={plan.id}>
+                    {plan.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <DatePicker label={t("startDate")} value={startDate} onChange={setStartDate} disabled={pending} />
+          </div>
+
+          <SheetFooter className="border-t border-dashed border-border pt-4">
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
+              {t("cancel")}
+            </Button>
+            <Button onClick={() => void handleConfirm()} disabled={pending || !healthPlanId}>
+              {pending ? "…" : t("confirm")}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      ) : null}
+    </Sheet>
+  );
+}
 
 /** Figma "Health Management Center" table — Sick Bay tab (node 734:35802): Name (avatar+tag) / Shed
  * / Diagnosis (chip) / Treatment / Progress (X/total ring) / Next Dose / Action. Backed by the real
@@ -41,6 +124,7 @@ export function SickBayTable({
   const t = useTranslations("health.sickBay");
   const locale = useLocale() as Locale;
   const [deleteTarget, setDeleteTarget] = useState<HealthCaseListItem | null>(null);
+  const [applyTarget, setApplyTarget] = useState<HealthCaseListItem | null>(null);
   const deleteCase = useDeleteHealthCase();
 
   async function confirmDelete() {
@@ -139,6 +223,17 @@ export function SickBayTable({
                     <Button variant="outline" size="sm" onClick={() => onManageCase(item.id)}>
                       {t("manageCase")}
                     </Button>
+                    <Can I="healthcare.update">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={t("applyProtocol")}
+                        title={t("applyProtocol")}
+                        onClick={() => setApplyTarget(item)}
+                      >
+                        <ShieldPlus className="size-4 text-foreground" aria-hidden />
+                      </Button>
+                    </Can>
                     <Can I="healthcare.delete">
                       <Button
                         variant="ghost"
@@ -165,6 +260,7 @@ export function SickBayTable({
         cancelLabel={t("deleteDialog.cancel")}
         onConfirm={confirmDelete}
       />
+      <ApplyProtocolDialog item={applyTarget} onOpenChange={(open) => !open && setApplyTarget(null)} />
     </div>
   );
 }

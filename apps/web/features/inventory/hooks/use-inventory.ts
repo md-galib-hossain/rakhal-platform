@@ -451,3 +451,16 @@ export function useCreateCustomUnit() {
       }),
   });
 }
+
+/** Archive a farm-custom unit — same broad-invalidate shape `useCreateCustomUnit` uses so it
+ * drops out of every dimension-filtered picker list immediately. */
+export function useArchiveUnit() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => inventoryApi.archiveUnit(id),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "inventory" && query.queryKey[1] === "units",
+      }),
+  });
+}

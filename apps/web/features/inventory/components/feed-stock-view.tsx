@@ -30,12 +30,18 @@ import type { FeedStockSource } from "./feed-stock-columns";
  * Inventory's Feed tab → "Prepared" segment (moved here 2026-07-19 from a standalone section on
  * the Feed Formulator page — user report: "we have already a inventory... no need to create the
  * tmr feed inventory here"; folded into the unified Feed tab's segmented control alongside
- * "Purchased" at `feed_taxonomy_unification`). List of `FeedStock` lots produced by finalizing a
- * **Total Mixed Ration** on the Feed Formulator page; actual stock *decrement* happens through
- * "Feed Today" (`features/feed/components/log-distribution-dialog.tsx`), not here. A Concentrate
- * Mixer never appears here (2026-07-19 correction, see `FeedConcentrationService.finalize`'s doc
- * comment) — it's a virtual recipe/calculator, finalizing one only promotes a reusable ingredient
- * and never touches inventory; only a TMR is real, physical feed.
+ * "Purchased" at `feed_taxonomy_unification`). List of `FeedStock` lots produced by finalizing
+ * **either** a Total Mixed Ration or a Concentrate Mixer on the Feed Formulator page; actual stock
+ * *decrement* happens through "Feed Today" (`features/feed/components/log-distribution-dialog.tsx`),
+ * not here.
+ *
+ * **Superseded 2026-09-13 (RAKHAL-421, MILESTONE 8c):** the 2026-07-19 stance below this comment
+ * used to hold — a Concentrate Mixer was a virtual recipe/calculator that never touched inventory,
+ * and only a TMR finalize produced a real `FeedStock` lot. Bought vs made is now the real line
+ * (`FeedItem` = purchased, `FeedStock` = prepared), so **both** kinds land here, distinguished by
+ * each lot's own `kind` field (see `FeedStockSource`/`buildFeedStockColumns`'s badge, which already
+ * read this correctly via the `source_concentration_id` join before this field existed on the lot
+ * itself). Full rationale: `docs/EPIC_PREPARED_FEED.md`, ADR-025.
  *
  * **Table/grid parity + metrics (user follow-up, 2026-07-19)**: previously a bespoke flat
  * divide-y list with 3 stats (produced/remaining/cost) — user asked for the same shared

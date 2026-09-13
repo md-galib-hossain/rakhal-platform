@@ -1,5 +1,71 @@
 # Frontend — Current State
 
+## RFE-106 — Sick Bay: attach a protocol to an existing case + bulk-apply rewrite (2026-09-14)
+
+First implemented ticket of the Healthcare IA rework (RFE-106…110). New "Apply Protocol" row action
+on `SickBayTable` (inline `ApplyProtocolDialog`, plan picker + start date, `healthcare.update`-gated)
+attaches a plan to a case that already exists — no UI path did this before; the only Apply flow
+always created a duplicate second case. `ApplyHealthPlanDialog`'s "Confirm Schedule" step dropped
+its old per-animal `createCase`→`applyToCase` loop (2N sequential requests) in favor of the real
+bulk `POST /health/plans/:id/apply` (RAKHAL-414, confirmed already live server-side) — toast now
+reports the actual applied/skipped split instead of a bare count. Gate:
+`typecheck`(0)/`eslint`(0/0 in 5 files)/`build`(0, 39 routes)/`test`(174/174), both locales valid.
+Full writeup: `docs/PROJECT_PROGRESS.md`'s RFE-106 entry, `docs/IN_FLIGHT.md` Recently Done. Next open
+lane in this set: RFE-108 (Quick Treat, needs only RAKHAL-416 which is done) — RFE-107/110 stay
+blocked on RAKHAL-415/417/420.
+
+## RFE-113 — Finalize dialog: shortfall blocking + owned-vs-purchased cost split (2026-09-14)
+
+MILESTONE 8c frontend twin — **closes out all three frontend tickets (RFE-111/112/113)**; only
+backend RAKHAL-425 remains open on the epic. New `useConcentrationFinalizePreview` mirrors the
+backend's `resolveBatchDeductions` split exactly (unlinked cost exact, linked-batch shortfall
+precise where a kg conversion exists, "not checked" where it doesn't). **Real pre-existing bug
+found and fixed**: the dialog unconditionally required a `financialAccountId` — exactly the gate
+RAKHAL-424 already relaxed server-side for an all-linked finalize; now conditional on
+`unlinkedCostTk > 0`. Confirm hard-blocks on any named shortfall instead of surfacing a bare 400.
+Also fixed two more stale "Concentrate Mixer never touches inventory" claims (copy + code comment)
+RAKHAL-421 made false. Gate: `typecheck`(0)/`eslint`(0/0 in 3 files)/`build`(0)/`test`(174/174). Full
+writeup: `docs/PROJECT_PROGRESS.md`'s RFE-113 entry, `docs/IN_FLIGHT.md` Recently Done.
+
+## RFE-112 — Recipe builder: per-line source choice, catalogue ingredient vs inventory batch (2026-09-14)
+
+MILESTONE 8c frontend twin. New `BatchLinkPicker` lets a `FeedMixtureTable` line name a specific
+`FeedItem`/`FeedStock` to consume on finalize, identical for Concentrate Mixer and TMR. **Real gap
+found**: `GET /feed/ingredients` never exposes `source_concentration_id`, so a `FeedStock` link can't
+be matched precisely client-side — narrowed to `kind === 'CONCENTRATE_TEMPLATE'` with stock, backend
+validates the exact match at save. Fixed a real bug along the way: the Normalize flow silently
+dropped any batch link on every call (its response doesn't echo one back) — now merged back by
+`ingredientId`. New debt **RD-090**: a Concentrate Mixer finalize with real unlinked cost never
+requires payment or posts a journal, unlike a TMR's — needs a product call. Gate:
+`typecheck`(0)/`eslint`(0 in the 5 touched files)/`build`(0)/`test`(174/174). Full writeup:
+`docs/PROJECT_PROGRESS.md`'s RFE-112 entry, `docs/IN_FLIGHT.md` Recently Done.
+
+## RFE-111 — Inventory: concentrate batches move to the Prepared segment (2026-09-13)
+
+MILESTONE 8c frontend twin, backend rationale in `../../docs/EPIC_PREPARED_FEED.md`/ADR-025. Most of
+this ticket was already correct pre-`RAKHAL-421`: the Purchased/Prepared segmentation and the `kind`
+badge in `feed-stock-columns.tsx`/`feed-stock-grid.tsx` needed zero code change once concentrate
+finalize stopped producing a `FeedItem` and started producing a `FeedStock` instead. Real gaps found
+and fixed: `FeedStock` type gained `kind` (`features/feed/types.ts`, backend already returned it);
+`feed.stock.{subtitle,empty,emptyDescription}` in **both** locales literally told the farmer only a
+TMR produces stock — corrected to name both Concentrate Mixer and TMR; same false claim fixed in two
+code comments (`feed-stock-view.tsx`, `use-feed.ts`). Gate: `typecheck`(0)/`lint`(0 in touched
+files)/`build`(0, 38 routes)/`test`(174/174). Full writeup: `docs/PROJECT_PROGRESS.md`'s RFE-111 entry,
+`docs/IN_FLIGHT.md` Recently Done.
+
+## (no ticket) Healthcare IA rework specced: RFE-106…110, companion to backend MILESTONE 24 (2026-09-11)
+
+User asked whether Healthcare's 4 tabs (Sick Bay / Treatment Schedule / Health Plan / Safety
+Withdrawals) are real dairy needs and whether the UX holds up. Backend investigation (MILESTONE 24 on
+the backend board, 2026-09-10) found every feature has real demand but the decomposition is wrong —
+`HealthCase` is a mandatory wrapper, no UI path attaches a protocol to an existing case (both frontend
+callers of apply-plan create a duplicate case first), and applying a plan to a herd is 2N sequential
+requests. Target IA: 3 tabs (**Treatments** / **Schedule** / **Protocols**) instead of 4, Safety
+Withdrawals demoted to a filter chip rather than a fourth destination. 5 frontend tickets written
+(RFE-106…110, `PROJECT_PROGRESS.md`), each gated on its backend RAKHAL-41x twin — **none started**.
+RFE-109's Overdue-count/default-month fixes need no backend change and can go first.
+
+
 ## (no ticket) Date & date-time picker UX overhaul (2026-09-03)
 
 **Problem (user-reported, with screenshots):** the Record Breeding/AI dialog rendered the browser's

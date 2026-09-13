@@ -247,6 +247,12 @@ export interface FeedConcentrationIngredientLine {
   phosphorus_kg: number;
   tdn_kg: number;
   cost_tk: number;
+  /** RAKHAL-422 (2026-09-13): at most one of these is set — a line linking a real inventory batch
+   * (deducted + priced from the batch's actual cost on finalize, RAKHAL-423) rather than staying a
+   * virtual catalogue line. Keyed by `ingredient_id` on the backend, not array position — see
+   * `enrich()`'s own doc comment on why the two source arrays aren't guaranteed 1:1 by index. */
+  feed_item_id: string | null;
+  feed_stock_id: string | null;
 }
 
 /** `GET /feed/concentrations` list row (not detailed — no `ingredients` line items). */
@@ -279,6 +285,13 @@ export interface FeedConcentrationDetail extends FeedConcentrationSummary {
 export interface FeedConcentrationItemInput {
   ingredientId: string;
   amountKg: number;
+  /** RAKHAL-422: optional link to a specific inventory batch this line consumes on finalize. At
+   * most one should be set — the picker UI enforces this by construction; the backend validates
+   * it authoritatively (farm ownership, not soft-deleted, and the batch's own ingredient matches
+   * `ingredientId`) since the frontend can't always compute a precise match itself (a `FeedStock`
+   * lot has no `ingredientId` of its own — see `BatchLinkPicker`'s doc comment). */
+  feedItemId?: string;
+  feedStockId?: string;
 }
 
 /** `targetWeightKg`/`targetMilkL` are optional as of Phase 12.3 (2026-07-18) — once a real
@@ -320,18 +333,23 @@ export interface NormalizeConcentrationPayload {
 /** `POST /feed/concentrations/:id/finalize` response. As of Phase 12.1/12.2 (2026-07-18):
  * `finalize()` is an upsert (no more `version` field — the promoted ingredient is kept in sync in
  * place, not versioned) and `ingredient` is `null` for a `FEED_MIXTURE` (a TMR produces stock only,
- * never a reusable ingredient — see the backend's `finalize()` doc comment). As of 2026-07-19,
- * `stock` is `null` for a `CONCENTRATE_TEMPLATE` — a Concentrate Mixer is a virtual recipe/
- * calculator, finalizing one only promotes/refreshes the ingredient above and never touches
- * inventory; only a `FEED_MIXTURE` (TMR) produces a real stock lot. Only the fields the frontend
- * actually reads are typed here. */
+ * never a reusable ingredient — see the backend's `finalize()` doc comment).
+ *
+ * **Superseded 2026-09-13 (RAKHAL-421, MILESTONE 8c):** the 2026-07-19 stance this comment used to
+ * carry — "`stock` is `null` for a `CONCENTRATE_TEMPLATE`, only a TMR produces a real stock lot" —
+ * is no longer true. **Both** kinds now produce a `FeedStock` lot (`stock` is non-null for either),
+ * distinguished by the lot's own `kind` field. See `docs/EPIC_PREPARED_FEED.md`, ADR-025. Only the
+ * fields the frontend actually reads are typed here. */
 export interface FinalizeConcentrationResult {
   concentration_id: string;
   stock: FeedStock | null;
   ingredient: { id: string; name_en: string } | null;
-  /** Populated only for a `FEED_MIXTURE` finalize — the `FinanceTransaction` (and, if paid via
-   * `WALLET`, the `WalletTransaction`) created to pay for the produced batch. `null` for a
-   * `CONCENTRATE_TEMPLATE` finalize, which is free/virtual. */
+  /** Populated only for a `FEED_MIXTURE` finalize whose unlinked (catalogue-priced) cost is above
+   * zero — the `FinanceTransaction` (and, if paid via `WALLET`, the `WalletTransaction`) created to
+   * pay for that portion (RAKHAL-424: linked-batch cost is an inventory transfer, no cash moves).
+   * `null` for a `CONCENTRATE_TEMPLATE` finalize — a Concentrate Mixer's own finalize never posts a
+   * journal regardless of unlinked cost, unlike a TMR's (confirmed by reading `finalize()` directly,
+   * 2026-09-14 — worth a debt ticket if that asymmetry isn't deliberate). */
   finance: { transaction_id: string; reference: string; wallet_transaction_id: string | null } | null;
 }
 
@@ -378,6 +396,13 @@ export interface FeedGroup {
  * the backend has had this since Phase 4, this is the first frontend type/consumer for it. */
 export interface FeedStock {
   id: string;
+  /** RAKHAL-421 (2026-09-13): both a Concentrate Mixer and a Total Mixed Ration finalize now
+   * produce a `FeedStock` lot — this discriminates which recipe kind produced it. Existing rows
+   * backfilled to `FEED_MIXTURE`; the `feed-stock-columns.tsx`/`feed-stock-grid.tsx` badge already
+   * read this via a `source_concentration_id` join against `useConcentrations()`, so it renders
+   * correctly for both kinds without further UI change — this field surfaces the batch's own
+   * value directly, matching what `mapStock()` already returns. */
+  kind: FeedConcentrationKind;
   source_concentration_id: string;
   source_concentration_version: number;
   produced_at: string;

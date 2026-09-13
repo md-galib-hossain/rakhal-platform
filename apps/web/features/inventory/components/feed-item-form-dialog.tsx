@@ -1,6 +1,6 @@
 "use client"; // form state + mutation
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import { IngredientPicker } from "@/features/feed/components/ingredient-picker";
 import { useFeedIngredients } from "@/features/feed/hooks/use-feed";
 import { UnitPicker } from "./unit-picker";
-import { useCreateFeedItem, useUpdateFeedItem } from "../hooks/use-inventory";
+import { useCreateFeedItem, useUnits, useUpdateFeedItem } from "../hooks/use-inventory";
 import { feedItemFormSchema, type FeedItemFormInput } from "../schemas";
 import type { CreateFeedItemPayload, FeedItem, UpdateFeedItemPayload } from "../types";
 
@@ -161,6 +161,7 @@ function FeedItemFormDialogBody({
   const updateFeedItem = useUpdateFeedItem();
   const pending = createFeedItem.isPending || updateFeedItem.isPending;
   const { data: ingredients } = useFeedIngredients();
+  const { data: units } = useUnits();
 
   const form = useForm<FeedItemFormInput>({
     resolver: zodResolver(feedItemFormSchema),
@@ -172,6 +173,39 @@ function FeedItemFormDialogBody({
     () => ingredients?.find((ing) => ing.id === ingredientId)?.name_en,
     [ingredients, ingredientId],
   );
+
+  // "Kg Per Unit" converts one unit of stock into kg for cost/feed-math (`costPerUnit / kgPerUnit`
+  // and `currentStock * kgPerUnit` in `feed-item.service.ts`). For a WEIGHT-dimension unit (kg, g,
+  // ton…) that conversion is already fully known from the unit catalog itself — `Unit.conversionToBase`
+  // *is* "how many kg is 1 of this unit" (kg's own `conversionToBase` is 1) — so asking a farmer to
+  // re-type it was pure duplicate data entry and confusion (user report 2026-09-09, first "unit is
+  // kg then what kg per unit", then "still confused" after picking Gram). Only a COUNT unit (bag,
+  // sack, bottle…) or a VOLUME unit (density unknown to the system) is a genuine farm-specific fact
+  // this field needs a human for. `useEffect` below keeps `kgPerUnit` in lockstep with the selected
+  // WEIGHT unit's `conversionToBase` (covers both a fresh pick and an edit dialog opening on an
+  // already-weight-unit item, without fighting user input for COUNT/VOLUME where it stays editable).
+  const unitId = form.watch("unitId");
+  const selectedUnit = useMemo(() => units?.find((u) => u.id === unitId), [units, unitId]);
+  const isWeightUnit = selectedUnit?.dimension === "WEIGHT";
+
+  // `undefined` until the first time `selectedUnit` resolves (units load async) — deliberately
+  // not treated as "was non-weight," so this never clears a farmer's real saved `kgPerUnit` on
+  // an edit-mode COUNT/VOLUME item just because the effect hasn't run yet.
+  const wasWeightUnitRef = useRef<boolean | undefined>(undefined);
+  useEffect(() => {
+    if (!selectedUnit) return;
+    if (isWeightUnit) {
+      if (selectedUnit.conversionToBase != null) {
+        form.setValue("kgPerUnit", selectedUnit.conversionToBase);
+      }
+    } else if (wasWeightUnitRef.current === true) {
+      // Switching away from a weight unit (e.g. Ton -> Litre) — clear the auto-filled value so
+      // it doesn't sit stale in the now-editable field (user report 2026-09-09: switching units
+      // left the old "1000" showing).
+      form.setValue("kgPerUnit", undefined);
+    }
+    wasWeightUnitRef.current = isWeightUnit;
+  }, [isWeightUnit, selectedUnit, form]);
 
   async function onSubmit(values: FeedItemFormInput) {
     try {
@@ -239,15 +273,28 @@ function FeedItemFormDialogBody({
                   <UnitPicker value={field.value} onChange={field.onChange} error={fieldState.error?.message} />
                 )}
               />
-              <LabeledInput
-                id="kgPerUnit"
-                type="number"
-                min={0}
-                step="0.01"
-                label={t("kgPerUnit")}
-                className="col-span-2"
-                {...form.register("kgPerUnit", { setValueAs: (v) => (v === "" ? undefined : Number(v)) })}
-              />
+              {!isWeightUnit ? (
+                <LabeledInput
+                  id="kgPerUnit"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  label={t("kgPerUnit")}
+                  placeholder={t("kgPerUnitHint")}
+                  className="col-span-2"
+                  {...form.register("kgPerUnit", { setValueAs: (v) => (v === "" ? undefined : Number(v)) })}
+                />
+              ) : selectedUnit ? (
+                // WEIGHT unit (kg, g, ton…) — the kg conversion is already known from the unit
+                // itself (`Unit.conversionToBase`), so there's nothing to ask; show it instead of
+                // an editable field the farmer would have no real number to put in.
+                <p className="col-span-2 self-center text-xs text-muted-foreground">
+                  {t("kgPerUnitAuto", {
+                    unit: `${selectedUnit.name} (${selectedUnit.symbol})`,
+                    kg: selectedUnit.conversionToBase ?? 1,
+                  })}
+                </p>
+              ) : null}
               <LabeledInput
                 id="costPerUnit"
                 type="number"

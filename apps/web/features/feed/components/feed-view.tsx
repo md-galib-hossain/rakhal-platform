@@ -246,9 +246,13 @@ export function FeedView() {
     }
   }
 
-  // Only the CONCENTRATE_TEMPLATE path (free/virtual) stays on this plain confirm — a FEED_MIXTURE
-  // (TMR) finalize costs real money and is handled by `FinalizeTmrDialog` below instead, which owns
-  // its own mutation call (payment method is required there).
+  // Superseded 2026-09-14 (RAKHAL-421/RD-090): a Concentrate Mixer finalize is not "free/virtual"
+  // any more — it produces a real `FeedStock` lot just like a TMR's. It stays on this plain confirm
+  // (not `FinalizeTmrDialog`'s shortfall/cost-split preview) because it never requires or posts
+  // payment regardless of unlinked cost, confirmed live in `finalize()` — an asymmetry RD-090
+  // records as an open product question, not settled here. Errors (self-consumption, insufficient
+  // linked-batch stock — the same guards a TMR finalize gets) still surface accurately below via
+  // `err.message`, just without this dialog's pre-confirm preview.
   async function handleFinalizeConfirm() {
     if (!finalizeTarget) return;
     try {

@@ -7,7 +7,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useHealthTasks } from "../hooks/use-health";
-import { daysFromToday, groupScheduledTasks, type ScheduledTaskGroup } from "../task-grouping";
+import { daysFromToday, groupCompletedCount, groupScheduledTasks, isGroupOverdue, type ScheduledTaskGroup } from "../task-grouping";
 import { TaskCalendarStrip } from "./task-calendar-strip";
 import { ScheduledTaskCard } from "./scheduled-task-card";
 import { TaskRescheduleDialog } from "./task-reschedule-dialog";
@@ -15,11 +15,17 @@ import { RecordBatchDialog } from "./record-batch-dialog";
 
 type TabKey = "all" | "overdue" | "today" | "upcoming";
 
-function tabBucket(group: ScheduledTaskGroup): TabKey {
+/** RAKHAL-420-era `isGroupOverdue()` is completion-aware (`ScheduledTaskCard`'s InfoTile already uses
+ * it) — a group whose tasks are all COMPLETED is done, not overdue, even if its due date is in the
+ * past. This tab's bucketing didn't use it, so a finished group with a past due date still counted
+ * under "Overdue" with a disabled "Completed" button. Such a group returns `null` here: still counted
+ * under "all", but absent from every day-based tab since it no longer fits any of them. */
+function tabBucket(group: ScheduledTaskGroup): TabKey | null {
+  if (isGroupOverdue(group)) return "overdue";
   const diff = daysFromToday(group.dueDateTime);
-  if (diff < 0) return "overdue";
   if (diff === 0) return "today";
-  return "upcoming";
+  if (diff > 0) return "upcoming";
+  return null;
 }
 
 /**
@@ -38,8 +44,10 @@ export function TaskHubTab() {
   const query = useHealthTasks();
 
   const now = new Date();
-  const [calendarYear, setCalendarYear] = useState(now.getFullYear());
-  const [calendarMonth, setCalendarMonth] = useState(now.getMonth() + 1);
+  // `null` = the user hasn't picked a month yet, so the calendar strip should show the computed
+  // default below (earliest month with pending work) rather than always today's calendar month.
+  // Once they navigate the strip themselves, that choice sticks for the rest of the session.
+  const [calendarOverride, setCalendarOverride] = useState<{ year: number; month: number } | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("all");
   const [reschedulingGroup, setReschedulingGroup] = useState<ScheduledTaskGroup | undefined>(undefined);
@@ -64,7 +72,18 @@ export function TaskHubTab() {
 
   const groups = groupScheduledTasks(allTasks);
   const bucketCounts: Record<TabKey, number> = { all: groups.length, overdue: 0, today: 0, upcoming: 0 };
-  for (const group of groups) bucketCounts[tabBucket(group)] += 1;
+  for (const group of groups) {
+    const bucket = tabBucket(group);
+    if (bucket) bucketCounts[bucket] += 1;
+  }
+
+  const pendingGroups = groups.filter((g) => groupCompletedCount(g) < g.tasks.length);
+  const earliestPending = pendingGroups.length
+    ? pendingGroups.reduce((min, g) => (g.dueDateTime < min.dueDateTime ? g : min))
+    : null;
+  const defaultCalendarDate = earliestPending ? new Date(earliestPending.dueDateTime) : now;
+  const calendarYear = calendarOverride?.year ?? defaultCalendarDate.getFullYear();
+  const calendarMonth = calendarOverride?.month ?? defaultCalendarDate.getMonth() + 1;
 
   const visible = groups.filter((group) => {
     if (selectedDate) return group.dueDateTime.slice(0, 10) === selectedDate;
@@ -84,10 +103,7 @@ export function TaskHubTab() {
       <TaskCalendarStrip
         year={calendarYear}
         month={calendarMonth}
-        onMonthChange={(y, m) => {
-          setCalendarYear(y);
-          setCalendarMonth(m);
-        }}
+        onMonthChange={(y, m) => setCalendarOverride({ year: y, month: m })}
         selectedDate={selectedDate}
         onSelectDate={setSelectedDate}
         groups={groups}

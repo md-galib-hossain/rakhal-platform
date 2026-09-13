@@ -3,15 +3,15 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { ArrowRightToLine, Pencil, Plus, Trash2, Users, Wheat } from "lucide-react";
+import { ArrowRightToLine, Loader2, Pencil, Plus, Trash2, Users, Wheat, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiError } from "@/lib/api/errors";
 import { Can } from "@/lib/auth/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { FormSheet } from "@/components/shared/form-sheet";
+import { CattleMultiPicker, type CattleOption } from "@/components/shared/cattle-picker";
 import {
   Sheet,
   SheetContent,
@@ -38,9 +38,11 @@ import {
 import { feedGroupFormSchema, type FeedGroupFormInput } from "@/features/settings/schemas";
 import type { FeedGroup } from "@/features/settings/types";
 import { useConcentrations } from "@/features/feed/hooks/use-feed";
+import type { FeedGroupCattle } from "@/features/feed/types";
 import {
   useAssignCattleToGroup,
   useGroupCattle,
+  useRemoveCattleFromGroup,
   useSetGroupDefaultConcentration,
 } from "../hooks/use-feed-groups";
 
@@ -325,34 +327,52 @@ function FeedGroupFormDialog({
   );
 }
 
-/** First UI for `GET /feed/groups/:id/cattle` + `POST .../assign-cattle`, both live since Phase 4. */
+/** UI for `GET /feed/groups/:id/cattle` + `POST .../assign-cattle`, both live since Phase 4 with no
+ * frontend consumer until RFE-102. Originally rendered the *current* members list as checkboxes to
+ * toggle — which left a brand-new (0-cow) group with nothing to check and no way to add anyone
+ * (user report 2026-09-09, "i cant find any option ... no option to add animals"). `assign-cattle`
+ * only ever moves cattle *into* this group (`Cattle.feedGroupId = groupId` — see
+ * `feed-group-assign.service.ts`), so this is deliberately an "add" picker (`CattleMultiPicker`,
+ * farm-wide search, existing members excluded) above the current-members list, plus a per-row
+ * remove button on that list (follow-up user report, "i cant remove already added animal") backed
+ * by `useRemoveCattleFromGroup` — since there's no dedicated unassign route, that hook reuses
+ * Cattle's own bulk `change_feed_group` endpoint against a single cow to clear its `feedGroupId`. */
 function AssignCattleDialog({ group, onClose }: { group: FeedGroup; onClose: () => void }) {
   const t = useTranslations("feeding.groups");
   const members = useGroupCattle(group.id);
   const assign = useAssignCattleToGroup();
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const remove = useRemoveCattleFromGroup();
+  const [newCattle, setNewCattle] = useState<CattleOption[]>([]);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
-  function toggle(id: string, on: boolean) {
-    const next = new Set(selected);
-    if (on) next.add(id);
-    else next.delete(id);
-    setSelected(next);
-  }
+  const rows = members.data ?? [];
+  const existingIds = useMemo(() => rows.map((c) => c.id), [rows]);
 
   async function handleAssign() {
     try {
       const result = await assign.mutateAsync({
         groupId: group.id,
-        cattleIds: [...selected],
+        cattleIds: newCattle.map((c) => c.id),
       });
       toast.success(t("assigned", { count: result.assigned }));
+      setNewCattle([]);
       onClose();
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : t("assignFailed"));
     }
   }
 
-  const rows = members.data ?? [];
+  async function handleRemove(cow: FeedGroupCattle) {
+    setRemovingId(cow.id);
+    try {
+      await remove.mutateAsync({ groupId: group.id, cattleId: cow.id });
+      toast.success(t("removed", { name: cow.name ?? cow.tagNumber }));
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : t("removeFailed"));
+    } finally {
+      setRemovingId(null);
+    }
+  }
 
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
@@ -379,6 +399,39 @@ function AssignCattleDialog({ group, onClose }: { group: FeedGroup; onClose: () 
         <div className="flex flex-1 flex-col overflow-y-auto px-1 py-4 gap-4">
           <SheetDescription>{t("assignDescription")}</SheetDescription>
 
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium text-foreground">{t("addCattleLabel")}</p>
+            <CattleMultiPicker
+              value={newCattle}
+              onValueChange={setNewCattle}
+              placeholder={t("searchCattlePlaceholder")}
+              excludeIds={existingIds}
+            />
+            {newCattle.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {newCattle.map((c) => (
+                  <span
+                    key={c.id}
+                    className="flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-bold text-foreground"
+                  >
+                    {c.tagNumber}
+                    {c.name ? ` — ${c.name}` : ""}
+                    <button
+                      type="button"
+                      onClick={() => setNewCattle((prev) => prev.filter((x) => x.id !== c.id))}
+                      aria-label={t("removeCow", { cow: c.tagNumber })}
+                      className="text-muted-foreground transition-opacity hover:opacity-70"
+                    >
+                      <X className="size-3" aria-hidden />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="border-t border-dashed border-border" />
+
           {members.isLoading ? (
             <div className="flex flex-col gap-2">
               <Skeleton className="h-10 w-full" />
@@ -396,17 +449,25 @@ function AssignCattleDialog({ group, onClose }: { group: FeedGroup; onClose: () 
                   <p className="p-3 text-sm text-muted-foreground">{t("noMembers")}</p>
                 ) : (
                   rows.map((cow) => (
-                    <label
-                      key={cow.id}
-                      className="flex cursor-pointer items-center gap-2 p-3 text-sm text-foreground hover:bg-muted/50"
-                    >
-                      <Checkbox
-                        checked={selected.has(cow.id)}
-                        onCheckedChange={(v) => toggle(cow.id, v === true)}
-                      />
-                      <span>{cow.name ?? cow.tagNumber}</span>
-                      <span className="text-xs text-muted-foreground">{cow.tagNumber}</span>
-                    </label>
+                    <div key={cow.id} className="flex items-center justify-between gap-2 p-3 text-sm text-foreground">
+                      <div className="flex items-center gap-2">
+                        <span>{cow.name ?? cow.tagNumber}</span>
+                        <span className="text-xs text-muted-foreground">{cow.tagNumber}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void handleRemove(cow)}
+                        disabled={removingId === cow.id}
+                        aria-label={t("removeFromGroup", { name: cow.name ?? cow.tagNumber })}
+                        className="flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                      >
+                        {removingId === cow.id ? (
+                          <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                        ) : (
+                          <X className="size-3.5" aria-hidden />
+                        )}
+                      </button>
+                    </div>
                   ))
                 )}
               </div>
@@ -423,9 +484,9 @@ function AssignCattleDialog({ group, onClose }: { group: FeedGroup; onClose: () 
             type="button"
             className="h-12 flex-1"
             onClick={() => void handleAssign()}
-            disabled={assign.isPending || selected.size === 0}
+            disabled={assign.isPending || newCattle.length === 0}
           >
-            {assign.isPending ? t("assigning") : t("assignSelected", { count: selected.size })}
+            {assign.isPending ? t("assigning") : t("assignSelected", { count: newCattle.length })}
           </Button>
         </div>
       </SheetContent>

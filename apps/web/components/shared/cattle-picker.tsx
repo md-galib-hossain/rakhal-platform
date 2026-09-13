@@ -128,6 +128,10 @@ export interface CattleMultiPickerProps {
     gender?: CattleGender;
     reproductiveStatus?: ReproductiveStatus;
   };
+  /** Hides these cattle from the dropdown entirely — e.g. `feed-groups-section.tsx`'s "add
+   * cattle" picker excludes cows already in the group, since re-picking one there would be a
+   * silent no-op against `POST .../assign-cattle`. */
+  excludeIds?: string[];
 }
 
 /** Multi-select variant of `CattlePicker` — task hub "target cows" (user request, no ticket #). Stays
@@ -140,6 +144,7 @@ export function CattleMultiPicker({
   disabled,
   className,
   filters,
+  excludeIds,
 }: CattleMultiPickerProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -159,7 +164,8 @@ export function CattleMultiPicker({
     staleTime: 30_000,
   });
 
-  const options = useMemo(() => data?.items ?? [], [data]);
+  const excluded = useMemo(() => new Set(excludeIds ?? []), [excludeIds]);
+  const options = useMemo(() => (data?.items ?? []).filter((c) => !excluded.has(c.id)), [data, excluded]);
   const selectedIds = useMemo(() => new Set(value.map((c) => c.id)), [value]);
 
   function toggle(option: CattleOption) {
