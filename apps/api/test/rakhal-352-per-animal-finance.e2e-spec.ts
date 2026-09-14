@@ -8,6 +8,7 @@ import {
   loginAs,
   TestContext,
 } from './utils/e2e';
+import { seededCashAccountId } from './utils/finance';
 
 /**
  * RAKHAL-352 — per-animal finance from `Sale` + ledger. Proves the ONE
@@ -105,6 +106,7 @@ describe('Cattle/Reproduction — per-animal finance agreement (e2e, RAKHAL-352)
         semenSource: 'FARM_INVENTORY',
         semenBatchId: batch.id,
         paymentMethod: 'CASH',
+        financialAccountId: await seededCashAccountId(ctx, owner),
       })
       .expect(201);
     expect(created.body.data.financeTransactionId).toBeTruthy();

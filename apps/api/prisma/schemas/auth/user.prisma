@@ -43,6 +43,7 @@ model User {
   auditLogs           AuditLog[]   @relation("UserToAuditLog")
   createdCattle       Cattle[]     @relation("CattleCreator")
   createdHealthPlans  HealthPlan[] @relation("HealthPlanCreator")
+  appliedPlanApplications PlanApplication[] @relation("PlanApplicationApplier")
   createdMedicines    Medicine[]   @relation("MedicineCreator")
   createdForages      FeedItem[]   @relation("ForageCreator")
   createdSemenTanks   SemenTank[]  @relation("SemenTankCreator")

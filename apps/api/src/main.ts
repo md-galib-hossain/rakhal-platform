@@ -23,13 +23,34 @@ async function bootstrap() {
 
   app.use(helmet());
   app.use(cookieParser());
+
+  const {
+    apiPrefix,
+    name,
+    appVersion,
+    swaggerEnabled,
+    trustProxyHops,
+    isProduction,
+    allowedOrigins,
+  } = app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
+
+  // RD-041: `origin: true` reflects whatever `Origin` header the caller
+  // sends back into `Access-Control-Allow-Origin`, and combined with
+  // `credentials: true` that means any website a logged-in user visits can
+  // drive this API as that user (a real cross-origin vulnerability, not a
+  // hardening nicety). Production must supply a real ALLOWED_ORIGINS
+  // allowlist; failing to boot beats booting wide open. Non-production keeps
+  // the old reflect-any-origin behavior so local dev/CI/preview stay
+  // unaffected without per-branch config.
+  if (isProduction && allowedOrigins.length === 0) {
+    throw new Error(
+      'ALLOWED_ORIGINS must be set in production (comma-separated origin list) — refusing to boot with CORS open to any origin.',
+    );
+  }
   app.enableCors({
-    origin: true,
+    origin: isProduction ? allowedOrigins : true,
     credentials: true,
   });
-
-  const { apiPrefix, name, appVersion, swaggerEnabled, trustProxyHops } =
-    app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
 
   // Behind Nginx (and optionally Cloudflare) req.ip is the proxy's own address
   // unless Express is told how many hops to skip. Everything that keys on the

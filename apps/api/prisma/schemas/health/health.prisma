@@ -90,6 +90,8 @@ model HealthPlan {
   steps HealthPlanStep[]
   cases HealthCase[]
   tasks HealthTask[]
+  planApplications PlanApplication[]
+  planEnrollments  PlanEnrollment[]
 
   @@unique([farmId, name])
   @@index([farmId, category])
@@ -129,7 +131,10 @@ model HealthTask {
   id           String  @id @default(cuid())
   farmId       String
   cattleId     String
-  healthCaseId String
+  /// RAKHAL-415: nullable — a task from a preventive `PlanApplication` round carries
+  /// `planEnrollmentId` instead and has no `HealthCase` at all. Exactly one of the two is set.
+  healthCaseId     String?
+  planEnrollmentId String?
   healthPlanId String?
 
   taskCode    String
@@ -160,10 +165,11 @@ model HealthTask {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  farm       Farm        @relation("FarmToHealthTask", fields: [farmId], references: [id])
-  cattle     Cattle      @relation(fields: [cattleId], references: [id])
-  healthCase HealthCase  @relation(fields: [healthCaseId], references: [id])
-  healthPlan HealthPlan? @relation(fields: [healthPlanId], references: [id])
+  farm           Farm             @relation("FarmToHealthTask", fields: [farmId], references: [id])
+  cattle         Cattle           @relation(fields: [cattleId], references: [id])
+  healthCase     HealthCase?      @relation(fields: [healthCaseId], references: [id])
+  planEnrollment PlanEnrollment?  @relation(fields: [planEnrollmentId], references: [id])
+  healthPlan     HealthPlan?      @relation(fields: [healthPlanId], references: [id])
 
   treatmentLogs TreatmentLog[]
 
@@ -172,6 +178,69 @@ model HealthTask {
   @@index([farmId, status])
   @@index([farmId, cattleId])
   @@index([farmId, healthCaseId])
+  @@index([farmId, planEnrollmentId])
+}
+
+/// RAKHAL-415: one row per preventive-plan "round" — e.g. one vaccination campaign applied to a
+/// shed. Replaces the old behavior where each animal in a preventive apply got its own real
+/// `HealthCase` (which made routine vaccination rounds render as N new "sick" animals). A curative
+/// plan (`HealthPlanCategory.TREATMENT`) still attaches to a real `HealthCase` — this model is only
+/// for the preventive categories (`PLAN_CATEGORY_TO_DIAGNOSIS_TYPE` in `health.service.ts`).
+model PlanApplication {
+  id           String @id @default(cuid())
+  farmId       String
+  healthPlanId String
+
+  startDate   DateTime
+  appliedBy   String
+  animalCount Int      @default(0)
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  farm       Farm       @relation("FarmToPlanApplication", fields: [farmId], references: [id])
+  healthPlan HealthPlan @relation(fields: [healthPlanId], references: [id])
+  applier    User       @relation("PlanApplicationApplier", fields: [appliedBy], references: [id])
+
+  enrollments PlanEnrollment[]
+
+  @@index([farmId, healthPlanId])
+  @@index([farmId, startDate])
+}
+
+/// RAKHAL-415: one row per animal in a `PlanApplication` round, carrying that animal's own
+/// progress — the preventive-round equivalent of `HealthCase.{currentStep,totalSteps,
+/// progressPercentage}`. An animal already `ACTIVE`-enrolled in the same plan is skipped (not
+/// duplicated) on a re-apply, mirroring `applyPlanToAnimals`'s existing curative-case skip rule.
+model PlanEnrollment {
+  id                String @id @default(cuid())
+  farmId            String
+  cattleId          String
+  healthPlanId      String
+  planApplicationId String
+
+  status             PlanEnrollmentStatus @default(ACTIVE)
+  startDate          DateTime
+  currentStep        Int                  @default(0)
+  totalSteps         Int                  @default(0)
+  progressPercentage Int                  @default(0)
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  farm            Farm            @relation("FarmToPlanEnrollment", fields: [farmId], references: [id])
+  cattle          Cattle          @relation(fields: [cattleId], references: [id])
+  healthPlan      HealthPlan      @relation(fields: [healthPlanId], references: [id])
+  planApplication PlanApplication @relation(fields: [planApplicationId], references: [id])
+
+  tasks HealthTask[]
+
+  @@index([farmId, cattleId])
+  @@index([farmId, healthPlanId])
+  @@index([farmId, planApplicationId])
+  @@index([farmId, status])
 }
 
 model TreatmentLog {

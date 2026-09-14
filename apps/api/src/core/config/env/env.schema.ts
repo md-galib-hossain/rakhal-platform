@@ -25,6 +25,24 @@ export const envSchema = z.object({
 
   API_PREFIX: z.string().default('api/v1'),
 
+  // RD-041: comma-separated allowlist for CORS `Access-Control-Allow-Origin`
+  // (e.g. "https://app.rakhal.com,https://admin.rakhal.com"). Required in
+  // production — `main.ts` refuses to boot without it once `NODE_ENV` is
+  // `production`, since the previous `origin: true` behavior (reflecting
+  // any caller's `Origin` back with `credentials: true`) let any website a
+  // logged-in user visits drive the API as that user. Optional outside
+  // production so local dev/CI stay unaffected.
+  ALLOWED_ORIGINS: z.string().optional(),
+
+  // RD-042/053: `/metrics` is unauthenticated by design (Prometheus scrape,
+  // no bearer support) — the real fix is a reverse-proxy IP allowlist
+  // (`docs/infrastructure/10-nginx-reverse-proxy.md`), out of scope for this
+  // backend. This is the belt-and-braces half: when set, `GET /metrics`
+  // requires `Authorization: Bearer <METRICS_TOKEN>`; unset keeps today's
+  // open behavior so a farm/dev deployment with no reverse-proxy scrape auth
+  // isn't broken by default.
+  METRICS_TOKEN: z.string().optional(),
+
   DATABASE_URL: z.string(),
 
   JWT_ACCESS_SECRET: z.string().min(32),

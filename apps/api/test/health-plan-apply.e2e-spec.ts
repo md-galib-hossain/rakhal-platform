@@ -54,9 +54,13 @@ describe('Health — bulk plan apply (RAKHAL-414)', () => {
       .post(api('/health/plans'))
       .set(...auth(owner))
       .send({
+        // RAKHAL-415: a preventive category (VACCINATION/PREVENTION/DEWORMING/ROUTINE/BREEDING)
+        // now bulk-applies onto PlanApplication/PlanEnrollment, not HealthCase — this spec's own
+        // assertions below are specifically about the HealthCase-per-animal path, so the fixture
+        // plan must stay TREATMENT (curative) to keep testing what it says it tests.
         name: `E2E-RAKHAL414-Plan-${stamp}`,
-        category: 'VACCINATION',
-        planType: 'PREVENTION',
+        category: 'TREATMENT',
+        planType: 'MEDICAL',
         steps: [
           { dayNumber: 1, title: 'Primary dose', actionType: 'VACCINATION' },
           { dayNumber: 30, title: 'Booster', actionType: 'VACCINATION' },
@@ -96,7 +100,7 @@ describe('Health — bulk plan apply (RAKHAL-414)', () => {
     expect(cases).toHaveLength(2);
     for (const c of cases) {
       expect(c.totalSteps).toBe(2);
-      expect(c.diagnosisType).toBe('VACCINATION');
+      expect(c.diagnosisType).toBe('DISEASE'); // TREATMENT category -> DISEASE, see fixture note above
     }
 
     const tasks = await prisma.healthTask.findMany({

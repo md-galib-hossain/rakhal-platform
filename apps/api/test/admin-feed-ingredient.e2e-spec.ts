@@ -1,6 +1,9 @@
 import request from 'supertest';
+import * as argon2 from 'argon2';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 import { currentTotpCode } from './utils/totp';
+import { PrismaService } from '../src/core/database/prisma/prisma.service';
+import { AdminTotpService } from '../src/modules/admin/application/services/admin-totp.service';
 
 /**
  * Admin Feed Ingredient Master (RAKHAL-233, PRD §35.11 ADM-13/14 — user request 2026-07-17). CRUD
@@ -27,16 +30,44 @@ describe('Admin Feed Ingredient Master (e2e)', () => {
     `Bearer ${owner.token}`,
   ];
 
+  let prisma: PrismaService;
+  let throwawayAdminId: string;
+
   beforeAll(async () => {
     ctx = await createTestApp();
+    prisma = ctx.app.get(PrismaService);
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
+
+    // RD-078: this suite used to share the seeded `admin@rakhal.test` row
+    // with the other two admin e2e suites, which intermittently 401'd mid-run
+    // when all three run in parallel (root cause not nailed down — plausibly
+    // TOTP-window drift across concurrent logins against the same secret at
+    // the same 30s step, since the failures traced to the *login* verify
+    // path, not to the admin row's `isActive` flag). A dedicated throwaway
+    // admin with its own random TOTP secret removes the shared state
+    // entirely, regardless of the exact mechanism — same pattern
+    // `admin.e2e-spec.ts` already uses for its own throwaway admins.
+    const totpSecret = new AdminTotpService().generateSecret();
+    const throwaway = await prisma.platformAdmin.create({
+      data: {
+        email: `feed-ingredient-e2e-${Date.now()}@rakhal.test`,
+        name: 'RD-078 Feed Ingredient E2E Admin',
+        passwordHash: await argon2.hash('FeedIngredientE2E123', {
+          type: argon2.argon2id,
+        }),
+        role: 'SUPER_ADMIN',
+        totpSecret,
+        totpEnabled: true,
+      },
+    });
+    throwawayAdminId = throwaway.id;
 
     const login = await request(server())
       .post(api('/admin/auth/login'))
       .send({
-        email: 'admin@rakhal.test',
-        password: 'AdminPass123',
-        code: currentTotpCode(),
+        email: throwaway.email,
+        password: 'FeedIngredientE2E123',
+        code: currentTotpCode(totpSecret),
       })
       .expect(201);
     adminToken = (login.body as { data: { accessToken: string } }).data
@@ -44,6 +75,7 @@ describe('Admin Feed Ingredient Master (e2e)', () => {
   }, 30_000);
 
   afterAll(async () => {
+    await prisma.platformAdmin.delete({ where: { id: throwawayAdminId } });
     await ctx.app.close();
   });
 

@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import {
   CattleGender,
   HealthCaseStatus,
-  HealthDiagnosisType,
   HealthTaskStatus,
   LactationStatus,
   LedgerAccountCategory,
@@ -26,7 +25,6 @@ import { MilkService } from 'src/modules/milk/application/services/milk.service'
 import { HealthService } from 'src/modules/health/application/services/health.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { FeedDistributionService } from 'src/modules/feed/application/services/feed-distribution.service';
-import { PREVENTIVE_DIAGNOSIS_TYPES } from 'src/modules/cattle/domain/health-status';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import {
   ANIMAL_CATEGORIES,
@@ -259,16 +257,14 @@ export class DashboardService {
       // Grouped by status (not a flat count) so `sick`/`inTreatment` below can
       // mirror `deriveHealthStatus()`'s own precedence (`domain/health-status.ts`)
       // instead of both reusing the same combined number.
+      // RAKHAL-415: `diagnosisType: { notIn: PREVENTIVE_DIAGNOSIS_TYPES }` removed — a preventive
+      // plan-apply no longer creates a `HealthCase` at all, so nothing needs filtering out.
       this.prisma.healthCase.groupBy({
         by: ['status'],
         where: {
           farmId,
           deletedAt: null,
           status: { in: ACTIVE_CASE_STATUSES },
-          diagnosisType: {
-            notIn:
-              PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
-          },
         },
         _count: { _all: true },
       }),

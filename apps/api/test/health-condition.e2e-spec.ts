@@ -31,7 +31,7 @@ describe('Health — structured HealthCondition (RAKHAL-275)', () => {
     ctx = await createTestApp();
     prisma = ctx.app.get(PrismaService);
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
-    worker = await loginAs(ctx, 'worker@demo.rakhal.test', 'DemoPass123');
+    worker = await loginAs(ctx, 'worker@demo.rakhal.test', 'WorkerPass123');
     const ownerUser = await prisma.user.findFirstOrThrow({
       where: { email: 'owner@demo.rakhal.test' },
       select: { id: true },

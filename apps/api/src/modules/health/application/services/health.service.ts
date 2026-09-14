@@ -12,9 +12,12 @@ import {
   HealthCaseStatus,
   HealthCloseOutcome,
   HealthDiagnosisType,
+  HealthPlan,
   HealthPlanCategory,
+  HealthPlanStep,
   HealthPriority,
   HealthTaskStatus,
+  PlanEnrollmentStatus,
   Prisma,
   SafetyWithdrawalStatus,
   TaskCategory,
@@ -32,10 +35,7 @@ import { CattleService } from 'src/modules/cattle/application/services/cattle.se
 import { ExpenseService } from 'src/modules/purchasing/application/expense.service';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { NotificationService } from 'src/modules/notification/application/services/notification.service';
-import {
-  PREVENTIVE_DIAGNOSIS_TYPES,
-  isPreventiveDiagnosisType,
-} from 'src/modules/cattle/domain/health-status';
+import { isPreventiveDiagnosisType } from 'src/modules/cattle/domain/health-status';
 import {
   ApplyHealthPlanDto,
   CloseHealthCaseDto,
@@ -131,10 +131,6 @@ export class HealthService {
           farmId,
           status: { in: ACTIVE_CASE_STATUSES },
           deletedAt: null,
-          diagnosisType: {
-            notIn:
-              PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
-          },
         },
       }),
       this.prisma.safetyWithdrawal.count({
@@ -161,10 +157,6 @@ export class HealthService {
         where: {
           farmId,
           deletedAt: null,
-          diagnosisType: {
-            notIn:
-              PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
-          },
         },
         _count: { diagnosis: true },
       }),
@@ -173,10 +165,6 @@ export class HealthService {
         where: {
           farmId,
           deletedAt: null,
-          diagnosisType: {
-            notIn:
-              PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
-          },
         },
         _count: { shedName: true },
       }),
@@ -184,10 +172,6 @@ export class HealthService {
         where: {
           farmId,
           deletedAt: null,
-          diagnosisType: {
-            notIn:
-              PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
-          },
         },
         select: { startDate: true },
         orderBy: { startDate: 'asc' },
@@ -226,9 +210,6 @@ export class HealthService {
       farmId,
       deletedAt: null,
       status: query.status ?? { in: ACTIVE_CASE_STATUSES },
-      diagnosisType: {
-        notIn: PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
-      },
       ...(query.search
         ? {
             OR: [
@@ -590,14 +571,19 @@ export class HealthService {
 
   /**
    * `POST /health/plans/:id/apply` (RAKHAL-414) — applies one plan to many animals in a single
-   * transaction, each getting its own new `HealthCase` + tasks. Replaces the frontend's old
-   * create-case-then-apply-plan loop (2N sequential requests, no partial-failure handling).
-   * An animal that already has an active case for this plan is **skipped, not duplicated** — the
-   * defect this ticket exists to close. A bad `cattleId` fails the whole call before anything is
-   * written; a partial failure inside the transaction rolls the whole batch back.
+   * transaction. **RAKHAL-415**: which model that write lands in now depends on the plan's own
+   * category. A curative plan (`TREATMENT`) still gives each animal its own new `HealthCase` +
+   * tasks, unchanged from RAKHAL-414. A preventive plan (`PREVENTION`/`VACCINATION`/`DEWORMING`/
+   * `ROUTINE`/`BREEDING`) instead writes one `PlanApplication` "round" + one `PlanEnrollment` per
+   * animal and **no `HealthCase` at all** — this is the fix for routine vaccination/deworming
+   * rounds rendering as N new "sick" animals in Sick Bay. A bad `cattleId` fails the whole call
+   * before anything is written; a partial failure inside the transaction rolls the whole batch
+   * back. Split into two private helpers below rather than one method with a mid-body branch, since
+   * the two paths write to entirely different tables and share almost no logic beyond validation.
    */
   async applyPlanToAnimals(
     farmId: string,
+    userId: string,
     id: string,
     dto: ApplyPlanToAnimalsDto,
   ) {
@@ -632,13 +618,39 @@ export class HealthService {
     const startDate = dto.startDate ? new Date(dto.startDate) : new Date();
     const diagnosisType = PLAN_CATEGORY_TO_DIAGNOSIS_TYPE[plan.category];
 
+    return isPreventiveDiagnosisType(diagnosisType)
+      ? this.applyPreventivePlanToAnimals(
+          farmId,
+          userId,
+          plan,
+          cattleRows,
+          startDate,
+        )
+      : this.applyCurativePlanToAnimals(
+          farmId,
+          plan,
+          diagnosisType,
+          cattleRows,
+          startDate,
+        );
+  }
+
+  /** RAKHAL-414's original bulk-apply body, unchanged — one new `HealthCase` per animal. Only
+   * reached for a curative (`TREATMENT`-category) plan now; see `applyPlanToAnimals` above. */
+  private async applyCurativePlanToAnimals(
+    farmId: string,
+    plan: HealthPlan & { steps: HealthPlanStep[] },
+    diagnosisType: HealthDiagnosisType,
+    cattleRows: { id: string; tagNumber: string; shedId: string | null }[],
+    startDate: Date,
+  ) {
     // An animal already on this exact protocol is skipped, not duplicated —
     // this is what the two-request create-then-apply frontend flow could not
     // express (it always created a fresh case, every time).
     const existing = await this.prisma.healthCase.findMany({
       where: {
         farmId,
-        cattleId: { in: cattleIds },
+        cattleId: { in: cattleRows.map((c) => c.id) },
         healthPlanId: plan.id,
         status: { in: ACTIVE_CASE_STATUSES },
       },
@@ -728,6 +740,126 @@ export class HealthService {
 
     return {
       healthPlanId: plan.id,
+      appliedCount: applied.length,
+      skippedCount: skipped.length,
+      results: [...applied, ...skipped],
+    };
+  }
+
+  /** RAKHAL-415 — the preventive counterpart of `applyCurativePlanToAnimals`: one `PlanApplication`
+   * round + one `PlanEnrollment` per newly-enrolled animal, no `HealthCase`. An animal already
+   * `ACTIVE`-enrolled in this exact plan is skipped, mirroring the curative path's own rule.
+   * `taskCode` is keyed off `applicationId`+`cattleId` (both globally-unique cuids) rather than the
+   * curative path's `caseCode` sequence, since there is no case here to mint one from. */
+  private async applyPreventivePlanToAnimals(
+    farmId: string,
+    userId: string,
+    plan: HealthPlan & { steps: HealthPlanStep[] },
+    cattleRows: { id: string; tagNumber: string; shedId: string | null }[],
+    startDate: Date,
+  ) {
+    const existing = await this.prisma.planEnrollment.findMany({
+      where: {
+        farmId,
+        cattleId: { in: cattleRows.map((c) => c.id) },
+        healthPlanId: plan.id,
+        status: PlanEnrollmentStatus.ACTIVE,
+        deletedAt: null,
+      },
+      select: { cattleId: true },
+    });
+    const alreadyEnrolled = new Set(existing.map((e) => e.cattleId));
+
+    const toApply = cattleRows.filter((c) => !alreadyEnrolled.has(c.id));
+    const skipped = cattleRows
+      .filter((c) => alreadyEnrolled.has(c.id))
+      .map((c) => ({
+        cattleId: c.id,
+        status: 'skipped' as const,
+        reason: 'Animal already has an active enrollment for this protocol',
+      }));
+
+    const applied: {
+      cattleId: string;
+      planEnrollmentId: string;
+      status: 'applied';
+    }[] = [];
+    let planApplicationId: string | null = null;
+
+    if (toApply.length > 0) {
+      planApplicationId = await this.prisma.$transaction(async (tx) => {
+        const application = await tx.planApplication.create({
+          data: {
+            farmId,
+            healthPlanId: plan.id,
+            startDate,
+            appliedBy: userId,
+            animalCount: toApply.length,
+          },
+        });
+        for (const cattle of toApply) {
+          const enrollment = await tx.planEnrollment.create({
+            data: {
+              farmId,
+              cattleId: cattle.id,
+              healthPlanId: plan.id,
+              planApplicationId: application.id,
+              startDate,
+              totalSteps: plan.steps.length,
+              currentStep: 0,
+              progressPercentage: 0,
+            },
+          });
+          await Promise.all(
+            plan.steps.map((step, index) => {
+              const dueDateTime = this.addDays(
+                startDate,
+                Math.max(0, step.dayNumber - 1),
+              );
+              return tx.healthTask.create({
+                data: {
+                  farmId,
+                  cattleId: cattle.id,
+                  planEnrollmentId: enrollment.id,
+                  healthPlanId: plan.id,
+                  taskCode: `${application.id}-${cattle.id}-T${String(index + 1).padStart(2, '0')}`,
+                  taskDate: dueDateTime,
+                  dueDateTime,
+                  taskType: step.actionType,
+                  title: step.title,
+                  instruction: step.instruction,
+                  stepNumber: index + 1,
+                  totalSteps: plan.steps.length,
+                  medicineId: step.medicineId,
+                  medicineName: step.medicineName,
+                  doseAmount: step.doseAmount,
+                  doseUnit: step.doseUnit,
+                  route: step.route,
+                },
+              });
+            }),
+          );
+          applied.push({
+            cattleId: cattle.id,
+            planEnrollmentId: enrollment.id,
+            status: 'applied',
+          });
+        }
+        return application.id;
+      });
+    }
+
+    this.log.info('Preventive plan bulk-applied', {
+      farmId,
+      healthPlanId: plan.id,
+      planApplicationId,
+      appliedCount: applied.length,
+      skippedCount: skipped.length,
+    });
+
+    return {
+      healthPlanId: plan.id,
+      planApplicationId,
       appliedCount: applied.length,
       skippedCount: skipped.length,
       results: [...applied, ...skipped],
@@ -1307,45 +1439,41 @@ export class HealthService {
     return toCursorPage(rows, query);
   }
 
-  async getAppliedPlans(farmId: string, query: AppliedPlansQueryDto) {
-    const where: Prisma.HealthCaseWhereInput = {
+  /** RAKHAL-415 — replaces `getAppliedPlans` (removed, not aliased; `GET /health/cases/applied` is
+   * gone). Reads the new `PlanApplication`/`PlanEnrollment` tables directly: one row per round
+   * (plan, start date, animal count), each carrying its own enrolled animals + their progress —
+   * grouped by round rather than the old one-row-per-cow shape, since a round is now a real object,
+   * not an inference over N `HealthCase` rows that happened to share a `healthPlanId`. Only
+   * `healthPlanId` filtering carries over from the old DTO's fields for this first pass; `search`/
+   * `cattleId`/date-range narrowing is intentionally not wired here (a real, scoped gap, not
+   * silently dropped) — "find the round containing this animal" is a reasonable v2 for whichever
+   * frontend ticket (RFE-107) ends up consuming this route, not something RAKHAL-415's own AC asks
+   * for. */
+  async getPlanApplications(farmId: string, query: AppliedPlansQueryDto) {
+    const where: Prisma.PlanApplicationWhereInput = {
       farmId,
       deletedAt: null,
-      healthPlanId: { not: null },
-      status: { in: ACTIVE_CASE_STATUSES },
       ...(query.healthPlanId ? { healthPlanId: query.healthPlanId } : {}),
-      ...(query.cattleId ? { cattleId: query.cattleId } : {}),
-      ...(query.search
-        ? {
-            OR: [
-              {
-                healthPlan: {
-                  name: { contains: query.search, mode: 'insensitive' },
-                },
-              },
-              {
-                cattle: {
-                  tagNumber: { contains: query.search, mode: 'insensitive' },
-                },
-              },
-              {
-                cattle: {
-                  name: { contains: query.search, mode: 'insensitive' },
-                },
-              },
-            ],
-          }
-        : {}),
     };
-    const rows = await this.prisma.healthCase.findMany({
+    const rows = await this.prisma.planApplication.findMany({
       where,
       orderBy: [{ startDate: 'desc' }, { id: 'desc' }],
       ...getCursorArgs(query),
       include: {
-        cattle: {
-          select: { id: true, name: true, tagNumber: true, image: true },
-        },
         healthPlan: { select: { id: true, name: true, category: true } },
+        enrollments: {
+          where: { deletedAt: null },
+          select: {
+            id: true,
+            status: true,
+            currentStep: true,
+            totalSteps: true,
+            progressPercentage: true,
+            cattle: {
+              select: { id: true, name: true, tagNumber: true, image: true },
+            },
+          },
+        },
       },
     });
     return toCursorPage(rows, query);
@@ -1473,11 +1601,17 @@ export class HealthService {
         completedBy: userId,
       },
     });
-    const autoClosed = await this.updateCaseProgress(
-      this.prisma,
-      task.healthCaseId,
-    );
-    await this.notifyCaseAutoClosed(autoClosed, userId);
+    // RAKHAL-415: `healthCaseId` is now nullable — a task from a preventive `PlanApplication`
+    // round carries `planEnrollmentId` instead and has no case to auto-close.
+    if (task.healthCaseId) {
+      const autoClosed = await this.updateCaseProgress(
+        this.prisma,
+        task.healthCaseId,
+      );
+      await this.notifyCaseAutoClosed(autoClosed, userId);
+    } else if (task.planEnrollmentId) {
+      await this.updateEnrollmentProgress(this.prisma, task.planEnrollmentId);
+    }
     return updated;
   }
 
@@ -1888,6 +2022,46 @@ export class HealthService {
           caseCode: healthCase.caseCode,
         }
       : null;
+  }
+
+  /** RAKHAL-415's caseless counterpart of `updateCaseProgress` — a `PlanEnrollment` has no
+   * diagnosis/close-reason to set, so this only recomputes step counts and flips ACTIVE→COMPLETED
+   * once every non-skipped task is done. Deliberately no AQR/auto-close notification: that trail is
+   * specific to a `HealthCase` closing, and finishing a preventive round isn't the same event —
+   * not a gap, a different event that doesn't need one. */
+  private async updateEnrollmentProgress(
+    tx: Prisma.TransactionClient | PrismaService,
+    planEnrollmentId: string,
+  ): Promise<void> {
+    const [total, completed] = await Promise.all([
+      tx.healthTask.count({
+        where: {
+          planEnrollmentId,
+          deletedAt: null,
+          status: { not: HealthTaskStatus.SKIPPED },
+        },
+      }),
+      tx.healthTask.count({
+        where: {
+          planEnrollmentId,
+          status: HealthTaskStatus.COMPLETED,
+          deletedAt: null,
+        },
+      }),
+    ]);
+    const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+    await tx.planEnrollment.update({
+      where: { id: planEnrollmentId },
+      data: {
+        totalSteps: total,
+        currentStep: completed,
+        progressPercentage: progress,
+        status:
+          total > 0 && completed === total
+            ? PlanEnrollmentStatus.COMPLETED
+            : PlanEnrollmentStatus.ACTIVE,
+      },
+    });
   }
 
   /**

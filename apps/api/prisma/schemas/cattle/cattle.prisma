@@ -91,6 +91,7 @@ model Cattle {
   milkQualityTests    MilkQualityTest[]
   healthCases         HealthCase[]
   healthTasks         HealthTask[]
+  planEnrollments     PlanEnrollment[]
   treatmentLogs       TreatmentLog[]
   healthUpdates       HealthUpdate[]
   mortalityRecords    MortalityRecord[]

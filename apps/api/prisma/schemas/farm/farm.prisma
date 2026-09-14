@@ -41,6 +41,8 @@ model Farm {
   healthCases       HealthCase[]       @relation("FarmToHealthCase")
   healthPlans       HealthPlan[]       @relation("FarmToHealthPlan")
   healthTasks       HealthTask[]       @relation("FarmToHealthTask")
+  planApplications  PlanApplication[]  @relation("FarmToPlanApplication")
+  planEnrollments   PlanEnrollment[]   @relation("FarmToPlanEnrollment")
   treatmentLogs     TreatmentLog[]     @relation("FarmToTreatmentLog")
   healthUpdates     HealthUpdate[]     @relation("FarmToHealthUpdate")
   mortalityRecords  MortalityRecord[]  @relation("FarmToMortalityRecord")

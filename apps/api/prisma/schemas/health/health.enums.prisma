@@ -128,3 +128,12 @@ enum HealthCondition {
   INJURY
   OTHER
 }
+
+/// RAKHAL-415: status of one animal's enrollment in a preventive `PlanApplication` round —
+/// mirrors the open/closed split `HealthCaseStatus` already has, collapsed to two values since an
+/// enrollment has no diagnosis/recovery-outcome dimension to track, only "still has pending steps"
+/// vs "done."
+enum PlanEnrollmentStatus {
+  ACTIVE
+  COMPLETED
+}

@@ -90,13 +90,16 @@ export class HealthController {
     return this.healthService.recordTreatment(farmId, userId, dto);
   }
 
-  @Get('cases/applied')
+  /** RAKHAL-415: replaces the removed `GET /health/cases/applied` — reads the new
+   * `PlanApplication`/`PlanEnrollment` tables, grouped by round. Not aliased; see
+   * `HealthService#getPlanApplications`'s own doc comment. */
+  @Get('plan-applications')
   @RequirePermission('healthcare.read')
-  getAppliedPlans(
+  getPlanApplications(
     @CurrentFarmId() farmId: string,
     @Query() query: AppliedPlansQueryDto,
   ) {
-    return this.healthService.getAppliedPlans(farmId, query);
+    return this.healthService.getPlanApplications(farmId, query);
   }
 
   @Get('cases/:id')
@@ -220,10 +223,11 @@ export class HealthController {
   @RequirePermission('healthcare.update')
   applyPlanToAnimals(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: ApplyPlanToAnimalsDto,
   ) {
-    return this.healthService.applyPlanToAnimals(farmId, id, dto);
+    return this.healthService.applyPlanToAnimals(farmId, userId, id, dto);
   }
 
   @Get('tasks')

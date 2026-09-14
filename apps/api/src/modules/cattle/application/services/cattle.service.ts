@@ -14,7 +14,6 @@ import {
   HerdStatus,
   FarmModuleSettings,
   HealthCaseStatus,
-  HealthDiagnosisType,
   HeatDetectionMethod,
   LactationEndReason,
   LactationStartReason,
@@ -40,12 +39,8 @@ import {
   type MediaUrls,
 } from 'src/modules/media/application/services/media.service';
 import { MediaCategory, MediaUsage } from '@prisma/client';
-import { VWP_DEFAULT_DAYS } from '../../domain/cattle.constants';
 import { activeHerd, anyRecord, notDeleted } from '../../domain/herd-scope';
-import {
-  deriveHealthStatus,
-  PREVENTIVE_DIAGNOSIS_TYPES,
-} from '../../domain/health-status';
+import { deriveHealthStatus } from '../../domain/health-status';
 import {
   buildAnimalCategoryWhere,
   deriveAnimalCategory,
@@ -1098,8 +1093,9 @@ export class CattleService {
     const now = new Date();
     const monthAgo = new Date(now);
     monthAgo.setDate(monthAgo.getDate() - 30);
+    const vwpDays = await this.farmSettings.reproVwpDays(farmId);
     const vwpCutoff = new Date(now);
-    vwpCutoff.setDate(vwpCutoff.getDate() - VWP_DEFAULT_DAYS);
+    vwpCutoff.setDate(vwpCutoff.getDate() - vwpDays);
 
     const activeWhere: Prisma.CattleWhereInput = activeHerd(farmId);
 
@@ -1536,6 +1532,7 @@ export class CattleService {
       where: { cattleId: id, status: 'ACTIVE' },
       orderBy: { startDate: 'desc' },
     });
+    const vwpDays = await this.farmSettings.reproVwpDays(farmId);
 
     return {
       total_calvings: profile?.totalCalvings ?? 0,
@@ -1554,9 +1551,7 @@ export class CattleService {
         ? this.daysBetween(activeLactation.startDate, new Date())
         : null,
       vwp_end_date: activeLactation
-        ? new Date(
-            activeLactation.startDate.getTime() + VWP_DEFAULT_DAYS * 86400_000,
-          )
+        ? new Date(activeLactation.startDate.getTime() + vwpDays * 86400_000)
             .toISOString()
             .slice(0, 10)
         : null,
@@ -2051,14 +2046,17 @@ export class CattleService {
         };
       case 'SICK':
       case 'IN_TREATMENT':
+        // RAKHAL-415: the old `diagnosisType: { notIn: PREVENTIVE_DIAGNOSIS_TYPES }` filter is
+        // gone — a preventive plan-apply no longer creates a `HealthCase` at all, so nothing needs
+        // filtering out going forward. The explicit `deletedAt: null` here is load-bearing, not
+        // decorative: this migration's backfill soft-deletes the *historical* preventive cases
+        // rather than deleting them outright (reversibility), so without this check those old rows
+        // would resurface a cow as SICK the moment the diagnosisType filter stopped excluding them.
         return {
           healthCases: {
             some: {
+              deletedAt: null,
               status: { in: OPEN_HEALTH_CASE_STATUSES },
-              diagnosisType: {
-                notIn:
-                  PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
-              },
             },
           },
         };
@@ -2066,11 +2064,8 @@ export class CattleService {
         return {
           healthCases: {
             none: {
+              deletedAt: null,
               status: { in: OPEN_HEALTH_CASE_STATUSES },
-              diagnosisType: {
-                notIn:
-                  PREVENTIVE_DIAGNOSIS_TYPES as unknown as HealthDiagnosisType[],
-              },
             },
           },
           safetyWithdrawals: { none: { status: 'ACTIVE' } },

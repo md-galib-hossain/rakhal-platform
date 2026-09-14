@@ -233,9 +233,12 @@ describe('Cattle — recordDisposition (e2e)', () => {
       },
     });
 
-    await cattleService.archiveWithReason(owner.farmId, cattleId, {
-      reason: 'sold',
-    });
+    await cattleService.archiveWithReason(
+      owner.farmId,
+      cattleId,
+      { reason: 'sold' },
+      ownerUserId,
+    );
 
     const closedLactation = await prisma.lactation.findUniqueOrThrow({
       where: { id: lactation.id },
@@ -247,10 +250,12 @@ describe('Cattle — recordDisposition (e2e)', () => {
       where: { id: cattleId },
     });
     expect(cattle.herdStatus).toBe('SOLD');
-    // The old path never writes `dispositionId`/`soldAt` — those are only
-    // ever set by the new `recordDisposition` path (RAKHAL-344 leaves this
-    // path untouched; RAKHAL-345 decides whether to switch it over).
-    expect(cattle.dispositionId).toBeNull();
-    expect(cattle.soldAt).toBeNull();
+    // RAKHAL-399 consolidated this path onto `recordDisposition` (see the
+    // service's own doc comment on `archiveWithReason`), so a 'sold' reason
+    // now writes `dispositionId`/`soldAt` exactly like the direct
+    // `recordDisposition` call the other tests in this file exercise —
+    // this assertion used to expect the pre-399 behavior (both null).
+    expect(cattle.dispositionId).not.toBeNull();
+    expect(cattle.soldAt).not.toBeNull();
   });
 });

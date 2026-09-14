@@ -1,10 +1,12 @@
-import { Controller, Get, Inject } from '@nestjs/common';
+import { Controller, Get, Inject, UnauthorizedException } from '@nestjs/common';
+import type { ConfigType } from '@nestjs/config';
+import { appConfig } from 'src/core/config/env';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { MetricsService } from 'src/core/observability/metrics/metrics.service';
 import { REDIS_CLIENT } from 'src/core/redis/redis.constants';
 import type { RedisClient } from 'src/core/redis/redis.module';
-import type { Response } from 'express';
-import { Res } from '@nestjs/common';
+import type { Request, Response } from 'express';
+import { Req, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 
@@ -24,10 +26,25 @@ export class HealthController {
     private readonly prisma: PrismaService,
     private readonly metrics: MetricsService,
     @Inject(REDIS_CLIENT) private readonly redis: RedisClient,
+    @Inject(appConfig.KEY)
+    private readonly appCfg: ConfigType<typeof appConfig>,
   ) {}
 
+  /**
+   * RD-042/053: unauthenticated by default (Prometheus has no bearer
+   * support, and the real access control belongs at the reverse proxy —
+   * see the env.schema.ts comment on METRICS_TOKEN). When an operator sets
+   * METRICS_TOKEN, this becomes the belt-and-braces check for a deployment
+   * with no proxy-level IP allowlist in front of it yet.
+   */
   @Get('/metrics')
-  async metricsEndpoint(@Res() res: Response) {
+  async metricsEndpoint(@Req() req: Request, @Res() res: Response) {
+    if (this.appCfg.metricsToken) {
+      const provided = req.headers.authorization?.replace(/^Bearer\s+/i, '');
+      if (provided !== this.appCfg.metricsToken) {
+        throw new UnauthorizedException('Invalid or missing metrics token');
+      }
+    }
     res.setHeader('Content-Type', this.metrics.getContentType());
     res.send(await this.metrics.getMetrics());
   }

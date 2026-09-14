@@ -20,9 +20,3 @@ export const BCS_NEAR_CALVING_WINDOW_DAYS = 21;
 /** A BCS drop greater than this within `BCS_DROP_WINDOW_DAYS` flags mobilization. */
 export const BCS_DROP_THRESHOLD = 1.0;
 export const BCS_DROP_WINDOW_DAYS = 60;
-
-/**
- * Voluntary Waiting Period (days) used for "breeding ready" until a per-farm
- * reproduction setting exists (PRD §8.2). Tracked in TECH_DEBT.
- */
-export const VWP_DEFAULT_DAYS = 60;
