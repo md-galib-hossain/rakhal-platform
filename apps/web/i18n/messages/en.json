@@ -2770,20 +2770,19 @@
     "managementCenter": {
       "title": "Health Management Center",
       "tabs": {
-        "sickBay": "Sick Bay",
-        "taskHub": "Treatment Schedule",
-        "healthPlan": "Health Plan",
-        "safetyWithdrawals": "Safety Withdrawals"
+        "treatments": "Treatments",
+        "schedule": "Schedule",
+        "protocols": "Protocols"
       },
       "tabDescriptions": {
-        "sickBay": "Animals currently sick — open a case to log treatment or update its progress.",
-        "taskHub": "Day-by-day treatment steps due from an applied Health Plan — not the same as the sidebar's Task Hub.",
-        "healthPlan": "Reusable treatment templates (vaccination schedules, checkups) you apply to one or more animals.",
-        "safetyWithdrawals": "Animals under an active milk/meat withholding period after treatment."
+        "treatments": "Sick animals and preventive rounds like vaccination or deworming — open a case to log treatment, or see who's enrolled in a round.",
+        "schedule": "Day-by-day treatment steps due from an applied Health Plan — not the same as the sidebar's Task Hub.",
+        "protocols": "Reusable treatment templates (vaccination schedules, checkups) you apply to one or more animals."
       },
       "searchPlaceholder": "Find Cow by cow ID or name",
       "reportSickness": "Report Sickness",
-      "logTreatment": "Log Treatment"
+      "logTreatment": "Log Treatment",
+      "quickTreat": "Quick Treat"
     },
     "sickBay": {
       "columns": {
@@ -3063,37 +3062,20 @@
         "appliedToast": "{count, plural, one {1 animal} other {# animals}} enrolled in this plan.",
         "appliedToastWithSkipped": "{applied, plural, one {1 animal} other {# animals}} enrolled, {skipped, plural, one {1 skipped} other {# skipped}} (already on this protocol).",
         "genericError": "Something went wrong. Please try again."
-      },
-      "activePlans": {
-        "sectionTitle": "Active Plans",
-        "searchPlaceholder": "Search by plan or animal…",
-        "emptyTitle": "No active plans",
-        "emptyDescription": "Applied health plans will appear here once you enrol animals.",
-        "error": "Could not load active plans.",
-        "editTitle": "Edit start date",
-        "deleteTitle": "Cancel plan",
-        "deleteConfirmTitle": "Cancel Applied Plan",
-        "deleteConfirmDescription": "This will cancel all pending tasks for {plan} on {animal}. Completed treatments will not be affected.",
-        "deleteConfirmLabel": "Yes, Cancel Plan",
-        "deleteToast": "Plan cancelled successfully.",
-        "deleteError": "Failed to cancel plan.",
-        "columns": {
-          "plan": "Plan",
-          "animal": "Animal",
-          "startDate": "Start Date",
-          "progress": "Progress",
-          "actions": "Actions"
-        },
-        "editDialog": {
-          "title": "Edit Applied Plan",
-          "newStartDate": "New Start Date",
-          "rescheduleNote": "All pending tasks will be cancelled and rescheduled from the new start date. Completed treatments are preserved.",
-          "cancel": "Cancel",
-          "save": "Save Changes",
-          "savedToast": "Plan rescheduled successfully.",
-          "saveError": "Failed to reschedule plan."
-        }
       }
+    },
+    "treatments": {
+      "preventiveRoundsTitle": "Preventive Rounds",
+      "columns": {
+        "plan": "Plan",
+        "startDate": "Start Date",
+        "animals": "Animals",
+        "progress": "Progress"
+      },
+      "animalsCount": "{count, plural, one {1 animal} other {# animals}}",
+      "error": "Could not load preventive rounds.",
+      "emptyTitle": "No preventive rounds",
+      "emptyDescription": "Apply a vaccination, deworming, or routine plan to a group of animals to see it here."
     },
     "symptoms": {
       "limpingLameness": "Limping/Lameness",
@@ -3273,13 +3255,16 @@
       }
     },
     "safetyWithdrawals": {
+      "title": "Safety Withdrawals",
       "error": "Could not load safety withdrawals.",
       "emptyTitle": "No safety withdrawals",
       "emptyDescription": "No milk/meat withdrawal holds recorded yet.",
       "columns": {
         "name": "Animal",
-        "milkUntil": "Milk Withdrawal Until",
-        "meatUntil": "Meat Withdrawal Until",
+        "medicine": "Medicine",
+        "case": "Case",
+        "milkUntil": "Milk Hold",
+        "meatUntil": "Meat Hold",
         "status": "Status",
         "action": "Action"
       },
@@ -3290,10 +3275,49 @@
         "RELEASED": "Released",
         "CANCELLED": "Cancelled"
       },
+      "filter": {
+        "withholding": "Withholding",
+        "all": "All"
+      },
+      "underHold": "Withholding",
+      "daysRemaining": "{count, plural, =0 {Ready today} one {1 day left} other {# days left}}",
       "refresh": "Refresh",
       "refreshedToast": "{count} withdrawal(s) cleared.",
       "release": "Release",
       "releasedToast": "Withdrawal released.",
+      "genericError": "Something went wrong. Please try again."
+    },
+    "quickTreat": {
+      "title": "Quick Treat",
+      "selectionMethod": "Selection Method",
+      "selectionMethods": {
+        "shed": "Shed",
+        "batch": "Batch",
+        "individual": "Individual"
+      },
+      "selectShed": "Select Shed",
+      "selectShedPlaceholder": "Select shed",
+      "selectBatch": "Select Batch",
+      "selectBatchPlaceholder": "Select batch",
+      "searchAnimals": "Search Animals",
+      "searchAnimalsPlaceholder": "Search by cow ID or name",
+      "loadingAnimals": "Loading animals…",
+      "noAnimals": "No animals found.",
+      "selectedCount": "{count, plural, one {1 animal selected} other {# animals selected}}",
+      "selectMedicine": "Medicine",
+      "doseAmount": "Dose Amount",
+      "doseUnit": "Dose Unit",
+      "administrationRoute": "Administration Route",
+      "treatedAt": "Date",
+      "withdrawalWarning": "This will place {count, plural, one {1 animal} other {# animals}} under a withholding period — milk until {milkUntil}, meat until {meatUntil}.",
+      "reason": "Reason (optional)",
+      "notesPlaceholder": "Notes (optional)",
+      "cancel": "Cancel",
+      "confirm": "Log Treatment",
+      "noneSelectedError": "Select at least one animal.",
+      "noMedicineError": "Select a medicine.",
+      "noAccountError": "Select a payment account for this medicine's cost.",
+      "treatedToast": "{count, plural, one {1 animal} other {# animals}} treated.",
       "genericError": "Something went wrong. Please try again."
     }
   },

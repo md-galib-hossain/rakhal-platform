@@ -7,6 +7,7 @@ import { HealthManagementCenterCard } from "./health-management-center-card";
 import { CaseManagementSheet } from "./case-management-sheet";
 import { ReportSicknessDialog } from "./report-sickness-dialog";
 import { SelectCaseDialog } from "./select-case-dialog";
+import { QuickTreatDialog } from "./quick-treat-dialog";
 import type { CaseManageTab } from "../types";
 
 /** Healthcare dashboard/sick-bay page (Figma 734:35601) + the Case Management sheet
@@ -17,6 +18,7 @@ export function HealthcareView() {
   const [manageCase, setManageCase] = useState<{ caseId: string; tab: CaseManageTab } | null>(null);
   const [reportSicknessOpen, setReportSicknessOpen] = useState(false);
   const [selectCaseOpen, setSelectCaseOpen] = useState(false);
+  const [quickTreatOpen, setQuickTreatOpen] = useState(false);
 
   return (
     <div className="flex flex-col gap-4">
@@ -29,6 +31,7 @@ export function HealthcareView() {
         onManageCase={(caseId) => setManageCase({ caseId, tab: "logTreatment" })}
         onReportSickness={() => setReportSicknessOpen(true)}
         onLogTreatment={() => setSelectCaseOpen(true)}
+        onQuickTreat={() => setQuickTreatOpen(true)}
       />
 
       <CaseManagementSheet
@@ -44,6 +47,7 @@ export function HealthcareView() {
         onOpenChange={setSelectCaseOpen}
         onSelect={(caseId) => setManageCase({ caseId, tab: "logTreatment" })}
       />
+      <QuickTreatDialog open={quickTreatOpen} onOpenChange={setQuickTreatOpen} />
     </div>
   );
 }

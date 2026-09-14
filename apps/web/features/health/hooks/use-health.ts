@@ -5,7 +5,6 @@ import { qk } from "@/lib/query/keys";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { healthApi } from "../api";
 import type {
-  AppliedPlanListItem,
   ApplyHealthPlanPayload,
   ApplyPlanToAnimalsPayload,
   CloseHealthCasePayload,
@@ -17,6 +16,7 @@ import type {
   HealthPlanType,
   LogTreatmentPayload,
   MortalityPayload,
+  RecordTreatmentPayload,
   RescheduleTaskPayload,
   SafetyWithdrawalStatus,
   SkipTaskPayload,
@@ -119,6 +119,17 @@ export function useLogMortality() {
   });
 }
 
+/** RAKHAL-416's Quick Treat route — logs a treatment for N animals in one call, no case id. Bare
+ * `invalidate()` (no single id) since this can touch multiple cows at once, same as
+ * `useApplyPlanToAnimals`. */
+export function useRecordTreatment() {
+  const invalidate = useInvalidateHealth();
+  return useMutation({
+    mutationFn: (dto: RecordTreatmentPayload) => healthApi.recordTreatment(dto),
+    onSuccess: () => invalidate(),
+  });
+}
+
 export function useDeleteHealthCase() {
   const invalidate = useInvalidateHealth();
   return useMutation({
@@ -168,7 +179,8 @@ export function useSkipTask() {
   });
 }
 
-export function useSafetyWithdrawals(filters: { status?: SafetyWithdrawalStatus } = {}) {
+/** RFE-110 (out-of-lane touch, flagged — needed to pass `activeOnly` through to the real query). */
+export function useSafetyWithdrawals(filters: { status?: SafetyWithdrawalStatus; activeOnly?: boolean } = {}) {
   return useQuery({
     queryKey: [...qk.health.safetyWithdrawals(), filters],
     queryFn: () => healthApi.safetyWithdrawals(filters),
@@ -252,16 +264,13 @@ export function useApplyPlanToAnimals() {
   });
 }
 
-/** Active Plans panel — returns all HealthCase rows where a health plan has been applied
- * (`healthPlanId IS NOT NULL`, active status). One row per cow per plan application. */
-export function useAppliedHealthPlans(filters: { healthPlanId?: string } = {}) {
+/** RFE-107/RAKHAL-415 — Treatments tab's "Preventive Rounds" section. Grouped one row per round
+ * (`PlanApplication`), each carrying its own enrolled animals + their progress. Replaces
+ * `useAppliedHealthPlans` (removed with the backend route it called). */
+export function usePlanApplications(filters: { healthPlanId?: string } = {}) {
   return useQuery({
-    queryKey: qk.health.appliedPlans(filters as Record<string, string | undefined>),
-    queryFn: () => healthApi.listAppliedPlans(filters),
+    queryKey: qk.health.planApplications(filters as Record<string, string | undefined>),
+    queryFn: () => healthApi.listPlanApplications(filters),
     staleTime: STALE_TIME,
   });
 }
-
-/** Void the return type so callers can `void useAppliedHealthPlans` isn't needed separately —
- * exposed only for the `AppliedPlanListItem` type if components import it from this module. */
-export type { AppliedPlanListItem };

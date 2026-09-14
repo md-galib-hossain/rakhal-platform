@@ -39,6 +39,23 @@ export const logTreatmentSchema = z.object({
 });
 export type LogTreatmentInput = z.infer<typeof logTreatmentSchema>;
 
+/** "Quick Treat" (RFE-108) — the animal-selection fields (shed/batch/individual) mirror
+ * `apply-health-plan-dialog.tsx`'s own `applyHealthPlanStep1Schema`; `cattleIds`/`medicineId` are
+ * kept as plain component state (a `Set<string>`/`MedicineOption`), not RHF fields, matching that
+ * same dialog's split. */
+export const quickTreatSchema = z.object({
+  selectionMethod: z.enum(["shed", "batch", "individual"]),
+  shedId: z.string().trim().optional(),
+  feedGroupId: z.string().trim().optional(),
+  doseAmount: z.number().min(0.01, "Enter a dose amount."),
+  doseUnit: z.string().trim().min(1, "Enter a dose unit."),
+  route: z.enum(["IM", "IV", "SC", "ORAL"]),
+  treatedAt: z.string().min(1),
+  reason: z.string().trim().optional(),
+  notes: z.string().trim().optional(),
+});
+export type QuickTreatInput = z.infer<typeof quickTreatSchema>;
+
 /** Case Management sheet → "Health Update" tab (Figma 734:38378). Mirrors `CreateHealthUpdateDto`;
  * `temperature` is required in the Figma mock (marked with `*`) though the backend DTO allows it
  * optional — enforced here at the form level, matching the visual contract. */

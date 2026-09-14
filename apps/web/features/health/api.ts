@@ -3,7 +3,6 @@
 import { apiFetch, apiFetchPage } from "@/lib/api/client";
 import type { CursorPage } from "@/types/api";
 import type {
-  AppliedPlanListItem,
   ApplyHealthPlanPayload,
   ApplyPlanToAnimalsPayload,
   ApplyPlanToAnimalsResult,
@@ -23,6 +22,9 @@ import type {
   HealthUpdate,
   LogTreatmentPayload,
   MortalityPayload,
+  PlanApplicationListItem,
+  RecordTreatmentPayload,
+  RecordTreatmentResult,
   RescheduleTaskPayload,
   SafetyWithdrawalListItem,
   SafetyWithdrawalStatus,
@@ -72,6 +74,10 @@ export const healthApi = {
   logMortality(id: string, dto: MortalityPayload): Promise<HealthCaseDetail> {
     return apiFetch<HealthCaseDetail>(`/health/cases/${id}/mortality`, { method: "POST", body: dto });
   },
+  /** RAKHAL-416 — Quick Treat: logs a treatment for N animals with no case id, one call. */
+  recordTreatment(dto: RecordTreatmentPayload): Promise<RecordTreatmentResult> {
+    return apiFetch<RecordTreatmentResult>("/health/treatments", { method: "POST", body: dto });
+  },
   /** Sick Bay delete — soft delete (`isActive:false`), `healthcare.delete` (manager+). */
   deleteCase(id: string): Promise<HealthCaseDetail> {
     return apiFetch<HealthCaseDetail>(`/health/cases/${id}`, { method: "DELETE" });
@@ -97,13 +103,14 @@ export const healthApi = {
   skipTask(id: string, dto: SkipTaskPayload): Promise<HealthTask> {
     return apiFetch<HealthTask>(`/health/tasks/${id}/skip`, { method: "POST", body: dto });
   },
-  /** Safety Withdrawals tab (no Figma frame — real backend routes had zero frontend consumer). */
+  /** RFE-110: no longer a standalone tab, folded into Treatments as a "Withholding" filter
+   * section — `activeOnly` backs its default view (RAKHAL-420's `SafetyWithdrawalQueryDto`). */
   safetyWithdrawals(
-    filters: { status?: SafetyWithdrawalStatus } = {},
+    filters: { status?: SafetyWithdrawalStatus; activeOnly?: boolean } = {},
     cursor?: string,
   ): Promise<CursorPage<SafetyWithdrawalListItem>> {
     return apiFetchPage<SafetyWithdrawalListItem>("/health/safety-withdrawals", {
-      searchParams: { status: filters.status, cursor, limit: 20 },
+      searchParams: { status: filters.status, activeOnly: filters.activeOnly, cursor, limit: 20 },
     });
   },
   refreshSafetyWithdrawals(): Promise<{ updated: number }> {
@@ -142,14 +149,15 @@ export const healthApi = {
   applyPlanToAnimals(planId: string, dto: ApplyPlanToAnimalsPayload): Promise<ApplyPlanToAnimalsResult> {
     return apiFetch<ApplyPlanToAnimalsResult>(`/health/plans/${planId}/apply`, { method: "POST", body: dto });
   },
-  /** Active Plans panel — `GET /health/cases/applied` returns HealthCase rows where
-   * `healthPlanId IS NOT NULL` (i.e. cases created via the Apply Health Plan flow).
-   * Separate from sick-bay which explicitly excludes preventive diagnosis types. */
-  listAppliedPlans(
+  /** RFE-107/RAKHAL-415 — Treatments tab's "Preventive Rounds" section. `GET /health/cases/applied`
+   * was removed, not aliased; this reads the real replacement, grouped one row per round rather
+   * than one per cow. Search/cattleId/date-range narrowing isn't supported server-side yet (a
+   * known, flagged v1 gap on the backend's own side) — only `healthPlanId` filters here. */
+  listPlanApplications(
     filters: { healthPlanId?: string } = {},
     cursor?: string,
-  ): Promise<CursorPage<AppliedPlanListItem>> {
-    return apiFetchPage<AppliedPlanListItem>("/health/cases/applied", {
+  ): Promise<CursorPage<PlanApplicationListItem>> {
+    return apiFetchPage<PlanApplicationListItem>("/health/plan-applications", {
       searchParams: { healthPlanId: filters.healthPlanId, cursor, limit: 50 },
     });
   },
@@ -162,6 +170,12 @@ export interface MedicineOption {
   /** Nested unit-catalog relation (RAKHAL-326) — `GET /inventory/medicines` now returns the full
    * `Unit` row here, not a free-text string. Only `symbol` is used by this picker's preview row. */
   unit: { id: string; name: string; symbol: string };
+  /** Real fields on the wire (`medicine.service.ts` returns the full model, no `select`) — used by
+   * `quick-treat-dialog.tsx` to preview the withdrawal-hold date and whether a payment account is
+   * required, mirroring the backend's own `resolvedCost`/`createSafetyWithdrawalIfNeeded` math. */
+  costPerUnit: number | null;
+  milkWithdrawalDays: number | null;
+  meatWithdrawalDays: number | null;
 }
 
 /** Search-select source for the Log Treatment tab's medicine picker — reuses the real

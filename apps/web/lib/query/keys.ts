@@ -95,7 +95,9 @@ export const qk = {
     tasks: () => ["health", "tasks", "list"] as const,
     taskCalendar: (year: number, month: number) => ["health", "tasks", "calendar", year, month] as const,
     plans: () => ["health", "plans", "list"] as const,
-    appliedPlans: (filters: Record<string, string | undefined>) => ["health", "cases", "applied", filters] as const,
+    /** RAKHAL-415 — `GET /health/cases/applied` was removed, not aliased; replaced by
+     * `GET /health/plan-applications` (grouped rounds, not one row per cow). */
+    planApplications: (filters: Record<string, string | undefined>) => ["health", "plan-applications", "list", filters] as const,
     safetyWithdrawals: () => ["health", "safety-withdrawals", "list"] as const,
   },
   activity: {

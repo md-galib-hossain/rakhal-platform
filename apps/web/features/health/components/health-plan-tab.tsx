@@ -12,14 +12,16 @@ import { useHealthPlans } from "../hooks/use-health";
 import { HealthPlanCard } from "./health-plan-card";
 import { CreateHealthPlanDialog } from "./create-health-plan-dialog";
 import { ApplyHealthPlanDialog } from "./apply-health-plan-dialog";
-import { ActivePlansSection } from "./active-plans-section";
 import type { HealthPlanListItem } from "../types";
 
 /**
- * "Health Plan" segment of the Health Management Center — Figma 734:45281 (list) +
+ * "Protocols" tab (RFE-107 rename; was "Health Plan") — Figma 734:45281 (list) +
  * "Create New Health Plan" 3-step wizard (734:47059/47993/48743) + "Apply Health Plan Template"
  * 2-step wizard (734:49979/50881), `get_design_context`. Real `GET /health/plans` data throughout
- * (see `health-plan-card.tsx` for the one KPI-band gap flagged, not faked).
+ * (see `health-plan-card.tsx` for the one KPI-band gap flagged, not faked). **RFE-107**: the
+ * "Active Plans" section that used to render below the plan catalog is gone — preventive rounds
+ * now live in `TreatmentsTab`'s own section, curative protocol-attached cases in its Sick Bay
+ * table; this tab is the plan catalog only.
  */
 export function HealthPlanTab() {
   const t = useTranslations("health.healthPlan");
@@ -99,11 +101,6 @@ export function HealthPlanTab() {
 
       <CreateHealthPlanDialog open={formOpen} onOpenChange={setFormOpen} plan={editingPlan} />
       <ApplyHealthPlanDialog plan={applyingPlan} onOpenChange={(open) => !open && setApplyingPlan(undefined)} />
-
-      {/* "Active Plans" — running applied plan instances, below the plan template list */}
-      <div className="mt-6 border-t border-border pt-6">
-        <ActivePlansSection />
-      </div>
     </div>
   );
 }

@@ -172,19 +172,29 @@ export interface HealthCaseListItem {
   tasks: HealthTask[]; // next pending task, take:1
 }
 
-/** `GET /health/cases/applied` row — applied health plan instance (a `HealthCase` with
- * `healthPlanId != null`). Used by the "Active Plans" panel in the Health Plan tab. */
-export interface AppliedPlanListItem {
-  id: string; // healthCaseId — used for delete/edit operations
-  caseCode: string;
-  startDate: string;
+/** RAKHAL-415 — one animal's row inside a `PlanApplicationListItem.enrollments`. */
+export interface PlanApplicationEnrollment {
+  id: string;
+  status: "ACTIVE" | "COMPLETED";
   currentStep: number;
   totalSteps: number;
   progressPercentage: number;
-  status: HealthCaseStatus;
-  diagnosisType: HealthDiagnosisType;
   cattle: HealthCattleRef;
+}
+
+/** `GET /health/plan-applications` row (RAKHAL-415/RFE-107) — one preventive-plan "round"
+ * (vaccination campaign, deworming, etc.), grouped with its enrolled animals. Replaces the removed
+ * `GET /health/cases/applied` (was one row per cow, a `HealthCase` with `healthPlanId != null`) —
+ * a preventive plan-apply no longer creates a `HealthCase` at all, so there is nothing left to list
+ * that way. Rendered in `TreatmentsTab`'s "Preventive Rounds" section. */
+export interface PlanApplicationListItem {
+  id: string;
+  healthPlanId: string;
+  startDate: string;
+  appliedBy: string;
+  animalCount: number;
   healthPlan: { id: string; name: string; category: HealthPlanCategory };
+  enrollments: PlanApplicationEnrollment[];
 }
 
 /** `GET /health/cases/:id` — full case detail behind "Manage Case" (`health.service.ts#getHealthCase`). */
@@ -290,6 +300,37 @@ export interface CreateHealthUpdatePayload {
 }
 
 /** `POST /health/cases/:id/mortality` body (`MortalityDto`) — the "Close Case → Log Mortality" sub-tab. */
+/** `POST /health/treatments` body (`RecordTreatmentDto`, RAKHAL-416) — Sick Bay's "Quick Treat":
+ * logs a treatment for N animals in one call with no case id. The backend reuses each animal's
+ * open case if one exists, else creates a lightweight one — never orchestrated from the frontend. */
+export interface RecordTreatmentPayload {
+  cattleIds: string[];
+  medicineId: string;
+  doseAmount: number;
+  doseUnit: string;
+  route: MedicineRoute;
+  treatedAt: string;
+  reason?: string;
+  notes?: string;
+  /** Required only when `medicine.costPerUnit * doseAmount > 0` — mirrors the same
+   * RAKHAL-393/RD-066 rule `finalize-tmr-dialog.tsx` and `record-batch-dialog.tsx` already follow. */
+  financialAccountId?: string;
+}
+
+export interface RecordTreatmentResultRow {
+  cattleId: string;
+  healthCaseId: string;
+  treatmentLogId: string;
+  safetyWithdrawalId: string | null;
+  reusedExistingCase: boolean;
+}
+
+export interface RecordTreatmentResult {
+  medicineId: string;
+  appliedCount: number;
+  results: RecordTreatmentResultRow[];
+}
+
 export interface MortalityPayload {
   deathDate: string;
   primaryCauseOfDeath: string;
@@ -408,14 +449,25 @@ export interface ApplyPlanToAnimalsResult {
   results: ApplyPlanToAnimalsResultRow[];
 }
 
-export const HEALTH_MANAGEMENT_TABS = ["sickBay", "taskHub", "healthPlan", "safetyWithdrawals"] as const;
+/** RFE-107 — "3 tabs, not 4": `sickBay` and the Health Plan tab's Active Plans section collapse
+ * into `treatments`; `taskHub` is relabeled `schedule` (RFE-109's own deferred rename, landing
+ * here); `healthPlan` becomes `protocols` (plan catalog only, Active Plans moved out). The
+ * `safetyWithdrawals` tab is retired here — RFE-110 folds its capability into `treatments` as a
+ * filter chip rather than a peer tab; until RFE-110 ships, Safety Withdrawals has no dedicated nav
+ * entry (a real, ticket-sequenced gap, not an oversight — see RFE-107's IN_FLIGHT writeup). */
+export const HEALTH_MANAGEMENT_TABS = ["treatments", "schedule", "protocols"] as const;
 export type HealthManagementTab = (typeof HEALTH_MANAGEMENT_TABS)[number];
 
 /** `GET /health/safety-withdrawals` row shape (`health.service.ts#getSafetyWithdrawals`) — the
  * backend include for `cattle` was added alongside this frontend tab (previously had zero UI
- * consumer despite the route existing). */
+ * consumer despite the route existing). RFE-110/RAKHAL-420 added `medicineName`/`caseCode`/
+ * `{milk,meat}DaysRemaining` (server-computed countdown, not diffed client-side against `until`). */
 export interface SafetyWithdrawalListItem extends SafetyWithdrawal {
   cattle: HealthCattleRef;
+  medicineName: string | null;
+  caseCode: string;
+  milkDaysRemaining: number | null;
+  meatDaysRemaining: number | null;
 }
 
 export const CASE_MANAGE_TABS = ["logTreatment", "healthUpdate", "closeCase"] as const;

@@ -1,5 +1,46 @@
 # Frontend — Current State
 
+## RFE-110 — Safety Withdrawals becomes a filter, not a fourth tab (2026-09-15)
+
+Last ticket of the Healthcare IA rework — closes RFE-106…110 end to end. `safety-withdrawal-tab.tsx`
+(orphaned since RFE-107 dropped its render call) repurposed into `SafetyWithdrawalSection`, now a
+third section inside `TreatmentsTab` below Preventive Rounds, reached via a "Withholding"/"All"
+segmented toggle instead of a peer tab — default view `activeOnly=true` (RAKHAL-420's own param).
+`SafetyWithdrawalTable` gained the medicine/case columns and a days-remaining countdown RAKHAL-420's
+`getSafetyWithdrawals` now returns (`medicineName`/`caseCode`/`{milk,meat}DaysRemaining`), replacing
+bare withdrawal dates; any row still `ACTIVE`/`READY_FOR_RELEASE` gets a red "Withholding" badge.
+Refresh + per-row Release carried over unchanged, just relocated. Gate: `typecheck`(0)/`eslint`(0 on
+6 files)/`build`(0, 39 routes)/`test`(174/174), both locales valid. Full writeup:
+`docs/PROJECT_PROGRESS.md`'s RFE-110 entry, `docs/IN_FLIGHT.md` Recently Done.
+
+## RFE-107 — Merge Sick Bay + Active Plans into one "Treatments" tab (2026-09-15)
+
+The "3 tabs, not 4" fix — third and final currently-unblocked ticket of the Healthcare IA rework
+this pass. `HEALTH_MANAGEMENT_TABS` goes `sickBay`/`taskHub`/`healthPlan`/`safetyWithdrawals` →
+`treatments`/`schedule`/`protocols`. New `TreatmentsTab` merges the unchanged `SickBayTable`
+(curative cases) with a new "Preventive Rounds" section reading RAKHAL-415's real
+`GET /health/plan-applications` (grouped one row per round, not per cow) — replacing the removed
+`GET /health/cases/applied` and the `ActivePlansSection`/`EditAppliedPlanDialog` components that
+called it (deleted outright, confirmed zero remaining importers). **Real, deliberate gap**: the
+`safetyWithdrawals` tab is gone from the nav until RFE-110 (still blocked on backend RAKHAL-420)
+folds it back in as a filter chip — the data/route are untouched, only this tab bar's reachability.
+Gate: `typecheck`(0)/`eslint`(0/0 in 7 files)/`build`(0, 39 routes)/`test`(174/174), both locales
+valid. Full writeup: `docs/PROJECT_PROGRESS.md`'s RFE-107 entry, `docs/IN_FLIGHT.md` Recently Done.
+Only RFE-110 remains in this set, still blocked.
+
+## RFE-108 — Quick Treat: log a treatment without opening a case (2026-09-15)
+
+Second implemented ticket of the Healthcare IA rework. New `QuickTreatDialog` ("Quick Treat" button
+beside "Log Treatment") logs a treatment for one or more animals with no case id anywhere in the
+form — the Herdwatch-parity flow the backend investigation named as the target. One call to the
+real bulk `POST /health/treatments` (RAKHAL-416, confirmed already live server-side); the backend
+reuses each animal's open case or creates a lightweight one, never orchestrated client-side.
+Withdrawal-hold preview and the payment-account gate are both computed client-side by mirroring the
+backend's own `resolvedCost`/`createSafetyWithdrawalIfNeeded` logic exactly (read from source, not
+guessed). Gate: `typecheck`(0)/`eslint`(0/0 in 7 files)/`build`(0, 39 routes)/`test`(174/174), both
+locales valid. Full writeup: `docs/PROJECT_PROGRESS.md`'s RFE-108 entry, `docs/IN_FLIGHT.md` Recently
+Done. Remaining open lanes in this set: RFE-107/110 stay blocked on backend RAKHAL-415/417/420.
+
 ## RFE-106 — Sick Bay: attach a protocol to an existing case + bulk-apply rewrite (2026-09-14)
 
 First implemented ticket of the Healthcare IA rework (RFE-106…110). New "Apply Protocol" row action
