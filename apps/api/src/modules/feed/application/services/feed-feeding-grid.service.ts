@@ -99,33 +99,49 @@ export class FeedFeedingGridService {
   }
 
   /**
-   * Auto-save a day's per-cow quantities for one `{date, sourceType, feedItemId|feedStockId}`
-   * key. No `@@unique` in the schema (Postgres can't enforce uniqueness across two mutually
-   * exclusive nullable FK columns — see `FeedFeedingDraft`'s doc comment), so uniqueness is
-   * enforced here: each entry does a `findFirst` scoped on every one of
-   * `farmId/cattleId/logDate/sourceType/feedItemId/feedStockId` and updates that row if found,
+   * Auto-save a day's per-cow quantities. Each entry resolves its own source — its own override
+   * if given, else the call's top-level source (RAKHAL-430, `resolveEntrySource`) — so one call
+   * can stage different cows against different sources. No `@@unique` in the schema (Postgres
+   * can't enforce uniqueness across two mutually exclusive nullable FK columns — see
+   * `FeedFeedingDraft`'s doc comment), so uniqueness is enforced here per entry's own resolved
+   * `{date, sourceType, feedItemId|feedStockId}` key: a `findFirst` scoped on every one of
+   * `farmId/cattleId/logDate/sourceType/feedItemId/feedStockId` updates that row if found,
    * otherwise creates a new one.
    */
   async saveDraft(farmId: string, userId: string, dto: SaveFeedDraftDto) {
-    await this.validateSource(farmId, dto.sourceType, dto);
     const logDate = this.dayStart(dto.date);
     const cattleIds = dto.entries.map((e) => e.cattleId);
     await this.assertCattleBelongToFarm(farmId, cattleIds);
 
-    const feedItemId = dto.feedItemId ?? null;
-    const feedStockId = dto.feedStockId ?? null;
+    const resolved = dto.entries.map((entry) => {
+      const source = this.resolveEntrySource(dto, entry);
+      if (!source) {
+        throw new BadRequestException(
+          `Cattle ${entry.cattleId} needs a source — either its own sourceType or the call's top-level sourceType`,
+        );
+      }
+      return { entry, source };
+    });
+
+    const distinctSources = new Map<string, ResolvedSource>();
+    for (const { source } of resolved) {
+      distinctSources.set(this.sourceKey(source), source);
+    }
+    for (const source of distinctSources.values()) {
+      await this.validateSource(farmId, source);
+    }
 
     const saved = await this.prisma.$transaction(async (tx) => {
       const rows: Prisma.FeedFeedingDraftGetPayload<object>[] = [];
-      for (const entry of dto.entries) {
+      for (const { entry, source } of resolved) {
         const existing = await tx.feedFeedingDraft.findFirst({
           where: {
             farmId,
             cattleId: entry.cattleId,
             logDate,
-            sourceType: dto.sourceType,
-            feedItemId,
-            feedStockId,
+            sourceType: source.sourceType,
+            feedItemId: source.feedItemId,
+            feedStockId: source.feedStockId,
           },
         });
         const row = existing
@@ -139,9 +155,9 @@ export class FeedFeedingGridService {
                 cattleId: entry.cattleId,
                 feedGroupId: dto.feedGroupId,
                 logDate,
-                sourceType: dto.sourceType,
-                feedItemId,
-                feedStockId,
+                sourceType: source.sourceType,
+                feedItemId: source.feedItemId,
+                feedStockId: source.feedStockId,
                 offeredKg: round2(entry.offeredKg),
                 createdBy: userId,
               },
@@ -154,7 +170,7 @@ export class FeedFeedingGridService {
     this.log.info('Feeding grid draft saved', {
       farmId,
       date: dto.date,
-      sourceType: dto.sourceType,
+      sources: distinctSources.size,
       entries: saved.length,
     });
     return { saved: saved.length, drafts: saved.map((d) => this.mapDraft(d)) };
