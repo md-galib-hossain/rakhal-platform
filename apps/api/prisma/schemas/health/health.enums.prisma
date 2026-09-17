@@ -1,12 +1,13 @@
-enum HealthDiagnosisType {
-  DISEASE
-  INJURY
-  VACCINATION
-  DEWORMING
-  ROUTINE_CHECKUP
+/// RAKHAL-418: replaces the 8-value `HealthDiagnosisType`. Every consumer outside the Health
+/// module only ever asked a yes/no question of it ("is this preventive care, or real sickness?"
+/// — `isPreventiveDiagnosisType()`'s whole job) — so the derived two-value split is now the actual
+/// stored field instead of an 8-value enum plus a `PREVENTIVE_DIAGNOSIS_TYPES` membership check.
+/// The finer-grained "what kind of preventive/curative care" detail moves to the structured
+/// `condition` (`HealthCondition`) field plus free-text `note` (RAKHAL-275's field, formerly the
+/// required `diagnosis`, now optional).
+enum HealthCareType {
+  CURATIVE
   PREVENTIVE
-  BREEDING_RELATED
-  OTHER
 }
 
 enum HealthPriority {

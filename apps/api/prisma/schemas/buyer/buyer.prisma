@@ -13,26 +13,26 @@ model MilkBuyer {
   email         String?
   buyerType     BuyerType
 
-  paymentTermsDays   Int      @default(0)
+  paymentTermsDays  Int      @default(0)
   /// RAKHAL-364 — gained `@default(0)` (additive) so `MilkBuyer` can be
   /// created as the generic `Sale.customer`/`Receivable.customer` FK target
   /// for a non-milk buyer (animal trader, manure buyer) without inventing a
   /// milk price. `MilkBuyer` doubling as the generic sales customer is
   /// tracked as RD-067 — a real `Party`+`MilkPriceAgreement` split is future
   /// work, not this ticket's scope.
-  basePricePerLitre  Float    @default(0)
-  baseFatPct         Float    @default(3.5)
-  fatBonusPer01Pct   Float    @default(0)
-  sccThreshold       Int      @default(200000)
-  sccPenaltyPer100k  Float    @default(0)
-  collectionDays     String[] @default([])
-  collectionTime     String?
-  bankDetails        String?
+  basePricePerLitre Float    @default(0)
+  baseFatPct        Float    @default(3.5)
+  fatBonusPer01Pct  Float    @default(0)
+  sccThreshold      Int      @default(200000)
+  sccPenaltyPer100k Float    @default(0)
+  collectionDays    String[] @default([])
+  collectionTime    String?
+  bankDetails       String?
 
   deletedAt DateTime?
   createdBy String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   farm       Farm           @relation("FarmToMilkBuyer", fields: [farmId], references: [id])
   dispatches MilkDispatch[]

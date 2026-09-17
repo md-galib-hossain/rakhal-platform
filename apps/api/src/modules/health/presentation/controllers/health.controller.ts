@@ -21,6 +21,7 @@ import {
   ApplyHealthPlanDto,
   CloseHealthCaseDto,
   CreateHealthUpdateDto,
+  LogTaskTreatmentDto,
   LogTreatmentDto,
   MortalityDto,
   RecordTreatmentDto,
@@ -256,6 +257,22 @@ export class HealthController {
     @Param('id') id: string,
   ) {
     return this.healthService.completeTask(farmId, userId, id);
+  }
+
+  /**
+   * RD-093: a caseless (`planEnrollmentId`-only) task's only route to a real dose — see
+   * `HealthService#logTaskTreatment`'s doc comment. Rejects a task that still has a
+   * `healthCaseId` (use `POST /health/cases/:id/log-treatment` for that one instead).
+   */
+  @Post('tasks/:id/log-treatment')
+  @RequirePermission('healthcare.log-treatment')
+  logTaskTreatment(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body() dto: LogTaskTreatmentDto,
+  ) {
+    return this.healthService.logTaskTreatment(farmId, userId, id, dto);
   }
 
   @Post('tasks/:id/reschedule')

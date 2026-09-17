@@ -115,7 +115,7 @@ model BreedingEvent {
   /// RAKHAL-354: repointed from the dropped V1 `FinancePaymentMethod` to
   /// Finance V2's own `PaymentMethod` (`finance-v2/payment.prisma`) — already
   /// WALLET-less, so no separate migration of this field's semantics needed.
-  paymentMethod PaymentMethod?
+  paymentMethod        PaymentMethod?
   /// RAKHAL-330: loose link to the cost-posting this event's cost was posted
   /// as — no FK (Finance lives in a different schema file), same
   /// loose-coupling precedent `SemenStrawMovement.sourceEventId` already set.
@@ -138,10 +138,10 @@ model BreedingEvent {
   cattle Cattle  @relation("BreedingEventCattle", fields: [cattleId], references: [id])
   bull   Cattle? @relation("BreedingEventBull", fields: [bullId], references: [id])
 
-  diagnoses          PregnancyDiagnosis[]
-  pregnancies        Pregnancy[]
-  resolvedHeatEvent  HeatEvent?  @relation("HeatEventResolution")
-  returnedToHeatEvents HeatEvent[] @relation("HeatEventReturnToHeat")
+  diagnoses            PregnancyDiagnosis[]
+  pregnancies          Pregnancy[]
+  resolvedHeatEvent    HeatEvent?           @relation("HeatEventResolution")
+  returnedToHeatEvents HeatEvent[]          @relation("HeatEventReturnToHeat")
 
   @@index([cattleId])
   @@index([bullId])
@@ -333,7 +333,7 @@ model Lactation {
   /// truth for lactation start. Defaults `CALVING` (safe for the migration
   /// backfill of existing rows — every pre-existing `Lactation` row genuinely
   /// came from a calving).
-  startReason         LactationStartReason @default(CALVING)
+  startReason          LactationStartReason @default(CALVING)
   /// The `CalvingEvent` that produced this lactation, when `startReason` is
   /// `CALVING` (redundant with `calvingEventId` for that case, but kept
   /// distinct/nullable so `PURCHASE_IMPORT`/`MANUAL_CORRECTION` lactations —
@@ -388,7 +388,7 @@ model Lactation {
   /// `recommendedDryOffAt` — both are tracked so planned-vs-actual can be
   /// compared later. Never written by the recommended-value recompute;
   /// only `LactationStatsService.updatePlannedDryOff()` writes this field.
-  plannedDryOffAt DateTime?
+  plannedDryOffAt     DateTime?
 
   createdAt DateTime @default(now())
   /// RAKHAL-299: distinguishes an edited row from an original (edit substrate).

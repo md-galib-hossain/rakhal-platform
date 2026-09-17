@@ -375,6 +375,12 @@ export class FeedConcentrationService {
    * unconditional action** for both kinds (not idempotent — refinalizing produces another lot);
    * only the ingredient-promotion half (Concentrate Mixer only) stays idempotent. A plain
    * edit-save (`update()`) can refresh nutrition on either kind, but never produces stock.
+   * RAKHAL-428 (2026-09-15, closes RD-090): payment is symmetric across both kinds too — a
+   * finalize with real unlinked cost (lines not backed by an owned batch) requires
+   * `financialAccountId` and posts an Inventory-debit/cash-credit journal for the unlinked
+   * portion, whether the batch produced is a Concentrate Mixer's or a TMR's. Before this, only
+   * `FEED_MIXTURE` paid — a Concentrate Mixer could produce a real, sellable `FeedStock` batch
+   * from ingredients it never paid for.
    */
   async finalize(
     farmId: string,
@@ -422,16 +428,66 @@ export class FeedConcentrationService {
     );
 
     // `financialAccountId` is only required when this finalize actually buys something — an
-    // all-linked TMR (every line already owned) never touches cash (RAKHAL-424, closes the gap
-    // RAKHAL-393/RD-077 opened by demanding it unconditionally).
-    if (
-      row.kind === 'FEED_MIXTURE' &&
-      deductions.unlinkedCostTk > 0 &&
-      !financialAccountId
-    ) {
+    // all-linked batch (every line already owned) never touches cash (RAKHAL-424, closes the gap
+    // RAKHAL-393/RD-077 opened by demanding it unconditionally). RAKHAL-428 (closes RD-090):
+    // applies to both kinds — a Concentrate Mixer with real unlinked cost buys feed exactly like
+    // a TMR does, so it pays for it exactly like a TMR does; the old `row.kind === 'FEED_MIXTURE'`
+    // restriction here let a Concentrate finalize produce a paid-for-nothing `FeedStock` batch.
+    if (deductions.unlinkedCostTk > 0 && !financialAccountId) {
       throw new BadRequestException(
-        'financialAccountId is required to finalize a Total Mixed Ration that purchases feed',
+        'financialAccountId is required to finalize a batch that purchases feed',
       );
+    }
+
+    // RAKHAL-428 (closes RD-090): payment posts before either kind produces stock — mirrors the
+    // ordering the TMR branch always had (see the finalize()-level doc comment: "Payment happens
+    // before stock is produced... no `FeedStock` fabricated for a batch never actually paid for"),
+    // now enforced for a Concentrate Mixer too. Only the unlinked portion (not already owned) is
+    // a real purchase — debits Inventory (`1200`), credits the chosen `FinancialAccount`; an
+    // all-linked finalize posts no journal entry at all, for either kind.
+    const INVENTORY_LEDGER_CODE = '1200';
+    let financeResult: { journalTransactionId: string } | null = null;
+    if (deductions.unlinkedCostTk > 0) {
+      await this.financialAccountService.assertAccountActive(
+        farmId,
+        financialAccountId!,
+      );
+      const account = await this.prisma.financialAccount.findFirstOrThrow({
+        where: { id: financialAccountId, farmId },
+        select: { ledgerAccountId: true },
+      });
+      const inventoryAccount = await this.ledgerAccountService.findByCode(
+        farmId,
+        INVENTORY_LEDGER_CODE,
+      );
+      if (!inventoryAccount) {
+        throw new BadRequestException(
+          'Inventory ledger account is not seeded for this farm',
+        );
+      }
+      const isTemplate = row.kind === 'CONCENTRATE_TEMPLATE';
+      const posted = await this.journalService.postJournal({
+        farmId,
+        sourceType: isTemplate
+          ? 'FEED_CONCENTRATE_FINALIZE'
+          : 'FEED_MIXTURE_FINALIZE',
+        sourceId: row.id,
+        transactionDate: new Date(),
+        description: `${isTemplate ? 'Concentrate Mixer' : 'TMR'} finalize: ${row.name}`,
+        idempotencyKey: `feed-${isTemplate ? 'concentrate' : 'mixture'}-finalize:${row.id}:${randomUUID()}`,
+        createdById: userId,
+        entries: [
+          {
+            ledgerAccountId: inventoryAccount.id,
+            debit: deductions.unlinkedCostTk,
+          },
+          {
+            ledgerAccountId: account.ledgerAccountId,
+            credit: deductions.unlinkedCostTk,
+          },
+        ],
+      });
+      financeResult = { journalTransactionId: posted.id };
     }
 
     let ingredientResult: ReturnType<typeof this.mapIngredient> | null = null;
@@ -510,71 +566,14 @@ export class FeedConcentrationService {
       });
     }
 
-    // Only a Total Mixed Ration moves cash, and only for the portion it actually buys — a
-    // Concentrate Mixer's stock (above) is never purchased, and RAKHAL-424 (closes RD-080's
-    // double-count sibling): the linked-line portion is feed the farm already owns and already
-    // paid for, so re-crediting cash for it would double-count that expense. Only the unlinked
-    // portion (still priced from the catalogue, never bought yet) posts a real purchase; an
-    // all-linked finalize posts no journal entry at all.
-    //
-    // Payment happens *before* stock is produced (mirrors the old V1 "check wallet balance
-    // before touching stock" ordering) — an insufficient-balance TMR finalize throws here and
-    // never reaches `produceFromConcentration`, so no `FeedStock` is fabricated for a batch that
-    // was never actually paid for.
-    //
-    // RAKHAL-354: migrated off V1 `FinanceService.recordTransaction` (`INVENTORY_PURCHASE`) onto
-    // a direct `JournalService.postJournal` call — debits Inventory (ledger code `1200`, the
-    // asset `FeedStock` becomes), credits the resolved `FinancialAccount`. This is deliberately
-    // NOT `ExpenseService.recordExpense`: a TMR batch becomes `FeedStock`, a real inventory
-    // asset (mirrors `PurchaseService.createPurchase`'s own Inventory-debit treatment for a
+    // RAKHAL-354: `JournalService.postJournal` (above) debits Inventory (ledger code `1200`, the
+    // asset `FeedStock` becomes), credits the resolved `FinancialAccount` — deliberately NOT
+    // `ExpenseService.recordExpense`: a produced batch becomes `FeedStock`, a real inventory asset
+    // (mirrors `PurchaseService.createPurchase`'s own Inventory-debit treatment for a
     // Medicine/FeedItem/Equipment purchase), not a consumed expense — booking it as an expense
     // would double-count once real feed-consumption costing exists. RAKHAL-393 (closes RD-066):
-    // `financialAccountId` now comes straight from the frontend's `AccountPicker` — the
-    // `resolveFinancialAccountId` "oldest active account of that type" stopgap is deleted.
-    // Always paid in full immediately, same as V1 (no partial-payment/Payable concept existed
-    // for this route before, and none is added now).
-    const INVENTORY_LEDGER_CODE = '1200';
-    let financeResult: { journalTransactionId: string } | null = null;
-    if (row.kind === 'FEED_MIXTURE' && deductions.unlinkedCostTk > 0) {
-      await this.financialAccountService.assertAccountActive(
-        farmId,
-        financialAccountId!,
-      );
-      const account = await this.prisma.financialAccount.findFirstOrThrow({
-        where: { id: financialAccountId, farmId },
-        select: { ledgerAccountId: true },
-      });
-      const inventoryAccount = await this.ledgerAccountService.findByCode(
-        farmId,
-        INVENTORY_LEDGER_CODE,
-      );
-      if (!inventoryAccount) {
-        throw new BadRequestException(
-          'Inventory ledger account is not seeded for this farm',
-        );
-      }
-      const posted = await this.journalService.postJournal({
-        farmId,
-        sourceType: 'FEED_MIXTURE_FINALIZE',
-        sourceId: row.id,
-        transactionDate: new Date(),
-        description: `TMR finalize: ${row.name}`,
-        idempotencyKey: `feed-mixture-finalize:${row.id}:${randomUUID()}`,
-        createdById: userId,
-        entries: [
-          {
-            ledgerAccountId: inventoryAccount.id,
-            debit: deductions.unlinkedCostTk,
-          },
-          {
-            ledgerAccountId: account.ledgerAccountId,
-            credit: deductions.unlinkedCostTk,
-          },
-        ],
-      });
-      financeResult = { journalTransactionId: posted.id };
-    }
-
+    // `financialAccountId` comes straight from the frontend's `AccountPicker`. Always paid in
+    // full immediately (no partial-payment/Payable concept exists for this route).
     if (row.kind === 'FEED_MIXTURE') {
       stock = await this.prisma.$transaction(async (tx) => {
         await this.applyBatchDeductions(farmId, userId, tx, deductions);

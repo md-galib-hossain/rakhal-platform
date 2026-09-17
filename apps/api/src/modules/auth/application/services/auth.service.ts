@@ -609,7 +609,15 @@ export class AuthService {
     );
 
     if (!isValid) {
-      const nextFailedAttempts = user.failedLoginAttempts + 1;
+      // RD-043: age the streak over the configured window instead of accumulating forever — a
+      // failure older than `windowSeconds` starts a fresh streak (1) rather than incrementing.
+      const windowExpired =
+        !!user.lastFailedLoginAt &&
+        Date.now() - user.lastFailedLoginAt.getTime() >
+          this.config.lockout.windowSeconds * 1000;
+      const nextFailedAttempts = windowExpired
+        ? 1
+        : user.failedLoginAttempts + 1;
       await this.handleFailedLogin(user.id, nextFailedAttempts, context);
       throw new UnauthorizedException('Invalid credentials');
     }

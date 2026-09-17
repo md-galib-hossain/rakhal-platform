@@ -224,6 +224,8 @@ describe('Feed Formulator — batch-link deduction + finance split on finalize (
     const finalized = await request(server())
       .post(api(`/feed/concentrations/${templateId}/finalize`))
       .set(...auth(owner))
+      // RAKHAL-428: 10kg @ 10/kg unlinked cost now requires a financialAccountId.
+      .send({ financialAccountId })
       .expect(201);
     const promotedIngredientId = finalized.body.data.ingredient.id as string;
     const stockId = finalized.body.data.stock.id as string;
@@ -265,6 +267,8 @@ describe('Feed Formulator — batch-link deduction + finance split on finalize (
     const sourceFinalized = await request(server())
       .post(api(`/feed/concentrations/${source.body.data.id}/finalize`))
       .set(...auth(owner))
+      // RAKHAL-428: 20kg @ 10/kg unlinked cost now requires a financialAccountId.
+      .send({ financialAccountId })
       .expect(201);
     const sourcePromotedIngredientId = sourceFinalized.body.data.ingredient
       .id as string;
@@ -300,5 +304,106 @@ describe('Feed Formulator — batch-link deduction + finance split on finalize (
       sourceAfter.body.data as Array<{ id: string; current_stock_kg: number }>
     ).find((s) => s.id === sourceStockId);
     expect(sourceRow?.current_stock_kg).toBe(13);
+  });
+
+  it('RAKHAL-428 (closes RD-090): a Concentrate Mixer with real unlinked cost requires financialAccountId and posts a journal, same as a TMR', async () => {
+    const ingredient = await createIngredient('E2E RD-090 Ingredient', 10);
+
+    const template = await request(server())
+      .post(api('/feed/concentrations'))
+      .set(...auth(owner))
+      .send({
+        kind: 'CONCENTRATE_TEMPLATE',
+        name: `E2E RD-090 Template ${Date.now()}`,
+        items: [{ ingredientId: ingredient, amountKg: 4 }],
+      })
+      .expect(201);
+
+    // No financialAccountId — 4kg * 10/kg = 40 unlinked cost, must be blocked.
+    const blocked = await request(server())
+      .post(api(`/feed/concentrations/${template.body.data.id}/finalize`))
+      .set(...auth(owner));
+    expect(blocked.status).toBe(400);
+    expect((blocked.body as { message?: string }).message).toContain(
+      'financialAccountId',
+    );
+    const noStock = await prisma.feedStock.count({
+      where: { sourceConcentrationId: template.body.data.id },
+    });
+    expect(noStock).toBe(0);
+
+    const finalized = await request(server())
+      .post(api(`/feed/concentrations/${template.body.data.id}/finalize`))
+      .set(...auth(owner))
+      .send({ financialAccountId })
+      .expect(201);
+
+    expect(finalized.body.data.stock.produced_cost_tk).toBe(40);
+    expect(finalized.body.data.finance).not.toBeNull();
+
+    const journalTransactionId = finalized.body.data.finance
+      .journal_transaction_id as string;
+    const entries = await prisma.journalEntry.findMany({
+      where: { journalTransactionId },
+    });
+    const totalCredit = entries.reduce((sum, e) => sum + Number(e.credit), 0);
+    const totalDebit = entries.reduce((sum, e) => sum + Number(e.debit), 0);
+    expect(totalCredit).toBe(40);
+    expect(totalDebit).toBe(40);
+  });
+
+  it('RAKHAL-428: an all-linked Concentrate Mixer still needs no financialAccountId and posts no journal', async () => {
+    const sourceIngredient = await createIngredient(
+      'E2E RD-090 All-Linked Source Ingredient',
+      10,
+    );
+    const source = await request(server())
+      .post(api('/feed/concentrations'))
+      .set(...auth(owner))
+      .send({
+        kind: 'CONCENTRATE_TEMPLATE',
+        name: `E2E RD-090 All-Linked Source ${Date.now()}`,
+        items: [{ ingredientId: sourceIngredient, amountKg: 10 }],
+      })
+      .expect(201);
+    const sourceFinalized = await request(server())
+      .post(api(`/feed/concentrations/${source.body.data.id}/finalize`))
+      .set(...auth(owner))
+      .send({ financialAccountId })
+      .expect(201);
+    const sourcePromotedIngredientId = sourceFinalized.body.data.ingredient
+      .id as string;
+    const sourceStockId = sourceFinalized.body.data.stock.id as string;
+
+    const feedItem = await createIngredient(
+      'E2E RD-090 All-Linked FeedItem Ingredient',
+      999, // deliberately wrong catalogue price — proves the real batch cost wins
+    );
+    const feedItemId = await createFeedItem(feedItem, 20, 6);
+
+    const consumer = await request(server())
+      .post(api('/feed/concentrations'))
+      .set(...auth(owner))
+      .send({
+        kind: 'CONCENTRATE_TEMPLATE',
+        name: `E2E RD-090 All-Linked Consumer ${Date.now()}`,
+        items: [
+          {
+            ingredientId: sourcePromotedIngredientId,
+            amountKg: 3,
+            feedStockId: sourceStockId,
+          },
+          { ingredientId: feedItem, amountKg: 2, feedItemId },
+        ],
+      })
+      .expect(201);
+
+    const finalized = await request(server())
+      .post(api(`/feed/concentrations/${consumer.body.data.id}/finalize`))
+      .set(...auth(owner))
+      // No financialAccountId — every line is batch-linked, nothing to purchase.
+      .expect(201);
+
+    expect(finalized.body.data.finance).toBeNull();
   });
 });

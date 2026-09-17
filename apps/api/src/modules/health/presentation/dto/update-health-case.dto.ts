@@ -7,9 +7,9 @@ import {
   IsString,
 } from 'class-validator';
 import {
+  HealthCareType,
   HealthCaseStatus,
   HealthCondition,
-  HealthDiagnosisType,
   HealthPriority,
 } from '@prisma/client';
 import { trimString } from './common.dto';
@@ -18,15 +18,15 @@ export class UpdateHealthCaseDto {
   @IsOptional()
   @Transform(trimString)
   @IsString()
-  diagnosis?: string;
+  note?: string;
 
   @IsOptional()
   @IsEnum(HealthCondition)
   condition?: HealthCondition;
 
   @IsOptional()
-  @IsEnum(HealthDiagnosisType)
-  diagnosisType?: HealthDiagnosisType;
+  @IsEnum(HealthCareType)
+  careType?: HealthCareType;
 
   @IsOptional()
   @IsEnum(HealthPriority)

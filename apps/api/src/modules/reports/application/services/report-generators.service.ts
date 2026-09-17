@@ -275,7 +275,7 @@ export class ReportGeneratorsService {
       this.prisma.calvingEvent.count({ where: { cattleId: cattle.id } }),
       this.prisma.healthCase.findMany({
         where: { cattleId: cattle.id, deletedAt: null },
-        select: { diagnosis: true, startDate: true, status: true },
+        select: { note: true, startDate: true, status: true },
         orderBy: { startDate: 'desc' },
         take: 20,
       }),
@@ -290,7 +290,7 @@ export class ReportGeneratorsService {
       .sort((a, b) => a[0] - b[0])
       .map(([year, total]) => [`Lifetime yield ${year}`, this.round(total)]);
     const healthRows = cases.map((c) => [
-      `Health: ${c.diagnosis} (${c.status})`,
+      `Health: ${c.note ?? 'Health issue'} (${c.status})`,
       this.dateLabel(c.startDate),
     ]);
 
@@ -595,7 +595,7 @@ export class ReportGeneratorsService {
         meatWithdrawalUntil: true,
         status: true,
         cattle: { select: { tagNumber: true, name: true } },
-        healthCase: { select: { diagnosis: true } },
+        healthCase: { select: { note: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 500,
@@ -603,7 +603,7 @@ export class ReportGeneratorsService {
     const rows = events.map((e) => [
       e.cattle.tagNumber,
       e.cattle.name ?? '',
-      e.healthCase?.diagnosis ?? '',
+      e.healthCase?.note ?? '',
       this.dateLabel(e.createdAt),
       e.milkWithdrawalUntil ? this.dateLabel(e.milkWithdrawalUntil) : '',
       e.meatWithdrawalUntil ? this.dateLabel(e.meatWithdrawalUntil) : '',
@@ -1364,7 +1364,7 @@ export class ReportGeneratorsService {
           ? {
               OR: [
                 {
-                  diagnosis: {
+                  note: {
                     contains: params.search,
                     mode: 'insensitive' as const,
                   },
@@ -1381,8 +1381,8 @@ export class ReportGeneratorsService {
       },
       select: {
         caseCode: true,
-        diagnosis: true,
-        diagnosisType: true,
+        note: true,
+        careType: true,
         priority: true,
         status: true,
         startDate: true,
@@ -1398,8 +1398,8 @@ export class ReportGeneratorsService {
       c.caseCode,
       c.cattle.tagNumber,
       c.cattle.name ?? '',
-      c.diagnosis,
-      c.diagnosisType,
+      c.note,
+      c.careType,
       c.priority,
       c.status,
       c.shedName ?? '',
@@ -1530,7 +1530,7 @@ export class ReportGeneratorsService {
           ],
         },
         select: {
-          diagnosis: true,
+          note: true,
           priority: true,
           status: true,
           startDate: true,
@@ -1698,7 +1698,7 @@ export class ReportGeneratorsService {
       ],
       columns: ['Diagnosis', 'Priority', 'Status', 'Started', 'Closed'],
       rows: healthCases.map((c) => [
-        c.diagnosis,
+        c.note,
         c.priority,
         c.status,
         this.dateLabel(c.startDate),

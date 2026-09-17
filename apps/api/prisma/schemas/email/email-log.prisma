@@ -25,7 +25,7 @@ model EmailLog {
   to       String
   subject  String
   template EmailTemplate
-  status   EmailStatus @default(QUEUED)
+  status   EmailStatus   @default(QUEUED)
 
   /// Idempotency anchor for transactional emails (RAKHAL-238). A stable key per
   /// (event, entity) makes a replayed trigger a no-op — the unique index is the
@@ -38,8 +38,8 @@ model EmailLog {
   farmId   String?
   userId   String?
 
-  retries      Int      @default(0)
-  errorMessage String?
+  retries       Int     @default(0)
+  errorMessage  String?
   correlationId String?
 
   scheduledAt DateTime?

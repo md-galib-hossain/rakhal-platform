@@ -3,7 +3,6 @@ import {
   IsDateString,
   IsEnum,
   IsInt,
-  IsNotEmpty,
   IsOptional,
   IsString,
   Min,
@@ -12,8 +11,8 @@ import {
 import {
   AppetiteStatus,
   BreedingMethod,
+  HealthCareType,
   HealthCondition,
-  HealthDiagnosisType,
   HealthPriority,
 } from '@prisma/client';
 import { trimString } from './common.dto';
@@ -67,17 +66,17 @@ export class IntakeLactationDto {
  * an intake declaration, not the full Report Sickness form).
  */
 export class IntakeHealthConditionDto {
+  @IsOptional()
   @Transform(trimString)
   @IsString()
-  @IsNotEmpty()
-  diagnosis!: string;
+  note?: string;
 
   @IsOptional()
   @IsEnum(HealthCondition)
   condition?: HealthCondition;
 
-  @IsEnum(HealthDiagnosisType)
-  diagnosisType!: HealthDiagnosisType;
+  @IsEnum(HealthCareType)
+  careType!: HealthCareType;
 
   @IsEnum(HealthPriority)
   priority!: HealthPriority;

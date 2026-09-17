@@ -3,14 +3,17 @@ model HealthCase {
   farmId   String
   cattleId String
 
-  caseCode      String
-  diagnosis     String
-  /// RAKHAL-275: structured condition bucket, additive/nullable — `diagnosis`
-  /// stays the free-text detail field (required for OTHER too).
-  condition     HealthCondition?
-  diagnosisType HealthDiagnosisType
-  priority      HealthPriority
-  status        HealthCaseStatus    @default(ACTIVE)
+  caseCode  String
+  /// RAKHAL-418: was the required free-text `diagnosis` field. `condition` (below) is now the
+  /// primary structured classifier; `note` is optional detail alongside it, not the sole record.
+  note      String?
+  /// RAKHAL-275: structured condition bucket, additive/nullable.
+  condition HealthCondition?
+  /// RAKHAL-418: replaces `diagnosisType` (`HealthDiagnosisType`, 8 values) — every reader outside
+  /// Health only needed CURATIVE vs PREVENTIVE.
+  careType  HealthCareType
+  priority  HealthPriority
+  status    HealthCaseStatus @default(ACTIVE)
 
   shedId   String?
   shedName String?
@@ -57,7 +60,7 @@ model HealthCase {
   @@unique([farmId, caseCode])
   @@index([farmId, cattleId])
   @@index([farmId, status])
-  @@index([farmId, diagnosis])
+  @@index([farmId, note])
   @@index([farmId, condition])
   @@index([farmId, priority])
   @@index([farmId, startDate])
@@ -87,9 +90,9 @@ model HealthPlan {
   farm    Farm @relation("FarmToHealthPlan", fields: [farmId], references: [id])
   creator User @relation("HealthPlanCreator", fields: [createdBy], references: [id])
 
-  steps HealthPlanStep[]
-  cases HealthCase[]
-  tasks HealthTask[]
+  steps            HealthPlanStep[]
+  cases            HealthCase[]
+  tasks            HealthTask[]
   planApplications PlanApplication[]
   planEnrollments  PlanEnrollment[]
 
@@ -128,14 +131,14 @@ model HealthPlanStep {
 }
 
 model HealthTask {
-  id           String  @id @default(cuid())
-  farmId       String
-  cattleId     String
+  id               String  @id @default(cuid())
+  farmId           String
+  cattleId         String
   /// RAKHAL-415: nullable — a task from a preventive `PlanApplication` round carries
   /// `planEnrollmentId` instead and has no `HealthCase` at all. Exactly one of the two is set.
   healthCaseId     String?
   planEnrollmentId String?
-  healthPlanId String?
+  healthPlanId     String?
 
   taskCode    String
   taskDate    DateTime
@@ -165,11 +168,11 @@ model HealthTask {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  farm           Farm             @relation("FarmToHealthTask", fields: [farmId], references: [id])
-  cattle         Cattle           @relation(fields: [cattleId], references: [id])
-  healthCase     HealthCase?      @relation(fields: [healthCaseId], references: [id])
-  planEnrollment PlanEnrollment?  @relation(fields: [planEnrollmentId], references: [id])
-  healthPlan     HealthPlan?      @relation(fields: [healthPlanId], references: [id])
+  farm           Farm            @relation("FarmToHealthTask", fields: [farmId], references: [id])
+  cattle         Cattle          @relation(fields: [cattleId], references: [id])
+  healthCase     HealthCase?     @relation(fields: [healthCaseId], references: [id])
+  planEnrollment PlanEnrollment? @relation(fields: [planEnrollmentId], references: [id])
+  healthPlan     HealthPlan?     @relation(fields: [healthPlanId], references: [id])
 
   treatmentLogs TreatmentLog[]
 

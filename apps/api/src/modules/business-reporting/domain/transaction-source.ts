@@ -45,6 +45,10 @@ export const TRANSACTION_SOURCE_REGISTRY: Record<
     label: 'Feed Mixture',
     buildHref: (id) => `/feed/formulator/${id}`,
   },
+  FEED_CONCENTRATE_FINALIZE: {
+    label: 'Concentrate Mixer',
+    buildHref: (id) => `/feed/formulator/${id}`,
+  },
 };
 
 /**

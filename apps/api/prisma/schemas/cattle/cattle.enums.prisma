@@ -4,7 +4,6 @@ enum CattleGender {
   CASTRATED_MALE
 }
 
-
 /// RAKHAL-397 (ADR-024): renamed from `CattleStatus`. Pure herd-membership
 /// state — never a record-deletion concept. `ARCHIVED` was dropped (that was
 /// always record-level deletion, now `Cattle.deletedAt`); `DEAD` renamed to

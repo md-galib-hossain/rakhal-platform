@@ -1,6 +1,7 @@
 ﻿import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
+import { seededCashAccountId } from './utils/finance';
 
 /**
  * RD-003 — cross-batch dose splitting. `MedicineService.decrementForTreatment`'s
@@ -20,6 +21,7 @@ describe('Medicine — cross-batch dose splitting (e2e)', () => {
   let prisma: PrismaService;
   let owner: AuthedUser;
   let ownerUserId: string;
+  let financialAccountId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -37,6 +39,7 @@ describe('Medicine — cross-batch dose splitting (e2e)', () => {
       select: { id: true },
     });
     ownerUserId = user.id;
+    financialAccountId = await seededCashAccountId(ctx, owner);
   }, 30_000);
 
   afterAll(async () => {
@@ -85,8 +88,8 @@ describe('Medicine — cross-batch dose splitting (e2e)', () => {
       .set(...auth(owner))
       .send({
         cattleId,
-        diagnosis: 'RD-003 e2e case',
-        diagnosisType: 'DISEASE',
+        note: 'RD-003 e2e case',
+        careType: 'CURATIVE',
         priority: 'MEDIUM',
       })
       .expect(201);
@@ -109,6 +112,7 @@ describe('Medicine — cross-batch dose splitting (e2e)', () => {
         doseUnit: 'ml',
         route: 'IM',
         stockDeductionQuantity: 12,
+        financialAccountId,
       })
       .expect(201);
 

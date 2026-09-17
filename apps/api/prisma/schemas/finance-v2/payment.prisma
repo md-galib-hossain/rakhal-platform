@@ -56,7 +56,7 @@ model FinancePayment {
   /// (`FINANCE_V2_DESIGN.md` §6).
   financialAccountId String
 
-  amount Decimal @db.Decimal(18, 2)
+  amount Decimal       @db.Decimal(18, 2)
   method PaymentMethod
 
   transactionDate DateTime
@@ -106,7 +106,7 @@ model PaymentAllocation {
   receivableId String?
   /// Real FK to `Payable` (RAKHAL-348) — nullable because a row may instead
   /// carry `receivableId`.
-  payableId String?
+  payableId    String?
 
   /// The portion of the parent `FinancePayment.amount` allocated to this
   /// document. `SUM(amount)` across a payment's allocations can never

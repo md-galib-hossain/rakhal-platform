@@ -6,9 +6,9 @@
 /// No `Farm` relation (matches `EmailLog`'s existing farmId-only style, no
 /// FK required for this kind of ephemeral bookkeeping row).
 model IdempotencyKey {
-  id     String @id @default(cuid())
-  farmId String
-  key    String
+  id       String @id @default(cuid())
+  farmId   String
+  key      String
   /// The route this key is scoped to (e.g. "reproduction.createBreedingEvent")
   /// — the same key string reused across two different endpoints must not
   /// collide.

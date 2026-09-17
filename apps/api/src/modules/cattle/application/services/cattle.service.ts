@@ -379,9 +379,9 @@ export class CattleService {
               farmId,
               cattleId: cattle.id,
               caseCode,
-              diagnosis: dto.intakeHealthCondition.diagnosis,
+              note: dto.intakeHealthCondition.note,
               condition: dto.intakeHealthCondition.condition,
-              diagnosisType: dto.intakeHealthCondition.diagnosisType,
+              careType: dto.intakeHealthCondition.careType,
               priority: dto.intakeHealthCondition.priority,
               startDate: new Date(),
               symptoms: [],
@@ -1634,7 +1634,7 @@ export class CattleService {
     return {
       active_cases: activeCases.map((c) => ({
         id: c.id,
-        diagnosis: c.diagnosis,
+        diagnosis: c.note,
         priority: c.priority,
         status: c.status,
         opened_at: c.startDate.toISOString().slice(0, 10),
@@ -1644,7 +1644,7 @@ export class CattleService {
       })),
       treatment_history: closedCases.map((c) => ({
         id: c.id,
-        diagnosis: c.diagnosis,
+        diagnosis: c.note,
         status: c.status,
         opened_at: c.startDate.toISOString().slice(0, 10),
         closed_at: c.closedDate?.toISOString().slice(0, 10) ?? null,
@@ -1844,7 +1844,7 @@ export class CattleService {
       } | null;
       healthCases?: {
         status: string;
-        diagnosisType: string;
+        careType: string;
       }[];
       lactations?: { startDate: Date }[];
       heatEvents?: { heatDateTime: Date }[];
@@ -2046,16 +2046,20 @@ export class CattleService {
         };
       case 'SICK':
       case 'IN_TREATMENT':
-        // RAKHAL-415: the old `diagnosisType: { notIn: PREVENTIVE_DIAGNOSIS_TYPES }` filter is
-        // gone — a preventive plan-apply no longer creates a `HealthCase` at all, so nothing needs
-        // filtering out going forward. The explicit `deletedAt: null` here is load-bearing, not
-        // decorative: this migration's backfill soft-deletes the *historical* preventive cases
-        // rather than deleting them outright (reversibility), so without this check those old rows
-        // would resurface a cow as SICK the moment the diagnosisType filter stopped excluding them.
+        // RAKHAL-415: a preventive plan-apply no longer creates a `HealthCase` at all, so bulk
+        // preventive rounds need no filtering here. But `careType: 'CURATIVE'` (RAKHAL-418's
+        // replacement for the old `diagnosisType: { notIn: PREVENTIVE_DIAGNOSIS_TYPES }`) is still
+        // load-bearing: a case can still be reported directly with `careType: 'PREVENTIVE'` (Report
+        // Sickness lets the reporter pick either), and that must not read the cow as SICK — same
+        // reasoning `deriveHealthStatus()` already applies. The explicit `deletedAt: null` is
+        // separately load-bearing: this migration's backfill soft-deletes *historical* preventive
+        // cases rather than deleting them outright (reversibility), so without this check those old
+        // rows would resurface a cow as SICK once nothing else excludes them.
         return {
           healthCases: {
             some: {
               deletedAt: null,
+              careType: 'CURATIVE',
               status: { in: OPEN_HEALTH_CASE_STATUSES },
             },
           },
@@ -2065,6 +2069,7 @@ export class CattleService {
           healthCases: {
             none: {
               deletedAt: null,
+              careType: 'CURATIVE',
               status: { in: OPEN_HEALTH_CASE_STATUSES },
             },
           },
@@ -2301,7 +2306,7 @@ export class CattleService {
         where: { status: { in: OPEN_HEALTH_CASE_STATUSES } },
         select: {
           status: true,
-          diagnosisType: true,
+          careType: true,
           isSafetyWithholdingActive: true,
           milkWithdrawalUntil: true,
         },

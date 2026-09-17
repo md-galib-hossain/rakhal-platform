@@ -30,7 +30,7 @@ model MediaAsset {
   originalByteSize  Int
   processedByteSize Int?
   /// sha256 of the original bytes — dedupe / integrity / audit.
-  sha256 String
+  sha256            String
 
   deletedAt       DateTime?
   deletedByUserId String?

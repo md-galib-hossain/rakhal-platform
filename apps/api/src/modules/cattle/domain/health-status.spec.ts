@@ -3,15 +3,15 @@ import { deriveHealthStatus, OpenHealthCaseInput } from './health-status';
 describe('deriveHealthStatus', () => {
   const activeCase: OpenHealthCaseInput = {
     status: 'ACTIVE',
-    diagnosisType: 'DISEASE',
+    careType: 'CURATIVE',
   };
   const treatingCase: OpenHealthCaseInput = {
     status: 'IMPROVING',
-    diagnosisType: 'DISEASE',
+    careType: 'CURATIVE',
   };
   const vaccinationCase: OpenHealthCaseInput = {
     status: 'ACTIVE',
-    diagnosisType: 'VACCINATION',
+    careType: 'PREVENTIVE',
   };
 
   it('returns HEALTHY when there are no open cases', () => {

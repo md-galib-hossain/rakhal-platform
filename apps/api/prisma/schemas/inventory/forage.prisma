@@ -21,8 +21,8 @@ model FeedItem {
   ingredientId String?
 
   /// Unit catalog (RAKHAL-326) — replaces the old free-text `unit` string.
-  unitId String
-  unit   Unit   @relation(fields: [unitId], references: [id])
+  unitId            String
+  unit              Unit   @relation(fields: [unitId], references: [id])
   kgPerUnit         Float? // kg per unit (for bag → kg display)
   currentStock      Float  @default(0)
   costPerUnit       Float
@@ -36,18 +36,18 @@ model FeedItem {
 
   deletedAt DateTime?
   createdBy String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   farm       Farm            @relation("FarmToForage", fields: [farmId], references: [id])
   creator    User            @relation("ForageCreator", fields: [createdBy], references: [id])
   ingredient FeedIngredient? @relation(fields: [ingredientId], references: [id])
 
-  stockMovements FeedItemStockMovement[]
-  inventorySaleLines InventorySaleLine[] @relation("FeedItemToInventorySaleLine")
+  stockMovements     FeedItemStockMovement[]
+  inventorySaleLines InventorySaleLine[]     @relation("FeedItemToInventorySaleLine")
   /// Back-relation for `PurchaseLine.feedItemId` (RAKHAL-348, `purchasing/**`) —
   /// every purchase line that restocked this feed item.
-  purchaseLines PurchaseLine[] @relation("FeedItemToPurchaseLine")
+  purchaseLines      PurchaseLine[]          @relation("FeedItemToPurchaseLine")
 
   @@index([farmId])
   @@index([feedClass])

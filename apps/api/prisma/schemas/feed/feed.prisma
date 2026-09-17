@@ -21,19 +21,19 @@ model FeedIngredient {
   /// 100% of crude protein, partitioning CP into rumen-degradable/undegradable
   /// fractions), never confuse the two bases when computing a kg contribution
   /// (`formula-math.ts` derives `rdp_kg`/`rup_kg` off `cp_kg`, not `dm_kg`).
-  dmPct        Float // Dry Matter %
-  cpPct        Float // Crude Protein % of DM
-  rdpPct       Float? // Rumen-Degradable Protein, % of CP
-  rupPct       Float? // Rumen-Undegradable Protein, % of CP
-  meMjPerKgDm  Float // Metabolizable Energy (MJ/kg DM)
-  fatPct       Float? // Ether Extract, % of DM
-  starchPct    Float? // % of DM
-  ndfPct       Float? // Neutral Detergent Fiber, % of DM
-  adfPct       Float? // Acid Detergent Fiber, % of DM
-  calciumPct   Float? // % of DM
+  dmPct         Float // Dry Matter %
+  cpPct         Float // Crude Protein % of DM
+  rdpPct        Float? // Rumen-Degradable Protein, % of CP
+  rupPct        Float? // Rumen-Undegradable Protein, % of CP
+  meMjPerKgDm   Float // Metabolizable Energy (MJ/kg DM)
+  fatPct        Float? // Ether Extract, % of DM
+  starchPct     Float? // % of DM
+  ndfPct        Float? // Neutral Detergent Fiber, % of DM
+  adfPct        Float? // Acid Detergent Fiber, % of DM
+  calciumPct    Float? // % of DM
   phosphorusPct Float? // % of DM
-  tdnPct       Float? // Total Digestible Nutrients, % of DM
-  sugarsPct    Float?
+  tdnPct        Float? // Total Digestible Nutrients, % of DM
+  sugarsPct     Float?
 
   /// Structured provenance (RAKHAL-329, additive — replaces the old free-text field, renamed
   /// below to `nutritionSourceNote` and kept for existing citations like "INRA 2018/NRC 2001").
@@ -42,11 +42,11 @@ model FeedIngredient {
   nutritionSource     NutritionSource @default(REFERENCE)
   nutritionSourceNote String? // e.g. INRA 2018 / NRC 2001 / BAU
   sourceRef           String? // lab report id/date, manufacturer spec sheet ref, etc.
-  currentPricePerKg Float // Tk/kg, Admin-updated weekly
-  priceUpdatedAt    DateTime?
+  currentPricePerKg   Float // Tk/kg, Admin-updated weekly
+  priceUpdatedAt      DateTime?
 
-  isAvailableBd   Boolean @default(true)
-  isSystemDefault Boolean @default(false)
+  isAvailableBd   Boolean   @default(true)
+  isSystemDefault Boolean   @default(false)
   deletedAt       DateTime?
 
   /// Farm-added "quick" ingredient (frontend "Add Custom Ingredient", RAKHAL-feed-custom): `null`
@@ -101,26 +101,26 @@ model FeedIngredientOverride {
 
   /// null on any field = fall through to the Admin/standard value. Basis matches
   /// `FeedIngredient`'s doc comment (rdp/rup = % of CP, everything else = % of DM).
-  customPricePerKg Float?
-  customDmPct      Float?
-  customCpPct      Float?
-  customMeMjPerKgDm Float?
-  customFatPct     Float?
-  customNdfPct     Float?
-  customRdpPct       Float?
-  customRupPct       Float?
-  customStarchPct    Float?
-  customAdfPct       Float?
-  customCalciumPct   Float?
+  customPricePerKg    Float?
+  customDmPct         Float?
+  customCpPct         Float?
+  customMeMjPerKgDm   Float?
+  customFatPct        Float?
+  customNdfPct        Float?
+  customRdpPct        Float?
+  customRupPct        Float?
+  customStarchPct     Float?
+  customAdfPct        Float?
+  customCalciumPct    Float?
   customPhosphorusPct Float?
-  customTdnPct       Float?
+  customTdnPct        Float?
   /// RAKHAL-329: this override's own provenance, ranked against the catalogue row's
   /// `nutritionSource` by `resolveEffective()`. Null = not specified (treated as absent,
   /// not as REFERENCE — an override with no stated source shouldn't outrank a catalogue
   /// row that explicitly says LAB).
-  nutritionSource NutritionSource?
-  sourceRef       String?
-  notes            String?
+  nutritionSource     NutritionSource?
+  sourceRef           String?
+  notes               String?
 
   createdBy String
   createdAt DateTime @default(now())
@@ -151,11 +151,11 @@ model FeedConcentration {
   /// fed to a cow/group.
   kind FeedConcentrationKind
 
-  name          String
-  durationDays  Int?
-  targetType    FeedTargetType @default(GROUP)
-  feedGroupId   String?
-  cattleId      String?
+  name           String
+  durationDays   Int?
+  targetType     FeedTargetType @default(GROUP)
+  feedGroupId    String?
+  cattleId       String?
   targetWeightKg Float?
   targetMilkL    Float?
 
@@ -169,8 +169,8 @@ model FeedConcentration {
 
   deletedAt DateTime?
   createdBy String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   farm                Farm                       @relation("FarmToFeedConcentration", fields: [farmId], references: [id])
   items               FeedConcentrationItem[]
@@ -240,25 +240,25 @@ model FeedConcentrationItem {
 model FeedDistribution {
   id String @id @default(cuid())
 
-  farmId          String
+  farmId                 String
   /// Nullable as of 2026-08-13 (user request — "quick-feed" a raw single item without wrapping
   /// it in a fake 1-ingredient Concentration). Null iff `sourceType=QUICK_FEED`.
-  concentrationId String?
+  concentrationId        String?
   /// Which snapshot of the concentration was live when this was logged (see
   /// `FeedConcentrationVersion`). Null = either no version has ever been saved for this
   /// concentration (matches current live state) or this is a `QUICK_FEED` row.
   concentrationVersionId String?
   /// CONCENTRATION = normal TMR "Feed Today" flow; QUICK_FEED = single raw item fed directly,
   /// no Concentration involved (2026-08-13).
-  sourceType FeedDistributionSourceType @default(CONCENTRATION)
+  sourceType             FeedDistributionSourceType @default(CONCENTRATION)
   /// Denormalized from the concentration at log time — exactly one of these two is set, matching
   /// the source TMR's own `targetType` (GROUP → `feedGroupId`, INDIVIDUAL → `cattleId`, HERD →
   /// neither). Added 2026-07-18 (Phase 12.4, user request — "feed a single cow, not just a
   /// group") alongside `feedGroupId`, which predates this and was the only target this model
   /// supported until now. For `QUICK_FEED` rows these are set directly from the quick-feed
   /// target choice, not denormalized from any concentration.
-  feedGroupId String?
-  cattleId    String?
+  feedGroupId            String?
+  cattleId               String?
 
   distributedAt DateTime /// the day the feed was distributed
 
@@ -274,8 +274,8 @@ model FeedDistribution {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  farm       Farm                          @relation("FarmToFeedDistribution", fields: [farmId], references: [id])
-  items      FeedDistributionItem[]
+  farm        Farm                         @relation("FarmToFeedDistribution", fields: [farmId], references: [id])
+  items       FeedDistributionItem[]
   cattleItems FeedDistributionCattleItem[]
 
   @@index([farmId])
@@ -335,11 +335,25 @@ model FeedDistributionCattleItem {
   id             String @id @default(cuid())
   distributionId String
 
-  cattleId String
+  cattleId  String
   /// What was **offered** to this cow, not what she actually ate — a real farm can't reliably
   /// measure per-cow intake, only what was put in front of her (2026-08-15 rename from
   /// `quantityKg`, user request — the field/API/UI must never imply "consumed").
   offeredKg Float
+
+  /// RAKHAL-429 (Feeding Favourites, `docs/EPIC_FEEDING_FAVOURITES.md`): this cow's own source for
+  /// this confirm — nullable because rows created before this ticket only ever had one source at
+  /// the parent `FeedDistribution` level (read that instead for those). RAKHAL-430 onward, every
+  /// row set here going forward, even on a single-source confirm — this is what "own last-used"
+  /// (RAKHAL-431) reads from.
+  sourceType  FeedGridSourceType?
+  feedItemId  String?
+  feedStockId String?
+  /// Snapshot of the cow's `feedGroupId` at confirm time, same convention as
+  /// `FeedFeedingDraft.feedGroupId`'s own doc comment — not re-derived later. RAKHAL-431's
+  /// group-change guard compares this against the cow's *current* group; a cow moved to a
+  /// different group since must not inherit this row as "own last-used."
+  feedGroupId String?
 
   distribution FeedDistribution @relation(fields: [distributionId], references: [id], onDelete: Cascade)
 

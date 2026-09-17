@@ -54,8 +54,8 @@ model Task {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  farm       Farm            @relation("FarmToTask", fields: [farmId], references: [id])
-  assignedTo User?           @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  farm       Farm           @relation("FarmToTask", fields: [farmId], references: [id])
+  assignedTo User?          @relation("TaskAssignee", fields: [assignedToId], references: [id])
   cattles    TaskCattle[]
   history    TaskAuditLog[]
 
@@ -72,12 +72,12 @@ model Task {
 /// `TaskService#present` via a batched `User` lookup, same shape as the cow-name join. CREATED is
 /// never stored here (see `TaskAuditAction`'s own doc comment).
 model TaskAuditLog {
-  id        String           @id @default(cuid())
+  id        String          @id @default(cuid())
   taskId    String
   action    TaskAuditAction
   actorId   String?
   note      String?
-  createdAt DateTime         @default(now())
+  createdAt DateTime        @default(now())
 
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
 

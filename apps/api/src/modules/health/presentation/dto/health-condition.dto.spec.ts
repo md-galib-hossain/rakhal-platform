@@ -6,14 +6,15 @@ import { UpdateHealthCaseDto } from './update-health-case.dto';
 
 /**
  * RAKHAL-275 — `HealthCase.condition` is a new optional, structured field
- * layered alongside the existing free-text `diagnosis`. These tests only
- * cover the new `condition` validator wiring on the create/update DTOs.
+ * layered alongside the free-text `note` (RAKHAL-418: was the required
+ * `diagnosis`). These tests only cover the new `condition` validator wiring
+ * on the create/update DTOs.
  */
 describe('CreateHealthCaseDto — condition', () => {
   const base = {
     cattleId: 'cattle-1',
-    diagnosis: 'Mastitis in left quarter',
-    diagnosisType: 'DISEASE',
+    note: 'Mastitis in left quarter',
+    careType: 'CURATIVE',
     priority: 'MEDIUM',
   };
 

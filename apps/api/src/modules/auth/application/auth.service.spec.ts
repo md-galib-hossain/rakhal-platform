@@ -21,6 +21,7 @@ describe('AuthService', () => {
     lockout: {
       maxFailedAttempts: 5,
       durationSeconds: 900,
+      windowSeconds: 900,
     },
   } as const;
 
@@ -206,6 +207,42 @@ describe('AuthService', () => {
       expect.objectContaining({
         userId: 'user-1',
         failedLoginAttempts: 2,
+        reason: 'invalid-password',
+      }),
+    );
+  });
+
+  it('RD-043: resets the failed-attempt streak to 1 once the lockout window has elapsed', async () => {
+    authRepository.findUserByEmail.mockResolvedValue({
+      id: 'user-1',
+      email: 'alice@example.com',
+      name: 'Alice',
+      passwordHash: 'hashed-password',
+      isEmailVerified: true,
+      isBlocked: false,
+      failedLoginAttempts: 4,
+      lastFailedLoginAt: new Date(Date.now() - 901_000), // just past the 900s window
+      lockedUntil: null,
+      permissionsVersion: 3,
+      deletedAt: null,
+    });
+    passwordService.verifyPassword.mockResolvedValue(false);
+    authRepository.recordFailedLoginAttempt.mockResolvedValue(undefined);
+
+    await expect(
+      service.loginWithContext({
+        email: 'alice@example.com',
+        password: 'wrong-password',
+        farmId: 'farm-1',
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    // A stale streak starts over at 1, not 5 (which would have locked the account).
+    expect(authRepository.recordFailedLoginAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        failedLoginAttempts: 1,
+        lockedUntil: null,
         reason: 'invalid-password',
       }),
     );

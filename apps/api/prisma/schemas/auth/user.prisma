@@ -13,7 +13,11 @@ model User {
   phoneVerifiedAt DateTime?
   isBlocked       Boolean   @default(false)
 
-  failedLoginAttempts Int @default(0)
+  failedLoginAttempts Int       @default(0)
+  /// RD-043 — timestamp of the most recent failed-password attempt. `handleFailedLogin` uses it
+  /// to age `failedLoginAttempts` over `AUTH_LOCKOUT_WINDOW_SECONDS`: a failure older than the
+  /// window resets the streak to 1 instead of accumulating forever.
+  lastFailedLoginAt   DateTime?
 
   lockedUntil DateTime?
 
@@ -37,24 +41,24 @@ model User {
 
   mfa UserMFA?
 
-  ownedFarms          Farm[]       @relation("FarmOwner")
-  farmMembers         FarmMember[]
-  sentFarmInvitations FarmMember[] @relation("FarmInvitations")
-  auditLogs           AuditLog[]   @relation("UserToAuditLog")
-  createdCattle       Cattle[]     @relation("CattleCreator")
-  createdHealthPlans  HealthPlan[] @relation("HealthPlanCreator")
-  appliedPlanApplications PlanApplication[] @relation("PlanApplicationApplier")
-  createdMedicines    Medicine[]   @relation("MedicineCreator")
-  createdForages      FeedItem[]   @relation("ForageCreator")
-  createdSemenTanks   SemenTank[]  @relation("SemenTankCreator")
-  createdSemenBatches SemenBatch[] @relation("SemenBatchCreator")
-  createdMilkTanks    MilkTank[]   @relation("MilkTankCreator")
-  createdEquipment    Equipment[]  @relation("EquipmentCreator")
-  activityLogs        ActivityLog[] @relation("UserToActivityLog")
-  assignedTasks       Task[]       @relation("TaskAssignee")
-  responsibleForSheds Shed[]       @relation("ShedResponsible")
-  createdFixedAssets  FixedAsset[] @relation("FixedAssetCreator")
-  sentInvitations     FarmInvitation[] @relation("UserSentInvitations")
+  ownedFarms              Farm[]                   @relation("FarmOwner")
+  farmMembers             FarmMember[]
+  sentFarmInvitations     FarmMember[]             @relation("FarmInvitations")
+  auditLogs               AuditLog[]               @relation("UserToAuditLog")
+  createdCattle           Cattle[]                 @relation("CattleCreator")
+  createdHealthPlans      HealthPlan[]             @relation("HealthPlanCreator")
+  appliedPlanApplications PlanApplication[]        @relation("PlanApplicationApplier")
+  createdMedicines        Medicine[]               @relation("MedicineCreator")
+  createdForages          FeedItem[]               @relation("ForageCreator")
+  createdSemenTanks       SemenTank[]              @relation("SemenTankCreator")
+  createdSemenBatches     SemenBatch[]             @relation("SemenBatchCreator")
+  createdMilkTanks        MilkTank[]               @relation("MilkTankCreator")
+  createdEquipment        Equipment[]              @relation("EquipmentCreator")
+  activityLogs            ActivityLog[]            @relation("UserToActivityLog")
+  assignedTasks           Task[]                   @relation("TaskAssignee")
+  responsibleForSheds     Shed[]                   @relation("ShedResponsible")
+  createdFixedAssets      FixedAsset[]             @relation("FixedAssetCreator")
+  sentInvitations         FarmInvitation[]         @relation("UserSentInvitations")
   notifications           Notification[]           @relation("UserToNotification")
   notificationPreferences NotificationPreference[] @relation("UserToNotificationPreference")
   notificationSetting     NotificationSetting?     @relation("UserToNotificationSetting")

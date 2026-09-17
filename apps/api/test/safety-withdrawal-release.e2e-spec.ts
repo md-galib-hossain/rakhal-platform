@@ -19,8 +19,7 @@ describe('Health — SafetyWithdrawal release flow (RAKHAL-276)', () => {
   let prisma: PrismaService;
   let owner: AuthedUser;
   let worker: AuthedUser;
-  let cattleId: string;
-  let healthCaseId: string;
+  let ownerUserId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -29,39 +28,50 @@ describe('Health — SafetyWithdrawal release flow (RAKHAL-276)', () => {
   const api = (p: string): string => `${ctx.prefix}${p}`;
   const server = () => ctx.app.getHttpServer();
 
-  beforeAll(async () => {
-    ctx = await createTestApp();
-    prisma = ctx.app.get(PrismaService);
-    owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
-    worker = await loginAs(ctx, 'worker@demo.rakhal.test', 'DemoPass123');
-    const ownerUser = await prisma.user.findFirstOrThrow({
-      where: { email: 'owner@demo.rakhal.test' },
-      select: { id: true },
-    });
-
+  /**
+   * RD-094: every test used to share one `cattleId`/`healthCaseId` from `beforeAll`, with no
+   * per-test cleanup of the `SafetyWithdrawal` rows each test created — a later test's milk-tank
+   * assertion could read `tankLocked: true` from an earlier test's still-active withdrawal on that
+   * same cow, not its own. Giving each test its own cow (mirrors
+   * `medicine-cross-batch-decrement.e2e-spec.ts`'s `createCow()` pattern) makes every test's tank
+   * state provably its own — no shared row, nothing to leak across tests.
+   */
+  async function createCowWithHealthCase() {
     const cow = await prisma.cattle.create({
       data: {
         farmId: owner.farmId,
-        tagNumber: `E2E-RAKHAL276-${Date.now()}`,
+        tagNumber: `E2E-RAKHAL276-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         gender: 'FEMALE',
         productionStatus: 'MILKING',
-        createdBy: ownerUser.id,
+        createdBy: ownerUserId,
       },
     });
-    cattleId = cow.id;
 
     const healthCase = await prisma.healthCase.create({
       data: {
         farmId: owner.farmId,
-        cattleId,
-        caseCode: `HC-E2E-RAKHAL276-${Date.now()}`,
-        diagnosis: 'Mastitis under antibiotic treatment',
-        diagnosisType: 'DISEASE',
+        cattleId: cow.id,
+        caseCode: `HC-E2E-RAKHAL276-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        note: 'Mastitis under antibiotic treatment',
+        careType: 'CURATIVE',
         priority: 'HIGH',
-        reportedBy: ownerUser.id,
+        reportedBy: ownerUserId,
       },
     });
-    healthCaseId = healthCase.id;
+
+    return { cattleId: cow.id, healthCaseId: healthCase.id };
+  }
+
+  beforeAll(async () => {
+    ctx = await createTestApp();
+    prisma = ctx.app.get(PrismaService);
+    owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
+    worker = await loginAs(ctx, 'worker@demo.rakhal.test', 'WorkerPass123');
+    const ownerUser = await prisma.user.findFirstOrThrow({
+      where: { email: 'owner@demo.rakhal.test' },
+      select: { id: true },
+    });
+    ownerUserId = ownerUser.id;
   }, 30_000);
 
   afterAll(async () => {
@@ -69,6 +79,7 @@ describe('Health — SafetyWithdrawal release flow (RAKHAL-276)', () => {
   });
 
   it('a past-due, unreleased withdrawal still blocks milk sale (no silent auto-release on a plain GET)', async () => {
+    const { cattleId, healthCaseId } = await createCowWithHealthCase();
     const pastDue = new Date(Date.now() - 24 * 60 * 60 * 1000); // yesterday
     const withdrawal = await prisma.safetyWithdrawal.create({
       data: {
@@ -101,6 +112,7 @@ describe('Health — SafetyWithdrawal release flow (RAKHAL-276)', () => {
   });
 
   it('the daily sweep (not a read) transitions ACTIVE + past-due to READY_FOR_RELEASE', async () => {
+    const { cattleId, healthCaseId } = await createCowWithHealthCase();
     const pastDue = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const withdrawal = await prisma.safetyWithdrawal.create({
       data: {
@@ -124,6 +136,7 @@ describe('Health — SafetyWithdrawal release flow (RAKHAL-276)', () => {
   });
 
   it('releaseWithdrawal is the only path to RELEASED, and clears milk withholding', async () => {
+    const { cattleId, healthCaseId } = await createCowWithHealthCase();
     const pastDue = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const withdrawal = await prisma.safetyWithdrawal.create({
       data: {
@@ -152,6 +165,7 @@ describe('Health — SafetyWithdrawal release flow (RAKHAL-276)', () => {
   });
 
   it('releasing an already-RELEASED withdrawal is idempotent', async () => {
+    const { cattleId, healthCaseId } = await createCowWithHealthCase();
     const withdrawal = await prisma.safetyWithdrawal.create({
       data: {
         farmId: owner.farmId,
@@ -177,6 +191,7 @@ describe('Health — SafetyWithdrawal release flow (RAKHAL-276)', () => {
   });
 
   it('worker RBAC: cannot release a withdrawal', async () => {
+    const { cattleId, healthCaseId } = await createCowWithHealthCase();
     const withdrawal = await prisma.safetyWithdrawal.create({
       data: {
         farmId: owner.farmId,

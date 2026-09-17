@@ -33,8 +33,8 @@ model SupportFeedback {
 model TrialGrant {
   id String @id @default(cuid())
 
-  userId  String @unique
-  farmId  String
+  userId    String   @unique
+  farmId    String
   grantedAt DateTime @default(now())
 }
 

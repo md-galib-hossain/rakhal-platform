@@ -43,7 +43,7 @@ model Payable {
   purchaseId String? @unique
   /// The `Expense` this payable was raised for, if any. Real FK — exactly
   /// one of `purchaseId`/`expenseId` is set.
-  expenseId String? @unique
+  expenseId  String? @unique
 
   /// See this model's own doc comment above — real FK to `Supplier`.
   supplierId String?

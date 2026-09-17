@@ -170,8 +170,8 @@ describe('Health — auto-close on protocol completion (RAKHAL-417)', () => {
       .set(...auth(owner))
       .send({
         cattleId,
-        diagnosis: 'E2E hand-opened case',
-        diagnosisType: 'DISEASE',
+        note: 'E2E hand-opened case',
+        careType: 'CURATIVE',
         priority: 'LOW',
       });
     expect(caseRes.status).toBe(201);

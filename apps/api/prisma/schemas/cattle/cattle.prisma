@@ -10,7 +10,7 @@ model Cattle {
   breedId     String?
   gender      CattleGender
   dateOfBirth DateTime?
-  herdStatus  HerdStatus    @default(ACTIVE)
+  herdStatus  HerdStatus   @default(ACTIVE)
   shedId      String?
 
   feedGroupId String?
@@ -48,59 +48,59 @@ model Cattle {
   /// (`herdStatus` change) — it is deleted only when a duplicate/mistaken
   /// entry needs removing. Active-herd membership is
   /// `herdStatus == ACTIVE && deletedAt == null` (see `domain/herd-scope.ts`).
-  deletedAt   DateTime?
-  deletedById String?
+  deletedAt     DateTime?
+  deletedById   String?
   /// Set when this animal exits the herd via a SALE `CattleDisposition`
   /// (RAKHAL-344, `FINANCE_V2_DESIGN.md` §1.1/§5.1). Null until sold.
   soldAt        DateTime?
   /// The `CattleDisposition` row that sold/disposed this animal (SALE/DEATH/
   /// CULL/TRANSFER). Null until `CattleService.recordDisposition()` runs.
-  dispositionId String? @unique
-  createdBy String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  dispositionId String?   @unique
+  createdBy     String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   farm      Farm       @relation("FarmToCattle", fields: [farmId], references: [id])
   breed     Breed?     @relation(fields: [breedId], references: [id])
   shed      Shed?      @relation(fields: [shedId], references: [id])
   feedGroup FeedGroup? @relation(fields: [feedGroupId], references: [id])
-  creator User   @relation("CattleCreator", fields: [createdBy], references: [id])
+  creator   User       @relation("CattleCreator", fields: [createdBy], references: [id])
 
   mother   Cattle?  @relation("CattleMother", fields: [motherId], references: [id])
   motherOf Cattle[] @relation("CattleMother")
   father   Cattle?  @relation("CattleFather", fields: [fatherId], references: [id])
   fatherOf Cattle[] @relation("CattleFather")
 
-  reproductionProfile ReproductionProfile?
-  heatEvents          HeatEvent[]
-  breedingEvents      BreedingEvent[]      @relation("BreedingEventCattle")
-  breedingAsBull      BreedingEvent[]      @relation("BreedingEventBull")
-  pregnancyDiagnoses  PregnancyDiagnosis[]
-  pregnancies         Pregnancy[]
-  calvingEvents       CalvingEvent[]
-  abortionEvents      AbortionEvent[]
-  dryPeriods          DryPeriod[]
-  lactations          Lactation[]
-  calfBirths          CalfBirth[]          @relation("CattleCalfBirth")
+  reproductionProfile    ReproductionProfile?
+  heatEvents             HeatEvent[]
+  breedingEvents         BreedingEvent[]         @relation("BreedingEventCattle")
+  breedingAsBull         BreedingEvent[]         @relation("BreedingEventBull")
+  pregnancyDiagnoses     PregnancyDiagnosis[]
+  pregnancies            Pregnancy[]
+  calvingEvents          CalvingEvent[]
+  abortionEvents         AbortionEvent[]
+  dryPeriods             DryPeriod[]
+  lactations             Lactation[]
+  calfBirths             CalfBirth[]             @relation("CattleCalfBirth")
   calfColostrumRecords   CalfColostrumRecord[]
   calfMilkFeedings       CalfMilkFeeding[]
   calfWeightRecords      CalfWeightRecord[]
   calfStarterFeedRecords CalfStarterFeedRecord[]
   calfWeaningRecord      CalfWeaningRecord?
-  milkLogEntries      MilkLogEntry[]
-  milkQualityTests    MilkQualityTest[]
-  healthCases         HealthCase[]
-  healthTasks         HealthTask[]
-  planEnrollments     PlanEnrollment[]
-  treatmentLogs       TreatmentLog[]
-  healthUpdates       HealthUpdate[]
-  mortalityRecords    MortalityRecord[]
-  safetyWithdrawals   SafetyWithdrawal[]
-  bcsRecords          BodyConditionScore[]
-  weightRecords       WeightRecord[]
-  animalSaleLines     AnimalSaleLine[]      @relation("CattleToAnimalSaleLine")
-  dispositions        CattleDisposition[]   @relation("CattleToCattleDisposition")
-  disposition         CattleDisposition?    @relation("CattleDispositionRecord", fields: [dispositionId], references: [id])
+  milkLogEntries         MilkLogEntry[]
+  milkQualityTests       MilkQualityTest[]
+  healthCases            HealthCase[]
+  healthTasks            HealthTask[]
+  planEnrollments        PlanEnrollment[]
+  treatmentLogs          TreatmentLog[]
+  healthUpdates          HealthUpdate[]
+  mortalityRecords       MortalityRecord[]
+  safetyWithdrawals      SafetyWithdrawal[]
+  bcsRecords             BodyConditionScore[]
+  weightRecords          WeightRecord[]
+  animalSaleLines        AnimalSaleLine[]        @relation("CattleToAnimalSaleLine")
+  dispositions           CattleDisposition[]     @relation("CattleToCattleDisposition")
+  disposition            CattleDisposition?      @relation("CattleDispositionRecord", fields: [dispositionId], references: [id])
 
   @@unique([farmId, tagNumber])
   @@index([farmId])
@@ -119,7 +119,7 @@ model Cattle {
 /// (`cattle.farmId`), matching the calf sub-record pattern in `calf.prisma`.
 /// The latest score is denormalized to `Cattle.lastBcs`.
 model BodyConditionScore {
-  id     String @id @default(cuid())
+  id       String @id @default(cuid())
   cattleId String
 
   score        Float
@@ -161,8 +161,8 @@ model Breed {
   name        String
   description String?
   deletedAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   farm   Farm     @relation("FarmToBreed", fields: [farmId], references: [id])
   cattle Cattle[]
@@ -195,23 +195,31 @@ model Shed {
 }
 
 model FeedGroup {
-  id          String  @id @default(cuid())
-  farmId      String
-  name        String
-  description String?
+  id                     String              @id @default(cuid())
+  farmId                 String
+  name                   String
+  description            String?
   /// Refusal-rate target, % of planned kg (e.g. 3.0). Null = no target configured. Per-group,
   /// not farm-wide — fresh/high-producing groups intentionally run higher refusal than late-
   /// lactation groups (2026-08-13, feeding-system upgrade).
-  refusalTargetPct Float?
+  refusalTargetPct       Float?
   /// Default recipe (user request 2026-08-14 — "pre-define the feed to feed groups... so all
   /// inputs will be filled, just submit to record the feeding"). Plain validated FK to a
   /// `FeedConcentration` (`kind: FEED_MIXTURE`, GROUP-targeted at this group), not a Prisma
   /// relation — same "no cross-module coupling" convention `FeedConcentration.feedGroupId` already
   /// uses. Null = no default set, "Feed Today" still requires manually picking a TMR.
   defaultConcentrationId String?
-  deletedAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  /// RAKHAL-429/433 (Feeding Favourites, `docs/EPIC_FEEDING_FAVOURITES.md`): the group's default
+  /// **feeding-grid** source — separate from `defaultConcentrationId` above, which stays reserved
+  /// for "Feed Today" (`LogDistributionDialog`) and is TMR-only (`settings.service.ts` validates
+  /// it as such). This is the bottom rung of the resolution ladder (own last-used → this → none)
+  /// RAKHAL-431 reads. Null = no group default set.
+  defaultFeedSourceType  FeedGridSourceType?
+  defaultFeedItemId      String?
+  defaultFeedStockId     String?
+  deletedAt              DateTime?
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
 
   farm   Farm     @relation("FarmToFeedGroup", fields: [farmId], references: [id])
   cattle Cattle[]

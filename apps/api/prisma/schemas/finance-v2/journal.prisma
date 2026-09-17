@@ -83,7 +83,7 @@ model JournalEntry {
   createdAt DateTime @default(now())
 
   journalTransaction JournalTransaction @relation(fields: [journalTransactionId], references: [id])
-  ledgerAccount       LedgerAccount     @relation(fields: [ledgerAccountId], references: [id])
+  ledgerAccount      LedgerAccount      @relation(fields: [ledgerAccountId], references: [id])
 
   @@index([journalTransactionId])
   @@index([ledgerAccountId])

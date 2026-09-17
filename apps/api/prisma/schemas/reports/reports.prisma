@@ -64,9 +64,9 @@ model ReportSchedule {
 
   reportId String /// catalogue id, must be a known report
   format   ReportFormat
-  params   Json @default("{}")
+  params   Json         @default("{}")
 
-  frequency ReportScheduleFrequency
+  frequency  ReportScheduleFrequency
   /// 1-7 (Mon-Sun) for WEEKLY, 1-28 for MONTHLY; ignored for DAILY.
   dayOfWeek  Int?
   dayOfMonth Int?

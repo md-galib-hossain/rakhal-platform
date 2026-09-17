@@ -7,9 +7,9 @@ model ScoreboardParticipation {
   id     String @id @default(cuid())
   farmId String @unique
 
-  joinedAt       DateTime @default(now())
+  joinedAt        DateTime @default(now())
   acceptedTermsAt DateTime
-  joinedBy       String
+  joinedBy        String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -9,9 +9,10 @@ import {
   CattleDispositionType,
   ClinicalProgress,
   ExpenseCategory,
+  HealthCareType,
   HealthCaseStatus,
   HealthCloseOutcome,
-  HealthDiagnosisType,
+  HealthCondition,
   HealthPlan,
   HealthPlanCategory,
   HealthPlanStep,
@@ -35,11 +36,11 @@ import { CattleService } from 'src/modules/cattle/application/services/cattle.se
 import { ExpenseService } from 'src/modules/purchasing/application/expense.service';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { NotificationService } from 'src/modules/notification/application/services/notification.service';
-import { isPreventiveDiagnosisType } from 'src/modules/cattle/domain/health-status';
 import {
   ApplyHealthPlanDto,
   CloseHealthCaseDto,
   CreateHealthUpdateDto,
+  LogTaskTreatmentDto,
   LogTreatmentDto,
   MortalityDto,
   RecordTreatmentDto,
@@ -69,20 +70,15 @@ const ACTIVE_CASE_STATUSES = [
   HealthCaseStatus.STABLE,
 ];
 
-/** Mirrors the frontend's `CATEGORY_TO_DIAGNOSIS_TYPE` (`apply-health-plan-dialog.tsx`) — the
- * bulk-apply case (RAKHAL-414) needs the same mapping server-side instead of trusting a
- * client-supplied `diagnosisType` for a case it creates on the caller's behalf. */
-const PLAN_CATEGORY_TO_DIAGNOSIS_TYPE: Record<
-  HealthPlanCategory,
-  HealthDiagnosisType
-> = {
-  TREATMENT: HealthDiagnosisType.DISEASE,
-  PREVENTION: HealthDiagnosisType.PREVENTIVE,
-  BREEDING: HealthDiagnosisType.BREEDING_RELATED,
-  VACCINATION: HealthDiagnosisType.VACCINATION,
-  DEWORMING: HealthDiagnosisType.DEWORMING,
-  ROUTINE: HealthDiagnosisType.ROUTINE_CHECKUP,
-};
+/** RAKHAL-418: only `TREATMENT` plans are curative — every other category (PREVENTION/BREEDING/
+ * VACCINATION/DEWORMING/ROUTINE) is preventive care. Replaces the old 8-value
+ * `PLAN_CATEGORY_TO_DIAGNOSIS_TYPE` map (`isPreventiveDiagnosisType` did the same yes/no reduction
+ * one step later); a plain equality check is now the whole routing decision. */
+function careTypeForPlanCategory(category: HealthPlanCategory): HealthCareType {
+  return category === HealthPlanCategory.TREATMENT
+    ? HealthCareType.CURATIVE
+    : HealthCareType.PREVENTIVE;
+}
 
 /**
  * Healthcare service (PRD §13). Farm-scoped: `farmId` is supplied by the
@@ -152,13 +148,18 @@ export class HealthService {
           dueDateTime: { lt: now },
         },
       }),
+      // RAKHAL-418: `note` is optional free text now (a poor groupBy key — mostly null or
+      // one-row-per-string); `condition` is the real structured bucket this breakdown wants.
+      // Response field stays named `diagnosis` (zero frontend blast radius — `types.ts`'s
+      // `diseaseBreakdown: { diagnosis, count }[]` is unchanged), only its source improves.
       this.prisma.healthCase.groupBy({
-        by: ['diagnosis'],
+        by: ['condition'],
         where: {
           farmId,
           deletedAt: null,
+          condition: { not: null },
         },
-        _count: { diagnosis: true },
+        _count: { condition: true },
       }),
       this.prisma.healthCase.groupBy({
         by: ['shedName'],
@@ -193,8 +194,8 @@ export class HealthService {
       safetyWithdrawalCount,
       morbidityTrend: this.groupByDay(trendRows.map((row) => row.startDate)),
       diseaseBreakdown: diseaseRows.map((row) => ({
-        diagnosis: row.diagnosis,
-        count: row._count.diagnosis,
+        diagnosis: this.describeCondition(row.condition!),
+        count: row._count.condition,
       })),
       shedWiseHealth: shedRows.map((row) => ({
         shedName: row.shedName ?? 'Unassigned',
@@ -206,36 +207,50 @@ export class HealthService {
   }
 
   async getSickBay(farmId: string, query: SickBayQueryDto) {
+    // RAKHAL-418: `diagnosis` now needs its own `OR` (note contains, or condition label matches)
+    // alongside `search`'s existing `OR` — two `where.OR` keys on one object would silently
+    // clobber each other, so both live as `AND`-ed `OR` groups instead.
+    const andClauses: Prisma.HealthCaseWhereInput[] = [];
+    if (query.search) {
+      andClauses.push({
+        OR: [
+          { note: { contains: query.search, mode: 'insensitive' } },
+          { caseCode: { contains: query.search, mode: 'insensitive' } },
+          {
+            cattle: {
+              tagNumber: { contains: query.search, mode: 'insensitive' },
+            },
+          },
+          {
+            cattle: {
+              name: { contains: query.search, mode: 'insensitive' },
+            },
+          },
+        ],
+      });
+    }
+    if (query.diagnosis) {
+      const matchingConditions = this.matchConditionLabels(query.diagnosis);
+      andClauses.push({
+        OR: [
+          { note: { contains: query.diagnosis, mode: 'insensitive' } },
+          ...(matchingConditions.length
+            ? [{ condition: { in: matchingConditions } }]
+            : []),
+        ],
+      });
+    }
+
     const where: Prisma.HealthCaseWhereInput = {
       farmId,
       deletedAt: null,
       status: query.status ?? { in: ACTIVE_CASE_STATUSES },
-      ...(query.search
-        ? {
-            OR: [
-              { diagnosis: { contains: query.search, mode: 'insensitive' } },
-              { caseCode: { contains: query.search, mode: 'insensitive' } },
-              {
-                cattle: {
-                  tagNumber: { contains: query.search, mode: 'insensitive' },
-                },
-              },
-              {
-                cattle: {
-                  name: { contains: query.search, mode: 'insensitive' },
-                },
-              },
-            ],
-          }
-        : {}),
       ...(query.shed
         ? { shedName: { contains: query.shed, mode: 'insensitive' } }
         : {}),
-      ...(query.diagnosis
-        ? { diagnosis: { contains: query.diagnosis, mode: 'insensitive' } }
-        : {}),
       ...(query.priority ? { priority: query.priority } : {}),
       ...(query.cattleId ? { cattleId: query.cattleId } : {}),
+      ...(andClauses.length ? { AND: andClauses } : {}),
     };
 
     const rows = await this.prisma.healthCase.findMany({
@@ -266,18 +281,27 @@ export class HealthService {
     const cattle = await this.assertCattleInFarm(farmId, dto.cattleId);
     if (dto.shedId) await this.assertShedInFarm(farmId, dto.shedId);
 
-    const duplicate = await this.prisma.healthCase.findFirst({
-      where: {
-        farmId,
-        cattleId: dto.cattleId,
-        diagnosis: { equals: dto.diagnosis, mode: 'insensitive' },
-        status: { in: ACTIVE_CASE_STATUSES },
-      },
-    });
-    if (duplicate) {
-      throw new ConflictException(
-        'Active health case already exists for this diagnosis',
-      );
+    // RAKHAL-418: `note` is now optional, so the old `equals: dto.diagnosis` filter (always
+    // present) can't drive the duplicate check unconditionally — matching on an absent field would
+    // match every active case for the animal, not the one with the same complaint. Prefer the
+    // structured `condition` when given (it's the more reliable identity for "same ailment");
+    // fall back to `note` text; skip the check entirely when neither is provided.
+    if (dto.condition || dto.note) {
+      const duplicate = await this.prisma.healthCase.findFirst({
+        where: {
+          farmId,
+          cattleId: dto.cattleId,
+          status: { in: ACTIVE_CASE_STATUSES },
+          ...(dto.condition
+            ? { condition: dto.condition }
+            : { note: { equals: dto.note, mode: 'insensitive' } }),
+        },
+      });
+      if (duplicate) {
+        throw new ConflictException(
+          'Active health case already exists for this diagnosis',
+        );
+      }
     }
 
     const healthCase = await this.createCaseWithCode(farmId, (caseCode) => ({
@@ -285,9 +309,9 @@ export class HealthService {
         farmId,
         cattleId: dto.cattleId,
         caseCode,
-        diagnosis: dto.diagnosis,
+        note: dto.note,
         condition: dto.condition,
-        diagnosisType: dto.diagnosisType,
+        careType: dto.careType,
         priority: dto.priority,
         shedId: dto.shedId ?? cattle.shedId,
         shedName: dto.shedName,
@@ -327,7 +351,11 @@ export class HealthService {
       });
     }
 
-    if (!isPreventiveDiagnosisType(dto.diagnosisType)) {
+    // RAKHAL-418: `dto.note` is now optional — every message below that used to quote it verbatim
+    // falls back to a condition label or a generic phrase via `caseDescription()`.
+    const description = this.caseDescription(dto);
+
+    if (dto.careType === HealthCareType.CURATIVE) {
       // AQR: Animal Sickness Reported (−10) + immutable Activity Log entry.
       await this.aqrService.applyEvent(
         farmId,
@@ -335,7 +363,7 @@ export class HealthService {
         'sickness_reported',
         {
           actorId: userId,
-          actionDetails: `Sickness reported for [${cattle.tagNumber}] — ${dto.diagnosis}.`,
+          actionDetails: `Sickness reported for [${cattle.tagNumber}] — ${description}.`,
         },
       );
 
@@ -347,7 +375,7 @@ export class HealthService {
         farmId,
         createdBy: userId,
         name: `Review reported sickness — ${cattle.tagNumber}`,
-        details: `Sickness reported for [${cattle.name ?? cattle.tagNumber}] (${cattle.tagNumber}) — ${dto.diagnosis}. Priority: ${dto.priority}.`,
+        details: `Sickness reported for [${cattle.name ?? cattle.tagNumber}] (${cattle.tagNumber}) — ${description}. Priority: ${dto.priority}.`,
         category: TaskCategory.HEALTHCARE,
         priority: this.toTaskPriority(dto.priority),
         dueAt: new Date(),
@@ -358,11 +386,11 @@ export class HealthService {
         farmId,
         eventKey: 'animal_sickness_reported',
         title: 'Animal Sickness Reported',
-        message: `${cattle.name ?? cattle.tagNumber} (${cattle.tagNumber}) — ${dto.diagnosis} reported (priority: ${dto.priority}).`,
+        message: `${cattle.name ?? cattle.tagNumber} (${cattle.tagNumber}) — ${description} reported (priority: ${dto.priority}).`,
         params: {
           name: cattle.name ?? cattle.tagNumber,
           tagNumber: cattle.tagNumber,
-          diagnosis: dto.diagnosis,
+          diagnosis: description,
           priority: dto.priority,
         },
         link: `/healthcare/cases/${healthCase.id}`,
@@ -378,7 +406,7 @@ export class HealthService {
         'preventive_care_logged',
         {
           actorId: userId,
-          actionDetails: `Preventive care logged for [${cattle.tagNumber}] — ${dto.diagnosis}.`,
+          actionDetails: `Preventive care logged for [${cattle.tagNumber}] — ${description}.`,
         },
       );
     }
@@ -402,6 +430,40 @@ export class HealthService {
       case HealthPriority.LOW:
         return TaskPriority.LOW;
     }
+  }
+
+  /** RAKHAL-418: `condition` has no backend label map (labels are an i18n/frontend concern) — this
+   * derives a readable form from the enum key itself ("MILK_FEVER" -> "Milk Fever") for the two
+   * places that need one server-side: the sick-bay `diagnosis` search filter and the dashboard's
+   * disease-breakdown labels. */
+  private describeCondition(condition: HealthCondition): string {
+    return condition
+      .toLowerCase()
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
+
+  /** `HealthCondition` values whose readable label contains `search` (case-insensitive) — backs
+   * `GET /health/sick-bay?diagnosis=`'s "filters ... the condition label" requirement. */
+  private matchConditionLabels(search: string): HealthCondition[] {
+    const needle = search.trim().toLowerCase();
+    if (!needle) return [];
+    return Object.values(HealthCondition).filter((condition) =>
+      this.describeCondition(condition).toLowerCase().includes(needle),
+    );
+  }
+
+  /** RAKHAL-418: `note` is now optional free text — messages/AQR trails that used to quote the
+   * required `diagnosis` verbatim need a fallback when a case is reported with only a structured
+   * `condition` (or, in principle, neither). */
+  private caseDescription(dto: {
+    note?: string;
+    condition?: HealthCondition;
+  }): string {
+    if (dto.note?.trim()) return dto.note.trim();
+    if (dto.condition) return this.describeCondition(dto.condition);
+    return 'health issue';
   }
 
   /**
@@ -486,9 +548,9 @@ export class HealthService {
     const updated = await this.prisma.healthCase.update({
       where: { id },
       data: {
-        diagnosis: dto.diagnosis,
+        note: dto.note,
         condition: dto.condition,
-        diagnosisType: dto.diagnosisType,
+        careType: dto.careType,
         priority: dto.priority,
         status: dto.status,
         assignedVet: dto.assignedVet,
@@ -616,20 +678,14 @@ export class HealthService {
     }
 
     const startDate = dto.startDate ? new Date(dto.startDate) : new Date();
-    const diagnosisType = PLAN_CATEGORY_TO_DIAGNOSIS_TYPE[plan.category];
+    const careType = careTypeForPlanCategory(plan.category);
 
-    return isPreventiveDiagnosisType(diagnosisType)
-      ? this.applyPreventivePlanToAnimals(
+    return careType === HealthCareType.CURATIVE
+      ? this.applyCurativePlanToAnimals(farmId, plan, cattleRows, startDate)
+      : this.applyPreventivePlanToAnimals(
           farmId,
           userId,
           plan,
-          cattleRows,
-          startDate,
-        )
-      : this.applyCurativePlanToAnimals(
-          farmId,
-          plan,
-          diagnosisType,
           cattleRows,
           startDate,
         );
@@ -640,7 +696,6 @@ export class HealthService {
   private async applyCurativePlanToAnimals(
     farmId: string,
     plan: HealthPlan & { steps: HealthPlanStep[] },
-    diagnosisType: HealthDiagnosisType,
     cattleRows: { id: string; tagNumber: string; shedId: string | null }[],
     startDate: Date,
   ) {
@@ -682,8 +737,8 @@ export class HealthService {
               farmId,
               cattleId: cattle.id,
               caseCode,
-              diagnosis: plan.diagnosis ?? plan.name,
-              diagnosisType,
+              note: plan.diagnosis ?? plan.name,
+              careType: HealthCareType.CURATIVE,
               priority: HealthPriority.LOW,
               shedId: cattle.shedId,
               startDate,
@@ -887,6 +942,35 @@ export class HealthService {
     const medicineId = dto.medicineId ?? task?.medicineId ?? undefined;
     const medicineName = dto.medicineName ?? task?.medicineName ?? undefined;
     const quantity = dto.stockDeductionQuantity ?? dto.doseAmount ?? undefined;
+
+    // RAKHAL-419: resolve the treatment's cost from the medicine's own
+    // costPerUnit — a treatment with no medicine, or a free one, posts
+    // nothing to Finance and needs no financialAccountId. RD-095 (closes the
+    // gap `logTaskTreatment` already fixed on itself): resolved — and
+    // required — BEFORE decrementing stock whenever `medicineId` is known
+    // upfront, so a rejected 400 here never leaves a real stock decrement
+    // committed with no rollback. Only defers (resolving from
+    // `deduction.medicineId` after the decrement, the old ordering) when the
+    // caller gave just `medicineName` with no id — the real batch isn't
+    // known until `decrementForTreatment` itself picks one.
+    let resolvedCost = 0;
+    if (medicineId) {
+      const medicine = await this.prisma.medicine.findFirst({
+        where: { id: medicineId, farmId, deletedAt: null },
+        select: { costPerUnit: true },
+      });
+      if (quantity && quantity > 0) {
+        resolvedCost = medicine?.costPerUnit
+          ? medicine.costPerUnit * quantity
+          : 0;
+      }
+    }
+    if (resolvedCost > 0 && !dto.financialAccountId) {
+      throw new BadRequestException(
+        'financialAccountId is required when a treatment cost is being recorded',
+      );
+    }
+
     const deduction =
       quantity && quantity > 0 && (medicineId || medicineName)
         ? await this.medicineService.decrementForTreatment(farmId, userId, {
@@ -897,11 +981,7 @@ export class HealthService {
           })
         : null;
 
-    // RAKHAL-419: resolve the treatment's cost from the medicine's own
-    // costPerUnit — a treatment with no medicine, or a free one, posts
-    // nothing to Finance and needs no financialAccountId.
-    let resolvedCost = 0;
-    if (deduction) {
+    if (!medicineId && deduction) {
       const medicine = await this.prisma.medicine.findUnique({
         where: { id: deduction.medicineId },
         select: { costPerUnit: true },
@@ -909,11 +989,11 @@ export class HealthService {
       resolvedCost = medicine?.costPerUnit
         ? medicine.costPerUnit * quantity!
         : 0;
-    }
-    if (resolvedCost > 0 && !dto.financialAccountId) {
-      throw new BadRequestException(
-        'financialAccountId is required when a treatment cost is being recorded',
-      );
+      if (resolvedCost > 0 && !dto.financialAccountId) {
+        throw new BadRequestException(
+          'financialAccountId is required when a treatment cost is being recorded',
+        );
+      }
     }
 
     const log = await this.prisma.$transaction(async (tx) => {
@@ -1144,9 +1224,9 @@ export class HealthService {
                 farmId,
                 cattleId: cattle.id,
                 caseCode: await this.nextCaseCode(farmId, tx),
-                diagnosis:
+                note:
                   dto.reason?.trim() || `Quick treatment — ${medicine.name}`,
-                diagnosisType: HealthDiagnosisType.OTHER,
+                careType: HealthCareType.CURATIVE,
                 priority: HealthPriority.LOW,
                 shedId: cattle.shedId,
                 startDate: treatedAt,
@@ -1615,6 +1695,268 @@ export class HealthService {
     return updated;
   }
 
+  /**
+   * RD-093 — `POST /health/tasks/:id/log-treatment`: a caseless (`planEnrollmentId`-only)
+   * `HealthTask`'s only route to a real dose used to be `completeTask` (status flip only — no
+   * medicine, no stock decrement, no cost). This mirrors `logTreatment`'s own shape (resolve
+   * medicine/dose from the DTO or the task's own prefilled values, decrement stock, resolve +
+   * require payment for a real cost) but keyed on the task, not a case, since there is no case.
+   *
+   * `TreatmentLog.healthCaseId`/`SafetyWithdrawal.healthCaseId` both stay required columns (no
+   * schema change here — nothing else in the codebase reads them as optional, and making them
+   * nullable would cascade into how milk-tank-lock state is even computed without a case, well
+   * beyond this ticket's scope). Instead this reuses **`recordTreatment`'s own established
+   * pattern** for exactly this situation (RAKHAL-416's Quick Treat, which is also caseless by
+   * design): reuse an existing open case for the animal if one exists, else create a lightweight
+   * one. The one refinement needed here, since this animal's originating round is preventive, not
+   * curative: the created case carries `careType: PREVENTIVE`, not `CURATIVE` — `cattle.service.ts
+   * #healthStatusWhere`'s SICK/IN_TREATMENT filter only matches `careType: 'CURATIVE'`, so a
+   * PREVENTIVE-careType backing case never makes this animal read as sick, preserving the actual
+   * point of RAKHAL-415 (a preventive round must not manufacture "sick" animals) while still
+   * satisfying `TreatmentLog`'s schema requirement. Reuse is scoped to an open PREVENTIVE case for
+   * this cattle specifically (not any open case) so this never silently attaches a routine dose to
+   * an unrelated curative case the animal happens to have open.
+   *
+   * The task's own `planEnrollmentId` linkage is untouched by this — the created/reused case is
+   * purely a technical backing record for the `TreatmentLog`/`SafetyWithdrawal` audit trail, not a
+   * new "the task belongs to this case" relationship. Progress still tracks on the `PlanEnrollment`
+   * via `updateEnrollmentProgress`, exactly like `completeTask`'s caseless branch already does.
+   */
+  async logTaskTreatment(
+    farmId: string,
+    userId: string,
+    taskId: string,
+    dto: LogTaskTreatmentDto,
+  ) {
+    const task = await this.getTaskOrThrow(farmId, taskId);
+    if (task.healthCaseId) {
+      throw new BadRequestException(
+        'This task belongs to a case — use POST /health/cases/:id/log-treatment instead',
+      );
+    }
+    if (!task.planEnrollmentId) {
+      throw new BadRequestException(
+        'Task has neither a case nor a plan enrollment to log a treatment against',
+      );
+    }
+
+    const cattle = await this.prisma.cattle.findFirst({
+      where: { id: task.cattleId, farmId, deletedAt: null },
+      select: { id: true, tagNumber: true, name: true, shedId: true },
+    });
+    if (!cattle) throw new NotFoundException('Cattle not found');
+
+    const medicineId = dto.medicineId ?? task.medicineId ?? undefined;
+    const medicineName = dto.medicineName ?? task.medicineName ?? undefined;
+    const quantity = dto.stockDeductionQuantity ?? dto.doseAmount ?? undefined;
+
+    // Resolve cost + withdrawal days from the `Medicine` record itself — mirrors
+    // `recordTreatment`'s auto-derivation (Quick Treat), not `logTreatment`'s manual dto-typed
+    // withdrawal days: this route is always driven by a real medicine (the plan step's own
+    // `medicineId`), so there is no reason to make the caller re-type numbers the medicine
+    // already carries. `dto.milkWithdrawalDays`/`meatWithdrawalDays` still work as an explicit
+    // override when given. Also resolved BEFORE decrementing stock whenever `medicineId` is known
+    // upfront, which is the normal case here (a plan step always carries a concrete `medicineId`,
+    // never `medicineName`-only) — stricter than `logTreatment`'s own ordering (RAKHAL-419),
+    // which only resolves cost from `deduction.medicineId` *after* stock is already decremented,
+    // a real pre-existing gap (a rejected call there still silently consumes real inventory, no
+    // rollback) found live while building this route. Not fixed there — filed as new debt
+    // instead, out of this ticket's scope (two already-shipped, separately-tested routes, real
+    // surgery). Fixed here because it costs nothing extra: the id is already known.
+    let resolvedCost = 0;
+    let milkWithdrawalDays: number | undefined;
+    let meatWithdrawalDays: number | undefined;
+    if (medicineId) {
+      const medicine = await this.prisma.medicine.findFirst({
+        where: { id: medicineId, farmId, deletedAt: null },
+        select: {
+          costPerUnit: true,
+          milkWithdrawalDays: true,
+          meatWithdrawalDays: true,
+        },
+      });
+      milkWithdrawalDays = medicine?.milkWithdrawalDays || undefined;
+      meatWithdrawalDays = medicine?.meatWithdrawalDays || undefined;
+      if (quantity && quantity > 0) {
+        resolvedCost = medicine?.costPerUnit
+          ? medicine.costPerUnit * quantity
+          : 0;
+      }
+    }
+    if (resolvedCost > 0 && !dto.financialAccountId) {
+      throw new BadRequestException(
+        'financialAccountId is required when a treatment cost is being recorded',
+      );
+    }
+
+    const deduction =
+      quantity && quantity > 0 && (medicineId || medicineName)
+        ? await this.medicineService.decrementForTreatment(farmId, userId, {
+            medicineId,
+            medicineName,
+            quantity,
+            notes: `Preventive-round treatment for task ${task.taskCode}`,
+          })
+        : null;
+
+    // Rare fallback: only `medicineName` was given (no id resolvable upfront) — the real batch
+    // is only known once `decrementForTreatment` picks one, so this defers exactly like
+    // `logTreatment`'s own check does, with the same known limitation (stock already moved if
+    // this throws). Never hit for a plan-derived task in practice.
+    if (!medicineId && deduction) {
+      const medicine = await this.prisma.medicine.findUnique({
+        where: { id: deduction.medicineId },
+        select: {
+          costPerUnit: true,
+          milkWithdrawalDays: true,
+          meatWithdrawalDays: true,
+        },
+      });
+      resolvedCost = medicine?.costPerUnit
+        ? medicine.costPerUnit * quantity!
+        : 0;
+      milkWithdrawalDays = medicine?.milkWithdrawalDays || undefined;
+      meatWithdrawalDays = medicine?.meatWithdrawalDays || undefined;
+      if (resolvedCost > 0 && !dto.financialAccountId) {
+        throw new BadRequestException(
+          'financialAccountId is required when a treatment cost is being recorded',
+        );
+      }
+    }
+
+    const administeredAt = dto.administeredAt
+      ? new Date(dto.administeredAt)
+      : new Date();
+
+    const { treatmentLog, withdrawal } = await this.prisma.$transaction(
+      async (tx) => {
+        const backingCase =
+          (await tx.healthCase.findFirst({
+            where: {
+              farmId,
+              cattleId: task.cattleId,
+              careType: HealthCareType.PREVENTIVE,
+              status: { in: ACTIVE_CASE_STATUSES },
+            },
+            orderBy: { startDate: 'desc' },
+          })) ??
+          (await tx.healthCase.create({
+            data: {
+              farmId,
+              cattleId: task.cattleId,
+              caseCode: await this.nextCaseCode(farmId, tx),
+              note: task.title || 'Preventive round treatment',
+              careType: HealthCareType.PREVENTIVE,
+              priority: HealthPriority.LOW,
+              shedId: cattle.shedId,
+              startDate: administeredAt,
+            },
+          }));
+
+        const treatmentLog = await tx.treatmentLog.create({
+          data: {
+            farmId,
+            cattleId: task.cattleId,
+            healthCaseId: backingCase.id,
+            healthTaskId: task.id,
+            medicineId: deduction?.medicineId ?? medicineId,
+            medicineName: dto.medicineName ?? task.medicineName,
+            doseAmount: dto.doseAmount ?? task.doseAmount ?? undefined,
+            doseUnit: dto.doseUnit ?? task.doseUnit ?? undefined,
+            route: dto.route ?? task.route ?? undefined,
+            administeredAt,
+            administeredBy: dto.administeredBy ?? userId,
+            stockDeducted: Boolean(deduction),
+            stockDeductionQuantity: deduction
+              ? quantity
+              : dto.stockDeductionQuantity,
+            batchNo: deduction?.batchId ?? dto.batchNo,
+            notes: dto.notes,
+          },
+        });
+
+        await tx.healthTask.update({
+          where: { id: task.id },
+          data: {
+            status: HealthTaskStatus.COMPLETED,
+            completedAt: treatmentLog.administeredAt,
+            completedBy: dto.administeredBy ?? userId,
+          },
+        });
+        await this.updateEnrollmentProgress(tx, task.planEnrollmentId!);
+
+        const withdrawal = await this.createSafetyWithdrawalIfNeeded(
+          tx,
+          backingCase,
+          treatmentLog,
+          {
+            milkWithdrawalDays: dto.milkWithdrawalDays ?? milkWithdrawalDays,
+            meatWithdrawalDays: dto.meatWithdrawalDays ?? meatWithdrawalDays,
+          },
+        );
+
+        return { treatmentLog, withdrawal };
+      },
+    );
+
+    if (resolvedCost > 0) {
+      const posted = await this.expenseService.recordExpense(farmId, userId, {
+        category: ExpenseCategory.HEALTH,
+        description: `Medicine — Task ${task.taskCode}`,
+        amount: resolvedCost,
+        expenseDate: treatmentLog.administeredAt.toISOString(),
+        financialAccountId: dto.financialAccountId!,
+        cattleId: task.cattleId,
+      });
+      await this.prisma.treatmentLog.update({
+        where: { id: treatmentLog.id },
+        data: { financeTransactionId: posted.id },
+      });
+    }
+
+    await this.aqrService.applyEvent(
+      farmId,
+      task.cattleId,
+      'treatment_completed',
+      {
+        actorId: userId,
+        actionDetails: `Preventive-round treatment administered for task [${task.taskCode}].`,
+      },
+    );
+
+    if (withdrawal) {
+      const label = cattle.name ?? cattle.tagNumber;
+      const milkUntil = withdrawal.milkWithdrawalUntil
+        ?.toISOString()
+        .slice(0, 10);
+      const meatUntil = withdrawal.meatWithdrawalUntil
+        ?.toISOString()
+        .slice(0, 10);
+      await this.notificationService.notifyOwnersAndManagers({
+        farmId,
+        eventKey: 'withholding_active',
+        title: 'Withholding Period Active',
+        message: `${label}${cattle.tagNumber ? ` (${cattle.tagNumber})` : ''} is under withdrawal${milkUntil ? ` — milk until ${milkUntil}` : ''}${meatUntil ? `, meat until ${meatUntil}` : ''}.`,
+        params: {
+          name: label,
+          tagNumber: cattle.tagNumber,
+          milkUntil: milkUntil ?? '',
+          meatUntil: meatUntil ?? '',
+        },
+        link: `/healthcare/cases/${treatmentLog.healthCaseId}`,
+        dedupeKey: `withholding_active:${withdrawal.id}`,
+      });
+    }
+
+    this.log.info('Preventive-round task treatment logged', {
+      farmId,
+      taskId: task.id,
+      treatmentLogId: treatmentLog.id,
+    });
+
+    return { treatmentLog, withdrawal };
+  }
+
   async rescheduleTask(
     farmId: string,
     id: string,
@@ -1686,7 +2028,7 @@ export class HealthService {
     return {
       activeCases,
       ongoingTreatment: activeCases.some(
-        (c) => !isPreventiveDiagnosisType(c.diagnosisType),
+        (c) => c.careType === HealthCareType.CURATIVE,
       ),
       treatmentProgress: activeCases.map((healthCase) => ({
         healthCaseId: healthCase.id,

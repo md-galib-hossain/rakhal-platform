@@ -12,8 +12,8 @@ import {
 } from 'class-validator';
 import {
   AppetiteStatus,
+  HealthCareType,
   HealthCondition,
-  HealthDiagnosisType,
   HealthPriority,
 } from '@prisma/client';
 import { trimString } from './common.dto';
@@ -24,17 +24,21 @@ export class CreateHealthCaseDto {
   @IsNotEmpty()
   cattleId!: string;
 
+  /** RAKHAL-418: was the required `diagnosis` field — `condition` below is now the primary
+   * structured classifier, this is optional free-text detail alongside it. */
+  @IsOptional()
   @Transform(trimString)
   @IsString()
-  @IsNotEmpty()
-  diagnosis!: string;
+  note?: string;
 
   @IsOptional()
   @IsEnum(HealthCondition)
   condition?: HealthCondition;
 
-  @IsEnum(HealthDiagnosisType)
-  diagnosisType!: HealthDiagnosisType;
+  /** RAKHAL-418: replaces the 8-value `diagnosisType` — curative vs preventive is all any
+   * consumer outside Health ever needed. */
+  @IsEnum(HealthCareType)
+  careType!: HealthCareType;
 
   @IsEnum(HealthPriority)
   priority!: HealthPriority;

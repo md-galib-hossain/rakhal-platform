@@ -12,12 +12,12 @@ model ReproProtocol {
   id     String  @id @default(cuid())
   farmId String? /// null = global system-default template (any farm can apply or clone it)
 
-  name        String
-  code        String?
-  description String?
-  durationDays Int    @default(0)
+  name         String
+  code         String?
+  description  String?
+  durationDays Int     @default(0)
 
-  isSystemDefault Boolean @default(false)
+  isSystemDefault Boolean   @default(false)
   deletedAt       DateTime?
   createdBy       String?
 
@@ -40,7 +40,7 @@ model ReproProtocolStep {
   title       String
   stepType    ReproStepType
   instruction String?
-  isRequired  Boolean @default(true)
+  isRequired  Boolean       @default(true)
 
   protocol ReproProtocol @relation(fields: [protocolId], references: [id], onDelete: Cascade)
 

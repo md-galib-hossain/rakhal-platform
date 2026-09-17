@@ -12,8 +12,8 @@ model Equipment {
 
   /// Unit catalog (RAKHAL-326) — replaces the old free-text `unit` string. Stays optional
   /// (mirrors the old `unit String?` behavior — some equipment is just counted in pieces).
-  unitId String?
-  unit   Unit?   @relation(fields: [unitId], references: [id])
+  unitId            String?
+  unit              Unit?   @relation(fields: [unitId], references: [id])
   currentStock      Float   @default(0)
   costPerUnit       Float
   lowStockThreshold Float   @default(0)
@@ -23,17 +23,17 @@ model Equipment {
 
   deletedAt DateTime?
   createdBy String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   farm    Farm @relation("FarmToEquipment", fields: [farmId], references: [id])
   creator User @relation("EquipmentCreator", fields: [createdBy], references: [id])
 
-  stockMovements EquipmentStockMovement[]
-  inventorySaleLines InventorySaleLine[] @relation("EquipmentToInventorySaleLine")
+  stockMovements     EquipmentStockMovement[]
+  inventorySaleLines InventorySaleLine[]      @relation("EquipmentToInventorySaleLine")
   /// Back-relation for `PurchaseLine.equipmentId` (RAKHAL-348, `purchasing/**`) —
   /// every purchase line that restocked this equipment row.
-  purchaseLines PurchaseLine[] @relation("EquipmentToPurchaseLine")
+  purchaseLines      PurchaseLine[]           @relation("EquipmentToPurchaseLine")
 
   @@index([farmId])
   @@index([type])

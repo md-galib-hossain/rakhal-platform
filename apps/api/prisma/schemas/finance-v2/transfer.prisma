@@ -19,9 +19,9 @@ model Transfer {
   fromFinancialAccountId String
   /// Destination `FinancialAccount` — receives exactly `amount`; the fee
   /// never touches this side.
-  toFinancialAccountId String
+  toFinancialAccountId   String
 
-  amount Decimal @db.Decimal(18, 2)
+  amount    Decimal @db.Decimal(18, 2)
   /// Optional transfer fee, e.g. an MFS cash-out charge. Defaults to ৳0 —
   /// when zero, no Transfer Fee Expense line is posted at all.
   feeAmount Decimal @default(0) @db.Decimal(18, 2)
@@ -32,7 +32,7 @@ model Transfer {
   createdById String
   createdAt   DateTime @default(now())
 
-  farm Farm @relation("FarmToTransfer", fields: [farmId], references: [id])
+  farm                 Farm             @relation("FarmToTransfer", fields: [farmId], references: [id])
   fromFinancialAccount FinancialAccount @relation("FinancialAccountToTransferFrom", fields: [fromFinancialAccountId], references: [id])
   toFinancialAccount   FinancialAccount @relation("FinancialAccountToTransferTo", fields: [toFinancialAccountId], references: [id])
 

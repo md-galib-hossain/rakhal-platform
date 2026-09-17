@@ -19,8 +19,8 @@ model Medicine {
   batchId      String?
 
   /// Unit catalog (RAKHAL-326) — replaces the old free-text `unit` string.
-  unitId String
-  unit   Unit   @relation(fields: [unitId], references: [id])
+  unitId            String
+  unit              Unit   @relation(fields: [unitId], references: [id])
   currentStock      Float  @default(0)
   costPerUnit       Float
   lowStockThreshold Float  @default(0)
@@ -35,17 +35,17 @@ model Medicine {
 
   deletedAt DateTime?
   createdBy String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   farm    Farm @relation("FarmToMedicine", fields: [farmId], references: [id])
   creator User @relation("MedicineCreator", fields: [createdBy], references: [id])
 
-  stockMovements MedicineStockMovement[]
-  inventorySaleLines InventorySaleLine[] @relation("MedicineToInventorySaleLine")
+  stockMovements     MedicineStockMovement[]
+  inventorySaleLines InventorySaleLine[]     @relation("MedicineToInventorySaleLine")
   /// Back-relation for `PurchaseLine.medicineId` (RAKHAL-348, `purchasing/**`) —
   /// every purchase line that restocked this medicine.
-  purchaseLines PurchaseLine[] @relation("MedicineToPurchaseLine")
+  purchaseLines      PurchaseLine[]          @relation("MedicineToPurchaseLine")
 
   @@index([farmId])
   @@index([category])

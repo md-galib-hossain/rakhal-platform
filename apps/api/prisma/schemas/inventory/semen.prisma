@@ -15,8 +15,8 @@ model SemenTank {
 
   deletedAt DateTime?
   createdBy String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   farm    Farm @relation("FarmToSemenTank", fields: [farmId], references: [id])
   creator User @relation("SemenTankCreator", fields: [createdBy], references: [id])
@@ -65,8 +65,8 @@ model SemenBatch {
 
   deletedAt DateTime?
   createdBy String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   farm    Farm       @relation("FarmToSemenBatch", fields: [farmId], references: [id])
   creator User       @relation("SemenBatchCreator", fields: [createdBy], references: [id])

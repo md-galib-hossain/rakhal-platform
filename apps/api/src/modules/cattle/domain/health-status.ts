@@ -29,32 +29,16 @@ export type DerivedHealthStatus =
   | 'QUARANTINE';
 
 /**
- * Diagnosis types that represent proactive/preventive care rather than actual
- * illness or injury. A HealthCase opened for one of these (e.g. giving a
- * vaccine) must not read the cow as SICK — only DISEASE/INJURY/OTHER cases
- * should.
+ * RAKHAL-418: `HealthCase.careType` (`CURATIVE` | `PREVENTIVE`) replaces the old 8-value
+ * `diagnosisType` + `PREVENTIVE_DIAGNOSIS_TYPES` membership check — a case opened for preventive
+ * care (vaccine, deworming, routine checkup, etc.) must not read the cow as SICK, only a
+ * `CURATIVE` case should.
  */
-export const PREVENTIVE_DIAGNOSIS_TYPES = [
-  'VACCINATION',
-  'PREVENTIVE',
-  'DEWORMING',
-  'ROUTINE_CHECKUP',
-  'BREEDING_RELATED',
-] as const;
-
-const PREVENTIVE_DIAGNOSIS_TYPE_SET = new Set<string>(
-  PREVENTIVE_DIAGNOSIS_TYPES,
-);
-
-export function isPreventiveDiagnosisType(diagnosisType: string): boolean {
-  return PREVENTIVE_DIAGNOSIS_TYPE_SET.has(diagnosisType);
-}
-
 export interface OpenHealthCaseInput {
   /** HealthCase status — `ACTIVE` = just reported (Sick); the others = under treatment. */
   status: string;
-  /** HealthDiagnosisType — preventive types are excluded from SICK/IN_TREATMENT derivation. */
-  diagnosisType: string;
+  /** `HealthCareType` — only `CURATIVE` cases participate in SICK/IN_TREATMENT derivation. */
+  careType: string;
 }
 
 /**
@@ -72,9 +56,7 @@ export interface OpenHealthCaseInput {
 export function deriveHealthStatus(
   openCases: OpenHealthCaseInput[],
 ): DerivedHealthStatus {
-  const sicknessCases = openCases.filter(
-    (c) => !isPreventiveDiagnosisType(c.diagnosisType),
-  );
+  const sicknessCases = openCases.filter((c) => c.careType === 'CURATIVE');
   if (sicknessCases.some((c) => c.status !== 'ACTIVE')) {
     return 'IN_TREATMENT';
   }

@@ -93,8 +93,8 @@ describe('Health — quick treatment log (RAKHAL-416)', () => {
         farmId: owner.farmId,
         cattleId: cattleC,
         caseCode: `E2E-RAKHAL416-CASE-${stamp}`,
-        diagnosis: 'Pre-existing case',
-        diagnosisType: 'OTHER',
+        note: 'Pre-existing case',
+        careType: 'CURATIVE',
         priority: 'LOW',
         status: 'ACTIVE',
       },
@@ -146,7 +146,7 @@ describe('Health — quick treatment log (RAKHAL-416)', () => {
       where: {
         farmId: owner.farmId,
         cattleId: cattleC,
-        diagnosis: 'Pre-existing case',
+        note: 'Pre-existing case',
       },
     });
     expect(byId.get(cattleC)?.healthCaseId).toBe(preExisting?.id);

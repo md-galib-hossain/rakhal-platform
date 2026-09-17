@@ -232,6 +232,7 @@ export class AuthRepository implements EmailVerificationTokenPort {
         data: {
           failedLoginAttempts: data.failedLoginAttempts,
           lockedUntil: data.lockedUntil ?? undefined,
+          lastFailedLoginAt: new Date(),
         },
       });
 
@@ -292,6 +293,7 @@ export class AuthRepository implements EmailVerificationTokenPort {
         where: { id: data.userId },
         data: {
           failedLoginAttempts: 0,
+          lastFailedLoginAt: null,
           lockedUntil: null,
           lastLoginAt: new Date(),
         },

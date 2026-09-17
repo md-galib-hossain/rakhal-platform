@@ -165,8 +165,8 @@ describe('Cattle — consolidated disposition (e2e, RAKHAL-399)', () => {
       .set(...bearer(owner))
       .send({
         cattleId,
-        diagnosis: 'E2E mortality case',
-        diagnosisType: 'DISEASE',
+        note: 'E2E mortality case',
+        careType: 'CURATIVE',
         priority: 'HIGH',
       })
       .expect(201);

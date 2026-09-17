@@ -64,8 +64,8 @@ describe('Notification emitters (e2e)', () => {
       .set(...auth(worker))
       .send({
         cattleId,
-        diagnosis: 'Mastitis',
-        diagnosisType: 'DISEASE',
+        note: 'Mastitis',
+        careType: 'CURATIVE',
         priority: 'HIGH',
         symptoms: ['swelling'],
       })

@@ -132,8 +132,8 @@ describe('Cattle — intake real current state (e2e)', () => {
         tagNumber: tag('SICK'),
         gender: 'FEMALE',
         intakeHealthCondition: {
-          diagnosis: 'Mild lameness observed at purchase',
-          diagnosisType: 'INJURY',
+          note: 'Mild lameness observed at purchase',
+          careType: 'CURATIVE',
           priority: 'MEDIUM',
         },
       })
@@ -146,7 +146,7 @@ describe('Cattle — intake real current state (e2e)', () => {
       where: { cattleId },
     });
     expect(healthCase.status).toBe('ACTIVE');
-    expect(healthCase.diagnosis).toBe('Mild lameness observed at purchase');
+    expect(healthCase.note).toBe('Mild lameness observed at purchase');
   });
 
   it('every FEMALE gets a ReproductionProfile on create, even with no intake fields supplied', async () => {

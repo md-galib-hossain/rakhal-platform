@@ -87,8 +87,8 @@ model PurchaseLine {
   feedItemId  String?
   equipmentId String?
 
-  quantity Decimal @db.Decimal(18, 2)
-  unitCost Decimal @db.Decimal(18, 2)
+  quantity    Decimal @db.Decimal(18, 2)
+  unitCost    Decimal @db.Decimal(18, 2)
   /// `quantity * unitCost`, computed by `PurchaseService` at create time.
   totalAmount Decimal @db.Decimal(18, 2)
 

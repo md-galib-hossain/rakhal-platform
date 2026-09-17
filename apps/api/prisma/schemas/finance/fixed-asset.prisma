@@ -10,15 +10,15 @@ model FixedAsset {
   category    FixedAssetCategory @default(EQUIPMENT)
   description String?
 
-  purchaseDate  DateTime
-  purchasePrice Float
-  usefulLifeYears Int     @default(5)
-  salvageValue  Float     @default(0)
+  purchaseDate    DateTime
+  purchasePrice   Float
+  usefulLifeYears Int      @default(5)
+  salvageValue    Float    @default(0)
 
   deletedAt DateTime?
   createdBy String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   farm    Farm @relation("FarmToFixedAsset", fields: [farmId], references: [id])
   creator User @relation("FixedAssetCreator", fields: [createdBy], references: [id])

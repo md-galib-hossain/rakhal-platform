@@ -29,14 +29,14 @@ model MilkTank {
 
   deletedAt DateTime?
   createdBy String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   farm    Farm @relation("FarmToMilkTank", fields: [farmId], references: [id])
   creator User @relation("MilkTankCreator", fields: [createdBy], references: [id])
 
-  auditLogs MilkTankAuditLog[]
-  logEntries MilkLogEntry[] @relation("MilkLogEntryToMilkTank")
+  auditLogs  MilkTankAuditLog[]
+  logEntries MilkLogEntry[]     @relation("MilkLogEntryToMilkTank")
 
   @@index([farmId])
   @@index([tankType])

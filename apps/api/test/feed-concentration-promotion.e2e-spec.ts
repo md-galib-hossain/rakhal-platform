@@ -118,6 +118,8 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
     const v1 = await request(server())
       .post(api(`/feed/concentrations/${concId}/finalize`))
       .set(...auth(owner))
+      // RAKHAL-428: unlinked cost now requires a financialAccountId.
+      .send({ financialAccountId })
       .expect(201);
     const ingredientId1 = v1.body.data.ingredient.id as string;
     // dmPct back-derived from totals: dm_kg = 20*0.9=18, totalAsFed=20 → dmPct=90
@@ -179,6 +181,8 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
     const v2 = await request(server())
       .post(api(`/feed/concentrations/${concId}/finalize`))
       .set(...auth(owner))
+      // RAKHAL-428: unlinked cost now requires a financialAccountId.
+      .send({ financialAccountId })
       .expect(201);
     expect(v2.body.data.ingredient.id).toBe(ingredientId1);
     expect(v2.body.data.stock).not.toBeNull();
@@ -233,6 +237,8 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
     const finalized = await request(server())
       .post(api(`/feed/concentrations/${concId}/finalize`))
       .set(...auth(owner))
+      // RAKHAL-428: unlinked cost now requires a financialAccountId.
+      .send({ financialAccountId })
       .expect(201);
     const promotedIngredientId = finalized.body.data.ingredient.id as string;
 
@@ -279,6 +285,8 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
     const finalized = await request(server())
       .post(api(`/feed/concentrations/${concId}/finalize`))
       .set(...auth(owner))
+      // RAKHAL-428: unlinked cost now requires a financialAccountId.
+      .send({ financialAccountId })
       .expect(201);
     const promotedIngredientId = finalized.body.data.ingredient.id as string;
 
@@ -314,6 +322,8 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
     const v1 = await request(server())
       .post(api(`/feed/concentrations/${concId}/finalize`))
       .set(...auth(owner))
+      // RAKHAL-428: unlinked cost now requires a financialAccountId.
+      .send({ financialAccountId })
       .expect(201);
     const stockId1 = v1.body.data.stock.id as string;
     expect(v1.body.data.stock.kind).toBe('CONCENTRATE_TEMPLATE');
@@ -322,7 +332,7 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
     const v2 = await request(server())
       .post(api(`/feed/concentrations/${concId}/finalize`))
       .set(...auth(owner))
-      .send({ batchQuantityKg: 25 })
+      .send({ batchQuantityKg: 25, financialAccountId })
       .expect(201);
     const stockId2 = v2.body.data.stock.id as string;
     expect(stockId2).not.toBe(stockId1);

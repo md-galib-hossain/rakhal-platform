@@ -18,6 +18,6 @@ model SubscriptionPlan {
 
   features SubscriptionFeature[] @relation("SubscriptionPlanToSubscriptionFeature")
 
-  subscriptions FarmSubscription[] @relation("SubscriptionPlanToFarmSubscription")
+  subscriptions           FarmSubscription[] @relation("SubscriptionPlanToFarmSubscription")
   pendingForSubscriptions FarmSubscription[] @relation("SubscriptionPlanToPendingFarmSubscription")
 }

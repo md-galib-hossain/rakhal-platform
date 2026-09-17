@@ -100,7 +100,7 @@ describe('Health — bulk plan apply (RAKHAL-414)', () => {
     expect(cases).toHaveLength(2);
     for (const c of cases) {
       expect(c.totalSteps).toBe(2);
-      expect(c.diagnosisType).toBe('DISEASE'); // TREATMENT category -> DISEASE, see fixture note above
+      expect(c.careType).toBe('CURATIVE'); // TREATMENT category -> CURATIVE, see fixture note above
     }
 
     const tasks = await prisma.healthTask.findMany({

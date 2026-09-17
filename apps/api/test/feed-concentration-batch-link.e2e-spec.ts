@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
+import { seededCashAccountId } from './utils/finance';
 
 /**
  * RAKHAL-422 (docs/EPIC_PREPARED_FEED.md §5): a `FeedConcentrationItem` line can optionally link a
@@ -15,6 +16,7 @@ describe('Feed Formulator — concentration item batch link (e2e, RAKHAL-422)', 
   let owner: AuthedUser;
   let ingredientA: string;
   let ingredientB: string;
+  let financialAccountId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -61,6 +63,7 @@ describe('Feed Formulator — concentration item batch link (e2e, RAKHAL-422)', 
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
     ingredientA = await createIngredient('E2E Batch-Link Ingredient A');
     ingredientB = await createIngredient('E2E Batch-Link Ingredient B');
+    financialAccountId = await seededCashAccountId(ctx, owner);
   }, 30_000);
 
   afterAll(async () => {
@@ -162,6 +165,8 @@ describe('Feed Formulator — concentration item batch link (e2e, RAKHAL-422)', 
     const finalized = await request(server())
       .post(api(`/feed/concentrations/${template.body.data.id}/finalize`))
       .set(...auth(owner))
+      // RAKHAL-428: 10kg @ 10/kg unlinked cost now requires a financialAccountId.
+      .send({ financialAccountId })
       .expect(201);
     const promotedIngredientId = finalized.body.data.ingredient.id as string;
     const stockId = finalized.body.data.stock.id as string;

@@ -44,7 +44,7 @@ model Sale {
   discountAmount Decimal @default(0) @db.Decimal(18, 2)
   /// `subtotal - discountAmount`, computed by `SaleService` at create time (not a
   /// generated column — Decimal generated columns are out of scope here).
-  totalAmount Decimal @db.Decimal(18, 2)
+  totalAmount    Decimal @db.Decimal(18, 2)
 
   status SaleStatus @default(DRAFT)
   notes  String?

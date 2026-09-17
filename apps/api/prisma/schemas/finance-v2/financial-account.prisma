@@ -53,8 +53,8 @@ model FinancialAccount {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  farm          Farm           @relation("FarmToFinancialAccount", fields: [farmId], references: [id])
-  ledgerAccount LedgerAccount  @relation("LedgerAccountToFinancialAccount", fields: [ledgerAccountId], references: [id])
+  farm          Farm          @relation("FarmToFinancialAccount", fields: [farmId], references: [id])
+  ledgerAccount LedgerAccount @relation("LedgerAccountToFinancialAccount", fields: [ledgerAccountId], references: [id])
 
   bankDetail BankAccountDetail?
   mfsDetail  MfsAccountDetail?
@@ -80,8 +80,8 @@ model FinancialAccount {
 /// Type-specific metadata for a `type: BANK` `FinancialAccount`. One-to-one —
 /// only created when the account is a bank account (CASH has no detail row).
 model BankAccountDetail {
-  id                  String @id @default(cuid())
-  financialAccountId  String @unique
+  id                 String @id @default(cuid())
+  financialAccountId String @unique
 
   bankName      String
   accountNumber String

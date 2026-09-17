@@ -14,11 +14,18 @@ import { FeedGridSourceType } from '@prisma/client';
 import { trimString } from 'src/common/dto';
 import { FeedDraftEntryDto } from './save-feed-draft.dto';
 
-/** `POST /feed/grid/confirm` — turn a day's feeding-grid quantities for one feed source into a real
- * `FeedDistribution` + inventory decrement. `entries` is optional: omit it to confirm straight from
- * whatever's already been drafted for `date`+`sourceType` (falling back further to each cow's
- * carried-forward default where neither an entry nor a draft exists) — see
- * `FeedFeedingGridService#confirm`. */
+/** `POST /feed/grid/confirm` — turn a day's feeding-grid quantities into a real `FeedDistribution`
+ * + inventory decrement. `entries` is optional: omit it to confirm straight from whatever's
+ * already been drafted for `date` (falling back further to each cow's carried-forward default
+ * where neither an entry nor a draft exists) — see `FeedFeedingGridService#confirm`.
+ *
+ * RAKHAL-430 (Feeding Favourites): a confirm is no longer one source for the whole call — each
+ * `entries[]` line (and each existing draft) can carry its own source (`FeedDraftEntryDto`'s own
+ * doc comment). The top-level `sourceType`/`feedItemId`/`feedStockId` below are now the default
+ * for lines that don't name their own, still required whenever the call needs one (an unnamed cow
+ * with no matching draft has nothing else to resolve against — RAKHAL-431's resolution ladder is
+ * the future replacement for this fallback). One `FeedDistributionItem` is now written per
+ * *distinct* resolved source in the call, not always exactly one. */
 export class ConfirmFeedDraftDto {
   /** Distribution date (YYYY-MM-DD). */
   @IsString()
@@ -30,8 +37,9 @@ export class ConfirmFeedDraftDto {
   @IsString()
   feedGroupId?: string;
 
+  @IsOptional()
   @IsEnum(FeedGridSourceType)
-  sourceType!: FeedGridSourceType;
+  sourceType?: FeedGridSourceType;
 
   @ValidateIf((o: ConfirmFeedDraftDto) => o.sourceType === 'FEED_ITEM')
   @Transform(trimString)

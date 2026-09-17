@@ -12,11 +12,11 @@ model MilkLogEntry {
   logDate  DateTime /// production day (UTC midnight)
   session  MilkSession
 
-  yieldL   Float
-  tankType MilkTankType @default(SELLABLE)
+  yieldL      Float
+  tankType    MilkTankType    @default(SELLABLE)
   /// Optional specific tank chosen by the worker/owner (header default or per-row override);
   /// null falls back to submit()'s "first active tank of the matching type" behavior.
-  tankId   String?
+  tankId      String?
   /// Business-meaning classification (RAKHAL-277) — distinct from `tankType` (physical
   /// routing). Deliberately **no DB default**: `MilkService.saveLog()` computes this from a
   /// live withholding + colostrum-window check before every insert, in the same
@@ -27,9 +27,9 @@ model MilkLogEntry {
   disposition MilkDisposition
 
   /// session yield < 70% of the cow's 7-day average for that session (PRD §10.2)
-  anomalyFlag Boolean @default(false)
-  anomalyNote String? /// worker note explaining the drop
-  reviewed    Boolean @default(false)
+  anomalyFlag  Boolean @default(false)
+  anomalyNote  String? /// worker note explaining the drop
+  reviewed     Boolean @default(false)
   reviewAction String?
   reviewNote   String?
 

@@ -29,8 +29,8 @@ model PlatformAdmin {
   totpSecret  String?
   totpEnabled Boolean @default(false)
 
-  lastLoginAt   DateTime?
-  lastLoginIp   String?
+  lastLoginAt DateTime?
+  lastLoginIp String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -108,6 +108,82 @@ export class LogTreatmentDto {
   financialAccountId?: string;
 }
 
+/**
+ * RD-093 — `POST /health/tasks/:id/log-treatment`, the caseless counterpart of `LogTreatmentDto`.
+ * The task id comes from the path (a `PlanEnrollment`'s `HealthTask`, not a case-scoped one — the
+ * route itself rejects a task that still has a `healthCaseId`), so there is no `healthTaskId` field
+ * here; everything else mirrors `LogTreatmentDto` field-for-field.
+ */
+export class LogTaskTreatmentDto {
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  medicineId?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  medicineName?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @Min(0)
+  doseAmount?: number;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  doseUnit?: string;
+
+  @IsOptional()
+  @IsEnum(MedicineRoute)
+  route?: MedicineRoute;
+
+  @IsOptional()
+  @IsDateString()
+  administeredAt?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  administeredBy?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @Min(0)
+  stockDeductionQuantity?: number;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  batchNo?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @Min(0)
+  milkWithdrawalDays?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @Min(0)
+  meatWithdrawalDays?: number;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  notes?: string;
+
+  /** Same RAKHAL-419/RD-066 rule as `LogTreatmentDto.financialAccountId`. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  financialAccountId?: string;
+}
+
 export class CreateHealthUpdateDto {
   @IsEnum(ClinicalProgress)
   clinicalProgress!: ClinicalProgress;

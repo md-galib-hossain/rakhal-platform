@@ -11,7 +11,7 @@ model Coupon {
   code String @unique
 
   type  CouponType
-  value Decimal @db.Decimal(10, 2)
+  value Decimal    @db.Decimal(10, 2)
 
   maxRedemptions Int
   redeemedCount  Int @default(0)

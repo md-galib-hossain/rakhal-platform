@@ -18,7 +18,7 @@ model OtpChallenge {
   purpose OtpPurpose
 
   codeHash String
-  attempts Int @default(0)
+  attempts Int    @default(0)
 
   expiresAt  DateTime
   consumedAt DateTime?

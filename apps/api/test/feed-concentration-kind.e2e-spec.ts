@@ -240,6 +240,8 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
     const templateFinalized = await request(server())
       .post(api(`/feed/concentrations/${template.body.data.id}/finalize`))
       .set(...auth(owner))
+      // RAKHAL-428: unlinked cost now requires a financialAccountId.
+      .send({ financialAccountId })
       .expect(201);
     // RAKHAL-421 (closes RD-080): a Concentrate Mixer finalize now also produces a FeedStock
     // batch (kind: CONCENTRATE_TEMPLATE) alongside the promoted ingredient — the earlier

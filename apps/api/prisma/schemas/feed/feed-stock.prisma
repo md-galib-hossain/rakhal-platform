@@ -56,8 +56,8 @@ model FeedStock {
   createdBy String
   createdAt DateTime @default(now())
 
-  farm          Farm              @relation("FarmToFeedStock", fields: [farmId], references: [id])
-  concentration FeedConcentration @relation(fields: [sourceConcentrationId], references: [id])
+  farm          Farm                @relation("FarmToFeedStock", fields: [farmId], references: [id])
+  concentration FeedConcentration   @relation(fields: [sourceConcentrationId], references: [id])
   movements     FeedStockMovement[]
 
   @@index([farmId])

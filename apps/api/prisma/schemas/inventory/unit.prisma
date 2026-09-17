@@ -19,14 +19,14 @@ model Unit {
   /// kg-equivalence for those stays on `FeedItem.kgPerUnit`, unchanged by this ticket).
   conversionToBase Float?
 
-  isSystemDefault Boolean @default(false)
+  isSystemDefault Boolean   @default(false)
   deletedAt       DateTime?
 
   /// null = Rakhal system unit (seeded, visible to every farm). Non-null = one
   /// farm's own custom unit, invisible to other farms. Same convention as
   /// `FeedIngredient.farmId` (feed.prisma).
   farmId String?
-  farm   Farm?  @relation("FarmToUnit", fields: [farmId], references: [id])
+  farm   Farm?   @relation("FarmToUnit", fields: [farmId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

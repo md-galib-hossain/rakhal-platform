@@ -230,8 +230,8 @@ describe('Health — treatment cost posts to Finance (RAKHAL-419)', () => {
       .set(...auth(owner))
       .send({
         cattleId,
-        diagnosis: 'E2E-RAKHAL419 case-scoped treatment',
-        diagnosisType: 'DISEASE',
+        note: 'E2E-RAKHAL419 case-scoped treatment',
+        careType: 'CURATIVE',
         priority: 'LOW',
       });
     expect(caseRes.status).toBe(201);
@@ -260,18 +260,22 @@ describe('Health — treatment cost posts to Finance (RAKHAL-419)', () => {
     expect(expense.category).toBe('HEALTH');
   });
 
-  it('rejects a case-scoped log-treatment with a real cost and no financialAccountId', async () => {
+  it('rejects a case-scoped log-treatment with a real cost and no financialAccountId, and leaves stock untouched (RD-095)', async () => {
     const cattleId = await makeCow(`E2E-RAKHAL419-G-${Date.now()}`);
     const caseRes = await request(server())
       .post(api('/health/cases'))
       .set(...auth(owner))
       .send({
         cattleId,
-        diagnosis: 'E2E-RAKHAL419 missing account',
-        diagnosisType: 'DISEASE',
+        note: 'E2E-RAKHAL419 missing account',
+        careType: 'CURATIVE',
         priority: 'LOW',
       });
     const caseId = caseRes.body.data.id as string;
+
+    const before = await prisma.medicine.findUniqueOrThrow({
+      where: { id: pricedMedicineId },
+    });
 
     const logRes = await request(server())
       .post(api(`/health/cases/${caseId}/log-treatment`))
@@ -284,5 +288,13 @@ describe('Health — treatment cost posts to Finance (RAKHAL-419)', () => {
         // financialAccountId omitted
       });
     expect(logRes.status).toBe(400);
+
+    // RD-095: a rejected call must never leave a real stock decrement
+    // committed — `logTreatment` used to decrement first and check payment
+    // second, so this passed with `currentStock` silently 2 lower.
+    const after = await prisma.medicine.findUniqueOrThrow({
+      where: { id: pricedMedicineId },
+    });
+    expect(after.currentStock).toBe(before.currentStock);
   });
 });
