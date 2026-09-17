@@ -41,4 +41,12 @@ export class UpdateHerdStatusDto {
   @IsInt()
   @Min(1)
   priorCalvings?: number;
+
+  /** RD-048: required when `productionStatus` is `DRY` and no open `DryPeriod` already exists
+   * (e.g. a purchase-intake cow with no lactation history in this system) — `updateStatus()`
+   * uses it to create one, mirroring `lactationStartDate`'s role for MILKING. Ignored when an
+   * open `DryPeriod` already exists — derivation already reads it correctly. */
+  @IsOptional()
+  @IsDateString()
+  dryOffStartDate?: string;
 }

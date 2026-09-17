@@ -123,4 +123,11 @@ export class UpdateCattleDto implements Partial<CreateCattleDto> {
   @IsOptional()
   @IsDateString()
   lactationStartDate?: string;
+
+  /** RD-048: required when `productionStatus` is `DRY` and no open `DryPeriod` already exists —
+   * `CattleService.update()` uses it to create one, same role `lactationStartDate` plays for
+   * MILKING above. Ignored (and unnecessary) when an open `DryPeriod` already exists. */
+  @IsOptional()
+  @IsDateString()
+  dryOffStartDate?: string;
 }

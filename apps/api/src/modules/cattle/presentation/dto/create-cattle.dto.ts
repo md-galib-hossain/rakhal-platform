@@ -127,6 +127,14 @@ export class CreateCattleDto {
   @Min(1)
   priorCalvings?: number;
 
+  /** RD-048: required when `productionStatus` is `DRY` at intake — `CattleService.create()`
+   * uses it to create a real `DryPeriod` row (mirrors `lactationStartDate`'s role for MILKING),
+   * so `productionStatus` is always backed by a fact and derives correctly from then on instead
+   * of being a raw, never-reconciled write. */
+  @IsOptional()
+  @IsDateString()
+  dryOffStartDate?: string;
+
   @IsOptional()
   @IsNumber()
   @Min(0)

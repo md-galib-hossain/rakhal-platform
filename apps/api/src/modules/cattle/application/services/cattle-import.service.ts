@@ -37,6 +37,7 @@ type CanonicalField =
   | 'prior_calvings'
   | 'production_status'
   | 'lactation_start_date'
+  | 'dry_off_start_date'
   | 'estimated_days_in_milk'
   | 'estimated_lactation_number'
   | 'is_pregnant'
@@ -105,6 +106,9 @@ interface ImportRowData {
   // would, instead of every row defaulting to a bare heifer.
   productionStatus: ProductionStatus | null;
   lactationStartDate: string | null;
+  /** RD-048: required when `productionStatus` is DRY — mirrors `lactationStartDate`'s role for
+   * MILKING, backs the value with a real `DryPeriod` instead of an unbacked raw write. */
+  dryOffStartDate: string | null;
   estimatedDaysInMilk: number | null;
   estimatedLactationNumber: number | null;
   isPregnant: boolean;
@@ -274,7 +278,9 @@ export class CattleImportService {
             // RAKHAL-308: `source_type` is now a real column (defaulting
             // PURCHASED), replacing the previous hardcode here.
             sourceType: r.data.sourceType,
-            productionStatus: r.data.productionStatus ?? undefined,
+            // RD-048: no longer written raw here — the MILKING/DRY branches below create a real
+            // Lactation/DryPeriod, and the post-loop `refreshDerivedState` sweep derives this
+            // from that fact instead.
             lastBcs: r.data.bcs ?? undefined,
             lastWeightKg: r.data.weightKg ?? undefined,
             createdBy: userId,
@@ -366,6 +372,17 @@ export class CattleImportService {
               isEstimated: true,
               estimatedLactationNumber: r.data.estimatedLactationNumber,
               estimatedDaysInMilk: r.data.estimatedDaysInMilk,
+            },
+          });
+        }
+
+        // RD-048: "she is already dry" — mirrors the MILKING branch above; validated in
+        // `parseRow` that `dryOffStartDate` is present whenever `productionStatus` is DRY.
+        if (r.data.productionStatus === ProductionStatus.DRY) {
+          await tx.dryPeriod.create({
+            data: {
+              cattleId: cattle.id,
+              startDate: new Date(r.data.dryOffStartDate!),
             },
           });
         }
@@ -623,6 +640,27 @@ export class CattleImportService {
       };
     }
 
+    // RD-048: DRY must be backed by a real DryPeriod, same rule as MILKING/Lactation above — a
+    // production_status DRY row with no dry_off_start_date used to write an unbacked raw value.
+    const dryOffStartDateRaw = read('dry_off_start_date');
+    let dryOffStartDate: string | null = null;
+    if (dryOffStartDateRaw) {
+      const parsed = new Date(dryOffStartDateRaw);
+      if (Number.isNaN(parsed.getTime())) {
+        return {
+          ...base,
+          error: `Invalid dry_off_start_date: "${dryOffStartDateRaw}"`,
+        };
+      }
+      dryOffStartDate = parsed.toISOString();
+    }
+    if (productionStatus === ProductionStatus.DRY && !dryOffStartDate) {
+      return {
+        ...base,
+        error: 'production_status DRY requires dry_off_start_date',
+      };
+    }
+
     const isPregnantRaw = read('is_pregnant');
     let isPregnant = false;
     if (isPregnantRaw) {
@@ -733,6 +771,7 @@ export class CattleImportService {
         priorCalvings,
         productionStatus,
         lactationStartDate,
+        dryOffStartDate,
         estimatedDaysInMilk,
         estimatedLactationNumber,
         isPregnant,
@@ -846,6 +885,7 @@ export class CattleImportService {
       'prior_calvings',
       'production_status',
       'lactation_start_date',
+      'dry_off_start_date',
       'estimated_days_in_milk',
       'estimated_lactation_number',
       'is_pregnant',
@@ -870,6 +910,7 @@ export class CattleImportService {
       '2',
       'MILKING',
       '2026-06-01',
+      '',
       '',
       '2',
       'false',

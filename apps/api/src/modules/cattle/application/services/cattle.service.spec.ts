@@ -28,6 +28,7 @@ describe('CattleService — RAKHAL-269 production status', () => {
       updateMany: jest.Mock;
       findMany: jest.Mock;
     };
+    dryPeriod: { findFirst: jest.Mock; create: jest.Mock };
     reproductionProfile: { findUnique: jest.Mock; create: jest.Mock };
     animalHold: { findMany: jest.Mock };
     cattleDisposition: { findFirst: jest.Mock; create: jest.Mock };
@@ -68,6 +69,7 @@ describe('CattleService — RAKHAL-269 production status', () => {
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         findMany: jest.fn().mockResolvedValue([]),
       },
+      dryPeriod: { findFirst: jest.fn(), create: jest.fn() },
       reproductionProfile: {
         findUnique: jest.fn().mockResolvedValue(null),
         create: jest.fn(),
@@ -196,7 +198,7 @@ describe('CattleService — RAKHAL-269 production status', () => {
       expect(prisma.cattle.update).not.toHaveBeenCalled();
     });
 
-    it('allows MILKING when an active Lactation row already exists', async () => {
+    it('RD-048: allows MILKING when an active Lactation row already exists, deriving productionStatus rather than writing it raw', async () => {
       prisma.cattle.findFirst
         .mockResolvedValueOnce(baseRow()) // getCattleOrThrow guard check
         .mockResolvedValueOnce(baseRow({ productionStatus: 'MILKING' })); // findOne() at the end of updateStatus
@@ -204,14 +206,19 @@ describe('CattleService — RAKHAL-269 production status', () => {
       prisma.reproductionProfile.findUnique.mockResolvedValueOnce({
         totalCalvings: 1,
       });
-      prisma.cattle.update.mockResolvedValueOnce({});
 
       const service = make();
       await service.updateStatus('farm-1', 'cattle-1', {
         productionStatus: 'MILKING',
       });
 
-      expect(lastUpdateData()).toMatchObject({ productionStatus: 'MILKING' });
+      // Already backed by a real Lactation — nothing to create, no raw write; derivation alone
+      // is what persists productionStatus (RD-048 closes the old direct `cattle.update` write).
+      expect(prisma.cattle.update).not.toHaveBeenCalled();
+      expect(derivation.refreshDerivedState).toHaveBeenCalledWith(
+        'farm-1',
+        'cattle-1',
+      );
     });
 
     it('creates a purchase-intake Lactation (startReason PURCHASED_LACTATING) when lactationStartDate + priorCalvings are supplied and no active Lactation exists', async () => {
@@ -222,7 +229,6 @@ describe('CattleService — RAKHAL-269 production status', () => {
       prisma.reproductionProfile.findUnique.mockResolvedValueOnce(null);
       prisma.lactation.count.mockResolvedValueOnce(0);
       prisma.lactation.create.mockResolvedValueOnce({ id: 'lactation-new' });
-      prisma.cattle.update.mockResolvedValueOnce({});
 
       const service = make();
       await service.updateStatus('farm-1', 'cattle-1', {
@@ -243,22 +249,72 @@ describe('CattleService — RAKHAL-269 production status', () => {
       expect(prisma.reproductionProfile.create).toHaveBeenCalledWith({
         data: { cattleId: 'cattle-1', totalCalvings: 2 },
       });
-      expect(lastUpdateData()).toMatchObject({ productionStatus: 'MILKING' });
+      // RD-048: the real Lactation just created is what backs MILKING now — no raw
+      // `cattle.update({data:{productionStatus}})` inside the transaction anymore.
+      expect(prisma.cattle.update).not.toHaveBeenCalled();
+      expect(derivation.refreshDerivedState).toHaveBeenCalledWith(
+        'farm-1',
+        'cattle-1',
+      );
     });
 
-    it('allows DRY without checking for an active Lactation row', async () => {
+    it('RD-048: rejects DRY with no open DryPeriod and no dryOffStartDate', async () => {
+      prisma.cattle.findFirst.mockResolvedValueOnce(baseRow());
+      prisma.dryPeriod.findFirst.mockResolvedValueOnce(null);
+
+      const service = make();
+      await expect(
+        service.updateStatus('farm-1', 'cattle-1', {
+          productionStatus: 'DRY',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(prisma.dryPeriod.create).not.toHaveBeenCalled();
+      expect(derivation.refreshDerivedState).not.toHaveBeenCalled();
+    });
+
+    it('RD-048: creates a DryPeriod when none exists and dryOffStartDate is supplied, then derives productionStatus', async () => {
       prisma.cattle.findFirst
         .mockResolvedValueOnce(baseRow())
         .mockResolvedValueOnce(baseRow({ productionStatus: 'DRY' }));
-      prisma.cattle.update.mockResolvedValueOnce({});
+      prisma.dryPeriod.findFirst.mockResolvedValueOnce(null);
+      prisma.dryPeriod.create.mockResolvedValueOnce({ id: 'dry-1' });
+
+      const service = make();
+      await service.updateStatus('farm-1', 'cattle-1', {
+        productionStatus: 'DRY',
+        dryOffStartDate: '2026-08-01',
+      });
+
+      expect(prisma.dryPeriod.create).toHaveBeenCalledWith({
+        data: {
+          cattleId: 'cattle-1',
+          startDate: new Date('2026-08-01'),
+        },
+      });
+      expect(prisma.cattle.update).not.toHaveBeenCalled();
+      expect(derivation.refreshDerivedState).toHaveBeenCalledWith(
+        'farm-1',
+        'cattle-1',
+      );
+    });
+
+    it('RD-048: DRY is a no-op write (still derives) when an open DryPeriod already exists', async () => {
+      prisma.cattle.findFirst
+        .mockResolvedValueOnce(baseRow())
+        .mockResolvedValueOnce(baseRow({ productionStatus: 'DRY' }));
+      prisma.dryPeriod.findFirst.mockResolvedValueOnce({ id: 'dry-existing' });
 
       const service = make();
       await service.updateStatus('farm-1', 'cattle-1', {
         productionStatus: 'DRY',
       });
 
-      expect(prisma.lactation.findFirst).not.toHaveBeenCalled();
-      expect(lastUpdateData()).toMatchObject({ productionStatus: 'DRY' });
+      expect(prisma.dryPeriod.create).not.toHaveBeenCalled();
+      expect(derivation.refreshDerivedState).toHaveBeenCalledWith(
+        'farm-1',
+        'cattle-1',
+      );
     });
   });
 

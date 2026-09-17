@@ -227,6 +227,15 @@ export class CattleService {
       }
     }
 
+    // RD-048: DRY at intake must be backed by a real DryPeriod, the same way MILKING is backed
+    // by a real Lactation above — otherwise the stored productionStatus would be an unverified
+    // raw write derivation can never reconcile (that was the whole bug this closes).
+    if (dto.productionStatus === ProductionStatus.DRY && !dto.dryOffStartDate) {
+      throw new BadRequestException(
+        'dryOffStartDate is required when registering a cow with productionStatus DRY (e.g. a purchased already-dry cow with no lactation history in this system).',
+      );
+    }
+
     try {
       const created = await this.prisma.$transaction(async (tx) => {
         const cattle = await tx.cattle.create({
@@ -241,7 +250,9 @@ export class CattleService {
               ? new Date(dto.dateOfBirth)
               : undefined,
             herdStatus: dto.status ?? HerdStatus.ACTIVE,
-            productionStatus: dto.productionStatus,
+            // RD-048: no longer written raw here — always derived post-commit by
+            // `refreshDerivedState` below, from the real Lactation/DryPeriod fact this same
+            // transaction creates when `productionStatus` was requested (MILKING/DRY below).
             shedId: dto.shedId,
             feedGroupId: dto.feedGroupId,
             lastWeightKg: dto.weightKg,
@@ -365,6 +376,17 @@ export class CattleService {
               },
             });
           }
+        }
+
+        // RD-048: "she is already dry" at intake — a real open DryPeriod (mirrors the MILKING
+        // branch above), required by the guard before this transaction started.
+        if (dto.productionStatus === ProductionStatus.DRY) {
+          await tx.dryPeriod.create({
+            data: {
+              cattleId: cattle.id,
+              startDate: new Date(dto.dryOffStartDate!),
+            },
+          });
         }
 
         // RAKHAL-307: "she has a current health condition" — an open
@@ -553,14 +575,42 @@ export class CattleService {
     // already exists rather than silently creating a second one or clobbering
     // the existing `startDate`. Correcting an in-progress lactation's start
     // date is out of this field's scope (no such write path exists yet).
-    if (dto.lactationStartDate !== undefined) {
-      const activeLactation = await this.prisma.lactation.findFirst({
+    let activeLactation: { id: string } | null = null;
+    if (
+      dto.lactationStartDate !== undefined ||
+      dto.productionStatus === ProductionStatus.MILKING
+    ) {
+      activeLactation = await this.prisma.lactation.findFirst({
         where: { cattleId: id, status: LactationStatus.ACTIVE },
         select: { id: true },
       });
-      if (activeLactation) {
+    }
+    if (dto.lactationStartDate !== undefined && activeLactation) {
+      throw new BadRequestException(
+        'This cow already has an active lactation. lactationStartDate on PATCH /cattle/:id only starts a new one — record a calving event, or edit the existing lactation directly, instead.',
+      );
+    }
+    // RD-048: same "must be backed by a fact" rule `create()`/`updateStatus()` already enforce —
+    // a general edit is the one write path that used to skip it entirely.
+    if (
+      dto.productionStatus === ProductionStatus.MILKING &&
+      !activeLactation &&
+      !dto.lactationStartDate
+    ) {
+      throw new BadRequestException(
+        'No active lactation on record. Provide lactationStartDate to record this cow as milking (e.g. for a purchased cow with no calving history in this system).',
+      );
+    }
+
+    let openDryPeriod: { id: string } | null = null;
+    if (dto.productionStatus === ProductionStatus.DRY) {
+      openDryPeriod = await this.prisma.dryPeriod.findFirst({
+        where: { cattleId: id, actualEndDate: null },
+        select: { id: true },
+      });
+      if (!openDryPeriod && !dto.dryOffStartDate) {
         throw new BadRequestException(
-          'This cow already has an active lactation. lactationStartDate on PATCH /cattle/:id only starts a new one — record a calving event, or edit the existing lactation directly, instead.',
+          'dryOffStartDate is required to record this cow as dry (no open dry period on record). Provide dryOffStartDate, or record a real dry-off event instead.',
         );
       }
     }
@@ -579,7 +629,8 @@ export class CattleService {
               ? new Date(dto.dateOfBirth)
               : undefined,
             herdStatus: dto.status,
-            productionStatus: dto.productionStatus,
+            // RD-048: no longer written raw here — see the DryPeriod branch below and
+            // `needsRecompute` — the stored value is always derived from a real fact.
             shedId: dto.shedId,
             feedGroupId: dto.feedGroupId,
             lastWeightKg: dto.weightKg,
@@ -637,6 +688,18 @@ export class CattleService {
           });
         }
 
+        // RD-048: same shape as the lactation branch above — only fires when the pre-check found
+        // no open DryPeriod already (otherwise it's already backed, nothing to create).
+        if (
+          dto.productionStatus === ProductionStatus.DRY &&
+          !openDryPeriod &&
+          dto.dryOffStartDate
+        ) {
+          await tx.dryPeriod.create({
+            data: { cattleId: id, startDate: new Date(dto.dryOffStartDate) },
+          });
+        }
+
         return tx.cattle.findUniqueOrThrow({
           where: { id: updated.id },
           include: this.defaultInclude(),
@@ -647,7 +710,9 @@ export class CattleService {
       // state (e.g. a heifer→cow priorCalvings correction, or a new
       // lactation starting) — same recompute create() now ends with.
       const needsRecompute =
-        dto.priorCalvings !== undefined || Boolean(dto.lactationStartDate);
+        dto.priorCalvings !== undefined ||
+        Boolean(dto.lactationStartDate) ||
+        dto.productionStatus !== undefined;
       if (needsRecompute) {
         await this.derivation.refreshDerivedState(farmId, id);
       }
@@ -729,7 +794,9 @@ export class CattleService {
           // Create the purchase-intake Lactation and flip productionStatus in
           // the same transaction so the two never drift apart. A profile-less
           // cow with a supplied `priorCalvings` also gets its
-          // `ReproductionProfile` created here — one write, not two.
+          // `ReproductionProfile` created here — one write, not two. No raw
+          // `productionStatus` write — `refreshDerivedState` below reads this Lactation back and
+          // derives it correctly (RD-048).
           await this.prisma.$transaction(async (tx) => {
             await tx.lactation.create({
               data: {
@@ -745,23 +812,32 @@ export class CattleService {
                 data: { cattleId: id, totalCalvings: dto.priorCalvings },
               });
             }
-            await tx.cattle.update({
-              where: { id },
-              data: { productionStatus: dto.productionStatus },
-            });
-          });
-        } else {
-          await this.prisma.cattle.update({
-            where: { id },
-            data: { productionStatus: dto.productionStatus },
           });
         }
-      } else {
-        await this.prisma.cattle.update({
-          where: { id },
-          data: { productionStatus: dto.productionStatus },
+        // `else` (an active Lactation already exists): nothing to write — derivation below
+        // already reads it and confirms MILKING.
+      } else if (dto.productionStatus === ProductionStatus.DRY) {
+        // RD-048: same "must be backed by a fact" rule as MILKING above — this branch used to be
+        // a bare `cattle.update({ data: { productionStatus } })` with no backing check at all,
+        // the actual bug this closes. An open DryPeriod already existing means nothing to do;
+        // derivation below reads it and confirms DRY.
+        const openDryPeriod = await this.prisma.dryPeriod.findFirst({
+          where: { cattleId: id, actualEndDate: null },
+          select: { id: true },
         });
+        if (!openDryPeriod) {
+          if (!dto.dryOffStartDate) {
+            throw new BadRequestException(
+              'dryOffStartDate is required to record this cow as dry (no open dry period on record). Provide dryOffStartDate, or record a real dry-off event instead.',
+            );
+          }
+          await this.prisma.dryPeriod.create({
+            data: { cattleId: id, startDate: new Date(dto.dryOffStartDate) },
+          });
+        }
       }
+
+      await this.derivation.refreshDerivedState(farmId, id);
     }
 
     if (dto.reproductiveStatus) {

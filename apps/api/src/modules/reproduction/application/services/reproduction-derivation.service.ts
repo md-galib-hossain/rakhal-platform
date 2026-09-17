@@ -262,9 +262,17 @@ export class ReproductionDerivationService {
    * `DryPeriod` → `DRY`, an `ACTIVE` `Lactation` → `MILKING` (the two are
    * mutually exclusive by construction — `recordDryOff` always ends the
    * active lactation before opening a dry period). **Neither → leave as-is**:
-   * this field predates any derivation (manual-only, RAKHAL-269) and other
-   * values (`CULLED`, or simply unset) must never be silently nulled by a
-   * recompute that found no live lactation/dry-period fact either way.
+   * a fresh heifer/calf with no lactation/dry-period fact yet must not be
+   * silently nulled by a recompute that found nothing either way.
+   *
+   * RD-048 (2026-09-17): this is now the field's *only* writer —
+   * `CattleService.create()`/`update()`/`updateStatus()` no longer write
+   * `productionStatus` directly; each requires + creates the backing
+   * Lactation/DryPeriod fact first (mirroring `updateStatus()`'s pre-existing
+   * MILKING guard, now applied symmetrically to DRY and to the general edit
+   * path too), then calls `refreshDerivedState` to let this method persist
+   * the value. Two writers disagreeing (the bug RD-048 described) can no
+   * longer happen — every stored value is always backed by a real fact.
    */
   private async refreshCattleProductionStatus(cattleId: string): Promise<void> {
     const [cattle, openDryPeriod, activeLactation] = await Promise.all([

@@ -31,6 +31,15 @@ type NutrientSnapshot = {
   tdnPct: number;
 } | null;
 
+/** RAKHAL-430 (Feeding Favourites): one cow's/line's resolved feed source — always exactly one of
+ * `feedItemId`/`feedStockId` set, matching `sourceType`. The unified shape `resolveEntrySource()`
+ * returns and every per-source grouping/validation in `confirm()`/`saveDraft()` operates on. */
+type ResolvedSource = {
+  sourceType: FeedGridSourceType;
+  feedItemId: string | null;
+  feedStockId: string | null;
+};
+
 /**
  * Feeding Grid (2026-08-15) — replaces Quick Feed. A per-cow, spreadsheet-style feeding session:
  * a farmer opens the grid for a day (optionally scoped to one feed group), sees every cow with its
@@ -76,11 +85,12 @@ export class FeedFeedingGridService {
       return { date: date, feed_group_id: feedGroupId ?? null, cows: [] };
     }
 
-    const [drafts, defaults] = await Promise.all([
+    const [drafts, defaults, defaultSources] = await Promise.all([
       this.prisma.feedFeedingDraft.findMany({
         where: { farmId, cattleId: { in: cattleIds }, logDate },
       }),
       this.computeDefaults(farmId, cattleIds),
+      this.resolveDefaultSources(farmId, cattle),
     ]);
     const draftsByCattle = this.groupByCattle(drafts);
 
@@ -94,6 +104,7 @@ export class FeedFeedingGridService {
         feed_group_id: c.feedGroupId,
         drafts: (draftsByCattle.get(c.id) ?? []).map((d) => this.mapDraft(d)),
         default_offered_kg: defaults.get(c.id) ?? null,
+        default_source: this.mapResolvedSource(defaultSources.get(c.id)),
       })),
     };
   }
@@ -180,13 +191,20 @@ export class FeedFeedingGridService {
    * Turn a day's feeding-grid quantities into one real `FeedDistribution`. Cow scope is always the
    * full grid for `{feedGroupId}` (or the whole active herd if `feedGroupId` is omitted) — matching
    * `getGrid()` — so a confirm with no draft and no `entries` still resolves a quantity per cow via
-   * the same carried-forward default `getGrid()` shows. Per cow, effective quantity is:
-   * `dto.entries` value (if that cow is named) → else an existing draft for this
-   * `date+sourceType+source` → else the carried-forward default. Cows that resolve to 0/undeterminable
-   * are skipped entirely (never added to the aggregate or the per-cow breakdown).
+   * the same carried-forward default `getGrid()` shows.
+   *
+   * RAKHAL-430 (Feeding Favourites): **multi-source**. Each cow resolves to its own `{offeredKg,
+   * source}`: a named `dto.entries` line (own source override, else the call's top-level default)
+   * → else its own existing draft for this date (any source — if more than one exists, the
+   * top-level default disambiguates when given, else an unambiguous single draft is used) → else
+   * the carried-forward default *quantity*, only resolvable when the call has a top-level default
+   * source to pair it with (no resolution ladder yet — RAKHAL-431's job). Cows that resolve to
+   * 0/no source are skipped entirely. Resolved lines are grouped by distinct source: one
+   * `FeedDistributionItem` per group, each stock-validated and decremented independently — a
+   * shortfall on one source blocks the whole confirm before anything is written, same "fail fast
+   * before the transaction" convention `assertSufficientStock` already established here.
    */
   async confirm(farmId: string, userId: string, dto: ConfirmFeedDraftDto) {
-    await this.validateSource(farmId, dto.sourceType, dto);
     if (dto.feedGroupId) {
       const group = await this.prisma.feedGroup.findFirst({
         where: { id: dto.feedGroupId, farmId, deletedAt: null },
@@ -201,7 +219,7 @@ export class FeedFeedingGridService {
         ...activeHerd(farmId),
         ...(dto.feedGroupId ? { feedGroupId: dto.feedGroupId } : {}),
       },
-      select: { id: true },
+      select: { id: true, feedGroupId: true },
     });
     const cattleIds = cattle.map((c) => c.id);
     if (cattleIds.length === 0) {
@@ -209,140 +227,107 @@ export class FeedFeedingGridService {
         'No cattle in scope to confirm feeding for',
       );
     }
-
-    const feedItemId = dto.feedItemId ?? null;
-    const feedStockId = dto.feedStockId ?? null;
-
-    const entriesMap = new Map(
-      (dto.entries ?? []).map((e) => [e.cattleId, e.offeredKg]),
+    const currentGroupByCattle = new Map(
+      cattle.map((c) => [c.id, c.feedGroupId]),
     );
+
+    const entriesMap = new Map((dto.entries ?? []).map((e) => [e.cattleId, e]));
+    const dtoDefaultSource = dto.sourceType
+      ? this.resolveEntrySource(dto, {})
+      : null;
     const [drafts, defaults] = await Promise.all([
       this.prisma.feedFeedingDraft.findMany({
-        where: {
-          farmId,
-          cattleId: { in: cattleIds },
-          logDate,
-          sourceType: dto.sourceType,
-          feedItemId,
-          feedStockId,
-        },
+        where: { farmId, cattleId: { in: cattleIds }, logDate },
       }),
       this.computeDefaults(farmId, cattleIds),
     ]);
-    const draftMap = new Map(drafts.map((d) => [d.cattleId, d.offeredKg]));
+    const draftsByCattle = this.groupByCattle(drafts);
 
-    const lines = cattleIds
-      .map((cattleId) => {
-        const qty =
-          entriesMap.get(cattleId) ??
-          draftMap.get(cattleId) ??
-          defaults.get(cattleId) ??
-          0;
-        return { cattleId, offeredKg: round2(qty) };
-      })
-      .filter((l) => l.offeredKg > 0);
+    type Line = { cattleId: string; offeredKg: number; source: ResolvedSource };
+    const lines: Line[] = [];
+    for (const cattleId of cattleIds) {
+      const entry = entriesMap.get(cattleId);
+      if (entry) {
+        const source = this.resolveEntrySource(dto, entry);
+        const qty = round2(entry.offeredKg);
+        if (source && qty > 0) lines.push({ cattleId, offeredKg: qty, source });
+        continue;
+      }
+
+      const cowDrafts = draftsByCattle.get(cattleId) ?? [];
+      const matchingDraft = dtoDefaultSource
+        ? cowDrafts.find(
+            (d) =>
+              d.sourceType === dtoDefaultSource.sourceType &&
+              d.feedItemId === dtoDefaultSource.feedItemId &&
+              d.feedStockId === dtoDefaultSource.feedStockId,
+          )
+        : undefined;
+      const chosenDraft =
+        matchingDraft ?? (cowDrafts.length === 1 ? cowDrafts[0] : undefined);
+      if (chosenDraft) {
+        const qty = round2(chosenDraft.offeredKg);
+        if (qty > 0) {
+          lines.push({
+            cattleId,
+            offeredKg: qty,
+            source: {
+              sourceType: chosenDraft.sourceType,
+              feedItemId: chosenDraft.feedItemId,
+              feedStockId: chosenDraft.feedStockId,
+            },
+          });
+        }
+        continue;
+      }
+
+      if (dtoDefaultSource) {
+        const qty = round2(defaults.get(cattleId) ?? 0);
+        if (qty > 0) {
+          lines.push({ cattleId, offeredKg: qty, source: dtoDefaultSource });
+        }
+      }
+      // else: no source resolvable for this cow at all — skipped, not a 0. RAKHAL-431's
+      // resolution ladder (own last-used → group default) replaces this gap.
+    }
 
     if (lines.length === 0) {
       throw new BadRequestException(
-        'No determinable quantity for any cow in scope',
+        'No determinable quantity/source for any cow in scope',
       );
     }
-    const totalKg = round2(lines.reduce((sum, l) => sum + l.offeredKg, 0));
 
-    // Resolve the aggregate ingredient line + validate stock BEFORE the transaction — same
+    const groups = new Map<string, { source: ResolvedSource; lines: Line[] }>();
+    for (const line of lines) {
+      const key = this.sourceKey(line.source);
+      const group = groups.get(key) ?? { source: line.source, lines: [] };
+      group.lines.push(line);
+      groups.set(key, group);
+    }
+
+    // Resolve pricing/nutrition + validate stock for every group BEFORE the transaction — same
     // "fail fast before creating the distribution row" pattern `create()`/`assertSufficientStock`
-    // use elsewhere in this module.
-    let ingredientId: string;
-    let ingredientName: string;
-    let pricePerKg: number;
-    let nutritionSnapshot: NutrientSnapshot = null;
-    let applyDecrement: (tx: Prisma.TransactionClient) => Promise<void>;
-    let postCommit: (distributionId: string) => Promise<void>;
+    // use elsewhere in this module. A shortfall on any one source aborts the whole confirm, no
+    // partial write.
+    const groupPlans = await Promise.all(
+      [...groups.values()].map(async ({ source, lines: groupLines }) => {
+        const totalKg = round2(
+          groupLines.reduce((sum, l) => sum + l.offeredKg, 0),
+        );
+        const plan = await this.resolveGroupPlan(
+          farmId,
+          userId,
+          source,
+          totalKg,
+        );
+        return { source, lines: groupLines, totalKg, ...plan };
+      }),
+    );
 
-    if (dto.sourceType === 'FEED_ITEM') {
-      const usage = await this.feedDistribution.computeFeedItemUsage(
-        farmId,
-        dto.feedItemId!,
-        totalKg,
-      );
-      ingredientId = usage.ingredientId;
-      ingredientName = usage.ingredientName;
-      pricePerKg = usage.pricePerKg;
-      // RAKHAL-327/328 follow-up: freeze the SAME live nutrition lookup used to price this line
-      // (see `FeedDistributionService.create()`'s identical pattern) instead of leaving it to be
-      // re-resolved from a possibly-later-edited catalogue every time `getDmiComparison()` runs.
-      // `getEffectiveNutrition()` returns the full `EffectiveIngredient` shape (price/source/etc
-      // too) — narrow it down to just the 12 nutrient fields `FeedDistributionItem` has columns
-      // for, otherwise Prisma rejects the extra keys on create.
-      const eff = await this.feedDistribution.getEffectiveNutrition(
-        farmId,
-        ingredientId,
-      );
-      nutritionSnapshot = eff
-        ? {
-            dmPct: eff.dmPct,
-            cpPct: eff.cpPct,
-            meMjPerKgDm: eff.meMjPerKgDm,
-            fatPct: eff.fatPct,
-            ndfPct: eff.ndfPct,
-            rdpPct: eff.rdpPct,
-            rupPct: eff.rupPct,
-            starchPct: eff.starchPct,
-            adfPct: eff.adfPct,
-            calciumPct: eff.calciumPct,
-            phosphorusPct: eff.phosphorusPct,
-            tdnPct: eff.tdnPct,
-          }
-        : null;
-      applyDecrement = async (tx) => {
-        await tx.feedItem.update({
-          where: { id: usage.feedItem.id },
-          data: { currentStock: usage.newStock },
-        });
-      };
-      postCommit = async () => {};
-    } else {
-      const stock = await this.prisma.feedStock.findFirst({
-        where: { id: dto.feedStockId, farmId, deletedAt: null },
-      });
-      if (!stock) throw new NotFoundException('Feed stock lot not found');
-      await this.feedStock.assertSufficientStock(farmId, [
-        { stockId: stock.id, quantity: totalKg },
-      ]);
-      ingredientId = stock.sourceConcentrationId;
-      ingredientName = `Batch ${stock.id}`;
-      pricePerKg =
-        stock.producedQtyKg > 0
-          ? round2(stock.producedCostTk / stock.producedQtyKg)
-          : 0;
-      // A `FeedStock` lot already carries its own produce-time nutrient snapshot
-      // (`FeedStock.dmPct`/etc, RAKHAL-327) — reuse it directly rather than re-deriving from the
-      // concentration's live recipe.
-      nutritionSnapshot = {
-        dmPct: stock.dmPct,
-        cpPct: stock.cpPct,
-        meMjPerKgDm: stock.meMjPerKgDm,
-        fatPct: stock.fatPct,
-        ndfPct: stock.ndfPct,
-        rdpPct: stock.rdpPct,
-        rupPct: stock.rupPct,
-        starchPct: stock.starchPct,
-        adfPct: stock.adfPct,
-        calciumPct: stock.calciumPct,
-        phosphorusPct: stock.phosphorusPct,
-        tdnPct: stock.tdnPct,
-      };
-      applyDecrement = async () => {};
-      postCommit = async (distributionId: string) => {
-        await this.feedStock.decrementForDistribution(farmId, userId, {
-          stockId: stock.id,
-          quantity: totalKg,
-          distributionId,
-        });
-      };
-    }
-
-    const lineCost = round2(totalKg * pricePerKg);
+    const totalKg = round2(groupPlans.reduce((sum, g) => sum + g.totalKg, 0));
+    const totalCost = round2(
+      groupPlans.reduce((sum, g) => sum + g.totalKg * g.pricePerKg, 0),
+    );
     const targetFields = dto.feedGroupId
       ? { feedGroupId: dto.feedGroupId, cattleId: null }
       : { feedGroupId: null, cattleId: null };
@@ -358,53 +343,57 @@ export class FeedFeedingGridService {
           totalPlannedKg: totalKg,
           totalActualKg: totalKg,
           totalRefusalKg: 0,
-          totalPlannedCost: lineCost,
-          totalActualCost: lineCost,
+          totalPlannedCost: totalCost,
+          totalActualCost: totalCost,
           createdBy: userId,
           items: {
-            create: [
-              {
-                ingredientId,
-                ingredientName,
-                plannedKg: totalKg,
-                actualKg: totalKg,
-                refusalKg: 0,
-                pricePerKg,
-                lineCost,
-                ...(nutritionSnapshot ?? {}),
-              },
-            ],
+            create: groupPlans.map((g) => ({
+              ingredientId: g.ingredientId,
+              ingredientName: g.ingredientName,
+              plannedKg: g.totalKg,
+              actualKg: g.totalKg,
+              refusalKg: 0,
+              pricePerKg: g.pricePerKg,
+              lineCost: round2(g.totalKg * g.pricePerKg),
+              ...(g.nutritionSnapshot ?? {}),
+            })),
           },
           cattleItems: {
             create: lines.map((l) => ({
               cattleId: l.cattleId,
               offeredKg: l.offeredKg,
+              sourceType: l.source.sourceType,
+              feedItemId: l.source.feedItemId,
+              feedStockId: l.source.feedStockId,
+              feedGroupId: currentGroupByCattle.get(l.cattleId) ?? null,
             })),
           },
         },
         include: { items: true, cattleItems: true },
       });
-      await applyDecrement(tx);
-      await tx.feedFeedingDraft.deleteMany({
-        where: {
-          farmId,
-          logDate,
-          sourceType: dto.sourceType,
-          feedItemId,
-          feedStockId,
-          cattleId: { in: lines.map((l) => l.cattleId) },
-        },
-      });
+      for (const g of groupPlans) await g.applyDecrement(tx);
+      for (const { source, lines: groupLines } of groups.values()) {
+        await tx.feedFeedingDraft.deleteMany({
+          where: {
+            farmId,
+            logDate,
+            sourceType: source.sourceType,
+            feedItemId: source.feedItemId,
+            feedStockId: source.feedStockId,
+            cattleId: { in: groupLines.map((l) => l.cattleId) },
+          },
+        });
+      }
       return dist;
     });
 
-    await postCommit(created.id);
+    for (const g of groupPlans) await g.postCommit(created.id);
 
     this.log.info('Feeding grid confirmed', {
       farmId,
       distributionId: created.id,
       date: dto.date,
-      sourceType: dto.sourceType,
+      sources: groupPlans.length,
       cows: lines.length,
       totalKg,
     });
@@ -413,38 +402,180 @@ export class FeedFeedingGridService {
       id: created.id,
       date: dto.date,
       feed_group_id: dto.feedGroupId ?? null,
-      source_type: dto.sourceType,
-      feed_item_id: dto.feedItemId ?? null,
-      feed_stock_id: dto.feedStockId ?? null,
       total_actual_kg: created.totalActualKg,
       total_actual_cost: created.totalActualCost,
+      sources: groupPlans.map((g) => ({
+        source_type: g.source.sourceType,
+        feed_item_id: g.source.feedItemId,
+        feed_stock_id: g.source.feedStockId,
+        total_kg: g.totalKg,
+      })),
       cows: created.cattleItems.map((c) => ({
         cattle_id: c.cattleId,
         offered_kg: c.offeredKg,
+        source_type: c.sourceType,
+        feed_item_id: c.feedItemId,
+        feed_stock_id: c.feedStockId,
       })),
     };
   }
 
   // ---- internals ------------------------------------------------------------
 
-  private async validateSource(
-    farmId: string,
-    sourceType: FeedGridSourceType,
-    dto: { feedItemId?: string; feedStockId?: string },
-  ) {
-    if (sourceType === 'FEED_ITEM') {
+  private async validateSource(farmId: string, source: ResolvedSource) {
+    if (source.sourceType === 'FEED_ITEM') {
       const item = await this.prisma.feedItem.findFirst({
-        where: { id: dto.feedItemId, farmId, deletedAt: null },
+        where: { id: source.feedItemId ?? undefined, farmId, deletedAt: null },
         select: { id: true },
       });
       if (!item) throw new NotFoundException('Feed item not found');
     } else {
       const stock = await this.prisma.feedStock.findFirst({
-        where: { id: dto.feedStockId, farmId, deletedAt: null },
+        where: { id: source.feedStockId ?? undefined, farmId, deletedAt: null },
         select: { id: true },
       });
       if (!stock) throw new NotFoundException('Feed stock lot not found');
     }
+  }
+
+  /**
+   * RAKHAL-430: resolve one entry's own source, falling back to the call's top-level default when
+   * the entry doesn't name its own. Returns `null` when neither resolves to anything — the caller
+   * decides whether that's fatal (`saveDraft` always requires one) or just means "skip this cow"
+   * (`confirm`, whose resolution has further fallbacks beyond an entry's own source).
+   */
+  private resolveEntrySource(
+    dto: {
+      sourceType?: FeedGridSourceType;
+      feedItemId?: string;
+      feedStockId?: string;
+    },
+    entry: {
+      sourceType?: FeedGridSourceType;
+      feedItemId?: string;
+      feedStockId?: string;
+    },
+  ): ResolvedSource | null {
+    const sourceType = entry.sourceType ?? dto.sourceType;
+    if (!sourceType) return null;
+    const from = entry.sourceType ? entry : dto;
+    return {
+      sourceType,
+      feedItemId: sourceType === 'FEED_ITEM' ? (from.feedItemId ?? null) : null,
+      feedStockId:
+        sourceType === 'FEED_STOCK' ? (from.feedStockId ?? null) : null,
+    };
+  }
+
+  private sourceKey(source: ResolvedSource): string {
+    return `${source.sourceType}:${source.feedItemId ?? source.feedStockId}`;
+  }
+
+  /**
+   * RAKHAL-430: the per-source half of `confirm()` — resolves pricing/nutrition and validates
+   * stock for one group of cows sharing one source, exactly the single-source logic `confirm()`
+   * used to run once inline, now callable once per distinct source. Throws (stock/`kg-per-unit`
+   * shortfalls) before anything is written, same fail-fast convention as everywhere else in this
+   * module — `confirm()` calls this for every group before opening its transaction.
+   */
+  private async resolveGroupPlan(
+    farmId: string,
+    userId: string,
+    source: ResolvedSource,
+    totalKg: number,
+  ): Promise<{
+    ingredientId: string;
+    ingredientName: string;
+    pricePerKg: number;
+    nutritionSnapshot: NutrientSnapshot;
+    applyDecrement: (tx: Prisma.TransactionClient) => Promise<void>;
+    postCommit: (distributionId: string) => Promise<void>;
+  }> {
+    if (source.sourceType === 'FEED_ITEM') {
+      const usage = await this.feedDistribution.computeFeedItemUsage(
+        farmId,
+        source.feedItemId!,
+        totalKg,
+      );
+      // RAKHAL-327/328 follow-up: freeze the SAME live nutrition lookup used to price this line
+      // (see `FeedDistributionService.create()`'s identical pattern) instead of leaving it to be
+      // re-resolved from a possibly-later-edited catalogue every time `getDmiComparison()` runs.
+      const eff = await this.feedDistribution.getEffectiveNutrition(
+        farmId,
+        usage.ingredientId,
+      );
+      const nutritionSnapshot: NutrientSnapshot = eff
+        ? {
+            dmPct: eff.dmPct,
+            cpPct: eff.cpPct,
+            meMjPerKgDm: eff.meMjPerKgDm,
+            fatPct: eff.fatPct,
+            ndfPct: eff.ndfPct,
+            rdpPct: eff.rdpPct,
+            rupPct: eff.rupPct,
+            starchPct: eff.starchPct,
+            adfPct: eff.adfPct,
+            calciumPct: eff.calciumPct,
+            phosphorusPct: eff.phosphorusPct,
+            tdnPct: eff.tdnPct,
+          }
+        : null;
+      return {
+        ingredientId: usage.ingredientId,
+        ingredientName: usage.ingredientName,
+        pricePerKg: usage.pricePerKg,
+        nutritionSnapshot,
+        applyDecrement: async (tx) => {
+          await tx.feedItem.update({
+            where: { id: usage.feedItem.id },
+            data: { currentStock: usage.newStock },
+          });
+        },
+        postCommit: async () => {},
+      };
+    }
+
+    const stock = await this.prisma.feedStock.findFirst({
+      where: { id: source.feedStockId ?? undefined, farmId, deletedAt: null },
+    });
+    if (!stock) throw new NotFoundException('Feed stock lot not found');
+    await this.feedStock.assertSufficientStock(farmId, [
+      { stockId: stock.id, quantity: totalKg },
+    ]);
+    // A `FeedStock` lot already carries its own produce-time nutrient snapshot (`FeedStock.dmPct`
+    // /etc, RAKHAL-327) — reuse it directly rather than re-deriving from the concentration's live
+    // recipe.
+    const nutritionSnapshot: NutrientSnapshot = {
+      dmPct: stock.dmPct,
+      cpPct: stock.cpPct,
+      meMjPerKgDm: stock.meMjPerKgDm,
+      fatPct: stock.fatPct,
+      ndfPct: stock.ndfPct,
+      rdpPct: stock.rdpPct,
+      rupPct: stock.rupPct,
+      starchPct: stock.starchPct,
+      adfPct: stock.adfPct,
+      calciumPct: stock.calciumPct,
+      phosphorusPct: stock.phosphorusPct,
+      tdnPct: stock.tdnPct,
+    };
+    return {
+      ingredientId: stock.sourceConcentrationId,
+      ingredientName: `Batch ${stock.id}`,
+      pricePerKg:
+        stock.producedQtyKg > 0
+          ? round2(stock.producedCostTk / stock.producedQtyKg)
+          : 0,
+      nutritionSnapshot,
+      applyDecrement: async () => {},
+      postCommit: async (distributionId: string) => {
+        await this.feedStock.decrementForDistribution(farmId, userId, {
+          stockId: stock.id,
+          quantity: totalKg,
+          distributionId,
+        });
+      },
+    };
   }
 
   private async assertCattleBelongToFarm(farmId: string, cattleIds: string[]) {
@@ -485,6 +616,233 @@ export class FeedFeedingGridService {
     const map = new Map<string, number>();
     for (const row of rows) {
       if (!map.has(row.cattleId)) map.set(row.cattleId, row.offeredKg);
+    }
+    return map;
+  }
+
+  private mapResolvedSource(source: ResolvedSource | undefined | null) {
+    if (!source) return null;
+    return {
+      source_type: source.sourceType,
+      feed_item_id: source.feedItemId,
+      feed_stock_id: source.feedStockId,
+    };
+  }
+
+  /**
+   * RAKHAL-431: resolution ladder — **own last-used → feed-group default → none** — surfaced as
+   * `default_source` on `GET /feed/grid` (parallel to `default_offered_kg`). Batched over the whole
+   * `cattle` list passed in rather than resolved per cow, so the grid stays a handful of queries
+   * regardless of herd size.
+   *
+   * Own last-used is honored only past two guards, in order:
+   * 1. **Group-change guard** — `FeedDistributionCattleItem.feedGroupId` (snapshotted at confirm
+   *    time, RAKHAL-430) must match the cow's *current* `feedGroupId` (`null === null` counts as a
+   *    match — a groupless cow's own history is still hers). A cow moved to a different group falls
+   *    through to that new group's default instead of inheriting the old group's feed.
+   * 2. **Availability guard** — the resolved `FeedItem`/`FeedStock` must still exist, not be
+   *    soft-deleted, and carry real stock (`> 0`).
+   *
+   * A `FeedStock` lot that fails the availability guard gets one more chance — **batch
+   * fall-forward**: a sibling lot sharing the same `sourceConcentrationId` (same recipe, re-mixed)
+   * that does have stock. Only then does resolution fall through to `FeedGroup`'s own
+   * `defaultFeedSourceType`/`defaultFeedItemId`/`defaultFeedStockId` (RAKHAL-429) — returned as-is,
+   * unguarded, since it is a farmer-configured intent rather than history; a shortfall there still
+   * surfaces normally at confirm time via `resolveGroupPlan`'s own stock validation.
+   */
+  private async resolveDefaultSources(
+    farmId: string,
+    cattle: { id: string; feedGroupId: string | null }[],
+  ): Promise<Map<string, ResolvedSource | null>> {
+    const cattleIds = cattle.map((c) => c.id);
+    const lastUsedByCattle = await this.computeLastUsedSources(
+      farmId,
+      cattleIds,
+    );
+
+    const feedItemIds = new Set<string>();
+    const feedStockIds = new Set<string>();
+    for (const lu of lastUsedByCattle.values()) {
+      if (lu.feedItemId) feedItemIds.add(lu.feedItemId);
+      if (lu.feedStockId) feedStockIds.add(lu.feedStockId);
+    }
+
+    const [items, stocks] = await Promise.all([
+      this.prisma.feedItem.findMany({
+        where: { id: { in: [...feedItemIds] }, farmId },
+        select: { id: true, currentStock: true, deletedAt: true },
+      }),
+      this.prisma.feedStock.findMany({
+        where: { id: { in: [...feedStockIds] }, farmId },
+        select: {
+          id: true,
+          currentStockKg: true,
+          deletedAt: true,
+          sourceConcentrationId: true,
+        },
+      }),
+    ]);
+    const itemMap = new Map(items.map((i) => [i.id, i]));
+    const stockMap = new Map(stocks.map((s) => [s.id, s]));
+
+    const exhaustedRecipeIds = new Set<string>();
+    for (const stock of stocks) {
+      if (stock.deletedAt || stock.currentStockKg <= 0) {
+        exhaustedRecipeIds.add(stock.sourceConcentrationId);
+      }
+    }
+    const siblingsByRecipe = new Map<string, { id: string }>();
+    if (exhaustedRecipeIds.size) {
+      const siblings = await this.prisma.feedStock.findMany({
+        where: {
+          farmId,
+          sourceConcentrationId: { in: [...exhaustedRecipeIds] },
+          deletedAt: null,
+          currentStockKg: { gt: 0 },
+        },
+        select: { id: true, sourceConcentrationId: true },
+        orderBy: { producedAt: 'desc' },
+      });
+      for (const s of siblings) {
+        if (!siblingsByRecipe.has(s.sourceConcentrationId)) {
+          siblingsByRecipe.set(s.sourceConcentrationId, { id: s.id });
+        }
+      }
+    }
+
+    const groupIds = new Set<string>();
+    for (const c of cattle) if (c.feedGroupId) groupIds.add(c.feedGroupId);
+    const groups = groupIds.size
+      ? await this.prisma.feedGroup.findMany({
+          where: { id: { in: [...groupIds] }, farmId },
+          select: {
+            id: true,
+            defaultFeedSourceType: true,
+            defaultFeedItemId: true,
+            defaultFeedStockId: true,
+          },
+        })
+      : [];
+    const groupMap = new Map(groups.map((g) => [g.id, g]));
+
+    const groupDefault = (
+      feedGroupId: string | null,
+    ): ResolvedSource | null => {
+      const group = feedGroupId ? groupMap.get(feedGroupId) : undefined;
+      if (!group?.defaultFeedSourceType) return null;
+      return {
+        sourceType: group.defaultFeedSourceType,
+        feedItemId:
+          group.defaultFeedSourceType === 'FEED_ITEM'
+            ? (group.defaultFeedItemId ?? null)
+            : null,
+        feedStockId:
+          group.defaultFeedSourceType === 'FEED_STOCK'
+            ? (group.defaultFeedStockId ?? null)
+            : null,
+      };
+    };
+
+    const result = new Map<string, ResolvedSource | null>();
+    for (const c of cattle) {
+      const lastUsed = lastUsedByCattle.get(c.id);
+      const groupChangeOk =
+        lastUsed !== undefined && lastUsed.feedGroupId === c.feedGroupId;
+
+      if (groupChangeOk && lastUsed.sourceType === 'FEED_ITEM') {
+        const item = lastUsed.feedItemId
+          ? itemMap.get(lastUsed.feedItemId)
+          : undefined;
+        if (item && !item.deletedAt && item.currentStock > 0) {
+          result.set(c.id, {
+            sourceType: 'FEED_ITEM',
+            feedItemId: lastUsed.feedItemId,
+            feedStockId: null,
+          });
+          continue;
+        }
+      } else if (groupChangeOk && lastUsed.sourceType === 'FEED_STOCK') {
+        const stock = lastUsed.feedStockId
+          ? stockMap.get(lastUsed.feedStockId)
+          : undefined;
+        if (stock && !stock.deletedAt && stock.currentStockKg > 0) {
+          result.set(c.id, {
+            sourceType: 'FEED_STOCK',
+            feedItemId: null,
+            feedStockId: lastUsed.feedStockId,
+          });
+          continue;
+        }
+        const sibling = stock
+          ? siblingsByRecipe.get(stock.sourceConcentrationId)
+          : undefined;
+        if (sibling) {
+          result.set(c.id, {
+            sourceType: 'FEED_STOCK',
+            feedItemId: null,
+            feedStockId: sibling.id,
+          });
+          continue;
+        }
+      }
+
+      result.set(c.id, groupDefault(c.feedGroupId));
+    }
+    return result;
+  }
+
+  /** Most recent `FeedDistributionCattleItem` per cow that carries its own source (RAKHAL-430
+   * onward — pre-RAKHAL-430 rows have no source columns and are skipped, not treated as "no
+   * source"). Reduced in JS to the first row per cow after a `distributedAt desc` ordering, same
+   * approach as `computeDefaults`. */
+  private async computeLastUsedSources(
+    farmId: string,
+    cattleIds: string[],
+  ): Promise<
+    Map<
+      string,
+      {
+        sourceType: FeedGridSourceType;
+        feedItemId: string | null;
+        feedStockId: string | null;
+        feedGroupId: string | null;
+      }
+    >
+  > {
+    const rows = await this.prisma.feedDistributionCattleItem.findMany({
+      where: {
+        cattleId: { in: cattleIds },
+        distribution: { farmId },
+        sourceType: { not: null },
+      },
+      select: {
+        cattleId: true,
+        sourceType: true,
+        feedItemId: true,
+        feedStockId: true,
+        feedGroupId: true,
+        distribution: { select: { distributedAt: true } },
+      },
+      orderBy: { distribution: { distributedAt: 'desc' } },
+    });
+    const map = new Map<
+      string,
+      {
+        sourceType: FeedGridSourceType;
+        feedItemId: string | null;
+        feedStockId: string | null;
+        feedGroupId: string | null;
+      }
+    >();
+    for (const row of rows) {
+      if (!map.has(row.cattleId) && row.sourceType) {
+        map.set(row.cattleId, {
+          sourceType: row.sourceType,
+          feedItemId: row.feedItemId,
+          feedStockId: row.feedStockId,
+          feedGroupId: row.feedGroupId,
+        });
+      }
     }
     return map;
   }
