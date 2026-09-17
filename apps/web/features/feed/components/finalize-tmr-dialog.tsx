@@ -20,13 +20,14 @@ import { useConcentrationFinalizePreview, useFinalizeConcentration } from "../ho
 import type { FeedConcentrationSummary } from "../types";
 
 /**
- * Finalizing a Total Mixed Ration (TMR, `kind=FEED_MIXTURE`) is the Feed Formulator action that can
- * cost real money — it produces a `FeedStock` inventory lot and, for any line **not** linked to a
- * batch it already owns, deducts that portion's cost from Finance (RAKHAL-423/424, MILESTONE 8c). A
- * Concentrate Mixer finalize stays on the plain `ConfirmDialog` in `feed-view.tsx` — it also now
- * produces real `FeedStock` (RAKHAL-421) but never requires or posts payment regardless of unlinked
- * cost (confirmed live in `finalize()`; flagged as **RD-090**, an open product question, not
- * something this dialog can resolve).
+ * Finalizing either kind — a Concentrate Mixer (`kind=CONCENTRATE_TEMPLATE`) or a Total Mixed
+ * Ration (`kind=FEED_MIXTURE`) — is the Feed Formulator action that can cost real money: both
+ * produce a `FeedStock` inventory lot and, for any line **not** linked to a batch already owned,
+ * deduct that portion's cost from Finance (RAKHAL-423/424, MILESTONE 8c; RAKHAL-428 closed RD-090
+ * by making a Concentrate Mixer's unlinked cost pay the same way a TMR's does — previously a
+ * Concentrate finalize never required or posted payment regardless of unlinked cost, and this
+ * dialog didn't apply to it; RFE-114 generalizes this dialog to cover both kinds instead of
+ * duplicating it).
  *
  * **RFE-113 (2026-09-14)**: this dialog used to unconditionally require an account — exactly the
  * behavior RAKHAL-424 closed on the backend for an all-linked finalize. Fixed here: the account
@@ -36,7 +37,9 @@ import type { FeedConcentrationSummary } from "../types";
  * have enough stock, naming the shortfall rather than letting the farmer discover it from a bare
  * 400 after clicking Finalize. See that hook's doc comment for exactly what is and isn't checked
  * precisely (a `FeedItem` with no `kgPerUnit` conversion can't be checked here, same class of gap as
- * `BatchLinkPicker`'s — surfaced as "not checked", never silently assumed fine).
+ * `BatchLinkPicker`'s — surfaced as "not checked", never silently assumed fine). Both the preview
+ * hook and the finalize mutation are already kind-agnostic (they only ever needed an id) — the only
+ * kind-specific part of this dialog is which copy strings to show.
  *
  * RAKHAL-393 (closes RD-066): uses the same `AccountPicker` (Popover+Command search-select + inline
  * quick-add) every other V2 money-movement form uses, so the farmer picks the exact account, not an
@@ -56,6 +59,7 @@ export function FinalizeTmrDialog({
   const [financialAccountId, setFinancialAccountId] = useState<string | undefined>(undefined);
   const [pending, setPending] = useState(false);
 
+  const isTemplate = target?.kind === "CONCENTRATE_TEMPLATE";
   const needsPayment = preview.unlinkedCostTk > 0;
 
   async function handleConfirm() {
@@ -66,7 +70,7 @@ export function FinalizeTmrDialog({
         id: target.id,
         dto: needsPayment ? { financialAccountId } : {},
       });
-      toast.success(t("finalizedToastMixture"));
+      toast.success(t(isTemplate ? "finalizedToast" : "finalizedToastMixture"));
       onOpenChange(false);
       setFinancialAccountId(undefined);
     } catch (err) {
@@ -80,8 +84,8 @@ export function FinalizeTmrDialog({
     <Sheet open={target != null} onOpenChange={(open) => { if (!open) setFinancialAccountId(undefined); onOpenChange(open); }}>
       <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-md">
         <SheetHeader>
-          <SheetTitle>{t("finalizeConfirmTitleMixture")}</SheetTitle>
-          <SheetDescription>{t("finalizeConfirmDescriptionMixture")}</SheetDescription>
+          <SheetTitle>{t(isTemplate ? "finalizeConfirmTitle" : "finalizeConfirmTitleMixture")}</SheetTitle>
+          <SheetDescription>{t(isTemplate ? "finalizeConfirmDescription" : "finalizeConfirmDescriptionMixture")}</SheetDescription>
         </SheetHeader>
 
         <div className="flex flex-col gap-3 py-3">

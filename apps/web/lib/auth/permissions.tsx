@@ -1,10 +1,24 @@
 "use client"; // reads the client session cache
 
 import type { ReactNode } from "react";
+import { useSyncExternalStore } from "react";
 import { useSession } from "./use-session";
 
 /** `resource.action` strings from the backend's RBAC catalogue, e.g. "cattle.create". */
 export type Permission = string;
+
+const emptySubscribe = () => () => {};
+
+/** True only after hydration — same idiom as `theme-toggle.tsx`'s own private copy. `useCan` below
+ * needs it because `useSession()`'s React Query cache is always empty during SSR but can already be
+ * warm client-side (carried over from an earlier client-side navigation within the same tab), so
+ * `can(...)` could return `false` on the server and `true` on the client's very first paint — a real,
+ * reproducible hydration mismatch on every `<Can>`-gated control (found live on `/healthcare`'s
+ * "Export"/"Refresh" buttons, RD-081). Gating on `mounted` makes the server and the client's first
+ * paint agree (both `false`) — the real permission swaps in a tick later. */
+function useMounted(): boolean {
+  return useSyncExternalStore(emptySubscribe, () => true, () => false);
+}
 
 /** Never compare `role === 'owner'` in components — always gate through this (framework doc 02 §10).
  * The backend's `/auth/me` returns a literal `["*"]` for an Owner (full-access role, verified live
@@ -13,8 +27,9 @@ export type Permission = string;
  * at the root (this hook) so every existing/future `<Can I="...">` call site is covered. */
 export function useCan() {
   const { data: session } = useSession();
+  const mounted = useMounted();
   return (permission: Permission) =>
-    session?.permissions.includes("*") || (session?.permissions.includes(permission) ?? false);
+    mounted && (session?.permissions.includes("*") || (session?.permissions.includes(permission) ?? false));
 }
 
 export function Can({

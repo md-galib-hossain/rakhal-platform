@@ -15,7 +15,8 @@ const DIAGNOSIS_VARIANTS: NonNullable<ChipProps["variant"]>[] = [
   "primary",
 ];
 
-export function diagnosisChipVariant(diagnosis: string): NonNullable<ChipProps["variant"]> {
+export function diagnosisChipVariant(diagnosis: string | null): NonNullable<ChipProps["variant"]> {
+  if (!diagnosis) return "muted";
   let hash = 0;
   for (let i = 0; i < diagnosis.length; i++) hash = (hash * 31 + diagnosis.charCodeAt(i)) | 0;
   return DIAGNOSIS_VARIANTS[Math.abs(hash) % DIAGNOSIS_VARIANTS.length];

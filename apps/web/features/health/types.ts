@@ -152,7 +152,10 @@ export interface MortalityRecord {
 export interface HealthCaseListItem {
   id: string;
   caseCode: string;
-  diagnosis: string;
+  /** Free-text, backend-nullable (`HealthCase.diagnosis String?`) — a case created through the
+   * structured `diagnosisType` path (RAKHAL-415's preventive split) can have no free-text diagnosis
+   * at all. Previously typed as always-present, which crashed `SickBayTable` on such a row. */
+  diagnosis: string | null;
   /** New optional structured category (RAKHAL-275) alongside free-text `diagnosis` above. */
   condition: HealthCondition | null;
   diagnosisType: HealthDiagnosisType;

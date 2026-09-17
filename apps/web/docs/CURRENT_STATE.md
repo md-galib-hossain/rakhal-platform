@@ -1,5 +1,15 @@
 # Frontend — Current State
 
+## RFE-114 — Generalize the finalize dialog's purchase preview to the Concentrate Mixer (2026-09-15)
+
+Closes RD-090's frontend half — MILESTONE 8c (RAKHAL-421…428 + RFE-111…114) now fully closed, both
+repos. Backend RAKHAL-428 made a Concentrate Mixer's unlinked cost pay the same way a TMR's does;
+`FinalizeTmrDialog`'s hooks were already kind-agnostic (only ever needed an id), so the fix was purely
+kind-conditional copy — Concentrate now shows its own title/description/toast strings instead of the
+TMR ones, no new i18n keys. `feed-view.tsx`'s Concentrate section opens this same dialog now instead of
+a plain confirm; the now-dead local finalize handler was removed. Gate: `typecheck`(0)/`eslint`(0 on
+both changed files)/`build`(0, 45 routes)/`test`(174/174). Full writeup: `PROJECT_PROGRESS.md`.
+
 ## RFE-110 — Safety Withdrawals becomes a filter, not a fourth tab (2026-09-15)
 
 Last ticket of the Healthcare IA rework — closes RFE-106…110 end to end. `safety-withdrawal-tab.tsx`

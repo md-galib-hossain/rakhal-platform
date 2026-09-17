@@ -19,7 +19,6 @@ import {
   useBulkDeleteConcentrations,
   useConcentrations,
   useFeedGroups,
-  useFinalizeConcentration,
   useRemoveConcentration,
   useSetGroupDefaultConcentration,
 } from "../hooks/use-feed";
@@ -131,7 +130,10 @@ function ConcentrationSection({
  * behind a `ConfirmDialog`, same pattern as `EquipmentView`'s archive flow. Finalize (user request
  * 2026-07-17/18) is offered on both sections as of Phase 12.2 (2026-07-18) — a Concentrate Mixer
  * promotes into a reusable ingredient *and* produces stock; a TMR produces stock only (never an
- * ingredient, it's the final ration) — the confirm dialog's copy is kind-conditional to match.
+ * ingredient, it's the final ration). Both sections share one `FinalizeTmrDialog` instance (RFE-114,
+ * 2026-09-15) — its shortfall/cost-split preview and payment requirement are kind-agnostic since
+ * RAKHAL-428 made a Concentrate Mixer's unlinked cost pay the same way a TMR's does (closes RD-090);
+ * only the dialog's copy strings are kind-conditional.
  * Each section has its own independent multi-select (user request 2026-07-18 follow-up — no shared
  * cross-section selection and no separate "select mode" toggle; migrated 2026-07-21 onto the shared
  * `useGridBulkSelection`/`BulkActionDock` — mutual exclusion between the two sections' selections,
@@ -151,7 +153,6 @@ export function FeedView() {
   const concentrations = useConcentrations();
   const feedGroups = useFeedGroups();
   const removeConcentration = useRemoveConcentration();
-  const finalizeConcentration = useFinalizeConcentration();
   const setGroupDefault = useSetGroupDefaultConcentration();
   const [createOpen, setCreateOpen] = useState(false);
   const [createKind, setCreateKind] = useState<FeedConcentrationKind>("CONCENTRATE_TEMPLATE");
@@ -159,7 +160,6 @@ export function FeedView() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FeedConcentrationSummary | null>(null);
   const [finalizeTarget, setFinalizeTarget] = useState<FeedConcentrationSummary | null>(null);
-  const [finalizeMixtureTarget, setFinalizeMixtureTarget] = useState<FeedConcentrationSummary | null>(null);
   const [feedTodayId, setFeedTodayId] = useState<string | null>(null);
   const bulkDeleteConcentrations = useBulkDeleteConcentrations();
   const tBulk = useTranslations("feed.bulk");
@@ -246,23 +246,6 @@ export function FeedView() {
     }
   }
 
-  // Superseded 2026-09-14 (RAKHAL-421/RD-090): a Concentrate Mixer finalize is not "free/virtual"
-  // any more — it produces a real `FeedStock` lot just like a TMR's. It stays on this plain confirm
-  // (not `FinalizeTmrDialog`'s shortfall/cost-split preview) because it never requires or posts
-  // payment regardless of unlinked cost, confirmed live in `finalize()` — an asymmetry RD-090
-  // records as an open product question, not settled here. Errors (self-consumption, insufficient
-  // linked-batch stock — the same guards a TMR finalize gets) still surface accurately below via
-  // `err.message`, just without this dialog's pre-confirm preview.
-  async function handleFinalizeConfirm() {
-    if (!finalizeTarget) return;
-    try {
-      await finalizeConcentration.mutateAsync({ id: finalizeTarget.id });
-      toast.success(t("finalizedToast"));
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("genericError"));
-    }
-  }
-
   return (
     <div className="flex flex-col gap-4">
       <Tabs defaultValue="ingredients">
@@ -319,7 +302,7 @@ export function FeedView() {
             onCreate={() => openCreate("FEED_MIXTURE")}
             onEdit={openEdit}
             onDelete={setDeleteTarget}
-            onFinalize={setFinalizeMixtureTarget}
+            onFinalize={setFinalizeTarget}
             onFeedToday={(c) => setFeedTodayId(c.id)}
             onSetDefault={handleSetDefault}
             selection={{ isSelected: mixtureSelection.isSelected, toggle: toggleMixture }}
@@ -346,18 +329,9 @@ export function FeedView() {
         confirmLabel={t("card.delete")}
         onConfirm={handleDeleteConfirm}
       />
-      <ConfirmDialog
-        open={finalizeTarget != null}
-        onOpenChange={(open) => !open && setFinalizeTarget(null)}
-        title={t("finalizeConfirmTitle")}
-        description={t("finalizeConfirmDescription")}
-        confirmLabel={t("card.finalize")}
-        variant="primary"
-        onConfirm={handleFinalizeConfirm}
-      />
       <FinalizeTmrDialog
-        target={finalizeMixtureTarget}
-        onOpenChange={(open) => !open && setFinalizeMixtureTarget(null)}
+        target={finalizeTarget}
+        onOpenChange={(open) => !open && setFinalizeTarget(null)}
       />
 
       {/* Two dock instances, one per section — safe because each no-ops at selectedCount === 0 and

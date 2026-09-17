@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Download } from "lucide-react";
 import { Can } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
+import { useMounted } from "@/lib/hooks/use-mounted";
 import { useHasFeature } from "@/features/subscription/hooks/use-subscription-gates";
 import { GenerateReportDialog, type GenerateReportDialogDef } from "./report-catalogue";
 
@@ -34,8 +35,15 @@ export function ReportExportButton({
   const t = useTranslations("reports");
   const hasFeature = useHasFeature();
   const [open, setOpen] = useState(false);
+  // Gate on `mounted` too: `useHasFeature` reads a React Query cache that's empty during SSR but
+  // can already be warm client-side (carried over from an earlier client-side navigation), so the
+  // unmount/render decision below can differ between the server's HTML and the client's very first
+  // paint — a real hydration mismatch this button used to throw on `/healthcare` (RD-081). Server
+  // and the client's first paint now both see `mounted === false` and render nothing identically;
+  // the real gate swaps in a tick later, same idiom `theme-toggle.tsx` already uses for theme.
+  const mounted = useMounted();
 
-  if (!hasFeature("reports.generate")) return null;
+  if (!mounted || !hasFeature("reports.generate")) return null;
 
   return (
     <Can I="reports.create">
