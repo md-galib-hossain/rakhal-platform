@@ -47,6 +47,7 @@ import { UpdateCustomIngredientDto } from '../dto/update-custom-ingredient.dto';
 import { LogDistributionDto } from '../dto/log-distribution.dto';
 import { PatchRefusalDto } from '../dto/patch-refusal.dto';
 import { UpdateStockNutritionDto } from '../dto/update-stock-nutrition.dto';
+import { FeedGridCalendarQueryDto } from '../dto/feed-grid-calendar-query.dto';
 import {
   FeedEfficiencyQueryDto,
   ListDistributionQueryDto,
@@ -398,6 +399,16 @@ export class FeedController {
     @Query() query: FeedGridQueryDto,
   ) {
     return this.feedingGrid.getGrid(farmId, query.date, query.feedGroupId);
+  }
+
+  /** RAKHAL-434: per-day feeding-entry status for the missed-entry calendar picker. */
+  @Get('grid/calendar')
+  @RequirePermission('feed.read')
+  getFeedingGridCalendar(
+    @CurrentFarmId() farmId: string,
+    @Query() query: FeedGridCalendarQueryDto,
+  ) {
+    return this.feedingGrid.calendar(farmId, query.month);
   }
 
   /** Auto-save a day's per-cow grid quantities for one feed source. No inventory effect. */

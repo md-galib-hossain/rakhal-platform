@@ -62,6 +62,90 @@ export class FeedFeedingGridService {
     this.log = logger.setContext(FeedFeedingGridService.name);
   }
 
+  /**
+   * RAKHAL-434: per-day feeding-entry status for the missed-entry calendar picker on the Feed
+   * Grid page. Expected coverage per day is the set of distinct `feedGroupId`s among the active
+   * herd (`null` = ungrouped cattle, only reachable by a whole-farm confirm). A whole-farm
+   * confirm (`FeedDistribution.feedGroupId === null`) covers every group in one shot; a
+   * per-group confirm only covers its own group. `complete` = full expected coverage that day,
+   * `partial` = some, `missing` = none. Days before the farm existed or after today are never
+   * `missing`.
+   */
+  async calendar(farmId: string, month: string) {
+    const [year, m] = month.split('-').map(Number);
+    const from = new Date(Date.UTC(year, m - 1, 1));
+    const to = new Date(Date.UTC(year, m, 1));
+    const today = this.dayStart(new Date().toISOString());
+
+    const [farm, cattle, rows] = await Promise.all([
+      this.prisma.farm.findUnique({
+        where: { id: farmId },
+        select: { createdAt: true },
+      }),
+      this.prisma.cattle.findMany({
+        where: activeHerd(farmId),
+        select: { feedGroupId: true },
+      }),
+      this.prisma.feedDistribution.findMany({
+        where: {
+          farmId,
+          sourceType: 'FEEDING_GRID',
+          distributedAt: { gte: from, lt: to },
+        },
+        select: { distributedAt: true, feedGroupId: true },
+      }),
+    ]);
+    const farmCreatedDay = farm
+      ? this.dayStart(farm.createdAt.toISOString())
+      : null;
+    const expectedGroups = new Set(
+      cattle.map((c) => c.feedGroupId ?? '__ungrouped__'),
+    );
+
+    type Coverage = { farmWide: boolean; groups: Set<string> };
+    const coverageByDay = new Map<string, Coverage>();
+    for (const row of rows) {
+      const key = this.dateOnly(row.distributedAt);
+      const cov = coverageByDay.get(key) ?? {
+        farmWide: false,
+        groups: new Set<string>(),
+      };
+      if (row.feedGroupId == null) cov.farmWide = true;
+      else cov.groups.add(row.feedGroupId);
+      coverageByDay.set(key, cov);
+    }
+
+    const days: Array<{
+      date: string;
+      status: 'complete' | 'partial' | 'missing' | 'future' | 'before_farm';
+    }> = [];
+    for (let d = new Date(from); d < to; d = new Date(d.getTime() + 86400000)) {
+      const dateStr = this.dateOnly(d);
+      let status: 'complete' | 'partial' | 'missing' | 'future' | 'before_farm';
+      if (d.getTime() > today.getTime()) {
+        status = 'future';
+      } else if (farmCreatedDay && d.getTime() < farmCreatedDay.getTime()) {
+        status = 'before_farm';
+      } else if (expectedGroups.size === 0) {
+        status = 'missing';
+      } else {
+        const cov = coverageByDay.get(dateStr);
+        if (!cov) {
+          status = 'missing';
+        } else if (cov.farmWide || cov.groups.size >= expectedGroups.size) {
+          status = 'complete';
+        } else if (cov.groups.size > 0) {
+          status = 'partial';
+        } else {
+          status = 'missing';
+        }
+      }
+      days.push({ date: dateStr, status });
+    }
+
+    return { month, days };
+  }
+
   async getGrid(farmId: string, date: string, feedGroupId?: string) {
     if (feedGroupId) {
       const group = await this.prisma.feedGroup.findFirst({
@@ -112,12 +196,14 @@ export class FeedFeedingGridService {
   /**
    * Auto-save a day's per-cow quantities. Each entry resolves its own source — its own override
    * if given, else the call's top-level source (RAKHAL-430, `resolveEntrySource`) — so one call
-   * can stage different cows against different sources. No `@@unique` in the schema (Postgres
-   * can't enforce uniqueness across two mutually exclusive nullable FK columns — see
-   * `FeedFeedingDraft`'s doc comment), so uniqueness is enforced here per entry's own resolved
-   * `{date, sourceType, feedItemId|feedStockId}` key: a `findFirst` scoped on every one of
-   * `farmId/cattleId/logDate/sourceType/feedItemId/feedStockId` updates that row if found,
-   * otherwise creates a new one.
+   * can stage different cows against different sources. Uniqueness on entry's own resolved
+   * `{date, sourceType, feedItemId|feedStockId}` key is enforced two ways: this method's own
+   * `findFirst`-then-create/update (fast path, no conflict in the common single-request case), and
+   * — since two concurrent requests can both pass that `findFirst` before either commits — a real
+   * DB-level partial unique index per branch (RD-089, `FeedFeedingDraft`'s own doc comment; Postgres
+   * can't express a single ordinary constraint across two mutually exclusive nullable FK columns).
+   * A `create` that loses that race throws Prisma `P2002`, caught below and recovered as an update
+   * of the row the other request just won — never a 500, never a silent duplicate.
    */
   async saveDraft(farmId: string, userId: string, dto: SaveFeedDraftDto) {
     const logDate = this.dayStart(dto.date);
@@ -160,18 +246,14 @@ export class FeedFeedingGridService {
               where: { id: existing.id },
               data: { offeredKg: round2(entry.offeredKg) },
             })
-          : await tx.feedFeedingDraft.create({
-              data: {
-                farmId,
-                cattleId: entry.cattleId,
-                feedGroupId: dto.feedGroupId,
-                logDate,
-                sourceType: source.sourceType,
-                feedItemId: source.feedItemId,
-                feedStockId: source.feedStockId,
-                offeredKg: round2(entry.offeredKg),
-                createdBy: userId,
-              },
+          : await this.createOrRecoverDraft(tx, {
+              farmId,
+              cattleId: entry.cattleId,
+              feedGroupId: dto.feedGroupId,
+              logDate,
+              source,
+              offeredKg: round2(entry.offeredKg),
+              userId,
             });
         rows.push(row);
       }
@@ -421,6 +503,72 @@ export class FeedFeedingGridService {
   }
 
   // ---- internals ------------------------------------------------------------
+
+  /**
+   * RD-089: `saveDraft()`'s create branch, split out so the P2002 recovery reads clearly. Two
+   * concurrent requests can both pass the caller's own `findFirst` (no row yet) before either
+   * commits — the second `create` then collides with the partial unique index the first one just
+   * satisfied and throws `P2002`. Recovered here as an update of the row the other request won,
+   * rather than a 500 or (pre-RD-089) a silent duplicate row.
+   */
+  private async createOrRecoverDraft(
+    tx: Prisma.TransactionClient,
+    params: {
+      farmId: string;
+      cattleId: string;
+      feedGroupId?: string;
+      logDate: Date;
+      source: ResolvedSource;
+      offeredKg: number;
+      userId: string;
+    },
+  ) {
+    const {
+      farmId,
+      cattleId,
+      feedGroupId,
+      logDate,
+      source,
+      offeredKg,
+      userId,
+    } = params;
+    try {
+      return await tx.feedFeedingDraft.create({
+        data: {
+          farmId,
+          cattleId,
+          feedGroupId,
+          logDate,
+          sourceType: source.sourceType,
+          feedItemId: source.feedItemId,
+          feedStockId: source.feedStockId,
+          offeredKg,
+          createdBy: userId,
+        },
+      });
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        const winner = await tx.feedFeedingDraft.findFirstOrThrow({
+          where: {
+            farmId,
+            cattleId,
+            logDate,
+            sourceType: source.sourceType,
+            feedItemId: source.feedItemId,
+            feedStockId: source.feedStockId,
+          },
+        });
+        return tx.feedFeedingDraft.update({
+          where: { id: winner.id },
+          data: { offeredKg },
+        });
+      }
+      throw e;
+    }
+  }
 
   private async validateSource(farmId: string, source: ResolvedSource) {
     if (source.sourceType === 'FEED_ITEM') {
@@ -882,5 +1030,9 @@ export class FeedFeedingGridService {
     return new Date(
       Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
     );
+  }
+
+  private dateOnly(day: Date): string {
+    return day.toISOString().slice(0, 10);
   }
 }

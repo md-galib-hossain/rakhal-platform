@@ -943,30 +943,17 @@ export class HealthService {
     const medicineName = dto.medicineName ?? task?.medicineName ?? undefined;
     const quantity = dto.stockDeductionQuantity ?? dto.doseAmount ?? undefined;
 
-    // RAKHAL-419: resolve the treatment's cost from the medicine's own
-    // costPerUnit — a treatment with no medicine, or a free one, posts
-    // nothing to Finance. RD-095 (closes the gap `logTaskTreatment` already
-    // fixed on itself): resolved BEFORE decrementing stock whenever
-    // `medicineId` is known upfront, so a rejected 400 here never leaves a
-    // real stock decrement committed with no rollback. Only defers
-    // (resolving from `deduction.medicineId` after the decrement, the old
-    // ordering) when the caller gave just `medicineName` with no id — the
-    // real batch isn't known until `decrementForTreatment` itself picks one.
+    // RAKHAL-419/RAKHAL-437 (`docs/EPIC_MEDICINE_BATCH_MODEL.md`): cost is
+    // priced from the actual batch(es) `decrementForTreatment` draws from —
+    // accurate even when a dose splits across two differently-priced lots —
+    // rather than a pre-read guess off the product-level `Medicine.
+    // costPerUnit`, which silently mispriced any split. `decrementForTreatment`
+    // is atomic (throws before writing anything on insufficient/expired
+    // stock), so resolving cost from its own return, after it settles, carries
+    // none of the "rejected call already consumed stock" risk RD-095 was
+    // guarding against — there's no DB read left here that could fail.
     // RD-084: no `financialAccountId` guard here anymore — consumption never
     // touches cash (see `recordInventoryConsumption`'s own doc comment).
-    let resolvedCost = 0;
-    if (medicineId) {
-      const medicine = await this.prisma.medicine.findFirst({
-        where: { id: medicineId, farmId, deletedAt: null },
-        select: { costPerUnit: true },
-      });
-      if (quantity && quantity > 0) {
-        resolvedCost = medicine?.costPerUnit
-          ? medicine.costPerUnit * quantity
-          : 0;
-      }
-    }
-
     const deduction =
       quantity && quantity > 0 && (medicineId || medicineName)
         ? await this.medicineService.decrementForTreatment(farmId, userId, {
@@ -976,16 +963,7 @@ export class HealthService {
             notes: `Treatment for case ${healthCase.caseCode}`,
           })
         : null;
-
-    if (!medicineId && deduction) {
-      const medicine = await this.prisma.medicine.findUnique({
-        where: { id: deduction.medicineId },
-        select: { costPerUnit: true },
-      });
-      resolvedCost = medicine?.costPerUnit
-        ? medicine.costPerUnit * quantity!
-        : 0;
-    }
+    const resolvedCost = deduction?.totalCost ?? 0;
 
     const log = await this.prisma.$transaction(async (tx) => {
       const treatmentLog = await tx.treatmentLog.create({
@@ -1161,12 +1139,6 @@ export class HealthService {
       );
     }
 
-    // RAKHAL-419: same cost basis per animal (same medicine, same dose) —
-    // resolved once rather than re-derived N times in the loop below.
-    const resolvedCost = medicine.costPerUnit
-      ? medicine.costPerUnit * dto.doseAmount
-      : 0;
-
     const treatedAt = new Date(dto.treatedAt);
     const results: {
       cattleId: string;
@@ -1200,6 +1172,10 @@ export class HealthService {
           notes: `Quick treatment for ${cattle.tagNumber}`,
         },
       );
+      // RAKHAL-437: priced from this animal's own actual draw (batches
+      // deplete across animals in the loop, so different animals can draw
+      // from different-cost lots) rather than one shared product-level guess.
+      const resolvedCost = deduction.totalCost;
 
       const { healthCaseId, treatmentLog, withdrawal, autoClosed } =
         await this.prisma.$transaction(async (tx) => {
@@ -1739,38 +1715,27 @@ export class HealthService {
     const medicineName = dto.medicineName ?? task.medicineName ?? undefined;
     const quantity = dto.stockDeductionQuantity ?? dto.doseAmount ?? undefined;
 
-    // Resolve cost + withdrawal days from the `Medicine` record itself — mirrors
+    // Resolve withdrawal days from the `Medicine` record itself — mirrors
     // `recordTreatment`'s auto-derivation (Quick Treat), not `logTreatment`'s manual dto-typed
     // withdrawal days: this route is always driven by a real medicine (the plan step's own
     // `medicineId`), so there is no reason to make the caller re-type numbers the medicine
     // already carries. `dto.milkWithdrawalDays`/`meatWithdrawalDays` still work as an explicit
-    // override when given. Also resolved BEFORE decrementing stock whenever `medicineId` is known
-    // upfront, which is the normal case here (a plan step always carries a concrete `medicineId`,
-    // never `medicineName`-only) — stricter than `logTreatment`'s own ordering (RAKHAL-419),
-    // which only resolves cost from `deduction.medicineId` *after* stock is already decremented,
-    // a real pre-existing gap (a rejected call there still silently consumes real inventory, no
-    // rollback) found live while building this route. Not fixed there — filed as new debt
-    // instead, out of this ticket's scope (two already-shipped, separately-tested routes, real
-    // surgery). Fixed here because it costs nothing extra: the id is already known.
-    let resolvedCost = 0;
+    // override when given. RAKHAL-437 (`docs/EPIC_MEDICINE_BATCH_MODEL.md`): cost is no longer
+    // pre-read off `Medicine.costPerUnit` here — it's resolved from
+    // `decrementForTreatment`'s own `totalCost`, priced off the actual batch(es) drawn (accurate
+    // under a cross-batch split, unlike a single product-level number). This also closes the gap
+    // this comment used to describe (`logTreatment`'s ordering, RAKHAL-419) — `decrementForTreatment`
+    // is atomic and throws before writing anything, so there was never a real "committed decrement,
+    // no rollback" risk once cost resolution is just a field read off its return, not a DB call.
     let milkWithdrawalDays: number | undefined;
     let meatWithdrawalDays: number | undefined;
     if (medicineId) {
       const medicine = await this.prisma.medicine.findFirst({
         where: { id: medicineId, farmId, deletedAt: null },
-        select: {
-          costPerUnit: true,
-          milkWithdrawalDays: true,
-          meatWithdrawalDays: true,
-        },
+        select: { milkWithdrawalDays: true, meatWithdrawalDays: true },
       });
       milkWithdrawalDays = medicine?.milkWithdrawalDays || undefined;
       meatWithdrawalDays = medicine?.meatWithdrawalDays || undefined;
-      if (quantity && quantity > 0) {
-        resolvedCost = medicine?.costPerUnit
-          ? medicine.costPerUnit * quantity
-          : 0;
-      }
     }
 
     const deduction =
@@ -1782,23 +1747,16 @@ export class HealthService {
             notes: `Preventive-round treatment for task ${task.taskCode}`,
           })
         : null;
+    const resolvedCost = deduction?.totalCost ?? 0;
 
-    // Rare fallback: only `medicineName` was given (no id resolvable upfront) — the real batch
-    // is only known once `decrementForTreatment` picks one, so this defers exactly like
-    // `logTreatment`'s own check does, with the same known limitation (stock already moved if
-    // this throws). Never hit for a plan-derived task in practice.
+    // Rare fallback: only `medicineName` was given (no id resolvable upfront) — the real
+    // product/withdrawal-days aren't known until `decrementForTreatment` picks a batch. Never hit
+    // for a plan-derived task in practice.
     if (!medicineId && deduction) {
       const medicine = await this.prisma.medicine.findUnique({
         where: { id: deduction.medicineId },
-        select: {
-          costPerUnit: true,
-          milkWithdrawalDays: true,
-          meatWithdrawalDays: true,
-        },
+        select: { milkWithdrawalDays: true, meatWithdrawalDays: true },
       });
-      resolvedCost = medicine?.costPerUnit
-        ? medicine.costPerUnit * quantity!
-        : 0;
       milkWithdrawalDays = medicine?.milkWithdrawalDays || undefined;
       meatWithdrawalDays = medicine?.meatWithdrawalDays || undefined;
     }

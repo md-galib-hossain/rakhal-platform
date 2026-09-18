@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import {
   Medicine,
+  MedicineBatch,
   MediaCategory,
   MediaUsage,
   MedicineStockMovementReason,
@@ -27,6 +28,7 @@ import {
   StockStatus,
 } from '../../domain/medicine-status';
 import { AdjustStockDto } from '../../presentation/dto/adjust-stock.dto';
+import { CreateMedicineBatchDto } from '../../presentation/dto/create-medicine-batch.dto';
 import { CreateMedicineDto } from '../../presentation/dto/create-medicine.dto';
 import { ListMedicineQueryDto } from '../../presentation/dto/list-medicine-query.dto';
 import { UpdateMedicineDto } from '../../presentation/dto/update-medicine.dto';
@@ -40,10 +42,62 @@ type PresentedMedicine = MedicineWithUnit & {
   expiryStatus: ExpiryStatus;
 };
 
+type DecrementResult = {
+  medicineId: string;
+  batchId: string | null;
+  balanceAfter: number;
+  /** RAKHAL-437 — the primary (first-drawn) batch's own cost. Prefer `totalCost`
+   * for pricing the whole consumption; this is the per-unit rate of that one lot. */
+  costPerUnit: number;
+  /** RAKHAL-437 — `Σ costPerUnit × quantity` across every batch actually drawn
+   * from, accurate even when a dose splits across differently-priced lots
+   * (`Medicine.costPerUnit`, a single product-level number, isn't). */
+  totalCost: number;
+  batchesUsed: {
+    medicineId: string;
+    batchId: string | null;
+    quantity: number;
+    balanceAfter: number;
+    costPerUnit: number;
+  }[];
+};
+
 const EXPIRY_SOON_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
- * Inventory → Medicine tab (PRD §15.2, RAKHAL-074).
+ * Picks the batch a product-level operation (adjustStock/update) should act on,
+ * and the batch treatment consumption should draw from first: earliest-expiry
+ * among in-stock batches (FIFO, INV-05), falling back to the most recently
+ * created batch when nothing is in stock (so a zero-stock product still shows a
+ * sensible representative purchase/expiry pair).
+ */
+function selectRepresentativeBatch(
+  batches: MedicineBatch[],
+): MedicineBatch | null {
+  if (batches.length === 0) return null;
+  const inStock = batches
+    .filter((b) => b.currentStock > 0)
+    .sort(
+      (a, b) =>
+        a.expiryDate.getTime() - b.expiryDate.getTime() ||
+        a.id.localeCompare(b.id),
+    );
+  if (inStock.length > 0) return inStock[0];
+  return [...batches].sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+  )[0];
+}
+
+/**
+ * Inventory → Medicine tab (PRD §15.2, RAKHAL-074). RAKHAL-434/435
+ * (`docs/EPIC_MEDICINE_BATCH_MODEL.md`) split the batch/lot data off `Medicine`
+ * (now the catalog/product row) onto `MedicineBatch` (one row per purchase).
+ * `Medicine.currentStock`/`costPerUnit`/`purchaseDate`/`expiryDate`/`batchId`
+ * stay on the row as a synced summary (`syncMedicineAggregate`) — a mirror of
+ * its representative batch / total stock — so `GET /inventory/medicines` keeps
+ * its exact pre-435 shape and every out-of-lane consumer that still reads those
+ * columns directly (dashboard/reports low-stock+valuation, RAKHAL-438) keeps
+ * working unchanged until it's migrated onto `MedicineBatch` itself.
  *
  * Farm scoping: `farmId` is supplied by the controller from the verified token
  * context (`FarmContextGuard`), so it is trusted here and every query is scoped
@@ -73,41 +127,59 @@ export class MedicineService {
     this.assertExpiryAfterPurchase(purchaseDate, expiryDate);
 
     try {
-      const medicine = await this.prisma.medicine.create({
-        data: {
-          farmId,
-          name: dto.name,
-          imageUrl: dto.imageUrl,
-          type: dto.type,
-          category: dto.category,
-          manufacturer: dto.manufacturer,
-          batchId: dto.batchId,
-          unitId: dto.unitId,
-          currentStock: dto.currentStock,
-          costPerUnit: dto.costPerUnit,
-          lowStockThreshold: dto.lowStockThreshold ?? 0,
-          purchaseDate,
-          expiryDate,
-          milkWithdrawalDays: dto.milkWithdrawalDays ?? 0,
-          meatWithdrawalDays: dto.meatWithdrawalDays ?? 0,
-          notes: dto.notes,
-          createdBy: userId,
-          ...(dto.currentStock > 0
-            ? {
-                stockMovements: {
-                  create: {
-                    farmId,
-                    reason: MedicineStockMovementReason.PURCHASE,
-                    delta: dto.currentStock,
-                    balanceAfter: dto.currentStock,
-                    createdBy: userId,
-                    notes: 'Opening stock',
-                  },
-                },
-              }
-            : {}),
-        },
-        include: { unit: true },
+      const medicine = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.medicine.create({
+          data: {
+            farmId,
+            name: dto.name,
+            imageUrl: dto.imageUrl,
+            type: dto.type,
+            category: dto.category,
+            manufacturer: dto.manufacturer,
+            batchId: dto.batchId,
+            unitId: dto.unitId,
+            currentStock: dto.currentStock,
+            costPerUnit: dto.costPerUnit,
+            lowStockThreshold: dto.lowStockThreshold ?? 0,
+            purchaseDate,
+            expiryDate,
+            milkWithdrawalDays: dto.milkWithdrawalDays ?? 0,
+            meatWithdrawalDays: dto.meatWithdrawalDays ?? 0,
+            notes: dto.notes,
+            createdBy: userId,
+          },
+          include: { unit: true },
+        });
+
+        const batch = await tx.medicineBatch.create({
+          data: {
+            medicineId: created.id,
+            farmId,
+            batchCode: dto.batchId,
+            currentStock: dto.currentStock,
+            costPerUnit: dto.costPerUnit,
+            purchaseDate,
+            expiryDate,
+            createdBy: userId,
+          },
+        });
+
+        if (dto.currentStock > 0) {
+          await tx.medicineStockMovement.create({
+            data: {
+              medicineId: created.id,
+              medicineBatchId: batch.id,
+              farmId,
+              reason: MedicineStockMovementReason.PURCHASE,
+              delta: dto.currentStock,
+              balanceAfter: dto.currentStock,
+              createdBy: userId,
+              notes: 'Opening stock',
+            },
+          });
+        }
+
+        return created;
       });
 
       this.log.info('Medicine created', { medicineId: medicine.id, farmId });
@@ -118,6 +190,74 @@ export class MedicineService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Restock an existing product with a new lot (RAKHAL-434's problem #1 — buying
+   * two lots of the same drug no longer means re-typing the catalog fields into
+   * a second full `Medicine` row). Resyncs the parent's mirrored summary fields.
+   */
+  /**
+   * `tx` (RAKHAL-436) lets a caller — `PurchaseService`'s medicine purchase
+   * line — fold this write into its own atomic transaction, same tx-seam
+   * pattern as `adjustStock`.
+   */
+  async createBatch(
+    farmId: string,
+    userId: string,
+    medicineId: string,
+    dto: CreateMedicineBatchDto,
+    tx?: Prisma.TransactionClient,
+  ): Promise<PresentedMedicine> {
+    await this.getOrThrow(farmId, medicineId);
+
+    const purchaseDate = new Date(dto.purchaseDate);
+    const expiryDate = new Date(dto.expiryDate);
+    this.assertExpiryAfterPurchase(purchaseDate, expiryDate);
+
+    const write = async (client: Prisma.TransactionClient) => {
+      const batch = await client.medicineBatch.create({
+        data: {
+          medicineId,
+          farmId,
+          batchCode: dto.batchCode,
+          currentStock: dto.currentStock,
+          costPerUnit: dto.costPerUnit,
+          purchaseDate,
+          expiryDate,
+          notes: dto.notes,
+          createdBy: userId,
+        },
+      });
+
+      if (dto.currentStock > 0) {
+        await client.medicineStockMovement.create({
+          data: {
+            medicineId,
+            medicineBatchId: batch.id,
+            farmId,
+            reason: MedicineStockMovementReason.PURCHASE,
+            delta: dto.currentStock,
+            balanceAfter: dto.currentStock,
+            createdBy: userId,
+            notes: 'Opening stock (new batch)',
+          },
+        });
+      }
+
+      await this.syncMedicineAggregate(client, medicineId);
+      return client.medicine.findUniqueOrThrow({
+        where: { id: medicineId },
+        include: { unit: true },
+      });
+    };
+
+    const medicine = tx
+      ? await write(tx)
+      : await this.prisma.$transaction((t) => write(t));
+
+    this.log.info('Medicine batch created', { medicineId, farmId });
+    return this.presentOne(medicine);
   }
 
   async findAll(
@@ -173,26 +313,58 @@ export class MedicineService {
       : existing.expiryDate;
     this.assertExpiryAfterPurchase(purchaseDate, expiryDate);
 
+    const touchesBatchFields =
+      dto.costPerUnit !== undefined ||
+      dto.purchaseDate !== undefined ||
+      dto.expiryDate !== undefined ||
+      dto.batchId !== undefined;
+
     try {
-      const medicine = await this.prisma.medicine.update({
-        where: { id },
-        data: {
-          name: dto.name,
-          imageUrl: dto.imageUrl,
-          type: dto.type,
-          category: dto.category,
-          manufacturer: dto.manufacturer,
-          batchId: dto.batchId,
-          unitId: dto.unitId,
-          costPerUnit: dto.costPerUnit,
-          lowStockThreshold: dto.lowStockThreshold,
-          ...(dto.purchaseDate ? { purchaseDate } : {}),
-          ...(dto.expiryDate ? { expiryDate } : {}),
-          milkWithdrawalDays: dto.milkWithdrawalDays,
-          meatWithdrawalDays: dto.meatWithdrawalDays,
-          notes: dto.notes,
-        },
-        include: { unit: true },
+      const medicine = await this.prisma.$transaction(async (tx) => {
+        await tx.medicine.update({
+          where: { id },
+          data: {
+            name: dto.name,
+            imageUrl: dto.imageUrl,
+            type: dto.type,
+            category: dto.category,
+            manufacturer: dto.manufacturer,
+            batchId: dto.batchId,
+            unitId: dto.unitId,
+            costPerUnit: dto.costPerUnit,
+            lowStockThreshold: dto.lowStockThreshold,
+            ...(dto.purchaseDate ? { purchaseDate } : {}),
+            ...(dto.expiryDate ? { expiryDate } : {}),
+            milkWithdrawalDays: dto.milkWithdrawalDays,
+            meatWithdrawalDays: dto.meatWithdrawalDays,
+            notes: dto.notes,
+          },
+        });
+
+        // `update()` is a product-level edit; when it touches lot-specific
+        // fields (cost/purchase/expiry/batch code) those apply to this
+        // product's representative (FIFO-first) batch — a multi-batch,
+        // per-lot edit UI is Phase 2 (`docs/EPIC_MEDICINE_BATCH_MODEL.md`).
+        if (touchesBatchFields) {
+          const batch = await this.loadRepresentativeBatch(tx, existing);
+          await tx.medicineBatch.update({
+            where: { id: batch.id },
+            data: {
+              ...(dto.batchId !== undefined ? { batchCode: dto.batchId } : {}),
+              ...(dto.costPerUnit !== undefined
+                ? { costPerUnit: dto.costPerUnit }
+                : {}),
+              ...(dto.purchaseDate ? { purchaseDate } : {}),
+              ...(dto.expiryDate ? { expiryDate } : {}),
+            },
+          });
+          await this.syncMedicineAggregate(tx, id);
+        }
+
+        return tx.medicine.findUniqueOrThrow({
+          where: { id },
+          include: { unit: true },
+        });
       });
 
       this.log.info('Medicine updated', { medicineId: id, farmId });
@@ -206,8 +378,9 @@ export class MedicineService {
   }
 
   /**
-   * Apply a signed stock delta and record an audit movement, atomically.
-   * Rejects adjustments that would drive stock below zero (INV-02).
+   * Apply a signed stock delta and record an audit movement, atomically, on
+   * this product's representative batch. Rejects adjustments that would drive
+   * that batch's stock below zero (INV-02).
    */
   /**
    * `tx` lets a caller (e.g. a future atomic sale/purchase use case, RAKHAL-341)
@@ -223,24 +396,26 @@ export class MedicineService {
     tx?: Prisma.TransactionClient,
   ): Promise<PresentedMedicine> {
     const existing = await this.getOrThrow(farmId, id);
-    const balanceAfter = existing.currentStock + dto.adjustment;
 
     if (dto.adjustment === 0) {
       throw new BadRequestException('Adjustment must be non-zero');
     }
-    if (balanceAfter < 0) {
-      throw new BadRequestException('Stock cannot go below zero');
-    }
 
     const write = async (client: Prisma.TransactionClient) => {
-      const updatedMedicine = await client.medicine.update({
-        where: { id },
+      const batch = await this.loadRepresentativeBatch(client, existing);
+      const balanceAfter = batch.currentStock + dto.adjustment;
+      if (balanceAfter < 0) {
+        throw new BadRequestException('Stock cannot go below zero');
+      }
+
+      await client.medicineBatch.update({
+        where: { id: batch.id },
         data: { currentStock: balanceAfter },
-        include: { unit: true },
       });
       await client.medicineStockMovement.create({
         data: {
           medicineId: id,
+          medicineBatchId: batch.id,
           farmId,
           reason: dto.reason,
           delta: dto.adjustment,
@@ -250,7 +425,11 @@ export class MedicineService {
           createdBy: userId,
         },
       });
-      return updatedMedicine;
+      await this.syncMedicineAggregate(client, id);
+      return client.medicine.findUniqueOrThrow({
+        where: { id },
+        include: { unit: true },
+      });
     };
 
     const medicine = tx
@@ -261,21 +440,29 @@ export class MedicineService {
       medicineId: id,
       farmId,
       delta: dto.adjustment,
-      balanceAfter,
+      balanceAfter: medicine.currentStock,
     });
+
+    await this.maybeAlertLowStock(
+      farmId,
+      medicine.name,
+      medicine.lowStockThreshold,
+      existing.currentStock,
+      medicine.currentStock,
+    );
     return this.presentOne(medicine);
   }
 
   /**
    * Consume medicine stock for a treatment (HLT-07). The integration point the
    * Healthcare `logTreatment` flow calls. Resolves the batch(es) to draw from —
-   * either the explicit `medicineId` (single batch, no splitting — the caller
-   * chose that specific batch on purpose), or, given only a `medicineName`,
-   * FIFO across every earliest-expiry-first non-expired in-stock batch
-   * (INV-05), **splitting the dose across multiple batches** when the first
-   * one can't cover the full quantity (RD-003). Enforces expired-blocked (HLT-02)
-   * and the never-negative floor (INV-02); all batch updates + movements commit
-   * in one transaction (all-or-nothing).
+   * either the given `medicineId`'s own batches, or, given only a
+   * `medicineName`, every non-deleted catalog row matching that name — FIFO
+   * across every earliest-expiry-first non-expired in-stock batch (INV-05),
+   * **splitting the dose across multiple batches** when the first one can't
+   * cover the full quantity (RD-003). Enforces expired-blocked (HLT-02) and the
+   * never-negative floor (INV-02); all batch updates + movements commit in one
+   * transaction (all-or-nothing).
    */
   async decrementForTreatment(
     farmId: string,
@@ -286,163 +473,149 @@ export class MedicineService {
       quantity: number;
       notes?: string;
     },
-  ): Promise<{
-    medicineId: string;
-    batchId: string | null;
-    balanceAfter: number;
-    batchesUsed: {
-      medicineId: string;
-      batchId: string | null;
-      quantity: number;
-      balanceAfter: number;
-    }[];
-  }> {
+  ): Promise<DecrementResult> {
     if (!opts.quantity || opts.quantity <= 0) {
       throw new BadRequestException(
         'Treatment quantity must be greater than 0',
       );
     }
 
+    let medicines: Medicine[];
     if (opts.medicineId) {
-      return this.decrementSingleBatch(
-        farmId,
-        userId,
-        opts.medicineId,
-        opts.quantity,
-        opts.notes,
-      );
+      medicines = [await this.getOrThrow(farmId, opts.medicineId)];
+    } else {
+      if (!opts.medicineName) {
+        throw new BadRequestException(
+          'A medicineId or medicineName is required to deduct treatment stock',
+        );
+      }
+      medicines = await this.prisma.medicine.findMany({
+        where: {
+          farmId,
+          deletedAt: null,
+          name: { equals: opts.medicineName, mode: 'insensitive' },
+        },
+      });
+      if (medicines.length === 0) {
+        throw new BadRequestException(
+          `No in-stock, non-expired batch found for medicine "${opts.medicineName}"`,
+        );
+      }
     }
 
-    if (!opts.medicineName) {
-      throw new BadRequestException(
-        'A medicineId or medicineName is required to deduct treatment stock',
-      );
-    }
-
-    return this.decrementAcrossBatches(
+    return this.decrementFromCatalogBatches(
       farmId,
       userId,
-      opts.medicineName,
+      medicines,
       opts.quantity,
-      opts.notes,
+      {
+        reason: MedicineStockMovementReason.TREATMENT,
+        notes: opts.notes,
+        defaultNoteLabel: 'Treatment administered',
+        excludeExpired: true,
+        insufficientStockMessage:
+          'Not enough medicine stock for this treatment',
+        noBatchMessage:
+          'No in-stock, non-expired batch found for this medicine',
+      },
     );
   }
 
-  /** Explicit-batch path: no splitting — the caller chose this exact batch. */
-  private async decrementSingleBatch(
+  /**
+   * Consume medicine stock for a Sale (RAKHAL-437, `docs/EPIC_MEDICINE_BATCH_MODEL.md`) — same
+   * FIFO-batch-pick + split behavior `decrementForTreatment` uses, so a sale the product's summed
+   * stock covers doesn't fail just because one particular batch alone falls short — a real gap
+   * `adjustStock`'s single-batch semantics had once a product could carry more than one batch.
+   * Unlike treatment consumption, an expired batch is still sellable here (no clinical concern for
+   * a sale/write-off) — matches `adjustStock`'s own prior behavior, no expiry check either. `tx`
+   * (RAKHAL-341's seam) lets `SellInventoryUseCase` fold this into its own atomic transaction.
+   */
+  async decrementForSale(
     farmId: string,
     userId: string,
-    medicineId: string,
-    quantity: number,
-    notes?: string,
-  ): Promise<{
-    medicineId: string;
-    batchId: string | null;
-    balanceAfter: number;
-    batchesUsed: {
+    opts: {
       medicineId: string;
-      batchId: string | null;
       quantity: number;
-      balanceAfter: number;
-    }[];
-  }> {
-    const medicine = await this.getOrThrow(farmId, medicineId);
-
-    if (medicine.expiryDate.getTime() < Date.now()) {
-      throw new BadRequestException(
-        'Cannot administer an expired medicine batch (HLT-02)',
-      );
+      saleLineId: string;
+      notes?: string;
+    },
+    tx?: Prisma.TransactionClient,
+  ): Promise<DecrementResult> {
+    if (!opts.quantity || opts.quantity <= 0) {
+      throw new BadRequestException('Sale quantity must be greater than 0');
     }
-
-    const balanceAfter = medicine.currentStock - quantity;
-    if (balanceAfter < 0) {
-      throw new BadRequestException(
-        'Not enough medicine stock for this treatment',
-      );
-    }
-
-    await this.prisma.$transaction([
-      this.prisma.medicine.update({
-        where: { id: medicine.id },
-        data: { currentStock: balanceAfter },
-      }),
-      this.prisma.medicineStockMovement.create({
-        data: {
-          medicineId: medicine.id,
-          farmId,
-          reason: MedicineStockMovementReason.TREATMENT,
-          delta: -quantity,
-          balanceAfter,
-          notes: notes ?? 'Treatment administered',
-          createdBy: userId,
-        },
-      }),
-    ]);
-
-    this.log.info('Medicine decremented for treatment', {
-      medicineId: medicine.id,
+    const medicine = await this.getOrThrow(farmId, opts.medicineId);
+    return this.decrementFromCatalogBatches(
       farmId,
-      quantity,
-      balanceAfter,
-    });
-
-    await this.maybeAlertLowStock(farmId, medicine, balanceAfter);
-
-    return {
-      medicineId: medicine.id,
-      batchId: medicine.batchId,
-      balanceAfter,
-      batchesUsed: [
-        {
-          medicineId: medicine.id,
-          batchId: medicine.batchId,
-          quantity,
-          balanceAfter,
-        },
-      ],
-    };
+      userId,
+      [medicine],
+      opts.quantity,
+      {
+        reason: MedicineStockMovementReason.SALE,
+        saleLineId: opts.saleLineId,
+        notes: opts.notes,
+        defaultNoteLabel: 'Sold via SellInventoryItem',
+        excludeExpired: false,
+        insufficientStockMessage: 'Insufficient stock for this sale',
+        noBatchMessage: 'No in-stock batch found for this medicine',
+      },
+      tx,
+    );
   }
 
   /**
-   * FIFO-by-name path (INV-05): walks every non-expired in-stock batch of this
-   * medicine name, earliest-expiry first, drawing as much as each batch can
-   * cover before moving to the next — splitting the dose across batches when
-   * one alone is insufficient (RD-003). Throws if the combined stock across
-   * all eligible batches still can't cover the quantity; nothing is written.
+   * FIFO-by-lot draw across every non-expired-by-default (see `excludeExpired`)
+   * in-stock `MedicineBatch` owned by any of `medicines` (one catalog row for
+   * an explicit id, several for a by-name treatment match) — earliest expiry
+   * first, drawing as much as each batch can cover before moving to the next,
+   * splitting when one alone is insufficient. Throws if the combined stock
+   * across every eligible batch still can't cover the quantity; nothing is
+   * written. `tx` (when given) is used for every read/write so this folds into
+   * the caller's own transaction (`decrementForSale`); omitted, it opens/uses
+   * its own (`decrementForTreatment`'s existing, deliberate "outside the
+   * caller's writing transaction" convention).
    */
-  private async decrementAcrossBatches(
+  private async decrementFromCatalogBatches(
     farmId: string,
     userId: string,
-    medicineName: string,
+    medicines: Medicine[],
     quantity: number,
-    notes?: string,
-  ): Promise<{
-    medicineId: string;
-    batchId: string | null;
-    balanceAfter: number;
-    batchesUsed: {
-      medicineId: string;
-      batchId: string | null;
-      quantity: number;
-      balanceAfter: number;
-    }[];
-  }> {
-    const batches = await this.prisma.medicine.findMany({
+    opts: {
+      reason: MedicineStockMovementReason;
+      notes?: string;
+      defaultNoteLabel: string;
+      excludeExpired: boolean;
+      insufficientStockMessage: string;
+      noBatchMessage: string;
+      saleLineId?: string;
+    },
+    tx?: Prisma.TransactionClient,
+  ): Promise<DecrementResult> {
+    const medicineById = new Map(medicines.map((m) => [m.id, m]));
+
+    // Self-heal is idempotent and independent of the caller's own tx — once
+    // committed here it's immediately visible to `tx`'s later reads too.
+    await this.prisma.$transaction(async (heal) => {
+      for (const medicine of medicines) {
+        await this.ensureBatchExists(heal, medicine);
+      }
+    });
+
+    const readClient = tx ?? this.prisma;
+    const batches = await readClient.medicineBatch.findMany({
       where: {
+        medicineId: { in: [...medicineById.keys()] },
         farmId,
         deletedAt: null,
-        name: { equals: medicineName, mode: 'insensitive' },
         currentStock: { gt: 0 },
-        expiryDate: { gte: new Date() },
+        ...(opts.excludeExpired ? { expiryDate: { gte: new Date() } } : {}),
       },
       // FIFO: earliest expiry first (INV-05).
       orderBy: [{ expiryDate: 'asc' }, { id: 'asc' }],
     });
 
     if (batches.length === 0) {
-      throw new BadRequestException(
-        `No in-stock, non-expired batch found for medicine "${medicineName}"`,
-      );
+      throw new BadRequestException(opts.noBatchMessage);
     }
 
     const totalAvailable = batches.reduce(
@@ -450,13 +623,12 @@ export class MedicineService {
       0,
     );
     if (totalAvailable < quantity) {
-      throw new BadRequestException(
-        'Not enough medicine stock for this treatment',
-      );
+      throw new BadRequestException(opts.insufficientStockMessage);
     }
 
     let remaining = quantity;
-    const plan: { batch: Medicine; draw: number; balanceAfter: number }[] = [];
+    const plan: { batch: MedicineBatch; draw: number; balanceAfter: number }[] =
+      [];
     for (const batch of batches) {
       if (remaining <= 0) break;
       const draw = Math.min(batch.currentStock, remaining);
@@ -465,50 +637,81 @@ export class MedicineService {
     }
 
     const isSplit = plan.length > 1;
-    const ops = plan.flatMap(({ batch, draw, balanceAfter }) => [
-      this.prisma.medicine.update({
-        where: { id: batch.id },
-        data: { currentStock: balanceAfter },
-      }),
-      this.prisma.medicineStockMovement.create({
-        data: {
-          medicineId: batch.id,
-          farmId,
-          reason: MedicineStockMovementReason.TREATMENT,
-          delta: -draw,
-          balanceAfter,
-          notes: isSplit
-            ? `${notes ?? 'Treatment administered'} (cross-batch split: ${draw} of ${quantity})`
-            : (notes ?? 'Treatment administered'),
-          createdBy: userId,
-        },
-      }),
-    ]);
+    const affectedMedicineIds = [
+      ...new Set(plan.map((p) => p.batch.medicineId)),
+    ];
 
-    await this.prisma.$transaction(ops);
+    const write = async (client: Prisma.TransactionClient) => {
+      for (const { batch, draw, balanceAfter } of plan) {
+        await client.medicineBatch.update({
+          where: { id: batch.id },
+          data: { currentStock: balanceAfter },
+        });
+        await client.medicineStockMovement.create({
+          data: {
+            medicineId: batch.medicineId,
+            medicineBatchId: batch.id,
+            farmId,
+            reason: opts.reason,
+            delta: -draw,
+            balanceAfter,
+            notes: isSplit
+              ? `${opts.notes ?? opts.defaultNoteLabel} (cross-batch split: ${draw} of ${quantity})`
+              : (opts.notes ?? opts.defaultNoteLabel),
+            saleLineId: opts.saleLineId ?? null,
+            createdBy: userId,
+          },
+        });
+      }
+      for (const medicineId of affectedMedicineIds) {
+        await this.syncMedicineAggregate(client, medicineId);
+      }
+    };
+    if (tx) {
+      await write(tx);
+    } else {
+      await this.prisma.$transaction((t) => write(t));
+    }
 
-    this.log.info('Medicine decremented for treatment', {
+    this.log.info('Medicine decremented', {
       farmId,
-      medicineName,
       quantity,
+      reason: opts.reason,
       batchesUsed: plan.map((p) => p.batch.id),
       split: isSplit,
     });
 
-    for (const { batch, balanceAfter } of plan) {
-      await this.maybeAlertLowStock(farmId, batch, balanceAfter);
+    const freshMedicines = await readClient.medicine.findMany({
+      where: { id: { in: affectedMedicineIds } },
+    });
+    for (const fresh of freshMedicines) {
+      const before = medicineById.get(fresh.id)!;
+      await this.maybeAlertLowStock(
+        farmId,
+        fresh.name,
+        fresh.lowStockThreshold,
+        before.currentStock,
+        fresh.currentStock,
+      );
     }
 
     const primary = plan[0];
+    const totalCost = plan.reduce(
+      (sum, { batch, draw }) => sum + batch.costPerUnit * draw,
+      0,
+    );
     return {
-      medicineId: primary.batch.id,
-      batchId: primary.batch.batchId,
+      medicineId: primary.batch.medicineId,
+      batchId: primary.batch.batchCode,
       balanceAfter: primary.balanceAfter,
+      costPerUnit: primary.batch.costPerUnit,
+      totalCost,
       batchesUsed: plan.map(({ batch, draw, balanceAfter }) => ({
-        medicineId: batch.id,
-        batchId: batch.batchId,
+        medicineId: batch.medicineId,
+        batchId: batch.batchCode,
         quantity: draw,
         balanceAfter,
+        costPerUnit: batch.costPerUnit,
       })),
     };
   }
@@ -517,23 +720,20 @@ export class MedicineService {
   // (was above the threshold, now at/below) so it doesn't spam every dose.
   private async maybeAlertLowStock(
     farmId: string,
-    medicine: Medicine,
-    balanceAfter: number,
+    medicineName: string,
+    threshold: number,
+    totalBefore: number,
+    totalAfter: number,
   ): Promise<void> {
-    const threshold = medicine.lowStockThreshold;
-    if (
-      threshold > 0 &&
-      medicine.currentStock > threshold &&
-      balanceAfter <= threshold
-    ) {
+    if (threshold > 0 && totalBefore > threshold && totalAfter <= threshold) {
       await this.notificationService.notifyOwnersAndManagers({
         farmId,
         eventKey: 'low_medicine_stock',
         title: 'Low Medicine Stock',
-        message: `${medicine.name} is low: ${balanceAfter} left (alert threshold ${threshold}).`,
+        message: `${medicineName} is low: ${totalAfter} left (alert threshold ${threshold}).`,
         params: {
-          name: medicine.name,
-          balance: balanceAfter,
+          name: medicineName,
+          balance: totalAfter,
           threshold,
         },
         link: '/inventory/medicine',
@@ -655,6 +855,77 @@ export class MedicineService {
       throw new NotFoundException('Medicine not found');
     }
     return medicine;
+  }
+
+  /** Recomputes `Medicine`'s mirrored summary columns from its live batches —
+   * `currentStock` is the sum across every non-deleted batch; `costPerUnit`/
+   * `purchaseDate`/`expiryDate`/`batchId` mirror the representative (FIFO-first)
+   * batch. Called inside the same transaction as any batch write so the two
+   * tables never observably diverge. */
+  private async syncMedicineAggregate(
+    client: Prisma.TransactionClient,
+    medicineId: string,
+  ): Promise<void> {
+    const batches = await client.medicineBatch.findMany({
+      where: { medicineId, deletedAt: null },
+    });
+    const totalStock = batches.reduce((sum, b) => sum + b.currentStock, 0);
+    const representative = selectRepresentativeBatch(batches);
+
+    await client.medicine.update({
+      where: { id: medicineId },
+      data: {
+        currentStock: totalStock,
+        ...(representative
+          ? {
+              costPerUnit: representative.costPerUnit,
+              purchaseDate: representative.purchaseDate,
+              expiryDate: representative.expiryDate,
+              batchId: representative.batchCode,
+            }
+          : {}),
+      },
+    });
+  }
+
+  private async loadRepresentativeBatch(
+    client: Prisma.TransactionClient,
+    medicine: Medicine,
+  ): Promise<MedicineBatch> {
+    await this.ensureBatchExists(client, medicine);
+    const batches = await client.medicineBatch.findMany({
+      where: { medicineId: medicine.id, deletedAt: null },
+    });
+    // Guaranteed non-null: ensureBatchExists just materialized one if none existed.
+    return selectRepresentativeBatch(batches)!;
+  }
+
+  /** Self-heals a `Medicine` row that predates (or bypassed, e.g. a raw test
+   * fixture) `MedicineService.create()` and so has never had a batch — the same
+   * 1:1 split RAKHAL-434's backfill script performs, applied lazily on first
+   * batch-scoped write instead of only once at migration time. No-op once a
+   * batch exists. */
+  private async ensureBatchExists(
+    client: Prisma.TransactionClient,
+    medicine: Medicine,
+  ): Promise<void> {
+    const count = await client.medicineBatch.count({
+      where: { medicineId: medicine.id, deletedAt: null },
+    });
+    if (count > 0) return;
+
+    await client.medicineBatch.create({
+      data: {
+        medicineId: medicine.id,
+        farmId: medicine.farmId,
+        batchCode: medicine.batchId,
+        currentStock: medicine.currentStock,
+        costPerUnit: medicine.costPerUnit,
+        purchaseDate: medicine.purchaseDate,
+        expiryDate: medicine.expiryDate,
+        createdBy: medicine.createdBy,
+      },
+    });
   }
 
   private statusFilter(

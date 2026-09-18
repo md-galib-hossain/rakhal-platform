@@ -1,6 +1,7 @@
 ﻿import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
-import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
+import { FarmService } from '../src/modules/farm/application/services/farm.service';
+import { AuthedUser, createTestApp, TestContext } from './utils/e2e';
 
 /**
  * RAKHAL-271 (v2 correction) — `ReproductionState` (5-value core) +
@@ -16,11 +17,22 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
  * Creates its own isolated Cattle rows via Prisma (unique tags) to avoid
  * colliding with shared seeded data across parallel e2e workers.
  *
+ * RD-075: runs on a fresh, empty farm (`FarmService.create()`), not the
+ * shared seeded demo farm every other concurrent e2e spec also logs into.
+ * The RAKHAL-320 test below asserts a specific `Task` row's presence within
+ * `reproduction.service.ts`'s dashboard `take: 40` window — on the shared
+ * farm, enough concurrently-running specs creating their own BREEDING tasks
+ * on that same farm could crowd this test's task out of the top 40 by
+ * `dueAt`, failing the assertion under load with no code defect involved.
+ * Farm-scoping the query (already true) plus farm-isolating the test (this
+ * fix) makes that structurally impossible instead of merely unlikely.
+ *
  * Requires the dev stack up + `pnpm seed`.
  */
 describe('Reproduction — ReproductionState/Alert lifecycle (e2e)', () => {
   let ctx: TestContext;
   let prisma: PrismaService;
+  let farmService: FarmService;
   let owner: AuthedUser;
   let ownerUserId: string;
 
@@ -30,16 +42,34 @@ describe('Reproduction — ReproductionState/Alert lifecycle (e2e)', () => {
   ];
   const api = (p: string): string => `${ctx.prefix}${p}`;
   const server = () => ctx.app.getHttpServer();
+  const unique = (prefix: string) =>
+    `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   beforeAll(async () => {
     ctx = await createTestApp();
     prisma = ctx.app.get(PrismaService);
-    owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
+    farmService = ctx.app.get(FarmService);
     const user = await prisma.user.findFirstOrThrow({
       where: { email: 'owner@demo.rakhal.test' },
       select: { id: true },
     });
     ownerUserId = user.id;
+
+    const farm = await farmService.create(user.id, {
+      name: unique('E2E-RD075-ReproLifecycleFarm'),
+    });
+    const login = await request(ctx.app.getHttpServer())
+      .post(api('/auth/login'))
+      .send({
+        email: 'owner@demo.rakhal.test',
+        password: 'DemoPass123',
+        farmId: farm.id,
+      })
+      .expect(201);
+    owner = {
+      token: login.body.data.accessToken as string,
+      farmId: farm.id,
+    };
   }, 30_000);
 
   afterAll(async () => {

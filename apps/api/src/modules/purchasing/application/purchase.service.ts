@@ -7,7 +7,6 @@ import {
   ActivityLogModule,
   EquipmentStockMovementReason,
   FeedItemStockMovementReason,
-  MedicineStockMovementReason,
   Prisma,
   Purchase,
 } from '@prisma/client';
@@ -358,13 +357,20 @@ export class PurchaseService {
           totalAmount: lineTotal,
         },
       });
-      await this.medicineService.adjustStock(
+      // RAKHAL-436 (`docs/EPIC_MEDICINE_BATCH_MODEL.md`) — a medicine purchase
+      // creates its own new lot instead of folding into whatever batch
+      // `adjustStock` would otherwise pick, so a second purchase of the same
+      // drug at a different cost/expiry doesn't get blended into the first.
+      await this.medicineService.createBatch(
         farmId,
         userId,
         medicine.id,
         {
-          adjustment: quantity,
-          reason: MedicineStockMovementReason.PURCHASE,
+          batchCode: line.batchCode,
+          currentStock: quantity,
+          costPerUnit: unitCost.toNumber(),
+          purchaseDate: purchase.purchaseDate.toISOString(),
+          expiryDate: line.expiryDate!,
           notes: `Purchase ${purchase.purchaseNumber}`,
         },
         client,

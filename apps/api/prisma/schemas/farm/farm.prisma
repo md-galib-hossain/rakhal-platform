@@ -49,6 +49,7 @@ model Farm {
   safetyWithdrawals         SafetyWithdrawal[]         @relation("FarmToSafetyWithdrawal")
   diseaseCatalogs           DiseaseCatalog[]           @relation("FarmToDiseaseCatalog")
   medicines                 Medicine[]                 @relation("FarmToMedicine")
+  medicineBatches           MedicineBatch[]            @relation("FarmToMedicineBatch")
   forages                   FeedItem[]                 @relation("FarmToForage")
   semenTanks                SemenTank[]                @relation("FarmToSemenTank")
   semenBatches              SemenBatch[]               @relation("FarmToSemenBatch")

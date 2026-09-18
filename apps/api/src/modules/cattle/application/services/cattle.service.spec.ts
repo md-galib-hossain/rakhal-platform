@@ -32,6 +32,7 @@ describe('CattleService — RAKHAL-269 production status', () => {
     reproductionProfile: { findUnique: jest.Mock; create: jest.Mock };
     animalHold: { findMany: jest.Mock };
     cattleDisposition: { findFirst: jest.Mock; create: jest.Mock };
+    breedingEvent: { count: jest.Mock };
     $transaction: jest.Mock;
   };
   let logger: { setContext: jest.Mock; info: jest.Mock; warn: jest.Mock };
@@ -727,6 +728,75 @@ describe('CattleService — RAKHAL-269 production status', () => {
       expect(lastUpdateData()).toMatchObject({
         herdStatus: HerdStatus.SOLD,
       });
+    });
+  });
+
+  describe('findOne — RD-045 uncapped repeat-breeder count', () => {
+    it('uses a real breedingEvent.count() (not the capped take:20 array) to decide REPEAT_BREEDER', async () => {
+      const lastCalvingDate = new Date('2026-01-01');
+      // 20 rows is `defaultInclude()`'s own cap — same length the list path would see.
+      const cappedBreedingEvents = Array.from({ length: 20 }, (_, i) => ({
+        status: 'PREGNANCY_CHECK_PENDING',
+        breedingDate: new Date(
+          `2026-02-${String((i % 27) + 1).padStart(2, '0')}`,
+        ),
+        expectedPregnancyCheckDate: null,
+      }));
+      prisma.cattle.findFirst.mockResolvedValueOnce(
+        baseRow({
+          gender: 'FEMALE',
+          reproductionProfile: {
+            reproductiveStatus: 'OPEN',
+            totalCalvings: 1,
+            totalAbortions: 0,
+            lastCalvingDate,
+          },
+          breedingEvents: cappedBreedingEvents,
+        }),
+      );
+      // The real count (25) exceeds the capped array length (20) — proves the alert reads
+      // the uncapped query, not `row.breedingEvents.length`.
+      prisma.breedingEvent.count.mockResolvedValueOnce(25);
+      // Threshold sits strictly between the capped (20) and real (25) counts: the pre-RD-045
+      // capped path would NOT fire REPEAT_BREEDER here, the fixed uncapped path does.
+      farmSettings.getEffective.mockResolvedValueOnce({
+        reproHeatWindowDays: 3,
+        reproCloseUpWindowDays: 21,
+        reproOverduePregnancyCheckDays: 7,
+        reproCalvingOverdueDays: 7,
+        reproRepeatBreederThreshold: 22,
+        reproLongDaysOpenDays: 120,
+        lactationFreshDays: 21,
+        lactationEarlyDays: 100,
+        lactationMidDays: 200,
+        pregnancyEarlyDays: 90,
+        pregnancyMidDays: 180,
+        cattleLifecycleWeaningDays: 60,
+        cattleLifecycleGrowingStartDays: 180,
+        cattleLifecycleBreedingAgeDays: 390,
+      });
+
+      const service = make();
+      const result = await service.findOne('farm-1', 'cattle-1');
+
+      expect(prisma.breedingEvent.count).toHaveBeenCalledWith({
+        where: {
+          cattleId: 'cattle-1',
+          breedingDate: { gt: lastCalvingDate },
+        },
+      });
+      expect(result.reproductionAlerts).toContain('REPEAT_BREEDER');
+    });
+
+    it('skips the extra count() query entirely for a male animal', async () => {
+      prisma.cattle.findFirst.mockResolvedValueOnce(
+        baseRow({ gender: 'MALE' }),
+      );
+
+      const service = make();
+      await service.findOne('farm-1', 'cattle-1');
+
+      expect(prisma.breedingEvent.count).not.toHaveBeenCalled();
     });
   });
 });

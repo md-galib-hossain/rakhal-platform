@@ -353,11 +353,14 @@ export class SellInventoryUseCase {
 
     switch (dto.itemType) {
       case 'MEDICINE':
-        await this.medicineService.adjustStock(
+        // RAKHAL-437 (`docs/EPIC_MEDICINE_BATCH_MODEL.md`): FIFO-draws across
+        // every batch (splitting if needed) instead of `adjustStock`'s
+        // single-batch mutation — a sale the product's summed stock covers no
+        // longer fails just because one particular lot alone falls short.
+        await this.medicineService.decrementForSale(
           farmId,
           userId,
-          dto.itemId,
-          { adjustment, reason: 'SALE', notes, saleLineId },
+          { medicineId: dto.itemId, quantity: -adjustment, saleLineId, notes },
           client,
         );
         return;

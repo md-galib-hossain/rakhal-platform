@@ -49,6 +49,7 @@ model User {
   createdHealthPlans      HealthPlan[]             @relation("HealthPlanCreator")
   appliedPlanApplications PlanApplication[]        @relation("PlanApplicationApplier")
   createdMedicines        Medicine[]               @relation("MedicineCreator")
+  createdMedicineBatches  MedicineBatch[]          @relation("MedicineBatchCreator")
   createdForages          FeedItem[]               @relation("ForageCreator")
   createdSemenTanks       SemenTank[]              @relation("SemenTankCreator")
   createdSemenBatches     SemenBatch[]             @relation("SemenBatchCreator")

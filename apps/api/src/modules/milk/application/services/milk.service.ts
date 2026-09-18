@@ -607,6 +607,70 @@ export class MilkService {
     };
   }
 
+  /**
+   * RAKHAL-434: per-day entry status for the missed-entry calendar picker on the Milk Log
+   * page. `complete` = every active session has at least one saved (draft-or-submitted) entry
+   * for that day; `partial` = some but not all; `missing` = none. Days before the farm existed
+   * or after today are never `missing` — they'd otherwise show as false positives on a
+   * freshly-created farm or when the picker is scrolled forward.
+   */
+  async logCalendar(farmId: string, month: string) {
+    const [year, m] = month.split('-').map(Number);
+    const from = new Date(Date.UTC(year, m - 1, 1));
+    const to = new Date(Date.UTC(year, m, 1)); // exclusive, first day of next month
+    const today = this.normalizeDate(new Date().toISOString());
+
+    const [farm, activeSessions, rows] = await Promise.all([
+      this.prisma.farm.findUnique({
+        where: { id: farmId },
+        select: { createdAt: true },
+      }),
+      this.farmSettings.milkActiveSessions(farmId),
+      this.prisma.milkLogEntry.groupBy({
+        by: ['logDate', 'session'],
+        where: { farmId, logDate: { gte: from, lt: to } },
+      }),
+    ]);
+    const farmCreatedDay = farm
+      ? this.normalizeDate(farm.createdAt.toISOString())
+      : null;
+
+    const sessionsByDay = new Map<string, Set<MilkSession>>();
+    for (const row of rows) {
+      const key = this.dateOnly(row.logDate);
+      const set = sessionsByDay.get(key) ?? new Set<MilkSession>();
+      set.add(row.session);
+      sessionsByDay.set(key, set);
+    }
+
+    const days: Array<{
+      date: string;
+      status: 'complete' | 'partial' | 'missing' | 'future' | 'before_farm';
+    }> = [];
+    for (let d = new Date(from); d < to; d = this.shiftDays(d, 1)) {
+      const dateStr = this.dateOnly(d);
+      let status: 'complete' | 'partial' | 'missing' | 'future' | 'before_farm';
+      if (d.getTime() > today.getTime()) {
+        status = 'future';
+      } else if (farmCreatedDay && d.getTime() < farmCreatedDay.getTime()) {
+        status = 'before_farm';
+      } else if (activeSessions.length === 0) {
+        status = 'missing';
+      } else {
+        const logged = sessionsByDay.get(dateStr)?.size ?? 0;
+        status =
+          logged === 0
+            ? 'missing'
+            : logged < activeSessions.length
+              ? 'partial'
+              : 'complete';
+      }
+      days.push({ date: dateStr, status });
+    }
+
+    return { month, days };
+  }
+
   async anomalies(farmId: string, query: MilkAnomalyQueryDto) {
     const where: Prisma.MilkLogEntryWhereInput = {
       farmId,

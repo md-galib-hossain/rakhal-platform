@@ -31,6 +31,7 @@ import { MilkService } from '../../application/services/milk.service';
 import { CreateMilkQualityTestDto } from '../dto/create-milk-quality-test.dto';
 import { ExportMilkLogDto } from '../dto/export-milk-log.dto';
 import { ImportMilkConfirmDto } from '../dto/import-milk.dto';
+import { MilkLogCalendarQueryDto } from '../dto/milk-log-calendar-query.dto';
 import {
   LatestMilkQualityTestQueryDto,
   ListMilkQualityTestQueryDto,
@@ -94,6 +95,16 @@ export class MilkController {
   @RequirePermission('milk.read')
   logTable(@CurrentFarmId() farmId: string, @Query() query: MilkLogQueryDto) {
     return this.milkService.logTable(farmId, query);
+  }
+
+  /** RAKHAL-434: per-day entry status for the calendar picker. */
+  @Get('log/calendar')
+  @RequirePermission('milk.read')
+  logCalendar(
+    @CurrentFarmId() farmId: string,
+    @Query() query: MilkLogCalendarQueryDto,
+  ) {
+    return this.milkService.logCalendar(farmId, query.month);
   }
 
   @Post('log')

@@ -27,6 +27,7 @@ import { RequirePermission } from 'src/modules/permission/presentation/decorator
 import { MedicineService } from '../../application/services/medicine.service';
 import { AdjustStockDto } from '../dto/adjust-stock.dto';
 import { BulkDeleteMedicineDto } from '../dto/bulk-delete-medicine.dto';
+import { CreateMedicineBatchDto } from '../dto/create-medicine-batch.dto';
 import { CreateMedicineDto } from '../dto/create-medicine.dto';
 import { ListMedicineQueryDto } from '../dto/list-medicine-query.dto';
 import { UpdateMedicineDto } from '../dto/update-medicine.dto';
@@ -101,6 +102,18 @@ export class MedicineController {
     @Body() dto: UpdateMedicineDto,
   ) {
     return this.medicineService.update(farmId, id, dto);
+  }
+
+  /** RAKHAL-434/435 — restock an existing product with a new lot (`docs/EPIC_MEDICINE_BATCH_MODEL.md`). */
+  @Post(':id/batches')
+  @RequirePermission('inventory.update')
+  createBatch(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body() dto: CreateMedicineBatchDto,
+  ) {
+    return this.medicineService.createBatch(farmId, userId, id, dto);
   }
 
   @Post(':id/adjust-stock')

@@ -13,6 +13,7 @@ import { CreateServiceProviderDto } from '../../presentation/dto/create-service-
 import { UpdateServiceProviderDto } from '../../presentation/dto/update-service-provider.dto';
 import { UpdateModuleSettingsDto } from '../../presentation/dto/update-module-settings.dto';
 import { UpdateMilkSessionsDto } from '../../presentation/dto/update-milk-sessions.dto';
+import { parsePaymentTermsDays } from '../../domain/payment-terms';
 
 /**
  * Settings → Module config, Suppliers, Billing (PRD §21.5–21.7 / API §18 —
@@ -178,6 +179,8 @@ export class WorkspaceSettingsService {
           phone: dto.phone,
           category: dto.category,
           paymentTerms: dto.payment_terms,
+          // RD-068: derived from `payment_terms`, not a separate input — see domain/payment-terms.ts.
+          paymentTermsDays: parsePaymentTermsDays(dto.payment_terms),
           notes: dto.notes,
         },
       });
@@ -204,7 +207,11 @@ export class WorkspaceSettingsService {
         ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
         ...(dto.category !== undefined ? { category: dto.category } : {}),
         ...(dto.payment_terms !== undefined
-          ? { paymentTerms: dto.payment_terms }
+          ? {
+              paymentTerms: dto.payment_terms,
+              // RD-068: re-derive whenever the free-text terms change, keeping the two in sync.
+              paymentTermsDays: parsePaymentTermsDays(dto.payment_terms),
+            }
           : {}),
         ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
         ...(dto.deleted_at !== undefined
@@ -366,6 +373,7 @@ export class WorkspaceSettingsService {
     phone: string | null;
     category: string | null;
     paymentTerms: string | null;
+    paymentTermsDays: number;
     notes: string | null;
     deletedAt: Date | null;
   }) {
@@ -376,6 +384,9 @@ export class WorkspaceSettingsService {
       phone: s.phone,
       category: s.category,
       payment_terms: s.paymentTerms,
+      // RD-068: read-only in the API — always derived from `payment_terms` server-side
+      // (`parsePaymentTermsDays`), not a second client-writable field.
+      payment_terms_days: s.paymentTermsDays,
       notes: s.notes,
       deleted_at: s.deletedAt,
     };

@@ -376,6 +376,12 @@ model FeedDistributionCattleItem {
 /// = NULL` would never collide). Uniqueness is enforced at the application layer instead
 /// (`FeedFeedingGridService#saveDraft` does a `findFirst` scoped on every one of these columns, then
 /// updates that row or creates a new one) — see that method's comment for the exact match shape.
+/// RD-089 (docs/TECH_DEBT.md): duplicate-prevention on `farmId/cattleId/logDate/sourceType` plus
+/// whichever of `feedItemId`/`feedStockId` this row uses lives as two PARTIAL unique indexes,
+/// hand-authored (`prisma/migrations/20260918130000_rd089_feed_draft_unique_partial_index`) since
+/// Prisma's schema DSL cannot express a filtered/partial index — Postgres can't enforce uniqueness
+/// across two mutually-exclusive nullable FK columns with one ordinary constraint. Expect
+/// `prisma db pull`/`migrate diff` to report drift for exactly these two indexes; that's expected.
 model FeedFeedingDraft {
   id     String @id @default(cuid())
   farmId String

@@ -18,7 +18,6 @@ import {
   LactationEndReason,
   LactationStartReason,
   LactationStatus,
-  MilkSession,
   PregnancyDiagnosisMethod,
   PregnancyDiagnosisResult,
   PregnancyStatus,
@@ -559,7 +558,31 @@ export class CattleService {
       this.defaultInclude(),
     );
     const reproCtx = await this.buildReproductionContext(farmId, [id]);
-    return this.attachDetailPhoto(this.composeStatus(cattle, reproCtx));
+
+    // RD-045: a single detail view can afford the real count instead of the list path's
+    // bounded `take: 20` approximation (`defaultInclude()`'s `breedingEvents` cap).
+    let breedingsSinceLastSuccess: number | undefined;
+    if (cattle.gender === CattleGender.FEMALE) {
+      // `getCattleOrThrow`'s generic `include` param doesn't propagate into its return type
+      // (Prisma client typing limitation), so `cattle` is statically typed without relations
+      // here even though `defaultInclude()` fetched `reproductionProfile` at runtime.
+      const lastCalvingDate =
+        (
+          cattle as unknown as {
+            reproductionProfile?: { lastCalvingDate: Date | null };
+          }
+        ).reproductionProfile?.lastCalvingDate ?? null;
+      breedingsSinceLastSuccess = await this.prisma.breedingEvent.count({
+        where: {
+          cattleId: id,
+          ...(lastCalvingDate ? { breedingDate: { gt: lastCalvingDate } } : {}),
+        },
+      });
+    }
+
+    return this.attachDetailPhoto(
+      this.composeStatus(cattle, reproCtx, breedingsSinceLastSuccess),
+    );
   }
 
   async update(
@@ -1460,134 +1483,6 @@ export class CattleService {
 
   // ---- RAKHAL-040: Cattle Detail Tabs -----------------------------------------
 
-  async tabOverview(farmId: string, id: string) {
-    // No `deletedAt` filter (RAKHAL-310) — same detail-view exception as
-    // `getCattleOrThrow`: an archived animal's overview tab must still open.
-    const cattle = await this.prisma.cattle.findFirst({
-      where: { id, farmId },
-      include: {
-        bcsRecords: { orderBy: { recordedDate: 'desc' as const }, take: 10 },
-        weightRecords: { orderBy: { recordedDate: 'desc' as const }, take: 20 },
-        lactations: {
-          where: { status: LactationStatus.ACTIVE },
-          orderBy: { startDate: 'desc' as const },
-          take: 1,
-        },
-      },
-    });
-    if (!cattle) throw new NotFoundException('Cattle not found');
-
-    const now = new Date();
-    const sevenDaysAgo = new Date(now);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    // 7-day avg yield for this animal
-    const yieldAgg = await this.prisma.milkLogEntry.aggregate({
-      where: { cattleId: id, logDate: { gte: sevenDaysAgo } },
-      _avg: { yieldL: true },
-    });
-
-    // Lactation curve: yield by DIM bucket (up to 120d of records)
-    const lactationStart = cattle.lactations[0]?.startDate ?? null;
-    const lactationCurve: { dim: number; yield_l: number }[] = [];
-    if (lactationStart) {
-      const entries = await this.prisma.milkLogEntry.findMany({
-        where: { cattleId: id, logDate: { gte: lactationStart } },
-        orderBy: { logDate: 'asc' },
-        take: 200,
-        select: { logDate: true, yieldL: true },
-      });
-      for (const e of entries) {
-        const dim = this.daysBetween(lactationStart, e.logDate);
-        const existing = lactationCurve.find((c) => c.dim === dim);
-        if (existing) {
-          existing.yield_l = this.round(existing.yield_l + e.yieldL);
-        } else {
-          lactationCurve.push({ dim, yield_l: this.round(e.yieldL) });
-        }
-      }
-    }
-
-    // Lifetime yield by year
-    const allEntries = await this.prisma.milkLogEntry.findMany({
-      where: { cattleId: id },
-      select: { logDate: true, yieldL: true },
-    });
-    const byYear: Record<number, number> = {};
-    for (const e of allEntries) {
-      const yr = e.logDate.getFullYear();
-      byYear[yr] = this.round((byYear[yr] ?? 0) + e.yieldL);
-    }
-    const lifetimeYield = Object.entries(byYear).map(([year, total_l]) => ({
-      year: Number(year),
-      total_l,
-    }));
-
-    // Recent milk records (last 7 days, summed per date)
-    const recent = await this.prisma.milkLogEntry.findMany({
-      where: { cattleId: id, logDate: { gte: sevenDaysAgo } },
-      orderBy: { logDate: 'desc' },
-      select: { logDate: true, yieldL: true, session: true },
-    });
-    const recentByDate: Record<
-      string,
-      { morning_l: number; noon_l: number; evening_l: number; total_l: number }
-    > = {};
-    for (const r of recent) {
-      const key = r.logDate.toISOString().slice(0, 10);
-      if (!recentByDate[key]) {
-        recentByDate[key] = {
-          morning_l: 0,
-          noon_l: 0,
-          evening_l: 0,
-          total_l: 0,
-        };
-      }
-      if (r.session === MilkSession.NOON) recentByDate[key].noon_l += r.yieldL;
-      else if (r.session === MilkSession.EVENING)
-        recentByDate[key].evening_l += r.yieldL;
-      else recentByDate[key].morning_l += r.yieldL;
-      recentByDate[key].total_l = this.round(
-        recentByDate[key].morning_l +
-          recentByDate[key].noon_l +
-          recentByDate[key].evening_l,
-      );
-    }
-
-    const prevWeight =
-      cattle.weightRecords.length > 1 ? cattle.weightRecords[1].weightKg : null;
-
-    return {
-      aqr_score: cattle.aqrScore,
-      // Dead code (RD-012(a) discovery, 2026-09-18): `tabOverview` is never called by any route —
-      // `GET /cattle/:id/overview` is actually served by `CattleDetailService.overview()`, where
-      // the real fix lives. Left `null` here rather than half-fixing an unreachable method.
-      aqr_change_pct: null as number | null,
-      avg_daily_yield_7d: this.round(yieldAgg._avg.yieldL ?? 0),
-      yield_change_pct: null as number | null,
-      last_weight_kg: cattle.lastWeightKg,
-      weight_change_pct:
-        cattle.lastWeightKg && prevWeight
-          ? this.pctChange(cattle.lastWeightKg, prevWeight)
-          : null,
-      bcs_records: cattle.bcsRecords.map((b) => ({
-        date: b.recordedDate.toISOString().slice(0, 10),
-        score: b.score,
-      })),
-      weight_history: cattle.weightRecords.map((w) => ({
-        date: w.recordedDate.toISOString().slice(0, 10),
-        weight_kg: w.weightKg,
-      })),
-      lactation_curve: lactationCurve,
-      lifetime_yield: lifetimeYield,
-      recent_milk_records: Object.entries(recentByDate).map(([date, v]) => ({
-        date,
-        ...v,
-        status: 'normal',
-      })),
-    };
-  }
-
   async tabReproduction(farmId: string, id: string) {
     await this.getCattleOrThrow(farmId, id);
 
@@ -1966,7 +1861,11 @@ export class CattleService {
       }[];
       dryPeriods?: { id: string }[];
     },
-  >(row: T, reproCtx?: ReproductionContext) {
+  >(
+    row: T,
+    reproCtx?: ReproductionContext,
+    breedingsSinceLastSuccessOverride?: number,
+  ) {
     const now = new Date();
     const healthStatus = deriveHealthStatus(row.healthCases ?? []);
 
@@ -2022,11 +1921,18 @@ export class CattleService {
       const currentPregnancy = (row.pregnancies ?? [])[0] ?? null;
       const lastCalvingDate = row.reproductionProfile?.lastCalvingDate ?? null;
 
-      const breedingsSinceLastSuccess = (row.breedingEvents ?? []).filter(
-        (b) =>
-          !lastCalvingDate ||
-          b.breedingDate.getTime() > lastCalvingDate.getTime(),
-      ).length;
+      // RD-045: the list path (`getGrid()`/`findMany` mappers) leaves this bounded by
+      // `defaultInclude()`'s `breedingEvents.take: 20` (Prisma can't express a per-row dynamic
+      // date filter declaratively, and a per-row uncapped `count()` in a list is not affordable).
+      // `findOne()` (single-record `GET /cattle/:id`) passes a real uncapped `count()` instead —
+      // cheap for one row — via `breedingsSinceLastSuccessOverride`.
+      const breedingsSinceLastSuccess =
+        breedingsSinceLastSuccessOverride ??
+        (row.breedingEvents ?? []).filter(
+          (b) =>
+            !lastCalvingDate ||
+            b.breedingDate.getTime() > lastCalvingDate.getTime(),
+        ).length;
       const daysOpen =
         lastCalvingDate && reproductionState !== ReproductionState.PREGNANT
           ? this.daysBetween(lastCalvingDate, now)
