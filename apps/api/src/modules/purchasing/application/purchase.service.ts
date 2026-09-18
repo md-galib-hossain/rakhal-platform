@@ -348,20 +348,14 @@ export class PurchaseService {
       if (!medicine) {
         throw new NotFoundException('Medicine not found for purchase line');
       }
-      await client.purchaseLine.create({
-        data: {
-          purchaseId: purchase.id,
-          medicineId: medicine.id,
-          quantity: toStorage(line.quantity),
-          unitCost,
-          totalAmount: lineTotal,
-        },
-      });
       // RAKHAL-436 (`docs/EPIC_MEDICINE_BATCH_MODEL.md`) — a medicine purchase
       // creates its own new lot instead of folding into whatever batch
       // `adjustStock` would otherwise pick, so a second purchase of the same
       // drug at a different cost/expiry doesn't get blended into the first.
-      await this.medicineService.createBatch(
+      // Called before the `PurchaseLine` write (RAKHAL-439) so the line can
+      // record exactly which batch it created — `VoidDocumentUseCase` reverses
+      // that specific lot instead of a representative-batch guess.
+      const { batchId } = await this.medicineService.createBatch(
         farmId,
         userId,
         medicine.id,
@@ -375,6 +369,16 @@ export class PurchaseService {
         },
         client,
       );
+      await client.purchaseLine.create({
+        data: {
+          purchaseId: purchase.id,
+          medicineId: medicine.id,
+          medicineBatchId: batchId,
+          quantity: toStorage(line.quantity),
+          unitCost,
+          totalAmount: lineTotal,
+        },
+      });
       return;
     }
 

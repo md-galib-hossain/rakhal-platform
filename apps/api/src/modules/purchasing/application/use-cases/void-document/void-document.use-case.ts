@@ -87,13 +87,31 @@ export class VoidDocumentUseCase {
       for (const line of purchase.lines) {
         const quantity = -Number(line.quantity);
         if (line.medicineId) {
-          await this.medicineService.adjustStock(
-            farmId,
-            userId,
-            line.medicineId,
-            { adjustment: quantity, reason: 'ADJUSTMENT', notes },
-            client,
-          );
+          // RAKHAL-439 (`docs/EPIC_MEDICINE_BATCH_MODEL.md`): reverses the
+          // exact batch this purchase line created (`PurchaseLine.
+          // medicineBatchId`, RAKHAL-436) instead of `adjustStock`'s
+          // representative-batch guess — correct once a product can carry
+          // more than one batch. A pre-439 line has no link; falls back to
+          // the old behavior for those.
+          if (line.medicineBatchId) {
+            await this.medicineService.adjustBatchStock(
+              farmId,
+              userId,
+              line.medicineBatchId,
+              quantity,
+              'ADJUSTMENT',
+              notes,
+              client,
+            );
+          } else {
+            await this.medicineService.adjustStock(
+              farmId,
+              userId,
+              line.medicineId,
+              { adjustment: quantity, reason: 'ADJUSTMENT', notes },
+              client,
+            );
+          }
         } else if (line.feedItemId) {
           await this.feedItemService.adjustStock(
             farmId,

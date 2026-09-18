@@ -352,11 +352,21 @@ export class VoidSaleUseCase {
   ): Promise<void> {
     const notes = `Void of sale ${saleNumber} — restocked`;
     if (inventoryDetail.medicineId) {
-      await this.medicineService.adjustStock(
+      // RAKHAL-439 (`docs/EPIC_MEDICINE_BATCH_MODEL.md`): restores each exact
+      // batch the original sale drew from (per-batch `MedicineStockMovement`
+      // history, `saleLineId`-linked) instead of `adjustStock`'s
+      // representative-batch guess — correct even for a sale that split
+      // across batches (RAKHAL-437). Falls back to the old behavior when no
+      // batch-linked movement exists (a pre-437 sale line).
+      await this.medicineService.restoreForSaleVoid(
         farmId,
         userId,
-        inventoryDetail.medicineId,
-        { adjustment: quantity, reason: 'ADJUSTMENT', notes, saleLineId },
+        {
+          saleLineId,
+          fallbackMedicineId: inventoryDetail.medicineId,
+          fallbackQuantity: quantity,
+          notes,
+        },
         client,
       );
     } else if (inventoryDetail.feedItemId) {

@@ -611,6 +611,151 @@ export class MedicineService {
   }
 
   /**
+   * Applies a signed delta to one *specific* batch by id (RAKHAL-439) — unlike
+   * `adjustStock`, which resolves "the" batch via the FIFO-representative
+   * heuristic, this acts on exactly the batch the caller names. Used by
+   * `VoidDocumentUseCase`'s purchase reversal, which (via `PurchaseLine.
+   * medicineBatchId`) always knows precisely which lot a voided purchase
+   * created. `tx` folds this into the caller's own transaction.
+   */
+  async adjustBatchStock(
+    farmId: string,
+    userId: string,
+    medicineBatchId: string,
+    delta: number,
+    reason: MedicineStockMovementReason,
+    notes: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const write = async (client: Prisma.TransactionClient) => {
+      const batch = await client.medicineBatch.findFirst({
+        where: { id: medicineBatchId, farmId, deletedAt: null },
+      });
+      if (!batch) {
+        throw new NotFoundException('Medicine batch not found');
+      }
+      const balanceAfter = batch.currentStock + delta;
+      if (balanceAfter < 0) {
+        throw new BadRequestException('Stock cannot go below zero');
+      }
+      await client.medicineBatch.update({
+        where: { id: batch.id },
+        data: { currentStock: balanceAfter },
+      });
+      await client.medicineStockMovement.create({
+        data: {
+          medicineId: batch.medicineId,
+          medicineBatchId: batch.id,
+          farmId,
+          reason,
+          delta,
+          balanceAfter,
+          notes,
+          createdBy: userId,
+        },
+      });
+      await this.syncMedicineAggregate(client, batch.medicineId);
+    };
+    if (tx) {
+      await write(tx);
+    } else {
+      await this.prisma.$transaction((t) => write(t));
+    }
+  }
+
+  /**
+   * Restores stock for a voided sale (RAKHAL-439) — unlike a purchase (one
+   * line, one batch, precisely linked via `PurchaseLine.medicineBatchId`), a
+   * sale can have split across multiple batches (RAKHAL-437), so this reads
+   * back every `SALE`-reason `MedicineStockMovement` the original sale line
+   * caused (`MedicineStockMovement.saleLineId`, already precise per-batch) and
+   * reverses each exactly — correct even for a split sale. Falls back to the
+   * old representative-batch `adjustStock` behavior only when no batch-linked
+   * movement is found (a pre-437 sale line, or something the caller wants
+   * force-restocked with no history — `fallbackMedicineId`/`fallbackQuantity`
+   * cover that case).
+   */
+  async restoreForSaleVoid(
+    farmId: string,
+    userId: string,
+    opts: {
+      saleLineId: string;
+      fallbackMedicineId: string;
+      fallbackQuantity: number;
+      notes: string;
+    },
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const write = async (client: Prisma.TransactionClient) => {
+      const movements = await client.medicineStockMovement.findMany({
+        where: {
+          farmId,
+          saleLineId: opts.saleLineId,
+          reason: MedicineStockMovementReason.SALE,
+          medicineBatchId: { not: null },
+        },
+      });
+
+      if (movements.length === 0) {
+        // Pre-437 sale line (no batch-linked movement) — same approximate
+        // representative-batch restock `adjustStock` always did.
+        return false;
+      }
+
+      const affectedMedicineIds = new Set<string>();
+      for (const movement of movements) {
+        const batch = await client.medicineBatch.findFirst({
+          where: { id: movement.medicineBatchId!, farmId },
+        });
+        if (!batch) continue;
+        const restored = Math.abs(movement.delta);
+        const balanceAfter = batch.currentStock + restored;
+        await client.medicineBatch.update({
+          where: { id: batch.id },
+          data: { currentStock: balanceAfter },
+        });
+        await client.medicineStockMovement.create({
+          data: {
+            medicineId: batch.medicineId,
+            medicineBatchId: batch.id,
+            farmId,
+            reason: MedicineStockMovementReason.ADJUSTMENT,
+            delta: restored,
+            balanceAfter,
+            notes: opts.notes,
+            saleLineId: opts.saleLineId,
+            createdBy: userId,
+          },
+        });
+        affectedMedicineIds.add(batch.medicineId);
+      }
+      for (const medicineId of affectedMedicineIds) {
+        await this.syncMedicineAggregate(client, medicineId);
+      }
+      return movements.length > 0;
+    };
+
+    const restoredPrecisely = tx
+      ? await write(tx)
+      : await this.prisma.$transaction((t) => write(t));
+
+    if (!restoredPrecisely) {
+      await this.adjustStock(
+        farmId,
+        userId,
+        opts.fallbackMedicineId,
+        {
+          adjustment: opts.fallbackQuantity,
+          reason: MedicineStockMovementReason.ADJUSTMENT,
+          notes: opts.notes,
+          saleLineId: opts.saleLineId,
+        },
+        tx,
+      );
+    }
+  }
+
+  /**
    * FIFO-by-lot draw across every non-expired-by-default (see `excludeExpired`)
    * in-stock `MedicineBatch` owned by any of `medicines` (one catalog row for
    * an explicit id, several for a by-name treatment match) — earliest expiry
