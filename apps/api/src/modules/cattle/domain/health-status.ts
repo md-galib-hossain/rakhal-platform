@@ -20,13 +20,18 @@
  * list **filter** (`ListCattleQueryDto`/`healthStatusWhere()`) was
  * deliberately left in place even though the derived value it used to
  * describe no longer exists.
+ *
+ * **RD-012(c) — quarantine follows the same rule, on purpose.** "Quarantine" (per user
+ * clarification) means the same post-treatment `SafetyWithdrawal` hold WITHHOLDING already
+ * described — so it does NOT get its own member here either, to avoid reopening the exact drift
+ * RAKHAL-279 closed and to sidestep an unanswerable precedence question ("sick AND quarantined at
+ * once — which badge wins?"). It surfaces as a **sibling field** instead —
+ * `CattleService.composeStatus()`'s `isQuarantined`/`quarantineUntil`, read straight off the
+ * already-`include`d `safetyWithdrawals` relation, no new query. The `?healthStatus=QUARANTINE`
+ * list filter (`healthStatusWhere()`) is wired to the identical `where` as `WITHHOLDING`.
  */
 
-export type DerivedHealthStatus =
-  | 'HEALTHY'
-  | 'SICK'
-  | 'IN_TREATMENT'
-  | 'QUARANTINE';
+export type DerivedHealthStatus = 'HEALTHY' | 'SICK' | 'IN_TREATMENT';
 
 /**
  * RAKHAL-418: `HealthCase.careType` (`CURATIVE` | `PREVENTIVE`) replaces the old 8-value
@@ -46,10 +51,10 @@ export interface OpenHealthCaseInput {
  *
  * Precedence (PRD §8.1, RAKHAL-279 correction): a case under treatment
  * (status moved past `ACTIVE`) reads as in-treatment; a freshly reported case
- * (still `ACTIVE`) reads as sick (PRD §8.7); otherwise healthy. Quarantine is
- * not tracked yet (deferred to Healthcare) so it is never returned here.
- * Milk/meat withholding no longer participates in this derivation — see the
- * file-level doc comment.
+ * (still `ACTIVE`) reads as sick (PRD §8.7); otherwise healthy. Quarantine
+ * (RD-012(c)) is tracked now, but deliberately NOT here — see the file-level
+ * doc comment. Milk/meat withholding no longer participates in this
+ * derivation either — see the same comment.
  *
  * @param openCases open `HealthCase` rows for the cow (already filtered to non-closed statuses)
  */

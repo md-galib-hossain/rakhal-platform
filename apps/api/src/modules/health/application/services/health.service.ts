@@ -945,14 +945,15 @@ export class HealthService {
 
     // RAKHAL-419: resolve the treatment's cost from the medicine's own
     // costPerUnit — a treatment with no medicine, or a free one, posts
-    // nothing to Finance and needs no financialAccountId. RD-095 (closes the
-    // gap `logTaskTreatment` already fixed on itself): resolved — and
-    // required — BEFORE decrementing stock whenever `medicineId` is known
-    // upfront, so a rejected 400 here never leaves a real stock decrement
-    // committed with no rollback. Only defers (resolving from
-    // `deduction.medicineId` after the decrement, the old ordering) when the
-    // caller gave just `medicineName` with no id — the real batch isn't
-    // known until `decrementForTreatment` itself picks one.
+    // nothing to Finance. RD-095 (closes the gap `logTaskTreatment` already
+    // fixed on itself): resolved BEFORE decrementing stock whenever
+    // `medicineId` is known upfront, so a rejected 400 here never leaves a
+    // real stock decrement committed with no rollback. Only defers
+    // (resolving from `deduction.medicineId` after the decrement, the old
+    // ordering) when the caller gave just `medicineName` with no id — the
+    // real batch isn't known until `decrementForTreatment` itself picks one.
+    // RD-084: no `financialAccountId` guard here anymore — consumption never
+    // touches cash (see `recordInventoryConsumption`'s own doc comment).
     let resolvedCost = 0;
     if (medicineId) {
       const medicine = await this.prisma.medicine.findFirst({
@@ -964,11 +965,6 @@ export class HealthService {
           ? medicine.costPerUnit * quantity
           : 0;
       }
-    }
-    if (resolvedCost > 0 && !dto.financialAccountId) {
-      throw new BadRequestException(
-        'financialAccountId is required when a treatment cost is being recorded',
-      );
     }
 
     const deduction =
@@ -989,11 +985,6 @@ export class HealthService {
       resolvedCost = medicine?.costPerUnit
         ? medicine.costPerUnit * quantity!
         : 0;
-      if (resolvedCost > 0 && !dto.financialAccountId) {
-        throw new BadRequestException(
-          'financialAccountId is required when a treatment cost is being recorded',
-        );
-      }
     }
 
     const log = await this.prisma.$transaction(async (tx) => {
@@ -1046,14 +1037,17 @@ export class HealthService {
     // Re-fetches the row onto `log.treatmentLog` rather than trusting the
     // pre-update object, the exact stale-response class RAKHAL-330 found.
     if (resolvedCost > 0) {
-      const posted = await this.expenseService.recordExpense(farmId, userId, {
-        category: ExpenseCategory.HEALTH,
-        description: `Medicine — Case ${healthCase.caseCode}`,
-        amount: resolvedCost,
-        expenseDate: log.treatmentLog.administeredAt.toISOString(),
-        financialAccountId: dto.financialAccountId!,
-        cattleId: healthCase.cattleId,
-      });
+      const posted = await this.expenseService.recordInventoryConsumption(
+        farmId,
+        userId,
+        {
+          category: ExpenseCategory.HEALTH,
+          description: `Medicine — Case ${healthCase.caseCode}`,
+          amount: resolvedCost,
+          expenseDate: log.treatmentLog.administeredAt.toISOString(),
+          cattleId: healthCase.cattleId,
+        },
+      );
       log.treatmentLog = await this.prisma.treatmentLog.update({
         where: { id: log.treatmentLog.id },
         data: { financeTransactionId: posted.id },
@@ -1154,10 +1148,7 @@ export class HealthService {
     if (!medicine) throw new NotFoundException('Medicine not found');
 
     // Validate every animal belongs to this farm before writing anything —
-    // same all-or-nothing rule RAKHAL-414's bulk apply uses. Checked before
-    // the cost/financialAccountId guard below: a request naming an animal
-    // that doesn't exist should 404 on that, not demand a payment account
-    // for a treatment that can never be recorded anyway.
+    // same all-or-nothing rule RAKHAL-414's bulk apply uses.
     const cattleRows = await this.prisma.cattle.findMany({
       where: { id: { in: cattleIds }, farmId, deletedAt: null },
       select: { id: true, tagNumber: true, name: true, shedId: true },
@@ -1175,11 +1166,6 @@ export class HealthService {
     const resolvedCost = medicine.costPerUnit
       ? medicine.costPerUnit * dto.doseAmount
       : 0;
-    if (resolvedCost > 0 && !dto.financialAccountId) {
-      throw new BadRequestException(
-        'financialAccountId is required when a treatment cost is being recorded',
-      );
-    }
 
     const treatedAt = new Date(dto.treatedAt);
     const results: {
@@ -1277,14 +1263,17 @@ export class HealthService {
       // uses) — one Expense per animal, matching "stock decrements once per
       // treated animal" already established for this route.
       if (resolvedCost > 0) {
-        const posted = await this.expenseService.recordExpense(farmId, userId, {
-          category: ExpenseCategory.HEALTH,
-          description: `${medicine.name} — Quick treatment for [${cattle.tagNumber}]`,
-          amount: resolvedCost,
-          expenseDate: treatedAt.toISOString(),
-          financialAccountId: dto.financialAccountId!,
-          cattleId: cattle.id,
-        });
+        const posted = await this.expenseService.recordInventoryConsumption(
+          farmId,
+          userId,
+          {
+            category: ExpenseCategory.HEALTH,
+            description: `${medicine.name} — Quick treatment for [${cattle.tagNumber}]`,
+            amount: resolvedCost,
+            expenseDate: treatedAt.toISOString(),
+            cattleId: cattle.id,
+          },
+        );
         await this.prisma.treatmentLog.update({
           where: { id: treatmentLog.id },
           data: { financeTransactionId: posted.id },
@@ -1783,11 +1772,6 @@ export class HealthService {
           : 0;
       }
     }
-    if (resolvedCost > 0 && !dto.financialAccountId) {
-      throw new BadRequestException(
-        'financialAccountId is required when a treatment cost is being recorded',
-      );
-    }
 
     const deduction =
       quantity && quantity > 0 && (medicineId || medicineName)
@@ -1817,11 +1801,6 @@ export class HealthService {
         : 0;
       milkWithdrawalDays = medicine?.milkWithdrawalDays || undefined;
       meatWithdrawalDays = medicine?.meatWithdrawalDays || undefined;
-      if (resolvedCost > 0 && !dto.financialAccountId) {
-        throw new BadRequestException(
-          'financialAccountId is required when a treatment cost is being recorded',
-        );
-      }
     }
 
     const administeredAt = dto.administeredAt
@@ -1900,14 +1879,17 @@ export class HealthService {
     );
 
     if (resolvedCost > 0) {
-      const posted = await this.expenseService.recordExpense(farmId, userId, {
-        category: ExpenseCategory.HEALTH,
-        description: `Medicine — Task ${task.taskCode}`,
-        amount: resolvedCost,
-        expenseDate: treatmentLog.administeredAt.toISOString(),
-        financialAccountId: dto.financialAccountId!,
-        cattleId: task.cattleId,
-      });
+      const posted = await this.expenseService.recordInventoryConsumption(
+        farmId,
+        userId,
+        {
+          category: ExpenseCategory.HEALTH,
+          description: `Medicine — Task ${task.taskCode}`,
+          amount: resolvedCost,
+          expenseDate: treatmentLog.administeredAt.toISOString(),
+          cattleId: task.cattleId,
+        },
+      );
       await this.prisma.treatmentLog.update({
         where: { id: treatmentLog.id },
         data: { financeTransactionId: posted.id },

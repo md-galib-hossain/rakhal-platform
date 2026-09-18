@@ -86,6 +86,11 @@ function buildExpensePaymentStatusWhere(
  * default chart. */
 const ACCOUNTS_PAYABLE_CODE = '2000';
 
+/** `LedgerAccount.code` for "Inventory" — same seeding, same code
+ * `PurchaseService` debits on a real purchase. RD-084's
+ * `recordInventoryConsumption` credits it back down on consumption. */
+const INVENTORY_CODE = '1200';
+
 /** `ExpenseCategory` -> seeded `LedgerAccount.code` (RAKHAL-333's default
  * chart, 5xxx range). See `purchase.enums.prisma`'s own doc comment on
  * `ExpenseCategory` for why the original five categories were exactly those
@@ -268,6 +273,124 @@ export class ExpenseService {
       category: dto.category,
       amount: amount.toString(),
       paidImmediately: !!financialAccountLedgerAccountId,
+    });
+
+    return expense;
+  }
+
+  /**
+   * RD-084: a consumption cost for stock that was already paid for at
+   * `PurchaseService.createPurchase` time — Medicine used in treatment,
+   * today; Feed consumed outside a linked TMR line, potentially tomorrow.
+   * The cash (or payable) already moved once, at purchase; `recordExpense`'s
+   * `Dr expense / Cr cash-or-payable` would move it a *second* time for the
+   * same rupees while never shrinking the Inventory asset that purchase
+   * grew. This posts the correct entry instead — `Dr <category expense> /
+   * Cr Inventory(1200)` — a same-farm balance-sheet transfer, no
+   * `FinancialAccount`, no `Payable`, no `supplierId`. Still creates a real
+   * `Expense` row so every existing category-HEALTH consumer (dashboard
+   * `sumHealthExpense`, per-animal P&L, `reverseExpense` on treatment
+   * void/edit) keeps working unchanged — only the journal's credit leg
+   * differs from `recordExpense`'s.
+   */
+  async recordInventoryConsumption(
+    farmId: string,
+    userId: string,
+    dto: {
+      category: ExpenseCategory;
+      description: string;
+      amount: number;
+      expenseDate: string;
+      cattleId?: string;
+    },
+  ): Promise<Expense> {
+    const expense = await this.prisma.$transaction((tx) =>
+      this.recordInventoryConsumptionWithClient(tx, farmId, userId, dto),
+    );
+
+    await this.activityLog.record({
+      farmId,
+      module: ActivityLogModule.FINANCE,
+      eventTitle: 'Expense Recorded',
+      actionDetails: `${dto.category} expense: ${dto.description} — ৳${expense.amount.toString()} (inventory consumption, no cash movement).`,
+      actorId: userId,
+      financialImpact: 0,
+    });
+
+    return expense;
+  }
+
+  private async recordInventoryConsumptionWithClient(
+    client: Prisma.TransactionClient,
+    farmId: string,
+    userId: string,
+    dto: {
+      category: ExpenseCategory;
+      description: string;
+      amount: number;
+      expenseDate: string;
+      cattleId?: string;
+    },
+  ): Promise<Expense> {
+    const amount = toStorage(dto.amount);
+
+    const expense = await client.expense.create({
+      data: {
+        farmId,
+        category: dto.category,
+        description: dto.description,
+        amount,
+        expenseDate: new Date(dto.expenseDate),
+        financialAccountId: null,
+        supplierId: null,
+        notes: null,
+        cattleId: dto.cattleId ?? null,
+        createdById: userId,
+      },
+    });
+
+    const expenseAccountCode = EXPENSE_CATEGORY_LEDGER_CODE[dto.category];
+    const expenseAccount = await this.ledgerAccountService.findByCode(
+      farmId,
+      expenseAccountCode,
+    );
+    if (!expenseAccount) {
+      throw new BadRequestException(
+        `Expense ledger account (${expenseAccountCode}) is not seeded for this farm`,
+      );
+    }
+    const inventoryAccount = await this.ledgerAccountService.findByCode(
+      farmId,
+      INVENTORY_CODE,
+    );
+    if (!inventoryAccount) {
+      throw new BadRequestException(
+        'Inventory ledger account is not seeded for this farm',
+      );
+    }
+
+    await this.journalService.postJournal(
+      {
+        farmId,
+        sourceType: 'EXPENSE',
+        sourceId: expense.id,
+        transactionDate: expense.expenseDate,
+        description: `Expense: ${dto.description}`,
+        idempotencyKey: `expense:${expense.id}`,
+        createdById: userId,
+        entries: [
+          { ledgerAccountId: expenseAccount.id, debit: amount },
+          { ledgerAccountId: inventoryAccount.id, credit: amount },
+        ],
+      },
+      client,
+    );
+
+    this.log.info('Inventory consumption expense recorded', {
+      farmId,
+      expenseId: expense.id,
+      category: dto.category,
+      amount: amount.toString(),
     });
 
     return expense;

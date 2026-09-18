@@ -7,8 +7,9 @@ import { seededCashAccountId } from './utils/finance';
  * RD-093 — `POST /health/tasks/:id/log-treatment`: once RAKHAL-415 made a preventive-round
  * `HealthTask` caseless (`planEnrollmentId` set, `healthCaseId` null), the only route to complete
  * one was the plain `completeTask` — no medicine, no stock decrement, no cost. This route closes
- * that gap. Covers: stock decrement + cost/financialAccountId gating (mirrors `logTreatment`'s own
- * rules), the backing `HealthCase` this route creates carries `careType: PREVENTIVE` so the animal
+ * that gap. Covers: stock decrement + cost posting (RD-084: an inventory transfer, no
+ * `financialAccountId` needed — mirrors `logTreatment`'s own rules), the backing `HealthCase` this
+ * route creates carries `careType: PREVENTIVE` so the animal
  * never reads as SICK despite having an open case, PlanEnrollment progress advances, a case-scoped
  * task is rejected with a message pointing at the real route, and Safety Withdrawal still fires.
  *
@@ -120,7 +121,7 @@ describe('Health — log a real treatment against a caseless PlanEnrollment task
     };
   }
 
-  it('blocks with financialAccountId required when the medicine has a real cost, and stock is untouched', async () => {
+  it('RD-084: no financialAccountId required even with a real cost — decrements stock and posts as an inventory transfer', async () => {
     const cattleId = await createCow();
     const medicineId = await createMedicine(20);
     const { taskId } = await createCaselessTask(cattleId, medicineId);
@@ -132,15 +133,21 @@ describe('Health — log a real treatment against a caseless PlanEnrollment task
       // `logTreatment`'s own) only checks `dto.stockDeductionQuantity`/`dto.doseAmount`, never the
       // task's own prefilled `doseAmount`, same real quirk the existing case-scoped route has.
       .send({ doseAmount: 5 });
-    expect(res.status).toBe(400);
-    expect((res.body as { message?: string }).message).toContain(
-      'financialAccountId',
-    );
+    expect(res.status).toBe(201);
 
     const medicine = await prisma.medicine.findUniqueOrThrow({
       where: { id: medicineId },
     });
-    expect(medicine.currentStock).toBe(50);
+    expect(medicine.currentStock).toBe(45);
+
+    const treatmentLog = await prisma.treatmentLog.findUniqueOrThrow({
+      where: { id: res.body.data.treatmentLog.id },
+    });
+    const expense = await prisma.expense.findUniqueOrThrow({
+      where: { id: treatmentLog.financeTransactionId! },
+    });
+    expect(Number(expense.amount)).toBe(100); // 5mL x ৳20
+    expect(expense.financialAccountId).toBeNull();
   });
 
   it('logs a real dose: decrements stock, posts cost, completes the task, advances enrollment progress, and creates a PREVENTIVE backing case that never reads as SICK', async () => {

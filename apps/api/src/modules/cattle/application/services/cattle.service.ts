@@ -90,6 +90,7 @@ import {
 } from '../../presentation/dto/list-cattle-query.dto';
 import { UpdateCattleDto } from '../../presentation/dto/update-cattle.dto';
 import { UpdateHerdStatusDto } from '../../presentation/dto/update-cattle-status.dto';
+import { computeAqrScoreAsOf } from './aqr-trend';
 
 type CattleSummary = Pick<Cattle, 'id' | 'name' | 'tagNumber'>;
 
@@ -1175,31 +1176,50 @@ export class CattleService {
 
     const activeWhere: Prisma.CattleWhereInput = activeHerd(farmId);
 
-    const [totalActive, prevActive, aqrAgg, breedingReady] = await Promise.all([
-      this.prisma.cattle.count({ where: activeWhere }),
-      this.prisma.cattle.count({
-        where: { ...activeWhere, createdAt: { lte: monthAgo } },
-      }),
-      this.prisma.cattle.aggregate({
-        where: { ...activeWhere, aqrScore: { not: null } },
-        _avg: { aqrScore: true },
-      }),
-      this.prisma.cattle.count({
-        where: {
-          ...activeWhere,
-          productionStatus: ProductionStatus.MILKING,
-          reproductionProfile: {
-            is: { reproductiveStatus: ReproductionState.OPEN },
-          },
-          lactations: {
-            some: {
-              status: LactationStatus.ACTIVE,
-              startDate: { lte: vwpCutoff },
+    const [totalActive, prevActiveCattle, aqrAgg, breedingReady] =
+      await Promise.all([
+        this.prisma.cattle.count({ where: activeWhere }),
+        this.prisma.cattle.findMany({
+          where: { ...activeWhere, createdAt: { lte: monthAgo } },
+          select: { id: true, aqrScore: true },
+        }),
+        this.prisma.cattle.aggregate({
+          where: { ...activeWhere, aqrScore: { not: null } },
+          _avg: { aqrScore: true },
+        }),
+        this.prisma.cattle.count({
+          where: {
+            ...activeWhere,
+            productionStatus: ProductionStatus.MILKING,
+            reproductionProfile: {
+              is: { reproductiveStatus: ReproductionState.OPEN },
+            },
+            lactations: {
+              some: {
+                status: LactationStatus.ACTIVE,
+                startDate: { lte: vwpCutoff },
+              },
             },
           },
-        },
-      }),
-    ]);
+        }),
+      ]);
+    // Same cohort `total_change_pct` already compares against (active now + existed 30d ago) —
+    // fetched as rows rather than a bare count so RD-012(a) can reconstruct each cow's AQR as of
+    // `monthAgo` from the same set, one extra query instead of two.
+    const prevActive = prevActiveCattle.length;
+
+    const aqrThenByCattle = await computeAqrScoreAsOf(
+      this.prisma,
+      farmId,
+      prevActiveCattle,
+      monthAgo,
+    );
+    const aqrThenScores = [...aqrThenByCattle.values()].filter(
+      (s): s is number => s !== null,
+    );
+    const avgHerdAqrThen = aqrThenScores.length
+      ? aqrThenScores.reduce((sum, s) => sum + s, 0) / aqrThenScores.length
+      : null;
 
     const { todayL, yesterdayL } = await this.dailyYield(farmId, now);
 
@@ -1207,8 +1227,10 @@ export class CattleService {
       total_active: totalActive,
       total_change_pct: this.pctChange(totalActive, prevActive),
       avg_herd_aqr: this.round(aqrAgg._avg.aqrScore ?? 0),
-      // No historical AQR snapshots yet — trend deferred (TECH_DEBT).
-      aqr_change_pct: null as number | null,
+      aqr_change_pct:
+        avgHerdAqrThen !== null
+          ? this.pctChange(aqrAgg._avg.aqrScore ?? 0, avgHerdAqrThen)
+          : null,
       breeding_ready_count: breedingReady,
       todays_yield_l: this.round(todayL),
       yield_change_pct: this.pctChange(todayL, yesterdayL),
@@ -1537,6 +1559,9 @@ export class CattleService {
 
     return {
       aqr_score: cattle.aqrScore,
+      // Dead code (RD-012(a) discovery, 2026-09-18): `tabOverview` is never called by any route —
+      // `GET /cattle/:id/overview` is actually served by `CattleDetailService.overview()`, where
+      // the real fix lives. Left `null` here rather than half-fixing an unreachable method.
       aqr_change_pct: null as number | null,
       avg_daily_yield_7d: this.round(yieldAgg._avg.yieldL ?? 0),
       yield_change_pct: null as number | null,
@@ -1922,6 +1947,12 @@ export class CattleService {
         status: string;
         careType: string;
       }[];
+      /** RD-012(c): active (`status: 'ACTIVE'`) rows only, already scoped by `defaultInclude()`'s
+       * `safetyWithdrawals` include (`take: 1`) — not re-filtered here. */
+      safetyWithdrawals?: {
+        milkWithdrawalUntil: Date | null;
+        meatWithdrawalUntil: Date | null;
+      }[];
       lactations?: { startDate: Date }[];
       heatEvents?: { heatDateTime: Date }[];
       breedingEvents?: {
@@ -1938,6 +1969,22 @@ export class CattleService {
   >(row: T, reproCtx?: ReproductionContext) {
     const now = new Date();
     const healthStatus = deriveHealthStatus(row.healthCases ?? []);
+
+    // RD-012(c): quarantine (post-treatment milk/meat hold) is deliberately kept OUT of
+    // `deriveHealthStatus()`/`healthStatus` — ADR-020 already fought and won this exact battle for
+    // `WITHHOLDING` (dropped to avoid duplicating `MilkService.getMilkEligibility()`'s ownership of
+    // the same `SafetyWithdrawal` facts). A sibling field avoids re-opening that drift risk and
+    // avoids inventing a precedence rule for "sick AND quarantined at once — which badge wins?".
+    // `row.safetyWithdrawals` is already fetched (`defaultInclude()`, `status: 'ACTIVE'`, `take: 1`)
+    // — this only reads it, no new query.
+    const activeWithdrawal = (row.safetyWithdrawals ?? [])[0];
+    const isQuarantined = !!activeWithdrawal;
+    const quarantineUntil = activeWithdrawal
+      ? this.laterDate(
+          activeWithdrawal.milkWithdrawalUntil,
+          activeWithdrawal.meatWithdrawalUntil,
+        )
+      : null;
 
     const activeLactation = (row.lactations ?? [])[0];
     const dim = activeLactation
@@ -2043,6 +2090,8 @@ export class CattleService {
       lactationStage,
       pregnancyStage,
       healthStatus,
+      isQuarantined,
+      quarantineUntil,
       dim,
       animalCategory,
       lifecycleSubStage,
@@ -2111,12 +2160,18 @@ export class CattleService {
    * ship this option live today, and the underlying `where` (an active
    * `SafetyWithdrawal`) is still a real, useful query regardless of which
    * dimension conceptually "owns" the badge now. See `docs/DECISIONS.md`.
+   *
+   * `QUARANTINE` (RD-012(c)) is the same underlying fact under its eventual real name — a farmer's
+   * "quarantine" means exactly a post-treatment milk/meat hold, same active `SafetyWithdrawal` this
+   * file's own `isQuarantined`/`quarantineUntil` response fields (`composeStatus()`) now surface.
+   * Deliberately the identical `where` as `WITHHOLDING`, not a separate concept.
    */
   private healthStatusWhere(
     filter: HealthStatusFilter,
   ): Prisma.CattleWhereInput {
     switch (filter) {
       case 'WITHHOLDING':
+      case 'QUARANTINE':
         return {
           safetyWithdrawals: { some: { status: 'ACTIVE' } },
         };
@@ -2151,9 +2206,7 @@ export class CattleService {
           },
           safetyWithdrawals: { none: { status: 'ACTIVE' } },
         };
-      case 'QUARANTINE':
       default:
-        // Quarantine is not tracked yet (deferred to Healthcare) — match none.
         return { id: '__none__' };
     }
   }
@@ -2470,6 +2523,15 @@ export class CattleService {
       0,
       Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
     );
+  }
+
+  /** RD-012(c): the later of two nullable withdrawal dates — when both a milk and a meat
+   * withdrawal apply to the same active `SafetyWithdrawal`, quarantine only lifts once the
+   * later one passes. `null` if neither is set. */
+  private laterDate(a: Date | null, b: Date | null): Date | null {
+    if (!a) return b;
+    if (!b) return a;
+    return a.getTime() >= b.getTime() ? a : b;
   }
 
   /** Mirrors `ReproductionService`'s own private `addDays` — plain literal

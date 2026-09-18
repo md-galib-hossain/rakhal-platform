@@ -238,6 +238,9 @@ export class SettingsService {
       description: g.description,
       refusal_target_pct: g.refusalTargetPct,
       default_concentration_id: g.defaultConcentrationId,
+      default_feed_source_type: g.defaultFeedSourceType,
+      default_feed_item_id: g.defaultFeedItemId,
+      default_feed_stock_id: g.defaultFeedStockId,
       deleted_at: g.deletedAt,
       assigned_count: g._count.cattle,
       created_at: g.createdAt,
@@ -287,6 +290,28 @@ export class SettingsService {
       }
     }
 
+    if (dto.defaultFeedSourceType === 'FEED_ITEM') {
+      const item = await this.prisma.feedItem.findFirst({
+        where: { id: dto.defaultFeedItemId, farmId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!item) {
+        throw new BadRequestException(
+          'Default feed item must belong to this farm',
+        );
+      }
+    } else if (dto.defaultFeedSourceType === 'FEED_STOCK') {
+      const stock = await this.prisma.feedStock.findFirst({
+        where: { id: dto.defaultFeedStockId, farmId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!stock) {
+        throw new BadRequestException(
+          'Default feed stock lot must belong to this farm',
+        );
+      }
+    }
+
     try {
       return await this.prisma.feedGroup.update({
         where: { id },
@@ -300,6 +325,19 @@ export class SettingsService {
             : {}),
           ...(dto.defaultConcentrationId !== undefined
             ? { defaultConcentrationId: dto.defaultConcentrationId }
+            : {}),
+          ...(dto.defaultFeedSourceType !== undefined
+            ? {
+                defaultFeedSourceType: dto.defaultFeedSourceType,
+                defaultFeedItemId:
+                  dto.defaultFeedSourceType === 'FEED_ITEM'
+                    ? (dto.defaultFeedItemId ?? null)
+                    : null,
+                defaultFeedStockId:
+                  dto.defaultFeedSourceType === 'FEED_STOCK'
+                    ? (dto.defaultFeedStockId ?? null)
+                    : null,
+              }
             : {}),
         },
       });

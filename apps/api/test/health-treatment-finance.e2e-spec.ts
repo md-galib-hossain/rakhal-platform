@@ -6,10 +6,18 @@ import { seededCashAccountId } from './utils/finance';
 /**
  * RAKHAL-419 — treatment cost posts to Finance. Logging a treatment with a
  * priced medicine posts an `Expense` (`category: HEALTH`, ledger `5100
- * Medicine`) valued at `costPerUnit × doseAmount`; `financialAccountId` is
- * required whenever that cost is real; a zero-cost medicine posts nothing;
- * the dashboard's `medicineExpense` and `GET /cattle/:id/finance`'s `health`
- * bucket both reflect the real sum, replacing the old hardcoded `0`.
+ * Medicine`) valued at `costPerUnit × doseAmount`; a zero-cost medicine
+ * posts nothing; the dashboard's `medicineExpense` and
+ * `GET /cattle/:id/finance`'s `health` bucket both reflect the real sum,
+ * replacing the old hardcoded `0`.
+ *
+ * RD-084 (2026-09-18): `financialAccountId` is no longer required or read —
+ * the medicine's cost already left the farm once, at
+ * `PurchaseService.createPurchase` time; re-crediting a cash account here
+ * double-counted the same rupees and never shrank the Inventory asset.
+ * Consumption now posts `Dr HEALTH(5100) / Cr Inventory(1200)`
+ * (`ExpenseService.recordInventoryConsumption`) — a same-farm transfer, the
+ * `Expense.financialAccountId` column stays `null`.
  */
 describe('Health — treatment cost posts to Finance (RAKHAL-419)', () => {
   let ctx: TestContext;
@@ -112,6 +120,8 @@ describe('Health — treatment cost posts to Finance (RAKHAL-419)', () => {
     expect(expense.category).toBe('HEALTH');
     expect(Number(expense.amount)).toBe(200);
     expect(expense.cattleId).toBe(cattleId);
+    // RD-084: never a cash event — no FinancialAccount involved.
+    expect(expense.financialAccountId).toBeNull();
 
     const journalTxn = await prisma.journalTransaction.findFirstOrThrow({
       where: {
@@ -123,9 +133,13 @@ describe('Health — treatment cost posts to Finance (RAKHAL-419)', () => {
     });
     const debitEntry = journalTxn.entries.find((e) => Number(e.debit) > 0);
     expect(debitEntry?.ledgerAccount.code).toBe('5100');
+    // RD-084: the credit leg is Inventory(1200), not the cash account
+    // passed above — proves `financialAccountId` is truly unread.
+    const creditEntry = journalTxn.entries.find((e) => Number(e.credit) > 0);
+    expect(creditEntry?.ledgerAccount.code).toBe('1200');
   });
 
-  it('requires financialAccountId whenever a real cost posts', async () => {
+  it('RD-084: no longer requires financialAccountId — a real cost still posts, as an inventory transfer', async () => {
     const cattleId = await makeCow(`E2E-RAKHAL419-B-${Date.now()}`);
 
     const res = await request(server())
@@ -134,19 +148,26 @@ describe('Health — treatment cost posts to Finance (RAKHAL-419)', () => {
       .send({
         cattleIds: [cattleId],
         medicineId: pricedMedicineId,
-        doseAmount: 5,
+        doseAmount: 5, // 5mL x ৳20 = ৳100
         doseUnit: 'mL',
         route: 'IM',
         treatedAt: new Date().toISOString(),
-        // financialAccountId omitted
+        // financialAccountId omitted — must not be required (RD-084)
       });
 
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(201);
+    const treatmentLogId = res.body.data.results[0].treatmentLogId as string;
 
-    const logs = await prisma.treatmentLog.count({
-      where: { farmId: owner.farmId, cattleId },
+    const log = await prisma.treatmentLog.findUniqueOrThrow({
+      where: { id: treatmentLogId },
     });
-    expect(logs).toBe(0); // whole call fails, nothing written
+    expect(log.financeTransactionId).not.toBeNull();
+
+    const expense = await prisma.expense.findUniqueOrThrow({
+      where: { id: log.financeTransactionId! },
+    });
+    expect(Number(expense.amount)).toBe(100);
+    expect(expense.financialAccountId).toBeNull();
   });
 
   it('a zero-cost medicine posts nothing and needs no account', async () => {
@@ -260,14 +281,14 @@ describe('Health — treatment cost posts to Finance (RAKHAL-419)', () => {
     expect(expense.category).toBe('HEALTH');
   });
 
-  it('rejects a case-scoped log-treatment with a real cost and no financialAccountId, and leaves stock untouched (RD-095)', async () => {
+  it('RD-084: a case-scoped log-treatment with a real cost and no financialAccountId succeeds, decrements stock, and posts an inventory transfer', async () => {
     const cattleId = await makeCow(`E2E-RAKHAL419-G-${Date.now()}`);
     const caseRes = await request(server())
       .post(api('/health/cases'))
       .set(...auth(owner))
       .send({
         cattleId,
-        note: 'E2E-RAKHAL419 missing account',
+        note: 'E2E-RAKHAL419-RD084 no account needed',
         careType: 'CURATIVE',
         priority: 'LOW',
       });
@@ -282,19 +303,25 @@ describe('Health — treatment cost posts to Finance (RAKHAL-419)', () => {
       .set(...auth(owner))
       .send({
         medicineId: pricedMedicineId,
-        doseAmount: 2,
+        doseAmount: 2, // 2mL x ৳20 = ৳40
         doseUnit: 'mL',
         route: 'IM',
-        // financialAccountId omitted
+        // financialAccountId omitted — must not be required (RD-084)
       });
-    expect(logRes.status).toBe(400);
+    expect(logRes.status).toBe(201);
 
-    // RD-095: a rejected call must never leave a real stock decrement
-    // committed — `logTreatment` used to decrement first and check payment
-    // second, so this passed with `currentStock` silently 2 lower.
     const after = await prisma.medicine.findUniqueOrThrow({
       where: { id: pricedMedicineId },
     });
-    expect(after.currentStock).toBe(before.currentStock);
+    expect(after.currentStock).toBe(before.currentStock - 2);
+
+    const treatmentLog = await prisma.treatmentLog.findUniqueOrThrow({
+      where: { id: logRes.body.data.treatmentLog.id },
+    });
+    const expense = await prisma.expense.findUniqueOrThrow({
+      where: { id: treatmentLog.financeTransactionId! },
+    });
+    expect(Number(expense.amount)).toBe(40);
+    expect(expense.financialAccountId).toBeNull();
   });
 });

@@ -14,6 +14,7 @@ import {
   trendPct,
 } from '../../domain/lactation-curve';
 import { computeCattleFinance } from './cattle-finance-aggregation';
+import { computeAqrScoreAsOf } from './aqr-trend';
 
 /**
  * Read-only aggregator for the Cattle detail page tabs (PRD §8.5 / API §4):
@@ -39,6 +40,15 @@ export class CattleDetailService {
   async overview(farmId: string, cattleId: string) {
     const cattle = await this.getCattleOrThrow(farmId, cattleId);
     const now = new Date();
+
+    // RD-012(a): same 30-day window as `CattleService.highlights()`'s herd-level `aqr_change_pct`.
+    const aqrThenMap = await computeAqrScoreAsOf(
+      this.prisma,
+      farmId,
+      [{ id: cattle.id, aqrScore: cattle.aqrScore }],
+      this.daysAgo(now, 30),
+    );
+    const aqrThen = aqrThenMap.get(cattle.id) ?? null;
 
     const [weightRecords, bcsRecords, activeLactation, last14Days, lifetime] =
       await Promise.all([
@@ -83,8 +93,10 @@ export class CattleDetailService {
 
     return {
       aqr_score: cattle.aqrScore,
-      // No historical AQR snapshots yet — trend deferred (TECH_DEBT RD-012).
-      aqr_change_pct: null as number | null,
+      aqr_change_pct:
+        cattle.aqrScore !== null && aqrThen !== null
+          ? trendPct(cattle.aqrScore, aqrThen)
+          : null,
       avg_daily_yield_7d: this.round(last7 / 7),
       yield_change_pct: trendPct(last7, prev7),
       last_weight_kg: latestWeight?.weightKg ?? cattle.lastWeightKg ?? null,

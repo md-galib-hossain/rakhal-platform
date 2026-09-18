@@ -98,10 +98,11 @@ export class LogTreatmentDto {
   @IsString()
   notes?: string;
 
-  /** RAKHAL-419: required whenever `Medicine.costPerUnit × doseAmount` is a
-   * real cost being posted to Finance (RD-066's rule, per RAKHAL-393) — a
-   * zero-cost medicine or a treatment with no medicine posts nothing and
-   * needs no account. */
+  /** RD-084: no longer read by the service — a treatment cost never touches
+   * cash (the money already moved at `PurchaseService.createPurchase` time,
+   * consumption posts `Dr expense / Cr Inventory`, see
+   * `ExpenseService.recordInventoryConsumption`). Kept accepted-but-ignored
+   * for one release so an un-updated caller doesn't 400 on an extra field. */
   @IsOptional()
   @Transform(trimString)
   @IsString()
@@ -177,7 +178,7 @@ export class LogTaskTreatmentDto {
   @IsString()
   notes?: string;
 
-  /** Same RAKHAL-419/RD-066 rule as `LogTreatmentDto.financialAccountId`. */
+  /** RD-084: same as `LogTreatmentDto.financialAccountId` — no longer read. */
   @IsOptional()
   @Transform(trimString)
   @IsString()
@@ -341,9 +342,7 @@ export class RecordTreatmentDto {
   @IsString()
   notes?: string;
 
-  /** RAKHAL-419: required whenever `Medicine.costPerUnit × doseAmount` is a
-   * real cost being posted to Finance (RD-066's rule, per RAKHAL-393) — a
-   * zero-cost medicine posts nothing and needs no account. */
+  /** RD-084: same as `LogTreatmentDto.financialAccountId` — no longer read. */
   @IsOptional()
   @Transform(trimString)
   @IsString()
