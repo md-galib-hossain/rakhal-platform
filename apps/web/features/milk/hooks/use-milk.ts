@@ -29,6 +29,15 @@ export function useMilkLogTable(date?: string, shedId?: string) {
   });
 }
 
+/** RAKHAL-434 — per-day entry status for the missed-entry calendar picker. `month` is `YYYY-MM`. */
+export function useMilkLogCalendar(month: string) {
+  return useQuery({
+    queryKey: qk.milk.calendar(month),
+    queryFn: () => milkApi.getLogCalendar(month),
+    staleTime: STALE_TIME,
+  });
+}
+
 /** Saves a session's draft entries — invalidates the log table + overview (totals/session status
  * change). Both invalidations use their broad `["milk", X]` prefix rather than an exact key:
  * `avgYield7d` is a *trailing* 7-day average (backend excludes the queried day itself, see

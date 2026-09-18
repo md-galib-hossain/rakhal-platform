@@ -5,13 +5,13 @@ import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DatePicker } from "@/components/ui/date-picker";
+import { EntryStatusDatePicker } from "@/components/shared/entry-status-date-picker";
 import { Table, TableBody } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { useMilkLogTable } from "../hooks/use-milk";
+import { useMilkLogCalendar, useMilkLogTable } from "../hooks/use-milk";
 import { MilkCard } from "./milk-card";
 import { MilkExportButton } from "./milk-export-button";
 import { MilkImportButton } from "./milk-import-button";
@@ -37,7 +37,9 @@ export function MilkLogSection() {
   const [shed, setShed] = useState(ALL_SHEDS);
   const [isDirty, setIsDirty] = useState(false);
   const [pendingDate, setPendingDate] = useState<string | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState(todayIso().slice(0, 7));
   const query = useMilkLogTable(date);
+  const calendarQuery = useMilkLogCalendar(calendarMonth);
 
   function requestDateChange(next: string) {
     if (isDirty) {
@@ -74,10 +76,12 @@ export function MilkLogSection() {
       </Select>
 
       <div className="w-[160px] shrink-0">
-        <DatePicker
+        <EntryStatusDatePicker
           label={t("dateLabel")}
           value={date}
           onChange={requestDateChange}
+          onMonthChange={setCalendarMonth}
+          days={calendarQuery.data?.days ?? []}
           disabledDates={{ after: new Date() }}
         />
       </div>

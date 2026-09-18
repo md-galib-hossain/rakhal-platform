@@ -393,6 +393,16 @@ export function useFeedGrid(date: string, feedGroupId?: string) {
   });
 }
 
+/** RAKHAL-434/RFE-118 — per-day entry status for the missed-entry calendar picker. `month` is
+ * `YYYY-MM`. */
+export function useFeedGridCalendar(month: string) {
+  return useQuery({
+    queryKey: qk.feed.gridCalendar(month),
+    queryFn: () => feedApi.getFeedGridCalendar(month),
+    staleTime: STALE_TIME,
+  });
+}
+
 /** Saves the grid's staged per-cow quantities against one source item — no inventory effect.
  * Invalidates just this date+group's grid query. */
 export function useSaveFeedDraft() {

@@ -69,6 +69,20 @@ export interface MilkLogTableResponse {
   entries: MilkLogRow[];
 }
 
+/** One calendar day's status (RAKHAL-434). `before_farm`/`future` are never colorable as a miss. */
+export type EntryCalendarDayStatus = "complete" | "partial" | "missing" | "future" | "before_farm";
+
+export interface EntryCalendarDay {
+  date: string;
+  status: EntryCalendarDayStatus;
+}
+
+/** `GET /milk/log/calendar?month=YYYY-MM` result. */
+export interface EntryCalendarResult {
+  month: string;
+  days: EntryCalendarDay[];
+}
+
 export interface SaveMilkLogEntry {
   cattleId: string;
   yieldL: number;

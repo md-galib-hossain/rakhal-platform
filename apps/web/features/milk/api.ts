@@ -4,6 +4,7 @@ import { apiFetch, apiFetchPage, apiUpload } from "@/lib/api/client";
 import type { CursorPage } from "@/types/api";
 import type {
   CreateMilkQualityTestInput,
+  EntryCalendarResult,
   ExportMilkLogInput,
   ListMilkQualityTestsParams,
   MilkAnomaliesResponse,
@@ -31,6 +32,10 @@ export const milkApi = {
   },
   logTable(params: { date?: string; shedId?: string }): Promise<MilkLogTableResponse> {
     return apiFetch<MilkLogTableResponse>("/milk/log", { searchParams: params });
+  },
+  /** RAKHAL-434 — per-day entry status for the missed-entry calendar picker. */
+  getLogCalendar(month: string): Promise<EntryCalendarResult> {
+    return apiFetch<EntryCalendarResult>("/milk/log/calendar", { searchParams: { month } });
   },
   saveLog(input: SaveMilkLogInput): Promise<SaveMilkLogResponse> {
     return apiFetch<SaveMilkLogResponse>("/milk/log", { method: "POST", body: input });

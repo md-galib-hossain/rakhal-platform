@@ -1027,6 +1027,13 @@ Companion to the backend board's MILESTONE 24 (`D:\Projects\Rakhal\docs\PROJECT_
 - [x] The dialog is no longer TMR-only in meaning — a Concentrate Mixer finalize goes through the same deduction path. Rename/retitle if the component's copy assumes TMR. **Done by RFE-114 (2026-09-15)**, once the backend asymmetry this depended on (RD-090) was resolved.
 - **Notes:** Do not build against RAKHAL-423 alone. Shipping the deduction without the finance split double-counts the expense, so the backend holds both in one lane; the frontend should treat them as one dependency too.
 
+#### RFE-118 — Missed-entry calendar date picker on Milk Log + Feed Grid — ✅ DONE (2026-09-18)
+- **Dependencies:** RAKHAL-434 (backend — `GET /milk/log/calendar` + `GET /feed/grid/calendar`)
+- **Lane:** new `components/shared/entry-status-date-picker.tsx`, `features/milk/{api.ts,types.ts,hooks/use-milk.ts,components/milk-log-section.tsx}`, `features/feed/{api.ts,types.ts,hooks/use-feed.ts}`, `features/feeding/components/feeding-grid.tsx`, `lib/query/keys.ts`
+- [x] New shared `EntryStatusDatePicker`, built as a new file (not an edit to `components/ui/date-picker.tsx`) reusing the same `Calendar`/`Popover`/`PickerFooter` blocks, colors each day via react-day-picker's own `modifiers`/`modifiersClassNames` — a red `bg-destructive` dot for `missing`, amber `bg-warning` for `partial` (both semantic tokens).
+- [x] Replaces the plain `DatePicker` on `MilkLogSection` and `FeedingGrid`; each tracks its own `calendarMonth` state, feeding new `useMilkLogCalendar`/`useFeedGridCalendar` hooks against the new backend routes.
+- **Gate:** `pnpm typecheck`(0) / `eslint`(0 on all 9 touched/new files) / `pnpm build`(0, 46 routes) / `pnpm test`(174/174). No live click-through — Suspense-stuck quirk plus a broken `pnpm seed` in the backend repo left no demo farm to click into (flagged as a spawned follow-up, not fixed here); relied on gate + direct comparison against the backend's real response shape.
+
 #### RFE-114 — Generalize the finalize dialog's purchase preview to the Concentrate Mixer (closes RD-090's frontend half) — ✅ DONE (2026-09-15)
 - **Dependencies:** RAKHAL-428 (backend — drops the `row.kind === 'FEED_MIXTURE'` restriction on both payment gates)
 - **Lane:** `features/feed/components/{finalize-tmr-dialog.tsx,feed-view.tsx}`

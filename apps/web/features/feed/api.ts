@@ -9,6 +9,7 @@ import type {
   CreateCustomIngredientPayload,
   CreateFeedConcentrationPayload,
   DmiComparison,
+  EntryCalendarResult,
   FeedConcentrationDetail,
   FeedConcentrationKind,
   FeedConcentrationSummary,
@@ -229,6 +230,10 @@ export const feedApi = {
    * source item per Save/Confirm call, `entries` is per-cow quantity. */
   getFeedGrid(params: { date: string; feedGroupId?: string }): Promise<FeedGridResult> {
     return apiFetch<FeedGridResult>("/feed/grid", { searchParams: params });
+  },
+  /** RAKHAL-434/RFE-118 — per-day feeding-entry status for the missed-entry calendar picker. */
+  getFeedGridCalendar(month: string): Promise<EntryCalendarResult> {
+    return apiFetch<EntryCalendarResult>("/feed/grid/calendar", { searchParams: { month } });
   },
   saveFeedGridDraft(dto: SaveFeedGridDraftPayload): Promise<SaveFeedGridDraftResult> {
     return apiFetch<SaveFeedGridDraftResult>("/feed/grid/draft", { method: "POST", body: dto });

@@ -76,6 +76,7 @@ export const qk = {
     anomalies: (date: string | undefined) => ["milk", "anomalies", date] as const,
     eligibility: (cattleId: string) => ["milk", "eligibility", cattleId] as const,
     qualityTests: (cattleId: string) => ["milk", "quality-tests", cattleId] as const,
+    calendar: (month: string) => ["milk", "log", "calendar", month] as const,
   },
   inventory: {
     medicineDetail: (id: string) => ["inventory", "medicine", "detail", id] as const,
@@ -249,6 +250,7 @@ export const qk = {
     dmi: (cattleId: string, date?: string) => ["feed", "dmi", cattleId, date] as const,
     todaysRequirement: () => ["feed", "today-requirement"] as const,
     grid: (date: string, feedGroupId: string | undefined) => ["feed", "grid", date, feedGroupId] as const,
+    gridCalendar: (month: string) => ["feed", "grid", "calendar", month] as const,
     refusalTrend: (feedGroupId: string) => ["feed", "refusal-trend", feedGroupId] as const,
     versions: (concentrationId: string) => ["feed", "versions", concentrationId] as const,
     costSummary: () => ["feed", "cost-summary"] as const,

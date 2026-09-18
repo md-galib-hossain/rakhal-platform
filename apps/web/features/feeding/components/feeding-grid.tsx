@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { DatePicker } from "@/components/ui/date-picker";
+import { EntryStatusDatePicker } from "@/components/shared/entry-status-date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -24,7 +24,15 @@ import { useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
 import { useFeedItemPagedList } from "@/features/inventory/hooks/use-inventory";
 import { FeedItemFormDialog } from "@/features/inventory/components/feed-item-form-dialog";
 import { CreateFeedDialog } from "../../feed/components/create-feed-dialog";
-import { useConcentrations, useFeedGroups, useFeedGrid, useConfirmFeedDraft, useSaveFeedDraft, useFeedStock } from "../../feed/hooks/use-feed";
+import {
+  useConcentrations,
+  useFeedGroups,
+  useFeedGrid,
+  useFeedGridCalendar,
+  useConfirmFeedDraft,
+  useSaveFeedDraft,
+  useFeedStock,
+} from "../../feed/hooks/use-feed";
 import type { FeedGridCow, FeedGridEntryInput, FeedGridSourceType } from "../../feed/types";
 
 interface FeedSourceOption {
@@ -89,9 +97,11 @@ export function FeedingGrid() {
   const t = useTranslations("feeding.grid");
   const [date, setDate] = useState(todayIso());
   const [feedGroupId, setFeedGroupId] = useState(ALL_GROUPS);
+  const [calendarMonth, setCalendarMonth] = useState(todayIso().slice(0, 7));
   const groupFilter = feedGroupId === ALL_GROUPS ? undefined : feedGroupId;
   const query = useFeedGrid(date, groupFilter);
   const feedGroups = useFeedGroups();
+  const calendarQuery = useFeedGridCalendar(calendarMonth);
 
   const cows = query.data?.cows ?? [];
 
@@ -115,10 +125,12 @@ export function FeedingGrid() {
           </Select>
 
           <div className="w-[160px] shrink-0">
-            <DatePicker
+            <EntryStatusDatePicker
               label={t("dateLabel")}
               value={date}
               onChange={setDate}
+              onMonthChange={setCalendarMonth}
+              days={calendarQuery.data?.days ?? []}
               disabledDates={{ after: new Date() }}
             />
           </div>

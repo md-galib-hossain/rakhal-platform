@@ -598,6 +598,21 @@ export interface FeedGridResult {
   cows: FeedGridCow[];
 }
 
+/** One calendar day's status (RAKHAL-434) — shared shape for both the Feed Grid and Milk Log
+ * missed-entry calendars. `before_farm`/`future` are never colorable as a miss. */
+export type EntryCalendarDayStatus = "complete" | "partial" | "missing" | "future" | "before_farm";
+
+export interface EntryCalendarDay {
+  date: string;
+  status: EntryCalendarDayStatus;
+}
+
+/** `GET /feed/grid/calendar?month=YYYY-MM` result. */
+export interface EntryCalendarResult {
+  month: string;
+  days: EntryCalendarDay[];
+}
+
 export interface FeedGridEntryInput {
   cattleId: string;
   offeredKg: number;
