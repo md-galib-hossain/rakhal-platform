@@ -1,10 +1,11 @@
 "use client"; // form state + mutation
 
+import { useId } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { ArrowRightToLine, Milk, MilkOff } from "lucide-react";
+import { ArrowRightToLine, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -71,34 +72,137 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   return <div className="rounded-xl bg-muted px-4 py-2.5 text-sm font-semibold text-foreground">{children}</div>;
 }
 
-function TankTypeOption({ type, selected, onSelect, label }: { type: MilkTankType; selected: boolean; onSelect: () => void; label: string }) {
+function VisualTankTypeCard({
+  type,
+  selected,
+  onSelect,
+  title,
+  description,
+  badgeLabel,
+}: {
+  type: MilkTankType;
+  selected: boolean;
+  onSelect: () => void;
+  title: string;
+  description: string;
+  badgeLabel: string;
+}) {
   const isSellable = type === "SELLABLE";
+  const rawId = useId();
+  const clipId = `dialog-mini-bottle-${rawId.replace(/:/g, "")}`;
+
+  // Mini milk bottle silhouette path
+  const bottlePath =
+    "M 26 10 L 26 19 C 26 30 6 30 6 42 L 6 122 C 6 130 13 134 19 134 L 61 134 C 67 134 74 130 74 122 L 74 42 C 74 30 54 30 54 19 L 54 10 Z";
+
+  // Wavy liquid surface
+  const wavePath = "M 0 68 C 20 71, 55 63, 80 67 L 80 140 L 0 140 Z";
+
   return (
     <button
       type="button"
+      role="radio"
+      aria-checked={selected}
       onClick={onSelect}
       className={cn(
-        "flex flex-1 items-center justify-center gap-1.5 rounded-xl border-[1.5px] px-5 py-2.5 text-sm font-medium transition-colors",
+        "group relative flex flex-1 cursor-pointer items-center gap-3.5 overflow-hidden rounded-2xl border-2 p-3.5 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2",
         selected
           ? isSellable
-            ? "border-info bg-info-tint text-info"
-            : "border-warning bg-warning-tint text-warning"
-          : "border-transparent bg-muted text-muted-foreground",
+            ? "border-info bg-info-tint/30 ring-2 ring-info/30 dark:bg-info-tint/10 shadow-sm"
+            : "border-warning bg-warning-tint/30 ring-2 ring-warning/30 dark:bg-warning-tint/10 shadow-sm"
+          : "border-border/80 bg-card hover:border-foreground/30 hover:bg-muted/40 hover:-translate-y-0.5",
       )}
     >
-      <span className={cn("flex size-7 items-center justify-center rounded-md bg-card shadow-sm", selected ? (isSellable ? "text-info" : "text-warning") : "text-muted-foreground")}>
-        {isSellable ? <MilkIcon /> : <MilkOffIcon />}
-      </span>
-      {label}
+      {/* Non-cropping diagonal corner ribbon badge in top-right */}
+      <div className="pointer-events-none absolute right-0 top-0 h-16 w-16 overflow-hidden rounded-tr-2xl">
+        <div
+          className={cn(
+            "absolute right-[-28px] top-[10px] w-[95px] rotate-45 py-0.5 text-center text-[9px] font-bold tracking-wide shadow-2xs",
+            isSellable ? "bg-info-tint text-info" : "bg-warning-tint text-warning",
+          )}
+        >
+          {badgeLabel}
+        </div>
+      </div>
+
+      {/* Mini Visual Milk Container on the Left */}
+      <div className="relative flex h-[92px] w-[54px] shrink-0 items-center justify-center transition-transform duration-200 group-hover:scale-105">
+        <svg
+          viewBox="0 0 80 140"
+          className="h-full w-full"
+          xmlns="http://www.w3.org/2000/svg"
+          shapeRendering="geometricPrecision"
+          aria-hidden="true"
+        >
+          <defs>
+            <clipPath id={clipId}>
+              <path d={bottlePath} />
+            </clipPath>
+            <linearGradient id={`dialog-cap-grad-${rawId.replace(/:/g, "")}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#F1F3F6" />
+              <stop offset="100%" stopColor="#E5E8EC" />
+            </linearGradient>
+          </defs>
+
+          {/* Light Milky Bottle Backdrop */}
+          <path
+            d={bottlePath}
+            style={{ fill: "#F5F6F8", stroke: "#E2E6EA" }}
+            strokeWidth="1.5"
+          />
+
+          {/* Liquid wavy fill */}
+          <g clipPath={`url(#${clipId})`}>
+            <path
+              d={wavePath}
+              style={{ fill: isSellable ? "#A5C9FF" : "#FDE68A" }}
+            />
+          </g>
+
+          {/* Crisp Bottle outline */}
+          <path
+            d={bottlePath}
+            fill="none"
+            style={{ stroke: "#E2E6EA" }}
+            strokeWidth="1.5"
+          />
+
+          {/* Realistic Rounded Milk Bottle Rim resting on top */}
+          <rect
+            x="22"
+            y="3"
+            width="36"
+            height="8"
+            rx="4"
+            fill={`url(#dialog-cap-grad-${rawId.replace(/:/g, "")})`}
+            style={{ stroke: "#E2E6EA" }}
+            strokeWidth="1.5"
+          />
+        </svg>
+      </div>
+
+      {/* Info & Radio on the Right with clean padding from the ribbon */}
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5 pr-8">
+        <div className="flex items-center gap-2">
+          {/* Custom radio/check badge */}
+          <div
+            className={cn(
+              "flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+              selected
+                ? isSellable
+                  ? "border-info bg-info text-white"
+                  : "border-warning bg-warning text-white"
+                : "border-muted-foreground/40 bg-background group-hover:border-foreground/60",
+            )}
+          >
+            {selected ? <Check className="size-3 stroke-[3]" aria-hidden /> : null}
+          </div>
+          <span className="truncate text-sm font-bold text-foreground sm:text-base">{title}</span>
+        </div>
+        <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
+      </div>
     </button>
   );
-}
-
-function MilkIcon() {
-  return <Milk className="size-[18px]" aria-hidden />;
-}
-function MilkOffIcon() {
-  return <MilkOff className="size-[18px]" aria-hidden />;
 }
 
 /**
@@ -205,9 +309,23 @@ function MilkTankFormDialogBody({
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 py-4">
           <SectionHeader>{t("tankType")}</SectionHeader>
-          <div className="flex items-center gap-2.5">
-            <TankTypeOption type="SELLABLE" selected={tankType === "SELLABLE"} onSelect={() => form.setValue("tankType", "SELLABLE")} label={t("sellableTank")} />
-            <TankTypeOption type="WITHHOLDING" selected={tankType === "WITHHOLDING"} onSelect={() => form.setValue("tankType", "WITHHOLDING")} label={t("withholdingTank")} />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label={t("tankType")}>
+            <VisualTankTypeCard
+              type="SELLABLE"
+              selected={tankType === "SELLABLE"}
+              onSelect={() => form.setValue("tankType", "SELLABLE")}
+              title={t("sellableTank")}
+              description={t("sellableDesc")}
+              badgeLabel={t("badgeSellable")}
+            />
+            <VisualTankTypeCard
+              type="WITHHOLDING"
+              selected={tankType === "WITHHOLDING"}
+              onSelect={() => form.setValue("tankType", "WITHHOLDING")}
+              title={t("withholdingTank")}
+              description={t("withholdingDesc")}
+              badgeLabel={t("badgeWithholding")}
+            />
           </div>
 
           <SectionHeader>{t("tankInfo")}</SectionHeader>
