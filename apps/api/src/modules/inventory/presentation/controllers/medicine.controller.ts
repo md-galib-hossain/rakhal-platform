@@ -30,6 +30,7 @@ import { BulkDeleteMedicineDto } from '../dto/bulk-delete-medicine.dto';
 import { CreateMedicineBatchDto } from '../dto/create-medicine-batch.dto';
 import { CreateMedicineDto } from '../dto/create-medicine.dto';
 import { ListMedicineQueryDto } from '../dto/list-medicine-query.dto';
+import { MedicineByBatchCodeQueryDto } from '../dto/medicine-by-batch-code-query.dto';
 import { UpdateMedicineDto } from '../dto/update-medicine.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
@@ -86,6 +87,16 @@ export class MedicineController {
     @Query() query: ListMedicineQueryDto,
   ) {
     return this.medicineService.findAll(farmId, query);
+  }
+
+  /** RAKHAL-434/439 — real batch lookup (recall use case), registered before `:id`. */
+  @Get('by-batch-code')
+  @RequirePermission('inventory.read')
+  findByBatchCode(
+    @CurrentFarmId() farmId: string,
+    @Query() query: MedicineByBatchCodeQueryDto,
+  ) {
+    return this.medicineService.findByBatchCode(farmId, query.code);
   }
 
   @Get(':id')

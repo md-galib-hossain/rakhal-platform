@@ -88,6 +88,9 @@ model MedicineBatch {
   farm           Farm                    @relation("FarmToMedicineBatch", fields: [farmId], references: [id])
   creator        User                    @relation("MedicineBatchCreator", fields: [createdBy], references: [id])
   stockMovements MedicineStockMovement[]
+  /// Back-relation for `PurchaseLine.medicineBatchId` (RAKHAL-439) — every
+  /// purchase line that created this exact batch (normally exactly one).
+  purchaseLines  PurchaseLine[]
 
   @@index([medicineId])
   @@index([farmId])

@@ -208,7 +208,7 @@ export class MedicineService {
     medicineId: string,
     dto: CreateMedicineBatchDto,
     tx?: Prisma.TransactionClient,
-  ): Promise<PresentedMedicine> {
+  ): Promise<PresentedMedicine & { batchId: string }> {
     await this.getOrThrow(farmId, medicineId);
 
     const purchaseDate = new Date(dto.purchaseDate);
@@ -246,18 +246,20 @@ export class MedicineService {
       }
 
       await this.syncMedicineAggregate(client, medicineId);
-      return client.medicine.findUniqueOrThrow({
+      const medicine = await client.medicine.findUniqueOrThrow({
         where: { id: medicineId },
         include: { unit: true },
       });
+      return { medicine, batchId: batch.id };
     };
 
-    const medicine = tx
+    const { medicine, batchId } = tx
       ? await write(tx)
       : await this.prisma.$transaction((t) => write(t));
 
-    this.log.info('Medicine batch created', { medicineId, farmId });
-    return this.presentOne(medicine);
+    this.log.info('Medicine batch created', { medicineId, batchId, farmId });
+    const presented = await this.presentOne(medicine);
+    return { ...presented, batchId };
   }
 
   async findAll(
@@ -296,6 +298,51 @@ export class MedicineService {
 
   async findOne(farmId: string, id: string): Promise<PresentedMedicine> {
     return this.presentOne(await this.getOrThrow(farmId, id));
+  }
+
+  /**
+   * Real batch lookup across the whole farm (RAKHAL-434 problem #2 / RAKHAL-439)
+   * — "show me every remaining vial tagged LOT-4471" for a manufacturer
+   * recall, regardless of which product it's filed under. `MedicineBatch.
+   * batchCode` is indexed (unlike the old bare `Medicine.batchId` text
+   * `contains` this replaces).
+   */
+  async findByBatchCode(
+    farmId: string,
+    code: string,
+  ): Promise<
+    {
+      batchId: string;
+      batchCode: string | null;
+      medicineId: string;
+      medicineName: string;
+      currentStock: number;
+      costPerUnit: number;
+      purchaseDate: Date;
+      expiryDate: Date;
+      unit: string;
+    }[]
+  > {
+    const batches = await this.prisma.medicineBatch.findMany({
+      where: {
+        farmId,
+        deletedAt: null,
+        batchCode: { contains: code, mode: 'insensitive' },
+      },
+      include: { medicine: { include: { unit: true } } },
+      orderBy: [{ expiryDate: 'asc' }, { id: 'asc' }],
+    });
+    return batches.map((b) => ({
+      batchId: b.id,
+      batchCode: b.batchCode,
+      medicineId: b.medicineId,
+      medicineName: b.medicine.name,
+      currentStock: b.currentStock,
+      costPerUnit: b.costPerUnit,
+      purchaseDate: b.purchaseDate,
+      expiryDate: b.expiryDate,
+      unit: b.medicine.unit.symbol,
+    }));
   }
 
   async update(

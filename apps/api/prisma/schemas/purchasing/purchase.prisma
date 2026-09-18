@@ -86,6 +86,11 @@ model PurchaseLine {
   medicineId  String?
   feedItemId  String?
   equipmentId String?
+  /// RAKHAL-439 (`docs/EPIC_MEDICINE_BATCH_MODEL.md`) — the exact `MedicineBatch`
+  /// this line's own `createBatch()` call created. Nullable: only medicine
+  /// lines set it, and a pre-439 line has none — `VoidDocumentUseCase` falls
+  /// back to its old representative-batch reversal when absent.
+  medicineBatchId String?
 
   quantity    Decimal @db.Decimal(18, 2)
   unitCost    Decimal @db.Decimal(18, 2)
@@ -94,13 +99,15 @@ model PurchaseLine {
 
   createdAt DateTime @default(now())
 
-  purchase  Purchase   @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  medicine  Medicine?  @relation("MedicineToPurchaseLine", fields: [medicineId], references: [id])
-  feedItem  FeedItem?  @relation("FeedItemToPurchaseLine", fields: [feedItemId], references: [id])
-  equipment Equipment? @relation("EquipmentToPurchaseLine", fields: [equipmentId], references: [id])
+  purchase      Purchase       @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  medicine      Medicine?      @relation("MedicineToPurchaseLine", fields: [medicineId], references: [id])
+  medicineBatch MedicineBatch? @relation(fields: [medicineBatchId], references: [id])
+  feedItem      FeedItem?      @relation("FeedItemToPurchaseLine", fields: [feedItemId], references: [id])
+  equipment     Equipment?     @relation("EquipmentToPurchaseLine", fields: [equipmentId], references: [id])
 
   @@index([purchaseId])
   @@index([medicineId])
+  @@index([medicineBatchId])
   @@index([feedItemId])
   @@index([equipmentId])
 }
