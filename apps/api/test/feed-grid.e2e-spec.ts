@@ -294,6 +294,59 @@ describe('Feeding Grid (e2e)', () => {
     ).toBe(6);
   });
 
+  it('RD-100: confirming with an explicit entries list touches ONLY the named cow(s) — no sweep of other cows via their own carried-forward default', async () => {
+    // By day 3, both cows have a resolvable carried-forward default (5/6, from day 2's confirm) AND
+    // this call supplies a top-level default source — exactly the condition that used to sweep cowB
+    // in too, even though only cowA is named.
+    const before = await request(server())
+      .get(api(`/inventory/feed-items/${feedItemId}`))
+      .set(...auth(owner))
+      .expect(200);
+    const stockBefore = before.body.data.currentStock as number;
+
+    const res = await request(server())
+      .post(api('/feed/grid/confirm'))
+      .set(...auth(owner))
+      .send({
+        date: '2026-05-03',
+        feedGroupId,
+        sourceType: 'FEED_ITEM',
+        feedItemId,
+        entries: [{ cattleId: cowA, offeredKg: 4 }],
+      })
+      .expect(201);
+
+    expect(res.body.data.total_actual_kg).toBe(4);
+    expect(res.body.data.cows).toHaveLength(1);
+    expect(res.body.data.cows[0].cattle_id).toBe(cowA);
+
+    const after = await request(server())
+      .get(api(`/inventory/feed-items/${feedItemId}`))
+      .set(...auth(owner))
+      .expect(200);
+    expect(after.body.data.currentStock).toBe(stockBefore - 4);
+
+    const distribution = await prisma.feedDistribution.findUnique({
+      where: { id: res.body.data.id as string },
+      include: { cattleItems: true },
+    });
+    expect(distribution!.cattleItems).toHaveLength(1);
+    expect(distribution!.cattleItems[0].cattleId).toBe(cowA);
+
+    // cowB must show no confirmed feeding for this date — it was never named.
+    const grid = await request(server())
+      .get(api(`/feed/grid?date=2026-05-03&feedGroupId=${feedGroupId}`))
+      .set(...auth(owner))
+      .expect(200);
+    const rowB = (
+      grid.body.data.cows as Array<{
+        cattle_id: string;
+        confirmed_offered_kg: number | null;
+      }>
+    ).find((c) => c.cattle_id === cowB)!;
+    expect(rowB.confirmed_offered_kg).toBeNull();
+  });
+
   describe('validation + RBAC', () => {
     it('400s a farmId in the body (forbidNonWhitelisted)', async () => {
       await request(server())

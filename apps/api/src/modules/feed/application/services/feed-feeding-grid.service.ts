@@ -273,21 +273,29 @@ export class FeedFeedingGridService {
   }
 
   /**
-   * Turn a day's feeding-grid quantities into one real `FeedDistribution`. Cow scope is always the
-   * full grid for `{feedGroupId}` (or the whole active herd if `feedGroupId` is omitted) — matching
-   * `getGrid()` — so a confirm with no draft and no `entries` still resolves a quantity per cow via
-   * the same carried-forward default `getGrid()` shows.
+   * Turn a day's feeding-grid quantities into one real `FeedDistribution`.
+   *
+   * RAKHAL-440/RD-100: cow **scope** depends on whether `dto.entries` is given. With entries, scope
+   * is *exactly* the cows named there — nothing else. Without entries, scope is the full grid for
+   * `{feedGroupId}` (or the whole active herd if omitted), matching `getGrid()`, so a bare confirm
+   * with nothing typed still resolves a quantity per cow via drafts/the carried-forward default.
+   * **Before this fix**, a non-empty `entries` still fell through to the whole-grid path for every
+   * cow it didn't name — a farmer who checked one row and clicked "Confirm (1)" could silently pull
+   * in every other cow's own carried-forward default too, via the call's top-level default source.
+   * Real bug, reproduced live: 1 cow selected, request tried to draw stock for ~92 unrelated ones.
+   * The per-row source model (RFE-115/117) made that fallback actively wrong — a farmer who curates
+   * an explicit entry list means exactly those cows, not "those plus whatever else resolves."
    *
    * RAKHAL-430 (Feeding Favourites): **multi-source**. Each cow resolves to its own `{offeredKg,
    * source}`: a named `dto.entries` line (own source override, else the call's top-level default)
-   * → else its own existing draft for this date (any source — if more than one exists, the
-   * top-level default disambiguates when given, else an unambiguous single draft is used) → else
-   * the carried-forward default *quantity*, only resolvable when the call has a top-level default
-   * source to pair it with (no resolution ladder yet — RAKHAL-431's job). Cows that resolve to
-   * 0/no source are skipped entirely. Resolved lines are grouped by distinct source: one
-   * `FeedDistributionItem` per group, each stock-validated and decremented independently — a
-   * shortfall on one source blocks the whole confirm before anything is written, same "fail fast
-   * before the transaction" convention `assertSufficientStock` already established here.
+   * when entries is given; **else** (no entries at all) its own existing draft for this date (any
+   * source — if more than one exists, the top-level default disambiguates when given, else an
+   * unambiguous single draft is used), else the carried-forward default *quantity*, only resolvable
+   * when the call has a top-level default source to pair it with. Cows that resolve to 0/no source
+   * are skipped entirely. Resolved lines are grouped by distinct source: one `FeedDistributionItem`
+   * per group, each stock-validated and decremented independently — a shortfall on one source blocks
+   * the whole confirm before anything is written, same "fail fast before the transaction" convention
+   * `assertSufficientStock` already established here.
    */
   async confirm(farmId: string, userId: string, dto: ConfirmFeedDraftDto) {
     if (dto.feedGroupId) {
@@ -328,9 +336,17 @@ export class FeedFeedingGridService {
     ]);
     const draftsByCattle = this.groupByCattle(drafts);
 
+    // RAKHAL-440/RD-100: with a curated `entries` list, scope is exactly those cows — never fall
+    // through to the whole-grid draft/default path for a cow the caller didn't name. Without
+    // entries, scope stays the full grid (unchanged "confirm the whole day" behavior).
+    const scopedCattleIds =
+      entriesMap.size > 0
+        ? cattleIds.filter((id) => entriesMap.has(id))
+        : cattleIds;
+
     type Line = { cattleId: string; offeredKg: number; source: ResolvedSource };
     const lines: Line[] = [];
-    for (const cattleId of cattleIds) {
+    for (const cattleId of scopedCattleIds) {
       const entry = entriesMap.get(cattleId);
       if (entry) {
         const source = this.resolveEntrySource(dto, entry);
