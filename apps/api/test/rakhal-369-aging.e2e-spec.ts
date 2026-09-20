@@ -1,7 +1,13 @@
 import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
-import { FarmService } from '../src/modules/farm/application/services/farm.service';
-import { AuthedUser, bearer, createTestApp, TestContext } from './utils/e2e';
+import {
+  AuthedUser,
+  bearer,
+  createTestApp,
+  createThrowawayOwner,
+  deleteThrowawayOwner,
+  TestContext,
+} from './utils/e2e';
 
 /**
  * RAKHAL-369 (MILESTONE 22, `BUSINESS_IA_PRD.md` §6.3, §9.3) — receivable/
@@ -28,7 +34,6 @@ import { AuthedUser, bearer, createTestApp, TestContext } from './utils/e2e';
 describe('Business Reporting — Receivable/Payable aging (e2e, RAKHAL-369)', () => {
   let ctx: TestContext;
   let prisma: PrismaService;
-  let farmService: FarmService;
   let owner: AuthedUser;
   let ownerUserId: string;
   let farmId: string;
@@ -47,32 +52,29 @@ describe('Business Reporting — Receivable/Payable aging (e2e, RAKHAL-369)', ()
   beforeAll(async () => {
     ctx = await createTestApp();
     prisma = ctx.app.get(PrismaService);
-    farmService = ctx.app.get(FarmService);
-    const user = await prisma.user.findFirstOrThrow({
-      where: { email: 'owner@demo.rakhal.test' },
-      select: { id: true },
-    });
-    ownerUserId = user.id;
 
-    const farm = await farmService.create(ownerUserId, {
-      name: unique('E2E-369-AgingFarm'),
-    });
-    farmId = farm.id;
-    const login = await request(server())
-      .post(api('/auth/login'))
-      .send({
-        email: 'owner@demo.rakhal.test',
-        password: 'DemoPass123',
-        farmId,
-      })
-      .expect(201);
-    owner = {
-      token: login.body.data.accessToken as string,
-      farmId,
-    };
+    const throwaway = await createThrowawayOwner(
+      ctx,
+      prisma,
+      unique('E2E-369-AgingFarm'),
+    );
+    ownerUserId = throwaway.userId;
+    farmId = throwaway.farmId;
+    owner = throwaway.owner;
   }, 30_000);
 
   afterAll(async () => {
+    await prisma.payable
+      .deleteMany({ where: { farmId } })
+      .catch(() => undefined);
+    await prisma.purchase
+      .deleteMany({ where: { farmId } })
+      .catch(() => undefined);
+    await prisma.receivable
+      .deleteMany({ where: { farmId } })
+      .catch(() => undefined);
+    await prisma.sale.deleteMany({ where: { farmId } }).catch(() => undefined);
+    await deleteThrowawayOwner(prisma, { userId: ownerUserId, farmId });
     await ctx.app.close();
   });
 

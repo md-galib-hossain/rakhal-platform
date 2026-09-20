@@ -1,7 +1,12 @@
 ﻿import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
-import { FarmService } from '../src/modules/farm/application/services/farm.service';
-import { AuthedUser, createTestApp, TestContext } from './utils/e2e';
+import {
+  AuthedUser,
+  createTestApp,
+  createThrowawayOwner,
+  deleteThrowawayOwner,
+  TestContext,
+} from './utils/e2e';
 
 /**
  * RAKHAL-271 (v2 correction) — `ReproductionState` (5-value core) +
@@ -32,9 +37,9 @@ import { AuthedUser, createTestApp, TestContext } from './utils/e2e';
 describe('Reproduction — ReproductionState/Alert lifecycle (e2e)', () => {
   let ctx: TestContext;
   let prisma: PrismaService;
-  let farmService: FarmService;
   let owner: AuthedUser;
   let ownerUserId: string;
+  let farmId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -48,31 +53,27 @@ describe('Reproduction — ReproductionState/Alert lifecycle (e2e)', () => {
   beforeAll(async () => {
     ctx = await createTestApp();
     prisma = ctx.app.get(PrismaService);
-    farmService = ctx.app.get(FarmService);
-    const user = await prisma.user.findFirstOrThrow({
-      where: { email: 'owner@demo.rakhal.test' },
-      select: { id: true },
-    });
-    ownerUserId = user.id;
 
-    const farm = await farmService.create(user.id, {
-      name: unique('E2E-RD075-ReproLifecycleFarm'),
-    });
-    const login = await request(ctx.app.getHttpServer())
-      .post(api('/auth/login'))
-      .send({
-        email: 'owner@demo.rakhal.test',
-        password: 'DemoPass123',
-        farmId: farm.id,
-      })
-      .expect(201);
-    owner = {
-      token: login.body.data.accessToken as string,
-      farmId: farm.id,
-    };
+    const throwaway = await createThrowawayOwner(
+      ctx,
+      prisma,
+      unique('E2E-RD075-ReproLifecycleFarm'),
+    );
+    ownerUserId = throwaway.userId;
+    farmId = throwaway.farmId;
+    owner = throwaway.owner;
   }, 30_000);
 
   afterAll(async () => {
+    // This suite drives a full breeding->heat->insemination->calving cycle
+    // via real HTTP endpoints — BreedingEvent/HeatRecord/PregnancyCheck/
+    // Task/ActivityLog/AqrEvent rows are NOT enumerated here (unlike the
+    // other converted specs). `deleteThrowawayOwner`'s own `.catch(() =>
+    // undefined)` on each step means an FK it can't clear silently leaves
+    // the farm behind — no worse than the prior no-op teardown — but the
+    // owner is now a throwaway account, so it no longer pollutes the demo
+    // owner's farm-picker (the actual RD-096 complaint).
+    await deleteThrowawayOwner(prisma, { userId: ownerUserId, farmId });
     await ctx.app.close();
   });
 

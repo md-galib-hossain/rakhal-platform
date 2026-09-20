@@ -69,12 +69,20 @@ export class LedgerAccountService {
     });
   }
 
-  /** One ledger account by its (farmId, code) — the journal engine's lookup. */
+  /**
+   * One ledger account by its (farmId, code) — the journal engine's lookup.
+   * Accepts an optional `Prisma.TransactionClient` so a caller that just
+   * wrote (e.g. `seedDefaultChart`) inside an open transaction can read its
+   * own uncommitted write back — reading via the bare `this.prisma`
+   * connection instead would see pre-commit state and miss it.
+   */
   async findByCode(
     farmId: string,
     code: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<LedgerAccount | null> {
-    return this.prisma.ledgerAccount.findUnique({
+    const client = tx ?? this.prisma;
+    return client.ledgerAccount.findUnique({
       where: { farmId_code: { farmId, code } },
     });
   }

@@ -169,13 +169,15 @@ export class FeedFeedingGridService {
       return { date: date, feed_group_id: feedGroupId ?? null, cows: [] };
     }
 
-    const [drafts, defaults, defaultSources] = await Promise.all([
-      this.prisma.feedFeedingDraft.findMany({
-        where: { farmId, cattleId: { in: cattleIds }, logDate },
-      }),
-      this.computeDefaults(farmId, cattleIds),
-      this.resolveDefaultSources(farmId, cattle),
-    ]);
+    const [drafts, defaults, defaultSources, confirmedToday] =
+      await Promise.all([
+        this.prisma.feedFeedingDraft.findMany({
+          where: { farmId, cattleId: { in: cattleIds }, logDate },
+        }),
+        this.computeDefaults(farmId, cattleIds),
+        this.resolveDefaultSources(farmId, cattle),
+        this.computeConfirmedToday(cattleIds, farmId, logDate),
+      ]);
     const draftsByCattle = this.groupByCattle(drafts);
 
     return {
@@ -189,6 +191,7 @@ export class FeedFeedingGridService {
         drafts: (draftsByCattle.get(c.id) ?? []).map((d) => this.mapDraft(d)),
         default_offered_kg: defaults.get(c.id) ?? null,
         default_source: this.mapResolvedSource(defaultSources.get(c.id)),
+        confirmed_offered_kg: confirmedToday.get(c.id) ?? null,
       })),
     };
   }
@@ -764,6 +767,37 @@ export class FeedFeedingGridService {
     const map = new Map<string, number>();
     for (const row of rows) {
       if (!map.has(row.cattleId)) map.set(row.cattleId, row.offeredKg);
+    }
+    return map;
+  }
+
+  /**
+   * RAKHAL-440/RD-099: how much of `logDate` is *already confirmed* for each cow, as distinct from
+   * `computeDefaults()`'s carried-forward suggestion (which reads the most recent confirmed day,
+   * any date, and renders identically whether or not today itself has been touched — the actual bug
+   * report: a farmer fed a cow yesterday, didn't feed her today, and the grid still showed
+   * yesterday's `1kg` with no way to tell the two states apart). Summed per cow rather than a single
+   * row, since nothing stops `confirm()` being called twice for the same date (e.g. a real AM/PM
+   * split logged as two separate confirms) — each would be its own `FeedDistributionCattleItem`.
+   */
+  private async computeConfirmedToday(
+    cattleIds: string[],
+    farmId: string,
+    logDate: Date,
+  ): Promise<Map<string, number>> {
+    const rows = await this.prisma.feedDistributionCattleItem.findMany({
+      where: {
+        cattleId: { in: cattleIds },
+        distribution: { farmId, distributedAt: logDate },
+      },
+      select: { cattleId: true, offeredKg: true },
+    });
+    const map = new Map<string, number>();
+    for (const row of rows) {
+      map.set(
+        row.cattleId,
+        round2((map.get(row.cattleId) ?? 0) + row.offeredKg),
+      );
     }
     return map;
   }

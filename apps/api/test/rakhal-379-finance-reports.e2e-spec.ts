@@ -1,8 +1,14 @@
 import request from 'supertest';
 import { FinancialAccountType } from '@prisma/client';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
-import { FarmService } from '../src/modules/farm/application/services/farm.service';
-import { AuthedUser, bearer, createTestApp, TestContext } from './utils/e2e';
+import {
+  AuthedUser,
+  bearer,
+  createTestApp,
+  createThrowawayOwner,
+  deleteThrowawayOwner,
+  TestContext,
+} from './utils/e2e';
 
 /**
  * RAKHAL-379 (MILESTONE 22, `BUSINESS_IA_PRD.md` §5.6, §9.2) — synchronous
@@ -31,7 +37,6 @@ import { AuthedUser, bearer, createTestApp, TestContext } from './utils/e2e';
 describe('Business Reporting — Finance report generators (e2e, RAKHAL-379)', () => {
   let ctx: TestContext;
   let prisma: PrismaService;
-  let farmService: FarmService;
   let owner: AuthedUser;
   let worker: AuthedUser;
   let ownerUserId: string;
@@ -45,27 +50,15 @@ describe('Business Reporting — Finance report generators (e2e, RAKHAL-379)', (
   beforeAll(async () => {
     ctx = await createTestApp();
     prisma = ctx.app.get(PrismaService);
-    farmService = ctx.app.get(FarmService);
-    const user = await prisma.user.findFirstOrThrow({
-      where: { email: 'owner@demo.rakhal.test' },
-      select: { id: true },
-    });
-    ownerUserId = user.id;
 
-    const farm = await farmService.create(ownerUserId, {
-      name: unique('E2E-379-ReportsFarm'),
-    });
-    farmId = farm.id;
-
-    const ownerLogin = await request(server())
-      .post(api('/auth/login'))
-      .send({
-        email: 'owner@demo.rakhal.test',
-        password: 'DemoPass123',
-        farmId,
-      })
-      .expect(201);
-    owner = { token: ownerLogin.body.data.accessToken as string, farmId };
+    const throwaway = await createThrowawayOwner(
+      ctx,
+      prisma,
+      unique('E2E-379-ReportsFarm'),
+    );
+    ownerUserId = throwaway.userId;
+    farmId = throwaway.farmId;
+    owner = throwaway.owner;
 
     // Worker needs a real FarmMember row on this fresh farm — the demo
     // worker account has no membership here by default.
@@ -92,6 +85,10 @@ describe('Business Reporting — Finance report generators (e2e, RAKHAL-379)', (
   }, 30_000);
 
   afterAll(async () => {
+    // Worker's FarmMember row is farm-scoped and already covered by
+    // deleteThrowawayOwner's own FarmMember deleteMany — nothing extra to
+    // clean up here.
+    await deleteThrowawayOwner(prisma, { userId: ownerUserId, farmId });
     await ctx.app.close();
   });
 

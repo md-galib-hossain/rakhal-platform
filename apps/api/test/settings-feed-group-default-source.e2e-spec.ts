@@ -1,7 +1,13 @@
 import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
-import { FarmService } from '../src/modules/farm/application/services/farm.service';
-import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
+import {
+  AuthedUser,
+  createTestApp,
+  createThrowawayOwner,
+  deleteThrowawayOwner,
+  loginAs,
+  TestContext,
+} from './utils/e2e';
 
 /**
  * RAKHAL-433 (Feeding Favourites, `docs/EPIC_FEEDING_FAVOURITES.md`) — `FeedGroup` default-feed-source
@@ -17,9 +23,10 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 describe('Settings — Feed Group default-feed-source CRUD (e2e, RAKHAL-433)', () => {
   let ctx: TestContext;
   let prisma: PrismaService;
-  let farmService: FarmService;
   let owner: AuthedUser;
   let otherFarmOwner: AuthedUser;
+  let farm2UserId: string;
+  let farm2Id: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -36,28 +43,16 @@ describe('Settings — Feed Group default-feed-source CRUD (e2e, RAKHAL-433)', (
   beforeAll(async () => {
     ctx = await createTestApp();
     prisma = ctx.app.get(PrismaService);
-    farmService = ctx.app.get(FarmService);
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
 
-    const user = await prisma.user.findFirstOrThrow({
-      where: { email: 'owner@demo.rakhal.test' },
-      select: { id: true },
-    });
-    const farm2 = await farmService.create(user.id, {
-      name: unique('E2E-SettingsDS-OtherFarm'),
-    });
-    const farm2Login = await request(server())
-      .post(api('/auth/login'))
-      .send({
-        email: 'owner@demo.rakhal.test',
-        password: 'DemoPass123',
-        farmId: farm2.id,
-      })
-      .expect(201);
-    otherFarmOwner = {
-      token: farm2Login.body.data.accessToken as string,
-      farmId: farm2.id,
-    };
+    const farm2Throwaway = await createThrowawayOwner(
+      ctx,
+      prisma,
+      unique('E2E-SettingsDS-OtherFarm'),
+    );
+    farm2UserId = farm2Throwaway.userId;
+    farm2Id = farm2Throwaway.farmId;
+    otherFarmOwner = farm2Throwaway.owner;
 
     const ingredient = await request(server())
       .post(api('/feed/ingredients/custom'))
@@ -80,6 +75,13 @@ describe('Settings — Feed Group default-feed-source CRUD (e2e, RAKHAL-433)', (
   }, 30_000);
 
   afterAll(async () => {
+    await prisma.feedItem
+      .deleteMany({ where: { farmId: farm2Id } })
+      .catch(() => undefined);
+    await deleteThrowawayOwner(prisma, {
+      userId: farm2UserId,
+      farmId: farm2Id,
+    });
     await ctx.app.close();
   });
 

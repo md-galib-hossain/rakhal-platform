@@ -17,6 +17,8 @@ describe('Reproduction — AI/breeding cost -> Finance (e2e)', () => {
   let prisma: PrismaService;
   let owner: AuthedUser;
   let ownerUserId: string;
+  let cashAccountId: string;
+  let bankAccountId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -34,6 +36,18 @@ describe('Reproduction — AI/breeding cost -> Finance (e2e)', () => {
       select: { id: true },
     });
     ownerUserId = user.id;
+    // RAKHAL-393 (closes RD-066): a breeding cost > 0 now needs a real
+    // `financialAccountId`, not just `paymentMethod` — RD-097.
+    const cash = await prisma.financialAccount.findFirstOrThrow({
+      where: { farmId: owner.farmId, type: 'CASH', deletedAt: null },
+      select: { id: true },
+    });
+    cashAccountId = cash.id;
+    const bank = await prisma.financialAccount.findFirstOrThrow({
+      where: { farmId: owner.farmId, type: 'BANK', deletedAt: null },
+      select: { id: true },
+    });
+    bankAccountId = bank.id;
   }, 30_000);
 
   afterAll(async () => {
@@ -87,6 +101,7 @@ describe('Reproduction — AI/breeding cost -> Finance (e2e)', () => {
         semenSource: 'FARM_INVENTORY',
         semenBatchId: batch.id,
         paymentMethod: 'CASH',
+        financialAccountId: cashAccountId,
       })
       .expect(201);
     expect(res.body.data.financeTransactionId).toBeTruthy();
@@ -182,6 +197,7 @@ describe('Reproduction — AI/breeding cost -> Finance (e2e)', () => {
         serviceProviderId: provider.id,
         serviceCost: 700,
         paymentMethod: 'BANK_TRANSFER',
+        financialAccountId: bankAccountId,
       })
       .expect(201);
 
@@ -257,6 +273,7 @@ describe('Reproduction — AI/breeding cost -> Finance (e2e)', () => {
         breedingMethod: 'NATURAL',
         serviceCost: 300,
         paymentMethod: 'BANK_TRANSFER',
+        financialAccountId: bankAccountId,
       })
       .expect(201);
     expect(res.body.data.financeTransactionId).toBeTruthy();
@@ -283,6 +300,7 @@ describe('Reproduction — AI/breeding cost -> Finance (e2e)', () => {
         serviceProviderId: provider.id,
         serviceCost: 600,
         paymentMethod: 'CASH',
+        financialAccountId: cashAccountId,
       })
       .expect(201);
     const id = created.body.data.id;
@@ -292,7 +310,7 @@ describe('Reproduction — AI/breeding cost -> Finance (e2e)', () => {
     const edited = await request(server())
       .patch(api(`/reproduction/breeding-events/${id}`))
       .set(...auth(owner))
-      .send({ serviceCost: 900 })
+      .send({ serviceCost: 900, financialAccountId: cashAccountId })
       .expect(200);
     const secondTxnId = edited.body.data.financeTransactionId;
     expect(secondTxnId).toBeTruthy();

@@ -13,6 +13,7 @@ describe('Reproduction — AI semen source (e2e)', () => {
   let prisma: PrismaService;
   let owner: AuthedUser;
   let ownerUserId: string;
+  let financialAccountId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -30,6 +31,13 @@ describe('Reproduction — AI semen source (e2e)', () => {
       select: { id: true },
     });
     ownerUserId = user.id;
+    // RAKHAL-393 (closes RD-066): a breeding cost > 0 now needs a real
+    // `financialAccountId`, not just `paymentMethod` — RD-097.
+    const account = await prisma.financialAccount.findFirstOrThrow({
+      where: { farmId: owner.farmId, deletedAt: null },
+      select: { id: true },
+    });
+    financialAccountId = account.id;
   }, 30_000);
 
   afterAll(async () => {
@@ -92,6 +100,8 @@ describe('Reproduction — AI semen source (e2e)', () => {
         semenSource: 'FARM_INVENTORY',
         semenBatchId: batch.id,
         paymentMethod: 'CASH',
+        financialAccountId,
+        financialAccountId,
       })
       .expect(201);
     expect(res.body.data.semenSource).toBe('FARM_INVENTORY');
@@ -139,6 +149,7 @@ describe('Reproduction — AI semen source (e2e)', () => {
         semenType: 'CONVENTIONAL',
         serviceCost: 1000,
         paymentMethod: 'CASH',
+        financialAccountId,
       })
       .expect(201);
     expect(res.body.data.semenSource).toBe('TECHNICIAN_SUPPLIED');
@@ -222,6 +233,7 @@ describe('Reproduction — AI semen source (e2e)', () => {
         semenSource: 'EXTERNAL',
         serviceCost: 800,
         paymentMethod: 'CASH',
+        financialAccountId,
       })
       .expect(201);
     expect(res.body.data.semenSource).toBe('EXTERNAL');
@@ -239,6 +251,7 @@ describe('Reproduction — AI semen source (e2e)', () => {
         breedingMethod: 'AI',
         semenBatchId: batch.id,
         paymentMethod: 'CASH',
+        financialAccountId,
       })
       .expect(201);
     expect(withBatch.body.data.semenSource).toBe('FARM_INVENTORY');
@@ -257,6 +270,7 @@ describe('Reproduction — AI semen source (e2e)', () => {
         breedingMethod: 'AI',
         serviceCost: 800,
         paymentMethod: 'CASH',
+        financialAccountId,
       })
       .expect(201);
     expect(noBatch.body.data.semenSource).toBe('EXTERNAL');
@@ -277,6 +291,7 @@ describe('Reproduction — AI semen source (e2e)', () => {
         semenSource: 'FARM_INVENTORY',
         semenBatchId: batch.id,
         paymentMethod: 'CASH',
+        financialAccountId,
       })
       .expect(201);
     const id = created.body.data.id;
@@ -295,6 +310,7 @@ describe('Reproduction — AI semen source (e2e)', () => {
         // RAKHAL-330: switching away from FARM_INVENTORY needs its own
         // serviceCost — the batch cost no longer applies.
         serviceCost: 900,
+        financialAccountId,
       })
       .expect(200);
     expect(edited.body.data.semenBatchId).toBeNull();
@@ -322,6 +338,7 @@ describe('Reproduction — AI semen source (e2e)', () => {
         serviceProviderId: provider.id,
         serviceCost: 900,
         paymentMethod: 'CASH',
+        financialAccountId,
       })
       .expect(201);
     const id = created.body.data.id;
@@ -329,7 +346,11 @@ describe('Reproduction — AI semen source (e2e)', () => {
     const edited = await request(server())
       .patch(api(`/reproduction/breeding-events/${id}`))
       .set(...auth(owner))
-      .send({ semenSource: 'FARM_INVENTORY', semenBatchId: batch.id })
+      .send({
+        semenSource: 'FARM_INVENTORY',
+        semenBatchId: batch.id,
+        financialAccountId,
+      })
       .expect(200);
     expect(edited.body.data.serviceProviderId).toBeNull();
     expect(edited.body.data.semenBatchId).toBe(batch.id);
@@ -359,6 +380,7 @@ describe('Reproduction — AI semen source (e2e)', () => {
         semenSource: 'FARM_INVENTORY',
         semenBatchId: batch.id,
         paymentMethod: 'CASH',
+        financialAccountId,
       })
       .expect(201);
     expect(res.body.data.semenType).toBe('SEX_SORTED');
@@ -379,6 +401,7 @@ describe('Reproduction — AI semen source (e2e)', () => {
         semenSource: 'FARM_INVENTORY',
         semenBatchId: batch.id,
         paymentMethod: 'CASH',
+        financialAccountId,
       })
       .expect(201);
     expect(res.body.data.semenType).toBe('CONVENTIONAL');
@@ -405,6 +428,7 @@ describe('Reproduction — AI semen source (e2e)', () => {
         semenSource: 'FARM_INVENTORY',
         semenBatchId: batchA.id,
         paymentMethod: 'CASH',
+        financialAccountId,
       })
       .expect(201);
     expect(created.body.data.semenType).toBe('CONVENTIONAL');
@@ -412,7 +436,7 @@ describe('Reproduction — AI semen source (e2e)', () => {
     const edited = await request(server())
       .patch(api(`/reproduction/breeding-events/${created.body.data.id}`))
       .set(...auth(owner))
-      .send({ semenBatchId: batchB.id })
+      .send({ semenBatchId: batchB.id, financialAccountId })
       .expect(200);
     expect(edited.body.data.semenType).toBe('SEX_SORTED');
     expect(edited.body.data.targetSex).toBe('MALE');

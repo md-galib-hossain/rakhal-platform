@@ -10,6 +10,10 @@ import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { appConfig } from '../../src/core/config/env';
+import { PrismaService } from '../../src/core/database/prisma/prisma.service';
+import { PasswordService } from '../../src/modules/auth/application/services/password.service';
+import { LegalConsentService } from '../../src/modules/compliance/application/services/legal-consent.service';
+import { FarmService } from '../../src/modules/farm/application/services/farm.service';
 
 /**
  * Shared e2e harness. Boots the real `AppModule` and faithfully reproduces the
@@ -118,6 +122,88 @@ export async function loginAs(
 /** Bearer-auth header helper for supertest `.set(...)`. */
 export function bearer(user: AuthedUser): [string, string] {
   return ['Authorization', `Bearer ${user.token}`];
+}
+
+export interface ThrowawayOwner {
+  userId: string;
+  farmId: string;
+  owner: AuthedUser;
+}
+
+/**
+ * Registers a brand-new, disposable farm owner + farm, for specs that need
+ * their own fresh/empty farm (whole-population aggregates, cross-farm
+ * isolation checks, etc.) without attaching it to the shared seeded demo
+ * owner. Farms created under `owner@demo.rakhal.test` (`farmService.create(
+ * demoOwnerUserId, ...)`) accumulate forever in the dev DB — RD-096 found
+ * 30+ from past e2e runs polluting that account's farm-picker — because a
+ * single farm can't be surgically excised from an account other suites are
+ * actively using, so teardown kept getting skipped. A throwaway user + its
+ * farm can just be deleted outright afterward instead.
+ */
+export async function createThrowawayOwner(
+  ctx: TestContext,
+  prisma: PrismaService,
+  farmName: string,
+): Promise<ThrowawayOwner> {
+  const passwordService = ctx.app.get(PasswordService);
+  const legal = ctx.app.get(LegalConsentService);
+  const farmService = ctx.app.get(FarmService);
+
+  const email = `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@rakhal.test`;
+  const password = 'ThrowawayOwner123';
+  const user = await prisma.user.create({
+    data: {
+      email,
+      name: 'E2E Throwaway Owner',
+      passwordHash: await passwordService.hashPassword(password),
+      isEmailVerified: true,
+    },
+    select: { id: true },
+  });
+  await legal.recordConsent(user.id, []);
+
+  const farm = await farmService.create(user.id, { name: farmName });
+
+  const login = await request(ctx.app.getHttpServer())
+    .post(`${ctx.prefix}/auth/login`)
+    .send({ email, password, farmId: farm.id });
+  const token = extractToken(login.body, `throwaway login for ${email}`);
+
+  return {
+    userId: user.id,
+    farmId: farm.id,
+    owner: { token, farmId: farm.id },
+  };
+}
+
+/**
+ * Best-effort teardown for `createThrowawayOwner`. Deletes the default
+ * chart-of-accounts rows `FarmService.create` always seeds (which would
+ * otherwise block a plain `Farm.delete`), then the farm and the user. Each
+ * step swallows its own error so a spec's own domain rows (which it must
+ * delete itself, before calling this) don't stop the rest of the cleanup —
+ * mirrors the `.catch(() => undefined)` idiom already used ad hoc across
+ * specs (`admin-user-session`, `billing`, `otp`, ...).
+ */
+export async function deleteThrowawayOwner(
+  prisma: PrismaService,
+  { userId, farmId }: { userId: string; farmId: string },
+): Promise<void> {
+  await prisma.journalEntry
+    .deleteMany({ where: { journalTransaction: { farmId } } })
+    .catch(() => undefined);
+  await prisma.journalTransaction
+    .deleteMany({ where: { farmId } })
+    .catch(() => undefined);
+  await prisma.ledgerAccount
+    .deleteMany({ where: { farmId } })
+    .catch(() => undefined);
+  await prisma.farmMember
+    .deleteMany({ where: { farmId } })
+    .catch(() => undefined);
+  await prisma.farm.delete({ where: { id: farmId } }).catch(() => undefined);
+  await prisma.user.delete({ where: { id: userId } }).catch(() => undefined);
 }
 
 function extractToken(body: unknown, ctx: string): string {

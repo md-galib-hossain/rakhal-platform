@@ -12,6 +12,7 @@ describe('Reproduction — edit (RAKHAL-305, e2e)', () => {
   let prisma: PrismaService;
   let owner: AuthedUser;
   let ownerUserId: string;
+  let financialAccountId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -29,6 +30,13 @@ describe('Reproduction — edit (RAKHAL-305, e2e)', () => {
       select: { id: true },
     });
     ownerUserId = user.id;
+    // RAKHAL-393 (closes RD-066): a breeding cost > 0 now needs a real
+    // `financialAccountId`, not just `paymentMethod` — RD-097.
+    const account = await prisma.financialAccount.findFirstOrThrow({
+      where: { farmId: owner.farmId, deletedAt: null },
+      select: { id: true },
+    });
+    financialAccountId = account.id;
   }, 30_000);
 
   afterAll(async () => {
@@ -86,6 +94,7 @@ describe('Reproduction — edit (RAKHAL-305, e2e)', () => {
         breedingMethod: 'AI',
         semenBatchId: oldBatch.id,
         paymentMethod: 'CASH',
+        financialAccountId,
       })
       .expect(201);
     const breedingEventId = created.body.data.id;
@@ -98,7 +107,7 @@ describe('Reproduction — edit (RAKHAL-305, e2e)', () => {
     await request(server())
       .patch(api(`/reproduction/breeding-events/${breedingEventId}`))
       .set(...auth(owner))
-      .send({ semenBatchId: newBatch.id })
+      .send({ semenBatchId: newBatch.id, financialAccountId })
       .expect(200);
 
     const oldAfterEdit = await prisma.semenBatch.findUniqueOrThrow({

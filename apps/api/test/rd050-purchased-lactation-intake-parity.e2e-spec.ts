@@ -1,7 +1,12 @@
 import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
-import { FarmService } from '../src/modules/farm/application/services/farm.service';
-import { AuthedUser, createTestApp, TestContext } from './utils/e2e';
+import {
+  AuthedUser,
+  createTestApp,
+  createThrowawayOwner,
+  deleteThrowawayOwner,
+  TestContext,
+} from './utils/e2e';
 
 /**
  * RD-050 (docs/TECH_DEBT.md) — purchased-lactation intake logic is deliberately duplicated
@@ -18,8 +23,9 @@ import { AuthedUser, createTestApp, TestContext } from './utils/e2e';
 describe('Purchased-lactation intake — dual-path parity (e2e, RD-050)', () => {
   let ctx: TestContext;
   let prisma: PrismaService;
-  let farmService: FarmService;
   let owner: AuthedUser;
+  let ownerUserId: string;
+  let farmId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -33,27 +39,22 @@ describe('Purchased-lactation intake — dual-path parity (e2e, RD-050)', () => 
   beforeAll(async () => {
     ctx = await createTestApp();
     prisma = ctx.app.get(PrismaService);
-    farmService = ctx.app.get(FarmService);
-    const user = await prisma.user.findFirstOrThrow({
-      where: { email: 'owner@demo.rakhal.test' },
-      select: { id: true },
-    });
 
-    const farm = await farmService.create(user.id, {
-      name: unique('E2E-RD050-PurchasedLactationFarm'),
-    });
-    const login = await request(server())
-      .post(api('/auth/login'))
-      .send({
-        email: 'owner@demo.rakhal.test',
-        password: 'DemoPass123',
-        farmId: farm.id,
-      })
-      .expect(201);
-    owner = { token: login.body.data.accessToken as string, farmId: farm.id };
+    const throwaway = await createThrowawayOwner(
+      ctx,
+      prisma,
+      unique('E2E-RD050-PurchasedLactationFarm'),
+    );
+    ownerUserId = throwaway.userId;
+    farmId = throwaway.farmId;
+    owner = throwaway.owner;
   }, 30_000);
 
   afterAll(async () => {
+    // Cattle/Lactation rows are created via HTTP (POST /cattle, POST
+    // /reproduction/.../purchased-lactation), not enumerated directly here —
+    // same best-effort precedent as `reproduction-lifecycle.e2e-spec.ts`.
+    await deleteThrowawayOwner(prisma, { userId: ownerUserId, farmId });
     await ctx.app.close();
   });
 

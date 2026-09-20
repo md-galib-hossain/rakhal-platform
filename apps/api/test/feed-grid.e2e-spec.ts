@@ -217,10 +217,18 @@ describe('Feeding Grid (e2e)', () => {
       .get(api(`/feed/grid?date=2026-05-01&feedGroupId=${feedGroupId}`))
       .set(...auth(owner))
       .expect(200);
-    const rowA = (
-      grid.body.data.cows as Array<{ cattle_id: string; drafts: unknown[] }>
-    ).find((c) => c.cattle_id === cowA)!;
+    const gridCows = grid.body.data.cows as Array<{
+      cattle_id: string;
+      drafts: unknown[];
+      confirmed_offered_kg: number | null;
+    }>;
+    const rowA = gridCows.find((c) => c.cattle_id === cowA)!;
+    const rowB = gridCows.find((c) => c.cattle_id === cowB)!;
     expect(rowA.drafts).toHaveLength(0);
+    // RAKHAL-440/RD-099: re-opening the same day's grid must show it as already confirmed, not
+    // just prefilled with a value indistinguishable from an untouched default.
+    expect(rowA.confirmed_offered_kg).toBe(5);
+    expect(rowB.confirmed_offered_kg).toBe(6);
   });
 
   it("a second day's grid shows default_offered_kg prefilled from the first day's confirmed quantity, and confirming with no draft falls back to it", async () => {
@@ -231,6 +239,7 @@ describe('Feeding Grid (e2e)', () => {
     const cows = grid.body.data.cows as Array<{
       cattle_id: string;
       default_offered_kg: number | null;
+      confirmed_offered_kg: number | null;
       drafts: unknown[];
     }>;
     const rowA = cows.find((c) => c.cattle_id === cowA)!;
@@ -238,6 +247,10 @@ describe('Feeding Grid (e2e)', () => {
     expect(rowA.drafts).toHaveLength(0);
     expect(rowA.default_offered_kg).toBe(5);
     expect(rowB.default_offered_kg).toBe(6);
+    // RAKHAL-440/RD-099 (the actual bug report): day 2 hasn't been confirmed yet — the carried-
+    // forward suggestion above must NOT be mistaken for an already-logged feeding.
+    expect(rowA.confirmed_offered_kg).toBeNull();
+    expect(rowB.confirmed_offered_kg).toBeNull();
 
     const before = await request(server())
       .get(api(`/inventory/feed-items/${feedItemId}`))
@@ -263,6 +276,22 @@ describe('Feeding Grid (e2e)', () => {
       .set(...auth(owner))
       .expect(200);
     expect(after.body.data.currentStock).toBe(stockBefore - 11);
+
+    // RAKHAL-440/RD-099: once day 2 is itself confirmed, its grid must flip to confirmed too.
+    const gridAfter = await request(server())
+      .get(api(`/feed/grid?date=2026-05-02&feedGroupId=${feedGroupId}`))
+      .set(...auth(owner))
+      .expect(200);
+    const cowsAfter = gridAfter.body.data.cows as Array<{
+      cattle_id: string;
+      confirmed_offered_kg: number | null;
+    }>;
+    expect(
+      cowsAfter.find((c) => c.cattle_id === cowA)!.confirmed_offered_kg,
+    ).toBe(5);
+    expect(
+      cowsAfter.find((c) => c.cattle_id === cowB)!.confirmed_offered_kg,
+    ).toBe(6);
   });
 
   describe('validation + RBAC', () => {

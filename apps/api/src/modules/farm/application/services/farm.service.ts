@@ -80,7 +80,7 @@ export class FarmService {
       });
       const farmCode = formatFarmCode(prefix, year, counter.value);
 
-      return tx.farm.create({
+      const createdFarm = await tx.farm.create({
         data: {
           name: dto.name,
           slug,
@@ -98,6 +98,18 @@ export class FarmService {
           },
         },
       });
+
+      // Finance V2 chart of accounts (RAKHAL-333, `FINANCE_V2_DESIGN.md`
+      // §4.4): every farm needs its ledger accounts (including Opening
+      // Balance Equity) before any wallet/sale/payment/journal posting can
+      // resolve one. Moved inside the farm's own creation transaction
+      // (no longer best-effort, no longer swallowed) — a farm the rest of
+      // Finance V2 can't function without is worse than no farm at all, so
+      // a seeding failure now rolls back farm creation entirely instead of
+      // leaving a half-usable farm behind.
+      await this.ledgerAccounts.seedDefaultChart(createdFarm.id, tx);
+
+      return createdFarm;
     });
 
     this.log.info('Farm created', { farmId: farm.id, ownerId: userId });
@@ -169,19 +181,6 @@ export class FarmService {
       });
     } catch (err) {
       this.log.error('Default breed seeding failed (farm still created)', err);
-    }
-
-    // Finance V2 chart of accounts (RAKHAL-333, `FINANCE_V2_DESIGN.md` §4.4):
-    // every farm needs its ledger accounts seeded before any future
-    // sale/payment/journal posting can resolve one. Internal-only, never
-    // farmer-facing. Best-effort, same posture as the steps above.
-    try {
-      await this.ledgerAccounts.seedDefaultChart(farm.id);
-    } catch (err) {
-      this.log.error(
-        'Chart of accounts seeding failed (farm still created)',
-        err,
-      );
     }
 
     return farm;

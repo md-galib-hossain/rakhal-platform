@@ -1,11 +1,12 @@
 import request from 'supertest';
 import { PurchaseStatus } from '@prisma/client';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
-import { FarmService } from '../src/modules/farm/application/services/farm.service';
 import {
   AuthedUser,
   bearer,
   createTestApp,
+  createThrowawayOwner,
+  deleteThrowawayOwner,
   loginAs,
   TestContext,
 } from './utils/e2e';
@@ -36,7 +37,6 @@ import {
 describe('Purchasing summary + list filters (e2e, RAKHAL-375)', () => {
   let ctx: TestContext;
   let prisma: PrismaService;
-  let farmService: FarmService;
   let owner: AuthedUser;
   let ownerUserId: string;
   let farmId: string;
@@ -50,26 +50,15 @@ describe('Purchasing summary + list filters (e2e, RAKHAL-375)', () => {
   beforeAll(async () => {
     ctx = await createTestApp();
     prisma = ctx.app.get(PrismaService);
-    farmService = ctx.app.get(FarmService);
-    const user = await prisma.user.findFirstOrThrow({
-      where: { email: 'owner@demo.rakhal.test' },
-      select: { id: true },
-    });
-    ownerUserId = user.id;
 
-    const farm = await farmService.create(ownerUserId, {
-      name: unique('E2E-375-PurchasingFarm'),
-    });
-    farmId = farm.id;
-    const login = await request(server())
-      .post(api('/auth/login'))
-      .send({
-        email: 'owner@demo.rakhal.test',
-        password: 'DemoPass123',
-        farmId,
-      })
-      .expect(201);
-    owner = { token: login.body.data.accessToken as string, farmId };
+    const throwaway = await createThrowawayOwner(
+      ctx,
+      prisma,
+      unique('E2E-375-PurchasingFarm'),
+    );
+    ownerUserId = throwaway.userId;
+    farmId = throwaway.farmId;
+    owner = throwaway.owner;
 
     const supplier = await prisma.supplier.create({
       data: { farmId, name: 'E2E-375 Feed Supplier', paymentTermsDays: 0 },
@@ -78,6 +67,16 @@ describe('Purchasing summary + list filters (e2e, RAKHAL-375)', () => {
   }, 30_000);
 
   afterAll(async () => {
+    await prisma.payable
+      .deleteMany({ where: { farmId } })
+      .catch(() => undefined);
+    await prisma.purchase
+      .deleteMany({ where: { farmId } })
+      .catch(() => undefined);
+    await prisma.supplier
+      .deleteMany({ where: { farmId } })
+      .catch(() => undefined);
+    await deleteThrowawayOwner(prisma, { userId: ownerUserId, farmId });
     await ctx.app.close();
   });
 

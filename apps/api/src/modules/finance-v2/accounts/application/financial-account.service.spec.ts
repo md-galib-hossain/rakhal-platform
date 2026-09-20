@@ -29,7 +29,10 @@ describe('FinancialAccountService', () => {
     farmCounter: { upsert: jest.Mock };
     $transaction: jest.Mock;
   };
-  let ledgerAccountService: { findByCode: jest.Mock };
+  let ledgerAccountService: {
+    findByCode: jest.Mock;
+    seedDefaultChart: jest.Mock;
+  };
   let journalService: { postJournal: jest.Mock };
   let logger: { setContext: jest.Mock; info: jest.Mock; warn: jest.Mock };
   let activityLog: { record: jest.Mock };
@@ -48,7 +51,10 @@ describe('FinancialAccountService', () => {
       farmCounter: { upsert: jest.fn() },
       $transaction: jest.fn((cb: (client: unknown) => unknown) => cb(prisma)),
     };
-    ledgerAccountService = { findByCode: jest.fn() };
+    ledgerAccountService = {
+      findByCode: jest.fn(),
+      seedDefaultChart: jest.fn(),
+    };
     journalService = { postJournal: jest.fn() };
     logger = {
       setContext: jest.fn().mockReturnThis(),
@@ -248,6 +254,7 @@ describe('FinancialAccountService', () => {
       expect(ledgerAccountService.findByCode).toHaveBeenCalledWith(
         'farm-1',
         '3000',
+        prisma,
       );
       expect(journalService.postJournal).toHaveBeenCalledTimes(1);
       const [input, client] = journalService.postJournal.mock.calls[0] as [

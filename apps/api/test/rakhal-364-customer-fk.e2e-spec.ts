@@ -1,11 +1,12 @@
 import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
-import { FarmService } from '../src/modules/farm/application/services/farm.service';
 import { SellMilkUseCase } from '../src/modules/sales/application/use-cases/sell-milk/sell-milk.use-case';
 import {
   AuthedUser,
   bearer,
   createTestApp,
+  createThrowawayOwner,
+  deleteThrowawayOwner,
   loginAs,
   TestContext,
 } from './utils/e2e';
@@ -36,10 +37,11 @@ import {
 describe('Sales/Finance V2 — Customer FK promotion (e2e, RAKHAL-364)', () => {
   let ctx: TestContext;
   let prisma: PrismaService;
-  let farmService: FarmService;
   let sellMilk: SellMilkUseCase;
   let owner: AuthedUser;
   let ownerUserId: string;
+  let farm2UserId: string | undefined;
+  let farm2Id: string | undefined;
 
   const api = (p: string): string => `${ctx.prefix}${p}`;
   const server = () => ctx.app.getHttpServer();
@@ -49,7 +51,6 @@ describe('Sales/Finance V2 — Customer FK promotion (e2e, RAKHAL-364)', () => {
   beforeAll(async () => {
     ctx = await createTestApp();
     prisma = ctx.app.get(PrismaService);
-    farmService = ctx.app.get(FarmService);
     sellMilk = ctx.app.get(SellMilkUseCase);
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
     const user = await prisma.user.findFirstOrThrow({
@@ -60,6 +61,15 @@ describe('Sales/Finance V2 — Customer FK promotion (e2e, RAKHAL-364)', () => {
   }, 30_000);
 
   afterAll(async () => {
+    if (farm2Id && farm2UserId) {
+      await prisma.sale
+        .deleteMany({ where: { farmId: farm2Id } })
+        .catch(() => undefined);
+      await deleteThrowawayOwner(prisma, {
+        userId: farm2UserId,
+        farmId: farm2Id,
+      });
+    }
     await ctx.app.close();
   });
 
@@ -133,26 +143,22 @@ describe('Sales/Finance V2 — Customer FK promotion (e2e, RAKHAL-364)', () => {
     async () => {
       const buyer = await createBuyer(owner.farmId);
 
-      const farm2 = await farmService.create(ownerUserId, {
-        name: unique('E2E-364-CrossFarm'),
-      });
-      const farm2Login = await request(server())
-        .post(api('/auth/login'))
-        .send({
-          email: 'owner@demo.rakhal.test',
-          password: 'DemoPass123',
-          farmId: farm2.id,
-        })
-        .expect(201);
-      const farm2Token = farm2Login.body.data.accessToken as string;
+      const farm2Throwaway = await createThrowawayOwner(
+        ctx,
+        prisma,
+        unique('E2E-364-CrossFarm'),
+      );
+      farm2UserId = farm2Throwaway.userId;
+      farm2Id = farm2Throwaway.farmId;
+      const farm2Token = farm2Throwaway.owner.token;
 
-      const before = await prisma.sale.count({ where: { farmId: farm2.id } });
+      const before = await prisma.sale.count({ where: { farmId: farm2Id } });
 
       const res = await request(server())
         .post(api('/sales'))
         .set('Authorization', `Bearer ${farm2Token}`)
         .send({
-          customerId: buyer.id, // belongs to `owner.farmId`, not `farm2.id`
+          customerId: buyer.id, // belongs to `owner.farmId`, not `farm2Id`
           saleDate: new Date().toISOString(),
           lines: [
             {
@@ -166,7 +172,7 @@ describe('Sales/Finance V2 — Customer FK promotion (e2e, RAKHAL-364)', () => {
 
       expect(res.status).toBe(400);
 
-      const after = await prisma.sale.count({ where: { farmId: farm2.id } });
+      const after = await prisma.sale.count({ where: { farmId: farm2Id } });
       expect(after).toBe(before);
     },
   );

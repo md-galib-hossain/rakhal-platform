@@ -194,13 +194,29 @@ export class FinancialAccountService {
 
     if (dto.openingBalance !== undefined && !isZero(dto.openingBalance)) {
       const openingBalance = toStorage(dto.openingBalance);
-      const equityAccount = await this.ledgerAccountService.findByCode(
+      let equityAccount = await this.ledgerAccountService.findByCode(
         farmId,
         OPENING_BALANCE_EQUITY_CODE,
+        client,
       );
       if (!equityAccount) {
-        // Should never happen for a farm bootstrapped via FarmService.create
-        // (RAKHAL-333 seeds this row) — defensive, not expected in practice.
+        // Farm's chart of accounts (RAKHAL-333) is seeded best-effort at
+        // bootstrap (`FarmService.create`) and can be missing for a farm
+        // created before that seeding existed, or if the best-effort seed
+        // hiccuped. Self-heal here rather than fail the whole request —
+        // seeding is idempotent (`skipDuplicates`), so this is safe to
+        // call even if some rows already exist. Must re-read via the same
+        // `client` (the open transaction) — reading via the service's bare
+        // `this.prisma` connection instead would miss this uncommitted
+        // write until the transaction commits.
+        await this.ledgerAccountService.seedDefaultChart(farmId, client);
+        equityAccount = await this.ledgerAccountService.findByCode(
+          farmId,
+          OPENING_BALANCE_EQUITY_CODE,
+          client,
+        );
+      }
+      if (!equityAccount) {
         throw new BadRequestException(
           'Opening Balance Equity ledger account is not seeded for this farm',
         );
