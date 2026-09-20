@@ -19,6 +19,7 @@ import type {
   FeedDistributionSummary,
   FeedEfficiencyResult,
   FeedGridResult,
+  FeedGridSourceType,
   FeedGroup,
   FeedGroupCattle,
   RequirementSettingsResult,
@@ -174,6 +175,23 @@ export const feedApi = {
     return apiFetch<FeedGroup>(`/settings/feed-groups/${groupId}`, {
       method: "PATCH",
       body: { defaultConcentrationId: concentrationId },
+    });
+  },
+  /** RAKHAL-433/RFE-116 — this group's default Feeding Grid source (resolution ladder fallback,
+   * separate from the TMR-only `defaultConcentrationId` above). `null` clears all three fields. */
+  setGroupDefaultFeedSource(
+    groupId: string,
+    source: { sourceType: FeedGridSourceType; feedItemId?: string; feedStockId?: string } | null,
+  ): Promise<FeedGroup> {
+    return apiFetch<FeedGroup>(`/settings/feed-groups/${groupId}`, {
+      method: "PATCH",
+      body: source
+        ? {
+            defaultFeedSourceType: source.sourceType,
+            defaultFeedItemId: source.sourceType === "FEED_ITEM" ? source.feedItemId : undefined,
+            defaultFeedStockId: source.sourceType === "FEED_STOCK" ? source.feedStockId : undefined,
+          }
+        : { defaultFeedSourceType: null },
     });
   },
   // ---- Feed stock + distribution (Phase 12.4, 2026-07-18 — the backend for these has existed

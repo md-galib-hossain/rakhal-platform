@@ -386,6 +386,11 @@ export interface FeedGroup {
   /** Default recipe for one-click "Feed Today" (2026-08-14) — a `FEED_MIXTURE` concentration id,
    * or null if none is set (falls back to "one active GROUP-targeted TMR" heuristic). */
   default_concentration_id: string | null;
+  /** RAKHAL-433/RFE-116 (Feeding Favourites): this group's default Feeding Grid source — separate
+   * from `default_concentration_id`, which stays reserved for "Feed Today". */
+  default_feed_source_type: FeedGridSourceType | null;
+  default_feed_item_id: string | null;
+  default_feed_stock_id: string | null;
   deleted_at: string | null;
   assigned_count: number;
   created_at: string;
@@ -577,10 +582,20 @@ export interface FeedGridDraft {
   offered_kg: number;
 }
 
+/** RAKHAL-431 resolution ladder result: a cow's own last-used source (past the group-change +
+ * availability guards, with batch fall-forward) or its feed group's configured default — `null`
+ * when neither resolves. The UI pre-fills a row's source picker from this; it never auto-submits. */
+export interface FeedGridSource {
+  source_type: FeedGridSourceType;
+  feed_item_id: string | null;
+  feed_stock_id: string | null;
+}
+
 /** `GET /feed/grid` row — one cow. `default_offered_kg` is the backend-computed carry-forward
  * value (yesterday's confirmed per-head amount) — the frontend only ever displays/edits it, never
  * recomputes it. `null` when the cow has no prior confirmed feeding to carry forward (confirmed
- * live against the real dev stack — a fresh group with no feeding history returns `null`, not `0`). */
+ * live against the real dev stack — a fresh group with no feeding history returns `null`, not `0`).
+ * `default_source` (RAKHAL-431/RFE-115) is the same kind of pre-fill, for the per-row source cell. */
 export interface FeedGridCow {
   cattle_id: string;
   name: string | null;
@@ -588,6 +603,12 @@ export interface FeedGridCow {
   feed_group_id: string | null;
   drafts: FeedGridDraft[];
   default_offered_kg: number | null;
+  default_source: FeedGridSource | null;
+  /** RAKHAL-440/RD-099: sum of whatever's *already confirmed* for this exact date — `null` when
+   * nothing has been confirmed yet. Distinct from `default_offered_kg`, which is only a carried-
+   * forward suggestion from the most recent PRIOR confirmed day and renders identically whether or
+   * not today itself has been touched — the bug this field exists to let the UI fix. */
+  confirmed_offered_kg: number | null;
 }
 
 /** `GET /feed/grid?date&feedGroupId?` — the Feeding Grid's own per-day, per-cow view; replaces the
@@ -613,16 +634,24 @@ export interface EntryCalendarResult {
   days: EntryCalendarDay[];
 }
 
+/** RAKHAL-430/RFE-115: `sourceType`/`feedItemId`/`feedStockId` here are this entry's OWN source,
+ * overriding the call's top-level default — what lets one grid submission feed different cows from
+ * different sources. Omit to fall back to the top-level source. */
 export interface FeedGridEntryInput {
   cattleId: string;
   offeredKg: number;
+  sourceType?: FeedGridSourceType;
+  feedItemId?: string;
+  feedStockId?: string;
 }
 
-/** `POST /feed/grid/draft` — saves per-cow quantities against one source item, no inventory effect. */
+/** `POST /feed/grid/draft` — saves per-cow quantities. `sourceType`/`feedItemId`/`feedStockId`
+ * (RAKHAL-430) are now only the *default* for any `entries[]` line that doesn't name its own — no
+ * inventory effect either way. */
 export interface SaveFeedGridDraftPayload {
   date: string;
   feedGroupId?: string;
-  sourceType: FeedGridSourceType;
+  sourceType?: FeedGridSourceType;
   feedItemId?: string;
   feedStockId?: string;
   entries: FeedGridEntryInput[];
@@ -634,27 +663,44 @@ export interface SaveFeedGridDraftResult {
 }
 
 /** `POST /feed/grid/confirm` — same shared fields as the draft save; `entries` is optional per cow —
- * when omitted for a cow, the backend falls back to that cow's own `default_offered_kg`. Decrements
- * inventory — "the feeding actually happened" step. */
+ * when omitted for a cow, the backend falls back to that cow's own draft/`default_offered_kg`.
+ * Decrements inventory — "the feeding actually happened" step. RAKHAL-430: `sourceType` is now only
+ * the default for lines without their own source, so it's optional here too — an all-per-entry
+ * confirm needs no top-level source at all. */
 export interface ConfirmFeedGridPayload {
   date: string;
   feedGroupId?: string;
-  sourceType: FeedGridSourceType;
+  sourceType?: FeedGridSourceType;
   feedItemId?: string;
   feedStockId?: string;
   entries?: FeedGridEntryInput[];
 }
 
+/** RAKHAL-430 rewrote `confirm()`'s response into a real multi-source shape — one
+ * `FeedDistributionItem` per distinct resolved source, not always exactly one — and each cow now
+ * carries its own resolved source back. This replaces the pre-RAKHAL-430 single top-level
+ * `source_type`/`feed_item_id`/`feed_stock_id` shape, which the backend no longer returns (a stale
+ * type this ticket fixes — no frontend code read those 3 fields, only `cows.length`, so nothing else
+ * was broken by the drift). */
 export interface ConfirmFeedGridResult {
   id: string;
   date: string;
   feed_group_id: string | null;
-  source_type: FeedGridSourceType;
-  feed_item_id: string | null;
-  feed_stock_id: string | null;
   total_actual_kg: number;
   total_actual_cost: number;
-  cows: { cattle_id: string; offered_kg: number }[];
+  sources: {
+    source_type: FeedGridSourceType;
+    feed_item_id: string | null;
+    feed_stock_id: string | null;
+    total_kg: number;
+  }[];
+  cows: {
+    cattle_id: string;
+    offered_kg: number;
+    source_type: FeedGridSourceType;
+    feed_item_id: string | null;
+    feed_stock_id: string | null;
+  }[];
 }
 
 /** `PATCH /feed/distributions/:id/refusal` — next-day leftover weigh-in. */

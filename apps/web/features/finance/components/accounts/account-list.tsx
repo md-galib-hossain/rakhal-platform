@@ -109,8 +109,8 @@ export function AccountList() {
         id: "status",
         header: t("columns.status"),
         cell: ({ row }) => (
-          <Badge variant={row.original.isActive ? "success" : "outline"}>
-            {row.original.isActive ? t("status.active") : t("status.archived")}
+          <Badge variant={row.original.deletedAt == null ? "success" : "outline"}>
+            {row.original.deletedAt == null ? t("status.active") : t("status.archived")}
           </Badge>
         ),
       },

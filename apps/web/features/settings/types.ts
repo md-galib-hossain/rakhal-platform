@@ -110,6 +110,12 @@ export interface FeedGroup {
   refusal_target_pct: number | null;
   /** The group's default Total Mixed Ration, used by "Feed Today" on `/feeding`. */
   default_concentration_id: string | null;
+  /** RAKHAL-433/RFE-116 (Feeding Favourites): this group's default Feeding Grid source — the
+   * resolution ladder's own fallback once a cow has no usable last-used source. Separate from
+   * `default_concentration_id` above, which stays reserved for the one-click "Feed Today" TMR. */
+  default_feed_source_type: "FEED_ITEM" | "FEED_STOCK" | null;
+  default_feed_item_id: string | null;
+  default_feed_stock_id: string | null;
   deleted_at: string | null;
   assigned_count: number;
   created_at: string;

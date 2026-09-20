@@ -77,9 +77,17 @@ export async function apiFetchPage<T>(path: string, init: ApiFetchInit = {}): Pr
  * Goes through the same `/api/backend` proxy as `apiFetch`; the proxy forwards the raw bytes +
  * original boundary-bearing header untouched (see that route's comments).
  */
-export async function apiUpload<T>(path: string, file: File, fieldName = "file"): Promise<T> {
+export async function apiUpload<T>(
+  path: string,
+  file?: File | null,
+  fieldName = "file",
+  extraFields?: Record<string, string>,
+): Promise<T> {
   const formData = new FormData();
-  formData.append(fieldName, file);
+  if (file) formData.append(fieldName, file);
+  if (extraFields) {
+    for (const [key, value] of Object.entries(extraFields)) formData.append(key, value);
+  }
   let res: Response;
   try {
     res = await fetch(buildUrl(path), { method: "POST", credentials: "same-origin", body: formData });

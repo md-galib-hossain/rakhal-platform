@@ -276,6 +276,30 @@
   display: none; /* Chromium/Safari */
 }
 
+/* ── Sidebar nav scroll ─────────────────────────────────────────────────── */
+/* The default OS scrollbar (light gray, ~15px wide) reads as a rendering
+   glitch against the dark `--sidebar` background. Thin + tinted with the
+   sidebar's own foreground color instead of hidden outright — unlike the
+   chart wrapper above, this list can genuinely overflow the viewport and the
+   user needs a visible affordance that it's scrollable. */
+.sidebar-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--sidebar-foreground) 25%, transparent) transparent;
+}
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--sidebar-foreground) 25%, transparent);
+  border-radius: 9999px;
+}
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--sidebar-foreground) 40%, transparent);
+}
+
 /* recharts (v3) sets `tabIndex=0` + `role="application"` on its root <svg>
    for keyboard a11y (`RootSurface.js`), so a plain mouse click focuses it and
    the browser draws its default focus ring around the whole chart. Suppress

@@ -16,12 +16,16 @@ export function Command({ className, ...props }: React.ComponentProps<typeof Com
 
 export function CommandDialog({
   children,
+  shouldFilter,
   ...props
-}: React.ComponentProps<typeof Dialog>) {
+}: React.ComponentProps<typeof Dialog> & Pick<React.ComponentProps<typeof CommandPrimitive>, "shouldFilter">) {
   return (
     <Dialog {...props}>
       <DialogContent className="overflow-hidden p-0 shadow-lg" showClose={false}>
-        <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:size-5">
+        <Command
+          shouldFilter={shouldFilter}
+          className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:size-5"
+        >
           {children}
         </Command>
       </DialogContent>

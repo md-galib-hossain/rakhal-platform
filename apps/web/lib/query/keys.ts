@@ -293,4 +293,8 @@ export const qk = {
     dispatchesListV2: (filters: Record<string, string | undefined>) => ["sales", "v2", "dispatches", "list", filters] as const,
     dispatchesSummaryV2: () => ["sales", "v2", "dispatches", "summary"] as const,
   },
+  /** RFE-044 — global ⌘K search (`GET /search?q=`, RAKHAL-257). */
+  search: {
+    query: (q: string) => ["search", "query", q] as const,
+  },
 };

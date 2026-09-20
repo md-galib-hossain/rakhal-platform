@@ -22,7 +22,9 @@ import { FloatingInput } from "@/components/ui/floating-input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -37,13 +39,15 @@ import {
 } from "@/features/settings/hooks/use-workspace-mutations";
 import { feedGroupFormSchema, type FeedGroupFormInput } from "@/features/settings/schemas";
 import type { FeedGroup } from "@/features/settings/types";
-import { useConcentrations } from "@/features/feed/hooks/use-feed";
-import type { FeedGroupCattle } from "@/features/feed/types";
+import { useConcentrations, useFeedStock } from "@/features/feed/hooks/use-feed";
+import { useFeedItemPagedList } from "@/features/inventory/hooks/use-inventory";
+import type { FeedGridSourceType, FeedGroupCattle } from "@/features/feed/types";
 import {
   useAssignCattleToGroup,
   useGroupCattle,
   useRemoveCattleFromGroup,
   useSetGroupDefaultConcentration,
+  useSetGroupDefaultFeedSource,
 } from "../hooks/use-feed-groups";
 
 /**
@@ -95,7 +99,7 @@ export function FeedGroupsSection({
           <p className="text-xs text-muted-foreground">{t("subtitle")}</p>
         </div>
         <Can I="settings.update">
-          <Button size="sm" className="gap-1.5" onClick={() => setFormTarget("new")}>
+          <Button className="gap-1.5" onClick={() => setFormTarget("new")}>
             <Plus className="size-4" aria-hidden />
             {t("create")}
           </Button>
@@ -156,9 +160,54 @@ function GroupRow({
   const t = useTranslations("feeding.groups");
   const deleteGroup = useDeleteFeedGroup();
   const setDefault = useSetGroupDefaultConcentration();
+  const setDefaultSource = useSetGroupDefaultFeedSource();
   const concentrations = useConcentrations();
+  const feedItems = useFeedItemPagedList({});
+  const feedStock = useFeedStock();
 
   const mixtures = (concentrations.data ?? []).filter((c) => c.kind === "FEED_MIXTURE");
+
+  const feedItemOptions = useMemo(
+    () => feedItems.items.map((item) => ({ id: item.id, label: `${item.name} (${item.currentStock} ${item.unit.symbol})` })),
+    [feedItems.items],
+  );
+  const stockOptions = useMemo(
+    () =>
+      (feedStock.data ?? []).map((s) => ({
+        id: s.id,
+        label: `${concentrations.data?.find((c) => c.id === s.source_concentration_id)?.name ?? t("unknownStock")} (${s.current_stock_kg} kg)`,
+      })),
+    [feedStock.data, concentrations.data, t],
+  );
+
+  const defaultSourceValue =
+    group.default_feed_source_type === "FEED_ITEM"
+      ? `FEED_ITEM:${group.default_feed_item_id}`
+      : group.default_feed_source_type === "FEED_STOCK"
+        ? `FEED_STOCK:${group.default_feed_stock_id}`
+        : "none";
+
+  async function handleDefaultSourceChange(value: string) {
+    try {
+      if (value === "none") {
+        await setDefaultSource.mutateAsync({ groupId: group.id, source: null });
+      } else {
+        const sourceType = value.slice(0, value.indexOf(":")) as FeedGridSourceType;
+        const itemId = value.slice(value.indexOf(":") + 1);
+        await setDefaultSource.mutateAsync({
+          groupId: group.id,
+          source: {
+            sourceType,
+            feedItemId: sourceType === "FEED_ITEM" ? itemId : undefined,
+            feedStockId: sourceType === "FEED_STOCK" ? itemId : undefined,
+          },
+        });
+      }
+      toast.success(t("defaultSourceSaved"));
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : t("defaultSourceFailed"));
+    }
+  }
 
   async function handleDelete() {
     try {
@@ -250,6 +299,38 @@ function GroupRow({
                   {c.name}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">{t("defaultSource")}</span>
+          <Select value={defaultSourceValue} onValueChange={(v) => void handleDefaultSourceChange(v)}>
+            <SelectTrigger className="h-8 w-64 text-xs">
+              <SelectValue placeholder={t("noDefaultSource")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">{t("noDefaultSource")}</SelectItem>
+              {feedItemOptions.length > 0 ? (
+                <SelectGroup>
+                  <SelectLabel>{t("sourceGroups.feedItems")}</SelectLabel>
+                  {feedItemOptions.map((opt) => (
+                    <SelectItem key={opt.id} value={`FEED_ITEM:${opt.id}`}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ) : null}
+              {stockOptions.length > 0 ? (
+                <SelectGroup>
+                  <SelectLabel>{t("sourceGroups.preparedBatches")}</SelectLabel>
+                  {stockOptions.map((opt) => (
+                    <SelectItem key={opt.id} value={`FEED_STOCK:${opt.id}`}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ) : null}
             </SelectContent>
           </Select>
         </div>
@@ -345,7 +426,7 @@ function AssignCattleDialog({ group, onClose }: { group: FeedGroup; onClose: () 
   const [newCattle, setNewCattle] = useState<CattleOption[]>([]);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
-  const rows = members.data ?? [];
+  const rows = useMemo(() => members.data ?? [], [members.data]);
   const existingIds = useMemo(() => rows.map((c) => c.id), [rows]);
 
   async function handleAssign() {

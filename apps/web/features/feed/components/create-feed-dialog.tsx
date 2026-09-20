@@ -193,6 +193,7 @@ function CreateFeedDialogBody({
   }, [targetType, feedGroupId, feedGroups.data]);
 
   function addItem(ingredientId: string, ingredientName: string) {
+    if (items.some((i) => i.ingredientId === ingredientId)) return;
     form.setValue("items", [...items, { ingredientId, ingredientName, amountKg: 0 }]);
   }
 
@@ -499,7 +500,12 @@ function CreateFeedDialogBody({
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between gap-4">
                 <p className="text-base font-medium text-foreground">{t(isTemplate ? "concentrateMixer" : "totalMixedRation")}</p>
-                <IngredientPicker excludeIds={items.map((i) => i.ingredientId)} onSelect={(o) => addItem(o.id, o.nameEn)} />
+                <IngredientPicker
+                  selectedIds={items.map((i) => i.ingredientId)}
+                  onSelect={(o) => addItem(o.id, o.nameEn)}
+                  onRemove={(id) => removeItem(id)}
+                  closeOnSelect={false}
+                />
               </div>
 
               {items.length === 0 ? (

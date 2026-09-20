@@ -82,17 +82,25 @@ const emptyNutrition: Record<NutritionFieldKey, number | undefined> = {
  * every downstream formula. No Figma frame exists for a 12-field form, so it's built as a plain
  * collapsible section using the same `LabeledInput` primitive already used elsewhere in this
  * picker, not a new design pattern. */
+export interface IngredientPickerProps {
+  onSelect: (option: IngredientOption) => void;
+  onRemove?: (ingredientId: string) => void;
+  selectedIds?: string[];
+  excludeIds?: string[];
+  placeholder?: string;
+  className?: string;
+  closeOnSelect?: boolean;
+}
+
 export function IngredientPicker({
   onSelect,
+  onRemove,
+  selectedIds,
   excludeIds,
   placeholder,
   className,
-}: {
-  onSelect: (option: IngredientOption) => void;
-  excludeIds: string[];
-  placeholder?: string;
-  className?: string;
-}) {
+  closeOnSelect,
+}: IngredientPickerProps) {
   const t = useTranslations("feed");
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -105,10 +113,14 @@ export function IngredientPicker({
   const { data, isLoading } = useFeedIngredients();
   const createCustom = useCreateCustomIngredient();
 
+  const isMultiSelect = selectedIds !== undefined;
+  const shouldCloseOnSelect = closeOnSelect ?? !isMultiSelect;
+  const selectedSet = useMemo(() => new Set(selectedIds ?? []), [selectedIds]);
+  const excludedSet = useMemo(() => new Set(excludeIds ?? []), [excludeIds]);
+
   const optionsByClass = useMemo(() => {
-    const excluded = new Set(excludeIds);
     const filtered = (data ?? [])
-      .filter((ing) => !excluded.has(ing.id))
+      .filter((ing) => !excludedSet.has(ing.id))
       .filter((ing) => ing.name_en.toLowerCase().includes(search.toLowerCase()));
     return CLASS_ORDER.map(({ feedClass, labelKey }) => ({
       feedClass,
@@ -117,7 +129,7 @@ export function IngredientPicker({
         .filter((ing) => ing.feed_class === feedClass)
         .map((ing) => ({ id: ing.id, nameEn: ing.name_en })),
     })).filter((g) => g.options.length > 0);
-  }, [data, excludeIds, search]);
+  }, [data, excludedSet, search]);
 
   function reset() {
     setSearch("");
@@ -132,6 +144,19 @@ export function IngredientPicker({
     setNutrition((prev) => ({ ...prev, [key]: value }));
   }
 
+  function handleSelectOption(option: IngredientOption) {
+    const isSelected = selectedSet.has(option.id);
+    if (isSelected) {
+      onRemove?.(option.id);
+    } else {
+      onSelect(option);
+    }
+    if (shouldCloseOnSelect) {
+      setOpen(false);
+      reset();
+    }
+  }
+
   async function submitCustom() {
     if (!customName.trim() || customPrice == null) return;
     const payload: CreateCustomIngredientPayload = {
@@ -141,8 +166,16 @@ export function IngredientPicker({
     };
     const created = await createCustom.mutateAsync(payload);
     onSelect({ id: created.id, nameEn: created.name_en });
-    setOpen(false);
-    reset();
+    if (shouldCloseOnSelect) {
+      setOpen(false);
+      reset();
+    } else {
+      setMode("search");
+      setCustomName("");
+      setCustomPrice(undefined);
+      setShowAdvanced(false);
+      setNutrition(emptyNutrition);
+    }
   }
 
   const nutritionFields: { key: NutritionFieldKey; labelKey: string; max?: number }[] = [
@@ -189,20 +222,33 @@ export function IngredientPicker({
               <CommandEmpty>{isLoading ? t("loading") : t("noIngredientsFound")}</CommandEmpty>
               {optionsByClass.map(({ feedClass, labelKey, options }) => (
                 <CommandGroup key={feedClass} heading={t(labelKey)}>
-                  {options.map((option) => (
-                    <CommandItem
-                      key={option.id}
-                      value={option.id}
-                      onSelect={() => {
-                        onSelect(option);
-                        setOpen(false);
-                        reset();
-                      }}
-                    >
-                      <Check className="mr-2 size-4 opacity-0" aria-hidden />
-                      {option.nameEn}
-                    </CommandItem>
-                  ))}
+                  {options.map((option) => {
+                    const isSelected = selectedSet.has(option.id);
+                    return (
+                      <CommandItem
+                        key={option.id}
+                        value={`${option.nameEn} ${option.id}`}
+                        onSelect={() => handleSelectOption(option)}
+                      >
+                        {isMultiSelect ? (
+                          <div
+                            className={cn(
+                              "mr-2 flex size-4 shrink-0 items-center justify-center rounded-sm border transition-colors",
+                              isSelected
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-muted-foreground/40 bg-transparent",
+                            )}
+                            aria-hidden
+                          >
+                            <Check className={cn("size-3 text-current", isSelected ? "opacity-100" : "opacity-0")} />
+                          </div>
+                        ) : (
+                          <Check className={cn("mr-2 size-4", isSelected ? "opacity-100" : "opacity-0")} aria-hidden />
+                        )}
+                        <span>{option.nameEn}</span>
+                      </CommandItem>
+                    );
+                  })}
                 </CommandGroup>
               ))}
             </CommandList>

@@ -24,7 +24,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
           <Image src={rakhalLogo} alt="Rakhal" className="h-full w-full object-cover object-left" priority />
         </Link>
       </div>
-      <div className="relative flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-5">
+      <div className="sidebar-scrollbar relative flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-5">
         <OrgSwitcher />
         <SidebarNav onNavigate={onNavigate} />
       </div>

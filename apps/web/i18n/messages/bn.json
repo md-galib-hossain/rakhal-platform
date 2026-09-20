@@ -62,12 +62,27 @@
     "searchPlaceholder": "গবাদি পশু, রেকর্ড, ক্রেতা বা প্রতিবেদন খুঁজুন…",
     "searchShortcutMac": "⌘ K",
     "searchShortcutWin": "Ctrl K",
+    "search": {
+      "minChars": "খুঁজতে কমপক্ষে ২ অক্ষর লিখুন।",
+      "searching": "খোঁজা হচ্ছে…",
+      "noResults": "কোনো ফলাফল পাওয়া যায়নি।",
+      "error": "এই মুহূর্তে খুঁজতে পারা যায়নি।",
+      "groups": {
+        "cattle": "গবাদি পশু",
+        "tasks": "টাস্ক",
+        "suppliers": "সরবরাহকারী",
+        "buyers": "ক্রেতা",
+        "sheds": "শেড",
+        "medicines": "ওষুধ"
+      }
+    },
     "notifications": "বিজ্ঞপ্তি",
     "notificationsHint": "বিজ্ঞপ্তি দেখুন",
     "profile": "প্রোফাইল",
     "accountMenuHint": "অ্যাকাউন্ট মেনু খুলুন",
     "onDuty": "দায়িত্বে",
     "accountSettings": "অ্যাকাউন্ট সেটিংস",
+    "feedback": "মতামত পাঠান",
     "logout": "লগ আউট",
     "language": "ভাষা"
   },
@@ -4902,8 +4917,8 @@
       "selectCard": "{name} নির্বাচন করুন",
       "statusDraft": "খসড়া — এখনো ব্যবহারযোগ্য নয়",
       "statusFinalized": "চূড়ান্ত করা হয়েছে",
-      "finalizeCtaTemplate": "টিএমআরে ব্যবহার করতে চূড়ান্ত করুন",
-      "finalizeCtaMixture": "ইনভেন্টরিতে যোগ করতে চূড়ান্ত করুন",
+      "finalizeCtaTemplate": "ফিড হিসেবে চূড়ান্ত করুন",
+      "finalizeCtaMixture": "ফিড হিসেবে চূড়ান্ত করুন",
       "setDefault": "গ্রুপের ডিফল্ট হিসেবে সেট করুন",
       "unsetDefault": "ডিফল্ট থেকে সরান",
       "defaultBadge": "ডিফল্ট"
@@ -5239,12 +5254,28 @@
       "groupFilter": "সব গ্রুপ",
       "groupFilterLabel": "গরুর গ্রুপ অনুযায়ী ফিল্টার করুন",
       "dateLabel": "তারিখ",
+      "bulkToolbar": {
+        "title": "বাল্ক কুইক-ফিল",
+        "subtitle": "নিচে গরু নির্বাচন করুন, তারপর এক ক্লিকে ফিড আইটেম বা পরিমাণ প্রয়োগ করুন",
+        "selectedCount": "{count} টি নির্বাচিত",
+        "selectAll": "সব নির্বাচন করুন",
+        "deselectAll": "নির্বাচন বাতিল",
+        "sourceSection": "ফিড উৎস",
+        "quantitySection": "মাথাপিছু পরিমাণ",
+        "sourceTypePurchased": "ক্রয়কৃত",
+        "sourceTypePrepared": "প্রস্তুতকৃত ব্যাচ",
+        "applySource": "উৎস প্রয়োগ করুন",
+        "applyQuantity": "কেজি প্রয়োগ করুন",
+        "applyUnified": "নির্বাচিতদের প্রয়োগ করুন ({count})",
+        "appliedBothToast": "{count} টি নির্বাচিত গরুর জন্য ফিড ও {kg} কেজি প্রয়োগ করা হয়েছে।",
+        "selectFirstHint": "প্রয়োগ করতে কমপক্ষে ১টি গরু নির্বাচন করুন"
+      },
       "sourceType": {
         "FEED_ITEM": "ক্রয়কৃত",
         "FEED_STOCK": "প্রস্তুতকৃত"
       },
       "itemLabel": "ফিড উৎস",
-      "itemPlaceholder": "একটি আইটেম বা স্টক লট নির্বাচন করুন",
+      "itemPlaceholder": "ফিড আইটেম বা ব্যাচ নির্বাচন করুন…",
       "searchItemPlaceholder": "আইটেম খুঁজুন…",
       "noItemsFound": "কোনো আইটেম পাওয়া যায়নি",
       "addFeedItem": "ফিড আইটেম যোগ করুন",
@@ -5253,25 +5284,52 @@
       "unknownStock": "অজানা ব্যাচ",
       "kgPerHeadPlaceholder": "কেজি/মাথা",
       "applyToSelected": "নির্বাচিতদের প্রয়োগ করুন ({count})",
+      "applySourceToSelected": "নির্বাচিতদের উৎস প্রয়োগ করুন ({count})",
       "noCattle": "খাওয়ানোর জন্য কোনো গবাদি পশু নেই।",
       "columns": {
+        "animal": "গবাদি পশু",
         "cowId": "গরুর আইডি",
         "name": "নাম",
-        "quantity": "প্রদত্ত (কেজি)"
+        "source": "ফিড উৎস",
+        "quantity": "প্রদত্ত (কেজি)",
+        "status": "স্ট্যাটাস"
+      },
+      "carriedOverHint": "শেষ খাওয়ানো থেকে বহন করা হয়েছে — আজকের জন্য এখনও সংরক্ষণ করা হয়নি।",
+      "draftHint": "ড্রাফট সংরক্ষিত — নিশ্চিত করার জন্য প্রস্তুত।",
+      "confirmedHint": "আজকের জন্য খাওয়ানো নিশ্চিত হয়েছে ({amount} কেজি)।",
+      "rowSource": {
+        "selectPrompt": "উৎস নির্বাচন করুন…",
+        "none": "কোনো উৎস নেই",
+        "searchPlaceholder": "আইটেম খুঁজুন…",
+        "purchasedGroup": "ফিড আইটেম (ক্রয়কৃত)",
+        "preparedGroup": "প্রস্তুতকৃত ব্যাচ (টিএমআর / কনসেনট্রেট)",
+        "clear": "উৎস মুছুন"
+      },
+      "statusBadges": {
+        "carriedOver": "পূর্বের থেকে প্রাপ্ত",
+        "draft": "ড্রাফট",
+        "confirmed": "খাওয়ানো হয়েছে",
+        "unassigned": "উৎস প্রয়োজন"
+      },
+      "summary": {
+        "selectedCount": "{total} টির মধ্যে {count} টি গরু নির্বাচিত",
+        "totalOffered": "মোট: {total} কেজি",
+        "saveDraft": "ড্রাফট সংরক্ষণ",
+        "confirmFeeding": "খাওয়ানো নিশ্চিত করুন ({count})"
       },
       "selectAll": "সব গরু নির্বাচন করুন",
       "selectCow": "{name} নির্বাচন করুন",
-      "save": "সংরক্ষণ করুন",
+      "save": "ড্রাফট সংরক্ষণ",
       "saving": "সংরক্ষণ হচ্ছে…",
-      "confirm": "নিশ্চিত করুন",
+      "confirm": "খাওয়ানো নিশ্চিত করুন",
       "confirming": "নিশ্চিত করা হচ্ছে…",
-      "noEntries": "নির্বাচিত গরুদের জন্য কোনো খাবার দেওয়া হয়নি।",
-      "savedToast": "{count} টি ড্রাফট এন্ট্রি সংরক্ষিত হয়েছে — এখনো ইনভেন্টরি পরিবর্তন হয়নি।",
-      "confirmedToast": "{count} টি গরুর খাওয়ানো নিশ্চিত হয়েছে — ইনভেন্টরি আপডেট হয়েছে।",
+      "noEntries": "নির্বাচিত গরুদের জন্য কোনো খাবার দেওয়া হয়নি। অনুগ্রহ করে একটি উৎস ও পরিমাণ নির্ধারণ করুন।",
+      "savedToast": "{count} টি ড্রাফট এন্ট্রি সংরক্ষিত হয়েছে — এখনো ইনভেন্টরি কর্তন হয়নি।",
+      "confirmedToast": "{count} টি গরুর খাওয়ানো নিশ্চিত হয়েছে — ফিড ইনভেন্টরি আপডেট হয়েছে।",
       "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।",
       "confirmDialog": {
         "title": "খাওয়ানো নিশ্চিত করবেন?",
-        "description": "এটি {count} টি নির্বাচিত গরুর ইনভেন্টরি কমিয়ে দেবে এবং এটি পূর্বাবস্থায় ফেরানো যাবে না। ডিফল্ট প্রদত্ত পরিমাণ নিশ্চিত করতে অপরিবর্তিত রাখুন, অথবা আগে সম্পাদনা করুন।",
+        "description": "এটি আজকের খাওয়ানো রেকর্ড করবে এবং {count} টি নির্বাচিত গরুর জন্য ইনভেন্টরি কমিয়ে দেবে। এটি পূর্বাবস্থায় ফেরানো যাবে না।",
         "confirm": "খাওয়ানো নিশ্চিত করুন"
       }
     },
@@ -5305,6 +5363,15 @@
       "noDefaultRation": "নেই",
       "defaultSaved": "ডিফল্ট রেশন হালনাগাদ হয়েছে।",
       "defaultFailed": "ডিফল্ট রেশন সেট করা যায়নি।",
+      "defaultSource": "ডিফল্ট ফিডিং উৎস",
+      "noDefaultSource": "নেই",
+      "defaultSourceSaved": "ডিফল্ট ফিডিং উৎস হালনাগাদ হয়েছে।",
+      "defaultSourceFailed": "ডিফল্ট ফিডিং উৎস সেট করা যায়নি।",
+      "unknownStock": "অজানা ব্যাচ",
+      "sourceGroups": {
+        "feedItems": "ফিড আইটেম",
+        "preparedBatches": "প্রস্তুতকৃত ব্যাচ"
+      },
       "assignCattle": "গাভী",
       "assignTitle": "{name} এর গাভী",
       "assignDescription": "খুঁজে এই গ্রুপে গাভী যুক্ত করুন।",
@@ -6194,6 +6261,26 @@
       "cancel": "বাতিল",
       "successToast": "সরবরাহকারী নিষ্ক্রিয় করা হয়েছে।",
       "genericError": "সরবরাহকারী নিষ্ক্রিয় করা যায়নি।"
+    }
+  },
+  "support": {
+    "feedback": {
+      "title": "মতামত পাঠান",
+      "description": "একটি বাগ রিপোর্ট করুন, ফিচার চান, বা প্রশ্ন করুন — আমরা প্রতিটি বার্তা পড়ি।",
+      "category": "ক্যাটাগরি",
+      "categoryOptions": {
+        "BUG": "বাগ",
+        "FEATURE_REQUEST": "ফিচার চাই",
+        "QUESTION": "প্রশ্ন",
+        "BILLING": "বিলিং",
+        "OTHER": "অন্যান্য"
+      },
+      "message": "বার্তা",
+      "screenshot": "স্ক্রিনশট (ঐচ্ছিক)",
+      "submit": "পাঠান",
+      "cancel": "বাতিল",
+      "submittedToast": "ধন্যবাদ — আপনার মতামত পাঠানো হয়েছে।",
+      "genericError": "মতামত পাঠানো যায়নি। আবার চেষ্টা করুন।"
     }
   }
 }

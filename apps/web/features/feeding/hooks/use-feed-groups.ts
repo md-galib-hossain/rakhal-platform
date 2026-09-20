@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { feedApi } from "@/features/feed/api";
 import { cattleApi } from "@/features/cattle/api";
+import type { FeedGridSourceType } from "@/features/feed/types";
 
 /**
  * Feed-group membership + default-ration hooks (RFE-102).
@@ -66,6 +67,23 @@ export function useSetGroupDefaultConcentration() {
   return useMutation({
     mutationFn: ({ groupId, concentrationId }: { groupId: string; concentrationId: string | null }) =>
       feedApi.setGroupDefaultConcentration(groupId, concentrationId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.feedGroups() }),
+  });
+}
+
+/** RAKHAL-433/RFE-116 — this group's default Feeding Grid source (the resolution ladder's own
+ * fallback), separate from `useSetGroupDefaultConcentration` above (the TMR-only "Feed Today"
+ * default). Same invalidation — both live on the one `FeedGroup` record. */
+export function useSetGroupDefaultFeedSource() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      groupId,
+      source,
+    }: {
+      groupId: string;
+      source: { sourceType: FeedGridSourceType; feedItemId?: string; feedStockId?: string } | null;
+    }) => feedApi.setGroupDefaultFeedSource(groupId, source),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.feedGroups() }),
   });
 }

@@ -604,7 +604,7 @@
 - Tabbed page: Medicine (stock, low-stock badges, adjust-stock, expiry warnings), Forage, Equipment,
   Semen (tanks + batches), Milk tanks (+ audit log table). Each tab own DataTable + create/edit forms.
 - **API:** §11 · **PRD:** §15
-- **Status:** `PARTIAL` — Medicine tab done (list/grid/add-edit/archive-restore/adjust-stock/photo,
+- **Status:** `DONE` — Medicine tab done (list/grid/add-edit/archive-restore/adjust-stock/photo,
   see `IN_FLIGHT.md` Recently Done). **Forage tab done** (2026-07-12, Figma-perfect: list/grid/
   add-edit/"Item Details" view/stock-update/archive-restore, see `IN_FLIGHT.md` Recently Done +
   `CURRENT_STATE.md`). **Milk tab done** (2026-07-13, Figma-perfect: tank grid (Sellable/Withholding,
@@ -612,8 +612,21 @@
   see `IN_FLIGHT.md` Recently Done + `CURRENT_STATE.md`). **Semen tab done** (2026-07-15, Figma-perfect:
   LN2 tank grid (Stable/Need Refill), Add New Tank + Tank Details (repurposed "Update Readings") side
   sheets, paginated straw-batch cards + Add Straw sheet — see `IN_FLIGHT.md` Recently Done +
-  `CURRENT_STATE.md`). Equipment ("Others") still `TODO` — a real backend controller exists
-  (`equipment.controller.ts`) but no Figma frames were given for it yet.
+  `CURRENT_STATE.md`). **Equipment ("Others") confirmed done, 2026-09-18** — this row's own "still
+  TODO" note was stale: `equipment-view.tsx`/`-table.tsx`/`-grid.tsx`/`-form-dialog.tsx`/
+  `-filters.tsx`/`-add-button.tsx`/`-row-actions.tsx`/`-columns.tsx` all exist, fully wired into
+  `inventory-view.tsx`'s `others` branch, `INVENTORY_TABS` already marks it `implemented: true`, and
+  it already has bulk-select/bulk-delete parity with the other tabs (`use-bulk-selection`,
+  `BulkActionDock`) — real commits (`7d6cd0d`, `156cd74`), not new work. No Figma frames exist for it
+  (unchanged), so its list/grid/form UI mirrors `MedicineView`'s own shape rather than a pixel-matched
+  design, same convention this row's own doc comment already stated. Live-verified against the real
+  dev stack: `/inventory?tab=others` renders real farm data (7 existing equipment rows — Wheelbarrow,
+  Stainless milk buckets, Diesel generator 5kVA, Chaff cutter, etc.), the "আইটেম যোগ করুন" (Add Item)
+  form opens with all fields (name/stock/unit picker/CPU/type/asset ID/purchase date/low-stock
+  threshold/notes) and the unit-catalog search-and-select flow works. Gate: `pnpm typecheck`(0) /
+  `eslint` scoped to all `equipment-*.tsx` files (0 errors, 0 warnings — the one lint error found in
+  this sweep is in unrelated `milk-tank-card.tsx`, pre-existing, not touched). **RFE-034 fully closed
+  — all 5 tabs done.**
 
 #### RFE-035 — Finance (ledger + wizard + sub-pages)
 - **Lane:** `features/finance/**`, `app/(app)/finance/**` · **Design:** Figma finance frames
@@ -736,12 +749,15 @@
 - **API:** §17 · **PRD:** §20
 - **Status:** `TODO`
 
-#### RFE-044 — Global search (⌘K)
-- **Lane:** `components/layout/search-command.tsx`, `features/search/**`
-- Command palette → `GET /search?q=` grouped results (cattle/tasks/suppliers/buyers/sheds/medicines) →
-  deep-link navigation using backend-provided `link`.
+#### RFE-044 — Global search (⌘K) — ✅ DONE (2026-09-20)
+- **Lane:** `components/layout/global-search.tsx` (this ticket's own real lane — the ticket text's `search-command.tsx` was never the actual filename; RFE-005 had already built the trigger/shortcut/dialog shell here), new `features/search/{types.ts,api.ts,hooks/use-search.ts}`, `components/ui/command.tsx` (`CommandDialog` gained an optional `shouldFilter` passthrough)
+- [x] Command palette → `GET /search?q=` grouped results (cattle/tasks/suppliers/buyers/sheds/medicines) → deep-link navigation using the backend-provided `link`. Backend (RAKHAL-257) was already fully built and live — this was purely the frontend wiring RFE-005's own doc comment had explicitly deferred.
+- [x] Each non-empty category renders its own `CommandGroup`; empty categories are omitted, not shown with a "no results" placeholder.
+- [x] `enabled` on the search query mirrors the backend's own `MIN_QUERY_LENGTH = 2` floor — no request fires below 2 characters. No debounce utility added (none exists anywhere in this codebase, per `batch-link-picker.tsx`'s own documented reasoning) — react-query's cache/key dedup carries a keystroke-per-request load the same way every other live-search picker here already does.
+- **Real design decision beyond plain wiring**: results are server-scored (Postgres trigram similarity), so cmdk's default client-side fuzzy filter would risk silently hiding a real match. `CommandDialog`'s inner `Command` was hardcoded with no `shouldFilter` passthrough — widened it (additive, one new optional prop, confirmed the 15 other importers of this shared file never touch `CommandDialog` itself) rather than duplicating the dialog shell, then set `shouldFilter={false}` here — same fix `select-case-dialog.tsx` already applied to its own server-driven list.
+- **Gate:** `pnpm typecheck`(0) / `eslint`(0 across all 6 touched/new files) / `pnpm build`(0) / `pnpm test`(174/174) / both locale JSONs valid.
+- **Live-verified end to end**: real `GET /search?q=E2E-306&limit=5 → 200` (5 cattle + 5 task hits, score-ranked, other 4 categories empty); DOM showed exactly the 2 matching group headings, 10 items; selecting a result navigated to `/cattle/<id>` matching that hit's own `link` exactly.
 - **API:** §19 · **PRD:** §6.2
-- **Status:** `TODO`
 
 #### RFE-045 — Settings (all tabs)
 - **Lane:** `features/settings/**`, `app/(app)/settings/**` · **Design:** Figma settings frames else PRD-spec
@@ -789,10 +805,10 @@
   `onboarding-finalization` claim per `IN_FLIGHT.md`) — verified via `tsc`+`eslint`+live dev-server
   click-through instead.
 
-#### RFE-048 — Support feedback widget
+#### RFE-048 — Support feedback widget — ✅ DONE (2026-09-18)
 - **Lane:** `features/support/**` · Feedback dialog (category/message/screenshot upload) from avatar menu.
 - **API:** `POST /feedback` · **PRD:** §36 · **Design:** PRD-spec
-- **Status:** `TODO`
+- New `FeedbackDialog` (category `Select` mirroring `SupportCategory`, `message` textarea, optional screenshot) opened from the account dropdown's new "Send Feedback" item. `apiUpload()` widened (optional file + extra form fields) to support this, additive/backward-compatible. Live-verified: real `POST /feedback → 201 Created`. Full writeup: `docs/IN_FLIGHT.md` Recently Done.
 
 ---
 
@@ -1041,3 +1057,55 @@ Companion to the backend board's MILESTONE 24 (`D:\Projects\Rakhal\docs\PROJECT_
 - [x] `feed-view.tsx`'s Concentrate section now opens the same `FinalizeTmrDialog` the TMR section does (shared `finalizeTarget` state) instead of the plain `ConfirmDialog` — removed the now-dead `handleFinalizeConfirm`/`finalizeConcentration` local mutation call and the stale doc comment explaining why Concentrate was excluded (the reason no longer applies).
 - **Notes:** No backend or schema change on this side — pure UI wiring once the RAKHAL-428 dependency landed. A Concentrate Mixer finalize now gets the same shortfall block, linked/unlinked split preview, and account picker a TMR finalize always had.
 - **Gate:** `pnpm typecheck`(0) / `eslint` scoped to the 2 changed files (0 errors, 0 warnings) / `pnpm build`(0, "Compiled successfully", 45 routes) / `pnpm test`(174/174). Live click-through not performed (documented Suspense-stuck quirk on this page); relied on the gate plus direct reading of both hooks to confirm neither has a kind assumption.
+
+---
+
+### MILESTONE 25 (frontend twins) — FEEDING FAVOURITES — added 2026-09-20
+
+> **Backend epic + full rationale: [`EPIC_FEEDING_FAVOURITES.md`](../../../docs/EPIC_FEEDING_FAVOURITES.md)** · backend tickets RAKHAL-429…434 (all done). Originated from "remember each cow's feed on the feeding page" — deferred until the Prepared-Feed model (MILESTONE 8c above) was fixed first.
+> **What changes underneath us:** `confirm()` is multi-source now — each `entries[]` line can carry its own `sourceType`/`feedItemId`/`feedStockId`, overriding the call's top-level default (now optional). `GET /feed/grid` gained `default_source` per cow (RAKHAL-431's resolution ladder: own last-used → feed-group default → none, past a group-change guard + availability guard + batch fall-forward).
+
+#### RFE-115 — Feeding Grid: per-row source cell + "apply source to selected" bulk action, pre-filled from `default_source` — ✅ DONE (2026-09-20)
+- **Dependencies:** RAKHAL-430 + RAKHAL-431 (backend, both done)
+- **Lane:** `features/feeding/components/feeding-grid.tsx`, `features/feed/types.ts`
+- [x] Each cow row gets its own source cell (new `RowSourceCell`, same search-and-select Popover+Command shape `batch-link-picker.tsx`/RFE-112 already established, reused here for a per-row feeding source instead of a per-line inventory link) — pre-filled from the row's own already-staged draft source if one exists, else `default_source` (the resolution ladder), else unresolved ("No source").
+- [x] New toolbar button "Apply source to selected" bulk-stamps the toolbar's own picked source onto every selected row's cell — the source-side sibling of the existing kg "Apply to selected" button, kept as a separate action since a farmer may want to bulk-apply one without the other.
+- [x] `buildEntries()` now always resolves each submitted line's **own** source (never relies on the top-level default for a row that has one) — a row with a quantity but no resolvable source is skipped, same as a row with no quantity. The toolbar's own picked source, if any, still rides along as the call's top-level default (for the rare cow with neither an entry nor a draft of its own) but is no longer required to submit.
+- [x] `canSubmit` relaxed from "toolbar source picked AND a row selected" to just "a row selected" — the toolbar source is now a bulk-apply convenience, not a submission gate.
+- **Real stale type found and fixed while touching this file**: `ConfirmFeedGridResult` still declared the pre-RAKHAL-430 single top-level `source_type`/`feed_item_id`/`feed_stock_id` shape, which the backend stopped returning once `confirm()` became multi-source (`sources[]` + per-cow source in `cows[]`). No frontend code read those 3 fields (only `cows.length`, for the toast), so nothing was silently broken by the drift — but the type was wrong. Corrected to match the real response.
+- **Gate:** `pnpm typecheck`(0) / `eslint` scoped to both changed files (0 errors, 0 warnings) / `pnpm build`(0, "Compiled successfully") / `pnpm test`(174/174, 26 files) / both locale JSONs valid.
+- **Live-verified end to end** against the real dev stack (demo owner, Demo Farm): opened `/feeding`, clicked a row's source cell (auto-selected the row, matching the kg input's own auto-select-on-focus behavior), picker opened with both groups (Feed Items / Prepared Batches) populated from real inventory, selected an item — the row's chip updated to the item's label. Entered a quantity and hit Save: `POST /feed/grid/draft` → 201, response's own `drafts[]` echoed back the exact `feed_item_id` picked, not the toolbar's. Refetching `GET /feed/grid` confirmed the persisted draft carries its own source and every cow row now includes `default_source` (`null` for this farm's cattle — no prior feeding history to resolve from, expected). Did not click Confirm (would decrement real inventory on a shared demo farm) — draft-only has zero inventory effect by design (see `saveDraft()`'s own doc comment), so nothing needed cleanup.
+- **Notes:** RFE-116 (Feed Group settings default-source field) and RFE-117 (Tier 0 — wire real search into the item picker instead of client-side `.filter()`) are next per the epic's build order; both independent of each other.
+
+#### RFE-116 — Feed Group settings: default-feed-source field (mirrors existing default-concentration field) — ✅ DONE (2026-09-20)
+- **Dependencies:** RAKHAL-433 (backend, done)
+- **Lane:** `features/feeding/components/feed-groups-section.tsx`, `features/feeding/hooks/use-feed-groups.ts`, `features/feed/{api.ts,types.ts}`, `features/settings/types.ts`
+- [x] New `feedApi.setGroupDefaultFeedSource`/`useSetGroupDefaultFeedSource` PATCH the same `/settings/feed-groups/:id` route the existing "Default ration" control already uses — just the 3 new RAKHAL-433 DTO fields (`defaultFeedSourceType`/`defaultFeedItemId`/`defaultFeedStockId`), `null` clearing all three at once.
+- [x] `GroupRow` gains a second Select ("Default feeding source") beside the existing "Default ration" one — one flat option list keyed `FEED_ITEM:<id>`/`FEED_STOCK:<id>`, grouped into "Feed Items"/"Prepared Batches" via `SelectGroup`/`SelectLabel`, rather than a two-step type-then-item flow — matches this file's own existing single-Select convention for group defaults.
+- [x] `FeedGroup` type gained the 3 new fields in both `features/settings/types.ts` and `features/feed/types.ts` (duplicated per this repo's feature-isolation convention — `FeedGroup` was already duplicated there for `default_concentration_id`).
+- **Gate:** `pnpm typecheck`(0) / `eslint` scoped to all 5 changed files (0 errors, 2 pre-existing warnings — confirmed via `git stash` to predate this diff, same content just at shifted line numbers) / `pnpm build`(0) / `pnpm test`(174/174) / both locale JSONs valid.
+- **Live-verified end to end**, with one real environment snag along the way: the browser's long-lived dev server on port 3005 was serving a stale i18n bundle (new `bn.json` keys 404'd as `MISSING_MESSAGE` even after a hard reload; confirmed the file on disk was correct) — killed the stale process and restarted via a properly tracked `preview_start`, since apparently not every dev-server instance in this session picks up `i18n/messages/*.json` edits through Turbopack's watcher. On the fresh server: `/feeding`'s group row showed real Feed Items/Prepared Batches in the new Select (one transient `500` on `GET /settings/feed-groups` immediately after the restart self-resolved on the next request — a cold-start blip, confirmed unrelated by a same-moment direct `fetch()` returning a clean `200` with the 3 new fields correctly named); picked an item, `PATCH /settings/feed-groups/sd_fg_high` returned `defaultFeedSourceType:"FEED_ITEM"` with the exact item id, trigger label updated to match. Cleared back to "None" afterward to leave the shared demo farm's `High Yield` group in its original state.
+- **Notes:** RFE-117 (Tier 0 — wire real search into the feeding-grid item picker) is the only ticket left in this epic.
+
+#### RFE-117 — Tier 0 frontend: wire real search into the item picker instead of client-side `.filter()` — ✅ DONE (2026-09-20)
+- **Dependencies:** RAKHAL-432 (backend, verification-only — the search param was already wired)
+- **Lane:** `features/feeding/components/feeding-grid.tsx`
+- [x] Toolbar's item picker: `useFeedItemPagedList({})` (page 1 only) → `useFeedItemPagedList({ search: itemSearch || undefined })`, real server-side search; dropped the now-redundant client `.filter()` for the `FEED_ITEM` branch (kept for `FEED_STOCK`, which has no search endpoint — confirmed `useFeedStock()` returns the full unpaginated farm array, so it was never truncated and has no Tier-0 gap).
+- [x] RFE-115's per-row `RowSourceCell`: split into a cheap always-mounted trigger + a new `RowSourceCellOptions` that owns the `useFeedItemPagedList({ search })` call, mounted (and thus fetching) only while that row's own popover is open — a grid that can run to thousands of cow rows cannot fetch a live paginated search unconditionally per row the way `BatchLinkPicker`/RFE-112 does for a handful of recipe lines.
+- **Real regression found and fixed, beyond the ticket's literal ask**: once each picker's fetch depends on search text, an already-picked item can drop out of the visible page the moment search resets on close — breaking the trigger's own label for exactly the item #21+ case Tier 0 exists to fix. Both the toolbar's and each row's trigger label now resolve via `useFeedItemDetail(id)` (single-item, `enabled`-gated, react-query-deduped across rows sharing one item) instead of trusting whichever page/search happened to still contain it.
+- **Gate:** `pnpm typecheck`(0, after clearing a `.next/dev/types/validator.ts` a concurrently-running dev server had corrupted mid-write — gitignored, unrelated, self-regenerates) / `eslint`(0) / `pnpm build`(0) / `pnpm test`(174/174).
+- **Live-verified end to end**: typed a full item name known to sit well past page 1 into a row's picker — network showed the real `GET /inventory/feed-items?search=...&limit=20`, returned exactly that item, selected it, the trigger updated to its real name+stock. Confirmed the perf guard: only ~31 `GET /inventory/feed-items/:id` detail requests fired across the whole 1900+-row grid (one per distinct already-set item, deduped), not one per row.
+- **Notes:** **MILESTONE 25 (Feeding Favourites) is now fully closed — backend (RAKHAL-429…434) and frontend (RFE-115…117) both done.** The epic that started as "remember each cow's feed on the feeding page" is complete: per-cow source memory with a resolution ladder (own last-used → group default → none), per-row + bulk-apply UI, Feed Group default-source settings, and real search reaching the full catalogue.
+
+---
+
+### RFE-119 — Feeding Grid: distinguish already-confirmed-today from a carried-forward default suggestion — ✅ DONE (2026-09-20)
+- **Dependencies:** RAKHAL-440/RD-099 (backend — new `confirmed_offered_kg` field)
+- **Lane:** `features/feeding/components/feeding-grid.tsx`, `features/feed/types.ts`, `i18n/messages/{en,bn}.json`
+- **User-reported bug** (screenshot attached): fed a cow yesterday (1kg), didn't feed her today, and the grid still showed the identical "1kg" input with no way to tell whether today's feeding had actually happened.
+- [x] `FeedGridCow` gained `confirmed_offered_kg` (backend, exact-date-scoped — distinct from `default_offered_kg`'s "most recent confirmed day, any date").
+- [x] Each row now shows one of three distinct states in a new Status column, plus a matching border on the quantity cell itself: green "Confirmed" (`CheckCircle2`, real `confirmed_offered_kg`), blue "Draft" (`Clock`, staged but not yet confirmed), amber "Carried over" (`History` + tooltip explaining it's only a suggestion, `default_offered_kg` with neither of the above). No badge when none apply.
+- [x] **User's own design call**: once confirmed, the row stays editable (not locked) — re-editing and re-confirming is a deliberate, always-available action rather than requiring an explicit unlock step.
+- **Gate:** `pnpm typecheck`(0) / `eslint`(0) / `pnpm build`(0) / `pnpm test`(174/174) / both locale JSONs valid.
+- **Live-verified end to end** against the real dev stack: queried the live grid response directly and found 92 real cows in the "carried over, not confirmed today" state on the shared demo farm; located one in the DOM and confirmed it renders the amber "পূর্বের থেকে প্রাপ্ত" badge with the matching amber-bordered quantity cell, not the plain/ambiguous look from the bug report. (Attempting to also demo the green "Confirmed" state live surfaced a separate, out-of-scope issue — **RD-100**, filed not fixed: `confirm()`'s own whole-grid fallback scope meant clicking "Confirm (1)" on one selected cow attempted to also confirm ~92 other unchecked cows via the toolbar's default source, caught by the backend's pre-flight stock check before any write. Backend correctness of the confirmed-state itself was instead verified via `test/feed-grid.e2e-spec.ts`'s new assertions.)
+- **Notes:** Full writeup: `docs/TECH_DEBT.md` (backend repo) RD-099/RD-100, `docs/IN_FLIGHT.md` Recently Done (both repos).

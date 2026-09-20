@@ -1,5 +1,81 @@
 # Frontend — Current State
 
+## RFE-119 — Feeding Grid: confirmed vs carried-over, real user bug (2026-09-20)
+
+User-reported bug (screenshot attached): fed a cow yesterday, didn't feed her today, grid still
+showed the identical "1kg" with no way to tell whether today's feeding had actually happened. Backend
+twin RAKHAL-440/RD-099 added exact-date-scoped `confirmed_offered_kg`. Each grid row now shows one of
+3 distinct states (green "Confirmed", blue "Draft", amber "Carried over" with an explanatory tooltip)
+instead of one undifferentiated quantity cell, plus a matching colored border on the input itself.
+User chose to keep the row editable even once confirmed. Live-verified against 92 real carried-over
+cows on the shared demo farm. **New debt found while verifying, not fixed**: RD-100 — `confirm()`'s
+whole-grid fallback scope means a "Confirm (1)" click can silently sweep far more cows than its own
+count implies. Full writeup: `docs/PROJECT_PROGRESS.md`'s RFE-119 entry, `docs/IN_FLIGHT.md` Recently
+Done, backend `docs/TECH_DEBT.md` RD-099/RD-100.
+
+## RFE-044 — Global search (⌘K) wired to real results (2026-09-20)
+
+Backend (`GET /search?q=`, RAKHAL-257) was already fully built — farm-scoped Postgres trigram search
+across cattle/tasks/suppliers/buyers/sheds/medicines. RFE-005 had already shipped the topbar
+trigger + ⌘K/Ctrl-K toggle + an empty `CommandDialog`; this ticket wired the missing half. New
+`features/search/{types.ts,api.ts,hooks/use-search.ts}`; `GlobalSearch` now renders one
+`CommandGroup` per non-empty category and navigates via `router.push(hit.link)` on select. Widened
+`components/ui/command.tsx`'s `CommandDialog` with an optional `shouldFilter` passthrough (additive,
+only this one caller uses it) so results stay server-scored instead of being re-filtered client-side
+by cmdk's own fuzzy matcher. Live-verified: real query → grouped results → selecting one navigates to
+the exact backend-provided link. Full writeup: `docs/PROJECT_PROGRESS.md`'s RFE-044 entry,
+`docs/IN_FLIGHT.md` Recently Done.
+
+## RFE-117 — Tier 0 search wiring, closes MILESTONE 25 (2026-09-20)
+
+**MILESTONE 25 (Feeding Favourites) fully closed, backend + frontend.** Last ticket: both the
+Feeding Grid toolbar's item picker and RFE-115's per-row `RowSourceCell` were capped at page 1 (20
+items) and filtered client-side — a farm with 21+ feed items couldn't reach item #21. Both now use
+real server-side search (`useFeedItemPagedList({ search })`); the per-row picker's search fetch is
+split into a separate component that only mounts (and only fetches) while that row's popover is
+open, since the grid can run to thousands of cow rows and can't fire a live search per row
+unconditionally. Found and fixed a real regression along the way: once a picker's fetch depends on
+search text, an already-picked item can drop off the visible page — both trigger labels now resolve
+via `useFeedItemDetail(id)` (precise, deduped) instead of trusting a possibly-stale page. Live-
+verified: a deep-catalog item (well past page 1) is now searchable and selectable, trigger shows its
+real name; only ~31 detail requests fired across a 1900+-row grid, not one per row. Full writeup:
+`docs/PROJECT_PROGRESS.md`'s MILESTONE 25 section, `docs/IN_FLIGHT.md` Recently Done.
+
+## RFE-116 — Feed Group settings: default-feed-source field (2026-09-20)
+
+MILESTONE 25 (Feeding Favourites) frontend twin, follows RFE-115. `GroupRow` on `/feeding`'s Feed
+Groups section gains a second "Default feeding source" Select beside the existing "Default ration"
+one — mirrors that control's exact shape and PATCHes the same `/settings/feed-groups/:id` route
+with RAKHAL-433's 3 new fields. Hit and fixed a real environment issue while verifying: this
+session's long-lived dev server on port 3005 wasn't picking up `i18n/messages/*.json` edits through
+Turbopack's watcher — killed the stale process, restarted via a properly tracked `preview_start`.
+Live-verified: `PATCH /settings/feed-groups/:id` round-trips the picked item, cleared back to "None"
+afterward. RFE-117 (Tier 0 search) is the only ticket left in MILESTONE 25. Full writeup:
+`docs/PROJECT_PROGRESS.md`'s MILESTONE 25 section, `docs/IN_FLIGHT.md` Recently Done.
+
+## RFE-115 — Feeding Grid: per-row source cell + bulk-apply (2026-09-20)
+
+MILESTONE 25 (Feeding Favourites) frontend twin — backend RAKHAL-429…434 all done, epic docs:
+`../../docs/EPIC_FEEDING_FAVOURITES.md`. Each cow row on `/feeding` now has its own source picker
+(new `RowSourceCell`, same picker shape `batch-link-picker.tsx` established), pre-filled from the
+row's own staged draft or the backend's `default_source` resolution ladder — no longer one source
+for the whole grid submission. New "Apply source to selected" bulk action stamps the toolbar's
+picked source onto every selected row. Live-verified: real `POST /feed/grid/draft → 201` round-trips
+the exact per-row source picked, `GET /feed/grid` now returns `default_source` on every cow.
+RFE-116 (Feed Group settings default) / RFE-117 (Tier 0 search) next. Full writeup:
+`docs/PROJECT_PROGRESS.md`'s MILESTONE 25 section, `docs/IN_FLIGHT.md` Recently Done.
+
+## RFE-048 — Support feedback widget (2026-09-18)
+
+Real, previously-unclaimed `TODO` ticket — backend `POST /feedback` (RAKHAL-242) already existed
+fully built, this shipped the frontend-only widget: a `FeedbackDialog` (category/message/optional
+screenshot) opened from the account (avatar) menu's new "Send Feedback" item. `apiUpload()`
+widened with an optional file + extra form fields (additive, all 4 existing callers unaffected).
+Live-verified: real `POST /feedback → 201 Created`, sheet auto-closes on success. Also shipped
+today: RFE-118 (missed-entry calendar on Milk Log + Feed Grid, frontend twin of backend
+RAKHAL-434) — see its own IN_FLIGHT.md Recently Done row for detail. Full writeups:
+`docs/IN_FLIGHT.md` Recently Done.
+
 ## RFE-114 — Generalize the finalize dialog's purchase preview to the Concentrate Mixer (2026-09-15)
 
 Closes RD-090's frontend half — MILESTONE 8c (RAKHAL-421…428 + RFE-111…114) now fully closed, both

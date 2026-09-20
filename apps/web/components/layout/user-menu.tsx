@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ChevronDown, LogOut, Settings, UserRound } from "lucide-react";
+import { ChevronDown, LogOut, MessageSquare, Settings, UserRound } from "lucide-react";
 import { useLogout, useSession } from "@/lib/auth/use-session";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
@@ -15,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { FeedbackDialog } from "@/features/support/components/feedback-dialog";
 import { LanguageToggleItem } from "./language-toggle-item";
 
 function initialsOf(name?: string) {
@@ -35,8 +37,10 @@ export function UserMenu() {
   const { data: session } = useSession();
   const t = useTranslations("topbar");
   const name = session?.user.name;
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   return (
+    <>
     <DropdownMenu>
       <Tooltip>
         <TooltipTrigger asChild>
@@ -77,9 +81,20 @@ export function UserMenu() {
         </DropdownMenuItem>
         <LanguageToggleItem />
         <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={(event) => {
+            event.preventDefault();
+            setFeedbackOpen(true);
+          }}
+        >
+          <MessageSquare className="size-4" /> {t("feedback")}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <LogoutMenuItem />
       </DropdownMenuContent>
     </DropdownMenu>
+    <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
+    </>
   );
 }
 

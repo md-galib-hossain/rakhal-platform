@@ -43,8 +43,9 @@ export interface FinancialAccount {
   type: FinancialAccountType;
   ledgerAccountId: string;
   currency: string;
-  isActive: boolean;
-  archivedAt: string | null;
+  /** Soft-delete marker, mirrors the backend's own `FinancialAccount.deletedAt` (not `isActive`/
+   * `archivedAt` — those never existed on the backend model; a row is archived when this is set). */
+  deletedAt: string | null;
   createdById: string;
   createdAt: string;
   updatedAt: string;

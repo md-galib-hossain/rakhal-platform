@@ -62,12 +62,27 @@
     "searchPlaceholder": "Search cattle, records, buyers, or reports…",
     "searchShortcutMac": "⌘ K",
     "searchShortcutWin": "Ctrl K",
+    "search": {
+      "minChars": "Type at least 2 characters to search.",
+      "searching": "Searching…",
+      "noResults": "No results found.",
+      "error": "Could not search right now.",
+      "groups": {
+        "cattle": "Cattle",
+        "tasks": "Tasks",
+        "suppliers": "Suppliers",
+        "buyers": "Buyers",
+        "sheds": "Sheds",
+        "medicines": "Medicines"
+      }
+    },
     "notifications": "Notifications",
     "notificationsHint": "View notifications",
     "profile": "Profile",
     "accountMenuHint": "Open account menu",
     "onDuty": "On Duty",
     "accountSettings": "Account Settings",
+    "feedback": "Send Feedback",
     "logout": "Log Out",
     "language": "Language"
   },
@@ -4902,8 +4917,8 @@
       "selectCard": "Select {name}",
       "statusDraft": "Draft — not usable yet",
       "statusFinalized": "Finalized",
-      "finalizeCtaTemplate": "Finalize to use in a TMR",
-      "finalizeCtaMixture": "Finalize to add to inventory",
+      "finalizeCtaTemplate": "Finalize as Feed",
+      "finalizeCtaMixture": "Finalize as Feed",
       "setDefault": "Set as default for group",
       "unsetDefault": "Unset as default",
       "defaultBadge": "Default"
@@ -5239,12 +5254,28 @@
       "groupFilter": "All Groups",
       "groupFilterLabel": "Filter by cow group",
       "dateLabel": "Date",
+      "bulkToolbar": {
+        "title": "Bulk Quick-Fill",
+        "subtitle": "Select cattle below, then apply feed item or quantity in one click",
+        "selectedCount": "{count} selected",
+        "selectAll": "Select All",
+        "deselectAll": "Deselect",
+        "sourceSection": "Feed Source",
+        "quantitySection": "Amount per Head",
+        "sourceTypePurchased": "Purchased",
+        "sourceTypePrepared": "Prepared Batch",
+        "applySource": "Apply Source",
+        "applyQuantity": "Apply kg",
+        "applyUnified": "Apply to Selected ({count})",
+        "appliedBothToast": "Applied feed & {kg} kg to {count} selected cattle.",
+        "selectFirstHint": "Select at least 1 animal to apply"
+      },
       "sourceType": {
         "FEED_ITEM": "Purchased",
         "FEED_STOCK": "Prepared"
       },
       "itemLabel": "Feed source",
-      "itemPlaceholder": "Select an item or stock lot",
+      "itemPlaceholder": "Select feed item or batch…",
       "searchItemPlaceholder": "Search items…",
       "noItemsFound": "No items found",
       "addFeedItem": "Add Feed Item",
@@ -5253,26 +5284,53 @@
       "unknownStock": "Unknown batch",
       "kgPerHeadPlaceholder": "kg/head",
       "applyToSelected": "Apply to selected ({count})",
+      "applySourceToSelected": "Apply source to selected ({count})",
       "noCattle": "No cattle to feed.",
       "columns": {
+        "animal": "Animal",
         "cowId": "Cow ID",
         "name": "Name",
-        "quantity": "Offered (kg)"
+        "source": "Feed Source",
+        "quantity": "Offered (kg)",
+        "status": "Status"
+      },
+      "carriedOverHint": "Carried over from the last feeding — not yet saved for today.",
+      "draftHint": "Draft saved — ready to confirm.",
+      "confirmedHint": "Feeding already confirmed for today ({amount} kg).",
+      "rowSource": {
+        "selectPrompt": "Select source…",
+        "none": "No source",
+        "searchPlaceholder": "Search items…",
+        "purchasedGroup": "Feed Items (Purchased)",
+        "preparedGroup": "Prepared Batches (TMR / Concentrate)",
+        "clear": "Clear source"
+      },
+      "statusBadges": {
+        "carriedOver": "Carried Over",
+        "draft": "Draft",
+        "confirmed": "Fed",
+        "unassigned": "Needs Source"
+      },
+      "summary": {
+        "selectedCount": "{count} of {total} cattle selected",
+        "totalOffered": "Total: {total} kg",
+        "saveDraft": "Save Draft",
+        "confirmFeeding": "Confirm Feeding ({count})"
       },
       "selectAll": "Select all cows",
       "selectCow": "Select {name}",
-      "save": "Save",
-      "saving": "Saving…",
-      "confirm": "Confirm",
+      "save": "Save Draft",
+      "saving": "Saving Draft…",
+      "confirm": "Confirm Feeding",
       "confirming": "Confirming…",
-      "noEntries": "No feed offered for the selected cows.",
-      "savedToast": "Saved {count} draft entries — no inventory change yet.",
-      "confirmedToast": "Confirmed feeding for {count} cows — inventory updated.",
+      "noEntries": "No feed offered for the selected cows. Please set a source and quantity.",
+      "savedToast": "Saved {count} draft entries — no inventory deducted yet.",
+      "confirmedToast": "Confirmed feeding for {count} cows — feed inventory updated.",
       "genericError": "Something went wrong. Please try again.",
       "confirmDialog": {
         "title": "Confirm feeding?",
-        "description": "This decrements inventory for {count} selected cows and cannot be undone. Leave a cow's offered amount as-is to confirm its prefilled default, or edit it first.",
-        "confirm": "Confirm feeding"
+        "description": "This records today's feeding and decrements inventory for {count} selected cows. This action cannot be undone.",
+        "confirm": "Confirm Feeding"
       }
     },
     "groups": {
@@ -5305,6 +5363,15 @@
       "noDefaultRation": "None",
       "defaultSaved": "Default ration updated.",
       "defaultFailed": "Could not set the default ration.",
+      "defaultSource": "Default feeding source",
+      "noDefaultSource": "None",
+      "defaultSourceSaved": "Default feeding source updated.",
+      "defaultSourceFailed": "Could not set the default feeding source.",
+      "unknownStock": "Unknown batch",
+      "sourceGroups": {
+        "feedItems": "Feed Items",
+        "preparedBatches": "Prepared Batches"
+      },
       "assignCattle": "Cattle",
       "assignTitle": "Cattle in {name}",
       "assignDescription": "Search and add cows to move them into this group.",
@@ -6194,6 +6261,26 @@
       "cancel": "Cancel",
       "successToast": "Supplier deactivated.",
       "genericError": "Could not deactivate the supplier."
+    }
+  },
+  "support": {
+    "feedback": {
+      "title": "Send Feedback",
+      "description": "Report a bug, request a feature, or ask a question — we read every message.",
+      "category": "Category",
+      "categoryOptions": {
+        "BUG": "Bug",
+        "FEATURE_REQUEST": "Feature Request",
+        "QUESTION": "Question",
+        "BILLING": "Billing",
+        "OTHER": "Other"
+      },
+      "message": "Message",
+      "screenshot": "Screenshot (optional)",
+      "submit": "Send",
+      "cancel": "Cancel",
+      "submittedToast": "Thanks — your feedback has been sent.",
+      "genericError": "Could not send your feedback. Please try again."
     }
   }
 }
