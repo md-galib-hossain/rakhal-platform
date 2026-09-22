@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { PageCard } from "@/components/shared/page-card";
 import { ActivityView } from "@/features/activity/components/activity-view";
+import { ChainIntegrityBadge } from "@/features/activity/components/chain-integrity-badge";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("nav");
@@ -17,7 +18,7 @@ export default async function ActivityPage() {
   const t = await getTranslations("nav");
 
   return (
-    <PageCard title={t("activityLog")}>
+    <PageCard title={t("activityLog")} actions={<ChainIntegrityBadge />}>
       <ActivityView />
     </PageCard>
   );

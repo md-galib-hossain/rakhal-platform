@@ -10,6 +10,7 @@ import type {
   CreateFeedConcentrationPayload,
   DmiComparison,
   EntryCalendarResult,
+  FeedActiveSession,
   FeedConcentrationDetail,
   FeedConcentrationKind,
   FeedConcentrationSummary,
@@ -18,6 +19,7 @@ import type {
   FeedDistribution,
   FeedDistributionSummary,
   FeedEfficiencyResult,
+  FeedCattleHistoryResult,
   FeedGridResult,
   FeedGridSourceType,
   FeedGroup,
@@ -42,6 +44,8 @@ import type {
   TodaysFeedRequirement,
   UpdateCustomIngredientPayload,
   UpdateFeedConcentrationPayload,
+  VoidFeedCattleItemPayload,
+  VoidFeedCattleItemResult,
 } from "./types";
 
 /** `/feed/*` — real backend routes (`feed.controller.ts`), `feed.*`-gated + the Starter/Pro
@@ -258,6 +262,30 @@ export const feedApi = {
   },
   confirmFeedGrid(dto: ConfirmFeedGridPayload): Promise<ConfirmFeedGridResult> {
     return apiFetch<ConfirmFeedGridResult>("/feed/grid/confirm", { method: "POST", body: dto });
+  },
+  /** RAKHAL-441 frontend twin — the Grid UI's session picker options. */
+  getActiveSessions(): Promise<FeedActiveSession[]> {
+    return apiFetch<FeedActiveSession[]>("/feed/active-sessions");
+  },
+  /** RAKHAL-441 frontend twin (per-cow) — one cow's own feeding entries for one exact day
+   * (server defaults to today when `date` is omitted), backing the per-cow History panel opened
+   * from that cow's own Feeding Grid row. */
+  getFeedCattleHistory(cattleId: string, date?: string): Promise<FeedCattleHistoryResult> {
+    return apiFetch<FeedCattleHistoryResult>(`/feed/grid/cattle/${cattleId}/history`, {
+      searchParams: date ? { date } : undefined,
+    });
+  },
+  /** RAKHAL-441 — void exactly one cow's confirmed line: credits back stock, shrinks the sibling
+   * item/parent totals, excludes it from per-animal feed cost. Idempotent on a repeat call. */
+  voidFeedCattleItem(
+    distributionId: string,
+    cattleItemId: string,
+    dto: VoidFeedCattleItemPayload,
+  ): Promise<VoidFeedCattleItemResult> {
+    return apiFetch<VoidFeedCattleItemResult>(
+      `/feed/grid/distributions/${distributionId}/cattle/${cattleItemId}/void`,
+      { method: "POST", body: dto },
+    );
   },
   /** Next-day leftover weigh-in. */
   patchRefusal(distributionId: string, dto: PatchRefusalPayload): Promise<FeedDistribution> {

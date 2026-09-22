@@ -78,6 +78,10 @@
     },
     "notifications": "বিজ্ঞপ্তি",
     "notificationsHint": "বিজ্ঞপ্তি দেখুন",
+    "markAllRead": "সব পঠিত করুন",
+    "noNotifications": "এখনও কোনো বিজ্ঞপ্তি নেই।",
+    "notificationPreferences": "বিজ্ঞপ্তি সেটিংস",
+    "viewAll": "সব দেখুন",
     "profile": "প্রোফাইল",
     "accountMenuHint": "অ্যাকাউন্ট মেনু খুলুন",
     "onDuty": "দায়িত্বে",
@@ -195,6 +199,25 @@
     "subscription": "সাবস্ক্রিপশন",
     "notifications": "বিজ্ঞপ্তি",
     "onboarding": "অনবোর্ডিং"
+  },
+  "notificationsPage": {
+    "title": "বিজ্ঞপ্তি",
+    "markAllRead": "সব পঠিত করুন",
+    "preferences": "সেটিংস",
+    "loadError": "বিজ্ঞপ্তি লোড করা যায়নি।",
+    "empty": "কোনো বিজ্ঞপ্তি নেই",
+    "emptyDescription": "আপনি সব দেখে ফেলেছেন।",
+    "pageOf": "পৃষ্ঠা {page} / {total}",
+    "filters": {
+      "all": "সব",
+      "unread": "অপঠিত"
+    },
+    "priority": {
+      "critical": "জরুরি",
+      "high": "উচ্চ",
+      "medium": "মাঝারি",
+      "low": "নিম্ন"
+    }
   },
   "onboarding": {
     "createFarm": {
@@ -3559,6 +3582,14 @@
     },
     "error": {
       "title": "কার্যক্রমের তালিকা লোড করা যায়নি।"
+    },
+    "viewAnimal": "পশু দেখুন",
+    "chainIntegrity": {
+      "checking": "যাচাই করা হচ্ছে…",
+      "verified": "চেইন যাচাইকৃত",
+      "broken": "চেইন ভাঙা",
+      "verifiedHint": "{count}টি এন্ট্রি সঠিকভাবে মিলেছে — কোনো টেম্পারিং পাওয়া যায়নি।",
+      "brokenHint": "একটি রেকর্ড তার হ্যাশের সাথে মেলে না। সাপোর্টে যোগাযোগ করুন।"
     }
   },
   "tasks": {
@@ -5268,7 +5299,9 @@
         "applyQuantity": "কেজি প্রয়োগ করুন",
         "applyUnified": "নির্বাচিতদের প্রয়োগ করুন ({count})",
         "appliedBothToast": "{count} টি নির্বাচিত গরুর জন্য ফিড ও {kg} কেজি প্রয়োগ করা হয়েছে।",
-        "selectFirstHint": "প্রয়োগ করতে কমপক্ষে ১টি গরু নির্বাচন করুন"
+        "selectFirstHint": "প্রয়োগ করতে কমপক্ষে ১টি গরু নির্বাচন করুন",
+        "sessionSection": "সেশন",
+        "sessionPlaceholder": "কোনো সেশন নেই"
       },
       "sourceType": {
         "FEED_ITEM": "ক্রয়কৃত",
@@ -5331,6 +5364,30 @@
         "title": "খাওয়ানো নিশ্চিত করবেন?",
         "description": "এটি আজকের খাওয়ানো রেকর্ড করবে এবং {count} টি নির্বাচিত গরুর জন্য ইনভেন্টরি কমিয়ে দেবে। এটি পূর্বাবস্থায় ফেরানো যাবে না।",
         "confirm": "খাওয়ানো নিশ্চিত করুন"
+      },
+      "cowHistory": {
+        "openButton": "{name}-এর খাওয়ানোর ইতিহাস",
+        "columnLabel": "ইতিহাস",
+        "title": "খাওয়ানোর ইতিহাস",
+        "titleFor": "{name}-এর খাওয়ানোর ইতিহাস",
+        "close": "বন্ধ করুন",
+        "dateLabel": "তারিখ",
+        "error": "এই গরুর খাওয়ানোর ইতিহাস লোড করা যায়নি।",
+        "empty": "এই তারিখে এই গরুর জন্য কোনো খাওয়ানো নিশ্চিত হয়নি।",
+        "summary": "{count, plural, one {# এন্ট্রি} other {# এন্ট্রি}} · {kg} কেজি · ৳{cost}",
+        "voidAction": "এই এন্ট্রি বাতিল করুন",
+        "voidedHint": "বাতিল করা হয়েছে — {reason}",
+        "noReason": "কোনো কারণ দেওয়া হয়নি",
+        "voidedToast": "খাওয়ানো এন্ট্রি বাতিল হয়েছে — স্টক ও খরচ ফিরিয়ে দেওয়া হয়েছে।",
+        "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।",
+        "voidDialog": {
+          "title": "এই খাওয়ানো এন্ট্রি বাতিল করবেন?",
+          "description": "এটি {date}-এর জন্য স্টকে {kg} কেজি ফিরিয়ে দেবে এবং তার ফিড খরচ থেকে বাদ দেবে। এটি পূর্বাবস্থায় ফেরানো যাবে না।",
+          "reasonPlaceholder": "কারণ (ঐচ্ছিক) — যেমন ভুল পরিমাণ দেওয়া হয়েছিল",
+          "cancel": "বাতিল",
+          "confirm": "এন্ট্রি বাতিল করুন",
+          "voiding": "বাতিল করা হচ্ছে…"
+        }
       }
     },
     "groups": {
@@ -5405,10 +5462,37 @@
       "workspace": "ফার্ম ওয়ার্কস্পেস",
       "team": "টিম, রোল ও অনুমতি",
       "modules": "মডিউল সেটিংস",
-      "billing": "বিলিং ও সাবস্ক্রিপশন"
+      "billing": "বিলিং ও সাবস্ক্রিপশন",
+      "notifications": "বিজ্ঞপ্তি"
     },
     "comingSoon": "শীঘ্রই আসছে",
     "comingSoonDescription": "এই সেটিংস ট্যাবটি এখনও তৈরি হয়নি — শীঘ্রই দেখুন।",
+    "notifications": {
+      "loadError": "বিজ্ঞপ্তি সেটিংস লোড করা যায়নি।",
+      "saveError": "সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।",
+      "save": "সংরক্ষণ করুন",
+      "quietHours": "নীরব সময়",
+      "quietHoursDescription": "এই সময়ে জরুরি নয় এমন বিজ্ঞপ্তি বন্ধ থাকবে।",
+      "inAppOnlyNote": "আপাতত শুধু অ্যাপের ভেতরে — আরও ডেলিভারি চ্যানেল শীঘ্রই আসছে।",
+      "quietHoursStart": "শুরু",
+      "quietHoursEnd": "শেষ",
+      "quietHoursSaved": "নীরব সময় সংরক্ষিত হয়েছে।",
+      "mandatory": "বাধ্যতামূলক",
+      "categories": {
+        "health_safety": "স্বাস্থ্য ও নিরাপত্তা",
+        "reproduction": "প্রজনন",
+        "operational": "পরিচালনা",
+        "financial": "আর্থিক",
+        "inventory": "ইনভেন্টরি"
+      },
+      "channels": {
+        "push": "পুশ",
+        "sms": "এসএমএস",
+        "whatsapp": "হোয়াটসঅ্যাপ",
+        "telegram": "টেলিগ্রাম",
+        "email": "ইমেইল"
+      }
+    },
     "serviceProviderPicker": {
       "selectProvider": "একজন টেকনিশিয়ান নির্বাচন করুন",
       "searchProvider": "টেকনিশিয়ান খুঁজুন…",

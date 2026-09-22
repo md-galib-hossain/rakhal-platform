@@ -103,6 +103,8 @@ export const qk = {
   },
   activity: {
     list: (filters: Record<string, string | undefined>) => ["activity", "list", filters] as const,
+    /** RFE-042 — `GET /activity-log/verify-chain` integrity check. */
+    chainIntegrity: () => ["activity", "chain-integrity"] as const,
   },
   tasks: {
     list: (filters: Record<string, string | undefined>) => ["tasks", "list", filters] as const,
@@ -251,6 +253,9 @@ export const qk = {
     todaysRequirement: () => ["feed", "today-requirement"] as const,
     grid: (date: string, feedGroupId: string | undefined) => ["feed", "grid", date, feedGroupId] as const,
     gridCalendar: (month: string) => ["feed", "grid", "calendar", month] as const,
+    cattleHistory: (cattleId: string, date: string | undefined) =>
+      ["feed", "grid", "cattle-history", cattleId, date] as const,
+    activeSessions: () => ["feed", "active-sessions"] as const,
     refusalTrend: (feedGroupId: string) => ["feed", "refusal-trend", feedGroupId] as const,
     versions: (concentrationId: string) => ["feed", "versions", concentrationId] as const,
     costSummary: () => ["feed", "cost-summary"] as const,
@@ -296,5 +301,10 @@ export const qk = {
   /** RFE-044 — global ⌘K search (`GET /search?q=`, RAKHAL-257). */
   search: {
     query: (q: string) => ["search", "query", q] as const,
+  },
+  /** RFE-043 — bell feed + preferences (`GET /notifications`, RAKHAL-098/099). */
+  notifications: {
+    list: (status: string, page: number) => ["notifications", "list", status, page] as const,
+    preferences: () => ["notifications", "preferences"] as const,
   },
 };

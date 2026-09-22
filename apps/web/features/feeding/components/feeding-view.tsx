@@ -138,22 +138,6 @@ export function FeedingView() {
             )}
           </div>
 
-          {(requirement.data?.by_ingredient.length ?? 0) > 0 ? (
-            <div className="flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-card">
-              <p className="text-lg font-medium text-foreground">{t("plannedTitle")}</p>
-              <div className="flex flex-col divide-y divide-border rounded-xl border border-border">
-                {requirement.data!.by_ingredient.map((row) => (
-                  <div key={row.ingredient_id} className="flex items-center justify-between p-3">
-                    <span className="text-sm text-foreground">{row.name}</span>
-                    <span className="text-sm font-semibold text-foreground">
-                      {t("kgValue", { value: row.total_kg.toFixed(1) })}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
           <FeedGroupsSection onFeedToday={setFeedTodayId} />
         </>
       ) : null}

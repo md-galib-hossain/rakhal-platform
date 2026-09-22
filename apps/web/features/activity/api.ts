@@ -1,8 +1,8 @@
 "use client";
 
-import { apiFetchPage } from "@/lib/api/client";
+import { apiFetch, apiFetchPage } from "@/lib/api/client";
 import type { CursorPage } from "@/types/api";
-import type { ActivityListFilters, ActivityLogEntry } from "./types";
+import type { ActivityListFilters, ActivityLogEntry, ChainIntegrityResult } from "./types";
 
 /** `/activity-log` — real backend route (`activity.controller.ts`), `activity.read`-gated. */
 export const activityApi = {
@@ -18,5 +18,8 @@ export const activityApi = {
         limit,
       },
     });
+  },
+  verifyChain(): Promise<ChainIntegrityResult> {
+    return apiFetch<ChainIntegrityResult>("/activity-log/verify-chain");
   },
 };

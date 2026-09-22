@@ -78,6 +78,10 @@
     },
     "notifications": "Notifications",
     "notificationsHint": "View notifications",
+    "markAllRead": "Mark all read",
+    "noNotifications": "No notifications yet.",
+    "notificationPreferences": "Notification preferences",
+    "viewAll": "View all",
     "profile": "Profile",
     "accountMenuHint": "Open account menu",
     "onDuty": "On Duty",
@@ -195,6 +199,25 @@
     "subscription": "Subscription",
     "notifications": "Notifications",
     "onboarding": "Onboarding"
+  },
+  "notificationsPage": {
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "preferences": "Preferences",
+    "loadError": "Could not load notifications.",
+    "empty": "No notifications",
+    "emptyDescription": "You're all caught up.",
+    "pageOf": "Page {page} of {total}",
+    "filters": {
+      "all": "All",
+      "unread": "Unread"
+    },
+    "priority": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    }
   },
   "onboarding": {
     "createFarm": {
@@ -3559,6 +3582,14 @@
     },
     "error": {
       "title": "Could not load the activity log."
+    },
+    "viewAnimal": "View animal",
+    "chainIntegrity": {
+      "checking": "Checking…",
+      "verified": "Chain verified",
+      "broken": "Chain broken",
+      "verifiedHint": "{count} entries recompute cleanly — no tampering detected.",
+      "brokenHint": "A recorded entry doesn't match its hash. Contact support."
     }
   },
   "tasks": {
@@ -5268,7 +5299,9 @@
         "applyQuantity": "Apply kg",
         "applyUnified": "Apply to Selected ({count})",
         "appliedBothToast": "Applied feed & {kg} kg to {count} selected cattle.",
-        "selectFirstHint": "Select at least 1 animal to apply"
+        "selectFirstHint": "Select at least 1 animal to apply",
+        "sessionSection": "Session",
+        "sessionPlaceholder": "No session"
       },
       "sourceType": {
         "FEED_ITEM": "Purchased",
@@ -5331,6 +5364,30 @@
         "title": "Confirm feeding?",
         "description": "This records today's feeding and decrements inventory for {count} selected cows. This action cannot be undone.",
         "confirm": "Confirm Feeding"
+      },
+      "cowHistory": {
+        "openButton": "{name}'s feeding history",
+        "columnLabel": "History",
+        "title": "Feeding History",
+        "titleFor": "{name}'s Feeding History",
+        "close": "Close",
+        "dateLabel": "Date",
+        "error": "Could not load this cow's feeding history.",
+        "empty": "No feeding confirmed for this cow on this date.",
+        "summary": "{count, plural, one {# entry} other {# entries}} · {kg} kg · ৳{cost}",
+        "voidAction": "Void this entry",
+        "voidedHint": "Voided — {reason}",
+        "noReason": "no reason given",
+        "voidedToast": "Feeding entry voided — stock and cost reversed.",
+        "genericError": "Something went wrong. Please try again.",
+        "voidDialog": {
+          "title": "Void this feeding entry?",
+          "description": "This credits back {kg} kg to stock for {date} and removes it from her feed cost. This cannot be undone.",
+          "reasonPlaceholder": "Reason (optional) — e.g. wrong amount entered",
+          "cancel": "Cancel",
+          "confirm": "Void Entry",
+          "voiding": "Voiding…"
+        }
       }
     },
     "groups": {
@@ -5405,10 +5462,37 @@
       "workspace": "Farm Workspace",
       "team": "Team, Roles & Permissions",
       "modules": "Module Settings",
-      "billing": "Billing & Subscription"
+      "billing": "Billing & Subscription",
+      "notifications": "Notifications"
     },
     "comingSoon": "Coming soon",
     "comingSoonDescription": "This settings tab isn't built yet — check back soon.",
+    "notifications": {
+      "loadError": "Could not load notification preferences.",
+      "saveError": "Could not save. Try again.",
+      "save": "Save",
+      "quietHours": "Quiet hours",
+      "quietHoursDescription": "Non-critical notifications are paused during this window.",
+      "inAppOnlyNote": "In-app only for now — more delivery channels coming soon.",
+      "quietHoursStart": "Start",
+      "quietHoursEnd": "End",
+      "quietHoursSaved": "Quiet hours saved.",
+      "mandatory": "Mandatory",
+      "categories": {
+        "health_safety": "Health & Safety",
+        "reproduction": "Reproduction",
+        "operational": "Operational",
+        "financial": "Financial",
+        "inventory": "Inventory"
+      },
+      "channels": {
+        "push": "Push",
+        "sms": "SMS",
+        "whatsapp": "WhatsApp",
+        "telegram": "Telegram",
+        "email": "Email"
+      }
+    },
     "serviceProviderPicker": {
       "selectProvider": "Select a technician",
       "searchProvider": "Search technicians…",

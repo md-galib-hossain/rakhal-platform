@@ -17,6 +17,8 @@ import {
   Wheat,
   X,
 } from "lucide-react";
+import { FeedingCowHistorySheet } from "./feeding-cow-history-sheet";
+import { Pagination } from "@/components/shared/pagination";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ApiError } from "@/lib/api/errors";
 import { cn } from "@/lib/utils";
@@ -40,6 +42,7 @@ import { FeedItemFormDialog } from "@/features/inventory/components/feed-item-fo
 import { CreateFeedDialog } from "../../feed/components/create-feed-dialog";
 import {
   useConcentrations,
+  useFeedActiveSessions,
   useFeedGroups,
   useFeedGrid,
   useFeedGridCalendar,
@@ -69,6 +72,7 @@ function todayIso(): string {
 }
 
 const ALL_GROUPS = "__all__";
+const DEFAULT_PAGE_SIZE = 20;
 
 /** Sums a cow's already-saved (not yet confirmed) draft lines for this date/group — the value shown
  * when the grid is reopened on a date that already has staged entries. Falls back to the backend's
@@ -223,6 +227,10 @@ function FeedingGridTable({
   const feedStock = useFeedStock();
   const concentrations = useConcentrations();
 
+  const activeSessions = useFeedActiveSessions();
+  const [session, setSession] = useState<string>("");
+  const [historyCow, setHistoryCow] = useState<{ id: string; name: string | null } | null>(null);
+
   const [quantities, setQuantities] = useState<Record<string, string>>(() => buildInitialQuantities(cows));
   const [carriedOver, setCarriedOver] = useState<Record<string, boolean>>(() => buildInitialCarriedOver(cows));
   const [sources, setSources] = useState<Record<string, RowSource | null>>(() => buildInitialSources(cows));
@@ -241,6 +249,10 @@ function FeedingGridTable({
   const [createKind, setCreateKind] = useState<"CONCENTRATE_TEMPLATE" | "FEED_MIXTURE">("CONCENTRATE_TEMPLATE");
   const [createOpen, setCreateOpen] = useState(false);
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(cows.length / pageSize));
+  const pageRows = cows.slice((page - 1) * pageSize, page * pageSize);
 
   const feedItemOptions: FeedSourceOption[] = useMemo(
     () =>
@@ -379,6 +391,7 @@ function FeedingGridTable({
         feedGroupId,
         ...topLevelSource(),
         entries: entries.length > 0 ? entries : undefined,
+        session: session || undefined,
       });
       toast.success(t("confirmedToast", { count: result.cows.length }));
     } catch (err) {
@@ -556,6 +569,29 @@ function FeedingGridTable({
           </div>
         </div>
 
+          {/* RAKHAL-441 frontend twin: session tag (Morning/Noon/Evening/Night), applied at
+              Confirm time only — the farm's own configured sessions, same list Milk uses. */}
+          {(activeSessions.data ?? []).length > 0 ? (
+            <div className="flex w-40 flex-col gap-1.5">
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                <Clock className="size-3.5" />
+                {t("bulkToolbar.sessionSection")}
+              </span>
+              <Select value={session || undefined} onValueChange={setSession}>
+                <SelectTrigger className="h-11 bg-card shadow-2xs" aria-label={t("bulkToolbar.sessionSection")}>
+                  <SelectValue placeholder={t("bulkToolbar.sessionPlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(activeSessions.data ?? []).map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+
           {/* Quantity per Head */}
           <div className="flex w-44 flex-col gap-1.5">
             <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
@@ -610,10 +646,11 @@ function FeedingGridTable({
                 <TableHead className="min-w-[220px]">{t("columns.source")}</TableHead>
                 <TableHead className="w-[160px]">{t("columns.quantity")}</TableHead>
                 <TableHead className="w-[130px]">{t("columns.status")}</TableHead>
+                <TableHead className="w-12 text-center">{t("cowHistory.columnLabel")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {cows.map((cow) => {
+              {pageRows.map((cow) => {
                 const isSelected = selection.isSelected(cow.cattle_id);
                 const hasConfirmed = cow.confirmed_offered_kg != null;
                 const hasDraft = cow.drafts.length > 0;
@@ -720,6 +757,25 @@ function FeedingGridTable({
                         <span className="text-xs text-muted-foreground/40 font-mono">—</span>
                       )}
                     </TableCell>
+
+                    {/* History (last column, per user request — not beside the name) */}
+                    <TableCell className="text-center">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 shrink-0 text-muted-foreground hover:text-primary"
+                            aria-label={t("cowHistory.openButton", { name: cow.name ?? cow.tag_number })}
+                            onClick={() => setHistoryCow({ id: cow.cattle_id, name: cow.name ?? cow.tag_number })}
+                          >
+                            <History className="size-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t("cowHistory.openButton", { name: cow.name ?? cow.tag_number })}</TooltipContent>
+                      </Tooltip>
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -727,6 +783,19 @@ function FeedingGridTable({
           </Table>
         </div>
       )}
+
+      {cows.length > DEFAULT_PAGE_SIZE ? (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          pageSize={pageSize}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+        />
+      ) : null}
 
       {/* Summary & Sticky Action Bar */}
       <Can I="feed.distribution-log">
@@ -787,6 +856,15 @@ function FeedingGridTable({
         onCreated={(item) => setItemId(item.id)}
       />
       <CreateFeedDialog open={createOpen} onOpenChange={setCreateOpen} kind={createKind} />
+
+      <FeedingCowHistorySheet
+        key={historyCow?.id ?? "none"}
+        cattleId={historyCow?.id ?? null}
+        cattleName={historyCow?.name ?? null}
+        onOpenChange={(next) => {
+          if (!next) setHistoryCow(null);
+        }}
+      />
     </>
   );
 }

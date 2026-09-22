@@ -1,6 +1,9 @@
-import { User } from "lucide-react";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { ArrowUpRight, User } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Chip } from "@/components/ui/chip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
 import { cn } from "@/lib/utils";
@@ -10,10 +13,12 @@ import { MODULE_STYLE } from "../module-style";
 import type { ActivityLogEntry } from "../types";
 
 /** One timeline row: time gutter + card (Figma "Activity Log" component, 734:51037/41/45/55/59/63) —
- * icon+title, AQR-delta chip (if `aqrImpact` is non-null) + module chip, the parsed Action Details
- * line, actor (or a generic "System" avatar for system-originated entries), and a right-aligned
- * Financial Impact tile (if `financialImpact` is non-null). */
+ * icon+title, AQR-delta chip (if `aqrImpact` is non-null) + module chip, an entity-link button
+ * (RFE-042's own AC — when `relatedCattleId` is set, deep-links to that animal's profile), the
+ * parsed Action Details line, actor (or a generic "System" avatar for system-originated entries),
+ * and a right-aligned Financial Impact tile (if `financialImpact` is non-null). */
 export function ActivityCard({ entry, className }: { entry: ActivityLogEntry; className?: string }) {
+  const t = useTranslations("activity");
   const style = MODULE_STYLE[entry.module];
   const Icon = style.icon;
 
@@ -38,6 +43,20 @@ export function ActivityCard({ entry, className }: { entry: ActivityLogEntry; cl
               </Chip>
             ) : null}
             <Chip variant={style.variant}>{entry.moduleLabel}</Chip>
+            {entry.relatedCattleId ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={`/animals/${entry.relatedCattleId}`}
+                    aria-label={t("viewAnimal")}
+                    className="flex size-6 items-center justify-center rounded-full border border-border text-muted-foreground hover:border-primary hover:text-primary"
+                  >
+                    <ArrowUpRight className="size-3.5" />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>{t("viewAnimal")}</TooltipContent>
+              </Tooltip>
+            ) : null}
           </div>
         </div>
 

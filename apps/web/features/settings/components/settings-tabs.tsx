@@ -2,10 +2,11 @@
 
 import { useTranslations } from "next-intl";
 import { parseAsStringEnum, useQueryState } from "nuqs";
-import { Building2, CreditCard, KeySquare, SlidersHorizontal } from "lucide-react";
+import { Bell, Building2, CreditCard, KeySquare, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/shared/empty-state";
 import { BillingSettingsView } from "@/features/subscription/components/billing/billing-settings-view";
+import { NotificationPreferencesView } from "@/features/notifications/components/notification-preferences-view";
 import { ModulesSettingsView } from "./modules-settings-view";
 import { TeamSettingsView } from "./team-settings-view";
 import { WorkspaceSettingsView } from "./workspace-settings-view";
@@ -20,6 +21,7 @@ const TAB_ICONS: Record<SettingsTabKey, React.ComponentType<{ className?: string
   team: KeySquare,
   modules: SlidersHorizontal,
   billing: CreditCard,
+  notifications: Bell,
 };
 
 /**
@@ -65,6 +67,8 @@ export function SettingsTabs() {
           <WorkspaceSettingsView />
         ) : tab === "modules" ? (
           <ModulesSettingsView />
+        ) : tab === "notifications" ? (
+          <NotificationPreferencesView />
         ) : (
           <EmptyState title={t("comingSoon")} description={t("comingSoonDescription")} />
         )}

@@ -19,6 +19,7 @@ import type {
   PatchRefusalPayload,
   SaveFeedGridDraftPayload,
   UpdateFeedConcentrationPayload,
+  VoidFeedCattleItemPayload,
 } from "../types";
 
 /** Invalidates both the plain unpaginated ingredients list (`qk.feed.ingredients()`, used by pickers)
@@ -432,6 +433,78 @@ export function useConfirmFeedDraft() {
         predicate: (query) => query.queryKey[0] === "feed" && query.queryKey[1] === "efficiency",
       });
       void queryClient.invalidateQueries({ queryKey: qk.feed.todaysRequirement() });
+      // A confirm can touch any cow's own per-cow history trail (the panel opened from a Feeding
+      // Grid row) for this same date — same broad invalidation `useVoidFeedCattleItem` uses, since
+      // this mutation doesn't know which cattle-history panel (if any) is currently open.
+      void queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "feed" &&
+          query.queryKey[1] === "grid" &&
+          query.queryKey[2] === "cattle-history" &&
+          query.queryKey[4] === variables.date,
+      });
+    },
+  });
+}
+
+/** RAKHAL-441 frontend twin — the Grid UI's session picker options. */
+export function useFeedActiveSessions() {
+  return useQuery({
+    queryKey: qk.feed.activeSessions(),
+    queryFn: () => feedApi.getActiveSessions(),
+    staleTime: STALE_TIME,
+  });
+}
+
+/** RAKHAL-441 frontend twin (per-cow) — one cow's own feeding entries for one exact day (server
+ * defaults to today when omitted, incl. voided ones), backing the per-cow History panel opened
+ * from that cow's own Feeding Grid row. */
+export function useFeedCattleHistory(cattleId: string | undefined, date?: string) {
+  return useQuery({
+    queryKey: qk.feed.cattleHistory(cattleId ?? "", date),
+    queryFn: () => feedApi.getFeedCattleHistory(cattleId as string, date),
+    enabled: Boolean(cattleId),
+    staleTime: STALE_TIME,
+  });
+}
+
+/** Void one cow's confirmed line — invalidates the grid, that cow's own history trail, stock,
+ * distributions, and cattle finance (feed cost just changed for that cow), same invalidation set
+ * `useConfirmFeedDraft` uses since a void is the same kind of inventory-affecting correction. */
+export function useVoidFeedCattleItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: {
+      distributionId: string;
+      cattleItemId: string;
+      cattleId: string;
+      dto: VoidFeedCattleItemPayload;
+    }) => feedApi.voidFeedCattleItem(vars.distributionId, vars.cattleItemId, vars.dto),
+    onSuccess: (_data, variables) => {
+      // Broad predicate, not an exact-key match against one date/group — the caller (a per-cow
+      // history panel) doesn't know which date/group the Feeding Grid underneath is currently
+      // showing, so every cached grid page is invalidated rather than risking a stale miss.
+      void queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "feed" &&
+          query.queryKey[1] === "grid" &&
+          query.queryKey[2] !== "cattle-history" &&
+          query.queryKey[2] !== "calendar",
+      });
+      void queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "feed" &&
+          query.queryKey[1] === "grid" &&
+          query.queryKey[2] === "cattle-history" &&
+          query.queryKey[3] === variables.cattleId,
+      });
+      void queryClient.invalidateQueries({ queryKey: qk.feed.stock() });
+      void queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "feed" && query.queryKey[1] === "distributions",
+      });
+      void queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "cattle" && query.queryKey[1] === "finance",
+      });
     },
   });
 }

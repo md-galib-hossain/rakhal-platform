@@ -27,6 +27,13 @@ export interface ActivityLogEntry {
   actorType: "user" | "system";
   /** `yyyy-MM-dd`, used to group entries under a date divider. */
   dateGroup: string;
+  /** `sha256(canonical(fields) + prevHash)` (`activity-log.service.ts#computeHash`) — this entry's
+   * link in the farm's hash chain. Every row carries one (`present()` spreads the full Prisma row);
+   * not previously typed on the frontend. */
+  hash: string;
+  /** Set when this event concerns one specific animal (`relatedCattleId` on the write side) — lets
+   * the card deep-link to `/animals/:id`. `null` for entries with no single-animal subject. */
+  relatedCattleId: string | null;
 }
 
 export interface ActivityListFilters {
@@ -35,4 +42,13 @@ export interface ActivityListFilters {
   to?: string;
   aqrImpactOnly?: boolean;
   financialImpactOnly?: boolean;
+}
+
+/** `GET /activity-log/verify-chain` (`ActivityLogService#verifyChain`) — recomputes the farm's
+ * hash chain and reports the first broken link, if any. Read-only integrity check (PRD §19.3:
+ * tamper-evident, not just tamper-resistant). */
+export interface ChainIntegrityResult {
+  valid: boolean;
+  entries: number;
+  brokenAt: string | null;
 }

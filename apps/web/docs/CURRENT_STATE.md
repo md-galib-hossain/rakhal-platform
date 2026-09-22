@@ -1,5 +1,16 @@
 # Frontend — Current State
 
+## RFE-043 follow-up — Notification preferences: in-app only for now (2026-09-21)
+
+User: "avoid the sms for now we just working with notifications in app." RFE-043 (shipped earlier
+today by a concurrent agent) had per-event channel checkboxes for push/sms/whatsapp/telegram/email,
+none of which are actually reachable from this web app yet (no provider for sms/whatsapp/email;
+telegram needs a bot token + an unbuilt linking flow; push has a real FCM provider but the frontend
+never registers a device token). Emptied the checkbox list — an enabled event now shows an
+"In-app only for now" note instead. No backend/data change. Gate green; verified via direct `fetch()`
+since `/settings` hits this board's own documented Suspense-stuck harness quirk. Full writeup:
+`docs/PROJECT_PROGRESS.md`'s RFE-043 entry, `docs/IN_FLIGHT.md` Recently Done.
+
 ## RFE-119 — Feeding Grid: confirmed vs carried-over, real user bug (2026-09-20)
 
 User-reported bug (screenshot attached): fed a cow yesterday, didn't feed her today, grid still

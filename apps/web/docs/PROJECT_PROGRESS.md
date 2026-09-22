@@ -737,17 +737,36 @@
 - **Status:** `DONE` (2026-07-29) — `tsc`/`eslint`/`next build` gated green; live in-browser E2E verification
   was inconclusive this session (dev-harness flakiness, not a static-check failure) and should be re-checked.
 
-#### RFE-042 — Activity Log
+#### RFE-042 — Activity Log — ✅ DONE (2026-09-21)
 - **Lane:** `features/activity/**` · Filterable feed (`GET /activity-log`), hash-chain badge, entity links.
 - **API:** §16 · **PRD:** §19 · **Design:** PRD-spec
-- **Status:** `TODO`
+- **Notes:** The filterable feed itself (cursor pager, module + date filters, day grouping, AQR/financial
+  impact chips) was **already fully built and committed** — this ticket's `TODO` status was stale (same
+  class of drift RFE-034 hit earlier). Found the 2 real gaps against the ticket's own AC and closed them:
+  **hash-chain badge** — new `ChainIntegrityBadge` (`features/activity/components/chain-integrity-badge.tsx`)
+  calls the already-existing but unused `GET /activity-log/verify-chain` (`ActivityLogService#verifyChain`,
+  PRD §19.3) and shows a Verified/Broken shield badge in the page header; **entity links** — `ActivityCard`
+  now renders a small arrow-link button to `/animals/:id` when `entry.relatedCattleId` is set (the field
+  was already on the wire via `present()`'s full-row spread, just never typed/rendered frontend-side).
+  `ActivityLogEntry` gained `hash`/`relatedCattleId`; new `ChainIntegrityResult` type;
+  `activityApi.verifyChain()` + `useChainIntegrity()`; `qk.activity.chainIntegrity()` appended.
+  Gate: `pnpm typecheck`(0)/`eslint`(0)/`pnpm build`(0, "Compiled successfully")/both locale JSONs valid.
+  **Live-verified end to end** against the real dev stack (demo owner, Demo Farm): the integrity badge
+  correctly reported a real "Chain broken" state on this shared, heavily seed/e2e-churned dev DB (a
+  legitimate finding, not a bug in this change — a past direct-DB write bypassing `record()` would produce
+  exactly this); filtering to Cow Management, 20 real entity-link buttons rendered, each `href`ing a
+  distinct real cattle id; clicked one through to `/animals/:id` and confirmed it landed on the exact same
+  animal (`E2E-345-1789933170320-tlxdl`) the activity entry named.
 
-#### RFE-043 — Notification center + preferences
-- **Lane:** `features/notifications/**`, bell in `components/layout/` (coordinate — layout is hot)
-- Bell + unread badge (poll 60s), center list (read/read-all, deep links), preferences page
-  (per-event-type toggles via routing rules), device registration hooks (web push later — skip FCM for now).
+#### RFE-043 — Notification center + preferences — ✅ DONE (2026-09-21)
+- **Lane:** `features/notifications/**`, bell in `components/layout/notification-bell.tsx`, `/notifications` route, `features/settings/**` (new tab)
+- [x] Bell + unread badge (poll 60s via `useNotifications`'s `refetchInterval`), popover feed (latest 10, mark-read/mark-all-read, deep links via each notification's own `link`)
+- [x] Full center list at `/notifications` (previously a `RouteStub`) — status filter (all/unread), offset pager, mark-read/mark-all-read, deep links
+- [x] Preferences page — new Settings tab (`?tab=notifications`), all 22 `NOTIFICATION_EVENTS` catalogue entries (RAKHAL-098) grouped by category, mandatory Health & Safety events locked on, quiet hours. Per-event channel checkboxes (push/sms/whatsapp/telegram/email) were built, then **removed same-day** per a user scope decision — see the follow-up note below.
+- [ ] Device registration hooks (web push/FCM) — **skipped per this ticket's own note** ("web push later — skip FCM for now")
 - **API:** §17 · **PRD:** §20
-- **Status:** `TODO`
+- **Notes:** Backend (RAKHAL-098/099) was already fully built and live; this was purely the frontend. Found + fixed two real bugs while live-verifying: `useFormatter().relativeTime()` without a `now` option caused an `ENVIRONMENT_FALLBACK` + SSR/CSR hydration mismatch (fixed by gating the relative-time string behind the shared `useMounted()` hook — same pattern RD-081 already established for this class of clock/session-dependent render); `useFormatter().dateTime(date, "medium")` isn't a registered format name in this app's next-intl config (`"medium"` is only a valid literal for `Intl.DateTimeFormat`'s own `dateStyle`, not a next-intl named format) — fixed by passing `{ dateStyle: "medium", timeStyle: "short" }` directly. Gate: `pnpm typecheck`(0)/`eslint`(0 across all touched/new files)/`pnpm build`(0, "Compiled successfully")/both locale JSONs valid. **Live-verified end to end** against the real dev stack (demo owner, Demo Farm): bell shows a real unread badge + real farm notifications with Bangla relative times; `/notifications` renders the full filtered/paginated list with correctly Bangla-formatted absolute timestamps; `/settings?tab=notifications` renders all 22 catalogue events correctly grouped, toggled a real channel checkbox (`PATCH /notifications/preferences` → 200, refetch confirmed) then reverted it to leave the shared demo farm's prefs unchanged.
+- **Follow-up (same day):** user: "avoid the sms for now we just working with notifications in app." Investigated: none of push/sms/whatsapp/telegram/email are actually reachable from this web app today (no provider for sms/whatsapp/email; `telegram` needs a bot token + an unbuilt `/start` linking flow; `push` has a real `FcmPushProvider` but the frontend never registers a device token, per this ticket's own deferred AC above) — offering them as checkboxes let a farmer enable "SMS" and reasonably expect a text that would never arrive. `CHANNEL_KEYS` emptied; an enabled event now shows a small "In-app only for now — more channels coming soon" note in place of the checkbox row. No backend/data change — any already-stored `sms:true`-style preference values are left untouched, only the UI stops offering to change them. Gate green; `/settings` hit this board's own documented Suspense-stuck harness quirk (whole panel never mounts in the browser preview, confirmed pre-existing/unrelated), verified instead via a direct `fetch('/api/backend/notifications/preferences')` (200, real data) plus code review of the now-simple conditional.
 
 #### RFE-044 — Global search (⌘K) — ✅ DONE (2026-09-20)
 - **Lane:** `components/layout/global-search.tsx` (this ticket's own real lane — the ticket text's `search-command.tsx` was never the actual filename; RFE-005 had already built the trigger/shortcut/dialog shell here), new `features/search/{types.ts,api.ts,hooks/use-search.ts}`, `components/ui/command.tsx` (`CommandDialog` gained an optional `shouldFilter` passthrough)

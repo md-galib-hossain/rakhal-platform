@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { activityApi } from "../api";
@@ -14,4 +15,14 @@ export function useActivityPagedList(filters: ActivityListFilters) {
     (cursor, limit) => activityApi.list(filters, cursor, limit),
     { staleTime: STALE_TIME },
   );
+}
+
+/** RFE-042's own "hash-chain badge" AC — recomputes the farm's hash chain server-side
+ * (`ActivityLogService#verifyChain`) and reports whether it's intact. */
+export function useChainIntegrity() {
+  return useQuery({
+    queryKey: qk.activity.chainIntegrity(),
+    queryFn: () => activityApi.verifyChain(),
+    staleTime: STALE_TIME,
+  });
 }

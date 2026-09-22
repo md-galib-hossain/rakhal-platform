@@ -634,6 +634,56 @@ export interface EntryCalendarResult {
   days: EntryCalendarDay[];
 }
 
+/** RAKHAL-441 frontend twin — `GET /feed/active-sessions`, the Grid UI's session picker options.
+ * Reads the same farm setting Milk's session picker does (`MilkSession`, uppercase strings), but
+ * exposed under `feed.read` instead of `milk.read` so a feed-only worker isn't blocked. */
+export type FeedActiveSession = string;
+
+/** RAKHAL-441 frontend twin (per-cow) — `GET /feed/grid/cattle/:cattleId/history` row: one
+ * confirmed `FeedDistributionCattleItem` for that cow on the queried date, voided or not (the
+ * panel is also the correction audit trail — a voided row is shown struck-through, not hidden).
+ * Carries the ids (`distribution_id`/`id`) `POST grid/distributions/:id/cattle/:id/void` needs.
+ * Corrected twice per user request: day+group-scoped → per-cow multi-day trail → per-cow single
+ * date (defaults to today, changeable via a date picker) — matches "what did THIS cow eat today". */
+export interface FeedCattleHistoryEntry {
+  id: string;
+  distribution_id: string;
+  offered_kg: number;
+  cost_tk: number | null;
+  feed_name: string | null;
+  source_type: FeedGridSourceType | null;
+  session: string | null;
+  fed_at: string;
+  voided_at: string | null;
+  voided_by: string | null;
+  void_reason: string | null;
+}
+
+/** `GET /feed/grid/cattle/:cattleId/history?date=` result — one exact day (server defaults to
+ * today when `date` is omitted). */
+export interface FeedCattleHistoryResult {
+  cattle_id: string;
+  date: string;
+  entries: FeedCattleHistoryEntry[];
+}
+
+/** `POST /feed/grid/distributions/:distributionId/cattle/:cattleItemId/void` body — optional
+ * correction reason. */
+export interface VoidFeedCattleItemPayload {
+  reason?: string;
+}
+
+/** `POST .../void` response — the same shape as one `FeedCattleHistoryEntry`'s void fields, not
+ * the full row (the backend's `presentVoid()` returns only what changed). */
+export interface VoidFeedCattleItemResult {
+  id: string;
+  cattle_id: string;
+  offered_kg: number;
+  voided_at: string | null;
+  voided_by: string | null;
+  void_reason: string | null;
+}
+
 /** RAKHAL-430/RFE-115: `sourceType`/`feedItemId`/`feedStockId` here are this entry's OWN source,
  * overriding the call's top-level default — what lets one grid submission feed different cows from
  * different sources. Omit to fall back to the top-level source. */
@@ -674,6 +724,9 @@ export interface ConfirmFeedGridPayload {
   feedItemId?: string;
   feedStockId?: string;
   entries?: FeedGridEntryInput[];
+  /** RAKHAL-441 frontend twin — which of the farm's active sessions (`useFeedActiveSessions`) this
+   * confirm belongs to. Validated against the farm's own list server-side. */
+  session?: string;
 }
 
 /** RAKHAL-430 rewrote `confirm()`'s response into a real multi-source shape — one
