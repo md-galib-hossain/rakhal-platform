@@ -72,7 +72,7 @@ function todayIso(): string {
 }
 
 const ALL_GROUPS = "__all__";
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 10;
 
 /** Sums a cow's already-saved (not yet confirmed) draft lines for this date/group — the value shown
  * when the grid is reopened on a date that already has staged entries. Falls back to the backend's
@@ -784,7 +784,7 @@ function FeedingGridTable({
         </div>
       )}
 
-      {cows.length > DEFAULT_PAGE_SIZE ? (
+      {cows.length > pageSize ? (
         <Pagination
           page={page}
           totalPages={totalPages}
