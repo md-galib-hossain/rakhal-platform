@@ -15,6 +15,7 @@ import { PermissionService } from 'src/modules/permission/application/services/p
 import { SubscriptionAccessService } from 'src/modules/subscription/application/services/subscription-access.service';
 import { TransactionalEmailService } from 'src/modules/email/application/services/transactional-email.service';
 import { EmailTemplate } from 'src/modules/email/domain/enums/email-template.enum';
+import { SYSTEM_ROLES } from 'src/modules/permission/domain/permission-catalogue';
 import { InviteTeamMemberDto } from '../../presentation/dto/invite-team-member.dto';
 import { ChangeMemberRoleDto } from '../../presentation/dto/change-member-role.dto';
 
@@ -313,13 +314,28 @@ export class TeamService {
     return { id: member.id, removed: true };
   }
 
-  /** Resolve an invite `role` (custom role id for this farm, or a system role name) to a roleId. */
+  /**
+   * Resolve an invite `role` (custom role id for this farm, or a role name) to a roleId.
+   *
+   * A farm only ever gets the Owner role for free — Manager/Worker are **not**
+   * name-resolvable here, so inviting `role: "Manager"` on a farm that never created its
+   * own "Manager" custom role 400s instead of silently landing on the global system
+   * template. The owner has to create that role first (Settings > Team > Roles,
+   * optionally starting from a Manager/Worker template) before anyone can be invited
+   * into it — matches `RolesService.listRoles()` only ever showing Owner + this farm's
+   * own custom roles.
+   */
   private async resolveRoleId(farmId: string, role: string): Promise<string> {
+    const isOwnerName =
+      role.trim().toLowerCase() === SYSTEM_ROLES.OWNER.toLowerCase();
+
     const found = await this.prisma.role.findFirst({
       where: {
         OR: [
           { id: role, OR: [{ farmId }, { farmId: null }] },
-          { name: { equals: role, mode: 'insensitive' }, isSystemRole: true },
+          ...(isOwnerName
+            ? [{ name: SYSTEM_ROLES.OWNER, isSystemRole: true }]
+            : []),
           { name: { equals: role, mode: 'insensitive' }, farmId },
         ],
       },

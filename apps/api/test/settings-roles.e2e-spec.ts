@@ -88,7 +88,7 @@ describe('Settings — roles & permissions (e2e)', () => {
   });
 
   describe('listing roles', () => {
-    it('returns the three system templates as read-only, with a populated matrix', async () => {
+    it('returns only the Owner system template as read-only, with a populated matrix', async () => {
       const res = await request(server())
         .get(api('/settings/roles'))
         .set(...auth(owner))
@@ -96,10 +96,10 @@ describe('Settings — roles & permissions (e2e)', () => {
 
       const roles = res.body.data.roles;
       const system = roles.filter((r: { is_system: boolean }) => r.is_system);
+      // Manager/Worker are deliberately not listed: a farm only ever gets Owner for
+      // free, everything else has to be a custom role the owner creates themselves.
       expect(system.map((r: { name: string }) => r.name).sort()).toEqual([
-        'Manager',
         'Owner',
-        'Worker',
       ]);
 
       for (const role of system) {
@@ -227,14 +227,13 @@ describe('Settings — roles & permissions (e2e)', () => {
     });
 
     it('refuses to edit a system role, because the template is shared by every farm', async () => {
-      const list = await request(server())
-        .get(api('/settings/roles'))
-        .set(...auth(owner))
-        .expect(200);
-      const managerTemplate = list.body.data.roles.find(
-        (r: { name: string; is_system: boolean }) =>
-          r.name === 'Manager' && r.is_system,
-      );
+      // Manager is intentionally no longer surfaced by GET /settings/roles (a farm
+      // only gets Owner for free), so fetch its id straight from Prisma — the
+      // read-only guard on a system role is still enforced by id regardless.
+      const managerTemplate = await prisma.role.findFirstOrThrow({
+        where: { name: 'Manager', isSystemRole: true },
+        select: { id: true },
+      });
 
       await request(server())
         .patch(api(`/settings/roles/${managerTemplate.id}/permissions`))
@@ -306,14 +305,12 @@ describe('Settings — roles & permissions (e2e)', () => {
     });
 
     it('refuses to delete a system role', async () => {
-      const list = await request(server())
-        .get(api('/settings/roles'))
-        .set(...auth(owner))
-        .expect(200);
-      const workerTemplate = list.body.data.roles.find(
-        (r: { name: string; is_system: boolean }) =>
-          r.name === 'Worker' && r.is_system,
-      );
+      // Same rationale as the edit-a-system-role test above: Worker no longer shows
+      // up in the list response, so look its id up directly.
+      const workerTemplate = await prisma.role.findFirstOrThrow({
+        where: { name: 'Worker', isSystemRole: true },
+        select: { id: true },
+      });
 
       await request(server())
         .delete(api(`/settings/roles/${workerTemplate.id}`))

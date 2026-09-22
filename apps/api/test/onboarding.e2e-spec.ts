@@ -113,6 +113,11 @@ describe('Onboarding (e2e)', () => {
     // (unlimited seats) instead, owned by the same demo owner user.
     let inviteFarmId: string;
     let inviteOwner: AuthedUser;
+    // A farm only ever gets the Owner role for free now — Manager/Worker are no
+    // longer name-resolvable on invite, so this suite creates its own farm-scoped
+    // roles (copying the system templates' permission sets) to invite into.
+    let inviteWorkerRoleId: string;
+    let inviteManagerRoleId: string;
 
     beforeAll(async () => {
       const ownerRole = await prisma.role.findFirstOrThrow({
@@ -138,6 +143,40 @@ describe('Onboarding (e2e)', () => {
         select: { id: true },
       });
       inviteFarmId = farm.id;
+
+      const cloneSystemRoleAsCustom = async (
+        systemName: string,
+        customName: string,
+      ): Promise<string> => {
+        const template = await prisma.role.findFirstOrThrow({
+          where: { name: systemName, farmId: null, isSystemRole: true },
+          select: {
+            permissions: { select: { permissionId: true } },
+          },
+        });
+        const custom = await prisma.role.create({
+          data: {
+            farmId: inviteFarmId,
+            name: customName,
+            isSystemRole: false,
+            permissions: {
+              create: template.permissions.map((p) => ({
+                permissionId: p.permissionId,
+              })),
+            },
+          },
+          select: { id: true },
+        });
+        return custom.id;
+      };
+      inviteWorkerRoleId = await cloneSystemRoleAsCustom(
+        SYSTEM_ROLES.WORKER,
+        'Invited Worker',
+      );
+      inviteManagerRoleId = await cloneSystemRoleAsCustom(
+        SYSTEM_ROLES.MANAGER,
+        'Invited Manager',
+      );
       await prisma.farmSubscription.create({
         data: {
           farmId: farm.id,
@@ -166,6 +205,12 @@ describe('Onboarding (e2e)', () => {
       });
       await prisma.farmSubscription.deleteMany({
         where: { farmId: inviteFarmId },
+      });
+      await prisma.rolePermission.deleteMany({
+        where: { roleId: { in: [inviteWorkerRoleId, inviteManagerRoleId] } },
+      });
+      await prisma.role.deleteMany({
+        where: { id: { in: [inviteWorkerRoleId, inviteManagerRoleId] } },
       });
       await prisma.farm.delete({ where: { id: inviteFarmId } });
     });
@@ -198,7 +243,7 @@ describe('Onboarding (e2e)', () => {
       await request(server())
         .post(api('/settings/team/invite'))
         .set(...auth(inviteOwner))
-        .send({ email: 'owner@demo.rakhal.test', role: 'Worker' })
+        .send({ email: 'owner@demo.rakhal.test', role: inviteWorkerRoleId })
         .expect(201);
       const invite = await prisma.farmInvitation.findFirst({
         where: { email: 'owner@demo.rakhal.test', status: 'PENDING' },
@@ -217,7 +262,7 @@ describe('Onboarding (e2e)', () => {
       await request(server())
         .post(api('/settings/team/invite'))
         .set(...auth(inviteOwner))
-        .send({ email: invitedEmail, role: 'Worker' })
+        .send({ email: invitedEmail, role: inviteWorkerRoleId })
         .expect(201);
       const invite = await prisma.farmInvitation.findFirst({
         where: { email: invitedEmail, status: 'PENDING' },
@@ -252,7 +297,7 @@ describe('Onboarding (e2e)', () => {
       await request(server())
         .post(api('/settings/team/invite'))
         .set(...auth(inviteOwner))
-        .send({ email, role: 'Worker', name: 'Invited User' })
+        .send({ email, role: inviteWorkerRoleId, name: 'Invited User' })
         .expect(201);
       const invite = await prisma.farmInvitation.findFirst({
         where: { email, status: 'PENDING' },
@@ -264,7 +309,7 @@ describe('Onboarding (e2e)', () => {
       const preview = await request(server())
         .get(api(`/onboarding/invites/${invite!.token}`))
         .expect(200);
-      expect(preview.body.data.role).toBe('worker');
+      expect(preview.body.data.role).toBe('invited worker');
       expect(preview.body.data.status).toBe('pending');
 
       await request(server())
@@ -283,7 +328,7 @@ describe('Onboarding (e2e)', () => {
         .send({ token: invite!.token })
         .expect(201);
       expect(accepted.body.data.farm_id).toBe(inviteFarmId);
-      expect(accepted.body.data.role).toBe('worker');
+      expect(accepted.body.data.role).toBe('invited worker');
 
       // The invitee can now see the farm they joined.
       const farms = await request(server())
@@ -322,7 +367,10 @@ describe('Onboarding (e2e)', () => {
         await request(server())
           .post(api('/settings/team/invite'))
           .set(...auth(inviteOwner))
-          .send({ email: uniqueEmail('over_seat_limit'), role: 'Worker' })
+          .send({
+            email: uniqueEmail('over_seat_limit'),
+            role: inviteWorkerRoleId,
+          })
           .expect(403);
       } finally {
         const proPlan = await prisma.subscriptionPlan.findUniqueOrThrow({
@@ -347,7 +395,7 @@ describe('Onboarding (e2e)', () => {
       await request(server())
         .post(api('/settings/team/invite'))
         .set(...auth(inviteOwner))
-        .send({ email, role: 'Worker' })
+        .send({ email, role: inviteWorkerRoleId })
         .expect(201);
       const invite = await prisma.farmInvitation.findFirst({
         where: { email, status: 'PENDING' },
@@ -379,7 +427,7 @@ describe('Onboarding (e2e)', () => {
       await request(server())
         .post(api('/settings/team/invite'))
         .set(...auth(inviteOwner))
-        .send({ email, role: 'Worker', name: 'To Promote' })
+        .send({ email, role: inviteWorkerRoleId, name: 'To Promote' })
         .expect(201);
       const invite = await prisma.farmInvitation.findFirst({
         where: { email, status: 'PENDING' },
@@ -409,14 +457,14 @@ describe('Onboarding (e2e)', () => {
       await request(server())
         .patch(api(`/settings/team/${member!.id}/role`))
         .set(...auth(inviteOwner))
-        .send({ role: 'Manager' })
+        .send({ role: inviteManagerRoleId })
         .expect(200);
 
       const updated = await prisma.farmMember.findUniqueOrThrow({
         where: { id: member!.id },
         include: { role: { select: { name: true } } },
       });
-      expect(updated.role.name).toBe('Manager');
+      expect(updated.role.name).toBe('Invited Manager');
     });
   });
 

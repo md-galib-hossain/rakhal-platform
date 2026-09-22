@@ -56,11 +56,21 @@ export class RolesService {
     return { permissions: buildCatalogue() };
   }
 
-  /** List system templates + this farm's custom roles, each with its grant matrix. */
+  /**
+   * List this farm's assignable roles: the Owner system template (read-only, always
+   * present — a farm must always have at least one assignable role) plus this farm's own
+   * custom roles. Manager/Worker are deliberately **not** listed here: a new farm gets
+   * only the Owner role automatically; every other role is something the owner has to
+   * create themselves (via `createRole`, optionally starting from a Manager/Worker
+   * template through `base_role`) rather than something already sitting there for free.
+   */
   async listRoles(farmId: string) {
     const roles = await this.prisma.role.findMany({
       where: {
-        OR: [{ farmId }, { farmId: null, isSystemRole: true }],
+        OR: [
+          { farmId },
+          { farmId: null, isSystemRole: true, name: SYSTEM_ROLES.OWNER },
+        ],
       },
       include: {
         permissions: { select: { permission: { select: { key: true } } } },
