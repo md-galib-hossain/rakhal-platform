@@ -25,6 +25,16 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
  * read the same real numbers now, not both reading 0), so RAKHAL-352's core
  * AC — "these two surfaces can never silently disagree again" — still holds.
  *
+ * **RAKHAL-441 update**: feed gains its own real per-animal source, closing
+ * the RD-064 gap this comment used to describe. Not an `Expense` row (feed
+ * was never posted through V2 Expense) — `FeedDistributionCattleItem.costTk`,
+ * frozen per cow at confirm time (`FeedFeedingGridService#confirm`). Summed
+ * directly here (`sumFeedCost`), scoped by the parent distribution's
+ * `distributedAt` (not `expenseDate` — feed has no `Expense` row to read a
+ * date off), excluding voided rows and rows predating this column (`costTk
+ * === null` reads as unknown, never backfilled to 0 — same convention as
+ * `FeedDistributionItem.dmPct`).
+ *
  * **Income** — real V2 FK join, no string matching: `AnimalSaleLine.cattleId`
  * -> `SaleLine.totalAmount` for the specific line (not `Sale.totalAmount`,
  * which could span several lines), excluding non-`CONFIRMED` sales. V2 has
@@ -102,6 +112,33 @@ async function sumUnreversedExpense(
   return unreversed.reduce((sum, e) => sum + Number(e.amount), 0);
 }
 
+/**
+ * RAKHAL-441 — sum of one cow's frozen `costTk` across her active (non-voided)
+ * `FeedDistributionCattleItem` rows in a period, scoped by the parent
+ * distribution's `distributedAt` (feed has no `Expense` row to date-scope
+ * off). A voided row is excluded by its own `voidedAt` flag, not re-derived —
+ * `voidCattleItem` already shrinks the sibling aggregate at void time, this
+ * is just "don't count it a second time" on the read side.
+ */
+async function sumFeedCost(
+  prisma: PrismaService,
+  farmId: string,
+  cattleId: string,
+  start: Date,
+  end: Date,
+): Promise<number> {
+  const rows = await prisma.feedDistributionCattleItem.findMany({
+    where: {
+      cattleId,
+      voidedAt: null,
+      costTk: { not: null },
+      distribution: { farmId, distributedAt: { gte: start, lt: end } },
+    },
+    select: { costTk: true },
+  });
+  return rows.reduce((sum, r) => sum + (r.costTk ?? 0), 0);
+}
+
 export async function computeCattleFinance(
   prisma: PrismaService,
   farmId: string,
@@ -109,38 +146,40 @@ export async function computeCattleFinance(
   start: Date,
   end: Date,
 ): Promise<CattleFinanceTotals> {
-  const [animalSaleLines, breedingCost, healthCost] = await Promise.all([
-    // Real FK join for animal-sale revenue (RAKHAL-339/345) — no string match.
-    prisma.animalSaleLine.findMany({
-      where: {
-        cattleId,
-        saleLine: {
-          sale: {
-            farmId,
-            status: SaleStatus.CONFIRMED,
-            saleDate: { gte: start, lt: end },
+  const [animalSaleLines, breedingCost, healthCost, feedCost] =
+    await Promise.all([
+      // Real FK join for animal-sale revenue (RAKHAL-339/345) — no string match.
+      prisma.animalSaleLine.findMany({
+        where: {
+          cattleId,
+          saleLine: {
+            sale: {
+              farmId,
+              status: SaleStatus.CONFIRMED,
+              saleDate: { gte: start, lt: end },
+            },
           },
         },
-      },
-      select: { saleLine: { select: { totalAmount: true } } },
-    }),
-    sumUnreversedExpense(
-      prisma,
-      farmId,
-      cattleId,
-      ExpenseCategory.BREEDING,
-      start,
-      end,
-    ),
-    sumUnreversedExpense(
-      prisma,
-      farmId,
-      cattleId,
-      ExpenseCategory.HEALTH,
-      start,
-      end,
-    ),
-  ]);
+        select: { saleLine: { select: { totalAmount: true } } },
+      }),
+      sumUnreversedExpense(
+        prisma,
+        farmId,
+        cattleId,
+        ExpenseCategory.BREEDING,
+        start,
+        end,
+      ),
+      sumUnreversedExpense(
+        prisma,
+        farmId,
+        cattleId,
+        ExpenseCategory.HEALTH,
+        start,
+        end,
+      ),
+      sumFeedCost(prisma, farmId, cattleId, start, end),
+    ]);
 
   let totalIncome = 0;
   const income = { milk_sales: 0, calf_sales: 0 };
@@ -151,12 +190,12 @@ export async function computeCattleFinance(
   }
 
   const expense: Record<CattleExpenseBucket, number> = {
-    feed: 0,
+    feed: feedCost,
     health: healthCost,
     breeding: breedingCost,
     others: 0,
   };
-  const totalCost = breedingCost + healthCost;
+  const totalCost = feedCost + breedingCost + healthCost;
 
   return { totalIncome, totalCost, expense, income };
 }

@@ -55,6 +55,8 @@ import {
 import { FeedGridQueryDto } from '../dto/feed-grid-query.dto';
 import { SaveFeedDraftDto } from '../dto/save-feed-draft.dto';
 import { ConfirmFeedDraftDto } from '../dto/confirm-feed-draft.dto';
+import { FeedCattleHistoryQueryDto } from '../dto/feed-cattle-history-query.dto';
+import { VoidFeedCattleItemDto } from '../dto/void-feed-cattle-item.dto';
 import { FeedFeedingGridService } from '../../application/services/feed-feeding-grid.service';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
@@ -431,6 +433,44 @@ export class FeedController {
     @Body() dto: ConfirmFeedDraftDto,
   ) {
     return this.feedingGrid.confirm(farmId, userId, dto);
+  }
+
+  /** RAKHAL-441 frontend twin — the farm's own configured active feeding/milking sessions, for
+   * the Grid UI's session picker. */
+  @Get('active-sessions')
+  @RequirePermission('feed.read')
+  getActiveSessions(@CurrentFarmId() farmId: string) {
+    return this.feedingGrid.activeSessions(farmId);
+  }
+
+  /** RAKHAL-441 — one cow's own feeding entries for one exact day (defaults to today). */
+  @Get('grid/cattle/:cattleId/history')
+  @RequirePermission('feed.read')
+  getCattleHistory(
+    @CurrentFarmId() farmId: string,
+    @Param('cattleId') cattleId: string,
+    @Query() query: FeedCattleHistoryQueryDto,
+  ) {
+    return this.feedingGrid.cattleHistory(farmId, cattleId, query.date);
+  }
+
+  /** RAKHAL-441 §5 — void exactly one cow's line from a confirmed Feeding Grid distribution. */
+  @Post('grid/distributions/:distributionId/cattle/:cattleItemId/void')
+  @RequirePermission('feed.delete')
+  voidCattleItem(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('distributionId') distributionId: string,
+    @Param('cattleItemId') cattleItemId: string,
+    @Body() dto: VoidFeedCattleItemDto,
+  ) {
+    return this.feedingGrid.voidCattleItem(
+      farmId,
+      userId,
+      distributionId,
+      cattleItemId,
+      dto,
+    );
   }
 
   /** Farm-wide feed cost/cow/day + cost/litre + trend (2026-08-13, user request — Dashboard +

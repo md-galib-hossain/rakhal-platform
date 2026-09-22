@@ -7,6 +7,7 @@ import { SubscriptionModule } from '../subscription/subscription.module';
 import { MilkModule } from '../milk/milk.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { FinanceV2AccountsModule } from '../finance-v2/accounts/finance-v2-accounts.module';
+import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { FeedConcentrationService } from './application/services/feed-concentration.service';
 import { FeedGroupAssignService } from './application/services/feed-group-assign.service';
 import { FeedIngredientService } from './application/services/feed-ingredient.service';
@@ -45,6 +46,7 @@ import { FeedController } from './presentation/controllers/feed.controller';
     MilkModule,
     InventoryModule,
     FinanceV2AccountsModule,
+    FarmSettingsModule,
   ],
   controllers: [FeedController],
   providers: [

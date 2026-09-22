@@ -60,6 +60,7 @@ describe('LactationEconomicsService', () => {
       milkDispatch: { findFirst: jest.fn().mockResolvedValue(null) },
       milkBuyer: { findMany: jest.fn().mockResolvedValue([]) },
       feedDistribution: { findMany: jest.fn().mockResolvedValue([]) },
+      feedDistributionCattleItem: { findMany: jest.fn().mockResolvedValue([]) },
       cattle: { count: jest.fn().mockResolvedValue(0) },
       expense: { findMany: jest.fn().mockResolvedValue([]) },
       animalSaleLine: { findMany: jest.fn().mockResolvedValue([]) },

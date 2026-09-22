@@ -59,6 +59,8 @@ model JournalTransaction {
 
   entries JournalEntry[]
 
+  financialDocument FinancialDocument?
+
   @@unique([farmId, idempotencyKey])
   @@index([farmId, sourceType, sourceId])
   @@index([farmId, transactionDate])

@@ -100,6 +100,7 @@ model Farm {
   purchases                 Purchase[]                 @relation("FarmToPurchase")
   expenses                  Expense[]                  @relation("FarmToExpense")
   payables                  Payable[]                  @relation("FarmToPayable")
+  financialDocuments        FinancialDocument[]        @relation("FarmToFinancialDocument")
 
   @@index([ownerId])
   @@index([slug])

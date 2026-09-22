@@ -270,6 +270,13 @@ model FeedDistribution {
 
   notes String?
 
+  /// RAKHAL-441 — set once every `cattleItems` row under this distribution has been individually
+  /// voided (see `FeedDistributionCattleItem.voidedAt`'s own doc comment). Never set directly by a
+  /// caller; `FeedFeedingGridService.voidCattleItem` sets it as a side effect when the last cow's
+  /// row is voided. A cheap single check for anything reading distributions without wanting
+  /// cow-level detail (dashboards/reports) — mirrors `Expense.voidedAt` elsewhere in this codebase.
+  voidedAt DateTime?
+
   createdBy String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -354,6 +361,51 @@ model FeedDistributionCattleItem {
   /// group-change guard compares this against the cow's *current* group; a cow moved to a
   /// different group since must not inherit this row as "own last-used."
   feedGroupId String?
+
+  /// RAKHAL-441 — this cow's own exact cost for this line, frozen at confirm time from the same
+  /// `resolveGroupPlan()` result (`offeredKg * that group's pricePerKg`) already computed to price
+  /// the sibling `FeedDistributionItem` — not a proportional guess, the exact number. Null only for
+  /// rows written before this column existed (RD-064's own "no invented data" convention — read as
+  /// unknown, not zero, by `cattle-finance-aggregation.ts`'s `sumFeedCost`, which excludes them via
+  /// its own `costTk`-is-null handling rather than treating a historical gap as a real zero cost).
+  costTk Float?
+
+  /// RAKHAL-441 — frozen name + full nutrient snapshot for THIS cow's specific source, copied from
+  /// the same `nutritionSnapshot`/`ingredientName` `resolveGroupPlan()` already resolves for the
+  /// sibling `FeedDistributionItem`. Exists because that sibling row is keyed by `ingredientId`
+  /// (catalogue-level) with no `feedItemId`/`feedStockId` column of its own — two different specific
+  /// `FeedItem` rows sharing one catalogue ingredient in the same distribution would otherwise be
+  /// ambiguous to trace back to. Freezing it here means a per-cow historical read never needs that
+  /// join at all, and survives the underlying `FeedItem`/`FeedIngredient` being edited or
+  /// soft-deleted later — same principle `FeedDistributionItem`'s own doc comment states.
+  feedName      String?
+  dmPct         Float?
+  cpPct         Float?
+  meMjPerKgDm   Float?
+  fatPct        Float?
+  ndfPct        Float?
+  rdpPct        Float?
+  rupPct        Float?
+  starchPct     Float?
+  adfPct        Float?
+  calciumPct    Float?
+  phosphorusPct Float?
+  tdnPct        Float?
+
+  /// RAKHAL-441 — which of the farm's configured feeding/milking sessions (Morning/Noon/Evening/
+  /// Night, `FarmModuleSettings.milkActiveSessions` — the same session concept Milk already uses,
+  /// not a second one) this confirm belongs to. Null when the farm has no sessions configured, the
+  /// caller didn't supply one, or this is a historical pre-migration row.
+  session String?
+
+  /// RAKHAL-441 — void (correction), never a hard delete. A voided row's `offeredKg`/`costTk` are
+  /// excluded from every downstream sum (cattle finance's `sumFeedCost`, the parent distribution's
+  /// own totals — both already reduced by the exact same amounts at void time, not re-derived from
+  /// this flag on every read) but the row itself survives forever for audit — same "the document
+  /// reads as it did when posted" principle as `Expense.voidedAt` elsewhere in this codebase.
+  voidedAt   DateTime?
+  voidedBy   String?
+  voidReason String?
 
   distribution FeedDistribution @relation(fields: [distributionId], references: [id], onDelete: Cascade)
 

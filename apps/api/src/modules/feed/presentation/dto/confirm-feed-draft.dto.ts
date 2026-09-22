@@ -10,9 +10,12 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
-import { FeedGridSourceType } from '@prisma/client';
+import { FeedGridSourceType, MilkSession } from '@prisma/client';
 import { trimString } from 'src/common/dto';
 import { FeedDraftEntryDto } from './save-feed-draft.dto';
+
+const toUpperCase = ({ value }: { value: unknown }) =>
+  typeof value === 'string' ? value.toUpperCase() : value;
 
 /** `POST /feed/grid/confirm` — turn a day's feeding-grid quantities into a real `FeedDistribution`
  * + inventory decrement. `entries` is optional: omit it to confirm straight from whatever's
@@ -59,4 +62,13 @@ export class ConfirmFeedDraftDto {
   @ValidateNested({ each: true })
   @Type(() => FeedDraftEntryDto)
   entries?: FeedDraftEntryDto[];
+
+  /** RAKHAL-441 — which of the farm's active feeding/milking sessions this confirm belongs to.
+   * Accepts any case (`morning`/`MORNING`), normalized here; validated further against the farm's
+   * own configured active list in `FeedFeedingGridService#confirm` (a farm can disable a session
+   * the raw enum still lists). */
+  @IsOptional()
+  @Transform(toUpperCase)
+  @IsEnum(MilkSession)
+  session?: MilkSession;
 }

@@ -9,8 +9,10 @@ import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { FeedDistributionService } from './feed-distribution.service';
 import { FeedStockService } from './feed-stock.service';
+import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { SaveFeedDraftDto } from '../../presentation/dto/save-feed-draft.dto';
 import { ConfirmFeedDraftDto } from '../../presentation/dto/confirm-feed-draft.dto';
+import { VoidFeedCattleItemDto } from '../../presentation/dto/void-feed-cattle-item.dto';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -58,6 +60,7 @@ export class FeedFeedingGridService {
     logger: LoggerService,
     private readonly feedDistribution: FeedDistributionService,
     private readonly feedStock: FeedStockService,
+    private readonly farmSettings: FarmSettingsService,
   ) {
     this.log = logger.setContext(FeedFeedingGridService.name);
   }
@@ -306,6 +309,19 @@ export class FeedFeedingGridService {
       if (!group) throw new NotFoundException('Feed group not found');
     }
 
+    // RAKHAL-441 — a farm's owner controls which sessions are unlocked (same
+    // `FarmSettingsService.milkActiveSessions` config Milk already enforces via its own
+    // `assertSessionActive`) — reject a session the farm hasn't turned on, rather than silently
+    // tagging every cow's row with a session nobody configured.
+    if (dto.session) {
+      const active = await this.farmSettings.milkActiveSessions(farmId);
+      if (!active.includes(dto.session)) {
+        throw new BadRequestException(
+          `The ${dto.session.toLowerCase()} session is not enabled for this farm`,
+        );
+      }
+    }
+
     const logDate = this.dayStart(dto.date);
     const cattle = await this.prisma.cattle.findMany({
       where: {
@@ -460,14 +476,24 @@ export class FeedFeedingGridService {
             })),
           },
           cattleItems: {
-            create: lines.map((l) => ({
-              cattleId: l.cattleId,
-              offeredKg: l.offeredKg,
-              sourceType: l.source.sourceType,
-              feedItemId: l.source.feedItemId,
-              feedStockId: l.source.feedStockId,
-              feedGroupId: currentGroupByCattle.get(l.cattleId) ?? null,
-            })),
+            // RAKHAL-441 — mapped from `groupPlans` (not the flat `lines` array) so each cow's row
+            // can carry its own group's exact resolved price/nutrition/name. `costTk` is exact, not
+            // proportional — `resolveGroupPlan()` already priced this cow's own source, this is
+            // just that same number times her own `offeredKg`.
+            create: groupPlans.flatMap((g) =>
+              g.lines.map((l) => ({
+                cattleId: l.cattleId,
+                offeredKg: l.offeredKg,
+                sourceType: l.source.sourceType,
+                feedItemId: l.source.feedItemId,
+                feedStockId: l.source.feedStockId,
+                feedGroupId: currentGroupByCattle.get(l.cattleId) ?? null,
+                costTk: round2(l.offeredKg * g.pricePerKg),
+                feedName: g.ingredientName,
+                session: dto.session ?? null,
+                ...(g.nutritionSnapshot ?? {}),
+              })),
+            ),
           },
         },
         include: { items: true, cattleItems: true },
@@ -517,6 +543,8 @@ export class FeedFeedingGridService {
         source_type: c.sourceType,
         feed_item_id: c.feedItemId,
         feed_stock_id: c.feedStockId,
+        cost_tk: c.costTk,
+        session: c.session,
       })),
     };
   }
@@ -726,9 +754,16 @@ export class FeedFeedingGridService {
       phosphorusPct: stock.phosphorusPct,
       tdnPct: stock.tdnPct,
     };
+    // Show the real recipe name, not a bare batch id — a `FeedStock` lot has no name of its own,
+    // only the `FeedConcentration` it was produced from does. Fall back to the batch id only when
+    // that recipe has since been hard-deleted (rare; `finalize()` never cascades a delete here).
+    const recipe = await this.prisma.feedConcentration.findFirst({
+      where: { id: stock.sourceConcentrationId },
+      select: { name: true },
+    });
     return {
       ingredientId: stock.sourceConcentrationId,
-      ingredientName: `Batch ${stock.id}`,
+      ingredientName: recipe?.name ?? `Batch ${stock.id}`,
       pricePerKg:
         stock.producedQtyKg > 0
           ? round2(stock.producedCostTk / stock.producedQtyKg)
@@ -743,6 +778,261 @@ export class FeedFeedingGridService {
         });
       },
     };
+  }
+
+  /** RAKHAL-441 frontend twin (per-cow) — one cow's own feeding entries for exactly one day
+   * (defaults to today when `date` is omitted), including voided rows (rendered struck-through,
+   * not hidden — this is also the correction audit trail for that cow). Carries the ids
+   * (`distribution_id`/`id`) the void route needs, which `GET /feed/grid` deliberately doesn't
+   * expose (it only sums a per-cow total via `confirmed_offered_kg`). */
+  async cattleHistory(farmId: string, cattleId: string, date?: string) {
+    const found = await this.prisma.cattle.findFirst({
+      where: { id: cattleId, farmId },
+      select: { id: true },
+    });
+    if (!found) throw new NotFoundException('Cattle not found');
+
+    const logDate = this.dayStart(date ?? new Date().toISOString());
+    const rows = await this.prisma.feedDistributionCattleItem.findMany({
+      where: {
+        cattleId,
+        distribution: { farmId, distributedAt: logDate },
+      },
+      include: { distribution: { select: { createdAt: true } } },
+      orderBy: { id: 'desc' },
+    });
+    // Nutrition totals actually fed this day, over active (non-voided) rows only — same
+    // null-skip convention `getDmiComparison()` already established for `dmPct` (frozen snapshot,
+    // never backfilled). rdp/rup are % of CP, not DM, so they chain off each row's own computed
+    // CP kg rather than off DM kg directly.
+    const active = rows.filter((r) => r.voidedAt == null);
+    const dmKgOf = (r: (typeof rows)[number]) =>
+      r.dmPct == null ? null : r.offeredKg * (r.dmPct / 100);
+    const sumPctOfDm = (
+      pctField:
+        | 'cpPct'
+        | 'fatPct'
+        | 'ndfPct'
+        | 'adfPct'
+        | 'starchPct'
+        | 'tdnPct'
+        | 'calciumPct'
+        | 'phosphorusPct',
+    ) =>
+      active.reduce((sum, r) => {
+        const dm = dmKgOf(r);
+        const pct = r[pctField];
+        if (dm == null || pct == null) return sum;
+        return sum + dm * (pct / 100);
+      }, 0);
+
+    const totalDmKg = active.reduce((sum, r) => sum + (dmKgOf(r) ?? 0), 0);
+    const totalMeMj = active.reduce((sum, r) => {
+      const dm = dmKgOf(r);
+      if (dm == null || r.meMjPerKgDm == null) return sum;
+      return sum + dm * r.meMjPerKgDm;
+    }, 0);
+    const rdpRup = active.reduce(
+      (acc, r) => {
+        const dm = dmKgOf(r);
+        if (dm == null || r.cpPct == null) return acc;
+        const cpKgLine = dm * (r.cpPct / 100);
+        if (r.rdpPct != null) acc.rdp += cpKgLine * (r.rdpPct / 100);
+        if (r.rupPct != null) acc.rup += cpKgLine * (r.rupPct / 100);
+        return acc;
+      },
+      { rdp: 0, rup: 0 },
+    );
+
+    return {
+      cattle_id: cattleId,
+      date: this.dateOnly(logDate),
+      entries: rows.map((r) => ({
+        id: r.id,
+        distribution_id: r.distributionId,
+        offered_kg: r.offeredKg,
+        cost_tk: r.costTk,
+        feed_name: r.feedName,
+        source_type: r.sourceType,
+        session: r.session,
+        // Real time-of-day this was confirmed — `distributedAt` on the parent is day-only
+        // (midnight-normalized), so the per-cow item row has no time of its own to read; the
+        // distribution's own `createdAt` is the actual confirm timestamp for every cow in it.
+        fed_at: r.distribution.createdAt,
+        voided_at: r.voidedAt,
+        voided_by: r.voidedBy,
+        void_reason: r.voidReason,
+      })),
+      totals: {
+        dm_kg: round2(totalDmKg),
+        cp_kg: round2(sumPctOfDm('cpPct')),
+        me_mj: round2(totalMeMj),
+        fat_kg: round2(sumPctOfDm('fatPct')),
+        ndf_kg: round2(sumPctOfDm('ndfPct')),
+        adf_kg: round2(sumPctOfDm('adfPct')),
+        starch_kg: round2(sumPctOfDm('starchPct')),
+        tdn_kg: round2(sumPctOfDm('tdnPct')),
+        calcium_kg: round2(sumPctOfDm('calciumPct')),
+        phosphorus_kg: round2(sumPctOfDm('phosphorusPct')),
+        rdp_kg: round2(rdpRup.rdp),
+        rup_kg: round2(rdpRup.rup),
+      },
+    };
+  }
+
+  /** RAKHAL-441 §5 — void exactly one cow's line from a confirmed Feeding Grid distribution.
+   * Exact, not proportional: this row already names its own exact stock source and its own exact
+   * cost, so reversing it is a direct subtraction, not an estimate. Idempotent — voiding an
+   * already-voided row is a no-op success, not an error. Never deletes the row — the audit trail
+   * (`voidedAt`/`voidedBy`/`voidReason`) survives forever, same convention `Expense.voidedAt`
+   * uses elsewhere in this codebase. */
+  async voidCattleItem(
+    farmId: string,
+    userId: string,
+    distributionId: string,
+    cattleItemId: string,
+    dto: VoidFeedCattleItemDto,
+  ) {
+    const item = await this.prisma.feedDistributionCattleItem.findFirst({
+      where: { id: cattleItemId, distributionId, distribution: { farmId } },
+      include: {
+        distribution: { include: { items: true, cattleItems: true } },
+      },
+    });
+    if (!item) throw new NotFoundException('Feeding record not found');
+
+    if (item.voidedAt) {
+      // Idempotent no-op — a replayed void must not credit stock back a second time.
+      return {
+        id: item.id,
+        cattle_id: item.cattleId,
+        offered_kg: item.offeredKg,
+        voided_at: item.voidedAt,
+        voided_by: item.voidedBy,
+        void_reason: item.voidReason,
+      };
+    }
+
+    const dist = item.distribution;
+    const costTk = item.costTk ?? 0;
+
+    // Re-derive this cow's own source's catalogue `ingredientId` (same lookups
+    // `resolveGroupPlan` makes) to find the sibling `FeedDistributionItem` to shrink —
+    // `FeedDistributionItem` is keyed by `ingredientId`, not `feedItemId`/`feedStockId`.
+    let ingredientId: string;
+    if (item.sourceType === 'FEED_ITEM') {
+      const feedItem = await this.prisma.feedItem.findFirst({
+        where: { id: item.feedItemId ?? undefined, farmId },
+        select: { id: true, ingredientId: true },
+      });
+      if (!feedItem) throw new NotFoundException('Feed item not found');
+      // Same fallback `computeFeedItemUsage()` uses — an unlinked FeedItem (no catalogue
+      // ingredient) resolves to its own id instead.
+      ingredientId = feedItem.ingredientId ?? feedItem.id;
+    } else {
+      const stock = await this.prisma.feedStock.findFirst({
+        where: { id: item.feedStockId ?? undefined, farmId },
+        select: { sourceConcentrationId: true },
+      });
+      if (!stock) throw new NotFoundException('Feed stock lot not found');
+      ingredientId = stock.sourceConcentrationId;
+    }
+    const siblingItem = dist.items.find((i) => i.ingredientId === ingredientId);
+    if (!siblingItem)
+      throw new NotFoundException('Distribution line not found');
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Conditional update guards against a concurrent double-void the same way
+      // `decrementForDistribution`'s own `updateMany` guard does — a second racing call sees
+      // `count === 0` and the credit-back below never double-applies.
+      const applied = await tx.feedDistributionCattleItem.updateMany({
+        where: { id: item.id, voidedAt: null },
+        data: {
+          voidedAt: new Date(),
+          voidedBy: userId,
+          voidReason: dto.reason ?? null,
+        },
+      });
+      if (applied.count === 0) {
+        return this.prisma.feedDistributionCattleItem.findUniqueOrThrow({
+          where: { id: item.id },
+        });
+      }
+
+      if (item.sourceType === 'FEED_ITEM' && item.feedItemId) {
+        await tx.feedItem.update({
+          where: { id: item.feedItemId },
+          data: { currentStock: { increment: item.offeredKg } },
+        });
+      } else if (item.sourceType === 'FEED_STOCK' && item.feedStockId) {
+        await tx.feedStock.update({
+          where: { id: item.feedStockId },
+          data: { currentStockKg: { increment: item.offeredKg } },
+        });
+        await tx.feedStockMovement.create({
+          data: {
+            stockId: item.feedStockId,
+            changeKg: round2(item.offeredKg),
+            reason: 'ADJUSTMENT',
+            distributionId: dist.id,
+            createdBy: userId,
+          },
+        });
+      }
+
+      await tx.feedDistributionItem.update({
+        where: { id: siblingItem.id },
+        data: {
+          actualKg: round2(siblingItem.actualKg - item.offeredKg),
+          lineCost: round2(siblingItem.lineCost - costTk),
+        },
+      });
+      await tx.feedDistribution.update({
+        where: { id: dist.id },
+        data: {
+          totalActualKg: round2(dist.totalActualKg - item.offeredKg),
+          totalActualCost: round2(dist.totalActualCost - costTk),
+        },
+      });
+
+      const remainingActive = dist.cattleItems.filter(
+        (c) => c.id !== item.id && c.voidedAt == null,
+      );
+      if (remainingActive.length === 0) {
+        await tx.feedDistribution.update({
+          where: { id: dist.id },
+          data: { voidedAt: new Date() },
+        });
+      }
+
+      return tx.feedDistributionCattleItem.findUniqueOrThrow({
+        where: { id: item.id },
+      });
+    });
+
+    this.log.info('Feeding grid cattle item voided', {
+      farmId,
+      distributionId,
+      cattleItemId,
+      offeredKg: item.offeredKg,
+      costTk,
+    });
+
+    return {
+      id: result.id,
+      cattle_id: result.cattleId,
+      offered_kg: result.offeredKg,
+      voided_at: result.voidedAt,
+      voided_by: result.voidedBy,
+      void_reason: result.voidReason,
+    };
+  }
+
+  /** RAKHAL-441 frontend twin — the farm's own configured active feeding/milking sessions, for
+   * the Grid UI's session picker. Same list Milk already uses (`FarmSettingsService
+   * .milkActiveSessions`) — not a second, separate session concept. */
+  async activeSessions(farmId: string) {
+    return this.farmSettings.milkActiveSessions(farmId);
   }
 
   private async assertCattleBelongToFarm(farmId: string, cattleIds: string[]) {
