@@ -661,10 +661,29 @@ export interface FeedCattleHistoryEntry {
 
 /** `GET /feed/grid/cattle/:cattleId/history?date=` result — one exact day (server defaults to
  * today when `date` is omitted). */
+/** Total nutrition actually fed that day, over active (non-voided) entries only — same field
+ * names/units `requirements.ts`'s `computeRequirements()` output uses, so a future "fed vs
+ * required" comparison is a straight match. */
+export interface FeedCattleHistoryTotals {
+  dm_kg: number;
+  cp_kg: number;
+  me_mj: number;
+  fat_kg: number;
+  ndf_kg: number;
+  adf_kg: number;
+  starch_kg: number;
+  tdn_kg: number;
+  calcium_kg: number;
+  phosphorus_kg: number;
+  rdp_kg: number;
+  rup_kg: number;
+}
+
 export interface FeedCattleHistoryResult {
   cattle_id: string;
   date: string;
   entries: FeedCattleHistoryEntry[];
+  totals: FeedCattleHistoryTotals;
 }
 
 /** `POST /feed/grid/distributions/:distributionId/cattle/:cattleItemId/void` body — optional

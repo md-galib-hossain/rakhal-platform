@@ -5380,6 +5380,21 @@
         "noReason": "no reason given",
         "voidedToast": "Feeding entry voided — stock and cost reversed.",
         "genericError": "Something went wrong. Please try again.",
+        "nutritionTitle": "Nutrition fed today",
+        "nutrition": {
+          "dmKg": "Dry Matter",
+          "cpKg": "Crude Protein",
+          "meMj": "Metabolizable Energy",
+          "fatKg": "Fat",
+          "ndfKg": "NDF",
+          "adfKg": "ADF",
+          "starchKg": "Starch",
+          "tdnKg": "TDN",
+          "calciumKg": "Calcium",
+          "phosphorusKg": "Phosphorus",
+          "rdpKg": "RDP",
+          "rupKg": "RUP"
+        },
         "voidDialog": {
           "title": "Void this feeding entry?",
           "description": "This credits back {kg} kg to stock for {date} and removes it from her feed cost. This cannot be undone.",

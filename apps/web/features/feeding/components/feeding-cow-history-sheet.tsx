@@ -26,10 +26,50 @@ import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Can } from "@/lib/auth/permissions";
 import { useFeedCattleHistory, useVoidFeedCattleItem } from "../../feed/hooks/use-feed";
-import type { FeedCattleHistoryEntry } from "../../feed/types";
+import type { FeedCattleHistoryEntry, FeedCattleHistoryTotals } from "../../feed/types";
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+const NUTRIENT_ROWS: Array<{ key: keyof FeedCattleHistoryTotals; labelKey: string; unit: string }> = [
+  { key: "dm_kg", labelKey: "nutrition.dmKg", unit: "kg" },
+  { key: "cp_kg", labelKey: "nutrition.cpKg", unit: "kg" },
+  { key: "me_mj", labelKey: "nutrition.meMj", unit: "MJ" },
+  { key: "fat_kg", labelKey: "nutrition.fatKg", unit: "kg" },
+  { key: "ndf_kg", labelKey: "nutrition.ndfKg", unit: "kg" },
+  { key: "adf_kg", labelKey: "nutrition.adfKg", unit: "kg" },
+  { key: "starch_kg", labelKey: "nutrition.starchKg", unit: "kg" },
+  { key: "tdn_kg", labelKey: "nutrition.tdnKg", unit: "kg" },
+  { key: "calcium_kg", labelKey: "nutrition.calciumKg", unit: "kg" },
+  { key: "phosphorus_kg", labelKey: "nutrition.phosphorusKg", unit: "kg" },
+  { key: "rdp_kg", labelKey: "nutrition.rdpKg", unit: "kg" },
+  { key: "rup_kg", labelKey: "nutrition.rupKg", unit: "kg" },
+];
+
+/** RAKHAL-441 follow-up (user request) — total nutrition actually fed this day, a fixed section
+ * below the scrollable entry list (not part of the scroll itself), same `StatTile` visual
+ * language `feeding-view.tsx`'s own local tile uses. */
+function NutritionTotals({ totals }: { totals: FeedCattleHistoryTotals }) {
+  const t = useTranslations("feeding.grid.cowHistory");
+  return (
+    <div className="flex flex-col gap-2 border-t border-dashed border-border pt-3">
+      <span className="text-sm font-bold text-foreground">{t("nutritionTitle")}</span>
+      <div className="grid grid-cols-2 gap-2">
+        {NUTRIENT_ROWS.map((row) => (
+          <div
+            key={row.key}
+            className="flex flex-col gap-0.5 rounded-xl border border-border bg-card p-2.5 shadow-xs"
+          >
+            <span className="text-xs font-bold text-muted-foreground">{t(row.labelKey)}</span>
+            <span className="text-base font-semibold text-foreground">
+              {totals[row.key]} {row.unit}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -184,6 +224,10 @@ export function FeedingCowHistorySheet({
               })
             )}
           </div>
+
+          {query.data && activeEntries.length > 0 ? (
+            <NutritionTotals totals={query.data.totals} />
+          ) : null}
         </SheetContent>
       </Sheet>
 
