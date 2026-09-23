@@ -1128,3 +1128,19 @@ Companion to the backend board's MILESTONE 24 (`D:\Projects\Rakhal\docs\PROJECT_
 - **Gate:** `pnpm typecheck`(0) / `eslint`(0) / `pnpm build`(0) / `pnpm test`(174/174) / both locale JSONs valid.
 - **Live-verified end to end** against the real dev stack: queried the live grid response directly and found 92 real cows in the "carried over, not confirmed today" state on the shared demo farm; located one in the DOM and confirmed it renders the amber "পূর্বের থেকে প্রাপ্ত" badge with the matching amber-bordered quantity cell, not the plain/ambiguous look from the bug report. (Attempting to also demo the green "Confirmed" state live surfaced a separate, out-of-scope issue — **RD-100**, filed not fixed: `confirm()`'s own whole-grid fallback scope meant clicking "Confirm (1)" on one selected cow attempted to also confirm ~92 other unchecked cows via the toolbar's default source, caught by the backend's pre-flight stock check before any write. Backend correctness of the confirmed-state itself was instead verified via `test/feed-grid.e2e-spec.ts`'s new assertions.)
 - **Notes:** Full writeup: `docs/TECH_DEBT.md` (backend repo) RD-099/RD-100, `docs/IN_FLIGHT.md` Recently Done (both repos).
+
+---
+
+## MILESTONE 26 — Feed Nutrition Profile + Feed Batch Model (frontend twins) — 📋 SPECCED (2026-09-23), nothing implemented
+
+> **Full spec:** `D:\Projects\Rakhal\docs\EPIC_FEED_NUTRITION_PROFILE.md` (§2 decisions, §5 tickets, §6 consumer audit). Backend tickets RAKHAL-442…451 land first; each RFE below depends on the noted backend ticket. Backend rollout is additive, so the current UI keeps working until these land.
+
+| Ticket | Title | Lane | Depends |
+|---|---|---|---|
+| RFE-120 | Add/Edit Feed Item: item fields + **Nutrition profile section** (DM/CP/ME required, rest collapsible, "% of dry matter" labels, "Copy from catalogue (optional)" picker; Linked Ingredient no longer required; moisture field removed — derived from DM) | `features/inventory/components/feed-item-form-dialog.tsx`, `schemas.ts`, `types.ts`, `api.ts`, `i18n/messages/{en,bn}.json` | RAKHAL-444 |
+| RFE-121 | Restock = "Add batch" dialog: cost/date/batch code + nutrition prefilled from the item's default, "this batch differs?" toggle | new `features/inventory/components/feed-item-batch-dialog.tsx`, `hooks/use-inventory.ts` | RAKHAL-444 |
+| RFE-122 | Detail sheet: batch list + per-batch nutrition panel; Edit nutrition with revert to previous profile, "differs from catalogue" hint + Re-sync; list/grid/table become product-level (summed stock) | `features/inventory/components/feed-item-{detail-sheet,columns,grid,table,view}.tsx` | RAKHAL-444 |
+| RFE-123 | Feeding grid / favourites / log-distribution: source picker shows summed product stock and the FIFO batch chip | `features/feeding/components/feeding-grid.tsx`, `features/feed/components/log-distribution-dialog.tsx` | RAKHAL-446 |
+| RFE-124 | Recipe builder `batch-link-picker.tsx`: pick item (+ optional batch), nutrition from that batch, ingredient optional | `features/feed/components/{batch-link-picker,feed-mixture-table,create-feed-dialog}.tsx` | RAKHAL-447 |
+
+**Note:** the 2026-09-23 "merge Feed Class + Category into one grouped Category dropdown" change (`features/inventory/feed-category.ts`) is already shipped and is the base RFE-120 builds on.

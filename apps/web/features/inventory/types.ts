@@ -172,7 +172,6 @@ export interface FeedItem {
   name: string;
   feedClass: FeedClass;
   feedSubType: FeedSubType | null;
-  category: string | null;
   ingredientId: string | null;
   unit: Unit;
   kgPerUnit: number | null;
@@ -200,7 +199,6 @@ export interface CreateFeedItemPayload {
   name: string;
   feedClass: FeedClass;
   feedSubType?: FeedSubType;
-  category?: string;
   ingredientId: string;
   unitId: string;
   kgPerUnit?: number;

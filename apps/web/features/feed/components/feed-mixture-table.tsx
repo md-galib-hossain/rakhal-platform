@@ -1,6 +1,6 @@
 "use client"; // per-keystroke live totals
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -40,6 +40,32 @@ export function toEffectiveMap(ingredients: FeedIngredient[]): Map<string, Effec
         pricePerKg: ing.effective_price_per_kg,
       },
     ]),
+  );
+}
+
+/** Keeps its own text so the field can be emptied (a controlled numeric `value` snaps "" back to
+ * "0", making the leading 0 undeletable). Empty text reports 0 upward; external value changes
+ * (e.g. Normalize) resync the text. `data-amount-input` lets the wizard's Enter handler hop rows. */
+function AmountInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [text, setText] = useState(value === 0 ? "" : String(value));
+  // Resync during render (not in an effect) when the parent's value diverges from what the text means.
+  if ((Number(text) || 0) !== value) setText(value === 0 ? "" : String(value));
+  return (
+    <input
+      type="number"
+      inputMode="decimal"
+      min={0}
+      step="0.01"
+      data-amount-input
+      placeholder="0"
+      value={text}
+      onChange={(e) => {
+        setText(e.target.value);
+        onChange(Number(e.target.value) || 0);
+      }}
+      onFocus={(e) => e.currentTarget.select()}
+      className="w-full border-0 bg-transparent p-0 text-sm text-foreground outline-none"
+    />
   );
 }
 
@@ -275,13 +301,9 @@ export function FeedMixtureTable({
                         </span>
                       ) : (
                         <div className="flex h-9 w-28 items-center gap-1 rounded-lg bg-card px-2 shadow-xs">
-                          <input
-                            type="number"
-                            min={0}
-                            step="0.01"
+                          <AmountInput
                             value={item.amountKg}
-                            onChange={(e) => onAmountChange?.(item.ingredientId, Number(e.target.value) || 0)}
-                            className="w-full border-0 bg-transparent p-0 text-sm text-foreground outline-none"
+                            onChange={(v) => onAmountChange?.(item.ingredientId, v)}
                           />
                           <span className="text-xs text-muted-foreground">kg</span>
                         </div>

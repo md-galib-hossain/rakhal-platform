@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { SelectableCardOverlay } from "@/components/shared/selectable-card-overlay";
 import { avatarTint } from "../avatar-tint";
+import { feedCategoryLabel } from "../feed-category";
 import { FeedItemRowActions } from "./feed-item-row-actions";
 import type { FeedItem } from "../types";
 
@@ -64,7 +65,7 @@ function FeedItemCard({
 
         <div className="pointer-events-none absolute left-2.5 top-2.5 flex items-center gap-1.5">
           <Chip variant="muted">{t(`classOptions.${feedItem.feedClass}`)}</Chip>
-          {feedItem.category ? <Chip variant="muted">{feedItem.category}</Chip> : null}
+          <Chip variant="muted">{feedCategoryLabel(t, feedItem)}</Chip>
         </div>
       </div>
 

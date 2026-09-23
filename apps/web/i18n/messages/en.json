@@ -1722,6 +1722,14 @@
         "SUPPLEMENT": "Supplement",
         "OTHER": "Other"
       },
+      "categoryOptions": {
+        "CLASS_FORAGE": "Other forage",
+        "CLASS_CONCENTRATE": "Other concentrate",
+        "CLASS_MINERAL": "Mineral",
+        "CLASS_VITAMIN": "Vitamin",
+        "CLASS_ADDITIVE": "Other additive",
+        "CLASS_OTHER": "Other"
+      },
       "filters": {
         "searchPlaceholder": "Find feed item by name",
         "class": "Class",
@@ -1750,12 +1758,12 @@
         "kgPerUnitAuto": "1 {unit} = {kg} kg — calculated automatically.",
         "costPerUnit": "Cost Per Unit (CPU)",
         "feedDetails": "Feed Details",
-        "feedClass": "Feed Class",
         "ingredient": "Linked Ingredient",
         "ingredientPlaceholder": "Search the feed catalogue…",
         "ingredientRequired": "Select a linked ingredient",
         "category": "Category",
         "categoryPlaceholder": "Select category",
+        "categoryRequired": "Select a category",
         "moisture": "Moisture",
         "supplier": "Supplier",
         "supplierPlaceholder": "Enter supplier name",

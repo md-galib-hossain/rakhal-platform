@@ -13,6 +13,7 @@ import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { cn } from "@/lib/utils";
 import { avatarTint } from "../avatar-tint";
+import { feedCategoryLabel } from "../feed-category";
 import { useFeedItemDetail } from "../hooks/use-inventory";
 import { FeedItemStockUpdateDialog } from "./feed-item-stock-update-dialog";
 import type { FeedItem } from "../types";
@@ -85,7 +86,7 @@ export function FeedItemDetailSheet({
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Chip variant="muted">{tOptions(`classOptions.${query.data.feedClass}`)}</Chip>
-                      {query.data.category ? <Chip variant="muted">{query.data.category}</Chip> : null}
+                      <Chip variant="muted">{feedCategoryLabel(tOptions, query.data)}</Chip>
                     </div>
                     <Chip variant={STOCK_CHIP_VARIANT[query.data.stockStatus]}>{t(`stockStatus.${query.data.stockStatus}`)}</Chip>
                   </div>

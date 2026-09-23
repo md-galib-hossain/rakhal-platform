@@ -46,7 +46,6 @@ export const feedItemFormSchema = z.object({
   feedSubType: z
     .enum(["GREEN_FODDER", "ROUGHAGE", "SILAGE", "HAY", "STRAW", "GRAIN", "OILCAKE", "BY_PRODUCT", "COMPOUND_PELLET", "PREMIX", "SUPPLEMENT", "OTHER"])
     .optional(),
-  category: z.string().trim().optional(),
   ingredientId: z.string().trim().min(1),
   unitId: z.string().min(1),
   kgPerUnit: z.number().min(0).optional(),

@@ -259,7 +259,29 @@ function CreateFeedDialogBody({
     if (valid) setStep(2);
   }
 
+  /** Enter must never save: it moves to the next input (next ingredient's amount on step 2, next
+   * field on step 1). Saving is only via the explicit Save button. */
+  // Native listener via ref (not JSX `onKeyDown`) — a handler on a non-interactive `<form>` trips
+  // `jsx-a11y/no-noninteractive-element-interactions`.
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    const formEl = formRef.current;
+    if (!formEl) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Enter") return;
+      const target = e.target as HTMLElement;
+      if (target.tagName !== "INPUT") return;
+      e.preventDefault();
+      const selector = step === 2 ? "input[data-amount-input]" : "input:not([type=hidden]):not([disabled])";
+      const inputs = Array.from(formEl!.querySelectorAll<HTMLInputElement>(selector));
+      inputs[inputs.indexOf(target as HTMLInputElement) + 1]?.focus();
+    }
+    formEl.addEventListener("keydown", onKeyDown);
+    return () => formEl.removeEventListener("keydown", onKeyDown);
+  }, [step, isEdit, editDetail.isLoading]);
+
   async function onSubmit(values: CreateFeedFormInput) {
+    if (step !== 2) return;
     try {
       const items = values.items.map((i) => ({
         ingredientId: i.ingredientId,
@@ -368,7 +390,7 @@ function CreateFeedDialogBody({
           <CardSkeleton lines={6} />
         </div>
       ) : (
-      <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
+      <form ref={formRef} onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-1 py-4">
           <div className="flex flex-col gap-3">
             <p className="text-xs text-muted-foreground">{t("stepOf", { step, total: 2 })}</p>
@@ -572,11 +594,12 @@ function CreateFeedDialogBody({
             {step === 1 ? t("cancel") : t("previous")}
           </Button>
           {step === 1 ? (
-            <Button type="button" className="h-[52px] flex-1 rounded-xl" onClick={goNext}>
+            <Button key="next" type="button" className="h-[52px] flex-1 rounded-xl" onClick={goNext}>
               {t("next")}
             </Button>
           ) : (
             <Button
+              key="save"
               type="submit"
               className="h-[52px] flex-1 rounded-xl"
               disabled={createConcentration.isPending || updateConcentration.isPending || items.length === 0}

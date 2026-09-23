@@ -1722,6 +1722,14 @@
         "SUPPLEMENT": "সাপ্লিমেন্ট",
         "OTHER": "অন্যান্য"
       },
+      "categoryOptions": {
+        "CLASS_FORAGE": "অন্যান্য ফরেজ",
+        "CLASS_CONCENTRATE": "অন্যান্য কনসেন্ট্রেট",
+        "CLASS_MINERAL": "মিনারেল",
+        "CLASS_VITAMIN": "ভিটামিন",
+        "CLASS_ADDITIVE": "অন্যান্য অ্যাডিটিভ",
+        "CLASS_OTHER": "অন্যান্য"
+      },
       "filters": {
         "searchPlaceholder": "নাম দিয়ে ফিড আইটেম খুঁজুন",
         "class": "শ্রেণী",
@@ -1750,12 +1758,12 @@
         "kgPerUnitAuto": "১ {unit} = {kg} কেজি — স্বয়ংক্রিয়ভাবে হিসাব করা হয়েছে।",
         "costPerUnit": "প্রতি ইউনিট খরচ (CPU)",
         "feedDetails": "খাদ্যের বিবরণ",
-        "feedClass": "ফিড শ্রেণী",
         "ingredient": "যুক্ত উপাদান",
         "ingredientPlaceholder": "ফিড ক্যাটালগে খুঁজুন…",
         "ingredientRequired": "একটি যুক্ত উপাদান নির্বাচন করুন",
         "category": "বিভাগ",
         "categoryPlaceholder": "বিভাগ নির্বাচন করুন",
+        "categoryRequired": "একটি বিভাগ নির্বাচন করুন",
         "moisture": "আর্দ্রতা",
         "supplier": "সরবরাহকারী",
         "supplierPlaceholder": "সরবরাহকারীর নাম লিখুন",

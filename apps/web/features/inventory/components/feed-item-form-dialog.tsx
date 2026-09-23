@@ -13,36 +13,20 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel } from "@/components/ui/select";
 import { IngredientPicker } from "@/features/feed/components/ingredient-picker";
 import { useFeedIngredients } from "@/features/feed/hooks/use-feed";
 import { UnitPicker } from "./unit-picker";
 import { useCreateFeedItem, useUnits, useUpdateFeedItem } from "../hooks/use-inventory";
+import { FEED_CATEGORY_GROUPS, feedCategoryOption, feedCategoryValue } from "../feed-category";
 import { feedItemFormSchema, type FeedItemFormInput } from "../schemas";
 import type { CreateFeedItemPayload, FeedItem, UpdateFeedItemPayload } from "../types";
-
-const FEED_CLASSES = ["FORAGE", "CONCENTRATE", "MINERAL", "VITAMIN", "ADDITIVE", "OTHER"] as const;
-const FEED_SUB_TYPES = [
-  "GREEN_FODDER",
-  "ROUGHAGE",
-  "SILAGE",
-  "HAY",
-  "STRAW",
-  "GRAIN",
-  "OILCAKE",
-  "BY_PRODUCT",
-  "COMPOUND_PELLET",
-  "PREMIX",
-  "SUPPLEMENT",
-  "OTHER",
-] as const;
 
 function toCreatePayload(values: FeedItemFormInput): CreateFeedItemPayload {
   return {
     name: values.name,
     feedClass: values.feedClass,
     feedSubType: values.feedSubType,
-    category: values.category || undefined,
     ingredientId: values.ingredientId,
     unitId: values.unitId,
     kgPerUnit: values.kgPerUnit,
@@ -65,12 +49,11 @@ function toUpdatePayload(values: FeedItemFormInput): UpdateFeedItemPayload {
 }
 
 function toFormDefaults(feedItem: FeedItem | undefined): Partial<FeedItemFormInput> {
-  if (!feedItem) return { feedClass: "FORAGE", currentStock: 0, costPerUnit: 0, ingredientId: "" };
+  if (!feedItem) return { currentStock: 0, costPerUnit: 0, ingredientId: "" };
   return {
     name: feedItem.name,
     feedClass: feedItem.feedClass,
     feedSubType: feedItem.feedSubType ?? undefined,
-    category: feedItem.category ?? "",
     ingredientId: feedItem.ingredientId ?? "",
     unitId: feedItem.unit.id,
     kgPerUnit: feedItem.kgPerUnit ?? undefined,
@@ -116,8 +99,8 @@ function PhotoPlaceholder({ label }: { label: string }) {
  * `FeedIngredient` catalogue, replacing the lowercased-name match stock decrement/price-sync used
  * to rely on): reuses `features/feed`'s `IngredientPicker` (cross-feature import, same established
  * pattern as this module's `useMilkTanks()` being reused from `log-distribution-dialog.tsx`).
- * Picking an ingredient also prefills the Feed Class from that ingredient's own `feed_class` when
- * the class hasn't been touched yet, so the two stay in sync by default without forcing it.
+ * Picking an ingredient prefills the single grouped "Category" (feed class + subtype, see
+ * `feed-category.ts`) from that ingredient; the user can still change it afterwards.
  */
 export function FeedItemFormDialog({
   open,
@@ -309,38 +292,36 @@ function FeedItemFormDialogBody({
 
           <SectionHeader>{t("feedDetails")}</SectionHeader>
           <div className="grid grid-cols-2 gap-3">
-            <Controller
-              control={form.control}
-              name="feedClass"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <LabeledSelectTrigger label={t("feedClass")} />
-                  <SelectContent>
-                    {FEED_CLASSES.map((feedClass) => (
-                      <SelectItem key={feedClass} value={feedClass}>
-                        {tOptions(`classOptions.${feedClass}`)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            <Controller
-              control={form.control}
-              name="feedSubType"
-              render={({ field }) => (
-                <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                  <LabeledSelectTrigger label={t("category")} placeholder={t("categoryPlaceholder")} />
-                  <SelectContent>
-                    {FEED_SUB_TYPES.map((subType) => (
-                      <SelectItem key={subType} value={subType}>
-                        {tOptions(`subTypeOptions.${subType}`)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
+            <div className="col-span-2 flex flex-col gap-1.5">
+              <Select
+                value={feedCategoryValue(form.watch("feedClass"), form.watch("feedSubType"))}
+                onValueChange={(value) => {
+                  const option = feedCategoryOption(value);
+                  if (!option) return;
+                  form.setValue("feedClass", option.feedClass, { shouldValidate: true });
+                  form.setValue("feedSubType", option.feedSubType, { shouldValidate: true });
+                }}
+              >
+                <LabeledSelectTrigger label={t("category")} placeholder={t("categoryPlaceholder")} />
+                <SelectContent>
+                  {FEED_CATEGORY_GROUPS.map((group) => (
+                    <SelectGroup key={group.feedClass}>
+                      <SelectLabel>{tOptions(`classOptions.${group.feedClass}`)}</SelectLabel>
+                      {group.options.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.feedSubType
+                            ? tOptions(`subTypeOptions.${option.feedSubType}`)
+                            : tOptions(`categoryOptions.${option.value}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
+              {form.formState.errors.feedClass ? (
+                <p className="text-xs text-destructive">{t("categoryRequired")}</p>
+              ) : null}
+            </div>
             <LabeledInput
               id="moisturePct"
               type="number"
@@ -358,7 +339,10 @@ function FeedItemFormDialogBody({
                   onSelect={(option) => {
                     form.setValue("ingredientId", option.id, { shouldValidate: true });
                     const picked = ingredients?.find((ing) => ing.id === option.id);
-                    if (picked) form.setValue("feedClass", picked.feed_class);
+                    if (picked) {
+                      form.setValue("feedClass", picked.feed_class, { shouldValidate: true });
+                      form.setValue("feedSubType", picked.feed_sub_type ?? undefined, { shouldValidate: true });
+                    }
                   }}
                   excludeIds={[]}
                   placeholder={selectedIngredientName ?? t("ingredientPlaceholder")}

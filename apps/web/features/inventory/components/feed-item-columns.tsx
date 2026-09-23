@@ -6,6 +6,7 @@ import { Wheat } from "lucide-react";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
 import { avatarTint } from "../avatar-tint";
+import { feedCategoryLabel } from "../feed-category";
 import { FeedItemRowActions } from "./feed-item-row-actions";
 import { StockStatusIcon } from "./stock-status-icon";
 import type { FeedItem } from "../types";
@@ -54,21 +55,14 @@ export function buildFeedItemColumns(
       },
     },
     {
-      id: "class",
-      header: t("columns.class"),
-      cell: ({ row }) => (
-        <span className="flex flex-col">
-          <span>{t(`classOptions.${row.original.feedClass}`)}</span>
-          {row.original.feedSubType ? (
-            <span className="text-xs text-muted-foreground">{row.original.feedSubType}</span>
-          ) : null}
-        </span>
-      ),
-    },
-    {
       id: "category",
       header: t("columns.category"),
-      cell: ({ row }) => row.original.category ?? "—",
+      cell: ({ row }) => (
+        <span className="flex flex-col">
+          <span>{feedCategoryLabel(t, row.original)}</span>
+          <span className="text-xs text-muted-foreground">{t(`classOptions.${row.original.feedClass}`)}</span>
+        </span>
+      ),
     },
     {
       id: "costPerUnit",
