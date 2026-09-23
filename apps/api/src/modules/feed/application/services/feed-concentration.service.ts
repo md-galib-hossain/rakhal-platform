@@ -13,7 +13,10 @@ import {
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
-import { EffectiveIngredient } from '../../domain/ingredient-resolver';
+import {
+  EffectiveIngredient,
+  resolveEffective,
+} from '../../domain/ingredient-resolver';
 import {
   balanceScore,
   computeTotals,
@@ -30,7 +33,6 @@ import {
 } from '../../presentation/dto/concentration.dto';
 import { FeedStockService, StockNutritionSnapshot } from './feed-stock.service';
 import { FeedRequirementsService } from './feed-requirements.service';
-import { FeedLotResolver } from './feed-lot-resolver.service';
 import { FeedDistributionService } from './feed-distribution.service';
 import { JournalService } from 'src/modules/finance-v2/ledger/application/journal.service';
 import { LedgerAccountService } from 'src/modules/finance-v2/ledger/application/ledger-account.service';
@@ -64,7 +66,6 @@ export class FeedConcentrationService {
     private readonly ledgerAccountService: LedgerAccountService,
     private readonly financialAccountService: FinancialAccountService,
     private readonly feedDistribution: FeedDistributionService,
-    private readonly lotResolver: FeedLotResolver,
   ) {
     this.log = this.logger.setContext(FeedConcentrationService.name);
   }
@@ -843,13 +844,27 @@ export class FeedConcentrationService {
   }
 
   /** Effective (override-merged) ingredient nutrition/price by id, farm-scoped. */
-  private effectiveMap(
+  private async effectiveMap(
     farmId: string,
     ingredientIds: string[],
   ): Promise<Map<string, EffectiveIngredient>> {
-    // Shared `FeedLotResolver` (RAKHAL-443); no `deletedAt` filter (RAKHAL-310) so saved formulas
-    // keep resolving after an ingredient is archived.
-    return this.lotResolver.effectiveIngredients(farmId, ingredientIds);
+    const ids = [...new Set(ingredientIds)];
+    // No `deletedAt` filter (RAKHAL-310): `ids` come from an existing
+    // formula's saved line items, which must keep resolving nutrition/price
+    // even if that ingredient was archived after the formula was built.
+    const [ingredients, overrides] = await Promise.all([
+      this.prisma.feedIngredient.findMany({ where: { id: { in: ids } } }),
+      this.prisma.feedIngredientOverride.findMany({
+        where: { farmId, ingredientId: { in: ids } },
+      }),
+    ]);
+    const ovById = new Map(overrides.map((o) => [o.ingredientId, o]));
+    return new Map(
+      ingredients.map((ing) => [
+        ing.id,
+        resolveEffective(ing, ovById.get(ing.id) ?? null),
+      ]),
+    );
   }
 
   /** Back-derives per-DM/per-CP nutrient rates from a formula's computed totals onto the shape

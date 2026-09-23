@@ -306,13 +306,6 @@ model FeedDistributionItem {
   pricePerKg Float
   lineCost   Float /// actualKg * pricePerKg
 
-  /// MILESTONE 26 (RAKHAL-442, written from RAKHAL-446): provenance of the frozen nutrient columns
-  /// below and the exact lot this line drew from. Plain scalars (no relation) — same "snapshot, not
-  /// a relation" convention as `ingredientId`/`ingredientName` above. Null on every pre-446 row and
-  /// on catalogue-ingredient / `FeedStock` lines.
-  nutritionProfileId String?
-  feedItemBatchId    String?
-
   /// Nutrient snapshot at logging time (RAKHAL-327/328 follow-up, 2026-08-15), frozen from the SAME
   /// live `effectiveMap()`/`resolveEffective()` lookup already made to price this line — same field
   /// set/names as `FeedStock`'s own snapshot (`feed-stock.prisma`) for consistency. Nullable because
@@ -375,12 +368,6 @@ model FeedDistributionCattleItem {
   /// group-change guard compares this against the cow's *current* group; a cow moved to a
   /// different group since must not inherit this row as "own last-used."
   feedGroupId String?
-
-  /// MILESTONE 26 (RAKHAL-442, written from RAKHAL-446): the exact lot + nutrition profile this
-  /// cow's kg came from. A cow whose kg straddles two FIFO batches gets two rows, one per lot. Plain
-  /// scalars, same convention as `feedItemId`/`feedStockId` above. Null on pre-446 rows.
-  feedItemBatchId    String?
-  nutritionProfileId String?
 
   /// RAKHAL-441 — this cow's own exact cost for this line, frozen at confirm time from the same
   /// `resolveGroupPlan()` result (`offeredKg * that group's pricePerKg`) already computed to price

@@ -31,6 +31,11 @@ export class CreateFeedItemDto {
   @IsEnum(FeedSubType)
   feedSubType?: FeedSubType;
 
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  category?: string;
+
   @IsString()
   @IsNotEmpty()
   ingredientId!: string;

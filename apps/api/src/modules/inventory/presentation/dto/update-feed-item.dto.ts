@@ -38,6 +38,11 @@ export class UpdateFeedItemDto {
   feedSubType?: FeedSubType;
 
   @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  category?: string;
+
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
   ingredientId?: string;

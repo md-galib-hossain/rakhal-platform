@@ -8,6 +8,7 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
+import { resolveEffective } from '../../domain/ingredient-resolver';
 import { resolveKgPerUnit } from 'src/modules/inventory/application/services/unit.service';
 import { LogDistributionDto } from '../../presentation/dto/log-distribution.dto';
 import { PatchRefusalDto } from '../../presentation/dto/patch-refusal.dto';
@@ -18,7 +19,6 @@ import {
 import { FeedStockService } from './feed-stock.service';
 import { FeedRationResolverService } from './feed-ration-resolver.service';
 import { FeedRequirementsService } from './feed-requirements.service';
-import { FeedLotResolver } from './feed-lot-resolver.service';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -47,7 +47,6 @@ export class FeedDistributionService {
     private readonly feedStock: FeedStockService,
     private readonly rationResolver: FeedRationResolverService,
     private readonly feedRequirements: FeedRequirementsService,
-    private readonly lotResolver: FeedLotResolver,
   ) {
     this.log = logger.setContext(FeedDistributionService.name);
   }
@@ -890,10 +889,24 @@ export class FeedDistributionService {
     return map.get(ingredientId) ?? null;
   }
 
-  // Delegates to the shared `FeedLotResolver` (RAKHAL-443) — no `deletedAt` filter, so historical
-  // lines keep pricing even if the ingredient was archived after the distribution was logged.
-  private effectiveMap(farmId: string, ingredientIds: string[]) {
-    return this.lotResolver.effectiveIngredients(farmId, ingredientIds);
+  // No `deletedAt` filter (RAKHAL-310): `ingredientIds` come from an existing
+  // concentration's line items, which must keep pricing even if the
+  // ingredient was archived after the distribution was logged.
+  private async effectiveMap(farmId: string, ingredientIds: string[]) {
+    const ids = [...new Set(ingredientIds)];
+    const [ingredients, overrides] = await Promise.all([
+      this.prisma.feedIngredient.findMany({ where: { id: { in: ids } } }),
+      this.prisma.feedIngredientOverride.findMany({
+        where: { farmId, ingredientId: { in: ids } },
+      }),
+    ]);
+    const ovById = new Map(overrides.map((o) => [o.ingredientId, o]));
+    return new Map(
+      ingredients.map((ing) => [
+        ing.id,
+        resolveEffective(ing, ovById.get(ing.id) ?? null),
+      ]),
+    );
   }
 
   // No `deletedAt` filter (RAKHAL-310) — same historical-resolve rationale as
