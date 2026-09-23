@@ -141,7 +141,13 @@ export class FeedDistributionService {
     });
     const extraLines = extraIds.map((id) => {
       const override = overrides.get(id)!;
-      return buildLine(id, 0, override.actualKg ?? 0, override.refusalKg ?? 0, override.stockId);
+      return buildLine(
+        id,
+        0,
+        override.actualKg ?? 0,
+        override.refusalKg ?? 0,
+        override.stockId,
+      );
     });
     const lines = [...recipeLines, ...extraLines];
 
