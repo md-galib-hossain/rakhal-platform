@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { ArrowRightToLine, Loader2, Pencil, Plus, Trash2, Users, Wheat, X } from "lucide-react";
+import { ArrowRightToLine, CircleHelp, Loader2, Pencil, Plus, Trash2, Users, Wheat, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiError } from "@/lib/api/errors";
@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { useFeedGroups } from "@/features/settings/hooks/use-workspace";
@@ -64,6 +65,26 @@ import {
  * The routes stay at `/settings/feed-groups`; only the UI moved. Relocating the controller
  * would break `features/feed/api.ts`, two backend e2e specs and the API doc for no user gain.
  */
+
+/** Label with a "?" popover, same convention as `requirements-tab.tsx`'s `FieldLabel` — used here
+ * because Default Ration and Default Source are easy to conflate (two stacked dropdowns, one
+ * feeds "Feed Today" only, the other feeds the Feeding Grid only). */
+function FieldLabel({ label, hint }: { label: string; hint: string }) {
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button type="button" aria-label={label} className="text-muted-foreground">
+            <CircleHelp className="size-3.5" aria-hidden />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="max-w-64 text-xs">{hint}</PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 export function FeedGroupsSection({
   onFeedToday,
 }: {
@@ -284,7 +305,7 @@ function GroupRow({
 
       <Can I="feed.update">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-muted-foreground">{t("defaultRation")}</span>
+          <FieldLabel label={t("defaultRation")} hint={t("defaultRationHint")} />
           <Select
             value={group.default_concentration_id ?? "none"}
             onValueChange={(v) => void handleDefaultChange(v)}
@@ -304,7 +325,7 @@ function GroupRow({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-muted-foreground">{t("defaultSource")}</span>
+          <FieldLabel label={t("defaultSource")} hint={t("defaultSourceHint")} />
           <Select value={defaultSourceValue} onValueChange={(v) => void handleDefaultSourceChange(v)}>
             <SelectTrigger className="h-8 w-64 text-xs">
               <SelectValue placeholder={t("noDefaultSource")} />

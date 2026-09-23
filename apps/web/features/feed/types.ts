@@ -649,6 +649,7 @@ export interface FeedCattleHistoryEntry {
   id: string;
   distribution_id: string;
   offered_kg: number;
+  refusal_kg: number;
   cost_tk: number | null;
   feed_name: string | null;
   source_type: FeedGridSourceType | null;
@@ -709,6 +710,9 @@ export interface VoidFeedCattleItemResult {
 export interface FeedGridEntryInput {
   cattleId: string;
   offeredKg: number;
+  /** User request 2026-09-23: this farm's cows each eat from their own container, so leftover is
+   * reliably measurable per cow. Optional — omit when not weighed back. */
+  refusalKg?: number;
   sourceType?: FeedGridSourceType;
   feedItemId?: string;
   feedStockId?: string;
@@ -769,6 +773,7 @@ export interface ConfirmFeedGridResult {
   cows: {
     cattle_id: string;
     offered_kg: number;
+    refusal_kg: number;
     source_type: FeedGridSourceType;
     feed_item_id: string | null;
     feed_stock_id: string | null;

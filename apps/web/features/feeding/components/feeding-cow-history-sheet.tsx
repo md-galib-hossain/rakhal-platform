@@ -195,6 +195,16 @@ export function FeedingCowHistorySheet({
                       >
                         {entry.offered_kg} kg
                       </span>
+                      {entry.refusal_kg > 0 ? (
+                        <span
+                          className={cn(
+                            "text-xs text-muted-foreground",
+                            isVoided && "line-through",
+                          )}
+                        >
+                          {t("refusalHint", { kg: entry.refusal_kg })}
+                        </span>
+                      ) : null}
                       {entry.cost_tk != null ? (
                         <span
                           className={cn(

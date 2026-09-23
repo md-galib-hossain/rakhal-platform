@@ -232,6 +232,10 @@ function FeedingGridTable({
   const [historyCow, setHistoryCow] = useState<{ id: string; name: string | null } | null>(null);
 
   const [quantities, setQuantities] = useState<Record<string, string>>(() => buildInitialQuantities(cows));
+  /** Per-cow leftover weighed back from that cow's own container (2026-09-23 user request — this
+   * farm feeds individual containers, not a shared bunk, so refusal is reliably measurable per
+   * cow). Optional, not carried forward like `quantities` — no prior value to pre-fill. */
+  const [refusals, setRefusals] = useState<Record<string, string>>({});
   const [carriedOver, setCarriedOver] = useState<Record<string, boolean>>(() => buildInitialCarriedOver(cows));
   const [sources, setSources] = useState<Record<string, RowSource | null>>(() => buildInitialSources(cows));
   const selection = useGridBulkSelection(
@@ -344,13 +348,18 @@ function FeedingGridTable({
         (e): e is { cattleId: string; offeredKg: number; source: RowSource } =>
           Number.isFinite(e.offeredKg) && e.offeredKg > 0 && e.source !== null,
       )
-      .map(({ cattleId, offeredKg, source }) => ({
-        cattleId,
-        offeredKg,
-        sourceType: source.sourceType,
-        feedItemId: source.sourceType === "FEED_ITEM" ? source.itemId : undefined,
-        feedStockId: source.sourceType === "FEED_STOCK" ? source.itemId : undefined,
-      }));
+      .map(({ cattleId, offeredKg, source }) => {
+        const refusalRaw = Number(refusals[cattleId]);
+        const refusalKg = Number.isFinite(refusalRaw) && refusalRaw > 0 ? refusalRaw : undefined;
+        return {
+          cattleId,
+          offeredKg,
+          refusalKg,
+          sourceType: source.sourceType,
+          feedItemId: source.sourceType === "FEED_ITEM" ? source.itemId : undefined,
+          feedStockId: source.sourceType === "FEED_STOCK" ? source.itemId : undefined,
+        };
+      });
   }
 
   const canSubmit = selection.selectedIds.length > 0;
@@ -607,6 +616,14 @@ function FeedingGridTable({
                 className="h-auto w-full border-none p-0 text-sm font-medium shadow-none focus-visible:ring-0"
                 value={sharedKg}
                 onChange={(e) => setSharedKg(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (selection.selectedIds.length > 0 && (itemId || sharedKg)) {
+                      handleApplyUnified();
+                    }
+                  }
+                }}
               />
               <span className="shrink-0 text-xs font-semibold text-muted-foreground">kg</span>
             </div>
@@ -645,12 +662,13 @@ function FeedingGridTable({
                 <TableHead className="min-w-[220px]">{t("columns.animal")}</TableHead>
                 <TableHead className="min-w-[220px]">{t("columns.source")}</TableHead>
                 <TableHead className="w-[160px]">{t("columns.quantity")}</TableHead>
+                <TableHead className="w-[140px]">{t("columns.refusal")}</TableHead>
                 <TableHead className="w-[130px]">{t("columns.status")}</TableHead>
                 <TableHead className="w-12 text-center">{t("cowHistory.columnLabel")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pageRows.map((cow) => {
+              {pageRows.map((cow, index) => {
                 const isSelected = selection.isSelected(cow.cattle_id);
                 const hasConfirmed = cow.confirmed_offered_kg != null;
                 const hasDraft = cow.drafts.length > 0;
@@ -719,6 +737,7 @@ function FeedingGridTable({
                         value={qtyVal}
                         isCarriedOver={isCarried}
                         hasDraft={hasDraft}
+                        rowIndex={index}
                         onChange={(next) => {
                           setQuantities((prev) => ({ ...prev, [cow.cattle_id]: next }));
                           setCarriedOver((prev) => (prev[cow.cattle_id] ? { ...prev, [cow.cattle_id]: false } : prev));
@@ -728,6 +747,21 @@ function FeedingGridTable({
                           if (!isSelected) selection.toggle(cow.cattle_id);
                         }}
                         t={t}
+                      />
+                    </TableCell>
+
+                    {/* Refusal (KG) Input — leftover weighed back from this cow's own container */}
+                    <TableCell>
+                      <RefusalCell
+                        value={refusals[cow.cattle_id] ?? ""}
+                        rowIndex={index}
+                        onChange={(next) => {
+                          setRefusals((prev) => ({ ...prev, [cow.cattle_id]: next }));
+                          if (!isSelected) selection.toggle(cow.cattle_id);
+                        }}
+                        onFocus={() => {
+                          if (!isSelected) selection.toggle(cow.cattle_id);
+                        }}
                       />
                     </TableCell>
 
@@ -869,11 +903,31 @@ function FeedingGridTable({
   );
 }
 
+/** Handles keyboard navigation across grid table input rows (Enter -> next row, Shift+Enter -> prev row) */
+function handleGridInputKeyDown(
+  e: React.KeyboardEvent<HTMLInputElement>,
+  inputType: "quantity" | "refusal",
+  rowIndex: number,
+) {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    const nextIndex = e.shiftKey ? rowIndex - 1 : rowIndex + 1;
+    const targetInput = document.querySelector<HTMLInputElement>(
+      `input[data-grid-input="${inputType}"][data-row-index="${nextIndex}"]`,
+    );
+    if (targetInput) {
+      targetInput.focus();
+      targetInput.select();
+    }
+  }
+}
+
 /** The quantity cell — sleek numeric input with seamless transparent input and clean states */
 function QuantityCell({
   value,
   isCarriedOver,
   hasDraft,
+  rowIndex,
   onChange,
   onFocus,
   t,
@@ -881,6 +935,7 @@ function QuantityCell({
   value: string;
   isCarriedOver: boolean;
   hasDraft?: boolean;
+  rowIndex: number;
   onChange: (next: string) => void;
   onFocus: () => void;
   t: ReturnType<typeof useTranslations>;
@@ -902,8 +957,14 @@ function QuantityCell({
         step={0.1}
         placeholder="—"
         value={value}
+        data-grid-input="quantity"
+        data-row-index={rowIndex}
         onChange={(e) => onChange(e.target.value)}
-        onFocus={onFocus}
+        onFocus={(e) => {
+          onFocus();
+          e.target.select();
+        }}
+        onKeyDown={(e) => handleGridInputKeyDown(e, "quantity", rowIndex)}
         className="h-full w-full min-w-0 bg-transparent p-0 text-sm font-semibold text-foreground outline-none placeholder:text-muted-foreground/30 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
       {isCarriedOver ? (
@@ -914,6 +975,42 @@ function QuantityCell({
           <TooltipContent>{t("carriedOverHint")}</TooltipContent>
         </Tooltip>
       ) : null}
+      <span className="ml-1 shrink-0 text-xs font-medium text-muted-foreground/70">kg</span>
+    </div>
+  );
+}
+
+/** Optional per-cow leftover input, next to the quantity cell. Plain/muted styling (no
+ * carried-over/draft states like `QuantityCell` — refusal is never carried forward or drafted). */
+function RefusalCell({
+  value,
+  rowIndex,
+  onChange,
+  onFocus,
+}: {
+  value: string;
+  rowIndex: number;
+  onChange: (next: string) => void;
+  onFocus?: () => void;
+}) {
+  return (
+    <div className="flex h-8.5 w-24 items-center rounded-lg border border-input/80 bg-background px-2.5 shadow-2xs transition-all hover:border-input focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+      <input
+        type="number"
+        min={0}
+        step={0.1}
+        placeholder="0"
+        value={value}
+        data-grid-input="refusal"
+        data-row-index={rowIndex}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={(e) => {
+          onFocus?.();
+          e.target.select();
+        }}
+        onKeyDown={(e) => handleGridInputKeyDown(e, "refusal", rowIndex)}
+        className="h-full w-full min-w-0 bg-transparent p-0 text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground/30 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      />
       <span className="ml-1 shrink-0 text-xs font-medium text-muted-foreground/70">kg</span>
     </div>
   );

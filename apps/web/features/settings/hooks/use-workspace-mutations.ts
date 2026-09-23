@@ -43,11 +43,20 @@ export function useDeleteShed() {
   });
 }
 
+/** Both keys hit the same `GET /settings/feed-groups` endpoint — `qk.settings.feedGroups()` (this
+ * page's own group list/form) and `qk.feed.feedGroups()` (the Feeding Grid's group filter dropdown,
+ * `features/feed/hooks/use-feed.ts`). Invalidate both or the grid's dropdown goes stale until its
+ * own `staleTime` lapses. */
+function invalidateFeedGroups(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: qk.settings.feedGroups() });
+  queryClient.invalidateQueries({ queryKey: qk.feed.feedGroups() });
+}
+
 export function useCreateFeedGroup() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: FeedGroupFormInput) => settingsApi.createFeedGroup(input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.feedGroups() }),
+    onSuccess: () => invalidateFeedGroups(queryClient),
   });
 }
 
@@ -56,7 +65,7 @@ export function useUpdateFeedGroup() {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: FeedGroupFormInput }) =>
       settingsApi.updateFeedGroup(id, input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.feedGroups() }),
+    onSuccess: () => invalidateFeedGroups(queryClient),
   });
 }
 
@@ -64,7 +73,7 @@ export function useDeleteFeedGroup() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => settingsApi.deleteFeedGroup(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.feedGroups() }),
+    onSuccess: () => invalidateFeedGroups(queryClient),
   });
 }
 
