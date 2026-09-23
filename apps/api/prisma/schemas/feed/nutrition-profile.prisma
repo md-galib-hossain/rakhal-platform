@@ -1,0 +1,52 @@
+/// MILESTONE 26 (`docs/EPIC_FEED_NUTRITION_PROFILE.md`, ADR-026) — the single definition of a feed's
+/// nutrient set. **Immutable**: editing a profile appends a new row (`supersedesId` points at the one it
+/// replaces) instead of mutating, so history, one-click revert and per-distribution provenance are free.
+/// Attached to purchased-feed lots (`FeedItemBatch.nutritionProfileId`) and, as a prefill default, to the
+/// product (`FeedItem.defaultNutritionProfileId`).
+///
+/// Basis matches `FeedIngredient` (`feed.prisma`): every `xPct` is % of dry matter, except
+/// `rdpPct`/`rupPct` which are % of CP. `dmPct`/`cpPct`/`meMjPerKgDm` are required — feeding math is
+/// meaningless without them; the rest are nullable and **null means "not measured", never zero**.
+/// `farmId`/`createdBy` are plain scalars (no relation), same convention as `FeedDistribution.cattleId` —
+/// keeps this model out of the hot `Farm`/`User` back-relation lists.
+model NutritionProfile {
+  id     String @id @default(cuid())
+  farmId String
+
+  dmPct       Float
+  cpPct       Float
+  meMjPerKgDm Float
+
+  fatPct        Float?
+  ndfPct        Float?
+  adfPct        Float?
+  rdpPct        Float?
+  rupPct        Float?
+  starchPct     Float?
+  sugarsPct     Float?
+  calciumPct    Float?
+  phosphorusPct Float?
+  tdnPct        Float?
+
+  nutritionSource NutritionSource @default(FARM_ESTIMATE)
+  sourceRef       String?
+  note            String?
+
+  /// The profile this one replaced (edit history / revert target). Null on a first profile.
+  supersedesId String?
+  /// Set when the values were copied from a Rakhal catalogue ingredient — provenance for the
+  /// "differs from catalogue" hint and Re-sync. Plain scalar: no live join, the values are a copy.
+  copiedFromIngredientId String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+
+  supersedes   NutritionProfile?  @relation("NutritionProfileHistory", fields: [supersedesId], references: [id])
+  supersededBy NutritionProfile[] @relation("NutritionProfileHistory")
+
+  batches      FeedItemBatch[] @relation("FeedItemBatchNutritionProfile")
+  itemDefaults FeedItem[]      @relation("FeedItemDefaultNutritionProfile")
+
+  @@index([farmId])
+  @@index([supersedesId])
+}

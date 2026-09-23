@@ -16,9 +16,14 @@ model FeedItem {
   name        String
   feedClass   FeedClass
   feedSubType FeedSubType?
-  category    String?
 
+  /// MILESTONE 26 (ADR-026): optional — provenance / copy-from / price-sync target, no longer the
+  /// nutrition source (that is `NutritionProfile`, attached per `FeedItemBatch`).
   ingredientId String?
+
+  /// MILESTONE 26: prefill for the nutrition of new batches of this product. Editing a batch's own
+  /// profile never rewrites this unless the user opts in.
+  defaultNutritionProfileId String?
 
   /// Unit catalog (RAKHAL-326) — replaces the old free-text `unit` string.
   unitId            String
@@ -42,6 +47,11 @@ model FeedItem {
   farm       Farm            @relation("FarmToForage", fields: [farmId], references: [id])
   creator    User            @relation("ForageCreator", fields: [createdBy], references: [id])
   ingredient FeedIngredient? @relation(fields: [ingredientId], references: [id])
+  defaultNutritionProfile NutritionProfile? @relation("FeedItemDefaultNutritionProfile", fields: [defaultNutritionProfileId], references: [id])
+
+  /// MILESTONE 26: the lots of this product (RAKHAL-442). `currentStock`/`costPerUnit`/
+  /// `purchaseDate`/`moisturePct` above stay until RAKHAL-450 drops them (additive rollout, D10).
+  batches FeedItemBatch[]
 
   stockMovements     FeedItemStockMovement[]
   inventorySaleLines InventorySaleLine[]     @relation("FeedItemToInventorySaleLine")
@@ -54,7 +64,50 @@ model FeedItem {
   @@index([createdBy])
   @@index([ingredientId])
   @@index([unitId])
+  @@index([defaultNutritionProfileId])
   @@map("Forage")
+}
+
+/// One purchase/lot of a `FeedItem` product (MILESTONE 26, ADR-026 — mirrors `MedicineBatch`). Owns
+/// the lot-level stock, cost and — the point of the model — its own immutable nutrition profile, so a
+/// restock of different quality is a new batch and lots are never blended into one number. Consumed
+/// FIFO by `purchaseDate asc, createdAt asc` (RAKHAL-444/446). `currentStock` is in the parent
+/// `FeedItem.unit`; `kgPerUnit` stays on the item. `farmId`/`createdBy` are plain scalars.
+model FeedItemBatch {
+  id String @id @default(cuid())
+
+  feedItemId String
+  farmId     String
+
+  /// Free-text lot code, indexed so a recall / "find every remaining bag of lot X" is a real lookup.
+  batchCode String?
+
+  currentStock Float    @default(0)
+  costPerUnit  Float
+  purchaseDate DateTime
+
+  nutritionProfileId String
+
+  notes String?
+
+  deletedAt DateTime?
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  feedItem         FeedItem         @relation(fields: [feedItemId], references: [id])
+  nutritionProfile NutritionProfile @relation("FeedItemBatchNutritionProfile", fields: [nutritionProfileId], references: [id])
+
+  /// A sale/feeding can draw FIFO across several batches, so those link per-batch through
+  /// `FeedItemStockMovement` (which carries `saleLineId`/distribution refs) — only a purchase line maps
+  /// to exactly one batch, hence the single back-relation below.
+  stockMovements FeedItemStockMovement[]
+  purchaseLines  PurchaseLine[]          @relation("FeedItemBatchToPurchaseLine")
+
+  @@index([feedItemId, purchaseDate])
+  @@index([farmId])
+  @@index([batchCode])
+  @@index([nutritionProfileId])
 }
 
 /// Append-only audit of every stock change on a FeedItem row — mirrors
@@ -67,6 +120,10 @@ model FeedItemStockMovement {
 
   feedItemId String
   farmId     String
+
+  /// MILESTONE 26: the lot this movement changed. Nullable — rows written before batches existed
+  /// point only at the product (the backfill assigns each to its item's single migrated batch).
+  feedItemBatchId String?
 
   reason       FeedItemStockMovementReason
   delta        Float // signed: +purchase / -distribution
@@ -83,9 +140,11 @@ model FeedItemStockMovement {
   createdBy String
   createdAt DateTime @default(now())
 
-  feedItem FeedItem @relation(fields: [feedItemId], references: [id])
+  feedItem      FeedItem       @relation(fields: [feedItemId], references: [id])
+  feedItemBatch FeedItemBatch? @relation(fields: [feedItemBatchId], references: [id])
 
   @@index([feedItemId])
+  @@index([feedItemBatchId])
   @@index([farmId])
   @@index([createdAt])
   @@index([saleLineId])
