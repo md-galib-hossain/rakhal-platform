@@ -75,9 +75,10 @@ export class MedicineController {
   @RequirePermission('inventory.delete')
   bulkDelete(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Body() dto: BulkDeleteMedicineDto,
   ) {
-    return this.medicineService.removeMany(farmId, dto.ids);
+    return this.medicineService.removeMany(farmId, dto.ids, userId);
   }
 
   @Get()
@@ -109,10 +110,11 @@ export class MedicineController {
   @RequirePermission('inventory.update')
   update(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: UpdateMedicineDto,
   ) {
-    return this.medicineService.update(farmId, id, dto);
+    return this.medicineService.update(farmId, id, dto, userId);
   }
 
   /** RAKHAL-434/435 — restock an existing product with a new lot (`docs/EPIC_MEDICINE_BATCH_MODEL.md`). */
@@ -135,7 +137,7 @@ export class MedicineController {
     @Param('id') id: string,
     @Body() dto: AdjustStockDto,
   ) {
-    return this.medicineService.adjustStock(farmId, userId, id, dto);
+    return this.medicineService.adjustStockManual(farmId, userId, id, dto);
   }
 
   @Get(':id/photo')
@@ -171,19 +173,31 @@ export class MedicineController {
 
   @Patch(':id/archive')
   @RequirePermission('inventory.update')
-  archive(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.medicineService.archive(farmId, id);
+  archive(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.medicineService.archive(farmId, id, userId);
   }
 
   @Patch(':id/restore')
   @RequirePermission('inventory.update')
-  restore(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.medicineService.restore(farmId, id);
+  restore(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.medicineService.restore(farmId, id, userId);
   }
 
   @Delete(':id')
   @RequirePermission('inventory.delete')
-  remove(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.medicineService.remove(farmId, id);
+  remove(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.medicineService.remove(farmId, id, userId);
   }
 }

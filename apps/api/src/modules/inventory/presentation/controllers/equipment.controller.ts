@@ -52,9 +52,10 @@ export class EquipmentController {
   @RequirePermission('inventory.delete')
   bulkDelete(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Body() dto: BulkDeleteEquipmentDto,
   ) {
-    return this.equipmentService.removeMany(farmId, dto.ids);
+    return this.equipmentService.removeMany(farmId, dto.ids, userId);
   }
 
   @Get()
@@ -76,27 +77,40 @@ export class EquipmentController {
   @RequirePermission('inventory.update')
   update(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: UpdateEquipmentDto,
   ) {
-    return this.equipmentService.update(farmId, id, dto);
+    return this.equipmentService.update(farmId, id, dto, userId);
   }
 
   @Patch(':id/archive')
   @RequirePermission('inventory.update')
-  archive(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.equipmentService.archive(farmId, id);
+  archive(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.equipmentService.archive(farmId, id, userId);
   }
 
   @Patch(':id/restore')
   @RequirePermission('inventory.update')
-  restore(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.equipmentService.restore(farmId, id);
+  restore(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.equipmentService.restore(farmId, id, userId);
   }
 
   @Delete(':id')
   @RequirePermission('inventory.delete')
-  remove(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.equipmentService.remove(farmId, id);
+  remove(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.equipmentService.remove(farmId, id, userId);
   }
 }

@@ -63,16 +63,21 @@ export class SemenController {
   @RequirePermission('inventory.update')
   updateTank(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: UpdateSemenTankDto,
   ) {
-    return this.semenService.updateTank(farmId, id, dto);
+    return this.semenService.updateTank(farmId, id, dto, userId);
   }
 
   @Delete('tanks/:id')
   @RequirePermission('inventory.delete')
-  archiveTank(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.semenService.archiveTank(farmId, id);
+  archiveTank(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.semenService.archiveTank(farmId, id, userId);
   }
 
   // Batches
@@ -99,15 +104,20 @@ export class SemenController {
   @RequirePermission('inventory.update')
   updateBatch(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: UpdateSemenBatchDto,
   ) {
-    return this.semenService.updateBatch(farmId, id, dto);
+    return this.semenService.updateBatch(farmId, id, dto, userId);
   }
 
   @Delete('batches/:id')
   @RequirePermission('inventory.delete')
-  archiveBatch(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.semenService.archiveBatch(farmId, id);
+  archiveBatch(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.semenService.archiveBatch(farmId, id, userId);
   }
 }

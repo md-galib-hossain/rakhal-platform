@@ -32,6 +32,7 @@ import { CreateMedicineBatchDto } from '../../presentation/dto/create-medicine-b
 import { CreateMedicineDto } from '../../presentation/dto/create-medicine.dto';
 import { ListMedicineQueryDto } from '../../presentation/dto/list-medicine-query.dto';
 import { UpdateMedicineDto } from '../../presentation/dto/update-medicine.dto';
+import { InventoryActivityService } from './inventory-activity.service';
 
 /** A medicine row with its `Unit` relation resolved (RAKHAL-326). */
 type MedicineWithUnit = Medicine & { unit: Unit };
@@ -113,6 +114,7 @@ export class MedicineService {
     private readonly notificationService: NotificationService,
     private readonly media: MediaService,
     logger: LoggerService,
+    private readonly activity: InventoryActivityService,
   ) {
     this.log = logger.setContext(MedicineService.name);
   }
@@ -183,6 +185,12 @@ export class MedicineService {
       });
 
       this.log.info('Medicine created', { medicineId: medicine.id, farmId });
+      await this.activity.record(
+        farmId,
+        userId,
+        'Medicine Added',
+        `Medicine "${medicine.name}" added — stock ${medicine.currentStock} ${medicine.unit.symbol}.`,
+      );
       return this.presentOne(medicine);
     } catch (error) {
       if (this.isUniqueError(error)) {
@@ -258,6 +266,15 @@ export class MedicineService {
       : await this.prisma.$transaction((t) => write(t));
 
     this.log.info('Medicine batch created', { medicineId, batchId, farmId });
+    // Only the direct (UI) path logs; a caller passing `tx` (purchasing) owns its own audit trail.
+    if (!tx) {
+      await this.activity.record(
+        farmId,
+        userId,
+        'Medicine Batch Added',
+        `New batch${dto.batchCode ? ` "${dto.batchCode}"` : ''} of "${medicine.name}" added — ${dto.currentStock} ${medicine.unit.symbol}.`,
+      );
+    }
     const presented = await this.presentOne(medicine);
     return { ...presented, batchId };
   }
@@ -349,6 +366,7 @@ export class MedicineService {
     farmId: string,
     id: string,
     dto: UpdateMedicineDto,
+    userId?: string,
   ): Promise<PresentedMedicine> {
     const existing = await this.getOrThrow(farmId, id);
 
@@ -415,6 +433,12 @@ export class MedicineService {
       });
 
       this.log.info('Medicine updated', { medicineId: id, farmId });
+      await this.activity.record(
+        farmId,
+        userId,
+        'Medicine Updated',
+        `Medicine "${medicine.name}" updated.`,
+      );
       return this.presentOne(medicine);
     } catch (error) {
       if (this.isUniqueError(error)) {
@@ -498,6 +522,25 @@ export class MedicineService {
       medicine.currentStock,
     );
     return this.presentOne(medicine);
+  }
+
+  /** Manual stock adjustment from the Inventory UI — logged to the Activity Log. Treatment,
+   * sale and purchase flows call `adjustStock` directly and log their own events. */
+  async adjustStockManual(
+    farmId: string,
+    userId: string,
+    id: string,
+    dto: AdjustStockDto,
+  ): Promise<PresentedMedicine> {
+    const medicine = await this.adjustStock(farmId, userId, id, dto);
+    const sign = dto.adjustment > 0 ? '+' : '';
+    await this.activity.record(
+      farmId,
+      userId,
+      'Medicine Stock Adjusted',
+      `Medicine "${medicine.name}" stock adjusted ${sign}${dto.adjustment} ${medicine.unit.symbol} (${dto.reason})${dto.notes ? ` — ${dto.notes}` : ''}.`,
+    );
+    return medicine;
   }
 
   /**
@@ -933,7 +976,11 @@ export class MedicineService {
     }
   }
 
-  async archive(farmId: string, id: string): Promise<PresentedMedicine> {
+  async archive(
+    farmId: string,
+    id: string,
+    userId?: string,
+  ): Promise<PresentedMedicine> {
     await this.getOrThrow(farmId, id);
     const medicine = await this.prisma.medicine.update({
       where: { id },
@@ -941,10 +988,20 @@ export class MedicineService {
       include: { unit: true },
     });
     this.log.info('Medicine archived', { medicineId: id, farmId });
+    await this.activity.record(
+      farmId,
+      userId,
+      'Medicine Archived',
+      `Medicine "${medicine.name}" archived.`,
+    );
     return this.presentOne(medicine);
   }
 
-  async restore(farmId: string, id: string): Promise<PresentedMedicine> {
+  async restore(
+    farmId: string,
+    id: string,
+    userId?: string,
+  ): Promise<PresentedMedicine> {
     await this.getOrThrow(farmId, id);
     const medicine = await this.prisma.medicine.update({
       where: { id },
@@ -952,12 +1009,22 @@ export class MedicineService {
       include: { unit: true },
     });
     this.log.info('Medicine restored', { medicineId: id, farmId });
+    await this.activity.record(
+      farmId,
+      userId,
+      'Medicine Restored',
+      `Medicine "${medicine.name}" restored.`,
+    );
     return this.presentOne(medicine);
   }
 
   /** Soft-delete (archive). Hard delete is avoided so treatment history stays intact (INV-06). */
-  async remove(farmId: string, id: string): Promise<PresentedMedicine> {
-    return this.archive(farmId, id);
+  async remove(
+    farmId: string,
+    id: string,
+    userId?: string,
+  ): Promise<PresentedMedicine> {
+    return this.archive(farmId, id, userId);
   }
 
   /** Multi-select delete (bulk-action dock, 2026-07-21) — one `updateMany`, silently skipping any
@@ -966,6 +1033,7 @@ export class MedicineService {
   async removeMany(
     farmId: string,
     ids: string[],
+    userId?: string,
   ): Promise<{ deleted: number }> {
     const result = await this.prisma.medicine.updateMany({
       where: { farmId, id: { in: ids }, deletedAt: null },
@@ -976,6 +1044,14 @@ export class MedicineService {
       requested: ids.length,
       archived: result.count,
     });
+    if (result.count > 0) {
+      await this.activity.record(
+        farmId,
+        userId,
+        'Medicines Bulk Archived',
+        `${result.count} medicine(s) archived.`,
+      );
+    }
     return { deleted: result.count };
   }
 

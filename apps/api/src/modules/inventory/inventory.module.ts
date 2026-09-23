@@ -4,6 +4,7 @@ import { AuthModule } from '../auth/auth.module';
 import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { NotificationModule } from '../notification/notification.module';
+import { ActivityModule } from '../activity/activity.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { MediaModule } from '../media/media.module';
 import { MedicineService } from './application/services/medicine.service';
@@ -12,6 +13,7 @@ import { SemenService } from './application/services/semen.service';
 import { MilkTankService } from './application/services/milk-tank.service';
 import { EquipmentService } from './application/services/equipment.service';
 import { UnitService } from './application/services/unit.service';
+import { InventoryActivityService } from './application/services/inventory-activity.service';
 import { MedicineController } from './presentation/controllers/medicine.controller';
 import { FeedItemController } from './presentation/controllers/feed-item.controller';
 import { SemenController } from './presentation/controllers/semen.controller';
@@ -41,6 +43,7 @@ import { UnitController } from './presentation/controllers/unit.controller';
     NotificationModule,
     SubscriptionModule,
     MediaModule,
+    ActivityModule,
   ],
   controllers: [
     MedicineController,
@@ -57,6 +60,7 @@ import { UnitController } from './presentation/controllers/unit.controller';
     MilkTankService,
     EquipmentService,
     UnitService,
+    InventoryActivityService,
   ],
   exports: [
     MedicineService,

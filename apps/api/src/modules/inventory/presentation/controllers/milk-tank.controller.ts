@@ -79,16 +79,21 @@ export class MilkTankController {
   @RequirePermission('inventory.update')
   update(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: UpdateMilkTankDto,
   ) {
-    return this.milkTankService.update(farmId, id, dto);
+    return this.milkTankService.update(farmId, id, dto, userId);
   }
 
   @Post(':id/set-primary')
   @RequirePermission('inventory.update')
-  setPrimary(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.milkTankService.setPrimary(farmId, id);
+  setPrimary(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.milkTankService.setPrimary(farmId, id, userId);
   }
 
   @Post(':id/adjust-volume')
@@ -99,12 +104,16 @@ export class MilkTankController {
     @Param('id') id: string,
     @Body() dto: AdjustMilkTankVolumeDto,
   ) {
-    return this.milkTankService.adjustVolume(farmId, userId, id, dto);
+    return this.milkTankService.adjustVolumeManual(farmId, userId, id, dto);
   }
 
   @Delete(':id')
   @RequirePermission('inventory.delete')
-  archive(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.milkTankService.archive(farmId, id);
+  archive(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.milkTankService.archive(farmId, id, userId);
   }
 }

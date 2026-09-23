@@ -6,6 +6,7 @@ import {
 import { MilkTank, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { InventoryActivityService } from './inventory-activity.service';
 import { CursorPage, getCursorArgs, toCursorPage } from 'src/common/pagination';
 import {
   AdjustMilkTankVolumeDto,
@@ -30,8 +31,18 @@ export class MilkTankService {
   constructor(
     private readonly prisma: PrismaService,
     logger: LoggerService,
+    private readonly activity: InventoryActivityService,
   ) {
     this.log = logger.setContext(MilkTankService.name);
+  }
+
+  private recordActivity(
+    farmId: string,
+    actorId: string | undefined,
+    eventTitle: string,
+    actionDetails: string,
+  ): Promise<void> {
+    return this.activity.record(farmId, actorId, eventTitle, actionDetails);
   }
 
   async findAll(
@@ -83,6 +94,12 @@ export class MilkTankService {
     });
 
     this.log.info('Milk tank created', { tankId: tank.id, farmId });
+    await this.recordActivity(
+      farmId,
+      userId,
+      'Milk Tank Created',
+      `Milk tank "${tank.name}" (${tank.tankType}) created — capacity ${tank.totalCapacityL}L, opening volume ${tank.currentVolumeL}L.`,
+    );
     return this.present(tank);
   }
 
@@ -90,6 +107,7 @@ export class MilkTankService {
     farmId: string,
     id: string,
     dto: UpdateMilkTankDto,
+    userId?: string,
   ): Promise<PresentedMilkTank> {
     const existing = await this.getOrThrow(farmId, id);
     await this.assertShedInFarm(farmId, dto.assignedShedId);
@@ -118,7 +136,33 @@ export class MilkTankService {
     });
 
     this.log.info('Milk tank updated', { tankId: id, farmId });
+    await this.recordActivity(
+      farmId,
+      userId,
+      'Milk Tank Updated',
+      `Milk tank "${tank.name}" settings updated.`,
+    );
     return this.present(tank);
+  }
+
+  /** Manual "adjust to physical" from the Inventory UI — logged to the Activity Log.
+   * Milk-submit / sale flows call `adjustVolume` directly and log their own events. */
+  async adjustVolumeManual(
+    farmId: string,
+    userId: string,
+    id: string,
+    dto: AdjustMilkTankVolumeDto,
+  ): Promise<PresentedMilkTank> {
+    const before = await this.getOrThrow(farmId, id);
+    const tank = await this.adjustVolume(farmId, userId, id, dto);
+    const sign = dto.delta > 0 ? '+' : '';
+    await this.recordActivity(
+      farmId,
+      userId,
+      'Milk Tank Volume Adjusted',
+      `Milk tank "${tank.name}" adjusted ${sign}${dto.delta}L (${dto.activityType}) — ${before.currentVolumeL}L to ${tank.currentVolumeL}L.${dto.notes ? ` Note: ${dto.notes}` : ''}`,
+    );
+    return tank;
   }
 
   /**
@@ -188,7 +232,11 @@ export class MilkTankService {
   /** Sets this tank as the farm's primary tank for its `tankType` — the Milk Log grid seeds each
    * row's default tank from this. Only one primary per (farm, tankType); unsets any prior holder
    * of that type in the same transaction, matching `MilkTank.isPrimary`'s doc-comment invariant. */
-  async setPrimary(farmId: string, id: string): Promise<PresentedMilkTank> {
+  async setPrimary(
+    farmId: string,
+    id: string,
+    userId?: string,
+  ): Promise<PresentedMilkTank> {
     const target = await this.getOrThrow(farmId, id);
     const tank = await this.prisma.$transaction(async (tx) => {
       await tx.milkTank.updateMany({
@@ -200,15 +248,31 @@ export class MilkTankService {
         data: { isPrimary: true },
       });
     });
+    await this.recordActivity(
+      farmId,
+      userId,
+      'Primary Milk Tank Set',
+      `Milk tank "${tank.name}" set as primary ${tank.tankType} tank.`,
+    );
     return this.present(tank);
   }
 
-  async archive(farmId: string, id: string): Promise<PresentedMilkTank> {
+  async archive(
+    farmId: string,
+    id: string,
+    userId?: string,
+  ): Promise<PresentedMilkTank> {
     await this.getOrThrow(farmId, id);
     const tank = await this.prisma.milkTank.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
+    await this.recordActivity(
+      farmId,
+      userId,
+      'Milk Tank Archived',
+      `Milk tank "${tank.name}" archived.`,
+    );
     return this.present(tank);
   }
 

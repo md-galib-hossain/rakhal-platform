@@ -52,9 +52,10 @@ export class FeedItemController {
   @RequirePermission('inventory.delete')
   bulkDelete(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Body() dto: BulkDeleteFeedItemDto,
   ) {
-    return this.feedItemService.removeMany(farmId, dto.ids);
+    return this.feedItemService.removeMany(farmId, dto.ids, userId);
   }
 
   @Get()
@@ -85,19 +86,31 @@ export class FeedItemController {
 
   @Patch(':id/archive')
   @RequirePermission('inventory.update')
-  archive(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.feedItemService.archive(farmId, id);
+  archive(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.feedItemService.archive(farmId, id, userId);
   }
 
   @Patch(':id/restore')
   @RequirePermission('inventory.update')
-  restore(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.feedItemService.restore(farmId, id);
+  restore(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.feedItemService.restore(farmId, id, userId);
   }
 
   @Delete(':id')
   @RequirePermission('inventory.delete')
-  remove(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.feedItemService.remove(farmId, id);
+  remove(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.feedItemService.remove(farmId, id, userId);
   }
 }

@@ -14,6 +14,7 @@ import { CreateFeedItemDto } from '../../presentation/dto/create-feed-item.dto';
 import { ListFeedItemQueryDto } from '../../presentation/dto/list-feed-item-query.dto';
 import { UpdateFeedItemDto } from '../../presentation/dto/update-feed-item.dto';
 import { AdjustFeedItemStockDto } from '../../presentation/dto/adjust-feed-item-stock.dto';
+import { InventoryActivityService } from './inventory-activity.service';
 
 /** A feed item row with its `Unit` relation resolved (RAKHAL-326). */
 type FeedItemWithUnit = FeedItem & { unit: Unit };
@@ -38,6 +39,7 @@ export class FeedItemService {
   constructor(
     private readonly prisma: PrismaService,
     logger: LoggerService,
+    private readonly activity: InventoryActivityService,
   ) {
     this.log = logger.setContext(FeedItemService.name);
   }
@@ -54,7 +56,6 @@ export class FeedItemService {
           name: dto.name,
           feedClass: dto.feedClass,
           feedSubType: dto.feedSubType,
-          category: dto.category,
           ingredientId: dto.ingredientId,
           unitId: dto.unitId,
           kgPerUnit: dto.kgPerUnit,
@@ -73,6 +74,12 @@ export class FeedItemService {
       await this.syncIngredientPrice(farmId, userId, feedItem);
 
       this.log.info('Feed item created', { feedItemId: feedItem.id, farmId });
+      await this.activity.record(
+        farmId,
+        userId,
+        'Feed Item Added',
+        `Feed item "${feedItem.name}" (${feedItem.feedClass}) added — stock ${feedItem.currentStock} ${feedItem.unit.symbol}.`,
+      );
       return this.present(feedItem);
     } catch (error) {
       if (this.isUniqueError(error)) {
@@ -95,7 +102,6 @@ export class FeedItemService {
             OR: [
               { name: { contains: query.search, mode: 'insensitive' } },
               { supplier: { contains: query.search, mode: 'insensitive' } },
-              { category: { contains: query.search, mode: 'insensitive' } },
             ],
           }
         : {}),
@@ -134,7 +140,6 @@ export class FeedItemService {
           name: dto.name,
           feedClass: dto.feedClass,
           feedSubType: dto.feedSubType,
-          category: dto.category,
           ingredientId: dto.ingredientId,
           unitId: dto.unitId,
           kgPerUnit: dto.kgPerUnit,
@@ -156,6 +161,12 @@ export class FeedItemService {
       }
 
       this.log.info('Feed item updated', { feedItemId: id, farmId });
+      await this.activity.record(
+        farmId,
+        userId,
+        'Feed Item Updated',
+        `Feed item "${feedItem.name}" updated.`,
+      );
       return this.present(feedItem);
     } catch (error) {
       if (this.isUniqueError(error)) {
@@ -165,7 +176,11 @@ export class FeedItemService {
     }
   }
 
-  async archive(farmId: string, id: string): Promise<PresentedFeedItem> {
+  async archive(
+    farmId: string,
+    id: string,
+    userId?: string,
+  ): Promise<PresentedFeedItem> {
     await this.getOrThrow(farmId, id);
     const feedItem = await this.prisma.feedItem.update({
       where: { id },
@@ -173,10 +188,20 @@ export class FeedItemService {
       include: { unit: true },
     });
     this.log.info('Feed item archived', { feedItemId: id, farmId });
+    await this.activity.record(
+      farmId,
+      userId,
+      'Feed Item Archived',
+      `Feed item "${feedItem.name}" archived.`,
+    );
     return this.present(feedItem);
   }
 
-  async restore(farmId: string, id: string): Promise<PresentedFeedItem> {
+  async restore(
+    farmId: string,
+    id: string,
+    userId?: string,
+  ): Promise<PresentedFeedItem> {
     await this.getOrThrow(farmId, id);
     const feedItem = await this.prisma.feedItem.update({
       where: { id },
@@ -184,11 +209,21 @@ export class FeedItemService {
       include: { unit: true },
     });
     this.log.info('Feed item restored', { feedItemId: id, farmId });
+    await this.activity.record(
+      farmId,
+      userId,
+      'Feed Item Restored',
+      `Feed item "${feedItem.name}" restored.`,
+    );
     return this.present(feedItem);
   }
 
-  async remove(farmId: string, id: string): Promise<PresentedFeedItem> {
-    return this.archive(farmId, id);
+  async remove(
+    farmId: string,
+    id: string,
+    userId?: string,
+  ): Promise<PresentedFeedItem> {
+    return this.archive(farmId, id, userId);
   }
 
   /**
@@ -258,6 +293,7 @@ export class FeedItemService {
   async removeMany(
     farmId: string,
     ids: string[],
+    userId?: string,
   ): Promise<{ deleted: number }> {
     const result = await this.prisma.feedItem.updateMany({
       where: { farmId, id: { in: ids }, deletedAt: null },
@@ -268,6 +304,14 @@ export class FeedItemService {
       requested: ids.length,
       archived: result.count,
     });
+    if (result.count > 0) {
+      await this.activity.record(
+        farmId,
+        userId,
+        'Feed Items Bulk Archived',
+        `${result.count} feed item(s) archived.`,
+      );
+    }
     return { deleted: result.count };
   }
 

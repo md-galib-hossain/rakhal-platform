@@ -24,6 +24,7 @@ import {
   ListSemenBatchQueryDto,
   UpdateSemenBatchDto,
 } from '../../presentation/dto/semen-batch.dto';
+import { InventoryActivityService } from './inventory-activity.service';
 
 type PresentedTank = SemenTank & {
   strawInStock: number;
@@ -52,6 +53,7 @@ export class SemenService {
   constructor(
     private readonly prisma: PrismaService,
     logger: LoggerService,
+    private readonly activity: InventoryActivityService,
   ) {
     this.log = logger.setContext(SemenService.name);
   }
@@ -105,6 +107,12 @@ export class SemenService {
     });
 
     this.log.info('Semen tank created', { tankId: tank.id, farmId });
+    await this.activity.record(
+      farmId,
+      userId,
+      'Semen Tank Added',
+      `Semen tank "${tank.name}" added — capacity ${tank.strawCapacity} straws.`,
+    );
     return this.presentTank(tank, 0);
   }
 
@@ -112,6 +120,7 @@ export class SemenService {
     farmId: string,
     id: string,
     dto: UpdateSemenTankDto,
+    userId?: string,
   ): Promise<PresentedTank> {
     await this.getTankOrThrow(farmId, id);
     this.assertSubZeroTemp(dto.currentTempC);
@@ -131,15 +140,31 @@ export class SemenService {
     });
 
     this.log.info('Semen tank updated', { tankId: id, farmId });
+    await this.activity.record(
+      farmId,
+      userId,
+      'Semen Tank Updated',
+      `Semen tank "${tank.name}" updated.`,
+    );
     return this.presentTank(tank, await this.tankStrawTotal(farmId, id));
   }
 
-  async archiveTank(farmId: string, id: string): Promise<PresentedTank> {
+  async archiveTank(
+    farmId: string,
+    id: string,
+    userId?: string,
+  ): Promise<PresentedTank> {
     await this.getTankOrThrow(farmId, id);
     const tank = await this.prisma.semenTank.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
+    await this.activity.record(
+      farmId,
+      userId,
+      'Semen Tank Archived',
+      `Semen tank "${tank.name}" archived.`,
+    );
     return this.presentTank(tank, await this.tankStrawTotal(farmId, id));
   }
 
@@ -217,6 +242,12 @@ export class SemenService {
     });
 
     this.log.info('Semen batch created', { batchId: batch.id, farmId });
+    await this.activity.record(
+      farmId,
+      userId,
+      'Semen Batch Added',
+      `Semen batch "${batch.name}" added — ${batch.strawQuantity} straws.`,
+    );
     return this.presentBatch(batch);
   }
 
@@ -224,6 +255,7 @@ export class SemenService {
     farmId: string,
     id: string,
     dto: UpdateSemenBatchDto,
+    userId?: string,
   ): Promise<PresentedBatch> {
     const existing = await this.getBatchOrThrow(farmId, id);
 
@@ -260,15 +292,31 @@ export class SemenService {
     });
 
     this.log.info('Semen batch updated', { batchId: id, farmId });
+    await this.activity.record(
+      farmId,
+      userId,
+      'Semen Batch Updated',
+      `Semen batch "${batch.name}" updated.`,
+    );
     return this.presentBatch(batch);
   }
 
-  async archiveBatch(farmId: string, id: string): Promise<PresentedBatch> {
+  async archiveBatch(
+    farmId: string,
+    id: string,
+    userId?: string,
+  ): Promise<PresentedBatch> {
     await this.getBatchOrThrow(farmId, id);
     const batch = await this.prisma.semenBatch.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
+    await this.activity.record(
+      farmId,
+      userId,
+      'Semen Batch Archived',
+      `Semen batch "${batch.name}" archived.`,
+    );
     return this.presentBatch(batch);
   }
 

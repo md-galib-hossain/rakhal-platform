@@ -13,6 +13,7 @@ import { CreateEquipmentDto } from '../../presentation/dto/create-equipment.dto'
 import { ListEquipmentQueryDto } from '../../presentation/dto/list-equipment-query.dto';
 import { UpdateEquipmentDto } from '../../presentation/dto/update-equipment.dto';
 import { AdjustEquipmentStockDto } from '../../presentation/dto/adjust-equipment-stock.dto';
+import { InventoryActivityService } from './inventory-activity.service';
 
 /** An equipment row with its `Unit` relation resolved (RAKHAL-326, optional — mirrors the
  * old optional `unit` column). */
@@ -32,6 +33,7 @@ export class EquipmentService {
   constructor(
     private readonly prisma: PrismaService,
     logger: LoggerService,
+    private readonly activity: InventoryActivityService,
   ) {
     this.log = logger.setContext(EquipmentService.name);
   }
@@ -60,6 +62,12 @@ export class EquipmentService {
       });
 
       this.log.info('Equipment created', { equipmentId: equipment.id, farmId });
+      await this.activity.record(
+        farmId,
+        userId,
+        'Equipment Added',
+        `Equipment "${equipment.name}" added — stock ${equipment.currentStock}${equipment.unit ? ` ${equipment.unit.symbol}` : ''}.`,
+      );
       return this.present(equipment);
     } catch (error) {
       if (this.isUniqueError(error)) {
@@ -109,6 +117,7 @@ export class EquipmentService {
     farmId: string,
     id: string,
     dto: UpdateEquipmentDto,
+    userId?: string,
   ): Promise<PresentedEquipment> {
     await this.getOrThrow(farmId, id);
 
@@ -132,6 +141,12 @@ export class EquipmentService {
       });
 
       this.log.info('Equipment updated', { equipmentId: id, farmId });
+      await this.activity.record(
+        farmId,
+        userId,
+        'Equipment Updated',
+        `Equipment "${equipment.name}" updated.`,
+      );
       return this.present(equipment);
     } catch (error) {
       if (this.isUniqueError(error)) {
@@ -141,7 +156,11 @@ export class EquipmentService {
     }
   }
 
-  async archive(farmId: string, id: string): Promise<PresentedEquipment> {
+  async archive(
+    farmId: string,
+    id: string,
+    userId?: string,
+  ): Promise<PresentedEquipment> {
     await this.getOrThrow(farmId, id);
     const equipment = await this.prisma.equipment.update({
       where: { id },
@@ -149,10 +168,20 @@ export class EquipmentService {
       include: { unit: true },
     });
     this.log.info('Equipment archived', { equipmentId: id, farmId });
+    await this.activity.record(
+      farmId,
+      userId,
+      'Equipment Archived',
+      `Equipment "${equipment.name}" archived.`,
+    );
     return this.present(equipment);
   }
 
-  async restore(farmId: string, id: string): Promise<PresentedEquipment> {
+  async restore(
+    farmId: string,
+    id: string,
+    userId?: string,
+  ): Promise<PresentedEquipment> {
     await this.getOrThrow(farmId, id);
     const equipment = await this.prisma.equipment.update({
       where: { id },
@@ -160,11 +189,21 @@ export class EquipmentService {
       include: { unit: true },
     });
     this.log.info('Equipment restored', { equipmentId: id, farmId });
+    await this.activity.record(
+      farmId,
+      userId,
+      'Equipment Restored',
+      `Equipment "${equipment.name}" restored.`,
+    );
     return this.present(equipment);
   }
 
-  async remove(farmId: string, id: string): Promise<PresentedEquipment> {
-    return this.archive(farmId, id);
+  async remove(
+    farmId: string,
+    id: string,
+    userId?: string,
+  ): Promise<PresentedEquipment> {
+    return this.archive(farmId, id, userId);
   }
 
   /**
@@ -234,6 +273,7 @@ export class EquipmentService {
   async removeMany(
     farmId: string,
     ids: string[],
+    userId?: string,
   ): Promise<{ deleted: number }> {
     const result = await this.prisma.equipment.updateMany({
       where: { farmId, id: { in: ids }, deletedAt: null },
@@ -244,6 +284,14 @@ export class EquipmentService {
       requested: ids.length,
       archived: result.count,
     });
+    if (result.count > 0) {
+      await this.activity.record(
+        farmId,
+        userId,
+        'Equipment Bulk Archived',
+        `${result.count} equipment item(s) archived.`,
+      );
+    }
     return { deleted: result.count };
   }
 
