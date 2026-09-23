@@ -37,6 +37,14 @@ export class FeedDraftEntryDto {
   @Min(0)
   offeredKg!: number;
 
+  /// User request 2026-09-23: this farm's cows each eat from their own container, so leftover is
+  /// reliably measurable per cow (unlike the shared-bunk case `offeredKg`'s doc comment above
+  /// describes). Optional — omit when not weighed back; defaults to 0 on confirm.
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  refusalKg?: number;
+
   @IsOptional()
   @IsEnum(FeedGridSourceType)
   sourceType?: FeedGridSourceType;

@@ -360,14 +360,25 @@ export class FeedFeedingGridService {
         ? cattleIds.filter((id) => entriesMap.has(id))
         : cattleIds;
 
-    type Line = { cattleId: string; offeredKg: number; source: ResolvedSource };
+    type Line = {
+      cattleId: string;
+      offeredKg: number;
+      /** Per-cow leftover, weighed back from that cow's own container (2026-09-23 user request —
+       * only meaningful here because this farm feeds individual containers, not a shared bunk).
+       * Only ever comes from an explicit `entries[]` line; the draft-carry-forward and
+       * group-default paths below have no weigh-back to carry, so they default to 0. */
+      refusalKg: number;
+      source: ResolvedSource;
+    };
     const lines: Line[] = [];
     for (const cattleId of scopedCattleIds) {
       const entry = entriesMap.get(cattleId);
       if (entry) {
         const source = this.resolveEntrySource(dto, entry);
         const qty = round2(entry.offeredKg);
-        if (source && qty > 0) lines.push({ cattleId, offeredKg: qty, source });
+        const refusalKg = round2(entry.refusalKg ?? 0);
+        if (source && qty > 0)
+          lines.push({ cattleId, offeredKg: qty, refusalKg, source });
         continue;
       }
 
@@ -388,6 +399,7 @@ export class FeedFeedingGridService {
           lines.push({
             cattleId,
             offeredKg: qty,
+            refusalKg: 0,
             source: {
               sourceType: chosenDraft.sourceType,
               feedItemId: chosenDraft.feedItemId,
@@ -401,7 +413,12 @@ export class FeedFeedingGridService {
       if (dtoDefaultSource) {
         const qty = round2(defaults.get(cattleId) ?? 0);
         if (qty > 0) {
-          lines.push({ cattleId, offeredKg: qty, source: dtoDefaultSource });
+          lines.push({
+            cattleId,
+            offeredKg: qty,
+            refusalKg: 0,
+            source: dtoDefaultSource,
+          });
         }
       }
       // else: no source resolvable for this cow at all — skipped, not a 0. RAKHAL-431's
@@ -431,13 +448,16 @@ export class FeedFeedingGridService {
         const totalKg = round2(
           groupLines.reduce((sum, l) => sum + l.offeredKg, 0),
         );
+        const totalRefusalKg = round2(
+          groupLines.reduce((sum, l) => sum + l.refusalKg, 0),
+        );
         const plan = await this.resolveGroupPlan(
           farmId,
           userId,
           source,
           totalKg,
         );
-        return { source, lines: groupLines, totalKg, ...plan };
+        return { source, lines: groupLines, totalKg, totalRefusalKg, ...plan };
       }),
     );
 
@@ -459,7 +479,9 @@ export class FeedFeedingGridService {
           distributedAt: logDate,
           totalPlannedKg: totalKg,
           totalActualKg: totalKg,
-          totalRefusalKg: 0,
+          totalRefusalKg: round2(
+            groupPlans.reduce((sum, g) => sum + g.totalRefusalKg, 0),
+          ),
           totalPlannedCost: totalCost,
           totalActualCost: totalCost,
           createdBy: userId,
@@ -469,7 +491,7 @@ export class FeedFeedingGridService {
               ingredientName: g.ingredientName,
               plannedKg: g.totalKg,
               actualKg: g.totalKg,
-              refusalKg: 0,
+              refusalKg: g.totalRefusalKg,
               pricePerKg: g.pricePerKg,
               lineCost: round2(g.totalKg * g.pricePerKg),
               ...(g.nutritionSnapshot ?? {}),
@@ -484,6 +506,7 @@ export class FeedFeedingGridService {
               g.lines.map((l) => ({
                 cattleId: l.cattleId,
                 offeredKg: l.offeredKg,
+                refusalKg: l.refusalKg,
                 sourceType: l.source.sourceType,
                 feedItemId: l.source.feedItemId,
                 feedStockId: l.source.feedStockId,
@@ -540,6 +563,7 @@ export class FeedFeedingGridService {
       cows: created.cattleItems.map((c) => ({
         cattle_id: c.cattleId,
         offered_kg: c.offeredKg,
+        refusal_kg: c.refusalKg,
         source_type: c.sourceType,
         feed_item_id: c.feedItemId,
         feed_stock_id: c.feedStockId,
@@ -851,6 +875,7 @@ export class FeedFeedingGridService {
         id: r.id,
         distribution_id: r.distributionId,
         offered_kg: r.offeredKg,
+        refusal_kg: r.refusalKg,
         cost_tk: r.costTk,
         feed_name: r.feedName,
         source_type: r.sourceType,
@@ -984,6 +1009,7 @@ export class FeedFeedingGridService {
         where: { id: siblingItem.id },
         data: {
           actualKg: round2(siblingItem.actualKg - item.offeredKg),
+          refusalKg: round2(siblingItem.refusalKg - item.refusalKg),
           lineCost: round2(siblingItem.lineCost - costTk),
         },
       });
@@ -991,6 +1017,7 @@ export class FeedFeedingGridService {
         where: { id: dist.id },
         data: {
           totalActualKg: round2(dist.totalActualKg - item.offeredKg),
+          totalRefusalKg: round2(dist.totalRefusalKg - item.refusalKg),
           totalActualCost: round2(dist.totalActualCost - costTk),
         },
       });
