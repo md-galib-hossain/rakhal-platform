@@ -14,10 +14,12 @@ describe('SemenService', () => {
     $transaction: jest.Mock;
   };
   let logger: { setContext: jest.Mock; info: jest.Mock };
+  let activity: { record: jest.Mock };
 
   const batchRow = {
     id: 'batch-1',
     farmId: 'farm-1',
+    name: 'Bull A',
     strawQuantity: 10,
     deletedAt: null,
   };
@@ -32,9 +34,11 @@ describe('SemenService', () => {
       $transaction: jest.fn((ops: unknown[]) => Promise.all(ops)),
     };
     logger = { setContext: jest.fn().mockReturnThis(), info: jest.fn() };
+    activity = { record: jest.fn().mockResolvedValue(undefined) };
   });
 
-  const make = () => new SemenService(prisma as never, logger as never);
+  const make = () =>
+    new SemenService(prisma as never, logger as never, activity as never);
 
   describe('decrementStraw', () => {
     it('404s when the batch is not found', async () => {
@@ -84,6 +88,24 @@ describe('SemenService', () => {
         },
       });
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(activity.record).toHaveBeenCalledWith(
+        'farm-1',
+        'user-1',
+        'Semen Straw Used',
+        '1 straw used from semen batch "Bull A" — 10 to 9 left.',
+      );
+    });
+
+    it('does not log when the decrement is rejected', async () => {
+      prisma.semenBatch.findFirst.mockResolvedValueOnce({
+        ...batchRow,
+        strawQuantity: 0,
+      });
+
+      await expect(
+        make().decrementStraw('farm-1', 'batch-1', 1),
+      ).rejects.toThrow(BadRequestException);
+      expect(activity.record).not.toHaveBeenCalled();
     });
   });
 
@@ -130,6 +152,12 @@ describe('SemenService', () => {
         },
       });
       expect(result.warning).toBeNull();
+      expect(activity.record).toHaveBeenCalledWith(
+        'farm-1',
+        'user-1',
+        'Semen Straw Restored',
+        '1 straw restored to semen batch "Bull A" — 10 to 11 in stock (breeding event edited).',
+      );
     });
 
     it('returns a warning instead of throwing when the batch is archived', async () => {

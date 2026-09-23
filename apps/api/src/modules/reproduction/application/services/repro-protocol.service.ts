@@ -377,7 +377,12 @@ export class ReproProtocolService {
       );
     }
     if (dto.semenBatchId) {
-      await this.semenService.decrementStraw(farmId, dto.semenBatchId, 1);
+      await this.semenService.decrementStraw(
+        farmId,
+        dto.semenBatchId,
+        1,
+        userId,
+      );
     }
     const aiAt = dto.aiDate ? new Date(dto.aiDate) : new Date();
     const updated = await this.prisma.reproProtocolInstance.update({

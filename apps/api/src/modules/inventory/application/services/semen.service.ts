@@ -356,6 +356,12 @@ export class SemenService {
       }),
     ]);
     this.log.info('Semen straw decremented', { batchId, farmId, by });
+    await this.activity.record(
+      farmId,
+      actorId ?? undefined,
+      'Semen Straw Used',
+      `${by} straw${by === 1 ? '' : 's'} used from semen batch "${batch.name}" — ${existing.strawQuantity} to ${next} left.`,
+    );
     return this.presentBatch(batch);
   }
 
@@ -403,6 +409,12 @@ export class SemenService {
     ]);
 
     this.log.info('Semen straw restored', { batchId, farmId, by });
+    await this.activity.record(
+      farmId,
+      actorId ?? undefined,
+      'Semen Straw Restored',
+      `${by} straw${by === 1 ? '' : 's'} restored to semen batch "${updated.name}" — ${existing.strawQuantity} to ${next} in stock${reason ? ` (${reason})` : ''}.`,
+    );
     return {
       batch: this.presentBatch(updated),
       warning: !existing.deletedAt

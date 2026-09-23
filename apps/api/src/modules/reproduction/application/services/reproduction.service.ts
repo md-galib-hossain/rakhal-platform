@@ -415,6 +415,7 @@ export class ReproductionService {
         farmId,
         dto.semenBatchId,
         1,
+        userId,
       );
       inventorySemenType = batch.semenType ?? undefined;
       inventoryTargetSex = batch.targetSex ?? undefined;

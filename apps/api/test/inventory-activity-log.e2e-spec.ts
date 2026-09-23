@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
 /**
@@ -250,5 +251,57 @@ describe('Inventory → Activity Log (e2e)', () => {
       .set(...auth(owner))
       .expect(200);
     await expectEntry('Custom Unit Archived', name);
+  });
+
+  it('logs semen straw use when an AI event draws from a farm-inventory batch', async () => {
+    const prisma = ctx.app.get(PrismaService);
+    const ownerUser = await prisma.user.findFirstOrThrow({
+      where: { email: 'owner@demo.rakhal.test' },
+      select: { id: true },
+    });
+    const account = await prisma.financialAccount.findFirstOrThrow({
+      where: { farmId: owner.farmId, deletedAt: null },
+      select: { id: true },
+    });
+    const cow = await prisma.cattle.create({
+      data: {
+        farmId: owner.farmId,
+        tagNumber: `E2E-LOG-COW-${run}`,
+        gender: 'FEMALE',
+        createdBy: ownerUser.id,
+      },
+    });
+    const batchName = `E2E-LOG-STRAW-BATCH-${run}`;
+    const batch = await prisma.semenBatch.create({
+      data: {
+        farmId: owner.farmId,
+        name: batchName,
+        strawQuantity: 10,
+        costPerUnit: 500,
+        createdBy: ownerUser.id,
+      },
+    });
+
+    await request(server())
+      .post(api('/reproduction/breeding-events'))
+      .set(...auth(owner))
+      .send({
+        cattleId: cow.id,
+        breedingDate: new Date().toISOString(),
+        breedingMethod: 'AI',
+        semenSource: 'FARM_INVENTORY',
+        semenBatchId: batch.id,
+        paymentMethod: 'CASH',
+        financialAccountId: account.id,
+      })
+      .expect(201);
+
+    const row = await expectEntry(
+      'Semen Straw Used',
+      batchName,
+      '1 straw used',
+    );
+    expect(row.actionDetails).toContain('10 to 9 left');
+    expect(row.actorId).toBe(ownerUser.id);
   });
 });
