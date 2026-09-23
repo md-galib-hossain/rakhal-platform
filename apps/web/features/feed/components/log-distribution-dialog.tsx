@@ -15,6 +15,8 @@ import { useCattleDetail } from "@/features/cattle/hooks/use-cattle";
 import { useConcentrationDetail, useFeedGroups, useLogDistribution } from "../hooks/use-feed";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
+import { IngredientPicker, type IngredientOption } from "./ingredient-picker";
+import { X } from "lucide-react";
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -61,6 +63,10 @@ function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenCha
   // Refusal/leftover — same-day estimate (2026-08-13, user request). Defaults to 0; a farmer who
   // doesn't know the leftover yet can skip this and record it next-day via `usePatchRefusal`.
   const [refusalOverrides, setRefusalOverrides] = useState<Record<string, number>>({});
+  // User request 2026-09-23: "Feed Today" must not be limited to whatever's baked into the recipe
+  // — a farm feeds whatever's actually in front of the cow. Extra lines, added on top of the fixed
+  // recipe below, from the same ingredient catalogue the ration builder already uses.
+  const [extraLines, setExtraLines] = useState<{ ingredientId: string; name: string; actualKg: number; refusalKg: number }[]>([]);
   const [notes, setNotes] = useState("");
   const [distributedAt, setDistributedAt] = useState(todayStr());
   const [submitting, setSubmitting] = useState(false);
@@ -77,7 +83,17 @@ function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenCha
       ? (feedGroups.data?.find((g) => g.id === detail.data!.feed_group_id)?.name ?? "—")
       : (cattle.data?.name ?? cattle.data?.tagNumber ?? "—");
 
-  const totalActualKg = Object.values(actualByIngredient).reduce((sum, v) => sum + (v || 0), 0);
+  const totalActualKg =
+    Object.values(actualByIngredient).reduce((sum, v) => sum + (v || 0), 0) +
+    extraLines.reduce((sum, l) => sum + l.actualKg, 0);
+
+  function handleAddIngredient(option: IngredientOption) {
+    setExtraLines((prev) => [...prev, { ingredientId: option.id, name: option.nameEn, actualKg: 0, refusalKg: 0 }]);
+  }
+
+  function handleRemoveExtraLine(ingredientId: string) {
+    setExtraLines((prev) => prev.filter((l) => l.ingredientId !== ingredientId));
+  }
 
   async function handleConfirm() {
     if (!detail.data) return;
@@ -87,11 +103,18 @@ function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenCha
         concentrationId: id,
         distributedAt: distributedAt || undefined,
         notes: notes.trim() || undefined,
-        items: detail.data.ingredients.map((line) => ({
-          ingredientId: line.ingredient_id,
-          actualKg: actualByIngredient[line.ingredient_id] ?? line.amount_kg,
-          refusalKg: refusalOverrides[line.ingredient_id] ?? 0,
-        })),
+        items: [
+          ...detail.data.ingredients.map((line) => ({
+            ingredientId: line.ingredient_id,
+            actualKg: actualByIngredient[line.ingredient_id] ?? line.amount_kg,
+            refusalKg: refusalOverrides[line.ingredient_id] ?? 0,
+          })),
+          ...extraLines.map((l) => ({
+            ingredientId: l.ingredientId,
+            actualKg: l.actualKg,
+            refusalKg: l.refusalKg,
+          })),
+        ],
       });
       toast.success(t("loggedToast"));
       onOpenChange(false);
@@ -199,7 +222,72 @@ function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenCha
                     </div>
                   </div>
                 ))}
+                {extraLines.map((line) => (
+                  <div key={line.ingredientId} className="flex items-center justify-between gap-3 p-3">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-foreground">{line.name}</span>
+                      <span className="text-xs text-muted-foreground">{t("notPlanned")}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-9 w-24 items-center gap-1 rounded-lg bg-muted px-2 shadow-xs">
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={line.actualKg}
+                          onChange={(e) =>
+                            setExtraLines((prev) =>
+                              prev.map((l) =>
+                                l.ingredientId === line.ingredientId
+                                  ? { ...l, actualKg: Number(e.target.value) || 0 }
+                                  : l,
+                              ),
+                            )
+                          }
+                          className="w-full border-0 bg-transparent p-0 text-sm text-foreground outline-none"
+                          aria-label={t("actualKg")}
+                        />
+                        <span className="text-xs text-muted-foreground">kg</span>
+                      </div>
+                      <div className="flex h-9 w-20 flex-col items-center justify-center rounded-lg bg-muted px-2 shadow-xs">
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          placeholder="0"
+                          value={line.refusalKg || ""}
+                          onChange={(e) =>
+                            setExtraLines((prev) =>
+                              prev.map((l) =>
+                                l.ingredientId === line.ingredientId
+                                  ? { ...l, refusalKg: Number(e.target.value) || 0 }
+                                  : l,
+                              ),
+                            )
+                          }
+                          className="w-full border-0 bg-transparent p-0 text-center text-sm text-foreground outline-none"
+                          aria-label={t("refusalKg")}
+                        />
+                        <span className="text-[10px] text-muted-foreground">{t("refusalShort")}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveExtraLine(line.ingredientId)}
+                        aria-label={t("removeLine")}
+                        className="text-muted-foreground transition-colors hover:text-destructive"
+                      >
+                        <X className="size-4" aria-hidden />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
+              <IngredientPicker
+                onSelect={handleAddIngredient}
+                excludeIds={[...detail.data.ingredients.map((l) => l.ingredient_id), ...extraLines.map((l) => l.ingredientId)]}
+                placeholder={t("addIngredient")}
+                className="self-start"
+              />
             </div>
 
             <LabeledInput
