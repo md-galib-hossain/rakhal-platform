@@ -195,15 +195,52 @@ describe('Feed Distribution (e2e)', () => {
         .expect(404);
     });
 
-    it('400s an ingredient not in the concentration', async () => {
+    it('404s an ingredient that does not exist in the catalogue at all', async () => {
       await request(server())
         .post(api('/feed/distributions'))
         .set(...auth(owner))
         .send({
           concentrationId,
-          items: [{ ingredientId: 'not-in-formula', actualKg: 1 }],
+          items: [{ ingredientId: 'not-a-real-ingredient', actualKg: 1 }],
         })
-        .expect(400);
+        .expect(404);
+    });
+
+    // User request 2026-09-23: "Feed Today" must not be limited to whatever's baked into the
+    // target recipe — a real catalogue ingredient outside the formula is now accepted as a new
+    // EXTRA line (plannedKg 0), not rejected. Superseded the old "400s an ingredient not in the
+    // concentration" test, which asserted the opposite of this now-intended behavior.
+    it('adds a real ingredient outside the formula as a new extra line', async () => {
+      const ings = await request(server())
+        .get(api('/feed/ingredients'))
+        .set(...auth(owner))
+        .expect(200);
+      const list = ings.body.data as Array<{
+        id: string;
+        effective_price_per_kg: number;
+      }>;
+      const extra = list.find(
+        (i) => i.id !== ingredientA.id && i.id !== ingredientB.id,
+      )!;
+      expect(extra).toBeDefined();
+
+      const res = await request(server())
+        .post(api('/feed/distributions'))
+        .set(...auth(owner))
+        .send({
+          concentrationId,
+          items: [{ ingredientId: extra.id, actualKg: 3 }],
+        })
+        .expect(201);
+
+      const d = res.body.data;
+      const extraLine = d.items.find(
+        (i: { ingredient_id: string }) => i.ingredient_id === extra.id,
+      );
+      expect(extraLine).toBeDefined();
+      expect(extraLine.planned_kg).toBe(0);
+      expect(extraLine.actual_kg).toBe(3);
+      expect(d.items).toHaveLength(3);
     });
 
     it('400s a farmId in the body (forbidNonWhitelisted)', async () => {

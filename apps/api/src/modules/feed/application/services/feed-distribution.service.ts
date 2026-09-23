@@ -65,40 +65,48 @@ export class FeedDistributionService {
       );
     }
 
-    const ingredientIds = concentration.items.map((i) => i.ingredientId);
-    const validIds = new Set(ingredientIds);
+    const recipeIds = concentration.items.map((i) => i.ingredientId);
+    const validIds = new Set(recipeIds);
     const overrides = new Map(
       (dto.items ?? []).map((i) => [i.ingredientId, i]),
     );
-    for (const id of overrides.keys()) {
-      if (!validIds.has(id)) {
-        throw new BadRequestException(
-          `Ingredient ${id} is not part of this concentration`,
-        );
-      }
-    }
+    // User request 2026-09-23: a farm feeds whatever's actually in front of the cow, not only the
+    // fixed recipe — a `dto.items` line naming an ingredient outside the concentration is now a
+    // real EXTRA line (`plannedKg: 0`, built below), not rejected as before. Still requires the
+    // ingredient to actually exist (checked via `nameById` after the lookup, since
+    // `effectiveMap`/`ingredientNames` silently return nothing for a bad id rather than throwing).
+    const extraIds = [...overrides.keys()].filter((id) => !validIds.has(id));
+    const ingredientIds = [...new Set([...recipeIds, ...extraIds])];
 
     const [effById, nameById] = await Promise.all([
       this.effectiveMap(farmId, ingredientIds),
       this.ingredientNames(ingredientIds),
     ]);
 
-    const lines = concentration.items.map((item) => {
-      const eff = effById.get(item.ingredientId);
+    for (const id of extraIds) {
+      if (!nameById.has(id)) {
+        throw new NotFoundException(`Ingredient ${id} not found`);
+      }
+    }
+
+    const buildLine = (
+      ingredientId: string,
+      plannedKg: number,
+      actualKg: number,
+      refusalKg: number,
+      stockId: string | undefined,
+    ) => {
+      const eff = effById.get(ingredientId);
       const price = eff?.pricePerKg ?? 0;
-      const override = overrides.get(item.ingredientId);
-      const plannedKg = item.amountKg;
-      const actualKg = override?.actualKg ?? plannedKg;
-      const refusalKg = override?.refusalKg ?? 0;
       return {
-        ingredientId: item.ingredientId,
-        ingredientName: nameById.get(item.ingredientId) ?? item.ingredientId,
+        ingredientId,
+        ingredientName: nameById.get(ingredientId) ?? ingredientId,
         plannedKg: round2(plannedKg),
         actualKg: round2(actualKg),
         refusalKg: round2(refusalKg),
         pricePerKg: round2(price),
         lineCost: round2(actualKg * price),
-        stockId: override?.stockId,
+        stockId,
         // RAKHAL-327/328 follow-up: freeze the SAME live `effectiveMap()` lookup already made to
         // price this line, so a later edit to the ingredient's nutrients in the catalogue can't
         // silently rewrite this historical distribution's nutrient totals.
@@ -119,7 +127,23 @@ export class FeedDistributionService {
             }
           : {}),
       };
+    };
+
+    const recipeLines = concentration.items.map((item) => {
+      const override = overrides.get(item.ingredientId);
+      return buildLine(
+        item.ingredientId,
+        item.amountKg,
+        override?.actualKg ?? item.amountKg,
+        override?.refusalKg ?? 0,
+        override?.stockId,
+      );
     });
+    const extraLines = extraIds.map((id) => {
+      const override = overrides.get(id)!;
+      return buildLine(id, 0, override.actualKg ?? 0, override.refusalKg ?? 0, override.stockId);
+    });
+    const lines = [...recipeLines, ...extraLines];
 
     // Real FK-backed decrement (user request 2026-07-17) — a line can name a specific `FeedStock`
     // lot instead of relying on the FeedItem ingredientId-match below. Validated up-front so a

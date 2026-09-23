@@ -12,7 +12,12 @@ import {
 } from 'class-validator';
 import { trimString } from 'src/common/dto';
 
-/** One actual-distribution line. `ingredientId` must belong to the concentration. */
+/** One actual-distribution line. User request 2026-09-23: "Feed Today" must not be limited to
+ * whatever's baked into the target TMR/concentrate recipe — a farm feeds whatever's actually in
+ * front of the cow. `ingredientId` naming one of the concentration's own lines overrides that
+ * line's actual/refusal kg (as before); naming any other real `FeedIngredient` catalogue entry adds
+ * a brand new line to this distribution (`plannedKg: 0` — nothing was planned for it). Either way
+ * the ingredient must exist in the catalogue (validated in `FeedDistributionService#create`). */
 export class DistributionItemDto {
   @Transform(trimString)
   @IsString()
