@@ -19,6 +19,9 @@ import { RequirePermission } from 'src/modules/permission/presentation/decorator
 import { FeedItemService } from '../../application/services/feed-item.service';
 import { BulkDeleteFeedItemDto } from '../dto/bulk-delete-feed-item.dto';
 import { CreateFeedItemDto } from '../dto/create-feed-item.dto';
+import { CreateFeedItemBatchDto } from '../dto/create-feed-item-batch.dto';
+import { FeedBatchCodeQueryDto } from '../dto/feed-batch-code-query.dto';
+import { UpdateFeedBatchNutritionDto } from '../dto/update-feed-batch-nutrition.dto';
 import { ListFeedItemQueryDto } from '../dto/list-feed-item-query.dto';
 import { UpdateFeedItemDto } from '../dto/update-feed-item.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -58,6 +61,16 @@ export class FeedItemController {
     return this.feedItemService.removeMany(farmId, dto.ids, userId);
   }
 
+  /** Recall lookup by lot code (RAKHAL-444) — registered before the `:id` routes. */
+  @Get('by-batch-code')
+  @RequirePermission('inventory.read')
+  byBatchCode(
+    @CurrentFarmId() farmId: string,
+    @Query() query: FeedBatchCodeQueryDto,
+  ) {
+    return this.feedItemService.findByBatchCode(farmId, query.code);
+  }
+
   @Get()
   @RequirePermission('inventory.read')
   findAll(
@@ -82,6 +95,71 @@ export class FeedItemController {
     @Body() dto: UpdateFeedItemDto,
   ) {
     return this.feedItemService.update(farmId, userId, id, dto);
+  }
+
+  /** Restock: add a new lot (own cost/date/code/nutrition) to an existing product. */
+  @Post(':id/batches')
+  @RequirePermission('inventory.create')
+  createBatch(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body() dto: CreateFeedItemBatchDto,
+  ) {
+    return this.feedItemService.createBatch(farmId, userId, id, dto);
+  }
+
+  /** Edit a lot's nutrition — appends a new immutable profile (manager+). */
+  @Patch(':id/batches/:batchId/nutrition')
+  @RequirePermission('inventory.update')
+  reviseNutrition(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Param('batchId') batchId: string,
+    @Body() dto: UpdateFeedBatchNutritionDto,
+  ) {
+    return this.feedItemService.reviseBatchNutrition(
+      farmId,
+      userId,
+      id,
+      batchId,
+      dto,
+    );
+  }
+
+  /** One-click revert to the previous nutrition profile of this lot. */
+  @Post(':id/batches/:batchId/nutrition/revert')
+  @RequirePermission('inventory.update')
+  revertNutrition(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Param('batchId') batchId: string,
+  ) {
+    return this.feedItemService.revertBatchNutrition(
+      farmId,
+      userId,
+      id,
+      batchId,
+    );
+  }
+
+  /** Re-copy today's catalogue values into a new profile for this lot ("Re-sync"). */
+  @Post(':id/batches/:batchId/nutrition/resync')
+  @RequirePermission('inventory.update')
+  resyncNutrition(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Param('batchId') batchId: string,
+  ) {
+    return this.feedItemService.resyncBatchNutrition(
+      farmId,
+      userId,
+      id,
+      batchId,
+    );
   }
 
   @Patch(':id/archive')

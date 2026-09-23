@@ -34,10 +34,13 @@ export class ListConcentrationsQueryDto {
 
 /** One ingredient line in a concentration formula. */
 export class ConcentrationItemDto {
+  /** Required unless `feedItemId` is set (RAKHAL-447): a purchased product carries its own nutrition,
+   * so a line naming an inventory product needs no catalogue ingredient. */
+  @IsOptional()
   @Transform(trimString)
   @IsString()
   @IsNotEmpty()
-  ingredientId!: string;
+  ingredientId?: string;
 
   @IsNumber()
   @Min(0)
@@ -45,13 +48,20 @@ export class ConcentrationItemDto {
 
   /** RAKHAL-422: optional link to a real inventory batch this line actually consumes on
    * finalize (RAKHAL-423) — at most one of `feedItemId`/`feedStockId`, validated service-side
-   * against farm ownership and that the batch's own ingredient matches `ingredientId` above
-   * (a line cannot claim to be maize while consuming bran). Absent (the default) = a virtual
-   * catalogue line, unchanged from before this ticket. */
+   * against farm ownership. When both `feedItemId` and `ingredientId` are given the product's own
+   * ingredient must match (a line cannot claim to be maize while consuming bran). A `feedItemId`
+   * line takes its nutrition and price from the linked lot (RAKHAL-447). Absent (the default) = a
+   * virtual catalogue line, unchanged from before this ticket. */
   @IsOptional()
   @Transform(trimString)
   @IsString()
   feedItemId?: string;
+
+  /** RAKHAL-447: pin the line to one lot of `feedItemId`; omitted = the FIFO head at the time of use. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  feedItemBatchId?: string;
 
   @IsOptional()
   @Transform(trimString)

@@ -8,8 +8,12 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
-import { resolveEffective } from '../../domain/ingredient-resolver';
 import { resolveKgPerUnit } from 'src/modules/inventory/application/services/unit.service';
+import {
+  FeedDrawPlan,
+  FeedItemService,
+} from 'src/modules/inventory/application/services/feed-item.service';
+import { blendNutrition } from '../../domain/nutrition-profile';
 import { LogDistributionDto } from '../../presentation/dto/log-distribution.dto';
 import { PatchRefusalDto } from '../../presentation/dto/patch-refusal.dto';
 import {
@@ -19,6 +23,7 @@ import {
 import { FeedStockService } from './feed-stock.service';
 import { FeedRationResolverService } from './feed-ration-resolver.service';
 import { FeedRequirementsService } from './feed-requirements.service';
+import { FeedLotResolver } from './feed-lot-resolver.service';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -47,6 +52,8 @@ export class FeedDistributionService {
     private readonly feedStock: FeedStockService,
     private readonly rationResolver: FeedRationResolverService,
     private readonly feedRequirements: FeedRequirementsService,
+    private readonly lotResolver: FeedLotResolver,
+    private readonly feedItems: FeedItemService,
   ) {
     this.log = logger.setContext(FeedDistributionService.name);
   }
@@ -65,7 +72,25 @@ export class FeedDistributionService {
       );
     }
 
-    const recipeIds = concentration.items.map((i) => i.ingredientId);
+    // RAKHAL-447: a recipe line may name only an inventory product (no catalogue ingredient); such a
+    // line is keyed by its product id — the same `ingredientId ?? feedItemId` grouping key a
+    // distribution line stores — and a caller's `items[]` override addresses it by that key.
+    const keyOf = (i: {
+      ingredientId: string | null;
+      feedItemId: string | null;
+    }): string => i.ingredientId ?? (i.feedItemId as string);
+    const linkByKey = new Map(
+      concentration.items
+        .filter((i) => i.feedItemId)
+        .map((i) => [
+          keyOf(i),
+          { feedItemId: i.feedItemId, feedItemBatchId: i.feedItemBatchId },
+        ]),
+    );
+    const productOnlyKeys = new Set(
+      concentration.items.filter((i) => !i.ingredientId).map(keyOf),
+    );
+    const recipeIds = concentration.items.map(keyOf);
     const validIds = new Set(recipeIds);
     const overrides = new Map(
       (dto.items ?? []).map((i) => [i.ingredientId, i]),
@@ -78,10 +103,18 @@ export class FeedDistributionService {
     const extraIds = [...overrides.keys()].filter((id) => !validIds.has(id));
     const ingredientIds = [...new Set([...recipeIds, ...extraIds])];
 
-    const [effById, nameById] = await Promise.all([
-      this.effectiveMap(farmId, ingredientIds),
-      this.ingredientNames(ingredientIds),
+    const catalogueIds = ingredientIds.filter((id) => !productOnlyKeys.has(id));
+    const [effById, nameById, productNames] = await Promise.all([
+      this.effectiveMap(farmId, catalogueIds),
+      this.ingredientNames(catalogueIds),
+      productOnlyKeys.size
+        ? this.prisma.feedItem.findMany({
+            where: { farmId, id: { in: [...productOnlyKeys] } },
+            select: { id: true, name: true },
+          })
+        : [],
     ]);
+    for (const p of productNames) nameById.set(p.id, p.name);
 
     for (const id of extraIds) {
       if (!nameById.has(id)) {
@@ -100,6 +133,8 @@ export class FeedDistributionService {
       const price = eff?.pricePerKg ?? 0;
       return {
         ingredientId,
+        linkedFeedItemId: linkByKey.get(ingredientId)?.feedItemId ?? null,
+        pinnedBatchId: linkByKey.get(ingredientId)?.feedItemBatchId ?? null,
         ingredientName: nameById.get(ingredientId) ?? ingredientId,
         plannedKg: round2(plannedKg),
         actualKg: round2(actualKg),
@@ -130,9 +165,9 @@ export class FeedDistributionService {
     };
 
     const recipeLines = concentration.items.map((item) => {
-      const override = overrides.get(item.ingredientId);
+      const override = overrides.get(keyOf(item));
       return buildLine(
-        item.ingredientId,
+        keyOf(item),
         item.amountKg,
         override?.actualKg ?? item.amountKg,
         override?.refusalKg ?? 0,
@@ -149,7 +184,44 @@ export class FeedDistributionService {
         override.stockId,
       );
     });
-    const lines = [...recipeLines, ...extraLines];
+    // RAKHAL-446: a line whose ingredient is linked to a purchased `FeedItem` is priced and profiled
+    // from the real lots FIFO would draw (cost-weighted price, kg-weighted nutrient blend), not from
+    // the catalogue; the plan is applied per lot inside the transaction below.
+    const drawPlans = await this.planFeedItemDraws(farmId, userId, [
+      ...recipeLines,
+      ...extraLines,
+    ]);
+    const lines = [...recipeLines, ...extraLines].map((line) => {
+      const plan = drawPlans.get(line.ingredientId);
+      if (!plan)
+        return { ...line, feedItemBatchId: null, nutritionProfileId: null };
+      const single = plan.pieces.length === 1 ? plan.pieces[0] : null;
+      const blend = blendNutrition(
+        plan.pieces.map((p) => ({
+          kg: p.quantityKg,
+          values: this.lotResolver.toValues(p.profile),
+        })),
+      );
+      return {
+        ...line,
+        pricePerKg: round2(plan.pricePerKg),
+        lineCost: round2(plan.pieces.reduce((s, p) => s + p.costTk, 0)),
+        dmPct: blend.dmPct,
+        cpPct: blend.cpPct,
+        meMjPerKgDm: blend.meMjPerKgDm,
+        fatPct: blend.fatPct,
+        ndfPct: blend.ndfPct,
+        rdpPct: blend.rdpPct,
+        rupPct: blend.rupPct,
+        starchPct: blend.starchPct,
+        adfPct: blend.adfPct,
+        calciumPct: blend.calciumPct,
+        phosphorusPct: blend.phosphorusPct,
+        tdnPct: blend.tdnPct,
+        feedItemBatchId: single?.batchId ?? null,
+        nutritionProfileId: single?.nutritionProfileId ?? null,
+      };
+    });
 
     // Real FK-backed decrement (user request 2026-07-17) — a line can name a specific `FeedStock`
     // lot instead of relying on the FeedItem ingredientId-match below. Validated up-front so a
@@ -229,8 +301,12 @@ export class FeedDistributionService {
           })
         : null;
 
-    const decrements = await this.planForageDecrements(farmId, lines);
+    const decrements = [...drawPlans.values()].map((plan) => ({
+      forageId: plan.feedItem.id,
+    }));
     const itemsForCreate = lines.map((line) => ({
+      feedItemBatchId: line.feedItemBatchId,
+      nutritionProfileId: line.nutritionProfileId,
       ingredientId: line.ingredientId,
       ingredientName: line.ingredientName,
       plannedKg: line.plannedKg,
@@ -279,11 +355,20 @@ export class FeedDistributionService {
         },
         include: { items: true },
       });
-      for (const d of decrements) {
-        await tx.feedItem.update({
-          where: { id: d.forageId },
-          data: { currentStock: d.newStock },
-        });
+      for (const plan of drawPlans.values()) {
+        for (const piece of plan.pieces) {
+          await this.feedItems.applyFeedDraw(
+            farmId,
+            userId,
+            plan.feedItem.id,
+            {
+              batchId: piece.batchId,
+              quantityUnits: piece.quantityUnits,
+              distributionId: dist.id,
+            },
+            tx,
+          );
+        }
       }
 
       // RD-036: the stock decrements now run inside this same transaction, threaded the client
@@ -331,46 +416,36 @@ export class FeedDistributionService {
   }
 
   /**
-   * Direct-by-id `FeedItem` usage computation — validates sufficient stock and converts through
-   * the resolved kg-per-unit for a non-kg unit (`resolveKgPerUnit()` — the same single source of
-   * truth `planForageDecrements` uses for the concentration-based path). Read-only (doesn't
-   * persist); the caller applies `newStock` inside its own transaction. Extracted from the old
-   * `quickFeed()` (removed 2026-08-15, replaced by the Feeding Grid) so
-   * `FeedFeedingGridService#confirm`'s `FEED_ITEM` source path can reuse the same validated
-   * conversion math without re-deriving it.
+   * Direct-by-id `FeedItem` usage computation (RAKHAL-446: over real lots) — the FIFO plan for
+   * `quantityKg` (which lots, each lot's cost and nutrition profile) plus the cost-weighted
+   * price/kg. Validates sufficient stock and the kg-per-unit conversion; persists nothing — the
+   * caller applies each piece via `FeedItemService.applyFeedDraw` inside its own transaction.
+   * Shared by `FeedFeedingGridService#confirm` and `FeedConcentrationService`'s finalize.
    */
   async computeFeedItemUsage(
     farmId: string,
+    userId: string,
     feedItemId: string,
     quantityKg: number,
+    tx?: Prisma.TransactionClient,
+    pinBatchId?: string,
   ) {
-    const feedItem = await this.prisma.feedItem.findFirst({
-      where: { id: feedItemId, farmId, deletedAt: null },
-      include: { unit: true },
-    });
-    if (!feedItem) throw new NotFoundException('Feed item not found');
-
-    const kgPerUnit = resolveKgPerUnit(feedItem.unit, feedItem.kgPerUnit);
-    if (!kgPerUnit || kgPerUnit <= 0) {
-      throw new BadRequestException(
-        `${feedItem.name} has no kg-per-unit conversion set for its ${feedItem.unit.symbol} unit — set "Kg Per Unit" on the feed item before feeding it`,
-      );
-    }
-    const pricePerKg = feedItem.costPerUnit / kgPerUnit;
-    const usedInUnit = quantityKg / kgPerUnit;
-    if (usedInUnit > feedItem.currentStock) {
-      throw new BadRequestException(
-        `Not enough ${feedItem.name} in stock (${feedItem.currentStock} ${feedItem.unit.symbol} available, ${round2(usedInUnit)} needed)`,
-      );
-    }
-    const newStock = round2(feedItem.currentStock - usedInUnit);
-
+    const plan = await this.feedItems.previewDraw(
+      farmId,
+      userId,
+      feedItemId,
+      quantityKg,
+      tx,
+      pinBatchId,
+    );
     return {
-      feedItem,
-      ingredientId: feedItem.ingredientId ?? feedItem.id,
-      ingredientName: feedItem.name,
-      pricePerKg: round2(pricePerKg),
-      newStock,
+      plan,
+      feedItem: plan.feedItem,
+      // `FeedDistributionItem.ingredientId` is a required grouping key, not an FK — an item with no
+      // catalogue ingredient keys on its own id. Void finds the sibling line by `feedItemBatchId`.
+      ingredientId: plan.feedItem.ingredientId ?? plan.feedItem.id,
+      ingredientName: plan.feedItem.name,
+      pricePerKg: round2(plan.pricePerKg),
     };
   }
 
@@ -826,10 +901,33 @@ export class FeedDistributionService {
    * kg-per-unit (a COUNT/VOLUME item with no farmer-entered `kgPerUnit`)
    * still can't be converted and is skipped (kept, not floor-guessed).
    */
-  private async planForageDecrements(
+  private async planFeedItemDraws(
     farmId: string,
-    lines: { ingredientId: string; actualKg: number }[],
-  ): Promise<{ forageId: string; newStock: number }[]> {
+    userId: string,
+    lines: {
+      ingredientId: string;
+      actualKg: number;
+      linkedFeedItemId?: string | null;
+      pinnedBatchId?: string | null;
+    }[],
+  ): Promise<Map<string, FeedDrawPlan>> {
+    const plans = new Map<string, FeedDrawPlan>();
+    // RAKHAL-447: a recipe line that names its inventory product (and optionally one lot) draws from
+    // exactly that — no guessing through the catalogue ingredient — and fails loudly on a shortfall.
+    for (const line of lines) {
+      if (!line.linkedFeedItemId || line.actualKg <= 0) continue;
+      plans.set(
+        line.ingredientId,
+        await this.feedItems.previewDraw(
+          farmId,
+          userId,
+          line.linkedFeedItemId,
+          line.actualKg,
+          undefined,
+          line.pinnedBatchId ?? undefined,
+        ),
+      );
+    }
     const ingredientIds = [...new Set(lines.map((l) => l.ingredientId))];
     const feedItems = await this.prisma.feedItem.findMany({
       where: { farmId, deletedAt: null, ingredientId: { in: ingredientIds } },
@@ -840,7 +938,6 @@ export class FeedDistributionService {
           select: { symbol: true, dimension: true, conversionToBase: true },
         },
         kgPerUnit: true,
-        currentStock: true,
       },
     });
     const byIngredient = new Map(
@@ -849,17 +946,11 @@ export class FeedDistributionService {
         .map((f) => [f.ingredientId as string, f]),
     );
 
-    const usageByFeedItem = new Map<string, number>();
     for (const line of lines) {
       const f = byIngredient.get(line.ingredientId);
-      if (!f || line.actualKg <= 0) continue;
-      // Convert the fed kg into "units" for a non-kg item (bag/sack), then back to
-      // a unit-count decrement — a resolvable kg-per-unit is required to do that
-      // conversion safely.
+      if (!f || line.actualKg <= 0 || plans.has(line.ingredientId)) continue;
       const kgPerUnit = resolveKgPerUnit(f.unit, f.kgPerUnit);
-      const usedInUnit =
-        kgPerUnit && kgPerUnit > 0 ? line.actualKg / kgPerUnit : null;
-      if (usedInUnit == null) {
+      if (!kgPerUnit || kgPerUnit <= 0) {
         this.log.warn('Skipping forage decrement — no resolvable kg-per-unit', {
           farmId,
           feedItemId: f.id,
@@ -867,18 +958,12 @@ export class FeedDistributionService {
         });
         continue;
       }
-      usageByFeedItem.set(f.id, (usageByFeedItem.get(f.id) ?? 0) + usedInUnit);
+      plans.set(
+        line.ingredientId,
+        await this.feedItems.previewDraw(farmId, userId, f.id, line.actualKg),
+      );
     }
-
-    return [...usageByFeedItem.entries()].map(([forageId, used]) => {
-      const f = feedItems.find((x) => x.id === forageId)!;
-      if (used > f.currentStock) {
-        throw new BadRequestException(
-          `Not enough stock for this feeding — need ${round2(used)} ${f.unit.symbol}, only ${f.currentStock} ${f.unit.symbol} available. Check Inventory before feeding.`,
-        );
-      }
-      return { forageId, newStock: round2(f.currentStock - used) };
-    });
+    return plans;
   }
 
   /** Public single-id wrapper around `effectiveMap()` (RAKHAL-327/328 follow-up) — lets
@@ -889,24 +974,10 @@ export class FeedDistributionService {
     return map.get(ingredientId) ?? null;
   }
 
-  // No `deletedAt` filter (RAKHAL-310): `ingredientIds` come from an existing
-  // concentration's line items, which must keep pricing even if the
-  // ingredient was archived after the distribution was logged.
-  private async effectiveMap(farmId: string, ingredientIds: string[]) {
-    const ids = [...new Set(ingredientIds)];
-    const [ingredients, overrides] = await Promise.all([
-      this.prisma.feedIngredient.findMany({ where: { id: { in: ids } } }),
-      this.prisma.feedIngredientOverride.findMany({
-        where: { farmId, ingredientId: { in: ids } },
-      }),
-    ]);
-    const ovById = new Map(overrides.map((o) => [o.ingredientId, o]));
-    return new Map(
-      ingredients.map((ing) => [
-        ing.id,
-        resolveEffective(ing, ovById.get(ing.id) ?? null),
-      ]),
-    );
+  // Delegates to the shared `FeedLotResolver` (RAKHAL-443) — no `deletedAt` filter, so historical
+  // lines keep pricing even if the ingredient was archived after the distribution was logged.
+  private effectiveMap(farmId: string, ingredientIds: string[]) {
+    return this.lotResolver.effectiveIngredients(farmId, ingredientIds);
   }
 
   // No `deletedAt` filter (RAKHAL-310) — same historical-resolve rationale as
@@ -921,7 +992,7 @@ export class FeedDistributionService {
 
   private mapDistribution(
     row: Prisma.FeedDistributionGetPayload<{ include: { items: true } }>,
-    decrements?: { forageId: string; newStock: number }[],
+    decrements?: { forageId: string }[],
   ) {
     return {
       id: row.id,

@@ -96,8 +96,10 @@ export class FinanceService {
         where: { farmId, deletedAt: null },
         select: { currentStock: true, costPerUnit: true },
       }),
-      this.prisma.feedItem.findMany({
-        where: { farmId, deletedAt: null },
+      // RAKHAL-448: value feed per lot (each lot's stock at its own cost), not the item total at the
+      // newest lot's price.
+      this.prisma.feedItemBatch.findMany({
+        where: { farmId, deletedAt: null, feedItem: { deletedAt: null } },
         select: { currentStock: true, costPerUnit: true },
       }),
       this.prisma.equipment.findMany({

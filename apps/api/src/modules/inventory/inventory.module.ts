@@ -14,6 +14,7 @@ import { MilkTankService } from './application/services/milk-tank.service';
 import { EquipmentService } from './application/services/equipment.service';
 import { UnitService } from './application/services/unit.service';
 import { InventoryActivityService } from './application/services/inventory-activity.service';
+import { NutritionProfileModule } from '../feed/nutrition-profile.module';
 import { MedicineController } from './presentation/controllers/medicine.controller';
 import { FeedItemController } from './presentation/controllers/feed-item.controller';
 import { SemenController } from './presentation/controllers/semen.controller';
@@ -44,6 +45,7 @@ import { UnitController } from './presentation/controllers/unit.controller';
     SubscriptionModule,
     MediaModule,
     ActivityModule,
+    NutritionProfileModule,
   ],
   controllers: [
     MedicineController,

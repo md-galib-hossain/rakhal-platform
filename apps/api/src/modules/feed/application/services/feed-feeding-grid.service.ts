@@ -3,12 +3,22 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { FeedGridSourceType, Prisma } from '@prisma/client';
+import {
+  FeedDistributionCattleItem,
+  FeedGridSourceType,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { FeedDistributionService } from './feed-distribution.service';
 import { FeedStockService } from './feed-stock.service';
+import { FeedLotResolver } from './feed-lot-resolver.service';
+import { FeedItemService } from 'src/modules/inventory/application/services/feed-item.service';
+import {
+  blendNutrition,
+  NutritionValues,
+} from '../../domain/nutrition-profile';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { SaveFeedDraftDto } from '../../presentation/dto/save-feed-draft.dto';
 import { ConfirmFeedDraftDto } from '../../presentation/dto/confirm-feed-draft.dto';
@@ -22,16 +32,32 @@ type NutrientSnapshot = {
   dmPct: number;
   cpPct: number;
   meMjPerKgDm: number;
-  fatPct: number;
-  ndfPct: number;
-  rdpPct: number;
-  rupPct: number;
-  starchPct: number;
-  adfPct: number;
-  calciumPct: number;
-  phosphorusPct: number;
-  tdnPct: number;
+  fatPct: number | null;
+  ndfPct: number | null;
+  rdpPct: number | null;
+  rupPct: number | null;
+  starchPct: number | null;
+  adfPct: number | null;
+  calciumPct: number | null;
+  phosphorusPct: number | null;
+  tdnPct: number | null;
 } | null;
+
+/** The 12 snapshot columns of a profile (sugars has no snapshot column). */
+const snapshotOf = (v: NutritionValues): NonNullable<NutrientSnapshot> => ({
+  dmPct: v.dmPct,
+  cpPct: v.cpPct,
+  meMjPerKgDm: v.meMjPerKgDm,
+  fatPct: v.fatPct,
+  ndfPct: v.ndfPct,
+  rdpPct: v.rdpPct,
+  rupPct: v.rupPct,
+  starchPct: v.starchPct,
+  adfPct: v.adfPct,
+  calciumPct: v.calciumPct,
+  phosphorusPct: v.phosphorusPct,
+  tdnPct: v.tdnPct,
+});
 
 /** RAKHAL-430 (Feeding Favourites): one cow's/line's resolved feed source — always exactly one of
  * `feedItemId`/`feedStockId` set, matching `sourceType`. The unified shape `resolveEntrySource()`
@@ -61,6 +87,8 @@ export class FeedFeedingGridService {
     private readonly feedDistribution: FeedDistributionService,
     private readonly feedStock: FeedStockService,
     private readonly farmSettings: FarmSettingsService,
+    private readonly feedItems: FeedItemService,
+    private readonly lotResolver: FeedLotResolver,
   ) {
     this.log = logger.setContext(FeedFeedingGridService.name);
   }
@@ -462,14 +490,128 @@ export class FeedFeedingGridService {
     );
 
     const totalKg = round2(groupPlans.reduce((sum, g) => sum + g.totalKg, 0));
-    const totalCost = round2(
-      groupPlans.reduce((sum, g) => sum + g.totalKg * g.pricePerKg, 0),
-    );
     const targetFields = dto.feedGroupId
       ? { feedGroupId: dto.feedGroupId, cattleId: null }
       : { feedGroupId: null, cattleId: null };
 
     const created = await this.prisma.$transaction(async (tx) => {
+      // RAKHAL-446: a purchased-feed source is drawn FIFO from its real lots, so one cow's share can
+      // span two lots. Each (cow, lot) pair becomes its own cow-line — exact lot cost, exact lot
+      // nutrition profile, exact lot to re-credit on void — and each lot gets one group-level line.
+      // Re-planned here inside the transaction so the lots are the ones actually about to be drawn.
+      type CowPiece = {
+        cattleId: string;
+        offeredKg: number;
+        refusalKg: number;
+        source: ResolvedSource;
+        costTk: number;
+        feedName: string;
+        snapshot: NutrientSnapshot;
+        feedItemBatchId: string | null;
+        nutritionProfileId: string | null;
+        draw: { batchId: string; units: number } | null;
+      };
+      type LotLine = {
+        ingredientId: string;
+        ingredientName: string;
+        kg: number;
+        refusalKg: number;
+        costTk: number;
+        snapshot: NutrientSnapshot;
+        feedItemBatchId: string | null;
+        nutritionProfileId: string | null;
+      };
+      const cowPieces: CowPiece[] = [];
+      const lotLines: LotLine[] = [];
+
+      for (const g of groupPlans) {
+        if (g.source.sourceType !== 'FEED_ITEM') {
+          lotLines.push({
+            ingredientId: g.ingredientId,
+            ingredientName: g.ingredientName,
+            kg: g.totalKg,
+            refusalKg: g.totalRefusalKg,
+            costTk: round2(g.totalKg * g.pricePerKg),
+            snapshot: g.nutritionSnapshot,
+            feedItemBatchId: null,
+            nutritionProfileId: null,
+          });
+          for (const l of g.lines) {
+            cowPieces.push({
+              cattleId: l.cattleId,
+              offeredKg: l.offeredKg,
+              refusalKg: l.refusalKg,
+              source: l.source,
+              costTk: round2(l.offeredKg * g.pricePerKg),
+              feedName: g.ingredientName,
+              snapshot: g.nutritionSnapshot,
+              feedItemBatchId: null,
+              nutritionProfileId: null,
+              draw: null,
+            });
+          }
+          continue;
+        }
+
+        const usage = await this.feedDistribution.computeFeedItemUsage(
+          farmId,
+          userId,
+          g.source.feedItemId!,
+          g.totalKg,
+          tx,
+        );
+        const { kgPerUnit } = usage.plan;
+        const lots = usage.plan.pieces.map((p) => ({
+          ...p,
+          remainingUnits: p.quantityUnits,
+          kg: 0,
+          refusalKg: 0,
+          costTk: 0,
+        }));
+        for (const l of g.lines) {
+          let needUnits = l.offeredKg / kgPerUnit;
+          while (needUnits > 1e-9) {
+            const lot = lots.find((x) => x.remainingUnits > 1e-9);
+            if (!lot) break;
+            const takeUnits = Math.min(needUnits, lot.remainingUnits);
+            const kg = takeUnits * kgPerUnit;
+            const share = l.offeredKg > 0 ? kg / l.offeredKg : 0;
+            const cost = takeUnits * lot.costPerUnit;
+            cowPieces.push({
+              cattleId: l.cattleId,
+              offeredKg: round2(kg),
+              refusalKg: round2(l.refusalKg * share),
+              source: l.source,
+              costTk: round2(cost),
+              feedName: g.ingredientName,
+              snapshot: snapshotOf(this.lotResolver.toValues(lot.profile)),
+              feedItemBatchId: lot.batchId,
+              nutritionProfileId: lot.nutritionProfileId,
+              draw: { batchId: lot.batchId, units: takeUnits },
+            });
+            lot.remainingUnits -= takeUnits;
+            lot.kg += kg;
+            lot.refusalKg += l.refusalKg * share;
+            lot.costTk += cost;
+            needUnits -= takeUnits;
+          }
+        }
+        for (const lot of lots) {
+          if (lot.kg <= 0) continue;
+          lotLines.push({
+            ingredientId: g.ingredientId,
+            ingredientName: g.ingredientName,
+            kg: round2(lot.kg),
+            refusalKg: round2(lot.refusalKg),
+            costTk: round2(lot.costTk),
+            snapshot: snapshotOf(this.lotResolver.toValues(lot.profile)),
+            feedItemBatchId: lot.batchId,
+            nutritionProfileId: lot.nutritionProfileId,
+          });
+        }
+      }
+
+      const actualCost = round2(lotLines.reduce((s, l) => s + l.costTk, 0));
       const dist = await tx.feedDistribution.create({
         data: {
           farmId,
@@ -482,46 +624,63 @@ export class FeedFeedingGridService {
           totalRefusalKg: round2(
             groupPlans.reduce((sum, g) => sum + g.totalRefusalKg, 0),
           ),
-          totalPlannedCost: totalCost,
-          totalActualCost: totalCost,
+          totalPlannedCost: actualCost,
+          totalActualCost: actualCost,
           createdBy: userId,
           items: {
-            create: groupPlans.map((g) => ({
-              ingredientId: g.ingredientId,
-              ingredientName: g.ingredientName,
-              plannedKg: g.totalKg,
-              actualKg: g.totalKg,
-              refusalKg: g.totalRefusalKg,
-              pricePerKg: g.pricePerKg,
-              lineCost: round2(g.totalKg * g.pricePerKg),
-              ...(g.nutritionSnapshot ?? {}),
+            create: lotLines.map((l) => ({
+              ingredientId: l.ingredientId,
+              ingredientName: l.ingredientName,
+              plannedKg: l.kg,
+              actualKg: l.kg,
+              refusalKg: l.refusalKg,
+              pricePerKg: l.kg > 0 ? round2(l.costTk / l.kg) : 0,
+              lineCost: l.costTk,
+              feedItemBatchId: l.feedItemBatchId,
+              nutritionProfileId: l.nutritionProfileId,
+              ...(l.snapshot ?? {}),
             })),
           },
-          cattleItems: {
-            // RAKHAL-441 — mapped from `groupPlans` (not the flat `lines` array) so each cow's row
-            // can carry its own group's exact resolved price/nutrition/name. `costTk` is exact, not
-            // proportional — `resolveGroupPlan()` already priced this cow's own source, this is
-            // just that same number times her own `offeredKg`.
-            create: groupPlans.flatMap((g) =>
-              g.lines.map((l) => ({
-                cattleId: l.cattleId,
-                offeredKg: l.offeredKg,
-                refusalKg: l.refusalKg,
-                sourceType: l.source.sourceType,
-                feedItemId: l.source.feedItemId,
-                feedStockId: l.source.feedStockId,
-                feedGroupId: currentGroupByCattle.get(l.cattleId) ?? null,
-                costTk: round2(l.offeredKg * g.pricePerKg),
-                feedName: g.ingredientName,
-                session: dto.session ?? null,
-                ...(g.nutritionSnapshot ?? {}),
-              })),
-            ),
-          },
         },
-        include: { items: true, cattleItems: true },
+        include: { items: true },
       });
-      for (const g of groupPlans) await g.applyDecrement(tx);
+      // RAKHAL-441 — one cow-line per (cow, lot); `costTk` is exact (that lot's own cost).
+      const cattleItems: FeedDistributionCattleItem[] = [];
+      for (const p of cowPieces) {
+        const row = await tx.feedDistributionCattleItem.create({
+          data: {
+            distributionId: dist.id,
+            cattleId: p.cattleId,
+            offeredKg: p.offeredKg,
+            refusalKg: p.refusalKg,
+            sourceType: p.source.sourceType,
+            feedItemId: p.source.feedItemId,
+            feedStockId: p.source.feedStockId,
+            feedGroupId: currentGroupByCattle.get(p.cattleId) ?? null,
+            costTk: p.costTk,
+            feedName: p.feedName,
+            session: dto.session ?? null,
+            feedItemBatchId: p.feedItemBatchId,
+            nutritionProfileId: p.nutritionProfileId,
+            ...(p.snapshot ?? {}),
+          },
+        });
+        cattleItems.push(row);
+        if (p.draw && p.source.feedItemId) {
+          await this.feedItems.applyFeedDraw(
+            farmId,
+            userId,
+            p.source.feedItemId,
+            {
+              batchId: p.draw.batchId,
+              quantityUnits: p.draw.units,
+              distributionId: dist.id,
+              cattleItemId: row.id,
+            },
+            tx,
+          );
+        }
+      }
       for (const { source, lines: groupLines } of groups.values()) {
         await tx.feedFeedingDraft.deleteMany({
           where: {
@@ -534,7 +693,7 @@ export class FeedFeedingGridService {
           },
         });
       }
-      return dist;
+      return { ...dist, cattleItems };
     });
 
     for (const g of groupPlans) await g.postCommit(created.id);
@@ -560,16 +719,25 @@ export class FeedFeedingGridService {
         feed_stock_id: g.source.feedStockId,
         total_kg: g.totalKg,
       })),
-      cows: created.cattleItems.map((c) => ({
-        cattle_id: c.cattleId,
-        offered_kg: c.offeredKg,
-        refusal_kg: c.refusalKg,
-        source_type: c.sourceType,
-        feed_item_id: c.feedItemId,
-        feed_stock_id: c.feedStockId,
-        cost_tk: c.costTk,
-        session: c.session,
-      })),
+      // One entry per cow — a cow whose share spanned two lots has two cow-lines, summed here.
+      cows: [
+        ...created.cattleItems
+          .reduce((byCow, c) => {
+            const prev = byCow.get(c.cattleId);
+            byCow.set(c.cattleId, {
+              cattle_id: c.cattleId,
+              offered_kg: round2((prev?.offered_kg ?? 0) + c.offeredKg),
+              refusal_kg: round2((prev?.refusal_kg ?? 0) + c.refusalKg),
+              source_type: c.sourceType,
+              feed_item_id: c.feedItemId,
+              feed_stock_id: c.feedStockId,
+              cost_tk: round2((prev?.cost_tk ?? 0) + (c.costTk ?? 0)),
+              session: c.session,
+            });
+            return byCow;
+          }, new Map<string, Record<string, unknown> & { offered_kg: number; refusal_kg: number; cost_tk: number }>())
+          .values(),
+      ],
     };
   }
 
@@ -707,49 +875,30 @@ export class FeedFeedingGridService {
     ingredientName: string;
     pricePerKg: number;
     nutritionSnapshot: NutrientSnapshot;
-    applyDecrement: (tx: Prisma.TransactionClient) => Promise<void>;
     postCommit: (distributionId: string) => Promise<void>;
   }> {
     if (source.sourceType === 'FEED_ITEM') {
+      // Fail-fast validation + provisional price/nutrition only (RAKHAL-446): `confirm()` re-plans the
+      // lots inside its transaction and writes the exact per-lot cost and profile snapshot itself.
       const usage = await this.feedDistribution.computeFeedItemUsage(
         farmId,
+        userId,
         source.feedItemId!,
         totalKg,
       );
-      // RAKHAL-327/328 follow-up: freeze the SAME live nutrition lookup used to price this line
-      // (see `FeedDistributionService.create()`'s identical pattern) instead of leaving it to be
-      // re-resolved from a possibly-later-edited catalogue every time `getDmiComparison()` runs.
-      const eff = await this.feedDistribution.getEffectiveNutrition(
-        farmId,
-        usage.ingredientId,
+      const nutritionSnapshot = snapshotOf(
+        blendNutrition(
+          usage.plan.pieces.map((p) => ({
+            kg: p.quantityKg,
+            values: this.lotResolver.toValues(p.profile),
+          })),
+        ),
       );
-      const nutritionSnapshot: NutrientSnapshot = eff
-        ? {
-            dmPct: eff.dmPct,
-            cpPct: eff.cpPct,
-            meMjPerKgDm: eff.meMjPerKgDm,
-            fatPct: eff.fatPct,
-            ndfPct: eff.ndfPct,
-            rdpPct: eff.rdpPct,
-            rupPct: eff.rupPct,
-            starchPct: eff.starchPct,
-            adfPct: eff.adfPct,
-            calciumPct: eff.calciumPct,
-            phosphorusPct: eff.phosphorusPct,
-            tdnPct: eff.tdnPct,
-          }
-        : null;
       return {
         ingredientId: usage.ingredientId,
         ingredientName: usage.ingredientName,
         pricePerKg: usage.pricePerKg,
         nutritionSnapshot,
-        applyDecrement: async (tx) => {
-          await tx.feedItem.update({
-            where: { id: usage.feedItem.id },
-            data: { currentStock: usage.newStock },
-          });
-        },
         postCommit: async () => {},
       };
     }
@@ -793,7 +942,6 @@ export class FeedFeedingGridService {
           ? round2(stock.producedCostTk / stock.producedQtyKg)
           : 0,
       nutritionSnapshot,
-      applyDecrement: async () => {},
       postCommit: async (distributionId: string) => {
         await this.feedStock.decrementForDistribution(farmId, userId, {
           stockId: stock.id,
@@ -944,27 +1092,35 @@ export class FeedFeedingGridService {
     // Re-derive this cow's own source's catalogue `ingredientId` (same lookups
     // `resolveGroupPlan` makes) to find the sibling `FeedDistributionItem` to shrink —
     // `FeedDistributionItem` is keyed by `ingredientId`, not `feedItemId`/`feedStockId`.
-    let ingredientId: string;
-    if (item.sourceType === 'FEED_ITEM') {
-      const feedItem = await this.prisma.feedItem.findFirst({
-        where: { id: item.feedItemId ?? undefined, farmId },
-        select: { id: true, ingredientId: true },
-      });
-      if (!feedItem) throw new NotFoundException('Feed item not found');
-      // Same fallback `computeFeedItemUsage()` uses — an unlinked FeedItem (no catalogue
-      // ingredient) resolves to its own id instead.
-      ingredientId = feedItem.ingredientId ?? feedItem.id;
-    } else {
-      const stock = await this.prisma.feedStock.findFirst({
-        where: { id: item.feedStockId ?? undefined, farmId },
-        select: { sourceConcentrationId: true },
-      });
-      if (!stock) throw new NotFoundException('Feed stock lot not found');
-      ingredientId = stock.sourceConcentrationId;
+    // RAKHAL-446: a purchased-feed cow-line names its lot, and the group-level line for that lot
+    // carries the same `feedItemBatchId` — that is the sibling. Rows written before lots existed have
+    // no `feedItemBatchId` and fall back to the ingredient key.
+    let siblingItem = item.feedItemBatchId
+      ? dist.items.find((i) => i.feedItemBatchId === item.feedItemBatchId)
+      : undefined;
+    if (!siblingItem) {
+      let ingredientId: string;
+      if (item.sourceType === 'FEED_ITEM') {
+        const feedItem = await this.prisma.feedItem.findFirst({
+          where: { id: item.feedItemId ?? undefined, farmId },
+          select: { id: true, ingredientId: true },
+        });
+        if (!feedItem) throw new NotFoundException('Feed item not found');
+        ingredientId = feedItem.ingredientId ?? feedItem.id;
+      } else {
+        const stock = await this.prisma.feedStock.findFirst({
+          where: { id: item.feedStockId ?? undefined, farmId },
+          select: { sourceConcentrationId: true },
+        });
+        if (!stock) throw new NotFoundException('Feed stock lot not found');
+        ingredientId = stock.sourceConcentrationId;
+      }
+      siblingItem = dist.items.find((i) => i.ingredientId === ingredientId);
     }
-    const siblingItem = dist.items.find((i) => i.ingredientId === ingredientId);
-    if (!siblingItem)
+    if (!siblingItem) {
       throw new NotFoundException('Distribution line not found');
+    }
+    const sibling = siblingItem;
 
     const result = await this.prisma.$transaction(async (tx) => {
       // Conditional update guards against a concurrent double-void the same way
@@ -985,10 +1141,17 @@ export class FeedFeedingGridService {
       }
 
       if (item.sourceType === 'FEED_ITEM' && item.feedItemId) {
-        await tx.feedItem.update({
-          where: { id: item.feedItemId },
-          data: { currentStock: { increment: item.offeredKg } },
-        });
+        await this.feedItems.restoreFeedDraw(
+          farmId,
+          userId,
+          {
+            cattleItemId: item.id,
+            fallbackFeedItemId: item.feedItemId,
+            fallbackQuantityKg: item.offeredKg,
+            notes: dto.reason ?? 'Feeding voided',
+          },
+          tx,
+        );
       } else if (item.sourceType === 'FEED_STOCK' && item.feedStockId) {
         await tx.feedStock.update({
           where: { id: item.feedStockId },
@@ -1006,11 +1169,11 @@ export class FeedFeedingGridService {
       }
 
       await tx.feedDistributionItem.update({
-        where: { id: siblingItem.id },
+        where: { id: sibling.id },
         data: {
-          actualKg: round2(siblingItem.actualKg - item.offeredKg),
-          refusalKg: round2(siblingItem.refusalKg - item.refusalKg),
-          lineCost: round2(siblingItem.lineCost - costTk),
+          actualKg: round2(sibling.actualKg - item.offeredKg),
+          refusalKg: round2(sibling.refusalKg - item.refusalKg),
+          lineCost: round2(sibling.lineCost - costTk),
         },
       });
       await tx.feedDistribution.update({

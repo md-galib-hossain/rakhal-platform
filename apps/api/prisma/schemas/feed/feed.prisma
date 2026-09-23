@@ -213,19 +213,24 @@ model FeedConcentrationVersion {
 model FeedConcentrationItem {
   id              String @id @default(cuid())
   concentrationId String
-  ingredientId    String
+  /// RAKHAL-447 (MILESTONE 26): optional when `feedItemId` is set — a purchased product carries its own
+  /// nutrition (the lot's `NutritionProfile`), so a line no longer needs a catalogue ingredient. Required
+  /// otherwise (a virtual catalogue line, or a prepared `feedStockId` line), enforced in the service.
+  ingredientId    String?
 
   amountKg Float
 
   /// RAKHAL-422: optional link to a real inventory batch this line actually consumes on
-  /// finalize — at most one of the two. `ingredientId` above stays required regardless (it
-  /// carries the nutrition/pricing math); absent = virtual catalogue line, present = real
-  /// stock deducted by RAKHAL-423.
-  feedItemId  String? // consume this purchased batch (Inventory FeedItem)
+  /// finalize — at most one of the two. Absent = virtual catalogue line, present = real
+  /// stock deducted by RAKHAL-423. A `feedItemId` line takes its nutrition and price from the
+  /// linked lot (RAKHAL-447 / ADR-026 D7), not from `ingredientId`.
+  feedItemId  String? // consume this purchased product (Inventory FeedItem)
   feedStockId String? // consume this prepared batch (Feed Formulator FeedStock)
+  /// RAKHAL-447: pin the line to one lot of `feedItemId`; null = the FIFO head at the time of use.
+  feedItemBatchId String?
 
   concentration FeedConcentration @relation(fields: [concentrationId], references: [id], onDelete: Cascade)
-  ingredient    FeedIngredient    @relation(fields: [ingredientId], references: [id])
+  ingredient    FeedIngredient?   @relation(fields: [ingredientId], references: [id])
 
   @@index([concentrationId])
   @@index([ingredientId])
@@ -306,6 +311,13 @@ model FeedDistributionItem {
   pricePerKg Float
   lineCost   Float /// actualKg * pricePerKg
 
+  /// MILESTONE 26 (RAKHAL-442, written from RAKHAL-446): provenance of the frozen nutrient columns
+  /// below and the exact lot this line drew from. Plain scalars (no relation) — same "snapshot, not
+  /// a relation" convention as `ingredientId`/`ingredientName` above. Null on every pre-446 row and
+  /// on catalogue-ingredient / `FeedStock` lines.
+  nutritionProfileId String?
+  feedItemBatchId    String?
+
   /// Nutrient snapshot at logging time (RAKHAL-327/328 follow-up, 2026-08-15), frozen from the SAME
   /// live `effectiveMap()`/`resolveEffective()` lookup already made to price this line — same field
   /// set/names as `FeedStock`'s own snapshot (`feed-stock.prisma`) for consistency. Nullable because
@@ -368,6 +380,12 @@ model FeedDistributionCattleItem {
   /// group-change guard compares this against the cow's *current* group; a cow moved to a
   /// different group since must not inherit this row as "own last-used."
   feedGroupId String?
+
+  /// MILESTONE 26 (RAKHAL-442, written from RAKHAL-446): the exact lot + nutrition profile this
+  /// cow's kg came from. A cow whose kg straddles two FIFO batches gets two rows, one per lot. Plain
+  /// scalars, same convention as `feedItemId`/`feedStockId` above. Null on pre-446 rows.
+  feedItemBatchId    String?
+  nutritionProfileId String?
 
   /// RAKHAL-441 — this cow's own exact cost for this line, frozen at confirm time from the same
   /// `resolveGroupPlan()` result (`offeredKg * that group's pricePerKg`) already computed to price

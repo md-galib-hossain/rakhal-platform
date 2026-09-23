@@ -3,9 +3,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, SaleStatus } from '@prisma/client';
+import { ActivityLogModule, Prisma, SaleStatus } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { JournalService } from 'src/modules/finance-v2/ledger/application/journal.service';
 import { MilkTankService } from 'src/modules/inventory/application/services/milk-tank.service';
 import { MedicineService } from 'src/modules/inventory/application/services/medicine.service';
@@ -58,9 +59,40 @@ export class VoidSaleUseCase {
     private readonly feedItemService: FeedItemService,
     private readonly equipmentService: EquipmentService,
     private readonly cattleService: CattleService,
+    private readonly activityLog: ActivityLogService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(VoidSaleUseCase.name);
+  }
+
+  /**
+   * Activity Log entry for a completed void. Called only *after* this use case's own transaction
+   * commits (and never when a caller supplied its own `tx` — that caller owns the outer commit, and
+   * logging inside it would persist an entry even if the outer transaction rolls back). A log-write
+   * failure is swallowed: the void already committed, so it must not surface as a failed request.
+   */
+  private async recordVoidActivity(
+    farmId: string,
+    userId: string,
+    eventTitle: 'Sale Cancelled' | 'Sale Refunded',
+    sale: SaleWithLines,
+  ): Promise<void> {
+    try {
+      await this.activityLog.record({
+        farmId,
+        module: ActivityLogModule.FINANCE,
+        eventTitle,
+        actionDetails: `Sale ${sale.saleNumber} ${eventTitle === 'Sale Cancelled' ? 'cancelled' : 'refunded'} — ৳${sale.totalAmount.toString()} reversed.`,
+        actorId: userId,
+        financialImpact: -Number(sale.totalAmount),
+      });
+    } catch (error) {
+      this.log.error('Sale void activity log failed', {
+        farmId,
+        saleId: sale.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   async cancelSale(
@@ -71,7 +103,10 @@ export class VoidSaleUseCase {
   ): Promise<SaleWithLines> {
     const run = (client: Prisma.TransactionClient) =>
       this.cancelWithClient(client, farmId, userId, saleId);
-    return tx ? run(tx) : this.prisma.$transaction((t) => run(t));
+    if (tx) return run(tx);
+    const sale = await this.prisma.$transaction((t) => run(t));
+    await this.recordVoidActivity(farmId, userId, 'Sale Cancelled', sale);
+    return sale;
   }
 
   private async cancelWithClient(
@@ -126,7 +161,10 @@ export class VoidSaleUseCase {
   ): Promise<SaleWithLines> {
     const run = (client: Prisma.TransactionClient) =>
       this.refundWithClient(client, farmId, userId, saleId);
-    return tx ? run(tx) : this.prisma.$transaction((t) => run(t));
+    if (tx) return run(tx);
+    const sale = await this.prisma.$transaction((t) => run(t));
+    await this.recordVoidActivity(farmId, userId, 'Sale Refunded', sale);
+    return sale;
   }
 
   private async refundWithClient(
@@ -370,11 +408,17 @@ export class VoidSaleUseCase {
         client,
       );
     } else if (inventoryDetail.feedItemId) {
-      await this.feedItemService.adjustStock(
+      // RAKHAL-445: restores each exact lot the original sale drew from (a sale can split FIFO across
+      // lots); falls back to crediting the newest lot for a pre-batch sale line.
+      await this.feedItemService.restoreForSaleVoid(
         farmId,
         userId,
-        inventoryDetail.feedItemId,
-        { adjustment: quantity, reason: 'ADJUSTMENT', notes, saleLineId },
+        {
+          saleLineId,
+          fallbackFeedItemId: inventoryDetail.feedItemId,
+          fallbackQuantity: quantity,
+          notes,
+        },
         client,
       );
     } else if (inventoryDetail.equipmentId) {

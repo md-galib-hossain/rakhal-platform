@@ -91,6 +91,10 @@ model PurchaseLine {
   /// lines set it, and a pre-439 line has none — `VoidDocumentUseCase` falls
   /// back to its old representative-batch reversal when absent.
   medicineBatchId String?
+  /// RAKHAL-442/445 (`docs/EPIC_FEED_NUTRITION_PROFILE.md`) — the exact `FeedItemBatch` this
+  /// line's restock created, so voiding the purchase debits that lot. Nullable: only feed lines
+  /// set it, and any pre-445 line has none.
+  feedItemBatchId String?
 
   quantity    Decimal @db.Decimal(18, 2)
   unitCost    Decimal @db.Decimal(18, 2)
@@ -103,12 +107,14 @@ model PurchaseLine {
   medicine      Medicine?      @relation("MedicineToPurchaseLine", fields: [medicineId], references: [id])
   medicineBatch MedicineBatch? @relation(fields: [medicineBatchId], references: [id])
   feedItem      FeedItem?      @relation("FeedItemToPurchaseLine", fields: [feedItemId], references: [id])
+  feedItemBatch FeedItemBatch? @relation("FeedItemBatchToPurchaseLine", fields: [feedItemBatchId], references: [id])
   equipment     Equipment?     @relation("EquipmentToPurchaseLine", fields: [equipmentId], references: [id])
 
   @@index([purchaseId])
   @@index([medicineId])
   @@index([medicineBatchId])
   @@index([feedItemId])
+  @@index([feedItemBatchId])
   @@index([equipmentId])
 }
 

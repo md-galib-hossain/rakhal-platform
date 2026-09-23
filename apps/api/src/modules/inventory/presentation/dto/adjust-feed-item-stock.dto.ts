@@ -30,4 +30,10 @@ export class AdjustFeedItemStockDto {
   @IsOptional()
   @IsString()
   saleLineId?: string;
+
+  /** Pin the adjustment to one specific lot (RAKHAL-444; callers wire it in RAKHAL-445/446). When
+   * absent, a negative adjustment draws FIFO across lots and a positive one credits the newest lot. */
+  @IsOptional()
+  @IsString()
+  batchId?: string;
 }

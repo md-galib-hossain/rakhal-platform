@@ -1,4 +1,4 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsEnum,
   IsISO8601,
@@ -8,9 +8,11 @@ import {
   IsString,
   Max,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { FeedClass, FeedSubType } from '@prisma/client';
 import { trimString } from 'src/common/dto';
+import { NutritionInputDto } from './nutrition-input.dto';
 
 /** Create a feed inventory item (purchased stock — forage, concentrate, mineral,
  * vitamin or additive; feed is the umbrella, `feedClass` is the scientific
@@ -31,14 +33,25 @@ export class CreateFeedItemDto {
   @IsEnum(FeedSubType)
   feedSubType?: FeedSubType;
 
+  /** Optional since MILESTONE 26: provenance / copy-from / price-sync target, no longer the nutrition
+   * source. Either this or `nutrition` must be supplied — with only this, nutrition is copied once
+   * from the catalogue (+ the farm's override). */
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  ingredientId?: string;
+
+  /** This first lot's nutrition profile, typed by hand. Takes precedence over copying from `ingredientId`. */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => NutritionInputDto)
+  nutrition?: NutritionInputDto;
+
+  /** Free-text lot code for the first batch (indexed, recall lookup). */
   @IsOptional()
   @Transform(trimString)
   @IsString()
-  category?: string;
-
-  @IsString()
-  @IsNotEmpty()
-  ingredientId!: string;
+  batchCode?: string;
 
   /** Unit catalog id (`Unit.id`, `GET /inventory/units`) — replaces the old free-text unit label. */
   @IsString()

@@ -399,7 +399,11 @@ export class FeedRequirementsService {
             id: {
               in: [
                 ...new Set(
-                  rations.flatMap((r) => r.items.map((i) => i.ingredientId)),
+                  rations.flatMap((r) =>
+                    r.items
+                      .map((i) => i.ingredientId)
+                      .filter((id): id is string => id != null),
+                  ),
                 ),
               ],
             },
@@ -415,6 +419,21 @@ export class FeedRequirementsService {
     const nameByIngredient = new Map(
       ingredientNames.map((i) => [i.id, i.nameEn]),
     );
+    // RAKHAL-447: a line that names only an inventory product is grouped under the product's id.
+    const productIds = [
+      ...new Set(
+        rations.flatMap((r) =>
+          r.items.filter((i) => !i.ingredientId).map((i) => i.feedItemId),
+        ),
+      ),
+    ].filter((id): id is string => id != null);
+    if (productIds.length > 0) {
+      const products = await this.prisma.feedItem.findMany({
+        where: { farmId, id: { in: productIds } },
+        select: { id: true, name: true },
+      });
+      for (const p of products) nameByIngredient.set(p.id, p.name);
+    }
 
     const totalsByIngredient = new Map<string, number>();
     const byGroup: {
@@ -437,9 +456,11 @@ export class FeedRequirementsService {
       for (const item of ration.items) {
         const kg = round2(item.amountKg * headcount);
         rationTotalKg += kg;
+        const key = item.ingredientId ?? item.feedItemId;
+        if (!key) continue;
         totalsByIngredient.set(
-          item.ingredientId,
-          round2((totalsByIngredient.get(item.ingredientId) ?? 0) + kg),
+          key,
+          round2((totalsByIngredient.get(key) ?? 0) + kg),
         );
       }
 

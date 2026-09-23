@@ -18,6 +18,8 @@ import { FeedDistributionService } from './application/services/feed-distributio
 import { FeedStockService } from './application/services/feed-stock.service';
 import { FeedRationResolverService } from './application/services/feed-ration-resolver.service';
 import { FeedFeedingGridService } from './application/services/feed-feeding-grid.service';
+import { NutritionProfileModule } from './nutrition-profile.module';
+import { ActivityModule } from '../activity/activity.module';
 import { FeedController } from './presentation/controllers/feed.controller';
 
 /**
@@ -39,6 +41,8 @@ import { FeedController } from './presentation/controllers/feed.controller';
   imports: [
     AuthModule,
     AuditModule,
+    ActivityModule,
+    NutritionProfileModule,
     LoggerModule,
     TenantAccessModule,
     PermissionModule,

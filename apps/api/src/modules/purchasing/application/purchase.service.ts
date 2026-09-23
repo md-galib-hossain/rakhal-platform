@@ -6,7 +6,6 @@ import {
 import {
   ActivityLogModule,
   EquipmentStockMovementReason,
-  FeedItemStockMovementReason,
   Prisma,
   Purchase,
 } from '@prisma/client';
@@ -390,26 +389,34 @@ export class PurchaseService {
       if (!feedItem) {
         throw new NotFoundException('Feed item not found for purchase line');
       }
+      // RAKHAL-445 (`docs/EPIC_FEED_NUTRITION_PROFILE.md`) — a feed purchase creates its own new lot
+      // (own cost/date/code, nutrition inherited from the item's default) instead of folding into
+      // whatever lot an `adjustStock` would pick, so a second purchase at a different price is never
+      // blended into the first. Created before the `PurchaseLine` so the line can record exactly which
+      // lot it made — `VoidDocumentUseCase` debits that specific lot.
+      const { batchId } = await this.feedItemService.createBatchInTx(
+        farmId,
+        userId,
+        feedItem.id,
+        {
+          batchCode: line.batchCode,
+          currentStock: quantity,
+          costPerUnit: unitCost.toNumber(),
+          purchaseDate: purchase.purchaseDate.toISOString(),
+          notes: `Purchase ${purchase.purchaseNumber}`,
+        },
+        client,
+      );
       await client.purchaseLine.create({
         data: {
           purchaseId: purchase.id,
           feedItemId: feedItem.id,
+          feedItemBatchId: batchId,
           quantity: toStorage(line.quantity),
           unitCost,
           totalAmount: lineTotal,
         },
       });
-      await this.feedItemService.adjustStock(
-        farmId,
-        userId,
-        feedItem.id,
-        {
-          adjustment: quantity,
-          reason: FeedItemStockMovementReason.PURCHASE,
-          notes: `Purchase ${purchase.purchaseNumber}`,
-        },
-        client,
-      );
       return;
     }
 

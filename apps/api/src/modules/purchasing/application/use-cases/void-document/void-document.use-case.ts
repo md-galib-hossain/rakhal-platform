@@ -3,9 +3,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Expense, Prisma, PurchaseStatus } from '@prisma/client';
+import {
+  ActivityLogModule,
+  Expense,
+  Prisma,
+  PurchaseStatus,
+} from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { JournalService } from 'src/modules/finance-v2/ledger/application/journal.service';
 import { MedicineService } from 'src/modules/inventory/application/services/medicine.service';
 import { FeedItemService } from 'src/modules/inventory/application/services/feed-item.service';
@@ -41,9 +47,40 @@ export class VoidDocumentUseCase {
     private readonly medicineService: MedicineService,
     private readonly feedItemService: FeedItemService,
     private readonly equipmentService: EquipmentService,
+    private readonly activityLog: ActivityLogService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(VoidDocumentUseCase.name);
+  }
+
+  /**
+   * Activity Log entry for a completed void, written after the void's transaction has committed.
+   * A log-write failure is swallowed: the void already committed, so it must not surface as a
+   * failed request.
+   */
+  private async recordVoidActivity(
+    farmId: string,
+    userId: string,
+    eventTitle: 'Purchase Voided' | 'Expense Voided',
+    actionDetails: string,
+    amount: number,
+  ): Promise<void> {
+    try {
+      await this.activityLog.record({
+        farmId,
+        module: ActivityLogModule.FINANCE,
+        eventTitle,
+        actionDetails,
+        actorId: userId,
+        financialImpact: amount,
+      });
+    } catch (error) {
+      this.log.error('Void activity log failed', {
+        farmId,
+        eventTitle,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   async voidPurchase(
@@ -113,11 +150,20 @@ export class VoidDocumentUseCase {
             );
           }
         } else if (line.feedItemId) {
+          // RAKHAL-445: debit the exact lot this purchase line created. A pre-445 line has no link and
+          // falls back to the FIFO `adjustStock` behaviour.
           await this.feedItemService.adjustStock(
             farmId,
             userId,
             line.feedItemId,
-            { adjustment: quantity, reason: 'ADJUSTMENT', notes },
+            {
+              adjustment: quantity,
+              reason: 'ADJUSTMENT',
+              notes,
+              ...(line.feedItemBatchId
+                ? { batchId: line.feedItemBatchId }
+                : {}),
+            },
             client,
           );
         } else if (line.equipmentId) {
@@ -144,7 +190,15 @@ export class VoidDocumentUseCase {
     });
 
     this.log.info('Purchase voided', { farmId, purchaseId });
-    return this.purchaseService.findOne(farmId, purchaseId);
+    const voided = await this.purchaseService.findOne(farmId, purchaseId);
+    await this.recordVoidActivity(
+      farmId,
+      userId,
+      'Purchase Voided',
+      `Purchase ${voided.purchaseNumber} voided — ৳${voided.totalAmount.toString()} reversed, ${voided.lines.length} line(s) destocked.`,
+      Number(voided.totalAmount),
+    );
+    return voided;
   }
 
   async voidExpense(
@@ -197,9 +251,17 @@ export class VoidDocumentUseCase {
     });
 
     this.log.info('Expense voided', { farmId, expenseId });
-    return this.prisma.expense.findFirstOrThrow({
+    const voided = await this.prisma.expense.findFirstOrThrow({
       where: { id: expenseId, farmId },
     });
+    await this.recordVoidActivity(
+      farmId,
+      userId,
+      'Expense Voided',
+      `${voided.category} expense: ${voided.description} voided — ৳${voided.amount.toString()} reversed.`,
+      Number(voided.amount),
+    );
+    return voided;
   }
 
   private async reverseJournalFor(

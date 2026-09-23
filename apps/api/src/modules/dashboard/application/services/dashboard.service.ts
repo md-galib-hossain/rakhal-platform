@@ -625,52 +625,85 @@ export class DashboardService {
   async feedStockAlerts(farmId: string) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * DAY_MS);
 
-    const [medicines, feedItems, medicineUsage] = await Promise.all([
-      this.prisma.medicine.findMany({
-        where: { farmId, deletedAt: null, lowStockThreshold: { gt: 0 } },
-        select: {
-          id: true,
-          name: true,
-          unit: { select: { symbol: true } },
-          currentStock: true,
-          lowStockThreshold: true,
-        },
-      }),
-      this.prisma.feedItem.findMany({
-        where: { farmId, deletedAt: null, lowStockThreshold: { gt: 0 } },
-        select: {
-          id: true,
-          name: true,
-          unit: { select: { symbol: true } },
-          currentStock: true,
-          lowStockThreshold: true,
-        },
-      }),
-      // Sum completed health-task dose amounts per medicine in last 30 days (RD-011).
-      this.prisma.healthTask.groupBy({
-        by: ['medicineId'],
-        where: {
-          farmId,
-          medicineId: { not: null },
-          status: HealthTaskStatus.COMPLETED,
-          completedAt: { gte: thirtyDaysAgo },
-        },
-        _sum: { doseAmount: true },
-      }),
-    ]);
+    const [medicines, feedItems, medicineUsage, feedMovements] =
+      await Promise.all([
+        this.prisma.medicine.findMany({
+          where: { farmId, deletedAt: null, lowStockThreshold: { gt: 0 } },
+          select: {
+            id: true,
+            name: true,
+            unit: { select: { symbol: true } },
+            currentStock: true,
+            lowStockThreshold: true,
+          },
+        }),
+        // RAKHAL-448: stock is the sum of the live lots (the item's own `currentStock` is only a mirror).
+        this.prisma.feedItem.findMany({
+          where: { farmId, deletedAt: null, lowStockThreshold: { gt: 0 } },
+          select: {
+            id: true,
+            name: true,
+            unit: { select: { symbol: true } },
+            lowStockThreshold: true,
+            batches: {
+              where: { deletedAt: null },
+              select: { currentStock: true },
+            },
+          },
+        }),
+        // Sum completed health-task dose amounts per medicine in last 30 days (RD-011).
+        this.prisma.healthTask.groupBy({
+          by: ['medicineId'],
+          where: {
+            farmId,
+            medicineId: { not: null },
+            status: HealthTaskStatus.COMPLETED,
+            completedAt: { gte: thirtyDaysAgo },
+          },
+          _sum: { doseAmount: true },
+        }),
+        // Net feed drawn in the last 30 days (RAKHAL-448): every feeding draw (negative) and its void
+        // restore (positive, tagged with the feeding it reversed) — so a voided feeding isn't counted.
+        this.prisma.feedItemStockMovement.groupBy({
+          by: ['feedItemId'],
+          where: {
+            farmId,
+            createdAt: { gte: thirtyDaysAgo },
+            OR: [
+              { reason: 'DISTRIBUTION' },
+              { feedDistributionCattleItemId: { not: null } },
+            ],
+          },
+          _sum: { delta: true },
+        }),
+      ]);
 
+    const feedConsumptionById = new Map(
+      feedMovements.map((m) => [m.feedItemId, -(m._sum.delta ?? 0)]),
+    );
     const consumptionById = new Map(
       medicineUsage
         .filter((u) => u.medicineId != null)
         .map((u) => [u.medicineId!, Number(u._sum.doseAmount ?? 0)]),
     );
 
-    const calcDaysRemaining = (id: string, stock: number): number | null => {
-      const total30d = consumptionById.get(id);
-      if (!total30d || total30d === 0) return null;
+    const calcDaysRemaining = (
+      consumption: Map<string, number>,
+      id: string,
+      stock: number,
+    ): number | null => {
+      const total30d = consumption.get(id);
+      if (!total30d || total30d <= 0) return null;
       const dailyRate = total30d / 30;
       return Math.floor(stock / dailyRate);
     };
+
+    const feedItemsWithStock = feedItems.map((f) => ({
+      ...f,
+      currentStock:
+        Math.round(f.batches.reduce((s, b) => s + b.currentStock, 0) * 1e6) /
+        1e6,
+    }));
 
     const toAlert =
       (type: 'medicine' | 'feed_item') =>
@@ -687,8 +720,11 @@ export class DashboardService {
         currentStock: i.currentStock,
         unit: i.unit.symbol,
         threshold: i.lowStockThreshold,
-        daysRemainingEstimate:
-          type === 'medicine' ? calcDaysRemaining(i.id, i.currentStock) : null,
+        daysRemainingEstimate: calcDaysRemaining(
+          type === 'medicine' ? consumptionById : feedConsumptionById,
+          i.id,
+          i.currentStock,
+        ),
         status: i.currentStock <= i.lowStockThreshold / 2 ? 'critical' : 'low',
       });
 
@@ -696,7 +732,7 @@ export class DashboardService {
       ...medicines
         .filter((m) => m.currentStock <= m.lowStockThreshold)
         .map(toAlert('medicine')),
-      ...feedItems
+      ...feedItemsWithStock
         .filter((f) => f.currentStock <= f.lowStockThreshold)
         .map(toAlert('feed_item')),
     ];

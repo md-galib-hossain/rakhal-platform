@@ -13,10 +13,7 @@ import {
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
-import {
-  EffectiveIngredient,
-  resolveEffective,
-} from '../../domain/ingredient-resolver';
+import { EffectiveIngredient } from '../../domain/ingredient-resolver';
 import {
   balanceScore,
   computeTotals,
@@ -33,10 +30,16 @@ import {
 } from '../../presentation/dto/concentration.dto';
 import { FeedStockService, StockNutritionSnapshot } from './feed-stock.service';
 import { FeedRequirementsService } from './feed-requirements.service';
+import { FeedLotResolver } from './feed-lot-resolver.service';
 import { FeedDistributionService } from './feed-distribution.service';
 import { JournalService } from 'src/modules/finance-v2/ledger/application/journal.service';
 import { LedgerAccountService } from 'src/modules/finance-v2/ledger/application/ledger-account.service';
 import { FinancialAccountService } from 'src/modules/finance-v2/accounts/application/financial-account.service';
+import {
+  FeedDrawPlan,
+  FeedItemService,
+} from 'src/modules/inventory/application/services/feed-item.service';
+import { lineKey, RecipeLineRef } from '../../domain/recipe-line';
 import { randomUUID } from 'crypto';
 
 type ConcentrationWithItems = FeedConcentration & {
@@ -44,6 +47,19 @@ type ConcentrationWithItems = FeedConcentration & {
 };
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
+
+/** A saved or draft recipe line, however it arrived (Prisma row or request DTO). */
+type LineLike = {
+  ingredientId?: string | null;
+  feedItemId?: string | null;
+  feedItemBatchId?: string | null;
+  amountKg: number;
+};
+const lineRef = (i: LineLike): RecipeLineRef => ({
+  ingredientId: i.ingredientId ?? null,
+  feedItemId: i.feedItemId ?? null,
+  feedItemBatchId: i.feedItemBatchId ?? null,
+});
 
 /**
  * Concentration templates (PRD §12.3–12.4, RAKHAL-082): the formula builder.
@@ -66,6 +82,8 @@ export class FeedConcentrationService {
     private readonly ledgerAccountService: LedgerAccountService,
     private readonly financialAccountService: FinancialAccountService,
     private readonly feedDistribution: FeedDistributionService,
+    private readonly lotResolver: FeedLotResolver,
+    private readonly feedItems: FeedItemService,
   ) {
     this.log = this.logger.setContext(FeedConcentrationService.name);
   }
@@ -97,9 +115,9 @@ export class FeedConcentrationService {
     // ration added. The map is keyed by ingredient id, so one shared map serves every row.
     const [requirements, effById] = await Promise.all([
       this.feedRequirements.resolveForConcentrations(farmId, rows),
-      this.effectiveMap(
+      this.effectiveLineMap(
         farmId,
-        rows.flatMap((r) => r.items.map((i) => i.ingredientId)),
+        rows.flatMap((r) => r.items),
       ),
     ]);
     return Promise.all(
@@ -204,6 +222,7 @@ export class FeedConcentrationService {
     }
 
     await this.validateTargets(farmId, feedGroupId, cattleId);
+    this.assertLineIdentity(dto.items);
     await this.assertIngredients(dto.items.map((i) => i.ingredientId));
     await this.assertBatchLinks(farmId, dto.items);
     if (!isTemplate) {
@@ -227,6 +246,7 @@ export class FeedConcentrationService {
             ingredientId: i.ingredientId,
             amountKg: i.amountKg,
             feedItemId: i.feedItemId,
+            feedItemBatchId: i.feedItemBatchId,
             feedStockId: i.feedStockId,
           })),
         },
@@ -261,6 +281,7 @@ export class FeedConcentrationService {
 
     await this.validateTargets(farmId, feedGroupId, cattleId);
     if (dto.items) {
+      this.assertLineIdentity(dto.items);
       await this.assertIngredients(dto.items.map((i) => i.ingredientId));
       await this.assertBatchLinks(farmId, dto.items);
       if (!isTemplate) {
@@ -279,6 +300,7 @@ export class FeedConcentrationService {
             ingredientId: i.ingredientId,
             amountKg: i.amountKg,
             feedItemId: i.feedItemId,
+            feedItemBatchId: i.feedItemBatchId,
             feedStockId: i.feedStockId,
           })),
         });
@@ -396,14 +418,8 @@ export class FeedConcentrationService {
       );
     }
 
-    const effById = await this.effectiveMap(
-      farmId,
-      row.items.map((i) => i.ingredientId),
-    );
-    const lines: FormulaLine[] = row.items.map((i) => ({
-      ingredientId: i.ingredientId,
-      amountKg: i.amountKg,
-    }));
+    const effById = await this.effectiveLineMap(farmId, row.items);
+    const lines = this.formulaLines(row.items);
     const { totals } = computeTotals(lines, effById);
     const totalAsFedKg = row.items.reduce((sum, i) => sum + i.amountKg, 0);
 
@@ -419,6 +435,7 @@ export class FeedConcentrationService {
     // (unlinked lines, priced from the catalogue) — see `resolveBatchDeductions`'s doc comment.
     const deductions = await this.resolveBatchDeductions(
       farmId,
+      userId,
       row.id,
       row.items,
       effById,
@@ -646,26 +663,24 @@ export class FeedConcentrationService {
       );
     }
 
-    const [effById, nameById] = await Promise.all([
-      this.effectiveMap(
-        farmId,
-        row.items.map((i) => i.ingredientId),
-      ),
-      this.ingredientNames(row.items.map((i) => i.ingredientId)),
+    const [effById, nameByKey] = await Promise.all([
+      this.effectiveLineMap(farmId, row.items),
+      this.lotResolver.lineNames(farmId, row.items.map(lineRef)),
     ]);
-    const lines: FormulaLine[] = row.items.map((i) => ({
-      ingredientId: i.ingredientId,
-      amountKg: i.amountKg,
-    }));
+    const lines = this.formulaLines(row.items);
     const { totals } = computeTotals(lines, effById);
 
     const nextVersionNumber = row.versionNumber;
-    const snapshotItems = row.items.map((i) => ({
-      ingredientId: i.ingredientId,
-      ingredientName: nameById.get(i.ingredientId) ?? i.ingredientId,
-      amountKg: i.amountKg,
-      pricePerKg: effById.get(i.ingredientId)?.pricePerKg ?? 0,
-    }));
+    const snapshotItems = row.items.map((i) => {
+      const key = lineKey(lineRef(i));
+      return {
+        ingredientId: i.ingredientId,
+        feedItemId: i.feedItemId,
+        ingredientName: nameByKey.get(key) ?? key,
+        amountKg: i.amountKg,
+        pricePerKg: effById.get(key)?.pricePerKg ?? 0,
+      };
+    });
 
     const [version] = await this.prisma.$transaction([
       this.prisma.feedConcentrationVersion.create({
@@ -717,11 +732,9 @@ export class FeedConcentrationService {
 
   /** Scale a draft formula's amounts so total DM meets the requirement (§12.4). */
   async normalize(farmId: string, dto: NormalizeConcentrationDto) {
+    this.assertLineIdentity(dto.items);
     await this.assertIngredients(dto.items.map((i) => i.ingredientId));
-    const effById = await this.effectiveMap(
-      farmId,
-      dto.items.map((i) => i.ingredientId),
-    );
+    const effById = await this.effectiveLineMap(farmId, dto.items);
     // RAKHAL-411: the farm's own tuned model, not the built-in defaults — otherwise a
     // farm that adjusted its settings would still be balanced against stock numbers here.
     const settings = await this.requirementSettings.resolve(farmId);
@@ -733,16 +746,15 @@ export class FeedConcentrationService {
       },
       settings,
     );
-    const lines: FormulaLine[] = dto.items.map((i) => ({
-      ingredientId: i.ingredientId,
-      amountKg: i.amountKg,
-    }));
+    const lines = this.formulaLines(dto.items);
     const normalized = normalize(lines, req, effById);
     const comp = computeTotals(normalized, effById);
+    const dtoByKey = new Map(dto.items.map((i) => [lineKey(lineRef(i)), i]));
     return {
       requirements: this.reqShape(req),
       items: normalized.map((l) => ({
-        ingredient_id: l.ingredientId,
+        ingredient_id: dtoByKey.get(l.ingredientId)?.ingredientId ?? null,
+        feed_item_id: dtoByKey.get(l.ingredientId)?.feedItemId ?? null,
         amount_kg: l.amountKg,
       })),
       totals: comp.totals,
@@ -764,12 +776,9 @@ export class FeedConcentrationService {
      * shared map serves every row; single-row callers still resolve their own. */
     effByIdForBatch?: Map<string, EffectiveIngredient>,
   ) {
-    const ids = row.items.map((i) => i.ingredientId);
-    const effById = effByIdForBatch ?? (await this.effectiveMap(farmId, ids));
-    const lines: FormulaLine[] = row.items.map((i) => ({
-      ingredientId: i.ingredientId,
-      amountKg: i.amountKg,
-    }));
+    const effById =
+      effByIdForBatch ?? (await this.effectiveLineMap(farmId, row.items));
+    const lines = this.formulaLines(row.items);
     const comp = computeTotals(lines, effById);
 
     // RAKHAL-411 (completed): the requirement now comes from the live cow record — her weight,
@@ -804,23 +813,22 @@ export class FeedConcentrationService {
     };
     if (!detailed) return base;
 
-    const ingNames = await this.ingredientNames(ids);
-    // RAKHAL-422: batch link lives on the raw `FeedConcentrationItem` row, not on
-    // `computeTotals`'s output — keyed by ingredientId (not index: `computeTotals` silently
-    // skips a line whose ingredient has no resolvable nutrition, so the two arrays can differ in
-    // length; last-write-wins is fine here since two lines sharing one ingredientId is already an
-    // edge case the formula math itself doesn't disambiguate).
-    const linkByIngredientId = new Map(
-      row.items.map((i) => [
-        i.ingredientId,
-        { feedItemId: i.feedItemId, feedStockId: i.feedStockId },
-      ]),
+    const lineNames = await this.lotResolver.lineNames(
+      farmId,
+      row.items.map(lineRef),
     );
+    // RAKHAL-422: batch link lives on the raw `FeedConcentrationItem` row, not on
+    // `computeTotals`'s output — keyed by `lineKey` (not index: `computeTotals` silently
+    // skips a line whose ingredient has no resolvable nutrition, so the two arrays can differ in
+    // length; last-write-wins is fine here since two lines sharing one key is already an
+    // edge case the formula math itself doesn't disambiguate).
+    const rowByKey = new Map(row.items.map((i) => [lineKey(lineRef(i)), i]));
     return {
       ...base,
       ingredients: comp.items.map((it) => ({
-        ingredient_id: it.ingredientId,
-        name: ingNames.get(it.ingredientId) ?? null,
+        // Null for a line that names only an inventory product (RAKHAL-447).
+        ingredient_id: rowByKey.get(it.ingredientId)?.ingredientId ?? null,
+        name: lineNames.get(it.ingredientId) ?? null,
         amount_kg: it.amount_kg,
         dm_kg: it.dm_kg,
         cp_kg: it.cp_kg,
@@ -835,36 +843,39 @@ export class FeedConcentrationService {
         phosphorus_kg: it.phosphorus_kg,
         tdn_kg: it.tdn_kg,
         cost_tk: it.cost_tk,
-        feed_item_id:
-          linkByIngredientId.get(it.ingredientId)?.feedItemId ?? null,
-        feed_stock_id:
-          linkByIngredientId.get(it.ingredientId)?.feedStockId ?? null,
+        feed_item_id: rowByKey.get(it.ingredientId)?.feedItemId ?? null,
+        feed_item_batch_id:
+          rowByKey.get(it.ingredientId)?.feedItemBatchId ?? null,
+        feed_stock_id: rowByKey.get(it.ingredientId)?.feedStockId ?? null,
       })),
     };
   }
 
+  /** RAKHAL-447: nutrition + price per recipe line, keyed by `lineKey` — lot-backed lines resolve from
+   * their linked lot, the rest from the catalogue. */
+  private effectiveLineMap(
+    farmId: string,
+    items: LineLike[],
+  ): Promise<Map<string, EffectiveIngredient>> {
+    return this.lotResolver.effectiveLines(farmId, items.map(lineRef));
+  }
+
+  /** The formula-math view of saved/draft lines: keyed by `lineKey`. */
+  private formulaLines(items: LineLike[]): FormulaLine[] {
+    return items.map((i) => ({
+      ingredientId: lineKey(lineRef(i)),
+      amountKg: i.amountKg,
+    }));
+  }
+
   /** Effective (override-merged) ingredient nutrition/price by id, farm-scoped. */
-  private async effectiveMap(
+  private effectiveMap(
     farmId: string,
     ingredientIds: string[],
   ): Promise<Map<string, EffectiveIngredient>> {
-    const ids = [...new Set(ingredientIds)];
-    // No `deletedAt` filter (RAKHAL-310): `ids` come from an existing
-    // formula's saved line items, which must keep resolving nutrition/price
-    // even if that ingredient was archived after the formula was built.
-    const [ingredients, overrides] = await Promise.all([
-      this.prisma.feedIngredient.findMany({ where: { id: { in: ids } } }),
-      this.prisma.feedIngredientOverride.findMany({
-        where: { farmId, ingredientId: { in: ids } },
-      }),
-    ]);
-    const ovById = new Map(overrides.map((o) => [o.ingredientId, o]));
-    return new Map(
-      ingredients.map((ing) => [
-        ing.id,
-        resolveEffective(ing, ovById.get(ing.id) ?? null),
-      ]),
-    );
+    // Shared `FeedLotResolver` (RAKHAL-443); no `deletedAt` filter (RAKHAL-310) so saved formulas
+    // keep resolving after an ingredient is archived.
+    return this.lotResolver.effectiveIngredients(farmId, ingredientIds);
   }
 
   /** Back-derives per-DM/per-CP nutrient rates from a formula's computed totals onto the shape
@@ -974,14 +985,8 @@ export class FeedConcentrationService {
     });
     if (!promoted) return;
 
-    const effById = await this.effectiveMap(
-      farmId,
-      row.items.map((i) => i.ingredientId),
-    );
-    const lines: FormulaLine[] = row.items.map((i) => ({
-      ingredientId: i.ingredientId,
-      amountKg: i.amountKg,
-    }));
+    const effById = await this.effectiveLineMap(farmId, row.items);
+    const lines = this.formulaLines(row.items);
     const { totals } = computeTotals(lines, effById);
     const totalAsFedKg = row.items.reduce((sum, i) => sum + i.amountKg, 0);
     if (totalAsFedKg <= 0 || totals.dm_kg <= 0) return;
@@ -1008,8 +1013,24 @@ export class FeedConcentrationService {
     return new Map(rows.map((r) => [r.id, r.nameEn]));
   }
 
-  private async assertIngredients(ingredientIds: string[]) {
-    const ids = [...new Set(ingredientIds)];
+  /** RAKHAL-447: a line must name an ingredient, or an inventory product to take its nutrition from. */
+  private assertLineIdentity(
+    items: { ingredientId?: string; feedItemId?: string }[],
+  ) {
+    for (const item of items) {
+      if (!item.ingredientId && !item.feedItemId) {
+        throw new BadRequestException(
+          'Each line needs an ingredientId, or a feedItemId to take its nutrition from',
+        );
+      }
+    }
+  }
+
+  private async assertIngredients(ingredientIds: (string | undefined)[]) {
+    const ids = [
+      ...new Set(ingredientIds.filter((id): id is string => Boolean(id))),
+    ];
+    if (ids.length === 0) return;
     const count = await this.prisma.feedIngredient.count({
       where: { id: { in: ids }, deletedAt: null },
     });
@@ -1024,9 +1045,13 @@ export class FeedConcentrationService {
    * finalized at least once (promotion happens in `finalize()`), which is why the error names that
    * path explicitly rather than just saying "invalid ingredient". */
   private async assertHasConcentrateDerivedLine(
-    items: { ingredientId: string }[],
+    items: { ingredientId?: string }[],
   ) {
-    const ids = [...new Set(items.map((i) => i.ingredientId))];
+    const ids = [
+      ...new Set(
+        items.map((i) => i.ingredientId).filter((id): id is string => !!id),
+      ),
+    ];
     const count = await this.prisma.feedIngredient.count({
       where: { id: { in: ids }, sourceConcentrationId: { not: null } },
     });
@@ -1044,16 +1069,45 @@ export class FeedConcentrationService {
   private async assertBatchLinks(
     farmId: string,
     items: {
-      ingredientId: string;
+      ingredientId?: string;
       feedItemId?: string;
+      feedItemBatchId?: string;
       feedStockId?: string;
     }[],
   ) {
     for (const item of items) {
       if (item.feedItemId && item.feedStockId) {
         throw new BadRequestException(
-          `Line for ingredient ${item.ingredientId} cannot link both a purchased batch and a prepared batch — pick one`,
+          `Line for ingredient ${item.ingredientId ?? item.feedItemId} cannot link both a purchased batch and a prepared batch — pick one`,
         );
+      }
+      if (item.feedItemBatchId && !item.feedItemId) {
+        throw new BadRequestException(
+          'feedItemBatchId needs the feedItemId it belongs to',
+        );
+      }
+    }
+
+    // RAKHAL-447: a pinned lot must be a live lot of that very product, on this farm.
+    const pins = items.filter((i) => i.feedItemBatchId);
+    if (pins.length > 0) {
+      const lots = await this.prisma.feedItemBatch.findMany({
+        where: {
+          farmId,
+          deletedAt: null,
+          id: { in: pins.map((i) => i.feedItemBatchId!) },
+        },
+        select: { id: true, feedItemId: true },
+      });
+      const lotById = new Map(lots.map((l) => [l.id, l]));
+      for (const item of pins) {
+        if (
+          lotById.get(item.feedItemBatchId!)?.feedItemId !== item.feedItemId
+        ) {
+          throw new BadRequestException(
+            `Batch ${item.feedItemBatchId} is not a live batch of feed item ${item.feedItemId}`,
+          );
+        }
       }
     }
 
@@ -1108,7 +1162,8 @@ export class FeedConcentrationService {
             `Linked feed item ${item.feedItemId} not found`,
           );
         }
-        if (linked.ingredientId !== item.ingredientId) {
+        // Only a line that also names an ingredient can contradict the product (RAKHAL-447).
+        if (item.ingredientId && linked.ingredientId !== item.ingredientId) {
           throw new BadRequestException(
             `Linked feed item ${item.feedItemId} does not match this line's ingredient`,
           );
@@ -1154,28 +1209,40 @@ export class FeedConcentrationService {
    */
   private async resolveBatchDeductions(
     farmId: string,
+    userId: string,
     concentrationId: string,
     items: {
-      ingredientId: string;
+      ingredientId: string | null;
       amountKg: number;
       feedItemId: string | null;
+      feedItemBatchId: string | null;
       feedStockId: string | null;
     }[],
     effById: Map<string, EffectiveIngredient>,
   ): Promise<{
     linkedCostTk: number;
     unlinkedCostTk: number;
-    feedItemDeductions: { feedItemId: string; newStock: number }[];
+    feedItemDeductions: { feedItemId: string; plan: FeedDrawPlan }[];
     feedStockDeductions: { feedStockId: string; quantity: number }[];
   }> {
-    const feedItemQty = new Map<string, number>();
+    // A line pinned to one lot draws only from it, so pinned and unpinned draws of the same product
+    // are separate groups (RAKHAL-447).
+    const groupKey = (feedItemId: string, pin: string | null) =>
+      `${feedItemId}|${pin ?? ''}`;
+    const feedItemQty = new Map<
+      string,
+      { feedItemId: string; pin: string | null; qty: number }
+    >();
     const feedStockQty = new Map<string, number>();
     for (const item of items) {
       if (item.feedItemId) {
-        feedItemQty.set(
-          item.feedItemId,
-          (feedItemQty.get(item.feedItemId) ?? 0) + item.amountKg,
-        );
+        const key = groupKey(item.feedItemId, item.feedItemBatchId);
+        const prev = feedItemQty.get(key);
+        feedItemQty.set(key, {
+          feedItemId: item.feedItemId,
+          pin: item.feedItemBatchId,
+          qty: (prev?.qty ?? 0) + item.amountKg,
+        });
       } else if (item.feedStockId) {
         feedStockQty.set(
           item.feedStockId,
@@ -1185,15 +1252,18 @@ export class FeedConcentrationService {
     }
 
     const feedItemPricePerKg = new Map<string, number>();
-    const feedItemDeductions: { feedItemId: string; newStock: number }[] = [];
-    for (const [feedItemId, qty] of feedItemQty) {
+    const feedItemDeductions: { feedItemId: string; plan: FeedDrawPlan }[] = [];
+    for (const [key, { feedItemId, pin, qty }] of feedItemQty) {
       const usage = await this.feedDistribution.computeFeedItemUsage(
         farmId,
+        userId,
         feedItemId,
         qty,
+        undefined,
+        pin ?? undefined,
       );
-      feedItemPricePerKg.set(feedItemId, usage.pricePerKg);
-      feedItemDeductions.push({ feedItemId, newStock: usage.newStock });
+      feedItemPricePerKg.set(key, usage.pricePerKg);
+      feedItemDeductions.push({ feedItemId, plan: usage.plan });
     }
 
     const feedStockPricePerKg = new Map<string, number>();
@@ -1236,12 +1306,15 @@ export class FeedConcentrationService {
     for (const item of items) {
       if (item.feedItemId) {
         linkedCostTk +=
-          item.amountKg * (feedItemPricePerKg.get(item.feedItemId) ?? 0);
+          item.amountKg *
+          (feedItemPricePerKg.get(
+            groupKey(item.feedItemId, item.feedItemBatchId),
+          ) ?? 0);
       } else if (item.feedStockId) {
         linkedCostTk +=
           item.amountKg * (feedStockPricePerKg.get(item.feedStockId) ?? 0);
       } else {
-        const eff = effById.get(item.ingredientId);
+        const eff = effById.get(lineKey(lineRef(item)));
         unlinkedCostTk += item.amountKg * (eff?.pricePerKg ?? 0);
       }
     }
@@ -1261,15 +1334,24 @@ export class FeedConcentrationService {
     userId: string,
     tx: Prisma.TransactionClient,
     deductions: {
-      feedItemDeductions: { feedItemId: string; newStock: number }[];
+      feedItemDeductions: { feedItemId: string; plan: FeedDrawPlan }[];
       feedStockDeductions: { feedStockId: string; quantity: number }[];
     },
   ) {
     for (const d of deductions.feedItemDeductions) {
-      await tx.feedItem.update({
-        where: { id: d.feedItemId },
-        data: { currentStock: d.newStock },
-      });
+      for (const piece of d.plan.pieces) {
+        await this.feedItems.applyFeedDraw(
+          farmId,
+          userId,
+          d.feedItemId,
+          {
+            batchId: piece.batchId,
+            quantityUnits: piece.quantityUnits,
+            notes: 'Consumed by a concentrate/TMR batch',
+          },
+          tx,
+        );
+      }
     }
     for (const d of deductions.feedStockDeductions) {
       await this.feedStock.decrementForDistribution(
