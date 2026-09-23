@@ -261,27 +261,47 @@ function CreateFeedDialogBody({
 
   async function onSubmit(values: CreateFeedFormInput) {
     try {
-      const payload: CreateFeedConcentrationPayload | UpdateFeedConcentrationPayload = {
-        kind: values.kind,
-        name: values.name,
-        durationDays: values.durationDays,
-        targetType: isTemplate ? undefined : values.targetType,
-        feedGroupId: !isTemplate && values.targetType === "GROUP" ? values.feedGroupId : undefined,
-        cattleId: !isTemplate && values.targetType === "INDIVIDUAL" ? values.cattleId : undefined,
-        targetWeightKg: isTemplate ? undefined : values.targetWeightKg,
-        targetMilkL: isTemplate ? undefined : values.targetMilkL,
-        items: values.items.map((i) => ({
-          ingredientId: i.ingredientId,
-          amountKg: i.amountKg,
-          feedItemId: i.feedItemId,
-          feedStockId: i.feedStockId,
-        })),
-      };
+      const items = values.items.map((i) => ({
+        ingredientId: i.ingredientId,
+        amountKg: i.amountKg,
+        feedItemId: i.feedItemId,
+        feedStockId: i.feedStockId,
+      }));
+      const durationDays = values.durationDays;
+      const targetType = isTemplate ? undefined : values.targetType;
+      const feedGroupId = !isTemplate && values.targetType === "GROUP" ? values.feedGroupId : undefined;
+      const cattleId = !isTemplate && values.targetType === "INDIVIDUAL" ? values.cattleId : undefined;
+      const targetWeightKg = isTemplate ? undefined : values.targetWeightKg;
+      const targetMilkL = isTemplate ? undefined : values.targetMilkL;
+
       if (isEdit && editId) {
-        await updateConcentration.mutateAsync({ id: editId, dto: payload });
+        // `kind` is fixed at creation (immutable) — `UpdateConcentrationDto` doesn't declare it,
+        // so sending it 400s with "property kind should not exist" (live bug found 2026-09-23).
+        const dto: UpdateFeedConcentrationPayload = {
+          name: values.name,
+          durationDays,
+          targetType,
+          feedGroupId,
+          cattleId,
+          targetWeightKg,
+          targetMilkL,
+          items,
+        };
+        await updateConcentration.mutateAsync({ id: editId, dto });
         toast.success(t("updatedToast"));
       } else {
-        await createConcentration.mutateAsync(payload as CreateFeedConcentrationPayload);
+        const dto: CreateFeedConcentrationPayload = {
+          kind: values.kind,
+          name: values.name,
+          durationDays,
+          targetType: targetType ?? "GROUP",
+          feedGroupId,
+          cattleId,
+          targetWeightKg,
+          targetMilkL,
+          items,
+        };
+        await createConcentration.mutateAsync(dto);
         toast.success(t("createdToast"));
       }
       form.reset({ kind, targetType: "GROUP", items: [] });
