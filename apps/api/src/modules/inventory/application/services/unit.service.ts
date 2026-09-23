@@ -4,6 +4,7 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { CreateUnitDto } from '../../presentation/dto/create-unit.dto';
 import { ListUnitQueryDto } from '../../presentation/dto/list-unit-query.dto';
+import { InventoryActivityService } from './inventory-activity.service';
 
 /**
  * Single source of truth for "how many kg is 1 of this unit" — resolves a WEIGHT-dimension
@@ -39,6 +40,7 @@ export class UnitService {
   constructor(
     private readonly prisma: PrismaService,
     logger: LoggerService,
+    private readonly activity: InventoryActivityService,
   ) {
     this.log = logger.setContext(UnitService.name);
   }
@@ -62,7 +64,11 @@ export class UnitService {
   }
 
   /** Create this farm's own custom unit. */
-  async create(farmId: string, dto: CreateUnitDto): Promise<Unit> {
+  async create(
+    farmId: string,
+    dto: CreateUnitDto,
+    userId?: string,
+  ): Promise<Unit> {
     const unit = await this.prisma.unit.create({
       data: {
         farmId,
@@ -74,6 +80,12 @@ export class UnitService {
       },
     });
     this.log.info('Farm-custom unit created', { unitId: unit.id, farmId });
+    await this.activity.record(
+      farmId,
+      userId,
+      'Custom Unit Added',
+      `Custom unit "${unit.name}" (${unit.symbol}, ${unit.dimension}) added.`,
+    );
     return unit;
   }
 
@@ -84,7 +96,11 @@ export class UnitService {
    * correct flow is archive-then-recreate, not an in-place fix. A system unit (`farmId: null`)
    * can never be archived by a farm.
    */
-  async archive(farmId: string, unitId: string): Promise<Unit> {
+  async archive(
+    farmId: string,
+    unitId: string,
+    userId?: string,
+  ): Promise<Unit> {
     // Scoping the lookup to this farm's own `farmId` already excludes system rows
     // (`farmId: null`) — a system unit can never satisfy this `where` for a real caller.
     const unit = await this.prisma.unit.findFirst({
@@ -98,6 +114,12 @@ export class UnitService {
       data: { deletedAt: new Date() },
     });
     this.log.info('Farm-custom unit archived', { unitId, farmId });
+    await this.activity.record(
+      farmId,
+      userId,
+      'Custom Unit Archived',
+      `Custom unit "${archived.name}" (${archived.symbol}) archived.`,
+    );
     return archived;
   }
 }

@@ -235,4 +235,20 @@ describe('Inventory → Activity Log (e2e)', () => {
       .expect(201);
     await expectEntry('Semen Batch Added', batchName, '10 straws');
   });
+
+  it('logs custom unit create and archive', async () => {
+    const name = `E2E-LOG-UNIT-${run}`;
+    const created = await request(server())
+      .post(api('/inventory/units'))
+      .set(...auth(owner))
+      .send({ name, symbol: `u${run}`.slice(0, 12), dimension: 'COUNT' })
+      .expect(201);
+    await expectEntry('Custom Unit Added', name, 'COUNT');
+
+    await request(server())
+      .patch(api(`/inventory/units/${created.body.data.id}/archive`))
+      .set(...auth(owner))
+      .expect(200);
+    await expectEntry('Custom Unit Archived', name);
+  });
 });

@@ -8,7 +8,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { CurrentFarmId } from 'src/common/decorators';
+import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
@@ -44,13 +44,21 @@ export class UnitController {
 
   @Post()
   @RequirePermission('inventory.create')
-  create(@CurrentFarmId() farmId: string, @Body() dto: CreateUnitDto) {
-    return this.unitService.create(farmId, dto);
+  create(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Body() dto: CreateUnitDto,
+  ) {
+    return this.unitService.create(farmId, dto, userId);
   }
 
   @Patch(':id/archive')
   @RequirePermission('inventory.delete')
-  archive(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.unitService.archive(farmId, id);
+  archive(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.unitService.archive(farmId, id, userId);
   }
 }

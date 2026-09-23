@@ -1083,6 +1083,12 @@ export class MedicineService {
         .catch(() => undefined);
     }
     this.log.info('Medicine photo uploaded', { medicineId: id, farmId });
+    await this.activity.record(
+      farmId,
+      userId,
+      'Medicine Photo Updated',
+      `Photo ${previousId ? 'replaced' : 'added'} for medicine "${medicine.name}".`,
+    );
     return this.media.signUrls(asset, true);
   }
 
@@ -1107,6 +1113,12 @@ export class MedicineService {
       .softDeleteById(farmId, medicine.photoAssetId, userId)
       .catch(() => undefined);
     this.log.info('Medicine photo removed', { medicineId: id, farmId });
+    await this.activity.record(
+      farmId,
+      userId,
+      'Medicine Photo Removed',
+      `Photo removed from medicine "${medicine.name}".`,
+    );
     return { removed: true };
   }
 
