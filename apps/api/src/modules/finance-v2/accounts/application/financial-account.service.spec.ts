@@ -307,6 +307,7 @@ describe('FinancialAccountService', () => {
           create: jest.fn().mockResolvedValue({ id: 'ledger-1' }),
         },
         financialAccount: {
+          findFirst: jest.fn().mockResolvedValue(null),
           create: jest.fn().mockResolvedValue({
             id: 'fa-1',
             type: FinancialAccountType.CASH,
@@ -325,6 +326,38 @@ describe('FinancialAccountService', () => {
 
       expect(prisma.$transaction).not.toHaveBeenCalled();
       expect(tx.financialAccount.create).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ['the first live account becomes primary', null, true],
+      ['a later account does not take the primary slot', { id: 'x' }, false],
+    ])('%s', async (_label, existing, expectedPrimary) => {
+      const tx = {
+        farmCounter: { upsert: jest.fn().mockResolvedValue({ value: 9000 }) },
+        ledgerAccount: {
+          create: jest.fn().mockResolvedValue({ id: 'ledger-1' }),
+        },
+        financialAccount: {
+          findFirst: jest.fn().mockResolvedValue(existing),
+          create: jest.fn().mockResolvedValue({
+            id: 'fa-1',
+            type: FinancialAccountType.CASH,
+            ledgerAccountId: 'ledger-1',
+          }),
+        },
+      };
+
+      await make().createAccount(
+        'farm-1',
+        'user-1',
+        { name: 'Cash Box', type: FinancialAccountType.CASH },
+        tx as never,
+      );
+
+      const [args] = tx.financialAccount.create.mock.calls[0] as [
+        { data: { isPrimary: boolean } },
+      ];
+      expect(args.data.isPrimary).toBe(expectedPrimary);
     });
   });
 

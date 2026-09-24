@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { FeedClass, FinancialAccountType, PaymentMethod } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
+import { createFeedItemWithLot } from './utils/feed-fixtures';
 import { PayableStatus } from 'src/modules/purchasing/domain/payable-status';
 import { PaySupplierUseCase } from 'src/modules/purchasing/application/use-cases/pay-supplier/pay-supplier.use-case';
 import {
@@ -80,17 +81,14 @@ describe('Purchasing — PaySupplier + Payable allocation guard (e2e, RAKHAL-349
       where: { OR: [{ farmId: owner.farmId }, { farmId: null }] },
       select: { id: true },
     });
-    const feedItem = await prisma.feedItem.create({
-      data: {
-        farmId: owner.farmId,
-        name: uniqueName('E2E-349-Feed'),
-        feedClass: FeedClass.CONCENTRATE,
-        unitId: unit.id,
-        currentStock: 0,
-        costPerUnit: 10,
-        purchaseDate: new Date(),
-        createdBy: ownerUserId,
-      },
+    const { item: feedItem } = await createFeedItemWithLot(prisma, {
+      farmId: owner.farmId,
+      createdBy: ownerUserId,
+      name: uniqueName('E2E-349-Feed'),
+      feedClass: FeedClass.CONCENTRATE,
+      unitId: unit.id,
+      stock: 0,
+      costPerUnit: 10,
     });
 
     const res = await request(server())

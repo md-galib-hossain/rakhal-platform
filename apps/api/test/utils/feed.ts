@@ -1,6 +1,36 @@
 import request from 'supertest';
 import { AuthedUser, TestContext } from './e2e';
-import { seededCashAccountId } from './finance';
+
+/**
+ * 2026-09-24: a recipe can only be *finalized* from ingredients the farm already stocks (finalize
+ * never buys anything, needs no wallet). This puts `qtyKg` of a catalogue ingredient into inventory
+ * as a `FeedItem` linked to it (`ingredientId`) — finalize auto-matches lines to it — so a spec that
+ * finalizes a catalogue-only recipe stocks each of its ingredients first. `costPerKg` prices the lot
+ * (the finalized batch's cost comes from it, not the catalogue). Returns the `FeedItem` id.
+ */
+export async function stockIngredient(
+  ctx: TestContext,
+  owner: AuthedUser,
+  ingredientId: string,
+  opts: { qtyKg?: number; costPerKg?: number; name?: string } = {},
+): Promise<string> {
+  const res = await request(ctx.app.getHttpServer())
+    .post(`${ctx.prefix}/inventory/feed-items`)
+    .set('Authorization', `Bearer ${owner.token}`)
+    .send({
+      name:
+        opts.name ??
+        `E2E stocked ${ingredientId.slice(-6)} ${Date.now()}-${Math.random()}`,
+      feedClass: 'CONCENTRATE',
+      unitId: 'unit_kg',
+      currentStock: opts.qtyKg ?? 1000,
+      costPerUnit: opts.costPerKg ?? 5,
+      purchaseDate: '2026-01-10T00:00:00.000Z',
+      ingredientId,
+    })
+    .expect(201);
+  return res.body.data.id as string;
+}
 
 /**
  * RAKHAL-425: a Total Mixed Ration now requires at least one line whose ingredient was promoted
@@ -49,11 +79,14 @@ export async function concentrateDerivedIngredientId(
     })
     .expect(201);
 
-  const financialAccountId = await seededCashAccountId(ctx, owner);
+  // Finalize consumes inventory — stock the base ingredient first (no wallet involved any more).
+  await stockIngredient(ctx, owner, base.body.data.id as string, {
+    qtyKg: 100,
+  });
   const finalized = await request(server)
     .post(api(`/feed/concentrations/${template.body.data.id}/finalize`))
     .set(...auth)
-    .send({ financialAccountId })
+    .send({})
     .expect(201);
 
   return finalized.body.data.ingredient.id as string;

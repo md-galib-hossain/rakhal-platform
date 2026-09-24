@@ -158,6 +158,13 @@ export class FinancialAccountService {
       },
     });
 
+    // The farm's first live account becomes its primary wallet, so payment pickers have a default
+    // from day one without the farmer having to find "Make primary".
+    const hasLiveAccount = await client.financialAccount.findFirst({
+      where: { farmId, deletedAt: null },
+      select: { id: true },
+    });
+
     const account = await client.financialAccount.create({
       data: {
         farmId,
@@ -165,6 +172,7 @@ export class FinancialAccountService {
         type: dto.type,
         ledgerAccountId: ledgerAccount.id,
         currency: dto.currency ?? 'BDT',
+        isPrimary: !hasLiveAccount,
         createdById: userId,
       },
     });
@@ -325,6 +333,39 @@ export class FinancialAccountService {
     return this.getOrThrow(farmId, id);
   }
 
+  /** Makes this wallet the farm's one primary account (pre-selected in payment pickers). Unsets any
+   * prior primary in the same transaction. An archived account cannot be primary. */
+  async setPrimary(
+    farmId: string,
+    id: string,
+    userId?: string,
+  ): Promise<FinancialAccountWithDetail> {
+    await this.assertAccountActive(farmId, id);
+    const account = await this.prisma.$transaction(async (tx) => {
+      await tx.financialAccount.updateMany({
+        where: { farmId, isPrimary: true },
+        data: { isPrimary: false },
+      });
+      return tx.financialAccount.update({
+        where: { id },
+        data: { isPrimary: true },
+        include: DETAIL_INCLUDE,
+      });
+    });
+    this.log.info('Primary financial account set', {
+      farmId,
+      financialAccountId: id,
+    });
+    await this.activityLog.record({
+      farmId,
+      module: ActivityLogModule.FINANCE,
+      eventTitle: 'Primary Financial Account Set',
+      actionDetails: `${account.type} account "${account.name}" set as the primary wallet.`,
+      actorId: userId ?? null,
+    });
+    return account;
+  }
+
   /** Archive-not-delete (`FINANCE_V2_DESIGN.md` §6 invariant: "an account with transactions is
    * never deleted — archive it"). Rejects re-archiving an already-archived account. */
   async archiveAccount(
@@ -338,7 +379,8 @@ export class FinancialAccountService {
     }
     const account = await this.prisma.financialAccount.update({
       where: { id },
-      data: { deletedAt: new Date() },
+      // An archived wallet can't receive money, so it must not stay the default one.
+      data: { deletedAt: new Date(), isPrimary: false },
       include: DETAIL_INCLUDE,
     });
     this.log.info('Financial account archived', {

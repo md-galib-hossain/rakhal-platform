@@ -315,9 +315,20 @@ export class FeedController {
       farmId,
       userId,
       id,
-      dto.financialAccountId,
       dto.batchQuantityKg,
     );
+  }
+
+  /** Which lines of this recipe are backed by inventory the farm owns, and which must be added
+   * first — the same check `finalize` enforces (finalize needs no wallet: the feed is already
+   * bought). Drives the Feed Formulator finalize sheet. */
+  @Get('concentrations/:id/inventory-check')
+  @RequirePermission('feed.read')
+  concentrationInventoryCheck(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+  ) {
+    return this.concentrations.inventoryCheck(farmId, id);
   }
 
   // ---- Layered ration resolution (herd -> group -> individual) ------------

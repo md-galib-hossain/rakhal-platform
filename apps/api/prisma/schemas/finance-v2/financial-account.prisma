@@ -47,6 +47,12 @@ model FinancialAccount {
   /// migration to add the column, only to start varying it.
   currency String @default("BDT")
 
+  /// The farm's default wallet — payment/receipt pickers pre-select it so the farmer doesn't pick
+  /// an account every time. One primary per farm (enforced in `FinancialAccountService.setPrimary`,
+  /// no partial-unique-index syntax in Prisma). The farm's first account becomes primary
+  /// automatically; archiving the primary clears the flag.
+  isPrimary Boolean @default(false)
+
   deletedAt DateTime?
 
   createdById String

@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { FeedClass, FinancialAccountType } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
+import { createFeedItemWithLot } from './utils/feed-fixtures';
 import { PayableStatus } from 'src/modules/purchasing/domain/payable-status';
 import {
   AuthedUser,
@@ -63,18 +64,16 @@ describe('Purchasing — Purchase + PurchaseLine + Payable (e2e, RAKHAL-348)', (
       where: { OR: [{ farmId: owner.farmId }, { farmId: null }] },
       select: { id: true },
     });
-    return prisma.feedItem.create({
-      data: {
-        farmId: owner.farmId,
-        name: uniqueName('E2E-348-Feed'),
-        feedClass: FeedClass.CONCENTRATE,
-        unitId: unit.id,
-        currentStock,
-        costPerUnit: 10,
-        purchaseDate: new Date(),
-        createdBy: ownerUserId,
-      },
+    const { item } = await createFeedItemWithLot(prisma, {
+      farmId: owner.farmId,
+      createdBy: ownerUserId,
+      name: uniqueName('E2E-348-Feed'),
+      feedClass: FeedClass.CONCENTRATE,
+      unitId: unit.id,
+      stock: currentStock,
+      costPerUnit: 10,
     });
+    return item;
   }
 
   async function createBankAccount(): Promise<{

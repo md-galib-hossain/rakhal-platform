@@ -1,26 +1,24 @@
 import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
-import { seededCashAccountId } from './utils/finance';
-import { concentrateDerivedIngredientId } from './utils/feed';
+import { concentrateDerivedIngredientId, stockIngredient } from './utils/feed';
 
 /**
- * RAKHAL-423 + RAKHAL-424 (shipped together per docs/EPIC_PREPARED_FEED.md §5 — 424 alone would
- * double-count the expense): a finalize now deducts every batch-linked line (RAKHAL-422's link)
- * before producing the new lot, and the finance journal splits into an inventory-transfer portion
- * (linked, already owned/paid for) and a purchase portion (unlinked, still priced from the
- * catalogue). Covers: all-linked TMR needs no `financialAccountId` and posts no journal; a mixed
- * TMR credits only the unlinked portion and `producedCostTk` reflects the real batch cost, not the
- * catalogue price; insufficient linked stock blocks with no partial state; self-consumption is
- * rejected; a Concentrate Mixer with a linked line deducts exactly like a TMR does.
+ * RAKHAL-423 (batch deduction on finalize) as reshaped by the 2026-09-24 rule "a recipe can be
+ * built from anything but only finalized from inventory the farm already owns": finalize deducts
+ * every line's stock (a linked batch, or the farm's feed item / prepared batch for that ingredient)
+ * before producing the new lot, prices the lot from those batches' **real** costs, and never buys
+ * anything — so it needs no wallet and posts no journal. A line the farm doesn't stock blocks the
+ * finalize (400, naming it) and `GET …/inventory-check` lists it. Also covered: insufficient stock
+ * blocks with no partial state; self-consumption is rejected; a Concentrate Mixer with a linked
+ * line deducts exactly like a TMR does.
  *
  * Requires the dev stack up + `pnpm seed`.
  */
-describe('Feed Formulator — batch-link deduction + finance split on finalize (e2e, RAKHAL-423/424)', () => {
+describe('Feed Formulator — batch deduction + inventory gate on finalize (e2e, RAKHAL-423)', () => {
   let ctx: TestContext;
   let prisma: PrismaService;
   let owner: AuthedUser;
-  let financialAccountId: string;
   /** RAKHAL-425: every TMR below needs one line using this. */
   let concentrateIngredientId: string;
 
@@ -80,7 +78,6 @@ describe('Feed Formulator — batch-link deduction + finance split on finalize (
     ctx = await createTestApp();
     prisma = ctx.app.get(PrismaService);
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
-    financialAccountId = await seededCashAccountId(ctx, owner);
     concentrateIngredientId = await concentrateDerivedIngredientId(ctx, owner);
   }, 30_000);
 
@@ -88,7 +85,7 @@ describe('Feed Formulator — batch-link deduction + finance split on finalize (
     await ctx.app.close();
   });
 
-  it('an all-linked TMR needs no financialAccountId, deducts the batch, and posts no journal entry', async () => {
+  it('an all-stocked TMR deducts the batch, prices from its real cost, and posts no journal entry', async () => {
     const ingredient = await createIngredient('E2E All-Linked Ingredient', 999);
     const feedItemId = await createFeedItem(ingredient, 50, 12);
 
@@ -111,7 +108,6 @@ describe('Feed Formulator — batch-link deduction + finance split on finalize (
     const finalized = await request(server())
       .post(api(`/feed/concentrations/${tmr.body.data.id}/finalize`))
       .set(...auth(owner))
-      // No financialAccountId — must not be required when nothing is purchased.
       .expect(201);
 
     expect(finalized.body.data.finance).toBeNull();
@@ -120,13 +116,13 @@ describe('Feed Formulator — batch-link deduction + finance split on finalize (
     expect(await getFeedItemStock(feedItemId)).toBeCloseTo(45, 2);
   });
 
-  it('a mixed TMR credits only the unlinked portion and prices the linked portion from the real batch cost', async () => {
+  it('blocks finalize on a line the farm does not stock — naming it — until it is in inventory, then prices every line from its real batch', async () => {
     const linkedIngredient = await createIngredient(
       'E2E Mixed Linked Ingredient',
       999, // deliberately wrong catalogue price — proves the real batch cost wins
     );
-    const unlinkedIngredient = await createIngredient(
-      'E2E Mixed Unlinked Ingredient',
+    const missingIngredient = await createIngredient(
+      'E2E Mixed Unstocked Ingredient',
       8,
     );
     const feedItemId = await createFeedItem(linkedIngredient, 50, 12);
@@ -142,33 +138,50 @@ describe('Feed Formulator — batch-link deduction + finance split on finalize (
         targetMilkL: 15,
         items: [
           { ingredientId: linkedIngredient, amountKg: 5, feedItemId },
-          { ingredientId: unlinkedIngredient, amountKg: 3 },
+          { ingredientId: missingIngredient, amountKg: 3 },
           { ingredientId: concentrateIngredientId, amountKg: 0 },
         ],
       })
       .expect(201);
+    const tmrId = tmr.body.data.id as string;
 
-    const finalized = await request(server())
-      .post(api(`/feed/concentrations/${tmr.body.data.id}/finalize`))
+    // The check names exactly the unstocked line and says the recipe can't be finalized yet.
+    const check = await request(server())
+      .get(api(`/feed/concentrations/${tmrId}/inventory-check`))
       .set(...auth(owner))
-      .send({ paymentMethod: 'CASH', financialAccountId })
+      .expect(200);
+    expect(check.body.data.can_finalize).toBe(false);
+    expect(check.body.data.missing).toHaveLength(1);
+    expect(check.body.data.missing[0].ingredient_id).toBe(missingIngredient);
+    expect(check.body.data.missing[0].amount_kg).toBe(3);
+
+    // Finalize is refused with the same list — and nothing is deducted or produced.
+    const blocked = await request(server())
+      .post(api(`/feed/concentrations/${tmrId}/finalize`))
+      .set(...auth(owner));
+    expect(blocked.status).toBe(400);
+    expect((blocked.body as { message?: string }).message).toContain(
+      'Not in inventory yet',
+    );
+    expect(await getFeedItemStock(feedItemId)).toBe(50);
+    expect(
+      await prisma.feedStock.count({ where: { sourceConcentrationId: tmrId } }),
+    ).toBe(0);
+
+    // Once the ingredient is in inventory the same recipe finalizes, no wallet involved.
+    await stockIngredient(ctx, owner, missingIngredient, {
+      qtyKg: 100,
+      costPerKg: 8,
+    });
+    const finalized = await request(server())
+      .post(api(`/feed/concentrations/${tmrId}/finalize`))
+      .set(...auth(owner))
       .expect(201);
 
-    // linked: 5kg * 12/kg = 60 (real cost) ; unlinked: 3kg * 8/kg = 24 (catalogue) ; total = 84.
+    // linked: 5kg * 12/kg = 60 ; matched-from-inventory: 3kg * 8/kg = 24 ; total = 84.
     expect(finalized.body.data.stock.produced_cost_tk).toBe(84);
-    expect(finalized.body.data.finance).not.toBeNull();
+    expect(finalized.body.data.finance).toBeNull();
     expect(await getFeedItemStock(feedItemId)).toBeCloseTo(45, 2);
-
-    const journalTransactionId = finalized.body.data.finance
-      .journal_transaction_id as string;
-    const entries = await prisma.journalEntry.findMany({
-      where: { journalTransactionId },
-    });
-    const totalCredit = entries.reduce((sum, e) => sum + Number(e.credit), 0);
-    const totalDebit = entries.reduce((sum, e) => sum + Number(e.debit), 0);
-    // Only the unlinked portion (24) is a real purchase — not the full 84.
-    expect(totalCredit).toBe(24);
-    expect(totalDebit).toBe(24);
   });
 
   it('blocks with a named shortfall on insufficient linked stock, producing no batch', async () => {
@@ -191,10 +204,19 @@ describe('Feed Formulator — batch-link deduction + finance split on finalize (
       })
       .expect(201);
 
+    // The check surfaces the shortfall up front too.
+    const check = await request(server())
+      .get(api(`/feed/concentrations/${tmr.body.data.id}/inventory-check`))
+      .set(...auth(owner))
+      .expect(200);
+    expect(check.body.data.can_finalize).toBe(false);
+    expect(check.body.data.shortfalls).toHaveLength(1);
+    expect(check.body.data.shortfalls[0].needed_kg).toBe(10);
+    expect(check.body.data.shortfalls[0].available_kg).toBe(2);
+
     const res = await request(server())
       .post(api(`/feed/concentrations/${tmr.body.data.id}/finalize`))
-      .set(...auth(owner))
-      .send({ paymentMethod: 'CASH', financialAccountId });
+      .set(...auth(owner));
     expect(res.status).toBe(400);
 
     expect(await getFeedItemStock(feedItemId)).toBe(2);
@@ -209,6 +231,7 @@ describe('Feed Formulator — batch-link deduction + finance split on finalize (
       'E2E Self-Consumption Ingredient',
       10,
     );
+    await stockIngredient(ctx, owner, ingredient, { costPerKg: 10 });
 
     const template = await request(server())
       .post(api('/feed/concentrations'))
@@ -224,8 +247,6 @@ describe('Feed Formulator — batch-link deduction + finance split on finalize (
     const finalized = await request(server())
       .post(api(`/feed/concentrations/${templateId}/finalize`))
       .set(...auth(owner))
-      // RAKHAL-428: 10kg @ 10/kg unlinked cost now requires a financialAccountId.
-      .send({ financialAccountId })
       .expect(201);
     const promotedIngredientId = finalized.body.data.ingredient.id as string;
     const stockId = finalized.body.data.stock.id as string;
@@ -255,6 +276,7 @@ describe('Feed Formulator — batch-link deduction + finance split on finalize (
       'E2E Cross-Template Source Ingredient',
       10,
     );
+    await stockIngredient(ctx, owner, sourceIngredient, { costPerKg: 10 });
     const source = await request(server())
       .post(api('/feed/concentrations'))
       .set(...auth(owner))
@@ -267,8 +289,6 @@ describe('Feed Formulator — batch-link deduction + finance split on finalize (
     const sourceFinalized = await request(server())
       .post(api(`/feed/concentrations/${source.body.data.id}/finalize`))
       .set(...auth(owner))
-      // RAKHAL-428: 20kg @ 10/kg unlinked cost now requires a financialAccountId.
-      .send({ financialAccountId })
       .expect(201);
     const sourcePromotedIngredientId = sourceFinalized.body.data.ingredient
       .id as string;
@@ -306,7 +326,7 @@ describe('Feed Formulator — batch-link deduction + finance split on finalize (
     expect(sourceRow?.current_stock_kg).toBe(13);
   });
 
-  it('RAKHAL-428 (closes RD-090): a Concentrate Mixer with real unlinked cost requires financialAccountId and posts a journal, same as a TMR', async () => {
+  it('a Concentrate Mixer with an unstocked ingredient is blocked (naming it), then finalizes at the real batch cost with no journal', async () => {
     const ingredient = await createIngredient('E2E RD-090 Ingredient', 10);
 
     const template = await request(server())
@@ -319,44 +339,37 @@ describe('Feed Formulator — batch-link deduction + finance split on finalize (
       })
       .expect(201);
 
-    // No financialAccountId — 4kg * 10/kg = 40 unlinked cost, must be blocked.
     const blocked = await request(server())
       .post(api(`/feed/concentrations/${template.body.data.id}/finalize`))
       .set(...auth(owner));
     expect(blocked.status).toBe(400);
     expect((blocked.body as { message?: string }).message).toContain(
-      'financialAccountId',
+      'Not in inventory yet',
     );
-    const noStock = await prisma.feedStock.count({
-      where: { sourceConcentrationId: template.body.data.id },
-    });
-    expect(noStock).toBe(0);
+    expect(
+      await prisma.feedStock.count({
+        where: { sourceConcentrationId: template.body.data.id },
+      }),
+    ).toBe(0);
 
+    // The farm buys it (here at ৳7/kg — not the catalogue's ৳10), and finalize now goes through.
+    await stockIngredient(ctx, owner, ingredient, { costPerKg: 7 });
     const finalized = await request(server())
       .post(api(`/feed/concentrations/${template.body.data.id}/finalize`))
       .set(...auth(owner))
-      .send({ financialAccountId })
       .expect(201);
 
-    expect(finalized.body.data.stock.produced_cost_tk).toBe(40);
-    expect(finalized.body.data.finance).not.toBeNull();
-
-    const journalTransactionId = finalized.body.data.finance
-      .journal_transaction_id as string;
-    const entries = await prisma.journalEntry.findMany({
-      where: { journalTransactionId },
-    });
-    const totalCredit = entries.reduce((sum, e) => sum + Number(e.credit), 0);
-    const totalDebit = entries.reduce((sum, e) => sum + Number(e.debit), 0);
-    expect(totalCredit).toBe(40);
-    expect(totalDebit).toBe(40);
+    // 4kg * 7/kg real batch cost; no payment, no journal.
+    expect(finalized.body.data.stock.produced_cost_tk).toBe(28);
+    expect(finalized.body.data.finance).toBeNull();
   });
 
-  it('RAKHAL-428: an all-linked Concentrate Mixer still needs no financialAccountId and posts no journal', async () => {
+  it('an all-linked Concentrate Mixer (prepared batch + feed item) finalizes with no wallet and no journal', async () => {
     const sourceIngredient = await createIngredient(
       'E2E RD-090 All-Linked Source Ingredient',
       10,
     );
+    await stockIngredient(ctx, owner, sourceIngredient, { costPerKg: 10 });
     const source = await request(server())
       .post(api('/feed/concentrations'))
       .set(...auth(owner))
@@ -369,7 +382,6 @@ describe('Feed Formulator — batch-link deduction + finance split on finalize (
     const sourceFinalized = await request(server())
       .post(api(`/feed/concentrations/${source.body.data.id}/finalize`))
       .set(...auth(owner))
-      .send({ financialAccountId })
       .expect(201);
     const sourcePromotedIngredientId = sourceFinalized.body.data.ingredient
       .id as string;
@@ -401,9 +413,61 @@ describe('Feed Formulator — batch-link deduction + finance split on finalize (
     const finalized = await request(server())
       .post(api(`/feed/concentrations/${consumer.body.data.id}/finalize`))
       .set(...auth(owner))
-      // No financialAccountId — every line is batch-linked, nothing to purchase.
       .expect(201);
 
     expect(finalized.body.data.finance).toBeNull();
+  });
+
+  it('a TMR line for a promoted concentrate ingredient resolves to that concentrate’s prepared batch (no link needed) and is flagged prepared when none is in stock', async () => {
+    const baseIngredient = await createIngredient('E2E Prepared Base', 10);
+    await stockIngredient(ctx, owner, baseIngredient, { costPerKg: 10 });
+    const source = await request(server())
+      .post(api('/feed/concentrations'))
+      .set(...auth(owner))
+      .send({
+        kind: 'CONCENTRATE_TEMPLATE',
+        name: `E2E Prepared Source ${Date.now()}`,
+        items: [{ ingredientId: baseIngredient, amountKg: 10 }],
+      })
+      .expect(201);
+    const sourceFinalized = await request(server())
+      .post(api(`/feed/concentrations/${source.body.data.id}/finalize`))
+      .set(...auth(owner))
+      .expect(201);
+    const promotedId = sourceFinalized.body.data.ingredient.id as string;
+    const stockId = sourceFinalized.body.data.stock.id as string;
+
+    const tmr = await request(server())
+      .post(api('/feed/concentrations'))
+      .set(...auth(owner))
+      .send({
+        kind: 'FEED_MIXTURE',
+        name: `E2E Prepared TMR ${Date.now()}`,
+        durationDays: 1,
+        targetWeightKg: 450,
+        targetMilkL: 15,
+        items: [{ ingredientId: promotedId, amountKg: 4 }],
+      })
+      .expect(201);
+
+    const ok = await request(server())
+      .get(api(`/feed/concentrations/${tmr.body.data.id}/inventory-check`))
+      .set(...auth(owner))
+      .expect(200);
+    expect(ok.body.data.can_finalize).toBe(true);
+    expect(ok.body.data.lines[0].feed_stock_id).toBe(stockId);
+
+    // Remove that prepared batch (soft-delete) → the line is missing, and flagged as prepared feed
+    // (the UI points at finalizing the concentrate instead of the feed-item form).
+    await request(server())
+      .delete(api(`/feed/stock/${stockId}`))
+      .set(...auth(owner))
+      .expect(200);
+    const gone = await request(server())
+      .get(api(`/feed/concentrations/${tmr.body.data.id}/inventory-check`))
+      .set(...auth(owner))
+      .expect(200);
+    expect(gone.body.data.can_finalize).toBe(false);
+    expect(gone.body.data.missing[0].is_prepared_feed).toBe(true);
   });
 });

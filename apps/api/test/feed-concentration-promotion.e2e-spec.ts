@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 import { seededCashAccountId } from './utils/finance';
-import { concentrateDerivedIngredientId } from './utils/feed';
+import { concentrateDerivedIngredientId, stockIngredient } from './utils/feed';
 
 /**
  * Feed Formulator — Phase 12.1 (2026-07-18, no ticket #, plan `composed-pondering-teapot`):
@@ -54,6 +54,8 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
       })
       .expect(201);
     ingredientId = created.body.data.id as string;
+    // Finalize consumes inventory (no wallet, no buying) — stock the base ingredient at its price.
+    await stockIngredient(ctx, owner, ingredientId, { costPerKg: 20 });
 
     // A second, deliberately different-composition ingredient — used to prove live-sync actually
     // recomputes the promoted ingredient's %-nutrition on a composition change, not just its kg
@@ -72,6 +74,7 @@ describe('Feed Formulator — concentration promotion + live-sync (e2e)', () => 
       })
       .expect(201);
     ingredientId2 = created2.body.data.id as string;
+    await stockIngredient(ctx, owner, ingredientId2, { costPerKg: 35 });
     concentrateIngredientId = await concentrateDerivedIngredientId(ctx, owner);
   }, 30_000);
 

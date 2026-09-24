@@ -22,9 +22,9 @@ model MilkTank {
   agitationIntervalMin Int?
   assignedShedId       String?
 
-  /// One primary tank per farm per tankType (enforced in `MilkTankService.setPrimary`, not a DB
-  /// constraint — Prisma has no partial-unique-index syntax for "unique where tankType, deletedAt
-  /// null"). The Milk Log grid seeds each row's default tank from its type's primary tank.
+  /// One primary tank per farm (enforced in `MilkTankService.setPrimary`, not a DB constraint —
+  /// Prisma has no partial-unique-index syntax for "unique where farmId, deletedAt null"). The Milk
+  /// Log grid seeds each row's default tank from it when its `tankType` matches the cow's milk.
   isPrimary Boolean @default(false)
 
   deletedAt DateTime?

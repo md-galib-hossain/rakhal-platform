@@ -32,15 +32,12 @@ import { FeedStockService, StockNutritionSnapshot } from './feed-stock.service';
 import { FeedRequirementsService } from './feed-requirements.service';
 import { FeedLotResolver } from './feed-lot-resolver.service';
 import { FeedDistributionService } from './feed-distribution.service';
-import { JournalService } from 'src/modules/finance-v2/ledger/application/journal.service';
-import { LedgerAccountService } from 'src/modules/finance-v2/ledger/application/ledger-account.service';
-import { FinancialAccountService } from 'src/modules/finance-v2/accounts/application/financial-account.service';
 import {
   FeedDrawPlan,
   FeedItemService,
 } from 'src/modules/inventory/application/services/feed-item.service';
+import { resolveKgPerUnit } from 'src/modules/inventory/application/services/unit.service';
 import { lineKey, RecipeLineRef } from '../../domain/recipe-line';
-import { randomUUID } from 'crypto';
 
 type ConcentrationWithItems = FeedConcentration & {
   items: FeedConcentrationItem[];
@@ -78,9 +75,6 @@ export class FeedConcentrationService {
     private readonly feedStock: FeedStockService,
     private readonly feedRequirements: FeedRequirementsService,
     private readonly requirementSettings: RequirementSettingsService,
-    private readonly journalService: JournalService,
-    private readonly ledgerAccountService: LedgerAccountService,
-    private readonly financialAccountService: FinancialAccountService,
     private readonly feedDistribution: FeedDistributionService,
     private readonly lotResolver: FeedLotResolver,
     private readonly feedItems: FeedItemService,
@@ -408,7 +402,6 @@ export class FeedConcentrationService {
     farmId: string,
     userId: string,
     id: string,
-    financialAccountId?: string,
     batchQuantityKg?: number,
   ) {
     const row = await this.getOrThrow(farmId, id);
@@ -429,83 +422,35 @@ export class FeedConcentrationService {
       );
     }
 
-    // RAKHAL-423/424: resolve each line's batch link (validates sufficiency + self-consumption,
-    // fail-fast before anything is written) and split the recipe's real cost into what's already
-    // owned (linked lines, priced from the batch's own real cost) vs what still needs buying
-    // (unlinked lines, priced from the catalogue) — see `resolveBatchDeductions`'s doc comment.
+    // 2026-09-24 (user request): a recipe may be *built* from ingredients the farm doesn't stock,
+    // but it can only be *finalized* from inventory the farm already owns — so finalize never
+    // buys anything and needs no wallet (the purchase already happened, in Inventory). Every line
+    // must resolve to a feed item / prepared batch; anything else blocks with the names the
+    // farmer must add to Inventory first (`inventoryCheck` returns the same list for the UI).
+    const inventory = await this.resolveInventoryLines(farmId, row.items);
+    const missing = inventory.filter((l) => l.status === 'MISSING');
+    if (missing.length > 0) {
+      throw new BadRequestException(
+        `Not in inventory yet: ${missing.map((m) => m.name).join(', ')}. Add ${missing.length === 1 ? 'it' : 'them'} to Inventory before finalizing.`,
+      );
+    }
+    const resolvedItems = row.items.map((it) => {
+      const hit = inventory.find((l) => l.item.id === it.id);
+      return hit?.source === 'MATCHED'
+        ? { ...it, feedItemId: hit.feedItemId, feedStockId: hit.feedStockId }
+        : it;
+    });
+
+    // RAKHAL-423: resolve each line's batch (validates sufficiency + self-consumption, fail-fast
+    // before anything is written); the batch's own real cost prices the produced stock.
     const deductions = await this.resolveBatchDeductions(
       farmId,
       userId,
       row.id,
-      row.items,
+      resolvedItems,
       effById,
     );
-    const correctedTotalCostTk = round2(
-      deductions.linkedCostTk + deductions.unlinkedCostTk,
-    );
-
-    // `financialAccountId` is only required when this finalize actually buys something — an
-    // all-linked batch (every line already owned) never touches cash (RAKHAL-424, closes the gap
-    // RAKHAL-393/RD-077 opened by demanding it unconditionally). RAKHAL-428 (closes RD-090):
-    // applies to both kinds — a Concentrate Mixer with real unlinked cost buys feed exactly like
-    // a TMR does, so it pays for it exactly like a TMR does; the old `row.kind === 'FEED_MIXTURE'`
-    // restriction here let a Concentrate finalize produce a paid-for-nothing `FeedStock` batch.
-    if (deductions.unlinkedCostTk > 0 && !financialAccountId) {
-      throw new BadRequestException(
-        'financialAccountId is required to finalize a batch that purchases feed',
-      );
-    }
-
-    // RAKHAL-428 (closes RD-090): payment posts before either kind produces stock — mirrors the
-    // ordering the TMR branch always had (see the finalize()-level doc comment: "Payment happens
-    // before stock is produced... no `FeedStock` fabricated for a batch never actually paid for"),
-    // now enforced for a Concentrate Mixer too. Only the unlinked portion (not already owned) is
-    // a real purchase — debits Inventory (`1200`), credits the chosen `FinancialAccount`; an
-    // all-linked finalize posts no journal entry at all, for either kind.
-    const INVENTORY_LEDGER_CODE = '1200';
-    let financeResult: { journalTransactionId: string } | null = null;
-    if (deductions.unlinkedCostTk > 0) {
-      await this.financialAccountService.assertAccountActive(
-        farmId,
-        financialAccountId!,
-      );
-      const account = await this.prisma.financialAccount.findFirstOrThrow({
-        where: { id: financialAccountId, farmId },
-        select: { ledgerAccountId: true },
-      });
-      const inventoryAccount = await this.ledgerAccountService.findByCode(
-        farmId,
-        INVENTORY_LEDGER_CODE,
-      );
-      if (!inventoryAccount) {
-        throw new BadRequestException(
-          'Inventory ledger account is not seeded for this farm',
-        );
-      }
-      const isTemplate = row.kind === 'CONCENTRATE_TEMPLATE';
-      const posted = await this.journalService.postJournal({
-        farmId,
-        sourceType: isTemplate
-          ? 'FEED_CONCENTRATE_FINALIZE'
-          : 'FEED_MIXTURE_FINALIZE',
-        sourceId: row.id,
-        transactionDate: new Date(),
-        description: `${isTemplate ? 'Concentrate Mixer' : 'TMR'} finalize: ${row.name}`,
-        idempotencyKey: `feed-${isTemplate ? 'concentrate' : 'mixture'}-finalize:${row.id}:${randomUUID()}`,
-        createdById: userId,
-        entries: [
-          {
-            ledgerAccountId: inventoryAccount.id,
-            debit: deductions.unlinkedCostTk,
-          },
-          {
-            ledgerAccountId: account.ledgerAccountId,
-            credit: deductions.unlinkedCostTk,
-          },
-        ],
-      });
-      financeResult = { journalTransactionId: posted.id };
-    }
+    const correctedTotalCostTk = round2(deductions.linkedCostTk);
 
     let ingredientResult: ReturnType<typeof this.mapIngredient> | null = null;
     let stock: Awaited<
@@ -631,10 +576,265 @@ export class FeedConcentrationService {
       concentration_id: row.id,
       stock,
       ingredient: ingredientResult,
-      finance: financeResult
-        ? { journal_transaction_id: financeResult.journalTransactionId }
-        : null,
+      // Kept (always null) so existing clients reading `finance` don't break — finalize no longer
+      // posts money; the purchase happened in Inventory.
+      finance: null,
     };
+  }
+
+  /**
+   * Which of this recipe's lines are backed by inventory the farm owns (and which are not) — the
+   * same check `finalize` enforces, so the UI can show the farmer exactly what to add first.
+   * A line is in inventory when it links a feed item / prepared batch, or when its catalogue
+   * ingredient has a live feed item (`FeedItem.ingredientId`) — the fullest-stocked one is used.
+   */
+  async inventoryCheck(farmId: string, id: string) {
+    const row = await this.getOrThrow(farmId, id);
+    const lines = await this.resolveInventoryLines(farmId, row.items);
+
+    // Total needed per stocked source (a feed item or a prepared batch can back several lines).
+    const neededBySource = new Map<
+      string,
+      { name: string; neededKg: number; availableKg: number | null }
+    >();
+    for (const l of lines) {
+      const sourceKey = l.feedItemId ?? l.feedStockId;
+      if (!sourceKey) continue;
+      const prev = neededBySource.get(sourceKey);
+      neededBySource.set(sourceKey, {
+        name: l.name,
+        neededKg: (prev?.neededKg ?? 0) + l.item.amountKg,
+        availableKg: l.availableKg,
+      });
+    }
+    const shortfalls = [...neededBySource.values()]
+      .filter((n) => n.availableKg != null && n.neededKg > n.availableKg)
+      .map((n) => ({
+        name: n.name,
+        needed_kg: round2(n.neededKg),
+        available_kg: round2(n.availableKg as number),
+      }));
+
+    const missing = lines
+      .filter((l) => l.status === 'MISSING')
+      .map((l) => ({
+        ingredient_id: l.item.ingredientId,
+        name: l.name,
+        amount_kg: l.item.amountKg,
+        feed_class: l.feedClass,
+        feed_sub_type: l.feedSubType,
+        is_prepared_feed: l.isPreparedFeed,
+      }));
+
+    return {
+      can_finalize: missing.length === 0 && shortfalls.length === 0,
+      lines: lines.map((l) => ({
+        ingredient_id: l.item.ingredientId,
+        name: l.name,
+        amount_kg: l.item.amountKg,
+        status: l.status,
+        feed_item_id: l.feedItemId,
+        feed_stock_id: l.feedStockId,
+        available_kg: l.availableKg,
+      })),
+      missing,
+      shortfalls,
+    };
+  }
+
+  private async resolveInventoryLines(
+    farmId: string,
+    items: FeedConcentrationItem[],
+  ) {
+    const linkedItemIds = items
+      .filter((i) => i.feedItemId)
+      .map((i) => i.feedItemId as string);
+    const linkedStockIds = items
+      .filter((i) => !i.feedItemId && i.feedStockId)
+      .map((i) => i.feedStockId as string);
+    const ingredientIds = items
+      .filter((i) => !i.feedItemId && !i.feedStockId && i.ingredientId)
+      .map((i) => i.ingredientId as string);
+
+    type FeedItemWithUnit = Prisma.FeedItemGetPayload<{
+      include: { unit: true };
+    }>;
+    const feedItems: FeedItemWithUnit[] =
+      linkedItemIds.length || ingredientIds.length
+        ? await this.prisma.feedItem.findMany({
+            where: {
+              farmId,
+              deletedAt: null,
+              OR: [
+                { id: { in: linkedItemIds } },
+                { ingredientId: { in: ingredientIds } },
+              ],
+            },
+            include: { unit: true },
+          })
+        : [];
+    const stocks: { id: string; currentStockKg: number }[] =
+      linkedStockIds.length
+        ? await this.prisma.feedStock.findMany({
+            where: { farmId, id: { in: linkedStockIds }, deletedAt: null },
+            select: { id: true, currentStockKg: true },
+          })
+        : [];
+    const ingredients: Pick<
+      FeedIngredient,
+      'id' | 'nameEn' | 'feedClass' | 'feedSubType' | 'sourceConcentrationId'
+    >[] = ingredientIds.length
+      ? await this.prisma.feedIngredient.findMany({
+          where: { id: { in: [...new Set(ingredientIds)] } },
+          select: {
+            id: true,
+            nameEn: true,
+            feedClass: true,
+            feedSubType: true,
+            sourceConcentrationId: true,
+          },
+        })
+      : [];
+    // An ingredient promoted from a Concentrate Mixer lives in inventory as that concentrate's
+    // prepared batches (`FeedStock`), not as a purchased `FeedItem` — resolve it to the fullest one.
+    const sourceConcentrationIds = ingredients
+      .map((i) => i.sourceConcentrationId)
+      .filter((v): v is string => v != null);
+    const preparedStocks: {
+      id: string;
+      sourceConcentrationId: string | null;
+      currentStockKg: number;
+    }[] = sourceConcentrationIds.length
+      ? await this.prisma.feedStock.findMany({
+          where: {
+            farmId,
+            deletedAt: null,
+            currentStockKg: { gt: 0 },
+            sourceConcentrationId: { in: sourceConcentrationIds },
+          },
+          select: {
+            id: true,
+            sourceConcentrationId: true,
+            currentStockKg: true,
+          },
+        })
+      : [];
+    const bestPreparedByConcentration = new Map<
+      string,
+      (typeof preparedStocks)[number]
+    >();
+    for (const s of preparedStocks) {
+      if (!s.sourceConcentrationId) continue;
+      const cur = bestPreparedByConcentration.get(s.sourceConcentrationId);
+      if (!cur || s.currentStockKg > cur.currentStockKg) {
+        bestPreparedByConcentration.set(s.sourceConcentrationId, s);
+      }
+    }
+    const names = await this.lotResolver.lineNames(farmId, items.map(lineRef));
+
+    const kgOf = (fi: (typeof feedItems)[number]) => {
+      const kgPerUnit = resolveKgPerUnit(fi.unit, fi.kgPerUnit);
+      return kgPerUnit && kgPerUnit > 0 ? fi.currentStock * kgPerUnit : null;
+    };
+    const itemById = new Map(feedItems.map((f) => [f.id, f] as const));
+    const stockById = new Map(stocks.map((s) => [s.id, s] as const));
+    const ingredientById = new Map(ingredients.map((i) => [i.id, i] as const));
+    // Fullest-stocked live feed item per catalogue ingredient.
+    const bestByIngredient = new Map<string, (typeof feedItems)[number]>();
+    for (const f of feedItems) {
+      if (!f.ingredientId) continue;
+      const cur = bestByIngredient.get(f.ingredientId);
+      if (!cur || f.currentStock > cur.currentStock) {
+        bestByIngredient.set(f.ingredientId, f);
+      }
+    }
+
+    return items.map((item) => {
+      const ing = item.ingredientId
+        ? ingredientById.get(item.ingredientId)
+        : undefined;
+      const name =
+        names.get(lineKey(lineRef(item))) ??
+        ing?.nameEn ??
+        'Unknown ingredient';
+      const base = {
+        item,
+        name,
+        feedClass: ing?.feedClass ?? null,
+        feedSubType: ing?.feedSubType ?? null,
+        // Made from a Concentrate Mixer — restocked by finalizing that concentrate, not by buying.
+        isPreparedFeed: Boolean(ing?.sourceConcentrationId),
+      };
+      // A zero-kg line consumes nothing, so it needs nothing in stock.
+      if (item.amountKg <= 0) {
+        return {
+          ...base,
+          status: 'IN_INVENTORY' as const,
+          source: null,
+          feedItemId: null,
+          feedStockId: null,
+          availableKg: null,
+        };
+      }
+      if (item.feedItemId) {
+        const fi = itemById.get(item.feedItemId);
+        if (fi) {
+          return {
+            ...base,
+            status: 'IN_INVENTORY' as const,
+            source: 'LINKED' as const,
+            feedItemId: fi.id,
+            feedStockId: null,
+            availableKg: kgOf(fi),
+          };
+        }
+      } else if (item.feedStockId) {
+        const st = stockById.get(item.feedStockId);
+        if (st) {
+          return {
+            ...base,
+            status: 'IN_INVENTORY' as const,
+            source: 'LINKED' as const,
+            feedItemId: null,
+            feedStockId: st.id,
+            availableKg: st.currentStockKg,
+          };
+        }
+      } else if (item.ingredientId) {
+        if (ing?.sourceConcentrationId) {
+          const st = bestPreparedByConcentration.get(ing.sourceConcentrationId);
+          if (st) {
+            return {
+              ...base,
+              status: 'IN_INVENTORY' as const,
+              source: 'MATCHED' as const,
+              feedItemId: null,
+              feedStockId: st.id,
+              availableKg: st.currentStockKg,
+            };
+          }
+        }
+        const fi = bestByIngredient.get(item.ingredientId);
+        if (fi) {
+          return {
+            ...base,
+            status: 'IN_INVENTORY' as const,
+            source: 'MATCHED' as const,
+            feedItemId: fi.id,
+            feedStockId: null,
+            availableKg: kgOf(fi),
+          };
+        }
+      }
+      return {
+        ...base,
+        status: 'MISSING' as const,
+        source: null,
+        feedItemId: null,
+        feedStockId: null,
+        availableKg: null,
+      };
+    });
   }
 
   /**

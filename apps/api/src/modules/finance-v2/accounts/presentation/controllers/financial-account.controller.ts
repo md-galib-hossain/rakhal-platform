@@ -74,6 +74,16 @@ export class FinancialAccountController {
     return this.accounts.updateAccount(farmId, id, dto);
   }
 
+  @Patch(':id/primary')
+  @RequirePermission('finance.accounts')
+  setPrimary(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+  ) {
+    return this.accounts.setPrimary(farmId, id, userId);
+  }
+
   @Patch(':id/archive')
   @RequirePermission('finance.accounts')
   archive(

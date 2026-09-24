@@ -3,6 +3,7 @@ import { MedicineService } from '../src/modules/inventory/application/services/m
 import { FeedItemService } from '../src/modules/inventory/application/services/feed-item.service';
 import { EquipmentService } from '../src/modules/inventory/application/services/equipment.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
+import { createFeedItemWithLot } from './utils/feed-fixtures';
 
 /**
  * RAKHAL-341 — Unit-of-Work seam. `MedicineService.adjustStock`,
@@ -71,19 +72,17 @@ describe('RAKHAL-341 — inventory adjustStock unit-of-work seam (e2e)', () => {
   }
 
   async function createFeedItem(currentStock: number) {
-    return prisma.feedItem.create({
-      data: {
-        farmId: owner.farmId,
-        name: uniqueName('E2E RAKHAL-341 FeedItem'),
-        feedClass: 'FORAGE',
-        unitId: 'unit_kg',
-        currentStock,
-        costPerUnit: 20,
-        lowStockThreshold: 0,
-        purchaseDate: new Date(),
-        createdBy: ownerUserId,
-      },
+    const { item } = await createFeedItemWithLot(prisma, {
+      farmId: owner.farmId,
+      createdBy: ownerUserId,
+      name: uniqueName('E2E RAKHAL-341 FeedItem'),
+      feedClass: 'FORAGE',
+      unitId: 'unit_kg',
+      stock: currentStock,
+      costPerUnit: 20,
+      lowStockThreshold: 0,
     });
+    return item;
   }
 
   async function createEquipment(currentStock: number) {

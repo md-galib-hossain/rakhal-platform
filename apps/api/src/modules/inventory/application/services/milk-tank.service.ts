@@ -229,18 +229,19 @@ export class MilkTankService {
     return this.present(tank);
   }
 
-  /** Sets this tank as the farm's primary tank for its `tankType` — the Milk Log grid seeds each
-   * row's default tank from this. Only one primary per (farm, tankType); unsets any prior holder
-   * of that type in the same transaction, matching `MilkTank.isPrimary`'s doc-comment invariant. */
+  /** Sets this tank as the farm's one primary tank — the Milk Log grid seeds each row's default
+   * tank from it (for cows whose milk matches its `tankType`). Only one primary per farm; unsets
+   * any prior holder in the same transaction, matching `MilkTank.isPrimary`'s doc-comment
+   * invariant. (Was one per `tankType` until 2026-09-24 — the farm could show two primaries.) */
   async setPrimary(
     farmId: string,
     id: string,
     userId?: string,
   ): Promise<PresentedMilkTank> {
-    const target = await this.getOrThrow(farmId, id);
+    await this.getOrThrow(farmId, id);
     const tank = await this.prisma.$transaction(async (tx) => {
       await tx.milkTank.updateMany({
-        where: { farmId, tankType: target.tankType, isPrimary: true },
+        where: { farmId, isPrimary: true },
         data: { isPrimary: false },
       });
       return tx.milkTank.update({
@@ -265,7 +266,8 @@ export class MilkTankService {
     await this.getOrThrow(farmId, id);
     const tank = await this.prisma.milkTank.update({
       where: { id },
-      data: { deletedAt: new Date() },
+      // An archived tank must not stay primary — it would hide the farm's real primary slot.
+      data: { deletedAt: new Date(), isPrimary: false },
     });
     await this.recordActivity(
       farmId,
