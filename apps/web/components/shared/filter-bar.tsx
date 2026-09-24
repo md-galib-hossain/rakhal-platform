@@ -202,9 +202,10 @@ function SearchInput({ paramKey, placeholder }: { paramKey: string; placeholder:
   );
 }
 
-/** Figma "Filter" component: icon + label pill that opens a panel — the panel content is this
- * bar's existing select filters plus checklist sections plus a Clear-filters action, not a new
- * filter model. */
+const UNSET_SELECT = "__filter_all__";
+
+/** Modern, spacious Filter Popover with responsive 2-col grid, header with active count & reset,
+ * individual filter clear buttons, and scroll protection. */
 function FilterPopover({
   selects,
   checklists,
@@ -215,41 +216,120 @@ function FilterPopover({
   searchKey?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const activeCount =
-    selects.filter((s) => searchParams.has(s.key)).length +
-    checklists.reduce((sum, c) => {
-      const raw = searchParams.get(c.key);
-      return sum + (raw ? raw.split(",").filter(Boolean).length : 0);
-    }, 0);
+
+  const activeSelectKeys = selects.filter((s) => searchParams.has(s.key));
+  const activeChecklistCount = checklists.reduce((sum, c) => {
+    const raw = searchParams.get(c.key);
+    return sum + (raw ? raw.split(",").filter(Boolean).length : 0);
+  }, 0);
+  const activeCount = activeSelectKeys.length + activeChecklistCount;
+  const isMultiCol = selects.length >= 4;
+
+  const allFilterKeys = [
+    ...(searchKey ? [searchKey] : []),
+    ...selects.map((s) => s.key),
+    ...checklists.map((c) => c.key),
+  ];
+
+  function handleClearAll() {
+    const params = new URLSearchParams(searchParams.toString());
+    allFilterKeys.forEach((k) => params.delete(k));
+    router.replace(params.size > 0 ? `?${params.toString()}` : window.location.pathname);
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        {/* Default (md/h-11) size — matches the search input's height (`h-11`) in the same row,
-            and the page-header "Add X" button next to it (also default size). */}
-        <Button variant="outline" className="gap-1.5 text-muted-foreground">
+        <Button
+          variant="outline"
+          className={cn(
+            "gap-1.5 transition-colors",
+            activeCount > 0
+              ? "border-primary/50 bg-primary/10 text-primary hover:bg-primary/15 font-medium"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
           <FilterIcon className="size-4" aria-hidden />
           Filter
           {activeCount > 0 ? (
-            <span className="flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+            <span className="flex size-4.5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
               {activeCount}
             </span>
           ) : null}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="flex w-72 flex-col gap-3">
-        {selects.map((select) => (
-          <FilterSelect key={select.key} config={select} />
-        ))}
-        {checklists.map((checklist) => (
-          <FilterChecklist key={checklist.key} config={checklist} />
-        ))}
-        <ClearFiltersButton
-          searchKey={searchKey}
-          selectKeys={selects.map((s) => s.key)}
-          checklistKeys={checklists.map((c) => c.key)}
-        />
+      <PopoverContent
+        align="end"
+        sideOffset={8}
+        className={cn(
+          "flex flex-col p-0 shadow-2xl rounded-2xl border border-border bg-card overflow-hidden",
+          isMultiCol ? "w-[340px] sm:w-[500px]" : "w-[320px] sm:w-[360px]",
+        )}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border bg-muted/40 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <FilterIcon className="size-4 text-primary" aria-hidden />
+            <h4 className="text-sm font-bold text-foreground">Filters</h4>
+            {activeCount > 0 ? (
+              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                {activeCount} active
+              </span>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-1.5">
+            {activeCount > 0 ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                onClick={handleClearAll}
+              >
+                Reset all
+              </Button>
+            ) : null}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 text-muted-foreground hover:text-foreground"
+              onClick={() => setOpen(false)}
+              aria-label="Close filters"
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Filter List Body */}
+        <div className="max-h-[calc(100vh-240px)] sm:max-h-[460px] overflow-y-auto p-4">
+          <div className={cn("grid gap-3.5", isMultiCol ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
+            {selects.map((select) => (
+              <FilterSelect key={select.key} config={select} />
+            ))}
+          </div>
+
+          {checklists.length > 0 ? (
+            <div className="mt-4 flex flex-col gap-3.5 border-t border-dashed border-border pt-4">
+              {checklists.map((checklist) => (
+                <FilterChecklist key={checklist.key} config={checklist} />
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between border-t border-border bg-muted/20 px-4 py-3">
+          <span className="text-xs text-muted-foreground">
+            {activeCount > 0
+              ? `${activeCount} filter${activeCount > 1 ? "s" : ""} applied`
+              : "No filters applied"}
+          </span>
+          <Button size="sm" className="h-8 px-4 text-xs font-semibold" onClick={() => setOpen(false)}>
+            Done
+          </Button>
+        </div>
       </PopoverContent>
     </Popover>
   );
@@ -257,15 +337,39 @@ function FilterPopover({
 
 function FilterSelect({ config }: { config: FilterBarSelectConfig }) {
   const [value, setValue] = useQueryState(config.key, parseAsString);
+  const isActive = Boolean(value);
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium text-muted-foreground">{config.label}</label>
-      <Select value={value ?? undefined} onValueChange={(next) => void setValue(next)}>
-        <SelectTrigger aria-label={config.label}>
-          <SelectValue placeholder={config.placeholder ?? config.label} />
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-semibold text-foreground/80">{config.label}</label>
+        {isActive ? (
+          <button
+            type="button"
+            onClick={() => void setValue(null)}
+            className="text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+          >
+            Clear
+          </button>
+        ) : null}
+      </div>
+      <Select
+        value={value ?? UNSET_SELECT}
+        onValueChange={(next) => void setValue(next === UNSET_SELECT ? null : next)}
+      >
+        <SelectTrigger
+          aria-label={config.label}
+          className={cn(
+            "h-9 text-xs rounded-lg transition-colors",
+            isActive && "border-primary/50 bg-primary/5 font-medium text-foreground",
+          )}
+        >
+          <SelectValue placeholder={config.placeholder ?? `All ${config.label}`} />
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value={UNSET_SELECT} className="text-muted-foreground">
+            All {config.label}
+          </SelectItem>
           {config.options.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}
@@ -296,7 +400,18 @@ function FilterChecklist({ config }: { config: FilterBarChecklistConfig }) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium text-muted-foreground">{config.label}</label>
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-semibold text-foreground/80">{config.label}</label>
+        {values.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => setValues([])}
+            className="text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+          >
+            Clear ({values.length})
+          </button>
+        ) : null}
+      </div>
       {showSearch ? (
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -304,22 +419,22 @@ function FilterChecklist({ config }: { config: FilterBarChecklistConfig }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={`Search ${config.label.toLowerCase()}…`}
-            className="h-8 pl-8 text-sm"
+            className="h-8 pl-8 text-xs rounded-lg"
             aria-label={`Search ${config.label}`}
           />
         </div>
       ) : null}
-      <div className="flex max-h-48 flex-col gap-1 overflow-y-auto">
+      <div className="flex max-h-44 flex-col gap-1 overflow-y-auto rounded-lg border border-border p-2">
         {options.map((option) => (
           <label
             key={option.value}
-            className="flex items-center gap-2 rounded-sm px-1 py-1 text-sm hover:bg-muted"
+            className="flex items-center gap-2 rounded-md px-1.5 py-1 text-xs hover:bg-muted cursor-pointer"
           >
             <Checkbox
               checked={values.includes(option.value)}
               onCheckedChange={(checked) => toggle(option.value, checked === true)}
             />
-            {option.label}
+            <span>{option.label}</span>
           </label>
         ))}
         {options.length === 0 ? (
@@ -327,38 +442,5 @@ function FilterChecklist({ config }: { config: FilterBarChecklistConfig }) {
         ) : null}
       </div>
     </div>
-  );
-}
-
-function ClearFiltersButton({
-  searchKey,
-  selectKeys,
-  checklistKeys = [],
-}: {
-  searchKey?: string;
-  selectKeys: string[];
-  checklistKeys?: string[];
-}) {
-  const keys = [...(searchKey ? [searchKey] : []), ...selectKeys, ...checklistKeys];
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const hasAny = keys.some((k) => searchParams.has(k));
-
-  if (!hasAny) return null;
-
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="justify-start"
-      onClick={() => {
-        const params = new URLSearchParams(searchParams.toString());
-        keys.forEach((k) => params.delete(k));
-        router.replace(params.size > 0 ? `?${params.toString()}` : window.location.pathname);
-      }}
-    >
-      <X className="size-3.5" />
-      Clear filters
-    </Button>
   );
 }
