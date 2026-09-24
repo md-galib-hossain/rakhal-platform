@@ -1,7 +1,7 @@
 "use client"; // column defs consumed by the client-only DataTable
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Mars, TriangleAlert, Venus } from "lucide-react";
+import { Eye, Mars, TriangleAlert, Venus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Chip, type ChipProps } from "@/components/ui/chip";
@@ -263,12 +263,23 @@ export function buildCattleColumns(
     {
       id: "__actions__",
       header: t("columns.action"),
-      size: 96,
+      size: 72,
       cell: ({ row }) => (
         <div className="flex justify-center">
-          <Button variant="ghost" size="sm" onClick={() => rowActions.onView(row.original)}>
-            {t("actions.viewDetails")}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 text-muted-foreground hover:text-foreground"
+                onClick={() => rowActions.onView(row.original)}
+                aria-label={t("actions.viewDetails")}
+              >
+                <Eye className="size-4" aria-hidden />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("actions.viewDetails")}</TooltipContent>
+          </Tooltip>
         </div>
       ),
     },

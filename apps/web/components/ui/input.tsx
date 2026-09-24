@@ -30,7 +30,7 @@ export function Input({ className, error, controlSize, ref, ...props }: InputPro
         ref={ref}
         data-slot="input"
         className={cn(
-          "flex w-full border border-input bg-card text-sm text-foreground shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+          "flex w-full rounded-md border border-input bg-card text-sm text-foreground shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
           controlSizeVariants({ size: controlSize }),
           error && "border-destructive focus-visible:ring-destructive",
           className,

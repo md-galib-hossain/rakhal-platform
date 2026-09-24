@@ -76,7 +76,7 @@ function StepProgress({ step }: { step: 1 | 2 }) {
  *
  * `kind` (user request 2026-07-18 — "Concentrate Mixer" vs "Total Mixed Ration (TMR)" as real distinct
  * flows, see `types.ts`'s `FeedConcentrationKind` doc comment) drives which Step 1 fields render: a
- * `CONCENTRATE_TEMPLATE` shows only Name + Duration (no target-type pill, group/cattle picker,
+ * `CONCENTRATE_TEMPLATE` shows only Name (no target-type pill, group/cattle picker,
  * weight/milk inputs, or Estimated Daily Requirements box — a template is a recipe, not a
  * cow-targeted ration). The caller always knows `kind` up front, even in edit mode — `feed-view.tsx`
  * passes the card's own `kind` (already on `FeedConcentrationSummary`) rather than waiting on the
@@ -293,7 +293,7 @@ function CreateFeedDialogBody({
   async function goNext() {
     const fields: (keyof CreateFeedFormInput)[] = isTemplate
       ? ["name"]
-      : ["name", "targetType", "feedGroupId", "cattleId", "durationDays"];
+      : ["name", "targetType", "feedGroupId", "cattleId"];
     const valid = await form.trigger(fields);
     if (valid) setStep(2);
   }
@@ -443,14 +443,6 @@ function CreateFeedDialogBody({
 
               {!isTemplate ? (
                 <>
-                  <LabeledInput
-                    id="durationDays"
-                    type="number"
-                    min={1}
-                    label={t("feedDuration")}
-                    {...form.register("durationDays", numberField)}
-                    error={form.formState.errors.durationDays?.message}
-                  />
                   <div className="flex h-12 gap-1 rounded-xl border border-border bg-muted p-1">
                     {feedTargetTypes.map((value) => (
                       <button

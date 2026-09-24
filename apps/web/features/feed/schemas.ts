@@ -17,8 +17,7 @@ import type { EffectiveIngredientNutrition } from "./lib/formula-math";
  * required unconditionally for *every* concentration was the exact bug behind "why does creating a
  * concentrate add to my feeds" (every concentration ended up with a target, hence a balance score,
  * hence always bucketed as a mixture). A `FEED_MIXTURE` requires a real cow/group target
- * (`feedGroupId`/`cattleId`) and `durationDays` (Phase 12.2 — a farmer building a real ration always
- * knows how many days it's meant to cover; a template has no such concept).
+ * (`feedGroupId`/`cattleId`).
  *
  * `targetWeightKg`/`targetMilkL` are **deliberately not required** here (Phase 12.3, 2026-07-18
  * follow-up, reversing the previous unconditional-required rule) — once a real cow/group target is
@@ -71,10 +70,6 @@ export const createFeedFormSchema = z
   .refine((v) => v.kind !== "FEED_MIXTURE" || v.targetType !== "INDIVIDUAL" || Boolean(v.cattleId), {
     message: "An animal must be selected",
     path: ["cattleId"],
-  })
-  .refine((v) => v.kind !== "FEED_MIXTURE" || (v.durationDays != null && v.durationDays >= 1), {
-    message: "Duration is required for a Total Mixed Ration",
-    path: ["durationDays"],
   });
 
 export type CreateFeedFormInput = z.infer<typeof createFeedFormSchema>;

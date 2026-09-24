@@ -47,10 +47,10 @@ function StatBox({ label, value }: { label: string; value: string | number }) {
  * and, while still a draft, a full-width primary "Finalize" button rendered in place of the
  * balance-score block — once finalized, that primary CTA disappears and Finalize moves back to being
  * a "produce another batch" action reachable only from the "⋯" menu, same as before.
- * **The "Best For" stat row (Number of Cow/Target Weight/Target Milk/Feed Duration) is hidden entirely
+ * **The "Best For" stat row (Number of Cow/Target Weight/Target Milk) is hidden entirely
  * for a `CONCENTRATE_TEMPLATE`** (user report 2026-07-19) — none of those fields ever apply to a
  * recipe (a template has no cow/group target at all, see `feed-concentration.service.ts`'s `create()`,
- * which force-nulls them), so the row only ever rendered four dashes; only a `FEED_MIXTURE` card
+ * which force-nulls them), so the row only ever rendered dashes; only a `FEED_MIXTURE` card
  * shows it now.
  */
 export function ConcentrationCard({
@@ -146,7 +146,6 @@ export function ConcentrationCard({
               <StatBox label={t("numberOfCow")} value={cowCount} />
               <StatBox label={t("targetWeight")} value={concentration.target_weight_kg ?? "—"} />
               <StatBox label={t("targetMilk")} value={concentration.target_milk_l ?? "—"} />
-              <StatBox label={t("feedDuration")} value={concentration.duration_days ?? "—"} />
             </div>
           </div>
         ) : null}
