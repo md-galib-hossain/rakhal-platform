@@ -375,6 +375,13 @@ model FeedDistributionCattleItem {
   feedItemBatchId    String?
   nutritionProfileId String?
 
+  /// RAKHAL-457 (MILESTONE 27, ADR-027 D12): snapshot of the program this line was fed under, so plan-vs-
+  /// actual needs no plan versioning. Plain ids (no FK) — a plan edit replaces its lines, and a confirmed
+  /// row must never be rewritten or blocked by one. All null for an off-plan (extra) line.
+  feedPlanId     String?
+  feedPlanLineId String?
+  plannedKg      Float?
+
   /// RAKHAL-441 — this cow's own exact cost for this line, frozen at confirm time from the same
   /// `resolveGroupPlan()` result (`offeredKg * that group's pricePerKg`) already computed to price
   /// the sibling `FeedDistributionItem` — not a proportional guess, the exact number. Null only for
@@ -460,6 +467,14 @@ model FeedFeedingDraft {
   /// `quantityKg`, user request — see `FeedDistributionCattleItem.offeredKg`'s doc comment,
   /// same rationale).
   offeredKg Float
+
+  /// RAKHAL-453/RD-107: leftover weighed back before confirm. Was silently dropped (the column
+  /// didn't exist), so a refusal typed then auto-saved vanished on reload. Null = not weighed.
+  refusalKg Float?
+
+  /// RAKHAL-457: the plan line this draft row was pre-filled from (plain id, no FK — a plan edit replaces
+  /// its lines; an unmatched draft then simply renders as an extra line). Null = off-plan.
+  feedPlanLineId String?
 
   createdBy String
   createdAt DateTime @default(now())

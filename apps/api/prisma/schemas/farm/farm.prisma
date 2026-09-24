@@ -79,6 +79,7 @@ model Farm {
   feedDistributions         FeedDistribution[]         @relation("FarmToFeedDistribution")
   customFeedIngredients     FeedIngredient[]           @relation("FarmToCustomFeedIngredient")
   feedStocks                FeedStock[]                @relation("FarmToFeedStock")
+  feedPlans                 FeedPlan[]                 @relation("FarmToFeedPlan")
   scoreboardParticipation   ScoreboardParticipation?   @relation("FarmToScoreboardParticipation")
   notifications             Notification[]             @relation("FarmToNotification")
   reproProtocols            ReproProtocol[]            @relation("FarmToReproProtocol")

@@ -56,6 +56,7 @@ import { ConfirmFeedDraftDto } from '../dto/confirm-feed-draft.dto';
 import { FeedCattleHistoryQueryDto } from '../dto/feed-cattle-history-query.dto';
 import { VoidFeedCattleItemDto } from '../dto/void-feed-cattle-item.dto';
 import { FeedFeedingGridService } from '../../application/services/feed-feeding-grid.service';
+import { FeedPlanService } from '../../application/services/feed-plan.service';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /**
@@ -85,6 +86,7 @@ export class FeedController {
     private readonly stock: FeedStockService,
     private readonly rationResolver: FeedRationResolverService,
     private readonly feedingGrid: FeedFeedingGridService,
+    private readonly plans: FeedPlanService,
   ) {}
 
   // ---- Ingredients --------------------------------------------------------
@@ -163,6 +165,9 @@ export class FeedController {
     @CurrentFarmId() farmId: string,
     @Query() query: FeedRequirementsQueryDto,
   ) {
+    // RAKHAL-454: `?cattleIds=a,b,c` is the batched per-cow mode (requirement + data-quality flags).
+    if (query.cattleIds?.length)
+      return this.requirements.forCattle(farmId, query.cattleIds, query.date);
     return this.requirements.calc(farmId, query);
   }
 
@@ -349,6 +354,18 @@ export class FeedController {
         resolved.concentration.id,
       ),
     };
+  }
+
+  /** The feeding program this cow is on right now (RAKHAL-458): plan, how it reaches her (individual /
+   * group / herd), each line's resolved source + density + stock, and any group overlap. `{ program: null }`
+   * when none is applied. */
+  @Get('cattle/:cattleId/program')
+  @RequirePermission('feed.read')
+  programForCattle(
+    @CurrentFarmId() farmId: string,
+    @Param('cattleId') cattleId: string,
+  ) {
+    return this.plans.programForCattle(farmId, cattleId);
   }
 
   /** Actual vs expected dry-matter intake for a cow (2026-08-13, user request). */

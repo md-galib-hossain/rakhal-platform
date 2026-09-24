@@ -14,6 +14,10 @@ import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { FeedDistributionService } from './feed-distribution.service';
 import { FeedStockService } from './feed-stock.service';
 import { FeedLotResolver } from './feed-lot-resolver.service';
+import { FeedPlanResolverService } from './feed-plan-resolver.service';
+import { FeedPlanService } from './feed-plan.service';
+import { FeedRequirementsService } from './feed-requirements.service';
+import { computeProgramFit, toApiFit } from '../../domain/program-fit';
 import { FeedItemService } from 'src/modules/inventory/application/services/feed-item.service';
 import {
   blendNutrition,
@@ -62,6 +66,9 @@ const snapshotOf = (v: NutritionValues): NonNullable<NutrientSnapshot> => ({
 /** RAKHAL-430 (Feeding Favourites): one cow's/line's resolved feed source — always exactly one of
  * `feedItemId`/`feedStockId` set, matching `sourceType`. The unified shape `resolveEntrySource()`
  * returns and every per-source grouping/validation in `confirm()`/`saveDraft()` operates on. */
+/** RAKHAL-457: the program snapshot a confirmed cattle item carries (ADR-027 D12). */
+type PlanSnap = { planId: string; planLineId: string; plannedKg: number };
+
 type ResolvedSource = {
   sourceType: FeedGridSourceType;
   feedItemId: string | null;
@@ -89,6 +96,9 @@ export class FeedFeedingGridService {
     private readonly farmSettings: FarmSettingsService,
     private readonly feedItems: FeedItemService,
     private readonly lotResolver: FeedLotResolver,
+    private readonly programs: FeedPlanResolverService,
+    private readonly planService: FeedPlanService,
+    private readonly requirements: FeedRequirementsService,
   ) {
     this.log = logger.setContext(FeedFeedingGridService.name);
   }
@@ -178,23 +188,121 @@ export class FeedFeedingGridService {
     });
     const cattleIds = cattle.map((c) => c.id);
     if (cattleIds.length === 0) {
-      return { date: date, cows: [] };
+      return { date: date, sections: [], cows: [] };
     }
 
-    const [drafts, defaults, defaultSources, confirmedToday] =
-      await Promise.all([
-        this.prisma.feedFeedingDraft.findMany({
-          where: { farmId, cattleId: { in: cattleIds }, logDate },
-        }),
-        this.computeDefaults(farmId, cattleIds),
-        this.resolveDefaultSources(farmId, cattle),
-        this.computeConfirmedToday(cattleIds, farmId, logDate),
-      ]);
+    const [
+      drafts,
+      defaults,
+      defaultSources,
+      confirmedToday,
+      programByCow,
+      requirementRes,
+      activeSessions,
+    ] = await Promise.all([
+      this.prisma.feedFeedingDraft.findMany({
+        where: { farmId, cattleId: { in: cattleIds }, logDate },
+      }),
+      this.computeDefaults(farmId, cattleIds),
+      this.resolveDefaultSources(farmId, cattle),
+      this.computeConfirmedToday(cattleIds, farmId, logDate),
+      // RAKHAL-457 (MILESTONE 27): the program each cow is on, and what she needs today.
+      this.programs.resolveForCattle(farmId, cattleIds),
+      this.requirements.forCattle(farmId, cattleIds, date),
+      this.farmSettings.milkActiveSessions(farmId),
+    ]);
     const draftsByCattle = this.groupByCattle(drafts);
+    const perSession = Math.max(1, activeSessions.length);
+    const requirementByCow = new Map(
+      requirementRes.cows.map((c) => [c.cattle_id, c]),
+    );
 
-    return {
-      date,
-      cows: cattle.map((c) => ({
+    // One section per resolved program (D10). Individual programs of the same plan share a section; a
+    // group program is its own section per group.
+    type Section = {
+      id: string;
+      program: NonNullable<ReturnType<typeof programByCow.get>>;
+      cattleIds: string[];
+    };
+    const sectionsById = new Map<string, Section>();
+    const sectionOfCow = new Map<string, string>();
+    for (const [cowId, program] of programByCow) {
+      const id = [program.planId, program.via, program.groupId ?? ''].join(':');
+      const section = sectionsById.get(id) ?? { id, program, cattleIds: [] };
+      section.cattleIds.push(cowId);
+      sectionsById.set(id, section);
+      sectionOfCow.set(cowId, id);
+    }
+    // What each program supplies per head per day (Σ lines; `complete` = every line resolved to a lot).
+    const totalsBySection = new Map<
+      string,
+      { dmKg: number; cpKg: number; meMj: number; complete: boolean }
+    >();
+    const sections = await Promise.all(
+      [...sectionsById.values()].map(async (sec) => {
+        const supply = await this.planService.resolveSupply(farmId, {
+          lines: sec.program.lines,
+        });
+        totalsBySection.set(sec.id, {
+          dmKg: supply.reduce((t, l) => t + (l.supply.dm_kg ?? 0), 0),
+          cpKg: supply.reduce((t, l) => t + (l.supply.cp_kg ?? 0), 0),
+          meMj: supply.reduce((t, l) => t + (l.supply.me_mj ?? 0), 0),
+          complete: supply.every((l) => l.density != null),
+        });
+        return {
+          id: sec.id,
+          plan_id: sec.program.planId,
+          plan_name: sec.program.planName,
+          kind: sec.program.kind,
+          via: sec.program.via,
+          group_id: sec.program.groupId ?? null,
+          conflict: sec.program.conflict,
+          cattle_ids: sec.cattleIds,
+          lines: supply.map((l) => ({
+            line_id: l.line_id,
+            line_type: l.line_type,
+            name: l.name,
+            kg_per_day: l.kg_per_day,
+            // Pre-fill per confirm: the daily kg split across the farm's active sessions (editable).
+            prefill_kg: round2(l.kg_per_day / perSession),
+            source: l.source,
+            density: l.density,
+            stock_ok: l.stock_ok,
+          })),
+        };
+      }),
+    );
+    const linesBySection = new Map(sections.map((sec) => [sec.id, sec.lines]));
+
+    const cows = cattle.map((c) => {
+      const program = programByCow.get(c.id);
+      const sectionId = sectionOfCow.get(c.id) ?? null;
+      const req = requirementByCow.get(c.id);
+      // RAKHAL-458: what her program supplies vs what she needs, against the farm's tolerance bands.
+      const totals = sectionId ? totalsBySection.get(sectionId) : undefined;
+      const fit =
+        totals && req
+          ? computeProgramFit(
+              { dmKg: totals.dmKg, cpKg: totals.cpKg, meMj: totals.meMj },
+              {
+                dmKg: req.requirements.dm_kg,
+                cpKg: req.requirements.cp_kg,
+                meMj: req.requirements.me_mj,
+              },
+              requirementRes.bands,
+              req.flags.length > 0 || !totals.complete,
+            )
+          : null;
+      return {
+        planned_supply: totals
+          ? {
+              dm_kg: round2(totals.dmKg),
+              cp_kg: round2(totals.cpKg),
+              me_mj: round2(totals.meMj),
+              complete: totals.complete,
+            }
+          : null,
+        fit: fit ? toApiFit(fit) : null,
         cattle_id: c.id,
         name: c.name,
         tag_number: c.tagNumber,
@@ -202,7 +310,56 @@ export class FeedFeedingGridService {
         default_offered_kg: defaults.get(c.id) ?? null,
         default_source: this.mapResolvedSource(defaultSources.get(c.id)),
         confirmed_offered_kg: confirmedToday.get(c.id) ?? null,
+        program_section_id: sectionId,
+        program_conflict: program?.conflict ?? false,
+        planned_kg_by_line: sectionId
+          ? Object.fromEntries(
+              (linesBySection.get(sectionId) ?? []).map((l) => [
+                l.line_id,
+                l.prefill_kg,
+              ]),
+            )
+          : {},
+        requirement: req
+          ? {
+              dm_kg: req.requirements.dm_kg,
+              cp_kg: req.requirements.cp_kg,
+              me_mj: req.requirements.me_mj,
+              flags: req.flags,
+            }
+          : null,
+      };
+    });
+
+    // Section header summary ("6 under CP"): how many of its cows are ok / warn / bad / estimated.
+    const summary = new Map<
+      string,
+      { ok: number; warn: number; bad: number; estimated: number }
+    >();
+    for (const c of cows) {
+      if (!c.program_section_id || !c.fit) continue;
+      const s = summary.get(c.program_section_id) ?? {
+        ok: 0,
+        warn: 0,
+        bad: 0,
+        estimated: 0,
+      };
+      s[c.fit.severity] += 1;
+      if (c.fit.estimated) s.estimated += 1;
+      summary.set(c.program_section_id, s);
+    }
+    return {
+      date,
+      sections: sections.map((sec) => ({
+        ...sec,
+        fit_summary: summary.get(sec.id) ?? {
+          ok: 0,
+          warn: 0,
+          bad: 0,
+          estimated: 0,
+        },
       })),
+      cows,
     };
   }
 
@@ -215,62 +372,133 @@ export class FeedFeedingGridService {
    * — since two concurrent requests can both pass that `findFirst` before either commits — a real
    * DB-level partial unique index per branch (RD-089, `FeedFeedingDraft`'s own doc comment; Postgres
    * can't express a single ordinary constraint across two mutually exclusive nullable FK columns).
-   * A `create` that loses that race throws Prisma `P2002`, caught below and recovered as an update
-   * of the row the other request just won — never a 500, never a silent duplicate.
+   * A `create` that loses that race throws Prisma `P2002`, which aborts the Postgres transaction — so the
+   * whole transaction is retried once (RD-109), and the second attempt updates the winner's row: never a
+   * 500, never a silent duplicate. RAKHAL-457: an entry may carry `lines` (one draft row per source, each
+   * with its own refusal and the plan line it was pre-filled from).
    */
   async saveDraft(farmId: string, userId: string, dto: SaveFeedDraftDto) {
     const logDate = this.dayStart(dto.date);
     const cattleIds = dto.entries.map((e) => e.cattleId);
     await this.assertCattleBelongToFarm(farmId, cattleIds);
 
-    const resolved = dto.entries.map((entry) => {
+    // Flatten to one draft row per (cow, source). An entry with `lines` (RAKHAL-457, a program's lines
+    // plus any extras) is one row per line; the single-source shape is exactly one row.
+    type Item = {
+      cattleId: string;
+      source: ResolvedSource;
+      offeredKg: number;
+      refusalKg: number | null;
+      planLineId: string | null;
+    };
+    const items: Item[] = [];
+    for (const entry of dto.entries) {
+      if (entry.lines?.length) {
+        for (const l of entry.lines) {
+          items.push({
+            cattleId: entry.cattleId,
+            source: this.resolveEntrySource(dto, l) as ResolvedSource,
+            offeredKg: l.offeredKg,
+            refusalKg: l.refusalKg ?? null,
+            planLineId: l.planLineId ?? null,
+          });
+        }
+        continue;
+      }
       const source = this.resolveEntrySource(dto, entry);
       if (!source) {
         throw new BadRequestException(
           `Cattle ${entry.cattleId} needs a source — either its own sourceType or the call's top-level sourceType`,
         );
       }
-      return { entry, source };
-    });
+      items.push({
+        cattleId: entry.cattleId,
+        source,
+        offeredKg: entry.offeredKg,
+        refusalKg: entry.refusalKg ?? null,
+        planLineId: null,
+      });
+    }
+
+    const seen = new Set<string>();
+    for (const it of items) {
+      const key = `${it.cattleId}|${this.sourceKey(it.source)}`;
+      if (seen.has(key)) {
+        throw new BadRequestException(
+          `Cattle ${it.cattleId} lists the same feed twice — combine the quantities into one line`,
+        );
+      }
+      seen.add(key);
+    }
 
     const distinctSources = new Map<string, ResolvedSource>();
-    for (const { source } of resolved) {
+    for (const { source } of items) {
       distinctSources.set(this.sourceKey(source), source);
     }
     for (const source of distinctSources.values()) {
       await this.validateSource(farmId, source);
     }
 
-    const saved = await this.prisma.$transaction(async (tx) => {
-      const rows: Prisma.FeedFeedingDraftGetPayload<object>[] = [];
-      for (const { entry, source } of resolved) {
-        const existing = await tx.feedFeedingDraft.findFirst({
-          where: {
+    const write = () =>
+      this.prisma.$transaction(async (tx) => {
+        const rows: Prisma.FeedFeedingDraftGetPayload<object>[] = [];
+        for (const it of items) {
+          const where = {
             farmId,
-            cattleId: entry.cattleId,
+            cattleId: it.cattleId,
             logDate,
-            sourceType: source.sourceType,
-            feedItemId: source.feedItemId,
-            feedStockId: source.feedStockId,
-          },
-        });
-        const row = existing
-          ? await tx.feedFeedingDraft.update({
-              where: { id: existing.id },
-              data: { offeredKg: round2(entry.offeredKg) },
-            })
-          : await this.createOrRecoverDraft(tx, {
-              farmId,
-              cattleId: entry.cattleId,
-              logDate,
-              source,
-              offeredKg: round2(entry.offeredKg),
-              userId,
-            });
-        rows.push(row);
+            sourceType: it.source.sourceType,
+            feedItemId: it.source.feedItemId,
+            feedStockId: it.source.feedStockId,
+          };
+          const existing = await tx.feedFeedingDraft.findFirst({ where });
+          rows.push(
+            existing
+              ? await tx.feedFeedingDraft.update({
+                  where: { id: existing.id },
+                  data: {
+                    offeredKg: round2(it.offeredKg),
+                    // RAKHAL-453/RD-107: only touch refusal / plan line when the caller sent them.
+                    ...(it.refusalKg != null && {
+                      refusalKg: round2(it.refusalKg),
+                    }),
+                    ...(it.planLineId != null && {
+                      feedPlanLineId: it.planLineId,
+                    }),
+                  },
+                })
+              : await tx.feedFeedingDraft.create({
+                  data: {
+                    ...where,
+                    offeredKg: round2(it.offeredKg),
+                    refusalKg:
+                      it.refusalKg != null ? round2(it.refusalKg) : null,
+                    feedPlanLineId: it.planLineId,
+                    createdBy: userId,
+                  },
+                }),
+          );
+        }
+        return rows;
+      });
+
+    // RD-089/RD-109: two concurrent saves can both pass the `findFirst` before either commits; the loser's
+    // `create` then hits the partial unique index (P2002). Postgres aborts the whole transaction on that
+    // error, so recovering *inside* it is impossible — retry the transaction once instead; the second
+    // attempt finds the winner's row and updates it. Never a 500, never a duplicate row.
+    let saved: Prisma.FeedFeedingDraftGetPayload<object>[];
+    try {
+      saved = await write();
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        saved = await write();
+      } else {
+        throw e;
       }
-      return rows;
-    });
+    }
 
     this.log.info('Feeding grid draft saved', {
       farmId,
@@ -361,11 +589,38 @@ export class FeedFeedingGridService {
        * group-default paths below have no weigh-back to carry, so they default to 0. */
       refusalKg: number;
       source: ResolvedSource;
+      /** RAKHAL-457: the plan line this kg was pre-filled from (client-sent); resolved into `plan` below. */
+      planLineId?: string | null;
+      plan?: PlanSnap | null;
     };
     const lines: Line[] = [];
     for (const cattleId of scopedCattleIds) {
       const entry = entriesMap.get(cattleId);
       if (entry) {
+        if (entry.lines?.length) {
+          // RAKHAL-457: one entry per source for this cow. A cow-level refusal (no per-line one) is split
+          // across the lines in proportion to offered kg.
+          const totalOffered = entry.lines.reduce((s, l) => s + l.offeredKg, 0);
+          const perLine = entry.lines.some((l) => l.refusalKg != null);
+          for (const el of entry.lines) {
+            const source = this.resolveEntrySource(dto, el);
+            const qty = round2(el.offeredKg);
+            if (!source || qty <= 0) continue;
+            const refusalKg = perLine
+              ? round2(el.refusalKg ?? 0)
+              : totalOffered > 0
+                ? round2((entry.refusalKg ?? 0) * (el.offeredKg / totalOffered))
+                : 0;
+            lines.push({
+              cattleId,
+              offeredKg: qty,
+              refusalKg,
+              source,
+              planLineId: el.planLineId ?? null,
+            });
+          }
+          continue;
+        }
         const source = this.resolveEntrySource(dto, entry);
         const qty = round2(entry.offeredKg);
         const refusalKg = round2(entry.refusalKg ?? 0);
@@ -375,6 +630,25 @@ export class FeedFeedingGridService {
       }
 
       const cowDrafts = draftsByCattle.get(cattleId) ?? [];
+      // RAKHAL-457: a cow whose drafts came from a program's lines confirms every one of them.
+      if (cowDrafts.length > 1 && cowDrafts.some((d) => d.feedPlanLineId)) {
+        for (const d of cowDrafts) {
+          const qty = round2(d.offeredKg);
+          if (qty <= 0) continue;
+          lines.push({
+            cattleId,
+            offeredKg: qty,
+            refusalKg: round2(d.refusalKg ?? 0),
+            source: {
+              sourceType: d.sourceType,
+              feedItemId: d.feedItemId,
+              feedStockId: d.feedStockId,
+            },
+            planLineId: d.feedPlanLineId,
+          });
+        }
+        continue;
+      }
       const matchingDraft = dtoDefaultSource
         ? cowDrafts.find(
             (d) =>
@@ -391,12 +665,14 @@ export class FeedFeedingGridService {
           lines.push({
             cattleId,
             offeredKg: qty,
-            refusalKg: 0,
+            // RAKHAL-453/RD-107: carry the refusal the user weighed before confirming.
+            refusalKg: round2(chosenDraft.refusalKg ?? 0),
             source: {
               sourceType: chosenDraft.sourceType,
               feedItemId: chosenDraft.feedItemId,
               feedStockId: chosenDraft.feedStockId,
             },
+            planLineId: chosenDraft.feedPlanLineId,
           });
         }
         continue;
@@ -421,6 +697,39 @@ export class FeedFeedingGridService {
       throw new BadRequestException(
         'No determinable quantity/source for any cow in scope',
       );
+    }
+
+    // RAKHAL-457 (ADR-027 D12): snapshot the program each plan-linked line was fed under. `plannedKg` is
+    // the plan line's daily kg ÷ the farm's active sessions — exactly what the grid pre-fills. A plan line
+    // that no longer exists (the plan was edited after the grid loaded) is treated as off-plan rather than
+    // blocking the confirm; a confirmed row is never rewritten by a later plan edit.
+    const planLineIds = [
+      ...new Set(
+        lines.map((l) => l.planLineId).filter((id): id is string => !!id),
+      ),
+    ];
+    if (planLineIds.length > 0) {
+      const [planRows, activeSessions] = await Promise.all([
+        this.prisma.feedPlanLine.findMany({
+          where: { farmId, id: { in: planLineIds } },
+          select: { id: true, planId: true, kgPerDay: true },
+        }),
+        this.farmSettings.milkActiveSessions(farmId),
+      ]);
+      const perSession = Math.max(1, activeSessions.length);
+      const snap = new Map(
+        planRows.map((r) => [
+          r.id,
+          {
+            planId: r.planId,
+            planLineId: r.id,
+            plannedKg: round2(r.kgPerDay / perSession),
+          } satisfies PlanSnap,
+        ]),
+      );
+      for (const l of lines) {
+        l.plan = l.planLineId ? (snap.get(l.planLineId) ?? null) : null;
+      }
     }
 
     const groups = new Map<string, { source: ResolvedSource; lines: Line[] }>();
@@ -470,6 +779,7 @@ export class FeedFeedingGridService {
         feedItemBatchId: string | null;
         nutritionProfileId: string | null;
         draw: { batchId: string; units: number } | null;
+        plan: PlanSnap | null;
       };
       type LotLine = {
         ingredientId: string;
@@ -508,6 +818,7 @@ export class FeedFeedingGridService {
               feedItemBatchId: null,
               nutritionProfileId: null,
               draw: null,
+              plan: l.plan ?? null,
             });
           }
           continue;
@@ -547,6 +858,9 @@ export class FeedFeedingGridService {
               feedItemBatchId: lot.batchId,
               nutritionProfileId: lot.nutritionProfileId,
               draw: { batchId: lot.batchId, units: takeUnits },
+              plan: l.plan
+                ? { ...l.plan, plannedKg: round2(l.plan.plannedKg * share) }
+                : null,
             });
             lot.remainingUnits -= takeUnits;
             lot.kg += kg;
@@ -620,6 +934,9 @@ export class FeedFeedingGridService {
             session: dto.session ?? null,
             feedItemBatchId: p.feedItemBatchId,
             nutritionProfileId: p.nutritionProfileId,
+            feedPlanId: p.plan?.planId ?? null,
+            feedPlanLineId: p.plan?.planLineId ?? null,
+            plannedKg: p.plan?.plannedKg ?? null,
             ...(p.snapshot ?? {}),
           },
         });
@@ -651,10 +968,9 @@ export class FeedFeedingGridService {
           },
         });
       }
+      for (const g of groupPlans) await g.applyStock(dist.id, tx);
       return { ...dist, cattleItems };
     });
-
-    for (const g of groupPlans) await g.postCommit(created.id);
 
     this.log.info('Feeding grid confirmed', {
       farmId,
@@ -699,62 +1015,6 @@ export class FeedFeedingGridService {
   }
 
   // ---- internals ------------------------------------------------------------
-
-  /**
-   * RD-089: `saveDraft()`'s create branch, split out so the P2002 recovery reads clearly. Two
-   * concurrent requests can both pass the caller's own `findFirst` (no row yet) before either
-   * commits — the second `create` then collides with the partial unique index the first one just
-   * satisfied and throws `P2002`. Recovered here as an update of the row the other request won,
-   * rather than a 500 or (pre-RD-089) a silent duplicate row.
-   */
-  private async createOrRecoverDraft(
-    tx: Prisma.TransactionClient,
-    params: {
-      farmId: string;
-      cattleId: string;
-      logDate: Date;
-      source: ResolvedSource;
-      offeredKg: number;
-      userId: string;
-    },
-  ) {
-    const { farmId, cattleId, logDate, source, offeredKg, userId } = params;
-    try {
-      return await tx.feedFeedingDraft.create({
-        data: {
-          farmId,
-          cattleId,
-          logDate,
-          sourceType: source.sourceType,
-          feedItemId: source.feedItemId,
-          feedStockId: source.feedStockId,
-          offeredKg,
-          createdBy: userId,
-        },
-      });
-    } catch (e) {
-      if (
-        e instanceof Prisma.PrismaClientKnownRequestError &&
-        e.code === 'P2002'
-      ) {
-        const winner = await tx.feedFeedingDraft.findFirstOrThrow({
-          where: {
-            farmId,
-            cattleId,
-            logDate,
-            sourceType: source.sourceType,
-            feedItemId: source.feedItemId,
-            feedStockId: source.feedStockId,
-          },
-        });
-        return tx.feedFeedingDraft.update({
-          where: { id: winner.id },
-          data: { offeredKg },
-        });
-      }
-      throw e;
-    }
-  }
 
   private async validateSource(farmId: string, source: ResolvedSource) {
     if (source.sourceType === 'FEED_ITEM') {
@@ -822,7 +1082,11 @@ export class FeedFeedingGridService {
     ingredientName: string;
     pricePerKg: number;
     nutritionSnapshot: NutrientSnapshot;
-    postCommit: (distributionId: string) => Promise<void>;
+    /** Runs INSIDE the confirm transaction (RAKHAL-453/RD-105) so a failed decrement rolls back the distribution. */
+    applyStock: (
+      distributionId: string,
+      tx: Prisma.TransactionClient,
+    ) => Promise<void>;
   }> {
     if (source.sourceType === 'FEED_ITEM') {
       // Fail-fast validation + provisional price/nutrition only (RAKHAL-446): `confirm()` re-plans the
@@ -845,7 +1109,7 @@ export class FeedFeedingGridService {
         ingredientName: usage.ingredientName,
         pricePerKg: usage.pricePerKg,
         nutritionSnapshot,
-        postCommit: async () => {},
+        applyStock: async () => {},
       };
     }
 
@@ -878,12 +1142,13 @@ export class FeedFeedingGridService {
           ? round2(stock.producedCostTk / stock.producedQtyKg)
           : 0,
       nutritionSnapshot,
-      postCommit: async (distributionId: string) => {
-        await this.feedStock.decrementForDistribution(farmId, userId, {
-          stockId: stock.id,
-          quantity: totalKg,
-          distributionId,
-        });
+      applyStock: async (distributionId: string, tx) => {
+        await this.feedStock.decrementForDistribution(
+          farmId,
+          userId,
+          { stockId: stock.id, quantity: totalKg, distributionId },
+          tx,
+        );
       },
     };
   }
@@ -904,7 +1169,12 @@ export class FeedFeedingGridService {
     const rows = await this.prisma.feedDistributionCattleItem.findMany({
       where: {
         cattleId,
-        distribution: { farmId, distributedAt: logDate },
+        // RAKHAL-453/RD-108: this is the Feeding Grid's history — exclude legacy/ration distributions.
+        distribution: {
+          farmId,
+          distributedAt: logDate,
+          sourceType: 'FEEDING_GRID',
+        },
       },
       include: { distribution: { select: { createdAt: true } } },
       orderBy: { id: 'desc' },
@@ -1187,7 +1457,9 @@ export class FeedFeedingGridService {
     const rows = await this.prisma.feedDistributionCattleItem.findMany({
       where: {
         cattleId: { in: cattleIds },
-        distribution: { farmId },
+        // RAKHAL-453/RD-104: a voided feeding must never carry forward as tomorrow's default.
+        voidedAt: null,
+        distribution: { farmId, voidedAt: null },
       },
       select: {
         cattleId: true,
@@ -1220,7 +1492,9 @@ export class FeedFeedingGridService {
     const rows = await this.prisma.feedDistributionCattleItem.findMany({
       where: {
         cattleId: { in: cattleIds },
-        distribution: { farmId, distributedAt: logDate },
+        // RAKHAL-453/RD-104: a voided feeding is not "confirmed today".
+        voidedAt: null,
+        distribution: { farmId, distributedAt: logDate, voidedAt: null },
       },
       select: { cattleId: true, offeredKg: true },
     });
@@ -1444,6 +1718,8 @@ export class FeedFeedingGridService {
     feedItemId: string | null;
     feedStockId: string | null;
     offeredKg: number;
+    refusalKg: number | null;
+    feedPlanLineId: string | null;
     updatedAt: Date;
   }) {
     return {
@@ -1452,6 +1728,8 @@ export class FeedFeedingGridService {
       feed_item_id: row.feedItemId,
       feed_stock_id: row.feedStockId,
       offered_kg: row.offeredKg,
+      refusal_kg: row.refusalKg,
+      plan_line_id: row.feedPlanLineId,
       updated_at: row.updatedAt,
     };
   }

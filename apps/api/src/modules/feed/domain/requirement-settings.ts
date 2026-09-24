@@ -62,6 +62,22 @@ export interface RequirementSettings {
   intakeCurveOffset: number;
   /** `DEFAULT_DIM_WHEN_UNKNOWN` — days-in-milk assumed when the cow has no record. */
   defaultDaysInMilk: number;
+  /** RAKHAL-454 — body weight assumed when a cow has no weight record at all (flagged `weight_estimated`). */
+  defaultWeightKg: number;
+
+  // -- Feeding-program alerts (RAKHAL-458) ------------------------------------
+  /** How far below the requirement a program's dry-matter supply may fall before it is flagged (percent). */
+  alertDryMatterBelowPct: number;
+  /** How far above the requirement dry-matter supply may rise before it is flagged (percent). */
+  alertDryMatterAbovePct: number;
+  /** Crude-protein supply may fall this far below the requirement (percent). */
+  alertProteinBelowPct: number;
+  /** Crude-protein supply may rise this far above the requirement (percent). */
+  alertProteinAbovePct: number;
+  /** Energy supply may fall this far below the requirement (percent). */
+  alertEnergyBelowPct: number;
+  /** Energy supply may rise this far above the requirement (percent). */
+  alertEnergyAbovePct: number;
 
   // -- Pregnancy ------------------------------------------------------------
   /** `PREGNANCY_DM_STAGES` — intake-by-gestation-stage table, ordered by `untilDay` ascending. */
@@ -135,6 +151,14 @@ export const DEFAULT_REQUIREMENT_SETTINGS: RequirementSettings = {
   intakeCurveSteepness: 0.192,
   intakeCurveOffset: 3.67,
   defaultDaysInMilk: 100,
+  defaultWeightKg: 450,
+
+  alertDryMatterBelowPct: 10,
+  alertDryMatterAbovePct: 10,
+  alertProteinBelowPct: 10,
+  alertProteinAbovePct: 20,
+  alertEnergyBelowPct: 10,
+  alertEnergyAbovePct: 10,
 
   pregnancyIntakeStages: [
     { untilDay: 90, percentOfBodyWeight: 0.02 },
@@ -171,6 +195,7 @@ export type RequirementSettingGroup =
   | 'energy'
   | 'protein'
   | 'intake'
+  | 'alerts'
   | 'pregnancy'
   | 'heifer'
   | 'bodyCondition'
@@ -284,6 +309,56 @@ export const REQUIREMENT_SETTING_FIELDS: Record<
     unit: 'days',
     min: 1,
     max: 500,
+  },
+  defaultWeightKg: {
+    group: 'intake',
+    label: 'Assumed body weight when unweighed',
+    unit: 'kg',
+    min: 100,
+    max: 1000,
+  },
+
+  alertDryMatterBelowPct: {
+    group: 'alerts',
+    label: 'Dry matter: allowed shortfall',
+    unit: '%',
+    min: 0,
+    max: 100,
+  },
+  alertDryMatterAbovePct: {
+    group: 'alerts',
+    label: 'Dry matter: allowed excess',
+    unit: '%',
+    min: 0,
+    max: 100,
+  },
+  alertProteinBelowPct: {
+    group: 'alerts',
+    label: 'Protein: allowed shortfall',
+    unit: '%',
+    min: 0,
+    max: 100,
+  },
+  alertProteinAbovePct: {
+    group: 'alerts',
+    label: 'Protein: allowed excess',
+    unit: '%',
+    min: 0,
+    max: 100,
+  },
+  alertEnergyBelowPct: {
+    group: 'alerts',
+    label: 'Energy: allowed shortfall',
+    unit: '%',
+    min: 0,
+    max: 100,
+  },
+  alertEnergyAbovePct: {
+    group: 'alerts',
+    label: 'Energy: allowed excess',
+    unit: '%',
+    min: 0,
+    max: 100,
   },
 
   pregnancyLengthDays: {

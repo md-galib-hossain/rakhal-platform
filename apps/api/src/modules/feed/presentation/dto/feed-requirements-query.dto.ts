@@ -1,9 +1,12 @@
 import { Transform } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsIn,
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
   Max,
   Min,
   ValidateIf,
@@ -23,14 +26,35 @@ export class FeedRequirementsQueryDto {
   @IsString()
   cattleId?: string;
 
-  @ValidateIf((o: FeedRequirementsQueryDto) => !o.cattleId)
+  /** RAKHAL-454 — batch mode: comma-separated cattle ids (`?cattleIds=a,b,c`, max 500). Returns one
+   * requirement + flags per cow; every manual override above is ignored in this mode. */
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string'
+      ? value
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : value,
+  )
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  cattleIds?: string[];
+
+  /** RAKHAL-454 — batch mode as-of date (YYYY-MM-DD), defaults to today. */
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'date must be YYYY-MM-DD' })
+  date?: string;
+
+  @ValidateIf((o: FeedRequirementsQueryDto) => !o.cattleId && !o.cattleIds)
   @Transform(toNumber)
   @IsNumber()
   @Min(1)
   @Max(2000)
   weightKg?: number;
 
-  @ValidateIf((o: FeedRequirementsQueryDto) => !o.cattleId)
+  @ValidateIf((o: FeedRequirementsQueryDto) => !o.cattleId && !o.cattleIds)
   @Transform(toNumber)
   @IsNumber()
   @Min(0)

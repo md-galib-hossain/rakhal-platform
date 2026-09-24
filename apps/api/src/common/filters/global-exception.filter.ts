@@ -41,6 +41,10 @@ export interface ErrorResponse {
   code: ExceptionCode;
   requestId: string;
   timestamp: string;
+  /** Structured extra detail for a **client error (4xx) only** — never sent for a 5xx, where details can
+   * carry a stack trace. Set by `BaseException`/`AppError`, or by an `HttpException` whose body has a
+   * `details` object (RAKHAL-456: the group-overlap 409 lists `conflicting_cattle`). */
+  details?: Record<string, unknown>;
 }
 
 interface ResolvedExceptionResult {
@@ -55,6 +59,7 @@ interface HttpExceptionResponse {
   error?: string;
   statusCode?: number;
   code?: unknown;
+  details?: unknown;
 }
 
 const HTTP_EXCEPTION_CODE_BY_STATUS: Partial<Record<number, ExceptionCode>> = {
@@ -102,6 +107,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       code,
       requestId,
       timestamp,
+      ...(statusCode < 500 && details ? { details } : {}),
     };
 
     if (statusCode >= 500) {
@@ -182,6 +188,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         statusCode: exception.getStatus(),
         code: this.resolveHttpExceptionCode(exception, httpBody),
         message: this.getResponseMessage(exception.getStatus(), message, lang),
+        details:
+          typeof httpBody.details === 'object' &&
+          httpBody.details !== null &&
+          !Array.isArray(httpBody.details)
+            ? (httpBody.details as Record<string, unknown>)
+            : undefined,
       };
     }
 

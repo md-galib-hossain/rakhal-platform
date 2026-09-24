@@ -1,0 +1,113 @@
+/// MILESTONE 27 (RAKHAL-455, `docs/EPIC_FEED_PROGRAMS.md`, ADR-027): a **Feed Plan** is the daily
+/// feeding pattern for one animal — "silage 10 kg + grass 5 kg" — built only from things a farm can
+/// actually feed and deduct (bought `FeedItem`s and made feed = a concentrate/TMR recipe → `FeedStock`
+/// lot). A plan **never moves stock** and never touches the Feeding page by existing; only applying it
+/// does (`FeedPlanAssignment`, RAKHAL-456). A program is always a plan underneath: "Apply TMR" /
+/// "Apply Concentrate" create a one-line plan (`kind` is a UI label only — all kinds behave the same).
+model FeedPlan {
+  id     String @id @default(cuid())
+  farmId String
+
+  name  String
+  kind  FeedPlanKind @default(PLAN)
+  notes String?
+
+  /// Formulation reference ("made for"), NOT feeding logic: which requirement this plan was balanced
+  /// against. Plain ids (validated in the service, no FK — same convention as
+  /// `FeedConcentration.cattleId`). It reaches the Feeding page only through Apply.
+  madeForCattleId      String?
+  madeForAnimalGroupId String?
+  /// `computeRequirements()` output captured on save so the UI can show requirement drift since.
+  referenceRequirement Json?
+
+  /// Soft delete. Refused while the plan is applied (RAKHAL-456 adds the assignment check).
+  isActive  Boolean  @default(true)
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm        Farm                 @relation("FarmToFeedPlan", fields: [farmId], references: [id])
+  lines       FeedPlanLine[]
+  assignments FeedPlanAssignment[]
+
+  @@index([farmId, isActive])
+  // Raw SQL in the migration (Prisma can't express a partial unique index — same technique as
+  // `FeedFeedingDraft`/RD-089): one ACTIVE plan per (farmId, lower(name)), so an archived plan's name
+  // can be reused.
+}
+
+/// One line of a plan: `kgPerDay` as-fed, per head, per day. A line NEVER pins a lot — lots run out,
+/// items and recipes don't; the lot is resolved at feeding time.
+model FeedPlanLine {
+  id     String @id @default(cuid())
+  planId String
+  farmId String
+
+  lineType FeedPlanLineType
+
+  /// `FEED_ITEM`: a bought `FeedItem` (its lots are drawn FIFO on confirm).
+  feedItemId      String?
+  /// `PREPARED`: a `FeedConcentration` recipe (concentrate or TMR) — resolved at feeding time to a
+  /// `FeedStock` lot that has stock. NOT a lot id.
+  concentrationId String?
+
+  kgPerDay  Float
+  sortOrder Int   @default(0)
+
+  plan FeedPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@index([farmId, feedItemId])
+  @@index([farmId, concentrationId])
+  // Raw SQL in the migration: CHECK (kgPerDay > 0) and CHECK (exactly one of feedItemId /
+  // concentrationId, matching lineType).
+}
+
+/// UI label only — every kind behaves identically. The two SHORTCUT kinds mark the one-line plans
+/// "Apply TMR" / "Apply Concentrate" create behind the scenes.
+enum FeedPlanKind {
+  PLAN
+  TMR_SHORTCUT
+  CONCENTRATE_SHORTCUT
+}
+
+enum FeedPlanLineType {
+  FEED_ITEM
+  PREPARED
+}
+
+/// MILESTONE 27 (RAKHAL-456, ADR-027 D4–D6): **Apply** a plan to a target. A plan does nothing until
+/// applied. One ACTIVE assignment per target (a cow, a group, or the whole herd); applying replaces the
+/// target's active one atomically, **Remove** ends it (`removedAt`). No dates or scheduling — the owner
+/// applies programs by hand. Ended rows are kept for audit and plan-vs-actual reports.
+/// INDIVIDUAL is one row per cow. Precedence at resolution time: individual → group → herd.
+model FeedPlanAssignment {
+  id     String @id @default(cuid())
+  farmId String
+  planId String
+
+  targetType    FeedPlanTarget
+  cattleId      String?
+  animalGroupId String?
+
+  appliedAt DateTime  @default(now())
+  appliedBy String
+  removedAt DateTime?
+  removedBy String?
+
+  plan FeedPlan @relation(fields: [planId], references: [id])
+
+  @@index([farmId, removedAt])
+  @@index([planId, removedAt])
+  @@index([cattleId])
+  @@index([animalGroupId])
+  // Raw SQL in the migration (same technique as `FeedFeedingDraft`/RD-089): CHECK that the target ids
+  // match `targetType`, and three partial unique indexes — one active row per (farmId, cattleId) for
+  // INDIVIDUAL, per (farmId, animalGroupId) for GROUP, per farmId for HERD.
+}
+
+enum FeedPlanTarget {
+  INDIVIDUAL
+  GROUP
+  HERD
+}

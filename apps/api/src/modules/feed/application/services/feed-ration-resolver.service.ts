@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { FeedConcentration, FeedTargetType } from '@prisma/client';
+import { FeedConcentration } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
+import { FeedPlanResolverService } from './feed-plan-resolver.service';
 
-export type RationMatchLevel = 'INDIVIDUAL' | 'HERD';
+export type RationMatchLevel = 'INDIVIDUAL' | 'GROUP' | 'HERD';
 
 export interface ResolvedRation {
   concentration: FeedConcentration;
@@ -11,17 +12,23 @@ export interface ResolvedRation {
 }
 
 /**
- * Layered ration targeting ("herd default -> individual override, most specific wins").
- * `FeedConcentration.targetType` is INDIVIDUAL|HERD;
- * a farm can have at most one active `FEED_MIXTURE` at each level (not enforced by a DB
- * constraint — first match by `createdAt desc` wins if a farm somehow has more than one,
- * same "most recent wins" fallback other feed-module reads already use elsewhere). Only
- * `FEED_MIXTURE` concentrations are real fed rations — a `CONCENTRATE_TEMPLATE` is never a
- * resolution candidate, it's a recipe building block, not something a cow is "on".
+ * "Which TMR ration is this cow on" — now a **shim over `FeedPlanResolverService`** (MILESTONE 27,
+ * RAKHAL-456, ADR-027 D1). A cow's program is the feed plan applied to her (individual → group → herd);
+ * this returns that plan's TMR recipe when the plan is exactly one `PREPARED` line pointing at a live
+ * `FEED_MIXTURE` recipe — the shape "Apply TMR" creates and the RAKHAL-456 data migration produces from
+ * the old `FeedConcentration.targetType`/`cattleId` targeting. A multi-line plan or a plan with no TMR
+ * resolves to `null` here (its supply is compared through `GET /feed/plans/:id/fit` instead); callers
+ * (the DMI tab, `resolved-ration`) move onto the plan resolver in RAKHAL-458.
+ *
+ * Behaviour change vs the old resolver: creating a TMR with a target no longer makes it live — only
+ * applying it does.
  */
 @Injectable()
 export class FeedRationResolverService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly plans: FeedPlanResolverService,
+  ) {}
 
   async resolveActiveRation(
     farmId: string,
@@ -33,34 +40,24 @@ export class FeedRationResolverService {
     });
     if (!cattle) throw new NotFoundException('Cattle not found');
 
-    const individual = await this.findActive(farmId, {
-      targetType: 'INDIVIDUAL',
+    const program = (await this.plans.resolveForCattle(farmId, [cattleId])).get(
       cattleId,
-    });
-    if (individual)
-      return { concentration: individual, matchLevel: 'INDIVIDUAL' };
+    );
+    if (!program) return null;
+    const only =
+      program.lines.length === 1 && program.lines[0].lineType === 'PREPARED'
+        ? program.lines[0]
+        : null;
+    if (!only?.concentrationId) return null;
 
-    const herd = await this.findActive(farmId, { targetType: 'HERD' });
-    if (herd) return { concentration: herd, matchLevel: 'HERD' };
-
-    return null;
-  }
-
-  private async findActive(
-    farmId: string,
-    where: {
-      targetType: FeedTargetType;
-      cattleId?: string;
-    },
-  ): Promise<FeedConcentration | null> {
-    return this.prisma.feedConcentration.findFirst({
+    const concentration = await this.prisma.feedConcentration.findFirst({
       where: {
+        id: only.concentrationId,
         farmId,
         deletedAt: null,
         kind: 'FEED_MIXTURE',
-        ...where,
       },
-      orderBy: { createdAt: 'desc' },
     });
+    return concentration ? { concentration, matchLevel: program.via } : null;
   }
 }

@@ -21,7 +21,7 @@ import {
   ListDistributionQueryDto,
 } from '../../presentation/dto/list-distribution-query.dto';
 import { FeedStockService } from './feed-stock.service';
-import { FeedRationResolverService } from './feed-ration-resolver.service';
+import { FeedPlanResolverService } from './feed-plan-resolver.service';
 import { FeedRequirementsService } from './feed-requirements.service';
 import { FeedLotResolver } from './feed-lot-resolver.service';
 
@@ -50,7 +50,7 @@ export class FeedDistributionService {
     private readonly prisma: PrismaService,
     logger: LoggerService,
     private readonly feedStock: FeedStockService,
-    private readonly rationResolver: FeedRationResolverService,
+    private readonly planResolver: FeedPlanResolverService,
     private readonly feedRequirements: FeedRequirementsService,
     private readonly lotResolver: FeedLotResolver,
     private readonly feedItems: FeedItemService,
@@ -583,27 +583,69 @@ export class FeedDistributionService {
    * `Cattle` directly elsewhere, e.g. `validateTargets` — same established pattern).
    */
   async getDmiComparison(farmId: string, cattleId: string, date?: string) {
-    const [resolved, reqResult] = await Promise.all([
-      this.rationResolver.resolveActiveRation(farmId, cattleId),
+    // MILESTONE 27 (RAKHAL-458): the cow's program comes from the plan resolver. Legacy distributions
+    // (the old ration route, `concentrationId` set) are still found through the program's single TMR
+    // line when it has one; grid feedings are counted from the cow's own cattle items regardless.
+    const [program, reqResult] = await Promise.all([
+      this.planResolver
+        .resolveForCattle(farmId, [cattleId])
+        .then((m) => m.get(cattleId) ?? null),
       this.feedRequirements.calc(farmId, { cattleId }),
     ]);
+    const only =
+      program?.lines.length === 1 && program.lines[0].lineType === 'PREPARED'
+        ? program.lines[0].concentrationId
+        : null;
+    const resolved = program
+      ? { matchLevel: program.via, concentrationId: only }
+      : null;
+    const programInfo = program
+      ? {
+          plan_id: program.planId,
+          plan_name: program.planName,
+          via: program.via,
+          conflict: program.conflict,
+        }
+      : null;
     // `calc({ cattleId })` always takes the single-cow branch at runtime, but its return type
     // is a union across all three call shapes (cattle/group/manual) — narrow explicitly.
     const expectedDmiKg =
       'requirements' in reqResult ? reqResult.requirements.dm_kg : 0;
 
-    if (!resolved) {
-      return {
-        expected_dmi_kg: expectedDmiKg,
-        actual_dmi_kg: null,
-        delta_pct: null,
-        match_level: null,
-      };
-    }
-
     const day = this.dayStart(date);
     const nextDay = new Date(day.getTime() + 24 * 60 * 60 * 1000);
     const dateFilter = { gte: day, lt: nextDay };
+
+    // RAKHAL-453/RD-106: Feeding Grid distributions have `cattleId`/`concentrationId` both null, so
+    // neither legacy path below can see them. Count this cow's own non-voided grid rows directly
+    // (offered − refusal, DM via each row's frozen `dmPct`, same null-skip convention).
+    const gridItems = await this.prisma.feedDistributionCattleItem.findMany({
+      where: {
+        cattleId,
+        voidedAt: null,
+        distribution: { farmId, distributedAt: dateFilter, voidedAt: null },
+      },
+      select: { offeredKg: true, refusalKg: true, dmPct: true },
+    });
+    const gridDmKg = gridItems.reduce((sum, i) => {
+      if (i.dmPct == null) return sum;
+      return (
+        sum + Math.max(0, i.offeredKg - (i.refusalKg ?? 0)) * (i.dmPct / 100)
+      );
+    }, 0);
+
+    if (!resolved) {
+      return {
+        expected_dmi_kg: expectedDmiKg,
+        actual_dmi_kg: gridItems.length > 0 ? round2(gridDmKg) : null,
+        delta_pct:
+          gridItems.length > 0 && expectedDmiKg > 0
+            ? round2(((round2(gridDmKg) - expectedDmiKg) / expectedDmiKg) * 100)
+            : null,
+        match_level: gridItems.length > 0 ? 'INDIVIDUAL' : null,
+        program: programInfo,
+      };
+    }
 
     let distributions: {
       items: { ingredientId: string; actualKg: number; dmPct: number | null }[];
@@ -615,14 +657,14 @@ export class FeedDistributionService {
         where: { farmId, cattleId, distributedAt: dateFilter },
         include: { items: true },
       });
-    } else {
+    } else if (resolved.concentrationId) {
       [distributions, headcount] = await Promise.all([
         this.prisma.feedDistribution.findMany({
           where: {
             farmId,
             cattleId: null,
             distributedAt: dateFilter,
-            concentrationId: resolved.concentration.id,
+            concentrationId: resolved.concentrationId,
           },
           include: { items: true },
         }),
@@ -631,15 +673,18 @@ export class FeedDistributionService {
         }),
       ]);
       headcount = Math.max(1, headcount);
+    } else {
+      distributions = [];
     }
 
     const allItems = distributions.flatMap((d) => d.items);
-    if (allItems.length === 0) {
+    if (allItems.length === 0 && gridItems.length === 0) {
       return {
         expected_dmi_kg: expectedDmiKg,
         actual_dmi_kg: null,
         delta_pct: null,
         match_level: resolved.matchLevel,
+        program: programInfo,
       };
     }
 
@@ -652,7 +697,7 @@ export class FeedDistributionService {
       if (i.dmPct == null) return sum;
       return sum + i.actualKg * (i.dmPct / 100);
     }, 0);
-    const actualDmiKg = round2(dmKgTotal / headcount);
+    const actualDmiKg = round2(dmKgTotal / headcount + gridDmKg);
     const deltaPct =
       expectedDmiKg > 0
         ? round2(((actualDmiKg - expectedDmiKg) / expectedDmiKg) * 100)
@@ -663,6 +708,7 @@ export class FeedDistributionService {
       actual_dmi_kg: actualDmiKg,
       delta_pct: deltaPct,
       match_level: resolved.matchLevel,
+      program: programInfo,
     };
   }
 

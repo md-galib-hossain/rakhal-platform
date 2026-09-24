@@ -20,6 +20,11 @@ import { FeedFeedingGridService } from './application/services/feed-feeding-grid
 import { NutritionProfileModule } from './nutrition-profile.module';
 import { ActivityModule } from '../activity/activity.module';
 import { FeedController } from './presentation/controllers/feed.controller';
+import { FeedPlanController } from './presentation/controllers/feed-plan.controller';
+import { FeedPlanService } from './application/services/feed-plan.service';
+import { FeedPlanAssignmentService } from './application/services/feed-plan-assignment.service';
+import { FeedPlanResolverService } from './application/services/feed-plan-resolver.service';
+import { FeedPlanAssignmentController } from './presentation/controllers/feed-plan-assignment.controller';
 
 /**
  * Feed Formulator (PRD §12 / API §8). Ingredient pricing + overrides, nutritional
@@ -51,7 +56,11 @@ import { FeedController } from './presentation/controllers/feed.controller';
     FinanceV2AccountsModule,
     FarmSettingsModule,
   ],
-  controllers: [FeedController],
+  controllers: [
+    FeedController,
+    FeedPlanController,
+    FeedPlanAssignmentController,
+  ],
   providers: [
     FeedIngredientService,
     FeedRequirementsService,
@@ -61,6 +70,9 @@ import { FeedController } from './presentation/controllers/feed.controller';
     FeedStockService,
     FeedRationResolverService,
     FeedFeedingGridService,
+    FeedPlanService,
+    FeedPlanAssignmentService,
+    FeedPlanResolverService,
   ],
   exports: [
     FeedIngredientService,

@@ -2207,7 +2207,9 @@ export class CattleService {
         select: { id: true },
       });
       if (!group) {
-        throw new BadRequestException('Animal group must belong to the same farm');
+        throw new BadRequestException(
+          'Animal group must belong to the same farm',
+        );
       }
     }
   }

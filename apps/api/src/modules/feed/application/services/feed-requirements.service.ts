@@ -4,6 +4,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
+import {
+  AnimalCategory,
+  deriveAnimalCategory,
+} from 'src/modules/cattle/domain/animal-category';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { MilkService } from 'src/modules/milk/application/services/milk.service';
 import {
@@ -14,6 +18,9 @@ import {
 } from '../../domain/requirements';
 import { FeedRequirementsQueryDto } from '../../presentation/dto/feed-requirements-query.dto';
 import { RequirementSettingsService } from './requirement-settings.service';
+import { FeedPlanResolverService } from './feed-plan-resolver.service';
+import { bandsFromSettings } from '../../domain/program-fit';
+import { DEFAULT_REQUIREMENT_SETTINGS } from '../../domain/requirement-settings';
 
 const MS_PER_DAY = 86_400_000;
 
@@ -29,6 +36,7 @@ export class FeedRequirementsService {
     private readonly prisma: PrismaService,
     private readonly milk: MilkService,
     private readonly requirementSettings: RequirementSettingsService,
+    private readonly programs: FeedPlanResolverService,
   ) {}
 
   async calc(farmId: string, query: FeedRequirementsQueryDto) {
@@ -68,15 +76,41 @@ export class FeedRequirementsService {
     };
   }
 
-  /** MILKING/FRESH → lactating cow; DRY → dry cow; GROWING → heifer (young stock, not yet
-   * in production). SOLD/DECEASED cows are excluded upstream (`deletedAt` scoping) and
-   * default to COW here as a harmless fallback. */
+  /** RAKHAL-453/RD-108: HEIFER comes from the derived `AnimalCategory` (female, no calvings) — the
+   * old `productionStatus === 'GROWING'` check never fired after RAKHAL-269 removed that status, so
+   * every non-dry animal was treated as a lactating cow. DRY still comes from `productionStatus`. */
   private inferAnimalType(
     productionStatus: string | null | undefined,
+    category: AnimalCategory,
   ): AnimalType {
+    if (category === 'HEIFER') return 'HEIFER';
     if (productionStatus === 'DRY') return 'DRY';
-    if (productionStatus === 'GROWING') return 'HEIFER';
     return 'COW';
+  }
+
+  /** RAKHAL-453: days in milk, derived from records instead of only trusting `query.dim`. Active
+   * lactation first (a farmer-supplied estimate wins for a purchased-lactating intake, which has no
+   * calving to count from), then the reproduction profile's last calving date. `null` = unknown,
+   * so the engine falls back to its settings default. */
+  private deriveDim(
+    lactation:
+      | {
+          startDate: Date;
+          isEstimated: boolean;
+          estimatedDaysInMilk: number | null;
+        }
+      | undefined,
+    lastCalvingDate: Date | null | undefined,
+    now: Date,
+  ): number | null {
+    const daysSince = (d: Date) =>
+      Math.max(0, Math.floor((now.getTime() - d.getTime()) / MS_PER_DAY));
+    if (lactation) {
+      if (lactation.isEstimated && lactation.estimatedDaysInMilk != null)
+        return lactation.estimatedDaysInMilk;
+      return daysSince(lactation.startDate);
+    }
+    return lastCalvingDate ? daysSince(lastCalvingDate) : null;
   }
 
   /** Single cow, auto-derived from `Cattle.lastWeightKg`/`lastBcs`, the active `Pregnancy` (if any,
@@ -95,11 +129,40 @@ export class FeedRequirementsService {
         lastWeightKg: true,
         lastBcs: true,
         productionStatus: true,
+        gender: true,
+        dateOfBirth: true,
+        reproductionProfile: {
+          select: { totalCalvings: true, lastCalvingDate: true },
+        },
+        lactations: {
+          where: { status: 'ACTIVE' },
+          orderBy: { startDate: 'desc' },
+          take: 1,
+          select: {
+            startDate: true,
+            isEstimated: true,
+            estimatedDaysInMilk: true,
+          },
+        },
       },
     });
     if (!cattle) throw new NotFoundException('Cattle not found');
+    const now = new Date();
+    const category = deriveAnimalCategory({
+      gender: cattle.gender,
+      dateOfBirth: cattle.dateOfBirth,
+      totalCalvings: cattle.reproductionProfile?.totalCalvings ?? 0,
+      now,
+    });
     const animalType =
-      query.animalType ?? this.inferAnimalType(cattle.productionStatus);
+      query.animalType ??
+      this.inferAnimalType(cattle.productionStatus, category);
+    const derivedDim = this.deriveDim(
+      cattle.lactations[0],
+      cattle.reproductionProfile?.lastCalvingDate,
+      now,
+    );
+    const dim = query.dim ?? derivedDim ?? undefined;
 
     const [gestationDays, avgYield] = await Promise.all([
       this.currentGestationDays(cattleId),
@@ -131,7 +194,7 @@ export class FeedRequirementsService {
       milkProteinPct: query.milkProteinPct,
       gestationDays: query.gestationDays ?? gestationDays ?? undefined,
       bcs: query.bcs ?? cattle.lastBcs ?? undefined,
-      dim: query.dim,
+      dim,
       animalType,
     };
     const settings = await this.requirementSettings.resolve(farmId);
@@ -144,10 +207,19 @@ export class FeedRequirementsService {
         milk_fat_pct: query.milkFatPct ?? 4.0,
         gestation_days: input.gestationDays,
         bcs: input.bcs,
-        dim: query.dim,
+        dim,
         animal_type: animalType,
       },
-      data_source: { weight: weightSource, milk_yield: milkSource },
+      data_source: {
+        weight: weightSource,
+        milk_yield: milkSource,
+        dim:
+          query.dim != null
+            ? 'manual'
+            : derivedDim != null
+              ? 'derived_from_records'
+              : 'settings_default',
+      },
       requirements: this.reqShape(req),
     };
   }
@@ -216,19 +288,25 @@ export class FeedRequirementsService {
    * on the farm. Read-only aggregation, no persisted state.
    */
   async getTodaysRequirement(farmId: string) {
-    const [rations, requirement] = await Promise.all([
-      this.prisma.feedConcentration.findMany({
-        where: { farmId, deletedAt: null, kind: 'FEED_MIXTURE' },
-        include: { items: true },
-      }),
+    const [requirement, cows] = await Promise.all([
       this.herdRequirementBlock(farmId),
+      this.prisma.cattle.findMany({
+        where: activeHerd(farmId),
+        select: { id: true },
+      }),
     ]);
 
-    // RAKHAL-412: what the animals need is computed from live cattle records and is
-    // returned whether or not a ration exists. Before this, a farm with no TMR got an
-    // empty payload and the Feeding page told it to go build one first — the requirement
-    // does not depend on having a ration, only on having cows.
-    if (rations.length === 0) {
+    // MILESTONE 27 (RAKHAL-458): what the herd eats today is the feeding **programs** actually applied —
+    // each plan's lines x the number of cows resolved onto it (individual -> group -> herd). Before this it
+    // was every live TMR x its targeting, which made a recipe live the moment it was created.
+    const programs = await this.programs.resolveForCattle(
+      farmId,
+      cows.map((c) => c.id),
+    );
+
+    // RAKHAL-412: what the animals need is computed from live cattle records and is returned whether
+    // or not a program exists — it depends only on having cows.
+    if (programs.size === 0) {
       return {
         by_ingredient: [],
         by_ration: [],
@@ -238,85 +316,75 @@ export class FeedRequirementsService {
       };
     }
 
-    const [herdCount, ingredientNames] = await Promise.all([
-      this.prisma.cattle.count({
-        where: activeHerd(farmId),
-      }),
-      this.prisma.feedIngredient.findMany({
-        where: {
-          id: {
-            in: [
-              ...new Set(
-                rations.flatMap((r) =>
-                  r.items
-                    .map((i) => i.ingredientId)
-                    .filter((id): id is string => id != null),
-                ),
-              ),
-            ],
-          },
-        },
-        select: { id: true, nameEn: true },
-      }),
-    ]);
-    const nameByIngredient = new Map(
-      ingredientNames.map((i) => [i.id, i.nameEn]),
-    );
-    // RAKHAL-447: a line that names only an inventory product is grouped under the product's id.
-    const productIds = [
-      ...new Set(
-        rations.flatMap((r) =>
-          r.items.filter((i) => !i.ingredientId).map((i) => i.feedItemId),
-        ),
-      ),
-    ].filter((id): id is string => id != null);
-    if (productIds.length > 0) {
-      const products = await this.prisma.feedItem.findMany({
-        where: { farmId, id: { in: productIds } },
-        select: { id: true, name: true },
-      });
-      for (const p of products) nameByIngredient.set(p.id, p.name);
+    type Program = ReturnType<typeof programs.get> & object;
+    const byPlan = new Map<string, { program: Program; heads: number }>();
+    for (const p of programs.values()) {
+      const e = byPlan.get(p.planId) ?? { program: p, heads: 0 };
+      e.heads += 1;
+      byPlan.set(p.planId, e);
     }
 
-    const totalsByIngredient = new Map<string, number>();
+    const allLines = [...byPlan.values()].flatMap((e) => e.program.lines);
+    const itemIds = [
+      ...new Set(
+        allLines.map((l) => l.feedItemId).filter((x): x is string => !!x),
+      ),
+    ];
+    const recipeIds = [
+      ...new Set(
+        allLines.map((l) => l.concentrationId).filter((x): x is string => !!x),
+      ),
+    ];
+    const [items, recipes] = await Promise.all([
+      this.prisma.feedItem.findMany({
+        where: { farmId, id: { in: itemIds } },
+        select: { id: true, name: true },
+      }),
+      this.prisma.feedConcentration.findMany({
+        where: { farmId, id: { in: recipeIds } },
+        select: { id: true, name: true },
+      }),
+    ]);
+    const nameByKey = new Map<string, string>([
+      ...items.map((i): [string, string] => [i.id, i.name]),
+      ...recipes.map((r): [string, string] => [r.id, r.name]),
+    ]);
+
+    const totalsByKey = new Map<string, number>();
     const byRation: {
-      concentration_id: string;
+      plan_id: string;
+      concentration_id: string | null;
       name: string;
       headcount: number;
       total_kg: number;
     }[] = [];
-
-    for (const ration of rations) {
-      const headcount = ration.targetType === 'INDIVIDUAL' ? 1 : herdCount;
-      if (headcount <= 0) continue;
-
-      let rationTotalKg = 0;
-      for (const item of ration.items) {
-        const kg = round2(item.amountKg * headcount);
-        rationTotalKg += kg;
-        const key = item.ingredientId ?? item.feedItemId;
-        if (!key) continue;
-        totalsByIngredient.set(
-          key,
-          round2((totalsByIngredient.get(key) ?? 0) + kg),
-        );
+    for (const { program, heads } of byPlan.values()) {
+      let planTotalKg = 0;
+      for (const line of program.lines) {
+        const kg = round2(line.kgPerDay * heads);
+        planTotalKg += kg;
+        const key = (line.feedItemId ?? line.concentrationId) as string;
+        totalsByKey.set(key, round2((totalsByKey.get(key) ?? 0) + kg));
       }
-
+      const only =
+        program.lines.length === 1 ? program.lines[0].concentrationId : null;
       byRation.push({
-        concentration_id: ration.id,
-        name: ration.targetType === 'HERD' ? 'Whole Herd' : ration.name,
-        headcount,
-        total_kg: round2(rationTotalKg),
+        plan_id: program.planId,
+        // Kept for API compatibility: the recipe id when the program is exactly one TMR/concentrate line.
+        concentration_id: only,
+        name: program.planName,
+        headcount: heads,
+        total_kg: round2(planTotalKg),
       });
     }
 
-    const byIngredient = [...totalsByIngredient.entries()]
-      .map(([ingredientId, totalKg]) => ({
-        ingredient_id: ingredientId,
-        name: nameByIngredient.get(ingredientId) ?? ingredientId,
+    const byIngredient = [...totalsByKey.entries()]
+      .map(([key, totalKg]) => ({
+        ingredient_id: key,
+        name: nameByKey.get(key) ?? key,
         total_kg: round2(totalKg),
       }))
-      .sort((a, b) => b.total_kg - a.total_kg);
+      .sort((x, y) => y.total_kg - x.total_kg);
 
     return {
       by_ingredient: byIngredient,
@@ -393,6 +461,9 @@ export class FeedRequirementsService {
               lastWeightKg: true,
               lastBcs: true,
               productionStatus: true,
+              gender: true,
+              dateOfBirth: true,
+              reproductionProfile: { select: { totalCalvings: true } },
             },
           })
         : [];
@@ -424,7 +495,14 @@ export class FeedRequirementsService {
               gestationDays: c ? gestationByCow.get(c.id) : undefined,
               bcs: c?.lastBcs ?? undefined,
               animalType: c
-                ? this.inferAnimalType(c.productionStatus)
+                ? this.inferAnimalType(
+                    c.productionStatus,
+                    deriveAnimalCategory({
+                      gender: c.gender,
+                      dateOfBirth: c.dateOfBirth,
+                      totalCalvings: c.reproductionProfile?.totalCalvings ?? 0,
+                    }),
+                  )
                 : undefined,
             },
             settings,
@@ -449,6 +527,139 @@ export class FeedRequirementsService {
     }
 
     return out;
+  }
+
+  /**
+   * RAKHAL-454 (MILESTONE 27): per-cow requirement for many cows in a fixed number of service-level
+   * queries (cattle, latest weight dates, gestation ×2, milk average, settings), whatever the herd size.
+   * Computed on read — always fresh, no cache. Every input that fell back to an assumption raises a
+   * flag in `flags[]` so a caller can show "estimated" instead of a silent green.
+   *
+   * Flags: `weight_stale` (latest weigh-in older than 60 days), `weight_estimated` (no weight at all →
+   * farm default), `bcs_default`, `milk_missing` (a milking cow with no milk records), `dim_default`
+   * (a milking cow whose days-in-milk could not be derived).
+   * Cows outside the active herd are returned in `missing_cattle_ids`.
+   */
+  async forCattle(farmId: string, cattleIds: string[], date?: string) {
+    const asOf = date ? new Date(date) : new Date();
+    const ids = [...new Set(cattleIds)];
+    const empty = {
+      date: asOf.toISOString().slice(0, 10),
+      cows: [],
+      missing_cattle_ids: [] as string[],
+      bands: bandsFromSettings(DEFAULT_REQUIREMENT_SETTINGS),
+    };
+    if (ids.length === 0) return empty;
+
+    const [cattle, weighIns, settings] = await Promise.all([
+      this.prisma.cattle.findMany({
+        where: { ...activeHerd(farmId), id: { in: ids } },
+        select: {
+          id: true,
+          lastWeightKg: true,
+          lastBcs: true,
+          productionStatus: true,
+          gender: true,
+          dateOfBirth: true,
+          reproductionProfile: {
+            select: { totalCalvings: true, lastCalvingDate: true },
+          },
+          lactations: {
+            where: { status: 'ACTIVE' },
+            orderBy: { startDate: 'desc' },
+            take: 1,
+            select: {
+              startDate: true,
+              isEstimated: true,
+              estimatedDaysInMilk: true,
+            },
+          },
+        },
+      }),
+      this.prisma.weightRecord.findMany({
+        where: { cattleId: { in: ids } },
+        orderBy: { recordedDate: 'desc' },
+        distinct: ['cattleId'],
+        select: { cattleId: true, recordedDate: true },
+      }),
+      this.requirementSettings.resolve(farmId),
+    ]);
+    const foundIds = cattle.map((c) => c.id);
+    const [gestationByCow, yieldByCow] = await Promise.all([
+      this.gestationDaysFor(foundIds),
+      foundIds.length > 0
+        ? this.milk.averageDailyYield(farmId, foundIds, asOf)
+        : Promise.resolve(new Map<string, number>()),
+    ]);
+    const weighInDate = new Map(
+      weighIns.map((w) => [w.cattleId, w.recordedDate]),
+    );
+
+    const cows = cattle.map((c) => {
+      const flags: string[] = [];
+      const category = deriveAnimalCategory({
+        gender: c.gender,
+        dateOfBirth: c.dateOfBirth,
+        totalCalvings: c.reproductionProfile?.totalCalvings ?? 0,
+        now: asOf,
+      });
+      const animalType = this.inferAnimalType(c.productionStatus, category);
+      const milking = animalType === 'COW';
+
+      let weightKg = c.lastWeightKg;
+      if (weightKg == null) {
+        weightKg = settings.defaultWeightKg;
+        flags.push('weight_estimated');
+      } else {
+        const weighed = weighInDate.get(c.id);
+        if (weighed && (asOf.getTime() - weighed.getTime()) / MS_PER_DAY > 60) {
+          flags.push('weight_stale');
+        }
+      }
+
+      if (c.lastBcs == null) flags.push('bcs_default');
+
+      const milkFromRecords = yieldByCow.get(c.id);
+      if (milkFromRecords == null && milking) flags.push('milk_missing');
+
+      const derivedDim = this.deriveDim(
+        c.lactations[0],
+        c.reproductionProfile?.lastCalvingDate,
+        asOf,
+      );
+      if (derivedDim == null && milking) flags.push('dim_default');
+
+      const input: RequirementsInput = {
+        weightKg,
+        milkTargetL: milkFromRecords ?? 0,
+        gestationDays: gestationByCow.get(c.id),
+        bcs: c.lastBcs ?? undefined,
+        dim: derivedDim ?? undefined,
+        animalType,
+      };
+      const req = computeRequirements(input, settings);
+      return {
+        cattle_id: c.id,
+        inputs: {
+          weight_kg: weightKg,
+          milk_target_l: milkFromRecords ?? 0,
+          gestation_days: input.gestationDays,
+          bcs: input.bcs,
+          dim: derivedDim ?? settings.defaultDaysInMilk,
+          animal_type: animalType,
+        },
+        flags,
+        requirements: this.reqShape(req),
+      };
+    });
+
+    return {
+      date: asOf.toISOString().slice(0, 10),
+      cows,
+      missing_cattle_ids: ids.filter((id) => !foundIds.includes(id)),
+      /** The farm's alert tolerance bands (RAKHAL-458) — same settings resolve as the requirement itself. */
+      bands: bandsFromSettings(settings),
+    };
   }
 
   /** Live gestation days for many cows at once — the batched twin of `currentGestationDays`. */
