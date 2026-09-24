@@ -231,7 +231,8 @@ export interface FeedFormulaTotals {
 }
 
 export interface FeedConcentrationIngredientLine {
-  ingredient_id: string;
+  /** `null` for a line that names only an inventory product (RAKHAL-447) — key it with `formLineKey`. */
+  ingredient_id: string | null;
   name: string | null;
   amount_kg: number;
   dm_kg: number;
@@ -252,6 +253,8 @@ export interface FeedConcentrationIngredientLine {
    * virtual catalogue line. Keyed by `ingredient_id` on the backend, not array position — see
    * `enrich()`'s own doc comment on why the two source arrays aren't guaranteed 1:1 by index. */
   feed_item_id: string | null;
+  /** RAKHAL-447: the lot this line is pinned to; `null` = the FIFO head at the time of use. */
+  feed_item_batch_id: string | null;
   feed_stock_id: string | null;
 }
 
@@ -283,7 +286,10 @@ export interface FeedConcentrationDetail extends FeedConcentrationSummary {
 }
 
 export interface FeedConcentrationItemInput {
-  ingredientId: string;
+  /** Optional when `feedItemId` is set (RAKHAL-447): a purchased product carries its own nutrition. */
+  ingredientId?: string;
+  /** RAKHAL-447: pin this line to one lot of `feedItemId`; omitted = the FIFO head. */
+  feedItemBatchId?: string;
   amountKg: number;
   /** RAKHAL-422: optional link to a specific inventory batch this line consumes on finalize. At
    * most one should be set — the picker UI enforces this by construction; the backend validates
@@ -353,13 +359,37 @@ export interface FinalizeConcentrationResult {
   finance: { transaction_id: string; reference: string; wallet_transaction_id: string | null } | null;
 }
 
-/** `POST /feed/concentrations/:id/finalize` body — `financialAccountId` only required when
- * finalizing a `FEED_MIXTURE` (TMR); a `CONCENTRATE_TEMPLATE` finalize incurs no cost and ignores
- * this. RAKHAL-393 (closes RD-066): replaces the old `paymentMethod` field — the backend's
- * `resolveFinancialAccountId` "oldest active account of that type" stopgap is deleted, this form
- * now posts a real `AccountPicker` selection instead. */
+/** `POST /feed/concentrations/:id/finalize` body. Finalize never pays (2026-09-24): every recipe
+ * line must already be in inventory, so no wallet is sent. `batchQuantityKg` optional override. */
 export interface FinalizeConcentrationPayload {
-  financialAccountId?: string;
+  batchQuantityKg?: number;
+}
+
+/** `GET /feed/concentrations/:id/inventory-check` — which recipe lines are backed by inventory the
+ * farm owns. A recipe can be *built* from anything, but only *finalized* when `can_finalize`. */
+export interface ConcentrationInventoryCheck {
+  can_finalize: boolean;
+  lines: {
+    ingredient_id: string | null;
+    name: string;
+    amount_kg: number;
+    status: "IN_INVENTORY" | "MISSING";
+    feed_item_id: string | null;
+    feed_stock_id: string | null;
+    /** Kg on hand; `null` when it can't be computed (a feed item with no kg-per-unit). */
+    available_kg: number | null;
+  }[];
+  /** Lines the farm doesn't stock — must be added to Inventory before finalizing. */
+  missing: {
+    ingredient_id: string | null;
+    name: string;
+    amount_kg: number;
+    feed_class: FeedClass | null;
+    feed_sub_type: FeedSubType | null;
+    /** Made from a Concentrate Mixer — restocked by finalizing that concentrate, not by buying. */
+    is_prepared_feed: boolean;
+  }[];
+  shortfalls: { name: string; needed_kg: number; available_kg: number }[];
 }
 
 /** `POST /feed/concentrations/bulk-delete` — multi-select delete (user request 2026-07-18). */
@@ -369,7 +399,7 @@ export interface BulkDeleteConcentrationPayload {
 
 export interface NormalizeConcentrationResult {
   requirements: FeedRequirements;
-  items: { ingredient_id: string; amount_kg: number }[];
+  items: { ingredient_id: string | null; feed_item_id?: string | null; amount_kg: number }[];
   totals: FeedFormulaTotals;
   balance_score: number;
 }

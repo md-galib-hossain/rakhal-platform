@@ -50,6 +50,15 @@ export function useUpdateFinancialAccount() {
   });
 }
 
+/** Make an account the farm's primary (default) wallet — pickers pre-select it. */
+export function useSetPrimaryFinancialAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeV2Api.setPrimaryAccount(id),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: qk.finance.accountsV2() }),
+  });
+}
+
 /** RAKHAL-356 — archive (soft-delete) an account. Also invalidates the balance projection since an
  * archived account drops out of `GET /finance/balance`'s per-account list. */
 export function useArchiveFinancialAccount() {

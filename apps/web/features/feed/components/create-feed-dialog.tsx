@@ -28,7 +28,10 @@ import { FeedMixtureTable, toEffectiveMap } from "./feed-mixture-table";
 import { IngredientPicker } from "./ingredient-picker";
 import type { BatchLink } from "./batch-link-picker";
 import { RequirementTile } from "./requirement-tile";
-import { fromApiRequirements } from "../lib/formula-math";
+import { fromApiRequirements, type EffectiveIngredientNutrition } from "../lib/formula-math";
+import { effectiveFromFigures, effectiveFromLot, formLineKey } from "../lib/recipe-line";
+import type { FeedItem } from "@/features/inventory/types";
+import { ProductLinePicker } from "./product-line-picker";
 import type {
   CreateFeedConcentrationPayload,
   FeedConcentrationKind,
@@ -153,11 +156,15 @@ function CreateFeedDialogBody({
       targetWeightKg: d.target_weight_kg ?? undefined,
       targetMilkL: d.target_milk_l ?? undefined,
       items: d.ingredients.map((i) => ({
-        ingredientId: i.ingredient_id,
-        ingredientName: i.name ?? i.ingredient_id,
+        ingredientId: i.ingredient_id ?? undefined,
+        ingredientName: i.name ?? i.ingredient_id ?? "",
         amountKg: i.amount_kg,
         feedItemId: i.feed_item_id ?? undefined,
+        feedItemBatchId: i.feed_item_batch_id ?? undefined,
         feedStockId: i.feed_stock_id ?? undefined,
+        // A lot-backed line previews from its lot (D7): recover the per-kg rates from the figures the
+        // server already computed for it.
+        lotEffective: i.feed_item_id ? (effectiveFromFigures(i) ?? undefined) : undefined,
       })),
     });
   }, [editDetail.data, form]);
@@ -185,7 +192,14 @@ function CreateFeedDialogBody({
   const groupTotal = requirementsResult?.group_total ? fromApiRequirements(requirementsResult.group_total) : null;
   const dataSource = requirementsResult?.data_source ?? null;
 
-  const effectiveById = useMemo(() => toEffectiveMap(ingredients.data ?? []), [ingredients.data]);
+  const effectiveById = useMemo(() => {
+    const map = toEffectiveMap(ingredients.data ?? []);
+    // A lot-backed line is computed from its lot, not the catalogue (RAKHAL-447, D7).
+    for (const item of items) {
+      if (item.feedItemId && item.lotEffective) map.set(formLineKey(item), item.lotEffective);
+    }
+    return map;
+  }, [ingredients.data, items]);
 
   const cowCount = useMemo(() => {
     if (targetType === "INDIVIDUAL") return 1;
@@ -197,6 +211,7 @@ function CreateFeedDialogBody({
     form.setValue("items", [...items, { ingredientId, ingredientName, amountKg: 0 }]);
   }
 
+  /** Removes the catalogue line for this ingredient (the ingredient picker's own "remove"). */
   function removeItem(ingredientId: string) {
     form.setValue(
       "items",
@@ -204,11 +219,30 @@ function CreateFeedDialogBody({
     );
   }
 
-  function updateAmount(ingredientId: string, amountKg: number) {
+  /** Table handlers address a line by its `formLineKey` — a lot-linked or product-only line is keyed by
+   * its product, so it can't be found by ingredient id alone. */
+  function removeLine(lineKey: string) {
     form.setValue(
       "items",
-      items.map((i) => (i.ingredientId === ingredientId ? { ...i, amountKg } : i)),
+      items.filter((i) => formLineKey(i) !== lineKey),
     );
+  }
+
+  function updateAmount(lineKey: string, amountKg: number) {
+    form.setValue(
+      "items",
+      items.map((i) => (formLineKey(i) === lineKey ? { ...i, amountKg } : i)),
+    );
+  }
+
+  /** RAKHAL-447 (D7) — add a line that names only an inventory product. Its nutrition and price come from
+   * the product's batch, so no catalogue ingredient is needed. */
+  function addProduct(item: FeedItem) {
+    if (items.some((i) => i.feedItemId === item.id && !i.feedItemBatchId)) return;
+    form.setValue("items", [
+      ...items,
+      { ingredientName: item.name, feedItemId: item.id, amountKg: 0, lotEffective: effectiveFromLot(item) ?? undefined },
+    ]);
   }
 
   /** RAKHAL-422/RFE-112 — `link` is `undefined` to clear (both fields dropped), or names exactly
@@ -216,12 +250,20 @@ function CreateFeedDialogBody({
    * the previous item and explicitly nulling the other id keeps `react-hook-form`'s tracked fields
    * stable rather than deleting/re-adding a key, which is what a naive `{...i, ...link}` without the
    * explicit `undefined` would do when switching from a `FeedItem` link to a `FeedStock` one. */
-  function updateBatchLink(ingredientId: string, link: BatchLink | undefined) {
+  function updateBatchLink(lineKey: string, link: BatchLink | undefined, lotEffective?: EffectiveIngredientNutrition) {
     form.setValue(
       "items",
       items.map((i) =>
-        i.ingredientId === ingredientId
-          ? { ...i, feedItemId: link?.feedItemId ?? undefined, feedStockId: link?.feedStockId ?? undefined }
+        formLineKey(i) === lineKey
+          ? {
+              ...i,
+              feedItemId: link?.feedItemId ?? undefined,
+              feedItemBatchId: link?.feedItemBatchId ?? undefined,
+              feedStockId: link?.feedStockId ?? undefined,
+              // Only a purchased-feed link changes how the line is computed; clearing it (or linking a
+              // prepared batch) puts the line back on its catalogue nutrition.
+              lotEffective: link?.feedItemId ? lotEffective : undefined,
+            }
           : i,
       ),
     );
@@ -232,22 +274,19 @@ function CreateFeedDialogBody({
     const result = await normalizeMutation.mutateAsync({
       weightKg: targetWeightKg,
       milkTargetL: targetMilkL,
-      items: items.map((i) => ({ ingredientId: i.ingredientId, amountKg: i.amountKg })),
+      items: items.map((i) => ({
+        ingredientId: i.ingredientId,
+        feedItemId: i.feedItemId,
+        feedItemBatchId: i.feedItemBatchId,
+        amountKg: i.amountKg,
+      })),
     });
-    // RAKHAL-422/RFE-112: `/feed/concentrations/normalize` only ever rescales amounts — it knows
-    // nothing about a batch link and doesn't echo one back. Without this map, the fresh `items`
-    // array below would silently drop every `feedItemId`/`feedStockId` a normalize call happened
-    // to run after they were set.
-    const byId = new Map(items.map((i) => [i.ingredientId, i]));
+    // `/feed/concentrations/normalize` only ever rescales amounts and returns lines in the order it was
+    // given — so write the new amounts back onto the same rows. That keeps every link, lot pin and lot
+    // preview (RAKHAL-422/447) a rebuilt array would silently drop.
     form.setValue(
       "items",
-      result.items.map((r) => ({
-        ingredientId: r.ingredient_id,
-        ingredientName: byId.get(r.ingredient_id)?.ingredientName ?? "",
-        amountKg: r.amount_kg,
-        feedItemId: byId.get(r.ingredient_id)?.feedItemId,
-        feedStockId: byId.get(r.ingredient_id)?.feedStockId,
-      })),
+      items.map((item, index) => ({ ...item, amountKg: result.items[index]?.amount_kg ?? item.amountKg })),
     );
   }
 
@@ -287,6 +326,7 @@ function CreateFeedDialogBody({
         ingredientId: i.ingredientId,
         amountKg: i.amountKg,
         feedItemId: i.feedItemId,
+        feedItemBatchId: i.feedItemBatchId,
         feedStockId: i.feedStockId,
       }));
       const durationDays = values.durationDays;
@@ -542,12 +582,18 @@ function CreateFeedDialogBody({
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between gap-4">
                 <p className="text-base font-medium text-foreground">{t(isTemplate ? "concentrateMixer" : "totalMixedRation")}</p>
-                <IngredientPicker
-                  selectedIds={items.map((i) => i.ingredientId)}
-                  onSelect={(o) => addItem(o.id, o.nameEn)}
-                  onRemove={(id) => removeItem(id)}
-                  closeOnSelect={false}
-                />
+                <div className="flex items-center gap-2">
+                  <ProductLinePicker
+                    onSelect={addProduct}
+                    excludedItemIds={items.filter((i) => i.feedItemId && !i.ingredientId).map((i) => i.feedItemId as string)}
+                  />
+                  <IngredientPicker
+                    selectedIds={items.map((i) => i.ingredientId).filter((id): id is string => Boolean(id))}
+                    onSelect={(o) => addItem(o.id, o.nameEn)}
+                    onRemove={(id) => removeItem(id)}
+                    closeOnSelect={false}
+                  />
+                </div>
               </div>
 
               {items.length === 0 ? (
@@ -563,7 +609,7 @@ function CreateFeedDialogBody({
                     cowCount={cowCount}
                     showPerCow={!isTemplate}
                     onAmountChange={updateAmount}
-                    onRemove={removeItem}
+                    onRemove={removeLine}
                     onBatchLinkChange={updateBatchLink}
                   />
                   <Button

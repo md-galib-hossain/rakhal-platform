@@ -151,12 +151,7 @@ export function MilkTankCard({
   async function handleMakePrimary() {
     try {
       await setPrimary.mutateAsync(tank.id);
-      toast.success(
-        t("primarySetToast", {
-          name: tank.name,
-          type: isSellable ? t("badgeSellable") : t("badgeWithholding"),
-        }),
-      );
+      toast.success(t("primarySetToast", { name: tank.name }));
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("primarySetError"));
     }

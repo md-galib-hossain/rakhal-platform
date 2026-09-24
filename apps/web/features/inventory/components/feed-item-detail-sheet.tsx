@@ -16,6 +16,8 @@ import { avatarTint } from "../avatar-tint";
 import { feedCategoryLabel } from "../feed-category";
 import { useFeedItemDetail } from "../hooks/use-inventory";
 import { FeedItemStockUpdateDialog } from "./feed-item-stock-update-dialog";
+import { FeedItemBatchDialog } from "./feed-item-batch-dialog";
+import { FeedBatchList } from "./feed-batch-list";
 import type { FeedItem } from "../types";
 
 const STOCK_CHIP_VARIANT: Record<FeedItem["stockStatus"], "primary" | "warning" | "destructive"> = {
@@ -47,6 +49,7 @@ export function FeedItemDetailSheet({
   const tOptions = useTranslations("inventory.feed");
   const query = useFeedItemDetail(feedItemId);
   const [stockUpdateOpen, setStockUpdateOpen] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false);
 
   return (
     <>
@@ -125,6 +128,11 @@ export function FeedItemDetailSheet({
                 </div>
 
                 <div className="flex flex-col gap-4">
+                  <p className="text-lg font-bold text-foreground">{t("batchesTitle")}</p>
+                  <FeedBatchList feedItem={query.data} />
+                </div>
+
+                <div className="flex flex-col gap-4">
                   <p className="text-lg font-bold text-foreground">{t("note")}</p>
                   <div className="rounded-xl border border-border p-4">
                     <p className="text-sm text-foreground">{query.data.notes || t("noNotes")}</p>
@@ -145,14 +153,18 @@ export function FeedItemDetailSheet({
             >
               {t("editItem")}
             </Button>
-            <Button type="button" className="h-12 flex-1" disabled={!query.data} onClick={() => setStockUpdateOpen(true)}>
+            <Button type="button" variant="secondary" className="h-12 flex-1" disabled={!query.data} onClick={() => setStockUpdateOpen(true)}>
               {t("stockUpdate")}
+            </Button>
+            <Button type="button" className="h-12 flex-1" disabled={!query.data} onClick={() => setBatchOpen(true)}>
+              {t("addBatch")}
             </Button>
           </div>
         </SheetContent>
       </Sheet>
 
       <FeedItemStockUpdateDialog feedItem={query.data ?? null} open={stockUpdateOpen} onOpenChange={setStockUpdateOpen} />
+      <FeedItemBatchDialog feedItem={query.data ?? null} open={batchOpen} onOpenChange={setBatchOpen} />
     </>
   );
 }

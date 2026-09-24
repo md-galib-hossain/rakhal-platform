@@ -10,10 +10,14 @@ import { Chip } from "@/components/ui/chip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useFeedItemPagedList } from "@/features/inventory/hooks/use-inventory";
+import { effectiveFromLot } from "../lib/recipe-line";
+import type { EffectiveIngredientNutrition } from "../lib/formula-math";
 import { useConcentrations, useFeedStock } from "../hooks/use-feed";
 
 export interface BatchLink {
   feedItemId?: string;
+  /** RAKHAL-447: pin the line to one lot of `feedItemId`; omitted = the FIFO head at the time of use. */
+  feedItemBatchId?: string;
   feedStockId?: string;
 }
 
@@ -50,7 +54,9 @@ export function BatchLinkPicker({
 }: {
   ingredientId: string;
   link: BatchLink | undefined;
-  onChange: (link: BatchLink | undefined) => void;
+  /** `lotEffective` is the linked lot's nutrition + price for the live totals preview (D7: a lot-backed
+   * line is computed from the lot, not the catalogue); `undefined` when the link is cleared. */
+  onChange: (link: BatchLink | undefined, lotEffective?: EffectiveIngredientNutrition) => void;
 }) {
   const t = useTranslations("feed.table.batchLink");
   const [open, setOpen] = useState(false);
@@ -64,7 +70,13 @@ export function BatchLinkPicker({
     () =>
       (feedItems.items ?? [])
         .filter((item) => item.ingredientId === ingredientId)
-        .map((item) => ({ id: item.id, label: `${item.name} (${item.currentStock} ${item.unit.symbol})` })),
+        .map((item) => ({
+          id: item.id,
+          item,
+          label: `${item.name} (${item.currentStock} ${item.unit.symbol})`,
+          // Only lots that still hold stock can be pinned; with one lot there is nothing to choose.
+          lots: item.batches.filter((b) => b.currentStock > 0),
+        })),
     [feedItems.items, ingredientId],
   );
 
@@ -87,13 +99,18 @@ export function BatchLinkPicker({
 
   const linkedLabel = useMemo(() => {
     if (!link) return null;
-    if (link.feedItemId) return purchasedOptions.find((o) => o.id === link.feedItemId)?.label ?? link.feedItemId;
+    if (link.feedItemId) {
+      const option = purchasedOptions.find((o) => o.id === link.feedItemId);
+      const pinned = link.feedItemBatchId ? option?.item.batches.find((b) => b.id === link.feedItemBatchId) : undefined;
+      const base = option?.label ?? link.feedItemId;
+      return pinned ? `${base} · ${pinned.batchCode ?? t("pinnedLot")}` : base;
+    }
     if (link.feedStockId) return concentrateOptions.find((o) => o.id === link.feedStockId)?.label ?? link.feedStockId;
     return null;
-  }, [link, purchasedOptions, concentrateOptions]);
+  }, [link, purchasedOptions, concentrateOptions, t]);
 
-  function select(next: BatchLink) {
-    onChange(next);
+  function select(next: BatchLink, lotEffective?: EffectiveIngredientNutrition) {
+    onChange(next, lotEffective);
     toast.success(t("linkedToast"));
     setOpen(false);
     setSearch("");
@@ -135,10 +152,41 @@ export function BatchLinkPicker({
             {purchasedOptions.length > 0 ? (
               <CommandGroup heading={t("purchasedGroup")}>
                 {purchasedOptions.map((opt) => (
-                  <CommandItem key={opt.id} value={opt.id} onSelect={() => select({ feedItemId: opt.id })}>
-                    <Check className={cn("mr-2 size-4", link?.feedItemId === opt.id ? "opacity-100" : "opacity-0")} aria-hidden />
-                    {opt.label}
-                  </CommandItem>
+                  <div key={opt.id}>
+                    <CommandItem
+                      value={opt.id}
+                      onSelect={() => select({ feedItemId: opt.id }, effectiveFromLot(opt.item) ?? undefined)}
+                    >
+                      <Check
+                        className={cn("mr-2 size-4", link?.feedItemId === opt.id && !link.feedItemBatchId ? "opacity-100" : "opacity-0")}
+                        aria-hidden
+                      />
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate">{opt.label}</span>
+                        {opt.lots.length > 1 ? <span className="text-[10px] text-muted-foreground">{t("anyBatch")}</span> : null}
+                      </span>
+                    </CommandItem>
+                    {opt.lots.length > 1
+                      ? opt.lots.map((lot) => (
+                          <CommandItem
+                            key={lot.id}
+                            value={`${opt.id}:${lot.id}`}
+                            className="pl-8"
+                            onSelect={() => select({ feedItemId: opt.id, feedItemBatchId: lot.id }, effectiveFromLot(opt.item, lot.id) ?? undefined)}
+                          >
+                            <Check className={cn("mr-2 size-4", link?.feedItemBatchId === lot.id ? "opacity-100" : "opacity-0")} aria-hidden />
+                            <span className="flex min-w-0 flex-col">
+                              <span className="truncate text-xs">
+                                {t("pinLot", { code: lot.batchCode ?? t("pinnedLot"), stock: lot.currentStock, unit: opt.item.unit.symbol })}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {t("lotProfile", { cost: lot.costPerUnit, cp: lot.nutrition.cpPct, me: lot.nutrition.meMjPerKgDm })}
+                              </span>
+                            </span>
+                          </CommandItem>
+                        ))
+                      : null}
+                  </div>
                 ))}
               </CommandGroup>
             ) : null}

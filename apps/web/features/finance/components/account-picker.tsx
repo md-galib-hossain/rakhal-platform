@@ -1,8 +1,8 @@
 "use client"; // search-select over the live financial-account list + an inline quick-add form
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Check, ChevronsUpDown, Landmark, Plus, Smartphone, Wallet } from "lucide-react";
+import { Check, ChevronsUpDown, Landmark, Plus, Smartphone, Star, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -72,6 +72,18 @@ export function AccountPicker({
   const createAccount = useCreateFinancialAccount();
 
   const selected = useMemo(() => data?.find((a) => a.id === value), [data, value]);
+
+  // Pre-select the farm's primary wallet when nothing is chosen yet, so the farmer doesn't have to
+  // pick an account every time. Runs once per mount: clearing/changing afterwards is respected.
+  const primaryId = useMemo(() => data?.find((a) => a.isPrimary && a.deletedAt == null)?.id, [data]);
+  const autoSelectedRef = useRef(false);
+  useEffect(() => {
+    if (autoSelectedRef.current || value != null || !primaryId) return;
+    autoSelectedRef.current = true;
+    onChange(primaryId);
+    // `onChange` identity changes per render in callers; intentionally only reacting to data.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [primaryId, value]);
 
   const groupsByType = useMemo(() => {
     const filtered = (data ?? []).filter((a) => a.name.toLowerCase().includes(search.toLowerCase()));
@@ -166,6 +178,12 @@ export function AccountPicker({
                         <Check className={cn("mr-2 size-4", account.id === value ? "opacity-100" : "opacity-0")} aria-hidden />
                         <Icon className="mr-2 size-3.5 shrink-0 opacity-60" aria-hidden />
                         {account.name}
+                        {account.isPrimary ? (
+                          <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-semibold text-success">
+                            <Star className="size-3 fill-current" aria-hidden />
+                            {t("primaryBadge")}
+                          </span>
+                        ) : null}
                       </CommandItem>
                     ))}
                   </CommandGroup>

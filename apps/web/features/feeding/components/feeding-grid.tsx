@@ -38,6 +38,8 @@ import { AnimalLink } from "@/components/shared/animal-link";
 import { Can } from "@/lib/auth/permissions";
 import { useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
 import { useFeedItemDetail, useFeedItemPagedList } from "@/features/inventory/hooks/use-inventory";
+import { nextFeedLot, stockedLotCount } from "@/features/inventory/feed-lots";
+import type { FeedItem } from "@/features/inventory/types";
 import { FeedItemFormDialog } from "@/features/inventory/components/feed-item-form-dialog";
 import { CreateFeedDialog } from "../../feed/components/create-feed-dialog";
 import {
@@ -55,8 +57,34 @@ import type { FeedGridCow, FeedGridEntryInput, FeedGridSource, FeedGridSourceTyp
 interface FeedSourceOption {
   id: string;
   label: string;
+  /** Second line under the label — which batch the next feeding draws from (purchased feed only). */
+  hint?: string;
   stockAmount?: number;
   stockUnit?: string;
+}
+
+/** "Next: LOT-1 · ৳5/kg · CP 9% · 2 batches" — the lot FIFO will draw first (RFE-123, ADR-026 D6), so
+ * the farmer sees which delivery — and which nutrition — a feeding is about to use. */
+function lotHint(item: FeedItem, t: ReturnType<typeof useTranslations>): string | undefined {
+  const lot = nextFeedLot(item);
+  if (!lot) return undefined;
+  const base = t("rowSource.nextLot", {
+    code: lot.batchCode ?? t("rowSource.oldestBatch"),
+    cost: lot.costPerUnit,
+    unit: item.unit.symbol,
+    cp: lot.nutrition.cpPct,
+  });
+  const count = stockedLotCount(item);
+  return count > 1 ? `${base} · ${t("rowSource.moreBatches", { n: count })}` : base;
+}
+
+function OptionLabel({ opt }: { opt: FeedSourceOption }) {
+  return (
+    <span className="flex min-w-0 flex-col">
+      <span className="truncate">{opt.label}</span>
+      {opt.hint ? <span className="truncate text-xs text-muted-foreground">{opt.hint}</span> : null}
+    </span>
+  );
 }
 
 /** One cow row's own resolved source — `null` means "unresolved, must pick before this row can be
@@ -263,10 +291,11 @@ function FeedingGridTable({
       feedItems.items.map((item) => ({
         id: item.id,
         label: `${item.name} (${item.currentStock} ${item.unit.symbol})`,
+        hint: lotHint(item, t),
         stockAmount: item.currentStock,
         stockUnit: item.unit.symbol,
       })),
-    [feedItems.items],
+    [feedItems.items, t],
   );
 
   const stockOptions: FeedSourceOption[] = useMemo(
@@ -528,7 +557,7 @@ function FeedingGridTable({
                           className="flex items-center gap-2 cursor-pointer py-2"
                         >
                           <Check className={cn("size-4 text-primary shrink-0", opt.id === itemId ? "opacity-100" : "opacity-0")} aria-hidden />
-                          <span className="truncate">{opt.label}</span>
+                          <OptionLabel opt={opt} />
                         </CommandItem>
                       ))}
                     </CommandGroup>
@@ -1127,8 +1156,9 @@ function RowSourceCellOptions({
       feedItems.items.map((item) => ({
         id: item.id,
         label: `${item.name} (${item.currentStock} ${item.unit.symbol})`,
+        hint: lotHint(item, t),
       })),
-    [feedItems.items],
+    [feedItems.items, t],
   );
   const filteredStock = useMemo(
     () => stockOptions.filter((opt) => opt.label.toLowerCase().includes(search.toLowerCase())),
@@ -1157,7 +1187,7 @@ function RowSourceCellOptions({
                     )}
                     aria-hidden
                   />
-                  <span className="truncate">{opt.label}</span>
+                  <OptionLabel opt={opt} />
                 </CommandItem>
               ))}
             </CommandGroup>

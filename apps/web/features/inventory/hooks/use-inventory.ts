@@ -8,6 +8,8 @@ import type {
   AdjustMedicineStockPayload,
   AdjustMilkTankVolumePayload,
   CreateEquipmentPayload,
+  UpdateBatchNutritionPayload,
+  CreateFeedItemBatchPayload,
   CreateFeedItemPayload,
   CreateMedicinePayload,
   CreateMilkTankPayload,
@@ -155,6 +157,39 @@ export function useCreateFeedItem() {
   return useMutation({
     mutationFn: (dto: CreateFeedItemPayload) => inventoryApi.createFeedItem(dto),
     onSuccess: () => invalidate(),
+  });
+}
+
+export function useCreateFeedItemBatch() {
+  const invalidate = useInvalidateFeedItem();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: CreateFeedItemBatchPayload }) => inventoryApi.createFeedItemBatch(id, dto),
+    onSuccess: (_data, { id }) => invalidate(id),
+  });
+}
+
+export function useReviseFeedBatchNutrition() {
+  const invalidate = useInvalidateFeedItem();
+  return useMutation({
+    mutationFn: ({ id, batchId, dto }: { id: string; batchId: string; dto: UpdateBatchNutritionPayload }) =>
+      inventoryApi.reviseFeedBatchNutrition(id, batchId, dto),
+    onSuccess: (_data, { id }) => invalidate(id),
+  });
+}
+
+export function useRevertFeedBatchNutrition() {
+  const invalidate = useInvalidateFeedItem();
+  return useMutation({
+    mutationFn: ({ id, batchId }: { id: string; batchId: string }) => inventoryApi.revertFeedBatchNutrition(id, batchId),
+    onSuccess: (_data, { id }) => invalidate(id),
+  });
+}
+
+export function useResyncFeedBatchNutrition() {
+  const invalidate = useInvalidateFeedItem();
+  return useMutation({
+    mutationFn: ({ id, batchId }: { id: string; batchId: string }) => inventoryApi.resyncFeedBatchNutrition(id, batchId),
+    onSuccess: (_data, { id }) => invalidate(id),
   });
 }
 

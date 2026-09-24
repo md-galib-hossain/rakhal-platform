@@ -226,6 +226,7 @@ export const qk = {
     groupCattle: (groupId: string) => ["feed", "groups", groupId, "cattle"] as const,
     requirementSettings: () => ["feed", "requirement-settings"] as const,
     concentrationDetail: (id: string) => ["feed", "concentrations", "detail", id] as const,
+    concentrationInventoryCheck: (id: string) => ["feed", "concentrations", "inventory-check", id] as const,
     /** Every input the requirement engine accepts — all of them belong in the key, or two
      * different cows/settings would share a cached result (RFE-103). */
     requirementsFor: (params: {

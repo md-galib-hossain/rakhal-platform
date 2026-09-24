@@ -5,6 +5,8 @@ import type { CursorPage } from "@/types/api";
 import type {
   AdjustMedicineStockPayload,
   AdjustMilkTankVolumePayload,
+  UpdateBatchNutritionPayload,
+  CreateFeedItemBatchPayload,
   CreateFeedItemPayload,
   CreateMedicinePayload,
   CreateEquipmentPayload,
@@ -89,6 +91,22 @@ export const inventoryApi = {
   },
   updateFeedItem(id: string, dto: UpdateFeedItemPayload): Promise<FeedItem> {
     return apiFetch<FeedItem>(`/inventory/feed-items/${id}`, { method: "PATCH", body: dto });
+  },
+  /** Restock — adds a lot to the product (`feed-item.controller.ts` `POST :id/batches`). */
+  createFeedItemBatch(id: string, dto: CreateFeedItemBatchPayload): Promise<FeedItem> {
+    return apiFetch<FeedItem>(`/inventory/feed-items/${id}/batches`, { method: "POST", body: dto });
+  },
+  /** Revise a lot's nutrition — appends a new profile, old one stays in history. */
+  reviseFeedBatchNutrition(id: string, batchId: string, dto: UpdateBatchNutritionPayload): Promise<FeedItem> {
+    return apiFetch<FeedItem>(`/inventory/feed-items/${id}/batches/${batchId}/nutrition`, { method: "PATCH", body: dto });
+  },
+  /** Point the lot back at the profile it had before the last edit. */
+  revertFeedBatchNutrition(id: string, batchId: string): Promise<FeedItem> {
+    return apiFetch<FeedItem>(`/inventory/feed-items/${id}/batches/${batchId}/nutrition/revert`, { method: "POST" });
+  },
+  /** Re-copy the linked catalogue ingredient's current values onto the lot (as a new profile). */
+  resyncFeedBatchNutrition(id: string, batchId: string): Promise<FeedItem> {
+    return apiFetch<FeedItem>(`/inventory/feed-items/${id}/batches/${batchId}/nutrition/resync`, { method: "POST" });
   },
   archiveFeedItem(id: string): Promise<FeedItem> {
     return apiFetch<FeedItem>(`/inventory/feed-items/${id}/archive`, { method: "PATCH" });

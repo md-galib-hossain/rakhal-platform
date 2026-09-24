@@ -17,6 +17,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { IngredientPicker, type IngredientOption } from "./ingredient-picker";
 import { X } from "lucide-react";
+import { distributionLineKey } from "../lib/recipe-line";
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -73,8 +74,8 @@ function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenCha
 
   const actualByIngredient = Object.fromEntries(
     (detail.data?.ingredients ?? []).map((line) => [
-      line.ingredient_id,
-      actualOverrides[line.ingredient_id] ?? line.amount_kg,
+      distributionLineKey(line),
+      actualOverrides[distributionLineKey(line)] ?? line.amount_kg,
     ]),
   );
 
@@ -105,9 +106,9 @@ function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenCha
         notes: notes.trim() || undefined,
         items: [
           ...detail.data.ingredients.map((line) => ({
-            ingredientId: line.ingredient_id,
-            actualKg: actualByIngredient[line.ingredient_id] ?? line.amount_kg,
-            refusalKg: refusalOverrides[line.ingredient_id] ?? 0,
+            ingredientId: distributionLineKey(line),
+            actualKg: actualByIngredient[distributionLineKey(line)] ?? line.amount_kg,
+            refusalKg: refusalOverrides[distributionLineKey(line)] ?? 0,
           })),
           ...extraLines.map((l) => ({
             ingredientId: l.ingredientId,
@@ -176,9 +177,9 @@ function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenCha
               <p className="text-sm font-semibold text-foreground">{t("ingredients")}</p>
               <div className="flex flex-col divide-y divide-border rounded-xl border border-border">
                 {detail.data.ingredients.map((line) => (
-                  <div key={line.ingredient_id} className="flex items-center justify-between gap-3 p-3">
+                  <div key={distributionLineKey(line)} className="flex items-center justify-between gap-3 p-3">
                     <div className="flex flex-col">
-                      <span className="text-sm font-medium text-foreground">{line.name ?? line.ingredient_id}</span>
+                      <span className="text-sm font-medium text-foreground">{line.name ?? distributionLineKey(line)}</span>
                       <span className="text-xs text-muted-foreground">
                         {t("planned")}: {line.amount_kg} kg
                       </span>
@@ -189,11 +190,11 @@ function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenCha
                           type="number"
                           min={0}
                           step="0.01"
-                          value={actualByIngredient[line.ingredient_id] ?? line.amount_kg}
+                          value={actualByIngredient[distributionLineKey(line)] ?? line.amount_kg}
                           onChange={(e) =>
                             setActualOverrides((prev) => ({
                               ...prev,
-                              [line.ingredient_id]: Number(e.target.value) || 0,
+                              [distributionLineKey(line)]: Number(e.target.value) || 0,
                             }))
                           }
                           className="w-full border-0 bg-transparent p-0 text-sm text-foreground outline-none"
@@ -207,11 +208,11 @@ function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenCha
                           min={0}
                           step="0.01"
                           placeholder="0"
-                          value={refusalOverrides[line.ingredient_id] ?? ""}
+                          value={refusalOverrides[distributionLineKey(line)] ?? ""}
                           onChange={(e) =>
                             setRefusalOverrides((prev) => ({
                               ...prev,
-                              [line.ingredient_id]: Number(e.target.value) || 0,
+                              [distributionLineKey(line)]: Number(e.target.value) || 0,
                             }))
                           }
                           className="w-full border-0 bg-transparent p-0 text-center text-sm text-foreground outline-none"
@@ -284,7 +285,7 @@ function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenCha
               </div>
               <IngredientPicker
                 onSelect={handleAddIngredient}
-                excludeIds={[...detail.data.ingredients.map((l) => l.ingredient_id), ...extraLines.map((l) => l.ingredientId)]}
+                excludeIds={[...detail.data.ingredients.map((l) => distributionLineKey(l)), ...extraLines.map((l) => l.ingredientId)]}
                 placeholder={t("addIngredient")}
                 className="self-start"
               />

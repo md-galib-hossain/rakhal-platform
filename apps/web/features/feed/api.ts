@@ -30,6 +30,7 @@ import type {
   IngredientListFilters,
   FeedStock,
   FeedStockDetail,
+  ConcentrationInventoryCheck,
   FinalizeConcentrationPayload,
   FinalizeConcentrationResult,
   LogDistributionPayload,
@@ -131,6 +132,9 @@ export const feedApi = {
   },
   /** Promote a Concentrate Mixer template into a reusable ingredient + stock batch (user request
    * 2026-07-17/18) — only valid on a `CONCENTRATE_TEMPLATE`. */
+  getConcentrationInventoryCheck(id: string): Promise<ConcentrationInventoryCheck> {
+    return apiFetch<ConcentrationInventoryCheck>(`/feed/concentrations/${id}/inventory-check`);
+  },
   finalizeConcentration(id: string, dto?: FinalizeConcentrationPayload): Promise<FinalizeConcentrationResult> {
     return apiFetch<FinalizeConcentrationResult>(`/feed/concentrations/${id}/finalize`, { method: "POST", body: dto });
   },

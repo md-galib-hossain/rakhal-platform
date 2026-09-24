@@ -40,24 +40,64 @@ export type MedicineFormInput = z.infer<typeof medicineFormSchema>;
  * shape for both create and edit, unlike medicine there's no separate adjust-stock endpoint so
  * `currentStock` is a normal editable field in both modes. `ingredientId` is required — every feed
  * item links to a Feed Formulator catalogue/custom ingredient (`feed_taxonomy_unification`). */
+const optionalPct = z.number().min(0).max(100).nullable().optional();
+
+/** Nutrition profile section (ADR-026): DM/CP/ME required, everything else optional (`null` = not
+ * measured, never zero). Ranges mirror `NutritionInputDto` + the backend's ME plausibility band. */
+export const nutritionFormSchema = z.object({
+  dmPct: z.number().min(0).max(100),
+  cpPct: z.number().min(0).max(100),
+  meMjPerKgDm: z.number().min(0).max(40),
+  fatPct: optionalPct,
+  ndfPct: optionalPct,
+  adfPct: optionalPct,
+  rdpPct: optionalPct,
+  rupPct: optionalPct,
+  starchPct: optionalPct,
+  sugarsPct: optionalPct,
+  calciumPct: optionalPct,
+  phosphorusPct: optionalPct,
+  tdnPct: optionalPct,
+  nutritionSource: z.enum(["REFERENCE", "MANUFACTURER", "LAB", "FARM_ESTIMATE"]).optional(),
+  sourceRef: z.string().trim().optional(),
+  note: z.string().trim().optional(),
+});
+export type NutritionFormInput = z.infer<typeof nutritionFormSchema>;
+
+/** `ingredientId` is optional since MILESTONE 26 — a feed item carries its own nutrition profile;
+ * the ingredient is only an optional "copy from catalogue" source and price-sync target. On create
+ * the `nutrition` object is required (the section renders in create mode only; editing a lot's
+ * nutrition happens per batch from the detail sheet), so it stays optional in the schema. */
 export const feedItemFormSchema = z.object({
   name: z.string().trim().min(1),
   feedClass: z.enum(["FORAGE", "CONCENTRATE", "MINERAL", "VITAMIN", "ADDITIVE", "OTHER"]),
   feedSubType: z
     .enum(["GREEN_FODDER", "ROUGHAGE", "SILAGE", "HAY", "STRAW", "GRAIN", "OILCAKE", "BY_PRODUCT", "COMPOUND_PELLET", "PREMIX", "SUPPLEMENT", "OTHER"])
     .optional(),
-  ingredientId: z.string().trim().min(1),
+  ingredientId: z.string().trim().optional(),
+  nutrition: nutritionFormSchema.optional(),
+  batchCode: z.string().trim().optional(),
   unitId: z.string().min(1),
   kgPerUnit: z.number().min(0).optional(),
   currentStock: z.number().min(0),
   costPerUnit: z.number().min(0),
   lowStockThreshold: z.number().min(0).optional(),
-  moisturePct: z.number().min(0).max(100).optional(),
   supplier: z.string().trim().optional(),
   purchaseDate: z.string().min(1),
   notes: z.string().trim().optional(),
 });
 export type FeedItemFormInput = z.infer<typeof feedItemFormSchema>;
+
+/** Restock ("Add batch") — mirrors `CreateFeedItemBatchDto`. Nutrition is handled separately (only
+ * sent when this delivery differs from the item's default profile). */
+export const feedItemBatchFormSchema = z.object({
+  currentStock: z.number().gt(0),
+  costPerUnit: z.number().min(0),
+  purchaseDate: z.string().min(1),
+  batchCode: z.string().trim().optional(),
+  notes: z.string().trim().optional(),
+});
+export type FeedItemBatchFormInput = z.infer<typeof feedItemBatchFormSchema>;
 
 /** Mirrors `CreateMilkTankDto`/`UpdateMilkTankDto` (verified live against
  * `rakhal-backend/src/modules/inventory/presentation/dto/milk-tank.dto.ts`) — one shape for both

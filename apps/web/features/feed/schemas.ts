@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { EffectiveIngredientNutrition } from "./lib/formula-math";
 
 /**
  * "Create New Feed Formulator" wizard — Figma Step 1 "Estimated Daily Requirements of Cow Group"
@@ -34,9 +35,16 @@ export const feedTargetTypes = ["GROUP", "INDIVIDUAL", "HERD"] as const;
 export const feedConcentrationKinds = ["CONCENTRATE_TEMPLATE", "FEED_MIXTURE"] as const;
 
 export const createFeedConcentrationItemSchema = z.object({
-  ingredientId: z.string().min(1),
+  /** Optional since RAKHAL-447: a line may name only an inventory product (`feedItemId`), whose lot
+   * carries its own nutrition. Identify a line with `formLineKey`, never by this field alone. */
+  ingredientId: z.string().optional(),
   ingredientName: z.string(),
   amountKg: z.number().min(0),
+  /** RAKHAL-447 — pin the line to one lot of `feedItemId`; absent = the FIFO head at the time of use. */
+  feedItemBatchId: z.string().optional(),
+  /** Client-only preview of the linked lot's nutrition + price (never sent): drives the live totals for a
+   * lot-backed line, which the catalogue map can't supply. */
+  lotEffective: z.custom<EffectiveIngredientNutrition>().optional(),
   /** RAKHAL-422 — optional link to a specific inventory batch. At most one is ever set; the
    * `BatchLinkPicker` UI enforces this by construction (a single-select control), so no `.refine`
    * is added here — the backend validates the pair authoritatively regardless. */

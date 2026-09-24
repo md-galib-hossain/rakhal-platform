@@ -18,6 +18,8 @@ import {
   type Requirements,
 } from "../lib/formula-math";
 import type { CreateFeedFormItem } from "../schemas";
+import { formLineKey } from "../lib/recipe-line";
+import { Chip } from "@/components/ui/chip";
 import { BatchLinkPicker, type BatchLink } from "./batch-link-picker";
 
 export function toEffectiveMap(ingredients: FeedIngredient[]): Map<string, EffectiveIngredientNutrition> {
@@ -158,7 +160,7 @@ export function FeedMixtureTable({
   onRemove?: (ingredientId: string) => void;
   /** RAKHAL-422/RFE-112 — per-line inventory-batch link callback. Omitted (as the read-only detail
    * sheet does) hides the `BatchLinkPicker` entirely rather than rendering a disabled control. */
-  onBatchLinkChange?: (ingredientId: string, link: BatchLink | undefined) => void;
+  onBatchLinkChange?: (lineKey: string, link: BatchLink | undefined, lotEffective?: EffectiveIngredientNutrition) => void;
   readOnly?: boolean;
   /** A Concentrate Mixer has no cow/group target at all (see `concentration-card.tsx`'s doc comment)
    * so a "per cow" daily figure is meaningless for it — `cowCount` would otherwise silently default
@@ -175,7 +177,7 @@ export function FeedMixtureTable({
   const t = useTranslations("feed.table");
 
   const lines: FormulaLine[] = useMemo(
-    () => items.map((i) => ({ ingredientId: i.ingredientId, amountKg: i.amountKg })),
+    () => items.map((i) => ({ ingredientId: formLineKey(i), amountKg: i.amountKg })),
     [items],
   );
   const computed = useMemo(() => computeTotals(lines, effectiveById), [lines, effectiveById]);
@@ -278,19 +280,32 @@ export function FeedMixtureTable({
             </TableHeader>
             <TableBody>
               {items.map((item) => {
-                const c = contributionById.get(item.ingredientId);
-                const eff = effectiveById.get(item.ingredientId);
+                const lineKey = formLineKey(item);
+                const c = contributionById.get(lineKey);
+                const eff = effectiveById.get(lineKey);
                 return (
-                  <TableRow key={item.ingredientId}>
+                  <TableRow key={lineKey}>
                     <TableCell className="font-medium text-foreground">
                       <div className="flex flex-col gap-1">
                         <span>{item.ingredientName}</span>
-                        {onBatchLinkChange ? (
+                        {item.ingredientId && onBatchLinkChange ? (
                           <BatchLinkPicker
                             ingredientId={item.ingredientId}
-                            link={item.feedItemId ? { feedItemId: item.feedItemId } : item.feedStockId ? { feedStockId: item.feedStockId } : undefined}
-                            onChange={(link) => onBatchLinkChange(item.ingredientId, link)}
+                            link={
+                              item.feedItemId
+                                ? { feedItemId: item.feedItemId, feedItemBatchId: item.feedItemBatchId }
+                                : item.feedStockId
+                                  ? { feedStockId: item.feedStockId }
+                                  : undefined
+                            }
+                            onChange={(link, lotEffective) => onBatchLinkChange(lineKey, link, lotEffective)}
                           />
+                        ) : !item.ingredientId ? (
+                          // Product-only line (RAKHAL-447): nutrition + price come from the inventory lot
+                          // itself, so there is no catalogue ingredient to match a batch against.
+                          <Chip variant="muted" className="w-fit px-1.5 py-0 text-[10px]">
+                            {item.feedItemBatchId ? t("batchLink.fromInventoryPinned") : t("batchLink.fromInventory")}
+                          </Chip>
                         ) : null}
                       </div>
                     </TableCell>
@@ -303,7 +318,7 @@ export function FeedMixtureTable({
                         <div className="flex h-9 w-28 items-center gap-1 rounded-lg bg-card px-2 shadow-xs">
                           <AmountInput
                             value={item.amountKg}
-                            onChange={(v) => onAmountChange?.(item.ingredientId, v)}
+                            onChange={(v) => onAmountChange?.(lineKey, v)}
                           />
                           <span className="text-xs text-muted-foreground">kg</span>
                         </div>
@@ -328,7 +343,7 @@ export function FeedMixtureTable({
                       <TableCell>
                         <button
                           type="button"
-                          onClick={() => onRemove?.(item.ingredientId)}
+                          onClick={() => onRemove?.(lineKey)}
                           aria-label={t("removeItem")}
                           className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive-tint hover:text-destructive"
                         >

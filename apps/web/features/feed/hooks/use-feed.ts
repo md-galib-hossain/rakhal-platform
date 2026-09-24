@@ -1,10 +1,8 @@
-"use client";
+﻿"use client";
 
-import { useMemo } from "react";
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
-import { inventoryApi } from "@/features/inventory/api";
 import { feedApi } from "../api";
 import type {
   ConfirmFeedGridPayload,
@@ -212,10 +210,8 @@ export function useFinalizeConcentration() {
       invalidateConcentrations();
       invalidateIngredients();
       void queryClient.invalidateQueries({ queryKey: qk.feed.stock() });
-      // A FEED_MIXTURE finalize may have just paid for the batch out of the farm wallet —
-      // refresh the wallet balance/history so it isn't stale. No-op cost for a
-      // CONCENTRATE_TEMPLATE finalize (nothing paid, cache just re-fetches unchanged data).
-      void queryClient.invalidateQueries({ queryKey: qk.finance.wallet() });
+      // Finalize consumes the linked feed items' stock (it never pays — the feed was already bought).
+      void queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
   });
 }
@@ -566,92 +562,20 @@ export function useFeedCostSummary(days?: number) {
 }
 
 /**
- * RFE-113 (2026-09-14) — client-side preview of what `POST /feed/concentrations/:id/finalize` will
- * actually do, mirroring `resolveBatchDeductions`'s own split+shortfall logic (backend, MILESTONE
- * 8c) closely enough to be genuinely useful, while the backend stays the only authoritative gate —
- * a race between this preview and the real finalize call still surfaces via the mutation's own
- * error, same `err.message` pattern every dialog in this app already uses.
- *
- * **Unlinked cost is exact, not estimated** — an unlinked line's price is the catalogue rate
- * already shown in `cost_tk` on the detail response, the same number `resolveBatchDeductions` sums
- * for `unlinkedCostTk`.
- *
- * **Linked-line shortfall is exact for a `FeedStock` link** (its `current_stock_kg` is already kg,
- * no conversion) and **exact for a `FeedItem` link only when `kgPerUnit` is set** — when it isn't,
- * this can't compute a kg comparison any more than the picker could compute a precise `FeedStock`
- * match (see `BatchLinkPicker`'s doc comment for the sibling gap); that line is surfaced as
- * "unchecked", not silently passed or wrongly failed.
- *
- * Fan-out pattern (one un-paginated `useFeedStock()` + one `useFeedItemDetail`-shaped call per
- * distinct linked `FeedItem` id via `useQueries`) matches `use-finance-v2.ts`'s own documented
- * precedent for "no bulk-by-ids route exists, so fetch each one" — same justification applies here.
+ * Finalize gate (2026-09-24, user request): a recipe can be *built* from ingredients the farm doesn't
+ * stock, but only *finalized* from inventory it already owns — finalize never buys anything and needs
+ * no wallet. `GET /feed/concentrations/:id/inventory-check` is the backend's own answer (the same
+ * check `finalize` enforces), so this can't drift from what the server will accept: which lines are
+ * missing from inventory (with the class/ingredient needed to prefill "Add to inventory"), and any
+ * line whose stock on hand is short. Shares the `["feed","concentrations",...]` prefix, so every
+ * concentration mutation (and the inventory add below, which invalidates it) refreshes it.
  */
-export function useConcentrationFinalizePreview(id: string | undefined) {
-  const detail = useConcentrationDetail(id);
-  const stock = useFeedStock();
-
-  const linkedFeedItemIds = useMemo(
-    () => [...new Set((detail.data?.ingredients ?? []).map((i) => i.feed_item_id).filter((v): v is string => v != null))],
-    [detail.data],
-  );
-
-  const feedItemQueries = useQueries({
-    queries: linkedFeedItemIds.map((feedItemId) => ({
-      queryKey: qk.inventory.feedItemDetail(feedItemId),
-      queryFn: () => inventoryApi.findFeedItem(feedItemId),
-      enabled: Boolean(id),
-      staleTime: STALE_TIME,
-    })),
+export function useConcentrationInventoryCheck(id: string | undefined) {
+  return useQuery({
+    queryKey: qk.feed.concentrationInventoryCheck(id ?? ""),
+    queryFn: () => feedApi.getConcentrationInventoryCheck(id as string),
+    enabled: Boolean(id),
+    // Stock changes under the farmer's feet (they add an item in another sheet) — always re-check on open.
+    staleTime: 0,
   });
-  const feedItemById = useMemo(() => {
-    const map = new Map<string, Awaited<ReturnType<typeof inventoryApi.findFeedItem>>>();
-    for (const q of feedItemQueries) if (q.data) map.set(q.data.id, q.data);
-    return map;
-  }, [feedItemQueries]);
-  const feedStockById = useMemo(() => new Map((stock.data ?? []).map((s) => [s.id, s])), [stock.data]);
-
-  const isLoading = detail.isLoading || stock.isLoading || (linkedFeedItemIds.length > 0 && feedItemQueries.some((q) => q.isLoading));
-  const isError = detail.isError || stock.isError || feedItemQueries.some((q) => q.isError);
-
-  const result = useMemo(() => {
-    const lines = detail.data?.ingredients ?? [];
-    const unlinked = lines.filter((l) => !l.feed_item_id && !l.feed_stock_id);
-    const linked = lines.filter((l) => l.feed_item_id || l.feed_stock_id);
-    const unlinkedCostTk = unlinked.reduce((sum, l) => sum + l.cost_tk, 0);
-
-    const neededByFeedItem = new Map<string, number>();
-    const neededByFeedStock = new Map<string, number>();
-    for (const l of linked) {
-      if (l.feed_item_id) neededByFeedItem.set(l.feed_item_id, (neededByFeedItem.get(l.feed_item_id) ?? 0) + l.amount_kg);
-      else if (l.feed_stock_id) neededByFeedStock.set(l.feed_stock_id, (neededByFeedStock.get(l.feed_stock_id) ?? 0) + l.amount_kg);
-    }
-
-    const shortfalls: { name: string; neededKg: number; availableKg: number }[] = [];
-    const unchecked: { name: string }[] = [];
-    for (const [feedItemId, neededKg] of neededByFeedItem) {
-      const item = feedItemById.get(feedItemId);
-      if (!item) continue;
-      if (item.kgEquivalent == null) {
-        unchecked.push({ name: item.name });
-        continue;
-      }
-      if (neededKg > item.kgEquivalent) shortfalls.push({ name: item.name, neededKg, availableKg: item.kgEquivalent });
-    }
-    for (const [feedStockId, neededKg] of neededByFeedStock) {
-      const lot = feedStockById.get(feedStockId);
-      if (!lot) continue;
-      if (neededKg > lot.current_stock_kg) shortfalls.push({ name: lot.id, neededKg, availableKg: lot.current_stock_kg });
-    }
-
-    return {
-      linkedLineCount: linked.length,
-      unlinkedLineCount: unlinked.length,
-      unlinkedCostTk,
-      shortfalls,
-      unchecked,
-      canFinalize: shortfalls.length === 0,
-    };
-  }, [detail.data, feedItemById, feedStockById]);
-
-  return { ...result, isLoading, isError };
 }

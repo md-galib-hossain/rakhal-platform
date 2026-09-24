@@ -1,6 +1,6 @@
 "use client"; // form state + mutation
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -19,37 +19,63 @@ import { useFeedIngredients } from "@/features/feed/hooks/use-feed";
 import { UnitPicker } from "./unit-picker";
 import { useCreateFeedItem, useUnits, useUpdateFeedItem } from "../hooks/use-inventory";
 import { FEED_CATEGORY_GROUPS, feedCategoryOption, feedCategoryValue } from "../feed-category";
-import { feedItemFormSchema, type FeedItemFormInput } from "../schemas";
+import { feedItemFormSchema, type FeedItemFormInput, type NutritionFormInput } from "../schemas";
 import type { CreateFeedItemPayload, FeedItem, UpdateFeedItemPayload } from "../types";
+import type { FeedIngredient } from "@/features/feed/types";
+import { sameMeasured, toNutritionInput, type NutritionDraft } from "../nutrition";
+import { NutritionFields } from "./nutrition-fields";
 
-function toCreatePayload(values: FeedItemFormInput): CreateFeedItemPayload {
+/** Create body. A profile copied from the catalogue and left untouched is sent as the bare
+ * `ingredientId` so the backend records the copy's provenance; anything typed or edited is sent as
+ * `nutrition` (typed values win server-side, and the ingredient stays as an optional link). */
+function toCreatePayload(values: FeedItemFormInput, catalogueCopy: NutritionDraft | null): CreateFeedItemPayload {
+  const untouchedCopy = catalogueCopy && values.nutrition && sameMeasured(values.nutrition, catalogueCopy);
   return {
     name: values.name,
     feedClass: values.feedClass,
     feedSubType: values.feedSubType,
-    ingredientId: values.ingredientId,
+    ingredientId: values.ingredientId || undefined,
+    nutrition: values.nutrition && !untouchedCopy ? toNutritionInput(values.nutrition) : undefined,
+    batchCode: values.batchCode || undefined,
     unitId: values.unitId,
     kgPerUnit: values.kgPerUnit,
     currentStock: values.currentStock,
     costPerUnit: values.costPerUnit,
     lowStockThreshold: values.lowStockThreshold,
-    moisturePct: values.moisturePct,
     supplier: values.supplier || undefined,
     purchaseDate: values.purchaseDate,
     notes: values.notes || undefined,
   };
 }
 
-/** No `currentStock`-omission needed here unlike Medicine's `toUpdatePayload` — a feed item has no
- * separate audited adjust-stock endpoint, so `PATCH /inventory/feed-items/:id` accepts it directly
- * (`UpdateFeedItemDto`). Same shape as create, kept as its own function for symmetry with Medicine's
- * two-function pattern rather than reusing `toCreatePayload` for both. */
+/** `PATCH /inventory/feed-items/:id` (`UpdateFeedItemDto`) edits the product; a lot's nutrition is
+ * revised per batch (detail sheet), so `nutrition`/`batchCode` never go on an update. */
 function toUpdatePayload(values: FeedItemFormInput): UpdateFeedItemPayload {
-  return toCreatePayload(values);
+  const { nutrition: _nutrition, batchCode: _batchCode, ...rest } = toCreatePayload(values, null);
+  return rest;
 }
 
-function toFormDefaults(feedItem: FeedItem | undefined): Partial<FeedItemFormInput> {
-  if (!feedItem) return { currentStock: 0, costPerUnit: 0, ingredientId: "" };
+/** Seed for a *create* opened from elsewhere (the Feed Formulator's "add to inventory" on a recipe
+ * line whose ingredient isn't stocked): the ingredient's name/class and its catalogue link. */
+export interface FeedItemPrefill {
+  name: string;
+  ingredientId?: string | null;
+  feedClass?: FeedItemFormInput["feedClass"] | null;
+  feedSubType?: FeedItemFormInput["feedSubType"] | null;
+}
+
+function toFormDefaults(feedItem: FeedItem | undefined, prefill?: FeedItemPrefill): Partial<FeedItemFormInput> {
+  if (!feedItem) {
+    return {
+      currentStock: 0,
+      costPerUnit: 0,
+      ingredientId: prefill?.ingredientId ?? "",
+      nutrition: {} as NutritionFormInput,
+      ...(prefill ? { name: prefill.name } : {}),
+      ...(prefill?.feedClass ? { feedClass: prefill.feedClass } : {}),
+      ...(prefill?.feedSubType ? { feedSubType: prefill.feedSubType } : {}),
+    };
+  }
   return {
     name: feedItem.name,
     feedClass: feedItem.feedClass,
@@ -60,10 +86,28 @@ function toFormDefaults(feedItem: FeedItem | undefined): Partial<FeedItemFormInp
     currentStock: feedItem.currentStock,
     costPerUnit: feedItem.costPerUnit,
     lowStockThreshold: feedItem.lowStockThreshold,
-    moisturePct: feedItem.moisturePct ?? undefined,
     supplier: feedItem.supplier ?? "",
     purchaseDate: feedItem.purchaseDate.slice(0, 10),
     notes: feedItem.notes ?? "",
+  };
+}
+
+/** Catalogue ingredient → form draft (snake_case API → camelCase form). Unmeasured stays undefined. */
+function catalogueToDraft(n: FeedIngredient["nutrition"]): NutritionDraft {
+  return {
+    dmPct: n.dm_pct,
+    cpPct: n.cp_pct,
+    meMjPerKgDm: n.me_mj_per_kg_dm,
+    fatPct: n.fat_pct ?? undefined,
+    ndfPct: n.ndf_pct ?? undefined,
+    adfPct: n.adf_pct ?? undefined,
+    rdpPct: n.rdp_pct ?? undefined,
+    rupPct: n.rup_pct ?? undefined,
+    starchPct: n.starch_pct ?? undefined,
+    calciumPct: n.calcium_pct ?? undefined,
+    phosphorusPct: n.phosphorus_pct ?? undefined,
+    tdnPct: n.tdn_pct ?? undefined,
+    nutritionSource: "REFERENCE",
   };
 }
 
@@ -107,6 +151,7 @@ export function FeedItemFormDialog({
   onOpenChange,
   feedItem,
   onCreated,
+  prefill,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -114,6 +159,8 @@ export function FeedItemFormDialog({
   /** Called with the newly created item right before the sheet closes. Only fires on create, not edit
    * — used by callers that need to auto-select the item they just created (e.g. Quick Feed). */
   onCreated?: (item: FeedItem) => void;
+  /** Create-mode seed (name/class/catalogue link) — ignored when editing. */
+  prefill?: FeedItemPrefill;
 }) {
   return (
     // `modal={false}` — same fix as `create-feed-dialog.tsx`'s Sheet: the modal Dialog's
@@ -122,7 +169,13 @@ export function FeedItemFormDialog({
     // set on the popover itself. See that file's doc comment for the confirmed root cause.
     <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
       {open ? (
-        <FeedItemFormDialogBody key={feedItem?.id ?? "create"} onOpenChange={onOpenChange} feedItem={feedItem} onCreated={onCreated} />
+        <FeedItemFormDialogBody
+          key={feedItem?.id ?? `create-${prefill?.ingredientId ?? prefill?.name ?? ""}`}
+          onOpenChange={onOpenChange}
+          feedItem={feedItem}
+          onCreated={onCreated}
+          prefill={prefill}
+        />
       ) : null}
     </Sheet>
   );
@@ -132,10 +185,12 @@ function FeedItemFormDialogBody({
   onOpenChange,
   feedItem,
   onCreated,
+  prefill,
 }: {
   onOpenChange: (open: boolean) => void;
   feedItem?: FeedItem;
   onCreated?: (item: FeedItem) => void;
+  prefill?: FeedItemPrefill;
 }) {
   const t = useTranslations("inventory.feed.form");
   const tOptions = useTranslations("inventory.feed");
@@ -148,9 +203,25 @@ function FeedItemFormDialogBody({
 
   const form = useForm<FeedItemFormInput>({
     resolver: zodResolver(feedItemFormSchema),
-    defaultValues: toFormDefaults(feedItem),
+    defaultValues: toFormDefaults(feedItem, prefill),
   });
 
+  // The values last copied from a catalogue ingredient — lets submit tell "copied and untouched"
+  // (send the bare ingredient so the backend records provenance) from "copied then edited".
+  const [catalogueCopy, setCatalogueCopy] = useState<NutritionDraft | null>(null);
+
+  // A prefilled catalogue link behaves exactly like picking that ingredient in "Copy from catalogue":
+  // once the catalogue has loaded, copy its nutrition so the new lot starts with real values.
+  const prefilledCopyRef = useRef(false);
+  useEffect(() => {
+    if (feedItem || prefilledCopyRef.current || !prefill?.ingredientId || !ingredients) return;
+    const picked = ingredients.find((ing) => ing.id === prefill.ingredientId);
+    if (!picked) return;
+    prefilledCopyRef.current = true;
+    const draft = catalogueToDraft(picked.nutrition);
+    setCatalogueCopy(draft);
+    form.setValue("nutrition", draft as NutritionFormInput, { shouldValidate: true });
+  }, [feedItem, prefill?.ingredientId, ingredients, form]);
   const ingredientId = form.watch("ingredientId");
   const selectedIngredientName = useMemo(
     () => ingredients?.find((ing) => ing.id === ingredientId)?.name_en,
@@ -195,7 +266,7 @@ function FeedItemFormDialogBody({
       if (isEdit && feedItem) {
         await updateFeedItem.mutateAsync({ id: feedItem.id, dto: toUpdatePayload(values) });
       } else {
-        const created = await createFeedItem.mutateAsync(toCreatePayload(values));
+        const created = await createFeedItem.mutateAsync(toCreatePayload(values, catalogueCopy));
         onCreated?.(created);
       }
       toast.success(isEdit ? t("updatedToast") : t("createdToast"));
@@ -322,38 +393,72 @@ function FeedItemFormDialogBody({
                 <p className="text-xs text-destructive">{t("categoryRequired")}</p>
               ) : null}
             </div>
-            <LabeledInput
-              id="moisturePct"
-              type="number"
-              min={0}
-              max={100}
-              label={t("moisture")}
-              {...form.register("moisturePct", { setValueAs: (v) => (v === "" ? undefined : Number(v)) })}
-            />
             <LabeledInput id="supplier" label={t("supplier")} placeholder={t("supplierPlaceholder")} {...form.register("supplier")} />
+            <LabeledInput id="batchCode" label={t("batchCode")} placeholder={t("batchCodePlaceholder")} {...form.register("batchCode")} />
+          </div>
 
-            <div className="col-span-2 flex flex-col gap-1.5">
-              <Label>{t("ingredient")}</Label>
-              <div className="flex items-center gap-2">
+          <SectionHeader>{t("nutritionSection")}</SectionHeader>
+          {isEdit ? (
+            // Nutrition belongs to a lot, not the product — editing it is a per-batch action with its
+            // own history/revert (detail sheet), so the product form never rewrites it.
+            <p className="rounded-xl border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">{t("nutritionEditNote")}</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <p className="text-sm text-muted-foreground">{t("nutritionIntro")}</p>
+              <div className="flex flex-col gap-1.5">
+                <Label>{t("copyFromCatalogue")}</Label>
                 <IngredientPicker
                   onSelect={(option) => {
                     form.setValue("ingredientId", option.id, { shouldValidate: true });
                     const picked = ingredients?.find((ing) => ing.id === option.id);
-                    if (picked) {
-                      form.setValue("feedClass", picked.feed_class, { shouldValidate: true });
-                      form.setValue("feedSubType", picked.feed_sub_type ?? undefined, { shouldValidate: true });
-                    }
+                    if (!picked) return;
+                    form.setValue("feedClass", picked.feed_class, { shouldValidate: true });
+                    form.setValue("feedSubType", picked.feed_sub_type ?? undefined, { shouldValidate: true });
+                    const draft = catalogueToDraft(picked.nutrition);
+                    setCatalogueCopy(draft);
+                    form.setValue("nutrition", draft as NutritionFormInput, { shouldValidate: true });
                   }}
                   excludeIds={[]}
-                  placeholder={selectedIngredientName ?? t("ingredientPlaceholder")}
+                  placeholder={selectedIngredientName ?? t("copyFromCataloguePlaceholder")}
                   className="w-full justify-between"
                 />
+                <p className="text-xs text-muted-foreground">
+                  {catalogueCopy ? t("copiedHint") : t("copyFromCatalogueHint")}
+                </p>
+                {ingredientId ? (
+                  <button
+                    type="button"
+                    className="self-start text-xs text-primary underline-offset-2 hover:underline"
+                    onClick={() => {
+                      form.setValue("ingredientId", "");
+                      setCatalogueCopy(null);
+                    }}
+                  >
+                    {t("removeCatalogueLink")}
+                  </button>
+                ) : null}
               </div>
-              {form.formState.errors.ingredientId ? (
-                <p className="text-xs text-destructive">{t("ingredientRequired")}</p>
-              ) : null}
+              <Controller
+                control={form.control}
+                name="nutrition"
+                render={({ field }) => {
+                  const nutritionErrors = form.formState.errors.nutrition;
+                  const required = t("nutritionRequired");
+                  return (
+                    <NutritionFields
+                      value={(field.value ?? {}) as NutritionDraft}
+                      onChange={(next) => field.onChange(next)}
+                      errors={{
+                        dmPct: nutritionErrors?.dmPct ? required : undefined,
+                        cpPct: nutritionErrors?.cpPct ? required : undefined,
+                        meMjPerKgDm: nutritionErrors?.meMjPerKgDm ? required : undefined,
+                      }}
+                    />
+                  );
+                }}
+              />
             </div>
-          </div>
+          )}
 
           <SectionHeader>{t("stockExpiry")}</SectionHeader>
           <div className="grid grid-cols-2 gap-3">

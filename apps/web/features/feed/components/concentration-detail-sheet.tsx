@@ -9,6 +9,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { useConcentrationDetail, useFeedGroups, useFeedIngredients } from "../hooks/use-feed";
 import { FeedMixtureTable, toEffectiveMap } from "./feed-mixture-table";
 import { fromApiRequirements } from "../lib/formula-math";
+import { effectiveFromFigures, formLineKey } from "../lib/recipe-line";
 
 /** Read-only "See Details" view (no dedicated Figma frame supplied this pass — the list page's card
  * only shows a "See Details" button) — reuses the same `FeedMixtureTable` the create wizard's Step 2
@@ -35,7 +36,23 @@ function DetailBody({ id, onOpenChange }: { id: string; onOpenChange: (open: boo
   const ingredients = useFeedIngredients();
   // Needed only for the per-line "rate" annotation (e.g. "20%" DM) shown alongside the server-
   // computed kg values below — the kg/cost figures themselves come from `serverContributions`.
-  const effectiveById = useMemo(() => toEffectiveMap(ingredients.data ?? []), [ingredients.data]);
+  const catalogueEffective = useMemo(() => toEffectiveMap(ingredients.data ?? []), [ingredients.data]);
+  // A lot-backed line (RAKHAL-447) is computed from its lot, not the catalogue — recover its per-kg
+  // rates from the figures the server already returned for that line.
+  const effectiveById = useMemo(() => {
+    const map = new Map(catalogueEffective);
+    for (const line of detail.data?.ingredients ?? []) {
+      if (!line.feed_item_id) continue;
+      const eff = effectiveFromFigures(line);
+      if (eff) map.set(formLineKey({ ingredientId: line.ingredient_id, feedItemId: line.feed_item_id, feedItemBatchId: line.feed_item_batch_id }), eff);
+    }
+    return map;
+  }, [catalogueEffective, detail.data]);
+  const lineRef = (line: NonNullable<typeof detail.data>["ingredients"][number]) => ({
+    ingredientId: line.ingredient_id,
+    feedItemId: line.feed_item_id,
+    feedItemBatchId: line.feed_item_batch_id,
+  });
 
   const cowCount = useMemo(() => {
     if (!detail.data) return 1;
@@ -74,8 +91,10 @@ function DetailBody({ id, onOpenChange }: { id: string; onOpenChange: (open: boo
         ) : detail.data ? (
           <FeedMixtureTable
             items={detail.data.ingredients.map((line) => ({
-              ingredientId: line.ingredient_id,
-              ingredientName: line.name ?? line.ingredient_id,
+              ingredientId: line.ingredient_id ?? undefined,
+              feedItemId: line.feed_item_id ?? undefined,
+              feedItemBatchId: line.feed_item_batch_id ?? undefined,
+              ingredientName: line.name ?? line.ingredient_id ?? "",
               amountKg: line.amount_kg,
             }))}
             effectiveById={effectiveById}
@@ -84,7 +103,7 @@ function DetailBody({ id, onOpenChange }: { id: string; onOpenChange: (open: boo
             showPerCow={detail.data.kind !== "CONCENTRATE_TEMPLATE"}
             readOnly
             serverContributions={detail.data.ingredients.map((line) => ({
-              ingredientId: line.ingredient_id,
+              ingredientId: formLineKey(lineRef(line)),
               amountKg: line.amount_kg,
               dmKg: line.dm_kg,
               cpKg: line.cp_kg,

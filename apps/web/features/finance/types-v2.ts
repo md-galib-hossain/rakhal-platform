@@ -43,6 +43,8 @@ export interface FinancialAccount {
   type: FinancialAccountType;
   ledgerAccountId: string;
   currency: string;
+  /** The farm's default wallet — `AccountPicker` pre-selects it. One per farm (backend-enforced). */
+  isPrimary: boolean;
   /** Soft-delete marker, mirrors the backend's own `FinancialAccount.deletedAt` (not `isActive`/
    * `archivedAt` — those never existed on the backend model; a row is archived when this is set). */
   deletedAt: string | null;

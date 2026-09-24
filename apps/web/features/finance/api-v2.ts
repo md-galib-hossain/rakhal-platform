@@ -44,6 +44,10 @@ export const financeV2Api = {
   updateAccount(id: string, dto: UpdateFinancialAccountPayload): Promise<FinancialAccount> {
     return apiFetch<FinancialAccount>(`/finance/accounts/${id}`, { method: "PATCH", body: dto });
   },
+  /** `PATCH /finance/accounts/:id/primary` — makes this the farm's one default wallet. No body. */
+  setPrimaryAccount(id: string): Promise<FinancialAccount> {
+    return apiFetch<FinancialAccount>(`/finance/accounts/${id}/primary`, { method: "PATCH" });
+  },
   /** `PATCH /finance/accounts/:id/archive` — RAKHAL-356. No body; soft-delete, not a real delete. */
   archiveAccount(id: string): Promise<FinancialAccount> {
     return apiFetch<FinancialAccount>(`/finance/accounts/${id}/archive`, { method: "PATCH" });

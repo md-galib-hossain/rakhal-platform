@@ -166,7 +166,59 @@ export type FeedSubType =
   | "OTHER";
 export type FeedItemStockStatus = "out" | "low" | "adequate";
 
-/** `GET/POST /inventory/feed-items(/:id)` row shape (`feed-item.service.ts#present`). */
+/** Provenance of a nutrition profile (backend `NutritionSource`), most → least trustworthy: LAB,
+ * MANUFACTURER (label), FARM_ESTIMATE, REFERENCE (Rakhal catalogue). */
+export type NutritionSource = "REFERENCE" | "MANUFACTURER" | "LAB" | "FARM_ESTIMATE";
+
+/** Optional nutrients — `null` means "not measured", never zero (ADR-026 D4). Every % is of dry
+ * matter except `rdpPct`/`rupPct` (% of crude protein). */
+export const OPTIONAL_NUTRIENT_KEYS = [
+  "fatPct",
+  "ndfPct",
+  "adfPct",
+  "rdpPct",
+  "rupPct",
+  "starchPct",
+  "sugarsPct",
+  "calciumPct",
+  "phosphorusPct",
+  "tdnPct",
+] as const;
+export type OptionalNutrientKey = (typeof OPTIONAL_NUTRIENT_KEYS)[number];
+
+/** Immutable nutrition profile as the backend presents it (`feed-item.service.ts#presentProfile`). */
+export type NutritionProfile = {
+  id: string;
+  dmPct: number;
+  cpPct: number;
+  meMjPerKgDm: number;
+  /** Derived (100 − DM), never stored. */
+  moisturePct: number;
+  nutritionSource: NutritionSource;
+  sourceRef: string | null;
+  note: string | null;
+  supersedesId: string | null;
+  copiedFromIngredientId: string | null;
+  createdAt: string;
+} & Record<OptionalNutrientKey, number | null>;
+
+/** One purchased lot of a product (`feed-item.service.ts#presentBatch`). */
+export interface FeedItemBatch {
+  id: string;
+  batchCode: string | null;
+  currentStock: number;
+  costPerUnit: number;
+  purchaseDate: string;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  nutritionProfileId: string;
+  nutrition: NutritionProfile;
+}
+
+/** `GET/POST /inventory/feed-items(/:id)` row shape (`feed-item.service.ts#present`). A feed item is
+ * the **product**; each purchase is a lot in `batches` (FIFO order, oldest first). `currentStock`,
+ * `costPerUnit` and `purchaseDate` are the backend's additive-compat mirrors of the lots (sum / newest). */
 export interface FeedItem {
   id: string;
   name: string;
@@ -186,20 +238,38 @@ export interface FeedItem {
   stockStatus: FeedItemStockStatus;
   /** `currentStock * kgPerUnit`, or `null` when `kgPerUnit` isn't set. Derived, not stored. */
   kgEquivalent: number | null;
+  /** The head lot's profile (the one the next feeding would use); null only for an item with no lot. */
+  nutrition: NutritionProfile | null;
+  batches: FeedItemBatch[];
+  /** Detail only: nutrient keys where the head profile differs from the linked catalogue ingredient. */
+  nutritionDiffersFromCatalogue?: string[];
 }
+
+/** Hand-typed nutrition for a lot (`NutritionInputDto`). DM/CP/ME are required. */
+export type NutritionInput = {
+  dmPct: number;
+  cpPct: number;
+  meMjPerKgDm: number;
+  nutritionSource?: NutritionSource;
+  sourceRef?: string;
+  note?: string;
+} & Partial<Record<OptionalNutrientKey, number | null>>;
 
 export interface FeedItemListFilters {
   search?: string;
   feedClass?: FeedClass;
 }
 
-/** `POST /inventory/feed-items` body (`CreateFeedItemDto`). `ingredientId` is required — every new
- * purchased feed item must link to a Feed Formulator catalogue/custom ingredient. */
+/** `POST /inventory/feed-items` body (`CreateFeedItemDto`). Supply `nutrition` (typed by hand) or an
+ * `ingredientId` to copy it from once — with only the ingredient the backend copies the catalogue
+ * values and records the provenance; with `nutrition` the typed values win. */
 export interface CreateFeedItemPayload {
   name: string;
   feedClass: FeedClass;
   feedSubType?: FeedSubType;
-  ingredientId: string;
+  ingredientId?: string;
+  nutrition?: NutritionInput;
+  batchCode?: string;
   unitId: string;
   kgPerUnit?: number;
   currentStock: number;
@@ -209,6 +279,27 @@ export interface CreateFeedItemPayload {
   supplier?: string;
   purchaseDate: string;
   notes?: string;
+}
+
+/** `POST /inventory/feed-items/:id/batches` body (`CreateFeedItemBatchDto`) — a restock. Omit `nutrition`
+ * to inherit the item's default profile; send it when this delivery's quality differs. */
+export interface CreateFeedItemBatchPayload {
+  currentStock: number;
+  costPerUnit: number;
+  purchaseDate: string;
+  batchCode?: string;
+  notes?: string;
+  nutrition?: NutritionInput;
+}
+
+/** `PATCH /inventory/feed-items/:id/batches/:batchId/nutrition` body (`UpdateFeedBatchNutritionDto`).
+ * Editing appends a new immutable profile (history is kept); `expectedUpdatedAt` is the batch's
+ * `updatedAt` you loaded — a stale value is rejected with 409 so two editors can't overwrite each other. */
+export interface UpdateBatchNutritionPayload {
+  nutrition: NutritionInput;
+  expectedUpdatedAt?: string;
+  /** Also make this the item's default profile for future restocks. */
+  makeDefault?: boolean;
 }
 
 /** `PATCH /inventory/feed-items/:id` body (`UpdateFeedItemDto`) — every field optional, including
