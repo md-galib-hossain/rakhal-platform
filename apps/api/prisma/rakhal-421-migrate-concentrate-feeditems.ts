@@ -1,4 +1,9 @@
 /**
+ * **Historical (RAKHAL-451 / RAKHAL-450):** reads the legacy `FeedItem` stock/cost/date columns and writes `FeedStock` nutrient columns, dropped by RAKHAL-450/451. Both are gone (migrations
+ * `20260924140000_rakhal_451_feedstock_nutrition_profile` / `20260924130000_rakhal_450_...`), so this
+ * script no longer type-checks or runs; kept only as a record of the one-off. Not part of the build.
+ */
+/**
  * RAKHAL-421 data migration (docs/EPIC_PREPARED_FEED.md §5, closes RD-080): moves every
  * RAKHAL-406-era (2026-08-28 to 2026-09-13) Concentrate Mixer batch off `FeedItem` and onto
  * `FeedStock` — the shape every finalize now produces going forward. Identifies a candidate row by

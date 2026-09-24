@@ -1,4 +1,9 @@
 /**
+ * **Historical (RAKHAL-451 / RAKHAL-450):** reads/writes the `FeedStock` nutrient columns, which now live on `NutritionProfile` (`FeedStock.nutritionProfileId`). Both are gone (migrations
+ * `20260924140000_rakhal_451_feedstock_nutrition_profile` / `20260924130000_rakhal_450_...`), so this
+ * script no longer type-checks or runs; kept only as a record of the one-off. Not part of the build.
+ */
+/**
  * One-off backfill for the RAKHAL-327 batch-nutrition migration: the additive migration
  * (`20260814170000_rakhal_327_feedstock_nutrition_additive`) added 12 nullable nutrient columns
  * to `FeedStock` alongside the existing `producedCostTk` snapshot. This script fills every
