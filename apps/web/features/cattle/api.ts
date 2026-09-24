@@ -89,12 +89,21 @@ export const cattleApi = {
     return apiFetchPage<Shed>("/sheds", { searchParams: { limit: 100 } });
   },
   /** Generous `limit` — pickers want the farm's full (small) list of groups, not one page. */
-  animalGroups(): Promise<CursorPage<AnimalGroup>> {
-    return apiFetchPage<AnimalGroup>("/animal-groups", { searchParams: { limit: 100 } });
+  animalGroups(search?: string): Promise<CursorPage<AnimalGroup>> {
+    return apiFetchPage<AnimalGroup>("/animal-groups", { searchParams: { limit: 100, search } });
+  },
+  findAnimalGroup(id: string): Promise<AnimalGroup> {
+    return apiFetch<AnimalGroup>(`/animal-groups/${id}`);
   },
   /** "Create group from selection" — one call creates the group and adds `cattleIds`. */
   createAnimalGroup(input: { name: string; description?: string; cattleIds?: string[] }): Promise<AnimalGroup> {
     return apiFetch<AnimalGroup>("/animal-groups", { method: "POST", body: input });
+  },
+  updateAnimalGroup(id: string, input: { name?: string; description?: string }): Promise<AnimalGroup> {
+    return apiFetch<AnimalGroup>(`/animal-groups/${id}`, { method: "PATCH", body: input });
+  },
+  deleteAnimalGroup(id: string): Promise<{ id: string; deleted: boolean }> {
+    return apiFetch<{ id: string; deleted: boolean }>(`/animal-groups/${id}`, { method: "DELETE" });
   },
   addToAnimalGroup(groupId: string, cattleIds: string[]): Promise<AnimalGroup & { added: number }> {
     return apiFetch<AnimalGroup & { added: number }>(`/animal-groups/${groupId}/members`, {

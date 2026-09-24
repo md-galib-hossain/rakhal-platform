@@ -15,6 +15,7 @@ export const cattleFormSchema = z.object({
   gender: z.enum(["MALE", "FEMALE", "CASTRATED_MALE"]),
   dateOfBirth: z.string().optional(),
   shedId: z.string().optional(),
+  animalGroupId: z.string().optional(),
   motherId: z.string().optional(),
   fatherId: z.string().optional(),
   sourceType: z.enum(["BORN", "PURCHASED", "GIFTED", "UNKNOWN"]).optional(),
@@ -160,3 +161,11 @@ export const recordWeightSchema = z.object({
   notes: z.string().trim().optional(),
 });
 export type RecordWeightInput = z.infer<typeof recordWeightSchema>;
+
+/** RAKHAL-452 — mirrors `CreateAnimalGroupDto`/`UpdateAnimalGroupDto`. */
+export const animalGroupFormSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(80),
+  description: z.string().trim().max(500).optional(),
+});
+export type AnimalGroupFormInput = z.infer<typeof animalGroupFormSchema>;
+

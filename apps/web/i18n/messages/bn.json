@@ -947,7 +947,11 @@
         "heatDateTime": "গরমের তারিখ/সময়",
         "heatDateRequired": "গরমের তারিখ/সময় আবশ্যক।",
         "notes": "নোট"
-      }
+      },
+      "animalGroup": "প্রাণী গ্রুপ",
+      "addGroup": "নতুন গ্রুপ তৈরি করুন",
+      "addGroupError": "গ্রুপ তৈরি করা যায়নি।",
+      "groupNamePlaceholder": "গ্রুপের নাম"
     },
     "statusDialog": {
       "title": "অবস্থা পরিবর্তন — {name}",
@@ -1495,6 +1499,47 @@
         "readyBadge": "প্রস্তুত",
         "errorBadge": "ত্রুটি"
       }
+    },
+    "groups": {
+      "button": "প্রাণী গ্রুপ",
+      "title": "প্রাণী গ্রুপসমূহ",
+      "description": "খাওয়ানো, স্বাস্থ্য এবং বাল্ক ব্যবস্থাপনার জন্য প্রাণীদের কাস্টম গ্রুপে সংগঠিত করুন।",
+      "createGroup": "গ্রুপ তৈরি করুন",
+      "editGroup": "গ্রুপ সম্পাদনা করুন",
+      "groupName": "গ্রুপের নাম",
+      "groupNamePlaceholder": "যেমন: উচ্চ উৎপাদনশীল গাভী, ব্যাচ ক",
+      "descriptionLabel": "বিবরণ",
+      "descriptionPlaceholder": "ঐচ্ছিক নোট বা এই গ্রুপের উদ্দেশ্য",
+      "members": "সদস্যগণ",
+      "memberCount": "{count} টি প্রাণী",
+      "emptyTitle": "কোন প্রাণী গ্রুপ নেই",
+      "emptyDescription": "প্রাণীদের শ্রেণিবদ্ধ ও একসাথে পরিচালনা করতে একটি গ্রুপ তৈরি করুন।",
+      "addAnimals": "প্রাণী যোগ করুন",
+      "addAnimalsTitle": "গ্রুপে প্রাণী যোগ করুন",
+      "addAnimalsDescription": "\"{name}\" গ্রুপে যোগ করতে আপনার খামার থেকে প্রাণী নির্বাচন করুন।",
+      "removeAnimal": "সরান",
+      "removeConfirm": "গ্রুপ থেকে প্রাণী সরাবেন?",
+      "removeConfirmDescription": "আপনি কি নিশ্চিত যে আপনি \"{name}\" থেকে {tagNumber} সরাতে চান?",
+      "deleteGroup": "গ্রুপ মুছুন",
+      "deleteConfirm": "\"{name}\" গ্রুপ মুছবেন?",
+      "deleteConfirmDescription": "এই গ্রুপটি মুছে ফেলা হবে। এর ভেতরের প্রাণীরা আপনার খামারেই থাকবে।",
+      "viewInTable": "টেবিলে দেখুন",
+      "noMembersTitle": "এই গ্রুপে কোনো প্রাণী নেই",
+      "noMembersDescription": "উপরের বোতাম ব্যবহার করে এই গ্রুপে প্রাণী যোগ করুন।",
+      "createdToast": "\"{name}\" গ্রুপ সফলভাবে তৈরি হয়েছে।",
+      "updatedToast": "\"{name}\" গ্রুপ আপডেট হয়েছে।",
+      "deletedToast": "গ্রুপ মুছে ফেলা হয়েছে।",
+      "animalsAddedToast": "গ্রুপে {count} টি প্রাণী যোগ করা হয়েছে।",
+      "animalRemovedToast": "গ্রুপ থেকে প্রাণী সরানো হয়েছে।",
+      "createError": "গ্রুপ তৈরি করা যায়নি।",
+      "updateError": "গ্রুপ আপডেট করা যায়নি।",
+      "deleteError": "গ্রুপ মুছে ফেলা যায়নি।",
+      "addAnimalsError": "গ্রুপে প্রাণী যোগ করা যায়নি।",
+      "removeAnimalError": "গ্রুপ থেকে প্রাণী সরানো যায়নি।",
+      "searchAnimalsPlaceholder": "ট্যাগ নম্বর বা নাম দিয়ে খুঁজুন...",
+      "selectedCount": "{count} টি নির্বাচিত",
+      "addSelected": "নির্বাচিত প্রাণী যোগ করুন",
+      "allAnimalsAlreadyInGroup": "খামারের সব প্রাণী ইতিমধ্যেই এই গ্রুপে রয়েছে।"
     }
   },
   "inventory": {

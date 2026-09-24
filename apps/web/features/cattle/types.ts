@@ -88,6 +88,8 @@ export interface AnimalGroup {
   name: string;
   description: string | null;
   memberCount: number;
+  createdAt?: string;
+  deletedAt?: string | null;
 }
 
 /** RAKHAL-401 — derived lifecycle sub-stage nested under `animalCategory` (HEIFER/BULL only;
@@ -229,6 +231,7 @@ export interface CattleFormPayload {
   gender: CattleGender;
   dateOfBirth?: string;
   shedId?: string;
+  animalGroupId?: string;
   motherId?: string;
   fatherId?: string;
   sourceType?: CattleSourceType;

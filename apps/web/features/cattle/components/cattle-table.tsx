@@ -71,10 +71,8 @@ export function CattleTable() {
   const { openCattleDetail } = useCattleDetailModal();
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [shedDialogOpen, setShedDialogOpen] = useState(false);
-  const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [addToGroupOpen, setAddToGroupOpen] = useState(false);
   const [shedId, setShedId] = useState<string | undefined>(undefined);
-  const [groupName, setGroupName] = useState("");
   const [animalGroupId, setAnimalGroupId] = useState<string | undefined>(undefined);
   /** RAKHAL-042's "cards (mobile default)" AC — seeded from viewport width on mount (SSR-safe
    * `useMediaQuery`, starts `false`/table so it never fights hydration), then a manual toggle
@@ -133,22 +131,6 @@ export function CattleTable() {
       selection.clear();
     } catch {
       toast.error(tBulk("failedToast"));
-    }
-  }
-
-  /** RAKHAL-452 — "Create group": one call makes the group with the selection as its members. */
-  async function createGroupFromSelection() {
-    try {
-      const group = await createAnimalGroup.mutateAsync({
-        name: groupName.trim(),
-        cattleIds: selection.selectedIds,
-      });
-      toast.success(tBulk("groupCreatedToast", { name: group.name, count: group.memberCount }));
-      selection.clear();
-      setCreateGroupOpen(false);
-      setGroupName("");
-    } catch {
-      toast.error(tBulk("createGroupError"));
     }
   }
 
@@ -308,33 +290,6 @@ export function CattleTable() {
         </SheetContent>
       </Sheet>
 
-      <Sheet open={createGroupOpen} onOpenChange={setCreateGroupOpen}>
-        <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle>{tBulk("createGroup")}</SheetTitle>
-            <SheetDescription>{tBulk("createGroupDescription", { count: selection.selectedCount })}</SheetDescription>
-          </SheetHeader>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="animal-group-name">{tBulk("groupNameLabel")}</Label>
-            <Input
-              id="animal-group-name"
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              placeholder={tBulk("groupNamePlaceholder")}
-              maxLength={80}
-            />
-          </div>
-          <SheetFooter className="border-t border-dashed border-border pt-4">
-            <Button variant="outline" onClick={() => setCreateGroupOpen(false)}>
-              {tBulk("cancel")}
-            </Button>
-            <Button disabled={!groupName.trim() || createAnimalGroup.isPending} onClick={() => void createGroupFromSelection()}>
-              {tBulk("createGroupSubmit")}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
-
       <Sheet open={addToGroupOpen} onOpenChange={setAddToGroupOpen}>
         <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-md">
           <SheetHeader>
@@ -377,7 +332,6 @@ export function CattleTable() {
         selectedCountLabel={tBulk("selectedCount", { count: selection.selectedCount })}
         actions={[
           { key: "change_shed", label: tBulk("changeShed"), variant: "outline", onRun: () => setShedDialogOpen(true) },
-          { key: "create_group", label: tBulk("createGroup"), variant: "outline", onRun: () => setCreateGroupOpen(true) },
           { key: "add_to_group", label: tBulk("addToGroup"), variant: "outline", onRun: () => setAddToGroupOpen(true) },
           {
             key: "dispose",

@@ -29,7 +29,9 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import {
+  useAnimalGroups,
   useBreeds,
+  useCreateAnimalGroup,
   useCreateBreed,
   useCreateCattle,
   useCreatePurchasedLactation,
@@ -88,6 +90,7 @@ function toPayload(values: CattleEditFormInput, isEdit: boolean): CattleFormPayl
     gender: values.gender,
     dateOfBirth: clean(values.dateOfBirth),
     shedId: clean(values.shedId),
+    animalGroupId: clean(values.animalGroupId),
     motherId: clean(values.motherId),
     fatherId: clean(values.fatherId),
     sourceType: clean(values.sourceType),
@@ -304,7 +307,9 @@ function CattleFormDialogBody({
 
   const breeds = useBreeds();
   const sheds = useSheds();
+  const animalGroups = useAnimalGroups();
   const createShedInline = useCreateShedInline();
+  const createAnimalGroup = useCreateAnimalGroup();
   const createCattle = useCreateCattle();
   const updateCattle = useUpdateCattle();
   const setPhoto = useSetCattlePhoto();
@@ -597,6 +602,25 @@ function CattleFormDialogBody({
                   />
                 )}
               />
+              {!isEdit ? (
+                <Controller
+                  control={form.control}
+                  name="animalGroupId"
+                  render={({ field }) => (
+                    <CreatableSelect
+                      value={field.value || UNSET}
+                      onValueChange={field.onChange}
+                      options={animalGroups.data?.items ?? []}
+                      trigger={<LabeledSelectTrigger label={t("animalGroup")} placeholder={t("unassigned")} />}
+                      extraItems={<SelectItem value={UNSET}>{t("unassigned")}</SelectItem>}
+                      createLabel={t("addGroup")}
+                      namePlaceholder={t("groupNamePlaceholder")}
+                      createErrorMessage={t("addGroupError")}
+                      onCreate={(name) => createAnimalGroup.mutateAsync({ name })}
+                    />
+                  )}
+                />
+              ) : null}
               <Controller
                 control={form.control}
                 name="dateOfBirth"

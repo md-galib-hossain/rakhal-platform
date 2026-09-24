@@ -65,8 +65,21 @@ export function useSheds() {
   return useQuery({ queryKey: qk.cattle.sheds(), queryFn: cattleApi.sheds, staleTime: STALE_TIME });
 }
 
-export function useAnimalGroups() {
-  return useQuery({ queryKey: qk.cattle.animalGroups(), queryFn: cattleApi.animalGroups, staleTime: STALE_TIME });
+export function useAnimalGroups(search?: string) {
+  return useQuery({
+    queryKey: [...qk.cattle.animalGroups(), search],
+    queryFn: () => cattleApi.animalGroups(search),
+    staleTime: STALE_TIME,
+  });
+}
+
+export function useAnimalGroup(id: string | null | undefined) {
+  return useQuery({
+    queryKey: [...qk.cattle.animalGroups(), id],
+    queryFn: () => cattleApi.findAnimalGroup(id!),
+    enabled: Boolean(id),
+    staleTime: STALE_TIME,
+  });
 }
 
 /** Inline "+ Create new shed" (`CreatableSelect`, `components/shared/creatable-select.tsx`) — same
@@ -92,6 +105,29 @@ export function useCreateAnimalGroup() {
   return useMutation({
     mutationFn: (input: { name: string; description?: string; cattleIds?: string[] }) =>
       cattleApi.createAnimalGroup(input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.animalGroups() });
+      void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });
+    },
+  });
+}
+
+export function useUpdateAnimalGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...input }: { id: string; name?: string; description?: string }) =>
+      cattleApi.updateAnimalGroup(id, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.animalGroups() });
+      void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });
+    },
+  });
+}
+
+export function useDeleteAnimalGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => cattleApi.deleteAnimalGroup(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: qk.cattle.animalGroups() });
       void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });

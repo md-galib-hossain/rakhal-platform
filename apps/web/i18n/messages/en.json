@@ -947,7 +947,11 @@
         "heatDateTime": "Heat date/time",
         "heatDateRequired": "Heat date/time is required.",
         "notes": "Notes"
-      }
+      },
+      "animalGroup": "Animal Group",
+      "addGroup": "Create new group",
+      "addGroupError": "Could not create group.",
+      "groupNamePlaceholder": "Group name"
     },
     "statusDialog": {
       "title": "Change status — {name}",
@@ -1495,6 +1499,47 @@
         "readyBadge": "Ready",
         "errorBadge": "Error"
       }
+    },
+    "groups": {
+      "button": "Animal Groups",
+      "title": "Animal Groups",
+      "description": "Organize animals into custom groups for feeding, health, and bulk management.",
+      "createGroup": "Create Group",
+      "editGroup": "Edit Group",
+      "groupName": "Group Name",
+      "groupNamePlaceholder": "e.g. High Yielders, Batch A",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Optional notes or purpose of this group",
+      "members": "Members",
+      "memberCount": "{count, plural, =0 {0 animals} =1 {1 animal} other {# animals}}",
+      "emptyTitle": "No animal groups yet",
+      "emptyDescription": "Create a group to categorize and manage batches of animals together.",
+      "addAnimals": "Add Animals",
+      "addAnimalsTitle": "Add Animals to Group",
+      "addAnimalsDescription": "Select animals from your farm to add to \"{name}\".",
+      "removeAnimal": "Remove",
+      "removeConfirm": "Remove animal from group?",
+      "removeConfirmDescription": "Are you sure you want to remove {tagNumber} from \"{name}\"?",
+      "deleteGroup": "Delete Group",
+      "deleteConfirm": "Delete \"{name}\" group?",
+      "deleteConfirmDescription": "This group will be deleted. The animals in it will remain on your farm.",
+      "viewInTable": "View in Table",
+      "noMembersTitle": "No animals in this group",
+      "noMembersDescription": "Add animals to this group using the button above.",
+      "createdToast": "Group \"{name}\" created successfully.",
+      "updatedToast": "Group \"{name}\" updated successfully.",
+      "deletedToast": "Group deleted.",
+      "animalsAddedToast": "{count, plural, =1 {1 animal added} other {# animals added}} to group.",
+      "animalRemovedToast": "Animal removed from group.",
+      "createError": "Could not create group.",
+      "updateError": "Could not update group.",
+      "deleteError": "Could not delete group.",
+      "addAnimalsError": "Could not add animals to group.",
+      "removeAnimalError": "Could not remove animal from group.",
+      "searchAnimalsPlaceholder": "Search by tag number or name...",
+      "selectedCount": "{count} selected",
+      "addSelected": "Add Selected Animals",
+      "allAnimalsAlreadyInGroup": "All farm animals are already in this group."
     }
   },
   "inventory": {
