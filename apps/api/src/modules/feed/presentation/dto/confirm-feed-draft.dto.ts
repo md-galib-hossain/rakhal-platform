@@ -36,11 +36,6 @@ export class ConfirmFeedDraftDto {
   date!: string;
 
   @IsOptional()
-  @Transform(trimString)
-  @IsString()
-  feedGroupId?: string;
-
-  @IsOptional()
   @IsEnum(FeedGridSourceType)
   sourceType?: FeedGridSourceType;
 

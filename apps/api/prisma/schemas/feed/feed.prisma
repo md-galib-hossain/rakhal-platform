@@ -133,9 +133,9 @@ model FeedIngredientOverride {
   @@index([farmId])
 }
 
-/// A concentration template = a feed formula targeted at a feed group (or a
-/// single cow). `feedGroupId`/`cattleId` are plain validated FKs (resolved in
-/// the service) to avoid coupling to the Settings-owned `FeedGroup`/`Cattle`.
+/// A concentration template = a feed formula targeted at a single cow or the
+/// whole herd. `cattleId` is a plain validated FK (resolved in the service) to
+/// avoid coupling to `Cattle`.
 model FeedConcentration {
   id     String @id @default(cuid())
   farmId String
@@ -153,8 +153,7 @@ model FeedConcentration {
 
   name           String
   durationDays   Int?
-  targetType     FeedTargetType @default(GROUP)
-  feedGroupId    String?
+  targetType     FeedTargetType @default(HERD)
   cattleId       String?
   targetWeightKg Float?
   targetMilkL    Float?
@@ -179,7 +178,6 @@ model FeedConcentration {
   versions            FeedConcentrationVersion[]
 
   @@index([farmId])
-  @@index([farmId, feedGroupId])
 }
 
 /// Explicit checkpoint snapshot of a `FEED_MIXTURE` concentration, taken only on
@@ -256,13 +254,9 @@ model FeedDistribution {
   /// CONCENTRATION = normal TMR "Feed Today" flow; QUICK_FEED = single raw item fed directly,
   /// no Concentration involved (2026-08-13).
   sourceType             FeedDistributionSourceType @default(CONCENTRATION)
-  /// Denormalized from the concentration at log time — exactly one of these two is set, matching
-  /// the source TMR's own `targetType` (GROUP → `feedGroupId`, INDIVIDUAL → `cattleId`, HERD →
-  /// neither). Added 2026-07-18 (Phase 12.4, user request — "feed a single cow, not just a
-  /// group") alongside `feedGroupId`, which predates this and was the only target this model
-  /// supported until now. For `QUICK_FEED` rows these are set directly from the quick-feed
-  /// target choice, not denormalized from any concentration.
-  feedGroupId            String?
+  /// Denormalized from the concentration at log time — set when the source TMR's `targetType` is
+  /// INDIVIDUAL (`cattleId`); null for HERD. For `QUICK_FEED` rows it is set directly from the
+  /// quick-feed target choice, not denormalized from any concentration.
   cattleId               String?
 
   distributedAt DateTime /// the day the feed was distributed
@@ -291,7 +285,6 @@ model FeedDistribution {
   cattleItems FeedDistributionCattleItem[]
 
   @@index([farmId])
-  @@index([farmId, feedGroupId])
   @@index([farmId, cattleId])
   @@index([farmId, distributedAt])
 }
@@ -375,11 +368,6 @@ model FeedDistributionCattleItem {
   sourceType  FeedGridSourceType?
   feedItemId  String?
   feedStockId String?
-  /// Snapshot of the cow's `feedGroupId` at confirm time, same convention as
-  /// `FeedFeedingDraft.feedGroupId`'s own doc comment — not re-derived later. RAKHAL-431's
-  /// group-change guard compares this against the cow's *current* group; a cow moved to a
-  /// different group since must not inherit this row as "own last-used."
-  feedGroupId String?
 
   /// MILESTONE 26 (RAKHAL-442, written from RAKHAL-446): the exact lot + nutrition profile this
   /// cow's kg came from. A cow whose kg straddles two FIFO batches gets two rows, one per lot. Plain
@@ -443,9 +431,7 @@ model FeedDistributionCattleItem {
 /// as drafts, zero inventory effect), then "Confirm" turns the day's drafts into one real
 /// `FeedDistribution`. `cattleId`/`feedItemId`/`feedStockId` are plain validated FKs (no Prisma
 /// relation), same "no cross-module coupling" convention as `FeedDistribution.cattleId` /
-/// `FeedConcentration.cattleId` elsewhere in this file. `feedGroupId` is a **snapshot** of the group
-/// the grid was viewed under when the draft was saved (not re-derived later), so a cow moved to a
-/// different group mid-day doesn't retroactively change which grid load shows its draft.
+/// `FeedConcentration.cattleId` elsewhere in this file.
 ///
 /// No DB `@@unique` constraint: Postgres treats every NULL as distinct, so a composite unique across
 /// the two mutually-exclusive optional `feedItemId`/`feedStockId` columns can't actually enforce
@@ -464,7 +450,6 @@ model FeedFeedingDraft {
   farmId String
 
   cattleId    String
-  feedGroupId String?
   logDate     DateTime
 
   sourceType  FeedGridSourceType
@@ -488,12 +473,9 @@ model FeedFeedingDraft {
 }
 
 enum FeedTargetType {
-  GROUP
   INDIVIDUAL
   /// Whole-herd default ration — falls through to this when a cow has no INDIVIDUAL
-  /// override and its `feedGroupId` (or its group) has no GROUP-targeted concentration.
-  /// Added 2026-08-13 (user request — "herd default -> group -> individual override,
-  /// most specific wins"). Uses neither `feedGroupId` nor `cattleId`.
+  /// override. Uses no `cattleId`.
   HERD
 }
 

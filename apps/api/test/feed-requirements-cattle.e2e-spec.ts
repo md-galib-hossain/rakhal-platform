@@ -6,12 +6,11 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
  * Feed Formulator — cow-driven requirements, Phase 2 of the epic in
  * `C:\Users\mdgal\.claude\plans\composed-pondering-teapot.md` (2026-07-17, no ticket #).
  * `GET /feed/requirements` now accepts `cattleId` (auto-derives weight/BCS/gestation/milk yield from
- * real records, falling back to manual fields when incomplete) or `feedGroupId` (averages across
- * members, returns both `per_cow` and `group_total`). Also proves the domain's new late-gestation
+ * real records, falling back to manual fields when incomplete). Also proves the domain's new late-gestation
  * and BCS-deviation formula terms actually move the output through this data-wiring path, not just
  * in the pure unit spec.
  *
- * Creates its own isolated `Cattle`/`ReproductionProfile`/`Pregnancy`/`MilkLogEntry`/`FeedGroup` rows
+ * Creates its own isolated `Cattle`/`ReproductionProfile`/`Pregnancy`/`MilkLogEntry` rows
  * via Prisma (unique tag numbers) rather than mutating shared seeded cattle — e2e suites run in
  * parallel Jest workers against one shared dev DB (lesson learned from the Phase 1 nutrient-override
  * spec's flake).
@@ -175,47 +174,5 @@ describe('Feed Formulator — cow-driven requirements (e2e)', () => {
     expect(gestationRes.body.data.requirements.me_mj).toBeGreaterThan(
       baselineRes.body.data.requirements.me_mj,
     );
-  });
-
-  it('a feed group averages members and returns both per_cow and group_total', async () => {
-    const a = await createCow({ lastWeightKg: 400 });
-    const b = await createCow({ lastWeightKg: 500 });
-    const group = await prisma.feedGroup.create({
-      data: {
-        farmId: owner.farmId,
-        name: `E2E Requirements Group ${Date.now()}`,
-      },
-    });
-    await prisma.cattle.updateMany({
-      where: { id: { in: [a.id, b.id] } },
-      data: { feedGroupId: group.id },
-    });
-
-    const res = await request(server())
-      .get(api('/feed/requirements'))
-      .set(...auth(owner))
-      .query({ feedGroupId: group.id })
-      .expect(200);
-
-    expect(res.body.data.inputs.headcount).toBe(2);
-    expect(res.body.data.inputs.weight_kg).toBe(450); // avg(400, 500)
-    expect(res.body.data.group_total.dm_kg).toBeCloseTo(
-      res.body.data.per_cow.dm_kg * 2,
-      2,
-    );
-  });
-
-  it('400s for an empty feed group', async () => {
-    const group = await prisma.feedGroup.create({
-      data: {
-        farmId: owner.farmId,
-        name: `E2E Empty Group ${Date.now()}`,
-      },
-    });
-    await request(server())
-      .get(api('/feed/requirements'))
-      .set(...auth(owner))
-      .query({ feedGroupId: group.id })
-      .expect(400);
   });
 });

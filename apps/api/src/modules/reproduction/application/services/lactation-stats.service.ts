@@ -400,7 +400,7 @@ export class LactationStatsService {
 
   /**
    * RAKHAL-287: farm-level average yield/peak/persistency per bucket
-   * (parity/shed/feed-group/DIM-range), over every currently-`ACTIVE`
+   * (parity/shed/DIM-range), over every currently-`ACTIVE`
    * lactation on the farm. Peak/persistency are read off each lactation's
    * already-stored/kept-fresh columns (RAKHAL-284); the rolling 7-day
    * average is computed fresh per cow from the same `MilkLogEntry`/
@@ -425,9 +425,7 @@ export class LactationStatsService {
         cattle: {
           select: {
             shedId: true,
-            feedGroupId: true,
             shed: { select: { name: true } },
-            feedGroup: { select: { name: true } },
           },
         },
       },
@@ -479,8 +477,6 @@ export class LactationStatsService {
           dim,
           shedId: lactation.cattle.shedId,
           shedName: lactation.cattle.shed?.name ?? null,
-          feedGroupId: lactation.cattle.feedGroupId,
-          feedGroupName: lactation.cattle.feedGroup?.name ?? null,
         });
 
         return {
@@ -506,8 +502,6 @@ export class LactationStatsService {
       dim: number;
       shedId: string | null;
       shedName: string | null;
-      feedGroupId: string | null;
-      feedGroupName: string | null;
     },
   ): { bucketKey: string; bucketLabel: string } {
     switch (groupBy) {
@@ -523,11 +517,6 @@ export class LactationStatsService {
         return {
           bucketKey: input.shedId ?? 'UNASSIGNED',
           bucketLabel: input.shedName ?? 'Unassigned',
-        };
-      case 'feedGroup':
-        return {
-          bucketKey: input.feedGroupId ?? 'UNASSIGNED',
-          bucketLabel: input.feedGroupName ?? 'Unassigned',
         };
     }
   }

@@ -13,7 +13,7 @@ import type { AnimalType } from '../../domain/requirements';
 const toNumber = ({ value }: { value: unknown }) =>
   value === undefined || value === null || value === '' ? value : Number(value);
 
-/** `GET /feed/requirements` query (PRD §12.4, RAKHAL-081). Either supply `cattleId`/`feedGroupId`
+/** `GET /feed/requirements` query (PRD §12.4, RAKHAL-081). Either supply `cattleId`
  * (cow-driven — weight/milk-yield auto-derived from real records) or the manual `weightKg`/
  * `milkTargetL` pair (original behavior, for farms without complete cattle/milk data). The two
  * modes are mutually exclusive-by-convention, not enforced at the DTO level (the service falls
@@ -23,18 +23,14 @@ export class FeedRequirementsQueryDto {
   @IsString()
   cattleId?: string;
 
-  @IsOptional()
-  @IsString()
-  feedGroupId?: string;
-
-  @ValidateIf((o: FeedRequirementsQueryDto) => !o.cattleId && !o.feedGroupId)
+  @ValidateIf((o: FeedRequirementsQueryDto) => !o.cattleId)
   @Transform(toNumber)
   @IsNumber()
   @Min(1)
   @Max(2000)
   weightKg?: number;
 
-  @ValidateIf((o: FeedRequirementsQueryDto) => !o.cattleId && !o.feedGroupId)
+  @ValidateIf((o: FeedRequirementsQueryDto) => !o.cattleId)
   @Transform(toNumber)
   @IsNumber()
   @Min(0)

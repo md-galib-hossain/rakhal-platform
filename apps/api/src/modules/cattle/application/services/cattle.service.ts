@@ -254,7 +254,6 @@ export class CattleService {
             // `refreshDerivedState` below, from the real Lactation/DryPeriod fact this same
             // transaction creates when `productionStatus` was requested (MILKING/DRY below).
             shedId: dto.shedId,
-            feedGroupId: dto.feedGroupId,
             lastWeightKg: dto.weightKg,
             lastBcs: dto.bcs,
             motherId: dto.motherId,
@@ -504,7 +503,13 @@ export class CattleService {
         ? { productionStatus: query.productionStatus }
         : {}),
       ...(query.shedId ? { shedId: query.shedId } : {}),
-      ...(query.feedGroupId ? { feedGroupId: query.feedGroupId } : {}),
+      ...(query.animalGroupId
+        ? {
+            animalGroupMemberships: {
+              some: { groupId: query.animalGroupId },
+            },
+          }
+        : {}),
       ...(query.reproductiveStatus
         ? {
             reproductionProfile: {
@@ -656,7 +661,6 @@ export class CattleService {
             // RD-048: no longer written raw here — see the DryPeriod branch below and
             // `needsRecompute` — the stored value is always derived from a real fact.
             shedId: dto.shedId,
-            feedGroupId: dto.feedGroupId,
             lastWeightKg: dto.weightKg,
             lastBcs: dto.bcs,
             motherId: dto.motherId,
@@ -1278,13 +1282,6 @@ export class CattleService {
         const { count } = await this.prisma.cattle.updateMany({
           where: scope,
           data: { shedId: payload.shedId },
-        });
-        return this.bulkResult(action, count, cattleIds.length);
-      }
-      case 'change_feed_group': {
-        const { count } = await this.prisma.cattle.updateMany({
-          where: scope,
-          data: { feedGroupId: payload?.feedGroupId ?? null },
         });
         return this.bulkResult(action, count, cattleIds.length);
       }

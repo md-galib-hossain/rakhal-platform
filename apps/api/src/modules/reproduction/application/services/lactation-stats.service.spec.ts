@@ -512,9 +512,7 @@ describe('LactationStatsService', () => {
           peakDaysInMilk: 5,
           cattle: {
             shedId: null,
-            feedGroupId: null,
             shed: null,
-            feedGroup: null,
           },
         },
         {
@@ -527,9 +525,7 @@ describe('LactationStatsService', () => {
           peakDaysInMilk: 5,
           cattle: {
             shedId: null,
-            feedGroupId: null,
             shed: null,
-            feedGroup: null,
           },
         },
       ]);
@@ -573,9 +569,7 @@ describe('LactationStatsService', () => {
           peakDaysInMilk: null,
           cattle: {
             shedId: 'shed-1',
-            feedGroupId: null,
             shed: { name: 'Shed A' },
-            feedGroup: null,
           },
         },
         {
@@ -588,9 +582,7 @@ describe('LactationStatsService', () => {
           peakDaysInMilk: null,
           cattle: {
             shedId: null,
-            feedGroupId: null,
             shed: null,
-            feedGroup: null,
           },
         },
       ]);
@@ -622,9 +614,7 @@ describe('LactationStatsService', () => {
           peakDaysInMilk: null,
           cattle: {
             shedId: null,
-            feedGroupId: null,
             shed: null,
-            feedGroup: null,
           },
         },
       ]);

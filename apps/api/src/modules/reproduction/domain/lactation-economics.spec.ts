@@ -1,5 +1,4 @@
 import {
-  allocateGroupFeedCost,
   computeDiscardedWithheldValue,
   computeLactationMargin,
   computeMilkRevenue,
@@ -27,24 +26,6 @@ describe('computeDiscardedWithheldValue', () => {
 
   it('returns 0 when nothing was withheld or discarded', () => {
     expect(computeDiscardedWithheldValue(0, 0, 55)).toBe(0);
-  });
-});
-
-describe('allocateGroupFeedCost', () => {
-  it('splits the group cost evenly across headcount', () => {
-    expect(allocateGroupFeedCost(1000, 10)).toBe(100);
-  });
-
-  it('guards divide-by-zero when the group has no headcount', () => {
-    expect(allocateGroupFeedCost(1000, 0)).toBe(0);
-  });
-
-  it('guards a negative headcount defensively', () => {
-    expect(allocateGroupFeedCost(1000, -1)).toBe(0);
-  });
-
-  it('rounds to 2 decimal places', () => {
-    expect(allocateGroupFeedCost(100, 3)).toBe(33.33);
   });
 });
 

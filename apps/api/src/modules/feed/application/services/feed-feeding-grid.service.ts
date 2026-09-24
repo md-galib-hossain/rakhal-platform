@@ -70,7 +70,7 @@ type ResolvedSource = {
 
 /**
  * Feeding Grid (2026-08-15) — replaces Quick Feed. A per-cow, spreadsheet-style feeding session:
- * a farmer opens the grid for a day (optionally scoped to one feed group), sees every cow with its
+ * a farmer opens the grid for a day, sees every cow with its
  * carried-forward default quantity (yesterday's confirmed per-head value, regardless of which exact
  * prior date it came from), edits freely with auto-saved drafts (`FeedFeedingDraft`, zero inventory
  * effect), then "Confirm" turns the day's quantities into one real `FeedDistribution` (+ one
@@ -95,12 +95,9 @@ export class FeedFeedingGridService {
 
   /**
    * RAKHAL-434: per-day feeding-entry status for the missed-entry calendar picker on the Feed
-   * Grid page. Expected coverage per day is the set of distinct `feedGroupId`s among the active
-   * herd (`null` = ungrouped cattle, only reachable by a whole-farm confirm). A whole-farm
-   * confirm (`FeedDistribution.feedGroupId === null`) covers every group in one shot; a
-   * per-group confirm only covers its own group. `complete` = full expected coverage that day,
-   * `partial` = some, `missing` = none. Days before the farm existed or after today are never
-   * `missing`.
+   * Grid page. Expected coverage per day is every active cow having a non-voided Feeding Grid
+   * entry that day. `complete` = every active cow covered, `partial` = some, `missing` = none.
+   * Days before the farm existed or after today are never `missing`.
    */
   async calendar(farmId: string, month: string) {
     const [year, m] = month.split('-').map(Number);
@@ -115,35 +112,36 @@ export class FeedFeedingGridService {
       }),
       this.prisma.cattle.findMany({
         where: activeHerd(farmId),
-        select: { feedGroupId: true },
+        select: { id: true },
       }),
-      this.prisma.feedDistribution.findMany({
+      this.prisma.feedDistributionCattleItem.findMany({
         where: {
-          farmId,
-          sourceType: 'FEEDING_GRID',
-          distributedAt: { gte: from, lt: to },
+          voidedAt: null,
+          distribution: {
+            farmId,
+            sourceType: 'FEEDING_GRID',
+            voidedAt: null,
+            distributedAt: { gte: from, lt: to },
+          },
         },
-        select: { distributedAt: true, feedGroupId: true },
+        select: {
+          cattleId: true,
+          distribution: { select: { distributedAt: true } },
+        },
       }),
     ]);
     const farmCreatedDay = farm
       ? this.dayStart(farm.createdAt.toISOString())
       : null;
-    const expectedGroups = new Set(
-      cattle.map((c) => c.feedGroupId ?? '__ungrouped__'),
-    );
+    const activeIds = new Set(cattle.map((c) => c.id));
 
-    type Coverage = { farmWide: boolean; groups: Set<string> };
-    const coverageByDay = new Map<string, Coverage>();
+    const coverageByDay = new Map<string, Set<string>>();
     for (const row of rows) {
-      const key = this.dateOnly(row.distributedAt);
-      const cov = coverageByDay.get(key) ?? {
-        farmWide: false,
-        groups: new Set<string>(),
-      };
-      if (row.feedGroupId == null) cov.farmWide = true;
-      else cov.groups.add(row.feedGroupId);
-      coverageByDay.set(key, cov);
+      if (!activeIds.has(row.cattleId)) continue;
+      const key = this.dateOnly(row.distribution.distributedAt);
+      const covered = coverageByDay.get(key) ?? new Set<string>();
+      covered.add(row.cattleId);
+      coverageByDay.set(key, covered);
     }
 
     const days: Array<{
@@ -157,19 +155,13 @@ export class FeedFeedingGridService {
         status = 'future';
       } else if (farmCreatedDay && d.getTime() < farmCreatedDay.getTime()) {
         status = 'before_farm';
-      } else if (expectedGroups.size === 0) {
+      } else if (activeIds.size === 0) {
         status = 'missing';
       } else {
-        const cov = coverageByDay.get(dateStr);
-        if (!cov) {
-          status = 'missing';
-        } else if (cov.farmWide || cov.groups.size >= expectedGroups.size) {
-          status = 'complete';
-        } else if (cov.groups.size > 0) {
-          status = 'partial';
-        } else {
-          status = 'missing';
-        }
+        const covered = coverageByDay.get(dateStr)?.size ?? 0;
+        if (covered === 0) status = 'missing';
+        else if (covered >= activeIds.size) status = 'complete';
+        else status = 'partial';
       }
       days.push({ date: dateStr, status });
     }
@@ -177,27 +169,16 @@ export class FeedFeedingGridService {
     return { month, days };
   }
 
-  async getGrid(farmId: string, date: string, feedGroupId?: string) {
-    if (feedGroupId) {
-      const group = await this.prisma.feedGroup.findFirst({
-        where: { id: feedGroupId, farmId, deletedAt: null },
-        select: { id: true },
-      });
-      if (!group) throw new NotFoundException('Feed group not found');
-    }
-
+  async getGrid(farmId: string, date: string) {
     const logDate = this.dayStart(date);
     const cattle = await this.prisma.cattle.findMany({
-      where: {
-        ...activeHerd(farmId),
-        ...(feedGroupId ? { feedGroupId } : {}),
-      },
-      select: { id: true, name: true, tagNumber: true, feedGroupId: true },
+      where: activeHerd(farmId),
+      select: { id: true, name: true, tagNumber: true },
       orderBy: { tagNumber: 'asc' },
     });
     const cattleIds = cattle.map((c) => c.id);
     if (cattleIds.length === 0) {
-      return { date: date, feed_group_id: feedGroupId ?? null, cows: [] };
+      return { date: date, cows: [] };
     }
 
     const [drafts, defaults, defaultSources, confirmedToday] =
@@ -213,12 +194,10 @@ export class FeedFeedingGridService {
 
     return {
       date,
-      feed_group_id: feedGroupId ?? null,
       cows: cattle.map((c) => ({
         cattle_id: c.id,
         name: c.name,
         tag_number: c.tagNumber,
-        feed_group_id: c.feedGroupId,
         drafts: (draftsByCattle.get(c.id) ?? []).map((d) => this.mapDraft(d)),
         default_offered_kg: defaults.get(c.id) ?? null,
         default_source: this.mapResolvedSource(defaultSources.get(c.id)),
@@ -283,7 +262,6 @@ export class FeedFeedingGridService {
           : await this.createOrRecoverDraft(tx, {
               farmId,
               cattleId: entry.cattleId,
-              feedGroupId: dto.feedGroupId,
               logDate,
               source,
               offeredKg: round2(entry.offeredKg),
@@ -307,8 +285,8 @@ export class FeedFeedingGridService {
    * Turn a day's feeding-grid quantities into one real `FeedDistribution`.
    *
    * RAKHAL-440/RD-100: cow **scope** depends on whether `dto.entries` is given. With entries, scope
-   * is *exactly* the cows named there — nothing else. Without entries, scope is the full grid for
-   * `{feedGroupId}` (or the whole active herd if omitted), matching `getGrid()`, so a bare confirm
+   * is *exactly* the cows named there — nothing else. Without entries, scope is the whole active
+   * herd, matching `getGrid()`, so a bare confirm
    * with nothing typed still resolves a quantity per cow via drafts/the carried-forward default.
    * **Before this fix**, a non-empty `entries` still fell through to the whole-grid path for every
    * cow it didn't name — a farmer who checked one row and clicked "Confirm (1)" could silently pull
@@ -329,14 +307,6 @@ export class FeedFeedingGridService {
    * `assertSufficientStock` already established here.
    */
   async confirm(farmId: string, userId: string, dto: ConfirmFeedDraftDto) {
-    if (dto.feedGroupId) {
-      const group = await this.prisma.feedGroup.findFirst({
-        where: { id: dto.feedGroupId, farmId, deletedAt: null },
-        select: { id: true },
-      });
-      if (!group) throw new NotFoundException('Feed group not found');
-    }
-
     // RAKHAL-441 — a farm's owner controls which sessions are unlocked (same
     // `FarmSettingsService.milkActiveSessions` config Milk already enforces via its own
     // `assertSessionActive`) — reject a session the farm hasn't turned on, rather than silently
@@ -352,11 +322,8 @@ export class FeedFeedingGridService {
 
     const logDate = this.dayStart(dto.date);
     const cattle = await this.prisma.cattle.findMany({
-      where: {
-        ...activeHerd(farmId),
-        ...(dto.feedGroupId ? { feedGroupId: dto.feedGroupId } : {}),
-      },
-      select: { id: true, feedGroupId: true },
+      where: activeHerd(farmId),
+      select: { id: true },
     });
     const cattleIds = cattle.map((c) => c.id);
     if (cattleIds.length === 0) {
@@ -364,9 +331,6 @@ export class FeedFeedingGridService {
         'No cattle in scope to confirm feeding for',
       );
     }
-    const currentGroupByCattle = new Map(
-      cattle.map((c) => [c.id, c.feedGroupId]),
-    );
 
     const entriesMap = new Map((dto.entries ?? []).map((e) => [e.cattleId, e]));
     const dtoDefaultSource = dto.sourceType
@@ -490,10 +454,6 @@ export class FeedFeedingGridService {
     );
 
     const totalKg = round2(groupPlans.reduce((sum, g) => sum + g.totalKg, 0));
-    const targetFields = dto.feedGroupId
-      ? { feedGroupId: dto.feedGroupId, cattleId: null }
-      : { feedGroupId: null, cattleId: null };
-
     const created = await this.prisma.$transaction(async (tx) => {
       // RAKHAL-446: a purchased-feed source is drawn FIFO from its real lots, so one cow's share can
       // span two lots. Each (cow, lot) pair becomes its own cow-line — exact lot cost, exact lot
@@ -555,7 +515,6 @@ export class FeedFeedingGridService {
 
         const usage = await this.feedDistribution.computeFeedItemUsage(
           farmId,
-          userId,
           g.source.feedItemId!,
           g.totalKg,
           tx,
@@ -617,7 +576,7 @@ export class FeedFeedingGridService {
           farmId,
           concentrationId: null,
           sourceType: 'FEEDING_GRID',
-          ...targetFields,
+          cattleId: null,
           distributedAt: logDate,
           totalPlannedKg: totalKg,
           totalActualKg: totalKg,
@@ -656,7 +615,6 @@ export class FeedFeedingGridService {
             sourceType: p.source.sourceType,
             feedItemId: p.source.feedItemId,
             feedStockId: p.source.feedStockId,
-            feedGroupId: currentGroupByCattle.get(p.cattleId) ?? null,
             costTk: p.costTk,
             feedName: p.feedName,
             session: dto.session ?? null,
@@ -710,7 +668,6 @@ export class FeedFeedingGridService {
     return {
       id: created.id,
       date: dto.date,
-      feed_group_id: dto.feedGroupId ?? null,
       total_actual_kg: created.totalActualKg,
       total_actual_cost: created.totalActualCost,
       sources: groupPlans.map((g) => ({
@@ -755,28 +712,18 @@ export class FeedFeedingGridService {
     params: {
       farmId: string;
       cattleId: string;
-      feedGroupId?: string;
       logDate: Date;
       source: ResolvedSource;
       offeredKg: number;
       userId: string;
     },
   ) {
-    const {
-      farmId,
-      cattleId,
-      feedGroupId,
-      logDate,
-      source,
-      offeredKg,
-      userId,
-    } = params;
+    const { farmId, cattleId, logDate, source, offeredKg, userId } = params;
     try {
       return await tx.feedFeedingDraft.create({
         data: {
           farmId,
           cattleId,
-          feedGroupId,
           logDate,
           sourceType: source.sourceType,
           feedItemId: source.feedItemId,
@@ -882,7 +829,6 @@ export class FeedFeedingGridService {
       // lots inside its transaction and writes the exact per-lot cost and profile snapshot itself.
       const usage = await this.feedDistribution.computeFeedItemUsage(
         farmId,
-        userId,
         source.feedItemId!,
         totalKg,
       );
@@ -1298,29 +1244,21 @@ export class FeedFeedingGridService {
   }
 
   /**
-   * RAKHAL-431: resolution ladder — **own last-used → feed-group default → none** — surfaced as
-   * `default_source` on `GET /feed/grid` (parallel to `default_offered_kg`). Batched over the whole
-   * `cattle` list passed in rather than resolved per cow, so the grid stays a handful of queries
-   * regardless of herd size.
+   * RAKHAL-431: resolution ladder — **own last-used → none** — surfaced as `default_source` on
+   * `GET /feed/grid` (parallel to `default_offered_kg`). Batched over the whole `cattle` list
+   * passed in rather than resolved per cow, so the grid stays a handful of queries regardless of
+   * herd size.
    *
-   * Own last-used is honored only past two guards, in order:
-   * 1. **Group-change guard** — `FeedDistributionCattleItem.feedGroupId` (snapshotted at confirm
-   *    time, RAKHAL-430) must match the cow's *current* `feedGroupId` (`null === null` counts as a
-   *    match — a groupless cow's own history is still hers). A cow moved to a different group falls
-   *    through to that new group's default instead of inheriting the old group's feed.
-   * 2. **Availability guard** — the resolved `FeedItem`/`FeedStock` must still exist, not be
-   *    soft-deleted, and carry real stock (`> 0`).
+   * Own last-used is honored only past an **availability guard** — the resolved
+   * `FeedItem`/`FeedStock` must still exist, not be soft-deleted, and carry real stock (`> 0`).
    *
    * A `FeedStock` lot that fails the availability guard gets one more chance — **batch
    * fall-forward**: a sibling lot sharing the same `sourceConcentrationId` (same recipe, re-mixed)
-   * that does have stock. Only then does resolution fall through to `FeedGroup`'s own
-   * `defaultFeedSourceType`/`defaultFeedItemId`/`defaultFeedStockId` (RAKHAL-429) — returned as-is,
-   * unguarded, since it is a farmer-configured intent rather than history; a shortfall there still
-   * surfaces normally at confirm time via `resolveGroupPlan`'s own stock validation.
+   * that does have stock. Otherwise the cow has no default source.
    */
   private async resolveDefaultSources(
     farmId: string,
-    cattle: { id: string; feedGroupId: string | null }[],
+    cattle: { id: string }[],
   ): Promise<Map<string, ResolvedSource | null>> {
     const cattleIds = cattle.map((c) => c.id);
     const lastUsedByCattle = await this.computeLastUsedSources(
@@ -1386,46 +1324,11 @@ export class FeedFeedingGridService {
       }
     }
 
-    const groupIds = new Set<string>();
-    for (const c of cattle) if (c.feedGroupId) groupIds.add(c.feedGroupId);
-    const groups = groupIds.size
-      ? await this.prisma.feedGroup.findMany({
-          where: { id: { in: [...groupIds] }, farmId },
-          select: {
-            id: true,
-            defaultFeedSourceType: true,
-            defaultFeedItemId: true,
-            defaultFeedStockId: true,
-          },
-        })
-      : [];
-    const groupMap = new Map(groups.map((g) => [g.id, g]));
-
-    const groupDefault = (
-      feedGroupId: string | null,
-    ): ResolvedSource | null => {
-      const group = feedGroupId ? groupMap.get(feedGroupId) : undefined;
-      if (!group?.defaultFeedSourceType) return null;
-      return {
-        sourceType: group.defaultFeedSourceType,
-        feedItemId:
-          group.defaultFeedSourceType === 'FEED_ITEM'
-            ? (group.defaultFeedItemId ?? null)
-            : null,
-        feedStockId:
-          group.defaultFeedSourceType === 'FEED_STOCK'
-            ? (group.defaultFeedStockId ?? null)
-            : null,
-      };
-    };
-
     const result = new Map<string, ResolvedSource | null>();
     for (const c of cattle) {
       const lastUsed = lastUsedByCattle.get(c.id);
-      const groupChangeOk =
-        lastUsed !== undefined && lastUsed.feedGroupId === c.feedGroupId;
 
-      if (groupChangeOk && lastUsed.sourceType === 'FEED_ITEM') {
+      if (lastUsed?.sourceType === 'FEED_ITEM') {
         const item = lastUsed.feedItemId
           ? itemMap.get(lastUsed.feedItemId)
           : undefined;
@@ -1441,7 +1344,7 @@ export class FeedFeedingGridService {
           });
           continue;
         }
-      } else if (groupChangeOk && lastUsed.sourceType === 'FEED_STOCK') {
+      } else if (lastUsed?.sourceType === 'FEED_STOCK') {
         const stock = lastUsed.feedStockId
           ? stockMap.get(lastUsed.feedStockId)
           : undefined;
@@ -1466,7 +1369,7 @@ export class FeedFeedingGridService {
         }
       }
 
-      result.set(c.id, groupDefault(c.feedGroupId));
+      result.set(c.id, null);
     }
     return result;
   }
@@ -1485,7 +1388,6 @@ export class FeedFeedingGridService {
         sourceType: FeedGridSourceType;
         feedItemId: string | null;
         feedStockId: string | null;
-        feedGroupId: string | null;
       }
     >
   > {
@@ -1500,7 +1402,6 @@ export class FeedFeedingGridService {
         sourceType: true,
         feedItemId: true,
         feedStockId: true,
-        feedGroupId: true,
         distribution: { select: { distributedAt: true } },
       },
       orderBy: { distribution: { distributedAt: 'desc' } },
@@ -1511,7 +1412,6 @@ export class FeedFeedingGridService {
         sourceType: FeedGridSourceType;
         feedItemId: string | null;
         feedStockId: string | null;
-        feedGroupId: string | null;
       }
     >();
     for (const row of rows) {
@@ -1520,7 +1420,6 @@ export class FeedFeedingGridService {
           sourceType: row.sourceType,
           feedItemId: row.feedItemId,
           feedStockId: row.feedStockId,
-          feedGroupId: row.feedGroupId,
         });
       }
     }

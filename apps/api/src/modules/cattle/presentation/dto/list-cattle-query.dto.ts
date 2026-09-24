@@ -85,7 +85,7 @@ export class ListCattleQueryDto extends CursorPaginationQueryDto {
   @IsOptional()
   @Transform(trimString)
   @IsString()
-  feedGroupId?: string;
+  animalGroupId?: string;
 
   /** RAKHAL-400: renamed from `includeArchived` — this flag only ever
    * controlled whether soft-deleted rows (`deletedAt`) were included; it had

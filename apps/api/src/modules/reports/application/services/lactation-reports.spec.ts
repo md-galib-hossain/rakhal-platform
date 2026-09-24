@@ -40,7 +40,6 @@ describe('ReportGeneratorsService — lactation reports (RAKHAL-288)', () => {
       tagNumber: 'T-001',
       name: 'Bessie',
       shed: { name: 'Shed A' },
-      feedGroup: { name: 'High Yield' },
     },
   };
 
@@ -133,7 +132,7 @@ describe('ReportGeneratorsService — lactation reports (RAKHAL-288)', () => {
       expect(data.title).toContain('T-001');
     });
 
-    it('returns dates/DIM/totals/peak/persistency/quality/health/feed-group/breeding/dry-off sections', async () => {
+    it('returns dates/DIM/totals/peak/persistency/quality/health/breeding/dry-off sections', async () => {
       prisma.milkLogEntry.findMany.mockResolvedValueOnce([
         {
           logDate: new Date('2026-06-05T00:00:00.000Z'),
@@ -198,7 +197,6 @@ describe('ReportGeneratorsService — lactation reports (RAKHAL-288)', () => {
       expect(overview.rows).toEqual(
         expect.arrayContaining([
           ['Shed', 'Shed A'],
-          ['Feed group', 'High Yield'],
           ['Lactation number', 2],
         ]),
       );

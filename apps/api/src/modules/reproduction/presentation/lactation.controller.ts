@@ -71,7 +71,7 @@ export class LactationController {
     );
   }
 
-  /** Farm-level average yield/peak/persistency, bucketed by parity/shed/feedGroup/dimRange. */
+  /** Farm-level average yield/peak/persistency, bucketed by parity/shed/dimRange. */
   @Get('compare/groups')
   @RequirePermission('reproduction.read')
   compareGroups(

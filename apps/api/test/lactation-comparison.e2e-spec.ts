@@ -5,7 +5,7 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 /**
  * RAKHAL-287 — `GET /reproduction/lactations/compare` (current vs. previous
  * lactation for one cow, DIM-aligned) and `GET /reproduction/lactations/compare/groups`
- * (farm-level average yield/peak/persistency bucketed by parity/shed/feedGroup/dimRange).
+ * (farm-level average yield/peak/persistency bucketed by parity/shed/dimRange).
  *
  * Creates its own isolated `Cattle`/`Lactation`/`MilkLogEntry` rows directly
  * via Prisma (unique tags, and a freshly-created `Shed` for the group-by

@@ -23,7 +23,6 @@ describe('Feed per-cow record: cost/nutrition/void/session (RAKHAL-441, e2e)', (
   let manager: AuthedUser;
   let worker: AuthedUser;
 
-  let feedGroupId: string;
   let feedItemId: string;
   let ingredientId: string;
   let cowA: string;
@@ -45,13 +44,6 @@ describe('Feed per-cow record: cost/nutrition/void/session (RAKHAL-441, e2e)', (
     manager = await loginAs(ctx, 'manager@demo.rakhal.test', 'ManagerPass123');
     worker = await loginAs(ctx, 'worker@demo.rakhal.test', 'WorkerPass123');
 
-    const group = await request(server())
-      .post(api('/settings/feed-groups'))
-      .set(...auth(owner))
-      .send({ name: `E2E 441 Group ${Date.now()}` })
-      .expect(201);
-    feedGroupId = group.body.data.id as string;
-
     const cattleA = await request(server())
       .post(api('/cattle'))
       .set(...auth(owner))
@@ -65,12 +57,6 @@ describe('Feed per-cow record: cost/nutrition/void/session (RAKHAL-441, e2e)', (
       .send({ tagNumber: tag('B'), gender: 'FEMALE' })
       .expect(201);
     cowB = cattleB.body.data.id as string;
-
-    await request(server())
-      .post(api(`/feed/groups/${feedGroupId}/assign-cattle`))
-      .set(...auth(owner))
-      .send({ cattleIds: [cowA, cowB] })
-      .expect(201);
 
     const ingredient = await request(server())
       .post(api('/feed/ingredients/custom'))
@@ -110,7 +96,6 @@ describe('Feed per-cow record: cost/nutrition/void/session (RAKHAL-441, e2e)', (
       .set(...auth(owner))
       .send({
         date: '2026-06-01',
-        feedGroupId,
         sourceType: 'FEED_ITEM',
         feedItemId,
         session: 'NOT_A_REAL_SESSION',
@@ -125,7 +110,6 @@ describe('Feed per-cow record: cost/nutrition/void/session (RAKHAL-441, e2e)', (
       .set(...auth(owner))
       .send({
         date: '2026-06-01',
-        feedGroupId,
         sourceType: 'FEED_ITEM',
         feedItemId,
         session: 'morning',

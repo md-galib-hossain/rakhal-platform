@@ -182,21 +182,19 @@ export class FeedConcentrationService {
     // Feed Mixture the way every concentration did before `kind` existed, user request 2026-07-18).
     const isTemplate = dto.kind === 'CONCENTRATE_TEMPLATE';
     const targetType = isTemplate ? undefined : dto.targetType;
-    const feedGroupId = isTemplate ? undefined : dto.feedGroupId;
     const cattleId = isTemplate ? undefined : dto.cattleId;
     let targetWeightKg = isTemplate ? undefined : dto.targetWeightKg;
     let targetMilkL = isTemplate ? undefined : dto.targetMilkL;
 
-    // Once a real cow/group target is picked, manual weight/milk entry is optional (user request
+    // Once a real cow target is picked, manual weight/milk entry is optional (user request
     // 2026-07-18) — the wizard already surfaces these live-derived values, so the backend must be
     // able to resolve them too instead of hard-rejecting whenever they're omitted. Reuses the exact
-    // same cattle/group derivation `GET /feed/requirements` already exposes to the wizard's live
+    // same cattle derivation `GET /feed/requirements` already exposes to the wizard's live
     // preview, so the stored value matches what the farmer actually saw on screen.
     if (!isTemplate && (targetWeightKg == null || targetMilkL == null)) {
-      if (cattleId || feedGroupId) {
+      if (cattleId) {
         const resolved = await this.feedRequirements.calc(farmId, {
           cattleId,
-          feedGroupId,
           weightKg: targetWeightKg,
           milkTargetL: targetMilkL,
         });
@@ -205,12 +203,12 @@ export class FeedConcentrationService {
       }
       if (targetWeightKg == null || targetMilkL == null) {
         throw new BadRequestException(
-          'A Total Mixed Ration requires targetWeightKg and targetMilkL — supply them manually or target a cow/group with a real weight record',
+          'A Total Mixed Ration requires targetWeightKg and targetMilkL — supply them manually or target a cow with a real weight record',
         );
       }
     }
 
-    await this.validateTargets(farmId, feedGroupId, cattleId);
+    await this.validateTargets(farmId, cattleId);
     this.assertLineIdentity(dto.items);
     await this.assertIngredients(dto.items.map((i) => i.ingredientId));
     await this.assertBatchLinks(farmId, dto.items);
@@ -225,7 +223,6 @@ export class FeedConcentrationService {
         name: dto.name,
         durationDays: dto.durationDays,
         targetType,
-        feedGroupId,
         cattleId,
         targetWeightKg,
         targetMilkL,
@@ -263,12 +260,11 @@ export class FeedConcentrationService {
     const existing = await this.getOrThrow(farmId, id);
     const isTemplate = existing.kind === 'CONCENTRATE_TEMPLATE';
     const targetType = isTemplate ? undefined : dto.targetType;
-    const feedGroupId = isTemplate ? undefined : dto.feedGroupId;
     const cattleId = isTemplate ? undefined : dto.cattleId;
     const targetWeightKg = isTemplate ? undefined : dto.targetWeightKg;
     const targetMilkL = isTemplate ? undefined : dto.targetMilkL;
 
-    await this.validateTargets(farmId, feedGroupId, cattleId);
+    await this.validateTargets(farmId, cattleId);
     if (dto.items) {
       this.assertLineIdentity(dto.items);
       await this.assertIngredients(dto.items.map((i) => i.ingredientId));
@@ -300,7 +296,6 @@ export class FeedConcentrationService {
           name: dto.name,
           durationDays: dto.durationDays,
           targetType,
-          feedGroupId,
           cattleId,
           targetWeightKg,
           targetMilkL,
@@ -1002,7 +997,6 @@ export class FeedConcentrationService {
       kind: row.kind,
       name: row.name,
       target_type: row.targetType,
-      feed_group_id: row.feedGroupId,
       cattle_id: row.cattleId,
       duration_days: row.durationDays,
       target_weight_kg: row.targetWeightKg,
@@ -1458,7 +1452,6 @@ export class FeedConcentrationService {
     for (const [key, { feedItemId, pin, qty }] of feedItemQty) {
       const usage = await this.feedDistribution.computeFeedItemUsage(
         farmId,
-        userId,
         feedItemId,
         qty,
         undefined,
@@ -1565,19 +1558,7 @@ export class FeedConcentrationService {
     }
   }
 
-  private async validateTargets(
-    farmId: string,
-    feedGroupId?: string,
-    cattleId?: string,
-  ) {
-    if (feedGroupId) {
-      const group = await this.prisma.feedGroup.findFirst({
-        where: { id: feedGroupId, farmId, deletedAt: null },
-        select: { id: true },
-      });
-      if (!group)
-        throw new BadRequestException('Feed group must belong to the farm');
-    }
+  private async validateTargets(farmId: string, cattleId?: string) {
     if (cattleId) {
       const cattle = await this.prisma.cattle.findFirst({
         where: { id: cattleId, ...activeHerd(farmId) },

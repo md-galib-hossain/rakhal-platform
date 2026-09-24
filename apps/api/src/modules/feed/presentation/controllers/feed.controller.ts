@@ -20,14 +20,12 @@ import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/
 import { SubscriptionFeatureGuard } from 'src/modules/subscription/presentation/guards/subscription-feature.guard';
 import { RequireFeature } from 'src/modules/subscription/presentation/decorators/require-feature.decorator';
 import { FeedConcentrationService } from '../../application/services/feed-concentration.service';
-import { FeedGroupAssignService } from '../../application/services/feed-group-assign.service';
 import { FeedIngredientService } from '../../application/services/feed-ingredient.service';
 import { FeedRequirementsService } from '../../application/services/feed-requirements.service';
 import { RequirementSettingsService } from '../../application/services/requirement-settings.service';
 import { FeedDistributionService } from '../../application/services/feed-distribution.service';
 import { FeedStockService } from '../../application/services/feed-stock.service';
 import { FeedRationResolverService } from '../../application/services/feed-ration-resolver.service';
-import { AssignCattleDto } from '../dto/assign-cattle.dto';
 import { BulkDeleteStockDto } from '../dto/bulk-delete-stock.dto';
 import {
   BulkDeleteConcentrationDto,
@@ -83,7 +81,6 @@ export class FeedController {
     private readonly requirements: FeedRequirementsService,
     private readonly requirementSettings: RequirementSettingsService,
     private readonly concentrations: FeedConcentrationService,
-    private readonly groups: FeedGroupAssignService,
     private readonly distributions: FeedDistributionService,
     private readonly stock: FeedStockService,
     private readonly rationResolver: FeedRationResolverService,
@@ -365,23 +362,6 @@ export class FeedController {
     return this.distributions.getDmiComparison(farmId, cattleId, date);
   }
 
-  // ---- Feed group ↔ cattle ------------------------------------------------
-  @Get('groups/:id/cattle')
-  @RequirePermission('feed.read')
-  groupCattle(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.groups.listCattle(farmId, id);
-  }
-
-  @Post('groups/:id/assign-cattle')
-  @RequirePermission('feed.update')
-  assignCattle(
-    @CurrentFarmId() farmId: string,
-    @Param('id') id: string,
-    @Body() dto: AssignCattleDto,
-  ) {
-    return this.groups.assignCattle(farmId, id, dto.cattleIds);
-  }
-
   // ---- Feed distribution (§12.5) -----------------------------------------
   @Get('distributions')
   @RequirePermission('feed.read')
@@ -404,14 +384,14 @@ export class FeedController {
 
   // ---- Feeding Grid (2026-08-15, replaces Quick Feed) ---------------------
   /** One day's per-cow feeding grid — existing drafts for that day + each cow's carried-forward
-   * default (most recent confirmed per-head quantity), optionally scoped to one feed group. */
+   * default (most recent confirmed per-head quantity). */
   @Get('grid')
   @RequirePermission('feed.read')
   getFeedingGrid(
     @CurrentFarmId() farmId: string,
     @Query() query: FeedGridQueryDto,
   ) {
-    return this.feedingGrid.getGrid(farmId, query.date, query.feedGroupId);
+    return this.feedingGrid.getGrid(farmId, query.date);
   }
 
   /** RAKHAL-434: per-day feeding-entry status for the missed-entry calendar picker. */
@@ -519,20 +499,6 @@ export class FeedController {
     @Body() dto: PatchRefusalDto,
   ) {
     return this.distributions.patchRefusal(farmId, id, dto);
-  }
-
-  @Get('groups/:id/refusal-trend')
-  @RequirePermission('feed.read')
-  refusalTrend(
-    @CurrentFarmId() farmId: string,
-    @Param('id') id: string,
-    @Query('days') days?: string,
-  ) {
-    return this.distributions.getRefusalTrend(
-      farmId,
-      id,
-      days ? Number(days) : undefined,
-    );
   }
 
   // ---- Feed stock (§12.5 follow-up — TMR ↔ Inventory linkage) -------------

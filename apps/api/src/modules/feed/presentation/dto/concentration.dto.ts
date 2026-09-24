@@ -94,11 +94,6 @@ export class CreateConcentrationDto {
   @IsOptional()
   @Transform(trimString)
   @IsString()
-  feedGroupId?: string;
-
-  @IsOptional()
-  @Transform(trimString)
-  @IsString()
   cattleId?: string;
 
   @IsOptional()
@@ -164,11 +159,6 @@ export class UpdateConcentrationDto {
   @IsOptional()
   @IsEnum(FeedTargetType)
   targetType?: FeedTargetType;
-
-  @IsOptional()
-  @Transform(trimString)
-  @IsString()
-  feedGroupId?: string;
 
   @IsOptional()
   @Transform(trimString)

@@ -27,7 +27,7 @@ describe('LactationEconomicsService', () => {
     cattleId: 'cattle-1',
     startDate: new Date('2026-07-01T00:00:00.000Z'),
     endDate: null,
-    cattle: { tagNumber: 'T-001', feedGroupId: 'fg-1' },
+    cattle: { tagNumber: 'T-001' },
   };
 
   const baseStats = {
@@ -163,7 +163,7 @@ describe('LactationEconomicsService', () => {
 
     it("sums the cow's own individual FeedDistribution rows in full", async () => {
       prisma.feedDistribution.findMany.mockResolvedValueOnce([
-        { cattleId: 'cattle-1', feedGroupId: null, totalActualCost: 200 },
+        { totalActualCost: 200 },
       ]);
       const service = make();
       const result = await service.getEconomics('farm-1', 'lact-1');
@@ -172,37 +172,18 @@ describe('LactationEconomicsService', () => {
       expect(prisma.cattle.count).not.toHaveBeenCalled();
     });
 
-    it('pro-rates group-targeted FeedDistribution rows across the feed group headcount', async () => {
-      prisma.feedDistribution.findMany.mockResolvedValueOnce([
-        { cattleId: null, feedGroupId: 'fg-1', totalActualCost: 1000 },
-      ]);
-      prisma.cattle.count.mockResolvedValueOnce(10);
-      const service = make();
-      const result = await service.getEconomics('farm-1', 'lact-1');
-
-      expect(prisma.cattle.count).toHaveBeenCalledWith({
-        where: {
-          farmId: 'farm-1',
-          feedGroupId: 'fg-1',
-          herdStatus: 'ACTIVE',
-          deletedAt: null,
-        },
-      });
-      expect(result.financial.feedCost).toBe(100);
-    });
-
-    it('allocates 0 feed cost when the cow has no individual distribution and no feed group', async () => {
+    it('allocates 0 feed cost when the cow has no individual distribution', async () => {
       prisma.lactation.findFirst.mockResolvedValueOnce({
         ...lactationRow,
-        cattle: { tagNumber: 'T-002', feedGroupId: null },
+        cattle: { tagNumber: 'T-002' },
       });
       const service = make();
       const result = await service.getEconomics('farm-1', 'lact-1');
 
       expect(result.financial.feedCost).toBe(0);
       const calls = prisma.feedDistribution.findMany.mock.calls as unknown[][];
-      const call = calls[0][0] as { where: { OR: unknown } };
-      expect(call.where.OR).toEqual([{ cattleId: 'cattle-1' }]);
+      const call = calls[0][0] as { where: { cattleId: string } };
+      expect(call.where.cattleId).toBe('cattle-1');
     });
 
     it('sums breeding cost via the shared computeCattleFinance aggregation; medicine reads 0 when no HEALTH expense exists (RAKHAL-352/354)', async () => {
@@ -246,7 +227,7 @@ describe('LactationEconomicsService', () => {
         basePricePerLitre: 10,
       });
       prisma.feedDistribution.findMany.mockResolvedValueOnce([
-        { cattleId: 'cattle-1', feedGroupId: null, totalActualCost: 100 },
+        { totalActualCost: 100 },
       ]);
       // RAKHAL-354: health has no V2 source (reads 0); breeding reads real
       // V2 `Expense.cattleId` rows.

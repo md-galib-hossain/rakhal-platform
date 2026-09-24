@@ -10,10 +10,9 @@
  * Every money figure here is a **simplification** the ticket explicitly
  * accepts: milk revenue uses one effective rate per litre (this codebase
  * doesn't track milk sales per-cow — `MilkDispatch` is tank-level, not
- * cow-level), and group-fed cost is pro-rated by the feed group's *current*
- * headcount (no historical headcount-over-time tracking exists). Both
- * simplifications are documented on the returned object via
- * `assumptions` fields, not hidden.
+ * cow-level), and feed cost counts only the cow's own individual feed
+ * distributions. Both simplifications are documented on the returned object
+ * via `assumptions` fields, not hidden.
  */
 
 /** Milk revenue = saleable litres × the effective per-litre rate. */
@@ -36,20 +35,6 @@ export function computeDiscardedWithheldValue(
   ratePerLitre: number,
 ): number {
   return round((withheldLitres + discardedLitres) * ratePerLitre);
-}
-
-/**
- * A group-targeted `FeedDistribution` row's cost split evenly across the
- * feed group's current headcount — this cow's share. Individual-targeted
- * rows (already scoped to just this cow) should be passed straight through,
- * not through this function. Guards divide-by-zero (empty/unassigned group).
- */
-export function allocateGroupFeedCost(
-  totalActualCost: number,
-  groupHeadcount: number,
-): number {
-  if (groupHeadcount <= 0) return 0;
-  return round(totalActualCost / groupHeadcount);
 }
 
 export interface LactationFinancialInputs {

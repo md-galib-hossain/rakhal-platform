@@ -561,7 +561,6 @@ export class FeedItemService {
    */
   async previewDraw(
     farmId: string,
-    userId: string,
     itemId: string,
     quantityKg: number,
     tx?: Prisma.TransactionClient,

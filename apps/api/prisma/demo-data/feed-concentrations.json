@@ -4,8 +4,7 @@
     "farmId": "@farm",
     "name": "High Yield Ration",
     "durationDays": 30,
-    "targetType": "GROUP",
-    "feedGroupId": "sd_fg_high",
+    "targetType": "HERD",
     "targetMilkL": 14,
     "createdBy": "@user:manager",
     "kind": "CONCENTRATE_TEMPLATE"
@@ -15,8 +14,7 @@
     "farmId": "@farm",
     "name": "Mid Yield Ration",
     "durationDays": 30,
-    "targetType": "GROUP",
-    "feedGroupId": "sd_fg_mid",
+    "targetType": "HERD",
     "targetMilkL": 8,
     "createdBy": "@user:manager",
     "kind": "CONCENTRATE_TEMPLATE"
@@ -26,8 +24,7 @@
     "farmId": "@farm",
     "name": "Dry Cow Ration",
     "durationDays": 60,
-    "targetType": "GROUP",
-    "feedGroupId": "sd_fg_dry",
+    "targetType": "HERD",
     "createdBy": "@user:manager",
     "kind": "CONCENTRATE_TEMPLATE"
   }

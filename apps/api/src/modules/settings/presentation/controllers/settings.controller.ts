@@ -19,8 +19,6 @@ import { SettingsService } from '../../application/services/settings.service';
 import { UpdateFarmSettingsDto } from '../dto/update-farm-settings.dto';
 import { CreateShedDto } from '../dto/create-shed.dto';
 import { UpdateShedDto } from '../dto/update-shed.dto';
-import { CreateFeedGroupDto } from '../dto/create-feed-group.dto';
-import { UpdateFeedGroupDto } from '../dto/update-feed-group.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Settings (PRD Â§21 / API Â§18). `/api/v1/settings`. Token tenancy + RBAC. */
@@ -85,36 +83,5 @@ export class SettingsController {
     return this.settingsService.deleteShed(farmId, id);
   }
 
-  // â”€â”€ Feed Groups â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-  @Get('feed-groups')
-  @RequirePermission('settings.read')
-  listFeedGroups(@CurrentFarmId() farmId: string) {
-    return this.settingsService.listFeedGroups(farmId);
-  }
-
-  @Post('feed-groups')
-  @RequirePermission('settings.update')
-  createFeedGroup(
-    @CurrentFarmId() farmId: string,
-    @Body() dto: CreateFeedGroupDto,
-  ) {
-    return this.settingsService.createFeedGroup(farmId, dto);
-  }
-
-  @Patch('feed-groups/:id')
-  @RequirePermission('settings.update')
-  updateFeedGroup(
-    @CurrentFarmId() farmId: string,
-    @Param('id') id: string,
-    @Body() dto: UpdateFeedGroupDto,
-  ) {
-    return this.settingsService.updateFeedGroup(farmId, id, dto);
-  }
-
-  @Delete('feed-groups/:id')
-  @RequirePermission('settings.update')
-  deleteFeedGroup(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.settingsService.deleteFeedGroup(farmId, id);
-  }
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 }

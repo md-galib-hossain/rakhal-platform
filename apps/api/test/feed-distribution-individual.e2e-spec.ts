@@ -5,13 +5,11 @@ import { concentrateDerivedIngredientId } from './utils/feed';
 
 /**
  * Feed Formulator — Phase 12.4 (2026-07-18, no ticket #, plan `composed-pondering-teapot`):
- * `FeedDistribution` gained a `cattleId` target alongside the pre-existing `feedGroupId` one, so
- * logging a feeding against an INDIVIDUAL-targeted TMR now records against that one cow instead of
- * being silently un-scoped. Covers: `POST /feed/distributions` on an INDIVIDUAL TMR sets `cattleId`
- * (not `feedGroupId`) on the created row and still decrements stock identically to the group path;
- * `GET /feed/distributions?cattleId=` scopes correctly; `GET /feed/efficiency?cattleId=` returns real
- * adherence/cost-per-litre numbers for one cow; `GET /feed/efficiency` 400s when neither/both of
- * `feedGroupId`/`cattleId` are supplied.
+ * `FeedDistribution` carries a `cattleId` target, so logging a feeding against an
+ * INDIVIDUAL-targeted TMR records against that one cow. Covers: `POST /feed/distributions` on an
+ * INDIVIDUAL TMR sets `cattleId` on the created row; `GET /feed/distributions?cattleId=` scopes
+ * correctly; `GET /feed/efficiency?cattleId=` returns real adherence/cost-per-litre numbers for one
+ * cow; `GET /feed/efficiency` 400s when `cattleId` is missing.
  *
  * Requires the dev stack up + `pnpm seed`.
  */
@@ -61,7 +59,7 @@ describe('Feed Formulator — individual-cow distribution + efficiency (e2e)', (
     await ctx.app.close();
   });
 
-  it('logging a distribution against an INDIVIDUAL TMR sets cattleId, not feedGroupId', async () => {
+  it('logging a distribution against an INDIVIDUAL TMR sets cattleId', async () => {
     const cow = await prisma.cattle.create({
       data: {
         farmId: owner.farmId,
@@ -97,7 +95,6 @@ describe('Feed Formulator — individual-cow distribution + efficiency (e2e)', (
       })
       .expect(201);
     expect(dist.body.data.cattle_id).toBe(cow.id);
-    expect(dist.body.data.feed_group_id).toBeNull();
 
     const list = await request(server())
       .get(api(`/feed/distributions?cattleId=${cow.id}`))
@@ -162,14 +159,13 @@ describe('Feed Formulator — individual-cow distribution + efficiency (e2e)', (
       .set(...auth(owner))
       .expect(200);
     expect(efficiency.body.data.cattle_id).toBe(cow.id);
-    expect(efficiency.body.data.feed_group_id).toBeNull();
     expect(efficiency.body.data.distributions).toBeGreaterThanOrEqual(1);
     expect(efficiency.body.data.actual_kg).toBeCloseTo(10, 1);
     expect(efficiency.body.data.litres_produced).toBeCloseTo(8, 1);
     expect(efficiency.body.data.feed_cost_per_litre).not.toBeNull();
   });
 
-  it('GET /feed/efficiency 400s when neither feedGroupId nor cattleId is supplied', async () => {
+  it('GET /feed/efficiency 400s when cattleId is not supplied', async () => {
     await request(server())
       .get(api('/feed/efficiency'))
       .set(...auth(owner))

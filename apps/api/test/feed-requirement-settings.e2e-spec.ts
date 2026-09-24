@@ -598,7 +598,7 @@ describe('Requirement settings (e2e)', () => {
       expect(res.body.data.requirement.data_source.weight).toBe(
         'cattle_record_avg',
       );
-      expect(Array.isArray(res.body.data.by_group_requirement)).toBe(true);
+      expect(Array.isArray(res.body.data.by_ration)).toBe(true);
       expect(typeof res.body.data.has_active_ration).toBe('boolean');
     });
 

@@ -9,7 +9,6 @@ import { InventoryModule } from '../inventory/inventory.module';
 import { FinanceV2AccountsModule } from '../finance-v2/accounts/finance-v2-accounts.module';
 import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { FeedConcentrationService } from './application/services/feed-concentration.service';
-import { FeedGroupAssignService } from './application/services/feed-group-assign.service';
 import { FeedIngredientService } from './application/services/feed-ingredient.service';
 import { AuditModule } from 'src/modules/audit/audit.module';
 import { FeedRequirementsService } from './application/services/feed-requirements.service';
@@ -24,7 +23,7 @@ import { FeedController } from './presentation/controllers/feed.controller';
 
 /**
  * Feed Formulator (PRD §12 / API §8). Ingredient pricing + overrides, nutritional
- * requirements, and concentration formulas. Reads `FeedGroup` (Settings) + `Cattle`
+ * requirements, and concentration formulas. Reads `Cattle`
  * + `ReproductionProfile`/`Pregnancy` directly via Prisma — no cross-module service
  * coupling for those (no cycles, simple denormalized-field reads). Imports
  * `MilkModule` for one real cross-service call: `MilkService.averageDailyYield`
@@ -58,7 +57,6 @@ import { FeedController } from './presentation/controllers/feed.controller';
     FeedRequirementsService,
     RequirementSettingsService,
     FeedConcentrationService,
-    FeedGroupAssignService,
     FeedDistributionService,
     FeedStockService,
     FeedRationResolverService,

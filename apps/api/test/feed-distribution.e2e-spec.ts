@@ -125,21 +125,21 @@ describe('Feed Distribution (e2e)', () => {
   });
 
   it('serves a feed-efficiency summary', async () => {
-    // The concentration has no group, but the endpoint requires a real group;
-    // create a throwaway group to assert the shape resolves (zero distributions).
-    const grp = await request(server())
-      .post(api('/settings/feed-groups'))
+    // The endpoint requires a real cow; create a throwaway one to assert the shape resolves
+    // (zero distributions).
+    const cow = await request(server())
+      .post(api('/cattle'))
       .set(...auth(owner))
-      .send({ name: `E2E Eff Group ${Date.now()}` })
+      .send({ tagNumber: `E2E-EFF-${Date.now()}`, gender: 'FEMALE' })
       .expect(201);
-    const groupId = grp.body.data.id as string;
+    const cattleId = cow.body.data.id as string;
 
     const res = await request(server())
-      .get(api(`/feed/efficiency?feedGroupId=${groupId}&month=2026-06`))
+      .get(api(`/feed/efficiency?cattleId=${cattleId}&month=2026-06`))
       .set(...auth(owner))
       .expect(200);
     expect(res.body.data).toMatchObject({
-      feed_group_id: groupId,
+      cattle_id: cattleId,
       period: '2026-06',
       distributions: 0,
     });

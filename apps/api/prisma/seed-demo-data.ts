@@ -231,7 +231,6 @@ export async function seedDemoDataset(
   // ---- Phase A — reference data + farm2 ----------------------------------
   await upAll(prisma.breed, loadJson('breeds.json', ctx));
   await upAll(prisma.shed, loadJson('sheds.json', ctx));
-  await upAll(prisma.feedGroup, loadJson('feed-groups.json', ctx));
   await upAll(prisma.farm, loadJson('farms.json', ctx));
 
   for (const row of loadJson('farm-members-extra.json', ctx)) {
@@ -316,10 +315,7 @@ export async function seedDemoDataset(
     loadJson('nutrition-profiles.json', ctx),
   );
   await upAll(prisma.feedItem, loadJson('forages.json', ctx));
-  await upAll(
-    prisma.feedItemBatch,
-    loadJson('feed-item-batches.json', ctx),
-  );
+  await upAll(prisma.feedItemBatch, loadJson('feed-item-batches.json', ctx));
   await upAll(prisma.milkTank, loadJson('milk-tanks.json', ctx));
   await upAll(
     prisma.milkTankAuditLog,

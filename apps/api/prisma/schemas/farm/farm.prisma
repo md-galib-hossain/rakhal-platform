@@ -65,7 +65,7 @@ model Farm {
   // `WalletTransaction` (Finance V1) — see `finance/finance.prisma`'s own
   // top doc comment. `financeLoans` survives (`FinanceLoan` kept, `FINANCE_V2_DESIGN.md` §5.2).
   financeLoans              FinanceLoan[]              @relation("FarmToFinanceLoan")
-  feedGroups                FeedGroup[]                @relation("FarmToFeedGroup")
+  animalGroups              AnimalGroup[]              @relation("FarmToAnimalGroup")
   reportJobs                ReportJob[]                @relation("FarmToReportJob")
   reportSchedules           ReportSchedule[]           @relation("FarmToReportSchedule")
   feedIngredientOverrides   FeedIngredientOverride[]   @relation("FarmToFeedIngredientOverride")

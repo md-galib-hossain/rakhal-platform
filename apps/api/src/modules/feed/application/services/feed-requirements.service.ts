@@ -20,7 +20,7 @@ const MS_PER_DAY = 86_400_000;
 /** Nutritional-requirements calculator (PRD §12.4, RAKHAL-081). Thin wrapper over the pure domain,
  * plus (2026-07-17, user request) two cow-driven modes that auto-derive `weightKg`/`milkTargetL`/
  * `gestationDays`/`bcs` from real cattle/reproduction/milk records instead of manual entry:
- * `cattleId` (single cow) or `feedGroupId` (group average + group total). Falls back to the manual
+ * `cattleId` (single cow). Falls back to the manual
  * `weightKg`/`milkTargetL` query fields when a cow's records are incomplete, so this never silently
  * fabricates a number — every derived input is flagged in the response's `data_source` block. */
 @Injectable()
@@ -34,8 +34,6 @@ export class FeedRequirementsService {
   async calc(farmId: string, query: FeedRequirementsQueryDto) {
     if (query.cattleId)
       return this.calcForCattle(farmId, query.cattleId, query);
-    if (query.feedGroupId)
-      return this.calcForFeedGroup(farmId, query.feedGroupId, query);
     return this.calcManual(query, farmId);
   }
 
@@ -154,106 +152,11 @@ export class FeedRequirementsService {
     };
   }
 
-  /** Feed group — averages `weightKg`/milk yield across active members (cows missing a record are
-   * skipped from that average, not zero-filled) and computes both a per-cow requirement (from the
-   * averaged inputs) and a group total (per-cow × headcount, what a batch-production quantity
-   * needs). */
-  private async calcForFeedGroup(
-    farmId: string,
-    feedGroupId: string,
-    query: FeedRequirementsQueryDto,
-  ) {
-    const group = await this.prisma.feedGroup.findFirst({
-      where: { id: feedGroupId, farmId, deletedAt: null },
-      select: { id: true },
-    });
-    if (!group) throw new NotFoundException('Feed group not found');
-
-    const cattle = await this.prisma.cattle.findMany({
-      where: { ...activeHerd(farmId), feedGroupId },
-      select: { id: true, lastWeightKg: true, lastBcs: true },
-    });
-    const headcount = cattle.length;
-    if (headcount === 0) {
-      throw new BadRequestException('Feed group has no active cattle');
-    }
-
-    const cattleIds = cattle.map((c) => c.id);
-    const avgYieldByCow = await this.milk.averageDailyYield(farmId, cattleIds);
-
-    const weights = cattle
-      .map((c) => c.lastWeightKg)
-      .filter((w): w is number => w != null);
-    const bcsValues = cattle
-      .map((c) => c.lastBcs)
-      .filter((b): b is number => b != null);
-    const yields = cattleIds
-      .map((id) => avgYieldByCow.get(id))
-      .filter((y): y is number => y != null);
-
-    const avg = (values: number[]) =>
-      values.length > 0
-        ? values.reduce((a, b) => a + b, 0) / values.length
-        : undefined;
-
-    const weightKg = avg(weights) ?? query.weightKg;
-    if (weightKg == null) {
-      throw new BadRequestException(
-        'No cattle in this group have a recorded weight — supply weightKg manually',
-      );
-    }
-    const milkTargetL = avg(yields) ?? query.milkTargetL ?? 0;
-    const bcs = avg(bcsValues);
-
-    const settings = await this.requirementSettings.resolve(farmId);
-    const req = computeRequirements(
-      {
-        weightKg,
-        milkTargetL,
-        milkFatPct: query.milkFatPct,
-        milkProteinPct: query.milkProteinPct,
-        gestationDays: query.gestationDays,
-        bcs: query.bcs ?? bcs,
-        dim: query.dim,
-        animalType: query.animalType,
-      },
-      settings,
-    );
-
-    return {
-      inputs: {
-        weight_kg: round2(weightKg),
-        milk_target_l: round2(milkTargetL),
-        milk_fat_pct: query.milkFatPct ?? 4.0,
-        bcs:
-          (query.bcs ?? bcs) != null
-            ? round2((query.bcs ?? bcs) as number)
-            : null,
-        animal_type: query.animalType ?? 'COW',
-        headcount,
-        cattle_with_weight: weights.length,
-        cattle_with_milk_data: yields.length,
-      },
-      data_source: {
-        weight: weights.length > 0 ? 'cattle_record_avg' : 'manual',
-        milk_yield:
-          yields.length > 0
-            ? 'milk_log_7d_avg'
-            : query.milkTargetL != null
-              ? 'manual'
-              : 'assumed_zero',
-      },
-      per_cow: this.reqShape(req),
-      group_total: this.reqShape(scaleRequirements(req, headcount)),
-    };
-  }
-
   /**
    * What the whole active herd needs today, from live cattle records (RAKHAL-412).
    *
-   * The same averaging `calcForFeedGroup` does, across every active cow instead of one
-   * group. Returns `null` for a farm with no cattle — the caller reports that rather than
-   * inventing a number.
+   * Averages weight/milk/BCS across every active cow. Returns `null` for a farm with no
+   * cattle — the caller reports that rather than inventing a number.
    */
   private async herdRequirementBlock(farmId: string) {
     const cattle = await this.prisma.cattle.findMany({
@@ -306,53 +209,19 @@ export class FeedRequirementsService {
   }
 
   /**
-   * Per-feed-group requirement for every group that has cattle in it (RAKHAL-412).
-   * Groups with no active cattle are skipped rather than reported as zero.
-   */
-  private async groupRequirementBlocks(farmId: string) {
-    const groups = await this.prisma.feedGroup.findMany({
-      where: { farmId, deletedAt: null },
-      select: { id: true, name: true },
-    });
-
-    const blocks = await Promise.all(
-      groups.map(async (g) => {
-        try {
-          const res = await this.calcForFeedGroup(farmId, g.id, {});
-          return {
-            feed_group_id: g.id,
-            name: g.name,
-            headcount: res.inputs.headcount,
-            per_cow: res.per_cow,
-            group_total: res.group_total,
-            data_source: res.data_source,
-          };
-        } catch {
-          // An empty group, or one whose cattle have no recorded weight, has nothing to
-          // compute from — omit it rather than reporting a fabricated zero.
-          return null;
-        }
-      }),
-    );
-
-    return blocks.filter((b): b is NonNullable<typeof b> => b !== null);
-  }
-
-  /**
    * Farm-wide "Today's Feed Requirement" rollup (2026-08-13, user request — doc's §5/§12
    * mockup: "Corn silage 300kg, Grass 180kg..."). Every active `FEED_MIXTURE` concentration's
-   * per-cow-per-day ingredient lines, multiplied by that ration's resolved headcount (GROUP =
-   * active cattle in that `feedGroupId`, INDIVIDUAL = 1, HERD = whole active herd), aggregated
-   * by ingredient across every ration on the farm. Read-only aggregation, no persisted state.
+   * per-cow-per-day ingredient lines, multiplied by that ration's resolved headcount
+   * (INDIVIDUAL = 1, HERD = whole active herd), aggregated by ingredient across every ration
+   * on the farm. Read-only aggregation, no persisted state.
    */
   async getTodaysRequirement(farmId: string) {
-    const [rations, requirement, byGroupRequirement] = await Promise.all([
+    const [rations, requirement] = await Promise.all([
       this.prisma.feedConcentration.findMany({
         where: { farmId, deletedAt: null, kind: 'FEED_MIXTURE' },
         include: { items: true },
       }),
       this.herdRequirementBlock(farmId),
-      this.groupRequirementBlocks(farmId),
     ]);
 
     // RAKHAL-412: what the animals need is computed from live cattle records and is
@@ -362,60 +231,34 @@ export class FeedRequirementsService {
     if (rations.length === 0) {
       return {
         by_ingredient: [],
-        by_group: [],
+        by_ration: [],
         grand_total_kg: 0,
         requirement,
-        by_group_requirement: byGroupRequirement,
         has_active_ration: false,
       };
     }
 
-    const groupIds = [
-      ...new Set(
-        rations
-          .filter((r) => r.targetType === 'GROUP' && r.feedGroupId)
-          .map((r) => r.feedGroupId as string),
-      ),
-    ];
-    const [groupCounts, herdCount, groups, ingredientNames] = await Promise.all(
-      [
-        this.prisma.cattle.groupBy({
-          by: ['feedGroupId'],
-          where: {
-            ...activeHerd(farmId),
-            feedGroupId: { in: groupIds },
-          },
-          _count: { _all: true },
-        }),
-        this.prisma.cattle.count({
-          where: activeHerd(farmId),
-        }),
-        this.prisma.feedGroup.findMany({
-          where: { farmId, id: { in: groupIds } },
-          select: { id: true, name: true },
-        }),
-        this.prisma.feedIngredient.findMany({
-          where: {
-            id: {
-              in: [
-                ...new Set(
-                  rations.flatMap((r) =>
-                    r.items
-                      .map((i) => i.ingredientId)
-                      .filter((id): id is string => id != null),
-                  ),
+    const [herdCount, ingredientNames] = await Promise.all([
+      this.prisma.cattle.count({
+        where: activeHerd(farmId),
+      }),
+      this.prisma.feedIngredient.findMany({
+        where: {
+          id: {
+            in: [
+              ...new Set(
+                rations.flatMap((r) =>
+                  r.items
+                    .map((i) => i.ingredientId)
+                    .filter((id): id is string => id != null),
                 ),
-              ],
-            },
+              ),
+            ],
           },
-          select: { id: true, nameEn: true },
-        }),
-      ],
-    );
-    const headcountByGroup = new Map(
-      groupCounts.map((g) => [g.feedGroupId as string, g._count._all]),
-    );
-    const groupNameById = new Map(groups.map((g) => [g.id, g.name]));
+        },
+        select: { id: true, nameEn: true },
+      }),
+    ]);
     const nameByIngredient = new Map(
       ingredientNames.map((i) => [i.id, i.nameEn]),
     );
@@ -436,20 +279,15 @@ export class FeedRequirementsService {
     }
 
     const totalsByIngredient = new Map<string, number>();
-    const byGroup: {
-      feed_group_id: string | null;
+    const byRation: {
+      concentration_id: string;
       name: string;
       headcount: number;
       total_kg: number;
     }[] = [];
 
     for (const ration of rations) {
-      const headcount =
-        ration.targetType === 'INDIVIDUAL'
-          ? 1
-          : ration.targetType === 'GROUP'
-            ? (headcountByGroup.get(ration.feedGroupId ?? '') ?? 0)
-            : herdCount;
+      const headcount = ration.targetType === 'INDIVIDUAL' ? 1 : herdCount;
       if (headcount <= 0) continue;
 
       let rationTotalKg = 0;
@@ -464,14 +302,9 @@ export class FeedRequirementsService {
         );
       }
 
-      byGroup.push({
-        feed_group_id: ration.feedGroupId,
-        name:
-          ration.targetType === 'HERD'
-            ? 'Whole Herd'
-            : ration.targetType === 'INDIVIDUAL'
-              ? ration.name
-              : (groupNameById.get(ration.feedGroupId ?? '') ?? ration.name),
+      byRation.push({
+        concentration_id: ration.id,
+        name: ration.targetType === 'HERD' ? 'Whole Herd' : ration.name,
         headcount,
         total_kg: round2(rationTotalKg),
       });
@@ -487,12 +320,11 @@ export class FeedRequirementsService {
 
     return {
       by_ingredient: byIngredient,
-      by_group: byGroup,
+      by_ration: byRation,
       grand_total_kg: round2(
         byIngredient.reduce((sum, i) => sum + i.total_kg, 0),
       ),
       requirement,
-      by_group_requirement: byGroupRequirement,
       has_active_ration: true,
     };
   }
@@ -505,15 +337,14 @@ export class FeedRequirementsService {
    *
    * `FeedConcentrationService.enrich()` runs once per row on the list path, so resolving each
    * ration's cow individually would be O(N) round-trips. This gathers every cow the batch refers
-   * to — directly for an INDIVIDUAL ration, via group membership for a GROUP one — and derives
-   * them all together: one cattle query, one reproduction-profile query, one pregnancy query, one
+   * to (directly, for an INDIVIDUAL ration) and derives them all together: one cattle query, one reproduction-profile query, one pregnancy query, one
    * batched milk average, one settings resolve. Adding rations does not add queries.
    *
    * Returns the raw domain object rather than the snake_case API shape, because the caller needs
    * it to score a formula. `null` where nothing can be computed: a Concentrate Mixer carries no
    * target at all, and a cow with no recorded weight has nothing to work from.
    *
-   * The derivation deliberately mirrors `calcForCattle`/`calcForFeedGroup` field for field, so a
+   * The derivation deliberately mirrors `calcForCattle` field for field, so a
    * saved ration and `GET /feed/requirements` for the same animal agree. That parity is asserted
    * in `feed-requirements-parity.e2e-spec.ts`.
    */
@@ -524,7 +355,6 @@ export class FeedRequirementsService {
       kind: string;
       targetType: string | null;
       cattleId: string | null;
-      feedGroupId: string | null;
       targetWeightKg: number | null;
       targetMilkL: number | null;
     }[],
@@ -549,33 +379,17 @@ export class FeedRequirementsService {
           .map((r) => r.cattleId as string),
       ),
     ];
-    const groupIds = [
-      ...new Set(
-        scorable
-          .filter((r) => r.targetType === 'GROUP' && r.feedGroupId)
-          .map((r) => r.feedGroupId as string),
-      ),
-    ];
 
-    // Every cow the batch touches, in one query: the individually-targeted ones plus the members
-    // of every group referenced.
+    // Every individually-targeted cow the batch touches, in one query.
     const cattle =
-      directCattleIds.length > 0 || groupIds.length > 0
+      directCattleIds.length > 0
         ? await this.prisma.cattle.findMany({
             where: {
               ...activeHerd(farmId),
-              OR: [
-                ...(directCattleIds.length > 0
-                  ? [{ id: { in: directCattleIds } }]
-                  : []),
-                ...(groupIds.length > 0
-                  ? [{ feedGroupId: { in: groupIds } }]
-                  : []),
-              ],
+              id: { in: directCattleIds },
             },
             select: {
               id: true,
-              feedGroupId: true,
               lastWeightKg: true,
               lastBcs: true,
               productionStatus: true,
@@ -584,13 +398,6 @@ export class FeedRequirementsService {
         : [];
 
     const cattleById = new Map(cattle.map((c) => [c.id, c]));
-    const byGroup = new Map<string, typeof cattle>();
-    for (const c of cattle) {
-      if (!c.feedGroupId) continue;
-      const list = byGroup.get(c.feedGroupId) ?? [];
-      list.push(c);
-      byGroup.set(c.feedGroupId, list);
-    }
 
     const allIds = cattle.map((c) => c.id);
     const [gestationByCow, yieldByCow] = await Promise.all([
@@ -623,32 +430,9 @@ export class FeedRequirementsService {
             settings,
           );
         }
-      } else if (row.targetType === 'GROUP' && row.feedGroupId) {
-        const members = byGroup.get(row.feedGroupId) ?? [];
-        const weights = members
-          .map((m) => m.lastWeightKg)
-          .filter((w): w is number => w != null);
-        if (weights.length > 0) {
-          const yields = members
-            .map((m) => yieldByCow.get(m.id))
-            .filter((y): y is number => y != null);
-          const bcsValues = members
-            .map((m) => m.lastBcs)
-            .filter((b): b is number => b != null);
-          req = computeRequirements(
-            {
-              // Per cow, matching what `calcForFeedGroup` reports as `per_cow` — a formula is
-              // built for one animal, not for the whole group's batch.
-              weightKg: avg(weights) as number,
-              milkTargetL: avg(yields) ?? 0,
-              bcs: avg(bcsValues) ?? undefined,
-            },
-            settings,
-          );
-        }
       }
 
-      // HERD-targeted rations, and any of the above whose cow/group yielded nothing, fall back
+      // HERD-targeted rations, and any INDIVIDUAL one whose cow yielded nothing, fall back
       // to whatever target the ration itself stored — the pre-RAKHAL-411 behaviour.
       if (
         req == null &&

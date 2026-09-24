@@ -1,6 +1,0 @@
-[
-  { "id": "sd_fg_high", "farmId": "@farm", "name": "High Yield", "description": "Milking cows above 10 L/day" },
-  { "id": "sd_fg_mid", "farmId": "@farm", "name": "Mid Yield", "description": "Milking cows 5–10 L/day" },
-  { "id": "sd_fg_dry", "farmId": "@farm", "name": "Dry & Close-up", "description": "Dry cows and cows within 3 weeks of calving" },
-  { "id": "sd_fg_heifer", "farmId": "@farm", "name": "Heifer & Growing", "description": "Heifers and growing stock" }
-]

@@ -3,7 +3,7 @@ import { FeedConcentration, FeedTargetType } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 
-export type RationMatchLevel = 'INDIVIDUAL' | 'GROUP' | 'HERD';
+export type RationMatchLevel = 'INDIVIDUAL' | 'HERD';
 
 export interface ResolvedRation {
   concentration: FeedConcentration;
@@ -11,8 +11,8 @@ export interface ResolvedRation {
 }
 
 /**
- * Layered ration targeting (2026-08-13, user request — "herd default -> group -> individual
- * override, most specific wins"). `FeedConcentration.targetType` is GROUP|INDIVIDUAL|HERD;
+ * Layered ration targeting ("herd default -> individual override, most specific wins").
+ * `FeedConcentration.targetType` is INDIVIDUAL|HERD;
  * a farm can have at most one active `FEED_MIXTURE` at each level (not enforced by a DB
  * constraint — first match by `createdAt desc` wins if a farm somehow has more than one,
  * same "most recent wins" fallback other feed-module reads already use elsewhere). Only
@@ -29,7 +29,7 @@ export class FeedRationResolverService {
   ): Promise<ResolvedRation | null> {
     const cattle = await this.prisma.cattle.findFirst({
       where: { id: cattleId, ...activeHerd(farmId) },
-      select: { id: true, feedGroupId: true },
+      select: { id: true },
     });
     if (!cattle) throw new NotFoundException('Cattle not found');
 
@@ -39,14 +39,6 @@ export class FeedRationResolverService {
     });
     if (individual)
       return { concentration: individual, matchLevel: 'INDIVIDUAL' };
-
-    if (cattle.feedGroupId) {
-      const group = await this.findActive(farmId, {
-        targetType: 'GROUP',
-        feedGroupId: cattle.feedGroupId,
-      });
-      if (group) return { concentration: group, matchLevel: 'GROUP' };
-    }
 
     const herd = await this.findActive(farmId, { targetType: 'HERD' });
     if (herd) return { concentration: herd, matchLevel: 'HERD' };
@@ -59,7 +51,6 @@ export class FeedRationResolverService {
     where: {
       targetType: FeedTargetType;
       cattleId?: string;
-      feedGroupId?: string;
     },
   ): Promise<FeedConcentration | null> {
     return this.prisma.feedConcentration.findFirst({

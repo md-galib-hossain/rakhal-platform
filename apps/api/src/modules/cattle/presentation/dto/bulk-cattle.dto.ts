@@ -12,7 +12,6 @@ import {
 /** Bulk operations on a selection of cattle (PRD §8.3, RAKHAL-037). */
 export const BULK_ACTIONS = [
   'change_shed',
-  'change_feed_group',
   'mark_sold',
   'dispose',
   'export',
@@ -25,15 +24,11 @@ export type BulkAction = (typeof BULK_ACTIONS)[number];
 export const BULK_DISPOSE_TYPES = ['SALE', 'CULL', 'DEATH'] as const;
 export type BulkDisposeType = (typeof BULK_DISPOSE_TYPES)[number];
 
-/** Optional payload for the action (e.g. target shed / feed group / dispose type). */
+/** Optional payload for the action (e.g. target shed / dispose type). */
 export class BulkCattlePayloadDto {
   @IsOptional()
   @IsString()
   shedId?: string;
-
-  @IsOptional()
-  @IsString()
-  feedGroupId?: string;
 
   @IsOptional()
   @IsIn(BULK_DISPOSE_TYPES)

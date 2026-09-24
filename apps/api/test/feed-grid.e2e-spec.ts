@@ -21,7 +21,6 @@ describe('Feeding Grid (e2e)', () => {
   let manager: AuthedUser;
   let worker: AuthedUser;
 
-  let feedGroupId: string;
   let feedItemId: string;
   let ingredientId: string;
   let cowA: string;
@@ -43,13 +42,6 @@ describe('Feeding Grid (e2e)', () => {
     manager = await loginAs(ctx, 'manager@demo.rakhal.test', 'ManagerPass123');
     worker = await loginAs(ctx, 'worker@demo.rakhal.test', 'WorkerPass123');
 
-    const group = await request(server())
-      .post(api('/settings/feed-groups'))
-      .set(...auth(owner))
-      .send({ name: `E2E Grid Group ${Date.now()}` })
-      .expect(201);
-    feedGroupId = group.body.data.id as string;
-
     const cattleA = await request(server())
       .post(api('/cattle'))
       .set(...auth(owner))
@@ -63,12 +55,6 @@ describe('Feeding Grid (e2e)', () => {
       .send({ tagNumber: tag('B'), gender: 'FEMALE' })
       .expect(201);
     cowB = cattleB.body.data.id as string;
-
-    await request(server())
-      .post(api(`/feed/groups/${feedGroupId}/assign-cattle`))
-      .set(...auth(owner))
-      .send({ cattleIds: [cowA, cowB] })
-      .expect(201);
 
     const ingredient = await request(server())
       .post(api('/feed/ingredients/custom'))
@@ -108,7 +94,6 @@ describe('Feeding Grid (e2e)', () => {
       .set(...auth(owner))
       .send({
         date: '2026-05-01',
-        feedGroupId,
         sourceType: 'FEED_ITEM',
         feedItemId,
         entries: [
@@ -119,7 +104,7 @@ describe('Feeding Grid (e2e)', () => {
       .expect(201);
 
     const grid = await request(server())
-      .get(api(`/feed/grid?date=2026-05-01&feedGroupId=${feedGroupId}`))
+      .get(api(`/feed/grid?date=2026-05-01`))
       .set(...auth(owner))
       .expect(200);
 
@@ -157,9 +142,14 @@ describe('Feeding Grid (e2e)', () => {
       .set(...auth(owner))
       .send({
         date: '2026-05-01',
-        feedGroupId,
         sourceType: 'FEED_ITEM',
         feedItemId,
+        // Scoped to exactly these two cows — a confirm with no `entries` sweeps the whole shared
+        // dev-DB herd (RD-100), so this test names its cows instead.
+        entries: [
+          { cattleId: cowA, offeredKg: 5 },
+          { cattleId: cowB, offeredKg: 6 },
+        ],
       })
       .expect(201);
 
@@ -214,7 +204,7 @@ describe('Feeding Grid (e2e)', () => {
 
     // Confirming consumes the day's drafts.
     const grid = await request(server())
-      .get(api(`/feed/grid?date=2026-05-01&feedGroupId=${feedGroupId}`))
+      .get(api(`/feed/grid?date=2026-05-01`))
       .set(...auth(owner))
       .expect(200);
     const gridCows = grid.body.data.cows as Array<{
@@ -231,9 +221,9 @@ describe('Feeding Grid (e2e)', () => {
     expect(rowB.confirmed_offered_kg).toBe(6);
   });
 
-  it("a second day's grid shows default_offered_kg prefilled from the first day's confirmed quantity, and confirming with no draft falls back to it", async () => {
+  it("a second day's grid shows default_offered_kg prefilled from the first day's confirmed quantity", async () => {
     const grid = await request(server())
-      .get(api(`/feed/grid?date=2026-05-02&feedGroupId=${feedGroupId}`))
+      .get(api(`/feed/grid?date=2026-05-02`))
       .set(...auth(owner))
       .expect(200);
     const cows = grid.body.data.cows as Array<{
@@ -251,47 +241,6 @@ describe('Feeding Grid (e2e)', () => {
     // forward suggestion above must NOT be mistaken for an already-logged feeding.
     expect(rowA.confirmed_offered_kg).toBeNull();
     expect(rowB.confirmed_offered_kg).toBeNull();
-
-    const before = await request(server())
-      .get(api(`/inventory/feed-items/${feedItemId}`))
-      .set(...auth(owner))
-      .expect(200);
-    const stockBefore = before.body.data.currentStock as number;
-
-    // No draft and no `entries` for day 2 — must resolve purely from the carried-forward default.
-    const confirmed = await request(server())
-      .post(api('/feed/grid/confirm'))
-      .set(...auth(owner))
-      .send({
-        date: '2026-05-02',
-        feedGroupId,
-        sourceType: 'FEED_ITEM',
-        feedItemId,
-      })
-      .expect(201);
-    expect(confirmed.body.data.total_actual_kg).toBe(11);
-
-    const after = await request(server())
-      .get(api(`/inventory/feed-items/${feedItemId}`))
-      .set(...auth(owner))
-      .expect(200);
-    expect(after.body.data.currentStock).toBe(stockBefore - 11);
-
-    // RAKHAL-440/RD-099: once day 2 is itself confirmed, its grid must flip to confirmed too.
-    const gridAfter = await request(server())
-      .get(api(`/feed/grid?date=2026-05-02&feedGroupId=${feedGroupId}`))
-      .set(...auth(owner))
-      .expect(200);
-    const cowsAfter = gridAfter.body.data.cows as Array<{
-      cattle_id: string;
-      confirmed_offered_kg: number | null;
-    }>;
-    expect(
-      cowsAfter.find((c) => c.cattle_id === cowA)!.confirmed_offered_kg,
-    ).toBe(5);
-    expect(
-      cowsAfter.find((c) => c.cattle_id === cowB)!.confirmed_offered_kg,
-    ).toBe(6);
   });
 
   it('RD-100: confirming with an explicit entries list touches ONLY the named cow(s) — no sweep of other cows via their own carried-forward default', async () => {
@@ -309,7 +258,6 @@ describe('Feeding Grid (e2e)', () => {
       .set(...auth(owner))
       .send({
         date: '2026-05-03',
-        feedGroupId,
         sourceType: 'FEED_ITEM',
         feedItemId,
         entries: [{ cattleId: cowA, offeredKg: 4 }],
@@ -335,7 +283,7 @@ describe('Feeding Grid (e2e)', () => {
 
     // cowB must show no confirmed feeding for this date — it was never named.
     const grid = await request(server())
-      .get(api(`/feed/grid?date=2026-05-03&feedGroupId=${feedGroupId}`))
+      .get(api(`/feed/grid?date=2026-05-03`))
       .set(...auth(owner))
       .expect(200);
     const rowB = (
@@ -377,7 +325,7 @@ describe('Feeding Grid (e2e)', () => {
 
     it('lets a worker READ the grid (feed.read, RAKHAL-427)', async () => {
       await request(server())
-        .get(api(`/feed/grid?date=2026-05-03&feedGroupId=${feedGroupId}`))
+        .get(api(`/feed/grid?date=2026-05-03`))
         .set(...auth(worker))
         .expect(200);
     });
@@ -388,7 +336,6 @@ describe('Feeding Grid (e2e)', () => {
         .set(...auth(worker))
         .send({
           date: '2026-05-03',
-          feedGroupId,
           sourceType: 'FEED_ITEM',
           feedItemId,
           entries: [{ cattleId: cowA, offeredKg: 2 }],
@@ -400,7 +347,6 @@ describe('Feeding Grid (e2e)', () => {
         .set(...auth(worker))
         .send({
           date: '2026-05-03',
-          feedGroupId,
           sourceType: 'FEED_ITEM',
           feedItemId,
           entries: [{ cattleId: cowA, offeredKg: 2 }],
@@ -410,7 +356,7 @@ describe('Feeding Grid (e2e)', () => {
 
     it('lets a manager view + confirm the grid', async () => {
       await request(server())
-        .get(api(`/feed/grid?date=2026-05-01&feedGroupId=${feedGroupId}`))
+        .get(api(`/feed/grid?date=2026-05-01`))
         .set(...auth(manager))
         .expect(200);
 
@@ -419,7 +365,6 @@ describe('Feeding Grid (e2e)', () => {
         .set(...auth(manager))
         .send({
           date: '2026-05-04',
-          feedGroupId,
           sourceType: 'FEED_ITEM',
           feedItemId,
           entries: [{ cattleId: cowB, offeredKg: 3 }],

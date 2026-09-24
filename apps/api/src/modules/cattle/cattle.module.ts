@@ -28,11 +28,13 @@ import { BreedService } from './application/services/breed.service';
 import { CattleService } from './application/services/cattle.service';
 import { CattleDetailService } from './application/services/cattle-detail.service';
 import { CattleImportService } from './application/services/cattle-import.service';
+import { AnimalGroupService } from './application/services/animal-group.service';
 import { ShedService } from './application/services/shed.service';
 import { WeightService } from './application/services/weight.service';
 import { AnimalHoldController } from './presentation/controllers/animal-hold.controller';
 import { BreedController } from './presentation/controllers/breed.controller';
 import { CattleController } from './presentation/controllers/cattle.controller';
+import { AnimalGroupController } from './presentation/controllers/animal-group.controller';
 import { ShedController } from './presentation/controllers/shed.controller';
 
 @Module({
@@ -52,6 +54,7 @@ import { ShedController } from './presentation/controllers/shed.controller';
     CattleController,
     BreedController,
     ShedController,
+    AnimalGroupController,
     AnimalHoldController,
   ],
   providers: [
@@ -62,6 +65,7 @@ import { ShedController } from './presentation/controllers/shed.controller';
     CattleImportService,
     BreedService,
     ShedService,
+    AnimalGroupService,
     AnimalHoldService,
   ],
   exports: [

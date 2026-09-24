@@ -79,7 +79,7 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
         name: `E2E Sneaky Target Template ${Date.now()}`,
         // A future frontend bug (or a hand-crafted request) sending target fields on a template must
         // not resurrect the old bug where everything ended up bucketed as a mixture.
-        targetType: 'GROUP',
+        targetType: 'HERD',
         targetWeightKg: 400,
         targetMilkL: 15,
         items: [{ ingredientId, amountKg: 10 }],

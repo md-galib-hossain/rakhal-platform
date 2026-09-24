@@ -13,7 +13,7 @@
  *    lactation B" true, even though the two lactations started on different
  *    calendar dates.
  * 2. **Farm-level group-by** — bucket a set of active-lactation snapshots by
- *    parity/shed/feed-group/DIM-range and average their yield/peak/
+ *    parity/shed/DIM-range and average their yield/peak/
  *    persistency per bucket.
  */
 import { DailyYieldPoint } from './lactation-curve';
@@ -55,11 +55,7 @@ export function alignSeriesByDim(
   return points;
 }
 
-export type LactationComparisonGroupBy =
-  | 'parity'
-  | 'shed'
-  | 'feedGroup'
-  | 'dimRange';
+export type LactationComparisonGroupBy = 'parity' | 'shed' | 'dimRange';
 
 /** DIM-range buckets for `groupBy=dimRange` — mirrors common dairy-management stage bands (early/mid/late lactation, tail). */
 export const DIM_RANGE_BUCKETS: {

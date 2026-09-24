@@ -328,13 +328,15 @@ export class FeedDistributionService {
       tdnPct: line.tdnPct ?? null,
     }));
 
-    // Target is derived from the source TMR, never supplied by the caller directly (Phase 12.4,
-    // 2026-07-18) — a concentration is already either GROUP- or INDIVIDUAL-targeted from creation,
-    // so logging a distribution for it naturally records against that same target.
-    const targetFields =
-      concentration.targetType === 'INDIVIDUAL'
-        ? { feedGroupId: null, cattleId: concentration.cattleId }
-        : { feedGroupId: concentration.feedGroupId, cattleId: null };
+    // Target is derived from the source TMR, never supplied by the caller directly — a
+    // concentration is already either INDIVIDUAL- or HERD-targeted from creation, so logging a
+    // distribution for it naturally records against that same target.
+    const targetFields = {
+      cattleId:
+        concentration.targetType === 'INDIVIDUAL'
+          ? concentration.cattleId
+          : null,
+    };
 
     const created = await this.prisma.$transaction(async (tx) => {
       const dist = await tx.feedDistribution.create({
@@ -424,7 +426,6 @@ export class FeedDistributionService {
    */
   async computeFeedItemUsage(
     farmId: string,
-    userId: string,
     feedItemId: string,
     quantityKg: number,
     tx?: Prisma.TransactionClient,
@@ -432,7 +433,6 @@ export class FeedDistributionService {
   ) {
     const plan = await this.feedItems.previewDraw(
       farmId,
-      userId,
       feedItemId,
       quantityKg,
       tx,
@@ -454,7 +454,6 @@ export class FeedDistributionService {
     const rows = await this.prisma.feedDistribution.findMany({
       where: {
         farmId,
-        ...(query.feedGroupId ? { feedGroupId: query.feedGroupId } : {}),
         ...(query.cattleId ? { cattleId: query.cattleId } : {}),
         ...(query.concentrationId
           ? { concentrationId: query.concentrationId }
@@ -530,139 +529,43 @@ export class FeedDistributionService {
     return this.mapDistribution(updated);
   }
 
-  /** Refusal-rate trend for a feed group, most-recent-first (feeds the Feeding dashboard and
-   * the Cattle-detail group view). Compares each day's rate against the group's configured
-   * `refusalTargetPct` (2026-08-13) — doc explicitly warns against one universal target, so
-   * this is per-group, not farm-wide. */
-  async getRefusalTrend(farmId: string, feedGroupId: string, days = 30) {
-    const group = await this.prisma.feedGroup.findFirst({
-      where: { id: feedGroupId, farmId, deletedAt: null },
-      select: { id: true, name: true, refusalTargetPct: true },
-    });
-    if (!group) throw new NotFoundException('Feed group not found');
-
-    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-    const rows = await this.prisma.feedDistribution.findMany({
-      where: { farmId, feedGroupId, distributedAt: { gte: since } },
-      orderBy: { distributedAt: 'desc' },
-      select: {
-        distributedAt: true,
-        totalPlannedKg: true,
-        totalActualKg: true,
-        totalRefusalKg: true,
-      },
-    });
-
-    return {
-      feed_group_id: group.id,
-      feed_group_name: group.name,
-      refusal_target_pct: group.refusalTargetPct,
-      days: rows.map((r) => {
-        const refusalPct =
-          r.totalActualKg > 0
-            ? round2((r.totalRefusalKg / r.totalActualKg) * 100)
-            : null;
-        return {
-          date: r.distributedAt,
-          planned_kg: r.totalPlannedKg,
-          actual_kg: r.totalActualKg,
-          refusal_kg: r.totalRefusalKg,
-          refusal_pct: refusalPct,
-          over_target:
-            group.refusalTargetPct != null && refusalPct != null
-              ? refusalPct > group.refusalTargetPct
-              : null,
-        };
-      }),
-    };
-  }
-
-  /** Planned-vs-actual + feed cost per litre for a group OR a single cow, over a month (§12.5,
-   * extended Phase 12.4 2026-07-18 to also cover an INDIVIDUAL-targeted TMR — a farmer feeding one
-   * cow her own ration wants the same cost-per-litre visibility a group gets). Exactly one of
-   * `feedGroupId`/`cattleId` is expected (`FeedEfficiencyQueryDto`'s `@ValidateIf` cross-check). */
+  /** Planned-vs-actual + feed cost per litre for a single cow, over a month (§12.5) — a farmer
+   * feeding one cow her own ration wants cost-per-litre visibility for her. */
   async efficiency(farmId: string, query: FeedEfficiencyQueryDto) {
     const { start, end, label } = this.monthRange(query.month);
 
-    if (query.cattleId) {
-      const cattle = await this.prisma.cattle.findFirst({
-        where: {
-          id: query.cattleId,
-          ...activeHerd(farmId),
-        },
-        select: { id: true, tagNumber: true, name: true },
-      });
-      if (!cattle) throw new NotFoundException('Cattle not found');
-
-      const [distributions, litresAgg] = await Promise.all([
-        this.prisma.feedDistribution.findMany({
-          where: {
-            farmId,
-            cattleId: cattle.id,
-            distributedAt: { gte: start, lt: end },
-          },
-          select: this.EFFICIENCY_DISTRIBUTION_SELECT,
-        }),
-        this.prisma.milkLogEntry.aggregate({
-          where: {
-            farmId,
-            cattleId: cattle.id,
-            logDate: { gte: start, lt: end },
-          },
-          _sum: { yieldL: true },
-        }),
-      ]);
-
-      return {
-        feed_group_id: null,
-        feed_group_name: null,
-        cattle_id: cattle.id,
-        cattle_name: cattle.name ?? cattle.tagNumber,
-        period: label,
-        ...this.summarizeEfficiency(distributions, litresAgg._sum.yieldL ?? 0),
-      };
-    }
-
-    const group = await this.prisma.feedGroup.findFirst({
-      where: { id: query.feedGroupId, farmId, deletedAt: null },
-      select: { id: true, name: true },
+    const cattle = await this.prisma.cattle.findFirst({
+      where: {
+        id: query.cattleId,
+        ...activeHerd(farmId),
+      },
+      select: { id: true, tagNumber: true, name: true },
     });
-    if (!group) throw new NotFoundException('Feed group not found');
+    if (!cattle) throw new NotFoundException('Cattle not found');
 
-    const [distributions, groupCattle] = await Promise.all([
+    const [distributions, litresAgg] = await Promise.all([
       this.prisma.feedDistribution.findMany({
         where: {
           farmId,
-          feedGroupId: group.id,
+          cattleId: cattle.id,
           distributedAt: { gte: start, lt: end },
         },
         select: this.EFFICIENCY_DISTRIBUTION_SELECT,
       }),
-      this.prisma.cattle.findMany({
+      this.prisma.milkLogEntry.aggregate({
         where: {
-          ...activeHerd(farmId),
-          feedGroupId: group.id,
+          farmId,
+          cattleId: cattle.id,
+          logDate: { gte: start, lt: end },
         },
-        select: { id: true },
+        _sum: { yieldL: true },
       }),
     ]);
 
-    const litresAgg = await this.prisma.milkLogEntry.aggregate({
-      where: {
-        farmId,
-        cattleId: { in: groupCattle.map((c) => c.id) },
-        logDate: { gte: start, lt: end },
-      },
-      _sum: { yieldL: true },
-    });
-
     return {
-      feed_group_id: group.id,
-      feed_group_name: group.name,
-      cattle_id: null,
-      cattle_name: null,
+      cattle_id: cattle.id,
+      cattle_name: cattle.name ?? cattle.tagNumber,
       period: label,
-      group_cattle: groupCattle.length,
       ...this.summarizeEfficiency(distributions, litresAgg._sum.yieldL ?? 0),
     };
   }
@@ -672,7 +575,7 @@ export class FeedDistributionService {
    * comes from `FeedRequirementsService`'s NRC-2001 calc for this cow; actual sums that
    * day's distribution(s) that reach her, converted to DM via each line's FROZEN `dmPct`
    * snapshot (RAKHAL-327/328 follow-up, 2026-08-15 — no live catalogue lookup for historical
-   * rows anymore, see the inline comment below). A GROUP- or HERD-targeted
+   * rows anymore, see the inline comment below). A HERD-targeted
    * ration's distribution is shared across many cows, so actual DMI is pro-rated by
    * headcount at that level — the same "divide the shared total by who's eating from it"
    * idea `lactation-economics.service.ts`'s `computeAllocatedFeedCost` uses for cost, kept
@@ -712,28 +615,11 @@ export class FeedDistributionService {
         where: { farmId, cattleId, distributedAt: dateFilter },
         include: { items: true },
       });
-    } else if (resolved.matchLevel === 'GROUP') {
-      const cattle = await this.prisma.cattle.findFirst({
-        where: { id: cattleId, farmId },
-        select: { feedGroupId: true },
-      });
-      const feedGroupId = cattle?.feedGroupId;
-      [distributions, headcount] = await Promise.all([
-        this.prisma.feedDistribution.findMany({
-          where: { farmId, feedGroupId, distributedAt: dateFilter },
-          include: { items: true },
-        }),
-        this.prisma.cattle.count({
-          where: { ...activeHerd(farmId), feedGroupId },
-        }),
-      ]);
-      headcount = Math.max(1, headcount);
     } else {
       [distributions, headcount] = await Promise.all([
         this.prisma.feedDistribution.findMany({
           where: {
             farmId,
-            feedGroupId: null,
             cattleId: null,
             distributedAt: dateFilter,
             concentrationId: resolved.concentration.id,
@@ -833,8 +719,7 @@ export class FeedDistributionService {
 
   // ---- internals ----------------------------------------------------------
 
-  /** Shared `Prisma.FeedDistribution` field selection for `efficiency()`'s two branches (group /
-   * cattle) — kept as one constant so both queries stay provably identical in shape. */
+  /** Shared `Prisma.FeedDistribution` field selection for `efficiency()`. */
   private readonly EFFICIENCY_DISTRIBUTION_SELECT = {
     totalPlannedKg: true,
     totalActualKg: true,
@@ -843,8 +728,7 @@ export class FeedDistributionService {
     totalActualCost: true,
   } as const;
 
-  /** Shared adherence/refusal/cost-per-litre reduction — `efficiency()`'s group and cattle branches
-   * both funnel through this so the two paths can never compute the math differently. */
+  /** Shared adherence/refusal/cost-per-litre reduction for `efficiency()`. */
   private summarizeEfficiency(
     distributions: {
       totalPlannedKg: number;
@@ -920,7 +804,6 @@ export class FeedDistributionService {
         line.ingredientId,
         await this.feedItems.previewDraw(
           farmId,
-          userId,
           line.linkedFeedItemId,
           line.actualKg,
           undefined,
@@ -960,7 +843,7 @@ export class FeedDistributionService {
       }
       plans.set(
         line.ingredientId,
-        await this.feedItems.previewDraw(farmId, userId, f.id, line.actualKg),
+        await this.feedItems.previewDraw(farmId, f.id, line.actualKg),
       );
     }
     return plans;
@@ -997,7 +880,6 @@ export class FeedDistributionService {
     return {
       id: row.id,
       concentration_id: row.concentrationId,
-      feed_group_id: row.feedGroupId,
       cattle_id: row.cattleId,
       distributed_at: row.distributedAt,
       total_planned_kg: row.totalPlannedKg,
@@ -1023,7 +905,6 @@ export class FeedDistributionService {
   private mapSummary(row: {
     id: string;
     concentrationId: string | null;
-    feedGroupId: string | null;
     cattleId: string | null;
     distributedAt: Date;
     totalActualKg: number;
@@ -1033,7 +914,6 @@ export class FeedDistributionService {
     return {
       id: row.id,
       concentration_id: row.concentrationId,
-      feed_group_id: row.feedGroupId,
       cattle_id: row.cattleId,
       distributed_at: row.distributedAt,
       total_actual_kg: row.totalActualKg,

@@ -66,11 +66,6 @@ export class UpdateCattleDto implements Partial<CreateCattleDto> {
   @IsOptional()
   @Transform(trimString)
   @IsString()
-  feedGroupId?: string;
-
-  @IsOptional()
-  @Transform(trimString)
-  @IsString()
   shedId?: string;
 
   @IsOptional()

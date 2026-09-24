@@ -1,14 +1,7 @@
-import { Transform } from 'class-transformer';
-import { IsDateString, IsOptional, IsString } from 'class-validator';
-import { trimString } from 'src/common/dto';
+import { IsDateString } from 'class-validator';
 
-/** `GET /feed/grid` — one day's per-cow feeding grid, optionally scoped to one feed group. */
+/** `GET /feed/grid` — one day's per-cow feeding grid. */
 export class FeedGridQueryDto {
   @IsDateString()
   date!: string;
-
-  @IsOptional()
-  @Transform(trimString)
-  @IsString()
-  feedGroupId?: string;
 }

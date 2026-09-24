@@ -175,22 +175,6 @@ describe('Feeding Grid — multi-source confirm (e2e, RAKHAL-430)', () => {
   });
 
   it('saveDraft: a per-entry source override coexists with a different top-level default for the rest of the call', async () => {
-    // Scoped to a dedicated feed group — a confirm with a top-level default source resolves
-    // *every* unlisted cow in scope against it via the carried-forward-default fallback, so this
-    // must not run against the whole (shared dev DB) active herd like tests 1/2 safely do by
-    // omitting a top-level source entirely.
-    const group = await request(server())
-      .post(api('/settings/feed-groups'))
-      .set(...auth(owner))
-      .send({ name: `E2E Grid MS Group ${Date.now()}` })
-      .expect(201);
-    const feedGroupId = group.body.data.id as string;
-    await request(server())
-      .post(api(`/feed/groups/${feedGroupId}/assign-cattle`))
-      .set(...auth(owner))
-      .send({ cattleIds: [cowA, cowB] })
-      .expect(201);
-
     const itemDefault = await createFeedItem(50);
     const itemOverride = await createFeedItem(50);
     const date = '2026-05-12';
@@ -200,7 +184,6 @@ describe('Feeding Grid — multi-source confirm (e2e, RAKHAL-430)', () => {
       .set(...auth(owner))
       .send({
         date,
-        feedGroupId,
         sourceType: 'FEED_ITEM',
         feedItemId: itemDefault,
         entries: [
@@ -224,15 +207,24 @@ describe('Feeding Grid — multi-source confirm (e2e, RAKHAL-430)', () => {
     expect(draftA?.offeredKg).toBe(3);
     expect(draftB?.offeredKg).toBe(5);
 
-    // Confirming with no entries resolves each cow from its own staged draft's own source.
+    // Confirming names exactly these two cows (a confirm with no `entries` sweeps the whole shared
+    // dev-DB herd); each keeps its own source — cowB's override beats the top-level default.
     const res = await request(server())
       .post(api('/feed/grid/confirm'))
       .set(...auth(owner))
       .send({
         date,
-        feedGroupId,
         sourceType: 'FEED_ITEM',
         feedItemId: itemDefault,
+        entries: [
+          { cattleId: cowA, offeredKg: 3 },
+          {
+            cattleId: cowB,
+            offeredKg: 5,
+            sourceType: 'FEED_ITEM',
+            feedItemId: itemOverride,
+          },
+        ],
       });
     expect(res.status).toBe(201);
     expect(res.body.data.cows).toHaveLength(2);

@@ -1,9 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
-import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import {
-  allocateGroupFeedCost,
   computeDiscardedWithheldValue,
   computeLactationMargin,
   computeMilkRevenue,
@@ -17,7 +15,6 @@ interface LactationEconomicsAccess {
   id: string;
   cattleId: string;
   cattleTagNumber: string;
-  feedGroupId: string | null;
   startDate: Date;
   endDate: Date | null;
 }
@@ -66,7 +63,6 @@ export class LactationEconomicsService {
     const feedCost = await this.computeAllocatedFeedCost(
       farmId,
       lactation.cattleId,
-      lactation.feedGroupId,
       lactation.startDate,
       rangeEnd,
     );
@@ -133,7 +129,7 @@ export class LactationEconomicsService {
       },
       assumptions: [
         "Milk revenue uses one effective rate per litre for the whole farm (the most recent dispatch price, or the average of active buyers' base price when no dispatch exists yet) — milk sales are not tracked per cow in this system.",
-        "Group-fed feed cost is pro-rated evenly across the feed group's current headcount, not the headcount at the time each feed distribution happened (no historical headcount tracking exists).",
+        "Feed cost counts only this cow's own individual feed distributions; herd-wide rations are not allocated per cow.",
       ],
     };
   }
@@ -168,49 +164,25 @@ export class LactationEconomicsService {
   }
 
   /**
-   * Sums this cow's own individual `FeedDistribution` rows (full cost) plus
-   * her pro-rated share of any group-targeted rows for her feed group, over
-   * the lactation's date range. A cow with neither an individual
-   * distribution nor a feed-group assignment allocates to 0.
+   * Sums this cow's own individual `FeedDistribution` rows (full cost) over
+   * the lactation's date range. A cow with no individual distribution
+   * allocates to 0.
    */
   private async computeAllocatedFeedCost(
     farmId: string,
     cattleId: string,
-    feedGroupId: string | null,
     startDate: Date,
     rangeEnd: Date,
   ): Promise<number> {
-    const orFilters: Array<Record<string, unknown>> = [{ cattleId }];
-    if (feedGroupId) orFilters.push({ feedGroupId });
-
     const distributions = await this.prisma.feedDistribution.findMany({
       where: {
         farmId,
+        cattleId,
         distributedAt: { gte: startDate, lte: rangeEnd },
-        OR: orFilters,
       },
-      select: { cattleId: true, feedGroupId: true, totalActualCost: true },
+      select: { totalActualCost: true },
     });
-    if (distributions.length === 0) return 0;
-
-    let groupHeadcount: number | null = null;
-    if (
-      feedGroupId &&
-      distributions.some((d) => d.feedGroupId === feedGroupId)
-    ) {
-      groupHeadcount = await this.prisma.cattle.count({
-        where: { ...activeHerd(farmId), feedGroupId },
-      });
-    }
-
-    let total = 0;
-    for (const d of distributions) {
-      if (d.cattleId === cattleId) {
-        total += d.totalActualCost;
-      } else if (feedGroupId && d.feedGroupId === feedGroupId) {
-        total += allocateGroupFeedCost(d.totalActualCost, groupHeadcount ?? 0);
-      }
-    }
+    const total = distributions.reduce((sum, d) => sum + d.totalActualCost, 0);
     return Math.round(total * 100) / 100;
   }
 
@@ -226,7 +198,7 @@ export class LactationEconomicsService {
         cattleId: true,
         startDate: true,
         endDate: true,
-        cattle: { select: { tagNumber: true, feedGroupId: true } },
+        cattle: { select: { tagNumber: true } },
       },
     });
     if (!lactation) {
@@ -236,7 +208,6 @@ export class LactationEconomicsService {
       id: lactation.id,
       cattleId: lactation.cattleId,
       cattleTagNumber: lactation.cattle.tagNumber,
-      feedGroupId: lactation.cattle.feedGroupId,
       startDate: lactation.startDate,
       endDate: lactation.endDate,
     };

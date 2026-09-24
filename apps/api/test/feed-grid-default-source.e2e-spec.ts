@@ -4,11 +4,9 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
 /**
  * RAKHAL-431 (Feeding Favourites, `docs/EPIC_FEEDING_FAVOURITES.md`) — the resolution ladder
- * (own last-used → feed-group default → none), surfaced as `default_source` on `GET /feed/grid`.
- * Covers the 3 guards: group-change (a cow moved to a different group doesn't inherit its old
- * group's feed), availability (a soft-deleted/zero-stock item is skipped), and batch fall-forward
- * (an exhausted `FeedStock` lot resolves to a sibling lot of the same recipe before falling back
- * to the group default).
+ * (own last-used → none), surfaced as `default_source` on `GET /feed/grid`. Covers the
+ * availability guard (a soft-deleted/zero-stock item is skipped) and batch fall-forward (an
+ * exhausted `FeedStock` lot resolves to a sibling lot of the same recipe).
  *
  * Requires the dev stack up + `pnpm seed`.
  */
@@ -27,30 +25,14 @@ describe('Feeding Grid — default_source resolution ladder (e2e, RAKHAL-431)', 
     `E2E-GRIDDS-${label}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
   let ingredientId: string;
-  let groupId: string;
 
-  const createGroup = async (name: string) => {
-    const res = await request(server())
-      .post(api('/settings/feed-groups'))
-      .set(...auth(owner))
-      .send({ name: `${name} ${Date.now()}-${Math.random()}` })
-      .expect(201);
-    return res.body.data.id as string;
-  };
-
-  const createCow = async (label: string, feedGroupId: string) => {
+  const createCow = async (label: string) => {
     const res = await request(server())
       .post(api('/cattle'))
       .set(...auth(owner))
       .send({ tagNumber: tag(label), gender: 'FEMALE' })
       .expect(201);
-    const cattleId = res.body.data.id as string;
-    await request(server())
-      .post(api(`/feed/groups/${feedGroupId}/assign-cattle`))
-      .set(...auth(owner))
-      .send({ cattleIds: [cattleId] })
-      .expect(201);
-    return cattleId;
+    return res.body.data.id as string;
   };
 
   const createFeedItem = async (stock: number) => {
@@ -86,17 +68,15 @@ describe('Feeding Grid — default_source resolution ladder (e2e, RAKHAL-431)', 
       })
       .expect(201);
     ingredientId = ingredient.body.data.id as string;
-
-    groupId = await createGroup('E2E GridDS Group');
   }, 30_000);
 
   afterAll(async () => {
     await ctx.app.close();
   });
 
-  const getGrid = async (date: string, feedGroupId: string) => {
+  const getGrid = async (date: string) => {
     const res = await request(server())
-      .get(api(`/feed/grid?date=${date}&feedGroupId=${feedGroupId}`))
+      .get(api(`/feed/grid?date=${date}`))
       .set(...auth(owner))
       .expect(200);
     return res.body.data.cows as Array<{
@@ -109,8 +89,8 @@ describe('Feeding Grid — default_source resolution ladder (e2e, RAKHAL-431)', 
     }>;
   };
 
-  it('resolves own last-used as the default when the cow is still in the same group', async () => {
-    const cow = await createCow('A', groupId);
+  it('resolves own last-used as the default source', async () => {
+    const cow = await createCow('A');
     const item = await createFeedItem(50);
 
     await request(server())
@@ -129,7 +109,7 @@ describe('Feeding Grid — default_source resolution ladder (e2e, RAKHAL-431)', 
       })
       .expect(201);
 
-    const cows = await getGrid('2026-06-02', groupId);
+    const cows = await getGrid('2026-06-02');
     const row = cows.find((c) => c.cattle_id === cow);
     expect(row?.default_source).toMatchObject({
       source_type: 'FEED_ITEM',
@@ -137,40 +117,8 @@ describe('Feeding Grid — default_source resolution ladder (e2e, RAKHAL-431)', 
     });
   });
 
-  it('group-change guard: a cow moved to a different group does not inherit its old feed', async () => {
-    const cow = await createCow('B', groupId);
-    const item = await createFeedItem(50);
-
-    await request(server())
-      .post(api('/feed/grid/confirm'))
-      .set(...auth(owner))
-      .send({
-        date: '2026-06-01',
-        entries: [
-          {
-            cattleId: cow,
-            offeredKg: 3,
-            sourceType: 'FEED_ITEM',
-            feedItemId: item,
-          },
-        ],
-      })
-      .expect(201);
-
-    const otherGroup = await createGroup('E2E GridDS OtherGroup');
-    await request(server())
-      .post(api(`/feed/groups/${otherGroup}/assign-cattle`))
-      .set(...auth(owner))
-      .send({ cattleIds: [cow] })
-      .expect(201);
-
-    const cows = await getGrid('2026-06-02', otherGroup);
-    const row = cows.find((c) => c.cattle_id === cow);
-    expect(row?.default_source).toBeNull();
-  });
-
   it('availability guard: a soft-deleted feed item is skipped, falling through to none', async () => {
-    const cow = await createCow('C', groupId);
+    const cow = await createCow('C');
     const item = await createFeedItem(50);
 
     await request(server())
@@ -194,13 +142,13 @@ describe('Feeding Grid — default_source resolution ladder (e2e, RAKHAL-431)', 
       data: { deletedAt: new Date() },
     });
 
-    const cows = await getGrid('2026-06-02', groupId);
+    const cows = await getGrid('2026-06-02');
     const row = cows.find((c) => c.cattle_id === cow);
     expect(row?.default_source).toBeNull();
   });
 
   it('batch fall-forward: an exhausted FeedStock lot resolves to a sibling lot of the same recipe', async () => {
-    const cow = await createCow('D', groupId);
+    const cow = await createCow('D');
 
     const concentration = await prisma.feedConcentration.create({
       data: {
@@ -285,7 +233,7 @@ describe('Feeding Grid — default_source resolution ladder (e2e, RAKHAL-431)', 
       },
     });
 
-    const cows = await getGrid('2026-06-03', groupId);
+    const cows = await getGrid('2026-06-03');
     const row = cows.find((c) => c.cattle_id === cow);
     expect(row?.default_source).toMatchObject({
       source_type: 'FEED_STOCK',

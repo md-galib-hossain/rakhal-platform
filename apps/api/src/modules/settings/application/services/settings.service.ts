@@ -12,8 +12,6 @@ import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { UpdateFarmSettingsDto } from '../../presentation/dto/update-farm-settings.dto';
 import { CreateShedDto } from '../../presentation/dto/create-shed.dto';
 import { UpdateShedDto } from '../../presentation/dto/update-shed.dto';
-import { CreateFeedGroupDto } from '../../presentation/dto/create-feed-group.dto';
-import { UpdateFeedGroupDto } from '../../presentation/dto/update-feed-group.dto';
 
 @Injectable()
 export class SettingsService {
@@ -217,174 +215,12 @@ export class SettingsService {
     return { id: shed.id, deleted_at: new Date() };
   }
 
-  // ── Feed Groups ─────────────────────────────────────────────────────────────
-
-  async listFeedGroups(farmId: string) {
-    const groups = await this.prisma.feedGroup.findMany({
-      where: { farmId },
-      include: {
-        _count: {
-          select: {
-            cattle: { where: activeHerd(farmId) },
-          },
-        },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    return groups.map((g) => ({
-      id: g.id,
-      name: g.name,
-      description: g.description,
-      refusal_target_pct: g.refusalTargetPct,
-      default_concentration_id: g.defaultConcentrationId,
-      default_feed_source_type: g.defaultFeedSourceType,
-      default_feed_item_id: g.defaultFeedItemId,
-      default_feed_stock_id: g.defaultFeedStockId,
-      deleted_at: g.deletedAt,
-      assigned_count: g._count.cattle,
-      created_at: g.createdAt,
-    }));
-  }
-
-  async createFeedGroup(farmId: string, dto: CreateFeedGroupDto) {
-    try {
-      const group = await this.prisma.feedGroup.create({
-        data: {
-          farmId,
-          name: dto.name,
-          description: dto.description,
-          refusalTargetPct: dto.refusalTargetPct,
-        },
-      });
-      this.log.info('Feed group created', { groupId: group.id, farmId });
-      return group;
-    } catch (e) {
-      if (
-        e instanceof Prisma.PrismaClientKnownRequestError &&
-        e.code === 'P2002'
-      ) {
-        throw new ConflictException(`Feed group "${dto.name}" already exists`);
-      }
-      throw e;
-    }
-  }
-
-  async updateFeedGroup(farmId: string, id: string, dto: UpdateFeedGroupDto) {
-    await this.getFeedGroupOrThrow(farmId, id);
-
-    if (dto.defaultConcentrationId) {
-      const recipe = await this.prisma.feedConcentration.findFirst({
-        where: {
-          id: dto.defaultConcentrationId,
-          farmId,
-          deletedAt: null,
-          kind: 'FEED_MIXTURE',
-        },
-        select: { id: true },
-      });
-      if (!recipe) {
-        throw new BadRequestException(
-          'Default recipe must be an active Total Mixed Ration (TMR) belonging to this farm',
-        );
-      }
-    }
-
-    if (dto.defaultFeedSourceType === 'FEED_ITEM') {
-      const item = await this.prisma.feedItem.findFirst({
-        where: { id: dto.defaultFeedItemId, farmId, deletedAt: null },
-        select: { id: true },
-      });
-      if (!item) {
-        throw new BadRequestException(
-          'Default feed item must belong to this farm',
-        );
-      }
-    } else if (dto.defaultFeedSourceType === 'FEED_STOCK') {
-      const stock = await this.prisma.feedStock.findFirst({
-        where: { id: dto.defaultFeedStockId, farmId, deletedAt: null },
-        select: { id: true },
-      });
-      if (!stock) {
-        throw new BadRequestException(
-          'Default feed stock lot must belong to this farm',
-        );
-      }
-    }
-
-    try {
-      return await this.prisma.feedGroup.update({
-        where: { id },
-        data: {
-          ...(dto.name ? { name: dto.name } : {}),
-          ...(dto.description !== undefined
-            ? { description: dto.description }
-            : {}),
-          ...(dto.refusalTargetPct !== undefined
-            ? { refusalTargetPct: dto.refusalTargetPct }
-            : {}),
-          ...(dto.defaultConcentrationId !== undefined
-            ? { defaultConcentrationId: dto.defaultConcentrationId }
-            : {}),
-          ...(dto.defaultFeedSourceType !== undefined
-            ? {
-                defaultFeedSourceType: dto.defaultFeedSourceType,
-                defaultFeedItemId:
-                  dto.defaultFeedSourceType === 'FEED_ITEM'
-                    ? (dto.defaultFeedItemId ?? null)
-                    : null,
-                defaultFeedStockId:
-                  dto.defaultFeedSourceType === 'FEED_STOCK'
-                    ? (dto.defaultFeedStockId ?? null)
-                    : null,
-              }
-            : {}),
-        },
-      });
-    } catch (e) {
-      if (
-        e instanceof Prisma.PrismaClientKnownRequestError &&
-        e.code === 'P2002'
-      ) {
-        throw new ConflictException(
-          'A feed group with that name already exists',
-        );
-      }
-      throw e;
-    }
-  }
-
-  async deleteFeedGroup(farmId: string, id: string) {
-    const group = await this.getFeedGroupOrThrow(farmId, id);
-
-    const assignedCount = await this.prisma.cattle.count({
-      where: { feedGroupId: id, ...activeHerd(farmId) },
-    });
-    if (assignedCount > 0) {
-      throw new BadRequestException(
-        `Cannot delete feed group — ${assignedCount} active cattle are assigned to it`,
-      );
-    }
-
-    await this.prisma.feedGroup.delete({ where: { id } });
-    this.log.info('Feed group deleted', { groupId: id, farmId });
-    return { id: group.id, deleted: true };
-  }
-
   // ── Private helpers ─────────────────────────────────────────────────────────
 
   private async getShedOrThrow(farmId: string, id: string) {
     const shed = await this.prisma.shed.findFirst({ where: { id, farmId } });
     if (!shed) throw new NotFoundException('Shed not found');
     return shed;
-  }
-
-  private async getFeedGroupOrThrow(farmId: string, id: string) {
-    const group = await this.prisma.feedGroup.findFirst({
-      where: { id, farmId },
-    });
-    if (!group) throw new NotFoundException('Feed group not found');
-    return group;
   }
 
   private mapFarm(f: {

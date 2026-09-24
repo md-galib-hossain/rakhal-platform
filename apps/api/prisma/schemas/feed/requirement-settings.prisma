@@ -42,7 +42,7 @@ model RequirementPreset {
 
   /// `PlatformAdmin.id` — deliberately a plain string, not a Prisma relation. Admin
   /// identity is a separate surface and farm-side code must never join it (ADR-016),
-  /// matching how `FeedConcentration.feedGroupId` is a plain validated FK.
+  /// matching how `FeedConcentration.cattleId` is a plain validated FK.
   createdByAdminId String?
 
   deletedAt DateTime?

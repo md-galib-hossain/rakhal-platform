@@ -13,8 +13,6 @@ model Cattle {
   herdStatus  HerdStatus   @default(ACTIVE)
   shedId      String?
 
-  feedGroupId String?
-
   /// Production dimension of the multi-state status (PRD §8.1). Reproductive
   /// status lives on `ReproductionProfile`; health status is derived from active
   /// `HealthCase`/`SafetyWithdrawal` — neither is duplicated here. Nullable
@@ -63,7 +61,6 @@ model Cattle {
   farm      Farm       @relation("FarmToCattle", fields: [farmId], references: [id])
   breed     Breed?     @relation(fields: [breedId], references: [id])
   shed      Shed?      @relation(fields: [shedId], references: [id])
-  feedGroup FeedGroup? @relation(fields: [feedGroupId], references: [id])
   creator   User       @relation("CattleCreator", fields: [createdBy], references: [id])
 
   mother   Cattle?  @relation("CattleMother", fields: [motherId], references: [id])
@@ -71,8 +68,9 @@ model Cattle {
   father   Cattle?  @relation("CattleFather", fields: [fatherId], references: [id])
   fatherOf Cattle[] @relation("CattleFather")
 
+  animalGroupMemberships AnimalGroupMember[]
   reproductionProfile    ReproductionProfile?
-  heatEvents             HeatEvent[]
+  heatEvents            HeatEvent[]
   breedingEvents         BreedingEvent[]         @relation("BreedingEventCattle")
   breedingAsBull         BreedingEvent[]         @relation("BreedingEventBull")
   pregnancyDiagnoses     PregnancyDiagnosis[]
@@ -194,36 +192,36 @@ model Shed {
   @@index([farmId])
 }
 
-model FeedGroup {
-  id                     String              @id @default(cuid())
-  farmId                 String
-  name                   String
-  description            String?
-  /// Refusal-rate target, % of planned kg (e.g. 3.0). Null = no target configured. Per-group,
-  /// not farm-wide — fresh/high-producing groups intentionally run higher refusal than late-
-  /// lactation groups (2026-08-13, feeding-system upgrade).
-  refusalTargetPct       Float?
-  /// Default recipe (user request 2026-08-14 — "pre-define the feed to feed groups... so all
-  /// inputs will be filled, just submit to record the feeding"). Plain validated FK to a
-  /// `FeedConcentration` (`kind: FEED_MIXTURE`, GROUP-targeted at this group), not a Prisma
-  /// relation — same "no cross-module coupling" convention `FeedConcentration.feedGroupId` already
-  /// uses. Null = no default set, "Feed Today" still requires manually picking a TMR.
-  defaultConcentrationId String?
-  /// RAKHAL-429/433 (Feeding Favourites, `docs/EPIC_FEEDING_FAVOURITES.md`): the group's default
-  /// **feeding-grid** source — separate from `defaultConcentrationId` above, which stays reserved
-  /// for "Feed Today" (`LogDistributionDialog`) and is TMR-only (`settings.service.ts` validates
-  /// it as such). This is the bottom rung of the resolution ladder (own last-used → this → none)
-  /// RAKHAL-431 reads. Null = no group default set.
-  defaultFeedSourceType  FeedGridSourceType?
-  defaultFeedItemId      String?
-  defaultFeedStockId     String?
-  deletedAt              DateTime?
-  createdAt              DateTime            @default(now())
-  updatedAt              DateTime            @updatedAt
+/// RAKHAL-452: a named, farm-defined set of animals (many-to-many via
+/// `AnimalGroupMember`). Neutral tag for bulk actions — carries no feeding logic.
+model AnimalGroup {
+  id          String    @id @default(cuid())
+  farmId      String
+  name        String
+  description String?
+  deletedAt   DateTime?
+  createdBy   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  farm   Farm     @relation("FarmToFeedGroup", fields: [farmId], references: [id])
-  cattle Cattle[]
+  farm    Farm                @relation("FarmToAnimalGroup", fields: [farmId], references: [id])
+  members AnimalGroupMember[]
 
   @@unique([farmId, name])
+  @@index([farmId])
+}
+
+model AnimalGroupMember {
+  groupId   String
+  cattleId  String
+  farmId    String
+  addedBy   String?
+  createdAt DateTime @default(now())
+
+  group  AnimalGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  cattle Cattle      @relation(fields: [cattleId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, cattleId])
+  @@index([cattleId])
   @@index([farmId])
 }

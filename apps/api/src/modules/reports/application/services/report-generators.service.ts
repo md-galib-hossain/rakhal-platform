@@ -1630,7 +1630,6 @@ export class ReportGeneratorsService {
         ['Status', lactation.status],
         ['DIM', dim],
         ['Shed', lactation.shedName ?? ''],
-        ['Feed group', lactation.feedGroupName ?? ''],
       ],
     };
 
@@ -1796,7 +1795,6 @@ export class ReportGeneratorsService {
     peakMilkDate: Date | null;
     peakDaysInMilk: number | null;
     shedName: string | null;
-    feedGroupName: string | null;
   }> {
     const select = {
       id: true,
@@ -1815,7 +1813,6 @@ export class ReportGeneratorsService {
           tagNumber: true,
           name: true,
           shed: { select: { name: true } },
-          feedGroup: { select: { name: true } },
         },
       },
     } as const;
@@ -1836,7 +1833,6 @@ export class ReportGeneratorsService {
         tagNumber: string;
         name: string | null;
         shed: { name: string } | null;
-        feedGroup: { name: string } | null;
       };
     } | null = null;
 
@@ -1890,7 +1886,6 @@ export class ReportGeneratorsService {
       peakMilkDate: row.peakMilkDate,
       peakDaysInMilk: row.peakDaysInMilk,
       shedName: row.cattle.shed?.name ?? null,
-      feedGroupName: row.cattle.feedGroup?.name ?? null,
     };
   }
 
