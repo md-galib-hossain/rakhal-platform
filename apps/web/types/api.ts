@@ -23,6 +23,9 @@ export interface ApiErrorEnvelope {
   code: string;
   requestId: string;
   timestamp: string;
+  /** Structured extra detail on a 4xx (backend forwards it since RAKHAL-456), e.g. the group-overlap 409's
+   * `conflicting_cattle`. */
+  details?: Record<string, unknown>;
 }
 
 export type ApiEnvelope<T> = ApiSuccessEnvelope<T> | ApiErrorEnvelope;

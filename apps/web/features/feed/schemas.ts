@@ -48,6 +48,7 @@ export const createFeedConcentrationItemSchema = z.object({
    * is added here — the backend validates the pair authoritatively regardless. */
   feedItemId: z.string().optional(),
   feedStockId: z.string().optional(),
+  availableStockKg: z.number().optional(),
 });
 
 export const createFeedFormSchema = z

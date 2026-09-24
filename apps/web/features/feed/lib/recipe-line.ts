@@ -29,9 +29,16 @@ export function distributionLineKey(line: { ingredient_id: string | null; feed_i
 }
 
 /** kg in one unit of the item's stock (weight units convert through the unit itself). */
-function kgPerUnit(item: FeedItem): number | null {
+export function kgPerUnit(item: FeedItem): number | null {
   if (item.unit.dimension === "WEIGHT" && item.unit.conversionToBase != null) return item.unit.conversionToBase;
   return item.kgPerUnit;
+}
+
+/** Total available stock in kg for an inventory feed item. */
+export function itemStockKg(item: FeedItem): number {
+  if (item.kgEquivalent != null) return item.kgEquivalent;
+  const kg = kgPerUnit(item);
+  return kg && kg > 0 ? item.currentStock * kg : item.currentStock;
 }
 
 /** Client-side nutrition + price of a purchased lot — the pinned one, else the FIFO head (first lot with

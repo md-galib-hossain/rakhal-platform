@@ -1144,3 +1144,18 @@ Companion to the backend board's MILESTONE 24 (`D:\Projects\Rakhal\docs\PROJECT_
 | RFE-124 | Recipe builder `batch-link-picker.tsx`: pick item (+ optional batch), nutrition from that batch, ingredient optional | `features/feed/components/{batch-link-picker,feed-mixture-table,create-feed-dialog}.tsx` | RAKHAL-447 · **DONE 2026-09-24** — line key = backend `lineKey` (`features/feed/lib/recipe-line.ts`), product-only lines via new `product-line-picker.tsx`, lot pinning + lot nutrition preview in `batch-link-picker.tsx`, detail sheet/log-distribution keyed correctly. Not click-verified. |
 
 **Note:** the 2026-09-23 "merge Feed Class + Category into one grouped Category dropdown" change (`features/inventory/feed-category.ts`) is already shipped and is the base RFE-120 builds on.
+
+---
+
+## MILESTONE 27 — Feed Programs (frontend twins) — 📋 SPECCED (2026-09-24), nothing implemented
+
+> **Full spec:** `D:\Projects\Rakhal\docs\EPIC_FEED_PROGRAMS.md` (§2 verdict, §3 decisions, §6 grid layout + ASCII mock, §7 UI, §8 corner cases, §9 tickets). Backend tickets RAKHAL-453…458 land first; each RFE below depends on the noted backend ticket. `GET /feed/grid` changes are additive, so the current grid keeps working until RFE-127 lands.
+> **One-liner:** a feeding *program* is always a Feed Plan (concentrate/TMR can be plan lines, and "Apply TMR"/"Apply Concentrate" make a one-line plan). Nothing reaches the Feeding page until **Apply**. There is one active program per cow (individual → group → herd). The grid shows one section per program with plan lines as columns, "Confirm as planned", "+ extra" for off-plan feed, and per-cow fit pills vs. the daily requirement.
+
+| Ticket | Title | Lane | Depends |
+|---|---|---|---|
+| RFE-126 | **Feed Plans** tab in Feed Formulator: plan cards (kind badge, lines, kg/day, cost/day, "applied to N via …"), editor (bought items + made recipes, kg/day) with **live fit table** (reference animal or group min/avg/max), **Apply dialog** on plan + concentrate + TMR cards (cows / group / herd; shortcuts ask kg/day; "replaces X for N cows" confirm; stock-days forecast), **Remove program** on the plan card + cattle detail Feeding tab. Gate on `<Can I="feed.update">`. Both locales. | new `features/feed/components/plans/**`, `features/feed/{api,types}.ts` (plans section), new `features/feed/hooks/use-feed-plans.ts`, `features/cattle/components/detail/feeding-tab.tsx`, `i18n/messages/{en,bn}.json` | RAKHAL-455, 456 |
+| RFE-127 | Feeding Grid **sections per program**: plan lines as columns pre-filled (÷ sessions), **Confirm as planned** per section, **+ extra** off-plan line per row, one refusal cell split proportionally (per-line override in row expand), conflict badge, "No program" section = today's behaviour; fix the `drafts[0]`-only read (render every draft line) | `features/feeding/components/**`, `features/feed/hooks/use-feed.ts` (grid section), `features/feed/{api,types}.ts` (grid types) | RAKHAL-457 |
+| RFE-128 | **Fit pills** per row (green/amber/red + "estimated"), tooltip with requirement vs supply for DM/CP/ME + flags, section summary; **Adjust plan** sheet (group/herd → "Edit for all N" or "Make individual plan (copy)"); **Edit recipe** sheet with a "lots already made keep their nutrition, adjust kg for today" banner. Workers see pills only. | new `features/feeding/components/fit-*.tsx`, new `features/feeding/components/adjust-plan-sheet.tsx` | RAKHAL-458, RFE-126, RFE-127 |
+
+**Serialization:** RFE-127 and RFE-128 both touch `features/feeding/components/**`, so run them one after the other.

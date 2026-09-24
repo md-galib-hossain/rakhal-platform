@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Can } from "@/lib/auth/permissions";
 import { useConcentrations, useDmi, useFeedEfficiency, useResolvedRation } from "@/features/feed/hooks/use-feed";
 import { LogDistributionDialog } from "@/features/feed/components/log-distribution-dialog";
+import { CattleProgramCard } from "@/features/feed/components/plans/cattle-program-card";
 import { useCalfDetail } from "@/features/calves/hooks/use-calves";
 import { ColostrumTab } from "@/features/calves/components/detail/colostrum-tab";
 import { MilkFeedingTab } from "@/features/calves/components/detail/milk-feeding-tab";
@@ -22,6 +23,7 @@ import type { AnimalCategory } from "../../types";
 
 const MATCH_LEVEL_VARIANT: Record<string, "success" | "info" | "secondary"> = {
   INDIVIDUAL: "success",
+  GROUP: "info",
   HERD: "secondary",
 };
 
@@ -200,6 +202,8 @@ export function FeedingTab({ cattleId, animalCategory }: { cattleId: string; ani
   return (
     <div className="flex flex-col gap-4">
       <FeedTodayCard cattleId={cattleId} />
+      {/* MILESTONE 27 (RFE-126): the feed plan she is on, and how it reaches her. */}
+      <CattleProgramCard cattleId={cattleId} />
       <RationDmiSection cattleId={cattleId} />
     </div>
   );

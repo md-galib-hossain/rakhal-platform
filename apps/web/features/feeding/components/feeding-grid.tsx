@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { FeedingCowHistorySheet } from "./feeding-cow-history-sheet";
+import { ProgramSection, type ProgramCow } from "./program-section";
 import { Pagination } from "@/components/shared/pagination";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ApiError } from "@/lib/api/errors";
@@ -51,7 +52,8 @@ import {
   useSaveFeedDraft,
   useFeedStock,
 } from "../../feed/hooks/use-feed";
-import type { FeedGridCow, FeedGridEntryInput, FeedGridSource, FeedGridSourceType } from "../../feed/types";
+import type { FeedGridCow, FeedGridEntryInput, FeedGridResult, FeedGridSource, FeedGridSourceType } from "../../feed/types";
+import type { FeedGridProgramCowFields, FeedGridSection } from "../../feed/plans-types";
 
 interface FeedSourceOption {
   id: string;
@@ -179,7 +181,12 @@ export function FeedingGrid() {
   const query = useFeedGrid(date);
   const calendarQuery = useFeedGridCalendar(calendarMonth);
 
-  const cows = query.data?.cows ?? [];
+  // MILESTONE 27 (RFE-127): the backend now also returns one section per resolved feeding program. Cows on a program are
+  // fed from their program's section; every other cow keeps today's single-source grid ("No program").
+  const data = query.data as (Omit<FeedGridResult, "cows"> & { sections?: FeedGridSection[]; cows: (FeedGridCow & FeedGridProgramCowFields)[] }) | undefined;
+  const sections = data?.sections ?? [];
+  const cows = data?.cows ?? [];
+  const plainCows = cows.filter((c) => !c.program_section_id);
 
   return (
     <div className="flex flex-col gap-4 rounded-2xl bg-card p-4 sm:p-5 shadow-card">
@@ -213,7 +220,23 @@ export function FeedingGrid() {
       ) : query.isError ? (
         <ErrorState description={t("error")} onRetry={() => query.refetch()} />
       ) : (
-        <FeedingGridTable key={date} date={date} cows={cows} />
+        <>
+          {sections.map((section) => (
+            <ProgramSection
+              key={`${date}:${section.id}`}
+              date={date}
+              section={section}
+              cows={cows.filter((c) => c.program_section_id === section.id) as ProgramCow[]}
+            />
+          ))}
+          {sections.length > 0 && plainCows.length > 0 ? (
+            <div>
+              <h3 className="text-base font-semibold text-foreground">{t("noProgramTitle")}</h3>
+              <p className="text-xs text-muted-foreground">{t("noProgramCount", { count: plainCows.length })}</p>
+            </div>
+          ) : null}
+          {plainCows.length > 0 || sections.length === 0 ? <FeedingGridTable key={date} date={date} cows={plainCows} /> : null}
+        </>
       )}
     </div>
   );

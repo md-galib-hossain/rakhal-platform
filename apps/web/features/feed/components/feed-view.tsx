@@ -27,6 +27,8 @@ import { CreateFeedDialog } from "./create-feed-dialog";
 import { ConcentrationDetailSheet } from "./concentration-detail-sheet";
 import { LogDistributionDialog } from "./log-distribution-dialog";
 import { FinalizeTmrDialog } from "./finalize-tmr-dialog";
+import { ApplyPlanDialog, type ApplyTarget } from "./plans/apply-plan-dialog";
+import { PlansTab } from "./plans/plans-tab";
 import type { FeedConcentrationKind, FeedConcentrationSummary } from "../types";
 
 function ConcentrationSection({
@@ -43,6 +45,7 @@ function ConcentrationSection({
   onDelete,
   onFinalize,
   onFeedToday,
+  onApply,
   selection,
 }: {
   title: string;
@@ -58,6 +61,7 @@ function ConcentrationSection({
   onDelete: (concentration: FeedConcentrationSummary) => void;
   onFinalize?: (concentration: FeedConcentrationSummary) => void;
   onFeedToday?: (concentration: FeedConcentrationSummary) => void;
+  onApply?: (concentration: FeedConcentrationSummary) => void;
   selection: { isSelected: (id: string) => boolean; toggle: (id: string) => void };
 }) {
   return (
@@ -93,6 +97,7 @@ function ConcentrationSection({
               onDelete={() => onDelete(item)}
               onFinalize={onFinalize ? () => onFinalize(item) : undefined}
               onFeedToday={onFeedToday ? () => onFeedToday(item) : undefined}
+              onApply={onApply ? () => onApply(item) : undefined}
               selected={selection.isSelected(item.id)}
               onToggleSelect={() => selection.toggle(item.id)}
             />
@@ -147,6 +152,7 @@ export function FeedView() {
   const [deleteTarget, setDeleteTarget] = useState<FeedConcentrationSummary | null>(null);
   const [finalizeTarget, setFinalizeTarget] = useState<FeedConcentrationSummary | null>(null);
   const [feedTodayId, setFeedTodayId] = useState<string | null>(null);
+  const [applyTarget, setApplyTarget] = useState<ApplyTarget | null>(null);
   const bulkDeleteConcentrations = useBulkDeleteConcentrations();
   const tBulk = useTranslations("feed.bulk");
 
@@ -231,10 +237,17 @@ export function FeedView() {
           <TabsTrigger value="requirements" className="flex-1">
             {t("requirements.tab")}
           </TabsTrigger>
+          <TabsTrigger value="plans" className="flex-1">
+            {t("plans.tab")}
+          </TabsTrigger>
         </TabsList>
         {/* RFE-103: appended, not a restructure — RAKHAL-264 owns this file's shell. */}
         <TabsContent value="requirements">
           <RequirementsTab />
+        </TabsContent>
+        {/* MILESTONE 27 (RFE-126): feed plans + where they are applied. */}
+        <TabsContent value="plans">
+          <PlansTab />
         </TabsContent>
         <TabsContent value="ingredients">
           <IngredientManagementTable />
@@ -253,6 +266,7 @@ export function FeedView() {
             onEdit={openEdit}
             onDelete={setDeleteTarget}
             onFinalize={setFinalizeTarget}
+            onApply={(c) => setApplyTarget({ kind: "shortcut", concentration: c })}
             selection={{ isSelected: templateSelection.isSelected, toggle: toggleTemplate }}
           />
         </TabsContent>
@@ -271,6 +285,7 @@ export function FeedView() {
             onDelete={setDeleteTarget}
             onFinalize={setFinalizeTarget}
             onFeedToday={(c) => setFeedTodayId(c.id)}
+            onApply={(c) => setApplyTarget({ kind: "shortcut", concentration: c })}
             selection={{ isSelected: mixtureSelection.isSelected, toggle: toggleMixture }}
           />
         </TabsContent>
@@ -299,6 +314,7 @@ export function FeedView() {
         target={finalizeTarget}
         onOpenChange={(open) => !open && setFinalizeTarget(null)}
       />
+      <ApplyPlanDialog target={applyTarget} onOpenChange={(open) => !open && setApplyTarget(null)} />
 
       {/* Two dock instances, one per section — safe because each no-ops at selectedCount === 0 and
           the toggle wrappers above guarantee at most one section is ever non-empty at a time. */}

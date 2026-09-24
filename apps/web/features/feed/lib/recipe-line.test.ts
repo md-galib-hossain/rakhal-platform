@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FeedItem } from "@/features/inventory/types";
-import { distributionLineKey, effectiveFromFigures, effectiveFromLot, formLineKey } from "./recipe-line";
+import { distributionLineKey, effectiveFromFigures, effectiveFromLot, formLineKey, itemStockKg } from "./recipe-line";
 
 const profile = (dmPct: number, cpPct: number, meMjPerKgDm: number) =>
   ({
@@ -130,5 +130,27 @@ describe("effectiveFromFigures", () => {
       cost_tk: 0,
     };
     expect(effectiveFromFigures(zero)).toBeNull();
+  });
+});
+
+describe("itemStockKg", () => {
+  it("calculates total kg based on unit conversion", () => {
+    const feedItem = {
+      currentStock: 10,
+      kgEquivalent: null,
+      unit: { dimension: "WEIGHT", conversionToBase: 25 },
+      kgPerUnit: null,
+    } as unknown as FeedItem;
+    expect(itemStockKg(feedItem)).toBe(250);
+  });
+
+  it("prefers kgEquivalent if already set", () => {
+    const feedItem = {
+      currentStock: 10,
+      kgEquivalent: 500,
+      unit: { dimension: "WEIGHT", conversionToBase: 25 },
+      kgPerUnit: null,
+    } as unknown as FeedItem;
+    expect(itemStockKg(feedItem)).toBe(500);
   });
 });

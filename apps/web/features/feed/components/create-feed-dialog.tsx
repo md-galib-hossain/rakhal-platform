@@ -18,18 +18,19 @@ import {
   useConcentrationDetail,
   useCreateConcentration,
   useFeedIngredients,
+  useFeedStock,
   useNormalizeConcentration,
   useUpdateConcentration,
 } from "../hooks/use-feed";
 import { createFeedFormSchema, feedTargetTypes, type CreateFeedFormInput } from "../schemas";
 import { FeedMixtureTable, toEffectiveMap } from "./feed-mixture-table";
-import { IngredientPicker } from "./ingredient-picker";
+import { UnifiedItemPicker } from "./unified-item-picker";
 import type { BatchLink } from "./batch-link-picker";
 import { RequirementTile } from "./requirement-tile";
 import { fromApiRequirements, type EffectiveIngredientNutrition } from "../lib/formula-math";
-import { effectiveFromFigures, effectiveFromLot, formLineKey } from "../lib/recipe-line";
+import { effectiveFromFigures, effectiveFromLot, formLineKey, itemStockKg, kgPerUnit } from "../lib/recipe-line";
 import type { FeedItem } from "@/features/inventory/types";
-import { ProductLinePicker } from "./product-line-picker";
+import { useFeedItemPagedList } from "@/features/inventory/hooks/use-inventory";
 import type {
   CreateFeedConcentrationPayload,
   FeedConcentrationKind,
@@ -128,10 +129,29 @@ function CreateFeedDialogBody({
   const [step, setStep] = useState<1 | 2>(1);
 
   const ingredients = useFeedIngredients();
+  const feedItemsPaged = useFeedItemPagedList({});
+  const feedStockQuery = useFeedStock();
   const editDetail = useConcentrationDetail(editId);
   const createConcentration = useCreateConcentration();
   const updateConcentration = useUpdateConcentration();
   const normalizeMutation = useNormalizeConcentration();
+
+  const inventoryStockMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const fi of feedItemsPaged.items ?? []) {
+      map.set(fi.id, itemStockKg(fi));
+      for (const batch of fi.batches ?? []) {
+        if (batch.currentStock != null) {
+          const kg = kgPerUnit(fi);
+          map.set(`${fi.id}:${batch.id}`, kg && kg > 0 ? batch.currentStock * kg : batch.currentStock);
+        }
+      }
+    }
+    for (const s of feedStockQuery.data ?? []) {
+      map.set(s.id, s.current_stock_kg);
+    }
+    return map;
+  }, [feedItemsPaged.items, feedStockQuery.data]);
 
   const form = useForm<CreateFeedFormInput>({
     resolver: zodResolver(createFeedFormSchema),
@@ -195,7 +215,7 @@ function CreateFeedDialogBody({
   const cowCount = 1;
 
   function addItem(ingredientId: string, ingredientName: string) {
-    if (items.some((i) => i.ingredientId === ingredientId)) return;
+    if (items.some((i) => i.ingredientId === ingredientId && !i.feedItemId)) return;
     form.setValue("items", [...items, { ingredientId, ingredientName, amountKg: 0 }]);
   }
 
@@ -227,9 +247,16 @@ function CreateFeedDialogBody({
    * the product's batch, so no catalogue ingredient is needed. */
   function addProduct(item: FeedItem) {
     if (items.some((i) => i.feedItemId === item.id && !i.feedItemBatchId)) return;
+    const stockKg = Math.round(itemStockKg(item) * 100) / 100;
     form.setValue("items", [
       ...items,
-      { ingredientName: item.name, feedItemId: item.id, amountKg: 0, lotEffective: effectiveFromLot(item) ?? undefined },
+      {
+        ingredientName: item.name,
+        feedItemId: item.id,
+        amountKg: 0,
+        availableStockKg: stockKg,
+        lotEffective: effectiveFromLot(item) ?? undefined,
+      },
     ]);
   }
 
@@ -310,6 +337,22 @@ function CreateFeedDialogBody({
   async function onSubmit(values: CreateFeedFormInput) {
     if (step !== 2) return;
     try {
+      // Validate inventory items do not exceed available stock
+      for (const item of values.items) {
+        if (item.feedItemId || item.feedStockId) {
+          const stockKey = item.feedItemId
+            ? item.feedItemBatchId
+              ? `${item.feedItemId}:${item.feedItemBatchId}`
+              : item.feedItemId
+            : (item.feedStockId ?? "");
+          const maxStockKg = inventoryStockMap.get(stockKey) ?? item.availableStockKg;
+          if (maxStockKg != null && item.amountKg > maxStockKg) {
+            toast.error(t("cannotExceedStock", { name: item.ingredientName, stock: maxStockKg }));
+            return;
+          }
+        }
+      }
+
       const items = values.items.map((i) => ({
         ingredientId: i.ingredientId,
         amountKg: i.amountKg,
@@ -525,18 +568,18 @@ function CreateFeedDialogBody({
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between gap-4">
                 <p className="text-base font-medium text-foreground">{t(isTemplate ? "concentrateMixer" : "totalMixedRation")}</p>
-                <div className="flex items-center gap-2">
-                  <ProductLinePicker
-                    onSelect={addProduct}
-                    excludedItemIds={items.filter((i) => i.feedItemId && !i.ingredientId).map((i) => i.feedItemId as string)}
-                  />
-                  <IngredientPicker
-                    selectedIds={items.map((i) => i.ingredientId).filter((id): id is string => Boolean(id))}
-                    onSelect={(o) => addItem(o.id, o.nameEn)}
-                    onRemove={(id) => removeItem(id)}
-                    closeOnSelect={false}
-                  />
-                </div>
+                <UnifiedItemPicker
+                  items={items}
+                  onSelectCatalogue={(ing) => addItem(ing.id, ing.name_en)}
+                  onSelectInventory={addProduct}
+                  onRemoveCatalogue={removeItem}
+                  onRemoveInventory={(feedItemId) => {
+                    form.setValue(
+                      "items",
+                      items.filter((i) => i.feedItemId !== feedItemId),
+                    );
+                  }}
+                />
               </div>
 
               {items.length === 0 ? (

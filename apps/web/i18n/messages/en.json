@@ -1144,7 +1144,8 @@
         "costPerDay": "৳{value}/day",
         "matchLevel": {
           "INDIVIDUAL": "Individual override",
-          "HERD": "Herd default"
+          "HERD": "Herd default",
+          "GROUP": "Group program"
         },
         "dmiTitle": "Dry Matter Intake",
         "expectedDmi": "Expected",
@@ -5062,6 +5063,21 @@
     "createNewFeed": "Create New TMR",
     "noTemplates": "No Concentrate Mixers yet",
     "noFeeds": "No Total Mixed Rations (TMR) yet",
+    "addItems": "Add Items",
+    "allSources": "All",
+    "sourceInventory": "Inventory",
+    "sourceCatalogue": "Rakhal Catalogue",
+    "inStockBadge": "{stock} kg in stock",
+    "outOfStockBadge": "Out of stock",
+    "stockAmount": "Stock: {stock} kg",
+    "stockLimit": "Max: {stock} kg",
+    "exceedsStockWarning": "Amount exceeds available inventory stock ({stock} kg)",
+    "cannotExceedStock": "Amount cannot exceed available stock for {name} ({stock} kg)",
+    "requirementsLegend": "Requirements Status",
+    "legendNotMet": "Below requirement (<98%)",
+    "legendMet": "Requirement met (98-105%)",
+    "legendExceeded": "Exceeded requirement (>105%)",
+    "addedBadge": "Added",
     "addNewItem": "Add New Item",
     "searchIngredient": "Search ingredient…",
     "loading": "Loading…",
@@ -5110,7 +5126,9 @@
       "statusDraft": "Draft — not usable yet",
       "statusFinalized": "Finalized",
       "finalizeCtaTemplate": "Finalize as Feed",
-      "finalizeCtaMixture": "Finalize as Feed"
+      "finalizeCtaMixture": "Finalize as Feed",
+      "applyProgramMixture": "Apply TMR",
+      "applyProgramTemplate": "Apply Concentrate"
     },
     "deleteConfirmTitle": "Delete this formula?",
     "deleteConfirmDescription": "This can't be undone. Any Total Mixed Ration (TMR) that already reused an ingredient promoted from this formula will keep working.",
@@ -5445,6 +5463,159 @@
       "cancel": "Cancel",
       "mustBeNumber": "Enter a number",
       "outOfRange": "Must be between {min} and {max}"
+    },
+    "plans": {
+      "tab": "Feed Plans",
+      "title": "Feed Plans",
+      "searchPlaceholder": "Search plans",
+      "create": "New plan",
+      "empty": "No feed plans yet",
+      "emptyHint": "A plan lists what one animal eats per day. It does nothing until you apply it.",
+      "kind": {
+        "PLAN": "Plan",
+        "TMR_SHORTCUT": "TMR",
+        "CONCENTRATE_SHORTCUT": "Concentrate"
+      },
+      "card": {
+        "totalKg": "{kg} kg per head per day",
+        "kgLine": "{kg} kg",
+        "appliedTo": "Applied to",
+        "notApplied": "Not applied yet",
+        "cows": "{count, plural, one {# cow} other {# cows}}",
+        "groups": "{count, plural, one {# group} other {# groups}}",
+        "herd": "Whole herd",
+        "group": "Group: {name}",
+        "assignmentsTitle": "Where this plan is applied",
+        "removeProgram": "Remove",
+        "removeConfirmTitle": "Remove this program?",
+        "removeConfirmDescription": "The animals stop following \"{name}\". Their feeding history is kept.",
+        "removedToast": "Program removed",
+        "genericError": "Something went wrong. Try again.",
+        "apply": "Apply",
+        "edit": "Edit",
+        "delete": "Delete",
+        "deleteConfirmTitle": "Delete this plan?",
+        "deleteConfirmDescription": "\"{name}\" will be archived. Past feedings that used it are kept.",
+        "forceDeleteTitle": "Remove from all and delete?",
+        "forceDeleteDescription": "This plan is still applied. It will be removed from every animal, group and the herd, then deleted.",
+        "forceDelete": "Remove from all & delete",
+        "deletedToast": "Plan deleted"
+      },
+      "editor": {
+        "createTitle": "New feed plan",
+        "editTitle": "Edit feed plan",
+        "description": "What one animal eats per day, from your inventory. Creating a plan does not change stock or the Feeding page.",
+        "shortcutNote": "This is a {kind} shortcut plan. You can add other feed lines to it.",
+        "name": "Plan name",
+        "notes": "Notes",
+        "lines": "Feed lines",
+        "addRecipe": "Add TMR / concentrate",
+        "noRecipes": "No more recipes to add",
+        "notMadeYet": "not made yet",
+        "noLines": "Add at least one feed line.",
+        "typeRecipe": "TMR / concentrate",
+        "typeItem": "Bought feed",
+        "kgPerDayFor": "kg per day for {name}",
+        "kgUnit": "kg/day",
+        "removeLine": "Remove {name}",
+        "save": "Save plan",
+        "cancel": "Cancel",
+        "saved": "Plan saved",
+        "genericError": "Could not save the plan.",
+        "fitAfterSave": "Save the plan to see how well it fits an animal.",
+        "errors": {
+          "nameRequired": "Give the plan a name.",
+          "nameMax": "The name is too long (80 characters max).",
+          "nameTaken": "A plan with this name already exists.",
+          "kgRequired": "Enter the kg per day.",
+          "kgPositive": "Must be more than 0.",
+          "kgMax": "Must be 500 kg or less.",
+          "duplicateLine": "This feed is already on the plan. Combine the quantities.",
+          "linesRequired": "Add at least one feed line."
+        }
+      },
+      "fit": {
+        "title": "Does it fit?",
+        "hint": "What this plan gives one animal per day, compared with what she needs.",
+        "pickCow": "Pick an animal",
+        "pickCowFirst": "Pick an animal to compare against.",
+        "error": "Could not work out the fit.",
+        "nutrient": "Nutrient",
+        "supplies": "Plan gives",
+        "needs": "She needs",
+        "difference": "Difference",
+        "dm": "Dry matter (kg)",
+        "cp": "Protein (kg)",
+        "me": "Energy (MJ)",
+        "estimated": "Some inputs are estimated (missing weight, milk or dates), so treat this as a guide.",
+        "supplyIncomplete": "A feed has no batch with nutrition yet, so the plan total is a minimum.",
+        "noStock": "{name} has no stock right now."
+      },
+      "apply": {
+        "title": "Apply \"{name}\"",
+        "shortcutTitle": "Apply {name}",
+        "description": "Choose who follows this plan. It replaces their current program.",
+        "shortcutDescription": "This makes a one-line feed plan from this recipe and applies it. You can add grass or straw to it later.",
+        "planName": "Plan name",
+        "kgPerDay": "kg per head per day",
+        "target": "Apply to",
+        "targets": {
+          "INDIVIDUAL": {
+            "label": "Specific animals",
+            "hint": "Pick one or more cows."
+          },
+          "GROUP": {
+            "label": "An animal group",
+            "hint": "Everyone in the group gets the same kg."
+          },
+          "HERD": {
+            "label": "Whole herd",
+            "hint": "The default for any animal without its own or a group program."
+          }
+        },
+        "cows": "Animals",
+        "addCow": "Add an animal",
+        "removeCow": "Remove {name}",
+        "group": "Group",
+        "pickGroup": "Choose a group",
+        "members": "{count, plural, one {# animal} other {# animals}}",
+        "overlapTitle": "{count, plural, one {# animal is} other {# animals are}} already on another group program",
+        "overlapHint": "Remove that program, or give those animals their own individual one, then try again.",
+        "planSavedNotApplied": "The plan was saved but not applied yet.",
+        "cancel": "Cancel",
+        "apply": "Apply",
+        "appliedToast": "Program applied",
+        "doneTitle": "Program applied",
+        "doneDescription": "{count, plural, one {# target now follows} other {# targets now follow}} this plan.",
+        "replacedTitle": "It replaced:",
+        "leavesGroup": "{count, plural, one {# animal leaves} other {# animals leave}} the group program and now follows this one.",
+        "close": "Done",
+        "errors": {
+          "pickCows": "Add at least one animal.",
+          "pickGroup": "Choose a group.",
+          "shortcutFields": "Enter a plan name and the kg per day.",
+          "generic": "Could not apply the plan."
+        }
+      },
+      "cattleProgram": {
+        "title": "Feeding program",
+        "none": "No feeding program",
+        "noneDescription": "Apply a feed plan from Feed Formulator to give her a daily pattern.",
+        "via": {
+          "INDIVIDUAL": "Her own",
+          "GROUP": "Via her group",
+          "HERD": "Herd default"
+        },
+        "conflict": "She is in more than one group with a program. The most recently applied one is used until you fix it.",
+        "noStock": "no stock",
+        "kgLine": "{kg} kg/day",
+        "remove": "Remove program",
+        "changeElsewhere": "This program is set for her group or the herd. Change it from the Feed Plans tab.",
+        "removeConfirmTitle": "Remove her program?",
+        "removeConfirmDescription": "She stops following \"{name}\". Other animals on it are not affected.",
+        "removedToast": "Program removed",
+        "genericError": "Something went wrong. Try again."
+      }
     }
   },
   "feeding": {
@@ -5589,7 +5760,9 @@
           "confirm": "Void Entry",
           "voiding": "Voiding…"
         }
-      }
+      },
+      "noProgramTitle": "No program",
+      "noProgramCount": "{count, plural, one {# animal is} other {# animals are}} not on a feeding program."
     },
     "requirementTitle": "What the herd needs today",
     "requirementSubtitle": "Worked out from your cattle records — weight, milk, condition and pregnancy.",
@@ -5600,7 +5773,38 @@
     "noCattleDescription": "Add cattle and their weights, and the daily requirement shows up here.",
     "noRationYet": "No ration built yet — the requirement above still applies.",
     "dmLabel": "Dry matter",
-    "cpLabel": "Protein"
+    "cpLabel": "Protein",
+    "programs": {
+      "noEntries": "Nothing to save: enter a quantity for at least one animal.",
+      "savedToast": "{count, plural, one {# line saved} other {# lines saved}}",
+      "allConfirmed": "Everyone here is already confirmed for today.",
+      "confirmedToast": "{count, plural, one {# animal confirmed} other {# animals confirmed}}",
+      "genericError": "Something went wrong. Try again.",
+      "via": {
+        "INDIVIDUAL": "Individual",
+        "GROUP": "Group",
+        "HERD": "Whole herd"
+      },
+      "conflict": "In more than one group",
+      "cows": "{count, plural, one {# animal} other {# animals}}",
+      "needsAttention": "{count} not matching her needs",
+      "allFit": "all within range",
+      "session": "Session",
+      "saveDraft": "Save draft",
+      "confirmAsPlanned": "Confirm as planned",
+      "noBatch": "No batch made yet for: {names}. Make a batch before feeding it.",
+      "noStock": "Low or no stock for: {names}. Confirming may fail.",
+      "animal": "Animal",
+      "kg": "kg",
+      "refusal": "Refusal (kg)",
+      "extra": "Extra feed",
+      "confirmedToday": "Confirmed {kg} kg today",
+      "lineKgFor": "kg of {line} for {animal}",
+      "refusalFor": "Refusal for {animal}",
+      "extraKgFor": "Extra kg for {animal}",
+      "removeExtra": "Remove extra feed",
+      "extraFeed": "Extra feed"
+    }
   },
   "settings": {
     "title": "Settings",

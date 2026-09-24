@@ -59,6 +59,7 @@ export function ConcentrationCard({
   onDelete,
   onFinalize,
   onFeedToday,
+  onApply,
   selected = false,
   onToggleSelect,
 }: {
@@ -68,6 +69,8 @@ export function ConcentrationCard({
   onDelete?: () => void;
   onFinalize?: () => void;
   onFeedToday?: () => void;
+  /** MILESTONE 27 (RFE-126): "Apply TMR" / "Apply Concentrate" — turns this recipe into a one-line feed plan and applies it. */
+  onApply?: () => void;
   selected?: boolean;
   onToggleSelect?: () => void;
 }) {
@@ -79,6 +82,7 @@ export function ConcentrationCard({
   const canUpdate = can("feed.update");
   const canDelete = can("feed.delete");
   const canFinalize = canUpdate && Boolean(onFinalize);
+  const canApply = canUpdate && Boolean(onApply);
   const canFeedToday = can("feed.distribution-log") && concentration.kind === "FEED_MIXTURE" && Boolean(onFeedToday);
 
   return (
@@ -97,7 +101,7 @@ export function ConcentrationCard({
             {t(concentration.is_finalized ? "statusFinalized" : "statusDraft")}
           </Badge>
         </div>
-        {(canUpdate && onEdit) || (canDelete && onDelete) || canFinalize || canFeedToday ? (
+        {(canUpdate && onEdit) || (canDelete && onDelete) || canFinalize || canFeedToday || canApply ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" aria-label={t("moreActions")} className="size-8 shrink-0">
@@ -105,6 +109,11 @@ export function ConcentrationCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {canApply ? (
+                <DropdownMenuItem onSelect={onApply}>
+                  {t(concentration.kind === "FEED_MIXTURE" ? "applyProgramMixture" : "applyProgramTemplate")}
+                </DropdownMenuItem>
+              ) : null}
               {canFeedToday ? <DropdownMenuItem onSelect={onFeedToday}>{t("feedToday")}</DropdownMenuItem> : null}
               {canFinalize ? <DropdownMenuItem onSelect={onFinalize}>{t("finalize")}</DropdownMenuItem> : null}
               {canUpdate && onEdit ? <DropdownMenuItem onSelect={onEdit}>{t("edit")}</DropdownMenuItem> : null}

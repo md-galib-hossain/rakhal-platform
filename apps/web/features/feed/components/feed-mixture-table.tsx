@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { X } from "lucide-react";
+import { Package, Wheat, X } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MoneyText } from "@/components/shared/money-text";
@@ -18,9 +19,11 @@ import {
   type Requirements,
 } from "../lib/formula-math";
 import type { CreateFeedFormItem } from "../schemas";
-import { formLineKey } from "../lib/recipe-line";
+import { formLineKey, itemStockKg, kgPerUnit } from "../lib/recipe-line";
 import { Chip } from "@/components/ui/chip";
-import { BatchLinkPicker, type BatchLink } from "./batch-link-picker";
+import type { BatchLink } from "./batch-link-picker";
+import { useFeedStock } from "../hooks/use-feed";
+import { useFeedItemPagedList } from "@/features/inventory/hooks/use-inventory";
 
 export function toEffectiveMap(ingredients: FeedIngredient[]): Map<string, EffectiveIngredientNutrition> {
   return new Map(
@@ -45,29 +48,63 @@ export function toEffectiveMap(ingredients: FeedIngredient[]): Map<string, Effec
   );
 }
 
-/** Keeps its own text so the field can be emptied (a controlled numeric `value` snaps "" back to
- * "0", making the leading 0 undeletable). Empty text reports 0 upward; external value changes
- * (e.g. Normalize) resync the text. `data-amount-input` lets the wizard's Enter handler hop rows. */
-function AmountInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+/** Keeps its own text so the field can be emptied. Capped to max available stock if inventory-backed. */
+function AmountInput({
+  value,
+  max,
+  onChange,
+}: {
+  value: number;
+  max?: number;
+  onChange: (v: number) => void;
+}) {
   const [text, setText] = useState(value === 0 ? "" : String(value));
+  const t = useTranslations("feed");
   // Resync during render (not in an effect) when the parent's value diverges from what the text means.
   if ((Number(text) || 0) !== value) setText(value === 0 ? "" : String(value));
+
+  const isExceeded = max != null && value > max;
+
   return (
-    <input
-      type="number"
-      inputMode="decimal"
-      min={0}
-      step="0.01"
-      data-amount-input
-      placeholder="0"
-      value={text}
-      onChange={(e) => {
-        setText(e.target.value);
-        onChange(Number(e.target.value) || 0);
-      }}
-      onFocus={(e) => e.currentTarget.select()}
-      className="w-full border-0 bg-transparent p-0 text-sm text-foreground outline-none"
-    />
+    <div className="flex flex-col gap-0.5">
+      <input
+        type="number"
+        inputMode="decimal"
+        min={0}
+        max={max}
+        step="0.01"
+        data-amount-input
+        placeholder="0"
+        value={text}
+        onChange={(e) => {
+          const raw = e.target.value;
+          let num = Number(raw) || 0;
+          if (max != null && num > max) {
+            num = max;
+            setText(String(max));
+            toast.warning(t("exceedsStockWarning", { stock: max }));
+          } else {
+            setText(raw);
+          }
+          onChange(num);
+        }}
+        onFocus={(e) => e.currentTarget.select()}
+        className={cn(
+          "w-full border-0 bg-transparent p-0 text-sm text-foreground outline-none",
+          isExceeded && "text-destructive font-semibold",
+        )}
+      />
+      {max != null ? (
+        <span
+          className={cn(
+            "text-[9px] leading-tight",
+            isExceeded ? "text-destructive font-medium" : "text-muted-foreground",
+          )}
+        >
+          {t("stockLimit", { stock: numberFmt(max) })}
+        </span>
+      ) : null}
+    </div>
   );
 }
 
@@ -221,12 +258,34 @@ export function FeedMixtureTable({
     return out;
   }, [totals, cowCount, totalAmountKg]);
 
+  const feedItemsQuery = useFeedItemPagedList({});
+  const feedStockQuery = useFeedStock();
+
+  const inventoryStockMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const fi of feedItemsQuery.items ?? []) {
+      map.set(fi.id, itemStockKg(fi));
+      for (const batch of fi.batches ?? []) {
+        if (batch.currentStock != null) {
+          const kg = kgPerUnit(fi);
+          map.set(`${fi.id}:${batch.id}`, kg && kg > 0 ? batch.currentStock * kg : batch.currentStock);
+        }
+      }
+    }
+    for (const s of feedStockQuery.data ?? []) {
+      map.set(s.id, s.current_stock_kg);
+    }
+    return map;
+  }, [feedItemsQuery.items, feedStockQuery.data]);
+
   const score = requirements ? balanceScore(totals, requirements) : null;
   const band = score != null ? balanceScoreBand(score) : null;
 
   function cellTone(actual: number, required: number | undefined) {
-    if (required == null) return undefined;
-    return actual >= required ? "bg-success-tint" : "bg-destructive-tint";
+    if (required == null || required <= 0) return undefined;
+    if (actual < required * 0.98) return "bg-destructive-tint text-destructive font-semibold";
+    if (actual <= required * 1.05) return "bg-success-tint text-success font-semibold";
+    return "bg-warning-tint text-warning font-semibold";
   }
 
   const groupCounts = GROUP_ORDER.map((g) => ({
@@ -283,44 +342,70 @@ export function FeedMixtureTable({
                 const lineKey = formLineKey(item);
                 const c = contributionById.get(lineKey);
                 const eff = effectiveById.get(lineKey);
+
+                const isInventory = Boolean(item.feedItemId || item.feedStockId);
+                const stockKey = item.feedItemId
+                  ? item.feedItemBatchId
+                    ? `${item.feedItemId}:${item.feedItemBatchId}`
+                    : item.feedItemId
+                  : (item.feedStockId ?? "");
+                const maxStockKg = isInventory ? (inventoryStockMap.get(stockKey) ?? item.availableStockKg ?? null) : null;
+
                 return (
                   <TableRow key={lineKey}>
                     <TableCell className="font-medium text-foreground">
                       <div className="flex flex-col gap-1">
-                        <span>{item.ingredientName}</span>
-                        {item.ingredientId && onBatchLinkChange ? (
-                          <BatchLinkPicker
-                            ingredientId={item.ingredientId}
-                            link={
-                              item.feedItemId
-                                ? { feedItemId: item.feedItemId, feedItemBatchId: item.feedItemBatchId }
-                                : item.feedStockId
-                                  ? { feedStockId: item.feedStockId }
-                                  : undefined
-                            }
-                            onChange={(link, lotEffective) => onBatchLinkChange(lineKey, link, lotEffective)}
-                          />
-                        ) : !item.ingredientId ? (
-                          // Product-only line (RAKHAL-447): nutrition + price come from the inventory lot
-                          // itself, so there is no catalogue ingredient to match a batch against.
-                          <Chip variant="muted" className="w-fit px-1.5 py-0 text-[10px]">
-                            {item.feedItemBatchId ? t("batchLink.fromInventoryPinned") : t("batchLink.fromInventory")}
+                        <span className="truncate">{item.ingredientName}</span>
+                        {isInventory ? (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Chip variant="teal" className="w-fit px-1.5 py-0 text-[10px] font-medium gap-1">
+                              <Package className="size-2.5 shrink-0" aria-hidden />
+                              {t("sourceInventory")}
+                            </Chip>
+                            {maxStockKg != null ? (
+                              <span
+                                className={cn(
+                                  "text-[10px] font-medium",
+                                  maxStockKg <= 0 ? "text-destructive" : "text-muted-foreground",
+                                )}
+                              >
+                                {maxStockKg > 0 ? t("stockAmount", { stock: numberFmt(maxStockKg) }) : t("outOfStockBadge")}
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <Chip variant="info" className="w-fit px-1.5 py-0 text-[10px] font-medium gap-1">
+                            <Wheat className="size-2.5 shrink-0" aria-hidden />
+                            {t("sourceCatalogue")}
                           </Chip>
-                        ) : null}
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
                       {readOnly ? (
-                        <span>
-                          {numberFmt(item.amountKg)} <span className="text-xs text-muted-foreground">kg</span>
-                        </span>
+                        <div className="flex flex-col">
+                          <span>
+                            {numberFmt(item.amountKg)} <span className="text-xs text-muted-foreground">kg</span>
+                          </span>
+                          {maxStockKg != null && item.amountKg > maxStockKg ? (
+                            <span className="text-[10px] text-destructive font-medium">
+                              {t("exceedsStockWarning", { stock: numberFmt(maxStockKg) })}
+                            </span>
+                          ) : null}
+                        </div>
                       ) : (
-                        <div className="flex h-9 w-28 items-center gap-1 rounded-lg bg-card px-2 shadow-xs">
+                        <div
+                          className={cn(
+                            "flex min-h-9 w-28 items-center gap-1 rounded-lg bg-card px-2 py-1 shadow-xs border",
+                            maxStockKg != null && item.amountKg > maxStockKg ? "border-destructive" : "border-border/60",
+                          )}
+                        >
                           <AmountInput
                             value={item.amountKg}
+                            max={maxStockKg ?? undefined}
                             onChange={(v) => onAmountChange?.(lineKey, v)}
                           />
-                          <span className="text-xs text-muted-foreground">kg</span>
+                          <span className="text-xs text-muted-foreground shrink-0 self-center">kg</span>
                         </div>
                       )}
                     </TableCell>
@@ -442,6 +527,26 @@ export function FeedMixtureTable({
           </Table>
         </div>
       </div>
+
+      {requirements ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground px-1">
+          <div className="flex items-center gap-3">
+            <span className="font-medium text-foreground">{t("requirementsLegend")}:</span>
+            <span className="inline-flex items-center gap-1 text-[11px]">
+              <span className="size-2 rounded-full bg-destructive" />
+              {t("legendNotMet")}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px]">
+              <span className="size-2 rounded-full bg-success" />
+              {t("legendMet")}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px]">
+              <span className="size-2 rounded-full bg-warning" />
+              {t("legendExceeded")}
+            </span>
+          </div>
+        </div>
+      ) : null}
 
       {score != null && band ? (
         <div className="flex items-center gap-4">

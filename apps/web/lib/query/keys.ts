@@ -255,6 +255,12 @@ export const qk = {
     activeSessions: () => ["feed", "active-sessions"] as const,
     versions: (concentrationId: string) => ["feed", "versions", concentrationId] as const,
     costSummary: () => ["feed", "cost-summary"] as const,
+    /** MILESTONE 27 (RFE-126) — all under `["feed","plans"]` so one prefix invalidation clears them. */
+    plans: (filters: Record<string, string | boolean | undefined>) => ["feed", "plans", "list", filters] as const,
+    planDetail: (id: string) => ["feed", "plans", "detail", id] as const,
+    planFit: (id: string, cattleIds: string[]) => ["feed", "plans", "fit", id, cattleIds] as const,
+    planAssignments: (planId: string) => ["feed", "plans", "assignments", planId] as const,
+    cattleProgram: (cattleId: string) => ["feed", "program", cattleId] as const,
   },
   calves: {
     list: (filters: Record<string, string | undefined>) => ["calves", "list", filters] as const,
