@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoneyText } from "@/components/shared/money-text";
 import { balanceScoreBand } from "../lib/formula-math";
-import type { FeedConcentrationSummary, FeedGroup } from "../types";
+import type { FeedConcentrationSummary } from "../types";
 
 function StatBox({ label, value }: { label: string; value: string | number }) {
   return (
@@ -27,8 +27,7 @@ function StatBox({ label, value }: { label: string; value: string | number }) {
  * `types.ts`'s doc comment) — this card renders the Balance Score bar only when `balance_score` is
  * present (only ever true for a `FEED_MIXTURE`). "Weight Range (kg)"/"Avg. Daily Milk Yield (L)"
  * render as single "Target Weight"/"Target Milk" values (no range exists in the schema, see
- * `types.ts`) — "Number of Cow" is the real target feed group's `assigned_count` (1 for an
- * Individual target). "Finalize" (user request 2026-07-17/18) is offered on both kinds as of Phase
+ * `types.ts`) — "Number of Cow" is 1 for an Individual target, a dash for a whole-herd one. "Finalize" (user request 2026-07-17/18) is offered on both kinds as of Phase
  * 12.2 (2026-07-18) — a `CONCENTRATE_TEMPLATE` promotes into a reusable ingredient + produces stock;
  * a `FEED_MIXTURE` produces stock only (never an ingredient — see `feed-concentration.service.ts`'s
  * `finalize()` doc comment). The multi-select checkbox (user request
@@ -49,51 +48,38 @@ function StatBox({ label, value }: { label: string; value: string | number }) {
  * a "produce another batch" action reachable only from the "⋯" menu, same as before.
  * **The "Best For" stat row (Number of Cow/Target Weight/Target Milk) is hidden entirely
  * for a `CONCENTRATE_TEMPLATE`** (user report 2026-07-19) — none of those fields ever apply to a
- * recipe (a template has no cow/group target at all, see `feed-concentration.service.ts`'s `create()`,
+ * recipe (a template has no cow target at all, see `feed-concentration.service.ts`'s `create()`,
  * which force-nulls them), so the row only ever rendered dashes; only a `FEED_MIXTURE` card
  * shows it now.
  */
 export function ConcentrationCard({
   concentration,
-  feedGroup,
   onSeeDetails,
   onEdit,
   onDelete,
   onFinalize,
   onFeedToday,
-  onSetDefault,
-  isDefaultForGroup = false,
   selected = false,
   onToggleSelect,
 }: {
   concentration: FeedConcentrationSummary;
-  feedGroup: FeedGroup | undefined;
   onSeeDetails: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
   onFinalize?: () => void;
   onFeedToday?: () => void;
-  /** "Set as default for this group" / "Unset default" — GROUP-targeted TMR only (2026-08-14). */
-  onSetDefault?: () => void;
-  isDefaultForGroup?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
 }) {
   const t = useTranslations("feed.card");
   const can = useCan();
   const isTemplate = concentration.kind === "CONCENTRATE_TEMPLATE";
-  const cowCount = concentration.target_type === "INDIVIDUAL" ? 1 : (feedGroup?.assigned_count ?? "—");
+  const cowCount = concentration.target_type === "INDIVIDUAL" ? 1 : "—";
   const band = concentration.balance_score != null ? balanceScoreBand(concentration.balance_score) : null;
   const canUpdate = can("feed.update");
   const canDelete = can("feed.delete");
   const canFinalize = canUpdate && Boolean(onFinalize);
   const canFeedToday = can("feed.distribution-log") && concentration.kind === "FEED_MIXTURE" && Boolean(onFeedToday);
-  const canSetDefault =
-    canUpdate &&
-    Boolean(onSetDefault) &&
-    concentration.kind === "FEED_MIXTURE" &&
-    concentration.target_type === "GROUP" &&
-    concentration.feed_group_id != null;
 
   return (
     <div className="flex flex-1 flex-col gap-5 rounded-2xl border border-border bg-card p-4">
@@ -110,9 +96,8 @@ export function ConcentrationCard({
           <Badge variant={concentration.is_finalized ? "success" : "warning"}>
             {t(concentration.is_finalized ? "statusFinalized" : "statusDraft")}
           </Badge>
-          {isDefaultForGroup ? <Badge variant="secondary">{t("defaultBadge")}</Badge> : null}
         </div>
-        {(canUpdate && onEdit) || (canDelete && onDelete) || canFinalize || canFeedToday || canSetDefault ? (
+        {(canUpdate && onEdit) || (canDelete && onDelete) || canFinalize || canFeedToday ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" aria-label={t("moreActions")} className="size-8 shrink-0">
@@ -121,11 +106,6 @@ export function ConcentrationCard({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {canFeedToday ? <DropdownMenuItem onSelect={onFeedToday}>{t("feedToday")}</DropdownMenuItem> : null}
-              {canSetDefault ? (
-                <DropdownMenuItem onSelect={onSetDefault}>
-                  {isDefaultForGroup ? t("unsetDefault") : t("setDefault")}
-                </DropdownMenuItem>
-              ) : null}
               {canFinalize ? <DropdownMenuItem onSelect={onFinalize}>{t("finalize")}</DropdownMenuItem> : null}
               {canUpdate && onEdit ? <DropdownMenuItem onSelect={onEdit}>{t("edit")}</DropdownMenuItem> : null}
               {canDelete && onDelete ? (

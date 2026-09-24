@@ -10,8 +10,7 @@
  * point value (the one figure used to compute `requirements`/`balance_score`) — no min/max range
  * exists anywhere in the schema. Rendered honestly as "Target Weight (kg)"/"Target Milk (L/day)"
  * single values instead of inventing a range. "Number of Cow" *is* real, sourced from
- * `GET /settings/feed-groups`'s `assigned_count` for the concentration's `feed_group_id` (1 for an
- * `INDIVIDUAL`-target concentration).
+ * 1 for an `INDIVIDUAL`-target concentration (not shown for a whole-herd one).
  *
  * "Concentrate Mixer" (`kind: 'CONCENTRATE_TEMPLATE'`) and "Total Mixed Ration (TMR)"
  * (`kind: 'FEED_MIXTURE'`) are still the same `FeedConcentration` resource, but as of 2026-07-18
@@ -23,10 +22,9 @@
  * titles, confirmations, toasts — after these two names had drifted inconsistently across the UI.)
  */
 
-/** `HERD` added 2026-08-13 (user request — "herd default -> group -> individual override, most
- * specific wins"): a whole-herd default ration, falls through to when a cow has no INDIVIDUAL
- * override and no GROUP-targeted concentration for her `feedGroupId`. */
-export type FeedTargetType = "GROUP" | "INDIVIDUAL" | "HERD";
+/** `HERD` is the whole-herd default ration, fallen through to when a cow has no INDIVIDUAL
+ * override ("herd default -> individual override, most specific wins"). */
+export type FeedTargetType = "INDIVIDUAL" | "HERD";
 /** See this file's top-of-file doc comment — explicit, immutable, server-enforced. */
 export type FeedConcentrationKind = "CONCENTRATE_TEMPLATE" | "FEED_MIXTURE";
 /** Feed is the umbrella term; `FeedClass` is its scientific class (replaces the old
@@ -188,12 +186,11 @@ export interface FeedRequirements {
 }
 
 /** `GET /feed/requirements` — shape varies by mode (`FeedRequirementsService.calc`): manual/`cattleId`
- * modes return a flat `requirements`; `feedGroupId` mode returns `per_cow`/`group_total` instead (no
- * single `requirements` key) since a group has both a per-animal figure and a batch-sizing total.
+ * modes return a flat `requirements`.
  * `data_source` (added 2026-07-18 for the standalone nutrition calculator, user request — "help the
  * farmer track... how much comes from real cattle records vs a manual guess") flags whether each of
  * weight/milk-yield came from a real record, a 7-day milk-log average, a manual override, or
- * (cattle/group mode only, no manual fallback given) an assumed zero. */
+ * (cattle mode only, no manual fallback given) an assumed zero. */
 export interface FeedRequirementsResult {
   inputs: {
     weight_kg: number;
@@ -204,14 +201,9 @@ export interface FeedRequirementsResult {
     dim?: number | null;
     milk_protein_pct?: number | null;
     animal_type?: string;
-    headcount?: number;
-    cattle_with_weight?: number;
-    cattle_with_milk_data?: number;
   };
   data_source?: { weight: string; milk_yield: string };
   requirements?: FeedRequirements;
-  per_cow?: FeedRequirements;
-  group_total?: FeedRequirements;
 }
 
 export interface FeedFormulaTotals {
@@ -264,7 +256,6 @@ export interface FeedConcentrationSummary {
   kind: FeedConcentrationKind;
   name: string;
   target_type: FeedTargetType;
-  feed_group_id: string | null;
   cattle_id: string | null;
   duration_days: number | null;
   target_weight_kg: number | null;
@@ -301,7 +292,7 @@ export interface FeedConcentrationItemInput {
 }
 
 /** `targetWeightKg`/`targetMilkL` are optional as of Phase 12.3 (2026-07-18) — once a real
- * `feedGroupId`/`cattleId` target is set, the backend resolves both from that target's own
+ * `cattleId` target is set, the backend resolves both from that target's own
  * weight/milk records when omitted (same derivation `GET /feed/requirements` already exposes for
  * the wizard's live preview); they stay available as a manual override/fallback. */
 export interface CreateFeedConcentrationPayload {
@@ -309,7 +300,6 @@ export interface CreateFeedConcentrationPayload {
   name: string;
   durationDays?: number;
   targetType: FeedTargetType;
-  feedGroupId?: string;
   cattleId?: string;
   targetWeightKg?: number;
   targetMilkL?: number;
@@ -322,7 +312,6 @@ export interface UpdateFeedConcentrationPayload {
   name?: string;
   durationDays?: number;
   targetType?: FeedTargetType;
-  feedGroupId?: string;
   cattleId?: string;
   targetWeightKg?: number;
   targetMilkL?: number;
@@ -404,28 +393,6 @@ export interface NormalizeConcentrationResult {
   balance_score: number;
 }
 
-/** `GET /settings/feed-groups` — owned by the Settings module, not Feed; used here read-only to
- * populate the "Select Group" picker + each card's real "Number of Cow" count. */
-export interface FeedGroup {
-  id: string;
-  name: string;
-  description: string | null;
-  /** Refusal-rate target, % of planned kg (2026-08-13, feeding-system upgrade). Per-group, not
-   * farm-wide — doc explicitly warns against one universal refusal target. Null = not configured. */
-  refusal_target_pct: number | null;
-  /** Default recipe for one-click "Feed Today" (2026-08-14) — a `FEED_MIXTURE` concentration id,
-   * or null if none is set (falls back to "one active GROUP-targeted TMR" heuristic). */
-  default_concentration_id: string | null;
-  /** RAKHAL-433/RFE-116 (Feeding Favourites): this group's default Feeding Grid source — separate
-   * from `default_concentration_id`, which stays reserved for "Feed Today". */
-  default_feed_source_type: FeedGridSourceType | null;
-  default_feed_item_id: string | null;
-  default_feed_stock_id: string | null;
-  deleted_at: string | null;
-  assigned_count: number;
-  created_at: string;
-}
-
 /** `FeedStockService.mapStock` — one physical batch produced by finalizing a Concentrate Mixer or
  * TMR (`sourceConcentrationId` points at whichever produced it). Phase 12.4 (2026-07-18) frontend —
  * the backend has had this since Phase 4, this is the first frontend type/consumer for it. */
@@ -459,9 +426,9 @@ export interface FeedStockDetail extends FeedStock {
   movements: FeedStockMovement[];
 }
 
-/** `POST /feed/distributions` — "Feed Today" (Phase 12.4, 2026-07-18). The target (group vs one
- * cow) is never supplied directly — it's derived server-side from `concentrationId`'s own
- * `targetType`, matching how a TMR is already either GROUP- or INDIVIDUAL-targeted from creation. */
+/** `POST /feed/distributions` — "Feed Today" (Phase 12.4, 2026-07-18). The target (one cow vs
+ * the herd) is never supplied directly — it's derived server-side from `concentrationId`'s own
+ * `targetType`, matching how a TMR is already either INDIVIDUAL- or HERD-targeted from creation. */
 export interface LogDistributionItemInput {
   ingredientId: string;
   actualKg?: number;
@@ -489,7 +456,6 @@ export interface FeedDistributionItemLine {
 export interface FeedDistribution {
   id: string;
   concentration_id: string;
-  feed_group_id: string | null;
   cattle_id: string | null;
   distributed_at: string;
   total_planned_kg: number;
@@ -506,7 +472,6 @@ export interface FeedDistribution {
 export interface FeedDistributionSummary {
   id: string;
   concentration_id: string;
-  feed_group_id: string | null;
   cattle_id: string | null;
   distributed_at: string;
   total_actual_kg: number;
@@ -514,16 +479,12 @@ export interface FeedDistributionSummary {
   created_at: string;
 }
 
-/** `GET /feed/efficiency` — planned-vs-actual + feed cost/litre for exactly one of a group or a
- * single cow (`feedGroupId` XOR `cattleId`, Phase 12.4 2026-07-18 added the `cattleId` mode). */
+/** `GET /feed/efficiency` — planned-vs-actual + feed cost/litre for a single cow (`cattleId`). */
 export interface FeedEfficiencyResult {
-  feed_group_id: string | null;
-  feed_group_name: string | null;
   cattle_id: string | null;
   cattle_name: string | null;
   period: string;
   distributions: number;
-  group_cattle?: number;
   planned_kg: number;
   actual_kg: number;
   refusal_kg: number;
@@ -539,9 +500,9 @@ export interface FeedEfficiencyResult {
 // ==== Feeding-system upgrade (2026-08-13, user request) =====================================
 
 /** `GET /feed/cattle/:cattleId/resolved-ration` — layered targeting resolution: which active
- * `FEED_MIXTURE` ration this cow is actually on, most-specific-wins (INDIVIDUAL > GROUP > HERD). */
+ * `FEED_MIXTURE` ration this cow is actually on, most-specific-wins (INDIVIDUAL > HERD). */
 export interface ResolvedRation {
-  match_level: "INDIVIDUAL" | "GROUP" | "HERD" | null;
+  match_level: "INDIVIDUAL" | "HERD" | null;
   concentration: FeedConcentrationDetail | null;
 }
 
@@ -550,7 +511,7 @@ export interface DmiComparison {
   expected_dmi_kg: number;
   actual_dmi_kg: number | null;
   delta_pct: number | null;
-  match_level: "INDIVIDUAL" | "GROUP" | "HERD" | null;
+  match_level: "INDIVIDUAL" | "HERD" | null;
 }
 
 /** `GET /feed/today-requirement` — farm-wide rollup of every active ration's ingredient
@@ -572,19 +533,11 @@ export interface HerdRequirementBlock {
   herd_total: FeedRequirements;
 }
 
-export interface GroupRequirementBlock {
-  feed_group_id: string;
-  name: string;
-  headcount: number;
-  per_cow: FeedRequirements;
-  group_total: FeedRequirements;
-  data_source: { weight: string; milk_yield: string };
-}
-
 export interface TodaysFeedRequirement {
   by_ingredient: { ingredient_id: string; name: string; total_kg: number }[];
-  by_group: {
-    feed_group_id: string | null;
+  /** One row per active ration (INDIVIDUAL = 1 cow, HERD = the whole herd). */
+  by_ration: {
+    concentration_id: string;
     name: string;
     headcount: number;
     total_kg: number;
@@ -592,7 +545,6 @@ export interface TodaysFeedRequirement {
   grand_total_kg: number;
   /** RAKHAL-412 — the animal requirement, independent of any ration. */
   requirement?: HerdRequirementBlock | null;
-  by_group_requirement?: GroupRequirementBlock[];
   has_active_ration?: boolean;
 }
 
@@ -612,9 +564,8 @@ export interface FeedGridDraft {
   offered_kg: number;
 }
 
-/** RAKHAL-431 resolution ladder result: a cow's own last-used source (past the group-change +
- * availability guards, with batch fall-forward) or its feed group's configured default — `null`
- * when neither resolves. The UI pre-fills a row's source picker from this; it never auto-submits. */
+/** RAKHAL-431 resolution ladder result: a cow's own last-used source (past the availability
+ * guard, with batch fall-forward) — `null` when it doesn't resolve. The UI pre-fills a row's source picker from this; it never auto-submits. */
 export interface FeedGridSource {
   source_type: FeedGridSourceType;
   feed_item_id: string | null;
@@ -630,7 +581,6 @@ export interface FeedGridCow {
   cattle_id: string;
   name: string | null;
   tag_number: string;
-  feed_group_id: string | null;
   drafts: FeedGridDraft[];
   default_offered_kg: number | null;
   default_source: FeedGridSource | null;
@@ -641,11 +591,10 @@ export interface FeedGridCow {
   confirmed_offered_kg: number | null;
 }
 
-/** `GET /feed/grid?date&feedGroupId?` — the Feeding Grid's own per-day, per-cow view; replaces the
+/** `GET /feed/grid?date` — the Feeding Grid's own per-day, per-cow view; replaces the
  * single-item Quick Feed dialog (2026-08-15). */
 export interface FeedGridResult {
   date: string;
-  feed_group_id: string | null;
   cows: FeedGridCow[];
 }
 
@@ -753,7 +702,6 @@ export interface FeedGridEntryInput {
  * inventory effect either way. */
 export interface SaveFeedGridDraftPayload {
   date: string;
-  feedGroupId?: string;
   sourceType?: FeedGridSourceType;
   feedItemId?: string;
   feedStockId?: string;
@@ -772,7 +720,6 @@ export interface SaveFeedGridDraftResult {
  * confirm needs no top-level source at all. */
 export interface ConfirmFeedGridPayload {
   date: string;
-  feedGroupId?: string;
   sourceType?: FeedGridSourceType;
   feedItemId?: string;
   feedStockId?: string;
@@ -791,7 +738,6 @@ export interface ConfirmFeedGridPayload {
 export interface ConfirmFeedGridResult {
   id: string;
   date: string;
-  feed_group_id: string | null;
   total_actual_kg: number;
   total_actual_cost: number;
   sources: {
@@ -813,21 +759,6 @@ export interface ConfirmFeedGridResult {
 /** `PATCH /feed/distributions/:id/refusal` — next-day leftover weigh-in. */
 export interface PatchRefusalPayload {
   items: { ingredientId: string; refusalKg: number }[];
-}
-
-/** `GET /feed/groups/:id/refusal-trend` — refusal-rate history vs the group's configured target. */
-export interface RefusalTrend {
-  feed_group_id: string;
-  feed_group_name: string;
-  refusal_target_pct: number | null;
-  days: {
-    date: string;
-    planned_kg: number;
-    actual_kg: number;
-    refusal_kg: number;
-    refusal_pct: number | null;
-    over_target: boolean | null;
-  }[];
 }
 
 /** `GET /feed/concentrations/:id/versions` — explicit-checkpoint version history (`FEED_MIXTURE`
@@ -852,14 +783,6 @@ export interface FeedCostSummary {
   headcount: number;
   total_litres: number;
   trend: { date: string; total_cost: number }[];
-}
-
-/** A cow as returned by `GET /feed/groups/:id/cattle` (RFE-102). */
-export interface FeedGroupCattle {
-  id: string;
-  name: string | null;
-  tagNumber: string;
-  productionStatus: string | null;
 }
 
 /** Which layer supplied a setting's effective value (RFE-104 / RAKHAL-409). */

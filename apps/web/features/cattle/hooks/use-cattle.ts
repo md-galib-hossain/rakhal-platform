@@ -65,8 +65,8 @@ export function useSheds() {
   return useQuery({ queryKey: qk.cattle.sheds(), queryFn: cattleApi.sheds, staleTime: STALE_TIME });
 }
 
-export function useFeedGroups() {
-  return useQuery({ queryKey: qk.cattle.feedGroups(), queryFn: cattleApi.feedGroups, staleTime: STALE_TIME });
+export function useAnimalGroups() {
+  return useQuery({ queryKey: qk.cattle.animalGroups(), queryFn: cattleApi.animalGroups, staleTime: STALE_TIME });
 }
 
 /** Inline "+ Create new shed" (`CreatableSelect`, `components/shared/creatable-select.tsx`) — same
@@ -85,17 +85,41 @@ export function useCreateShedInline() {
   });
 }
 
-/** Inline "+ Create new feed group" counterpart to `useCreateShedInline` — invalidates
- * `cattle.feedGroups` + `settings.feedGroups` + `feed.feedGroups` (the Feed Formulator module's
- * own picker reads a third, independent query key for the same backend resource). */
-export function useCreateFeedGroupInline() {
+/** RAKHAL-452 — "Create group from selection" (bulk dock): one call creates the group with the
+ * selected animals as its initial members. */
+export function useCreateAnimalGroup() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (name: string) => settingsApi.createFeedGroup({ name }),
+    mutationFn: (input: { name: string; description?: string; cattleIds?: string[] }) =>
+      cattleApi.createAnimalGroup(input),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: qk.cattle.feedGroups() });
-      void queryClient.invalidateQueries({ queryKey: qk.settings.feedGroups() });
-      void queryClient.invalidateQueries({ queryKey: qk.feed.feedGroups() });
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.animalGroups() });
+      void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });
+    },
+  });
+}
+
+/** "Add to group" (bulk dock) — idempotent, safe to re-run with animals already in the group. */
+export function useAddToAnimalGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ groupId, cattleIds }: { groupId: string; cattleIds: string[] }) =>
+      cattleApi.addToAnimalGroup(groupId, cattleIds),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.animalGroups() });
+      void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });
+    },
+  });
+}
+
+export function useRemoveFromAnimalGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ groupId, cattleIds }: { groupId: string; cattleIds: string[] }) =>
+      cattleApi.removeFromAnimalGroup(groupId, cattleIds),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.animalGroups() });
+      void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });
     },
   });
 }
@@ -110,7 +134,7 @@ export function useBulkCattle() {
     }: {
       cattleIds: string[];
       action: BulkAction;
-      payload?: { shedId?: string; feedGroupId?: string; type?: BulkDisposeType; reason?: string; date?: string };
+      payload?: { shedId?: string; type?: BulkDisposeType; reason?: string; date?: string };
     }) => cattleApi.bulk(cattleIds, action, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });

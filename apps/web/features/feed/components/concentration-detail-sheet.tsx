@@ -6,7 +6,7 @@ import { X } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
-import { useConcentrationDetail, useFeedGroups, useFeedIngredients } from "../hooks/use-feed";
+import { useConcentrationDetail, useFeedIngredients } from "../hooks/use-feed";
 import { FeedMixtureTable, toEffectiveMap } from "./feed-mixture-table";
 import { fromApiRequirements } from "../lib/formula-math";
 import { effectiveFromFigures, formLineKey } from "../lib/recipe-line";
@@ -32,7 +32,6 @@ export function ConcentrationDetailSheet({
 function DetailBody({ id, onOpenChange }: { id: string; onOpenChange: (open: boolean) => void }) {
   const t = useTranslations("feed.detail");
   const detail = useConcentrationDetail(id);
-  const feedGroups = useFeedGroups();
   const ingredients = useFeedIngredients();
   // Needed only for the per-line "rate" annotation (e.g. "20%" DM) shown alongside the server-
   // computed kg values below — the kg/cost figures themselves come from `serverContributions`.
@@ -54,11 +53,8 @@ function DetailBody({ id, onOpenChange }: { id: string; onOpenChange: (open: boo
     feedItemBatchId: line.feed_item_batch_id,
   });
 
-  const cowCount = useMemo(() => {
-    if (!detail.data) return 1;
-    if (detail.data.target_type === "INDIVIDUAL") return 1;
-    return feedGroups.data?.find((g) => g.id === detail.data!.feed_group_id)?.assigned_count || 1;
-  }, [detail.data, feedGroups.data]);
+  // Per-cow figures only — a herd-wide ration has no fixed head count here.
+  const cowCount = 1;
 
   return (
     <SheetContent

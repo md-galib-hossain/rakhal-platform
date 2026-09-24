@@ -3,7 +3,6 @@
 import { apiFetch } from "@/lib/api/client";
 import type {
   CreateRoleInput,
-  FeedGroupFormInput,
   InviteTeamMemberInput,
   ServiceProviderFormInput,
   ShedFormInput,
@@ -12,8 +11,6 @@ import type {
 } from "./schemas";
 import type {
   FarmSettings,
-  FeedGroup,
-  FeedGroupListResult,
   PermissionCatalogueResult,
   RoleListResult,
   RoleOption,
@@ -28,18 +25,6 @@ import type {
 
 /** Team & Roles (`settings/team`, `settings/roles`) — RAKHAL-030/031, no bespoke cookie logic
  * needed (unlike auth/onboarding's login/create-farm), so this goes through the standard proxy. */
-/** The form holds the refusal target as a string (see `feedGroupFormSchema`); the API wants a
- * number. Blank stays absent rather than becoming 0 — "no target" and "target zero refusal"
- * are different instructions to a farmhand. */
-function feedGroupBody(input: FeedGroupFormInput) {
-  const { refusalTargetPct, ...rest } = input;
-  return {
-    ...rest,
-    refusalTargetPct:
-      refusalTargetPct === undefined || refusalTargetPct === "" ? undefined : Number(refusalTargetPct),
-  };
-}
-
 export const settingsApi = {
   listTeam(): Promise<TeamListResult> {
     return apiFetch<TeamListResult>("/settings/team");
@@ -100,24 +85,6 @@ export const settingsApi = {
   },
   deleteShed(id: string): Promise<{ id: string; deleted_at: string }> {
     return apiFetch(`/settings/sheds/${id}`, { method: "DELETE" });
-  },
-  listFeedGroups(): Promise<FeedGroupListResult> {
-    return apiFetch<FeedGroupListResult>("/settings/feed-groups");
-  },
-  createFeedGroup(input: FeedGroupFormInput): Promise<FeedGroup> {
-    return apiFetch<FeedGroup>("/settings/feed-groups", {
-      method: "POST",
-      body: feedGroupBody(input),
-    });
-  },
-  updateFeedGroup(id: string, input: FeedGroupFormInput): Promise<FeedGroup> {
-    return apiFetch<FeedGroup>(`/settings/feed-groups/${id}`, {
-      method: "PATCH",
-      body: feedGroupBody(input),
-    });
-  },
-  deleteFeedGroup(id: string): Promise<{ id: string; deleted: true }> {
-    return apiFetch(`/settings/feed-groups/${id}`, { method: "DELETE" });
   },
   listSuppliers(): Promise<SupplierListResult> {
     return apiFetch<SupplierListResult>("/settings/suppliers");

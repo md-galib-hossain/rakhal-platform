@@ -18,9 +18,7 @@ import { useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
 import {
   useBulkDeleteConcentrations,
   useConcentrations,
-  useFeedGroups,
   useRemoveConcentration,
-  useSetGroupDefaultConcentration,
 } from "../hooks/use-feed";
 import { ConcentrationCard } from "./concentration-card";
 import { RequirementsTab } from "./requirements-tab";
@@ -29,7 +27,7 @@ import { CreateFeedDialog } from "./create-feed-dialog";
 import { ConcentrationDetailSheet } from "./concentration-detail-sheet";
 import { LogDistributionDialog } from "./log-distribution-dialog";
 import { FinalizeTmrDialog } from "./finalize-tmr-dialog";
-import type { FeedConcentrationKind, FeedConcentrationSummary, FeedGroup } from "../types";
+import type { FeedConcentrationKind, FeedConcentrationSummary } from "../types";
 
 function ConcentrationSection({
   title,
@@ -39,14 +37,12 @@ function ConcentrationSection({
   isError,
   onRetry,
   emptyDescription,
-  feedGroupById,
   onSeeDetails,
   onCreate,
   onEdit,
   onDelete,
   onFinalize,
   onFeedToday,
-  onSetDefault,
   selection,
 }: {
   title: string;
@@ -56,14 +52,12 @@ function ConcentrationSection({
   isError: boolean;
   onRetry: () => void;
   emptyDescription: string;
-  feedGroupById: Map<string, FeedGroup>;
   onSeeDetails: (id: string) => void;
   onCreate: () => void;
   onEdit: (concentration: FeedConcentrationSummary) => void;
   onDelete: (concentration: FeedConcentrationSummary) => void;
   onFinalize?: (concentration: FeedConcentrationSummary) => void;
   onFeedToday?: (concentration: FeedConcentrationSummary) => void;
-  onSetDefault?: (concentration: FeedConcentrationSummary) => void;
   selection: { isSelected: (id: string) => boolean; toggle: (id: string) => void };
 }) {
   return (
@@ -94,17 +88,11 @@ function ConcentrationSection({
             <ConcentrationCard
               key={item.id}
               concentration={item}
-              feedGroup={item.feed_group_id ? feedGroupById.get(item.feed_group_id) : undefined}
               onSeeDetails={() => onSeeDetails(item.id)}
               onEdit={() => onEdit(item)}
               onDelete={() => onDelete(item)}
               onFinalize={onFinalize ? () => onFinalize(item) : undefined}
               onFeedToday={onFeedToday ? () => onFeedToday(item) : undefined}
-              onSetDefault={onSetDefault ? () => onSetDefault(item) : undefined}
-              isDefaultForGroup={
-                item.feed_group_id != null &&
-                feedGroupById.get(item.feed_group_id)?.default_concentration_id === item.id
-              }
               selected={selection.isSelected(item.id)}
               onToggleSelect={() => selection.toggle(item.id)}
             />
@@ -151,9 +139,7 @@ function ConcentrationSection({
 export function FeedView() {
   const t = useTranslations("feed");
   const concentrations = useConcentrations();
-  const feedGroups = useFeedGroups();
   const removeConcentration = useRemoveConcentration();
-  const setGroupDefault = useSetGroupDefaultConcentration();
   const [createOpen, setCreateOpen] = useState(false);
   const [createKind, setCreateKind] = useState<FeedConcentrationKind>("CONCENTRATE_TEMPLATE");
   const [editId, setEditId] = useState<string | null>(null);
@@ -163,8 +149,6 @@ export function FeedView() {
   const [feedTodayId, setFeedTodayId] = useState<string | null>(null);
   const bulkDeleteConcentrations = useBulkDeleteConcentrations();
   const tBulk = useTranslations("feed.bulk");
-
-  const feedGroupById = useMemo(() => new Map((feedGroups.data ?? []).map((g) => [g.id, g])), [feedGroups.data]);
 
   const templates = useMemo(
     () => (concentrations.data ?? []).filter((c) => c.kind === "CONCENTRATE_TEMPLATE"),
@@ -231,21 +215,6 @@ export function FeedView() {
     }
   }
 
-  async function handleSetDefault(concentration: FeedConcentrationSummary) {
-    if (!concentration.feed_group_id) return;
-    const group = feedGroupById.get(concentration.feed_group_id);
-    const alreadyDefault = group?.default_concentration_id === concentration.id;
-    try {
-      await setGroupDefault.mutateAsync({
-        groupId: concentration.feed_group_id,
-        concentrationId: alreadyDefault ? null : concentration.id,
-      });
-      toast.success(alreadyDefault ? t("defaultUnsetToast") : t("defaultSetToast"));
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("genericError"));
-    }
-  }
-
   return (
     <div className="flex flex-col gap-4">
       <Tabs defaultValue="ingredients">
@@ -279,7 +248,6 @@ export function FeedView() {
             isError={concentrations.isError}
             onRetry={() => concentrations.refetch()}
             emptyDescription={t("noTemplates")}
-            feedGroupById={feedGroupById}
             onSeeDetails={setDetailId}
             onCreate={() => openCreate("CONCENTRATE_TEMPLATE")}
             onEdit={openEdit}
@@ -297,14 +265,12 @@ export function FeedView() {
             isError={concentrations.isError}
             onRetry={() => concentrations.refetch()}
             emptyDescription={t("noFeeds")}
-            feedGroupById={feedGroupById}
             onSeeDetails={setDetailId}
             onCreate={() => openCreate("FEED_MIXTURE")}
             onEdit={openEdit}
             onDelete={setDeleteTarget}
             onFinalize={setFinalizeTarget}
             onFeedToday={(c) => setFeedTodayId(c.id)}
-            onSetDefault={handleSetDefault}
             selection={{ isSelected: mixtureSelection.isSelected, toggle: toggleMixture }}
           />
         </TabsContent>

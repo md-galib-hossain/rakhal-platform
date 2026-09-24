@@ -46,7 +46,7 @@ export type LogTreatmentInput = z.infer<typeof logTreatmentSchema>;
 export const quickTreatSchema = z.object({
   selectionMethod: z.enum(["shed", "batch", "individual"]),
   shedId: z.string().trim().optional(),
-  feedGroupId: z.string().trim().optional(),
+  animalGroupId: z.string().trim().optional(),
   doseAmount: z.number().min(0.01, "Enter a dose amount."),
   doseUnit: z.string().trim().min(1, "Enter a dose unit."),
   route: z.enum(["IM", "IV", "SC", "ORAL"]),
@@ -124,12 +124,12 @@ export const healthPlanStepsSchema = z.object({
 export type HealthPlanStepsInput = z.infer<typeof healthPlanStepsSchema>;
 
 /** "Apply Health Plan Template" wizard Step 1 (Figma 734:49979). `selectionMethod` picks how the
- * "Selected Animals" list below is populated (shed/feed-group("Batch")/free search), not submitted
+ * "Selected Animals" list below is populated (shed/animal-group("Batch")/free search), not submitted
  * itself. */
 export const applyHealthPlanStep1Schema = z.object({
   selectionMethod: z.enum(["shed", "batch", "individual"]),
   shedId: z.string().trim().optional(),
-  feedGroupId: z.string().trim().optional(),
+  animalGroupId: z.string().trim().optional(),
   excludePregnant: z.boolean().optional(),
   route: z.enum(["IM", "IV", "SC", "ORAL"]),
   startDate: z.string().min(1),

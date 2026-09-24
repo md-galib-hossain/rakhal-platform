@@ -55,23 +55,6 @@ export function useIngredientPagedList(filters: IngredientListFilters) {
   );
 }
 
-export function useFeedGroups() {
-  return useQuery({
-    queryKey: qk.feed.feedGroups(),
-    queryFn: () => feedApi.listFeedGroups(),
-    staleTime: STALE_TIME,
-  });
-}
-
-export function useSetGroupDefaultConcentration() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ groupId, concentrationId }: { groupId: string; concentrationId: string | null }) =>
-      feedApi.setGroupDefaultConcentration(groupId, concentrationId),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: qk.feed.feedGroups() }),
-  });
-}
-
 export function useConcentrations() {
   return useQuery({
     queryKey: qk.feed.concentrations(),
@@ -89,16 +72,14 @@ export function useConcentrationDetail(id: string | undefined) {
   });
 }
 
-/** Live "Estimated Daily Requirements of Cow Group" box (Figma `1065:35244`) — cow/group-driven mode
+/** Live "Estimated Daily Requirements" box (Figma `1065:35244`) — cow-driven mode
  * of `GET /feed/requirements`, auto-deriving weight/milk-yield from real records instead of manual
- * entry (`feed-requirements.service.ts#calcForCattle`/`calcForFeedGroup`; merged into the wizard from
+ * entry (`feed-requirements.service.ts#calcForCattle`; merged into the wizard from
  * the removed standalone calculator, user request 2026-07-18 follow-up — `create-feed-dialog.tsx` is
- * the only caller, always passing a real `cattleId`/`feedGroupId` since a Total Mixed Ration (TMR)
- * always targets one). Manual `weightKg`/`milkTargetL` stay available as the fallback the backend already uses when
- * a record is incomplete. */
+ * the only caller). Manual `weightKg`/`milkTargetL` stay available as the fallback the backend
+ * already uses when a record is incomplete. */
 export interface RequirementParams {
   cattleId?: string;
-  feedGroupId?: string;
   weightKg?: number;
   milkTargetL?: number;
   milkFatPct?: number;
@@ -112,17 +93,15 @@ export interface RequirementParams {
 /**
  * Cow requirements in any of the three modes the backend has always supported (RFE-103).
  *
- * The old `enabled: Boolean(cattleId || feedGroupId)` guard made a cow or group mandatory, so
- * manual entry could never reach the endpoint even though `calcManual` has been there since
- * RAKHAL-081. Now a request goes out whenever the inputs are sufficient for *some* mode:
- * a cow, a group, or a weight plus a milk target.
+ * A request goes out whenever the inputs are sufficient for *some* mode:
+ * a cow, or a weight plus a milk target.
  */
 export function useRequirements(params: RequirementParams) {
   const manualReady = params.weightKg != null && params.milkTargetL != null;
   return useQuery({
     queryKey: qk.feed.requirementsFor(params),
     queryFn: () => feedApi.requirements(params),
-    enabled: Boolean(params.cattleId || params.feedGroupId || manualReady),
+    enabled: Boolean(params.cattleId || manualReady),
     staleTime: STALE_TIME,
   });
 }
@@ -306,7 +285,7 @@ export function useFeedStockDetail(id: string | undefined) {
   });
 }
 
-/** "Feed Today" — logs an actual feeding against a TMR's own target (group or one cow, derived
+/** "Feed Today" — logs an actual feeding against a TMR's own target (one cow or the herd, derived
  * server-side) and, for lines naming a `stockId`, decrements that stock lot transactionally.
  * Invalidates stock (a lot's `current_stock_kg` just changed) and this target's distribution list. */
 export function useLogDistribution() {
@@ -326,7 +305,6 @@ export function useLogDistribution() {
 }
 
 export function useFeedDistributions(params: {
-  feedGroupId?: string;
   cattleId?: string;
   concentrationId?: string;
   fromDate?: string;
@@ -337,17 +315,17 @@ export function useFeedDistributions(params: {
   return useQuery({
     queryKey: qk.feed.distributions(params),
     queryFn: () => feedApi.listDistributions(params),
-    enabled: Boolean(params.feedGroupId || params.cattleId),
+    enabled: Boolean(params.cattleId),
     staleTime: STALE_TIME,
   });
 }
 
-/** Planned-vs-actual + cost/litre for exactly one of a group or a single cow. */
-export function useFeedEfficiency(params: { feedGroupId?: string; cattleId?: string; month?: string }) {
+/** Planned-vs-actual + cost/litre for a single cow. */
+export function useFeedEfficiency(params: { cattleId?: string; month?: string }) {
   return useQuery({
     queryKey: qk.feed.efficiency(params),
-    queryFn: () => feedApi.getEfficiency(params),
-    enabled: Boolean(params.feedGroupId || params.cattleId),
+    queryFn: () => feedApi.getEfficiency({ cattleId: params.cattleId as string, month: params.month }),
+    enabled: Boolean(params.cattleId),
     staleTime: STALE_TIME,
   });
 }
@@ -382,10 +360,10 @@ export function useTodaysRequirement() {
 }
 
 /** Feeding Grid (2026-08-15) — per-day, per-cow grid replacing the single-item Quick Feed dialog. */
-export function useFeedGrid(date: string, feedGroupId?: string) {
+export function useFeedGrid(date: string) {
   return useQuery({
-    queryKey: qk.feed.grid(date, feedGroupId),
-    queryFn: () => feedApi.getFeedGrid({ date, feedGroupId }),
+    queryKey: qk.feed.grid(date),
+    queryFn: () => feedApi.getFeedGrid({ date }),
     staleTime: STALE_TIME,
   });
 }
@@ -401,13 +379,13 @@ export function useFeedGridCalendar(month: string) {
 }
 
 /** Saves the grid's staged per-cow quantities against one source item — no inventory effect.
- * Invalidates just this date+group's grid query. */
+ * Invalidates just this date's grid query. */
 export function useSaveFeedDraft() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dto: SaveFeedGridDraftPayload) => feedApi.saveFeedGridDraft(dto),
     onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({ queryKey: qk.feed.grid(variables.date, variables.feedGroupId) });
+      void queryClient.invalidateQueries({ queryKey: qk.feed.grid(variables.date) });
     },
   });
 }
@@ -420,7 +398,7 @@ export function useConfirmFeedDraft() {
   return useMutation({
     mutationFn: (dto: ConfirmFeedGridPayload) => feedApi.confirmFeedGrid(dto),
     onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({ queryKey: qk.feed.grid(variables.date, variables.feedGroupId) });
+      void queryClient.invalidateQueries({ queryKey: qk.feed.grid(variables.date) });
       void queryClient.invalidateQueries({ queryKey: qk.feed.stock() });
       void queryClient.invalidateQueries({
         predicate: (query) => query.queryKey[0] === "feed" && query.queryKey[1] === "distributions",
@@ -477,8 +455,8 @@ export function useVoidFeedCattleItem() {
       dto: VoidFeedCattleItemPayload;
     }) => feedApi.voidFeedCattleItem(vars.distributionId, vars.cattleItemId, vars.dto),
     onSuccess: (_data, variables) => {
-      // Broad predicate, not an exact-key match against one date/group — the caller (a per-cow
-      // history panel) doesn't know which date/group the Feeding Grid underneath is currently
+      // Broad predicate, not an exact-key match against one date — the caller (a per-cow
+      // history panel) doesn't know which date the Feeding Grid underneath is currently
       // showing, so every cached grid page is invalidated rather than risking a stale miss.
       void queryClient.invalidateQueries({
         predicate: (query) =>
@@ -514,19 +492,7 @@ export function usePatchRefusal() {
       void queryClient.invalidateQueries({
         predicate: (query) => query.queryKey[0] === "feed" && query.queryKey[1] === "distributions",
       });
-      void queryClient.invalidateQueries({
-        predicate: (query) => query.queryKey[0] === "feed" && query.queryKey[1] === "refusal-trend",
-      });
     },
-  });
-}
-
-export function useRefusalTrend(feedGroupId: string | undefined, days?: number) {
-  return useQuery({
-    queryKey: qk.feed.refusalTrend(feedGroupId ?? ""),
-    queryFn: () => feedApi.getRefusalTrend(feedGroupId as string, days),
-    enabled: Boolean(feedGroupId),
-    staleTime: STALE_TIME,
   });
 }
 

@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { FilterBar } from "@/components/shared/filter-bar";
 
 /** Search + stage/health selects (RFE-033, PRD §14, API §10) — URL-synced via the shared
- * `FilterBar`, read back by `CalvesTable` for the actual query. No breed/shed/feed-group filters
+ * `FilterBar`, read back by `CalvesTable` for the actual query. No breed/shed/animal-group filters
  * exist for calves (not in the backend's `ListCalfQueryDto`). */
 export function CalvesFilters({ actions }: { actions?: React.ReactNode }) {
   const t = useTranslations("calves.filters");

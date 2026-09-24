@@ -38,7 +38,7 @@ export interface CreatableSelectProps {
  * the trigger (autofocus, Enter to save, Escape to cancel) instead of opening a dialog — the
  * created option is auto-selected on success. Callers are responsible for invalidating whatever
  * query keys their `onCreate` mutation's list depends on so every other picker for the same
- * resource (e.g. shed/feed-group appears in both the Cattle and Settings features) stays in sync.
+ * resource (e.g. shed appears in both the Cattle and Settings features) stays in sync.
  */
 export function CreatableSelect({
   value,

@@ -12,10 +12,6 @@ export function useSheds() {
   return useQuery({ queryKey: qk.settings.sheds(), queryFn: settingsApi.listSheds });
 }
 
-export function useFeedGroups() {
-  return useQuery({ queryKey: qk.settings.feedGroups(), queryFn: settingsApi.listFeedGroups });
-}
-
 export function useSuppliers() {
   return useQuery({ queryKey: qk.settings.suppliers(), queryFn: settingsApi.listSuppliers });
 }

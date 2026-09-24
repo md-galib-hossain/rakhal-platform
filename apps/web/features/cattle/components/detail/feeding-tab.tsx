@@ -22,7 +22,6 @@ import type { AnimalCategory } from "../../types";
 
 const MATCH_LEVEL_VARIANT: Record<string, "success" | "info" | "secondary"> = {
   INDIVIDUAL: "success",
-  GROUP: "info",
   HERD: "secondary",
 };
 

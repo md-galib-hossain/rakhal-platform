@@ -10,7 +10,7 @@ export interface BulkAction {
   label: string;
   variant?: "primary" | "outline" | "destructive";
   /** Opens a `ConfirmDialog` before calling `onRun` — for a plain "open my own dialog" action
-   * (e.g. Cattle's change-shed/feed-group pickers), omit this and let `onRun` do that instead;
+   * (e.g. Cattle's change-shed/add-to-group pickers), omit this and let `onRun` do that instead;
    * the dock stays a dumb rendering shell either way, never a dialog-orchestration engine. */
   requiresConfirm?: boolean;
   confirmTitle?: string;

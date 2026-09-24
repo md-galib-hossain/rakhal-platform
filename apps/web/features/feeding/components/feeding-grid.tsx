@@ -1,4 +1,4 @@
-"use client"; // date/group filter state + per-cow draft quantities + bulk-assign source item + save/confirm mutations
+"use client"; // date filter state + per-cow draft quantities + bulk-assign source item + save/confirm mutations
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -45,7 +45,6 @@ import { CreateFeedDialog } from "../../feed/components/create-feed-dialog";
 import {
   useConcentrations,
   useFeedActiveSessions,
-  useFeedGroups,
   useFeedGrid,
   useFeedGridCalendar,
   useConfirmFeedDraft,
@@ -99,10 +98,9 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-const ALL_GROUPS = "__all__";
 const DEFAULT_PAGE_SIZE = 10;
 
-/** Sums a cow's already-saved (not yet confirmed) draft lines for this date/group — the value shown
+/** Sums a cow's already-saved (not yet confirmed) draft lines for this date — the value shown
  * when the grid is reopened on a date that already has staged entries. Falls back to the backend's
  * own carry-forward `default_offered_kg` when nothing is staged yet — which is `null`, not `0`,
  * whenever the cow has no prior confirmed feeding to carry forward (confirmed live against the real
@@ -141,7 +139,7 @@ function toRowSource(source: FeedGridSource): RowSource | null {
 
 /** RFE-115: each cow's own pre-filled source — its own already-staged draft's source (RAKHAL-430
  * onward, a draft can carry its own source) if one exists, else the resolution ladder's
- * `default_source` (RAKHAL-431: own last-used → feed-group default → none), else unresolved. */
+ * `default_source` (RAKHAL-431: own last-used → none), else unresolved. */
 function initialRowSource(cow: FeedGridCow): RowSource | null {
   const draft = cow.drafts[0];
   if (draft) {
@@ -177,11 +175,8 @@ function initialSource(cows: FeedGridCow[]): { sourceType: FeedGridSourceType; i
 export function FeedingGrid() {
   const t = useTranslations("feeding.grid");
   const [date, setDate] = useState(todayIso());
-  const [feedGroupId, setFeedGroupId] = useState(ALL_GROUPS);
   const [calendarMonth, setCalendarMonth] = useState(todayIso().slice(0, 7));
-  const groupFilter = feedGroupId === ALL_GROUPS ? undefined : feedGroupId;
-  const query = useFeedGrid(date, groupFilter);
-  const feedGroups = useFeedGroups();
+  const query = useFeedGrid(date);
   const calendarQuery = useFeedGridCalendar(calendarMonth);
 
   const cows = query.data?.cows ?? [];
@@ -200,20 +195,6 @@ export function FeedingGrid() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <Select value={feedGroupId} onValueChange={setFeedGroupId}>
-            <SelectTrigger className="w-[170px]" aria-label={t("groupFilterLabel")}>
-              <SelectValue placeholder={t("groupFilter")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_GROUPS}>{t("groupFilter")}</SelectItem>
-              {(feedGroups.data ?? []).map((group) => (
-                <SelectItem key={group.id} value={group.id}>
-                  {group.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
           <div className="w-[170px] shrink-0">
             <EntryStatusDatePicker
               label={t("dateLabel")}
@@ -232,21 +213,13 @@ export function FeedingGrid() {
       ) : query.isError ? (
         <ErrorState description={t("error")} onRetry={() => query.refetch()} />
       ) : (
-        <FeedingGridTable key={`${date}:${groupFilter ?? ""}`} date={date} feedGroupId={groupFilter} cows={cows} />
+        <FeedingGridTable key={date} date={date} cows={cows} />
       )}
     </div>
   );
 }
 
-function FeedingGridTable({
-  date,
-  feedGroupId,
-  cows,
-}: {
-  date: string;
-  feedGroupId: string | undefined;
-  cows: FeedGridCow[];
-}) {
+function FeedingGridTable({ date, cows }: { date: string; cows: FeedGridCow[] }) {
   const t = useTranslations("feeding.grid");
   const saveDraft = useSaveFeedDraft();
   const confirmDraft = useConfirmFeedDraft();
@@ -411,7 +384,6 @@ function FeedingGridTable({
     try {
       const result = await saveDraft.mutateAsync({
         date,
-        feedGroupId,
         ...topLevelSource(),
         entries,
       });
@@ -426,7 +398,6 @@ function FeedingGridTable({
     try {
       const result = await confirmDraft.mutateAsync({
         date,
-        feedGroupId,
         ...topLevelSource(),
         entries: entries.length > 0 ? entries : undefined,
         session: session || undefined,

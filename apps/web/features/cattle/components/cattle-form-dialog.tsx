@@ -32,10 +32,8 @@ import {
   useBreeds,
   useCreateBreed,
   useCreateCattle,
-  useCreateFeedGroupInline,
   useCreatePurchasedLactation,
   useCreateShedInline,
-  useFeedGroups,
   useRemoveCattlePhoto,
   useSetCattlePhoto,
   useSheds,
@@ -90,7 +88,6 @@ function toPayload(values: CattleEditFormInput, isEdit: boolean): CattleFormPayl
     gender: values.gender,
     dateOfBirth: clean(values.dateOfBirth),
     shedId: clean(values.shedId),
-    feedGroupId: clean(values.feedGroupId),
     motherId: clean(values.motherId),
     fatherId: clean(values.fatherId),
     sourceType: clean(values.sourceType),
@@ -125,7 +122,6 @@ function toFormDefaults(
     gender: cattle.gender,
     dateOfBirth: cattle.dateOfBirth ? cattle.dateOfBirth.slice(0, 10) : "",
     shedId: cattle.shedId ?? undefined,
-    feedGroupId: cattle.feedGroupId ?? undefined,
     motherId: cattle.motherId ?? undefined,
     fatherId: cattle.fatherId ?? undefined,
     sourceType: cattle.sourceType ?? undefined,
@@ -208,7 +204,7 @@ function PhotoDropzone({
  * "Basic Info" muted band, stacked-label fields, square photo dropzone, equal-width footer
  * buttons) — built on raw `Dialog` primitives rather than the generic `FormDialog`/`FormSheet`
  * chrome, which don't support this layout. Figma only pictures "Basic Info"; the PRD's remaining
- * `CreateCattleDto` fields (feed group, source, parents, color, weight, notes) get a second
+ * `CreateCattleDto` fields (source, parents, color, weight, notes) get a second
  * "Additional Info" band in the same visual language (ui-analysis.md flags these as PRD-spec, not
  * pictured) rather than being dropped.
  *
@@ -308,9 +304,7 @@ function CattleFormDialogBody({
 
   const breeds = useBreeds();
   const sheds = useSheds();
-  const feedGroups = useFeedGroups();
   const createShedInline = useCreateShedInline();
-  const createFeedGroupInline = useCreateFeedGroupInline();
   const createCattle = useCreateCattle();
   const updateCattle = useUpdateCattle();
   const setPhoto = useSetCattlePhoto();
@@ -986,23 +980,6 @@ function CattleFormDialogBody({
             {t("additionalInfo")}
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Controller
-              control={form.control}
-              name="feedGroupId"
-              render={({ field }) => (
-                <CreatableSelect
-                  value={field.value || UNSET}
-                  onValueChange={field.onChange}
-                  options={feedGroups.data ?? []}
-                  trigger={<LabeledSelectTrigger label={t("feedGroup")} placeholder={t("unassigned")} />}
-                  extraItems={<SelectItem value={UNSET}>{t("unassigned")}</SelectItem>}
-                  createLabel={t("addFeedGroup")}
-                  namePlaceholder={t("feedGroupNamePlaceholder")}
-                  createErrorMessage={t("addFeedGroupError")}
-                  onCreate={(name) => createFeedGroupInline.mutateAsync(name)}
-                />
-              )}
-            />
             <Controller
               control={form.control}
               name="sourceType"

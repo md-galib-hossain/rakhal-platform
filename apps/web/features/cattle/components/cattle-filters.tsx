@@ -2,9 +2,9 @@
 
 import { useTranslations } from "next-intl";
 import { FilterBar } from "@/components/shared/filter-bar";
-import { useBreeds, useFeedGroups, useSheds } from "../hooks/use-cattle";
+import { useAnimalGroups, useBreeds, useSheds } from "../hooks/use-cattle";
 
-/** Search + category/status/breed/shed/feed-group/health selects (PRD §8.1 list filters, ticket
+/** Search + category/status/breed/shed/animal-group/health selects (PRD §8.1 list filters, ticket
  * RFE-021) — all URL-synced via the shared `FilterBar`, read back by `CattleTable` for the actual
  * query. `actions` (the "Add New Cow" button) renders after the filters, matching the Figma "All
  * Cattle View" row where search/filter/add all sit together, right-aligned next to the section
@@ -25,7 +25,7 @@ export function CattleFilters({ actions }: { actions?: React.ReactNode }) {
   const tCategories = useTranslations("cattle.animalCategory");
   const breeds = useBreeds();
   const sheds = useSheds();
-  const feedGroups = useFeedGroups();
+  const animalGroups = useAnimalGroups();
 
   return (
     <FilterBar
@@ -100,9 +100,9 @@ export function CattleFilters({ actions }: { actions?: React.ReactNode }) {
           options: (sheds.data?.items ?? []).map((s) => ({ value: s.id, label: s.name })),
         },
         {
-          key: "feedGroupId",
-          label: t("feedGroup"),
-          options: (feedGroups.data ?? []).map((g) => ({ value: g.id, label: g.name })),
+          key: "animalGroupId",
+          label: t("animalGroup"),
+          options: (animalGroups.data?.items ?? []).map((g) => ({ value: g.id, label: g.name })),
         },
       ]}
       extra={actions}

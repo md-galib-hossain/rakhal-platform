@@ -64,24 +64,6 @@ export const shedFormSchema = z.object({
 });
 export type ShedFormInput = z.infer<typeof shedFormSchema>;
 
-/** Mirrors `CreateFeedGroupDto`/`UpdateFeedGroupDto`. */
-export const feedGroupFormSchema = z.object({
-  name: z.string().trim().min(1, "nameRequired").max(80, "nameTooLong"),
-  description: z.string().trim().max(255, "descriptionTooLong").optional().or(z.literal("")),
-  /** Kept as a string so the resolver's input and output types match (a `z.coerce` union
-   * widens the input to `unknown` and breaks `zodResolver`). Parsed to a number on submit;
-   * blank means "no target", which is not the same as a target of 0. */
-  refusalTargetPct: z
-    .string()
-    .trim()
-    .optional()
-    .refine(
-      (v) => !v || (!Number.isNaN(Number(v)) && Number(v) >= 0 && Number(v) <= 100),
-      "refusalRange",
-    ),
-});
-export type FeedGroupFormInput = z.infer<typeof feedGroupFormSchema>;
-
 /** Mirrors `CreateSupplierDto`/`UpdateSupplierDto` (single form covers both). */
 export const supplierFormSchema = z.object({
   name: z.string().trim().min(1).max(120),

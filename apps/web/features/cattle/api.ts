@@ -3,6 +3,7 @@
 import { apiFetch, apiFetchPage, apiUpload } from "@/lib/api/client";
 import type { CursorPage } from "@/types/api";
 import type {
+  AnimalGroup,
   AnimalHold,
   BcsRecordResult,
   Breed,
@@ -16,7 +17,6 @@ import type {
   CattleImportPreview,
   CattleListFilters,
   CattleListItem,
-  FeedGroup,
   MediaUrls,
   PurchasedLactationResult,
   Shed,
@@ -44,8 +44,8 @@ import type {
 } from "./detail-types";
 
 /** `GET/POST /cattle*` — real backend routes (`cattle.controller.ts`), `cattle.read`/`cattle.bulk`-gated.
- * Breed/shed/feed-group lookups back the filter selects — their own controllers (`/breeds`, `/sheds`,
- * `/settings/feed-groups`), not `/cattle`. */
+ * Breed/shed/animal-group lookups back the filter selects — their own controllers (`/breeds`, `/sheds`,
+ * `/animal-groups`), not `/cattle`. */
 export const cattleApi = {
   list(filters: CattleListFilters, cursor?: string, limit = 20): Promise<CursorPage<CattleListItem>> {
     return apiFetchPage<CattleListItem>("/cattle", {
@@ -53,7 +53,7 @@ export const cattleApi = {
         search: filters.search,
         breedId: filters.breedId,
         shedId: filters.shedId,
-        feedGroupId: filters.feedGroupId,
+        animalGroupId: filters.animalGroupId,
         productionStatus: filters.productionStatus,
         healthStatus: filters.healthStatus,
         reproductiveStatus: filters.reproductiveStatus,
@@ -71,7 +71,7 @@ export const cattleApi = {
   bulk(
     cattleIds: string[],
     action: BulkAction,
-    payload?: { shedId?: string; feedGroupId?: string; type?: BulkDisposeType; reason?: string; date?: string },
+    payload?: { shedId?: string; type?: BulkDisposeType; reason?: string; date?: string },
   ): Promise<BulkCattleResult> {
     return apiFetch<BulkCattleResult>("/cattle/bulk", {
       method: "POST",
@@ -88,8 +88,25 @@ export const cattleApi = {
   sheds(): Promise<CursorPage<Shed>> {
     return apiFetchPage<Shed>("/sheds", { searchParams: { limit: 100 } });
   },
-  feedGroups(): Promise<FeedGroup[]> {
-    return apiFetch<FeedGroup[]>("/settings/feed-groups");
+  /** Generous `limit` — pickers want the farm's full (small) list of groups, not one page. */
+  animalGroups(): Promise<CursorPage<AnimalGroup>> {
+    return apiFetchPage<AnimalGroup>("/animal-groups", { searchParams: { limit: 100 } });
+  },
+  /** "Create group from selection" — one call creates the group and adds `cattleIds`. */
+  createAnimalGroup(input: { name: string; description?: string; cattleIds?: string[] }): Promise<AnimalGroup> {
+    return apiFetch<AnimalGroup>("/animal-groups", { method: "POST", body: input });
+  },
+  addToAnimalGroup(groupId: string, cattleIds: string[]): Promise<AnimalGroup & { added: number }> {
+    return apiFetch<AnimalGroup & { added: number }>(`/animal-groups/${groupId}/members`, {
+      method: "POST",
+      body: { cattleIds },
+    });
+  },
+  removeFromAnimalGroup(groupId: string, cattleIds: string[]): Promise<AnimalGroup & { removed: number }> {
+    return apiFetch<AnimalGroup & { removed: number }>(`/animal-groups/${groupId}/members`, {
+      method: "DELETE",
+      body: { cattleIds },
+    });
   },
   findOne(id: string): Promise<CattleDetail> {
     return apiFetch<CattleDetail>(`/cattle/${id}`);

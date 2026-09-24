@@ -21,7 +21,7 @@ export function useLactationCompare(cattleId: string | undefined, byLactationNum
 
 /** RAKHAL-292-F/287. Farm-wide average yield per DIM-range bucket — the "farm average" overlay
  * option, always grouped by `dimRange` here since that's the only `groupBy` whose buckets line up
- * with a DIM-axis chart (`parity`/`shed`/`feedGroup` describe cows, not days-in-milk). */
+ * with a DIM-axis chart (`parity`/`shed` describe cows, not days-in-milk). */
 export function useLactationCompareGroups(groupBy: LactationComparisonGroupBy = "dimRange", enabled = true) {
   return useQuery({
     queryKey: qk.reproduction.lactationCompareGroups(groupBy),

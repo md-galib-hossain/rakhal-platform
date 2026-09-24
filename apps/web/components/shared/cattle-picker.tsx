@@ -128,9 +128,8 @@ export interface CattleMultiPickerProps {
     gender?: CattleGender;
     reproductiveStatus?: ReproductiveStatus;
   };
-  /** Hides these cattle from the dropdown entirely — e.g. `feed-groups-section.tsx`'s "add
-   * cattle" picker excludes cows already in the group, since re-picking one there would be a
-   * silent no-op against `POST .../assign-cattle`. */
+  /** Hides these cattle from the dropdown entirely — e.g. a picker that excludes cows already
+   * chosen elsewhere in the same form, since re-picking one would be a silent no-op. */
   excludeIds?: string[];
 }
 

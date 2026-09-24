@@ -82,9 +82,12 @@ export interface Shed {
   code: string;
 }
 
-export interface FeedGroup {
+/** RAKHAL-452 — a named, farm-defined set of animals (many-to-many); `GET /animal-groups`. */
+export interface AnimalGroup {
   id: string;
   name: string;
+  description: string | null;
+  memberCount: number;
 }
 
 /** RAKHAL-401 — derived lifecycle sub-stage nested under `animalCategory` (HEIFER/BULL only;
@@ -118,7 +121,6 @@ export interface CattleListItem {
    * their first freshening) carry no production state. */
   productionStatus: ProductionStatus | null;
   shedId: string | null;
-  feedGroupId: string | null;
   lastBcs: number | null;
   lastWeightKg: number | null;
   aqrScore: number | null;
@@ -156,7 +158,7 @@ export interface CattleListFilters {
   search?: string;
   breedId?: string;
   shedId?: string;
-  feedGroupId?: string;
+  animalGroupId?: string;
   productionStatus?: ProductionStatus;
   healthStatus?: HealthStatusFilter;
   reproductiveStatus?: ReproductiveStatus;
@@ -170,7 +172,7 @@ export interface CattleListFilters {
   lifecycleSubStage?: LifecycleSubStage;
 }
 
-export const BULK_ACTIONS = ["change_shed", "change_feed_group", "mark_sold", "dispose", "export"] as const;
+export const BULK_ACTIONS = ["change_shed", "mark_sold", "dispose", "export"] as const;
 export type BulkAction = (typeof BULK_ACTIONS)[number];
 
 /** Bulk `dispose` covers all 3 lifecycle exits in one dialog (sell/cull/dead) — replaces the old
@@ -227,7 +229,6 @@ export interface CattleFormPayload {
   gender: CattleGender;
   dateOfBirth?: string;
   shedId?: string;
-  feedGroupId?: string;
   motherId?: string;
   fatherId?: string;
   sourceType?: CattleSourceType;

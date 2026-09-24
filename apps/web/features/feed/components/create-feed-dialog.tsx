@@ -9,8 +9,7 @@ import { ArrowRightToLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
-import { Select, SelectContent, SelectItem } from "@/components/ui/select";
+import { LabeledInput } from "@/components/ui/labeled-field";
 import { Button } from "@/components/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { CattlePicker } from "@/components/shared/cattle-picker";
@@ -18,7 +17,6 @@ import {
   useCattleOrGroupRequirements,
   useConcentrationDetail,
   useCreateConcentration,
-  useFeedGroups,
   useFeedIngredients,
   useNormalizeConcentration,
   useUpdateConcentration,
@@ -52,14 +50,13 @@ function StepProgress({ step }: { step: 1 | 2 }) {
 
 /**
  * "Create New Feed Formulator" wizard (Figma Step 1 `1065:35227` + Step 2 `1065:35817`, file
- * `SCfMPdxP6vgW1uTxfqCtz7`). Mirrors `CreateConcentrationDto` — the "Cow Group"/"Individual Cow"
- * tab-pill (`1065:35268`) picks `targetType`, driving whether "Select Group" (`GET
- * /settings/feed-groups`) or a `CattlePicker` renders. The "Estimated Daily Requirements" box
- * (`1065:35244`) is a live `GET /feed/requirements?cattleId=`/`?feedGroupId=` call (merged in from
+ * `SCfMPdxP6vgW1uTxfqCtz7`). Mirrors `CreateConcentrationDto` — the "Individual Cow"/"Whole Herd"
+ * tab-pill (`1065:35268`) picks `targetType`, driving whether a `CattlePicker` renders. The "Estimated Daily Requirements" box
+ * (`1065:35244`) is a live `GET /feed/requirements?cattleId=` call (merged in from
  * the standalone Nutrition Calculator, user request 2026-07-18 follow-up — `useCattleOrGroupRequirements`)
- * — auto-derives weight/BCS/gestation/milk-yield from the selected cow's or group's real records,
+ * — auto-derives weight/BCS/gestation/milk-yield from the selected cow's real records,
  * with Avg. Weight/Avg. Milk Target as the fallback the backend uses when a record is incomplete
- * (never the primary source once a real cattle/group target is chosen, since a Total Mixed Ration
+ * (never the primary source once a real cattle target is chosen, since a Total Mixed Ration
  * (TMR) always has one — Concentrate Mixer templates hide this box entirely and never reach here). The same
  * response also drives Step 2's "Daily Total Requirement" row in `feed-mixture-table.tsx` — no
  * separate calculator page needed anymore.
@@ -130,7 +127,6 @@ function CreateFeedDialogBody({
   const isTemplate = kind === "CONCENTRATE_TEMPLATE";
   const [step, setStep] = useState<1 | 2>(1);
 
-  const feedGroups = useFeedGroups();
   const ingredients = useFeedIngredients();
   const editDetail = useConcentrationDetail(editId);
   const createConcentration = useCreateConcentration();
@@ -139,7 +135,7 @@ function CreateFeedDialogBody({
 
   const form = useForm<CreateFeedFormInput>({
     resolver: zodResolver(createFeedFormSchema),
-    defaultValues: { kind, targetType: "GROUP", items: [] },
+    defaultValues: { kind, targetType: "INDIVIDUAL", items: [] },
   });
   const prefilledRef = useRef(false);
   useEffect(() => {
@@ -151,7 +147,6 @@ function CreateFeedDialogBody({
       name: d.name,
       durationDays: d.duration_days ?? undefined,
       targetType: d.target_type,
-      feedGroupId: d.feed_group_id ?? undefined,
       cattleId: d.cattle_id ?? undefined,
       targetWeightKg: d.target_weight_kg ?? undefined,
       targetMilkL: d.target_milk_l ?? undefined,
@@ -169,27 +164,22 @@ function CreateFeedDialogBody({
     });
   }, [editDetail.data, form]);
   const targetType = form.watch("targetType");
-  const feedGroupId = form.watch("feedGroupId");
   const cattleId = form.watch("cattleId");
   const targetWeightKg = form.watch("targetWeightKg");
   const targetMilkL = form.watch("targetMilkL");
   const items = form.watch("items");
 
-  /** Cow/group-driven (user request 2026-07-18 follow-up — merged in from the removed standalone
-   * calculator). `requirements` (flat) covers manual/individual-cow mode; group mode returns
-   * `per_cow`/`group_total` instead (no flat `requirements` key — see `types.ts`'s
-   * `FeedRequirementsResult` doc comment), so the per-cow figure a Total Mixed Ration (TMR) actually needs for
-   * its "Daily Total Requirement (per cow)" row is `requirements ?? per_cow`. */
+  /** Cow-driven (user request 2026-07-18 follow-up — merged in from the removed standalone
+   * calculator): the flat `requirements` block is the per-cow figure a Total Mixed Ration (TMR)
+   * needs for its "Daily Total Requirement (per cow)" row. */
   const requirementsQuery = useCattleOrGroupRequirements({
     cattleId: targetType === "INDIVIDUAL" ? cattleId : undefined,
-    feedGroupId: targetType === "GROUP" ? feedGroupId : undefined,
     weightKg: targetWeightKg,
     milkTargetL: targetMilkL,
   });
   const requirementsResult = requirementsQuery.data ?? null;
-  const requirementsApi = requirementsResult?.requirements ?? requirementsResult?.per_cow ?? null;
+  const requirementsApi = requirementsResult?.requirements ?? null;
   const requirements = requirementsApi ? fromApiRequirements(requirementsApi) : null;
-  const groupTotal = requirementsResult?.group_total ? fromApiRequirements(requirementsResult.group_total) : null;
   const dataSource = requirementsResult?.data_source ?? null;
 
   const effectiveById = useMemo(() => {
@@ -201,10 +191,8 @@ function CreateFeedDialogBody({
     return map;
   }, [ingredients.data, items]);
 
-  const cowCount = useMemo(() => {
-    if (targetType === "INDIVIDUAL") return 1;
-    return feedGroups.data?.find((g) => g.id === feedGroupId)?.assigned_count || 1;
-  }, [targetType, feedGroupId, feedGroups.data]);
+  // Per-cow figures only — a herd-wide ration has no fixed head count here.
+  const cowCount = 1;
 
   function addItem(ingredientId: string, ingredientName: string) {
     if (items.some((i) => i.ingredientId === ingredientId)) return;
@@ -293,7 +281,7 @@ function CreateFeedDialogBody({
   async function goNext() {
     const fields: (keyof CreateFeedFormInput)[] = isTemplate
       ? ["name"]
-      : ["name", "targetType", "feedGroupId", "cattleId"];
+      : ["name", "targetType", "cattleId"];
     const valid = await form.trigger(fields);
     if (valid) setStep(2);
   }
@@ -331,7 +319,6 @@ function CreateFeedDialogBody({
       }));
       const durationDays = values.durationDays;
       const targetType = isTemplate ? undefined : values.targetType;
-      const feedGroupId = !isTemplate && values.targetType === "GROUP" ? values.feedGroupId : undefined;
       const cattleId = !isTemplate && values.targetType === "INDIVIDUAL" ? values.cattleId : undefined;
       const targetWeightKg = isTemplate ? undefined : values.targetWeightKg;
       const targetMilkL = isTemplate ? undefined : values.targetMilkL;
@@ -343,7 +330,6 @@ function CreateFeedDialogBody({
           name: values.name,
           durationDays,
           targetType,
-          feedGroupId,
           cattleId,
           targetWeightKg,
           targetMilkL,
@@ -356,8 +342,7 @@ function CreateFeedDialogBody({
           kind: values.kind,
           name: values.name,
           durationDays,
-          targetType: targetType ?? "GROUP",
-          feedGroupId,
+          targetType: targetType ?? "HERD",
           cattleId,
           targetWeightKg,
           targetMilkL,
@@ -366,7 +351,7 @@ function CreateFeedDialogBody({
         await createConcentration.mutateAsync(dto);
         toast.success(t("createdToast"));
       }
-      form.reset({ kind, targetType: "GROUP", items: [] });
+      form.reset({ kind, targetType: "INDIVIDUAL", items: [] });
       setStep(1);
       onOpenChange(false);
     } catch (err) {
@@ -450,7 +435,6 @@ function CreateFeedDialogBody({
                         type="button"
                         onClick={() => {
                           form.setValue("targetType", value);
-                          form.setValue("feedGroupId", undefined);
                           form.setValue("cattleId", undefined);
                         }}
                         className={cn(
@@ -463,24 +447,7 @@ function CreateFeedDialogBody({
                     ))}
                   </div>
 
-                  {targetType === "GROUP" ? (
-                    <Controller
-                      control={form.control}
-                      name="feedGroupId"
-                      render={({ field }) => (
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <LabeledSelectTrigger label={t("selectGroup")} placeholder={t("selectGroupPlaceholder")} />
-                          <SelectContent>
-                            {(feedGroups.data ?? []).map((group) => (
-                              <SelectItem key={group.id} value={group.id}>
-                                {group.name} ({t("cowCount", { count: group.assigned_count })})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                  ) : targetType === "INDIVIDUAL" ? (
+                  {targetType === "INDIVIDUAL" ? (
                     <Controller
                       control={form.control}
                       name="cattleId"
@@ -495,10 +462,8 @@ function CreateFeedDialogBody({
                     // HERD (2026-08-13, user request) — no picker needed, applies farm-wide by default.
                     <p className="text-xs text-muted-foreground">{t("herdTargetHint")}</p>
                   )}
-                  {form.formState.errors.feedGroupId || form.formState.errors.cattleId ? (
-                    <p className="-mt-3 text-sm text-destructive">
-                      {form.formState.errors.feedGroupId?.message ?? form.formState.errors.cattleId?.message}
-                    </p>
+                  {form.formState.errors.cattleId ? (
+                    <p className="-mt-3 text-sm text-destructive">{form.formState.errors.cattleId.message}</p>
                   ) : null}
 
                   {/* Deliberately no `error` prop on either field (Phase 12.3, 2026-07-18) — once a
@@ -549,20 +514,6 @@ function CreateFeedDialogBody({
                         <RequirementTile label={t("fat")} value={requirements.fatKg} unit={t("kgPerDay")} tone="warning" />
                         <RequirementTile label={t("fiber")} value={requirements.ndfKg} unit={t("kgPerDay")} tone="success" />
                       </div>
-                      {groupTotal ? (
-                        <div className="flex flex-col gap-2 border-t border-dashed border-border pt-4">
-                          <p className="text-sm text-muted-foreground">
-                            {t("groupTotal", { count: requirementsResult?.inputs.headcount ?? 0 })}
-                          </p>
-                          <div className="grid grid-cols-5 gap-4 text-center">
-                            <RequirementTile label={t("dm")} value={groupTotal.dmKg} unit={t("kgPerDay")} tone="foreground" />
-                            <RequirementTile label={t("protein")} value={groupTotal.cpKg} unit={t("kgPerDay")} tone="info" />
-                            <RequirementTile label={t("energy")} value={groupTotal.meMj} unit={t("mjPerDay")} tone="warning" />
-                            <RequirementTile label={t("fat")} value={groupTotal.fatKg} unit={t("kgPerDay")} tone="warning" />
-                            <RequirementTile label={t("fiber")} value={groupTotal.ndfKg} unit={t("kgPerDay")} tone="success" />
-                          </div>
-                        </div>
-                      ) : null}
                     </div>
                   ) : null}
                 </>

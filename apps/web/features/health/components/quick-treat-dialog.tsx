@@ -76,21 +76,21 @@ export function QuickTreatDialog({ open, onOpenChange }: { open: boolean; onOpen
   });
   const selectionMethod = useWatch({ control: form.control, name: "selectionMethod" });
   const shedId = useWatch({ control: form.control, name: "shedId" });
-  const feedGroupId = useWatch({ control: form.control, name: "feedGroupId" });
+  const animalGroupId = useWatch({ control: form.control, name: "animalGroupId" });
   const treatedAt = useWatch({ control: form.control, name: "treatedAt" });
   const doseAmount = useWatch({ control: form.control, name: "doseAmount" });
 
   const shedsQuery = useQuery({ queryKey: ["cattle", "sheds"], queryFn: () => cattleApi.sheds(), staleTime: 60_000, enabled: open });
-  const feedGroupsQuery = useQuery({ queryKey: ["cattle", "feed-groups"], queryFn: () => cattleApi.feedGroups(), staleTime: 60_000, enabled: open });
+  const animalGroupsQuery = useQuery({ queryKey: ["cattle", "animal-groups"], queryFn: () => cattleApi.animalGroups(), staleTime: 60_000, enabled: open });
   const animalsQuery = useQuery({
-    queryKey: ["cattle", "list", "quick-treat", selectionMethod, shedId, feedGroupId, search],
+    queryKey: ["cattle", "list", "quick-treat", selectionMethod, shedId, animalGroupId, search],
     queryFn: () =>
       cattleApi.list({
         shedId: selectionMethod === "shed" ? shedId : undefined,
-        feedGroupId: selectionMethod === "batch" ? feedGroupId : undefined,
+        animalGroupId: selectionMethod === "batch" ? animalGroupId : undefined,
         search: selectionMethod === "individual" ? search || undefined : undefined,
       }),
-    enabled: open && (selectionMethod === "individual" ? true : selectionMethod === "shed" ? Boolean(shedId) : Boolean(feedGroupId)),
+    enabled: open && (selectionMethod === "individual" ? true : selectionMethod === "shed" ? Boolean(shedId) : Boolean(animalGroupId)),
     staleTime: 30_000,
   });
   const animals: CattleListItem[] = animalsQuery.data?.items ?? [];
@@ -210,12 +210,12 @@ export function QuickTreatDialog({ open, onOpenChange }: { open: boolean; onOpen
               ) : selectionMethod === "batch" ? (
                 <Controller
                   control={form.control}
-                  name="feedGroupId"
+                  name="animalGroupId"
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={field.onChange}>
                       <LabeledSelectTrigger label={t("selectBatch")} placeholder={t("selectBatchPlaceholder")} />
                       <SelectContent>
-                        {(feedGroupsQuery.data ?? []).map((group) => (
+                        {(animalGroupsQuery.data?.items ?? []).map((group) => (
                           <SelectItem key={group.id} value={group.id}>
                             {group.name}
                           </SelectItem>

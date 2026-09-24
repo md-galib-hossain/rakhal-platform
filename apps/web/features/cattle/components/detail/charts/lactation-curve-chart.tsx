@@ -20,7 +20,7 @@ const LactationCurveChartInner = dynamic(() => import("./lactation-curve-chart-i
 type OverlayMode = "none" | "previous" | "group";
 
 /** Mirrors the backend's `DIM_RANGE_BUCKETS` (`lactation-comparison.ts`) client-side — only the
- * `dimRange` grouping lines up with a DIM-axis chart (`parity`/`shed`/`feedGroup` describe cows,
+ * `dimRange` grouping lines up with a DIM-axis chart (`parity`/`shed` describe cows,
  * not days-in-milk), so the "farm average" overlay always uses `groupBy=dimRange`. */
 const DIM_RANGE_BUCKETS: { key: string; min: number; max: number | null }[] = [
   { key: "0-60", min: 0, max: 60 },

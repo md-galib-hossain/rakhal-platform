@@ -516,7 +516,7 @@ export interface LactationCompareResponse {
   alignedSeries: { dim: number; currentYieldL: number | null; previousYieldL: number | null }[];
 }
 
-export type LactationComparisonGroupBy = "parity" | "shed" | "feedGroup" | "dimRange";
+export type LactationComparisonGroupBy = "parity" | "shed" | "dimRange";
 
 /** One bucket of `GET /reproduction/lactations/compare/groups?groupBy=` — farm-level average
  * yield/peak/persistency across all active lactations, partitioned by `groupBy`. */

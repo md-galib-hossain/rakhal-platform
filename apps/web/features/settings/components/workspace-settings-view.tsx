@@ -353,8 +353,6 @@ function ShedFormDialog({
   );
 }
 
-// ── Feed groups ───────────────────────────────────────────────────────────
-
 function ConfirmDialog({
   open,
   onOpenChange,

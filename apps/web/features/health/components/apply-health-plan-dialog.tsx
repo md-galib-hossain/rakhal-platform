@@ -46,8 +46,8 @@ function getStepDate(startDateStr: string | undefined, dayNumber: number): Date 
  * (RAKHAL-414) — the backend creates a case per animal that needs one and reports each animal's
  * real outcome (`applied` or `skipped` when already on this exact protocol), so the confirmation
  * toast can say "48 applied, 2 skipped" instead of a bare count that can't tell the two apart.
- * "Shed"/"Batch" selection reuse the real `GET /sheds`/`GET /settings/feed-groups` +
- * `GET /cattle?shedId=`/`?feedGroupId=` (same endpoints Cattle's own bulk-ops/filters use);
+ * "Shed"/"Batch" selection reuse the real `GET /sheds`/`GET /animal-groups` +
+ * `GET /cattle?shedId=`/`?animalGroupId=` (same endpoints Cattle's own bulk-ops/filters use);
  * "Exclude Pregnant Animals" filters on the real `reproductiveStatus` field.
  */
 export function ApplyHealthPlanDialog({ plan, onOpenChange }: { plan: HealthPlanListItem | undefined; onOpenChange: (open: boolean) => void }) {
@@ -73,21 +73,21 @@ function ApplyHealthPlanDialogBody({ plan, onOpenChange }: { plan: HealthPlanLis
   });
   const selectionMethod = useWatch({ control: form.control, name: "selectionMethod" });
   const shedId = useWatch({ control: form.control, name: "shedId" });
-  const feedGroupId = useWatch({ control: form.control, name: "feedGroupId" });
+  const animalGroupId = useWatch({ control: form.control, name: "animalGroupId" });
   const excludePregnant = useWatch({ control: form.control, name: "excludePregnant" });
   const startDate = useWatch({ control: form.control, name: "startDate" });
 
   const shedsQuery = useQuery({ queryKey: ["cattle", "sheds"], queryFn: () => cattleApi.sheds(), staleTime: 60_000 });
-  const feedGroupsQuery = useQuery({ queryKey: ["cattle", "feed-groups"], queryFn: () => cattleApi.feedGroups(), staleTime: 60_000 });
+  const animalGroupsQuery = useQuery({ queryKey: ["cattle", "animal-groups"], queryFn: () => cattleApi.animalGroups(), staleTime: 60_000 });
   const animalsQuery = useQuery({
-    queryKey: ["cattle", "list", selectionMethod, shedId, feedGroupId, search],
+    queryKey: ["cattle", "list", selectionMethod, shedId, animalGroupId, search],
     queryFn: () =>
       cattleApi.list({
         shedId: selectionMethod === "shed" ? shedId : undefined,
-        feedGroupId: selectionMethod === "batch" ? feedGroupId : undefined,
+        animalGroupId: selectionMethod === "batch" ? animalGroupId : undefined,
         search: selectionMethod === "individual" ? search || undefined : undefined,
       }),
-    enabled: selectionMethod === "individual" ? true : selectionMethod === "shed" ? Boolean(shedId) : Boolean(feedGroupId),
+    enabled: selectionMethod === "individual" ? true : selectionMethod === "shed" ? Boolean(shedId) : Boolean(animalGroupId),
     staleTime: 30_000,
   });
 
@@ -209,12 +209,12 @@ function ApplyHealthPlanDialogBody({ plan, onOpenChange }: { plan: HealthPlanLis
               ) : selectionMethod === "batch" ? (
                 <Controller
                   control={form.control}
-                  name="feedGroupId"
+                  name="animalGroupId"
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={field.onChange}>
                       <LabeledSelectTrigger label={t("selectBatch")} placeholder={t("selectBatchPlaceholder")} />
                       <SelectContent>
-                        {(feedGroupsQuery.data ?? []).map((group) => (
+                        {(animalGroupsQuery.data?.items ?? []).map((group) => (
                           <SelectItem key={group.id} value={group.id}>
                             {group.name}
                           </SelectItem>

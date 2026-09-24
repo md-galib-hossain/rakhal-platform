@@ -12,7 +12,7 @@ import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { useCattleDetail } from "@/features/cattle/hooks/use-cattle";
-import { useConcentrationDetail, useFeedGroups, useLogDistribution } from "../hooks/use-feed";
+import { useConcentrationDetail, useLogDistribution } from "../hooks/use-feed";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { IngredientPicker, type IngredientOption } from "./ingredient-picker";
@@ -26,7 +26,7 @@ function todayStr() {
 /**
  * "Feed Today" (Phase 12.4, 2026-07-18, no Figma frame — new surface, none of this existed
  * anywhere in the frontend before this pass) — logs an actual feeding against a Total Mixed
- * Ration's own target (its group or one cow, always derived server-side from `concentrationId`,
+ * Ration's own target (one cow or the herd, always derived server-side from `concentrationId`,
  * never picked here). Single step, mirroring `record-batch-dialog.tsx`'s shell (read-only info
  * tiles + a confirm footer) rather than a multi-step wizard, since there's no target to pick — the
  * TMR already fixed that at creation. Per-ingredient actual-kg inputs default to the TMR's planned
@@ -53,7 +53,6 @@ export function LogDistributionDialog({
 function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenChange: (open: boolean) => void }) {
   const t = useTranslations("feed.logDistribution");
   const detail = useConcentrationDetail(id);
-  const feedGroups = useFeedGroups();
   const cattleId = detail.data?.target_type === "INDIVIDUAL" ? (detail.data.cattle_id ?? undefined) : undefined;
   const cattle = useCattleDetail(cattleId);
   const logDistribution = useLogDistribution();
@@ -80,8 +79,8 @@ function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenCha
   );
 
   const targetLabel =
-    detail.data?.target_type === "GROUP"
-      ? (feedGroups.data?.find((g) => g.id === detail.data!.feed_group_id)?.name ?? "—")
+    detail.data?.target_type === "HERD"
+      ? t("wholeHerd")
       : (cattle.data?.name ?? cattle.data?.tagNumber ?? "—");
 
   const totalActualKg =
@@ -158,7 +157,7 @@ function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenCha
               </div>
               <div className="flex flex-1 flex-col gap-1 rounded-lg border border-border p-2">
                 <span className="text-xs font-bold text-muted-foreground">
-                  {detail.data.target_type === "GROUP" ? t("targetGroup") : t("targetCow")}
+                  {detail.data.target_type === "HERD" ? t("targetHerd") : t("targetCow")}
                 </span>
                 {detail.data.target_type === "INDIVIDUAL" && cattleId ? (
                   <AnimalLink id={cattleId} animalName={cattle.data?.name} tagNumber={cattle.data?.tagNumber} className="truncate text-sm font-normal text-foreground" />

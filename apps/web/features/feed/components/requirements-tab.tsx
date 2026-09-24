@@ -18,17 +18,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { useCattlePagedList } from "@/features/cattle/hooks/use-cattle";
-import { useFeedGroups, useRequirements } from "../hooks/use-feed";
+import { useRequirements } from "../hooks/use-feed";
 import type { FeedRequirements } from "../types";
 import { RequirementBreakdown } from "./requirement-breakdown";
 import { RequirementSettingsSheet } from "./requirement-settings-sheet";
 
-type Mode = "cow" | "group" | "manual";
+type Mode = "cow" | "manual";
 
 /**
  * Cow requirements as a first-class screen (RFE-103, absorbing RAKHAL-267).
  *
- * `GET /feed/requirements` has been standalone and cow/group/manual-aware since RAKHAL-081, but
+ * `GET /feed/requirements` has been standalone and cow/manual-aware since RAKHAL-081, but
  * the only place it was ever rendered was step 1 of the Total Mixed Ration wizard — so a farmer
  * had to start building a ration just to see what a cow needs. This tab is that answer on its
  * own, and it shows all 16 outputs rather than the five the wizard displayed.
@@ -38,7 +38,6 @@ export function RequirementsTab() {
   const [mode, setMode] = useState<Mode>("cow");
 
   const [cattleId, setCattleId] = useState<string>("");
-  const [feedGroupId, setFeedGroupId] = useState<string>("");
   const [manual, setManual] = useState({
     weightKg: "450",
     milkTargetL: "15",
@@ -50,29 +49,25 @@ export function RequirementsTab() {
   });
 
   const cattle = useCattlePagedList({});
-  const groups = useFeedGroups();
 
   const num = (v: string) => (v.trim() === "" ? undefined : Number(v));
 
   const params =
     mode === "cow"
       ? { cattleId: cattleId || undefined }
-      : mode === "group"
-        ? { feedGroupId: feedGroupId || undefined }
-        : {
-            weightKg: num(manual.weightKg),
-            milkTargetL: num(manual.milkTargetL),
-            milkFatPct: num(manual.milkFatPct),
-            dim: num(manual.dim),
-            gestationDays: num(manual.gestationDays),
-            bcs: num(manual.bcs),
-            animalType: manual.animalType,
-          };
+      : {
+          weightKg: num(manual.weightKg),
+          milkTargetL: num(manual.milkTargetL),
+          milkFatPct: num(manual.milkFatPct),
+          dim: num(manual.dim),
+          gestationDays: num(manual.gestationDays),
+          bcs: num(manual.bcs),
+          animalType: manual.animalType,
+        };
 
   const requirements = useRequirements(params);
   const data = requirements.data;
-  // Group mode returns per_cow/group_total instead of a single `requirements` block.
-  const perCow = data?.requirements ?? data?.per_cow;
+  const perCow = data?.requirements;
 
   return (
     <div className="flex flex-col gap-4">
@@ -87,7 +82,7 @@ export function RequirementsTab() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {(["cow", "group", "manual"] as const).map((m) => (
+          {(["cow", "manual"] as const).map((m) => (
             <Button
               key={m}
               size="sm"
@@ -110,22 +105,6 @@ export function RequirementsTab() {
                 {cattle.items.map((cow) => (
                   <SelectItem key={cow.id} value={cow.id}>
                     {cow.name ?? cow.tagNumber} · {cow.tagNumber}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : mode === "group" ? (
-          <div className="flex flex-col gap-1.5">
-            <FieldLabel label={t("groupLabel")} hint={t("groupHint")} />
-            <Select value={feedGroupId} onValueChange={setFeedGroupId}>
-              <SelectTrigger className="w-full sm:w-80">
-                <SelectValue placeholder={t("groupPlaceholder")} />
-              </SelectTrigger>
-              <SelectContent>
-                {(groups.data ?? []).map((g) => (
-                  <SelectItem key={g.id} value={g.id}>
-                    {g.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -213,16 +192,7 @@ export function RequirementsTab() {
         <EmptyState icon={Scale} title={t("empty")} description={t("emptyDescription")} />
       ) : (
         <>
-          <RequirementGrid
-            title={data?.per_cow ? t("perCow") : t("perDay")}
-            requirements={perCow}
-          />
-          {data?.group_total ? (
-            <RequirementGrid
-              title={t("groupTotal", { count: data.inputs.headcount ?? 0 })}
-              requirements={data.group_total}
-            />
-          ) : null}
+          <RequirementGrid title={t("perDay")} requirements={perCow} />
           {perCow.breakdown ? <RequirementBreakdown breakdown={perCow.breakdown} /> : null}
         </>
       )}

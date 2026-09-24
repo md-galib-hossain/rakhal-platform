@@ -33,7 +33,6 @@ export const qk = {
     team: () => ["settings", "team"] as const,
     roles: () => ["settings", "roles"] as const,
     sheds: () => ["settings", "sheds"] as const,
-    feedGroups: () => ["settings", "feed-groups"] as const,
     suppliers: () => ["settings", "suppliers"] as const,
     serviceProviders: () => ["settings", "service-providers"] as const,
   },
@@ -59,7 +58,7 @@ export const qk = {
     highlights: () => ["cattle", "highlights"] as const,
     breeds: () => ["cattle", "breeds"] as const,
     sheds: () => ["cattle", "sheds"] as const,
-    feedGroups: () => ["cattle", "feed-groups"] as const,
+    animalGroups: () => ["cattle", "animal-groups"] as const,
     detail: (id: string) => ["cattle", "detail", id] as const,
     overview: (id: string) => ["cattle", "overview", id] as const,
     pedigree: (id: string) => ["cattle", "pedigree", id] as const,
@@ -223,7 +222,6 @@ export const qk = {
     ingredientsPaged: (filters: Record<string, string | number | undefined>) =>
       ["feed", "ingredients", "paged", filters] as const,
     concentrations: () => ["feed", "concentrations", "list"] as const,
-    groupCattle: (groupId: string) => ["feed", "groups", groupId, "cattle"] as const,
     requirementSettings: () => ["feed", "requirement-settings"] as const,
     concentrationDetail: (id: string) => ["feed", "concentrations", "detail", id] as const,
     concentrationInventoryCheck: (id: string) => ["feed", "concentrations", "inventory-check", id] as const,
@@ -231,7 +229,6 @@ export const qk = {
      * different cows/settings would share a cached result (RFE-103). */
     requirementsFor: (params: {
       cattleId?: string;
-      feedGroupId?: string;
       weightKg?: number;
       milkTargetL?: number;
       milkFatPct?: number;
@@ -242,22 +239,20 @@ export const qk = {
       animalType?: string;
     }) =>
       ["feed", "requirements", "for", params] as const,
-    feedGroups: () => ["feed", "feed-groups"] as const,
     stock: () => ["feed", "stock", "list"] as const,
     stockDetail: (id: string) => ["feed", "stock", "detail", id] as const,
     distributions: (params: Record<string, string | number | undefined>) =>
       ["feed", "distributions", "list", params] as const,
-    efficiency: (params: { feedGroupId?: string; cattleId?: string; month?: string }) =>
+    efficiency: (params: { cattleId?: string; month?: string }) =>
       ["feed", "efficiency", params] as const,
     resolvedRation: (cattleId: string) => ["feed", "resolved-ration", cattleId] as const,
     dmi: (cattleId: string, date?: string) => ["feed", "dmi", cattleId, date] as const,
     todaysRequirement: () => ["feed", "today-requirement"] as const,
-    grid: (date: string, feedGroupId: string | undefined) => ["feed", "grid", date, feedGroupId] as const,
+    grid: (date: string) => ["feed", "grid", date] as const,
     gridCalendar: (month: string) => ["feed", "grid", "calendar", month] as const,
     cattleHistory: (cattleId: string, date: string | undefined) =>
       ["feed", "grid", "cattle-history", cattleId, date] as const,
     activeSessions: () => ["feed", "active-sessions"] as const,
-    refusalTrend: (feedGroupId: string) => ["feed", "refusal-trend", feedGroupId] as const,
     versions: (concentrationId: string) => ["feed", "versions", concentrationId] as const,
     costSummary: () => ["feed", "cost-summary"] as const,
   },

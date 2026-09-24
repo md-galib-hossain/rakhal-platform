@@ -21,9 +21,6 @@ import type {
   FeedEfficiencyResult,
   FeedCattleHistoryResult,
   FeedGridResult,
-  FeedGridSourceType,
-  FeedGroup,
-  FeedGroupCattle,
   RequirementSettingsResult,
   FeedIngredient,
   FeedRequirementsResult,
@@ -37,7 +34,6 @@ import type {
   NormalizeConcentrationPayload,
   NormalizeConcentrationResult,
   PatchRefusalPayload,
-  RefusalTrend,
   ResolvedRation,
   SaveFeedGridDraftPayload,
   SaveFeedGridDraftResult,
@@ -91,7 +87,7 @@ export const feedApi = {
   resetIngredientOverride(id: string): Promise<unknown> {
     return apiFetch(`/feed/ingredients/${id}/override`, { method: "DELETE" });
   },
-  /** `weightKg`/`milkTargetL` (manual mode) vs `cattleId`/`feedGroupId` (cow-driven mode, added
+  /** `weightKg`/`milkTargetL` (manual mode) vs `cattleId` (cow-driven mode, added
    * 2026-07-18 for the standalone nutrition calculator — see `types.ts`'s `FeedRequirementsResult`
    * doc comment) are mutually exclusive by convention, mirroring the backend DTO. */
   requirements(params: {
@@ -106,7 +102,6 @@ export const feedApi = {
     dim?: number;
     animalType?: "COW" | "HEIFER" | "DRY";
     cattleId?: string;
-    feedGroupId?: string;
   }): Promise<FeedRequirementsResult> {
     return apiFetch<FeedRequirementsResult>("/feed/requirements", { searchParams: params });
   },
@@ -141,11 +136,6 @@ export const feedApi = {
   normalize(dto: NormalizeConcentrationPayload): Promise<NormalizeConcentrationResult> {
     return apiFetch<NormalizeConcentrationResult>("/feed/concentrations/normalize", { method: "POST", body: dto });
   },
-  // ---- Feed groups (Settings-owned, `/settings/feed-groups` — read-only from this feature except
-  // for setting a group's default recipe below, 2026-08-14) -------------------------------------
-  listFeedGroups(): Promise<FeedGroup[]> {
-    return apiFetch<FeedGroup[]>("/settings/feed-groups");
-  },
   // ---- Requirement settings (RFE-104, backend RAKHAL-409) ------------------
   /** The farm's effective tuning numbers plus the layers behind them and the field metadata. */
   requirementSettings(): Promise<RequirementSettingsResult> {
@@ -165,43 +155,6 @@ export const feedApi = {
   resetRequirementSettings(): Promise<RequirementSettingsResult> {
     return apiFetch<RequirementSettingsResult>("/feed/requirement-settings", { method: "DELETE" });
   },
-  /** Cattle currently in a feed group (RFE-102 is the first consumer — the route has existed
-   * since Phase 4 with no UI). */
-  listGroupCattle(groupId: string): Promise<FeedGroupCattle[]> {
-    return apiFetch<FeedGroupCattle[]>(`/feed/groups/${groupId}/cattle`);
-  },
-  /** Move cattle into a feed group. Returns how many moved and how many were rejected
-   * (another farm's cow, or one already gone). */
-  assignCattleToGroup(groupId: string, cattleIds: string[]): Promise<{ assigned: number; failed: number }> {
-    return apiFetch(`/feed/groups/${groupId}/assign-cattle`, {
-      method: "POST",
-      body: { cattleIds },
-    });
-  },
-  /** "Set as default for this group" (Concentrate Mixer/TMR card action) — `null` clears it. */
-  setGroupDefaultConcentration(groupId: string, concentrationId: string | null): Promise<FeedGroup> {
-    return apiFetch<FeedGroup>(`/settings/feed-groups/${groupId}`, {
-      method: "PATCH",
-      body: { defaultConcentrationId: concentrationId },
-    });
-  },
-  /** RAKHAL-433/RFE-116 — this group's default Feeding Grid source (resolution ladder fallback,
-   * separate from the TMR-only `defaultConcentrationId` above). `null` clears all three fields. */
-  setGroupDefaultFeedSource(
-    groupId: string,
-    source: { sourceType: FeedGridSourceType; feedItemId?: string; feedStockId?: string } | null,
-  ): Promise<FeedGroup> {
-    return apiFetch<FeedGroup>(`/settings/feed-groups/${groupId}`, {
-      method: "PATCH",
-      body: source
-        ? {
-            defaultFeedSourceType: source.sourceType,
-            defaultFeedItemId: source.sourceType === "FEED_ITEM" ? source.feedItemId : undefined,
-            defaultFeedStockId: source.sourceType === "FEED_STOCK" ? source.feedStockId : undefined,
-          }
-        : { defaultFeedSourceType: null },
-    });
-  },
   // ---- Feed stock + distribution (Phase 12.4, 2026-07-18 — the backend for these has existed
   // since Phase 4, this is the first frontend consumer) ---------------------------------------
   listStock(): Promise<FeedStock[]> {
@@ -219,13 +172,12 @@ export const feedApi = {
   bulkDeleteStock(ids: string[]): Promise<{ deleted: number }> {
     return apiFetch("/feed/stock/bulk-delete", { method: "POST", body: { ids } });
   },
-  /** "Feed Today" — the target (group vs one cow) is derived server-side from `concentrationId`,
+  /** "Feed Today" — the target (one cow vs the herd) is derived server-side from `concentrationId`,
    * never supplied here directly (see `LogDistributionPayload`'s doc comment). */
   logDistribution(dto: LogDistributionPayload): Promise<FeedDistribution> {
     return apiFetch<FeedDistribution>("/feed/distributions", { method: "POST", body: dto });
   },
   listDistributions(params: {
-    feedGroupId?: string;
     cattleId?: string;
     concentrationId?: string;
     fromDate?: string;
@@ -235,8 +187,8 @@ export const feedApi = {
   }): Promise<CursorPage<FeedDistributionSummary>> {
     return apiFetchPage<FeedDistributionSummary>("/feed/distributions", { searchParams: params });
   },
-  /** Exactly one of `feedGroupId`/`cattleId` (backend `@ValidateIf` cross-check). */
-  getEfficiency(params: { feedGroupId?: string; cattleId?: string; month?: string }): Promise<FeedEfficiencyResult> {
+  /** `cattleId` is required. */
+  getEfficiency(params: { cattleId: string; month?: string }): Promise<FeedEfficiencyResult> {
     return apiFetch<FeedEfficiencyResult>("/feed/efficiency", { searchParams: params });
   },
 
@@ -254,7 +206,7 @@ export const feedApi = {
   },
   /** Feeding Grid (2026-08-15) — replaces the single-item Quick Feed dialog. One row per cow, one
    * source item per Save/Confirm call, `entries` is per-cow quantity. */
-  getFeedGrid(params: { date: string; feedGroupId?: string }): Promise<FeedGridResult> {
+  getFeedGrid(params: { date: string }): Promise<FeedGridResult> {
     return apiFetch<FeedGridResult>("/feed/grid", { searchParams: params });
   },
   /** RAKHAL-434/RFE-118 — per-day feeding-entry status for the missed-entry calendar picker. */
@@ -296,11 +248,6 @@ export const feedApi = {
     return apiFetch<FeedDistribution>(`/feed/distributions/${distributionId}/refusal`, {
       method: "PATCH",
       body: dto,
-    });
-  },
-  getRefusalTrend(feedGroupId: string, days?: number): Promise<RefusalTrend> {
-    return apiFetch<RefusalTrend>(`/feed/groups/${feedGroupId}/refusal-trend`, {
-      searchParams: days ? { days } : undefined,
     });
   },
   /** Explicit-checkpoint versioning, `FEED_MIXTURE` only — day-to-day edits stay live-sync. */
