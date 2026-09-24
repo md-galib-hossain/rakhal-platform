@@ -297,6 +297,17 @@ export class CattleService {
           },
         });
 
+        if (dto.animalGroupId) {
+          await tx.animalGroupMember.create({
+            data: {
+              groupId: dto.animalGroupId,
+              cattleId: cattle.id,
+              farmId,
+              addedBy: userId,
+            },
+          });
+        }
+
         // RAKHAL-307: "she is already pregnant" — a synthetic
         // PregnancyDiagnosis (method PURCHASE_INTAKE) + its Pregnancy, same
         // shape `createPregnancyDiagnosis` writes, so the intake declaration
@@ -2188,6 +2199,16 @@ export class CattleService {
 
     if (dto.shedId) {
       await this.assertShedInFarm(farmId, dto.shedId);
+    }
+
+    if (dto.animalGroupId) {
+      const group = await this.prisma.animalGroup.findFirst({
+        where: { id: dto.animalGroupId, farmId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!group) {
+        throw new BadRequestException('Animal group must belong to the same farm');
+      }
     }
   }
 

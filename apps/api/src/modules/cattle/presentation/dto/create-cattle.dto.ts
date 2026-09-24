@@ -154,6 +154,11 @@ export class CreateCattleDto {
   @IsOptional()
   @Transform(trimString)
   @IsString()
+  animalGroupId?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
   motherId?: string;
 
   @IsOptional()
