@@ -321,10 +321,27 @@ export class SellInventoryUseCase {
       case 'FEED_ITEM': {
         const feedItem = await client.feedItem.findFirst({
           where: { id: itemId, farmId },
-          select: { id: true, name: true, unitId: true, currentStock: true },
+          select: {
+            id: true,
+            name: true,
+            unitId: true,
+            // RAKHAL-450: a product's stock is the sum of its live lots.
+            batches: {
+              where: { deletedAt: null },
+              select: { currentStock: true },
+            },
+          },
         });
         if (!feedItem) throw new NotFoundException('Feed item not found');
-        return feedItem;
+        return {
+          id: feedItem.id,
+          name: feedItem.name,
+          unitId: feedItem.unitId,
+          currentStock: feedItem.batches.reduce(
+            (sum, b) => sum + b.currentStock,
+            0,
+          ),
+        };
       }
       case 'EQUIPMENT': {
         const equipment = await client.equipment.findFirst({

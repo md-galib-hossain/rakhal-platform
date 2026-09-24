@@ -905,28 +905,18 @@ export class FeedFeedingGridService {
 
     const stock = await this.prisma.feedStock.findFirst({
       where: { id: source.feedStockId ?? undefined, farmId, deletedAt: null },
+      include: { nutritionProfile: true },
     });
     if (!stock) throw new NotFoundException('Feed stock lot not found');
+    const p = stock.nutritionProfile;
     await this.feedStock.assertSufficientStock(farmId, [
       { stockId: stock.id, quantity: totalKg },
     ]);
-    // A `FeedStock` lot already carries its own produce-time nutrient snapshot (`FeedStock.dmPct`
-    // /etc, RAKHAL-327) — reuse it directly rather than re-deriving from the concentration's live
-    // recipe.
-    const nutritionSnapshot: NutrientSnapshot = {
-      dmPct: stock.dmPct,
-      cpPct: stock.cpPct,
-      meMjPerKgDm: stock.meMjPerKgDm,
-      fatPct: stock.fatPct,
-      ndfPct: stock.ndfPct,
-      rdpPct: stock.rdpPct,
-      rupPct: stock.rupPct,
-      starchPct: stock.starchPct,
-      adfPct: stock.adfPct,
-      calciumPct: stock.calciumPct,
-      phosphorusPct: stock.phosphorusPct,
-      tdnPct: stock.tdnPct,
-    };
+    // A `FeedStock` lot carries its own nutrition-of-record (its `NutritionProfile`, RAKHAL-327/451) —
+    // freeze that directly rather than re-deriving from the concentration's live recipe.
+    const nutritionSnapshot: NutrientSnapshot = snapshotOf(
+      this.lotResolver.toValues(p),
+    );
     // Show the real recipe name, not a bare batch id — a `FeedStock` lot has no name of its own,
     // only the `FeedConcentration` it was produced from does. Fall back to the batch id only when
     // that recipe has since been hard-deleted (rare; `finalize()` never cascades a delete here).
@@ -1348,7 +1338,15 @@ export class FeedFeedingGridService {
     const [items, stocks] = await Promise.all([
       this.prisma.feedItem.findMany({
         where: { id: { in: [...feedItemIds] }, farmId },
-        select: { id: true, currentStock: true, deletedAt: true },
+        select: {
+          id: true,
+          deletedAt: true,
+          // RAKHAL-450: stock lives on the lots.
+          batches: {
+            where: { deletedAt: null },
+            select: { currentStock: true },
+          },
+        },
       }),
       this.prisma.feedStock.findMany({
         where: { id: { in: [...feedStockIds] }, farmId },
@@ -1431,7 +1429,11 @@ export class FeedFeedingGridService {
         const item = lastUsed.feedItemId
           ? itemMap.get(lastUsed.feedItemId)
           : undefined;
-        if (item && !item.deletedAt && item.currentStock > 0) {
+        if (
+          item &&
+          !item.deletedAt &&
+          item.batches.some((b) => b.currentStock > 0)
+        ) {
           result.set(c.id, {
             sourceType: 'FEED_ITEM',
             feedItemId: lastUsed.feedItemId,

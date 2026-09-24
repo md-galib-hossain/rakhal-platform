@@ -333,6 +333,235 @@ async function seedHerd(
   console.log(`  ✔ herd seeded for ${prefix} (7 cattle incl. 2 calves)`);
 }
 
+async function seedFeedInventory(
+  prisma: PrismaClient,
+  farmId: string,
+  ownerId: string,
+  prefix: string,
+): Promise<void> {
+  const existing = await prisma.feedItem.count({ where: { farmId } });
+  if (existing > 0) return;
+
+  const items = [
+    {
+      code: 'napier',
+      name: 'Napier grass (fresh cut)',
+      feedClass: 'FORAGE' as const,
+      feedSubType: 'ROUGHAGE' as const,
+      ingredientId: 'feed_napier',
+      unitId: 'unit_kg',
+      kgPerUnit: null,
+      lowStockThreshold: 200,
+      stock: 800,
+      costPerUnit: 5,
+      supplier: 'Own farm plot',
+      dmPct: 20,
+      cpPct: 9,
+      meMjPerKgDm: 8.5,
+      fatPct: 2,
+      ndfPct: 65,
+    },
+    {
+      code: 'ricestraw',
+      name: 'Rice straw',
+      feedClass: 'FORAGE' as const,
+      feedSubType: 'ROUGHAGE' as const,
+      ingredientId: 'feed_rice_straw',
+      unitId: 'unit_bag',
+      kgPerUnit: 20,
+      lowStockThreshold: 10,
+      stock: 15,
+      costPerUnit: 160,
+      supplier: 'Local Feed Merchant',
+      dmPct: 90,
+      cpPct: 4,
+      meMjPerKgDm: 6.5,
+      fatPct: 1.5,
+      ndfPct: 75,
+    },
+    {
+      code: 'silage',
+      name: 'Maize silage',
+      feedClass: 'FORAGE' as const,
+      feedSubType: 'SILAGE' as const,
+      ingredientId: 'feed_maize_silage',
+      unitId: 'unit_kg',
+      kgPerUnit: null,
+      lowStockThreshold: 400,
+      stock: 2000,
+      costPerUnit: 12,
+      supplier: 'AgroTech Feed BD',
+      dmPct: 30,
+      cpPct: 8,
+      meMjPerKgDm: 10,
+      fatPct: 3,
+      ndfPct: 45,
+    },
+    {
+      code: 'wheatbran',
+      name: 'Wheat bran',
+      feedClass: 'CONCENTRATE' as const,
+      feedSubType: 'BY_PRODUCT' as const,
+      ingredientId: 'feed_wheat_bran',
+      unitId: 'unit_bag',
+      kgPerUnit: 40,
+      lowStockThreshold: 5,
+      stock: 20,
+      costPerUnit: 1520,
+      supplier: 'Gazipur Feed Traders',
+      dmPct: 88,
+      cpPct: 17,
+      meMjPerKgDm: 11.5,
+      fatPct: 4,
+      ndfPct: 40,
+    },
+    {
+      code: 'mustardcake',
+      name: 'Mustard oil cake',
+      feedClass: 'CONCENTRATE' as const,
+      feedSubType: 'GRAIN' as const,
+      ingredientId: 'feed_mustard_cake',
+      unitId: 'unit_bag',
+      kgPerUnit: 35,
+      lowStockThreshold: 3,
+      stock: 10,
+      costPerUnit: 1925,
+      supplier: 'Gazipur Feed Traders',
+      dmPct: 90,
+      cpPct: 32,
+      meMjPerKgDm: 11,
+      fatPct: 9,
+      ndfPct: 30,
+    },
+    {
+      code: 'mineral',
+      name: 'Mineral & vitamin premix',
+      feedClass: 'MINERAL' as const,
+      feedSubType: 'PREMIX' as const,
+      ingredientId: 'feed_mineral_mix',
+      unitId: 'unit_bag',
+      kgPerUnit: 5,
+      lowStockThreshold: 5,
+      stock: 6,
+      costPerUnit: 400,
+      supplier: 'Rahman Animal Health',
+      dmPct: 98,
+      cpPct: 0,
+      meMjPerKgDm: 0,
+      fatPct: 0,
+      ndfPct: 0,
+    },
+    {
+      code: 'soybeanmeal',
+      name: 'Soybean meal',
+      feedClass: 'CONCENTRATE' as const,
+      feedSubType: 'GRAIN' as const,
+      ingredientId: 'feed_soybean_meal',
+      unitId: 'unit_bag',
+      kgPerUnit: 50,
+      lowStockThreshold: 4,
+      stock: 12,
+      costPerUnit: 3500,
+      supplier: 'Gazipur Feed Traders',
+      dmPct: 90,
+      cpPct: 44,
+      meMjPerKgDm: 12.5,
+      fatPct: 1.5,
+      ndfPct: 13,
+    },
+  ];
+
+  for (const item of items) {
+    const profileId = `${prefix}_np_${item.code}`;
+    const itemId = `${prefix}_feed_${item.code}`;
+    const batchId = `${prefix}_batch_${item.code}_1`;
+
+    await prisma.nutritionProfile.upsert({
+      where: { id: profileId },
+      update: {
+        farmId,
+        dmPct: item.dmPct,
+        cpPct: item.cpPct,
+        meMjPerKgDm: item.meMjPerKgDm,
+        fatPct: item.fatPct,
+        ndfPct: item.ndfPct,
+        nutritionSource: 'REFERENCE',
+        copiedFromIngredientId: item.ingredientId,
+        createdBy: ownerId,
+      },
+      create: {
+        id: profileId,
+        farmId,
+        dmPct: item.dmPct,
+        cpPct: item.cpPct,
+        meMjPerKgDm: item.meMjPerKgDm,
+        fatPct: item.fatPct,
+        ndfPct: item.ndfPct,
+        nutritionSource: 'REFERENCE',
+        copiedFromIngredientId: item.ingredientId,
+        createdBy: ownerId,
+      },
+    });
+
+    await prisma.feedItem.upsert({
+      where: { id: itemId },
+      update: {
+        farmId,
+        name: item.name,
+        feedClass: item.feedClass,
+        feedSubType: item.feedSubType,
+        ingredientId: item.ingredientId,
+        defaultNutritionProfileId: profileId,
+        unitId: item.unitId,
+        kgPerUnit: item.kgPerUnit,
+        lowStockThreshold: item.lowStockThreshold,
+        supplier: item.supplier,
+        createdBy: ownerId,
+      },
+      create: {
+        id: itemId,
+        farmId,
+        name: item.name,
+        feedClass: item.feedClass,
+        feedSubType: item.feedSubType,
+        ingredientId: item.ingredientId,
+        defaultNutritionProfileId: profileId,
+        unitId: item.unitId,
+        kgPerUnit: item.kgPerUnit,
+        lowStockThreshold: item.lowStockThreshold,
+        supplier: item.supplier,
+        createdBy: ownerId,
+      },
+    });
+
+    await prisma.feedItemBatch.upsert({
+      where: { id: batchId },
+      update: {
+        feedItemId: itemId,
+        farmId,
+        batchCode: `${item.code.toUpperCase()}-LOT-01`,
+        currentStock: item.stock,
+        costPerUnit: item.costPerUnit,
+        purchaseDate: daysAgo(5),
+        nutritionProfileId: profileId,
+        createdBy: ownerId,
+      },
+      create: {
+        id: batchId,
+        feedItemId: itemId,
+        farmId,
+        batchCode: `${item.code.toUpperCase()}-LOT-01`,
+        currentStock: item.stock,
+        costPerUnit: item.costPerUnit,
+        purchaseDate: daysAgo(5),
+        nutritionProfileId: profileId,
+        createdBy: ownerId,
+      },
+    });
+  }
+  console.log(`  ✔ feed inventory seeded for ${prefix} (${items.length} items)`);
+}
+
 async function seedFarmSubscription(
   prisma: PrismaClient,
   farmId: string,
@@ -408,7 +637,9 @@ export async function seedTestAccounts(
       });
 
       await seedFarmSubscription(prisma, farm.id);
-      await seedHerd(prisma, farm.id, user.id, f.slug.replace(/-/g, '_'));
+      const farmPrefix = f.slug.replace(/-/g, '_');
+      await seedHerd(prisma, farm.id, user.id, farmPrefix);
+      await seedFeedInventory(prisma, farm.id, user.id, farmPrefix);
     }
 
     console.log(

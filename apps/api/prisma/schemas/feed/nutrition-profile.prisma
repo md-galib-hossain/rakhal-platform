@@ -46,6 +46,7 @@ model NutritionProfile {
 
   batches      FeedItemBatch[] @relation("FeedItemBatchNutritionProfile")
   itemDefaults FeedItem[]      @relation("FeedItemDefaultNutritionProfile")
+  stocks       FeedStock[]     @relation("FeedStockNutritionProfile")
 
   @@index([farmId])
   @@index([supersedesId])

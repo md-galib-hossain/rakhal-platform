@@ -29,13 +29,12 @@ model FeedItem {
   unitId            String
   unit              Unit   @relation(fields: [unitId], references: [id])
   kgPerUnit         Float? // kg per unit (for bag → kg display)
-  currentStock      Float  @default(0)
-  costPerUnit       Float
   lowStockThreshold Float  @default(0)
 
-  moisturePct  Float?
-  supplier     String?
-  purchaseDate DateTime
+  /// RAKHAL-450: stock, cost and purchase date live on the lots (`FeedItemBatch`) — the product has none
+  /// of its own; the API presents summed stock / newest-lot cost + date as derived summaries. Moisture is
+  /// derived from a lot's dry matter (`100 − dmPct`), never stored.
+  supplier String?
 
   notes String?
 
@@ -49,8 +48,7 @@ model FeedItem {
   ingredient FeedIngredient? @relation(fields: [ingredientId], references: [id])
   defaultNutritionProfile NutritionProfile? @relation("FeedItemDefaultNutritionProfile", fields: [defaultNutritionProfileId], references: [id])
 
-  /// MILESTONE 26: the lots of this product (RAKHAL-442). `currentStock`/`costPerUnit`/
-  /// `purchaseDate`/`moisturePct` above stay until RAKHAL-450 drops them (additive rollout, D10).
+  /// MILESTONE 26: the lots of this product (RAKHAL-442) — the only place stock, cost and purchase date live.
   batches FeedItemBatch[]
 
   stockMovements     FeedItemStockMovement[]

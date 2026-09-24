@@ -3,7 +3,7 @@ import { MedicineService } from '../src/modules/inventory/application/services/m
 import { FeedItemService } from '../src/modules/inventory/application/services/feed-item.service';
 import { EquipmentService } from '../src/modules/inventory/application/services/equipment.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
-import { createFeedItemWithLot } from './utils/feed-fixtures';
+import { createFeedItemWithLot, feedItemStock } from './utils/feed-fixtures';
 
 /**
  * RAKHAL-341 — Unit-of-Work seam. `MedicineService.adjustStock`,
@@ -164,10 +164,7 @@ describe('RAKHAL-341 — inventory adjustStock unit-of-work seam (e2e)', () => {
       }),
     ).rejects.toThrow('simulated caller-side failure');
 
-    const after = await prisma.feedItem.findUniqueOrThrow({
-      where: { id: feedItem.id },
-    });
-    expect(after.currentStock).toBe(100);
+    expect(await feedItemStock(prisma, feedItem.id)).toBe(100);
 
     const movements = await prisma.feedItemStockMovement.findMany({
       where: { feedItemId: feedItem.id },

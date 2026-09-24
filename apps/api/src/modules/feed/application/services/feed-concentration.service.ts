@@ -181,11 +181,6 @@ export class FeedConcentrationService {
     // shows these fields for this kind, but a template must never accidentally end up bucketed as a
     // Feed Mixture the way every concentration did before `kind` existed, user request 2026-07-18).
     const isTemplate = dto.kind === 'CONCENTRATE_TEMPLATE';
-    if (!isTemplate && dto.durationDays == null) {
-      throw new BadRequestException(
-        'A Total Mixed Ration requires durationDays',
-      );
-    }
     const targetType = isTemplate ? undefined : dto.targetType;
     const feedGroupId = isTemplate ? undefined : dto.feedGroupId;
     const cattleId = isTemplate ? undefined : dto.cattleId;
@@ -656,9 +651,16 @@ export class FeedConcentrationService {
       .filter((i) => !i.feedItemId && !i.feedStockId && i.ingredientId)
       .map((i) => i.ingredientId as string);
 
+    // RAKHAL-450: a product's stock is the sum of its live lots (it has no stock column of its own).
+    const lotsInclude = {
+      unit: true,
+      batches: { where: { deletedAt: null }, select: { currentStock: true } },
+    } satisfies Prisma.FeedItemInclude;
     type FeedItemWithUnit = Prisma.FeedItemGetPayload<{
-      include: { unit: true };
+      include: typeof lotsInclude;
     }>;
+    const stockOf = (fi: FeedItemWithUnit) =>
+      fi.batches.reduce((sum, b) => sum + b.currentStock, 0);
     const feedItems: FeedItemWithUnit[] =
       linkedItemIds.length || ingredientIds.length
         ? await this.prisma.feedItem.findMany({
@@ -670,7 +672,7 @@ export class FeedConcentrationService {
                 { ingredientId: { in: ingredientIds } },
               ],
             },
-            include: { unit: true },
+            include: lotsInclude,
           })
         : [];
     const stocks: { id: string; currentStockKg: number }[] =
@@ -734,7 +736,7 @@ export class FeedConcentrationService {
 
     const kgOf = (fi: (typeof feedItems)[number]) => {
       const kgPerUnit = resolveKgPerUnit(fi.unit, fi.kgPerUnit);
-      return kgPerUnit && kgPerUnit > 0 ? fi.currentStock * kgPerUnit : null;
+      return kgPerUnit && kgPerUnit > 0 ? stockOf(fi) * kgPerUnit : null;
     };
     const itemById = new Map(feedItems.map((f) => [f.id, f] as const));
     const stockById = new Map(stocks.map((s) => [s.id, s] as const));
@@ -744,7 +746,7 @@ export class FeedConcentrationService {
     for (const f of feedItems) {
       if (!f.ingredientId) continue;
       const cur = bestByIngredient.get(f.ingredientId);
-      if (!cur || f.currentStock > cur.currentStock) {
+      if (!cur || stockOf(f) > stockOf(cur)) {
         bestByIngredient.set(f.ingredientId, f);
       }
     }

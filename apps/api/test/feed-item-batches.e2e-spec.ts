@@ -6,7 +6,7 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 /**
  * RAKHAL-444 (MILESTONE 26) — purchased feed as product + lots: manual nutrition without an
  * ingredient, restock as a new batch, FIFO consumption, nutrition edit/revert/RBAC, recall lookup and
- * the additive-rollout `reconcile()` against a legacy-column change. Requires the dev stack up +
+ * the product edit's stock total acting on the lots (RAKHAL-450). Requires the dev stack up +
  * `pnpm seed` + the RAKHAL-442 migration.
  */
 describe('Feed item batches + nutrition (e2e)', () => {
@@ -180,7 +180,7 @@ describe('Feed item batches + nutrition (e2e)', () => {
     expect(item.batches[0].nutrition.cpPct).toBe(9); // old lot untouched
     expect(item.batches[1].nutrition.cpPct).toBe(14);
     expect(item.currentStock).toBe(30);
-    expect(item.costPerUnit).toBe(7); // newest lot's cost (legacy mirror)
+    expect(item.costPerUnit).toBe(7); // newest lot's cost (derived summary)
 
     const list = await request(server())
       .get(api('/inventory/feed-items?search=' + encodeURIComponent(item.name)))
@@ -264,7 +264,7 @@ describe('Feed item batches + nutrition (e2e)', () => {
     expect(after.body.data.batches[1].currentStock).toBe(15);
   });
 
-  it('reconciles lots when a legacy caller changed the item total directly (interim, until 446)', async () => {
+  it('setting a lower total on the product edit takes the difference FIFO from the oldest lot', async () => {
     const created = await createManual();
     const id = created.body.data.id as string;
     await restock(id, {
@@ -274,9 +274,7 @@ describe('Feed item batches + nutrition (e2e)', () => {
       nutrition: hay(14),
     });
 
-    // Simulate feed distribution decrementing the legacy column only (30 -> 26).
-    await prisma.feedItem.update({ where: { id }, data: { currentStock: 26 } });
-
+    // 10 + 20 = 30 across two lots; editing the total down to 26 removes 4 from the oldest lot.
     const res = await request(server())
       .patch(api(`/inventory/feed-items/${id}`))
       .set(...auth(owner))

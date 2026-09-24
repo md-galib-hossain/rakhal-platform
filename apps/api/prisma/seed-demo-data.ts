@@ -311,7 +311,15 @@ export async function seedDemoDataset(
     prisma.medicineStockMovement,
     loadJson('medicine-stock-movements.json', ctx),
   );
+  await upAll(
+    prisma.nutritionProfile,
+    loadJson('nutrition-profiles.json', ctx),
+  );
   await upAll(prisma.feedItem, loadJson('forages.json', ctx));
+  await upAll(
+    prisma.feedItemBatch,
+    loadJson('feed-item-batches.json', ctx),
+  );
   await upAll(prisma.milkTank, loadJson('milk-tanks.json', ctx));
   await upAll(
     prisma.milkTankAuditLog,

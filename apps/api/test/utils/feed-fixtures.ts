@@ -2,11 +2,23 @@ import { FeedClass, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 
 /**
- * RAKHAL-449 (MILESTONE 26): specs that need a feed item with stock seed it as a product plus a real
- * lot (`FeedItemBatch` + its `NutritionProfile`), the shape production code now guarantees — never by
- * writing `FeedItem.currentStock` alone, which only worked through a self-heal RAKHAL-450 removes.
- * The legacy mirror columns are kept in step so pre-450 readers still agree.
+ * RAKHAL-449/450 (MILESTONE 26): specs that need a feed item with stock seed it as a product plus a real
+ * lot (`FeedItemBatch` + its `NutritionProfile`) — the product row itself carries no stock, cost or date
+ * (dropped by RAKHAL-450). Read a product's stock back with `feedItemStock`.
  */
+
+/** A product's stock = the sum of its live lots. */
+export async function feedItemStock(
+  prisma: PrismaService,
+  feedItemId: string,
+): Promise<number> {
+  const agg = await prisma.feedItemBatch.aggregate({
+    where: { feedItemId, deletedAt: null },
+    _sum: { currentStock: true },
+  });
+  return agg._sum.currentStock ?? 0;
+}
+
 export interface FeedFixtureOptions {
   farmId: string;
   createdBy: string;
@@ -51,9 +63,6 @@ export async function createFeedItemWithLot(
       name: opts.name,
       feedClass: opts.feedClass ?? FeedClass.CONCENTRATE,
       unitId: opts.unitId,
-      currentStock: stock,
-      costPerUnit,
-      purchaseDate,
       createdBy: opts.createdBy,
       defaultNutritionProfileId: profile.id,
       ...(opts.ingredientId ? { ingredientId: opts.ingredientId } : {}),

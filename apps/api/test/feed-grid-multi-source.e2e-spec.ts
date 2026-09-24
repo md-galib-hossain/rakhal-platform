@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
+import { feedItemStock } from './utils/feed-fixtures';
 
 /**
  * RAKHAL-430 (Feeding Favourites, `docs/EPIC_FEEDING_FAVOURITES.md`) — the Feeding Grid's
@@ -130,14 +131,8 @@ describe('Feeding Grid — multi-source confirm (e2e, RAKHAL-430)', () => {
     expect(byCattle.get(cowA)?.offeredKg).toBe(4);
     expect(byCattle.get(cowB)?.offeredKg).toBe(6);
 
-    const itemAAfter = await prisma.feedItem.findUniqueOrThrow({
-      where: { id: itemA },
-    });
-    const itemBAfter = await prisma.feedItem.findUniqueOrThrow({
-      where: { id: itemB },
-    });
-    expect(itemAAfter.currentStock).toBe(96);
-    expect(itemBAfter.currentStock).toBe(94);
+    expect(await feedItemStock(prisma, itemA)).toBe(96);
+    expect(await feedItemStock(prisma, itemB)).toBe(94);
   });
 
   it('a shortfall on one of two sources blocks the whole confirm — no partial write, neither item decremented', async () => {
@@ -167,14 +162,8 @@ describe('Feeding Grid — multi-source confirm (e2e, RAKHAL-430)', () => {
       });
     expect(res.status).toBe(400);
 
-    const itemOkAfter = await prisma.feedItem.findUniqueOrThrow({
-      where: { id: itemOk },
-    });
-    const itemShortAfter = await prisma.feedItem.findUniqueOrThrow({
-      where: { id: itemShort },
-    });
-    expect(itemOkAfter.currentStock).toBe(100);
-    expect(itemShortAfter.currentStock).toBe(2);
+    expect(await feedItemStock(prisma, itemOk)).toBe(100);
+    expect(await feedItemStock(prisma, itemShort)).toBe(2);
 
     const count = await prisma.feedDistribution.count({
       where: {

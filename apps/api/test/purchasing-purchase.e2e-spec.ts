@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { FeedClass, FinancialAccountType } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
-import { createFeedItemWithLot } from './utils/feed-fixtures';
+import { createFeedItemWithLot, feedItemStock } from './utils/feed-fixtures';
 import { PayableStatus } from 'src/modules/purchasing/domain/payable-status';
 import {
   AuthedUser,
@@ -133,10 +133,7 @@ describe('Purchasing — Purchase + PurchaseLine + Payable (e2e, RAKHAL-348)', (
 
     // Real stock increment — the physical half of "a Purchase increases an
     // inventory asset", atomic with the document + journal + payable.
-    const updatedFeedItem = await prisma.feedItem.findUniqueOrThrow({
-      where: { id: feedItem.id },
-    });
-    expect(updatedFeedItem.currentStock).toBe(150);
+    expect(await feedItemStock(prisma, feedItem.id)).toBe(150);
 
     const movement = await prisma.feedItemStockMovement.findFirst({
       where: { feedItemId: feedItem.id, reason: 'PURCHASE' },

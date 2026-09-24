@@ -1,16 +1,30 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { FeedConcentrationKind, NutritionSource, Prisma } from '@prisma/client';
+import {
+  FeedConcentrationKind,
+  NutritionProfile,
+  NutritionSource,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import {
+  NutritionValues,
+  toNutritionValues,
+} from '../../domain/nutrition-profile';
+import { FeedLotResolver } from './feed-lot-resolver.service';
+import { NutritionProfileService } from './nutrition-profile.service';
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
-/** RAKHAL-327: the batch-level nutrient snapshot `FeedStock` carries. Defaulted from the recipe's
- * computed totals at production time, farm-editable afterward via `updateNutrition`. */
+/** RAKHAL-327: the nutrient set a produced lot is created with, back-derived from the recipe's computed
+ * totals at production time. RAKHAL-451: stored as an immutable `NutritionProfile`
+ * (`FeedStock.nutritionProfileId`), farm-correctable afterward via `updateNutrition`, which appends a
+ * superseding profile. */
 export interface StockNutritionSnapshot {
   dmPct: number;
   cpPct: number;
@@ -41,6 +55,8 @@ export class FeedStockService {
   constructor(
     private readonly prisma: PrismaService,
     logger: LoggerService,
+    private readonly profiles: NutritionProfileService,
+    private readonly resolver: FeedLotResolver,
   ) {
     this.log = logger.setContext(FeedStockService.name);
   }
@@ -65,7 +81,20 @@ export class FeedStockService {
     tx?: Prisma.TransactionClient,
   ) {
     const run = async (client: Prisma.TransactionClient) => {
+      // The recipe's computed totals are trusted (not user input): a quirk in a blend must never block a finalize.
+      const profile = await this.profiles.create(
+        farmId,
+        userId,
+        {
+          values: toNutritionValues(params.nutrition),
+          nutritionSource: 'REFERENCE',
+          note: 'Computed from the recipe at production time.',
+          trusted: true,
+        },
+        client,
+      );
       const created = await client.feedStock.create({
+        include: { nutritionProfile: true },
         data: {
           farmId,
           kind: params.kind,
@@ -75,7 +104,7 @@ export class FeedStockService {
           producedQtyKg: round2(params.qtyKg),
           currentStockKg: round2(params.qtyKg),
           producedCostTk: round2(params.costTk),
-          ...params.nutrition,
+          nutritionProfileId: profile.id,
           createdBy: userId,
         },
       });
@@ -182,6 +211,7 @@ export class FeedStockService {
       // stores everywhere else. Inside the same transaction, so it cannot reintroduce a race.
       const after = await client.feedStock.findUniqueOrThrow({
         where: { id: opts.stockId },
+        include: { nutritionProfile: true },
       });
       const rounded = round2(after.currentStockKg);
       const settled =
@@ -190,6 +220,7 @@ export class FeedStockService {
           : await client.feedStock.update({
               where: { id: opts.stockId },
               data: { currentStockKg: rounded },
+              include: { nutritionProfile: true },
             });
 
       await client.feedStockMovement.create({
@@ -217,13 +248,14 @@ export class FeedStockService {
     return this.mapStock(updated);
   }
 
-  /** RAKHAL-327: let a farm correct a produced batch's nutrient snapshot once real data comes back
-   * (e.g. a lab report), instead of it being permanently stuck at the recipe's on-paper values.
-   * Every field optional/partial — updates only what's supplied. `nutritionSource` defaults to
-   * `LAB` on this path (the whole point of calling this route is "I have better data now"); pass
-   * it explicitly to record `MANUFACTURER`/`FARM_ESTIMATE` instead. */
+  /** RAKHAL-327: let a farm correct a produced lot's nutrition once real data comes back (e.g. a lab
+   * report) instead of it being stuck at the recipe's on-paper values. RAKHAL-451: appends a profile that
+   * supersedes the current one (validated, immutable history) and repoints the lot — same shape as
+   * `NutritionProfileService.reviseBatch`. Partial: only supplied nutrients change. `nutritionSource`
+   * defaults to `LAB` on this path; pass it explicitly to record `MANUFACTURER`/`FARM_ESTIMATE`. */
   async updateNutrition(
     farmId: string,
+    userId: string,
     id: string,
     patch: Partial<StockNutritionSnapshot> & {
       nutritionSource?: NutritionSource;
@@ -232,19 +264,56 @@ export class FeedStockService {
   ) {
     const row = await this.prisma.feedStock.findFirst({
       where: { id, farmId },
+      include: { nutritionProfile: true },
     });
     if (!row) throw new NotFoundException('Feed stock lot not found');
-    const updated = await this.prisma.feedStock.update({
-      where: { id },
-      data: {
-        ...patch,
-        nutritionSource: patch.nutritionSource ?? 'LAB',
-      },
+    if (row.deletedAt) {
+      throw new BadRequestException(
+        'Nutrition cannot be edited on an archived stock lot',
+      );
+    }
+    const { nutritionSource, sourceRef, ...nutrients } = patch;
+    const values: Record<string, number | null> = {
+      ...this.resolver.toValues(row.nutritionProfile),
+    };
+    for (const [key, value] of Object.entries(nutrients)) {
+      if (value !== undefined) values[key] = value;
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const profile = await this.profiles.create(
+        farmId,
+        userId,
+        {
+          values: values as unknown as NutritionValues,
+          nutritionSource: nutritionSource ?? 'LAB',
+          sourceRef: sourceRef ?? row.nutritionProfile.sourceRef,
+          copiedFromIngredientId: row.nutritionProfile.copiedFromIngredientId,
+          supersedesId: row.nutritionProfileId,
+        },
+        tx,
+      );
+      // Guarded against a concurrent correction landing between the read above and this write.
+      const moved = await tx.feedStock.updateMany({
+        where: { id, farmId, nutritionProfileId: row.nutritionProfileId },
+        data: { nutritionProfileId: profile.id },
+      });
+      if (moved.count !== 1) {
+        throw new ConflictException(
+          'This stock lot was changed by someone else — reload and try again',
+        );
+      }
+      return tx.feedStock.findUniqueOrThrow({
+        where: { id },
+        include: { nutritionProfile: true },
+      });
     });
-    this.log.info('Feed stock nutrition snapshot updated', {
+    this.log.info('Feed stock nutrition profile replaced', {
       farmId,
       stockId: id,
-      nutritionSource: updated.nutritionSource,
+      from: row.nutritionProfileId,
+      to: updated.nutritionProfileId,
+      nutritionSource: updated.nutritionProfile.nutritionSource,
     });
     return this.mapStock(updated);
   }
@@ -253,6 +322,7 @@ export class FeedStockService {
     const rows = await this.prisma.feedStock.findMany({
       where: { farmId, ...(includeArchived ? {} : { deletedAt: null }) },
       orderBy: { producedAt: 'desc' },
+      include: { nutritionProfile: true },
     });
     return rows.map((r) => this.mapStock(r));
   }
@@ -269,6 +339,7 @@ export class FeedStockService {
     const updated = await this.prisma.feedStock.update({
       where: { id },
       data: { deletedAt: new Date() },
+      include: { nutritionProfile: true },
     });
     this.log.info('Feed stock archived', { farmId, stockId: id });
     return this.mapStock(updated);
@@ -296,7 +367,10 @@ export class FeedStockService {
   async get(farmId: string, id: string) {
     const row = await this.prisma.feedStock.findFirst({
       where: { id, farmId },
-      include: { movements: { orderBy: { createdAt: 'desc' } } },
+      include: {
+        nutritionProfile: true,
+        movements: { orderBy: { createdAt: 'desc' } },
+      },
     });
     if (!row) throw new NotFoundException('Feed stock lot not found');
     return {
@@ -311,20 +385,19 @@ export class FeedStockService {
     };
   }
 
-  private mapStock(
-    row: {
-      id: string;
-      kind: FeedConcentrationKind;
-      sourceConcentrationId: string;
-      sourceConcentrationVersion: number;
-      producedAt: Date;
-      producedQtyKg: number;
-      currentStockKg: number;
-      producedCostTk: number;
-      createdAt: Date;
-      sourceRef: string | null;
-    } & StockNutritionSnapshot & { nutritionSource: NutritionSource },
-  ) {
+  private mapStock(row: {
+    id: string;
+    kind: FeedConcentrationKind;
+    sourceConcentrationId: string;
+    sourceConcentrationVersion: number;
+    producedAt: Date;
+    producedQtyKg: number;
+    currentStockKg: number;
+    producedCostTk: number;
+    createdAt: Date;
+    nutritionProfile: NutritionProfile;
+  }) {
+    const p = row.nutritionProfile;
     return {
       id: row.id,
       kind: row.kind,
@@ -336,21 +409,22 @@ export class FeedStockService {
       produced_cost_tk: row.producedCostTk,
       created_at: row.createdAt,
       nutrition: {
-        dm_pct: row.dmPct,
-        cp_pct: row.cpPct,
-        me_mj_per_kg_dm: row.meMjPerKgDm,
-        fat_pct: row.fatPct,
-        ndf_pct: row.ndfPct,
-        rdp_pct: row.rdpPct,
-        rup_pct: row.rupPct,
-        starch_pct: row.starchPct,
-        adf_pct: row.adfPct,
-        calcium_pct: row.calciumPct,
-        phosphorus_pct: row.phosphorusPct,
-        tdn_pct: row.tdnPct,
+        dm_pct: p.dmPct,
+        cp_pct: p.cpPct,
+        me_mj_per_kg_dm: p.meMjPerKgDm,
+        fat_pct: p.fatPct,
+        ndf_pct: p.ndfPct,
+        rdp_pct: p.rdpPct,
+        rup_pct: p.rupPct,
+        starch_pct: p.starchPct,
+        adf_pct: p.adfPct,
+        calcium_pct: p.calciumPct,
+        phosphorus_pct: p.phosphorusPct,
+        tdn_pct: p.tdnPct,
       },
-      nutrition_source: row.nutritionSource,
-      source_ref: row.sourceRef,
+      nutrition_source: p.nutritionSource,
+      source_ref: p.sourceRef,
+      nutrition_profile_id: p.id,
     };
   }
 }

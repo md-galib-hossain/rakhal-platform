@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 import { seededCashAccountId } from './utils/finance';
 import { concentrateDerivedIngredientId, stockIngredient } from './utils/feed';
@@ -18,6 +19,7 @@ import { concentrateDerivedIngredientId, stockIngredient } from './utils/feed';
  */
 describe('Feed Formulator — feed stock production (e2e)', () => {
   let ctx: TestContext;
+  let prisma: PrismaService;
   let owner: AuthedUser;
   /** RD-077: RAKHAL-393 made this mandatory on a TMR finalize. */
   let financialAccountId: string;
@@ -60,6 +62,7 @@ describe('Feed Formulator — feed stock production (e2e)', () => {
 
   beforeAll(async () => {
     ctx = await createTestApp();
+    prisma = ctx.app.get(PrismaService);
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
     financialAccountId = await seededCashAccountId(ctx, owner);
     worker = await loginAs(ctx, 'worker@demo.rakhal.test', 'WorkerPass123');
@@ -260,6 +263,66 @@ describe('Feed Formulator — feed stock production (e2e)', () => {
         .delete(api(`/feed/stock/${stockId}`))
         .set(...auth(worker))
         .expect(403);
+    });
+  });
+  describe('nutrition profile (RAKHAL-451)', () => {
+    const patch = (u: AuthedUser, id: string, body: object) =>
+      request(server())
+        .patch(api(`/feed/stock/${id}/nutrition`))
+        .set(...auth(u))
+        .send(body);
+
+    it('a produced lot carries a REFERENCE profile; a lab correction appends a superseding one', async () => {
+      const stockId = await produceMixtureStock(6);
+      const before = await request(server())
+        .get(api(`/feed/stock/${stockId}`))
+        .set(...auth(owner))
+        .expect(200);
+      const first = before.body.data;
+      expect(first.nutrition_source).toBe('REFERENCE');
+      expect(first.nutrition_profile_id).toBeTruthy();
+
+      const res = await patch(owner, stockId, {
+        cpPct: 21.5,
+        sourceRef: 'Lab report 12',
+      }).expect(200);
+      const after = res.body.data;
+      expect(after.nutrition.cp_pct).toBe(21.5);
+      expect(after.nutrition.dm_pct).toBe(first.nutrition.dm_pct);
+      expect(after.nutrition_source).toBe('LAB');
+      expect(after.source_ref).toBe('Lab report 12');
+      expect(after.nutrition_profile_id).not.toBe(first.nutrition_profile_id);
+
+      // Old row is untouched (immutable) and chained.
+      const oldRow = await prisma.nutritionProfile.findUniqueOrThrow({
+        where: { id: first.nutrition_profile_id },
+      });
+      expect(oldRow.cpPct).toBe(first.nutrition.cp_pct);
+      const newRow = await prisma.nutritionProfile.findUniqueOrThrow({
+        where: { id: after.nutrition_profile_id },
+      });
+      expect(newRow.supersedesId).toBe(first.nutrition_profile_id);
+    });
+
+    it('rejects an inconsistent correction (NDF below ADF) and leaves the profile alone', async () => {
+      const stockId = await produceMixtureStock(5);
+      const before = await request(server())
+        .get(api(`/feed/stock/${stockId}`))
+        .set(...auth(owner))
+        .expect(200);
+      await patch(owner, stockId, { ndfPct: 10, adfPct: 40 }).expect(400);
+      const after = await request(server())
+        .get(api(`/feed/stock/${stockId}`))
+        .set(...auth(owner))
+        .expect(200);
+      expect(after.body.data.nutrition_profile_id).toBe(
+        before.body.data.nutrition_profile_id,
+      );
+    });
+
+    it('403s a worker editing lot nutrition', async () => {
+      const stockId = await produceMixtureStock(4);
+      await patch(worker, stockId, { cpPct: 20 }).expect(403);
     });
   });
 });

@@ -224,6 +224,16 @@ describe('Feeding Grid — default_source resolution ladder (e2e, RAKHAL-431)', 
       phosphorusPct: 0.5,
       tdnPct: 70,
     };
+    const profileId = (
+      await prisma.nutritionProfile.create({
+        data: {
+          farmId: owner.farmId,
+          ...nutrients,
+          nutritionSource: 'REFERENCE',
+          createdBy: 'e2e-test-setup',
+        },
+      })
+    ).id;
     const lot1 = await prisma.feedStock.create({
       data: {
         farmId: owner.farmId,
@@ -235,7 +245,7 @@ describe('Feeding Grid — default_source resolution ladder (e2e, RAKHAL-431)', 
         currentStockKg: 5,
         producedCostTk: 40,
         createdBy: 'e2e-test-setup',
-        ...nutrients,
+        nutritionProfileId: profileId,
       },
     });
 
@@ -271,7 +281,7 @@ describe('Feeding Grid — default_source resolution ladder (e2e, RAKHAL-431)', 
         currentStockKg: 20,
         producedCostTk: 160,
         createdBy: 'e2e-test-setup',
-        ...nutrients,
+        nutritionProfileId: profileId,
       },
     });
 

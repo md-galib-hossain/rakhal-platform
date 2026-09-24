@@ -80,11 +80,10 @@ const r6 = (v: number) => Math.round(v * 1e6) / 1e6;
  * `FeedItem` is the **product**; each purchase is a `FeedItemBatch` lot carrying its own stock, cost and
  * immutable `NutritionProfile`. Stock is consumed FIFO (`purchaseDate asc`), never blended.
  *
- * **Additive rollout (D10):** the legacy `FeedItem.currentStock`/`costPerUnit`/`purchaseDate` columns and
- * the old request/response shape keep working — they are mirrored from the lots after every mutation,
- * because purchasing, sales, feeding and finance still read them until RAKHAL-445/446/448/450 land.
- * Until then those callers change the legacy total directly, so every write path here first
- * `reconcile()`s the lots to that total (oldest lot absorbs a decrease, newest an increase).
+ * **Product-level summaries (RAKHAL-450):** the product row stores no stock, cost, purchase date or
+ * moisture — the API presents `currentStock` (sum of lots), `costPerUnit` and `purchaseDate` (newest lot)
+ * and `moisturePct` (100 − head lot's dry matter) as derived fields so existing list/table/form clients
+ * keep working. A create/update body that still carries stock/cost/date acts on the lots.
  *
  * `farmId` comes from the verified token context; every query is scoped to it.
  */
@@ -135,12 +134,8 @@ export class FeedItemService {
             defaultNutritionProfileId: profile.id,
             unitId: dto.unitId,
             kgPerUnit: dto.kgPerUnit,
-            currentStock: dto.currentStock,
-            costPerUnit: dto.costPerUnit,
             lowStockThreshold: dto.lowStockThreshold ?? 0,
-            moisturePct: moisturePctFromDm(profile.dmPct),
             supplier: dto.supplier,
-            purchaseDate: new Date(dto.purchaseDate),
             notes: dto.notes,
             createdBy: userId,
           },
@@ -169,7 +164,7 @@ export class FeedItemService {
         farmId,
         userId,
         'Feed Item Added',
-        `Feed item "${created.name}" (${created.feedClass}) added — stock ${created.currentStock} ${created.unit.symbol}.`,
+        `Feed item "${created.name}" (${created.feedClass}) added — stock ${dto.currentStock} ${created.unit.symbol}.`,
       );
       return this.present(created);
     } catch (error) {
@@ -248,11 +243,9 @@ export class FeedItemService {
           },
         });
 
-        // Legacy lot fields on the product edit (additive rollout): cost/date apply to the newest lot,
-        // a stock figure becomes a delta against the lots' total.
+        // Lot-level fields accepted on the product edit for the existing form: cost/date apply to the
+        // newest lot, a stock figure becomes a delta against the lots' total.
         if (dto.costPerUnit != null || dto.purchaseDate) {
-          await this.ensureFirstBatch(tx, farmId, userId, id);
-          await this.reconcile(tx, id);
           const newest = await tx.feedItemBatch.findFirst({
             where: { feedItemId: id, deletedAt: null },
             orderBy: [{ purchaseDate: 'desc' }, { createdAt: 'desc' }],
@@ -272,8 +265,6 @@ export class FeedItemService {
           }
         }
         if (dto.currentStock != null) {
-          await this.ensureFirstBatch(tx, farmId, userId, id);
-          await this.reconcile(tx, id);
           const total = await this.batchTotal(tx, id);
           const delta = r6(dto.currentStock - total);
           if (delta !== 0) {
@@ -284,7 +275,6 @@ export class FeedItemService {
             });
           }
         }
-        await this.mirrorLegacy(tx, id);
         return tx.feedItem.findUniqueOrThrow({
           where: { id },
           include: ITEM_INCLUDE,
@@ -426,9 +416,6 @@ export class FeedItemService {
     }
 
     {
-      await this.ensureFirstBatch(tx, farmId, userId, itemId);
-      await this.reconcile(tx, itemId);
-
       let profileId: string | null = null;
       let makeDefault = false;
       if (dto.nutrition) {
@@ -450,18 +437,13 @@ export class FeedItemService {
         profileId = p.id;
         makeDefault = true;
       } else {
-        // Re-read after `ensureFirstBatch`: the `item` loaded above predates the self-healed lot/profile.
-        const fresh = await tx.feedItem.findUniqueOrThrow({
-          where: { id: itemId },
-          select: { defaultNutritionProfileId: true },
-        });
         const newest = await tx.feedItemBatch.findFirst({
           where: { feedItemId: itemId, deletedAt: null },
           orderBy: [{ purchaseDate: 'desc' }, { createdAt: 'desc' }],
           select: { nutritionProfileId: true },
         });
         profileId =
-          fresh.defaultNutritionProfileId ?? newest?.nutritionProfileId ?? null;
+          item.defaultNutritionProfileId ?? newest?.nutritionProfileId ?? null;
       }
       if (!profileId) {
         throw new BadRequestException(
@@ -503,7 +485,6 @@ export class FeedItemService {
           data: { defaultNutritionProfileId: profileId },
         });
       }
-      await this.mirrorLegacy(tx, itemId);
       return {
         batchId: batch.id,
         item: await tx.feedItem.findUniqueOrThrow({
@@ -575,8 +556,8 @@ export class FeedItemService {
   /**
    * RAKHAL-446: read-only FIFO plan for feeding `quantityKg` of this product — which lots would be
    * drawn, how much from each (in the item's own unit and in kg), each lot's real cost and nutrition
-   * profile. Heals/reconciles the lots first (idempotent), so pass the caller's `tx` when there is one;
-   * without it a short transaction of its own is opened. Throws when the stock can't cover it.
+   * profile. Pass the caller's `tx` when there is one; without it a short transaction of its own is
+   * opened. Throws when the stock can't cover it.
    */
   async previewDraw(
     farmId: string,
@@ -592,8 +573,6 @@ export class FeedItemService {
         select: { id: true },
       });
       if (!found) throw new NotFoundException('Feed item not found');
-      await this.ensureFirstBatch(client, farmId, userId, itemId);
-      await this.reconcile(client, itemId);
       const item = await client.feedItem.findUniqueOrThrow({
         where: { id: itemId },
         include: ITEM_INCLUDE,
@@ -675,7 +654,6 @@ export class FeedItemService {
       feedDistributionId: opts.distributionId,
       feedDistributionCattleItemId: opts.cattleItemId,
     });
-    await this.mirrorLegacy(tx, itemId);
   }
 
   /**
@@ -835,8 +813,6 @@ export class FeedItemService {
         select: { id: true },
       });
       if (!exists) throw new NotFoundException('Feed item not found');
-      await this.ensureFirstBatch(client, farmId, userId, id);
-      await this.reconcile(client, id);
       await this.applyDelta(client, farmId, userId, id, {
         delta: dto.adjustment,
         reason: dto.reason,
@@ -844,7 +820,6 @@ export class FeedItemService {
         saleLineId: dto.saleLineId,
         batchId: dto.batchId,
       });
-      await this.mirrorLegacy(client, id);
       return client.feedItem.findUniqueOrThrow({
         where: { id },
         include: ITEM_INCLUDE,
@@ -855,13 +830,14 @@ export class FeedItemService {
       ? await run(tx)
       : await this.prisma.$transaction((t) => run(t));
 
+    const presented = this.present(feedItem);
     this.log.info('Feed item stock adjusted', {
       feedItemId: id,
       farmId,
       delta: dto.adjustment,
-      balanceAfter: feedItem.currentStock,
+      balanceAfter: presented.currentStock,
     });
-    return this.present(feedItem);
+    return presented;
   }
 
   /** Multi-select delete (bulk-action dock, 2026-07-21) — one `updateMany`, silently skipping any
@@ -895,7 +871,7 @@ export class FeedItemService {
   // Lot engine
   // ---------------------------------------------------------------------------------------------
 
-  /** Moves stock on lots and writes one movement per lot touched. Assumes `reconcile()` already ran. */
+  /** Moves stock on lots and writes one movement per lot touched. */
   private async applyDelta(
     tx: Prisma.TransactionClient,
     farmId: string,
@@ -981,122 +957,6 @@ export class FeedItemService {
     }
   }
 
-  /**
-   * Self-heal for an item that has no live lot (created by a raw insert, a code path that predates
-   * batches, or restored after archive): builds its first batch from the legacy columns — the same thing
-   * the RAKHAL-442 backfill did. Nutrition comes from the item's default profile, else a one-time copy of
-   * its linked ingredient, else a clearly-flagged placeholder (CP 0 / ME 0) so the gap is visible instead
-   * of silently null. Becomes dead code once RAKHAL-450 guarantees every item has a batch.
-   */
-  private async ensureFirstBatch(
-    tx: Prisma.TransactionClient,
-    farmId: string,
-    userId: string,
-    itemId: string,
-  ): Promise<void> {
-    const live = await tx.feedItemBatch.count({
-      where: { feedItemId: itemId, deletedAt: null },
-    });
-    if (live > 0) return;
-    const item = await tx.feedItem.findUniqueOrThrow({ where: { id: itemId } });
-
-    let profileId = item.defaultNutritionProfileId;
-    if (!profileId && item.ingredientId) {
-      const found = await this.profiles
-        .createFromIngredient(farmId, userId, item.ingredientId, tx)
-        .catch(() => null);
-      profileId = found?.id ?? null;
-    }
-    if (!profileId) {
-      const placeholder = await this.profiles.create(
-        farmId,
-        userId,
-        {
-          values: toNutritionValues({
-            dmPct: item.moisturePct != null ? 100 - item.moisturePct : 100,
-            cpPct: 0,
-            meMjPerKgDm: 0,
-          }),
-          nutritionSource: 'FARM_ESTIMATE',
-          note: 'Placeholder created automatically — please enter the real nutrition.',
-          trusted: true,
-        },
-        tx,
-      );
-      profileId = placeholder.id;
-    }
-    await tx.feedItemBatch.create({
-      data: {
-        feedItemId: itemId,
-        farmId,
-        currentStock: item.currentStock,
-        costPerUnit: item.costPerUnit,
-        purchaseDate: item.purchaseDate,
-        nutritionProfileId: profileId,
-        createdBy: userId,
-      },
-    });
-    if (!item.defaultNutritionProfileId) {
-      await tx.feedItem.update({
-        where: { id: itemId },
-        data: { defaultNutritionProfileId: profileId },
-      });
-    }
-    this.log.info('Feed item first batch created (self-heal)', {
-      itemId,
-      farmId,
-    });
-  }
-
-  /**
-   * Until RAKHAL-445/446 convert them, purchasing/sales/feeding change the legacy `FeedItem.currentStock`
-   * directly. Bring the lots back in line first: a lower legacy total is taken FIFO from the oldest lots
-   * (that is what consumption is), a higher one is credited to the newest. No movement rows — the change
-   * was already recorded (or not) by whoever made it.
-   */
-  private async reconcile(
-    tx: Prisma.TransactionClient,
-    itemId: string,
-  ): Promise<void> {
-    const item = await tx.feedItem.findUnique({
-      where: { id: itemId },
-      select: { currentStock: true },
-    });
-    if (!item) return;
-    const batches = await tx.feedItemBatch.findMany({
-      where: { feedItemId: itemId, deletedAt: null },
-      orderBy: FIFO_ORDER,
-    });
-    if (batches.length === 0) return;
-    const sum = r6(batches.reduce((s, b) => s + b.currentStock, 0));
-    const diff = r6(item.currentStock - sum);
-    if (diff === 0) return;
-
-    if (diff > 0) {
-      const newest = batches[batches.length - 1];
-      await tx.feedItemBatch.update({
-        where: { id: newest.id },
-        data: { currentStock: { increment: diff } },
-      });
-    } else {
-      let need = -diff;
-      for (const batch of batches) {
-        if (need <= 0) break;
-        const take = Math.min(batch.currentStock, need);
-        if (take <= 0) continue;
-        await tx.feedItemBatch.update({
-          where: { id: batch.id },
-          data: { currentStock: { decrement: take } },
-        });
-        need = r6(need - take);
-      }
-    }
-    this.log.info('Feed item lots reconciled to legacy stock', {
-      itemId,
-      diff,
-    });
-  }
-
   private async batchTotal(
     tx: Prisma.TransactionClient,
     itemId: string,
@@ -1106,27 +966,6 @@ export class FeedItemService {
       _sum: { currentStock: true },
     });
     return r6(agg._sum.currentStock ?? 0);
-  }
-
-  /** Writes the legacy product columns from the lots: total stock, newest lot's cost and date. */
-  private async mirrorLegacy(
-    tx: Prisma.TransactionClient,
-    itemId: string,
-  ): Promise<void> {
-    const batches = await tx.feedItemBatch.findMany({
-      where: { feedItemId: itemId, deletedAt: null },
-      orderBy: FIFO_ORDER,
-    });
-    if (batches.length === 0) return;
-    const newest = batches[batches.length - 1];
-    await tx.feedItem.update({
-      where: { id: itemId },
-      data: {
-        currentStock: r6(batches.reduce((s, b) => s + b.currentStock, 0)),
-        costPerUnit: newest.costPerUnit,
-        purchaseDate: newest.purchaseDate,
-      },
-    });
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -1187,7 +1026,7 @@ export class FeedItemService {
    * `FeedIngredient`, so a price/unit-conversion change here is expressed as
    * `FeedIngredientOverride.customPricePerKg` — writes the Prisma row directly
    * (importing `FeedModule` here would create a module cycle via `MilkModule`).
-   * MILESTONE 26 D8: the price is the **newest lot's** cost (the legacy `costPerUnit` mirror), and it
+   * MILESTONE 26 D8: the price is the **newest lot's** cost, and it
    * only runs when an ingredient is linked. Only `customPricePerKg` is touched — never wipes a farm's
    * existing nutrition override. Best-effort: an un-computable per-kg price is skipped, not thrown.
    */
@@ -1201,7 +1040,9 @@ export class FeedItemService {
     const kgPerUnit = resolveKgPerUnit(feedItem.unit, feedItem.kgPerUnit);
     if (!kgPerUnit || kgPerUnit <= 0) return;
 
-    const pricePerKg = feedItem.costPerUnit / kgPerUnit;
+    const newest = feedItem.batches[feedItem.batches.length - 1];
+    if (!newest) return;
+    const pricePerKg = newest.costPerUnit / kgPerUnit;
     const ingredientId = feedItem.ingredientId;
     await client.feedIngredientOverride.upsert({
       where: { farmId_ingredientId: { farmId, ingredientId } },
@@ -1264,18 +1105,19 @@ export class FeedItemService {
     const kgPerUnit = resolveKgPerUnit(feedItem.unit, feedItem.kgPerUnit);
     const head = this.headBatch(feedItem.batches);
     const { batches, ...rest } = feedItem;
+    // Product-level summaries derived from the lots (RAKHAL-450: the product stores none of these):
+    // total stock, and the newest lot's cost and purchase date.
+    const currentStock = r6(batches.reduce((s, b) => s + b.currentStock, 0));
+    const newest = batches[batches.length - 1];
     return {
       ...rest,
-      // Moisture is derived from the head lot's dry matter (D5) — the legacy column is only a fallback.
-      moisturePct: head
-        ? moisturePctFromDm(head.nutritionProfile.dmPct)
-        : feedItem.moisturePct,
-      stockStatus: computeStockStatus(
-        feedItem.currentStock,
-        feedItem.lowStockThreshold,
-      ),
-      kgEquivalent:
-        kgPerUnit != null ? feedItem.currentStock * kgPerUnit : null,
+      currentStock,
+      costPerUnit: newest?.costPerUnit ?? 0,
+      purchaseDate: newest?.purchaseDate ?? feedItem.createdAt,
+      // Moisture is derived from the head lot's dry matter (D5), never stored.
+      moisturePct: head ? moisturePctFromDm(head.nutritionProfile.dmPct) : null,
+      stockStatus: computeStockStatus(currentStock, feedItem.lowStockThreshold),
+      kgEquivalent: kgPerUnit != null ? currentStock * kgPerUnit : null,
       nutrition: head ? this.presentProfile(head.nutritionProfile) : null,
       batches: batches.map((b) => this.presentBatch(b)),
     };

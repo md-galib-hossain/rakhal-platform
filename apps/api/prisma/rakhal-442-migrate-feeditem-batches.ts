@@ -12,6 +12,11 @@
  * Idempotent: an item that already has a batch is skipped. `--dry-run` reports without writing.
  * Run once, after `prisma migrate deploy`:
  *   pnpm exec tsx prisma/rakhal-442-migrate-feeditem-batches.ts [--dry-run]
+ *
+ * **Historical (RAKHAL-450):** this reads the legacy `currentStock`/`costPerUnit`/`purchaseDate`/
+ * `moisturePct` columns, which migration `20260924130000_rakhal_450_drop_feeditem_legacy_columns`
+ * drops (and which refuses to run while any item still lacks a batch). It must run **before** that
+ * migration and cannot run after it; it is not part of the compiled build.
  */
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';

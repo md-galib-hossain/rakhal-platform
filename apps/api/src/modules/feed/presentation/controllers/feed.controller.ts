@@ -577,9 +577,10 @@ export class FeedController {
   @RequirePermission('feed.update')
   updateStockNutrition(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: UpdateStockNutritionDto,
   ) {
-    return this.stock.updateNutrition(farmId, id, dto);
+    return this.stock.updateNutrition(farmId, userId, id, dto);
   }
 }

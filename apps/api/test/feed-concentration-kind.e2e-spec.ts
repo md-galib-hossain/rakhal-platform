@@ -1,4 +1,4 @@
-﻿import request from 'supertest';
+import request from 'supertest';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 import { seededCashAccountId } from './utils/finance';
@@ -104,8 +104,8 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
       .expect(400);
   });
 
-  it('a FEED_MIXTURE requires durationDays', async () => {
-    await request(server())
+  it('a FEED_MIXTURE can be created without durationDays', async () => {
+    const created = await request(server())
       .post(api('/feed/concentrations'))
       .set(...auth(owner))
       .send({
@@ -114,9 +114,13 @@ describe('Feed Formulator — concentration kind split (e2e)', () => {
         targetType: 'INDIVIDUAL',
         targetWeightKg: 400,
         targetMilkL: 15,
-        items: [{ ingredientId, amountKg: 10 }],
+        items: [
+          { ingredientId, amountKg: 10 },
+          { ingredientId: concentrateIngredientId, amountKg: 0 },
+        ],
       })
-      .expect(400);
+      .expect(201);
+    expect(created.body.data.duration_days).toBeNull();
   });
 
   it('a FEED_MIXTURE built purely from catalogue ingredients — no concentrate-derived line — is rejected (RAKHAL-425)', async () => {
