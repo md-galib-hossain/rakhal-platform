@@ -29,7 +29,7 @@ import type { EffectiveIngredientNutrition } from "./lib/formula-math";
 /** `HERD` ("herd default -> individual override, most specific wins") requires no `cattleId`, so
  * it deliberately isn't named in the `.refine()` below — that only fires when `targetType` is
  * INDIVIDUAL. */
-export const feedTargetTypes = ["INDIVIDUAL", "HERD"] as const;
+export const feedTargetTypes = ["INDIVIDUAL", "GROUP", "HERD"] as const;
 export const feedConcentrationKinds = ["CONCENTRATE_TEMPLATE", "FEED_MIXTURE"] as const;
 
 export const createFeedConcentrationItemSchema = z.object({
@@ -58,6 +58,7 @@ export const createFeedFormSchema = z
     durationDays: z.number().int().min(1).optional(),
     targetType: z.enum(feedTargetTypes),
     cattleId: z.string().optional(),
+    groupId: z.string().optional(),
     targetWeightKg: z.number().min(1).max(2000).optional(),
     targetMilkL: z.number().min(0).max(100).optional(),
     items: z.array(createFeedConcentrationItemSchema),
@@ -65,6 +66,10 @@ export const createFeedFormSchema = z
   .refine((v) => v.kind !== "FEED_MIXTURE" || v.targetType !== "INDIVIDUAL" || Boolean(v.cattleId), {
     message: "An animal must be selected",
     path: ["cattleId"],
+  })
+  .refine((v) => v.kind !== "FEED_MIXTURE" || v.targetType !== "GROUP" || Boolean(v.groupId), {
+    message: "A group must be selected",
+    path: ["groupId"],
   });
 
 export type CreateFeedFormInput = z.infer<typeof createFeedFormSchema>;

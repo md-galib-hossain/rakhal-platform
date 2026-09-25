@@ -1,5 +1,15 @@
 # Frontend — Current State
 
+## Feeding Grid — one table for every cow (2026-09-25, no ticket #)
+
+User: applying a feed plan showed a second, differently-shaped table; "i want only one table". The grid is
+now a single table where each cow is a row of feed lines — plan lines pre-filled and editable, a TMR /
+concentrate as one line, or anything added by hand — with program groups as divider rows, one bulk toolbar
+and one Save/Confirm bar. Every kg input is capped to remaining inventory (shared across ticked cows).
+Frontend-only; same `POST /feed/grid/{draft,confirm}` multi-line payload. `program-section.tsx` deleted,
+logic split into `features/feeding/grid-model.ts` (pure, 16 tests), `hooks/use-source-stock.ts`,
+`components/{feed-line-cell,feed-source-picker}.tsx`. Full writeup: `docs/IN_FLIGHT.md` Recently Done.
+
 ## RFE-043 follow-up — Notification preferences: in-app only for now (2026-09-21)
 
 User: "avoid the sms for now we just working with notifications in app." RFE-043 (shipped earlier

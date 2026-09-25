@@ -103,6 +103,37 @@ export interface FeedPlanFitLine {
   supply: { as_fed_kg: number; dm_kg: number | null; cp_kg: number | null; me_mj: number | null };
 }
 
+export type FeedNutrientKey =
+  | "dm"
+  | "cp"
+  | "me"
+  | "fat"
+  | "ndf"
+  | "adf"
+  | "tdn"
+  | "calcium"
+  | "phosphorus"
+  | "ca_p_ratio"
+  | "rdp_pct"
+  | "rup_pct"
+  | "starch";
+
+/** One line of the full nutrition check (`FeedPlanFitResult.cows[].nutrients`). */
+export interface FeedNutrientRow {
+  key: FeedNutrientKey;
+  unit: "kg" | "MJ" | "% of CP" | ": 1";
+  /** `null` when it can't be worked out (a Ca:P ratio with no phosphorus). */
+  supply: number | null;
+  /** `null` for a nutrient with no requirement (starch — shown for information). */
+  requirement: number | null;
+  /** Upper limit where one exists (NDF: over-supply depresses intake). */
+  max: number | null;
+  delta_pct: number | null;
+  /** `unknown` = a fed lot doesn't carry this nutrient, so `supply` is a minimum and isn't judged. */
+  severity: FeedFitSeverity | "unknown";
+  measured: boolean;
+}
+
 export interface FeedPlanFitResult {
   plan_id: string;
   date: string;
@@ -115,9 +146,41 @@ export interface FeedPlanFitResult {
     requirement: { dm_kg: number; cp_kg: number; me_mj: number };
     delta_pct: { dm: number | null; cp: number | null; me: number | null };
     fit: FeedProgramFit;
+    /** Every nutrient the lots carry vs her requirement — optional so an older backend still renders the 3-row table. */
+    nutrients?: FeedNutrientRow[];
     flags: string[];
   }[];
   missing_cattle_ids: string[];
+}
+
+/** Hand-entered animal figures for the editor's requirement scratchpad (`POST /feed/plans/preview-fit`). */
+export interface ManualRequirementInput {
+  weightKg: number;
+  milkTargetL: number;
+  milkFatPct?: number;
+  gestationDays?: number;
+  bcs?: number;
+  dim?: number;
+  animalType?: "COW" | "HEIFER" | "DRY";
+}
+
+/** Lines that are not saved yet, against ONE saved animal (`cattleId`) or hand-entered figures (`manual`). */
+export interface PreviewFitPayload {
+  lines: FeedPlanLineInput[];
+  cattleId?: string;
+  manual?: ManualRequirementInput;
+}
+
+/** What `previewFit` returns: one animal's requirement and how the lines add up against it. */
+export interface PreviewFitResult {
+  lines: FeedPlanFitLine[];
+  supply: { as_fed_kg: number; dm_kg: number; cp_kg: number; me_mj: number };
+  supply_complete: boolean;
+  nutrients: FeedNutrientRow[];
+  fit: FeedProgramFit;
+  inputs: Record<string, unknown>;
+  /** Data-quality flags — an assumed weight, missing milk record… (empty for hand-entered figures). */
+  flags: string[];
 }
 
 export interface ApplyFeedPlanPayload {
@@ -221,6 +284,8 @@ export interface FeedGridProgramCowFields {
   planned_kg_by_line: Record<string, number>;
   requirement: { dm_kg: number; cp_kg: number; me_mj: number; flags: string[] } | null;
   planned_supply: { dm_kg: number; cp_kg: number; me_mj: number; complete: boolean } | null;
+  /** Σ of today's confirmed (non-voided) feedings, from each row's frozen nutrition profile; `null` = nothing confirmed. */
+  confirmed_supply: { dm_kg: number; cp_kg: number; me_mj: number; complete: boolean } | null;
   fit: FeedProgramFit | null;
 }
 

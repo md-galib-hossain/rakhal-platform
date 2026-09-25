@@ -502,7 +502,7 @@ export interface FeedEfficiencyResult {
 /** `GET /feed/cattle/:cattleId/resolved-ration` — layered targeting resolution: which active
  * `FEED_MIXTURE` ration this cow is actually on, most-specific-wins (INDIVIDUAL > HERD). */
 export interface ResolvedRation {
-  match_level: "INDIVIDUAL" | "HERD" | null;
+  match_level: "INDIVIDUAL" | "GROUP" | "HERD" | null;
   concentration: FeedConcentrationDetail | null;
 }
 
@@ -511,7 +511,7 @@ export interface DmiComparison {
   expected_dmi_kg: number;
   actual_dmi_kg: number | null;
   delta_pct: number | null;
-  match_level: "INDIVIDUAL" | "HERD" | null;
+  match_level: "INDIVIDUAL" | "GROUP" | "HERD" | null;
 }
 
 /** `GET /feed/today-requirement` — farm-wide rollup of every active ration's ingredient
@@ -537,7 +537,8 @@ export interface TodaysFeedRequirement {
   by_ingredient: { ingredient_id: string; name: string; total_kg: number }[];
   /** One row per active ration (INDIVIDUAL = 1 cow, HERD = the whole herd). */
   by_ration: {
-    concentration_id: string;
+    /** `null` for a plan-based row (RAKHAL-458: grid feedings resolve through plans, not a recipe). */
+    concentration_id: string | null;
     name: string;
     headcount: number;
     total_kg: number;

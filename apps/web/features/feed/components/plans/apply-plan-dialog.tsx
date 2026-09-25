@@ -29,7 +29,17 @@ export type ApplyTarget =
   | { kind: "plan"; plan: Pick<FeedPlan, "id" | "name"> }
   | { kind: "shortcut"; concentration: FeedConcentrationSummary };
 
-function ApplyBody({ target, onClose }: { target: ApplyTarget; onClose: () => void }) {
+function ApplyBody({
+  target,
+  onClose,
+  presetCows,
+  onApplied,
+}: {
+  target: ApplyTarget;
+  onClose: () => void;
+  presetCows?: { id: string; label: string }[];
+  onApplied?: () => void;
+}) {
   const t = useTranslations("feed.plans.apply");
   const groups = useAnimalGroups();
   const createPlan = useCreateFeedPlan();
@@ -37,7 +47,7 @@ function ApplyBody({ target, onClose }: { target: ApplyTarget; onClose: () => vo
 
   const shortcut = target.kind === "shortcut" ? target.concentration : null;
   const [targetType, setTargetType] = useState<FeedPlanTarget>("INDIVIDUAL");
-  const [cows, setCows] = useState<{ id: string; label: string }[]>([]);
+  const [cows, setCows] = useState<{ id: string; label: string }[]>(presetCows ?? []);
   const [groupId, setGroupId] = useState("");
   const [name, setName] = useState(shortcut?.name ?? "");
   const [kg, setKg] = useState("");
@@ -78,6 +88,7 @@ function ApplyBody({ target, onClose }: { target: ApplyTarget; onClose: () => vo
       const applied = await applyPlan.mutateAsync({ id: planId as string, dto });
       setResult(applied);
       toast.success(t("appliedToast"));
+      onApplied?.();
     } catch (err) {
       if (err instanceof ApiError && err.status === 409 && Array.isArray(err.details?.conflicting_cattle)) {
         setConflicts(err.details.conflicting_cattle as FeedPlanOverlapConflict[]);
@@ -248,7 +259,19 @@ function ApplyBody({ target, onClose }: { target: ApplyTarget; onClose: () => vo
   );
 }
 
-export function ApplyPlanDialog({ target, onOpenChange }: { target: ApplyTarget | null; onOpenChange: (open: boolean) => void }) {
+export function ApplyPlanDialog({
+  target,
+  onOpenChange,
+  presetCows,
+  onApplied,
+}: {
+  target: ApplyTarget | null;
+  onOpenChange: (open: boolean) => void;
+  /** Start with these cows already chosen (the Feeding Grid applies a program to the row / ticked cows). */
+  presetCows?: { id: string; label: string }[];
+  /** Fired once an apply succeeded, so a caller can reload what depends on it. */
+  onApplied?: () => void;
+}) {
   return (
     <Dialog open={target != null} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
@@ -256,6 +279,8 @@ export function ApplyPlanDialog({ target, onOpenChange }: { target: ApplyTarget 
           <ApplyBody
             key={target.kind === "plan" ? target.plan.id : target.concentration.id}
             target={target}
+            presetCows={presetCows}
+            onApplied={onApplied}
             onClose={() => onOpenChange(false)}
           />
         ) : null}

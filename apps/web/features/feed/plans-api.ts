@@ -12,6 +12,8 @@ import type {
   FeedPlan,
   FeedPlanAssignment,
   FeedPlanFitResult,
+  PreviewFitPayload,
+  PreviewFitResult,
   UpdateFeedPlanPayload,
 } from "./plans-types";
 
@@ -52,6 +54,11 @@ export const feedPlansApi = {
         date: params.date,
       },
     });
+  },
+  /** The editor's scratchpad: how UNSAVED lines fit one animal or hand-entered figures. Read-only (POST only because of
+   * the body) — creates nothing. */
+  previewFit(dto: PreviewFitPayload): Promise<PreviewFitResult> {
+    return apiFetch<PreviewFitResult>("/feed/plans/preview-fit", { method: "POST", body: dto });
   },
   /** Replaces the target's active program in one transaction. A group overlap is a 409 whose
    * `ApiError.details.conflicting_cattle` lists the cows. */

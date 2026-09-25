@@ -88,7 +88,7 @@ export function ConcentrationCard({
   return (
     <div className="flex flex-1 flex-col gap-5 rounded-2xl border border-border bg-card p-4">
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {canDelete && onToggleSelect ? (
             <Checkbox
               checked={selected}
@@ -100,6 +100,11 @@ export function ConcentrationCard({
           <Badge variant={concentration.is_finalized ? "success" : "warning"}>
             {t(concentration.is_finalized ? "statusFinalized" : "statusDraft")}
           </Badge>
+          {concentration.duration_days && concentration.duration_days > 1 ? (
+            <Badge variant="outline" className="text-xs">
+              {t("feedDurationDays", { days: concentration.duration_days })}
+            </Badge>
+          ) : null}
         </div>
         {(canUpdate && onEdit) || (canDelete && onDelete) || canFinalize || canFeedToday || canApply ? (
           <DropdownMenu>

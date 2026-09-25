@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { CircleHelp, Scale } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FloatingInput } from "@/components/ui/floating-input";
+import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
@@ -17,27 +17,25 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
-import { useCattlePagedList } from "@/features/cattle/hooks/use-cattle";
+import { useAnimalGroup, useAnimalGroups, useCattlePagedList } from "@/features/cattle/hooks/use-cattle";
 import { useRequirements } from "../hooks/use-feed";
 import type { FeedRequirements } from "../types";
 import { RequirementBreakdown } from "./requirement-breakdown";
 import { RequirementSettingsSheet } from "./requirement-settings-sheet";
 
-type Mode = "cow" | "manual";
+type Mode = "cow" | "group" | "manual";
 
 /**
  * Cow requirements as a first-class screen (RFE-103, absorbing RAKHAL-267).
  *
- * `GET /feed/requirements` has been standalone and cow/manual-aware since RAKHAL-081, but
- * the only place it was ever rendered was step 1 of the Total Mixed Ration wizard — so a farmer
- * had to start building a ration just to see what a cow needs. This tab is that answer on its
- * own, and it shows all 16 outputs rather than the five the wizard displayed.
+ * Supports single cow, animal group, or manual entry.
  */
 export function RequirementsTab() {
   const t = useTranslations("feed.requirements");
   const [mode, setMode] = useState<Mode>("cow");
 
   const [cattleId, setCattleId] = useState<string>("");
+  const [groupId, setGroupId] = useState<string>("");
   const [manual, setManual] = useState({
     weightKg: "450",
     milkTargetL: "15",
@@ -49,21 +47,27 @@ export function RequirementsTab() {
   });
 
   const cattle = useCattlePagedList({});
-
+  const groups = useAnimalGroups();
+  const selectedGroup = (groups.data?.items ?? []).find((g) => g.id === groupId);
+  const groupCattleQuery = useCattlePagedList(groupId ? { animalGroupId: groupId } : {});
+  const groupCattle = groupCattleQuery.items;
+  const groupFirstCowId = groupCattle[0]?.id;
   const num = (v: string) => (v.trim() === "" ? undefined : Number(v));
 
   const params =
     mode === "cow"
       ? { cattleId: cattleId || undefined }
-      : {
-          weightKg: num(manual.weightKg),
-          milkTargetL: num(manual.milkTargetL),
-          milkFatPct: num(manual.milkFatPct),
-          dim: num(manual.dim),
-          gestationDays: num(manual.gestationDays),
-          bcs: num(manual.bcs),
-          animalType: manual.animalType,
-        };
+      : mode === "group"
+        ? { cattleId: groupFirstCowId || undefined }
+        : {
+            weightKg: num(manual.weightKg),
+            milkTargetL: num(manual.milkTargetL),
+            milkFatPct: num(manual.milkFatPct),
+            dim: num(manual.dim),
+            gestationDays: num(manual.gestationDays),
+            bcs: num(manual.bcs),
+            animalType: manual.animalType,
+          };
 
   const requirements = useRequirements(params);
   const data = requirements.data;
@@ -82,7 +86,7 @@ export function RequirementsTab() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {(["cow", "manual"] as const).map((m) => (
+          {(["cow", "group", "manual"] as const).map((m) => (
             <Button
               key={m}
               size="sm"
@@ -109,6 +113,31 @@ export function RequirementsTab() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        ) : mode === "group" ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
+              <FieldLabel label={t("groupLabel")} hint={t("groupHint")} />
+              <Select value={groupId} onValueChange={setGroupId}>
+                <SelectTrigger className="w-full sm:w-80">
+                  <SelectValue placeholder={t("groupPlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(groups.data?.items ?? []).map((g) => (
+                    <SelectItem key={g.id} value={g.id}>
+                      {g.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {groupId && (
+              <div className="text-xs text-muted-foreground">
+                {groupCattle.length > 0
+                  ? t("groupMembers", { count: groupCattle.length })
+                  : t("groupEmpty")}
+              </div>
+            )}
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -278,8 +307,7 @@ function ManualField({
   return (
     <div className="flex flex-col gap-1.5">
       <FieldLabel label={label} hint={hint} />
-      <FloatingInput
-        label={label}
+      <Input
         type="number"
         step="0.1"
         value={value}

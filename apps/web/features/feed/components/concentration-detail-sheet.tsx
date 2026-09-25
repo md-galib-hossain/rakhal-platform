@@ -1,6 +1,6 @@
 "use client"; // fetches the detailed concentration on open
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { X } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -33,6 +33,15 @@ function DetailBody({ id, onOpenChange }: { id: string; onOpenChange: (open: boo
   const t = useTranslations("feed.detail");
   const detail = useConcentrationDetail(id);
   const ingredients = useFeedIngredients();
+  const [durationDays, setDurationDays] = useState<number>(1);
+
+  const detailDuration = detail.data?.duration_days;
+  useEffect(() => {
+    if (detailDuration && detailDuration > 0) {
+      setDurationDays(detailDuration);
+    }
+  }, [detailDuration]);
+
   // Needed only for the per-line "rate" annotation (e.g. "20%" DM) shown alongside the server-
   // computed kg values below — the kg/cost figures themselves come from `serverContributions`.
   const catalogueEffective = useMemo(() => toEffectiveMap(ingredients.data ?? []), [ingredients.data]);
@@ -96,6 +105,8 @@ function DetailBody({ id, onOpenChange }: { id: string; onOpenChange: (open: boo
             effectiveById={effectiveById}
             requirements={detail.data.requirements ? fromApiRequirements(detail.data.requirements) : null}
             cowCount={cowCount}
+            durationDays={durationDays}
+            onDurationDaysChange={setDurationDays}
             showPerCow={detail.data.kind !== "CONCENTRATE_TEMPLATE"}
             readOnly
             serverContributions={detail.data.ingredients.map((line) => ({

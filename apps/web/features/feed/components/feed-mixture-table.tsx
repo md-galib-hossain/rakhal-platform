@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Package, Wheat, X } from "lucide-react";
+import { CalendarDays, Package, Wheat, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -166,19 +166,17 @@ const GROUP_ORDER = ["protein", "energy", "fibers", "minerals"] as const;
  * Wrapped in a horizontally-scrolling container since 12 nutrient pairs + name/amount/cost don't
  * fit a card-width table.
  *
- * The "Total Feed Amount" and "Daily Total Amount" rows show a %-of-DM rate sub-label under every
- * nutrient column, not just DM (2026-07-18 follow-up: "why not for other columns") — the mix's own
- * overall CP%/ME-per-kg-DM/etc. concentration (`pctOfDm`), distinct from a per-line ingredient's fixed
- * rate. "Daily Total Amount"'s Cost cell now shows a real per-cow figure (`totals.totalCostTk` ÷
- * `cowCount`) instead of a hardcoded `—` — it was never computed before, a real gap, not the
- * intentional-`—` pattern the Requirement row still correctly uses for the 7 nutrients with no target
- * formula.
+ * Supports batch duration (number of days) multiplication — when preparing feed for multiple days,
+ * daily amounts are adjusted to meet per-cow daily requirements and multiplied by the batch days
+ * to show the total feed quantity to prepare, total DM, total nutrient contributions, and total cost.
  */
 export function FeedMixtureTable({
   items,
   effectiveById,
   requirements,
   cowCount,
+  durationDays = 1,
+  onDurationDaysChange,
   onAmountChange,
   onRemove,
   onBatchLinkChange,
@@ -193,8 +191,11 @@ export function FeedMixtureTable({
   /** Number of animals the formula is fed to — real `assigned_count` for a Group target, 1 for
    * Individual — used to divide Total Feed Amount into a real per-cow daily figure. */
   cowCount: number;
-  onAmountChange?: (ingredientId: string, amountKg: number) => void;
-  onRemove?: (ingredientId: string) => void;
+  /** Batch duration in days — multiplies daily amounts and totals for multi-day batch production. */
+  durationDays?: number;
+  onDurationDaysChange?: (days: number) => void;
+  onAmountChange?: (lineKey: string, amountKg: number) => void;
+  onRemove?: (lineKey: string) => void;
   /** RAKHAL-422/RFE-112 — per-line inventory-batch link callback. Omitted (as the read-only detail
    * sheet does) hides the `BatchLinkPicker` entirely rather than rendering a disabled control. */
   onBatchLinkChange?: (lineKey: string, link: BatchLink | undefined, lotEffective?: EffectiveIngredientNutrition) => void;
@@ -212,6 +213,19 @@ export function FeedMixtureTable({
   serverTotals?: FormulaTotals;
 }) {
   const t = useTranslations("feed.table");
+  const tFeed = useTranslations("feed");
+
+  const [internalDays, setInternalDays] = useState<number>(durationDays > 0 ? durationDays : 1);
+  const effectiveDays = onDurationDaysChange ? Math.max(1, durationDays || 1) : Math.max(1, internalDays);
+
+  function handleDaysChange(newDays: number) {
+    const val = Math.max(1, Math.min(365, newDays));
+    if (onDurationDaysChange) {
+      onDurationDaysChange(val);
+    } else {
+      setInternalDays(val);
+    }
+  }
 
   const lines: FormulaLine[] = useMemo(
     () => items.map((i) => ({ ingredientId: formLineKey(i), amountKg: i.amountKg })),
@@ -222,9 +236,7 @@ export function FeedMixtureTable({
   const totals = serverTotals ?? computed.totals;
   const contributionById = useMemo(() => new Map(contributions.map((c) => [c.ingredientId, c])), [contributions]);
 
-  /** Raw summed kg across every line — e.g. two 50kg lines = 100kg. Previously computed nowhere:
-   * the Total Feed Amount row's label cell spanned straight over the Amount column (`colSpan={2}`),
-   * so this figure never actually rendered anywhere (user request 2026-07-18). */
+  /** Raw summed kg across every line — e.g. two 50kg lines = 100kg. */
   const totalAmountKg = useMemo(() => items.reduce((sum, i) => sum + i.amountKg, 0), [items]);
 
   /** DM as a % of the *mix's* total kg (not an ingredient's own fixed DM% rate, which is a different
@@ -235,14 +247,7 @@ export function FeedMixtureTable({
   }
 
   /** A nutrient's overall concentration in the mix, on a DM basis (e.g. mix CP% = total CP kg ÷ total
-   * DM kg × 100) — same convention the user's reference spreadsheet pairs with every kg figure.
-   * Mirrors the per-line rate (`eff.cpPct` etc.) but computed for the *whole mix* instead of one
-   * ingredient, since a totals row has no single ingredient's fixed rate to show (user request
-   * 2026-07-18: "why not for other columns"). **ME is not kg-based** (`meMj` is megajoules, not a
-   * mass) — dividing it by DM kg and labeling the result "%" is nonsensical (caught live: a 44kg-DM
-   * mix with 594 MJ ME rendered "1350%"). ME's rate must stay energy-density (MJ per kg DM), matching
-   * its per-line rate (`eff.meMjPerKgDm`) and its column's own declared `unit` — every other column's
-   * `unit` is `"%"`, so this only branches for the one exception. */
+   * DM kg × 100). */
   function totalsRate(col: (typeof NUTRIENT_COLUMNS)[number], nutrientTotal: number, dmKg: number) {
     if (col.unit !== "%") return dmKg > 0 ? `${numberFmt(nutrientTotal / dmKg)} ${col.unit}` : null;
     return `${numberFmt(dmKg > 0 ? (nutrientTotal / dmKg) * 100 : 0)}%`;
@@ -295,6 +300,58 @@ export function FeedMixtureTable({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Batch Duration / Multiplier Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3 shadow-xs">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <CalendarDays className="size-4 text-primary shrink-0" aria-hidden />
+            <span>{t("makingForDays")}:</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="flex items-center rounded-lg border border-input bg-background px-2.5 py-1 shadow-2xs focus-within:ring-2 focus-within:ring-primary/20">
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={effectiveDays}
+                onChange={(e) => {
+                  const num = parseInt(e.target.value, 10);
+                  if (!isNaN(num) && num >= 1) handleDaysChange(num);
+                }}
+                disabled={readOnly && !onDurationDaysChange}
+                className="w-12 bg-transparent text-center text-sm font-bold text-foreground outline-none"
+              />
+              <span className="text-xs font-medium text-muted-foreground pr-1">
+                {t("daysLabel", { count: effectiveDays })}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              {[1, 3, 7, 14, 30].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => handleDaysChange(preset)}
+                  className={cn(
+                    "rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
+                    effectiveDays === preset
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "border border-border/80 bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  {preset === 1 ? t("dayOption1") : `${preset}d`}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {effectiveDays > 1 ? (
+          <div className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <span>{t("multiplierHint", { days: effectiveDays })}</span>
+          </div>
+        ) : null}
+      </div>
+
       <div className="overflow-hidden rounded-2xl border border-border">
         <div className="overflow-x-auto">
           <Table>
@@ -350,6 +407,8 @@ export function FeedMixtureTable({
                     : item.feedItemId
                   : (item.feedStockId ?? "");
                 const maxStockKg = isInventory ? (inventoryStockMap.get(stockKey) ?? item.availableStockKg ?? null) : null;
+                const batchNeededKg = item.amountKg * effectiveDays;
+                const isBatchExceeded = maxStockKg != null && batchNeededKg > maxStockKg;
 
                 return (
                   <TableRow key={lineKey}>
@@ -360,52 +419,69 @@ export function FeedMixtureTable({
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <Chip variant="teal" className="w-fit px-1.5 py-0 text-[10px] font-medium gap-1">
                               <Package className="size-2.5 shrink-0" aria-hidden />
-                              {t("sourceInventory")}
+                              {tFeed("sourceInventory")}
                             </Chip>
                             {maxStockKg != null ? (
                               <span
                                 className={cn(
                                   "text-[10px] font-medium",
-                                  maxStockKg <= 0 ? "text-destructive" : "text-muted-foreground",
+                                  maxStockKg <= 0 || isBatchExceeded ? "text-destructive" : "text-muted-foreground",
                                 )}
                               >
-                                {maxStockKg > 0 ? t("stockAmount", { stock: numberFmt(maxStockKg) }) : t("outOfStockBadge")}
+                                {maxStockKg > 0 ? tFeed("stockAmount", { stock: numberFmt(maxStockKg) }) : tFeed("outOfStockBadge")}
                               </span>
                             ) : null}
                           </div>
                         ) : (
                           <Chip variant="info" className="w-fit px-1.5 py-0 text-[10px] font-medium gap-1">
                             <Wheat className="size-2.5 shrink-0" aria-hidden />
-                            {t("sourceCatalogue")}
+                            {tFeed("sourceCatalogue")}
                           </Chip>
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
                       {readOnly ? (
-                        <div className="flex flex-col">
+                        <div className="flex flex-col gap-0.5">
                           <span>
-                            {numberFmt(item.amountKg)} <span className="text-xs text-muted-foreground">kg</span>
+                            {numberFmt(item.amountKg)} <span className="text-xs text-muted-foreground">kg/day</span>
                           </span>
-                          {maxStockKg != null && item.amountKg > maxStockKg ? (
+                          {effectiveDays > 1 ? (
+                            <span className="text-[11px] font-semibold text-primary">
+                              {t("itemBatchTotal", { days: effectiveDays, amount: numberFmt(batchNeededKg) })}
+                            </span>
+                          ) : null}
+                          {isBatchExceeded ? (
                             <span className="text-[10px] text-destructive font-medium">
-                              {t("exceedsStockWarning", { stock: numberFmt(maxStockKg) })}
+                              {t("batchStockWarning", { days: effectiveDays, stock: numberFmt(maxStockKg), needed: numberFmt(batchNeededKg) })}
                             </span>
                           ) : null}
                         </div>
                       ) : (
-                        <div
-                          className={cn(
-                            "flex min-h-9 w-28 items-center gap-1 rounded-lg bg-card px-2 py-1 shadow-xs border",
-                            maxStockKg != null && item.amountKg > maxStockKg ? "border-destructive" : "border-border/60",
-                          )}
-                        >
-                          <AmountInput
-                            value={item.amountKg}
-                            max={maxStockKg ?? undefined}
-                            onChange={(v) => onAmountChange?.(lineKey, v)}
-                          />
-                          <span className="text-xs text-muted-foreground shrink-0 self-center">kg</span>
+                        <div className="flex flex-col gap-1">
+                          <div
+                            className={cn(
+                              "flex min-h-9 w-28 items-center gap-1 rounded-lg bg-card px-2 py-1 shadow-xs border",
+                              isBatchExceeded ? "border-destructive ring-1 ring-destructive/40" : "border-border/60",
+                            )}
+                          >
+                            <AmountInput
+                              value={item.amountKg}
+                              max={maxStockKg != null && effectiveDays > 1 ? maxStockKg / effectiveDays : (maxStockKg ?? undefined)}
+                              onChange={(v) => onAmountChange?.(lineKey, v)}
+                            />
+                            <span className="text-xs text-muted-foreground shrink-0 self-center">kg</span>
+                          </div>
+                          {effectiveDays > 1 ? (
+                            <span className="text-[11px] font-semibold text-primary leading-tight">
+                              {t("itemBatchTotal", { days: effectiveDays, amount: numberFmt(batchNeededKg) })}
+                            </span>
+                          ) : null}
+                          {isBatchExceeded ? (
+                            <span className="text-[10px] text-destructive font-medium leading-tight">
+                              {t("batchStockWarning", { days: effectiveDays, stock: numberFmt(maxStockKg), needed: numberFmt(batchNeededKg) })}
+                            </span>
+                          ) : null}
                         </div>
                       )}
                     </TableCell>
@@ -422,7 +498,14 @@ export function FeedMixtureTable({
                       );
                     })}
                     <TableCell className="text-center">
-                      <MoneyText amount={c?.costTk ?? 0} />
+                      <div className="flex flex-col items-center">
+                        <MoneyText amount={c?.costTk ?? 0} />
+                        {effectiveDays > 1 ? (
+                          <span className="text-[11px] font-semibold text-primary">
+                            <MoneyText amount={(c?.costTk ?? 0) * effectiveDays} />
+                          </span>
+                        ) : null}
+                      </div>
                     </TableCell>
                     {!readOnly ? (
                       <TableCell>
@@ -440,60 +523,38 @@ export function FeedMixtureTable({
                 );
               })}
 
+              {/* Daily Total Amount Row */}
               <TableRow className="bg-muted/60 font-medium hover:bg-muted/60">
-                <TableCell className="text-foreground">{t("totalFeedAmount")}</TableCell>
+                <TableCell>
+                  <p className="text-foreground">{t("dailyTotalAmount")}</p>
+                  <p className="text-xs font-normal text-muted-foreground">
+                    {showPerCow ? t("dailyAmountSubtext") : t("dailyAmountFormulaSubtext")}
+                  </p>
+                </TableCell>
                 <TableCell className="text-center">
-                  {numberFmt(totalAmountKg)} <span className="text-xs font-normal text-muted-foreground">kg</span>
+                  {numberFmt(dailyTotals.amountKg)} <span className="text-xs font-normal text-muted-foreground">kg</span>
                 </TableCell>
                 <NutrientCell
-                  value={totals.dmKg}
-                  rate={`${numberFmt(dmPctOf(totals.dmKg, totalAmountKg))}%`}
+                  value={dailyTotals.dmKg}
+                  rate={`${numberFmt(dmPctOf(dailyTotals.dmKg, dailyTotals.amountKg))}%`}
                   toneClass=""
                 />
                 {NUTRIENT_COLUMNS.map((col) => (
                   <NutrientCell
                     key={col.key}
-                    value={totals[col.key]}
-                    rate={totalsRate(col, totals[col.key], totals.dmKg)}
+                    value={dailyTotals[col.key]}
+                    rate={totalsRate(col, dailyTotals[col.key], dailyTotals.dmKg)}
                     toneClass={GROUP_STYLES[col.group].text}
                   />
                 ))}
                 <TableCell className="text-center">
-                  <MoneyText amount={totals.totalCostTk} />
+                  <MoneyText amount={dailyTotals.costTk} />
                 </TableCell>
                 {!readOnly ? <TableCell /> : null}
               </TableRow>
 
-              {showPerCow ? (
-                <TableRow className="bg-muted/60 font-medium hover:bg-muted/60">
-                  <TableCell>
-                    <p className="text-foreground">{t("dailyTotalAmount")}</p>
-                    <p className="text-xs font-normal text-muted-foreground">{t("perCow")}</p>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {numberFmt(dailyTotals.amountKg)} <span className="text-xs font-normal text-muted-foreground">kg</span>
-                  </TableCell>
-                  <NutrientCell
-                    value={dailyTotals.dmKg}
-                    rate={`${numberFmt(dmPctOf(dailyTotals.dmKg, dailyTotals.amountKg))}%`}
-                    toneClass=""
-                  />
-                  {NUTRIENT_COLUMNS.map((col) => (
-                    <NutrientCell
-                      key={col.key}
-                      value={dailyTotals[col.key]}
-                      rate={totalsRate(col, dailyTotals[col.key], dailyTotals.dmKg)}
-                      toneClass={GROUP_STYLES[col.group].text}
-                    />
-                  ))}
-                  <TableCell className="text-center">
-                    <MoneyText amount={dailyTotals.costTk} />
-                  </TableCell>
-                  {!readOnly ? <TableCell /> : null}
-                </TableRow>
-              ) : null}
-
-              {requirements ? (
+              {/* Daily Total Requirement Row (TMR only) */}
+              {showPerCow && requirements ? (
                 <TableRow className="font-medium hover:bg-transparent">
                   <TableCell colSpan={2}>
                     <p className="text-foreground">{t("dailyTotalRequirement")}</p>
@@ -523,6 +584,39 @@ export function FeedMixtureTable({
                   {!readOnly ? <TableCell /> : null}
                 </TableRow>
               ) : null}
+
+              {/* Multiplied Batch Total Row (when durationDays > 1) */}
+              {effectiveDays > 1 ? (
+                <TableRow className="bg-primary/10 font-bold hover:bg-primary/15 border-t-2 border-primary/30">
+                  <TableCell>
+                    <p className="text-foreground font-bold">{t("totalBatchAmount", { days: effectiveDays })}</p>
+                    <p className="text-xs font-normal text-muted-foreground">
+                      {t("batchQuantitySubtext", { days: effectiveDays })}
+                    </p>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className="text-base font-bold text-primary">{numberFmt(totalAmountKg * effectiveDays)}</span>{" "}
+                    <span className="text-xs font-normal text-muted-foreground">kg</span>
+                  </TableCell>
+                  <NutrientCell
+                    value={totals.dmKg * effectiveDays}
+                    rate={`${numberFmt(dmPctOf(totals.dmKg, totalAmountKg))}%`}
+                    toneClass="font-bold text-foreground"
+                  />
+                  {NUTRIENT_COLUMNS.map((col) => (
+                    <NutrientCell
+                      key={col.key}
+                      value={totals[col.key] * effectiveDays}
+                      rate={totalsRate(col, totals[col.key], totals.dmKg)}
+                      toneClass={cn(GROUP_STYLES[col.group].text, "font-bold")}
+                    />
+                  ))}
+                  <TableCell className="text-center font-bold text-primary text-base">
+                    <MoneyText amount={totals.totalCostTk * effectiveDays} />
+                  </TableCell>
+                  {!readOnly ? <TableCell /> : null}
+                </TableRow>
+              ) : null}
             </TableBody>
           </Table>
         </div>
@@ -531,18 +625,18 @@ export function FeedMixtureTable({
       {requirements ? (
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground px-1">
           <div className="flex items-center gap-3">
-            <span className="font-medium text-foreground">{t("requirementsLegend")}:</span>
+            <span className="font-medium text-foreground">{tFeed("requirementsLegend")}:</span>
             <span className="inline-flex items-center gap-1 text-[11px]">
               <span className="size-2 rounded-full bg-destructive" />
-              {t("legendNotMet")}
+              {tFeed("legendNotMet")}
             </span>
             <span className="inline-flex items-center gap-1 text-[11px]">
               <span className="size-2 rounded-full bg-success" />
-              {t("legendMet")}
+              {tFeed("legendMet")}
             </span>
             <span className="inline-flex items-center gap-1 text-[11px]">
               <span className="size-2 rounded-full bg-warning" />
-              {t("legendExceeded")}
+              {tFeed("legendExceeded")}
             </span>
           </div>
         </div>

@@ -7,6 +7,7 @@ import { feedPlansApi } from "../plans-api";
 import type {
   ApplyFeedPlanPayload,
   CreateFeedPlanPayload,
+  PreviewFitPayload,
   ProgramGridPayload,
   UpdateFeedPlanPayload,
 } from "../plans-types";
@@ -55,6 +56,18 @@ export function useFeedPlanFit(planId: string | undefined, cattleIds: string[]) 
     queryFn: () => feedPlansApi.getPlanFit(planId as string, { cattleIds }),
     enabled: Boolean(planId) && cattleIds.length > 0,
     staleTime: STALE_TIME,
+  });
+}
+
+/** The editor's scratchpad: unsaved lines vs an animal / hand-entered figures. `null` = nothing to ask yet (no animal
+ * chosen or figures incomplete). Keeps the previous answer while a new one loads so the table doesn't flash. */
+export function usePreviewPlanFit(payload: PreviewFitPayload | null) {
+  return useQuery({
+    queryKey: qk.feed.planPreviewFit(payload),
+    queryFn: () => feedPlansApi.previewFit(payload as PreviewFitPayload),
+    enabled: payload != null,
+    staleTime: STALE_TIME,
+    placeholderData: (previous) => previous,
   });
 }
 

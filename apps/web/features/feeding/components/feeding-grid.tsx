@@ -1,195 +1,116 @@
-"use client"; // date filter state + per-cow draft quantities + bulk-assign source item + save/confirm mutations
+"use client"; // date filter + per-cow line/refusal state + selection + bulk apply + save/confirm mutations
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
+  AlertTriangle,
   ArrowRight,
   Check,
-  CheckCircle2,
   ChevronsUpDown,
+  ClipboardList,
   Clock,
   History,
   Layers,
-  Package,
   Plus,
   Scale,
+  Search,
   Wheat,
-  X,
 } from "lucide-react";
-import { FeedingCowHistorySheet } from "./feeding-cow-history-sheet";
-import { ProgramSection, type ProgramCow } from "./program-section";
-import { Pagination } from "@/components/shared/pagination";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ApiError } from "@/lib/api/errors";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { EntryStatusDatePicker } from "@/components/shared/entry-status-date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { EntryStatusDatePicker } from "@/components/shared/entry-status-date-picker";
+import { Pagination } from "@/components/shared/pagination";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { Can } from "@/lib/auth/permissions";
-import { useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
-import { useFeedItemDetail, useFeedItemPagedList } from "@/features/inventory/hooks/use-inventory";
-import { nextFeedLot, stockedLotCount } from "@/features/inventory/feed-lots";
-import type { FeedItem } from "@/features/inventory/types";
 import { FeedItemFormDialog } from "@/features/inventory/components/feed-item-form-dialog";
 import { CreateFeedDialog } from "../../feed/components/create-feed-dialog";
 import {
-  useConcentrations,
   useFeedActiveSessions,
   useFeedGrid,
   useFeedGridCalendar,
-  useConfirmFeedDraft,
-  useSaveFeedDraft,
   useFeedStock,
+  useConcentrations,
 } from "../../feed/hooks/use-feed";
-import type { FeedGridCow, FeedGridEntryInput, FeedGridResult, FeedGridSource, FeedGridSourceType } from "../../feed/types";
+import { useConfirmProgram, useSaveProgramDraft } from "../../feed/hooks/use-feed-plans";
+import { useRequirementSettings } from "../../feed/hooks/use-requirement-settings";
+import type { FeedGridResult } from "../../feed/types";
 import type { FeedGridProgramCowFields, FeedGridSection } from "../../feed/plans-types";
+import {
+  bandsFromEffective,
+  buildInitialLines,
+  cowTotalKg,
+  liveFit,
+  liveSupply,
+  type Density,
+  enforceStockCaps,
+  hasOverStock,
+  initialRefusal,
+  newLineKey,
+  orderCows,
+  parseKg,
+  requirementProgress,
+  sourceKey,
+  toEntry,
+  usageBySource,
+  type GridCow,
+  type RowLine,
+  type RowSource,
+} from "../grid-model";
+import { useSourceStock } from "../hooks/use-source-stock";
+import { ApplyPlanDialog, type ApplyTarget } from "../../feed/components/plans/apply-plan-dialog";
+import { AdjustPlanActions } from "./adjust-plan-sheet";
+import { ProgramCell } from "./program-cell";
+import { ProgramPicker } from "./program-picker";
+import { FeedLineCell } from "./feed-line-cell";
+import { FeedSourcePicker, type PreparedOption } from "./feed-source-picker";
+import { FeedingCowHistorySheet } from "./feeding-cow-history-sheet";
+import { RequirementProgress } from "./requirement-progress";
+import { FitPill } from "./fit-pill";
 
-interface FeedSourceOption {
-  id: string;
-  label: string;
-  /** Second line under the label — which batch the next feeding draws from (purchased feed only). */
-  hint?: string;
-  stockAmount?: number;
-  stockUnit?: string;
-}
-
-/** "Next: LOT-1 · ৳5/kg · CP 9% · 2 batches" — the lot FIFO will draw first (RFE-123, ADR-026 D6), so
- * the farmer sees which delivery — and which nutrition — a feeding is about to use. */
-function lotHint(item: FeedItem, t: ReturnType<typeof useTranslations>): string | undefined {
-  const lot = nextFeedLot(item);
-  if (!lot) return undefined;
-  const base = t("rowSource.nextLot", {
-    code: lot.batchCode ?? t("rowSource.oldestBatch"),
-    cost: lot.costPerUnit,
-    unit: item.unit.symbol,
-    cp: lot.nutrition.cpPct,
-  });
-  const count = stockedLotCount(item);
-  return count > 1 ? `${base} · ${t("rowSource.moreBatches", { n: count })}` : base;
-}
-
-function OptionLabel({ opt }: { opt: FeedSourceOption }) {
-  return (
-    <span className="flex min-w-0 flex-col">
-      <span className="truncate">{opt.label}</span>
-      {opt.hint ? <span className="truncate text-xs text-muted-foreground">{opt.hint}</span> : null}
-    </span>
-  );
-}
-
-/** One cow row's own resolved source — `null` means "unresolved, must pick before this row can be
- * saved/confirmed." Mirrors `FeedGridSource` but with a single `itemId` instead of two nullable id
- * columns, matching the toolbar's own `{sourceType, itemId}` shape. */
-interface RowSource {
-  sourceType: FeedGridSourceType;
-  itemId: string;
-}
+const DEFAULT_PAGE_SIZE = 25;
+/** checkbox · animal (+ program) · feed (+ total) · refusal · fit · status · history */
+const COLUMN_COUNT = 7;
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-const DEFAULT_PAGE_SIZE = 10;
-
-/** Sums a cow's already-saved (not yet confirmed) draft lines for this date — the value shown
- * when the grid is reopened on a date that already has staged entries. Falls back to the backend's
- * own carry-forward `default_offered_kg` when nothing is staged yet — which is `null`, not `0`,
- * whenever the cow has no prior confirmed feeding to carry forward (confirmed live against the real
- * dev stack), so that case renders as an empty, must-fill cell rather than a misleading "0". */
-function initialQuantity(cow: FeedGridCow): string {
-  if (cow.drafts.length > 0) return String(cow.drafts.reduce((sum, d) => sum + d.offered_kg, 0));
-  return cow.default_offered_kg == null ? "" : String(cow.default_offered_kg);
-}
-
-function buildInitialQuantities(cows: FeedGridCow[]): Record<string, string> {
-  const drafts: Record<string, string> = {};
-  for (const cow of cows) {
-    drafts[cow.cattle_id] = initialQuantity(cow);
-  }
-  return drafts;
-}
-
-/** Pre-checks any cow that already has a staged draft for this date — re-opening the grid shows
- * exactly what was left staged, not an empty selection. */
-function buildInitialSelection(cows: FeedGridCow[]): string[] {
-  return cows.filter((c) => c.drafts.length > 0).map((c) => c.cattle_id);
-}
-
-/** A cow with no draft for this date shows `default_offered_kg` — yesterday's carried-forward
- * amount, not anything entered for today — in the same quantity cell. */
-function buildInitialCarriedOver(cows: FeedGridCow[]): Record<string, boolean> {
-  const carried: Record<string, boolean> = {};
-  for (const cow of cows) carried[cow.cattle_id] = cow.drafts.length === 0 && cow.default_offered_kg != null;
-  return carried;
-}
-
-function toRowSource(source: FeedGridSource): RowSource | null {
-  const itemId = source.source_type === "FEED_ITEM" ? source.feed_item_id : source.feed_stock_id;
-  return itemId ? { sourceType: source.source_type, itemId } : null;
-}
-
-/** RFE-115: each cow's own pre-filled source — its own already-staged draft's source (RAKHAL-430
- * onward, a draft can carry its own source) if one exists, else the resolution ladder's
- * `default_source` (RAKHAL-431: own last-used → none), else unresolved. */
-function initialRowSource(cow: FeedGridCow): RowSource | null {
-  const draft = cow.drafts[0];
-  if (draft) {
-    const itemId = draft.source_type === "FEED_ITEM" ? draft.feed_item_id : draft.feed_stock_id;
-    if (itemId) return { sourceType: draft.source_type, itemId };
-  }
-  return cow.default_source ? toRowSource(cow.default_source) : null;
-}
-
-function buildInitialSources(cows: FeedGridCow[]): Record<string, RowSource | null> {
-  const sources: Record<string, RowSource | null> = {};
-  for (const cow of cows) sources[cow.cattle_id] = initialRowSource(cow);
-  return sources;
-}
-
-function initialSource(cows: FeedGridCow[]): { sourceType: FeedGridSourceType; itemId: string } {
-  for (const cow of cows) {
-    const draft = cow.drafts[0];
-    if (draft) {
-      return {
-        sourceType: draft.source_type,
-        itemId: (draft.source_type === "FEED_ITEM" ? draft.feed_item_id : draft.feed_stock_id) ?? "",
-      };
-    }
-  }
-  return { sourceType: "FEED_ITEM", itemId: "" };
-}
-
 /**
- * "Feeding Grid" — per-day, per-cow feed entry. `FeedingGridTable` is remounted via `key={date}`
- * so its local draft/selection state always re-seeds fresh from that day's `GET /feed/grid` response.
+ * "Feeding Grid" — per-day, per-cow feed entry in ONE table. Every cow is a row of feed lines: a cow on a feed plan
+ * (or a TMR / concentrate shortcut) opens with her plan's lines pre-filled and editable; any other cow is fed from
+ * whatever is picked. Rows are grouped by program only visually — the columns, the bulk toolbar and the
+ * Save / Confirm bar are shared. `UnifiedGrid` remounts on date change (and after a save) so its local state always
+ * re-seeds from the server's `GET /feed/grid`.
  */
 export function FeedingGrid() {
   const t = useTranslations("feeding.grid");
   const [date, setDate] = useState(todayIso());
   const [calendarMonth, setCalendarMonth] = useState(todayIso().slice(0, 7));
+  const [resetToken, setResetToken] = useState(0);
   const query = useFeedGrid(date);
   const calendarQuery = useFeedGridCalendar(calendarMonth);
 
-  // MILESTONE 27 (RFE-127): the backend now also returns one section per resolved feeding program. Cows on a program are
-  // fed from their program's section; every other cow keeps today's single-source grid ("No program").
-  const data = query.data as (Omit<FeedGridResult, "cows"> & { sections?: FeedGridSection[]; cows: (FeedGridCow & FeedGridProgramCowFields)[] }) | undefined;
-  const sections = data?.sections ?? [];
-  const cows = data?.cows ?? [];
-  const plainCows = cows.filter((c) => !c.program_section_id);
+  const data = query.data as
+    | (Omit<FeedGridResult, "cows"> & {
+        sections?: FeedGridSection[];
+        cows: (FeedGridResult["cows"][number] & FeedGridProgramCowFields)[];
+      })
+    | undefined;
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl bg-card p-4 sm:p-5 shadow-card">
+    <div className="flex flex-col gap-4 rounded-2xl bg-card p-4 shadow-card sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -201,17 +122,15 @@ export function FeedingGrid() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="w-[170px] shrink-0">
-            <EntryStatusDatePicker
-              label={t("dateLabel")}
-              value={date}
-              onChange={setDate}
-              onMonthChange={setCalendarMonth}
-              days={calendarQuery.data?.days ?? []}
-              disabledDates={{ after: new Date() }}
-            />
-          </div>
+        <div className="w-[170px] shrink-0">
+          <EntryStatusDatePicker
+            label={t("dateLabel")}
+            value={date}
+            onChange={setDate}
+            onMonthChange={setCalendarMonth}
+            days={calendarQuery.data?.days ?? []}
+            disabledDates={{ after: new Date() }}
+          />
         </div>
       </div>
 
@@ -220,628 +139,657 @@ export function FeedingGrid() {
       ) : query.isError ? (
         <ErrorState description={t("error")} onRetry={() => query.refetch()} />
       ) : (
-        <>
-          {sections.map((section) => (
-            <ProgramSection
-              key={`${date}:${section.id}`}
-              date={date}
-              section={section}
-              cows={cows.filter((c) => c.program_section_id === section.id) as ProgramCow[]}
-            />
-          ))}
-          {sections.length > 0 && plainCows.length > 0 ? (
-            <div>
-              <h3 className="text-base font-semibold text-foreground">{t("noProgramTitle")}</h3>
-              <p className="text-xs text-muted-foreground">{t("noProgramCount", { count: plainCows.length })}</p>
-            </div>
-          ) : null}
-          {plainCows.length > 0 || sections.length === 0 ? <FeedingGridTable key={date} date={date} cows={plainCows} /> : null}
-        </>
+        <UnifiedGrid
+          key={`${date}:${resetToken}`}
+          date={date}
+          cows={(data?.cows ?? []) as GridCow[]}
+          sections={data?.sections ?? []}
+          onPersisted={async () => {
+            await query.refetch();
+            setResetToken((n) => n + 1);
+          }}
+        />
       )}
     </div>
   );
 }
 
-function FeedingGridTable({ date, cows }: { date: string; cows: FeedGridCow[] }) {
+function UnifiedGrid({
+  date,
+  cows,
+  sections,
+  onPersisted,
+}: {
+  date: string;
+  cows: GridCow[];
+  sections: FeedGridSection[];
+  onPersisted: () => Promise<void>;
+}) {
   const t = useTranslations("feeding.grid");
-  const saveDraft = useSaveFeedDraft();
-  const confirmDraft = useConfirmFeedDraft();
-  const [itemSearch, setItemSearch] = useState("");
-  const feedItems = useFeedItemPagedList({ search: itemSearch || undefined });
+  const tu = useTranslations("feeding.grid.unified");
+  const tp = useTranslations("feeding.programs");
+  const tKind = useTranslations("feed.plans.kind");
+
+  const saveDraft = useSaveProgramDraft();
+  const confirmProgram = useConfirmProgram();
+  const activeSessions = useFeedActiveSessions();
   const feedStock = useFeedStock();
   const concentrations = useConcentrations();
 
-  const activeSessions = useFeedActiveSessions();
-  const [session, setSession] = useState<string>("");
-  const [historyCow, setHistoryCow] = useState<{ id: string; name: string | null } | null>(null);
+  const ordered = useMemo(() => orderCows(cows, sections), [cows, sections]);
+  const sectionById = useMemo(() => new Map(sections.map((s) => [s.id, s])), [sections]);
+  const cowById = useMemo(() => new Map(ordered.map((c) => [c.cattle_id, c])), [ordered]);
 
-  const [quantities, setQuantities] = useState<Record<string, string>>(() => buildInitialQuantities(cows));
-  /** Per-cow leftover weighed back from that cow's own container (2026-09-23 user request — this
-   * farm feeds individual containers, not a shared bunk, so refusal is reliably measurable per
-   * cow). Optional, not carried forward like `quantities` — no prior value to pre-fill. */
-  const [refusals, setRefusals] = useState<Record<string, string>>({});
-  const [carriedOver, setCarriedOver] = useState<Record<string, boolean>>(() => buildInitialCarriedOver(cows));
-  const [sources, setSources] = useState<Record<string, RowSource | null>>(() => buildInitialSources(cows));
-  const selection = useGridBulkSelection(
-    cows.map((c) => c.cattle_id),
-    buildInitialSelection(cows),
+  const [lines, setLines] = useState<Record<string, RowLine[]>>(() =>
+    Object.fromEntries(
+      ordered.map((c) => [
+        c.cattle_id,
+        buildInitialLines(c, c.program_section_id ? sectionById.get(c.program_section_id) : undefined),
+      ]),
+    ),
   );
-
-  const initialSourceValue = useMemo(() => initialSource(cows), [cows]);
-  const [sourceType, setSourceType] = useState<FeedGridSourceType>(initialSourceValue.sourceType);
-  const [itemId, setItemId] = useState(initialSourceValue.itemId);
+  const [refusals, setRefusals] = useState<Record<string, string>>(() =>
+    Object.fromEntries(ordered.map((c) => [c.cattle_id, initialRefusal(c)])),
+  );
+  // Cows on a program start ticked with the plan's kg pre-filled — confirm as planned, or edit first. Cows with a saved
+  // draft are ticked too, so re-opening a day shows exactly what was left staged.
+  const [selected, setSelected] = useState<Set<string>>(
+    () =>
+      new Set(
+        ordered
+          .filter((c) => (c.program_section_id || c.drafts.length > 0) && !(c.confirmed_offered_kg != null && c.confirmed_offered_kg > 0))
+          .map((c) => c.cattle_id),
+      ),
+  );
+  // Apply a plan / TMR / concentrate to one cow (her row) or to every ticked cow (toolbar).
+  const [applyTarget, setApplyTarget] = useState<ApplyTarget | null>(null);
+  const [applyCows, setApplyCows] = useState<{ id: string; label: string }[]>([]);
+  const appliedRef = useRef(false);
+  const [session, setSession] = useState("");
+  const [bulkSource, setBulkSource] = useState<RowSource | null>(null);
   const [sharedKg, setSharedKg] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [pendingAction, setPendingAction] = useState<"save" | "confirm" | null>(null);
   const [addFeedItemOpen, setAddFeedItemOpen] = useState(false);
   const [createKind, setCreateKind] = useState<"CONCENTRATE_TEMPLATE" | "FEED_MIXTURE">("CONCENTRATE_TEMPLATE");
   const [createOpen, setCreateOpen] = useState(false);
-  const [itemPickerOpen, setItemPickerOpen] = useState(false);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-  const totalPages = Math.max(1, Math.ceil(cows.length / pageSize));
-  const pageRows = cows.slice((page - 1) * pageSize, page * pageSize);
+  const [historyCow, setHistoryCow] = useState<{ id: string; name: string | null } | null>(null);
 
-  const feedItemOptions: FeedSourceOption[] = useMemo(
+  // A farm with one session feeds a cow once a day: confirming a cow that is already fed would double-feed her.
+  const skipConfirmed = (activeSessions.data ?? []).length <= 1;
+  const isLocked = (c: GridCow) => skipConfirmed && c.confirmed_offered_kg != null && c.confirmed_offered_kg > 0;
+
+  const selectedIds = useMemo(
     () =>
-      feedItems.items.map((item) => ({
-        id: item.id,
-        label: `${item.name} (${item.currentStock} ${item.unit.symbol})`,
-        hint: lotHint(item, t),
-        stockAmount: item.currentStock,
-        stockUnit: item.unit.symbol,
-      })),
-    [feedItems.items, t],
+      ordered
+        .filter(
+          (c) =>
+            selected.has(c.cattle_id) && !(skipConfirmed && c.confirmed_offered_kg != null && c.confirmed_offered_kg > 0),
+        )
+        .map((c) => c.cattle_id),
+    [ordered, selected, skipConfirmed],
   );
 
-  const stockOptions: FeedSourceOption[] = useMemo(
+  // ---- stock ---------------------------------------------------------------------------------------------------
+  const sources = useMemo(() => {
+    const out: RowSource[] = [];
+    for (const rowLines of Object.values(lines)) for (const l of rowLines) if (l.source) out.push(l.source);
+    if (bulkSource) out.push(bulkSource);
+    return out;
+  }, [lines, bulkSource]);
+  const stock = useSourceStock(sources, t("unknownStock"));
+  const usage = useMemo(() => usageBySource(lines, selectedIds), [lines, selectedIds]);
+
+  // ---- live fit: the pill follows the kg typed in the row, not the plan as written ---------------------------------
+  const requirementSettings = useRequirementSettings();
+  const bands = useMemo(() => bandsFromEffective(requirementSettings.data?.effective), [requirementSettings.data]);
+  const planDensity = useMemo(() => {
+    const map = new Map<string, Density>();
+    for (const s of sections) {
+      for (const l of s.lines) {
+        if (l.source && l.density) {
+          map.set(sourceKey({ sourceType: l.source.source_type, itemId: (l.source.feed_item_id ?? l.source.feed_stock_id) as string }), l.density);
+        }
+      }
+    }
+    return map;
+  }, [sections]);
+  const densityFor = (key: string) => planDensity.get(key) ?? stock.get(key)?.density ?? null;
+  const daySessions = Math.max(1, (activeSessions.data ?? []).length);
+
+  const preparedOptions: PreparedOption[] = useMemo(
     () =>
-      (feedStock.data ?? []).map((s) => ({
-        id: s.id,
-        label: `${concentrations.data?.find((c) => c.id === s.source_concentration_id)?.name ?? t("unknownStock")} (${s.current_stock_kg} kg)`,
-        stockAmount: s.current_stock_kg,
-        stockUnit: "kg",
-      })),
+      (feedStock.data ?? [])
+        .filter((s) => s.current_stock_kg > 0)
+        .map((s) => ({
+          id: s.id,
+          label: `${concentrations.data?.find((c) => c.id === s.source_concentration_id)?.name ?? t("unknownStock")} (${s.current_stock_kg} kg)`,
+        })),
     [feedStock.data, concentrations.data, t],
   );
 
-  const sourceOptions = sourceType === "FEED_ITEM" ? feedItemOptions : stockOptions;
-  const filteredSourceOptions = useMemo(
-    () =>
-      sourceType === "FEED_ITEM"
-        ? sourceOptions
-        : sourceOptions.filter((opt) => opt.label.toLowerCase().includes(itemSearch.toLowerCase())),
-    [sourceType, sourceOptions, itemSearch],
-  );
-  const selectedSourceOption = sourceOptions.find((opt) => opt.id === itemId);
-  const selectedItemDetail = useFeedItemDetail(
-    sourceType === "FEED_ITEM" && itemId ? itemId : undefined,
-  );
-  const selectedSourceLabel =
-    selectedSourceOption?.label ??
-    (sourceType === "FEED_ITEM" && selectedItemDetail.data
-      ? `${selectedItemDetail.data.name} (${selectedItemDetail.data.currentStock} ${selectedItemDetail.data.unit.symbol})`
-      : undefined);
+  // ---- row edits -----------------------------------------------------------------------------------------------
+  const ensureSelected = (id: string) => setSelected((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const selectMany = (ids: string[]) => setSelected((prev) => new Set([...prev, ...ids]));
 
-  function handleApplyUnified() {
-    if (selection.selectedIds.length === 0) return;
-    const count = selection.selectedIds.length;
-    const hasSource = Boolean(itemId);
-    const kg = Number(sharedKg);
-    const hasKg = Number.isFinite(kg) && kg >= 0 && sharedKg.trim() !== "";
+  const changeKg = (cowId: string, lineKey: string, kg: string) =>
+    setLines((p) => ({
+      ...p,
+      [cowId]: (p[cowId] ?? []).map((l) => (l.key === lineKey ? { ...l, kg } : l)),
+    }));
+  const removeLine = (cowId: string, lineKey: string) =>
+    setLines((p) => ({ ...p, [cowId]: (p[cowId] ?? []).filter((l) => l.key !== lineKey) }));
+  const addLine = (cowId: string, source: RowSource) =>
+    setLines((p) => {
+      const cur = p[cowId] ?? [];
+      if (cur.some((l) => l.source && sourceKey(l.source) === sourceKey(source))) return p;
+      return { ...p, [cowId]: [...cur, { key: newLineKey(), source, kg: "" }] };
+    });
 
-    if (!hasSource && !hasKg) return;
+  const cowLabel = (id: string) => {
+    const c = cowById.get(id);
+    return c ? (c.name ? `${c.name} (${c.tag_number})` : c.tag_number) : id;
+  };
+  function openApply(target: ApplyTarget, ids: string[]) {
+    setApplyCows(ids.map((id) => ({ id, label: cowLabel(id) })));
+    setApplyTarget(target);
+  }
+  /** Her plan's own lines and kg, ignoring anything typed since. */
+  function planLinesFor(cow: GridCow): RowLine[] {
+    const section = cow.program_section_id ? sectionById.get(cow.program_section_id) : undefined;
+    return buildInitialLines({ ...cow, drafts: [] }, section);
+  }
+  function isEdited(cow: GridCow, rowLines: RowLine[]): boolean {
+    if (!cow.program_section_id) return false;
+    const plan = planLinesFor(cow);
+    if (plan.length !== rowLines.length) return true;
+    return plan.some((p) => {
+      const l = rowLines.find((x) => x.planLineId === p.planLineId);
+      return !l || parseKg(l.kg) !== parseKg(p.kg);
+    });
+  }
+  const resetToPlan = (cow: GridCow) => setLines((p) => ({ ...p, [cow.cattle_id]: planLinesFor(cow) }));
 
-    if (hasSource) {
-      setSources((prev) => {
-        const next = { ...prev };
-        for (const id of selection.selectedIds) next[id] = { sourceType, itemId };
-        return next;
-      });
+  // ---- bulk apply ----------------------------------------------------------------------------------------------
+  const kgNumber = sharedKg.trim() === "" ? null : Number(sharedKg);
+  const hasKg = kgNumber != null && Number.isFinite(kgNumber) && kgNumber >= 0;
+
+  function handleApply() {
+    if (selectedIds.length === 0 || (!bulkSource && !hasKg)) return;
+    const next = { ...lines };
+    let skipped = 0;
+    for (const id of selectedIds) {
+      const cow = cowById.get(id);
+      const cur = next[id] ?? [];
+      if (bulkSource) {
+        const key = sourceKey(bulkSource);
+        const same = (l: RowLine) => l.source != null && sourceKey(l.source) === key;
+        if (!cow?.program_section_id) {
+          // No program: the picked feed IS her feed — replaces whatever she had.
+          const prev = cur.find(same);
+          next[id] = [
+            {
+              key: prev?.key ?? newLineKey(),
+              source: bulkSource,
+              kg: hasKg ? String(kgNumber) : (prev?.kg ?? cur[0]?.kg ?? ""),
+            },
+          ];
+        } else if (cur.some(same)) {
+          next[id] = cur.map((l) => (same(l) && hasKg ? { ...l, kg: String(kgNumber) } : l));
+        } else {
+          // On a program: the picked feed is added on top of her plan lines.
+          next[id] = [...cur, { key: newLineKey(), source: bulkSource, kg: hasKg ? String(kgNumber) : "" }];
+        }
+      } else if (hasKg) {
+        // kg only: unambiguous for a one-line cow; a multi-line cow needs her lines edited individually.
+        const feedable = cur.filter((l) => l.source);
+        if (feedable.length === 1) {
+          next[id] = cur.map((l) => (l.source ? { ...l, kg: String(kgNumber) } : l));
+        } else {
+          skipped += 1;
+        }
+      }
     }
-
-    if (hasKg) {
-      setQuantities((prev) => {
-        const next = { ...prev };
-        for (const id of selection.selectedIds) next[id] = String(kg);
-        return next;
-      });
-      setCarriedOver((prev) => {
-        const next = { ...prev };
-        for (const id of selection.selectedIds) next[id] = false;
-        return next;
-      });
-    }
-
-    if (hasSource && hasKg) {
-      toast.success(t("bulkToolbar.appliedBothToast", { count, kg }));
-    } else if (hasSource) {
-      toast.success(t("applySourceToSelected", { count }));
-    } else if (hasKg) {
-      toast.success(t("applyToSelected", { count }));
-    }
+    const capped = enforceStockCaps(next, selectedIds, stock);
+    setLines(capped.lines);
+    toast.success(tu("appliedToast", { count: selectedIds.length - skipped }));
+    if (skipped > 0) toast.info(tu("skippedMultiLine", { count: skipped }));
+    if (capped.reduced > 0) toast.warning(tu("stockLimited", { count: capped.reduced }));
   }
 
-  function buildEntries(): FeedGridEntryInput[] {
-    return selection.selectedIds
-      .map((cattleId) => {
-        const offeredKg = Number(quantities[cattleId]);
-        const source = sources[cattleId];
-        return { cattleId, offeredKg, source };
-      })
-      .filter(
-        (e): e is { cattleId: string; offeredKg: number; source: RowSource } =>
-          Number.isFinite(e.offeredKg) && e.offeredKg > 0 && e.source !== null,
-      )
-      .map(({ cattleId, offeredKg, source }) => {
-        const refusalRaw = Number(refusals[cattleId]);
-        const refusalKg = Number.isFinite(refusalRaw) && refusalRaw > 0 ? refusalRaw : undefined;
-        return {
-          cattleId,
-          offeredKg,
-          refusalKg,
-          sourceType: source.sourceType,
-          feedItemId: source.sourceType === "FEED_ITEM" ? source.itemId : undefined,
-          feedStockId: source.sourceType === "FEED_STOCK" ? source.itemId : undefined,
-        };
-      });
+  // ---- save / confirm ------------------------------------------------------------------------------------------
+  function buildEntries() {
+    return selectedIds
+      .map((id) => toEntry(id, lines[id] ?? [], refusals[id] ?? ""))
+      .filter((e): e is NonNullable<typeof e> => e !== null);
   }
 
-  const canSubmit = selection.selectedIds.length > 0;
-
-  function topLevelSource() {
-    if (!itemId) return {};
-    return {
-      sourceType,
-      feedItemId: sourceType === "FEED_ITEM" ? itemId : undefined,
-      feedStockId: sourceType === "FEED_STOCK" ? itemId : undefined,
-    };
-  }
-
-  async function runSave() {
+  async function run(kind: "save" | "confirm") {
+    if (hasOverStock(lines, selectedIds, stock)) {
+      toast.error(tu("overStock"));
+      return;
+    }
     const entries = buildEntries();
     if (entries.length === 0) {
       toast.error(t("noEntries"));
       return;
     }
     try {
-      const result = await saveDraft.mutateAsync({
-        date,
-        ...topLevelSource(),
-        entries,
-      });
-      toast.success(t("savedToast", { count: result.saved }));
+      if (kind === "save") {
+        const result = await saveDraft.mutateAsync({ date, entries });
+        toast.success(t("savedToast", { count: result.saved }));
+      } else {
+        const result = await confirmProgram.mutateAsync({ date, session: session || undefined, entries });
+        toast.success(t("confirmedToast", { count: result.cows.length }));
+      }
+      await onPersisted();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
     }
   }
 
-  async function runConfirm() {
-    const entries = buildEntries();
-    try {
-      const result = await confirmDraft.mutateAsync({
-        date,
-        ...topLevelSource(),
-        entries: entries.length > 0 ? entries : undefined,
-        session: session || undefined,
-      });
-      toast.success(t("confirmedToast", { count: result.cows.length }));
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("genericError"));
-    }
-  }
+  const pending = saveDraft.isPending || confirmProgram.isPending;
+  const canSubmit = selectedIds.length > 0;
+  const totalKg = selectedIds.reduce((sum, id) => sum + cowTotalKg(lines[id] ?? []), 0);
 
-  async function handleSave() {
-    if (!canSubmit) return;
-    setPendingAction("save");
-    try {
-      await runSave();
-    } finally {
-      setPendingAction(null);
-    }
-  }
-
-  function handleConfirmClick() {
-    if (!canSubmit) return;
-    setConfirmOpen(true);
-  }
-
-  async function handleConfirmDialog() {
-    setPendingAction("confirm");
-    await runConfirm();
-    setPendingAction(null);
-  }
-
-  const isPending = saveDraft.isPending || confirmDraft.isPending;
-
-  // Live total sum calculation for selected cows
-  const totalSelectedOfferedKg = useMemo(() => {
-    return selection.selectedIds.reduce((sum, id) => {
-      const val = Number(quantities[id]);
-      return sum + (Number.isFinite(val) && val > 0 ? val : 0);
-    }, 0);
-  }, [selection.selectedIds, quantities]);
+  // ---- table rows ----------------------------------------------------------------------------------------------
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? ordered.filter((c) => (c.name ?? "").toLowerCase().includes(q) || c.tag_number.toLowerCase().includes(q))
+    : ordered;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const unlockedFiltered = filtered.filter((c) => !isLocked(c)).map((c) => c.cattle_id);
+  const allTicked = unlockedFiltered.length > 0 && unlockedFiltered.every((id) => selected.has(id));
+  const grouped = sections.length > 0;
 
   return (
     <>
-      {/* Bulk Action Toolbar */}
+      {/* Bulk toolbar — one source + one kg applied to every ticked cow */}
       <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border/80 bg-muted/40 p-3 shadow-xs">
-        {/* Feed Source Selection */}
         <div className="flex flex-col gap-1.5">
           <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
             <Layers className="size-3.5" />
             {t("bulkToolbar.sourceSection")}
           </span>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex h-11 rounded-md border border-border bg-card p-1 shadow-2xs">
-              <button
-                type="button"
-                onClick={() => {
-                  setSourceType("FEED_ITEM");
-                  setItemId("");
-                  setItemSearch("");
-                }}
-                className={cn(
-                  "flex h-full items-center gap-1.5 rounded-md px-3.5 text-sm font-medium transition-colors",
-                  sourceType === "FEED_ITEM"
-                    ? "bg-primary text-white shadow-2xs font-semibold"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Package className="size-4" />
-                {t("bulkToolbar.sourceTypePurchased")}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSourceType("FEED_STOCK");
-                  setItemId("");
-                  setItemSearch("");
-                }}
-                className={cn(
-                  "flex h-full items-center gap-1.5 rounded-md px-3.5 text-sm font-medium transition-colors",
-                  sourceType === "FEED_STOCK"
-                    ? "bg-primary text-white shadow-2xs font-semibold"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Wheat className="size-4" />
-                {t("bulkToolbar.sourceTypePrepared")}
-              </button>
-            </div>
-
-            <Popover
-              open={itemPickerOpen}
-              onOpenChange={(next) => {
-                setItemPickerOpen(next);
-                if (!next) setItemSearch("");
-              }}
-              modal={false}
-            >
-              <PopoverTrigger asChild>
-                <Button
+          <FeedSourcePicker
+            value={bulkSource}
+            preparedOptions={preparedOptions}
+            onSelect={setBulkSource}
+            onClear={() => setBulkSource(null)}
+            footer={(close) => (
+              <>
+                <button
                   type="button"
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={itemPickerOpen}
-                  aria-label={t("itemLabel")}
-                  className={cn(
-                    "w-56 sm:w-64 justify-between bg-card font-normal shadow-2xs text-left",
-                    !selectedSourceLabel && "text-muted-foreground",
-                  )}
+                  onClick={() => {
+                    close();
+                    setAddFeedItemOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-muted"
                 >
-                  <span className="truncate">{selectedSourceLabel ?? t("itemPlaceholder")}</span>
-                  <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" aria-hidden />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72 sm:w-80 p-0 shadow-lg" align="start">
-                <Command shouldFilter={false}>
-                  <CommandInput placeholder={t("searchItemPlaceholder")} value={itemSearch} onValueChange={setItemSearch} />
-                  <CommandList className="max-h-60">
-                    <CommandEmpty>{t("noItemsFound")}</CommandEmpty>
-                    <CommandGroup heading={sourceType === "FEED_ITEM" ? t("rowSource.purchasedGroup") : t("rowSource.preparedGroup")}>
-                      {filteredSourceOptions.map((opt) => (
-                        <CommandItem
-                          key={opt.id}
-                          value={opt.id}
-                          onSelect={() => {
-                            setItemId(opt.id);
-                            setItemPickerOpen(false);
-                          }}
-                          className="flex items-center gap-2 cursor-pointer py-2"
-                        >
-                          <Check className={cn("size-4 text-primary shrink-0", opt.id === itemId ? "opacity-100" : "opacity-0")} aria-hidden />
-                          <OptionLabel opt={opt} />
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-                <div className="flex flex-col border-t border-border p-1 bg-muted/20">
-                  {sourceType === "FEED_ITEM" ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setItemPickerOpen(false);
-                        setAddFeedItemOpen(true);
-                      }}
-                      className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-muted"
-                    >
-                      <Plus className="size-3.5" aria-hidden /> {t("addFeedItem")}
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setItemPickerOpen(false);
-                          setCreateKind("CONCENTRATE_TEMPLATE");
-                          setCreateOpen(true);
-                        }}
-                        className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-muted"
-                      >
-                        <Plus className="size-3.5" aria-hidden /> {t("createConcentrate")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setItemPickerOpen(false);
-                          setCreateKind("FEED_MIXTURE");
-                          setCreateOpen(true);
-                        }}
-                        className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-muted"
-                      >
-                        <Plus className="size-3.5" aria-hidden /> {t("createTmr")}
-                      </button>
-                    </>
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-        </div>
-
-          {/* RAKHAL-441 frontend twin: session tag (Morning/Noon/Evening/Night), applied at
-              Confirm time only — the farm's own configured sessions, same list Milk uses. */}
-          {(activeSessions.data ?? []).length > 0 ? (
-            <div className="flex w-40 flex-col gap-1.5">
-              <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                <Clock className="size-3.5" />
-                {t("bulkToolbar.sessionSection")}
-              </span>
-              <Select value={session || undefined} onValueChange={setSession}>
-                <SelectTrigger className="h-11 bg-card shadow-2xs" aria-label={t("bulkToolbar.sessionSection")}>
-                  <SelectValue placeholder={t("bulkToolbar.sessionPlaceholder")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {(activeSessions.data ?? []).map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ) : null}
-
-          {/* Quantity per Head */}
-          <div className="flex w-44 flex-col gap-1.5">
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-              <Scale className="size-3.5" />
-              {t("bulkToolbar.quantitySection")}
-            </span>
-            <div className="flex h-11 items-center gap-2 rounded-md border border-input bg-card px-3.5 text-sm shadow-2xs focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary">
-              <Input
-                type="number"
-                min={0}
-                step={0.1}
-                placeholder={t("kgPerHeadPlaceholder")}
-                className="h-auto w-full border-none p-0 text-sm font-medium shadow-none focus-visible:ring-0"
-                value={sharedKg}
-                onChange={(e) => setSharedKg(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    if (selection.selectedIds.length > 0 && (itemId || sharedKg)) {
-                      handleApplyUnified();
-                    }
-                  }
-                }}
-              />
-              <span className="shrink-0 text-xs font-semibold text-muted-foreground">kg</span>
-            </div>
-          </div>
-
-          {/* Step 3: Single Unified Apply Button */}
-          <div className="flex flex-col gap-1.5">
-            <span className="hidden select-none text-xs font-semibold text-transparent sm:block">Action</span>
+                  <Plus className="size-3.5" aria-hidden /> {t("addFeedItem")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    close();
+                    setCreateKind("CONCENTRATE_TEMPLATE");
+                    setCreateOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-muted"
+                >
+                  <Plus className="size-3.5" aria-hidden /> {t("createConcentrate")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    close();
+                    setCreateKind("FEED_MIXTURE");
+                    setCreateOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-muted"
+                >
+                  <Plus className="size-3.5" aria-hidden /> {t("createTmr")}
+                </button>
+              </>
+            )}
+          >
             <Button
-              variant="primary"
-              className="gap-2 font-semibold shadow-2xs px-5"
-              disabled={selection.selectedIds.length === 0 || (!itemId && !sharedKg)}
-              onClick={handleApplyUnified}
+              type="button"
+              variant="outline"
+              role="combobox"
+              aria-label={t("itemLabel")}
+              className={cn(
+                "h-11 w-56 justify-between bg-card text-left font-normal shadow-2xs sm:w-64",
+                !bulkSource && "text-muted-foreground",
+              )}
             >
-              <ArrowRight className="size-4" />
-              {t("bulkToolbar.applyUnified", { count: selection.selectedIds.length })}
+              <span className="truncate">
+                {bulkSource ? (stock.get(sourceKey(bulkSource))?.label ?? "…") : t("itemPlaceholder")}
+              </span>
+              <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" aria-hidden />
             </Button>
+          </FeedSourcePicker>
+        </div>
+
+        {(activeSessions.data ?? []).length > 0 ? (
+          <div className="flex w-40 flex-col gap-1.5">
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+              <Clock className="size-3.5" />
+              {t("bulkToolbar.sessionSection")}
+            </span>
+            <Select value={session || undefined} onValueChange={setSession}>
+              <SelectTrigger className="h-11 bg-card shadow-2xs" aria-label={t("bulkToolbar.sessionSection")}>
+                <SelectValue placeholder={t("bulkToolbar.sessionPlaceholder")} />
+              </SelectTrigger>
+              <SelectContent>
+                {(activeSessions.data ?? []).map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+
+        <div className="flex w-44 flex-col gap-1.5">
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+            <Scale className="size-3.5" />
+            {t("bulkToolbar.quantitySection")}
+          </span>
+          <div className="flex h-11 items-center gap-2 rounded-md border border-input bg-card px-3.5 text-sm shadow-2xs focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+            <Input
+              type="number"
+              min={0}
+              step={0.1}
+              placeholder={t("kgPerHeadPlaceholder")}
+              className="h-auto w-full border-none p-0 text-sm font-medium shadow-none focus-visible:ring-0"
+              value={sharedKg}
+              onChange={(e) => setSharedKg(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleApply();
+                }
+              }}
+            />
+            <span className="shrink-0 text-xs font-semibold text-muted-foreground">kg</span>
           </div>
         </div>
 
-      {/* Main Data Table */}
-      {cows.length === 0 ? (
+        <Button
+          variant="primary"
+          className="h-11 gap-2 px-5 font-semibold shadow-2xs"
+          disabled={selectedIds.length === 0 || (!bulkSource && !hasKg)}
+          onClick={handleApply}
+        >
+          <ArrowRight className="size-4" />
+          {t("bulkToolbar.applyUnified", { count: selectedIds.length })}
+        </Button>
+
+        <Can I="feed.update">
+          <ProgramPicker onPick={(target) => openApply(target, selectedIds)}>
+            <Button
+              variant="outline"
+              disabled={selectedIds.length === 0}
+              className="h-11 gap-2 bg-card font-medium shadow-2xs"
+            >
+              <ClipboardList className="size-4" />
+              {tu("applyProgram", { count: selectedIds.length })}
+            </Button>
+          </ProgramPicker>
+        </Can>
+
+        <div className="relative ml-auto w-full sm:w-56">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder={tu("searchCows")}
+            aria-label={tu("searchCows")}
+            className="h-11 bg-card pl-9"
+          />
+        </div>
+      </div>
+
+      {/* One table for every cow */}
+      {ordered.length === 0 ? (
         <EmptyState title={t("noCattle")} />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border shadow-xs bg-card">
+        <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-xs">
           <Table>
             <TableHeader className="bg-muted/40">
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-12 text-center">
                   <Checkbox
-                    checked={selection.isAllSelected}
-                    onCheckedChange={() => selection.toggleAll()}
+                    checked={allTicked}
+                    onCheckedChange={() =>
+                      setSelected((prev) => {
+                        const next = new Set(prev);
+                        for (const id of unlockedFiltered) {
+                          if (allTicked) next.delete(id);
+                          else next.add(id);
+                        }
+                        return next;
+                      })
+                    }
                     aria-label={t("selectAll")}
                   />
                 </TableHead>
                 <TableHead className="min-w-[220px]">{t("columns.animal")}</TableHead>
-                <TableHead className="min-w-[220px]">{t("columns.source")}</TableHead>
-                <TableHead className="w-[160px]">{t("columns.quantity")}</TableHead>
-                <TableHead className="w-[140px]">{t("columns.refusal")}</TableHead>
-                <TableHead className="w-[130px]">{t("columns.status")}</TableHead>
+                <TableHead className="min-w-[360px]">{tu("columns.feed")}</TableHead>
+                <TableHead className="w-[130px]">{t("columns.refusal")}</TableHead>
+                <TableHead className="w-[120px]">{tp("fit.title")}</TableHead>
+                <TableHead className="w-[150px]">{t("columns.requirement")}</TableHead>
                 <TableHead className="w-12 text-center">{t("cowHistory.columnLabel")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {pageRows.map((cow, index) => {
-                const isSelected = selection.isSelected(cow.cattle_id);
-                const hasConfirmed = cow.confirmed_offered_kg != null;
-                const hasDraft = cow.drafts.length > 0;
-                const isCarried = carriedOver[cow.cattle_id] ?? false;
-                const rowSource = sources[cow.cattle_id];
-                const qtyVal = quantities[cow.cattle_id] ?? "";
+                const section = cow.program_section_id ? sectionById.get(cow.program_section_id) : undefined;
+                const prev = index > 0 ? pageRows[index - 1] : undefined;
+                const newGroup =
+                  grouped && (!prev || (prev.program_section_id ?? "none") !== (cow.program_section_id ?? "none"));
+                const rowLines = lines[cow.cattle_id] ?? [];
+                const locked = isLocked(cow);
+                const isSelected = selected.has(cow.cattle_id) && !locked;
+                const cowName = cow.name ?? cow.tag_number;
 
                 return (
-                  <TableRow
-                    key={cow.cattle_id}
-                    className={cn(
-                      "transition-colors hover:bg-muted/40",
-                      isSelected && "bg-primary/[0.04]",
-                    )}
-                  >
-                    {/* Checkbox */}
-                    <TableCell className="text-center">
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => selection.toggle(cow.cattle_id)}
-                        aria-label={t("selectCow", { name: cow.name ?? cow.tag_number })}
+                  <Fragment key={cow.cattle_id}>
+                    {newGroup ? (
+                      <GroupHeaderRow
+                        section={section}
+                        cows={
+                          section
+                            ? ordered.filter((c) => c.program_section_id === section.id)
+                            : ordered.filter((c) => !c.program_section_id)
+                        }
+                        onSelectGroup={(ids) => selectMany(ids.filter((id) => !isLocked(cowById.get(id) as GridCow)))}
+                        tKind={tKind}
+                        tp={tp}
+                        tu={tu}
                       />
-                    </TableCell>
-
-                    {/* Animal (Cow Name + Tag ID) */}
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                          {(cow.name?.[0] ?? cow.tag_number?.[0] ?? "C").toUpperCase()}
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <AnimalLink
-                            id={cow.cattle_id}
-                            animalName={cow.name}
-                            tagNumber={cow.tag_number}
-                            className="truncate text-sm font-semibold text-foreground hover:text-primary transition-colors"
-                          >
-                            {cow.name ?? cow.tag_number}
-                          </AnimalLink>
-                          <span className="truncate font-mono text-xs text-muted-foreground">
-                            {cow.tag_number}
-                          </span>
-                        </div>
-                      </div>
-                    </TableCell>
-
-                    {/* Feed Source Selector */}
-                    <TableCell>
-                      <RowSourceCell
-                        value={rowSource}
-                        stockOptions={stockOptions}
-                        onChange={(next) => {
-                          setSources((prev) => ({ ...prev, [cow.cattle_id]: next }));
-                          if (!isSelected) selection.toggle(cow.cattle_id);
-                        }}
-                        onOpen={() => {
-                          if (!isSelected) selection.toggle(cow.cattle_id);
-                        }}
-                        t={t}
-                      />
-                    </TableCell>
-
-                    {/* Quantity (KG) Input */}
-                    <TableCell>
-                      <QuantityCell
-                        value={qtyVal}
-                        isCarriedOver={isCarried}
-                        hasDraft={hasDraft}
-                        rowIndex={index}
-                        onChange={(next) => {
-                          setQuantities((prev) => ({ ...prev, [cow.cattle_id]: next }));
-                          setCarriedOver((prev) => (prev[cow.cattle_id] ? { ...prev, [cow.cattle_id]: false } : prev));
-                          if (!isSelected) selection.toggle(cow.cattle_id);
-                        }}
-                        onFocus={() => {
-                          if (!isSelected) selection.toggle(cow.cattle_id);
-                        }}
-                        t={t}
-                      />
-                    </TableCell>
-
-                    {/* Refusal (KG) Input — leftover weighed back from this cow's own container */}
-                    <TableCell>
-                      <RefusalCell
-                        value={refusals[cow.cattle_id] ?? ""}
-                        rowIndex={index}
-                        onChange={(next) => {
-                          setRefusals((prev) => ({ ...prev, [cow.cattle_id]: next }));
-                          if (!isSelected) selection.toggle(cow.cattle_id);
-                        }}
-                        onFocus={() => {
-                          if (!isSelected) selection.toggle(cow.cattle_id);
-                        }}
-                      />
-                    </TableCell>
-
-                    {/* Status Badge */}
-                    <TableCell>
-                      {hasConfirmed ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
-                          <CheckCircle2 className="size-3 text-emerald-600 dark:text-emerald-400" />
-                          {t("statusBadges.confirmed")}
-                        </span>
-                      ) : hasDraft ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:text-blue-300">
-                          <Clock className="size-3 text-blue-600 dark:text-blue-400" />
-                          {t("statusBadges.draft")}
-                        </span>
-                      ) : isCarried ? (
+                    ) : null}
+                    <TableRow
+                      className={cn(
+                        "align-top transition-colors hover:bg-muted/40",
+                        isSelected && "bg-primary/[0.04]",
+                        locked && "opacity-70",
+                      )}
+                    >
+                      <TableCell className="pt-4 text-center">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="inline-flex cursor-help items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
-                              <History className="size-3 text-amber-600 dark:text-amber-400" />
-                              {t("statusBadges.carriedOver")}
+                            <span className="inline-flex">
+                              <Checkbox
+                                checked={isSelected}
+                                disabled={locked}
+                                onCheckedChange={() => toggle(cow.cattle_id)}
+                                aria-label={t("selectCow", { name: cowName })}
+                              />
                             </span>
                           </TooltipTrigger>
-                          <TooltipContent>{t("carriedOverHint")}</TooltipContent>
+                          {locked ? <TooltipContent>{tu("lockedHint")}</TooltipContent> : null}
                         </Tooltip>
-                      ) : (
-                        <span className="text-xs text-muted-foreground/40 font-mono">—</span>
-                      )}
-                    </TableCell>
+                      </TableCell>
 
-                    {/* History (last column, per user request — not beside the name) */}
-                    <TableCell className="text-center">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="size-7 shrink-0 text-muted-foreground hover:text-primary"
-                            aria-label={t("cowHistory.openButton", { name: cow.name ?? cow.tag_number })}
-                            onClick={() => setHistoryCow({ id: cow.cattle_id, name: cow.name ?? cow.tag_number })}
-                          >
-                            <History className="size-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>{t("cowHistory.openButton", { name: cow.name ?? cow.tag_number })}</TooltipContent>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
+                      <TableCell className="pt-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                            {(cow.name?.[0] ?? cow.tag_number?.[0] ?? "C").toUpperCase()}
+                          </div>
+                          <div className="flex min-w-0 flex-col">
+                            <AnimalLink
+                              id={cow.cattle_id}
+                              animalName={cow.name}
+                              tagNumber={cow.tag_number}
+                              className="truncate text-sm font-semibold text-foreground transition-colors hover:text-primary"
+                            >
+                              {cowName}
+                            </AnimalLink>
+                            <span className="truncate font-mono text-xs text-muted-foreground">{cow.tag_number}</span>
+                            <ProgramCell
+                              cattleId={cow.cattle_id}
+                              cowName={cowName}
+                              section={section}
+                              edited={isEdited(cow, rowLines)}
+                              onPick={(target) => openApply(target, [cow.cattle_id])}
+                              onReset={() => resetToPlan(cow)}
+                              onReload={() => void onPersisted()}
+                            />
+                            {cow.program_conflict ? (
+                              <span className="mt-0.5 flex items-center gap-1 text-[11px] text-warning">
+                                <AlertTriangle className="size-3" aria-hidden />
+                                {tp("conflict")}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="py-2.5">
+                        <FeedLineCell
+                          cowName={cowName}
+                          rowIndex={index}
+                          total={cowTotalKg(rowLines)}
+                          lines={rowLines}
+                          rowSelected={isSelected}
+                          stock={stock}
+                          usage={usage}
+                          preparedOptions={preparedOptions}
+                          onChangeKg={(key, kg) => changeKg(cow.cattle_id, key, kg)}
+                          onRemove={(key) => removeLine(cow.cattle_id, key)}
+                          onAdd={(source) => addLine(cow.cattle_id, source)}
+                          onTouch={() => {
+                            if (!locked) ensureSelected(cow.cattle_id);
+                          }}
+                        />
+                      </TableCell>
+
+                      <TableCell className="pt-2.5">
+                        <div className="flex h-8.5 w-24 items-center rounded-lg border border-input/80 bg-background px-2.5 shadow-2xs transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 hover:border-input">
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.1}
+                            placeholder="0"
+                            disabled={locked}
+                            value={refusals[cow.cattle_id] ?? ""}
+                            data-grid-input="refusal"
+                            data-row-index={index}
+                            aria-label={tp("refusalFor", { animal: cowName })}
+                            onChange={(e) => {
+                              ensureSelected(cow.cattle_id);
+                              setRefusals((p) => ({ ...p, [cow.cattle_id]: e.target.value }));
+                            }}
+                            onFocus={(e) => e.target.select()}
+                            onKeyDown={(e) => {
+                              if (e.key !== "Enter") return;
+                              e.preventDefault();
+                              const nxt = document.querySelector<HTMLInputElement>(
+                                `input[data-grid-input="refusal"][data-row-index="${e.shiftKey ? index - 1 : index + 1}"]`,
+                              );
+                              nxt?.focus();
+                              nxt?.select();
+                            }}
+                            className="h-full w-full min-w-0 bg-transparent p-0 text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground/30 [appearance:textfield] disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          />
+                          <span className="ml-1 shrink-0 text-xs font-medium text-muted-foreground/70">kg</span>
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="pt-3.5">
+                        {(() => {
+                          // No requirement or no server fit (a cow on no program has neither) → nothing to compare to.
+                          if (!cow.requirement || !cow.fit) return <FitPill fit={cow.fit} requirement={cow.requirement} supply={cow.planned_supply} />;
+                          const supply = liveSupply(rowLines, densityFor, daySessions);
+                          return (
+                            <FitPill
+                              fit={liveFit(supply, cow.requirement, bands, cow.fit.estimated)}
+                              requirement={cow.requirement}
+                              supply={supply}
+                            />
+                          );
+                        })()}
+                      </TableCell>
+
+                      <TableCell className="pt-3.5">
+                        <RequirementProgress
+                          progress={requirementProgress(cow.confirmed_supply ?? { dm_kg: 0, cp_kg: 0, me_mj: 0 }, cow.requirement)}
+                        />
+                      </TableCell>
+
+                      <TableCell className="pt-2.5 text-center">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-7 shrink-0 text-muted-foreground hover:text-primary"
+                              aria-label={t("cowHistory.openButton", { name: cowName })}
+                              onClick={() => setHistoryCow({ id: cow.cattle_id, name: cowName })}
+                            >
+                              <History className="size-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>{t("cowHistory.openButton", { name: cowName })}</TooltipContent>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  </Fragment>
                 );
               })}
+              {pageRows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={COLUMN_COUNT} className="py-8 text-center text-sm text-muted-foreground">
+                    {t("noItemsFound")}
+                  </TableCell>
+                </TableRow>
+              ) : null}
             </TableBody>
           </Table>
         </div>
       )}
 
-      {cows.length > pageSize ? (
+      {filtered.length > pageSize ? (
         <Pagination
           page={page}
           totalPages={totalPages}
@@ -854,44 +802,38 @@ function FeedingGridTable({ date, cows }: { date: string; cows: FeedGridCow[] })
         />
       ) : null}
 
-      {/* Summary & Sticky Action Bar */}
+      {/* Sticky summary + actions */}
       <Can I="feed.distribution-log">
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
+        <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card/95 p-4 shadow-lg backdrop-blur">
           <div className="flex flex-wrap items-center gap-4 text-sm">
             <div className="flex items-center gap-1.5 font-medium text-foreground">
               <span className="size-2 rounded-full bg-primary" />
-              {t("summary.selectedCount", { count: selection.selectedIds.length, total: cows.length })}
+              {t("summary.selectedCount", { count: selectedIds.length, total: ordered.length })}
             </div>
             <div className="h-4 w-px bg-border" />
-            <div className="font-semibold text-foreground">
-              {t("summary.totalOffered", { total: totalSelectedOfferedKg.toFixed(1) })}
-            </div>
+            <div className="font-semibold text-foreground">{t("summary.totalOffered", { total: totalKg.toFixed(1) })}</div>
           </div>
-
           <div className="flex items-center gap-2.5">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="outline"
-                  disabled={isPending || !canSubmit}
-                  onClick={handleSave}
-                  className="shadow-2xs font-medium"
+                  disabled={pending || !canSubmit}
+                  onClick={() => void run("save")}
+                  className="font-medium shadow-2xs"
                 >
-                  {pendingAction === "save" && saveDraft.isPending ? t("saving") : t("summary.saveDraft")}
+                  {saveDraft.isPending ? t("saving") : t("summary.saveDraft")}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{t("draftHint")}</TooltipContent>
             </Tooltip>
-
             <Button
-              disabled={isPending || !canSubmit}
-              onClick={handleConfirmClick}
+              disabled={pending || !canSubmit}
+              onClick={() => setConfirmOpen(true)}
               className="gap-1.5 font-medium shadow-2xs"
             >
               <Check className="size-4" />
-              {pendingAction === "confirm" && confirmDraft.isPending
-                ? t("confirming")
-                : t("summary.confirmFeeding", { count: selection.selectedIds.length })}
+              {confirmProgram.isPending ? t("confirming") : t("summary.confirmFeeding", { count: selectedIds.length })}
             </Button>
           </div>
         </div>
@@ -901,16 +843,33 @@ function FeedingGridTable({ date, cows }: { date: string; cows: FeedGridCow[] })
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title={t("confirmDialog.title")}
-        description={t("confirmDialog.description", { count: selection.selectedIds.length })}
+        description={t("confirmDialog.description", { count: selectedIds.length })}
         confirmLabel={t("confirmDialog.confirm")}
         variant="primary"
-        onConfirm={handleConfirmDialog}
+        onConfirm={() => run("confirm")}
+      />
+
+      <ApplyPlanDialog
+        target={applyTarget}
+        presetCows={applyCows}
+        onOpenChange={(open) => {
+          if (open) return;
+          setApplyTarget(null);
+          // Reload only after the dialog's "done" summary was seen — remounting the grid earlier would close it.
+          if (appliedRef.current) {
+            appliedRef.current = false;
+            void onPersisted();
+          }
+        }}
+        onApplied={() => {
+          appliedRef.current = true;
+        }}
       />
 
       <FeedItemFormDialog
         open={addFeedItemOpen}
         onOpenChange={setAddFeedItemOpen}
-        onCreated={(item) => setItemId(item.id)}
+        onCreated={(item) => setBulkSource({ sourceType: "FEED_ITEM", itemId: item.id })}
       />
       <CreateFeedDialog open={createOpen} onOpenChange={setCreateOpen} kind={createKind} />
 
@@ -926,298 +885,69 @@ function FeedingGridTable({ date, cows }: { date: string; cows: FeedGridCow[] })
   );
 }
 
-/** Handles keyboard navigation across grid table input rows (Enter -> next row, Shift+Enter -> prev row) */
-function handleGridInputKeyDown(
-  e: React.KeyboardEvent<HTMLInputElement>,
-  inputType: "quantity" | "refusal",
-  rowIndex: number,
-) {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    const nextIndex = e.shiftKey ? rowIndex - 1 : rowIndex + 1;
-    const targetInput = document.querySelector<HTMLInputElement>(
-      `input[data-grid-input="${inputType}"][data-row-index="${nextIndex}"]`,
-    );
-    if (targetInput) {
-      targetInput.focus();
-      targetInput.select();
-    }
-  }
-}
-
-/** The quantity cell — sleek numeric input with seamless transparent input and clean states */
-function QuantityCell({
-  value,
-  isCarriedOver,
-  hasDraft,
-  rowIndex,
-  onChange,
-  onFocus,
-  t,
+/** A visual divider inside the ONE table: which program the rows below belong to, its fit summary and its actions. */
+function GroupHeaderRow({
+  section,
+  cows,
+  onSelectGroup,
+  tKind,
+  tp,
+  tu,
 }: {
-  value: string;
-  isCarriedOver: boolean;
-  hasDraft?: boolean;
-  rowIndex: number;
-  onChange: (next: string) => void;
-  onFocus: () => void;
-  t: ReturnType<typeof useTranslations>;
+  section: FeedGridSection | undefined;
+  cows: GridCow[];
+  onSelectGroup: (ids: string[]) => void;
+  tKind: ReturnType<typeof useTranslations>;
+  tp: ReturnType<typeof useTranslations>;
+  tu: ReturnType<typeof useTranslations>;
 }) {
+  const noBatch = section?.lines.filter((l) => l.source == null) ?? [];
+  const attention = section ? section.fit_summary.bad + section.fit_summary.warn : 0;
+  const summary = section
+    ? attention > 0
+      ? ` · ${tp("needsAttention", { count: attention })}`
+      : section.fit_summary.ok > 0
+        ? ` · ${tp("allFit")}`
+        : ""
+    : ` · ${tu("noProgramHint")}`;
   return (
-    <div
-      className={cn(
-        "flex h-8.5 w-28 items-center rounded-lg border bg-background px-2.5 shadow-2xs transition-all",
-        isCarriedOver
-          ? "border-amber-400/90 bg-amber-500/[0.05] focus-within:border-amber-500 focus-within:ring-2 focus-within:ring-amber-500/20"
-          : hasDraft
-            ? "border-blue-400/90 bg-blue-500/[0.05] focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20"
-            : "border-input/80 hover:border-input focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20",
-      )}
-    >
-      <input
-        type="number"
-        min={0}
-        step={0.1}
-        placeholder="—"
-        value={value}
-        data-grid-input="quantity"
-        data-row-index={rowIndex}
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={(e) => {
-          onFocus();
-          e.target.select();
-        }}
-        onKeyDown={(e) => handleGridInputKeyDown(e, "quantity", rowIndex)}
-        className="h-full w-full min-w-0 bg-transparent p-0 text-sm font-semibold text-foreground outline-none placeholder:text-muted-foreground/30 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-      />
-      {isCarriedOver ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <History className="ml-1 size-3.5 shrink-0 text-amber-600 dark:text-amber-400 cursor-help" aria-hidden />
-          </TooltipTrigger>
-          <TooltipContent>{t("carriedOverHint")}</TooltipContent>
-        </Tooltip>
-      ) : null}
-      <span className="ml-1 shrink-0 text-xs font-medium text-muted-foreground/70">kg</span>
-    </div>
-  );
-}
-
-/** Optional per-cow leftover input, next to the quantity cell. Plain/muted styling (no
- * carried-over/draft states like `QuantityCell` — refusal is never carried forward or drafted). */
-function RefusalCell({
-  value,
-  rowIndex,
-  onChange,
-  onFocus,
-}: {
-  value: string;
-  rowIndex: number;
-  onChange: (next: string) => void;
-  onFocus?: () => void;
-}) {
-  return (
-    <div className="flex h-8.5 w-24 items-center rounded-lg border border-input/80 bg-background px-2.5 shadow-2xs transition-all hover:border-input focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
-      <input
-        type="number"
-        min={0}
-        step={0.1}
-        placeholder="0"
-        value={value}
-        data-grid-input="refusal"
-        data-row-index={rowIndex}
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={(e) => {
-          onFocus?.();
-          e.target.select();
-        }}
-        onKeyDown={(e) => handleGridInputKeyDown(e, "refusal", rowIndex)}
-        className="h-full w-full min-w-0 bg-transparent p-0 text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground/30 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-      />
-      <span className="ml-1 shrink-0 text-xs font-medium text-muted-foreground/70">kg</span>
-    </div>
-  );
-}
-
-/**
- * Row source picker — a clean, clickable button trigger that opens the search-and-select combobox.
- */
-function RowSourceCell({
-  value,
-  stockOptions,
-  onChange,
-  onOpen,
-  t,
-}: {
-  value: RowSource | null;
-  stockOptions: FeedSourceOption[];
-  onChange: (next: RowSource | null) => void;
-  onOpen: () => void;
-  t: ReturnType<typeof useTranslations>;
-}) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-
-  const stockOption = value?.sourceType === "FEED_STOCK"
-    ? stockOptions.find((opt) => opt.id === value.itemId)
-    : null;
-  const stockLabel = stockOption?.label ?? (value?.sourceType === "FEED_STOCK" ? value.itemId : null);
-
-  const selectedItemDetail = useFeedItemDetail(value?.sourceType === "FEED_ITEM" ? value.itemId : undefined);
-  const label =
-    value?.sourceType === "FEED_ITEM"
-      ? (selectedItemDetail.data
-          ? `${selectedItemDetail.data.name} (${selectedItemDetail.data.currentStock} ${selectedItemDetail.data.unit.symbol})`
-          : value.itemId)
-      : stockLabel;
-
-  function handleOpenChange(next: boolean) {
-    setOpen(next);
-    if (next) onOpen();
-    else setSearch("");
-  }
-
-  function select(next: RowSource) {
-    onChange(next);
-    setOpen(false);
-    setSearch("");
-  }
-
-  return (
-    <Popover open={open} onOpenChange={handleOpenChange} modal={false}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className={cn(
-            "flex h-9 min-w-[150px] max-w-[220px] items-center justify-between gap-1.5 rounded-lg border px-2.5 text-left text-xs font-medium transition-colors shadow-2xs",
-            label
-              ? "border-border bg-card text-foreground hover:bg-muted/60"
-              : "border-dashed border-input bg-muted/20 text-muted-foreground hover:border-primary/50 hover:bg-card hover:text-foreground",
-          )}
-        >
-          {label ? (
-            <span className="truncate font-medium">{label}</span>
-          ) : (
-            <span className="flex items-center gap-1 font-normal">
-              <Plus className="size-3 text-muted-foreground" />
-              {t("rowSource.selectPrompt")}
-            </span>
-          )}
-          <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" aria-hidden />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-72 sm:w-80 p-0 shadow-lg" align="start">
-        {open ? (
-          <RowSourceCellOptions
-            search={search}
-            onSearchChange={setSearch}
-            stockOptions={stockOptions}
-            value={value}
-            onSelect={select}
-            onClear={() => {
-              onChange(null);
-              setOpen(false);
-            }}
-            t={t}
-          />
-        ) : null}
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-/** The picker body — split out of `RowSourceCell` so it only mounts while open */
-function RowSourceCellOptions({
-  search,
-  onSearchChange,
-  stockOptions,
-  value,
-  onSelect,
-  onClear,
-  t,
-}: {
-  search: string;
-  onSearchChange: (next: string) => void;
-  stockOptions: FeedSourceOption[];
-  value: RowSource | null;
-  onSelect: (next: RowSource) => void;
-  onClear: () => void;
-  t: ReturnType<typeof useTranslations>;
-}) {
-  const feedItems = useFeedItemPagedList({ search: search || undefined });
-  const feedItemOptions: FeedSourceOption[] = useMemo(
-    () =>
-      feedItems.items.map((item) => ({
-        id: item.id,
-        label: `${item.name} (${item.currentStock} ${item.unit.symbol})`,
-        hint: lotHint(item, t),
-      })),
-    [feedItems.items, t],
-  );
-  const filteredStock = useMemo(
-    () => stockOptions.filter((opt) => opt.label.toLowerCase().includes(search.toLowerCase())),
-    [stockOptions, search],
-  );
-
-  return (
-    <>
-      <Command shouldFilter={false}>
-        <CommandInput placeholder={t("rowSource.searchPlaceholder")} value={search} onValueChange={onSearchChange} />
-        <CommandList className="max-h-60">
-          <CommandEmpty>{t("noItemsFound")}</CommandEmpty>
-          {feedItemOptions.length > 0 ? (
-            <CommandGroup heading={t("rowSource.purchasedGroup")}>
-              {feedItemOptions.map((opt) => (
-                <CommandItem
-                  key={opt.id}
-                  value={opt.id}
-                  onSelect={() => onSelect({ sourceType: "FEED_ITEM", itemId: opt.id })}
-                  className="flex items-center gap-2 cursor-pointer py-2"
-                >
-                  <Check
-                    className={cn(
-                      "size-4 text-primary shrink-0",
-                      value?.sourceType === "FEED_ITEM" && value.itemId === opt.id ? "opacity-100" : "opacity-0",
-                    )}
-                    aria-hidden
-                  />
-                  <OptionLabel opt={opt} />
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          ) : null}
-          {filteredStock.length > 0 ? (
-            <CommandGroup heading={t("rowSource.preparedGroup")}>
-              {filteredStock.map((opt) => (
-                <CommandItem
-                  key={opt.id}
-                  value={opt.id}
-                  onSelect={() => onSelect({ sourceType: "FEED_STOCK", itemId: opt.id })}
-                  className="flex items-center gap-2 cursor-pointer py-2"
-                >
-                  <Check
-                    className={cn(
-                      "size-4 text-primary shrink-0",
-                      value?.sourceType === "FEED_STOCK" && value.itemId === opt.id ? "opacity-100" : "opacity-0",
-                    )}
-                    aria-hidden
-                  />
-                  <span className="truncate">{opt.label}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          ) : null}
-        </CommandList>
-      </Command>
-      {value ? (
-        <div className="border-t border-border p-1 bg-muted/20">
-          <Button type="button" variant="ghost" size="sm" className="w-full justify-start gap-2 text-destructive hover:bg-destructive/10" onClick={onClear}>
-            <X className="size-3.5" aria-hidden />
-            {t("rowSource.clear")}
-          </Button>
+    <TableRow className="bg-muted/30 hover:bg-muted/30">
+      <TableCell colSpan={COLUMN_COUNT} className="py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-sm font-semibold text-foreground">{section ? section.plan_name : tu("noProgramTitle")}</h3>
+              {section ? (
+                <>
+                  <Badge variant="info">{tKind(section.kind)}</Badge>
+                  <Badge variant="outline">{tp(`via.${section.via}`)}</Badge>
+                  {section.conflict ? (
+                    <Badge variant="warning" className="gap-1">
+                      <AlertTriangle className="size-3" aria-hidden />
+                      {tp("conflict")}
+                    </Badge>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {tp("cows", { count: cows.length })}
+              {summary}
+            </p>
+            {noBatch.length > 0 ? (
+              <p role="status" className="mt-0.5 text-xs text-warning">
+                {tp("noBatch", { names: noBatch.map((l) => l.name).join(", ") })}
+              </p>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => onSelectGroup(cows.map((c) => c.cattle_id))}>
+              {tu("selectGroup")}
+            </Button>
+            {section ? <AdjustPlanActions section={section} cows={cows} /> : null}
+          </div>
         </div>
-      ) : null}
-    </>
+      </TableCell>
+    </TableRow>
   );
 }
-

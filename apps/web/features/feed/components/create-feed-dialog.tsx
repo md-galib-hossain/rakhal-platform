@@ -13,6 +13,8 @@ import { LabeledInput } from "@/components/ui/labeled-field";
 import { Button } from "@/components/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { CattlePicker } from "@/components/shared/cattle-picker";
+import { useAnimalGroups, useCattlePagedList } from "@/features/cattle/hooks/use-cattle";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   useCattleOrGroupRequirements,
   useConcentrationDetail,
@@ -34,6 +36,7 @@ import { useFeedItemPagedList } from "@/features/inventory/hooks/use-inventory";
 import type {
   CreateFeedConcentrationPayload,
   FeedConcentrationKind,
+  FeedTargetType,
   UpdateFeedConcentrationPayload,
 } from "../types";
 
@@ -185,17 +188,24 @@ function CreateFeedDialogBody({
   }, [editDetail.data, form]);
   const targetType = form.watch("targetType");
   const cattleId = form.watch("cattleId");
+  const groupId = form.watch("groupId");
   const targetWeightKg = form.watch("targetWeightKg");
   const targetMilkL = form.watch("targetMilkL");
   const items = form.watch("items");
 
-  /** Cow-driven (user request 2026-07-18 follow-up — merged in from the removed standalone
-   * calculator): the flat `requirements` block is the per-cow figure a Total Mixed Ration (TMR)
-   * needs for its "Daily Total Requirement (per cow)" row. */
+  const groups = useAnimalGroups();
+  const groupCattleQuery = useCattlePagedList(groupId ? { animalGroupId: groupId } : {});
+  const groupCattle = groupCattleQuery.items;
+  const groupTargetCattleId = groupCattle[0]?.id;
+
+  const effectiveCattleId =
+    targetType === "INDIVIDUAL" ? cattleId : targetType === "GROUP" ? groupTargetCattleId : undefined;
+
+  /** Cow or group-driven: derives requirements from real records */
   const requirementsQuery = useCattleOrGroupRequirements({
-    cattleId: targetType === "INDIVIDUAL" ? cattleId : undefined,
-    weightKg: targetWeightKg,
-    milkTargetL: targetMilkL,
+    cattleId: effectiveCattleId,
+    weightKg: targetType === "HERD" ? targetWeightKg : undefined,
+    milkTargetL: targetType === "HERD" ? targetMilkL : undefined,
   });
   const requirementsResult = requirementsQuery.data ?? null;
   const requirementsApi = requirementsResult?.requirements ?? null;
@@ -337,7 +347,8 @@ function CreateFeedDialogBody({
   async function onSubmit(values: CreateFeedFormInput) {
     if (step !== 2) return;
     try {
-      // Validate inventory items do not exceed available stock
+      const durationDays = values.durationDays || 1;
+      // Validate inventory items do not exceed available stock for the batch duration
       for (const item of values.items) {
         if (item.feedItemId || item.feedStockId) {
           const stockKey = item.feedItemId
@@ -346,8 +357,13 @@ function CreateFeedDialogBody({
               : item.feedItemId
             : (item.feedStockId ?? "");
           const maxStockKg = inventoryStockMap.get(stockKey) ?? item.availableStockKg;
-          if (maxStockKg != null && item.amountKg > maxStockKg) {
-            toast.error(t("cannotExceedStock", { name: item.ingredientName, stock: maxStockKg }));
+          const totalNeededKg = item.amountKg * durationDays;
+          if (maxStockKg != null && totalNeededKg > maxStockKg) {
+            toast.error(
+              durationDays > 1
+                ? t("cannotExceedStockBatch", { name: item.ingredientName, stock: maxStockKg, needed: totalNeededKg, days: durationDays })
+                : t("cannotExceedStock", { name: item.ingredientName, stock: maxStockKg }),
+            );
             return;
           }
         }
@@ -360,9 +376,18 @@ function CreateFeedDialogBody({
         feedItemBatchId: i.feedItemBatchId,
         feedStockId: i.feedStockId,
       }));
-      const durationDays = values.durationDays;
-      const targetType = isTemplate ? undefined : values.targetType;
-      const cattleId = !isTemplate && values.targetType === "INDIVIDUAL" ? values.cattleId : undefined;
+      const resolvedTargetType: FeedTargetType | undefined = isTemplate
+        ? undefined
+        : values.targetType === "GROUP"
+          ? "INDIVIDUAL"
+          : values.targetType;
+      const resolvedCattleId = !isTemplate
+        ? values.targetType === "INDIVIDUAL"
+          ? values.cattleId
+          : values.targetType === "GROUP"
+            ? groupTargetCattleId
+            : undefined
+        : undefined;
       const targetWeightKg = isTemplate ? undefined : values.targetWeightKg;
       const targetMilkL = isTemplate ? undefined : values.targetMilkL;
 
@@ -372,8 +397,8 @@ function CreateFeedDialogBody({
         const dto: UpdateFeedConcentrationPayload = {
           name: values.name,
           durationDays,
-          targetType,
-          cattleId,
+          targetType: resolvedTargetType,
+          cattleId: resolvedCattleId,
           targetWeightKg,
           targetMilkL,
           items,
@@ -385,8 +410,8 @@ function CreateFeedDialogBody({
           kind: values.kind,
           name: values.name,
           durationDays,
-          targetType: targetType ?? "HERD",
-          cattleId,
+          targetType: resolvedTargetType ?? "HERD",
+          cattleId: resolvedCattleId,
           targetWeightKg,
           targetMilkL,
           items,
@@ -478,7 +503,8 @@ function CreateFeedDialogBody({
                         type="button"
                         onClick={() => {
                           form.setValue("targetType", value);
-                          form.setValue("cattleId", undefined);
+                          if (value !== "INDIVIDUAL") form.setValue("cattleId", undefined);
+                          if (value !== "GROUP") form.setValue("groupId", undefined);
                         }}
                         className={cn(
                           "flex flex-1 items-center justify-center rounded-lg text-sm font-bold transition-colors",
@@ -501,36 +527,69 @@ function CreateFeedDialogBody({
                         </div>
                       )}
                     />
+                  ) : targetType === "GROUP" ? (
+                    <Controller
+                      control={form.control}
+                      name="groupId"
+                      render={({ field }) => (
+                        <div className="flex flex-col gap-2">
+                          <div className="flex flex-col gap-1.5">
+                            <p className="text-xs text-muted-foreground">{t("selectGroup")}</p>
+                            <Select value={field.value ?? ""} onValueChange={(id) => field.onChange(id)}>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder={t("selectGroup")} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(groups.data?.items ?? []).map((g) => (
+                                  <SelectItem key={g.id} value={g.id}>
+                                    {g.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {field.value && (
+                            <p className="text-xs text-muted-foreground">
+                              {groupCattle.length > 0
+                                ? t("cowCount", { count: groupCattle.length })
+                                : t("herdTargetHint")}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    />
                   ) : (
-                    // HERD (2026-08-13, user request) — no picker needed, applies farm-wide by default.
                     <p className="text-xs text-muted-foreground">{t("herdTargetHint")}</p>
                   )}
+
                   {form.formState.errors.cattleId ? (
                     <p className="-mt-3 text-sm text-destructive">{form.formState.errors.cattleId.message}</p>
                   ) : null}
+                  {form.formState.errors.groupId ? (
+                    <p className="-mt-3 text-sm text-destructive">{form.formState.errors.groupId.message}</p>
+                  ) : null}
 
-                  {/* Deliberately no `error` prop on either field (Phase 12.3, 2026-07-18) — once a
-                      real cow/group target is picked, these become pure optional overrides; the
-                      backend resolves both from the target's own records when left blank, so an
-                      empty field is never itself a validation error. */}
-                  <div className="flex gap-4">
-                    <LabeledInput
-                      id="targetWeightKg"
-                      type="number"
-                      step="0.01"
-                      min={1}
-                      label={t("avgWeight")}
-                      {...form.register("targetWeightKg", numberField)}
-                    />
-                    <LabeledInput
-                      id="targetMilkL"
-                      type="number"
-                      step="0.01"
-                      min={0}
-                      label={t("avgMilkTarget")}
-                      {...form.register("targetMilkL", numberField)}
-                    />
-                  </div>
+                  {/* Manual inputs shown only for HERD mode where no specific animal or group record exists */}
+                  {targetType === "HERD" ? (
+                    <div className="flex gap-4">
+                      <LabeledInput
+                        id="targetWeightKg"
+                        type="number"
+                        step="0.01"
+                        min={1}
+                        label={t("avgWeight")}
+                        {...form.register("targetWeightKg", numberField)}
+                      />
+                      <LabeledInput
+                        id="targetMilkL"
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        label={t("avgMilkTarget")}
+                        {...form.register("targetMilkL", numberField)}
+                      />
+                    </div>
+                  ) : null}
 
                   {requirements ? (
                     <div className="flex flex-col gap-4 rounded-2xl border border-border bg-muted p-5">
@@ -593,6 +652,8 @@ function CreateFeedDialogBody({
                     effectiveById={effectiveById}
                     requirements={requirements}
                     cowCount={cowCount}
+                    durationDays={form.watch("durationDays") ?? 1}
+                    onDurationDaysChange={(days) => form.setValue("durationDays", days, { shouldDirty: true })}
                     showPerCow={!isTemplate}
                     onAmountChange={updateAmount}
                     onRemove={removeLine}

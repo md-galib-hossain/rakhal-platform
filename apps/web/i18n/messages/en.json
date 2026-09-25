@@ -5128,7 +5128,8 @@
       "finalizeCtaTemplate": "Finalize as Feed",
       "finalizeCtaMixture": "Finalize as Feed",
       "applyProgramMixture": "Apply TMR",
-      "applyProgramTemplate": "Apply Concentrate"
+      "applyProgramTemplate": "Apply Concentrate",
+      "feedDurationDays": "{days} {days, plural, one {Day} other {Days}}"
     },
     "deleteConfirmTitle": "Delete this formula?",
     "deleteConfirmDescription": "This can't be undone. Any Total Mixed Ration (TMR) that already reused an ingredient promoted from this formula will keep working.",
@@ -5277,7 +5278,22 @@
         "lotProfile": "৳{cost}/unit · CP {cp}% · ME {me}",
         "fromInventory": "From inventory (uses the batch's nutrition)",
         "fromInventoryPinned": "From inventory · pinned batch"
-      }
+      },
+      "makingForDays": "Make for (Days)",
+      "batchDuration": "Batch Duration",
+      "daysLabel": "{count, plural, one {day} other {days}}",
+      "dayOption1": "1 Day",
+      "dayOption3": "3 Days",
+      "dayOption7": "7 Days",
+      "dayOption14": "14 Days",
+      "dayOption30": "30 Days",
+      "totalBatchAmount": "Total Batch to Make ({days} {days, plural, one {Day} other {Days}})",
+      "batchQuantitySubtext": "Total feed quantity to prepare for {days} {days, plural, one {day} other {days}}",
+      "dailyAmountSubtext": "1 day / per cow",
+      "dailyAmountFormulaSubtext": "1 day formula",
+      "itemBatchTotal": "Total: {amount} kg ({days}d)",
+      "batchStockWarning": "Needs {needed} kg for {days}d batch ({stock} kg in stock)",
+      "multiplierHint": "Showing multiplied total quantities for {days} days"
     },
     "create": {
       "titleConcentrate": "Create New Concentrate Mixer",
@@ -5293,9 +5309,12 @@
       "feedDuration": "Feed Duration",
       "targetType": {
         "INDIVIDUAL": "Individual Cow",
+        "GROUP": "Animal Group",
         "HERD": "Whole Herd"
       },
+      "groupTargetHint": "Applies to all animals in the selected group — automatically uses their nutritional requirements.",
       "herdTargetHint": "Applies to the whole active herd by default — used when a cow has no individual ration assigned.",
+      "selectGroup": "Select Animal Group",
       "cowCount": "{count} cows",
       "selectAnimal": "Select Animal",
       "avgWeight": "Avg. Weight (kg)",
@@ -5337,7 +5356,9 @@
         "milk_log_7d_avg": "7-day milk log average",
         "manual": "manual entry",
         "assumed_zero": "no data — assumed 0"
-      }
+      },
+      "feedDurationPlaceholder": "e.g. 7",
+      "cannotExceedStockBatch": "Ingredient {name} needs {needed} kg for {days} days but only {stock} kg is in stock."
     },
     "detail": {
       "title": "Feed Details",
@@ -5373,11 +5394,17 @@
       "subtitle": "What an animal needs per day. No ration required.",
       "mode": {
         "cow": "One cow",
+        "group": "Animal group",
         "manual": "Enter by hand"
       },
       "cowLabel": "Cow",
       "cowHint": "Weight, body condition, pregnancy days and the 7-day milk average are read from her records.",
       "cowPlaceholder": "Pick a cow",
+      "groupLabel": "Animal group",
+      "groupHint": "Calculates the average daily requirement for all animals in this group.",
+      "groupPlaceholder": "Pick a group",
+      "groupMembers": "{count, plural, one {# animal} other {# animals}} in this group",
+      "groupEmpty": "This group has no animals.",
       "weightLabel": "Body weight (kg)",
       "weightHint": "Typical local crossbred cow: 350-450 kg.",
       "milkLabel": "Milk per day (L)",
@@ -5445,7 +5472,8 @@
         "pregnancy": "Pregnancy",
         "heifer": "Heifers",
         "bodyCondition": "Body condition",
-        "mineralsAndFibre": "Minerals & fibre"
+        "mineralsAndFibre": "Minerals & fibre",
+        "alerts": "Feeding alerts (allowed gap from her needs)"
       },
       "source": {
         "farm": "Yours",
@@ -5549,7 +5577,61 @@
         "me": "Energy (MJ)",
         "estimated": "Some inputs are estimated (missing weight, milk or dates), so treat this as a guide.",
         "supplyIncomplete": "A feed has no batch with nutrition yet, so the plan total is a minimum.",
-        "noStock": "{name} has no stock right now."
+        "noStock": "{name} has no stock right now.",
+        "n": {
+          "dm": "Dry matter",
+          "cp": "Protein",
+          "me": "Energy",
+          "fat": "Fat",
+          "ndf": "Fibre (NDF)",
+          "adf": "Fibre (ADF)",
+          "tdn": "Digestible nutrients (TDN)",
+          "calcium": "Calcium",
+          "phosphorus": "Phosphorus",
+          "ca_p_ratio": "Calcium : phosphorus",
+          "rdp_pct": "Rumen-degradable protein",
+          "rup_pct": "Bypass protein",
+          "starch": "Starch"
+        },
+        "maxHint": "at most {value}",
+        "notMeasured": "Not measured",
+        "notMeasuredHint": "At least one feed's batch has no value for this, so the total is a minimum.",
+        "someNotMeasured": "Some nutrients aren't measured on every feed's batch, so they aren't judged. Add them in the feed's nutrition profile in Inventory.",
+        "infoOnly": "No target",
+        "scratchHint": "What one animal needs per day, and what this plan gives her as you build it. Nothing here is saved with the plan — it can be applied to any animal later.",
+        "modeLabel": "Whose needs to check",
+        "mode": {
+          "animal": "A saved animal",
+          "manual": "Enter by hand"
+        },
+        "manual": {
+          "weight": "Body weight",
+          "milk": "Milk per day",
+          "more": "More details",
+          "less": "Fewer details",
+          "type": "Type",
+          "types": {
+            "COW": "Milking cow",
+            "HEIFER": "Heifer",
+            "DRY": "Dry cow"
+          },
+          "dim": "Days in milk",
+          "gestation": "Days pregnant",
+          "bcs": "Body condition (1–5)",
+          "fat": "Milk fat",
+          "days": "days",
+          "invalid": "Enter a weight (1–2000 kg) and milk (0–100 L) to see her needs."
+        },
+        "waiting": "Working out her needs…",
+        "addFeedsHint": "Add feeds above to see what the plan gives her. Her daily needs are shown meanwhile.",
+        "estimatedBecause": "Some inputs are estimated ({reasons}), so treat this as a guide.",
+        "flag": {
+          "weight_estimated": "no recent weight",
+          "weight_stale": "weight is over 60 days old",
+          "bcs_default": "no body condition score",
+          "milk_missing": "no milk record",
+          "dim_default": "days in milk unknown"
+        }
       },
       "apply": {
         "title": "Apply \"{name}\"",
@@ -5678,11 +5760,15 @@
         "source": "Feed Source",
         "quantity": "Offered (kg)",
         "refusal": "Refusal (kg)",
-        "status": "Status"
+        "requirement": "Requirement"
       },
-      "carriedOverHint": "Carried over from the last feeding — not yet saved for today.",
       "draftHint": "Draft saved — ready to confirm.",
       "confirmedHint": "Feeding already confirmed for today ({amount} kg).",
+      "requirementBar": {
+        "title": "Daily requirement covered",
+        "aria": "{pct}% of daily requirement covered",
+        "nutrient": { "dm": "Dry matter", "cp": "Protein", "me": "Energy" }
+      },
       "rowSource": {
         "selectPrompt": "Select source…",
         "none": "No source",
@@ -5693,12 +5779,6 @@
         "oldestBatch": "oldest batch",
         "moreBatches": "{n} batches in stock",
         "clear": "Clear source"
-      },
-      "statusBadges": {
-        "carriedOver": "Carried Over",
-        "draft": "Draft",
-        "confirmed": "Fed",
-        "unassigned": "Needs Source"
       },
       "summary": {
         "selectedCount": "{count} of {total} cattle selected",
@@ -5762,7 +5842,54 @@
         }
       },
       "noProgramTitle": "No program",
-      "noProgramCount": "{count, plural, one {# animal is} other {# animals are}} not on a feeding program."
+      "noProgramCount": "{count, plural, one {# animal is} other {# animals are}} not on a feeding program.",
+      "unified": {
+        "columns": {
+          "program": "Program",
+          "feed": "Feed offered",
+          "total": "Total"
+        },
+        "noProgram": "No program",
+        "noProgramTitle": "No program",
+        "noProgramHint": "fed from whatever you pick",
+        "selectGroup": "Select group",
+        "selectPlanned": "Select planned ({count})",
+        "plannedSelected": "{count, plural, one {# animal on a program selected} other {# animals on a program selected}}",
+        "searchCows": "Search animal…",
+        "lockedHint": "Already fed today. Void the entry from History to feed again.",
+        "fedKg": "Fed {kg} kg",
+        "selectFeed": "Select feed…",
+        "addFeed": "Add feed",
+        "noBatch": "No batch made yet",
+        "outOfStock": "Out of stock",
+        "stockLeft": "{kg} kg left",
+        "maxInStock": "Only {kg} kg left in stock",
+        "kgFor": "kg of {feed} for {animal}",
+        "removeLine": "Remove {feed}",
+        "appliedToast": "{count, plural, one {Applied to # animal} other {Applied to # animals}}",
+        "skippedMultiLine": "{count, plural, one {# animal has several feeds — edit her lines directly} other {# animals have several feeds — edit their lines directly}}",
+        "stockLimited": "{count, plural, one {# amount was reduced to what is in stock} other {# amounts were reduced to what is in stock}}",
+        "overStock": "Some amounts are more than the stock on hand. Lower them and try again.",
+        "applyProgram": "Apply program ({count})",
+        "total": "Total",
+        "program": {
+          "addProgram": "Program",
+          "apply": "Apply a program to {animal}",
+          "change": "Change program (now {plan})",
+          "reset": "Reset to the plan's feeds and kg",
+          "remove": "Remove her program",
+          "removedToast": "Program removed for {animal}",
+          "genericError": "Something went wrong. Try again."
+        },
+        "programPicker": {
+          "search": "Search plans, TMR, concentrates…",
+          "none": "Nothing to apply yet. Build a plan or batch a recipe in Feed Formulator.",
+          "plans": "Feed plans",
+          "tmr": "TMR",
+          "concentrate": "Concentrates",
+          "planLines": "{count, plural, one {# feed} other {# feeds}} · {kg} kg/day"
+        }
+      }
     },
     "requirementTitle": "What the herd needs today",
     "requirementSubtitle": "Worked out from your cattle records — weight, milk, condition and pregnancy.",
@@ -5803,7 +5930,40 @@
       "refusalFor": "Refusal for {animal}",
       "extraKgFor": "Extra kg for {animal}",
       "removeExtra": "Remove extra feed",
-      "extraFeed": "Extra feed"
+      "extraFeed": "Extra feed",
+      "fit": {
+        "title": "Fit",
+        "none": "—",
+        "ok": "Fits",
+        "warn": "Off",
+        "bad": "Way off",
+        "estimated": "estimated",
+        "needs": "Needs",
+        "gets": "Gets",
+        "incomplete": "A line has no batch or stock, so real supply is higher than shown.",
+        "nutrient": {
+          "dm": "Dry matter",
+          "cp": "Protein",
+          "me": "Energy"
+        }
+      },
+      "adjust": {
+        "adjustPlan": "Adjust plan",
+        "editRecipe": "Edit recipe",
+        "scopeTitle": "Adjust \"{plan}\"",
+        "scopeDescription": "This plan feeds several animals. Choose who the change is for.",
+        "editForAll": "Edit for all {count, plural, one {# animal} other {# animals}}",
+        "makeIndividual": "Make an individual plan for one animal (copy)",
+        "forAnimal": "Animal",
+        "individualHint": "A copy of this plan is made and applied to her only. She leaves this program; the others keep it.",
+        "cancel": "Cancel",
+        "continue": "Continue",
+        "copyMade": "Individual plan made for {animal}",
+        "genericError": "Something went wrong. Try again.",
+        "recipeTitle": "Edit recipe",
+        "recipeBanner": "Lots already made keep their nutrition; changes apply to the next batch. To fix today, adjust kg in the plan.",
+        "editThisRecipe": "Edit"
+      }
     }
   },
   "settings": {

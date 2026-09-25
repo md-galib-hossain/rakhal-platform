@@ -259,6 +259,8 @@ export const qk = {
     plans: (filters: Record<string, string | boolean | undefined>) => ["feed", "plans", "list", filters] as const,
     planDetail: (id: string) => ["feed", "plans", "detail", id] as const,
     planFit: (id: string, cattleIds: string[]) => ["feed", "plans", "fit", id, cattleIds] as const,
+    /** The plan editor's requirement scratchpad — keyed by the whole (unsaved) payload. */
+    planPreviewFit: (payload: unknown) => ["feed", "plans", "preview-fit", payload] as const,
     planAssignments: (planId: string) => ["feed", "plans", "assignments", planId] as const,
     cattleProgram: (cattleId: string) => ["feed", "program", cattleId] as const,
   },

@@ -21,6 +21,11 @@ export const feedPlanFormSchema = z
   .object({
     name: z.string().trim().min(1, { error: "nameRequired" }).max(80, { error: "nameMax" }),
     notes: z.string().max(1000).optional(),
+    targetType: z.enum(["INDIVIDUAL", "GROUP", "HERD"]).optional(),
+    cattleId: z.string().optional(),
+    groupId: z.string().optional(),
+    targetWeightKg: z.number().optional(),
+    targetMilkL: z.number().optional(),
     lines: z.array(feedPlanLineSchema).min(1, { error: "linesRequired" }).max(30),
   })
   .superRefine((value, ctx) => {
