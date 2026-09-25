@@ -14,13 +14,25 @@ import {
   FeedPlanFitQueryDto,
   FeedPlanLineDto,
   ListFeedPlansQueryDto,
+  PreviewPlanFitDto,
   UpdateFeedPlanDto,
 } from '../../presentation/dto/feed-plan.dto';
 import { FeedLotResolver } from './feed-lot-resolver.service';
 import { FeedRequirementsService } from './feed-requirements.service';
 import { FeedPlanAssignmentService } from './feed-plan-assignment.service';
 import { FeedPlanResolverService } from './feed-plan-resolver.service';
-import { computeProgramFit, toApiFit } from '../../domain/program-fit';
+import {
+  computeProgramFit,
+  FitBands,
+  toApiFit,
+} from '../../domain/program-fit';
+import {
+  buildNutrientRows,
+  computeNutrientSupply,
+  PlanRequirement,
+} from '../../domain/plan-nutrition';
+import { FeedRequirementsQueryDto } from '../../presentation/dto/feed-requirements-query.dto';
+import { NutritionValues } from '../../domain/nutrition-profile';
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
 const round1 = (v: number) => Math.round(v * 10) / 10;
@@ -263,7 +275,77 @@ export class FeedPlanService {
       this.requirements.forCattle(farmId, cattleIds, query.date),
       this.resolveSupply(farmId, plan),
     ]);
+    const { supply, supplyComplete, cowFit } = this.fitBuilder(
+      lines,
+      req.bands,
+    );
 
+    return {
+      plan_id: plan.id,
+      date: req.date,
+      lines,
+      supply,
+      supply_complete: supplyComplete,
+      cows: req.cows.map((c) => ({ cattle_id: c.cattle_id, ...cowFit(c) })),
+      missing_cattle_ids: req.missing_cattle_ids,
+    };
+  }
+
+  /**
+   * "Does this plan fit?" for lines that are NOT saved yet — the plan editor's scratchpad, so a farmer sees the
+   * animal's requirement and how the feeds add up while building, like the TMR builder. The animal is one saved cow
+   * (`cattleId`) or hand-entered figures (`manual`); a plan itself never stores either. Read-only.
+   */
+  async previewFit(farmId: string, dto: PreviewPlanFitDto) {
+    if (!!dto.cattleId === !!dto.manual) {
+      throw new BadRequestException(
+        'Pass exactly one of cattleId (a saved animal) or manual (weight and milk you enter)',
+      );
+    }
+
+    // `resolveSupply` only reads id/lineType/feedItemId/concentrationId/kgPerDay from a line.
+    const previewLines = dto.lines.map((l, i) => ({
+      id: `preview-${i}`,
+      lineType: l.lineType,
+      feedItemId: l.lineType === 'FEED_ITEM' ? (l.feedItemId ?? null) : null,
+      concentrationId:
+        l.lineType === 'PREPARED' ? (l.concentrationId ?? null) : null,
+      kgPerDay: l.kgPerDay,
+      sortOrder: i,
+    })) as unknown as FeedPlanLine[];
+
+    const [lines, animal] = await Promise.all([
+      this.resolveSupply(farmId, { lines: previewLines }),
+      dto.cattleId
+        ? this.requirements
+            .forCattle(farmId, [dto.cattleId])
+            .then((r) => ({ cow: r.cows[0] ?? null, bands: r.bands }))
+        : this.requirements
+            .forManual(farmId, dto.manual as FeedRequirementsQueryDto)
+            .then((r) => ({ cow: r, bands: r.bands })),
+    ]);
+    if (!animal.cow) throw new NotFoundException('Animal not found');
+
+    const { supply, supplyComplete, cowFit } = this.fitBuilder(
+      lines,
+      animal.bands,
+    );
+    return {
+      lines,
+      supply,
+      supply_complete: supplyComplete,
+      ...cowFit(animal.cow),
+    };
+  }
+
+  /**
+   * Shared by `fit()` and `previewFit()`: totals what the lines supply once, then judges any cow's requirement
+   * against it — DM/CP/ME with the farm's alert bands, plus every other nutrient the lots carry.
+   */
+  private fitBuilder(
+    lines: Awaited<ReturnType<FeedPlanService['resolveSupply']>>,
+    bands: FitBands,
+  ) {
     const total = lines.reduce(
       (t, l) => ({
         as_fed_kg: t.as_fed_kg + l.supply.as_fed_kg,
@@ -279,46 +361,50 @@ export class FeedPlanService {
       cp_kg: round2(total.cp_kg),
       me_mj: round2(total.me_mj),
     };
+    const supplyComplete = lines.every((l) => l.density != null);
     const delta = (have: number, need: number) =>
       need > 0 ? round1((have / need - 1) * 100) : null;
+    // Every nutrient the lots carry (fat, NDF, ADF, TDN, Ca, P, RDP/RUP, starch), not only DM/CP/ME.
+    const nutrientSupply = computeNutrientSupply(
+      lines.map((l) => ({ kgPerDay: l.kg_per_day, profile: l.nutrition })),
+    );
 
-    return {
-      plan_id: plan.id,
-      date: req.date,
-      lines,
-      supply,
-      supply_complete: lines.every((l) => l.density != null),
-      cows: req.cows.map((c) => ({
-        cattle_id: c.cattle_id,
-        requirement: {
-          dm_kg: c.requirements.dm_kg,
-          cp_kg: c.requirements.cp_kg,
-          me_mj: c.requirements.me_mj,
-        },
-        delta_pct: {
-          dm: delta(supply.dm_kg, c.requirements.dm_kg),
-          cp: delta(supply.cp_kg, c.requirements.cp_kg),
-          me: delta(supply.me_mj, c.requirements.me_mj),
-        },
-        // RAKHAL-458: severity against the farm's tolerance bands; `estimated` when any input was an
-        // assumption or a line has no resolvable lot.
-        fit: toApiFit(
-          computeProgramFit(
-            { dmKg: supply.dm_kg, cpKg: supply.cp_kg, meMj: supply.me_mj },
-            {
-              dmKg: c.requirements.dm_kg,
-              cpKg: c.requirements.cp_kg,
-              meMj: c.requirements.me_mj,
-            },
-            req.bands,
-            c.flags.length > 0 || !lines.every((l) => l.density != null),
-          ),
+    const cowFit = (c: {
+      requirements: PlanRequirement;
+      flags: string[];
+      inputs: unknown;
+    }) => ({
+      requirement: {
+        dm_kg: c.requirements.dm_kg,
+        cp_kg: c.requirements.cp_kg,
+        me_mj: c.requirements.me_mj,
+      },
+      // The whole requirement (every nutrient), so the editor can show what she needs before any feed is added.
+      requirement_full: c.requirements,
+      delta_pct: {
+        dm: delta(supply.dm_kg, c.requirements.dm_kg),
+        cp: delta(supply.cp_kg, c.requirements.cp_kg),
+        me: delta(supply.me_mj, c.requirements.me_mj),
+      },
+      // RAKHAL-458: severity against the farm's tolerance bands; `estimated` when any input was an
+      // assumption or a line has no resolvable lot.
+      fit: toApiFit(
+        computeProgramFit(
+          { dmKg: supply.dm_kg, cpKg: supply.cp_kg, meMj: supply.me_mj },
+          {
+            dmKg: c.requirements.dm_kg,
+            cpKg: c.requirements.cp_kg,
+            meMj: c.requirements.me_mj,
+          },
+          bands,
+          c.flags.length > 0 || !supplyComplete,
         ),
-        inputs: c.inputs,
-        flags: c.flags,
-      })),
-      missing_cattle_ids: req.missing_cattle_ids,
-    };
+      ),
+      nutrients: buildNutrientRows(nutrientSupply, c.requirements, bands),
+      inputs: c.inputs,
+      flags: c.flags,
+    });
+    return { supply, supplyComplete, cowFit };
   }
 
   /** The program a cow is on right now, with each line's resolved source/density/stock (RAKHAL-458) —
@@ -377,7 +463,9 @@ export class FeedPlanService {
           id: true,
           batches: {
             where: { deletedAt: null },
-            select: { currentStock: true },
+            // Same order the lot resolver uses, so `nutrition` below is the very lot `density` came from.
+            orderBy: [{ purchaseDate: 'asc' }, { createdAt: 'asc' }],
+            select: { currentStock: true, nutritionProfile: true },
           },
         },
       }),
@@ -407,6 +495,8 @@ export class FeedPlanService {
       } | null = null;
       let stockOk = false;
       let name = '';
+      // The raw lot profile (`null` = an unmeasured nutrient, never 0) for the full nutrition check.
+      let nutrition: NutritionValues | null = null;
       let source: {
         source_type: 'FEED_ITEM' | 'FEED_STOCK';
         feed_item_id: string | null;
@@ -423,9 +513,12 @@ export class FeedPlanService {
             me_mj_per_kg_dm: eff.meMjPerKgDm,
           };
         }
-        stockOk = (itemById.get(l.feedItemId)?.batches ?? []).some(
-          (b) => b.currentStock > 0,
-        );
+        const batches = itemById.get(l.feedItemId)?.batches ?? [];
+        stockOk = batches.some((b) => b.currentStock > 0);
+        const head =
+          batches.find((b) => b.currentStock > 0) ??
+          batches[batches.length - 1];
+        nutrition = head?.nutritionProfile ?? null;
         source = {
           source_type: 'FEED_ITEM',
           feed_item_id: l.feedItemId,
@@ -438,6 +531,7 @@ export class FeedPlanService {
         );
         const lot = lots.find((s) => s.currentStockKg > 0) ?? lots[0];
         if (lot) {
+          nutrition = lot.nutritionProfile;
           density = {
             dm_pct: lot.nutritionProfile.dmPct,
             cp_pct: lot.nutritionProfile.cpPct,
@@ -469,6 +563,7 @@ export class FeedPlanService {
         density,
         source,
         stock_ok: stockOk,
+        nutrition,
         supply: {
           as_fed_kg: l.kgPerDay,
           dm_kg: dmKg != null ? round2(dmKg) : null,

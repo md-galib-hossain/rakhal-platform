@@ -12,6 +12,7 @@ import { FeedConcentrationService } from './application/services/feed-concentrat
 import { FeedIngredientService } from './application/services/feed-ingredient.service';
 import { AuditModule } from 'src/modules/audit/audit.module';
 import { FeedRequirementsService } from './application/services/feed-requirements.service';
+import { FeedLookaheadService } from './application/services/feed-lookahead.service';
 import { RequirementSettingsService } from './application/services/requirement-settings.service';
 import { FeedDistributionService } from './application/services/feed-distribution.service';
 import { FeedStockService } from './application/services/feed-stock.service';
@@ -64,6 +65,7 @@ import { FeedPlanAssignmentController } from './presentation/controllers/feed-pl
   providers: [
     FeedIngredientService,
     FeedRequirementsService,
+    FeedLookaheadService,
     RequirementSettingsService,
     FeedConcentrationService,
     FeedDistributionService,

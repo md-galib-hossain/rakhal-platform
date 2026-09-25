@@ -78,6 +78,8 @@ export interface RequirementSettings {
   alertEnergyBelowPct: number;
   /** Energy supply may rise this far above the requirement (percent). */
   alertEnergyAbovePct: number;
+  /** RAKHAL-459a: how many days ahead the Feeding Grid warns about dry-off, calving and peak milk. */
+  lookaheadDays: number;
 
   // -- Pregnancy ------------------------------------------------------------
   /** `PREGNANCY_DM_STAGES` — intake-by-gestation-stage table, ordered by `untilDay` ascending. */
@@ -159,6 +161,7 @@ export const DEFAULT_REQUIREMENT_SETTINGS: RequirementSettings = {
   alertProteinAbovePct: 20,
   alertEnergyBelowPct: 10,
   alertEnergyAbovePct: 10,
+  lookaheadDays: 14,
 
   pregnancyIntakeStages: [
     { untilDay: 90, percentOfBodyWeight: 0.02 },
@@ -359,6 +362,13 @@ export const REQUIREMENT_SETTING_FIELDS: Record<
     unit: '%',
     min: 0,
     max: 100,
+  },
+  lookaheadDays: {
+    group: 'alerts',
+    label: 'Look-ahead: warn this many days before dry-off, calving or peak',
+    unit: 'days',
+    min: 1,
+    max: 60,
   },
 
   pregnancyLengthDays: {

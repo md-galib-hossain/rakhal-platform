@@ -288,6 +288,108 @@ describe('Feed program fit (e2e)', () => {
     }
   });
 
+  it('GET /feed/plans/:id/fit returns the FULL nutrient table per cow; unmeasured is never a silent 0', async () => {
+    const r = await request(server())
+      .get(api(`/feed/plans/${planId}/fit?cattleIds=${cowX}`))
+      .set(...auth(owner))
+      .expect(200);
+    const rows = r.body.data.cows[0].nutrients as Array<{
+      key: string;
+      supply: number | null;
+      requirement: number | null;
+      severity: string;
+      measured: boolean;
+    }>;
+    expect(rows.map((n) => n.key)).toEqual([
+      'dm',
+      'cp',
+      'me',
+      'fat',
+      'ndf',
+      'adf',
+      'tdn',
+      'calcium',
+      'phosphorus',
+      'ca_p_ratio',
+      'rdp_pct',
+      'rup_pct',
+      'starch',
+    ]);
+    for (const n of rows) {
+      expect(['ok', 'warn', 'bad', 'unknown']).toContain(n.severity);
+      // a nutrient a fed lot doesn't carry is flagged, and judged neither ok nor bad
+      if (!n.measured) expect(n.severity).toBe('unknown');
+    }
+    // the dm/cp/me rows agree with the existing fit
+    const fit = r.body.data.cows[0].fit as Fit;
+    const worst = ['dm', 'cp', 'me']
+      .map((k) => rows.find((n) => n.key === k)?.severity)
+      .filter((s) => s !== 'unknown');
+    if (worst.includes('bad')) expect(fit.severity).toBe('bad');
+    // every line now names the raw lot profile it was judged on
+    for (const l of r.body.data.lines as Array<{ nutrition: unknown }>) {
+      expect(l).toHaveProperty('nutrition');
+    }
+  });
+
+  it('POST /feed/plans/preview-fit: unsaved lines vs a saved animal or hand-entered figures, read-only', async () => {
+    const plansBefore = await prisma.feedPlan.count({
+      where: { farmId: owner.farmId },
+    });
+    const lines = [{ lineType: 'FEED_ITEM', feedItemId, kgPerDay: 4 }];
+
+    // hand-entered animal: weight + milk, no cow needed
+    const manual = await request(server())
+      .post(api('/feed/plans/preview-fit'))
+      .set(...auth(owner))
+      .send({ lines, manual: { weightKg: 450, milkTargetL: 15 } })
+      .expect(201);
+    const m = manual.body.data;
+    expect(m.requirement_full.dm_kg).toBeGreaterThan(0);
+    expect(m.flags).toEqual([]); // every input is the farmer's own
+    expect(m.nutrients).toHaveLength(13);
+    expect(m.supply.as_fed_kg).toBe(4);
+    expect(m.lines).toHaveLength(1);
+
+    // a saved animal
+    const cow = await request(server())
+      .post(api('/feed/plans/preview-fit'))
+      .set(...auth(owner))
+      .send({ lines, cattleId: cowX })
+      .expect(201);
+    expect(cow.body.data.requirement_full.dm_kg).toBeGreaterThan(0);
+
+    // an empty editor still shows the requirement
+    const blank = await request(server())
+      .post(api('/feed/plans/preview-fit'))
+      .set(...auth(owner))
+      .send({ lines: [], manual: { weightKg: 450, milkTargetL: 15 } })
+      .expect(201);
+    expect(blank.body.data.supply.as_fed_kg).toBe(0);
+    expect(blank.body.data.requirement_full.dm_kg).toBeGreaterThan(0);
+
+    // exactly one of cattleId / manual
+    await request(server())
+      .post(api('/feed/plans/preview-fit'))
+      .set(...auth(owner))
+      .send({ lines })
+      .expect(400);
+    await request(server())
+      .post(api('/feed/plans/preview-fit'))
+      .set(...auth(owner))
+      .send({
+        lines,
+        cattleId: cowX,
+        manual: { weightKg: 450, milkTargetL: 15 },
+      })
+      .expect(400);
+
+    // read-only: nothing was created
+    expect(
+      await prisma.feedPlan.count({ where: { farmId: owner.farmId } }),
+    ).toBe(plansBefore);
+  });
+
   it('GET /feed/cattle/:id/program: the plan, how it reaches her, resolved lines', async () => {
     const r = await request(server())
       .get(api(`/feed/cattle/${cowX}/program`))

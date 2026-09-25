@@ -17,6 +17,7 @@ import { FeedLotResolver } from './feed-lot-resolver.service';
 import { FeedPlanResolverService } from './feed-plan-resolver.service';
 import { FeedPlanService } from './feed-plan.service';
 import { FeedRequirementsService } from './feed-requirements.service';
+import { FeedLookaheadService } from './feed-lookahead.service';
 import { computeProgramFit, toApiFit } from '../../domain/program-fit';
 import { FeedItemService } from 'src/modules/inventory/application/services/feed-item.service';
 import {
@@ -99,6 +100,7 @@ export class FeedFeedingGridService {
     private readonly programs: FeedPlanResolverService,
     private readonly planService: FeedPlanService,
     private readonly requirements: FeedRequirementsService,
+    private readonly lookahead: FeedLookaheadService,
   ) {
     this.log = logger.setContext(FeedFeedingGridService.name);
   }
@@ -196,8 +198,10 @@ export class FeedFeedingGridService {
       defaults,
       defaultSources,
       confirmedToday,
+      confirmedSupply,
       programByCow,
       requirementRes,
+      lookaheadByCow,
       activeSessions,
     ] = await Promise.all([
       this.prisma.feedFeedingDraft.findMany({
@@ -206,9 +210,12 @@ export class FeedFeedingGridService {
       this.computeDefaults(farmId, cattleIds),
       this.resolveDefaultSources(farmId, cattle),
       this.computeConfirmedToday(cattleIds, farmId, logDate),
+      this.computeConfirmedSupply(cattleIds, farmId, logDate),
       // RAKHAL-457 (MILESTONE 27): the program each cow is on, and what she needs today.
       this.programs.resolveForCattle(farmId, cattleIds),
       this.requirements.forCattle(farmId, cattleIds, date),
+      // RAKHAL-459a: dry-off / calving / peak-milk coming up, so the plan can be adjusted before it stops fitting.
+      this.lookahead.forCattle(farmId, cattleIds, logDate),
       this.farmSettings.milkActiveSessions(farmId),
     ]);
     const draftsByCattle = this.groupByCattle(drafts);
@@ -310,8 +317,10 @@ export class FeedFeedingGridService {
         default_offered_kg: defaults.get(c.id) ?? null,
         default_source: this.mapResolvedSource(defaultSources.get(c.id)),
         confirmed_offered_kg: confirmedToday.get(c.id) ?? null,
+        confirmed_supply: confirmedSupply.get(c.id) ?? null,
         program_section_id: sectionId,
         program_conflict: program?.conflict ?? false,
+        lookahead: lookaheadByCow.get(c.id) ?? [],
         planned_kg_by_line: sectionId
           ? Object.fromEntries(
               (linesBySection.get(sectionId) ?? []).map((l) => [
@@ -1506,6 +1515,65 @@ export class FeedFeedingGridService {
       );
     }
     return map;
+  }
+
+  /**
+   * What today's CONFIRMED (non-voided) feedings supplied each cow, from the nutrition profile frozen on each row
+   * (RAKHAL-446): Σ offeredKg × DM% → DM kg, × CP% → CP kg, × ME MJ/kg DM → ME MJ. Backs the grid's requirement bar,
+   * which fills only after feeding is confirmed. `complete` is false when a row has no profile (pre-446 data).
+   */
+  private async computeConfirmedSupply(
+    cattleIds: string[],
+    farmId: string,
+    logDate: Date,
+  ): Promise<
+    Map<
+      string,
+      { dm_kg: number; cp_kg: number; me_mj: number; complete: boolean }
+    >
+  > {
+    const rows = await this.prisma.feedDistributionCattleItem.findMany({
+      where: {
+        cattleId: { in: cattleIds },
+        voidedAt: null,
+        distribution: { farmId, distributedAt: logDate, voidedAt: null },
+      },
+      select: { cattleId: true, offeredKg: true, nutritionProfileId: true },
+    });
+    const profiles = await this.lotResolver.profiles(
+      farmId,
+      rows.flatMap((r) => (r.nutritionProfileId ? [r.nutritionProfileId] : [])),
+    );
+    const acc = new Map<
+      string,
+      { dm_kg: number; cp_kg: number; me_mj: number; complete: boolean }
+    >();
+    for (const row of rows) {
+      const cur = acc.get(row.cattleId) ?? {
+        dm_kg: 0,
+        cp_kg: 0,
+        me_mj: 0,
+        complete: true,
+      };
+      const p = row.nutritionProfileId
+        ? profiles.get(row.nutritionProfileId)
+        : undefined;
+      if (!p) {
+        cur.complete = false;
+      } else {
+        const dm = row.offeredKg * (p.dmPct / 100);
+        cur.dm_kg += dm;
+        cur.cp_kg += dm * (p.cpPct / 100);
+        cur.me_mj += dm * p.meMjPerKgDm;
+      }
+      acc.set(row.cattleId, cur);
+    }
+    for (const v of acc.values()) {
+      v.dm_kg = round2(v.dm_kg);
+      v.cp_kg = round2(v.cp_kg);
+      v.me_mj = round2(v.me_mj);
+    }
+    return acc;
   }
 
   private mapResolvedSource(source: ResolvedSource | undefined | null) {

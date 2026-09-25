@@ -27,6 +27,7 @@ import {
   CreateFeedPlanDto,
   FeedPlanFitQueryDto,
   ListFeedPlansQueryDto,
+  PreviewPlanFitDto,
   UpdateFeedPlanDto,
 } from '../dto/feed-plan.dto';
 
@@ -74,6 +75,16 @@ export class FeedPlanController {
     @Query() query: FeedPlanFitQueryDto,
   ) {
     return this.plans.fit(farmId, id, query);
+  }
+
+  /**
+   * The editor's requirement scratchpad: supply vs requirement for lines that are not saved yet, against one
+   * animal or hand-entered figures. Read-only — `feed.read`, not `feed.create` — so it can never write a plan.
+   */
+  @Post('preview-fit')
+  @RequirePermission('feed.read')
+  previewFit(@CurrentFarmId() farmId: string, @Body() dto: PreviewPlanFitDto) {
+    return this.plans.previewFit(farmId, dto);
   }
 
   @Post()

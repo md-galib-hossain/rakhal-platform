@@ -45,6 +45,25 @@ export class FeedRequirementsService {
     return this.calcManual(query, farmId);
   }
 
+  /**
+   * A requirement for hand-entered figures (no animal), shaped like one `forCattle` cow so callers can treat both
+   * alike — used by the plan editor's scratchpad ("what would a 450 kg, 15 L cow need?"). Nothing is stored. There are
+   * no data-quality flags: every input is the farmer's own, none is assumed.
+   */
+  async forManual(farmId: string, query: FeedRequirementsQueryDto) {
+    const [manual, settings] = await Promise.all([
+      this.calcManual(query, farmId),
+      this.requirementSettings.resolve(farmId),
+    ]);
+    return {
+      cattle_id: null as string | null,
+      inputs: manual.inputs,
+      flags: [] as string[],
+      requirements: manual.requirements,
+      bands: bandsFromSettings(settings),
+    };
+  }
+
   private async calcManual(query: FeedRequirementsQueryDto, farmId: string) {
     const settings = await this.requirementSettings.resolve(farmId);
     const req = computeRequirements(
