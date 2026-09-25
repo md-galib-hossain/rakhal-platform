@@ -1,6 +1,6 @@
 "use client"; // date filter + per-cow line/refusal state + selection + bulk apply + save/confirm mutations
 
-import { Fragment, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -46,7 +45,7 @@ import {
 import { useConfirmProgram, useSaveProgramDraft } from "../../feed/hooks/use-feed-plans";
 import { useRequirementSettings } from "../../feed/hooks/use-requirement-settings";
 import type { FeedGridResult } from "../../feed/types";
-import type { FeedGridProgramCowFields, FeedGridSection } from "../../feed/plans-types";
+import type { FeedGridProgramCowFields, FeedGridSection, FeedPlan } from "../../feed/plans-types";
 import {
   bandsFromEffective,
   buildInitialLines,
@@ -70,8 +69,6 @@ import {
 } from "../grid-model";
 import { useSourceStock } from "../hooks/use-source-stock";
 import { ApplyPlanDialog, type ApplyTarget } from "../../feed/components/plans/apply-plan-dialog";
-import { AdjustPlanActions } from "./adjust-plan-sheet";
-import { ProgramCell } from "./program-cell";
 import { ProgramPicker } from "./program-picker";
 import { FeedLineCell } from "./feed-line-cell";
 import { FeedSourcePicker, type PreparedOption } from "./feed-source-picker";
@@ -168,7 +165,6 @@ function UnifiedGrid({
   const t = useTranslations("feeding.grid");
   const tu = useTranslations("feeding.grid.unified");
   const tp = useTranslations("feeding.programs");
-  const tKind = useTranslations("feed.plans.kind");
 
   const saveDraft = useSaveProgramDraft();
   const confirmProgram = useConfirmProgram();
@@ -288,12 +284,78 @@ function UnifiedGrid({
     }));
   const removeLine = (cowId: string, lineKey: string) =>
     setLines((p) => ({ ...p, [cowId]: (p[cowId] ?? []).filter((l) => l.key !== lineKey) }));
-  const addLine = (cowId: string, source: RowSource) =>
+  const addLine = (cowId: string, source: RowSource, name?: string) =>
     setLines((p) => {
       const cur = p[cowId] ?? [];
       if (cur.some((l) => l.source && sourceKey(l.source) === sourceKey(source))) return p;
-      return { ...p, [cowId]: [...cur, { key: newLineKey(), source, kg: "" }] };
+      return { ...p, [cowId]: [...cur, { key: newLineKey(), source, name, kg: "" }] };
     });
+
+  const toggleSource = (cowId: string, source: RowSource, name?: string) => {
+    setLines((p) => {
+      const cur = p[cowId] ?? [];
+      const key = sourceKey(source);
+      const exists = cur.some((l) => l.source && sourceKey(l.source) === key);
+      if (exists) {
+        return {
+          ...p,
+          [cowId]: cur.filter((l) => !l.source || sourceKey(l.source) !== key),
+        };
+      } else {
+        return {
+          ...p,
+          [cowId]: [...cur, { key: newLineKey(), source, name, kg: "" }],
+        };
+      }
+    });
+    ensureSelected(cowId);
+  };
+
+  function planToRowLines(plan: FeedPlan): RowLine[] {
+    const stockLots = feedStock.data ?? [];
+    return plan.lines.map((pl) => {
+      let source: RowSource | null = null;
+      if (pl.line_type === "FEED_ITEM" && pl.feed_item_id) {
+        source = { sourceType: "FEED_ITEM", itemId: pl.feed_item_id };
+      } else if (pl.line_type === "PREPARED" && pl.concentration_id) {
+        const lot = stockLots.find((s) => s.source_concentration_id === pl.concentration_id && s.current_stock_kg > 0);
+        if (lot) {
+          source = { sourceType: "FEED_STOCK", itemId: lot.id };
+        }
+      }
+      return {
+        key: newLineKey(),
+        planLineId: pl.id,
+        name: pl.name ?? undefined,
+        source,
+        kg: pl.kg_per_day > 0 ? String(pl.kg_per_day) : "",
+      };
+    });
+  }
+
+  const applyPlanToCow = (cowId: string, plan: FeedPlan) => {
+    const newLines = planToRowLines(plan);
+    setLines((p) => ({
+      ...p,
+      [cowId]: newLines,
+    }));
+    ensureSelected(cowId);
+  };
+
+  const applyPlanToSelected = (plan: FeedPlan) => {
+    if (selectedIds.length === 0) {
+      toast.info(t("bulkToolbar.selectFirstHint"));
+      return;
+    }
+    const template = planToRowLines(plan);
+    const next = { ...lines };
+    for (const id of selectedIds) {
+      next[id] = template.map((l) => ({ ...l, key: newLineKey() }));
+    }
+    const capped = enforceStockCaps(next, selectedIds, stock);
+    setLines(capped.lines);
+    toast.success(tu("appliedToast", { count: selectedIds.length }));
+  };
 
   const cowLabel = (id: string) => {
     const c = cowById.get(id);
@@ -303,21 +365,6 @@ function UnifiedGrid({
     setApplyCows(ids.map((id) => ({ id, label: cowLabel(id) })));
     setApplyTarget(target);
   }
-  /** Her plan's own lines and kg, ignoring anything typed since. */
-  function planLinesFor(cow: GridCow): RowLine[] {
-    const section = cow.program_section_id ? sectionById.get(cow.program_section_id) : undefined;
-    return buildInitialLines({ ...cow, drafts: [] }, section);
-  }
-  function isEdited(cow: GridCow, rowLines: RowLine[]): boolean {
-    if (!cow.program_section_id) return false;
-    const plan = planLinesFor(cow);
-    if (plan.length !== rowLines.length) return true;
-    return plan.some((p) => {
-      const l = rowLines.find((x) => x.planLineId === p.planLineId);
-      return !l || parseKg(l.kg) !== parseKg(p.kg);
-    });
-  }
-  const resetToPlan = (cow: GridCow) => setLines((p) => ({ ...p, [cow.cattle_id]: planLinesFor(cow) }));
 
   // ---- bulk apply ----------------------------------------------------------------------------------------------
   const kgNumber = sharedKg.trim() === "" ? null : Number(sharedKg);
@@ -410,7 +457,6 @@ function UnifiedGrid({
   const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
   const unlockedFiltered = filtered.filter((c) => !isLocked(c)).map((c) => c.cattle_id);
   const allTicked = unlockedFiltered.length > 0 && unlockedFiltered.every((id) => selected.has(id));
-  const grouped = sections.length > 0;
 
   return (
     <>
@@ -425,6 +471,7 @@ function UnifiedGrid({
             value={bulkSource}
             preparedOptions={preparedOptions}
             onSelect={setBulkSource}
+            onSelectPlan={applyPlanToSelected}
             onClear={() => setBulkSource(null)}
             footer={(close) => (
               <>
@@ -602,106 +649,81 @@ function UnifiedGrid({
             </TableHeader>
             <TableBody>
               {pageRows.map((cow, index) => {
-                const section = cow.program_section_id ? sectionById.get(cow.program_section_id) : undefined;
-                const prev = index > 0 ? pageRows[index - 1] : undefined;
-                const newGroup =
-                  grouped && (!prev || (prev.program_section_id ?? "none") !== (cow.program_section_id ?? "none"));
                 const rowLines = lines[cow.cattle_id] ?? [];
                 const locked = isLocked(cow);
                 const isSelected = selected.has(cow.cattle_id) && !locked;
                 const cowName = cow.name ?? cow.tag_number;
 
                 return (
-                  <Fragment key={cow.cattle_id}>
-                    {newGroup ? (
-                      <GroupHeaderRow
-                        section={section}
-                        cows={
-                          section
-                            ? ordered.filter((c) => c.program_section_id === section.id)
-                            : ordered.filter((c) => !c.program_section_id)
-                        }
-                        onSelectGroup={(ids) => selectMany(ids.filter((id) => !isLocked(cowById.get(id) as GridCow)))}
-                        tKind={tKind}
-                        tp={tp}
-                        tu={tu}
-                      />
-                    ) : null}
-                    <TableRow
-                      className={cn(
-                        "align-top transition-colors hover:bg-muted/40",
-                        isSelected && "bg-primary/[0.04]",
-                        locked && "opacity-70",
-                      )}
-                    >
-                      <TableCell className="pt-4 text-center">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="inline-flex">
-                              <Checkbox
-                                checked={isSelected}
-                                disabled={locked}
-                                onCheckedChange={() => toggle(cow.cattle_id)}
-                                aria-label={t("selectCow", { name: cowName })}
-                              />
-                            </span>
-                          </TooltipTrigger>
-                          {locked ? <TooltipContent>{tu("lockedHint")}</TooltipContent> : null}
-                        </Tooltip>
-                      </TableCell>
-
-                      <TableCell className="pt-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                            {(cow.name?.[0] ?? cow.tag_number?.[0] ?? "C").toUpperCase()}
-                          </div>
-                          <div className="flex min-w-0 flex-col">
-                            <AnimalLink
-                              id={cow.cattle_id}
-                              animalName={cow.name}
-                              tagNumber={cow.tag_number}
-                              className="truncate text-sm font-semibold text-foreground transition-colors hover:text-primary"
-                            >
-                              {cowName}
-                            </AnimalLink>
-                            <span className="truncate font-mono text-xs text-muted-foreground">{cow.tag_number}</span>
-                            <ProgramCell
-                              cattleId={cow.cattle_id}
-                              cowName={cowName}
-                              section={section}
-                              edited={isEdited(cow, rowLines)}
-                              onPick={(target) => openApply(target, [cow.cattle_id])}
-                              onReset={() => resetToPlan(cow)}
-                              onReload={() => void onPersisted()}
+                  <TableRow
+                    key={cow.cattle_id}
+                    className={cn(
+                      "align-top transition-colors hover:bg-muted/40",
+                      isSelected && "bg-primary/[0.04]",
+                      locked && "opacity-70",
+                    )}
+                  >
+                    <TableCell className="pt-4 text-center">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex">
+                            <Checkbox
+                              checked={isSelected}
+                              disabled={locked}
+                              onCheckedChange={() => toggle(cow.cattle_id)}
+                              aria-label={t("selectCow", { name: cowName })}
                             />
-                            {cow.program_conflict ? (
-                              <span className="mt-0.5 flex items-center gap-1 text-[11px] text-warning">
-                                <AlertTriangle className="size-3" aria-hidden />
-                                {tp("conflict")}
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                      </TableCell>
+                          </span>
+                        </TooltipTrigger>
+                        {locked ? <TooltipContent>{tu("lockedHint")}</TooltipContent> : null}
+                      </Tooltip>
+                    </TableCell>
 
-                      <TableCell className="py-2.5">
-                        <FeedLineCell
-                          cowName={cowName}
-                          rowIndex={index}
-                          total={cowTotalKg(rowLines)}
-                          lines={rowLines}
-                          rowSelected={isSelected}
-                          stock={stock}
-                          usage={usage}
-                          preparedOptions={preparedOptions}
-                          onChangeKg={(key, kg) => changeKg(cow.cattle_id, key, kg)}
-                          onRemove={(key) => removeLine(cow.cattle_id, key)}
-                          onAdd={(source) => addLine(cow.cattle_id, source)}
-                          onTouch={() => {
-                            if (!locked) ensureSelected(cow.cattle_id);
-                          }}
-                        />
-                      </TableCell>
+                    <TableCell className="pt-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                          {(cow.name?.[0] ?? cow.tag_number?.[0] ?? "C").toUpperCase()}
+                        </div>
+                        <div className="flex min-w-0 flex-col">
+                          <AnimalLink
+                            id={cow.cattle_id}
+                            animalName={cow.name}
+                            tagNumber={cow.tag_number}
+                            className="truncate text-sm font-semibold text-foreground transition-colors hover:text-primary"
+                          >
+                            {cowName}
+                          </AnimalLink>
+                          <span className="truncate font-mono text-xs text-muted-foreground">{cow.tag_number}</span>
+                          {cow.program_conflict ? (
+                            <span className="mt-0.5 flex items-center gap-1 text-[11px] text-warning">
+                              <AlertTriangle className="size-3" aria-hidden />
+                              {tp("conflict")}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </TableCell>
+
+                    <TableCell className="py-2.5">
+                      <FeedLineCell
+                        cowName={cowName}
+                        rowIndex={index}
+                        total={cowTotalKg(rowLines)}
+                        lines={rowLines}
+                        rowSelected={isSelected}
+                        stock={stock}
+                        usage={usage}
+                        preparedOptions={preparedOptions}
+                        onChangeKg={(key, kg) => changeKg(cow.cattle_id, key, kg)}
+                        onRemove={(key) => removeLine(cow.cattle_id, key)}
+                        onAdd={(source, name) => addLine(cow.cattle_id, source, name)}
+                        onToggleSource={(source, name) => toggleSource(cow.cattle_id, source, name)}
+                        onSelectPlan={(plan) => applyPlanToCow(cow.cattle_id, plan)}
+                        onTouch={() => {
+                          if (!locked) ensureSelected(cow.cattle_id);
+                        }}
+                      />
+                    </TableCell>
 
                       <TableCell className="pt-2.5">
                         <div className="flex h-8.5 w-24 items-center rounded-lg border border-input/80 bg-background px-2.5 shadow-2xs transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 hover:border-input">
@@ -723,11 +745,18 @@ function UnifiedGrid({
                             onKeyDown={(e) => {
                               if (e.key !== "Enter") return;
                               e.preventDefault();
-                              const nxt = document.querySelector<HTMLInputElement>(
-                                `input[data-grid-input="refusal"][data-row-index="${e.shiftKey ? index - 1 : index + 1}"]`,
+                              const allInputs = Array.from(
+                                document.querySelectorAll<HTMLInputElement>(
+                                  'input[data-grid-input="refusal"]:not([disabled])',
+                                ),
                               );
-                              nxt?.focus();
-                              nxt?.select();
+                              const currentIndex = allInputs.indexOf(e.currentTarget);
+                              if (currentIndex === -1) return;
+                              const target = allInputs[e.shiftKey ? currentIndex - 1 : currentIndex + 1];
+                              if (target) {
+                                target.focus();
+                                target.select();
+                              }
                             }}
                             className="h-full w-full min-w-0 bg-transparent p-0 text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground/30 [appearance:textfield] disabled:cursor-not-allowed [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                           />
@@ -774,7 +803,6 @@ function UnifiedGrid({
                         </Tooltip>
                       </TableCell>
                     </TableRow>
-                  </Fragment>
                 );
               })}
               {pageRows.length === 0 ? (
@@ -882,72 +910,5 @@ function UnifiedGrid({
         }}
       />
     </>
-  );
-}
-
-/** A visual divider inside the ONE table: which program the rows below belong to, its fit summary and its actions. */
-function GroupHeaderRow({
-  section,
-  cows,
-  onSelectGroup,
-  tKind,
-  tp,
-  tu,
-}: {
-  section: FeedGridSection | undefined;
-  cows: GridCow[];
-  onSelectGroup: (ids: string[]) => void;
-  tKind: ReturnType<typeof useTranslations>;
-  tp: ReturnType<typeof useTranslations>;
-  tu: ReturnType<typeof useTranslations>;
-}) {
-  const noBatch = section?.lines.filter((l) => l.source == null) ?? [];
-  const attention = section ? section.fit_summary.bad + section.fit_summary.warn : 0;
-  const summary = section
-    ? attention > 0
-      ? ` · ${tp("needsAttention", { count: attention })}`
-      : section.fit_summary.ok > 0
-        ? ` · ${tp("allFit")}`
-        : ""
-    : ` · ${tu("noProgramHint")}`;
-  return (
-    <TableRow className="bg-muted/30 hover:bg-muted/30">
-      <TableCell colSpan={COLUMN_COUNT} className="py-2.5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-sm font-semibold text-foreground">{section ? section.plan_name : tu("noProgramTitle")}</h3>
-              {section ? (
-                <>
-                  <Badge variant="info">{tKind(section.kind)}</Badge>
-                  <Badge variant="outline">{tp(`via.${section.via}`)}</Badge>
-                  {section.conflict ? (
-                    <Badge variant="warning" className="gap-1">
-                      <AlertTriangle className="size-3" aria-hidden />
-                      {tp("conflict")}
-                    </Badge>
-                  ) : null}
-                </>
-              ) : null}
-            </div>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {tp("cows", { count: cows.length })}
-              {summary}
-            </p>
-            {noBatch.length > 0 ? (
-              <p role="status" className="mt-0.5 text-xs text-warning">
-                {tp("noBatch", { names: noBatch.map((l) => l.name).join(", ") })}
-              </p>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => onSelectGroup(cows.map((c) => c.cattle_id))}>
-              {tu("selectGroup")}
-            </Button>
-            {section ? <AdjustPlanActions section={section} cows={cows} /> : null}
-          </div>
-        </div>
-      </TableCell>
-    </TableRow>
   );
 }

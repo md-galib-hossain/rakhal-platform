@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { AlertTriangle, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { FeedPlan } from "@/features/feed/plans-types";
 import {
   clampKg,
   maxKgForLine,
@@ -16,15 +17,24 @@ import { FeedSourcePicker, type PreparedOption } from "./feed-source-picker";
 
 const fmt = (n: number) => (Math.round(n * 100) / 100).toString();
 
-/** Enter → the next cow's first kg input, Shift+Enter → the previous one (spreadsheet-style entry down the column). */
-function handleQtyKeyDown(e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number) {
+/** Enter → the next quantity input (next line or next cow), Shift+Enter → the previous one. */
+function handleQtyKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
   if (e.key !== "Enter") return;
   e.preventDefault();
-  const next = document.querySelector<HTMLInputElement>(
-    `input[data-grid-input="quantity"][data-row-index="${e.shiftKey ? rowIndex - 1 : rowIndex + 1}"][data-line-index="0"]`,
+  const allInputs = Array.from(
+    document.querySelectorAll<HTMLInputElement>(
+      'input[data-grid-input="quantity"]:not([disabled])',
+    ),
   );
-  next?.focus();
-  next?.select();
+  const currentIndex = allInputs.indexOf(e.currentTarget);
+  if (currentIndex === -1) return;
+
+  const targetIndex = e.shiftKey ? currentIndex - 1 : currentIndex + 1;
+  const target = allInputs[targetIndex];
+  if (target) {
+    target.focus();
+    target.select();
+  }
 }
 
 interface Props {
@@ -39,7 +49,9 @@ interface Props {
   preparedOptions: PreparedOption[];
   onChangeKg: (lineKey: string, kg: string) => void;
   onRemove: (lineKey: string) => void;
-  onAdd: (source: RowSource) => void;
+  onAdd: (source: RowSource, name?: string) => void;
+  onToggleSource?: (source: RowSource, name?: string) => void;
+  onSelectPlan?: (plan: FeedPlan) => void;
   /** Called on any interaction so the row ticks itself, like editing a spreadsheet row. */
   onTouch: () => void;
   /** Σ kg of this cow's fed lines, shown under the lines. */
@@ -63,6 +75,8 @@ export function FeedLineCell({
   onChangeKg,
   onRemove,
   onAdd,
+  onToggleSource,
+  onSelectPlan,
   onTouch,
   total,
 }: Props) {
@@ -131,7 +145,7 @@ export function FeedLineCell({
                     onTouch();
                     e.target.select();
                   }}
-                  onKeyDown={(e) => handleQtyKeyDown(e, rowIndex)}
+                  onKeyDown={handleQtyKeyDown}
                   className="h-full w-full min-w-0 bg-transparent p-0 text-sm font-semibold text-foreground outline-none placeholder:text-muted-foreground/30 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none disabled:cursor-not-allowed"
                 />
                 <span className="ml-1 shrink-0 text-xs font-medium text-muted-foreground/70">kg</span>
@@ -158,32 +172,51 @@ export function FeedLineCell({
         );
       })}
 
-      <div className="flex items-center justify-between gap-2">
-        <FeedSourcePicker preparedOptions={preparedOptions} onSelect={onAdd} onOpen={onTouch}>
-          {lines.length === 0 ? (
+      {lines.length === 0 ? (
+        <FeedSourcePicker
+          lines={lines}
+          preparedOptions={preparedOptions}
+          onSelect={onAdd}
+          onToggleSource={onToggleSource}
+          onSelectPlan={onSelectPlan}
+          onOpen={onTouch}
+        >
+          <button
+            type="button"
+            className="flex h-8 items-center gap-1.5 rounded-lg border border-dashed border-input bg-muted/20 px-3 text-left text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:bg-card hover:text-foreground"
+          >
+            <Plus className="size-3" aria-hidden />
+            {t("selectFeed")}
+          </button>
+        </FeedSourcePicker>
+      ) : (
+        <div className="mt-1 flex items-center justify-between gap-2 border-t border-border/60 pt-1.5">
+          <FeedSourcePicker
+            lines={lines}
+            preparedOptions={preparedOptions}
+            onSelect={onAdd}
+            onToggleSource={onToggleSource}
+            onSelectPlan={onSelectPlan}
+            onOpen={onTouch}
+          >
             <button
               type="button"
-              className="flex h-8 items-center gap-1.5 rounded-lg border border-dashed border-input bg-muted/20 px-3 text-left text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:bg-card hover:text-foreground"
+              className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
             >
-              <Plus className="size-3" aria-hidden />
-              {t("selectFeed")}
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="flex w-fit items-center gap-1 rounded-md px-1 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
-            >
-              <Plus className="size-3" aria-hidden />
+              <Plus className="size-3.5" aria-hidden />
               {t("addFeed")}
             </button>
-          )}
-        </FeedSourcePicker>
-        {total > 0 ? (
-          <span className="text-xs text-muted-foreground">
-            {t("total")} <span className="text-sm font-semibold tabular-nums text-foreground">{fmt(total)}</span> kg
-          </span>
-        ) : null}
-      </div>
+          </FeedSourcePicker>
+
+          {total > 0 ? (
+            <div className="flex items-center gap-1.5 rounded-md border border-border/50 bg-muted/40 px-2 py-0.5 text-xs">
+              <span className="text-[11px] font-medium text-muted-foreground">{t("total")}:</span>
+              <span className="font-bold tabular-nums text-foreground">{fmt(total)}</span>
+              <span className="text-[11px] font-medium text-muted-foreground">kg</span>
+            </div>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }
