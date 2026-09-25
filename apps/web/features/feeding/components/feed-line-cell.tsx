@@ -190,7 +190,7 @@ export function FeedLineCell({
           </button>
         </FeedSourcePicker>
       ) : (
-        <div className="mt-1 flex items-center justify-between gap-2 border-t border-border/60 pt-1.5">
+        <div className="flex flex-col gap-1.5 pt-0.5">
           <FeedSourcePicker
             lines={lines}
             preparedOptions={preparedOptions}
@@ -201,18 +201,29 @@ export function FeedLineCell({
           >
             <button
               type="button"
-              className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+              className="flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
             >
               <Plus className="size-3.5" aria-hidden />
               {t("addFeed")}
             </button>
           </FeedSourcePicker>
 
+          <div className="border-t border-border/70 my-0.5" />
+
           {total > 0 ? (
-            <div className="flex items-center gap-1.5 rounded-md border border-border/50 bg-muted/40 px-2 py-0.5 text-xs">
-              <span className="text-[11px] font-medium text-muted-foreground">{t("total")}:</span>
-              <span className="font-bold tabular-nums text-foreground">{fmt(total)}</span>
-              <span className="text-[11px] font-medium text-muted-foreground">kg</span>
+            <div className="flex items-center gap-2">
+              <span className="flex min-w-0 flex-1 items-center">
+                <span className="text-xs font-semibold text-muted-foreground">{t("total")}</span>
+              </span>
+
+              <div className="flex h-6 w-28 shrink-0 items-center px-2.5">
+                <span className="w-full text-sm font-semibold tabular-nums text-foreground">
+                  {fmt(total)}
+                </span>
+                <span className="ml-1 shrink-0 text-xs font-medium text-muted-foreground/70">kg</span>
+              </div>
+
+              <div className="size-6 shrink-0" aria-hidden="true" />
             </div>
           ) : null}
         </div>
