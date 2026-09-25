@@ -92,7 +92,14 @@ export function FeedSourcePicker({
   return (
     <Popover open={open} onOpenChange={handleOpenChange} modal={false}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent className="w-[360px] p-0 shadow-lg sm:w-[440px]" align={align}>
+      <PopoverContent
+        side="bottom"
+        sideOffset={6}
+        collisionPadding={12}
+        sticky="always"
+        className="w-[360px] p-0 shadow-lg sm:w-[440px]"
+        align={align}
+      >
         {open ? (
           <PickerBody
             search={search}
@@ -333,7 +340,7 @@ function PickerBody({
           </div>
         </div>
 
-        <CommandList className="max-h-[320px] overflow-y-auto p-1">
+        <CommandList className="h-[280px] overflow-y-auto p-1">
           {isEmpty ? (
             <CommandEmpty className="py-6 text-center text-xs text-muted-foreground">
               {feedItemsQuery.isLoading || feedPlansQuery.isLoading ? "…" : t("noItemsFound")}
@@ -507,11 +514,25 @@ function PickerBody({
 
       {isMulti ? (
         <div className="flex items-center justify-between border-t border-border bg-muted/20 p-2">
-          <span className="text-xs text-muted-foreground">
-            {selectedSourceKeys.size > 0
-              ? t("rowSource.selectedCount", { count: selectedSourceKeys.size })
-              : null}
-          </span>
+          <div className="flex items-center gap-2">
+            {selectedSourceKeys.size > 0 && onClear ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10"
+                onClick={onClear}
+              >
+                <X className="mr-1 size-3" aria-hidden />
+                {t("rowSource.clear")}
+              </Button>
+            ) : null}
+            <span className="text-xs text-muted-foreground">
+              {selectedSourceKeys.size > 0
+                ? t("rowSource.selectedCount", { count: selectedSourceKeys.size })
+                : null}
+            </span>
+          </div>
           <Button
             type="button"
             size="sm"

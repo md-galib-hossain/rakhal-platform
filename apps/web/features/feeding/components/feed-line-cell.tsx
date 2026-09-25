@@ -172,7 +172,7 @@ export function FeedLineCell({
         );
       })}
 
-      {lines.length === 0 ? (
+      <div className="flex flex-col gap-1.5 pt-0.5">
         <FeedSourcePicker
           lines={lines}
           preparedOptions={preparedOptions}
@@ -181,24 +181,15 @@ export function FeedLineCell({
           onSelectPlan={onSelectPlan}
           onOpen={onTouch}
         >
-          <button
-            type="button"
-            className="flex h-8 items-center gap-1.5 rounded-lg border border-dashed border-input bg-muted/20 px-3 text-left text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:bg-card hover:text-foreground"
-          >
-            <Plus className="size-3" aria-hidden />
-            {t("selectFeed")}
-          </button>
-        </FeedSourcePicker>
-      ) : (
-        <div className="flex flex-col gap-1.5 pt-0.5">
-          <FeedSourcePicker
-            lines={lines}
-            preparedOptions={preparedOptions}
-            onSelect={onAdd}
-            onToggleSource={onToggleSource}
-            onSelectPlan={onSelectPlan}
-            onOpen={onTouch}
-          >
+          {lines.length === 0 ? (
+            <button
+              type="button"
+              className="flex h-8 items-center gap-1.5 rounded-lg border border-dashed border-input bg-muted/20 px-3 text-left text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:bg-card hover:text-foreground"
+            >
+              <Plus className="size-3" aria-hidden />
+              {t("selectFeed")}
+            </button>
+          ) : (
             <button
               type="button"
               className="flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
@@ -206,28 +197,32 @@ export function FeedLineCell({
               <Plus className="size-3.5" aria-hidden />
               {t("addFeed")}
             </button>
-          </FeedSourcePicker>
+          )}
+        </FeedSourcePicker>
 
-          <div className="border-t border-border/70 my-0.5" />
+        {lines.length > 0 ? (
+          <>
+            <div className="border-t border-border/70 my-0.5" />
 
-          {total > 0 ? (
-            <div className="flex items-center gap-2">
-              <span className="flex min-w-0 flex-1 items-center">
-                <span className="text-xs font-semibold text-muted-foreground">{t("total")}</span>
-              </span>
-
-              <div className="flex h-6 w-28 shrink-0 items-center px-2.5">
-                <span className="w-full text-sm font-semibold tabular-nums text-foreground">
-                  {fmt(total)}
+            {total > 0 ? (
+              <div className="flex items-center gap-2">
+                <span className="flex min-w-0 flex-1 items-center">
+                  <span className="text-xs font-semibold text-muted-foreground">{t("total")}</span>
                 </span>
-                <span className="ml-1 shrink-0 text-xs font-medium text-muted-foreground/70">kg</span>
-              </div>
 
-              <div className="size-6 shrink-0" aria-hidden="true" />
-            </div>
-          ) : null}
-        </div>
-      )}
+                <div className="flex h-6 w-28 shrink-0 items-center px-2.5">
+                  <span className="w-full text-sm font-semibold tabular-nums text-foreground">
+                    {fmt(total)}
+                  </span>
+                  <span className="ml-1 shrink-0 text-xs font-medium text-muted-foreground/70">kg</span>
+                </div>
+
+                <div className="size-6 shrink-0" aria-hidden="true" />
+              </div>
+            ) : null}
+          </>
+        ) : null}
+      </div>
     </div>
   );
 }

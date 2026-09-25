@@ -202,7 +202,7 @@ function UnifiedGrid({
   const [applyCows, setApplyCows] = useState<{ id: string; label: string }[]>([]);
   const appliedRef = useRef(false);
   const [session, setSession] = useState("");
-  const [bulkSource, setBulkSource] = useState<RowSource | null>(null);
+  const [bulkSources, setBulkSources] = useState<RowSource[]>([]);
   const [sharedKg, setSharedKg] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -212,6 +212,22 @@ function UnifiedGrid({
   const [createKind, setCreateKind] = useState<"CONCENTRATE_TEMPLATE" | "FEED_MIXTURE">("CONCENTRATE_TEMPLATE");
   const [createOpen, setCreateOpen] = useState(false);
   const [historyCow, setHistoryCow] = useState<{ id: string; name: string | null } | null>(null);
+
+  const toggleBulkSource = (source: RowSource, _name?: string) => {
+    setBulkSources((prev) => {
+      const key = sourceKey(source);
+      const exists = prev.some((s) => sourceKey(s) === key);
+      if (exists) {
+        return prev.filter((s) => sourceKey(s) !== key);
+      }
+      return [...prev, source];
+    });
+  };
+
+  const bulkLines: RowLine[] = useMemo(
+    () => bulkSources.map((s) => ({ key: sourceKey(s), source: s, kg: "" })),
+    [bulkSources],
+  );
 
   // A farm with one session feeds a cow once a day: confirming a cow that is already fed would double-feed her.
   const skipConfirmed = (activeSessions.data ?? []).length <= 1;
@@ -232,9 +248,9 @@ function UnifiedGrid({
   const sources = useMemo(() => {
     const out: RowSource[] = [];
     for (const rowLines of Object.values(lines)) for (const l of rowLines) if (l.source) out.push(l.source);
-    if (bulkSource) out.push(bulkSource);
+    for (const s of bulkSources) out.push(s);
     return out;
-  }, [lines, bulkSource]);
+  }, [lines, bulkSources]);
   const stock = useSourceStock(sources, t("unknownStock"));
   const usage = useMemo(() => usageBySource(lines, selectedIds), [lines, selectedIds]);
 
@@ -371,30 +387,36 @@ function UnifiedGrid({
   const hasKg = kgNumber != null && Number.isFinite(kgNumber) && kgNumber >= 0;
 
   function handleApply() {
-    if (selectedIds.length === 0 || (!bulkSource && !hasKg)) return;
+    if (selectedIds.length === 0 || (bulkSources.length === 0 && !hasKg)) return;
     const next = { ...lines };
     let skipped = 0;
     for (const id of selectedIds) {
       const cow = cowById.get(id);
-      const cur = next[id] ?? [];
-      if (bulkSource) {
-        const key = sourceKey(bulkSource);
-        const same = (l: RowLine) => l.source != null && sourceKey(l.source) === key;
-        if (!cow?.program_section_id) {
-          // No program: the picked feed IS her feed — replaces whatever she had.
-          const prev = cur.find(same);
-          next[id] = [
-            {
-              key: prev?.key ?? newLineKey(),
-              source: bulkSource,
-              kg: hasKg ? String(kgNumber) : (prev?.kg ?? cur[0]?.kg ?? ""),
-            },
-          ];
-        } else if (cur.some(same)) {
-          next[id] = cur.map((l) => (same(l) && hasKg ? { ...l, kg: String(kgNumber) } : l));
+      const cur = next[id] ? [...next[id]] : [];
+      if (bulkSources.length > 0) {
+        if (!cow?.program_section_id && cur.length === 0) {
+          next[id] = bulkSources.map((bs) => ({
+            key: newLineKey(),
+            source: bs,
+            kg: hasKg ? String(kgNumber) : "",
+          }));
         } else {
-          // On a program: the picked feed is added on top of her plan lines.
-          next[id] = [...cur, { key: newLineKey(), source: bulkSource, kg: hasKg ? String(kgNumber) : "" }];
+          let updated = [...cur];
+          for (const bs of bulkSources) {
+            const key = sourceKey(bs);
+            const same = (l: RowLine) => l.source != null && sourceKey(l.source) === key;
+            const idx = updated.findIndex(same);
+            if (idx >= 0) {
+              if (hasKg) updated[idx] = { ...updated[idx], kg: String(kgNumber) };
+            } else {
+              updated.push({
+                key: newLineKey(),
+                source: bs,
+                kg: hasKg ? String(kgNumber) : "",
+              });
+            }
+          }
+          next[id] = updated;
         }
       } else if (hasKg) {
         // kg only: unambiguous for a one-line cow; a multi-line cow needs her lines edited individually.
@@ -468,11 +490,11 @@ function UnifiedGrid({
             {t("bulkToolbar.sourceSection")}
           </span>
           <FeedSourcePicker
-            value={bulkSource}
+            lines={bulkLines}
             preparedOptions={preparedOptions}
-            onSelect={setBulkSource}
+            onToggleSource={toggleBulkSource}
             onSelectPlan={applyPlanToSelected}
-            onClear={() => setBulkSource(null)}
+            onClear={() => setBulkSources([])}
             footer={(close) => (
               <>
                 <button
@@ -517,11 +539,15 @@ function UnifiedGrid({
               aria-label={t("itemLabel")}
               className={cn(
                 "h-11 w-56 justify-between bg-card text-left font-normal shadow-2xs sm:w-64",
-                !bulkSource && "text-muted-foreground",
+                bulkSources.length === 0 && "text-muted-foreground",
               )}
             >
               <span className="truncate">
-                {bulkSource ? (stock.get(sourceKey(bulkSource))?.label ?? "…") : t("itemPlaceholder")}
+                {bulkSources.length === 0
+                  ? t("itemPlaceholder")
+                  : bulkSources.length === 1
+                    ? (stock.get(sourceKey(bulkSources[0]))?.label ?? "…")
+                    : `${stock.get(sourceKey(bulkSources[0]))?.label ?? "…"} + ${bulkSources.length - 1} more`}
               </span>
               <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" aria-hidden />
             </Button>
@@ -577,7 +603,7 @@ function UnifiedGrid({
         <Button
           variant="primary"
           className="h-11 gap-2 px-5 font-semibold shadow-2xs"
-          disabled={selectedIds.length === 0 || (!bulkSource && !hasKg)}
+          disabled={selectedIds.length === 0 || (bulkSources.length === 0 && !hasKg)}
           onClick={handleApply}
         >
           <ArrowRight className="size-4" />
@@ -897,7 +923,7 @@ function UnifiedGrid({
       <FeedItemFormDialog
         open={addFeedItemOpen}
         onOpenChange={setAddFeedItemOpen}
-        onCreated={(item) => setBulkSource({ sourceType: "FEED_ITEM", itemId: item.id })}
+        onCreated={(item) => setBulkSources([{ sourceType: "FEED_ITEM", itemId: item.id }])}
       />
       <CreateFeedDialog open={createOpen} onOpenChange={setCreateOpen} kind={createKind} />
 
