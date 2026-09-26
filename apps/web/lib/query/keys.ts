@@ -252,7 +252,6 @@ export const qk = {
     gridCalendar: (month: string) => ["feed", "grid", "calendar", month] as const,
     cattleHistory: (cattleId: string, date: string | undefined) =>
       ["feed", "grid", "cattle-history", cattleId, date] as const,
-    activeSessions: () => ["feed", "active-sessions"] as const,
     versions: (concentrationId: string) => ["feed", "versions", concentrationId] as const,
     costSummary: () => ["feed", "cost-summary"] as const,
     /** MILESTONE 27 (RFE-126) — all under `["feed","plans"]` so one prefix invalidation clears them. */

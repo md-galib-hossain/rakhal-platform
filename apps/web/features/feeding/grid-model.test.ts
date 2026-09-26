@@ -82,7 +82,7 @@ const stock = (kg: number | null): Map<string, StockInfo> =>
   new Map([["FEED_ITEM:fi1", { label: "Soybean meal", availableKg: kg }]]);
 
 describe("buildInitialLines", () => {
-  it("pre-fills a program cow's lines with the plan's per-session kg and keeps a no-batch line source-less", () => {
+  it("pre-fills a program cow's lines with the plan's daily kg and keeps a no-batch line source-less", () => {
     const lines = buildInitialLines(cow({ program_section_id: "s1" }), section);
     expect(lines.map((l) => [l.planLineId, l.kg, l.source?.itemId ?? null])).toEqual([
       ["l1", "5", "fi1"],
@@ -174,8 +174,8 @@ describe("live fit", () => {
   // Needs exactly what 10 kg/day of that feed supplies: dm 9, cp 1.8, me 108.
   const req = { dm_kg: 9, cp_kg: 1.8, me_mj: 108 };
 
-  it("scales one session's kg to the day and matches the backend formula", () => {
-    const s = liveSupply([line("x", "fi1", "5")], density, 2);
+  it("matches the backend formula for the day's kg", () => {
+    const s = liveSupply([line("x", "fi1", "10")], density);
     expect(s).toMatchObject({ dm_kg: 9, complete: true });
     expect(s.cp_kg).toBeCloseTo(1.8);
     expect(s.me_mj).toBeCloseTo(108);
@@ -183,17 +183,17 @@ describe("live fit", () => {
   });
 
   it("moves the pill when the kg is edited", () => {
-    const s = liveSupply([line("x", "fi1", "10")], density, 2); // double the need
+    const s = liveSupply([line("x", "fi1", "20")], density); // double the need
     const fit = liveFit(s, req, DEFAULT_FIT_BANDS, false);
     expect(fit.dm.delta_pct).toBe(100);
     expect(fit.severity).toBe("bad");
-    const low = liveFit(liveSupply([line("x", "fi1", "4.5")], density, 2), req, DEFAULT_FIT_BANDS, false);
+    const low = liveFit(liveSupply([line("x", "fi1", "9")], density), req, DEFAULT_FIT_BANDS, false);
     expect(low.dm.delta_pct).toBe(-10);
     expect(low.severity).toBe("ok"); // exactly on the band edge stays ok
   });
 
   it("marks the fit estimated when a fed line has unknown nutrition", () => {
-    const s = liveSupply([line("x", "fi1", "5"), line("y", "mystery", "3")], density, 2);
+    const s = liveSupply([line("x", "fi1", "5"), line("y", "mystery", "3")], density);
     expect(s.complete).toBe(false);
     expect(liveFit(s, req, DEFAULT_FIT_BANDS, false).estimated).toBe(true);
   });

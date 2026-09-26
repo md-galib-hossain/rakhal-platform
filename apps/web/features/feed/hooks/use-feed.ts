@@ -421,15 +421,6 @@ export function useConfirmFeedDraft() {
   });
 }
 
-/** RAKHAL-441 frontend twin — the Grid UI's session picker options. */
-export function useFeedActiveSessions() {
-  return useQuery({
-    queryKey: qk.feed.activeSessions(),
-    queryFn: () => feedApi.getActiveSessions(),
-    staleTime: STALE_TIME,
-  });
-}
-
 /** RAKHAL-441 frontend twin (per-cow) — one cow's own feeding entries for one exact day (server
  * defaults to today when omitted, incl. voided ones), backing the per-cow History panel opened
  * from that cow's own Feeding Grid row. */

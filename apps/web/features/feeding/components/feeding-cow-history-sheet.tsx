@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/format";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -171,11 +170,6 @@ export function FeedingCowHistorySheet({
                         >
                           {entry.feed_name ?? "—"}
                         </span>
-                        {entry.session ? (
-                          <Badge variant="outline" className="shrink-0 font-normal">
-                            {entry.session}
-                          </Badge>
-                        ) : null}
                       </div>
                       <span className="text-xs text-muted-foreground">
                         {formatDate(entry.fed_at, locale, { hour: "numeric", minute: "2-digit" })}

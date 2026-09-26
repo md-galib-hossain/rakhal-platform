@@ -614,11 +614,6 @@ export interface EntryCalendarResult {
   days: EntryCalendarDay[];
 }
 
-/** RAKHAL-441 frontend twin — `GET /feed/active-sessions`, the Grid UI's session picker options.
- * Reads the same farm setting Milk's session picker does (`MilkSession`, uppercase strings), but
- * exposed under `feed.read` instead of `milk.read` so a feed-only worker isn't blocked. */
-export type FeedActiveSession = string;
-
 /** RAKHAL-441 frontend twin (per-cow) — `GET /feed/grid/cattle/:cattleId/history` row: one
  * confirmed `FeedDistributionCattleItem` for that cow on the queried date, voided or not (the
  * panel is also the correction audit trail — a voided row is shown struck-through, not hidden).
@@ -633,7 +628,6 @@ export interface FeedCattleHistoryEntry {
   cost_tk: number | null;
   feed_name: string | null;
   source_type: FeedGridSourceType | null;
-  session: string | null;
   fed_at: string;
   voided_at: string | null;
   voided_by: string | null;
@@ -725,9 +719,6 @@ export interface ConfirmFeedGridPayload {
   feedItemId?: string;
   feedStockId?: string;
   entries?: FeedGridEntryInput[];
-  /** RAKHAL-441 frontend twin — which of the farm's active sessions (`useFeedActiveSessions`) this
-   * confirm belongs to. Validated against the farm's own list server-side. */
-  session?: string;
 }
 
 /** RAKHAL-430 rewrote `confirm()`'s response into a real multi-source shape — one

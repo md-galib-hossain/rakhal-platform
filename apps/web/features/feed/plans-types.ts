@@ -250,7 +250,7 @@ export interface FeedGridSectionLine {
   line_type: FeedPlanLineType;
   name: string;
   kg_per_day: number;
-  /** Daily kg ÷ the farm's active sessions — what the grid pre-fills (editable). */
+  /** The whole daily kg — what the grid pre-fills (editable; one confirm per cow per day). */
   prefill_kg: number;
   /** The concrete thing a feeding draws: the bought item, or the recipe's newest lot with stock. `null` = a recipe with no batch made yet. */
   source: {
@@ -315,6 +315,5 @@ export interface ProgramGridEntry {
 
 export interface ProgramGridPayload {
   date: string;
-  session?: string;
   entries: ProgramGridEntry[];
 }

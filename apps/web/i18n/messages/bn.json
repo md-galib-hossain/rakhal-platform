@@ -5733,9 +5733,7 @@
         "applyQuantity": "কেজি প্রয়োগ করুন",
         "applyUnified": "নির্বাচিতদের প্রয়োগ করুন ({count})",
         "appliedBothToast": "{count} টি নির্বাচিত গরুর জন্য ফিড ও {kg} কেজি প্রয়োগ করা হয়েছে।",
-        "selectFirstHint": "প্রয়োগ করতে কমপক্ষে ১টি গরু নির্বাচন করুন",
-        "sessionSection": "সেশন",
-        "sessionPlaceholder": "কোনো সেশন নেই"
+        "selectFirstHint": "প্রয়োগ করতে কমপক্ষে ১টি গরু নির্বাচন করুন"
       },
       "sourceType": {
         "FEED_ITEM": "ক্রয়কৃত",
@@ -5930,7 +5928,6 @@
       "cows": "{count, plural, one {# টি পশু} other {# টি পশু}}",
       "needsAttention": "{count} টি তার প্রয়োজনের সাথে মিলছে না",
       "allFit": "সব সীমার মধ্যে",
-      "session": "সেশন",
       "saveDraft": "খসড়া সংরক্ষণ",
       "confirmAsPlanned": "পরিকল্পনা অনুযায়ী নিশ্চিত করুন",
       "noBatch": "এগুলোর ব্যাচ এখনও তৈরি হয়নি: {names}। খাওয়ানোর আগে ব্যাচ তৈরি করুন।",

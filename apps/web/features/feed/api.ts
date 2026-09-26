@@ -10,7 +10,6 @@ import type {
   CreateFeedConcentrationPayload,
   DmiComparison,
   EntryCalendarResult,
-  FeedActiveSession,
   FeedConcentrationDetail,
   FeedConcentrationKind,
   FeedConcentrationSummary,
@@ -218,10 +217,6 @@ export const feedApi = {
   },
   confirmFeedGrid(dto: ConfirmFeedGridPayload): Promise<ConfirmFeedGridResult> {
     return apiFetch<ConfirmFeedGridResult>("/feed/grid/confirm", { method: "POST", body: dto });
-  },
-  /** RAKHAL-441 frontend twin — the Grid UI's session picker options. */
-  getActiveSessions(): Promise<FeedActiveSession[]> {
-    return apiFetch<FeedActiveSession[]>("/feed/active-sessions");
   },
   /** RAKHAL-441 frontend twin (per-cow) — one cow's own feeding entries for one exact day
    * (server defaults to today when `date` is omitted), backing the per-cow History panel opened

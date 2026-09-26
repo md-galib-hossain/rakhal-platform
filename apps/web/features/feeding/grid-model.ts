@@ -70,7 +70,7 @@ function toRowSource(s: FeedGridSource | null | undefined): RowSource | null {
 }
 
 /**
- * A cow's opening lines. A saved draft for a plan line wins over the plan's per-session kg; drafts that match no plan
+ * A cow's opening lines. A saved draft for a plan line wins over the plan's daily kg; drafts that match no plan
  * line (hand-added, or a line an edited plan no longer has) come back as extra lines so nothing staged is lost.
  * A cow with no program and no saved draft starts empty — nothing is pre-filled from a previous day.
  */
@@ -260,11 +260,11 @@ function classify(supply: number, requirement: number, below: number, above: num
 }
 
 /**
- * What the row's lines supply to the cow per DAY. The grid edits one session's kg, so the day's supply is that × the
- * farm's active sessions (the plan pre-fills daily kg ÷ sessions). `complete` is false when a fed line has no known
- * nutrition — the totals are then a floor and the fit is marked estimated.
+ * What the row's lines supply to the cow per DAY. The grid edits the whole day's kg (one confirm per cow per day).
+ * `complete` is false when a fed line has no known nutrition — the totals are then a floor and the fit is marked
+ * estimated.
  */
-export function liveSupply(lines: RowLine[], density: (key: string) => Density | null | undefined, sessions: number) {
+export function liveSupply(lines: RowLine[], density: (key: string) => Density | null | undefined) {
   let dm = 0;
   let cp = 0;
   let me = 0;
@@ -277,7 +277,7 @@ export function liveSupply(lines: RowLine[], density: (key: string) => Density |
       complete = false;
       continue;
     }
-    const dmKg = kg * Math.max(1, sessions) * (d.dm_pct / 100);
+    const dmKg = kg * (d.dm_pct / 100);
     dm += dmKg;
     cp += dmKg * (d.cp_pct / 100);
     me += dmKg * d.me_mj_per_kg_dm;

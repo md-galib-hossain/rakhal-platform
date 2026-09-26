@@ -9,7 +9,6 @@ import {
   Check,
   ChevronsUpDown,
   ClipboardList,
-  Clock,
   History,
   Layers,
   Plus,
@@ -22,7 +21,6 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EntryStatusDatePicker } from "@/components/shared/entry-status-date-picker";
@@ -36,7 +34,6 @@ import { Can } from "@/lib/auth/permissions";
 import { FeedItemFormDialog } from "@/features/inventory/components/feed-item-form-dialog";
 import { CreateFeedDialog } from "../../feed/components/create-feed-dialog";
 import {
-  useFeedActiveSessions,
   useFeedGrid,
   useFeedGridCalendar,
   useFeedStock,
@@ -168,7 +165,6 @@ function UnifiedGrid({
 
   const saveDraft = useSaveProgramDraft();
   const confirmProgram = useConfirmProgram();
-  const activeSessions = useFeedActiveSessions();
   const feedStock = useFeedStock();
   const concentrations = useConcentrations();
 
@@ -201,7 +197,6 @@ function UnifiedGrid({
   const [applyTarget, setApplyTarget] = useState<ApplyTarget | null>(null);
   const [applyCows, setApplyCows] = useState<{ id: string; label: string }[]>([]);
   const appliedRef = useRef(false);
-  const [session, setSession] = useState("");
   const [bulkSources, setBulkSources] = useState<RowSource[]>([]);
   const [sharedKg, setSharedKg] = useState("");
   const [search, setSearch] = useState("");
@@ -229,19 +224,15 @@ function UnifiedGrid({
     [bulkSources],
   );
 
-  // A farm with one session feeds a cow once a day: confirming a cow that is already fed would double-feed her.
-  const skipConfirmed = (activeSessions.data ?? []).length <= 1;
-  const isLocked = (c: GridCow) => skipConfirmed && c.confirmed_offered_kg != null && c.confirmed_offered_kg > 0;
+  // One confirm per cow per day: a cow already fed today is locked (void her feeding first to re-confirm).
+  const isLocked = (c: GridCow) => c.confirmed_offered_kg != null && c.confirmed_offered_kg > 0;
 
   const selectedIds = useMemo(
     () =>
       ordered
-        .filter(
-          (c) =>
-            selected.has(c.cattle_id) && !(skipConfirmed && c.confirmed_offered_kg != null && c.confirmed_offered_kg > 0),
-        )
+        .filter((c) => selected.has(c.cattle_id) && !(c.confirmed_offered_kg != null && c.confirmed_offered_kg > 0))
         .map((c) => c.cattle_id),
-    [ordered, selected, skipConfirmed],
+    [ordered, selected],
   );
 
   // ---- stock ---------------------------------------------------------------------------------------------------
@@ -269,7 +260,6 @@ function UnifiedGrid({
     return map;
   }, [sections]);
   const densityFor = (key: string) => planDensity.get(key) ?? stock.get(key)?.density ?? null;
-  const daySessions = Math.max(1, (activeSessions.data ?? []).length);
 
   const preparedOptions: PreparedOption[] = useMemo(
     () =>
@@ -457,7 +447,7 @@ function UnifiedGrid({
         const result = await saveDraft.mutateAsync({ date, entries });
         toast.success(t("savedToast", { count: result.saved }));
       } else {
-        const result = await confirmProgram.mutateAsync({ date, session: session || undefined, entries });
+        const result = await confirmProgram.mutateAsync({ date, entries });
         toast.success(t("confirmedToast", { count: result.cows.length }));
       }
       await onPersisted();
@@ -553,27 +543,6 @@ function UnifiedGrid({
             </Button>
           </FeedSourcePicker>
         </div>
-
-        {(activeSessions.data ?? []).length > 0 ? (
-          <div className="flex w-40 flex-col gap-1.5">
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-              <Clock className="size-3.5" />
-              {t("bulkToolbar.sessionSection")}
-            </span>
-            <Select value={session || undefined} onValueChange={setSession}>
-              <SelectTrigger className="h-11 bg-card shadow-2xs" aria-label={t("bulkToolbar.sessionSection")}>
-                <SelectValue placeholder={t("bulkToolbar.sessionPlaceholder")} />
-              </SelectTrigger>
-              <SelectContent>
-                {(activeSessions.data ?? []).map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : null}
 
         <div className="flex w-44 flex-col gap-1.5">
           <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
@@ -794,7 +763,7 @@ function UnifiedGrid({
                         {(() => {
                           // No requirement or no server fit (a cow on no program has neither) → nothing to compare to.
                           if (!cow.requirement || !cow.fit) return <FitPill fit={cow.fit} requirement={cow.requirement} supply={cow.planned_supply} />;
-                          const supply = liveSupply(rowLines, densityFor, daySessions);
+                          const supply = liveSupply(rowLines, densityFor);
                           return (
                             <FitPill
                               fit={liveFit(supply, cow.requirement, bands, cow.fit.estimated)}

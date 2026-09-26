@@ -5733,9 +5733,7 @@
         "applyQuantity": "Apply kg",
         "applyUnified": "Apply to Selected ({count})",
         "appliedBothToast": "Applied feed & {kg} kg to {count} selected cattle.",
-        "selectFirstHint": "Select at least 1 animal to apply",
-        "sessionSection": "Session",
-        "sessionPlaceholder": "No session"
+        "selectFirstHint": "Select at least 1 animal to apply"
       },
       "sourceType": {
         "FEED_ITEM": "Purchased",
@@ -5930,7 +5928,6 @@
       "cows": "{count, plural, one {# animal} other {# animals}}",
       "needsAttention": "{count} not matching her needs",
       "allFit": "all within range",
-      "session": "Session",
       "saveDraft": "Save draft",
       "confirmAsPlanned": "Confirm as planned",
       "noBatch": "No batch made yet for: {names}. Make a batch before feeding it.",
