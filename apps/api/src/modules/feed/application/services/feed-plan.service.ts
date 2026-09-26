@@ -373,7 +373,15 @@ export class FeedPlanService {
       requirements: PlanRequirement;
       flags: string[];
       inputs: unknown;
+      /** MILESTONE 28 — present on rows from `forCattle`; a manual cow also carries the calculated figures. */
+      source?: 'DYNAMIC' | 'MANUAL';
+      dynamic_requirements?: unknown;
+      manual?: unknown;
     }) => ({
+      source: c.source ?? 'DYNAMIC',
+      ...(c.manual
+        ? { dynamic_requirements: c.dynamic_requirements, manual: c.manual }
+        : {}),
       requirement: {
         dm_kg: c.requirements.dm_kg,
         cp_kg: c.requirements.cp_kg,

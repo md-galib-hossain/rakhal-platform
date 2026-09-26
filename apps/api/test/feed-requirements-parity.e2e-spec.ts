@@ -63,6 +63,9 @@ describe('Feed Formulator — saved ration ↔ requirements parity (e2e)', () =>
   }, 30_000);
 
   afterAll(async () => {
+    await prisma.cattleRequirementOverride.deleteMany({
+      where: { cattleId: { in: createdCattleIds } },
+    });
     await prisma.cattle.deleteMany({ where: { id: { in: createdCattleIds } } });
     await ctx.app.close();
   });
@@ -260,5 +263,73 @@ describe('Feed Formulator — saved ration ↔ requirements parity (e2e)', () =>
     ).filter((r) => r.name.startsWith('E2E Parity Ration'));
     expect(mine.length).toBeGreaterThanOrEqual(6);
     expect(mine.every((r) => r.requirements != null)).toBe(true);
+  });
+
+  it('a manual cow reads the same DM/CP/ME on every path (MILESTONE 28, RAKHAL-461)', async () => {
+    const cattleId = await createCow({ weightKg: 500, bcs: 3 });
+    await prisma.cattleRequirementOverride.create({
+      data: {
+        farmId: owner.farmId,
+        cattleId,
+        dmKg: 10,
+        cpKg: 1.6,
+        meMj: 120,
+        note: 'e2e',
+        setBy: ownerUserId,
+        dynamicSnapshot: {
+          dm_kg: 14,
+          cp_kg: 1.7,
+          me_mj: 130,
+          animal_type: 'COW',
+        },
+      },
+    });
+    const rationId = await createRation(cattleId, { weightKg: 500, milkL: 10 });
+
+    const [single, batch, ration] = await Promise.all([
+      request(server())
+        .get(api('/feed/requirements'))
+        .set(...auth(owner))
+        // Ignored for `requirements` of a manual cow (D4); only shapes `dynamic_requirements`.
+        .query({ cattleId, weightKg: 300 })
+        .expect(200),
+      request(server())
+        .get(api(`/feed/requirements?cattleIds=${cattleId}`))
+        .set(...auth(owner))
+        .expect(200),
+      request(server())
+        .get(api(`/feed/concentrations/${rationId}`))
+        .set(...auth(owner))
+        .expect(200),
+    ]);
+
+    const one = single.body.data;
+    const row = batch.body.data.cows[0];
+    expect(one.source).toBe('MANUAL');
+    expect(row.source).toBe('MANUAL');
+    expect(row.flags).toEqual([]);
+    for (const r of [
+      one.requirements,
+      row.requirements,
+      ration.body.data.requirements,
+    ]) {
+      expect(r.dm_kg).toBeCloseTo(10, 2);
+      expect(r.cp_kg).toBeCloseTo(1.6, 2);
+      expect(r.me_mj).toBeCloseTo(120, 2);
+    }
+    expect(row.requirements.calcium_kg).toBeNull();
+    expect(row.dynamic_requirements.dm_kg).toBeGreaterThan(0);
+    expect(row.manual.override_id).toEqual(one.manual.override_id);
+
+    // Close it: the same cow is calculated again, on the next read.
+    await prisma.cattleRequirementOverride.updateMany({
+      where: { cattleId },
+      data: { effectiveTo: new Date(), endReason: 'TURNED_OFF' },
+    });
+    const after = await request(server())
+      .get(api(`/feed/requirements?cattleIds=${cattleId}`))
+      .set(...auth(owner))
+      .expect(200);
+    expect(after.body.data.cows[0].source).toBe('DYNAMIC');
   });
 });

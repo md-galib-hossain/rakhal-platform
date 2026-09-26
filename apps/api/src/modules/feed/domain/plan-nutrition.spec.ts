@@ -165,6 +165,23 @@ describe('buildNutrientRows', () => {
     expect(rowOf(rows, 'dm').severity).toBe('ok');
   });
 
+  it("never shows a green for a null requirement (a manual cow's Ca/P), but starch stays info", () => {
+    const s = computeNutrientSupply([{ kgPerDay: 10, profile: profile({}) }]);
+    const rows = buildNutrientRows(
+      s,
+      { ...req, calcium_kg: null, phosphorus_kg: null },
+      bands,
+    );
+    expect(rowOf(rows, 'calcium')).toMatchObject({
+      requirement: null,
+      measured: true,
+      severity: 'unknown',
+    });
+    expect(rowOf(rows, 'phosphorus').severity).toBe('unknown');
+    expect(rowOf(rows, 'starch').severity).toBe('ok');
+    expect(rowOf(rows, 'dm').severity).not.toBe('unknown');
+  });
+
   it('shows a null supply for the ratio when no phosphorus is supplied', () => {
     const s = computeNutrientSupply([
       { kgPerDay: 10, profile: profile({ phosphorusPct: 0 }) },

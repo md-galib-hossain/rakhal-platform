@@ -331,6 +331,14 @@ export class FeedFeedingGridService {
               cp_kg: req.requirements.cp_kg,
               me_mj: req.requirements.me_mj,
               flags: req.flags,
+              // MILESTONE 28: which model produced it, and the calculated figures beside a manual one.
+              source: req.source,
+              ...('manual' in req
+                ? {
+                    dynamic_requirements: req.dynamic_requirements,
+                    manual: req.manual,
+                  }
+                : {}),
             }
           : null,
       };

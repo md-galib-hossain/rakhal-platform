@@ -99,6 +99,7 @@ model Cattle {
   animalSaleLines        AnimalSaleLine[]        @relation("CattleToAnimalSaleLine")
   dispositions           CattleDisposition[]     @relation("CattleToCattleDisposition")
   disposition            CattleDisposition?      @relation("CattleDispositionRecord", fields: [dispositionId], references: [id])
+  requirementOverrides   CattleRequirementOverride[]
 
   @@unique([farmId, tagNumber])
   @@index([farmId])

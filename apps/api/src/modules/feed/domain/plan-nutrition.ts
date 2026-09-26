@@ -49,8 +49,9 @@ export interface PlanRequirement {
   ndf_max_kg: number;
   adf_kg: number;
   tdn_kg: number;
-  calcium_kg: number;
-  phosphorus_kg: number;
+  /** `null` for a manual-requirement cow: Ca/P need her live weight and milk (MILESTONE 28 D3). */
+  calcium_kg: number | null;
+  phosphorus_kg: number | null;
   rdp_pct: number;
   rup_pct: number;
   ca_p_ratio_target: number;
@@ -166,8 +167,12 @@ function row(
   below: number,
   above: number,
   max: number | null = null,
+  infoOnly = false,
 ): NutrientRow {
   if (supply == null || requirement == null || !(requirement > 0)) {
+    // A missing requirement (a manual cow's Ca/P, MILESTONE 28 D10) is never judged: `unknown`, not a silent
+    // green. Only a nutrient that has no requirement by design (starch) is `ok` info.
+    const unjudgeable = requirement == null && !infoOnly;
     return {
       key,
       unit,
@@ -175,7 +180,7 @@ function row(
       requirement: requirement == null ? null : round2(requirement),
       max,
       delta_pct: null,
-      severity: measured ? 'ok' : 'unknown',
+      severity: measured && !unjudgeable ? 'ok' : 'unknown',
       measured,
     };
   }
@@ -331,6 +336,8 @@ export function buildNutrientRows(
       s.starch.measured,
       OTHER_BELOW_PCT,
       OTHER_ABOVE_PCT,
+      null,
+      true,
     ),
   ];
 }

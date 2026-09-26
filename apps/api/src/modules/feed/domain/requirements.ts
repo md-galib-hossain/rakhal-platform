@@ -83,10 +83,10 @@ export interface Requirements {
   cpPctOfDm: number;
   /** Total Digestible Nutrients target (kg/day). */
   tdnKg: number;
-  /** Calcium target (kg/day). */
-  calciumKg: number;
-  /** Phosphorus target (kg/day). */
-  phosphorusKg: number;
+  /** Calcium target (kg/day). `null` for a manual requirement — it needs weight and milk (MILESTONE 28 D3). */
+  calciumKg: number | null;
+  /** Phosphorus target (kg/day). `null` for a manual requirement, like `calciumKg`. */
+  phosphorusKg: number | null;
   /** Acid Detergent Fiber minimum (kg/day). */
   adfKg: number;
   /** Rumen-Degradable Protein target, % of total CP. */
@@ -97,12 +97,12 @@ export interface Requirements {
   ndfMaxKg: number;
   /** Target Calcium:Phosphorus ratio (mass basis). Fixed at 2.0 — compare the ration's actual ratio against this. */
   caPRatioTarget: number;
-  /** Component decomposition for UI display (sakil.dev-style breakdown). */
-  breakdown: RequirementsBreakdown;
+  /** Component decomposition for UI display (sakil.dev-style breakdown). `null` for a manual requirement. */
+  breakdown: RequirementsBreakdown | null;
 }
 
 /** Unit conversion, not a nutritional assumption — deliberately not a tunable setting. */
-const MJ_PER_MCAL = 4.184;
+export const MJ_PER_MCAL = 4.184;
 
 const round = (v: number) => Math.round(v * 100) / 100;
 

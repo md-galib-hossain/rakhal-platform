@@ -16,6 +16,13 @@ import {
   Requirements,
   RequirementsInput,
 } from '../../domain/requirements';
+import { aggregateRequirements } from '../../domain/requirement-aggregate';
+import {
+  isManualStale,
+  ManualDynamicSnapshot,
+  requirementsFromManual,
+} from '../../domain/manual-requirement';
+import { RequirementSettings } from '../../domain/requirement-settings';
 import { FeedRequirementsQueryDto } from '../../presentation/dto/feed-requirements-query.dto';
 import { RequirementSettingsService } from './requirement-settings.service';
 import { FeedPlanResolverService } from './feed-plan-resolver.service';
@@ -23,6 +30,44 @@ import { bandsFromSettings } from '../../domain/program-fit';
 import { DEFAULT_REQUIREMENT_SETTINGS } from '../../domain/requirement-settings';
 
 const MS_PER_DAY = 86_400_000;
+
+/** The slice of a `CattleRequirementOverride` row the resolver reads (MILESTONE 28). */
+export interface OverrideRow {
+  id: string;
+  dmKg: number;
+  cpKg: number;
+  meMj: number;
+  note: string | null;
+  dynamicSnapshot: unknown;
+  effectiveFrom: Date;
+  setBy: string;
+}
+
+export interface ManualInfo {
+  override_id: string;
+  set_at: Date;
+  set_by: string;
+  note: string | null;
+  stale: boolean;
+  drift: { dm_pct: number; cp_pct: number; me_pct: number };
+  animal_type_changed: boolean;
+}
+
+/** One cow's requirement after the source decision (MILESTONE 28 D4/D5/D7). */
+export interface ResolvedRequirement {
+  source: 'DYNAMIC' | 'MANUAL';
+  requirements: Requirements;
+  /** What the engine says today; present only when `source` is MANUAL. */
+  dynamicRequirements: Requirements | null;
+  /** Data-quality only — `[]` when MANUAL, because no live input is used (D7). */
+  flags: string[];
+  manual: ManualInfo | null;
+}
+
+export interface ResolvedCow extends ResolvedRequirement {
+  cattleId: string;
+  inputs: Record<string, unknown>;
+}
 
 /** Nutritional-requirements calculator (PRD §12.4, RAKHAL-081). Thin wrapper over the pure domain,
  * plus (2026-07-17, user request) two cow-driven modes that auto-derive `weightKg`/`milkTargetL`/
@@ -216,10 +261,21 @@ export class FeedRequirementsService {
       dim,
       animalType,
     };
-    const settings = await this.requirementSettings.resolve(farmId);
-    const req = computeRequirements(input, settings);
+    const [settings, overrides] = await Promise.all([
+      this.requirementSettings.resolve(farmId),
+      this.overridesFor(farmId, [cattleId], now),
+    ]);
+    const resolved = this.resolveCow(
+      computeRequirements(input, settings),
+      animalType,
+      [],
+      overrides.get(cattleId),
+      settings,
+    );
 
     return {
+      // The query's weight/BCS/dim inputs only shape `dynamic_requirements` for a manual cow (D4).
+      source: resolved.source,
       inputs: {
         weight_kg: weightKg,
         milk_target_l: milkTargetL,
@@ -239,7 +295,93 @@ export class FeedRequirementsService {
               ? 'derived_from_records'
               : 'settings_default',
       },
-      requirements: this.reqShape(req),
+      requirements: this.reqShape(resolved.requirements),
+      ...this.manualShape(resolved),
+    };
+  }
+
+  /**
+   * MILESTONE 28 D8: the manual override in force per cow at `boundary` — the row open at that instant (for a
+   * past date, the start of the day after it, so a day shows the state at its end). One query. The newest row
+   * wins when a day had several edits.
+   */
+  private async overridesFor(
+    farmId: string,
+    cattleIds: string[],
+    boundary: Date,
+  ): Promise<Map<string, OverrideRow>> {
+    const out = new Map<string, OverrideRow>();
+    if (cattleIds.length === 0) return out;
+    const rows = await this.prisma.cattleRequirementOverride.findMany({
+      where: {
+        farmId,
+        cattleId: { in: cattleIds },
+        effectiveFrom: { lte: boundary },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: boundary } }],
+      },
+      orderBy: [{ effectiveFrom: 'desc' }, { id: 'desc' }],
+    });
+    for (const r of rows) if (!out.has(r.cattleId)) out.set(r.cattleId, r);
+    return out;
+  }
+
+  /** The only place that decides a cow's requirement source (MILESTONE 28 D4/D5/D7). */
+  private resolveCow(
+    dynamicReq: Requirements,
+    animalType: AnimalType,
+    flags: string[],
+    override: OverrideRow | undefined,
+    settings: RequirementSettings,
+  ): ResolvedRequirement {
+    if (!override) {
+      return {
+        source: 'DYNAMIC',
+        requirements: dynamicReq,
+        dynamicRequirements: null,
+        flags,
+        manual: null,
+      };
+    }
+    const staleness = isManualStale(
+      override.dynamicSnapshot as ManualDynamicSnapshot,
+      dynamicReq,
+      animalType,
+      settings.manualOverrideDriftPct,
+    );
+    return {
+      source: 'MANUAL',
+      requirements: requirementsFromManual(override, settings),
+      dynamicRequirements: dynamicReq,
+      flags: [],
+      manual: {
+        override_id: override.id,
+        set_at: override.effectiveFrom,
+        set_by: override.setBy,
+        note: override.note,
+        ...staleness,
+      },
+    };
+  }
+
+  /** `dynamic_requirements` + `manual`, present only for a manual cow (§5 shape). */
+  private manualShape(r: ResolvedRequirement) {
+    return r.source === 'MANUAL' && r.dynamicRequirements
+      ? {
+          dynamic_requirements: this.reqShape(r.dynamicRequirements),
+          manual: r.manual,
+        }
+      : {};
+  }
+
+  /** Per-cow API shape shared by `forCattle` rows (§5). */
+  private cowShape(c: ResolvedCow) {
+    return {
+      cattle_id: c.cattleId,
+      source: c.source,
+      inputs: c.inputs,
+      flags: c.flags,
+      requirements: this.reqShape(c.requirements),
+      ...this.manualShape(c),
     };
   }
 
@@ -250,52 +392,62 @@ export class FeedRequirementsService {
    * cattle — the caller reports that rather than inventing a number.
    */
   private async herdRequirementBlock(farmId: string) {
-    const cattle = await this.prisma.cattle.findMany({
+    const herd = await this.prisma.cattle.findMany({
       where: activeHerd(farmId),
-      select: { id: true, lastWeightKg: true, lastBcs: true },
+      select: { id: true },
     });
-    if (cattle.length === 0) return null;
+    if (herd.length === 0) return null;
 
-    const weights = cattle
-      .map((c) => c.lastWeightKg)
-      .filter((w): w is number => w != null);
-    if (weights.length === 0) return null;
-
-    const avgYields = await this.milk.averageDailyYield(
+    // MILESTONE 28 D9 (closes RD-110): the herd need is the sum of each cow's *resolved* requirement — a manual
+    // override wins, and DIM/pregnancy/animal type count — not one engine call on the herd's average inputs.
+    const { cows } = await this.resolveMany(
       farmId,
-      cattle.map((c) => c.id),
+      herd.map((c) => c.id),
     );
-    const yields = cattle
-      .map((c) => avgYields.get(c.id))
-      .filter((y): y is number => y != null);
-    const bcsValues = cattle
-      .map((c) => c.lastBcs)
-      .filter((b): b is number => b != null);
+    const manualCows = cows.filter((c) => c.source === 'MANUAL');
+    // A dynamic cow with no recorded weight was priced at the farm default weight (`weight_estimated`).
+    const weighed = cows.filter(
+      (c) => c.source === 'MANUAL' || !c.flags.includes('weight_estimated'),
+    );
+    if (weighed.length === 0) return null;
 
-    const weightKg = avg(weights) as number;
-    const milkTargetL = avg(yields) ?? 0;
-    const bcs = avg(bcsValues);
-    const settings = await this.requirementSettings.resolve(farmId);
-    const req = computeRequirements(
-      { weightKg, milkTargetL, bcs: bcs ?? undefined },
-      settings,
+    const agg = aggregateRequirements(cows.map((c) => c.requirements));
+    const mean = (values: number[]) =>
+      values.length > 0
+        ? values.reduce((a, b) => a + b, 0) / values.length
+        : null;
+    const num = (c: ResolvedCow, k: string) =>
+      c.inputs[k] as number | undefined;
+    const weightKg = mean(
+      weighed
+        .map((c) => num(c, 'weight_kg'))
+        .filter((v): v is number => v != null),
+    ) as number;
+    const yields = cows
+      .map((c) => num(c, 'milk_target_l'))
+      .filter((v): v is number => v != null && v > 0);
+    const bcs = mean(
+      cows.map((c) => num(c, 'bcs')).filter((v): v is number => v != null),
     );
 
     return {
-      headcount: cattle.length,
+      headcount: cows.length,
+      manual_headcount: manualCows.length,
+      ca_p_headcount: agg.caPHeadcount,
+      // Informational averages of the calculated model's inputs; the requirement itself is per-cow (D9).
       inputs: {
         weight_kg: round2(weightKg),
-        milk_target_l: round2(milkTargetL),
+        milk_target_l: round2(mean(yields) ?? 0),
         bcs: bcs != null ? round2(bcs) : null,
-        cattle_with_weight: weights.length,
+        cattle_with_weight: weighed.length,
         cattle_with_milk_data: yields.length,
       },
       data_source: {
         weight: 'cattle_record_avg',
         milk_yield: yields.length > 0 ? 'milk_log_7d_avg' : 'assumed_zero',
       },
-      per_cow: this.reqShape(req),
-      herd_total: this.reqShape(scaleRequirements(req, cattle.length)),
+      per_cow: this.reqShape(agg.mean),
+      herd_total: this.reqShape(agg.total),
     };
   }
 
@@ -490,15 +642,26 @@ export class FeedRequirementsService {
     const cattleById = new Map(cattle.map((c) => [c.id, c]));
 
     const allIds = cattle.map((c) => c.id);
-    const [gestationByCow, yieldByCow] = await Promise.all([
+    const [gestationByCow, yieldByCow, overrides] = await Promise.all([
       this.gestationDaysFor(allIds),
       allIds.length > 0
         ? this.milk.averageDailyYield(farmId, allIds)
         : Promise.resolve(new Map<string, number>()),
+      this.overridesFor(farmId, allIds, new Date()),
     ]);
 
     for (const row of scorable) {
       let req: Requirements | null = null;
+
+      // MILESTONE 28: a manual cow's saved individual ration is scored against her manual requirement.
+      const manualRow =
+        row.targetType === 'INDIVIDUAL' && row.cattleId
+          ? overrides.get(row.cattleId)
+          : undefined;
+      if (manualRow) {
+        out.set(row.id, requirementsFromManual(manualRow, settings));
+        continue;
+      }
 
       if (row.targetType === 'INDIVIDUAL' && row.cattleId) {
         const c = cattleById.get(row.cattleId);
@@ -560,17 +723,60 @@ export class FeedRequirementsService {
    * Cows outside the active herd are returned in `missing_cattle_ids`.
    */
   async forCattle(farmId: string, cattleIds: string[], date?: string) {
+    const r = await this.resolveMany(farmId, cattleIds, date);
+    return {
+      date: r.date,
+      cows: r.cows.map((c) => this.cowShape(c)),
+      missing_cattle_ids: r.missing,
+      /** The farm's alert tolerance bands (RAKHAL-458) — same settings resolve as the requirement itself. */
+      bands: r.bands,
+    };
+  }
+
+  /**
+   * One cow, resolved (MILESTONE 28, RAKHAL-462): the §5 per-cow shape plus the calculated figures the override
+   * endpoint snapshots (`dynamicSnapshot`). `null` when she is not in the active herd. Unlike `calc`, a cow with no
+   * recorded weight does not throw — it is priced at the farm default and flagged `weight_estimated`.
+   */
+  async resolveOne(farmId: string, cattleId: string) {
+    const { cows } = await this.resolveMany(farmId, [cattleId]);
+    const cow = cows[0];
+    if (!cow) return null;
+    const calculated = cow.dynamicRequirements ?? cow.requirements;
+    return {
+      shaped: this.cowShape(cow),
+      snapshot: {
+        dm_kg: calculated.dmKg,
+        cp_kg: calculated.cpKg,
+        me_mj: calculated.meMj,
+        animal_type: cow.inputs.animal_type as AnimalType,
+        inputs: cow.inputs,
+      },
+    };
+  }
+
+  /**
+   * `forCattle`'s domain-level twin (MILESTONE 28): every cow resolved through `resolveCow`, so a manual override
+   * wins. One extra query over the calculated path — the override lookup. For a past `date` the override is the
+   * one in force at the end of that day (D8).
+   */
+  private async resolveMany(
+    farmId: string,
+    cattleIds: string[],
+    date?: string,
+  ) {
     const asOf = date ? new Date(date) : new Date();
+    const boundary = date ? new Date(asOf.getTime() + MS_PER_DAY) : asOf;
     const ids = [...new Set(cattleIds)];
     const empty = {
       date: asOf.toISOString().slice(0, 10),
-      cows: [],
-      missing_cattle_ids: [] as string[],
+      cows: [] as ResolvedCow[],
+      missing: [] as string[],
       bands: bandsFromSettings(DEFAULT_REQUIREMENT_SETTINGS),
     };
     if (ids.length === 0) return empty;
 
-    const [cattle, weighIns, settings] = await Promise.all([
+    const [cattle, weighIns, settings, overrides] = await Promise.all([
       this.prisma.cattle.findMany({
         where: { ...activeHerd(farmId), id: { in: ids } },
         select: {
@@ -602,6 +808,7 @@ export class FeedRequirementsService {
         select: { cattleId: true, recordedDate: true },
       }),
       this.requirementSettings.resolve(farmId),
+      this.overridesFor(farmId, ids, boundary),
     ]);
     const foundIds = cattle.map((c) => c.id);
     const [gestationByCow, yieldByCow] = await Promise.all([
@@ -614,7 +821,7 @@ export class FeedRequirementsService {
       weighIns.map((w) => [w.cattleId, w.recordedDate]),
     );
 
-    const cows = cattle.map((c) => {
+    const cows = cattle.map((c): ResolvedCow => {
       const flags: string[] = [];
       const category = deriveAnimalCategory({
         gender: c.gender,
@@ -656,9 +863,15 @@ export class FeedRequirementsService {
         dim: derivedDim ?? undefined,
         animalType,
       };
-      const req = computeRequirements(input, settings);
+      const resolved = this.resolveCow(
+        computeRequirements(input, settings),
+        animalType,
+        flags,
+        overrides.get(c.id),
+        settings,
+      );
       return {
-        cattle_id: c.id,
+        cattleId: c.id,
         inputs: {
           weight_kg: weightKg,
           milk_target_l: milkFromRecords ?? 0,
@@ -667,16 +880,14 @@ export class FeedRequirementsService {
           dim: derivedDim ?? settings.defaultDaysInMilk,
           animal_type: animalType,
         },
-        flags,
-        requirements: this.reqShape(req),
+        ...resolved,
       };
     });
 
     return {
       date: asOf.toISOString().slice(0, 10),
       cows,
-      missing_cattle_ids: ids.filter((id) => !foundIds.includes(id)),
-      /** The farm's alert tolerance bands (RAKHAL-458) — same settings resolve as the requirement itself. */
+      missing: ids.filter((id) => !foundIds.includes(id)),
       bands: bandsFromSettings(settings),
     };
   }
@@ -758,58 +969,15 @@ export class FeedRequirementsService {
       rup_pct: req.rupPct,
       ndf_max_kg: req.ndfMaxKg,
       ca_p_ratio_target: req.caPRatioTarget,
-      breakdown: {
-        dm: req.breakdown.dm,
-        me: req.breakdown.me,
-        cp: req.breakdown.cp,
-      },
+      breakdown: req.breakdown
+        ? {
+            dm: req.breakdown.dm,
+            me: req.breakdown.me,
+            cp: req.breakdown.cp,
+          }
+        : null,
     };
   }
 }
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
-
-/** Mean of the values present, or `null` when there are none — never a fabricated zero. */
-const avg = (values: number[]): number | null =>
-  values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
-
-function scaleRequirements(req: Requirements, factor: number): Requirements {
-  return {
-    dmKg: round2(req.dmKg * factor),
-    cpKg: round2(req.cpKg * factor),
-    meMj: round2(req.meMj * factor),
-    ndfKg: round2(req.ndfKg * factor),
-    fatKg: round2(req.fatKg * factor),
-    neMcal: round2(req.neMcal * factor),
-    energyDensityMjPerKgDm: req.energyDensityMjPerKgDm,
-    cpPctOfDm: req.cpPctOfDm,
-    tdnKg: round2(req.tdnKg * factor),
-    calciumKg: round2(req.calciumKg * factor),
-    phosphorusKg: round2(req.phosphorusKg * factor),
-    adfKg: round2(req.adfKg * factor),
-    rdpPct: req.rdpPct,
-    rupPct: req.rupPct,
-    ndfMaxKg: round2(req.ndfMaxKg * factor),
-    caPRatioTarget: req.caPRatioTarget,
-    breakdown: {
-      dm: {
-        lactation: round2(req.breakdown.dm.lactation * factor),
-        pregnancy: round2(req.breakdown.dm.pregnancy * factor),
-        heiferGrowth: round2(req.breakdown.dm.heiferGrowth * factor),
-        bcsAdjustment: round2(req.breakdown.dm.bcsAdjustment * factor),
-      },
-      me: {
-        maintenance: round2(req.breakdown.me.maintenance * factor),
-        milk: round2(req.breakdown.me.milk * factor),
-        pregnancy: round2(req.breakdown.me.pregnancy * factor),
-        heiferGrowth: round2(req.breakdown.me.heiferGrowth * factor),
-      },
-      cp: {
-        maintenance: round2(req.breakdown.cp.maintenance * factor),
-        milk: round2(req.breakdown.cp.milk * factor),
-        pregnancy: round2(req.breakdown.cp.pregnancy * factor),
-        heiferGrowth: round2(req.breakdown.cp.heiferGrowth * factor),
-      },
-    },
-  };
-}

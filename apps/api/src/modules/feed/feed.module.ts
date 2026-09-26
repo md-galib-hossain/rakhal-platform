@@ -26,6 +26,8 @@ import { FeedPlanService } from './application/services/feed-plan.service';
 import { FeedPlanAssignmentService } from './application/services/feed-plan-assignment.service';
 import { FeedPlanResolverService } from './application/services/feed-plan-resolver.service';
 import { FeedPlanAssignmentController } from './presentation/controllers/feed-plan-assignment.controller';
+import { RequirementOverrideController } from './presentation/controllers/requirement-override.controller';
+import { RequirementOverrideService } from './application/services/requirement-override.service';
 
 /**
  * Feed Formulator (PRD §12 / API §8). Ingredient pricing + overrides, nutritional
@@ -61,6 +63,7 @@ import { FeedPlanAssignmentController } from './presentation/controllers/feed-pl
     FeedController,
     FeedPlanController,
     FeedPlanAssignmentController,
+    RequirementOverrideController,
   ],
   providers: [
     FeedIngredientService,
@@ -75,6 +78,7 @@ import { FeedPlanAssignmentController } from './presentation/controllers/feed-pl
     FeedPlanService,
     FeedPlanAssignmentService,
     FeedPlanResolverService,
+    RequirementOverrideService,
   ],
   exports: [
     FeedIngredientService,

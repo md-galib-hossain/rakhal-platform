@@ -78,6 +78,8 @@ export interface RequirementSettings {
   alertEnergyBelowPct: number;
   /** Energy supply may rise this far above the requirement (percent). */
   alertEnergyAbovePct: number;
+  /** MILESTONE 28 D6: a manual cow is flagged stale when her calculated DM/CP/ME moved more than this (percent) since it was set. */
+  manualOverrideDriftPct: number;
   /** RAKHAL-459a: how many days ahead the Feeding Grid warns about dry-off, calving and peak milk. */
   lookaheadDays: number;
 
@@ -161,6 +163,7 @@ export const DEFAULT_REQUIREMENT_SETTINGS: RequirementSettings = {
   alertProteinAbovePct: 20,
   alertEnergyBelowPct: 10,
   alertEnergyAbovePct: 10,
+  manualOverrideDriftPct: 15,
   lookaheadDays: 14,
 
   pregnancyIntakeStages: [
@@ -359,6 +362,13 @@ export const REQUIREMENT_SETTING_FIELDS: Record<
   alertEnergyAbovePct: {
     group: 'alerts',
     label: 'Energy: allowed excess',
+    unit: '%',
+    min: 0,
+    max: 100,
+  },
+  manualOverrideDriftPct: {
+    group: 'alerts',
+    label: 'Manual requirement: warn when the calculated need changes by',
     unit: '%',
     min: 0,
     max: 100,
