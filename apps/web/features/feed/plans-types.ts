@@ -6,7 +6,7 @@
  * A **program** is always a feed plan: the daily kg per head of bought feed items and made feed
  * (concentrate/TMR recipes). A plan does nothing until it is **applied** to cows, a group or the herd.
  */
-import type { FeedConcentrationKind } from "./types";
+import type { FeedConcentrationKind, ManualRequirementInfo, RequirementSource } from "./types";
 
 export type FeedPlanKind = "PLAN" | "TMR_SHORTCUT" | "CONCENTRATE_SHORTCUT";
 export type FeedPlanLineType = "FEED_ITEM" | "PREPARED";
@@ -143,6 +143,9 @@ export interface FeedPlanFitResult {
   supply_complete: boolean;
   cows: {
     cattle_id: string;
+    /** MILESTONE 28 — absent on an older backend, meaning calculated. */
+    source?: RequirementSource;
+    manual?: ManualRequirementInfo;
     requirement: { dm_kg: number; cp_kg: number; me_mj: number };
     delta_pct: { dm: number | null; cp: number | null; me: number | null };
     fit: FeedProgramFit;
@@ -179,6 +182,9 @@ export interface PreviewFitResult {
   nutrients: FeedNutrientRow[];
   fit: FeedProgramFit;
   inputs: Record<string, unknown>;
+  /** MILESTONE 28 — for a saved animal on a hand-set requirement. Absent for hand-entered figures. */
+  source?: RequirementSource;
+  manual?: ManualRequirementInfo;
   /** Data-quality flags — an assumed weight, missing milk record… (empty for hand-entered figures). */
   flags: string[];
 }
@@ -282,7 +288,15 @@ export interface FeedGridProgramCowFields {
   program_section_id: string | null;
   program_conflict: boolean;
   planned_kg_by_line: Record<string, number>;
-  requirement: { dm_kg: number; cp_kg: number; me_mj: number; flags: string[] } | null;
+  requirement: {
+    dm_kg: number;
+    cp_kg: number;
+    me_mj: number;
+    flags: string[];
+    /** MILESTONE 28 — absent on an older backend, meaning calculated. */
+    source?: RequirementSource;
+    manual?: ManualRequirementInfo;
+  } | null;
   planned_supply: { dm_kg: number; cp_kg: number; me_mj: number; complete: boolean } | null;
   /** Σ of today's confirmed (non-voided) feedings, from each row's frozen nutrition profile; `null` = nothing confirmed. */
   confirmed_supply: { dm_kg: number; cp_kg: number; me_mj: number; complete: boolean } | null;

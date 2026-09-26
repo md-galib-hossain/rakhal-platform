@@ -1,6 +1,8 @@
 "use client"; // tooltip open state
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { Can } from "@/lib/auth/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { FeedFitSeverity, FeedGridProgramCowFields } from "../../feed/plans-types";
@@ -16,16 +18,23 @@ const pct = (n: number | null) => (n == null ? "—" : `${n > 0 ? "+" : ""}${fmt
 /**
  * Per-cow fit pill (MILESTONE 27, RFE-128): green / amber / red for how her program's supply meets her daily DM, CP and
  * ME needs. "Estimated" is appended when an input was assumed — never green without data. The tooltip lists
- * requirement vs supply per nutrient and the backend's flags.
+ * requirement vs supply per nutrient and the backend's flags. A cow on a hand-set requirement (MILESTONE 28) gets a
+ * "Manual" badge, a warning when her calculated need has moved since, and — for managers — a link to change it.
  */
 export function FitPill({
   fit,
   requirement,
   supply,
-}: Pick<FeedGridProgramCowFields, "fit" | "requirement"> & { supply: FeedGridProgramCowFields["planned_supply"] }) {
+  cattleId,
+}: Pick<FeedGridProgramCowFields, "fit" | "requirement"> & {
+  supply: FeedGridProgramCowFields["planned_supply"];
+  /** Enables the "Change requirement" link for a manual cow. */
+  cattleId?: string;
+}) {
   const t = useTranslations("feeding.programs.fit");
   if (!fit) return <span className="text-xs text-muted-foreground">{t("none")}</span>;
 
+  const manual = requirement?.source === "MANUAL" ? requirement.manual : undefined;
   const rows = [
     { key: "dm", unit: "kg", req: requirement?.dm_kg, sup: supply?.dm_kg, delta: fit.dm.delta_pct },
     { key: "cp", unit: "kg", req: requirement?.cp_kg, sup: supply?.cp_kg, delta: fit.cp.delta_pct },
@@ -41,6 +50,11 @@ export function FitPill({
               {t(fit.severity)}
               {fit.estimated ? ` · ${t("estimated")}` : ""}
             </Badge>
+            {requirement?.source === "MANUAL" ? (
+              <Badge variant="outline" className="ml-1">
+                {t("manual")}
+              </Badge>
+            ) : null}
           </button>
         </TooltipTrigger>
         <TooltipContent className="max-w-xs">
@@ -65,6 +79,24 @@ export function FitPill({
             </tbody>
           </table>
           {supply && !supply.complete ? <p className="mt-1 text-warning">{t("incomplete")}</p> : null}
+          {manual ? (
+            <p className="mt-1 text-muted-foreground">{t("manualNote")}</p>
+          ) : null}
+          {manual?.stale ? (
+            <p className="mt-1 text-warning">
+              {manual.animal_type_changed
+                ? t("manualStaleType")
+                : t("manualStale", { pct: Math.round(Math.max(manual.drift.dm_pct, manual.drift.cp_pct, manual.drift.me_pct)) })}
+            </p>
+          ) : null}
+          {manual && cattleId ? (
+            <Can I="feed.update">
+              {/* `/animals/:id` redirects to `?view=` and drops `tab`, so link to the drawer directly. */}
+              <Link href={`/animals?view=${cattleId}&tab=feeding`} className="mt-1 block font-medium text-primary underline">
+                {t("changeRequirement")}
+              </Link>
+            </Can>
+          ) : null}
           {requirement?.flags.length ? (
             <p className="mt-1 text-muted-foreground">{requirement.flags.map((f) => f.replace(/_/g, " ")).join(", ")}</p>
           ) : null}

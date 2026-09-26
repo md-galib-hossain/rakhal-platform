@@ -99,6 +99,11 @@ export function FeedingView() {
                     sub={t("cpLabel")}
                   />
                 </div>
+                {(herdRequirement.manual_headcount ?? 0) > 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    {t("manualHeadcount", { count: herdRequirement.manual_headcount ?? 0 })}
+                  </p>
+                ) : null}
                 {requirement.data?.has_active_ration === false ? (
                   <p className="text-xs text-muted-foreground">{t("noRationYet")}</p>
                 ) : null}

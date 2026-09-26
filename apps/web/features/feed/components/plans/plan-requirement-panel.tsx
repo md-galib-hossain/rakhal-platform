@@ -222,6 +222,23 @@ export function PlanRequirementPanel({
         <CardSkeleton lines={4} />
       ) : (
         <>
+          {data.source === "MANUAL" && data.manual ? (
+            <div className="flex flex-col gap-1 text-xs">
+              <p className="flex items-center gap-2 text-muted-foreground">
+                <Badge variant="outline">{t("manualBadge")}</Badge>
+                {t("manualNote")}
+              </p>
+              {data.manual.stale ? (
+                <p className="text-warning">
+                  {data.manual.animal_type_changed
+                    ? t("manualStaleType")
+                    : t("manualStale", {
+                        pct: Math.round(Math.max(data.manual.drift.dm_pct, data.manual.drift.cp_pct, data.manual.drift.me_pct)),
+                      })}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-muted-foreground">
@@ -255,7 +272,7 @@ export function PlanRequirementPanel({
                   </td>
                   <td className="py-1.5 text-right">
                     {!hasLines ? null : r.severity === "unknown" ? (
-                      <Badge variant="outline">{t("notMeasured")}</Badge>
+                      <Badge variant="outline">{r.requirement == null ? t("notSet") : t("notMeasured")}</Badge>
                     ) : r.delta_pct == null ? (
                       <span className="text-xs text-muted-foreground">{r.requirement == null ? t("infoOnly") : "—"}</span>
                     ) : (

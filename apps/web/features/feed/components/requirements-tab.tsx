@@ -239,7 +239,7 @@ function RequirementGrid({
 }) {
   const t = useTranslations("feed.requirements");
 
-  const tiles: Array<{ label: string; value: number; unit: string }> = [
+  const tiles: Array<{ label: string; value: number | null; unit: string }> = [
     { label: t("dm"), value: r.dm_kg, unit: "kg" },
     { label: t("cp"), value: r.cp_kg, unit: "kg" },
     { label: t("me"), value: r.me_mj, unit: "MJ" },
@@ -266,8 +266,8 @@ function RequirementGrid({
           <div key={tile.label} className="flex flex-col gap-1 rounded-xl border border-border p-3">
             <span className="text-xs font-bold text-muted-foreground">{tile.label}</span>
             <p className="text-lg font-semibold text-foreground">
-              {tile.value.toFixed(2)}{" "}
-              <span className="text-xs font-normal text-muted-foreground">{tile.unit}</span>
+              {tile.value == null ? "—" : tile.value.toFixed(2)}{" "}
+              <span className="text-xs font-normal text-muted-foreground">{tile.value == null ? "" : tile.unit}</span>
             </p>
           </div>
         ))}

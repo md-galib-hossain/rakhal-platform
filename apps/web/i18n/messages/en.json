@@ -724,6 +724,77 @@
     }
   },
   "cattle": {
+    "feeding": {
+      "requirement": {
+        "title": "Nutrition requirement",
+        "modeLabel": "How her requirement is set",
+        "mode": {
+          "calculated": "Calculated",
+          "manual": "Manual"
+        },
+        "nutrient": "Nutrient",
+        "drift": "Change",
+        "nutrients": {
+          "dm": "Dry matter",
+          "cp": "Protein",
+          "me": "Energy"
+        },
+        "note": "Note: {note}",
+        "manualHint": "Set by hand. Her live weight and milk are not used, and calcium and phosphorus are not set.",
+        "edit": "Change values",
+        "calculatedSummary": "Worked out from her records: {dm} kg dry matter, {cp} kg protein and {me} MJ energy a day.",
+        "stale": {
+          "type": "Her stage has changed since you set this (calved, dried off or grew up). Review it or switch back to Calculated.",
+          "drift": "Her calculated need has changed by about {pct}% since you set this. Review it or switch back to Calculated."
+        },
+        "warning": {
+          "dm_body_weight": "Dry matter looks unusual for her body weight (cows usually eat 1.5–4.5%). Saved anyway.",
+          "cp_share": "Protein looks unusual for this dry matter (a diet is usually 8–22%). Saved anyway.",
+          "energy_density": "Energy looks unusual for this dry matter (usually 7–13 MJ per kg). Saved anyway."
+        },
+        "savedToast": "Requirement saved",
+        "turnedOffToast": "Back to the calculated requirement",
+        "genericError": "Something went wrong. Please try again.",
+        "turnOffTitle": "Switch back to Calculated?",
+        "turnOffDescription": "Her calculated requirement applies again from now. Your manual values stay in the history.",
+        "turnOff": "Switch back",
+        "form": {
+          "newHint": "Filled in with what is calculated for her today. Change the values you want to set by hand.",
+          "replaceHint": "Saving replaces her current manual values; the old ones stay in the history.",
+          "dm": "Dry matter (kg/day)",
+          "cp": "Protein (kg/day)",
+          "me": "Energy (MJ/day)",
+          "note": "Note (optional)",
+          "save": "Save",
+          "saving": "Saving…",
+          "cancel": "Cancel",
+          "hintDm": "= {pct}% of body weight",
+          "hintCp": "= {pct}% of dry matter",
+          "hintMe": "= {value} MJ per kg dry matter",
+          "error": {
+            "required": "Required",
+            "dmRange": "Between 0.5 and 40 kg",
+            "meRange": "Between 5 and 400 MJ",
+            "cpPositive": "Must be above 0",
+            "cpBelowDm": "Must be less than dry matter"
+          }
+        },
+        "history": {
+          "toggle": "History",
+          "empty": "No manual requirement has been set for her yet.",
+          "now": "now",
+          "current": "In force",
+          "end": {
+            "REPLACED": "Replaced",
+            "TURNED_OFF": "Turned off"
+          },
+          "values": "Set: {dm} kg dry matter · {cp} kg protein · {me} MJ",
+          "calculatedThen": "Calculated then: {dm} kg · {cp} kg · {me} MJ",
+          "newer": "Newer",
+          "older": "Older"
+        }
+      }
+    },
     "allCattleView": "All Animals",
     "age": {
       "year": "{value} year",
@@ -5595,6 +5666,11 @@
         },
         "maxHint": "at most {value}",
         "notMeasured": "Not measured",
+        "manualBadge": "Manual",
+        "manualNote": "Her requirement is set by hand, so her live weight and milk are not used.",
+        "manualStale": "Her calculated need has changed by about {pct}% since this was set. Review it.",
+        "manualStaleType": "Her stage has changed since this was set (calved, dried off or grew up). Review it.",
+        "notSet": "Not set",
         "notMeasuredHint": "At least one feed's batch has no value for this, so the total is a minimum.",
         "someNotMeasured": "Some nutrients aren't measured on every feed's batch, so they aren't judged. Add them in the feed's nutrition profile in Inventory.",
         "infoOnly": "No target",
@@ -5911,6 +5987,7 @@
     "noCattle": "No cattle yet",
     "noCattleDescription": "Add cattle and their weights, and the daily requirement shows up here.",
     "noRationYet": "No ration built yet — the requirement above still applies.",
+    "manualHeadcount": "{count, plural, one {# animal is} other {# animals are}} on a hand-set requirement — the total counts their manual figures.",
     "dmLabel": "Dry matter",
     "cpLabel": "Protein",
     "programs": {
@@ -5949,6 +6026,11 @@
         "warn": "Off",
         "bad": "Way off",
         "estimated": "estimated",
+        "manual": "Manual",
+        "manualNote": "Judged against a requirement set by hand.",
+        "manualStale": "Her calculated need changed about {pct}% since this was set.",
+        "manualStaleType": "Her stage changed since this was set — review it.",
+        "changeRequirement": "Change requirement",
         "needs": "Needs",
         "gets": "Gets",
         "incomplete": "A line has no batch or stock, so real supply is higher than shown.",

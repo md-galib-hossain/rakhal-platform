@@ -15,6 +15,7 @@ import { Can } from "@/lib/auth/permissions";
 import { useConcentrations, useDmi, useFeedEfficiency, useResolvedRation } from "@/features/feed/hooks/use-feed";
 import { LogDistributionDialog } from "@/features/feed/components/log-distribution-dialog";
 import { CattleProgramCard } from "@/features/feed/components/plans/cattle-program-card";
+import { RequirementOverrideCard } from "./requirement-override-card";
 import { useCalfDetail } from "@/features/calves/hooks/use-calves";
 import { ColostrumTab } from "@/features/calves/components/detail/colostrum-tab";
 import { MilkFeedingTab } from "@/features/calves/components/detail/milk-feeding-tab";
@@ -204,6 +205,8 @@ export function FeedingTab({ cattleId, animalCategory }: { cattleId: string; ani
       <FeedTodayCard cattleId={cattleId} />
       {/* MILESTONE 27 (RFE-126): the feed plan she is on, and how it reaches her. */}
       <CattleProgramCard cattleId={cattleId} />
+      {/* MILESTONE 28 (RFE-129): calculated or hand-set nutrition requirement. */}
+      <RequirementOverrideCard cattleId={cattleId} />
       <RationDmiSection cattleId={cattleId} />
     </div>
   );

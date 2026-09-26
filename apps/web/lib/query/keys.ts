@@ -248,6 +248,9 @@ export const qk = {
     resolvedRation: (cattleId: string) => ["feed", "resolved-ration", cattleId] as const,
     dmi: (cattleId: string, date?: string) => ["feed", "dmi", cattleId, date] as const,
     todaysRequirement: () => ["feed", "today-requirement"] as const,
+    /** MILESTONE 28 (RFE-129) — one prefix, so a save clears the detail and the history together. */
+    requirementOverride: (cattleId: string) => ["feed", "requirement-override", cattleId, "detail"] as const,
+    requirementOverrideHistory: (cattleId: string) => ["feed", "requirement-override", cattleId, "history"] as const,
     grid: (date: string) => ["feed", "grid", date] as const,
     gridCalendar: (month: string) => ["feed", "grid", "calendar", month] as const,
     cattleHistory: (cattleId: string, date: string | undefined) =>

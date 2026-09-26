@@ -172,8 +172,9 @@ export interface FeedRequirements {
   /** The diet-density target nutritionists actually formulate to. */
   cp_pct_of_dm: number;
   tdn_kg: number;
-  calcium_kg: number;
-  phosphorus_kg: number;
+  /** `null` for a manual requirement (MILESTONE 28): Ca/P need her live weight and milk, so they are "not set". */
+  calcium_kg: number | null;
+  phosphorus_kg: number | null;
   adf_kg: number;
   /** Rumen-degradable protein, % of total CP. */
   rdp_pct: number;
@@ -182,7 +183,22 @@ export interface FeedRequirements {
   /** `ndf_kg` is the minimum; over-supply depresses intake. */
   ndf_max_kg: number;
   ca_p_ratio_target: number;
-  breakdown?: FeedRequirementBreakdown;
+  /** Absent or `null` for a manual requirement. */
+  breakdown?: FeedRequirementBreakdown | null;
+}
+
+/** Where a cow's requirement came from (MILESTONE 28): the calculated model, or figures typed by hand. */
+export type RequirementSource = "DYNAMIC" | "MANUAL";
+
+/** Present only when `source` is `MANUAL`. `stale` = her calculated need has moved since the values were set. */
+export interface ManualRequirementInfo {
+  override_id: string;
+  set_at: string;
+  set_by: string;
+  note: string | null;
+  stale: boolean;
+  drift: { dm_pct: number; cp_pct: number; me_pct: number };
+  animal_type_changed: boolean;
 }
 
 /** `GET /feed/requirements` — shape varies by mode (`FeedRequirementsService.calc`): manual/`cattleId`
@@ -204,6 +220,11 @@ export interface FeedRequirementsResult {
   };
   data_source?: { weight: string; milk_yield: string };
   requirements?: FeedRequirements;
+  /** MILESTONE 28 — absent on an older backend, meaning calculated. */
+  source?: RequirementSource;
+  /** What the calculated model says today; only for a manual cow. */
+  dynamic_requirements?: FeedRequirements;
+  manual?: ManualRequirementInfo;
 }
 
 export interface FeedFormulaTotals {
@@ -521,6 +542,10 @@ export interface DmiComparison {
  * cattle, or none with a recorded weight. */
 export interface HerdRequirementBlock {
   headcount: number;
+  /** MILESTONE 28: how many of them are on a hand-set requirement. Absent on an older backend. */
+  manual_headcount?: number;
+  /** How many carry Ca/P (a manual cow has none), so the Ca/P totals cover only that many. */
+  ca_p_headcount?: number;
   inputs: {
     weight_kg: number;
     milk_target_l: number;
@@ -800,4 +825,75 @@ export interface RequirementSettingsResult {
   farm_changes: Record<string, number>;
   sources: Record<string, RequirementSettingSource>;
   fields: Record<string, RequirementSettingField>;
+}
+
+// ---- Manual requirement per cow (MILESTONE 28, RFE-129) --------------------------------------------
+
+/** One cow's requirement after the source decision — the shape of `GET /feed/requirements?cattleIds=` rows. */
+export interface ResolvedCowRequirement {
+  cattle_id: string;
+  source: RequirementSource;
+  /** The calculated model's inputs (also in manual mode). */
+  inputs: {
+    weight_kg: number;
+    milk_target_l: number;
+    gestation_days?: number | null;
+    bcs?: number | null;
+    dim?: number | null;
+    animal_type?: string;
+  };
+  /** Data-quality flags only; empty when manual. */
+  flags: string[];
+  requirements: FeedRequirements;
+  /** What the calculated model says today; only when `source` is `MANUAL`. */
+  dynamic_requirements?: FeedRequirements;
+  manual?: ManualRequirementInfo;
+}
+
+/** One row of a cow's manual-requirement history. `dynamic_snapshot` = the calculated figures when it was set. */
+export interface RequirementOverrideRow {
+  id: string;
+  cattle_id: string;
+  dm_kg: number;
+  cp_kg: number;
+  me_mj: number;
+  note: string | null;
+  dynamic_snapshot: { dm_kg: number; cp_kg: number; me_mj: number; animal_type: string };
+  effective_from: string;
+  /** `null` = still in force. */
+  effective_to: string | null;
+  end_reason: "REPLACED" | "TURNED_OFF" | null;
+  set_by: string;
+  ended_by: string | null;
+}
+
+/** `GET /feed/cattle/:id/requirement-override`. `last` = newest closed row, to pre-fill "turn back on". */
+export interface RequirementOverrideDetail {
+  active: RequirementOverrideRow | null;
+  resolved: ResolvedCowRequirement;
+  last: RequirementOverrideRow | null;
+}
+
+export interface SetRequirementOverridePayload {
+  dmKg: number;
+  cpKg: number;
+  meMj: number;
+  note?: string;
+}
+
+/** Saved anyway — shown after the save so the manager can double-check an unusual figure. */
+export interface RequirementOverrideWarning {
+  code: "dm_body_weight" | "cp_share" | "energy_density";
+  message: string;
+}
+
+export interface SetRequirementOverrideResult {
+  active: RequirementOverrideRow;
+  resolved: ResolvedCowRequirement;
+  warnings: RequirementOverrideWarning[];
+}
+
+export interface TurnOffRequirementOverrideResult {
+  active: null;
+  resolved: ResolvedCowRequirement;
 }

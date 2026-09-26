@@ -3,6 +3,11 @@
 import { apiFetch, apiFetchPage } from "@/lib/api/client";
 import type { CursorPage } from "@/types/api";
 import type {
+  RequirementOverrideDetail,
+  RequirementOverrideRow,
+  SetRequirementOverridePayload,
+  SetRequirementOverrideResult,
+  TurnOffRequirementOverrideResult,
   BulkDeleteConcentrationPayload,
   ConfirmFeedGridPayload,
   ConfirmFeedGridResult,
@@ -202,6 +207,32 @@ export const feedApi = {
   },
   getTodaysRequirement(): Promise<TodaysFeedRequirement> {
     return apiFetch<TodaysFeedRequirement>("/feed/today-requirement");
+  },
+  // ---- Manual requirement per cow (MILESTONE 28, RFE-129). Reads are worker-ok; set/turn-off need `feed.update`. ----
+  getRequirementOverride(cattleId: string): Promise<RequirementOverrideDetail> {
+    return apiFetch<RequirementOverrideDetail>(`/feed/cattle/${cattleId}/requirement-override`);
+  },
+  /** Newest first, cursor-paginated. */
+  listRequirementOverrides(
+    cattleId: string,
+    cursor: string | undefined,
+    limit: number,
+  ): Promise<CursorPage<RequirementOverrideRow>> {
+    return apiFetchPage<RequirementOverrideRow>(`/feed/cattle/${cattleId}/requirement-overrides`, {
+      searchParams: { cursor, limit },
+    });
+  },
+  /** Turns manual on, or replaces the values (the old row is kept in history). */
+  setRequirementOverride(cattleId: string, dto: SetRequirementOverridePayload): Promise<SetRequirementOverrideResult> {
+    return apiFetch<SetRequirementOverrideResult>(`/feed/cattle/${cattleId}/requirement-override`, {
+      method: "PUT",
+      body: dto,
+    });
+  },
+  turnOffRequirementOverride(cattleId: string): Promise<TurnOffRequirementOverrideResult> {
+    return apiFetch<TurnOffRequirementOverrideResult>(`/feed/cattle/${cattleId}/requirement-override`, {
+      method: "DELETE",
+    });
   },
   /** Feeding Grid (2026-08-15) — replaces the single-item Quick Feed dialog. One row per cow, one
    * source item per Save/Confirm call, `entries` is per-cow quantity. */

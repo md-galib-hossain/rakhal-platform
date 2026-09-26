@@ -96,3 +96,27 @@ export const logDistributionFormSchema = z.object({
 
 export type LogDistributionFormInput = z.infer<typeof logDistributionFormSchema>;
 export type LogDistributionFormItem = z.infer<typeof logDistributionItemSchema>;
+
+/**
+ * A cow's manual requirement (MILESTONE 28, RFE-129) — mirrors `SetRequirementOverrideDto`: DM 0.5–40 kg,
+ * ME 5–400 MJ, CP above 0 and below DM. Unusual-but-plausible values are not blocked here; the server saves them
+ * and returns soft warnings. Inputs are strings (typed decimals); `z.coerce` would turn "" into 0. The messages are
+ * i18n keys under `cattle.feeding.requirement.form.error`.
+ */
+export const requirementOverrideFormSchema = z
+  .object({
+    dmKg: z.string().trim().min(1, "required"),
+    cpKg: z.string().trim().min(1, "required"),
+    meMj: z.string().trim().min(1, "required"),
+    note: z.string().trim().max(300).optional(),
+  })
+  .superRefine((v, ctx) => {
+    const dm = Number(v.dmKg);
+    const cp = Number(v.cpKg);
+    const me = Number(v.meMj);
+    if (v.dmKg && !(dm >= 0.5 && dm <= 40)) ctx.addIssue({ code: "custom", path: ["dmKg"], message: "dmRange" });
+    if (v.meMj && !(me >= 5 && me <= 400)) ctx.addIssue({ code: "custom", path: ["meMj"], message: "meRange" });
+    if (v.cpKg && !(cp > 0)) ctx.addIssue({ code: "custom", path: ["cpKg"], message: "cpPositive" });
+    else if (v.cpKg && dm >= 0.5 && cp >= dm) ctx.addIssue({ code: "custom", path: ["cpKg"], message: "cpBelowDm" });
+  });
+export type RequirementOverrideFormValues = z.infer<typeof requirementOverrideFormSchema>;

@@ -762,13 +762,14 @@ function UnifiedGrid({
                       <TableCell className="pt-3.5">
                         {(() => {
                           // No requirement or no server fit (a cow on no program has neither) → nothing to compare to.
-                          if (!cow.requirement || !cow.fit) return <FitPill fit={cow.fit} requirement={cow.requirement} supply={cow.planned_supply} />;
+                          if (!cow.requirement || !cow.fit) return <FitPill fit={cow.fit} requirement={cow.requirement} supply={cow.planned_supply} cattleId={cow.cattle_id} />;
                           const supply = liveSupply(rowLines, densityFor);
                           return (
                             <FitPill
                               fit={liveFit(supply, cow.requirement, bands, cow.fit.estimated)}
                               requirement={cow.requirement}
                               supply={supply}
+                              cattleId={cow.cattle_id}
                             />
                           );
                         })()}

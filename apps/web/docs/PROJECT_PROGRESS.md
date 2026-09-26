@@ -1159,3 +1159,17 @@ Companion to the backend board's MILESTONE 24 (`D:\Projects\Rakhal\docs\PROJECT_
 | RFE-128 | **Fit pills** per row (green/amber/red + "estimated"), tooltip with requirement vs supply for DM/CP/ME + flags, section summary; **Adjust plan** sheet (group/herd → "Edit for all N" or "Make individual plan (copy)"); **Edit recipe** sheet with a "lots already made keep their nutrition, adjust kg for today" banner. Workers see pills only. | new `features/feeding/components/fit-*.tsx`, new `features/feeding/components/adjust-plan-sheet.tsx` | RAKHAL-458, RFE-126, RFE-127 |
 
 **Serialization:** RFE-127 and RFE-128 both touch `features/feeding/components/**`, so run them one after the other.
+
+---
+
+## MILESTONE 28 — Manual Requirement per cow (frontend twins) — 📋 SPECCED (2026-09-26), nothing implemented
+
+> **Full spec:** `D:\Projects\Rakhal\docs\EPIC_MANUAL_REQUIREMENT.md` (§3 decisions, §5 per-cow API shape, §6 endpoints, §7 UI, §8 corner cases). Backend tickets RAKHAL-460…462.
+> **One-liner:** a cow's requirement is either **Calculated** (default) or **Manual** (DM/CP/ME per day typed by a manager). While Manual is on, every screen uses her manual values; the calculated values are still shown beside them, with a stale warning when she has changed a lot since. Every change is kept as history.
+
+| Ticket | Title | Lane | Depends |
+|---|---|---|---|
+| RFE-129 | Cattle detail Feeding tab **Nutrition requirement** card: Calculated/Manual switch (turn-off confirm), form pre-filled from today's calculated or the last manual values, live hints (CP % of DM, MJ/kg DM, DM % of body weight), server `warnings[]`, manual vs calculated side by side with drift %, stale banner, collapsible history; worker read-only | `features/cattle/components/detail/{feeding-tab.tsx,requirement-override-card.tsx (new)}`, `features/feed/{api,types}.ts` (requirement-override section), `features/feed/hooks/use-requirement-override.ts` (new), `i18n/messages/{en,bn}.json` (`cattle.feeding.requirement.*`) | RAKHAL-462 |
+| RFE-130 | **Manual** badge + stale warning + "Change requirement" link (managers) in the fit-pill tooltip and the plan requirement panel; per-cow requirement type gets `source`/`dynamic_requirements?`/`manual?`, nullable `calcium_kg`/`phosphorus_kg`/`breakdown`; "N cows on manual" on today-requirement; en/bn label for `manualOverrideDriftPct` | `features/feeding/components/fit-pill.tsx`, `features/feed/components/plans/plan-requirement-panel.tsx`, `features/feed/types.ts`, today-requirement widget, `i18n/messages/{en,bn}.json` | RAKHAL-461 |
+
+**Serialization:** both edit `features/feed/types.ts` and `en/bn.json`. Run RFE-130 first (it owns the type change), then RFE-129.
