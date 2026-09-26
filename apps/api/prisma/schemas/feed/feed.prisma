@@ -412,12 +412,6 @@ model FeedDistributionCattleItem {
   phosphorusPct Float?
   tdnPct        Float?
 
-  /// RAKHAL-441 — which of the farm's configured feeding/milking sessions (Morning/Noon/Evening/
-  /// Night, `FarmModuleSettings.milkActiveSessions` — the same session concept Milk already uses,
-  /// not a second one) this confirm belongs to. Null when the farm has no sessions configured, the
-  /// caller didn't supply one, or this is a historical pre-migration row.
-  session String?
-
   /// RAKHAL-441 — void (correction), never a hard delete. A voided row's `offeredKg`/`costTk` are
   /// excluded from every downstream sum (cattle finance's `sumFeedCost`, the parent distribution's
   /// own totals — both already reduced by the exact same amounts at void time, not re-derived from

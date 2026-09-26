@@ -4,19 +4,19 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
 /**
  * RAKHAL-441 (`docs/EPIC_FEED_PER_COW_RECORD.md`) e2e — per-cow feed cost, frozen nutrition
- * snapshot, session tag, and per-cow void/re-feed. Covers: (1) a Feeding Grid confirm freezes
- * `costTk`/`feedName`/nutrients/`session` on each cow's own `FeedDistributionCattleItem`; (2)
+ * snapshot, and per-cow void/re-feed. Covers: (1) a Feeding Grid confirm freezes
+ * `costTk`/`feedName`/nutrients on each cow's own `FeedDistributionCattleItem`; (2)
  * `GET /cattle/:id/finance` surfaces that cost in `expense_breakdown.feed`; (3) editing the
  * ingredient's nutrition after confirming does not rewrite the already-frozen per-cow row; (4)
  * voiding one cow's line credits back stock exactly, shrinks the sibling item/parent totals
  * exactly, and excludes it from the cattle-finance sum, without touching the other cow; (5) a
  * double-void is an idempotent no-op; (6) a worker cannot void (`feed.delete`, manager+); (7)
- * voiding every cow under a distribution auto-voids the parent; (8) an out-of-range session is
- * rejected, a valid one is accepted.
+ * voiding every cow under a distribution auto-voids the parent; (8) a second confirm for a cow
+ * already fed that day is rejected (one confirm per cow per day).
  *
  * Requires the dev stack up + `pnpm seed`.
  */
-describe('Feed per-cow record: cost/nutrition/void/session (RAKHAL-441, e2e)', () => {
+describe('Feed per-cow record: cost/nutrition/void (RAKHAL-441, e2e)', () => {
   let ctx: TestContext;
   let prisma: PrismaService;
   let owner: AuthedUser;
@@ -90,21 +90,7 @@ describe('Feed per-cow record: cost/nutrition/void/session (RAKHAL-441, e2e)', (
     await ctx.app.close();
   });
 
-  it("rejects a session not in the farm's active list, accepts one that is", async () => {
-    await request(server())
-      .post(api('/feed/grid/confirm'))
-      .set(...auth(owner))
-      .send({
-        date: '2026-06-01',
-        sourceType: 'FEED_ITEM',
-        feedItemId,
-        session: 'NOT_A_REAL_SESSION',
-        entries: [{ cattleId: cowA, offeredKg: 1 }],
-      })
-      .expect(400);
-  });
-
-  it('confirm freezes cost/name/nutrition/session per cow, and cattle finance surfaces it', async () => {
+  it('confirm freezes cost/name/nutrition per cow, and cattle finance surfaces it', async () => {
     const res = await request(server())
       .post(api('/feed/grid/confirm'))
       .set(...auth(owner))
@@ -112,7 +98,6 @@ describe('Feed per-cow record: cost/nutrition/void/session (RAKHAL-441, e2e)', (
         date: '2026-06-01',
         sourceType: 'FEED_ITEM',
         feedItemId,
-        session: 'morning',
         entries: [
           { cattleId: cowA, offeredKg: 5 },
           { cattleId: cowB, offeredKg: 6 },
@@ -125,11 +110,9 @@ describe('Feed per-cow record: cost/nutrition/void/session (RAKHAL-441, e2e)', (
       res.body.data.cows as Array<{
         cattle_id: string;
         cost_tk: number;
-        session: string;
       }>
     ).find((c) => c.cattle_id === cowA)!;
     expect(cowARow.cost_tk).toBe(50);
-    expect(cowARow.session).toBe('MORNING');
 
     const distribution = await prisma.feedDistribution.findUnique({
       where: { id: distributionId },
@@ -145,7 +128,6 @@ describe('Feed per-cow record: cost/nutrition/void/session (RAKHAL-441, e2e)', (
     expect(cowAItem.feedName).toBe(distribution!.items[0].ingredientName);
     expect(cowAItem.dmPct).toBe(90);
     expect(cowAItem.cpPct).toBe(16);
-    expect(cowAItem.session).toBe('MORNING');
     expect(cowAItem.voidedAt).toBeNull();
     expect(cowBItem.costTk).toBe(60);
 
@@ -189,12 +171,17 @@ describe('Feed per-cow record: cost/nutrition/void/session (RAKHAL-441, e2e)', (
     };
   });
 
-  it('GET /feed/active-sessions exposes the farm sessions under feed.read', async () => {
-    const res = await request(server())
-      .get(api('/feed/active-sessions'))
-      .set(...auth(worker))
-      .expect(200);
-    expect(res.body.data).toContain('MORNING');
+  it('a second confirm for a cow already fed that day is rejected (one confirm per cow per day)', async () => {
+    await request(server())
+      .post(api('/feed/grid/confirm'))
+      .set(...auth(owner))
+      .send({
+        date: '2026-06-01',
+        sourceType: 'FEED_ITEM',
+        feedItemId,
+        entries: [{ cattleId: cowA, offeredKg: 1 }],
+      })
+      .expect(409);
   });
 
   it("GET /feed/grid/cattle/:cattleId/history lists that cow's own entries for the given date, not the other cow's", async () => {
@@ -215,7 +202,6 @@ describe('Feed per-cow record: cost/nutrition/void/session (RAKHAL-441, e2e)', (
       id: string;
       distribution_id: string;
       cost_tk: number;
-      session: string;
       voided_at: string | null;
     }>;
     expect(entries).toHaveLength(1);
@@ -223,7 +209,6 @@ describe('Feed per-cow record: cost/nutrition/void/session (RAKHAL-441, e2e)', (
     expect(cowAEntry.id).toBe(cowAItemId);
     expect(cowAEntry.distribution_id).toBe(distributionId);
     expect(cowAEntry.cost_tk).toBe(50);
-    expect(cowAEntry.session).toBe('MORNING');
     expect(cowAEntry.voided_at).toBeNull();
   });
 

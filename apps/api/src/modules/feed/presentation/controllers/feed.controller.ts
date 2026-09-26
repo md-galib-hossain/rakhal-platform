@@ -443,14 +443,6 @@ export class FeedController {
     return this.feedingGrid.confirm(farmId, userId, dto);
   }
 
-  /** RAKHAL-441 frontend twin — the farm's own configured active feeding/milking sessions, for
-   * the Grid UI's session picker. */
-  @Get('active-sessions')
-  @RequirePermission('feed.read')
-  getActiveSessions(@CurrentFarmId() farmId: string) {
-    return this.feedingGrid.activeSessions(farmId);
-  }
-
   /** RAKHAL-441 — one cow's own feeding entries for one exact day (defaults to today). */
   @Get('grid/cattle/:cattleId/history')
   @RequirePermission('feed.read')

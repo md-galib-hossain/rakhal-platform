@@ -335,7 +335,7 @@ describe('Feeding Grid (e2e)', () => {
         .post(api('/feed/grid/draft'))
         .set(...auth(worker))
         .send({
-          date: '2026-05-03',
+          date: '2026-05-05',
           sourceType: 'FEED_ITEM',
           feedItemId,
           entries: [{ cattleId: cowA, offeredKg: 2 }],
@@ -346,7 +346,7 @@ describe('Feeding Grid (e2e)', () => {
         .post(api('/feed/grid/confirm'))
         .set(...auth(worker))
         .send({
-          date: '2026-05-03',
+          date: '2026-05-05',
           sourceType: 'FEED_ITEM',
           feedItemId,
           entries: [{ cattleId: cowA, offeredKg: 2 }],

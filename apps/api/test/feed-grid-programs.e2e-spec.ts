@@ -282,7 +282,7 @@ describe('Feeding Grid programs (e2e)', () => {
   it('multi-line confirm: stock moves once per source, plan snapshots are written, refusal splits proportionally', async () => {
     const itemBefore = await itemStock();
     const lotBefore = await lotStock();
-    // plannedKg is what the grid pre-fills: daily kg / the farm's active sessions.
+    // plannedKg is what the grid pre-fills: the plan line's whole daily kg.
     const sec = (await grid()).sections.find((x) => x.plan_id === planId)!;
     const prefill = (id: string) =>
       sec.lines.find((l) => l.line_id === id)!.prefill_kg;

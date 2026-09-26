@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -24,7 +25,6 @@ import {
   blendNutrition,
   NutritionValues,
 } from '../../domain/nutrition-profile';
-import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { SaveFeedDraftDto } from '../../presentation/dto/save-feed-draft.dto';
 import { ConfirmFeedDraftDto } from '../../presentation/dto/confirm-feed-draft.dto';
 import { VoidFeedCattleItemDto } from '../../presentation/dto/void-feed-cattle-item.dto';
@@ -94,7 +94,6 @@ export class FeedFeedingGridService {
     logger: LoggerService,
     private readonly feedDistribution: FeedDistributionService,
     private readonly feedStock: FeedStockService,
-    private readonly farmSettings: FarmSettingsService,
     private readonly feedItems: FeedItemService,
     private readonly lotResolver: FeedLotResolver,
     private readonly programs: FeedPlanResolverService,
@@ -202,7 +201,6 @@ export class FeedFeedingGridService {
       programByCow,
       requirementRes,
       lookaheadByCow,
-      activeSessions,
     ] = await Promise.all([
       this.prisma.feedFeedingDraft.findMany({
         where: { farmId, cattleId: { in: cattleIds }, logDate },
@@ -216,10 +214,8 @@ export class FeedFeedingGridService {
       this.requirements.forCattle(farmId, cattleIds, date),
       // RAKHAL-459a: dry-off / calving / peak-milk coming up, so the plan can be adjusted before it stops fitting.
       this.lookahead.forCattle(farmId, cattleIds, logDate),
-      this.farmSettings.milkActiveSessions(farmId),
     ]);
     const draftsByCattle = this.groupByCattle(drafts);
-    const perSession = Math.max(1, activeSessions.length);
     const requirementByCow = new Map(
       requirementRes.cows.map((c) => [c.cattle_id, c]),
     );
@@ -270,8 +266,8 @@ export class FeedFeedingGridService {
             line_type: l.line_type,
             name: l.name,
             kg_per_day: l.kg_per_day,
-            // Pre-fill per confirm: the daily kg split across the farm's active sessions (editable).
-            prefill_kg: round2(l.kg_per_day / perSession),
+            // Pre-fill per confirm: the whole daily kg (one confirm per cow per day; editable).
+            prefill_kg: round2(l.kg_per_day),
             source: l.source,
             density: l.density,
             stock_ok: l.stock_ok,
@@ -544,19 +540,6 @@ export class FeedFeedingGridService {
    * `assertSufficientStock` already established here.
    */
   async confirm(farmId: string, userId: string, dto: ConfirmFeedDraftDto) {
-    // RAKHAL-441 — a farm's owner controls which sessions are unlocked (same
-    // `FarmSettingsService.milkActiveSessions` config Milk already enforces via its own
-    // `assertSessionActive`) — reject a session the farm hasn't turned on, rather than silently
-    // tagging every cow's row with a session nobody configured.
-    if (dto.session) {
-      const active = await this.farmSettings.milkActiveSessions(farmId);
-      if (!active.includes(dto.session)) {
-        throw new BadRequestException(
-          `The ${dto.session.toLowerCase()} session is not enabled for this farm`,
-        );
-      }
-    }
-
     const logDate = this.dayStart(dto.date);
     const cattle = await this.prisma.cattle.findMany({
       where: activeHerd(farmId),
@@ -708,8 +691,21 @@ export class FeedFeedingGridService {
       );
     }
 
+    // One confirm per cow per day: a cow with a live (non-voided) feeding today can't be confirmed
+    // again — void the earlier one first if it was a mistake.
+    const alreadyFed = await this.computeConfirmedToday(
+      [...new Set(lines.map((l) => l.cattleId))],
+      farmId,
+      logDate,
+    );
+    if (alreadyFed.size > 0) {
+      throw new ConflictException(
+        `${alreadyFed.size} cow(s) already have a feeding confirmed for this day — void it first to re-confirm`,
+      );
+    }
+
     // RAKHAL-457 (ADR-027 D12): snapshot the program each plan-linked line was fed under. `plannedKg` is
-    // the plan line's daily kg ÷ the farm's active sessions — exactly what the grid pre-fills. A plan line
+    // the plan line's daily kg — exactly what the grid pre-fills. A plan line
     // that no longer exists (the plan was edited after the grid loaded) is treated as off-plan rather than
     // blocking the confirm; a confirmed row is never rewritten by a later plan edit.
     const planLineIds = [
@@ -718,21 +714,17 @@ export class FeedFeedingGridService {
       ),
     ];
     if (planLineIds.length > 0) {
-      const [planRows, activeSessions] = await Promise.all([
-        this.prisma.feedPlanLine.findMany({
-          where: { farmId, id: { in: planLineIds } },
-          select: { id: true, planId: true, kgPerDay: true },
-        }),
-        this.farmSettings.milkActiveSessions(farmId),
-      ]);
-      const perSession = Math.max(1, activeSessions.length);
+      const planRows = await this.prisma.feedPlanLine.findMany({
+        where: { farmId, id: { in: planLineIds } },
+        select: { id: true, planId: true, kgPerDay: true },
+      });
       const snap = new Map(
         planRows.map((r) => [
           r.id,
           {
             planId: r.planId,
             planLineId: r.id,
-            plannedKg: round2(r.kgPerDay / perSession),
+            plannedKg: round2(r.kgPerDay),
           } satisfies PlanSnap,
         ]),
       );
@@ -940,7 +932,6 @@ export class FeedFeedingGridService {
             feedStockId: p.source.feedStockId,
             costTk: p.costTk,
             feedName: p.feedName,
-            session: dto.session ?? null,
             feedItemBatchId: p.feedItemBatchId,
             nutritionProfileId: p.nutritionProfileId,
             feedPlanId: p.plan?.planId ?? null,
@@ -1014,7 +1005,6 @@ export class FeedFeedingGridService {
               feed_item_id: c.feedItemId,
               feed_stock_id: c.feedStockId,
               cost_tk: round2((prev?.cost_tk ?? 0) + (c.costTk ?? 0)),
-              session: c.session,
             });
             return byCow;
           }, new Map<string, Record<string, unknown> & { offered_kg: number; refusal_kg: number; cost_tk: number }>())
@@ -1242,7 +1232,6 @@ export class FeedFeedingGridService {
         cost_tk: r.costTk,
         feed_name: r.feedName,
         source_type: r.sourceType,
-        session: r.session,
         // Real time-of-day this was confirmed — `distributedAt` on the parent is day-only
         // (midnight-normalized), so the per-cow item row has no time of its own to read; the
         // distribution's own `createdAt` is the actual confirm timestamp for every cow in it.
@@ -1431,13 +1420,6 @@ export class FeedFeedingGridService {
       voided_by: result.voidedBy,
       void_reason: result.voidReason,
     };
-  }
-
-  /** RAKHAL-441 frontend twin — the farm's own configured active feeding/milking sessions, for
-   * the Grid UI's session picker. Same list Milk already uses (`FarmSettingsService
-   * .milkActiveSessions`) — not a second, separate session concept. */
-  async activeSessions(farmId: string) {
-    return this.farmSettings.milkActiveSessions(farmId);
   }
 
   private async assertCattleBelongToFarm(farmId: string, cattleIds: string[]) {
