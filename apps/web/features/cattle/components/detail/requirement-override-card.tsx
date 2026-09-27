@@ -1,42 +1,47 @@
 "use client"; // mode switch, form state, confirm dialog and a lazily-mounted history list
 
 import { useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import {
+  AlertTriangle,
+  Calculator,
+  ChevronDown,
+  ChevronUp,
+  Edit3,
+  History,
+  Info,
+  PencilLine,
+  SlidersHorizontal,
+  Sparkles,
+} from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { LabeledInput } from "@/components/ui/labeled-field";
+import { Switch } from "@/components/ui/switch";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ErrorState } from "@/components/shared/error-state";
 import { Can } from "@/lib/auth/permissions";
-import {
-  useRequirementOverride,
-  useRequirementOverrideHistory,
-  useSetRequirementOverride,
-  useTurnOffRequirementOverride,
-} from "@/features/feed/hooks/use-requirement-override";
-import { requirementOverrideFormSchema, type RequirementOverrideFormValues } from "@/features/feed/schemas";
-import type { FeedRequirements, RequirementOverrideWarning } from "@/features/feed/types";
-
-const r2 = (n: number) => String(Math.round(n * 100) / 100);
-const f1 = (n: number) => (Math.round(n * 10) / 10).toString();
+import { useRequirementOverride, useTurnOffRequirementOverride } from "@/features/feed/hooks/use-requirement-override";
+import type { FeedRequirementBreakdown, FeedRequirements, RequirementOverrideWarning } from "@/features/feed/types";
+import { formDefaults, fmt } from "./requirement/profile";
+import { RequirementHistory } from "./requirement/requirement-history";
+import { RequirementProfileForm } from "./requirement/requirement-profile-form";
+import { RequirementProfileTable } from "./requirement/requirement-profile-table";
 
 /**
- * "Nutrition requirement" on the cattle Feeding tab (MILESTONE 28, RFE-129). A cow's requirement is either fully
- * calculated from her records or fully hand-set (DM, CP, ME) — never a mix. Managers switch between the two; a
- * worker sees the same card read-only. Turning manual on pre-fills the form with today's calculated figures (or the
- * last manual ones); turning it off asks first. Every change is kept in the history below.
+ * "Nutrition requirement" on the cattle Feeding tab (MILESTONE 28 RFE-129, MILESTONE 28b RFE-131/132).
+ * A cow's requirement is either fully calculated from her records (Manual OFF) or hand-set (Manual ON).
+ * When Manual is OFF, automatic calculations apply everywhere and requirements are displayed in a clean read-only table.
+ * When Manual is turned ON, a form allows entering custom requirements by hand with calculated baselines and live derived values.
  */
 export function RequirementOverrideCard({ cattleId }: { cattleId: string }) {
   const t = useTranslations("cattle.feeding.requirement");
+  const locale = useLocale() as Locale;
   const q = useRequirementOverride(cattleId);
   const turnOff = useTurnOffRequirementOverride(cattleId);
   const [editing, setEditing] = useState(false);
@@ -49,8 +54,9 @@ export function RequirementOverrideCard({ cattleId }: { cattleId: string }) {
 
   const { active, resolved, last } = q.data;
   const manual = resolved.source === "MANUAL";
+  // What the calculated model says today, in both modes
   const calculated: FeedRequirements =
-    (manual ? resolved.dynamic_requirements : resolved.requirements) ?? resolved.requirements;
+    q.data.calculated ?? (manual ? resolved.dynamic_requirements : resolved.requirements) ?? resolved.requirements;
   const info = resolved.manual;
 
   async function confirmTurnOff() {
@@ -64,46 +70,153 @@ export function RequirementOverrideCard({ cattleId }: { cattleId: string }) {
     }
   }
 
-  const prefill = active ?? last;
-  const defaults: RequirementOverrideFormValues = {
-    dmKg: r2(prefill ? prefill.dm_kg : calculated.dm_kg),
-    cpKg: r2(prefill ? prefill.cp_kg : calculated.cp_kg),
-    meMj: r2(prefill ? prefill.me_mj : calculated.me_mj),
+  const defaults = {
+    ...formDefaults(calculated, { row: active ?? last, resolved: manual ? resolved.requirements : null }),
     note: active?.note ?? "",
   };
 
   return (
-    <Card className="flex flex-col gap-3 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-foreground">{t("title")}</p>
+    <Card className="flex flex-col gap-4 p-4 sm:p-5">
+      {/* Header: Title, Active Mode Badge, and Manual Switch */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Sparkles className="size-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-foreground tracking-tight">{t("title")}</h3>
+              <Badge
+                variant={manual || editing ? "warning" : "outline"}
+                className="h-5 px-2 text-[11px] font-medium"
+              >
+                {manual || editing ? t("mode.manual") : t("mode.calculated")}
+              </Badge>
+            </div>
+          </div>
+        </div>
+
         <Can
           I="feed.update"
-          fallback={<Badge variant={manual ? "warning" : "secondary"}>{t(manual ? "mode.manual" : "mode.calculated")}</Badge>}
+          fallback={
+            <Badge variant={manual ? "warning" : "secondary"} className="h-6 px-2.5 text-xs font-medium">
+              {t(manual ? "mode.manual" : "mode.calculated")}
+            </Badge>
+          }
         >
-          <div role="group" aria-label={t("modeLabel")} className="flex gap-1 rounded-lg border border-border p-0.5">
-            <Button
-              size="sm"
-              variant={manual || editing ? "ghost" : "secondary"}
-              aria-pressed={!manual && !editing}
-              onClick={() => (manual ? setConfirmOff(true) : setEditing(false))}
+          <div
+            role="group"
+            aria-label={t("modeLabel")}
+            className="flex items-center gap-2.5 rounded-full border border-border/80 bg-muted/40 px-3 py-1.5 transition-colors"
+          >
+            <label
+              htmlFor="manual-override-toggle"
+              className="flex cursor-pointer select-none items-center gap-1.5 text-xs font-medium text-foreground"
             >
-              {t("mode.calculated")}
-            </Button>
-            <Button
-              size="sm"
-              variant={manual || editing ? "secondary" : "ghost"}
-              aria-pressed={manual || editing}
-              onClick={() => setEditing(true)}
-            >
-              {t("mode.manual")}
-            </Button>
+              <span>{t("mode.manual")}</span>
+              <Badge
+                variant={manual || editing ? "warning" : "outline"}
+                className="h-4 px-1.5 py-0 text-[10px] font-semibold"
+              >
+                {manual || editing ? "ON" : "OFF"}
+              </Badge>
+            </label>
+            <Switch
+              id="manual-override-toggle"
+              checked={manual || editing}
+              onCheckedChange={(checked) => {
+                if (checked) {
+                  setEditing(true);
+                } else if (manual) {
+                  setConfirmOff(true);
+                } else {
+                  setEditing(false);
+                }
+              }}
+              aria-label={t("mode.manual")}
+            />
           </div>
         </Can>
       </div>
 
+      {/* Contextual Status Banners */}
       {editing ? (
-        <RequirementForm
+        <div className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary/5 p-3.5 text-xs">
+          <PencilLine className="size-4 shrink-0 text-primary mt-0.5" />
+          <div className="flex flex-col gap-1">
+            <p className="font-semibold text-foreground">
+              {manual ? t("form.replaceHint") : t("form.newHint")}
+            </p>
+            <p className="text-muted-foreground">{t("form.frozenHint")}</p>
+            {!manual && (
+              <p className="font-medium text-warning mt-0.5">{t("pending")}</p>
+            )}
+          </div>
+        </div>
+      ) : manual && info ? (
+        <div className="flex flex-col gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3.5 text-xs">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="flex items-start gap-2.5">
+              <SlidersHorizontal className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+              <div className="flex flex-col gap-1">
+                <span className="font-semibold text-foreground">
+                  {active?.set_by_name
+                    ? t("status.manualBy", { date: formatDate(active.effective_from, locale), name: active.set_by_name })
+                    : t("status.manual", { date: formatDate(active.effective_from, locale) })}
+                </span>
+                {info.note ? <span className="text-foreground">{t("note", { note: info.note })}</span> : null}
+                <span className="text-muted-foreground">
+                  {resolved.requirements.calcium_kg === null ? t("manualHintLegacy") : t("manualHint")}
+                </span>
+              </div>
+            </div>
+
+            <Can I="feed.update">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs gap-1.5 bg-background shadow-2xs shrink-0"
+                onClick={() => setEditing(true)}
+              >
+                <Edit3 className="size-3.5" />
+                {t("edit")}
+              </Button>
+            </Can>
+          </div>
+
+          {info.stale ? (
+            <div className="flex items-center gap-2 rounded-lg bg-warning-tint p-2 text-xs font-medium text-warning">
+              <AlertTriangle className="size-4 shrink-0" />
+              <span>
+                {info.animal_type_changed
+                  ? t("stale.type")
+                  : t("stale.drift", {
+                      pct: Math.round(Math.max(info.drift.dm_pct, info.drift.cp_pct, info.drift.me_pct)),
+                    })}
+              </span>
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <div className="flex items-start gap-2.5 rounded-xl border border-border/80 bg-muted/30 p-3.5 text-xs">
+          <Calculator className="size-4 shrink-0 text-primary mt-0.5" />
+          <div className="flex flex-col gap-0.5">
+            <p className="font-semibold text-foreground">
+              {t("status.calculated")}
+            </p>
+            <p className="text-muted-foreground">
+              {t("calculatedSummary", { dm: fmt(calculated.dm_kg), cp: fmt(calculated.cp_kg), me: fmt(calculated.me_mj) })}
+            </p>
+            <p className="text-muted-foreground/80 mt-0.5">{t("appliesEverywhere")}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content: Form (when editing) or Table View */}
+      {editing ? (
+        <RequirementProfileForm
           cattleId={cattleId}
+          calculated={calculated}
           defaults={defaults}
           weightKg={resolved.inputs.weight_kg}
           replacing={manual}
@@ -114,78 +227,44 @@ export function RequirementOverrideCard({ cattleId }: { cattleId: string }) {
           }}
         />
       ) : manual && info ? (
-        <>
-          {info.stale ? (
-            <p role="status" className="rounded-lg bg-warning-tint p-2 text-xs text-warning">
-              {info.animal_type_changed
-                ? t("stale.type")
-                : t("stale.drift", {
-                    pct: Math.round(Math.max(info.drift.dm_pct, info.drift.cp_pct, info.drift.me_pct)),
-                  })}
-            </p>
-          ) : null}
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-muted-foreground">
-                <th className="py-1 font-normal">{t("nutrient")}</th>
-                <th className="py-1 font-normal">{t("mode.manual")}</th>
-                <th className="py-1 font-normal">{t("mode.calculated")}</th>
-                <th className="py-1 text-right font-normal">{t("drift")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(
-                [
-                  { key: "dm", unit: "kg", m: resolved.requirements.dm_kg, c: calculated.dm_kg, d: info.drift.dm_pct },
-                  { key: "cp", unit: "kg", m: resolved.requirements.cp_kg, c: calculated.cp_kg, d: info.drift.cp_pct },
-                  { key: "me", unit: "MJ", m: resolved.requirements.me_mj, c: calculated.me_mj, d: info.drift.me_pct },
-                ] as const
-              ).map((r) => (
-                <tr key={r.key} className="border-t border-border">
-                  <td className="py-1.5 text-foreground">
-                    {t(`nutrients.${r.key}`)} <span className="text-muted-foreground">({r.unit})</span>
-                  </td>
-                  <td className="py-1.5 font-medium tabular-nums">{f1(r.m)}</td>
-                  <td className="py-1.5 tabular-nums text-muted-foreground">{f1(r.c)}</td>
-                  <td className="py-1.5 text-right tabular-nums text-muted-foreground">{f1(r.d)}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {info.note ? <p className="text-xs text-muted-foreground">{t("note", { note: info.note })}</p> : null}
-          <p className="text-xs text-muted-foreground">{t("manualHint")}</p>
-          <Can I="feed.update">
-            <div>
-              <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
-                {t("edit")}
-              </Button>
-            </div>
-          </Can>
-        </>
+        <RequirementProfileTable calculated={calculated} manual={resolved.requirements} />
       ) : (
-        <p className="text-sm text-muted-foreground">
-          {t("calculatedSummary", { dm: f1(calculated.dm_kg), cp: r2(calculated.cp_kg), me: f1(calculated.me_mj) })}
-        </p>
+        <>
+          <RequirementProfileTable calculated={calculated} />
+          {calculated.breakdown ? <HowCalculated breakdown={calculated.breakdown} /> : null}
+        </>
       )}
 
+      {/* Warnings Banner */}
       {warnings.length > 0 ? (
-        <ul role="status" className="flex flex-col gap-1 rounded-lg bg-warning-tint p-2 text-xs text-warning">
+        <ul role="status" className="flex flex-col gap-1 rounded-xl bg-warning-tint p-3 text-xs text-warning">
           {warnings.map((w) => (
-            <li key={w.code}>{t(`warning.${w.code}`)}</li>
+            <li key={`${w.code}-${w.field ?? ""}`} className="flex items-center gap-1.5">
+              <AlertTriangle className="size-3.5 shrink-0" />
+              <span>{t.has(`warning.${w.code}`) ? t(`warning.${w.code}`) : w.message}</span>
+            </li>
           ))}
         </ul>
       ) : null}
 
-      <button
-        type="button"
-        onClick={() => setHistoryOpen((o) => !o)}
-        aria-expanded={historyOpen}
-        className="flex items-center gap-1 self-start text-xs font-medium text-primary"
-      >
-        {historyOpen ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-        {t("history.toggle")}
-      </button>
-      {historyOpen ? <RequirementHistory cattleId={cattleId} /> : null}
+      {/* History Drawer Trigger */}
+      <div className="border-t border-border/60 pt-3">
+        <button
+          type="button"
+          onClick={() => setHistoryOpen((o) => !o)}
+          aria-expanded={historyOpen}
+          className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <History className="size-3.5 text-primary" />
+          <span>{t("history.toggle")}</span>
+          {historyOpen ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+        </button>
+        {historyOpen ? (
+          <div className="pt-3">
+            <RequirementHistory cattleId={cattleId} />
+          </div>
+        ) : null}
+      </div>
 
       <ConfirmDialog
         open={confirmOff}
@@ -201,137 +280,48 @@ export function RequirementOverrideCard({ cattleId }: { cattleId: string }) {
   );
 }
 
-function RequirementForm({
-  cattleId,
-  defaults,
-  weightKg,
-  replacing,
-  onCancel,
-  onSaved,
-}: {
-  cattleId: string;
-  defaults: RequirementOverrideFormValues;
-  weightKg: number;
-  replacing: boolean;
-  onCancel: () => void;
-  onSaved: (warnings: RequirementOverrideWarning[]) => void;
-}) {
-  const t = useTranslations("cattle.feeding.requirement");
-  const save = useSetRequirementOverride(cattleId);
-  const {
-    register,
-    handleSubmit,
-    control,
-    formState: { errors },
-  } = useForm<RequirementOverrideFormValues>({
-    resolver: zodResolver(requirementOverrideFormSchema),
-    defaultValues: defaults,
-  });
-  const [dmText, cpText, meText] = useWatch({ control, name: ["dmKg", "cpKg", "meMj"] });
-  const [dm, cp, me] = [Number(dmText), Number(cpText), Number(meText)];
-  const ok = (n: number) => Number.isFinite(n) && n > 0;
-  const err = (m?: string) => (m ? t(`form.error.${m}`) : undefined);
-
-  async function onSubmit(v: RequirementOverrideFormValues) {
-    try {
-      const res = await save.mutateAsync({
-        dmKg: Number(v.dmKg),
-        cpKg: Number(v.cpKg),
-        meMj: Number(v.meMj),
-        ...(v.note ? { note: v.note } : {}),
-      });
-      toast.success(t("savedToast"));
-      onSaved(res.warnings);
-    } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : t("genericError"));
-    }
-  }
+/** "How this is calculated": what makes up her dry matter, energy and protein figures (calculated mode only). */
+function HowCalculated({ breakdown }: { breakdown: FeedRequirementBreakdown }) {
+  const t = useTranslations("cattle.feeding.requirement.breakdown");
+  const [open, setOpen] = useState(false);
+  const groups = [
+    ["dm", breakdown.dm, "kg"],
+    ["me", breakdown.me, "MJ"],
+    ["cp", breakdown.cp, "kg"],
+  ] as const;
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3" noValidate>
-      <p className="text-xs text-muted-foreground">{replacing ? t("form.replaceHint") : t("form.newHint")}</p>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="flex flex-col gap-1">
-          <LabeledInput label={t("form.dm")} inputMode="decimal" error={err(errors.dmKg?.message)} {...register("dmKg")} />
-          {ok(dm) && ok(weightKg) ? (
-            <p className="text-xs text-muted-foreground">{t("form.hintDm", { pct: f1((dm / weightKg) * 100) })}</p>
-          ) : null}
-        </div>
-        <div className="flex flex-col gap-1">
-          <LabeledInput label={t("form.cp")} inputMode="decimal" error={err(errors.cpKg?.message)} {...register("cpKg")} />
-          {ok(cp) && ok(dm) ? (
-            <p className="text-xs text-muted-foreground">{t("form.hintCp", { pct: f1((cp / dm) * 100) })}</p>
-          ) : null}
-        </div>
-        <div className="flex flex-col gap-1">
-          <LabeledInput label={t("form.me")} inputMode="decimal" error={err(errors.meMj?.message)} {...register("meMj")} />
-          {ok(me) && ok(dm) ? (
-            <p className="text-xs text-muted-foreground">{t("form.hintMe", { value: f1(me / dm) })}</p>
-          ) : null}
-        </div>
-      </div>
-      <LabeledInput label={t("form.note")} maxLength={300} error={err(errors.note?.message)} {...register("note")} />
-      <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={save.isPending}>
-          {save.isPending ? t("form.saving") : t("form.save")}
-        </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={onCancel} disabled={save.isPending}>
-          {t("form.cancel")}
-        </Button>
-      </div>
-    </form>
-  );
-}
+    <div className="flex flex-col gap-2 rounded-xl border border-border/70 bg-card p-3 shadow-2xs">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex items-center justify-between text-xs font-medium text-foreground transition-colors hover:text-primary"
+      >
+        <span className="flex items-center gap-1.5">
+          <Info className="size-3.5 text-primary" />
+          {t("toggle")}
+        </span>
+        {open ? <ChevronUp className="size-3.5 text-muted-foreground" /> : <ChevronDown className="size-3.5 text-muted-foreground" />}
+      </button>
 
-function RequirementHistory({ cattleId }: { cattleId: string }) {
-  const t = useTranslations("cattle.feeding.requirement.history");
-  const locale = useLocale() as Locale;
-  const pager = useRequirementOverrideHistory(cattleId);
-
-  if (pager.isLoading) return <CardSkeleton lines={3} />;
-  if (pager.isError) return <ErrorState onRetry={() => pager.refetch()} />;
-  if (pager.items.length === 0) return <p className="text-xs text-muted-foreground">{t("empty")}</p>;
-
-  return (
-    <div className="flex flex-col gap-2">
-      <ul className="flex flex-col gap-2">
-        {pager.items.map((r) => (
-          <li key={r.id} className="rounded-lg border border-border p-2 text-xs">
-            <div className="flex flex-wrap items-center justify-between gap-1">
-              <span className="font-medium text-foreground">
-                {formatDate(r.effective_from, locale)} – {r.effective_to ? formatDate(r.effective_to, locale) : t("now")}
-              </span>
-              <Badge variant={r.effective_to ? "secondary" : "warning"}>
-                {r.end_reason ? t(`end.${r.end_reason}`) : t("current")}
-              </Badge>
-            </div>
-            <p className="mt-1 tabular-nums text-foreground">
-              {t("values", { dm: f1(r.dm_kg), cp: r2(r.cp_kg), me: f1(r.me_mj) })}
-            </p>
-            <p className="tabular-nums text-muted-foreground">
-              {t("calculatedThen", {
-                dm: f1(r.dynamic_snapshot.dm_kg),
-                cp: r2(r.dynamic_snapshot.cp_kg),
-                me: f1(r.dynamic_snapshot.me_mj),
-              })}
-            </p>
-            {r.note ? <p className="text-muted-foreground">{r.note}</p> : null}
-          </li>
-        ))}
-      </ul>
-      {pager.totalPages > 1 ? (
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="ghost" disabled={pager.page <= 1} onClick={() => pager.goToPage(pager.page - 1)}>
-            {t("newer")}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={pager.page >= pager.totalPages}
-            onClick={() => pager.goToPage(pager.page + 1)}
-          >
-            {t("older")}
-          </Button>
+      {open ? (
+        <div className="grid gap-2.5 pt-1 sm:grid-cols-3">
+          {groups.map(([key, parts, unit]) => (
+            <dl key={key} className="flex flex-col gap-1.5 rounded-lg border border-border/60 bg-muted/20 p-2.5 text-xs">
+              <dt className="border-b border-border/50 pb-1 font-semibold text-foreground">
+                {t(`group.${key}`)}
+              </dt>
+              {Object.entries(parts).map(([part, value]) => (
+                <dd key={part} className="flex items-center justify-between gap-2 text-muted-foreground">
+                  <span>{t.has(`part.${part}`) ? t(`part.${part}`) : part}</span>
+                  <span className="font-medium tabular-nums text-foreground">
+                    {fmt(value as number)} <span className="text-[10px] font-normal text-muted-foreground">{unit}</span>
+                  </span>
+                </dd>
+              ))}
+            </dl>
+          ))}
         </div>
       ) : null}
     </div>

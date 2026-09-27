@@ -103,20 +103,53 @@ export type LogDistributionFormItem = z.infer<typeof logDistributionItemSchema>;
  * and returns soft warnings. Inputs are strings (typed decimals); `z.coerce` would turn "" into 0. The messages are
  * i18n keys under `cattle.feeding.requirement.form.error`.
  */
+const requiredNumber = z.string().trim().min(1, "required");
+
+/** Every nutrient a manager can set by hand (MILESTONE 28b, RAKHAL-463/464). Mirrors the API's hard rules. */
 export const requirementOverrideFormSchema = z
   .object({
-    dmKg: z.string().trim().min(1, "required"),
-    cpKg: z.string().trim().min(1, "required"),
-    meMj: z.string().trim().min(1, "required"),
+    dmKg: requiredNumber,
+    cpKg: requiredNumber,
+    meMj: requiredNumber,
+    ndfKg: requiredNumber,
+    ndfMaxKg: requiredNumber,
+    adfKg: requiredNumber,
+    fatKg: requiredNumber,
+    tdnKg: requiredNumber,
+    calciumKg: requiredNumber,
+    phosphorusKg: requiredNumber,
+    rdpPct: requiredNumber,
+    rupPct: requiredNumber,
     note: z.string().trim().max(300).optional(),
   })
   .superRefine((v, ctx) => {
-    const dm = Number(v.dmKg);
-    const cp = Number(v.cpKg);
-    const me = Number(v.meMj);
-    if (v.dmKg && !(dm >= 0.5 && dm <= 40)) ctx.addIssue({ code: "custom", path: ["dmKg"], message: "dmRange" });
-    if (v.meMj && !(me >= 5 && me <= 400)) ctx.addIssue({ code: "custom", path: ["meMj"], message: "meRange" });
-    if (v.cpKg && !(cp > 0)) ctx.addIssue({ code: "custom", path: ["cpKg"], message: "cpPositive" });
-    else if (v.cpKg && dm >= 0.5 && cp >= dm) ctx.addIssue({ code: "custom", path: ["cpKg"], message: "cpBelowDm" });
+    const issue = (path: keyof typeof v, message: string) => ctx.addIssue({ code: "custom", path: [path], message });
+    const num = (s: string) => (s.trim() === "" ? NaN : Number(s));
+    const dm = num(v.dmKg);
+    const cp = num(v.cpKg);
+    const me = num(v.meMj);
+    if (v.dmKg && !(dm >= 0.5 && dm <= 40)) issue("dmKg", "dmRange");
+    if (v.meMj && !(me >= 5 && me <= 400)) issue("meMj", "meRange");
+    if (v.cpKg && !(cp > 0)) issue("cpKg", "cpPositive");
+    else if (v.cpKg && dm >= 0.5 && cp >= dm) issue("cpKg", "cpBelowDm");
+
+    // Each fibre / fat / digestible figure is a part of the dry matter: above 0 and below it.
+    for (const key of ["ndfKg", "ndfMaxKg", "adfKg", "fatKg", "tdnKg"] as const) {
+      const n = num(v[key]);
+      if (!v[key]) continue;
+      if (!Number.isFinite(n) || !(n > 0)) issue(key, "positive");
+      else if (dm >= 0.5 && n >= dm) issue(key, "belowDm");
+    }
+    for (const key of ["calciumKg", "phosphorusKg"] as const) {
+      if (v[key] && !(num(v[key]) >= 0)) issue(key, "nonNegative");
+    }
+    for (const key of ["rdpPct", "rupPct"] as const) {
+      const n = num(v[key]);
+      if (v[key] && !(n >= 0 && n <= 100)) issue(key, "pctRange");
+    }
+    if (v.ndfKg && v.ndfMaxKg && num(v.ndfMaxKg) < num(v.ndfKg)) issue("ndfMaxKg", "ndfMaxBelowNdf");
+    if (v.calciumKg && v.phosphorusKg && dm >= 0.5 && num(v.calciumKg) + num(v.phosphorusKg) >= dm) {
+      issue("calciumKg", "mineralsBelowDm");
+    }
   });
 export type RequirementOverrideFormValues = z.infer<typeof requirementOverrideFormSchema>;

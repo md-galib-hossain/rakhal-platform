@@ -728,6 +728,13 @@
       "requirement": {
         "title": "Nutrition requirement",
         "modeLabel": "How her requirement is set",
+        "appliesEverywhere": "Applies to this cow everywhere: feeding grid, plans, intake check and herd totals.",
+        "pending": "Not saved yet — she still uses the calculated requirement until you save.",
+        "status": {
+          "calculated": "Using calculated values",
+          "manual": "Using manual values · set {date}",
+          "manualBy": "Using manual values · set {date} by {name}"
+        },
         "mode": {
           "calculated": "Calculated",
           "manual": "Manual"
@@ -736,11 +743,54 @@
         "drift": "Change",
         "nutrients": {
           "dm": "Dry matter",
-          "cp": "Protein",
-          "me": "Energy"
+          "me": "Energy (ME)",
+          "ne": "Net energy (NEL)",
+          "energyDensity": "Energy density",
+          "cp": "Crude protein",
+          "cpPct": "Protein share",
+          "rdp": "Degradable protein (RDP)",
+          "rup": "Bypass protein (RUP)",
+          "ndf": "NDF (minimum)",
+          "ndfMax": "NDF (maximum)",
+          "adf": "ADF (minimum)",
+          "fat": "Fat",
+          "tdn": "TDN",
+          "ca": "Calcium",
+          "p": "Phosphorus",
+          "caPRatio": "Calcium : phosphorus"
+        },
+        "sections": {
+          "intake": "Intake and energy",
+          "protein": "Protein",
+          "fibre": "Fibre and fat",
+          "digestible": "Digestible nutrients",
+          "minerals": "Minerals"
+        },
+        "col": {
+          "manual": "Manual",
+          "calculated": "Calculated",
+          "change": "Change"
+        },
+        "derivedBadge": "worked out",
+        "breakdown": {
+          "toggle": "How this is calculated",
+          "group": {
+            "dm": "Dry matter (kg)",
+            "me": "Energy (MJ)",
+            "cp": "Protein (kg)"
+          },
+          "part": {
+            "lactation": "Milk production",
+            "pregnancy": "Pregnancy",
+            "heiferGrowth": "Growth",
+            "bcsAdjustment": "Body condition",
+            "maintenance": "Maintenance",
+            "milk": "Milk"
+          }
         },
         "note": "Note: {note}",
-        "manualHint": "Set by hand. Her live weight and milk are not used, and calcium and phosphorus are not set.",
+        "manualHint": "Set by hand. Her live weight and milk are not used anywhere, so these figures stay as they are until you change them.",
+        "manualHintLegacy": "Set by hand before the full profile existed: only dry matter, protein and energy were set, so the rest follow the farm's shares and calcium and phosphorus are not set. Change values to set them all.",
         "edit": "Change values",
         "calculatedSummary": "Worked out from her records: {dm} kg dry matter, {cp} kg protein and {me} MJ energy a day.",
         "stale": {
@@ -750,7 +800,13 @@
         "warning": {
           "dm_body_weight": "Dry matter looks unusual for her body weight (cows usually eat 1.5–4.5%). Saved anyway.",
           "cp_share": "Protein looks unusual for this dry matter (a diet is usually 8–22%). Saved anyway.",
-          "energy_density": "Energy looks unusual for this dry matter (usually 7–13 MJ per kg). Saved anyway."
+          "energy_density": "Energy looks unusual for this dry matter (usually 7–13 MJ per kg). Saved anyway.",
+          "ndf_share": "NDF looks unusual for this dry matter (usually 20–55%). Saved anyway.",
+          "adf_share": "ADF looks unusual for this dry matter (usually 15–35%). Saved anyway.",
+          "fat_share": "Fat looks unusual for this dry matter (usually 1–8%). Saved anyway.",
+          "tdn_share": "TDN looks unusual for this dry matter (usually 50–80%). Saved anyway.",
+          "ca_p_ratio": "Calcium to phosphorus looks unusual (usually between 1 and 3 to 1). Saved anyway.",
+          "protein_split": "Degradable and bypass protein should add up to 100%. Saved anyway."
         },
         "savedToast": "Requirement saved",
         "turnedOffToast": "Back to the calculated requirement",
@@ -764,6 +820,8 @@
           "dm": "Dry matter (kg/day)",
           "cp": "Protein (kg/day)",
           "me": "Energy (MJ/day)",
+          "frozenHint": "Once saved, every figure stays fixed until you change it. It does not follow her weight or milk.",
+          "resetRow": "Reset {nutrient} to the calculated value",
           "note": "Note (optional)",
           "save": "Save",
           "saving": "Saving…",
@@ -776,7 +834,13 @@
             "dmRange": "Between 0.5 and 40 kg",
             "meRange": "Between 5 and 400 MJ",
             "cpPositive": "Must be above 0",
-            "cpBelowDm": "Must be less than dry matter"
+            "cpBelowDm": "Must be less than dry matter",
+            "positive": "Must be above 0",
+            "belowDm": "Must be less than dry matter",
+            "nonNegative": "Cannot be negative",
+            "pctRange": "Between 0 and 100",
+            "ndfMaxBelowNdf": "Must not be below the NDF minimum",
+            "mineralsBelowDm": "Calcium and phosphorus together must be less than dry matter"
           }
         },
         "history": {
@@ -789,7 +853,11 @@
             "TURNED_OFF": "Turned off"
           },
           "values": "Set: {dm} kg dry matter · {cp} kg protein · {me} MJ",
+          "valuesMore": "NDF {ndf}–{ndfMax} kg · ADF {adf} kg · fat {fat} kg · TDN {tdn} kg · Ca {ca} kg · P {p} kg · RDP {rdp}% · RUP {rup}%",
+          "coreOnly": "Only dry matter, protein and energy were set; the rest followed the farm's shares.",
           "calculatedThen": "Calculated then: {dm} kg · {cp} kg · {me} MJ",
+          "setBy": "Set by {name}",
+          "endedBy": "ended by {name}",
           "newer": "Newer",
           "older": "Older"
         }

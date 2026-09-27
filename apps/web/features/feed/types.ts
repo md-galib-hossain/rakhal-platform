@@ -857,6 +857,16 @@ export interface RequirementOverrideRow {
   dm_kg: number;
   cp_kg: number;
   me_mj: number;
+  /** MILESTONE 28b: the rest of the profile. `null` on a row saved before 28b (core fields only). */
+  ndf_kg: number | null;
+  ndf_max_kg: number | null;
+  adf_kg: number | null;
+  fat_kg: number | null;
+  tdn_kg: number | null;
+  calcium_kg: number | null;
+  phosphorus_kg: number | null;
+  rdp_pct: number | null;
+  rup_pct: number | null;
   note: string | null;
   dynamic_snapshot: { dm_kg: number; cp_kg: number; me_mj: number; animal_type: string };
   effective_from: string;
@@ -864,13 +874,18 @@ export interface RequirementOverrideRow {
   effective_to: string | null;
   end_reason: "REPLACED" | "TURNED_OFF" | null;
   set_by: string;
+  /** Display name of who set it / ended it; `null` when the user no longer exists. */
+  set_by_name: string | null;
   ended_by: string | null;
+  ended_by_name: string | null;
 }
 
 /** `GET /feed/cattle/:id/requirement-override`. `last` = newest closed row, to pre-fill "turn back on". */
 export interface RequirementOverrideDetail {
   active: RequirementOverrideRow | null;
   resolved: ResolvedCowRequirement;
+  /** MILESTONE 28b: the calculated model's full profile today, in BOTH modes. Optional only for old fixtures. */
+  calculated?: FeedRequirements;
   last: RequirementOverrideRow | null;
 }
 
@@ -878,12 +893,26 @@ export interface SetRequirementOverridePayload {
   dmKg: number;
   cpKg: number;
   meMj: number;
+  // The full profile (MILESTONE 28b). The card always sends all of them; the API treats them as optional.
+  ndfKg?: number;
+  ndfMaxKg?: number;
+  adfKg?: number;
+  fatKg?: number;
+  tdnKg?: number;
+  calciumKg?: number;
+  phosphorusKg?: number;
+  rdpPct?: number;
+  rupPct?: number;
   note?: string;
 }
 
 /** Saved anyway — shown after the save so the manager can double-check an unusual figure. */
 export interface RequirementOverrideWarning {
-  code: "dm_body_weight" | "cp_share" | "energy_density";
+  /** Open-ended: `dm_body_weight`, `cp_share`, `energy_density`, `ndf_share`, `adf_share`, `fat_share`,
+   * `tdn_share`, `ca_p_ratio`, `protein_split`, … An unknown code falls back to `message`. */
+  code: string;
+  /** Which input the warning is about (the API's field name, e.g. `fatKg`). */
+  field?: string;
   message: string;
 }
 

@@ -203,10 +203,11 @@ export function FeedingTab({ cattleId, animalCategory }: { cattleId: string; ani
   return (
     <div className="flex flex-col gap-4">
       <FeedTodayCard cattleId={cattleId} />
+      {/* MILESTONE 28 (RFE-129, moved up by RFE-132): calculated or hand-set nutrition requirement — what she
+          needs comes before the plan that feeds it. */}
+      <RequirementOverrideCard cattleId={cattleId} />
       {/* MILESTONE 27 (RFE-126): the feed plan she is on, and how it reaches her. */}
       <CattleProgramCard cattleId={cattleId} />
-      {/* MILESTONE 28 (RFE-129): calculated or hand-set nutrition requirement. */}
-      <RequirementOverrideCard cattleId={cattleId} />
       <RationDmiSection cattleId={cattleId} />
     </div>
   );

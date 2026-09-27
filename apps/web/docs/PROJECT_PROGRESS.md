@@ -1173,3 +1173,9 @@ Companion to the backend board's MILESTONE 24 (`D:\Projects\Rakhal\docs\PROJECT_
 | RFE-130 | **Manual** badge + stale warning + "Change requirement" link (managers) in the fit-pill tooltip and the plan requirement panel; per-cow requirement type gets `source`/`dynamic_requirements?`/`manual?`, nullable `calcium_kg`/`phosphorus_kg`/`breakdown`; "N cows on manual" on today-requirement; en/bn label for `manualOverrideDriftPct` | `features/feeding/components/fit-pill.tsx`, `features/feed/components/plans/plan-requirement-panel.tsx`, `features/feed/types.ts`, today-requirement widget, `i18n/messages/{en,bn}.json` | RAKHAL-461 |
 
 **Serialization:** both edit `features/feed/types.ts` and `en/bn.json`. Run RFE-130 first (it owns the type change), then RFE-129.
+
+### MILESTONE 28b — Manual Requirement v2 (backend spec: `docs/EPIC_MANUAL_REQUIREMENT_V2.md` in the workspace root) — 📋 SPECCED 2026-09-26
+| Ticket | Title | Lane | Depends | Status |
+|---|---|---|---|---|
+| RFE-132 | Nutrition requirement card first on the cattle Feeding tab; "applies to this cow everywhere" text; pending ("not saved yet") / on / off status chip | `features/cattle/components/detail/{feeding-tab.tsx,requirement-override-card.tsx (wording)}`, `i18n/messages/{en,bn}.json` | none | `DONE 2026-09-26` |
+| RFE-131 | Card rebuild: grouped full nutrient profile, Calculated read-only, per-row calculated-vs-manual diff + reset, full-profile history, worker read-only, 375 px | `requirement-override-card.tsx` (+ section components), `features/feed/{api,types,schemas}.ts`, `use-requirement-override.ts`, tests, `i18n/messages/{en,bn}.json` | RAKHAL-464; after RFE-132 | `DONE 2026-09-26` |
