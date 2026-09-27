@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   Matches,
+  Max,
   MaxLength,
   Min,
   ValidateNested,
@@ -28,12 +29,14 @@ export class DistributionItemDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(300, { message: 'actualKg must not exceed 300 kg' })
   actualKg?: number;
 
   /** Refusal / leftover kg (informational; feeds efficiency, not cost). */
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(300, { message: 'refusalKg must not exceed 300 kg' })
   refusalKg?: number;
 
   /** A specific `FeedStock` lot to decrement `actualKg` from (real FK-backed linkage, user request

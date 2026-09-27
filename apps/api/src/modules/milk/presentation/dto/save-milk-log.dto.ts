@@ -8,6 +8,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -24,6 +25,7 @@ export class MilkLogEntryDto {
   @Transform(({ value }) => Number(value))
   @IsNumber()
   @Min(0)
+  @Max(100, { message: 'yieldL must not exceed 100 L per session' })
   yieldL!: number;
 
   @IsOptional()

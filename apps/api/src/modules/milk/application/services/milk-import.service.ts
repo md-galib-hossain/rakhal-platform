@@ -247,8 +247,8 @@ export class MilkImportService {
       const raw = read(header);
       if (!raw) continue;
       const value = Number(raw);
-      if (!Number.isFinite(value) || value < 0) {
-        return { ...base, date, error: `Invalid ${header} yield: "${raw}"` };
+      if (!Number.isFinite(value) || value < 0 || value > 100) {
+        return { ...base, date, error: `Invalid ${header} yield: "${raw}" (must be between 0 and 100 L)` };
       }
       sessions[session] = value;
     }

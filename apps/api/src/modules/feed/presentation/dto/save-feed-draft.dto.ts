@@ -9,6 +9,7 @@ import {
   IsOptional,
   IsString,
   Matches,
+  Max,
   Min,
   ValidateIf,
   ValidateNested,
@@ -44,11 +45,13 @@ export class FeedEntryLineDto {
 
   @IsNumber()
   @Min(0)
+  @Max(300, { message: 'offeredKg must not exceed 300 kg' })
   offeredKg!: number;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(300, { message: 'refusalKg must not exceed 300 kg' })
   refusalKg?: number;
 }
 
@@ -74,6 +77,7 @@ export class FeedDraftEntryDto {
   @ValidateIf((o: FeedDraftEntryDto) => !o.lines)
   @IsNumber()
   @Min(0)
+  @Max(300, { message: 'offeredKg must not exceed 300 kg' })
   offeredKg!: number;
 
   /** RAKHAL-457 (multi-line): one entry per source for this cow (a program's lines plus any extras).
@@ -93,6 +97,7 @@ export class FeedDraftEntryDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(300, { message: 'refusalKg must not exceed 300 kg' })
   refusalKg?: number;
 
   @IsOptional()
