@@ -1413,7 +1413,7 @@ async function seedDemoDashboardHistory(
           farmId,
           kind: 'FEED_MIXTURE',
           name: 'Seed: Milking Herd Ration',
-          targetType: 'GROUP',
+          targetType: 'HERD',
           createdBy,
         },
       });

@@ -1,0 +1,3 @@
+[
+  { "id": "sd_planapp_fmd_001", "farmId": "@farm", "healthPlanId": "sd_healthplan_fmdvax", "startDate": "@daysAgo:1", "appliedBy": "@user:owner", "animalCount": 1 }
+]

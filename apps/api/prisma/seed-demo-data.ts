@@ -295,6 +295,12 @@ export async function seedDemoDataset(
   await upAll(prisma.healthPlan, loadJson('health-plans.json', ctx));
   await upAll(prisma.healthPlanStep, loadJson('health-plan-steps.json', ctx));
   await upAll(prisma.healthCase, loadJson('health-cases.json', ctx));
+  // RAKHAL-415/RD-093: a preventive `PlanApplication` round's `HealthTask`s carry
+  // `planEnrollmentId` instead of `healthCaseId` — seeded so the caseless log-treatment path
+  // (`POST /health/tasks/:id/log-treatment`) has a demo row to exercise, not just the
+  // case-backed one.
+  await upAll(prisma.planApplication, loadJson('plan-applications.json', ctx));
+  await upAll(prisma.planEnrollment, loadJson('plan-enrollments.json', ctx));
   await upAll(prisma.healthTask, loadJson('health-tasks.json', ctx));
   await upAll(prisma.treatmentLog, loadJson('treatment-logs.json', ctx));
   await upAll(prisma.healthUpdate, loadJson('health-updates.json', ctx));
