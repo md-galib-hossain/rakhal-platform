@@ -50,9 +50,11 @@ export interface StockInfo {
 
 export const sourceKey = (s: RowSource) => `${s.sourceType}:${s.itemId}`;
 
+export const MAX_FEED_KG_PER_LINE = 300;
+
 export const parseKg = (v: string | undefined): number => {
   const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? n : 0;
+  return Number.isFinite(n) && n > 0 ? Math.min(n, MAX_FEED_KG_PER_LINE) : 0;
 };
 
 let lineSeq = 0;
@@ -183,12 +185,13 @@ export function hasOverStock(
   return false;
 }
 
-/** Clamp a typed value to `max`; `capped` tells the UI to show the "only N kg in stock" hint. */
+/** Clamp a typed value to `max` (and at most `MAX_FEED_KG_PER_LINE`); `capped` tells the UI to show the "only N kg in stock" hint. */
 export function clampKg(raw: string, max: number | null): { value: string; capped: boolean } {
-  if (max == null || raw.trim() === "") return { value: raw, capped: false };
+  const effectiveMax = max != null ? Math.min(max, MAX_FEED_KG_PER_LINE) : MAX_FEED_KG_PER_LINE;
+  if (raw.trim() === "") return { value: raw, capped: false };
   const n = Number(raw);
-  if (!Number.isFinite(n) || n <= max) return { value: raw, capped: false };
-  return { value: String(max), capped: true };
+  if (!Number.isFinite(n) || n <= effectiveMax) return { value: raw, capped: false };
+  return { value: String(effectiveMax), capped: true };
 }
 
 /** Lines → the multi-line payload shape `/feed/grid/{draft,confirm}` takes. Lines with no batch or 0 kg are dropped. */

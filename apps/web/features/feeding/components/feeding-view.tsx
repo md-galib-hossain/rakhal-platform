@@ -1,10 +1,8 @@
 "use client"; // dashboard stats + feed-today dialog open state
 
 import { useTranslations } from "next-intl";
-import { Wheat } from "lucide-react";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
-import { EmptyState } from "@/components/shared/empty-state";
 import { useFeedCostSummary, useTodaysRequirement } from "@/features/feed/hooks/use-feed";
 import { FeedingGrid } from "./feeding-grid";
 
@@ -30,8 +28,6 @@ export function FeedingView() {
   const t = useTranslations("feeding");
   const requirement = useTodaysRequirement();
   const costSummary = useFeedCostSummary(7);
-
-  const herdRequirement = requirement.data?.requirement ?? null;
 
   const isLoading = requirement.isLoading || costSummary.isLoading;
   const isError = requirement.isError || costSummary.isError;
@@ -65,59 +61,6 @@ export function FeedingView() {
       <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
 
       <FeedingGrid />
-
-      {!isLoading && !isError ? (
-        <>
-          {/* RFE-105: what the animals need comes first and is always shown — it depends on
-              having cows, not on having built a ration. The old card led with the ration and
-              told a farm with no TMR to go build one before it would show anything at all. */}
-          <div className="flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-card">
-            <div className="flex flex-col gap-0.5">
-              <p className="text-lg font-medium text-foreground">{t("requirementTitle")}</p>
-              <p className="text-xs text-muted-foreground">{t("requirementSubtitle")}</p>
-            </div>
-
-            {herdRequirement ? (
-              <>
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                  <StatTile
-                    label={`${t("perCowLabel")} · ${t("dmLabel")}`}
-                    value={t("kgValue", { value: herdRequirement.per_cow.dm_kg.toFixed(1) })}
-                  />
-                  <StatTile
-                    label={`${t("perCowLabel")} · ${t("cpLabel")}`}
-                    value={t("kgValue", { value: herdRequirement.per_cow.cp_kg.toFixed(2) })}
-                  />
-                  <StatTile
-                    label={t("herdTotalLabel", { count: herdRequirement.headcount })}
-                    value={t("kgValue", { value: herdRequirement.herd_total.dm_kg.toFixed(0) })}
-                    sub={t("dmLabel")}
-                  />
-                  <StatTile
-                    label={t("herdTotalLabel", { count: herdRequirement.headcount })}
-                    value={t("kgValue", { value: herdRequirement.herd_total.cp_kg.toFixed(1) })}
-                    sub={t("cpLabel")}
-                  />
-                </div>
-                {(herdRequirement.manual_headcount ?? 0) > 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    {t("manualHeadcount", { count: herdRequirement.manual_headcount ?? 0 })}
-                  </p>
-                ) : null}
-                {requirement.data?.has_active_ration === false ? (
-                  <p className="text-xs text-muted-foreground">{t("noRationYet")}</p>
-                ) : null}
-              </>
-            ) : (
-              <EmptyState
-                icon={Wheat}
-                title={t("noCattle")}
-                description={t("noCattleDescription")}
-              />
-            )}
-          </div>
-        </>
-      ) : null}
     </div>
   );
 }

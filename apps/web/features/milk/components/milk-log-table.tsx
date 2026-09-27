@@ -79,6 +79,7 @@ const DISPOSITION_VARIANT: Record<MilkDisposition, "primary" | "destructive" | "
 };
 
 const DEFAULT_PAGE_SIZE = 8;
+export const MAX_SESSION_YIELD_L = 100;
 
 /** Sentinel `SelectItem` value for the always-present "Add new tank" row appended to every tank
  * dropdown (header default-picker + per-row picker) — Radix Select requires a real string value,
@@ -441,7 +442,7 @@ export function MilkLogTable({
       for (const session of sessions) {
         const raw = drafts[draftKey(row.cattleId, session)];
         const value = Number(raw);
-        if (raw !== "" && Number.isFinite(value) && value >= 0) sum += value;
+        if (raw !== "" && Number.isFinite(value) && value >= 0 && value <= MAX_SESSION_YIELD_L) sum += value;
       }
       totals.set(row.cattleId, Math.round(sum * 100) / 100);
     }
@@ -492,6 +493,19 @@ export function MilkLogTable({
     let saved = 0;
     let anomaliesFlagged = 0;
     for (const session of sessions) {
+      for (const row of entries) {
+        const raw = drafts[draftKey(row.cattleId, session)];
+        if (raw !== "" && raw != null) {
+          const val = Number(raw);
+          if (Number.isFinite(val) && (val < 0 || val > MAX_SESSION_YIELD_L)) {
+            throw new ApiError(
+              "VALIDATION_ERROR",
+              `Yield for ${row.name ?? row.tag} (${val}L) exceeds maximum allowed limit of ${MAX_SESSION_YIELD_L}L per session.`,
+              400,
+            );
+          }
+        }
+      }
       const sessionEntries = entries
         .map((row) => ({
           cattleId: row.cattleId,
@@ -503,7 +517,7 @@ export function MilkLogTable({
         }))
         .filter((entry) => {
           const raw = drafts[draftKey(entry.cattleId, session)];
-          return raw !== "" && Number.isFinite(entry.yieldL) && entry.yieldL >= 0;
+          return raw !== "" && Number.isFinite(entry.yieldL) && entry.yieldL >= 0 && entry.yieldL <= MAX_SESSION_YIELD_L;
         });
       if (sessionEntries.length === 0) continue;
       const result = await saveLog.mutateAsync({ date, session, entries: sessionEntries });
@@ -711,12 +725,18 @@ export function MilkLogTable({
                                   type="number"
                                   inputMode="decimal"
                                   min={0}
+                                  max={MAX_SESSION_YIELD_L}
                                   step={0.1}
                                   className="h-full w-full min-w-0 bg-transparent p-0 text-sm text-foreground outline-none shadow-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                   value={drafts[draftKey(row.cattleId, session)] ?? ""}
-                                  onChange={(e) =>
-                                    setDrafts((prev) => ({ ...prev, [draftKey(row.cattleId, session)]: e.target.value }))
-                                  }
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val !== "") {
+                                      const num = Number(val);
+                                      if (Number.isFinite(num) && num > MAX_SESSION_YIELD_L) return;
+                                    }
+                                    setDrafts((prev) => ({ ...prev, [draftKey(row.cattleId, session)]: val }));
+                                  }}
                                   onKeyDown={(e) => handleCellKeyDown(e, rowIndex, session)}
                                 />
                                 <span className="shrink-0 text-xs text-muted-foreground">L</span>

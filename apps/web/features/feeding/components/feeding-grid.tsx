@@ -592,11 +592,19 @@ function UnifiedGrid({
             <Input
               type="number"
               min={0}
+              max={300}
               step={0.1}
               placeholder={t("kgPerHeadPlaceholder")}
               className="h-auto w-full border-none p-0 text-sm font-medium shadow-none focus-visible:ring-0"
               value={sharedKg}
-              onChange={(e) => setSharedKg(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val !== "") {
+                  const num = Number(val);
+                  if (Number.isFinite(num) && num > 300) return;
+                }
+                setSharedKg(val);
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();

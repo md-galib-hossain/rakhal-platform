@@ -9,7 +9,7 @@ export const saveMilkLogSchema = z.object({
     .array(
       z.object({
         cattleId: z.string().min(1),
-        yieldL: z.number().min(0),
+        yieldL: z.number().min(0).max(100, "Yield must not exceed 100 L per session"),
         anomalyNote: z.string().optional(),
       }),
     )

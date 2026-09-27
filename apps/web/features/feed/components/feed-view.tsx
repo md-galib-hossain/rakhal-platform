@@ -234,20 +234,20 @@ export function FeedView() {
           <TabsTrigger value="mixtures" className="flex-1">
             {t("feedMixture")}
           </TabsTrigger>
-          <TabsTrigger value="requirements" className="flex-1">
-            {t("requirements.tab")}
-          </TabsTrigger>
           <TabsTrigger value="plans" className="flex-1">
             {t("plans.tab")}
           </TabsTrigger>
+          <TabsTrigger value="requirements" className="flex-1">
+            {t("requirements.tab")}
+          </TabsTrigger>
         </TabsList>
-        {/* RFE-103: appended, not a restructure — RAKHAL-264 owns this file's shell. */}
-        <TabsContent value="requirements">
-          <RequirementsTab />
-        </TabsContent>
         {/* MILESTONE 27 (RFE-126): feed plans + where they are applied. */}
         <TabsContent value="plans">
           <PlansTab />
+        </TabsContent>
+        {/* RFE-103: Nutrition requirements */}
+        <TabsContent value="requirements">
+          <RequirementsTab />
         </TabsContent>
         <TabsContent value="ingredients">
           <IngredientManagementTable />

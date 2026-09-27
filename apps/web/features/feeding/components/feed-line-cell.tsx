@@ -127,7 +127,7 @@ export function FeedLineCell({
                   type="number"
                   inputMode="decimal"
                   min={0}
-                  max={max ?? undefined}
+                  max={max != null ? Math.min(max, 300) : 300}
                   step={0.1}
                   placeholder="—"
                   disabled={noBatch}
