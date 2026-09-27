@@ -28,8 +28,17 @@ function useMounted(): boolean {
 export function useCan() {
   const { data: session } = useSession();
   const mounted = useMounted();
-  return (permission: Permission) =>
-    mounted && (session?.permissions.includes("*") || (session?.permissions.includes(permission) ?? false));
+  return (permission: Permission) => {
+    if (!mounted || !session) return false;
+    const perms = session.permissions;
+    // The backend also grants a resource-wide wildcard (`feed.*`) instead of every individual
+    // `resource.action` — Manager is seeded this way (permission-catalogue.ts). The backend's own
+    // `PermissionService.hasPermission` already treats `${resource}.*` as "every action on that
+    // resource" (permission.service.ts:164); this mirrors that rule so `<Can>` agrees with the server
+    // instead of silently hiding every control a wildcard-holding role should see.
+    const resourceWildcard = `${permission.split(".")[0]}.*`;
+    return perms.includes("*") || perms.includes(permission) || perms.includes(resourceWildcard);
+  };
 }
 
 export function Can({

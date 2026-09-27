@@ -1,8 +1,31 @@
 import { useTranslations } from "next-intl";
+import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FeedRequirements } from "@/features/feed/types";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { PROFILE_SECTIONS, diffPct, fmt } from "./profile";
+
+/** Info icon + "how this is worked out" tooltip, shared by the read-only table and the edit form. */
+function FormulaHint({ formulaKey }: { formulaKey: string }) {
+  const t = useTranslations("cattle.feeding.requirement.formula");
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-foreground"
+            aria-label={t("triggerLabel")}
+          >
+            <Info className="size-3.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-64">{t(formulaKey)}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 const changeText = (pct: number | null) => (pct === null ? "" : `${pct > 0 ? "+" : ""}${Math.round(pct)}%`);
 
@@ -77,12 +100,15 @@ export function RequirementProfileTable({
                         ({row.unit})
                       </span>
                       {row.kind === "derived" ? (
-                        <Badge
-                          variant="outline"
-                          className="h-4 border-border/60 bg-muted/60 px-1.5 text-[10px] font-normal text-muted-foreground"
-                        >
-                          {t("derivedBadge")}
-                        </Badge>
+                        <>
+                          <Badge
+                            variant="outline"
+                            className="h-4 border-border/60 bg-muted/60 px-1.5 text-[10px] font-normal text-muted-foreground"
+                          >
+                            {t("derivedBadge")}
+                          </Badge>
+                          <FormulaHint formulaKey={row.formulaKey} />
+                        </>
                       ) : null}
                     </div>
 

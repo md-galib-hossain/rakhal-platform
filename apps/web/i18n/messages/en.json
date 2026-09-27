@@ -772,6 +772,13 @@
           "change": "Change"
         },
         "derivedBadge": "worked out",
+        "formula": {
+          "triggerLabel": "How this is worked out",
+          "ne": "Net energy = Energy (ME) × a fixed farm efficiency. Change Energy to change this.",
+          "energyDensity": "Energy density = Energy (ME) ÷ Dry matter. Change either to change this.",
+          "cpPct": "Protein share = Crude protein ÷ Dry matter. Change either to change this.",
+          "caPRatio": "Calcium : phosphorus = Calcium ÷ Phosphorus. Change either to change this."
+        },
         "breakdown": {
           "toggle": "How this is calculated",
           "group": {

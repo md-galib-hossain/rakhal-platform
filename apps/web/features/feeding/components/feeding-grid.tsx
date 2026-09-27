@@ -1,6 +1,7 @@
 "use client"; // date filter + per-cow line/refusal state + selection + bulk apply + save/confirm mutations
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { parseAsString, useQueryState } from "nuqs";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
@@ -168,6 +169,11 @@ function UnifiedGrid({
   const feedStock = useFeedStock();
   const concentrations = useConcentrations();
 
+  const [urlCattleId] = useQueryState("cattleId", parseAsString);
+  const [urlSelected] = useQueryState("selected", parseAsString);
+  const [urlAnimalId] = useQueryState("animalId", parseAsString);
+  const targetCattleId = urlCattleId || urlSelected || urlAnimalId;
+
   const ordered = useMemo(() => orderCows(cows, sections), [cows, sections]);
   const sectionById = useMemo(() => new Map(sections.map((s) => [s.id, s])), [sections]);
   const cowById = useMemo(() => new Map(ordered.map((c) => [c.cattle_id, c])), [ordered]);
@@ -184,14 +190,19 @@ function UnifiedGrid({
     Object.fromEntries(ordered.map((c) => [c.cattle_id, initialRefusal(c)])),
   );
   // Cows on a program start ticked with the plan's kg pre-filled — confirm as planned, or edit first. Cows with a saved
-  // draft are ticked too, so re-opening a day shows exactly what was left staged.
+  // draft are ticked too, so re-opening a day shows exactly what was left staged. If a specific cattle was targeted via URL,
+  // select only that cow.
   const [selected, setSelected] = useState<Set<string>>(
-    () =>
-      new Set(
+    () => {
+      if (targetCattleId && ordered.some((c) => c.cattle_id === targetCattleId)) {
+        return new Set([targetCattleId]);
+      }
+      return new Set(
         ordered
           .filter((c) => (c.program_section_id || c.drafts.length > 0) && !(c.confirmed_offered_kg != null && c.confirmed_offered_kg > 0))
           .map((c) => c.cattle_id),
-      ),
+      );
+    },
   );
   // Apply a plan / TMR / concentrate to one cow (her row) or to every ticked cow (toolbar).
   const [applyTarget, setApplyTarget] = useState<ApplyTarget | null>(null);
@@ -200,13 +211,41 @@ function UnifiedGrid({
   const [bulkSources, setBulkSources] = useState<RowSource[]>([]);
   const [sharedKg, setSharedKg] = useState("");
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => {
+    if (targetCattleId) {
+      const idx = ordered.findIndex((c) => c.cattle_id === targetCattleId);
+      if (idx >= 0) return Math.floor(idx / DEFAULT_PAGE_SIZE) + 1;
+    }
+    return 1;
+  });
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [addFeedItemOpen, setAddFeedItemOpen] = useState(false);
   const [createKind, setCreateKind] = useState<"CONCENTRATE_TEMPLATE" | "FEED_MIXTURE">("CONCENTRATE_TEMPLATE");
   const [createOpen, setCreateOpen] = useState(false);
   const [historyCow, setHistoryCow] = useState<{ id: string; name: string | null } | null>(null);
+
+  const targetHandledRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (targetCattleId && targetHandledRef.current !== targetCattleId) {
+      if (ordered.some((c) => c.cattle_id === targetCattleId)) {
+        targetHandledRef.current = targetCattleId;
+        setSelected(new Set([targetCattleId]));
+        const idx = ordered.findIndex((c) => c.cattle_id === targetCattleId);
+        if (idx >= 0) {
+          setPage(Math.floor(idx / DEFAULT_PAGE_SIZE) + 1);
+        }
+      }
+    }
+  }, [targetCattleId, ordered]);
+
+  useEffect(() => {
+    if (!targetCattleId) return;
+    const el = document.getElementById(`feeding-row-${targetCattleId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [targetCattleId, page]);
 
   const toggleBulkSource = (source: RowSource, _name?: string) => {
     setBulkSources((prev) => {
@@ -652,6 +691,7 @@ function UnifiedGrid({
                 return (
                   <TableRow
                     key={cow.cattle_id}
+                    id={`feeding-row-${cow.cattle_id}`}
                     className={cn(
                       "align-top transition-colors hover:bg-muted/40",
                       isSelected && "bg-primary/[0.04]",

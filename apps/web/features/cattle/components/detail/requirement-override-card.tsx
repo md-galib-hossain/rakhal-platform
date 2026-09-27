@@ -160,9 +160,11 @@ export function RequirementOverrideCard({ cattleId }: { cattleId: string }) {
               <SlidersHorizontal className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
               <div className="flex flex-col gap-1">
                 <span className="font-semibold text-foreground">
-                  {active?.set_by_name
-                    ? t("status.manualBy", { date: formatDate(active.effective_from, locale), name: active.set_by_name })
-                    : t("status.manual", { date: formatDate(active.effective_from, locale) })}
+                  {active
+                    ? active.set_by_name
+                      ? t("status.manualBy", { date: formatDate(active.effective_from, locale), name: active.set_by_name })
+                      : t("status.manual", { date: formatDate(active.effective_from, locale) })
+                    : null}
                 </span>
                 {info.note ? <span className="text-foreground">{t("note", { note: info.note })}</span> : null}
                 <span className="text-muted-foreground">

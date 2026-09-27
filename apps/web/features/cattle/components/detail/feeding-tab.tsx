@@ -104,7 +104,7 @@ function RationDmiSection({ cattleId }: { cattleId: string }) {
       <div className="flex items-center justify-end">
         <Can I="feed.distribution-log">
           <Button variant="secondary" size="sm" asChild>
-            <Link href="/feeding">{t("goToFeedingGrid")}</Link>
+            <Link href={`/feeding?cattleId=${cattleId}`}>{t("goToFeedingGrid")}</Link>
           </Button>
         </Can>
       </div>

@@ -9,7 +9,6 @@ import { ApiError } from "@/lib/api/errors";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
-import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -703,16 +702,17 @@ export function MilkLogTable({
                                     <History className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
                                   </span>
                                 ) : null}
-                                <Input
+                                <input
                                   ref={(el) => {
                                     const key = draftKey(row.cattleId, session);
                                     if (el) inputRefs.current.set(key, el);
                                     else inputRefs.current.delete(key);
                                   }}
                                   type="number"
+                                  inputMode="decimal"
                                   min={0}
                                   step={0.1}
-                                  className="h-auto w-full border-none p-0 text-sm leading-none shadow-none focus-visible:ring-0"
+                                  className="h-full w-full min-w-0 bg-transparent p-0 text-sm text-foreground outline-none shadow-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                   value={drafts[draftKey(row.cattleId, session)] ?? ""}
                                   onChange={(e) =>
                                     setDrafts((prev) => ({ ...prev, [draftKey(row.cattleId, session)]: e.target.value }))

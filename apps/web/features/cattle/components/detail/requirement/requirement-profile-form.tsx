@@ -4,16 +4,34 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Check, RotateCcw, X } from "lucide-react";
+import { Check, Info, RotateCcw, X } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { LabeledInput } from "@/components/ui/labeled-field";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSetRequirementOverride } from "@/features/feed/hooks/use-requirement-override";
 import { requirementOverrideFormSchema, type RequirementOverrideFormValues } from "@/features/feed/schemas";
 import type { FeedRequirements, RequirementOverrideWarning } from "@/features/feed/types";
 import { PROFILE_SECTIONS, asField, fmt, type EditableKey } from "./profile";
+
+/** Info icon + "how this is worked out" tooltip — same as the read-only table's. */
+function FormulaHint({ formulaKey }: { formulaKey: string }) {
+  const t = useTranslations("cattle.feeding.requirement.formula");
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button" className="text-muted-foreground hover:text-foreground" aria-label={t("triggerLabel")}>
+            <Info className="size-3.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-64">{t(formulaKey)}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 /**
  * Hand-set the whole nutrient profile (MILESTONE 28b, RFE-131). Every row starts at the value in force (or the
@@ -111,6 +129,7 @@ export function RequirementProfileForm({
                       >
                         {t("derivedBadge")}
                       </Badge>
+                      <FormulaHint formulaKey={row.formulaKey} />
                     </span>
                     <span className="hidden text-right text-xs tabular-nums text-muted-foreground sm:block">
                       <span className="opacity-70">{t("col.calculated")}:</span> {fmt(c)}

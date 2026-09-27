@@ -23,6 +23,9 @@ export interface DerivedRow {
   reqKey: keyof FeedRequirements;
   /** The value while the form is open, from what is typed so far. `null` when it cannot be worked out yet. */
   live: (v: Record<EditableKey, number>, calculated: FeedRequirements) => number | null;
+  /** i18n key under `cattle.feeding.requirement.formula` — the plain-language "how this is worked out" line
+   * shown in the info tooltip next to the row. */
+  formulaKey: string;
 }
 
 export type ProfileRow = InputRow | DerivedRow;
@@ -55,6 +58,7 @@ export const PROFILE_SECTIONS: ProfileSection[] = [
         reqKey: "ne_mcal",
         // NEL is ME times a fixed farm efficiency, so it scales with the typed energy.
         live: (v, c) => (c.me_mj > 0 ? (v.meMj * c.ne_mcal) / c.me_mj : null),
+        formulaKey: "ne",
       },
       {
         kind: "derived",
@@ -62,6 +66,7 @@ export const PROFILE_SECTIONS: ProfileSection[] = [
         unit: "MJ/kg DM",
         reqKey: "energy_density_mj_per_kg_dm",
         live: (v) => (v.dmKg > 0 ? v.meMj / v.dmKg : null),
+        formulaKey: "energyDensity",
       },
     ],
   },
@@ -75,6 +80,7 @@ export const PROFILE_SECTIONS: ProfileSection[] = [
         unit: "% DM",
         reqKey: "cp_pct_of_dm",
         live: (v) => (v.dmKg > 0 ? (v.cpKg / v.dmKg) * 100 : null),
+        formulaKey: "cpPct",
       },
       input("rdp", "% CP", "rdpPct", "rdp_pct", "rdp_pct"),
       input("rup", "% CP", "rupPct", "rup_pct", "rup_pct"),
@@ -101,6 +107,7 @@ export const PROFILE_SECTIONS: ProfileSection[] = [
         unit: ": 1",
         reqKey: "ca_p_ratio_target",
         live: (v) => (v.phosphorusKg > 0 ? v.calciumKg / v.phosphorusKg : null),
+        formulaKey: "caPRatio",
       },
     ],
   },
