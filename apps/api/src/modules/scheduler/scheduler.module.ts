@@ -8,6 +8,7 @@ import { FinanceV2AccountsModule } from '../finance-v2/accounts/finance-v2-accou
 import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { HealthModule } from '../health/health.module';
 import { TaskModule } from '../task/task.module';
+import { FeedModule } from '../feed/feed.module';
 import { SchedulerService } from './application/services/scheduler.service';
 
 /**
@@ -27,6 +28,7 @@ import { SchedulerService } from './application/services/scheduler.service';
     FarmSettingsModule,
     HealthModule,
     TaskModule,
+    FeedModule,
   ],
   providers: [SchedulerService],
   exports: [SchedulerService],

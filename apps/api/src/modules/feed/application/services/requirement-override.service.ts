@@ -15,10 +15,13 @@ import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { SetRequirementOverrideDto } from '../../presentation/dto/set-requirement-override.dto';
 import { RequirementOverrideHistoryQueryDto } from '../../presentation/dto/requirement-override-history-query.dto';
+import { validateManualValues } from '../../domain/manual-requirement';
 import { FeedRequirementsService } from './feed-requirements.service';
 
+/** A soft (saved-anyway) check. `field` says which input to highlight (MILESTONE 28b, D19). */
 export interface OverrideWarning {
-  code: 'dm_body_weight' | 'cp_share' | 'energy_density';
+  code: string;
+  field: string;
   message: string;
 }
 
@@ -55,10 +58,16 @@ export class RequirementOverrideService {
         orderBy: [{ effectiveFrom: 'desc' }, { id: 'desc' }],
       }),
     ]);
+    const names = await this.userNames([active, last]);
+    // D21: the calculated profile in BOTH modes, so the UI can show it read-only, pre-fill from it and put it
+    // beside the manual values. For a manual cow it is what the engine says today; otherwise it is the requirement.
+    const calculated =
+      resolved.shaped.dynamic_requirements ?? resolved.shaped.requirements;
     return {
-      active: active ? this.rowShape(active) : null,
+      active: active ? this.rowShape(active, names) : null,
       resolved: resolved.shaped,
-      last: last ? this.rowShape(last) : null,
+      calculated,
+      last: last ? this.rowShape(last, names) : null,
     };
   }
 
@@ -74,7 +83,8 @@ export class RequirementOverrideService {
       ...getCursorArgs(query),
     });
     const page = toCursorPage(rows, query);
-    return { ...page, items: page.items.map((r) => this.rowShape(r)) };
+    const names = await this.userNames(page.items);
+    return { ...page, items: page.items.map((r) => this.rowShape(r, names)) };
   }
 
   async set(
@@ -83,16 +93,20 @@ export class RequirementOverrideService {
     cattleId: string,
     dto: SetRequirementOverrideDto,
   ) {
-    if (dto.cpKg >= dto.dmKg) {
-      throw new BadRequestException(
-        'Crude protein must be less than dry matter',
-      );
-    }
     const cow = await this.prisma.cattle.findFirst({
       where: { id: cattleId, ...activeHerd(farmId) },
       select: { id: true, tagNumber: true, lastWeightKg: true },
     });
     if (!cow) throw new NotFoundException('Cattle not found');
+
+    // Hard rules → 400, soft rules → `warnings[]` on the saved row (D11 + D19, one pure function).
+    const { errors, warnings } = validateManualValues(dto, cow.lastWeightKg);
+    if (errors.length > 0) {
+      throw new BadRequestException({
+        message: errors.map((e) => e.message).join(' '),
+        errors,
+      });
+    }
 
     // What the engine says right now — frozen into the row so staleness can be judged later (D6).
     const before = await this.requireResolved(farmId, cattleId);
@@ -111,6 +125,15 @@ export class RequirementOverrideService {
             dmKg: dto.dmKg,
             cpKg: dto.cpKg,
             meMj: dto.meMj,
+            ndfKg: dto.ndfKg ?? null,
+            ndfMaxKg: dto.ndfMaxKg ?? null,
+            adfKg: dto.adfKg ?? null,
+            fatKg: dto.fatKg ?? null,
+            tdnKg: dto.tdnKg ?? null,
+            calciumKg: dto.calciumKg ?? null,
+            phosphorusKg: dto.phosphorusKg ?? null,
+            rdpPct: dto.rdpPct ?? null,
+            rupPct: dto.rupPct ?? null,
             note: dto.note ?? null,
             dynamicSnapshot:
               before.snapshot as unknown as Prisma.InputJsonValue,
@@ -144,10 +167,11 @@ export class RequirementOverrideService {
     );
 
     const resolved = await this.requireResolved(farmId, cattleId);
+    const names = await this.userNames([created]);
     return {
-      active: this.rowShape(created),
+      active: this.rowShape(created, names),
       resolved: resolved.shaped,
-      warnings: this.warnings(dto, cow.lastWeightKg),
+      warnings: warnings satisfies OverrideWarning[],
     };
   }
 
@@ -194,52 +218,50 @@ export class RequirementOverrideService {
     return resolved;
   }
 
-  /** D11 soft checks: saved anyway, returned so the UI can show them. */
-  private warnings(
-    dto: SetRequirementOverrideDto,
-    lastWeightKg: number | null,
-  ): OverrideWarning[] {
-    const out: OverrideWarning[] = [];
-    if (lastWeightKg != null && lastWeightKg > 0) {
-      const pct = (dto.dmKg / lastWeightKg) * 100;
-      if (pct < 1.5 || pct > 4.5) {
-        out.push({
-          code: 'dm_body_weight',
-          message: `Dry matter is ${pct.toFixed(1)} % of body weight; cows usually eat 1.5–4.5 %.`,
-        });
-      }
+  /** Display names for everyone who set or ended these rows — one query. A missing user reads as `null`. */
+  private async userNames(
+    rows: (CattleRequirementOverride | null)[],
+  ): Promise<Map<string, string>> {
+    const ids = new Set<string>();
+    for (const r of rows) {
+      if (!r) continue;
+      ids.add(r.setBy);
+      if (r.endedBy) ids.add(r.endedBy);
     }
-    const cpPct = (dto.cpKg / dto.dmKg) * 100;
-    if (cpPct < 8 || cpPct > 22) {
-      out.push({
-        code: 'cp_share',
-        message: `Crude protein is ${cpPct.toFixed(1)} % of dry matter; a diet is usually 8–22 %.`,
-      });
-    }
-    const density = dto.meMj / dto.dmKg;
-    if (density < 7 || density > 13) {
-      out.push({
-        code: 'energy_density',
-        message: `Energy is ${density.toFixed(1)} MJ per kg of dry matter; a diet is usually 7–13.`,
-      });
-    }
-    return out;
+    if (ids.size === 0) return new Map();
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: [...ids] } },
+      select: { id: true, name: true },
+    });
+    return new Map(users.map((u) => [u.id, u.name]));
   }
 
-  private rowShape(r: CattleRequirementOverride) {
+  private rowShape(r: CattleRequirementOverride, names: Map<string, string>) {
     return {
       id: r.id,
       cattle_id: r.cattleId,
       dm_kg: r.dmKg,
       cp_kg: r.cpKg,
       me_mj: r.meMj,
+      // MILESTONE 28b: the rest of the profile. `null` on a row saved before v2 (it resolved through the farm shares).
+      ndf_kg: r.ndfKg,
+      ndf_max_kg: r.ndfMaxKg,
+      adf_kg: r.adfKg,
+      fat_kg: r.fatKg,
+      tdn_kg: r.tdnKg,
+      calcium_kg: r.calciumKg,
+      phosphorus_kg: r.phosphorusKg,
+      rdp_pct: r.rdpPct,
+      rup_pct: r.rupPct,
       note: r.note,
       dynamic_snapshot: r.dynamicSnapshot,
       effective_from: r.effectiveFrom,
       effective_to: r.effectiveTo,
       end_reason: r.endReason,
       set_by: r.setBy,
+      set_by_name: names.get(r.setBy) ?? null,
       ended_by: r.endedBy,
+      ended_by_name: r.endedBy ? (names.get(r.endedBy) ?? null) : null,
     };
   }
 

@@ -28,6 +28,8 @@ import { FeedPlanResolverService } from './application/services/feed-plan-resolv
 import { FeedPlanAssignmentController } from './presentation/controllers/feed-plan-assignment.controller';
 import { RequirementOverrideController } from './presentation/controllers/requirement-override.controller';
 import { RequirementOverrideService } from './application/services/requirement-override.service';
+import { TaskModule } from '../task/task.module';
+import { FeedPlanFitSweepService } from './application/services/feed-plan-fit-sweep.service';
 
 /**
  * Feed Formulator (PRD §12 / API §8). Ingredient pricing + overrides, nutritional
@@ -58,6 +60,7 @@ import { RequirementOverrideService } from './application/services/requirement-o
     InventoryModule,
     FinanceV2AccountsModule,
     FarmSettingsModule,
+    TaskModule,
   ],
   controllers: [
     FeedController,
@@ -79,12 +82,14 @@ import { RequirementOverrideService } from './application/services/requirement-o
     FeedPlanAssignmentService,
     FeedPlanResolverService,
     RequirementOverrideService,
+    FeedPlanFitSweepService,
   ],
   exports: [
     FeedIngredientService,
     RequirementSettingsService,
     FeedConcentrationService,
     FeedDistributionService,
+    FeedPlanFitSweepService,
   ],
 })
 export class FeedModule {}

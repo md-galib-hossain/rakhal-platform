@@ -29,6 +29,7 @@ model FeedPlan {
   farm        Farm                 @relation("FarmToFeedPlan", fields: [farmId], references: [id])
   lines       FeedPlanLine[]
   assignments FeedPlanAssignment[]
+  fitDays     FeedPlanFitDay[]
 
   @@index([farmId, isActive])
   // Raw SQL in the migration (Prisma can't express a partial unique index — same technique as
@@ -110,4 +111,34 @@ enum FeedPlanTarget {
   INDIVIDUAL
   GROUP
   HERD
+}
+
+/// One cow's fit against her program on one day (MILESTONE 27, RAKHAL-459b). Written by the 5 AM sweep
+/// (`FeedPlanFitSweepService`), one row per (plan, cow, date), refreshed on a re-run. It is the history the
+/// "off target 3 days running" digest needs — re-deriving it from confirmed feedings would be heavier and less
+/// exact — and the base for a later plan-vs-actual report. `estimated` = an input was assumed, so the row never
+/// counts toward the digest.
+model FeedPlanFitDay {
+  id       String @id @default(cuid())
+  farmId   String
+  planId   String
+  cattleId String
+
+  /// The day the fit was judged (calendar date, UTC).
+  date      DateTime         @db.Date
+  severity  FeedFitSeverity
+  estimated Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  plan FeedPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, cattleId, date])
+  @@index([farmId, date])
+  @@index([planId, date])
+}
+
+enum FeedFitSeverity {
+  OK
+  WARN
+  BAD
 }

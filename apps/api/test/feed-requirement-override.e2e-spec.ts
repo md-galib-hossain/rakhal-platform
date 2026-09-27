@@ -198,8 +198,13 @@ describe('Manual requirement override (e2e)', () => {
       end_reason: string | null;
       effective_to: string | null;
       dynamic_snapshot: { dm_kg: number };
+      set_by_name: string | null;
+      ended_by_name: string | null;
     }>;
     expect(rows).toHaveLength(3);
+    // Who set it / who replaced it, as a name rather than a user id.
+    expect(rows[0].set_by_name).toEqual(expect.any(String));
+    expect(rows[1].ended_by_name).toEqual(expect.any(String));
     expect(rows[0]).toMatchObject({ dm_kg: 11, end_reason: null });
     expect(rows[1].end_reason).toBe('REPLACED');
     expect(rows[2].end_reason).toBe('REPLACED');
@@ -243,5 +248,121 @@ describe('Manual requirement override (e2e)', () => {
       where: { farmId: owner.farmId, relatedCattleId: cattleId },
     });
     expect(logs).toBeGreaterThanOrEqual(2);
+  });
+
+  // ---- MILESTONE 28b (RAKHAL-464): the full nutrient profile ----------------------------------------------
+
+  const profile = {
+    dmKg: 12,
+    cpKg: 1.9,
+    meMj: 150,
+    ndfKg: 4.4,
+    ndfMaxKg: 5.2,
+    adfKg: 3,
+    fatKg: 0.6,
+    tdnKg: 8,
+    calciumKg: 0.09,
+    phosphorusKg: 0.05,
+    rdpPct: 60,
+    rupPct: 40,
+  };
+
+  it('v2: a core-only PUT still works (v1 behaviour) and GET returns `calculated` in both modes', async () => {
+    const v1 = await put({ dmKg: 11, cpKg: 1.8, meMj: 130 }).expect(200);
+    expect(v1.body.data.active).toMatchObject({
+      ndf_kg: null,
+      calcium_kg: null,
+    });
+    expect(v1.body.data.resolved.requirements.calcium_kg).toBeNull();
+
+    const manual = await request(server())
+      .get(url())
+      .set(...auth(owner))
+      .expect(200);
+    expect(manual.body.data.calculated).toEqual(
+      manual.body.data.resolved.dynamic_requirements,
+    );
+
+    await request(server())
+      .delete(url())
+      .set(...auth(owner))
+      .expect(200);
+    const off = await request(server())
+      .get(url())
+      .set(...auth(owner))
+      .expect(200);
+    expect(off.body.data.resolved.source).toBe('DYNAMIC');
+    expect(off.body.data.calculated).toEqual(
+      off.body.data.resolved.requirements,
+    );
+    expect(off.body.data.calculated.dm_kg).toBeGreaterThan(0);
+  });
+
+  it('v2: the full profile is stored, every read path uses it, Ca/P are judged (not null)', async () => {
+    const res = await put(profile).expect(200);
+    expect(res.body.data.active).toMatchObject({
+      ndf_kg: 4.4,
+      ndf_max_kg: 5.2,
+      adf_kg: 3,
+      fat_kg: 0.6,
+      tdn_kg: 8,
+      calcium_kg: 0.09,
+      phosphorus_kg: 0.05,
+      rdp_pct: 60,
+      rup_pct: 40,
+    });
+    expect(res.body.data.warnings).toEqual([]);
+    expect(res.body.data.resolved.requirements).toMatchObject({
+      dm_kg: 12,
+      ndf_kg: 4.4,
+      tdn_kg: 8,
+      calcium_kg: 0.09,
+      phosphorus_kg: 0.05,
+      ca_p_ratio_target: 1.8,
+      rdp_pct: 60,
+    });
+
+    const batch = await request(server())
+      .get(api(`/feed/requirements?cattleIds=${cattleId}`))
+      .set(...auth(owner))
+      .expect(200);
+    expect(batch.body.data.cows[0].requirements).toMatchObject({
+      tdn_kg: 8,
+      calcium_kg: 0.09,
+    });
+    const row = await gridRow(isoDay(0));
+    expect(row?.requirement?.dm_kg).toBe(12);
+  });
+
+  it('v2: hard rules → 400, soft rules → saved with field-tagged warnings, history returns the new fields', async () => {
+    await put({ ...profile, adfKg: 12 }).expect(400); // ADF must be below DM
+    await put({ ...profile, ndfKg: 5.5, ndfMaxKg: 5 }).expect(400); // NDF max below NDF
+    await put({ ...profile, calciumKg: 7, phosphorusKg: 6 }).expect(400); // Ca + P not below DM
+    await put({ ...profile, rdpPct: 101 }).expect(400); // DTO bound
+
+    const soft = await put({
+      ...profile,
+      fatKg: 2,
+      calciumKg: 0.2,
+      phosphorusKg: 0.05,
+    }).expect(200);
+    const codes = (soft.body.data.warnings as { code: string }[]).map(
+      (w) => w.code,
+    );
+    expect(codes).toEqual(expect.arrayContaining(['fat_share', 'ca_p_ratio']));
+    expect(soft.body.data.warnings[0]).toHaveProperty('field');
+
+    const hist = await request(server())
+      .get(api(`/feed/cattle/${cattleId}/requirement-overrides?limit=1`))
+      .set(...auth(owner))
+      .expect(200);
+    expect(hist.body.data[0]).toMatchObject({
+      fat_kg: 2,
+      calcium_kg: 0.2,
+      end_reason: null,
+    });
+
+    // The worker is still read-only on the new fields.
+    await put(profile, worker).expect(403);
   });
 });

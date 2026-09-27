@@ -37,6 +37,17 @@ export interface OverrideRow {
   dmKg: number;
   cpKg: number;
   meMj: number;
+  // MILESTONE 28b: the rest of the profile (null on a v1 row). The resolver hands the whole row to
+  // `requirementsFromManual`, which uses these when set.
+  ndfKg: number | null;
+  ndfMaxKg: number | null;
+  adfKg: number | null;
+  fatKg: number | null;
+  tdnKg: number | null;
+  calciumKg: number | null;
+  phosphorusKg: number | null;
+  rdpPct: number | null;
+  rupPct: number | null;
   note: string | null;
   dynamicSnapshot: unknown;
   effectiveFrom: Date;

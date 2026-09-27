@@ -14,6 +14,19 @@ model CattleRequirementOverride {
   meMj Float
   note String?
 
+  /// MILESTONE 28b (RAKHAL-463): the rest of the nutrient profile, hand-set. All nullable because rows saved
+  /// under v1 have only DM/CP/ME — a null falls back to the v1 rule (`requirementsFromManual`). A v2 row has
+  /// every one of them set. CP %, energy density, NEL and Ca:P are derived, never stored.
+  ndfKg        Float?
+  ndfMaxKg     Float?
+  adfKg        Float?
+  fatKg        Float?
+  tdnKg        Float?
+  calciumKg    Float?
+  phosphorusKg Float?
+  rdpPct       Float?
+  rupPct       Float?
+
   /// Engine output + inputs + animal type when this row was set, used for the staleness warning (D6).
   /// Shape: { dm_kg, cp_kg, me_mj, animal_type, inputs: {...} } — the same snake_case as `forCattle`.
   dynamicSnapshot Json
