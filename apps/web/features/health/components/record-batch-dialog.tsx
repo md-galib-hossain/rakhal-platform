@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Chip } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
-import { useCompleteTask, useLogTreatment } from "../hooks/use-health";
+import { useCompleteTask, useLogTaskTreatment, useLogTreatment } from "../hooks/use-health";
 import { groupIncompleteTasks, taskCategoryChip, type ScheduledTaskGroup } from "../task-grouping";
 import { SkipTaskDialog } from "./skip-task-dialog";
 import { AnimalLink } from "@/components/shared/animal-link";
@@ -38,11 +38,13 @@ function InfoTile({ label, value }: { label: string; value: string }) {
  * "Record Vaccination" / batch treatment-recording drawer — Figma 734:43007 (`get_design_context`):
  * read-only Due/Medicine/Dose/Route/Action tiles, a searchable "Selected Animals" list (checkbox per
  * pending animal, defaults to all selected), a footer summary (selected count / total dosage / AQR
- * impact), Cancel + Confirm. On confirm, loops the real `POST /health/cases/:id/log-treatment` (one
- * call per selected animal's case, `healthTaskId` set) — the same endpoint the Case Management
- * sheet's "Log Treatment" tab already uses, which marks that task `COMPLETED` and applies the real
- * `+3` AQR event server-side. There is no bulk/batch treatment endpoint, so this is N real calls, not
- * a fabricated batch action.
+ * impact), Cancel + Confirm. On confirm, loops one real log-treatment call per selected animal, which
+ * marks that task `COMPLETED` and applies the real `+3` AQR event server-side. There is no bulk/batch
+ * treatment endpoint, so this is N real calls, not a fabricated batch action. A task carries either a
+ * `healthCaseId` (curative case, routed through `POST /health/cases/:id/log-treatment`, same endpoint
+ * the Case Management sheet's "Log Treatment" tab uses) or, for a preventive-plan-derived task
+ * (RAKHAL-415/RD-093), only a `planEnrollmentId` — routed through the caseless
+ * `POST /health/tasks/:id/log-treatment` instead, since there is no case to address.
  */
 export function RecordBatchDialog({ group, onOpenChange }: { group: ScheduledTaskGroup | undefined; onOpenChange: (open: boolean) => void }) {
   return (
@@ -55,6 +57,7 @@ export function RecordBatchDialog({ group, onOpenChange }: { group: ScheduledTas
 function RecordBatchDialogBody({ group, onOpenChange }: { group: ScheduledTaskGroup; onOpenChange: (open: boolean) => void }) {
   const t = useTranslations("health.taskHub.recordBatch");
   const logTreatment = useLogTreatment();
+  const logTaskTreatment = useLogTaskTreatment();
   const completeTask = useCompleteTask();
   const category = taskCategoryChip(group.taskType);
   const allPending = groupIncompleteTasks(group);
@@ -124,17 +127,30 @@ function RecordBatchDialogBody({ group, onOpenChange }: { group: ScheduledTaskGr
     setSubmitting(true);
     try {
       for (const task of tasks) {
-        await logTreatment.mutateAsync({
-          id: task.healthCaseId,
-          dto: {
-            healthTaskId: task.id,
-            medicineName: group.medicineName ?? undefined,
-            doseAmount: group.doseAmount ?? undefined,
-            doseUnit: group.doseUnit ?? undefined,
-            route: group.route ?? undefined,
-            administeredAt: new Date().toISOString(),
-          },
-        });
+        if (task.healthCaseId) {
+          await logTreatment.mutateAsync({
+            id: task.healthCaseId,
+            dto: {
+              healthTaskId: task.id,
+              medicineName: group.medicineName ?? undefined,
+              doseAmount: group.doseAmount ?? undefined,
+              doseUnit: group.doseUnit ?? undefined,
+              route: group.route ?? undefined,
+              administeredAt: new Date().toISOString(),
+            },
+          });
+        } else {
+          await logTaskTreatment.mutateAsync({
+            id: task.id,
+            dto: {
+              medicineName: group.medicineName ?? undefined,
+              doseAmount: group.doseAmount ?? undefined,
+              doseUnit: group.doseUnit ?? undefined,
+              route: group.route ?? undefined,
+              administeredAt: new Date().toISOString(),
+            },
+          });
+        }
       }
       toast.success(t("recordedToast", { count: tasks.length }));
       onOpenChange(false);

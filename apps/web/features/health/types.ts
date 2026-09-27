@@ -71,7 +71,10 @@ export interface HealthTask {
   id: string;
   farmId: string;
   cattleId: string;
-  healthCaseId: string;
+  /** Nullable since RAKHAL-415 — a preventive `PlanApplication`-derived task carries
+   * `planEnrollmentId` instead and has no backing case. */
+  healthCaseId: string | null;
+  planEnrollmentId: string | null;
   taskCode: string;
   taskDate: string;
   dueDateTime: string;
@@ -277,6 +280,24 @@ export interface CreateHealthCasePayload {
 /** `POST /health/cases/:id/log-treatment` body (`LogTreatmentDto`) — the "Log Treatment" tab. */
 export interface LogTreatmentPayload {
   healthTaskId?: string;
+  medicineId?: string;
+  medicineName?: string;
+  doseAmount?: number;
+  doseUnit?: string;
+  route?: MedicineRoute;
+  administeredAt?: string;
+  administeredBy?: string;
+  stockDeductionQuantity?: number;
+  batchNo?: string;
+  milkWithdrawalDays?: number;
+  meatWithdrawalDays?: number;
+  notes?: string;
+}
+
+/** `POST /health/tasks/:id/log-treatment` body (`LogTaskTreatmentDto`, RD-093) — the caseless
+ * counterpart of `LogTreatmentPayload` for a `PlanEnrollment`-only task (no `healthTaskId` field,
+ * the task id is the path param). */
+export interface LogTaskTreatmentPayload {
   medicineId?: string;
   medicineName?: string;
   doseAmount?: number;

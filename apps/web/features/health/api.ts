@@ -20,6 +20,7 @@ import type {
   HealthTask,
   HealthTaskCalendarDay,
   HealthUpdate,
+  LogTaskTreatmentPayload,
   LogTreatmentPayload,
   MortalityPayload,
   PlanApplicationListItem,
@@ -99,6 +100,14 @@ export const healthApi = {
    * recording (that path also marks the task complete). */
   completeTask(id: string): Promise<HealthTask> {
     return apiFetch<HealthTask>(`/health/tasks/${id}/complete`, { method: "POST" });
+  },
+  /** RD-093 — caseless counterpart of `logTreatment`, for a `PlanEnrollment`-only task
+   * (`task.healthCaseId` is null; use `logTreatment` instead when it's set). */
+  logTaskTreatment(id: string, dto: LogTaskTreatmentPayload): Promise<{ treatmentLog: TreatmentLog }> {
+    return apiFetch<{ treatmentLog: TreatmentLog }>(`/health/tasks/${id}/log-treatment`, {
+      method: "POST",
+      body: dto,
+    });
   },
   skipTask(id: string, dto: SkipTaskPayload): Promise<HealthTask> {
     return apiFetch<HealthTask>(`/health/tasks/${id}/skip`, { method: "POST", body: dto });

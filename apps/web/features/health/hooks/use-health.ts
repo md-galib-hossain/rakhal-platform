@@ -14,6 +14,7 @@ import type {
   HealthListFilters,
   HealthPlanCategory,
   HealthPlanType,
+  LogTaskTreatmentPayload,
   LogTreatmentPayload,
   MortalityPayload,
   RecordTreatmentPayload,
@@ -92,6 +93,16 @@ export function useLogTreatment() {
   return useMutation({
     mutationFn: ({ id, dto }: { id: string; dto: LogTreatmentPayload }) => healthApi.logTreatment(id, dto),
     onSuccess: (_data, { id }) => invalidate(id),
+  });
+}
+
+/** RD-093 — caseless counterpart of `useLogTreatment`, for a `PlanEnrollment`-only task. */
+export function useLogTaskTreatment() {
+  const invalidate = useInvalidateHealth();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: LogTaskTreatmentPayload }) =>
+      healthApi.logTaskTreatment(id, dto),
+    onSuccess: () => invalidate(),
   });
 }
 

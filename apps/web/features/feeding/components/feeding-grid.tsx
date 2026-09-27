@@ -589,13 +589,14 @@ function UnifiedGrid({
             {t("bulkToolbar.quantitySection")}
           </span>
           <div className="flex h-11 items-center gap-2 rounded-md border border-input bg-card px-3.5 text-sm shadow-2xs focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
-            <Input
+            <input
               type="number"
+              inputMode="decimal"
               min={0}
               max={300}
               step={0.1}
               placeholder={t("kgPerHeadPlaceholder")}
-              className="h-auto w-full border-none p-0 text-sm font-medium shadow-none focus-visible:ring-0"
+              className="h-full w-full min-w-0 bg-transparent p-0 text-sm font-medium text-foreground outline-none shadow-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               value={sharedKg}
               onChange={(e) => {
                 const val = e.target.value;
