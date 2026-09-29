@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { localDayStart } from 'src/common/farm-time/farm-time';
 import {
   HerdStatus,
   HealthActionType,
@@ -126,7 +127,9 @@ export class ReportGeneratorsService {
     farmId: string,
     params: ReportParams,
   ): Promise<ReportData> {
-    const day = this.dayStart(params.date);
+    const day = params.date
+      ? this.dayStart(params.date)
+      : await this.farmToday(farmId);
     const next = this.addDays(day, 1);
     const weekAgo = this.addDays(day, -7);
 
@@ -443,7 +446,9 @@ export class ReportGeneratorsService {
     farmId: string,
     params: ReportParams,
   ): Promise<ReportData> {
-    const end = params.toDate ? this.dayStart(params.toDate) : this.dayStart();
+    const end = params.toDate
+      ? this.dayStart(params.toDate)
+      : await this.farmToday(farmId);
     const endNext = this.addDays(end, 1);
     const start = params.fromDate
       ? this.dayStart(params.fromDate)
@@ -1898,7 +1903,7 @@ export class ReportGeneratorsService {
    */
   private async lactationHerdDashboard(farmId: string): Promise<ReportData> {
     const now = new Date();
-    const today = this.dayStart();
+    const today = await this.farmToday(farmId);
     const tomorrow = this.addDays(today, 1);
     const thresholds = await this.farmSettings.lactationStageThresholds(farmId);
 
@@ -2069,6 +2074,15 @@ export class ReportGeneratorsService {
     return new Date(
       Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
     );
+  }
+
+  /** Today on the farm (its `Farm.timezone`), as a UTC-midnight day key — not the UTC calendar day. */
+  private async farmToday(farmId: string): Promise<Date> {
+    const farm = await this.prisma.farm.findUnique({
+      where: { id: farmId },
+      select: { timezone: true },
+    });
+    return localDayStart(farm?.timezone);
   }
 
   private addDays(date: Date, n: number): Date {

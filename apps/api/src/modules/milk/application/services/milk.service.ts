@@ -15,6 +15,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { FarmClockService } from 'src/common/farm-time/farm-clock.service';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { MilkTankService } from 'src/modules/inventory/application/services/milk-tank.service';
@@ -89,12 +90,15 @@ export class MilkService {
     private readonly healthService: HealthService,
     private readonly animalHoldService: AnimalHoldService,
     logger: LoggerService,
+    private readonly clock: FarmClockService,
   ) {
     this.log = logger.setContext(MilkService.name);
   }
 
   async overview(farmId: string, dateStr?: string, range?: MilkTrendRange) {
-    const day = this.normalizeDate(dateStr ?? new Date().toISOString());
+    const day = dateStr
+      ? this.normalizeDate(dateStr)
+      : await this.clock.todayStart(farmId);
     const [today, yesterday, lastWeek, lastYear, sessions, trend, milkPrice] =
       await Promise.all([
         this.dayBreakdown(farmId, day),
@@ -142,7 +146,9 @@ export class MilkService {
   }
 
   async logTable(farmId: string, query: MilkLogQueryDto) {
-    const day = this.normalizeDate(query.date ?? new Date().toISOString());
+    const day = query.date
+      ? this.normalizeDate(query.date)
+      : await this.clock.todayStart(farmId);
     const cows = await this.prisma.cattle.findMany({
       where: {
         ...activeHerd(farmId),
@@ -618,7 +624,8 @@ export class MilkService {
     const [year, m] = month.split('-').map(Number);
     const from = new Date(Date.UTC(year, m - 1, 1));
     const to = new Date(Date.UTC(year, m, 1)); // exclusive, first day of next month
-    const today = this.normalizeDate(new Date().toISOString());
+    // The farm's own "today" (Farm.timezone), not the UTC day.
+    const today = await this.clock.todayStart(farmId);
 
     const [farm, activeSessions, rows] = await Promise.all([
       this.prisma.farm.findUnique({

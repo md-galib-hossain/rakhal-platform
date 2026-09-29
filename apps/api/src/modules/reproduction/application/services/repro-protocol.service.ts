@@ -289,9 +289,7 @@ export class ReproProtocolService {
       );
     }
 
-    const start = dto.startDate
-      ? this.dayStart(dto.startDate)
-      : this.dayStart();
+    const start = this.parseStartDate(dto.startDate);
     const status =
       start.getTime() > Date.now()
         ? ReproProtocolStatus.SCHEDULED
@@ -312,13 +310,23 @@ export class ReproProtocolService {
         },
       });
       for (const step of protocol.steps) {
+        const override = dto.stepOverrides?.find(
+          (o) => (o.stepId && o.stepId === step.id) || o.dayNumber === step.dayNumber,
+        );
+        let dueAt = override?.dueAt
+          ? new Date(override.dueAt)
+          : this.addDays(start, step.dayNumber);
+        if (isNaN(dueAt.getTime())) {
+          dueAt = this.addDays(start, step.dayNumber);
+        }
+
         await this.taskService.createInternal({
           farmId,
           createdBy: userId,
           name: `${protocol.name} — ${step.title}`,
           details: step.instruction ?? undefined,
           category: TaskCategory.BREEDING,
-          dueAt: this.addDays(start, step.dayNumber),
+          dueAt,
           source: TaskSource.SYSTEM_AUTO,
           relatedCattleId: cattleId,
           sourceEventType: 'REPRO_PROTOCOL_INSTANCE',
@@ -515,14 +523,19 @@ export class ReproProtocolService {
     };
   }
 
-  private dayStart(dateStr?: string): Date {
-    const d = dateStr ? new Date(dateStr) : new Date();
-    return new Date(
-      Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
-    );
+  private parseStartDate(dateStr?: string): Date {
+    if (!dateStr) return new Date();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      return new Date(y, m - 1, d, 8, 0, 0);
+    }
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? new Date() : d;
   }
 
   private addDays(date: Date, n: number): Date {
-    return new Date(date.getTime() + n * DAY_MS);
+    const result = new Date(date);
+    result.setDate(result.getDate() + n);
+    return result;
   }
 }

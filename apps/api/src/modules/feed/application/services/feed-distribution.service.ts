@@ -6,6 +6,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { FarmClockService } from 'src/common/farm-time/farm-clock.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { resolveKgPerUnit } from 'src/modules/inventory/application/services/unit.service';
@@ -54,6 +55,7 @@ export class FeedDistributionService {
     private readonly feedRequirements: FeedRequirementsService,
     private readonly lotResolver: FeedLotResolver,
     private readonly feedItems: FeedItemService,
+    private readonly clock: FarmClockService,
   ) {
     this.log = logger.setContext(FeedDistributionService.name);
   }
@@ -280,9 +282,7 @@ export class FeedDistributionService {
       ]);
     }
 
-    const distributedAt = dto.distributedAt
-      ? this.dayStart(dto.distributedAt)
-      : this.dayStart();
+    const distributedAt = await this.clock.dayStart(farmId, dto.distributedAt);
 
     // Stamp which checkpoint was live when this was logged (2026-08-13, ration versioning) —
     // `concentration.versionNumber` is the *next* counter (see `FeedConcentration.versionNumber`'s
@@ -612,7 +612,7 @@ export class FeedDistributionService {
     const expectedDmiKg =
       'requirements' in reqResult ? reqResult.requirements.dm_kg : 0;
 
-    const day = this.dayStart(date);
+    const day = await this.clock.dayStart(farmId, date);
     const nextDay = new Date(day.getTime() + 24 * 60 * 60 * 1000);
     const dateFilter = { gte: day, lt: nextDay };
 

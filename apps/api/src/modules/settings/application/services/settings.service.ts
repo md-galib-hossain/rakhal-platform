@@ -8,6 +8,7 @@ import {
 import { Prisma, ShedPurpose } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { isValidTimezone } from 'src/common/farm-time/farm-time';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { UpdateFarmSettingsDto } from '../../presentation/dto/update-farm-settings.dto';
 import { CreateShedDto } from '../../presentation/dto/create-shed.dto';
@@ -41,9 +42,11 @@ export class SettingsService {
         status: true,
         phone: true,
         address: true,
+        timezone: true,
       },
     });
     return {
+      timezone: farm.timezone,
       farm_id: farm.id,
       farm_slug: farm.slug,
       farm_name: farm.name,
@@ -73,9 +76,16 @@ export class SettingsService {
       );
     }
 
+    if (dto.timezone !== undefined && !isValidTimezone(dto.timezone)) {
+      throw new BadRequestException(
+        `"${dto.timezone}" is not a valid IANA timezone (e.g. "Asia/Dhaka")`,
+      );
+    }
+
     const updated = await this.prisma.farm.update({
       where: { id: farmId },
       data: {
+        ...(dto.timezone !== undefined ? { timezone: dto.timezone } : {}),
         ...(dto.farm_name ? { name: dto.farm_name } : {}),
         ...(dto.description !== undefined
           ? { description: dto.description }
@@ -99,6 +109,7 @@ export class SettingsService {
         status: true,
         phone: true,
         address: true,
+        timezone: true,
       },
     });
 
@@ -235,8 +246,10 @@ export class SettingsService {
     status: string;
     phone: string | null;
     address: string | null;
+    timezone: string;
   }) {
     return {
+      timezone: f.timezone,
       farm_id: f.id,
       farm_slug: f.slug,
       farm_name: f.name,

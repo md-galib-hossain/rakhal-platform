@@ -11,8 +11,8 @@ import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
  * voiding one cow's line credits back stock exactly, shrinks the sibling item/parent totals
  * exactly, and excludes it from the cattle-finance sum, without touching the other cow; (5) a
  * double-void is an idempotent no-op; (6) a worker cannot void (`feed.delete`, manager+); (7)
- * voiding every cow under a distribution auto-voids the parent; (8) a second confirm for a cow
- * already fed that day is rejected (one confirm per cow per day).
+ * voiding every cow under a distribution auto-voids the parent; (8) a cow can be confirmed more
+ * than once a day — each confirm is its own row and the grid sums the live ones.
  *
  * Requires the dev stack up + `pnpm seed`.
  */
@@ -171,17 +171,46 @@ describe('Feed per-cow record: cost/nutrition/void (RAKHAL-441, e2e)', () => {
     };
   });
 
-  it('a second confirm for a cow already fed that day is rejected (one confirm per cow per day)', async () => {
-    await request(server())
-      .post(api('/feed/grid/confirm'))
+  it('a cow can be fed twice on the same day: both rows are kept and the grid sums them (multi-feed)', async () => {
+    const confirm = (offeredKg: number) =>
+      request(server())
+        .post(api('/feed/grid/confirm'))
+        .set(...auth(owner))
+        .send({
+          // A different month from the 2026-06 finance assertions further down.
+          date: '2026-07-02',
+          sourceType: 'FEED_ITEM',
+          feedItemId,
+          entries: [{ cattleId: cowA, offeredKg }],
+        })
+        .expect(201);
+    await confirm(1);
+    await confirm(2);
+
+    const grid = await request(server())
+      .get(api('/feed/grid'))
       .set(...auth(owner))
-      .send({
-        date: '2026-06-01',
-        sourceType: 'FEED_ITEM',
-        feedItemId,
-        entries: [{ cattleId: cowA, offeredKg: 1 }],
-      })
-      .expect(409);
+      .query({ date: '2026-07-02' })
+      .expect(200);
+    const row = (
+      grid.body.data.cows as Array<{
+        cattle_id: string;
+        confirmed_offered_kg: number | null;
+        confirmed_supply: { dm_kg: number } | null;
+        remaining_requirement: { dm_kg: number } | null;
+        requirement: { dm_kg: number } | null;
+      }>
+    ).find((c) => c.cattle_id === cowA)!;
+    expect(row.confirmed_offered_kg).toBe(3);
+    // 3 kg at 90 % DM.
+    expect(row.confirmed_supply!.dm_kg).toBeCloseTo(2.7, 2);
+    // Remaining = requirement − fed (only checkable when a requirement was resolved for the cow).
+    if (row.requirement) {
+      expect(row.remaining_requirement!.dm_kg).toBeCloseTo(
+        Math.max(0, row.requirement.dm_kg - 2.7),
+        1,
+      );
+    }
   });
 
   it("GET /feed/grid/cattle/:cattleId/history lists that cow's own entries for the given date, not the other cow's", async () => {

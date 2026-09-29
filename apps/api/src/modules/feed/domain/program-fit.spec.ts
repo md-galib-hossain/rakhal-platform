@@ -2,8 +2,66 @@ import {
   bandsFromSettings,
   classifyDelta,
   computeProgramFit,
+  computeRemainingFit,
+  remainingRequirement,
 } from './program-fit';
 import { DEFAULT_REQUIREMENT_SETTINGS } from './requirement-settings';
+
+describe('remaining-requirement fit (multi-feed)', () => {
+  const bands = bandsFromSettings(DEFAULT_REQUIREMENT_SETTINGS);
+  const need = { dmKg: 14, cpKg: 2, meMj: 120 };
+
+  it('remaining = requirement − fed, never below zero', () => {
+    expect(
+      remainingRequirement(need, { dmKg: 9, cpKg: 2.5, meMj: 60 }),
+    ).toEqual({ dmKg: 5, cpKg: 0, meMj: 60 });
+  });
+
+  it('a further feeding that closes the gap fits the remaining requirement', () => {
+    const fit = computeRemainingFit(
+      { dmKg: 5, cpKg: 0.7, meMj: 58 },
+      need,
+      { dmKg: 9, cpKg: 1.3, meMj: 62 },
+      bands,
+      false,
+    );
+    expect(fit.severity).toBe('ok');
+    expect(fit.dm.deltaPct).toBe(0);
+  });
+
+  it('judging the same feeding against the FULL requirement would call it a shortfall', () => {
+    const fit = computeProgramFit(
+      { dmKg: 5, cpKg: 0.7, meMj: 58 },
+      need,
+      bands,
+      false,
+    );
+    expect(fit.severity).toBe('bad');
+  });
+
+  it('feed on top of an already-met nutrient is an excess (warn), not a silent ok', () => {
+    const fit = computeRemainingFit(
+      { dmKg: 2, cpKg: 0.3, meMj: 20 },
+      need,
+      { dmKg: 14, cpKg: 2, meMj: 120 },
+      bands,
+      false,
+    );
+    expect(fit.dm).toEqual({ deltaPct: null, severity: 'warn' });
+    expect(fit.severity).toBe('warn');
+  });
+
+  it('feeding nothing on top of a met requirement stays ok', () => {
+    const fit = computeRemainingFit(
+      { dmKg: 0, cpKg: 0, meMj: 0 },
+      need,
+      { dmKg: 14, cpKg: 2, meMj: 120 },
+      bands,
+      false,
+    );
+    expect(fit.severity).toBe('ok');
+  });
+});
 
 describe('classifyDelta', () => {
   it('is ok inside the band, on either side', () => {

@@ -58,6 +58,9 @@ describe('ReportGeneratorsService — lactation reports (RAKHAL-288)', () => {
       breedingEvent: { findMany: jest.fn().mockResolvedValue([]) },
       pregnancy: { findMany: jest.fn().mockResolvedValue([]) },
       dryPeriod: { findFirst: jest.fn().mockResolvedValue(null) },
+      farm: {
+        findUnique: jest.fn().mockResolvedValue({ timezone: 'Asia/Dhaka' }),
+      },
     };
     farmSettings = {
       lactationStageThresholds: jest

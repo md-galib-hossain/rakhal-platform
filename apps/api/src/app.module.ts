@@ -26,6 +26,7 @@ import {
 } from 'src/core/config/env';
 import { DomainEventsModule } from 'src/common/events/domain-events.module';
 import { OutboxModule } from 'src/common/outbox/outbox.module';
+import { FarmTimeModule } from 'src/common/farm-time/farm-time.module';
 import { BusinessReportingModule } from 'src/modules/business-reporting/business-reporting.module';
 import { FinanceV2LedgerModule } from 'src/modules/finance-v2/ledger/finance-v2-ledger.module';
 import { FinanceV2AccountsModule } from 'src/modules/finance-v2/accounts/finance-v2-accounts.module';
@@ -158,6 +159,7 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     CacheModule,
     DomainEventsModule,
     OutboxModule,
+    FarmTimeModule,
     BusinessReportingModule,
     FinanceV2LedgerModule,
     FinanceV2AccountsModule,

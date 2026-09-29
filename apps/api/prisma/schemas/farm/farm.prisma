@@ -24,6 +24,10 @@ model Farm {
 
   hasCompletedOnboarding Boolean @default(false)
 
+  /// IANA timezone the farm operates in. Decides what "today" means wherever a request omits a date (feeding/milk
+  /// logs, calendars, reports) — a UTC-derived "today" is the previous day for a UTC+6 farm until 6 AM local.
+  timezone String @default("Asia/Dhaka")
+
   ownerId   String
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

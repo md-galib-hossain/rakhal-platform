@@ -99,6 +99,53 @@ export function computeProgramFit(
   return { dm, cp, me, severity, estimated };
 }
 
+/** What is still needed after what she has already been fed today; never below zero. */
+export function remainingRequirement(
+  requirement: NutrientAmounts,
+  fed: NutrientAmounts,
+): NutrientAmounts {
+  return {
+    dmKg: Math.max(0, requirement.dmKg - fed.dmKg),
+    cpKg: Math.max(0, requirement.cpKg - fed.cpKg),
+    meMj: Math.max(0, requirement.meMj - fed.meMj),
+  };
+}
+
+/**
+ * Fit of a further feeding against the REMAINING requirement (`requirement − already fed today`).
+ * A nutrient already fully met has nothing left to fit against, so any supply of it is an excess
+ * (`warn`) rather than the silent "ok" `classifyDelta` gives a zero requirement.
+ */
+export function computeRemainingFit(
+  supply: NutrientAmounts,
+  requirement: NutrientAmounts,
+  fed: NutrientAmounts,
+  bands: FitBands,
+  estimated: boolean,
+): ProgramFit {
+  const fit = computeProgramFit(
+    supply,
+    remainingRequirement(requirement, fed),
+    bands,
+    estimated,
+  );
+  const met = (s: number, r: number, f: number) => r > 0 && f >= r && s > 0;
+  if (met(supply.dmKg, requirement.dmKg, fed.dmKg)) {
+    fit.dm = { deltaPct: null, severity: 'warn' };
+  }
+  if (met(supply.cpKg, requirement.cpKg, fed.cpKg)) {
+    fit.cp = { deltaPct: null, severity: 'warn' };
+  }
+  if (met(supply.meMj, requirement.meMj, fed.meMj)) {
+    fit.me = { deltaPct: null, severity: 'warn' };
+  }
+  fit.severity = [fit.dm, fit.cp, fit.me].reduce<FitSeverity>(
+    (worst, n) => (RANK[n.severity] > RANK[worst] ? n.severity : worst),
+    'ok',
+  );
+  return fit;
+}
+
 /** snake_case API shape of a fit. */
 export function toApiFit(f: ProgramFit) {
   const n = (x: NutrientFit) => ({

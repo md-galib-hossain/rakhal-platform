@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -11,6 +10,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { FarmClockService } from 'src/common/farm-time/farm-clock.service';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { FeedDistributionService } from './feed-distribution.service';
 import { FeedStockService } from './feed-stock.service';
@@ -19,7 +19,12 @@ import { FeedPlanResolverService } from './feed-plan-resolver.service';
 import { FeedPlanService } from './feed-plan.service';
 import { FeedRequirementsService } from './feed-requirements.service';
 import { FeedLookaheadService } from './feed-lookahead.service';
-import { computeProgramFit, toApiFit } from '../../domain/program-fit';
+import {
+  computeProgramFit,
+  computeRemainingFit,
+  remainingRequirement,
+  toApiFit,
+} from '../../domain/program-fit';
 import { FeedItemService } from 'src/modules/inventory/application/services/feed-item.service';
 import {
   blendNutrition,
@@ -100,6 +105,7 @@ export class FeedFeedingGridService {
     private readonly planService: FeedPlanService,
     private readonly requirements: FeedRequirementsService,
     private readonly lookahead: FeedLookaheadService,
+    private readonly clock: FarmClockService,
   ) {
     this.log = logger.setContext(FeedFeedingGridService.name);
   }
@@ -114,7 +120,8 @@ export class FeedFeedingGridService {
     const [year, m] = month.split('-').map(Number);
     const from = new Date(Date.UTC(year, m - 1, 1));
     const to = new Date(Date.UTC(year, m, 1));
-    const today = this.dayStart(new Date().toISOString());
+    // The farm's own "today" (Farm.timezone), not the UTC day — a UTC+6 farm's Sep 30 is still Sep 29 in UTC until 6 AM.
+    const today = await this.clock.todayStart(farmId);
 
     const [farm, cattle, rows] = await Promise.all([
       this.prisma.farm.findUnique({
@@ -283,18 +290,44 @@ export class FeedFeedingGridService {
       const req = requirementByCow.get(c.id);
       // RAKHAL-458: what her program supplies vs what she needs, against the farm's tolerance bands.
       const totals = sectionId ? totalsBySection.get(sectionId) : undefined;
+      // A cow may be fed several times a day: once she has been fed, her program is judged against
+      // what she STILL needs (requirement − confirmed supply), not the full daily figure.
+      const fedSoFar = confirmedSupply.get(c.id);
+      const requirementAmounts = req
+        ? {
+            dmKg: req.requirements.dm_kg,
+            cpKg: req.requirements.cp_kg,
+            meMj: req.requirements.me_mj,
+          }
+        : null;
+      const remaining =
+        requirementAmounts && fedSoFar
+          ? remainingRequirement(requirementAmounts, {
+              dmKg: fedSoFar.dm_kg,
+              cpKg: fedSoFar.cp_kg,
+              meMj: fedSoFar.me_mj,
+            })
+          : null;
       const fit =
-        totals && req
-          ? computeProgramFit(
-              { dmKg: totals.dmKg, cpKg: totals.cpKg, meMj: totals.meMj },
-              {
-                dmKg: req.requirements.dm_kg,
-                cpKg: req.requirements.cp_kg,
-                meMj: req.requirements.me_mj,
-              },
-              requirementRes.bands,
-              req.flags.length > 0 || !totals.complete,
-            )
+        totals && requirementAmounts && req
+          ? fedSoFar
+            ? computeRemainingFit(
+                { dmKg: totals.dmKg, cpKg: totals.cpKg, meMj: totals.meMj },
+                requirementAmounts,
+                {
+                  dmKg: fedSoFar.dm_kg,
+                  cpKg: fedSoFar.cp_kg,
+                  meMj: fedSoFar.me_mj,
+                },
+                requirementRes.bands,
+                req.flags.length > 0 || !totals.complete || !fedSoFar.complete,
+              )
+            : computeProgramFit(
+                { dmKg: totals.dmKg, cpKg: totals.cpKg, meMj: totals.meMj },
+                requirementAmounts,
+                requirementRes.bands,
+                req.flags.length > 0 || !totals.complete,
+              )
           : null;
       return {
         planned_supply: totals
@@ -314,6 +347,14 @@ export class FeedFeedingGridService {
         default_source: this.mapResolvedSource(defaultSources.get(c.id)),
         confirmed_offered_kg: confirmedToday.get(c.id) ?? null,
         confirmed_supply: confirmedSupply.get(c.id) ?? null,
+        // What she still needs today (null until she has been fed once). Fit above is judged against it.
+        remaining_requirement: remaining
+          ? {
+              dm_kg: round2(remaining.dmKg),
+              cp_kg: round2(remaining.cpKg),
+              me_mj: round2(remaining.meMj),
+            }
+          : null,
         program_section_id: sectionId,
         program_conflict: program?.conflict ?? false,
         lookahead: lookaheadByCow.get(c.id) ?? [],
@@ -699,18 +740,9 @@ export class FeedFeedingGridService {
       );
     }
 
-    // One confirm per cow per day: a cow with a live (non-voided) feeding today can't be confirmed
-    // again — void the earlier one first if it was a mistake.
-    const alreadyFed = await this.computeConfirmedToday(
-      [...new Set(lines.map((l) => l.cattleId))],
-      farmId,
-      logDate,
-    );
-    if (alreadyFed.size > 0) {
-      throw new ConflictException(
-        `${alreadyFed.size} cow(s) already have a feeding confirmed for this day — void it first to re-confirm`,
-      );
-    }
+    // A cow may be fed more than once a day (AM/PM, a top-up): every confirm is its own voidable
+    // feeding row, and `computeConfirmedToday`/`computeConfirmedSupply` sum the live ones. The
+    // grid compares what a new feeding supplies against the REMAINING requirement, not the full one.
 
     // RAKHAL-457 (ADR-027 D12): snapshot the program each plan-linked line was fed under. `plannedKg` is
     // the plan line's daily kg — exactly what the grid pre-fills. A plan line
@@ -1172,7 +1204,7 @@ export class FeedFeedingGridService {
     });
     if (!found) throw new NotFoundException('Cattle not found');
 
-    const logDate = this.dayStart(date ?? new Date().toISOString());
+    const logDate = await this.clock.dayStart(farmId, date);
     const rows = await this.prisma.feedDistributionCattleItem.findMany({
       where: {
         cattleId,
@@ -1229,9 +1261,42 @@ export class FeedFeedingGridService {
       { rdp: 0, rup: 0 },
     );
 
+    // A nutrient no fed row carries is "not measured", not "0 kg" — feeds seeded without ADF/TDN/starch/Ca/P/RDP/RUP
+    // would otherwise read as if the cow got none of it.
+    const anyMeasured = (pctField: string) =>
+      active.some(
+        (r) =>
+          r.dmPct != null && (r as Record<string, unknown>)[pctField] != null,
+      );
+    const measured = {
+      dm_kg: active.some((r) => r.dmPct != null),
+      cp_kg: anyMeasured('cpPct'),
+      me_mj: active.some((r) => r.dmPct != null && r.meMjPerKgDm != null),
+      fat_kg: anyMeasured('fatPct'),
+      ndf_kg: anyMeasured('ndfPct'),
+      adf_kg: anyMeasured('adfPct'),
+      starch_kg: anyMeasured('starchPct'),
+      tdn_kg: anyMeasured('tdnPct'),
+      calcium_kg: anyMeasured('calciumPct'),
+      phosphorus_kg: anyMeasured('phosphorusPct'),
+      rdp_kg: active.some((r) => r.cpPct != null && r.rdpPct != null),
+      rup_kg: active.some((r) => r.cpPct != null && r.rupPct != null),
+    };
+
+    // What she needs that day — the SAME resolver the cow profile and the grid use (a manual override wins), so the
+    // sheet, the profile and the grid can never disagree. Full profile, not just DM/CP/ME.
+    const dateKey = this.dateOnly(logDate);
+    const required = (
+      await this.requirements.forCattle(farmId, [cattleId], dateKey)
+    ).cows[0];
+
     return {
       cattle_id: cattleId,
-      date: this.dateOnly(logDate),
+      date: dateKey,
+      requirement: required
+        ? { ...required.requirements, source: required.source }
+        : null,
+      measured,
       entries: rows.map((r) => ({
         id: r.id,
         distribution_id: r.distributionId,

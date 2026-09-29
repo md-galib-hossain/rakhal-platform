@@ -38,4 +38,11 @@ export class UpdateFarmSettingsDto {
   @MaxLength(40)
   @Transform(trimString)
   operational_purpose?: string;
+
+  /** IANA timezone (e.g. "Asia/Dhaka") — what "today" means for this farm. Validated in the service. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  @Transform(trimString)
+  timezone?: string;
 }

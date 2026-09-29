@@ -4,6 +4,7 @@ import {
   ArrayUnique,
   IsArray,
   IsBoolean,
+  IsDateString,
   IsEnum,
   IsIn,
   IsInt,
@@ -19,6 +20,22 @@ import { ReproStepType } from '@prisma/client';
 import { trimString } from 'src/common/dto';
 import { CursorPaginationQueryDto } from 'src/common/pagination';
 
+/** Optional per-step schedule override when applying a protocol. */
+export class StepScheduleOverrideDto {
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(0)
+  dayNumber!: number;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  stepId?: string;
+
+  @IsDateString()
+  dueAt!: string;
+}
+
 /** `POST /reproduction/protocols/apply` — apply a protocol to one or more cows. */
 export class ApplyProtocolDto {
   @Transform(trimString)
@@ -31,10 +48,17 @@ export class ApplyProtocolDto {
   @IsString({ each: true })
   cattleIds!: string[];
 
-  /** Day-0 of the protocol (YYYY-MM-DD); defaults to today. */
+  /** Day-0 of the protocol (YYYY-MM-DD or ISO 8601 date-time); defaults to today. */
   @IsOptional()
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'startDate must be YYYY-MM-DD' })
+  @IsDateString()
   startDate?: string;
+
+  /** Optional per-step date-time overrides configured by the user. */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => StepScheduleOverrideDto)
+  stepOverrides?: StepScheduleOverrideDto[];
 }
 
 /** `POST /reproduction/protocols/instances/:id/ai` — record the timed AI step done. */
