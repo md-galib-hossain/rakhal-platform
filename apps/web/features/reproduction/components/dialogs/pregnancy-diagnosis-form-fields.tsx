@@ -9,18 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { CreatePregnancyDiagnosisInput } from "../../schemas";
 import { DatePicker } from "@/components/ui/date-picker";
+import { addDaysLocalIso } from "@/lib/local-date";
 
 const RESULTS = ["PREGNANT", "NOT_PREGNANT", "SUSPECTED"] as const;
 const METHODS = ["ULTRASOUND", "PALPATION", "LAB"] as const;
 /** Average bovine gestation length (days) used to auto-derive the expected calving date. */
 const GESTATION_DAYS = 283;
 
-function addDays(dateStr: string, days: number): string {
-  const d = new Date(`${dateStr}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return "";
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
+const addDays = addDaysLocalIso;
 
 /** Pure field markup for a pregnancy-diagnosis form, extracted out of
  * `pregnancy-diagnosis-dialog.tsx` so `pregnancy-diagnosis-step.tsx` (Edit Animal's wizard step)

@@ -5,6 +5,8 @@
  * Pure functions only — no React — so the rules are unit-testable.
  */
 import type { FeedGridCow, FeedGridDraft, FeedGridSource, FeedGridSourceType } from "../feed/types";
+
+export { todayLocalIso } from "@/lib/local-date";
 import type {
   FeedGridDraftPlanFields,
   FeedGridProgramCowFields,
@@ -71,6 +73,10 @@ function toRowSource(s: FeedGridSource | null | undefined): RowSource | null {
   return itemId ? { sourceType: s.source_type, itemId } : null;
 }
 
+/** True once she has a live (non-voided) feeding on the grid's date. She can still be fed again. */
+export const isFedToday = (cow: Pick<GridCow, "confirmed_offered_kg">) =>
+  cow.confirmed_offered_kg != null && cow.confirmed_offered_kg > 0;
+
 /**
  * A cow's opening lines. A saved draft for a plan line wins over the plan's daily kg; drafts that match no plan
  * line (hand-added, or a line an edited plan no longer has) come back as extra lines so nothing staged is lost.
@@ -79,6 +85,9 @@ function toRowSource(s: FeedGridSource | null | undefined): RowSource | null {
 export function buildInitialLines(cow: GridCow, section: FeedGridSection | undefined): RowLine[] {
   const lines: RowLine[] = [];
   const planLineIds = new Set<string>();
+  // A cow already fed today may be fed again (AM/PM, a top-up), but her plan is NOT pre-filled a second time — that
+  // would silently double the day. Her plan lines stay listed (empty), ready for whatever the farmer adds.
+  const fedToday = isFedToday(cow);
 
   if (section) {
     for (const pl of section.lines) {
@@ -89,7 +98,11 @@ export function buildInitialLines(cow: GridCow, section: FeedGridSection | undef
         planLineId: pl.line_id,
         name: pl.name,
         source: toRowSource(pl.source),
-        kg: String(draft ? draft.offered_kg : (cow.planned_kg_by_line[pl.line_id] ?? pl.prefill_kg)),
+        kg: draft
+          ? String(draft.offered_kg)
+          : fedToday
+            ? ""
+            : String(cow.planned_kg_by_line[pl.line_id] ?? pl.prefill_kg),
       });
     }
   }
@@ -288,15 +301,39 @@ export function liveSupply(lines: RowLine[], density: (key: string) => Density |
   return { dm_kg: dm, cp_kg: cp, me_mj: me, complete };
 }
 
+type Amounts = { dm_kg: number; cp_kg: number; me_mj: number };
+
+/** What she still needs today: her requirement minus what today's confirmed feedings already gave, never below 0. */
+export function remainingRequirement<R extends Amounts>(requirement: R, fed: Amounts | null | undefined): R {
+  if (!fed) return requirement;
+  return {
+    ...requirement,
+    dm_kg: Math.max(0, requirement.dm_kg - fed.dm_kg),
+    cp_kg: Math.max(0, requirement.cp_kg - fed.cp_kg),
+    me_mj: Math.max(0, requirement.me_mj - fed.me_mj),
+  };
+}
+
+/**
+ * Fit of the row's lines. With `fed` (she has been fed already today) the lines are judged against what she STILL
+ * needs, and a nutrient already fully met turns any further supply of it into an excess warning rather than the
+ * silent "ok" a zero requirement would give. Mirrors the backend's `computeRemainingFit`.
+ */
 export function liveFit(
   supply: { dm_kg: number; cp_kg: number; me_mj: number; complete: boolean },
-  requirement: { dm_kg: number; cp_kg: number; me_mj: number },
+  fullRequirement: { dm_kg: number; cp_kg: number; me_mj: number },
   bands: FitBands,
   serverEstimated: boolean,
+  fed?: Amounts | null,
 ) {
-  const dm = classify(supply.dm_kg, requirement.dm_kg, bands.dmBelowPct, bands.dmAbovePct);
-  const cp = classify(supply.cp_kg, requirement.cp_kg, bands.cpBelowPct, bands.cpAbovePct);
-  const me = classify(supply.me_mj, requirement.me_mj, bands.meBelowPct, bands.meAbovePct);
+  const requirement = remainingRequirement(fullRequirement, fed);
+  const judge = (s: number, full: number, rem: number, f: number | undefined, below: number, above: number) =>
+    fed && full > 0 && (f ?? 0) >= full && s > 0
+      ? { delta_pct: null as number | null, severity: "warn" as Severity }
+      : classify(s, rem, below, above);
+  const dm = judge(supply.dm_kg, fullRequirement.dm_kg, requirement.dm_kg, fed?.dm_kg, bands.dmBelowPct, bands.dmAbovePct);
+  const cp = judge(supply.cp_kg, fullRequirement.cp_kg, requirement.cp_kg, fed?.cp_kg, bands.cpBelowPct, bands.cpAbovePct);
+  const me = judge(supply.me_mj, fullRequirement.me_mj, requirement.me_mj, fed?.me_mj, bands.meBelowPct, bands.meAbovePct);
   const severity = [dm, cp, me].reduce<Severity>((w, n) => (RANK[n.severity] > RANK[w] ? n.severity : w), "ok");
   return { severity, estimated: serverEstimated || !supply.complete, dm, cp, me };
 }

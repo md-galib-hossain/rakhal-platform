@@ -1,5 +1,6 @@
 "use client";
 
+import { todayLocalIso } from "@/lib/local-date";
 import { useEffect, useState } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,7 +26,7 @@ const CALF_STATUSES = ["ALIVE", "STILLBORN", "DIED_AFTER_BIRTH"] as const;
 
 const EMPTY_DEFAULTS: CreateCalvingEventInput = {
   cattleId: "",
-  calvingDate: new Date().toISOString().slice(0, 10),
+  calvingDate: todayLocalIso(),
   calvingEase: "NORMAL",
   calves: [{ gender: "FEMALE", status: "ALIVE", tagNumber: "" }],
 };

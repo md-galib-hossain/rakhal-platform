@@ -1,5 +1,6 @@
 "use client";
 
+import { todayLocalIso } from "@/lib/local-date";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,7 +13,7 @@ import { dryOffSchema, type CreateDryOffInput } from "../../schemas";
 import { DryOffFormFields } from "./dry-off-form-fields";
 
 const EMPTY_DEFAULTS: CreateDryOffInput = {
-  dryOffDate: new Date().toISOString().slice(0, 10),
+  dryOffDate: todayLocalIso(),
 };
 
 /** "Record Dry-off" (RD-038 — `DryPeriod` had no writer/no UI anywhere; RAKHAL-274 added the optional

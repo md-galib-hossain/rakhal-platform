@@ -14,7 +14,9 @@ export function useUpdateFarm() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: UpdateFarmInput) => settingsApi.updateFarm(input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.farm() }),
+    // The farm's timezone decides "today" server-side (feeding/milk calendars, dashboards, reports), so a change can
+    // shift what every date-driven screen shows — refetch everything rather than guess which queries depend on it.
+    onSuccess: () => queryClient.invalidateQueries(),
   });
 }
 

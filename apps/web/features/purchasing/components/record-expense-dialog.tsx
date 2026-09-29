@@ -1,5 +1,6 @@
 "use client"; // form state + mutation
 
+import { todayLocalIso } from "@/lib/local-date";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -64,7 +65,7 @@ function RecordExpenseDialogBody({ onOpenChange }: { onOpenChange: (open: boolea
 
   const form = useForm<ExpenseFormInput>({
     resolver: zodResolver(expenseFormSchema),
-    defaultValues: { category: "UTILITIES", description: "", expenseDate: new Date().toISOString().slice(0, 10), paidNow: true },
+    defaultValues: { category: "UTILITIES", description: "", expenseDate: todayLocalIso(), paidNow: true },
   });
   const paidNow = form.watch("paidNow");
 

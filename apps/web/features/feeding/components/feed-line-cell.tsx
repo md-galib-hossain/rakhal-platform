@@ -1,7 +1,7 @@
 "use client"; // controlled kg inputs with live stock clamping
 
 import { useTranslations } from "next-intl";
-import { AlertTriangle, Plus, X } from "lucide-react";
+import { AlertTriangle, Plus, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FeedPlan } from "@/features/feed/plans-types";
 import {
@@ -49,6 +49,7 @@ interface Props {
   preparedOptions: PreparedOption[];
   onChangeKg: (lineKey: string, kg: string) => void;
   onRemove: (lineKey: string) => void;
+  onRemoveAll?: () => void;
   onAdd: (source: RowSource, name?: string) => void;
   onToggleSource?: (source: RowSource, name?: string) => void;
   onSelectPlan?: (plan: FeedPlan) => void;
@@ -74,6 +75,7 @@ export function FeedLineCell({
   preparedOptions,
   onChangeKg,
   onRemove,
+  onRemoveAll,
   onAdd,
   onToggleSource,
   onSelectPlan,
@@ -173,32 +175,49 @@ export function FeedLineCell({
       })}
 
       <div className="flex flex-col gap-1.5 pt-0.5">
-        <FeedSourcePicker
-          lines={lines}
-          preparedOptions={preparedOptions}
-          onSelect={onAdd}
-          onToggleSource={onToggleSource}
-          onSelectPlan={onSelectPlan}
-          onOpen={onTouch}
-        >
-          {lines.length === 0 ? (
+        <div className="flex items-center justify-between gap-2">
+          <FeedSourcePicker
+            lines={lines}
+            preparedOptions={preparedOptions}
+            onSelect={onAdd}
+            onToggleSource={onToggleSource}
+            onSelectPlan={onSelectPlan}
+            onOpen={onTouch}
+          >
+            {lines.length === 0 ? (
+              <button
+                type="button"
+                className="flex h-8 items-center gap-1.5 rounded-lg border border-dashed border-input bg-muted/20 px-3 text-left text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:bg-card hover:text-foreground"
+              >
+                <Plus className="size-3" aria-hidden />
+                {t("selectFeed")}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+              >
+                <Plus className="size-3.5" aria-hidden />
+                {t("addFeed")}
+              </button>
+            )}
+          </FeedSourcePicker>
+
+          {lines.length > 0 && onRemoveAll ? (
             <button
               type="button"
-              className="flex h-8 items-center gap-1.5 rounded-lg border border-dashed border-input bg-muted/20 px-3 text-left text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:bg-card hover:text-foreground"
+              onClick={() => {
+                onTouch();
+                onRemoveAll();
+              }}
+              className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+              aria-label={t("removeAllLines", { animal: cowName })}
             >
-              <Plus className="size-3" aria-hidden />
-              {t("selectFeed")}
+              <Trash2 className="size-3" aria-hidden />
+              {t("removeAll")}
             </button>
-          ) : (
-            <button
-              type="button"
-              className="flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
-            >
-              <Plus className="size-3.5" aria-hidden />
-              {t("addFeed")}
-            </button>
-          )}
-        </FeedSourcePicker>
+          ) : null}
+        </div>
 
         {lines.length > 0 ? (
           <>

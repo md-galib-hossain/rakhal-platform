@@ -1,5 +1,6 @@
 "use client"; // form state + mutation
 
+import { todayLocalIso } from "@/lib/local-date";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -16,7 +17,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 const EVENT_TYPE_VALUES = ["FIRST_OFFERED", "FIRST_INTAKE", "DAILY_INTAKE"] as const;
 
 function defaults(): RecordStarterFeedInput {
-  return { date: new Date().toISOString().slice(0, 10), eventType: "DAILY_INTAKE", amountG: undefined, notes: "" };
+  return { date: todayLocalIso(), eventType: "DAILY_INTAKE", amountG: undefined, notes: "" };
 }
 
 /** `POST /calves/:id/starter-feed` — `calf.log-feeding`-gated. */

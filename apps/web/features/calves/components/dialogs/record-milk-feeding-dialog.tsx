@@ -1,5 +1,6 @@
 "use client"; // form state + mutation
 
+import { todayLocalIso } from "@/lib/local-date";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -16,7 +17,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 const MILK_TYPE_VALUES = ["DAM_MILK", "WHOLE_MILK", "MILK_REPLACER"] as const;
 
 function defaults(): RecordMilkFeedingInput {
-  return { date: new Date().toISOString().slice(0, 10), morningMl: undefined, eveningMl: undefined, type: "WHOLE_MILK", notes: "" };
+  return { date: todayLocalIso(), morningMl: undefined, eveningMl: undefined, type: "WHOLE_MILK", notes: "" };
 }
 
 /** `POST /calves/:id/milk-feeding` — `calf.log-feeding`-gated. */

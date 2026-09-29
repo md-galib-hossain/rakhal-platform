@@ -11,6 +11,7 @@ import {
   Heart,
   Home,
   Milk,
+  Scale,
   Tag,
   VenusAndMars,
   type LucideIcon,
@@ -152,6 +153,11 @@ export function CattleProfileCard({ cattle }: { cattle: CattleDetail }) {
                 ? <span className="font-normal text-muted-foreground">{t(`notApplicable.${productionUnavailableReason}`)}</span>
                 : "—"
           }
+        />
+        <Field
+          icon={Scale}
+          label={t("weight")}
+          value={cattle.lastWeightKg != null ? t("weightValue", { kg: cattle.lastWeightKg }) : "—"}
         />
         {pregnantStatus ? <Field icon={Baby} label={t("pregnantStatus")} value={pregnantStatus} /> : null}
         {/* RAKHAL-273 — supplementary info, not filterable tiles (per the ticket's own guidance),

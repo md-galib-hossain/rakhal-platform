@@ -76,6 +76,8 @@ export interface FarmSettings {
   district: string | null;
   upazila: string | null;
   operational_purpose: string | null;
+  /** IANA timezone the farm operates in — decides what "today" means on the backend. */
+  timezone: string;
   status: string;
   phone: string | null;
   address: string | null;

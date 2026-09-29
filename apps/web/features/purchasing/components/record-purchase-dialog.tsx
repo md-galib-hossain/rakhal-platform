@@ -1,5 +1,6 @@
 "use client"; // form state + line-item field array + mutation
 
+import { todayLocalIso } from "@/lib/local-date";
 import { Controller, useFieldArray, useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocale, useTranslations } from "next-intl";
@@ -76,7 +77,7 @@ function RecordPurchaseDialogBody({ onOpenChange }: { onOpenChange: (open: boole
   const form = useForm<PurchaseFormInput>({
     resolver: zodResolver(purchaseFormSchema),
     defaultValues: {
-      purchaseDate: new Date().toISOString().slice(0, 10),
+      purchaseDate: todayLocalIso(),
       lines: [EMPTY_LINE],
       paidNow: true,
       paidAmount: 0,

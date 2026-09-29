@@ -1,5 +1,6 @@
 "use client";
 
+import { todayLocalIso } from "@/lib/local-date";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,7 +18,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 
 const EMPTY_DEFAULTS: CreateAbortionEventInput = {
   cattleId: "",
-  abortionDate: new Date().toISOString().slice(0, 10),
+  abortionDate: todayLocalIso(),
 };
 
 /** "Record Abortion" — no dedicated PRD section number, but the backend fully supports it

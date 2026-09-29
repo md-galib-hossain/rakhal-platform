@@ -1,5 +1,6 @@
 "use client"; // form state + mutation
 
+import { todayLocalIso } from "@/lib/local-date";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -17,7 +18,7 @@ import type { Buyer } from "../types";
 import { DatePicker } from "@/components/ui/date-picker";
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayLocalIso();
 }
 
 /**

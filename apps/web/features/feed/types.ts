@@ -679,9 +679,32 @@ export interface FeedCattleHistoryTotals {
   rup_kg: number;
 }
 
+/** The cow's full requirement for that day — the same resolver the cow profile's Nutrition requirement card uses
+ * (a manual override wins), so the sheet, the profile and the grid agree. `calcium_kg`/`phosphorus_kg` are `null` on a
+ * manual requirement that doesn't set them. RDP/RUP are % of crude protein. */
+export interface FeedCattleHistoryRequirement {
+  source: "DYNAMIC" | "MANUAL";
+  dm_kg: number;
+  cp_kg: number;
+  me_mj: number;
+  ndf_kg: number;
+  fat_kg: number;
+  tdn_kg: number;
+  calcium_kg: number | null;
+  phosphorus_kg: number | null;
+  adf_kg: number;
+  rdp_pct: number;
+  rup_pct: number;
+  ndf_max_kg: number;
+}
+
 export interface FeedCattleHistoryResult {
   cattle_id: string;
   date: string;
+  /** Older backends omit these two — the sheet then shows fed totals only. */
+  requirement?: FeedCattleHistoryRequirement | null;
+  /** Per nutrient: did ANY fed feed carry a value? `false` = "not measured", not "0 kg". */
+  measured?: Record<keyof FeedCattleHistoryTotals, boolean>;
   entries: FeedCattleHistoryEntry[];
   totals: FeedCattleHistoryTotals;
 }

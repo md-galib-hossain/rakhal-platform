@@ -64,7 +64,15 @@ export function ReproductionCowList() {
       {
         id: "pregnancyChecked",
         header: t("columns.pregnancyChecked"),
-        cell: ({ row }) => (row.original.pregnancy_checked ? t("checkedYes") : t("checkedNo")),
+        // A bare Yes/No under "Checked" was ambiguous (checked what?) and flagged an Open cow
+        // as "No" though nothing awaits a check — only an inseminated, unchecked cow is "Pending".
+        cell: ({ row }) => {
+          if (row.original.pregnancy_checked) return <Chip variant="teal">{t("checkDone")}</Chip>;
+          if (row.original.status === "BRED_AWAITING_CONFIRMATION") {
+            return <Chip variant="warning">{t("checkPending")}</Chip>;
+          }
+          return <span className="text-muted-foreground">—</span>;
+        },
       },
       {
         id: "daysOpen",

@@ -1,5 +1,6 @@
 "use client"; // filter reads (nuqs/searchParams), row-selection state, paged query
 
+import { todayLocalIso } from "@/lib/local-date";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -164,7 +165,7 @@ export function CattleTable() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `cattle-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `cattle-export-${todayLocalIso()}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   }

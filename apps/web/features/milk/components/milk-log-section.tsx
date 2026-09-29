@@ -1,5 +1,6 @@
 "use client"; // search/shed/date filter state; per-session editing lives in MilkLogTable
 
+import { todayLocalIso } from "@/lib/local-date";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
@@ -18,7 +19,7 @@ import { MilkImportButton } from "./milk-import-button";
 import { MilkLogTable } from "./milk-log-table";
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayLocalIso();
 }
 
 const ALL_SHEDS = "__all__";

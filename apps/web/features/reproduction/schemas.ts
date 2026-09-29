@@ -196,11 +196,20 @@ export const dryOffSchema = z.object({
 });
 export type CreateDryOffInput = z.infer<typeof dryOffSchema>;
 
-/** Mirrors `ApplyProtocolDto` — `startDate` YYYY-MM-DD, defaults to today on the backend. */
+/** Optional per-step schedule override when applying a protocol. */
+export const stepScheduleOverrideSchema = z.object({
+  dayNumber: z.number().int().min(0),
+  stepId: z.string().optional(),
+  dueAt: z.string().min(1),
+});
+export type StepScheduleOverrideInput = z.infer<typeof stepScheduleOverrideSchema>;
+
+/** Mirrors `ApplyProtocolDto` — `startDate` ISO date-time or YYYY-MM-DD, defaults to now/today on the backend. */
 export const applyProtocolSchema = z.object({
   protocolId: z.string().min(1, "Select a protocol"),
   cattleIds: z.array(z.string()).min(1, "Select at least one cow"),
   startDate: z.string().optional(),
+  stepOverrides: z.array(stepScheduleOverrideSchema).optional(),
 });
 export type ApplyProtocolInput = z.infer<typeof applyProtocolSchema>;
 

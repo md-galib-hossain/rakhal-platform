@@ -1,5 +1,6 @@
 "use client";
 
+import { currentMonthLocalIso } from "@/lib/local-date";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
@@ -18,7 +19,7 @@ import { useBuyerStatement } from "../hooks/use-buyers";
 import type { Buyer } from "../types";
 
 function currentMonth(): string {
-  return new Date().toISOString().slice(0, 7);
+  return currentMonthLocalIso();
 }
 
 /** Monthly Statement (PRD §11.3) — reconciles dispatched vs accepted volume, quality adjustments,

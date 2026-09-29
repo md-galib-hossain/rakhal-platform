@@ -1,5 +1,6 @@
 "use client"; // wizard state + multi-call submit orchestration
 
+import { todayLocalIso } from "@/lib/local-date";
 import { useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,7 +30,7 @@ import type { PurchasableItemOption } from "@/features/purchasing/types";
 import { findReceivableBySale, useAllocatePayment, useCreatePayment, useIncomeCategories, useMilkAvailability, useRecordOtherIncome, useSellAnimal, useSellInventory, useSellManure } from "../hooks/use-sales";
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayLocalIso();
 }
 
 /** Same `setValueAs` adapter `record-transaction-dialog.tsx`'s own `numberField` uses — a plain

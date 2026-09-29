@@ -8,7 +8,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { Timeline, type TimelineItem } from "@/components/ui/timeline";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { qk } from "@/lib/query/keys";
 import { tasksApi } from "@/features/tasks/api";
@@ -123,7 +123,7 @@ function TimelineBody({ instance }: { instance: ProtocolInstance }) {
       tone: rowTone(row),
       title: `${t("dayLabel", { value: row.step.day_number })} — ${row.step.title}`,
       subtitle: [row.step.instruction, statusLabel].filter(Boolean).join(" · "),
-      date: formatDate(row.task?.dueAt ?? row.dueDate, locale),
+      date: formatDateTime(row.task?.dueAt ?? row.dueDate, locale) || formatDate(row.task?.dueAt ?? row.dueDate, locale),
     };
   });
 

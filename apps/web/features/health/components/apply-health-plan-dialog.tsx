@@ -1,5 +1,6 @@
 "use client"; // multi-step wizard + animal selection state
 
+import { todayLocalIso } from "@/lib/local-date";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Controller, useForm, useWatch } from "react-hook-form";
@@ -27,7 +28,7 @@ import { Label } from "@/components/ui/label";
 const ROUTES = ["IM", "IV", "SC", "ORAL"] as const;
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  return todayLocalIso();
 }
 
 function getStepDate(startDateStr: string | undefined, dayNumber: number): Date {

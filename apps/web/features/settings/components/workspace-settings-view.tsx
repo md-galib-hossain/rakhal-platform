@@ -44,6 +44,7 @@ import {
   type UpdateFarmInput,
 } from "../schemas";
 import type { Shed } from "../types";
+import { timezoneOptions } from "../timezones";
 
 const SHED_PURPOSES = ["MILKING", "HEIFER", "DRY", "CALF", "QUARANTINE", "GENERAL"] as const;
 
@@ -64,12 +65,21 @@ function FarmProfileSection() {
   const updateFarm = useUpdateFarm();
   const form = useForm<UpdateFarmInput>({
     resolver: zodResolver(updateFarmSchema),
-    defaultValues: { farm_name: "", description: "", division: "", district: "", upazila: "", operational_purpose: "" },
+    defaultValues: {
+      farm_name: "",
+      description: "",
+      division: "",
+      district: "",
+      upazila: "",
+      operational_purpose: "",
+      timezone: "Asia/Dhaka",
+    },
   });
 
   useEffect(() => {
     if (!farm.data) return;
     form.reset({
+      timezone: farm.data.timezone,
       farm_name: farm.data.farm_name,
       description: farm.data.description ?? "",
       division: farm.data.division ?? "",
@@ -126,6 +136,27 @@ function FarmProfileSection() {
           <FloatingInput id="workspace-purpose" label={t("purpose")} {...form.register("operational_purpose")} />
         </div>
         <FloatingInput id="workspace-description" label={t("description")} {...form.register("description")} />
+        <div className="flex flex-col gap-1.5">
+          <Controller
+            control={form.control}
+            name="timezone"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger aria-label={t("timezone")}>
+                  <SelectValue placeholder={t("timezone")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {timezoneOptions(farm.data?.timezone).map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          <p className="text-xs text-muted-foreground">{t("timezoneHint")}</p>
+        </div>
         <Can I="settings.update">
           <div className="flex justify-end">
             <Button type="submit" disabled={updateFarm.isPending}>

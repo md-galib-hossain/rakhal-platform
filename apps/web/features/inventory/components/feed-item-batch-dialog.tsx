@@ -1,5 +1,6 @@
 "use client"; // form state + mutation
 
+import { todayLocalIso } from "@/lib/local-date";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,7 +20,7 @@ import { profileToDraft, toNutritionInput, type NutritionDraft } from "../nutrit
 import type { CreateFeedItemBatchPayload, FeedItem } from "../types";
 import { NutritionFields } from "./nutrition-fields";
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
+const todayIso = () => todayLocalIso();
 
 /**
  * Restock = add a batch (ADR-026, RFE-121). A feed item is a product; every purchase is its own lot with

@@ -1,5 +1,6 @@
 "use client"; // row actions open the Case Management sheet, an Apply Protocol sheet + a delete confirm dialog
 
+import { todayLocalIso } from "@/lib/local-date";
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -25,7 +26,7 @@ import { ProgressRing } from "./progress-ring";
 import type { HealthCaseListItem } from "../types";
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  return todayLocalIso();
 }
 
 /** RFE-106 — "Apply Protocol" row action: attaches a plan to a case that already exists (no UI

@@ -1,5 +1,6 @@
 "use client"; // form state + mutation
 
+import { todayLocalIso } from "@/lib/local-date";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -31,14 +32,14 @@ export function RecordBcsDialog({
 
   const form = useForm<RecordBcsInput>({
     resolver: zodResolver(recordBcsSchema),
-    defaultValues: { score: 3, date: new Date().toISOString().slice(0, 10), notes: "" },
+    defaultValues: { score: 3, date: todayLocalIso(), notes: "" },
   });
 
   async function onSubmit(values: RecordBcsInput) {
     try {
       await recordBcs.mutateAsync(values);
       toast.success(t("recordedToast"));
-      form.reset({ score: 3, date: new Date().toISOString().slice(0, 10), notes: "" });
+      form.reset({ score: 3, date: todayLocalIso(), notes: "" });
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));

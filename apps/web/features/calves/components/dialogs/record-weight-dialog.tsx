@@ -1,5 +1,6 @@
 "use client"; // form state + mutation
 
+import { todayLocalIso } from "@/lib/local-date";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -13,7 +14,7 @@ import { recordWeightSchema, type RecordWeightInput } from "../../schemas";
 import { DatePicker } from "@/components/ui/date-picker";
 
 function defaults(): RecordWeightInput {
-  return { weightKg: undefined as unknown as number, measuredDate: new Date().toISOString().slice(0, 10), notes: "" };
+  return { weightKg: undefined as unknown as number, measuredDate: todayLocalIso(), notes: "" };
 }
 
 /** `POST /calves/:id/weight` — `calf.log-feeding`-gated. */

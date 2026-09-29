@@ -1,5 +1,6 @@
 "use client";
 
+import { todayLocalIso } from "@/lib/local-date";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -29,7 +30,7 @@ export function PregnancyDiagnosisStep({
     resolver: zodResolver(pregnancyDiagnosisSchema),
     defaultValues: {
       cattleId,
-      diagnosisDate: new Date().toISOString().slice(0, 10),
+      diagnosisDate: todayLocalIso(),
       result: "PREGNANT",
       diagnosisMethod: "ULTRASOUND",
     },

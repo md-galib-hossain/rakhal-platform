@@ -1,5 +1,6 @@
 "use client";
 
+import { todayLocalIso } from "@/lib/local-date";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -27,7 +28,7 @@ export function DryOffStep({
   const recordDryOff = useRecordDryOff();
   const form = useForm<CreateDryOffInput>({
     resolver: zodResolver(dryOffSchema),
-    defaultValues: { dryOffDate: new Date().toISOString().slice(0, 10) },
+    defaultValues: { dryOffDate: todayLocalIso() },
   });
 
   async function onSubmit(values: CreateDryOffInput) {

@@ -1,5 +1,6 @@
 "use client"; // live query
 
+import { todayLocalIso } from "@/lib/local-date";
 import { useLocale, useTranslations } from "next-intl";
 import { Package, ShieldCheck, Users, Coins } from "lucide-react";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
@@ -11,7 +12,7 @@ import { useMilkLogTable, useMilkOverview } from "../hooks/use-milk";
 import { MilkCard } from "./milk-card";
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayLocalIso();
 }
 
 /** "Production Key Metrics" — 2x2 KPI grid (Figma node 734:32330). Today's yield/vs-yesterday and

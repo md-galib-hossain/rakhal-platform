@@ -1,5 +1,6 @@
 "use client"; // animal-selection state + a form + a pending mutation click
 
+import { todayLocalIso } from "@/lib/local-date";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Controller, useForm, useWatch } from "react-hook-form";
@@ -35,7 +36,7 @@ import type { MedicineOption } from "../api";
 const ROUTES = ["IM", "IV", "SC", "ORAL"] as const;
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  return todayLocalIso();
 }
 
 function addDaysIso(dateStr: string, days: number): string {

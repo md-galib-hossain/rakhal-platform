@@ -1,5 +1,6 @@
 "use client"; // month state + live query
 
+import { currentMonthLocalIso } from "@/lib/local-date";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,7 @@ import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { useBuyerStatement } from "../../hooks/use-buyers";
 
 function currentMonth(): string {
-  return new Date().toISOString().slice(0, 7);
+  return currentMonthLocalIso();
 }
 
 /** RAKHAL-389 — buyer detail "Balance" tab: the existing monthly statement

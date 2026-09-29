@@ -12,6 +12,7 @@ import {
   hasOverStock,
   maxKgForLine,
   orderCows,
+  remainingRequirement,
   requirementProgress,
   toEntry,
   usageBySource,
@@ -71,6 +72,41 @@ const section: FeedGridSection = {
     },
   ],
 };
+
+describe("multi-feed: a cow fed already today", () => {
+  const need = { dm_kg: 14, cp_kg: 2, me_mj: 120 };
+  const fed = { dm_kg: 9, cp_kg: 1.3, me_mj: 62 };
+  const supplyOf = (dm: number, cp: number, me: number) => ({ dm_kg: dm, cp_kg: cp, me_mj: me, complete: true });
+
+  it("remaining = requirement − fed, floored at 0, and untouched when nothing was fed", () => {
+    expect(remainingRequirement(need, { dm_kg: 9, cp_kg: 2.5, me_mj: 60 })).toEqual({ dm_kg: 5, cp_kg: 0, me_mj: 60 });
+    expect(remainingRequirement(need, null)).toBe(need);
+  });
+
+  it("a feeding that closes the gap is ok against the remainder, but a shortfall against the full requirement", () => {
+    const supply = supplyOf(5, 0.7, 58);
+    expect(liveFit(supply, need, DEFAULT_FIT_BANDS, false, fed).severity).toBe("ok");
+    expect(liveFit(supply, need, DEFAULT_FIT_BANDS, false).severity).toBe("bad");
+  });
+
+  it("more feed on an already-met nutrient is an excess warning, not a silent ok", () => {
+    const met = { dm_kg: 14, cp_kg: 2, me_mj: 120 };
+    const fit = liveFit(supplyOf(2, 0.3, 20), need, DEFAULT_FIT_BANDS, false, met);
+    expect(fit.dm).toEqual({ delta_pct: null, severity: "warn" });
+    expect(fit.severity).toBe("warn");
+    expect(liveFit(supplyOf(0, 0, 0), need, DEFAULT_FIT_BANDS, false, met).severity).toBe("ok");
+  });
+
+  it("her plan is not pre-filled a second time, but its lines stay listed", () => {
+    const lines = buildInitialLines(
+      cow({ confirmed_offered_kg: 9, program_section_id: "s1", planned_kg_by_line: { l1: 5 } }),
+      section,
+    );
+    expect(lines.map((l) => l.kg)).toEqual(["", ""]);
+    // An unfed cow is still pre-filled.
+    expect(buildInitialLines(cow({ program_section_id: "s1", planned_kg_by_line: { l1: 5 } }), section)[0].kg).toBe("5");
+  });
+});
 
 const line = (key: string, itemId: string, kg: string): RowLine => ({
   key,

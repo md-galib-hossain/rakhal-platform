@@ -1,5 +1,6 @@
 "use client";
 
+import { todayLocalIso } from "@/lib/local-date";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,7 +15,7 @@ import { PregnancyDiagnosisFormFields } from "./pregnancy-diagnosis-form-fields"
 
 const EMPTY_DEFAULTS: CreatePregnancyDiagnosisInput = {
   cattleId: "",
-  diagnosisDate: new Date().toISOString().slice(0, 10),
+  diagnosisDate: todayLocalIso(),
   result: "PREGNANT",
   diagnosisMethod: "ULTRASOUND",
 };

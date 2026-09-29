@@ -32,6 +32,7 @@ import type {
   UpdateProtocolPayload,
 } from "./types";
 import type {
+  ApplyProtocolInput,
   CreateAbortionEventInput,
   CreateBreedingEventInput,
   CreateCalvingEventInput,
@@ -213,7 +214,7 @@ export const reproductionApi = {
   protocolInstance(id: string): Promise<ProtocolInstance> {
     return apiFetch<ProtocolInstance>(`/reproduction/protocols/instances/${id}`);
   },
-  applyProtocol(input: { protocolId: string; cattleIds: string[]; startDate?: string }): Promise<ApplyProtocolResult> {
+  applyProtocol(input: ApplyProtocolInput): Promise<ApplyProtocolResult> {
     return apiFetch<ApplyProtocolResult>("/reproduction/protocols/apply", { method: "POST", body: input });
   },
   recordProtocolAi(instanceId: string, input: RecordProtocolAiInput): Promise<ProtocolInstance> {

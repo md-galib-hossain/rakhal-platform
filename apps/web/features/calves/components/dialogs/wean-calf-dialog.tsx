@@ -1,5 +1,6 @@
 "use client"; // form state + mutation
 
+import { todayLocalIso } from "@/lib/local-date";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -13,7 +14,7 @@ import { weanCalfSchema, type WeanCalfInput } from "../../schemas";
 import { DatePicker } from "@/components/ui/date-picker";
 
 function defaults(): WeanCalfInput {
-  return { weaningDate: new Date().toISOString().slice(0, 10), weaningWeightKg: undefined, notes: "" };
+  return { weaningDate: todayLocalIso(), weaningWeightKg: undefined, notes: "" };
 }
 
 /** `POST /calves/:id/wean` — `calf.update`-gated. Irreversible: records weaning and moves

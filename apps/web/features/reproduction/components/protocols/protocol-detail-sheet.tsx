@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { Timeline, type TimelineItem } from "@/components/ui/timeline";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { useProtocol } from "../../hooks/use-reproduction";
 import type { ProtocolSummary } from "../../types";
@@ -32,7 +32,7 @@ export function ProtocolDetailSheet({
   protocol: ProtocolSummary | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** When set (Apply Protocol dialog's own start-date field), steps show real calendar dates
+  /** When set (Apply Protocol dialog's own start-date field), steps show real calendar dates and times
    * instead of "Day N" — same `addDays(start, day_number)` formula the backend/instance timeline
    * use, but there's no task/instance yet so it's a projection, not an actual due date. */
   startDate?: string;
@@ -52,7 +52,11 @@ export function ProtocolDetailSheet({
         tone: step.is_required ? "primary" : "muted",
         title: step.title,
         subtitle: step.instruction ?? undefined,
-        date: start ? formatDate(addDays(start, step.day_number), locale) : t("detail.dayLabel", { value: step.day_number }),
+        date: start
+          ? (start.getHours() !== 0 || start.getMinutes() !== 0 || startDate?.includes("T")
+              ? formatDateTime(addDays(start, step.day_number), locale)
+              : formatDate(addDays(start, step.day_number), locale))
+          : t("detail.dayLabel", { value: step.day_number }),
       }));
   }, [detail.data, t, startDate, locale]);
 

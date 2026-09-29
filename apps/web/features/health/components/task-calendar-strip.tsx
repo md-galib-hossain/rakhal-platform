@@ -1,5 +1,6 @@
 "use client"; // month nav + day-select state
 
+import { todayLocalIso } from "@/lib/local-date";
 import { useTranslations } from "next-intl";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -52,7 +53,7 @@ export function TaskCalendarStrip({
   const firstOfMonth = new Date(year, month - 1, 1);
   const daysInMonth = new Date(year, month, 0).getDate();
   const leadingBlanks = firstOfMonth.getDay();
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = todayLocalIso();
 
   const cells: Array<{ day: number; dateKey: string } | null> = [
     ...Array.from({ length: leadingBlanks }, () => null),

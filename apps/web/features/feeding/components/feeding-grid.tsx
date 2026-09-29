@@ -54,11 +54,14 @@ import {
   enforceStockCaps,
   hasOverStock,
   initialRefusal,
+  isFedToday,
   newLineKey,
   orderCows,
   parseKg,
+  remainingRequirement,
   requirementProgress,
   sourceKey,
+  todayLocalIso,
   toEntry,
   usageBySource,
   type GridCow,
@@ -78,9 +81,7 @@ const DEFAULT_PAGE_SIZE = 25;
 /** checkbox · animal (+ program) · feed (+ total) · refusal · fit · status · history */
 const COLUMN_COUNT = 7;
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+const todayIso = todayLocalIso;
 
 /**
  * "Feeding Grid" — per-day, per-cow feed entry in ONE table. Every cow is a row of feed lines: a cow on a feed plan
@@ -199,7 +200,7 @@ function UnifiedGrid({
       }
       return new Set(
         ordered
-          .filter((c) => (c.program_section_id || c.drafts.length > 0) && !(c.confirmed_offered_kg != null && c.confirmed_offered_kg > 0))
+          .filter((c) => (c.program_section_id || c.drafts.length > 0) && !isFedToday(c))
           .map((c) => c.cattle_id),
       );
     },
@@ -263,14 +264,10 @@ function UnifiedGrid({
     [bulkSources],
   );
 
-  // One confirm per cow per day: a cow already fed today is locked (void her feeding first to re-confirm).
-  const isLocked = (c: GridCow) => c.confirmed_offered_kg != null && c.confirmed_offered_kg > 0;
-
+  // A cow can be fed more than once a day: every confirm is its own feeding (void one from her History if it was a
+  // mistake). A fed cow is not pre-ticked and "select all" skips her, so a bulk confirm never doubles her day by accident.
   const selectedIds = useMemo(
-    () =>
-      ordered
-        .filter((c) => selected.has(c.cattle_id) && !(c.confirmed_offered_kg != null && c.confirmed_offered_kg > 0))
-        .map((c) => c.cattle_id),
+    () => ordered.filter((c) => selected.has(c.cattle_id)).map((c) => c.cattle_id),
     [ordered, selected],
   );
 
@@ -329,6 +326,8 @@ function UnifiedGrid({
     }));
   const removeLine = (cowId: string, lineKey: string) =>
     setLines((p) => ({ ...p, [cowId]: (p[cowId] ?? []).filter((l) => l.key !== lineKey) }));
+  const removeAllLines = (cowId: string) =>
+    setLines((p) => ({ ...p, [cowId]: [] }));
   const addLine = (cowId: string, source: RowSource, name?: string) =>
     setLines((p) => {
       const cur = p[cowId] ?? [];
@@ -506,8 +505,8 @@ function UnifiedGrid({
     : ordered;
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
-  const unlockedFiltered = filtered.filter((c) => !isLocked(c)).map((c) => c.cattle_id);
-  const allTicked = unlockedFiltered.length > 0 && unlockedFiltered.every((id) => selected.has(id));
+  const unfedFiltered = filtered.filter((c) => !isFedToday(c)).map((c) => c.cattle_id);
+  const allTicked = unfedFiltered.length > 0 && unfedFiltered.every((id) => selected.has(id));
 
   return (
     <>
@@ -672,7 +671,7 @@ function UnifiedGrid({
                     onCheckedChange={() =>
                       setSelected((prev) => {
                         const next = new Set(prev);
-                        for (const id of unlockedFiltered) {
+                        for (const id of unfedFiltered) {
                           if (allTicked) next.delete(id);
                           else next.add(id);
                         }
@@ -685,7 +684,7 @@ function UnifiedGrid({
                 <TableHead className="min-w-[220px]">{t("columns.animal")}</TableHead>
                 <TableHead className="min-w-[360px]">{tu("columns.feed")}</TableHead>
                 <TableHead className="w-[130px]">{t("columns.refusal")}</TableHead>
-                <TableHead className="w-[120px]">{tp("fit.title")}</TableHead>
+                <TableHead className="min-w-[140px]">{tp("fit.title")}</TableHead>
                 <TableHead className="w-[150px]">{t("columns.requirement")}</TableHead>
                 <TableHead className="w-12 text-center">{t("cowHistory.columnLabel")}</TableHead>
               </TableRow>
@@ -693,8 +692,8 @@ function UnifiedGrid({
             <TableBody>
               {pageRows.map((cow, index) => {
                 const rowLines = lines[cow.cattle_id] ?? [];
-                const locked = isLocked(cow);
-                const isSelected = selected.has(cow.cattle_id) && !locked;
+                const fed = isFedToday(cow);
+                const isSelected = selected.has(cow.cattle_id);
                 const cowName = cow.name ?? cow.tag_number;
 
                 return (
@@ -704,23 +703,14 @@ function UnifiedGrid({
                     className={cn(
                       "align-top transition-colors hover:bg-muted/40",
                       isSelected && "bg-primary/[0.04]",
-                      locked && "opacity-70",
                     )}
                   >
                     <TableCell className="pt-4 text-center">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="inline-flex">
-                            <Checkbox
-                              checked={isSelected}
-                              disabled={locked}
-                              onCheckedChange={() => toggle(cow.cattle_id)}
-                              aria-label={t("selectCow", { name: cowName })}
-                            />
-                          </span>
-                        </TooltipTrigger>
-                        {locked ? <TooltipContent>{tu("lockedHint")}</TooltipContent> : null}
-                      </Tooltip>
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggle(cow.cattle_id)}
+                        aria-label={t("selectCow", { name: cowName })}
+                      />
                     </TableCell>
 
                     <TableCell className="pt-3.5">
@@ -738,6 +728,11 @@ function UnifiedGrid({
                             {cowName}
                           </AnimalLink>
                           <span className="truncate font-mono text-xs text-muted-foreground">{cow.tag_number}</span>
+                          {fed ? (
+                            <span className="mt-0.5 text-[11px] font-medium text-success">
+                              {tu("fedToday", { kg: cow.confirmed_offered_kg ?? 0 })}
+                            </span>
+                          ) : null}
                           {cow.program_conflict ? (
                             <span className="mt-0.5 flex items-center gap-1 text-[11px] text-warning">
                               <AlertTriangle className="size-3" aria-hidden />
@@ -760,12 +755,11 @@ function UnifiedGrid({
                         preparedOptions={preparedOptions}
                         onChangeKg={(key, kg) => changeKg(cow.cattle_id, key, kg)}
                         onRemove={(key) => removeLine(cow.cattle_id, key)}
+                        onRemoveAll={() => removeAllLines(cow.cattle_id)}
                         onAdd={(source, name) => addLine(cow.cattle_id, source, name)}
                         onToggleSource={(source, name) => toggleSource(cow.cattle_id, source, name)}
                         onSelectPlan={(plan) => applyPlanToCow(cow.cattle_id, plan)}
-                        onTouch={() => {
-                          if (!locked) ensureSelected(cow.cattle_id);
-                        }}
+                        onTouch={() => ensureSelected(cow.cattle_id)}
                       />
                     </TableCell>
 
@@ -776,7 +770,6 @@ function UnifiedGrid({
                             min={0}
                             step={0.1}
                             placeholder="0"
-                            disabled={locked}
                             value={refusals[cow.cattle_id] ?? ""}
                             data-grid-input="refusal"
                             data-row-index={index}
@@ -813,10 +806,12 @@ function UnifiedGrid({
                           // No requirement or no server fit (a cow on no program has neither) → nothing to compare to.
                           if (!cow.requirement || !cow.fit) return <FitPill fit={cow.fit} requirement={cow.requirement} supply={cow.planned_supply} cattleId={cow.cattle_id} />;
                           const supply = liveSupply(rowLines, densityFor);
+                          // Fed already today → judge the row against what she STILL needs, and show that figure.
+                          const fedSoFar = fed ? cow.confirmed_supply : null;
                           return (
                             <FitPill
-                              fit={liveFit(supply, cow.requirement, bands, cow.fit.estimated)}
-                              requirement={cow.requirement}
+                              fit={liveFit(supply, cow.requirement, bands, cow.fit.estimated || (fedSoFar ? !fedSoFar.complete : false), fedSoFar)}
+                              requirement={remainingRequirement(cow.requirement, fedSoFar)}
                               supply={supply}
                               cattleId={cow.cattle_id}
                             />
@@ -950,6 +945,7 @@ function UnifiedGrid({
         key={historyCow?.id ?? "none"}
         cattleId={historyCow?.id ?? null}
         cattleName={historyCow?.name ?? null}
+        initialDate={date}
         onOpenChange={(next) => {
           if (!next) setHistoryCow(null);
         }}

@@ -43,6 +43,7 @@ export const updateFarmSchema = z.object({
   district: z.string().trim().max(80).optional().or(z.literal("")),
   upazila: z.string().trim().max(80).optional().or(z.literal("")),
   operational_purpose: z.string().trim().max(40).optional().or(z.literal("")),
+  timezone: z.string().trim().min(1).max(64).optional(),
 });
 export type UpdateFarmInput = z.infer<typeof updateFarmSchema>;
 

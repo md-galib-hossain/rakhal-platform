@@ -1,5 +1,6 @@
 "use client"; // type/date/reason fields + mutation
 
+import { todayLocalIso } from "@/lib/local-date";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -47,7 +48,7 @@ export function CattleDisposeDialog({
   const t = useTranslations("cattle.disposeDialog");
   const dispose = useDisposeCattle();
   const [type, setType] = useState<DisposeType>("SALE");
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => todayLocalIso());
   const [reason, setReason] = useState("");
 
   if (!cattle) return null;

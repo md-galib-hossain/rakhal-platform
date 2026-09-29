@@ -1,5 +1,6 @@
 "use client"; // form state + mutation + a scoped lactation lookup query
 
+import { todayLocalIso } from "@/lib/local-date";
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
@@ -22,7 +23,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 const DEFAULT_VALUES: CreateMilkQualityTestFormInput = {
   cattleId: "",
   lactationId: "",
-  sampleDate: new Date().toISOString().slice(0, 10),
+  sampleDate: todayLocalIso(),
   fatPct: undefined as unknown as number,
   proteinPct: undefined as unknown as number,
   lactosePct: undefined,

@@ -1,5 +1,6 @@
 "use client"; // form state + mutation
 
+import { nowLocalDateTimeIso } from "@/lib/local-date";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -16,7 +17,7 @@ import { DateTimePicker } from "@/components/ui/date-time-picker";
 const QUALITY_VALUES = ["EXCELLENT", "GOOD", "POOR", "UNKNOWN"] as const;
 
 function defaults(): RecordColostrumInput {
-  return { feedNumber: 1, fedAt: new Date().toISOString().slice(0, 16), volumeMl: 0, quality: "UNKNOWN", fedBy: "", notes: "" };
+  return { feedNumber: 1, fedAt: nowLocalDateTimeIso(), volumeMl: 0, quality: "UNKNOWN", fedBy: "", notes: "" };
 }
 
 /** `POST /calves/:id/colostrum` — `calf.log-feeding`-gated. */

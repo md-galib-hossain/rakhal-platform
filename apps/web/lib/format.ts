@@ -35,6 +35,16 @@ export function formatDate(date: Date | string, locale: Locale, options?: Intl.D
   return new Intl.DateTimeFormat(dateLocale[locale], options ?? { day: "numeric", month: "short", year: "numeric" }).format(d);
 }
 
+/** Medium date and time, e.g. "9 Jul, 2026, 8:00 AM" (en) / "৯ জুল, ২০২৬, 8:00 AM" (bn). */
+export function formatDateTime(date: Date | string, locale: Locale, options?: Intl.DateTimeFormatOptions): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat(
+    dateLocale[locale],
+    options ?? { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true },
+  ).format(d);
+}
+
 /** Relative time, e.g. "2 hours ago" — used by activity feeds / recent-activity widgets. */
 export function formatRelativeTime(date: Date | string, locale: Locale): string {
   const d = typeof date === "string" ? new Date(date) : date;

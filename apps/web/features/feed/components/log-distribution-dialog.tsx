@@ -1,5 +1,6 @@
 "use client"; // per-line actual-kg inputs + a real mutation on submit
 
+import { todayLocalIso } from "@/lib/local-date";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -20,7 +21,7 @@ import { X } from "lucide-react";
 import { distributionLineKey } from "../lib/recipe-line";
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return todayLocalIso();
 }
 
 /**

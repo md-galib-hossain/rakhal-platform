@@ -25,47 +25,89 @@ import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Can } from "@/lib/auth/permissions";
 import { useFeedCattleHistory, useVoidFeedCattleItem } from "../../feed/hooks/use-feed";
-import type { FeedCattleHistoryEntry, FeedCattleHistoryTotals } from "../../feed/types";
+import type {
+  FeedCattleHistoryEntry,
+  FeedCattleHistoryRequirement,
+  FeedCattleHistoryResult,
+  FeedCattleHistoryTotals,
+} from "../../feed/types";
+import { todayLocalIso } from "../grid-model";
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+const todayIso = todayLocalIso;
 
-const NUTRIENT_ROWS: Array<{ key: keyof FeedCattleHistoryTotals; labelKey: string; unit: string }> = [
-  { key: "dm_kg", labelKey: "nutrition.dmKg", unit: "kg" },
-  { key: "cp_kg", labelKey: "nutrition.cpKg", unit: "kg" },
-  { key: "me_mj", labelKey: "nutrition.meMj", unit: "MJ" },
-  { key: "fat_kg", labelKey: "nutrition.fatKg", unit: "kg" },
-  { key: "ndf_kg", labelKey: "nutrition.ndfKg", unit: "kg" },
-  { key: "adf_kg", labelKey: "nutrition.adfKg", unit: "kg" },
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** One tile per nutrient. `required` reads the cow's requirement for that day — the same full profile her cow-profile
+ * card shows; RDP/RUP are stored as % of crude protein, so they convert to kg against her CP requirement. Starch has
+ * no requirement (information only). */
+const NUTRIENT_ROWS: Array<{
+  key: keyof FeedCattleHistoryTotals;
+  labelKey: string;
+  unit: string;
+  required?: (r: FeedCattleHistoryRequirement) => number | null;
+}> = [
+  { key: "dm_kg", labelKey: "nutrition.dmKg", unit: "kg", required: (r) => r.dm_kg },
+  { key: "cp_kg", labelKey: "nutrition.cpKg", unit: "kg", required: (r) => r.cp_kg },
+  { key: "me_mj", labelKey: "nutrition.meMj", unit: "MJ", required: (r) => r.me_mj },
+  { key: "fat_kg", labelKey: "nutrition.fatKg", unit: "kg", required: (r) => r.fat_kg },
+  { key: "ndf_kg", labelKey: "nutrition.ndfKg", unit: "kg", required: (r) => r.ndf_kg },
+  { key: "adf_kg", labelKey: "nutrition.adfKg", unit: "kg", required: (r) => r.adf_kg },
   { key: "starch_kg", labelKey: "nutrition.starchKg", unit: "kg" },
-  { key: "tdn_kg", labelKey: "nutrition.tdnKg", unit: "kg" },
-  { key: "calcium_kg", labelKey: "nutrition.calciumKg", unit: "kg" },
-  { key: "phosphorus_kg", labelKey: "nutrition.phosphorusKg", unit: "kg" },
-  { key: "rdp_kg", labelKey: "nutrition.rdpKg", unit: "kg" },
-  { key: "rup_kg", labelKey: "nutrition.rupKg", unit: "kg" },
+  { key: "tdn_kg", labelKey: "nutrition.tdnKg", unit: "kg", required: (r) => r.tdn_kg },
+  { key: "calcium_kg", labelKey: "nutrition.calciumKg", unit: "kg", required: (r) => r.calcium_kg },
+  { key: "phosphorus_kg", labelKey: "nutrition.phosphorusKg", unit: "kg", required: (r) => r.phosphorus_kg },
+  { key: "rdp_kg", labelKey: "nutrition.rdpKg", unit: "kg", required: (r) => round2((r.cp_kg * r.rdp_pct) / 100) },
+  { key: "rup_kg", labelKey: "nutrition.rupKg", unit: "kg", required: (r) => round2((r.cp_kg * r.rup_pct) / 100) },
 ];
 
-/** RAKHAL-441 follow-up (user request) — total nutrition actually fed this day, a fixed section
- * below the scrollable entry list (not part of the scroll itself), same `StatTile` visual
- * language `feeding-view.tsx`'s own local tile uses. */
-function NutritionTotals({ totals }: { totals: FeedCattleHistoryTotals }) {
+/** RAKHAL-441 follow-up (user request) — total nutrition actually fed this day next to what the cow needs, a fixed
+ * section below the scrollable entry list. A nutrient no fed feed carries reads "not measured", never a fake 0. */
+function NutritionTotals({
+  totals,
+  requirement,
+  measured,
+}: {
+  totals: FeedCattleHistoryTotals;
+  requirement: FeedCattleHistoryRequirement | null;
+  measured: FeedCattleHistoryResult["measured"];
+}) {
   const t = useTranslations("feeding.grid.cowHistory");
   return (
     <div className="flex flex-col gap-2 border-t border-dashed border-border pt-3">
-      <span className="text-sm font-bold text-foreground">{t("nutritionTitle")}</span>
+      <span className="text-sm font-bold text-foreground">
+        {t(requirement ? "nutritionVsRequiredTitle" : "nutritionTitle")}
+      </span>
       <div className="grid grid-cols-2 gap-2">
-        {NUTRIENT_ROWS.map((row) => (
-          <div
-            key={row.key}
-            className="flex flex-col gap-0.5 rounded-xl border border-border bg-card p-2.5 shadow-xs"
-          >
-            <span className="text-xs font-bold text-muted-foreground">{t(row.labelKey)}</span>
-            <span className="text-base font-semibold text-foreground">
-              {totals[row.key]} {row.unit}
-            </span>
-          </div>
-        ))}
+        {NUTRIENT_ROWS.map((row) => {
+          const required = requirement && row.required ? row.required(requirement) : null;
+          const fed = totals[row.key];
+          // Older backends send no `measured` map — then trust the number as before.
+          const isMeasured = measured ? measured[row.key] : true;
+          const pct = isMeasured && required != null && required > 0 ? Math.round((fed / required) * 100) : null;
+          return (
+            <div
+              key={row.key}
+              className="flex flex-col gap-0.5 rounded-xl border border-border bg-card p-2.5 shadow-xs"
+            >
+              <span className="text-xs font-bold text-muted-foreground">{t(row.labelKey)}</span>
+              {isMeasured ? (
+                <span className="text-base font-semibold text-foreground">
+                  {fed} {row.unit}
+                </span>
+              ) : (
+                <span className="text-base font-semibold text-muted-foreground" title={t("notMeasuredHint")}>
+                  {t("notMeasured")}
+                </span>
+              )}
+              {required != null ? (
+                <span className="text-xs text-muted-foreground">
+                  {t("requiredOf", { required, unit: row.unit })}
+                  {pct != null ? ` · ${pct}%` : ""}
+                </span>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -81,15 +123,20 @@ function NutritionTotals({ totals }: { totals: FeedCattleHistoryTotals }) {
 export function FeedingCowHistorySheet({
   cattleId,
   cattleName,
+  initialDate,
   onOpenChange,
 }: {
   cattleId: string | null;
   cattleName: string | null;
+  /** The Feeding Grid's selected date — the sheet opens on it, then the user may change it in here. The parent
+   * remounts this sheet (keyed by cow) on every open, so the initial value is always current. The requirement shown
+   * beside "fed" comes back with the history for whichever date is selected, so it always matches. */
+  initialDate: string;
   onOpenChange: (open: boolean) => void;
 }) {
   const t = useTranslations("feeding.grid.cowHistory");
   const locale = useLocale() as Locale;
-  const [date, setDate] = useState<string>(todayIso());
+  const [date, setDate] = useState<string>(initialDate);
   const query = useFeedCattleHistory(cattleId ?? undefined, date);
   const entries = query.data?.entries ?? [];
   const [voidTarget, setVoidTarget] = useState<FeedCattleHistoryEntry | null>(null);
@@ -230,7 +277,11 @@ export function FeedingCowHistorySheet({
           </div>
 
           {query.data && activeEntries.length > 0 ? (
-            <NutritionTotals totals={query.data.totals} />
+            <NutritionTotals
+              totals={query.data.totals}
+              requirement={query.data.requirement ?? null}
+              measured={query.data.measured}
+            />
           ) : null}
         </SheetContent>
       </Sheet>

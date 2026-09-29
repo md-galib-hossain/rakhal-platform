@@ -1,5 +1,6 @@
 "use client";
 
+import { todayLocalIso } from "@/lib/local-date";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,7 +15,7 @@ import { returnToHeatSchema, type ReturnToHeatInput } from "../../schemas";
 import { DatePicker } from "@/components/ui/date-picker";
 
 const EMPTY_DEFAULTS: ReturnToHeatInput = {
-  heatDateTime: new Date().toISOString().slice(0, 10),
+  heatDateTime: todayLocalIso(),
 };
 
 /**
