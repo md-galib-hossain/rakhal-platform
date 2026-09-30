@@ -34,7 +34,12 @@ import {
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
-import { getCursorArgs, toCursorPage } from 'src/common/pagination';
+import {
+  decodeCursor,
+  encodeCursor,
+  getCursorArgs,
+  toCursorPage,
+} from 'src/common/pagination';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { SemenService } from 'src/modules/inventory/application/services/semen.service';
@@ -2138,7 +2143,14 @@ export class ReproductionService {
   /**
    * Unified reproduction events feed (API §5 `GET /reproduction/events`).
    * Merges heat / breeding / pregnancy-diagnosis / calving / abortion events
-   * from the event tables, filters by type and date range, returns cursor page.
+   * from the event tables, filters by type and date range, returns a cursor page.
+   *
+   * Pagination is a **composite keyset** over the merged stream, ordered by
+   * `(event_date, event_type, id)` — a plain Prisma `{ id }` cursor can't work
+   * because the rows come from five different tables. The opaque cursor carries
+   * the last row's `{ id, d: ISO date, t: type }`; each table is then asked only
+   * for rows strictly AFTER that key (see `after()`), `limit + 1` of each, and the
+   * merged result is trimmed to `limit` (the extra row proves `hasNextPage`).
    */
   async events(
     farmId: string,
@@ -2161,6 +2173,7 @@ export class ReproductionService {
       ...(query.cattleId ? { cattleId: query.cattleId } : {}),
     };
     const limit = query.limit ?? 20;
+    const dir: 'asc' | 'desc' = query.sortOrder === 'asc' ? 'asc' : 'desc';
     const types = query.eventType
       ? [query.eventType]
       : ['heat', 'breeding', 'calving', 'abortion', 'pregnancy_diagnosis'];
@@ -2175,50 +2188,79 @@ export class ReproductionService {
           }
         : {};
 
+    type Key = { id: string; d: string; t: string };
+    const anchor = query.cursor ? decodeCursor<Key>(query.cursor) : null;
+    if (
+      anchor &&
+      (typeof anchor.d !== 'string' ||
+        typeof anchor.t !== 'string' ||
+        Number.isNaN(new Date(anchor.d).getTime()))
+    ) {
+      throw new BadRequestException('Invalid pagination cursor');
+    }
+
+    /** Rows strictly after the cursor key in the active sort direction. The key
+     * is `(date, type, id)`; `type` is constant per table, so whether the date
+     * comparison is inclusive depends only on how this table's type ranks
+     * against the cursor row's type. */
+    const after = (field: string, type: string) => {
+      if (!anchor) return {};
+      const at = new Date(anchor.d);
+      const strict = dir === 'desc' ? 'lt' : 'gt';
+      const loose = dir === 'desc' ? 'lte' : 'gte';
+      const typeAfter = dir === 'desc' ? type < anchor.t : type > anchor.t;
+      if (typeAfter) return { [field]: { [loose]: at } };
+      if (type === anchor.t) {
+        return {
+          OR: [
+            { [field]: { [strict]: at } },
+            { [field]: at, id: { [strict]: anchor.id } },
+          ],
+        };
+      }
+      return { [field]: { [strict]: at } };
+    };
+
+    const where = (type: string, field: string) =>
+      types.includes(type)
+        ? { AND: [cattleWhere, dateFilter(field), after(field, type)] }
+        : { id: 'NEVER' };
+    const page = { take: limit + 1 };
+
     const cattleInclude = {
       cattle: { select: { id: true, name: true, tagNumber: true } },
     } as const;
     const [heats, breedings, calvings, abortions, diagnoses] =
       await Promise.all([
         this.prisma.heatEvent.findMany({
-          where: types.includes('heat')
-            ? { ...cattleWhere, ...dateFilter('heatDateTime') }
-            : { id: 'NEVER' },
+          where: where('heat', 'heatDateTime'),
           include: cattleInclude,
-          orderBy: { heatDateTime: 'desc' },
-          take: limit,
+          orderBy: [{ heatDateTime: dir }, { id: dir }],
+          ...page,
         }),
         this.prisma.breedingEvent.findMany({
-          where: types.includes('breeding')
-            ? { ...cattleWhere, ...dateFilter('breedingDate') }
-            : { id: 'NEVER' },
+          where: where('breeding', 'breedingDate'),
           include: cattleInclude,
-          orderBy: { breedingDate: 'desc' },
-          take: limit,
+          orderBy: [{ breedingDate: dir }, { id: dir }],
+          ...page,
         }),
         this.prisma.calvingEvent.findMany({
-          where: types.includes('calving')
-            ? { ...cattleWhere, ...dateFilter('calvingDate') }
-            : { id: 'NEVER' },
+          where: where('calving', 'calvingDate'),
           include: cattleInclude,
-          orderBy: { calvingDate: 'desc' },
-          take: limit,
+          orderBy: [{ calvingDate: dir }, { id: dir }],
+          ...page,
         }),
         this.prisma.abortionEvent.findMany({
-          where: types.includes('abortion')
-            ? { ...cattleWhere, ...dateFilter('abortionDate') }
-            : { id: 'NEVER' },
+          where: where('abortion', 'abortionDate'),
           include: cattleInclude,
-          orderBy: { abortionDate: 'desc' },
-          take: limit,
+          orderBy: [{ abortionDate: dir }, { id: dir }],
+          ...page,
         }),
         this.prisma.pregnancyDiagnosis.findMany({
-          where: types.includes('pregnancy_diagnosis')
-            ? { ...cattleWhere, ...dateFilter('diagnosisDate') }
-            : { id: 'NEVER' },
+          where: where('pregnancy_diagnosis', 'diagnosisDate'),
           include: cattleInclude,
-          orderBy: { diagnosisDate: 'desc' },
-          take: limit,
+          orderBy: [{ diagnosisDate: dir }, { id: dir }],
+          ...page,
         }),
       ]);
 
@@ -2298,11 +2340,39 @@ export class ReproductionService {
           notes: d.notes,
         },
       })),
-    ]
-      .sort((a, b) => b.event_date.getTime() - a.event_date.getTime())
-      .slice(0, limit);
+    ].sort((a, b) => {
+      // Must match the per-table `orderBy` + `after()` key exactly: (date, type, id).
+      const byDate = a.event_date.getTime() - b.event_date.getTime();
+      const byType =
+        a.event_type < b.event_type ? -1 : a.event_type > b.event_type ? 1 : 0;
+      const byId = a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+      const asc = byDate || byType || byId;
+      return dir === 'asc' ? asc : -asc;
+    });
 
-    return { items: unified, meta: { total: unified.length, limit } };
+    const hasNextPage = unified.length > limit;
+    const items = unified.slice(0, limit);
+    const toCursor = (e: EventEntry) =>
+      encodeCursor({
+        id: e.id,
+        d: e.event_date.toISOString(),
+        t: e.event_type,
+      });
+
+    return {
+      items,
+      meta: {
+        count: items.length,
+        limit,
+        hasNextPage,
+        hasPreviousPage: Boolean(query.cursor),
+        startCursor: items.length ? toCursor(items[0]) : null,
+        endCursor: items.length ? toCursor(items[items.length - 1]) : null,
+        // Kept from the pre-cursor shape (`{ total, limit }`) for existing readers; it is the
+        // size of THIS page, not a farm-wide total (a keyset feed has no cheap total).
+        total: items.length,
+      },
+    };
   }
 
   /** Herd-level average calving interval: average of per-cow average intervals. */

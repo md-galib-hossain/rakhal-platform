@@ -270,6 +270,8 @@ export class ReproductionController {
       fromDate: query.fromDate,
       toDate: query.toDate,
       limit: query.limit,
+      cursor: query.cursor,
+      sortOrder: query.sortOrder,
     });
   }
 }
