@@ -512,7 +512,7 @@ function UnifiedGrid({
     <>
       {/* Bulk toolbar — one source + one kg applied to every ticked cow */}
       <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border/80 bg-muted/40 p-3 shadow-xs">
-        <div className="flex flex-col gap-1.5">
+        <div className="flex w-full flex-col gap-1.5 sm:w-auto">
           <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
             <Layers className="size-3.5" />
             {t("bulkToolbar.sourceSection")}
@@ -566,7 +566,7 @@ function UnifiedGrid({
               role="combobox"
               aria-label={t("itemLabel")}
               className={cn(
-                "h-11 w-56 justify-between bg-card text-left font-normal shadow-2xs sm:w-64",
+                "h-11 w-full justify-between bg-card text-left font-normal shadow-2xs sm:w-64",
                 bulkSources.length === 0 && "text-muted-foreground",
               )}
             >
@@ -582,7 +582,7 @@ function UnifiedGrid({
           </FeedSourcePicker>
         </div>
 
-        <div className="flex w-44 flex-col gap-1.5">
+        <div className="flex w-full flex-col gap-1.5 sm:w-44">
           <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
             <Scale className="size-3.5" />
             {t("bulkToolbar.quantitySection")}
@@ -618,7 +618,7 @@ function UnifiedGrid({
 
         <Button
           variant="primary"
-          className="h-11 gap-2 px-5 font-semibold shadow-2xs"
+          className="h-11 w-full gap-2 px-5 font-semibold shadow-2xs sm:w-auto"
           disabled={selectedIds.length === 0 || (bulkSources.length === 0 && !hasKg)}
           onClick={handleApply}
         >
@@ -631,7 +631,7 @@ function UnifiedGrid({
             <Button
               variant="outline"
               disabled={selectedIds.length === 0}
-              className="h-11 gap-2 bg-card font-medium shadow-2xs"
+              className="h-11 w-full gap-2 bg-card font-medium shadow-2xs sm:w-auto"
             >
               <ClipboardList className="size-4" />
               {tu("applyProgram", { count: selectedIds.length })}
@@ -639,7 +639,7 @@ function UnifiedGrid({
           </ProgramPicker>
         </Can>
 
-        <div className="relative ml-auto w-full sm:w-56">
+        <div className="relative w-full sm:ml-auto sm:w-56">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden
@@ -661,9 +661,28 @@ function UnifiedGrid({
       {ordered.length === 0 ? (
         <EmptyState title={t("noCattle")} />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-xs">
-          <Table>
-            <TableHeader className="bg-muted/40">
+        <>
+        {/* Phones: the header row is hidden, so select-all lives here */}
+        <label className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground md:hidden">
+          <Checkbox
+            checked={allTicked}
+            onCheckedChange={() =>
+              setSelected((prev) => {
+                const next = new Set(prev);
+                for (const id of unfedFiltered) {
+                  if (allTicked) next.delete(id);
+                  else next.add(id);
+                }
+                return next;
+              })
+            }
+            aria-label={t("selectAll")}
+          />
+          {t("selectAll")}
+        </label>
+        <div className="rounded-xl border border-border bg-card shadow-xs max-md:border-0 max-md:bg-transparent max-md:shadow-none md:overflow-x-auto">
+          <Table className="max-md:block">
+            <TableHeader className="bg-muted/40 max-md:hidden">
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-12 text-center">
                   <Checkbox
@@ -689,7 +708,7 @@ function UnifiedGrid({
                 <TableHead className="w-12 text-center">{t("cowHistory.columnLabel")}</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <TableBody className="max-md:flex max-md:flex-col max-md:gap-3">
               {pageRows.map((cow, index) => {
                 const rowLines = lines[cow.cattle_id] ?? [];
                 const fed = isFedToday(cow);
@@ -702,10 +721,11 @@ function UnifiedGrid({
                     id={`feeding-row-${cow.cattle_id}`}
                     className={cn(
                       "align-top transition-colors hover:bg-muted/40",
-                      isSelected && "bg-primary/[0.04]",
+                      "max-md:grid max-md:grid-cols-[auto_minmax(0,1fr)_auto] max-md:items-center max-md:gap-x-3 max-md:gap-y-3 max-md:rounded-xl max-md:border max-md:border-border max-md:bg-card max-md:p-3 max-md:shadow-xs",
+                      isSelected && "bg-primary/[0.04] max-md:border-primary/40",
                     )}
                   >
-                    <TableCell className="pt-4 text-center">
+                    <TableCell className="pt-4 text-center max-md:p-0">
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => toggle(cow.cattle_id)}
@@ -713,7 +733,7 @@ function UnifiedGrid({
                       />
                     </TableCell>
 
-                    <TableCell className="pt-3.5">
+                    <TableCell className="pt-3.5 max-md:min-w-0 max-md:whitespace-normal max-md:p-0">
                       <div className="flex items-center gap-3">
                         <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                           {(cow.name?.[0] ?? cow.tag_number?.[0] ?? "C").toUpperCase()}
@@ -743,7 +763,7 @@ function UnifiedGrid({
                       </div>
                     </TableCell>
 
-                    <TableCell className="py-2.5">
+                    <TableCell className="py-2.5 max-md:col-span-full max-md:whitespace-normal max-md:p-0">
                       <FeedLineCell
                         cowName={cowName}
                         rowIndex={index}
@@ -763,7 +783,8 @@ function UnifiedGrid({
                       />
                     </TableCell>
 
-                      <TableCell className="pt-2.5">
+                      <TableCell className="pt-2.5 max-md:col-span-full max-md:flex max-md:items-center max-md:justify-between max-md:gap-3 max-md:p-0">
+                        <span className="shrink-0 text-xs font-semibold text-muted-foreground md:hidden">{t("columns.refusal")}</span>
                         <div className="flex h-8.5 w-24 items-center rounded-lg border border-input/80 bg-background px-2.5 shadow-2xs transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 hover:border-input">
                           <input
                             type="number"
@@ -801,7 +822,8 @@ function UnifiedGrid({
                         </div>
                       </TableCell>
 
-                      <TableCell className="pt-3.5">
+                      <TableCell className="pt-3.5 max-md:col-span-full max-md:flex max-md:items-center max-md:justify-between max-md:gap-3 max-md:whitespace-normal max-md:p-0">
+                        <span className="shrink-0 text-xs font-semibold text-muted-foreground md:hidden">{tp("fit.title")}</span>
                         {(() => {
                           // No requirement or no server fit (a cow on no program has neither) → nothing to compare to.
                           if (!cow.requirement || !cow.fit) return <FitPill fit={cow.fit} requirement={cow.requirement} supply={cow.planned_supply} cattleId={cow.cattle_id} />;
@@ -819,13 +841,14 @@ function UnifiedGrid({
                         })()}
                       </TableCell>
 
-                      <TableCell className="pt-3.5">
+                      <TableCell className="pt-3.5 max-md:col-span-full max-md:flex max-md:items-center max-md:justify-between max-md:gap-3 max-md:whitespace-normal max-md:p-0">
+                        <span className="shrink-0 text-xs font-semibold text-muted-foreground md:hidden">{t("columns.requirement")}</span>
                         <RequirementProgress
                           progress={requirementProgress(cow.confirmed_supply ?? { dm_kg: 0, cp_kg: 0, me_mj: 0 }, cow.requirement)}
                         />
                       </TableCell>
 
-                      <TableCell className="pt-2.5 text-center">
+                      <TableCell className="pt-2.5 text-center max-md:col-start-3 max-md:row-start-1 max-md:p-0">
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
@@ -847,7 +870,7 @@ function UnifiedGrid({
               })}
               {pageRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={COLUMN_COUNT} className="py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={COLUMN_COUNT} className="py-8 text-center max-md:block text-sm text-muted-foreground">
                     {t("noItemsFound")}
                   </TableCell>
                 </TableRow>
@@ -855,6 +878,7 @@ function UnifiedGrid({
             </TableBody>
           </Table>
         </div>
+        </>
       )}
 
       {filtered.length > pageSize ? (
@@ -872,7 +896,7 @@ function UnifiedGrid({
 
       {/* Sticky summary + actions */}
       <Can I="feed.distribution-log">
-        <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card/95 p-4 shadow-lg backdrop-blur">
+        <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card/95 p-3 sm:p-4 shadow-lg backdrop-blur">
           <div className="flex flex-wrap items-center gap-4 text-sm">
             <div className="flex items-center gap-1.5 font-medium text-foreground">
               <span className="size-2 rounded-full bg-primary" />
@@ -881,14 +905,14 @@ function UnifiedGrid({
             <div className="h-4 w-px bg-border" />
             <div className="font-semibold text-foreground">{t("summary.totalOffered", { total: totalKg.toFixed(1) })}</div>
           </div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex w-full items-center gap-2.5 sm:w-auto">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="outline"
                   disabled={pending || !canSubmit}
                   onClick={() => void run("save")}
-                  className="font-medium shadow-2xs"
+                  className="min-w-0 flex-1 px-3 font-medium shadow-2xs sm:flex-none sm:px-4"
                 >
                   {saveDraft.isPending ? t("saving") : t("summary.saveDraft")}
                 </Button>
@@ -898,10 +922,12 @@ function UnifiedGrid({
             <Button
               disabled={pending || !canSubmit}
               onClick={() => setConfirmOpen(true)}
-              className="gap-1.5 font-medium shadow-2xs"
+              className="min-w-0 flex-1 gap-1.5 px-3 font-medium shadow-2xs sm:flex-none sm:px-4"
             >
-              <Check className="size-4" />
-              {confirmProgram.isPending ? t("confirming") : t("summary.confirmFeeding", { count: selectedIds.length })}
+              <Check className="size-4 shrink-0" />
+              <span className="truncate">
+                {confirmProgram.isPending ? t("confirming") : t("summary.confirmFeeding", { count: selectedIds.length })}
+              </span>
             </Button>
           </div>
         </div>

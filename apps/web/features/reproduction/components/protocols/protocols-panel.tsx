@@ -1,23 +1,31 @@
-"use client"; // live queries + dialog state
+"use client"; // live queries + view / dialog state
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Pencil, Trash2 } from "lucide-react";
+import { ClipboardList, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Chip, type ChipProps } from "@/components/ui/chip";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { Can } from "@/lib/auth/permissions";
+import { DateText } from "@/components/shared/date-text";
+import { Pagination } from "@/components/shared/pagination";
+import { Can, useCan } from "@/lib/auth/permissions";
 import { ApiError } from "@/lib/api/errors";
+import { cn } from "@/lib/utils";
 import { cattleApi } from "@/features/cattle/api";
-import { AnimalLink } from "@/components/shared/animal-link";
+import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
+import { qk } from "@/lib/query/keys";
+import { reproductionApi } from "../../api";
 import { useDeleteProtocol, useProtocolInstances, useProtocols } from "../../hooks/use-reproduction";
 import { ReproductionCard } from "../reproduction-card";
+import { ReproductionCowIdentity } from "../reproduction-cow-identity";
 import { ApplyProtocolDialog } from "./apply-protocol-dialog";
 import { ProtocolDetailSheet } from "./protocol-detail-sheet";
 import { ProtocolFormDialog } from "./protocol-form-dialog";
@@ -25,8 +33,19 @@ import { ProtocolInstanceActions } from "./protocol-instance-actions";
 import { ProtocolInstanceTimeline } from "./protocol-instance-timeline";
 import type { ProtocolInstance, ProtocolInstanceStatus, ProtocolSummary } from "../../types";
 
-const INSTANCE_TABS = ["IN_PROGRESS", "COMPLETED", "CANCELLED", "FAILED", "ALL"] as const;
+type View = "running" | "library";
+
+/** "ACTIVE" is a UI-only tab: the list endpoint filters by ONE status, and a protocol applied with a
+ * future start date is `SCHEDULED`, not `IN_PROGRESS` — under the old "In Progress" tab those cows
+ * were invisible until you found "All". Active merges both. */
+const INSTANCE_TABS = ["ACTIVE", "COMPLETED", "CANCELLED", "FAILED", "ALL"] as const;
 type InstanceTab = (typeof INSTANCE_TABS)[number];
+
+/** Every list in this card is paged (5 cow rows / 2 template cards by default) so the card keeps a steady
+ * height beside its partner and a long history never becomes a long scroll. The pager always shows,
+ * like the events feed's, so the control is where you expect it even when everything fits one page. */
+const INSTANCE_PAGE_SIZES = [5, 10, 20, 50] as const;
+const LIBRARY_PAGE_SIZES = [2, 4, 6] as const;
 
 const STATUS_VARIANT: Record<ProtocolInstanceStatus, ChipProps["variant"]> = {
   DRAFT: "muted",
@@ -37,20 +56,49 @@ const STATUS_VARIANT: Record<ProtocolInstanceStatus, ChipProps["variant"]> = {
   FAILED: "destructive",
 };
 
-/** Reproductive (Synchronization) Protocols (RAKHAL-214, PRD §9.8/§9.9) — compact panel, not a full
- * detail page: protocol cards with their own conception-rate metrics, an "Apply protocol" action,
- * and the farm's active instances with per-row lifecycle actions. No Figma frame for this module.
- * Instance rows resolve `cattle_id` → name/tag via a per-row `cattleApi.findOne` lookup (the
- * backend's `mapInstance` doesn't join it itself) instead of showing the raw id, since an
- * unauthorized-looking id string is not a "if UI-feasible" state worth shipping as-is. */
+/** Whole local calendar days from `iso` to today (negative = in the future). */
+function daysSince(iso: string): number {
+  const start = new Date(iso);
+  const now = new Date();
+  const a = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+  const b = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((b - a) / 86_400_000);
+}
+
+interface InstancePagination {
+  page: number;
+  totalPages: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
+  isFetching: boolean;
+}
+
+interface InstanceResult {
+  /** The rows of the CURRENT page. */
+  rows: ProtocolInstance[];
+  isLoading: boolean;
+  isError: boolean;
+  refetch: () => void;
+  pagination: InstancePagination;
+}
+
+/** Reproductive (Synchronization) Protocols (RAKHAL-214, PRD §9.8/§9.9). Two views instead of one
+ * long card that mixed a template catalogue with live work:
+ *  - **Cows on protocol** (default — the day-to-day view): one row per instance with real progress
+ *    ("Day 3 of 10"), a single next-step button, and Timeline / Cancel-Fail tucked in a ⋯ menu.
+ *  - **Protocol library**: the templates, each with its own stats, "View steps" and a one-tap "Apply".
+ * No Figma frame for this module. Instance rows resolve `cattle_id` → name/tag via a per-row
+ * `cattleApi.findOne` lookup (the backend's `mapInstance` doesn't join it itself). */
 export function ProtocolsPanel() {
   const t = useTranslations("reproduction.protocols");
   const protocols = useProtocols();
-  const [instanceTab, setInstanceTab] = useState<InstanceTab>("IN_PROGRESS");
-  const instances = useProtocolInstances(
-    instanceTab === "ALL" ? {} : { status: instanceTab },
-  );
+  const [view, setView] = useState<View>("running");
+  const [libraryPage, setLibraryPage] = useState(1);
+  const [libraryPageSize, setLibraryPageSize] = useState<number>(LIBRARY_PAGE_SIZES[0]);
+  const [instanceTab, setInstanceTab] = useState<InstanceTab>("ACTIVE");
   const [applyOpen, setApplyOpen] = useState(false);
+  const [applyProtocolId, setApplyProtocolId] = useState<string | undefined>(undefined);
   const [timelineInstance, setTimelineInstance] = useState<ProtocolInstance | null>(null);
   const [detailProtocol, setDetailProtocol] = useState<ProtocolSummary | null>(null);
   const [formDialogOpen, setFormDialogOpen] = useState(false);
@@ -58,8 +106,24 @@ export function ProtocolsPanel() {
   const [deletingProtocol, setDeletingProtocol] = useState<{ id: string; name: string } | null>(null);
   const deleteProtocol = useDeleteProtocol();
   const protocolRows = useMemo(() => protocols.data?.pages.flatMap((p) => p.items) ?? [], [protocols.data]);
-  const instanceRows = useMemo(() => instances.data?.pages.flatMap((p) => p.items) ?? [], [instances.data]);
 
+  // The catalogue is short (a handful of templates) and the running view needs every protocol's
+  // duration for its progress bars, so pull all pages instead of hiding some behind "Load more".
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = protocols;
+  useEffect(() => {
+    if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const libraryPages = Math.max(1, Math.ceil(protocolRows.length / libraryPageSize));
+  const libraryPageSafe = Math.min(libraryPage, libraryPages);
+  const libraryShown = protocolRows.slice((libraryPageSafe - 1) * libraryPageSize, libraryPageSafe * libraryPageSize);
+
+  const durations = useMemo(() => new Map(protocolRows.map((p) => [p.id, p.duration_days])), [protocolRows]);
+
+  function openApply(protocolId?: string) {
+    setApplyProtocolId(protocolId);
+    setApplyOpen(true);
+  }
   function openCreate() {
     setEditingProtocolId(undefined);
     setFormDialogOpen(true);
@@ -81,179 +145,127 @@ export function ProtocolsPanel() {
   return (
     <ReproductionCard
       title={t("title")}
+      description={t("description")}
+      className="h-full min-h-[34rem]"
       headerRight={
-        <div className="flex items-center gap-2">
+        <>
+          {view === "library" ? (
+            <Can I="reproduction.create">
+              <Button size="sm" variant="secondary" onClick={openCreate}>
+                {t("newProtocol")}
+              </Button>
+            </Can>
+          ) : null}
           <Can I="reproduction.create">
-            <Button size="sm" variant="secondary" onClick={openCreate}>
-              {t("newProtocol")}
-            </Button>
-          </Can>
-          <Can I="reproduction.create">
-            <Button size="sm" onClick={() => setApplyOpen(true)}>
+            <Button size="sm" onClick={() => openApply()}>
               {t("applyProtocol")}
             </Button>
           </Can>
-        </div>
+        </>
       }
     >
-      {protocols.isLoading ? (
-        <CardSkeleton lines={3} />
-      ) : protocols.isError ? (
-        <ErrorState description={t("error")} onRetry={() => protocols.refetch()} />
-      ) : protocolRows.length === 0 ? (
-        <EmptyState title={t("emptyProtocols")} className="py-6" />
-      ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {protocolRows.map((p) => (
-            <div
-              key={p.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => setDetailProtocol(p)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setDetailProtocol(p);
-                }
-              }}
-              className="flex cursor-pointer flex-col gap-1.5 rounded-xl border border-border p-3 text-left transition-colors hover:border-primary/40"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-semibold text-foreground">{p.name}</span>
-                {p.is_system_default ? (
-                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                    {t("systemDefault")}
-                  </span>
-                ) : p.editable ? (
-                  <div className="flex shrink-0 items-center gap-1">
-                    <Can I="reproduction.update">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEdit(p.id);
-                        }}
-                        aria-label={t("edit")}
-                        className="flex size-6 items-center justify-center rounded text-muted-foreground transition-opacity hover:opacity-70"
-                      >
-                        <Pencil className="size-3.5" aria-hidden />
-                      </button>
-                    </Can>
-                    <Can I="reproduction.delete">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeletingProtocol({ id: p.id, name: p.name });
-                        }}
-                        aria-label={t("deleteAction")}
-                        className="flex size-6 items-center justify-center rounded text-destructive transition-opacity hover:opacity-70"
-                      >
-                        <Trash2 className="size-3.5" aria-hidden />
-                      </button>
-                    </Can>
-                  </div>
-                ) : null}
-              </div>
-              <p className="text-xs text-muted-foreground">{t("durationDays", { value: p.duration_days })}</p>
-              <div className="mt-1 flex items-center gap-2 text-xs">
-                <span className="rounded-full bg-info-tint px-2 py-0.5 font-medium text-info">
-                  {t("applied", { value: p.metrics.applied })}
-                </span>
-                <span className="rounded-full bg-warning-tint px-2 py-0.5 font-medium text-warning">
-                  {t("inProgress", { value: p.metrics.in_progress })}
-                </span>
-                <span className="rounded-full bg-success-tint px-2 py-0.5 font-medium text-success">
-                  {t("conceptionRate", { value: p.metrics.conception_rate ?? "—" })}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      {protocols.hasNextPage ? (
-        <div className="flex justify-center">
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={protocols.isFetchingNextPage}
-            onClick={() => void protocols.fetchNextPage()}
-          >
-            {protocols.isFetchingNextPage ? t("loading") : t("loadMore")}
-          </Button>
-        </div>
-      ) : null}
+      <Tabs value={view} onValueChange={(next) => setView(next as View)} className="flex flex-1 flex-col gap-4">
+        <TabsList className="w-full sm:w-fit">
+          <TabsTrigger value="running" className="flex-1 sm:flex-none">
+            {t("views.running")}
+          </TabsTrigger>
+          <TabsTrigger value="library" className="flex-1 sm:flex-none">
+            {t("views.library")}
+          </TabsTrigger>
+        </TabsList>
 
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-medium text-foreground">{t("activeInstances")}</p>
-          <Tabs
-            value={instanceTab}
-            onValueChange={(value) => setInstanceTab(value as InstanceTab)}
+        <TabsContent value="running" className="mt-0 flex flex-1 flex-col gap-3">
+          <div
+            role="group"
+            aria-label={t("activeInstances")}
+            className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            <TabsList>
-              {INSTANCE_TABS.map((tab) => (
-                <TabsTrigger key={tab} value={tab}>
+            {INSTANCE_TABS.map((tab) => {
+              const active = tab === instanceTab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setInstanceTab(tab)}
+                  className={cn(
+                    "h-8 shrink-0 rounded-full border px-3.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    active
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-card text-muted-foreground hover:bg-muted",
+                  )}
+                >
                   {t(`instanceTabs.${tab}`)}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
-        {instances.isLoading ? (
-          <CardSkeleton lines={2} />
-        ) : instances.isError ? (
-          <ErrorState description={t("error")} onRetry={() => instances.refetch()} />
-        ) : instanceRows.length === 0 ? (
-          <EmptyState title={t(`instanceTabs.empty.${instanceTab}`)} className="py-6" />
-        ) : (
-          <div className="flex flex-col">
-            {instanceRows.map((instance) => (
-              <div
-                key={instance.id}
-                className="flex items-center justify-between gap-3 border-b border-border py-2.5 last:border-0"
-              >
-                <div className="flex flex-col gap-0.5">
-                  <InstanceCowLabel cattleId={instance.cattle_id} />
-                  <span className="text-xs text-muted-foreground">
-                    {instance.protocol_name} ·{" "}
-                    {instance.status === "CANCELLED" || instance.status === "FAILED"
-                      ? (instance.end_reason ?? t(`statusValue.${instance.status}`))
-                      : instance.status === "COMPLETED"
-                        ? t(`pregnancyOutcome.${instance.pregnancy_outcome ?? "WAITING_PD"}`)
-                        : t("currentStepDay", { value: instance.current_step_day })}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Chip variant={STATUS_VARIANT[instance.status]} className="shrink-0">
-                    {t(`statusValue.${instance.status}`)}
-                  </Chip>
-                  <Button size="sm" variant="ghost" onClick={() => setTimelineInstance(instance)}>
-                    {t("viewTimeline")}
-                  </Button>
-                  <Can I="reproduction.update">
-                    <ProtocolInstanceActions instance={instance} />
-                  </Can>
-                </div>
-              </div>
-            ))}
+                </button>
+              );
+            })}
           </div>
-        )}
-        {instances.hasNextPage ? (
-          <div className="flex justify-center">
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={instances.isFetchingNextPage}
-              onClick={() => void instances.fetchNextPage()}
-            >
-              {instances.isFetchingNextPage ? t("loading") : t("loadMore")}
-            </Button>
-          </div>
-        ) : null}
-      </div>
+          {instanceTab === "ACTIVE" ? (
+            <ActiveInstances durations={durations} onApply={() => openApply()} onTimeline={setTimelineInstance} />
+          ) : (
+            <StatusInstances
+              tab={instanceTab}
+              durations={durations}
+              onApply={() => openApply()}
+              onTimeline={setTimelineInstance}
+            />
+          )}
+        </TabsContent>
 
-      <ApplyProtocolDialog open={applyOpen} onOpenChange={setApplyOpen} />
+        <TabsContent value="library" className="mt-0 flex flex-1 flex-col">
+          {protocols.isLoading ? (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))] gap-3">
+              {Array.from({ length: 3 }, (_, i) => (
+                <Skeleton key={i} className="h-44 rounded-xl" />
+              ))}
+            </div>
+          ) : protocols.isError ? (
+            <ErrorState description={t("error")} onRetry={() => protocols.refetch()} />
+          ) : protocolRows.length === 0 ? (
+            <EmptyState
+              icon={ClipboardList}
+              title={t("emptyProtocols")}
+              className="py-8"
+              action={
+                <Can I="reproduction.create">
+                  <Button size="sm" variant="secondary" onClick={openCreate}>
+                    {t("newProtocol")}
+                  </Button>
+                </Can>
+              }
+            />
+          ) : (
+            <div className="flex flex-1 flex-col gap-4">
+            <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))] gap-3">
+              {libraryShown.map((p) => (
+                <ProtocolCard
+                  key={p.id}
+                  protocol={p}
+                  onViewSteps={() => setDetailProtocol(p)}
+                  onApply={() => openApply(p.id)}
+                  onEdit={() => openEdit(p.id)}
+                  onDelete={() => setDeletingProtocol({ id: p.id, name: p.name })}
+                />
+              ))}
+            </ul>
+              <Pagination
+                page={libraryPageSafe}
+                totalPages={libraryPages}
+                onPageChange={setLibraryPage}
+                pageSize={libraryPageSize}
+                onPageSizeChange={(size) => {
+                  setLibraryPageSize(size);
+                  setLibraryPage(1);
+                }}
+                pageSizeOptions={LIBRARY_PAGE_SIZES}
+                className="mt-auto"
+              />
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      <ApplyProtocolDialog open={applyOpen} onOpenChange={setApplyOpen} defaultProtocolId={applyProtocolId} />
       <ProtocolFormDialog open={formDialogOpen} onOpenChange={setFormDialogOpen} protocolId={editingProtocolId} />
       <ConfirmDialog
         open={deletingProtocol !== null}
@@ -283,10 +295,318 @@ export function ProtocolsPanel() {
   );
 }
 
+// ---- Library ---------------------------------------------------------------
+
+/** One template. Not a click-anywhere card any more (it nested edit/delete buttons inside a
+ * `role="button"` and gave no hint it was clickable): explicit "View steps" + "Apply" buttons, and
+ * Edit/Delete for a farm's own protocols in a ⋯ menu with proper tap targets. */
+function ProtocolCard({
+  protocol: p,
+  onViewSteps,
+  onApply,
+  onEdit,
+  onDelete,
+}: {
+  protocol: ProtocolSummary;
+  onViewSteps: () => void;
+  onApply: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const t = useTranslations("reproduction.protocols");
+  const can = useCan();
+  const showMenu = p.editable && !p.is_system_default && (can("reproduction.update") || can("reproduction.delete"));
+
+  return (
+    <li className="flex flex-col gap-3 rounded-xl border border-border p-3.5">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h3 className="break-words text-sm font-semibold text-foreground">{p.name}</h3>
+          <p className="text-xs text-muted-foreground">{t("cardMeta", { days: p.duration_days, steps: p.step_count })}</p>
+        </div>
+        {p.is_system_default ? (
+          <Chip variant="muted" subtle className="shrink-0 px-2 py-0.5 font-medium">
+            {t("systemDefault")}
+          </Chip>
+        ) : showMenu ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="icon" variant="ghost" className="-mr-1 -mt-1 size-9 shrink-0" aria-label={t("moreActions")}>
+                <MoreHorizontal aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <Can I="reproduction.update">
+                <DropdownMenuItem onSelect={onEdit}>
+                  <Pencil className="size-4" aria-hidden />
+                  {t("edit")}
+                </DropdownMenuItem>
+              </Can>
+              <Can I="reproduction.delete">
+                <DropdownMenuItem onSelect={onDelete} className="text-destructive focus:text-destructive">
+                  <Trash2 className="size-4" aria-hidden />
+                  {t("deleteAction")}
+                </DropdownMenuItem>
+              </Can>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+      </div>
+
+      <dl className="grid grid-cols-3 gap-2 rounded-lg bg-muted/50 p-2.5 text-center">
+        <Stat label={t("stats.applied")} value={p.metrics.applied} />
+        <Stat label={t("stats.running")} value={p.metrics.in_progress} />
+        <Stat
+          label={t("stats.conception")}
+          value={p.metrics.conception_rate != null ? `${p.metrics.conception_rate}%` : "—"}
+          muted={p.metrics.conception_rate == null}
+        />
+      </dl>
+
+      <div className="mt-auto flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="ghost" onClick={onViewSteps}>
+          {t("viewSteps")}
+        </Button>
+        <Can I="reproduction.create">
+          <Button size="sm" variant="secondary" className="ml-auto" onClick={onApply}>
+            {t("apply")}
+          </Button>
+        </Can>
+      </div>
+    </li>
+  );
+}
+
+function Stat({ label, value, muted = false }: { label: string; value: React.ReactNode; muted?: boolean }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <dd className={cn("text-base font-bold tabular-nums", muted ? "text-muted-foreground" : "text-foreground")}>{value}</dd>
+      <dt className="truncate text-xs text-muted-foreground">{label}</dt>
+    </div>
+  );
+}
+
+// ---- Cows on protocol ------------------------------------------------------
+
+interface SectionProps {
+  durations: Map<string, number>;
+  onApply: () => void;
+  onTimeline: (instance: ProtocolInstance) => void;
+}
+
+/** Pulls every remaining page of a bounded list (the running / scheduled set is small) so it can be
+ * paged client-side after merging two status queries. */
+function useFetchAllPages(query: { hasNextPage: boolean; isFetchingNextPage: boolean; fetchNextPage: () => unknown }) {
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = query;
+  useEffect(() => {
+    if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+}
+
+/** Running + scheduled, merged (two list calls — the endpoint takes one status). Running rows first.
+ * Both sets are bounded (only in-flight instances), so they are fetched whole and paged client-side. */
+function ActiveInstances(props: SectionProps) {
+  const running = useProtocolInstances({ status: "IN_PROGRESS" });
+  const scheduled = useProtocolInstances({ status: "SCHEDULED" });
+  useFetchAllPages(running);
+  useFetchAllPages(scheduled);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(INSTANCE_PAGE_SIZES[0]);
+  const all = useMemo(
+    () => [
+      ...(running.data?.pages.flatMap((p) => p.items) ?? []),
+      ...(scheduled.data?.pages.flatMap((p) => p.items) ?? []),
+    ],
+    [running.data, scheduled.data],
+  );
+  const totalPages = Math.max(1, Math.ceil(all.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const result: InstanceResult = {
+    rows: all.slice((safePage - 1) * pageSize, safePage * pageSize),
+    isLoading: running.isLoading || scheduled.isLoading,
+    isError: running.isError || scheduled.isError,
+    refetch: () => {
+      void running.refetch();
+      void scheduled.refetch();
+    },
+    pagination: {
+      page: safePage,
+      totalPages,
+      pageSize,
+      onPageChange: setPage,
+      onPageSizeChange: (size) => {
+        setPageSize(size);
+        setPage(1);
+      },
+      isFetching: running.isFetchingNextPage || scheduled.isFetchingNextPage,
+    },
+  };
+  return <InstanceRows tab="ACTIVE" result={result} {...props} />;
+}
+
+/** Completed / Cancelled / Failed / All are history and grow without bound, so these use the real server
+ * cursor (`useCursorPager`) rather than fetching everything. */
+function StatusInstances({ tab, ...props }: SectionProps & { tab: InstanceTab }) {
+  const filters = tab === "ALL" ? {} : { status: tab as ProtocolInstanceStatus };
+  const pager = useCursorPager(
+    // Prefix matches the lifecycle mutations' protocol-instance invalidation.
+    qk.reproduction.protocolInstances({ status: filters.status }),
+    (cursor, limit) => reproductionApi.protocolInstances(filters, cursor, limit),
+    { initialPageSize: INSTANCE_PAGE_SIZES[0] },
+  );
+  const result: InstanceResult = {
+    rows: pager.items,
+    isLoading: pager.isLoading,
+    isError: pager.isError,
+    refetch: () => void pager.refetch(),
+    pagination: {
+      page: pager.page,
+      totalPages: pager.totalPages,
+      pageSize: pager.pageSize,
+      onPageChange: pager.goToPage,
+      onPageSizeChange: pager.setPageSize,
+      isFetching: pager.isFetching,
+    },
+  };
+  return <InstanceRows tab={tab} result={result} {...props} />;
+}
+
+function InstanceRows({
+  tab,
+  result,
+  durations,
+  onApply,
+  onTimeline,
+}: SectionProps & { tab: InstanceTab; result: InstanceResult }) {
+  const t = useTranslations("reproduction.protocols");
+
+  if (result.isLoading) {
+    return (
+      <div className="flex flex-col gap-3">
+        {Array.from({ length: 3 }, (_, i) => (
+          <Skeleton key={i} className="h-16 w-full" />
+        ))}
+      </div>
+    );
+  }
+  if (result.isError) return <ErrorState description={t("error")} onRetry={result.refetch} />;
+  if (result.rows.length === 0) {
+    return (
+      <EmptyState
+        icon={ClipboardList}
+        title={t(`instanceTabs.empty.${tab}`)}
+        description={tab === "ACTIVE" ? t("emptyRunningHint") : undefined}
+        className="flex-1 justify-center py-8"
+        action={
+          tab === "ACTIVE" ? (
+            <Can I="reproduction.create">
+              <Button size="sm" onClick={onApply}>
+                {t("applyProtocol")}
+              </Button>
+            </Can>
+          ) : undefined
+        }
+      />
+    );
+  }
+  const { pagination } = result;
+  return (
+    <div className="flex flex-1 flex-col gap-3">
+      <ul className="flex flex-col divide-y divide-border">
+        {result.rows.map((instance) => (
+          <InstanceRow
+            key={instance.id}
+            instance={instance}
+            durationDays={durations.get(instance.protocol_id)}
+            onTimeline={() => onTimeline(instance)}
+          />
+        ))}
+      </ul>
+      <Pagination
+        page={pagination.page}
+        totalPages={pagination.totalPages}
+        onPageChange={pagination.onPageChange}
+        isFetching={pagination.isFetching}
+        pageSize={pagination.pageSize}
+        onPageSizeChange={pagination.onPageSizeChange}
+        pageSizeOptions={INSTANCE_PAGE_SIZES}
+        className="mt-auto"
+      />
+    </div>
+  );
+}
+
+/** One cow on one protocol: who + which protocol/when it started, where it is in the plan (a real
+ * "Day 3 of 10" bar computed from the start date — `current_step_day` is the *first step's* day and
+ * never advances, so it read "Day 0" for every cow), and the status with its next-step action. */
+function InstanceRow({
+  instance,
+  durationDays,
+  onTimeline,
+}: {
+  instance: ProtocolInstance;
+  durationDays: number | undefined;
+  onTimeline: () => void;
+}) {
+  const t = useTranslations("reproduction.protocols");
+  const elapsed = daysSince(instance.start_date);
+  const day = Math.max(0, durationDays ? Math.min(elapsed, durationDays) : elapsed);
+  const scheduledAhead = instance.status === "SCHEDULED" && elapsed < 0;
+
+  let progress: React.ReactNode;
+  if (instance.status === "IN_PROGRESS" || instance.status === "DRAFT" || (instance.status === "SCHEDULED" && !scheduledAhead)) {
+    progress = (
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="font-medium text-foreground">
+            {durationDays ? t("dayOf", { day, total: durationDays }) : t("dayOnly", { day })}
+          </span>
+          {instance.ai_completed_at ? <span className="text-accent-teal">{t("aiDone")}</span> : null}
+        </div>
+        {durationDays ? (
+          <Progress value={Math.round((day / durationDays) * 100)} aria-label={t("dayOf", { day, total: durationDays })} className="h-1.5" />
+        ) : null}
+      </div>
+    );
+  } else if (scheduledAhead) {
+    progress = (
+      <span className="text-xs font-medium text-info">
+        {t("startsIn", { value: Math.abs(elapsed) })}
+      </span>
+    );
+  } else if (instance.status === "COMPLETED") {
+    progress = (
+      <span className="text-xs text-muted-foreground">{t(`pregnancyOutcome.${instance.pregnancy_outcome ?? "WAITING_PD"}`)}</span>
+    );
+  } else {
+    progress = (
+      <span className="text-xs text-muted-foreground">{instance.end_reason ?? t(`statusValue.${instance.status}`)}</span>
+    );
+  }
+
+  return (
+    <li className="flex flex-wrap items-center gap-x-5 gap-y-3 py-3.5 first:pt-1 last:pb-1">
+      <div className="flex min-w-0 flex-1 basis-56 flex-col gap-1">
+        <InstanceCow cattleId={instance.cattle_id} />
+        <p className="pl-12 text-xs text-muted-foreground">
+          {instance.protocol_name} · {t("startedOn")} <DateText date={instance.start_date} />
+        </p>
+      </div>
+      <div className="min-w-0 flex-1 basis-40">{progress}</div>
+      <div className="ml-auto flex items-center gap-2">
+        <Chip variant={STATUS_VARIANT[instance.status]} className="shrink-0">
+          {t(`statusValue.${instance.status}`)}
+        </Chip>
+        <ProtocolInstanceActions instance={instance} onViewTimeline={onTimeline} />
+      </div>
+    </li>
+  );
+}
+
 /** Resolves a protocol instance's `cattle_id` to a name/tag via `GET /cattle/:id` (cached — the
  * same cow shows up across multiple instances/renders). Falls back to a shortened id if the lookup
  * 404s/fails rather than blocking the row. */
-function InstanceCowLabel({ cattleId }: { cattleId: string }) {
+function InstanceCow({ cattleId }: { cattleId: string }) {
   const { data, isLoading } = useQuery({
     queryKey: ["cattle-lookup", cattleId],
     queryFn: () => cattleApi.findOne(cattleId),
@@ -294,21 +614,7 @@ function InstanceCowLabel({ cattleId }: { cattleId: string }) {
     retry: false,
   });
 
-  if (isLoading) {
-    return <span className="h-4 w-24 animate-pulse rounded bg-muted" />;
-  }
-  if (!data) {
-    return <span className="font-mono text-sm text-foreground">{cattleId.slice(0, 10)}…</span>;
-  }
-  return (
-    <AnimalLink
-      id={cattleId}
-      animalName={data.name}
-      tagNumber={data.tagNumber}
-      className="text-sm font-medium text-foreground hover:text-primary"
-    >
-      {data.name ?? data.tagNumber}
-      {data.name ? <span className="font-normal text-muted-foreground"> {data.tagNumber}</span> : null}
-    </AnimalLink>
-  );
+  if (isLoading) return <Skeleton className="h-9 w-40" />;
+  if (!data) return <span className="font-mono text-sm text-foreground">{cattleId.slice(0, 10)}…</span>;
+  return <ReproductionCowIdentity cattleId={cattleId} name={data.name} tag={data.tagNumber} />;
 }

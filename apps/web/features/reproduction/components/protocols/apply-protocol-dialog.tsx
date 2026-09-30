@@ -44,10 +44,13 @@ export function ApplyProtocolDialog({
   open,
   onOpenChange,
   defaultCattleId,
+  defaultProtocolId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultCattleId?: string;
+  /** Preselects the protocol — the per-card "Apply" shortcut in the library skips the picker step. */
+  defaultProtocolId?: string;
 }) {
   const t = useTranslations("reproduction.dialogs.applyProtocol");
   const protocols = useProtocols();
@@ -79,12 +82,12 @@ export function ApplyProtocolDialog({
     if (open) {
       const defaultStart = getDefaultStartDateTime();
       form.reset({
-        protocolId: "",
+        protocolId: defaultProtocolId ?? "",
         cattleIds: defaultCattleId ? [defaultCattleId] : [],
         startDate: defaultStart,
       });
       setSelectedCattle([]);
-      setSelectedProtocolId("");
+      setSelectedProtocolId(defaultProtocolId ?? "");
       setSelectedStartDate(defaultStart);
       setStepOverrides({});
     }

@@ -88,9 +88,11 @@ export function ProtocolDetailSheet({
             <span className="rounded-full bg-warning-tint px-2 py-0.5 font-medium text-warning">
               {t("inProgress", { value: protocol.metrics.in_progress })}
             </span>
-            <span className="rounded-full bg-success-tint px-2 py-0.5 font-medium text-success">
-              {t("conceptionRate", { value: protocol.metrics.conception_rate ?? "—" })}
-            </span>
+            {protocol.metrics.conception_rate != null ? (
+              <span className="rounded-full bg-success-tint px-2 py-0.5 font-medium text-success">
+                {t("conceptionRate", { value: protocol.metrics.conception_rate })}
+              </span>
+            ) : null}
           </div>
 
           <div className="border-t border-dashed border-border" />

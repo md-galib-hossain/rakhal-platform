@@ -2657,7 +2657,13 @@
       "recordAi": "Record AI",
       "recordPregnancyCheck": "Record Pregnancy Check",
       "recordAbortion": "Record Abortion",
-      "recordCalving": "Record Calving"
+      "recordCalving": "Record Calving",
+      "recordEvent": "Record event",
+      "recordHeatHint": "Log a cow seen in heat",
+      "recordAiHint": "Insemination or natural service",
+      "recordPregnancyCheckHint": "Confirm or rule out pregnancy",
+      "recordCalvingHint": "Register a birth",
+      "recordAbortionHint": "Log a pregnancy loss"
     },
     "kpi": {
       "heatDetectionRate": "Heat Detection Rate",
@@ -2687,12 +2693,32 @@
       "daysRemaining": "{value}d left",
       "daysOverdue": "{value}d overdue",
       "dryoffTarget": "Target:",
-      "error": "Could not load the action panels."
+      "error": "Could not load the action panels.",
+      "title": "Needs attention today",
+      "summary": "{count, plural, one {# cow needs action} other {# cows need action}}",
+      "allClear": "All clear",
+      "allClearHint": "No cow needs action today.",
+      "tabs": {
+        "readyForAi": "Ready for AI",
+        "inHeat": "In heat",
+        "pregnancyCheck": "Check due",
+        "calving": "Calving ≤7d",
+        "dryOff": "Dry-off ≤14d"
+      },
+      "showMore": "Show {count} more",
+      "showLess": "Show less",
+      "aiOn": "AI on",
+      "dueToday": "Due today"
     },
     "calvingForecast": {
       "title": "Calving Forecast (30 Days)",
       "empty": "No calvings expected in the next 30 days.",
-      "error": "Could not load the calving forecast."
+      "error": "Could not load the calving forecast.",
+      "count": "{count, plural, one {# calving expected} other {# calvings expected}}",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "inDays": "in {value} days",
+      "overdue": "{value}d overdue"
     },
     "openCows": {
       "title": "Open Cow List",
@@ -2723,7 +2749,11 @@
         "PREGNANT": "Pregnant"
       },
       "checkDone": "Done",
-      "checkPending": "Pending"
+      "checkPending": "Pending",
+      "filterLabel": "Filter by status",
+      "filterAll": "All",
+      "loadMore": "Load more",
+      "loading": "Loading…"
     },
     "eventsFeed": {
       "title": "Reproduction Events",
@@ -2745,7 +2775,29 @@
       "emptyFiltered": "Try clearing a filter.",
       "resultCount": "{count} events",
       "error": "Could not load the events feed.",
-      "edit": "Edit"
+      "edit": "Edit",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "moreDetails": "+{count} more",
+      "description": "Every heat, AI, pregnancy check, calving and abortion, newest first.",
+      "filters": "Filters",
+      "applied": "Applied:",
+      "removeFilter": "Remove filter: {name}",
+      "range": {
+        "label": "Date range",
+        "any": "Any time",
+        "d7": "Last 7 days",
+        "d30": "Last 30 days",
+        "d90": "Last 90 days",
+        "year": "This year",
+        "start": "Start",
+        "today": "Today"
+      },
+      "sort": {
+        "label": "Sort order",
+        "newest": "Newest first",
+        "oldest": "Oldest first"
+      }
     },
     "dialogs": {
       "heat": {
@@ -3020,8 +3072,10 @@
           "COMPLETED": "No completed protocol instances.",
           "CANCELLED": "No cancelled protocol instances.",
           "FAILED": "No failed protocol instances.",
-          "ALL": "No protocol instances yet."
-        }
+          "ALL": "No protocol instances yet.",
+          "ACTIVE": "No cows are on a protocol right now."
+        },
+        "ACTIVE": "Active"
       },
       "statusValue": {
         "DRAFT": "Draft",
@@ -3096,8 +3150,29 @@
         "AI": "Timed AI",
         "PREGNANCY_CHECK": "Pregnancy Check",
         "OTHER": "Other"
-      }
-    }
+      },
+      "description": "Synchronisation programmes: apply one to cows and follow every step.",
+      "views": {
+        "running": "Cows on protocol",
+        "library": "Protocol library"
+      },
+      "emptyRunningHint": "Apply a protocol to a cow to start tracking its steps.",
+      "stats": {
+        "applied": "Applied",
+        "running": "Running",
+        "conception": "Conception"
+      },
+      "cardMeta": "{days}-day programme · {steps, plural, one {# step} other {# steps}}",
+      "viewSteps": "View steps",
+      "apply": "Apply",
+      "moreActions": "More actions",
+      "startedOn": "Started",
+      "startsIn": "{value, plural, one {Starts in # day} other {Starts in # days}}",
+      "dayOf": "Day {day} of {total}",
+      "dayOnly": "Day {day}",
+      "aiDone": "AI done"
+    },
+    "subtitle": "Track heat, breeding, pregnancy and calving across the herd."
   },
   "health": {
     "kpis": {

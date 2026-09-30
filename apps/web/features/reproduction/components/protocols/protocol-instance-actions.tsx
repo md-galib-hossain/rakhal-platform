@@ -5,9 +5,12 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { Ban, ListChecks, MoreHorizontal } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
+import { useCan } from "@/lib/auth/permissions";
 import { FormSheet } from "@/components/shared/form-sheet";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,37 +35,67 @@ const ACTIVE_STATUSES = ["DRAFT", "SCHEDULED", "IN_PROGRESS"] as const;
 
 /** Row actions for one protocol instance (RAKHAL-214 lifecycle) — record the timed-AI step, record
  * the pregnancy outcome at PD, or cancel/fail the instance. No Figma frame for this module; three
- * small inline `FormSheet`s rather than a full detail page, matching the compactness of the rest
- * of this protocols panel. */
-export function ProtocolInstanceActions({ instance }: { instance: ProtocolInstance }) {
+ * small inline `FormSheet`s rather than a full detail page.
+ *
+ * One **next step** button (the only thing a stockman needs to tap: "Record AI" until the timed AI
+ * is in, then "Record outcome" until PD is recorded) plus a "⋯" menu holding the rest — Timeline
+ * (always) and the destructive Cancel/Fail (active instances only, permission-gated). Replaces the
+ * old row of three equal-weight buttons, where "Cancel/Fail" sat next to the primary action. */
+export function ProtocolInstanceActions({
+  instance,
+  onViewTimeline,
+}: {
+  instance: ProtocolInstance;
+  onViewTimeline: () => void;
+}) {
   const t = useTranslations("reproduction.dialogs.protocolInstance");
+  const tp = useTranslations("reproduction.protocols");
+  const can = useCan();
   const [aiOpen, setAiOpen] = useState(false);
   const [outcomeOpen, setOutcomeOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
 
-  const canRecordAi = (ACTIVE_STATUSES as readonly string[]).includes(instance.status);
-  const canRecordOutcome = !!instance.ai_completed_at;
+  const canUpdate = can("reproduction.update");
+  const isActive = (ACTIVE_STATUSES as readonly string[]).includes(instance.status);
+  const needsAi = isActive && !instance.ai_completed_at;
+  /** Only while the instance is open and PD isn't recorded yet — after that it is a closed record. */
+  const needsOutcome = isActive && !!instance.ai_completed_at && !instance.outcome_recorded_at;
   /** A cancelled/failed/completed instance is a closed record — re-showing "Close" there let a
    * user cancel an already-cancelled instance for no effect (real UX bug, not just cosmetic). */
-  const canClose = (ACTIVE_STATUSES as readonly string[]).includes(instance.status);
+  const canClose = isActive && canUpdate;
 
   return (
     <div className="flex items-center gap-1.5">
-      {canRecordAi ? (
-        <Button size="sm" variant="outline" onClick={() => setAiOpen(true)}>
+      {canUpdate && needsAi ? (
+        <Button size="sm" variant="secondary" onClick={() => setAiOpen(true)}>
           {t("recordAi")}
         </Button>
       ) : null}
-      {canRecordOutcome ? (
-        <Button size="sm" variant="outline" onClick={() => setOutcomeOpen(true)}>
+      {canUpdate && needsOutcome ? (
+        <Button size="sm" variant="secondary" onClick={() => setOutcomeOpen(true)}>
           {t("recordOutcome")}
         </Button>
       ) : null}
-      {canClose ? (
-        <Button size="sm" variant="ghost" onClick={() => setCloseOpen(true)}>
-          {t("close")}
-        </Button>
-      ) : null}
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="icon" variant="ghost" className="size-9" aria-label={tp("moreActions")}>
+            <MoreHorizontal aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={onViewTimeline}>
+            <ListChecks className="size-4" aria-hidden />
+            {tp("viewTimeline")}
+          </DropdownMenuItem>
+          {canClose ? (
+            <DropdownMenuItem onSelect={() => setCloseOpen(true)} className="text-destructive focus:text-destructive">
+              <Ban className="size-4" aria-hidden />
+              {t("close")}
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <RecordAiDialog instanceId={instance.id} open={aiOpen} onOpenChange={setAiOpen} />
       <RecordOutcomeDialog instanceId={instance.id} open={outcomeOpen} onOpenChange={setOutcomeOpen} />

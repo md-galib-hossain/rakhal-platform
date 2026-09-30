@@ -54,9 +54,9 @@ export const reproductionApi = {
   dashboard(): Promise<ReproDashboardResponse> {
     return apiFetch<ReproDashboardResponse>("/reproduction/dashboard");
   },
-  /** The backend's response interceptor hoists this route's `{items, meta}` service return into
-   * the standard `{data: items[], meta}` envelope (verified live) — same shape `apiFetchPage`
-   * already models, just with `{total, limit}` meta instead of the usual cursor fields. */
+  /** Real keyset cursor page (backend 2026-09-30): pass `meta.endCursor` back as `cursor`. The merged
+   * five-table stream is ordered by `(event_date, event_type, id)`; `sortOrder` flips it. Before that
+   * date the route ignored `cursor` and returned only the newest `limit` rows. */
   events(query: ReproEventsQuery): Promise<CursorPage<ReproEventEntry>> {
     return apiFetchPage<ReproEventEntry>("/reproduction/events", {
       searchParams: {
@@ -65,6 +65,8 @@ export const reproductionApi = {
         fromDate: query.fromDate,
         toDate: query.toDate,
         limit: query.limit,
+        cursor: query.cursor,
+        sortOrder: query.sortOrder,
       },
     });
   },

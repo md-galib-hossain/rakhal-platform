@@ -1,5 +1,104 @@
 # Frontend — Current State
 
+## Reproduction: taller Attention/Protocols pair + Cow List pagination (2026-09-30, no ticket #)
+
+User: the Attention + Protocols pair was too short to show a useful amount, and the Cow List needed pagination. The pair
+now has `min-h-[34rem]` (544px measured, was 400) and Attention pages 8 rows by default (8/16/24/48) so a real working set
+fits. The **Cow List** replaced "Load more" with numbered pages on the same keyset cursor (`useCursorPager` +
+`Pagination`, 10/20/50/100 per page, always shown); the status chips reset to page 1. Live-checked at 1440: page 2 ≠ page 1,
+pager grows 1→2→3, Pregnant filter returns only pregnant cows on page 1. `useReproductionCows` (infinite query) is now unused
+by the page. Gate: `typecheck` 0, eslint 0 errors, vitest 224/224. Not run: `pnpm build`; not re-checked on a phone (only
+a min-height and a pager changed).
+
+## Reproduction: Needs-attention + Protocols cards — always-on pagination (2026-09-30, no ticket #)
+
+User: these two cards also need pagination. Attention already paged 5 rows but hid the pager when everything fit one
+page, and Protocols used "Load more" with no paging on the library. Now both always show the shared `Pagination`
+(page jump + rows-per-page) pinned to the card bottom. **Attention:** 5/10/20/50 per page, reset on tab change.
+**Protocols:** *Active* (running + scheduled — a bounded set, every page is fetched then paged client-side, 5/10/20/50);
+*Completed / Cancelled / Failed / All* (history, unbounded) use the real server cursor via `useCursorPager` on
+`GET /reproduction/protocols/instances`, same as the events feed; the *library* pages 2/4/6 template cards. "Load more"
+is gone. Live-checked at 1440 (pair heights 400/400; Completed tab and All tab page from the server; library page 1 = 2 cards,
+page 2 = 1 card) and 375 (no overflow). Known trade-off: the Protocols card's height changes between a full and a short
+library page (708 → 506) and the Attention card stretches with it. Gate: `typecheck` 0, eslint 0 errors, vitest 224/224.
+Not run: `pnpm build`; not exercised: paging past page 2 of a server tab (dev data has ≤2 instances per tab).
+
+## Reproduction page — regrouped layout, related cards side by side (2026-09-30, no ticket #)
+
+User: keep the Cow List full width, but the other sections were needlessly wide — pair related ones and match their
+layouts. The page now reads **Overview → Do now → Herd → Timeline**: KPIs; **Attention | Protocols** (cows awaiting their
+next step / cows on a synchronisation protocol); **Cow List** full row (7-column table); **Events | Calving Forecast**
+(what happened / what is coming). Each pair is a `minmax(0,1.35fr) / minmax(0,1fr)` grid from 56rem of page width
+(stacked below), stretched to equal height, every card fills its cell with its pager pinned to the bottom. To keep the
+pairs balanced: Events defaults to 5 rows per page (5/10/20/50) with its detail chips on ONE clipped line (rows a uniform
+66px instead of 66–118px), and the Forecast pages 8 at a time. Events filter row: pickers flex but are capped (cow 15rem,
+dates 10rem), inline from 28rem of card width (folds behind "Filters" below that — at 1280 the events card is ~532px, so
+it stays inline). Measured: 1440 → 334/334 and 770/770; 1280 → 418/418 and 790/790 (filters on one row, no toggle);
+1024 and 375 stacked, no horizontal overflow. `Forecast` blank space under a short list is expected (card stretches
+to its partner). Gate: `typecheck` 0, eslint 0 errors, vitest 224/224 (see below for the re-run). Not run: `pnpm build`.
+
+## Reproduction events feed — real pagination + better filters (2026-09-30, no ticket #)
+
+**Follow-up same day:** user did not want the quick-range chips (Any time / 7 / 30 / 90 days / This year) or the
+Newest/Oldest sort chips, and found the cow and date pickers far too big. Both chip rows removed (sort is no longer a
+UI control; the API still supports `sortOrder`). Pickers are now compact: 36px high, cow 15rem, each date 10rem on
+one wrapping row; on a phone the cow is full width and the two dates sit side by side. Measured 1440px: 240×36 and
+160×36 (were ~600×44); 375px: no overflow. The `range.any/d7/d30/d90/year` and `sort.*` i18n keys are now unused.
+
+User: the events section needs pagination and better filter UX. The feed was a client-side pager over ONE fetch
+capped at the newest 100 (the endpoint ignored `cursor`), so older events were unreachable. **Backend twin**: `GET
+/reproduction/events` now takes a real keyset cursor over the merged five-table stream (see the backend board).
+Frontend moved to the standard `useCursorPager` + `Pagination` (page size 10/20/50/100, always shown when there are
+rows). **Filters in three tiers:** the event-type chips stay one tap away; cow + date range (quick chips: Any time /
+7 / 30 / 90 days / This year, plus custom from–to) + sort (newest/oldest first, now honoured by the server) sit in a panel
+that is open on a wide card and behind a "Filters (n)" button on a narrow one; everything applied shows as removable
+chips ("Applied: Heat · Bina · 1 Sep – 30 Sep") with Clear all, and an empty-filtered result offers Clear filters.
+Also fixed: a "to" date sent as bare `YYYY-MM-DD` excluded that whole day's events — now the local day's real start/end
+instants go to the API. Live-verified against the running backend in bn at 1440 + 375: page 2 ≠ page 1, type chip,
+30-day range, oldest-first, applied chips, collapsed-by-default panel on a phone with badge count, no overflow.
+The cattle-detail Reproduction tab still uses the old one-shot `useReproductionEvents` (still valid). Gate: `typecheck`
+0, eslint 0 errors, vitest 224/224. Not run: `pnpm build`; not exercised: editing a row from page 2+.
+
+## Reproduction: attention + forecast cards — equal height, pagination (2026-09-30, no ticket #)
+
+User: the two cards' heights didn't match and a long "needs attention" list needed pagination. Both cards now page
+5 rows at a time with the shared `Pagination` (client-side; the dashboard returns every row), the grid stretches so
+heights match (verified 488px/488px and 520px/520px across pages), rows share a 60px min height, and the pager is
+pinned to the card bottom. `ATTENTION_PAGE_SIZE` is exported from `reproduction-action-panels.tsx` and reused by the
+forecast. Verified with a patched dashboard response (13 ready-for-AI cows → 3 pages, next works); the real dev
+data only has 2. Gate: typecheck 0, eslint 0, vitest 224/224 (one transient failure on the first run, green on rerun).
+
+## Reproductive Protocols section — UX redesign (2026-09-30, no ticket #)
+
+User: the section "is not good enough, there are ux issues". Frontend-only. Root problems found and fixed:
+(1) a protocol applied with a **future start date is `SCHEDULED`**, but the default "In Progress" tab never listed
+it — new **Active** tab merges `IN_PROGRESS` + `SCHEDULED` (two list calls, the endpoint takes one status);
+(2) rows said "Day 0" for every cow (`current_step_day` is the first step's day and never advances) — now a real
+"Day 7 of 10" + progress bar from `start_date` and the template's `duration_days`, "Starts in N days" for scheduled;
+(3) three equal-weight buttons per row, "Cancel/Fail" beside the primary action — now ONE next-step button
+(Record AI → Record outcome) + a ⋯ menu (Timeline, Cancel/Fail, permission-gated); (4) templates and live work were
+one long card — now two views, **Cows on protocol** (default) and **Protocol library**; (5) library cards were
+`role="button"` with nested edit/delete (a11y) and gave no hint they were clickable, plus "0 applied / —% conception"
+pills — now a stat strip, explicit "View steps" + one-tap **Apply** (Apply dialog gained an optional
+`defaultProtocolId`), Edit/Delete in a ⋯ menu; the null conception rate shows "—" (or is hidden in the steps sheet).
+Library auto-loads every template page (no "Load more"). Live-checked in bn at 1280 + 375 (no overflow): views,
+chips, menu items, Apply preselect, steps sheet. Not exercised live: submitting Apply/Record AI/Cancel, and a
+SCHEDULED row (no such data; the merge logic is unit-simple but untested). Gate: `typecheck` 0, eslint 0, vitest 224/224.
+
+## Reproduction page — full UI/UX redesign + fluid responsive (2026-09-30, no ticket #)
+
+User: the page's UI/UX was poor; redesign it fully and make it fluid-responsive. Frontend-only, no backend
+change, dialogs untouched. The five header buttons became one "Record event" menu (each item permission-gated;
+per-cow buttons stay the fast path). The five "cows needing action" cards became one tabbed panel with a count
+badge per tab (opens on the first non-empty list, "Show N more" past 5 rows). Calving forecast is a date-tile
+list tinted by urgency ("in 4 days" / overdue). The cow list has server-side status chips (`?status=`), a table
+from `@3xl` and per-cow cards below it, plus a gestation progress bar. The events feed groups by day (Today /
+Yesterday / date) with detail chips and a scrollable event-type chip strip. Protocol cards/instance rows wrap.
+**Fluid without viewport breakpoints:** every card is an `@container` (Tailwind v4 container queries), KPI
+tiles are `auto-fit`, padding/gaps use `clamp()`. New: `reproduction-cow-identity.tsx`. Verified live at 375 /
+768 / 1280 (no horizontal overflow, table↔cards switch), bn + en (plural strings), menu → sheet → close
+restores pointer events. Gate: `typecheck` 0, eslint 0 errors, vitest 224/224. Not run: `pnpm build`.
+
 ## Feeding Grid — one table for every cow (2026-09-25, no ticket #)
 
 User: applying a feed plan showed a second, differently-shaped table; "i want only one table". The grid is

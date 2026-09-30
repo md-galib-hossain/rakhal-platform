@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { Baby, ChevronDown, Heart, HeartCrack, Microscope, Plus, Syringe } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Can } from "@/lib/auth/permissions";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useCan } from "@/lib/auth/permissions";
 import { ReproductionKpiCards } from "./reproduction-kpi-cards";
 import { ReproductionActionPanels } from "./reproduction-action-panels";
 import { ReproductionCalvingForecast } from "./reproduction-calving-forecast";
@@ -17,6 +19,12 @@ import { CalvingEventDialog } from "./dialogs/calving-event-dialog";
 import { AbortionEventDialog } from "./dialogs/abortion-event-dialog";
 import { DryOffDialog } from "./dialogs/dry-off-dialog";
 import { ReturnToHeatDialog } from "./dialogs/return-to-heat-dialog";
+
+/** Two related cards side by side: a wider main card + a narrower companion, equal height (grid
+ * `stretch`; each card fills its cell). `minmax(0, …)` lets either shrink below its content so a long
+ * cow name truncates instead of forcing the row wider. */
+const PAIR_ROW =
+  "grid grid-cols-1 items-stretch gap-[clamp(0.75rem,0.4rem+1vw,1.25rem)] @4xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]";
 
 type DialogKind =
   | "heat"
@@ -58,34 +66,59 @@ export function ReproductionWorkspace() {
     setCalvingPregnancyId(undefined);
   }
 
+  // The five create flows collapse into one "Record event" menu (each item is gated by its own
+  // permission; the menu vanishes if the user has none). Fewer competing buttons in the header, and
+  // the per-cow buttons in the attention list stay the fast path for the common case.
+  const can = useCan();
+  const recordItems = [
+    { key: "heat", icon: Heart, perm: "reproduction.heat", label: t("actions.recordHeat"), hint: t("actions.recordHeatHint"), run: () => open("heat") },
+    { key: "ai", icon: Syringe, perm: "reproduction.create", label: t("actions.recordAi"), hint: t("actions.recordAiHint"), run: () => open("breeding") },
+    { key: "check", icon: Microscope, perm: "reproduction.create", label: t("actions.recordPregnancyCheck"), hint: t("actions.recordPregnancyCheckHint"), run: () => open("pregnancyDiagnosis") },
+    { key: "calving", icon: Baby, perm: "reproduction.create", label: t("actions.recordCalving"), hint: t("actions.recordCalvingHint"), run: () => openCalving() },
+    { key: "abortion", icon: HeartCrack, perm: "reproduction.create", label: t("actions.recordAbortion"), hint: t("actions.recordAbortionHint"), run: () => open("abortion") },
+  ].filter((item) => can(item.perm));
+
   return (
     <>
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <Can I="reproduction.heat">
-          <Button variant="outline" onClick={() => open("heat")}>
-            {t("actions.recordHeat")}
-          </Button>
-        </Can>
-        <Can I="reproduction.create">
-          <Button variant="outline" onClick={() => open("breeding")}>
-            {t("actions.recordAi")}
-          </Button>
-          <Button variant="outline" onClick={() => open("pregnancyDiagnosis")}>
-            {t("actions.recordPregnancyCheck")}
-          </Button>
-          <Button variant="outline" onClick={() => open("abortion")}>
-            {t("actions.recordAbortion")}
-          </Button>
-          <Button variant="outline" onClick={() => openCalving()}>
-            {t("actions.recordCalving")}
-          </Button>
-        </Can>
-      </div>
+      {/* `@container` scopes the layout to the page's own width (sidebar open or collapsed) and the
+          gap scales with `clamp()` — fluid from a 320px phone to an ultrawide, no viewport
+          breakpoints in this file. */}
+      <div className="@container flex min-w-0 flex-col gap-[clamp(0.75rem,0.4rem+1vw,1.25rem)]">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <p className="min-w-0 flex-1 basis-64 text-sm text-muted-foreground">{t("subtitle")}</p>
+          {recordItems.length > 0 ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="w-full @md:w-auto">
+                  <Plus aria-hidden />
+                  {t("actions.recordEvent")}
+                  <ChevronDown aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[min(20rem,calc(100vw-2rem))]">
+                {recordItems.map(({ key, icon: Icon, label, hint, run }) => (
+                  <DropdownMenuItem key={key} onSelect={run} className="items-start gap-3 py-2.5">
+                    <Icon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                    <span className="flex min-w-0 flex-col">
+                      <span className="text-sm font-medium text-foreground">{label}</span>
+                      <span className="text-xs text-muted-foreground">{hint}</span>
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+        </div>
 
-      <ReproductionKpiCards />
+        <ReproductionKpiCards />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+        {/* The page reads top to bottom as Overview → Do now → Herd → Timeline, and each pair of related
+            cards shares a row (from 56rem wide; stacked below) at equal height instead of every card
+            running the full width:
+              Do now    — cows needing action  |  cows on a synchronisation protocol
+              Herd      — the cow list, full row (a 7-column table needs the width)
+              Timeline  — what happened (events)  |  what is coming (calving forecast) */}
+        <div className={PAIR_ROW}>
           <ReproductionActionPanels
             onRecordAi={(id) => open("breeding", id)}
             onRecordPregnancyCheck={(id) => open("pregnancyDiagnosis", id)}
@@ -93,13 +126,16 @@ export function ReproductionWorkspace() {
             onRecordCalving={(id, pregnancyId) => openCalving(id, pregnancyId)}
             onRecordDryOff={(id) => open("dryOff", id)}
           />
+          <ProtocolsPanel />
         </div>
-        <ReproductionCalvingForecast />
-      </div>
 
-      <ReproductionCowList />
-      <ReproductionEventsFeed />
-      <ProtocolsPanel />
+        <ReproductionCowList />
+
+        <div className={PAIR_ROW}>
+          <ReproductionEventsFeed />
+          <ReproductionCalvingForecast />
+        </div>
+      </div>
 
       <HeatEventDialog open={dialog === "heat"} onOpenChange={(next) => !next && close()} defaultCattleId={cattleId} />
       <BreedingEventDialog

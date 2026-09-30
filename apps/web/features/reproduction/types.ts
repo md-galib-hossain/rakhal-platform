@@ -138,6 +138,9 @@ export interface ReproEventsQuery {
   fromDate?: string;
   toDate?: string;
   limit?: number;
+  /** Opaque keyset cursor from the previous page's `meta.endCursor` (backend 2026-09-30). */
+  cursor?: string;
+  sortOrder?: "asc" | "desc";
 }
 
 // ---- Sub-resource rows (raw Prisma shape, cursor-paginated) ---------------
