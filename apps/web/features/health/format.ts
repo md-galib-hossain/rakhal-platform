@@ -1,6 +1,6 @@
 import type { ChipProps } from "@/components/ui/chip";
 import type { Locale } from "@/lib/constants/i18n";
-import type { HealthPriority } from "./types";
+import type { HealthCondition, HealthPriority } from "./types";
 
 /** Deterministic per-diagnosis chip color (Figma's sick-bay table colors each diagnosis chip
  * distinctly — Mastitis red, Hoof Root amber, Pink Eye purple — but the backend's `diagnosis` is a
@@ -20,6 +20,15 @@ export function diagnosisChipVariant(diagnosis: string | null): NonNullable<Chip
   let hash = 0;
   for (let i = 0; i < diagnosis.length; i++) hash = (hash * 31 + diagnosis.charCodeAt(i)) | 0;
   return DIAGNOSIS_VARIANTS[Math.abs(hash) % DIAGNOSIS_VARIANTS.length];
+}
+
+/** A case's display title: the structured condition's label, else the optional free-text note, else "—" (RAKHAL-418:
+ * `condition` is the primary classifier, `note` optional detail). `conditionLabel` is the caller's translator. */
+export function caseTitle(
+  row: { condition: HealthCondition | null; note: string | null },
+  conditionLabel: (condition: HealthCondition) => string,
+): string {
+  return row.condition ? conditionLabel(row.condition) : (row.note ?? "—");
 }
 
 export function priorityChipVariant(priority: HealthPriority): NonNullable<ChipProps["variant"]> {

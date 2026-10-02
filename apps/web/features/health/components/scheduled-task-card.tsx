@@ -1,13 +1,13 @@
 "use client"; // action button callbacks
 
 import { useTranslations } from "next-intl";
-import { ArrowRight, CalendarDays, Info, Package } from "lucide-react";
+import { ArrowRight, Bell, CalendarDays, Info, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Chip } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
-import { daysFromToday, groupCompletedCount, isGroupOverdue, taskCategoryChip, type ScheduledTaskGroup } from "../task-grouping";
+import { daysFromToday, groupCompletedCount, isGroupOverdue, nextReminder, taskCategoryChip, type ScheduledTaskGroup } from "../task-grouping";
 
-function InfoTile({ label, value, overdue }: { label: string; value: string; overdue?: boolean }) {
+function InfoTile({ label, value, overdue, title }: { label: string; value: string; overdue?: boolean; title?: string }) {
   return (
     <div className={cn("flex flex-1 flex-col gap-3 rounded-lg border p-2", overdue ? "border-destructive/30" : "border-border")}>
       <div className="flex items-center justify-between gap-1">
@@ -17,17 +17,26 @@ function InfoTile({ label, value, overdue }: { label: string; value: string; ove
         </span>
         {overdue ? <Info className="size-3.5 text-destructive" aria-hidden /> : null}
       </div>
-      <p className="truncate text-sm text-foreground">{value}</p>
+      <p className="truncate text-sm text-foreground" title={title}>
+        {value}
+      </p>
     </div>
   );
 }
 
+/** RFE-137 — relative wording ("In 3 days", "2 days overdue") matching the reminder notifications, so the card and
+ * the bell say the same thing; the absolute date is the tile's tooltip. */
 function dueLabel(t: ReturnType<typeof useTranslations>, dueDateTime: string): string {
   const diff = daysFromToday(dueDateTime);
   if (diff === 0) return t("dueToday");
-  if (diff === -1) return t("dueYesterday");
   if (diff === 1) return t("dueTomorrow");
-  return new Date(dueDateTime).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  if (diff > 1) return t("dueInDays", { days: diff });
+  if (diff === -1) return t("dueYesterday");
+  return t("overdueDays", { days: -diff });
+}
+
+function dueDateText(dueDateTime: string): string {
+  return new Date(dueDateTime).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 }
 
 /**
@@ -59,6 +68,24 @@ export function ScheduledTaskCard({
   const visibleAnimalLabels = animalLabels.slice(0, 3);
   const extraAnimalCount = animalLabels.length - visibleAnimalLabels.length;
 
+  // What the backend will do next for this step (RAKHAL-465): remind 7/3/1 days before and on the day, then daily
+  // until it is done. A finished group needs no reminder line.
+  let reminderText: string | null = null;
+  if (!isDone) {
+    const next = nextReminder(group.dueDateTime);
+    if (next) {
+      reminderText =
+        daysFromToday(next.date.toISOString()) === 0
+          ? t("reminderToday")
+          : t("nextReminder", {
+              date: next.date.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }),
+              when: t("reminderWhen", { days: next.daysBefore }),
+            });
+    } else if (overdue) {
+      reminderText = t("remindedDaily");
+    }
+  }
+
   return (
     <div className="flex flex-col gap-5 rounded-2xl border border-border bg-card p-4">
       <div className="flex items-center gap-3">
@@ -68,10 +95,16 @@ export function ScheduledTaskCard({
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
-          <InfoTile label={t("due")} value={dueLabel(t, group.dueDateTime)} overdue={overdue} />
+          <InfoTile label={t("due")} value={dueLabel(t, group.dueDateTime)} overdue={overdue} title={dueDateText(group.dueDateTime)} />
           <InfoTile label={t("medicine")} value={group.medicineName ?? "—"} />
           <InfoTile label={t("dose")} value={group.doseAmount != null ? `${group.doseAmount} ${group.doseUnit ?? ""}`.trim() : "—"} />
         </div>
+        {reminderText ? (
+          <p className={cn("flex items-center gap-1.5 text-xs", overdue ? "text-destructive" : "text-muted-foreground")}>
+            <Bell className="size-3.5 shrink-0" aria-hidden />
+            {reminderText}
+          </p>
+        ) : null}
         <div className="rounded-lg border border-border p-2">
           <span className="flex items-center gap-1 text-xs font-bold text-muted-foreground">
             <Package className="size-3.5" aria-hidden />

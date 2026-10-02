@@ -11,6 +11,7 @@ import { useCalfDetail } from "@/features/calves/hooks/use-calves";
 import { OverviewTab as CalfOverviewTab } from "@/features/calves/components/detail/overview-tab";
 import { useTaskPagedList } from "@/features/tasks/hooks/use-tasks";
 import { useCattleHealthSummary, useCattleOverview } from "../../hooks/use-cattle-detail-tabs";
+import { caseTitle } from "@/features/health/format";
 import type { AnimalCategory } from "../../types";
 
 function AlertBanner({ children }: { children: React.ReactNode }) {
@@ -50,6 +51,7 @@ export function OverviewTab({ cattleId, animalCategory }: { cattleId: string; an
 
 function NonCalfSnapshot({ cattleId }: { cattleId: string }) {
   const t = useTranslations("cattle.detail.snapshot");
+  const tCondition = useTranslations("health.reportSickness");
   const overview = useCattleOverview(cattleId);
   const health = useCattleHealthSummary(cattleId);
   const tasks = useTaskPagedList({ cattleId });
@@ -91,7 +93,7 @@ function NonCalfSnapshot({ cattleId }: { cattleId: string }) {
             ) : null}
             {healthData?.safetyWithdrawalWarning ? <AlertBanner>{t("alerts")}</AlertBanner> : null}
             {(healthData?.activeCases.length ?? 0) > 0 ? (
-              <AlertBanner>{healthData!.activeCases.map((c) => c.diagnosis).join(", ")}</AlertBanner>
+              <AlertBanner>{healthData!.activeCases.map((c) => caseTitle(c, (condition) => tCondition(`conditionValue.${condition}`))).join(", ")}</AlertBanner>
             ) : null}
           </div>
         )}

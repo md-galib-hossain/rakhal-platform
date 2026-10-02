@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Box, Syringe } from "lucide-react";
+import { Box, ClipboardList, Syringe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -28,6 +28,7 @@ import type {
   MedicineRoute,
 } from "../types";
 import { CaseInfoHeader } from "./case-info-header";
+import { CaseOverviewTab } from "./case-overview-tab";
 import { CaseLogTreatmentTab } from "./case-log-treatment-tab";
 import { CaseHealthUpdateTab } from "./case-health-update-tab";
 import { CaseCloseTab } from "./case-close-tab";
@@ -42,7 +43,7 @@ export interface CaseManagementSheetProps {
  * 3-tab segmented control (Log Treatment / Health Update / Close Case), each tab its own form +
  * submit action against the real `health.controller.ts` case-action routes. Re-mounts (via `key`)
  * whenever `caseId` changes so no state leaks between two different cases opened back to back. */
-export function CaseManagementSheet({ caseId, initialTab = "logTreatment", onOpenChange }: CaseManagementSheetProps) {
+export function CaseManagementSheet({ caseId, initialTab = "overview", onOpenChange }: CaseManagementSheetProps) {
   return (
     <Sheet open={Boolean(caseId)} onOpenChange={onOpenChange}>
       <SheetContent className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-[640px]">
@@ -191,13 +192,21 @@ function CaseManagementSheetBody({
                     tab === key ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {key === "logTreatment" ? <Syringe className="size-4" aria-hidden /> : <Box className="size-4" aria-hidden />}
+                  {key === "overview" ? (
+                    <ClipboardList className="size-4" aria-hidden />
+                  ) : key === "logTreatment" ? (
+                    <Syringe className="size-4" aria-hidden />
+                  ) : (
+                    <Box className="size-4" aria-hidden />
+                  )}
                   {t(`tabs.${key}`)}
                 </button>
               ))}
             </div>
 
-            {tab === "logTreatment" ? (
+            {tab === "overview" ? (
+              <CaseOverviewTab healthCase={query.data} onNavigate={setTab} />
+            ) : tab === "logTreatment" ? (
               <CaseLogTreatmentTab
                 medicine={medicine}
                 setMedicine={setMedicine}
@@ -224,6 +233,7 @@ function CaseManagementSheetBody({
               />
             ) : (
               <CaseCloseTab
+                summary={query.data.summary}
                 outcome={outcome}
                 setOutcome={setOutcome}
                 observation={closeObservation}
@@ -250,7 +260,7 @@ function CaseManagementSheetBody({
         )}
       </div>
 
-      {query.data ? (
+      {query.data && tab !== "overview" ? (
         <SheetFooter className="border-t border-dashed border-border pt-4">
           <Button type="button" variant="outline" className="flex-1" onClick={onClose} disabled={pending}>
             {t("cancel")}

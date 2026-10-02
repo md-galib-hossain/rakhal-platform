@@ -1,4 +1,12 @@
+import { format } from "date-fns";
 import type { HealthActionType, HealthTask, MedicineRoute } from "./types";
+
+/** `YYYY-MM-DD` of an ISO instant on the **browser-local** calendar (the farm's day for a Bangladesh user) — the one
+ * day key the Schedule tab uses for grouping, the calendar cells and the `?date=` deep link. `iso.slice(0, 10)` is
+ * the UTC date, which is the previous day for a step due before 06:00 local. */
+export function dayKeyOf(iso: string): string {
+  return format(new Date(iso), "yyyy-MM-dd");
+}
 
 /**
  * Figma's "Scheduled Task Card" (734:40931, node 734:41139 etc.) shows one card per *treatment
@@ -27,7 +35,7 @@ export function groupScheduledTasks(tasks: HealthTask[]): ScheduledTaskGroup[] {
   const map = new Map<string, ScheduledTaskGroup>();
   for (const task of tasks) {
     if (task.status === "SKIPPED") continue;
-    const dateKey = task.dueDateTime.slice(0, 10);
+    const dateKey = dayKeyOf(task.dueDateTime);
     const key = `${task.title}|${task.taskType}|${task.medicineName ?? ""}|${dateKey}`;
     let group = map.get(key);
     if (!group) {
@@ -64,14 +72,65 @@ function startOfDay(date: Date): Date {
 
 /** Whole-day difference (`due - today`), so "Today"/"Yesterday"/"Tomorrow" match calendar days,
  * not 24h windows. */
-export function daysFromToday(dueDateTime: string): number {
+export function daysFromToday(dueDateTime: string, now: Date = new Date()): number {
   const due = startOfDay(new Date(dueDateTime));
-  const today = startOfDay(new Date());
+  const today = startOfDay(now);
   return Math.round((due.getTime() - today.getTime()) / 86_400_000);
+}
+
+/** Reminder cadence — mirrors the backend's `HEALTH_REMINDER_CADENCE` (RAKHAL-465): a step reminds 7, 3 and 1 day(s)
+ * before and on the day. Earliest first. */
+export const REMINDER_DAYS_BEFORE = [7, 3, 1, 0] as const;
+
+export interface ReminderSlot {
+  daysBefore: (typeof REMINDER_DAYS_BEFORE)[number];
+  /** Local midnight of the day the reminder goes out. */
+  date: Date;
+  /** `false` once that day has passed — the backend never back-fills a stage, so it was (or will be) skipped. */
+  willFire: boolean;
+}
+
+/** The four reminder days for a step due `dueDateTime`, each marked as still to come or already skipped. RFE-136's
+ * apply preview reads this for its "we'll remind you…" line. */
+export function reminderSchedule(dueDateTime: string, now: Date = new Date()): ReminderSlot[] {
+  const due = startOfDay(new Date(dueDateTime));
+  const today = startOfDay(now);
+  return REMINDER_DAYS_BEFORE.map((daysBefore) => {
+    const date = new Date(due.getFullYear(), due.getMonth(), due.getDate() - daysBefore);
+    return { daysBefore, date, willFire: date.getTime() >= today.getTime() };
+  });
+}
+
+/** The next reminder still to come (today counts), or `null` once the due day has passed — from then on the
+ * backend sends a daily overdue reminder instead. */
+export function nextReminder(dueDateTime: string, now: Date = new Date()): ReminderSlot | null {
+  return reminderSchedule(dueDateTime, now).find((slot) => slot.willFire) ?? null;
 }
 
 export function isGroupOverdue(group: ScheduledTaskGroup): boolean {
   return daysFromToday(group.dueDateTime) < 0 && groupCompletedCount(group) < group.tasks.length;
+}
+
+export type TaskBucket = "overdue" | "today" | "upcoming";
+
+/** Which Schedule-tab bucket a card falls in. A finished group with a past due date is done, not overdue, so it fits no
+ * day-based bucket (`null`) and is only counted under "all". Shared by the tab's pills and the attention strip (RFE-134),
+ * so the number on the strip is the number on the pill it links to. */
+export function taskBucket(group: ScheduledTaskGroup, now: Date = new Date()): TaskBucket | null {
+  const diff = daysFromToday(group.dueDateTime, now);
+  if (diff < 0 && groupCompletedCount(group) < group.tasks.length) return "overdue";
+  if (diff === 0) return "today";
+  if (diff > 0) return "upcoming";
+  return null;
+}
+
+export function countTaskBuckets(groups: ScheduledTaskGroup[], now: Date = new Date()): Record<TaskBucket, number> {
+  const counts: Record<TaskBucket, number> = { overdue: 0, today: 0, upcoming: 0 };
+  for (const group of groups) {
+    const bucket = taskBucket(group, now);
+    if (bucket) counts[bucket] += 1;
+  }
+  return counts;
 }
 
 /** Category chip mapping — real `taskType` (`HealthActionType`) to the Figma mock's 3 chip colors.

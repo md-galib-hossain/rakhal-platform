@@ -12,6 +12,8 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCattleHealthSummary } from "../../hooks/use-cattle-detail-tabs";
+import { caseTitle } from "@/features/health/format";
+import { AppliedProtocolChip } from "@/features/health/components/applied-protocol-chip";
 import type { HealthCaseRow } from "../../detail-types";
 import { AnimalHoldsPanel } from "./animal-holds-panel";
 
@@ -82,6 +84,7 @@ function DoseStepper({ activeCase }: { activeCase: HealthCaseRow }) {
  * plain table matching the mock's row style. */
 export function HealthTab({ cattleId }: { cattleId: string }) {
   const t = useTranslations("cattle.detail.health");
+  const tCondition = useTranslations("health.reportSickness");
   const query = useCattleHealthSummary(cattleId);
 
   if (query.isLoading) return <CardSkeleton lines={4} />;
@@ -119,8 +122,10 @@ export function HealthTab({ cattleId }: { cattleId: string }) {
             <Card key={c.id} className="flex flex-col gap-4 rounded-xl p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-foreground">{c.diagnosis}</p>
+                  <p className="font-medium text-foreground">{caseTitle(c, (condition) => tCondition(`conditionValue.${condition}`))}</p>
+                  {c.condition && c.note ? <p className="text-xs text-muted-foreground">{c.note}</p> : null}
                   <p className="text-xs text-muted-foreground">{c.caseCode}</p>
+                  {c.healthPlan ? <AppliedProtocolChip name={c.healthPlan.name} className="mt-1.5" /> : null}
                 </div>
                 {c.totalSteps > 0 ? (
                   <p className="text-sm text-muted-foreground">

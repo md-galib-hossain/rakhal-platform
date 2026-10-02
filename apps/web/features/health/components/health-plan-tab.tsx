@@ -3,16 +3,22 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Search } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useHealthPlans } from "../hooks/use-health";
 import { HealthPlanCard } from "./health-plan-card";
 import { CreateHealthPlanDialog } from "./create-health-plan-dialog";
+import { HEALTH_CONDITIONS } from "./report-sickness/condition-chips";
 import { ApplyHealthPlanDialog } from "./apply-health-plan-dialog";
-import type { HealthPlanListItem } from "../types";
+import type { HealthCondition, HealthPlanKind, HealthPlanListItem } from "../types";
+
+type KindFilter = "ALL" | HealthPlanKind;
+const KIND_FILTERS: KindFilter[] = ["ALL", "TREATMENT", "PREVENTION", "BREEDING"];
 
 /**
  * "Protocols" tab (RFE-107 rename; was "Health Plan") — Figma 734:45281 (list) +
@@ -25,13 +31,20 @@ import type { HealthPlanListItem } from "../types";
  */
 export function HealthPlanTab() {
   const t = useTranslations("health.healthPlan");
+  const tCondition = useTranslations("health.reportSickness");
   const [search, setSearch] = useState("");
-  const query = useHealthPlans({ search: search || undefined });
+  const [kind, setKind] = useState<KindFilter>("ALL");
+  const [condition, setCondition] = useState<HealthCondition | "ALL">("ALL");
+  const query = useHealthPlans({ search: search || undefined, condition: condition === "ALL" ? undefined : condition });
   const [formOpen, setFormOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<HealthPlanListItem | undefined>(undefined);
   const [applyingPlan, setApplyingPlan] = useState<HealthPlanListItem | undefined>(undefined);
 
-  const plans = query.data?.items ?? [];
+  const allPlans = query.data?.items ?? [];
+  // RFE-136: "kind" is derived (prevention covers vaccination / deworming / routine, which are separate categories), so
+  // it filters the loaded page rather than going to the server; the condition filter does go to the server.
+  const plans = kind === "ALL" ? allPlans : allPlans.filter((plan) => plan.stats.kind === kind);
+  const kindCount = (k: KindFilter) => (k === "ALL" ? allPlans.length : allPlans.filter((plan) => plan.stats.kind === k).length);
 
   if (query.isLoading) {
     return (
@@ -49,8 +62,8 @@ export function HealthPlanTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="relative w-72">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" aria-hidden />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("searchPlaceholder")} className="pl-9" />
         </div>
@@ -66,7 +79,60 @@ export function HealthPlanTab() {
         </Button>
       </div>
 
-      {plans.length === 0 ? (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div role="tablist" aria-label={t("filters.kindLabel")} className="flex flex-wrap items-center gap-2">
+          {KIND_FILTERS.map((k) => (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={kind === k}
+              onClick={() => setKind(k)}
+              className={cn(
+                "flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors",
+                kind === k ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-foreground/30",
+              )}
+            >
+              {t(`filters.kind.${k}`)}
+              <span className="text-xs tabular-nums opacity-70">{kindCount(k)}</span>
+            </button>
+          ))}
+        </div>
+        <Select value={condition} onValueChange={(value) => setCondition(value as HealthCondition | "ALL")}>
+          <SelectTrigger className="w-full sm:w-52" aria-label={t("filters.conditionLabel")}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">{t("filters.allConditions")}</SelectItem>
+            {HEALTH_CONDITIONS.map((c) => (
+              <SelectItem key={c} value={c}>
+                {tCondition(`conditionValue.${c}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {plans.length === 0 && (kind !== "ALL" || condition !== "ALL" || search) ? (
+        <EmptyState
+          title={t("emptyFilteredTitle")}
+          description={t("emptyFilteredDescription")}
+          action={
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setKind("ALL");
+                setCondition("ALL");
+                setSearch("");
+              }}
+            >
+              {t("filters.clear")}
+            </Button>
+          }
+        />
+      ) : plans.length === 0 ? (
         <EmptyState
           title={t("emptyTitle")}
           description={t("emptyDescription")}

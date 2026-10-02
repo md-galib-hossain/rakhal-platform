@@ -310,7 +310,9 @@ export const qk = {
   },
   /** RFE-043 — bell feed + preferences (`GET /notifications`, RAKHAL-098/099). */
   notifications: {
-    list: (status: string, page: number) => ["notifications", "list", status, page] as const,
+    /** `locale` is in the key because the backend renders the copy per `Accept-Language`. */
+    list: (status: string, page: number, locale: string) =>
+      ["notifications", "list", status, page, locale] as const,
     preferences: () => ["notifications", "preferences"] as const,
   },
 };

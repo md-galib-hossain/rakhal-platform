@@ -19,7 +19,7 @@ export function HealthCard({
 }) {
   return (
     <div className={`flex flex-col gap-6 rounded-2xl border border-border bg-card p-4 shadow-card ${className ?? ""}`}>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <p className="text-base font-medium text-foreground">{title}</p>
           {titleExtra}

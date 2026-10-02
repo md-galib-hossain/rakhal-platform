@@ -1,7 +1,7 @@
 "use client"; // multi-step wizard state + form
 
 import { useState } from "react";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import { LabeledInput } from "@/components/ui/labeled-field";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useCreatePlan, useUpdatePlan } from "../hooks/use-health";
+import { HEALTH_CONDITIONS } from "./report-sickness/condition-chips";
 import { createHealthPlanFormSchema, type CreateHealthPlanFormInput } from "../schemas";
 import type { CreateHealthPlanPayload, HealthPlanListItem } from "../types";
 
@@ -43,13 +44,16 @@ const CATEGORY_TO_PLAN_TYPE: Record<CreateHealthPlanFormInput["category"], Creat
   ROUTINE: "GENERAL",
 };
 
-function toPayload(values: CreateHealthPlanFormInput): CreateHealthPlanPayload {
+function toPayload(values: CreateHealthPlanFormInput, isEdit: boolean): CreateHealthPlanPayload {
+  // Only treatment protocols carry a condition. `null` clears it on update; a create just leaves it out.
+  const condition = values.category === "TREATMENT" ? (values.condition ?? null) : null;
   return {
     name: values.name,
     category: values.category,
     planType: values.planType,
     cycleLengthDays: values.cycleLengthDays,
     description: values.description || undefined,
+    ...(isEdit ? { condition } : condition ? { condition } : {}),
     steps: values.steps.map((step, index) => {
       const title = step.medicineName || `Day ${step.dayNumber} action ${index + 1}`;
       return {
@@ -74,6 +78,7 @@ function toFormDefaults(plan: HealthPlanListItem | undefined): Partial<CreateHea
     category: plan.category,
     cycleLengthDays: plan.cycleLengthDays ?? 1,
     description: plan.description ?? "",
+    condition: plan.condition,
     steps: plan.steps.map((step) => ({
       dayNumber: step.dayNumber,
       medicineName: step.medicineName ?? "",
@@ -112,6 +117,7 @@ export function CreateHealthPlanDialog({ open, onOpenChange, plan }: { open: boo
 
 function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (open: boolean) => void; plan?: HealthPlanListItem }) {
   const t = useTranslations("health.healthPlan.createDialog");
+  const tCondition = useTranslations("health.reportSickness");
   const isEdit = Boolean(plan);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const createPlan = useCreatePlan();
@@ -123,6 +129,7 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
     defaultValues: toFormDefaults(plan),
   });
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "steps" });
+  const category = useWatch({ control: form.control, name: "category" });
 
   async function goNext() {
     const fieldsToValidate: (keyof CreateHealthPlanFormInput)[] =
@@ -134,9 +141,9 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
   async function onSubmit(values: CreateHealthPlanFormInput) {
     try {
       if (isEdit && plan) {
-        await updatePlan.mutateAsync({ id: plan.id, dto: toPayload(values) });
+        await updatePlan.mutateAsync({ id: plan.id, dto: toPayload(values, true) });
       } else {
-        await createPlan.mutateAsync(toPayload(values));
+        await createPlan.mutateAsync(toPayload(values, false));
       }
       toast.success(isEdit ? t("updatedToast") : t("createdToast"));
       onOpenChange(false);
@@ -166,6 +173,8 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
       </div>
       <div className="border-t border-dashed border-border" />
 
+      {/* Enter inside an input advances the wizard instead of submitting it early. */}
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <form
         onSubmit={form.handleSubmit(handleFormSubmit)}
         onKeyDown={(e) => {
@@ -244,6 +253,38 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
                   {t("description")}
                 </label>
               </div>
+              {category === "TREATMENT" ? (
+                <div className="flex flex-col gap-2">
+                  <div>
+                    <p className="text-xs font-medium text-foreground">{t("condition")}</p>
+                    <p className="text-xs text-muted-foreground">{t("conditionHint")}</p>
+                  </div>
+                  <Controller
+                    control={form.control}
+                    name="condition"
+                    render={({ field }) => (
+                      <div role="radiogroup" aria-label={t("condition")} className="flex flex-wrap gap-2">
+                        {HEALTH_CONDITIONS.map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            role="radio"
+                            aria-checked={field.value === c}
+                            // Tapping the chosen one again clears it — the field is optional.
+                            onClick={() => field.onChange(field.value === c ? null : c)}
+                            className={cn(
+                              "min-h-9 rounded-lg border px-3 text-sm font-medium transition-colors",
+                              field.value === c ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-foreground/30",
+                            )}
+                          >
+                            {tCondition(`conditionValue.${c}`)}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  />
+                </div>
+              ) : null}
             </div>
           ) : null}
 

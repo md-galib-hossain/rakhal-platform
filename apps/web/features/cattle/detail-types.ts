@@ -5,6 +5,7 @@
  * `Rakhal_API.md` §4/§5/§9/§12, which don't document these per-animal aggregation shapes at all.
  */
 
+import type { HealthCondition } from "@/features/health/types";
 import type { CattleGender } from "./types";
 
 // ---- Overview (Tab 1) ------------------------------------------------------
@@ -103,14 +104,19 @@ export interface CalvingEventRow {
 export interface HealthCaseRow {
   id: string;
   caseCode: string;
-  diagnosis: string;
-  diagnosisType: string;
+  /** `GET /cattle/:id/health-summary` returns raw `HealthCase` rows. RAKHAL-418: there is no `diagnosis` — the
+   * structured `condition` is the primary classifier and `note` the optional free-text detail. */
+  note: string | null;
+  condition: HealthCondition | null;
+  careType: "CURATIVE" | "PREVENTIVE";
   priority: string;
   status: string;
   startDate: string;
   progressPercentage: number;
   currentStep: number;
   totalSteps: number;
+  /** The protocol the case is on (RFE-136); `null` when none has been applied. */
+  healthPlan?: { id: string; name: string } | null;
   tasks: { id: string; dueDateTime: string; taskType: string }[];
 }
 

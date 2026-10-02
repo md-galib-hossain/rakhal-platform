@@ -2,31 +2,20 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { parseAsString, parseAsStringEnum, useQueryState } from "nuqs";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useHealthTasks } from "../hooks/use-health";
-import { daysFromToday, groupCompletedCount, groupScheduledTasks, isGroupOverdue, type ScheduledTaskGroup } from "../task-grouping";
+import { countTaskBuckets, dayKeyOf, groupCompletedCount, groupScheduledTasks, taskBucket, type ScheduledTaskGroup } from "../task-grouping";
 import { TaskCalendarStrip } from "./task-calendar-strip";
 import { ScheduledTaskCard } from "./scheduled-task-card";
 import { TaskRescheduleDialog } from "./task-reschedule-dialog";
 import { RecordBatchDialog } from "./record-batch-dialog";
 
 type TabKey = "all" | "overdue" | "today" | "upcoming";
-
-/** RAKHAL-420-era `isGroupOverdue()` is completion-aware (`ScheduledTaskCard`'s InfoTile already uses
- * it) — a group whose tasks are all COMPLETED is done, not overdue, even if its due date is in the
- * past. This tab's bucketing didn't use it, so a finished group with a past due date still counted
- * under "Overdue" with a disabled "Completed" button. Such a group returns `null` here: still counted
- * under "all", but absent from every day-based tab since it no longer fits any of them. */
-function tabBucket(group: ScheduledTaskGroup): TabKey | null {
-  if (isGroupOverdue(group)) return "overdue";
-  const diff = daysFromToday(group.dueDateTime);
-  if (diff === 0) return "today";
-  if (diff > 0) return "upcoming";
-  return null;
-}
 
 /**
  * "Task Hub" segment of the Health Management Center — Figma 734:40931 (main layout) +
@@ -48,8 +37,14 @@ export function TaskHubTab() {
   // default below (earliest month with pending work) rather than always today's calendar month.
   // Once they navigate the strip themselves, that choice sticks for the rest of the session.
   const [calendarOverride, setCalendarOverride] = useState<{ year: number; month: number } | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabKey>("all");
+  // RFE-137 — the day and the bucket live in the URL so a reminder notification can deep-link straight to them
+  // (`/healthcare?healthTab=schedule&date=2026-10-04`, overdue: `&bucket=overdue`). A malformed `date` is ignored.
+  const [dateParam, setDateParam] = useQueryState("date", parseAsString);
+  const [bucketParam, setBucketParam] = useQueryState("bucket", parseAsStringEnum<Exclude<TabKey, "all">>(["overdue", "today", "upcoming"]));
+  const selectedDate = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : null;
+  const setSelectedDate = (date: string | null) => void setDateParam(date);
+  const activeTab: TabKey = bucketParam ?? "all";
+  const setActiveTab = (tab: TabKey) => void setBucketParam(tab === "all" ? null : tab);
   const [reschedulingGroup, setReschedulingGroup] = useState<ScheduledTaskGroup | undefined>(undefined);
   const [recordingGroup, setRecordingGroup] = useState<ScheduledTaskGroup | undefined>(undefined);
 
@@ -71,24 +66,21 @@ export function TaskHubTab() {
   if (allTasks.length === 0) return <EmptyState title={t("emptyTitle")} description={t("emptyDescription")} />;
 
   const groups = groupScheduledTasks(allTasks);
-  const bucketCounts: Record<TabKey, number> = { all: groups.length, overdue: 0, today: 0, upcoming: 0 };
-  for (const group of groups) {
-    const bucket = tabBucket(group);
-    if (bucket) bucketCounts[bucket] += 1;
-  }
+  const bucketCounts: Record<TabKey, number> = { all: groups.length, ...countTaskBuckets(groups) };
 
   const pendingGroups = groups.filter((g) => groupCompletedCount(g) < g.tasks.length);
   const earliestPending = pendingGroups.length
     ? pendingGroups.reduce((min, g) => (g.dueDateTime < min.dueDateTime ? g : min))
     : null;
   const defaultCalendarDate = earliestPending ? new Date(earliestPending.dueDateTime) : now;
-  const calendarYear = calendarOverride?.year ?? defaultCalendarDate.getFullYear();
-  const calendarMonth = calendarOverride?.month ?? defaultCalendarDate.getMonth() + 1;
+  // A deep-linked day wins over the "earliest pending work" default, so the strip opens on the month being asked about.
+  const calendarYear = calendarOverride?.year ?? (selectedDate ? Number(selectedDate.slice(0, 4)) : defaultCalendarDate.getFullYear());
+  const calendarMonth = calendarOverride?.month ?? (selectedDate ? Number(selectedDate.slice(5, 7)) : defaultCalendarDate.getMonth() + 1);
 
   const visible = groups.filter((group) => {
-    if (selectedDate) return group.dueDateTime.slice(0, 10) === selectedDate;
+    if (selectedDate) return dayKeyOf(group.dueDateTime) === selectedDate;
     if (activeTab === "all") return true;
-    return tabBucket(group) === activeTab;
+    return taskBucket(group) === activeTab;
   });
 
   const TABS: { key: TabKey; label: string }[] = [
@@ -142,7 +134,18 @@ export function TaskHubTab() {
         </div>
 
         <div className="flex-1">
-          {visible.length === 0 ? (
+          {visible.length === 0 && selectedDate ? (
+            // e.g. a reminder link for a step that has since been rescheduled or done
+            <EmptyState
+              title={t("noTasksOnDate", { date: selectedDate })}
+              description={t("noTasksOnDateDescription")}
+              action={
+                <Button type="button" variant="outline" onClick={() => setSelectedDate(null)}>
+                  {t("showAllTasks")}
+                </Button>
+              }
+            />
+          ) : visible.length === 0 ? (
             <EmptyState title={t("emptyTitle")} description={t("emptyDescription")} />
           ) : (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

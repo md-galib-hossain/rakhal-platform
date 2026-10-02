@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocale } from "next-intl";
 import { qk } from "@/lib/query/keys";
 import { notificationsApi } from "../api";
 import type { NotificationStatusFilter, UpdatePreferencesInput } from "../types";
@@ -9,8 +10,9 @@ import type { NotificationStatusFilter, UpdatePreferencesInput } from "../types"
 const BELL_POLL_MS = 60_000;
 
 export function useNotifications(status: NotificationStatusFilter, page = 1, perPage = 20) {
+  const locale = useLocale();
   return useQuery({
-    queryKey: qk.notifications.list(status, page),
+    queryKey: qk.notifications.list(status, page, locale),
     queryFn: () => notificationsApi.list(status, page, perPage),
     refetchInterval: BELL_POLL_MS,
   });

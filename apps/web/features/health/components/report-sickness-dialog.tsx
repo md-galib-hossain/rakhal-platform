@@ -1,91 +1,182 @@
 "use client";
 
-import { Controller, useForm } from "react-hook-form";
+import { useState } from "react";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
+import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
+import { qk } from "@/lib/query/keys";
+import { cn } from "@/lib/utils";
+import { cattleApi } from "@/features/cattle/api";
 import { FormSheet } from "@/components/shared/form-sheet";
-import { CattlePicker } from "@/components/shared/cattle-picker";
+import { CattlePicker, type CattleOption } from "@/components/shared/cattle-picker";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateHealthCase } from "../hooks/use-health";
+import { useCreateHealthCase, useOpenCasesForCattle } from "../hooks/use-health";
 import { reportSicknessSchema, type ReportSicknessInput } from "../schemas";
-import type { HealthCondition, HealthDiagnosisType, HealthPriority } from "../types";
+import type { CaseManageTab, HealthCondition } from "../types";
 import { SymptomChips } from "./symptom-chips";
+import { ConditionChips } from "./report-sickness/condition-chips";
+import { PrioritySegmented } from "./report-sickness/priority-segmented";
+import { AppetiteField, TemperatureField } from "./report-sickness/vitals-fields";
+import { findBlockingCase, OpenCaseGuard } from "./report-sickness/open-case-guard";
+import { NextStepCard } from "./report-sickness/next-step-card";
 
-const DIAGNOSIS_TYPES: HealthDiagnosisType[] = [
-  "DISEASE",
-  "INJURY",
-  "VACCINATION",
-  "DEWORMING",
-  "ROUTINE_CHECKUP",
-  "PREVENTIVE",
-  "BREEDING_RELATED",
-  "OTHER",
-];
-const PRIORITIES: HealthPriority[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
-const HEALTH_CONDITIONS: HealthCondition[] = [
-  "MASTITIS",
-  "LAMENESS",
-  "METRITIS",
-  "KETOSIS",
-  "MILK_FEVER",
-  "FEVER",
-  "INJURY",
-  "OTHER",
-];
-const UNSET = "__unset__";
+/** Conditions where milk from the cow is usually affected — a one-line nudge, never a block. */
+const MILK_AFFECTING: HealthCondition[] = ["MASTITIS", "METRITIS"];
 
-/** "Report Sickness" — no Figma frame was given for this modal (only the sick-bay page + Case
- * Management sheet), so it's a plain `FormSheet` mirroring `CreateHealthCaseDto`, needed so the
- * sick-bay table's primary action actually creates a real case. */
-export function ReportSicknessDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+interface CreatedCase {
+  id: string;
+  animalName: string;
+  condition: HealthCondition | undefined;
+  startProtocol: boolean;
+}
+
+const blankToUndefined = (value: string | undefined) => (value && value.trim() ? value.trim() : undefined);
+
+/** "Report Sickness" (RFE-133, EPIC_HEALTH_CENTER D1/D2). Three required inputs — animal, condition chip, priority —
+ * with signs/vitals and details one tap further; an open-case guard before anything is typed; and after saving the
+ * sheet becomes a next-step card (start a protocol / log the first treatment / done) instead of just closing.
+ * `careType` is always `CURATIVE`: preventive work goes through protocols (RAKHAL-415), not sick cases. */
+export function ReportSicknessDialog({
+  open,
+  onOpenChange,
+  onOpenCase,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Open an existing case in the Case Management sheet (the open-case banner, "Log first treatment"). */
+  onOpenCase?: (caseId: string, tab?: CaseManageTab) => void;
+}) {
   const t = useTranslations("health.reportSickness");
   const createCase = useCreateHealthCase();
+  const [cattle, setCattle] = useState<CattleOption | null>(null);
+  const [created, setCreated] = useState<CreatedCase | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const form = useForm<ReportSicknessInput>({
     resolver: zodResolver(reportSicknessSchema),
-    defaultValues: { cattleId: "", diagnosis: "", diagnosisType: "DISEASE", priority: "MEDIUM" },
+    defaultValues: { cattleId: "", careType: "CURATIVE", priority: "MEDIUM", symptoms: [], note: "", staffObservation: "", assignedVet: "" },
   });
 
-  async function onSubmit(values: ReportSicknessInput) {
-    try {
-      await createCase.mutateAsync(values);
-      toast.success(t("createdToast"));
-      form.reset();
-      onOpenChange(false);
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("genericError"));
-    }
+  const cattleId = useWatch({ control: form.control, name: "cattleId" }) || undefined;
+  const condition = useWatch({ control: form.control, name: "condition" });
+  const openCases = useOpenCasesForCattle(cattleId);
+  const blocking = findBlockingCase(openCases.data?.items ?? [], condition);
+  const animalDetail = useQuery({
+    queryKey: qk.cattle.detail(cattleId ?? ""),
+    queryFn: () => cattleApi.findOne(cattleId as string),
+    enabled: Boolean(cattleId),
+    staleTime: 30_000,
+  });
+  const animalName = cattle ? (cattle.name ?? cattle.tagNumber) : "";
+
+  function reset() {
+    form.reset();
+    setCattle(null);
+    setCreated(null);
+    setDetailsOpen(false);
   }
+
+  function close(next: boolean) {
+    if (!next) reset();
+    onOpenChange(next);
+  }
+
+  const submit = (startProtocol: boolean) =>
+    form.handleSubmit(async (values) => {
+      try {
+        const saved = await createCase.mutateAsync({
+          ...values,
+          note: blankToUndefined(values.note),
+          staffObservation: blankToUndefined(values.staffObservation),
+          assignedVet: blankToUndefined(values.assignedVet),
+          symptoms: values.symptoms?.length ? values.symptoms : undefined,
+        });
+        setCreated({ id: saved.id, animalName, condition: values.condition, startProtocol });
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : t("genericError"));
+      }
+    });
+
+  function openCase(caseId: string, tab: CaseManageTab = "overview") {
+    close(false);
+    onOpenCase?.(caseId, tab);
+  }
+
+  if (created) {
+    return (
+      <FormSheet
+        open={open}
+        onOpenChange={close}
+        title={t("nextStep.sheetTitle")}
+        onSubmit={() => undefined}
+        footer={<div />}
+      >
+        <NextStepCard
+          caseId={created.id}
+          animalName={created.animalName}
+          conditionLabel={created.condition ? t(`conditionValue.${created.condition}`) : t("nextStep.sicknessFallback")}
+          condition={created.condition}
+          initialProtocolOpen={created.startProtocol}
+          onLogTreatment={() => openCase(created.id, "logTreatment")}
+          onDone={() => close(false)}
+        />
+      </FormSheet>
+    );
+  }
+
+  const pending = createCase.isPending;
+  const blocked = Boolean(blocking);
 
   return (
     <FormSheet
       open={open}
-      onOpenChange={(next) => {
-        if (!next) form.reset();
-        onOpenChange(next);
-      }}
+      onOpenChange={close}
       title={t("title")}
-      onSubmit={form.handleSubmit(onSubmit)}
-      pending={createCase.isPending}
-      submitLabel={t("submit")}
+      onSubmit={() => void submit(false)()}
+      pending={pending}
+      footer={
+        <div className="flex flex-wrap gap-3">
+          <Button type="submit" className="order-first h-12 w-full sm:order-none sm:w-auto sm:flex-1" disabled={pending || blocked}>
+            {pending ? "…" : t("submit")}
+          </Button>
+          <Button type="button" variant="outline" className="h-12 flex-1" onClick={() => void submit(true)()} disabled={pending || blocked}>
+            {t("submitAndProtocol")}
+          </Button>
+          <Button type="button" variant="secondary" className="h-12 flex-1" onClick={() => close(false)} disabled={pending}>
+            {t("cancel")}
+          </Button>
+        </div>
+      }
     >
       <div className="flex flex-col gap-2">
         <Label>{t("cattle")}</Label>
         <Controller
           control={form.control}
           name="cattleId"
-          render={({ field }) => <CattlePicker value={field.value} onValueChange={(id) => field.onChange(id)} />}
+          render={({ field }) => (
+            <CattlePicker
+              value={field.value}
+              onValueChange={(id, option) => {
+                field.onChange(id);
+                setCattle(option);
+              }}
+            />
+          )}
         />
+        {form.formState.errors.cattleId ? <p className="text-xs text-destructive">{t("cattleRequired")}</p> : null}
+        {cattleId && animalDetail.data ? (
+          <p className="text-xs text-muted-foreground">
+            {[animalDetail.data.shed?.name ?? t("noShed"), animalDetail.data.tagNumber].join(" · ")}
+          </p>
+        ) : null}
       </div>
 
-      <div className="flex flex-col gap-2">
-        <Label>{t("diagnosis")}</Label>
-        <Input {...form.register("diagnosis")} placeholder={t("diagnosisPlaceholder")} />
-      </div>
+      <OpenCaseGuard cattleId={cattleId} condition={condition} animalName={animalName} onOpenCase={(id) => openCase(id)} />
 
       <div className="flex flex-col gap-2">
         <Label>{t("condition")}</Label>
@@ -93,83 +184,64 @@ export function ReportSicknessDialog({ open, onOpenChange }: { open: boolean; on
           control={form.control}
           name="condition"
           render={({ field }) => (
-            <Select
-              value={field.value ?? UNSET}
-              onValueChange={(v) => field.onChange(v === UNSET ? undefined : v)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={t("conditionPlaceholder")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={UNSET}>{t("conditionPlaceholder")}</SelectItem>
-                {HEALTH_CONDITIONS.map((v) => (
-                  <SelectItem key={v} value={v}>
-                    {t(`conditionValue.${v}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ConditionChips value={field.value} onChange={field.onChange} invalid={Boolean(form.formState.errors.condition)} />
           )}
         />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-2">
-          <Label>{t("diagnosisType")}</Label>
-          <Controller
-            control={form.control}
-            name="diagnosisType"
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {DIAGNOSIS_TYPES.map((v) => (
-                    <SelectItem key={v} value={v}>
-                      {t(`diagnosisTypeValue.${v}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label>{t("priority")}</Label>
-          <Controller
-            control={form.control}
-            name="priority"
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PRIORITIES.map((v) => (
-                    <SelectItem key={v} value={v}>
-                      {t(`priorityValue.${v}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          />
-        </div>
+        {form.formState.errors.condition ? <p className="text-xs text-destructive">{t("conditionRequired")}</p> : null}
+        {condition && MILK_AFFECTING.includes(condition) ? <p className="text-xs text-muted-foreground">{t("milkHint")}</p> : null}
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label>{t("symptoms")}</Label>
-        <Controller
-          control={form.control}
-          name="symptoms"
-          render={({ field }) => <SymptomChips value={field.value ?? []} onChange={field.onChange} />}
-        />
+        <Label>{t("priority")}</Label>
+        <Controller control={form.control} name="priority" render={({ field }) => <PrioritySegmented value={field.value} onChange={field.onChange} />} />
       </div>
 
-      <div className="flex flex-col gap-2">
-        <Label>{t("notes")}</Label>
-        <Textarea {...form.register("notes")} placeholder={t("notesPlaceholder")} rows={3} />
+      <div className="flex flex-col gap-4 rounded-xl border border-dashed border-border p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("signsTitle")}</p>
+        <div className="flex flex-col gap-2">
+          <Label>{t("symptoms")}</Label>
+          <Controller
+            control={form.control}
+            name="symptoms"
+            render={({ field }) => <SymptomChips value={field.value ?? []} onChange={field.onChange} />}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label>{t("temperature")}</Label>
+          <Controller control={form.control} name="temperature" render={({ field }) => <TemperatureField value={field.value} onChange={field.onChange} />} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label>{t("appetite")}</Label>
+          <Controller control={form.control} name="appetite" render={({ field }) => <AppetiteField value={field.value} onChange={field.onChange} />} />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <button
+          type="button"
+          onClick={() => setDetailsOpen((v) => !v)}
+          aria-expanded={detailsOpen}
+          className="flex min-h-11 items-center justify-between rounded-lg px-1 text-sm font-medium text-foreground"
+        >
+          {t("detailsToggle")}
+          <ChevronDown className={cn("size-4 transition-transform", detailsOpen && "rotate-180")} aria-hidden />
+        </button>
+        {detailsOpen ? (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label>{t("note")}</Label>
+              <Input {...form.register("note")} placeholder={t("notePlaceholder")} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>{t("staffObservation")}</Label>
+              <Input {...form.register("staffObservation")} placeholder={t("staffObservationPlaceholder")} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>{t("assignedVet")}</Label>
+              <Input {...form.register("assignedVet")} placeholder={t("assignedVetPlaceholder")} />
+            </div>
+          </div>
+        ) : null}
       </div>
     </FormSheet>
   );

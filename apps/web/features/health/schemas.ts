@@ -4,26 +4,18 @@ import { z } from "zod";
  * modal); a plain FormDialog is needed so the sick-bay table has a real way to create cases. */
 export const reportSicknessSchema = z.object({
   cattleId: z.string().min(1),
-  diagnosis: z.string().trim().min(1),
-  condition: z
-    .enum(["MASTITIS", "LAMENESS", "METRITIS", "KETOSIS", "MILK_FEVER", "FEVER", "INJURY", "OTHER"])
-    .optional(),
-  diagnosisType: z.enum([
-    "DISEASE",
-    "INJURY",
-    "VACCINATION",
-    "DEWORMING",
-    "ROUTINE_CHECKUP",
-    "PREVENTIVE",
-    "BREEDING_RELATED",
-    "OTHER",
-  ]),
+  /** RAKHAL-418: `condition` is the primary classifier (required here); `note` is optional detail. */
+  condition: z.enum(["MASTITIS", "LAMENESS", "METRITIS", "KETOSIS", "MILK_FEVER", "FEVER", "INJURY", "OTHER"]),
+  note: z.string().trim().optional(),
+  /** Report Sickness always opens a curative case — preventive rounds go through protocols (RAKHAL-415). */
+  careType: z.enum(["CURATIVE", "PREVENTIVE"]),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
   symptoms: z.array(z.string()).optional(),
   notes: z.string().trim().optional(),
   temperature: z.number().min(35).max(45).optional(),
   appetite: z.enum(["NORMAL", "REDUCED", "NONE", "HIGH"]).optional(),
   staffObservation: z.string().trim().optional(),
+  assignedVet: z.string().trim().optional(),
 });
 export type ReportSicknessInput = z.infer<typeof reportSicknessSchema>;
 
@@ -104,6 +96,9 @@ export const healthPlanDetailsSchema = z.object({
   category: z.enum(["TREATMENT", "PREVENTION", "BREEDING", "VACCINATION", "DEWORMING", "ROUTINE"]),
   cycleLengthDays: z.number().int().min(1),
   description: z.string().trim().optional(),
+  /** RAKHAL-468 — optional; lets Report Sickness suggest this protocol for a case with the same condition. Only asked
+   * for treatment protocols. */
+  condition: z.enum(["MASTITIS", "LAMENESS", "METRITIS", "KETOSIS", "MILK_FEVER", "FEVER", "INJURY", "OTHER"]).nullish(),
 });
 export type HealthPlanDetailsInput = z.infer<typeof healthPlanDetailsSchema>;
 

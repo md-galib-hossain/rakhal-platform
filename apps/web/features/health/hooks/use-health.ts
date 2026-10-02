@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { healthApi } from "../api";
@@ -14,6 +14,7 @@ import type {
   HealthListFilters,
   HealthPlanCategory,
   HealthPlanType,
+  HealthCondition,
   LogTaskTreatmentPayload,
   LogTreatmentPayload,
   MortalityPayload,
@@ -43,6 +44,27 @@ export function useSickBayPagedList(filters: HealthListFilters) {
   );
 }
 
+/** RFE-133 — the animal's currently-open cases (`GET /health/sick-bay?cattleId=`; the default status filter is
+ * the open statuses). Sits under the `["health","sick-bay"]` prefix, so every health mutation refreshes it. */
+export function useOpenCasesForCattle(cattleId: string | undefined) {
+  return useQuery({
+    queryKey: ["health", "sick-bay", "cow", cattleId ?? ""] as const,
+    queryFn: () => healthApi.sickBay({ cattleId }, undefined, 10),
+    enabled: Boolean(cattleId),
+    staleTime: 15_000,
+  });
+}
+
+/** RFE-138 — farm outcomes over the last `days` days. Under the `["health"]` prefix, and bust by every health
+ * mutation (`useInvalidateHealth`), so the card follows case changes. */
+export function useHealthOutcomes(days: number) {
+  return useQuery({
+    queryKey: ["health", "outcomes", days] as const,
+    queryFn: () => healthApi.outcomes(days),
+    staleTime: STALE_TIME,
+  });
+}
+
 export function useHealthCaseDetail(id: string | undefined) {
   return useQuery({
     queryKey: qk.health.caseDetail(id ?? ""),
@@ -57,6 +79,7 @@ function useInvalidateHealth() {
   return (caseId?: string, cattleId?: string) => {
     void queryClient.invalidateQueries({ queryKey: ["health", "sick-bay"] });
     void queryClient.invalidateQueries({ queryKey: qk.health.dashboard() });
+    void queryClient.invalidateQueries({ queryKey: ["health", "outcomes"] });
     // Completing/logging a treatment also flips its HealthTask's status — bust the Task Hub's
     // list + calendar too, not just sick-bay/dashboard (real bug fixed while building the Task
     // Hub tab: previously the Task Hub grid went stale after any case-management action).
@@ -191,7 +214,7 @@ export function useSkipTask() {
 }
 
 /** RFE-110 (out-of-lane touch, flagged — needed to pass `activeOnly` through to the real query). */
-export function useSafetyWithdrawals(filters: { status?: SafetyWithdrawalStatus; activeOnly?: boolean } = {}) {
+export function useSafetyWithdrawals(filters: { status?: SafetyWithdrawalStatus; activeOnly?: boolean; limit?: number } = {}) {
   return useQuery({
     queryKey: [...qk.health.safetyWithdrawals(), filters],
     queryFn: () => healthApi.safetyWithdrawals(filters),
@@ -216,11 +239,14 @@ export function useReleaseWithdrawal() {
   });
 }
 
-export function useHealthPlans(filters: { search?: string; category?: HealthPlanCategory; planType?: HealthPlanType } = {}) {
+export function useHealthPlans(filters: { search?: string; category?: HealthPlanCategory; planType?: HealthPlanType; condition?: HealthCondition } = {}) {
   return useQuery({
     queryKey: [...qk.health.plans(), filters],
     queryFn: () => healthApi.listPlans(filters),
     staleTime: STALE_TIME,
+    // Keeps the previous list on screen while a new search / condition filter loads, so the Protocols toolbar (and the
+    // search box's focus) is not swapped for a skeleton on every keystroke.
+    placeholderData: keepPreviousData,
   });
 }
 

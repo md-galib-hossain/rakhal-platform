@@ -16,12 +16,12 @@ import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { DateText } from "@/components/shared/date-text";
 import { cattleApi } from "@/features/cattle/api";
 import type { CattleListItem } from "@/features/cattle/types";
 import { useApplyPlanToAnimals } from "../hooks/use-health";
 import { applyHealthPlanStep1Schema, type ApplyHealthPlanStep1Input } from "../schemas";
 import type { HealthPlanListItem } from "../types";
+import { ProtocolPreviewTimeline } from "./protocol-preview-timeline";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 
@@ -29,13 +29,6 @@ const ROUTES = ["IM", "IV", "SC", "ORAL"] as const;
 
 function todayIso() {
   return todayLocalIso();
-}
-
-function getStepDate(startDateStr: string | undefined, dayNumber: number): Date {
-  const str = startDateStr || todayIso();
-  const [y, m, d] = str.split("-").map(Number);
-  const offset = Math.max(0, dayNumber - 1);
-  return new Date(y, (m || 1) - 1, (d || 1) + offset);
 }
 
 /**
@@ -310,32 +303,9 @@ function ApplyHealthPlanDialogBody({ plan, onOpenChange }: { plan: HealthPlanLis
               <p className="text-base font-medium text-foreground">{t("step2Title")}</p>
               <p className="text-xs text-muted-foreground">{t("step2Subtitle")}</p>
             </div>
-            <div className="overflow-hidden rounded-2xl border border-border">
-              <div className="grid grid-cols-[48px_130px_1fr_80px] bg-muted p-2 text-sm font-medium text-muted-foreground">
-                <span className="px-2 py-3">{t("day")}</span>
-                <span className="px-2 py-3">{t("date")}</span>
-                <span className="px-2 py-3">{t("medicine")}</span>
-                <span className="px-2 py-3">{t("dose")}</span>
-              </div>
-              {plan.steps.map((planStep) => {
-                const stepDate = getStepDate(startDate, planStep.dayNumber);
-                return (
-                  <div
-                    key={planStep.id}
-                    className="grid grid-cols-[48px_130px_1fr_80px] border-b border-border p-2 text-sm text-foreground last:border-b-0"
-                  >
-                    <span className="px-2 py-3">{planStep.dayNumber}</span>
-                    <span className="truncate px-2 py-3 text-muted-foreground">
-                      <DateText date={stepDate} />
-                    </span>
-                    <span className="truncate px-2 py-3">{planStep.medicineName ?? "—"}</span>
-                    <span className="px-2 py-3">
-                      {planStep.doseAmount != null ? `${planStep.doseAmount} ${planStep.doseUnit ?? ""}`.trim() : "—"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+            <p className="text-sm text-foreground">{t("appliesTo", { count: selected.size })}</p>
+            {/* RFE-136: real dates, when milk / meat is safe again and the reminder line — same dates the backend creates. */}
+            <ProtocolPreviewTimeline steps={plan.steps} startDate={startDate} />
           </div>
         )}
       </div>

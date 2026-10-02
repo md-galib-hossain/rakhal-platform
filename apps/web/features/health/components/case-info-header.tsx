@@ -60,10 +60,12 @@ export function CaseInfoHeader({ healthCase }: { healthCase: HealthCaseDetail })
           <p className="text-sm font-medium text-foreground">{healthCase.shedName ?? "—"}</p>
         </InfoTile>
         <InfoTile label={t("diagnosis")}>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Chip variant={diagnosisChipVariant(healthCase.diagnosis)}>{healthCase.diagnosis}</Chip>
-            {healthCase.condition ? (
-              <Chip variant="muted">{t(`conditionValue.${healthCase.condition}`)}</Chip>
+          <div className="flex flex-col items-start gap-1">
+            <Chip variant={diagnosisChipVariant(healthCase.condition ?? healthCase.note)}>
+              {healthCase.condition ? t(`conditionValue.${healthCase.condition}`) : (healthCase.note ?? "—")}
+            </Chip>
+            {healthCase.condition && healthCase.note ? (
+              <p className="text-xs text-muted-foreground">{healthCase.note}</p>
             ) : null}
           </div>
         </InfoTile>

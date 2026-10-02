@@ -7,6 +7,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DateText } from "@/components/shared/date-text";
+import { AppliedProtocolChip } from "./applied-protocol-chip";
 import { ProgressRing } from "./progress-ring";
 import { SickBayTable } from "./sick-bay-table";
 import { SafetyWithdrawalSection } from "./safety-withdrawal-tab";
@@ -134,7 +135,7 @@ function RoundRow({ round }: { round: PlanApplicationListItem }) {
   return (
     <tr className="border-t border-border transition-colors hover:bg-muted/30">
       <td className="px-4 py-3">
-        <span className="font-medium text-foreground">{round.healthPlan.name}</span>
+        <AppliedProtocolChip name={round.healthPlan.name} />
       </td>
       <td className="px-4 py-3 text-muted-foreground">
         <DateText date={round.startDate} />

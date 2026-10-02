@@ -1,5 +1,11 @@
 # Frontend — Current State
 
+## RFE-134 shipped (MILESTONE 29): Health Management Center toolbar, attention strip, Sick Bay reshaped (2026-10-02)
+The toolbar is two buttons (Report sickness, Record treatment). An attention strip above the tabs shows overdue steps, steps due today and animals whose withdrawal ends within 3 days, each a link into the filtered view. Sick Bay now reads Animal / Condition / Protocol / Next step / Withdrawal / Priority / Day N, with an "Apply protocol" button where no protocol is set, and each case is a card below `md`. Gate: typecheck 0, eslint 0, vitest 60/60 for health, `pnpm build` 0. **Not checked live in the browser or at 375px** (pane hidden); render-tested in en + bn. Details: workspace `docs/EPIC_HEALTH_CENTER.md` §11. Remaining in MILESTONE 29: optional RAKHAL-469.
+
+## RFE-136 shipped (MILESTONE 29): the Protocols tab shows what each protocol achieves (2026-10-02)
+Kind filter + condition filter, live result tiles on every card (recovery rate / coverage / steps due, from `GET /health/plans` `stats`), a condition chip, and an **apply preview** with the real dates, milk / meat withdrawal dates and the reminder line. The applied protocol shows as one chip on Sick Bay rows, preventive rounds and the cow's Health tab. The create/edit form has an optional Condition (treatment protocols), and the protocol picker used by Report Sickness, the case Overview and Sick Bay's "Apply protocol" lists condition-matched protocols first ("Suggested"). Live-checked (bn, desktop); not checked on a phone, in `en`, or as a worker. Gate: typecheck 0, eslint 0, vitest 45/45 for health + cattle, `pnpm build` 0. Details: `docs/EPIC_HEALTH_CENTER.md` §11 (workspace). Remaining in MILESTONE 29: RFE-134, optional RAKHAL-469.
+
 ## Reproduction: taller Attention/Protocols pair + Cow List pagination (2026-09-30, no ticket #)
 
 User: the Attention + Protocols pair was too short to show a useful amount, and the Cow List needed pagination. The pair

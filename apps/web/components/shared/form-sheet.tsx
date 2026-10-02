@@ -14,6 +14,8 @@ export interface FormSheetProps {
   submitLabel?: string;
   cancelLabel?: string;
   pending?: boolean;
+  /** Replaces the default Cancel/Submit pair (e.g. a form with two submit actions, or a follow-up view). */
+  footer?: React.ReactNode;
   side?: "left" | "right" | "top" | "bottom";
   className?: string;
 }
@@ -34,6 +36,7 @@ export function FormSheet({
   submitLabel = "Save",
   cancelLabel = "Cancel",
   pending = false,
+  footer,
   side = "right",
   className,
 }: FormSheetProps) {
@@ -70,14 +73,18 @@ export function FormSheet({
           {description ? <SheetDescription className="px-1 pt-4">{description}</SheetDescription> : null}
           <div className="flex flex-1 flex-col gap-4 px-1 py-4">{children}</div>
           <div className="border-t border-dashed border-border" />
-          <div className="flex gap-3 px-1 pt-5">
-            <Button type="button" variant="secondary" className="h-12 flex-1" onClick={() => onOpenChange(false)} disabled={pending}>
-              {cancelLabel}
-            </Button>
-            <Button type="submit" className="h-12 flex-1" disabled={pending}>
-              {pending ? "…" : submitLabel}
-            </Button>
-          </div>
+          {footer ? (
+            <div className="px-1 pt-5">{footer}</div>
+          ) : (
+            <div className="flex gap-3 px-1 pt-5">
+              <Button type="button" variant="secondary" className="h-12 flex-1" onClick={() => onOpenChange(false)} disabled={pending}>
+                {cancelLabel}
+              </Button>
+              <Button type="submit" className="h-12 flex-1" disabled={pending}>
+                {pending ? "…" : submitLabel}
+              </Button>
+            </div>
+          )}
         </form>
       </SheetContent>
     </Sheet>

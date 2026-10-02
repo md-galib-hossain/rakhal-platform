@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Chip } from "@/components/ui/chip";
-import { isGroupOverdue, taskCategoryChip, type ScheduledTaskGroup } from "../task-grouping";
+import { dayKeyOf, isGroupOverdue, taskCategoryChip, type ScheduledTaskGroup } from "../task-grouping";
 
 const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 /** Cells are ~110px tall — 3 chips (24px each) plus the day number is what actually fits before
@@ -44,7 +44,7 @@ export function TaskCalendarStrip({
 
   const groupsByDate = new Map<string, ScheduledTaskGroup[]>();
   for (const group of groups) {
-    const dateKey = group.dueDateTime.slice(0, 10);
+    const dateKey = dayKeyOf(group.dueDateTime);
     const list = groupsByDate.get(dateKey);
     if (list) list.push(group);
     else groupsByDate.set(dateKey, [group]);

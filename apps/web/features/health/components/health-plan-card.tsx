@@ -11,12 +11,14 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useDeletePlan } from "../hooks/use-health";
 import type { HealthPlanListItem } from "../types";
+import { ProtocolResultStats } from "./protocol-result-stats";
 
-const PLAN_TYPE_CHIP: Record<HealthPlanListItem["planType"], { variant: "info" | "indigo" | "muted"; labelKey: "medical" | "prevention" | "breeding" | "general" }> = {
-  MEDICAL: { variant: "info", labelKey: "medical" },
+/** One "kind" per protocol (EPIC D7): the UI never shows the `category` / `planType` pair — the backend derives this from
+ * `category` and returns it as `stats.kind`. */
+const KIND_CHIP: Record<HealthPlanListItem["stats"]["kind"], { variant: "info" | "indigo" | "muted"; labelKey: "treatment" | "prevention" | "breeding" }> = {
+  TREATMENT: { variant: "info", labelKey: "treatment" },
   PREVENTION: { variant: "indigo", labelKey: "prevention" },
   BREEDING: { variant: "muted", labelKey: "breeding" },
-  GENERAL: { variant: "muted", labelKey: "general" },
 };
 
 /**
@@ -24,11 +26,9 @@ const PLAN_TYPE_CHIP: Record<HealthPlanListItem["planType"], { variant: "info" |
  * 734:55443 `get_design_context`): title + `planType` chip, "{N} Action Steps • {M} Days Cycle
  * Length", a collapsible day-by-day Action Sequence (3 rows shown, "Show More" reveals the rest —
  * real `steps` come back on `GET /health/plans` itself, verified live, no separate detail fetch),
- * Edit Plan + Apply buttons. **Real gap vs the mock, flagged not faked**: the footer stat band
- * ("Currently Active" / "N Animals" / "X% Success Rate") has no backing data anywhere in this
- * schema — `HealthPlan` tracks no active-enrollment count or outcome-success metric, and there's no
- * `healthPlanId` filter on the cases list to derive one client-side either — dropped entirely rather
- * than invented, same call `MilkStatsCard` made for its own unbacked KPI row.
+ * Edit Plan + Apply buttons. **RFE-136**: the result band the mock pictures ("N Animals" / "X% Success Rate") is now
+ * real — `stats` on `GET /health/plans` (RAKHAL-466) is computed from the cases / enrollments that used the protocol —
+ * and a protocol tagged with a condition (RAKHAL-468) shows it as a chip next to its kind.
  */
 export function HealthPlanCard({
   plan,
@@ -40,11 +40,12 @@ export function HealthPlanCard({
   onApply: (plan: HealthPlanListItem) => void;
 }) {
   const t = useTranslations("health.healthPlan.card");
+  const tCondition = useTranslations("health.reportSickness");
   const [expanded, setExpanded] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const deletePlan = useDeletePlan();
 
-  const chip = PLAN_TYPE_CHIP[plan.planType];
+  const chip = KIND_CHIP[plan.stats.kind];
   const visibleSteps = expanded ? plan.steps : plan.steps.slice(0, 3);
   const hasMore = plan.steps.length > 3;
 
@@ -62,13 +63,17 @@ export function HealthPlanCard({
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-5">
           <p className="flex-1 truncate text-xl font-bold text-foreground">{plan.name}</p>
-          <Chip variant={chip.variant}>{t(`type.${chip.labelKey}`)}</Chip>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {plan.condition ? <Chip variant="warning">{tCondition(`conditionValue.${plan.condition}`)}</Chip> : null}
+            <Chip variant={chip.variant}>{t(`type.${chip.labelKey}`)}</Chip>
+          </div>
         </div>
         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <span>{t("actionSteps", { count: plan.totalActionSteps })}</span>
           <span className="size-1 rounded-full bg-muted-foreground" />
           <span>{t("cycleLength", { count: plan.cycleLengthDays ?? 0 })}</span>
         </div>
+        <ProtocolResultStats stats={plan.stats} />
       </div>
 
       <div className="border-t border-dashed border-border" />

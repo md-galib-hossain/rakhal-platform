@@ -14,9 +14,11 @@ import type {
   HealthCaseListItem,
   HealthDashboard,
   HealthListFilters,
+  HealthOutcomes,
   HealthPlanCategory,
   HealthPlanListItem,
   HealthPlanType,
+  HealthCondition,
   HealthTask,
   HealthTaskCalendarDay,
   HealthUpdate,
@@ -39,6 +41,10 @@ import type {
 export const healthApi = {
   dashboard(): Promise<HealthDashboard> {
     return apiFetch<HealthDashboard>("/health/dashboard");
+  },
+  /** RAKHAL-467 — farm results over the curative cases opened in the last `days` days (7–365). */
+  outcomes(days: number): Promise<HealthOutcomes> {
+    return apiFetch<HealthOutcomes>("/health/outcomes", { searchParams: { days } });
   },
   sickBay(filters: HealthListFilters, cursor?: string, limit = 20): Promise<CursorPage<HealthCaseListItem>> {
     return apiFetchPage<HealthCaseListItem>("/health/sick-bay", {
@@ -115,11 +121,11 @@ export const healthApi = {
   /** RFE-110: no longer a standalone tab, folded into Treatments as a "Withholding" filter
    * section — `activeOnly` backs its default view (RAKHAL-420's `SafetyWithdrawalQueryDto`). */
   safetyWithdrawals(
-    filters: { status?: SafetyWithdrawalStatus; activeOnly?: boolean } = {},
+    filters: { status?: SafetyWithdrawalStatus; activeOnly?: boolean; limit?: number } = {},
     cursor?: string,
   ): Promise<CursorPage<SafetyWithdrawalListItem>> {
     return apiFetchPage<SafetyWithdrawalListItem>("/health/safety-withdrawals", {
-      searchParams: { status: filters.status, activeOnly: filters.activeOnly, cursor, limit: 20 },
+      searchParams: { status: filters.status, activeOnly: filters.activeOnly, cursor, limit: filters.limit ?? 20 },
     });
   },
   refreshSafetyWithdrawals(): Promise<{ updated: number }> {
@@ -132,11 +138,11 @@ export const healthApi = {
   },
   /** Health Plan tab (Figma 734:45281 + Create/Apply wizards). */
   listPlans(
-    filters: { search?: string; category?: HealthPlanCategory; planType?: HealthPlanType } = {},
+    filters: { search?: string; category?: HealthPlanCategory; planType?: HealthPlanType; condition?: HealthCondition } = {},
     cursor?: string,
   ): Promise<CursorPage<HealthPlanListItem>> {
     return apiFetchPage<HealthPlanListItem>("/health/plans", {
-      searchParams: { search: filters.search, category: filters.category, planType: filters.planType, cursor, limit: 20 },
+      searchParams: { search: filters.search, category: filters.category, planType: filters.planType, condition: filters.condition, cursor, limit: 20 },
     });
   },
   createPlan(dto: CreateHealthPlanPayload): Promise<HealthPlanListItem> {

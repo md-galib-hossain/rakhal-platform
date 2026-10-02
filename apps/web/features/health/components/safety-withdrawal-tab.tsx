@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { useRefreshSafetyWithdrawals, useSafetyWithdrawals } from "../hooks/use-health";
 import { SafetyWithdrawalTable } from "./safety-withdrawal-table";
+import { WITHDRAWALS_SECTION_ID } from "./attention-strip";
 
 const FILTERS = ["withholding", "all"] as const;
 type Filter = (typeof FILTERS)[number];
@@ -48,7 +49,7 @@ export function SafetyWithdrawalSection() {
   }
 
   return (
-    <div className="flex flex-col gap-3 border-t border-dashed border-border pt-6">
+    <div id={WITHDRAWALS_SECTION_ID} className="flex scroll-mt-4 flex-col gap-3 border-t border-dashed border-border pt-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <h3 className="text-base font-semibold text-foreground">{t("title")}</h3>

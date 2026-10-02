@@ -9,9 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SymptomChips } from "./symptom-chips";
-import type { HealthCloseOutcome } from "../types";
+import type { CaseSummary, HealthCloseOutcome } from "../types";
+import { CaseResultSummary } from "./case-result-summary";
 
 export interface CaseCloseTabState {
+  /** `GET /health/cases/:id` → `summary` (RAKHAL-467); shown above the outcome choice. */
+  summary?: CaseSummary;
   outcome: HealthCloseOutcome;
   setOutcome: (v: HealthCloseOutcome) => void;
   observation: string;
@@ -48,6 +51,9 @@ export function CaseCloseTab(props: CaseCloseTabState) {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* RFE-135: decide with the facts in view — days, treatments, protocol, cost so far. */}
+      {props.summary ? <CaseResultSummary summary={props.summary} /> : null}
+
       <div className="flex flex-col gap-2">
         <Label>{t("caseOutcome")}</Label>
         <div className="grid grid-cols-2 gap-2">
