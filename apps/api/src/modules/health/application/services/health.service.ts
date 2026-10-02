@@ -49,6 +49,7 @@ import {
   SkipHealthTaskDto,
 } from '../../presentation/dto/case-actions.dto';
 import { CreateHealthCaseDto } from '../../presentation/dto/create-health-case.dto';
+import { BulkCreateHealthCasesDto } from '../../presentation/dto/bulk-create-health-cases.dto';
 import {
   AppliedPlansQueryDto,
   HealthPlanQueryDto,
@@ -420,6 +421,167 @@ export class HealthService {
       cattleId: dto.cattleId,
     });
     return healthCase;
+  }
+
+  /**
+   * RAKHAL-469 (MILESTONE 29) — report one condition for several animals in a single call (an outbreak).
+   *
+   *  - **All-or-nothing validation:** any id that is not an active animal of this farm fails the whole call (404 naming
+   *    them) with nothing written — same stance as `applyPlanToAnimals`.
+   *  - **Duplicates are skipped, not errors:** an animal that already has an open case for the same condition (or the
+   *    same note, when no condition is given) is reported as `skipped`, because in a group report one such animal must
+   *    not block the other 29. Same rule as the single-case duplicate check.
+   *  - **One transaction** creates every new case (codes minted from the tx so none repeats).
+   *  - **Follow-up work happens after the commit and is grouped:** each animal gets its own AQR event (the sickness
+   *    penalty is per animal) but the farm gets ONE review task and ONE Owner/Manager alert for the whole outbreak,
+   *    not thirty.
+   */
+  async createHealthCasesBulk(
+    farmId: string,
+    userId: string,
+    dto: BulkCreateHealthCasesDto,
+  ) {
+    if (!dto.condition && !dto.note?.trim()) {
+      throw new BadRequestException(
+        'Give a condition or a note, so the cases can be told apart from duplicates',
+      );
+    }
+    const cattleIds = [...new Set(dto.cattleIds)];
+    const careType = dto.careType ?? HealthCareType.CURATIVE;
+
+    const cattleRows = await this.prisma.cattle.findMany({
+      where: { id: { in: cattleIds }, farmId, deletedAt: null },
+      select: { id: true, tagNumber: true, name: true, shedId: true },
+    });
+    const byId = new Map(cattleRows.map((c) => [c.id, c]));
+    const missing = cattleIds.filter((id) => !byId.has(id));
+    if (missing.length > 0) {
+      throw new NotFoundException(
+        `Cattle not found in this farm: ${missing.join(', ')}`,
+      );
+    }
+
+    const open = await this.prisma.healthCase.findMany({
+      where: {
+        farmId,
+        cattleId: { in: cattleIds },
+        status: { in: ACTIVE_CASE_STATUSES },
+        ...(dto.condition
+          ? { condition: dto.condition }
+          : { note: { equals: dto.note, mode: 'insensitive' } }),
+      },
+      select: { cattleId: true },
+    });
+    const alreadyOpen = new Set(open.map((c) => c.cattleId));
+    const toCreate = cattleIds.filter((id) => !alreadyOpen.has(id));
+
+    const startDate = dto.startDate ? new Date(dto.startDate) : new Date();
+    const created = new Map<
+      string,
+      { healthCaseId: string; caseCode: string }
+    >();
+    if (toCreate.length > 0) {
+      await this.prisma.$transaction(async (tx) => {
+        for (const cattleId of toCreate) {
+          const caseCode = await this.nextCaseCode(farmId, tx);
+          const healthCase = await tx.healthCase.create({
+            data: {
+              farmId,
+              cattleId,
+              caseCode,
+              note: dto.note,
+              condition: dto.condition,
+              careType,
+              priority: dto.priority,
+              shedId: byId.get(cattleId)!.shedId,
+              reportedBy: userId,
+              assignedVet: dto.assignedVet,
+              startDate,
+              expectedRecoveryDate: dto.expectedRecoveryDate
+                ? new Date(dto.expectedRecoveryDate)
+                : undefined,
+              symptoms: dto.symptoms ?? [],
+              notes: dto.notes,
+            },
+            select: { id: true, caseCode: true },
+          });
+          created.set(cattleId, {
+            healthCaseId: healthCase.id,
+            caseCode: healthCase.caseCode,
+          });
+        }
+      });
+    }
+
+    if (toCreate.length > 0) {
+      const description = this.caseDescription(dto);
+      const curative = careType === HealthCareType.CURATIVE;
+      for (const cattleId of toCreate) {
+        const tag = byId.get(cattleId)!.tagNumber;
+        await this.aqrService.applyEvent(
+          farmId,
+          cattleId,
+          curative ? 'sickness_reported' : 'preventive_care_logged',
+          {
+            actorId: userId,
+            actionDetails: curative
+              ? `Sickness reported for [${tag}] — ${description} (group report of ${toCreate.length}).`
+              : `Preventive care logged for [${tag}] — ${description} (group report of ${toCreate.length}).`,
+          },
+        );
+      }
+
+      if (curative) {
+        const tags = toCreate.map((id) => byId.get(id)!.tagNumber);
+        const shown = tags.slice(0, 5).join(', ');
+        const summary = `${toCreate.length} animal${toCreate.length === 1 ? '' : 's'}`;
+        await this.taskService.createInternal({
+          farmId,
+          createdBy: userId,
+          name: `Review reported sickness — ${summary}`,
+          details: `Sickness reported for ${summary} (${shown}${tags.length > 5 ? ', …' : ''}) — ${description}. Priority: ${dto.priority}.`,
+          category: TaskCategory.HEALTHCARE,
+          priority: this.toTaskPriority(dto.priority),
+          dueAt: new Date(),
+          source: TaskSource.SYSTEM_AUTO,
+        });
+        await this.notificationService.notifyOwnersAndManagers({
+          farmId,
+          eventKey: 'animal_sickness_reported',
+          title: 'Animal Sickness Reported',
+          message: `${summary} (${shown}${tags.length > 5 ? ', …' : ''}) — ${description} reported (priority: ${dto.priority}).`,
+          params: {
+            name: summary,
+            tagNumber: shown,
+            diagnosis: description,
+            priority: dto.priority,
+          },
+          link: '/healthcare',
+        });
+      }
+    }
+
+    this.log.info('Health cases bulk-reported', {
+      farmId,
+      requested: cattleIds.length,
+      createdCount: created.size,
+      skippedCount: alreadyOpen.size,
+    });
+
+    return {
+      createdCount: created.size,
+      skippedCount: alreadyOpen.size,
+      results: cattleIds.map((cattleId) => {
+        const made = created.get(cattleId);
+        return made
+          ? { cattleId, status: 'created' as const, ...made }
+          : {
+              cattleId,
+              status: 'skipped' as const,
+              reason: 'Animal already has an open case for this condition',
+            };
+      }),
+    };
   }
 
   /** Map a case priority to a Task Hub priority (PRD §8.7 notification). */

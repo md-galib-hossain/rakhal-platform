@@ -31,6 +31,7 @@ import {
   SkipHealthTaskDto,
 } from '../dto/case-actions.dto';
 import { CreateHealthCaseDto } from '../dto/create-health-case.dto';
+import { BulkCreateHealthCasesDto } from '../dto/bulk-create-health-cases.dto';
 import { UpdateHealthCaseDto } from '../dto/update-health-case.dto';
 import {
   ApplyPlanToAnimalsDto,
@@ -97,6 +98,17 @@ export class HealthController {
     @Body() dto: CreateHealthCaseDto,
   ) {
     return this.healthService.createHealthCase(farmId, userId, dto);
+  }
+
+  /** RAKHAL-469 — one condition for several animals at once (an outbreak). Same permission as the single report. */
+  @Post('cases/bulk')
+  @RequirePermission('healthcare.report-sickness')
+  createCasesBulk(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Body() dto: BulkCreateHealthCasesDto,
+  ) {
+    return this.healthService.createHealthCasesBulk(farmId, userId, dto);
   }
 
   @Post('treatments')
