@@ -25,6 +25,8 @@ import { PrioritySegmented } from "./report-sickness/priority-segmented";
 import { AppetiteField, TemperatureField } from "./report-sickness/vitals-fields";
 import { findBlockingCase, OpenCaseGuard } from "./report-sickness/open-case-guard";
 import { NextStepCard } from "./report-sickness/next-step-card";
+import { BulkReportSheet } from "./report-sickness/bulk-report-sheet";
+import { ReportModeSwitch, type ReportMode } from "./report-sickness/report-mode-switch";
 
 /** Conditions where milk from the cow is usually affected — a one-line nudge, never a block. */
 const MILK_AFFECTING: HealthCondition[] = ["MASTITIS", "METRITIS"];
@@ -41,7 +43,9 @@ const blankToUndefined = (value: string | undefined) => (value && value.trim() ?
 /** "Report Sickness" (RFE-133, EPIC_HEALTH_CENTER D1/D2). Three required inputs — animal, condition chip, priority —
  * with signs/vitals and details one tap further; an open-case guard before anything is typed; and after saving the
  * sheet becomes a next-step card (start a protocol / log the first treatment / done) instead of just closing.
- * `careType` is always `CURATIVE`: preventive work goes through protocols (RAKHAL-415), not sick cases. */
+ * `careType` is always `CURATIVE`: preventive work goes through protocols (RAKHAL-415), not sick cases.
+ * **RFE-139**: a "One animal | Several animals" switch at the top; "Several animals" is `BulkReportSheet`
+ * (an outbreak: one condition, many animals, `POST /health/cases/bulk`). */
 export function ReportSicknessDialog({
   open,
   onOpenChange,
@@ -57,6 +61,7 @@ export function ReportSicknessDialog({
   const [cattle, setCattle] = useState<CattleOption | null>(null);
   const [created, setCreated] = useState<CreatedCase | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [mode, setMode] = useState<ReportMode>("one");
   const form = useForm<ReportSicknessInput>({
     resolver: zodResolver(reportSicknessSchema),
     defaultValues: { cattleId: "", careType: "CURATIVE", priority: "MEDIUM", symptoms: [], note: "", staffObservation: "", assignedVet: "" },
@@ -82,7 +87,10 @@ export function ReportSicknessDialog({
   }
 
   function close(next: boolean) {
-    if (!next) reset();
+    if (!next) {
+      reset();
+      setMode("one");
+    }
     onOpenChange(next);
   }
 
@@ -105,6 +113,10 @@ export function ReportSicknessDialog({
   function openCase(caseId: string, tab: CaseManageTab = "overview") {
     close(false);
     onOpenCase?.(caseId, tab);
+  }
+
+  if (mode === "many") {
+    return <BulkReportSheet open={open} onClose={() => close(false)} mode={mode} onModeChange={setMode} />;
   }
 
   if (created) {
@@ -153,6 +165,8 @@ export function ReportSicknessDialog({
         </div>
       }
     >
+      <ReportModeSwitch value={mode} onChange={setMode} disabled={pending} />
+
       <div className="flex flex-col gap-2">
         <Label>{t("cattle")}</Label>
         <Controller

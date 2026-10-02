@@ -7,6 +7,8 @@ import type {
   ApplyPlanToAnimalsPayload,
   ApplyPlanToAnimalsResult,
   CloseHealthCasePayload,
+  BulkCreateHealthCasesPayload,
+  BulkCreateHealthCasesResult,
   CreateHealthCasePayload,
   CreateHealthPlanPayload,
   CreateHealthUpdatePayload,
@@ -65,6 +67,10 @@ export const healthApi = {
   },
   createCase(dto: CreateHealthCasePayload): Promise<HealthCaseDetail> {
     return apiFetch<HealthCaseDetail>("/health/cases", { method: "POST", body: dto });
+  },
+  /** RAKHAL-469 — one condition for several animals in one transaction; animals with an open case for it are skipped. */
+  createCasesBulk(dto: BulkCreateHealthCasesPayload): Promise<BulkCreateHealthCasesResult> {
+    return apiFetch<BulkCreateHealthCasesResult>("/health/cases/bulk", { method: "POST", body: dto });
   },
   logTreatment(id: string, dto: LogTreatmentPayload): Promise<{ treatmentLog: TreatmentLog }> {
     return apiFetch<{ treatmentLog: TreatmentLog }>(`/health/cases/${id}/log-treatment`, {

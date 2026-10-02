@@ -3651,6 +3651,50 @@
       "openCaseSame": "{name} already has an open case: {condition} (day {day}). Open it instead of reporting again.",
       "openCaseOther": "{name} also has an open case: {condition} (day {day}).",
       "openCase": "Open case",
+      "bulk": {
+        "mode": {
+          "label": "How many animals?",
+          "one": "One animal",
+          "many": "Several animals"
+        },
+        "title": "Report several animals",
+        "animals": "Animals",
+        "noneSelected": "Pick at least one animal.",
+        "skipHint": "Animals that already have an open case for this condition are skipped, not duplicated.",
+        "vitalsHint": "Temperature and appetite are recorded per animal — add them later from each case.",
+        "submit": "{count, plural, =0 {Report sickness} one {Report 1 animal} other {Report # animals}}",
+        "picker": {
+          "methodLabel": "Pick animals by",
+          "method": {
+            "shed": "Shed",
+            "group": "Group",
+            "search": "Search"
+          },
+          "selectShed": "Shed",
+          "selectShedPlaceholder": "Choose a shed",
+          "selectGroup": "Group",
+          "selectGroupPlaceholder": "Choose a group",
+          "searchPlaceholder": "Search by tag or name",
+          "selectedCount": "{count, plural, =0 {No animals selected} one {1 animal selected} other {# animals selected}}",
+          "selectAll": "Select all {count}",
+          "unselectListed": "Unselect these",
+          "clear": "Clear",
+          "maxReached": "Up to {max} animals per report.",
+          "pickShedFirst": "Choose a shed to see its animals.",
+          "pickGroupFirst": "Choose a group to see its animals.",
+          "error": "Could not load animals.",
+          "noAnimals": "No animals found.",
+          "moreThanShown": "Showing the first {count} — narrow the search to see the rest."
+        },
+        "result": {
+          "sheetTitle": "Several animals reported",
+          "opened": "{count, plural, one {1 case opened} other {# cases opened}} for {condition}",
+          "skipped": "{count, plural, one {1 animal was skipped — it already has an open case for this condition} other {# animals were skipped — they already have an open case for this condition}}",
+          "startProtocol": "Start a protocol for the new cases",
+          "startProtocolHint": "{count, plural, one {Starts one protocol on the new case.} other {Starts the same protocol on all # new cases.}}",
+          "done": "Done"
+        }
+      },
       "nextStep": {
         "sheetTitle": "Case reported",
         "sicknessFallback": "Sickness",
@@ -3670,7 +3714,9 @@
         "applyError": "Could not start the protocol. Please try again.",
         "noProtocols": "No treatment protocols yet. Create one in the Protocols tab.",
         "suggested": "Suggested",
-        "recoveryMeta": "{rate}% recovered"
+        "recoveryMeta": "{rate}% recovered",
+        "appliedToastMany": "{count} cases started on the protocol.",
+        "applyPartial": "Started {done} of {total} — the rest could not be started."
       },
       "priority": "Priority",
       "symptoms": "Signs & Symptoms",

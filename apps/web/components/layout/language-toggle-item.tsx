@@ -1,29 +1,29 @@
 "use client";
 
-import { useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Languages } from "lucide-react";
+import { toast } from "sonner";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { setLocale } from "@/lib/i18n/set-locale";
+import { useUpdateLanguage } from "@/features/profile/hooks/use-update-language";
 import { type Locale, locales } from "@/lib/constants/i18n";
 
-/** Avatar-menu language toggle — swaps the `NEXT_LOCALE` cookie and refreshes the RSC tree. */
+/** Avatar-menu language toggle — persists the backend `preferredLanguage` AND swaps the
+ * `NEXT_LOCALE` cookie (via the shared `useUpdateLanguage`, which also refreshes the RSC tree), so
+ * server-rendered copy (notifications, SMS/push/email) follows the UI language. */
 export function LanguageToggleItem() {
   const t = useTranslations("topbar");
+  const tProfile = useTranslations("profile");
   const locale = useLocale() as Locale;
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const updateLanguage = useUpdateLanguage();
   const next = locales.find((l) => l !== locale) ?? locale;
 
   return (
     <DropdownMenuItem
-      disabled={pending}
+      disabled={updateLanguage.isPending}
       onSelect={(event) => {
         event.preventDefault();
-        startTransition(async () => {
-          await setLocale(next);
-          router.refresh();
+        updateLanguage.mutate(next === "bn" ? "BN" : "EN", {
+          onError: () => toast.error(tProfile("languageUpdateFailed")),
         });
       }}
     >

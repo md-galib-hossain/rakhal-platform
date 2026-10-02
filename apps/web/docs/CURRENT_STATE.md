@@ -1,5 +1,8 @@
 # Frontend — Current State
 
+## RFE-139 shipped: Report Sickness "Several animals" (2026-10-02)
+The Report Sickness sheet has a "One animal | Several animals" switch. Several animals: pick by shed, group or search (select all, up to 100), choose one condition and priority, and report them in one go (`POST /health/cases/bulk`). A result card shows the cases opened and the animals skipped because they already had an open case, and offers one protocol for all the new cases. Gate: typecheck 0, eslint 0, vitest 73/73 for health, `pnpm build` 0. **Not checked live in the browser or at 375px** (pane hidden); render-tested in en. Details: workspace `docs/EPIC_HEALTH_CENTER.md` §11.
+
 ## RFE-134 shipped (MILESTONE 29): Health Management Center toolbar, attention strip, Sick Bay reshaped (2026-10-02)
 The toolbar is two buttons (Report sickness, Record treatment). An attention strip above the tabs shows overdue steps, steps due today and animals whose withdrawal ends within 3 days, each a link into the filtered view. Sick Bay now reads Animal / Condition / Protocol / Next step / Withdrawal / Priority / Day N, with an "Apply protocol" button where no protocol is set, and each case is a card below `md`. Gate: typecheck 0, eslint 0, vitest 60/60 for health, `pnpm build` 0. **Not checked live in the browser or at 375px** (pane hidden); render-tested in en + bn. Details: workspace `docs/EPIC_HEALTH_CENTER.md` §11. Remaining in MILESTONE 29: optional RAKHAL-469.
 

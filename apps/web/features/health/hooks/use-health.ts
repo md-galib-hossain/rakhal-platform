@@ -8,6 +8,7 @@ import type {
   ApplyHealthPlanPayload,
   ApplyPlanToAnimalsPayload,
   CloseHealthCasePayload,
+  BulkCreateHealthCasesPayload,
   CreateHealthCasePayload,
   CreateHealthPlanPayload,
   CreateHealthUpdatePayload,
@@ -108,6 +109,15 @@ export function useCreateHealthCase() {
   return useMutation({
     mutationFn: (dto: CreateHealthCasePayload) => healthApi.createCase(dto),
     onSuccess: (data) => invalidate(undefined, data.cattle?.id),
+  });
+}
+
+/** RFE-139 — Report Sickness "Several animals". Refreshes the same lists a single report does. */
+export function useCreateHealthCasesBulk() {
+  const invalidate = useInvalidateHealth();
+  return useMutation({
+    mutationFn: (dto: BulkCreateHealthCasesPayload) => healthApi.createCasesBulk(dto),
+    onSuccess: () => invalidate(),
   });
 }
 

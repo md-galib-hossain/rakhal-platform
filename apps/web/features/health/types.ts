@@ -578,3 +578,29 @@ export const SYMPTOM_OPTIONS: { value: string; key: string }[] = [
 ];
 
 export const MEDICINE_ROUTES: MedicineRoute[] = ["IM", "IV", "SC", "ORAL"];
+
+/** `POST /health/cases/bulk` body (`BulkCreateHealthCasesDto`, RAKHAL-469) — one condition for several animals (an
+ * outbreak). One of `condition` / `note` is required by the backend; the Report Sickness form always sends a condition. */
+export interface BulkCreateHealthCasesPayload {
+  cattleIds: string[];
+  condition?: HealthCondition;
+  note?: string;
+  careType?: HealthCareType;
+  priority: HealthPriority;
+  assignedVet?: string;
+  startDate?: string;
+  expectedRecoveryDate?: string;
+  symptoms?: string[];
+  notes?: string;
+}
+
+/** One animal's outcome in a bulk report: a case was opened, or the animal already had an open case for the condition. */
+export type BulkCreateHealthCaseResult =
+  | { cattleId: string; status: "created"; healthCaseId: string; caseCode: string }
+  | { cattleId: string; status: "skipped"; reason: string };
+
+export interface BulkCreateHealthCasesResult {
+  createdCount: number;
+  skippedCount: number;
+  results: BulkCreateHealthCaseResult[];
+}

@@ -21,10 +21,13 @@ import { ProtocolPreviewSummary } from "./protocol-preview-timeline";
  * `health.reportSickness.nextStep.*` strings. */
 export function ProtocolPicker({
   caseId,
+  caseIds,
   condition,
   onApplied,
 }: {
-  caseId: string;
+  /** One case. Give `caseIds` instead to start the same protocol on several (RFE-139, an outbreak's new cases). */
+  caseId?: string;
+  caseIds?: string[];
   /** The case's structured condition (RFE-136): protocols tagged with it are listed first and marked "Suggested". */
   condition?: HealthCondition | null;
   onApplied: (planName: string) => void;
@@ -34,19 +37,38 @@ export function ProtocolPicker({
   const [startDate, setStartDate] = useState(todayLocalIso);
   const plans = useHealthPlans({ category: "TREATMENT" });
   const apply = useApplyPlanToCase();
+  const [busy, setBusy] = useState(false);
   const suggested = suggestProtocols(plans.data?.items ?? [], condition);
   const items = suggested.map((s) => s.plan);
   const selectedPlan = items.find((p) => p.id === planId);
 
+  const targets = caseIds ?? (caseId ? [caseId] : []);
+  const pending = busy || apply.isPending;
+
   async function handleApply() {
-    if (!planId) return;
-    try {
-      await apply.mutateAsync({ caseId, dto: { healthPlanId: planId, startDate } });
-      toast.success(t("appliedToast"));
-      onApplied(items.find((p) => p.id === planId)?.name ?? "");
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("applyError"));
+    if (!planId || targets.length === 0) return;
+    // One call per case (the apply route is per case). A failure part-way leaves the earlier ones started, so say
+    // how many made it rather than pretending it was all or nothing.
+    let done = 0;
+    let lastError: unknown = null;
+    setBusy(true);
+    for (const target of targets) {
+      try {
+        await apply.mutateAsync({ caseId: target, dto: { healthPlanId: planId, startDate } });
+        done += 1;
+      } catch (err) {
+        lastError = err;
+      }
     }
+    setBusy(false);
+    if (done === targets.length) {
+      toast.success(targets.length === 1 ? t("appliedToast") : t("appliedToastMany", { count: done }));
+    } else if (done > 0) {
+      toast.error(t("applyPartial", { done, total: targets.length }));
+    } else {
+      toast.error(lastError instanceof ApiError ? lastError.message : t("applyError"));
+    }
+    if (done > 0) onApplied(items.find((p) => p.id === planId)?.name ?? "");
   }
 
   return (
@@ -91,10 +113,10 @@ export function ProtocolPicker({
       )}
       {items.length > 0 ? (
         <>
-          <DatePicker label={t("startDate")} value={startDate} onChange={setStartDate} disabled={apply.isPending} />
+          <DatePicker label={t("startDate")} value={startDate} onChange={setStartDate} disabled={pending} />
           {selectedPlan ? <ProtocolPreviewSummary steps={selectedPlan.steps} startDate={startDate} /> : null}
-          <Button type="button" onClick={() => void handleApply()} disabled={!planId || apply.isPending} className="h-11">
-            {apply.isPending ? "…" : t("applyProtocol")}
+          <Button type="button" onClick={() => void handleApply()} disabled={!planId || pending} className="h-11">
+            {pending ? "…" : t("applyProtocol")}
           </Button>
         </>
       ) : null}

@@ -3651,6 +3651,50 @@
       "openCaseSame": "{name}-এর একটি কেস আগে থেকেই খোলা আছে: {condition} (দিন {day})। আবার রিপোর্ট না করে সেটি খুলুন।",
       "openCaseOther": "{name}-এর আরও একটি কেস খোলা আছে: {condition} (দিন {day})।",
       "openCase": "কেস খুলুন",
+      "bulk": {
+        "mode": {
+          "label": "কয়টি পশু?",
+          "one": "একটি পশু",
+          "many": "একাধিক পশু"
+        },
+        "title": "একাধিক পশুর অসুস্থতা রিপোর্ট",
+        "animals": "পশু",
+        "noneSelected": "কমপক্ষে একটি পশু বেছে নিন।",
+        "skipHint": "যে পশুর এই অবস্থার জন্য আগে থেকেই খোলা কেস আছে, সেটি বাদ যাবে — আবার খোলা হবে না।",
+        "vitalsHint": "তাপমাত্রা ও ক্ষুধা প্রতিটি পশুর জন্য আলাদা — পরে প্রতিটি কেস থেকে যোগ করুন।",
+        "submit": "{count, plural, =0 {অসুস্থতা রিপোর্ট করুন} other {#টি পশুর রিপোর্ট করুন}}",
+        "picker": {
+          "methodLabel": "যেভাবে পশু বাছবেন",
+          "method": {
+            "shed": "শেড",
+            "group": "গ্রুপ",
+            "search": "খুঁজুন"
+          },
+          "selectShed": "শেড",
+          "selectShedPlaceholder": "শেড বেছে নিন",
+          "selectGroup": "গ্রুপ",
+          "selectGroupPlaceholder": "গ্রুপ বেছে নিন",
+          "searchPlaceholder": "ট্যাগ বা নাম দিয়ে খুঁজুন",
+          "selectedCount": "{count, plural, =0 {কোনো পশু বাছা হয়নি} other {#টি পশু বাছা হয়েছে}}",
+          "selectAll": "সব {count}টি বাছুন",
+          "unselectListed": "এগুলো বাদ দিন",
+          "clear": "মুছুন",
+          "maxReached": "প্রতি রিপোর্টে সর্বোচ্চ {max}টি পশু।",
+          "pickShedFirst": "পশু দেখতে একটি শেড বেছে নিন।",
+          "pickGroupFirst": "পশু দেখতে একটি গ্রুপ বেছে নিন।",
+          "error": "পশু লোড করা যায়নি।",
+          "noAnimals": "কোনো পশু পাওয়া যায়নি।",
+          "moreThanShown": "প্রথম {count}টি দেখানো হচ্ছে — বাকিদের দেখতে খোঁজা সংকীর্ণ করুন।"
+        },
+        "result": {
+          "sheetTitle": "একাধিক পশুর রিপোর্ট হয়েছে",
+          "opened": "{condition}-এর জন্য {count, plural, other {#টি কেস খোলা হয়েছে}}",
+          "skipped": "{count, plural, other {#টি পশু বাদ গেছে — এই অবস্থার জন্য আগে থেকেই খোলা কেস আছে}}",
+          "startProtocol": "নতুন কেসগুলোর জন্য প্রোটোকল শুরু করুন",
+          "startProtocolHint": "{count, plural, other {সব #টি নতুন কেসে একই প্রোটোকল শুরু হবে।}}",
+          "done": "সম্পন্ন"
+        }
+      },
       "nextStep": {
         "sheetTitle": "কেস রিপোর্ট হয়েছে",
         "sicknessFallback": "অসুস্থতা",
@@ -3670,7 +3714,9 @@
         "applyError": "প্রোটোকল শুরু করা যায়নি। আবার চেষ্টা করুন।",
         "noProtocols": "এখনও কোনো চিকিৎসা প্রোটোকল নেই। প্রোটোকল ট্যাবে একটি তৈরি করুন।",
         "suggested": "প্রস্তাবিত",
-        "recoveryMeta": "{rate}% সুস্থ"
+        "recoveryMeta": "{rate}% সুস্থ",
+        "appliedToastMany": "{count}টি কেসে প্রোটোকল শুরু হয়েছে।",
+        "applyPartial": "{total}টির মধ্যে {done}টিতে শুরু হয়েছে — বাকিগুলো শুরু করা যায়নি।"
       },
       "priority": "অগ্রাধিকার",
       "symptoms": "লক্ষণ ও উপসর্গ",

@@ -135,3 +135,15 @@ export type ApplyHealthPlanStep1Input = z.infer<typeof applyHealthPlanStep1Schem
  * a step's own fields via RHF's `trigger()` before advancing, rather than three separate forms). */
 export const createHealthPlanFormSchema = healthPlanTypeSchema.merge(healthPlanDetailsSchema).merge(healthPlanStepsSchema);
 export type CreateHealthPlanFormInput = z.infer<typeof createHealthPlanFormSchema>;
+
+/** "Report Sickness" → "Several animals" mode (RFE-139, backend RAKHAL-469). The animals are plain component state (a
+ * `Map` of the picked animals), not an RHF field — same split `quick-treat-dialog.tsx` makes; the rest mirrors
+ * `BulkCreateHealthCasesDto`. `condition` is required here (the single form requires it too). */
+export const reportSicknessBulkSchema = z.object({
+  condition: reportSicknessSchema.shape.condition,
+  priority: reportSicknessSchema.shape.priority,
+  note: z.string().trim().optional(),
+  symptoms: z.array(z.string()).optional(),
+  assignedVet: z.string().trim().optional(),
+});
+export type ReportSicknessBulkInput = z.infer<typeof reportSicknessBulkSchema>;
