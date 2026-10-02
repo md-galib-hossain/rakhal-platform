@@ -29,6 +29,8 @@ import { cattleApi } from "@/features/cattle/api";
 import type { CattleListItem } from "@/features/cattle/types";
 import { AccountPicker } from "@/features/finance/components/account-picker";
 import { MedicinePicker } from "./medicine-picker";
+import { CreatableSelect } from "@/components/shared/creatable-select";
+import { useCreateShedInline } from "@/features/cattle/hooks/use-cattle";
 import { useRecordTreatment } from "../hooks/use-health";
 import { quickTreatSchema, type QuickTreatInput } from "../schemas";
 import type { MedicineOption } from "../api";
@@ -63,6 +65,8 @@ const DEFAULT_VALUES: QuickTreatInput = { selectionMethod: "individual", route: 
  */
 export function QuickTreatDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const t = useTranslations("health.quickTreat");
+  const tCattle = useTranslations("cattle.form");
+  const createShed = useCreateShedInline();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [medicine, setMedicine] = useState<MedicineOption | null>(null);
@@ -196,16 +200,16 @@ export function QuickTreatDialog({ open, onOpenChange }: { open: boolean; onOpen
                   control={form.control}
                   name="shedId"
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <LabeledSelectTrigger label={t("selectShed")} placeholder={t("selectShedPlaceholder")} />
-                      <SelectContent>
-                        {(shedsQuery.data?.items ?? []).map((shed) => (
-                          <SelectItem key={shed.id} value={shed.id}>
-                            {shed.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <CreatableSelect
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      options={shedsQuery.data?.items ?? []}
+                      trigger={<LabeledSelectTrigger label={t("selectShed")} placeholder={t("selectShedPlaceholder")} />}
+                      createLabel={tCattle("addShed")}
+                      namePlaceholder={tCattle("shedNamePlaceholder")}
+                      createErrorMessage={tCattle("addShedError")}
+                      onCreate={(name) => createShed.mutateAsync(name)}
+                    />
                   )}
                 />
               ) : selectionMethod === "batch" ? (

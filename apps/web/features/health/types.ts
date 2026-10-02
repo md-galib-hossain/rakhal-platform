@@ -85,6 +85,38 @@ export interface HealthTask {
   route: MedicineRoute | null;
   completedAt: string | null;
   cattle?: { id: string; tagNumber: string; name: string | null };
+  /** RAKHAL-470 — `GET /health/tasks` rows carry their protocol and case (null for a step that belongs to none). */
+  healthPlanId?: string | null;
+  healthPlan?: { id: string; name: string } | null;
+  healthCase?: { id: string; caseCode: string } | null;
+}
+
+/** Filters of `GET /health/tasks` the protocol sheet uses (RAKHAL-470). `dueTo` is a farm-local `YYYY-MM-DD`. */
+export interface HealthTaskFilters {
+  healthPlanId?: string;
+  /** Only steps that belong to no protocol. Ignored when `healthPlanId` is set. */
+  noPlan?: boolean;
+  statuses?: HealthTaskStatus[];
+  dueTo?: string;
+  sortBy?: "created" | "due";
+  sortOrder?: "asc" | "desc";
+}
+
+/** One animal's run of a protocol (`GET /health/plans/:id/runs`): a case for a treatment protocol, an enrollment for a
+ * preventive / breeding one. `nextStep` is the animal's soonest open step, or null when it has none left. */
+export interface PlanRun {
+  id: string;
+  kind: "CASE" | "ENROLLMENT";
+  caseCode: string | null;
+  healthCaseId: string | null;
+  planEnrollmentId: string | null;
+  status: string;
+  startDate: string;
+  currentStep: number | null;
+  totalSteps: number | null;
+  progressPercentage: number;
+  cattle: { id: string; name: string | null; tagNumber: string; image: string | null };
+  nextStep: { id: string; title: string; dueDateTime: string; status: HealthTaskStatus } | null;
 }
 
 export interface TreatmentLog {
@@ -253,14 +285,6 @@ export interface HealthCaseDetail extends Omit<HealthCaseListItem, "tasks"> {
   nextDose: HealthTask | null;
   lastDose: TreatmentLog | null;
   activeSafetyWithdrawal: SafetyWithdrawal | null;
-}
-
-/** `GET /health/tasks/calendar` row shape (`health.service.ts#groupTasksByDate`) — one entry per
- * date-with-a-task in the requested month, `counts` keyed by `HealthTaskStatus`. Backs the Task Hub
- * calendar strip's per-day dot indicators (Figma 734:40931). */
-export interface HealthTaskCalendarDay {
-  date: string; // YYYY-MM-DD
-  counts: Partial<Record<HealthTaskStatus, number>>;
 }
 
 /** `POST /health/tasks/:id/reschedule` body (`RescheduleHealthTaskDto`). */
@@ -450,6 +474,12 @@ export interface HealthPlanStats {
   /** Open steps due within 7 days, plus any already late. */
   due: number | null;
   coverageRate: number | null;
+  /** RAKHAL-470 — open steps due **today** on the farm's calendar day (one per animal per step). */
+  stepsDue: number;
+  /** RAKHAL-470 — open steps whose day has passed. */
+  stepsOverdue: number;
+  /** RAKHAL-470 — farm-local `YYYY-MM-DD` of the earliest open step (may be in the past); `null` with none open. */
+  nextDueDate: string | null;
 }
 
 /** `GET /health/plans` row (`health.service.ts#getPlans`) — `steps` come back on the list endpoint
@@ -467,8 +497,23 @@ export interface HealthPlanListItem {
   cycleLengthDays: number | null;
   totalActionSteps: number;
   isTemplate: boolean;
+  /** RAKHAL-470 — set when the protocol was deleted. Only the "In use" view returns such a row (animals are still on
+   * it); the card flags it and disables Apply / Edit. */
+  deletedAt?: string | null;
   steps: HealthPlanStep[];
   stats: HealthPlanStats;
+}
+
+/** Filters of `GET /health/plans` the Protocols tab uses (RFE-142). */
+export interface HealthPlanFilters {
+  search?: string;
+  category?: HealthPlanCategory;
+  planType?: HealthPlanType;
+  condition?: HealthCondition;
+  /** RFE-142 — the one user-facing kind, filtered on the server. */
+  kind?: HealthPlanKind;
+  /** RAKHAL-470 — only protocols with a run right now. */
+  inUse?: boolean;
 }
 
 /** One row submitted in `CreateHealthPlanPayload.steps`/`UpdateHealthPlanPayload.steps`
@@ -542,9 +587,19 @@ export interface ApplyPlanToAnimalsResult {
  * here); `healthPlan` becomes `protocols` (plan catalog only, Active Plans moved out). The
  * `safetyWithdrawals` tab is retired here — RFE-110 folds its capability into `treatments` as a
  * filter chip rather than a peer tab; until RFE-110 ships, Safety Withdrawals has no dedicated nav
- * entry (a real, ticket-sequenced gap, not an oversight — see RFE-107's IN_FLIGHT writeup). */
-export const HEALTH_MANAGEMENT_TABS = ["treatments", "schedule", "protocols"] as const;
+ * entry (a real, ticket-sequenced gap, not an oversight — see RFE-107's IN_FLIGHT writeup).
+ * RFE-140 (MILESTONE 29c) adds `insights` (the trend chart + outcomes moved off the top of the page). The keys stay
+ * stable so old links keep working: `treatments` is labelled "Sick Bay". RFE-143 removed the `schedule` ("Care steps") tab —
+ * its steps are recorded from the protocol sheet; an old `?healthTab=schedule` link is mapped to `protocols`
+ * (`parseHealthTab`). */
+export const HEALTH_MANAGEMENT_TABS = ["treatments", "protocols", "insights"] as const;
 export type HealthManagementTab = (typeof HEALTH_MANAGEMENT_TABS)[number];
+
+/** RFE-141 — the Sick Bay tab shows ONE paged list at a time: animals under treatment, animals whose milk/meat is
+ * withheld (a closed case can still have a running withdrawal). Lives in the URL as `?view=` so the stat strip and
+ * links can open the right one. (RFE-143 removed the third view, preventive rounds - they are in the protocol sheet.) */
+export const SICK_BAY_VIEWS = ["cases", "withheld"] as const;
+export type SickBayView = (typeof SICK_BAY_VIEWS)[number];
 
 /** `GET /health/safety-withdrawals` row shape (`health.service.ts#getSafetyWithdrawals`) — the
  * backend include for `cattle` was added alongside this frontend tab (previously had zero UI
@@ -603,4 +658,113 @@ export interface BulkCreateHealthCasesResult {
   createdCount: number;
   skippedCount: number;
   results: BulkCreateHealthCaseResult[];
+}
+
+/** `GET /cattle/:id/protocols` row — one protocol one animal is on now: a treatment protocol running on an open case
+ * (`runType: "CASE"`) or a preventive / breeding round (`"ENROLLMENT"`). Exactly one of the two ids is set. */
+export interface CattleProtocolRun {
+  runType: "CASE" | "ENROLLMENT";
+  /** The run's own id (the case id or the enrollment id). */
+  id: string;
+  healthCaseId: string | null;
+  planEnrollmentId: string | null;
+  caseCode: string | null;
+  healthPlan: { id: string; name: string; category: HealthPlanCategory };
+  startDate: string;
+  currentStep: number;
+  totalSteps: number;
+  progressPercentage: number;
+  nextStep: { id: string; title: string; dueDateTime: string; status: "PENDING" | "RESCHEDULED" | "OVERDUE" } | null;
+}
+
+/** `POST /cattle/:id/protocols/stop` — exactly one of the two ids. */
+export interface StopCattleProtocolPayload {
+  healthCaseId?: string;
+  planEnrollmentId?: string;
+  reason?: string;
+}
+
+// ── Protocol rounds (RAKHAL-471/472, MILESTONE 29d — docs/EPIC_PROTOCOL_ROUNDS.md) ─────────────────────────────────
+
+export type RoundStatus = "RUNNING" | "FINISHED";
+
+/** `GET /health/rounds` row — one application of a protocol on one farm day. A real `PlanApplication` for preventive /
+ * breeding protocols; for treatment, the cases of one protocol whose steps were created the same farm day (RD-116). */
+export interface ProtocolRound {
+  /** Opaque: `app:<applicationId>` or `trt:<planId>:<yyyy-mm-dd>`. Always URL-encode it in a path. */
+  roundKey: string;
+  healthPlan: { id: string; name: string; category: HealthPlanCategory; deletedAt: string | null };
+  kind: HealthPlanKind;
+  /** The farm-local `YYYY-MM-DD` the protocol was applied. */
+  startDate: string;
+  animalCount: number;
+  /** Steps that are not skipped. */
+  stepsTotal: number;
+  stepsDone: number;
+  stepsSkipped: number;
+  stepsOverdue: number;
+  stepsDueToday: number;
+  /** Farm-local `YYYY-MM-DD` of the earliest live open step, or null. */
+  nextDueDate: string | null;
+  status: RoundStatus;
+}
+
+export interface RoundFilters {
+  status?: RoundStatus;
+  kind?: HealthPlanKind;
+  search?: string;
+  healthPlanId?: string;
+}
+
+/** `inactive` = an open step whose animal left the herd or whose case / enrollment stopped — neither due nor late. */
+export type RoundCellState = "done" | "skipped" | "inactive" | "overdue" | "today" | "upcoming";
+
+export interface RoundGridCell {
+  taskId: string;
+  state: RoundCellState;
+  /** `due - today` in farm days (negative = late). */
+  days: number;
+  title: string;
+  status: HealthTaskStatus;
+  stepNumber: number | null;
+  dueDate: string;
+  doneAt: string | null;
+}
+
+export interface RoundGridColumn {
+  key: string;
+  stepNumber: number | null;
+  dayNumber: number | null;
+  title: string;
+}
+
+export interface RoundGridRow {
+  runKey: string;
+  runType: "CASE" | "ENROLLMENT";
+  healthCaseId: string | null;
+  planEnrollmentId: string | null;
+  caseCode: string | null;
+  cattle: { id: string; name: string | null; tagNumber: string };
+  dueCount: number;
+  overdueCount: number;
+  cells: Record<string, RoundGridCell>;
+}
+
+/** `GET /health/rounds/:roundKey/grid` — `data`; the cursor `meta` pages the `rows` (animals). */
+export interface RoundGridData {
+  round: ProtocolRound;
+  columns: RoundGridColumn[];
+  rows: RoundGridRow[];
+}
+
+/** `POST /health/rounds/:roundKey/animals` result (RAKHAL-473). `applied` rows carry the new enrollment (preventive /
+ * breeding round) or case (treatment round); `skipped` rows are animals already on the protocol. */
+export interface AddRoundAnimalsResult {
+  roundKey: string;
+  addedCount: number;
+  skippedCount: number;
+  results: Array<
+    | { cattleId: string; status: "applied"; planEnrollmentId?: string; healthCaseId?: string }
+    | { cattleId: string; status: "skipped"; reason: string }
+  >;
 }

@@ -29,7 +29,7 @@ const DASH = <span className="text-muted-foreground">—</span>;
  * herd: cases opened in the window, recovery rate, average days to recover, average cost, recurrence, and the same
  * per condition. Every figure is server-derived (`GET /health/outcomes`, RAKHAL-467); a rate is "—" until there is
  * something to divide by, never a fake 0 %. */
-export function HealthOutcomesCard() {
+export function HealthOutcomesCard({ plain }: { plain?: boolean } = {}) {
   const t = useTranslations("health.outcomes");
   const tCondition = useTranslations("health.reportSickness");
   const [days, setDays] = useState<(typeof WINDOWS)[number]>(90);
@@ -58,7 +58,7 @@ export function HealthOutcomesCard() {
   if (query.isLoading) return <CardSkeleton lines={5} className="rounded-2xl" />;
   if (query.isError || !query.data) {
     return (
-      <HealthCard title={t("title")} headerRight={windowPicker}>
+      <HealthCard title={t("title")} headerRight={windowPicker} plain={plain}>
         <ErrorState description={t("error")} onRetry={() => query.refetch()} />
       </HealthCard>
     );
@@ -68,7 +68,7 @@ export function HealthOutcomesCard() {
   const pct = (n: number | null) => (n === null ? DASH : `${n}%`);
 
   return (
-    <HealthCard title={t("title")} headerRight={windowPicker}>
+    <HealthCard title={t("title")} headerRight={windowPicker} plain={plain}>
       {data.cases === 0 ? (
         <EmptyState title={t("emptyTitle", { days })} description={t("emptyDescription")} className="py-8" />
       ) : (

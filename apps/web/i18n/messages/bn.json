@@ -3175,15 +3175,17 @@
     "subtitle": "পুরো পালের হিট, প্রজনন, গর্ভধারণ ও বাছুর প্রসবের হিসাব এক জায়গায়।"
   },
   "health": {
-    "kpis": {
-      "title": "মূল সূচক",
-      "error": "স্বাস্থ্য ড্যাশবোর্ড লোড করা যায়নি।",
-      "herdHealthScore": "পালের স্বাস্থ্য স্কোর",
-      "sickBay": "সিক বে",
-      "medicineExpense": "ওষুধের খরচ",
-      "safetyStop": "সুরক্ষা স্টপ",
-      "animalsHealthy": "{healthy}/{total} টি পশু সুস্থ আছে।",
-      "activeWithholding": "সক্রিয় আটকানো সময়কাল"
+    "stat": {
+      "sick": "এখন অসুস্থ",
+      "sickCaption": "সিক বে-তে থাকা পশু",
+      "healthy": "সুস্থ পশু",
+      "healthyCaption": "{total}টির মধ্যে {healthy}টি",
+      "withheld": "দুধ/মাংস আটকানো",
+      "withheldCaption": "চলমান নিরাপত্তা-বিরতি",
+      "medicine": "ওষুধের খরচ",
+      "medicineCaption": "সর্বমোট",
+      "error": "স্বাস্থ্যের সারসংক্ষেপ লোড করা যায়নি।",
+      "retry": "আবার চেষ্টা করুন"
     },
     "morbidityTrend": {
       "title": "সময়ের সাথে অসুস্থতার ট্রেন্ড",
@@ -3196,27 +3198,20 @@
     "managementCenter": {
       "title": "স্বাস্থ্য ব্যবস্থাপনা কেন্দ্র",
       "tabs": {
-        "treatments": "চিকিৎসা",
-        "schedule": "সময়সূচী",
-        "protocols": "প্রোটোকল"
+        "treatments": "সিক বে",
+        "protocols": "প্রোটোকল",
+        "insights": "ইনসাইট"
       },
       "tabDescriptions": {
-        "treatments": "অসুস্থ প্রাণী এবং টিকা বা কৃমিনাশকের মতো প্রতিরোধমূলক রাউন্ড — চিকিৎসা লগ করতে একটি কেস খুলুন, বা কে একটি রাউন্ডে অন্তর্ভুক্ত তা দেখুন।",
-        "schedule": "প্রয়োগ করা স্বাস্থ্য পরিকল্পনা থেকে দৈনিক চিকিৎসার ধাপ — সাইডবারের টাস্ক হাবের মতো নয়।",
-        "protocols": "পুনর্ব্যবহারযোগ্য চিকিৎসা টেমপ্লেট (টিকা সময়সূচী, চেকআপ) যা এক বা একাধিক প্রাণীতে প্রয়োগ করা যায়।"
+        "treatments": "চিকিৎসাধীন পশু এবং যেসব পশুর দুধ বা মাংস আটকে আছে।",
+        "protocols": "আপনার প্রোটোকল: কোনটি এখন কী করছে, কোন ধাপ বাকি, আর কোন পশু এতে আছে। শুরু করতে প্রয়োগ করুন।",
+        "insights": "পালের স্বাস্থ্যের প্রবণতা এবং চিকিৎসার ফলাফল।"
       },
       "searchPlaceholder": "গরুর আইডি বা নাম দিয়ে খুঁজুন",
       "reportSickness": "অসুস্থতা রিপোর্ট করুন",
       "logTreatment": "চিকিৎসা লগ করুন",
       "quickTreat": "দ্রুত চিকিৎসা",
-      "recordTreatment": "চিকিৎসা রেকর্ড করুন",
-      "attention": {
-        "label": "মনোযোগ প্রয়োজন",
-        "overdue": "বিলম্বিত ধাপ",
-        "today": "আজকের ধাপ",
-        "withdrawals": "৩ দিনে শেষ হচ্ছে এমন আটকানো সময়",
-        "allClear": "এই মুহূর্তে মনোযোগ দেওয়ার মতো কিছু নেই।"
-      }
+      "recordTreatment": "চিকিৎসা রেকর্ড করুন"
     },
     "sickBay": {
       "columns": {
@@ -3277,12 +3272,6 @@
       }
     },
     "taskHub": {
-      "error": "স্বাস্থ্য টাস্ক লোড করা যায়নি।",
-      "noTasksOnDate": "{date} তারিখে কিছু নির্ধারিত নেই",
-      "noTasksOnDateDescription": "ধাপটি হয়তো সম্পন্ন হয়েছে অথবা অন্য দিনে সরানো হয়েছে।",
-      "showAllTasks": "সব টাস্ক দেখুন",
-      "emptyTitle": "কোনো স্বাস্থ্য টাস্ক নেই",
-      "emptyDescription": "একটি কেসে স্বাস্থ্য পরিকল্পনা প্রয়োগ করলে টাস্ক এখানে দেখা যাবে।",
       "status": {
         "PENDING": "বাকি আছে",
         "COMPLETED": "সম্পন্ন",
@@ -3290,26 +3279,6 @@
         "OVERDUE": "বিলম্বিত",
         "SKIPPED": "বাদ দেওয়া হয়েছে",
         "RESCHEDULED": "পুনঃনির্ধারিত"
-      },
-      "tabs": {
-        "all": "সব",
-        "overdue": "বিলম্বিত",
-        "today": "আজকের সময়সূচি",
-        "upcoming": "আসন্ন"
-      },
-      "calendar": {
-        "prevMonth": "আগের মাস",
-        "nextMonth": "পরের মাস",
-        "moreCount": "+{count} আরও",
-        "weekday": {
-          "sun": "রবি",
-          "mon": "সোম",
-          "tue": "মঙ্গল",
-          "wed": "বুধ",
-          "thu": "বৃহঃ",
-          "fri": "শুক্র",
-          "sat": "শনি"
-        }
       },
       "card": {
         "category": {
@@ -3394,6 +3363,27 @@
         "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
       }
     },
+    "cattleProtocols": {
+      "title": "প্রোটোকল",
+      "openProtocols": "প্রোটোকল খুলুন",
+      "empty": "এই পশু কোনো প্রোটোকলে নেই।",
+      "stepOf": "ধাপ {current}/{total}",
+      "next": "পরবর্তী ধাপ:",
+      "noNextStep": "কোনো ধাপ নির্ধারিত নেই।",
+      "overdue": "বিলম্বিত",
+      "skipNext": "পরবর্তী ধাপ বাদ দিন",
+      "remove": "প্রোটোকল থেকে সরান",
+      "cancel": "বাতিল",
+      "skipConfirmTitle": "এই ধাপ বাদ দেবেন?",
+      "skipConfirmBody": "{protocol}-এর \"{step}\" ধাপটি বাদ হিসেবে চিহ্নিত হবে। প্রোটোকল পরের ধাপগুলো নিয়ে চলবে।",
+      "removeConfirmTitle": "{protocol} থেকে সরাবেন?",
+      "removeConfirmBodyCase": "এই পশু প্রোটোকল থেকে বেরিয়ে যাবে। বাকি ধাপগুলো বাদ হবে এবং ইতিহাসে থাকবে। অসুস্থতার কেসটি খোলা থাকবে, তাই হাতে চিকিৎসা চালিয়ে যেতে পারবেন।",
+      "removeConfirmBodyRound": "এই পশু রাউন্ড থেকে বেরিয়ে যাবে। বাকি ধাপগুলো বাদ হবে এবং ইতিহাসে থাকবে। রাউন্ডের অন্য পশুদের কোনো পরিবর্তন হবে না।",
+      "skippedToast": "ধাপ বাদ দেওয়া হয়েছে",
+      "removedToast": "প্রোটোকল থেকে সরানো হয়েছে",
+      "error": "এই পশুর প্রোটোকল লোড করা যায়নি।",
+      "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
+    },
     "healthPlan": {
       "error": "স্বাস্থ্য পরিকল্পনা লোড করা যায়নি।",
       "emptyTitle": "কোনো স্বাস্থ্য পরিকল্পনা নেই",
@@ -3401,6 +3391,133 @@
       "stepsCount": "{count} টি ধাপ",
       "searchPlaceholder": "নাম দিয়ে স্বাস্থ্য পরিকল্পনা খুঁজুন",
       "createNewPlan": "নতুন স্বাস্থ্য পরিকল্পনা তৈরি করুন",
+      "loose": {
+        "entryTitle": "কোনো প্রোটোকলের অংশ নয়",
+        "entryCount": "{count}টি ধাপ{more}"
+      },
+      "views": {
+        "label": "প্রোটোকল দেখার ধরন",
+        "running": "চলমান",
+        "runningCount": "চলমান ({count})",
+        "library": "লাইব্রেরি"
+      },
+      "rounds": {
+        "started": "শুরু {date}",
+        "animals": "{count}টি পশু",
+        "stepsDone": "{total}টির মধ্যে {done}টি ধাপ সম্পন্ন",
+        "overdue": "{count}টি ধাপ দেরি",
+        "dueToday": "আজ {count}টি ধাপ বাকি",
+        "nothingDue": "কিছু বাকি নেই",
+        "next": "পরের ধাপ {date}",
+        "finished": "শেষ",
+        "open": "খুলুন",
+        "openAria": "{date} তারিখে শুরু হওয়া {name}-এর রাউন্ড খুলুন",
+        "showFinished": "শেষ হওয়া রাউন্ড",
+        "emptyRunningTitle": "কিছু চলছে না",
+        "emptyRunningDescription": "রাউন্ড শুরু করতে লাইব্রেরি থেকে একটি প্রোটোকল প্রয়োগ করুন।",
+        "emptyFinishedTitle": "কোনো শেষ হওয়া রাউন্ড নেই",
+        "emptyFinishedDescription": "কোনো পশুর আর ধাপ বাকি না থাকলে রাউন্ড শেষ হয়।",
+        "emptyFilteredTitle": "কোনো রাউন্ড মেলেনি",
+        "goLibrary": "লাইব্রেরি খুলুন",
+        "error": "রাউন্ড লোড করা যায়নি।",
+        "truncated": "প্রথম ১০০টি রাউন্ড দেখানো হচ্ছে।",
+        "runningOn": "{count}টি রাউন্ডে চলছে"
+      },
+      "sheet": {
+        "description": "এই প্রোটোকলের বাকি ধাপ, পশু, ধাপের ক্রম ও ফলাফল।",
+        "tabs": {
+          "progress": "অগ্রগতি",
+          "steps": "ধাপ",
+          "results": "ফলাফল"
+        },
+        "due": {
+          "error": "ধাপগুলো লোড করা যায়নি।",
+          "emptyTitle": "এখন কিছু বাকি নেই",
+          "emptyDescription": "এই প্রোটোকলের কোনো ধাপ আজ বা আগে বাকি নেই।",
+          "emptyNoAnimals": "কোনো পশু এই প্রোটোকলে নেই। শুরু করতে প্রয়োগ করুন।",
+          "emptyNext": "পরের ধাপ {date}।",
+          "truncated": "প্রথম ১০০টি ধাপ দেখানো হচ্ছে। কিছু রেকর্ড করলে বাকিগুলো দেখা যাবে।"
+        },
+        "steps": {
+          "emptyTitle": "কোনো ধাপ নেই",
+          "emptyDescription": "এই প্রোটোকলে এখনও ধাপ নেই। ধাপ যোগ করতে সম্পাদনা করুন।"
+        },
+        "progress": {
+          "error": "ধাপগুলো লোড করা যায়নি।",
+          "emptyTitle": "এই প্রোটোকলে কোনো পশু নেই",
+          "emptyDescription": "শুরু করতে প্রয়োগ করুন। প্রতিটি পশু ও ধাপ এখানে দেখা যাবে।",
+          "dueOnly": "শুধু বাকি",
+          "showing": "{total}টির মধ্যে {shown}টি পশু দেখানো হচ্ছে",
+          "nothingDueTitle": "এখন কিছু বাকি নেই",
+          "nothingDueDescription": "আজ বা দেরি হয়েছে এমন কোনো ধাপ কোনো পশুর নেই।",
+          "showAll": "সব পশু দেখান",
+          "loadMore": "আরও পশু দেখান",
+          "removeAria": "এই রাউন্ড থেকে {animal}-কে সরান",
+          "phone": {
+            "late": "{count}টি দেরি",
+            "due": "{count}টি বাকি",
+            "doneOf": "{total}টির মধ্যে {done}টি শেষ",
+            "expand": "{animal}-এর ধাপ দেখান",
+            "collapse": "{animal}-এর ধাপ লুকান"
+          },
+          "taskNotLoaded": "ধাপটি লোড করা যায়নি। কাজ করতে লাইব্রেরি থেকে প্রোটোকলটি খুলুন।",
+          "animal": "পশু",
+          "day": "দিন {day}",
+          "extraStep": "অতিরিক্ত ধাপ",
+          "recordAll": "সব রেকর্ড করুন ({count})",
+          "recordAllLabel": "সব রেকর্ড করুন ({count}) — {step}",
+          "openCase": "কেস খুলুন",
+          "truncated": "প্রথম {count}টি ধাপ দেখানো হচ্ছে। কিছু রেকর্ড করলে বাকিগুলো দেখা যাবে।",
+          "cell": {
+            "done": "সম্পন্ন {date}",
+            "skipped": "বাদ",
+            "late": "{days}দিন দেরি",
+            "inactive": "সক্রিয় নয়",
+            "today": "আজ",
+            "open": "{animal}, {step}: {state}। কাজের তালিকা খুলুন।"
+          },
+          "menu": {
+            "record": "রেকর্ড করুন",
+            "reschedule": "সময় বদলান",
+            "skip": "এই ধাপ বাদ দিন"
+          }
+        },
+        "round": {
+          "roundOf": "{date}-এর রাউন্ড",
+          "finished": "শেষ",
+          "planError": "এই প্রোটোকলের তথ্য লোড করা যায়নি।",
+          "addAnimals": "পশু যোগ করুন",
+          "add": {
+            "title": "এই রাউন্ডে পশু যোগ করুন",
+            "description": "এরা {date} তারিখে শুরু হওয়া {protocol}-এর এই রাউন্ডে যোগ হবে। যে ধাপ ইতিমধ্যে পেরিয়ে গেছে তা আজ বাকি থাকবে।",
+            "submit": "{count}টি পশু যোগ করুন",
+            "noneSelected": "অন্তত একটি পশু বাছুন।",
+            "error": "পশু যোগ করা যায়নি।",
+            "added": "রাউন্ডে {count}টি পশু যোগ হয়েছে",
+            "skipped": "{count}টি পশু বাদ গেছে — এরা ইতিমধ্যে এই প্রোটোকলে আছে",
+            "done": "সম্পন্ন"
+          }
+        },
+        "attention": {
+          "title": "কিছু ধাপে দেরি হয়েছে",
+          "item": "{animals}, শুরু {date}",
+          "overdue": "{count, plural, one {১টি ধাপে দেরি} other {#টি ধাপে দেরি}}",
+          "animals": "{count, plural, one {১টি পশু} other {#টি পশু}}",
+          "more": "{count, plural, one {আরও ১টি রাউন্ড} other {আরও #টি রাউন্ড}}",
+          "openAria": "{name}, শুরু {date}, খুলে পিছিয়ে থাকা ধাপ সারুন"
+        },
+        "loose": {
+          "title": "কোনো প্রোটোকলের অংশ নয়",
+          "description": "যেসব ধাপ কোনো প্রোটোকলের অংশ নয়। এখানে রেকর্ড করুন বা সরান।"
+        }
+      },
+      "live": {
+        "label": "এখন চলছে",
+        "inProgress": "{count}টি পশুতে চলছে",
+        "overdue": "{count}টি ধাপ দেরি হয়েছে",
+        "dueToday": "আজ {count}টি ধাপ বাকি",
+        "nextStep": "পরের ধাপ {date}"
+      },
       "emptyFilteredTitle": "কোনো প্রোটোকল মেলেনি",
       "emptyFilteredDescription": "অন্য ফিল্টার বেছে নিন, বা ফিল্টার মুছে সব প্রোটোকল দেখুন।",
       "filters": {
@@ -3445,6 +3562,9 @@
         "dayDate": "দিন {day} · {date}"
       },
       "card": {
+        "details": "বিস্তারিত",
+        "deleted": "মুছে ফেলা",
+        "deletedHint": "এই প্রোটোকল মুছে ফেলা হয়েছে, কিন্তু পশু এখনও এতে আছে। তাদের ধাপ চলবে; এটি আর প্রয়োগ করা যাবে না।",
         "type": {
           "treatment": "চিকিৎসা",
           "medical": "মেডিকেল",
@@ -3454,16 +3574,14 @@
         },
         "actionSteps": "{count} টি কর্ম ধাপ",
         "cycleLength": "{count} দিনের চক্র",
-        "actionSequence": "কর্ম ক্রম",
         "day": "দিন {day}",
-        "showMore": "আরও দেখুন",
-        "showLess": "কম দেখুন",
         "editPlan": "পরিকল্পনা সম্পাদনা",
         "apply": "প্রয়োগ করুন",
         "deletePlan": "পরিকল্পনা মুছুন",
         "deleteDialog": {
           "title": "এই স্বাস্থ্য পরিকল্পনাটি মুছে ফেলবেন?",
           "description": "এই স্বাস্থ্য পরিকল্পনা টেমপ্লেটটি সংরক্ষণাগারে পাঠানো হবে এবং সরানো হবে।",
+          "descriptionInUse": "{count}টি পশু এখনও এই প্রোটোকলে আছে। এটি আর্কাইভ হবে এবং প্রয়োগের তালিকা থেকে সরে যাবে; তাদের ধাপ চলতে থাকবে।",
           "confirm": "মুছুন",
           "cancel": "বাতিল"
         },
@@ -3565,17 +3683,11 @@
       }
     },
     "treatments": {
-      "preventiveRoundsTitle": "প্রতিরোধমূলক রাউন্ড",
-      "columns": {
-        "plan": "পরিকল্পনা",
-        "startDate": "শুরুর তারিখ",
-        "animals": "প্রাণী",
-        "progress": "অগ্রগতি"
-      },
-      "animalsCount": "{count, plural, one {১টি পশু} other {#টি পশু}}",
-      "error": "প্রতিরোধমূলক রাউন্ড লোড করা যায়নি।",
-      "emptyTitle": "কোনো প্রতিরোধমূলক রাউন্ড নেই",
-      "emptyDescription": "প্রাণীর একটি দলে টিকা, কৃমিনাশক, বা রুটিন পরিকল্পনা প্রয়োগ করলে এখানে দেখা যাবে।"
+      "viewLabel": "দেখুন",
+      "views": {
+        "cases": "চিকিৎসাধীন",
+        "withheld": "দুধ/মাংস আটকানো"
+      }
     },
     "symptoms": {
       "limpingLameness": "খোঁড়ানো/পঙ্গুত্ব",
@@ -3667,12 +3779,12 @@
           "methodLabel": "যেভাবে পশু বাছবেন",
           "method": {
             "shed": "শেড",
-            "group": "গ্রুপ",
-            "search": "খুঁজুন"
+            "group": "পশুর গ্রুপ",
+            "search": "একক"
           },
           "selectShed": "শেড",
           "selectShedPlaceholder": "শেড বেছে নিন",
-          "selectGroup": "গ্রুপ",
+          "selectGroup": "পশুর গ্রুপ",
           "selectGroupPlaceholder": "গ্রুপ বেছে নিন",
           "searchPlaceholder": "ট্যাগ বা নাম দিয়ে খুঁজুন",
           "selectedCount": "{count, plural, =0 {কোনো পশু বাছা হয়নি} other {#টি পশু বাছা হয়েছে}}",
@@ -3954,13 +4066,13 @@
       "selectionMethod": "নির্বাচন পদ্ধতি",
       "selectionMethods": {
         "shed": "শেড",
-        "batch": "ব্যাচ",
+        "batch": "পশুর গ্রুপ",
         "individual": "একক"
       },
       "selectShed": "শেড নির্বাচন করুন",
       "selectShedPlaceholder": "শেড নির্বাচন করুন",
-      "selectBatch": "ব্যাচ নির্বাচন করুন",
-      "selectBatchPlaceholder": "ব্যাচ নির্বাচন করুন",
+      "selectBatch": "পশুর গ্রুপ নির্বাচন করুন",
+      "selectBatchPlaceholder": "পশুর গ্রুপ নির্বাচন করুন",
       "searchAnimals": "পশু খুঁজুন",
       "searchAnimalsPlaceholder": "গরুর আইডি বা নাম দিয়ে খুঁজুন",
       "loadingAnimals": "পশু লোড হচ্ছে…",

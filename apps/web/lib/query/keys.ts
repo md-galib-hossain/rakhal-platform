@@ -93,7 +93,6 @@ export const qk = {
     sickBay: (filters: Record<string, string | undefined>) => ["health", "sick-bay", "list", filters] as const,
     caseDetail: (id: string) => ["health", "case", "detail", id] as const,
     tasks: () => ["health", "tasks", "list"] as const,
-    taskCalendar: (year: number, month: number) => ["health", "tasks", "calendar", year, month] as const,
     plans: () => ["health", "plans", "list"] as const,
     /** RAKHAL-415 — `GET /health/cases/applied` was removed, not aliased; replaced by
      * `GET /health/plan-applications` (grouped rounds, not one row per cow). */

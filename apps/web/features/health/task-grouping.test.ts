@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countTaskBuckets, dayKeyOf, daysFromToday, groupScheduledTasks, nextReminder, reminderSchedule } from "./task-grouping";
+import { dayKeyOf, daysFromToday, groupScheduledTasks, nextReminder, reminderSchedule } from "./task-grouping";
 import type { HealthTask } from "./types";
 
 /** Local-time constructor → ISO, so the tests read the same in any timezone the runner happens to use. */
@@ -77,34 +77,5 @@ describe("groupScheduledTasks", () => {
     ]);
     expect(groups).toHaveLength(2);
     expect(groups[0].tasks.map((t) => t.id)).toEqual(["a", "b"]);
-  });
-});
-
-describe("countTaskBuckets (the Schedule pills and the attention strip share it)", () => {
-  const now = local(2026, 10, 10, 9);
-  const mk = (id: string, title: string, due: Date, status: string) =>
-    ({
-      id,
-      cattleId: id,
-      title,
-      taskType: "MEDICINE",
-      medicineName: null,
-      dueDateTime: iso(due),
-      status,
-    }) as unknown as HealthTask;
-
-  it("counts overdue, today and upcoming cards, one per grouped step", () => {
-    const groups = groupScheduledTasks([
-      mk("a", "Late dose", local(2026, 10, 8), "PENDING"),
-      mk("b", "Late dose", local(2026, 10, 8), "PENDING"), // same card as "a"
-      mk("c", "Today dose", local(2026, 10, 10, 18), "PENDING"),
-      mk("d", "Later dose", local(2026, 10, 14), "PENDING"),
-    ]);
-    expect(countTaskBuckets(groups, now)).toEqual({ overdue: 1, today: 1, upcoming: 1 });
-  });
-
-  it("a finished card with a past due date is done — in no bucket", () => {
-    const groups = groupScheduledTasks([mk("a", "Done dose", local(2026, 10, 8), "COMPLETED")]);
-    expect(countTaskBuckets(groups, now)).toEqual({ overdue: 0, today: 0, upcoming: 0 });
   });
 });

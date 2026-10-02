@@ -37,7 +37,7 @@ function plan(id: string, condition: HealthPlanListItem["condition"]): HealthPla
     totalActionSteps: 1,
     isTemplate: false,
     steps: [],
-    stats: { kind: "TREATMENT", appliedTo: 0, inProgress: 0, recovered: null, mortality: null, recoveryRate: null, completed: null, due: null, coverageRate: null },
+    stats: { kind: "TREATMENT", appliedTo: 0, inProgress: 0, recovered: null, mortality: null, recoveryRate: null, completed: null, due: null, coverageRate: null, stepsDue: 0, stepsOverdue: 0, nextDueDate: null },
   };
 }
 

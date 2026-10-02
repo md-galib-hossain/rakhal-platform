@@ -1,15 +1,21 @@
 "use client";
 
 import { apiFetch, apiFetchPage } from "@/lib/api/client";
-import type { CursorPage } from "@/types/api";
+import type { CursorMeta, CursorPage } from "@/types/api";
 import type {
   ApplyHealthPlanPayload,
   ApplyPlanToAnimalsPayload,
   ApplyPlanToAnimalsResult,
+  AddRoundAnimalsResult,
+  CattleProtocolRun,
+  ProtocolRound,
+  RoundFilters,
+  RoundGridData,
   CloseHealthCasePayload,
   BulkCreateHealthCasesPayload,
   BulkCreateHealthCasesResult,
   CreateHealthCasePayload,
+  StopCattleProtocolPayload,
   CreateHealthPlanPayload,
   CreateHealthUpdatePayload,
   HealthCaseDetail,
@@ -17,17 +23,15 @@ import type {
   HealthDashboard,
   HealthListFilters,
   HealthOutcomes,
-  HealthPlanCategory,
+  HealthPlanFilters,
   HealthPlanListItem,
-  HealthPlanType,
-  HealthCondition,
   HealthTask,
-  HealthTaskCalendarDay,
   HealthUpdate,
   LogTaskTreatmentPayload,
   LogTreatmentPayload,
   MortalityPayload,
-  PlanApplicationListItem,
+  PlanRun,
+  HealthTaskFilters,
   RecordTreatmentPayload,
   RecordTreatmentResult,
   RescheduleTaskPayload,
@@ -99,11 +103,47 @@ export const healthApi = {
   /** Task Hub tab (Figma 734:40931/43007/44187/45177). Generous `limit` — the grid groups every
    * open task into "Scheduled Task Cards" client-side (see `task-grouping.ts`), so a numbered pager
    * over raw per-animal task rows would fight that grouping; a farm's open task count is small. */
-  listTasks(cursor?: string): Promise<CursorPage<HealthTask>> {
-    return apiFetchPage<HealthTask>("/health/tasks", { searchParams: { cursor, limit: 100 } });
+  listTasks(filters: HealthTaskFilters = {}, cursor?: string, limit = 100): Promise<CursorPage<HealthTask>> {
+    return apiFetchPage<HealthTask>("/health/tasks", {
+      searchParams: {
+        healthPlanId: filters.healthPlanId,
+        noPlan: filters.noPlan,
+        statuses: filters.statuses?.join(","),
+        dueTo: filters.dueTo,
+        sortBy: filters.sortBy,
+        sortOrder: filters.sortOrder,
+        cursor,
+        limit,
+      },
+    });
   },
-  taskCalendar(year: number, month: number): Promise<HealthTaskCalendarDay[]> {
-    return apiFetch<HealthTaskCalendarDay[]>("/health/tasks/calendar", { searchParams: { year, month } });
+  /** RAKHAL-471 — protocol rounds (one application of a protocol on one farm day), newest first. */
+  listRounds(filters: RoundFilters = {}, cursor?: string, limit = 100): Promise<CursorPage<ProtocolRound>> {
+    return apiFetchPage<ProtocolRound>("/health/rounds", {
+      searchParams: { status: filters.status, kind: filters.kind, search: filters.search, healthPlanId: filters.healthPlanId, cursor, limit },
+    });
+  },
+  /** RAKHAL-472 — the animal x step grid of one round. The envelope's `data` is an object (round + columns + rows) and
+   * `meta` pages the rows (animals); `apiFetchPage` is typed for list `data`, so it is narrowed here. */
+  async roundGrid(roundKey: string, opts: { dueOnly?: boolean } = {}, cursor?: string, limit = 50): Promise<{ data: RoundGridData; meta: CursorMeta }> {
+    const page = await apiFetchPage<unknown>(`/health/rounds/${encodeURIComponent(roundKey)}/grid`, {
+      searchParams: { dueOnly: opts.dueOnly ? true : undefined, cursor, limit },
+    });
+    return { data: page.items as unknown as RoundGridData, meta: page.meta };
+  },
+  /** RAKHAL-473 — add animals to a round that already exists (up to 100). Animals already on the protocol are skipped. */
+  addRoundAnimals(roundKey: string, cattleIds: string[]): Promise<AddRoundAnimalsResult> {
+    return apiFetch<AddRoundAnimalsResult>(`/health/rounds/${encodeURIComponent(roundKey)}/animals`, { method: "POST", body: { cattleIds } });
+  },
+  /** One protocol with its steps and live stats — an archived protocol too (a round of it can still be running). */
+  getPlan(id: string): Promise<HealthPlanListItem> {
+    return apiFetch<HealthPlanListItem>(`/health/plans/${id}`);
+  },
+  /** RFE-143 — the animals on one protocol (`GET /health/plans/:id/runs`): open runs by default, `all` adds finished ones. */
+  listPlanRuns(planId: string, filters: { search?: string; status?: "active" | "all" } = {}, cursor?: string, limit = 20): Promise<CursorPage<PlanRun>> {
+    return apiFetchPage<PlanRun>(`/health/plans/${planId}/runs`, {
+      searchParams: { search: filters.search, status: filters.status, cursor, limit },
+    });
   },
   rescheduleTask(id: string, dto: RescheduleTaskPayload): Promise<HealthTask> {
     return apiFetch<HealthTask>(`/health/tasks/${id}/reschedule`, { method: "POST", body: dto });
@@ -124,14 +164,23 @@ export const healthApi = {
   skipTask(id: string, dto: SkipTaskPayload): Promise<HealthTask> {
     return apiFetch<HealthTask>(`/health/tasks/${id}/skip`, { method: "POST", body: dto });
   },
+  /** Every protocol one animal is on now (treatment on a case + preventive / breeding rounds), soonest next step first. */
+  cattleProtocols(cattleId: string): Promise<{ items: CattleProtocolRun[] }> {
+    return apiFetch<{ items: CattleProtocolRun[] }>(`/cattle/${cattleId}/protocols`);
+  },
+  /** Take one animal off one protocol; its open steps are skipped (kept in history). */
+  stopCattleProtocol(cattleId: string, dto: StopCattleProtocolPayload): Promise<{ healthCaseId: string | null; planEnrollmentId: string | null }> {
+    return apiFetch(`/cattle/${cattleId}/protocols/stop`, { method: "POST", body: dto });
+  },
   /** RFE-110: no longer a standalone tab, folded into Treatments as a "Withholding" filter
    * section — `activeOnly` backs its default view (RAKHAL-420's `SafetyWithdrawalQueryDto`). */
   safetyWithdrawals(
     filters: { status?: SafetyWithdrawalStatus; activeOnly?: boolean; limit?: number } = {},
     cursor?: string,
+    limit?: number,
   ): Promise<CursorPage<SafetyWithdrawalListItem>> {
     return apiFetchPage<SafetyWithdrawalListItem>("/health/safety-withdrawals", {
-      searchParams: { status: filters.status, activeOnly: filters.activeOnly, cursor, limit: filters.limit ?? 20 },
+      searchParams: { status: filters.status, activeOnly: filters.activeOnly, cursor, limit: limit ?? filters.limit ?? 20 },
     });
   },
   refreshSafetyWithdrawals(): Promise<{ updated: number }> {
@@ -143,12 +192,18 @@ export const healthApi = {
     return apiFetch<SafetyWithdrawalListItem>(`/health/safety-withdrawals/${id}/release`, { method: "POST" });
   },
   /** Health Plan tab (Figma 734:45281 + Create/Apply wizards). */
-  listPlans(
-    filters: { search?: string; category?: HealthPlanCategory; planType?: HealthPlanType; condition?: HealthCondition } = {},
-    cursor?: string,
-  ): Promise<CursorPage<HealthPlanListItem>> {
+  listPlans(filters: HealthPlanFilters = {}, cursor?: string, limit = 20): Promise<CursorPage<HealthPlanListItem>> {
     return apiFetchPage<HealthPlanListItem>("/health/plans", {
-      searchParams: { search: filters.search, category: filters.category, planType: filters.planType, condition: filters.condition, cursor, limit: 20 },
+      searchParams: {
+        search: filters.search,
+        category: filters.category,
+        planType: filters.planType,
+        condition: filters.condition,
+        kind: filters.kind,
+        inUse: filters.inUse,
+        cursor,
+        limit,
+      },
     });
   },
   createPlan(dto: CreateHealthPlanPayload): Promise<HealthPlanListItem> {
@@ -169,18 +224,6 @@ export const healthApi = {
    * not already on this exact protocol and reports applied/skipped per animal. */
   applyPlanToAnimals(planId: string, dto: ApplyPlanToAnimalsPayload): Promise<ApplyPlanToAnimalsResult> {
     return apiFetch<ApplyPlanToAnimalsResult>(`/health/plans/${planId}/apply`, { method: "POST", body: dto });
-  },
-  /** RFE-107/RAKHAL-415 — Treatments tab's "Preventive Rounds" section. `GET /health/cases/applied`
-   * was removed, not aliased; this reads the real replacement, grouped one row per round rather
-   * than one per cow. Search/cattleId/date-range narrowing isn't supported server-side yet (a
-   * known, flagged v1 gap on the backend's own side) — only `healthPlanId` filters here. */
-  listPlanApplications(
-    filters: { healthPlanId?: string } = {},
-    cursor?: string,
-  ): Promise<CursorPage<PlanApplicationListItem>> {
-    return apiFetchPage<PlanApplicationListItem>("/health/plan-applications", {
-      searchParams: { healthPlanId: filters.healthPlanId, cursor, limit: 50 },
-    });
   },
 };
 

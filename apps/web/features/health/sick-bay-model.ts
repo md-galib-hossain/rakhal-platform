@@ -1,7 +1,7 @@
 import { daysFromToday } from "./task-grouping";
 import type { SafetyWithdrawalListItem } from "./types";
 
-/** Pure helpers for the reshaped Sick Bay and the attention strip (RFE-134, EPIC_HEALTH_CENTER D11). No React. */
+/** Pure helpers for the reshaped Sick Bay (RFE-134, EPIC_HEALTH_CENTER D11). No React. */
 
 /** Days until the animal's milk and meat are both safe again — the *longer* of the two, since that is when it is fully
  * clear. `null` when the withdrawal carries neither date. Never negative: a withdrawal waiting to be released reads 0. */
@@ -22,17 +22,6 @@ export function withdrawalDaysByCase(items: WithdrawalLike[]): Map<string, numbe
     byCase.set(item.healthCaseId, Math.max(byCase.get(item.healthCaseId) ?? 0, days));
   }
   return byCase;
-}
-
-/** Animals whose withdrawal ends within `withinDays` days (today counts) — the attention strip's third number. One per
- * animal, whatever its number of withdrawals. */
-export function countWithdrawalsEndingSoon(items: WithdrawalLike[], withinDays = 3): number {
-  const animals = new Set<string>();
-  for (const item of items) {
-    const days = withdrawalDaysLeft(item);
-    if (days != null && days <= withinDays) animals.add(item.cattleId);
-  }
-  return animals.size;
 }
 
 /** Which day of the illness it is; the report day is day 1. */

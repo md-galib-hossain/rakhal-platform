@@ -3175,15 +3175,17 @@
     "subtitle": "Track heat, breeding, pregnancy and calving across the herd."
   },
   "health": {
-    "kpis": {
-      "title": "Key Metrics",
-      "error": "Could not load the healthcare dashboard.",
-      "herdHealthScore": "Herd Health Score",
-      "sickBay": "Sick Bay",
-      "medicineExpense": "Medicine Expense",
-      "safetyStop": "Safety Stop",
-      "animalsHealthy": "{healthy}/{total} Animals are healthy.",
-      "activeWithholding": "Active withholding period"
+    "stat": {
+      "sick": "Sick now",
+      "sickCaption": "Animals in the sick bay",
+      "healthy": "Herd healthy",
+      "healthyCaption": "{healthy} of {total} animals",
+      "withheld": "Milk/meat withheld",
+      "withheldCaption": "Active withdrawal periods",
+      "medicine": "Medicine cost",
+      "medicineCaption": "All time",
+      "error": "Could not load the health summary.",
+      "retry": "Retry"
     },
     "morbidityTrend": {
       "title": "Morbidity Trend Over Time",
@@ -3196,27 +3198,20 @@
     "managementCenter": {
       "title": "Health Management Center",
       "tabs": {
-        "treatments": "Treatments",
-        "schedule": "Schedule",
-        "protocols": "Protocols"
+        "treatments": "Sick Bay",
+        "protocols": "Protocols",
+        "insights": "Insights"
       },
       "tabDescriptions": {
-        "treatments": "Sick animals and preventive rounds like vaccination or deworming — open a case to log treatment, or see who's enrolled in a round.",
-        "schedule": "Day-by-day treatment steps due from an applied Health Plan — not the same as the sidebar's Task Hub.",
-        "protocols": "Reusable treatment templates (vaccination schedules, checkups) you apply to one or more animals."
+        "treatments": "Animals under treatment and animals whose milk or meat is withheld.",
+        "protocols": "Your protocols: what each one is doing now, the steps due, and the animals on it. Apply one to start.",
+        "insights": "How the herd's health is trending and how treatments turned out."
       },
       "searchPlaceholder": "Find Cow by cow ID or name",
       "reportSickness": "Report Sickness",
       "logTreatment": "Log Treatment",
       "quickTreat": "Quick Treat",
-      "recordTreatment": "Record Treatment",
-      "attention": {
-        "label": "Needs attention",
-        "overdue": "Overdue steps",
-        "today": "Due today",
-        "withdrawals": "Withdrawals ending in 3 days",
-        "allClear": "Nothing needs attention right now."
-      }
+      "recordTreatment": "Record Treatment"
     },
     "sickBay": {
       "columns": {
@@ -3277,12 +3272,6 @@
       }
     },
     "taskHub": {
-      "error": "Could not load health tasks.",
-      "noTasksOnDate": "Nothing scheduled on {date}",
-      "noTasksOnDateDescription": "The step may have been completed or moved to another day.",
-      "showAllTasks": "Show all tasks",
-      "emptyTitle": "No health tasks",
-      "emptyDescription": "Tasks appear here once a health plan is applied to a case.",
       "status": {
         "PENDING": "Pending",
         "COMPLETED": "Completed",
@@ -3290,26 +3279,6 @@
         "OVERDUE": "Overdue",
         "SKIPPED": "Skipped",
         "RESCHEDULED": "Rescheduled"
-      },
-      "tabs": {
-        "all": "All",
-        "overdue": "Overdue",
-        "today": "Today's Schedule",
-        "upcoming": "Upcoming"
-      },
-      "calendar": {
-        "prevMonth": "Previous month",
-        "nextMonth": "Next month",
-        "moreCount": "+{count} more",
-        "weekday": {
-          "sun": "Sun",
-          "mon": "Mon",
-          "tue": "Tue",
-          "wed": "Wed",
-          "thu": "Thu",
-          "fri": "Fri",
-          "sat": "Sat"
-        }
       },
       "card": {
         "category": {
@@ -3394,6 +3363,27 @@
         "genericError": "Something went wrong. Please try again."
       }
     },
+    "cattleProtocols": {
+      "title": "Protocols",
+      "openProtocols": "Open protocols",
+      "empty": "This animal is not on any protocol.",
+      "stepOf": "Step {current} of {total}",
+      "next": "Next step:",
+      "noNextStep": "No step scheduled.",
+      "overdue": "Overdue",
+      "skipNext": "Skip next step",
+      "remove": "Remove from protocol",
+      "cancel": "Cancel",
+      "skipConfirmTitle": "Skip this step?",
+      "skipConfirmBody": "\"{step}\" in {protocol} will be marked skipped. The protocol carries on with the following steps.",
+      "removeConfirmTitle": "Remove from {protocol}?",
+      "removeConfirmBodyCase": "This animal leaves the protocol. Its remaining steps are skipped and kept in the history. The sickness case stays open, so you can keep treating it by hand.",
+      "removeConfirmBodyRound": "This animal leaves the round. Its remaining steps are skipped and kept in the history. Other animals on the round are not affected.",
+      "skippedToast": "Step skipped",
+      "removedToast": "Removed from the protocol",
+      "error": "Could not load this animal's protocols.",
+      "genericError": "Something went wrong. Please try again."
+    },
     "healthPlan": {
       "error": "Could not load health plans.",
       "emptyTitle": "No health plans",
@@ -3401,6 +3391,133 @@
       "stepsCount": "{count} steps",
       "searchPlaceholder": "Find health plan by name",
       "createNewPlan": "Create New Health Plan",
+      "loose": {
+        "entryTitle": "Not part of a protocol",
+        "entryCount": "{count, plural, one {1 step} other {# steps}}{more}"
+      },
+      "views": {
+        "label": "Protocols view",
+        "running": "Running",
+        "runningCount": "Running ({count})",
+        "library": "Library"
+      },
+      "rounds": {
+        "started": "Started {date}",
+        "animals": "{count, plural, one {1 animal} other {# animals}}",
+        "stepsDone": "{done} of {total} steps done",
+        "overdue": "{count, plural, one {1 step overdue} other {# steps overdue}}",
+        "dueToday": "{count, plural, one {1 step due today} other {# steps due today}}",
+        "nothingDue": "Nothing due",
+        "next": "Next step {date}",
+        "finished": "Finished",
+        "open": "Open",
+        "openAria": "Open the round of {name}, started {date}",
+        "showFinished": "Finished rounds",
+        "emptyRunningTitle": "Nothing is running",
+        "emptyRunningDescription": "Apply a protocol from the Library to start a round.",
+        "emptyFinishedTitle": "No finished rounds",
+        "emptyFinishedDescription": "A round finishes when none of its animals has a step left to do.",
+        "emptyFilteredTitle": "No rounds match",
+        "goLibrary": "Open the Library",
+        "error": "Could not load the rounds.",
+        "truncated": "Showing the first 100 rounds.",
+        "runningOn": "{count, plural, one {Running on 1 round} other {Running on # rounds}}"
+      },
+      "sheet": {
+        "description": "Steps due, animals, the step sequence and results for this protocol.",
+        "tabs": {
+          "progress": "Progress",
+          "steps": "Steps",
+          "results": "Results"
+        },
+        "due": {
+          "error": "Could not load the steps.",
+          "emptyTitle": "Nothing due right now",
+          "emptyDescription": "No step of this protocol is due today or late.",
+          "emptyNoAnimals": "No animal is on this protocol. Apply it to start.",
+          "emptyNext": "The next step is due {date}.",
+          "truncated": "Showing the first 100 steps. Record some to see the rest."
+        },
+        "steps": {
+          "emptyTitle": "No steps",
+          "emptyDescription": "This protocol has no steps yet. Edit it to add some."
+        },
+        "progress": {
+          "error": "Could not load the steps.",
+          "emptyTitle": "No animal is on this protocol",
+          "emptyDescription": "Apply it to start. Every animal and step will show here.",
+          "dueOnly": "Due only",
+          "showing": "Showing {shown} of {total} animals",
+          "nothingDueTitle": "Nothing due right now",
+          "nothingDueDescription": "No animal has a step due today or late.",
+          "showAll": "Show all animals",
+          "loadMore": "Show more animals",
+          "removeAria": "Remove {animal} from this round",
+          "phone": {
+            "late": "{count} late",
+            "due": "{count} due",
+            "doneOf": "{done} of {total} done",
+            "expand": "Show steps of {animal}",
+            "collapse": "Hide steps of {animal}"
+          },
+          "taskNotLoaded": "Could not load that step. Open the protocol from the Library to act on it.",
+          "animal": "Animal",
+          "day": "Day {day}",
+          "extraStep": "Extra step",
+          "recordAll": "Record all ({count})",
+          "recordAllLabel": "Record all ({count}) — {step}",
+          "openCase": "Open case",
+          "truncated": "Showing the first {count} steps. Record some to see the rest.",
+          "cell": {
+            "done": "Done {date}",
+            "skipped": "Skipped",
+            "late": "{days, plural, one {1 day late} other {# days late}}",
+            "inactive": "Not active",
+            "today": "Today",
+            "open": "{animal}, {step}: {state}. Open actions."
+          },
+          "menu": {
+            "record": "Record",
+            "reschedule": "Reschedule",
+            "skip": "Skip this step"
+          }
+        },
+        "round": {
+          "roundOf": "Round of {date}",
+          "finished": "Finished",
+          "planError": "Could not load this protocol's details.",
+          "addAnimals": "Add animals",
+          "add": {
+            "title": "Add animals to this round",
+            "description": "They join this round of {protocol}, started {date}. Steps that would already be past are due today.",
+            "submit": "{count, plural, =0 {Add animals} one {Add 1 animal} other {Add # animals}}",
+            "noneSelected": "Pick at least one animal.",
+            "error": "Could not add the animals.",
+            "added": "{count, plural, one {1 animal added to the round} other {# animals added to the round}}",
+            "skipped": "{count, plural, one {1 animal was skipped — it is already on this protocol} other {# animals were skipped — they are already on this protocol}}",
+            "done": "Done"
+          }
+        },
+        "attention": {
+          "title": "Steps are late",
+          "item": "{animals}, started {date}",
+          "overdue": "{count, plural, one {1 step late} other {# steps late}}",
+          "animals": "{count, plural, one {1 animal} other {# animals}}",
+          "more": "{count, plural, one {+1 more round} other {+# more rounds}}",
+          "openAria": "Open {name}, started {date}, to catch up"
+        },
+        "loose": {
+          "title": "Not part of a protocol",
+          "description": "Steps that do not belong to any protocol. Record or move them here."
+        }
+      },
+      "live": {
+        "label": "Running now",
+        "inProgress": "{count, plural, one {1 animal in progress} other {# animals in progress}}",
+        "overdue": "{count, plural, one {1 step overdue} other {# steps overdue}}",
+        "dueToday": "{count, plural, one {1 step due today} other {# steps due today}}",
+        "nextStep": "Next step {date}"
+      },
       "emptyFilteredTitle": "No protocols match",
       "emptyFilteredDescription": "Try a different filter, or clear them to see every protocol.",
       "filters": {
@@ -3445,6 +3562,9 @@
         "dayDate": "Day {day} · {date}"
       },
       "card": {
+        "details": "Details",
+        "deleted": "Deleted",
+        "deletedHint": "This protocol was deleted, but animals are still on it. They keep their steps; it cannot be applied again.",
         "type": {
           "treatment": "Treatment",
           "medical": "Medical",
@@ -3454,16 +3574,14 @@
         },
         "actionSteps": "{count} Action Steps",
         "cycleLength": "{count} Days Cycle Length",
-        "actionSequence": "Action Sequence",
         "day": "Day {day}",
-        "showMore": "Show More",
-        "showLess": "Show Less",
         "editPlan": "Edit Plan",
         "apply": "Apply",
         "deletePlan": "Delete Plan",
         "deleteDialog": {
           "title": "Delete this health plan?",
           "description": "This health plan template will be archived and removed.",
+          "descriptionInUse": "{count, plural, one {1 animal is still on this protocol.} other {# animals are still on this protocol.}} It will be archived and removed from the list of protocols to apply; their steps continue.",
           "confirm": "Delete",
           "cancel": "Cancel"
         },
@@ -3565,17 +3683,11 @@
       }
     },
     "treatments": {
-      "preventiveRoundsTitle": "Preventive Rounds",
-      "columns": {
-        "plan": "Plan",
-        "startDate": "Start Date",
-        "animals": "Animals",
-        "progress": "Progress"
-      },
-      "animalsCount": "{count, plural, one {1 animal} other {# animals}}",
-      "error": "Could not load preventive rounds.",
-      "emptyTitle": "No preventive rounds",
-      "emptyDescription": "Apply a vaccination, deworming, or routine plan to a group of animals to see it here."
+      "viewLabel": "Show",
+      "views": {
+        "cases": "Under treatment",
+        "withheld": "Milk/meat withheld"
+      }
     },
     "symptoms": {
       "limpingLameness": "Limping/Lameness",
@@ -3667,13 +3779,13 @@
           "methodLabel": "Pick animals by",
           "method": {
             "shed": "Shed",
-            "group": "Group",
-            "search": "Search"
+            "group": "Animal group",
+            "search": "Individual"
           },
           "selectShed": "Shed",
           "selectShedPlaceholder": "Choose a shed",
-          "selectGroup": "Group",
-          "selectGroupPlaceholder": "Choose a group",
+          "selectGroup": "Animal group",
+          "selectGroupPlaceholder": "Choose an animal group",
           "searchPlaceholder": "Search by tag or name",
           "selectedCount": "{count, plural, =0 {No animals selected} one {1 animal selected} other {# animals selected}}",
           "selectAll": "Select all {count}",
@@ -3954,13 +4066,13 @@
       "selectionMethod": "Selection Method",
       "selectionMethods": {
         "shed": "Shed",
-        "batch": "Batch",
+        "batch": "Animal group",
         "individual": "Individual"
       },
       "selectShed": "Select Shed",
       "selectShedPlaceholder": "Select shed",
-      "selectBatch": "Select Batch",
-      "selectBatchPlaceholder": "Select batch",
+      "selectBatch": "Select animal group",
+      "selectBatchPlaceholder": "Select animal group",
       "searchAnimals": "Search Animals",
       "searchAnimalsPlaceholder": "Search by cow ID or name",
       "loadingAnimals": "Loading animals…",

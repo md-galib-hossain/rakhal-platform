@@ -21,14 +21,14 @@ const MorbidityTrendChartInner = dynamic(() => import("./morbidity-trend-chart-i
  * label rather than a wired range filter since the endpoint takes no date-range param). Direction
  * chip ("Decreasing"/"Increasing"/"Stable") is computed client-side by comparing the first and last
  * points — the backend doesn't compute or return a trend direction itself. */
-export function MorbidityTrendChart() {
+export function MorbidityTrendChart({ plain }: { plain?: boolean } = {}) {
   const t = useTranslations("health.morbidityTrend");
   const query = useHealthDashboard();
 
   if (query.isLoading) return <CardSkeleton lines={6} className="h-full rounded-2xl" />;
   if (query.isError) {
     return (
-      <HealthCard title={t("title")} className="flex-1">
+      <HealthCard title={t("title")} className="flex-1" plain={plain}>
         <ErrorState description={t("error")} onRetry={() => query.refetch()} />
       </HealthCard>
     );
@@ -52,6 +52,7 @@ export function MorbidityTrendChart() {
       titleExtra={trendChip}
       headerRight={<PeriodPill label={t("periodLabel")} />}
       className="flex-1"
+      plain={plain}
     >
       <MorbidityTrendChartInner points={points} label={t("legend")} />
     </HealthCard>

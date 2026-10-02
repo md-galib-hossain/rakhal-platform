@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countWithdrawalsEndingSoon, dayOfIllness, nextStepStatus, withdrawalDaysByCase, withdrawalDaysLeft } from "./sick-bay-model";
+import { dayOfIllness, nextStepStatus, withdrawalDaysByCase, withdrawalDaysLeft } from "./sick-bay-model";
 
 const w = (healthCaseId: string, cattleId: string, milk: number | null, meat: number | null) => ({
   healthCaseId,
@@ -31,21 +31,6 @@ describe("withdrawalDaysByCase", () => {
       ["c1", 5],
       ["c3", 0],
     ]);
-  });
-});
-
-describe("countWithdrawalsEndingSoon", () => {
-  it("counts animals clear within the window, today included", () => {
-    const items = [w("c1", "a", 0, 0), w("c2", "b", 3, 1), w("c3", "c", 4, 1), w("c4", "d", null, null)];
-    expect(countWithdrawalsEndingSoon(items, 3)).toBe(2);
-  });
-
-  it("counts an animal once however many withdrawals it has", () => {
-    expect(countWithdrawalsEndingSoon([w("c1", "a", 1, 1), w("c2", "a", 2, 2)], 3)).toBe(1);
-  });
-
-  it("is 0 for none", () => {
-    expect(countWithdrawalsEndingSoon([], 3)).toBe(0);
   });
 });
 

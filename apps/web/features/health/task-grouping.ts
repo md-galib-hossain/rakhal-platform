@@ -111,28 +111,6 @@ export function isGroupOverdue(group: ScheduledTaskGroup): boolean {
   return daysFromToday(group.dueDateTime) < 0 && groupCompletedCount(group) < group.tasks.length;
 }
 
-export type TaskBucket = "overdue" | "today" | "upcoming";
-
-/** Which Schedule-tab bucket a card falls in. A finished group with a past due date is done, not overdue, so it fits no
- * day-based bucket (`null`) and is only counted under "all". Shared by the tab's pills and the attention strip (RFE-134),
- * so the number on the strip is the number on the pill it links to. */
-export function taskBucket(group: ScheduledTaskGroup, now: Date = new Date()): TaskBucket | null {
-  const diff = daysFromToday(group.dueDateTime, now);
-  if (diff < 0 && groupCompletedCount(group) < group.tasks.length) return "overdue";
-  if (diff === 0) return "today";
-  if (diff > 0) return "upcoming";
-  return null;
-}
-
-export function countTaskBuckets(groups: ScheduledTaskGroup[], now: Date = new Date()): Record<TaskBucket, number> {
-  const counts: Record<TaskBucket, number> = { overdue: 0, today: 0, upcoming: 0 };
-  for (const group of groups) {
-    const bucket = taskBucket(group, now);
-    if (bucket) counts[bucket] += 1;
-  }
-  return counts;
-}
-
 /** Category chip mapping — real `taskType` (`HealthActionType`) to the Figma mock's 3 chip colors.
  * There is no "Breeding" `HealthActionType` at all (breeding tasks live in the Reproduction module,
  * out of scope here) — `OBSERVATION`/`OTHER` fall back to a neutral `muted` chip rather than

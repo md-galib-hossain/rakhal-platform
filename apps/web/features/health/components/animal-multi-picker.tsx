@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CreatableSelect } from "@/components/shared/creatable-select";
+import { useCreateShedInline } from "@/features/cattle/hooks/use-cattle";
 
 /** Most animals one bulk report covers — the backend's cap (`BULK_REPORT_MAX_ANIMALS`, RAKHAL-469). */
 export const MAX_REPORT_ANIMALS = 100;
@@ -39,13 +41,18 @@ export function AnimalMultiPicker({
   selected,
   onChange,
   disabled,
+  defaultMethod = "shed",
 }: {
   selected: Map<string, PickedAnimal>;
   onChange: (next: Map<string, PickedAnimal>) => void;
   disabled?: boolean;
+  /** Which pick method opens first. Report Sickness uses `search`: most reports are one cow, found by tag. */
+  defaultMethod?: Method;
 }) {
   const t = useTranslations("health.reportSickness.bulk.picker");
-  const [method, setMethod] = useState<Method>("shed");
+  const tCattle = useTranslations("cattle.form");
+  const createShed = useCreateShedInline();
+  const [method, setMethod] = useState<Method>(defaultMethod);
   const [shedId, setShedId] = useState<string | undefined>(undefined);
   const [groupId, setGroupId] = useState<string | undefined>(undefined);
   const [search, setSearch] = useState("");
@@ -118,18 +125,21 @@ export function AnimalMultiPicker({
       </div>
 
       {method === "shed" ? (
-        <Select value={shedId} onValueChange={setShedId} disabled={disabled}>
-          <SelectTrigger aria-label={t("selectShed")}>
-            <SelectValue placeholder={t("selectShedPlaceholder")} />
-          </SelectTrigger>
-          <SelectContent>
-            {(sheds.data?.items ?? []).map((shed) => (
-              <SelectItem key={shed.id} value={shed.id}>
-                {shed.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <CreatableSelect
+          value={shedId}
+          onValueChange={setShedId}
+          options={sheds.data?.items ?? []}
+          trigger={
+            <SelectTrigger aria-label={t("selectShed")}>
+              <SelectValue placeholder={t("selectShedPlaceholder")} />
+            </SelectTrigger>
+          }
+          createLabel={tCattle("addShed")}
+          namePlaceholder={tCattle("shedNamePlaceholder")}
+          createErrorMessage={tCattle("addShedError")}
+          onCreate={(name) => createShed.mutateAsync(name)}
+          disabled={disabled}
+        />
       ) : method === "group" ? (
         <Select value={groupId} onValueChange={setGroupId} disabled={disabled}>
           <SelectTrigger aria-label={t("selectGroup")}>

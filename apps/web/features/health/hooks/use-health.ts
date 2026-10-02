@@ -1,6 +1,6 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { healthApi } from "../api";
@@ -13,9 +13,10 @@ import type {
   CreateHealthPlanPayload,
   CreateHealthUpdatePayload,
   HealthListFilters,
-  HealthPlanCategory,
-  HealthPlanType,
-  HealthCondition,
+  HealthPlanFilters,
+  HealthTask,
+  HealthTaskFilters,
+  RoundFilters,
   LogTaskTreatmentPayload,
   LogTreatmentPayload,
   MortalityPayload,
@@ -23,6 +24,7 @@ import type {
   RescheduleTaskPayload,
   SafetyWithdrawalStatus,
   SkipTaskPayload,
+  StopCattleProtocolPayload,
   UpdateHealthPlanPayload,
 } from "../types";
 
@@ -82,14 +84,18 @@ function useInvalidateHealth() {
     void queryClient.invalidateQueries({ queryKey: qk.health.dashboard() });
     void queryClient.invalidateQueries({ queryKey: ["health", "outcomes"] });
     // Completing/logging a treatment also flips its HealthTask's status — bust the Task Hub's
-    // list + calendar too, not just sick-bay/dashboard (real bug fixed while building the Task
-    // Hub tab: previously the Task Hub grid went stale after any case-management action).
+    // list too, not just sick-bay/dashboard (real bug fixed while building the Task Hub tab:
+    // previously the Task Hub grid went stale after any case-management action).
     void queryClient.invalidateQueries({ queryKey: qk.health.tasks() });
-    void queryClient.invalidateQueries({ queryKey: ["health", "tasks", "calendar"] });
     // Applied plans panel (Active Plans section in the Health Plan tab) must also refresh when
     // a case is created, deleted, or has a plan applied — those are the three events that change
     // what shows up there.
     void queryClient.invalidateQueries({ queryKey: ["health", "cases", "applied"] });
+    void queryClient.invalidateQueries({ queryKey: ["health", "plan-applications"] });
+    void queryClient.invalidateQueries({ queryKey: ["health", "plan-runs"] });
+    // RFE-142: a protocol card shows live state (animals in progress, steps due / overdue, results), and every one of
+    // these actions changes it - applying a protocol, recording / skipping / moving a step, closing a case.
+    void queryClient.invalidateQueries({ queryKey: qk.health.plans() });
     if (caseId) void queryClient.invalidateQueries({ queryKey: qk.health.caseDetail(caseId) });
     // A health-case mutation flips the cow's status (e.g. report-sickness -> SICK) on the backend —
     // bust Cattle's own list + this animal's detail/health-summary so the Cattle page isn't stale
@@ -182,20 +188,24 @@ export function useDeleteHealthCase() {
   });
 }
 
-export function useHealthTasks() {
+/** Health steps (`HealthTask`), narrowed by the server (RAKHAL-470): one protocol, steps with no protocol, open statuses,
+ * due up to a farm day. Under `qk.health.tasks()`, so every health mutation refreshes it. */
+export function useHealthTasks(filters: HealthTaskFilters = {}, options: { enabled?: boolean } = {}) {
   return useQuery({
-    queryKey: qk.health.tasks(),
-    queryFn: () => healthApi.listTasks(),
+    queryKey: [...qk.health.tasks(), filters] as const,
+    queryFn: () => healthApi.listTasks(filters),
+    enabled: options.enabled ?? true,
     staleTime: STALE_TIME,
   });
 }
 
-export function useHealthTaskCalendar(year: number, month: number) {
-  return useQuery({
-    queryKey: qk.health.taskCalendar(year, month),
-    queryFn: () => healthApi.taskCalendar(year, month),
-    staleTime: STALE_TIME,
-  });
+/** RFE-143 — numbered pager over the animals on one protocol (`GET /health/plans/:id/runs`). */
+export function useProtocolRunsPagedList(planId: string, filters: { search?: string; status?: "active" | "all" } = {}) {
+  return useCursorPager(
+    ["health", "plan-runs", planId, "paged", filters],
+    (cursor, limit) => healthApi.listPlanRuns(planId, filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
 }
 
 export function useRescheduleTask() {
@@ -232,6 +242,17 @@ export function useSafetyWithdrawals(filters: { status?: SafetyWithdrawalStatus;
   });
 }
 
+/** RFE-141 — the "Withheld" view's numbered pager over the cursor-only `GET /health/safety-withdrawals`. Sits under
+ * the `qk.health.safetyWithdrawals()` prefix, so release / refresh keep refreshing it. Unlike `useSafetyWithdrawals`
+ * (one capped page, still used for the Sick Bay days-left lookup) this never hides rows past the first page. */
+export function useSafetyWithdrawalsPagedList(filters: { status?: SafetyWithdrawalStatus; activeOnly?: boolean } = {}) {
+  return useCursorPager(
+    [...qk.health.safetyWithdrawals(), "paged", filters],
+    (cursor, limit) => healthApi.safetyWithdrawals(filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
+}
+
 export function useRefreshSafetyWithdrawals() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -249,7 +270,7 @@ export function useReleaseWithdrawal() {
   });
 }
 
-export function useHealthPlans(filters: { search?: string; category?: HealthPlanCategory; planType?: HealthPlanType; condition?: HealthCondition } = {}) {
+export function useHealthPlans(filters: HealthPlanFilters = {}) {
   return useQuery({
     queryKey: [...qk.health.plans(), filters],
     queryFn: () => healthApi.listPlans(filters),
@@ -258,6 +279,20 @@ export function useHealthPlans(filters: { search?: string; category?: HealthPlan
     // search box's focus) is not swapped for a skeleton on every keystroke.
     placeholderData: keepPreviousData,
   });
+}
+
+/**
+ * RFE-142 — the Protocols tab's numbered pager over `GET /health/plans`. Every filter (search, condition, kind, in-use)
+ * is applied by the server, so a page is never emptied after the fact and the pager's page count is honest; the cursor
+ * trail resets when any filter changes. Under the `qk.health.plans()` prefix, so create / edit / delete (and every health
+ * action, see `useInvalidateHealth`) refresh it.
+ */
+export function useHealthPlansPagedList(filters: HealthPlanFilters = {}) {
+  return useCursorPager(
+    [...qk.health.plans(), "paged", filters],
+    (cursor, limit) => healthApi.listPlans(filters, cursor, limit),
+    { staleTime: STALE_TIME, initialPageSize: 10 },
+  );
 }
 
 function useInvalidatePlans() {
@@ -311,13 +346,131 @@ export function useApplyPlanToAnimals() {
   });
 }
 
-/** RFE-107/RAKHAL-415 — Treatments tab's "Preventive Rounds" section. Grouped one row per round
- * (`PlanApplication`), each carrying its own enrolled animals + their progress. Replaces
- * `useAppliedHealthPlans` (removed with the backend route it called). */
-export function usePlanApplications(filters: { healthPlanId?: string } = {}) {
+/** Every protocol one animal is on (the cow profile's Health tab). `useStopCattleProtocol` busts it; the "skip next
+ * step" action in `CattleProtocolsSection` busts it explicitly after `useSkipTask`. */
+export function useCattleProtocols(cattleId: string | undefined) {
   return useQuery({
-    queryKey: qk.health.planApplications(filters as Record<string, string | undefined>),
-    queryFn: () => healthApi.listPlanApplications(filters),
+    queryKey: ["health", "cattle-protocols", cattleId ?? ""] as const,
+    queryFn: () => healthApi.cattleProtocols(cattleId!),
+    enabled: Boolean(cattleId),
+    staleTime: 15_000,
+  });
+}
+
+/** Take one animal off one protocol. Busts everything a protocol touches: the cow's list + health summary, Sick Bay,
+ * the Protocols tab (cards + the open sheet's runs), the schedule. */
+export function useStopCattleProtocol(cattleId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: StopCattleProtocolPayload) => healthApi.stopCattleProtocol(cattleId, dto),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["health"] });
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.healthSummary(cattleId) });
+    },
+  });
+}
+
+/** Pages of 100 tasks a protocol's grid reads before it stops and says so (RD-117: the rounds API in RAKHAL-471/472
+ * lifts this). 5 × 100 = 500 steps ≈ 40 animals on a 12-step protocol, 160 on a 3-step one. */
+const PROTOCOL_GRID_MAX_PAGES = 5;
+
+const protocolTasksKey = (planId: string | undefined) => [...qk.health.tasks(), "protocol-grid", planId ?? ""] as const;
+
+async function fetchProtocolTasks(planId: string | undefined) {
+  const filters: HealthTaskFilters = { healthPlanId: planId, sortBy: "due", sortOrder: "asc" };
+  const items: HealthTask[] = [];
+  let cursor: string | undefined;
+  let truncated = false;
+  for (let page = 0; page < PROTOCOL_GRID_MAX_PAGES; page += 1) {
+    const res = await healthApi.listTasks(filters, cursor, 100);
+    items.push(...res.items);
+    if (!res.meta.hasNextPage || !res.meta.endCursor) break;
+    cursor = res.meta.endCursor;
+    truncated = page === PROTOCOL_GRID_MAX_PAGES - 1;
+  }
+  return { items, truncated };
+}
+
+/**
+ * RFE-144 — every step (done, skipped, open) of every animal on one protocol, for the sheet's Progress grid. Follows the
+ * cursor up to `PROTOCOL_GRID_MAX_PAGES` pages. Under `qk.health.tasks()`, so every health mutation (record, skip,
+ * reschedule) refreshes the grid.
+ */
+export function useProtocolTasks(planId: string | undefined) {
+  return useQuery({
+    queryKey: protocolTasksKey(planId),
+    queryFn: () => fetchProtocolTasks(planId),
+    enabled: Boolean(planId),
     staleTime: STALE_TIME,
+  });
+}
+
+/**
+ * RFE-147 — the round grid's cells carry a step's state and dates, not what the record / reschedule / skip dialogs need
+ * (medicine, dose, animal, case…). This returns a loader that reads the protocol's full steps (the same cached read as
+ * `useProtocolTasks`, up to 500 steps - RD-117) and picks out the ones asked for by id.
+ */
+export function useProtocolTaskLoader(planId: string) {
+  const queryClient = useQueryClient();
+  return async (taskIds: string[]): Promise<HealthTask[]> => {
+    const { items } = await queryClient.fetchQuery({ queryKey: protocolTasksKey(planId), queryFn: () => fetchProtocolTasks(planId), staleTime: 15_000 });
+    const wanted = new Set(taskIds);
+    return items.filter((task) => wanted.has(task.id));
+  };
+}
+
+/** RFE-146 — protocol rounds (`GET /health/rounds`), newest first. One page of up to 100: a farm has tens of rounds, and
+ * `hasNextPage` is surfaced so the view can say when it is showing only the first 100. Under `qk.health.tasks()`, so
+ * every health mutation refreshes the counts. */
+export function useRounds(filters: RoundFilters = {}, options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: [...qk.health.tasks(), "rounds", filters] as const,
+    queryFn: () => healthApi.listRounds(filters, undefined, 100),
+    enabled: options.enabled ?? true,
+    staleTime: STALE_TIME,
+  });
+}
+
+/** RFE-147 — the animal x step grid of one round, paged by animal ("Show more animals"). The header (`round`) and the
+ * columns come with every page; the rows are concatenated. */
+export function useRoundGrid(roundKey: string | undefined, dueOnly: boolean) {
+  return useInfiniteQuery({
+    queryKey: [...qk.health.tasks(), "round-grid", roundKey ?? "", dueOnly] as const,
+    queryFn: ({ pageParam }) => healthApi.roundGrid(roundKey!, { dueOnly }, pageParam, 50),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => (last.meta.hasNextPage ? (last.meta.endCursor ?? undefined) : undefined),
+    enabled: Boolean(roundKey),
+    staleTime: STALE_TIME,
+  });
+}
+
+/** One protocol with its steps and live stats (`GET /health/plans/:id`) — the round sheet's Steps and Results tabs. */
+export function useHealthPlan(planId: string | undefined) {
+  return useQuery({
+    queryKey: [...qk.health.plans(), "detail", planId ?? ""] as const,
+    queryFn: () => healthApi.getPlan(planId!),
+    enabled: Boolean(planId),
+    staleTime: STALE_TIME,
+  });
+}
+
+/** RFE-148 — add animals to an existing round. A round's counts, grid and the protocol cards all change, so this busts
+ * everything `useInvalidateHealth` does (rounds and grids live under `qk.health.tasks()`). */
+export function useAddRoundAnimals() {
+  const invalidate = useInvalidateHealth();
+  return useMutation({
+    mutationFn: ({ roundKey, cattleIds }: { roundKey: string; cattleIds: string[] }) => healthApi.addRoundAnimals(roundKey, cattleIds),
+    onSuccess: () => invalidate(),
+  });
+}
+
+/** RFE-148 — take one animal off the protocol a round row belongs to (`POST /cattle/:id/protocols/stop`). Unlike
+ * `useStopCattleProtocol` (bound to one animal, for the cow's own page) the animal is chosen per call, because a round
+ * lists many. */
+export function useRemoveFromRound() {
+  const invalidate = useInvalidateHealth();
+  return useMutation({
+    mutationFn: ({ cattleId, dto }: { cattleId: string; dto: StopCattleProtocolPayload }) => healthApi.stopCattleProtocol(cattleId, dto),
+    onSuccess: (_data, { cattleId }) => invalidate(undefined, cattleId),
   });
 }

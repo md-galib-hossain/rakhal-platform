@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useCattleHealthSummary } from "../../hooks/use-cattle-detail-tabs";
 import { caseTitle } from "@/features/health/format";
 import { AppliedProtocolChip } from "@/features/health/components/applied-protocol-chip";
+import { CattleProtocolsSection } from "@/features/health/components/cattle-protocols-section";
 import type { HealthCaseRow } from "../../detail-types";
 import { AnimalHoldsPanel } from "./animal-holds-panel";
 
@@ -114,6 +115,8 @@ export function HealthTab({ cattleId }: { cattleId: string }) {
           <p className="text-sm font-medium text-warning">{t("withholdingActive")}</p>
         </Card>
       ) : null}
+
+      <CattleProtocolsSection cattleId={cattleId} />
 
       {data.activeCases.length > 0 ? (
         <div className="flex flex-col gap-3">

@@ -1,19 +1,24 @@
 "use client"; // URL-synced tab + search state
 
 import { useTranslations } from "next-intl";
-import { parseAsStringEnum, useQueryState } from "nuqs";
+import { createParser, useQueryState } from "nuqs";
 import { Stethoscope, Syringe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { Button } from "@/components/ui/button";
 import { HEALTH_MANAGEMENT_TABS, type HealthManagementTab } from "../types";
 import { TreatmentsTab } from "./treatments-tab";
-import { TaskHubTab } from "./task-hub-tab";
 import { HealthPlanTab } from "./health-plan-tab";
 import { HealthCard } from "./health-card";
-import { AttentionStrip } from "./attention-strip";
+import { HealthInsightsTab } from "./health-insights-tab";
 
-const TAB_KEYS = HEALTH_MANAGEMENT_TABS as unknown as [HealthManagementTab, ...HealthManagementTab[]];
+/** `?healthTab=` -> a tab. RFE-143 removed the `schedule` ("Care steps") tab; reminder notifications sent before that still
+ * link to it, so it opens Protocols (where the due steps are now recorded) instead of falling back to Sick Bay. */
+export function parseHealthTab(value: string): HealthManagementTab | null {
+  if (value === "schedule") return "protocols";
+  return (HEALTH_MANAGEMENT_TABS as readonly string[]).includes(value) ? (value as HealthManagementTab) : null;
+}
+const healthTabParser = createParser<HealthManagementTab>({ parse: parseHealthTab, serialize: (v) => v });
 
 /** Figma "Health Management Center" card (node 734:35786). Only the Sick Bay table (now inside
  * `TreatmentsTab`) has a Figma frame; Schedule/Protocols are real but plainly-styled (see their own
@@ -21,7 +26,10 @@ const TAB_KEYS = HEALTH_MANAGEMENT_TABS as unknown as [HealthManagementTab, ...H
  * with no target case yet — no Figma frame was given for any of them, so they're wired to small
  * non-Figma pickers (see `HealthcareView`) rather than left dead. **RFE-134**: the toolbar is two buttons — Report
  * sickness and Record treatment (the old "Log Treatment → pick a case" is gone; Record treatment reuses the animal's
- * open case itself) — and an attention strip sits above the tabs. **RFE-107**: 4 tabs collapsed to
+ * open case itself). **RFE-140**: the attention strip (overdue / due today / withdrawals ending) is gone — those
+ * counts came from the first 100 rows and the owner did not want them; the 4th tab is Insights (trend + outcomes).
+ * **RFE-143**: the Care steps (`schedule`) tab is gone - its steps are recorded from the protocol sheet in Protocols.
+ * **RFE-107**: 4 tabs collapsed to
  * 3 (`treatments`/`schedule`/`protocols`) — see `types.ts`'s `HEALTH_MANAGEMENT_TABS` doc comment
  * for the full mapping, including the `safetyWithdrawals` tab's deliberate, ticket-sequenced
  * removal (RFE-110 folds it back in as a filter, not a peer tab). */
@@ -35,8 +43,10 @@ export function HealthManagementCenterCard({
   onRecordTreatment: () => void;
 }) {
   const t = useTranslations("health.managementCenter");
-  const [tab, setTab] = useQueryState("healthTab", parseAsStringEnum<HealthManagementTab>(TAB_KEYS).withDefault("treatments"));
+  const [tab, setTab] = useQueryState("healthTab", healthTabParser.withDefault("treatments"));
   const [search] = useQueryState("q");
+  // RFE-150: `?round=<roundKey>` (the needs-attention strip's link) opens that round's sheet once, then is cleared.
+  const [roundKey, setRoundKey] = useQueryState("round");
 
   return (
     <HealthCard
@@ -60,8 +70,6 @@ export function HealthManagementCenterCard({
       }
       className="w-full"
     >
-      <AttentionStrip />
-
       <p className="text-xs text-muted-foreground">{t(`tabDescriptions.${tab}`)}</p>
 
       {tab === "treatments" ? (
@@ -84,10 +92,10 @@ export function HealthManagementCenterCard({
 
       {tab === "treatments" ? (
         <TreatmentsTab search={search || ""} onManageCase={onManageCase} />
-      ) : tab === "schedule" ? (
-        <TaskHubTab />
+      ) : tab === "protocols" ? (
+        <HealthPlanTab onManageCase={onManageCase} openRoundKey={roundKey} onRoundOpened={() => void setRoundKey(null)} />
       ) : (
-        <HealthPlanTab />
+        <HealthInsightsTab />
       )}
     </HealthCard>
   );

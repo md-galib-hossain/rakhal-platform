@@ -1,8 +1,8 @@
-"use client"; // Show More toggle + action callbacks
+"use client"; // steps toggle + action callbacks
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronDown, Trash2 } from "lucide-react";
+import { ChevronRight, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Can } from "@/lib/auth/permissions";
 import { ApiError } from "@/lib/api/errors";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useDeletePlan } from "../hooks/use-health";
 import type { HealthPlanListItem } from "../types";
+import { ProtocolLiveState } from "./protocol-live-state";
 import { ProtocolResultStats } from "./protocol-result-stats";
 
 /** One "kind" per protocol (EPIC D7): the UI never shows the `category` / `planType` pair — the backend derives this from
@@ -22,32 +23,38 @@ const KIND_CHIP: Record<HealthPlanListItem["stats"]["kind"], { variant: "info" |
 };
 
 /**
- * Health Plan card — Figma "Inventory - Semen"... Healthcare "Health Plan" tab (734:45281, node
- * 734:55443 `get_design_context`): title + `planType` chip, "{N} Action Steps • {M} Days Cycle
- * Length", a collapsible day-by-day Action Sequence (3 rows shown, "Show More" reveals the rest —
- * real `steps` come back on `GET /health/plans` itself, verified live, no separate detail fetch),
- * Edit Plan + Apply buttons. **RFE-136**: the result band the mock pictures ("N Animals" / "X% Success Rate") is now
- * real — `stats` on `GET /health/plans` (RAKHAL-466) is computed from the cases / enrollments that used the protocol —
- * and a protocol tagged with a condition (RAKHAL-468) shows it as a chip next to its kind.
+ * Protocol card — Figma Healthcare "Health Plan" tab (734:45281, node 734:55443), reshaped by **RFE-142** (EPIC D12): the
+ * card answers "what is this protocol doing on my farm" before "what is it made of".
+ *  1. title + condition / kind chips (and a "Deleted" flag for a protocol that was archived while animals are still on it),
+ *  2. how many steps over how many days,
+ *  3. **live state** (`ProtocolLiveState`) — animals in progress, steps overdue / due today, or the next due day,
+ *  4. results (`ProtocolResultStats`, RFE-136),
+ *  5. **Details** — opens the protocol sheet (RFE-143: due steps, animals, the step sequence, results). The title opens
+ *     it too. The day-by-day sequence used to sit on the card behind a toggle; it now lives in the sheet,
+ *  6. **Apply** as the primary button, Edit and Delete secondary. An archived protocol cannot be applied or edited.
  */
 export function HealthPlanCard({
   plan,
   onEdit,
   onApply,
+  onOpen,
+  runningRounds = 0,
 }: {
   plan: HealthPlanListItem;
   onEdit: (plan: HealthPlanListItem) => void;
   onApply: (plan: HealthPlanListItem) => void;
+  onOpen: (plan: HealthPlanListItem) => void;
+  /** How many rounds of this protocol are running (EPIC_PROTOCOL_ROUNDS) — the "Running on N rounds" chip. */
+  runningRounds?: number;
 }) {
   const t = useTranslations("health.healthPlan.card");
+  const tRounds = useTranslations("health.healthPlan.rounds");
   const tCondition = useTranslations("health.reportSickness");
-  const [expanded, setExpanded] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const deletePlan = useDeletePlan();
 
   const chip = KIND_CHIP[plan.stats.kind];
-  const visibleSteps = expanded ? plan.steps : plan.steps.slice(0, 3);
-  const hasMore = plan.steps.length > 3;
+  const archived = Boolean(plan.deletedAt);
 
   async function handleDelete() {
     try {
@@ -59,72 +66,66 @@ export function HealthPlanCard({
   }
 
   return (
-    <div className="flex flex-col gap-6 rounded-2xl border border-border bg-card p-4">
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-5">
-          <p className="flex-1 truncate text-xl font-bold text-foreground">{plan.name}</p>
-          <div className="flex shrink-0 items-center gap-1.5">
+    <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+          <button
+            type="button"
+            onClick={() => onOpen(plan)}
+            className="min-w-0 flex-1 basis-40 rounded-sm text-left text-lg font-bold leading-snug text-foreground [overflow-wrap:anywhere] hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {plan.name}
+          </button>
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+            {archived ? <Chip variant="destructive">{t("deleted")}</Chip> : null}
             {plan.condition ? <Chip variant="warning">{tCondition(`conditionValue.${plan.condition}`)}</Chip> : null}
             <Chip variant={chip.variant}>{t(`type.${chip.labelKey}`)}</Chip>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
           <span>{t("actionSteps", { count: plan.totalActionSteps })}</span>
-          <span className="size-1 rounded-full bg-muted-foreground" />
+          <span className="size-1 rounded-full bg-muted-foreground" aria-hidden />
           <span>{t("cycleLength", { count: plan.cycleLengthDays ?? 0 })}</span>
+          {runningRounds > 0 ? <Chip variant="info">{tRounds("runningOn", { count: runningRounds })}</Chip> : null}
         </div>
+        {archived ? <p className="rounded-lg bg-destructive-tint px-3 py-2 text-xs text-destructive">{t("deletedHint")}</p> : null}
+        <ProtocolLiveState stats={plan.stats} />
         <ProtocolResultStats stats={plan.stats} />
       </div>
 
-      <div className="border-t border-dashed border-border" />
-
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3">
-          <p className="text-xs text-muted-foreground">{t("actionSequence")}</p>
-          <div className="flex flex-col gap-3">
-            {visibleSteps.map((step) => (
-              <div key={step.id} className="flex items-center gap-2.5 text-xs">
-                <span className="w-10 shrink-0 text-muted-foreground">{t("day", { day: step.dayNumber })}</span>
-                <span className="text-muted-foreground">-</span>
-                <span className="flex-1 truncate text-foreground">{step.instruction || step.title}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        {hasMore ? (
-          <button type="button" className="flex items-center gap-1.5 text-xs font-medium text-primary" onClick={() => setExpanded((v) => !v)}>
-            {expanded ? t("showLess") : t("showMore")}
-            <ChevronDown className={`size-4 transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden />
-          </button>
-        ) : null}
-      </div>
+      <button type="button" className="flex items-center gap-1 self-start border-t border-dashed border-border pt-3 text-xs font-medium text-primary" onClick={() => onOpen(plan)}>
+        {t("details")}
+        <ChevronRight className="size-4" aria-hidden />
+      </button>
 
       <div className="flex items-center gap-2">
-        <Button type="button" variant="outline" className="h-11 flex-1 text-sm" onClick={() => onEdit(plan)}>
-          {t("editPlan")}
-        </Button>
-        <Button type="button" className="h-11 flex-1 text-sm" onClick={() => onApply(plan)}>
+        <Button type="button" className="h-11 flex-[2] text-sm" disabled={archived} onClick={() => onApply(plan)}>
           {t("apply")}
         </Button>
-        <Can I="healthcare.delete">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-11 w-11 shrink-0 border-border text-destructive hover:border-destructive hover:bg-destructive/5"
-            onClick={() => setDeleteOpen(true)}
-            aria-label={t("deletePlan")}
-          >
-            <Trash2 className="size-4" aria-hidden />
-          </Button>
-        </Can>
+        <Button type="button" variant="outline" className="h-11 flex-1 text-sm" disabled={archived} onClick={() => onEdit(plan)}>
+          {t("editPlan")}
+        </Button>
+        {!archived ? (
+          <Can I="healthcare.delete">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-11 w-11 shrink-0 border-border text-destructive hover:border-destructive hover:bg-destructive/5"
+              onClick={() => setDeleteOpen(true)}
+              aria-label={t("deletePlan")}
+            >
+              <Trash2 className="size-4" aria-hidden />
+            </Button>
+          </Can>
+        ) : null}
       </div>
 
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title={t("deleteDialog.title")}
-        description={t("deleteDialog.description")}
+        description={plan.stats.inProgress > 0 ? t("deleteDialog.descriptionInUse", { count: plan.stats.inProgress }) : t("deleteDialog.description")}
         confirmLabel={t("deleteDialog.confirm")}
         cancelLabel={t("deleteDialog.cancel")}
         onConfirm={handleDelete}

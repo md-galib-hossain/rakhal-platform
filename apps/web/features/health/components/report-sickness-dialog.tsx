@@ -12,21 +12,20 @@ import { qk } from "@/lib/query/keys";
 import { cn } from "@/lib/utils";
 import { cattleApi } from "@/features/cattle/api";
 import { FormSheet } from "@/components/shared/form-sheet";
-import { CattlePicker, type CattleOption } from "@/components/shared/cattle-picker";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { useCreateHealthCase, useOpenCasesForCattle } from "../hooks/use-health";
+import { useCreateHealthCase, useCreateHealthCasesBulk, useOpenCasesForCattle } from "../hooks/use-health";
 import { reportSicknessSchema, type ReportSicknessInput } from "../schemas";
-import type { CaseManageTab, HealthCondition } from "../types";
+import type { BulkCreateHealthCasesResult, CaseManageTab, HealthCondition } from "../types";
+import { AnimalMultiPicker, type PickedAnimal } from "./animal-multi-picker";
 import { SymptomChips } from "./symptom-chips";
 import { ConditionChips } from "./report-sickness/condition-chips";
 import { PrioritySegmented } from "./report-sickness/priority-segmented";
 import { AppetiteField, TemperatureField } from "./report-sickness/vitals-fields";
 import { findBlockingCase, OpenCaseGuard } from "./report-sickness/open-case-guard";
 import { NextStepCard } from "./report-sickness/next-step-card";
-import { BulkReportSheet } from "./report-sickness/bulk-report-sheet";
-import { ReportModeSwitch, type ReportMode } from "./report-sickness/report-mode-switch";
+import { BulkResultCard } from "./report-sickness/bulk-result-card";
 
 /** Conditions where milk from the cow is usually affected — a one-line nudge, never a block. */
 const MILK_AFFECTING: HealthCondition[] = ["MASTITIS", "METRITIS"];
@@ -38,14 +37,22 @@ interface CreatedCase {
   startProtocol: boolean;
 }
 
+interface CreatedBulk {
+  result: BulkCreateHealthCasesResult;
+  condition: HealthCondition;
+  selected: Map<string, PickedAnimal>;
+}
+
 const blankToUndefined = (value: string | undefined) => (value && value.trim() ? value.trim() : undefined);
 
-/** "Report Sickness" (RFE-133, EPIC_HEALTH_CENTER D1/D2). Three required inputs — animal, condition chip, priority —
+/** "Report Sickness" (RFE-133, EPIC_HEALTH_CENTER D1/D2). Three required inputs — animals, condition chip, priority —
  * with signs/vitals and details one tap further; an open-case guard before anything is typed; and after saving the
  * sheet becomes a next-step card (start a protocol / log the first treatment / done) instead of just closing.
  * `careType` is always `CURATIVE`: preventive work goes through protocols (RAKHAL-415), not sick cases.
- * **RFE-139**: a "One animal | Several animals" switch at the top; "Several animals" is `BulkReportSheet`
- * (an outbreak: one condition, many animals, `POST /health/cases/bulk`). */
+ * **One picker, no mode switch**: the animal picker is multi-select (RFE-139 had a "One animal | Several animals"
+ * switch). Pick one animal → the single-case form (per-animal vitals, open-case guard, `POST /health/cases`). Pick two
+ * or more → the shared fields only (an outbreak: one condition, `POST /health/cases/bulk`, the server skips animals
+ * that already have an open case) and a result card. Typed values survive going back and forth between 1 and 2+. */
 export function ReportSicknessDialog({
   open,
   onOpenChange,
@@ -57,17 +64,22 @@ export function ReportSicknessDialog({
   onOpenCase?: (caseId: string, tab?: CaseManageTab) => void;
 }) {
   const t = useTranslations("health.reportSickness");
+  const tb = useTranslations("health.reportSickness.bulk");
   const createCase = useCreateHealthCase();
-  const [cattle, setCattle] = useState<CattleOption | null>(null);
+  const createBulk = useCreateHealthCasesBulk();
+  const [selected, setSelected] = useState<Map<string, PickedAnimal>>(new Map());
   const [created, setCreated] = useState<CreatedCase | null>(null);
+  const [createdBulk, setCreatedBulk] = useState<CreatedBulk | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [mode, setMode] = useState<ReportMode>("one");
   const form = useForm<ReportSicknessInput>({
     resolver: zodResolver(reportSicknessSchema),
     defaultValues: { cattleId: "", careType: "CURATIVE", priority: "MEDIUM", symptoms: [], note: "", staffObservation: "", assignedVet: "" },
   });
 
-  const cattleId = useWatch({ control: form.control, name: "cattleId" }) || undefined;
+  const count = selected.size;
+  const multi = count >= 2;
+  const single = count === 1 ? [...selected.values()][0] : null;
+  const cattleId = single?.id;
   const condition = useWatch({ control: form.control, name: "condition" });
   const openCases = useOpenCasesForCattle(cattleId);
   const blocking = findBlockingCase(openCases.data?.items ?? [], condition);
@@ -77,26 +89,45 @@ export function ReportSicknessDialog({
     enabled: Boolean(cattleId),
     staleTime: 30_000,
   });
-  const animalName = cattle ? (cattle.name ?? cattle.tagNumber) : "";
+  const animalName = single ? (single.name ?? single.tagNumber) : "";
 
   function reset() {
     form.reset();
-    setCattle(null);
+    setSelected(new Map());
     setCreated(null);
+    setCreatedBulk(null);
     setDetailsOpen(false);
   }
 
   function close(next: boolean) {
-    if (!next) {
-      reset();
-      setMode("one");
-    }
+    if (!next) reset();
     onOpenChange(next);
+  }
+
+  /** The form's `cattleId` only feeds the "an animal is required" check; the selection Map is the source of truth. */
+  function onSelectionChange(next: Map<string, PickedAnimal>) {
+    setSelected(next);
+    const first = next.size > 0 ? next.keys().next().value : undefined;
+    form.setValue("cattleId", first ?? "", { shouldValidate: form.formState.isSubmitted });
   }
 
   const submit = (startProtocol: boolean) =>
     form.handleSubmit(async (values) => {
       try {
+        if (multi) {
+          if (!values.condition) return;
+          const result = await createBulk.mutateAsync({
+            cattleIds: [...selected.keys()],
+            condition: values.condition,
+            priority: values.priority,
+            careType: "CURATIVE",
+            note: blankToUndefined(values.note),
+            assignedVet: blankToUndefined(values.assignedVet),
+            symptoms: values.symptoms?.length ? values.symptoms : undefined,
+          });
+          setCreatedBulk({ result, condition: values.condition, selected });
+          return;
+        }
         const saved = await createCase.mutateAsync({
           ...values,
           note: blankToUndefined(values.note),
@@ -115,8 +146,12 @@ export function ReportSicknessDialog({
     onOpenCase?.(caseId, tab);
   }
 
-  if (mode === "many") {
-    return <BulkReportSheet open={open} onClose={() => close(false)} mode={mode} onModeChange={setMode} />;
+  if (createdBulk) {
+    return (
+      <FormSheet open={open} onOpenChange={close} title={tb("result.sheetTitle")} onSubmit={() => undefined} footer={<div />}>
+        <BulkResultCard result={createdBulk.result} condition={createdBulk.condition} selected={createdBulk.selected} onDone={() => close(false)} />
+      </FormSheet>
+    );
   }
 
   if (created) {
@@ -141,8 +176,8 @@ export function ReportSicknessDialog({
     );
   }
 
-  const pending = createCase.isPending;
-  const blocked = Boolean(blocking);
+  const pending = createCase.isPending || createBulk.isPending;
+  const blocked = !multi && Boolean(blocking);
 
   return (
     <FormSheet
@@ -154,43 +189,31 @@ export function ReportSicknessDialog({
       footer={
         <div className="flex flex-wrap gap-3">
           <Button type="submit" className="order-first h-12 w-full sm:order-none sm:w-auto sm:flex-1" disabled={pending || blocked}>
-            {pending ? "…" : t("submit")}
+            {pending ? "…" : multi ? tb("submit", { count }) : t("submit")}
           </Button>
-          <Button type="button" variant="outline" className="h-12 flex-1" onClick={() => void submit(true)()} disabled={pending || blocked}>
-            {t("submitAndProtocol")}
-          </Button>
+          {multi ? null : (
+            <Button type="button" variant="outline" className="h-12 flex-1" onClick={() => void submit(true)()} disabled={pending || blocked}>
+              {t("submitAndProtocol")}
+            </Button>
+          )}
           <Button type="button" variant="secondary" className="h-12 flex-1" onClick={() => close(false)} disabled={pending}>
             {t("cancel")}
           </Button>
         </div>
       }
     >
-      <ReportModeSwitch value={mode} onChange={setMode} disabled={pending} />
-
       <div className="flex flex-col gap-2">
         <Label>{t("cattle")}</Label>
-        <Controller
-          control={form.control}
-          name="cattleId"
-          render={({ field }) => (
-            <CattlePicker
-              value={field.value}
-              onValueChange={(id, option) => {
-                field.onChange(id);
-                setCattle(option);
-              }}
-            />
-          )}
-        />
+        <AnimalMultiPicker selected={selected} onChange={onSelectionChange} disabled={pending} defaultMethod="search" />
         {form.formState.errors.cattleId ? <p className="text-xs text-destructive">{t("cattleRequired")}</p> : null}
-        {cattleId && animalDetail.data ? (
+        {single && animalDetail.data ? (
           <p className="text-xs text-muted-foreground">
             {[animalDetail.data.shed?.name ?? t("noShed"), animalDetail.data.tagNumber].join(" · ")}
           </p>
         ) : null}
       </div>
 
-      <OpenCaseGuard cattleId={cattleId} condition={condition} animalName={animalName} onOpenCase={(id) => openCase(id)} />
+      {multi ? null : <OpenCaseGuard cattleId={cattleId} condition={condition} animalName={animalName} onOpenCase={(id) => openCase(id)} />}
 
       <div className="flex flex-col gap-2">
         <Label>{t("condition")}</Label>
@@ -203,6 +226,7 @@ export function ReportSicknessDialog({
         />
         {form.formState.errors.condition ? <p className="text-xs text-destructive">{t("conditionRequired")}</p> : null}
         {condition && MILK_AFFECTING.includes(condition) ? <p className="text-xs text-muted-foreground">{t("milkHint")}</p> : null}
+        {multi ? <p className="text-xs text-muted-foreground">{tb("skipHint")}</p> : null}
       </div>
 
       <div className="flex flex-col gap-2">
@@ -220,14 +244,20 @@ export function ReportSicknessDialog({
             render={({ field }) => <SymptomChips value={field.value ?? []} onChange={field.onChange} />}
           />
         </div>
-        <div className="flex flex-col gap-2">
-          <Label>{t("temperature")}</Label>
-          <Controller control={form.control} name="temperature" render={({ field }) => <TemperatureField value={field.value} onChange={field.onChange} />} />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label>{t("appetite")}</Label>
-          <Controller control={form.control} name="appetite" render={({ field }) => <AppetiteField value={field.value} onChange={field.onChange} />} />
-        </div>
+        {multi ? (
+          <p className="text-xs text-muted-foreground">{tb("vitalsHint")}</p>
+        ) : (
+          <>
+            <div className="flex flex-col gap-2">
+              <Label>{t("temperature")}</Label>
+              <Controller control={form.control} name="temperature" render={({ field }) => <TemperatureField value={field.value} onChange={field.onChange} />} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>{t("appetite")}</Label>
+              <Controller control={form.control} name="appetite" render={({ field }) => <AppetiteField value={field.value} onChange={field.onChange} />} />
+            </div>
+          </>
+        )}
       </div>
 
       <div className="flex flex-col gap-3">
@@ -246,10 +276,12 @@ export function ReportSicknessDialog({
               <Label>{t("note")}</Label>
               <Input {...form.register("note")} placeholder={t("notePlaceholder")} />
             </div>
-            <div className="flex flex-col gap-2">
-              <Label>{t("staffObservation")}</Label>
-              <Input {...form.register("staffObservation")} placeholder={t("staffObservationPlaceholder")} />
-            </div>
+            {multi ? null : (
+              <div className="flex flex-col gap-2">
+                <Label>{t("staffObservation")}</Label>
+                <Input {...form.register("staffObservation")} placeholder={t("staffObservationPlaceholder")} />
+              </div>
+            )}
             <div className="flex flex-col gap-2">
               <Label>{t("assignedVet")}</Label>
               <Input {...form.register("assignedVet")} placeholder={t("assignedVetPlaceholder")} />
