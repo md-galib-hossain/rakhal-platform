@@ -75,11 +75,14 @@ model HealthPlan {
   planType    HealthPlanType
   description String?
   diagnosis   String?
+  /// RAKHAL-468: the structured condition this protocol is for, so Report Sickness can suggest matching protocols
+  /// first. Optional — a general protocol (vaccination round, routine check) has none. RAKHAL-466 dropped the old
+  /// `successRate` / `currentlyActiveAnimalCount` columns (nothing ever wrote them); protocol results are computed
+  /// live from cases/enrollments (`HealthPlanStatsService`), never stored.
+  condition   HealthCondition?
 
-  cycleLengthDays            Int?
-  totalActionSteps           Int      @default(0)
-  successRate                Decimal?
-  currentlyActiveAnimalCount Int      @default(0)
+  cycleLengthDays  Int?
+  totalActionSteps Int @default(0)
 
   isTemplate Boolean   @default(false)
   deletedAt  DateTime?
@@ -99,6 +102,7 @@ model HealthPlan {
   @@unique([farmId, name])
   @@index([farmId, category])
   @@index([farmId, name])
+  @@index([farmId, condition])
 }
 
 model HealthPlanStep {

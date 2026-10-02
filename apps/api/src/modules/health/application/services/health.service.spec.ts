@@ -48,6 +48,7 @@ describe('HealthService — safety withdrawal release flow (RAKHAL-276)', () => 
       undefined as never, // cattleService (RAKHAL-399)
       undefined as never, // expenseService (RAKHAL-419)
       logger as never,
+      undefined as never, // outcomes (RAKHAL-467)
     );
 
   describe('activeMilkWithholdingCattleIds', () => {

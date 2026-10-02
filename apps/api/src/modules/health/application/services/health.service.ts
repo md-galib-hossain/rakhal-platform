@@ -32,6 +32,7 @@ import { AqrService } from 'src/modules/activity/application/services/aqr.servic
 import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { MedicineService } from 'src/modules/inventory/application/services/medicine.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
+import { HealthOutcomesService } from './health-outcomes.service';
 import { CattleService } from 'src/modules/cattle/application/services/cattle.service';
 import { ExpenseService } from 'src/modules/purchasing/application/expense.service';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
@@ -101,6 +102,8 @@ export class HealthService {
     private readonly cattleService: CattleService,
     private readonly expenseService: ExpenseService,
     private readonly logger: LoggerService,
+    // RAKHAL-467 — last, so positional `new HealthService(...)` callers keep their order.
+    private readonly outcomes: HealthOutcomesService,
   ) {
     this.log = this.logger.setContext(HealthService.name);
   }
@@ -534,6 +537,8 @@ export class HealthService {
     if (!healthCase) throw new NotFoundException('Health case not found');
     return {
       ...healthCase,
+      // RAKHAL-467: the case's result — days, steps, protocol, treatments, cost, outcome, recurrence.
+      summary: await this.outcomes.caseSummary(farmId, healthCase),
       nextDose:
         healthCase.tasks.find(
           (task) => task.status === HealthTaskStatus.PENDING,
@@ -1474,6 +1479,8 @@ export class HealthService {
         : {}),
       ...(query.category ? { category: query.category } : {}),
       ...(query.planType ? { planType: query.planType } : {}),
+      // RAKHAL-468: protocols for one structured condition (Report Sickness "suggested protocols")
+      ...(query.condition ? { condition: query.condition } : {}),
     };
     const rows = await this.prisma.healthPlan.findMany({
       where,
@@ -1533,6 +1540,7 @@ export class HealthService {
         planType: dto.planType,
         description: dto.description,
         diagnosis: dto.diagnosis,
+        condition: dto.condition,
         cycleLengthDays: dto.cycleLengthDays,
         totalActionSteps: dto.steps.length,
         isTemplate: dto.isTemplate ?? false,
@@ -1566,6 +1574,7 @@ export class HealthService {
           planType: dto.planType,
           description: dto.description,
           diagnosis: dto.diagnosis,
+          condition: dto.condition,
           cycleLengthDays: dto.cycleLengthDays,
           isTemplate: dto.isTemplate,
           totalActionSteps: dto.steps?.length,
@@ -1936,6 +1945,8 @@ export class HealthService {
             status: { in: ACTIVE_CASE_STATUSES },
           },
           include: {
+            // RFE-136: the cow's Health tab shows which protocol each case is on.
+            healthPlan: { select: { id: true, name: true } },
             tasks: {
               where: { status: HealthTaskStatus.PENDING },
               orderBy: { dueDateTime: 'asc' },

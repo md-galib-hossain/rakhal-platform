@@ -220,6 +220,7 @@ export class NotificationService {
           title,
           message,
           link: input.link,
+          params: input.params,
           channelsSent: sent,
           dedupeKey: input.dedupeKey,
         },
@@ -257,7 +258,17 @@ export class NotificationService {
 
   // ---- bell feed ----------------------------------------------------------
 
-  async list(farmId: string, userId: string, query: ListNotificationQueryDto) {
+  /**
+   * `lang` is the request language (UI locale via `Accept-Language`, else the
+   * stored preference). Rows holding `params` are re-rendered in it; legacy
+   * rows without params keep the text frozen at emit time.
+   */
+  async list(
+    farmId: string,
+    userId: string,
+    query: ListNotificationQueryDto,
+    lang: AppLanguage = DEFAULT_LANGUAGE,
+  ) {
     const baseWhere = { farmId, userId };
     const where =
       query.status === 'unread' ? { ...baseWhere, isRead: false } : baseWhere;
@@ -279,16 +290,31 @@ export class NotificationService {
 
     return {
       unread_count: unreadCount,
-      notifications: rows.map((n) => ({
-        id: n.id,
-        type: n.category,
-        priority: n.priority,
-        title: n.title,
-        message: n.message,
-        link: n.link,
-        read: n.isRead,
-        created_at: n.createdAt,
-      })),
+      notifications: rows.map((n) => {
+        const params = this.asParams(n.params);
+        return {
+          id: n.id,
+          type: n.category,
+          priority: n.priority,
+          title: params
+            ? this.i18n.translate(
+                lang,
+                `notification.${n.eventKey}.title`,
+                params,
+              )
+            : n.title,
+          message: params
+            ? this.i18n.translate(
+                lang,
+                `notification.${n.eventKey}.message`,
+                params,
+              )
+            : n.message,
+          link: n.link,
+          read: n.isRead,
+          created_at: n.createdAt,
+        };
+      }),
       meta: { page: query.page, per_page: perPage, total },
     };
   }
@@ -423,6 +449,14 @@ export class NotificationService {
   }
 
   // ---- helpers ------------------------------------------------------------
+
+  private asParams(
+    value: Notification['params'],
+  ): Record<string, string | number> | null {
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, string | number>)
+      : null;
+  }
 
   private nowHm(): string {
     const d = new Date();

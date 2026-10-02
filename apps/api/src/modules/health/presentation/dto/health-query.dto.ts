@@ -1,4 +1,4 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsEnum,
@@ -11,6 +11,7 @@ import {
 import {
   HealthActionType,
   HealthCaseStatus,
+  HealthCondition,
   HealthPlanCategory,
   HealthPlanType,
   HealthPriority,
@@ -40,10 +41,25 @@ export class SickBayQueryDto extends HealthListQueryDto {
   status?: HealthCaseStatus;
 }
 
+/** RAKHAL-467 — `GET /health/outcomes?days=`: how far back to look (cases opened in the window). */
+export class HealthOutcomesQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(7)
+  @Max(365)
+  days?: number;
+}
+
 export class HealthPlanQueryDto extends HealthListQueryDto {
   @IsOptional()
   @IsEnum(HealthPlanCategory)
   category?: HealthPlanCategory;
+
+  /** RAKHAL-468: only protocols for this structured condition. */
+  @IsOptional()
+  @IsEnum(HealthCondition)
+  condition?: HealthCondition;
 
   @IsOptional()
   @IsEnum(HealthPlanType)

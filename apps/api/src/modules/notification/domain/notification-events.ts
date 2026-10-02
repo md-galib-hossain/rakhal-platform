@@ -195,6 +195,40 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     true,
     ch(),
   ),
+  // RAKHAL-465 — scheduled health steps (protocol doses/vaccinations). Split by urgency band so only the close-in
+  // reminders and the overdue nag are SMS-eligible once a provider is live; T-7/T-3 stay in-app + push.
+  evt(
+    'health_task_reminder',
+    'Health Step Coming Up',
+    'operational',
+    'medium',
+    true,
+    ch(),
+  ),
+  evt(
+    'health_task_due_tomorrow',
+    'Health Step Due Tomorrow',
+    'operational',
+    'high',
+    true,
+    ch({ sms: true }),
+  ),
+  evt(
+    'health_task_due_today',
+    'Health Step Due Today',
+    'operational',
+    'high',
+    true,
+    ch({ sms: true }),
+  ),
+  evt(
+    'health_task_overdue',
+    'Health Step Overdue',
+    'operational',
+    'high',
+    true,
+    ch({ sms: true }),
+  ),
   // ── Financial ─────────────────────────────────────────────────────────────
   evt(
     'payment_overdue',

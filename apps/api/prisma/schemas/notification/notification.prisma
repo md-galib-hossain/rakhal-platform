@@ -17,6 +17,13 @@ model Notification {
   message  String
   link     String?
 
+  /// Interpolation params for the catalogue copy (`notification.<eventKey>.*`).
+  /// When set, the bell feed re-renders title/message at read time in the
+  /// request's language, so switching UI language also switches old rows.
+  /// Null for legacy rows / events with no catalogue entry — `title`/`message`
+  /// above are then served verbatim.
+  params Json?
+
   /// Channels actually delivered (subset of the resolved preference).
   channelsSent String[] @default([])
 

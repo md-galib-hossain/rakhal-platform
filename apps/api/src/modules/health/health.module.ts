@@ -9,6 +9,9 @@ import { TaskModule } from '../task/task.module';
 import { CattleModule } from '../cattle/cattle.module';
 import { NotificationModule } from '../notification/notification.module';
 import { HealthService } from './application/services/health.service';
+import { HealthReminderService } from './application/services/health-reminder.service';
+import { HealthOutcomesService } from './application/services/health-outcomes.service';
+import { HealthPlanStatsService } from './application/services/health-plan-stats.service';
 import { CattleHealthController } from './presentation/controllers/cattle-health.controller';
 import { HealthController } from './presentation/controllers/health.controller';
 import { SubscriptionModule } from '../subscription/subscription.module';
@@ -31,7 +34,17 @@ import { PurchasingModule } from '../purchasing/purchasing.module';
     PurchasingModule,
   ],
   controllers: [HealthController, CattleHealthController],
-  providers: [HealthService],
-  exports: [HealthService],
+  providers: [
+    HealthService,
+    HealthReminderService,
+    HealthOutcomesService,
+    HealthPlanStatsService,
+  ],
+  exports: [
+    HealthService,
+    HealthReminderService,
+    HealthOutcomesService,
+    HealthPlanStatsService,
+  ],
 })
 export class HealthModule {}

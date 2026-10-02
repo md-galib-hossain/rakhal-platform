@@ -17,6 +17,8 @@ import { PermissionGuard } from 'src/modules/permission/presentation/guards/perm
 import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { HealthService } from '../../application/services/health.service';
+import { HealthOutcomesService } from '../../application/services/health-outcomes.service';
+import { HealthPlanStatsService } from '../../application/services/health-plan-stats.service';
 import {
   ApplyHealthPlanDto,
   CloseHealthCaseDto,
@@ -37,6 +39,7 @@ import {
 } from '../dto/health-plan.dto';
 import {
   AppliedPlansQueryDto,
+  HealthOutcomesQueryDto,
   HealthPlanQueryDto,
   HealthTaskCalendarQueryDto,
   HealthTaskQueryDto,
@@ -57,12 +60,27 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
   SubscriptionGuard,
 )
 export class HealthController {
-  constructor(private readonly healthService: HealthService) {}
+  constructor(
+    private readonly healthService: HealthService,
+    private readonly outcomesService: HealthOutcomesService,
+    private readonly planStatsService: HealthPlanStatsService,
+  ) {}
 
   @Get('dashboard')
   @RequirePermission('healthcare.read')
   dashboard(@CurrentFarmId() farmId: string) {
     return this.healthService.getHealthDashboard(farmId);
+  }
+
+  /** RAKHAL-467: what was the sickness, what did we do, what was the result — over the cases opened in the last
+   * `days` days (default 90). */
+  @Get('outcomes')
+  @RequirePermission('healthcare.read')
+  outcomes(
+    @CurrentFarmId() farmId: string,
+    @Query() query: HealthOutcomesQueryDto,
+  ) {
+    return this.outcomesService.getOutcomes(farmId, query.days ?? 90);
   }
 
   @Get('sick-bay')
@@ -181,11 +199,15 @@ export class HealthController {
 
   @Get('plans')
   @RequirePermission('healthcare.read')
-  getPlans(
+  async getPlans(
     @CurrentFarmId() farmId: string,
     @Query() query: HealthPlanQueryDto,
   ) {
-    return this.healthService.getPlans(farmId, query);
+    // RAKHAL-466: every plan carries its live result (`stats`) — recovery rate / coverage rate by protocol kind
+    return this.planStatsService.attach(
+      farmId,
+      await this.healthService.getPlans(farmId, query),
+    );
   }
 
   @Post('plans')

@@ -13,6 +13,7 @@ import {
 } from 'class-validator';
 import {
   HealthActionType,
+  HealthCondition,
   HealthPlanCategory,
   HealthPlanType,
   MedicineRoute,
@@ -97,6 +98,11 @@ export class CreateHealthPlanDto {
   @IsEnum(HealthPlanType)
   planType!: HealthPlanType;
 
+  /** RAKHAL-468: the structured condition this protocol is for (drives "suggested protocols" in Report Sickness). */
+  @IsOptional()
+  @IsEnum(HealthCondition)
+  condition?: HealthCondition;
+
   @IsOptional()
   @Transform(trimString)
   @IsString()
@@ -136,6 +142,11 @@ export class UpdateHealthPlanDto {
   @IsOptional()
   @IsEnum(HealthPlanType)
   planType?: HealthPlanType;
+
+  /** RAKHAL-468 — send `null` to clear it. */
+  @IsOptional()
+  @IsEnum(HealthCondition)
+  condition?: HealthCondition | null;
 
   @IsOptional()
   @Transform(trimString)

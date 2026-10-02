@@ -27,6 +27,22 @@ export const notificationEn = {
     title: 'Task Overdue',
     message: '"{{name}}" was due {{date}} and is not complete.',
   },
+  health_task_reminder: {
+    title: 'Health Step Due in {{days}} Days',
+    message: '{{label}}: {{count}} animal(s), due {{date}}.',
+  },
+  health_task_due_tomorrow: {
+    title: 'Health Step Due Tomorrow',
+    message: '{{label}}: {{count}} animal(s), due {{date}}.',
+  },
+  health_task_due_today: {
+    title: 'Health Step Due Today',
+    message: '{{label}}: {{count}} animal(s), due today ({{date}}).',
+  },
+  health_task_overdue: {
+    title: 'Health Step Overdue',
+    message: '{{label}}: {{count}} animal(s) overdue since {{date}}.',
+  },
   medicine_expiring_30_days: {
     title: 'Medicine Expiring in 30 Days',
     message: '{{name}} expires on {{date}}.',

@@ -11,6 +11,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
+import { CurrentLanguage } from 'src/common/decorators/current-language.decorator';
+import type { AppLanguage } from 'src/common/i18n/language';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
@@ -73,8 +75,9 @@ export class NotificationController {
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
     @Query() query: ListNotificationQueryDto,
+    @CurrentLanguage() lang: AppLanguage,
   ) {
-    return this.notifications.list(farmId, userId, query);
+    return this.notifications.list(farmId, userId, query, lang);
   }
 
   @Post(':id/read')

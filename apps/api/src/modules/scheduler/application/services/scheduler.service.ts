@@ -18,6 +18,7 @@ import { ReconciliationService } from 'src/modules/billing/application/services/
 import { BalanceService } from 'src/modules/finance-v2/accounts/application/balance.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { HealthService } from 'src/modules/health/application/services/health.service';
+import { HealthReminderService } from 'src/modules/health/application/services/health-reminder.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { FeedPlanFitSweepService } from 'src/modules/feed/application/services/feed-plan-fit-sweep.service';
 import { DEFAULT_SESSION_CONFIG } from 'src/modules/milk/domain/milk-anomaly';
@@ -82,6 +83,7 @@ export class SchedulerService {
     private readonly healthService: HealthService,
     private readonly taskService: TaskService,
     private readonly feedFitSweep: FeedPlanFitSweepService,
+    private readonly healthReminders: HealthReminderService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(SchedulerService.name);
@@ -114,6 +116,8 @@ export class SchedulerService {
       ['lactation_alerts', () => this.sweepLactationAlerts()],
       // MILESTONE 27 (RAKHAL-459b): stores each animal's program fit for the day; raises the 3-days-off-target digest.
       ['feed_plan_fit', () => this.feedFitSweep.sweepAll()],
+      // RAKHAL-465 (MILESTONE 29): protocol-step reminders at T-7/T-3/T-1/day-of + the daily overdue nag.
+      ['health_task_reminders', () => this.healthReminders.sweepAll()],
     ] as const) {
       try {
         results[name] = await sweep();

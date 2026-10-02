@@ -90,6 +90,35 @@ describe('Notifications (e2e)', () => {
     });
   });
 
+  it('re-renders param-based copy in the request language, not the emit-time one', async () => {
+    await prisma.notification.deleteMany({ where: { userId: ownerUserId } });
+    await service.notifyUsers({
+      farmId: owner.farmId,
+      userIds: [ownerUserId],
+      eventKey: 'task_overdue',
+      title: 'fallback',
+      message: 'fallback',
+      params: { name: 'Vaccinate', date: '2026-09-27' },
+    });
+    const feed = async (lang: string) => {
+      const res = await request(server())
+        .get(api('/notifications'))
+        .set(...auth(owner))
+        .set('Accept-Language', lang)
+        .expect(200);
+      return res.body.data.notifications[0] as {
+        title: string;
+        message: string;
+      };
+    };
+    const en = await feed('en');
+    expect(en.title).toBe('Task Overdue');
+    expect(en.message).toContain('Vaccinate');
+    const bn = await feed('bn');
+    expect(bn.title).not.toBe('Task Overdue');
+    expect(bn.message).toContain('Vaccinate');
+  });
+
   it('marks one read, then all read → unread_count 0', async () => {
     const list = await request(server())
       .get(api('/notifications?status=unread'))

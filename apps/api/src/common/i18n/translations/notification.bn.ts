@@ -25,6 +25,22 @@ export const notificationBn: typeof notificationEn = {
     message:
       '"{{name}}" কাজটি {{date}} তারিখে শেষ হওয়ার কথা ছিল, এখনও সম্পন্ন হয়নি।',
   },
+  health_task_reminder: {
+    title: '{{days}} দিন পর স্বাস্থ্য কাজ',
+    message: '{{label}}: {{count}}টি পশু, তারিখ {{date}}।',
+  },
+  health_task_due_tomorrow: {
+    title: 'আগামীকাল স্বাস্থ্য কাজ',
+    message: '{{label}}: {{count}}টি পশু, তারিখ {{date}}।',
+  },
+  health_task_due_today: {
+    title: 'আজ স্বাস্থ্য কাজ',
+    message: '{{label}}: {{count}}টি পশু, আজ ({{date}})।',
+  },
+  health_task_overdue: {
+    title: 'স্বাস্থ্য কাজের সময় পেরিয়ে গেছে',
+    message: '{{label}}: {{count}}টি পশু, {{date}} থেকে বকেয়া।',
+  },
   medicine_expiring_30_days: {
     title: '৩০ দিনের মধ্যে ওষুধের মেয়াদ শেষ হবে',
     message: '{{name}}-এর মেয়াদ {{date}} তারিখে শেষ হবে।',
