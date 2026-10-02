@@ -76,7 +76,7 @@ describe('HealthReminderService', () => {
         farmId: 'farm-1',
         eventKey: 'health_task_reminder',
         dedupeKey: 'health_task:app:A1:2026-10-04:T_MINUS_3',
-        link: '/healthcare?healthTab=schedule&date=2026-10-04',
+        link: '/healthcare?healthTab=protocols&date=2026-10-04',
         params: {
           label: 'FMD booster',
           count: 12,
@@ -186,7 +186,7 @@ describe('HealthReminderService', () => {
       expect.objectContaining({
         eventKey: 'health_task_overdue',
         dedupeKey: 'health_task_overdue:app:A1:2026-10-01',
-        link: '/healthcare?healthTab=schedule&bucket=overdue',
+        link: '/healthcare?healthTab=protocols&bucket=overdue',
         params: {
           label: 'FMD booster',
           count: 2,

@@ -171,7 +171,7 @@ describe('Health — step reminders (RAKHAL-465)', () => {
     expect(recipients).not.toContain(workerId);
     expect(rows[0].eventKey).toBe('health_task_reminder');
     expect(rows[0].link).toBe(
-      `/healthcare?healthTab=schedule&date=${ymd(inDays(3))}`,
+      `/healthcare?healthTab=protocols&date=${ymd(inDays(3))}`,
     );
     // rendered per recipient in their own language (RAKHAL-107) — assert the language-neutral parts
     expect(rows[0].message).toContain('3');

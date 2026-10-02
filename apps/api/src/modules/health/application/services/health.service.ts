@@ -28,6 +28,8 @@ import {
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
+import { DEFAULT_FARM_TIMEZONE } from 'src/common/farm-time/farm-time';
+import { farmDayEnd } from '../../domain/health-farm-day';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { MedicineService } from 'src/modules/inventory/application/services/medicine.service';
@@ -55,6 +57,7 @@ import {
   HealthPlanQueryDto,
   HealthTaskCalendarQueryDto,
   HealthTaskQueryDto,
+  PlanRunsQueryDto,
   SafetyWithdrawalQueryDto,
   SickBayQueryDto,
 } from '../../presentation/dto/health-query.dto';
@@ -64,6 +67,7 @@ import {
   UpdateHealthPlanDto,
 } from '../../presentation/dto/health-plan.dto';
 import { UpdateHealthCaseDto } from '../../presentation/dto/update-health-case.dto';
+import { StopCattleProtocolDto } from '../../presentation/dto/stop-protocol.dto';
 
 const ACTIVE_CASE_STATUSES = [
   HealthCaseStatus.ACTIVE,
@@ -271,10 +275,36 @@ export class HealthService {
           orderBy: { dueDateTime: 'asc' },
           take: 1,
         },
+        // RAKHAL-470: the milk/meat hold still running on this case, so a row can show "3 days left" without the
+        // client fetching (and capping) a separate withdrawals list.
+        safetyWithdrawals: {
+          where: {
+            status: {
+              in: [
+                SafetyWithdrawalStatus.ACTIVE,
+                SafetyWithdrawalStatus.READY_FOR_RELEASE,
+              ],
+            },
+          },
+          select: { milkWithdrawalUntil: true, meatWithdrawalUntil: true },
+        },
       },
     });
 
-    return toCursorPage(rows, query);
+    const projected = rows.map(({ safetyWithdrawals, ...row }) => {
+      const days = safetyWithdrawals
+        .flatMap((w) => [
+          this.daysRemaining(w.milkWithdrawalUntil),
+          this.daysRemaining(w.meatWithdrawalUntil),
+        ])
+        .filter((d): d is number => d !== null);
+      return {
+        ...row,
+        /** Days until the animal's milk and meat are both safe again (the longer of the two); `null` = no hold. */
+        withdrawalDaysLeft: days.length ? Math.max(...days) : null,
+      };
+    });
+    return toCursorPage(projected, query);
   }
 
   async createHealthCase(
@@ -858,6 +888,56 @@ export class HealthService {
         );
   }
 
+  /**
+   * RAKHAL-473 — add animals to a round that already exists (`HealthRoundsService.addAnimals` resolves the round and the
+   * protocol; this does the writes with the same helpers a normal apply uses). A preventive / breeding round gets new
+   * `PlanEnrollment`s on its `PlanApplication`; a treatment round gets new `HealthCase`s stamped with the round's day.
+   * Animals already on the protocol are skipped, never duplicated. A bad cattle id fails the whole call.
+   */
+  async addAnimalsToRound(
+    farmId: string,
+    userId: string,
+    input: {
+      plan: HealthPlan & { steps: HealthPlanStep[] };
+      cattleIds: string[];
+      /** The round's start: the application's start date, or an instant inside the treatment round's farm day. */
+      startDate: Date;
+      /** Present for a preventive / breeding round. */
+      applicationId?: string;
+    },
+  ) {
+    const { plan, cattleIds, startDate, applicationId } = input;
+    if (plan.steps.length === 0) {
+      throw new BadRequestException('Health plan has no steps to apply');
+    }
+    const uniqueIds = [...new Set(cattleIds)];
+    const cattleRows = await this.prisma.cattle.findMany({
+      where: { id: { in: uniqueIds }, farmId, deletedAt: null },
+      select: { id: true, tagNumber: true, shedId: true },
+    });
+    const found = new Set(cattleRows.map((c) => c.id));
+    const missing = uniqueIds.filter((id) => !found.has(id));
+    if (missing.length > 0) {
+      throw new NotFoundException(
+        `Cattle not found in this farm: ${missing.join(', ')}`,
+      );
+    }
+    const minDue = new Date();
+    return applicationId
+      ? this.applyPreventivePlanToAnimals(
+          farmId,
+          userId,
+          plan,
+          cattleRows,
+          startDate,
+          { applicationId, minDue },
+        )
+      : this.applyCurativePlanToAnimals(farmId, plan, cattleRows, startDate, {
+          minDue,
+          createdAt: startDate,
+        });
+  }
+
   /** RAKHAL-414's original bulk-apply body, unchanged — one new `HealthCase` per animal. Only
    * reached for a curative (`TREATMENT`-category) plan now; see `applyPlanToAnimals` above. */
   private async applyCurativePlanToAnimals(
@@ -865,6 +945,10 @@ export class HealthService {
     plan: HealthPlan & { steps: HealthPlanStep[] },
     cattleRows: { id: string; tagNumber: string; shedId: string | null }[],
     startDate: Date,
+    /** RAKHAL-473 — set when animals are added to a round that already exists: steps already past are due now instead of
+     * back in time, and the steps are stamped with the round's day so the derived round (plan + the day its steps were
+     * created) is the one being joined. Omitted for a normal apply, which behaves exactly as before. */
+    join?: { minDue: Date; createdAt: Date },
   ) {
     // An animal already on this exact protocol is skipped, not duplicated —
     // this is what the two-request create-then-apply frontend flow could not
@@ -917,12 +1001,13 @@ export class HealthService {
           });
           await Promise.all(
             plan.steps.map((step, index) => {
-              const dueDateTime = this.addDays(
-                startDate,
-                Math.max(0, step.dayNumber - 1),
+              const dueDateTime = this.dueNoEarlierThan(
+                this.addDays(startDate, Math.max(0, step.dayNumber - 1)),
+                join?.minDue,
               );
               return tx.healthTask.create({
                 data: {
+                  ...(join ? { createdAt: join.createdAt } : {}),
                   farmId,
                   cattleId: cattle.id,
                   healthCaseId: healthCase.id,
@@ -979,6 +1064,9 @@ export class HealthService {
     plan: HealthPlan & { steps: HealthPlanStep[] },
     cattleRows: { id: string; tagNumber: string; shedId: string | null }[],
     startDate: Date,
+    /** RAKHAL-473 — enroll into this existing `PlanApplication` (a round) instead of creating a new one; steps already
+     * past are due now. Omitted for a normal apply. */
+    join?: { applicationId: string; minDue: Date },
   ) {
     const existing = await this.prisma.planEnrollment.findMany({
       where: {
@@ -1010,15 +1098,20 @@ export class HealthService {
 
     if (toApply.length > 0) {
       planApplicationId = await this.prisma.$transaction(async (tx) => {
-        const application = await tx.planApplication.create({
-          data: {
-            farmId,
-            healthPlanId: plan.id,
-            startDate,
-            appliedBy: userId,
-            animalCount: toApply.length,
-          },
-        });
+        const application = join
+          ? await tx.planApplication.update({
+              where: { id: join.applicationId },
+              data: { animalCount: { increment: toApply.length } },
+            })
+          : await tx.planApplication.create({
+              data: {
+                farmId,
+                healthPlanId: plan.id,
+                startDate,
+                appliedBy: userId,
+                animalCount: toApply.length,
+              },
+            });
         for (const cattle of toApply) {
           const enrollment = await tx.planEnrollment.create({
             data: {
@@ -1034,9 +1127,9 @@ export class HealthService {
           });
           await Promise.all(
             plan.steps.map((step, index) => {
-              const dueDateTime = this.addDays(
-                startDate,
-                Math.max(0, step.dayNumber - 1),
+              const dueDateTime = this.dueNoEarlierThan(
+                this.addDays(startDate, Math.max(0, step.dayNumber - 1)),
+                join?.minDue,
               );
               return tx.healthTask.create({
                 data: {
@@ -1633,13 +1726,47 @@ export class HealthService {
   }
 
   async getPlans(farmId: string, query: HealthPlanQueryDto) {
+    // RAKHAL-470: protocols with a run right now. Archived ones are kept in the list on purpose — a protocol someone
+    // deleted while animals are still on it must not vanish from the list of what is running.
+    const runningNow: Prisma.HealthPlanWhereInput[] = [
+      {
+        cases: {
+          some: { status: { in: ACTIVE_CASE_STATUSES }, deletedAt: null },
+        },
+      },
+      {
+        planEnrollments: {
+          some: { status: PlanEnrollmentStatus.ACTIVE, deletedAt: null },
+        },
+      },
+    ];
     const where: Prisma.HealthPlanWhereInput = {
       farmId,
-      deletedAt: null,
+      // `inUse=true` is strictly "running now" (kept for API compatibility). Without it the list is every protocol that
+      // is not archived, plus any archived one that animals are still on — the UI no longer has an In use | All switch.
+      OR: query.inUse ? runningNow : [{ deletedAt: null }, ...runningNow],
       ...(query.search
         ? { name: { contains: query.search, mode: 'insensitive' } }
         : {}),
       ...(query.category ? { category: query.category } : {}),
+      // RFE-142: the derived kind (mirrors `planKind`): treatment and breeding are their own category, everything else
+      // is preventive care. An AND clause so it composes with an explicit `category`.
+      ...(query.kind
+        ? {
+            AND: [
+              query.kind === 'PREVENTION'
+                ? {
+                    category: {
+                      notIn: [
+                        HealthPlanCategory.TREATMENT,
+                        HealthPlanCategory.BREEDING,
+                      ],
+                    },
+                  }
+                : { category: HealthPlanCategory[query.kind] },
+            ],
+          }
+        : {}),
       ...(query.planType ? { planType: query.planType } : {}),
       // RAKHAL-468: protocols for one structured condition (Report Sickness "suggested protocols")
       ...(query.condition ? { condition: query.condition } : {}),
@@ -1713,6 +1840,20 @@ export class HealthService {
     });
   }
 
+  /**
+   * Read-only view of one protocol for the round sheet (MILESTONE 29d): unlike `getPlan` (which update / delete use as
+   * an "is it still there" guard) this also returns an archived protocol, because a round of it can still be running
+   * and its steps and results must stay readable.
+   */
+  async getPlanForView(farmId: string, id: string) {
+    const plan = await this.prisma.healthPlan.findFirst({
+      where: { id, farmId },
+      include: { steps: { orderBy: { dayNumber: 'asc' } } },
+    });
+    if (!plan) throw new NotFoundException('Health plan not found');
+    return plan;
+  }
+
   async getPlan(farmId: string, id: string) {
     const plan = await this.prisma.healthPlan.findFirst({
       where: { id, farmId, deletedAt: null },
@@ -1769,13 +1910,36 @@ export class HealthService {
     return deleted;
   }
 
+  /** The farm's IANA timezone, for cutting a day filter at the farm's own midnight (RAKHAL-470). */
+  private async farmTimezone(farmId: string): Promise<string> {
+    const farm = await this.prisma.farm.findUnique({
+      where: { id: farmId },
+      select: { timezone: true },
+    });
+    return farm?.timezone ?? DEFAULT_FARM_TIMEZONE;
+  }
+
   async getTasks(farmId: string, query: HealthTaskQueryDto) {
+    // RAKHAL-470: `dueTo` is a farm-local day, so it needs the farm's timezone; the other callers pay nothing for it.
+    const dueBefore = query.dueTo
+      ? farmDayEnd(query.dueTo, await this.farmTimezone(farmId))
+      : undefined;
     const where: Prisma.HealthTaskWhereInput = {
       farmId,
       deletedAt: null,
       ...(query.cattleId ? { cattleId: query.cattleId } : {}),
       ...(query.healthCaseId ? { healthCaseId: query.healthCaseId } : {}),
-      ...(query.status ? { status: query.status } : {}),
+      ...(query.statuses?.length
+        ? { status: { in: query.statuses } }
+        : query.status
+          ? { status: query.status }
+          : {}),
+      ...(query.healthPlanId
+        ? { healthPlanId: query.healthPlanId }
+        : query.noPlan
+          ? { healthPlanId: null }
+          : {}),
+      ...(dueBefore ? { AND: [{ dueDateTime: { lt: dueBefore } }] } : {}),
       ...(query.type ? { taskType: query.type } : {}),
       ...(query.date
         ? {
@@ -1788,13 +1952,134 @@ export class HealthService {
     };
     const rows = await this.prisma.healthTask.findMany({
       where,
-      orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
+      orderBy:
+        query.sortBy === 'due'
+          ? [{ dueDateTime: query.sortOrder }, { id: query.sortOrder }]
+          : [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
       ...getCursorArgs(query),
       include: {
         cattle: { select: { id: true, tagNumber: true, name: true } },
+        // RAKHAL-470: which protocol a step belongs to (and the case it is on), so a list needs no second lookup.
+        healthPlan: { select: { id: true, name: true } },
+        healthCase: { select: { id: true, caseCode: true } },
       },
     });
     return toCursorPage(rows, query);
+  }
+
+  /**
+   * RAKHAL-470 — `GET /health/plans/:id/runs`: the animals running one protocol, one row each, paged. A protocol has
+   * one kind of run, decided by its category: treatment → one `HealthCase` per animal, anything else → one
+   * `PlanEnrollment` per animal — so this never needs a union of the two tables. Rows are normalised to one shape with
+   * the animal's progress and its next open step. Reads archived protocols too: a protocol deleted while animals are
+   * still on it must still show who is on it. `status=active` (default) = open cases / active enrollments only.
+   */
+  async getPlanRuns(farmId: string, planId: string, query: PlanRunsQueryDto) {
+    const plan = await this.prisma.healthPlan.findFirst({
+      where: { id: planId, farmId },
+      select: { id: true, category: true },
+    });
+    if (!plan) throw new NotFoundException('Health plan not found');
+
+    const animalMatch: Prisma.CattleWhereInput | undefined = query.search
+      ? {
+          OR: [
+            { tagNumber: { contains: query.search, mode: 'insensitive' } },
+            { name: { contains: query.search, mode: 'insensitive' } },
+          ],
+        }
+      : undefined;
+    const nextStep = {
+      where: {
+        deletedAt: null,
+        status: {
+          in: [
+            HealthTaskStatus.PENDING,
+            HealthTaskStatus.RESCHEDULED,
+            HealthTaskStatus.OVERDUE,
+          ],
+        },
+      },
+      orderBy: { dueDateTime: 'asc' as const },
+      take: 1,
+      select: { id: true, title: true, dueDateTime: true, status: true },
+    };
+    const cattle = {
+      select: { id: true, name: true, tagNumber: true, image: true },
+    };
+    const orderBy = [{ createdAt: query.sortOrder }, { id: query.sortOrder }];
+
+    if (plan.category === HealthPlanCategory.TREATMENT) {
+      const rows = await this.prisma.healthCase.findMany({
+        where: {
+          farmId,
+          healthPlanId: planId,
+          deletedAt: null,
+          ...(query.status === 'active'
+            ? { status: { in: ACTIVE_CASE_STATUSES } }
+            : {}),
+          ...(animalMatch ? { cattle: animalMatch } : {}),
+        },
+        orderBy,
+        ...getCursorArgs(query),
+        select: {
+          id: true,
+          caseCode: true,
+          status: true,
+          startDate: true,
+          currentStep: true,
+          totalSteps: true,
+          progressPercentage: true,
+          cattle,
+          tasks: nextStep,
+        },
+      });
+      return toCursorPage(
+        rows.map(({ tasks, ...row }) => ({
+          ...row,
+          kind: 'CASE' as const,
+          healthCaseId: row.id,
+          planEnrollmentId: null,
+          nextStep: tasks[0] ?? null,
+        })),
+        query,
+      );
+    }
+
+    const rows = await this.prisma.planEnrollment.findMany({
+      where: {
+        farmId,
+        healthPlanId: planId,
+        deletedAt: null,
+        ...(query.status === 'active'
+          ? { status: PlanEnrollmentStatus.ACTIVE }
+          : {}),
+        ...(animalMatch ? { cattle: animalMatch } : {}),
+      },
+      orderBy,
+      ...getCursorArgs(query),
+      select: {
+        id: true,
+        status: true,
+        startDate: true,
+        currentStep: true,
+        totalSteps: true,
+        progressPercentage: true,
+        cattle,
+        tasks: nextStep,
+      },
+    });
+    return toCursorPage(
+      rows.map(({ tasks, ...row }) => ({
+        ...row,
+        kind: 'ENROLLMENT' as const,
+        caseCode: null,
+        healthCaseId: null,
+        planEnrollmentId: row.id,
+        nextStep: tasks[0] ?? null,
+      })),
+      query,
+    );
   }
 
   async getTaskCalendar(farmId: string, query: HealthTaskCalendarQueryDto) {
@@ -2093,6 +2378,210 @@ export class HealthService {
       where: { id },
       data: { status: HealthTaskStatus.SKIPPED, notes: dto.reason },
     });
+  }
+
+  /**
+   * Every protocol one animal is on right now (cow-side view of `getPlanRuns`): treatment protocols running on its open
+   * sickness cases plus its active preventive / breeding enrollments, soonest next step first. Pure read.
+   */
+  async getCattleProtocols(farmId: string, cattleId: string) {
+    await this.assertCattleInFarm(farmId, cattleId);
+    const openSteps = {
+      where: {
+        deletedAt: null,
+        status: {
+          in: [
+            HealthTaskStatus.PENDING,
+            HealthTaskStatus.RESCHEDULED,
+            HealthTaskStatus.OVERDUE,
+          ],
+        },
+      },
+      orderBy: { dueDateTime: 'asc' as const },
+      take: 1,
+      select: { id: true, title: true, dueDateTime: true, status: true },
+    };
+    const plan = { select: { id: true, name: true, category: true } };
+    const [cases, enrollments] = await Promise.all([
+      this.prisma.healthCase.findMany({
+        where: {
+          farmId,
+          cattleId,
+          deletedAt: null,
+          healthPlanId: { not: null },
+          status: { in: ACTIVE_CASE_STATUSES },
+        },
+        select: {
+          id: true,
+          caseCode: true,
+          startDate: true,
+          currentStep: true,
+          totalSteps: true,
+          progressPercentage: true,
+          healthPlan: plan,
+          tasks: openSteps,
+        },
+      }),
+      this.prisma.planEnrollment.findMany({
+        where: {
+          farmId,
+          cattleId,
+          deletedAt: null,
+          status: PlanEnrollmentStatus.ACTIVE,
+        },
+        select: {
+          id: true,
+          startDate: true,
+          currentStep: true,
+          totalSteps: true,
+          progressPercentage: true,
+          healthPlan: plan,
+          tasks: openSteps,
+        },
+      }),
+    ]);
+    const items = [
+      ...cases.map((c) => ({
+        runType: 'CASE' as const,
+        id: c.id,
+        healthCaseId: c.id,
+        planEnrollmentId: null,
+        caseCode: c.caseCode,
+        healthPlan: c.healthPlan,
+        startDate: c.startDate,
+        currentStep: c.currentStep,
+        totalSteps: c.totalSteps,
+        progressPercentage: c.progressPercentage,
+        nextStep: c.tasks[0] ?? null,
+      })),
+      ...enrollments.map((e) => ({
+        runType: 'ENROLLMENT' as const,
+        id: e.id,
+        healthCaseId: null,
+        planEnrollmentId: e.id,
+        caseCode: null,
+        healthPlan: e.healthPlan,
+        startDate: e.startDate,
+        currentStep: e.currentStep,
+        totalSteps: e.totalSteps,
+        progressPercentage: e.progressPercentage,
+        nextStep: e.tasks[0] ?? null,
+      })),
+    ].filter((r) => r.healthPlan !== null);
+    items.sort((a, b) => {
+      if (!a.nextStep && !b.nextStep) return 0;
+      if (!a.nextStep) return 1;
+      if (!b.nextStep) return -1;
+      return (
+        a.nextStep.dueDateTime.getTime() - b.nextStep.dueDateTime.getTime()
+      );
+    });
+    return { items };
+  }
+
+  /**
+   * Take one animal off one protocol: its remaining open steps are skipped (never silently deleted — they stay in the
+   * history as SKIPPED with the reason), then
+   *  - a case run keeps the case open but loses its protocol (`healthPlanId` cleared, progress reset), so the sick
+   *    animal stays in Sick Bay for manual care;
+   *  - an enrollment is soft-deleted (the animal leaves the round).
+   * Exactly one of `healthCaseId` / `planEnrollmentId`.
+   */
+  async stopCattleProtocol(
+    farmId: string,
+    cattleId: string,
+    dto: StopCattleProtocolDto,
+  ) {
+    if (Boolean(dto.healthCaseId) === Boolean(dto.planEnrollmentId)) {
+      throw new BadRequestException(
+        'Send exactly one of healthCaseId or planEnrollmentId',
+      );
+    }
+    await this.assertCattleInFarm(farmId, cattleId);
+    const note = dto.reason
+      ? `Protocol stopped: ${dto.reason}`
+      : 'Protocol stopped';
+    const openStatuses = [
+      HealthTaskStatus.PENDING,
+      HealthTaskStatus.RESCHEDULED,
+      HealthTaskStatus.OVERDUE,
+    ];
+
+    if (dto.healthCaseId) {
+      const healthCase = await this.prisma.healthCase.findFirst({
+        where: {
+          id: dto.healthCaseId,
+          farmId,
+          cattleId,
+          deletedAt: null,
+          healthPlanId: { not: null },
+        },
+        select: { id: true },
+      });
+      if (!healthCase) {
+        throw new NotFoundException('That animal is not on this protocol');
+      }
+      await this.prisma.$transaction([
+        this.prisma.healthTask.updateMany({
+          where: {
+            farmId,
+            healthCaseId: healthCase.id,
+            healthPlanId: { not: null },
+            deletedAt: null,
+            status: { in: openStatuses },
+          },
+          data: { status: HealthTaskStatus.SKIPPED, notes: note },
+        }),
+        this.prisma.healthCase.update({
+          where: { id: healthCase.id },
+          data: {
+            healthPlanId: null,
+            currentStep: 0,
+            totalSteps: 0,
+            progressPercentage: 0,
+          },
+        }),
+      ]);
+      this.log.info('Protocol stopped on case', {
+        cattleId,
+        healthCaseId: healthCase.id,
+      });
+      return { healthCaseId: healthCase.id, planEnrollmentId: null };
+    }
+
+    const enrollment = await this.prisma.planEnrollment.findFirst({
+      where: {
+        id: dto.planEnrollmentId,
+        farmId,
+        cattleId,
+        deletedAt: null,
+        status: PlanEnrollmentStatus.ACTIVE,
+      },
+      select: { id: true },
+    });
+    if (!enrollment) {
+      throw new NotFoundException('That animal is not on this protocol');
+    }
+    await this.prisma.$transaction([
+      this.prisma.healthTask.updateMany({
+        where: {
+          farmId,
+          planEnrollmentId: enrollment.id,
+          deletedAt: null,
+          status: { in: openStatuses },
+        },
+        data: { status: HealthTaskStatus.SKIPPED, notes: note },
+      }),
+      this.prisma.planEnrollment.update({
+        where: { id: enrollment.id },
+        data: { deletedAt: new Date() },
+      }),
+    ]);
+    this.log.info('Protocol stopped on enrollment', {
+      cattleId,
+      planEnrollmentId: enrollment.id,
+    });
+    return { healthCaseId: null, planEnrollmentId: enrollment.id };
   }
 
   async getCattleHealthSummary(farmId: string, cattleId: string) {
@@ -2665,6 +3154,11 @@ export class HealthService {
       grouped.set(key, row);
     }
     return [...grouped.entries()].map(([date, counts]) => ({ date, counts }));
+  }
+
+  /** A step that would already be past is due at `floor` instead (joining a round late must not back-date history). */
+  private dueNoEarlierThan(due: Date, floor?: Date): Date {
+    return floor && due < floor ? floor : due;
   }
 
   private addDays(date: Date, days: number) {

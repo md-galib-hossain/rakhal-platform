@@ -19,6 +19,7 @@ import { RequirePermission } from 'src/modules/permission/presentation/decorator
 import { HealthService } from '../../application/services/health.service';
 import { HealthOutcomesService } from '../../application/services/health-outcomes.service';
 import { HealthPlanStatsService } from '../../application/services/health-plan-stats.service';
+import { HealthRoundsService } from '../../application/services/health-rounds.service';
 import {
   ApplyHealthPlanDto,
   CloseHealthCaseDto,
@@ -44,9 +45,15 @@ import {
   HealthPlanQueryDto,
   HealthTaskCalendarQueryDto,
   HealthTaskQueryDto,
+  PlanRunsQueryDto,
   SafetyWithdrawalQueryDto,
   SickBayQueryDto,
 } from '../dto/health-query.dto';
+import {
+  AddRoundAnimalsDto,
+  RoundGridQueryDto,
+  RoundsQueryDto,
+} from '../dto/health-rounds.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Healthcare (PRD §13). `/api/v1/health`. Token tenancy + RBAC. */
@@ -65,6 +72,7 @@ export class HealthController {
     private readonly healthService: HealthService,
     private readonly outcomesService: HealthOutcomesService,
     private readonly planStatsService: HealthPlanStatsService,
+    private readonly roundsService: HealthRoundsService,
   ) {}
 
   @Get('dashboard')
@@ -234,8 +242,54 @@ export class HealthController {
 
   @Get('plans/:id')
   @RequirePermission('healthcare.read')
-  getPlan(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.healthService.getPlan(farmId, id);
+  async getPlan(@CurrentFarmId() farmId: string, @Param('id') id: string) {
+    // MILESTONE 29d: the round sheet reads one protocol (steps + live results), archived ones included
+    const plan = await this.healthService.getPlanForView(farmId, id);
+    const stats = await this.planStatsService.statsFor(farmId, [plan]);
+    return { ...plan, stats: stats.get(plan.id)! };
+  }
+
+  /** RAKHAL-470: the animals running one protocol (open cases / active enrollments), paged, each with progress and its
+   * next open step. Declared next to `plans/:id`; the extra `/runs` segment keeps the two from colliding. */
+  @Get('plans/:id/runs')
+  @RequirePermission('healthcare.read')
+  getPlanRuns(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @Query() query: PlanRunsQueryDto,
+  ) {
+    return this.healthService.getPlanRuns(farmId, id, query);
+  }
+
+  /** RAKHAL-471: protocol rounds — one application of a protocol on one farm day (a real `PlanApplication` for preventive
+   * / breeding, derived by plan + day for treatment). Read-only; no `:id` collision (`rounds` is its own segment). */
+  @Get('rounds')
+  @RequirePermission('healthcare.read')
+  getRounds(@CurrentFarmId() farmId: string, @Query() query: RoundsQueryDto) {
+    return this.roundsService.list(farmId, query);
+  }
+
+  /** RAKHAL-472: the cow × step grid of one round, paged by animal, most urgent first. `roundKey` is opaque. */
+  @Get('rounds/:roundKey/grid')
+  @RequirePermission('healthcare.read')
+  getRoundGrid(
+    @CurrentFarmId() farmId: string,
+    @Param('roundKey') roundKey: string,
+    @Query() query: RoundGridQueryDto,
+  ) {
+    return this.roundsService.grid(farmId, roundKey, query);
+  }
+
+  /** RAKHAL-473: add animals to a round that already exists (up to 100). Animals already on the protocol are skipped. */
+  @Post('rounds/:roundKey/animals')
+  @RequirePermission('healthcare.update')
+  addRoundAnimals(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('roundKey') roundKey: string,
+    @Body() dto: AddRoundAnimalsDto,
+  ) {
+    return this.roundsService.addAnimals(farmId, userId, roundKey, dto);
   }
 
   @Patch('plans/:id')

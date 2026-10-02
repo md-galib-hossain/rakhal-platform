@@ -201,8 +201,8 @@ export class HealthReminderService {
         title: 'Health Step Overdue',
         message: `${label}: ${count} animal(s) overdue since ${bucket.dueYmd}.`,
         params,
-        // RFE-137: the Schedule tab reads `bucket` to open on its Overdue list
-        link: '/healthcare?healthTab=schedule&bucket=overdue',
+        // RFE-143: the Schedule tab is gone; Protocols is where due steps are recorded. `bucket`/`date` are kept so the link stays self-describing.
+        link: '/healthcare?healthTab=protocols&bucket=overdue',
         dedupeKey: `${OVERDUE_EVENT_KEY}:${bucket.groupKey}:${todayYmd}`,
       });
       return created.length;
@@ -220,7 +220,7 @@ export class HealthReminderService {
       title,
       message: `${label}: ${count} animal(s), due ${bucket.dueYmd}.`,
       params,
-      link: `/healthcare?healthTab=schedule&date=${bucket.dueYmd}`,
+      link: `/healthcare?healthTab=protocols&date=${bucket.dueYmd}`,
       dedupeKey: `health_task:${bucket.groupKey}:${bucket.dueYmd}:${bucket.stage}`,
     });
     return created.length;
