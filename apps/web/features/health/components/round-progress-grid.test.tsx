@@ -112,10 +112,10 @@ const scenario = () =>
 
 const fullTask = (id: string) => ({ id, title: "Booster", taskType: "MEDICINE", status: "PENDING", dueDateTime: "2026-10-02T06:00:00.000Z", cattleId: "x", cattle: { name: "Bhola", tagNumber: "TAG-Bhola" } });
 
-function renderGrid(onManageCase = vi.fn()) {
+function renderGrid(onManageCase = vi.fn(), extra: { layout?: "auto" | "cards"; dueOnly?: boolean } = {}) {
   render(
     <NextIntlClientProvider locale="en" messages={en} timeZone="Asia/Dhaka">
-      <RoundProgressGrid round={round} onManageCase={onManageCase} />
+      <RoundProgressGrid round={round} onManageCase={onManageCase} {...extra} />
     </NextIntlClientProvider>,
   );
   return { onManageCase };
@@ -322,6 +322,28 @@ describe("RoundProgressGrid (RFE-147)", () => {
       expect(h.gridArgs.at(-1)).toEqual(["app:r1", false]);
     });
 
+    it("layout=cards gives cards on a wide screen too (the Applied list)", () => {
+      h.phone = false;
+      renderGrid(vi.fn(), { layout: "cards" });
+      expect(screen.queryByRole("table")).toBeNull();
+      expect(screen.getByRole("button", { name: "Show steps of Bhola" })).toBeTruthy();
+    });
+
+    it("a controlled dueOnly is sent to the server as is, and the grid's own switch is gone", () => {
+      h.phone = false;
+      renderGrid(vi.fn(), { layout: "cards", dueOnly: true });
+      expect(h.gridArgs.at(-1)).toEqual(["app:r1", true]);
+      expect(screen.queryByRole("switch", { name: "Due only" })).toBeNull();
+    });
+
+    it("a controlled dueOnly with nobody due says so, without a Show all button of its own", () => {
+      h.phone = false;
+      h.pages = [page([])];
+      renderGrid(vi.fn(), { layout: "cards", dueOnly: true });
+      expect(screen.getByText("Nothing due right now")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Show all animals" })).toBeNull();
+    });
+
     it("a wide screen keeps the table and Due only off", () => {
       h.phone = false;
       renderGrid();
@@ -336,17 +358,45 @@ describe("RoundProgressGrid (RFE-147)", () => {
       expect(screen.getByText("1 of 2 done")).toBeTruthy();
     });
 
-    it("steps stay hidden until the card is opened, then show each step's cell", () => {
+    it("each card shows the step to do next; the chevron opens every step", () => {
       renderGrid();
-      expect(screen.queryByText("First dose")).toBeNull();
+      // Bhola: dose done, booster 4 days late -> the card offers the booster, not the finished dose
+      expect(screen.getByText("4 days late")).toBeTruthy();
+      expect(screen.queryByText(/^Done/)).toBeNull();
       const toggle = screen.getByRole("button", { name: "Show steps of Bhola" });
       expect(toggle.getAttribute("aria-expanded")).toBe("false");
       fireEvent.click(toggle);
       expect(screen.getByRole("button", { name: "Hide steps of Bhola" }).getAttribute("aria-expanded")).toBe("true");
-      expect(screen.getByText("First dose")).toBeTruthy();
+      expect(screen.getByText(/^Done/)).toBeTruthy();
       expect(screen.getByText("4 days late")).toBeTruthy();
       fireEvent.click(screen.getByRole("button", { name: "Hide steps of Bhola" }));
-      expect(screen.queryByText("First dose")).toBeNull();
+      expect(screen.queryByText(/^Done/)).toBeNull();
+    });
+
+    it("the next step is acted on from the closed card, no need to open it", async () => {
+      h.loaderResult = [fullTask("b2")];
+      renderGrid();
+      fireEvent.click(screen.getByText("4 days late").closest("button")!);
+      fireEvent.click(await screen.findByText("Record"));
+      await waitFor(() => expect(screen.getByTestId("record").textContent).toBe("b2"));
+    });
+
+    it("an animal with nothing left shows All steps done, one that left the herd shows Not active", () => {
+      h.pages = [
+        page([
+          row("d", "Done", { s1: cell("d1", "done"), s2: cell("d2", "done", 0, 2) }),
+          row("k", "Kali", { s1: cell("k1", "inactive", -2) }),
+        ]),
+      ];
+      renderGrid();
+      expect(screen.getByText("All steps done")).toBeTruthy();
+      expect(screen.getByText("Not active")).toBeTruthy();
+    });
+
+    it("has one Record button per step that has animals due, naming the step and the count", () => {
+      renderGrid();
+      expect(screen.getByRole("button", { name: "Record all (1) — First dose" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Record all (1) — Booster" })).toBeTruthy();
     });
 
     it("a step is acted on from its card, same menu as the table", async () => {

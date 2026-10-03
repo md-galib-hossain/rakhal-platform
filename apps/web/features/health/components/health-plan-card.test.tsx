@@ -45,7 +45,7 @@ function plan(over: Partial<HealthPlanListItem> = {}, stats: Partial<HealthPlanS
   };
 }
 
-function renderCard(p: HealthPlanListItem, handlers = { onEdit: vi.fn(), onApply: vi.fn(), onOpen: vi.fn() }) {
+function renderCard(p: HealthPlanListItem, handlers = { onEdit: vi.fn(), onApply: vi.fn() }) {
   render(
     <NextIntlClientProvider locale="en" messages={en} timeZone="Asia/Dhaka">
       <HealthPlanCard plan={p} {...handlers} />
@@ -54,56 +54,33 @@ function renderCard(p: HealthPlanListItem, handlers = { onEdit: vi.fn(), onApply
   return handlers;
 }
 
-describe("HealthPlanCard — live state, details in a sheet, Apply first (RFE-142, RFE-143)", () => {
+describe("HealthPlanCard - a Library template: create, apply, edit only", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("a protocol nobody is on shows no 'running' row at all", () => {
-    renderCard(plan({}, { inProgress: 0 }));
-    expect(screen.queryByText(/in progress/)).toBeNull();
-    expect(screen.queryByRole("group", { name: "Running now" })).toBeNull();
-  });
-
-  it("a running protocol shows how many animals are on it", () => {
-    renderCard(plan({}, { inProgress: 3 }));
-    expect(screen.getByRole("group", { name: "Running now" })).toBeTruthy();
-    expect(screen.getByText("3 animals in progress")).toBeTruthy();
-  });
-
-  it("overdue and due-today steps show as chips on that card, with counts", () => {
-    renderCard(plan({}, { inProgress: 3, stepsOverdue: 2, stepsDue: 1 }));
-    expect(screen.getByText("2 steps overdue")).toBeTruthy();
-    expect(screen.getByText("1 step due today")).toBeTruthy();
-    expect(screen.queryByText(/Next step/)).toBeNull();
-  });
-
-  it("with nothing late or due today it shows the next due day instead", () => {
-    renderCard(plan({}, { inProgress: 1, nextDueDate: "2026-10-05" }));
-    expect(screen.getByText("Next step Oct 5")).toBeTruthy(); // the farm day as written, never shifted by timezone
-  });
-
-  it("the step sequence is not on the card any more - it lives in the protocol sheet", () => {
+  it("shows the name, kind, condition and the template facts (steps, cycle)", () => {
     renderCard(plan());
+    expect(screen.getByRole("heading", { name: "Mastitis 5-day" })).toBeTruthy();
+    expect(screen.getByText("Mastitis")).toBeTruthy();
+    expect(screen.getByText("2 Action Steps")).toBeTruthy();
+  });
+
+  it("shows no progress at all: no animals in progress, no overdue / due chips, no results", () => {
+    renderCard(plan({}, { inProgress: 3, stepsOverdue: 2, stepsDue: 1, nextDueDate: "2026-10-05" }));
+    expect(screen.queryByText(/in progress/)).toBeNull();
+    expect(screen.queryByText(/overdue/)).toBeNull();
+    expect(screen.queryByText(/due today/)).toBeNull();
+    expect(screen.queryByText(/Next step/)).toBeNull();
+    expect(screen.queryByText(/Recovered|Recovery/i)).toBeNull();
+  });
+
+  it("has no Details button and no step sequence: those live in the Applied table", () => {
+    renderCard(plan());
+    expect(screen.queryByRole("button", { name: "Details" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Mastitis 5-day" })).toBeNull();
     expect(screen.queryByText("Inject 5 ml")).toBeNull();
-    expect(screen.queryByRole("button", { name: /Show all/ })).toBeNull();
   });
 
-  it("the title and Details both open the protocol sheet", () => {
-    const p = plan();
-    const { onOpen } = renderCard(p);
-    fireEvent.click(screen.getByRole("button", { name: "Mastitis 5-day" }));
-    fireEvent.click(screen.getByRole("button", { name: "Details" }));
-    expect(onOpen).toHaveBeenCalledTimes(2);
-    expect(onOpen).toHaveBeenCalledWith(p);
-  });
-
-  it("a deleted protocol can still be opened (its animals are still on it)", () => {
-    const p = plan({ deletedAt: "2026-10-01T00:00:00.000Z" }, { inProgress: 2 });
-    const { onOpen } = renderCard(p);
-    fireEvent.click(screen.getByRole("button", { name: "Details" }));
-    expect(onOpen).toHaveBeenCalledWith(p);
-  });
-
-  it("Apply is the primary action and opens the apply flow for this protocol", () => {
+  it("Apply is the primary action and opens the apply flow for this protocol; Edit opens the editor", () => {
     const p = plan();
     const { onApply, onEdit } = renderCard(p);
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
@@ -121,8 +98,6 @@ describe("HealthPlanCard — live state, details in a sheet, Apply first (RFE-14
     expect(screen.queryByRole("button", { name: "Delete Plan" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     expect(onApply).not.toHaveBeenCalled();
-    // its animals are still counted
-    expect(screen.getByText("2 animals in progress")).toBeTruthy();
   });
 
   it("deleting a protocol that animals are on warns how many", () => {

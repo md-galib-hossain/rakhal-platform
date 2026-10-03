@@ -36,3 +36,25 @@ export function runningRoundsByPlan(runningRounds: ProtocolRound[]): Map<string,
 export function roundProgressPct(round: Pick<ProtocolRound, "stepsDone" | "stepsTotal">): number {
   return round.stepsTotal > 0 ? Math.min(100, Math.round((round.stepsDone / round.stepsTotal) * 100)) : 0;
 }
+
+/** `YYYY-MM-DD` (a farm calendar day) as a local `Date` at noon, so formatting it never slips a day across zones. */
+export function farmDay(ymd: string): Date {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(y, m - 1, d, 12);
+}
+
+/** The Applied list's one status choice (replaces the old "Late only" + "Finished rounds" switches, which hid each other). */
+export type AppliedStatus = "needs" | "upcoming" | "finished" | "all";
+export const APPLIED_STATUSES: readonly AppliedStatus[] = ["needs", "upcoming", "finished", "all"];
+
+/** `?status=` -> a status, or `null` for anything else (the page then uses its default). */
+export function parseAppliedStatus(value: string | null | undefined): AppliedStatus | null {
+  return (APPLIED_STATUSES as readonly string[]).includes(value ?? "") ? (value as AppliedStatus) : null;
+}
+
+/** Does a RUNNING round belong under this status? `finished` rounds come from their own query, so they never match here. */
+export function roundMatchesStatus(round: ProtocolRound, status: AppliedStatus): boolean {
+  if (status === "needs") return needsAttention(round);
+  if (status === "upcoming") return !needsAttention(round);
+  return status === "all";
+}

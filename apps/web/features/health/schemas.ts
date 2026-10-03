@@ -107,9 +107,21 @@ export type HealthPlanDetailsInput = z.infer<typeof healthPlanDetailsSchema>;
  * from day number + medicine name in `create-health-plan-dialog.tsx`. */
 export const healthPlanStepRowSchema = z.object({
   dayNumber: z.number().int().min(1),
-  medicineName: z.string().trim().min(1, "Medicine is required"),
-  doseAmount: z.number().min(0).optional(),
-  doseUnit: z.string().trim().optional(),
+  /** Protocols v2 — the medicine is always picked from inventory (`medicineId`), never typed. */
+  medicineId: z.string().min(1, "Pick a medicine from inventory"),
+  medicineName: z.string().trim().min(1, "Pick a medicine from inventory"),
+  /** Display only: the picked medicine's own unit + stock, so the dose-unit list and the out-of-stock hint don't refetch. */
+  medicineUnitId: z.string().optional(),
+  medicineUnitSymbol: z.string().optional(),
+  medicineStock: z.number().optional(),
+  doseAmount: z.number({ message: "Enter a dose" }).gt(0, "Dose must be greater than 0"),
+  doseUnitId: z.string().min(1, "Pick a unit"),
+  /** Optional "HH:mm" — empty/undefined means any time that day. */
+  timeOfDay: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:mm")
+    .optional()
+    .or(z.literal("")),
 });
 export type HealthPlanStepRowInput = z.infer<typeof healthPlanStepRowSchema>;
 

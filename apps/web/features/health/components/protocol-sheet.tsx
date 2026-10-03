@@ -14,7 +14,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { useHealthPlan, useHealthTasks } from "../hooks/use-health";
 import { groupScheduledTasks, type ScheduledTaskGroup } from "../task-grouping";
 import type { HealthPlanListItem, HealthTaskFilters, HealthTaskStatus, ProtocolRound } from "../types";
-import { farmDay } from "./round-card";
+import { farmDay } from "../round-model";
 import { RoundAnimalsDialog } from "./round-animals-dialog";
 import { RoundProgressGrid } from "./round-progress-grid";
 import { ProtocolLiveState } from "./protocol-live-state";

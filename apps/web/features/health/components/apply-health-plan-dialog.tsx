@@ -18,7 +18,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cattleApi } from "@/features/cattle/api";
 import type { CattleListItem } from "@/features/cattle/types";
-import { useApplyPlanToAnimals } from "../hooks/use-health";
+import { useApplyPlanToAnimals, useProtocolStockCheck } from "../hooks/use-health";
 import { applyHealthPlanStep1Schema, type ApplyHealthPlanStep1Input } from "../schemas";
 import type { HealthPlanListItem } from "../types";
 import { ProtocolPreviewTimeline } from "./protocol-preview-timeline";
@@ -60,6 +60,9 @@ function ApplyHealthPlanDialogBody({ plan, onOpenChange }: { plan: HealthPlanLis
   const [submitting, setSubmitting] = useState(false);
 
   const applyToAnimals = useApplyPlanToAnimals();
+  // Protocols v2: the apply is blocked (409) when any medicine is short of usable stock — check it up front for the preview.
+  const stockCheck = useProtocolStockCheck(plan.id, selected.size, step === 2);
+  const outOfStock = stockCheck.data?.ok === false;
 
   const form = useForm<ApplyHealthPlanStep1Input>({
     resolver: zodResolver(applyHealthPlanStep1Schema),
@@ -304,6 +307,18 @@ function ApplyHealthPlanDialogBody({ plan, onOpenChange }: { plan: HealthPlanLis
               <p className="text-xs text-muted-foreground">{t("step2Subtitle")}</p>
             </div>
             <p className="text-sm text-foreground">{t("appliesTo", { count: selected.size })}</p>
+            {outOfStock ? (
+              <div role="alert" className="flex flex-col gap-1 rounded-xl border border-destructive bg-destructive/10 p-3">
+                <p className="text-sm font-medium text-destructive">{t("stockShortTitle")}</p>
+                <ul className="list-disc pl-5 text-xs text-destructive">
+                  {stockCheck.data?.shortfalls.map((s) => (
+                    <li key={s.medicineId ?? s.medicineName}>{t("stockShortLine", { name: s.medicineName, needed: s.needed, available: s.available, unit: s.unit })}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : stockCheck.isError ? (
+              <p className="text-xs text-muted-foreground">{t("stockCheckFailed")}</p>
+            ) : null}
             {/* RFE-136: real dates, when milk / meat is safe again and the reminder line — same dates the backend creates. */}
             <ProtocolPreviewTimeline steps={plan.steps} startDate={startDate} />
           </div>
@@ -320,7 +335,7 @@ function ApplyHealthPlanDialogBody({ plan, onOpenChange }: { plan: HealthPlanLis
             {t("continue")}
           </Button>
         ) : (
-          <Button type="button" className="h-[52px] flex-1 gap-2 rounded-xl" onClick={handleConfirm} disabled={submitting}>
+          <Button type="button" className="h-[52px] flex-1 gap-2 rounded-xl" onClick={handleConfirm} disabled={submitting || outOfStock}>
             {submitting ? "…" : t("confirmSchedule")}
             {!submitting ? <ArrowRight className="size-[18px]" aria-hidden /> : null}
           </Button>

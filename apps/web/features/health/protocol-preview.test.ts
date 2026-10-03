@@ -14,6 +14,8 @@ function step(dayNumber: number, extra: Partial<HealthPlanStep> = {}): HealthPla
     medicineName: null,
     doseAmount: null,
     doseUnit: null,
+    doseUnitId: null,
+    timeOfDay: null,
     route: null,
     instruction: null,
     estimatedTime: null,

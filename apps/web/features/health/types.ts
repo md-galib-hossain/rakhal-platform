@@ -449,12 +449,31 @@ export interface HealthPlanStep {
   medicineName: string | null;
   doseAmount: number | null;
   doseUnit: string | null;
+  /** Protocols v2 — the dose's `Unit.id` (null on legacy free-text steps). */
+  doseUnitId: string | null;
+  /** Protocols v2 — optional farm-local "HH:mm" the step is due. */
+  timeOfDay: string | null;
   route: MedicineRoute | null;
   instruction: string | null;
   estimatedTime: string | null;
   milkWithdrawalDays: number | null;
   meatWithdrawalDays: number | null;
   isRequired: boolean;
+}
+
+/** One medicine short of usable stock for a protocol apply (`GET /health/plans/:id/stock-check`, and the
+ * `details.shortfalls` of the apply 409). `needed`/`available` are in the medicine's own `unit`. */
+export interface ProtocolStockShortfall {
+  medicineId: string | null;
+  medicineName: string;
+  needed: number;
+  available: number;
+  unit: string;
+}
+
+export interface ProtocolStockCheck {
+  ok: boolean;
+  shortfalls: ProtocolStockShortfall[];
 }
 
 /** Live result of a protocol (RAKHAL-466) — computed from the cases / enrollments that used it, never stored. Every
@@ -526,6 +545,9 @@ export interface HealthPlanStepPayload {
   medicineName?: string;
   doseAmount?: number;
   doseUnit?: string;
+  doseUnitId?: string;
+  /** "HH:mm"; omit when the step has no set time. */
+  timeOfDay?: string;
   route?: MedicineRoute;
   instruction?: string;
   estimatedTime?: string;

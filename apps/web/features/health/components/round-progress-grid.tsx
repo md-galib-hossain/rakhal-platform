@@ -39,7 +39,19 @@ function toGridCell(cell: RoundGridCell): GridCell {
  *  - Record / Reschedule / Skip on a cell and **Record all** on a column need `healthcare.update`.
  *  - The dialogs need the full step, which the grid does not carry, so it is read from the protocol's steps on demand.
  */
-export function RoundProgressGrid({ round, onManageCase }: { round: ProtocolRound; onManageCase?: (caseId: string) => void }) {
+export function RoundProgressGrid({
+  round,
+  onManageCase,
+  layout = "auto",
+  dueOnly: dueOnlyProp,
+}: {
+  round: ProtocolRound;
+  onManageCase?: (caseId: string) => void;
+  /** `auto` = the table on a wide screen and cards on a phone; `cards` = always one card per animal (the Applied list). */
+  layout?: "auto" | "cards";
+  /** Controlled "due only" (the Applied list's status filter owns it): the switch is hidden. Left out = the grid's own switch. */
+  dueOnly?: boolean;
+}) {
   const t = useTranslations("health.healthPlan.sheet.progress");
   const tProto = useTranslations("health.cattleProtocols");
   const can = useCan();
@@ -48,7 +60,9 @@ export function RoundProgressGrid({ round, onManageCase }: { round: ProtocolRoun
   // left to do, not 40 done cells). The user's own choice wins from the first tap.
   const isPhone = useMediaQuery("(max-width: 639px)");
   const [dueChoice, setDueChoice] = useState<boolean | null>(null);
-  const dueOnly = dueChoice ?? isPhone;
+  const controlled = dueOnlyProp !== undefined;
+  const dueOnly = controlled ? dueOnlyProp : (dueChoice ?? isPhone);
+  const cards = layout === "cards" || isPhone;
   const [openRows, setOpenRows] = useState<ReadonlySet<string>>(new Set());
   const query = useRoundGrid(round.roundKey, dueOnly);
   const loadTasks = useProtocolTaskLoader(round.healthPlan.id);
@@ -123,19 +137,21 @@ export function RoundProgressGrid({ round, onManageCase }: { round: ProtocolRoun
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <button
-          type="button"
-          role="switch"
-          aria-checked={dueOnly}
-          onClick={() => setDueChoice(!dueOnly)}
-          className={cn(
-            "flex min-h-9 items-center rounded-full border px-4 text-sm font-medium transition-colors",
-            dueOnly ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
-          )}
-        >
-          {t("dueOnly")}
-        </button>
+      <div className={cn("flex flex-wrap items-center gap-2", controlled ? "justify-end" : "justify-between")}>
+        {controlled ? null : (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={dueOnly}
+            onClick={() => setDueChoice(!dueOnly)}
+            className={cn(
+              "flex min-h-9 items-center rounded-full border px-4 text-sm font-medium transition-colors",
+              dueOnly ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+            )}
+          >
+            {t("dueOnly")}
+          </button>
+        )}
         <span className="text-xs text-muted-foreground">{t("showing", { shown: rows.length, total: round.animalCount })}</span>
       </div>
 
@@ -144,12 +160,39 @@ export function RoundProgressGrid({ round, onManageCase }: { round: ProtocolRoun
           title={t("nothingDueTitle")}
           description={t("nothingDueDescription")}
           action={
-            <Button type="button" size="sm" variant="outline" onClick={() => setDueChoice(false)}>
-              {t("showAll")}
-            </Button>
+            controlled ? undefined : (
+              <Button type="button" size="sm" variant="outline" onClick={() => setDueChoice(false)}>
+                {t("showAll")}
+              </Button>
+            )
           }
         />
-      ) : isPhone ? (
+      ) : cards ? (
+        <>
+        {canAct ? (
+          <div className="flex flex-wrap gap-2">
+            {columns.map((column) => {
+              const dueCount = rows.filter((row) => {
+                const cell = row.cells[column.key];
+                return cell && isDueState(cell.state);
+              }).length;
+              return dueCount > 0 ? (
+                <Button
+                  key={column.key}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 gap-1 px-3 text-xs"
+                  aria-label={t("recordAllLabel", { count: dueCount, step: column.title })}
+                  onClick={() => void recordColumn(column.key)}
+                >
+                  {t("recordAllStep", { count: dueCount, step: column.title })}
+                  <ArrowRight className="size-3.5" aria-hidden />
+                </Button>
+              ) : null;
+            })}
+          </div>
+        ) : null}
         <ul className="flex flex-col gap-2">
           {rows.map((row) => {
             const label = row.cattle.name ?? row.cattle.tagNumber;
@@ -157,6 +200,13 @@ export function RoundProgressGrid({ round, onManageCase }: { round: ProtocolRoun
             const cells = columns.flatMap((column) => (row.cells[column.key] ? [row.cells[column.key]] : []));
             const done = cells.filter((cell) => cell.state === "done").length;
             const dueToday = row.dueCount - row.overdueCount;
+            // The one step to act on next: first open step in protocol order. Its cell button is the same menu as the grid's.
+            const nextColumn = columns.find((column) => {
+              const state = row.cells[column.key]?.state;
+              return state === "overdue" || state === "today" || state === "upcoming";
+            });
+            const nextCell = nextColumn ? row.cells[nextColumn.key] : undefined;
+            const inactive = cells.some((cell) => cell.state === "inactive");
             return (
               <li key={row.runKey} className="rounded-xl border border-border bg-card">
                 <div className="flex items-center gap-1 p-2 pl-3">
@@ -200,6 +250,23 @@ export function RoundProgressGrid({ round, onManageCase }: { round: ProtocolRoun
                     <ChevronDown className={cn("size-4 transition-transform", isOpen && "rotate-180")} aria-hidden />
                   </button>
                 </div>
+                {!isOpen ? (
+                  <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2">
+                    {nextColumn && nextCell ? (
+                      <>
+                        <span className="flex min-w-0 flex-col">
+                          <span className="text-xs text-muted-foreground">{t("phone.next")}</span>
+                          <span className="truncate text-sm font-medium text-foreground">{nextColumn.title}</span>
+                        </span>
+                        <span className="w-36 shrink-0">
+                          <ProtocolGridCell cell={toGridCell(nextCell)} canAct={canAct} actions={actions} animalLabel={label} />
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">{inactive ? t("cell.inactive") : t("phone.allDone")}</span>
+                    )}
+                  </div>
+                ) : null}
                 {isOpen ? (
                   <ul className="flex flex-col gap-2 border-t border-border p-3">
                     {columns.map((column) => {
@@ -222,6 +289,7 @@ export function RoundProgressGrid({ round, onManageCase }: { round: ProtocolRoun
             );
           })}
         </ul>
+        </>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-border">
           <table className="w-full border-separate border-spacing-0 text-sm">

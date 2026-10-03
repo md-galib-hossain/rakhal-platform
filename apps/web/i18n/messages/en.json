@@ -3184,6 +3184,9 @@
       "withheldCaption": "Active withdrawal periods",
       "medicine": "Medicine cost",
       "medicineCaption": "All time",
+      "late": "Late steps",
+      "lateCaption": "{count, plural, one {in 1 round} other {in # rounds}}",
+      "lateNone": "All on time",
       "error": "Could not load the health summary.",
       "retry": "Retry"
     },
@@ -3397,9 +3400,37 @@
       },
       "views": {
         "label": "Protocols view",
-        "running": "Running",
-        "runningCount": "Running ({count})",
+        "running": "Applied",
+        "runningCount": "Applied ({count})",
         "library": "Library"
+      },
+      "applied": {
+        "title": "Applied protocols",
+        "subtitle": "Every protocol applied on your farm. Open one for its steps, animals, progress and results.",
+        "statusLabel": "Show",
+        "status": {
+          "needs": "Needs action",
+          "upcoming": "Upcoming",
+          "finished": "Finished",
+          "all": "All"
+        },
+        "emptyNeedsTitle": "Nothing needs action",
+        "emptyNeedsDescription": "Every applied protocol is on time.",
+        "emptyUpcomingTitle": "Nothing is coming up",
+        "emptyUpcomingDescription": "No applied protocol has a step waiting for a later day.",
+        "showAll": "Show all",
+        "details": "Details",
+        "addAnimals": "Add animals",
+        "expand": "Show the animals of {name}, started {date}",
+        "collapse": "Hide the animals of {name}, started {date}",
+        "table": {
+          "protocol": "Protocol",
+          "started": "Started",
+          "animals": "Animals",
+          "progress": "Progress",
+          "attention": "Status",
+          "actions": "Actions"
+        }
       },
       "rounds": {
         "started": "Started {date}",
@@ -3413,6 +3444,10 @@
         "open": "Open",
         "openAria": "Open the round of {name}, started {date}",
         "showFinished": "Finished rounds",
+        "lateOnly": "Late only",
+        "emptyLateTitle": "No round has late steps",
+        "emptyLateDescription": "Everything that is running is on time.",
+        "showAllRounds": "Show all rounds",
         "emptyRunningTitle": "Nothing is running",
         "emptyRunningDescription": "Apply a protocol from the Library to start a round.",
         "emptyFinishedTitle": "No finished rounds",
@@ -3458,13 +3493,16 @@
             "due": "{count} due",
             "doneOf": "{done} of {total} done",
             "expand": "Show steps of {animal}",
-            "collapse": "Hide steps of {animal}"
+            "collapse": "Hide steps of {animal}",
+            "next": "Next step",
+            "allDone": "All steps done"
           },
           "taskNotLoaded": "Could not load that step. Open the protocol from the Library to act on it.",
           "animal": "Animal",
           "day": "Day {day}",
           "extraStep": "Extra step",
           "recordAll": "Record all ({count})",
+          "recordAllStep": "Record {step} ({count})",
           "recordAllLabel": "Record all ({count}) — {step}",
           "openCase": "Open case",
           "truncated": "Showing the first {count} steps. Record some to see the rest.",
@@ -3497,14 +3535,6 @@
             "skipped": "{count, plural, one {1 animal was skipped — it is already on this protocol} other {# animals were skipped — they are already on this protocol}}",
             "done": "Done"
           }
-        },
-        "attention": {
-          "title": "Steps are late",
-          "item": "{animals}, started {date}",
-          "overdue": "{count, plural, one {1 step late} other {# steps late}}",
-          "animals": "{count, plural, one {1 animal} other {# animals}}",
-          "more": "{count, plural, one {+1 more round} other {+# more rounds}}",
-          "openAria": "Open {name}, started {date}, to catch up"
         },
         "loose": {
           "title": "Not part of a protocol",
@@ -3630,6 +3660,12 @@
         "dose": "Dose",
         "doseUnit": "Unit",
         "doseUnitPlaceholder": "ml, mg, bottle",
+        "timeOptional": "Time (optional)",
+        "stockLine": "Stock: {stock} {unit}",
+        "outOfStockHint": "Out of stock. This protocol cannot be applied until it is restocked.",
+        "pickMedicineFirst": "Pick a medicine first",
+        "cycleLengthHint": "After a cow finishes this protocol, it is applied again automatically every this many days, until you stop it.",
+        "cycleLengthHintTreatment": "How long one treatment cycle runs. Treatments are not repeated automatically.",
         "removeDay": "Remove day",
         "addAnotherDay": "Add Another Day",
         "cancel": "Cancel",
@@ -3677,6 +3713,9 @@
         "continue": "Continue",
         "confirmSchedule": "Confirm Schedule",
         "noneSelectedError": "Select at least one animal.",
+        "stockShortTitle": "Not enough stock to apply this protocol",
+        "stockShortLine": "{name}: need {needed} {unit}, have {available} {unit}",
+        "stockCheckFailed": "Could not check stock. Applying will re-check it.",
         "appliedToast": "{count, plural, one {1 animal} other {# animals}} enrolled in this plan.",
         "appliedToastWithSkipped": "{applied, plural, one {1 animal} other {# animals}} enrolled, {skipped, plural, one {1 skipped} other {# skipped}} (already on this protocol).",
         "genericError": "Something went wrong. Please try again."
@@ -3957,6 +3996,7 @@
         "noMedicines": "No medicines found.",
         "stock": "Stock",
         "clearMedicine": "Clear medicine",
+        "outOfStock": "Out of stock",
         "administrationRoute": "Administration Route",
         "route": {
           "IM": "IM",

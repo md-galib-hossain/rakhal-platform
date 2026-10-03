@@ -11,7 +11,7 @@ import { Chip } from "@/components/ui/chip";
 import { useAddRoundAnimals } from "../hooks/use-health";
 import type { AddRoundAnimalsResult, ProtocolRound } from "../types";
 import { AnimalMultiPicker, type PickedAnimal } from "./animal-multi-picker";
-import { farmDay } from "./round-card";
+import { farmDay } from "../round-model";
 
 const labelOf = (a: PickedAnimal) => a.name ?? a.tagNumber;
 

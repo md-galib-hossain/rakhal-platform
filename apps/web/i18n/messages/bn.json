@@ -3184,6 +3184,9 @@
       "withheldCaption": "চলমান নিরাপত্তা-বিরতি",
       "medicine": "ওষুধের খরচ",
       "medicineCaption": "সর্বমোট",
+      "late": "দেরি হওয়া ধাপ",
+      "lateCaption": "{count, plural, one {১টি রাউন্ডে} other {#টি রাউন্ডে}}",
+      "lateNone": "সব সময়মতো",
       "error": "স্বাস্থ্যের সারসংক্ষেপ লোড করা যায়নি।",
       "retry": "আবার চেষ্টা করুন"
     },
@@ -3397,9 +3400,37 @@
       },
       "views": {
         "label": "প্রোটোকল দেখার ধরন",
-        "running": "চলমান",
-        "runningCount": "চলমান ({count})",
+        "running": "প্রয়োগকৃত",
+        "runningCount": "প্রয়োগকৃত ({count})",
         "library": "লাইব্রেরি"
+      },
+      "applied": {
+        "title": "প্রয়োগকৃত প্রোটোকল",
+        "subtitle": "আপনার খামারে প্রয়োগ করা সব প্রোটোকল। ধাপ, পশু, অগ্রগতি ও ফলাফল দেখতে একটি খুলুন।",
+        "statusLabel": "দেখান",
+        "status": {
+          "needs": "করণীয়",
+          "upcoming": "আসন্ন",
+          "finished": "শেষ",
+          "all": "সব"
+        },
+        "emptyNeedsTitle": "কোনো কাজ বাকি নেই",
+        "emptyNeedsDescription": "প্রয়োগ করা সব প্রোটোকল সময়মতো চলছে।",
+        "emptyUpcomingTitle": "আসন্ন কিছু নেই",
+        "emptyUpcomingDescription": "পরের দিনের জন্য অপেক্ষায় থাকা কোনো ধাপ নেই।",
+        "showAll": "সব দেখান",
+        "details": "বিস্তারিত",
+        "addAnimals": "পশু যোগ করুন",
+        "expand": "{date} তারিখে শুরু হওয়া {name}-এর পশুগুলো দেখান",
+        "collapse": "{date} তারিখে শুরু হওয়া {name}-এর পশুগুলো লুকান",
+        "table": {
+          "protocol": "প্রোটোকল",
+          "started": "শুরু",
+          "animals": "পশু",
+          "progress": "অগ্রগতি",
+          "attention": "অবস্থা",
+          "actions": "কার্যক্রম"
+        }
       },
       "rounds": {
         "started": "শুরু {date}",
@@ -3413,6 +3444,10 @@
         "open": "খুলুন",
         "openAria": "{date} তারিখে শুরু হওয়া {name}-এর রাউন্ড খুলুন",
         "showFinished": "শেষ হওয়া রাউন্ড",
+        "lateOnly": "শুধু দেরি",
+        "emptyLateTitle": "কোনো রাউন্ডে দেরি নেই",
+        "emptyLateDescription": "যা চলছে সব সময়মতো আছে।",
+        "showAllRounds": "সব রাউন্ড দেখান",
         "emptyRunningTitle": "কিছু চলছে না",
         "emptyRunningDescription": "রাউন্ড শুরু করতে লাইব্রেরি থেকে একটি প্রোটোকল প্রয়োগ করুন।",
         "emptyFinishedTitle": "কোনো শেষ হওয়া রাউন্ড নেই",
@@ -3458,13 +3493,16 @@
             "due": "{count}টি বাকি",
             "doneOf": "{total}টির মধ্যে {done}টি শেষ",
             "expand": "{animal}-এর ধাপ দেখান",
-            "collapse": "{animal}-এর ধাপ লুকান"
+            "collapse": "{animal}-এর ধাপ লুকান",
+            "next": "পরের ধাপ",
+            "allDone": "সব ধাপ শেষ"
           },
           "taskNotLoaded": "ধাপটি লোড করা যায়নি। কাজ করতে লাইব্রেরি থেকে প্রোটোকলটি খুলুন।",
           "animal": "পশু",
           "day": "দিন {day}",
           "extraStep": "অতিরিক্ত ধাপ",
           "recordAll": "সব রেকর্ড করুন ({count})",
+          "recordAllStep": "{step} রেকর্ড করুন ({count})",
           "recordAllLabel": "সব রেকর্ড করুন ({count}) — {step}",
           "openCase": "কেস খুলুন",
           "truncated": "প্রথম {count}টি ধাপ দেখানো হচ্ছে। কিছু রেকর্ড করলে বাকিগুলো দেখা যাবে।",
@@ -3497,14 +3535,6 @@
             "skipped": "{count}টি পশু বাদ গেছে — এরা ইতিমধ্যে এই প্রোটোকলে আছে",
             "done": "সম্পন্ন"
           }
-        },
-        "attention": {
-          "title": "কিছু ধাপে দেরি হয়েছে",
-          "item": "{animals}, শুরু {date}",
-          "overdue": "{count, plural, one {১টি ধাপে দেরি} other {#টি ধাপে দেরি}}",
-          "animals": "{count, plural, one {১টি পশু} other {#টি পশু}}",
-          "more": "{count, plural, one {আরও ১টি রাউন্ড} other {আরও #টি রাউন্ড}}",
-          "openAria": "{name}, শুরু {date}, খুলে পিছিয়ে থাকা ধাপ সারুন"
         },
         "loose": {
           "title": "কোনো প্রোটোকলের অংশ নয়",
@@ -3630,6 +3660,12 @@
         "dose": "ডোজ",
         "doseUnit": "একক",
         "doseUnitPlaceholder": "মিলি, মিগ্রা, বোতল",
+        "timeOptional": "সময় (ঐচ্ছিক)",
+        "stockLine": "মজুদ: {stock} {unit}",
+        "outOfStockHint": "মজুদ শেষ। পুনরায় মজুদ না করা পর্যন্ত এই প্রোটোকল প্রয়োগ করা যাবে না।",
+        "pickMedicineFirst": "আগে ওষুধ বাছাই করুন",
+        "cycleLengthHint": "একটি গাভী এই প্রোটোকল শেষ করলে, আপনি বন্ধ না করা পর্যন্ত প্রতি এই কয়দিন পরপর স্বয়ংক্রিয়ভাবে আবার প্রয়োগ হবে।",
+        "cycleLengthHintTreatment": "একটি চিকিৎসা চক্র কতদিন চলে। চিকিৎসা স্বয়ংক্রিয়ভাবে পুনরাবৃত্তি হয় না।",
         "removeDay": "দিন সরান",
         "addAnotherDay": "আরেকটি দিন যোগ করুন",
         "cancel": "বাতিল",
@@ -3677,6 +3713,9 @@
         "continue": "চালিয়ে যান",
         "confirmSchedule": "সময়সূচি নিশ্চিত করুন",
         "noneSelectedError": "অন্তত একটি পশু নির্বাচন করুন।",
+        "stockShortTitle": "এই প্রোটোকল প্রয়োগের জন্য পর্যাপ্ত মজুদ নেই",
+        "stockShortLine": "{name}: প্রয়োজন {needed} {unit}, আছে {available} {unit}",
+        "stockCheckFailed": "মজুদ যাচাই করা যায়নি। প্রয়োগের সময় আবার যাচাই হবে।",
         "appliedToast": "{count, plural, one {১টি পশু} other {#টি পশু}} এই পরিকল্পনায় অন্তর্ভুক্ত করা হয়েছে।",
         "appliedToastWithSkipped": "{applied, plural, one {১টি পশু} other {#টি পশু}} অন্তর্ভুক্ত, {skipped, plural, one {১টি} other {#টি}} বাদ দেওয়া হয়েছে (ইতিমধ্যে এই প্রোটোকলে আছে)।",
         "genericError": "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"
@@ -3957,6 +3996,7 @@
         "noMedicines": "কোনো ওষুধ পাওয়া যায়নি।",
         "stock": "মজুদ",
         "clearMedicine": "ওষুধ মুছুন",
+        "outOfStock": "মজুদ শেষ",
         "administrationRoute": "প্রয়োগের পদ্ধতি",
         "route": {
           "IM": "IM",

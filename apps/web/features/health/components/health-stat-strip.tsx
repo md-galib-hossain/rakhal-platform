@@ -1,12 +1,12 @@
 "use client"; // live query + URL-synced navigation (the sick / withheld tiles open that Sick Bay view)
 
 import { useLocale, useTranslations } from "next-intl";
-import { parseAsStringEnum, useQueryStates } from "nuqs";
+import { parseAsString, parseAsStringEnum, useQueryStates } from "nuqs";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useHealthDashboard } from "../hooks/use-health";
+import { useHealthDashboard, useRounds } from "../hooks/use-health";
 import { HEALTH_MANAGEMENT_TABS, SICK_BAY_VIEWS, type HealthManagementTab, type SickBayView } from "../types";
 
 const TAB_KEYS = HEALTH_MANAGEMENT_TABS as unknown as [HealthManagementTab, ...HealthManagementTab[]];
@@ -56,7 +56,13 @@ export function HealthStatStrip() {
   const [, setParams] = useQueryStates({
     healthTab: parseAsStringEnum<HealthManagementTab>(TAB_KEYS),
     view: parseAsStringEnum<SickBayView>(VIEW_KEYS),
+    status: parseAsString,
   });
+  // The same cached Running list the Protocols tab reads. "Late" = steps past their farm day; the tile adds them up across
+  // rounds and opens Protocols -> Applied on Needs action, so the number and the list it opens agree.
+  const rounds = useRounds({ status: "RUNNING" });
+  const lateRounds = (rounds.data?.items ?? []).filter((round) => round.stepsOverdue > 0);
+  const lateSteps = lateRounds.reduce((sum, round) => sum + round.stepsOverdue, 0);
 
   if (query.isLoading) return <Skeleton className="h-[78px] w-full rounded-2xl" />;
   if (query.isError || !query.data) {
@@ -73,7 +79,7 @@ export function HealthStatStrip() {
   const open = (view: SickBayView) => void setParams({ healthTab: "treatments", view });
 
   return (
-    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border bg-border shadow-card sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border bg-border shadow-card sm:grid-cols-5 [&>:last-child:nth-child(odd)]:col-span-2 sm:[&>:last-child:nth-child(odd)]:col-span-1">
       <Stat label={t("sick")} value={data.sickBayCount} caption={t("sickCaption")} onClick={() => open("cases")} />
       <Stat label={t("healthy")} value={`${data.herdHealthScore}%`} caption={t("healthyCaption", { healthy: data.healthyAnimalCount, total: data.totalAnimalCount })} />
       <Stat
@@ -82,6 +88,13 @@ export function HealthStatStrip() {
         caption={t("withheldCaption")}
         tone={data.safetyWithdrawalCount > 0 ? "warning" : undefined}
         onClick={() => open("withheld")}
+      />
+      <Stat
+        label={t("late")}
+        value={rounds.isSuccess ? lateSteps : "—"}
+        caption={rounds.isSuccess ? (lateSteps > 0 ? t("lateCaption", { count: lateRounds.length }) : t("lateNone")) : undefined}
+        tone={lateSteps > 0 ? "warning" : undefined}
+        onClick={() => void setParams({ healthTab: "protocols", status: "needs" })}
       />
       <Stat label={t("medicine")} value={formatMoney(data.medicineExpense, locale)} caption={t("medicineCaption")} />
     </div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronRight, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Can } from "@/lib/auth/permissions";
 import { ApiError } from "@/lib/api/errors";
@@ -11,8 +11,6 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useDeletePlan } from "../hooks/use-health";
 import type { HealthPlanListItem } from "../types";
-import { ProtocolLiveState } from "./protocol-live-state";
-import { ProtocolResultStats } from "./protocol-result-stats";
 
 /** One "kind" per protocol (EPIC D7): the UI never shows the `category` / `planType` pair — the backend derives this from
  * `category` and returns it as `stats.kind`. */
@@ -23,32 +21,23 @@ const KIND_CHIP: Record<HealthPlanListItem["stats"]["kind"], { variant: "info" |
 };
 
 /**
- * Protocol card — Figma Healthcare "Health Plan" tab (734:45281, node 734:55443), reshaped by **RFE-142** (EPIC D12): the
- * card answers "what is this protocol doing on my farm" before "what is it made of".
+ * Library template card — Figma Healthcare "Health Plan" tab (734:45281, node 734:55443). The Library is only for templates:
+ * create, **apply**, **edit** and delete. It deliberately shows no progress, no "applied to" counts, no steps and no results —
+ * all of that lives in the **Applied** table (`AppliedView`) and its Details sheet.
  *  1. title + condition / kind chips (and a "Deleted" flag for a protocol that was archived while animals are still on it),
- *  2. how many steps over how many days,
- *  3. **live state** (`ProtocolLiveState`) — animals in progress, steps overdue / due today, or the next due day,
- *  4. results (`ProtocolResultStats`, RFE-136),
- *  5. **Details** — opens the protocol sheet (RFE-143: due steps, animals, the step sequence, results). The title opens
- *     it too. The day-by-day sequence used to sit on the card behind a toggle; it now lives in the sheet,
- *  6. **Apply** as the primary button, Edit and Delete secondary. An archived protocol cannot be applied or edited.
+ *  2. how many steps over how many days (template facts, not progress),
+ *  3. **Apply** as the primary button, Edit and Delete secondary. An archived protocol cannot be applied or edited.
  */
 export function HealthPlanCard({
   plan,
   onEdit,
   onApply,
-  onOpen,
-  runningRounds = 0,
 }: {
   plan: HealthPlanListItem;
   onEdit: (plan: HealthPlanListItem) => void;
   onApply: (plan: HealthPlanListItem) => void;
-  onOpen: (plan: HealthPlanListItem) => void;
-  /** How many rounds of this protocol are running (EPIC_PROTOCOL_ROUNDS) — the "Running on N rounds" chip. */
-  runningRounds?: number;
 }) {
   const t = useTranslations("health.healthPlan.card");
-  const tRounds = useTranslations("health.healthPlan.rounds");
   const tCondition = useTranslations("health.reportSickness");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const deletePlan = useDeletePlan();
@@ -69,13 +58,7 @@ export function HealthPlanCard({
     <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4">
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-          <button
-            type="button"
-            onClick={() => onOpen(plan)}
-            className="min-w-0 flex-1 basis-40 rounded-sm text-left text-lg font-bold leading-snug text-foreground [overflow-wrap:anywhere] hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {plan.name}
-          </button>
+          <h3 className="min-w-0 flex-1 basis-40 text-lg font-bold leading-snug text-foreground [overflow-wrap:anywhere]">{plan.name}</h3>
           <div className="flex shrink-0 flex-wrap items-center gap-1.5">
             {archived ? <Chip variant="destructive">{t("deleted")}</Chip> : null}
             {plan.condition ? <Chip variant="warning">{tCondition(`conditionValue.${plan.condition}`)}</Chip> : null}
@@ -86,19 +69,11 @@ export function HealthPlanCard({
           <span>{t("actionSteps", { count: plan.totalActionSteps })}</span>
           <span className="size-1 rounded-full bg-muted-foreground" aria-hidden />
           <span>{t("cycleLength", { count: plan.cycleLengthDays ?? 0 })}</span>
-          {runningRounds > 0 ? <Chip variant="info">{tRounds("runningOn", { count: runningRounds })}</Chip> : null}
         </div>
         {archived ? <p className="rounded-lg bg-destructive-tint px-3 py-2 text-xs text-destructive">{t("deletedHint")}</p> : null}
-        <ProtocolLiveState stats={plan.stats} />
-        <ProtocolResultStats stats={plan.stats} />
       </div>
 
-      <button type="button" className="flex items-center gap-1 self-start border-t border-dashed border-border pt-3 text-xs font-medium text-primary" onClick={() => onOpen(plan)}>
-        {t("details")}
-        <ChevronRight className="size-4" aria-hidden />
-      </button>
-
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 border-t border-dashed border-border pt-4">
         <Button type="button" className="h-11 flex-[2] text-sm" disabled={archived} onClick={() => onApply(plan)}>
           {t("apply")}
         </Button>

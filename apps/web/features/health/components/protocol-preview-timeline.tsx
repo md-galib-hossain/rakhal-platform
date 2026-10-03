@@ -68,7 +68,7 @@ function RowItem({ row, last, fmt }: { row: PreviewRow; last: boolean; fmt: (d: 
   const t = useTranslations("health.healthPlan.preview");
   const { step } = row;
   const dose = step.doseAmount != null ? `${step.doseAmount} ${step.doseUnit ?? ""}`.trim() : null;
-  const detail = [step.medicineName, dose, step.route].filter(Boolean).join(" · ");
+  const detail = [step.medicineName, dose, step.route, step.timeOfDay].filter(Boolean).join(" · ");
   return (
     <li className="relative flex gap-3 pb-4 last:pb-0">
       {last ? null : <span className="absolute left-[7px] top-4 h-full w-px bg-border" aria-hidden />}

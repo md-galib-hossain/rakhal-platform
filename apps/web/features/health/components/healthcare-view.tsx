@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { HealthStatStrip } from "./health-stat-strip";
-import { RoundAttentionStrip } from "./round-attention-strip";
 import { HealthManagementCenterCard } from "./health-management-center-card";
 import { CaseManagementSheet } from "./case-management-sheet";
 import { ReportSicknessDialog } from "./report-sickness-dialog";
@@ -22,7 +21,6 @@ export function HealthcareView() {
   return (
     <div className="flex flex-col gap-4">
       <HealthStatStrip />
-      <RoundAttentionStrip />
 
       <HealthManagementCenterCard
         onManageCase={(caseId) => setManageCase({ caseId, tab: "overview" })}

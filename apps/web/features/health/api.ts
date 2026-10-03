@@ -41,6 +41,7 @@ import type {
   TreatmentLog,
   UpdateHealthPlanPayload,
 } from "./types";
+import type { ProtocolStockCheck } from "./types";
 
 /** `/health/*` — real backend routes (`health.controller.ts`/`cattle-health.controller.ts`),
  * `healthcare.*`-gated. */
@@ -224,6 +225,10 @@ export const healthApi = {
    * not already on this exact protocol and reports applied/skipped per animal. */
   applyPlanToAnimals(planId: string, dto: ApplyPlanToAnimalsPayload): Promise<ApplyPlanToAnimalsResult> {
     return apiFetch<ApplyPlanToAnimalsResult>(`/health/plans/${planId}/apply`, { method: "POST", body: dto });
+  },
+  /** Protocols v2 — would applying this protocol to `animals` animals run short of usable (non-expired) stock? */
+  getPlanStockCheck(planId: string, animals: number): Promise<ProtocolStockCheck> {
+    return apiFetch<ProtocolStockCheck>(`/health/plans/${planId}/stock-check`, { searchParams: { animals } });
   },
 };
 

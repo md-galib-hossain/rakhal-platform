@@ -316,6 +316,16 @@ export function useUpdatePlan() {
   });
 }
 
+/** Protocols v2 — live stock check for the apply dialog's preview step (re-checked on every open). */
+export function useProtocolStockCheck(planId: string | undefined, animals: number, enabled = true) {
+  return useQuery({
+    queryKey: ["health", "plans", "stock-check", planId, animals] as const,
+    queryFn: () => healthApi.getPlanStockCheck(planId!, animals),
+    enabled: enabled && Boolean(planId) && animals > 0,
+    staleTime: 0,
+  });
+}
+
 export function useDeletePlan() {
   const invalidate = useInvalidatePlans();
   return useMutation({

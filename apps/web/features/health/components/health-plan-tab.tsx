@@ -17,8 +17,8 @@ import { CreateHealthPlanDialog } from "./create-health-plan-dialog";
 import { HEALTH_CONDITIONS } from "./report-sickness/condition-chips";
 import { ApplyHealthPlanDialog } from "./apply-health-plan-dialog";
 import { OPEN_STEP_STATUSES, ProtocolSheet, type ProtocolSheetTarget } from "./protocol-sheet";
-import { RoundsView } from "./rounds-view";
-import { defaultProtocolsView, runningRoundsByPlan, type ProtocolsView } from "../round-model";
+import { AppliedView } from "./applied-view";
+import { defaultProtocolsView, type AppliedStatus, type ProtocolsView } from "../round-model";
 import type { HealthCondition, HealthPlanKind, HealthPlanListItem, ProtocolRound } from "../types";
 
 type KindFilter = "ALL" | HealthPlanKind;
@@ -58,12 +58,18 @@ export function HealthPlanTab({
   onManageCase,
   openRoundKey,
   onRoundOpened,
+  status: statusProp,
+  onStatusChange,
 }: {
   onManageCase?: (caseId: string) => void;
   /** RFE-150: a round to open as soon as the Running list has loaded (the needs-attention strip's link). */
   openRoundKey?: string | null;
   /** Called once `openRoundKey` has been handled (opened, or not found), so the caller can clear it from the URL. */
   onRoundOpened?: () => void;
+  /** The Applied list's status choice, kept in the URL by the caller (`?status=`) so the Late steps tile can link to it. When the
+   * caller does not own it, the tab keeps it itself. Default: Needs action. */
+  status?: AppliedStatus | null;
+  onStatusChange?: (status: AppliedStatus) => void;
 }) {
   const t = useTranslations("health.healthPlan");
   const tCondition = useTranslations("health.reportSickness");
@@ -74,11 +80,16 @@ export function HealthPlanTab({
   // EPIC_PROTOCOL_ROUNDS D1: Running (rounds) | Library (protocols). `null` = not chosen yet, so follow the default:
   // Running when anything is due or late, otherwise Library. The user's own choice wins from then on.
   const [view, setView] = useState<ProtocolsView | null>(null);
-  const [finished, setFinished] = useState(false);
+  const [statusLocal, setStatusLocal] = useState<AppliedStatus | null>(null);
+  const status: AppliedStatus = statusProp ?? statusLocal ?? "needs";
+  function setStatus(next: AppliedStatus) {
+    setStatusLocal(next);
+    onStatusChange?.(next);
+  }
   const runningAll = useRounds({ status: "RUNNING" });
   const runningRounds = runningAll.data?.items ?? [];
-  const activeView: ProtocolsView | null = view ?? (runningAll.isSuccess ? defaultProtocolsView(runningRounds) : runningAll.isError ? "library" : null);
-  const runningByPlan = runningRoundsByPlan(runningRounds);
+  // A link to a status (`?status=needs`, the Late steps tile) must land on Applied even when the default would pick Library.
+  const activeView: ProtocolsView | null = view ?? (statusProp ? "running" : runningAll.isSuccess ? defaultProtocolsView(runningRounds) : runningAll.isError ? "library" : null);
   const list = useHealthPlansPagedList({
     search: deferredSearch || undefined,
     condition: condition === "ALL" ? undefined : condition,
@@ -112,7 +123,8 @@ export function HealthPlanTab({
           : { kind: "plan", plan: list.items.find((p) => p.id === openSheet.id) ?? openSheet.snapshot };
 
   const filtered = kind !== "ALL" || condition !== "ALL" || deferredSearch !== "";
-  const plans = [...list.items].sort(byUrgency);
+  // The Library is templates only, so no urgency order (that is progress): newest first, as the server pages them.
+  const plans = list.items;
 
   function clearFilters() {
     setKind("ALL");
@@ -153,7 +165,7 @@ export function HealthPlanTab({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div role="tablist" aria-label={t("views.label")} className="flex flex-wrap items-center gap-2">
-          {(["running", "library"] as const).map((v) => (
+          {(["library", "running"] as const).map((v) => (
             <button
               key={v}
               type="button"
@@ -169,20 +181,6 @@ export function HealthPlanTab({
             </button>
           ))}
         </div>
-        {activeView === "running" ? (
-          <button
-            type="button"
-            role="switch"
-            aria-checked={finished}
-            onClick={() => setFinished((v) => !v)}
-            className={cn(
-              "flex min-h-9 items-center rounded-full border px-4 text-sm font-medium transition-colors",
-              finished ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
-            )}
-          >
-            {t("rounds.showFinished")}
-          </button>
-        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -222,7 +220,7 @@ export function HealthPlanTab({
 
       {activeView === "running" ? (
         <>
-          {looseCount > 0 && !filtered && !finished ? (
+          {looseCount > 0 && !filtered && status !== "finished" ? (
             <button
               type="button"
               onClick={() => setOpenSheet({ kind: "loose" })}
@@ -236,10 +234,11 @@ export function HealthPlanTab({
             </button>
           ) : null}
 
-          <RoundsView
+          <AppliedView
             kind={kind}
             search={deferredSearch}
-            finished={finished}
+            status={status}
+            onStatusChange={setStatus}
             onOpen={(round) => setOpenSheet({ kind: "round", key: round.roundKey, snapshot: round })}
             onShowLibrary={() => setView("library")}
           />
@@ -277,8 +276,6 @@ export function HealthPlanTab({
                     setFormOpen(true);
                   }}
                   onApply={setApplyingPlan}
-                  onOpen={(p) => setOpenSheet({ kind: "plan", id: p.id, snapshot: p })}
-                  runningRounds={runningByPlan.get(plan.id) ?? 0}
                 />
               ))}
             </div>

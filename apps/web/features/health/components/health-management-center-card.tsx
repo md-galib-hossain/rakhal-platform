@@ -11,6 +11,7 @@ import { TreatmentsTab } from "./treatments-tab";
 import { HealthPlanTab } from "./health-plan-tab";
 import { HealthCard } from "./health-card";
 import { HealthInsightsTab } from "./health-insights-tab";
+import { parseAppliedStatus } from "../round-model";
 
 /** `?healthTab=` -> a tab. RFE-143 removed the `schedule` ("Care steps") tab; reminder notifications sent before that still
  * link to it, so it opens Protocols (where the due steps are now recorded) instead of falling back to Sick Bay. */
@@ -47,6 +48,8 @@ export function HealthManagementCenterCard({
   const [search] = useQueryState("q");
   // RFE-150: `?round=<roundKey>` (the needs-attention strip's link) opens that round's sheet once, then is cleared.
   const [roundKey, setRoundKey] = useQueryState("round");
+  // `?status=needs|upcoming|finished|all` — the Applied list's status choice (the Late steps tile links to `needs`).
+  const [statusParam, setStatusParam] = useQueryState("status");
 
   return (
     <HealthCard
@@ -93,7 +96,7 @@ export function HealthManagementCenterCard({
       {tab === "treatments" ? (
         <TreatmentsTab search={search || ""} onManageCase={onManageCase} />
       ) : tab === "protocols" ? (
-        <HealthPlanTab onManageCase={onManageCase} openRoundKey={roundKey} onRoundOpened={() => void setRoundKey(null)} />
+        <HealthPlanTab onManageCase={onManageCase} openRoundKey={roundKey} onRoundOpened={() => void setRoundKey(null)} status={parseAppliedStatus(statusParam)} onStatusChange={(next) => void setStatusParam(next)} />
       ) : (
         <HealthInsightsTab />
       )}

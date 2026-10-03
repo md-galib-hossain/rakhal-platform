@@ -5,7 +5,7 @@ import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { ArrowRightToLine, Bug, ClipboardList, HeartPulse, Plus, Stethoscope, Syringe, Trash2 } from "lucide-react";
+import { ArrowRightToLine, Bug, ClipboardList, HeartPulse, Plus, Stethoscope, Syringe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useCreatePlan, useUpdatePlan } from "../hooks/use-health";
 import { HEALTH_CONDITIONS } from "./report-sickness/condition-chips";
+import { ProtocolStepRow } from "./protocol-step-row";
 import { createHealthPlanFormSchema, type CreateHealthPlanFormInput } from "../schemas";
 import type { CreateHealthPlanPayload, HealthPlanListItem } from "../types";
 
@@ -54,23 +55,29 @@ function toPayload(values: CreateHealthPlanFormInput, isEdit: boolean): CreateHe
     cycleLengthDays: values.cycleLengthDays,
     description: values.description || undefined,
     ...(isEdit ? { condition } : condition ? { condition } : {}),
-    steps: values.steps.map((step, index) => {
-      const title = step.medicineName || `Day ${step.dayNumber} action ${index + 1}`;
-      return {
-        dayNumber: step.dayNumber,
-        title,
-        actionType: step.medicineName ? "MEDICINE" : "OBSERVATION",
-        instruction: title,
-        medicineName: step.medicineName || undefined,
-        doseAmount: step.doseAmount,
-      };
-    }),
+    // Every row is an inventory medicine (the schema requires `medicineId`); the backend re-validates the dose unit
+    // against the medicine's stock unit and snapshots the name + unit symbol.
+    steps: values.steps.map((step) => ({
+      dayNumber: step.dayNumber,
+      title: step.medicineName,
+      actionType: "MEDICINE" as const,
+      instruction: step.medicineName,
+      medicineId: step.medicineId,
+      medicineName: step.medicineName,
+      doseAmount: step.doseAmount,
+      doseUnitId: step.doseUnitId,
+      ...(step.timeOfDay ? { timeOfDay: step.timeOfDay } : {}),
+    })),
   };
 }
 
+// `doseAmount` is left unset on purpose (an empty field); the zod schema rejects it until the farmer types a dose.
+type StepRow = CreateHealthPlanFormInput["steps"][number];
+const EMPTY_STEP = { dayNumber: 1, medicineId: "", medicineName: "", doseUnitId: "", timeOfDay: "" } as unknown as StepRow;
+
 function toFormDefaults(plan: HealthPlanListItem | undefined): Partial<CreateHealthPlanFormInput> {
   if (!plan) {
-    return { steps: [{ dayNumber: 1, medicineName: "" }] };
+    return { steps: [{ ...EMPTY_STEP }] };
   }
   return {
     planType: plan.planType,
@@ -81,9 +88,12 @@ function toFormDefaults(plan: HealthPlanListItem | undefined): Partial<CreateHea
     condition: plan.condition,
     steps: plan.steps.map((step) => ({
       dayNumber: step.dayNumber,
+      medicineId: step.medicineId ?? "",
       medicineName: step.medicineName ?? "",
-      doseAmount: step.doseAmount ?? undefined,
-      doseUnit: step.doseUnit ?? "",
+      // `doseAmount` can arrive as a Decimal string on the wire.
+      doseAmount: (step.doseAmount == null ? undefined : Number(step.doseAmount)) as number,
+      doseUnitId: step.doseUnitId ?? "",
+      timeOfDay: step.timeOfDay ?? "",
     })),
   };
 }
@@ -173,14 +183,15 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
       </div>
       <div className="border-t border-dashed border-border" />
 
-      {/* Enter inside an input advances the wizard instead of submitting it early. */}
+      {/* Enter inside an input advances the wizard (steps 1-2) — and on the last step does nothing, so a stray Enter in a
+          day/dose field can never save the protocol and close the sheet; saving is only the "Save"/"Deploy" button. */}
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <form
         onSubmit={form.handleSubmit(handleFormSubmit)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && step < 3 && e.target instanceof HTMLInputElement) {
+          if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
             e.preventDefault();
-            void goNext();
+            if (step < 3) void goNext();
           }
         }}
         noValidate
@@ -247,6 +258,7 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
                 {...form.register("cycleLengthDays", numberField)}
                 error={form.formState.errors.cycleLengthDays?.message}
               />
+              <p className="-mt-2 text-xs text-muted-foreground">{category === "TREATMENT" ? t("cycleLengthHintTreatment") : t("cycleLengthHint")}</p>
               <div>
                 <Textarea id="description" placeholder={t("descriptionPlaceholder")} className="h-20" {...form.register("description")} />
                 <label htmlFor="description" className="mt-1 block text-xs text-muted-foreground">
@@ -296,43 +308,13 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
               </div>
               <div className="flex flex-col gap-3">
                 {fields.map((fieldItem, index) => (
-                  <div key={fieldItem.id} className="flex items-center gap-4">
-                    <div className="flex flex-1 items-center gap-2">
-                      <div className="w-[60px] shrink-0">
-                        <LabeledInput id={`steps.${index}.dayNumber`} type="number" min={1} label={t("day")} {...form.register(`steps.${index}.dayNumber`, numberField)} />
-                      </div>
-                      <div className="flex-1">
-                        <LabeledInput
-                          id={`steps.${index}.medicineName`}
-                          label={t("medicine")}
-                          placeholder={t("medicinePlaceholder")}
-                          {...form.register(`steps.${index}.medicineName`)}
-                          error={form.formState.errors.steps?.[index]?.medicineName?.message}
-                        />
-                      </div>
-                      <div className="w-[64px] shrink-0">
-                        <LabeledInput id={`steps.${index}.doseAmount`} type="number" min={0} label={t("dose")} {...form.register(`steps.${index}.doseAmount`, numberField)} />
-                      </div>
-                      <div className="w-[64px] shrink-0">
-                        <LabeledInput id={`steps.${index}.doseUnit`} label={t("doseUnit")} placeholder={t("doseUnitPlaceholder")} {...form.register(`steps.${index}.doseUnit`)} />
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => remove(index)}
-                      disabled={fields.length <= 1}
-                      aria-label={t("removeDay")}
-                      className="flex size-6 items-center justify-center rounded text-destructive transition-opacity hover:opacity-70 disabled:opacity-30"
-                    >
-                      <Trash2 className="size-4" aria-hidden />
-                    </button>
-                  </div>
+                  <ProtocolStepRow key={fieldItem.id} form={form} index={index} canRemove={fields.length > 1} onRemove={() => remove(index)} />
                 ))}
               </div>
               <button
                 type="button"
                 className="flex w-fit items-center gap-1.5 text-xs font-medium text-primary"
-                onClick={() => append({ dayNumber: fields.length + 1, medicineName: "" })}
+                onClick={() => append({ ...EMPTY_STEP, dayNumber: fields.length + 1 })}
               >
                 {t("addAnotherDay")}
                 <Plus className="size-4" aria-hidden />
@@ -353,11 +335,13 @@ function CreateHealthPlanDialogBody({ onOpenChange, plan }: { onOpenChange: (ope
             {step === 1 ? t("cancel") : t("back")}
           </Button>
           {step < 3 ? (
-            <Button type="button" className="h-[52px] flex-1 rounded-xl" onClick={goNext}>
+            // Distinct `key`s: without them React reuses this DOM node when step 2 -> 3 flips `type` to "submit", and a
+            // second tap on "Continue" lands on the live submit button (edit mode is already valid, so it saved + closed).
+            <Button key="continue" type="button" className="h-[52px] flex-1 rounded-xl" onClick={goNext}>
               {t("continue")}
             </Button>
           ) : (
-            <Button type="submit" className="h-[52px] flex-1 rounded-xl" disabled={pending}>
+            <Button key="submit" type="submit" className="h-[52px] flex-1 rounded-xl" disabled={pending}>
               {pending ? "…" : isEdit ? t("saveChanges") : t("deployPlan")}
             </Button>
           )}

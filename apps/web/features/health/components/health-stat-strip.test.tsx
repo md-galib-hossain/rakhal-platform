@@ -7,9 +7,13 @@ import { HealthStatStrip } from "./health-stat-strip";
 
 const h = vi.hoisted(() => ({
   state: { isLoading: false, isError: false, data: undefined as unknown, refetch: undefined as unknown },
+  rounds: { items: [] as Array<{ stepsOverdue: number }>, isSuccess: true },
 }));
 
-vi.mock("../hooks/use-health", () => ({ useHealthDashboard: () => h.state }));
+vi.mock("../hooks/use-health", () => ({
+  useHealthDashboard: () => h.state,
+  useRounds: () => ({ data: { items: h.rounds.items }, isSuccess: h.rounds.isSuccess }),
+}));
 
 const dashboard = {
   herdHealthScore: 92,
@@ -36,10 +40,12 @@ function renderStrip(onUrlUpdate = vi.fn()) {
 describe("HealthStatStrip (RFE-140)", () => {
   beforeEach(() => {
     h.state = { isLoading: false, isError: false, data: dashboard, refetch: vi.fn() };
+    h.rounds = { items: [], isSuccess: true };
   });
 
-  it("is four plain numbers — and none of the old attention tiles", () => {
+  it("is five plain numbers — and none of the old attention tiles", () => {
     renderStrip();
+    expect(screen.getByText("Late steps")).toBeTruthy();
     expect(screen.getByText("Sick now")).toBeTruthy();
     expect(screen.getByText("3")).toBeTruthy();
     expect(screen.getByText("92%")).toBeTruthy();
@@ -69,6 +75,38 @@ describe("HealthStatStrip (RFE-140)", () => {
     renderStrip();
     expect(screen.queryByRole("button", { name: /Herd healthy/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Medicine cost/ })).toBeNull();
+  });
+
+  describe("Late steps tile (RFE-150)", () => {
+    it("adds up the late steps across running rounds and says in how many rounds", () => {
+      h.rounds.items = [{ stepsOverdue: 2 }, { stepsOverdue: 0 }, { stepsOverdue: 1 }];
+      renderStrip();
+      const tile = screen.getByRole("button", { name: /Late steps/ });
+      expect(tile.textContent).toContain("3");
+      expect(tile.textContent).toContain("in 2 rounds");
+    });
+
+    it("says all on time at zero, without the warning tone", () => {
+      renderStrip();
+      const tile = screen.getByRole("button", { name: /Late steps/ });
+      expect(tile.textContent).toContain("0");
+      expect(tile.textContent).toContain("All on time");
+      expect(tile.querySelector(".text-warning")).toBeNull();
+    });
+
+    it("shows a dash, not a false zero, while the rounds are not loaded", () => {
+      h.rounds = { items: [], isSuccess: false };
+      renderStrip();
+      expect(screen.getByRole("button", { name: /Late steps/ }).textContent).toContain("—");
+    });
+
+    it("opens Protocols -> Applied on Needs action", async () => {
+      h.rounds.items = [{ stepsOverdue: 1 }];
+      const { onUrlUpdate } = renderStrip();
+      fireEvent.click(screen.getByRole("button", { name: /Late steps/ }));
+      await waitFor(() => expect(onUrlUpdate.mock.calls.at(-1)?.[0].searchParams.get("status")).toBe("needs"));
+      expect(onUrlUpdate.mock.calls.at(-1)?.[0].searchParams.get("healthTab")).toBe("protocols");
+    });
   });
 
   it("an error shows a one-line retry instead of an empty gap", () => {
