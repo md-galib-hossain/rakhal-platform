@@ -209,7 +209,7 @@ model FeedConcentrationVersion {
 }
 
 model FeedConcentrationItem {
-  id              String @id @default(cuid())
+  id              String  @id @default(cuid())
   concentrationId String
   /// RAKHAL-447 (MILESTONE 26): optional when `feedItemId` is set — a purchased product carries its own
   /// nutrition (the lot's `NutritionProfile`), so a line no longer needs a catalogue ingredient. Required
@@ -222,8 +222,8 @@ model FeedConcentrationItem {
   /// finalize — at most one of the two. Absent = virtual catalogue line, present = real
   /// stock deducted by RAKHAL-423. A `feedItemId` line takes its nutrition and price from the
   /// linked lot (RAKHAL-447 / ADR-026 D7), not from `ingredientId`.
-  feedItemId  String? // consume this purchased product (Inventory FeedItem)
-  feedStockId String? // consume this prepared batch (Feed Formulator FeedStock)
+  feedItemId      String? // consume this purchased product (Inventory FeedItem)
+  feedStockId     String? // consume this prepared batch (Feed Formulator FeedStock)
   /// RAKHAL-447: pin the line to one lot of `feedItemId`; null = the FIFO head at the time of use.
   feedItemBatchId String?
 
@@ -450,8 +450,8 @@ model FeedFeedingDraft {
   id     String @id @default(cuid())
   farmId String
 
-  cattleId    String
-  logDate     DateTime
+  cattleId String
+  logDate  DateTime
 
   sourceType  FeedGridSourceType
   feedItemId  String?

@@ -76,7 +76,7 @@ describe('Health — protocol stats + condition (RAKHAL-466 / 468)', () => {
       planIds.push(res.body.data.id);
       return res.body.data;
     };
-    const step = [{ dayNumber: 0, title: 'Dose', actionType: 'MEDICINE' }];
+    const step = [{ dayNumber: 0, title: 'Dose', actionType: 'OBSERVATION' }];
     treatmentPlanId = (
       await mk({
         name: `${tag} treatment`,
@@ -326,7 +326,7 @@ describe('Health — protocol stats + condition (RAKHAL-466 / 468)', () => {
           category: 'TREATMENT',
           planType: 'MEDICAL',
           condition: 'NOPE',
-          steps: [{ dayNumber: 0, title: 'x', actionType: 'MEDICINE' }],
+          steps: [{ dayNumber: 0, title: 'x', actionType: 'OBSERVATION' }],
         })
         .expect(400);
     });

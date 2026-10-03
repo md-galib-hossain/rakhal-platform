@@ -15,6 +15,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { convertQuantity } from '../../domain/unit-conversion';
 import { NotificationService } from 'src/modules/notification/application/services/notification.service';
 import {
   MediaService,
@@ -561,6 +562,8 @@ export class MedicineService {
       medicineId?: string;
       medicineName?: string;
       quantity: number;
+      /** Protocols v2: unit `quantity` is expressed in; converted to the medicine's own unit. Omit = already in it. */
+      doseUnitId?: string;
       notes?: string;
     },
   ): Promise<DecrementResult> {
@@ -593,11 +596,28 @@ export class MedicineService {
       }
     }
 
+    let quantity = opts.quantity;
+    if (opts.doseUnitId) {
+      const [doseUnit, medUnit] = await Promise.all([
+        this.prisma.unit.findUnique({ where: { id: opts.doseUnitId } }),
+        this.prisma.unit.findUnique({ where: { id: medicines[0].unitId } }),
+      ]);
+      if (doseUnit && medUnit) {
+        try {
+          quantity = convertQuantity(quantity, doseUnit, medUnit);
+        } catch {
+          throw new BadRequestException(
+            `Dose unit ${doseUnit.symbol} cannot be converted to the stock unit ${medUnit.symbol}`,
+          );
+        }
+      }
+    }
+
     return this.decrementFromCatalogBatches(
       farmId,
       userId,
       medicines,
-      opts.quantity,
+      quantity,
       {
         reason: MedicineStockMovementReason.TREATMENT,
         notes: opts.notes,

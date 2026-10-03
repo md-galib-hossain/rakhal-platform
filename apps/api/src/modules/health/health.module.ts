@@ -10,6 +10,8 @@ import { CattleModule } from '../cattle/cattle.module';
 import { NotificationModule } from '../notification/notification.module';
 import { HealthService } from './application/services/health.service';
 import { HealthReminderService } from './application/services/health-reminder.service';
+import { ProtocolStockService } from './application/services/protocol-stock.service';
+import { HealthCycleService } from './application/services/health-cycle.service';
 import { HealthOutcomesService } from './application/services/health-outcomes.service';
 import { HealthPlanStatsService } from './application/services/health-plan-stats.service';
 import { HealthRoundsService } from './application/services/health-rounds.service';
@@ -37,6 +39,8 @@ import { PurchasingModule } from '../purchasing/purchasing.module';
   controllers: [HealthController, CattleHealthController],
   providers: [
     HealthService,
+    ProtocolStockService,
+    HealthCycleService,
     HealthReminderService,
     HealthOutcomesService,
     HealthPlanStatsService,
@@ -44,6 +48,8 @@ import { PurchasingModule } from '../purchasing/purchasing.module';
   ],
   exports: [
     HealthService,
+    ProtocolStockService,
+    HealthCycleService,
     HealthReminderService,
     HealthOutcomesService,
     HealthPlanStatsService,

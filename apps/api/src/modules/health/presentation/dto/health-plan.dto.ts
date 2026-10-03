@@ -8,6 +8,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -54,6 +55,22 @@ export class HealthPlanStepDto {
   @Transform(trimString)
   @IsString()
   doseUnit?: string;
+
+  /** `Unit.id` of the dose unit. Required (with `medicineId` + `doseAmount`) on MEDICINE steps. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  doseUnitId?: string;
+
+  /** Optional farm-local time of day the step is due, "HH:mm". Omit/empty = any time that day. */
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === '' ? undefined : value,
+  )
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, {
+    message: 'timeOfDay must be HH:mm (24h)',
+  })
+  timeOfDay?: string;
 
   @IsOptional()
   @IsEnum(MedicineRoute)

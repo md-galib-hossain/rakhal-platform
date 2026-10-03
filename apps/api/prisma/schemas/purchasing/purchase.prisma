@@ -83,9 +83,9 @@ model PurchaseLine {
   id         String @id @default(cuid())
   purchaseId String
 
-  medicineId  String?
-  feedItemId  String?
-  equipmentId String?
+  medicineId      String?
+  feedItemId      String?
+  equipmentId     String?
   /// RAKHAL-439 (`docs/EPIC_MEDICINE_BATCH_MODEL.md`) — the exact `MedicineBatch`
   /// this line's own `createBatch()` call created. Nullable: only medicine
   /// lines set it, and a pre-439 line has none — `VoidDocumentUseCase` falls

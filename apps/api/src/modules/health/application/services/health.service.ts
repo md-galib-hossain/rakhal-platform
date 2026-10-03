@@ -3,12 +3,14 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import {
   ActivityLogModule,
   CattleDispositionType,
   ClinicalProgress,
   ExpenseCategory,
+  HealthActionType,
   HealthCareType,
   HealthCaseStatus,
   HealthCloseOutcome,
@@ -29,7 +31,10 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { DEFAULT_FARM_TIMEZONE } from 'src/common/farm-time/farm-time';
+import { FarmClockService } from 'src/common/farm-time/farm-clock.service';
 import { farmDayEnd } from '../../domain/health-farm-day';
+import { applyTimeOfDay } from '../../domain/protocol-time';
+import { ProtocolStockService } from './protocol-stock.service';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { MedicineService } from 'src/modules/inventory/application/services/medicine.service';
@@ -109,8 +114,18 @@ export class HealthService {
     private readonly logger: LoggerService,
     // RAKHAL-467 — last, so positional `new HealthService(...)` callers keep their order.
     private readonly outcomes: HealthOutcomesService,
+    // Protocols v2 — optional + last so positional `new HealthService(...)` callers keep working.
+    @Optional() private readonly protocolStock?: ProtocolStockService,
+    @Optional() private readonly farmClock?: FarmClockService,
   ) {
     this.log = this.logger.setContext(HealthService.name);
+  }
+
+  /** Protocols v2: resolves a step's due instant — the day offset plus its optional farm-local "HH:mm". */
+  private async dueResolver(farmId: string) {
+    const tz = (await this.farmClock?.timezone(farmId)) ?? 'UTC';
+    return (base: Date, step: { timeOfDay?: string | null }) =>
+      applyTimeOfDay(base, step.timeOfDay, tz);
   }
 
   async getHealthDashboard(farmId: string) {
@@ -775,6 +790,8 @@ export class HealthService {
     });
     if (!plan) throw new NotFoundException('Health plan not found');
     const startDate = dto.startDate ? new Date(dto.startDate) : new Date();
+    await this.protocolStock?.assertInStock(farmId, plan.steps, 1);
+    const dueOf = await this.dueResolver(farmId);
 
     const result = await this.prisma.$transaction(async (tx) => {
       await tx.healthTask.deleteMany({
@@ -782,9 +799,9 @@ export class HealthService {
       });
       const tasks = await Promise.all(
         plan.steps.map((step, index) => {
-          const dueDateTime = this.addDays(
-            startDate,
-            Math.max(0, step.dayNumber - 1),
+          const dueDateTime = dueOf(
+            this.addDays(startDate, Math.max(0, step.dayNumber - 1)),
+            step,
           );
           return tx.healthTask.create({
             data: {
@@ -804,6 +821,8 @@ export class HealthService {
               medicineName: step.medicineName,
               doseAmount: step.doseAmount,
               doseUnit: step.doseUnit,
+              doseUnitId: step.doseUnitId,
+              timeOfDay: step.timeOfDay,
               route: step.route,
             },
           });
@@ -980,6 +999,12 @@ export class HealthService {
     }[] = [];
 
     if (toApply.length > 0) {
+      await this.protocolStock?.assertInStock(
+        farmId,
+        plan.steps,
+        toApply.length,
+      );
+      const dueOf = await this.dueResolver(farmId);
       await this.prisma.$transaction(async (tx) => {
         for (const cattle of toApply) {
           const caseCode = await this.nextCaseCode(farmId, tx);
@@ -1002,7 +1027,10 @@ export class HealthService {
           await Promise.all(
             plan.steps.map((step, index) => {
               const dueDateTime = this.dueNoEarlierThan(
-                this.addDays(startDate, Math.max(0, step.dayNumber - 1)),
+                dueOf(
+                  this.addDays(startDate, Math.max(0, step.dayNumber - 1)),
+                  step,
+                ),
                 join?.minDue,
               );
               return tx.healthTask.create({
@@ -1024,6 +1052,8 @@ export class HealthService {
                   medicineName: step.medicineName,
                   doseAmount: step.doseAmount,
                   doseUnit: step.doseUnit,
+                  doseUnitId: step.doseUnitId,
+                  timeOfDay: step.timeOfDay,
                   route: step.route,
                 },
               });
@@ -1067,6 +1097,8 @@ export class HealthService {
     /** RAKHAL-473 — enroll into this existing `PlanApplication` (a round) instead of creating a new one; steps already
      * past are due now. Omitted for a normal apply. */
     join?: { applicationId: string; minDue: Date },
+    /** Protocols v2 auto-repeat — set by `applyCycleRepeat` so the successor enrollment links back. */
+    cycle?: { cycleNumber: number; repeatedFromId: string },
   ) {
     const existing = await this.prisma.planEnrollment.findMany({
       where: {
@@ -1097,6 +1129,12 @@ export class HealthService {
     let planApplicationId: string | null = null;
 
     if (toApply.length > 0) {
+      await this.protocolStock?.assertInStock(
+        farmId,
+        plan.steps,
+        toApply.length,
+      );
+      const dueOf = await this.dueResolver(farmId);
       planApplicationId = await this.prisma.$transaction(async (tx) => {
         const application = join
           ? await tx.planApplication.update({
@@ -1123,12 +1161,16 @@ export class HealthService {
               totalSteps: plan.steps.length,
               currentStep: 0,
               progressPercentage: 0,
+              ...(cycle ?? {}),
             },
           });
           await Promise.all(
             plan.steps.map((step, index) => {
               const dueDateTime = this.dueNoEarlierThan(
-                this.addDays(startDate, Math.max(0, step.dayNumber - 1)),
+                dueOf(
+                  this.addDays(startDate, Math.max(0, step.dayNumber - 1)),
+                  step,
+                ),
                 join?.minDue,
               );
               return tx.healthTask.create({
@@ -1149,6 +1191,8 @@ export class HealthService {
                   medicineName: step.medicineName,
                   doseAmount: step.doseAmount,
                   doseUnit: step.doseUnit,
+                  doseUnitId: step.doseUnitId,
+                  timeOfDay: step.timeOfDay,
                   route: step.route,
                 },
               });
@@ -1181,6 +1225,38 @@ export class HealthService {
     };
   }
 
+  /** `GET /health/plans/:id/stock-check` — would applying this protocol to `animals` animals run short of usable stock? */
+  async stockCheck(farmId: string, planId: string, animals: number) {
+    const plan = await this.getPlan(farmId, planId);
+    const shortfalls =
+      (await this.protocolStock?.check(
+        farmId,
+        plan.steps,
+        Math.max(1, animals),
+      )) ?? [];
+    return { ok: shortfalls.length === 0, shortfalls };
+  }
+
+  /** Protocols v2 auto-repeat: re-enroll one animal in the next cycle of a preventive protocol (same stock gate as a normal apply). */
+  async applyCycleRepeat(
+    farmId: string,
+    userId: string,
+    plan: HealthPlan & { steps: HealthPlanStep[] },
+    cattle: { id: string; tagNumber: string; shedId: string | null },
+    startDate: Date,
+    cycle: { cycleNumber: number; repeatedFromId: string },
+  ) {
+    return this.applyPreventivePlanToAnimals(
+      farmId,
+      userId,
+      plan,
+      [cattle],
+      startDate,
+      undefined,
+      cycle,
+    );
+  }
+
   async logTreatment(
     farmId: string,
     userId: string,
@@ -1201,7 +1277,15 @@ export class HealthService {
     // aborts the whole action. Only runs when a medicine + quantity is given.
     const medicineId = dto.medicineId ?? task?.medicineId ?? undefined;
     const medicineName = dto.medicineName ?? task?.medicineName ?? undefined;
-    const quantity = dto.stockDeductionQuantity ?? dto.doseAmount ?? undefined;
+    // Protocols v2: with no typed dose, the plan step's own dose (in its own unit) is what is given.
+    const typedQuantity = dto.stockDeductionQuantity ?? dto.doseAmount;
+    const quantity =
+      typedQuantity ??
+      (!dto.medicineId && task?.doseAmount
+        ? Number(task.doseAmount)
+        : undefined);
+    const doseUnitId =
+      typedQuantity === undefined ? (task?.doseUnitId ?? undefined) : undefined;
 
     // RAKHAL-419/RAKHAL-437 (`docs/EPIC_MEDICINE_BATCH_MODEL.md`): cost is
     // priced from the actual batch(es) `decrementForTreatment` draws from —
@@ -1220,6 +1304,7 @@ export class HealthService {
             medicineId,
             medicineName,
             quantity,
+            doseUnitId,
             notes: `Treatment for case ${healthCase.caseCode}`,
           })
         : null;
@@ -1821,6 +1906,11 @@ export class HealthService {
   }
 
   async createPlan(farmId: string, userId: string, dto: CreateHealthPlanDto) {
+    const steps =
+      (await this.protocolStock?.validateAndNormalizeSteps(
+        farmId,
+        dto.steps,
+      )) ?? dto.steps;
     return this.prisma.healthPlan.create({
       data: {
         farmId,
@@ -1831,10 +1921,10 @@ export class HealthService {
         diagnosis: dto.diagnosis,
         condition: dto.condition,
         cycleLengthDays: dto.cycleLengthDays,
-        totalActionSteps: dto.steps.length,
+        totalActionSteps: steps.length,
         isTemplate: dto.isTemplate ?? false,
         createdBy: userId,
-        steps: { create: dto.steps },
+        steps: { create: steps },
       },
       include: { steps: { orderBy: { dayNumber: 'asc' } } },
     });
@@ -1865,8 +1955,14 @@ export class HealthService {
 
   async updatePlan(farmId: string, id: string, dto: UpdateHealthPlanDto) {
     await this.getPlan(farmId, id);
+    const steps = dto.steps
+      ? ((await this.protocolStock?.validateAndNormalizeSteps(
+          farmId,
+          dto.steps,
+        )) ?? dto.steps)
+      : undefined;
     const updated = await this.prisma.$transaction(async (tx) => {
-      if (dto.steps) {
+      if (steps) {
         await tx.healthPlanStep.deleteMany({ where: { healthPlanId: id } });
       }
       return tx.healthPlan.update({
@@ -1880,8 +1976,8 @@ export class HealthService {
           condition: dto.condition,
           cycleLengthDays: dto.cycleLengthDays,
           isTemplate: dto.isTemplate,
-          totalActionSteps: dto.steps?.length,
-          ...(dto.steps ? { steps: { create: dto.steps } } : {}),
+          totalActionSteps: steps?.length,
+          ...(steps ? { steps: { create: steps } } : {}),
         },
         include: { steps: { orderBy: { dayNumber: 'asc' } } },
       });
@@ -2094,6 +2190,26 @@ export class HealthService {
 
   async completeTask(farmId: string, userId: string, id: string) {
     const task = await this.getTaskOrThrow(farmId, id);
+    // Protocols v2: a plan medicine step must never complete without consuming stock + posting cost.
+    // If nothing has been logged for it yet, route through the treatment path (which completes it).
+    if (
+      task.taskType === HealthActionType.MEDICINE &&
+      task.medicineId &&
+      Number(task.doseAmount) > 0 &&
+      task.status !== HealthTaskStatus.COMPLETED &&
+      (await this.prisma.treatmentLog.count({
+        where: { healthTaskId: id },
+      })) === 0
+    ) {
+      if (task.healthCaseId) {
+        await this.logTreatment(farmId, userId, task.healthCaseId, {
+          healthTaskId: id,
+        });
+      } else {
+        await this.logTaskTreatment(farmId, userId, id, {});
+      }
+      return this.getTaskOrThrow(farmId, id);
+    }
     const updated = await this.prisma.healthTask.update({
       where: { id },
       data: {
@@ -2169,7 +2285,15 @@ export class HealthService {
 
     const medicineId = dto.medicineId ?? task.medicineId ?? undefined;
     const medicineName = dto.medicineName ?? task.medicineName ?? undefined;
-    const quantity = dto.stockDeductionQuantity ?? dto.doseAmount ?? undefined;
+    // Protocols v2: with no typed dose, the plan step's own dose (in its own unit) is what is given.
+    const typedQuantity = dto.stockDeductionQuantity ?? dto.doseAmount;
+    const quantity =
+      typedQuantity ??
+      (!dto.medicineId && task.doseAmount
+        ? Number(task.doseAmount)
+        : undefined);
+    const doseUnitId =
+      typedQuantity === undefined ? (task.doseUnitId ?? undefined) : undefined;
 
     // Resolve withdrawal days from the `Medicine` record itself — mirrors
     // `recordTreatment`'s auto-derivation (Quick Treat), not `logTreatment`'s manual dto-typed
@@ -2200,6 +2324,7 @@ export class HealthService {
             medicineId,
             medicineName,
             quantity,
+            doseUnitId,
             notes: `Preventive-round treatment for task ${task.taskCode}`,
           })
         : null;

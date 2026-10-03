@@ -58,10 +58,10 @@ model Cattle {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  farm      Farm       @relation("FarmToCattle", fields: [farmId], references: [id])
-  breed     Breed?     @relation(fields: [breedId], references: [id])
-  shed      Shed?      @relation(fields: [shedId], references: [id])
-  creator   User       @relation("CattleCreator", fields: [createdBy], references: [id])
+  farm    Farm   @relation("FarmToCattle", fields: [farmId], references: [id])
+  breed   Breed? @relation(fields: [breedId], references: [id])
+  shed    Shed?  @relation(fields: [shedId], references: [id])
+  creator User   @relation("CattleCreator", fields: [createdBy], references: [id])
 
   mother   Cattle?  @relation("CattleMother", fields: [motherId], references: [id])
   motherOf Cattle[] @relation("CattleMother")
@@ -70,16 +70,16 @@ model Cattle {
 
   animalGroupMemberships AnimalGroupMember[]
   reproductionProfile    ReproductionProfile?
-  heatEvents            HeatEvent[]
-  breedingEvents         BreedingEvent[]         @relation("BreedingEventCattle")
-  breedingAsBull         BreedingEvent[]         @relation("BreedingEventBull")
+  heatEvents             HeatEvent[]
+  breedingEvents         BreedingEvent[]             @relation("BreedingEventCattle")
+  breedingAsBull         BreedingEvent[]             @relation("BreedingEventBull")
   pregnancyDiagnoses     PregnancyDiagnosis[]
   pregnancies            Pregnancy[]
   calvingEvents          CalvingEvent[]
   abortionEvents         AbortionEvent[]
   dryPeriods             DryPeriod[]
   lactations             Lactation[]
-  calfBirths             CalfBirth[]             @relation("CattleCalfBirth")
+  calfBirths             CalfBirth[]                 @relation("CattleCalfBirth")
   calfColostrumRecords   CalfColostrumRecord[]
   calfMilkFeedings       CalfMilkFeeding[]
   calfWeightRecords      CalfWeightRecord[]
@@ -96,9 +96,9 @@ model Cattle {
   safetyWithdrawals      SafetyWithdrawal[]
   bcsRecords             BodyConditionScore[]
   weightRecords          WeightRecord[]
-  animalSaleLines        AnimalSaleLine[]        @relation("CattleToAnimalSaleLine")
-  dispositions           CattleDisposition[]     @relation("CattleToCattleDisposition")
-  disposition            CattleDisposition?      @relation("CattleDispositionRecord", fields: [dispositionId], references: [id])
+  animalSaleLines        AnimalSaleLine[]            @relation("CattleToAnimalSaleLine")
+  dispositions           CattleDisposition[]         @relation("CattleToCattleDisposition")
+  disposition            CattleDisposition?          @relation("CattleDispositionRecord", fields: [dispositionId], references: [id])
   requirementOverrides   CattleRequirementOverride[]
 
   @@unique([farmId, tagNumber])

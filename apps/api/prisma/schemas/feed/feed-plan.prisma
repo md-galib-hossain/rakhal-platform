@@ -30,11 +30,11 @@ model FeedPlan {
   lines       FeedPlanLine[]
   assignments FeedPlanAssignment[]
   fitDays     FeedPlanFitDay[]
-
-  @@index([farmId, isActive])
   // Raw SQL in the migration (Prisma can't express a partial unique index — same technique as
   // `FeedFeedingDraft`/RD-089): one ACTIVE plan per (farmId, lower(name)), so an archived plan's name
   // can be reused.
+
+  @@index([farmId, isActive])
 }
 
 /// One line of a plan: `kgPerDay` as-fed, per head, per day. A line NEVER pins a lot — lots run out,
@@ -56,12 +56,12 @@ model FeedPlanLine {
   sortOrder Int   @default(0)
 
   plan FeedPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  // Raw SQL in the migration: CHECK (kgPerDay > 0) and CHECK (exactly one of feedItemId /
+  // concentrationId, matching lineType).
 
   @@index([planId])
   @@index([farmId, feedItemId])
   @@index([farmId, concentrationId])
-  // Raw SQL in the migration: CHECK (kgPerDay > 0) and CHECK (exactly one of feedItemId /
-  // concentrationId, matching lineType).
 }
 
 /// UI label only — every kind behaves identically. The two SHORTCUT kinds mark the one-line plans
@@ -97,14 +97,14 @@ model FeedPlanAssignment {
   removedBy String?
 
   plan FeedPlan @relation(fields: [planId], references: [id])
+  // Raw SQL in the migration (same technique as `FeedFeedingDraft`/RD-089): CHECK that the target ids
+  // match `targetType`, and three partial unique indexes — one active row per (farmId, cattleId) for
+  // INDIVIDUAL, per (farmId, animalGroupId) for GROUP, per farmId for HERD.
 
   @@index([farmId, removedAt])
   @@index([planId, removedAt])
   @@index([cattleId])
   @@index([animalGroupId])
-  // Raw SQL in the migration (same technique as `FeedFeedingDraft`/RD-089): CHECK that the target ids
-  // match `targetType`, and three partial unique indexes — one active row per (farmId, cattleId) for
-  // INDIVIDUAL, per (farmId, animalGroupId) for GROUP, per farmId for HERD.
 }
 
 enum FeedPlanTarget {
@@ -125,10 +125,10 @@ model FeedPlanFitDay {
   cattleId String
 
   /// The day the fit was judged (calendar date, UTC).
-  date      DateTime         @db.Date
+  date      DateTime        @db.Date
   severity  FeedFitSeverity
-  estimated Boolean          @default(false)
-  createdAt DateTime         @default(now())
+  estimated Boolean         @default(false)
+  createdAt DateTime        @default(now())
 
   plan FeedPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
 

@@ -82,7 +82,7 @@ model HealthPlan {
   condition   HealthCondition?
 
   cycleLengthDays  Int?
-  totalActionSteps Int @default(0)
+  totalActionSteps Int  @default(0)
 
   isTemplate Boolean   @default(false)
   deletedAt  DateTime?
@@ -117,8 +117,13 @@ model HealthPlanStep {
   medicineName String?
   doseAmount   Decimal?
   doseUnit     String?
+  /// Protocols v2: `Unit.id` of the dose unit (validated against the medicine's unit dimension in
+  /// the service). `doseUnit` above stays as the symbol snapshot for display/legacy rows.
+  doseUnitId   String?
   route        MedicineRoute?
 
+  /// Optional time of day ("HH:mm", farm-local) the step is due; null = any time that day.
+  timeOfDay          String?
   instruction        String?
   estimatedTime      String?
   milkWithdrawalDays Int?
@@ -159,7 +164,10 @@ model HealthTask {
   medicineName String?
   doseAmount   Decimal?
   doseUnit     String?
+  doseUnitId   String?
   route        MedicineRoute?
+  /// Copied from the plan step; `dueDateTime` already carries it when set.
+  timeOfDay    String?
 
   completedAt DateTime?
   completedBy String?
@@ -232,6 +240,13 @@ model PlanEnrollment {
   currentStep        Int                  @default(0)
   totalSteps         Int                  @default(0)
   progressPercentage Int                  @default(0)
+
+  /// Protocols v2 auto-repeat: 1 = first run; each auto re-apply increments it. `repeatedFromId`
+  /// links to the previous cycle; `nextCycleCreatedAt` is the idempotency marker the cycle sweep
+  /// stamps (in the same transaction as the successor) so a cycle is never spawned twice.
+  cycleNumber        Int       @default(1)
+  repeatedFromId     String?
+  nextCycleCreatedAt DateTime?
 
   deletedAt DateTime?
   createdAt DateTime  @default(now())

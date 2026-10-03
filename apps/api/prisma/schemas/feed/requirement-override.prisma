@@ -41,11 +41,11 @@ model CattleRequirementOverride {
 
   farm   Farm   @relation(fields: [farmId], references: [id])
   cattle Cattle @relation(fields: [cattleId], references: [id])
-
-  @@index([farmId, cattleId, effectiveFrom])
   // Raw SQL in the migration (same technique as `FeedPlanAssignment`): a partial unique index — at most one
   // open row per (farmId, cattleId) WHERE "effectiveTo" IS NULL — and
   // CHECK ("dmKg" > 0 AND "cpKg" > 0 AND "meMj" > 0 AND "cpKg" < "dmKg").
+
+  @@index([farmId, cattleId, effectiveFrom])
 }
 
 enum RequirementOverrideEndReason {

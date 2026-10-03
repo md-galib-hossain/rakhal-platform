@@ -89,7 +89,7 @@ describe('Health — protocols on one animal (list + stop)', () => {
       planIds.push(res.body.data.id);
       return res.body.data.id as string;
     };
-    const step = [{ dayNumber: 0, title: 'Dose', actionType: 'MEDICINE' }];
+    const step = [{ dayNumber: 0, title: 'Dose', actionType: 'OBSERVATION' }];
     treatmentPlanId = await mk({
       name: `${tag} treatment`,
       category: 'TREATMENT',

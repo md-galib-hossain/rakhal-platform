@@ -43,9 +43,9 @@ model FeedItem {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  farm       Farm            @relation("FarmToForage", fields: [farmId], references: [id])
-  creator    User            @relation("ForageCreator", fields: [createdBy], references: [id])
-  ingredient FeedIngredient? @relation(fields: [ingredientId], references: [id])
+  farm                    Farm              @relation("FarmToForage", fields: [farmId], references: [id])
+  creator                 User              @relation("ForageCreator", fields: [createdBy], references: [id])
+  ingredient              FeedIngredient?   @relation(fields: [ingredientId], references: [id])
   defaultNutritionProfile NutritionProfile? @relation("FeedItemDefaultNutritionProfile", fields: [defaultNutritionProfileId], references: [id])
 
   /// MILESTONE 26: the lots of this product (RAKHAL-442) — the only place stock, cost and purchase date live.

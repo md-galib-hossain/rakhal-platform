@@ -292,6 +292,16 @@ export class HealthController {
     return this.roundsService.addAnimals(farmId, userId, roundKey, dto);
   }
 
+  @Get('plans/:id/stock-check')
+  @RequirePermission('healthcare.read')
+  stockCheck(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @Query('animals') animals?: string,
+  ) {
+    return this.healthService.stockCheck(farmId, id, Number(animals) || 1);
+  }
+
   @Patch('plans/:id')
   @RequirePermission('healthcare.update')
   updatePlan(

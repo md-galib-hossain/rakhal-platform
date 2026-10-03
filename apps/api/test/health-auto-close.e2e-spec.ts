@@ -44,8 +44,8 @@ describe('Health — auto-close on protocol completion (RAKHAL-417)', () => {
         category: 'TREATMENT',
         planType: 'MEDICAL',
         steps: [
-          { dayNumber: 1, title: 'Step one', actionType: 'MEDICINE' },
-          { dayNumber: 2, title: 'Step two', actionType: 'MEDICINE' },
+          { dayNumber: 1, title: 'Step one', actionType: 'OBSERVATION' },
+          { dayNumber: 2, title: 'Step two', actionType: 'OBSERVATION' },
         ],
       });
     expect(res.status).toBe(201);

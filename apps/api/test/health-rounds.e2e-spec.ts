@@ -139,8 +139,8 @@ describe('Health — protocol rounds list + grid (RAKHAL-471/472)', () => {
       return res.body.data.id as string;
     };
     const steps = [
-      { dayNumber: 0, title: 'Dose', actionType: 'MEDICINE' },
-      { dayNumber: 2, title: 'Booster', actionType: 'MEDICINE' },
+      { dayNumber: 0, title: 'Dose', actionType: 'OBSERVATION' },
+      { dayNumber: 2, title: 'Booster', actionType: 'OBSERVATION' },
     ];
     treatmentPlanId = await mk({
       name: `${tag} treatment`,

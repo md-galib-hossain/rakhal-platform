@@ -33,7 +33,7 @@ model NutritionProfile {
   note            String?
 
   /// The profile this one replaced (edit history / revert target). Null on a first profile.
-  supersedesId String?
+  supersedesId           String?
   /// Set when the values were copied from a Rakhal catalogue ingredient — provenance for the
   /// "differs from catalogue" hint and Re-sync. Plain scalar: no live join, the values are a copy.
   copiedFromIngredientId String?
