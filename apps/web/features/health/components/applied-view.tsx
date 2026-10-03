@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
-import { ChevronRight, UserPlus } from "lucide-react";
+import { ChevronRight, Undo2, UserPlus } from "lucide-react";
+import { toast } from "sonner";
+import { ApiError } from "@/lib/api/errors";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { cn } from "@/lib/utils";
 import { useCan } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
@@ -14,7 +17,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { Pagination } from "@/components/shared/pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/hooks/use-cursor-pager";
-import { useRounds } from "../hooks/use-health";
+import { useCancelRound, useRounds } from "../hooks/use-health";
 import { APPLIED_STATUSES, farmDay, roundMatchesStatus, roundProgressPct, roundUrgency, type AppliedStatus } from "../round-model";
 import type { HealthPlanKind, ProtocolRound } from "../types";
 import { RoundAnimalsDialog } from "./round-animals-dialog";
@@ -56,6 +59,19 @@ export function AppliedView({
   const running = useRounds({ status: "RUNNING", ...filters });
   const finishedQuery = useRounds({ status: "FINISHED", ...filters }, { enabled: status === "finished" });
   const [adding, setAdding] = useState<ProtocolRound | null>(null);
+  // Undo a whole application (applied to the wrong group / the wrong protocol): one call reverses every dose and removes the round.
+  const [cancelling, setCancelling] = useState<ProtocolRound | null>(null);
+  const cancelRound = useCancelRound();
+  const tUndo = useTranslations("health.protocolUndo");
+  async function confirmCancelRound() {
+    if (!cancelling) return;
+    try {
+      const result = await cancelRound.mutateAsync({ roundKey: cancelling.roundKey });
+      toast.success(tUndo("roundCancelledToast", { animals: result.animals, doses: result.dosesReversed }));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : tUndo("genericError"));
+    }
+  }
   // Page + size follow the list they were chosen on: a new status / filter starts again at page 1.
   const listKey = `${status}|${kind}|${search}`;
   const [paging, setPaging] = useState({ key: listKey, page: 1, size: DEFAULT_PAGE_SIZE });
@@ -149,7 +165,7 @@ export function AppliedView({
             </TableHeader>
             <TableBody>
               {pageRows.map((round) => (
-                <AppliedRow key={round.roundKey} round={round} onOpen={onOpen} onAdd={setAdding} />
+                <AppliedRow key={round.roundKey} round={round} onOpen={onOpen} onAdd={setAdding} onCancel={setCancelling} />
               ))}
             </TableBody>
           </Table>
@@ -174,11 +190,30 @@ export function AppliedView({
       {picker}
       {body}
       {adding ? <RoundAnimalsDialog round={adding} open onOpenChange={(next) => !next && setAdding(null)} /> : null}
+      <ConfirmDialog
+        open={cancelling !== null}
+        onOpenChange={(open) => !open && setCancelling(null)}
+        title={tUndo("roundTitle")}
+        description={cancelling ? tUndo("roundBody", { protocol: cancelling.healthPlan.name, count: cancelling.animalCount }) : undefined}
+        confirmLabel={tUndo("roundConfirm")}
+        cancelLabel={tUndo("back")}
+        onConfirm={confirmCancelRound}
+      />
     </div>
   );
 }
 
-function AppliedRow({ round, onOpen, onAdd }: { round: ProtocolRound; onOpen: (round: ProtocolRound) => void; onAdd: (round: ProtocolRound) => void }) {
+function AppliedRow({
+  round,
+  onOpen,
+  onAdd,
+  onCancel,
+}: {
+  round: ProtocolRound;
+  onOpen: (round: ProtocolRound) => void;
+  onAdd: (round: ProtocolRound) => void;
+  onCancel: (round: ProtocolRound) => void;
+}) {
   const t = useTranslations("health.healthPlan.applied");
   const tRounds = useTranslations("health.healthPlan.rounds");
   const tCard = useTranslations("health.healthPlan.card");
@@ -246,6 +281,22 @@ function AppliedRow({ round, onOpen, onAdd }: { round: ProtocolRound; onOpen: (r
               }}
             >
               <UserPlus className="size-4" aria-hidden />
+            </Button>
+          ) : null}
+          {can("healthcare.update") && !finished ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-9 text-destructive hover:border-destructive hover:bg-destructive/5"
+              aria-label={t("cancelApplication")}
+              title={t("cancelApplication")}
+              onClick={(e) => {
+                e.stopPropagation();
+                onCancel(round);
+              }}
+            >
+              <Undo2 className="size-4" aria-hidden />
             </Button>
           ) : null}
           <Button

@@ -19,6 +19,7 @@ const h = vi.hoisted(() => ({
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
   remove: vi.fn(),
+  cancel: vi.fn(),
   phone: false,
 }));
 
@@ -42,6 +43,7 @@ vi.mock("../hooks/use-health", () => ({
     };
   },
   useRemoveFromRound: () => ({ mutateAsync: h.remove }),
+  useCancelAnimalProtocol: () => ({ mutateAsync: h.cancel }),
   useProtocolTaskLoader: () => async (ids: string[]) => {
     h.loaderCalls.push(ids);
     return h.loaderResult;
@@ -138,6 +140,7 @@ describe("RoundProgressGrid (RFE-147)", () => {
     h.toastError.mockReset();
     h.toastSuccess.mockReset();
     h.remove.mockReset().mockResolvedValue({});
+    h.cancel.mockReset().mockResolvedValue({ stepsRemoved: 2, dosesReversed: 1 });
     h.phone = false;
   });
 
@@ -273,9 +276,9 @@ describe("RoundProgressGrid (RFE-147)", () => {
       renderGrid();
       fireEvent.click(screen.getByRole("button", { name: "Remove Tuni from this round" }));
       expect(await screen.findByText("Remove from FMD vaccine?")).toBeTruthy();
-      expect(screen.getByText(/Other animals on the round are not affected/)).toBeTruthy();
+      expect(screen.getByText(/The animal leaves the round/)).toBeTruthy();
       expect(h.remove).not.toHaveBeenCalled();
-      fireEvent.click(lastButton("Remove from protocol"));
+      fireEvent.click(lastButton("Stop protocol"));
       await waitFor(() => expect(h.remove).toHaveBeenCalledWith({ cattleId: "c-u", dto: { planEnrollmentId: "u" } }));
       await waitFor(() => expect(h.toastSuccess).toHaveBeenCalledWith(en.health.cattleProtocols.removedToast));
     });
@@ -284,8 +287,19 @@ describe("RoundProgressGrid (RFE-147)", () => {
       renderGrid();
       fireEvent.click(screen.getByRole("button", { name: "Remove Bhola from this round" }));
       expect(await screen.findByText(/The sickness case stays open/)).toBeTruthy();
-      fireEvent.click(lastButton("Remove from protocol"));
+      fireEvent.click(lastButton("Stop protocol"));
       await waitFor(() => expect(h.remove).toHaveBeenCalledWith({ cattleId: "c-b", dto: { healthCaseId: "case-1" } }));
+    });
+
+    it("cancels an animal applied by mistake in ONE call (not step by step)", async () => {
+      renderGrid();
+      fireEvent.click(screen.getByRole("button", { name: "Remove Tuni from this round" }));
+      await screen.findByText("Remove from FMD vaccine?");
+      fireEvent.click(screen.getByRole("radio", { name: /Cancel it - applied by mistake/ }));
+      fireEvent.click(lastButton("Cancel protocol"));
+      await waitFor(() => expect(h.cancel).toHaveBeenCalledWith({ cattleId: "c-u", dto: { planEnrollmentId: "u" } }));
+      expect(h.remove).not.toHaveBeenCalled();
+      await waitFor(() => expect(h.toastSuccess).toHaveBeenCalledWith(expect.stringContaining("Protocol cancelled")));
     });
 
     it("a failed removal says so", async () => {
@@ -293,7 +307,7 @@ describe("RoundProgressGrid (RFE-147)", () => {
       renderGrid();
       fireEvent.click(screen.getByRole("button", { name: "Remove Tuni from this round" }));
       await screen.findByText("Remove from FMD vaccine?");
-      fireEvent.click(lastButton("Remove from protocol"));
+      fireEvent.click(lastButton("Stop protocol"));
       await waitFor(() => expect(h.toastError).toHaveBeenCalledWith(en.health.cattleProtocols.genericError));
     });
 

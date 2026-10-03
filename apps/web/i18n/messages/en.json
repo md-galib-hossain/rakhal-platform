@@ -3366,6 +3366,31 @@
         "genericError": "Something went wrong. Please try again."
       }
     },
+    "protocolUndo": {
+      "title": "Remove from {protocol}?",
+      "description": "Choose whether to stop the protocol or cancel it because it was applied by mistake.",
+      "stopTitle": "Stop it here",
+      "stopBodyCase": "The protocol ends. Steps not done yet are skipped. Doses already recorded stay in stock, costs and history. The sickness case stays open for manual care.",
+      "stopBodyRound": "The animal leaves the round. Steps not done yet are skipped. Doses already recorded stay in stock, costs and history.",
+      "cancelTitle": "Cancel it - applied by mistake",
+      "cancelBodyCase": "Every step is deleted and every recorded dose is reversed in one go: the stock goes back, the expense is reversed and the withdrawal is cancelled. The sickness case this created is removed too, unless it has other records.",
+      "cancelBodyRound": "Every step is deleted and every recorded dose is reversed in one go: the stock goes back, the expense is reversed and the withdrawal is cancelled. It is as if it was never applied to this animal.",
+      "reasonLabel": "Reason (optional)",
+      "reasonPlaceholder": "e.g. applied to the wrong animal",
+      "back": "Back",
+      "confirmStop": "Stop protocol",
+      "confirmCancel": "Cancel protocol",
+      "cancelledToast": "Protocol cancelled. {doses, plural, =0 {No doses to reverse.} one {1 dose reversed.} other {# doses reversed.}}",
+      "roundTitle": "Cancel this application?",
+      "roundBody": "This cancels {protocol} for all {count, plural, one {1 animal} other {# animals}} in one go. Every recorded dose is reversed (stock goes back, expenses are reversed, withdrawals are cancelled), every step is deleted and any sickness case created by it is removed. This cannot be undone.",
+      "roundConfirm": "Cancel application",
+      "roundCancelledToast": "Application cancelled for {animals, plural, one {1 animal} other {# animals}}. {doses, plural, =0 {No doses to reverse.} one {1 dose reversed.} other {# doses reversed.}}",
+      "voidTitle": "Void this dose?",
+      "voidBody": "The stock goes back to the batch it came from, the expense is reversed, the withdrawal it created is cancelled, and the step becomes pending again so you can record it correctly.",
+      "voidConfirm": "Void dose",
+      "voidedToast": "Dose voided. Stock restored.",
+      "genericError": "Something went wrong. Please try again."
+    },
     "cattleProtocols": {
       "title": "Protocols",
       "openProtocols": "Open protocols",
@@ -3421,6 +3446,7 @@
         "showAll": "Show all",
         "details": "Details",
         "addAnimals": "Add animals",
+        "cancelApplication": "Cancel application",
         "expand": "Show the animals of {name}, started {date}",
         "collapse": "Hide the animals of {name}, started {date}",
         "table": {
@@ -3953,6 +3979,7 @@
           "progress": { "IMPROVING": "improving", "WORSENING": "worsening", "STABLE": "stable" },
           "treatment": "Treatment — {medicine}",
           "unnamedTreatment": "Treatment",
+          "voidDose": "Void dose",
           "stepOf": "Step {number} of {total}",
           "stepDone": "Step done — {title}",
           "stepStatus": "Step {status} — {title}",

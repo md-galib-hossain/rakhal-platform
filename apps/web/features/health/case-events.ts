@@ -23,6 +23,8 @@ export type CaseEvent =
   | {
       kind: "treatment";
       id: string;
+      /** The `TreatmentLog` id — what a "Void dose" acts on. */
+      logId: string;
       at: string;
       medicine: string | null;
       dose: string | null;
@@ -79,6 +81,7 @@ export function buildCaseEvents(c: HealthCaseDetail): CaseEvent[] {
     events.push({
       kind: "treatment",
       id: `treatment-${log.id}`,
+      logId: log.id,
       at: log.administeredAt,
       medicine: log.medicineName,
       dose: log.doseAmount != null ? `${log.doseAmount} ${log.doseUnit ?? ""}`.trim() : null,

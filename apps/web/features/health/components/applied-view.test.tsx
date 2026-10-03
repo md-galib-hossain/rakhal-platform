@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import en from "@/i18n/messages/en.json";
 import type { ProtocolRound } from "../types";
@@ -14,10 +14,14 @@ const h = vi.hoisted(() => ({
   hasNextPage: false,
   calls: [] as Array<{ filters: Record<string, unknown>; options?: { enabled?: boolean } }>,
   canUpdate: true,
+  cancelRound: vi.fn(),
+  toastSuccess: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/permissions", () => ({ useCan: () => (permission: string) => (permission === "healthcare.update" ? h.canUpdate : true) }));
+vi.mock("sonner", () => ({ toast: { success: (m: string) => h.toastSuccess(m), error: vi.fn() } }));
 vi.mock("../hooks/use-health", () => ({
+  useCancelRound: () => ({ mutateAsync: h.cancelRound }),
   useRounds: (filters: Record<string, unknown>, options?: { enabled?: boolean }) => {
     h.calls.push({ filters, options });
     const items = filters.status === "FINISHED" ? h.finished : h.running;
@@ -68,6 +72,8 @@ describe("AppliedView (table)", () => {
     h.hasNextPage = false;
     h.calls = [];
     h.canUpdate = true;
+    h.cancelRound.mockReset().mockResolvedValue({ animals: 12, dosesReversed: 3 });
+    h.toastSuccess.mockReset();
   });
 
   it("offers one status choice with counts, instead of separate Late only and Finished switches", () => {
@@ -146,10 +152,29 @@ describe("AppliedView (table)", () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
-  it("a worker sees no Add animals", () => {
+  it("Cancel application asks first, then cancels the whole round in ONE call", async () => {
+    const { onOpen } = renderView();
+    fireEvent.click(screen.getAllByRole("button", { name: "Cancel application" })[0]);
+    expect(await screen.findByText("Cancel this application?")).toBeTruthy();
+    expect(screen.getByText(/for all 12 animals in one go/)).toBeTruthy();
+    expect(h.cancelRound).not.toHaveBeenCalled();
+    const confirm = screen.getAllByRole("button", { name: "Cancel application" }).at(-1)!;
+    fireEvent.click(confirm);
+    await waitFor(() => expect(h.cancelRound).toHaveBeenCalledWith({ roundKey: "late" }));
+    await waitFor(() => expect(h.toastSuccess).toHaveBeenCalledWith(expect.stringContaining("Application cancelled for 12 animals")));
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("a finished round cannot be cancelled", () => {
+    renderView({ status: "finished" });
+    expect(screen.queryByRole("button", { name: "Cancel application" })).toBeNull();
+  });
+
+  it("a worker sees no Add animals or Cancel application", () => {
     h.canUpdate = false;
     renderView();
     expect(screen.queryByRole("button", { name: "Add animals" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Cancel application" })).toBeNull();
     expect(screen.getByText("FMD vaccine")).toBeTruthy();
   });
 

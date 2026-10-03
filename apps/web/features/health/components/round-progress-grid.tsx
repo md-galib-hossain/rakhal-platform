@@ -10,12 +10,12 @@ import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { ApiError } from "@/lib/api/errors";
 import { Chip } from "@/components/ui/chip";
 import { AnimalLink } from "@/components/shared/animal-link";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ProtocolRemoveDialog, type RemoveMode } from "./protocol-remove-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useProtocolTaskLoader, useRemoveFromRound, useRoundGrid } from "../hooks/use-health";
+import { useCancelAnimalProtocol, useProtocolTaskLoader, useRemoveFromRound, useRoundGrid } from "../hooks/use-health";
 import { groupOfTasks, isDueState, type GridCell } from "../protocol-grid-model";
 import type { ScheduledTaskGroup } from "../task-grouping";
 import type { HealthTask, ProtocolRound, RoundGridCell, RoundGridRow } from "../types";
@@ -70,6 +70,8 @@ export function RoundProgressGrid({
   const [rescheduling, setRescheduling] = useState<ScheduledTaskGroup | undefined>(undefined);
   const [skipping, setSkipping] = useState<HealthTask | null>(null);
   const removeFromRound = useRemoveFromRound();
+  const cancelAnimal = useCancelAnimalProtocol();
+  const tUndo = useTranslations("health.protocolUndo");
   const [removing, setRemoving] = useState<RoundGridRow | null>(null);
 
   const pages = useMemo(() => query.data?.pages ?? [], [query.data]);
@@ -103,16 +105,20 @@ export function RoundProgressGrid({
   };
   /** RFE-148 — take this animal off the round's protocol: its open steps are skipped and kept in history, and it leaves the
    * round (a sickness case stays open for manual care). Same server action as the cow's own Protocols section. */
-  async function confirmRemove() {
+  async function confirmRemove(mode: RemoveMode, reason: string | undefined) {
     if (!removing) return;
+    const target = removing.healthCaseId ? { healthCaseId: removing.healthCaseId } : { planEnrollmentId: removing.planEnrollmentId ?? undefined };
     try {
-      await removeFromRound.mutateAsync({
-        cattleId: removing.cattle.id,
-        dto: removing.healthCaseId ? { healthCaseId: removing.healthCaseId } : { planEnrollmentId: removing.planEnrollmentId ?? undefined },
-      });
-      toast.success(tProto("removedToast"));
+      if (mode === "cancel") {
+        const result = await cancelAnimal.mutateAsync({ cattleId: removing.cattle.id, dto: { ...target, reason } });
+        toast.success(tUndo("cancelledToast", { doses: result.dosesReversed }));
+      } else {
+        await removeFromRound.mutateAsync({ cattleId: removing.cattle.id, dto: { ...target, reason } });
+        toast.success(tProto("removedToast"));
+      }
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : tProto("genericError"));
+      throw err;
     }
   }
   async function recordColumn(columnKey: string) {
@@ -383,13 +389,11 @@ export function RoundProgressGrid({
       <RecordBatchDialog group={recording} onOpenChange={(open) => !open && setRecording(undefined)} />
       <TaskRescheduleDialog group={rescheduling} onOpenChange={(open) => !open && setRescheduling(undefined)} />
       <SkipTaskDialog task={skipping} onOpenChange={(open) => !open && setSkipping(null)} />
-      <ConfirmDialog
+      <ProtocolRemoveDialog
         open={removing !== null}
         onOpenChange={(open) => !open && setRemoving(null)}
-        title={tProto("removeConfirmTitle", { protocol: round.healthPlan.name })}
-        description={removing?.healthCaseId ? tProto("removeConfirmBodyCase") : tProto("removeConfirmBodyRound")}
-        confirmLabel={tProto("remove")}
-        cancelLabel={tProto("cancel")}
+        protocolName={round.healthPlan.name}
+        hasCase={Boolean(removing?.healthCaseId)}
         onConfirm={confirmRemove}
       />
     </div>

@@ -13,12 +13,14 @@ const h = vi.hoisted(() => ({
   canUpdate: true,
   skip: vi.fn(),
   stop: vi.fn(),
+  cancel: vi.fn(),
 }));
 
 vi.mock("../hooks/use-health", () => ({
   useCattleProtocols: () => ({ data: { items: h.items }, isLoading: h.isLoading, isError: h.isError, refetch: vi.fn() }),
   useSkipTask: () => ({ mutateAsync: h.skip }),
   useStopCattleProtocol: () => ({ mutateAsync: h.stop }),
+  useCancelAnimalProtocol: () => ({ mutateAsync: h.cancel }),
 }));
 vi.mock("@/lib/auth/permissions", () => ({
   Can: ({ children }: { children: React.ReactNode }) => (h.canUpdate ? <>{children}</> : null),
@@ -64,6 +66,7 @@ describe("CattleProtocolsSection — every protocol on one animal", () => {
     h.canUpdate = true;
     h.skip.mockReset().mockResolvedValue({});
     h.stop.mockReset().mockResolvedValue({});
+    h.cancel.mockReset().mockResolvedValue({ stepsRemoved: 3, dosesReversed: 1 });
   });
 
   it("says so when the animal is on nothing", () => {
@@ -114,9 +117,22 @@ describe("CattleProtocolsSection — every protocol on one animal", () => {
     renderSection();
     fireEvent.click(screen.getByRole("button", { name: "Remove from protocol" }));
     expect(await screen.findByText("Remove from FMD vaccine?")).toBeTruthy();
-    expect(screen.getByText(/Other animals on the round are not affected/)).toBeTruthy();
-    fireEvent.click(lastButton("Remove from protocol"));
+    expect(screen.getByText(/The animal leaves the round/)).toBeTruthy();
+    fireEvent.click(lastButton("Stop protocol"));
     await waitFor(() => expect(h.stop).toHaveBeenCalledWith({ planEnrollmentId: "e1" }));
+    expect(h.cancel).not.toHaveBeenCalled();
+  });
+
+  it("cancelling an application applied by mistake reverses it in ONE call, with the reason", async () => {
+    h.items = [run({})];
+    renderSection();
+    fireEvent.click(screen.getByRole("button", { name: "Remove from protocol" }));
+    await screen.findByText("Remove from FMD vaccine?");
+    fireEvent.click(screen.getByRole("radio", { name: /Cancel it - applied by mistake/ }));
+    fireEvent.change(screen.getByLabelText("Reason (optional)"), { target: { value: "wrong cow" } });
+    fireEvent.click(lastButton("Cancel protocol"));
+    await waitFor(() => expect(h.cancel).toHaveBeenCalledWith({ cattleId: "c1", dto: { planEnrollmentId: "e1", reason: "wrong cow" } }));
+    expect(h.stop).not.toHaveBeenCalled();
   });
 
   it("a treatment run is removed by case id and the dialog says the case stays open", async () => {
@@ -124,7 +140,7 @@ describe("CattleProtocolsSection — every protocol on one animal", () => {
     renderSection();
     fireEvent.click(screen.getByRole("button", { name: "Remove from protocol" }));
     expect(await screen.findByText(/The sickness case stays open/)).toBeTruthy();
-    fireEvent.click(lastButton("Remove from protocol"));
+    fireEvent.click(lastButton("Stop protocol"));
     await waitFor(() => expect(h.stop).toHaveBeenCalledWith({ healthCaseId: "k1" }));
   });
 

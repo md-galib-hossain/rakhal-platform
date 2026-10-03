@@ -471,6 +471,14 @@ export interface ProtocolStockShortfall {
   unit: string;
 }
 
+/** What an undo (cancel an animal's protocol, cancel a round) did, so the toast can say it. */
+export interface UndoResult {
+  stepsRemoved: number;
+  dosesReversed: number;
+  /** A sickness case the apply had created was deleted with it. */
+  caseRemoved?: boolean;
+}
+
 export interface ProtocolStockCheck {
   ok: boolean;
   shortfalls: ProtocolStockShortfall[];

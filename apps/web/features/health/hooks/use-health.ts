@@ -380,6 +380,46 @@ export function useStopCattleProtocol(cattleId: string) {
   });
 }
 
+/** An undo reverses stock and Finance as well as health data, so it refreshes all of them. */
+function useInvalidateAfterUndo() {
+  const queryClient = useQueryClient();
+  return (cattleId?: string) => {
+    for (const root of ["health", "inventory", "finance", "purchasing", "dashboard", "reports", "cattle"]) {
+      void queryClient.invalidateQueries({ queryKey: [root] });
+    }
+    if (cattleId) {
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.healthSummary(cattleId) });
+    }
+  };
+}
+
+/** Cancel one animal's application as a mistake, in one call (the animal is chosen per call, like `useRemoveFromRound`). */
+export function useCancelAnimalProtocol() {
+  const invalidate = useInvalidateAfterUndo();
+  return useMutation({
+    mutationFn: ({ cattleId, dto }: { cattleId: string; dto: StopCattleProtocolPayload }) => healthApi.cancelCattleProtocol(cattleId, dto),
+    onSuccess: (_data, { cattleId }) => invalidate(cattleId),
+  });
+}
+
+/** Cancel a whole application (every animal of a round) in one call. */
+export function useCancelRound() {
+  const invalidate = useInvalidateAfterUndo();
+  return useMutation({
+    mutationFn: ({ roundKey, reason }: { roundKey: string; reason?: string }) => healthApi.cancelRound(roundKey, reason),
+    onSuccess: () => invalidate(),
+  });
+}
+
+/** Void one recorded dose. */
+export function useVoidTreatment() {
+  const invalidate = useInvalidateAfterUndo();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) => healthApi.voidTreatment(id, reason),
+    onSuccess: () => invalidate(),
+  });
+}
+
 /** Pages of 100 tasks a protocol's grid reads before it stops and says so (RD-117: the rounds API in RAKHAL-471/472
  * lifts this). 5 × 100 = 500 steps ≈ 40 animals on a 12-step protocol, 160 on a 3-step one. */
 const PROTOCOL_GRID_MAX_PAGES = 5;

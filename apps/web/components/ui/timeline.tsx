@@ -7,6 +7,8 @@ export interface TimelineItem {
   title: ReactNode;
   subtitle?: ReactNode;
   date: ReactNode;
+  /** Optional control under the row (e.g. a "Void" button) — purely presentational, the caller owns what it does. */
+  action?: ReactNode;
   /** Dot/icon color — "muted" for a closed/past-only marker with no semantic weight. */
   tone?: "primary" | "success" | "warning" | "info" | "muted";
 }
@@ -45,6 +47,7 @@ export function Timeline({ items, className }: { items: TimelineItem[]; classNam
                 <span className="text-xs text-muted-foreground">{item.date}</span>
               </div>
               {item.subtitle ? <span className="text-xs text-muted-foreground">{item.subtitle}</span> : null}
+              {item.action ? <div className="pt-1">{item.action}</div> : null}
             </div>
           </li>
         );

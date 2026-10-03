@@ -15,7 +15,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DateText } from "@/components/shared/date-text";
 import { ErrorState } from "@/components/shared/error-state";
-import { useCattleProtocols, useSkipTask, useStopCattleProtocol } from "../hooks/use-health";
+import { useCancelAnimalProtocol, useCattleProtocols, useSkipTask, useStopCattleProtocol } from "../hooks/use-health";
+import { ProtocolRemoveDialog, type RemoveMode } from "./protocol-remove-dialog";
 import type { CattleProtocolRun } from "../types";
 import { AppliedProtocolChip } from "./applied-protocol-chip";
 
@@ -39,6 +40,8 @@ export function CattleProtocolsSection({ cattleId }: { cattleId: string }) {
   const query = useCattleProtocols(cattleId);
   const skipTask = useSkipTask();
   const stopProtocol = useStopCattleProtocol(cattleId);
+  const cancelProtocol = useCancelAnimalProtocol();
+  const tUndo = useTranslations("health.protocolUndo");
   const [pending, setPending] = useState<Pending>(null);
 
   if (query.isLoading) return <Skeleton className="h-24 w-full rounded-xl" />;
@@ -54,12 +57,28 @@ export function CattleProtocolsSection({ cattleId }: { cattleId: string }) {
         void queryClient.invalidateQueries({ queryKey: ["health", "cattle-protocols"] });
         void queryClient.invalidateQueries({ queryKey: ["health", "plans"] });
         toast.success(t("skippedToast"));
-      } else if (kind === "remove") {
-        await stopProtocol.mutateAsync(run.healthCaseId ? { healthCaseId: run.healthCaseId } : { planEnrollmentId: run.planEnrollmentId ?? undefined });
+      }
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("genericError"));
+    }
+  }
+
+  /** Stop keeps what happened; Cancel (applied by mistake) reverses every recorded dose and deletes the steps, in one call. */
+  async function confirmRemove(mode: RemoveMode, reason: string | undefined) {
+    if (pending?.kind !== "remove") return;
+    const { run } = pending;
+    const target = run.healthCaseId ? { healthCaseId: run.healthCaseId } : { planEnrollmentId: run.planEnrollmentId ?? undefined };
+    try {
+      if (mode === "cancel") {
+        const result = await cancelProtocol.mutateAsync({ cattleId, dto: { ...target, reason } });
+        toast.success(tUndo("cancelledToast", { doses: result.dosesReversed }));
+      } else {
+        await stopProtocol.mutateAsync({ ...target, reason });
         toast.success(t("removedToast"));
       }
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
+      throw err;
     }
   }
 
@@ -126,19 +145,20 @@ export function CattleProtocolsSection({ cattleId }: { cattleId: string }) {
       )}
 
       <ConfirmDialog
-        open={pending !== null}
+        open={pending?.kind === "skip"}
         onOpenChange={(open) => !open && setPending(null)}
-        title={pending?.kind === "skip" ? t("skipConfirmTitle") : t("removeConfirmTitle", { protocol: pending?.run.healthPlan.name ?? "" })}
-        description={
-          pending?.kind === "skip"
-            ? t("skipConfirmBody", { step: pending.run.nextStep?.title ?? "", protocol: pending.run.healthPlan.name })
-            : pending?.run.healthCaseId
-              ? t("removeConfirmBodyCase")
-              : t("removeConfirmBodyRound")
-        }
-        confirmLabel={pending?.kind === "skip" ? t("skipNext") : t("remove")}
+        title={t("skipConfirmTitle")}
+        description={pending?.kind === "skip" ? t("skipConfirmBody", { step: pending.run.nextStep?.title ?? "", protocol: pending.run.healthPlan.name }) : undefined}
+        confirmLabel={t("skipNext")}
         cancelLabel={t("cancel")}
         onConfirm={confirm}
+      />
+      <ProtocolRemoveDialog
+        open={pending?.kind === "remove"}
+        onOpenChange={(open) => !open && setPending(null)}
+        protocolName={pending?.run.healthPlan.name ?? ""}
+        hasCase={Boolean(pending?.run.healthCaseId)}
+        onConfirm={confirmRemove}
       />
     </div>
   );

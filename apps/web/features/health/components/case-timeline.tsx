@@ -1,7 +1,7 @@
 "use client"; // reads the active locale for dates
 
 import { useLocale, useTranslations } from "next-intl";
-import { Activity, CheckCircle2, ListChecks, ShieldAlert, Skull, Stethoscope, Syringe } from "lucide-react";
+import { Activity, CheckCircle2, ListChecks, ShieldAlert, Skull, Stethoscope, Syringe, Undo2 } from "lucide-react";
 import { Timeline, type TimelineItem } from "@/components/ui/timeline";
 import { formatDateTime } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
@@ -13,7 +13,7 @@ const ICON = "size-4";
 
 /** RFE-135 — the case story, newest first (`buildCaseEvents` decides what happened when; this only words and draws
  * it). Reuses the shared `Timeline` primitive. */
-export function CaseTimeline({ events }: { events: CaseEvent[] }) {
+export function CaseTimeline({ events, onVoid }: { events: CaseEvent[]; /** Given -> each recorded dose gets a "Void dose" action (the viewer has `healthcare.update`). */ onVoid?: (logId: string) => void }) {
   const t = useTranslations("health.caseSheet.overview.timeline");
   const tCondition = useTranslations("health.reportSickness");
   const locale = useLocale() as Locale;
@@ -55,6 +55,12 @@ export function CaseTimeline({ events }: { events: CaseEvent[] }) {
             .filter(Boolean)
             .join(" · "),
           date,
+          action: onVoid ? (
+            <button type="button" onClick={() => onVoid(event.logId)} className="flex items-center gap-1 text-xs font-medium text-destructive hover:underline">
+              <Undo2 className="size-3.5" aria-hidden />
+              {t("voidDose")}
+            </button>
+          ) : undefined,
         };
       case "stepDone":
         return { id: event.id, icon: <ListChecks className={ICON} aria-hidden />, tone: "success", title: t("stepDone", { title: event.title }), date };

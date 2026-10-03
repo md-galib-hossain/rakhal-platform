@@ -5,6 +5,11 @@ import { ClipboardList, ListChecks, ThumbsUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { ApiError } from "@/lib/api/errors";
+import { useCan } from "@/lib/auth/permissions";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { useVoidTreatment } from "../hooks/use-health";
 import { buildCaseEvents, suggestNext } from "../case-events";
 import type { CaseManageTab, HealthCaseDetail } from "../types";
 import { CaseResultSummary } from "./case-result-summary";
@@ -39,6 +44,20 @@ export function CaseOverviewTab({
 }) {
   const t = useTranslations("health.caseSheet.overview");
   const [protocolOpen, setProtocolOpen] = useState(false);
+  // Void a dose recorded by mistake: stock back to its batches, expense reversed, step back to pending.
+  const can = useCan();
+  const tUndo = useTranslations("health.protocolUndo");
+  const voidTreatment = useVoidTreatment();
+  const [voiding, setVoiding] = useState<string | null>(null);
+  async function confirmVoid() {
+    if (!voiding) return;
+    try {
+      await voidTreatment.mutateAsync({ id: voiding });
+      toast.success(tUndo("voidedToast"));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : tUndo("genericError"));
+    }
+  }
   const next = suggestNext(healthCase);
   const events = buildCaseEvents(healthCase);
 
@@ -81,8 +100,18 @@ export function CaseOverviewTab({
 
       <div className="flex flex-col gap-3">
         <p className="text-sm font-semibold text-foreground">{t("timelineTitle")}</p>
-        <CaseTimeline events={events} />
+        <CaseTimeline events={events} onVoid={can("healthcare.update") ? setVoiding : undefined} />
       </div>
+
+      <ConfirmDialog
+        open={voiding !== null}
+        onOpenChange={(open) => !open && setVoiding(null)}
+        title={tUndo("voidTitle")}
+        description={tUndo("voidBody")}
+        confirmLabel={tUndo("voidConfirm")}
+        cancelLabel={tUndo("back")}
+        onConfirm={confirmVoid}
+      />
     </div>
   );
 }

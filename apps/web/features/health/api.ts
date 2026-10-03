@@ -41,7 +41,7 @@ import type {
   TreatmentLog,
   UpdateHealthPlanPayload,
 } from "./types";
-import type { ProtocolStockCheck } from "./types";
+import type { ProtocolStockCheck, UndoResult } from "./types";
 
 /** `/health/*` — real backend routes (`health.controller.ts`/`cattle-health.controller.ts`),
  * `healthcare.*`-gated. */
@@ -172,6 +172,19 @@ export const healthApi = {
   /** Take one animal off one protocol; its open steps are skipped (kept in history). */
   stopCattleProtocol(cattleId: string, dto: StopCattleProtocolPayload): Promise<{ healthCaseId: string | null; planEnrollmentId: string | null }> {
     return apiFetch(`/cattle/${cattleId}/protocols/stop`, { method: "POST", body: dto });
+  },
+  /** Undo, one animal, one call: every recorded dose is reversed (stock back, expense reversed, withdrawal cancelled), every
+   * step deleted, and a sickness case the apply created is removed. Unlike `stopCattleProtocol` nothing is kept. */
+  cancelCattleProtocol(cattleId: string, dto: StopCattleProtocolPayload): Promise<UndoResult> {
+    return apiFetch<UndoResult>(`/cattle/${cattleId}/protocols/cancel`, { method: "POST", body: dto });
+  },
+  /** Undo a whole application (every animal of the round) in one call. */
+  cancelRound(roundKey: string, reason?: string): Promise<UndoResult & { roundKey: string; animals: number; casesRemoved: number }> {
+    return apiFetch(`/health/rounds/${encodeURIComponent(roundKey)}/cancel`, { method: "POST", body: { reason } });
+  },
+  /** Void one recorded dose: stock back to its batches, expense reversed, step back to pending. */
+  voidTreatment(id: string, reason?: string): Promise<{ id: string; voided: boolean }> {
+    return apiFetch(`/health/treatments/${id}/void`, { method: "POST", body: { reason } });
   },
   /** RFE-110: no longer a standalone tab, folded into Treatments as a "Withholding" filter
    * section — `activeOnly` backs its default view (RAKHAL-420's `SafetyWithdrawalQueryDto`). */
