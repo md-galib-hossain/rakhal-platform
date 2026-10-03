@@ -53,3 +53,11 @@ export class AddRoundAnimalsDto {
   @IsString({ each: true })
   cattleIds!: string[];
 }
+
+/** Body of the undo routes (`POST /health/rounds/:roundKey/cancel`, `POST /health/treatments/:id/void`): why it is undone. */
+export class UndoReasonDto {
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  reason?: string;
+}

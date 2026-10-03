@@ -143,6 +143,7 @@ export class HealthOutcomesService {
             farmId,
             healthCaseId: { in: cohort.map((row) => row.id) },
             financeTransactionId: { not: null },
+            voidedAt: null,
           },
           select: { healthCaseId: true, financeTransactionId: true },
         })

@@ -248,6 +248,10 @@ model PlanEnrollment {
   repeatedFromId     String?
   nextCycleCreatedAt DateTime?
 
+  /// Set (with `deletedAt`) when the whole application was cancelled as a mistake - see `HealthCancelService`.
+  cancelledAt  DateTime?
+  cancelReason String?
+
   deletedAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -293,6 +297,13 @@ model TreatmentLog {
   /// `purchasing/**`'s tables directly). Null when the treatment had no
   /// medicine or the medicine's `costPerUnit` was 0 — nothing to post.
   financeTransactionId String?
+
+  /// Protocols v2 undo: a recorded dose entered by mistake is *voided*, never deleted - the stock goes back to the
+  /// batch(es) it came from, the Finance expense is reversed and its safety withdrawal cancelled. A voided log stays
+  /// for the audit trail and is excluded from costs, counts and reports (`voidedAt: null` filter).
+  voidedAt   DateTime?
+  voidedBy   String?
+  voidReason String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

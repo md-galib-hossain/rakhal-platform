@@ -121,6 +121,19 @@ export class HealthService {
     this.log = this.logger.setContext(HealthService.name);
   }
 
+  /** Protocols v2 undo: stamp the log id on the stock movements its dose drew, so a void can reverse them batch-exactly. */
+  private async stampMovements(
+    tx: Prisma.TransactionClient,
+    movementIds: string[] | undefined,
+    treatmentLogId: string,
+  ) {
+    if (!movementIds || movementIds.length === 0) return;
+    await tx.medicineStockMovement.updateMany({
+      where: { id: { in: movementIds } },
+      data: { treatmentLogId },
+    });
+  }
+
   /** Protocols v2: resolves a step's due instant — the day offset plus its optional farm-local "HH:mm". */
   private async dueResolver(farmId: string) {
     const tz = (await this.farmClock?.timezone(farmId)) ?? 'UTC';
@@ -734,7 +747,10 @@ export class HealthService {
       where: { id, farmId },
       include: {
         ...this.caseInclude(),
-        treatmentLogs: { orderBy: { administeredAt: 'desc' } },
+        treatmentLogs: {
+          where: { voidedAt: null },
+          orderBy: { administeredAt: 'desc' },
+        },
         healthUpdates: { orderBy: { recordedAt: 'desc' } },
         tasks: { orderBy: { dueDateTime: 'asc' } },
         mortalityRecord: true,
@@ -1225,6 +1241,302 @@ export class HealthService {
     };
   }
 
+  /**
+   * `POST /health/treatments/:id/void` (protocols v2 undo) — a dose recorded by mistake. Gives the stock back to the exact
+   * batch(es) it was drawn from, reverses the Finance expense (journal reversal + `Expense.voidedAt`), cancels the safety
+   * withdrawal it created, marks the log voided (kept for the audit trail, excluded from costs / counts / reports) and puts
+   * its step back to PENDING so it can be recorded again correctly. Every step is idempotent, so a failed void can simply be
+   * retried. `opts.resetTask: false` / `skipProgress` are for the cancel flows, which delete the step right after.
+   */
+  async voidTreatmentLog(
+    farmId: string,
+    userId: string,
+    logId: string,
+    reason?: string,
+    opts: { resetTask?: boolean; skipProgress?: boolean } = {},
+  ) {
+    const log = await this.prisma.treatmentLog.findFirst({
+      where: { id: logId, farmId },
+    });
+    if (!log) throw new NotFoundException('Treatment not found');
+    if (log.voidedAt) {
+      throw new BadRequestException('This treatment was already voided');
+    }
+    const note = reason ? `Voided: ${reason}` : 'Voided';
+
+    await this.medicineService.restoreForTreatmentVoid(farmId, userId, {
+      treatmentLogId: log.id,
+      fallbackMedicineId: log.stockDeducted ? log.medicineId : null,
+      fallbackQuantity: log.stockDeducted
+        ? Number(log.stockDeductionQuantity ?? 0)
+        : null,
+      notes: `${note} (treatment ${log.id})`,
+    });
+    if (log.financeTransactionId) {
+      await this.expenseService.voidInventoryConsumption(
+        farmId,
+        log.financeTransactionId,
+        userId,
+      );
+    }
+
+    const taskId = log.healthTaskId;
+    await this.prisma.$transaction(async (tx) => {
+      await tx.safetyWithdrawal.updateMany({
+        where: {
+          farmId,
+          treatmentLogId: log.id,
+          status: {
+            in: [
+              SafetyWithdrawalStatus.ACTIVE,
+              SafetyWithdrawalStatus.READY_FOR_RELEASE,
+            ],
+          },
+        },
+        data: { status: SafetyWithdrawalStatus.CANCELLED },
+      });
+      await tx.treatmentLog.update({
+        where: { id: log.id },
+        data: { voidedAt: new Date(), voidedBy: userId, voidReason: reason },
+      });
+      if (taskId && opts.resetTask !== false) {
+        await tx.healthTask.update({
+          where: { id: taskId },
+          data: {
+            status: HealthTaskStatus.PENDING,
+            completedAt: null,
+            completedBy: null,
+          },
+        });
+      }
+    });
+
+    if (taskId && opts.resetTask !== false && !opts.skipProgress) {
+      const task = await this.prisma.healthTask.findUnique({
+        where: { id: taskId },
+        select: { healthCaseId: true, planEnrollmentId: true },
+      });
+      if (task?.healthCaseId) {
+        await this.updateCaseProgress(this.prisma, task.healthCaseId);
+      } else if (task?.planEnrollmentId) {
+        await this.updateEnrollmentProgress(this.prisma, task.planEnrollmentId);
+      }
+    }
+    this.log.info('Treatment voided', { farmId, treatmentLogId: log.id });
+    return { id: log.id, voided: true };
+  }
+
+  /** Voids every live dose of the given plan steps, then deletes the steps. Returns how many of each. */
+  private async cancelPlanTasks(
+    farmId: string,
+    userId: string,
+    taskWhere: Prisma.HealthTaskWhereInput,
+    reason?: string,
+  ) {
+    const tasks = await this.prisma.healthTask.findMany({
+      where: { farmId, deletedAt: null, ...taskWhere },
+      select: { id: true },
+    });
+    const taskIds = tasks.map((t) => t.id);
+    const logs = taskIds.length
+      ? await this.prisma.treatmentLog.findMany({
+          where: { farmId, healthTaskId: { in: taskIds }, voidedAt: null },
+          select: { id: true },
+        })
+      : [];
+    for (const log of logs) {
+      await this.voidTreatmentLog(
+        farmId,
+        userId,
+        log.id,
+        reason ?? 'Protocol cancelled',
+        {
+          resetTask: false,
+          skipProgress: true,
+        },
+      );
+    }
+    if (taskIds.length) {
+      await this.prisma.healthTask.updateMany({
+        where: { id: { in: taskIds } },
+        data: {
+          deletedAt: new Date(),
+          notes: reason
+            ? `Protocol cancelled: ${reason}`
+            : 'Protocol cancelled',
+        },
+      });
+    }
+    return { stepsRemoved: taskIds.length, dosesReversed: logs.length };
+  }
+
+  /**
+   * Cancel a preventive application on one animal as a mistake — in one call: every recorded dose is reversed (stock back,
+   * expense reversed, withdrawal cancelled), every step is deleted, the enrollment is archived and, when it was the last
+   * animal, the whole round disappears. Unlike `stopCattleProtocol` (keeps what happened, skips what is left), nothing of
+   * this remains in progress, costs or counts.
+   */
+  async cancelEnrollment(
+    farmId: string,
+    userId: string,
+    enrollmentId: string,
+    reason?: string,
+  ) {
+    const enrollment = await this.prisma.planEnrollment.findFirst({
+      where: { id: enrollmentId, farmId, deletedAt: null },
+      select: { id: true, planApplicationId: true },
+    });
+    if (!enrollment) {
+      throw new NotFoundException('That animal is not on this protocol');
+    }
+    const result = await this.cancelPlanTasks(
+      farmId,
+      userId,
+      { planEnrollmentId: enrollment.id },
+      reason,
+    );
+    await this.prisma.planEnrollment.update({
+      where: { id: enrollment.id },
+      data: {
+        deletedAt: new Date(),
+        cancelledAt: new Date(),
+        cancelReason: reason,
+      },
+    });
+    const live = await this.prisma.planEnrollment.count({
+      where: {
+        planApplicationId: enrollment.planApplicationId,
+        deletedAt: null,
+      },
+    });
+    await this.prisma.planApplication.update({
+      where: { id: enrollment.planApplicationId },
+      data:
+        live === 0
+          ? { deletedAt: new Date(), animalCount: 0 }
+          : { animalCount: live },
+    });
+    this.log.info('Protocol cancelled on enrollment', {
+      farmId,
+      enrollmentId,
+      ...result,
+    });
+    return {
+      planEnrollmentId: enrollment.id,
+      healthCaseId: null,
+      ...result,
+      caseRemoved: false,
+    };
+  }
+
+  /**
+   * Cancel a treatment protocol on one case as a mistake, in one call. The plan's steps and doses are reversed and deleted.
+   * A case that existed only because the protocol was applied (no other open step, no other dose) is deleted with it — the
+   * animal stops showing as sick; a case that has its own history just loses the protocol link.
+   */
+  async cancelCaseProtocol(
+    farmId: string,
+    userId: string,
+    caseId: string,
+    reason?: string,
+  ) {
+    const healthCase = await this.prisma.healthCase.findFirst({
+      where: {
+        id: caseId,
+        farmId,
+        deletedAt: null,
+        healthPlanId: { not: null },
+      },
+      select: { id: true },
+    });
+    if (!healthCase) {
+      throw new NotFoundException('That animal is not on this protocol');
+    }
+    const result = await this.cancelPlanTasks(
+      farmId,
+      userId,
+      { healthCaseId: healthCase.id, healthPlanId: { not: null } },
+      reason,
+    );
+    const [otherSteps, otherDoses] = await Promise.all([
+      this.prisma.healthTask.count({
+        where: { farmId, healthCaseId: healthCase.id, deletedAt: null },
+      }),
+      this.prisma.treatmentLog.count({
+        where: { farmId, healthCaseId: healthCase.id, voidedAt: null },
+      }),
+    ]);
+    const caseRemoved = otherSteps === 0 && otherDoses === 0;
+    await this.prisma.healthCase.update({
+      where: { id: healthCase.id },
+      data: caseRemoved
+        ? {
+            deletedAt: new Date(),
+            healthPlanId: null,
+            totalSteps: 0,
+            currentStep: 0,
+            progressPercentage: 0,
+          }
+        : {
+            healthPlanId: null,
+            totalSteps: 0,
+            currentStep: 0,
+            progressPercentage: 0,
+          },
+    });
+    this.log.info('Protocol cancelled on case', {
+      farmId,
+      caseId,
+      caseRemoved,
+      ...result,
+    });
+    return {
+      planEnrollmentId: null,
+      healthCaseId: healthCase.id,
+      ...result,
+      caseRemoved,
+    };
+  }
+
+  /** `POST /cattle/:id/protocols/cancel` — exactly one of `healthCaseId` / `planEnrollmentId`. */
+  async cancelAnimalProtocol(
+    farmId: string,
+    userId: string,
+    cattleId: string,
+    dto: StopCattleProtocolDto,
+  ) {
+    if (Boolean(dto.healthCaseId) === Boolean(dto.planEnrollmentId)) {
+      throw new BadRequestException(
+        'Send exactly one of healthCaseId or planEnrollmentId',
+      );
+    }
+    await this.assertCattleInFarm(farmId, cattleId);
+    if (dto.healthCaseId) {
+      const owns = await this.prisma.healthCase.count({
+        where: { id: dto.healthCaseId, farmId, cattleId },
+      });
+      if (!owns)
+        throw new NotFoundException('That animal is not on this protocol');
+      return this.cancelCaseProtocol(
+        farmId,
+        userId,
+        dto.healthCaseId,
+        dto.reason,
+      );
+    }
+    const owns = await this.prisma.planEnrollment.count({
+      where: { id: dto.planEnrollmentId, farmId, cattleId },
+    });
+    if (!owns)
+      throw new NotFoundException('That animal is not on this protocol');
+    return this.cancelEnrollment(
+      farmId,
+      userId,
+      dto.planEnrollmentId!,
+      dto.reason,
+    );
+  }
+
   /** `GET /health/plans/:id/stock-check` — would applying this protocol to `animals` animals run short of usable stock? */
   async stockCheck(farmId: string, planId: string, animals: number) {
     const plan = await this.getPlan(farmId, planId);
@@ -1344,6 +1656,7 @@ export class HealthService {
           },
         });
       }
+      await this.stampMovements(tx, deduction?.movementIds, treatmentLog.id);
       const withdrawal = await this.createSafetyWithdrawalIfNeeded(
         tx,
         healthCase,
@@ -1559,6 +1872,7 @@ export class HealthService {
             },
           });
 
+          await this.stampMovements(tx, deduction.movementIds, treatmentLog.id);
           const withdrawal = await this.createSafetyWithdrawalIfNeeded(
             tx,
             targetCase,
@@ -2198,7 +2512,7 @@ export class HealthService {
       Number(task.doseAmount) > 0 &&
       task.status !== HealthTaskStatus.COMPLETED &&
       (await this.prisma.treatmentLog.count({
-        where: { healthTaskId: id },
+        where: { healthTaskId: id, voidedAt: null },
       })) === 0
     ) {
       if (task.healthCaseId) {
@@ -2393,6 +2707,7 @@ export class HealthService {
           },
         });
 
+        await this.stampMovements(tx, deduction?.movementIds, treatmentLog.id);
         await tx.healthTask.update({
           where: { id: task.id },
           data: {
@@ -2731,7 +3046,7 @@ export class HealthService {
           },
         }),
         this.prisma.treatmentLog.findMany({
-          where: { cattleId, farmId },
+          where: { cattleId, farmId, voidedAt: null },
           orderBy: { administeredAt: 'desc' },
           take: 20,
         }),

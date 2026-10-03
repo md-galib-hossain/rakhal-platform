@@ -1612,6 +1612,7 @@ export class CattleService {
         orderBy: { startDate: 'desc' },
         include: {
           treatmentLogs: {
+            where: { voidedAt: null },
             select: { id: true },
             orderBy: { createdAt: 'desc' },
             take: 1,

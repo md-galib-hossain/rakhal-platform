@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -53,6 +54,7 @@ import {
   AddRoundAnimalsDto,
   RoundGridQueryDto,
   RoundsQueryDto,
+  UndoReasonDto,
 } from '../dto/health-rounds.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
@@ -290,6 +292,32 @@ export class HealthController {
     @Body() dto: AddRoundAnimalsDto,
   ) {
     return this.roundsService.addAnimals(farmId, userId, roundKey, dto);
+  }
+
+  /** Undo a whole application (every animal of the round) as a mistake: doses reversed, steps deleted. */
+  @Post('rounds/:roundKey/cancel')
+  @HttpCode(200)
+  @RequirePermission('healthcare.update')
+  cancelRound(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('roundKey') roundKey: string,
+    @Body() dto: UndoReasonDto,
+  ) {
+    return this.roundsService.cancelRound(farmId, userId, roundKey, dto.reason);
+  }
+
+  /** Void one recorded dose: stock back to its batches, expense reversed, withdrawal cancelled, step back to pending. */
+  @Post('treatments/:id/void')
+  @HttpCode(200)
+  @RequirePermission('healthcare.update')
+  voidTreatment(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body() dto: UndoReasonDto,
+  ) {
+    return this.healthService.voidTreatmentLog(farmId, userId, id, dto.reason);
   }
 
   @Get('plans/:id/stock-check')

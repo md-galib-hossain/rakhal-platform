@@ -313,6 +313,99 @@ export class HealthRoundsService {
     };
   }
 
+  /**
+   * Undo a whole round as a mistake (protocols v2). Every animal in it is cancelled in one call: recorded doses reversed,
+   * steps deleted, enrollments / auto-created cases removed (see `HealthService.cancelEnrollment` / `cancelCaseProtocol`).
+   * A preventive round is its application's enrollments; a treatment round is the plan's cases whose applied farm day is
+   * the round's day (same day rule as `list` / `grid`).
+   */
+  async cancelRound(
+    farmId: string,
+    userId: string,
+    roundKey: string,
+    reason?: string,
+  ) {
+    const parts = parseRoundKey(roundKey);
+    if (!parts) throw new NotFoundException('Round not found');
+
+    const totals = {
+      animals: 0,
+      stepsRemoved: 0,
+      dosesReversed: 0,
+      casesRemoved: 0,
+    };
+    const add = (r: {
+      stepsRemoved: number;
+      dosesReversed: number;
+      caseRemoved: boolean;
+    }) => {
+      totals.animals += 1;
+      totals.stepsRemoved += r.stepsRemoved;
+      totals.dosesReversed += r.dosesReversed;
+      if (r.caseRemoved) totals.casesRemoved += 1;
+    };
+
+    if (parts.type === 'APPLICATION') {
+      const enrollments = await this.prisma.planEnrollment.findMany({
+        where: {
+          farmId,
+          planApplicationId: parts.applicationId,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      if (enrollments.length === 0)
+        throw new NotFoundException('Round not found');
+      for (const e of enrollments) {
+        add(await this.health.cancelEnrollment(farmId, userId, e.id, reason));
+      }
+    } else {
+      const timezone = await this.clock.timezone(farmId);
+      const caseIds = await this.treatmentRoundCaseIds(
+        farmId,
+        parts.planId,
+        parts.day,
+        timezone,
+      );
+      if (caseIds.length === 0) throw new NotFoundException('Round not found');
+      for (const id of caseIds) {
+        add(await this.health.cancelCaseProtocol(farmId, userId, id, reason));
+      }
+    }
+    return { roundKey, ...totals };
+  }
+
+  /** The cases of a treatment round (plan + farm day) — the ids behind `treatmentRoundExists`. */
+  private async treatmentRoundCaseIds(
+    farmId: string,
+    planId: string,
+    day: string,
+    timezone: string,
+  ): Promise<string[]> {
+    const cases = await this.prisma.healthCase.findMany({
+      where: { farmId, healthPlanId: planId, deletedAt: null },
+      select: { id: true, healthPlanId: true, startDate: true },
+    });
+    if (cases.length === 0) return [];
+    const tasks = await this.prisma.healthTask.findMany({
+      where: {
+        farmId,
+        deletedAt: null,
+        healthPlanId: planId,
+        healthCaseId: { in: cases.map((c) => c.id) },
+      },
+      select: TASK_SELECT,
+    });
+    const caseById = new Map(cases.map((c) => [c.id, c]));
+    const appliedAt = firstStepCreatedAt(tasks, caseById);
+    return cases
+      .filter(
+        (c) =>
+          localDateIso(timezone, appliedAt.get(c.id) ?? c.startDate) === day,
+      )
+      .map((c) => c.id);
+  }
+
   /** Does a treatment round (plan + farm day) have at least one case in it? Same day rule as `list` / `grid`. */
   private async treatmentRoundExists(
     farmId: string,

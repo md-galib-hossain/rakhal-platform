@@ -7,7 +7,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { CurrentFarmId } from 'src/common/decorators';
+import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
@@ -55,5 +55,21 @@ export class CattleHealthController {
     @Body() dto: StopCattleProtocolDto,
   ) {
     return this.healthService.stopCattleProtocol(farmId, id, dto);
+  }
+
+  /**
+   * Cancel one application on this animal as a mistake, in one call: every recorded dose is reversed (stock back, expense
+   * reversed, withdrawal cancelled) and every step deleted. Use `protocols/stop` instead to keep what already happened.
+   */
+  @Post(':id/protocols/cancel')
+  @HttpCode(200)
+  @RequirePermission('healthcare.update')
+  cancelProtocol(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body() dto: StopCattleProtocolDto,
+  ) {
+    return this.healthService.cancelAnimalProtocol(farmId, userId, id, dto);
   }
 }

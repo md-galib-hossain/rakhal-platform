@@ -55,6 +55,9 @@ type DecrementResult = {
    * from, accurate even when a dose splits across differently-priced lots
    * (`Medicine.costPerUnit`, a single product-level number, isn't). */
   totalCost: number;
+  /** Protocols v2 — the `MedicineStockMovement` rows this draw wrote; the caller stamps its `TreatmentLog.id` on them so a
+   * voided dose can be reversed batch-exactly (`restoreForTreatmentVoid`). */
+  movementIds: string[];
   batchesUsed: {
     medicineId: string;
     batchId: string | null;
@@ -819,6 +822,97 @@ export class MedicineService {
   }
 
   /**
+   * Protocols v2 undo — gives a voided treatment's stock back. Reads the `TREATMENT` movements stamped with the log's id
+   * (`MedicineStockMovement.treatmentLogId`, precise per batch, correct for a cross-batch split) and reverses each one.
+   * A pre-undo log has no stamped movements: `fallbackMedicineId` + `fallbackQuantity` restock the product's
+   * representative batch instead (same approximate fallback `restoreForSaleVoid` uses). Idempotent: movements already
+   * reversed (an ADJUSTMENT row carrying the same `treatmentLogId`) are not reversed twice.
+   */
+  async restoreForTreatmentVoid(
+    farmId: string,
+    userId: string,
+    opts: {
+      treatmentLogId: string;
+      fallbackMedicineId?: string | null;
+      fallbackQuantity?: number | null;
+      notes: string;
+    },
+    tx?: Prisma.TransactionClient,
+  ): Promise<{ restored: boolean }> {
+    const write = async (client: Prisma.TransactionClient) => {
+      const movements = await client.medicineStockMovement.findMany({
+        where: {
+          farmId,
+          treatmentLogId: opts.treatmentLogId,
+          medicineBatchId: { not: null },
+        },
+      });
+      const consumed = movements.filter((m) => m.delta < 0);
+      const alreadyRestored = movements.some((m) => m.delta > 0);
+      if (consumed.length === 0) return 'none' as const;
+      if (alreadyRestored) return 'done' as const;
+
+      const affectedMedicineIds = new Set<string>();
+      for (const movement of consumed) {
+        const batch = await client.medicineBatch.findFirst({
+          where: { id: movement.medicineBatchId!, farmId },
+        });
+        if (!batch) continue;
+        const restored = Math.abs(movement.delta);
+        const balanceAfter = batch.currentStock + restored;
+        await client.medicineBatch.update({
+          where: { id: batch.id },
+          data: { currentStock: balanceAfter },
+        });
+        await client.medicineStockMovement.create({
+          data: {
+            medicineId: batch.medicineId,
+            medicineBatchId: batch.id,
+            farmId,
+            reason: MedicineStockMovementReason.ADJUSTMENT,
+            delta: restored,
+            balanceAfter,
+            notes: opts.notes,
+            treatmentLogId: opts.treatmentLogId,
+            createdBy: userId,
+          },
+        });
+        affectedMedicineIds.add(batch.medicineId);
+      }
+      for (const medicineId of affectedMedicineIds) {
+        await this.syncMedicineAggregate(client, medicineId);
+      }
+      return 'restored' as const;
+    };
+
+    const outcome = tx
+      ? await write(tx)
+      : await this.prisma.$transaction((t) => write(t));
+    if (outcome === 'restored') return { restored: true };
+    if (outcome === 'done') return { restored: false };
+
+    if (
+      opts.fallbackMedicineId &&
+      opts.fallbackQuantity &&
+      opts.fallbackQuantity > 0
+    ) {
+      await this.adjustStock(
+        farmId,
+        userId,
+        opts.fallbackMedicineId,
+        {
+          adjustment: opts.fallbackQuantity,
+          reason: MedicineStockMovementReason.ADJUSTMENT,
+          notes: opts.notes,
+        },
+        tx,
+      );
+      return { restored: true };
+    }
+    return { restored: false };
+  }
+
+  /**
    * FIFO-by-lot draw across every non-expired-by-default (see `excludeExpired`)
    * in-stock `MedicineBatch` owned by any of `medicines` (one catalog row for
    * an explicit id, several for a by-name treatment match) — earliest expiry
@@ -896,13 +990,14 @@ export class MedicineService {
       ...new Set(plan.map((p) => p.batch.medicineId)),
     ];
 
+    const movementIds: string[] = [];
     const write = async (client: Prisma.TransactionClient) => {
       for (const { batch, draw, balanceAfter } of plan) {
         await client.medicineBatch.update({
           where: { id: batch.id },
           data: { currentStock: balanceAfter },
         });
-        await client.medicineStockMovement.create({
+        const movement = await client.medicineStockMovement.create({
           data: {
             medicineId: batch.medicineId,
             medicineBatchId: batch.id,
@@ -917,6 +1012,7 @@ export class MedicineService {
             createdBy: userId,
           },
         });
+        movementIds.push(movement.id);
       }
       for (const medicineId of affectedMedicineIds) {
         await this.syncMedicineAggregate(client, medicineId);
@@ -961,6 +1057,7 @@ export class MedicineService {
       balanceAfter: primary.balanceAfter,
       costPerUnit: primary.batch.costPerUnit,
       totalCost,
+      movementIds,
       batchesUsed: plan.map(({ batch, draw, balanceAfter }) => ({
         medicineId: batch.medicineId,
         batchId: batch.batchCode,

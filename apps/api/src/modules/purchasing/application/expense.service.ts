@@ -469,6 +469,23 @@ export class ExpenseService {
    * already reversed once for this `expenseId` — same convention
    * `JournalService.reverseJournal` itself already guarantees.
    */
+  /**
+   * Protocols v2 undo — reverses an inventory-consumption expense (a recorded treatment dose that was a mistake) AND marks
+   * the `Expense` row `voidedAt`, so every Finance / cattle / health aggregate that skips voided expenses stops counting it.
+   * Idempotent: a second call is a no-op (the journal reversal is idempotency-keyed, `voidedAt` is only set once).
+   */
+  async voidInventoryConsumption(
+    farmId: string,
+    expenseId: string,
+    userId: string,
+  ): Promise<void> {
+    await this.reverseExpense(farmId, expenseId, userId);
+    await this.prisma.expense.updateMany({
+      where: { id: expenseId, farmId, voidedAt: null },
+      data: { voidedAt: new Date() },
+    });
+  }
+
   async reverseExpense(
     farmId: string,
     expenseId: string,

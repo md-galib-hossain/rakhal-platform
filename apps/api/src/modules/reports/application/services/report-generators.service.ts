@@ -464,7 +464,11 @@ export class ReportGeneratorsService {
           },
         }),
         this.prisma.treatmentLog.count({
-          where: { farmId, administeredAt: { gte: start, lt: endNext } },
+          where: {
+            farmId,
+            voidedAt: null,
+            administeredAt: { gte: start, lt: endNext },
+          },
         }),
         this.prisma.healthCase.count({
           where: {
@@ -517,6 +521,7 @@ export class ReportGeneratorsService {
     const treatments = await this.prisma.treatmentLog.findMany({
       where: {
         farmId,
+        voidedAt: null,
         administeredAt: { gte: start, lt: endExclusive },
         stockDeducted: true,
         medicineId: { not: null },
@@ -1033,7 +1038,11 @@ export class ReportGeneratorsService {
         where: { farmId, deletedAt: null, startDate: { gte: start, lt: end } },
       }),
       this.prisma.treatmentLog.count({
-        where: { farmId, administeredAt: { gte: start, lt: end } },
+        where: {
+          farmId,
+          voidedAt: null,
+          administeredAt: { gte: start, lt: end },
+        },
       }),
       this.prisma.healthCase.count({
         where: {
