@@ -10,6 +10,7 @@ import {
   OutcomeCase,
   RECURRENCE_WINDOW_DAYS,
 } from '../../domain/health-case-outcome';
+import { buildTrend } from '../../domain/morbidity-trend';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CLOSED_STATUSES: HealthCaseStatus[] = [
@@ -171,6 +172,75 @@ export class HealthOutcomesService {
     }));
 
     return { windowDays: days, since, ...aggregateOutcomes(cases) };
+  }
+
+  /**
+   * Sickness trend for the Insights chart: curative cases opened per day / week / month, zero-filled, over the last
+   * `days` days — or since the first case ever when `days` is omitted ("all time"). `previousTotal` is the same-length
+   * window right before, so the chart can say whether sickness is rising or falling; `null` for all time.
+   */
+  async getMorbidityTrend(
+    farmId: string,
+    days: number | undefined,
+    now: Date = new Date(),
+  ) {
+    const today = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
+    const where = {
+      farmId,
+      deletedAt: null,
+      careType: HealthCareType.CURATIVE,
+    };
+
+    if (days === undefined) {
+      const rows = await this.prisma.healthCase.findMany({
+        where,
+        orderBy: { startDate: 'asc' },
+        select: { startDate: true },
+      });
+      if (rows.length === 0) {
+        return {
+          windowDays: null,
+          bucket: 'month' as const,
+          total: 0,
+          previousTotal: null,
+          points: [],
+        };
+      }
+      return {
+        windowDays: null,
+        ...buildTrend(
+          rows.map((row) => row.startDate),
+          rows[0].startDate,
+          today,
+        ),
+        total: rows.length,
+        previousTotal: null,
+      };
+    }
+
+    const from = new Date(today.getTime() - (days - 1) * DAY_MS);
+    const previousFrom = new Date(from.getTime() - days * DAY_MS);
+    const [rows, previousTotal] = await Promise.all([
+      this.prisma.healthCase.findMany({
+        where: { ...where, startDate: { gte: from } },
+        select: { startDate: true },
+      }),
+      this.prisma.healthCase.count({
+        where: { ...where, startDate: { gte: previousFrom, lt: from } },
+      }),
+    ]);
+    return {
+      windowDays: days,
+      ...buildTrend(
+        rows.map((row) => row.startDate),
+        from,
+        today,
+      ),
+      total: rows.length,
+      previousTotal,
+    };
   }
 
   /** The closed same-condition case that makes `healthCase` a recurrence, if any. */

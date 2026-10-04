@@ -43,6 +43,7 @@ import {
 import {
   AppliedPlansQueryDto,
   HealthOutcomesQueryDto,
+  MorbidityTrendQueryDto,
   HealthPlanQueryDto,
   HealthTaskCalendarQueryDto,
   HealthTaskQueryDto,
@@ -92,6 +93,16 @@ export class HealthController {
     @Query() query: HealthOutcomesQueryDto,
   ) {
     return this.outcomesService.getOutcomes(farmId, query.days ?? 90);
+  }
+
+  /** Sickness trend for the Insights chart: windowed, zero-filled, bucketed, with the previous window's total. */
+  @Get('morbidity-trend')
+  @RequirePermission('healthcare.read')
+  morbidityTrend(
+    @CurrentFarmId() farmId: string,
+    @Query() query: MorbidityTrendQueryDto,
+  ) {
+    return this.outcomesService.getMorbidityTrend(farmId, query.days);
   }
 
   @Get('sick-bay')

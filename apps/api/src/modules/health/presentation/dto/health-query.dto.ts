@@ -51,7 +51,17 @@ export class HealthOutcomesQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(7)
-  @Max(365)
+  @Max(3650)
+  days?: number;
+}
+
+/** `GET /health/morbidity-trend?days=` — omit `days` for all time. */
+export class MorbidityTrendQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(7)
+  @Max(3650)
   days?: number;
 }
 
