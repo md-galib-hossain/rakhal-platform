@@ -358,6 +358,7 @@ export interface LogTreatmentPayload {
   medicineName?: string;
   doseAmount?: number;
   doseUnit?: string;
+  doseUnitId?: string;
   route?: MedicineRoute;
   administeredAt?: string;
   administeredBy?: string;
@@ -406,6 +407,8 @@ export interface RecordTreatmentPayload {
   medicineId: string;
   doseAmount: number;
   doseUnit: string;
+  /** `Unit.id` of `doseUnit` — lets the backend convert the dose to the medicine's stock unit. */
+  doseUnitId?: string;
   route: MedicineRoute;
   treatedAt: string;
   reason?: string;

@@ -4053,7 +4053,10 @@
         "decreaseDose": "ডোজ কমান",
         "increaseDose": "ডোজ বাড়ান",
         "administeredBy": "প্রয়োগকারী",
-        "savedToast": "চিকিৎসা লগ করা হয়েছে।"
+        "savedToast": "চিকিৎসা লগ করা হয়েছে।",
+        "fixLines": "সংরক্ষণের আগে প্রতিটি ওষুধ পূরণ করুন।",
+        "lineFailed": "{medicine}: {reason}",
+        "savedCount": "{count}টি ওষুধ লগ করা হয়েছে।"
       },
       "healthUpdate": {
         "clinicalProgress": "ক্লিনিক্যাল অগ্রগতি",
@@ -4178,6 +4181,29 @@
       "noAccountError": "এই ওষুধের খরচের জন্য একটি পেমেন্ট অ্যাকাউন্ট নির্বাচন করুন।",
       "treatedToast": "{count, plural, one {১টি পশুর} other {#টি পশুর}} চিকিৎসা করা হয়েছে।",
       "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
+    },
+    "treatmentLines": {
+      "title": "প্রয়োগ করা ওষুধ",
+      "addMedicine": "আরেকটি ওষুধ যোগ করুন",
+      "medicineN": "ওষুধ {n}",
+      "remove": "ওষুধ {n} মুছুন",
+      "stockLine": "মজুদ: {stock} {unit}",
+      "outOfStock": "মজুদ শেষ",
+      "dose": "ডোজ",
+      "doseUnit": "একক",
+      "doseUnitPlaceholder": "একক নির্বাচন করুন",
+      "pickMedicineFirst": "আগে ওষুধ নির্বাচন করুন",
+      "notEnoughStock": "প্রয়োজন {needed} {unit}, কিন্তু মজুদ আছে মাত্র {stock} {unit}।",
+      "route": "প্রয়োগের পদ্ধতি",
+      "problem": {
+        "pickMedicine": "ওষুধ নির্বাচন করুন।",
+        "doseRequired": "০-এর বেশি ডোজ লিখুন।",
+        "unitRequired": "একক নির্বাচন করুন।"
+      },
+      "fixLines": "সংরক্ষণের আগে প্রতিটি ওষুধ পূরণ করুন।",
+      "lineFailed": "{medicine}: {reason}",
+      "savedCount": "{count}টি ওষুধ সংরক্ষিত হয়েছে।",
+      "treatedMany": "{animals}টি পশুকে {medicines}টি ওষুধ দেওয়া হয়েছে।"
     }
   },
   "calves": {

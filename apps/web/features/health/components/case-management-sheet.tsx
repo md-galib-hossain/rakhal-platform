@@ -19,14 +19,14 @@ import {
   useLogTreatment,
 } from "../hooks/use-health";
 import { CASE_MANAGE_TABS, type CaseManageTab } from "../types";
-import type { MedicineOption } from "../api";
-import type {
-  AppearanceStatus,
-  AppetiteStatus,
-  ClinicalProgress,
-  HealthCloseOutcome,
-  MedicineRoute,
-} from "../types";
+import { useUnits } from "@/features/inventory/hooks/use-inventory";
+import {
+  newTreatmentLine,
+  validateTreatmentLines,
+  type TreatmentLine,
+  type TreatmentLineProblem,
+} from "../treatment-lines";
+import type { AppearanceStatus, AppetiteStatus, ClinicalProgress, HealthCloseOutcome } from "../types";
 import { CaseInfoHeader } from "./case-info-header";
 import { CaseOverviewTab } from "./case-overview-tab";
 import { CaseLogTreatmentTab } from "./case-log-treatment-tab";
@@ -76,9 +76,9 @@ function CaseManagementSheetBody({
   const pending = logTreatment.isPending || healthUpdate.isPending || closeCase.isPending || logMortality.isPending;
 
   // Log Treatment tab state
-  const [medicine, setMedicine] = useState<MedicineOption | null>(null);
-  const [route, setRoute] = useState<MedicineRoute | undefined>("IM");
-  const [doseAmount, setDoseAmount] = useState(0);
+  const { data: units = [] } = useUnits();
+  const [lines, setLines] = useState<TreatmentLine[]>(() => [newTreatmentLine()]);
+  const [lineProblems, setLineProblems] = useState<Record<string, TreatmentLineProblem> | undefined>();
   const administeredBy = session.data?.user.name ?? "";
 
   // Health Update tab state
@@ -104,18 +104,41 @@ function CaseManagementSheetBody({
   async function handleSubmit() {
     try {
       if (tab === "logTreatment") {
-        await logTreatment.mutateAsync({
-          id: caseId,
-          dto: {
-            medicineId: medicine?.id,
-            medicineName: medicine?.name,
-            route,
-            doseAmount: doseAmount || undefined,
-            doseUnit: doseAmount ? "ml" : undefined,
-            administeredBy,
-          },
-        });
-        toast.success(t("logTreatment.savedToast"));
+        const check = validateTreatmentLines(lines);
+        if (!check.ok) {
+          setLineProblems(check.problems);
+          toast.error(t("logTreatment.fixLines"));
+          return;
+        }
+        setLineProblems(undefined);
+        // One request per medicine (each deducts its own stock). A line that saved is dropped so a retry after a failure
+        // on a later line never logs the first one twice.
+        let remaining = lines;
+        for (const line of lines) {
+          try {
+            await logTreatment.mutateAsync({
+              id: caseId,
+              dto: {
+                medicineId: line.medicine!.id,
+                medicineName: line.medicine!.name,
+                route: line.route,
+                doseAmount: Number(line.doseAmount),
+                doseUnit: units.find((u) => u.id === line.doseUnitId)?.symbol,
+                doseUnitId: line.doseUnitId,
+                administeredBy,
+              },
+            });
+            remaining = remaining.filter((l) => l.key !== line.key);
+          } catch (err) {
+            setLines(remaining);
+            const reason = err instanceof ApiError ? err.message : t("genericError");
+            toast.error(t("logTreatment.lineFailed", { medicine: line.medicine!.name, reason }));
+            if (remaining.length < lines.length) toast.success(t("logTreatment.savedCount", { count: lines.length - remaining.length }));
+            return;
+          }
+        }
+        setLines([newTreatmentLine()]);
+        toast.success(lines.length === 1 ? t("logTreatment.savedToast") : t("logTreatment.savedCount", { count: lines.length }));
       } else if (tab === "healthUpdate") {
         if (!temperature) {
           toast.error(t("healthUpdate.temperatureRequired"));
@@ -208,12 +231,10 @@ function CaseManagementSheetBody({
               <CaseOverviewTab healthCase={query.data} onNavigate={setTab} />
             ) : tab === "logTreatment" ? (
               <CaseLogTreatmentTab
-                medicine={medicine}
-                setMedicine={setMedicine}
-                route={route}
-                setRoute={setRoute}
-                doseAmount={doseAmount}
-                setDoseAmount={setDoseAmount}
+                lines={lines}
+                setLines={setLines}
+                problems={lineProblems}
+                disabled={logTreatment.isPending}
                 administeredBy={administeredBy}
               />
             ) : tab === "healthUpdate" ? (

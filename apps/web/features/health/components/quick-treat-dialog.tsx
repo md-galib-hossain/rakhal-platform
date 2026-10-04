@@ -27,15 +27,13 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { cattleApi } from "@/features/cattle/api";
 import type { CattleListItem } from "@/features/cattle/types";
-import { AccountPicker } from "@/features/finance/components/account-picker";
-import { MedicinePicker } from "./medicine-picker";
+import { useUnits } from "@/features/inventory/hooks/use-inventory";
+import { TreatmentLines } from "./treatment-lines";
 import { CreatableSelect } from "@/components/shared/creatable-select";
 import { useCreateShedInline } from "@/features/cattle/hooks/use-cattle";
 import { useRecordTreatment } from "../hooks/use-health";
 import { quickTreatSchema, type QuickTreatInput } from "../schemas";
-import type { MedicineOption } from "../api";
-
-const ROUTES = ["IM", "IV", "SC", "ORAL"] as const;
+import { maxWithdrawalDays, newTreatmentLine, validateTreatmentLines, type TreatmentLine, type TreatmentLineProblem } from "../treatment-lines";
 
 function todayIso() {
   return todayLocalIso();
@@ -47,30 +45,32 @@ function addDaysIso(dateStr: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-const DEFAULT_VALUES: QuickTreatInput = { selectionMethod: "individual", route: "IM", treatedAt: todayIso() } as QuickTreatInput;
+const DEFAULT_VALUES: QuickTreatInput = { selectionMethod: "individual", treatedAt: todayIso() } as QuickTreatInput;
 
 /**
  * RFE-108 — "Quick Treat": log a treatment for one or more animals without opening a Sick Bay case
  * first (the Herdwatch-parity flow the backend investigation named as the target — today the only
  * path is "Report Sickness" first). Calls the real `POST /health/treatments` (RAKHAL-416) once with
- * `cattleIds[]`; the backend reuses each animal's open case if one exists, else creates a
+ * `cattleIds[]` (one call per medicine line); the backend reuses each animal's open case if one exists, else creates a
  * lightweight one — this form never sees or sends a case id. Animal selection (shed/batch/
- * individual) mirrors `apply-health-plan-dialog.tsx`'s own picker; medicine selection reuses
- * `MedicinePicker` as-is (per the ticket's own Notes — no new medicine-selection component needed).
+ * individual) mirrors `apply-health-plan-dialog.tsx`'s own picker; the medicines given are a list of
+ * `TreatmentLines` cards (picker + dose + unit dropdown + route each), so several go in with one save.
  * The withdrawal warning is computed client-side from `medicine.{milk,meat}WithdrawalDays` using the
  * same `treatedAt + days` math the backend's `createSafetyWithdrawalIfNeeded` uses
- * (`health.service.ts:1776-1781`, confirmed by reading that method directly). `financialAccountId`
- * is required only when `medicine.costPerUnit * doseAmount > 0` — the same RD-066 rule
- * `finalize-tmr-dialog.tsx` follows, mirrored here from the backend's own `resolvedCost` guard.
+ * (`health.service.ts:1776-1781`, confirmed by reading that method directly), taking the longest hold
+ * among the picked medicines. No payment account is asked for: a treatment's cost never touches cash
+ * (RD-084 — the backend ignores `financialAccountId`; consumption posts straight to expense).
  */
 export function QuickTreatDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const t = useTranslations("health.quickTreat");
   const tCattle = useTranslations("cattle.form");
+  const tLines = useTranslations("health.treatmentLines");
   const createShed = useCreateShedInline();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [medicine, setMedicine] = useState<MedicineOption | null>(null);
-  const [financialAccountId, setFinancialAccountId] = useState<string | undefined>(undefined);
+  const { data: units = [] } = useUnits();
+  const [lines, setLines] = useState<TreatmentLine[]>(() => [newTreatmentLine()]);
+  const [lineProblems, setLineProblems] = useState<Record<string, TreatmentLineProblem> | undefined>();
   const [submitting, setSubmitting] = useState(false);
 
   const recordTreatment = useRecordTreatment();
@@ -83,7 +83,6 @@ export function QuickTreatDialog({ open, onOpenChange }: { open: boolean; onOpen
   const shedId = useWatch({ control: form.control, name: "shedId" });
   const animalGroupId = useWatch({ control: form.control, name: "animalGroupId" });
   const treatedAt = useWatch({ control: form.control, name: "treatedAt" });
-  const doseAmount = useWatch({ control: form.control, name: "doseAmount" });
 
   const shedsQuery = useQuery({ queryKey: ["cattle", "sheds"], queryFn: () => cattleApi.sheds(), staleTime: 60_000, enabled: open });
   const animalGroupsQuery = useQuery({ queryKey: ["cattle", "animal-groups"], queryFn: () => cattleApi.animalGroups(), staleTime: 60_000, enabled: open });
@@ -113,48 +112,60 @@ export function QuickTreatDialog({ open, onOpenChange }: { open: boolean; onOpen
     if (!next) {
       form.reset(DEFAULT_VALUES);
       setSelected(new Set());
-      setMedicine(null);
-      setFinancialAccountId(undefined);
+      setLines([newTreatmentLine()]);
+      setLineProblems(undefined);
       setSearch("");
     }
     onOpenChange(next);
   }
 
-  const resolvedCost = medicine?.costPerUnit && doseAmount ? medicine.costPerUnit * doseAmount : 0;
-  const needsPayment = resolvedCost > 0;
-  const milkUntil = medicine?.milkWithdrawalDays && treatedAt ? addDaysIso(treatedAt, medicine.milkWithdrawalDays) : null;
-  const meatUntil = medicine?.meatWithdrawalDays && treatedAt ? addDaysIso(treatedAt, medicine.meatWithdrawalDays) : null;
+  const withdrawal = maxWithdrawalDays(lines);
+  const milkUntil = withdrawal.milk > 0 && treatedAt ? addDaysIso(treatedAt, withdrawal.milk) : null;
+  const meatUntil = withdrawal.meat > 0 && treatedAt ? addDaysIso(treatedAt, withdrawal.meat) : null;
 
   async function onSubmit(values: QuickTreatInput) {
     if (selected.size === 0) {
       toast.error(t("noneSelectedError"));
       return;
     }
-    if (!medicine) {
-      toast.error(t("noMedicineError"));
+    const check = validateTreatmentLines(lines);
+    if (!check.ok) {
+      setLineProblems(check.problems);
+      toast.error(tLines("fixLines"));
       return;
     }
-    if (needsPayment && !financialAccountId) {
-      toast.error(t("noAccountError"));
-      return;
-    }
+    setLineProblems(undefined);
     setSubmitting(true);
+    // One request per medicine (each deducts its own stock for every animal). A line that saved is dropped from the list
+    // so a retry after a failure on a later line never gives the first medicine twice.
+    let remaining = lines;
+    let animals = 0;
     try {
-      const result = await recordTreatment.mutateAsync({
-        cattleIds: [...selected],
-        medicineId: medicine.id,
-        doseAmount: values.doseAmount,
-        doseUnit: values.doseUnit,
-        route: values.route,
-        treatedAt: values.treatedAt,
-        reason: values.reason || undefined,
-        notes: values.notes || undefined,
-        financialAccountId: needsPayment ? financialAccountId : undefined,
-      });
-      toast.success(t("treatedToast", { count: result.appliedCount }));
+      for (const line of lines) {
+        try {
+          const result = await recordTreatment.mutateAsync({
+            cattleIds: [...selected],
+            medicineId: line.medicine!.id,
+            doseAmount: Number(line.doseAmount),
+            doseUnit: units.find((u) => u.id === line.doseUnitId)?.symbol ?? line.medicine!.unit.symbol,
+            doseUnitId: line.doseUnitId,
+            route: line.route,
+            treatedAt: values.treatedAt,
+            reason: values.reason || undefined,
+            notes: values.notes || undefined,
+          });
+          animals = result.appliedCount;
+          remaining = remaining.filter((l) => l.key !== line.key);
+        } catch (err) {
+          setLines(remaining);
+          const reason = err instanceof ApiError ? err.message : t("genericError");
+          toast.error(tLines("lineFailed", { medicine: line.medicine!.name, reason }));
+          if (remaining.length < lines.length) toast.success(tLines("savedCount", { count: lines.length - remaining.length }));
+          return;
+        }
+      }
+      toast.success(lines.length === 1 ? t("treatedToast", { count: animals }) : tLines("treatedMany", { animals, medicines: lines.length }));
       handleOpenChange(false);
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("genericError"));
     } finally {
       setSubmitting(false);
     }
@@ -270,64 +281,8 @@ export function QuickTreatDialog({ open, onOpenChange }: { open: boolean; onOpen
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label>{t("selectMedicine")}</Label>
-              <MedicinePicker
-                value={medicine}
-                onValueChange={(m) => {
-                  setMedicine(m);
-                  if (m && !form.getValues("doseUnit")) form.setValue("doseUnit", m.unit.symbol);
-                }}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Controller
-                control={form.control}
-                name="doseAmount"
-                render={({ field, fieldState }) => (
-                  <LabeledInput
-                    id="doseAmount"
-                    label={t("doseAmount")}
-                    type="number"
-                    step="0.01"
-                    value={field.value ?? ""}
-                    onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                    error={fieldState.error?.message}
-                  />
-                )}
-              />
-              <Controller
-                control={form.control}
-                name="doseUnit"
-                render={({ field, fieldState }) => (
-                  <LabeledInput id="doseUnit" label={t("doseUnit")} value={field.value ?? ""} onChange={field.onChange} error={fieldState.error?.message} />
-                )}
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <p className="text-xs font-medium text-foreground">{t("administrationRoute")}</p>
-              <Controller
-                control={form.control}
-                name="route"
-                render={({ field }) => (
-                  <div className="flex items-center gap-2">
-                    {ROUTES.map((route) => (
-                      <button
-                        key={route}
-                        type="button"
-                        onClick={() => field.onChange(route)}
-                        className={cn(
-                          "flex-1 rounded-lg border px-4 py-2 text-sm font-bold transition-colors",
-                          field.value === route ? "border-primary text-primary" : "border-border text-muted-foreground",
-                        )}
-                      >
-                        {route}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              />
+              <Label>{tLines("title")}</Label>
+              <TreatmentLines lines={lines} onChange={setLines} problems={lineProblems} animalCount={selected.size || 1} disabled={submitting} />
             </div>
 
             <Controller
@@ -357,8 +312,6 @@ export function QuickTreatDialog({ open, onOpenChange }: { open: boolean; onOpen
               name="notes"
               render={({ field }) => <Textarea placeholder={t("notesPlaceholder")} value={field.value ?? ""} onChange={field.onChange} />}
             />
-
-            {needsPayment ? <AccountPicker value={financialAccountId} onChange={setFinancialAccountId} /> : null}
           </div>
 
           <SheetFooter className="border-t border-dashed border-border pt-4">

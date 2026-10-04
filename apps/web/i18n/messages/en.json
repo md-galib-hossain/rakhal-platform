@@ -4053,7 +4053,10 @@
         "decreaseDose": "Decrease dose",
         "increaseDose": "Increase dose",
         "administeredBy": "Administrative By",
-        "savedToast": "Treatment logged."
+        "savedToast": "Treatment logged.",
+        "fixLines": "Complete every medicine before saving.",
+        "lineFailed": "{medicine}: {reason}",
+        "savedCount": "{count, plural, one {1 medicine logged.} other {# medicines logged.}}"
       },
       "healthUpdate": {
         "clinicalProgress": "Clinical Progress",
@@ -4178,6 +4181,29 @@
       "noAccountError": "Select a payment account for this medicine's cost.",
       "treatedToast": "{count, plural, one {1 animal} other {# animals}} treated.",
       "genericError": "Something went wrong. Please try again."
+    },
+    "treatmentLines": {
+      "title": "Medicines given",
+      "addMedicine": "Add another medicine",
+      "medicineN": "Medicine {n}",
+      "remove": "Remove medicine {n}",
+      "stockLine": "In stock: {stock} {unit}",
+      "outOfStock": "Out of stock",
+      "dose": "Dose",
+      "doseUnit": "Unit",
+      "doseUnitPlaceholder": "Select unit",
+      "pickMedicineFirst": "Pick a medicine first",
+      "notEnoughStock": "Needs {needed} {unit} but only {stock} {unit} in stock.",
+      "route": "Route",
+      "problem": {
+        "pickMedicine": "Select a medicine.",
+        "doseRequired": "Enter a dose greater than 0.",
+        "unitRequired": "Select a unit."
+      },
+      "fixLines": "Complete every medicine before saving.",
+      "lineFailed": "{medicine}: {reason}",
+      "savedCount": "{count, plural, one {1 medicine saved.} other {# medicines saved.}}",
+      "treatedMany": "{animals, plural, one {1 animal} other {# animals}} treated with {medicines} medicines."
     }
   },
   "calves": {
