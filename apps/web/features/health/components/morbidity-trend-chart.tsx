@@ -18,7 +18,7 @@ const MorbidityTrendChartInner = dynamic(() => import("./morbidity-trend-chart-i
   loading: () => <Skeleton className="h-[260px] w-full" />,
 });
 
-/** Figma "Morbidity Trend Over Time" card (node 734:35720) — backed by `GET /health/morbidity-trend` (RAKHAL-471's
+/** Figma "Morbidity Trend Over Time" card (node 734:35720) — backed by `GET /health/morbidity-trend` (no ticket #; a
  * windowed, zero-filled, day / week / month series of curative cases by start date). The period comes from the
  * Insights tab's shared range picker. The direction chip compares this period's total with the equally long period
  * right before it (computed by the server), so it reads "down 25 % vs the 90 days before" instead of guessing from the

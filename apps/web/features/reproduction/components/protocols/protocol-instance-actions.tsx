@@ -29,9 +29,17 @@ import {
   type RecordProtocolOutcomeInput,
 } from "../../schemas";
 import type { ProtocolInstance } from "../../types";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 
 const ACTIVE_STATUSES = ["DRAFT", "SCHEDULED", "IN_PROGRESS"] as const;
+
+/** `DateTimePicker` value (`yyyy-MM-dd'T'HH:mm`, browser-local) for "now" — same default the root
+ * Record Breeding dialog uses, so protocol AI and root AI capture date + time the same way. */
+function nowDateTimeLocal(): string {
+  const d = new Date();
+  d.setSeconds(0, 0);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
 
 /** Row actions for one protocol instance (RAKHAL-214 lifecycle) — record the timed-AI step, record
  * the pregnancy outcome at PD, or cancel/fail the instance. No Figma frame for this module; three
@@ -115,13 +123,19 @@ function RecordAiDialog({
 }) {
   const t = useTranslations("reproduction.dialogs.protocolInstance");
   const recordAi = useRecordProtocolAi();
-  const form = useForm<RecordProtocolAiInput>({ resolver: zodResolver(recordProtocolAiSchema), defaultValues: {} });
+  const form = useForm<RecordProtocolAiInput>({
+    resolver: zodResolver(recordProtocolAiSchema),
+    defaultValues: { aiDate: nowDateTimeLocal() },
+  });
 
   async function onSubmit(values: RecordProtocolAiInput) {
     try {
-      await recordAi.mutateAsync({ instanceId, input: values });
+      await recordAi.mutateAsync({
+        instanceId,
+        input: { ...values, aiDate: values.aiDate ? new Date(values.aiDate).toISOString() : undefined },
+      });
       toast.success(t("aiRecordedToast"));
-      form.reset();
+      form.reset({ aiDate: nowDateTimeLocal() });
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
@@ -132,7 +146,7 @@ function RecordAiDialog({
     <FormSheet
       open={open}
       onOpenChange={(next) => {
-        if (!next) form.reset();
+        if (!next) form.reset({ aiDate: nowDateTimeLocal() });
         onOpenChange(next);
       }}
       title={t("recordAiTitle")}
@@ -146,7 +160,7 @@ function RecordAiDialog({
           control={form.control}
           name="aiDate"
           render={({ field, fieldState }) => (
-            <DatePicker
+            <DateTimePicker
               label={t("aiDate")}
               value={field.value}
               onChange={field.onChange}

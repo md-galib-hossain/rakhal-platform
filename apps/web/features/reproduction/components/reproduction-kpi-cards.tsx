@@ -2,67 +2,92 @@
 
 import { useTranslations } from "next-intl";
 import { Activity, Baby, CalendarClock, HeartPulse } from "lucide-react";
-import { ErrorState } from "@/components/shared/error-state";
-import { StatCard } from "@/components/shared/stat-card";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/shared/error-state";
+import { cn } from "@/lib/utils";
 import { useReproductionDashboard } from "../hooks/use-reproduction";
 
-/** Fluid tile grid: as many ≥8.5rem columns as fit (2 on a 320px phone, 4 on a desktop, 3→4 between)
- * with no breakpoint at all — the tiles just reflow with the available width. 8.5rem, not larger:
- * two tiles + the gap must fit inside a phone's ~300px content box or it drops to one column. */
-const KPI_GRID = "grid grid-cols-[repeat(auto-fit,minmax(min(100%,8.5rem),1fr))] gap-3";
+function HighlightTile({
+  icon,
+  iconBg,
+  label,
+  value,
+  footnote,
+}: {
+  icon: React.ReactNode;
+  iconBg: string;
+  label: string;
+  value: React.ReactNode;
+  footnote?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-1 flex-col justify-between gap-3 rounded-xl border border-border bg-card p-3">
+      <div className="flex items-center gap-2">
+        <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", iconBg)}>{icon}</span>
+        <p className="text-sm font-medium text-foreground">{label}</p>
+      </div>
+      <div className="flex flex-col gap-1">
+        <p className="text-2xl font-bold text-foreground">{value}</p>
+        {footnote ? <p className="text-xs text-muted-foreground">{footnote}</p> : null}
+      </div>
+    </div>
+  );
+}
 
-/** Four headline KPIs (PRD §9.2) from the real `GET /reproduction/dashboard` — no Figma frames for
- * this module, so the tile grid/icon-chip pattern is copied from the Milk module's KPI row
- * (`MilkKeyMetricsCard`) rather than invented. Any `null` KPI (e.g. no active female herd yet) shows
- * "—" instead of a fake 0%. */
+/**
+ * Reproduction Highlights KPI section (matching Animal Highlights visual language) —
+ * 4 headline KPIs from `GET /reproduction/dashboard`: Heat Detection Rate, Conception Rate,
+ * Pregnancy Rate, and Avg. Calving Interval.
+ */
 export function ReproductionKpiCards() {
   const t = useTranslations("reproduction.kpi");
   const dashboard = useReproductionDashboard();
-
-  if (dashboard.isLoading) {
-    return (
-      <div className={KPI_GRID}>
-        {Array.from({ length: 4 }, (_, i) => (
-          <Skeleton key={i} className="h-[6.5rem] rounded-xl" />
-        ))}
-      </div>
-    );
-  }
-  if (dashboard.isError) {
-    return <ErrorState description={t("error")} onRetry={() => dashboard.refetch()} />;
-  }
 
   const kpis = dashboard.data?.kpis;
   const pct = (v: number | null | undefined) => (v != null ? `${v}%` : "—");
   const days = (v: number | null | undefined) => (v != null ? t("daysValue", { value: v }) : "—");
 
   return (
-    <div className={KPI_GRID}>
-      <StatCard
-        label={t("heatDetectionRate")}
-        value={pct(kpis?.heat_detection_rate_pct)}
-        icon={<HeartPulse className="size-4" aria-hidden />}
-        iconClassName="bg-accent-pink-tint text-accent-pink"
-      />
-      <StatCard
-        label={t("conceptionRate")}
-        value={pct(kpis?.conception_rate_pct)}
-        icon={<Activity className="size-4" aria-hidden />}
-        iconClassName="bg-success-tint text-success"
-      />
-      <StatCard
-        label={t("pregnancyRate")}
-        value={pct(kpis?.pregnancy_rate_pct)}
-        icon={<Baby className="size-4" aria-hidden />}
-        iconClassName="bg-info-tint text-info"
-      />
-      <StatCard
-        label={t("avgCalvingInterval")}
-        value={days(kpis?.avg_calving_interval_days)}
-        icon={<CalendarClock className="size-4" aria-hidden />}
-        iconClassName="bg-warning-tint text-warning"
-      />
-    </div>
+    <Card className="flex flex-col gap-4 rounded-2xl border-border p-4 shadow-card">
+      <p className="text-xl font-medium text-foreground">{t("title")}</p>
+
+      {dashboard.isLoading ? (
+        <div className="flex flex-col gap-3 sm:flex-row">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-[104px] flex-1 rounded-xl" />
+          ))}
+        </div>
+      ) : dashboard.isError ? (
+        <ErrorState description={t("error")} onRetry={() => dashboard.refetch()} />
+      ) : dashboard.data ? (
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <HighlightTile
+            icon={<HeartPulse className="size-4 text-accent-pink" aria-hidden />}
+            iconBg="bg-accent-pink-tint"
+            label={t("heatDetectionRate")}
+            value={pct(kpis?.heat_detection_rate_pct)}
+          />
+          <HighlightTile
+            icon={<Activity className="size-4 text-success" aria-hidden />}
+            iconBg="bg-success-tint"
+            label={t("conceptionRate")}
+            value={pct(kpis?.conception_rate_pct)}
+          />
+          <HighlightTile
+            icon={<Baby className="size-4 text-info" aria-hidden />}
+            iconBg="bg-info-tint"
+            label={t("pregnancyRate")}
+            value={pct(kpis?.pregnancy_rate_pct)}
+          />
+          <HighlightTile
+            icon={<CalendarClock className="size-4 text-warning" aria-hidden />}
+            iconBg="bg-warning-tint"
+            label={t("avgCalvingInterval")}
+            value={days(kpis?.avg_calving_interval_days)}
+          />
+        </div>
+      ) : null}
+    </Card>
   );
 }
