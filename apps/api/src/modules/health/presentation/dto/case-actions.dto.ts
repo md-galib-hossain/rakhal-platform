@@ -57,6 +57,12 @@ export class LogTreatmentDto {
   @IsString()
   doseUnit?: string;
 
+  /** `Unit.id` the typed `doseAmount` is expressed in; converted to the medicine's own stock unit when deducting. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  doseUnitId?: string;
+
   @IsOptional()
   @IsEnum(MedicineRoute)
   route?: MedicineRoute;
@@ -325,6 +331,12 @@ export class RecordTreatmentDto {
   @IsString()
   @IsNotEmpty()
   doseUnit!: string;
+
+  /** `Unit.id` of `doseUnit`; converted to the medicine's own stock unit when deducting. Omit = already in it. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  doseUnitId?: string;
 
   @IsEnum(MedicineRoute)
   route!: MedicineRoute;

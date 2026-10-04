@@ -1596,8 +1596,13 @@ export class HealthService {
       (!dto.medicineId && task?.doseAmount
         ? Number(task.doseAmount)
         : undefined);
+    // A typed dose carries its own unit (`dto.doseUnitId`) unless the caller gave the stock quantity directly.
     const doseUnitId =
-      typedQuantity === undefined ? (task?.doseUnitId ?? undefined) : undefined;
+      typedQuantity === undefined
+        ? (task?.doseUnitId ?? undefined)
+        : dto.stockDeductionQuantity === undefined
+          ? dto.doseUnitId
+          : undefined;
 
     // RAKHAL-419/RAKHAL-437 (`docs/EPIC_MEDICINE_BATCH_MODEL.md`): cost is
     // priced from the actual batch(es) `decrementForTreatment` draws from —
@@ -1827,6 +1832,7 @@ export class HealthService {
         {
           medicineId: dto.medicineId,
           quantity: dto.doseAmount,
+          doseUnitId: dto.doseUnitId,
           notes: `Quick treatment for ${cattle.tagNumber}`,
         },
       );
