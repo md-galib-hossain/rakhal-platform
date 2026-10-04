@@ -44,7 +44,10 @@ describe('Health — undo a dose, cancel a protocol, cancel a round', () => {
       })
     )._sum.currentStock ?? 0;
 
-  const makePlan = async (name: string, category: 'VACCINATION' | 'TREATMENT') =>
+  const makePlan = async (
+    name: string,
+    category: 'VACCINATION' | 'TREATMENT',
+  ) =>
     (
       await request(server())
         .post(api('/health/plans'))
@@ -97,7 +100,9 @@ describe('Health — undo a dose, cancel a protocol, cancel a round', () => {
       })
     ).id;
     mlUnitId = (
-      await prisma.unit.findFirstOrThrow({ where: { farmId: null, symbol: 'mL' } })
+      await prisma.unit.findFirstOrThrow({
+        where: { farmId: null, symbol: 'mL' },
+      })
     ).id;
     medicineId = (
       await prisma.medicine.create({
@@ -163,7 +168,9 @@ describe('Health — undo a dose, cancel a protocol, cancel a round', () => {
     expect(res.status).toBe(200);
 
     expect(await stockOf()).toBe(before);
-    const voided = await prisma.treatmentLog.findUniqueOrThrow({ where: { id: log.id } });
+    const voided = await prisma.treatmentLog.findUniqueOrThrow({
+      where: { id: log.id },
+    });
     expect(voided.voidedAt).not.toBeNull();
     expect(voided.voidReason).toBe('wrong animal');
     const expense = await prisma.expense.findUniqueOrThrow({
@@ -175,7 +182,9 @@ describe('Health — undo a dose, cancel a protocol, cancel a round', () => {
         where: { treatmentLogId: log.id, status: 'CANCELLED' },
       }),
     ).toBe(1);
-    const after = await prisma.healthTask.findUniqueOrThrow({ where: { id: task.id } });
+    const after = await prisma.healthTask.findUniqueOrThrow({
+      where: { id: task.id },
+    });
     expect(after.status).toBe('PENDING');
     expect(after.completedAt).toBeNull();
 
@@ -216,7 +225,9 @@ describe('Health — undo a dose, cancel a protocol, cancel a round', () => {
         where: { planEnrollmentId: enrollment.id, deletedAt: null },
       }),
     ).toBe(0);
-    const gone = await prisma.planEnrollment.findUniqueOrThrow({ where: { id: enrollment.id } });
+    const gone = await prisma.planEnrollment.findUniqueOrThrow({
+      where: { id: enrollment.id },
+    });
     expect(gone.deletedAt).not.toBeNull();
     expect(gone.cancelledAt).not.toBeNull();
     const app = await prisma.planApplication.findUniqueOrThrow({
@@ -234,7 +245,11 @@ describe('Health — undo a dose, cancel a protocol, cancel a round', () => {
 
   it('cancels a whole preventive round in ONE call and it leaves the Applied list', async () => {
     const planId = await makePlan('E2E-UNDO-Round', 'VACCINATION');
-    const cows = [await makeCow('r1'), await makeCow('r2'), await makeCow('r3')];
+    const cows = [
+      await makeCow('r1'),
+      await makeCow('r2'),
+      await makeCow('r3'),
+    ];
     const applied = await apply(planId, cows);
     const start = await stockOf();
     for (const cow of cows.slice(0, 2)) {
@@ -257,7 +272,11 @@ describe('Health — undo a dose, cancel a protocol, cancel a round', () => {
       .set(...auth(owner))
       .send({ reason: 'applied to the wrong group' });
     expect(res.status).toBe(200);
-    expect(res.body.data).toMatchObject({ animals: 3, stepsRemoved: 6, dosesReversed: 2 });
+    expect(res.body.data).toMatchObject({
+      animals: 3,
+      stepsRemoved: 6,
+      dosesReversed: 2,
+    });
     expect(await stockOf()).toBe(start);
 
     const app = await prisma.planApplication.findUniqueOrThrow({
@@ -268,7 +287,9 @@ describe('Health — undo a dose, cancel a protocol, cancel a round', () => {
       .get(api('/health/rounds?status=RUNNING&limit=100'))
       .set(...auth(owner));
     expect(
-      (list.body.data as { roundKey: string }[]).some((r) => r.roundKey === key),
+      (list.body.data as { roundKey: string }[]).some(
+        (r) => r.roundKey === key,
+      ),
     ).toBe(false);
     const again = await request(server())
       .post(api(`/health/rounds/${encodeURIComponent(key)}/cancel`))
@@ -294,9 +315,15 @@ describe('Health — undo a dose, cancel a protocol, cancel a round', () => {
       .set(...auth(owner))
       .send({ healthCaseId: caseId });
     expect(res.status).toBe(200);
-    expect(res.body.data).toMatchObject({ caseRemoved: true, stepsRemoved: 2, dosesReversed: 1 });
+    expect(res.body.data).toMatchObject({
+      caseRemoved: true,
+      stepsRemoved: 2,
+      dosesReversed: 1,
+    });
     expect(await stockOf()).toBe(start);
-    const removed = await prisma.healthCase.findUniqueOrThrow({ where: { id: caseId } });
+    const removed = await prisma.healthCase.findUniqueOrThrow({
+      where: { id: caseId },
+    });
     expect(removed.deletedAt).not.toBeNull();
   });
 
@@ -306,9 +333,15 @@ describe('Health — undo a dose, cancel a protocol, cancel a round', () => {
     await apply(planId, cows);
     const start = await stockOf();
     const list = await request(server())
-      .get(api(`/health/rounds?status=RUNNING&limit=100&search=E2E-UNDO-TreatRound-${stamp}`))
+      .get(
+        api(
+          `/health/rounds?status=RUNNING&limit=100&search=E2E-UNDO-TreatRound-${stamp}`,
+        ),
+      )
       .set(...auth(owner));
-    const round = (list.body.data as { roundKey: string; animalCount: number }[])[0];
+    const round = (
+      list.body.data as { roundKey: string; animalCount: number }[]
+    )[0];
     expect(round.animalCount).toBe(2);
 
     const res = await request(server())
@@ -319,7 +352,9 @@ describe('Health — undo a dose, cancel a protocol, cancel a round', () => {
     expect(res.body.data).toMatchObject({ animals: 2, casesRemoved: 2 });
     expect(await stockOf()).toBe(start);
     expect(
-      await prisma.healthCase.count({ where: { healthPlanId: planId, deletedAt: null } }),
+      await prisma.healthCase.count({
+        where: { healthPlanId: planId, deletedAt: null },
+      }),
     ).toBe(0);
   });
 
@@ -337,6 +372,8 @@ describe('Health — undo a dose, cancel a protocol, cancel a round', () => {
     const second = await apply(planId, [cow]);
     expect(second.status).toBe(201);
     expect(second.body.data.appliedCount).toBe(1);
-    expect(second.body.data.planApplicationId).not.toBe(first.body.data.planApplicationId);
+    expect(second.body.data.planApplicationId).not.toBe(
+      first.body.data.planApplicationId,
+    );
   });
 });

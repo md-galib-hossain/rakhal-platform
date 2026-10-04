@@ -11,7 +11,6 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  Matches,
   MaxLength,
   Min,
   ValidateNested,
@@ -76,7 +75,7 @@ export class RecordAiDto {
   inseminator?: string;
 
   @IsOptional()
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'aiDate must be YYYY-MM-DD' })
+  @IsDateString()
   aiDate?: string;
 
   @IsOptional()

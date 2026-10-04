@@ -43,6 +43,16 @@ describe('Health — case summary + farm outcomes (RAKHAL-467)', () => {
     return res.body.data;
   }
 
+  /** `days` omitted = all time. */
+  async function trend(days?: number) {
+    const res = await request(server())
+      .get(api(`/health/morbidity-trend${days ? `?days=${days}` : ''}`))
+      .set(...auth(owner))
+      .expect(200);
+    return res.body.data;
+  }
+  let trendBefore: { d30: number; d90: number; all: number };
+
   async function makeCase(
     cattleId: string,
     n: number,
@@ -134,6 +144,12 @@ describe('Health — case summary + farm outcomes (RAKHAL-467)', () => {
       recovered: b.recovered,
       totalCost: b.totalCost,
       openCases: b.openCases,
+    };
+
+    trendBefore = {
+      d30: (await trend(30)).total,
+      d90: (await trend(90)).total,
+      all: (await trend()).total,
     };
 
     firstCase = (
@@ -263,15 +279,19 @@ describe('Health — case summary + farm outcomes (RAKHAL-467)', () => {
       expect(wide.cases).toBeGreaterThan(narrow.cases);
     });
 
-    it('validates the window (7–365 days)', async () => {
+    it('validates the window (7–3650 days; 3650 is "all time" for the Insights tab)', async () => {
       await request(server())
         .get(api('/health/outcomes?days=3'))
         .set(...auth(owner))
         .expect(400);
       await request(server())
-        .get(api('/health/outcomes?days=400'))
+        .get(api('/health/outcomes?days=4000'))
         .set(...auth(owner))
         .expect(400);
+      await request(server())
+        .get(api('/health/outcomes?days=3650'))
+        .set(...auth(owner))
+        .expect(200);
     });
 
     it('is readable by a worker (healthcare.read)', async () => {
@@ -283,6 +303,75 @@ describe('Health — case summary + farm outcomes (RAKHAL-467)', () => {
 
     it('requires authentication', async () => {
       await request(server()).get(api('/health/outcomes')).expect(401);
+    });
+  });
+
+  describe('GET /health/morbidity-trend (Insights chart)', () => {
+    it('counts curative cases in the window and ignores the preventive backing case', async () => {
+      const d90 = await trend(90);
+      expect(d90.total - trendBefore.d90).toBe(2); // first (60 d ago) + second (4 d ago)
+      expect(d90.windowDays).toBe(90);
+
+      const d30 = await trend(30);
+      expect(d30.total - trendBefore.d30).toBe(1); // only the second
+    });
+
+    it('zero-fills the series: points add up to the total, a 30-day window has one point per day', async () => {
+      const d30 = await trend(30);
+      expect(d30.bucket).toBe('day');
+      expect(d30.points).toHaveLength(30);
+      expect(
+        d30.points.reduce((sum: number, p: { count: number }) => sum + p.count, 0),
+      ).toBe(d30.total);
+      expect(d30.points.some((p: { count: number }) => p.count === 0)).toBe(true);
+    });
+
+    it('buckets a 90-day window by week', async () => {
+      const d90 = await trend(90);
+      expect(d90.bucket).toBe('week');
+      // every bucket starts on a Monday (UTC)
+      for (const p of d90.points) {
+        expect(new Date(`${p.date}T00:00:00Z`).getUTCDay()).toBe(1);
+      }
+    });
+
+    it('reports the equally long window before as previousTotal', async () => {
+      // 45-day window = days 0-44 ago; the previous 45 days = 45-89 ago, which holds the first case (60 d ago)
+      const d45 = await trend(45);
+      expect(typeof d45.previousTotal).toBe('number');
+      expect(d45.previousTotal).toBeGreaterThanOrEqual(1);
+    });
+
+    it('all time (no days) has no previous window and includes every curative case', async () => {
+      const all = await trend();
+      expect(all.windowDays).toBeNull();
+      expect(all.previousTotal).toBeNull();
+      expect(all.total - trendBefore.all).toBe(2);
+      expect(
+        all.points.reduce((sum: number, p: { count: number }) => sum + p.count, 0),
+      ).toBe(all.total);
+    });
+
+    it('validates the window (7–3650 days)', async () => {
+      await request(server())
+        .get(api('/health/morbidity-trend?days=3'))
+        .set(...auth(owner))
+        .expect(400);
+      await request(server())
+        .get(api('/health/morbidity-trend?days=4000'))
+        .set(...auth(owner))
+        .expect(400);
+    });
+
+    it('is readable by a worker (healthcare.read)', async () => {
+      await request(server())
+        .get(api('/health/morbidity-trend'))
+        .set(...auth(worker))
+        .expect(200);
+    });
+
+    it('requires authentication', async () => {
+      await request(server()).get(api('/health/morbidity-trend')).expect(401);
     });
   });
 
