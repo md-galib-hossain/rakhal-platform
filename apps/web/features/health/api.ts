@@ -27,6 +27,7 @@ import type {
   HealthPlanListItem,
   HealthTask,
   HealthUpdate,
+  MorbidityTrend,
   LogTaskTreatmentPayload,
   LogTreatmentPayload,
   MortalityPayload,
@@ -52,6 +53,10 @@ export const healthApi = {
   /** RAKHAL-467 — farm results over the curative cases opened in the last `days` days (7–365). */
   outcomes(days: number): Promise<HealthOutcomes> {
     return apiFetch<HealthOutcomes>("/health/outcomes", { searchParams: { days } });
+  },
+  /** Sickness trend for the Insights chart over the last `days` days; omit for all time. */
+  morbidityTrend(days?: number): Promise<MorbidityTrend> {
+    return apiFetch<MorbidityTrend>("/health/morbidity-trend", { searchParams: { days } });
   },
   sickBay(filters: HealthListFilters, cursor?: string, limit = 20): Promise<CursorPage<HealthCaseListItem>> {
     return apiFetchPage<HealthCaseListItem>("/health/sick-bay", {

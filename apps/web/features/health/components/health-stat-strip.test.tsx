@@ -64,11 +64,11 @@ describe("HealthStatStrip (RFE-140)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Sick now/ }));
     // nuqs batches URL writes, so wait for the update rather than reading it synchronously
-    await waitFor(() => expect(lastParam("view")).toBe("cases"));
+    await waitFor(() => expect(lastParam("bay")).toBe("cases"));
     expect(lastParam("healthTab")).toBe("treatments");
 
     fireEvent.click(screen.getByRole("button", { name: /Milk\/meat withheld/ }));
-    await waitFor(() => expect(lastParam("view")).toBe("withheld"));
+    await waitFor(() => expect(lastParam("bay")).toBe("withheld"));
   });
 
   it("the other two tiles are not buttons", () => {

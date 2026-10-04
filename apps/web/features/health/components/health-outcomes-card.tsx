@@ -1,17 +1,16 @@
-"use client"; // owns the window selection; live query
+"use client"; // live query
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useHealthOutcomes } from "../hooks/use-health";
 import type { HealthCondition } from "../types";
 import { HealthCard } from "./health-card";
-
-const WINDOWS = [30, 90, 365] as const;
+import { ALL_TIME_OUTCOME_DAYS, rangeDays, type InsightsRange } from "./insights-range";
 
 function Kpi({ label, value, caption }: { label: string; value: React.ReactNode; caption?: string }) {
   return (
@@ -28,37 +27,19 @@ const DASH = <span className="text-muted-foreground">—</span>;
 /** RFE-138 (EPIC_HEALTH_CENTER D6) — "what was the sickness, what did we do, what was the result" for the whole
  * herd: cases opened in the window, recovery rate, average days to recover, average cost, recurrence, and the same
  * per condition. Every figure is server-derived (`GET /health/outcomes`, RAKHAL-467); a rate is "—" until there is
- * something to divide by, never a fake 0 %. */
-export function HealthOutcomesCard({ plain }: { plain?: boolean } = {}) {
+ * something to divide by, never a fake 0 %. The window is the Insights tab's shared range; "All time" asks for the
+ * longest window the endpoint accepts. The by-condition list is the app's shared `Table` in a rounded card, the same
+ * look as every other table. */
+export function HealthOutcomesCard({ plain, range }: { plain?: boolean; range: InsightsRange }) {
   const t = useTranslations("health.outcomes");
   const tCondition = useTranslations("health.reportSickness");
-  const [days, setDays] = useState<(typeof WINDOWS)[number]>(90);
-  const query = useHealthOutcomes(days);
-
-  const windowPicker = (
-    <div role="radiogroup" aria-label={t("window")} className="flex items-center gap-1 rounded-xl border border-border bg-muted p-1">
-      {WINDOWS.map((w) => (
-        <button
-          key={w}
-          type="button"
-          role="radio"
-          aria-checked={days === w}
-          onClick={() => setDays(w)}
-          className={cn(
-            "rounded-md px-3 py-1 text-xs font-medium transition-colors",
-            days === w ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {t(`windowOption.${w}`)}
-        </button>
-      ))}
-    </div>
-  );
+  const days = rangeDays(range);
+  const query = useHealthOutcomes(days ?? ALL_TIME_OUTCOME_DAYS);
 
   if (query.isLoading) return <CardSkeleton lines={5} className="rounded-2xl" />;
   if (query.isError || !query.data) {
     return (
-      <HealthCard title={t("title")} headerRight={windowPicker} plain={plain}>
+      <HealthCard title={t("title")} plain={plain}>
         <ErrorState description={t("error")} onRetry={() => query.refetch()} />
       </HealthCard>
     );
@@ -68,11 +49,15 @@ export function HealthOutcomesCard({ plain }: { plain?: boolean } = {}) {
   const pct = (n: number | null) => (n === null ? DASH : `${n}%`);
 
   return (
-    <HealthCard title={t("title")} headerRight={windowPicker} plain={plain}>
+    <HealthCard title={t("title")} plain={plain}>
       {data.cases === 0 ? (
-        <EmptyState title={t("emptyTitle", { days })} description={t("emptyDescription")} className="py-8" />
+        <EmptyState
+          title={days === undefined ? t("emptyTitleAll") : t("emptyTitle", { days })}
+          description={t("emptyDescription")}
+          className="py-8"
+        />
       ) : (
-        <>
+        <div className={cn("flex flex-col gap-6 transition-opacity", query.isFetching && "opacity-70")}>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <Kpi label={t("cases")} value={data.cases} caption={t("openCount", { count: data.openCases })} />
             <Kpi label={t("recoveryRate")} value={pct(data.recoveryRate)} caption={t("recoveredOf", { recovered: data.recovered, deaths: data.mortality })} />
@@ -83,37 +68,37 @@ export function HealthOutcomesCard({ plain }: { plain?: boolean } = {}) {
 
           <div className="flex flex-col gap-2">
             <p className="text-sm font-semibold text-foreground">{t("byCondition")}</p>
-            <div className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full min-w-[520px] text-sm">
-                <thead className="bg-muted text-xs text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-medium">{t("condition")}</th>
-                    <th className="px-3 py-2 text-right font-medium">{t("cases")}</th>
-                    <th className="px-3 py-2 text-right font-medium">{t("recoveryRate")}</th>
-                    <th className="px-3 py-2 text-right font-medium">{t("avgDays")}</th>
-                    <th className="px-3 py-2 text-right font-medium">{t("avgCost")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.byCondition.slice(0, 8).map((row) => (
-                    <tr key={row.condition ?? "none"} className="border-t border-border">
-                      <td className="px-3 py-2 text-foreground">
+            <div className="overflow-x-auto rounded-2xl border border-border bg-card">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("condition")}</TableHead>
+                    <TableHead className="text-right">{t("cases")}</TableHead>
+                    <TableHead className="text-right">{t("recoveryRate")}</TableHead>
+                    <TableHead className="text-right">{t("avgDays")}</TableHead>
+                    <TableHead className="text-right">{t("avgCost")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.byCondition.map((row) => (
+                    <TableRow key={row.condition ?? "none"}>
+                      <TableCell className="font-medium text-foreground">
                         {row.condition ? tCondition(`conditionValue.${row.condition as HealthCondition}`) : t("noCondition")}
-                      </td>
-                      <td className="px-3 py-2 text-right text-foreground">{row.cases}</td>
-                      <td className="px-3 py-2 text-right text-foreground">{pct(row.recoveryRate)}</td>
-                      <td className="px-3 py-2 text-right text-foreground">
+                      </TableCell>
+                      <TableCell className="text-right text-foreground">{row.cases}</TableCell>
+                      <TableCell className="text-right text-foreground">{pct(row.recoveryRate)}</TableCell>
+                      <TableCell className="text-right text-foreground">
                         {row.avgDaysToRecover === null ? DASH : t("daysValue", { count: row.avgDaysToRecover })}
-                      </td>
-                      <td className="px-3 py-2 text-right text-foreground">{row.avgCost === null ? DASH : <MoneyText amount={row.avgCost} />}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell className="text-right text-foreground">{row.avgCost === null ? DASH : <MoneyText amount={row.avgCost} />}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
             {data.otherClosed > 0 ? <p className="text-xs text-muted-foreground">{t("otherClosedNote", { count: data.otherClosed })}</p> : null}
           </div>
-        </>
+        </div>
       )}
     </HealthCard>
   );

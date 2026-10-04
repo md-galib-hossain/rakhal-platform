@@ -35,7 +35,7 @@ vi.mock("@/components/shared/pagination", () => ({
 }));
 
 function renderTab(view?: string) {
-  const Adapter = withNuqsTestingAdapter({ searchParams: view ? `?view=${view}` : "" });
+  const Adapter = withNuqsTestingAdapter({ searchParams: view ? `?bay=${view}` : "" });
   render(
     <Adapter>
       <NextIntlClientProvider locale="en" messages={en} timeZone="Asia/Dhaka">
@@ -63,7 +63,7 @@ describe("TreatmentsTab — one paged list at a time (RFE-141)", () => {
     expect(screen.queryByRole("tab", { name: /Preventive rounds/i })).toBeNull();
   });
 
-  it("an old ?view=rounds link falls back to the Sick Bay list instead of a blank tab", () => {
+  it("an old ?bay=rounds link falls back to the Sick Bay list instead of a blank tab", () => {
     renderTab("rounds");
     expect(screen.getByTestId("sick-bay-table")).toBeTruthy();
   });
@@ -81,7 +81,7 @@ describe("TreatmentsTab — one paged list at a time (RFE-141)", () => {
     expect(screen.queryByTestId("sick-bay-table")).toBeNull();
   });
 
-  it("a ?view=withheld link (from the stat strip) opens that list directly", () => {
+  it("a ?bay=withheld link (from the stat strip) opens that list directly", () => {
     renderTab("withheld");
     expect(screen.getByTestId("withdrawals")).toBeTruthy();
   });

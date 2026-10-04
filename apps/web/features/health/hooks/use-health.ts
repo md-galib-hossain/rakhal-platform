@@ -68,6 +68,17 @@ export function useHealthOutcomes(days: number) {
   });
 }
 
+/** Insights trend chart for the chosen period (`undefined` = all time). Sits under `["health","outcomes"]`, so every
+ * health mutation refreshes it with the outcomes card. */
+export function useMorbidityTrend(days: number | undefined) {
+  return useQuery({
+    queryKey: ["health", "outcomes", "trend", days ?? "all"] as const,
+    queryFn: () => healthApi.morbidityTrend(days),
+    staleTime: STALE_TIME,
+    placeholderData: keepPreviousData,
+  });
+}
+
 export function useHealthCaseDetail(id: string | undefined) {
   return useQuery({
     queryKey: qk.health.caseDetail(id ?? ""),

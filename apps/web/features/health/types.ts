@@ -260,6 +260,16 @@ export interface OutcomeBreakdown {
   avgDaysToRecover: number | null;
   avgCost: number | null;
 }
+/** `GET /health/morbidity-trend?days=` — curative cases opened per bucket, zero-filled. `days` omitted = all time. */
+export interface MorbidityTrend {
+  windowDays: number | null;
+  bucket: "day" | "week" | "month";
+  total: number;
+  /** Cases in the equally long window just before this one; `null` for all time. */
+  previousTotal: number | null;
+  points: { date: string; count: number }[];
+}
+
 export interface HealthOutcomes extends OutcomeBreakdown {
   windowDays: number;
   since: string;
@@ -626,7 +636,7 @@ export const HEALTH_MANAGEMENT_TABS = ["treatments", "protocols", "insights"] as
 export type HealthManagementTab = (typeof HEALTH_MANAGEMENT_TABS)[number];
 
 /** RFE-141 — the Sick Bay tab shows ONE paged list at a time: animals under treatment, animals whose milk/meat is
- * withheld (a closed case can still have a running withdrawal). Lives in the URL as `?view=` so the stat strip and
+ * withheld (a closed case can still have a running withdrawal). Lives in the URL as `?bay=` so the stat strip and
  * links can open the right one. (RFE-143 removed the third view, preventive rounds - they are in the protocol sheet.) */
 export const SICK_BAY_VIEWS = ["cases", "withheld"] as const;
 export type SickBayView = (typeof SICK_BAY_VIEWS)[number];

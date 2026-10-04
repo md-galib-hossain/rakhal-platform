@@ -2,52 +2,71 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringEnum, useQueryStates } from "nuqs";
+import { Activity, CalendarClock, ShieldAlert, ShieldCheck, Syringe } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useHealthDashboard, useRounds } from "../hooks/use-health";
 import { HEALTH_MANAGEMENT_TABS, SICK_BAY_VIEWS, type HealthManagementTab, type SickBayView } from "../types";
 
 const TAB_KEYS = HEALTH_MANAGEMENT_TABS as unknown as [HealthManagementTab, ...HealthManagementTab[]];
 const VIEW_KEYS = SICK_BAY_VIEWS as unknown as [SickBayView, ...SickBayView[]];
 
-function Stat({
+function HighlightTile({
+  icon,
+  iconBg,
   label,
   value,
-  caption,
+  footnote,
   onClick,
   tone,
 }: {
+  icon: React.ReactNode;
+  iconBg: string;
   label: string;
   value: React.ReactNode;
-  caption?: string;
-  /** When set the tile is a button that jumps to the matching list. */
+  footnote?: React.ReactNode;
   onClick?: () => void;
-  tone?: "warning";
+  tone?: "warning" | "destructive";
 }) {
-  const body = (
-    <>
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <span className={cn("text-xl font-bold text-foreground", tone === "warning" && "text-warning")}>{value}</span>
-      {caption ? <span className="text-xs text-muted-foreground">{caption}</span> : null}
-    </>
-  );
-  const base = "flex min-h-[76px] flex-col items-start justify-center gap-0.5 bg-card px-4 py-3 text-left";
-  return onClick ? (
-    <button type="button" onClick={onClick} className={cn(base, "transition-colors hover:bg-muted/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring")}>
-      {body}
-    </button>
-  ) : (
-    <div className={base}>{body}</div>
+  const Wrapper = onClick ? "button" : "div";
+  return (
+    <Wrapper
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      className={cn(
+        "flex flex-1 flex-col justify-between gap-3 rounded-xl border border-border bg-card p-3 text-left",
+        onClick &&
+          "cursor-pointer transition-colors hover:border-primary/50 hover:bg-muted/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", iconBg)}>{icon}</span>
+        <p className="text-sm font-medium text-foreground">{label}</p>
+      </div>
+      <div className="flex flex-col gap-1">
+        <p
+          className={cn(
+            "text-2xl font-bold text-foreground",
+            tone === "warning" && "text-warning",
+            tone === "destructive" && "text-destructive",
+          )}
+        >
+          {value}
+        </p>
+        {footnote ? <p className="text-xs text-muted-foreground">{footnote}</p> : null}
+      </div>
+    </Wrapper>
   );
 }
 
 /**
- * RFE-140 (MILESTONE 29c) — the one-row summary at the top of Healthcare, replacing the 420px Key Metrics ring card, the
- * trend chart and the outcomes card (those two live in the Insights tab now). Four numbers from the existing
- * `GET /health/dashboard`: animals sick now, herd healthy share, animals with milk/meat withheld, medicine cost
- * (all-time, as the endpoint returns it). The first and third are buttons that open that Sick Bay view.
+ * Healthcare Highlights KPI section (matching Animal Highlights visual language) —
+ * 5-tile summary at the top of Healthcare: animals sick now, herd healthy share, animals with
+ * milk/meat withheld, late protocol steps, and all-time medicine expense.
+ * The Sick, Withheld, and Late steps tiles are clickable filters.
  */
 export function HealthStatStrip() {
   const t = useTranslations("health.stat");
@@ -55,7 +74,8 @@ export function HealthStatStrip() {
   const query = useHealthDashboard();
   const [, setParams] = useQueryStates({
     healthTab: parseAsStringEnum<HealthManagementTab>(TAB_KEYS),
-    view: parseAsStringEnum<SickBayView>(VIEW_KEYS),
+    // `bay`, not `view`: the global animal-details modal owns `?view=<animalId>`, so `view=withheld` opened it on an animal called "withheld".
+    bay: parseAsStringEnum<SickBayView>(VIEW_KEYS),
     status: parseAsString,
   });
   // The same cached Running list the Protocols tab reads. "Late" = steps past their farm day; the tile adds them up across
@@ -64,39 +84,88 @@ export function HealthStatStrip() {
   const lateRounds = (rounds.data?.items ?? []).filter((round) => round.stepsOverdue > 0);
   const lateSteps = lateRounds.reduce((sum, round) => sum + round.stepsOverdue, 0);
 
-  if (query.isLoading) return <Skeleton className="h-[78px] w-full rounded-2xl" />;
-  if (query.isError || !query.data) {
-    return (
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-        <span>{t("error")}</span>
-        <button type="button" onClick={() => void query.refetch()} className="font-medium text-primary hover:underline">
-          {t("retry")}
-        </button>
-      </div>
-    );
-  }
-  const data = query.data;
-  const open = (view: SickBayView) => void setParams({ healthTab: "treatments", view });
+  const open = (bay: SickBayView) => void setParams({ healthTab: "treatments", bay });
 
   return (
-    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border bg-border shadow-card sm:grid-cols-5 [&>:last-child:nth-child(odd)]:col-span-2 sm:[&>:last-child:nth-child(odd)]:col-span-1">
-      <Stat label={t("sick")} value={data.sickBayCount} caption={t("sickCaption")} onClick={() => open("cases")} />
-      <Stat label={t("healthy")} value={`${data.herdHealthScore}%`} caption={t("healthyCaption", { healthy: data.healthyAnimalCount, total: data.totalAnimalCount })} />
-      <Stat
-        label={t("withheld")}
-        value={data.safetyWithdrawalCount}
-        caption={t("withheldCaption")}
-        tone={data.safetyWithdrawalCount > 0 ? "warning" : undefined}
-        onClick={() => open("withheld")}
-      />
-      <Stat
-        label={t("late")}
-        value={rounds.isSuccess ? lateSteps : "—"}
-        caption={rounds.isSuccess ? (lateSteps > 0 ? t("lateCaption", { count: lateRounds.length }) : t("lateNone")) : undefined}
-        tone={lateSteps > 0 ? "warning" : undefined}
-        onClick={() => void setParams({ healthTab: "protocols", status: "needs" })}
-      />
-      <Stat label={t("medicine")} value={formatMoney(data.medicineExpense, locale)} caption={t("medicineCaption")} />
-    </div>
+    <Card className="flex flex-col gap-4 rounded-2xl border-border p-4 shadow-card">
+      <p className="text-xl font-medium text-foreground">{t("title")}</p>
+
+      {query.isLoading ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-[104px] flex-1 rounded-xl" />
+          ))}
+        </div>
+      ) : query.isError || !query.data ? (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+          <span>{t("error")}</span>
+          <button type="button" onClick={() => void query.refetch()} className="font-medium text-primary hover:underline">
+            {t("retry")}
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <HighlightTile
+            icon={<Activity className="size-4 text-destructive" aria-hidden />}
+            iconBg="bg-destructive-tint"
+            label={t("sick")}
+            value={query.data.sickBayCount}
+            footnote={t("sickCaption")}
+            onClick={() => open("cases")}
+          />
+          <HighlightTile
+            icon={<ShieldCheck className="size-4 text-success" aria-hidden />}
+            iconBg="bg-success-tint"
+            label={t("healthy")}
+            value={`${query.data.herdHealthScore}%`}
+            footnote={t("healthyCaption", {
+              healthy: query.data.healthyAnimalCount,
+              total: query.data.totalAnimalCount,
+            })}
+          />
+          <HighlightTile
+            icon={
+              <ShieldAlert
+                className={cn("size-4", query.data.safetyWithdrawalCount > 0 ? "text-warning" : "text-warning")}
+                aria-hidden
+              />
+            }
+            iconBg="bg-warning-tint"
+            label={t("withheld")}
+            value={query.data.safetyWithdrawalCount}
+            footnote={t("withheldCaption")}
+            tone={query.data.safetyWithdrawalCount > 0 ? "warning" : undefined}
+            onClick={() => open("withheld")}
+          />
+          <HighlightTile
+            icon={
+              <CalendarClock
+                className={cn("size-4", lateSteps > 0 ? "text-warning" : "text-accent-indigo")}
+                aria-hidden
+              />
+            }
+            iconBg={lateSteps > 0 ? "bg-warning-tint" : "bg-accent-indigo-tint"}
+            label={t("late")}
+            value={rounds.isSuccess ? lateSteps : "—"}
+            footnote={
+              rounds.isSuccess
+                ? lateSteps > 0
+                  ? t("lateCaption", { count: lateRounds.length })
+                  : t("lateNone")
+                : undefined
+            }
+            tone={lateSteps > 0 ? "warning" : undefined}
+            onClick={() => void setParams({ healthTab: "protocols", status: "needs" })}
+          />
+          <HighlightTile
+            icon={<Syringe className="size-4 text-info" aria-hidden />}
+            iconBg="bg-info-tint"
+            label={t("medicine")}
+            value={formatMoney(query.data.medicineExpense, locale)}
+            footnote={t("medicineCaption")}
+          />
+        </div>
+      )}
+    </Card>
   );
 }

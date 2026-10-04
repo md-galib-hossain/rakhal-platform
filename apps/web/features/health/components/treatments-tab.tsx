@@ -14,7 +14,7 @@ const VIEW_KEYS = SICK_BAY_VIEWS as unknown as [SickBayView, ...SickBayView[]];
 /**
  * "Sick Bay" tab (key `treatments`, RFE-107; relabelled and reshaped by RFE-141). It used to stack three tables — Sick
  * Bay, Preventive Rounds, Safety Withdrawals — which made the page long and hid the second and third below the fold.
- * Now ONE list is on screen at a time, picked by a switch that lives in the URL (`?view=`), and every list pages:
+ * Now ONE list is on screen at a time, picked by a switch that lives in the URL (`?bay=`, never `?view=` - that is the animal-details modal's), and every list pages:
  *   - `cases`    — animals under treatment (curative `HealthCase`, with or without a protocol; server search),
  *   - `withheld` — animals whose milk/meat is withheld (safety withdrawals, incl. ones whose case is already closed),
  * (RFE-143 removed the third view, preventive rounds: each is now listed under its protocol, in the Protocols tab's sheet.)
@@ -30,7 +30,7 @@ export function TreatmentsTab({
   onManageCase: (caseId: string) => void;
 }) {
   const t = useTranslations("health.treatments");
-  const [view, setView] = useQueryState("view", parseAsStringEnum<SickBayView>(VIEW_KEYS).withDefault("cases"));
+  const [view, setView] = useQueryState("bay", parseAsStringEnum<SickBayView>(VIEW_KEYS).withDefault("cases"));
   const dashboard = useHealthDashboard();
   const counts: Partial<Record<SickBayView, number>> = {
     cases: dashboard.data?.sickBayCount,
