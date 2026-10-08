@@ -89,8 +89,6 @@ export class SemenService {
     userId: string,
     dto: CreateSemenTankDto,
   ): Promise<PresentedTank> {
-    this.assertSubZeroTemp(dto.currentTempC);
-
     const tank = await this.prisma.semenTank.create({
       data: {
         farmId,
@@ -100,8 +98,6 @@ export class SemenService {
         numCanisters: dto.numCanisters,
         numGoblets: dto.numGoblets,
         storageLocation: dto.storageLocation,
-        currentTempC: dto.currentTempC,
-        ln2LevelPct: dto.ln2LevelPct,
         createdBy: userId,
       },
     });
@@ -123,7 +119,6 @@ export class SemenService {
     userId?: string,
   ): Promise<PresentedTank> {
     await this.getTankOrThrow(farmId, id);
-    this.assertSubZeroTemp(dto.currentTempC);
 
     const tank = await this.prisma.semenTank.update({
       where: { id },
@@ -134,8 +129,6 @@ export class SemenService {
         numCanisters: dto.numCanisters,
         numGoblets: dto.numGoblets,
         storageLocation: dto.storageLocation,
-        currentTempC: dto.currentTempC,
-        ln2LevelPct: dto.ln2LevelPct,
       },
     });
 
@@ -492,12 +485,6 @@ export class SemenService {
       targetSex:
         semenType === SemenType.SEX_SORTED ? (targetSex ?? null) : null,
     };
-  }
-
-  private assertSubZeroTemp(tempC?: number): void {
-    if (tempC != null && tempC >= 0) {
-      throw new BadRequestException('LN2 tank temperature must be below 0 °C');
-    }
   }
 
   private presentTank(tank: SemenTank, strawInStock: number): PresentedTank {

@@ -442,9 +442,13 @@ export class ReproductionService {
       semenSource === SemenSource.FARM_INVENTORY
         ? inventoryBatchName
         : (serviceProvider?.name ?? dto.semenCompany ?? 'Breeding service');
-    if (resolvedCost > 0 && !dto.financialAccountId) {
+    if (
+      resolvedCost > 0 &&
+      semenSource !== SemenSource.FARM_INVENTORY &&
+      !dto.financialAccountId
+    ) {
       throw new BadRequestException(
-        'financialAccountId is required when a breeding cost is being recorded',
+        'financialAccountId is required when a breeding service cost is being recorded',
       );
     }
 
@@ -540,33 +544,47 @@ export class ReproductionService {
       return created;
     });
 
-    // RAKHAL-330: post the breeding's cost to Finance after the event commits
-    // (same after-commit convention Task Hub scheduling below already uses) —
-    // needs the real breedingEvent.id/breedingNumber for the transaction note.
-    // RAKHAL-354: migrated off V1 `FinanceService.recordTransaction` onto
-    // Finance V2's `ExpenseService.recordExpense` (`category: BREEDING`,
-    // ledger account `5300`) — the real per-animal expense join
-    // `cattle-finance-aggregation.ts#computeCattleFinance` now reads
-    // directly via `Expense.cattleId`, no `subType` regex. RAKHAL-393
-    // (closes RD-066): `financialAccountId` now comes straight from the
-    // frontend's `AccountPicker` — the `resolveFinancialAccountId` "oldest
-    // active account of that type" stopgap is deleted.
+    // Post the breeding's cost to Finance after the event commits.
+    // When using straw from FARM_INVENTORY: the straw was already purchased and paid
+    // when stocked into inventory. Using recordInventoryConsumption attributes the cost
+    // to the animal (cattleId) without debiting the farm's cash/bank accounts a second time (prevents double costing).
+    // When paying an external technician or service fee: recordExpense with financialAccountId.
     if (resolvedCost > 0) {
-      const posted = await this.expenseService.recordExpense(farmId, userId, {
-        category: ExpenseCategory.BREEDING,
-        description: `${costEntityName ?? 'Breeding service'} — Breeding #${breedingEvent.breedingNumber} (${dto.breedingMethod})`,
-        amount: resolvedCost,
-        expenseDate: breedingDate.toISOString(),
-        financialAccountId: dto.financialAccountId!,
-        cattleId: dto.cattleId,
-      });
-      breedingEvent = await this.prisma.breedingEvent.update({
-        where: { id: breedingEvent.id },
-        data: { financeTransactionId: posted.id },
-        include: {
-          bull: { select: { id: true, tagNumber: true, name: true } },
-        },
-      });
+      let postedExpenseId: string | null = null;
+      if (semenSource === SemenSource.FARM_INVENTORY) {
+        const posted = await this.expenseService.recordInventoryConsumption(
+          farmId,
+          userId,
+          {
+            category: ExpenseCategory.BREEDING,
+            description: `${costEntityName ?? 'Semen Straw'} — Breeding #${breedingEvent.breedingNumber} (${dto.breedingMethod})`,
+            amount: resolvedCost,
+            expenseDate: breedingDate.toISOString(),
+            cattleId: dto.cattleId,
+          },
+        );
+        postedExpenseId = posted.id;
+      } else if (dto.financialAccountId) {
+        const posted = await this.expenseService.recordExpense(farmId, userId, {
+          category: ExpenseCategory.BREEDING,
+          description: `${costEntityName ?? 'Breeding service'} — Breeding #${breedingEvent.breedingNumber} (${dto.breedingMethod})`,
+          amount: resolvedCost,
+          expenseDate: breedingDate.toISOString(),
+          financialAccountId: dto.financialAccountId,
+          cattleId: dto.cattleId,
+        });
+        postedExpenseId = posted.id;
+      }
+
+      if (postedExpenseId) {
+        breedingEvent = await this.prisma.breedingEvent.update({
+          where: { id: breedingEvent.id },
+          data: { financeTransactionId: postedExpenseId },
+          include: {
+            bull: { select: { id: true, tagNumber: true, name: true } },
+          },
+        });
+      }
     }
 
     await this.derivation.refreshDerivedState(farmId, dto.cattleId);

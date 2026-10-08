@@ -265,9 +265,13 @@ export class ReproductionEditService {
         costEntityName =
           serviceProvider?.name ?? existing.semenCompany ?? 'Breeding service';
       }
-      if (resolvedCost > 0 && !mergedFinancialAccountId) {
+      if (
+        resolvedCost > 0 &&
+        mergedSemenSource !== SemenSource.FARM_INVENTORY &&
+        !mergedFinancialAccountId
+      ) {
         throw new BadRequestException(
-          'financialAccountId is required when a breeding cost is being recorded',
+          'financialAccountId is required when a breeding service cost is being recorded',
         );
       }
     }
@@ -313,12 +317,7 @@ export class ReproductionEditService {
       },
     });
 
-    // RAKHAL-330: void the old cost transaction (if any) and repost the
-    // resolved one, so the ledger never drifts from what's on the event.
-    // RAKHAL-354: migrated off V1 `FinanceService.voidTransaction`/
-    // `recordTransaction` onto Finance V2's `ExpenseService.reverseExpense`/
-    // `.recordExpense` — see `reproduction.service.ts`'s create-path doc
-    // comment for the full reasoning (same migration, same helper).
+    // Void the old cost transaction (if any) and repost the resolved one.
     if (costRelevantFieldsChanged) {
       if (existing.financeTransactionId) {
         await this.expenseService.reverseExpense(
@@ -329,15 +328,30 @@ export class ReproductionEditService {
       }
       let newFinanceTransactionId: string | null = null;
       if (resolvedCost > 0) {
-        const posted = await this.expenseService.recordExpense(farmId, userId, {
-          category: ExpenseCategory.BREEDING,
-          description: `${costEntityName ?? 'Breeding service'} — Breeding #${updated.breedingNumber} (${mergedMethod}) — edited`,
-          amount: resolvedCost,
-          financialAccountId: mergedFinancialAccountId!,
-          expenseDate: newBreedingDate.toISOString(),
-          cattleId: newCattleId,
-        });
-        newFinanceTransactionId = posted.id;
+        if (mergedSemenSource === SemenSource.FARM_INVENTORY) {
+          const posted = await this.expenseService.recordInventoryConsumption(
+            farmId,
+            userId,
+            {
+              category: ExpenseCategory.BREEDING,
+              description: `${costEntityName ?? 'Semen Straw'} — Breeding #${updated.breedingNumber} (${mergedMethod}) — edited`,
+              amount: resolvedCost,
+              expenseDate: newBreedingDate.toISOString(),
+              cattleId: newCattleId,
+            },
+          );
+          newFinanceTransactionId = posted.id;
+        } else if (mergedFinancialAccountId) {
+          const posted = await this.expenseService.recordExpense(farmId, userId, {
+            category: ExpenseCategory.BREEDING,
+            description: `${costEntityName ?? 'Breeding service'} — Breeding #${updated.breedingNumber} (${mergedMethod}) — edited`,
+            amount: resolvedCost,
+            financialAccountId: mergedFinancialAccountId,
+            expenseDate: newBreedingDate.toISOString(),
+            cattleId: newCattleId,
+          });
+          newFinanceTransactionId = posted.id;
+        }
       }
       updated = await this.prisma.breedingEvent.update({
         where: { id },

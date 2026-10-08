@@ -2,10 +2,8 @@ import { Transform } from 'class-transformer';
 import {
   IsInt,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
   IsString,
-  Max,
   Min,
 } from 'class-validator';
 import { trimString } from 'src/common/dto';
@@ -45,17 +43,6 @@ export class CreateSemenTankDto {
   @Transform(trimString)
   @IsString()
   storageLocation?: string;
-
-  /** Must be below 0 °C (INV-07) — validated in the service. */
-  @IsOptional()
-  @IsNumber()
-  currentTempC?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(100)
-  ln2LevelPct?: number;
 }
 
 /** Partial update of a semen tank. */
@@ -90,14 +77,4 @@ export class UpdateSemenTankDto {
   @Transform(trimString)
   @IsString()
   storageLocation?: string;
-
-  @IsOptional()
-  @IsNumber()
-  currentTempC?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(100)
-  ln2LevelPct?: number;
 }
