@@ -59,60 +59,41 @@ export function ProtocolInstanceActions({
   const t = useTranslations("reproduction.dialogs.protocolInstance");
   const tp = useTranslations("reproduction.protocols");
   const can = useCan();
-  const [aiOpen, setAiOpen] = useState(false);
-  const [outcomeOpen, setOutcomeOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
 
   const canUpdate = can("reproduction.update");
   const isActive = (ACTIVE_STATUSES as readonly string[]).includes(instance.status);
-  const needsAi = isActive && !instance.ai_completed_at;
-  /** Only while the instance is open and PD isn't recorded yet — after that it is a closed record. */
-  const needsOutcome = isActive && !!instance.ai_completed_at && !instance.outcome_recorded_at;
-  /** A cancelled/failed/completed instance is a closed record — re-showing "Close" there let a
-   * user cancel an already-cancelled instance for no effect (real UX bug, not just cosmetic). */
   const canClose = isActive && canUpdate;
 
   return (
     <div className="flex items-center gap-1.5">
-      {canUpdate && needsAi ? (
-        <Button size="sm" variant="secondary" onClick={() => setAiOpen(true)}>
-          {t("recordAi")}
-        </Button>
-      ) : null}
-      {canUpdate && needsOutcome ? (
-        <Button size="sm" variant="secondary" onClick={() => setOutcomeOpen(true)}>
-          {t("recordOutcome")}
-        </Button>
-      ) : null}
+      <Button size="sm" variant="secondary" onClick={onViewTimeline}>
+        <ListChecks className="size-4 mr-1.5" />
+        {tp("viewTimeline")}
+      </Button>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size="icon" variant="ghost" className="size-9" aria-label={tp("moreActions")}>
-            <MoreHorizontal aria-hidden />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={onViewTimeline}>
-            <ListChecks className="size-4" aria-hidden />
-            {tp("viewTimeline")}
-          </DropdownMenuItem>
-          {canClose ? (
+      {canClose ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="icon" variant="ghost" className="size-9" aria-label={tp("moreActions")}>
+              <MoreHorizontal aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
             <DropdownMenuItem onSelect={() => setCloseOpen(true)} className="text-destructive focus:text-destructive">
               <Ban className="size-4" aria-hidden />
               {t("close")}
             </DropdownMenuItem>
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
 
-      <RecordAiDialog instanceId={instance.id} open={aiOpen} onOpenChange={setAiOpen} />
-      <RecordOutcomeDialog instanceId={instance.id} open={outcomeOpen} onOpenChange={setOutcomeOpen} />
       <CloseInstanceDialog instanceId={instance.id} open={closeOpen} onOpenChange={setCloseOpen} />
     </div>
   );
 }
 
-function RecordAiDialog({
+export function RecordAiDialog({
   instanceId,
   open,
   onOpenChange,
@@ -182,7 +163,7 @@ function RecordAiDialog({
   );
 }
 
-function RecordOutcomeDialog({
+export function RecordOutcomeDialog({
   instanceId,
   open,
   onOpenChange,

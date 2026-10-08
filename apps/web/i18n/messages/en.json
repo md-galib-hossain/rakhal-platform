@@ -3128,7 +3128,13 @@
         "statusCancelled": "Cancelled",
         "noTask": "No task recorded for this step",
         "loading": "Loading timeline…",
-        "error": "Could not load the timeline."
+        "error": "Could not load the timeline.",
+        "markDone": "Mark Done",
+        "undo": "Undo",
+        "stepCompletedToast": "Step marked as completed.",
+        "stepReopenedToast": "Step reopened.",
+        "recordAi": "Record AI",
+        "recordOutcome": "Record Outcome"
       },
       "newProtocol": "New Protocol",
       "edit": "Edit",
