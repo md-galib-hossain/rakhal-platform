@@ -376,8 +376,20 @@ function useInvalidateSemenBatch() {
   const queryClient = useQueryClient();
   return () => {
     void queryClient.invalidateQueries({ queryKey: ["inventory", "semen-batch", "list"] });
+    void queryClient.invalidateQueries({ queryKey: ["semen-batches"] });
     void queryClient.invalidateQueries({ queryKey: qk.inventory.semenTanks() });
   };
+}
+
+/** `GET /inventory/semen/batches` (`inventory.read`-gated) — full list for pickers (e.g. Reproduction's AI event). */
+export function useSemenBatches(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ["semen-batches", "picker"],
+    queryFn: () => inventoryApi.listSemenBatches({}, undefined, 100),
+    enabled: options?.enabled ?? true,
+    staleTime: 30_000,
+    select: (page) => page.items.filter((b) => b.strawQuantity > 0),
+  });
 }
 
 export function useCreateSemenBatch() {

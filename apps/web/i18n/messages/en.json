@@ -1740,6 +1740,37 @@
       "back": "Back",
       "addItem": "Add"
     },
+    "semenBatchPicker": {
+      "semenBatch": "Semen batch",
+      "selectSemenBatch": "Select a semen batch",
+      "searchSemenBatch": "Search semen batches",
+      "loading": "Loading…",
+      "noBatchesFound": "No semen batches found.",
+      "addSemenBatch": "Add semen batch",
+      "batchName": "Batch / Straw name",
+      "batchNamePlaceholder": "e.g. Holstein Friesian Premium",
+      "strawQuantity": "Straw quantity",
+      "strawQuantityPlaceholder": "0",
+      "costPerUnit": "Cost per straw (৳)",
+      "costPerUnitPlaceholder": "0",
+      "breed": "Breed",
+      "breedPlaceholder": "e.g. Holstein Friesian",
+      "batchCode": "Batch code / ID",
+      "batchCodePlaceholder": "e.g. SM-2025-HF-01",
+      "semenType": "Semen type",
+      "selectSemenType": "Select semen type",
+      "targetSex": "Target sex",
+      "selectTargetSex": "Select target sex",
+      "typeConventional": "Conventional",
+      "typeSexSorted": "Sex-Sorted",
+      "sexFemale": "Female",
+      "sexMale": "Male",
+      "strawsLeft": "{count} straws left",
+      "back": "Back",
+      "addItem": "Add batch",
+      "createdToast": "Semen batch added.",
+      "genericError": "Something went wrong. Please try again."
+    },
     "medicine": {
       "empty": {
         "title": "No medicine found",
@@ -2254,8 +2285,6 @@
         "locatedAt": "Located at {location}",
         "noLocation": "No storage location set",
         "totalStraw": "Total Straw",
-        "currentTemp": "Current Temp (°C)",
-        "ln2Level": "LN2 Level (%)",
         "viewDetails": "View Details"
       },
       "tankForm": {
@@ -2273,9 +2302,6 @@
         "numGoblets": "Number of Goblet",
         "storageLocation": "Storage Location",
         "storageLocationPlaceholder": "e.g. 'Warehouse A'",
-        "calibrationSafety": "Calibration & Safety",
-        "currentTemperature": "Current Temperature",
-        "ln2Level": "LN2 Level",
         "cancel": "Cancel",
         "save": "Save Changes",
         "add": "Add",
@@ -2293,14 +2319,7 @@
         "strawCapacity": "Straw Capacity",
         "numCanisters": "Number of Canister",
         "numGoblets": "Number of Goblet",
-        "storageLocation": "Storage Location",
-        "currentTemperature": "Current Temperature",
-        "ln2Level": "LN2 Level",
-        "updateReadings": "Update Readings",
-        "cancel": "Cancel",
-        "updateStock": "Update Stock",
-        "updatedToast": "Tank readings updated.",
-        "genericError": "Something went wrong. Please try again."
+        "storageLocation": "Storage Location"
       },
       "batchCard": {
         "menu": "Row actions",

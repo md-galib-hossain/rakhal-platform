@@ -11,6 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ServiceProviderPicker } from "@/features/settings/components/service-provider-picker";
 import { AccountPicker } from "@/features/finance/components/account-picker";
+import { SemenBatchPicker } from "@/features/inventory/components/semen-batch-picker";
+import { useSemenBatches } from "@/features/inventory/hooks/use-inventory";
 import type { CreateBreedingEventInput } from "../../schemas";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 
@@ -18,19 +20,6 @@ const BREEDING_METHODS = ["AI", "NATURAL", "EMBRYO_TRANSFER"] as const;
 const SEMEN_SOURCES = ["FARM_INVENTORY", "TECHNICIAN_SUPPLIED", "EXTERNAL"] as const;
 const SEMEN_TYPES = ["CONVENTIONAL", "SEX_SORTED"] as const;
 const TARGET_SEXES = ["FEMALE", "MALE"] as const;
-
-interface SemenBatchOption {
-  id: string;
-  name: string;
-  batchCode: string | null;
-  breed: string | null;
-  strawQuantity: number;
-  semenType: "CONVENTIONAL" | "SEX_SORTED" | null;
-  targetSex: "FEMALE" | "MALE" | null;
-  /** RAKHAL-330: per-straw cost — mandatory on the batch itself, drives the read-only cost line
-   * shown once a batch is picked (the actual Finance posting is resolved server-side from this). */
-  costPerUnit: number | null;
-}
 
 /** RAKHAL-393 (closes RD-066): shared financial-account picker — AI-from-inventory cost, manual
  * serviceCost, and NATURAL/EMBRYO_TRANSFER's own optional cost all funnel through this same control.
@@ -54,18 +43,6 @@ function AccountField({ form }: { form: UseFormReturn<CreateBreedingEventInput> 
   );
 }
 
-/** `GET /inventory/semen/batches` (`inventory.read`-gated) — only batches with straws left, so an
- * AI event can't pick an empty one and 400 on the backend's `decrementStraw`. */
-function useSemenBatches(enabled: boolean) {
-  return useQuery({
-    queryKey: ["semen-batches", "picker"],
-    queryFn: () => apiFetchPage<SemenBatchOption>("/inventory/semen/batches", { searchParams: { limit: 100 } }),
-    enabled,
-    staleTime: 30_000,
-    select: (page) => page.items.filter((b) => b.strawQuantity > 0),
-  });
-}
-
 /** Pure field markup for a breeding-event form, extracted out of `breeding-event-dialog.tsx` so
  * `breeding-event-step.tsx` (Edit Animal's wizard step) can render the identical fields without
  * duplicating them — the dialog and the step each own their own `useForm`/mutation/submit, this
@@ -74,7 +51,7 @@ export function BreedingEventFormFields({ form }: { form: UseFormReturn<CreateBr
   const t = useTranslations("reproduction.dialogs.breeding");
   const breedingMethod = form.watch("breedingMethod");
   const semenSource = form.watch("semenSource");
-  const semenBatches = useSemenBatches(breedingMethod === "AI" && semenSource === "FARM_INVENTORY");
+  const semenBatches = useSemenBatches({ enabled: breedingMethod === "AI" && semenSource === "FARM_INVENTORY" });
 
   return (
     <>
@@ -180,18 +157,11 @@ export function BreedingEventFormFields({ form }: { form: UseFormReturn<CreateBr
                 control={form.control}
                 name="semenBatchId"
                 render={({ field }) => (
-                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("semenBatchPlaceholder")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(semenBatches.data ?? []).map((b) => (
-                        <SelectItem key={b.id} value={b.id}>
-                          {b.name} {b.batchCode ? `(${b.batchCode})` : ""} — {t("strawsLeft", { count: b.strawQuantity })}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SemenBatchPicker
+                    value={field.value}
+                    onChange={field.onChange}
+                    error={form.formState.errors.semenBatchId?.message}
+                  />
                 )}
               />
               {(() => {
@@ -209,15 +179,13 @@ export function BreedingEventFormFields({ form }: { form: UseFormReturn<CreateBr
                           : ""}
                       </p>
                     ) : null}
-                    {/* RAKHAL-330: cost comes from the batch, resolved server-side — read-only here,
-                        the farmer only picks how it's paid below. */}
+                    {/* Cost comes from the batch, resolved server-side as inventory consumption for the animal. */}
                     <p className="text-xs text-muted-foreground">
                       {t("costFromBatch", { cost: selectedBatch.costPerUnit ?? 0 })}
                     </p>
                   </div>
                 );
               })()}
-              <AccountField form={form} />
             </div>
           ) : (
             <>

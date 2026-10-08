@@ -1740,6 +1740,37 @@
       "back": "পেছনে",
       "addItem": "যোগ করুন"
     },
+    "semenBatchPicker": {
+      "semenBatch": "সিমেন ব্যাচ",
+      "selectSemenBatch": "সিমেন ব্যাচ নির্বাচন করুন",
+      "searchSemenBatch": "সিমেন ব্যাচ খুঁজুন",
+      "loading": "লোড হচ্ছে…",
+      "noBatchesFound": "কোনো সিমেন ব্যাচ পাওয়া যায়নি।",
+      "addSemenBatch": "সিমেন ব্যাচ যোগ করুন",
+      "batchName": "ব্যাচ / স্ট্র এর নাম",
+      "batchNamePlaceholder": "যেমন: হলস্টেইন ফ্রিজিয়ান প্রিমিয়াম",
+      "strawQuantity": "স্ট্র এর পরিমাণ",
+      "strawQuantityPlaceholder": "০",
+      "costPerUnit": "প্রতি স্ট্র এর খরচ (৳)",
+      "costPerUnitPlaceholder": "০",
+      "breed": "জাত",
+      "breedPlaceholder": "যেমন: হলস্টেইন ফ্রিজিয়ান",
+      "batchCode": "ব্যাচ কোড / আইডি",
+      "batchCodePlaceholder": "যেমন: SM-2025-HF-01",
+      "semenType": "সিমেনের ধরন",
+      "selectSemenType": "সিমেনের ধরন নির্বাচন করুন",
+      "targetSex": "টার্গেট সেক্স",
+      "selectTargetSex": "টার্গেট সেক্স নির্বাচন করুন",
+      "typeConventional": "কনভেনশনাল",
+      "typeSexSorted": "সেক্স-সর্টেড",
+      "sexFemale": "মাদি",
+      "sexMale": "মদ্দা",
+      "strawsLeft": "{count} টি স্ট্র বাকি",
+      "back": "পেছনে",
+      "addItem": "ব্যাচ যোগ করুন",
+      "createdToast": "সিমেন ব্যাচ যোগ করা হয়েছে।",
+      "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।"
+    },
     "medicine": {
       "empty": {
         "title": "কোনো ওষুধ পাওয়া যায়নি",
@@ -2254,8 +2285,6 @@
         "locatedAt": "{location}-এ অবস্থিত",
         "noLocation": "কোনো স্টোরেজ লোকেশন সেট করা নেই",
         "totalStraw": "মোট স্ট্র",
-        "currentTemp": "বর্তমান তাপমাত্রা (°C)",
-        "ln2Level": "LN2 লেভেল (%)",
         "viewDetails": "বিস্তারিত দেখুন"
       },
       "tankForm": {
@@ -2273,9 +2302,6 @@
         "numGoblets": "গবলেট সংখ্যা",
         "storageLocation": "স্টোরেজ অবস্থান",
         "storageLocationPlaceholder": "যেমন 'ওয়্যারহাউস এ'",
-        "calibrationSafety": "ক্যালিব্রেশন ও নিরাপত্তা",
-        "currentTemperature": "বর্তমান তাপমাত্রা",
-        "ln2Level": "LN2 লেভেল",
         "cancel": "বাতিল",
         "save": "পরিবর্তন সংরক্ষণ করুন",
         "add": "যোগ করুন",
@@ -2293,14 +2319,7 @@
         "strawCapacity": "স্ট্র ধারণক্ষমতা",
         "numCanisters": "ক্যানিস্টার সংখ্যা",
         "numGoblets": "গবলেট সংখ্যা",
-        "storageLocation": "স্টোরেজ অবস্থান",
-        "currentTemperature": "বর্তমান তাপমাত্রা",
-        "ln2Level": "LN2 লেভেল",
-        "updateReadings": "রিডিং আপডেট করুন",
-        "cancel": "বাতিল",
-        "updateStock": "স্টক আপডেট করুন",
-        "updatedToast": "ট্যাংক রিডিং আপডেট করা হয়েছে।",
-        "genericError": "কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।"
+        "storageLocation": "স্টোরেজ অবস্থান"
       },
       "batchCard": {
         "menu": "রো অ্যাকশন",

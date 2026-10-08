@@ -137,8 +137,7 @@ export type MilkTankSyncFormInput = z.infer<typeof milkTankSyncFormSchema>;
 /** Mirrors `CreateSemenTankDto`/`UpdateSemenTankDto` (verified live against
  * `rakhal-backend/src/modules/inventory/presentation/dto/semen-tank.dto.ts`) — one shape for both
  * create and edit. No stock field (see `types.ts` doc comment) — a tank's straw stock is always
- * derived from its batches. `currentTempC`/`ln2LevelPct` are optional on the wire but required here:
- * the Figma "Add New Tank" mock marks both mandatory (red asterisk) for a safety-critical LN2 tank. */
+ * derived from its batches. */
 export const semenTankFormSchema = z.object({
   name: z.string().trim().min(1),
   modelManufacturer: z.string().trim().optional(),
@@ -146,19 +145,8 @@ export const semenTankFormSchema = z.object({
   numCanisters: z.number().int().min(0).optional(),
   numGoblets: z.number().int().min(0).optional(),
   storageLocation: z.string().trim().optional(),
-  currentTempC: z.number().max(-0.01, "Must be below 0 °C"),
-  ln2LevelPct: z.number().min(0).max(100),
 });
 export type SemenTankFormInput = z.infer<typeof semenTankFormSchema>;
-
-/** Figma "Tank Details" (732:22640) "Adjust Straw Stock" section — repurposed into a quick update of
- * the two fields that are genuinely tank-owned (`UpdateSemenTankDto`'s `currentTempC`/`ln2LevelPct`),
- * not a fabricated stock edit (see `types.ts` doc comment for why). */
-export const semenTankReadingsFormSchema = z.object({
-  currentTempC: z.number().max(-0.01, "Must be below 0 °C"),
-  ln2LevelPct: z.number().min(0).max(100),
-});
-export type SemenTankReadingsFormInput = z.infer<typeof semenTankReadingsFormSchema>;
 
 /** Mirrors `CreateSemenBatchDto`/`UpdateSemenBatchDto` (verified live against
  * `rakhal-backend/src/modules/inventory/presentation/dto/semen-batch.dto.ts`) — one shape for both

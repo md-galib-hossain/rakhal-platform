@@ -33,13 +33,11 @@ const targetSexEnum = z.enum(["FEMALE", "MALE"]);
  * (`lib/types/payment.ts`), which the backend for this call site doesn't support. */
 const paymentMethodEnum = financePaymentMethodEnum;
 
-/** RAKHAL-330/393 (closes RD-066): shared cost-validation rule for both the create and edit
- * breeding-event schemas — AI sourced from anything other than farm inventory needs its own
- * `serviceCost` (a farm-inventory pick's cost comes from the selected batch, resolved
- * server-side); `financialAccountId` (the real `AccountPicker` selection) becomes required
- * whenever a real cost is actually being submitted, so a cost never posts to Finance with no
- * account recorded. Replaces the old `paymentMethod`-required rule — that field stays in the
- * schema for record-keeping but is no longer what the backend resolves an account from. */
+/** Shared cost-validation rule for breeding-event schemas — AI sourced from anything
+ * other than farm inventory needs its own `serviceCost` (a farm-inventory straw was already
+ * purchased and stocked, so AI usage records inventory consumption for the animal without
+ * needing a finance account). `financialAccountId` is only required when an external
+ * service cost is actually being paid. */
 function withBreedingCostValidation<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
   return schema.superRefine((data, ctx) => {
     const values = data as {
@@ -57,13 +55,13 @@ function withBreedingCostValidation<T extends z.ZodRawShape>(schema: z.ZodObject
         message: "Cost is required when semen is not from farm inventory",
       });
     }
-    const costIsBeingSubmitted =
-      (values.serviceCost !== undefined && values.serviceCost > 0) || values.semenSource === "FARM_INVENTORY";
-    if (costIsBeingSubmitted && !values.financialAccountId) {
+    const serviceCostIsBeingSubmitted =
+      values.serviceCost !== undefined && values.serviceCost > 0;
+    if (serviceCostIsBeingSubmitted && !values.financialAccountId) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["financialAccountId"],
-        message: "Account is required when recording a cost",
+        message: "Account is required when recording a service cost",
       });
     }
   });

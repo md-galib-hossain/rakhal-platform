@@ -60,9 +60,10 @@ export function BreedingEventStep({
         targetSex: isAi && !isFarmInventory ? values.targetSex || undefined : undefined,
         strawBatchCode: isAi && !isFarmInventory ? values.strawBatchCode || undefined : undefined,
         semenCompany: isAi && !isFarmInventory ? values.semenCompany || undefined : undefined,
-        // RAKHAL-330: a FARM_INVENTORY cost comes from the batch server-side, never a manual value —
-        // every other method (AI-manual-source, NATURAL, EMBRYO_TRANSFER) keeps whatever was entered.
+        // A FARM_INVENTORY cost comes from the batch server-side, never a manual value;
+        // and its cost is posted as inventory consumption without requiring a financial account.
         serviceCost: isFarmInventory ? undefined : values.serviceCost,
+        financialAccountId: isFarmInventory ? undefined : values.financialAccountId || undefined,
         paymentMethod: values.paymentMethod || undefined,
       });
       toast.success(t("createdToast"));

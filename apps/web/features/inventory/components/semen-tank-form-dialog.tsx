@@ -23,8 +23,6 @@ function toPayload(values: SemenTankFormInput): CreateSemenTankPayload {
     numCanisters: values.numCanisters,
     numGoblets: values.numGoblets,
     storageLocation: values.storageLocation || undefined,
-    currentTempC: values.currentTempC,
-    ln2LevelPct: values.ln2LevelPct,
   };
 }
 
@@ -37,8 +35,6 @@ function toFormDefaults(tank: SemenTank | undefined): Partial<SemenTankFormInput
     numCanisters: tank.numCanisters ?? undefined,
     numGoblets: tank.numGoblets ?? undefined,
     storageLocation: tank.storageLocation ?? "",
-    currentTempC: tank.currentTempC ?? undefined,
-    ln2LevelPct: tank.ln2LevelPct ?? undefined,
   };
 }
 
@@ -49,7 +45,7 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 /**
  * Add/Edit Semen Tank drawer — Figma "Add New Tank" (732:21955, `get_design_context`): same
  * floating-card chrome as the Milk/FeedItem form dialogs (10px inset, 20px radius, 2px border,
- * `arrow-right-03` header icon), two side-by-side sections ("Tank Info" / "Calibration & Safety").
+ * `arrow-right-03` header icon).
  * **Real gap vs the mock, flagged not faked**: the mock's "Staw in Stock" input has no backing field
  * on `CreateSemenTankDto` at all (stock is derived from batches, see `types.ts` doc comment) — omitted
  * from this form entirely rather than rendered as a dead input.
@@ -134,29 +130,6 @@ function SemenTankFormDialogBody({ onOpenChange, tank }: { onOpenChange: (open: 
             <LabeledInput id="numCanisters" type="number" min={0} label={t("numCanisters")} {...form.register("numCanisters", numberField)} />
             <LabeledInput id="numGoblets" type="number" min={0} label={t("numGoblets")} {...form.register("numGoblets", numberField)} />
             <LabeledInput id="storageLocation" label={t("storageLocation")} placeholder={t("storageLocationPlaceholder")} {...form.register("storageLocation")} />
-          </div>
-
-          <SectionHeader>{t("calibrationSafety")}</SectionHeader>
-          <div className="grid grid-cols-2 gap-3">
-            <LabeledInput
-              id="currentTempC"
-              type="number"
-              step="0.1"
-              label={t("currentTemperature")}
-              endIcon={<span className="text-xs text-muted-foreground">°C</span>}
-              {...form.register("currentTempC", numberField)}
-              error={form.formState.errors.currentTempC?.message}
-            />
-            <LabeledInput
-              id="ln2LevelPct"
-              type="number"
-              min={0}
-              max={100}
-              label={t("ln2Level")}
-              endIcon={<span className="text-xs text-muted-foreground">%</span>}
-              {...form.register("ln2LevelPct", numberField)}
-              error={form.formState.errors.ln2LevelPct?.message}
-            />
           </div>
         </div>
 

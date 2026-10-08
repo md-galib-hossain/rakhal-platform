@@ -15,22 +15,9 @@ function tankStatus(tank: SemenTank): "stable" | "needsRefill" {
   return pct < REFILL_THRESHOLD ? "needsRefill" : "stable";
 }
 
-function MetricTile({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-1 flex-col justify-between gap-2 rounded-lg bg-muted p-2">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-xl font-bold text-foreground">{value}</span>
-    </div>
-  );
-}
-
 /**
  * "Semen Tank" card — Figma "Inventory - Semen" 732:20158 (nodes 734:25214/734:25215): title +
- * status chip, "Located at {storageLocation}" subtitle, a straw-capacity progress bar, then Current
- * Temp/LN2 Level tiles. The mock's decorative tank illustration (`imgFrame1267`/`imgFrame1268`,
- * static exported assets with a fixed mock fill, URLs expiring after 7 days) is dropped in favor of
- * the real data already shown in the progress bar — same call `MilkTankCard` made for its own
- * Figma-exported bottle asset.
+ * status chip, "Located at {storageLocation}" subtitle, a straw-capacity progress bar.
  */
 export function SemenTankCard({ tank, onOpenDetails }: { tank: SemenTank; onOpenDetails: (tank: SemenTank) => void }) {
   const t = useTranslations("inventory.semen.tankCard");
@@ -62,11 +49,6 @@ export function SemenTankCard({ tank, onOpenDetails }: { tank: SemenTank; onOpen
             />
           </div>
         </div>
-      </div>
-
-      <div className="flex w-full gap-4">
-        <MetricTile label={t("currentTemp")} value={tank.currentTempC != null ? `${tank.currentTempC}` : "—"} />
-        <MetricTile label={t("ln2Level")} value={tank.ln2LevelPct != null ? `${tank.ln2LevelPct}%` : "—"} />
       </div>
 
       <Button type="button" variant="secondary" size="sm" className="w-full" onClick={() => onOpenDetails(tank)}>

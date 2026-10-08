@@ -465,8 +465,8 @@ export interface SemenTank {
   numCanisters: number | null;
   numGoblets: number | null;
   storageLocation: string | null;
-  currentTempC: number | null;
-  ln2LevelPct: number | null;
+  currentTempC?: number | null;
+  ln2LevelPct?: number | null;
   isActive: boolean;
   createdBy: string;
   createdAt: string;
@@ -483,9 +483,6 @@ export interface CreateSemenTankPayload {
   numCanisters?: number;
   numGoblets?: number;
   storageLocation?: string;
-  /** Must be below 0 °C (INV-07), enforced server-side. */
-  currentTempC?: number;
-  ln2LevelPct?: number;
 }
 
 /** `PATCH /inventory/semen/tanks/:id` body (`UpdateSemenTankDto`) — same shape, all optional. */

@@ -25,6 +25,7 @@ import { useCan } from "@/lib/auth/permissions";
 import { apiFetchPage } from "@/lib/api/client";
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -199,18 +200,19 @@ export function AnimalGroupsDialog({ open, onOpenChange }: AnimalGroupsDialogPro
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="right"
+          showClose={false}
           className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-0 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:max-w-3xl"
         >
           {selectedGroup ? (
             /* ---- GROUP MEMBERS VIEW ---- */
             <div className="flex h-full flex-col">
               <SheetHeader className="border-b border-border px-6 py-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2 min-w-0">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="size-8 text-muted-foreground hover:text-foreground"
+                      className="size-8 shrink-0 text-muted-foreground hover:text-foreground"
                       onClick={() => {
                         setSelectedGroupId(null);
                         setSelectedMemberIds([]);
@@ -220,21 +222,21 @@ export function AnimalGroupsDialog({ open, onOpenChange }: AnimalGroupsDialogPro
                     >
                       <ArrowLeft className="size-4" />
                     </Button>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <SheetTitle className="text-lg font-bold">{selectedGroup.name}</SheetTitle>
-                        <Chip variant="muted" className="text-xs">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <SheetTitle className="text-lg font-bold truncate">{selectedGroup.name}</SheetTitle>
+                        <Chip variant="muted" className="text-xs shrink-0">
                           {t("memberCount", { count: selectedGroup.memberCount })}
                         </Chip>
                       </div>
                       {selectedGroup.description ? (
-                        <SheetDescription className="mt-0.5 text-xs text-muted-foreground">
+                        <SheetDescription className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
                           {selectedGroup.description}
                         </SheetDescription>
                       ) : null}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     <Button
                       variant="outline"
                       size="sm"
@@ -254,6 +256,16 @@ export function AnimalGroupsDialog({ open, onOpenChange }: AnimalGroupsDialogPro
                         {t("addAnimals")}
                       </Button>
                     ) : null}
+                    <SheetClose asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-muted-foreground hover:text-foreground"
+                        aria-label="Close"
+                      >
+                        <X className="size-4" />
+                      </Button>
+                    </SheetClose>
                   </div>
                 </div>
               </SheetHeader>
@@ -399,22 +411,34 @@ export function AnimalGroupsDialog({ open, onOpenChange }: AnimalGroupsDialogPro
             /* ---- ALL GROUPS LIST VIEW ---- */
             <div className="flex h-full flex-col">
               <SheetHeader className="border-b border-border px-6 py-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0 flex-1">
                     <SheetTitle className="text-xl font-bold flex items-center gap-2">
-                      <Layers className="size-5 text-primary" />
-                      {t("title")}
+                      <Layers className="size-5 text-primary shrink-0" />
+                      <span>{t("title")}</span>
                     </SheetTitle>
                     <SheetDescription className="mt-1 text-xs text-muted-foreground">
                       {t("description")}
                     </SheetDescription>
                   </div>
-                  {canBulk && !isCreating && !editingGroup ? (
-                    <Button onClick={startCreate} size="sm" className="gap-1.5">
-                      <Plus className="size-4" />
-                      {t("createGroup")}
-                    </Button>
-                  ) : null}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {canBulk && !isCreating && !editingGroup ? (
+                      <Button onClick={startCreate} size="sm" className="gap-1.5">
+                        <Plus className="size-4" />
+                        {t("createGroup")}
+                      </Button>
+                    ) : null}
+                    <SheetClose asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-muted-foreground hover:text-foreground"
+                        aria-label="Close"
+                      >
+                        <X className="size-4" />
+                      </Button>
+                    </SheetClose>
+                  </div>
                 </div>
               </SheetHeader>
 
