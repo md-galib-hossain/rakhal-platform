@@ -11,7 +11,7 @@ import {
 } from "@tanstack/react-table";
 import { parseAsString, useQueryState } from "nuqs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
+import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -36,6 +36,8 @@ export interface DataTableProps<TData> {
   hasNextPage?: boolean;
   isFetchingNextPage?: boolean;
   onLoadMore?: () => void;
+  /** A failure while appending a page — loaded rows stay, auto-load pauses, footer offers Retry. */
+  isNextPageError?: boolean;
   /** URL param key for single-column sort, serialized as `field.asc` / `field.desc`. Omit to disable. */
   sortParamKey?: string;
   enableRowSelection?: boolean;
@@ -63,6 +65,7 @@ export function DataTable<TData>({
   hasNextPage = false,
   isFetchingNextPage = false,
   onLoadMore,
+  isNextPageError = false,
   sortParamKey,
   enableRowSelection = false,
   rowSelection,
@@ -170,12 +173,14 @@ export function DataTable<TData>({
         </div>
       ) : null}
 
-      {hasNextPage ? (
-        <div className="flex justify-center">
-          <Button variant="outline" onClick={onLoadMore} disabled={isFetchingNextPage}>
-            {isFetchingNextPage ? "Loading…" : "Load more"}
-          </Button>
-        </div>
+      {onLoadMore ? (
+        <InfiniteScrollFooter
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          isError={isNextPageError}
+          onLoadMore={onLoadMore}
+          loadedCount={data.length}
+        />
       ) : null}
     </div>
   );

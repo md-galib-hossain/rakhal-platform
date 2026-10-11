@@ -7,11 +7,11 @@ import { useSearchParams } from "next/navigation";
 import type { RowSelectionState } from "@tanstack/react-table";
 import { ApiError } from "@/lib/api/errors";
 import { useCan } from "@/lib/auth/permissions";
-import { Pagination } from "@/components/shared/pagination";
+import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { BulkActionDock } from "@/components/shared/bulk-action-dock";
 import { useTableBulkSelection, useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
-import { useArchiveMedicine, useBulkDeleteMedicines, useMedicinePagedList } from "../hooks/use-inventory";
+import { useArchiveMedicine, useBulkDeleteMedicines, useMedicineInfiniteList } from "../hooks/use-inventory";
 import { MedicineFilters } from "./medicine-filters";
 import { MedicineAddButton } from "./medicine-add-button";
 import { MedicineTable } from "./medicine-table";
@@ -39,7 +39,7 @@ export function MedicineView({ view }: { view: "table" | "grid" }) {
     status: (searchParams.get("status") as MedicineListStatus | null) ?? undefined,
   };
 
-  const query = useMedicinePagedList(filters);
+  const query = useMedicineInfiniteList(filters);
   const allIds = query.items.map((m) => m.id);
   const tableSelection = useTableBulkSelection(rowSelection, setRowSelection, allIds);
   const gridSelection = useGridBulkSelection(allIds);
@@ -93,7 +93,7 @@ export function MedicineView({ view }: { view: "table" | "grid" }) {
       {view === "table" ? (
         <MedicineTable
           items={query.items}
-          startIndex={(query.page - 1) * 20}
+          startIndex={0}
           isLoading={query.isLoading}
           isError={query.isError}
           onRetry={() => void query.refetch()}
@@ -123,20 +123,15 @@ export function MedicineView({ view }: { view: "table" | "grid" }) {
         />
       )}
 
-      <Pagination
-        page={query.page}
-        totalPages={query.totalPages}
-        onPageChange={(page) => {
-          query.goToPage(page);
-          setRowSelection({});
-        }}
-        isFetching={query.isFetching}
-        pageSize={query.pageSize}
-        onPageSizeChange={(size) => {
-          query.setPageSize(size);
-          setRowSelection({});
-        }}
-      />
+      {!query.isLoading && !query.isError && query.items.length > 0 ? (
+        <InfiniteScrollFooter
+          hasNextPage={query.hasNextPage}
+          isFetchingNextPage={query.isFetchingNextPage}
+          isError={query.isNextPageError}
+          onLoadMore={query.fetchNextPage}
+          loadedCount={query.items.length}
+        />
+      ) : null}
 
       <MedicineFormDialog open={formOpen} onOpenChange={setFormOpen} medicine={editingMedicine} />
       <ConfirmDialog

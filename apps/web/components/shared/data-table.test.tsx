@@ -3,6 +3,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ColumnDef } from "@tanstack/react-table";
 import { withNuqsTestingAdapter } from "nuqs/adapters/testing";
+import { NextIntlClientProvider } from "next-intl";
+import en from "@/i18n/messages/en.json";
 import { DataTable } from "./data-table";
 
 interface Row {
@@ -45,7 +47,9 @@ describe("DataTable", () => {
     const user = userEvent.setup();
     const onLoadMore = vi.fn();
     render(
-      <DataTable columns={columns} data={[{ id: "1", name: "Cow #1" }]} hasNextPage onLoadMore={onLoadMore} />,
+      <NextIntlClientProvider locale="en" messages={en} timeZone="Asia/Dhaka">
+        <DataTable columns={columns} data={[{ id: "1", name: "Cow #1" }]} hasNextPage onLoadMore={onLoadMore} />
+      </NextIntlClientProvider>,
       { wrapper: withNuqsTestingAdapter() },
     );
     await user.click(screen.getByRole("button", { name: "Load more" }));

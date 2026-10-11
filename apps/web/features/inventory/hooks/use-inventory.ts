@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
+import { useInfiniteCursorList } from "@/lib/hooks/use-infinite-cursor-list";
 import { inventoryApi } from "../api";
 import type {
   AdjustMedicineStockPayload,
@@ -38,6 +39,16 @@ const STALE_TIME = 60_000;
 export function useMedicinePagedList(filters: MedicineListFilters) {
   return useCursorPager(
     ["inventory", "medicine", "list", "paged", filters as Record<string, string | undefined>],
+    (cursor, limit) => inventoryApi.listMedicines(filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
+}
+
+/** Append-forever ("infinite scroll") variant of `useMedicinePagedList` — same endpoint and
+ * filters, accumulated instead of numbered. Footer: `InfiniteScrollFooter`. */
+export function useMedicineInfiniteList(filters: MedicineListFilters) {
+  return useInfiniteCursorList(
+    ["inventory", "medicine", "list", filters as Record<string, string | undefined>],
     (cursor, limit) => inventoryApi.listMedicines(filters, cursor, limit),
     { staleTime: STALE_TIME },
   );
@@ -130,6 +141,15 @@ export function useRemoveMedicinePhoto() {
 export function useFeedItemPagedList(filters: FeedItemListFilters) {
   return useCursorPager(
     ["inventory", "feed-item", "list", "paged", filters as Record<string, string | undefined>],
+    (cursor, limit) => inventoryApi.listFeedItems(filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
+}
+
+/** Infinite-scroll variant of `useFeedItemPagedList`. */
+export function useFeedItemInfiniteList(filters: FeedItemListFilters) {
+  return useInfiniteCursorList(
+    ["inventory", "feed-item", "list", filters as Record<string, string | undefined>],
     (cursor, limit) => inventoryApi.listFeedItems(filters, cursor, limit),
     { staleTime: STALE_TIME },
   );
@@ -295,6 +315,15 @@ export function useMilkTankAuditLogPagedList() {
   );
 }
 
+/** Infinite-scroll variant of `useMilkTankAuditLogPagedList` (10 rows per request, denser log). */
+export function useMilkTankAuditLogInfiniteList() {
+  return useInfiniteCursorList(
+    ["inventory", "milk-tank", "audit-log"],
+    (cursor, limit) => inventoryApi.milkTankAuditLog(undefined, cursor, limit),
+    { staleTime: STALE_TIME, pageSize: 10 },
+  );
+}
+
 export function useShedsForMilkTank() {
   return useQuery({
     queryKey: ["inventory", "milk-tank", "sheds"],
@@ -372,6 +401,15 @@ export function useSemenBatchPagedList(filters: SemenBatchListFilters) {
   );
 }
 
+/** Infinite-scroll variant of `useSemenBatchPagedList`. */
+export function useSemenBatchInfiniteList(filters: SemenBatchListFilters) {
+  return useInfiniteCursorList(
+    ["inventory", "semen-batch", "list", filters as Record<string, string | undefined>],
+    (cursor, limit) => inventoryApi.listSemenBatches(filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
+}
+
 function useInvalidateSemenBatch() {
   const queryClient = useQueryClient();
   return () => {
@@ -421,6 +459,15 @@ export function useArchiveSemenBatch() {
 export function useEquipmentPagedList(filters: EquipmentListFilters) {
   return useCursorPager(
     ["inventory", "equipment", "list", "paged", filters as Record<string, string | undefined>],
+    (cursor, limit) => inventoryApi.listEquipment(filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
+}
+
+/** Infinite-scroll variant of `useEquipmentPagedList`. */
+export function useEquipmentInfiniteList(filters: EquipmentListFilters) {
+  return useInfiniteCursorList(
+    ["inventory", "equipment", "list", filters as Record<string, string | undefined>],
     (cursor, limit) => inventoryApi.listEquipment(filters, cursor, limit),
     { staleTime: STALE_TIME },
   );

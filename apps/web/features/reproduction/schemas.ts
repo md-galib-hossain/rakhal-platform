@@ -21,6 +21,21 @@ export const heatEventSchema = z.object({
 });
 export type CreateHeatEventInput = z.infer<typeof heatEventSchema>;
 
+/** Mirrors `EditHeatEventDto` (RAKHAL-305) — every field optional on the wire; the "Correct heat record"
+ * dialog edits these three and sends only the ones that changed. */
+export const editHeatEventSchema = heatEventSchema.pick({ cattleId: true, heatDateTime: true, detectionMethod: true });
+export type EditHeatEventFormValues = z.infer<typeof editHeatEventSchema>;
+export type EditHeatEventInput = Partial<CreateHeatEventInput>;
+
+/** Mirrors `VoidBreedingEventDto` - the reason is mandatory (it is the audit trail for the reversals). */
+export const voidBreedingEventSchema = z.object({
+  reason: z.string().trim().min(1, "Give a reason").max(500),
+});
+export type VoidBreedingEventInput = z.infer<typeof voidBreedingEventSchema>;
+
+/** Mirrors `ResolveHeatEventDto` (RAKHAL-298); `INSEMINATED` is stamped by the backend, never sent. */
+export type ResolveHeatEventInput = { reason: "FALSE_ALARM" | "SKIPPED_CYCLE"; notes?: string };
+
 /** Explicit semen provenance (no ticket #, 2026-08-15) — see `SemenSource` in `types.ts`. */
 const semenSourceEnum = z.enum(["FARM_INVENTORY", "TECHNICIAN_SUPPLIED", "EXTERNAL"]);
 const semenTypeEnum = z.enum(["CONVENTIONAL", "SEX_SORTED"]);

@@ -40,7 +40,10 @@ import type {
   CreateHeatEventInput,
   CreatePregnancyDiagnosisInput,
   EditBreedingEventInput,
+  EditHeatEventInput,
   EditPregnancyDiagnosisInput,
+  ResolveHeatEventInput,
+  VoidBreedingEventInput,
   RecordProtocolAiInput,
   RecordProtocolOutcomeInput,
   CloseProtocolInstanceInput,
@@ -86,6 +89,15 @@ export const reproductionApi = {
   createHeatEvent(input: CreateHeatEventInput): Promise<HeatEventRow> {
     return apiFetch<HeatEventRow>("/reproduction/heat-events", { method: "POST", body: input });
   },
+  /** RAKHAL-305 — `ReproductionEditController.editHeatEvent` (`reproduction.update`, manager+). Only the
+   * fields sent change, so a wrong-cow fix is `{ cattleId }`. */
+  editHeatEvent(id: string, input: EditHeatEventInput): Promise<HeatEventRow> {
+    return apiFetch<HeatEventRow>(`/reproduction/heat-events/${id}`, { method: "PATCH", body: input });
+  },
+  /** RAKHAL-298 — closes an open heat as `FALSE_ALARM` / `SKIPPED_CYCLE` (`reproduction.heat`). */
+  resolveHeatEvent(id: string, input: ResolveHeatEventInput): Promise<HeatEventRow> {
+    return apiFetch<HeatEventRow>(`/reproduction/heat-events/${id}/resolve`, { method: "POST", body: input });
+  },
 
   breedingEvents(cattleId?: string, cursor?: string, limit = 20): Promise<CursorPage<BreedingEventRow>> {
     return apiFetchPage<BreedingEventRow>("/reproduction/breeding-events", {
@@ -101,6 +113,11 @@ export const reproductionApi = {
   /** RAKHAL-305 — `ReproductionEditController.editBreedingEvent`. */
   editBreedingEvent(id: string, input: EditBreedingEventInput): Promise<BreedingEventRow> {
     return apiFetch<BreedingEventRow>(`/reproduction/breeding-events/${id}`, { method: "PATCH", body: input });
+  },
+  /** Void a breeding / AI recorded by mistake (`reproduction.update`): reverses its cost, restores the straw,
+   * reopens the heat it closed, cancels the pregnancy-check task. 400 once it has a pregnancy check. */
+  voidBreedingEvent(id: string, input: VoidBreedingEventInput): Promise<BreedingEventRow> {
+    return apiFetch<BreedingEventRow>(`/reproduction/breeding-events/${id}/void`, { method: "POST", body: input });
   },
   /** RAKHAL-316: farmer-confirmed return to heat before a pregnancy check was due — creates a real
    * `HeatEvent`, never a fake `PregnancyDiagnosis`. */

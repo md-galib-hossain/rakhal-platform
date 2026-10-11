@@ -9,10 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DatePicker } from "@/components/ui/date-picker";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
-import { Pagination } from "@/components/shared/pagination";
+import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
-import { useActivityPagedList } from "../hooks/use-activity";
+import { useActivityInfiniteList } from "../hooks/use-activity";
 import { MODULE_STYLE } from "../module-style";
 import type { ActivityLogEntry, ActivityModule } from "../types";
 import { ActivityCard } from "./activity-card";
@@ -36,7 +36,7 @@ function groupByDate(items: ActivityLogEntry[]): { dateGroup: string; entries: A
  * Activity Log page (Figma 734:50995) — real, cursor-backed `GET /activity-log`
  * (`activity.controller.ts`/`activity-log.service.ts`), timeline grouped by day with a module
  * filter + a single-day date filter (both real query params) and numbered pagination, matching
- * this app's established honest-frontier pager convention (`Pagination`/`useMedicinePagedList`
+ * this app's established honest-frontier list convention (`InfiniteScrollFooter`/`useMedicineInfiniteList`
  * precedent) rather than inventing infinite scroll for a design that shows no pager at all. The
  * mock's "Search activity" box has **no backing endpoint** (`ListActivityQueryDto` has no `search`
  * field) — kept real by filtering the currently-loaded page client-side instead of faking a server
@@ -59,7 +59,7 @@ export function ActivityView() {
     [moduleFilter, dateFilter],
   );
 
-  const query = useActivityPagedList(filters);
+  const query = useActivityInfiniteList(filters);
 
   const visibleItems = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -139,14 +139,13 @@ export function ActivityView() {
         </div>
       )}
 
-      {query.totalPages > 1 ? (
-        <Pagination
-          page={query.page}
-          totalPages={query.totalPages}
-          onPageChange={query.goToPage}
-          isFetching={query.isFetching}
-          pageSize={query.pageSize}
-          onPageSizeChange={query.setPageSize}
+      {!query.isLoading && !query.isError && query.items.length > 0 ? (
+        <InfiniteScrollFooter
+          hasNextPage={query.hasNextPage}
+          isFetchingNextPage={query.isFetchingNextPage}
+          isError={query.isNextPageError}
+          onLoadMore={query.fetchNextPage}
+          loadedCount={query.items.length}
         />
       ) : null}
     </div>

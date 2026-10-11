@@ -3,6 +3,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
+import { useInfiniteCursorList } from "@/lib/hooks/use-infinite-cursor-list";
 import { settingsApi } from "@/features/settings/api";
 import { cattleApi } from "../api";
 import type { BulkAction, BulkDisposeType, CattleFormPayload, CattleListFilters } from "../types";
@@ -43,6 +44,26 @@ export function useCattlePagedList(filters: CattleListFilters) {
     (cursor, limit) => cattleApi.list(filters, cursor, limit),
     { staleTime: STALE_TIME },
   );
+}
+
+/** Append-forever variant of `useCattlePagedList` (infinite scroll) — same endpoint and filters. */
+export function useCattleInfiniteList(filters: CattleListFilters) {
+  return useInfiniteCursorList(
+    ["cattle", "list", filters as Record<string, string | undefined>],
+    (cursor, limit) => cattleApi.list(filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
+}
+
+/** RAKHAL-475 — the full upcoming-events list for the Next event popover. Lazy: only fetches while the
+ * popover is open (`enabled`), so a 100-row list does not fire 100 requests. */
+export function useUpcomingEvents(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: qk.cattle.upcomingEvents(id),
+    queryFn: () => cattleApi.upcomingEvents(id),
+    enabled,
+    staleTime: STALE_TIME,
+  });
 }
 
 export function useCattleHighlights() {

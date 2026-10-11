@@ -102,6 +102,44 @@ export type LifecycleSubStage =
   | "GROWING_BULL"
   | "MATURE_BULL";
 
+/** RAKHAL-474/475 (MILESTONE 30) — `GET /cattle` row `next_event` and `GET /cattle/:id/upcoming-events`
+ * `events[]`. The server sends an i18n key (`labelKey`, e.g. `cattle.upcoming.healthStep`) plus params, never
+ * an English string; `WEANING` is reserved and not emitted yet. */
+export type UpcomingEventKind =
+  | "HEALTH_STEP"
+  | "PREVENTIVE_STEP"
+  | "PREGNANCY_CHECK"
+  | "CALVING"
+  | "DRY_OFF"
+  | "TASK"
+  | "WITHDRAWAL_END"
+  | "WEANING";
+
+export type UpcomingEventUrgency = "OVERDUE" | "DUE_SOON" | "LATER";
+
+export interface UpcomingEvent {
+  kind: UpcomingEventKind;
+  labelKey: string;
+  labelParams?: Record<string, string | number>;
+  /** ISO instant. */
+  dueAt: string;
+  /** Whole farm-local days from today; negative once past. */
+  daysUntil: number;
+  urgency: UpcomingEventUrgency;
+  /** `false` for information only (a withdrawal ending). */
+  actionable: boolean;
+  ref: { type: string; id: string };
+}
+
+export interface UpcomingEventsResult {
+  events: UpcomingEvent[];
+  /** Everything in the window, before the `limit` cap. */
+  total: number;
+}
+
+/** `GET /cattle?dueFilter=` — animals with an actionable event before today / today / the next 7 days. */
+export type DueFilter = "overdue" | "today" | "week";
+
 export interface CattleListItem {
   id: string;
   name: string | null;
@@ -143,6 +181,10 @@ export interface CattleListItem {
   pregnancyStage: PregnancyStage | null;
   /** Snake_case on the wire — see the header comment. */
   profile_photo: MediaUrls | null;
+  /** RAKHAL-475 — the single most urgent upcoming event (or null), and how many are in the window
+   * (next 14 farm days plus everything overdue). Snake_case on the wire. */
+  next_event: UpcomingEvent | null;
+  upcoming_event_count: number;
 }
 
 /** `GET /cattle/highlights` — snake_case on the wire, see the header comment. */
@@ -172,6 +214,8 @@ export interface CattleListFilters {
   status?: CattleStatus;
   /** RAKHAL-401 — lifecycle sub-stage filter (`ListCattleQueryDto.lifecycleSubStage`). */
   lifecycleSubStage?: LifecycleSubStage;
+  /** RAKHAL-475 — animals with an actionable upcoming event (`ListCattleQueryDto.dueFilter`). */
+  dueFilter?: DueFilter;
 }
 
 export const BULK_ACTIONS = ["change_shed", "mark_sold", "dispose", "export"] as const;

@@ -1,7 +1,7 @@
 "use client"; // interactive card grid (view/select actions)
 
 import { useTranslations } from "next-intl";
-import { CalendarDays, Mars, MapPin, Scale, TriangleAlert, Venus } from "lucide-react";
+import { CalendarClock, CalendarDays, Mars, MapPin, Scale, TriangleAlert, Venus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Chip, type ChipProps } from "@/components/ui/chip";
@@ -12,6 +12,7 @@ import { SelectableCardOverlay } from "@/components/shared/selectable-card-overl
 import { avatarTint } from "../avatar-tint";
 import { formatCattleAge } from "../format";
 import { ANIMAL_CATEGORY_VARIANT } from "../utils/animal-category-style";
+import { NextEventCell } from "./next-event-cell";
 import type {
   CattleListItem,
   HealthStatusFilter,
@@ -149,6 +150,17 @@ function CattleCard({
             </span>
             <span className="text-sm font-medium text-muted-foreground">{cattle.shed?.name ?? "—"}</span>
           </div>
+          {/* RFE-151 — the phone-card chip for the Next event column; hidden when nothing is upcoming so a
+              quiet animal's card stays compact. */}
+          {cattle.next_event ? (
+            <div className="flex items-center justify-between gap-2">
+              <span className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
+                <CalendarClock className="size-4" aria-hidden />
+                {t("columns.nextEvent")}
+              </span>
+              <NextEventCell cattle={cattle} onView={rowActions.onView} />
+            </div>
+          ) : null}
         </div>
 
         <div className="flex items-center justify-between rounded-xl bg-card p-2 shadow-card">

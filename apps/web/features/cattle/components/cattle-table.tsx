@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { useCan } from "@/lib/auth/permissions";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { DataTable } from "@/components/shared/data-table";
-import { Pagination } from "@/components/shared/pagination";
+import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
 import { BulkActionDock } from "@/components/shared/bulk-action-dock";
 import { CreatableSelect } from "@/components/shared/creatable-select";
 import { useTableBulkSelection, useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
@@ -33,7 +33,7 @@ import {
   useAddToAnimalGroup,
   useAnimalGroups,
   useBulkCattle,
-  useCattlePagedList,
+  useCattleInfiniteList,
   useCreateAnimalGroup,
   useCreateShedInline,
   useSheds,
@@ -46,6 +46,7 @@ import type {
   CattleListFilters,
   CattleListItem,
   CattleStatus,
+  DueFilter,
   HealthStatusFilter,
   LifecycleSubStage,
   ProductionStatus,
@@ -95,9 +96,10 @@ export function CattleTable() {
     animalCategory: (searchParams.get("animalCategory") as AnimalCategory | null) ?? undefined,
     status: (searchParams.get("herdStatus") as CattleStatus | null) ?? undefined,
     lifecycleSubStage: (searchParams.get("lifecycleSubStage") as LifecycleSubStage | null) ?? undefined,
+    dueFilter: (searchParams.get("dueFilter") as DueFilter | null) ?? undefined,
   };
 
-  const query = useCattlePagedList(filters);
+  const query = useCattleInfiniteList(filters);
   const bulk = useBulkCattle();
   const sheds = useSheds();
   const animalGroups = useAnimalGroups();
@@ -119,6 +121,16 @@ export function CattleTable() {
   const tableSelection = useTableBulkSelection(rowSelection, setRowSelection, allIds);
   const gridSelection = useGridBulkSelection(allIds);
   const selection = mode === "table" ? tableSelection : gridSelection;
+
+  // A filter change swaps the whole result set — drop selections of rows no longer listed (they
+  // would otherwise be sent to bulk actions). Render-time reset, same as `MedicineView`.
+  const filtersKey = JSON.stringify(filters);
+  const [prevFiltersKey, setPrevFiltersKey] = useState(filtersKey);
+  if (filtersKey !== prevFiltersKey) {
+    setPrevFiltersKey(filtersKey);
+    setRowSelection({});
+    gridSelection.clear();
+  }
   const selectedItems = items.filter((c) => selection.selectedIds.includes(c.id));
   const tBulk = useTranslations("cattle.bulk");
 
@@ -238,20 +250,15 @@ export function CattleTable() {
           onToggleSelect={gridSelection.toggle}
         />
       )}
-      <Pagination
-        page={query.page}
-        totalPages={query.totalPages}
-        onPageChange={(page) => {
-          query.goToPage(page);
-          setRowSelection({});
-        }}
-        isFetching={query.isFetching}
-        pageSize={query.pageSize}
-        onPageSizeChange={(size) => {
-          query.setPageSize(size);
-          setRowSelection({});
-        }}
-      />
+      {!query.isLoading && !query.isError && items.length > 0 ? (
+        <InfiniteScrollFooter
+          hasNextPage={query.hasNextPage}
+          isFetchingNextPage={query.isFetchingNextPage}
+          isError={query.isNextPageError}
+          onLoadMore={query.fetchNextPage}
+          loadedCount={items.length}
+        />
+      ) : null}
 
       <Sheet open={shedDialogOpen} onOpenChange={setShedDialogOpen}>
         <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-md">

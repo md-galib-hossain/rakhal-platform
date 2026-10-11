@@ -10,8 +10,8 @@ import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { Pagination } from "@/components/shared/pagination";
-import { useArchiveSemenBatch, useSemenBatchPagedList, useSemenTanks } from "../hooks/use-inventory";
+import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
+import { useArchiveSemenBatch, useSemenBatchInfiniteList, useSemenTanks } from "../hooks/use-inventory";
 import { SemenTankCard } from "./semen-tank-card";
 import { SemenTankFormDialog } from "./semen-tank-form-dialog";
 import { SemenTankDetailsDialog } from "./semen-tank-details-dialog";
@@ -22,7 +22,7 @@ import type { SemenBatch, SemenTank } from "../types";
 /**
  * Semen tab body — Figma "Inventory - Semen" (732:20158, `get_design_context`): "Physical Storage"
  * tank grid (+ "Add New Tank") in one card, "Active Straw Batches" (+ search + "Add Straw") in
- * another below. Straw batches use the same honest-frontier numbered `Pagination` as every other
+ * another below. Straw batches use the same infinite-scroll `InfiniteScrollFooter` as every other
  * cursor-backed list in this codebase (Medicine/FeedItem/Milk audit log) rather than the mock's
  * unpaginated 3-card row, since a farm can accumulate far more batches than fit on one screen.
  */
@@ -30,7 +30,7 @@ export function SemenView() {
   const t = useTranslations("inventory.semen");
   const tanksQuery = useSemenTanks();
   const [search, setSearch] = useState("");
-  const batchesQuery = useSemenBatchPagedList({ search: search || undefined });
+  const batchesQuery = useSemenBatchInfiniteList({ search: search || undefined });
   const archiveBatch = useArchiveSemenBatch();
 
   const [tankFormOpen, setTankFormOpen] = useState(false);
@@ -166,13 +166,12 @@ export function SemenView() {
                 />
               ))}
             </div>
-            <Pagination
-              page={batchesQuery.page}
-              totalPages={batchesQuery.totalPages}
-              onPageChange={batchesQuery.goToPage}
-              isFetching={batchesQuery.isFetching}
-              pageSize={batchesQuery.pageSize}
-              onPageSizeChange={batchesQuery.setPageSize}
+            <InfiniteScrollFooter
+              hasNextPage={batchesQuery.hasNextPage}
+              isFetchingNextPage={batchesQuery.isFetchingNextPage}
+              isError={batchesQuery.isNextPageError}
+              onLoadMore={batchesQuery.fetchNextPage}
+              loadedCount={batchesQuery.items.length}
             />
           </>
         )}

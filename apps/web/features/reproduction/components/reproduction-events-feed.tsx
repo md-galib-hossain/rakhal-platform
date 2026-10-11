@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { endOfDay, format, parseISO, startOfDay } from "date-fns";
-import { Baby, Heart, HeartCrack, Microscope, Pencil, SlidersHorizontal, Syringe, X } from "lucide-react";
+import { Baby, Ban, Heart, HeartCrack, Microscope, Pencil, SlidersHorizontal, Syringe, X } from "lucide-react";
 import { CattlePicker, type CattleOption } from "@/components/shared/cattle-picker";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -11,8 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
-import { Pagination } from "@/components/shared/pagination";
-import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
+import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
+import { useInfiniteCursorList } from "@/lib/hooks/use-infinite-cursor-list";
 import { Can } from "@/lib/auth/permissions";
 import { cn } from "@/lib/utils";
 import { reproductionApi } from "../api";
@@ -21,6 +21,8 @@ import { AnimalLink } from "@/components/shared/animal-link";
 import { ReproductionCard } from "./reproduction-card";
 import { BreedingEventDialog } from "./dialogs/breeding-event-dialog";
 import { PregnancyDiagnosisDialog } from "./dialogs/pregnancy-diagnosis-dialog";
+import { HeatEventEditDialog } from "./dialogs/heat-event-edit-dialog";
+import { BreedingEventVoidDialog } from "./dialogs/breeding-event-void-dialog";
 import { DatePicker } from "@/components/ui/date-picker";
 
 const EVENT_ICONS: Record<ReproEventType, React.ElementType> = {
@@ -49,8 +51,7 @@ const MAX_DETAIL_CHIPS = 3;
 
 /** 5 rows by default: this card shares a row with the calving forecast (also 5 rows), so the pair stays
  * close in height; 10 / 20 / 50 are one tap away in the pager. */
-const DEFAULT_PAGE_SIZE = 5;
-const PAGE_SIZE_CHOICES = [5, 10, 20, 50] as const;
+const EVENTS_PAGE_SIZE = 10;
 
 const DAY_FORMAT = "yyyy-MM-dd";
 
@@ -122,6 +123,8 @@ export function ReproductionEventsFeed() {
   const t = useTranslations("reproduction.eventsFeed");
   const [editingBreedingEventId, setEditingBreedingEventId] = useState<string | null>(null);
   const [editingDiagnosisEvent, setEditingDiagnosisEvent] = useState<ReproEventEntry | null>(null);
+  const [editingHeatEvent, setEditingHeatEvent] = useState<ReproEventEntry | null>(null);
+  const [voidingBreedingEvent, setVoidingBreedingEvent] = useState<ReproEventEntry | null>(null);
   const [cattle, setCattle] = useState<CattleOption | null>(null);
   const [eventType, setEventType] = useState<ReproEventType | "all">("all");
   const [fromDate, setFromDate] = useState("");
@@ -134,9 +137,9 @@ export function ReproductionEventsFeed() {
     fromDate: fromDate || undefined,
     toDate: toDate || undefined,
   };
-  const pager = useCursorPager(
+  const pager = useInfiniteCursorList(
     // Prefix matches the dashboard/event mutations' `["reproduction", "events"]` invalidation.
-    ["reproduction", "events", "paged", filters],
+    ["reproduction", "events", "list", filters],
     (cursor, limit) =>
       reproductionApi.events({
         cattleId: filters.cattleId,
@@ -146,7 +149,8 @@ export function ReproductionEventsFeed() {
         cursor,
         limit,
       }),
-    { initialPageSize: DEFAULT_PAGE_SIZE },
+    // The same id can appear under two event types, so the dedupe key includes the type (as the row key does).
+    { pageSize: EVENTS_PAGE_SIZE, getId: (event) => `${event.event_type}-${event.id}` },
   );
 
   const hasDateFilter = !!fromDate || !!toDate;
@@ -310,21 +314,22 @@ export function ReproductionEventsFeed() {
                         ? () => setEditingBreedingEventId(event.id)
                         : event.event_type === "pregnancy_diagnosis"
                           ? () => setEditingDiagnosisEvent(event)
-                          : undefined
+                          : event.event_type === "heat"
+                            ? () => setEditingHeatEvent(event)
+                            : undefined
                     }
+                    onVoid={event.event_type === "breeding" ? () => setVoidingBreedingEvent(event) : undefined}
                   />
                 ))}
               </ul>
             </section>
           ))}
-          <Pagination
-            page={pager.page}
-            totalPages={pager.totalPages}
-            onPageChange={pager.goToPage}
-            isFetching={pager.isFetching}
-            pageSize={pager.pageSize}
-            onPageSizeChange={pager.setPageSize}
-            pageSizeOptions={PAGE_SIZE_CHOICES}
+          <InfiniteScrollFooter
+            hasNextPage={pager.hasNextPage}
+            isFetchingNextPage={pager.isFetchingNextPage}
+            isError={pager.isNextPageError}
+            onLoadMore={pager.fetchNextPage}
+            loadedCount={pager.items.length}
             className="mt-auto"
           />
         </div>
@@ -343,6 +348,20 @@ export function ReproductionEventsFeed() {
           if (!next) setEditingDiagnosisEvent(null);
         }}
         editingEvent={editingDiagnosisEvent ?? undefined}
+      />
+      <HeatEventEditDialog
+        open={editingHeatEvent !== null}
+        onOpenChange={(next) => {
+          if (!next) setEditingHeatEvent(null);
+        }}
+        event={editingHeatEvent ?? undefined}
+      />
+      <BreedingEventVoidDialog
+        open={voidingBreedingEvent !== null}
+        onOpenChange={(next) => {
+          if (!next) setVoidingBreedingEvent(null);
+        }}
+        event={voidingBreedingEvent ?? undefined}
       />
     </ReproductionCard>
   );
@@ -383,7 +402,7 @@ function DayHeading({ day }: { day: string }) {
   );
 }
 
-function EventRow({ event, onEdit }: { event: ReproEventEntry; onEdit?: () => void }) {
+function EventRow({ event, onEdit, onVoid }: { event: ReproEventEntry; onEdit?: () => void; onVoid?: () => void }) {
   const t = useTranslations("reproduction.eventsFeed");
   const Icon = EVENT_ICONS[event.event_type];
   const details = Object.entries(event.details)
@@ -425,11 +444,27 @@ function EventRow({ event, onEdit }: { event: ReproEventEntry; onEdit?: () => vo
           </ul>
         ) : null}
       </div>
-      {onEdit ? (
+      {onEdit || onVoid ? (
         <Can I="reproduction.update">
-          <Button variant="ghost" size="icon" className="size-9 shrink-0" onClick={onEdit} aria-label={t("edit")}>
-            <Pencil className="size-4" aria-hidden />
-          </Button>
+          <div className="flex shrink-0 items-center">
+            {onEdit ? (
+              <Button variant="ghost" size="icon" className="size-9 shrink-0" onClick={onEdit} aria-label={t("edit")}>
+                <Pencil className="size-4" aria-hidden />
+              </Button>
+            ) : null}
+            {onVoid ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-9 shrink-0 text-destructive hover:text-destructive"
+                onClick={onVoid}
+                aria-label={t("void")}
+                title={t("void")}
+              >
+                <Ban className="size-4" aria-hidden />
+              </Button>
+            ) : null}
+          </div>
         </Can>
       ) : null}
     </li>

@@ -15,12 +15,13 @@ import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DateText } from "@/components/shared/date-text";
-import { Pagination } from "@/components/shared/pagination";
+import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
+import { useIncrementalReveal } from "@/lib/hooks/use-incremental-reveal";
 import { Can, useCan } from "@/lib/auth/permissions";
 import { ApiError } from "@/lib/api/errors";
 import { cn } from "@/lib/utils";
 import { cattleApi } from "@/features/cattle/api";
-import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
+import { useInfiniteCursorList } from "@/lib/hooks/use-infinite-cursor-list";
 import { qk } from "@/lib/query/keys";
 import { reproductionApi } from "../../api";
 import { useDeleteProtocol, useProtocolInstances, useProtocols } from "../../hooks/use-reproduction";
@@ -44,8 +45,9 @@ type InstanceTab = (typeof INSTANCE_TABS)[number];
 /** Every list in this card is paged (5 cow rows / 2 template cards by default) so the card keeps a steady
  * height beside its partner and a long history never becomes a long scroll. The pager always shows,
  * like the events feed's, so the control is where you expect it even when everything fits one page. */
-const INSTANCE_PAGE_SIZES = [5, 10, 20, 50] as const;
-const LIBRARY_PAGE_SIZES = [2, 4, 6] as const;
+/** Rows revealed / fetched per scroll step. */
+const INSTANCE_STEP = 10;
+const LIBRARY_STEP = 6;
 
 const STATUS_VARIANT: Record<ProtocolInstanceStatus, ChipProps["variant"]> = {
   DRAFT: "muted",
@@ -65,22 +67,24 @@ function daysSince(iso: string): number {
   return Math.round((b - a) / 86_400_000);
 }
 
-interface InstancePagination {
-  page: number;
-  totalPages: number;
-  pageSize: number;
-  onPageChange: (page: number) => void;
-  onPageSizeChange: (size: number) => void;
-  isFetching: boolean;
+/** Drives the section's `InfiniteScrollFooter` — a server cursor for history, a client reveal for the
+ * small in-flight set. */
+interface InstanceMore {
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  isError: boolean;
+  onLoadMore: () => void;
+  /** Set only for server-cursor lists; enables the "All N loaded" note. */
+  loadedCount?: number;
 }
 
 interface InstanceResult {
-  /** The rows of the CURRENT page. */
+  /** The rows loaded / revealed so far. */
   rows: ProtocolInstance[];
   isLoading: boolean;
   isError: boolean;
   refetch: () => void;
-  pagination: InstancePagination;
+  more: InstanceMore;
 }
 
 /** Reproductive (Synchronization) Protocols (RAKHAL-214, PRD §9.8/§9.9). Two views instead of one
@@ -94,8 +98,6 @@ export function ProtocolsPanel() {
   const t = useTranslations("reproduction.protocols");
   const protocols = useProtocols();
   const [view, setView] = useState<View>("running");
-  const [libraryPage, setLibraryPage] = useState(1);
-  const [libraryPageSize, setLibraryPageSize] = useState<number>(LIBRARY_PAGE_SIZES[0]);
   const [instanceTab, setInstanceTab] = useState<InstanceTab>("ACTIVE");
   const [applyOpen, setApplyOpen] = useState(false);
   const [applyProtocolId, setApplyProtocolId] = useState<string | undefined>(undefined);
@@ -114,9 +116,9 @@ export function ProtocolsPanel() {
     if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const libraryPages = Math.max(1, Math.ceil(protocolRows.length / libraryPageSize));
-  const libraryPageSafe = Math.min(libraryPage, libraryPages);
-  const libraryShown = protocolRows.slice((libraryPageSafe - 1) * libraryPageSize, libraryPageSafe * libraryPageSize);
+  // The catalogue is fetched whole (above), so the library reveals rows already held.
+  const libraryReveal = useIncrementalReveal(protocolRows, LIBRARY_STEP);
+  const libraryShown = libraryReveal.visible;
 
   const durations = useMemo(() => new Map(protocolRows.map((p) => [p.id, p.duration_days])), [protocolRows]);
 
@@ -248,16 +250,10 @@ export function ProtocolsPanel() {
                 />
               ))}
             </ul>
-              <Pagination
-                page={libraryPageSafe}
-                totalPages={libraryPages}
-                onPageChange={setLibraryPage}
-                pageSize={libraryPageSize}
-                onPageSizeChange={(size) => {
-                  setLibraryPageSize(size);
-                  setLibraryPage(1);
-                }}
-                pageSizeOptions={LIBRARY_PAGE_SIZES}
+              <InfiniteScrollFooter
+                hasNextPage={libraryReveal.hasMore}
+                isFetchingNextPage={false}
+                onLoadMore={libraryReveal.showMore}
                 className="mt-auto"
               />
             </div>
@@ -410,8 +406,6 @@ function ActiveInstances(props: SectionProps) {
   const scheduled = useProtocolInstances({ status: "SCHEDULED" });
   useFetchAllPages(running);
   useFetchAllPages(scheduled);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(INSTANCE_PAGE_SIZES[0]);
   const all = useMemo(
     () => [
       ...(running.data?.pages.flatMap((p) => p.items) ?? []),
@@ -419,53 +413,46 @@ function ActiveInstances(props: SectionProps) {
     ],
     [running.data, scheduled.data],
   );
-  const totalPages = Math.max(1, Math.ceil(all.length / pageSize));
-  const safePage = Math.min(page, totalPages);
+  const reveal = useIncrementalReveal(all, INSTANCE_STEP);
   const result: InstanceResult = {
-    rows: all.slice((safePage - 1) * pageSize, safePage * pageSize),
+    rows: reveal.visible,
     isLoading: running.isLoading || scheduled.isLoading,
     isError: running.isError || scheduled.isError,
     refetch: () => {
       void running.refetch();
       void scheduled.refetch();
     },
-    pagination: {
-      page: safePage,
-      totalPages,
-      pageSize,
-      onPageChange: setPage,
-      onPageSizeChange: (size) => {
-        setPageSize(size);
-        setPage(1);
-      },
-      isFetching: running.isFetchingNextPage || scheduled.isFetchingNextPage,
+    more: {
+      hasNextPage: reveal.hasMore,
+      isFetchingNextPage: false,
+      isError: false,
+      onLoadMore: reveal.showMore,
     },
   };
   return <InstanceRows tab="ACTIVE" result={result} {...props} />;
 }
 
 /** Completed / Cancelled / Failed / All are history and grow without bound, so these use the real server
- * cursor (`useCursorPager`) rather than fetching everything. */
+ * cursor (infinite scroll) rather than fetching everything. */
 function StatusInstances({ tab, ...props }: SectionProps & { tab: InstanceTab }) {
   const filters = tab === "ALL" ? {} : { status: tab as ProtocolInstanceStatus };
-  const pager = useCursorPager(
+  const pager = useInfiniteCursorList(
     // Prefix matches the lifecycle mutations' protocol-instance invalidation.
     qk.reproduction.protocolInstances({ status: filters.status }),
     (cursor, limit) => reproductionApi.protocolInstances(filters, cursor, limit),
-    { initialPageSize: INSTANCE_PAGE_SIZES[0] },
+    { pageSize: INSTANCE_STEP },
   );
   const result: InstanceResult = {
     rows: pager.items,
     isLoading: pager.isLoading,
     isError: pager.isError,
     refetch: () => void pager.refetch(),
-    pagination: {
-      page: pager.page,
-      totalPages: pager.totalPages,
-      pageSize: pager.pageSize,
-      onPageChange: pager.goToPage,
-      onPageSizeChange: pager.setPageSize,
-      isFetching: pager.isFetching,
+    more: {
+      hasNextPage: pager.hasNextPage,
+      isFetchingNextPage: pager.isFetchingNextPage,
+      isError: pager.isNextPageError,
+      onLoadMore: pager.fetchNextPage,
+      loadedCount: pager.items.length,
     },
   };
   return <InstanceRows tab={tab} result={result} {...props} />;
@@ -509,7 +496,7 @@ function InstanceRows({
       />
     );
   }
-  const { pagination } = result;
+  const { more } = result;
   return (
     <div className="flex flex-1 flex-col gap-3">
       <ul className="flex flex-col divide-y divide-border">
@@ -522,14 +509,12 @@ function InstanceRows({
           />
         ))}
       </ul>
-      <Pagination
-        page={pagination.page}
-        totalPages={pagination.totalPages}
-        onPageChange={pagination.onPageChange}
-        isFetching={pagination.isFetching}
-        pageSize={pagination.pageSize}
-        onPageSizeChange={pagination.onPageSizeChange}
-        pageSizeOptions={INSTANCE_PAGE_SIZES}
+      <InfiniteScrollFooter
+        hasNextPage={more.hasNextPage}
+        isFetchingNextPage={more.isFetchingNextPage}
+        isError={more.isError}
+        onLoadMore={more.onLoadMore}
+        loadedCount={more.loadedCount}
         className="mt-auto"
       />
     </div>

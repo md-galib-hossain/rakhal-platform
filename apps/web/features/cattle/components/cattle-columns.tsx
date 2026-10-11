@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { avatarTint } from "../avatar-tint";
 import { formatCattleAge } from "../format";
 import { ANIMAL_CATEGORY_VARIANT } from "../utils/animal-category-style";
+import { NextEventCell } from "./next-event-cell";
 import type {
   CattleListItem,
   HealthStatusFilter,
@@ -161,7 +162,10 @@ export function buildCattleColumns(
             <span className="flex flex-col gap-0.5">
               <span className="text-sm font-medium text-foreground">{cattle.name ?? cattle.tagNumber}</span>
               <span className="flex items-center gap-1">
-                <span className="text-xs text-muted-foreground">{cattle.tagNumber}</span>
+                <span className="text-xs text-muted-foreground">
+                  {cattle.tagNumber}
+                  {cattle.breed?.name ? ` · ${cattle.breed.name}` : ""}
+                </span>
                 <GenderGlyph gender={cattle.gender} />
               </span>
             </span>
@@ -170,17 +174,19 @@ export function buildCattleColumns(
       },
     },
     {
+      // RFE-151 — the single most urgent upcoming event + a popover with the rest. Sits right after the animal
+      // so "who needs me soon" reads first; Breed moved under the name above to keep the table's width.
+      id: "nextEvent",
+      header: t("columns.nextEvent"),
+      cell: ({ row }) => <NextEventCell cattle={row.original} onView={rowActions.onView} />,
+    },
+    {
       id: "animalCategory",
       header: t("columns.category"),
       cell: ({ row }) => {
         const category = row.original.animalCategory;
         return <Chip variant={ANIMAL_CATEGORY_VARIANT[category]}>{t(`animalCategory.${category}`)}</Chip>;
       },
-    },
-    {
-      id: "breed",
-      header: t("columns.breed"),
-      cell: ({ row }) => row.original.breed?.name ?? "—",
     },
     {
       id: "age",

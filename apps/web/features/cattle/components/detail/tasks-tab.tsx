@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { Pagination } from "@/components/shared/pagination";
-import { useTaskPagedList } from "@/features/tasks/hooks/use-tasks";
+import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
+import { useTaskInfiniteList } from "@/features/tasks/hooks/use-tasks";
 import { TaskCard } from "@/features/tasks/components/task-card";
 import { CreateTaskSheet } from "@/features/tasks/components/create-task-sheet";
 import { TaskDetailsSheet } from "@/features/tasks/components/task-details-sheet";
@@ -35,7 +35,7 @@ export function TasksTab({ cattleId }: { cattleId: string }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [detailsTask, setDetailsTask] = useState<Task | null>(null);
 
-  const query = useTaskPagedList({ cattleId, filter });
+  const query = useTaskInfiniteList({ cattleId, filter });
 
   return (
     <div className="flex flex-col gap-4">
@@ -61,14 +61,13 @@ export function TasksTab({ cattleId }: { cattleId: string }) {
         </div>
       )}
 
-      {query.totalPages > 1 ? (
-        <Pagination
-          page={query.page}
-          totalPages={query.totalPages}
-          onPageChange={query.goToPage}
-          isFetching={query.isFetching}
-          pageSize={query.pageSize}
-          onPageSizeChange={query.setPageSize}
+      {!query.isLoading && !query.isError && query.items.length > 0 ? (
+        <InfiniteScrollFooter
+          hasNextPage={query.hasNextPage}
+          isFetchingNextPage={query.isFetchingNextPage}
+          isError={query.isNextPageError}
+          onLoadMore={query.fetchNextPage}
+          loadedCount={query.items.length}
         />
       ) : null}
 

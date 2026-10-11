@@ -1,12 +1,12 @@
 "use client"; // live query
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { CalendarCheck } from "lucide-react";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
-import { Pagination } from "@/components/shared/pagination";
+import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
+import { useIncrementalReveal } from "@/lib/hooks/use-incremental-reveal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useReproductionDashboard } from "../hooks/use-reproduction";
@@ -33,11 +33,10 @@ export function ReproductionCalvingForecast() {
   const t = useTranslations("reproduction.calvingForecast");
   const dashboard = useReproductionDashboard();
 
-  const [page, setPage] = useState(1);
   const rows = dashboard.data?.calving_forecast_30_days ?? [];
-  const totalPages = Math.max(1, Math.ceil(rows.length / FORECAST_PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const pageRows = rows.slice((safePage - 1) * FORECAST_PAGE_SIZE, safePage * FORECAST_PAGE_SIZE);
+  // The 30-day forecast arrives whole in the dashboard payload, so "more" reveals rows already held.
+  const reveal = useIncrementalReveal(rows, FORECAST_PAGE_SIZE);
+  const pageRows = reveal.visible;
 
   return (
     <ReproductionCard
@@ -96,9 +95,12 @@ export function ReproductionCalvingForecast() {
               );
             })}
           </ul>
-          {totalPages > 1 ? (
-            <Pagination page={safePage} totalPages={totalPages} onPageChange={setPage} className="mt-auto" />
-          ) : null}
+          <InfiniteScrollFooter
+            hasNextPage={reveal.hasMore}
+            isFetchingNextPage={false}
+            onLoadMore={reveal.showMore}
+            className="mt-auto"
+          />
         </div>
       )}
     </ReproductionCard>

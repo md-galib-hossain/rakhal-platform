@@ -20,6 +20,7 @@ import type {
   MediaUrls,
   PurchasedLactationResult,
   Shed,
+  UpcomingEventsResult,
   WeightRecordResult,
 } from "./types";
 import type {
@@ -60,10 +61,16 @@ export const cattleApi = {
         animalCategory: filters.animalCategory,
         status: filters.status,
         lifecycleSubStage: filters.lifecycleSubStage,
+        dueFilter: filters.dueFilter,
         cursor,
         limit,
       },
     });
+  },
+  /** RAKHAL-475 — one animal's full upcoming-events list (the Next event popover). `limit` defaults to 10
+   * server-side; `total` still counts everything in the window. */
+  upcomingEvents(id: string, limit?: number): Promise<UpcomingEventsResult> {
+    return apiFetch<UpcomingEventsResult>(`/cattle/${id}/upcoming-events`, { searchParams: { limit } });
   },
   highlights(): Promise<CattleHighlights> {
     return apiFetch<CattleHighlights>("/cattle/highlights");

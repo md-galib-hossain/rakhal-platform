@@ -14,7 +14,10 @@ import type {
   CreateHeatEventInput,
   CreatePregnancyDiagnosisInput,
   EditBreedingEventInput,
+  EditHeatEventInput,
   EditPregnancyDiagnosisInput,
+  ResolveHeatEventInput,
+  VoidBreedingEventInput,
   RecordProtocolAiInput,
   RecordProtocolOutcomeInput,
   ReturnToHeatInput,
@@ -28,11 +31,14 @@ import type {
 
 const STALE_TIME = 60_000;
 
-/** Every create mutation below touches the dashboard KPIs and the unified events feed, so each
- * `onSuccess` invalidates both prefixes in addition to its own specific list. */
+/** Every create/edit mutation below touches the dashboard KPIs, the unified events feed and the
+ * reproduction cow list (a breeding/heat/check changes a cow's status, next action and days), so each
+ * `onSuccess` invalidates all three prefixes in addition to its own specific list. The cow list was
+ * missing here, so it only updated after a page refresh. */
 function invalidateReproductionCore(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ["reproduction", "dashboard"] });
   queryClient.invalidateQueries({ queryKey: ["reproduction", "events"] });
+  queryClient.invalidateQueries({ queryKey: ["reproduction", "cows"] });
 }
 
 export function useReproductionDashboard() {
@@ -112,6 +118,41 @@ export function useCreateHeatEvent() {
   return useMutation({
     mutationFn: (input: CreateHeatEventInput) => reproductionApi.createHeatEvent(input),
     onSuccess: () => invalidateReproductionCore(queryClient),
+  });
+}
+
+export function useEditHeatEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: EditHeatEventInput }) => reproductionApi.editHeatEvent(id, input),
+    onSuccess: () => invalidateReproductionCore(queryClient),
+  });
+}
+
+export function useResolveHeatEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: ResolveHeatEventInput }) =>
+      reproductionApi.resolveHeatEvent(id, input),
+    onSuccess: () => invalidateReproductionCore(queryClient),
+  });
+}
+
+/** Voiding reverses money + straw and reopens a heat, so besides the core lists it refreshes the
+ * breeding lists and the cow-finance / inventory views that show those numbers. */
+export function useVoidBreedingEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: VoidBreedingEventInput }) =>
+      reproductionApi.voidBreedingEvent(id, input),
+    onSuccess: () => {
+      invalidateReproductionCore(queryClient);
+      queryClient.invalidateQueries({ queryKey: ["reproduction", "breeding-events"] });
+      queryClient.invalidateQueries({ queryKey: ["reproduction", "heat-events"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["cattle"] });
+      queryClient.invalidateQueries({ queryKey: ["finance"] });
+    },
   });
 }
 

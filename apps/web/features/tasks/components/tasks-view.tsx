@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
-import { Pagination } from "@/components/shared/pagination";
-import { useTaskPagedList } from "../hooks/use-tasks";
+import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
+import { useTaskInfiniteList } from "../hooks/use-tasks";
 import type { Task, TaskDatePreset, TaskListFilter } from "../types";
 import { TaskHighlights } from "./task-highlights";
 import { TaskFilterTabs } from "./task-filter-tabs";
@@ -62,7 +62,7 @@ export function TasksView() {
     () => ({ filter, search: search || undefined, ...dateRange }),
     [filter, search, dateRange],
   );
-  const query = useTaskPagedList(filters);
+  const query = useTaskInfiniteList(filters);
 
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-muted p-4">
@@ -115,14 +115,13 @@ export function TasksView() {
             </div>
           )}
 
-          {query.totalPages > 1 ? (
-            <Pagination
-              page={query.page}
-              totalPages={query.totalPages}
-              onPageChange={query.goToPage}
-              isFetching={query.isFetching}
-              pageSize={query.pageSize}
-              onPageSizeChange={query.setPageSize}
+          {!query.isLoading && !query.isError && query.items.length > 0 ? (
+            <InfiniteScrollFooter
+              hasNextPage={query.hasNextPage}
+              isFetchingNextPage={query.isFetchingNextPage}
+              isError={query.isNextPageError}
+              onLoadMore={query.fetchNextPage}
+              loadedCount={query.items.length}
             />
           ) : null}
         </div>

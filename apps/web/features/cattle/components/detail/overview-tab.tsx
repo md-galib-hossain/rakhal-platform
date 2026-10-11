@@ -1,7 +1,7 @@
 "use client"; // live queries
 
 import { useTranslations } from "next-intl";
-import { AlertTriangle, Check, ClipboardList, Skull } from "lucide-react";
+import { AlertTriangle, Skull } from "lucide-react";
 import { StatCard } from "@/components/shared/stat-card";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
@@ -9,10 +9,10 @@ import { DateText } from "@/components/shared/date-text";
 import { Card } from "@/components/ui/card";
 import { useCalfDetail } from "@/features/calves/hooks/use-calves";
 import { OverviewTab as CalfOverviewTab } from "@/features/calves/components/detail/overview-tab";
-import { useTaskPagedList } from "@/features/tasks/hooks/use-tasks";
 import { useCattleHealthSummary, useCattleOverview } from "../../hooks/use-cattle-detail-tabs";
 import { caseTitle } from "@/features/health/format";
 import type { AnimalCategory } from "../../types";
+import { UpcomingStrip } from "./upcoming-strip";
 
 function AlertBanner({ children }: { children: React.ReactNode }) {
   return (
@@ -27,8 +27,8 @@ function AlertBanner({ children }: { children: React.ReactNode }) {
  * Overview tab (unified animal-profile redesign, no ticket #) — a lightweight "quick glance" for
  * every non-`CALF` category (Heifer/Cow/Bull/Steer): alert flags (mortality/withholding/active
  * treatment from `useCattleHealthSummary`, same query `HealthTab` already fetches — dedupes, no
- * extra request), the soonest upcoming task for this animal (same `useTaskPagedList({ cattleId })`
- * query the new `TasksTab` uses — also dedupes), and a latest-weight/BCS snapshot (from
+ * extra request), everything upcoming for this animal (`UpcomingStrip`, RFE-152 — replaced the old
+ * single "next task" block), and a latest-weight/BCS snapshot (from
  * `useCattleOverview`, the same query `PerformanceTab` fetches). Deliberately does NOT repeat the
  * AQR/yield/lactation depth that lives on Performance — this tab is a status roundup, not a second
  * copy of Performance. `CALF` rows keep their existing, unchanged `CalfOverviewTab` content (birth
@@ -54,7 +54,6 @@ function NonCalfSnapshot({ cattleId }: { cattleId: string }) {
   const tCondition = useTranslations("health.reportSickness");
   const overview = useCattleOverview(cattleId);
   const health = useCattleHealthSummary(cattleId);
-  const tasks = useTaskPagedList({ cattleId });
 
   if (overview.isLoading || health.isLoading) return <CardSkeleton lines={3} />;
   if (overview.isError || health.isError) {
@@ -72,7 +71,6 @@ function NonCalfSnapshot({ cattleId }: { cattleId: string }) {
   const overviewData = overview.data;
   const healthData = health.data;
   const latestBcs = overviewData?.bcs_records.at(-1)?.score ?? null;
-  const nextTask = tasks.items[0] ?? null;
   const hasAlerts = Boolean(healthData?.mortalityStatus) || Boolean(healthData?.safetyWithdrawalWarning) || (healthData?.activeCases.length ?? 0) > 0;
 
   return (
@@ -107,23 +105,9 @@ function NonCalfSnapshot({ cattleId }: { cattleId: string }) {
         <StatCard label={t("latestBcs")} value={latestBcs ?? "—"} />
       </div>
 
-      <div className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold text-foreground">{t("nextTask")}</h3>
-        {!nextTask ? (
-          <p className="text-sm text-muted-foreground">{t("noNextTask")}</p>
-        ) : (
-          <Card className="flex items-center gap-3 p-3">
-            <ClipboardList className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-            <div className="flex flex-col">
-              <p className="text-sm font-medium text-foreground">{nextTask.name}</p>
-              <p className="text-xs text-muted-foreground">
-                <DateText date={nextTask.dueAt} />
-              </p>
-            </div>
-            {nextTask.status === "COMPLETED" ? <Check className="ml-auto size-4 text-success" aria-hidden /> : null}
-          </Card>
-        )}
-      </div>
+      {/* RFE-152 — replaces the old single "Next task" block: every upcoming item for this animal
+          (health steps, pregnancy check, calving, dry-off, tasks, withdrawal ends), most urgent first. */}
+      <UpcomingStrip cattleId={cattleId} />
     </div>
   );
 }

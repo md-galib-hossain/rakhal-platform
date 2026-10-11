@@ -90,6 +90,17 @@ export function CattleFilters({ actions }: { actions?: React.ReactNode }) {
           ],
         },
         {
+          // RFE-151 — animals with an actionable upcoming event (`ListCattleQueryDto.dueFilter`): overdue /
+          // due today / due in the next 7 days. Pairs with the "Next event" column.
+          key: "dueFilter",
+          label: t("due"),
+          options: [
+            { value: "overdue", label: t("dueOptions.overdue") },
+            { value: "today", label: t("dueOptions.today") },
+            { value: "week", label: t("dueOptions.week") },
+          ],
+        },
+        {
           key: "breedId",
           label: t("breed"),
           options: (breeds.data?.items ?? []).map((b) => ({ value: b.id, label: b.name })),

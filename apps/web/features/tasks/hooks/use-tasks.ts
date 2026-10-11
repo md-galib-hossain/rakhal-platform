@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
+import { useInfiniteCursorList } from "@/lib/hooks/use-infinite-cursor-list";
 import { tasksApi } from "../api";
 import type { CancelTaskPayload, CompleteTaskPayload, CreateTaskPayload, TaskHighlights, TaskListFilters, UpdateTaskPayload } from "../types";
 
@@ -19,6 +20,17 @@ export function useTaskPagedList(filters: TaskListFilters) {
     { staleTime: STALE_TIME },
   );
   return { ...pager, highlights: pager.meta?.highlights ?? EMPTY_HIGHLIGHTS };
+}
+
+/** Append-forever variant (infinite scroll) of `useTaskPagedList`. `highlights` comes from the
+ * first page's meta — farm-wide and refreshed on every invalidation. */
+export function useTaskInfiniteList(filters: TaskListFilters) {
+  const list = useInfiniteCursorList(
+    qk.tasks.list(filters as Record<string, string | undefined>),
+    (cursor, limit) => tasksApi.list(filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
+  return { ...list, highlights: list.meta?.highlights ?? EMPTY_HIGHLIGHTS };
 }
 
 export function useTaskAssignees() {

@@ -27,7 +27,14 @@
     "done": "Done",
     "time": "Time",
     "hour": "Hour",
-    "minute": "Minute"
+    "minute": "Minute",
+    "infiniteScroll": {
+      "loading": "Loading more…",
+      "loadMore": "Load more",
+      "retry": "Retry",
+      "error": "Could not load more. Your list is safe.",
+      "end": "All {count} loaded"
+    }
   },
   "nav": {
     "groupOverview": "Overview",
@@ -908,6 +915,12 @@
       "stage": "Calf Stage",
       "herdStatus": "Herd Status",
       "lifecycleSubStage": "Lifecycle Stage",
+      "due": "Due",
+      "dueOptions": {
+        "overdue": "Overdue",
+        "today": "Today",
+        "week": "This week"
+      },
       "statusOptions": {
         "milking": "Milking",
         "dry": "Dry"
@@ -950,7 +963,43 @@
       "productionStatus": "Production status",
       "lactationStage": "Lactation Stage",
       "reproductionStatus": "Reproduction status",
-      "healthStatus": "Health status"
+      "healthStatus": "Health status",
+      "nextEvent": "Next event"
+    },
+    "upcoming": {
+      "title": "Upcoming events",
+      "open": "See upcoming events for {name}",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "inDays": "in {count}d",
+      "overdueDays": "{count}d overdue",
+      "more": "+{count} more",
+      "loading": "Loading…",
+      "error": "Could not load events",
+      "retry": "Try again",
+      "info": "Info",
+      "viewAnimal": "View animal",
+      "none": "Nothing upcoming in the next 14 days",
+      "labels": {
+        "healthStep": "{title}",
+        "preventiveStep": "{title}",
+        "pregnancyCheck": "Pregnancy check",
+        "calving": "Expected calving",
+        "dryOff": "Dry-off",
+        "task": "{title}",
+        "milkWithdrawalEnd": "Milk safe again",
+        "meatWithdrawalEnd": "Meat safe again"
+      },
+      "kinds": {
+        "HEALTH_STEP": "Treatment step",
+        "PREVENTIVE_STEP": "Preventive step",
+        "PREGNANCY_CHECK": "Pregnancy check",
+        "CALVING": "Expected calving",
+        "DRY_OFF": "Dry-off",
+        "TASK": "Task",
+        "WITHDRAWAL_END": "Withdrawal ends",
+        "WEANING": "Weaning"
+      }
     },
     "statusOptions": {
       "milking": "Milking",
@@ -2763,6 +2812,9 @@
         "daysPregnant": "Days Pregnant",
         "expectedCalvingDate": "Expected Calving Date"
       },
+      "daysLeft": "{count, plural, one {# day left} other {# days left}}",
+      "overdueDays": "{count, plural, one {# day overdue} other {# days overdue}}",
+      "dueToday": "due today",
       "statusValues": {
         "OPEN": "Open",
         "BRED_AWAITING_CONFIRMATION": "Inseminated",
@@ -2796,6 +2848,7 @@
       "resultCount": "{count} events",
       "error": "Could not load the events feed.",
       "edit": "Edit",
+      "void": "Void this breeding",
       "today": "Today",
       "yesterday": "Yesterday",
       "moreDetails": "+{count} more",
@@ -2908,6 +2961,35 @@
         "submit": "Save Breeding Event",
         "createdToast": "Breeding event recorded.",
         "genericError": "Could not record the breeding event. Please try again."
+      },
+      "voidBreeding": {
+        "title": "Void this breeding",
+        "description": "Use this when the breeding / AI for {cow} was recorded by mistake - the wrong cow, a duplicate, or it never happened.",
+        "effectsTitle": "Voiding will:",
+        "effectCost": "Reverse the cost that was posted to Finance.",
+        "effectStraw": "Put the straw back into its batch (AI from your own stock).",
+        "effectHeat": "Reopen the heat this breeding had closed.",
+        "effectTask": "Cancel the pregnancy-check reminder.",
+        "effectKept": "Keep the record, marked as voided with your name and reason. It is hidden from lists and counts.",
+        "reason": "Why is it being voided?",
+        "reasonPlaceholder": "e.g. Recorded on the wrong cow",
+        "reasonRequired": "Please give a reason.",
+        "submit": "Void breeding",
+        "voidedToast": "Breeding voided - cost reversed and straw returned.",
+        "genericError": "Could not void the breeding. Please try again."
+      },
+      "heatEdit": {
+        "title": "Correct heat record",
+        "description": "Heat recorded for {cow}. Change the animal, time or method — only what you change is saved.",
+        "cowHint": "Recorded on the wrong animal? Pick the right one here and the heat moves to her record.",
+        "submit": "Save correction",
+        "movedToast": "Heat moved to the right animal.",
+        "savedToast": "Heat record updated.",
+        "falseAlarmTitle": "The heat was not real?",
+        "falseAlarmHint": "Closes this heat as a false alarm. It stays in her history — to fix the wrong animal, change the animal above instead.",
+        "falseAlarm": "Mark as false alarm",
+        "falseAlarmToast": "Heat marked as a false alarm.",
+        "genericError": "Could not update the heat record. Please try again."
       },
       "returnToHeat": {
         "title": "Return to Heat",
@@ -6690,11 +6772,7 @@
         "variance": "Variance",
         "nutrientHeader": "Nutrient",
         "incomplete": "A line has no batch or stock, so real supply is higher than shown.",
-        "nutrient": {
-          "dm": "Dry matter",
-          "cp": "Protein",
-          "me": "Energy"
-        }
+        "nutrient": { "dm": "Dry matter", "cp": "Protein", "me": "Energy" }
       },
       "adjust": {
         "adjustPlan": "Adjust plan",

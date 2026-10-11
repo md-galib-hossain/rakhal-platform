@@ -7,11 +7,11 @@ import { useSearchParams } from "next/navigation";
 import type { RowSelectionState } from "@tanstack/react-table";
 import { ApiError } from "@/lib/api/errors";
 import { useCan } from "@/lib/auth/permissions";
-import { Pagination } from "@/components/shared/pagination";
+import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { BulkActionDock } from "@/components/shared/bulk-action-dock";
 import { useTableBulkSelection, useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
-import { useArchiveEquipment, useBulkDeleteEquipment, useEquipmentPagedList } from "../hooks/use-inventory";
+import { useArchiveEquipment, useBulkDeleteEquipment, useEquipmentInfiniteList } from "../hooks/use-inventory";
 import { EquipmentFilters } from "./equipment-filters";
 import { EquipmentAddButton } from "./equipment-add-button";
 import { EquipmentTable } from "./equipment-table";
@@ -38,7 +38,7 @@ export function EquipmentView({ view }: { view: "table" | "grid" }) {
     type: (searchParams.get("type") as EquipmentType | null) ?? undefined,
   };
 
-  const query = useEquipmentPagedList(filters);
+  const query = useEquipmentInfiniteList(filters);
   const allIds = query.items.map((e) => e.id);
   const tableSelection = useTableBulkSelection(rowSelection, setRowSelection, allIds);
   const gridSelection = useGridBulkSelection(allIds);
@@ -90,7 +90,7 @@ export function EquipmentView({ view }: { view: "table" | "grid" }) {
       {view === "table" ? (
         <EquipmentTable
           items={query.items}
-          startIndex={(query.page - 1) * 20}
+          startIndex={0}
           isLoading={query.isLoading}
           isError={query.isError}
           onRetry={() => void query.refetch()}
@@ -120,20 +120,15 @@ export function EquipmentView({ view }: { view: "table" | "grid" }) {
         />
       )}
 
-      <Pagination
-        page={query.page}
-        totalPages={query.totalPages}
-        onPageChange={(page) => {
-          query.goToPage(page);
-          setRowSelection({});
-        }}
-        isFetching={query.isFetching}
-        pageSize={query.pageSize}
-        onPageSizeChange={(size) => {
-          query.setPageSize(size);
-          setRowSelection({});
-        }}
-      />
+      {!query.isLoading && !query.isError && query.items.length > 0 ? (
+        <InfiniteScrollFooter
+          hasNextPage={query.hasNextPage}
+          isFetchingNextPage={query.isFetchingNextPage}
+          isError={query.isNextPageError}
+          onLoadMore={query.fetchNextPage}
+          loadedCount={query.items.length}
+        />
+      ) : null}
 
       <EquipmentFormDialog open={formOpen} onOpenChange={setFormOpen} equipment={editingEquipment} />
       <ConfirmDialog

@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
-import { Pagination } from "@/components/shared/pagination";
+import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
+import { useIncrementalReveal } from "@/lib/hooks/use-incremental-reveal";
 import { cn } from "@/lib/utils";
 import { useReproductionDashboard } from "../hooks/use-reproduction";
 import type {
@@ -25,12 +26,9 @@ import { ReproductionCowIdentity } from "./reproduction-cow-identity";
 type TabKey = "readyForAi" | "inHeat" | "pregnancyCheck" | "calving" | "dryOff";
 const TAB_ORDER: TabKey[] = ["readyForAi", "inHeat", "pregnancyCheck", "calving", "dryOff"];
 
-/** Rows per page — keeps a 60-cow "ready for AI" list from pushing the rest of the page a screen
- * and a half down. The dashboard endpoint returns every row, so paging is client-side. 8 by default so
- * the card is tall enough to show a real working set beside its partner; 16 / 24 / 48 are one tap away in the pager, which
- * always shows (like the events feed's) so it is where you expect it even when everything fits one page. */
-export const ATTENTION_PAGE_SIZE = 8;
-const ATTENTION_PAGE_SIZES = [8, 16, 24, 48] as const;
+/** Rows shown first, and added per scroll step — keeps a 60-cow "ready for AI" list from pushing the
+ * rest of the page down. The dashboard endpoint returns every row, so the reveal is client-side. */
+const ATTENTION_STEP = 8;
 
 export interface ReproductionActionPanelsProps {
   onRecordAi: (cattleId: string) => void;
@@ -56,8 +54,6 @@ export function ReproductionActionPanels({
   const t = useTranslations("reproduction.actionPanels");
   const dashboard = useReproductionDashboard();
   const [picked, setPicked] = useState<TabKey | null>(null);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(ATTENTION_PAGE_SIZE);
 
   const action = dashboard.data?.action_required;
   const counts: Record<TabKey, number> = {
@@ -72,11 +68,6 @@ export function ReproductionActionPanels({
 
   function selectTab(next: string) {
     setPicked(next as TabKey);
-    setPage(1);
-  }
-  function changePageSize(size: number) {
-    setPageSize(size);
-    setPage(1);
   }
 
   if (dashboard.isLoading) {
@@ -131,10 +122,6 @@ export function ReproductionActionPanels({
           <TabsContent value="readyForAi" className="mt-0 flex flex-1 flex-col">
             <AttentionList
               rows={action?.ready_for_ai ?? []}
-              page={page}
-              onPageChange={setPage}
-              pageSize={pageSize}
-              onPageSizeChange={changePageSize}
               emptyLabel={t("emptyReadyForAi")}
               renderRow={(row: ReadyForAiRow) => (
                 <AttentionRow
@@ -153,10 +140,6 @@ export function ReproductionActionPanels({
           <TabsContent value="inHeat" className="mt-0 flex flex-1 flex-col">
             <AttentionList
               rows={action?.in_heat_now ?? []}
-              page={page}
-              onPageChange={setPage}
-              pageSize={pageSize}
-              onPageSizeChange={changePageSize}
               emptyLabel={t("emptyInHeatNow")}
               renderRow={(row: InHeatNowRow) => (
                 <AttentionRow
@@ -179,10 +162,6 @@ export function ReproductionActionPanels({
           <TabsContent value="pregnancyCheck" className="mt-0 flex flex-1 flex-col">
             <AttentionList
               rows={action?.pregnancy_check_due ?? []}
-              page={page}
-              onPageChange={setPage}
-              pageSize={pageSize}
-              onPageSizeChange={changePageSize}
               emptyLabel={t("emptyPregnancyCheckDue")}
               renderRow={(row: PregnancyCheckDueRow) => (
                 <AttentionRow
@@ -212,10 +191,6 @@ export function ReproductionActionPanels({
           <TabsContent value="calving" className="mt-0 flex flex-1 flex-col">
             <AttentionList
               rows={action?.calving_next_7_days ?? []}
-              page={page}
-              onPageChange={setPage}
-              pageSize={pageSize}
-              onPageSizeChange={changePageSize}
               emptyLabel={t("emptyCalvingNext7Days")}
               renderRow={(row: CalvingNext7DaysRow) => {
                 const left = row.days_remaining;
@@ -249,10 +224,6 @@ export function ReproductionActionPanels({
           <TabsContent value="dryOff" className="mt-0 flex flex-1 flex-col">
             <AttentionList
               rows={action?.dryoff_due_14_days ?? []}
-              page={page}
-              onPageChange={setPage}
-              pageSize={pageSize}
-              onPageSizeChange={changePageSize}
               emptyLabel={t("emptyDryoffDue14Days")}
               renderRow={(row: DryoffDue14DaysRow) => (
                 <AttentionRow
@@ -277,43 +248,30 @@ export function ReproductionActionPanels({
   );
 }
 
-/** One tab's rows, `pageSize` per page. The list takes the card's spare height (`flex-1`) and the pager
- * — always shown, with the page-size picker — is pinned to the bottom (`mt-auto`), so the card keeps its
- * shape, and matches its partner, whether the page is full or the last, short one. */
+/** One tab's rows, revealed `ATTENTION_STEP` at a time. The list takes the card's spare height
+ * (`flex-1`) and the footer is pinned to the bottom (`mt-auto`), so the card keeps its shape beside its partner. */
 function AttentionList<T>({
   rows,
-  page,
-  onPageChange,
-  pageSize,
-  onPageSizeChange,
   emptyLabel,
   renderRow,
 }: {
   rows: T[];
-  page: number;
-  onPageChange: (page: number) => void;
-  pageSize: number;
-  onPageSizeChange: (size: number) => void;
   emptyLabel: string;
   renderRow: (row: T) => React.ReactNode;
 }) {
+  // Each tab mounts its own list, so switching tabs naturally starts again at the first rows.
+  const reveal = useIncrementalReveal(rows, ATTENTION_STEP);
   if (rows.length === 0) {
     return <EmptyState icon={CircleCheckBig} title={emptyLabel} className="flex-1 justify-center py-8" />;
   }
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
-  const safePage = Math.min(page, totalPages);
-  const shown = rows.slice((safePage - 1) * pageSize, safePage * pageSize);
   return (
     <div className="flex flex-1 flex-col gap-3">
-      <ul className="flex flex-col divide-y divide-border">{shown.map(renderRow)}</ul>
-      <Pagination
-        page={safePage}
-        totalPages={totalPages}
-        onPageChange={onPageChange}
-        pageSize={pageSize}
-        onPageSizeChange={onPageSizeChange}
-        pageSizeOptions={ATTENTION_PAGE_SIZES}
+      <ul className="flex flex-col divide-y divide-border">{reveal.visible.map(renderRow)}</ul>
+      <InfiniteScrollFooter
+        hasNextPage={reveal.hasMore}
+        isFetchingNextPage={false}
+        onLoadMore={reveal.showMore}
         className="mt-auto"
       />
     </div>

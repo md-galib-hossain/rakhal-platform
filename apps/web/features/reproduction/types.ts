@@ -23,7 +23,15 @@ export type ReproductiveStatus =
 
 export type HeatDetectionMethod = "VISUAL" | "COLLAR_SENSOR" | "PEDOMETER" | "MANUAL";
 export type BreedingMethod = "AI" | "NATURAL" | "EMBRYO_TRANSFER";
-export type BreedingStatus = "PENDING_CHECK" | "PREGNANT" | "FAILED" | "ABORTED" | "CALVED" | "RETURNED_TO_HEAT";
+export type BreedingStatus =
+  | "PENDING_CHECK"
+  | "PREGNANT"
+  | "FAILED"
+  | "ABORTED"
+  | "CALVED"
+  | "RETURNED_TO_HEAT"
+  /** Recorded by mistake and voided (`POST .../void`); hidden from every list, readable by id. */
+  | "VOIDED";
 /** RAKHAL-317: `SYSTEM` until a farmer edits `expectedCalvingDate`, then `MANUAL` forever. */
 export type ExpectedCalvingDateSource = "SYSTEM" | "MANUAL";
 export type PregnancyDiagnosisResult = "PREGNANT" | "NOT_PREGNANT" | "SUSPECTED";

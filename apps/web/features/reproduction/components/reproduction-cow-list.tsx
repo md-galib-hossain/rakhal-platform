@@ -8,8 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DateText } from "@/components/shared/date-text";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
-import { Pagination } from "@/components/shared/pagination";
-import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
+import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
+import { useInfiniteCursorList } from "@/lib/hooks/use-infinite-cursor-list";
 import { qk } from "@/lib/query/keys";
 import { cn } from "@/lib/utils";
 import { reproductionApi } from "../api";
@@ -31,8 +31,8 @@ const STATUS_FILTERS: (ReproductiveStatus | undefined)[] = [undefined, "OPEN", "
 /** Typical bovine gestation, used only to scale the progress bar (not shown as a number). */
 const GESTATION_DAYS = 283;
 
-/** Rows per page — 10 by default; the table is the page's one full-width list so it can hold more. */
-const COW_PAGE_SIZES = [10, 20, 50, 100] as const;
+/** Rows fetched per request while scrolling. */
+const COW_PAGE_SIZE = 20;
 
 /** RAKHAL-363 — every cow currently in an active reproductive cycle (Open/Inseminated/Pregnant),
  * real numbered pages over the keyset cursor (`GET /reproduction/cows`, `reproduction.service.ts`'s
@@ -44,12 +44,12 @@ const COW_PAGE_SIZES = [10, 20, 50, 100] as const;
 export function ReproductionCowList() {
   const t = useTranslations("reproduction.cowList");
   const [status, setStatus] = useState<ReproductiveStatus | undefined>(undefined);
-  // Numbered pages over the endpoint's keyset cursor (same adapter as the events feed); the pager resets to
-  // page 1 when the status chip or the page size changes. Prefix matches the cow-list invalidation.
-  const pager = useCursorPager(
+  // Infinite scroll over the endpoint's keyset cursor; a status-chip change restarts from the first
+  // page. Prefix matches the cow-list invalidation.
+  const pager = useInfiniteCursorList(
     qk.reproduction.cows(status),
     (cursor, limit) => reproductionApi.reproductionCows(status, cursor, limit),
-    { initialPageSize: COW_PAGE_SIZES[0] },
+    { pageSize: COW_PAGE_SIZE, getId: (row) => row.cattle_id },
   );
   const rows = pager.items;
 
@@ -97,14 +97,12 @@ export function ReproductionCowList() {
               <CowCard key={row.cattle_id} row={row} />
             ))}
           </ul>
-          <Pagination
-            page={pager.page}
-            totalPages={pager.totalPages}
-            onPageChange={pager.goToPage}
-            isFetching={pager.isFetching}
-            pageSize={pager.pageSize}
-            onPageSizeChange={pager.setPageSize}
-            pageSizeOptions={COW_PAGE_SIZES}
+          <InfiniteScrollFooter
+            hasNextPage={pager.hasNextPage}
+            isFetchingNextPage={pager.isFetchingNextPage}
+            isError={pager.isNextPageError}
+            onLoadMore={pager.fetchNextPage}
+            loadedCount={rows.length}
           />
         </>
       )}
@@ -177,11 +175,34 @@ function CowTable({ rows }: { rows: ReproductionCowRow[] }) {
             </TableCell>
             <TableCell className="tabular-nums">{row.days_open ?? "—"}</TableCell>
             <TableCell>{row.days_pregnant != null ? <GestationBar days={row.days_pregnant} /> : "—"}</TableCell>
-            <TableCell>{row.expected_calving_date ? <DateText date={row.expected_calving_date} /> : "—"}</TableCell>
+            <TableCell>{row.expected_calving_date ? <ExpectedCalving date={row.expected_calving_date} /> : "—"}</TableCell>
           </TableRow>
         ))}
       </TableBody>
     </Table>
+  );
+}
+
+/** Whole calendar days from today to the due date (negative = overdue). Parsed as a local date so the
+ * `YYYY-MM-DD` prefix is never shifted by the viewer's UTC offset. */
+function daysUntil(isoDate: string): number {
+  const [y, m, d] = isoDate.slice(0, 10).split("-").map(Number);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((new Date(y, m - 1, d).getTime() - today.getTime()) / 86_400_000);
+}
+
+/** Due date plus the days left in brackets, e.g. `12 Mar 2027 (45 days left)`; overdue turns destructive. */
+function ExpectedCalving({ date }: { date: string }) {
+  const t = useTranslations("reproduction.cowList");
+  const days = daysUntil(date);
+  return (
+    <span className="flex flex-wrap items-baseline gap-x-1.5">
+      <DateText date={date} />
+      <span className={cn("text-xs tabular-nums", days < 0 ? "text-destructive" : "text-muted-foreground")}>
+        ({days < 0 ? t("overdueDays", { count: -days }) : days === 0 ? t("dueToday") : t("daysLeft", { count: days })})
+      </span>
+    </span>
   );
 }
 
@@ -211,7 +232,7 @@ function CowCard({ row }: { row: ReproductionCowRow }) {
         ) : null}
         {row.expected_calving_date ? (
           <Fact label={t("columns.expectedCalvingDate")}>
-            <DateText date={row.expected_calving_date} />
+            <ExpectedCalving date={row.expected_calving_date} />
           </Fact>
         ) : null}
         {showCheck ? (
