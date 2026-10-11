@@ -1,9 +1,8 @@
 "use client"; // column defs consumed by the client-only DataTable
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Eye, Mars, TriangleAlert, Venus } from "lucide-react";
+import { Mars, TriangleAlert, Venus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { Chip, type ChipProps } from "@/components/ui/chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { avatarTint } from "../avatar-tint";
@@ -142,8 +141,8 @@ function ReproductionAlertsIndicator({
  */
 export function buildCattleColumns(
   t: (key: string, values?: Record<string, string | number | Date>) => string,
-  rowActions: {
-    onView: (cattle: CattleListItem) => void;
+  rowActions?: {
+    onView?: (cattle: CattleListItem) => void;
   },
 ): ColumnDef<CattleListItem, unknown>[] {
   return [
@@ -153,11 +152,7 @@ export function buildCattleColumns(
       cell: ({ row }) => {
         const cattle = row.original;
         return (
-          <button
-            type="button"
-            onClick={() => rowActions.onView(cattle)}
-            className="flex items-center gap-2 text-left hover:underline"
-          >
+          <div className="flex items-center gap-2 text-left">
             <CattleThumbnail cattle={cattle} />
             <span className="flex flex-col gap-0.5">
               <span className="text-sm font-medium text-foreground">{cattle.name ?? cattle.tagNumber}</span>
@@ -169,7 +164,7 @@ export function buildCattleColumns(
                 <GenderGlyph gender={cattle.gender} />
               </span>
             </span>
-          </button>
+          </div>
         );
       },
     },
@@ -178,7 +173,7 @@ export function buildCattleColumns(
       // so "who needs me soon" reads first; Breed moved under the name above to keep the table's width.
       id: "nextEvent",
       header: t("columns.nextEvent"),
-      cell: ({ row }) => <NextEventCell cattle={row.original} onView={rowActions.onView} />,
+      cell: ({ row }) => <NextEventCell cattle={row.original} onView={rowActions?.onView ?? (() => {})} />,
     },
     {
       id: "animalCategory",
@@ -265,29 +260,6 @@ export function buildCattleColumns(
         const status = row.original.healthStatus;
         return <Chip variant={HEALTH_STATUS_VARIANT[status]}>{t(`healthOptions.${HEALTH_STATUS_I18N_KEY[status]}`)}</Chip>;
       },
-    },
-    {
-      id: "__actions__",
-      header: t("columns.action"),
-      size: 72,
-      cell: ({ row }) => (
-        <div className="flex justify-center">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8 text-muted-foreground hover:text-foreground"
-                onClick={() => rowActions.onView(row.original)}
-                aria-label={t("actions.viewDetails")}
-              >
-                <Eye className="size-4" aria-hidden />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t("actions.viewDetails")}</TooltipContent>
-          </Tooltip>
-        </div>
-      ),
     },
   ];
 }

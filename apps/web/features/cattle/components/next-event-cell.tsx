@@ -47,10 +47,12 @@ function NextEventChip({
           aria-label={t("upcoming.open", { name: cattle.name ?? cattle.tagNumber })}
           className="flex max-w-full items-center gap-1.5 text-left"
         >
-          <Chip variant={text.variant} subtle className="max-w-[15rem] gap-1.5 px-2.5">
+          <Chip variant={text.variant} subtle className="max-w-[20rem] gap-1.5 px-2.5">
             <Icon className="size-3.5 shrink-0" aria-hidden />
             <span className="truncate">{text.label}</span>
-            <span className="shrink-0 font-medium opacity-80">· {text.due}</span>
+            <span className="shrink-0 font-medium opacity-80">
+              · {text.due}{text.date ? ` (${text.date})` : ""}
+            </span>
           </Chip>
           {more > 0 ? (
             <span className="shrink-0 text-xs font-semibold text-muted-foreground">{t("upcoming.more", { count: more })}</span>

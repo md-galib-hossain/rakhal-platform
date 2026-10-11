@@ -74,4 +74,49 @@ describe("DataTable", () => {
     await user.click(checkboxes[1]);
     expect(onRowSelectionChange).toHaveBeenCalled();
   });
+
+  it("calls onRowClick when a row is clicked, but not when selecting checkbox", async () => {
+    const user = userEvent.setup();
+    const onRowClick = vi.fn();
+    const onRowSelectionChange = vi.fn();
+    render(
+      <DataTable
+        columns={columns}
+        data={[{ id: "1", name: "Cow #1" }]}
+        getRowId={(r) => r.id}
+        enableRowSelection
+        rowSelection={{}}
+        onRowSelectionChange={onRowSelectionChange}
+        onRowClick={onRowClick}
+      />,
+      { wrapper: withNuqsTestingAdapter() },
+    );
+    // Click checkbox: should trigger onRowSelectionChange, not onRowClick
+    const checkboxes = screen.getAllByRole("checkbox");
+    await user.click(checkboxes[1]);
+    expect(onRowSelectionChange).toHaveBeenCalled();
+    expect(onRowClick).not.toHaveBeenCalled();
+
+    // Click row cell content: should trigger onRowClick
+    await user.click(screen.getByText("Cow #1"));
+    expect(onRowClick).toHaveBeenCalledWith({ id: "1", name: "Cow #1" });
+  });
+
+  it("calls onRowClick on Enter keydown on the row", async () => {
+    const user = userEvent.setup();
+    const onRowClick = vi.fn();
+    render(
+      <DataTable
+        columns={columns}
+        data={[{ id: "1", name: "Cow #1" }]}
+        getRowId={(r) => r.id}
+        onRowClick={onRowClick}
+      />,
+      { wrapper: withNuqsTestingAdapter() },
+    );
+    const row = screen.getByText("Cow #1").closest("tr")!;
+    row.focus();
+    await user.keyboard("{Enter}");
+    expect(onRowClick).toHaveBeenCalledWith({ id: "1", name: "Cow #1" });
+  });
 });

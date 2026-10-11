@@ -57,10 +57,11 @@ describe("NextEventCell", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("shows the label and how overdue it is", () => {
+  it("shows the label, how overdue it is, and the date", () => {
     renderCell(cow());
     expect(screen.getByText("Antibiotic day 2")).toBeInTheDocument();
     expect(screen.getByText(/2d overdue/)).toBeInTheDocument();
+    expect(screen.getByText(/Oct 9, 2026/)).toBeInTheDocument();
   });
 
   it("shows a +N hint only when more events exist", () => {

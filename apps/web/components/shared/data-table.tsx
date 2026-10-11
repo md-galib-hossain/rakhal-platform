@@ -46,6 +46,7 @@ export interface DataTableProps<TData> {
   /** Card renderer shown below `sm` instead of the table (mobile card-collapse). Omit to always render the table. */
   renderMobileCard?: (row: TData) => React.ReactNode;
   className?: string;
+  onRowClick?: (row: TData) => void;
 }
 
 /**
@@ -72,6 +73,7 @@ export function DataTable<TData>({
   onRowSelectionChange,
   renderMobileCard,
   className,
+  onRowClick,
 }: DataTableProps<TData>) {
   const [sort, setSort] = useQueryState(sortParamKey ?? "__sort_unused__", parseAsString);
 
@@ -154,9 +156,58 @@ export function DataTable<TData>({
               <TableSkeleton columns={tableColumns.length} />
             ) : (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} data-state={row.getIsSelected() ? "selected" : undefined}>
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() ? "selected" : undefined}
+                  className={cn(onRowClick && "cursor-pointer focus-visible:outline-none focus-visible:bg-muted/60")}
+                  tabIndex={onRowClick ? 0 : undefined}
+                  onKeyDown={
+                    onRowClick
+                      ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            const target = e.target as HTMLElement | null;
+                            if (
+                              target?.closest(
+                                "button, a, input, select, textarea, [role='checkbox'], [role='button'], [data-interactive='true']",
+                              )
+                            ) {
+                              return;
+                            }
+                            if (e.key === " ") {
+                              e.preventDefault();
+                            }
+                            onRowClick(row.original);
+                          }
+                        }
+                      : undefined
+                  }
+                  onClick={
+                    onRowClick
+                      ? (e) => {
+                          const target = e.target as HTMLElement | null;
+                          if (
+                            target?.closest(
+                              "button, a, input, select, textarea, [role='checkbox'], [role='button'], [data-interactive='true']",
+                            )
+                          ) {
+                            return;
+                          }
+                          const selection = window.getSelection();
+                          if (selection && selection.toString().trim().length > 0) {
+                            return;
+                          }
+                          onRowClick(row.original);
+                        }
+                      : undefined
+                  }
+                >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                    <TableCell
+                      key={cell.id}
+                      onClick={cell.column.id === "__select__" ? (e) => e.stopPropagation() : undefined}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
                   ))}
                 </TableRow>
               ))

@@ -234,6 +234,7 @@ export function CattleTable() {
             enableRowSelection={canBulk}
             rowSelection={rowSelection}
             onRowSelectionChange={setRowSelection}
+            onRowClick={(cattle) => openCattleDetail(cattle.id)}
           />
         </div>
       ) : (

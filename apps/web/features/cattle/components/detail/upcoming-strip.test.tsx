@@ -82,6 +82,7 @@ describe("UpcomingStrip", () => {
     renderStrip();
     expect(screen.getByText("Antibiotic day 2")).toBeInTheDocument();
     expect(screen.getByText(/2d overdue/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Oct 9, 2026/)).toHaveLength(3);
     expect(screen.getByText("Pregnancy check")).toBeInTheDocument();
     expect(screen.getByText("Tomorrow")).toBeInTheDocument();
     expect(screen.getByText("Milk safe again")).toBeInTheDocument();
