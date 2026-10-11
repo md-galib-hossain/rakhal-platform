@@ -245,9 +245,10 @@ export class PurchaseService {
       financialAccountLedgerAccountId = account.ledgerAccountId;
     }
 
-    const inventoryAccount = await this.ledgerAccountService.findByCode(
+    const inventoryAccount = await this.ledgerAccountService.findByCodeOrSeed(
       farmId,
       INVENTORY_CODE,
+      client,
     );
     if (!inventoryAccount) {
       throw new BadRequestException(
@@ -265,9 +266,10 @@ export class PurchaseService {
       });
     }
     if (gt(outstanding, 0)) {
-      const payableAccount = await this.ledgerAccountService.findByCode(
+      const payableAccount = await this.ledgerAccountService.findByCodeOrSeed(
         farmId,
         ACCOUNTS_PAYABLE_CODE,
+        client,
       );
       if (!payableAccount) {
         throw new BadRequestException(

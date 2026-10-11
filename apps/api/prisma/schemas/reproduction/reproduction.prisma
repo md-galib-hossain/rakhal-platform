@@ -131,6 +131,14 @@ model BreedingEvent {
   status                     BreedingStatus @default(PENDING_CHECK)
   notes                      String?
 
+  /// Void (no ticket #, 2026-10-11): an AI/breeding recorded by mistake is voided, never deleted -
+  /// the row stays (status = VOIDED) so the Finance reversal, the straw restore and the audit trail
+  /// keep a stable id to point at. Set together with `status = VOIDED`; every list/KPI/derivation
+  /// read excludes it.
+  voidedAt   DateTime?
+  voidedById String?
+  voidReason String?
+
   createdAt DateTime @default(now())
   /// RAKHAL-299: distinguishes an edited row from an original (edit substrate).
   updatedAt DateTime @updatedAt

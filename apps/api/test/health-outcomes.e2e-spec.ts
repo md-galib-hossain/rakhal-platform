@@ -321,9 +321,14 @@ describe('Health — case summary + farm outcomes (RAKHAL-467)', () => {
       expect(d30.bucket).toBe('day');
       expect(d30.points).toHaveLength(30);
       expect(
-        d30.points.reduce((sum: number, p: { count: number }) => sum + p.count, 0),
+        d30.points.reduce(
+          (sum: number, p: { count: number }) => sum + p.count,
+          0,
+        ),
       ).toBe(d30.total);
-      expect(d30.points.some((p: { count: number }) => p.count === 0)).toBe(true);
+      expect(d30.points.some((p: { count: number }) => p.count === 0)).toBe(
+        true,
+      );
     });
 
     it('buckets a 90-day window by week', async () => {
@@ -348,7 +353,10 @@ describe('Health — case summary + farm outcomes (RAKHAL-467)', () => {
       expect(all.previousTotal).toBeNull();
       expect(all.total - trendBefore.all).toBe(2);
       expect(
-        all.points.reduce((sum: number, p: { count: number }) => sum + p.count, 0),
+        all.points.reduce(
+          (sum: number, p: { count: number }) => sum + p.count,
+          0,
+        ),
       ).toBe(all.total);
     });
 

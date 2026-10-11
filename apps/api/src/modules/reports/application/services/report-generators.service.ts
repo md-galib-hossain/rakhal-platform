@@ -335,6 +335,7 @@ export class ReportGeneratorsService {
         where: {
           cattleId: { in: cattleIds },
           breedingDate: { gte: start, lt: end },
+          voidedAt: null,
         },
       }),
       this.prisma.pregnancy.count({
@@ -1557,6 +1558,7 @@ export class ReportGeneratorsService {
         where: {
           cattleId: lactation.cattleId,
           breedingDate: { gte: lactation.startDate, lte: rangeEnd },
+          voidedAt: null,
         },
         select: {
           breedingDate: true,

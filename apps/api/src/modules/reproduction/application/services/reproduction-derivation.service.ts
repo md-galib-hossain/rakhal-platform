@@ -191,8 +191,10 @@ export class ReproductionDerivationService {
    * event.
    */
   private async refreshBreedingEventStatuses(cattleId: string): Promise<void> {
+    // A voided event is terminal: it is never re-derived (it would otherwise fall back to
+    // PENDING_CHECK) and must not feed any fact below.
     const events = await this.prisma.breedingEvent.findMany({
-      where: { cattleId },
+      where: { cattleId, voidedAt: null },
       select: { id: true, status: true },
     });
     if (events.length === 0) return;
@@ -378,7 +380,7 @@ export class ReproductionDerivationService {
         select: { gender: true, dateOfBirth: true },
       }),
       this.farmSettings.reproVwpDays(farmId),
-      this.prisma.breedingEvent.count({ where: { cattleId } }),
+      this.prisma.breedingEvent.count({ where: { cattleId, voidedAt: null } }),
       // RAKHAL-325: totalPregnancies feeds farm-level KPIs/reports —
       // CANCELLED_CORRECTION (a data-entry mistake, not a real pregnancy)
       // must not inflate it, same reasoning FAILED's existing exclusion
@@ -402,7 +404,7 @@ export class ReproductionDerivationService {
         orderBy: { calvingDate: 'asc' },
       }),
       this.prisma.breedingEvent.findFirst({
-        where: { cattleId },
+        where: { cattleId, voidedAt: null },
         orderBy: { breedingDate: 'desc' },
       }),
       this.prisma.pregnancyDiagnosis.findFirst({

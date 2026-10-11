@@ -118,6 +118,36 @@ describe('LedgerAccountService', () => {
       });
     });
   });
+
+  describe('findByCodeOrSeed', () => {
+    it('returns the existing account without re-seeding', async () => {
+      prisma.ledgerAccount.findUnique.mockResolvedValue({ id: 'a1' });
+      const service = make();
+
+      const result = await service.findByCodeOrSeed('farm-1', '5300');
+
+      expect(result).toEqual({ id: 'a1' });
+      expect(prisma.ledgerAccount.createMany).not.toHaveBeenCalled();
+    });
+
+    it('re-seeds the default chart and re-reads when the account is missing', async () => {
+      prisma.ledgerAccount.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'a2' });
+      const service = make();
+
+      const result = await service.findByCodeOrSeed('farm-1', '5300');
+
+      expect(prisma.ledgerAccount.createMany).toHaveBeenCalledTimes(1);
+      expect(prisma.ledgerAccount.findUnique).toHaveBeenCalledTimes(2);
+      expect(result).toEqual({ id: 'a2' });
+    });
+
+    it('returns null for a code that is not in the default chart', async () => {
+      const service = make();
+      expect(await service.findByCodeOrSeed('farm-1', '9999')).toBeNull();
+    });
+  });
 });
 
 describe('DEFAULT_CHART_OF_ACCOUNTS', () => {

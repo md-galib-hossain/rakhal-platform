@@ -86,4 +86,23 @@ export class LedgerAccountService {
       where: { farmId_code: { farmId, code } },
     });
   }
+
+  /**
+   * `findByCode`, but self-healing: if the account is missing (farm created
+   * before the chart / a newer code existed, or its bootstrap seed hiccuped)
+   * re-seed the default chart — idempotent via `skipDuplicates` — and look
+   * again. Returns null only for a code that is not in the default chart
+   * (e.g. a deleted farm-custom account). Pass the open transaction `tx` so
+   * the re-seed and the re-read share one connection.
+   */
+  async findByCodeOrSeed(
+    farmId: string,
+    code: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<LedgerAccount | null> {
+    const found = await this.findByCode(farmId, code, tx);
+    if (found) return found;
+    await this.seedDefaultChart(farmId, tx);
+    return this.findByCode(farmId, code, tx);
+  }
 }

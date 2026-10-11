@@ -84,6 +84,9 @@ enum BreedingStatus {
   /// distinct from FAILED (which requires a real NOT_PREGNANT diagnosis).
   /// Never fabricates a diagnosis that didn't happen.
   RETURNED_TO_HEAT
+  /// Recorded by mistake and voided (`BreedingEvent.voidedAt`). Terminal and never derived:
+  /// `refreshBreedingEventStatuses` skips it, so it can never be recomputed back to PENDING_CHECK.
+  VOIDED
 }
 
 enum PregnancyDiagnosisResult {

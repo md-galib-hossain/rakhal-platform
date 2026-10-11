@@ -287,6 +287,7 @@ describe('ReproductionService.createCalvingEvent — totalCalvings atomicity', (
       { activeHoldsForCattle: jest.fn() } as never, // AnimalHoldService (unused here)
       logger as never,
       derivation as never, // ReproductionDerivationService
+      { record: jest.fn().mockResolvedValue(undefined) } as never, // ActivityLogService
     );
 
   it('writes ReproductionProfile.totalCalvings inside the same $transaction as the CalvingEvent + MILKING flip, before refreshDerivedState() runs', async () => {
@@ -453,6 +454,7 @@ describe('ReproductionService.createCalvingEvent — missing dry-off auto-close 
       { activeHoldsForCattle: jest.fn() } as never,
       logger as never,
       { refreshDerivedState: jest.fn().mockResolvedValue(undefined) } as never, // ReproductionDerivationService
+      { record: jest.fn().mockResolvedValue(undefined) } as never, // ActivityLogService
     );
 
   it('closes an already-ACTIVE lactation with MISSING_DRY_OFF_RECORD before opening the new one, and surfaces it on the response', async () => {
@@ -583,6 +585,7 @@ describe('ReproductionService.createPurchasedLactation', () => {
       { activeHoldsForCattle: jest.fn() } as never, // AnimalHoldService (unused)
       logger as never,
       { refreshDerivedState: jest.fn().mockResolvedValue(undefined) } as never, // ReproductionDerivationService
+      { record: jest.fn().mockResolvedValue(undefined) } as never, // ActivityLogService
     );
 
   it('creates an ACTIVE, isEstimated Lactation with startReason PURCHASED_LACTATING and flips Cattle to MILKING', async () => {
@@ -751,6 +754,7 @@ describe('ReproductionService.recordDryOff — endReason (RAKHAL-290)', () => {
       { activeHoldsForCattle: jest.fn() } as never, // AnimalHoldService (unused)
       logger as never,
       { refreshDerivedState: jest.fn().mockResolvedValue(undefined) } as never, // ReproductionDerivationService
+      { record: jest.fn().mockResolvedValue(undefined) } as never, // ActivityLogService
     );
 
   it('stamps endReason: DRY_OFF on the closed Lactation', async () => {
@@ -883,6 +887,7 @@ describe('ReproductionService — RAKHAL-285 dry-off projection recompute', () =
       { activeHoldsForCattle: jest.fn() } as never, // AnimalHoldService (unused)
       logger as never,
       { refreshDerivedState: jest.fn().mockResolvedValue(undefined) } as never, // ReproductionDerivationService
+      { record: jest.fn().mockResolvedValue(undefined) } as never, // ActivityLogService
     );
 
   it('createPregnancyDiagnosis(PREGNANT) recomputes recommendedDryOffAt = expectedCalvingDate - dryPeriodDays on the dam active Lactation', async () => {

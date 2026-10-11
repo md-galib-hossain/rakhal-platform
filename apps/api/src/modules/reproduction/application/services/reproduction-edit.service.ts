@@ -6,6 +6,7 @@ import {
 import {
   ActivityLogModule,
   BreedingMethod,
+  BreedingStatus,
   CattleGender,
   ExpectedCalvingDateSource,
   ExpenseCategory,
@@ -16,6 +17,7 @@ import {
   SemenSource,
   SemenType,
   TargetSex,
+  TaskStatus,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
@@ -35,6 +37,7 @@ import { EditBreedingEventDto } from '../../presentation/dto/edit-breeding-event
 import { EditPregnancyDiagnosisDto } from '../../presentation/dto/edit-pregnancy-diagnosis.dto';
 import { EditAbortionEventDto } from '../../presentation/dto/edit-abortion-event.dto';
 import { EditDryOffDto } from '../../presentation/dto/edit-dry-off.dto';
+import { VoidBreedingEventDto } from '../../presentation/dto/void-breeding-event.dto';
 
 /**
  * RAKHAL-305: `PATCH` edit handlers for heat / breeding / pregnancy-diagnosis
@@ -121,6 +124,11 @@ export class ReproductionEditService {
       where: { id, cattle: { farmId } },
     });
     if (!existing) throw new NotFoundException('Breeding event not found');
+    if (existing.voidedAt) {
+      throw new BadRequestException(
+        'This breeding was voided and can no longer be edited.',
+      );
+    }
 
     const newCattleId = dto.cattleId ?? existing.cattleId;
     if (dto.cattleId) await this.assertFemaleCattleInFarm(farmId, dto.cattleId);
@@ -342,14 +350,18 @@ export class ReproductionEditService {
           );
           newFinanceTransactionId = posted.id;
         } else if (mergedFinancialAccountId) {
-          const posted = await this.expenseService.recordExpense(farmId, userId, {
-            category: ExpenseCategory.BREEDING,
-            description: `${costEntityName ?? 'Breeding service'} — Breeding #${updated.breedingNumber} (${mergedMethod}) — edited`,
-            amount: resolvedCost,
-            financialAccountId: mergedFinancialAccountId,
-            expenseDate: newBreedingDate.toISOString(),
-            cattleId: newCattleId,
-          });
+          const posted = await this.expenseService.recordExpense(
+            farmId,
+            userId,
+            {
+              category: ExpenseCategory.BREEDING,
+              description: `${costEntityName ?? 'Breeding service'} — Breeding #${updated.breedingNumber} (${mergedMethod}) — edited`,
+              amount: resolvedCost,
+              financialAccountId: mergedFinancialAccountId,
+              expenseDate: newBreedingDate.toISOString(),
+              cattleId: newCattleId,
+            },
+          );
           newFinanceTransactionId = posted.id;
         }
       }
@@ -444,6 +456,156 @@ export class ReproductionEditService {
     );
     this.log.info('Breeding event edited', { breedingEventId: id, farmId });
     return updated;
+  }
+
+  /**
+   * Void a breeding / AI event recorded by mistake (no ticket #, 2026-10-11). The row is kept
+   * (`status = VOIDED` + who / when / why) - never deleted - so the Finance reversal, the straw
+   * movement and the audit trail keep a stable id.
+   *
+   * Only while the breeding is still waiting for its first pregnancy check (`PENDING_CHECK`, no
+   * diagnosis, no pregnancy): once a follow-up hangs off it, voiding would orphan or silently rewrite
+   * that follow-up, so the farmer must correct that first. Effects, in order:
+   *   1. Finance - reverse the cost expense (idempotent), if one was posted.
+   *   2. Atomic claim - one `updateMany` flips the row to VOIDED only while it is still unvoided,
+   *      PENDING_CHECK and childless (a concurrent void / diagnosis loses cleanly), and reopens the
+   *      heat this AI had closed (`INSEMINATED`).
+   *   3. Straw - give the straw back to its batch (AI from farm inventory).
+   *   4. Task Hub - cancel the pregnancy-check task.
+   *   5. Re-derive the cow's reproductive state, then append an Activity Log entry.
+   */
+  async voidBreedingEvent(
+    farmId: string,
+    userId: string,
+    id: string,
+    dto: VoidBreedingEventDto,
+  ) {
+    const existing = await this.prisma.breedingEvent.findFirst({
+      where: { id, cattle: { farmId } },
+      include: {
+        cattle: { select: { tagNumber: true } },
+        _count: { select: { diagnoses: true, pregnancies: true } },
+      },
+    });
+    if (!existing) throw new NotFoundException('Breeding event not found');
+    if (existing.voidedAt) {
+      throw new BadRequestException('This breeding is already voided.');
+    }
+    const label = `Breeding #${existing.breedingNumber} for [${existing.cattle.tagNumber}]`;
+    const blocked = (): never => {
+      throw new BadRequestException(
+        `${label} already has a follow-up (${existing.status}, ${existing._count.diagnoses} pregnancy check(s)) - it can only be voided while it is still waiting for its first pregnancy check. Edit it instead, or correct the follow-up first.`,
+      );
+    };
+    if (
+      existing.status !== BreedingStatus.PENDING_CHECK ||
+      existing._count.diagnoses > 0 ||
+      existing._count.pregnancies > 0
+    ) {
+      blocked();
+    }
+
+    // 1. Finance. Idempotent (keyed on the expense), so a retry or a lost race never double-reverses.
+    if (existing.financeTransactionId) {
+      await this.expenseService.voidInventoryConsumption(
+        farmId,
+        existing.financeTransactionId,
+        userId,
+      );
+    }
+
+    // 2. Atomic claim + reopen the heat this AI closed.
+    const voidedAt = new Date();
+    await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.breedingEvent.updateMany({
+        where: {
+          id,
+          voidedAt: null,
+          status: BreedingStatus.PENDING_CHECK,
+          diagnoses: { none: {} },
+          pregnancies: { none: {} },
+        },
+        data: {
+          status: BreedingStatus.VOIDED,
+          voidedAt,
+          voidedById: userId,
+          voidReason: dto.reason,
+        },
+      });
+      if (claimed.count !== 1) blocked();
+      await tx.heatEvent.updateMany({
+        where: { resolvedByBreedingEventId: id },
+        data: {
+          resolvedAt: null,
+          resolvedByBreedingEventId: null,
+          resolutionReason: null,
+        },
+      });
+    });
+
+    // 3. Straw back to its batch (a batch removed since cannot take it back - logged, not fatal).
+    const hadStraw =
+      existing.breedingMethod === BreedingMethod.AI &&
+      existing.semenSource === SemenSource.FARM_INVENTORY &&
+      !!existing.semenBatchId;
+    let strawRestored = false;
+    if (hadStraw && existing.semenBatchId) {
+      try {
+        await this.semenService.restoreStraw(
+          farmId,
+          existing.semenBatchId,
+          1,
+          'Breeding event voided',
+          id,
+          userId,
+        );
+        strawRestored = true;
+      } catch (err) {
+        this.log.warn('Could not restore straw for voided breeding', {
+          breedingEventId: id,
+          semenBatchId: existing.semenBatchId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    // 4. The pregnancy-check reminder no longer applies.
+    await this.prisma.task.updateMany({
+      where: {
+        farmId,
+        sourceEventType: 'BREEDING_EVENT',
+        sourceEventId: id,
+        status: { notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELLED] },
+      },
+      data: {
+        status: TaskStatus.CANCELLED,
+        cancelledAt: voidedAt,
+        cancelledById: userId,
+        completionNote: `Breeding voided: ${dto.reason}`,
+      },
+    });
+
+    // 5. Re-derive the cow, then audit.
+    await this.derivation.refreshDerivedState(farmId, existing.cattleId);
+    await this.activityLog.record({
+      farmId,
+      module: ActivityLogModule.BREEDING,
+      eventTitle: 'Voided: Breeding Event',
+      actionDetails: `${label} voided - ${dto.reason}`,
+      actorId: userId,
+      relatedCattleId: existing.cattleId,
+      taggedValues: [
+        { key: 'reason', value: dto.reason },
+        {
+          key: 'cost_reversed',
+          value: existing.financeTransactionId ? 'yes' : 'no',
+        },
+        { key: 'straw_restored', value: strawRestored ? 'yes' : 'no' },
+      ],
+    });
+    this.log.info('Breeding event voided', { breedingEventId: id, farmId });
+
+    return this.prisma.breedingEvent.findFirstOrThrow({ where: { id } });
   }
 
   // ---- Pregnancy diagnosis -------------------------------------------------
@@ -786,6 +948,11 @@ export class ReproductionEditService {
     if (!event) {
       throw new BadRequestException(
         'Breeding event must belong to the same cattle',
+      );
+    }
+    if (event.voidedAt) {
+      throw new BadRequestException(
+        'That breeding was voided - pick a live breeding.',
       );
     }
     return event;

@@ -41,6 +41,7 @@ import { ImportConfirmDto, ImportPreviewDto } from '../dto/import-cattle.dto';
 import { ListCattleQueryDto } from '../dto/list-cattle-query.dto';
 import { RecordBcsDto } from '../dto/record-bcs.dto';
 import { RecordWeightDto } from '../dto/record-weight.dto';
+import { UpcomingEventsQueryDto } from '../dto/upcoming-events-query.dto';
 import { UpdateCattleDto } from '../dto/update-cattle.dto';
 import { UpdateHerdStatusDto } from '../dto/update-cattle-status.dto';
 import { WeightHistoryQueryDto } from '../dto/weight-history-query.dto';
@@ -92,6 +93,17 @@ export class CattleController {
   @RequirePermission('cattle.read')
   highlights(@CurrentFarmId() farmId: string) {
     return this.cattleService.highlights(farmId);
+  }
+
+  /** RAKHAL-475: one animal's upcoming events (health steps, pregnancy check, calving, dry-off, tasks, withdrawals). */
+  @Get(':id/upcoming-events')
+  @RequirePermission('cattle.read')
+  upcomingEvents(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @Query() query: UpcomingEventsQueryDto,
+  ) {
+    return this.cattleService.findUpcomingEvents(farmId, id, query);
   }
 
   @Post('bulk')

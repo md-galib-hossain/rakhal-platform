@@ -592,6 +592,7 @@ export class DashboardService {
       where: {
         breedingDate: { gte: rangeStart },
         cattle: activeHerd(farmId),
+        voidedAt: null,
       },
       select: { breedingDate: true, status: true },
     });

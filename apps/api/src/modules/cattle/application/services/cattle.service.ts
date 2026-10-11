@@ -33,6 +33,7 @@ import { SubscriptionAccessService } from 'src/modules/subscription/application/
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { AnimalHoldService } from './animal-hold.service';
+import { AnimalUpcomingEventsService } from './animal-upcoming-events.service';
 import {
   MediaService,
   type MediaUrls,
@@ -87,6 +88,7 @@ import {
   HealthStatusFilter,
   ListCattleQueryDto,
 } from '../../presentation/dto/list-cattle-query.dto';
+import { UpcomingEventsQueryDto } from '../../presentation/dto/upcoming-events-query.dto';
 import { UpdateCattleDto } from '../../presentation/dto/update-cattle.dto';
 import { UpdateHerdStatusDto } from '../../presentation/dto/update-cattle-status.dto';
 import { computeAqrScoreAsOf } from './aqr-trend';
@@ -190,6 +192,8 @@ export class CattleService {
     private readonly taskService: TaskService,
     private readonly animalHoldService: AnimalHoldService,
     private readonly logger: LoggerService,
+    // RAKHAL-475: trailing so existing positional construction (the spec's `make()`) keeps working.
+    private readonly upcomingEventsService: AnimalUpcomingEventsService,
   ) {
     this.log = this.logger.setContext(CattleService.name);
   }
@@ -541,8 +545,14 @@ export class CattleService {
         : {}),
     };
 
+    // RAKHAL-475: wrapped in `AND` rather than spread into `where`, which already uses `OR` (search) and may be
+    // extended by the category/sub-stage helpers — a spread would silently overwrite one of them.
+    const dueWhere = query.dueFilter
+      ? await this.upcomingEventsService.dueFilterWhere(farmId, query.dueFilter)
+      : null;
+
     const rows = await this.prisma.cattle.findMany({
-      where,
+      where: dueWhere ? { AND: [where, dueWhere] } : where,
       orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
       ...getCursorArgs(query),
       include: this.defaultInclude(),
@@ -558,13 +568,41 @@ export class CattleService {
       presetSettings,
     );
 
+    // RAKHAL-475: the most urgent upcoming event per animal — one bulk read per source for the whole page.
+    const upcoming = await this.upcomingEventsService.forCattle(
+      farmId,
+      rows.map((row) => row.id),
+      { limit: 1 },
+    );
+
     const page = toCursorPage(
-      rows.map((row) => this.composeStatus(row, reproCtx)),
+      rows.map((row) => {
+        const events = upcoming.get(row.id);
+        return {
+          ...this.composeStatus(row, reproCtx),
+          next_event: events?.events[0] ?? null,
+          upcoming_event_count: events?.total ?? 0,
+        };
+      }),
       query,
     );
     // List view carries only the thumbnail (RAKHAL-009) — cheap payload.
     const items = await this.attachListPhotos(farmId, page.items);
     return { ...page, items };
+  }
+
+  /** RAKHAL-475: one animal's full upcoming-events list (the column's popover and the detail strip). */
+  async findUpcomingEvents(
+    farmId: string,
+    id: string,
+    query: UpcomingEventsQueryDto,
+  ) {
+    await this.getCattleOrThrow(farmId, id);
+    const result = await this.upcomingEventsService.forCattle(farmId, [id], {
+      windowDays: query.windowDays,
+      limit: query.limit,
+    });
+    return result.get(id) ?? { events: [], total: 0 };
   }
 
   async findOne(farmId: string, id: string) {

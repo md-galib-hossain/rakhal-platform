@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  ActivityLogModule,
   BreedingMethod,
   BreedingStatus,
   CalfBirthStatus,
@@ -41,6 +42,10 @@ import {
   toCursorPage,
 } from 'src/common/pagination';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
+import {
+  ActivityLogService,
+  ActivityTaggedValue,
+} from 'src/modules/activity/application/services/activity-log.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { SemenService } from 'src/modules/inventory/application/services/semen.service';
 import { ExpenseService } from 'src/modules/purchasing/application/expense.service';
@@ -127,24 +132,55 @@ export class ReproductionService {
     private readonly animalHoldService: AnimalHoldService,
     private readonly logger: LoggerService,
     private readonly derivation: ReproductionDerivationService,
+    private readonly activityLog: ActivityLogService,
   ) {
     this.log = this.logger.setContext(ReproductionService.name);
+  }
+
+  /**
+   * Immutable Activity Log entry (BREEDING module) for a reproduction event
+   * that has no AQR event of its own — so no score change (`aqrImpact` unset).
+   * Called only after the DB write commits; never throws into the caller's
+   * flow beyond what `ActivityLogService.record` itself does.
+   */
+  private async logActivity(
+    farmId: string,
+    actorId: string | null | undefined,
+    cattleId: string,
+    eventTitle: string,
+    actionDetails: string,
+    taggedValues: ActivityTaggedValue[],
+  ) {
+    await this.activityLog.record({
+      farmId,
+      module: ActivityLogModule.BREEDING,
+      eventTitle,
+      actionDetails,
+      actorId: actorId ?? null,
+      relatedCattleId: cattleId,
+      taggedValues,
+    });
   }
 
   async createHeatEvent(
     farmId: string,
     dto: CreateHeatEventDto,
     idempotencyKey?: string,
+    actorId?: string | null,
   ) {
     return this.withIdempotency(
       farmId,
       idempotencyKey,
       'reproduction.createHeatEvent',
-      () => this.createHeatEventInner(farmId, dto),
+      () => this.createHeatEventInner(farmId, dto, actorId),
     );
   }
 
-  private async createHeatEventInner(farmId: string, dto: CreateHeatEventDto) {
+  private async createHeatEventInner(
+    farmId: string,
+    dto: CreateHeatEventDto,
+    actorId?: string | null,
+  ) {
     const cattle = await this.getFemaleCattle(farmId, dto.cattleId);
 
     const heatEvent = await this.prisma.heatEvent.create({
@@ -171,6 +207,17 @@ export class ReproductionService {
     });
 
     await this.ensureProfile(dto.cattleId);
+    await this.logActivity(
+      farmId,
+      actorId,
+      dto.cattleId,
+      'Heat detected',
+      `Heat detected for [${cattle.tagNumber}] (${dto.detectionMethod}).`,
+      [
+        { key: 'cattle', value: cattle.tagNumber },
+        { key: 'method', value: String(dto.detectionMethod) },
+      ],
+    );
     this.log.info('Heat event created', {
       heatEventId: heatEvent.id,
       cattleId: dto.cattleId,
@@ -200,9 +247,15 @@ export class ReproductionService {
   }
 
   /** RAKHAL-298: manually close an open heat (`FALSE_ALARM`/`SKIPPED_CYCLE`); `INSEMINATED` is normally stamped by `createBreedingEvent` instead. */
-  async resolveHeatEvent(farmId: string, id: string, dto: ResolveHeatEventDto) {
+  async resolveHeatEvent(
+    farmId: string,
+    id: string,
+    dto: ResolveHeatEventDto,
+    actorId?: string | null,
+  ) {
     const heatEvent = await this.prisma.heatEvent.findFirst({
       where: { id, cattle: { farmId } },
+      include: { cattle: { select: { tagNumber: true } } },
     });
     if (!heatEvent) {
       throw new NotFoundException('Heat event not found');
@@ -211,7 +264,7 @@ export class ReproductionService {
       throw new BadRequestException('Heat event is already resolved');
     }
 
-    return this.prisma.heatEvent.update({
+    const resolved = await this.prisma.heatEvent.update({
       where: { id },
       data: {
         resolvedAt: new Date(),
@@ -219,6 +272,20 @@ export class ReproductionService {
         notes: dto.notes ?? heatEvent.notes,
       },
     });
+
+    await this.logActivity(
+      farmId,
+      actorId,
+      heatEvent.cattleId,
+      'Heat resolved',
+      `Heat for [${heatEvent.cattle.tagNumber}] closed: ${dto.reason}.`,
+      [
+        { key: 'cattle', value: heatEvent.cattle.tagNumber },
+        { key: 'reason', value: String(dto.reason) },
+      ],
+    );
+
+    return resolved;
   }
 
   /**
@@ -285,6 +352,18 @@ export class ReproductionService {
       breedingEvent.id,
       userId,
       `Superseded — return to heat recorded ${dto.heatDateTime}.`,
+    );
+
+    await this.logActivity(
+      farmId,
+      userId,
+      breedingEvent.cattleId,
+      'Returned to heat',
+      `[${breedingEvent.cattle.tagNumber}] returned to heat after breeding #${breedingEvent.breedingNumber}.`,
+      [
+        { key: 'cattle', value: breedingEvent.cattle.tagNumber },
+        { key: 'breeding', value: `#${breedingEvent.breedingNumber}` },
+      ],
     );
 
     this.log.info('Breeding event returned to heat', {
@@ -455,7 +534,7 @@ export class ReproductionService {
     const breedingNumber =
       dto.breedingNumber ??
       (await this.prisma.breedingEvent.count({
-        where: { cattleId: dto.cattleId },
+        where: { cattleId: dto.cattleId, voidedAt: null },
       })) + 1;
 
     const heatWindowDays = await this.farmSettings.reproHeatWindowDays(farmId);
@@ -610,6 +689,19 @@ export class ReproductionService {
       'Pregnancy check — ',
     );
 
+    await this.logActivity(
+      farmId,
+      userId,
+      dto.cattleId,
+      'Breeding recorded',
+      `Breeding #${breedingEvent.breedingNumber} (${dto.breedingMethod}) recorded for [${cattle.tagNumber}].`,
+      [
+        { key: 'cattle', value: cattle.tagNumber },
+        { key: 'method', value: String(dto.breedingMethod) },
+        { key: 'breeding', value: `#${breedingEvent.breedingNumber}` },
+      ],
+    );
+
     this.log.info('Breeding event created', {
       breedingEventId: breedingEvent.id,
       cattleId: dto.cattleId,
@@ -622,7 +714,7 @@ export class ReproductionService {
   async listBreedingEvents(farmId: string, query: ReproductionListQueryDto) {
     const where = await this.buildScopedWhere(farmId, query, 'breedingDate');
     const rows = await this.prisma.breedingEvent.findMany({
-      where,
+      where: { ...where, voidedAt: null },
       orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
       ...getCursorArgs(query),
       include: { bull: { select: { id: true, tagNumber: true, name: true } } },
@@ -864,6 +956,20 @@ export class ReproductionService {
           actionDetails: `Pregnancy confirmed for [${cattle.tagNumber}].`,
         },
       );
+    } else {
+      // PREGNANT is already logged by the AQR event above; log the other
+      // results (NOT_PREGNANT / SUSPECTED) here, with no score change.
+      await this.logActivity(
+        farmId,
+        userId,
+        dto.cattleId,
+        'Pregnancy diagnosis',
+        `Pregnancy diagnosis for [${cattle.tagNumber}]: ${dto.result}.`,
+        [
+          { key: 'cattle', value: cattle.tagNumber },
+          { key: 'result', value: String(dto.result) },
+        ],
+      );
     }
 
     this.log.info('Pregnancy diagnosis created', {
@@ -931,6 +1037,18 @@ export class ReproductionService {
     });
 
     await this.derivation.refreshDerivedState(farmId, pregnancy.cattleId);
+
+    await this.logActivity(
+      farmId,
+      userId,
+      pregnancy.cattleId,
+      'Pregnancy corrected',
+      `Pregnancy for [${pregnancy.cattle.tagNumber}] cancelled as a correction.`,
+      [
+        { key: 'cattle', value: pregnancy.cattle.tagNumber },
+        { key: 'reason', value: String(dto.reason) },
+      ],
+    );
 
     this.log.info('Pregnancy marked as correction', {
       pregnancyId,
@@ -1245,6 +1363,7 @@ export class ReproductionService {
     farmId: string,
     cattleId: string,
     dto: CreateDryOffDto,
+    actorId?: string | null,
   ): Promise<DryPeriod> {
     const cattle = await this.getFemaleCattle(farmId, cattleId);
     const dryOffDate = dto.dryOffDate ? new Date(dto.dryOffDate) : new Date();
@@ -1305,6 +1424,21 @@ export class ReproductionService {
     });
 
     await this.derivation.refreshDerivedState(farmId, cattleId);
+
+    await this.logActivity(
+      farmId,
+      actorId,
+      cattleId,
+      'Dry-off recorded',
+      `[${cattle.tagNumber}] dried off on ${dryOffDate.toISOString().slice(0, 10)}.`,
+      [
+        { key: 'cattle', value: cattle.tagNumber },
+        {
+          key: 'dryOffDate',
+          value: dryOffDate.toISOString().slice(0, 10),
+        },
+      ],
+    );
 
     this.log.info('Dry-off recorded', {
       dryPeriodId: dryPeriod.id,
@@ -1407,6 +1541,18 @@ export class ReproductionService {
 
     await this.derivation.refreshDerivedState(farmId, cattleId);
 
+    await this.logActivity(
+      farmId,
+      userId,
+      cattleId,
+      'Lactation started',
+      `Lactation #${lactationNumber} started for purchased cow [${cattle.tagNumber}] (estimated).`,
+      [
+        { key: 'cattle', value: cattle.tagNumber },
+        { key: 'lactation', value: `#${lactationNumber}` },
+      ],
+    );
+
     this.log.info('Purchased-lactating cow intake recorded', {
       lactationId: lactation.id,
       cattleId,
@@ -1429,8 +1575,12 @@ export class ReproductionService {
     return toCursorPage(rows, query);
   }
 
-  async createAbortionEvent(farmId: string, dto: CreateAbortionEventDto) {
-    await this.getFemaleCattle(farmId, dto.cattleId);
+  async createAbortionEvent(
+    farmId: string,
+    dto: CreateAbortionEventDto,
+    actorId?: string | null,
+  ) {
+    const cattle = await this.getFemaleCattle(farmId, dto.cattleId);
     const pregnancy = dto.pregnancyId
       ? await this.getPregnancyForCattle(dto.pregnancyId, dto.cattleId)
       : null;
@@ -1482,6 +1632,17 @@ export class ReproductionService {
     });
 
     await this.derivation.refreshDerivedState(farmId, dto.cattleId);
+    await this.logActivity(
+      farmId,
+      actorId,
+      dto.cattleId,
+      'Abortion recorded',
+      `Abortion recorded for [${cattle.tagNumber}] on ${dto.abortionDate}.`,
+      [
+        { key: 'cattle', value: cattle.tagNumber },
+        { key: 'date', value: String(dto.abortionDate) },
+      ],
+    );
     this.log.info('Abortion event created', {
       abortionEventId: abortion.id,
       cattleId: dto.cattleId,
@@ -1538,7 +1699,7 @@ export class ReproductionService {
     ] = await Promise.all([
       this.prisma.reproductionProfile.findUnique({ where: { cattleId } }),
       this.prisma.breedingEvent.findMany({
-        where: { cattleId },
+        where: { cattleId, voidedAt: null },
         orderBy: { breedingDate: 'asc' },
       }),
       this.prisma.pregnancy.findMany({
@@ -1741,6 +1902,7 @@ export class ReproductionService {
         where: {
           cattle: { farmId },
           breedingDate: { gte: twelveMonthsAgo },
+          voidedAt: null,
         },
       }),
       // Pregnancies confirmed (conception date in last 12 months)
@@ -2116,6 +2278,7 @@ export class ReproductionService {
       include: {
         reproductionProfile: true,
         breedingEvents: {
+          where: { voidedAt: null },
           orderBy: { breedingDate: 'desc' },
           take: 1,
           include: {
@@ -2257,7 +2420,10 @@ export class ReproductionService {
           ...page,
         }),
         this.prisma.breedingEvent.findMany({
-          where: where('breeding', 'breedingDate'),
+          // A voided breeding is hidden from the working feed (it stays in the Activity Log).
+          where: {
+            AND: [where('breeding', 'breedingDate'), { voidedAt: null }],
+          },
           include: cattleInclude,
           orderBy: [{ breedingDate: dir }, { id: dir }],
           ...page,
@@ -2601,6 +2767,11 @@ export class ReproductionService {
     if (!event) {
       throw new BadRequestException(
         'Breeding event must belong to the same cattle',
+      );
+    }
+    if (event.voidedAt) {
+      throw new BadRequestException(
+        'That breeding was voided - pick a live breeding.',
       );
     }
 

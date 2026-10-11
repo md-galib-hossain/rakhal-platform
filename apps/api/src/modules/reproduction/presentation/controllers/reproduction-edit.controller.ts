@@ -1,4 +1,12 @@
-import { Body, Controller, Param, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
@@ -15,6 +23,7 @@ import { EditPregnancyDiagnosisDto } from '../dto/edit-pregnancy-diagnosis.dto';
 import { EditAbortionEventDto } from '../dto/edit-abortion-event.dto';
 import { EditDryOffDto } from '../dto/edit-dry-off.dto';
 import { EditCalvingEventDto } from '../dto/edit-calving-event.dto';
+import { VoidBreedingEventDto } from '../dto/void-breeding-event.dto';
 
 /**
  * RAKHAL-305: edit routes for the five correctable event types. `/api/v1/reproduction`.
@@ -56,6 +65,19 @@ export class ReproductionEditController {
     @Body() dto: EditBreedingEventDto,
   ) {
     return this.editService.editBreedingEvent(farmId, userId, id, dto);
+  }
+
+  /** Void a breeding / AI recorded by mistake (reverses its cost, restores the straw, reopens the heat). */
+  @Post('breeding-events/:id/void')
+  @HttpCode(200)
+  @RequirePermission('reproduction.update')
+  voidBreedingEvent(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body() dto: VoidBreedingEventDto,
+  ) {
+    return this.editService.voidBreedingEvent(farmId, userId, id, dto);
   }
 
   @Patch('pregnancy-diagnoses/:id')

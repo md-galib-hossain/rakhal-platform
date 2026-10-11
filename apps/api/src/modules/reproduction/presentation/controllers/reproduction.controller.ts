@@ -50,6 +50,7 @@ export class ReproductionController {
   @RequirePermission('reproduction.heat')
   createHeatEvent(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Body() dto: CreateHeatEventDto,
     @Headers('idempotency-key') idempotencyKey?: string,
   ) {
@@ -57,6 +58,7 @@ export class ReproductionController {
       farmId,
       dto,
       idempotencyKey,
+      userId,
     );
   }
 
@@ -74,10 +76,11 @@ export class ReproductionController {
   @RequirePermission('reproduction.heat')
   resolveHeatEvent(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: ResolveHeatEventDto,
   ) {
-    return this.reproductionService.resolveHeatEvent(farmId, id, dto);
+    return this.reproductionService.resolveHeatEvent(farmId, id, dto, userId);
   }
 
   @Post('breeding-events')
@@ -189,9 +192,10 @@ export class ReproductionController {
   @RequirePermission('reproduction.create')
   createAbortionEvent(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Body() dto: CreateAbortionEventDto,
   ) {
-    return this.reproductionService.createAbortionEvent(farmId, dto);
+    return this.reproductionService.createAbortionEvent(farmId, dto, userId);
   }
 
   @Get('abortion-events')
@@ -208,10 +212,11 @@ export class ReproductionController {
   @RequirePermission('reproduction.create')
   recordDryOff(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: CreateDryOffDto,
   ) {
-    return this.reproductionService.recordDryOff(farmId, id, dto);
+    return this.reproductionService.recordDryOff(farmId, id, dto, userId);
   }
 
   /** RAKHAL-281: start a Lactation for a purchased-lactating cow with no

@@ -23,6 +23,7 @@ import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { ReproductionModule } from '../reproduction/reproduction.module';
 import { TaskModule } from '../task/task.module';
 import { AnimalHoldService } from './application/services/animal-hold.service';
+import { AnimalUpcomingEventsService } from './application/services/animal-upcoming-events.service';
 import { BcsService } from './application/services/bcs.service';
 import { BreedService } from './application/services/breed.service';
 import { CattleService } from './application/services/cattle.service';
@@ -67,6 +68,9 @@ import { ShedController } from './presentation/controllers/shed.controller';
     ShedService,
     AnimalGroupService,
     AnimalHoldService,
+    // RAKHAL-475: per-animal upcoming events for the list column + `GET /cattle/:id/upcoming-events`.
+    // `FarmClockService` comes from the global `FarmTimeModule`.
+    AnimalUpcomingEventsService,
   ],
   exports: [
     CattleService,

@@ -13,6 +13,10 @@ import {
   type AnimalCategory,
 } from '../../domain/animal-category';
 import {
+  DUE_FILTERS,
+  type DueFilter,
+} from '../../domain/animal-upcoming-events';
+import {
   LIFECYCLE_SUB_STAGES,
   type LifecycleSubStage,
 } from '../../domain/lifecycle-bands';
@@ -76,6 +80,13 @@ export class ListCattleQueryDto extends CursorPaginationQueryDto {
   @Transform(trimString)
   @IsIn(LIFECYCLE_SUB_STAGES)
   lifecycleSubStage?: LifecycleSubStage;
+
+  /** RAKHAL-475: animals with an actionable upcoming event — overdue / due today / due within a week
+   * (`DUE_FILTERS`). Mirrors `AnimalUpcomingEventsService.dueFilterWhere()`. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsIn(DUE_FILTERS)
+  dueFilter?: DueFilter;
 
   @IsOptional()
   @Transform(trimString)

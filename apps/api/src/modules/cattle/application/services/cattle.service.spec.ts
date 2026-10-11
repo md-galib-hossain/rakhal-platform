@@ -156,6 +156,13 @@ describe('CattleService — RAKHAL-269 production status', () => {
   const animalHoldService = {
     releaseAllForCattle: jest.fn().mockResolvedValue(undefined),
   };
+  // RAKHAL-475: `findAll()` asks for each page's next event and, with `dueFilter`, for the extra `where`.
+  const upcomingEventsService = {
+    forCattle: jest.fn().mockResolvedValue(new Map()),
+    dueFilterWhere: jest
+      .fn()
+      .mockResolvedValue({ OR: [{ id: { in: ['due-cow'] } }] }),
+  };
 
   const make = () =>
     new CattleService(
@@ -169,6 +176,7 @@ describe('CattleService — RAKHAL-269 production status', () => {
       taskService as never, // TaskService (RAKHAL-399)
       animalHoldService as never, // AnimalHoldService (RAKHAL-399)
       logger as never,
+      upcomingEventsService as never, // AnimalUpcomingEventsService (RAKHAL-475)
     );
 
   /** Last `data` payload passed to `prisma.cattle.update`, explicitly typed
@@ -478,6 +486,80 @@ describe('CattleService — RAKHAL-269 production status', () => {
           { reproductionProfile: { totalCalvings: 0 } },
         ],
       });
+    });
+  });
+
+  describe('findAll — RAKHAL-475 upcoming events', () => {
+    const listQuery = {
+      limit: 20,
+      sortOrder: 'desc',
+      includeDeleted: false,
+    };
+
+    it('attaches next_event and upcoming_event_count to each row, null/0 when there are none', async () => {
+      prisma.cattle.findMany.mockResolvedValueOnce([
+        { ...baseRow(), id: 'with-events' },
+        { ...baseRow(), id: 'without-events' },
+      ]);
+      const event = {
+        kind: 'HEALTH_STEP',
+        labelKey: 'cattle.upcoming.healthStep',
+        dueAt: '2026-10-12T06:00:00.000Z',
+        daysUntil: 1,
+        urgency: 'DUE_SOON',
+        actionable: true,
+        ref: { type: 'HEALTH_TASK', id: 'ht1' },
+      };
+      upcomingEventsService.forCattle.mockResolvedValueOnce(
+        new Map([['with-events', { events: [event], total: 3 }]]),
+      );
+
+      const out = await make().findAll('farm-1', listQuery as never);
+
+      const items = out.items as unknown as Array<{
+        id: string;
+        next_event: unknown;
+        upcoming_event_count: number;
+      }>;
+      expect(items.find((i) => i.id === 'with-events')).toMatchObject({
+        next_event: event,
+        upcoming_event_count: 3,
+      });
+      expect(items.find((i) => i.id === 'without-events')).toMatchObject({
+        next_event: null,
+        upcoming_event_count: 0,
+      });
+      // One bulk read for the page, asking for just the top event per animal.
+      expect(upcomingEventsService.forCattle).toHaveBeenCalledWith(
+        'farm-1',
+        ['with-events', 'without-events'],
+        { limit: 1 },
+      );
+    });
+
+    it('does not ask for the due filter when dueFilter is absent', async () => {
+      upcomingEventsService.dueFilterWhere.mockClear();
+      await make().findAll('farm-1', listQuery as never);
+      expect(upcomingEventsService.dueFilterWhere).not.toHaveBeenCalled();
+    });
+
+    it('wraps the existing where and the due where in AND (never overwrites search OR)', async () => {
+      await make().findAll('farm-1', {
+        ...listQuery,
+        search: 'bessie',
+        dueFilter: 'overdue',
+      } as never);
+
+      expect(upcomingEventsService.dueFilterWhere).toHaveBeenCalledWith(
+        'farm-1',
+        'overdue',
+      );
+      const calls = prisma.cattle.findMany.mock.calls as unknown as Array<
+        [{ where: { AND: Array<Record<string, unknown>> } }]
+      >;
+      const [base, due] = calls[calls.length - 1][0].where.AND;
+      expect(base.OR).toHaveLength(3); // the search clause survived intact
+      expect(due).toEqual({ OR: [{ id: { in: ['due-cow'] } }] });
     });
   });
 

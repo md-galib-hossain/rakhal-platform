@@ -205,9 +205,10 @@ export class ExpenseService {
     });
 
     const expenseAccountCode = EXPENSE_CATEGORY_LEDGER_CODE[dto.category];
-    const expenseAccount = await this.ledgerAccountService.findByCode(
+    const expenseAccount = await this.ledgerAccountService.findByCodeOrSeed(
       farmId,
       expenseAccountCode,
+      client,
     );
     if (!expenseAccount) {
       throw new BadRequestException(
@@ -225,9 +226,10 @@ export class ExpenseService {
         credit: amount,
       });
     } else {
-      const payableAccount = await this.ledgerAccountService.findByCode(
+      const payableAccount = await this.ledgerAccountService.findByCodeOrSeed(
         farmId,
         ACCOUNTS_PAYABLE_CODE,
+        client,
       );
       if (!payableAccount) {
         throw new BadRequestException(
@@ -350,18 +352,20 @@ export class ExpenseService {
     });
 
     const expenseAccountCode = EXPENSE_CATEGORY_LEDGER_CODE[dto.category];
-    const expenseAccount = await this.ledgerAccountService.findByCode(
+    const expenseAccount = await this.ledgerAccountService.findByCodeOrSeed(
       farmId,
       expenseAccountCode,
+      client,
     );
     if (!expenseAccount) {
       throw new BadRequestException(
         `Expense ledger account (${expenseAccountCode}) is not seeded for this farm`,
       );
     }
-    const inventoryAccount = await this.ledgerAccountService.findByCode(
+    const inventoryAccount = await this.ledgerAccountService.findByCodeOrSeed(
       farmId,
       INVENTORY_CODE,
+      client,
     );
     if (!inventoryAccount) {
       throw new BadRequestException(
