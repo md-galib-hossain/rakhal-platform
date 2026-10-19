@@ -26,6 +26,10 @@ import {
   ReproductionState,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
+import {
+  DEFAULT_FARM_TIMEZONE,
+  localDayStart,
+} from 'src/common/farm-time/farm-time';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
@@ -2164,9 +2168,20 @@ export class CattleService {
     }
   }
 
-  /** Today's and yesterday's total logged yield (litres) for the farm. */
+  /**
+   * Today's and yesterday's total yield (litres) for the farm. Submitted entries only — same definition as
+   * `MilkService.overview` / the Dashboard KPI, so the Animal page never disagrees with them (UX audit 2026-10-20).
+   */
   private async dailyYield(farmId: string, now: Date) {
-    const todayStart = this.utcMidnight(now);
+    // Farm-local "today", same as `MilkService.overview` — the UTC day is a day behind a UTC+6 farm until 6 AM.
+    const farm = await this.prisma.farm.findUnique({
+      where: { id: farmId },
+      select: { timezone: true },
+    });
+    const todayStart = localDayStart(
+      farm?.timezone ?? DEFAULT_FARM_TIMEZONE,
+      now,
+    );
     const tomorrowStart = new Date(todayStart);
     tomorrowStart.setUTCDate(tomorrowStart.getUTCDate() + 1);
     const yesterdayStart = new Date(todayStart);
@@ -2174,11 +2189,19 @@ export class CattleService {
 
     const [today, yesterday] = await Promise.all([
       this.prisma.milkLogEntry.aggregate({
-        where: { farmId, logDate: { gte: todayStart, lt: tomorrowStart } },
+        where: {
+          farmId,
+          submitted: true,
+          logDate: { gte: todayStart, lt: tomorrowStart },
+        },
         _sum: { yieldL: true },
       }),
       this.prisma.milkLogEntry.aggregate({
-        where: { farmId, logDate: { gte: yesterdayStart, lt: todayStart } },
+        where: {
+          farmId,
+          submitted: true,
+          logDate: { gte: yesterdayStart, lt: todayStart },
+        },
         _sum: { yieldL: true },
       }),
     ]);
@@ -2201,12 +2224,6 @@ export class CattleService {
     if (!shed) {
       throw new BadRequestException('Shed must belong to the same farm');
     }
-  }
-
-  private utcMidnight(date: Date) {
-    return new Date(
-      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
-    );
   }
 
   private pctChange(current: number, previous: number): number | null {
