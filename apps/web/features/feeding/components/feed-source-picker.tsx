@@ -15,6 +15,7 @@ import { nextFeedLot, stockedLotCount } from "@/features/inventory/feed-lots";
 import type { FeedItem } from "@/features/inventory/types";
 import type { FeedPlan } from "@/features/feed/plans-types";
 import { sourceKey, type RowLine, type RowSource } from "../grid-model";
+import { TruncatedText } from "@/components/shared/truncated-text";
 
 export interface PreparedOption {
   id: string;
@@ -360,8 +361,8 @@ function PickerBody({
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <div className="flex items-center gap-1.5">
                       <ClipboardList className="size-3.5 shrink-0 text-primary" aria-hidden />
-                      <span className="truncate text-sm font-medium text-foreground">{plan.name}</span>
-                      <Chip variant="purple" className="px-1.5 py-0 text-[10px] font-medium shrink-0">
+                      <TruncatedText className="text-sm font-medium text-foreground">{plan.name}</TruncatedText>
+                      <Chip variant="purple" className="px-1.5 py-0 text-xs font-medium shrink-0">
                         {plan.kind === "TMR_SHORTCUT" ? "TMR" : plan.kind === "CONCENTRATE_SHORTCUT" ? "Concentrate" : "Plan"}
                       </Chip>
                     </div>
@@ -392,8 +393,8 @@ function PickerBody({
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <div className="flex items-center gap-1.5">
                         <Wheat className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
-                        <span className="truncate text-sm font-medium text-foreground">{lot.name}</span>
-                        <Chip variant="info" className="px-1.5 py-0 text-[10px] font-medium shrink-0">
+                        <TruncatedText className="text-sm font-medium text-foreground">{lot.name}</TruncatedText>
+                        <Chip variant="info" className="px-1.5 py-0 text-xs font-medium shrink-0">
                           {t("rowSource.filterConcentrate")}
                         </Chip>
                       </div>
@@ -437,8 +438,8 @@ function PickerBody({
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <div className="flex items-center gap-1.5">
                         <Layers className="size-3.5 shrink-0 text-purple-600 dark:text-purple-400" aria-hidden />
-                        <span className="truncate text-sm font-medium text-foreground">{lot.name}</span>
-                        <Chip variant="purple" className="px-1.5 py-0 text-[10px] font-medium shrink-0">
+                        <TruncatedText className="text-sm font-medium text-foreground">{lot.name}</TruncatedText>
+                        <Chip variant="purple" className="px-1.5 py-0 text-xs font-medium shrink-0">
                           {t("rowSource.filterTmr")}
                         </Chip>
                       </div>
@@ -484,8 +485,8 @@ function PickerBody({
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <div className="flex items-center gap-1.5">
                         <Package className="size-3.5 shrink-0 text-teal-600 dark:text-teal-400" aria-hidden />
-                        <span className="truncate text-sm font-medium text-foreground">{item.name}</span>
-                        <Chip variant="teal" className="px-1.5 py-0 text-[10px] font-medium shrink-0">
+                        <TruncatedText className="text-sm font-medium text-foreground">{item.name}</TruncatedText>
+                        <Chip variant="teal" className="px-1.5 py-0 text-xs font-medium shrink-0">
                           {item.feedClass}
                         </Chip>
                       </div>

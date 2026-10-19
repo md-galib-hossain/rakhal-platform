@@ -47,7 +47,7 @@ export function MilkKeyMetricsCard() {
 
   const todayL = data?.today.totalL ?? 0;
   const yesterdayL = data?.yesterday.totalL ?? 0;
-  const vsYesterdayPct = yesterdayL > 0 ? Math.round(((todayL - yesterdayL) / yesterdayL) * 1000) / 10 : undefined;
+  const vsYesterdayPct = todayL > 0 && yesterdayL > 0 ? Math.round(((todayL - yesterdayL) / yesterdayL) * 1000) / 10 : undefined;
 
   const avgYields = (logTable.data?.entries ?? []).map((r) => r.avgYield7d).filter((v): v is number => v != null);
   const avgPerCow = avgYields.length > 0 ? avgYields.reduce((sum, v) => sum + v, 0) / avgYields.length : null;

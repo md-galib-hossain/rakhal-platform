@@ -15,6 +15,7 @@ import { avatarTint } from "../avatar-tint";
 import type { FeedStock } from "@/features/feed/types";
 import type { FeedStockSource } from "./feed-stock-columns";
 import { costPerKg, consumedKg, remainingPct, remainingStatus, REMAINING_STOCK_COLOR } from "./feed-stock-metrics";
+import { TruncatedText } from "@/components/shared/truncated-text";
 
 /** Card matched to the same "Inventory Item Card" anatomy `FeedItemCard` (Purchased) uses, so the
  * Prepared segment's grid view reads as the same module: tinted icon slot (a produced batch has no
@@ -58,7 +59,7 @@ function FeedStockCard({ lot, source, tFeed, t, onDelete }: {
       </div>
 
       <div className="flex w-full flex-col gap-4 px-1.5 pb-1.5">
-        <p className="truncate text-xl font-bold text-foreground">{source?.name ?? t("unknownSource")}</p>
+        <TruncatedText className="text-xl font-bold text-foreground">{source?.name ?? t("unknownSource")}</TruncatedText>
 
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">

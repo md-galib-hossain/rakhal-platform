@@ -8,6 +8,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useCattleDetailModal } from "@/features/cattle/context/cattle-detail-modal-context";
 import { useCalvingForecast } from "../hooks/use-dashboard-widgets";
+import { TruncatedText } from "@/components/shared/truncated-text";
 import { DashboardCard } from "./dashboard-card";
 
 export function CalvingForecastCard() {
@@ -38,7 +39,7 @@ export function CalvingForecastCard() {
                   onClick={() => openCattleDetail(item.cattleId)}
                   className="min-w-0 truncate text-left text-foreground hover:underline focus-visible:outline-none"
                 >
-                  <span className="font-medium">{item.name || item.tag}</span>
+                  <TruncatedText className="inline-block max-w-full align-bottom font-medium">{item.name || item.tag}</TruncatedText>
                   {item.shed ? <span className="ml-1.5 text-xs text-muted-foreground">· {item.shed}</span> : null}
                 </button>
                 <Badge variant={item.daysRemaining != null && item.daysRemaining <= 3 ? "warning" : "outline"}>

@@ -294,7 +294,7 @@ export function IngredientPicker({
 
             {showAdvanced ? (
               <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted/40 p-2">
-                <p className="col-span-2 text-[11px] leading-tight text-muted-foreground">
+                <p className="col-span-2 text-xs leading-tight text-muted-foreground">
                   {t("advancedNutritionHint")}
                 </p>
                 {nutritionFields.map(({ key, labelKey, max }) => (

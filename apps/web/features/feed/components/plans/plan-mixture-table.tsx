@@ -81,7 +81,7 @@ function AmountInput({
       {max != null ? (
         <span
           className={cn(
-            "text-[10px] leading-tight",
+            "text-xs leading-tight",
             isExceeded ? "text-destructive font-medium" : "text-muted-foreground",
           )}
         >
@@ -339,14 +339,14 @@ export function PlanMixtureTable({
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {isInventory ? (
                             <>
-                              <Chip variant="teal" className="w-fit px-1.5 py-0 text-[10px] font-medium gap-1">
+                              <Chip variant="teal" className="w-fit px-1.5 py-0 text-xs font-medium gap-1">
                                 <Package className="size-2.5 shrink-0" />
                                 {tFeed("sourceInventory")}
                               </Chip>
                               {item.availableStockKg != null ? (
                                 <span
                                   className={cn(
-                                    "text-[10px] font-medium",
+                                    "text-xs font-medium",
                                     item.availableStockKg <= 0 ? "text-destructive" : "text-muted-foreground",
                                   )}
                                 >
@@ -359,7 +359,7 @@ export function PlanMixtureTable({
                           ) : (
                             <Chip
                               variant={isTmr ? "purple" : "info"}
-                              className="w-fit px-1.5 py-0 text-[10px] font-medium gap-1"
+                              className="w-fit px-1.5 py-0 text-xs font-medium gap-1"
                             >
                               <Wheat className="size-2.5 shrink-0" />
                               {isTmr ? tFeed("feedMixture") : tFeed("concentrationTemplate")}
@@ -381,7 +381,7 @@ export function PlanMixtureTable({
                     <TableCell className="text-center">
                       <div className="flex flex-col items-center leading-tight">
                         <span>{numberFmt(item.dmKg)}</span>
-                        <span className="text-[11px] text-muted-foreground">{numberFmt(item.eff.dmPct)}%</span>
+                        <span className="text-xs text-muted-foreground">{numberFmt(item.eff.dmPct)}%</span>
                       </div>
                     </TableCell>
 
@@ -400,7 +400,7 @@ export function PlanMixtureTable({
                         >
                           <div className="flex flex-col items-center leading-tight">
                             <span>{numberFmt(val)}</span>
-                            <span className="text-[11px] text-muted-foreground">{rate}</span>
+                            <span className="text-xs text-muted-foreground">{rate}</span>
                           </div>
                         </TableCell>
                       );
@@ -433,7 +433,7 @@ export function PlanMixtureTable({
                 <TableCell className="text-center">
                   <div className="flex flex-col items-center leading-tight">
                     <span>{numberFmt(totals.dmKg)}</span>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {totals.amountKg > 0 ? `${numberFmt((totals.dmKg / totals.amountKg) * 100)}%` : "—"}
                     </span>
                   </div>
@@ -451,7 +451,7 @@ export function PlanMixtureTable({
                     <TableCell key={col.key} className={cn("text-center", GROUP_STYLES[col.group].bg)}>
                       <div className="flex flex-col items-center leading-tight">
                         <span>{numberFmt(nutrientTotal)}</span>
-                        <span className="text-[11px] text-muted-foreground">{rateStr}</span>
+                        <span className="text-xs text-muted-foreground">{rateStr}</span>
                       </div>
                     </TableCell>
                   );

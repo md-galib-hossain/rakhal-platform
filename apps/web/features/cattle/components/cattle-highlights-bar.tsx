@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { cn } from "@/lib/utils";
+import { formatSignedPct } from "@/lib/format";
 import { useCattleHighlights } from "../hooks/use-cattle";
 import { CattleCategoryHighlights } from "./cattle-category-highlights";
 
@@ -21,8 +22,7 @@ function TrendChip({ pct }: { pct: number }) {
       )}
     >
       <Icon className="size-3.5" aria-hidden />
-      {positive ? "+" : ""}
-      {pct}%
+      {formatSignedPct(pct)}
     </span>
   );
 }
@@ -109,8 +109,8 @@ export function CattleHighlightsBar() {
             iconBg="bg-success-tint"
             label={t("todaysYield")}
             value={`${query.data.todays_yield_l}L`}
-            changePct={query.data.yield_change_pct}
-            footnote={query.data.yield_change_pct != null ? t("vsYesterday") : undefined}
+            changePct={query.data.todays_yield_l > 0 ? query.data.yield_change_pct : null}
+            footnote={query.data.todays_yield_l > 0 && query.data.yield_change_pct != null ? t("vsYesterday") : undefined}
           />
         </div>
       ) : null}

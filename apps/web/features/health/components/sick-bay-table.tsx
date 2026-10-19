@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
-import { Can } from "@/lib/auth/permissions";
+import { RowActionsMenu } from "@/components/shared/row-actions-menu";
+import { useCan } from "@/lib/auth/permissions";
 import { ApiError } from "@/lib/api/errors";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -80,6 +80,7 @@ export function SickBayTable({
   const [deleteTarget, setDeleteTarget] = useState<HealthCaseListItem | null>(null);
   const [applyTarget, setApplyTarget] = useState<HealthCaseListItem | null>(null);
   const deleteCase = useDeleteHealthCase();
+  const canDelete = useCan()("healthcare.delete");
   const withdrawals = useSafetyWithdrawals({ activeOnly: true, limit: 100 });
   const daysByCase = useMemo(() => withdrawalDaysByCase(withdrawals.data?.items ?? []), [withdrawals.data]);
 
@@ -161,11 +162,14 @@ export function SickBayTable({
                     <Button variant="outline" size="sm" onClick={() => onManageCase(item.id)}>
                       {t("manageCase")}
                     </Button>
-                    <Can I="healthcare.delete">
-                      <Button variant="ghost" size="icon" aria-label={t("deleteCase")} onClick={() => setDeleteTarget(item)}>
-                        <Trash2 className="size-4 text-destructive" aria-hidden />
-                      </Button>
-                    </Can>
+                    <RowActionsMenu
+                      menuLabel={t("moreActions")}
+                      actions={
+                        canDelete
+                          ? [{ key: "delete", label: t("deleteCase"), destructive: true, onSelect: () => setDeleteTarget(item) }]
+                          : []
+                      }
+                    />
                   </div>
                 </td>
               </tr>
@@ -191,7 +195,7 @@ export function SickBayTable({
         open={deleteTarget !== null}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title={t("deleteDialog.title")}
-        description={t("deleteDialog.description")}
+        description={t("deleteDialog.description", { name: deleteTarget?.cattle?.name ?? deleteTarget?.cattle?.tagNumber ?? "" })}
         confirmLabel={t("deleteDialog.confirm")}
         cancelLabel={t("deleteDialog.cancel")}
         onConfirm={confirmDelete}

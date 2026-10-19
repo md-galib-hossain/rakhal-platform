@@ -49,7 +49,7 @@ export function StatCard({ label, value, delta, deltaLabel, icon, iconClassName,
               ) : isNegative ? (
                 <TrendingDown className="size-3.5" aria-hidden />
               ) : null}
-              {Math.abs(delta)}
+              {Math.abs(delta) > 999 ? "999+" : Math.abs(delta)}
               {deltaLabel ? ` ${deltaLabel}` : null}
             </span>
           </div>

@@ -51,7 +51,7 @@ export function TaskFilterTabs({
               {typeof badge === "number" && badge > 0 ? (
                 <span
                   className={cn(
-                    "flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-bold",
+                    "flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-bold",
                     active ? "bg-primary-hover text-white" : "bg-border text-muted-foreground",
                   )}
                 >

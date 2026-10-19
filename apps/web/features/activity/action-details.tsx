@@ -1,4 +1,5 @@
 import { Chip } from "@/components/ui/chip";
+import { TruncatedText } from "@/components/shared/truncated-text";
 
 /**
  * `actionDetails` strings wrap "chip-worthy" tokens in `[brackets]` — the real convention every
@@ -16,8 +17,8 @@ export function ActionDetails({ text }: { text: string }) {
         const match = /^\[([^\]]+)\]$/.exec(part);
         if (match) {
           return (
-            <Chip key={i} variant="muted" className="px-3 py-1">
-              {match[1]}
+            <Chip key={i} variant="muted" className="min-w-0 max-w-full px-3 py-1">
+              <TruncatedText className="max-w-[20rem]">{match[1]}</TruncatedText>
             </Chip>
           );
         }

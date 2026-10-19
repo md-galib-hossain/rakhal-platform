@@ -298,12 +298,12 @@ export function UnifiedItemPicker({
                           <div className="flex flex-col min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="font-medium text-foreground text-sm truncate">{item.name}</span>
-                              <Chip variant="teal" className="px-1.5 py-0 text-[10px] font-normal gap-1">
+                              <Chip variant="teal" className="px-1.5 py-0 text-xs font-normal gap-1">
                                 <Package className="size-2.5 shrink-0" aria-hidden />
                                 {t("sourceInventory")}
                               </Chip>
                             </div>
-                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                               <span className={cn(stockKg <= 0 ? "text-destructive font-medium" : "text-success font-medium")}>
                                 {stockKg > 0 ? t("inStockBadge", { stock: stockKg }) : t("outOfStockBadge")}
                               </span>
@@ -322,7 +322,7 @@ export function UnifiedItemPicker({
                         </div>
 
                         {isSelected ? (
-                          <Chip variant="primary" className="px-1.5 py-0 text-[10px] shrink-0">
+                          <Chip variant="primary" className="px-1.5 py-0 text-xs shrink-0">
                             {t("addedBadge")}
                           </Chip>
                         ) : null}
@@ -360,12 +360,12 @@ export function UnifiedItemPicker({
                             <div className="flex flex-col min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span className="font-medium text-foreground text-sm truncate">{ing.name_en}</span>
-                                <Chip variant="info" className="px-1.5 py-0 text-[10px] font-normal gap-1">
+                                <Chip variant="info" className="px-1.5 py-0 text-xs font-normal gap-1">
                                   <Wheat className="size-2.5 shrink-0" aria-hidden />
                                   {t("sourceCatalogue")}
                                 </Chip>
                               </div>
-                              <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                                 <span>DM {ing.nutrition.dm_pct}%</span>
                                 <span>·</span>
                                 <span>CP {ing.nutrition.cp_pct}%</span>
@@ -378,7 +378,7 @@ export function UnifiedItemPicker({
                           </div>
 
                           {isSelected ? (
-                            <Chip variant="primary" className="px-1.5 py-0 text-[10px] shrink-0">
+                            <Chip variant="primary" className="px-1.5 py-0 text-xs shrink-0">
                               {t("addedBadge")}
                             </Chip>
                           ) : null}
@@ -434,7 +434,7 @@ export function UnifiedItemPicker({
 
             {showAdvanced ? (
               <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted/40 p-2.5">
-                <p className="col-span-2 text-[11px] leading-tight text-muted-foreground mb-1">
+                <p className="col-span-2 text-xs leading-tight text-muted-foreground mb-1">
                   {t("advancedNutritionHint")}
                 </p>
                 {nutritionFields.map(({ key, labelKey, max }) => (

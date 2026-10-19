@@ -6,7 +6,7 @@ import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { MoneyText } from "@/components/shared/money-text";
-import { formatRelativeTime } from "@/lib/format";
+import { formatBusinessDay } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { useRecentTransactions } from "./hooks";
 
@@ -50,7 +50,7 @@ export function RecentTransactionsPanel() {
                     {row.typeLabel}
                     {row.party ? ` · ${row.party.name}` : ""}
                   </p>
-                  <p className="text-xs text-muted-foreground">{formatRelativeTime(row.transactionDate, locale)}</p>
+                  <p className="text-xs text-muted-foreground">{formatBusinessDay(row.transactionDate, locale)}</p>
                 </div>
                 <MoneyText amount={displayAmount} colorize={cash !== 0} className="shrink-0 text-sm font-semibold" />
               </li>

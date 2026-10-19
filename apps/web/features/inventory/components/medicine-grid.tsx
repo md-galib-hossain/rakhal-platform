@@ -12,6 +12,7 @@ import { SelectableCardOverlay } from "@/components/shared/selectable-card-overl
 import { avatarTint } from "../avatar-tint";
 import { MedicineRowActions } from "./medicine-row-actions";
 import type { Medicine } from "../types";
+import { TruncatedText } from "@/components/shared/truncated-text";
 
 const STOCK_COLOR: Record<Medicine["stockStatus"], string> = {
   adequate: "text-success",
@@ -41,7 +42,7 @@ function MedicineCard({
       <div className="relative h-[160px] w-full shrink-0 overflow-hidden rounded-xl">
         {medicine.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- signed/arbitrary host thumbnail, same tradeoff as CattleThumbnail
-          <img src={medicine.imageUrl} alt="" className="size-full object-cover" />
+          <img src={medicine.imageUrl} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
         ) : (
           <div className={cn("flex size-full items-center justify-center", avatarTint(medicine.id))}>
             <PillBottle className="size-10" aria-hidden />
@@ -67,7 +68,7 @@ function MedicineCard({
       </div>
 
       <div className="flex w-full flex-col gap-6 px-1.5 pb-1.5">
-        <p className="truncate text-xl font-bold text-foreground">{medicine.name}</p>
+        <TruncatedText className="text-xl font-bold text-foreground">{medicine.name}</TruncatedText>
 
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">

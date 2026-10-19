@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
+import { TruncatedText } from "@/components/shared/truncated-text";
 import { useTranslations } from "next-intl";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
@@ -17,11 +18,11 @@ import type { PriorityItem } from "../types";
  * Emoji glyphs vary in size/alignment across platforms and don't adapt to dark mode, so the dot
  * is drawn ourselves from `priority` using theme tokens instead. */
 const PRIORITY_STYLE: Record<PriorityItem["priority"], { border: string; tint: string; dot: string }> = {
-  critical: { border: "border-l-destructive", tint: "bg-destructive-tint/40", dot: "bg-destructive" },
-  urgent: { border: "border-l-warning", tint: "bg-warning-tint/40", dot: "bg-warning" },
-  important: { border: "border-l-warning", tint: "bg-card", dot: "bg-warning" },
-  operational: { border: "border-l-success", tint: "bg-card", dot: "bg-success" },
-  routine: { border: "border-l-border", tint: "bg-card", dot: "bg-border" },
+  critical: { border: "border-destructive/40", tint: "bg-destructive-tint/40", dot: "bg-destructive" },
+  urgent: { border: "border-warning/40", tint: "bg-warning-tint/40", dot: "bg-warning" },
+  important: { border: "border-warning/40", tint: "bg-card", dot: "bg-warning" },
+  operational: { border: "border-success/40", tint: "bg-card", dot: "bg-success" },
+  routine: { border: "border-border", tint: "bg-card", dot: "bg-border" },
 };
 
 /** A single priority row. When `item.cattle` has >1 entries (e.g. "5 cow(s) overdue for
@@ -42,14 +43,16 @@ function PriorityRow({ item }: { item: PriorityItem }) {
         <Link
           href={item.link}
           className={cn(
-            "group flex items-center gap-3 rounded-lg border-l-4 px-3 py-2.5 text-sm shadow-xs transition-colors hover:bg-muted",
+            "group flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm shadow-xs transition-colors hover:bg-muted",
             expandable && "pr-10",
             style.border,
             style.tint,
           )}
         >
           <span className={cn("size-2 shrink-0 rounded-full", style.dot)} aria-hidden />
-          <span className="min-w-0 flex-1 truncate text-foreground">{item.message}</span>
+          <TruncatedText lines={2} className="flex-1 text-foreground">
+            {item.message}
+          </TruncatedText>
           <span className="inline-flex shrink-0 items-center rounded-full border border-border bg-card px-2.5 py-1 text-xs font-semibold text-primary-hover transition-colors group-hover:border-primary-hover/40 group-hover:bg-success-tint">
             {item.actionLabel}
           </span>

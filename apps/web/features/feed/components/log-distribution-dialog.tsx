@@ -218,7 +218,7 @@ function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenCha
                           className="w-full border-0 bg-transparent p-0 text-center text-sm text-foreground outline-none"
                           aria-label={t("refusalKg")}
                         />
-                        <span className="text-[10px] text-muted-foreground">{t("refusalShort")}</span>
+                        <span className="text-xs text-muted-foreground">{t("refusalShort")}</span>
                       </div>
                     </div>
                   </div>
@@ -269,7 +269,7 @@ function LogDistributionDialogBody({ id, onOpenChange }: { id: string; onOpenCha
                           className="w-full border-0 bg-transparent p-0 text-center text-sm text-foreground outline-none"
                           aria-label={t("refusalKg")}
                         />
-                        <span className="text-[10px] text-muted-foreground">{t("refusalShort")}</span>
+                        <span className="text-xs text-muted-foreground">{t("refusalShort")}</span>
                       </div>
                       <button
                         type="button"

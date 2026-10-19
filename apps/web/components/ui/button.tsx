@@ -26,10 +26,10 @@ const buttonVariants = cva(
         inverse: "border border-sidebar-foreground/30 bg-sidebar-foreground/10 text-sidebar-foreground hover:bg-sidebar-foreground/20",
       },
       size: {
-        sm: "h-9 px-3",
+        sm: "h-9 px-3 pointer-coarse:h-11",
         md: "h-11 px-5",
         lg: "h-12 px-7 text-base",
-        icon: "size-10",
+        icon: "size-10 pointer-coarse:size-11",
       },
     },
     defaultVariants: { variant: "primary", size: "md" },

@@ -153,14 +153,14 @@ function NodeCard({
             <p className={cn("truncate text-xs font-bold text-foreground", isClickable && "group-hover:underline")}>
               {node?.id ? (node.name ?? node.tag) : t("unknown")}
             </p>
-            <p className="truncate text-[10px] text-muted-foreground font-mono">{node?.tag ?? "—"}</p>
+            <p className="truncate text-xs text-muted-foreground font-mono">{node?.tag ?? "—"}</p>
           </div>
         </div>
 
         <Badge
           variant={highlight ? "default" : "outline"}
           className={cn(
-            "text-[9px] px-1.5 py-0 h-4 shrink-0 font-medium",
+            "text-xs px-1.5 py-0 h-4 shrink-0 font-medium",
             highlight
               ? "bg-primary text-primary-foreground font-semibold"
               : isFemale
@@ -180,7 +180,7 @@ function NodeCard({
           <span className="flex items-center gap-1 text-[10.5px]">
             <span
               className={cn(
-                "text-[10px] font-bold",
+                "text-xs font-bold",
                 isFemale ? "text-pink-600 dark:text-pink-400" : isMale ? "text-sky-600 dark:text-sky-400" : "",
               )}
             >
@@ -675,7 +675,7 @@ export function PedigreeTab({ cattleId }: { cattleId: string }) {
             <span className="text-xs text-muted-foreground">({t("panHint")})</span>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-[11px] gap-1 px-2 py-0.5">
+            <Badge variant="outline" className="text-xs gap-1 px-2 py-0.5">
               <Sparkles className="size-3 text-primary" />
               {t("self")} + {data.siblings?.length ?? 0} {t("selfAndSiblings").toLowerCase()}
             </Badge>

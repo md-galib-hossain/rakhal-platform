@@ -127,12 +127,12 @@ export function BatchLinkPicker({
       <PopoverTrigger asChild>
         <button type="button" className="flex items-center gap-1 text-left">
           {link && linkedLabel ? (
-            <Chip variant="muted" className="max-w-[10rem] truncate px-1.5 py-0 text-[10px]">
+            <Chip variant="muted" className="max-w-[10rem] truncate px-1.5 py-0 text-xs">
               <Link2 className="mr-1 size-3 shrink-0" aria-hidden />
               {linkedLabel}
             </Chip>
           ) : (
-            <span className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground">
+            <span className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
               <Link2 className="size-3" aria-hidden />
               {t("none")}
               <ChevronsUpDown className="size-3 opacity-60" aria-hidden />
@@ -143,7 +143,7 @@ export function BatchLinkPicker({
       <PopoverContent className="w-72 p-0" align="start">
         <div className="border-b border-border p-2.5">
           <p className="text-xs font-medium text-foreground">{t("title")}</p>
-          <p className="mt-1 text-[11px] leading-tight text-muted-foreground">{t("hint")}</p>
+          <p className="mt-1 text-xs leading-tight text-muted-foreground">{t("hint")}</p>
         </div>
         <Command shouldFilter={false}>
           <CommandInput placeholder={t("searchPurchased")} value={search} onValueChange={setSearch} />
@@ -163,7 +163,7 @@ export function BatchLinkPicker({
                       />
                       <span className="flex min-w-0 flex-col">
                         <span className="truncate">{opt.label}</span>
-                        {opt.lots.length > 1 ? <span className="text-[10px] text-muted-foreground">{t("anyBatch")}</span> : null}
+                        {opt.lots.length > 1 ? <span className="text-xs text-muted-foreground">{t("anyBatch")}</span> : null}
                       </span>
                     </CommandItem>
                     {opt.lots.length > 1
@@ -179,7 +179,7 @@ export function BatchLinkPicker({
                               <span className="truncate text-xs">
                                 {t("pinLot", { code: lot.batchCode ?? t("pinnedLot"), stock: lot.currentStock, unit: opt.item.unit.symbol })}
                               </span>
-                              <span className="text-[10px] text-muted-foreground">
+                              <span className="text-xs text-muted-foreground">
                                 {t("lotProfile", { cost: lot.costPerUnit, cp: lot.nutrition.cpPct, me: lot.nutrition.meMjPerKgDm })}
                               </span>
                             </span>
@@ -191,7 +191,7 @@ export function BatchLinkPicker({
               </CommandGroup>
             ) : null}
             <CommandGroup heading={t("concentrateGroup")}>
-              <p className="px-2 pb-1 text-[10px] leading-tight text-muted-foreground">{t("concentrateHint")}</p>
+              <p className="px-2 pb-1 text-xs leading-tight text-muted-foreground">{t("concentrateHint")}</p>
               {concentrateOptions.length === 0 ? (
                 <p className="px-2 pb-2 text-xs text-muted-foreground">{t("noConcentrateBatches")}</p>
               ) : (

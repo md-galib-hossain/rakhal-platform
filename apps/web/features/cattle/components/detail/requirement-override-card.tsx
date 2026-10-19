@@ -88,7 +88,7 @@ export function RequirementOverrideCard({ cattleId }: { cattleId: string }) {
               <h3 className="text-sm font-semibold text-foreground tracking-tight">{t("title")}</h3>
               <Badge
                 variant={manual || editing ? "warning" : "outline"}
-                className="h-5 px-2 text-[11px] font-medium"
+                className="h-5 px-2 text-xs font-medium"
               >
                 {manual || editing ? t("mode.manual") : t("mode.calculated")}
               </Badge>
@@ -116,7 +116,7 @@ export function RequirementOverrideCard({ cattleId }: { cattleId: string }) {
               <span>{t("mode.manual")}</span>
               <Badge
                 variant={manual || editing ? "warning" : "outline"}
-                className="h-4 px-1.5 py-0 text-[10px] font-semibold"
+                className="h-4 px-1.5 py-0 text-xs font-semibold"
               >
                 {manual || editing ? "ON" : "OFF"}
               </Badge>
@@ -318,7 +318,7 @@ function HowCalculated({ breakdown }: { breakdown: FeedRequirementBreakdown }) {
                 <dd key={part} className="flex items-center justify-between gap-2 text-muted-foreground">
                   <span>{t.has(`part.${part}`) ? t(`part.${part}`) : part}</span>
                   <span className="font-medium tabular-nums text-foreground">
-                    {fmt(value as number)} <span className="text-[10px] font-normal text-muted-foreground">{unit}</span>
+                    {fmt(value as number)} <span className="text-xs font-normal text-muted-foreground">{unit}</span>
                   </span>
                 </dd>
               ))}

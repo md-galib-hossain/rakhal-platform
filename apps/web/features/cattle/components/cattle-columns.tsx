@@ -5,6 +5,7 @@ import { Mars, TriangleAlert, Venus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Chip, type ChipProps } from "@/components/ui/chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { TruncatedText } from "@/components/shared/truncated-text";
 import { avatarTint } from "../avatar-tint";
 import { formatCattleAge } from "../format";
 import { ANIMAL_CATEGORY_VARIANT } from "../utils/animal-category-style";
@@ -154,13 +155,15 @@ export function buildCattleColumns(
         return (
           <div className="flex items-center gap-2 text-left">
             <CattleThumbnail cattle={cattle} />
-            <span className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium text-foreground">{cattle.name ?? cattle.tagNumber}</span>
-              <span className="flex items-center gap-1">
-                <span className="text-xs text-muted-foreground">
-                  {cattle.tagNumber}
-                  {cattle.breed?.name ? ` · ${cattle.breed.name}` : ""}
-                </span>
+            <span className="flex min-w-0 max-w-[16rem] flex-col gap-0.5">
+              <TruncatedText className="text-sm font-medium text-foreground">{cattle.name ?? cattle.tagNumber}</TruncatedText>
+              <span className="flex min-w-0 items-center gap-1">
+                {/* The tag is the title when the animal has no name (or the same name) — don't print it twice. */}
+                <TruncatedText className="text-xs text-muted-foreground">
+                  {[cattle.name && cattle.name !== cattle.tagNumber ? cattle.tagNumber : null, cattle.breed?.name]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </TruncatedText>
                 <GenderGlyph gender={cattle.gender} />
               </span>
             </span>

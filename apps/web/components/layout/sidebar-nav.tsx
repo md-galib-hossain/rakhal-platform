@@ -103,7 +103,7 @@ function NavLink({ item, active, onNavigate }: { item: NavItem; active: boolean;
         locked ? (
           <Lock className="ml-auto size-3.5 shrink-0 text-sidebar-muted" aria-hidden />
         ) : (
-          <span className="ml-auto rounded-full bg-sidebar-foreground/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-sidebar-muted">
+          <span className="ml-auto rounded-full bg-sidebar-foreground/15 px-1.5 py-0.5 text-xs font-semibold uppercase text-sidebar-muted">
             Pro
           </span>
         )

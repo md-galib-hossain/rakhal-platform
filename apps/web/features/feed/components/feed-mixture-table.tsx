@@ -90,14 +90,14 @@ function AmountInput({
         }}
         onFocus={(e) => e.currentTarget.select()}
         className={cn(
-          "w-full border-0 bg-transparent p-0 text-sm text-foreground outline-none",
+          "w-full border-0 bg-transparent p-0 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm",
           isExceeded && "text-destructive font-semibold",
         )}
       />
       {max != null ? (
         <span
           className={cn(
-            "text-[9px] leading-tight",
+            "text-xs leading-tight",
             isExceeded ? "text-destructive font-medium" : "text-muted-foreground",
           )}
         >
@@ -119,7 +119,7 @@ function NutrientCell({ value, rate, toneClass }: { value: number; rate: string 
     <TableCell className={cn("text-center", toneClass)}>
       <div className="flex flex-col items-center leading-tight">
         <span>{numberFmt(value)}</span>
-        {rate != null ? <span className="text-[11px] text-muted-foreground">{rate}</span> : null}
+        {rate != null ? <span className="text-xs text-muted-foreground">{rate}</span> : null}
       </div>
     </TableCell>
   );
@@ -417,14 +417,14 @@ export function FeedMixtureTable({
                         <span className="truncate">{item.ingredientName}</span>
                         {isInventory ? (
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <Chip variant="teal" className="w-fit px-1.5 py-0 text-[10px] font-medium gap-1">
+                            <Chip variant="teal" className="w-fit px-1.5 py-0 text-xs font-medium gap-1">
                               <Package className="size-2.5 shrink-0" aria-hidden />
                               {tFeed("sourceInventory")}
                             </Chip>
                             {maxStockKg != null ? (
                               <span
                                 className={cn(
-                                  "text-[10px] font-medium",
+                                  "text-xs font-medium",
                                   maxStockKg <= 0 || isBatchExceeded ? "text-destructive" : "text-muted-foreground",
                                 )}
                               >
@@ -433,7 +433,7 @@ export function FeedMixtureTable({
                             ) : null}
                           </div>
                         ) : (
-                          <Chip variant="info" className="w-fit px-1.5 py-0 text-[10px] font-medium gap-1">
+                          <Chip variant="info" className="w-fit px-1.5 py-0 text-xs font-medium gap-1">
                             <Wheat className="size-2.5 shrink-0" aria-hidden />
                             {tFeed("sourceCatalogue")}
                           </Chip>
@@ -447,12 +447,12 @@ export function FeedMixtureTable({
                             {numberFmt(item.amountKg)} <span className="text-xs text-muted-foreground">kg/day</span>
                           </span>
                           {effectiveDays > 1 ? (
-                            <span className="text-[11px] font-semibold text-primary">
+                            <span className="text-xs font-semibold text-primary">
                               {t("itemBatchTotal", { days: effectiveDays, amount: numberFmt(batchNeededKg) })}
                             </span>
                           ) : null}
                           {isBatchExceeded ? (
-                            <span className="text-[10px] text-destructive font-medium">
+                            <span className="text-xs text-destructive font-medium">
                               {t("batchStockWarning", { days: effectiveDays, stock: numberFmt(maxStockKg), needed: numberFmt(batchNeededKg) })}
                             </span>
                           ) : null}
@@ -473,12 +473,12 @@ export function FeedMixtureTable({
                             <span className="text-xs text-muted-foreground shrink-0 self-center">kg</span>
                           </div>
                           {effectiveDays > 1 ? (
-                            <span className="text-[11px] font-semibold text-primary leading-tight">
+                            <span className="text-xs font-semibold text-primary leading-tight">
                               {t("itemBatchTotal", { days: effectiveDays, amount: numberFmt(batchNeededKg) })}
                             </span>
                           ) : null}
                           {isBatchExceeded ? (
-                            <span className="text-[10px] text-destructive font-medium leading-tight">
+                            <span className="text-xs text-destructive font-medium leading-tight">
                               {t("batchStockWarning", { days: effectiveDays, stock: numberFmt(maxStockKg), needed: numberFmt(batchNeededKg) })}
                             </span>
                           ) : null}
@@ -501,7 +501,7 @@ export function FeedMixtureTable({
                       <div className="flex flex-col items-center">
                         <MoneyText amount={c?.costTk ?? 0} />
                         {effectiveDays > 1 ? (
-                          <span className="text-[11px] font-semibold text-primary">
+                          <span className="text-xs font-semibold text-primary">
                             <MoneyText amount={(c?.costTk ?? 0) * effectiveDays} />
                           </span>
                         ) : null}
@@ -626,15 +626,15 @@ export function FeedMixtureTable({
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground px-1">
           <div className="flex items-center gap-3">
             <span className="font-medium text-foreground">{tFeed("requirementsLegend")}:</span>
-            <span className="inline-flex items-center gap-1 text-[11px]">
+            <span className="inline-flex items-center gap-1 text-xs">
               <span className="size-2 rounded-full bg-destructive" />
               {tFeed("legendNotMet")}
             </span>
-            <span className="inline-flex items-center gap-1 text-[11px]">
+            <span className="inline-flex items-center gap-1 text-xs">
               <span className="size-2 rounded-full bg-success" />
               {tFeed("legendMet")}
             </span>
-            <span className="inline-flex items-center gap-1 text-[11px]">
+            <span className="inline-flex items-center gap-1 text-xs">
               <span className="size-2 rounded-full bg-warning" />
               {tFeed("legendExceeded")}
             </span>

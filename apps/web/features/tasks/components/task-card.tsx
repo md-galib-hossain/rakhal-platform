@@ -9,6 +9,7 @@ import { avatarTint, initials } from "../avatar-tint";
 import { DISPLAY_STATUS_CHIP_VARIANT, PRIORITY_CHIP_VARIANT } from "../task-style";
 import { LACTATION_ALERT_ICON, lactationAlertSeverity, parseLactationAlert } from "../lactation-alert";
 import type { Task } from "../types";
+import { TruncatedText } from "@/components/shared/truncated-text";
 
 /** Cow-name display (user request, no ticket #) — Figma's card has no cow-target row at all, so this
  * reuses the card's own existing label/value row style (see `card.category` below) rather than
@@ -60,8 +61,14 @@ export function TaskCard({ task, onSeeDetails }: { task: Task; onSeeDetails: (ta
               {t(`lactationAlert.${lactationAlert.kind}`)}
             </Chip>
           ) : null}
-          <p className={cn("text-xl font-bold text-foreground", isClosed && "line-through")}>{task.name}</p>
-          {visibleDetails ? <p className="line-clamp-2 text-sm font-medium text-muted-foreground">{visibleDetails}</p> : null}
+          <TruncatedText lines={2} className={cn("text-xl font-bold text-foreground", isClosed && "line-through")}>
+            {task.name}
+          </TruncatedText>
+          {visibleDetails ? (
+            <TruncatedText lines={2} className="text-sm font-medium text-muted-foreground">
+              {visibleDetails}
+            </TruncatedText>
+          ) : null}
         </div>
       </div>
 
@@ -83,7 +90,7 @@ export function TaskCard({ task, onSeeDetails }: { task: Task; onSeeDetails: (ta
         {cattleSummary(task) ? (
           <div className="flex items-center justify-between text-sm">
             <p className="font-medium text-muted-foreground">{t("card.cow")}</p>
-            <p className="font-bold text-foreground">{cattleSummary(task)}</p>
+            <TruncatedText className="max-w-[60%] text-right font-bold text-foreground">{cattleSummary(task)}</TruncatedText>
           </div>
         ) : null}
       </div>
@@ -96,7 +103,7 @@ export function TaskCard({ task, onSeeDetails }: { task: Task; onSeeDetails: (ta
               <Avatar className="size-6">
                 <AvatarFallback className={avatarTint(task.assignedTo.id)}>{initials(task.assignedTo.name)}</AvatarFallback>
               </Avatar>
-              <p className="text-base font-bold text-foreground">{task.assignedTo.name}</p>
+              <TruncatedText className="text-base font-bold text-foreground">{task.assignedTo.name}</TruncatedText>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">{t("card.unassigned")}</p>

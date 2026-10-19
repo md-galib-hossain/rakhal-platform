@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Chip } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
 import type { SemenTank } from "../types";
+import { TruncatedText } from "@/components/shared/truncated-text";
 
 /** Straw-stock-vs-capacity ratio below which a tank reads as needing a refill — see `types.ts`'s
  * `SemenTankStatus` doc comment for why this is a derived heuristic, not a stored field. */
@@ -29,7 +30,7 @@ export function SemenTankCard({ tank, onOpenDetails }: { tank: SemenTank; onOpen
     <div className="flex flex-col items-start gap-6 rounded-2xl bg-card p-4 shadow-[0px_0px_6px_0px_rgba(0,0,0,0.1)] transition-shadow hover:shadow-[0px_0px_10px_0px_rgba(0,0,0,0.15)]">
       <div className="flex w-full flex-col gap-1.5">
         <div className="flex items-center gap-2.5">
-          <p className="truncate text-xl font-bold text-foreground">{tank.name}</p>
+          <TruncatedText className="text-xl font-bold text-foreground">{tank.name}</TruncatedText>
           <Chip variant={isStable ? "primary" : "warning"}>{isStable ? t("badgeStable") : t("badgeNeedsRefill")}</Chip>
         </div>
         <p className="text-xs text-muted-foreground">{tank.storageLocation ? t("locatedAt", { location: tank.storageLocation }) : t("noLocation")}</p>

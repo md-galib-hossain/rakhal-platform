@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { ArrowDown, ArrowUp, DollarSign, Droplets, HeartPulse, Wallet } from "lucide-react";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Locale } from "@/lib/constants/i18n";
 import { useKpis } from "../hooks/use-dashboard-widgets";
@@ -23,7 +23,7 @@ function KpiDeltaBadge({ pct, direction }: { pct: number; direction: "up" | "dow
       )}
     >
       <Icon className="size-3" aria-hidden />
-      {Math.abs(pct)}% {t("vsYesterday")}
+      {formatPct(pct)} {t("vsYesterday")}
     </span>
   );
 }
@@ -84,7 +84,7 @@ export function KpiBar() {
           label={t("todaysYield")}
           value={`${data.todaysYield.value} ${data.todaysYield.unit}`}
           delta={
-            data.todaysYield.changePct !== null && data.todaysYield.changeDirection !== null
+            data.todaysYield.value > 0 && data.todaysYield.changePct !== null && data.todaysYield.changeDirection !== null
               ? { pct: data.todaysYield.changePct, direction: data.todaysYield.changeDirection }
               : null
           }

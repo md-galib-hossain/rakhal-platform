@@ -15,8 +15,8 @@ const ConceptionRateChartInner = dynamic(() => import("./conception-rate-chart-i
 
 /** Figma-exact colors (node 732:2250) — kept in sync with `conception-rate-chart-inner.tsx`. */
 const LEGEND = [
-  { key: "monthlyConception", color: "#059669" },
-  { key: "avgRate", color: "#ffbf54" },
+  { key: "monthlyConception", color: "var(--chart-production)" },
+  { key: "avgRate", color: "var(--chart-feedcost)" },
 ] as const;
 
 /** Matches the Figma "Conception Rate (45%)" card: 12 months of confirmed-pregnancy bars with an

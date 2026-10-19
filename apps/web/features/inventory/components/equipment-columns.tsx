@@ -9,6 +9,7 @@ import { avatarTint } from "../avatar-tint";
 import { EquipmentRowActions } from "./equipment-row-actions";
 import { StockStatusIcon } from "./stock-status-icon";
 import type { Equipment } from "../types";
+import { TruncatedText } from "@/components/shared/truncated-text";
 
 /**
  * Column set matched to the Figma "Inventory - Other - Table View" frame (732:23402): No. / Item
@@ -43,7 +44,7 @@ export function buildEquipmentColumns(
                 <Wrench className="size-4" aria-hidden />
               </AvatarFallback>
             </Avatar>
-            <span className="text-sm font-medium text-foreground">{equipment.name}</span>
+            <TruncatedText className="max-w-[16rem] text-sm font-medium text-foreground">{equipment.name}</TruncatedText>
           </span>
         );
       },

@@ -5,6 +5,7 @@ import { ShieldPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Can } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
+import { TruncatedText } from "@/components/shared/truncated-text";
 import { Chip } from "@/components/ui/chip";
 import { diagnosisChipVariant } from "../format";
 import { dayOfIllness, nextStepStatus } from "../sick-bay-model";
@@ -26,8 +27,12 @@ export function ConditionCell({ item }: { item: HealthCaseListItem }) {
   const t = useTranslations("health.sickBay");
   return (
     <div className="flex min-w-0 flex-col items-start gap-1">
-      <Chip variant={diagnosisChipVariant(item.condition ?? item.note)}>{item.condition ? t(`conditionValue.${item.condition}`) : (item.note ?? "—")}</Chip>
-      {item.condition && item.note ? <p className="max-w-[220px] truncate text-xs text-muted-foreground">{item.note}</p> : null}
+      <Chip variant={diagnosisChipVariant(item.condition ?? item.note)} className="min-w-0 max-w-full">
+        <TruncatedText>{item.condition ? t(`conditionValue.${item.condition}`) : (item.note ?? "—")}</TruncatedText>
+      </Chip>
+      {item.condition && item.note ? (
+        <TruncatedText className="max-w-[220px] text-xs text-muted-foreground">{item.note}</TruncatedText>
+      ) : null}
     </div>
   );
 }
@@ -65,9 +70,7 @@ export function NextStepCell({ item }: { item: HealthCaseListItem }) {
   return (
     <div className="flex min-w-0 flex-col">
       <span className={cn("text-sm", tone === "overdue" ? "font-medium text-destructive" : "text-foreground")}>{label}</span>
-      <span className="truncate text-xs text-muted-foreground" title={next.title}>
-        {next.title}
-      </span>
+      <TruncatedText className="text-xs text-muted-foreground">{next.title}</TruncatedText>
     </div>
   );
 }

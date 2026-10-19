@@ -9,6 +9,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
 import { useSetPrimaryMilkTank } from "../hooks/use-inventory";
 import type { MilkTank } from "../types";
+import { TruncatedText } from "@/components/shared/truncated-text";
 
 /**
  * Milk bottle fill gauge — matches Figma's milk container design (734:27946/734:27947).
@@ -163,7 +164,7 @@ export function MilkTankCard({
       <div className="pointer-events-none absolute right-0 top-0 h-20 w-20 overflow-hidden rounded-tr-2xl">
         <div
           className={cn(
-            "absolute right-[-32px] top-[14px] w-[115px] rotate-45 py-1 text-center text-[10px] font-bold tracking-wide shadow-2xs",
+            "absolute right-[-32px] top-[14px] w-[115px] rotate-45 py-1 text-center text-xs font-bold tracking-wide shadow-2xs",
             isSellable ? "bg-info-tint text-info" : "bg-warning-tint text-warning",
           )}
         >
@@ -177,9 +178,9 @@ export function MilkTankCard({
           {/* Header */}
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-1.5 pr-2">
-              <p className="truncate text-lg font-bold text-foreground sm:text-xl">{tank.name}</p>
+              <TruncatedText className="text-lg font-bold text-foreground sm:text-xl">{tank.name}</TruncatedText>
               {tank.isPrimary ? (
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success-tint px-2 py-0.5 text-[10px] font-semibold text-success">
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success-tint px-2 py-0.5 text-xs font-semibold text-success">
                   <Star className="size-3 shrink-0 fill-current" aria-hidden />
                   {t("primaryBadge")}
                 </span>

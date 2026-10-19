@@ -13,12 +13,12 @@ import type { DashboardPeriod } from "../types";
  * (kept for other consumers) so this widget matches the "Livestock State" card pixel-for-pixel;
  * keyed by the real `state` string the API returns. */
 const STATE_STYLE: Record<string, { bar: string; tint: string; text: string }> = {
-  fresh: { bar: "#059669", tint: "#ecfdf5", text: "#065f46" },
-  insemination: { bar: "#0074e8", tint: "#e6f2ff", text: "#00468c" },
-  dry: { bar: "#7e27ce", tint: "#f3eafc", text: "#4c187c" },
-  milking: { bar: "#0891b2", tint: "#ecfeff", text: "#155e75" },
-  pregnant: { bar: "#e8ae00", tint: "#fff9e6", text: "#8c6900" },
-  sick: { bar: "#e11d48", tint: "#fff1f2", text: "#9f1239" },
+  fresh: { bar: "var(--state-fresh-bar)", tint: "var(--state-fresh-tint)", text: "var(--state-fresh-text)" },
+  insemination: { bar: "var(--state-insemination-bar)", tint: "var(--state-insemination-tint)", text: "var(--state-insemination-text)" },
+  dry: { bar: "var(--state-dry-bar)", tint: "var(--state-dry-tint)", text: "var(--state-dry-text)" },
+  milking: { bar: "var(--state-milking-bar)", tint: "var(--state-milking-tint)", text: "var(--state-milking-text)" },
+  pregnant: { bar: "var(--state-pregnant-bar)", tint: "var(--state-pregnant-tint)", text: "var(--state-pregnant-text)" },
+  sick: { bar: "var(--state-sick-bar)", tint: "var(--state-sick-tint)", text: "var(--state-sick-text)" },
 };
 const ORDER = ["fresh", "insemination", "dry", "milking", "pregnant", "sick"];
 
@@ -60,7 +60,7 @@ export function LivestockStateChart() {
                 {/* Figma (732:1788) pins the value pill near the track's right edge for every
                  * row, regardless of the bar's own fill length — not at the end of the fill. */}
                 <span
-                  className="absolute right-[5px] top-1/2 flex h-4 min-w-[25px] -translate-y-1/2 items-center justify-center rounded-[5px] px-[3px] text-[10px] font-bold shadow-[0px_1px_2px_rgba(0,0,0,0.15)]"
+                  className="absolute right-[5px] top-1/2 flex h-4 min-w-[25px] -translate-y-1/2 items-center justify-center rounded-[5px] px-[3px] text-xs font-bold shadow-[0px_1px_2px_rgba(0,0,0,0.15)]"
                   style={{ color: style.text, backgroundColor: style.tint }}
                 >
                   {count}

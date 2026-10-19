@@ -8,6 +8,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { useConcentrations } from "../../feed/hooks/use-feed";
 import { useFeedPlansList } from "../../feed/hooks/use-feed-plans";
 import type { ApplyTarget } from "../../feed/components/plans/apply-plan-dialog";
+import { TruncatedText } from "@/components/shared/truncated-text";
 
 /**
  * "Which program?" — one search list over everything that can be applied to a cow: her feed plans (a plan is a group of
@@ -102,7 +103,7 @@ function Body({
               >
                 <ClipboardList className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                 <span className="flex min-w-0 flex-col">
-                  <span className="truncate">{p.name}</span>
+                  <TruncatedText>{p.name}</TruncatedText>
                   <span className="text-xs text-muted-foreground">
                     {t("planLines", { count: p.lines.length, kg: p.total_kg_per_day })}
                   </span>
@@ -121,7 +122,7 @@ function Body({
                 className="flex cursor-pointer items-center gap-2 py-2"
               >
                 <Wheat className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                <span className="truncate">{r.name}</span>
+                <TruncatedText>{r.name}</TruncatedText>
               </CommandItem>
             ))}
           </CommandGroup>
@@ -136,7 +137,7 @@ function Body({
                 className="flex cursor-pointer items-center gap-2 py-2"
               >
                 <ChefHat className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                <span className="truncate">{r.name}</span>
+                <TruncatedText>{r.name}</TruncatedText>
               </CommandItem>
             ))}
           </CommandGroup>

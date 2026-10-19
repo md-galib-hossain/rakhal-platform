@@ -66,3 +66,34 @@ export function formatRelativeTime(date: Date | string, locale: Locale): string 
   }
   return rtf.format(diffSec, "second");
 }
+
+/** Largest change percentage shown as a number; anything bigger reads "999%+" (a 100000% jump is noise, not insight). */
+export const MAX_DISPLAY_PCT = 999;
+
+/** Magnitude of a change percentage, capped — "12.5%", "999%+". Callers add the sign / arrow themselves. */
+export function formatPct(pct: number): string {
+  const abs = Math.abs(pct);
+  return abs > MAX_DISPLAY_PCT ? `${MAX_DISPLAY_PCT}%+` : `${abs}%`;
+}
+
+/** Signed, capped change: "+12.5%", "−3%", "999%+" (over the cap the sign is implied, so no leading "+"). */
+export function formatSignedPct(pct: number): string {
+  if (Math.abs(pct) > MAX_DISPLAY_PCT) return pct > 0 ? `${MAX_DISPLAY_PCT}%+` : `−${MAX_DISPLAY_PCT}%+`;
+  return `${pct >= 0 ? "+" : "−"}${Math.abs(pct)}%`;
+}
+
+/**
+ * Label for a *business date* (a transaction/entry date the user picked, not a moment in time): "today", "yesterday",
+ * "3 days ago", then a calendar date. A relative-*time* label ("in 5 hours") is wrong here because a date-only value
+ * can land later today than `now`.
+ */
+export function formatBusinessDay(date: Date | string, locale: Locale): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "";
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const dayDiff = Math.round((startOf(d) - startOf(new Date())) / 86_400_000);
+  if (dayDiff <= 0 && dayDiff >= -6) {
+    return new Intl.RelativeTimeFormat(dateLocale[locale], { numeric: "auto" }).format(dayDiff, "day");
+  }
+  return formatDate(d, locale, { day: "numeric", month: "short", year: "numeric" });
+}

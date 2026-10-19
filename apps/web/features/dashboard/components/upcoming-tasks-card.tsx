@@ -8,6 +8,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
 import { useUpcomingTasks } from "../hooks/use-dashboard-widgets";
+import { TruncatedText } from "@/components/shared/truncated-text";
 import { DashboardCard } from "./dashboard-card";
 
 export function UpcomingTasksCard() {
@@ -46,7 +47,7 @@ export function UpcomingTasksCard() {
           <ul className="flex flex-col gap-2">
             {data.tasks.slice(0, 6).map((task) => (
               <li key={task.id} className="flex items-center justify-between gap-3 text-sm">
-                <span className="min-w-0 truncate text-foreground">{task.name}</span>
+                <TruncatedText className="text-foreground">{task.name}</TruncatedText>
                 <span className="shrink-0 text-xs text-muted-foreground">
                   <DateText date={task.dueAt} options={{ hour: "numeric", minute: "2-digit" }} />
                 </span>

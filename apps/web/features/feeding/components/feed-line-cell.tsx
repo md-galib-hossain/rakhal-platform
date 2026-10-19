@@ -14,6 +14,7 @@ import {
   type StockInfo,
 } from "../grid-model";
 import { FeedSourcePicker, type PreparedOption } from "./feed-source-picker";
+import { TruncatedText } from "@/components/shared/truncated-text";
 
 const fmt = (n: number) => (Math.round(n * 100) / 100).toString();
 
@@ -101,16 +102,16 @@ export function FeedLineCell({
           <div key={line.key} className="flex flex-col gap-0.5">
             <div className="flex items-center gap-2">
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-sm font-medium text-foreground" title={name}>
+                <TruncatedText className="text-sm font-medium text-foreground">
                   {name}
-                </span>
+                </TruncatedText>
                 {noBatch ? (
-                  <span className="flex items-center gap-1 text-[11px] text-warning">
+                  <span className="flex items-center gap-1 text-xs text-warning">
                     <AlertTriangle className="size-3" aria-hidden />
                     {t("noBatch")}
                   </span>
                 ) : left != null ? (
-                  <span className={cn("text-[11px] tabular-nums", left <= 0 ? "text-destructive" : "text-muted-foreground")}>
+                  <span className={cn("text-xs tabular-nums", left <= 0 ? "text-destructive" : "text-muted-foreground")}>
                     {left <= 0 ? t("outOfStock") : t("stockLeft", { kg: fmt(left) })}
                   </span>
                 ) : null}
@@ -166,7 +167,7 @@ export function FeedLineCell({
               </button>
             </div>
             {over || atCap ? (
-              <p role="status" className={cn("text-[11px]", over ? "text-destructive" : "text-warning")}>
+              <p role="status" className={cn("text-xs", over ? "text-destructive" : "text-warning")}>
                 {t("maxInStock", { kg: fmt(max ?? 0) })}
               </p>
             ) : null}

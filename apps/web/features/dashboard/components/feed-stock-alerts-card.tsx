@@ -7,6 +7,7 @@ import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useFeedStockAlerts } from "../hooks/use-dashboard-widgets";
+import { TruncatedText } from "@/components/shared/truncated-text";
 import { DashboardCard } from "./dashboard-card";
 
 export function FeedStockAlertsCard() {
@@ -34,7 +35,7 @@ export function FeedStockAlertsCard() {
                 href={alert.itemType === "medicine" ? `/inventory/medicines/${alert.itemId}` : `/inventory?tab=feed&segment=purchased`}
                 className="flex items-center justify-between gap-3 rounded-md px-2 py-2 text-sm transition-colors hover:bg-muted"
               >
-                <span className="min-w-0 truncate text-foreground">{alert.name}</span>
+                <TruncatedText className="text-foreground">{alert.name}</TruncatedText>
                 <span className="flex shrink-0 items-center gap-2">
                   <span className="text-xs text-muted-foreground">
                     {alert.currentStock} {alert.unit}

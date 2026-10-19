@@ -13,6 +13,7 @@ import { avatarTint } from "../avatar-tint";
 import { feedCategoryLabel } from "../feed-category";
 import { FeedItemRowActions } from "./feed-item-row-actions";
 import type { FeedItem } from "../types";
+import { TruncatedText } from "@/components/shared/truncated-text";
 
 const STOCK_COLOR: Record<FeedItem["stockStatus"], string> = {
   adequate: "text-success",
@@ -70,7 +71,7 @@ function FeedItemCard({
       </div>
 
       <div className="flex w-full flex-col gap-6 px-1.5 pb-1.5">
-        <p className="truncate text-xl font-bold text-foreground">{feedItem.name}</p>
+        <TruncatedText className="text-xl font-bold text-foreground">{feedItem.name}</TruncatedText>
 
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">

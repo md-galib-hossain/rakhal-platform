@@ -187,7 +187,7 @@ function TimelineBody({ instance }: { instance: ProtocolInstance }) {
             {canUpdate ? (
               <button
                 type="button"
-                className="text-[11px] text-muted-foreground hover:text-foreground underline transition-colors"
+                className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
                 onClick={() => handleReopen(row.task!.id)}
                 disabled={reopenTask.isPending}
               >

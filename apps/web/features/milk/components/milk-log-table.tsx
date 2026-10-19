@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Pagination } from "@/components/shared/pagination";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { AnimalLink } from "@/components/shared/animal-link";
+import { TruncatedText } from "@/components/shared/truncated-text";
 import { Can, useCan } from "@/lib/auth/permissions";
 import { useMilkTanks } from "@/features/inventory/hooks/use-inventory";
 import { MilkTankFormDialog } from "@/features/inventory/components/milk-tank-form-dialog";
@@ -657,16 +658,16 @@ export function MilkLogTable({
               <TableBody>
                 {pageRows.map((row, rowIndex) => (
                   <TableRow key={row.cattleId}>
-                    <TableCell className="font-medium text-foreground">
+                    <TableCell className="max-w-[12rem] font-medium text-foreground">
                       <AnimalLink
                         id={row.cattleId}
                         tagNumber={row.tag}
-                        className="text-foreground hover:text-primary"
+                        className="block text-foreground hover:text-primary"
                       >
-                        {row.tag}
+                        <TruncatedText>{row.tag}</TruncatedText>
                       </AnimalLink>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="max-w-[14rem]">
                       <AnimalLink
                         id={row.cattleId}
                         animalName={row.name}
@@ -676,8 +677,11 @@ export function MilkLogTable({
                         <Avatar className="size-8">
                           <AvatarFallback>{(row.name ?? row.tag).slice(0, 1).toUpperCase()}</AvatarFallback>
                         </Avatar>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium text-foreground group-hover:underline">{row.name ?? row.tag}</span>
+                        <div className="flex min-w-0 flex-col">
+                          {/* Name only when there is one — otherwise the Cow ID column already says it. */}
+                          {row.name ? (
+                            <TruncatedText className="text-sm font-medium text-foreground group-hover:underline">{row.name}</TruncatedText>
+                          ) : null}
                           <span className="text-xs text-muted-foreground">
                             {row.avgYield7d != null ? t("avgYieldCaption", { value: row.avgYield7d }) : "—"}
                           </span>
@@ -744,7 +748,7 @@ export function MilkLogTable({
                               {row.log.dispositions[session] ? (
                                 <Chip
                                   variant={DISPOSITION_VARIANT[row.log.dispositions[session]!]}
-                                  className="px-1.5 py-0 text-[10px]"
+                                  className="px-1.5 py-0 text-xs"
                                 >
                                   {t(`dispositionOptions.${row.log.dispositions[session]}`)}
                                 </Chip>

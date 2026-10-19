@@ -267,7 +267,7 @@ export function PlanRequirementPanel({
                   <td className="py-1.5 tabular-nums">
                     {num(r.requirement)}
                     {r.max != null ? (
-                      <span className="block text-[11px] text-muted-foreground">{t("maxHint", { value: num(r.max) })}</span>
+                      <span className="block text-xs text-muted-foreground">{t("maxHint", { value: num(r.max) })}</span>
                     ) : null}
                   </td>
                   <td className="py-1.5 text-right">

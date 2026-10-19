@@ -1,6 +1,6 @@
 "use client"; // date filter + per-cow line/refusal state + selection + bulk apply + save/confirm mutations
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { parseAsString, useQueryState } from "nuqs";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -25,7 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EntryStatusDatePicker } from "@/components/shared/entry-status-date-picker";
-import { Pagination } from "@/components/shared/pagination";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -77,7 +77,25 @@ import { FeedingCowHistorySheet } from "./feeding-cow-history-sheet";
 import { RequirementProgress } from "./requirement-progress";
 import { FitPill } from "./fit-pill";
 
-const DEFAULT_PAGE_SIZE = 25;
+// Row virtualization: below `md` each cow is a card in a flex column with `gap-3` (12px); the
+// virtualizer must know that gap or its offsets drift. Row heights are measured, these are first guesses.
+const MOBILE_QUERY = "(max-width: 767px)";
+const MOBILE_ROW_GAP = 12;
+const ESTIMATED_ROW_PX = 143;
+const ESTIMATED_CARD_PX = 360;
+/** Stands in for the unmounted rows above/below the window so the page keeps its full scroll height. */
+function TableSpacer({ height }: { height: number }) {
+  return (
+    <tr aria-hidden style={{ height }}>
+      <td colSpan={7} style={{ height, padding: 0, border: 0 }} />
+    </tr>
+  );
+}
+const subscribeMobile =(onChange: () => void) => {
+  const mql = window.matchMedia(MOBILE_QUERY);
+  mql.addEventListener("change", onChange);
+  return () => mql.removeEventListener("change", onChange);
+};
 /** checkbox · animal (+ program) · feed (+ total) · refusal · fit · status · history */
 const COLUMN_COUNT = 7;
 
@@ -212,14 +230,6 @@ function UnifiedGrid({
   const [bulkSources, setBulkSources] = useState<RowSource[]>([]);
   const [sharedKg, setSharedKg] = useState("");
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(() => {
-    if (targetCattleId) {
-      const idx = ordered.findIndex((c) => c.cattle_id === targetCattleId);
-      if (idx >= 0) return Math.floor(idx / DEFAULT_PAGE_SIZE) + 1;
-    }
-    return 1;
-  });
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [addFeedItemOpen, setAddFeedItemOpen] = useState(false);
   const [createKind, setCreateKind] = useState<"CONCENTRATE_TEMPLATE" | "FEED_MIXTURE">("CONCENTRATE_TEMPLATE");
@@ -232,21 +242,9 @@ function UnifiedGrid({
       if (ordered.some((c) => c.cattle_id === targetCattleId)) {
         targetHandledRef.current = targetCattleId;
         setSelected(new Set([targetCattleId]));
-        const idx = ordered.findIndex((c) => c.cattle_id === targetCattleId);
-        if (idx >= 0) {
-          setPage(Math.floor(idx / DEFAULT_PAGE_SIZE) + 1);
-        }
       }
     }
   }, [targetCattleId, ordered]);
-
-  useEffect(() => {
-    if (!targetCattleId) return;
-    const el = document.getElementById(`feeding-row-${targetCattleId}`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [targetCattleId, page]);
 
   const toggleBulkSource = (source: RowSource, _name?: string) => {
     setBulkSources((prev) => {
@@ -503,8 +501,46 @@ function UnifiedGrid({
   const filtered = q
     ? ordered.filter((c) => (c.name ?? "").toLowerCase().includes(q) || c.tag_number.toLowerCase().includes(q))
     : ordered;
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
+  // Continuous scroll, windowed: the grid endpoint returns every cow for the day, so all rows are in
+  // memory and only the ones near the viewport are mounted (spacer rows stand in for the rest).
+  const isMobileLayout = useSyncExternalStore(
+    subscribeMobile,
+    () => window.matchMedia(MOBILE_QUERY).matches,
+    () => false,
+  );
+  const rowGap = isMobileLayout ? MOBILE_ROW_GAP : 0;
+  const [scrollMargin, setScrollMargin] = useState(0);
+  const virtualizer = useWindowVirtualizer({
+    count: filtered.length,
+    estimateSize: () => (isMobileLayout ? ESTIMATED_CARD_PX : ESTIMATED_ROW_PX),
+    getItemKey: (i) => filtered[i].cattle_id,
+    gap: rowGap,
+    overscan: 8,
+    scrollMargin,
+  });
+  const virtualItems = virtualizer.getVirtualItems();
+  // Document-Y where the row list starts (the tbody top — spacers live inside it). Re-measured on
+  // every render so content above the grid changing height can't skew the window.
+  const measureBodyTop = (el: HTMLTableSectionElement | null) => {
+    if (!el) return;
+    const top = Math.round(el.getBoundingClientRect().top + window.scrollY);
+    if (top !== scrollMargin) setScrollMargin(top);
+  };
+  const firstItem = virtualItems[0];
+  const lastItem = virtualItems[virtualItems.length - 1];
+  // A spacer inside the mobile flex column also gets a `gap`, so it is shortened by one.
+  const padTop = firstItem ? Math.max(0, firstItem.start - scrollMargin - (firstItem.start - scrollMargin > 0 ? rowGap : 0)) : 0;
+  const padBottomRaw = lastItem ? virtualizer.getTotalSize() - (lastItem.end - scrollMargin) : 0;
+  const padBottom = Math.max(0, padBottomRaw - (padBottomRaw > 0 ? rowGap : 0));
+
+  // Deep link (`targetCattleId`): bring that cow's row into the window and scroll to it, once per target.
+  const targetIdx = targetCattleId ? filtered.findIndex((c) => c.cattle_id === targetCattleId) : -1;
+  const scrolledToRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!targetCattleId || targetIdx < 0 || scrolledToRef.current === targetCattleId) return;
+    scrolledToRef.current = targetCattleId;
+    virtualizer.scrollToIndex(targetIdx, { align: "center" });
+  }, [targetCattleId, targetIdx, virtualizer]);
   const unfedFiltered = filtered.filter((c) => !isFedToday(c)).map((c) => c.cattle_id);
   const allTicked = unfedFiltered.length > 0 && unfedFiltered.every((id) => selected.has(id));
 
@@ -646,10 +682,7 @@ function UnifiedGrid({
           />
           <Input
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => setSearch(e.target.value)}
             placeholder={tu("searchCows")}
             aria-label={tu("searchCows")}
             className="h-11 bg-card pl-9"
@@ -708,8 +741,11 @@ function UnifiedGrid({
                 <TableHead className="w-12 text-center">{t("cowHistory.columnLabel")}</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody className="max-md:flex max-md:flex-col max-md:gap-3">
-              {pageRows.map((cow, index) => {
+            <TableBody ref={measureBodyTop} className="max-md:flex max-md:flex-col max-md:gap-3">
+              {padTop > 0 ? <TableSpacer height={padTop} /> : null}
+              {virtualItems.map((item) => {
+                const index = item.index;
+                const cow = filtered[index];
                 const rowLines = lines[cow.cattle_id] ?? [];
                 const fed = isFedToday(cow);
                 const isSelected = selected.has(cow.cattle_id);
@@ -718,6 +754,8 @@ function UnifiedGrid({
                 return (
                   <TableRow
                     key={cow.cattle_id}
+                    ref={virtualizer.measureElement}
+                    data-index={index}
                     id={`feeding-row-${cow.cattle_id}`}
                     className={cn(
                       "align-top transition-colors hover:bg-muted/40",
@@ -749,12 +787,12 @@ function UnifiedGrid({
                           </AnimalLink>
                           <span className="truncate font-mono text-xs text-muted-foreground">{cow.tag_number}</span>
                           {fed ? (
-                            <span className="mt-0.5 text-[11px] font-medium text-success">
+                            <span className="mt-0.5 text-xs font-medium text-success">
                               {tu("fedToday", { kg: cow.confirmed_offered_kg ?? 0 })}
                             </span>
                           ) : null}
                           {cow.program_conflict ? (
-                            <span className="mt-0.5 flex items-center gap-1 text-[11px] text-warning">
+                            <span className="mt-0.5 flex items-center gap-1 text-xs text-warning">
                               <AlertTriangle className="size-3" aria-hidden />
                               {tp("conflict")}
                             </span>
@@ -868,7 +906,8 @@ function UnifiedGrid({
                     </TableRow>
                 );
               })}
-              {pageRows.length === 0 ? (
+              {padBottom > 0 ? <TableSpacer height={padBottom} /> : null}
+              {filtered.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={COLUMN_COUNT} className="py-8 text-center max-md:block text-sm text-muted-foreground">
                     {t("noItemsFound")}
@@ -880,19 +919,6 @@ function UnifiedGrid({
         </div>
         </>
       )}
-
-      {filtered.length > pageSize ? (
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          pageSize={pageSize}
-          onPageSizeChange={(size) => {
-            setPageSize(size);
-            setPage(1);
-          }}
-        />
-      ) : null}
 
       {/* Sticky summary + actions */}
       <Can I="feed.distribution-log">
@@ -937,7 +963,7 @@ function UnifiedGrid({
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title={t("confirmDialog.title")}
-        description={t("confirmDialog.description", { count: selectedIds.length })}
+        description={t("confirmDialog.description", { count: selectedIds.length, kg: Math.round(totalKg * 10) / 10 })}
         confirmLabel={t("confirmDialog.confirm")}
         variant="primary"
         onConfirm={() => run("confirm")}

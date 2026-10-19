@@ -123,7 +123,7 @@ function MilkSyncDialogBody({ tank, onOpenChange }: { tank: MilkTank; onOpenChan
                 />
                 <div className="absolute inset-x-1 bottom-1.5 flex flex-col items-center text-center">
                   <span className={cn("text-sm font-bold", isSellable ? "text-info" : "text-warning")}>{tank.currentVolumeL}L</span>
-                  <span className="text-[10px] text-muted-foreground">{t("totalMilk")}</span>
+                  <span className="text-xs text-muted-foreground">{t("totalMilk")}</span>
                 </div>
               </div>
             </div>

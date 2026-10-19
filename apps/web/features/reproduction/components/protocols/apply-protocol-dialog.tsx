@@ -256,7 +256,7 @@ export function ApplyProtocolDialog({
                 </span>
               ) : null}
             </div>
-            <p className="text-[11px] text-muted-foreground">{t("scheduleDescription")}</p>
+            <p className="text-xs text-muted-foreground">{t("scheduleDescription")}</p>
 
             {protocolDetail.isLoading ? (
               <CardSkeleton lines={3} />
@@ -276,19 +276,19 @@ export function ApplyProtocolDialog({
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
+                            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                               {step.day_number}
                             </span>
                             <div className="min-w-0">
                               <p className="text-xs font-medium text-foreground truncate">{step.title}</p>
                               {step.instruction ? (
-                                <p className="text-[11px] text-muted-foreground line-clamp-1">{step.instruction}</p>
+                                <p className="text-xs text-muted-foreground line-clamp-1">{step.instruction}</p>
                               ) : null}
                             </div>
                           </div>
                           {isOverridden ? (
                             <div className="flex items-center gap-1 shrink-0">
-                              <span className="rounded-full bg-warning-tint px-2 py-0.5 text-[10px] font-medium text-warning">
+                              <span className="rounded-full bg-warning-tint px-2 py-0.5 text-xs font-medium text-warning">
                                 {t("customized")}
                               </span>
                               <Button

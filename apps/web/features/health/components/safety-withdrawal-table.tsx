@@ -116,7 +116,7 @@ export function SafetyWithdrawalTable({
                     </div>
                   </AnimalLink>
                   {isUnderHold(item.status) ? (
-                    <Chip variant="destructive" subtle className="px-2 py-0.5 text-[10px]">
+                    <Chip variant="destructive" subtle className="px-2 py-0.5 text-xs">
                       {t("underHold")}
                     </Chip>
                   ) : null}

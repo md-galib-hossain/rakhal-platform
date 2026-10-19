@@ -15,6 +15,7 @@ import {
   useNotifications,
 } from "@/features/notifications/hooks/use-notifications";
 import type { NotificationListItem } from "@/features/notifications/types";
+import { TruncatedText } from "@/components/shared/truncated-text";
 
 const PRIORITY_DOT: Record<NotificationListItem["priority"], string> = {
   critical: "bg-destructive",
@@ -94,8 +95,8 @@ export function NotificationBell() {
                   >
                     <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", PRIORITY_DOT[n.priority])} aria-hidden />
                     <div className="min-w-0 flex-1">
-                      <p className={cn("text-sm text-foreground", !n.read && "font-medium")}>{n.title}</p>
-                      <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{n.message}</p>
+                      <TruncatedText lines={2} className={cn("text-sm text-foreground", !n.read && "font-medium")}>{n.title}</TruncatedText>
+                      <TruncatedText lines={2} className="mt-0.5 text-xs text-muted-foreground">{n.message}</TruncatedText>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {mounted ? format.relativeTime(new Date(n.created_at), { now: new Date() }) : null}
                       </p>

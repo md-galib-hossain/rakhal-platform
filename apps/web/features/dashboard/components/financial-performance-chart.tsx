@@ -15,9 +15,9 @@ const FinancialPerformanceChartInner = dynamic(() => import("./financial-perform
 
 /** Figma-exact colors (node 732:1864) — kept in sync with `financial-performance-chart-inner.tsx`. */
 const LEGEND = [
-  { key: "income", color: "#007fff" },
-  { key: "expense", color: "#f43f5e" },
-  { key: "profit", color: "#10b981" },
+  { key: "income", color: "var(--chart-income)" },
+  { key: "expense", color: "var(--chart-expense)" },
+  { key: "profit", color: "var(--chart-profit)" },
 ] as const;
 
 /** Matches the Figma "Financial Performance Over Time" card: a 12-month Income/Expense/Profit

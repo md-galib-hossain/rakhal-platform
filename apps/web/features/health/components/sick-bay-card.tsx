@@ -1,8 +1,8 @@
 "use client"; // row actions
 
 import { useTranslations } from "next-intl";
-import { Trash2 } from "lucide-react";
-import { Can } from "@/lib/auth/permissions";
+import { RowActionsMenu } from "@/components/shared/row-actions-menu";
+import { useCan } from "@/lib/auth/permissions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { AnimalLink } from "@/components/shared/animal-link";
@@ -35,6 +35,7 @@ export function SickBayCard({
   onDelete: (item: HealthCaseListItem) => void;
 }) {
   const t = useTranslations("health.sickBay");
+  const canDelete = useCan()("healthcare.delete");
   const showWithdrawal = withdrawalDaysLeft != null || item.isSafetyWithholdingActive;
 
   return (
@@ -76,11 +77,13 @@ export function SickBayCard({
         <Button type="button" variant="outline" className="h-11 flex-1" onClick={() => onManageCase(item.id)}>
           {t("manageCase")}
         </Button>
-        <Can I="healthcare.delete">
-          <Button type="button" variant="outline" size="icon" className="h-11 w-11 shrink-0 text-destructive" aria-label={t("deleteCase")} onClick={() => onDelete(item)}>
-            <Trash2 className="size-4" aria-hidden />
-          </Button>
-        </Can>
+        <RowActionsMenu
+          menuLabel={t("moreActions")}
+          className="h-11 w-11 shrink-0 border border-input"
+          actions={
+            canDelete ? [{ key: "delete", label: t("deleteCase"), destructive: true, onSelect: () => onDelete(item) }] : []
+          }
+        />
       </div>
     </div>
   );

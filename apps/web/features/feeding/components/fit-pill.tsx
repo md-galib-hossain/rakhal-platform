@@ -89,7 +89,7 @@ export function FitPill({
                     {index > 0 ? <div className="h-4 w-px bg-border/80" aria-hidden /> : null}
                     <div
                       className={cn(
-                        "flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold transition-colors",
+                        "flex items-center gap-1 px-1.5 py-0.5 text-xs font-semibold transition-colors",
                         status.bg,
                         status.text,
                       )}
@@ -105,7 +105,7 @@ export function FitPill({
             {/* Estimated tag */}
             {fit.estimated ? (
               <span
-                className="inline-flex items-center rounded-md border border-border/80 bg-muted/70 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                className="inline-flex items-center rounded-md border border-border/80 bg-muted/70 px-1.5 py-0.5 text-xs font-medium text-muted-foreground"
               >
                 {t("estShort")}
               </span>
@@ -114,7 +114,7 @@ export function FitPill({
             {/* Manual tag */}
             {requirement?.source === "MANUAL" ? (
               <span
-                className="inline-flex items-center rounded-md border border-border/80 bg-muted/70 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                className="inline-flex items-center rounded-md border border-border/80 bg-muted/70 px-1.5 py-0.5 text-xs font-medium text-muted-foreground"
               >
                 {t("manualShort")}
               </span>
@@ -126,7 +126,7 @@ export function FitPill({
           {/* Header with status badge */}
           <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
             <span className="text-xs font-semibold text-foreground">{t("title")}</span>
-            <Badge variant={STATUS_VARIANT[fit.severity]} className="gap-1 px-2 py-0.5 text-[11px]">
+            <Badge variant={STATUS_VARIANT[fit.severity]} className="gap-1 px-2 py-0.5 text-xs">
               {fit.severity === "ok" ? (
                 <Check className="size-3" aria-hidden />
               ) : fit.severity === "warn" ? (
@@ -175,7 +175,7 @@ export function FitPill({
 
           {/* Estimated note */}
           {fit.estimated ? (
-            <div className="flex items-start gap-1.5 rounded-md bg-muted/60 p-1.5 text-[11px] text-muted-foreground">
+            <div className="flex items-start gap-1.5 rounded-md bg-muted/60 p-1.5 text-xs text-muted-foreground">
               <Info className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
               <span>{t("estimatedTooltip")}</span>
             </div>
@@ -183,16 +183,16 @@ export function FitPill({
 
           {/* Incomplete stock notice */}
           {supply && !supply.complete ? (
-            <div className="flex items-start gap-1.5 text-[11px] text-warning">
+            <div className="flex items-start gap-1.5 text-xs text-warning">
               <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
               <span>{t("incomplete")}</span>
             </div>
           ) : null}
 
-          {manual ? <p className="text-[11px] text-muted-foreground">{t("manualNote")}</p> : null}
+          {manual ? <p className="text-xs text-muted-foreground">{t("manualNote")}</p> : null}
 
           {manual?.stale ? (
-            <p className="text-[11px] text-warning">
+            <p className="text-xs text-warning">
               {manual.animal_type_changed
                 ? t("manualStaleType")
                 : t("manualStale", {
@@ -214,7 +214,7 @@ export function FitPill({
           ) : null}
 
           {requirement?.flags.length ? (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {requirement.flags.map((f) => f.replace(/_/g, " ")).join(", ")}
             </p>
           ) : null}

@@ -4,7 +4,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import type { ProductionVsFeedcostResponse } from "../types";
 
 /** Figma-exact colors (node 732:2017) — Production emerald-600 #059669, Feedcost orange-300 #ffbf54. */
-const COLOR = { production: "#059669", feedcost: "#ffbf54" };
+const COLOR = { production: "var(--chart-production)", feedcost: "var(--chart-feedcost)" };
 
 /** Matches the Figma "Production vs Feedcost" card: two vertical bars per day (production in
  * litres, feedcost in Tk) over the current month — production and feedcost use their own Y-axis

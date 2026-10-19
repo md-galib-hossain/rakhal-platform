@@ -184,7 +184,7 @@ export function PlanUnifiedItemPicker({
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <div className="flex items-center gap-1.5">
                           <span className="truncate text-sm font-medium text-foreground">{item.name}</span>
-                          <Chip variant="teal" className="px-1.5 py-0 text-[10px] font-medium gap-1 shrink-0">
+                          <Chip variant="teal" className="px-1.5 py-0 text-xs font-medium gap-1 shrink-0">
                             <Package className="size-2.5" />
                             {item.feedClass}
                           </Chip>
@@ -227,7 +227,7 @@ export function PlanUnifiedItemPicker({
                           <span className="truncate text-sm font-medium text-foreground">{c.name}</span>
                           <Chip
                             variant={isTmr ? "purple" : "info"}
-                            className="px-1.5 py-0 text-[10px] font-medium shrink-0"
+                            className="px-1.5 py-0 text-xs font-medium shrink-0"
                           >
                             {isTmr ? t("feedMixture") : t("concentrationTemplate")}
                           </Chip>

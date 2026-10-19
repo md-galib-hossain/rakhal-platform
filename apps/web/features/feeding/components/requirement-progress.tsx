@@ -36,7 +36,7 @@ export function RequirementProgress({ progress }: { progress: Result | null }) {
             <Progress value={progress.overall} className="h-2.5" />
             <span
               className={cn(
-                "text-[11px] font-semibold tabular-nums",
+                "text-xs font-semibold tabular-nums",
                 progress.overall >= 100 ? "text-success" : "text-muted-foreground",
               )}
             >

@@ -10,6 +10,7 @@ import { MoneyText } from "@/components/shared/money-text";
 import { avatarTint } from "../avatar-tint";
 import type { FeedConcentrationKind, FeedStock } from "@/features/feed/types";
 import { costPerKg, remainingStatus, REMAINING_STOCK_COLOR } from "./feed-stock-metrics";
+import { TruncatedText } from "@/components/shared/truncated-text";
 
 export interface FeedStockSource {
   name: string;
@@ -49,9 +50,9 @@ export function buildFeedStockColumns(
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium text-foreground">{source?.name ?? t("unknownSource")}</span>
+              <TruncatedText className="max-w-[16rem] text-sm font-medium text-foreground">{source?.name ?? t("unknownSource")}</TruncatedText>
               {source ? (
-                <Chip variant="muted" className="w-fit px-2 py-0 text-[10px]">
+                <Chip variant="muted" className="w-fit px-2 py-0 text-xs">
                   {source.kind === "FEED_MIXTURE" ? tFeed("feedMixture") : tFeed("concentrationTemplate")}
                 </Chip>
               ) : null}

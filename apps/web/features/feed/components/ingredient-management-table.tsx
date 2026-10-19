@@ -4,17 +4,18 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowRightToLine, Pencil, Plus, Trash2, Wheat, ChevronDown } from "lucide-react";
+import { ArrowRightToLine, Plus, Wheat, ChevronDown } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { RowActionsMenu } from "@/components/shared/row-actions-menu";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pagination } from "@/components/shared/pagination";
-import { Can } from "@/lib/auth/permissions";
+import { Can, useCan } from "@/lib/auth/permissions";
 import { cn } from "@/lib/utils";
 import {
   useCreateCustomIngredient,
@@ -26,6 +27,7 @@ import {
 } from "../hooks/use-feed";
 import { IngredientFilters } from "./ingredient-filters";
 import type { CreateCustomIngredientPayload, FeedClass, FeedIngredient, SetFeedOverridePayload } from "../types";
+import { TruncatedText } from "@/components/shared/truncated-text";
 
 const numberField = { setValueAs: (v: string) => (v === "" ? undefined : Number(v)) };
 
@@ -140,7 +142,7 @@ function IngredientFormFields({
       </button>
       {showAdvanced ? (
         <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted/40 p-2">
-          <p className="col-span-2 text-[11px] leading-tight text-muted-foreground">{t("advancedNutritionHint")}</p>
+          <p className="col-span-2 text-xs leading-tight text-muted-foreground">{t("advancedNutritionHint")}</p>
           {nutritionFields.map(({ key, labelKey, max }) => (
             <LabeledInput
               key={key}
@@ -174,6 +176,9 @@ export function IngredientManagementTable() {
   const t = useTranslations("feed");
   const tm = useTranslations("feed.ingredientsManager");
   const tc = useTranslations("common");
+  const can = useCan();
+  const canUpdate = can("feed.update");
+  const canDelete = can("feed.delete");
   const searchParams = useSearchParams();
   const filters = {
     search: searchParams.get("search") ?? undefined,
@@ -333,7 +338,7 @@ export function IngredientManagementTable() {
             <tbody>
               {data.map((ing) => (
                 <tr key={ing.id} className="border-b border-border/60 last:border-0">
-                  <td className="py-2 pr-3 font-medium text-foreground">{ing.name_en}</td>
+                  <td className="max-w-[18rem] py-2 pr-3 font-medium text-foreground"><TruncatedText>{ing.name_en}</TruncatedText></td>
                   <td className="py-2 pr-3 text-muted-foreground">{ing.feed_class}</td>
                   <td className="py-2 pr-3">৳{ing.effective_price_per_kg.toFixed(2)}</td>
                   <td className="py-2 pr-3">{ing.nutrition.cp_pct.toFixed(1)}%</td>
@@ -342,44 +347,20 @@ export function IngredientManagementTable() {
                     {ing.is_custom ? tm("sourceCustom") : tm("sourceCatalogue")}
                   </td>
                   <td className="py-2 pr-3">
-                    <Can I="feed.update">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-8"
-                          onClick={() => openEdit(ing)}
-                          aria-label={tm("edit")}
-                        >
-                          <Pencil className="size-4" aria-hidden />
-                        </Button>
-                        {ing.is_custom ? (
-                          <Can I="feed.delete">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="size-8 text-destructive hover:text-destructive"
-                              onClick={() => setDeleteTarget(ing)}
-                              aria-label={tm("delete")}
-                            >
-                              <Trash2 className="size-4" aria-hidden />
-                            </Button>
-                          </Can>
-                        ) : ing.has_nutrition_override || ing.price_source !== "rakhal_market" ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 px-2 text-xs"
-                            onClick={() => handleResetOverride(ing)}
-                          >
-                            {tm("resetOverride")}
-                          </Button>
-                        ) : null}
-                      </div>
-                    </Can>
+                    <div className="flex items-center justify-end">
+                      <RowActionsMenu
+                        menuLabel={tm("moreActions")}
+                        actions={[
+                          ...(canUpdate ? [{ key: "edit", label: tm("edit"), onSelect: () => openEdit(ing) }] : []),
+                          ...(canUpdate && !ing.is_custom && (ing.has_nutrition_override || ing.price_source !== "rakhal_market")
+                            ? [{ key: "reset", label: tm("resetOverride"), onSelect: () => handleResetOverride(ing) }]
+                            : []),
+                          ...(ing.is_custom && canUpdate && canDelete
+                            ? [{ key: "delete", label: tm("delete"), destructive: true, onSelect: () => setDeleteTarget(ing) }]
+                            : []),
+                        ]}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -462,7 +443,7 @@ export function IngredientManagementTable() {
       <ConfirmDialog
         open={deleteTarget != null}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title={tm("deleteConfirmTitle")}
+        title={tm("deleteConfirmTitle", { name: deleteTarget?.name_en ?? "" })}
         description={tm("deleteConfirmDescription")}
         confirmLabel={tm("delete")}
         onConfirm={handleDeleteConfirm}

@@ -117,7 +117,7 @@ function VisualTankTypeCard({
       <div className="pointer-events-none absolute right-0 top-0 h-16 w-16 overflow-hidden rounded-tr-2xl">
         <div
           className={cn(
-            "absolute right-[-28px] top-[10px] w-[95px] rotate-45 py-0.5 text-center text-[9px] font-bold tracking-wide shadow-2xs",
+            "absolute right-[-28px] top-[10px] w-[95px] rotate-45 py-0.5 text-center text-xs font-bold tracking-wide shadow-2xs",
             isSellable ? "bg-info-tint text-info" : "bg-warning-tint text-warning",
           )}
         >

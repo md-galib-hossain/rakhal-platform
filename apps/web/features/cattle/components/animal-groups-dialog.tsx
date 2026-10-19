@@ -369,14 +369,14 @@ export function AnimalGroupsDialog({ open, onOpenChange }: AnimalGroupsDialogPro
                             <td className="px-3 py-2.5">
                               <div className="font-semibold text-foreground">{cattle.tagNumber}</div>
                               {cattle.name ? (
-                                <div className="text-[11px] text-muted-foreground">{cattle.name}</div>
+                                <div className="text-xs text-muted-foreground">{cattle.name}</div>
                               ) : null}
                             </td>
                             <td className="px-3 py-2.5">
                               {cattle.animalCategory ? (
                                 <Chip
                                   variant={ANIMAL_CATEGORY_VARIANT[cattle.animalCategory]}
-                                  className="text-[10px] px-1.5 py-0.5"
+                                  className="text-xs px-1.5 py-0.5"
                                 >
                                   {tCategory(cattle.animalCategory)}
                                 </Chip>
@@ -754,11 +754,11 @@ function AddAnimalsToGroupDialog({
                         <div>
                           <div className="font-semibold text-foreground">{cattle.tagNumber}</div>
                           {cattle.name ? (
-                            <div className="text-[11px] text-muted-foreground">{cattle.name}</div>
+                            <div className="text-xs text-muted-foreground">{cattle.name}</div>
                           ) : null}
                         </div>
                       </div>
-                      <div className="text-right text-[11px] text-muted-foreground">
+                      <div className="text-right text-xs text-muted-foreground">
                         {cattle.breed?.name ?? ""}
                       </div>
                     </label>

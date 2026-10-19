@@ -250,7 +250,7 @@ function SettingRow({
     <div className="flex flex-col gap-1 rounded-xl border border-border p-3">
       <div className="flex items-start justify-between gap-2">
         <span className="text-xs font-medium text-foreground">{label}</span>
-        <span className={cn("shrink-0 text-[10px] font-bold uppercase", SOURCE_CLASS[source])}>
+        <span className={cn("shrink-0 text-xs font-bold uppercase", SOURCE_CLASS[source])}>
           {t(`source.${source}`)}
         </span>
       </div>
@@ -275,9 +275,9 @@ function SettingRow({
       </div>
 
       {error ? (
-        <span className="text-[11px] text-destructive">{error}</span>
+        <span className="text-xs text-destructive">{error}</span>
       ) : unit ? (
-        <span className="text-[11px] text-muted-foreground">{unit}</span>
+        <span className="text-xs text-muted-foreground">{unit}</span>
       ) : null}
     </div>
   );

@@ -189,7 +189,7 @@ function SearchInput({ paramKey, placeholder }: { paramKey: string; placeholder:
     // the browser can't resolve "100% of a container whose size depends on this child's size",
     // so it collapses the container's computed width well below its children's real total width,
     // pushing the last flex item (the page's Add button) onto its own wrapped line.
-    <div className="relative w-[300px] shrink-0">
+    <div className="relative w-[300px] max-w-full shrink-0">
       <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         value={draft}
@@ -266,6 +266,7 @@ function FilterPopover({
         className={cn(
           "flex flex-col p-0 shadow-2xl rounded-2xl border border-border bg-card overflow-hidden",
           isMultiCol ? "w-[340px] sm:w-[500px]" : "w-[320px] sm:w-[360px]",
+          "max-w-[calc(100vw-1.5rem)]",
         )}
       >
         {/* Header */}
@@ -274,7 +275,7 @@ function FilterPopover({
             <FilterIcon className="size-4 text-primary" aria-hidden />
             <h4 className="text-sm font-bold text-foreground">Filters</h4>
             {activeCount > 0 ? (
-              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
+              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">
                 {activeCount} active
               </span>
             ) : null}
@@ -347,7 +348,7 @@ function FilterSelect({ config }: { config: FilterBarSelectConfig }) {
           <button
             type="button"
             onClick={() => void setValue(null)}
-            className="text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+            className="text-xs text-muted-foreground hover:text-foreground hover:underline"
           >
             Clear
           </button>
@@ -406,7 +407,7 @@ function FilterChecklist({ config }: { config: FilterBarChecklistConfig }) {
           <button
             type="button"
             onClick={() => setValues([])}
-            className="text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+            className="text-xs text-muted-foreground hover:text-foreground hover:underline"
           >
             Clear ({values.length})
           </button>

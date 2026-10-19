@@ -1224,6 +1224,7 @@
       "back": "Back",
       "cancel": "Cancel",
       "editProfile": "Edit Profile",
+      "moreActions": "More actions",
       "sell": "Sell",
       "close": "Close",
       "error": "Could not load this cattle record.",
@@ -3381,12 +3382,13 @@
       "tomorrow": "Tomorrow",
       "manageCase": "Manage Case",
       "deleteCase": "Delete case",
+      "moreActions": "More actions",
       "error": "Could not load the sick bay list.",
       "emptyTitle": "No active health cases",
       "emptyDescription": "Report a sickness to start tracking a case here.",
       "deleteDialog": {
         "title": "Delete this health case?",
-        "description": "The case will be archived and removed from Sick Bay. This can be restored later if needed.",
+        "description": "The health case for {name} will be archived and removed from Sick Bay. This can be restored later if needed.",
         "confirm": "Delete",
         "cancel": "Cancel"
       },
@@ -5811,7 +5813,8 @@
       "editedToast": "Ingredient updated",
       "deletedToast": "Ingredient deleted",
       "resetToast": "Reset to Rakhal's default price/nutrition",
-      "deleteConfirmTitle": "Delete this ingredient?",
+      "moreActions": "More actions",
+      "deleteConfirmTitle": "Delete \"{name}\"?",
       "deleteConfirmDescription": "This can't be undone. If it's still used in an active Concentrate Mixer or TMR, remove it from that formula first.",
       "filters": {
         "searchPlaceholder": "Find ingredient by name",
@@ -6587,7 +6590,7 @@
       "genericError": "Something went wrong. Please try again.",
       "confirmDialog": {
         "title": "Confirm feeding?",
-        "description": "This records today's feeding and decrements inventory for {count} selected cows. This action cannot be undone.",
+        "description": "This records today's feeding and decrements inventory for {count} selected cows ({kg} kg in total). This action cannot be undone.",
         "confirm": "Confirm Feeding"
       },
       "cowHistory": {

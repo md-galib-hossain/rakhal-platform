@@ -236,7 +236,7 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
             {task.assignedTo ? (
               <div className="flex items-center gap-1.5">
                 <Avatar className="size-5">
-                  <AvatarFallback className={cn("text-[10px]", avatarTint(task.assignedTo.id))}>{initials(task.assignedTo.name)}</AvatarFallback>
+                  <AvatarFallback className={cn("text-xs", avatarTint(task.assignedTo.id))}>{initials(task.assignedTo.name)}</AvatarFallback>
                 </Avatar>
                 <p className="text-sm font-bold text-foreground">{task.assignedTo.name}</p>
               </div>

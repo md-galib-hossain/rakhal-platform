@@ -15,6 +15,7 @@ import { cattleApi } from "@/features/cattle/api";
 import { AnimalLink } from "@/components/shared/animal-link";
 import type { SemenBatch, SemenTank } from "../types";
 import { STRAW_COLOR_SWATCHES } from "./semen-batch-form-dialog";
+import { TruncatedText } from "@/components/shared/truncated-text";
 
 /** `bullId` now stores a `Cattle.id` (picked via `CattlePicker`), not a free-text bull name/tag —
  * resolve it to a tag/name for display instead of showing the raw cuid. */
@@ -65,7 +66,7 @@ export function SemenBatchCard({
     <div className="flex flex-1 flex-col gap-6 rounded-2xl bg-card p-4 shadow-[0px_0px_3px_rgba(0,0,0,0.1)]">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-1 flex-col justify-center gap-3">
-          <p className="truncate text-xl font-bold text-foreground">{batch.name}</p>
+          <TruncatedText className="text-xl font-bold text-foreground">{batch.name}</TruncatedText>
           {batch.batchCode ? <Chip variant="muted">{batch.batchCode}</Chip> : null}
         </div>
         <DropdownMenu>

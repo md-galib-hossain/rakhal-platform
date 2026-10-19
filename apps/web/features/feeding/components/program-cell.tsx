@@ -11,6 +11,7 @@ import { useCattleProgram, useRemoveFeedAssignment } from "../../feed/hooks/use-
 import type { ApplyTarget } from "../../feed/components/plans/apply-plan-dialog";
 import type { FeedGridSection } from "../../feed/plans-types";
 import { ProgramPicker } from "./program-picker";
+import { TruncatedText } from "@/components/shared/truncated-text";
 
 /**
  * A cow's program, right under her name: the plan she is on (click to change it to another plan / TMR / concentrate),
@@ -58,7 +59,7 @@ export function ProgramCell({
 
   const chipBody = section ? (
     <>
-      <span className="truncate">{section.plan_name}</span>
+      <TruncatedText>{section.plan_name}</TruncatedText>
       <span className="shrink-0 opacity-70">· {tKind(section.kind)}</span>
     </>
   ) : (
@@ -68,7 +69,7 @@ export function ProgramCell({
     </>
   );
   const chipClass = cn(
-    "flex max-w-[190px] items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+    "flex max-w-[190px] items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
     section ? "border-primary/30 bg-primary/10 text-primary" : "border-dashed border-input text-muted-foreground",
   );
 
@@ -118,7 +119,7 @@ export function ProgramCell({
           </Tooltip>
         ) : null}
       </Can>
-      {section && !individual ? <span className="text-[11px] text-muted-foreground">{tp(`via.${section.via}`)}</span> : null}
+      {section && !individual ? <span className="text-xs text-muted-foreground">{tp(`via.${section.via}`)}</span> : null}
     </div>
   );
 }

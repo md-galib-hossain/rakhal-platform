@@ -8,6 +8,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
 import { DateRangePicker } from "@/components/shared/date-range-picker";
 import { cn } from "@/lib/utils";
+import { formatSignedPct } from "@/lib/format";
 import { usePeriod } from "@/lib/hooks/use-period";
 import { usePeriodSummary, usePositionSummary } from "./overview/hooks";
 import { FINANCE_TABS, type FinanceTabKey } from "../types";
@@ -58,8 +59,7 @@ function ChangePill({ changePct }: { changePct: number | null }) {
   return (
     <span className={cn("inline-flex items-center gap-0.5 text-xs font-medium", positive ? "text-success" : "text-destructive")}>
       <Icon className="size-3" aria-hidden />
-      {positive ? "+" : ""}
-      {changePct}%
+      {formatSignedPct(changePct)}
     </span>
   );
 }

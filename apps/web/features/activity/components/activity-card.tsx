@@ -11,6 +11,7 @@ import { avatarTint } from "../avatar-tint";
 import { ActionDetails } from "../action-details";
 import { MODULE_STYLE } from "../module-style";
 import type { ActivityLogEntry } from "../types";
+import { TruncatedText } from "@/components/shared/truncated-text";
 
 /** One timeline row: time gutter + card (Figma "Activity Log" component, 734:51037/41/45/55/59/63) —
  * icon+title, AQR-delta chip (if `aqrImpact` is non-null) + module chip, an entity-link button
@@ -33,7 +34,7 @@ export function ActivityCard({ entry, className }: { entry: ActivityLogEntry; cl
             <div className={cn("flex size-8 items-center justify-center rounded-lg shadow-xs", style.iconBg)}>
               <Icon className={cn("size-5", style.iconFg)} aria-hidden />
             </div>
-            <p className="text-base font-bold text-foreground">{entry.eventTitle}</p>
+            <TruncatedText className="text-base font-bold text-foreground">{entry.eventTitle}</TruncatedText>
           </div>
           <div className="flex items-start gap-2">
             {entry.aqrImpact !== null ? (

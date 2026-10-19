@@ -312,3 +312,74 @@
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
+
+/* ── Dashboard series + herd-state colors (impeccable audit: were raw hex in chart components) ── */
+:root {
+  --chart-income: #007fff;
+  --chart-expense: #f43f5e;
+  --chart-profit: #10b981;
+  --chart-production: #059669;
+  --chart-feedcost: #ffbf54;
+  --state-fresh-bar: #059669;
+  --state-fresh-tint: #ecfdf5;
+  --state-fresh-text: #065f46;
+  --state-insemination-bar: #0074e8;
+  --state-insemination-tint: #e6f2ff;
+  --state-insemination-text: #00468c;
+  --state-dry-bar: #7e27ce;
+  --state-dry-tint: #f3eafc;
+  --state-dry-text: #4c187c;
+  --state-milking-bar: #0891b2;
+  --state-milking-tint: #ecfeff;
+  --state-milking-text: #155e75;
+  --state-pregnant-bar: #e8ae00;
+  --state-pregnant-tint: #fff9e6;
+  --state-pregnant-text: #8c6900;
+  --state-sick-bar: #e11d48;
+  --state-sick-tint: #fff1f2;
+  --state-sick-text: #9f1239;
+}
+.dark {
+  --chart-income: #4da3ff;
+  --chart-expense: #fb7185;
+  --chart-profit: #34d399;
+  --chart-production: #34d399;
+  --chart-feedcost: #ffd27d;
+  --state-fresh-bar: #34d399;
+  --state-fresh-tint: #0f2e24;
+  --state-fresh-text: #6ee7b7;
+  --state-insemination-bar: #60a5fa;
+  --state-insemination-tint: #0f2a4a;
+  --state-insemination-text: #93c5fd;
+  --state-dry-bar: #a78bfa;
+  --state-dry-tint: #241c3d;
+  --state-dry-text: #c4b5fd;
+  --state-milking-bar: #22d3ee;
+  --state-milking-tint: #0f2e33;
+  --state-milking-text: #67e8f9;
+  --state-pregnant-bar: #fbbf24;
+  --state-pregnant-tint: #3a2c08;
+  --state-pregnant-text: #fcd34d;
+  --state-sick-bar: #fb7185;
+  --state-sick-tint: #3a1420;
+  --state-sick-text: #fda4af;
+}
+
+/* ── Reduced motion ─────────────────────────────────────────────────────── */
+/* Keep the state change (fade in/out) but drop spatial movement: popovers, sheets and dialogs
+   stop zooming/sliding yet still appear and disappear visibly. Spinners are left alone — a
+   progress indicator is information, not decoration. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-in,
+  .animate-out {
+    --tw-enter-translate-x: 0;
+    --tw-enter-translate-y: 0;
+    --tw-enter-scale: 1;
+    --tw-enter-rotate: 0;
+    --tw-exit-translate-x: 0;
+    --tw-exit-translate-y: 0;
+    --tw-exit-scale: 1;
+    --tw-exit-rotate: 0;
+    animation-duration: 120ms;
+  }
+}

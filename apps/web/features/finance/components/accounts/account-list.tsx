@@ -83,7 +83,7 @@ export function AccountList() {
               </span>
               <span className="text-sm font-medium text-foreground">{account.name}</span>
               {account.isPrimary ? (
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success-tint px-2 py-0.5 text-[10px] font-semibold text-success">
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success-tint px-2 py-0.5 text-xs font-semibold text-success">
                   <Star className="size-3 shrink-0 fill-current" aria-hidden />
                   {t("primaryBadge")}
                 </span>

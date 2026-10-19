@@ -5,7 +5,7 @@ import type { ConceptionRateResponse } from "../types";
 
 /** Figma-exact colors (node 732:2250) — Monthly Conception emerald-600 #059669, Avg. Rate orange-300
  * #ffbf54 (with a soft gradient fill under the line, the only filled series). */
-const COLOR = { count: "#059669", rate: "#ffbf54" };
+const COLOR = { count: "var(--chart-production)", rate: "var(--chart-feedcost)" };
 
 /** Matches the Figma "Conception Rate" card: monthly confirmed-pregnancy bars with an average-rate
  * area overlay — bars and the rate% line each keep their own Y-axis scale. Wrapped in its own

@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
+import { formatSignedPct } from "@/lib/format";
 import { useFinancialSnapshot } from "../hooks/use-dashboard-widgets";
 import { DashboardCard } from "./dashboard-card";
 
@@ -15,8 +16,7 @@ function Row({ label, current, changePct }: { label: string; current: number; ch
         <MoneyText amount={current} colorize className="font-medium" />
         {changePct != null ? (
           <span className={changePct >= 0 ? "text-xs text-success" : "text-xs text-destructive"}>
-            {changePct >= 0 ? "+" : ""}
-            {changePct}%
+            {formatSignedPct(changePct)}
           </span>
         ) : null}
       </span>

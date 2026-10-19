@@ -1,7 +1,7 @@
 "use client"; // live query + sheet open state
 
 import { useTranslations } from "next-intl";
-import { ArrowRightToLine, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowRightToLine, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { useCan } from "@/lib/auth/permissions";
@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
+import { RowActionsMenu } from "@/components/shared/row-actions-menu";
 import { useCattleDetail, useRestoreCattle } from "../../hooks/use-cattle";
 import { CattleProfileCard } from "./cattle-profile-card";
 import { CattleDetailTabs } from "./cattle-detail-tabs";
@@ -78,17 +79,15 @@ export function CattleDetailSheet({
                 <RotateCcw className="size-4" />
               </Button>
             ) : null}
-            {showDelete ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={tActions("delete")}
-                className="text-destructive hover:text-destructive"
-                onClick={() => cattle && onDelete(cattle)}
-              >
-                <Trash2 className="size-4" />
-              </Button>
-            ) : null}
+            {/* Delete is for duplicate/mistaken records only — kept behind the menu, away from Dispose/Edit. */}
+            <RowActionsMenu
+              menuLabel={t("moreActions")}
+              actions={
+                showDelete && cattle
+                  ? [{ key: "delete", label: tActions("delete"), destructive: true, onSelect: () => onDelete(cattle) }]
+                  : []
+              }
+            />
             <button
               type="button"
               onClick={() => onOpenChange(false)}
@@ -122,13 +121,13 @@ export function CattleDetailSheet({
         <div className="border-t border-border" />
         <div className="flex gap-3 pt-5">
           <Button type="button" variant="secondary" className="h-12 flex-1" onClick={() => onOpenChange(false)}>
-            {t("cancel")}
+            {t("close")}
           </Button>
           {isActive && canDispose ? (
             <Button
               type="button"
               variant="outline"
-              className="h-12 flex-1 text-destructive hover:text-destructive"
+              className="h-12 flex-1"
               onClick={() => cattle && onDispose(cattle)}
             >
               {tActions("dispose")}

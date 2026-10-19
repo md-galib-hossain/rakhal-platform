@@ -41,7 +41,7 @@ export function ProductLinePicker({
       <PopoverContent className="w-80 p-0" align="end">
         <div className="border-b border-border p-2.5">
           <p className="text-xs font-medium text-foreground">{t("title")}</p>
-          <p className="mt-1 text-[11px] leading-tight text-muted-foreground">{t("hint")}</p>
+          <p className="mt-1 text-xs leading-tight text-muted-foreground">{t("hint")}</p>
         </div>
         <Command shouldFilter={false}>
           <CommandInput placeholder={t("search")} value={search} onValueChange={setSearch} />
@@ -65,7 +65,7 @@ export function ProductLinePicker({
                       <span className="truncate">
                         {item.name} ({item.currentStock} {item.unit.symbol})
                       </span>
-                      <span className="truncate text-[10px] text-muted-foreground">
+                      <span className="truncate text-xs text-muted-foreground">
                         {lot
                           ? t("nextLot", { code: lot.batchCode ?? t("oldestBatch"), cost: lot.costPerUnit, cp: lot.nutrition.cpPct })
                           : t("noStock")}

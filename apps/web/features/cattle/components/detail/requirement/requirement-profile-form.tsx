@@ -125,7 +125,7 @@ export function RequirementProfileForm({
                       <span className="text-xs">({row.unit})</span>
                       <Badge
                         variant="outline"
-                        className="h-4 border-border/60 bg-muted/60 px-1.5 text-[10px] font-normal text-muted-foreground"
+                        className="h-4 border-border/60 bg-muted/60 px-1.5 text-xs font-normal text-muted-foreground"
                       >
                         {t("derivedBadge")}
                       </Badge>

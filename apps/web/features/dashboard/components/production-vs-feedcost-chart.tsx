@@ -15,8 +15,8 @@ const ProductionVsFeedcostChartInner = dynamic(() => import("./production-vs-fee
 
 /** Figma-exact colors (node 732:2017) — kept in sync with `production-vs-feedcost-chart-inner.tsx`. */
 const LEGEND = [
-  { key: "production", color: "#059669" },
-  { key: "feedcost", color: "#ffbf54" },
+  { key: "production", color: "var(--chart-production)" },
+  { key: "feedcost", color: "var(--chart-feedcost)" },
 ] as const;
 
 /** Matches the Figma "Production vs Feedcost" card: current-month daily milk yield vs feed

@@ -8,6 +8,7 @@ import { avatarTint } from "../avatar-tint";
 import { MedicineRowActions } from "./medicine-row-actions";
 import { StockStatusIcon } from "./stock-status-icon";
 import type { Medicine } from "../types";
+import { TruncatedText } from "@/components/shared/truncated-text";
 
 /**
  * Column set matched to the Figma "Inventory - Medicine - Table View" frame (732:12409): No. /
@@ -43,7 +44,7 @@ export function buildMedicineColumns(
               {medicine.imageUrl ? <AvatarImage src={medicine.imageUrl} alt="" /> : null}
               <AvatarFallback className={avatarTint(medicine.id)}>{medicine.name.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
-            <span className="text-sm font-medium text-foreground">{medicine.name}</span>
+            <TruncatedText className="max-w-[16rem] text-sm font-medium text-foreground">{medicine.name}</TruncatedText>
           </span>
         );
       },

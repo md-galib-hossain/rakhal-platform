@@ -103,7 +103,7 @@ export function RequirementProfileTable({
                         <>
                           <Badge
                             variant="outline"
-                            className="h-4 border-border/60 bg-muted/60 px-1.5 text-[10px] font-normal text-muted-foreground"
+                            className="h-4 border-border/60 bg-muted/60 px-1.5 text-xs font-normal text-muted-foreground"
                           >
                             {t("derivedBadge")}
                           </Badge>
@@ -132,7 +132,7 @@ export function RequirementProfileTable({
                           {diff !== null ? (
                             <Badge
                               variant={Math.abs(diff) > 20 ? "warning" : "outline"}
-                              className="h-5 px-1.5 text-[11px]"
+                              className="h-5 px-1.5 text-xs"
                             >
                               {change}
                             </Badge>

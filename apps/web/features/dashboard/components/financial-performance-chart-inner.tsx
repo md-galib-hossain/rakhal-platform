@@ -7,7 +7,7 @@ const formatK = (v: number) => (v >= 1000 ? `${Math.round(v / 1000)}K` : `${v}`)
 
 /** Figma-exact colors (node 732:1864) — Income #007FFF, Expense #F43F5E (both dashed, no fill),
  * Profit #10B981 (solid, with a soft gradient area fill underneath — the only filled series). */
-const COLOR = { income: "#007fff", expense: "#f43f5e", profit: "#10b981" };
+const COLOR = { income: "var(--chart-income)", expense: "var(--chart-expense)", profit: "var(--chart-profit)" };
 
 /** Matches the Figma "Financial Performance Over Time" card pixel-for-pixel: dashed Income/Expense
  * lines, a solid Profit line with a gradient fill fading to transparent, dashed gridlines, no dots,

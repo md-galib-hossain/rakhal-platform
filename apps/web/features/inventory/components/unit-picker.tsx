@@ -172,7 +172,7 @@ export function UnitPicker({
                           <Check className={cn("mr-2 size-4", unit.id === value ? "opacity-100" : "opacity-0")} aria-hidden />
                           {unit.name} ({unit.symbol})
                           {!unit.isSystemDefault ? (
-                            <Badge variant="outline" className="ml-2 text-[10px]">
+                            <Badge variant="outline" className="ml-2 text-xs">
                               {t("customUnitBadge")}
                             </Badge>
                           ) : null}
