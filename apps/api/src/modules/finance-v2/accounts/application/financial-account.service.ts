@@ -30,6 +30,7 @@ export type FinancialAccountWithDetail = FinancialAccount & {
 /** `LedgerAccount.code` for "Opening Balance Equity" — seeded by RAKHAL-333's default chart
  * (`default-chart-of-accounts.ts`). Every farm has this row from bootstrap. */
 const OPENING_BALANCE_EQUITY_CODE = '3000';
+const OPENING_BALANCE_SOURCE_TYPE = 'FINANCIAL_ACCOUNT_OPENING_BALANCE';
 
 /**
  * Farm-custom `LedgerAccount` codes for individually named Cash/Bank/MFS accounts start
@@ -147,6 +148,19 @@ export class FinancialAccountService {
       throw new BadRequestException('mfsDetail is required for an MFS account');
     }
 
+    // One account per farm. The advisory lock serialises concurrent creates for the same farm
+    // so two racing requests cannot both pass the check below.
+    await client.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`finance-v2-account:${farmId}`}))`;
+    const liveAccount = await client.financialAccount.findFirst({
+      where: { farmId, deletedAt: null },
+      select: { id: true },
+    });
+    if (liveAccount) {
+      throw new ConflictException(
+        'This farm already has a financial account; only one is allowed',
+      );
+    }
+
     const code = await this.nextCustomLedgerCode(client, farmId);
     const ledgerAccount = await client.ledgerAccount.create({
       data: {
@@ -158,13 +172,6 @@ export class FinancialAccountService {
       },
     });
 
-    // The farm's first live account becomes its primary wallet, so payment pickers have a default
-    // from day one without the farmer having to find "Make primary".
-    const hasLiveAccount = await client.financialAccount.findFirst({
-      where: { farmId, deletedAt: null },
-      select: { id: true },
-    });
-
     const account = await client.financialAccount.create({
       data: {
         farmId,
@@ -172,7 +179,7 @@ export class FinancialAccountService {
         type: dto.type,
         ledgerAccountId: ledgerAccount.id,
         currency: dto.currency ?? 'BDT',
-        isPrimary: !hasLiveAccount,
+        isPrimary: true,
         createdById: userId,
       },
     });
@@ -201,50 +208,15 @@ export class FinancialAccountService {
     }
 
     if (dto.openingBalance !== undefined && !isZero(dto.openingBalance)) {
-      const openingBalance = toStorage(dto.openingBalance);
-      let equityAccount = await this.ledgerAccountService.findByCode(
+      await this.postOpeningBalance(client, {
         farmId,
-        OPENING_BALANCE_EQUITY_CODE,
-        client,
-      );
-      if (!equityAccount) {
-        // Farm's chart of accounts (RAKHAL-333) is seeded best-effort at
-        // bootstrap (`FarmService.create`) and can be missing for a farm
-        // created before that seeding existed, or if the best-effort seed
-        // hiccuped. Self-heal here rather than fail the whole request —
-        // seeding is idempotent (`skipDuplicates`), so this is safe to
-        // call even if some rows already exist. Must re-read via the same
-        // `client` (the open transaction) — reading via the service's bare
-        // `this.prisma` connection instead would miss this uncommitted
-        // write until the transaction commits.
-        await this.ledgerAccountService.seedDefaultChart(farmId, client);
-        equityAccount = await this.ledgerAccountService.findByCode(
-          farmId,
-          OPENING_BALANCE_EQUITY_CODE,
-          client,
-        );
-      }
-      if (!equityAccount) {
-        throw new BadRequestException(
-          'Opening Balance Equity ledger account is not seeded for this farm',
-        );
-      }
-      await this.journalService.postJournal(
-        {
-          farmId,
-          sourceType: 'FINANCIAL_ACCOUNT_OPENING_BALANCE',
-          sourceId: account.id,
-          transactionDate: new Date(),
-          description: `Opening balance for ${dto.name}`,
-          idempotencyKey: `financial-account-opening-balance:${account.id}`,
-          createdById: userId,
-          entries: [
-            { ledgerAccountId: ledgerAccount.id, debit: openingBalance },
-            { ledgerAccountId: equityAccount.id, credit: openingBalance },
-          ],
-        },
-        client,
-      );
+        userId,
+        accountId: account.id,
+        accountName: dto.name,
+        ledgerAccountId: ledgerAccount.id,
+        amount: dto.openingBalance,
+        idempotencyKey: `financial-account-opening-balance:${account.id}`,
+      });
     }
 
     this.log.info('Financial account created', {
@@ -256,6 +228,177 @@ export class FinancialAccountService {
     });
 
     return { ...account, bankDetail, mfsDetail };
+  }
+
+  /** Debit the account's ledger account, credit Opening Balance Equity (self-healing the farm's
+   * chart if the equity row is missing). Shared by create and by {@link setOpeningBalance}. */
+  private async postOpeningBalance(
+    client: Prisma.TransactionClient,
+    p: {
+      farmId: string;
+      userId: string;
+      accountId: string;
+      accountName: string;
+      ledgerAccountId: string;
+      amount: number;
+      idempotencyKey: string;
+    },
+  ): Promise<void> {
+    const openingBalance = toStorage(p.amount);
+    let equityAccount = await this.ledgerAccountService.findByCode(
+      p.farmId,
+      OPENING_BALANCE_EQUITY_CODE,
+      client,
+    );
+    if (!equityAccount) {
+      // Chart seeding is idempotent (`skipDuplicates`); re-read via the same open transaction.
+      await this.ledgerAccountService.seedDefaultChart(p.farmId, client);
+      equityAccount = await this.ledgerAccountService.findByCode(
+        p.farmId,
+        OPENING_BALANCE_EQUITY_CODE,
+        client,
+      );
+    }
+    if (!equityAccount) {
+      throw new BadRequestException(
+        'Opening Balance Equity ledger account is not seeded for this farm',
+      );
+    }
+    await this.journalService.postJournal(
+      {
+        farmId: p.farmId,
+        sourceType: OPENING_BALANCE_SOURCE_TYPE,
+        sourceId: p.accountId,
+        transactionDate: new Date(),
+        description: `Opening balance for ${p.accountName}`,
+        idempotencyKey: p.idempotencyKey,
+        createdById: p.userId,
+        entries: [
+          { ledgerAccountId: p.ledgerAccountId, debit: openingBalance },
+          { ledgerAccountId: equityAccount.id, credit: openingBalance },
+        ],
+      },
+      client,
+    );
+  }
+
+  /**
+   * Corrects the account's opening balance after creation. Journals are immutable, so the current
+   * opening-balance posting is reversed and (for a non-zero amount) a fresh one is posted, all in
+   * one transaction. Current balance moves by exactly (new - old); history keeps both postings.
+   */
+  async setOpeningBalance(
+    farmId: string,
+    id: string,
+    userId: string,
+    amount: number,
+  ): Promise<FinancialAccountWithDetail> {
+    await this.assertAccountActive(farmId, id);
+    const account = await this.prisma.$transaction(async (tx) => {
+      const acct = await tx.financialAccount.findFirstOrThrow({
+        where: { id, farmId },
+        include: DETAIL_INCLUDE,
+      });
+      const postings = await tx.journalTransaction.findMany({
+        where: {
+          farmId,
+          sourceType: OPENING_BALANCE_SOURCE_TYPE,
+          sourceId: id,
+          reversalOfId: null,
+        },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        select: { id: true },
+      });
+      for (const posting of postings) {
+        const reversed = await tx.journalTransaction.findFirst({
+          where: { farmId, reversalOfId: posting.id },
+          select: { id: true },
+        });
+        if (reversed) continue;
+        await this.journalService.reverseJournal(
+          {
+            farmId,
+            journalTransactionId: posting.id,
+            createdById: userId,
+            idempotencyKey: `financial-account-opening-balance-reversal:${posting.id}`,
+            description: `Opening balance corrected for ${acct.name}`,
+          },
+          tx,
+        );
+      }
+      if (!isZero(amount)) {
+        await this.postOpeningBalance(tx, {
+          farmId,
+          userId,
+          accountId: id,
+          accountName: acct.name,
+          ledgerAccountId: acct.ledgerAccountId,
+          amount,
+          idempotencyKey: `financial-account-opening-balance:${id}:${postings.length}`,
+        });
+      }
+      return acct;
+    });
+    await this.activityLog.record({
+      farmId,
+      module: ActivityLogModule.FINANCE,
+      eventTitle: 'Opening Balance Updated',
+      actionDetails: `Opening balance of "${account.name}" set to ৳${amount}.`,
+      actorId: userId,
+      taggedValues: [{ key: 'sensitive', value: 'opening-balance-changed' }],
+    });
+    return account;
+  }
+
+  /**
+   * The farm's one account — what every money flow (expense, sale, vet fee, breeding fee,
+   * payment…) posts against now that no form asks the farmer to pick a wallet. Returns the
+   * primary live account, else the oldest live one (a farm that predates the single-account
+   * rule may still hold several), and creates a cash "Main Wallet" on first use so a brand
+   * new farm never has to set anything up. A concurrent first call that loses the race just
+   * re-reads the winner's row.
+   */
+  async resolveFarmAccount(
+    farmId: string,
+    userId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<FinancialAccountWithDetail> {
+    const client = tx ?? this.prisma;
+    const find = () =>
+      client.financialAccount.findFirst({
+        where: { farmId, deletedAt: null },
+        include: DETAIL_INCLUDE,
+        orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }],
+      });
+    const existing = await find();
+    if (existing) return existing;
+    try {
+      return await this.createAccount(
+        farmId,
+        userId,
+        { name: 'Main Wallet', type: FinancialAccountType.CASH },
+        tx,
+      );
+    } catch (err) {
+      // Outside a caller's transaction a lost race is recoverable; inside one the
+      // transaction is already poisoned, so let it surface.
+      if (tx) throw err;
+      const winner = await find();
+      if (winner) return winner;
+      throw err;
+    }
+  }
+
+  /** Id form of {@link resolveFarmAccount}; an explicitly supplied id is passed through untouched
+   * (callers still validate it) so older clients that still send one keep working. */
+  async resolveFarmAccountId(
+    farmId: string,
+    userId: string,
+    provided?: string | null,
+    tx?: Prisma.TransactionClient,
+  ): Promise<string> {
+    if (provided) return provided;
+    return (await this.resolveFarmAccount(farmId, userId, tx)).id;
   }
 
   async findAll(

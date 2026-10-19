@@ -11,6 +11,7 @@ import { ReceivableService } from '../src/modules/finance-v2/receivables/applica
 import { ReceivableStatus } from '../src/modules/finance-v2/receivables/domain/receivable-status';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
+import { createExtraAccount } from './utils/finance';
 /**
  * RAKHAL-342 — `SellMilk` use case (fully atomic, Finance V2 —
  * `FINANCE_V2_DESIGN.md` §1.2, §4.3). `SellMilkUseCase` has no HTTP route of
@@ -51,15 +52,11 @@ describe('SellMilkUseCase — fully atomic milk sale (e2e)', () => {
     });
     ownerUserId = ownerUser.id;
 
-    const account = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...auth(owner))
-      .send({
-        name: `E2E-342 Cash ${Date.now()}`,
-        type: FinancialAccountType.CASH,
-      })
-      .expect(201);
-    cashAccountId = account.body.data.id as string;
+    const account = await createExtraAccount(ctx, prisma, owner, {
+      name: `E2E-342 Cash ${Date.now()}`,
+      type: FinancialAccountType.CASH,
+    });
+    cashAccountId = account.id;
 
     // A dedicated, deliberately-overfull tank so it is unambiguously "the
     // fullest active SELLABLE tank" `SellMilkUseCase` selects, regardless of
@@ -237,7 +234,7 @@ describe('SellMilkUseCase — fully atomic milk sale (e2e)', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
-  it('requires financialAccountId and paymentMethod when amountReceived is greater than zero', async () => {
+  it("requires paymentMethod when amountReceived is greater than zero (the account is the farm's single one, never asked)", async () => {
     await expect(
       sellMilk.execute(owner.farmId, ownerUserId, {
         volumeL: 5,

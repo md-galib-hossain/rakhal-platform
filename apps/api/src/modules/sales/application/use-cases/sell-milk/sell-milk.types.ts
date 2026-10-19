@@ -41,9 +41,8 @@ export interface SellMilkResult {
   sale: SaleWithLines;
   receivable: Receivable;
   payment: FinancePayment | null;
-  /** Whether an active SELLABLE `MilkTank` existed for this farm and was
-   * decremented. `false` is a legitimate no-op (the farm hasn't configured
-   * Inventory's milk tank feature yet) — the sale/receivable/journal still
-   * post, matching the pre-RAKHAL-342 `sellFromTank` behaviour. */
+  /** Always `true` now: a farm with no SELLABLE `MilkTank` gets a default one
+   * on its first sale, so the sale is checked against (and decrements) real
+   * stock. Kept on the result so existing callers need no change. */
   tankUpdated: boolean;
 }

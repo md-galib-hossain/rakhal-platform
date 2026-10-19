@@ -1,6 +1,8 @@
+import { PaymentMethod } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import {
   IsDateString,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -52,4 +54,29 @@ export class RecordDispatchDto {
   @Transform(trimString)
   @IsString()
   driverName?: string;
+
+  /** Money handed over at the point of sale. Omitted/0 = sold on credit (the
+   * buyer's payment terms set the due date). Capped by the server at the sale
+   * total; the payment posts in the same transaction as the sale. */
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @Min(0)
+  amountReceived?: number;
+
+  /** Required whenever `amountReceived` > 0 (checked in the use case). */
+  @IsOptional()
+  @IsIn(Object.values(PaymentMethod))
+  paymentMethod?: PaymentMethod;
+
+  /** Optional: a farm has one account and the server uses it when omitted. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  financialAccountId?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  referenceNumber?: string;
 }

@@ -10,6 +10,7 @@ import {
   TestContext,
 } from './utils/e2e';
 
+import { createExtraAccount } from './utils/finance';
 /**
  * RAKHAL-348 — `Expense` + `Payable` (`FINANCE_V2_DESIGN.md` §5.1). Proves
  * the "consumed immediately, never becomes inventory" half of the Purchase/
@@ -43,14 +44,14 @@ describe('Purchasing — Expense + Payable (e2e, RAKHAL-348)', () => {
   });
 
   async function createCashAccount(): Promise<{ id: string }> {
-    const res = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({
-        name: uniqueName('E2E-348-Cash'),
-        type: FinancialAccountType.CASH,
-      })
-      .expect(201);
+    const res = {
+      body: {
+        data: await createExtraAccount(ctx, prisma, owner, {
+          name: uniqueName('E2E-348-Cash'),
+          type: FinancialAccountType.CASH,
+        }),
+      },
+    };
     return (res.body as { data: { id: string } }).data;
   }
 

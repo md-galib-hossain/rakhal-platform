@@ -147,7 +147,7 @@ export class LactationEconomicsService {
     onOrBefore: Date,
   ): Promise<number> {
     const latestDispatch = await this.prisma.milkDispatch.findFirst({
-      where: { farmId, dispatchedAt: { lte: onOrBefore } },
+      where: { farmId, cancelledAt: null, dispatchedAt: { lte: onOrBefore } },
       orderBy: { dispatchedAt: 'desc' },
       select: { basePricePerLitre: true },
     });

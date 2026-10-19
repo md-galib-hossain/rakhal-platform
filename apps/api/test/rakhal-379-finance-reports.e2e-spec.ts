@@ -10,6 +10,7 @@ import {
   TestContext,
 } from './utils/e2e';
 
+import { createExtraAccount } from './utils/finance';
 /**
  * RAKHAL-379 (MILESTONE 22, `BUSINESS_IA_PRD.md` §5.6, §9.2) — synchronous
  * finance report generators. Proves the ticket's own AC against the real DB
@@ -93,15 +94,15 @@ describe('Business Reporting — Finance report generators (e2e, RAKHAL-379)', (
   });
 
   async function createAccount(openingBalance = 0): Promise<string> {
-    const res = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({
-        name: unique('E2E-379-Account'),
-        type: FinancialAccountType.CASH,
-        openingBalance,
-      })
-      .expect(201);
+    const res = {
+      body: {
+        data: await createExtraAccount(ctx, prisma, owner, {
+          name: unique('E2E-379-Account'),
+          type: FinancialAccountType.CASH,
+          openingBalance,
+        }),
+      },
+    };
     return res.body.data.id as string;
   }
 

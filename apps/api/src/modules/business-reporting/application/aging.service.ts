@@ -97,6 +97,7 @@ export class AgingService {
         FROM "${Prisma.raw(table)}" d
         LEFT JOIN allocation_sums a ON a.doc_id = d.id
         WHERE d."farmId" = ${farmId}
+          ${table === 'Payable' ? Prisma.sql`AND d."closedAt" IS NULL` : Prisma.empty}
       )
       SELECT
         ${Prisma.raw(bucketCase)} AS bucket,

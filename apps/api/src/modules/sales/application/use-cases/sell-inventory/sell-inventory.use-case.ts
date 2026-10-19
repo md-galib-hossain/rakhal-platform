@@ -229,7 +229,7 @@ export class SellInventoryUseCase {
         userId,
         {
           direction: PaymentDirection.INCOMING,
-          financialAccountId: dto.financialAccountId as string,
+          financialAccountId: dto.financialAccountId,
           amount: amountReceived,
           method: dto.paymentMethod!,
           transactionDate: dto.saleDate,
@@ -286,11 +286,6 @@ export class SellInventoryUseCase {
       throw new BadRequestException('Amount received cannot be negative');
     }
     if (amountReceived > 0) {
-      if (!dto.financialAccountId) {
-        throw new BadRequestException(
-          'financialAccountId is required when amountReceived is greater than zero',
-        );
-      }
       if (!dto.paymentMethod) {
         throw new BadRequestException(
           'paymentMethod is required when amountReceived is greater than zero',

@@ -13,6 +13,7 @@ import {
   TestContext,
 } from './utils/e2e';
 
+import { createExtraAccount } from './utils/finance';
 /**
  * RAKHAL-376 (MILESTONE 22, `BUSINESS_IA_PRD.md` §1.4/§16.8) — HTTP routes
  * for the orphaned use cases. `SellAnimalUseCase` already had a route
@@ -65,14 +66,14 @@ describe('Orphaned use-case HTTP routes (e2e, RAKHAL-376)', () => {
   });
 
   async function createAccount(): Promise<string> {
-    const res = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({
-        name: `E2E-376-Account-${uniqueTag()}`,
-        type: FinancialAccountType.CASH,
-      })
-      .expect(201);
+    const res = {
+      body: {
+        data: await createExtraAccount(ctx, prisma, owner, {
+          name: `E2E-376-Account-${uniqueTag()}`,
+          type: FinancialAccountType.CASH,
+        }),
+      },
+    };
     const id = (res.body as { data: { id: string } }).data.id;
     createdAccountIds.push(id);
     return id;

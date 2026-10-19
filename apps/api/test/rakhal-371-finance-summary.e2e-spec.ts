@@ -9,6 +9,7 @@ import {
   TestContext,
 } from './utils/e2e';
 
+import { createExtraAccount } from './utils/finance';
 /**
  * RAKHAL-371 (MILESTONE 22, `BUSINESS_IA_PRD.md` §4.4, §6.1, §6.2) —
  * `GET /finance/summary` + retiring the fake receivable/payable block.
@@ -56,11 +57,15 @@ describe('Business Reporting — Finance summary (e2e, RAKHAL-371)', () => {
     farmId = throwaway.farmId;
     owner = throwaway.owner;
 
-    const account = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({ name: 'E2E-371 Cash', type: 'CASH', openingBalance: 0 })
-      .expect(201);
+    const account = {
+      body: {
+        data: await createExtraAccount(ctx, prisma, owner, {
+          name: 'E2E-371 Cash',
+          type: 'CASH',
+          openingBalance: 0,
+        }),
+      },
+    };
     accountId = account.body.data.id as string;
   }, 30_000);
 

@@ -99,7 +99,8 @@ export class PurchasingSummaryService {
   }> {
     const rows = await this.prisma.$queryRaw<KpiRow[]>(Prisma.sql`
       WITH period_purchases AS (
-        SELECT p.id, p."totalAmount", pay.id AS payable_id
+        SELECT p.id, p."totalAmount", pay.id AS payable_id,
+               pay."totalAmount" AS payable_total
         FROM "Purchase" p
         LEFT JOIN "Payable" pay ON pay."purchaseId" = p.id
         WHERE p."farmId" = ${farmId}
@@ -113,13 +114,18 @@ export class PurchasingSummaryService {
         LEFT JOIN "PaymentAllocation" pa ON pa."payableId" = pp.payable_id
         GROUP BY pp.id
       )
+      -- A Payable holds only the UNPAID REMAINDER at creation (its totalAmount =
+      -- purchase total - paid up front), so money paid so far is
+      --   (total - payable.totalAmount)  paid at creation
+      -- + allocations                    paid since.
+      -- No Payable at all = paid in full at creation.
       SELECT
         COUNT(*)::int AS "purchaseOrders",
         COALESCE(SUM(pp."totalAmount"), 0)::text AS "totalPurchases",
         COALESCE(
           SUM(
             CASE WHEN pp.payable_id IS NULL THEN pp."totalAmount"
-            ELSE alloc.allocated END
+            ELSE pp."totalAmount" - pp.payable_total + alloc.allocated END
           ), 0
         )::text AS "paidAmount"
       FROM period_purchases pp

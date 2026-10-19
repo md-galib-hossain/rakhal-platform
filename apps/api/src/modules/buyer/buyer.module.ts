@@ -6,6 +6,7 @@ import { PermissionModule } from '../permission/permission.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { SalesModule } from '../sales/sales.module';
+import { ActivityModule } from '../activity/activity.module';
 import { BuyerService } from './application/services/buyer.service';
 import { BuyerController } from './presentation/controllers/buyer.controller';
 import { MilkDispatchController } from './presentation/controllers/milk-dispatch.controller';
@@ -27,6 +28,7 @@ import { DispatchNumberAllocator } from './infrastructure/dispatch-number.alloca
     InventoryModule,
     SubscriptionModule,
     SalesModule,
+    ActivityModule,
   ],
   controllers: [BuyerController, MilkDispatchController],
   providers: [BuyerService, DispatchNumberAllocator],

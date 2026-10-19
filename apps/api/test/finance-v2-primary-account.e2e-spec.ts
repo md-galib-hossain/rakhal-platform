@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
+import { createExtraAccount } from './utils/finance';
 
 /**
  * 2026-09-24 (user request: "add make primary option for finance wallet accounts so in each time we
@@ -38,17 +39,13 @@ describe('Finance V2 — primary (default) wallet (e2e)', () => {
     ).body.data as Array<{ id: string; isPrimary: boolean }>;
 
   const createCash = async () => {
-    const res = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...auth(owner))
-      .send({
-        name: `E2E Primary Wallet ${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        type: 'CASH',
-      })
-      .expect(201);
-    createdAccountIds.push(res.body.data.id as string);
-    createdLedgerIds.push(res.body.data.ledgerAccountId as string);
-    return res.body.data as { id: string; isPrimary: boolean };
+    const data = await createExtraAccount(ctx, prisma, owner, {
+      name: `E2E Primary Wallet ${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      type: 'CASH',
+    });
+    createdAccountIds.push(data.id);
+    createdLedgerIds.push(data.ledgerAccountId);
+    return data as unknown as { id: string; isPrimary: boolean };
   };
 
   const setPrimary = (id: string, user: AuthedUser = owner) =>

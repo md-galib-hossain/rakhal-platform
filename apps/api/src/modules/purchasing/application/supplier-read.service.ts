@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, PurchaseStatus } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { toStorage } from 'src/common/money';
 
@@ -114,7 +114,11 @@ export class SupplierReadService {
   ): Promise<PurchaseAggRow[]> {
     const rows = await this.prisma.purchase.groupBy({
       by: ['supplierId'],
-      where: { farmId, supplierId: { not: null } },
+      where: {
+        farmId,
+        supplierId: { not: null },
+        status: { not: PurchaseStatus.VOIDED },
+      },
       _sum: { totalAmount: true },
       _max: { purchaseDate: true },
     });
@@ -147,6 +151,7 @@ export class SupplierReadService {
       FROM "Payable" d
       LEFT JOIN allocation_sums a ON a.doc_id = d.id
       WHERE d."farmId" = ${farmId} AND d."supplierId" IS NOT NULL
+        AND d."closedAt" IS NULL
       GROUP BY d."supplierId"
     `);
   }

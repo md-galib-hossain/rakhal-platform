@@ -31,6 +31,8 @@ import { OUTBOX_QUEUE } from './infrastructure/queue/outbox.queue.constants';
       imports: [ConfigModule.forFeature(redisConfig)],
       inject: [redisConfig.KEY],
       useFactory: (config: ConfigType<typeof redisConfig>) => ({
+        // Keep e2e runs off a developer's live queue (see reports.module.ts).
+        prefix: process.env.NODE_ENV === 'test' ? 'bull-test' : undefined,
         connection: {
           host: config.host,
           port: config.port,

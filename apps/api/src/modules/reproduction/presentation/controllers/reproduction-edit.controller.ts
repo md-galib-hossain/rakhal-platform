@@ -24,6 +24,7 @@ import { EditAbortionEventDto } from '../dto/edit-abortion-event.dto';
 import { EditDryOffDto } from '../dto/edit-dry-off.dto';
 import { EditCalvingEventDto } from '../dto/edit-calving-event.dto';
 import { VoidBreedingEventDto } from '../dto/void-breeding-event.dto';
+import { CancelHeatEventDto } from '../dto/cancel-heat-event.dto';
 
 /**
  * RAKHAL-305: edit routes for the five correctable event types. `/api/v1/reproduction`.
@@ -54,6 +55,19 @@ export class ReproductionEditController {
     @Body() dto: EditHeatEventDto,
   ) {
     return this.editService.editHeatEvent(farmId, userId, id, dto);
+  }
+
+  /** Cancel a heat recorded by mistake (removes it; blocked once a breeding is linked to it). */
+  @Post('heat-events/:id/cancel')
+  @HttpCode(200)
+  @RequirePermission('reproduction.update')
+  cancelHeatEvent(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body() dto: CancelHeatEventDto,
+  ) {
+    return this.editService.cancelHeatEvent(farmId, userId, id, dto);
   }
 
   @Patch('breeding-events/:id')

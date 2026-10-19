@@ -96,9 +96,9 @@ export class SellAnimalUseCase {
       throw new BadRequestException('amountReceived cannot exceed salePrice');
     }
     const collectsPaymentNow = !!amountReceived && gt(amountReceived, 0);
-    if (collectsPaymentNow && (!dto.financialAccountId || !dto.paymentMethod)) {
+    if (collectsPaymentNow && !dto.paymentMethod) {
       throw new BadRequestException(
-        'financialAccountId and paymentMethod are required when amountReceived is greater than zero',
+        'paymentMethod is required when amountReceived is greater than zero',
       );
     }
 
@@ -222,7 +222,7 @@ export class SellAnimalUseCase {
           userId,
           {
             direction: PaymentDirection.INCOMING,
-            financialAccountId: dto.financialAccountId!,
+            financialAccountId: dto.financialAccountId,
             amount: dto.amountReceived!,
             method: dto.paymentMethod!,
             transactionDate: dto.saleDate,

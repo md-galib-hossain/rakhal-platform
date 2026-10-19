@@ -16,6 +16,7 @@ import {
   TestContext,
 } from './utils/e2e';
 
+import { createExtraAccount } from './utils/finance';
 /**
  * RAKHAL-346 — `SellInventoryItem` (stock-backed), `FINANCE_V2_DESIGN.md`
  * §5.2. Proves the ticket's own AC against the real DB:
@@ -120,14 +121,14 @@ describe('Sales — SellInventoryItem (e2e, RAKHAL-346)', () => {
     id: string;
     ledgerAccountId: string;
   }> {
-    const res = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({
-        name: `RAKHAL346-Cash-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        type: FinancialAccountType.CASH,
-      })
-      .expect(201);
+    const res = {
+      body: {
+        data: await createExtraAccount(ctx, prisma, owner, {
+          name: `RAKHAL346-Cash-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          type: FinancialAccountType.CASH,
+        }),
+      },
+    };
     const account = (
       res.body as { data: { id: string; ledgerAccountId: string } }
     ).data;
@@ -314,7 +315,7 @@ describe('Sales — SellInventoryItem (e2e, RAKHAL-346)', () => {
     expect(receivable.outstanding).toBe('150');
   });
 
-  it('rejects amountReceived without financialAccountId/paymentMethod', async () => {
+  it("rejects amountReceived without paymentMethod (the account is the farm's single one)", async () => {
     const medicine = await createMedicineWithStock(50);
 
     await expect(
@@ -326,7 +327,7 @@ describe('Sales — SellInventoryItem (e2e, RAKHAL-346)', () => {
         saleDate: new Date().toISOString(),
         amountReceived: 50,
       }),
-    ).rejects.toThrow(/financialAccountId/);
+    ).rejects.toThrow(/paymentMethod/);
   });
 
   it('rejects a foreign-farm item id (cross-tenant guard)', async () => {

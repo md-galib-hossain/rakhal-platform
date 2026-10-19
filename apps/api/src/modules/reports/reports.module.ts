@@ -46,6 +46,10 @@ import { ReportsController } from './presentation/controllers/reports.controller
       imports: [ConfigModule.forFeature(redisConfig)],
       inject: [redisConfig.KEY],
       useFactory: (config: ConfigType<typeof redisConfig>) => ({
+        // e2e runs share Redis with a developer's running backend; without a separate key prefix
+        // that backend's worker steals the job and writes the file into *its* in-memory storage,
+        // so the test process 500s on download ("Object not found").
+        prefix: process.env.NODE_ENV === 'test' ? 'bull-test' : undefined,
         connection: {
           host: config.host,
           port: config.port,

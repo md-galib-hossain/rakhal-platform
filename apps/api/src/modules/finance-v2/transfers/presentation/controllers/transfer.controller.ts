@@ -1,6 +1,13 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  ConflictException,
+  Controller,
+  Get,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
+import { CurrentFarmId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
@@ -8,7 +15,6 @@ import { PermissionGuard } from 'src/modules/permission/presentation/guards/perm
 import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { TransferService } from '../../application/transfer.service';
-import { CreateTransferDto } from '../dto/create-transfer.dto';
 
 /**
  * Finance V2 → Transfers (RAKHAL-338, `FINANCE_V2_DESIGN.md` §4.4). Routes
@@ -35,14 +41,14 @@ import { CreateTransferDto } from '../dto/create-transfer.dto';
 export class TransferController {
   constructor(private readonly transfers: TransferService) {}
 
+  /** One account per farm: there is nowhere to transfer to. Kept (not removed) so old
+   * clients get a clear 409 instead of a 404; the read routes below still serve history. */
   @Post()
   @RequirePermission('finance.transfer')
-  create(
-    @CurrentFarmId() farmId: string,
-    @CurrentUserId() userId: string,
-    @Body() dto: CreateTransferDto,
-  ) {
-    return this.transfers.createTransfer(farmId, userId, dto);
+  create(): never {
+    throw new ConflictException(
+      'Transfers are disabled: each farm has a single financial account',
+    );
   }
 
   @Get()

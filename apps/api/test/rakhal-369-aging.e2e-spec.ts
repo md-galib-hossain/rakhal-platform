@@ -9,6 +9,7 @@ import {
   TestContext,
 } from './utils/e2e';
 
+import { createExtraAccount } from './utils/finance';
 /**
  * RAKHAL-369 (MILESTONE 22, `BUSINESS_IA_PRD.md` §6.3, §9.3) — receivable/
  * payable aging. Proves the ticket's own AC against the real DB + HTTP
@@ -131,12 +132,16 @@ describe('Business Reporting — Receivable/Payable aging (e2e, RAKHAL-369)', ()
     });
     let accountId = account?.id;
     if (!accountId) {
-      const res = await request(server())
-        .post(api('/finance/accounts'))
-        .set(...bearer(owner))
-        .send({ name: 'E2E-369 Cash', type: 'CASH', openingBalance: 0 })
-        .expect(201);
-      accountId = res.body.data.id as string;
+      const res = {
+        body: {
+          data: await createExtraAccount(ctx, prisma, owner, {
+            name: 'E2E-369 Cash',
+            type: 'CASH',
+            openingBalance: 0,
+          }),
+        },
+      };
+      accountId = res.body.data.id;
     }
     const payment = await request(server())
       .post(api('/finance/payments'))
@@ -282,5 +287,41 @@ describe('Business Reporting — Receivable/Payable aging (e2e, RAKHAL-369)', ()
     const bucket = report.buckets.find((b) => b.key === 'OVERDUE_31_PLUS');
     expect(bucket?.amount).toBe('1500');
     expect(bucket?.invoiceCount).toBe(1);
+  });
+
+  it('GET /purchasing/payables/aging excludes the payable of a VOIDED purchase (closedAt set)', async () => {
+    const read = async () => {
+      const res = await request(server())
+        .get(api('/purchasing/payables/aging'))
+        .set(...bearer(owner))
+        .expect(200);
+      return res.body.data as { totalOutstanding: string; totalCount: number };
+    };
+    const before = await read();
+
+    // What `VoidDocumentUseCase.voidPurchase` leaves behind: purchase VOIDED + payable closed.
+    const purchase = await prisma.purchase.create({
+      data: {
+        farmId,
+        purchaseNumber: unique('E2E-369-PUR-VOID'),
+        purchaseDate: new Date(),
+        totalAmount: 900,
+        status: 'VOIDED',
+        createdById: ownerUserId,
+      },
+    });
+    await prisma.payable.create({
+      data: {
+        farmId,
+        purchaseId: purchase.id,
+        totalAmount: 900,
+        dueDate: daysAgo(45),
+        closedAt: new Date(),
+      },
+    });
+
+    const after = await read();
+    expect(after.totalCount).toBe(before.totalCount);
+    expect(after.totalOutstanding).toBe(before.totalOutstanding);
   });
 });

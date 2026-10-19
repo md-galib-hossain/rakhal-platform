@@ -16,6 +16,7 @@ import {
   TestContext,
 } from './utils/e2e';
 
+import { createExtraAccount } from './utils/finance';
 /**
  * RAKHAL-377 (MILESTONE 22, `BUSINESS_IA_PRD.md` §9.4, §16.2) — Void &
  * refund, the only correction mechanism. Proves the ticket's own AC against
@@ -82,14 +83,14 @@ describe('Void & refund (e2e, RAKHAL-377)', () => {
   });
 
   async function createAccount(): Promise<string> {
-    const res = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({
-        name: `E2E-377-Account-${uniqueTag()}`,
-        type: FinancialAccountType.CASH,
-      })
-      .expect(201);
+    const res = {
+      body: {
+        data: await createExtraAccount(ctx, prisma, owner, {
+          name: `E2E-377-Account-${uniqueTag()}`,
+          type: FinancialAccountType.CASH,
+        }),
+      },
+    };
     const id = (res.body as { data: { id: string } }).data.id;
     createdAccountIds.push(id);
     return id;

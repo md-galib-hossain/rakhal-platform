@@ -34,8 +34,9 @@ export class RecordOtherIncomeDto {
   @IsDateString()
   date!: string;
 
+  /** Optional: a farm has one account and the server uses it when this is omitted. */
+  @IsOptional()
   @Transform(trimString)
   @IsString()
-  @IsNotEmpty()
-  financialAccountId!: string;
+  financialAccountId?: string;
 }

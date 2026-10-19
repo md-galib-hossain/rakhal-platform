@@ -28,6 +28,7 @@ describe('FinancialAccountService', () => {
     ledgerAccount: { create: jest.Mock };
     farmCounter: { upsert: jest.Mock };
     $transaction: jest.Mock;
+    $executeRaw: jest.Mock;
   };
   let ledgerAccountService: {
     findByCode: jest.Mock;
@@ -49,6 +50,7 @@ describe('FinancialAccountService', () => {
       mfsAccountDetail: { create: jest.fn(), update: jest.fn() },
       ledgerAccount: { create: jest.fn() },
       farmCounter: { upsert: jest.fn() },
+      $executeRaw: jest.fn(),
       $transaction: jest.fn((cb: (client: unknown) => unknown) => cb(prisma)),
     };
     ledgerAccountService = {
@@ -302,6 +304,7 @@ describe('FinancialAccountService', () => {
 
     it('honors a supplied external tx instead of opening its own $transaction', async () => {
       const tx = {
+        $executeRaw: jest.fn(),
         farmCounter: { upsert: jest.fn().mockResolvedValue({ value: 9000 }) },
         ledgerAccount: {
           create: jest.fn().mockResolvedValue({ id: 'ledger-1' }),
@@ -328,36 +331,60 @@ describe('FinancialAccountService', () => {
       expect(tx.financialAccount.create).toHaveBeenCalledTimes(1);
     });
 
-    it.each([
-      ['the first live account becomes primary', null, true],
-      ['a later account does not take the primary slot', { id: 'x' }, false],
-    ])('%s', async (_label, existing, expectedPrimary) => {
+    it.each([['the first account is primary', null]])(
+      '%s',
+      async (_label, existing) => {
+        const tx = {
+          $executeRaw: jest.fn(),
+          farmCounter: { upsert: jest.fn().mockResolvedValue({ value: 9000 }) },
+          ledgerAccount: {
+            create: jest.fn().mockResolvedValue({ id: 'ledger-1' }),
+          },
+          financialAccount: {
+            findFirst: jest.fn().mockResolvedValue(existing),
+            create: jest.fn().mockResolvedValue({
+              id: 'fa-1',
+              type: FinancialAccountType.CASH,
+              ledgerAccountId: 'ledger-1',
+            }),
+          },
+        };
+
+        await make().createAccount(
+          'farm-1',
+          'user-1',
+          { name: 'Cash Box', type: FinancialAccountType.CASH },
+          tx as never,
+        );
+
+        const [args] = tx.financialAccount.create.mock.calls[0] as [
+          { data: { isPrimary: boolean } },
+        ];
+        expect(args.data.isPrimary).toBe(true);
+      },
+    );
+
+    it('rejects a second live account with 409 and creates nothing (one account per farm)', async () => {
       const tx = {
-        farmCounter: { upsert: jest.fn().mockResolvedValue({ value: 9000 }) },
-        ledgerAccount: {
-          create: jest.fn().mockResolvedValue({ id: 'ledger-1' }),
-        },
+        $executeRaw: jest.fn(),
+        farmCounter: { upsert: jest.fn() },
+        ledgerAccount: { create: jest.fn() },
         financialAccount: {
-          findFirst: jest.fn().mockResolvedValue(existing),
-          create: jest.fn().mockResolvedValue({
-            id: 'fa-1',
-            type: FinancialAccountType.CASH,
-            ledgerAccountId: 'ledger-1',
-          }),
+          findFirst: jest.fn().mockResolvedValue({ id: 'existing' }),
+          create: jest.fn(),
         },
       };
 
-      await make().createAccount(
-        'farm-1',
-        'user-1',
-        { name: 'Cash Box', type: FinancialAccountType.CASH },
-        tx as never,
-      );
-
-      const [args] = tx.financialAccount.create.mock.calls[0] as [
-        { data: { isPrimary: boolean } },
-      ];
-      expect(args.data.isPrimary).toBe(expectedPrimary);
+      await expect(
+        make().createAccount(
+          'farm-1',
+          'user-1',
+          { name: 'Second', type: FinancialAccountType.CASH },
+          tx as never,
+        ),
+      ).rejects.toThrow(ConflictException);
+      expect(tx.ledgerAccount.create).not.toHaveBeenCalled();
+      expect(tx.financialAccount.create).not.toHaveBeenCalled();
     });
   });
 

@@ -331,8 +331,12 @@ async function seedFinancialAccount(
   openingBalance: number,
   openingDate: Date,
 ): Promise<{ id: string; ledgerAccountId: string }> {
+  // One account per farm (2026-10-19): reuse the farm's live account (primary
+  // first, else oldest) whatever its name, so re-seeding a farm that still has
+  // legacy Cash/Bank rows never creates a second one.
   const existing = await prisma.financialAccount.findFirst({
-    where: { farmId, name },
+    where: { farmId, deletedAt: null },
+    orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }],
     select: { id: true, ledgerAccountId: true },
   });
   if (existing) return existing;
@@ -352,6 +356,7 @@ async function seedFinancialAccount(
       farmId,
       name,
       type,
+      isPrimary: true,
       ledgerAccountId: ledgerAccount.id,
       createdById: userId,
     },
@@ -445,22 +450,17 @@ async function seedDemoFinance(
   const now = Date.now();
   const daysAgo = (n: number): Date => new Date(now - n * 86_400_000);
 
+  // One account per farm: the single "Main Wallet" (same name the runtime
+  // resolver auto-creates). Cash + Bank opening balances merged into it.
   const cash = await seedFinancialAccount(
     farmId,
     createdBy,
-    'Cash',
+    'Main Wallet',
     FinancialAccountType.CASH,
-    300_000,
+    400_000,
     daysAgo(40),
   );
-  const bank = await seedFinancialAccount(
-    farmId,
-    createdBy,
-    'Bank',
-    FinancialAccountType.BANK,
-    100_000,
-    daysAgo(40),
-  );
+  const bank = cash;
 
   const milkSalesId = await seedLedgerAccountId(farmId, '4000');
   const salaryId = await seedLedgerAccountId(farmId, '5200');
@@ -525,7 +525,7 @@ async function seedDemoFinance(
   );
 
   console.log(
-    '✔ demo finance (v2): Cash + Bank accounts (opening balances) + 1 revenue + 3 expense postings',
+    '✔ demo finance (v2): single Main Wallet (opening balance) + 1 revenue + 3 expense postings',
   );
 }
 
@@ -1228,7 +1228,7 @@ async function seedDemoDashboardHistory(
   const cashForHistory = await seedFinancialAccount(
     farmId,
     createdBy,
-    'Cash',
+    'Main Wallet',
     FinancialAccountType.CASH,
     0,
     now,
@@ -1359,7 +1359,7 @@ async function seedDemoDashboardHistory(
       const cashForSale = await seedFinancialAccount(
         farmId,
         createdBy,
-        'Cash',
+        'Main Wallet',
         FinancialAccountType.CASH,
         0,
         now,

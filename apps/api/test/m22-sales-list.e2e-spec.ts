@@ -11,6 +11,7 @@ import {
   TestContext,
 } from './utils/e2e';
 
+import { createExtraAccount } from './utils/finance';
 /**
  * RAKHAL-368 — `GET /sales` v2: cursor, filters, payment-status projection,
  * `INV-` numbering (MILESTONE 22, `BUSINESS_IA_PRD.md` §5.9, §6.4). Proves
@@ -44,14 +45,14 @@ describe('Sales — GET /sales v2 (e2e, RAKHAL-368)', () => {
     });
     ownerUserId = user.id;
 
-    const accountRes = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({
-        name: `E2E-368-Cash-${Date.now()}`,
-        type: FinancialAccountType.CASH,
-      })
-      .expect(201);
+    const accountRes = {
+      body: {
+        data: await createExtraAccount(ctx, prisma, owner, {
+          name: `E2E-368-Cash-${Date.now()}`,
+          type: FinancialAccountType.CASH,
+        }),
+      },
+    };
     cashAccountId = (accountRes.body as { data: { id: string } }).data.id;
   }, 30_000);
 

@@ -8,6 +8,7 @@ import {
   EquipmentStockMovementReason,
   Prisma,
   Purchase,
+  PurchaseStatus,
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
@@ -25,6 +26,10 @@ import { EquipmentService } from 'src/modules/inventory/application/services/equ
 import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { PayableStatus } from '../domain/payable-status';
 import { validatePurchaseLineDetailShape } from '../domain/purchase-line-shape';
+import {
+  derivePurchasePayment,
+  PurchasePayment,
+} from '../domain/purchase-payment';
 import { assertSupplierBelongsToFarm } from '../domain/assert-supplier-in-farm';
 import { derivePayableDueDate } from '../domain/due-date';
 import { PurchaseNumberAllocator } from '../infrastructure/purchase-number.allocator';
@@ -106,6 +111,12 @@ export type PurchaseWithLines = Prisma.PurchaseGetPayload<{
   include: typeof PURCHASE_INCLUDE;
 }>;
 
+/** One row of `GET /purchasing/purchases`: the purchase, its line count, and the derived payment
+ * state (`paymentStatus` is `null` for a VOIDED purchase). */
+export type PurchaseListRow = Purchase & {
+  _count: { lines: number };
+} & PurchasePayment;
+
 /**
  * Purchase document engine (RAKHAL-348, Purchasing —
  * `FINANCE_V2_DESIGN.md` §4.3, §5.1). A `Purchase` always **increases an
@@ -145,20 +156,30 @@ export class PurchaseService {
     userId: string,
     dto: CreatePurchaseDto,
   ): Promise<PurchaseWithLines> {
-    const purchase = await this.prisma.$transaction((tx) =>
+    const { purchase, newItemNames } = await this.prisma.$transaction((tx) =>
       this.createWithClient(tx, farmId, userId, dto),
     );
 
     // RAKHAL-353: see `SellMilkUseCase.execute`'s own comment on this same
-    // call — deliberately logged after the transaction resolves.
-    await this.activityLog.record({
-      farmId,
-      module: ActivityLogModule.FINANCE,
-      eventTitle: 'Purchase Recorded',
-      actionDetails: `Purchase ${purchase.purchaseNumber}: ৳${purchase.totalAmount.toString()} across ${purchase.lines.length} line(s).`,
-      actorId: userId,
-      financialImpact: -Number(purchase.totalAmount),
-    });
+    // call — deliberately logged after the transaction resolves. The purchase is already committed,
+    // so a failed audit write must not turn it into a 500 (the caller would retry and double-post);
+    // same non-fatal handling as `VoidDocumentUseCase`.
+    try {
+      await this.activityLog.record({
+        farmId,
+        module: ActivityLogModule.FINANCE,
+        eventTitle: 'Purchase Recorded',
+        actionDetails: `Purchase ${purchase.purchaseNumber}: ৳${purchase.totalAmount.toString()} across ${purchase.lines.length} line(s).${newItemNames.length ? ` New inventory item(s) created: ${newItemNames.join(', ')}.` : ''}`,
+        actorId: userId,
+        financialImpact: -Number(purchase.totalAmount),
+      });
+    } catch (error) {
+      this.log.error('Purchase activity log failed', {
+        farmId,
+        purchaseId: purchase.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
     return purchase;
   }
@@ -168,7 +189,7 @@ export class PurchaseService {
     farmId: string,
     userId: string,
     dto: CreatePurchaseDto,
-  ): Promise<PurchaseWithLines> {
+  ): Promise<{ purchase: PurchaseWithLines; newItemNames: string[] }> {
     for (const line of dto.lines) {
       const error = validatePurchaseLineDetailShape(line);
       if (error) {
@@ -188,11 +209,6 @@ export class PurchaseService {
     if (gt(paidAmount, totalAmount)) {
       throw new BadRequestException(
         'paidAmount cannot exceed the purchase total',
-      );
-    }
-    if (gt(paidAmount, 0) && !dto.financialAccountId) {
-      throw new BadRequestException(
-        'financialAccountId is required whenever paidAmount is greater than zero',
       );
     }
     const outstanding = toStorage(subtract(totalAmount, paidAmount));
@@ -218,8 +234,9 @@ export class PurchaseService {
       },
     });
 
+    const newItemNames: string[] = [];
     for (const { line, totalAmount: lineTotal } of lineComputations) {
-      await this.createLineAndIncrementStock(
+      const createdName = await this.createLineAndIncrementStock(
         client,
         farmId,
         userId,
@@ -227,16 +244,25 @@ export class PurchaseService {
         line,
         lineTotal,
       );
+      if (createdName) newItemNames.push(createdName);
     }
 
     let financialAccountLedgerAccountId: string | null = null;
-    if (dto.financialAccountId && gt(paidAmount, 0)) {
+    if (gt(paidAmount, 0)) {
+      // One account per farm: paying now never asks which wallet.
+      const paidFromAccountId =
+        await this.financialAccountService.resolveFarmAccountId(
+          farmId,
+          userId,
+          dto.financialAccountId,
+          client,
+        );
       await this.financialAccountService.assertAccountActive(
         farmId,
-        dto.financialAccountId,
+        paidFromAccountId,
       );
       const account = await client.financialAccount.findFirst({
-        where: { id: dto.financialAccountId, farmId },
+        where: { id: paidFromAccountId, farmId },
         select: { id: true, ledgerAccountId: true },
       });
       if (!account) {
@@ -323,13 +349,20 @@ export class PurchaseService {
       outstanding: outstanding.toString(),
     });
 
-    return this.getOrThrow(client, farmId, purchase.id);
+    return {
+      purchase: await this.getOrThrow(client, farmId, purchase.id),
+      newItemNames,
+    };
   }
 
   /** Creates the `PurchaseLine` row and increments the referenced item's
    * real stock in the same transaction (RAKHAL-341's `tx` seam) — a rolled
    * back purchase rolls back the stock increment with it, unlike V1's
-   * `FinanceService.incrementInventoryStock()` which ran after commit. */
+   * `FinanceService.incrementInventoryStock()` which ran after commit.
+   * A line carrying `newItem` first creates that item with zero stock in
+   * the same transaction, then runs the normal path below, so the stock only
+   * ever arrives with the purchase's own lot and ledger posting. Returns the
+   * new item's name when one was created. */
   private async createLineAndIncrementStock(
     client: Prisma.TransactionClient,
     farmId: string,
@@ -337,13 +370,29 @@ export class PurchaseService {
     purchase: Purchase,
     line: CreatePurchaseLineDto,
     lineTotal: Prisma.Decimal,
-  ): Promise<void> {
+  ): Promise<string | null> {
     const quantity = toStorage(line.quantity).toNumber();
     const unitCost = toStorage(line.unitCost);
 
-    if (line.medicineId) {
+    const target = line.newItem
+      ? await this.createNewItem(
+          client,
+          farmId,
+          userId,
+          purchase,
+          line,
+          unitCost.toNumber(),
+        )
+      : {
+          medicineId: line.medicineId,
+          feedItemId: line.feedItemId,
+          equipmentId: line.equipmentId,
+        };
+    const createdName = line.newItem?.name ?? null;
+
+    if (target.medicineId) {
       const medicine = await client.medicine.findFirst({
-        where: { id: line.medicineId, farmId },
+        where: { id: target.medicineId, farmId },
         select: { id: true },
       });
       if (!medicine) {
@@ -380,12 +429,12 @@ export class PurchaseService {
           totalAmount: lineTotal,
         },
       });
-      return;
+      return createdName;
     }
 
-    if (line.feedItemId) {
+    if (target.feedItemId) {
       const feedItem = await client.feedItem.findFirst({
-        where: { id: line.feedItemId, farmId },
+        where: { id: target.feedItemId, farmId },
         select: { id: true },
       });
       if (!feedItem) {
@@ -419,13 +468,13 @@ export class PurchaseService {
           totalAmount: lineTotal,
         },
       });
-      return;
+      return createdName;
     }
 
     // Shape already validated by `validatePurchaseLineDetailShape` — the
     // only remaining branch is `equipmentId`.
     const equipment = await client.equipment.findFirst({
-      where: { id: line.equipmentId, farmId },
+      where: { id: target.equipmentId ?? undefined, farmId },
       select: { id: true },
     });
     if (!equipment) {
@@ -451,6 +500,103 @@ export class PurchaseService {
       },
       client,
     );
+    return createdName;
+  }
+
+  /**
+   * Creates the line's `newItem` with **zero stock** inside the purchase transaction and returns the
+   * FK to put on the line. The lot (and with it the stock) is added by the caller's normal path, so an
+   * item can never exist with units on the shelf but no ledger posting. Everything runs on `client`,
+   * so a later failure (bad payment, unbalanced journal, …) rolls the new item back too.
+   */
+  private async createNewItem(
+    client: Prisma.TransactionClient,
+    farmId: string,
+    userId: string,
+    purchase: Purchase,
+    line: CreatePurchaseLineDto,
+    unitCost: number,
+  ): Promise<{
+    medicineId?: string;
+    feedItemId?: string;
+    equipmentId?: string;
+  }> {
+    const item = line.newItem!;
+    if (item.unitId) {
+      const unit = await client.unit.findFirst({
+        where: {
+          id: item.unitId,
+          deletedAt: null,
+          OR: [{ farmId: null }, { farmId }],
+        },
+        select: { id: true },
+      });
+      if (!unit) {
+        throw new BadRequestException('newItem.unitId not found for this farm');
+      }
+    }
+
+    switch (item.kind) {
+      case 'MEDICINE': {
+        const row = await this.medicineService.createCatalogRowInTx(
+          farmId,
+          userId,
+          {
+            name: item.name,
+            type: item.medicineType!,
+            category: item.medicineCategory!,
+            unitId: item.unitId!,
+            manufacturer: item.manufacturer,
+            lowStockThreshold: item.lowStockThreshold,
+            milkWithdrawalDays: item.milkWithdrawalDays,
+            meatWithdrawalDays: item.meatWithdrawalDays,
+            notes: item.notes,
+            purchaseDate: purchase.purchaseDate,
+            expiryDate: new Date(line.expiryDate!),
+            costPerUnit: unitCost,
+          },
+          client,
+        );
+        return { medicineId: row.id };
+      }
+      case 'FEED': {
+        const row = await this.feedItemService.createCatalogRowInTx(
+          farmId,
+          userId,
+          {
+            name: item.name,
+            feedClass: item.feedClass!,
+            feedSubType: item.feedSubType,
+            ingredientId: item.ingredientId,
+            nutrition: item.nutrition,
+            unitId: item.unitId!,
+            kgPerUnit: item.kgPerUnit,
+            lowStockThreshold: item.lowStockThreshold,
+            notes: item.notes,
+          },
+          client,
+        );
+        return { feedItemId: row.id };
+      }
+      case 'EQUIPMENT': {
+        const row = await this.equipmentService.createCatalogRowInTx(
+          farmId,
+          userId,
+          {
+            name: item.name,
+            assetId: item.assetId,
+            type: item.equipmentType,
+            unitId: item.unitId,
+            lowStockThreshold: item.lowStockThreshold,
+            notes: item.notes,
+            purchaseDate: purchase.purchaseDate,
+            costPerUnit: unitCost,
+          },
+          client,
+        );
+        return { equipmentId: row.id };
+      }
+    }
   }
 
   async findOne(farmId: string, id: string): Promise<PurchaseWithLines> {
@@ -467,7 +613,7 @@ export class PurchaseService {
   async findAll(
     farmId: string,
     query: ListPurchasesQueryDto,
-  ): Promise<CursorPage<Purchase & { _count: { lines: number } }>> {
+  ): Promise<CursorPage<PurchaseListRow>> {
     const where: Prisma.PurchaseWhereInput = {
       farmId,
       ...(query.supplierId ? { supplierId: query.supplierId } : {}),
@@ -479,8 +625,12 @@ export class PurchaseService {
             },
           }
         : {}),
+      // A voided purchase is neither paid nor owed, so it never matches a payment-status filter.
       ...(query.paymentStatus
-        ? buildPurchasePaymentStatusWhere(query.paymentStatus)
+        ? {
+            ...buildPurchasePaymentStatusWhere(query.paymentStatus),
+            status: { not: PurchaseStatus.VOIDED },
+          }
         : {}),
     };
 
@@ -488,10 +638,46 @@ export class PurchaseService {
       where,
       orderBy: [{ purchaseDate: query.sortOrder }, { id: query.sortOrder }],
       ...getCursorArgs(query),
-      include: { _count: { select: { lines: true } } },
+      include: {
+        _count: { select: { lines: true } },
+        payable: { select: { id: true, totalAmount: true, dueDate: true } },
+      },
     });
 
-    return toCursorPage(rows, query);
+    const page = toCursorPage(rows, query);
+
+    // Payment state is derived here (one grouped read for the page) so the client never has to match
+    // a purchase against `GET /purchasing/payables?limit=100`.
+    const payableIds = page.items.flatMap((r) =>
+      r.payable ? [r.payable.id] : [],
+    );
+    const sums = payableIds.length
+      ? await this.prisma.paymentAllocation.groupBy({
+          by: ['payableId'],
+          where: { payableId: { in: payableIds } },
+          _sum: { amount: true },
+        })
+      : [];
+    const allocatedById = new Map(
+      sums.map((s) => [s.payableId as string, s._sum.amount ?? 0]),
+    );
+
+    const items: PurchaseListRow[] = page.items.map(({ payable, ...row }) => ({
+      ...row,
+      ...derivePurchasePayment(
+        row.totalAmount.toString(),
+        row.status === PurchaseStatus.VOIDED,
+        payable
+          ? {
+              totalAmount: payable.totalAmount.toString(),
+              dueDate: payable.dueDate,
+            }
+          : null,
+        (allocatedById.get(payable?.id ?? '') ?? 0).toString(),
+      ),
+    }));
+
+    return { items, meta: page.meta };
   }
 
   /** RAKHAL-365: `Payable.dueDate` defaults to `purchaseDate +

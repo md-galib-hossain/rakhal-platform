@@ -13,6 +13,7 @@ import {
   loginAs,
   TestContext,
 } from './utils/e2e';
+import { createExtraAccount } from './utils/finance';
 
 /**
  * RAKHAL-337 — `FinancePayment` + `PaymentAllocation` (`FINANCE_V2_DESIGN.md`
@@ -110,14 +111,7 @@ describe('Finance V2 — Payments (e2e)', () => {
         phoneNumber: '01700000000',
       };
     }
-    const res = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(user))
-      .send(body)
-      .expect(201);
-    const account = (
-      res.body as { data: { id: string; ledgerAccountId: string } }
-    ).data;
+    const account = await createExtraAccount(ctx, prisma, user, body);
     createdAccountIds.push(account.id);
     createdLedgerAccountIds.push(account.ledgerAccountId);
     return account;

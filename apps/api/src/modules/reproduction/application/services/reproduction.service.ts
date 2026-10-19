@@ -521,16 +521,6 @@ export class ReproductionService {
       semenSource === SemenSource.FARM_INVENTORY
         ? inventoryBatchName
         : (serviceProvider?.name ?? dto.semenCompany ?? 'Breeding service');
-    if (
-      resolvedCost > 0 &&
-      semenSource !== SemenSource.FARM_INVENTORY &&
-      !dto.financialAccountId
-    ) {
-      throw new BadRequestException(
-        'financialAccountId is required when a breeding service cost is being recorded',
-      );
-    }
-
     const breedingNumber =
       dto.breedingNumber ??
       (await this.prisma.breedingEvent.count({
@@ -643,13 +633,18 @@ export class ReproductionService {
           },
         );
         postedExpenseId = posted.id;
-      } else if (dto.financialAccountId) {
+      } else {
         const posted = await this.expenseService.recordExpense(farmId, userId, {
           category: ExpenseCategory.BREEDING,
           description: `${costEntityName ?? 'Breeding service'} — Breeding #${breedingEvent.breedingNumber} (${dto.breedingMethod})`,
           amount: resolvedCost,
           expenseDate: breedingDate.toISOString(),
-          financialAccountId: dto.financialAccountId,
+          // One account per farm: the fee is paid from it, no wallet to pick.
+          financialAccountId: await this.expenseService.resolveAccountId(
+            farmId,
+            userId,
+            dto.financialAccountId,
+          ),
           cattleId: dto.cattleId,
         });
         postedExpenseId = posted.id;
@@ -2469,6 +2464,9 @@ export class ReproductionService {
         details: {
           detection_method: h.detectionMethod,
           standing_heat: h.standingHeat,
+          // Closed heats (false alarm / skipped cycle / inseminated) must read as closed in the feed.
+          resolution: h.resolutionReason,
+          resolved_at: h.resolvedAt,
         },
       })),
       ...breedings.map((b) => ({

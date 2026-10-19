@@ -356,23 +356,27 @@ export class VoidSaleUseCase {
     saleLineId: string,
     saleNumber: string,
   ): Promise<void> {
-    const auditLog = await client.milkTankAuditLog.findFirst({
+    // A sale may have drawn from several tanks (one SALE audit row each) — credit
+    // every one back. Over-capacity is allowed: the tank may have refilled since.
+    const auditLogs = await client.milkTankAuditLog.findMany({
       where: { farmId, saleLineId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
     });
-    if (!auditLog) return; // no tank was ever decremented for this line
-    await this.milkTankService.adjustVolume(
-      farmId,
-      userId,
-      auditLog.milkTankId,
-      {
-        delta: -auditLog.quantityL,
-        activityType: 'ADJUSTMENT',
-        source: 'sale_void',
-        notes: `Void of sale ${saleNumber} — credited back`,
-      },
-      client,
-    );
+    for (const auditLog of auditLogs) {
+      await this.milkTankService.adjustVolume(
+        farmId,
+        userId,
+        auditLog.milkTankId,
+        {
+          delta: -auditLog.quantityL,
+          activityType: 'ADJUSTMENT',
+          source: 'sale_void',
+          notes: `Void of sale ${saleNumber} — credited back`,
+        },
+        client,
+        { allowOverCapacity: true },
+      );
+    }
   }
 
   private async restockInventoryLine(

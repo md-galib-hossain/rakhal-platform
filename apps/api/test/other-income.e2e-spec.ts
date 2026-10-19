@@ -9,6 +9,7 @@ import {
   TestContext,
 } from './utils/e2e';
 
+import { createExtraAccount } from './utils/finance';
 /**
  * RAKHAL-350 — `IncomeCategory` + `OtherIncome` (`FINANCE_V2_DESIGN.md`
  * §1.3, §5.1). Proves the ticket's own AC against the real DB + HTTP
@@ -50,14 +51,14 @@ describe('Finance V2 — Other Income (e2e)', () => {
   const createAccount = async (
     user: AuthedUser,
   ): Promise<{ id: string; ledgerAccountId: string }> => {
-    const res = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(user))
-      .send({
-        name: uniqueName('OtherIncome-Cash'),
-        type: FinancialAccountType.CASH,
-      })
-      .expect(201);
+    const res = {
+      body: {
+        data: await createExtraAccount(ctx, prisma, user, {
+          name: uniqueName('OtherIncome-Cash'),
+          type: FinancialAccountType.CASH,
+        }),
+      },
+    };
     const account = (
       res.body as { data: { id: string; ledgerAccountId: string } }
     ).data;

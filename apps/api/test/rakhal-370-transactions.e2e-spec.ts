@@ -9,6 +9,8 @@ import {
   TestContext,
 } from './utils/e2e';
 
+import { createExtraAccount } from './utils/finance';
+import { TransferService } from 'src/modules/finance-v2/transfers/application/transfer.service';
 /**
  * RAKHAL-370 (MILESTONE 22, `BUSINESS_IA_PRD.md` §5.3, §5.14, §9.1) —
  * unified Transactions feed. Proves the ticket's own AC against the real DB
@@ -59,18 +61,26 @@ describe('Business Reporting — Transactions feed (e2e, RAKHAL-370)', () => {
     farmId = throwaway.farmId;
     owner = throwaway.owner;
 
-    const accountA = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({ name: 'E2E-370 Cash A', type: 'CASH', openingBalance: 1000 })
-      .expect(201);
+    const accountA = {
+      body: {
+        data: await createExtraAccount(ctx, prisma, owner, {
+          name: 'E2E-370 Cash A',
+          type: 'CASH',
+          openingBalance: 1000,
+        }),
+      },
+    };
     accountAId = accountA.body.data.id as string;
 
-    const accountB = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({ name: 'E2E-370 Cash B', type: 'CASH', openingBalance: 0 })
-      .expect(201);
+    const accountB = {
+      body: {
+        data: await createExtraAccount(ctx, prisma, owner, {
+          name: 'E2E-370 Cash B',
+          type: 'CASH',
+          openingBalance: 0,
+        }),
+      },
+    };
     accountBId = accountB.body.data.id as string;
 
     const supplier = await prisma.supplier.create({
@@ -126,16 +136,20 @@ describe('Business Reporting — Transactions feed (e2e, RAKHAL-370)', () => {
   });
 
   it('Transfer row: one row naming both accounts, cashAmount 0 with no fee', async () => {
-    await request(server())
-      .post(api('/finance/transfers'))
-      .set(...bearer(owner))
-      .send({
+    // The HTTP route is retired (one account per farm); legacy multi-account farms still hold
+    // transfers, so exercise the service directly.
+    const ownerRow = await prisma.user.findFirstOrThrow({
+      where: { email: 'owner@demo.rakhal.test' },
+      select: { id: true },
+    });
+    await ctx.app
+      .get(TransferService)
+      .createTransfer(owner.farmId, ownerRow.id, {
         fromFinancialAccountId: accountAId,
         toFinancialAccountId: accountBId,
         amount: 200,
         transactionDate: new Date().toISOString(),
-      })
-      .expect(201);
+      } as never);
 
     const res = await request(server())
       .get(api('/finance/transactions?type=FINANCE_TRANSFER'))

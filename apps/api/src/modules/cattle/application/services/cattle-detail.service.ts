@@ -271,6 +271,8 @@ export class CattleDetailService {
           farmId,
           cattleId,
           category: ExpenseCategory.BREEDING,
+          // A voided / edited-away breeding cost must not stay on the chart.
+          voidedAt: null,
           expenseDate: { gte: chartStart },
         },
         select: { amount: true, expenseDate: true },

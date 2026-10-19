@@ -175,6 +175,74 @@ export class FeedItemService {
     }
   }
 
+  /**
+   * Product row + its default nutrition profile, **no lot and zero stock** — for a caller that owns the
+   * transaction and adds the first lot itself via `createBatchInTx` (`PurchaseService`'s inline
+   * `newItem`). Stock arrives only through the purchase's own lot, so it is always posted to the ledger.
+   * Same nutrition rule as `create` (typed profile or a catalogue ingredient to copy from). No Activity
+   * Log entry: the purchase owns the audit trail.
+   */
+  async createCatalogRowInTx(
+    farmId: string,
+    userId: string,
+    input: {
+      name: string;
+      feedClass: CreateFeedItemDto['feedClass'];
+      feedSubType?: CreateFeedItemDto['feedSubType'];
+      ingredientId?: string;
+      nutrition?: NutritionInputDto;
+      unitId: string;
+      kgPerUnit?: number;
+      lowStockThreshold?: number;
+      supplier?: string;
+      notes?: string;
+    },
+    tx: Prisma.TransactionClient,
+  ): Promise<{ id: string }> {
+    if (!input.nutrition && !input.ingredientId) {
+      throw new BadRequestException(
+        'A new feed item needs a nutrition profile or a catalogue ingredient to copy it from',
+      );
+    }
+    if (input.ingredientId) {
+      const found = await tx.feedIngredient.findUnique({
+        where: { id: input.ingredientId },
+        select: { id: true },
+      });
+      if (!found) throw new BadRequestException('Linked ingredient not found');
+    }
+    const profile = input.nutrition
+      ? await this.profiles.create(
+          farmId,
+          userId,
+          this.profileInput(input.nutrition),
+          tx,
+        )
+      : await this.profiles.createFromIngredient(
+          farmId,
+          userId,
+          input.ingredientId!,
+          tx,
+        );
+    return tx.feedItem.create({
+      data: {
+        farmId,
+        name: input.name,
+        feedClass: input.feedClass,
+        feedSubType: input.feedSubType,
+        ingredientId: input.ingredientId,
+        defaultNutritionProfileId: profile.id,
+        unitId: input.unitId,
+        kgPerUnit: input.kgPerUnit,
+        lowStockThreshold: input.lowStockThreshold ?? 0,
+        supplier: input.supplier,
+        notes: input.notes,
+        createdBy: userId,
+      },
+      select: { id: true },
+    });
+  }
+
   async findAll(
     farmId: string,
     query: ListFeedItemQueryDto,

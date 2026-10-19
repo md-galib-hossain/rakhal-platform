@@ -134,12 +134,20 @@ export class IncomeService {
       throw new NotFoundException('Income category not found');
     }
 
+    // One account per farm: the caller no longer picks a wallet.
+    const financialAccountId =
+      await this.financialAccountService.resolveFarmAccountId(
+        farmId,
+        userId,
+        dto.financialAccountId,
+        client,
+      );
     await this.financialAccountService.assertAccountActive(
       farmId,
-      dto.financialAccountId,
+      financialAccountId,
     );
     const account = await client.financialAccount.findFirst({
-      where: { id: dto.financialAccountId, farmId },
+      where: { id: financialAccountId, farmId },
       select: { id: true, ledgerAccountId: true },
     });
     if (!account) {

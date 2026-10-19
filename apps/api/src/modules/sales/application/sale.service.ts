@@ -88,6 +88,11 @@ function deriveSalePaymentStatus(
   if (!receivable) {
     return ReceivableStatus.PAID;
   }
+  // A closed receivable owes nothing: it was settled, or its sale was voided (`closedAt` is set
+  // without allocations). The SQL `PAID` filter already keys on `closedAt`, so the row must agree.
+  if (receivable.closedAt) {
+    return ReceivableStatus.PAID;
+  }
 
   let status: ReceivableStatus;
   if (isZero(allocated)) {
@@ -461,9 +466,10 @@ export class SaleService {
       ? toStorage(allocatedByReceivableId.get(receivable.id) ?? 0)
       : toStorage(0);
     const paidAmount = receivable ? allocated : toStorage(sale.totalAmount);
-    const dueAmount = receivable
-      ? clampNonNegative(subtract(receivable.totalAmount, allocated))
-      : toStorage(0);
+    const dueAmount =
+      receivable && !receivable.closedAt
+        ? clampNonNegative(subtract(receivable.totalAmount, allocated))
+        : toStorage(0);
     const paymentStatus = deriveSalePaymentStatus(
       receivable,
       allocated,

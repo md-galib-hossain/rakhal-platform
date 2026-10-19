@@ -2,7 +2,6 @@ import { Transform } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
-  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsPositive,
@@ -22,10 +21,11 @@ export class CreatePaymentDto {
   @IsEnum(PaymentDirection)
   direction!: PaymentDirection;
 
+  /** Optional: a farm has one account and the server uses it when this is omitted. */
+  @IsOptional()
   @Transform(trimString)
   @IsString()
-  @IsNotEmpty()
-  financialAccountId!: string;
+  financialAccountId?: string;
 
   @IsNumber()
   @IsPositive()

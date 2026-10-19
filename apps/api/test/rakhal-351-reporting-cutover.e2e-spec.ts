@@ -9,6 +9,7 @@ import {
   TestContext,
 } from './utils/e2e';
 
+import { createExtraAccount } from './utils/finance';
 /**
  * RAKHAL-351 — re-point every finance reader at the ledger. Proves the
  * actual bug this ticket fixes: before this change, `DashboardService`
@@ -79,11 +80,14 @@ describe('RAKHAL-351 — dashboard/reports see V2 ledger activity (e2e)', () => 
       before.body as { data: { income: { current: number } } }
     ).data.income.current;
 
-    const accountRes = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({ name: uniqueName('R351-Cash'), type: FinancialAccountType.CASH })
-      .expect(201);
+    const accountRes = {
+      body: {
+        data: await createExtraAccount(ctx, prisma, owner, {
+          name: uniqueName('R351-Cash'),
+          type: FinancialAccountType.CASH,
+        }),
+      },
+    };
     const account = (
       accountRes.body as { data: { id: string; ledgerAccountId: string } }
     ).data;
@@ -140,11 +144,14 @@ describe('RAKHAL-351 — dashboard/reports see V2 ledger activity (e2e)', () => 
     const incomeBefore =
       months.find((m) => m.month === currentKey)?.income ?? 0;
 
-    const accountRes = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({ name: uniqueName('R351-Cash2'), type: FinancialAccountType.CASH })
-      .expect(201);
+    const accountRes = {
+      body: {
+        data: await createExtraAccount(ctx, prisma, owner, {
+          name: uniqueName('R351-Cash2'),
+          type: FinancialAccountType.CASH,
+        }),
+      },
+    };
     const account = (
       accountRes.body as { data: { id: string; ledgerAccountId: string } }
     ).data;

@@ -298,6 +298,14 @@ model TreatmentLog {
   /// medicine or the medicine's `costPerUnit` was 0 — nothing to post.
   financeTransactionId String?
 
+  /// Vet fee for this treatment (cash cost, unlike the medicine's inventory
+  /// consumption above). `vetExpenseId` is the `Expense.id` posted for it
+  /// (`ExpenseService.recordExpense`, paid from a chosen FinancialAccount);
+  /// reversed on void. Plain scalar, same cross-module-FK convention as
+  /// `financeTransactionId`.
+  vetCost      Decimal?
+  vetExpenseId String?
+
   /// Protocols v2 undo: a recorded dose entered by mistake is *voided*, never deleted - the stock goes back to the
   /// batch(es) it came from, the Finance expense is reversed and its safety withdrawal cancelled. A voided log stays
   /// for the audit trail and is excluded from costs, counts and reports (`voidedAt: null` filter).

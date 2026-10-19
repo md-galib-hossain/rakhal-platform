@@ -15,8 +15,10 @@ import {
  * body. No use-case logic change.
  */
 export class PaySupplierDto {
+  /** Optional: a farm has one account and the server uses it when this is omitted. */
+  @IsOptional()
   @IsString()
-  financialAccountId!: string;
+  financialAccountId?: string;
 
   @IsPositive()
   amount!: number;

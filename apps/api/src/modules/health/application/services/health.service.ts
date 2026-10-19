@@ -1279,6 +1279,13 @@ export class HealthService {
         userId,
       );
     }
+    if (log.vetExpenseId) {
+      await this.expenseService.voidInventoryConsumption(
+        farmId,
+        log.vetExpenseId,
+        userId,
+      );
+    }
 
     const taskId = log.healthTaskId;
     await this.prisma.$transaction(async (tx) => {
@@ -1322,8 +1329,60 @@ export class HealthService {
         await this.updateEnrollmentProgress(this.prisma, task.planEnrollmentId);
       }
     }
+    // The "Treatment Completed" (+3) the dose earned goes back too, and the
+    // void itself lands in the immutable Activity Log (before this, a voided
+    // dose kept its score and left no trace).
+    await this.reverseAqrNear(
+      farmId,
+      log.cattleId,
+      'Treatment Completed',
+      log.createdAt,
+      userId,
+      `Treatment ${log.id} voided${reason ? ` — ${reason}` : ''}.`,
+    );
+    await this.activityLog.record({
+      farmId,
+      module: ActivityLogModule.HEALTH_SAFETY,
+      eventTitle: 'Voided: Treatment',
+      actionDetails: `Treatment ${log.id} voided${reason ? ` — ${reason}` : ''} (stock restored, cost reversed).`,
+      actorId: userId,
+      relatedCattleId: log.cattleId,
+    });
     this.log.info('Treatment voided', { farmId, treatmentLogId: log.id });
     return { id: log.id, voided: true };
+  }
+
+  /**
+   * Reverses the AQR event an action earned (found by title, cow and the few
+   * seconds after the action's row was created — the event is applied right
+   * after commit). Relative, so later score changes survive. Best-effort: a
+   * missing event (action never scored) is a no-op, never an error.
+   */
+  private async reverseAqrNear(
+    farmId: string,
+    cattleId: string,
+    eventTitle: string,
+    since: Date,
+    userId: string,
+    actionDetails: string,
+  ) {
+    const source = await this.prisma.activityLog.findFirst({
+      where: {
+        farmId,
+        relatedCattleId: cattleId,
+        eventTitle,
+        aqrImpact: { not: null },
+        timestamp: { gte: since, lte: new Date(since.getTime() + 60_000) },
+      },
+      orderBy: { timestamp: 'asc' },
+      select: { id: true },
+    });
+    if (!source) return;
+    await this.aqrService.reverseEvent(farmId, cattleId, source.id, {
+      actorId: userId,
+      actionDetails,
+      relative: true,
+    });
   }
 
   /** Voids every live dose of the given plan steps, then deletes the steps. Returns how many of each. */
@@ -1583,11 +1642,20 @@ export class HealthService {
       : null;
     if (dto.healthTaskId && !task)
       throw new BadRequestException('Health task must belong to case');
+    if (dto.outsideInventory && !dto.medicineName?.trim()) {
+      throw new BadRequestException(
+        'medicineName is required when the medicine is not in inventory',
+      );
+    }
+    const vetCost = dto.vetCost && dto.vetCost > 0 ? dto.vetCost : undefined;
 
     // Inventory decrement (HLT-07): consume medicine stock before logging the
     // treatment, so an expired batch (HLT-02) or insufficient stock (INV-02)
     // aborts the whole action. Only runs when a medicine + quantity is given.
-    const medicineId = dto.medicineId ?? task?.medicineId ?? undefined;
+    // A hand-typed medicine (`outsideInventory`) never touches stock or cost.
+    const medicineId = dto.outsideInventory
+      ? undefined
+      : (dto.medicineId ?? task?.medicineId ?? undefined);
     const medicineName = dto.medicineName ?? task?.medicineName ?? undefined;
     // Protocols v2: with no typed dose, the plan step's own dose (in its own unit) is what is given.
     const typedQuantity = dto.stockDeductionQuantity ?? dto.doseAmount;
@@ -1616,7 +1684,10 @@ export class HealthService {
     // RD-084: no `financialAccountId` guard here anymore — consumption never
     // touches cash (see `recordInventoryConsumption`'s own doc comment).
     const deduction =
-      quantity && quantity > 0 && (medicineId || medicineName)
+      !dto.outsideInventory &&
+      quantity &&
+      quantity > 0 &&
+      (medicineId || medicineName)
         ? await this.medicineService.decrementForTreatment(farmId, userId, {
             medicineId,
             medicineName,
@@ -1649,6 +1720,7 @@ export class HealthService {
             : dto.stockDeductionQuantity,
           batchNo: deduction?.batchId ?? dto.batchNo,
           notes: dto.notes,
+          vetCost,
         },
       });
       if (task) {
@@ -1692,6 +1764,31 @@ export class HealthService {
       log.treatmentLog = await this.prisma.treatmentLog.update({
         where: { id: log.treatmentLog.id },
         data: { financeTransactionId: posted.id },
+      });
+    }
+
+    // Vet fee: a real cash cost (unlike the inventory consumption above), paid
+    // from the chosen account. Posted after the log commits, same convention.
+    if (vetCost) {
+      const vetExpense = await this.expenseService.recordExpense(
+        farmId,
+        userId,
+        {
+          category: ExpenseCategory.HEALTH,
+          description: `Vet fee — Case ${healthCase.caseCode}`,
+          amount: vetCost,
+          expenseDate: log.treatmentLog.administeredAt.toISOString(),
+          financialAccountId: await this.expenseService.resolveAccountId(
+            farmId,
+            userId,
+            dto.financialAccountId,
+          ),
+          cattleId: healthCase.cattleId,
+        },
+      );
+      log.treatmentLog = await this.prisma.treatmentLog.update({
+        where: { id: log.treatmentLog.id },
+        data: { vetExpenseId: vetExpense.id },
       });
     }
 
@@ -1776,17 +1873,32 @@ export class HealthService {
       throw new BadRequestException('cattleIds must not be empty');
     }
 
-    const medicine = await this.prisma.medicine.findFirst({
-      where: { id: dto.medicineId, farmId, deletedAt: null },
-      select: {
-        id: true,
-        name: true,
-        costPerUnit: true,
-        milkWithdrawalDays: true,
-        meatWithdrawalDays: true,
-      },
-    });
-    if (!medicine) throw new NotFoundException('Medicine not found');
+    const manual = Boolean(dto.outsideInventory);
+    if (manual && !dto.medicineName?.trim()) {
+      throw new BadRequestException(
+        'medicineName is required when the medicine is not in inventory',
+      );
+    }
+    if (!manual && !dto.medicineId) {
+      throw new BadRequestException('medicineId is required');
+    }
+    const vetCost = dto.vetCost && dto.vetCost > 0 ? dto.vetCost : undefined;
+
+    const medicine = manual
+      ? null
+      : await this.prisma.medicine.findFirst({
+          where: { id: dto.medicineId, farmId, deletedAt: null },
+          select: {
+            id: true,
+            name: true,
+            costPerUnit: true,
+            milkWithdrawalDays: true,
+            meatWithdrawalDays: true,
+          },
+        });
+    if (!manual && !medicine) throw new NotFoundException('Medicine not found');
+    const medicineLabel = manual ? dto.medicineName!.trim() : medicine!.name;
+    let vetPosted = false;
 
     // Validate every animal belongs to this farm before writing anything —
     // same all-or-nothing rule RAKHAL-414's bulk apply uses.
@@ -1826,20 +1938,18 @@ export class HealthService {
       // transaction — same convention `logTreatment` already uses (a batch
       // pick / insufficient-stock failure must abort before any log row for
       // that animal is written, not roll back a shared multi-animal tx).
-      const deduction = await this.medicineService.decrementForTreatment(
-        farmId,
-        userId,
-        {
-          medicineId: dto.medicineId,
-          quantity: dto.doseAmount,
-          doseUnitId: dto.doseUnitId,
-          notes: `Quick treatment for ${cattle.tagNumber}`,
-        },
-      );
+      const deduction = manual
+        ? null
+        : await this.medicineService.decrementForTreatment(farmId, userId, {
+            medicineId: dto.medicineId,
+            quantity: dto.doseAmount,
+            doseUnitId: dto.doseUnitId,
+            notes: `Quick treatment for ${cattle.tagNumber}`,
+          });
       // RAKHAL-437: priced from this animal's own actual draw (batches
       // deplete across animals in the loop, so different animals can draw
       // from different-cost lots) rather than one shared product-level guess.
-      const resolvedCost = deduction.totalCost;
+      const resolvedCost = deduction?.totalCost ?? 0;
 
       const { healthCaseId, treatmentLog, withdrawal, autoClosed } =
         await this.prisma.$transaction(async (tx) => {
@@ -1851,7 +1961,7 @@ export class HealthService {
                 cattleId: cattle.id,
                 caseCode: await this.nextCaseCode(farmId, tx),
                 note:
-                  dto.reason?.trim() || `Quick treatment — ${medicine.name}`,
+                  dto.reason?.trim() || `Quick treatment — ${medicineLabel}`,
                 careType: HealthCareType.CURATIVE,
                 priority: HealthPriority.LOW,
                 shedId: cattle.shedId,
@@ -1864,28 +1974,33 @@ export class HealthService {
               farmId,
               cattleId: cattle.id,
               healthCaseId: targetCase.id,
-              medicineId: deduction.medicineId,
-              medicineName: medicine.name,
+              medicineId: deduction?.medicineId,
+              medicineName: medicineLabel,
               doseAmount: dto.doseAmount,
               doseUnit: dto.doseUnit,
               route: dto.route,
               administeredAt: treatedAt,
               administeredBy: userId,
-              stockDeducted: true,
-              stockDeductionQuantity: dto.doseAmount,
-              batchNo: deduction.batchId,
+              stockDeducted: Boolean(deduction),
+              stockDeductionQuantity: deduction ? dto.doseAmount : undefined,
+              batchNo: deduction?.batchId,
               notes: dto.notes,
+              vetCost: vetCost && !vetPosted ? vetCost : undefined,
             },
           });
 
-          await this.stampMovements(tx, deduction.movementIds, treatmentLog.id);
+          await this.stampMovements(
+            tx,
+            deduction?.movementIds,
+            treatmentLog.id,
+          );
           const withdrawal = await this.createSafetyWithdrawalIfNeeded(
             tx,
             targetCase,
             treatmentLog,
             {
-              milkWithdrawalDays: medicine.milkWithdrawalDays || undefined,
-              meatWithdrawalDays: medicine.meatWithdrawalDays || undefined,
+              milkWithdrawalDays: medicine?.milkWithdrawalDays || undefined,
+              meatWithdrawalDays: medicine?.meatWithdrawalDays || undefined,
             },
           );
 
@@ -1909,7 +2024,7 @@ export class HealthService {
           userId,
           {
             category: ExpenseCategory.HEALTH,
-            description: `${medicine.name} — Quick treatment for [${cattle.tagNumber}]`,
+            description: `${medicineLabel} — Quick treatment for [${cattle.tagNumber}]`,
             amount: resolvedCost,
             expenseDate: treatedAt.toISOString(),
             cattleId: cattle.id,
@@ -1921,6 +2036,31 @@ export class HealthService {
         });
       }
 
+      // One vet fee for the visit, carried by the first animal's log.
+      if (vetCost && !vetPosted) {
+        vetPosted = true;
+        const vetExpense = await this.expenseService.recordExpense(
+          farmId,
+          userId,
+          {
+            category: ExpenseCategory.HEALTH,
+            description: `Vet fee — Quick treatment (${medicineLabel})`,
+            amount: vetCost,
+            expenseDate: treatedAt.toISOString(),
+            financialAccountId: await this.expenseService.resolveAccountId(
+              farmId,
+              userId,
+              dto.financialAccountId,
+            ),
+            cattleId: cattle.id,
+          },
+        );
+        await this.prisma.treatmentLog.update({
+          where: { id: treatmentLog.id },
+          data: { vetExpenseId: vetExpense.id },
+        });
+      }
+
       await this.notifyCaseAutoClosed(autoClosed, userId);
 
       await this.aqrService.applyEvent(
@@ -1929,7 +2069,7 @@ export class HealthService {
         'treatment_completed',
         {
           actorId: userId,
-          actionDetails: `Quick treatment administered for [${cattle.tagNumber}] — ${medicine.name}.`,
+          actionDetails: `Quick treatment administered for [${cattle.tagNumber}] — ${medicineLabel}.`,
         },
       );
 
@@ -2061,6 +2201,8 @@ export class HealthService {
     dto: MortalityDto,
   ) {
     const healthCase = await this.getCaseOrThrow(farmId, id);
+    const disposalCost =
+      dto.disposalCost && dto.disposalCost > 0 ? dto.disposalCost : undefined;
     const result = await this.prisma.$transaction(async (tx) => {
       const mortality = await tx.mortalityRecord.create({
         data: {
@@ -2116,6 +2258,23 @@ export class HealthService {
       userId,
       CattleDispositionType.DEATH,
     );
+
+    // Carcass disposal is a real cash cost: post it to Finance (it was stored
+    // on the MortalityRecord but never reached the books).
+    if (disposalCost) {
+      await this.expenseService.recordExpense(farmId, userId, {
+        category: ExpenseCategory.HEALTH,
+        description: `Carcass disposal — Case ${healthCase.caseCode}`,
+        amount: disposalCost,
+        expenseDate: new Date(dto.deathDate).toISOString(),
+        financialAccountId: await this.expenseService.resolveAccountId(
+          farmId,
+          userId,
+          dto.financialAccountId,
+        ),
+        cattleId: healthCase.cattleId,
+      });
+    }
 
     // AQR: Animal Mortality — removes the animal from the herd mean (nullify).
     await this.aqrService.applyEvent(farmId, healthCase.cattleId, 'mortality', {
@@ -2316,13 +2475,58 @@ export class HealthService {
     return deleted;
   }
 
-  async deleteCase(farmId: string, id: string) {
-    await this.getCaseOrThrow(farmId, id);
+  /**
+   * Deletes a case entered by mistake — and everything it caused: every live
+   * dose is voided (stock back, cost reversed, withdrawal cancelled), its steps
+   * are removed and the "sickness reported" score is taken back. A bare
+   * soft-delete used to leave all of that behind.
+   */
+  async deleteCase(farmId: string, userId: string, id: string) {
+    const healthCase = await this.getCaseOrThrow(farmId, id);
+
+    const logs = await this.prisma.treatmentLog.findMany({
+      where: { farmId, healthCaseId: id, voidedAt: null },
+      select: { id: true },
+    });
+    for (const log of logs) {
+      await this.voidTreatmentLog(farmId, userId, log.id, 'Case deleted', {
+        resetTask: false,
+        skipProgress: true,
+      });
+    }
+    await this.prisma.healthTask.updateMany({
+      where: { farmId, healthCaseId: id, deletedAt: null },
+      data: { deletedAt: new Date(), notes: 'Case deleted' },
+    });
+
     const deleted = await this.prisma.healthCase.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
-    this.log.info('Health case archived', { healthCaseId: id, farmId });
+
+    if (healthCase.careType === HealthCareType.CURATIVE) {
+      await this.reverseAqrNear(
+        farmId,
+        healthCase.cattleId,
+        'Animal Sickness Reported',
+        healthCase.createdAt,
+        userId,
+        `Case [${healthCase.caseCode}] deleted.`,
+      );
+    }
+    await this.activityLog.record({
+      farmId,
+      module: ActivityLogModule.HEALTH_SAFETY,
+      eventTitle: 'Deleted: Health case',
+      actionDetails: `Case [${healthCase.caseCode}] deleted (${logs.length} dose(s) reversed).`,
+      actorId: userId,
+      relatedCattleId: healthCase.cattleId,
+    });
+    this.log.info('Health case archived', {
+      healthCaseId: id,
+      farmId,
+      dosesReversed: logs.length,
+    });
     return deleted;
   }
 

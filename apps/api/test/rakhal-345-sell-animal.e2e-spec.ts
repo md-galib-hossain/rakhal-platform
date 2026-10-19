@@ -14,6 +14,7 @@ import {
   TestContext,
 } from './utils/e2e';
 
+import { createExtraAccount } from './utils/finance';
 /**
  * RAKHAL-345 — `SellAnimal` use case; delete Finance's cattle mutation
  * (`FINANCE_V2_DESIGN.md` §1.1, §4.2). No controller route exists yet
@@ -63,11 +64,14 @@ describe('Sales — SellAnimal use case (e2e, RAKHAL-345)', () => {
     id: string;
     ledgerAccountId: string;
   }> {
-    const res = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({ name: `SellAnimal-${tag()}`, type: FinancialAccountType.CASH })
-      .expect(201);
+    const res = {
+      body: {
+        data: await createExtraAccount(ctx, prisma, owner, {
+          name: `SellAnimal-${tag()}`,
+          type: FinancialAccountType.CASH,
+        }),
+      },
+    };
     return (res.body as { data: { id: string; ledgerAccountId: string } }).data;
   }
 

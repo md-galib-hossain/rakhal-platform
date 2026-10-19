@@ -164,11 +164,11 @@ describe('Reproduction — AI/breeding cost -> Finance (e2e)', () => {
       .expect(400);
   });
 
-  it('a resolved cost with no paymentMethod is rejected', async () => {
+  it("a resolved cost with no wallet or paymentMethod posts from the farm's single account", async () => {
     const cow = await createCow('NOPAY');
     const provider = await createServiceProvider('NOPAY');
 
-    await request(server())
+    const res = await request(server())
       .post(api('/reproduction/breeding-events'))
       .set(...auth(owner))
       .send({
@@ -179,7 +179,8 @@ describe('Reproduction — AI/breeding cost -> Finance (e2e)', () => {
         serviceProviderId: provider.id,
         serviceCost: 700,
       })
-      .expect(400);
+      .expect(201);
+    expect(res.body.data.financeTransactionId).not.toBeNull();
   });
 
   it('TECHNICIAN_SUPPLIED AI with serviceCost + BANK_TRANSFER posts a real V2 Expense against the Bank account', async () => {
@@ -250,19 +251,8 @@ describe('Reproduction — AI/breeding cost -> Finance (e2e)', () => {
     expect(res.body.data.financeTransactionId).toBeNull();
   });
 
-  it('NATURAL breeding with a serviceCost still requires paymentMethod and posts a transaction', async () => {
+  it('NATURAL breeding with a serviceCost posts a transaction', async () => {
     const cow = await createCow('NATURAL-PAID');
-
-    await request(server())
-      .post(api('/reproduction/breeding-events'))
-      .set(...auth(owner))
-      .send({
-        cattleId: cow.id,
-        breedingDate: new Date().toISOString(),
-        breedingMethod: 'NATURAL',
-        serviceCost: 300,
-      })
-      .expect(400);
 
     const res = await request(server())
       .post(api('/reproduction/breeding-events'))

@@ -29,6 +29,12 @@ export interface ApplyEventOptions {
 export interface ReverseEventOptions {
   actorId?: string | null;
   actionDetails?: string;
+  /**
+   * Subtract the event's delta from the CURRENT score instead of restoring its
+   * `previousAqrScore`. Use when later events may have moved the score since —
+   * restoring the old snapshot would silently erase them.
+   */
+  relative?: boolean;
 }
 
 export interface ReverseEventResult {
@@ -158,8 +164,15 @@ export class AqrService {
     }
 
     let newScore: number;
-    if (source.previousAqrScore !== null) {
+    if (source.previousAqrScore !== null && !options.relative) {
       newScore = source.previousAqrScore;
+    } else if (options.relative) {
+      const bounds = await this.config.resolveBounds(farmId);
+      newScore = this.clamp(
+        (cattle.aqrScore ?? 0) - source.aqrImpact,
+        bounds.min,
+        bounds.max,
+      );
     } else {
       const bounds = await this.config.resolveBounds(farmId);
       newScore = this.clamp(

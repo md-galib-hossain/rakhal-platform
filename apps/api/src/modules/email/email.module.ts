@@ -31,6 +31,8 @@ import { UserRegisteredListener } from './presentation/listeners/user-registered
       imports: [ConfigModule.forFeature(redisConfig)],
       inject: [redisConfig.KEY],
       useFactory: (config: ConfigType<typeof redisConfig>) => ({
+        // Keep e2e runs off a developer's live queue (see reports.module.ts).
+        prefix: process.env.NODE_ENV === 'test' ? 'bull-test' : undefined,
         connection: {
           host: config.host,
           port: config.port,

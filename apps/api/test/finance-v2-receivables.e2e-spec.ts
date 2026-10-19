@@ -13,6 +13,7 @@ import {
   loginAs,
   TestContext,
 } from './utils/e2e';
+import { createExtraAccount } from './utils/finance';
 
 /**
  * RAKHAL-340 — `Receivable` v2 (`FINANCE_V2_DESIGN.md` §4.3, §4.6). Proves
@@ -89,17 +90,10 @@ describe('Finance V2 — Receivables (e2e, RAKHAL-340)', () => {
     id: string;
     ledgerAccountId: string;
   }> => {
-    const res = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({
-        name: uniqueName('Receivables-Cash'),
-        type: FinancialAccountType.CASH,
-      })
-      .expect(201);
-    const account = (
-      res.body as { data: { id: string; ledgerAccountId: string } }
-    ).data;
+    const account = await createExtraAccount(ctx, prisma, owner, {
+      name: uniqueName('Receivables-Cash'),
+      type: FinancialAccountType.CASH,
+    });
     createdAccountIds.push(account.id);
     createdLedgerAccountIds.push(account.ledgerAccountId);
     return account;

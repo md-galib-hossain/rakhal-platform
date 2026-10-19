@@ -392,6 +392,60 @@ describe('Reproduction — edit (RAKHAL-305, e2e)', () => {
     expect(profileB).not.toBeNull();
   });
 
+  it('cancels a mistaken heat (removed from the feed); a closed false-alarm heat still shows its resolution', async () => {
+    const cow = await createCow('CANCEL');
+    const mk = async () =>
+      (
+        await request(server())
+          .post(api('/reproduction/heat-events'))
+          .set(...auth(owner))
+          .send({
+            cattleId: cow.id,
+            heatDateTime: new Date().toISOString(),
+            detectionMethod: 'VISUAL',
+          })
+          .expect(201)
+      ).body.data.id as string;
+
+    // False alarm: the feed row now carries the resolution so the UI can show it as closed.
+    const falseAlarmId = await mk();
+    await request(server())
+      .post(api(`/reproduction/heat-events/${falseAlarmId}/resolve`))
+      .set(...auth(owner))
+      .send({ reason: 'FALSE_ALARM' })
+      .expect(201);
+    const feed = await request(server())
+      .get(api(`/reproduction/events?cattleId=${cow.id}&eventType=heat`))
+      .set(...auth(owner))
+      .expect(200);
+    const row = (
+      feed.body.data as Array<{ id: string; details: Record<string, unknown> }>
+    ).find((e) => e.id === falseAlarmId);
+    expect(row?.details.resolution).toBe('FALSE_ALARM');
+    expect(row?.details.resolved_at).toBeTruthy();
+
+    // Cancel removes the row (open or closed) and is audited.
+    const cancelId = await mk();
+    await request(server())
+      .post(api(`/reproduction/heat-events/${cancelId}/cancel`))
+      .set(...auth(owner))
+      .send({ reason: 'wrong day' })
+      .expect(200);
+    expect(
+      await prisma.heatEvent.findUnique({ where: { id: cancelId } }),
+    ).toBeNull();
+    await request(server())
+      .post(api(`/reproduction/heat-events/${falseAlarmId}/cancel`))
+      .set(...auth(owner))
+      .send({})
+      .expect(200);
+    await request(server())
+      .post(api(`/reproduction/heat-events/${falseAlarmId}/cancel`))
+      .set(...auth(owner))
+      .send({})
+      .expect(404);
+  });
+
   it('403s a Worker attempting an edit (manager+ only)', async () => {
     const worker = await loginAs(
       ctx,

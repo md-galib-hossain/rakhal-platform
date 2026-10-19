@@ -38,6 +38,7 @@ import { EditPregnancyDiagnosisDto } from '../../presentation/dto/edit-pregnancy
 import { EditAbortionEventDto } from '../../presentation/dto/edit-abortion-event.dto';
 import { EditDryOffDto } from '../../presentation/dto/edit-dry-off.dto';
 import { VoidBreedingEventDto } from '../../presentation/dto/void-breeding-event.dto';
+import { CancelHeatEventDto } from '../../presentation/dto/cancel-heat-event.dto';
 
 /**
  * RAKHAL-305: `PATCH` edit handlers for heat / breeding / pregnancy-diagnosis
@@ -110,6 +111,48 @@ export class ReproductionEditService {
     );
     this.log.info('Heat event edited', { heatEventId: id, farmId });
     return updated;
+  }
+
+  /**
+   * Cancel a heat recorded by mistake (not a wrong animal - that is an edit; not a heat that happened but
+   * was not real - that is `resolveHeatEvent` FALSE_ALARM, which keeps it in history). A heat carries no
+   * money or stock, so the row is removed and the Activity Log keeps the audit trail. Blocked once a
+   * breeding is linked to it (AI that closed it, or a return-to-heat), because deleting it would orphan
+   * that breeding's story - void/correct the breeding first.
+   */
+  async cancelHeatEvent(
+    farmId: string,
+    userId: string,
+    id: string,
+    dto: CancelHeatEventDto,
+  ) {
+    const existing = await this.prisma.heatEvent.findFirst({
+      where: { id, cattle: { farmId } },
+      include: { cattle: { select: { tagNumber: true } } },
+    });
+    if (!existing) throw new NotFoundException('Heat event not found');
+    if (
+      existing.resolvedByBreedingEventId ||
+      existing.returnedFromBreedingEventId
+    ) {
+      throw new BadRequestException(
+        `This heat for [${existing.cattle.tagNumber}] is linked to a breeding and cannot be cancelled. Void or correct the breeding first.`,
+      );
+    }
+
+    await this.prisma.heatEvent.delete({ where: { id } });
+    await this.derivation.refreshDerivedState(farmId, existing.cattleId);
+    await this.activityLog.record({
+      farmId,
+      module: ActivityLogModule.BREEDING,
+      eventTitle: 'Cancelled: Heat Event',
+      actionDetails: `Heat for [${existing.cattle.tagNumber}] on ${existing.heatDateTime.toISOString()} cancelled${dto.reason ? ` - ${dto.reason}` : ''}`,
+      actorId: userId,
+      relatedCattleId: existing.cattleId,
+      taggedValues: dto.reason ? [{ key: 'reason', value: dto.reason }] : [],
+    });
+    this.log.info('Heat event cancelled', { heatEventId: id, farmId });
+    return { id, cancelled: true };
   }
 
   // ---- Breeding ----------------------------------------------------------
@@ -273,15 +316,6 @@ export class ReproductionEditService {
         costEntityName =
           serviceProvider?.name ?? existing.semenCompany ?? 'Breeding service';
       }
-      if (
-        resolvedCost > 0 &&
-        mergedSemenSource !== SemenSource.FARM_INVENTORY &&
-        !mergedFinancialAccountId
-      ) {
-        throw new BadRequestException(
-          'financialAccountId is required when a breeding service cost is being recorded',
-        );
-      }
     }
 
     let updated = await this.prisma.breedingEvent.update({
@@ -328,7 +362,10 @@ export class ReproductionEditService {
     // Void the old cost transaction (if any) and repost the resolved one.
     if (costRelevantFieldsChanged) {
       if (existing.financeTransactionId) {
-        await this.expenseService.reverseExpense(
+        // Also stamps `Expense.voidedAt`: a bare journal reversal left the old
+        // row visible to every aggregate that skips voided expenses, so an
+        // edited cost counted twice (old + new).
+        await this.expenseService.voidInventoryConsumption(
           farmId,
           existing.financeTransactionId,
           userId,
@@ -349,7 +386,7 @@ export class ReproductionEditService {
             },
           );
           newFinanceTransactionId = posted.id;
-        } else if (mergedFinancialAccountId) {
+        } else {
           const posted = await this.expenseService.recordExpense(
             farmId,
             userId,
@@ -357,7 +394,12 @@ export class ReproductionEditService {
               category: ExpenseCategory.BREEDING,
               description: `${costEntityName ?? 'Breeding service'} — Breeding #${updated.breedingNumber} (${mergedMethod}) — edited`,
               amount: resolvedCost,
-              financialAccountId: mergedFinancialAccountId,
+              // One account per farm: the fee is paid from it, no wallet to pick.
+              financialAccountId: await this.expenseService.resolveAccountId(
+                farmId,
+                userId,
+                mergedFinancialAccountId,
+              ),
               expenseDate: newBreedingDate.toISOString(),
               cattleId: newCattleId,
             },

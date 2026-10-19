@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
 import { MedicineStockMovementReason } from '@prisma/client';
 import { trimString } from 'src/common/dto';
 
@@ -15,7 +15,18 @@ export class AdjustStockDto {
   @IsNumber()
   adjustment!: number;
 
+  /** `PURCHASE` is not accepted over HTTP: it would raise stock with no Finance posting. Stock bought
+   * in goes through `POST /purchasing/purchases` (which calls the service in-process). */
   @IsEnum(MedicineStockMovementReason)
+  @IsIn(
+    Object.values(MedicineStockMovementReason).filter(
+      (r) => r !== MedicineStockMovementReason.PURCHASE,
+    ),
+    {
+      message:
+        'reason PURCHASE is not allowed on a manual adjustment — record a purchase instead',
+    },
+  )
   reason!: MedicineStockMovementReason;
 
   @IsOptional()

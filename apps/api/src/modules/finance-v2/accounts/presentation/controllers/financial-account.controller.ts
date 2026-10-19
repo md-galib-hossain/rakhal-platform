@@ -17,6 +17,7 @@ import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { FinancialAccountService } from '../../application/financial-account.service';
 import { CreateFinancialAccountDto } from '../dto/create-financial-account.dto';
+import { SetOpeningBalanceDto } from '../dto/set-opening-balance.dto';
 import { UpdateFinancialAccountDto } from '../dto/update-financial-account.dto';
 
 /**
@@ -58,6 +59,16 @@ export class FinancialAccountController {
     return this.accounts.findAll(farmId);
   }
 
+  /** The farm's one account (created as "Main Wallet" on first use). Declared before `:id`. */
+  @Get('farm-account')
+  @RequirePermission('finance.accounts')
+  farmAccount(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+  ) {
+    return this.accounts.resolveFarmAccount(farmId, userId);
+  }
+
   @Get(':id')
   @RequirePermission('finance.accounts')
   findOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
@@ -72,6 +83,22 @@ export class FinancialAccountController {
     @Body() dto: UpdateFinancialAccountDto,
   ) {
     return this.accounts.updateAccount(farmId, id, dto);
+  }
+
+  @Patch(':id/opening-balance')
+  @RequirePermission('finance.accounts')
+  setOpeningBalance(
+    @CurrentFarmId() farmId: string,
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+    @Body() dto: SetOpeningBalanceDto,
+  ) {
+    return this.accounts.setOpeningBalance(
+      farmId,
+      id,
+      userId,
+      dto.openingBalance,
+    );
   }
 
   @Patch(':id/primary')

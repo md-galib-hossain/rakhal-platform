@@ -96,10 +96,11 @@ export class BuyerController {
   @RequirePermission('finance.update')
   recordReceipt(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: RecordReceiptDto,
   ) {
-    return this.buyerService.recordReceipt(farmId, id, dto);
+    return this.buyerService.recordReceipt(farmId, userId, id, dto);
   }
 
   // RAKHAL-377 (MILESTONE 22): the only correction mechanism for a
@@ -142,15 +143,20 @@ export class BuyerController {
   @RequirePermission('finance.update')
   update(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: UpdateBuyerDto,
   ) {
-    return this.buyerService.updateBuyer(farmId, id, dto);
+    return this.buyerService.updateBuyer(farmId, userId, id, dto);
   }
 
   @Delete(':id')
   @RequirePermission('finance.delete')
-  remove(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.buyerService.deactivateBuyer(farmId, id);
+  remove(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.buyerService.deactivateBuyer(farmId, userId, id);
   }
 }

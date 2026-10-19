@@ -8,6 +8,7 @@ import {
   loginAs,
   TestContext,
 } from './utils/e2e';
+import { createExtraAccount } from './utils/finance';
 
 /**
  * RAKHAL-336 — Balance projection + Rakhal Balance (`FINANCE_V2_DESIGN.md`
@@ -80,34 +81,20 @@ describe('Finance V2 — Balance projection (e2e)', () => {
     // the balances their opening postings produced — summing to the
     // ৳70,000 the ticket's AC calls for, computed purely from this test's
     // own rows rather than a farm-wide total.
-    const cashRes = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({
-        name: uniqueName('Balance Test Cash'),
-        type: FinancialAccountType.CASH,
-        openingBalance: 50000,
-      })
-      .expect(201);
-    const cashAccount = (
-      cashRes.body as { data: { id: string; ledgerAccountId: string } }
-    ).data;
+    const cashAccount = await createExtraAccount(ctx, prisma, owner, {
+      name: uniqueName('Balance Test Cash'),
+      type: FinancialAccountType.CASH,
+      openingBalance: 50000,
+    });
     createdAccountIds.push(cashAccount.id);
     createdLedgerAccountIds.push(cashAccount.ledgerAccountId);
 
-    const bankRes = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({
-        name: uniqueName('Balance Test Bank'),
-        type: FinancialAccountType.BANK,
-        bankDetail: { bankName: 'Test Bank', accountNumber: '999888777' },
-        openingBalance: 20000,
-      })
-      .expect(201);
-    const bankAccount = (
-      bankRes.body as { data: { id: string; ledgerAccountId: string } }
-    ).data;
+    const bankAccount = await createExtraAccount(ctx, prisma, owner, {
+      name: uniqueName('Balance Test Bank'),
+      type: FinancialAccountType.BANK,
+      bankDetail: { bankName: 'Test Bank', accountNumber: '999888777' },
+      openingBalance: 20000,
+    });
     createdAccountIds.push(bankAccount.id);
     createdLedgerAccountIds.push(bankAccount.ledgerAccountId);
 
@@ -121,11 +108,6 @@ describe('Finance V2 — Balance projection (e2e)', () => {
           rakhalBalance: string;
           breakdown: { cash: string; bank: string; mfs: string };
           accounts: Array<{ id: string; type: string; balance: string }>;
-          receivablePayable: {
-            totalReceivable: string;
-            totalPayable: string;
-            wired: boolean;
-          };
         };
       }
     ).data;
@@ -146,11 +128,6 @@ describe('Finance V2 — Balance projection (e2e)', () => {
     expect(cashEntry?.balance).toBe('50000');
     expect(bankEntry?.balance).toBe('20000');
     expect(Number(cashEntry?.balance) + Number(bankEntry?.balance)).toBe(70000);
-
-    // Receivable/payable placeholder — clearly marked, always zero today.
-    expect(afterBody.receivablePayable.wired).toBe(false);
-    expect(afterBody.receivablePayable.totalReceivable).toBe('0');
-    expect(afterBody.receivablePayable.totalPayable).toBe('0');
 
     // No Rakhal-Credit-shaped field anywhere in the response.
     const wire = JSON.stringify(afterBody).toLowerCase();

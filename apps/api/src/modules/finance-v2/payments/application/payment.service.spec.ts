@@ -19,7 +19,10 @@ describe('PaymentService', () => {
     paymentAllocation: { create: jest.Mock };
     $transaction: jest.Mock;
   };
-  let financialAccountService: { assertAccountActive: jest.Mock };
+  let financialAccountService: {
+    assertAccountActive: jest.Mock;
+    resolveFarmAccountId: jest.Mock;
+  };
   let ledgerAccountService: { findByCode: jest.Mock };
   let journalService: { postJournal: jest.Mock };
   let receivableService: {
@@ -40,7 +43,14 @@ describe('PaymentService', () => {
       paymentAllocation: { create: jest.fn() },
       $transaction: jest.fn((cb: (client: unknown) => unknown) => cb(prisma)),
     };
-    financialAccountService = { assertAccountActive: jest.fn() };
+    financialAccountService = {
+      assertAccountActive: jest.fn(),
+      // Passthrough of an explicit id, like the real resolver.
+      resolveFarmAccountId: jest.fn(
+        (_farmId: string, _userId: string, provided?: string) =>
+          Promise.resolve(provided ?? 'fa-1'),
+      ),
+    };
     ledgerAccountService = { findByCode: jest.fn() };
     journalService = { postJournal: jest.fn() };
     // RAKHAL-340: `assertWithinOutstanding`/`closeIfSettled` are only

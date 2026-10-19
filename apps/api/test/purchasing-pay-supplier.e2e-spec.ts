@@ -12,6 +12,7 @@ import {
   TestContext,
 } from './utils/e2e';
 
+import { createExtraAccount } from './utils/finance';
 /**
  * RAKHAL-349 — `PaySupplier` + closing the Payable allocation guard gap
  * (`FINANCE_V2_DESIGN.md` §1.4). Proves two things against the real DB:
@@ -58,14 +59,14 @@ describe('Purchasing — PaySupplier + Payable allocation guard (e2e, RAKHAL-349
     id: string;
     ledgerAccountId: string;
   }> => {
-    const res = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({
-        name: uniqueName('PaySupplier-Cash'),
-        type: FinancialAccountType.CASH,
-      })
-      .expect(201);
+    const res = {
+      body: {
+        data: await createExtraAccount(ctx, prisma, owner, {
+          name: uniqueName('PaySupplier-Cash'),
+          type: FinancialAccountType.CASH,
+        }),
+      },
+    };
     const account = (
       res.body as { data: { id: string; ledgerAccountId: string } }
     ).data;

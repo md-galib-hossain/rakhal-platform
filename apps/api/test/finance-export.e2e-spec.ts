@@ -10,6 +10,7 @@ import {
   loginAs,
 } from './utils/e2e';
 
+import { createExtraAccount } from './utils/finance';
 /**
  * Finance transactions export, async BullMQ job pipeline (`rpt_finance_export`).
  *
@@ -85,14 +86,14 @@ describe('Reports — Finance Transactions Export (async)', () => {
   }
 
   async function recordOtherIncome(marker: string, amount: number) {
-    const accountRes = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({
-        name: uniqueName('FinExport-Cash'),
-        type: FinancialAccountType.CASH,
-      })
-      .expect(201);
+    const accountRes = {
+      body: {
+        data: await createExtraAccount(ctx, prisma, owner, {
+          name: uniqueName('FinExport-Cash'),
+          type: FinancialAccountType.CASH,
+        }),
+      },
+    };
     const account = (
       accountRes.body as { data: { id: string; ledgerAccountId: string } }
     ).data;
@@ -119,11 +120,12 @@ describe('Reports — Finance Transactions Export (async)', () => {
       .expect(201);
     const otherIncome = (incomeRes.body as { data: { id: string } }).data;
     createdOtherIncomeIds.push(otherIncome.id);
+    return otherIncome.id;
   }
 
   it('returns a CSV file containing a just-posted V2 journal transaction', async () => {
     const marker = `E2E-EXPORT-${Date.now()}`;
-    await recordOtherIncome(marker, 1234.5);
+    const sourceId = await recordOtherIncome(marker, 1234.5);
 
     const generateRes = await request(server())
       .post(`${ctx.prefix}/reports/generate`)
@@ -131,7 +133,7 @@ describe('Reports — Finance Transactions Export (async)', () => {
       .send({
         reportId: 'rpt_finance_export',
         format: 'csv',
-        parameters: { search: marker },
+        parameters: { fromDate: new Date().toISOString().slice(0, 10) },
       });
     expect(generateRes.status).toBe(201);
     const jobId = (generateRes.body as { data: { job_id: string } }).data
@@ -151,13 +153,14 @@ describe('Reports — Finance Transactions Export (async)', () => {
     expect(download.text).toContain(
       'Date,Source Type,Source Reference,Description,Amount,Status',
     );
-    expect(download.text).toContain(marker);
+    expect(download.text).toContain(sourceId);
     expect(download.text).toContain('1234.5');
   }, 20_000);
 
   it('respects the sourceType (category) filter, excluding non-matching rows', async () => {
     const marker = `E2E-EXPORT-FILTER-${Date.now()}`;
-    await recordOtherIncome(marker, 500);
+    const sourceId = await recordOtherIncome(marker, 500);
+    const fromDate = new Date().toISOString().slice(0, 10);
 
     const wrongGenerate = await request(server())
       .post(`${ctx.prefix}/reports/generate`)
@@ -165,7 +168,7 @@ describe('Reports — Finance Transactions Export (async)', () => {
       .send({
         reportId: 'rpt_finance_export',
         format: 'csv',
-        parameters: { search: marker, category: 'SALE' },
+        parameters: { fromDate, category: 'SALE' },
       });
     const wrongJobId = (wrongGenerate.body as { data: { job_id: string } }).data
       .job_id;
@@ -175,7 +178,7 @@ describe('Reports — Finance Transactions Export (async)', () => {
     const wrongDownload = await request(server())
       .get(wrongUrl)
       .set(...bearer(owner));
-    expect(wrongDownload.text).not.toContain(marker);
+    expect(wrongDownload.text).not.toContain(sourceId);
 
     const rightGenerate = await request(server())
       .post(`${ctx.prefix}/reports/generate`)
@@ -183,7 +186,7 @@ describe('Reports — Finance Transactions Export (async)', () => {
       .send({
         reportId: 'rpt_finance_export',
         format: 'csv',
-        parameters: { search: marker, category: 'OTHER_INCOME' },
+        parameters: { fromDate, category: 'OTHER_INCOME' },
       });
     const rightJobId = (rightGenerate.body as { data: { job_id: string } }).data
       .job_id;
@@ -193,7 +196,7 @@ describe('Reports — Finance Transactions Export (async)', () => {
     const rightDownload = await request(server())
       .get(rightUrl)
       .set(...bearer(owner));
-    expect(rightDownload.text).toContain(marker);
+    expect(rightDownload.text).toContain(sourceId);
   }, 25_000);
 
   it('worker is forbidden from generating the export (reports.create is manager+)', async () => {

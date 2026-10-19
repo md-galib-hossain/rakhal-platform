@@ -134,11 +134,6 @@ export class SellMilkUseCase {
     }
     const amountReceived = input.amountReceived ?? 0;
     if (amountReceived > 0) {
-      if (!input.financialAccountId) {
-        throw new BadRequestException(
-          'financialAccountId is required when amountReceived is greater than zero',
-        );
-      }
       if (!input.paymentMethod) {
         throw new BadRequestException(
           'paymentMethod is required when amountReceived is greater than zero',
@@ -171,10 +166,9 @@ export class SellMilkUseCase {
     );
     const saleLine = sale.lines[0];
 
-    // 2. Milk tank decrement — no-op (false) if the farm has no active
-    // SELLABLE tank configured; a real shortfall throws from
-    // `adjustVolume`'s own negative-balance guard, rolling back everything
-    // above via the shared transaction client.
+    // 2. Milk tank decrement — always runs (a farm with no tank gets a default
+    // one); a shortfall against total SELLABLE stock throws, rolling back
+    // everything above via the shared transaction client.
     const tankUpdated = await this.decrementSellableTank(
       client,
       farmId,
@@ -247,7 +241,7 @@ export class SellMilkUseCase {
         userId,
         {
           direction: PaymentDirection.INCOMING,
-          financialAccountId: input.financialAccountId!,
+          financialAccountId: input.financialAccountId,
           amount: amountReceived,
           method: input.paymentMethod!,
           transactionDate: saleDate,
@@ -289,10 +283,14 @@ export class SellMilkUseCase {
     };
   }
 
-  /** Sells from the fullest active SELLABLE tank — same selection strategy
-   * `BuyerService`'s old private `sellFromTank` used, so a dispatch draws
-   * from where the milk actually is. Returns `false` (no-op) if the farm
-   * has no active SELLABLE tank configured. */
+  /** Draws `volumeL` from the farm's active SELLABLE tanks, fullest first, and
+   * spans tanks when no single one holds enough — total stock decides, not the
+   * fullest tank. A farm with no tank gets a default "Main Tank" (empty), so the
+   * sale is rejected against real stock instead of silently skipping inventory.
+   * Every tank row is locked (`FOR UPDATE`, ascending id so two concurrent sales
+   * cannot deadlock) and re-read under the lock before anything is spent
+   * (RAKHAL-343). One audit row per tank, each carrying `saleLineId`, so a void
+   * can credit every tank back. Always returns `true` (stock always moves). */
   private async decrementSellableTank(
     client: Prisma.TransactionClient,
     farmId: string,
@@ -301,34 +299,57 @@ export class SellMilkUseCase {
     saleLineId: string,
     saleNumber: string,
   ): Promise<boolean> {
-    const tank = await client.milkTank.findFirst({
-      where: { farmId, tankType: MilkTankType.SELLABLE, deletedAt: null },
-      orderBy: { currentVolumeL: 'desc' },
-    });
-    if (!tank) return false;
-
-    // RAKHAL-343: row-lock + re-validate under that lock, in the same tx,
-    // before the decrement runs — see this class's own doc comment.
-    await this.milkAvailabilityService.lockAndValidate(
-      farmId,
-      tank.id,
-      volumeL,
-      client,
-    );
-
-    await this.milkTankService.adjustVolume(
+    await this.milkTankService.ensureDefaultSellableTank(
       farmId,
       userId,
-      tank.id,
-      {
-        delta: -volumeL,
-        activityType: MilkTankActivity.SALE,
-        source: 'milk_sale',
-        notes: `Sale ${saleNumber}`,
-        saleLineId,
-      },
       client,
     );
+    const tanks = await client.milkTank.findMany({
+      where: { farmId, tankType: MilkTankType.SELLABLE, deletedAt: null },
+      select: { id: true },
+      orderBy: { id: 'asc' },
+    });
+
+    const locked: { id: string; currentVolumeL: number }[] = [];
+    for (const tank of tanks) {
+      locked.push(
+        await this.milkAvailabilityService.lockAndValidate(
+          farmId,
+          tank.id,
+          0,
+          client,
+        ),
+      );
+    }
+    const totalL = locked.reduce((sum, t) => sum + t.currentVolumeL, 0);
+    if (totalL < volumeL) {
+      throw new BadRequestException(
+        `Insufficient milk available: ${totalL}L in stock, ${volumeL}L requested`,
+      );
+    }
+
+    let remainingL = volumeL;
+    for (const tank of [...locked].sort(
+      (a, b) => b.currentVolumeL - a.currentVolumeL,
+    )) {
+      if (remainingL <= 0) break;
+      const takeL = Math.min(remainingL, tank.currentVolumeL);
+      if (takeL <= 0) continue;
+      await this.milkTankService.adjustVolume(
+        farmId,
+        userId,
+        tank.id,
+        {
+          delta: -takeL,
+          activityType: MilkTankActivity.SALE,
+          source: 'milk_sale',
+          notes: `Sale ${saleNumber}`,
+          saleLineId,
+        },
+        client,
+      );
+      remainingL -= takeL;
+    }
     return true;
   }
 

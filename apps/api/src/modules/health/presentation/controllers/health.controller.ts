@@ -172,8 +172,12 @@ export class HealthController {
 
   @Delete('cases/:id')
   @RequirePermission('healthcare.delete')
-  deleteCase(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.healthService.deleteCase(farmId, id);
+  deleteCase(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.healthService.deleteCase(farmId, userId, id);
   }
 
   @Post('cases/:id/apply-plan')

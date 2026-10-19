@@ -11,6 +11,7 @@ import {
   TestContext,
 } from './utils/e2e';
 
+import { createExtraAccount } from './utils/finance';
 /**
  * RAKHAL-348 — `Purchase`/`PurchaseLine` + `Payable` (`FINANCE_V2_DESIGN.md`
  * §5.1). Proves the ticket's own AC against the real DB + HTTP surface:
@@ -80,18 +81,18 @@ describe('Purchasing — Purchase + PurchaseLine + Payable (e2e, RAKHAL-348)', (
     id: string;
     ledgerAccountId: string;
   }> {
-    const res = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({
-        name: uniqueName('E2E-348-Bank'),
-        type: FinancialAccountType.BANK,
-        bankDetail: {
-          bankName: 'E2E Test Bank',
-          accountNumber: uniqueName('ACC'),
-        },
-      })
-      .expect(201);
+    const res = {
+      body: {
+        data: await createExtraAccount(ctx, prisma, owner, {
+          name: uniqueName('E2E-348-Bank'),
+          type: FinancialAccountType.BANK,
+          bankDetail: {
+            bankName: 'E2E Test Bank',
+            accountNumber: uniqueName('ACC'),
+          },
+        }),
+      },
+    };
     return (res.body as { data: { id: string; ledgerAccountId: string } }).data;
   }
 
@@ -269,7 +270,7 @@ describe('Purchasing — Purchase + PurchaseLine + Payable (e2e, RAKHAL-348)', (
     expect(res.status).toBe(400);
   });
 
-  it('rejects paidAmount > 0 without financialAccountId', async () => {
+  it("paidAmount > 0 without financialAccountId pays from the farm's single account", async () => {
     const feedItem = await createFeedItem(0);
 
     const res = await request(server())
@@ -280,7 +281,7 @@ describe('Purchasing — Purchase + PurchaseLine + Payable (e2e, RAKHAL-348)', (
         lines: [{ feedItemId: feedItem.id, quantity: 1, unitCost: 100 }],
         paidAmount: 50,
       });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(201);
   });
 
   it('GET /purchasing/purchases/:id round-trips the created purchase', async () => {

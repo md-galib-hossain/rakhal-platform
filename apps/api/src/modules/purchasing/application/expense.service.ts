@@ -138,6 +138,20 @@ export class ExpenseService {
     this.log = logger.setContext(ExpenseService.name);
   }
 
+  /** The farm's one account id (created on first use) — for callers that pay an expense "now" and
+   * no longer ask the farmer which wallet. An explicit id passes straight through. */
+  resolveAccountId(
+    farmId: string,
+    userId: string,
+    provided?: string | null,
+  ): Promise<string> {
+    return this.financialAccountService.resolveFarmAccountId(
+      farmId,
+      userId,
+      provided,
+    );
+  }
+
   async recordExpense(
     farmId: string,
     userId: string,
@@ -149,14 +163,24 @@ export class ExpenseService {
 
     // RAKHAL-353: see `SellMilkUseCase.execute`'s own comment on this same
     // call — deliberately logged after the transaction resolves.
-    await this.activityLog.record({
-      farmId,
-      module: ActivityLogModule.FINANCE,
-      eventTitle: 'Expense Recorded',
-      actionDetails: `${dto.category} expense: ${dto.description} — ৳${expense.amount.toString()}${dto.financialAccountId ? ' (paid immediately)' : ' (unpaid, payable raised)'}.`,
-      actorId: userId,
-      financialImpact: -Number(expense.amount),
-    });
+    // The expense is already committed, so a failed audit write must not turn it into a 500 (the
+    // caller would retry and double-post) — same non-fatal handling as `VoidDocumentUseCase`.
+    try {
+      await this.activityLog.record({
+        farmId,
+        module: ActivityLogModule.FINANCE,
+        eventTitle: 'Expense Recorded',
+        actionDetails: `${dto.category} expense: ${dto.description} — ৳${expense.amount.toString()}${dto.financialAccountId ? ' (paid immediately)' : ' (unpaid, payable raised)'}.`,
+        actorId: userId,
+        financialImpact: -Number(expense.amount),
+      });
+    } catch (error) {
+      this.log.error('Expense activity log failed', {
+        farmId,
+        expenseId: expense.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
     return expense;
   }

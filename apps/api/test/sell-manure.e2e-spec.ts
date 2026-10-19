@@ -15,6 +15,7 @@ import {
   TestContext,
 } from './utils/e2e';
 
+import { createExtraAccount } from './utils/finance';
 /**
  * RAKHAL-347 — `RecordManureSale` (revenue-first, `FINANCE_V2_DESIGN.md` §2.1,
  * RD-058). Proves the use case's own AC against the real DB:
@@ -59,14 +60,14 @@ describe('Sales — RecordManureSale (e2e, RAKHAL-347)', () => {
     id: string;
     ledgerAccountId: string;
   }> => {
-    const res = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({
-        name: uniqueName('Manure-Cash'),
-        type: FinancialAccountType.CASH,
-      })
-      .expect(201);
+    const res = {
+      body: {
+        data: await createExtraAccount(ctx, prisma, owner, {
+          name: uniqueName('Manure-Cash'),
+          type: FinancialAccountType.CASH,
+        }),
+      },
+    };
     const account = (
       res.body as { data: { id: string; ledgerAccountId: string } }
     ).data;
@@ -265,14 +266,24 @@ describe('Sales — RecordManureSale (e2e, RAKHAL-347)', () => {
     expect(paymentCount).toBe(0);
   });
 
-  it('rejects amountReceived > 0 without a financialAccountId', async () => {
-    await expect(
-      useCase.execute(owner.farmId, ownerUserId, {
-        totalAmount: 500,
-        amountReceived: 100,
-        saleDate: new Date().toISOString(),
-      }),
-    ).rejects.toThrow(/financialAccountId is required/);
+  it("amountReceived > 0 without a financialAccountId pays into the farm's single account", async () => {
+    const result = await useCase.execute(owner.farmId, ownerUserId, {
+      totalAmount: 500,
+      amountReceived: 100,
+      paymentMethod: PaymentMethod.CASH,
+      saleDate: new Date().toISOString(),
+    });
+    createdSaleIds.push(result.sale.id);
+    expect(result.paymentId).not.toBeNull();
+
+    const payment = await prisma.financePayment.findUniqueOrThrow({
+      where: { id: result.paymentId! },
+    });
+    const farmAccount = await prisma.financialAccount.findFirstOrThrow({
+      where: { farmId: owner.farmId, deletedAt: null },
+      orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }],
+    });
+    expect(payment.financialAccountId).toBe(farmAccount.id);
   });
 
   it('rejects amountReceived greater than totalAmount', async () => {

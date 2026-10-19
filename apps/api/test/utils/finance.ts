@@ -1,50 +1,68 @@
 import request from 'supertest';
+import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { AuthedUser, TestContext } from './e2e';
 
-/**
- * Resolve a `FinancialAccount` id for specs that have to post a real cost (RD-077).
- *
- * RAKHAL-393 made `financialAccountId` mandatory whenever a Total Mixed Ration finalize posts a
- * cost, closing RD-066's "farm's oldest active account" stopgap. The specs that finalize a TMR
- * were never updated, so 13 tests across 5 specs broke. This is what they use instead.
- *
- * It **reuses the farm's seeded `Cash` account rather than creating a new one**. Creating one per
- * spec would work, but RD-074 documents that 22 e2e specs already leak `FinancialAccount` rows
- * into the shared dev database — enough that the custom ledger-code range was exhausted twice and
- * had to be widened. Adding five more leaking specs to fix a different bug is not a trade worth
- * making, and the seed guarantees this row exists (`seedFinancialAccount` is idempotent by name,
- * so a re-seed reuses it).
- *
- * Falls back to any CASH account, then to any account at all, so a farm whose seed predates the
- * named `Cash` row still resolves something rather than failing with a confusing 400 from the
- * route under test.
- */
+/** Resolve the farm's single `FinancialAccount` id for specs that post a real cost
+ * (`GET /finance/accounts/farm-account`, which auto-creates "Main Wallet" if absent). */
 export async function seededCashAccountId(
   ctx: TestContext,
   user: AuthedUser,
 ): Promise<string> {
+  // One account per farm: ask the server which one it is (auto-created on first use).
   const res = await request(ctx.app.getHttpServer())
-    .get(`${ctx.prefix}/finance/accounts`)
+    .get(`${ctx.prefix}/finance/accounts/farm-account`)
     .set('Authorization', `Bearer ${user.token}`)
     .expect(200);
+  return (res.body.data as { id: string }).id;
+}
 
-  const accounts = res.body.data as {
-    id: string;
-    name: string;
-    type: string;
-    deletedAt: string | null;
-  }[];
-  const live = accounts.filter((a) => a.deletedAt === null);
-
-  const account =
-    live.find((a) => a.name === 'Cash' && a.type === 'CASH') ??
-    live.find((a) => a.type === 'CASH') ??
-    live[0];
-
-  if (!account) {
-    throw new Error(
-      'No FinancialAccount on this farm — run `pnpm seed` before the e2e suite.',
-    );
+/**
+ * Create an *additional* `FinancialAccount` on a farm that already has one, through the real
+ * `POST /finance/accounts` route. The route now 409s when the farm has a live account (one
+ * account per farm), but farms that predate that rule still hold several and must keep working —
+ * so specs that exercise multi-account behaviour (balance breakdown by type, payments into a
+ * bank/MFS account, archive, primary switching…) build that "legacy" state with this helper.
+ *
+ * It archives the farm's live accounts for the duration of the POST (so the rule lets it through)
+ * and restores them afterwards; the new account comes back non-primary when an older live account
+ * existed, as it would have for a legacy farm. Safe because the e2e suite runs in-band.
+ */
+export async function createExtraAccount(
+  ctx: TestContext,
+  prisma: PrismaService,
+  user: AuthedUser,
+  body: Record<string, unknown>,
+): Promise<{ id: string; ledgerAccountId: string; [k: string]: unknown }> {
+  const live = await prisma.financialAccount.findMany({
+    where: { farmId: user.farmId, deletedAt: null },
+    select: { id: true },
+  });
+  const liveIds = live.map((a) => a.id);
+  const archivedAt = new Date();
+  await prisma.financialAccount.updateMany({
+    where: { id: { in: liveIds } },
+    data: { deletedAt: archivedAt },
+  });
+  try {
+    const res = await request(ctx.app.getHttpServer())
+      .post(`${ctx.prefix}/finance/accounts`)
+      .set('Authorization', `Bearer ${user.token}`)
+      .send(body)
+      .expect(201);
+    const created = (
+      res.body as { data: { id: string; ledgerAccountId: string } }
+    ).data;
+    if (liveIds.length) {
+      await prisma.financialAccount.update({
+        where: { id: created.id },
+        data: { isPrimary: false },
+      });
+    }
+    return liveIds.length ? { ...created, isPrimary: false } : created;
+  } finally {
+    await prisma.financialAccount.updateMany({
+      where: { id: { in: liveIds }, deletedAt: archivedAt },
+      data: { deletedAt: null },
+    });
   }
-  return account.id;
 }

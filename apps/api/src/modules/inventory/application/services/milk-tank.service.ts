@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { MilkTank, Prisma } from '@prisma/client';
+import { MilkTank, MilkTankType, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { InventoryActivityService } from './inventory-activity.service';
@@ -17,6 +17,11 @@ import {
 } from '../../presentation/dto/milk-tank.dto';
 
 type PresentedMilkTank = MilkTank & { fillPct: number; isActive: boolean };
+
+/** Capacity of the auto-created "Main Tank" — deliberately far above any real
+ * farm's output so the INV-04 capacity guard never blocks a collection; the farmer
+ * can set the true capacity later in Inventory → Milk. */
+const DEFAULT_TANK_CAPACITY_L = 100_000;
 
 /**
  * Inventory → Milk tab (PRD §15.5, RAKHAL-078): sellable + withholding tanks
@@ -181,6 +186,7 @@ export class MilkTankService {
     id: string,
     dto: AdjustMilkTankVolumeDto,
     tx?: Prisma.TransactionClient,
+    opts?: { allowOverCapacity?: boolean },
   ): Promise<PresentedMilkTank> {
     const existing = await this.getOrThrow(farmId, id, tx ?? this.prisma);
     const balanceAfterL = existing.currentVolumeL + dto.delta;
@@ -191,7 +197,10 @@ export class MilkTankService {
     if (balanceAfterL < 0) {
       throw new BadRequestException('Tank volume cannot go below zero');
     }
-    if (balanceAfterL > existing.totalCapacityL) {
+    // `allowOverCapacity` is for reversals only (a void crediting back litres the
+    // tank held before the sale): the tank may have refilled since, and refusing
+    // would make a legitimate cancel impossible.
+    if (!opts?.allowOverCapacity && balanceAfterL > existing.totalCapacityL) {
       throw new BadRequestException('Tank volume cannot exceed capacity');
     }
 
@@ -227,6 +236,51 @@ export class MilkTankService {
       balanceAfterL,
     });
     return this.present(tank);
+  }
+
+  /**
+   * The farm's active SELLABLE tank, created as "Main Tank" when it has none, so
+   * every milk log and every sale moves real stock instead of being a silent no-op
+   * on a farm that never configured a tank. Runs inside the caller's `tx`; a
+   * transaction-scoped advisory lock serialises two concurrent first-time callers
+   * so they cannot both create one (same pattern as the one-account-per-farm lock).
+   */
+  async ensureDefaultSellableTank(
+    farmId: string,
+    userId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<MilkTank> {
+    const find = () =>
+      tx.milkTank.findFirst({
+        where: { farmId, tankType: MilkTankType.SELLABLE, deletedAt: null },
+        orderBy: { createdAt: 'asc' },
+      });
+    const existing = await find();
+    if (existing) return existing;
+
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`milk-default-tank:${farmId}`}))`;
+    const raced = await find();
+    if (raced) return raced;
+
+    const hasPrimary = await tx.milkTank.count({
+      where: { farmId, deletedAt: null, isPrimary: true },
+    });
+    const tank = await tx.milkTank.create({
+      data: {
+        farmId,
+        name: 'Main Tank',
+        tankType: MilkTankType.SELLABLE,
+        totalCapacityL: DEFAULT_TANK_CAPACITY_L,
+        currentVolumeL: 0,
+        isPrimary: hasPrimary === 0,
+        createdBy: userId,
+      },
+    });
+    this.log.info('Default sellable milk tank created', {
+      tankId: tank.id,
+      farmId,
+    });
+    return tank;
   }
 
   /** Sets this tank as the farm's one primary tank — the Milk Log grid seeds each row's default

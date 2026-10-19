@@ -9,6 +9,7 @@ import { PermissionModule } from '../permission/permission.module';
 import { AuditModule } from '../audit/audit.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { EmailModule } from '../email/email.module';
+import { ActivityModule } from '../activity/activity.module';
 import { SettingsService } from './application/services/settings.service';
 import { RolesService } from './application/services/roles.service';
 import { TeamService } from './application/services/team.service';
@@ -28,6 +29,7 @@ import { WorkspaceSettingsController } from './presentation/controllers/workspac
     AuditModule,
     SubscriptionModule,
     EmailModule,
+    ActivityModule,
     ConfigModule.forFeature(emailConfig),
   ],
   controllers: [

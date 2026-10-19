@@ -766,9 +766,9 @@ export class MilkService {
   /**
    * `tx` is required — runs inside `submit()`'s or `saveLog()`'s transaction, so a
    * capacity/negative-balance rejection from `adjustVolume` propagates and rolls
-   * back the whole call. A missing tank (farm never configured one for this type,
-   * or a named tank got archived after entries were saved) is a legitimate no-op,
-   * not an error. `tankIdOverride` targets one specific tank (header default / row
+   * back the whole call. A missing SELLABLE tank is auto-created (default "Main
+   * Tank"); a missing WITHHOLDING tank, or a named tank archived after entries were
+   * saved, is a legitimate no-op, not an error. `tankIdOverride` targets one specific tank (header default / row
    * override); omitted, falls back to "first active tank of this type" like before
    * per-tank selection existed. `volume` may be negative — `saveLog()` reconciling
    * an edited submitted entry passes a negative delta to reverse its old
@@ -787,7 +787,7 @@ export class MilkService {
     activityType: MilkTankActivity = MilkTankActivity.COLLECTION,
   ): Promise<boolean> {
     if (volume === 0) return false;
-    const tank = tankIdOverride
+    let tank = tankIdOverride
       ? await tx.milkTank.findFirst({
           where: { id: tankIdOverride, farmId, tankType, deletedAt: null },
         })
@@ -795,6 +795,22 @@ export class MilkService {
           where: { farmId, tankType, deletedAt: null },
           orderBy: { createdAt: 'asc' },
         });
+    // Sellable milk always lands somewhere: a farm with no sellable tank gets a
+    // default one, so what it milks is the same stock a sale later draws from.
+    // Only for added litres: a negative reconcile on a farm that logged before it had
+    // a tank has nothing to take back, so it stays the old no-op.
+    if (
+      !tank &&
+      !tankIdOverride &&
+      volume > 0 &&
+      tankType === MilkTankType.SELLABLE
+    ) {
+      tank = await this.milkTankService.ensureDefaultSellableTank(
+        farmId,
+        userId,
+        tx,
+      );
+    }
     if (!tank) return false;
     await this.milkTankService.adjustVolume(
       farmId,

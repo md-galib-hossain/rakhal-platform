@@ -3,9 +3,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { BuyerType, MilkBuyer, Prisma } from '@prisma/client';
+import {
+  ActivityLogModule,
+  BuyerType,
+  MilkBuyer,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { toStorage } from 'src/common/money';
 import { SellMilkUseCase } from 'src/modules/sales/application/use-cases/sell-milk/sell-milk.use-case';
@@ -73,9 +79,37 @@ export class BuyerService {
     private readonly sellMilkUseCase: SellMilkUseCase,
     private readonly voidSaleUseCase: VoidSaleUseCase,
     private readonly dispatchNumberAllocator: DispatchNumberAllocator,
+    private readonly activityLog: ActivityLogService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(BuyerService.name);
+  }
+
+  /** Post-commit Activity Log entry. Never throws — a log hiccup must not turn a
+   * committed buyer/dispatch change into a 500 (same rule `VoidSaleUseCase` uses). */
+  private async recordActivity(
+    farmId: string,
+    userId: string,
+    eventTitle: string,
+    actionDetails: string,
+    financialImpact?: number,
+  ): Promise<void> {
+    try {
+      await this.activityLog.record({
+        farmId,
+        module: ActivityLogModule.FINANCE,
+        eventTitle,
+        actionDetails,
+        actorId: userId,
+        ...(financialImpact !== undefined ? { financialImpact } : {}),
+      });
+    } catch (error) {
+      this.log.error('Buyer activity log failed', {
+        farmId,
+        eventTitle,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   // ---- Buyers --------------------------------------------------------------
@@ -102,6 +136,12 @@ export class BuyerService {
       },
     });
     this.log.info('Milk buyer created', { buyerId: buyer.id, farmId });
+    await this.recordActivity(
+      farmId,
+      userId,
+      'Buyer Added',
+      `Buyer "${buyer.name}" added (৳${buyer.basePricePerLitre}/L, ${buyer.paymentTermsDays}-day terms).`,
+    );
     return buyer;
   }
 
@@ -344,7 +384,12 @@ export class BuyerService {
     return this.getBuyerOrThrow(farmId, id);
   }
 
-  async updateBuyer(farmId: string, id: string, dto: UpdateBuyerDto) {
+  async updateBuyer(
+    farmId: string,
+    userId: string,
+    id: string,
+    dto: UpdateBuyerDto,
+  ) {
     await this.getBuyerOrThrow(farmId, id);
     const buyer = await this.prisma.milkBuyer.update({
       where: { id },
@@ -366,23 +411,37 @@ export class BuyerService {
       },
     });
     this.log.info('Milk buyer updated', { buyerId: id, farmId });
+    await this.recordActivity(
+      farmId,
+      userId,
+      'Buyer Updated',
+      `Buyer "${buyer.name}" updated.`,
+    );
     return buyer;
   }
 
-  async deactivateBuyer(farmId: string, id: string) {
+  async deactivateBuyer(farmId: string, userId: string, id: string) {
     await this.getBuyerOrThrow(farmId, id);
     const buyer = await this.prisma.milkBuyer.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
     this.log.info('Milk buyer deactivated', { buyerId: id, farmId });
+    await this.recordActivity(
+      farmId,
+      userId,
+      'Buyer Deactivated',
+      `Buyer "${buyer.name}" deactivated.`,
+    );
     return buyer;
   }
 
   // ---- Dispatch ------------------------------------------------------------
 
   async recordDispatch(farmId: string, userId: string, dto: RecordDispatchDto) {
-    const buyer = await this.getBuyerOrThrow(farmId, dto.buyerId);
+    const buyer = await this.getBuyerOrThrow(farmId, dto.buyerId, {
+      requireActive: true,
+    });
     const dispatchedAt = new Date(dto.dispatchedAt);
 
     const pricedVolume = dto.volumeReceivedL ?? dto.volumeDispatchedL;
@@ -457,9 +516,10 @@ export class BuyerService {
         // sale at all — same no-op the old `sellFromTank` had for
         // `volumeL <= 0`. Every real dispatch posts through SellMilkUseCase:
         // Sale + SaleLine(MILK) + MilkSaleLine, tank decrement, journal,
-        // Receivable — unpaid at record time (`amountReceived` 0, PRD §11.3's
-        // own convention — settled later via the generic
-        // `POST /finance/payments` + `/allocations` routes).
+        // Receivable — unpaid unless the farmer took money at the point of sale
+        // (`amountReceived`, with its `paymentMethod`): then the Payment +
+        // allocation post in this same transaction. Otherwise it is settled
+        // later via the generic `POST /finance/payments` + `/allocations` routes.
         let tankUpdated = false;
         let saleId: string | null = null;
         if (dto.volumeDispatchedL > 0) {
@@ -474,6 +534,10 @@ export class BuyerService {
               description: `Milk dispatch to ${buyer.name}`,
               notes: `Milk dispatch ${dispatch.id}`,
               dueDate: paymentDueDate,
+              amountReceived: dto.amountReceived,
+              paymentMethod: dto.paymentMethod,
+              financialAccountId: dto.financialAccountId,
+              referenceNumber: dto.referenceNumber,
             },
             tx,
           );
@@ -510,6 +574,7 @@ export class BuyerService {
       calculatedAmount: breakdown.total,
       priceBreakdown: breakdown,
       paymentDueDate,
+      amountReceived: dto.amountReceived ?? 0,
       tankUpdated,
       saleId,
       status: deriveDispatchStatus(dispatch),
@@ -594,6 +659,21 @@ export class BuyerService {
       dispatchId,
       cascadedSaleId: dispatch.saleId,
     });
+    // `cancelSale` skips its own log when handed our `tx`, so the cancel is
+    // logged here, after the commit. The reversed amount is the sale total.
+    const reversed = dispatch.saleId
+      ? await this.prisma.sale.findFirst({
+          where: { id: dispatch.saleId, farmId },
+          select: { totalAmount: true },
+        })
+      : null;
+    await this.recordActivity(
+      farmId,
+      userId,
+      'Milk Dispatch Cancelled',
+      `Dispatch ${dispatch.dispatchNumber} (${dispatch.volumeDispatchedL}L) cancelled${dispatch.saleId ? ' — sale reversed and milk returned to stock' : ''}.`,
+      reversed ? -Number(reversed.totalAmount) : undefined,
+    );
 
     const updated = await this.prisma.milkDispatch.findFirstOrThrow({
       where: { id: dispatchId, farmId },
@@ -612,6 +692,7 @@ export class BuyerService {
    */
   async recordReceipt(
     farmId: string,
+    userId: string,
     dispatchId: string,
     dto: RecordReceiptDto,
   ) {
@@ -647,6 +728,12 @@ export class BuyerService {
       volumeReceivedL: dto.volumeReceivedL,
       discrepancyL,
     });
+    await this.recordActivity(
+      farmId,
+      userId,
+      'Milk Receipt Confirmed',
+      `Dispatch ${dispatch.dispatchNumber}: buyer received ${dto.volumeReceivedL}L of ${dispatch.volumeDispatchedL}L${discrepancyL !== 0 ? ` (${discrepancyL}L discrepancy)` : ''}.`,
+    );
 
     return { ...updated, status: deriveDispatchStatus(updated) };
   }
@@ -693,7 +780,13 @@ export class BuyerService {
     const end = new Date(Date.UTC(year, month, 1));
 
     const dispatches = await this.prisma.milkDispatch.findMany({
-      where: { farmId, buyerId, dispatchedAt: { gte: start, lt: end } },
+      // A cancelled dispatch reversed its sale: it is neither dispatched, due nor paid.
+      where: {
+        farmId,
+        buyerId,
+        cancelledAt: null,
+        dispatchedAt: { gte: start, lt: end },
+      },
       orderBy: { dispatchedAt: 'asc' },
     });
 
@@ -776,15 +869,23 @@ export class BuyerService {
 
   // ---- Helpers -------------------------------------------------------------
 
+  /** `requireActive` is for anything that sells to the buyer: an archived buyer
+   * stays readable (statements, history) but can no longer be dispatched to. */
   private async getBuyerOrThrow(
     farmId: string,
     id: string,
+    opts?: { requireActive?: boolean },
   ): Promise<MilkBuyer> {
     const buyer = await this.prisma.milkBuyer.findFirst({
       where: { id, farmId },
     });
     if (!buyer) {
       throw new NotFoundException('Buyer not found');
+    }
+    if (opts?.requireActive && buyer.deletedAt) {
+      throw new BadRequestException(
+        'This buyer is deactivated and cannot receive new sales',
+      );
     }
     return buyer;
   }

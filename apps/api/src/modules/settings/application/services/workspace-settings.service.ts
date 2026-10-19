@@ -4,7 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { FarmModuleSettings, Prisma } from '@prisma/client';
+import { ActivityLogModule, FarmModuleSettings, Prisma } from '@prisma/client';
+import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { CreateSupplierDto } from '../../presentation/dto/create-supplier.dto';
@@ -29,8 +30,34 @@ export class WorkspaceSettingsService {
   constructor(
     private readonly prisma: PrismaService,
     logger: LoggerService,
+    private readonly activityLog: ActivityLogService,
   ) {
     this.log = logger.setContext(WorkspaceSettingsService.name);
+  }
+
+  /** Supplier changes are part of the purchasing trail. Post-commit and non-fatal: the supplier row
+   * is already saved, so a failed audit write must not turn into a 500. */
+  private async recordSupplierActivity(
+    farmId: string,
+    userId: string | undefined,
+    eventTitle: string,
+    actionDetails: string,
+  ): Promise<void> {
+    try {
+      await this.activityLog.record({
+        farmId,
+        module: ActivityLogModule.FINANCE,
+        eventTitle,
+        actionDetails,
+        actorId: userId,
+      });
+    } catch (error) {
+      this.log.error('Supplier activity log failed', {
+        farmId,
+        eventTitle,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   // ── Module settings ─────────────────────────────────────────────────────────
@@ -169,7 +196,11 @@ export class WorkspaceSettingsService {
     return { suppliers: suppliers.map((s) => this.mapSupplier(s)) };
   }
 
-  async createSupplier(farmId: string, dto: CreateSupplierDto) {
+  async createSupplier(
+    farmId: string,
+    dto: CreateSupplierDto,
+    userId?: string,
+  ) {
     try {
       const supplier = await this.prisma.supplier.create({
         data: {
@@ -185,6 +216,12 @@ export class WorkspaceSettingsService {
         },
       });
       this.log.info('Supplier created', { supplierId: supplier.id, farmId });
+      await this.recordSupplierActivity(
+        farmId,
+        userId,
+        'Supplier Added',
+        `Supplier "${supplier.name}" added.`,
+      );
       return this.mapSupplier(supplier);
     } catch (e) {
       if (
@@ -197,7 +234,12 @@ export class WorkspaceSettingsService {
     }
   }
 
-  async updateSupplier(farmId: string, id: string, dto: UpdateSupplierDto) {
+  async updateSupplier(
+    farmId: string,
+    id: string,
+    dto: UpdateSupplierDto,
+    userId?: string,
+  ) {
     await this.getSupplierOrThrow(farmId, id);
     const supplier = await this.prisma.supplier.update({
       where: { id },
@@ -219,16 +261,34 @@ export class WorkspaceSettingsService {
           : {}),
       },
     });
+    const archived = dto.deleted_at !== undefined && dto.deleted_at !== null;
+    const restored = dto.deleted_at === null;
+    await this.recordSupplierActivity(
+      farmId,
+      userId,
+      archived
+        ? 'Supplier Archived'
+        : restored
+          ? 'Supplier Restored'
+          : 'Supplier Updated',
+      `Supplier "${supplier.name}" ${archived ? 'archived' : restored ? 'restored' : 'updated'}.`,
+    );
     return this.mapSupplier(supplier);
   }
 
-  async deleteSupplier(farmId: string, id: string) {
-    await this.getSupplierOrThrow(farmId, id);
+  async deleteSupplier(farmId: string, id: string, userId?: string) {
+    const existing = await this.getSupplierOrThrow(farmId, id);
     await this.prisma.supplier.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
     this.log.info('Supplier deactivated', { supplierId: id, farmId });
+    await this.recordSupplierActivity(
+      farmId,
+      userId,
+      'Supplier Archived',
+      `Supplier "${existing.name}" archived.`,
+    );
     return { id, deleted_at: new Date() };
   }
 

@@ -7,6 +7,8 @@ import {
 import {
   Medicine,
   MedicineBatch,
+  MedicineCategory,
+  MedicineType,
   MediaCategory,
   MediaUsage,
   MedicineStockMovementReason,
@@ -205,6 +207,57 @@ export class MedicineService {
   }
 
   /**
+   * Catalog row only, **zero stock, no batch** — for a caller that owns the transaction and will
+   * immediately add the first lot itself (`PurchaseService`'s inline `newItem`, Business UX Phase 2).
+   * Creating the row with stock here would put units on the shelf with no ledger posting; the purchase
+   * then adds the real lot through `createBatch(..., tx)` so stock and journal stay one atomic unit.
+   * `purchaseDate`/`expiryDate`/`costPerUnit` are placeholders the purchase's own batch overwrites via
+   * `syncMedicineAggregate`. No Activity Log entry — the purchase owns the audit trail.
+   */
+  async createCatalogRowInTx(
+    farmId: string,
+    userId: string,
+    input: {
+      name: string;
+      type: MedicineType;
+      category: MedicineCategory;
+      unitId: string;
+      manufacturer?: string;
+      lowStockThreshold?: number;
+      milkWithdrawalDays?: number;
+      meatWithdrawalDays?: number;
+      notes?: string;
+      purchaseDate: Date;
+      expiryDate: Date;
+      costPerUnit: number;
+    },
+    tx: Prisma.TransactionClient,
+  ): Promise<{ id: string }> {
+    this.assertExpiryAfterPurchase(input.purchaseDate, input.expiryDate);
+    const created = await tx.medicine.create({
+      data: {
+        farmId,
+        name: input.name,
+        type: input.type,
+        category: input.category,
+        manufacturer: input.manufacturer,
+        unitId: input.unitId,
+        currentStock: 0,
+        costPerUnit: input.costPerUnit,
+        lowStockThreshold: input.lowStockThreshold ?? 0,
+        purchaseDate: input.purchaseDate,
+        expiryDate: input.expiryDate,
+        milkWithdrawalDays: input.milkWithdrawalDays ?? 0,
+        meatWithdrawalDays: input.meatWithdrawalDays ?? 0,
+        notes: input.notes,
+        createdBy: userId,
+      },
+      select: { id: true },
+    });
+    return created;
+  }
+
+  /**
    * Restock an existing product with a new lot (RAKHAL-434's problem #1 — buying
    * two lots of the same drug no longer means re-typing the catalog fields into
    * a second full `Medicine` row). Resyncs the parent's mirrored summary fields.
@@ -221,7 +274,7 @@ export class MedicineService {
     dto: CreateMedicineBatchDto,
     tx?: Prisma.TransactionClient,
   ): Promise<PresentedMedicine & { batchId: string }> {
-    await this.getOrThrow(farmId, medicineId);
+    await this.getOrThrow(farmId, medicineId, tx ?? this.prisma);
 
     const purchaseDate = new Date(dto.purchaseDate);
     const expiryDate = new Date(dto.expiryDate);
@@ -1242,8 +1295,9 @@ export class MedicineService {
   private async getOrThrow(
     farmId: string,
     id: string,
+    client: Prisma.TransactionClient | PrismaService = this.prisma,
   ): Promise<MedicineWithUnit> {
-    const medicine = await this.prisma.medicine.findFirst({
+    const medicine = await client.medicine.findFirst({
       where: { id, farmId },
       include: { unit: true },
     });

@@ -99,11 +99,6 @@ export class RecordManureSaleUseCase {
     const wantsPayment =
       dto.amountReceived !== undefined && gt(dto.amountReceived, 0);
     if (wantsPayment) {
-      if (!dto.financialAccountId) {
-        throw new BadRequestException(
-          'financialAccountId is required when amountReceived is greater than zero',
-        );
-      }
       if (gt(dto.amountReceived as number, dto.totalAmount)) {
         throw new BadRequestException(
           'amountReceived cannot exceed totalAmount',
@@ -188,7 +183,7 @@ export class RecordManureSaleUseCase {
           userId,
           {
             direction: PaymentDirection.INCOMING,
-            financialAccountId: dto.financialAccountId as string,
+            financialAccountId: dto.financialAccountId,
             amount: dto.amountReceived as number,
             method: dto.paymentMethod ?? PaymentMethod.CASH,
             transactionDate: dto.saleDate,

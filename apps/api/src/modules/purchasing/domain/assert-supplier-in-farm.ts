@@ -16,7 +16,7 @@ export async function assertSupplierBelongsToFarm(
   supplierId: string,
 ): Promise<void> {
   const supplier = await client.supplier.findFirst({
-    where: { id: supplierId, farmId },
+    where: { id: supplierId, farmId, deletedAt: null },
     select: { id: true },
   });
   if (!supplier) {

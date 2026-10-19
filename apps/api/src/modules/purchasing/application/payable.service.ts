@@ -208,7 +208,20 @@ export class PayableService {
     farmId: string,
     query: ListPayablesQueryDto,
   ): Promise<CursorPage<PayableWithDerived>> {
-    const where: Prisma.PayableWhereInput = { farmId };
+    // A voided purchase/expense closes its payable (`VoidDocumentUseCase`) but the row stays, so
+    // hide it: otherwise a cancelled bill keeps showing as owed/overdue.
+    const where: Prisma.PayableWhereInput = {
+      farmId,
+      AND: [
+        {
+          OR: [
+            { purchaseId: null },
+            { purchase: { status: { not: 'VOIDED' } } },
+          ],
+        },
+        { OR: [{ expenseId: null }, { expense: { voidedAt: null } }] },
+      ],
+    };
     if (query.supplierId) {
       where.supplierId = query.supplierId;
     }

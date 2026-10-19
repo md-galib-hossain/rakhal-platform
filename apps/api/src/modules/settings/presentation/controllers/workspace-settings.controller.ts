@@ -8,7 +8,7 @@
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { CurrentFarmId } from 'src/common/decorators';
+import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
@@ -78,25 +78,31 @@ export class WorkspaceSettingsController {
   @RequirePermission('settings.update')
   createSupplier(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Body() dto: CreateSupplierDto,
   ) {
-    return this.workspace.createSupplier(farmId, dto);
+    return this.workspace.createSupplier(farmId, dto, userId);
   }
 
   @Patch('suppliers/:id')
   @RequirePermission('settings.update')
   updateSupplier(
     @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: UpdateSupplierDto,
   ) {
-    return this.workspace.updateSupplier(farmId, id, dto);
+    return this.workspace.updateSupplier(farmId, id, dto, userId);
   }
 
   @Delete('suppliers/:id')
   @RequirePermission('settings.update')
-  deleteSupplier(@CurrentFarmId() farmId: string, @Param('id') id: string) {
-    return this.workspace.deleteSupplier(farmId, id);
+  deleteSupplier(
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.workspace.deleteSupplier(farmId, id, userId);
   }
 
   // ── Service Providers ───────────────────────────────────────────────────────

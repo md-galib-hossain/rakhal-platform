@@ -13,6 +13,8 @@ import {
   TestContext,
 } from './utils/e2e';
 
+import { createExtraAccount } from './utils/finance';
+import { TransferService } from 'src/modules/finance-v2/transfers/application/transfer.service';
 /**
  * RAKHAL-362 — Atomicity + invariant e2e suite (`FINANCE_V2_DESIGN.md` §10).
  * Test-only ticket — no production code touched.
@@ -100,15 +102,15 @@ describe('RAKHAL-362 — Atomicity + invariant e2e suite', () => {
   async function createAccount(
     openingBalance?: number,
   ): Promise<{ id: string; ledgerAccountId: string }> {
-    const res = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({
-        name: `Rakhal362-${tag()}`,
-        type: FinancialAccountType.CASH,
-        ...(openingBalance !== undefined ? { openingBalance } : {}),
-      })
-      .expect(201);
+    const res = {
+      body: {
+        data: await createExtraAccount(ctx, prisma, owner, {
+          name: `Rakhal362-${tag()}`,
+          type: FinancialAccountType.CASH,
+          ...(openingBalance !== undefined ? { openingBalance } : {}),
+        }),
+      },
+    };
     const account = (
       res.body as { data: { id: string; ledgerAccountId: string } }
     ).data;
@@ -245,28 +247,32 @@ describe('RAKHAL-362 — Atomicity + invariant e2e suite', () => {
     // Opening balance posts a real journal entry at creation time — the
     // only way to give a fresh account a real source balance to transfer.
     const cashAccount = await createAccount(5_000);
-    const bankRes = await request(server())
-      .post(api('/finance/accounts'))
-      .set(...bearer(owner))
-      .send({
-        name: `Rakhal362-Bank-${tag()}`,
-        type: FinancialAccountType.BANK,
-        bankDetail: { bankName: 'City Bank', accountNumber: `${Date.now()}` },
-      })
-      .expect(201);
+    const bankRes = {
+      body: {
+        data: await createExtraAccount(ctx, prisma, owner, {
+          name: `Rakhal362-Bank-${tag()}`,
+          type: FinancialAccountType.BANK,
+          bankDetail: { bankName: 'City Bank', accountNumber: `${Date.now()}` },
+        }),
+      },
+    };
     const bankAccount = (bankRes.body as { data: { id: string } }).data;
     createdAccountIds.push(bankAccount.id);
 
-    await request(server())
-      .post(api('/finance/transfers'))
-      .set(...bearer(owner))
-      .send({
+    // The HTTP route is retired (one account per farm); legacy multi-account farms still hold
+    // transfers, so exercise the service directly.
+    const ownerRow = await prisma.user.findFirstOrThrow({
+      where: { email: 'owner@demo.rakhal.test' },
+      select: { id: true },
+    });
+    await ctx.app
+      .get(TransferService)
+      .createTransfer(owner.farmId, ownerRow.id, {
         fromFinancialAccountId: cashAccount.id,
         toFinancialAccountId: bankAccount.id,
         amount: 3_000,
         transactionDate: new Date().toISOString(),
-      })
-      .expect(201);
+      } as never);
 
     const tank = await prisma.milkTank.findFirst({
       where: { farmId: owner.farmId, deletedAt: null, tankType: 'SELLABLE' },

@@ -17,6 +17,7 @@ import {
   HealthCloseOutcome,
   MedicineRoute,
 } from '@prisma/client';
+import { toBoolean } from 'src/common/dto';
 import { trimString } from './common.dto';
 
 export class ApplyHealthPlanDto {
@@ -104,11 +105,23 @@ export class LogTreatmentDto {
   @IsString()
   notes?: string;
 
-  /** RD-084: no longer read by the service — a treatment cost never touches
-   * cash (the money already moved at `PurchaseService.createPurchase` time,
-   * consumption posts `Dr expense / Cr Inventory`, see
-   * `ExpenseService.recordInventoryConsumption`). Kept accepted-but-ignored
-   * for one release so an un-updated caller doesn't 400 on an extra field. */
+  /** Medicine typed by hand (not in Inventory): `medicineName` is stored as given, no stock is deducted and no
+   * medicine cost is posted. Needs `medicineName`; ignores `medicineId`. */
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  outsideInventory?: boolean;
+
+  /** Vet fee for this treatment, in ৳. Posted as a HEALTH expense paid from `financialAccountId`
+   * (required when `vetCost` > 0). Unrelated to the medicine's inventory consumption cost. */
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @Min(0)
+  vetCost?: number;
+
+  /** Wallet/account the vet fee is paid from. Only read when `vetCost` > 0 (RD-084: the medicine's own
+   * consumption cost never touches cash, so it is still not read for that). */
   @IsOptional()
   @Transform(trimString)
   @IsString()
@@ -258,6 +271,12 @@ export class MortalityDto {
   @Min(0)
   disposalCost?: number;
 
+  /** Account the disposal cost is paid from; required when `disposalCost` > 0. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  financialAccountId?: string;
+
   @IsOptional()
   @Transform(trimString)
   @IsString()
@@ -317,10 +336,29 @@ export class RecordTreatmentDto {
   )
   cattleIds!: string[];
 
+  /** Inventory medicine. Required unless `outsideInventory` is set. */
+  @IsOptional()
   @Transform(trimString)
   @IsString()
-  @IsNotEmpty()
-  medicineId!: string;
+  medicineId?: string;
+
+  /** Hand-typed medicine name; only used with `outsideInventory` (no stock, no medicine cost). */
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  medicineName?: string;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  outsideInventory?: boolean;
+
+  /** One vet fee for the whole visit, in ৳; needs `financialAccountId`. Linked to the first animal's log. */
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  @Min(0)
+  vetCost?: number;
 
   @Transform(({ value }) => Number(value))
   @IsNumber()

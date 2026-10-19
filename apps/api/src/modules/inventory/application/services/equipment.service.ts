@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Equipment, Prisma, Unit } from '@prisma/client';
+import { Equipment, EquipmentType, Prisma, Unit } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { CursorPage, getCursorArgs, toCursorPage } from 'src/common/pagination';
@@ -75,6 +75,44 @@ export class EquipmentService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Catalog row only, **zero stock** — for a caller that owns the transaction and adds the stock
+   * itself via `adjustStock(..., tx)` (`PurchaseService`'s inline `newItem`). No Activity Log entry:
+   * the purchase owns the audit trail.
+   */
+  async createCatalogRowInTx(
+    farmId: string,
+    userId: string,
+    input: {
+      name: string;
+      assetId?: string;
+      type?: EquipmentType;
+      unitId?: string;
+      lowStockThreshold?: number;
+      notes?: string;
+      purchaseDate: Date;
+      costPerUnit: number;
+    },
+    tx: Prisma.TransactionClient,
+  ): Promise<{ id: string }> {
+    return tx.equipment.create({
+      data: {
+        farmId,
+        name: input.name,
+        assetId: input.assetId,
+        type: input.type,
+        unitId: input.unitId,
+        currentStock: 0,
+        costPerUnit: input.costPerUnit,
+        lowStockThreshold: input.lowStockThreshold ?? 0,
+        purchaseDate: input.purchaseDate,
+        notes: input.notes,
+        createdBy: userId,
+      },
+      select: { id: true },
+    });
   }
 
   async findAll(
@@ -224,7 +262,7 @@ export class EquipmentService {
     dto: AdjustEquipmentStockDto,
     tx?: Prisma.TransactionClient,
   ): Promise<PresentedEquipment> {
-    const existing = await this.getOrThrow(farmId, id);
+    const existing = await this.getOrThrow(farmId, id, tx ?? this.prisma);
     const balanceAfter = existing.currentStock + dto.adjustment;
 
     if (dto.adjustment === 0) {
@@ -298,8 +336,9 @@ export class EquipmentService {
   private async getOrThrow(
     farmId: string,
     id: string,
+    client: Prisma.TransactionClient | PrismaService = this.prisma,
   ): Promise<EquipmentWithUnit> {
-    const equipment = await this.prisma.equipment.findFirst({
+    const equipment = await client.equipment.findFirst({
       where: { id, farmId },
       include: { unit: true },
     });
