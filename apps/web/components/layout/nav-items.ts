@@ -9,10 +9,8 @@ import {
   Receipt,
   Settings,
   ShoppingCart,
-  Store,
   Syringe,
   Trophy,
-  Truck,
   Utensils,
   Wallet,
   Warehouse,
@@ -56,8 +54,9 @@ export const navGroups: { key: NavGroupKey; labelKey: string }[] = [
 
 /** Sidebar module list per PRD §6.1, grouped per the IA above.
  * RAKHAL-381 (MILESTONE 22 — Business Operations IA, `BUSINESS_IA_PRD.md` §4.2): Business narrows
- * to the commercial-document modules (Sales · Buyers · Purchasing · Suppliers · Inventory); Finance
- * (money) splits into its own `finance` group, ordered right after Business. */
+ * to the commercial-document modules (Sales · Purchasing · Inventory); Finance (money) splits into
+ * its own `finance` group, ordered right after Business. Buyers is a tab of Sales and Suppliers a tab
+ * of Purchasing (2026-10-19 merge) — `/buyers` and `/suppliers` redirect there. */
 export const navItems: NavItem[] = [
   { labelKey: "dashboard", href: "/dashboard", icon: LayoutDashboard, group: "overview" },
   { labelKey: "animals", href: "/animals", icon: Beef, group: "herdManagement" },
@@ -67,9 +66,7 @@ export const navItems: NavItem[] = [
   { labelKey: "feeding", href: "/feeding", icon: Utensils, group: "production" },
   { labelKey: "feedFormulator", href: "/feed", icon: Wheat, group: "production" },
   { labelKey: "sales", href: "/sales", icon: Receipt, group: "business" },
-  { labelKey: "buyers", href: "/buyers", icon: Store, group: "business" },
   { labelKey: "purchasing", href: "/purchasing", icon: ShoppingCart, group: "business" },
-  { labelKey: "suppliers", href: "/suppliers", icon: Truck, group: "business" },
   { labelKey: "inventory", href: "/inventory", icon: Warehouse, group: "business" },
   { labelKey: "finance", href: "/finance", icon: Wallet, group: "finance" },
   { labelKey: "scoreboard", href: "/scoreboard", icon: Trophy, group: "insights", premiumFlag: "scoreboard.read" },

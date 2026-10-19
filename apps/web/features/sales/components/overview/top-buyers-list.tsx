@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
@@ -8,7 +9,7 @@ import { MoneyText } from "@/components/shared/money-text";
 import type { SalesSummary } from "../../types";
 
 /** RAKHAL-388 — "Top Buyers" list: name + amount (`BUSINESS_IA_PRD.md` §5.7), straight off
- * `SalesSummary.topBuyers` (top 5, `SalesSummaryService.queryTopBuyers`). */
+ * `SalesSummary.topBuyers` (top 5, `SalesSummaryService.queryTopBuyers`); each name links to that buyer's page. */
 export function TopBuyersList({
   data,
   isLoading,
@@ -53,7 +54,9 @@ export function TopBuyersList({
                 <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
                   {i + 1}
                 </span>
-                <span className="text-sm font-medium text-foreground">{buyer.name}</span>
+                <Link href={`/buyers/${buyer.customerId}`} className="text-sm font-medium text-primary hover:underline">
+                  {buyer.name}
+                </Link>
               </div>
               <MoneyText amount={Number(buyer.amount)} className="text-sm font-medium" />
             </div>

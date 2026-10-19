@@ -14,14 +14,11 @@ import { supplierFormSchema, type SupplierFormInput } from "@/features/settings/
 import { useInvalidateSuppliersV2 } from "../hooks";
 
 /**
- * RAKHAL-390 — create/edit dialog. Writes go through the existing `/settings/suppliers` CRUD
- * (`useCreateSupplier`/`useUpdateSupplier`, `features/settings/**` — read-only reuse per this
- * ticket's own lane, not modified). Same field set/shape as `modules-settings-view.tsx`'s own
- * `SupplierFormDialog` (that one lives under Settings → Modules, gated on `settings.update`; this
- * one is the Suppliers module's own dialog, gated on `purchasing.create` by its caller) — kept as a
- * separate component rather than exported/shared since the two live in different features with
- * different permission gates and own i18n namespaces, and duplicating one small form is cheaper
- * than a premature cross-feature export.
+ * RAKHAL-390 — the one supplier create/edit sheet. Writes go through the existing `/settings/suppliers`
+ * CRUD (`useCreateSupplier`/`useUpdateSupplier`, `features/settings/**`), then refresh this module's
+ * own read model too (`useInvalidateSuppliersV2`). Shared by the Purchasing → Suppliers tab and
+ * Settings → Modules (which used to carry an identical private copy under its own i18n namespace) —
+ * callers gate the entry point (`useCanAddSupplier` / `settings.update`), the dialog itself does not.
  */
 export function SupplierFormDialog({
   open,

@@ -27,20 +27,8 @@ const TARGET_SEXES = ["FEMALE", "MALE"] as const;
  * account of that type") with the real `AccountPicker` every other V2 money-movement form uses, so
  * the farmer picks the exact account a breeding cost posts from. */
 function AccountField({ form }: { form: UseFormReturn<CreateBreedingEventInput> }) {
-  const t = useTranslations("reproduction.dialogs.breeding");
-  return (
-    <div className="flex flex-col gap-2">
-      <Label>{t("financialAccount")}</Label>
-      <Controller
-        control={form.control}
-        name="financialAccountId"
-        render={({ field }) => <AccountPicker value={field.value} onChange={field.onChange} />}
-      />
-      {form.formState.errors.financialAccountId ? (
-        <p className="text-xs text-destructive">{form.formState.errors.financialAccountId.message}</p>
-      ) : null}
-    </div>
-  );
+  // One account per farm: nothing to show, the invisible picker just keeps the farm's account in the form.
+  return <Controller control={form.control} name="financialAccountId" render={({ field }) => <AccountPicker value={field.value} onChange={field.onChange} />} />;
 }
 
 /** Pure field markup for a breeding-event form, extracted out of `breeding-event-dialog.tsx` so

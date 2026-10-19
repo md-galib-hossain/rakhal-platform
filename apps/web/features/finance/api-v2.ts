@@ -4,9 +4,7 @@ import { apiFetch, apiFetchPage } from "@/lib/api/client";
 import type { CursorPage } from "@/types/api";
 import type {
   AllocatePaymentPayload,
-  CreateFinancialAccountPayload,
   CreatePaymentPayload,
-  CreateTransferPayload,
   ExpenseSummary,
   FinancePayment,
   FinancePaymentWithAllocations,
@@ -37,12 +35,17 @@ export const financeV2Api = {
   listAccounts(): Promise<FinancialAccount[]> {
     return apiFetch<FinancialAccount[]>("/finance/accounts");
   },
-  createAccount(dto: CreateFinancialAccountPayload): Promise<FinancialAccount> {
-    return apiFetch<FinancialAccount>("/finance/accounts", { method: "POST", body: dto });
+  /** `GET /finance/accounts/farm-account` — the farm's one account (created as "Main Wallet" on first use). */
+  farmAccount(): Promise<FinancialAccount> {
+    return apiFetch<FinancialAccount>("/finance/accounts/farm-account");
   },
   /** `PATCH /finance/accounts/:id` — RAKHAL-356. `type` is immutable, not part of the DTO. */
   updateAccount(id: string, dto: UpdateFinancialAccountPayload): Promise<FinancialAccount> {
     return apiFetch<FinancialAccount>(`/finance/accounts/${id}`, { method: "PATCH", body: dto });
+  },
+  /** `PATCH /finance/accounts/:id/opening-balance` — reverses + reposts the opening posting. */
+  setOpeningBalance(id: string, openingBalance: number): Promise<FinancialAccount> {
+    return apiFetch<FinancialAccount>(`/finance/accounts/${id}/opening-balance`, { method: "PATCH", body: { openingBalance } });
   },
   /** `PATCH /finance/accounts/:id/primary` — makes this the farm's one default wallet. No body. */
   setPrimaryAccount(id: string): Promise<FinancialAccount> {
@@ -61,10 +64,6 @@ export const financeV2Api = {
   /** `GET /finance/transfers` — RAKHAL-356. Plain array, no cursor pagination (mirrors `listAccounts`). */
   listTransfers(): Promise<Transfer[]> {
     return apiFetch<Transfer[]>("/finance/transfers");
-  },
-  /** `POST /finance/transfers` — RAKHAL-356. Permission `finance.transfer`, owner-only (RAKHAL-353). */
-  createTransfer(dto: CreateTransferPayload): Promise<Transfer> {
-    return apiFetch<Transfer>("/finance/transfers", { method: "POST", body: dto });
   },
 
   /** `GET /finance/receivables` — RAKHAL-358, cursor-paginated (`ReceivableController.list`,

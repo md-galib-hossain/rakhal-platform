@@ -19,7 +19,8 @@ const STATUS_VARIANT: Record<InvoicePaymentStatus, "warning" | "success" | "dest
   OVERDUE: "destructive",
 };
 
-/** RAKHAL-388 — "Recent Sales" panel: `Invoice No | Date | Buyer | Product | Qty | Total Amount |
+/** RAKHAL-388 — "Recent Sales" panel (the invoice number opens that invoice on the Invoices tab, the buyer
+ * name opens the buyer's page): `Invoice No | Date | Buyer | Product | Qty | Total Amount |
  * Status | Due Date` (`BUSINESS_IA_PRD.md` §5.7), 5 newest invoices. */
 export function RecentSalesTable() {
   const t = useTranslations("sales.overview.recentSales");
@@ -33,13 +34,27 @@ export function RecentSalesTable() {
         id: "saleNumber",
         header: t("invoiceNo"),
         cell: ({ row }) => (
-          <Link href={`/sales?tab=invoices`} className="font-mono text-xs font-medium text-primary hover:underline">
+          <Link
+            href={`/sales?tab=invoices&preset=this_year&invoice=${encodeURIComponent(row.original.saleNumber)}`}
+            className="font-mono text-xs font-medium text-primary hover:underline"
+          >
             {row.original.saleNumber}
           </Link>
         ),
       },
       { id: "date", header: t("date"), cell: ({ row }) => <DateText date={row.original.saleDate} /> },
-      { id: "buyer", header: t("buyer"), cell: ({ row }) => row.original.customer?.name ?? t("noBuyer") },
+      {
+        id: "buyer",
+        header: t("buyer"),
+        cell: ({ row }) =>
+          row.original.customer ? (
+            <Link href={`/buyers/${row.original.customer.id}`} className="text-primary hover:underline">
+              {row.original.customer.name}
+            </Link>
+          ) : (
+            t("noBuyer")
+          ),
+      },
       {
         id: "product",
         header: t("product"),

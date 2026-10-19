@@ -1,18 +1,22 @@
-"use client"; // infinite query + column defs + void dialog state
+"use client"; // infinite query + column defs + void / pay / detail state
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
+import { Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { DateText } from "@/components/shared/date-text";
+import { MobileRecordCard } from "@/components/shared/mobile-record-card";
 import { MoneyText } from "@/components/shared/money-text";
 import { Can } from "@/lib/auth/permissions";
 import { VoidDocumentDialog } from "@/features/finance/components/void-document-dialog";
 import { useSuppliers } from "@/features/settings/hooks/use-workspace";
-import { usePayables, usePurchasesList, useVoidPurchase } from "../hooks/use-purchasing";
+import { usePurchasesList, useVoidPurchase } from "../hooks/use-purchasing";
 import type { PayableStatus, PurchaseListRow, PurchasingListFilters } from "../types";
+import { PurchaseDetailSheet } from "./purchase-detail-sheet";
+import { PurchasePayDialog } from "./purchase-pay-dialog";
 
 const VARIANT_BY_STATUS: Record<PayableStatus, "warning" | "success" | "destructive"> = {
   UNPAID: "warning",
@@ -22,30 +26,44 @@ const VARIANT_BY_STATUS: Record<PayableStatus, "warning" | "success" | "destruct
 };
 
 /** RAKHAL-391/392 (MILESTONE 22) — the AC's exact column set: `Reference | Supplier | Date | Total |
- * Paid Amount | Status | Due Date`, plus (RAKHAL-392) a `Voided` badge and a `Void` row action
- * (`finance.reverse`-gated, `POST /purchasing/purchases/:id/void`) — the backend itself refuses a
- * purchase with any allocated payment, surfaced via `VoidDocumentDialog`'s own error toast. `Supplier`
- * is joined client-side from `useSuppliers()` (settings) by `supplierId` (a real `Supplier` FK since
- * RAKHAL-365) — `GET /purchasing/purchases` doesn't include the relation. `Paid Amount`/`Status`/
- * `Due Date` are derived from the row's own `Payable` (cross-referenced from `GET /purchasing/
- * payables`): no `Payable` means paid in full at creation. */
-export function PurchasesTable({ filters }: { filters: PurchasingListFilters }) {
+ * Paid Amount | Status`, plus (RAKHAL-392) a `Voided` badge and a `Void` row action
+ * (`finance.reverse`-gated, `POST /purchasing/purchases/:id/void`).
+ *
+ * **Payment state is the server's** (Business UX Phase 5): each row carries `paymentStatus` /
+ * `outstanding` / `paidAmount` derived in `PurchaseService.findAll`, so the table no longer matches a
+ * purchase against `GET /purchasing/payables?limit=100` (which showed a false "Paid in full" for any
+ * purchase beyond the first 100 payables). A voided purchase has `paymentStatus: null` and shows only
+ * the Voided badge. The list row has no `dueDate` (`derivePurchasePayment` returns only status /
+ * outstanding / paid, the payable is dropped from the row), so the **Due Date** column moved into the
+ * detail sheet, which reads it from the embedded payable; an Overdue badge still flags late rows. A row with something outstanding gets a **Pay** action (`finance.create`), and
+ * clicking a row opens `PurchaseDetailSheet` (lines, payments, void, cross-links). `Supplier` is joined
+ * client-side from `useSuppliers()` by `supplierId` — the list endpoint doesn't include the relation.
+ * Below `sm` the table collapses to `MobileRecordCard`s. */
+export function PurchasesTable({ filters, onRecord }: { filters: PurchasingListFilters; onRecord?: () => void }) {
   const t = useTranslations("purchasing.purchasesTable");
   const query = usePurchasesList(filters);
-  const { data: payablesPage } = usePayables();
   const { data: suppliersData } = useSuppliers();
   const voidPurchase = useVoidPurchase();
   const [voidTarget, setVoidTarget] = useState<PurchaseListRow | null>(null);
+  const [payTarget, setPayTarget] = useState<PurchaseListRow | null>(null);
+  const [detailTarget, setDetailTarget] = useState<PurchaseListRow | null>(null);
 
   const rows = useMemo(() => query.data?.pages.flatMap((p) => p.items) ?? [], [query.data]);
-  const payableByPurchaseId = useMemo(
-    () => new Map((payablesPage?.items ?? []).map((p) => [p.purchaseId, p])),
-    [payablesPage],
-  );
   const supplierNameById = useMemo(
     () => new Map((suppliersData?.suppliers ?? []).map((s) => [s.id, s.name])),
     [suppliersData],
   );
+  const supplierName = (row: PurchaseListRow) =>
+    row.supplierId ? (supplierNameById.get(row.supplierId) ?? t("unknownSupplier")) : t("noSupplier");
+
+  const statusBadges = (row: PurchaseListRow) => (
+    <>
+      {row.paymentStatus ? <Badge variant={VARIANT_BY_STATUS[row.paymentStatus]}>{t(`statusOptions.${row.paymentStatus}`)}</Badge> : null}
+      {row.status === "VOIDED" ? <Badge variant="destructive">{t("voided")}</Badge> : null}
+    </>
+  );
+
+  const canPay = (row: PurchaseListRow) => row.status !== "VOIDED" && Number(row.outstanding) > 0;
 
   const columns = useMemo<ColumnDef<PurchaseListRow, unknown>[]>(
     () => [
@@ -73,52 +91,37 @@ export function PurchasesTable({ filters }: { filters: PurchasingListFilters }) 
       {
         id: "paidAmount",
         header: t("paidAmount"),
-        cell: ({ row }) => {
-          const payable = payableByPurchaseId.get(row.original.id);
-          const total = Number(row.original.totalAmount);
-          const paid = payable ? total - Number(payable.outstanding) : total;
-          return <MoneyText amount={paid} />;
-        },
+        cell: ({ row }) => <MoneyText amount={Number(row.original.paidAmount)} />,
       },
       {
         id: "status",
         header: t("status"),
-        cell: ({ row }) => {
-          const payable = payableByPurchaseId.get(row.original.id);
-          return (
-            <div className="flex items-center gap-1.5">
-              {!payable ? (
-                <Badge variant="success">{t("paidInFull")}</Badge>
-              ) : (
-                <Badge variant={VARIANT_BY_STATUS[payable.status]}>{t(`statusOptions.${payable.status}`)}</Badge>
-              )}
-              {row.original.status === "VOIDED" ? <Badge variant="destructive">{t("voided")}</Badge> : null}
-            </div>
-          );
-        },
-      },
-      {
-        id: "dueDate",
-        header: t("dueDate"),
-        cell: ({ row }) => {
-          const payable = payableByPurchaseId.get(row.original.id);
-          return payable?.dueDate ? <DateText date={payable.dueDate} /> : <span className="text-muted-foreground">—</span>;
-        },
+        cell: ({ row }) => <div className="flex items-center gap-1.5">{statusBadges(row.original)}</div>,
       },
       {
         id: "actions",
         header: "",
         cell: ({ row }) =>
           row.original.status === "VOIDED" ? null : (
-            <Can I="finance.reverse">
-              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setVoidTarget(row.original)}>
-                {t("void")}
-              </Button>
-            </Can>
+            <div className="flex items-center gap-1">
+              {canPay(row.original) ? (
+                <Can I="finance.create">
+                  <Button size="sm" variant="secondary" onClick={() => setPayTarget(row.original)}>
+                    {t("pay")}
+                  </Button>
+                </Can>
+              ) : null}
+              <Can I="finance.reverse">
+                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setVoidTarget(row.original)}>
+                  {t("void")}
+                </Button>
+              </Can>
+            </div>
           ),
       },
     ],
-    [t, payableByPurchaseId, supplierNameById],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `statusBadges`/`canPay` are pure closures over `t`
+    [t, supplierNameById],
   );
 
   return (
@@ -131,12 +134,72 @@ export function PurchasesTable({ filters }: { filters: PurchasingListFilters }) 
           isLoading={query.isLoading}
           isError={query.isError}
           onRetry={() => void query.refetch()}
-          emptyState={{ title: t("emptyTitle"), description: t("emptyDescription") }}
+          onRowClick={setDetailTarget}
+          emptyState={{
+            title: t("emptyTitle"),
+            description: t("emptyDescription"),
+            action: onRecord ? (
+              <Can I="purchasing.create">
+                <Button size="sm" className="gap-1.5" onClick={onRecord}>
+                  <Plus className="size-4" aria-hidden />
+                  {t("recordPurchase")}
+                </Button>
+              </Can>
+            ) : undefined,
+          }}
+          renderMobileCard={(row) => (
+            <MobileRecordCard
+              title={row.purchaseNumber}
+              subtitle={supplierName(row)}
+              trailing={<MoneyText amount={Number(row.totalAmount)} />}
+              badges={statusBadges(row)}
+              onOpen={() => setDetailTarget(row)}
+              fields={[
+                { label: t("date"), value: <DateText date={row.purchaseDate} /> },
+                { label: t("paidAmount"), value: <MoneyText amount={Number(row.paidAmount)} /> },
+              ]}
+              actions={
+                row.status === "VOIDED" ? undefined : (
+                  <>
+                    {canPay(row) ? (
+                      <Can I="finance.create">
+                        <Button size="sm" variant="secondary" onClick={() => setPayTarget(row)}>
+                          {t("pay")}
+                        </Button>
+                      </Can>
+                    ) : null}
+                    <Can I="finance.reverse">
+                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setVoidTarget(row)}>
+                        {t("void")}
+                      </Button>
+                    </Can>
+                  </>
+                )
+              }
+            />
+          )}
           hasNextPage={query.hasNextPage}
           isFetchingNextPage={query.isFetchingNextPage}
           onLoadMore={() => void query.fetchNextPage()}
         />
       </div>
+
+      <PurchaseDetailSheet
+        purchase={detailTarget}
+        supplierName={detailTarget ? supplierName(detailTarget) : undefined}
+        open={detailTarget !== null}
+        onOpenChange={(open) => !open && setDetailTarget(null)}
+        onPay={(purchase) => {
+          setDetailTarget(null);
+          setPayTarget(purchase);
+        }}
+        onVoid={(purchase) => {
+          setDetailTarget(null);
+          setVoidTarget(purchase);
+        }}
+      />
+
+      <PurchasePayDialog purchase={payTarget} open={payTarget !== null} onOpenChange={(open) => !open && setPayTarget(null)} />
 
       <VoidDocumentDialog
         open={voidTarget !== null}

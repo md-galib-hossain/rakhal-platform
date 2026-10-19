@@ -2,19 +2,21 @@
 
 import { useTranslations } from "next-intl";
 import { parseAsStringEnum, useQueryState } from "nuqs";
-import { LayoutDashboard, Receipt, Truck } from "lucide-react";
+import { LayoutDashboard, Receipt, Store, Truck } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BuyersView } from "@/features/buyers/components/buyers-view";
 import { SalesOverviewView } from "./overview/sales-overview-view";
 import { InvoicesView } from "./invoices/invoices-view";
 import { DispatchesView } from "./dispatches/dispatches-view";
 
-const SALES_TABS = ["overview", "invoices", "dispatches"] as const;
+const SALES_TABS = ["overview", "invoices", "dispatches", "buyers"] as const;
 type SalesTabKey = (typeof SALES_TABS)[number];
 
 /** RAKHAL-388 (MILESTONE 22) — Sales module top-level screen (`BUSINESS_IA_PRD.md` §5.7-§5.9):
- * `Overview | Invoices | Dispatches` tab bar, `?tab=` URL state (same `useQueryState` convention
- * `FinanceTabs`/`PurchasingView` establish). Mounted at `/sales`, replacing the RAKHAL-357-era
- * scaffold that only hosted the wizard trigger. */
+ * `Overview | Invoices | Dispatches | Buyers` tab bar, `?tab=` URL state (same `useQueryState`
+ * convention `FinanceTabs`/`PurchasingView` establish). Mounted at `/sales`, replacing the
+ * RAKHAL-357-era scaffold that only hosted the wizard trigger. Buyers joined as the last tab on
+ * 2026-10-19 (was its own sidebar page); `/buyers` redirects to `/sales?tab=buyers`. */
 export function SalesView() {
   const t = useTranslations("sales.tabs");
   const [tab, setTab] = useQueryState("tab", parseAsStringEnum<SalesTabKey>([...SALES_TABS]).withDefault("overview"));
@@ -34,6 +36,10 @@ export function SalesView() {
           <Truck className="mr-1.5 size-4" aria-hidden />
           {t("dispatches")}
         </TabsTrigger>
+        <TabsTrigger value="buyers">
+          <Store className="mr-1.5 size-4" aria-hidden />
+          {t("buyers")}
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="overview">
@@ -44,6 +50,9 @@ export function SalesView() {
       </TabsContent>
       <TabsContent value="dispatches">
         <DispatchesView />
+      </TabsContent>
+      <TabsContent value="buyers">
+        <BuyersView />
       </TabsContent>
     </Tabs>
   );

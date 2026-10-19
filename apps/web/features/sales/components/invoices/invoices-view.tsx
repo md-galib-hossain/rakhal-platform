@@ -1,6 +1,7 @@
 "use client"; // status-tab state + search + period state
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -27,8 +28,10 @@ const STATUS_TABS: { key: string; status: InvoicePaymentStatus | undefined }[] =
 export function InvoicesView() {
   const t = useTranslations("sales.invoices");
   const tPreset = useTranslations("period.presets");
+  const searchParams = useSearchParams();
   const [status, setStatus] = useState<InvoicePaymentStatus | undefined>(undefined);
-  const [search, setSearch] = useState("");
+  // `?invoice=<number>` (a link from Recent Sales) lands here with that invoice already searched for.
+  const [search, setSearch] = useState(() => searchParams.get("invoice") ?? "");
   const period = usePeriod("this_month");
 
   const filters = { paymentStatus: status, q: search || undefined, from: period.from.toISOString(), to: period.to.toISOString() };

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Landmark, Smartphone, Wallet } from "lucide-react";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
@@ -10,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { useRakhalBalance } from "../../hooks/use-finance-v2";
 
 /**
- * RAKHAL-356 — "Rakhal Balance" headline: big total + Cash/Bank/MFS breakdown cards, per
+ * RAKHAL-356 — "Rakhal Balance" headline: big total + (no breakdown tiles: one account), per
  * `FINANCE_V2_DESIGN.md` §3 ("Rakhal Balance = Cash + Bank + MFS, computed, never stored — receivables
  * excluded, that money has not arrived"). Every amount off the wire is a Decimal-as-string
  * (`types-v2.ts#RakhalBalanceResult`'s doc comment) — converted via `Number(...)` right before
@@ -40,12 +39,6 @@ export function RakhalBalanceCard() {
   const data = query.data;
   if (!data) return null;
 
-  const breakdownTiles = [
-    { key: "cash", label: t("cash"), icon: Wallet, value: data.breakdown.cash },
-    { key: "bank", label: t("bank"), icon: Landmark, value: data.breakdown.bank },
-    { key: "mfs", label: t("mfs"), icon: Smartphone, value: data.breakdown.mfs },
-  ] as const;
-
   return (
     <div className="flex flex-col gap-4">
       <Card className="flex flex-col gap-4 rounded-2xl p-4">
@@ -57,21 +50,6 @@ export function RakhalBalanceCard() {
           <p className="text-xs text-muted-foreground">{t("subtitle")}</p>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {breakdownTiles.map(({ key, label, icon: Icon, value }) => (
-            <div key={key} className="flex flex-col gap-2 rounded-xl border border-border p-3">
-              <div className="flex items-center gap-2">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-info-tint text-info shadow-xs">
-                  <Icon className="size-4" aria-hidden />
-                </span>
-                <p className="text-sm font-medium text-foreground">{label}</p>
-              </div>
-              <p className="text-xl font-bold text-foreground">
-                <MoneyText amount={Number(value)} />
-              </p>
-            </div>
-          ))}
-        </div>
       </Card>
 
       {/* Position block — never summed into the balance total above (design brief: "Receivable/

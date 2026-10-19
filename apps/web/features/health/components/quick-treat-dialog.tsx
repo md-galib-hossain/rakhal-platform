@@ -29,6 +29,7 @@ import { cattleApi } from "@/features/cattle/api";
 import type { CattleListItem } from "@/features/cattle/types";
 import { useUnits } from "@/features/inventory/hooks/use-inventory";
 import { TreatmentLines } from "./treatment-lines";
+import { VetCostFields } from "./vet-cost-fields";
 import { CreatableSelect } from "@/components/shared/creatable-select";
 import { useCreateShedInline } from "@/features/cattle/hooks/use-cattle";
 import { useRecordTreatment } from "../hooks/use-health";
@@ -72,6 +73,9 @@ export function QuickTreatDialog({ open, onOpenChange }: { open: boolean; onOpen
   const [lines, setLines] = useState<TreatmentLine[]>(() => [newTreatmentLine()]);
   const [lineProblems, setLineProblems] = useState<Record<string, TreatmentLineProblem> | undefined>();
   const [submitting, setSubmitting] = useState(false);
+  const [vetCost, setVetCost] = useState("");
+  const [vetAccountId, setVetAccountId] = useState<string | undefined>();
+  const tVet = useTranslations("health.caseSheet.logTreatment");
 
   const recordTreatment = useRecordTreatment();
 
@@ -114,6 +118,8 @@ export function QuickTreatDialog({ open, onOpenChange }: { open: boolean; onOpen
       setSelected(new Set());
       setLines([newTreatmentLine()]);
       setLineProblems(undefined);
+      setVetCost("");
+      setVetAccountId(undefined);
       setSearch("");
     }
     onOpenChange(next);
@@ -134,32 +140,47 @@ export function QuickTreatDialog({ open, onOpenChange }: { open: boolean; onOpen
       toast.error(tLines("fixLines"));
       return;
     }
+    const vet = Number(vetCost) > 0 ? Number(vetCost) : 0;
+    if (vet > 0 && !vetAccountId) {
+      toast.error(tVet("vetNeedsAccount"));
+      return;
+    }
     setLineProblems(undefined);
     setSubmitting(true);
     // One request per medicine (each deducts its own stock for every animal). A line that saved is dropped from the list
-    // so a retry after a failure on a later line never gives the first medicine twice.
+    // so a retry after a failure on a later line never gives the first medicine twice. The vet fee is one charge for the
+    // visit, so it rides on the first request only and is cleared once that request lands.
     let remaining = lines;
     let animals = 0;
+    let vetPending = vet > 0;
     try {
       for (const line of lines) {
+        const manual = line.manualName !== null;
+        const medicineName = manual ? line.manualName!.trim() : line.medicine!.name;
         try {
           const result = await recordTreatment.mutateAsync({
             cattleIds: [...selected],
-            medicineId: line.medicine!.id,
+            ...(manual ? { outsideInventory: true, medicineName } : { medicineId: line.medicine!.id }),
             doseAmount: Number(line.doseAmount),
-            doseUnit: units.find((u) => u.id === line.doseUnitId)?.symbol ?? line.medicine!.unit.symbol,
+            doseUnit: units.find((u) => u.id === line.doseUnitId)?.symbol ?? line.medicine?.unit.symbol ?? "",
             doseUnitId: line.doseUnitId,
             route: line.route,
             treatedAt: values.treatedAt,
             reason: values.reason || undefined,
             notes: values.notes || undefined,
+            ...(vetPending ? { vetCost: vet, financialAccountId: vetAccountId } : {}),
           });
           animals = result.appliedCount;
           remaining = remaining.filter((l) => l.key !== line.key);
+          if (vetPending) {
+            vetPending = false;
+            setVetCost("");
+            setVetAccountId(undefined);
+          }
         } catch (err) {
           setLines(remaining);
           const reason = err instanceof ApiError ? err.message : t("genericError");
-          toast.error(tLines("lineFailed", { medicine: line.medicine!.name, reason }));
+          toast.error(tLines("lineFailed", { medicine: medicineName, reason }));
           if (remaining.length < lines.length) toast.success(tLines("savedCount", { count: lines.length - remaining.length }));
           return;
         }
@@ -282,7 +303,8 @@ export function QuickTreatDialog({ open, onOpenChange }: { open: boolean; onOpen
 
             <div className="flex flex-col gap-2">
               <Label>{tLines("title")}</Label>
-              <TreatmentLines lines={lines} onChange={setLines} problems={lineProblems} animalCount={selected.size || 1} disabled={submitting} />
+              <TreatmentLines lines={lines} onChange={setLines} problems={lineProblems} animalCount={selected.size || 1} allowManual disabled={submitting} />
+              <VetCostFields vetCost={vetCost} setVetCost={setVetCost} accountId={vetAccountId} setAccountId={setVetAccountId} disabled={submitting} />
             </div>
 
             <Controller

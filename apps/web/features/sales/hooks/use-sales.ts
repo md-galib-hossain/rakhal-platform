@@ -32,6 +32,17 @@ export function useMilkAvailability(enabled: boolean) {
   });
 }
 
+/** The sale's open `Receivable` (null when it was paid in full at the sale). Disabled until a sale id is
+ * given, so a closed sheet never pages the receivables list. */
+export function useReceivableForSale(saleId: string | undefined) {
+  return useQuery({
+    queryKey: ["sales", "v2", "receivable-for-sale", saleId],
+    queryFn: () => salesApi.findReceivableBySale(saleId!),
+    enabled: saleId != null,
+    staleTime: STALE_TIME,
+  });
+}
+
 export function useIncomeCategories(enabled: boolean) {
   return useQuery({
     queryKey: qk.finance.incomeCategoriesV2(),

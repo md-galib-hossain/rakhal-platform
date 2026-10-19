@@ -94,6 +94,13 @@ export const reproductionApi = {
   editHeatEvent(id: string, input: EditHeatEventInput): Promise<HeatEventRow> {
     return apiFetch<HeatEventRow>(`/reproduction/heat-events/${id}`, { method: "PATCH", body: input });
   },
+  /** Removes a heat recorded by mistake (`reproduction.update`, manager+); the backend refuses once a breeding is linked to it. */
+  cancelHeatEvent(id: string, input: { reason?: string } = {}): Promise<{ id: string; cancelled: boolean }> {
+    return apiFetch<{ id: string; cancelled: boolean }>(`/reproduction/heat-events/${id}/cancel`, {
+      method: "POST",
+      body: input,
+    });
+  },
   /** RAKHAL-298 — closes an open heat as `FALSE_ALARM` / `SKIPPED_CYCLE` (`reproduction.heat`). */
   resolveHeatEvent(id: string, input: ResolveHeatEventInput): Promise<HeatEventRow> {
     return apiFetch<HeatEventRow>(`/reproduction/heat-events/${id}/resolve`, { method: "POST", body: input });

@@ -405,7 +405,10 @@ function DayHeading({ day }: { day: string }) {
 function EventRow({ event, onEdit, onVoid }: { event: ReproEventEntry; onEdit?: () => void; onVoid?: () => void }) {
   const t = useTranslations("reproduction.eventsFeed");
   const Icon = EVENT_ICONS[event.event_type];
+  // `resolution` / `resolved_at` render as a status badge, not as raw detail chips.
+  const resolution = typeof event.details.resolution === "string" ? event.details.resolution : null;
   const details = Object.entries(event.details)
+    .filter(([k]) => k !== "resolution" && k !== "resolved_at")
     .map(([k, v]) => humanizeDetail(k, v))
     .filter((v): v is string => v != null);
   const shownDetails = details.slice(0, MAX_DETAIL_CHIPS);
@@ -428,6 +431,11 @@ function EventRow({ event, onEdit, onVoid }: { event: ReproEventEntry; onEdit?: 
             {event.cattle_name ?? event.cattle_tag}
           </AnimalLink>
           {event.cattle_name ? <span className="ml-1 text-xs font-normal text-muted-foreground">{event.cattle_tag}</span> : null}
+          {event.event_type === "heat" && resolution ? (
+            <span className="ml-2 inline-block rounded-full bg-muted px-2 py-0.5 align-middle text-xs font-semibold text-muted-foreground">
+              {t(`resolution.${resolution}`)}
+            </span>
+          ) : null}
         </p>
         {shownDetails.length > 0 ? (
           <ul className="flex flex-nowrap gap-1.5 overflow-hidden" title={details.join(" · ")}>

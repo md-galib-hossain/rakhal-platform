@@ -1,26 +1,29 @@
-"use client"; // dialog-open state (via RecordSaleTrigger)
+"use client"; // sheet-open state
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Banknote } from "lucide-react";
-import { RecordSaleTrigger } from "@/features/sales/components/record-sale-trigger";
+import { Button } from "@/components/ui/button";
+import { Can } from "@/lib/auth/permissions";
+import { SellMilkSheet } from "@/features/sales/components/sell-milk-sheet";
 
 /**
- * RAKHAL-361 — "Sell Milk" domain entry point, `/milk` page header. Opens RAKHAL-357's real Record
- * Sale wizard pre-filled to Product Sale → Milk (`initial={{type:"PRODUCT",productSubtype:"MILK"}}`)
- * — the one sale path that is **fully backend-wired** (`POST /milk/dispatch`, RAKHAL-342/343), per
- * `FINANCE_V2_DESIGN.md` §4.3's "the domain operation is the natural route, Finance is only a
- * shortcut" principle. Placed at the page level (not per milk-log row) since a milk sale is a
- * dispatch against the farm's tank as a whole, not tied to one log entry — matches how
- * `features/buyers/**`'s own dispatch flow already works.
+ * "Sell Milk" domain entry point, `/milk` page header. Opens the one-screen `SellMilkSheet`
+ * (buyer + litres + paid-now/credit — one submit posts the sale, the stock movement, the payment
+ * and the Activity Log entry; see that component's doc comment). Placed at the page level, not per
+ * milk-log row, since a milk sale draws on the farm's tanks as a whole, not on one log entry.
+ * Gated on `finance.create`, the permission `POST /milk/dispatch` requires.
  */
 export function SellMilkButton() {
   const t = useTranslations("milk.page");
+  const [open, setOpen] = useState(false);
   return (
-    <RecordSaleTrigger
-      initial={{ type: "PRODUCT", productSubtype: "MILK" }}
-      label={t("sellMilk")}
-      icon={Banknote}
-      buttonProps={{ variant: "primary" }}
-    />
+    <Can I="finance.create">
+      <Button variant="primary" className="gap-2" onClick={() => setOpen(true)}>
+        <Banknote className="size-[18px]" aria-hidden />
+        {t("sellMilk")}
+      </Button>
+      <SellMilkSheet open={open} onOpenChange={setOpen} />
+    </Can>
   );
 }

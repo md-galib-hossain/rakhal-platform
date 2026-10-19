@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AccountPicker } from "@/features/finance/components/account-picker";
 import { SymptomChips } from "./symptom-chips";
 import type { CaseSummary, HealthCloseOutcome } from "../types";
 import { CaseResultSummary } from "./case-result-summary";
@@ -32,6 +33,9 @@ export interface CaseCloseTabState {
   setDisposalMethod: (v: string) => void;
   disposalCost: string;
   setDisposalCost: (v: string) => void;
+  /** Account the disposal cost was paid from; asked for only once a cost is typed. */
+  disposalAccountId: string | undefined;
+  setDisposalAccountId: (id: string | undefined) => void;
   disposalLocation: string;
   setDisposalLocation: (v: string) => void;
   additionalNotes: string;
@@ -172,6 +176,8 @@ export function CaseCloseTab(props: CaseCloseTabState) {
               </div>
             </div>
           </div>
+          {/* One account per farm: the disposal cost is paid from it, nothing to choose. */}
+          <AccountPicker value={props.disposalAccountId} onChange={props.setDisposalAccountId} />
           <div className="flex flex-col gap-2">
             <Label>{t("disposalLocation")}</Label>
             <Input

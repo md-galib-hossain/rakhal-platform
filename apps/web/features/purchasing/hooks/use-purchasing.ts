@@ -30,6 +30,26 @@ export function useExpensesList(filters: ExpensesListFilters) {
   });
 }
 
+/** One purchase with lines + embedded payable. Disabled while `id` is undefined (a closed sheet). */
+export function usePurchase(id: string | undefined) {
+  return useQuery({
+    queryKey: qk.purchasing.purchaseDetailV2(id ?? ""),
+    queryFn: () => purchasingApi.findPurchase(id!),
+    enabled: id != null,
+    staleTime: STALE_TIME,
+  });
+}
+
+/** A supplier's newest purchases (rows carry the server-derived payment state). */
+export function useSupplierPurchases(supplierId: string | undefined, limit = 5) {
+  return useQuery({
+    queryKey: qk.purchasing.supplierPurchasesV2(supplierId ?? ""),
+    queryFn: () => purchasingApi.listPurchases({ supplierId }, undefined, limit),
+    enabled: supplierId != null,
+    staleTime: STALE_TIME,
+  });
+}
+
 /** `GET /purchasing/summary?from&to` (RAKHAL-375) — the "This Month Summary" panel, period-keyed
  * like `finance.profitLossReportV2` so switching the shared `DateRangePicker` refetches it. */
 export function usePurchasingSummary(range: PeriodRange) {

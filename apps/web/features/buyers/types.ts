@@ -14,7 +14,8 @@ export type BuyerType = "DAIRY_COMPANY" | "COOPERATIVE" | "LOCAL_TRADER" | "DIRE
  * `features/buyers/**` today (no `paymentMethod` field on any buyer/dispatch interface), so this is
  * a type-only consolidation with no behavior change to the live `POST /milk/dispatch` flow.
  */
-export type { PaymentMethod as FinancePaymentMethod } from "@/lib/types/payment";
+import type { PaymentMethod as FinancePaymentMethod } from "@/lib/types/payment";
+export type { FinancePaymentMethod };
 
 export interface Buyer {
   id: string;
@@ -171,10 +172,16 @@ export interface RecordDispatchPayload {
   fatPct?: number;
   scc?: number;
   notes?: string;
+  /** Money taken at the point of sale — posts the payment in the same transaction as the sale.
+   * Omit for a credit sale. `paymentMethod` is required whenever this is > 0. */
+  amountReceived?: number;
+  paymentMethod?: FinancePaymentMethod;
 }
 
 export interface RecordDispatchResult {
   id: string;
+  dispatchNumber: string;
+  amountReceived: number;
   buyerName: string;
   volumeDispatchedL: number;
   volumeReceivedL: number | null;

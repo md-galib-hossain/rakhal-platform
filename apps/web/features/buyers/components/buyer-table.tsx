@@ -1,9 +1,16 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
+import { MobileRecordCard } from "@/components/shared/mobile-record-card";
+import { MoneyText } from "@/components/shared/money-text";
+import { Can } from "@/lib/auth/permissions";
 import { buildBuyerColumns } from "./buyer-columns";
 import type { BuyerListRow } from "../types";
 
@@ -15,7 +22,8 @@ export function BuyerTable({
   onEdit,
   onDeactivate,
   onStatement,
-  onRecordDispatch,
+  onSellMilk,
+  onAdd,
 }: {
   items: BuyerListRow[];
   isLoading: boolean;
@@ -24,12 +32,14 @@ export function BuyerTable({
   onEdit: (buyer: BuyerListRow) => void;
   onDeactivate: (buyer: BuyerListRow) => void;
   onStatement: (buyer: BuyerListRow) => void;
-  onRecordDispatch: (buyer: BuyerListRow) => void;
+  onSellMilk: (buyer: BuyerListRow) => void;
+  /** Empty-state CTA — shown behind `finance.create`. */
+  onAdd?: () => void;
 }) {
   const t = useTranslations("buyers.list");
   const columns = useMemo(
-    () => buildBuyerColumns(t, { onEdit, onDeactivate, onStatement, onRecordDispatch }),
-    [t, onEdit, onDeactivate, onStatement, onRecordDispatch],
+    () => buildBuyerColumns(t, { onEdit, onDeactivate, onStatement, onSellMilk }),
+    [t, onEdit, onDeactivate, onStatement, onSellMilk],
   );
 
   return (
@@ -48,7 +58,53 @@ export function BuyerTable({
         isLoading={isLoading}
         isError={isError}
         onRetry={onRetry}
-        emptyState={{ title: t("empty.title"), description: t("empty.description") }}
+        emptyState={{
+          title: t("empty.title"),
+          description: t("empty.description"),
+          action: onAdd ? (
+            <Can I="finance.create">
+              <Button size="sm" className="gap-1.5" onClick={onAdd}>
+                <Plus className="size-4" aria-hidden />
+                {t("addBuyer")}
+              </Button>
+            </Can>
+          ) : undefined,
+        }}
+        renderMobileCard={(buyer) => (
+          <MobileRecordCard
+            title={
+              <Link href={`/buyers/${buyer.id}`} className="text-primary hover:underline">
+                {buyer.name}
+              </Link>
+            }
+            subtitle={buyer.phone ?? buyer.contactPerson ?? undefined}
+            trailing={<MoneyText amount={Number(buyer.outstanding)} colorize={Number(buyer.outstanding) > 0} />}
+            badges={buyer.status === "INACTIVE" ? <Badge variant="outline">{t("statusInactive")}</Badge> : undefined}
+            fields={[
+              { label: t("columns.outstanding"), value: <MoneyText amount={Number(buyer.outstanding)} /> },
+              { label: t("columns.totalPurchased"), value: <MoneyText amount={Number(buyer.totalPurchased)} /> },
+            ]}
+            actions={
+              <>
+                {buyer.status === "ACTIVE" ? (
+                  <Can I="finance.create">
+                    <Button size="sm" variant="secondary" onClick={() => onSellMilk(buyer)}>
+                      {t("actionsColumn.sellMilk")}
+                    </Button>
+                  </Can>
+                ) : null}
+                <Button size="sm" variant="outline" onClick={() => onStatement(buyer)}>
+                  {t("actionsColumn.statement")}
+                </Button>
+                <Can I="finance.update">
+                  <Button size="sm" variant="ghost" onClick={() => onEdit(buyer)}>
+                    {t("actionsColumn.edit")}
+                  </Button>
+                </Can>
+              </>
+            }
+          />
+        )}
       />
     </div>
   );

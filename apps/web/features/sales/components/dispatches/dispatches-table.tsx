@@ -3,10 +3,12 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
-import { CheckCircle2, MoreVertical, XCircle } from "lucide-react";
+import { CheckCircle2, MoreVertical, Plus, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { DateText } from "@/components/shared/date-text";
+import { MobileRecordCard } from "@/components/shared/mobile-record-card";
 import { MoneyText } from "@/components/shared/money-text";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -29,7 +31,7 @@ const STATUS_VARIANT: Record<DispatchStatus, "warning" | "success" | "destructiv
  * `Cancel` (not already CANCELLED, `finance.reverse` owner-only — same tier every other void route
  * in this milestone uses; the backend rejects a sale-linked dispatch that already has an allocated
  * payment, surfaced here as a toast, not a client-side pre-check). */
-export function DispatchesTable({ filters }: { filters: DispatchListFilters }) {
+export function DispatchesTable({ filters, onNewDispatch }: { filters: DispatchListFilters; onNewDispatch?: () => void }) {
   const t = useTranslations("sales.dispatches.table");
   const query = useDispatchesList(filters);
   const cancelDispatch = useCancelDispatch();
@@ -113,7 +115,46 @@ export function DispatchesTable({ filters }: { filters: DispatchListFilters }) {
           isLoading={query.isLoading}
           isError={query.isError}
           onRetry={() => void query.refetch()}
-          emptyState={{ title: t("emptyTitle"), description: t("emptyDescription") }}
+          emptyState={{
+            title: t("emptyTitle"),
+            description: t("emptyDescription"),
+            action: onNewDispatch ? (
+              <Can I="finance.create">
+                <Button size="sm" className="gap-1.5" onClick={onNewDispatch}>
+                  <Plus className="size-4" aria-hidden />
+                  {t("sellMilk")}
+                </Button>
+              </Can>
+            ) : undefined,
+          }}
+          renderMobileCard={(d) => (
+            <MobileRecordCard
+              title={d.dispatchNumber}
+              subtitle={d.buyer?.name ?? t("noBuyer")}
+              trailing={<MoneyText amount={d.calculatedAmount} />}
+              badges={<Badge variant={STATUS_VARIANT[d.status]}>{t(`statusOptions.${d.status}`)}</Badge>}
+              fields={[
+                { label: t("date"), value: <DateText date={d.dispatchedAt} /> },
+                { label: t("quantity"), value: `${d.volumeReceivedL ?? d.volumeDispatchedL} L` },
+              ]}
+              actions={
+                d.status === "CANCELLED" ? undefined : (
+                  <Can I="finance.update">
+                    {d.status === "PENDING" ? (
+                      <Button size="sm" variant="secondary" onClick={() => setReceiptTarget(d)}>
+                        {t("confirmReceipt")}
+                      </Button>
+                    ) : null}
+                    <Can I="finance.reverse">
+                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setCancelTarget(d)}>
+                        {t("cancelDispatch")}
+                      </Button>
+                    </Can>
+                  </Can>
+                )
+              }
+            />
+          )}
           hasNextPage={query.hasNextPage}
           isFetchingNextPage={query.isFetchingNextPage}
           onLoadMore={() => void query.fetchNextPage()}

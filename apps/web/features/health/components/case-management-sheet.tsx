@@ -80,6 +80,8 @@ function CaseManagementSheetBody({
   const [lines, setLines] = useState<TreatmentLine[]>(() => [newTreatmentLine()]);
   const [lineProblems, setLineProblems] = useState<Record<string, TreatmentLineProblem> | undefined>();
   const administeredBy = session.data?.user.name ?? "";
+  const [vetCost, setVetCost] = useState("");
+  const [vetAccountId, setVetAccountId] = useState<string | undefined>();
 
   // Health Update tab state
   const [clinicalProgress, setClinicalProgress] = useState<ClinicalProgress>("IMPROVING");
@@ -98,6 +100,7 @@ function CaseManagementSheetBody({
   const [postMortemPerformed, setPostMortemPerformed] = useState(false);
   const [disposalMethod, setDisposalMethod] = useState("");
   const [disposalCost, setDisposalCost] = useState("");
+  const [disposalAccountId, setDisposalAccountId] = useState<string>();
   const [disposalLocation, setDisposalLocation] = useState("");
   const [additionalNotes, setAdditionalNotes] = useState("");
 
@@ -110,29 +113,44 @@ function CaseManagementSheetBody({
           toast.error(t("logTreatment.fixLines"));
           return;
         }
+        const vet = Number(vetCost) > 0 ? Number(vetCost) : 0;
+        if (vet > 0 && !vetAccountId) {
+          toast.error(t("logTreatment.vetNeedsAccount"));
+          return;
+        }
         setLineProblems(undefined);
         // One request per medicine (each deducts its own stock). A line that saved is dropped so a retry after a failure
-        // on a later line never logs the first one twice.
+        // on a later line never logs the first one twice. The vet fee is one charge for the visit, so it rides on the
+        // first request only and is cleared once that request lands.
         let remaining = lines;
+        let vetPending = vet > 0;
         for (const line of lines) {
+          const manual = line.manualName !== null;
+          const medicineName = manual ? line.manualName!.trim() : line.medicine!.name;
           try {
             await logTreatment.mutateAsync({
               id: caseId,
               dto: {
-                medicineId: line.medicine!.id,
-                medicineName: line.medicine!.name,
+                ...(manual ? { outsideInventory: true } : { medicineId: line.medicine!.id }),
+                medicineName,
                 route: line.route,
                 doseAmount: Number(line.doseAmount),
                 doseUnit: units.find((u) => u.id === line.doseUnitId)?.symbol,
                 doseUnitId: line.doseUnitId,
                 administeredBy,
+                ...(vetPending ? { vetCost: vet, financialAccountId: vetAccountId } : {}),
               },
             });
             remaining = remaining.filter((l) => l.key !== line.key);
+            if (vetPending) {
+              vetPending = false;
+              setVetCost("");
+              setVetAccountId(undefined);
+            }
           } catch (err) {
             setLines(remaining);
             const reason = err instanceof ApiError ? err.message : t("genericError");
-            toast.error(t("logTreatment.lineFailed", { medicine: line.medicine!.name, reason }));
+            toast.error(t("logTreatment.lineFailed", { medicine: medicineName, reason }));
             if (remaining.length < lines.length) toast.success(t("logTreatment.savedCount", { count: lines.length - remaining.length }));
             return;
           }
@@ -166,6 +184,11 @@ function CaseManagementSheetBody({
           toast.error(t("closeCase.mortalityRequiredFields"));
           return;
         }
+        const disposal = Number(disposalCost) > 0 ? Number(disposalCost) : 0;
+        if (disposal > 0 && !disposalAccountId) {
+          toast.error(t("closeCase.disposalNeedsAccount"));
+          return;
+        }
         await logMortality.mutateAsync({
           id: caseId,
           dto: {
@@ -176,6 +199,7 @@ function CaseManagementSheetBody({
             postMortemPerformed,
             disposalMethod: disposalMethod || undefined,
             disposalCost: disposalCost ? Number(disposalCost) : undefined,
+            financialAccountId: disposal > 0 ? disposalAccountId : undefined,
             disposalLocation: disposalLocation || undefined,
             additionalNotes,
           },
@@ -236,6 +260,10 @@ function CaseManagementSheetBody({
                 problems={lineProblems}
                 disabled={logTreatment.isPending}
                 administeredBy={administeredBy}
+                vetCost={vetCost}
+                setVetCost={setVetCost}
+                vetAccountId={vetAccountId}
+                setVetAccountId={setVetAccountId}
               />
             ) : tab === "healthUpdate" ? (
               <CaseHealthUpdateTab
@@ -271,6 +299,8 @@ function CaseManagementSheetBody({
                 setDisposalMethod={setDisposalMethod}
                 disposalCost={disposalCost}
                 setDisposalCost={setDisposalCost}
+                disposalAccountId={disposalAccountId}
+                setDisposalAccountId={setDisposalAccountId}
                 disposalLocation={disposalLocation}
                 setDisposalLocation={setDisposalLocation}
                 additionalNotes={additionalNotes}

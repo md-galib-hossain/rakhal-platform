@@ -529,6 +529,11 @@
   monthly statement view/download.
 - **API:** §7 · **PRD:** §11 · **Design:** Figma if present, else PRD-spec
 - **Status:** `TODO`
+- **2026-10-19 (Business IA Phase 3, no ticket #):** Buyers is no longer a sidebar page — it is the 4th tab of Sales
+  (`/sales?tab=buyers`); `/buyers` redirects there, `/buyers/:id` detail is unchanged. Row actions + Add gated by
+  `finance.create/update/delete`. Likewise Suppliers is the 3rd tab of Purchasing (`/purchasing?tab=suppliers`,
+  `/suppliers` redirects), Add gated `purchasing.create` OR `settings.update`. See `CURRENT_STATE.md`.
+- **2026-10-19 (Business UX Phases 5 + 6, no ticket #):** Record Purchase gains "+ New supplier" (name + phone) and "+ New item" (sent as `newItem`), last-used line kind, real stock on the picker chip, medicine expiry (was missing, a 400), Pay in full / Part paid / On credit; Purchases rows use the server's `paymentStatus` (no more `payables?limit=100`), a Pay action and a detail sheet; Suppliers tab gets search + show-more (client-side, the backend has no cursor/search), a supplier sheet and one shared form with Settings; Invoices get a detail sheet + Receive payment; Top Buyers / Recent Sales link through; buyer rows + detail header get "Sell milk" and `record-dispatch-dialog` is deleted; empty-state CTAs and mobile cards on Invoices / Dispatches / Purchases / Buyers / Suppliers. Gaps recorded in `CURRENT_STATE.md` (list-row `dueDate`, receivable `?saleId=`, suppliers search/cursor). Live-checked 2026-10-20 as manager + owner (bn), not worker, not en.
 
 #### RFE-027 — Task Hub
 - **Lane:** `features/tasks/**`, `app/(app)/tasks/**` · **Design:** Figma task frames

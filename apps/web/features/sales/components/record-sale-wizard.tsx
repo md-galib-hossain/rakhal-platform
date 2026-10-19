@@ -1,12 +1,12 @@
-"use client"; // wizard state + multi-call submit orchestration
+"use client"; // wizard state + per-sale-type submit
 
 import { todayLocalIso } from "@/lib/local-date";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Landmark, Milk, PackageSearch, TrendingUp, Wheat } from "lucide-react";
+import { Landmark, PackageSearch, TrendingUp, Wheat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -20,14 +20,12 @@ import { MoneyInput } from "@/components/shared/money-input";
 import { Wizard, type WizardStep } from "@/components/shared/wizard";
 import { AccountPicker } from "@/features/finance/components/account-picker";
 import { ItemPicker } from "@/features/purchasing/components/item-picker";
-import { useBuyersPagedList, useRecordDispatch } from "@/features/buyers/hooks/use-buyers";
-import { BuyerPicker } from "@/features/buyers/components/buyer-picker";
 import { PAYMENT_METHODS } from "@/lib/types/payment";
 import { clampAmountReceived, computeDue, computeLineTotal } from "../domain/sale-math";
 import { recordSaleFormSchema, type RecordSaleFormInput } from "../schemas";
 import { PRODUCT_SALE_SUBTYPES, RECORD_SALE_TYPES, type ProductSaleSubtype, type RecordSaleInitial, type RecordSaleType } from "../types";
 import type { PurchasableItemOption } from "@/features/purchasing/types";
-import { findReceivableBySale, useAllocatePayment, useCreatePayment, useIncomeCategories, useMilkAvailability, useRecordOtherIncome, useSellAnimal, useSellInventory, useSellManure } from "../hooks/use-sales";
+import { useIncomeCategories, useRecordOtherIncome, useSellAnimal, useSellInventory, useSellManure } from "../hooks/use-sales";
 
 function today(): string {
   return todayLocalIso();
@@ -46,7 +44,6 @@ const TYPE_ICON: Record<RecordSaleType, React.ComponentType<{ className?: string
 };
 
 const PRODUCT_ICON: Record<ProductSaleSubtype, React.ComponentType<{ className?: string }>> = {
-  MILK: Milk,
   MANURE: Wheat,
   INVENTORY: PackageSearch,
 };
@@ -64,7 +61,6 @@ const PRODUCT_ICON: Record<ProductSaleSubtype, React.ComponentType<{ className?:
  *
  * | Type | Route | Status |
  * |---|---|---|
- * | Product Sale → Milk | `POST /milk/dispatch` (RAKHAL-342/343) | **wired** |
  * | Other Income | `POST /finance/income` (RAKHAL-350) | **wired** |
  * | Product Sale → Manure | `POST /sales/manure` (RAKHAL-347/376) | **wired** |
  * | Product Sale → Inventory item | `POST /sales/inventory` (RAKHAL-346/376) | **wired** |
@@ -79,27 +75,15 @@ const PRODUCT_ICON: Record<ProductSaleSubtype, React.ComponentType<{ className?:
  *
  * **Sale Total / Due derivation** (this ticket's other core deliverable, `FINANCE_V2_DESIGN.md`
  * §4.6): the wizard never asks "Full or Partial?" — it asks "Amount Received" and computes Due
- * (`domain/sale-math.ts#computeDue`), pure functions covered by `sale-math.test.ts`. For the Milk
- * sub-type specifically, the Sale Total shown pre-submit is a client-side **estimate**
- * (`volumeL × buyer.basePricePerLitre`) — the *real* total includes a fat-bonus/SCC-penalty
- * adjustment `computeMilkPrice` only calculates server-side inside `SellMilkUseCase`, so the
- * success toast shows the dispatch response's real `calculatedAmount` instead, and "Amount
- * Received" is capped against the *estimate* at entry time (a small real-vs-estimate gap can leave
- * a receivable slightly over/under-allocated relative to what the farmer typed — flagged, not
- * hidden, in this ticket's IN_FLIGHT writeup).
+ * (`domain/sale-math.ts#computeDue`), pure functions covered by `sale-math.test.ts`.
  *
- * **Milk's payment step is a 3-call orchestration**, not one atomic backend call — because
- * `POST /milk/dispatch` itself always records a sale **unpaid** (PRD §11.3 convention, per that
- * route's own doc comment) and settlement is a separate concern: (1) `POST /milk/dispatch` →
- * `saleId`, (2) if Amount Received > 0, `POST /finance/payments` → payment id, (3)
- * `POST /finance/payments/:id/allocations` against the `Receivable` the dispatch raised (found via
- * `findReceivableBySale`, since no `?saleId=` filter exists). Steps 2-3 are best-effort *after* the
- * real sale (step 1) already succeeded — a failure there surfaces a toast telling the farmer money
- * still needs recording, rather than losing the sale itself.
+ * **Milk is not sold here any more.** Selling milk has its own one-screen `SellMilkSheet`
+ * (`sell-milk-sheet.tsx`): a milk sale is just buyer + litres + paid-now/credit, and
+ * `POST /milk/dispatch` takes the payment in the same atomic call. This wizard used to drive milk
+ * through a 3-call chain (dispatch, payment, allocation) that could silently drop the payment.
  */
 /** `initial` (RAKHAL-361) pre-selects Step 1 — Cattle profile "Sell" passes `{type:"ANIMAL",
- * cattleId, cattleLabel}`, Milk's "Sell Milk" passes `{type:"PRODUCT", productSubtype:"MILK"}`,
- * an Inventory item's "Sell" passes `{type:"PRODUCT", productSubtype:"INVENTORY"}`. The wizard
+ * cattleId, cattleLabel}`, an Inventory item's "Sell" passes `{type:"PRODUCT", productSubtype:"INVENTORY"}`. The wizard
  * still opens on Step 1 (never auto-advances) so the farmer can confirm/change the pre-fill; only
  * the initial selection is seeded. */
 export function RecordSaleDialog({
@@ -121,7 +105,6 @@ export function RecordSaleDialog({
 function RecordSaleWizardBody({ onClose, initial }: { onClose: () => void; initial?: RecordSaleInitial }) {
   const t = useTranslations("sales.record");
   const [step, setStep] = useState(0);
-  const [selectedBuyerLabel, setSelectedBuyerLabel] = useState("");
   const [selectedCattleLabel, setSelectedCattleLabel] = useState(initial?.cattleLabel ?? "");
   const [submitting, setSubmitting] = useState(false);
 
@@ -137,62 +120,45 @@ function RecordSaleWizardBody({ onClose, initial }: { onClose: () => void; initi
   });
   const type = form.watch("type");
   const productSubtype = form.watch("productSubtype");
-  const buyerId = form.watch("buyerId");
-  const volumeL = form.watch("volumeL");
   const quantity = form.watch("quantity");
   const unitPrice = form.watch("unitPrice");
   const salePrice = form.watch("salePrice");
   const amount = form.watch("amount");
   const amountReceived = form.watch("amountReceived");
 
-  const buyersList = useBuyersPagedList({});
-  const recordDispatch = useRecordDispatch();
-  const milkAvailability = useMilkAvailability(type === "PRODUCT" && productSubtype === "MILK");
   const incomeCategories = useIncomeCategories(type === "OTHER_INCOME");
   const recordOtherIncome = useRecordOtherIncome();
-  const createPayment = useCreatePayment();
-  const allocatePayment = useAllocatePayment();
   const sellAnimal = useSellAnimal();
   const sellInventory = useSellInventory();
   const sellManure = useSellManure();
 
-  const selectedBuyer = useMemo(() => buyersList.items.find((b) => b.id === buyerId), [buyersList.items, buyerId]);
-
   /** Sale Total — not "Total Cost" (this ticket's own AC, see `sale-math.ts`'s doc comment).
-   * Milk's is an estimate; the other 3 types compute exactly what they'll submit. */
+   * Every type computes exactly what it will submit. */
   const saleTotal =
-    type === "PRODUCT" && productSubtype === "MILK"
-      ? computeLineTotal(volumeL, selectedBuyer?.basePricePerLitre)
-      : type === "PRODUCT" && productSubtype === "INVENTORY"
-        ? computeLineTotal(quantity, unitPrice)
-        : type === "PRODUCT" && productSubtype === "MANURE"
-          ? (amount ?? 0)
-          : type === "ANIMAL"
-            ? (salePrice ?? 0)
-            : (amount ?? 0);
+    type === "PRODUCT" && productSubtype === "INVENTORY"
+      ? computeLineTotal(quantity, unitPrice)
+      : type === "PRODUCT" && productSubtype === "MANURE"
+        ? (amount ?? 0)
+        : type === "ANIMAL"
+          ? (salePrice ?? 0)
+          : (amount ?? 0);
 
   const due = computeDue(saleTotal, amountReceived);
   const needsPaymentMethod = type !== "OTHER_INCOME";
 
   function selectType(next: RecordSaleType) {
     form.reset({ type: next, saleDate: form.getValues("saleDate") || today() });
-    setSelectedBuyerLabel("");
     setSelectedCattleLabel("");
   }
 
   function selectProductSubtype(next: ProductSaleSubtype) {
     form.setValue("productSubtype", next);
-    form.setValue("buyerId", undefined);
-    form.setValue("volumeL", undefined);
-    form.setValue("fatPct", undefined);
-    form.setValue("scc", undefined);
     form.setValue("quantity", undefined);
     form.setValue("unitPrice", undefined);
     form.setValue("itemKind", undefined);
     form.setValue("itemId", "");
     form.setValue("itemName", "");
     form.setValue("amount", undefined);
-    setSelectedBuyerLabel("");
   }
 
   async function validateStep(fields: (keyof RecordSaleFormInput)[] | undefined, stepIndex: number) {
@@ -217,9 +183,7 @@ function RecordSaleWizardBody({ onClose, initial }: { onClose: () => void; initi
     setSubmitting(true);
     try {
       const values = form.getValues();
-      if (values.type === "PRODUCT" && values.productSubtype === "MILK") {
-        await submitMilkSale(values);
-      } else if (values.type === "PRODUCT" && values.productSubtype === "INVENTORY") {
+      if (values.type === "PRODUCT" && values.productSubtype === "INVENTORY") {
         const result = await sellInventory.mutateAsync({
           itemType: values.itemKind as "MEDICINE" | "FEED_ITEM" | "EQUIPMENT",
           itemId: values.itemId as string,
@@ -274,55 +238,17 @@ function RecordSaleWizardBody({ onClose, initial }: { onClose: () => void; initi
     }
   }
 
-  async function submitMilkSale(values: RecordSaleFormInput) {
-    const result = await recordDispatch.mutateAsync({
-      buyerId: values.buyerId as string,
-      dispatchedAt: values.saleDate,
-      volumeDispatchedL: values.volumeL as number,
-      fatPct: values.fatPct,
-      scc: values.scc,
-      notes: values.notes || undefined,
-    });
-    toast.success(t("createdToast", { amount: result.calculatedAmount }));
-
-    const received = values.amountReceived ?? 0;
-    if (received > 0 && result.saleId && values.financialAccountId && values.paymentMethod) {
-      try {
-        const payment = await createPayment.mutateAsync({
-          direction: "INCOMING",
-          financialAccountId: values.financialAccountId,
-          amount: received,
-          method: values.paymentMethod,
-          transactionDate: values.saleDate,
-        });
-        const receivable = await findReceivableBySale(result.saleId);
-        if (receivable) {
-          await allocatePayment.mutateAsync({
-            paymentId: payment.id,
-            dto: { allocations: [{ receivableId: receivable.id, amount: Math.min(received, Number(receivable.totalAmount)) }] },
-          });
-        } else {
-          toast.error(t("paymentRecordedNoReceivable"));
-        }
-      } catch {
-        toast.error(t("paymentFailedAfterSale"));
-      }
-    }
-  }
-
   const steps: WizardStep<keyof RecordSaleFormInput>[] = [
     {
       key: "type",
       title: t("step1Title"),
       subtitle: t("step1Subtitle"),
       fields:
-        type === "PRODUCT" && productSubtype === "MILK"
-          ? ["buyerId", "volumeL", "saleDate"]
-          : type === "PRODUCT" && productSubtype === "INVENTORY"
-            ? ["quantity", "unitPrice", "saleDate"]
-            : type === "PRODUCT" && productSubtype === "MANURE"
-              ? ["amount", "saleDate"]
-              : type === "ANIMAL"
+        type === "PRODUCT" && productSubtype === "INVENTORY"
+          ? ["quantity", "unitPrice", "saleDate"]
+          : type === "PRODUCT" && productSubtype === "MANURE"
+            ? ["amount", "saleDate"]
+            : type === "ANIMAL"
               ? ["cattleId", "salePrice", "saleDate"]
               : type === "OTHER_INCOME"
                 ? ["categoryId", "amount", "saleDate"]
@@ -379,45 +305,7 @@ function RecordSaleWizardBody({ onClose, initial }: { onClose: () => void; initi
                 </div>
               </div>
 
-              {productSubtype === "MILK" ? (
-                <>
-                  <div className="flex flex-col gap-1.5">
-                    <Controller
-                      control={form.control}
-                      name="buyerId"
-                      render={({ field, fieldState }) => (
-                        <BuyerPicker
-                          value={field.value}
-                          onChange={(id, b) => {
-                            field.onChange(id);
-                            setSelectedBuyerLabel(b.name);
-                          }}
-                          placeholder={t("buyerPlaceholder")}
-                          error={fieldState.error?.message}
-                        />
-                      )}
-                    />
-                  </div>
-                  <LabeledInput
-                    id="volumeL"
-                    type="number"
-                    step="0.01"
-                    min={0}
-                    label={t("volumeL")}
-                    error={form.formState.errors.volumeL?.message}
-                    {...form.register("volumeL", numberField)}
-                  />
-                  {milkAvailability.data ? (
-                    <p className="text-xs text-muted-foreground">
-                      {t("availableNow", { amount: milkAvailability.data.totalAvailableL })}
-                    </p>
-                  ) : null}
-                  <div className="flex gap-4">
-                    <LabeledInput id="fatPct" type="number" step="0.1" min={0} label={t("fatPct")} {...form.register("fatPct", numberField)} />
-                    <LabeledInput id="scc" type="number" min={0} label={t("scc")} {...form.register("scc", numberField)} />
-                  </div>
-                </>
-              ) : productSubtype === "INVENTORY" ? (
+              {productSubtype === "INVENTORY" ? (
                 <>
                   <Controller
                     control={form.control}
@@ -599,12 +487,7 @@ function RecordSaleWizardBody({ onClose, initial }: { onClose: () => void; initi
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 rounded-xl border border-border p-4">
             <SummaryRow label={t("types.PRODUCT.label")} value={type ? t(`types.${type}.label`) : "—"} />
-            {type === "PRODUCT" && productSubtype === "MILK" ? (
-              <>
-                <SummaryRow label={t("buyer")} value={selectedBuyerLabel || "—"} />
-                <SummaryRow label={t("volumeL")} value={String(volumeL ?? "—")} />
-              </>
-            ) : type === "PRODUCT" ? (
+            {type === "PRODUCT" ? (
               <SummaryRow label={t("quantity")} value={String(quantity ?? "—")} />
             ) : type === "ANIMAL" ? (
               <SummaryRow label={t("selectAnimalLabel")} value={selectedCattleLabel || "—"} />

@@ -10,16 +10,17 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
+import { Can } from "@/lib/auth/permissions";
 import { useBuyersPagedList, useDeactivateBuyer } from "../hooks/use-buyers";
 import { BuyerSummaryCards } from "./buyer-summary-cards";
 import { BuyerTable } from "./buyer-table";
 import { BuyerFormDialog } from "./buyer-form-dialog";
-import { RecordDispatchDialog } from "./record-dispatch-dialog";
+import { SellMilkSheet } from "@/features/sales/components/sell-milk-sheet";
 import { BuyerStatementDialog } from "./buyer-statement-dialog";
 import type { BuyerListRow } from "../types";
 
 /** Buyers tab body — the AC's 4-stat Buyer Summary (RAKHAL-389, `GET /buyers/summary`) above the
- * directory (search + create/edit + deactivate) plus the per-row Record Dispatch / Statement
+ * directory (search + create/edit + deactivate) plus the per-row Sell milk / Statement
  * actions. No Figma frame supplied for this module (RFE-026's own note: "Design: Figma if
  * present, else PRD-spec") — built against the real backend contract. */
 export function BuyersView() {
@@ -36,7 +37,7 @@ export function BuyersView() {
 
   const [formTarget, setFormTarget] = useState<BuyerListRow | "new" | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<BuyerListRow | null>(null);
-  const [dispatchTarget, setDispatchTarget] = useState<BuyerListRow | null>(null);
+  const [sellMilkTarget, setSellMilkTarget] = useState<BuyerListRow | null>(null);
   const [statementTarget, setStatementTarget] = useState<BuyerListRow | null>(null);
 
   async function handleDeactivate() {
@@ -56,10 +57,12 @@ export function BuyersView() {
       <div className="flex flex-col gap-4 rounded-2xl border border-border p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <FilterBar searchKey="search" searchPlaceholder={t("searchPlaceholder")} />
-          <Button variant="primary" className="gap-2" onClick={() => setFormTarget("new")}>
-            <Plus className="size-[18px]" aria-hidden />
-            {t("addBuyer")}
-          </Button>
+          <Can I="finance.create">
+            <Button variant="primary" className="gap-2" onClick={() => setFormTarget("new")}>
+              <Plus className="size-[18px]" aria-hidden />
+              {t("addBuyer")}
+            </Button>
+          </Can>
         </div>
 
         <BuyerTable
@@ -70,7 +73,8 @@ export function BuyersView() {
           onEdit={setFormTarget}
           onDeactivate={setDeactivateTarget}
           onStatement={setStatementTarget}
-          onRecordDispatch={setDispatchTarget}
+          onSellMilk={setSellMilkTarget}
+          onAdd={() => setFormTarget("new")}
         />
 
         <Pagination
@@ -96,7 +100,7 @@ export function BuyersView() {
         confirmLabel={t("deactivateConfirm")}
         onConfirm={handleDeactivate}
       />
-      <RecordDispatchDialog buyer={dispatchTarget} open={dispatchTarget != null} onOpenChange={(open) => !open && setDispatchTarget(null)} />
+      <SellMilkSheet open={sellMilkTarget != null} onOpenChange={(open) => !open && setSellMilkTarget(null)} buyerId={sellMilkTarget?.id} />
       <BuyerStatementDialog buyer={statementTarget} open={statementTarget != null} onOpenChange={(open) => !open && setStatementTarget(null)} />
     </div>
   );

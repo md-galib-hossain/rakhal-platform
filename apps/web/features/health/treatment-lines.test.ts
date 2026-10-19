@@ -58,6 +58,29 @@ describe("validateTreatmentLines", () => {
   });
 });
 
+describe("validateTreatmentLines — hand-typed medicine", () => {
+  const manual = (over: Partial<TreatmentLine> = {}) => line({ medicine: null, manualName: "Local herbal mix", ...over });
+
+  it("accepts a typed name with no inventory medicine", () => {
+    expect(validateTreatmentLines([manual()]).ok).toBe(true);
+  });
+  it("asks for the name when the field is blank or only spaces", () => {
+    const blank = manual({ manualName: "   " });
+    expect(validateTreatmentLines([blank]).problems[blank.key]).toBe("nameRequired");
+  });
+  it("still needs a dose and a unit", () => {
+    const noDose = manual({ doseAmount: "" });
+    const noUnit = manual({ doseUnitId: "" });
+    const { problems } = validateTreatmentLines([noDose, noUnit]);
+    expect(problems[noDose.key]).toBe("doseRequired");
+    expect(problems[noUnit.key]).toBe("unitRequired");
+  });
+  it("never reads as an inventory line, so a stale medicine pick cannot satisfy it", () => {
+    const blank = manual({ manualName: "", medicine: medicine() });
+    expect(validateTreatmentLines([blank]).problems[blank.key]).toBe("nameRequired");
+  });
+});
+
 describe("maxWithdrawalDays", () => {
   it("takes the longest hold across medicines", () => {
     const lines = [line({ medicine: medicine({ milkWithdrawalDays: 3, meatWithdrawalDays: 10 }) }), line({ medicine: medicine({ milkWithdrawalDays: 5, meatWithdrawalDays: null }) })];

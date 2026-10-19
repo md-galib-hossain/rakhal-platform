@@ -1,11 +1,14 @@
 "use client"; // form state + line-item field array + mutation
 
+import { useState } from "react";
+import Link from "next/link";
 import { todayLocalIso } from "@/lib/local-date";
 import { Controller, useFieldArray, useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ArrowRightToLine, Plus, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput } from "@/components/ui/labeled-field";
@@ -13,36 +16,111 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { MoneyInput } from "@/components/shared/money-input";
-import { AccountPicker } from "@/features/finance/components/account-picker";
 import { formatMoney } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { ItemPicker } from "./item-picker";
+import { NewItemSheet, type NewItemResult } from "./new-item-sheet";
 import { SupplierPicker } from "./supplier-picker";
 import { useCreatePurchase } from "../hooks/use-purchasing";
-import { computePurchaseOutstanding, computePurchaseTotal, purchaseFormSchema, type PurchaseFormInput } from "../schemas";
-import type { CreatePurchasePayload, PurchasableItemOption } from "../types";
+import {
+  PURCHASE_PAYMENT_MODES,
+  computePurchaseOutstanding,
+  computePurchaseTotal,
+  purchaseFormSchema,
+  purchasePaidAmount,
+  type PurchaseFormInput,
+  type PurchaseLineFormInput,
+} from "../schemas";
+import type { CreatePurchaseLinePayload, CreatePurchasePayload, PurchasableItemKind, PurchasableItemOption, PurchaseNewItemKind } from "../types";
 
+const LAST_KIND_KEY = "rakhal.purchase.lastItemKind";
+const ITEM_KINDS: PurchasableItemKind[] = ["MEDICINE", "FEED_ITEM", "EQUIPMENT"];
+
+/** Per-viewer convenience only — storage can be blocked or throw (private window), so every access is
+ * guarded and the form behaves the same without it. */
+function readLastKind(): PurchasableItemKind {
+  try {
+    const stored = window.localStorage.getItem(LAST_KIND_KEY);
+    if (stored && (ITEM_KINDS as string[]).includes(stored)) return stored as PurchasableItemKind;
+  } catch {
+    /* storage unavailable */
+  }
+  return "MEDICINE";
+}
+
+function rememberKind(kind: PurchasableItemKind): void {
+  try {
+    window.localStorage.setItem(LAST_KIND_KEY, kind);
+  } catch {
+    /* storage unavailable — the default kind is a convenience, not state */
+  }
+}
+
+const NEW_ITEM_KIND_BY_ITEM_KIND: Record<PurchasableItemKind, PurchaseNewItemKind> = {
+  MEDICINE: "MEDICINE",
+  FEED_ITEM: "FEED",
+  EQUIPMENT: "EQUIPMENT",
+};
+
+const ITEM_KIND_BY_NEW_ITEM_KIND: Record<PurchaseNewItemKind, PurchasableItemKind> = {
+  MEDICINE: "MEDICINE",
+  FEED: "FEED_ITEM",
+  EQUIPMENT: "EQUIPMENT",
+};
+
+const INVENTORY_TAB_BY_KIND: Record<PurchasableItemKind, string> = {
+  MEDICINE: "medicine",
+  FEED_ITEM: "feed",
+  EQUIPMENT: "others",
+};
+
+function toLinePayload(line: PurchaseLineFormInput): CreatePurchaseLinePayload {
+  const base = {
+    quantity: line.quantity,
+    unitCost: line.unitCost,
+    expiryDate: line.itemKind === "MEDICINE" ? line.expiryDate : undefined,
+    batchCode: line.itemKind === "MEDICINE" ? line.batchCode?.trim() || undefined : undefined,
+  };
+  if (line.newItem) {
+    const { kind, name, unitId, medicineType, medicineCategory, ingredientId, feedClass } = line.newItem;
+    return {
+      ...base,
+      newItem: {
+        kind,
+        name: name.trim(),
+        unitId: unitId || undefined,
+        ...(kind === "MEDICINE" ? { medicineType, medicineCategory } : {}),
+        ...(kind === "FEED" ? { ingredientId, feedClass } : {}),
+      },
+    };
+  }
+  return {
+    ...base,
+    medicineId: line.itemKind === "MEDICINE" ? line.itemId : undefined,
+    feedItemId: line.itemKind === "FEED_ITEM" ? line.itemId : undefined,
+    equipmentId: line.itemKind === "EQUIPMENT" ? line.itemId : undefined,
+  };
+}
+
+/** No account and no payment method go on the wire: the backend pays from the farm's single account
+ * (`resolveFarmAccountId`) and `CreatePurchaseDto` has no method field. */
 function toPayload(values: PurchaseFormInput): CreatePurchasePayload {
+  const total = computePurchaseTotal(values.lines);
+  const paid = purchasePaidAmount(values.paymentMode, total, values.paidAmount);
   return {
     supplierId: values.supplierId,
     purchaseDate: values.purchaseDate,
     notes: values.notes?.trim() || undefined,
-    lines: values.lines.map((line) => ({
-      medicineId: line.itemKind === "MEDICINE" ? line.itemId : undefined,
-      feedItemId: line.itemKind === "FEED_ITEM" ? line.itemId : undefined,
-      equipmentId: line.itemKind === "EQUIPMENT" ? line.itemId : undefined,
-      quantity: line.quantity,
-      unitCost: line.unitCost,
-    })),
-    paidAmount: values.paidNow ? values.paidAmount : undefined,
-    financialAccountId: values.paidNow ? values.financialAccountId : undefined,
-    dueDate: !values.paidNow || (values.paidAmount ?? 0) < computePurchaseTotal(values.lines) ? values.dueDate : undefined,
+    lines: values.lines.map(toLinePayload),
+    paidAmount: paid > 0 ? paid : undefined,
+    dueDate: paid < total ? values.dueDate || undefined : undefined,
   };
 }
 
-const EMPTY_LINE = { itemKind: "MEDICINE" as const, itemId: "", itemName: "", quantity: 1, unitCost: 0 };
+function emptyLine(kind: PurchasableItemKind): PurchaseLineFormInput {
+  return { itemKind: kind, itemId: "", itemName: "", quantity: 1, unitCost: 0 };
+}
 
 /**
  * Record Purchase — a standalone flow, deliberately separate from Record Expense. A purchase always
@@ -52,57 +130,88 @@ const EMPTY_LINE = { itemKind: "MEDICINE" as const, itemId: "", itemName: "", qu
  * Posts to `POST /purchasing/purchases` (RAKHAL-348, live) — one atomic transaction server-side:
  * document + lines + real stock increment + journal + (if not fully paid) a `Payable`.
  *
- * **Supplier is now a required `SupplierPicker`** (RAKHAL-391, MILESTONE 22) — RAKHAL-365 promoted
- * `Purchase.supplierId` to a real `Supplier` FK, and `BUSINESS_IA_PRD.md` §5.13's field table marks
- * it required in this modal (stricter than the DTO, which stays optional server-side for a walk-up
- * cash purchase). The stale RAKHAL-359 free-text field this doc comment used to describe is gone.
+ * **Fast path (Business UX Phase 5).** Supplier and item pickers both end in "+ New …": a first-time
+ * supplier is added with name + phone, a first-time item is typed as `newItem` and created server-side
+ * with the purchase (zero stock + the purchase's own lot, one transaction). The line kind defaults to the
+ * last one used. Payment is **Pay in full** (default — nothing to type), **Part paid** (amount) or **On
+ * credit** (due date); the farm's single account is resolved server-side, so no wallet or method field.
  *
- * Unlike Record Expense, payment here can be **partial** — `paidAmount` is a free amount up to the
- * computed total (not an implicit "full amount" flag), matching `CreatePurchaseDto.paidAmount`'s own
- * doc comment on why it's a DTO-only field, not a stored column.
+ * Medicine lines carry their own lot **expiry** (`CreatePurchaseLineDto.expiryDate` is required for a
+ * medicine line, existing or new).
  */
-export function RecordPurchaseDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function RecordPurchaseDialog({
+  open,
+  onOpenChange,
+  supplierId,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Pre-selects the supplier (opened from a supplier's own sheet). */
+  supplierId?: string;
+}) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
-      {open ? <RecordPurchaseDialogBody onOpenChange={onOpenChange} /> : null}
+      {open ? <RecordPurchaseDialogBody onOpenChange={onOpenChange} supplierId={supplierId} /> : null}
     </Sheet>
   );
 }
 
-function RecordPurchaseDialogBody({ onOpenChange }: { onOpenChange: (open: boolean) => void }) {
+function RecordPurchaseDialogBody({ onOpenChange, supplierId }: { onOpenChange: (open: boolean) => void; supplierId?: string }) {
   const t = useTranslations("purchasing.recordPurchase");
   const locale = useLocale() as Locale;
   const createPurchase = useCreatePurchase();
+  const [newItemLine, setNewItemLine] = useState<number | null>(null);
 
   const form = useForm<PurchaseFormInput>({
     resolver: zodResolver(purchaseFormSchema),
     defaultValues: {
+      supplierId,
       purchaseDate: todayLocalIso(),
-      lines: [EMPTY_LINE],
-      paidNow: true,
-      paidAmount: 0,
+      lines: [emptyLine(readLastKind())],
+      paymentMode: "FULL",
     },
   });
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lines" });
   const lines = form.watch("lines");
-  const paidNow = form.watch("paidNow");
-  const paidAmount = form.watch("paidAmount") ?? 0;
+  const paymentMode = form.watch("paymentMode");
+  const partAmount = form.watch("paidAmount");
 
   const total = computePurchaseTotal(lines.map((l) => ({ quantity: l.quantity || 0, unitCost: l.unitCost || 0 })));
-  const outstanding = computePurchaseOutstanding(total, paidNow ? paidAmount : 0);
+  const paidNow = purchasePaidAmount(paymentMode, total, partAmount);
+  const outstanding = computePurchaseOutstanding(total, paidNow);
 
   async function onSubmit(values: PurchaseFormInput) {
-    if (values.paidNow && (values.paidAmount ?? 0) > computePurchaseTotal(values.lines)) {
-      form.setError("paidAmount", { message: t("paidAmountExceedsTotal") });
-      return;
-    }
     try {
       const purchase = await createPurchase.mutateAsync(toPayload(values));
-      toast.success(t("createdToast", { number: purchase.purchaseNumber }));
+      const firstKind = values.lines[0]?.itemKind ?? "MEDICINE";
+      toast.success(t("createdToast", { number: purchase.purchaseNumber }), {
+        description: (
+          <span className="flex gap-3">
+            <Link href={`/inventory?tab=${INVENTORY_TAB_BY_KIND[firstKind]}`} className="font-medium text-primary underline">
+              {t("viewStock")}
+            </Link>
+            <Link href="/finance?tab=transactions" className="font-medium text-primary underline">
+              {t("viewFinance")}
+            </Link>
+          </span>
+        ),
+      });
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
     }
+  }
+
+  function onNewItemCreated(index: number, { draft, unitSymbol }: NewItemResult) {
+    const kind = ITEM_KIND_BY_NEW_ITEM_KIND[draft.kind];
+    rememberKind(kind);
+    form.setValue(`lines.${index}.itemKind`, kind);
+    form.setValue(`lines.${index}.itemName`, draft.name.trim());
+    form.setValue(`lines.${index}.itemStock`, undefined);
+    form.setValue(`lines.${index}.itemUnit`, unitSymbol);
+    form.setValue(`lines.${index}.newItem`, draft);
+    // Last, so the "item required" check already sees the typed item (it passes when `newItem` is set).
+    form.setValue(`lines.${index}.itemId`, "", { shouldValidate: true });
   }
 
   return (
@@ -125,7 +234,7 @@ function RecordPurchaseDialogBody({ onOpenChange }: { onOpenChange: (open: boole
               control={form.control}
               name="supplierId"
               render={({ field, fieldState }) => (
-                <SupplierPicker value={field.value} onChange={field.onChange} error={fieldState.error?.message} />
+                <SupplierPicker value={field.value} onChange={field.onChange} error={fieldState.error ? t("supplierRequired") : undefined} />
               )}
             />
             <Controller
@@ -147,11 +256,18 @@ function RecordPurchaseDialogBody({ onOpenChange }: { onOpenChange: (open: boole
                 lineTotal={(lines[index]?.quantity || 0) * (lines[index]?.unitCost || 0)}
                 onRemove={() => remove(index)}
                 removeDisabled={fields.length === 1}
+                onCreateNew={() => setNewItemLine(index)}
                 t={t}
                 locale={locale}
               />
             ))}
-            <Button type="button" variant="outline" size="sm" onClick={() => append(EMPTY_LINE)} className="self-start">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => append(emptyLine(lines[lines.length - 1]?.itemKind ?? readLastKind()))}
+              className="self-start"
+            >
               <Plus className="mr-1 size-4" aria-hidden />
               {t("addLine")}
             </Button>
@@ -166,43 +282,48 @@ function RecordPurchaseDialogBody({ onOpenChange }: { onOpenChange: (open: boole
             <Label>{t("paymentType")}</Label>
             <Controller
               control={form.control}
-              name="paidNow"
+              name="paymentMode"
               render={({ field }) => (
-                <RadioGroup
-                  value={field.value ? "PAID_NOW" : "BUY_ON_CREDIT"}
-                  onValueChange={(v) => field.onChange(v === "PAID_NOW")}
-                  className="grid grid-cols-2 gap-3"
-                >
-                  <label className="flex items-center gap-2 rounded-xl border border-input bg-card px-4 py-3 text-sm font-medium text-foreground">
-                    <RadioGroupItem value="PAID_NOW" id="payment-type-paid-now" />
-                    {t("payNow")}
-                  </label>
-                  <label className="flex items-center gap-2 rounded-xl border border-input bg-card px-4 py-3 text-sm font-medium text-foreground">
-                    <RadioGroupItem value="BUY_ON_CREDIT" id="payment-type-credit" />
-                    {t("buyOnCredit")}
-                  </label>
-                </RadioGroup>
+                <div role="radiogroup" aria-label={t("paymentType")} className="grid grid-cols-3 gap-2">
+                  {PURCHASE_PAYMENT_MODES.map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      role="radio"
+                      aria-checked={field.value === mode}
+                      onClick={() => field.onChange(mode)}
+                      className={cn(
+                        "flex h-11 items-center justify-center rounded-lg border bg-card px-2 text-sm font-medium transition-colors",
+                        field.value === mode ? "border-primary bg-success-tint text-primary" : "border-input text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {t(`paymentMode.${mode}`)}
+                    </button>
+                  ))}
+                </div>
               )}
             />
           </div>
 
-          {paidNow ? (
-            <>
-              <Controller
-                control={form.control}
-                name="paidAmount"
-                render={({ field, fieldState }) => (
-                  <MoneyInput id="paidAmount" label={t("amountPaid")} value={field.value} onChange={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
-                )}
-              />
-              <Controller
-                control={form.control}
-                name="financialAccountId"
-                render={({ field, fieldState }) => (
-                  <AccountPicker value={field.value} onChange={field.onChange} error={fieldState.error?.message} placeholder={t("payFromAccount")} />
-                )}
-              />
-            </>
+          {paymentMode === "FULL" ? (
+            <p className="rounded-xl bg-muted px-4 py-3 text-sm text-muted-foreground">{t("paidInFullNote", { amount: formatMoney(total, locale) })}</p>
+          ) : null}
+
+          {paymentMode === "PART" ? (
+            <Controller
+              control={form.control}
+              name="paidAmount"
+              render={({ field, fieldState }) => (
+                <MoneyInput
+                  id="paidAmount"
+                  label={t("amountPaid")}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={fieldState.error ? (fieldState.error.message === "belowTotal" ? t("partBelowTotal") : t("amountRequired")) : undefined}
+                />
+              )}
+            />
           ) : null}
 
           {outstanding > 0 ? (
@@ -237,21 +358,27 @@ function RecordPurchaseDialogBody({ onOpenChange }: { onOpenChange: (open: boole
           </Button>
         </div>
       </form>
+
+      <NewItemSheet
+        open={newItemLine !== null}
+        onOpenChange={(next) => !next && setNewItemLine(null)}
+        initialKind={NEW_ITEM_KIND_BY_ITEM_KIND[lines[newItemLine ?? 0]?.itemKind ?? "MEDICINE"]}
+        onCreate={(result) => newItemLine !== null && onNewItemCreated(newItemLine, result)}
+      />
     </SheetContent>
   );
 }
 
-/** One `PurchaseLine` row — item picker (kind + search-select) + quantity + unit cost + live line
- * total. Split out from the parent body so each row only re-renders on its own field changes, not
- * the whole line array (`useFieldArray` re-renders every row on any array mutation regardless, but
- * keeping this as its own component keeps the JSX legible and avoids nesting one `Controller`
- * inside another, which `ItemPicker`'s combined kind+value contract doesn't need). */
+/** One `PurchaseLine` row — item picker (kind + search-select, or a typed new item) + quantity + unit
+ * cost + (medicine) expiry + live line total. Split out from the parent body so each row only
+ * re-renders on its own field changes. */
 function PurchaseLineRow({
   index,
   form,
   lineTotal,
   onRemove,
   removeDisabled,
+  onCreateNew,
   t,
   locale,
 }: {
@@ -260,31 +387,50 @@ function PurchaseLineRow({
   lineTotal: number;
   onRemove: () => void;
   removeDisabled: boolean;
+  onCreateNew: () => void;
   t: ReturnType<typeof useTranslations>;
   locale: Locale;
 }) {
   const kind = form.watch(`lines.${index}.itemKind`);
   const itemId = form.watch(`lines.${index}.itemId`);
   const itemName = form.watch(`lines.${index}.itemName`);
+  const itemStock = form.watch(`lines.${index}.itemStock`);
+  const itemUnit = form.watch(`lines.${index}.itemUnit`);
+  const newItem = form.watch(`lines.${index}.newItem`);
   const itemIdError = form.formState.errors.lines?.[index]?.itemId?.message;
+  const expiryError = form.formState.errors.lines?.[index]?.expiryDate?.message;
 
-  const selected: PurchasableItemOption | null = itemId ? { id: itemId, name: itemName, currentStock: 0, unitSymbol: "" } : null;
+  const selected: PurchasableItemOption | null =
+    itemId || newItem ? { id: itemId, name: itemName, currentStock: itemStock ?? 0, unitSymbol: itemUnit ?? "" } : null;
+
+  function clearItem() {
+    form.setValue(`lines.${index}.itemId`, "");
+    form.setValue(`lines.${index}.itemName`, "");
+    form.setValue(`lines.${index}.itemStock`, undefined);
+    form.setValue(`lines.${index}.itemUnit`, undefined);
+    form.setValue(`lines.${index}.newItem`, undefined);
+  }
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-border p-3">
       <ItemPicker
         kind={kind}
         onKindChange={(nextKind) => {
+          rememberKind(nextKind);
           form.setValue(`lines.${index}.itemKind`, nextKind);
-          form.setValue(`lines.${index}.itemId`, "");
-          form.setValue(`lines.${index}.itemName`, "");
+          clearItem();
         }}
         value={selected}
+        isNewItem={Boolean(newItem)}
         onChange={(item) => {
-          form.setValue(`lines.${index}.itemId`, item?.id ?? "");
+          form.setValue(`lines.${index}.newItem`, undefined);
+          form.setValue(`lines.${index}.itemId`, item?.id ?? "", { shouldValidate: Boolean(item) });
           form.setValue(`lines.${index}.itemName`, item?.name ?? "");
+          form.setValue(`lines.${index}.itemStock`, item?.currentStock);
+          form.setValue(`lines.${index}.itemUnit`, item?.unitSymbol);
         }}
-        error={itemIdError}
+        onCreateNew={onCreateNew}
+        error={itemIdError ? t("itemRequired") : undefined}
       />
       <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
         <LabeledInput
@@ -304,6 +450,15 @@ function PurchaseLineRow({
           <Trash2 className="size-4 text-destructive" aria-hidden />
         </Button>
       </div>
+      {kind === "MEDICINE" ? (
+        <Controller
+          control={form.control}
+          name={`lines.${index}.expiryDate`}
+          render={({ field }) => (
+            <DatePicker id={`lines.${index}.expiryDate`} label={t("expiryDate")} value={field.value} onChange={field.onChange} onBlur={field.onBlur} error={expiryError ? t("expiryRequired") : undefined} />
+          )}
+        />
+      ) : null}
       <p className="text-right text-xs text-muted-foreground">
         {t("lineTotal")}: {formatMoney(lineTotal, locale)}
       </p>

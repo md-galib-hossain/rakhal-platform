@@ -367,6 +367,11 @@ export interface LogTreatmentPayload {
   milkWithdrawalDays?: number;
   meatWithdrawalDays?: number;
   notes?: string;
+  /** Medicine typed by hand: stored by name only, no stock deducted, no medicine cost posted. */
+  outsideInventory?: boolean;
+  /** Vet fee in ৳, posted as a HEALTH expense paid from `financialAccountId` (required when `vetCost` > 0). */
+  vetCost?: number;
+  financialAccountId?: string;
 }
 
 /** `POST /health/tasks/:id/log-treatment` body (`LogTaskTreatmentDto`, RD-093) — the caseless
@@ -404,7 +409,13 @@ export interface CreateHealthUpdatePayload {
  * open case if one exists, else creates a lightweight one — never orchestrated from the frontend. */
 export interface RecordTreatmentPayload {
   cattleIds: string[];
-  medicineId: string;
+  /** Inventory medicine; omitted when `outsideInventory` is set. */
+  medicineId?: string;
+  /** Hand-typed medicine: send `outsideInventory: true` + `medicineName` instead of `medicineId`. */
+  outsideInventory?: boolean;
+  medicineName?: string;
+  /** One vet fee for the whole visit in ৳; needs `financialAccountId`. */
+  vetCost?: number;
   doseAmount: number;
   doseUnit: string;
   /** `Unit.id` of `doseUnit` — lets the backend convert the dose to the medicine's stock unit. */
@@ -413,8 +424,7 @@ export interface RecordTreatmentPayload {
   treatedAt: string;
   reason?: string;
   notes?: string;
-  /** Required only when `medicine.costPerUnit * doseAmount > 0` — mirrors the same
-   * RAKHAL-393/RD-066 rule `finalize-tmr-dialog.tsx` and `record-batch-dialog.tsx` already follow. */
+  /** Account the vet fee is paid from; required when `vetCost` > 0 (medicine consumption itself never touches cash). */
   financialAccountId?: string;
 }
 
@@ -440,6 +450,8 @@ export interface MortalityPayload {
   postMortemPerformed?: boolean;
   disposalMethod?: string;
   disposalCost?: number;
+  /** Account the disposal cost was paid from; the backend requires it when `disposalCost` > 0. */
+  financialAccountId?: string;
   disposalLocation?: string;
   additionalNotes?: string;
   recordedBy?: string;

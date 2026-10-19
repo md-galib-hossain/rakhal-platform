@@ -129,6 +129,19 @@ export function useEditHeatEvent() {
   });
 }
 
+export function useCancelHeatEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input?: { reason?: string } }) =>
+      reproductionApi.cancelHeatEvent(id, input),
+    onSuccess: () => {
+      invalidateReproductionCore(queryClient);
+      queryClient.invalidateQueries({ queryKey: ["reproduction", "heat-events"] });
+      queryClient.invalidateQueries({ queryKey: ["cattle"] });
+    },
+  });
+}
+
 export function useResolveHeatEvent() {
   const queryClient = useQueryClient();
   return useMutation({

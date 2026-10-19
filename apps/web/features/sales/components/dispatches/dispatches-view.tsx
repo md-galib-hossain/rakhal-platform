@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Can } from "@/lib/auth/permissions";
-import { RecordSaleDialog } from "../record-sale-wizard";
+import { SellMilkSheet } from "../sell-milk-sheet";
 import { DispatchSummaryCards } from "./dispatch-summary-cards";
 import { DispatchesTable } from "./dispatches-table";
 import type { DispatchStatus } from "../../types";
@@ -20,9 +20,7 @@ const STATUS_TABS: { key: string; status: DispatchStatus | undefined }[] = [
 
 /** RAKHAL-388 (MILESTONE 22) — Sales → Dispatches (`BUSINESS_IA_PRD.md` §5.8). Status tabs `All |
  * Pending | Delivered | Cancelled` map to `?status=` against the derived `DispatchStatus`.
- * `+ New Dispatch` reuses the existing `RecordSaleDialog` pre-selected to Milk — a dispatch **is**
- * a milk sale, so this doesn't duplicate `RecordDispatchDialog` (`features/buyers/**`, out of this
- * ticket's lane and built against the older `GET /milk/dispatch` shape). */
+ * `+ New Dispatch` opens the one-screen `SellMilkSheet` — a dispatch **is** a milk sale. */
 export function DispatchesView() {
   const t = useTranslations("sales.dispatches");
   const [status, setStatus] = useState<DispatchStatus | undefined>(undefined);
@@ -55,16 +53,12 @@ export function DispatchesView() {
         </TabsList>
         {STATUS_TABS.map((tab) => (
           <TabsContent key={tab.key} value={tab.key}>
-            <DispatchesTable filters={{ status: tab.status }} />
+            <DispatchesTable filters={{ status: tab.status }} onNewDispatch={() => setNewDispatchOpen(true)} />
           </TabsContent>
         ))}
       </Tabs>
 
-      <RecordSaleDialog
-        open={newDispatchOpen}
-        onOpenChange={setNewDispatchOpen}
-        initial={{ type: "PRODUCT", productSubtype: "MILK" }}
-      />
+      <SellMilkSheet open={newDispatchOpen} onOpenChange={setNewDispatchOpen} />
     </div>
   );
 }

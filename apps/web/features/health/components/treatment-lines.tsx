@@ -27,13 +27,16 @@ interface TreatmentLinesProps {
   problems?: Record<string, TreatmentLineProblem>;
   /** How many animals get this treatment — multiplies the dose when checking it against stock. Default 1. */
   animalCount?: number;
+  /** Offer "not in inventory — type the name" on each card. Off by default: Quick Treat and protocols need a real
+   * Inventory medicine, only the case Log Treatment tab accepts a hand-typed one. */
+  allowManual?: boolean;
   disabled?: boolean;
 }
 
 /** The "what was given" part of every treatment form: one card per medicine (inventory picker, dose amount, dose unit as
  * a dropdown limited to units that convert to the medicine's stock unit, route), plus "Add another medicine". The unit is
  * picked, never typed, so the backend can convert the dose to stock units when it deducts. */
-export function TreatmentLines({ lines, onChange, problems, animalCount = 1, disabled }: TreatmentLinesProps) {
+export function TreatmentLines({ lines, onChange, problems, animalCount = 1, allowManual = false, disabled }: TreatmentLinesProps) {
   const t = useTranslations("health.treatmentLines");
 
   function update(key: string, patch: Partial<TreatmentLine>) {
@@ -49,6 +52,7 @@ export function TreatmentLines({ lines, onChange, problems, animalCount = 1, dis
           index={index}
           problem={problems?.[line.key]}
           animalCount={animalCount}
+          allowManual={allowManual}
           canRemove={lines.length > 1}
           disabled={disabled}
           onPatch={(patch) => update(line.key, patch)}
@@ -74,6 +78,7 @@ function TreatmentLineCard({
   index,
   problem,
   animalCount,
+  allowManual,
   canRemove,
   disabled,
   onPatch,
@@ -83,6 +88,7 @@ function TreatmentLineCard({
   index: number;
   problem: TreatmentLineProblem | undefined;
   animalCount: number;
+  allowManual: boolean;
   canRemove: boolean;
   disabled?: boolean;
   onPatch: (patch: Partial<TreatmentLine>) => void;
@@ -92,8 +98,10 @@ function TreatmentLineCard({
   const tRoute = useTranslations("health.caseSheet.logTreatment.route");
   const { data: units = [] } = useUnits();
 
+  const isManual = line.manualName !== null;
   const stockUnit = units.find((u) => u.id === line.medicine?.unit.id);
-  const doseUnits = useMemo(() => compatibleDoseUnits(units, stockUnit), [units, stockUnit]);
+  // A hand-typed medicine has no stock unit to convert to, so any unit is fine.
+  const doseUnits = useMemo(() => (isManual ? units : compatibleDoseUnits(units, stockUnit)), [isManual, units, stockUnit]);
   const doseUnit = units.find((u) => u.id === line.doseUnitId);
 
   const amount = Number(line.doseAmount);
@@ -125,11 +133,36 @@ function TreatmentLineCard({
       </div>
 
       <div className="flex flex-col gap-1">
-        <MedicinePicker compact value={line.medicine} onValueChange={pickMedicine} disabled={disabled} />
-        {line.medicine ? (
-          <p className={cn("text-xs", outOfStock ? "font-medium text-destructive" : "text-muted-foreground")}>
-            {outOfStock ? t("outOfStock") : t("stockLine", { stock: line.medicine.currentStock, unit: line.medicine.unit.symbol })}
-          </p>
+        {isManual ? (
+          <>
+            <LabeledInput
+              id={`${line.key}-manual-name`}
+              label={t("manualName")}
+              value={line.manualName ?? ""}
+              disabled={disabled}
+              onChange={(e) => onPatch({ manualName: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">{t("manualHint")}</p>
+          </>
+        ) : (
+          <>
+            <MedicinePicker compact value={line.medicine} onValueChange={pickMedicine} disabled={disabled} />
+            {line.medicine ? (
+              <p className={cn("text-xs", outOfStock ? "font-medium text-destructive" : "text-muted-foreground")}>
+                {outOfStock ? t("outOfStock") : t("stockLine", { stock: line.medicine.currentStock, unit: line.medicine.unit.symbol })}
+              </p>
+            ) : null}
+          </>
+        )}
+        {allowManual ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => (isManual ? onPatch({ manualName: null, doseUnitId: "" }) : onPatch({ manualName: "", medicine: null, doseUnitId: "" }))}
+            className="self-start text-xs font-medium text-primary transition-opacity hover:opacity-70 disabled:opacity-30"
+          >
+            {isManual ? t("pickFromInventory") : t("typeManually")}
+          </button>
         ) : null}
       </div>
 
@@ -149,7 +182,7 @@ function TreatmentLineCard({
         <Select value={line.doseUnitId} onValueChange={(v) => onPatch({ doseUnitId: v })} disabled={disabled || doseUnits.length === 0}>
           <LabeledSelectTrigger
             label={t("doseUnit")}
-            placeholder={line.medicine ? t("doseUnitPlaceholder") : t("pickMedicineFirst")}
+            placeholder={line.medicine || isManual ? t("doseUnitPlaceholder") : t("pickMedicineFirst")}
             aria-label={t("doseUnit")}
           />
           <SelectContent>

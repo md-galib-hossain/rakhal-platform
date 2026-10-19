@@ -7,6 +7,9 @@ import type { MedicineRoute } from "./types";
 export interface TreatmentLine {
   key: string;
   medicine: MedicineOption | null;
+  /** `null` = pick from Inventory. A string = the farmer typed the medicine name by hand (not in Inventory): no stock
+   * is deducted and no medicine cost is posted. Only the case Log Treatment tab turns this on. */
+  manualName: string | null;
   doseAmount: string;
   doseUnitId: string;
   route: MedicineRoute;
@@ -14,13 +17,13 @@ export interface TreatmentLine {
 
 export const MAX_TREATMENT_LINES = 10;
 
-export type TreatmentLineProblem = "pickMedicine" | "doseRequired" | "unitRequired";
+export type TreatmentLineProblem = "pickMedicine" | "nameRequired" | "doseRequired" | "unitRequired";
 
 let counter = 0;
 
 export function newTreatmentLine(route: MedicineRoute = "IM"): TreatmentLine {
   counter += 1;
-  return { key: `line-${counter}`, medicine: null, doseAmount: "", doseUnitId: "", route };
+  return { key: `line-${counter}`, medicine: null, manualName: null, doseAmount: "", doseUnitId: "", route };
 }
 
 /** The dose in the medicine's own stock unit, or null when it cannot be worked out (missing unit / no conversion). */
@@ -33,7 +36,9 @@ export function doseInStockUnit(amount: number, doseUnit: Unit | undefined, stoc
 
 /** First thing wrong with a line, or null when it can be submitted. */
 export function treatmentLineProblem(line: TreatmentLine): TreatmentLineProblem | null {
-  if (!line.medicine) return "pickMedicine";
+  if (line.manualName !== null) {
+    if (!line.manualName.trim()) return "nameRequired";
+  } else if (!line.medicine) return "pickMedicine";
   if (!(Number(line.doseAmount) > 0)) return "doseRequired";
   if (!line.doseUnitId) return "unitRequired";
   return null;

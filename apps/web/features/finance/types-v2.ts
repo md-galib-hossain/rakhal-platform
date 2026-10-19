@@ -69,18 +69,6 @@ export interface CreateMfsAccountDetailPayload {
   accountType?: string;
 }
 
-/** Mirrors `CreateFinancialAccountDto` — `POST /finance/accounts`. `bankDetail` is required when
- * `type === "BANK"`, `mfsDetail` when `type === "MFS"` (enforced server-side; `AccountPicker`'s
- * quick-add form mirrors the same conditional requirement client-side). */
-export interface CreateFinancialAccountPayload {
-  name: string;
-  type: FinancialAccountType;
-  currency?: string;
-  openingBalance?: number;
-  bankDetail?: CreateBankAccountDetailPayload;
-  mfsDetail?: CreateMfsAccountDetailPayload;
-}
-
 /**
  * RAKHAL-358 — Payments / Receivables / Payables / Allocation, matched to the live backend
  * (`finance-v2/payments/**`, RAKHAL-337; `finance-v2/receivables/**`, RAKHAL-340;
@@ -319,17 +307,6 @@ export interface Transfer {
   notes: string | null;
   createdById: string;
   createdAt: string;
-}
-
-/** Mirrors `CreateTransferDto` — `POST /finance/transfers`, permission `finance.transfer`
- * (owner-only since RAKHAL-353; a Manager gets a 403). */
-export interface CreateTransferPayload {
-  fromFinancialAccountId: string;
-  toFinancialAccountId: string;
-  amount: number;
-  feeAmount?: number;
-  transactionDate: string;
-  notes?: string;
 }
 
 /**

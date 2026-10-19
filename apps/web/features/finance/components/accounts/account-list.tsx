@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Landmark, MoreVertical, Pencil, Plus, Smartphone, Star, Wallet } from "lucide-react";
+import { Landmark, MoreVertical, Pencil, Smartphone, Star, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +44,7 @@ export function AccountList() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<FinancialAccount | undefined>(undefined);
   const [archiving, setArchiving] = useState<FinancialAccount | null>(null);
+  const accountCount = query.data?.length ?? 0;
 
   const balanceById = useMemo(
     () => new Map((balanceQuery.data?.accounts ?? []).map((a) => [a.id, a.balance])),
@@ -62,10 +63,6 @@ export function AccountList() {
     [setPrimaryAsync, t],
   );
 
-  function openCreate() {
-    setEditing(undefined);
-    setFormOpen(true);
-  }
   function openEdit(account: FinancialAccount) {
     setEditing(account);
     setFormOpen(true);
@@ -151,7 +148,7 @@ export function AccountList() {
                   <Pencil className="mr-2 size-3.5" aria-hidden />
                   {t("edit")}
                 </DropdownMenuItem>
-                {row.original.isPrimary ? null : (
+                {row.original.isPrimary || accountCount <= 1 ? null : (
                   <DropdownMenuItem onSelect={() => void handleMakePrimary(row.original)}>
                     <Star className="mr-2 size-3.5" aria-hidden />
                     {t("makePrimary")}
@@ -166,19 +163,13 @@ export function AccountList() {
         ),
       },
     ],
-    [t, balanceById, handleMakePrimary],
+    [t, balanceById, handleMakePrimary, accountCount],
   );
 
   return (
     <Card className="flex flex-col gap-4 rounded-2xl p-4">
       <div className="flex items-center justify-between gap-2">
         <p className="text-lg font-medium text-foreground">{t("title")}</p>
-        <Can I="finance.accounts">
-          <Button size="sm" className="gap-1.5" onClick={openCreate}>
-            <Plus className="size-4" aria-hidden />
-            {t("addAccount")}
-          </Button>
-        </Can>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border [&_thead_tr]:border-b-0 [&_thead_tr]:bg-muted [&_thead_th]:h-[54px] [&_thead_th]:text-sm [&_thead_th]:font-medium [&_thead_th]:normal-case [&_thead_th]:tracking-normal [&_thead_th]:text-muted-foreground [&_tbody_td]:py-2">
@@ -192,19 +183,11 @@ export function AccountList() {
           emptyState={{
             title: t("empty.title"),
             description: t("empty.description"),
-            action: (
-              <Can I="finance.accounts">
-                <Button size="sm" className="gap-1.5" onClick={openCreate}>
-                  <Plus className="size-4" aria-hidden />
-                  {t("addAccount")}
-                </Button>
-              </Can>
-            ),
           }}
         />
       </div>
 
-      <AccountFormSheet open={formOpen} onOpenChange={setFormOpen} account={editing} />
+      {editing ? <AccountFormSheet open={formOpen} onOpenChange={setFormOpen} account={editing} /> : null}
       <ArchiveAccountDialog account={archiving} open={archiving != null} onOpenChange={(open) => !open && setArchiving(null)} />
     </Card>
   );

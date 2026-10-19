@@ -292,6 +292,10 @@ export const qk = {
      * refetches, same convention `finance.transactionsListV2` established. */
     purchasesListV2: (filters: Record<string, string | undefined>) => ["purchasing", "v2", "purchases", "list", filters] as const,
     expensesListV2: (filters: Record<string, string | undefined>) => ["purchasing", "v2", "expenses", "list", filters] as const,
+    /** One purchase with its lines + embedded payable (`GET /purchasing/purchases/:id`) — backs the detail sheet and the row "Pay" action. */
+    purchaseDetailV2: (id: string) => ["purchasing", "v2", "purchases", "detail", id] as const,
+    /** A supplier's recent purchases (`GET /purchasing/purchases?supplierId=`) — backs the supplier sheet. */
+    supplierPurchasesV2: (supplierId: string) => ["purchasing", "v2", "purchases", "supplier", supplierId] as const,
     /** `GET /purchasing/summary?from&to` (RAKHAL-375) — period-keyed like `finance.profitLossReportV2`. */
     summaryV2: (periodKey: string) => ["purchasing", "v2", "summary", periodKey] as const,
   },

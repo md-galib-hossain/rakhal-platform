@@ -7,11 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { DateText } from "@/components/shared/date-text";
+import { MobileRecordCard } from "@/components/shared/mobile-record-card";
 import { MoneyText } from "@/components/shared/money-text";
 import { Can } from "@/lib/auth/permissions";
 import { VoidDocumentDialog, type VoidDocumentVariant } from "@/features/finance/components/void-document-dialog";
 import { useCancelSale, useInvoicesList, useRefundSale } from "../../hooks/use-sales";
 import type { InvoiceListFilters, InvoicePaymentStatus, InvoiceRow } from "../../types";
+import { NewSaleMenu } from "../new-sale-menu";
+import { InvoiceDetailSheet } from "./invoice-detail-sheet";
+import { InvoiceReceiveDialog } from "./invoice-receive-dialog";
 
 const STATUS_VARIANT: Record<InvoicePaymentStatus, "warning" | "success" | "destructive"> = {
   UNPAID: "warning",
@@ -26,7 +30,9 @@ const VOIDED_STATUSES: InvoiceRow["status"][] = ["CANCELLED", "REFUNDED", "PARTI
  * Amount | Due Amount | Status | Due Date`, plus (RAKHAL-392) a document-level `Voided` badge next
  * to the payment-status one, and a row action to Cancel (unpaid, `paidAmount === 0`) or Refund
  * (paid) — the same `finance.reverse`-gated, void-only correction mechanism every other document
- * table in this milestone uses. A Sale with no `Receivable` is `PAID` by definition and renders "—"
+ * table in this milestone uses. Business UX Phase 5 adds a **Receive payment** row action (`finance.create`,
+ * while `dueAmount > 0`), a row click that opens `InvoiceDetailSheet`, and `MobileRecordCard`s below `sm`.
+ * A Sale with no `Receivable` is `PAID` by definition and renders "—"
  * in Due Date (`SaleListRow.paymentStatus`/`dueDate` — server-derived, never recomputed client-side). */
 export function InvoicesTable({ filters }: { filters: InvoiceListFilters }) {
   const t = useTranslations("sales.invoices.table");
@@ -36,6 +42,17 @@ export function InvoicesTable({ filters }: { filters: InvoiceListFilters }) {
   const cancelSale = useCancelSale();
   const refundSale = useRefundSale();
   const [voidTarget, setVoidTarget] = useState<InvoiceRow | null>(null);
+  const [receiveTarget, setReceiveTarget] = useState<InvoiceRow | null>(null);
+  const [detailTarget, setDetailTarget] = useState<InvoiceRow | null>(null);
+
+  const isVoided = (row: InvoiceRow) => VOIDED_STATUSES.includes(row.status);
+  const canReceive = (row: InvoiceRow) => !isVoided(row) && Number(row.dueAmount) > 0;
+  const statusBadges = (row: InvoiceRow) => (
+    <>
+      <Badge variant={STATUS_VARIANT[row.paymentStatus]}>{t(`statusOptions.${row.paymentStatus}`)}</Badge>
+      {isVoided(row) ? <Badge variant="destructive">{t("voided")}</Badge> : null}
+    </>
+  );
 
   const voidVariant: VoidDocumentVariant = voidTarget && Number(voidTarget.paidAmount) > 0 ? "refund" : "cancel";
 
@@ -58,12 +75,7 @@ export function InvoicesTable({ filters }: { filters: InvoiceListFilters }) {
       {
         id: "status",
         header: t("status"),
-        cell: ({ row }) => (
-          <div className="flex items-center gap-1.5">
-            <Badge variant={STATUS_VARIANT[row.original.paymentStatus]}>{t(`statusOptions.${row.original.paymentStatus}`)}</Badge>
-            {VOIDED_STATUSES.includes(row.original.status) ? <Badge variant="destructive">{t("voided")}</Badge> : null}
-          </div>
-        ),
+        cell: ({ row }) => <div className="flex items-center gap-1.5">{statusBadges(row.original)}</div>,
       },
       {
         id: "dueDate",
@@ -74,15 +86,25 @@ export function InvoicesTable({ filters }: { filters: InvoiceListFilters }) {
         id: "actions",
         header: "",
         cell: ({ row }) =>
-          VOIDED_STATUSES.includes(row.original.status) ? null : (
-            <Can I="finance.reverse">
-              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setVoidTarget(row.original)}>
-                {Number(row.original.paidAmount) > 0 ? t("refund") : t("cancel")}
-              </Button>
-            </Can>
+          isVoided(row.original) ? null : (
+            <div className="flex items-center gap-1">
+              {canReceive(row.original) ? (
+                <Can I="finance.create">
+                  <Button size="sm" variant="secondary" onClick={() => setReceiveTarget(row.original)}>
+                    {t("receivePayment")}
+                  </Button>
+                </Can>
+              ) : null}
+              <Can I="finance.reverse">
+                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setVoidTarget(row.original)}>
+                  {Number(row.original.paidAmount) > 0 ? t("refund") : t("cancel")}
+                </Button>
+              </Can>
+            </div>
           ),
       },
     ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the helpers above are pure closures over `t`
     [t],
   );
 
@@ -96,12 +118,60 @@ export function InvoicesTable({ filters }: { filters: InvoiceListFilters }) {
           isLoading={query.isLoading}
           isError={query.isError}
           onRetry={() => void query.refetch()}
-          emptyState={{ title: t("emptyTitle"), description: t("emptyDescription") }}
+          onRowClick={setDetailTarget}
+          emptyState={{ title: t("emptyTitle"), description: t("emptyDescription"), action: <NewSaleMenu /> }}
+          renderMobileCard={(row) => (
+            <MobileRecordCard
+              title={row.saleNumber}
+              subtitle={row.customer?.name ?? t("noBuyer")}
+              trailing={<MoneyText amount={Number(row.totalAmount)} />}
+              badges={statusBadges(row)}
+              onOpen={() => setDetailTarget(row)}
+              fields={[
+                { label: t("date"), value: <DateText date={row.saleDate} /> },
+                { label: t("dueAmount"), value: <MoneyText amount={Number(row.dueAmount)} colorize={Number(row.dueAmount) > 0} /> },
+              ]}
+              actions={
+                isVoided(row) ? undefined : (
+                  <>
+                    {canReceive(row) ? (
+                      <Can I="finance.create">
+                        <Button size="sm" variant="secondary" onClick={() => setReceiveTarget(row)}>
+                          {t("receivePayment")}
+                        </Button>
+                      </Can>
+                    ) : null}
+                    <Can I="finance.reverse">
+                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setVoidTarget(row)}>
+                        {Number(row.paidAmount) > 0 ? t("refund") : t("cancel")}
+                      </Button>
+                    </Can>
+                  </>
+                )
+              }
+            />
+          )}
           hasNextPage={query.hasNextPage}
           isFetchingNextPage={query.isFetchingNextPage}
           onLoadMore={() => void query.fetchNextPage()}
         />
       </div>
+
+      <InvoiceDetailSheet
+        invoice={detailTarget}
+        open={detailTarget !== null}
+        onOpenChange={(open) => !open && setDetailTarget(null)}
+        onReceive={(invoice) => {
+          setDetailTarget(null);
+          setReceiveTarget(invoice);
+        }}
+        onVoid={(invoice) => {
+          setDetailTarget(null);
+          setVoidTarget(invoice);
+        }}
+      />
+
+      <InvoiceReceiveDialog invoice={receiveTarget} open={receiveTarget !== null} onOpenChange={(open) => !open && setReceiveTarget(null)} />
 
       <VoidDocumentDialog
         open={voidTarget !== null}

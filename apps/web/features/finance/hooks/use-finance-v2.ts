@@ -7,9 +7,7 @@ import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { financeV2Api } from "../api-v2";
 import type {
   AllocatePaymentPayload,
-  CreateFinancialAccountPayload,
   CreatePaymentPayload,
-  CreateTransferPayload,
   ListPayablesFilters,
   ListReceivablesFilters,
   PaymentDirection,
@@ -27,16 +25,12 @@ export function useFinancialAccounts() {
   });
 }
 
-/** `AccountPicker`'s inline "+ Add account" quick-add — same "create then invalidate the list"
- * shape as `useCreateCustomUnit` (`features/inventory/hooks/use-inventory.ts`). */
-export function useCreateFinancialAccount() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (dto: CreateFinancialAccountPayload) => financeV2Api.createAccount(dto),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: qk.finance.accountsV2() });
-      void queryClient.invalidateQueries({ queryKey: qk.finance.balanceV2() });
-    },
+/** `GET /finance/accounts/farm-account` — the one account every money form pays from / into. */
+export function useFarmAccount() {
+  return useQuery({
+    queryKey: [...qk.finance.accountsV2(), "farm-account"] as const,
+    queryFn: () => financeV2Api.farmAccount(),
+    staleTime: STALE_TIME,
   });
 }
 
@@ -47,6 +41,18 @@ export function useUpdateFinancialAccount() {
   return useMutation({
     mutationFn: ({ id, dto }: { id: string; dto: UpdateFinancialAccountPayload }) => financeV2Api.updateAccount(id, dto),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: qk.finance.accountsV2() }),
+  });
+}
+
+/** Set / correct the account's opening balance; the account balance and Rakhal Balance both move. */
+export function useSetOpeningBalance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, openingBalance }: { id: string; openingBalance: number }) => financeV2Api.setOpeningBalance(id, openingBalance),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.finance.accountsV2() });
+      void queryClient.invalidateQueries({ queryKey: qk.finance.balanceV2() });
+    },
   });
 }
 
@@ -89,20 +95,6 @@ export function useTransfers() {
     queryKey: qk.finance.transfersV2(),
     queryFn: () => financeV2Api.listTransfers(),
     staleTime: STALE_TIME,
-  });
-}
-
-/** RAKHAL-356 — `POST /finance/transfers`. Invalidates accounts/balance/transfers together: a
- * transfer changes two accounts' derived balances and the Rakhal Balance total at once. */
-export function useCreateTransfer() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (dto: CreateTransferPayload) => financeV2Api.createTransfer(dto),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: qk.finance.balanceV2() });
-      void queryClient.invalidateQueries({ queryKey: qk.finance.transfersV2() });
-      void queryClient.invalidateQueries({ queryKey: qk.finance.accountsV2() });
-    },
   });
 }
 
@@ -172,6 +164,10 @@ function useInvalidatePaymentsV2() {
     void queryClient.invalidateQueries({ queryKey: ["finance", "v2", "payables"] });
     void queryClient.invalidateQueries({ queryKey: ["finance", "v2", "payments"] });
     void queryClient.invalidateQueries({ queryKey: qk.finance.balanceV2() });
+    // The Purchases / Invoices rows carry a server-derived paid / outstanding / status, so a payment
+    // taken from a document's own row action must refresh those lists too.
+    void queryClient.invalidateQueries({ queryKey: ["purchasing"] });
+    void queryClient.invalidateQueries({ queryKey: ["sales"] });
   };
 }
 

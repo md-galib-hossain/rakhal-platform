@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useBuyersPagedList } from "../hooks/use-buyers";
-import { BuyerFormDialog } from "./buyer-form-dialog";
+import { QuickAddBuyerSheet } from "./quick-add-buyer-sheet";
 import type { Buyer } from "../types";
 
 /**
@@ -114,12 +114,7 @@ export function BuyerPicker({
       </Popover>
       {error ? <p className="mt-1 text-sm text-destructive">{error}</p> : null}
 
-      <BuyerFormDialog
-        buyer={null}
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        onCreated={(buyer) => selectBuyer(buyer)}
-      />
+      <QuickAddBuyerSheet open={formOpen} onOpenChange={setFormOpen} onCreated={(buyer) => selectBuyer(buyer)} />
     </div>
   );
 }

@@ -21,6 +21,17 @@ export const buyerFormSchema = z.object({
 });
 export type BuyerFormInput = z.infer<typeof buyerFormSchema>;
 
+/** Quick-add buyer (inside a sale flow): only what is needed to price a sale. `buyerType` is
+ * defaulted by the caller, the rest of `CreateBuyerDto` stays on the full Buyers form. Price must be
+ * above zero — a ৳0 buyer would silently produce a ৳0 sale. */
+export const quickAddBuyerSchema = z.object({
+  name: z.string().trim().min(1),
+  phone: z.string().trim().optional(),
+  basePricePerLitre: z.number().positive(),
+  paymentTermsDays: z.number().int().min(0).optional(),
+});
+export type QuickAddBuyerInput = z.infer<typeof quickAddBuyerSchema>;
+
 /** Record Dispatch. Mirrors `RecordDispatchDto` — `dispatchedAt` defaults to now client-side. */
 export const recordDispatchSchema = z.object({
   buyerId: z.string().trim().min(1),

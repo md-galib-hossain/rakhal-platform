@@ -8,9 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { DateText } from "@/components/shared/date-text";
+import { MobileRecordCard } from "@/components/shared/mobile-record-card";
 import { MoneyText } from "@/components/shared/money-text";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Can } from "@/lib/auth/permissions";
+import { useCanAddSupplier } from "../hooks";
 import type { SupplierRow } from "../types";
 
 /** RAKHAL-390 — the AC's exact column set: `Supplier Name | Phone | Total Purchases | Payable |
@@ -24,6 +26,10 @@ export function SupplierTable({
   onEdit,
   onDelete,
   onAdd,
+  onOpen,
+  isFiltered = false,
+  hasNextPage = false,
+  onLoadMore,
 }: {
   rows: SupplierRow[];
   isLoading: boolean;
@@ -32,8 +38,16 @@ export function SupplierTable({
   onEdit: (row: SupplierRow) => void;
   onDelete: (row: SupplierRow) => void;
   onAdd: () => void;
+  /** Row / card click — opens the supplier sheet. */
+  onOpen: (row: SupplierRow) => void;
+  /** A search is active: an empty list means "no match", not "no suppliers yet". */
+  isFiltered?: boolean;
+  /** Client-side "show more" over the already-loaded directory (`useIncrementalReveal`). */
+  hasNextPage?: boolean;
+  onLoadMore?: () => void;
 }) {
   const t = useTranslations("suppliers.table");
+  const canAdd = useCanAddSupplier();
 
   const columns = useMemo<ColumnDef<SupplierRow, unknown>[]>(
     () => [
@@ -78,7 +92,8 @@ export function SupplierTable({
                   <MoreVertical className="size-4" aria-hidden />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              {/* menu is portaled but React still bubbles its clicks to the row — keep them off `onRowClick` */}
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                 <DropdownMenuItem onSelect={() => onEdit(row.original)}>
                   <Pencil className="mr-2 size-3.5" aria-hidden />
                   {t("edit")}
@@ -104,17 +119,32 @@ export function SupplierTable({
         isLoading={isLoading}
         isError={isError}
         onRetry={onRetry}
+        onRowClick={onOpen}
+        hasNextPage={hasNextPage}
+        onLoadMore={onLoadMore}
+        renderMobileCard={(row) => (
+          <MobileRecordCard
+            title={row.name}
+            subtitle={row.phone ?? undefined}
+            trailing={<MoneyText amount={Number(row.payable)} colorize={Number(row.payable) > 0} />}
+            badges={row.status === "INACTIVE" ? <Badge variant="outline">{t("inactive")}</Badge> : undefined}
+            onOpen={() => onOpen(row)}
+            fields={[
+              { label: t("columns.payable"), value: <MoneyText amount={Number(row.payable)} /> },
+              { label: t("columns.totalPurchases"), value: <MoneyText amount={Number(row.totalPurchases)} /> },
+              { label: t("columns.lastPurchase"), value: row.lastPurchaseAt ? <DateText date={row.lastPurchaseAt} /> : "—" },
+            ]}
+          />
+        )}
         emptyState={{
-          title: t("empty.title"),
-          description: t("empty.description"),
-          action: (
-            <Can I="settings.update">
-              <Button size="sm" className="gap-1.5" onClick={onAdd}>
-                <Plus className="size-4" aria-hidden />
-                {t("addSupplier")}
-              </Button>
-            </Can>
-          ),
+          title: isFiltered ? t("noMatch.title") : t("empty.title"),
+          description: isFiltered ? t("noMatch.description") : t("empty.description"),
+          action: canAdd && !isFiltered ? (
+            <Button size="sm" className="gap-1.5" onClick={onAdd}>
+              <Plus className="size-4" aria-hidden />
+              {t("addSupplier")}
+            </Button>
+          ) : undefined,
         }}
       />
     </div>

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
+import { Can } from "@/lib/auth/permissions";
 import type { BuyerListRow } from "../types";
 
 /** RAKHAL-389 (MILESTONE 22) — the AC's exact column set: `Buyer Name | Phone | Outstanding |
@@ -21,7 +22,7 @@ export function buildBuyerColumns(
     onEdit: (buyer: BuyerListRow) => void;
     onDeactivate: (buyer: BuyerListRow) => void;
     onStatement: (buyer: BuyerListRow) => void;
-    onRecordDispatch: (buyer: BuyerListRow) => void;
+    onSellMilk: (buyer: BuyerListRow) => void;
   },
 ): ColumnDef<BuyerListRow, unknown>[] {
   return [
@@ -63,19 +64,27 @@ export function buildBuyerColumns(
       header: "",
       cell: ({ row }) => (
         <div className="flex items-center gap-1.5">
-          <Button size="sm" variant="secondary" onClick={() => actions.onRecordDispatch(row.original)}>
-            {t("actionsColumn.dispatch")}
-          </Button>
+          {row.original.status === "ACTIVE" ? (
+            <Can I="finance.create">
+              <Button size="sm" variant="secondary" onClick={() => actions.onSellMilk(row.original)}>
+                {t("actionsColumn.sellMilk")}
+              </Button>
+            </Can>
+          ) : null}
           <Button size="sm" variant="outline" onClick={() => actions.onStatement(row.original)}>
             {t("actionsColumn.statement")}
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => actions.onEdit(row.original)}>
-            {t("actionsColumn.edit")}
-          </Button>
-          {row.original.status === "ACTIVE" ? (
-            <Button size="sm" variant="ghost" onClick={() => actions.onDeactivate(row.original)}>
-              {t("actionsColumn.deactivate")}
+          <Can I="finance.update">
+            <Button size="sm" variant="ghost" onClick={() => actions.onEdit(row.original)}>
+              {t("actionsColumn.edit")}
             </Button>
+          </Can>
+          {row.original.status === "ACTIVE" ? (
+            <Can I="finance.delete">
+              <Button size="sm" variant="ghost" onClick={() => actions.onDeactivate(row.original)}>
+                {t("actionsColumn.deactivate")}
+              </Button>
+            </Can>
           ) : null}
         </div>
       ),

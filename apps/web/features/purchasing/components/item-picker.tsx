@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { Check, ChevronsUpDown, PackageSearch } from "lucide-react";
+import { Check, ChevronsUpDown, PackageSearch, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -35,7 +35,8 @@ async function searchByKind(kind: PurchasableItemKind, search: string): Promise<
  * `MedicinePicker`/`UnitPicker` (same template both those components already document as theirs);
  * the one addition is a `Select` above the search box to switch which of the 3 inventory tables is
  * being searched, since a `PurchaseLine` is exactly one of `medicineId`/`feedItemId`/`equipmentId`
- * (`validatePurchaseLineDetailShape`, enforced server-side).
+ * (`validatePurchaseLineDetailShape`, enforced server-side). Ends with **+ New item** (the caller opens
+ * `NewItemSheet`; the item is created server-side with the purchase, as `newItem`).
  */
 export function ItemPicker({
   kind,
@@ -43,12 +44,19 @@ export function ItemPicker({
   value,
   onChange,
   error,
+  onCreateNew,
+  isNewItem = false,
 }: {
   kind: PurchasableItemKind;
   onKindChange: (kind: PurchasableItemKind) => void;
   value: PurchasableItemOption | null;
   onChange: (item: PurchasableItemOption | null) => void;
   error?: string;
+  /** Shows "+ New item" at the end of the list; the caller opens its own sheet. */
+  onCreateNew?: () => void;
+  /** `value` is an item that does not exist yet (typed via `onCreateNew`) — its stock chip says so
+   * instead of showing a stock figure. */
+  isNewItem?: boolean;
 }) {
   const t = useTranslations("purchasing.itemPicker");
   const [open, setOpen] = useState(false);
@@ -121,6 +129,21 @@ export function ItemPicker({
                 ))}
               </CommandGroup>
             </CommandList>
+            {onCreateNew ? (
+              <div className="border-t border-border p-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    onCreateNew();
+                  }}
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-primary hover:bg-muted"
+                >
+                  <Plus className="size-4" aria-hidden />
+                  {t("newItem")}
+                </button>
+              </div>
+            ) : null}
           </Command>
         </PopoverContent>
       </Popover>
@@ -129,7 +152,13 @@ export function ItemPicker({
       {value ? (
         <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
           <PackageSearch className="size-3.5 shrink-0" aria-hidden />
-          {t("currentStockLabel")}: <span className="font-medium text-foreground">{value.currentStock}</span> {value.unitSymbol}
+          {isNewItem ? (
+            t("newItemChip")
+          ) : (
+            <>
+              {t("currentStockLabel")}: <span className="font-medium text-foreground">{value.currentStock}</span> {value.unitSymbol}
+            </>
+          )}
         </div>
       ) : null}
     </div>

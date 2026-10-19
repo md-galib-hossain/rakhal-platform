@@ -54,7 +54,6 @@
     "buyers": "Buyers",
     "finance": "Finance",
     "purchasing": "Purchasing",
-    "suppliers": "Suppliers",
     "healthcare": "Healthcare",
     "reproduction": "Reproduction",
     "inventory": "Inventory",
@@ -2848,6 +2847,11 @@
       "resultCount": "{count} events",
       "error": "Could not load the events feed.",
       "edit": "Edit",
+      "resolution": {
+        "FALSE_ALARM": "False alarm",
+        "SKIPPED_CYCLE": "Skipped cycle",
+        "INSEMINATED": "Inseminated"
+      },
       "void": "Void this breeding",
       "today": "Today",
       "yesterday": "Yesterday",
@@ -2951,7 +2955,6 @@
           "MFS": "Mobile financial service (MFS)",
           "WALLET": "Wallet"
         },
-        "financialAccount": "Financial account",
         "costFromBatch": "Cost: ৳{cost} (from batch)",
         "bull": "Bull",
         "inseminator": "Inseminator",
@@ -2989,6 +2992,20 @@
         "falseAlarmHint": "Closes this heat as a false alarm. It stays in her history — to fix the wrong animal, change the animal above instead.",
         "falseAlarm": "Mark as false alarm",
         "falseAlarmToast": "Heat marked as a false alarm.",
+        "closedTitle": "This heat is closed",
+        "closedHint": {
+          "FALSE_ALARM": "Closed as a false alarm. It stays in her history. You can still correct the animal or time, or cancel the record below.",
+          "SKIPPED_CYCLE": "Closed as a skipped cycle. You can still correct the animal or time, or cancel the record below.",
+          "INSEMINATED": "Closed by an AI / breeding. To change it, void or edit that breeding."
+        },
+        "cancelTitle": "Recorded by mistake?",
+        "cancelHint": "Cancel removes this heat record completely. It is blocked once a breeding is linked to it.",
+        "cancel": "Cancel this record",
+        "cancelConfirmTitle": "Cancel heat record?",
+        "cancelConfirmBody": "The heat recorded for {cow} will be removed. This cannot be undone.",
+        "cancelConfirm": "Cancel record",
+        "keep": "Keep it",
+        "cancelToast": "Heat record cancelled.",
         "genericError": "Could not update the heat record. Please try again."
       },
       "returnToHeat": {
@@ -4160,6 +4177,9 @@
         "decreaseDose": "Decrease dose",
         "increaseDose": "Increase dose",
         "administeredBy": "Administrative By",
+        "vetCost": "Vet cost (৳)",
+        "vetCostHint": "Optional. The vet's fee for this visit, recorded once as a health expense.",
+        "vetNeedsAccount": "Choose the account the vet cost was paid from.",
         "savedToast": "Treatment logged.",
         "fixLines": "Complete every medicine before saving.",
         "lineFailed": "{medicine}: {reason}",
@@ -4213,6 +4233,7 @@
         "disposalMethod": "Disposal Method",
         "selectMethod": "select method",
         "disposalCost": "Disposal Cost",
+        "disposalNeedsAccount": "Choose the account the disposal cost was paid from.",
         "disposalLocation": "Disposal Location",
         "selectLocation": "select location",
         "additionalNotes": "Additional Notes",
@@ -4302,7 +4323,12 @@
       "pickMedicineFirst": "Pick a medicine first",
       "notEnoughStock": "Needs {needed} {unit} but only {stock} {unit} in stock.",
       "route": "Route",
+      "typeManually": "Not in inventory? Type the name",
+      "pickFromInventory": "Pick from inventory instead",
+      "manualName": "Medicine name",
+      "manualHint": "Not taken from inventory: no stock is used and no medicine cost is recorded.",
       "problem": {
+        "nameRequired": "Enter the medicine name.",
         "pickMedicine": "Select a medicine.",
         "doseRequired": "Enter a dose greater than 0.",
         "unitRequired": "Select a unit."
@@ -5286,36 +5312,6 @@
       "createdToast": "Transaction recorded",
       "genericError": "Something went wrong. Please try again."
     },
-    "accountPicker": {
-      "account": "Account",
-      "selectAccount": "Select account",
-      "searchAccount": "Search accounts",
-      "primaryBadge": "Primary",
-      "loading": "Loading…",
-      "noAccountsFound": "No accounts found.",
-      "addAccount": "Add account",
-      "accountType": "Account type",
-      "typeCash": "Cash",
-      "typeBank": "Bank",
-      "typeMfs": "Mobile Financial Service",
-      "accountName": "Account name",
-      "accountNamePlaceholder": "e.g. Farm Cash Box",
-      "bankName": "Bank name",
-      "bankAccountNumber": "Account number",
-      "bankBranch": "Branch",
-      "mfsProvider": "Provider",
-      "mfsProviderOptions": {
-        "BKASH": "bKash",
-        "NAGAD": "Nagad",
-        "ROCKET": "Rocket",
-        "UPAY": "Upay",
-        "OTHER": "Other"
-      },
-      "mfsPhoneNumber": "Phone number",
-      "openingBalance": "Opening balance",
-      "back": "Back",
-      "addItem": "Add"
-    },
     "transactionsPage": {
       "title": "Transactions"
     },
@@ -5329,15 +5325,23 @@
       "title": "Asset Distribution"
     },
     "accountsPage": {
+      "card": {
+        "error": "Could not load your account.",
+        "balanceLabel": "Balance",
+        "rename": "Rename",
+        "setOpening": "Set opening balance",
+        "openingTitle": "Opening balance",
+        "openingHelp": "The money you already had in this account when you started. Saving replaces any earlier opening balance; your history keeps both entries.",
+        "openingLabel": "Opening balance",
+        "openingSaved": "Opening balance updated",
+        "openingError": "Could not update the opening balance.",
+        "cancel": "Cancel",
+        "save": "Save"
+      },
       "title": "Accounts",
-      "transferAction": "Transfer",
-      "transferOwnerOnlyTooltip": "Only the farm owner can transfer between accounts",
       "balance": {
         "title": "Rakhal Balance",
         "subtitle": "Cash + Bank + MFS across all your active accounts",
-        "cash": "Cash",
-        "bank": "Bank",
-        "mfs": "MFS",
         "positionTitle": "Receivable / Payable position",
         "positionCaption": "Not included in Rakhal Balance — this money hasn't arrived (or gone out) yet.",
         "viewReceivables": "View Receivables",
@@ -5346,7 +5350,6 @@
       },
       "list": {
         "title": "Your Accounts",
-        "addAccount": "Add Account",
         "error": "Could not load your accounts.",
         "empty": {
           "title": "No accounts yet",
@@ -5382,10 +5385,8 @@
         }
       },
       "form": {
-        "createTitle": "Add Account",
         "editTitle": "Edit Account",
         "close": "Close",
-        "accountType": "Account type",
         "typeCash": "Cash",
         "typeBank": "Bank",
         "typeMfs": "Mobile Financial Service",
@@ -5404,11 +5405,8 @@
           "OTHER": "Other"
         },
         "mfsPhoneNumber": "Phone number",
-        "openingBalance": "Opening balance",
         "cancel": "Cancel",
         "save": "Save Changes",
-        "createdToastAction": "Add Account",
-        "createdToast": "Account created.",
         "updatedToast": "Account updated.",
         "genericError": "Could not save the account."
       },
@@ -5419,24 +5417,6 @@
         "cancel": "Cancel",
         "successToast": "Account archived.",
         "genericError": "Could not archive the account."
-      },
-      "transfer": {
-        "title": "Transfer Funds",
-        "close": "Close",
-        "ownerOnlyNotice": "Only the farm owner can transfer between accounts.",
-        "fromPlaceholder": "From account",
-        "toPlaceholder": "To account",
-        "amount": "Amount",
-        "feeAmount": "Fee (optional)",
-        "transactionDate": "Date",
-        "notes": "Notes",
-        "summaryAmount": "Amount",
-        "summaryFee": "Fee",
-        "summaryTotal": "Total debited from source",
-        "cancel": "Cancel",
-        "submit": "Transfer",
-        "successToast": "Transfer completed.",
-        "genericError": "Could not complete the transfer."
       }
     },
     "settlementsV2": {
@@ -5497,7 +5477,6 @@
       "receivePaymentDialog": {
         "title": "Receive Payment",
         "description": "Outstanding: ৳{outstanding}.",
-        "account": "Deposit to account",
         "amount": "Amount received",
         "method": "Payment method",
         "transactionDate": "Payment date",
@@ -5512,7 +5491,6 @@
       "makePaymentDialog": {
         "title": "Make Payment",
         "description": "Outstanding: ৳{outstanding}.",
-        "account": "Pay from account",
         "amount": "Amount paid",
         "method": "Payment method",
         "transactionDate": "Payment date",
@@ -5666,7 +5644,8 @@
         "dispatch": "Dispatch",
         "statement": "Statement",
         "edit": "Edit",
-        "deactivate": "Deactivate"
+        "deactivate": "Deactivate",
+        "sellMilk": "Sell milk"
       },
       "empty": {
         "title": "No buyers yet",
@@ -5685,6 +5664,21 @@
       "noBuyersFound": "No buyers found.",
       "loading": "Loading…",
       "addBuyer": "+ Add new buyer"
+    },
+    "quickAdd": {
+      "title": "Add buyer",
+      "name": "Buyer name",
+      "nameRequired": "Enter a name",
+      "phone": "Phone",
+      "price": "Price per litre",
+      "priceRequired": "Enter a price above zero",
+      "terms": "Payment terms (days, 0 = pays on delivery)",
+      "moreLater": "You can add the rest (fat bonus, SCC penalty, bank details) later from Buyers.",
+      "cancel": "Cancel",
+      "save": "Add buyer",
+      "saving": "Saving…",
+      "createdToast": "Buyer added.",
+      "genericError": "Could not add the buyer."
     },
     "form": {
       "createTitle": "Add Buyer",
@@ -5717,22 +5711,6 @@
       "createdToast": "Buyer added.",
       "updatedToast": "Buyer updated.",
       "genericError": "Could not save buyer."
-    },
-    "dispatch": {
-      "title": "Record Dispatch",
-      "buyer": "Buyer",
-      "buyerPlaceholder": "Select a buyer",
-      "dispatchedAt": "Dispatch Date",
-      "volumeDispatchedL": "Volume Dispatched (L)",
-      "volumeReceivedL": "Volume Received (L)",
-      "fatPct": "Fat %",
-      "scc": "SCC",
-      "notes": "Notes",
-      "cancel": "Cancel",
-      "saving": "Recording…",
-      "submit": "Record Dispatch",
-      "successToast": "Dispatch recorded. Amount: ৳{amount}",
-      "genericError": "Could not record dispatch."
     },
     "statement": {
       "title": "Statement — {name}",
@@ -5805,7 +5783,8 @@
         },
         "emptyTitle": "No dispatches yet",
         "emptyDescription": "This buyer's dispatches will show up here."
-      }
+      },
+      "sellMilk": "Sell milk"
     }
   },
   "feed": {
@@ -7220,8 +7199,10 @@
   "purchasing": {
     "tabs": {
       "expenses": "Expenses",
-      "purchases": "Purchases"
+      "purchases": "Purchases",
+      "suppliers": "Suppliers"
     },
+    "addSupplierCta": "Add Supplier",
     "recordExpenseCta": "Record Expense",
     "recordPurchaseCta": "Record Purchase",
     "permissionDenied": "You don't have permission to view this.",
@@ -7236,7 +7217,9 @@
       "searchItem": "Search item…",
       "searching": "Searching…",
       "noItemsFound": "No items found.",
-      "currentStockLabel": "Current stock"
+      "currentStockLabel": "Current stock",
+      "newItem": "New item",
+      "newItemChip": "New item — created with this purchase"
     },
     "recordExpense": {
       "title": "Record Expense",
@@ -7274,10 +7257,7 @@
       "addLine": "Add another item",
       "purchaseTotal": "Purchase total",
       "paymentType": "Payment type",
-      "payNow": "Paid Now",
-      "buyOnCredit": "Buy on Credit",
       "amountPaid": "Amount paid",
-      "payFromAccount": "Pay from account",
       "payableRaised": "Payable raised (unpaid remainder)",
       "dueDateOptional": "Due date (optional)",
       "notes": "Notes",
@@ -7285,14 +7265,28 @@
       "record": "Save Purchase",
       "createdToast": "Purchase {number} recorded — stock updated.",
       "genericError": "Something went wrong. Please try again.",
-      "paidAmountExceedsTotal": "Amount paid cannot exceed the purchase total."
+      "supplierRequired": "Choose a supplier",
+      "itemRequired": "Choose or add an item",
+      "expiryDate": "Expiry date",
+      "expiryRequired": "Enter the expiry date",
+      "viewStock": "View stock",
+      "viewFinance": "View in Finance",
+      "paymentMode": {
+        "FULL": "Pay in full",
+        "PART": "Part paid",
+        "CREDIT": "On credit"
+      },
+      "paidInFullNote": "{amount} will be paid now from your farm account.",
+      "partBelowTotal": "Enter less than the purchase total, or choose Pay in full.",
+      "amountRequired": "Enter the amount paid"
     },
     "supplierPicker": {
       "supplier": "Supplier",
       "selectSupplier": "Select a supplier",
       "searchSupplier": "Search supplier…",
       "loading": "Loading…",
-      "noSuppliersFound": "No suppliers found."
+      "noSuppliersFound": "No suppliers found.",
+      "newSupplier": "New supplier"
     },
     "summary": {
       "totalPurchases": "Total Purchases",
@@ -7362,14 +7356,61 @@
       },
       "errorTitle": "Couldn't load purchases",
       "emptyTitle": "No purchases recorded yet",
-      "emptyDescription": "Purchases can automatically: update inventory · create supplier payables · record payment."
+      "emptyDescription": "Purchases can automatically: update inventory · create supplier payables · record payment.",
+      "pay": "Pay",
+      "recordPurchase": "Record purchase"
+    },
+    "newItem": {
+      "title": "New item",
+      "kindLabel": "Item type",
+      "kind": {
+        "MEDICINE": "Medicine",
+        "FEED": "Feed",
+        "EQUIPMENT": "Equipment"
+      },
+      "name": "Item name",
+      "nameRequired": "Enter a name",
+      "unitRequired": "Choose a unit",
+      "medicineType": "Form",
+      "medicineCategory": "Category",
+      "ingredient": "Feed ingredient",
+      "ingredientPlaceholder": "Choose an ingredient",
+      "ingredientRequired": "Choose the ingredient this feed is",
+      "ingredientHint": "The new feed item copies its nutrition from the ingredient. Not listed? Add a custom ingredient from the list.",
+      "clearIngredient": "Remove ingredient",
+      "zeroStockNote": "The item is created together with this purchase — its stock starts at what you buy here.",
+      "cancel": "Cancel",
+      "add": "Use this item"
+    },
+    "detailSheet": {
+      "title": "Purchase",
+      "close": "Close",
+      "description": "What was bought, what was paid and what is still owed.",
+      "supplier": "Supplier",
+      "date": "Date",
+      "total": "Total",
+      "paid": "Paid",
+      "outstanding": "Outstanding",
+      "dueDate": "Due date",
+      "lines": "Items",
+      "payments": "Payments",
+      "loading": "Loading…",
+      "loadError": "Couldn't load this purchase.",
+      "loadingItem": "Loading…",
+      "unknownItem": "Item no longer available",
+      "paidAtCreation": "Paid in full when it was recorded.",
+      "noPayments": "No payments recorded yet.",
+      "viewFinance": "View in Finance",
+      "viewActivity": "View in Activity Log",
+      "void": "Void purchase",
+      "pay": "Pay",
+      "showPayments": "Show payment history"
     }
   },
   "sales": {
     "record": {
       "title": "Record Sale",
       "trigger": "Record Sale",
-      "pageDescription": "Record a milk, animal, or other-income sale and where the money landed.",
       "stepOf": "Step {step} of {total}",
       "step1Title": "What are you recording?",
       "step1Subtitle": "Choose what you're selling",
@@ -7381,7 +7422,7 @@
       "types": {
         "PRODUCT": {
           "label": "Product Sale",
-          "description": "Milk, manure, or an inventory item"
+          "description": "Manure or an inventory item"
         },
         "ANIMAL": {
           "label": "Animal Sale",
@@ -7397,18 +7438,11 @@
       "selectItemFirst": "Choose which item you're selling",
       "productSubtype": "Product",
       "productSubtypeOptions": {
-        "MILK": "Milk",
         "MANURE": "Manure",
         "INVENTORY": "Inventory item"
       },
       "manureTotalAmount": "Total Amount",
       "notAvailableYet": "Not available yet — this sale type has no backend route to submit to.",
-      "buyer": "Buyer",
-      "buyerPlaceholder": "Select buyer",
-      "volumeL": "Volume (L)",
-      "availableNow": "Available now: {amount} L",
-      "fatPct": "Fat %",
-      "scc": "SCC",
       "description": "Description",
       "descriptionPlaceholder": "e.g. 2 bags of dry manure",
       "quantity": "Quantity",
@@ -7435,8 +7469,6 @@
       "otherIncomePaidInFull": "Other income is recorded and posted in full to this account immediately — there's no partial/due for this type.",
       "createdToast": "Recorded — ৳{amount}",
       "genericError": "Something went wrong recording this sale",
-      "paymentRecordedNoReceivable": "Payment was recorded but couldn't be matched to this sale's receivable — check Receivables and allocate it manually.",
-      "paymentFailedAfterSale": "The sale was recorded, but recording the payment failed — the sale is unpaid for now. Try recording the payment again from Receivables.",
       "cancel": "Cancel",
       "back": "Back",
       "continue": "Continue",
@@ -7445,10 +7477,55 @@
     "tabs": {
       "overview": "Overview",
       "invoices": "Invoices",
-      "dispatches": "Dispatches"
+      "dispatches": "Dispatches",
+      "buyers": "Buyers"
     },
     "newSaleMenu": {
       "trigger": "New Sale"
+    },
+    "sellMilk": {
+      "title": "Sell Milk",
+      "description": "Milk stock, finance and the activity log all update together.",
+      "buyerPlaceholder": "Select buyer",
+      "buyerRequired": "Choose who bought the milk",
+      "noPrice": "This buyer has no price per litre yet — edit the buyer first.",
+      "priceOnly": "{price} per litre · pays on delivery",
+      "priceAndTerms": "{price} per litre · pays in {days} days",
+      "litres": "Litres sold",
+      "volumeRequired": "Enter the litres sold",
+      "availableNow": "In stock: {amount} L",
+      "sellAll": "Sell all {amount} L",
+      "exceedsStock": "Only {amount} L in stock",
+      "estimatedTotal": "Estimated total",
+      "estimateNote": "The final amount can change with fat % and SCC.",
+      "paymentTitle": "Payment",
+      "paidNow": "Paid now",
+      "onCredit": "On credit",
+      "amountReceived": "Amount received",
+      "amountRequired": "Enter the amount received",
+      "dueLine": "Still due: {amount}",
+      "paymentMethod": "Payment method",
+      "methods": {
+        "CASH": "Cash",
+        "BANK_TRANSFER": "Bank",
+        "MFS": "Mobile banking"
+      },
+      "creditHint": "Due in {days} days. Record the payment later from Invoices.",
+      "creditHintNoTerms": "Due on delivery. Record the payment later from Invoices.",
+      "more": "More options",
+      "date": "Sale date",
+      "dateRequired": "Choose a date",
+      "fatPct": "Fat %",
+      "scc": "SCC",
+      "notes": "Notes",
+      "notesPlaceholder": "Optional notes",
+      "cancel": "Cancel",
+      "submit": "Sell milk",
+      "saving": "Saving…",
+      "successPaid": "Sold {litres} L · {amount} received",
+      "successCredit": "Sold {litres} L · {amount} on credit",
+      "viewInvoices": "View invoices",
+      "genericError": "Could not record this sale. Please try again."
     },
     "overview": {
       "title": "Sales Overview",
@@ -7540,7 +7617,29 @@
         "cancel": "Cancel",
         "refund": "Refund",
         "emptyTitle": "No invoices found",
-        "emptyDescription": "Record a sale to see its invoice here."
+        "emptyDescription": "Record a sale to see its invoice here.",
+        "receivePayment": "Receive payment"
+      },
+      "detailSheet": {
+        "title": "Invoice",
+        "close": "Close",
+        "description": "Who bought, what was sold and what has been paid.",
+        "buyer": "Buyer",
+        "date": "Date",
+        "total": "Total",
+        "paid": "Paid",
+        "due": "Due",
+        "dueDate": "Due date",
+        "sold": "Sold",
+        "payments": "Payments",
+        "loading": "Loading…",
+        "paidAtSale": "Paid in full when it was sold.",
+        "noPayments": "No payments recorded yet.",
+        "viewDispatches": "View dispatches",
+        "viewFinance": "View in Finance",
+        "viewActivity": "View in Activity Log",
+        "receivePayment": "Receive payment",
+        "showPayments": "Show payment history"
       }
     },
     "dispatches": {
@@ -7584,7 +7683,8 @@
         "cancelConfirmTitle": "Cancel this dispatch?",
         "cancelConfirmDescription": "This also reverses its posted sale, if any. This cannot be undone.",
         "emptyTitle": "No dispatches recorded yet",
-        "emptyDescription": "Record a milk dispatch to see it here."
+        "emptyDescription": "Record a milk dispatch to see it here.",
+        "sellMilk": "Sell milk"
       },
       "receiptDialog": {
         "title": "Confirm Receipt — {number}",
@@ -7635,6 +7735,10 @@
       "empty": {
         "title": "No suppliers yet",
         "description": "Add the people and businesses you buy feed, medicine, or equipment from — you'll be able to record purchases and track what you owe them."
+      },
+      "noMatch": {
+        "title": "No supplier matches your search",
+        "description": "Try a different name or phone number."
       }
     },
     "form": {
@@ -7660,6 +7764,37 @@
       "cancel": "Cancel",
       "successToast": "Supplier deactivated.",
       "genericError": "Could not deactivate the supplier."
+    },
+    "searchPlaceholder": "Search suppliers",
+    "quickAdd": {
+      "title": "Add supplier",
+      "name": "Supplier name",
+      "nameRequired": "Enter a name",
+      "phone": "Phone",
+      "moreLater": "Contact person, category and payment terms can be added later from the Suppliers tab.",
+      "cancel": "Cancel",
+      "save": "Add supplier",
+      "saving": "Saving…",
+      "createdToast": "Supplier added.",
+      "genericError": "Could not add the supplier."
+    },
+    "detailSheet": {
+      "title": "Supplier",
+      "close": "Close",
+      "description": "Totals, what you owe and the latest purchases from this supplier.",
+      "inactive": "Inactive",
+      "noPhone": "No phone on file",
+      "totalPurchases": "Total purchases",
+      "outstanding": "You owe",
+      "lastPurchase": "Last purchase",
+      "recentPurchases": "Recent purchases",
+      "loading": "Loading…",
+      "loadError": "Couldn't load this supplier's purchases.",
+      "noPurchases": "No purchases from this supplier yet.",
+      "owed": "Owed",
+      "pay": "Pay",
+      "edit": "Edit",
+      "recordPurchase": "Record purchase"
     }
   },
   "support": {

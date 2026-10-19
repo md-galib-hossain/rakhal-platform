@@ -8,6 +8,9 @@
  * own `docs/IN_FLIGHT.md` entry for the full reasoning.
  */
 
+import type { EquipmentType, MedicineCategory, MedicineType } from "@/features/inventory/types";
+import type { FeedClass } from "@/features/feed/types";
+
 export const EXPENSE_CATEGORIES = ["SALARY", "UTILITIES", "BREEDING", "TRANSFER_FEE", "DEPRECIATION"] as const;
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 
@@ -99,15 +102,47 @@ export interface Purchase {
   payable: EmbeddedPayable | null;
 }
 
-/** List-row shape — `findAll` returns bare `Purchase[]` (no `lines`/`payable` include). */
-export type PurchaseListRow = Omit<Purchase, "lines" | "payable">;
+/** List-row shape — `GET /purchasing/purchases` returns the bare purchase plus its line count and the
+ * server-derived payment state (`PurchaseService.findAll` -> `derivePurchasePayment`): `paymentStatus`
+ * is `null` for a VOIDED purchase, `outstanding`/`paidAmount` are Decimal strings (`paidAmount`
+ * includes the part paid at creation). The client never matches a purchase against the payables list. */
+export type PurchaseListRow = Omit<Purchase, "lines" | "payable"> & {
+  _count: { lines: number };
+  paymentStatus: PayableStatus | null;
+  outstanding: string;
+  paidAmount: string;
+};
+
+/** A brand-new inventory item created inside a purchase line (`PurchaseNewItemDto`, backend Business UX
+ * Phase 2) — born with zero stock, the line adds the real lot in the same transaction. `unitId` is
+ * required for MEDICINE and FEED; MEDICINE also needs `medicineType` + `medicineCategory`, FEED a
+ * `feedClass` + either `ingredientId` (copies the catalogue nutrition) or a `nutrition` profile. */
+export const PURCHASE_NEW_ITEM_KINDS = ["MEDICINE", "FEED", "EQUIPMENT"] as const;
+export type PurchaseNewItemKind = (typeof PURCHASE_NEW_ITEM_KINDS)[number];
+
+export interface PurchaseNewItemPayload {
+  kind: PurchaseNewItemKind;
+  name: string;
+  unitId?: string;
+  medicineType?: MedicineType;
+  medicineCategory?: MedicineCategory;
+  feedClass?: FeedClass;
+  feedSubType?: string;
+  ingredientId?: string;
+  equipmentType?: EquipmentType;
+}
 
 export interface CreatePurchaseLinePayload {
   medicineId?: string;
   feedItemId?: string;
   equipmentId?: string;
+  /** Exactly one of the three ids or `newItem`. */
+  newItem?: PurchaseNewItemPayload;
   quantity: number;
   unitCost: number;
+  /** Required for a MEDICINE line (existing or new) — the lot's own expiry. */
+  expiryDate?: string;
+  batchCode?: string;
 }
 
 export interface CreatePurchasePayload {

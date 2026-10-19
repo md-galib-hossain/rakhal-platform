@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft, Milk, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
@@ -11,6 +11,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
 import { DateText } from "@/components/shared/date-text";
 import { Can } from "@/lib/auth/permissions";
+import { SellMilkSheet } from "@/features/sales/components/sell-milk-sheet";
 import { useBuyerOverview } from "../../hooks/use-buyers";
 import { BuyerFormDialog } from "../buyer-form-dialog";
 import type { Buyer } from "../../types";
@@ -23,23 +24,34 @@ export function BuyerDetailHeader({ buyer }: { buyer: Buyer }) {
   const t = useTranslations("buyers.detail");
   const query = useBuyerOverview(buyer.id);
   const [editOpen, setEditOpen] = useState(false);
+  const [sellOpen, setSellOpen] = useState(false);
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <Link href="/buyers" className="flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <Link href="/sales?tab=buyers" className="flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="size-4" aria-hidden />
             {t("backToBuyers")}
           </Link>
           <p className="text-xl font-bold text-foreground">{buyer.name}</p>
         </div>
-        <Can I="finance.update">
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditOpen(true)}>
-            <Pencil className="size-4" aria-hidden />
-            {t("editBuyer")}
-          </Button>
-        </Can>
+        <div className="flex items-center gap-2">
+          {buyer.deletedAt == null ? (
+            <Can I="finance.create">
+              <Button size="sm" className="gap-1.5" onClick={() => setSellOpen(true)}>
+                <Milk className="size-4" aria-hidden />
+                {t("sellMilk")}
+              </Button>
+            </Can>
+          ) : null}
+          <Can I="finance.update">
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditOpen(true)}>
+              <Pencil className="size-4" aria-hidden />
+              {t("editBuyer")}
+            </Button>
+          </Can>
+        </div>
       </div>
 
       {query.isLoading ? (
@@ -78,6 +90,7 @@ export function BuyerDetailHeader({ buyer }: { buyer: Buyer }) {
       ) : null}
 
       <BuyerFormDialog buyer={buyer} open={editOpen} onOpenChange={setEditOpen} />
+      <SellMilkSheet open={sellOpen} onOpenChange={setSellOpen} buyerId={buyer.id} />
     </div>
   );
 }

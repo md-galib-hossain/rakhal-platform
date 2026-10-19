@@ -24,12 +24,6 @@ export const recordSaleFormSchema = z.object({
   type: z.enum(RECORD_SALE_TYPES),
   productSubtype: z.enum(PRODUCT_SALE_SUBTYPES).optional(),
 
-  // Milk (wired)
-  buyerId: z.string().optional(),
-  volumeL: z.number().positive().optional(),
-  fatPct: z.number().min(0).optional(),
-  scc: z.number().min(0).optional(),
-
   // Inventory item — `POST /sales/inventory` (RAKHAL-376): itemType/itemId real FK via ItemPicker,
   // quantity*unitPrice computes the Sale Total.
   itemKind: z.enum(["MEDICINE", "FEED_ITEM", "EQUIPMENT"]).optional(),
@@ -60,3 +54,32 @@ export const recordSaleFormSchema = z.object({
 });
 
 export type RecordSaleFormInput = z.infer<typeof recordSaleFormSchema>;
+
+export const SELL_MILK_SETTLEMENTS = ["PAID_NOW", "ON_CREDIT"] as const;
+export type SellMilkSettlement = (typeof SELL_MILK_SETTLEMENTS)[number];
+
+/**
+ * One-screen "Sell Milk" form. Unlike `recordSaleFormSchema` (every field optional, enforced per
+ * wizard step) this one is strict, because the whole sale is a single submit. Cross-field rules that
+ * need the buyer's price (stock limit, amount ≤ total) live in the component, where the buyer is known.
+ * `paymentMethod` always has a value (the sheet defaults it to Cash) and is only sent when paid now.
+ */
+export const sellMilkSchema = z
+  .object({
+    buyerId: z.string().min(1),
+    volumeL: z.number().positive(),
+    saleDate: z.string().min(1),
+    fatPct: z.number().min(0).optional(),
+    scc: z.number().int().min(0).optional(),
+    notes: z.string().optional(),
+    settlement: z.enum(SELL_MILK_SETTLEMENTS),
+    amountReceived: z.number().min(0).optional(),
+    paymentMethod: paymentMethodSchema,
+  })
+  .superRefine((value, ctx) => {
+    if (value.settlement === "PAID_NOW" && !((value.amountReceived ?? 0) > 0)) {
+      ctx.addIssue({ code: "custom", path: ["amountReceived"], message: "required" });
+    }
+  });
+
+export type SellMilkFormInput = z.infer<typeof sellMilkSchema>;

@@ -9,23 +9,16 @@ import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
-import { MoneyInput } from "@/components/shared/money-input";
 import { Button } from "@/components/ui/button";
-import { useCreateFinancialAccount, useUpdateFinancialAccount } from "../../hooks/use-finance-v2";
+import { useUpdateFinancialAccount } from "../../hooks/use-finance-v2";
 import { editAccountSchema, MFS_PROVIDERS, type EditAccountInput } from "../../schemas-v2";
-import type { FinancialAccount, FinancialAccountType, MfsProvider } from "../../types-v2";
-import { useState } from "react";
+import type { FinancialAccount, MfsProvider } from "../../types-v2";
 
 /**
- * RAKHAL-356 — Create/Edit Financial Account. Same `Sheet`-drawer shape as
- * `features/inventory/components/semen-batch-form-dialog.tsx#SemenBatchFormDialog` (this codebase's
- * house convention for a create/edit form drawer — no shared `form-dialog.tsx`/`form-sheet.tsx`
- * component exists to reuse, confirmed by search; every feature hand-rolls this same `Sheet` shell).
- *
- * Create shows a Cash/Bank/MFS type picker (mirrors `AccountPicker`'s quick-add form). **Edit omits
- * type entirely** — per the backend AC, type is immutable after creation (`UpdateFinancialAccountDto`
- * has no `type` field at all, verified against the live source) — re-rendering the create form's
- * type `<Select>` on an edit would silently offer a change the backend would reject.
+ * RAKHAL-356 — Edit the farm's financial account (rename; bank / MFS detail for older multi-account
+ * farms). A farm has one account that is auto-created, so there is no create form; `type` is immutable
+ * (`UpdateFinancialAccountDto` has no `type` field). The opening balance is changed from the account
+ * card (`PATCH /finance/accounts/:id/opening-balance`), not here.
  */
 export function AccountFormSheet({
   open,
@@ -34,17 +27,16 @@ export function AccountFormSheet({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  account?: FinancialAccount;
+  account: FinancialAccount;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      {open ? <AccountFormSheetBody key={account?.id ?? "create"} onOpenChange={onOpenChange} account={account} /> : null}
+      {open ? <AccountFormSheetBody key={account.id} onOpenChange={onOpenChange} account={account} /> : null}
     </Sheet>
   );
 }
 
-function toFormDefaults(account: FinancialAccount | undefined): Partial<EditAccountInput> {
-  if (!account) return { name: "" };
+function toFormDefaults(account: FinancialAccount): Partial<EditAccountInput> {
   return {
     name: account.name,
     bankName: account.bankDetail?.bankName ?? "",
@@ -55,57 +47,33 @@ function toFormDefaults(account: FinancialAccount | undefined): Partial<EditAcco
   };
 }
 
-function AccountFormSheetBody({ onOpenChange, account }: { onOpenChange: (open: boolean) => void; account?: FinancialAccount }) {
+function AccountFormSheetBody({ onOpenChange, account }: { onOpenChange: (open: boolean) => void; account: FinancialAccount }) {
   const t = useTranslations("finance.accountsPage.form");
-  const isEdit = Boolean(account);
-  const createAccount = useCreateFinancialAccount();
   const updateAccount = useUpdateFinancialAccount();
-  const pending = createAccount.isPending || updateAccount.isPending;
-
-  // Create-only state — not part of the shared zod schema since edit never shows or validates it.
-  const [createType, setCreateType] = useState<FinancialAccountType>("CASH");
-  const [openingBalance, setOpeningBalance] = useState<number | undefined>(undefined);
+  const pending = updateAccount.isPending;
 
   const form = useForm<EditAccountInput>({
     resolver: zodResolver(editAccountSchema),
     defaultValues: toFormDefaults(account),
   });
 
-  const effectiveType: FinancialAccountType = account?.type ?? createType;
+  const effectiveType = account.type;
 
   async function onSubmit(values: EditAccountInput) {
     try {
-      if (isEdit && account) {
-        await updateAccount.mutateAsync({
-          id: account.id,
-          dto: {
-            name: values.name,
-            bankDetail:
-              account.type === "BANK"
-                ? { bankName: values.bankName, accountNumber: values.bankAccountNumber, branch: values.bankBranch }
-                : undefined,
-            mfsDetail:
-              account.type === "MFS"
-                ? { provider: values.mfsProvider, phoneNumber: values.mfsPhoneNumber }
-                : undefined,
-          },
-        });
-      } else {
-        await createAccount.mutateAsync({
+      await updateAccount.mutateAsync({
+        id: account.id,
+        dto: {
           name: values.name,
-          type: createType,
-          openingBalance,
           bankDetail:
-            createType === "BANK"
-              ? { bankName: values.bankName ?? "", accountNumber: values.bankAccountNumber ?? "", branch: values.bankBranch || undefined }
+            account.type === "BANK"
+              ? { bankName: values.bankName, accountNumber: values.bankAccountNumber, branch: values.bankBranch }
               : undefined,
           mfsDetail:
-            createType === "MFS"
-              ? { provider: (values.mfsProvider ?? "BKASH") as MfsProvider, phoneNumber: values.mfsPhoneNumber ?? "" }
-              : undefined,
-        });
-      }
-      toast.success(isEdit ? t("updatedToast") : t("createdToast"));
+            account.type === "MFS" ? { provider: values.mfsProvider, phoneNumber: values.mfsPhoneNumber } : undefined,
+        },
+      });
+      toast.success(t("updatedToast"));
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
@@ -122,7 +90,7 @@ function AccountFormSheetBody({ onOpenChange, account }: { onOpenChange: (open: 
       className="inset-y-2.5 right-2.5 flex h-[calc(100vh-20px)] w-[calc(100%-20px)] max-w-[560px] flex-col gap-0 rounded-[20px] border-2 border-border p-5 shadow-2xl sm:max-w-[560px]"
     >
       <div className="flex items-center justify-between pb-5">
-        <SheetTitle className="text-xl font-bold text-foreground">{isEdit ? t("editTitle") : t("createTitle")}</SheetTitle>
+        <SheetTitle className="text-xl font-bold text-foreground">{t("editTitle")}</SheetTitle>
         <button
           type="button"
           onClick={() => onOpenChange(false)}
@@ -139,23 +107,9 @@ function AccountFormSheetBody({ onOpenChange, account }: { onOpenChange: (open: 
         className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-1 py-5"
         noValidate
       >
-        {!isEdit ? (
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs text-muted-foreground">{t("accountType")}</span>
-            <Select value={createType} onValueChange={(v) => setCreateType(v as FinancialAccountType)}>
-              <LabeledSelectTrigger label={t("accountType")} />
-              <SelectContent>
-                <SelectItem value="CASH">{t("typeCash")}</SelectItem>
-                <SelectItem value="BANK">{t("typeBank")}</SelectItem>
-                <SelectItem value="MFS">{t("typeMfs")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            {t("typeImmutable", { type: t(effectiveType === "CASH" ? "typeCash" : effectiveType === "BANK" ? "typeBank" : "typeMfs") })}
-          </p>
-        )}
+                <p className="text-xs text-muted-foreground">
+          {t("typeImmutable", { type: t(effectiveType === "CASH" ? "typeCash" : effectiveType === "BANK" ? "typeBank" : "typeMfs") })}
+        </p>
 
         <LabeledInput
           id="account-name"
@@ -195,16 +149,13 @@ function AccountFormSheetBody({ onOpenChange, account }: { onOpenChange: (open: 
           </>
         ) : null}
 
-        {!isEdit ? (
-          <MoneyInput id="account-opening-balance" label={t("openingBalance")} value={openingBalance} onChange={setOpeningBalance} />
-        ) : null}
 
         <div className="mt-auto flex gap-2 pt-4">
           <Button type="button" variant="secondary" className="flex-1" onClick={() => onOpenChange(false)} disabled={pending}>
             {t("cancel")}
           </Button>
           <Button type="submit" className="flex-1" disabled={pending || !canSubmit}>
-            {pending ? "…" : isEdit ? t("save") : t("createdToastAction")}
+            {pending ? "…" : t("save")}
           </Button>
         </div>
       </form>

@@ -2,19 +2,22 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Check, ChevronsUpDown, Truck } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useSuppliers } from "@/features/settings/hooks/use-workspace";
+import { QuickAddSupplierSheet } from "@/features/suppliers/components/quick-add-supplier-sheet";
+import { useCanAddSupplier } from "@/features/suppliers/hooks";
 
 /**
  * RAKHAL-391 (MILESTONE 22) — `Supplier` search-select for the Record Purchase modal's now-required
  * `supplierId` field (`BUSINESS_IA_PRD.md` §5.13's field table marks Supplier `required`). Reads the
  * existing `/settings/suppliers` list (RAKHAL-032, a real `Supplier` FK since RAKHAL-365 promoted
  * `Purchase.supplierId`/`Payable.supplierId` off it) — same Popover+Command search-select shape as
- * `AccountPicker`/`ItemPicker`, minus the inline quick-add (creating a supplier is Suppliers/Settings'
- * own CRUD, RAKHAL-390, not this form's job).
+ * `AccountPicker`/`ItemPicker`. Ends with **+ New supplier** (name + phone, `QuickAddSupplierSheet`) for a
+ * user who may add suppliers (`useCanAddSupplier`) — the new supplier is selected straight away so a
+ * first-time purchase never leaves the form.
  */
 export function SupplierPicker({
   value,
@@ -28,6 +31,8 @@ export function SupplierPicker({
   const t = useTranslations("purchasing.supplierPicker");
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const canAdd = useCanAddSupplier();
 
   const { data, isLoading } = useSuppliers();
   const suppliers = useMemo(() => data?.suppliers ?? [], [data]);
@@ -79,9 +84,25 @@ export function SupplierPicker({
                 ))}
               </CommandGroup>
             </CommandList>
+            {canAdd ? (
+              <div className="border-t border-border p-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    setQuickAddOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-primary hover:bg-muted"
+                >
+                  <Plus className="size-4" aria-hidden />
+                  {t("newSupplier")}
+                </button>
+              </div>
+            ) : null}
           </Command>
         </PopoverContent>
       </Popover>
+      <QuickAddSupplierSheet open={quickAddOpen} onOpenChange={setQuickAddOpen} onCreated={(supplier) => onChange(supplier.id)} />
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </div>
   );

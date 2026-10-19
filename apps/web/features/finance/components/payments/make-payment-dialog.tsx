@@ -19,10 +19,10 @@ import {
 } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { MoneyInput } from "@/components/shared/money-input";
-import { PAYMENT_METHODS } from "@/lib/types/payment";
+import { PaymentMethodPicker } from "@/components/shared/payment-method-picker";
+import { PAYMENT_METHODS, type PaymentMethod } from "@/lib/types/payment";
 import { AccountPicker } from "../account-picker";
 import { useSettlePayment } from "../../hooks/use-finance-v2";
 import type { Payable } from "../../types-v2";
@@ -54,6 +54,7 @@ export function MakePaymentDialog({
 }) {
   const t = useTranslations("finance.settlementsV2.makePaymentDialog");
   const tMethods = useTranslations("finance.settlementsV2.methodOptions");
+  const methodLabels = Object.fromEntries(PAYMENT_METHODS.map((method) => [method, tMethods(method)])) as Record<PaymentMethod, string>;
   const settlePayment = useSettlePayment("PAYABLE");
   // RAKHAL-361 RBAC audit — see `ReceivePaymentDialog`'s matching comment.
   const can = useCan();
@@ -90,16 +91,11 @@ export function MakePaymentDialog({
           {payable ? <SheetDescription>{t("description", { outstanding: payable.outstanding })}</SheetDescription> : null}
         </SheetHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
-          <div className="space-y-1.5">
-            <Label>{t("account")}</Label>
-            <Controller
-              control={form.control}
-              name="financialAccountId"
-              render={({ field, fieldState }) => (
-                <AccountPicker value={field.value} onChange={field.onChange} error={fieldState.error?.message} />
-              )}
-            />
-          </div>
+          <Controller
+            control={form.control}
+            name="financialAccountId"
+            render={({ field }) => <AccountPicker value={field.value} onChange={field.onChange} />}
+          />
 
           <Controller
             control={form.control}
@@ -116,27 +112,13 @@ export function MakePaymentDialog({
             )}
           />
 
-          <div className="space-y-1.5">
-            <Label>{t("method")}</Label>
-            <Controller
-              control={form.control}
-              name="method"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PAYMENT_METHODS.map((method) => (
-                      <SelectItem key={method} value={method}>
-                        {tMethods(method)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </div>
+          <Controller
+            control={form.control}
+            name="method"
+            render={({ field }) => (
+              <PaymentMethodPicker value={field.value} onChange={field.onChange} labels={methodLabels} groupLabel={t("method")} />
+            )}
+          />
 
           <Controller
             control={form.control}

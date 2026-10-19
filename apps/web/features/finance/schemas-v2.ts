@@ -23,20 +23,3 @@ export const editAccountSchema = z.object({
 });
 export type EditAccountInput = z.infer<typeof editAccountSchema>;
 
-/** Transfer form. Mirrors `CreateTransferDto` field-for-field. `toAccountId !== fromAccountId` is
- * enforced here (`FINANCE_V2_DESIGN.md` §6 invariant: "Transfer source != destination") rather than
- * left to a 500/400 round trip. */
-export const transferSchema = z
-  .object({
-    fromAccountId: z.string().min(1, "Select a source account"),
-    toAccountId: z.string().min(1, "Select a destination account"),
-    amount: z.number().min(0.01, "Amount is required"),
-    feeAmount: z.number().min(0).optional(),
-    transactionDate: z.string().min(1, "Date is required"),
-    notes: z.string().trim().max(500).optional(),
-  })
-  .refine((v) => !v.fromAccountId || !v.toAccountId || v.fromAccountId !== v.toAccountId, {
-    message: "Source and destination accounts must be different",
-    path: ["toAccountId"],
-  });
-export type TransferFormInput = z.infer<typeof transferSchema>;

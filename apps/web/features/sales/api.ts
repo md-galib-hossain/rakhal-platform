@@ -93,6 +93,26 @@ export const salesApi = {
     return apiFetchPage<ReceivableSummary>("/finance/receivables", { searchParams: { limit: 5 } });
   },
 
+  /**
+   * The `Receivable` raised by one sale (`saleId`), for the Invoices row's "Receive payment" and the
+   * invoice sheet's payment history. `GET /finance/receivables` has no `saleId` filter (and
+   * `Receivable.customerId` is never populated, see `listRecentReceivables`), so this pages the list
+   * newest-first, 100 at a time, until the sale's receivable turns up — capped at 5 pages (500
+   * receivables), which is far beyond a farm's open balance. A fully-paid-at-sale invoice has no
+   * receivable at all and resolves to `null`. A backend `?saleId=` filter would replace this loop.
+   */
+  async findReceivableBySale(saleId: string): Promise<ReceivableSummary | null> {
+    let cursor: string | undefined;
+    for (let page = 0; page < 5; page += 1) {
+      const result = await apiFetchPage<ReceivableSummary>("/finance/receivables", { searchParams: { limit: 100, cursor } });
+      const found = result.items.find((r) => r.saleId === saleId);
+      if (found) return found;
+      if (!result.meta.hasNextPage) return null;
+      cursor = result.meta.endCursor ?? undefined;
+    }
+    return null;
+  },
+
   /** `POST /sales/inventory` (RAKHAL-346/376). */
   sellInventory(dto: SellInventoryPayload): Promise<SellInventoryResult> {
     return apiFetch<SellInventoryResult>("/sales/inventory", { method: "POST", body: dto });

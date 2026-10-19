@@ -238,7 +238,7 @@ export function MilkTankCard({
                 isSellable ? "bg-info hover:bg-info/90" : "bg-warning hover:bg-warning/90",
               )}
             >
-              <a href="/buyers">{isSellable ? t("routeSell") : t("routeResolve")}</a>
+              <a href="/sales?tab=buyers">{isSellable ? t("routeSell") : t("routeResolve")}</a>
             </Button>
           </div>
         </div>

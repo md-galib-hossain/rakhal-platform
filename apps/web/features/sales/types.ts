@@ -30,13 +30,13 @@ export type { PaymentMethod };
 export const RECORD_SALE_TYPES = ["PRODUCT", "ANIMAL", "OTHER_INCOME"] as const;
 export type RecordSaleType = (typeof RECORD_SALE_TYPES)[number];
 
-/** "Product Sale" sub-type — which product is being sold. Only `MILK` has a real backend route
- * today (see this file's top doc comment); `MANURE`/`INVENTORY` are shown but blocked. */
-export const PRODUCT_SALE_SUBTYPES = ["MILK", "MANURE", "INVENTORY"] as const;
+/** "Product Sale" sub-type — which product is being sold. Milk is deliberately not here: it has its
+ * own one-screen `SellMilkSheet` (a milk sale is buyer + litres + paid-now/credit, not a wizard). */
+export const PRODUCT_SALE_SUBTYPES = ["MANURE", "INVENTORY"] as const;
 export type ProductSaleSubtype = (typeof PRODUCT_SALE_SUBTYPES)[number];
 
 /** RAKHAL-361 — pre-fill for `RecordSaleDialog` when opened from a domain entry point (Cattle
- * profile "Sell", Milk area "Sell Milk", Inventory item "Sell") instead of the standalone `/sales`
+ * profile "Sell", Inventory item "Sell") instead of the standalone `/sales`
  * trigger. Only seeds Step 1's own fields — never skips the wizard, since Amount/Payment still need
  * the farmer's input either way. */
 export interface RecordSaleInitial {

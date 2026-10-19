@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -13,9 +13,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Can } from "@/lib/auth/permissions";
-import { useEditHeatEvent, useResolveHeatEvent } from "../../hooks/use-reproduction";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { useCancelHeatEvent, useEditHeatEvent, useResolveHeatEvent } from "../../hooks/use-reproduction";
 import { editHeatEventSchema, type EditHeatEventFormValues, type EditHeatEventInput } from "../../schemas";
 import type { HeatDetectionMethod, ReproEventEntry } from "../../types";
+
+/** Why a heat was closed (backend `HeatResolutionReason`); `null`/absent = still open. */
+type HeatResolution = "FALSE_ALARM" | "SKIPPED_CYCLE" | "INSEMINATED";
 
 const DETECTION_METHODS: HeatDetectionMethod[] = ["VISUAL", "COLLAR_SENSOR", "PEDOMETER", "MANUAL"];
 
@@ -59,6 +63,9 @@ export function HeatEventEditDialog({
   const tHeat = useTranslations("reproduction.dialogs.heat");
   const editHeat = useEditHeatEvent();
   const resolveHeat = useResolveHeatEvent();
+  const cancelHeat = useCancelHeatEvent();
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const resolution = event?.details.resolution as HeatResolution | null | undefined;
   const form = useForm<EditHeatEventFormValues>({
     resolver: zodResolver(editHeatEventSchema),
     defaultValues: defaultsFor(event),
@@ -83,6 +90,17 @@ export function HeatEventEditDialog({
     try {
       await editHeat.mutateAsync({ id: event.id, input: changed });
       toast.success(changed.cattleId ? t("movedToast") : t("savedToast"));
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t("genericError"));
+    }
+  }
+
+  async function cancelRecord() {
+    if (!event) return;
+    try {
+      await cancelHeat.mutateAsync({ id: event.id });
+      toast.success(t("cancelToast"));
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
@@ -165,22 +183,58 @@ export function HeatEventEditDialog({
         </div>
       </div>
 
-      <Can I="reproduction.heat">
-        <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border bg-muted/40 p-3">
-          <p className="text-sm font-medium text-foreground">{t("falseAlarmTitle")}</p>
-          <p className="text-xs text-muted-foreground">{t("falseAlarmHint")}</p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="self-start"
-            onClick={() => void markFalseAlarm()}
-            disabled={resolveHeat.isPending}
-          >
-            {t("falseAlarm")}
-          </Button>
+      {resolution ? (
+        <div className="flex flex-col gap-1 rounded-lg border border-dashed border-border bg-muted/40 p-3">
+          <p className="text-sm font-medium text-foreground">{t("closedTitle")}</p>
+          <p className="text-xs text-muted-foreground">{t(`closedHint.${resolution}`)}</p>
         </div>
-      </Can>
+      ) : (
+        <Can I="reproduction.heat">
+          <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border bg-muted/40 p-3">
+            <p className="text-sm font-medium text-foreground">{t("falseAlarmTitle")}</p>
+            <p className="text-xs text-muted-foreground">{t("falseAlarmHint")}</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="self-start"
+              onClick={() => void markFalseAlarm()}
+              disabled={resolveHeat.isPending}
+            >
+              {t("falseAlarm")}
+            </Button>
+          </div>
+        </Can>
+      )}
+
+      {resolution !== "INSEMINATED" ? (
+        <Can I="reproduction.update">
+          <div className="flex flex-col gap-2 rounded-lg border border-dashed border-destructive/40 bg-destructive-tint/40 p-3">
+            <p className="text-sm font-medium text-foreground">{t("cancelTitle")}</p>
+            <p className="text-xs text-muted-foreground">{t("cancelHint")}</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="self-start text-destructive hover:text-destructive"
+              onClick={() => setConfirmCancel(true)}
+              disabled={cancelHeat.isPending}
+            >
+              {t("cancel")}
+            </Button>
+          </div>
+        </Can>
+      ) : null}
+
+      <ConfirmDialog
+        open={confirmCancel}
+        onOpenChange={setConfirmCancel}
+        title={t("cancelConfirmTitle")}
+        description={t("cancelConfirmBody", { cow: event?.cattle_name ?? event?.cattle_tag ?? "" })}
+        confirmLabel={t("cancelConfirm")}
+        cancelLabel={t("keep")}
+        onConfirm={cancelRecord}
+      />
     </FormSheet>
   );
 }

@@ -2,9 +2,17 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
+import { useCan } from "@/lib/auth/permissions";
 import { suppliersApi } from "./api";
 
 const STALE_TIME = 60_000;
+
+/** Whether the user may add a supplier: `purchasing.create` (the module that owns the tab) OR
+ * `settings.update` (what `POST /settings/suppliers` itself requires). */
+export function useCanAddSupplier(): boolean {
+  const can = useCan();
+  return can("purchasing.create") || can("settings.update");
+}
 
 export function useSuppliersListV2() {
   return useQuery({
