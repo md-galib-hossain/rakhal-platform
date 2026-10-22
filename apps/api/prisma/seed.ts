@@ -181,6 +181,7 @@ async function seedPlatformAdmin(): Promise<void> {
     update: {
       passwordHash,
       isActive: true,
+      mustChangePassword: false,
       totpEnabled: true,
       totpSecret: DEMO_ADMIN_TOTP_SECRET,
     },
@@ -218,7 +219,12 @@ async function seedPrimarySuperAdmin(): Promise<void> {
   const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
   await prisma.platformAdmin.upsert({
     where: { email },
-    update: { passwordHash, isActive: true, role: 'SUPER_ADMIN' },
+    update: {
+      passwordHash,
+      isActive: true,
+      role: 'SUPER_ADMIN',
+      mustChangePassword: false,
+    },
     create: {
       email,
       name: 'Rakhal Super Admin',
