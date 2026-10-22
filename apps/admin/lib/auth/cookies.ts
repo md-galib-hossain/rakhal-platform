@@ -28,8 +28,10 @@ export function setSetupCookie(res: NextResponse, setupToken: string): void {
   res.cookies.set(SETUP_COOKIE, setupToken, { ...base, maxAge: SETUP_MAX_AGE_S });
 }
 
-export function clearSessionCookies(res: NextResponse): void {
-  for (const name of [ACCESS_COOKIE, REFRESH_COOKIE, SETUP_COOKIE]) {
+/** `keepSetup`: the page gate must not wipe a pending 2FA setup just because some other page loaded sessionless. */
+export function clearSessionCookies(res: NextResponse, opts: { keepSetup?: boolean } = {}): void {
+  const names = opts.keepSetup ? [ACCESS_COOKIE, REFRESH_COOKIE] : [ACCESS_COOKIE, REFRESH_COOKIE, SETUP_COOKIE];
+  for (const name of names) {
     res.cookies.set(name, "", { ...base, maxAge: 0 });
   }
 }

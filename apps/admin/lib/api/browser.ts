@@ -6,6 +6,17 @@ export interface BffResult<T> {
   message: string | null;
 }
 
+/** GET a JSON body from the BFF; throws on a non-2xx so TanStack Query can surface the error. A 401 sends the admin to sign in. */
+export async function getJson<T>(path: string): Promise<T> {
+  const res = await fetch(path, { credentials: "same-origin" });
+  if (res.status === 401) {
+    window.location.assign("/login");
+    throw new Error("Signed out");
+  }
+  if (!res.ok) throw new Error("Request failed");
+  return (await res.json()) as T;
+}
+
 export async function postJson<T = unknown>(path: string, body?: unknown): Promise<BffResult<T>> {
   try {
     const res = await fetch(path, {

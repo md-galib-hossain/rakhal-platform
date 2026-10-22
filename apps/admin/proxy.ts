@@ -9,7 +9,7 @@ function toLogin(request: NextRequest, clear: boolean): NextResponse {
   const next = request.nextUrl.pathname + request.nextUrl.search;
   if (next !== "/") url.searchParams.set("next", next);
   const res = NextResponse.redirect(url);
-  if (clear) clearSessionCookies(res);
+  if (clear) clearSessionCookies(res, { keepSetup: true });
   return res;
 }
 

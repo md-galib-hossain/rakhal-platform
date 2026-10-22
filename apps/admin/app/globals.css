@@ -3,3 +3,19 @@
 @import "@rakhal/ui/styles/tokens.css";
 
 @source "../../../packages/ui/src";
+
+/* Thin scrollbar for the sidebar nav, themed from the sidebar tokens instead of the browser default. */
+.sidebar-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--sidebar-foreground) 25%, transparent) transparent;
+}
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--sidebar-foreground) 25%, transparent);
+  border-radius: 9999px;
+}

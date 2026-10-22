@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { callAdminApi } from "@/lib/api/admin-api";
+import { AdminApiError, callAdminApi } from "@/lib/api/admin-api";
 import { clientContext, csrfRejection, errorResponse } from "@/lib/auth/bff";
 import { SETUP_COOKIE } from "@/lib/auth/cookie-names";
 import { clearSessionCookies } from "@/lib/auth/cookies";
@@ -21,6 +21,14 @@ export async function POST(request: NextRequest) {
     clearSessionCookies(res);
     return res;
   } catch (err) {
+    // A wrong code is retryable on the same screen. It must not look like an expired setup session
+    // (also a 401), which sends the user back to /login and issues a brand-new secret/QR.
+    if (err instanceof AdminApiError && err.status === 401 && /2fa code/i.test(err.body?.message ?? "")) {
+      return NextResponse.json(
+        { message: "That code was not accepted. Wait for a new code in your app and try again." },
+        { status: 400 },
+      );
+    }
     return errorResponse(err);
   }
 }

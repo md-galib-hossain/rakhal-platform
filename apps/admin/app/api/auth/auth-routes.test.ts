@@ -103,6 +103,19 @@ describe("POST /api/auth/2fa/enable", () => {
     expect((init.headers as Record<string, string>).authorization).toBe("Bearer SETUP");
   });
 
+  it("a wrong code is a retryable 400, not a 401 that restarts the setup", async () => {
+    backend(401, fail("Invalid 2FA code"));
+    const res = await enable2fa(req("/api/auth/2fa/enable", { code: "123456" }, { cookie: `${SETUP_COOKIE}=SETUP` }));
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { message: string }).message).toMatch(/not accepted/i);
+  });
+
+  it("an expired setup token stays a 401", async () => {
+    backend(401, fail("2FA setup token required"));
+    const res = await enable2fa(req("/api/auth/2fa/enable", { code: "123456" }, { cookie: `${SETUP_COOKIE}=SETUP` }));
+    expect(res.status).toBe(401);
+  });
+
   it("rejects a malformed code without calling the backend", async () => {
     const f = backend(201, ok({}));
     const res = await enable2fa(req("/api/auth/2fa/enable", { code: "12" }, { cookie: `${SETUP_COOKIE}=SETUP` }));

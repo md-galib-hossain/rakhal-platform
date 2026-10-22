@@ -45,7 +45,8 @@ export function Setup2faForm() {
     setFormError(null);
     const res = await postJson("/api/auth/2fa/enable", values);
     if (!res.ok) {
-      if (res.status === 401 && !res.message?.toLowerCase().includes("code")) {
+      // 401 now only means the setup session itself expired; a wrong code comes back as 400.
+      if (res.status === 401) {
         router.replace("/login");
         return;
       }

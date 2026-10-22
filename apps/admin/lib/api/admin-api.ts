@@ -1,13 +1,24 @@
 import "server-only";
-import { AdminApiError, adminFetch } from "@rakhal/admin-api-client";
+import { AdminApiError, adminFetch, type ApiMeta } from "@rakhal/admin-api-client";
 import { env } from "@/lib/env";
 
 export { AdminApiError };
 
+/** Like {@link callAdminApi} but also returns the pagination `meta` (list endpoints). */
+export async function callAdminApiPage<T>(
+  path: string,
+  options: { token?: string; userAgent?: string } = {},
+): Promise<{ data: T; meta?: ApiMeta }> {
+  const headers: Record<string, string> = {};
+  if (options.token) headers.authorization = `Bearer ${options.token}`;
+  if (options.userAgent) headers["user-agent"] = options.userAgent;
+  return adminFetch<T>(env.ADMIN_API_BASE_URL, path, { method: "GET", headers, cache: "no-store" });
+}
+
 /** Server-side call to the admin API with an optional bearer token. Throws {@link AdminApiError} on any non-2xx. */
 export async function callAdminApi<T>(
   path: string,
-  options: { method?: "GET" | "POST" | "PATCH" | "DELETE"; body?: unknown; token?: string; userAgent?: string } = {},
+  options: { method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE"; body?: unknown; token?: string; userAgent?: string } = {},
 ): Promise<T> {
   const headers: Record<string, string> = {};
   if (options.token) headers.authorization = `Bearer ${options.token}`;

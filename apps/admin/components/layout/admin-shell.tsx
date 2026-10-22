@@ -1,8 +1,11 @@
-import Link from "next/link";
-import { SignOutButton } from "@/components/auth/sign-out-button";
-import { NAV_ITEMS } from "@/lib/nav-config";
-import { canDo } from "@/lib/permissions";
+import { Sidebar } from "./sidebar";
+import { Topbar } from "./topbar";
 
+/**
+ * Same shell as the consumer app: sidebar and topbar float as separate rounded cards on a shared gutter,
+ * with a blurred scrim pinned to the viewport top so scrolled content fogs out before the sticky topbar.
+ * `lg:left-[16.25rem]` = shell padding (0.625rem) + sidebar (15rem) + gap (0.625rem).
+ */
 export function AdminShell({
   permissions,
   email,
@@ -14,57 +17,17 @@ export function AdminShell({
   role: string;
   children: React.ReactNode;
 }) {
-  const items = NAV_ITEMS.filter((i) => canDo(permissions, i.perm));
   return (
-    <div className="flex min-h-dvh flex-col md:flex-row">
-      <aside className="hidden w-60 shrink-0 flex-col bg-sidebar p-4 text-sidebar-foreground md:flex">
-        <div className="mb-6 text-lg font-semibold">Rakhal Admin</div>
-        <nav aria-label="Main" className="flex flex-col gap-1">
-          {items.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-white/10"
-            >
-              <Icon className="size-4" aria-hidden /> {label}
-            </Link>
-          ))}
-        </nav>
-        <div className="mt-auto space-y-2 border-t border-white/15 pt-3">
-          <div className="px-3 text-xs text-sidebar-muted">
-            <p className="truncate" title={email}>
-              {email}
-            </p>
-            <p>{role.replace("_", " ").toLowerCase()}</p>
-          </div>
-          <Link href="/change-password" className="block rounded-md px-3 py-2 text-sm hover:bg-white/10">
-            Change password
-          </Link>
-          <SignOutButton />
-        </div>
-      </aside>
-
-      <header className="bg-sidebar text-sidebar-foreground md:hidden">
-        <div className="flex items-center justify-between px-4 py-3">
-          <span className="font-semibold">Rakhal Admin</span>
-          <div className="w-28">
-            <SignOutButton />
-          </div>
-        </div>
-        <nav aria-label="Main" className="flex gap-1 overflow-x-auto px-3 pb-2">
-          {items.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className="flex shrink-0 items-center gap-1.5 rounded-md px-3 py-2 text-sm hover:bg-white/10"
-            >
-              <Icon className="size-4" aria-hidden /> {label}
-            </Link>
-          ))}
-        </nav>
-      </header>
-
-      <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
+    <div className="flex min-h-dvh gap-2.5 bg-background p-2.5">
+      <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-20 h-28 lg:left-[16.25rem]">
+        <div className="absolute inset-0 bg-gradient-to-b from-background via-background/75 to-transparent" />
+        <div className="absolute inset-0 backdrop-blur-xl [mask-image:linear-gradient(to_bottom,black_0%,black_25%,transparent_65%)] [-webkit-mask-image:linear-gradient(to_bottom,black_0%,black_25%,transparent_65%)]" />
+      </div>
+      <Sidebar permissions={permissions} />
+      <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+        <Topbar permissions={permissions} email={email} role={role} />
+        <main className="flex-1 p-1 sm:p-2">{children}</main>
+      </div>
     </div>
   );
 }
