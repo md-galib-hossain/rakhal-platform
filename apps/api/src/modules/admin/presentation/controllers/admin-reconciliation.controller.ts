@@ -11,6 +11,7 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { ReconciliationService } from 'src/modules/billing/application/services/reconciliation.service';
+import { AdminIpAllowlistGuard } from '../guards/admin-ip-allowlist.guard';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
 import { AdminPermissionGuard } from '../guards/admin-permission.guard';
 import { RequireAdminPermission } from '../decorators/require-admin-permission.decorator';
@@ -32,7 +33,7 @@ import {
 @ApiTags('Admin — Reconciliation')
 @ApiBearerAuth()
 @Controller('admin/reconciliation')
-@UseGuards(PlatformAdminGuard, AdminPermissionGuard)
+@UseGuards(AdminIpAllowlistGuard, PlatformAdminGuard, AdminPermissionGuard)
 export class AdminReconciliationController {
   constructor(
     private readonly reconciliation: ReconciliationService,

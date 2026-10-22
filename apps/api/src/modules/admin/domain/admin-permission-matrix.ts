@@ -10,13 +10,24 @@ import { PlatformAdminRole } from '@prisma/client';
 const ADMIN_ROLE_GRANTS: Record<PlatformAdminRole, string[]> = {
   SUPER_ADMIN: ['*'],
   SUPPORT_ADMIN: [
-    'support.*',
+    'feedback.*',
+    'user.*',
+    'farm.read',
     'audit.read',
     'coupon.read',
     'referral.read',
+    'plan.read',
     'system.read',
+    'config.read',
   ],
-  BILLING_ADMIN: ['coupon.*', 'referral.*', 'reconciliation.*', 'audit.read'],
+  BILLING_ADMIN: [
+    'coupon.*',
+    'referral.*',
+    'reconciliation.*',
+    'farm.read',
+    'plan.read',
+    'audit.read',
+  ],
   CONTENT_ADMIN: ['audit.read', 'feed-ingredient.*', 'requirement-preset.*'],
 };
 
@@ -27,6 +38,11 @@ function matches(grant: string, required: string): boolean {
     return required.startsWith(grant.slice(0, -1));
   }
   return false;
+}
+
+/** The role's grants as declared (may contain `*` and `resource.*` wildcards) — for clients that gate UI. */
+export function adminRoleGrants(role: PlatformAdminRole): string[] {
+  return [...(ADMIN_ROLE_GRANTS[role] ?? [])];
 }
 
 export function adminRoleHasPermission(

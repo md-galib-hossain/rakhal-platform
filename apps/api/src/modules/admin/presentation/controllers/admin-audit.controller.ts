@@ -1,5 +1,6 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { AdminIpAllowlistGuard } from '../guards/admin-ip-allowlist.guard';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
 import { AdminPermissionGuard } from '../guards/admin-permission.guard';
 import { RequireAdminPermission } from '../decorators/require-admin-permission.decorator';
@@ -14,7 +15,7 @@ import { ListAdminAuditQueryDto } from '../dto/list-admin-audit.dto';
 @ApiTags('Admin — Audit')
 @ApiBearerAuth()
 @Controller('admin/audit')
-@UseGuards(PlatformAdminGuard, AdminPermissionGuard)
+@UseGuards(AdminIpAllowlistGuard, PlatformAdminGuard, AdminPermissionGuard)
 export class AdminAuditController {
   constructor(private readonly audit: AdminAuditService) {}
 

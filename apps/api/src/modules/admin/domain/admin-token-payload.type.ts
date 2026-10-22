@@ -9,6 +9,8 @@ import { PlatformAdminRole } from '@prisma/client';
 export interface AdminAccessTokenPayload {
   sub: string; // PlatformAdmin.id
   role: PlatformAdminRole;
+  /** PlatformAdminSession.id — checked against the DB on every request (P2-01). */
+  sid: string;
   type: 'platform_admin';
 }
 

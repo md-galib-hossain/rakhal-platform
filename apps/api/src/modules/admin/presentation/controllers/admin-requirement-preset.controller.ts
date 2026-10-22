@@ -15,6 +15,7 @@ import {
   CreateRequirementPresetDto,
   UpdateRequirementPresetDto,
 } from '../dto/requirement-preset.dto';
+import { AdminIpAllowlistGuard } from '../guards/admin-ip-allowlist.guard';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
 import { AdminPermissionGuard } from '../guards/admin-permission.guard';
 import { RequireAdminPermission } from '../decorators/require-admin-permission.decorator';
@@ -44,7 +45,7 @@ import { AdminAuditService } from '../../application/services/admin-audit.servic
 @ApiTags('Admin — Requirement Presets')
 @ApiBearerAuth()
 @Controller('admin/requirement-presets')
-@UseGuards(PlatformAdminGuard, AdminPermissionGuard)
+@UseGuards(AdminIpAllowlistGuard, PlatformAdminGuard, AdminPermissionGuard)
 export class AdminRequirementPresetController {
   constructor(
     private readonly settings: RequirementSettingsService,

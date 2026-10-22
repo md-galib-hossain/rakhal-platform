@@ -1,3 +1,4 @@
+import { safeEqualHex, sha256Hex } from 'src/common/crypto/hash.util';
 import { Controller, Get, Inject, UnauthorizedException } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 import { appConfig } from 'src/core/config/env';
@@ -9,6 +10,14 @@ import type { Request, Response } from 'express';
 import { Req, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
+
+/**
+ * Constant-time token comparison (P2-06): hash both sides first so the compare
+ * is over equal-length buffers and `timingSafeEqual` never throws on length.
+ */
+export function tokensMatch(provided: string, expected: string): boolean {
+  return safeEqualHex(sha256Hex(provided), sha256Hex(expected));
+}
 
 /** How long a dependency probe result is reused across health requests. */
 const PROBE_TTL_MS = 5_000;
@@ -38,10 +47,11 @@ export class HealthController {
    * with no proxy-level IP allowlist in front of it yet.
    */
   @Get('/metrics')
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
   async metricsEndpoint(@Req() req: Request, @Res() res: Response) {
     if (this.appCfg.metricsToken) {
       const provided = req.headers.authorization?.replace(/^Bearer\s+/i, '');
-      if (provided !== this.appCfg.metricsToken) {
+      if (!provided || !tokensMatch(provided, this.appCfg.metricsToken)) {
         throw new UnauthorizedException('Invalid or missing metrics token');
       }
     }

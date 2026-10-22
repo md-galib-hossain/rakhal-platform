@@ -8,7 +8,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { AdminIpAllowlistGuard } from 'src/modules/admin/presentation/guards/admin-ip-allowlist.guard';
 import { PlatformAdminGuard } from 'src/modules/admin/presentation/guards/platform-admin.guard';
+import { AdminPermissionGuard } from 'src/modules/admin/presentation/guards/admin-permission.guard';
+import { AdminAuditService } from 'src/modules/admin/application/services/admin-audit.service';
+import { RequireAdminPermission } from 'src/modules/admin/presentation/decorators/require-admin-permission.decorator';
 import { CurrentAdmin } from 'src/modules/admin/presentation/decorators/current-admin.decorator';
 import type { CurrentAdminContext } from 'src/modules/admin/domain/authenticated-admin-request.type';
 import { FeedbackService } from '../../application/services/feedback.service';
@@ -23,21 +27,34 @@ import { UpdateFeedbackDto } from '../dto/update-feedback.dto';
 @ApiTags('Admin — Support')
 @ApiBearerAuth()
 @Controller('admin/feedback')
-@UseGuards(PlatformAdminGuard)
+@UseGuards(AdminIpAllowlistGuard, PlatformAdminGuard, AdminPermissionGuard)
 export class AdminFeedbackController {
-  constructor(private readonly feedback: FeedbackService) {}
+  constructor(
+    private readonly feedback: FeedbackService,
+    private readonly audit: AdminAuditService,
+  ) {}
 
   @Get()
+  @RequireAdminPermission('feedback.read')
   list(@Query() query: ListFeedbackQueryDto) {
     return this.feedback.listForAdmin(query.status);
   }
 
   @Patch(':id')
-  update(
+  @RequireAdminPermission('feedback.manage')
+  async update(
     @CurrentAdmin() admin: CurrentAdminContext,
     @Param('id') id: string,
     @Body() dto: UpdateFeedbackDto,
   ) {
-    return this.feedback.updateStatus(id, admin.id, dto);
+    const updated = await this.feedback.updateStatus(id, admin.id, dto);
+    await this.audit.record({
+      adminId: admin.id,
+      action: 'FEEDBACK_UPDATED',
+      entityType: 'SupportFeedback',
+      entityId: id,
+      metadata: { fields: Object.keys(dto) },
+    });
+    return updated;
   }
 }

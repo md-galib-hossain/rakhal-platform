@@ -1,6 +1,7 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { AdminIpAllowlistGuard } from '../guards/admin-ip-allowlist.guard';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
 import { AdminPermissionGuard } from '../guards/admin-permission.guard';
 import { RequireAdminPermission } from '../decorators/require-admin-permission.decorator';
@@ -17,7 +18,7 @@ import { RequireAdminPermission } from '../decorators/require-admin-permission.d
 @ApiTags('Admin — System')
 @ApiBearerAuth()
 @Controller('admin/crons')
-@UseGuards(PlatformAdminGuard, AdminPermissionGuard)
+@UseGuards(AdminIpAllowlistGuard, PlatformAdminGuard, AdminPermissionGuard)
 export class AdminSystemController {
   constructor(private readonly registry: SchedulerRegistry) {}
 

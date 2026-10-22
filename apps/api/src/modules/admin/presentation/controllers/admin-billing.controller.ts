@@ -14,6 +14,7 @@ import type { Request } from 'express';
 import { CouponService } from 'src/modules/billing/application/services/coupon.service';
 import { ReferralService } from 'src/modules/billing/application/services/referral.service';
 import { PlanCatalogueService } from 'src/modules/subscription/application/services/plan-catalogue.service';
+import { AdminIpAllowlistGuard } from '../guards/admin-ip-allowlist.guard';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
 import { AdminPermissionGuard } from '../guards/admin-permission.guard';
 import { RequireAdminPermission } from '../decorators/require-admin-permission.decorator';
@@ -32,7 +33,7 @@ import { AdminIssueCouponDto } from '../dto/admin-issue-coupon.dto';
 @ApiTags('Admin — Billing')
 @ApiBearerAuth()
 @Controller('admin')
-@UseGuards(PlatformAdminGuard, AdminPermissionGuard)
+@UseGuards(AdminIpAllowlistGuard, PlatformAdminGuard, AdminPermissionGuard)
 export class AdminBillingController {
   constructor(
     private readonly coupons: CouponService,
@@ -42,6 +43,7 @@ export class AdminBillingController {
   ) {}
 
   @Get('plans')
+  @RequireAdminPermission('plan.read')
   listPlans() {
     return this.plans.listPlans();
   }

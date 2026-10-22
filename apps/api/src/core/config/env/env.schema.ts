@@ -43,6 +43,13 @@ export const envSchema = z.object({
   // isn't broken by default.
   METRICS_TOKEN: z.string().optional(),
 
+  // P2-06: optional allowlist for every `/admin/*` route (admin-api). Comma
+  // separated exact IPs (v4/v6) or IPv4 CIDRs, e.g. "203.0.113.7,10.0.0.0/8".
+  // Unset/empty = off (the nginx IP allowlist stays the primary control; this
+  // is the in-app second layer). Matches `req.ip`, so TRUST_PROXY_HOPS must be
+  // set correctly behind a proxy or every request looks like the proxy.
+  ADMIN_IP_ALLOWLIST: z.string().optional(),
+
   DATABASE_URL: z.string(),
 
   JWT_ACCESS_SECRET: z.string().min(32),

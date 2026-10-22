@@ -14,6 +14,7 @@ import type { Request } from 'express';
 import { FeedIngredientService } from 'src/modules/feed/application/services/feed-ingredient.service';
 import { CreateCatalogueIngredientDto } from 'src/modules/feed/presentation/dto/create-catalogue-ingredient.dto';
 import { UpdateCatalogueIngredientDto } from 'src/modules/feed/presentation/dto/update-catalogue-ingredient.dto';
+import { AdminIpAllowlistGuard } from '../guards/admin-ip-allowlist.guard';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
 import { AdminPermissionGuard } from '../guards/admin-permission.guard';
 import { RequireAdminPermission } from '../decorators/require-admin-permission.decorator';
@@ -36,7 +37,7 @@ import { AdminAuditService } from '../../application/services/admin-audit.servic
 @ApiTags('Admin — Feed Ingredients')
 @ApiBearerAuth()
 @Controller('admin/feed-ingredients')
-@UseGuards(PlatformAdminGuard, AdminPermissionGuard)
+@UseGuards(AdminIpAllowlistGuard, PlatformAdminGuard, AdminPermissionGuard)
 export class AdminFeedIngredientController {
   constructor(
     private readonly ingredients: FeedIngredientService,

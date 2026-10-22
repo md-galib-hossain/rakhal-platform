@@ -6,7 +6,9 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { LoggerContext } from 'src/core/logger/logger/logger.context';
 import { AdminTokenService } from '../../application/services/admin-token.service';
+import { AdminSessionService } from '../../application/services/admin-session.service';
 import { AdminTokenPayload } from '../../domain/admin-token-payload.type';
 import { AuthenticatedAdminRequest } from '../../domain/authenticated-admin-request.type';
 
@@ -24,6 +26,8 @@ export class PlatformAdminGuard implements CanActivate {
   constructor(
     private readonly tokens: AdminTokenService,
     private readonly prisma: PrismaService,
+    private readonly sessions: AdminSessionService,
+    private readonly requestContext: LoggerContext,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(PlatformAdminGuard.name);
@@ -46,7 +50,7 @@ export class PlatformAdminGuard implements CanActivate {
     } catch {
       throw new UnauthorizedException('Admin authentication required');
     }
-    if (payload.type !== 'platform_admin') {
+    if (payload.type !== 'platform_admin' || !payload.sid) {
       throw new UnauthorizedException('Admin authentication required');
     }
 
@@ -60,7 +64,28 @@ export class PlatformAdminGuard implements CanActivate {
       throw new UnauthorizedException('Admin authentication required');
     }
 
-    request.admin = { id: admin.id, email: admin.email, role: admin.role };
+    if (!(await this.sessions.isActive(payload.sid, admin.id))) {
+      this.log.warn('Rejected admin request for revoked/expired session', {
+        adminId: admin.id,
+        sessionId: payload.sid,
+      });
+      throw new UnauthorizedException('Admin authentication required');
+    }
+
+    request.admin = {
+      id: admin.id,
+      email: admin.email,
+      role: admin.role,
+      sessionId: payload.sid,
+      mustChangePassword: admin.mustChangePassword,
+    };
+
+    // Feed the audit trail (AdminAuditService reads these) without every call
+    // site having to thread the request through.
+    this.requestContext.set('sessionId', payload.sid);
+    this.requestContext.set('userId', admin.id);
+    this.requestContext.set('ipAddress', request.ip);
+    this.requestContext.set('userAgent', request.headers['user-agent']);
     return true;
   }
 }

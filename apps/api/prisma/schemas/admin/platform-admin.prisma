@@ -29,6 +29,12 @@ model PlatformAdmin {
   totpSecret  String?
   totpEnabled Boolean @default(false)
 
+  /// P2-05: set when a SUPER_ADMIN issues a temporary password (create / reset).
+  /// While true, every admin route except change-password/logout answers 403
+  /// `PASSWORD_CHANGE_REQUIRED` (see `AdminPermissionGuard`).
+  mustChangePassword Boolean   @default(false)
+  passwordChangedAt  DateTime?
+
   lastLoginAt DateTime?
   lastLoginIp String?
 
@@ -36,8 +42,38 @@ model PlatformAdmin {
   updatedAt DateTime @updatedAt
 
   auditLogs PlatformAdminAuditLog[] @relation("PlatformAdminToAudit")
+  sessions  PlatformAdminSession[]  @relation("PlatformAdminToSession")
 
   @@index([email])
+}
+
+/// A signed-in platform-admin session (P2-01). The access JWT carries this id
+/// as `sid`; `PlatformAdminGuard` rejects the token once `revokedAt` is set or
+/// `expiresAt` has passed, so logout/revoke take effect on the very next
+/// request. The refresh token is an opaque random string — only its SHA-256
+/// hash is stored. Rotation keeps the previous hash so replaying an already
+/// rotated token (theft signal) revokes the whole session.
+model PlatformAdminSession {
+  id String @id @default(cuid())
+
+  adminId String
+  admin   PlatformAdmin @relation("PlatformAdminToSession", fields: [adminId], references: [id], onDelete: Cascade)
+
+  refreshTokenHash         String  @unique
+  previousRefreshTokenHash String?
+
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  revokedReason String?
+  lastUsedAt    DateTime?
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([previousRefreshTokenHash])
 }
 
 /// Immutable audit trail for platform-admin actions (RAKHAL-224). Separate from
@@ -48,13 +84,26 @@ model PlatformAdmin {
 model PlatformAdminAuditLog {
   id String @id @default(cuid())
 
-  adminId String
-  admin   PlatformAdmin @relation("PlatformAdminToAudit", fields: [adminId], references: [id])
+  /// Null for a failed login against an unknown email (no admin to attribute to);
+  /// the attempted address is kept in `actorEmail`.
+  adminId String?
+  admin   PlatformAdmin? @relation("PlatformAdminToAudit", fields: [adminId], references: [id], onDelete: Restrict)
 
+  /// One of `AdminAuditAction` (domain/admin-audit-actions.ts) — typed in code,
+  /// stored as text so adding an action never needs a migration.
   action     String
   entityType String
   entityId   String?
   metadata   Json?
+
+  /// P2-04 structured context.
+  outcome    String  @default("SUCCESS")
+  actorEmail String?
+  before     Json?
+  after      Json?
+  sessionId  String?
+  requestId  String?
+  userAgent  String?
 
   ipAddress String?
 
@@ -62,4 +111,6 @@ model PlatformAdminAuditLog {
 
   @@index([adminId])
   @@index([action])
+  @@index([sessionId])
+  @@index([createdAt])
 }

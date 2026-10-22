@@ -11,6 +11,22 @@ import { AdminTotpService } from './application/services/admin-totp.service';
 import { PlatformAdminGuard } from './presentation/guards/platform-admin.guard';
 import { AdminPermissionGuard } from './presentation/guards/admin-permission.guard';
 import { AdminTwoFactorSetupGuard } from './presentation/guards/admin-two-factor-setup.guard';
+import { AdminIpAllowlistGuard } from './presentation/guards/admin-ip-allowlist.guard';
+import { AdminSessionService } from './application/services/admin-session.service';
+import { AdminManagementService } from './application/services/admin-management.service';
+import { AdminAdminsController } from './presentation/controllers/admin-admins.controller';
+import { AdminDirectoryController } from './presentation/controllers/admin-directory.controller';
+import { AdminSupportActionsController } from './presentation/controllers/admin-support-actions.controller';
+import { AdminOpsController } from './presentation/controllers/admin-ops.controller';
+import { AdminConfigController } from './presentation/controllers/admin-config.controller';
+import { AdminOpsService } from './application/services/admin-ops.service';
+import { AdminPlatformConfigService } from './application/services/admin-platform-config.service';
+import { BullModule } from '@nestjs/bullmq';
+import { OUTBOX_QUEUE } from 'src/common/outbox/infrastructure/queue/outbox.queue.constants';
+import { EMAIL_QUEUE } from 'src/modules/email/infrastructure/queue/email.queue.constants';
+import { REPORTS_QUEUE } from 'src/modules/reports/infrastructure/queue/reports.queue.constants';
+import { AdminSupportActionsService } from './application/services/admin-support-actions.service';
+import { AdminDirectoryService } from './application/services/admin-directory.service';
 import { AdminAuthController } from './presentation/controllers/admin-auth.controller';
 import { AdminBillingController } from './presentation/controllers/admin-billing.controller';
 import { AdminReconciliationController } from './presentation/controllers/admin-reconciliation.controller';
@@ -19,7 +35,6 @@ import { AdminHealthController } from './presentation/controllers/admin-health.c
 import { AdminFeedIngredientController } from './presentation/controllers/admin-feed-ingredient.controller';
 import { AdminRequirementPresetController } from './presentation/controllers/admin-requirement-preset.controller';
 import { AdminSystemController } from './presentation/controllers/admin-system.controller';
-import { AdminUserSessionController } from './presentation/controllers/admin-user-session.controller';
 
 /**
  * Rakhal Admin (`admin-api`) — RAKHAL-224 (PRD §32.5 / ADR-016/019). The
@@ -40,6 +55,11 @@ import { AdminUserSessionController } from './presentation/controllers/admin-use
     BillingModule,
     SubscriptionModule,
     FeedModule,
+    BullModule.registerQueue(
+      { name: OUTBOX_QUEUE },
+      { name: EMAIL_QUEUE },
+      { name: REPORTS_QUEUE },
+    ),
   ],
   controllers: [
     AdminAuthController,
@@ -50,17 +70,34 @@ import { AdminUserSessionController } from './presentation/controllers/admin-use
     AdminFeedIngredientController,
     AdminRequirementPresetController,
     AdminSystemController,
-    AdminUserSessionController,
+    AdminAdminsController,
+    AdminDirectoryController,
+    AdminSupportActionsController,
+    AdminOpsController,
+    AdminConfigController,
   ],
   providers: [
     AdminTokenService,
+    AdminSessionService,
+    AdminManagementService,
+    AdminDirectoryService,
+    AdminSupportActionsService,
+    AdminOpsService,
+    AdminPlatformConfigService,
     AdminAuthService,
     AdminAuditService,
     AdminTotpService,
     PlatformAdminGuard,
     AdminPermissionGuard,
     AdminTwoFactorSetupGuard,
+    AdminIpAllowlistGuard,
   ],
-  exports: [PlatformAdminGuard, AdminTokenService, AdminAuditService],
+  exports: [
+    PlatformAdminGuard,
+    AdminTokenService,
+    AdminAuditService,
+    AdminSessionService,
+    AdminPlatformConfigService,
+  ],
 })
 export class AdminModule {}

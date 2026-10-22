@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { purgeAdminAudit } from './utils/admin-audit';
 import * as argon2 from 'argon2';
 import { bearer, createTestApp, loginAs, TestContext } from './utils/e2e';
 import type { AuthedUser } from './utils/e2e';
@@ -190,9 +191,7 @@ describe('Platform admin (e2e)', () => {
       })
       .expect(403);
 
-    await prisma.platformAdminAuditLog.deleteMany({
-      where: { adminId: created.id },
-    });
+    await purgeAdminAudit(prisma, created.id);
     await prisma.platformAdmin.delete({ where: { id: created.id } });
   });
 

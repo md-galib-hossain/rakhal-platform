@@ -119,10 +119,19 @@ describe('Admin force-revoke user sessions (e2e)', () => {
       .expect(200);
 
     const adminToken = await adminBearer();
+    const target = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { email: true },
+    });
     const revoke = await request(server)
       .post(`${ctx.prefix}/admin/users/${userId}/revoke-sessions`)
       .set('Authorization', `Bearer ${adminToken}`)
-      .expect(201);
+      // Phase 4: a reason and a confirmation matching the target are mandatory.
+      .send({
+        reason: 'Suspected credential compromise',
+        confirm: target.email,
+      })
+      .expect(200);
     expect((revoke.body as { success?: boolean }).success).toBe(true);
 
     await request(server)

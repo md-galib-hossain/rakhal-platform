@@ -27,6 +27,17 @@ export class OutboxQueueService implements OnModuleInit {
   }
 
   async onModuleInit(): Promise<void> {
+    // BullMQ keys a repeatable job by its interval, so a changed interval would
+    // leave the old (e.g. 5s) schedule running in Redis beside the new one.
+    const existing = await this.queue.getRepeatableJobs();
+    for (const job of existing) {
+      if (
+        job.name === OUTBOX_DRAIN_JOB &&
+        job.every !== String(OUTBOX_DRAIN_INTERVAL_MS)
+      ) {
+        await this.queue.removeRepeatableByKey(job.key);
+      }
+    }
     await this.queue.add(
       OUTBOX_DRAIN_JOB,
       {},

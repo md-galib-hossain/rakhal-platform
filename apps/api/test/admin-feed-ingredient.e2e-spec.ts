@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { purgeAdminAudit } from './utils/admin-audit';
 import * as argon2 from 'argon2';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 import { currentTotpCode } from './utils/totp';
@@ -75,6 +76,8 @@ describe('Admin Feed Ingredient Master (e2e)', () => {
   }, 30_000);
 
   afterAll(async () => {
+    // The audit rows this admin wrote reference it (FK); clear them first.
+    await purgeAdminAudit(prisma, throwawayAdminId);
     await prisma.platformAdmin.delete({ where: { id: throwawayAdminId } });
     await ctx.app.close();
   });

@@ -1,7 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Injectable, Optional } from '@nestjs/common';
 import { OutboxEvent, Prisma } from '@prisma/client';
+import { Queue } from 'bullmq';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { WriteOutboxEventInput } from '../domain/outbox-types';
+import {
+  OUTBOX_NUDGE_DELAY_MS,
+  OUTBOX_NUDGE_JOB,
+  OUTBOX_QUEUE,
+} from '../infrastructure/queue/outbox.queue.constants';
 
 /** Prisma client or an interactive-transaction client, mirrors `CreditWalletService`'s `Db` seam. */
 type Db = PrismaService | Prisma.TransactionClient;
@@ -17,7 +24,10 @@ type Db = PrismaService | Prisma.TransactionClient;
  */
 @Injectable()
 export class OutboxWriterService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() @InjectQueue(OUTBOX_QUEUE) private readonly queue?: Queue,
+  ) {}
 
   /**
    * Idempotent by `(farmId, idempotencyKey)`: a replayed/duplicated write
@@ -29,7 +39,7 @@ export class OutboxWriterService {
     input: WriteOutboxEventInput,
     db: Db = this.prisma,
   ): Promise<OutboxEvent> {
-    return db.outboxEvent.upsert({
+    const row = await db.outboxEvent.upsert({
       where: {
         farmId_idempotencyKey: {
           farmId: input.farmId,
@@ -44,5 +54,27 @@ export class OutboxWriterService {
       },
       update: {},
     });
+    this.nudgeDrain();
+    return row;
+  }
+
+  /**
+   * Queue a delayed drain so the new row is dispatched within seconds instead
+   * of waiting for the slow safety-net poll. Best effort: the caller's
+   * transaction must never fail on a Redis hiccup, and the poll is the backstop.
+   */
+  private nudgeDrain(): void {
+    this.queue
+      ?.add(
+        OUTBOX_NUDGE_JOB,
+        {},
+        {
+          jobId: OUTBOX_NUDGE_JOB, // one pending nudge covers every row written in the window
+          delay: OUTBOX_NUDGE_DELAY_MS,
+          removeOnComplete: true,
+          removeOnFail: true,
+        },
+      )
+      .catch(() => undefined);
   }
 }

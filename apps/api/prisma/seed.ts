@@ -199,6 +199,37 @@ async function seedPlatformAdmin(): Promise<void> {
 }
 
 /**
+ * The primary real SUPER_ADMIN of Rakhal Admin. 2FA is left un-enrolled so the
+ * owner scans their own authenticator on first login (mandatory-2FA setup flow).
+ * Password is a dev default; production must supply `SUPERADMIN_PASSWORD`
+ * (seed skips this admin otherwise) and should rotate it after first login.
+ */
+async function seedPrimarySuperAdmin(): Promise<void> {
+  const email = process.env.SUPERADMIN_EMAIL ?? 'mdgalib23@gmail.com';
+  const isProd = process.env.NODE_ENV === 'production';
+  const password =
+    process.env.SUPERADMIN_PASSWORD ?? (isProd ? undefined : '12345678');
+  if (!password) {
+    console.log(
+      '⚠ primary super admin skipped: set SUPERADMIN_PASSWORD in production',
+    );
+    return;
+  }
+  const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
+  await prisma.platformAdmin.upsert({
+    where: { email },
+    update: { passwordHash, isActive: true, role: 'SUPER_ADMIN' },
+    create: {
+      email,
+      name: 'Rakhal Super Admin',
+      passwordHash,
+      role: 'SUPER_ADMIN',
+    },
+  });
+  console.log(`✔ primary super admin: ${email} (2FA enrols on first login)`);
+}
+
+/**
  * Current legal documents (RAKHAL-236) + the demo owner's acceptance so the
  * consent gate (farm-create / checkout) passes for the seeded demo flows.
  * Admin authoring/publishing UI is RAKHAL-225; these are the seeded v1.0.
@@ -1622,6 +1653,7 @@ async function main(): Promise<void> {
   }
   await seedInvoiceCounter();
   await seedPlatformAdmin();
+  await seedPrimarySuperAdmin();
   await seedLegalConsent(demo.ownerUserId ?? null);
   if (demo.farmId) {
     await seedDemoSubscription(demo.farmId);
