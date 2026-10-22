@@ -8,6 +8,8 @@ import { AdminAdminsController } from '../controllers/admin-admins.controller';
 import { AdminDirectoryController } from '../controllers/admin-directory.controller';
 import { AdminSupportActionsController } from '../controllers/admin-support-actions.controller';
 import { AdminOpsController } from '../controllers/admin-ops.controller';
+import { AdminSubscriptionsController } from '../controllers/admin-subscriptions.controller';
+import { AdminAnalyticsController } from '../controllers/admin-analytics.controller';
 import { AdminConfigController } from '../controllers/admin-config.controller';
 import { AdminBillingController } from '../controllers/admin-billing.controller';
 import { AdminFeedIngredientController } from '../controllers/admin-feed-ingredient.controller';
@@ -40,6 +42,8 @@ const GUARDED_ADMIN_CONTROLLERS = [
   AdminDirectoryController,
   AdminSupportActionsController,
   AdminOpsController,
+  AdminSubscriptionsController,
+  AdminAnalyticsController,
   AdminConfigController,
   AdminBillingController,
   AdminFeedIngredientController,

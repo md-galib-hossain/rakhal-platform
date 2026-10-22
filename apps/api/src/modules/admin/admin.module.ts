@@ -18,6 +18,10 @@ import { AdminAdminsController } from './presentation/controllers/admin-admins.c
 import { AdminDirectoryController } from './presentation/controllers/admin-directory.controller';
 import { AdminSupportActionsController } from './presentation/controllers/admin-support-actions.controller';
 import { AdminOpsController } from './presentation/controllers/admin-ops.controller';
+import { AdminSubscriptionsController } from './presentation/controllers/admin-subscriptions.controller';
+import { AdminAnalyticsController } from './presentation/controllers/admin-analytics.controller';
+import { AdminSubscriptionsService } from './application/services/admin-subscriptions.service';
+import { AdminAnalyticsService } from './application/services/admin-analytics.service';
 import { AdminConfigController } from './presentation/controllers/admin-config.controller';
 import { AdminOpsService } from './application/services/admin-ops.service';
 import { AdminPlatformConfigService } from './application/services/admin-platform-config.service';
@@ -74,6 +78,8 @@ import { AdminSystemController } from './presentation/controllers/admin-system.c
     AdminDirectoryController,
     AdminSupportActionsController,
     AdminOpsController,
+    AdminSubscriptionsController,
+    AdminAnalyticsController,
     AdminConfigController,
   ],
   providers: [
@@ -83,6 +89,8 @@ import { AdminSystemController } from './presentation/controllers/admin-system.c
     AdminDirectoryService,
     AdminSupportActionsService,
     AdminOpsService,
+    AdminSubscriptionsService,
+    AdminAnalyticsService,
     AdminPlatformConfigService,
     AdminAuthService,
     AdminAuditService,
