@@ -1,19 +1,26 @@
-import { Button } from "@rakhal/ui/ui/button";
-import { Input } from "@rakhal/ui/ui/input";
+import { redirect } from "next/navigation";
+import { AuthCard, Notice } from "@/components/auth/auth-card";
+import { LoginForm } from "@/components/auth/login-form";
+import { safeNextPath } from "@/lib/auth/next-path";
+import { getSession } from "@/lib/auth/session";
 
-// TODO(P2-07): wire to the admin BFF login + TOTP flow. Static shell only in Phase 1.
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string | string[]; "2fa"?: string }>;
+}) {
+  const params = await searchParams;
+  const next = safeNextPath(params.next);
+  if (await getSession()) redirect(next);
+
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 p-4">
-      <h1 className="text-xl font-semibold">Rakhal Admin sign in</h1>
-      <Input type="email" placeholder="Email" autoComplete="username" aria-label="Email" />
-      <Input
-        type="password"
-        placeholder="Password"
-        autoComplete="current-password"
-        aria-label="Password"
-      />
-      <Button disabled>Sign in (Phase 2)</Button>
-    </main>
+    <AuthCard title="Sign in" description="Internal Rakhal team access. Every action is audited.">
+      <div className="space-y-4">
+        {params["2fa"] === "enabled" ? (
+          <Notice>Two-factor authentication is on. Sign in again with a code from your authenticator.</Notice>
+        ) : null}
+        <LoginForm next={next} />
+      </div>
+    </AuthCard>
   );
 }

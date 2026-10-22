@@ -1,8 +1,16 @@
+import { redirect } from "next/navigation";
 import { AdminShell } from "@/components/layout/admin-shell";
+import { getSession } from "@/lib/auth/session";
 
-// TODO(P2-07): resolve the real admin session + permissions from the BFF cookie.
-const PLACEHOLDER_PERMISSIONS: readonly string[] = ["*"];
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  // A temporary password blocks every admin API route until it is changed.
+  if (session.mustChangePassword) redirect("/change-password");
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  return <AdminShell permissions={PLACEHOLDER_PERMISSIONS}>{children}</AdminShell>;
+  return (
+    <AdminShell permissions={session.permissions} email={session.email} role={session.role}>
+      {children}
+    </AdminShell>
+  );
 }
