@@ -150,6 +150,7 @@ Plan/feature-matrix editor, manual activate/extend/comp/cancel, refunds, referra
 
 **Phase 7 — Consumer migration (after V1 stable). L.**
 (1) Import `rakhal-consumer-frontend` into `apps/web` with history preserved, old repo stays deployable; (2) replace its `components/ui` with `@rakhal/ui` in per-component PRs; (3) optionally import backend as `apps/api` (single Prisma schema) or leave separate; (4) Flutter app stays out; (5) retire old repos only after one release cycle of dual verification. Reversible at each step.
+Detailed plan (planning only, nothing executed): [`docs/migration/README.md`](../migration/README.md); decisions in [ADR-004](../decisions/ADR-004-migration-strategy.md).
 
 ---
 

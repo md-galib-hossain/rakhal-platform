@@ -8,6 +8,7 @@ Internal Rakhal admin panel. The admin API lives in `rakhal-backend` (`src/modul
 - `packages/admin-api-client` - typed admin API envelope/client
 - `packages/config` - shared tsconfig + ESLint boundary rules
 - `docs/` - architecture, decisions, operations, migration
+  - Consumer-app migration plan (plan only, nothing executed): [`docs/migration/README.md`](docs/migration/README.md)
 
 ## Commands
 ```
