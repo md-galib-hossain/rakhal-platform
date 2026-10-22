@@ -1,0 +1,60 @@
+{
+  "name": "@rakhal/ui",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Generic UI primitives + base tokens. Copied from rakhal-consumer-frontend @ 9af1681; dedupe in Phase 7.",
+  "exports": {
+    "./styles/tokens.css": "./src/styles/tokens.css",
+    "./lib/utils": "./src/lib/utils.ts",
+    "./ui/*": "./src/components/ui/*.tsx",
+    "./shared/*": "./src/components/shared/*.tsx"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@radix-ui/react-avatar": "^1.2.2",
+    "@radix-ui/react-checkbox": "^1.3.7",
+    "@radix-ui/react-dialog": "^1.1.19",
+    "@radix-ui/react-dropdown-menu": "^2.1.20",
+    "@radix-ui/react-label": "^2.1.11",
+    "@radix-ui/react-popover": "^1.1.19",
+    "@radix-ui/react-progress": "^1.1.12",
+    "@radix-ui/react-radio-group": "^1.4.3",
+    "@radix-ui/react-scroll-area": "^1.2.14",
+    "@radix-ui/react-select": "^2.3.3",
+    "@radix-ui/react-separator": "^1.1.11",
+    "@radix-ui/react-slot": "^1.3.0",
+    "@radix-ui/react-switch": "^1.3.3",
+    "@radix-ui/react-tabs": "^1.1.17",
+    "@radix-ui/react-toggle": "^1.1.14",
+    "@radix-ui/react-tooltip": "^1.2.12",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "cmdk": "^1.1.1",
+    "lucide-react": "^1.23.0",
+    "next-themes": "^0.4.6",
+    "react-day-picker": "^10.0.1",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.6.0"
+  },
+  "peerDependencies": { "react": "19.2.4", "react-dom": "19.2.4" },
+  "devDependencies": {
+    "@rakhal/config": "workspace:*",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.0.3",
+    "eslint": "^9",
+    "jsdom": "^29.1.1",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "typescript": "^5",
+    "vitest": "^4.1.10"
+  }
+}

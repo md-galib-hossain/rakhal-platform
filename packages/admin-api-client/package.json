@@ -1,0 +1,9 @@
+{
+  "name": "@rakhal/admin-api-client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Typed admin API client. Types generated from rakhal-backend OpenAPI (see README).",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit", "test": "echo \"no tests yet\"", "lint": "echo \"no lint yet\"" },
+  "devDependencies": { "@rakhal/config": "workspace:*", "typescript": "^5" }
+}

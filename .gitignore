@@ -1,0 +1,13 @@
+node_modules
+.next
+.turbo
+dist
+coverage
+.env
+.env.*
+!.env.example
+*.pem
+*.tsbuildinfo
+# service-account / credential files must never be committed
+*adminsdk*.json
+conf/

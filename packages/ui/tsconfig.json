@@ -1,0 +1,5 @@
+{
+  "extends": "@rakhal/config/tsconfig.base.json",
+  "compilerOptions": { "jsx": "react-jsx" },
+  "include": ["src", "vitest.config.mts", "vitest.setup.ts"]
+}
