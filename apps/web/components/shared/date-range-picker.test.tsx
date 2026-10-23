@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { DateRangePicker } from "./date-range-picker";
 
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
@@ -16,6 +17,27 @@ describe("DateRangePicker", () => {
       />,
     );
     expect(screen.getByRole("button", { name: /This Month/ })).toBeInTheDocument();
+  });
+
+  it("options mode: shows caller shortcuts and reports the picked one", async () => {
+    const onOptionSelect = vi.fn();
+    const today = new Date(2026, 9, 23);
+    render(
+      <DateRangePicker
+        range={{ from: today, to: today }}
+        label="All Dates"
+        options={[
+          { id: "all", label: "All Dates", range: null },
+          { id: "tomorrow", label: "Tomorrow", range: { from: today, to: today } },
+        ]}
+        activeOptionId="all"
+        onOptionSelect={onOptionSelect}
+        onRangeChange={vi.fn()}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /All Dates/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Tomorrow" }));
+    expect(onOptionSelect).toHaveBeenCalledWith(expect.objectContaining({ id: "tomorrow" }));
   });
 
   it("disables the trigger when disabled is set", () => {

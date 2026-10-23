@@ -4613,8 +4613,11 @@
     "dateFilters": {
       "all": "All Dates",
       "today": "Today",
+      "tomorrow": "Tomorrow",
       "week": "This Week",
-      "month": "This Month"
+      "next7": "Next 7 Days",
+      "month": "This Month",
+      "apply": "Apply"
     },
     "status": {
       "pending": "Pending",

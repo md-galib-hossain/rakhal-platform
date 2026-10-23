@@ -9,10 +9,11 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
 import { useTaskInfiniteList } from "../hooks/use-tasks";
-import type { Task, TaskDatePreset, TaskListFilter } from "../types";
+import { addDays, startOfDay } from "date-fns";
+import type { Task, TaskDateFilter, TaskListFilter } from "../types";
 import { TaskHighlights } from "./task-highlights";
 import { TaskFilterTabs } from "./task-filter-tabs";
-import { TaskDateTabs } from "./task-date-tabs";
+import { TaskDateFilterPicker, taskPresetRange } from "./task-date-filter";
 import { TaskCard } from "./task-card";
 import { CreateTaskSheet } from "./create-task-sheet";
 import { TaskDetailsSheet } from "./task-details-sheet";
@@ -33,7 +34,7 @@ import { TaskDetailsSheet } from "./task-details-sheet";
 export function TasksView() {
   const t = useTranslations("tasks");
   const [filter, setFilter] = useState<TaskListFilter>("all");
-  const [datePreset, setDatePreset] = useState<TaskDatePreset>("all");
+  const [dateFilter, setDateFilter] = useState<TaskDateFilter>({ id: "all" });
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -48,15 +49,13 @@ export function TasksView() {
    * backend's own `highlights()` `dayStart`/`dayEnd`. Recomputed on every render intentionally (a
    * cheap `Date` calc) so "today" stays correct across a midnight boundary without a timer. */
   const dateRange = useMemo(() => {
-    if (datePreset === "all") return {};
-    const now = new Date();
-    const dueFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const dueTo = new Date(dueFrom);
-    if (datePreset === "today") dueTo.setDate(dueTo.getDate() + 1);
-    else if (datePreset === "week") dueTo.setDate(dueTo.getDate() + 7);
-    else dueTo.setMonth(dueTo.getMonth() + 1);
+    const range = dateFilter.id === "custom" ? dateFilter : taskPresetRange(dateFilter.id);
+    if (!range) return {};
+    // Picker ranges are inclusive local days; `dueTo` stays the exclusive next-day boundary the old tabs sent.
+    const dueFrom = startOfDay(range.from);
+    const dueTo = addDays(startOfDay(range.to), 1);
     return { dueFrom: dueFrom.toISOString(), dueTo: dueTo.toISOString() };
-  }, [datePreset]);
+  }, [dateFilter]);
 
   const filters = useMemo(
     () => ({ filter, search: search || undefined, ...dateRange }),
@@ -94,7 +93,7 @@ export function TasksView() {
                 aria-label={t("searchPlaceholder")}
               />
             </div>
-            <TaskDateTabs value={datePreset} onChange={setDatePreset} />
+            <TaskDateFilterPicker value={dateFilter} onChange={setDateFilter} />
           </div>
 
           {query.isError ? (

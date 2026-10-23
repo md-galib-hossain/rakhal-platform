@@ -82,7 +82,10 @@ export interface TaskHighlights {
   lateCompletionRatePct: number;
 }
 
-export type TaskDatePreset = "today" | "week" | "month" | "all";
+export type TaskDatePresetId = "all" | "today" | "tomorrow" | "week" | "next7" | "month";
+
+/** Task Hub date filter: a shortcut id (range derived at render) or a user-picked day/range (`from === to` = one day). */
+export type TaskDateFilter = { id: TaskDatePresetId } | { id: "custom"; from: Date; to: Date };
 
 export interface TaskListFilters {
   filter?: TaskListFilter;
