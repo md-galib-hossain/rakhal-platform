@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { PageCard } from "@/components/shared/page-card";
 import { HealthcareView } from "@/features/health/components/healthcare-view";
-import { ReportExportButton } from "@/features/reports/components/report-export-button";
-import { HEALTHCARE_EXPORT_REPORT } from "@/features/reports/report-defs";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("nav");
@@ -21,7 +19,7 @@ export default async function HealthcarePage() {
   const t = await getTranslations("nav");
 
   return (
-    <PageCard title={t("healthcare")} actions={<ReportExportButton report={HEALTHCARE_EXPORT_REPORT} />}>
+    <PageCard title={t("healthcare")}>
       <HealthcareView />
     </PageCard>
   );

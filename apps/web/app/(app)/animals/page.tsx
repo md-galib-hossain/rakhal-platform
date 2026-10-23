@@ -6,11 +6,8 @@ import { CattleHighlightsBar } from "@/features/cattle/components/cattle-highlig
 import { CattleFilters } from "@/features/cattle/components/cattle-filters";
 import { CattleTable } from "@/features/cattle/components/cattle-table";
 import { CattleAddButton } from "@/features/cattle/components/cattle-add-button";
-import { CattleImportButton } from "@/features/cattle/components/cattle-import-button";
 import { AnimalGroupsButton } from "@/features/cattle/components/animal-groups-button";
 import { CalfKpiBanner } from "@/features/cattle/components/calf-kpi-banner";
-import { ReportExportButton } from "@/features/reports/components/report-export-button";
-import { CATTLE_EXPORT_REPORT } from "@/features/reports/report-defs";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("nav");
@@ -53,8 +50,6 @@ export default async function CattlePage() {
             <CattleFilters
               actions={
                 <div className="flex items-center gap-2">
-                  <ReportExportButton report={CATTLE_EXPORT_REPORT} size="md" />
-                  <CattleImportButton />
                   <AnimalGroupsButton />
                   <CattleAddButton />
                 </div>

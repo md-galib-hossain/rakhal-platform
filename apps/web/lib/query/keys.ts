@@ -273,11 +273,6 @@ export const qk = {
   onboarding: {
     status: () => ["onboarding", "status"] as const,
   },
-  reports: {
-    catalogue: () => ["reports", "catalogue"] as const,
-    job: (id: string) => ["reports", "job", id] as const,
-    schedules: () => ["reports", "schedules"] as const,
-  },
   /** RAKHAL-359, Finance V2 Purchasing — Expenses/Purchases/Payables (`purchasing/purchases`,
    * `purchasing/expenses`, `purchasing/payables`, RAKHAL-348/349). Own top-level namespace (not
    * nested under `finance`) since Purchasing is its own backend module, mirroring `sales`'s own

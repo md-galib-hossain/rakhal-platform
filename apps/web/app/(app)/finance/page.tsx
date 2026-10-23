@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { PageCard } from "@/components/shared/page-card";
 import { FinanceView } from "@/features/finance/components/finance-view";
-import { FinanceHeaderActions } from "@/features/finance/components/finance-header-actions";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("nav");
@@ -24,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function FinancePage() {
   const t = await getTranslations("nav");
   return (
-    <PageCard title={t("finance")} actions={<FinanceHeaderActions />}>
+    <PageCard title={t("finance")}>
       <FinanceView />
     </PageCard>
   );

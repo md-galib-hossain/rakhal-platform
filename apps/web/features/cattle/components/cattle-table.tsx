@@ -1,6 +1,5 @@
 "use client"; // filter reads (nuqs/searchParams), row-selection state, paged query
 
-import { todayLocalIso } from "@/lib/local-date";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -159,27 +158,6 @@ export function CattleTable() {
     } catch {
       toast.error(tBulk("addToGroupError"));
     }
-  }
-
-  function exportCsv() {
-    const header = ["name", "tagNumber", "breed", "shed", "productionStatus", "healthStatus", "aqrScore"];
-    const rows = selectedItems.map((c) => [
-      c.name ?? "",
-      c.tagNumber,
-      c.breed?.name ?? "",
-      c.shed?.name ?? "",
-      c.productionStatus ?? "",
-      c.healthStatus,
-      c.aqrScore ?? "",
-    ]);
-    const csv = [header, ...rows].map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `cattle-export-${todayLocalIso()}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
   }
 
   return (
@@ -348,7 +326,6 @@ export function CattleTable() {
             variant: "destructive",
             onRun: () => setDisposeDialogOpen(true),
           },
-          { key: "export", label: tBulk("export"), variant: "outline", onRun: exportCsv },
         ]}
       />
 

@@ -116,21 +116,3 @@ export function useReviewAnomaly() {
     },
   });
 }
-
-export function useImportMilkPreview() {
-  return useMutation({ mutationFn: (file: File) => milkApi.importPreview(file) });
-}
-
-/** Confirm invalidates the same broad set `useSaveMilkLog` does — an import can span many
- * dates, so an exact `qk.milk.log(date)` key can't cover it. */
-export function useImportMilkConfirm() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ importSessionId, skipErrors }: { importSessionId: string; skipErrors: boolean }) =>
-      milkApi.importConfirm(importSessionId, skipErrors),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["milk", "log"] });
-      queryClient.invalidateQueries({ queryKey: ["milk", "overview"] });
-    },
-  });
-}

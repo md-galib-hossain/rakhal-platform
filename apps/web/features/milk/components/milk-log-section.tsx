@@ -14,8 +14,6 @@ import { TableSkeleton } from "@/components/shared/table-skeleton";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useMilkLogCalendar, useMilkLogTable } from "../hooks/use-milk";
 import { MilkCard } from "./milk-card";
-import { MilkExportButton } from "./milk-export-button";
-import { MilkImportButton } from "./milk-import-button";
 import { MilkLogTable } from "./milk-log-table";
 
 function todayIso(): string {
@@ -59,9 +57,6 @@ export function MilkLogSection() {
 
   const headerRight = (
     <div className="flex flex-wrap items-center gap-3">
-      <MilkImportButton />
-      <MilkExportButton cattleOptions={entries} />
-
       <Select value={shed} onValueChange={setShed}>
         <SelectTrigger className="w-[130px]" aria-label={t("shedLabel")}>
           <SelectValue placeholder={t("shedFilter")} />

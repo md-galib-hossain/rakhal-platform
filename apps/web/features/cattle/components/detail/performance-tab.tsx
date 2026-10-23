@@ -18,8 +18,6 @@ import type { Locale } from "@/lib/constants/i18n";
 import { useCalfDetail } from "@/features/calves/hooks/use-calves";
 import { WeightTab as CalfWeightTab } from "@/features/calves/components/detail/weight-tab";
 import { MilkQualityTestsSection } from "@/features/milk/components/milk-quality-tests-section";
-import { ReportExportButton } from "@/features/reports/components/report-export-button";
-import { LACTATION_INDIVIDUAL_REPORT } from "@/features/reports/report-defs";
 import { useCattleOverview, useWeightHistory } from "../../hooks/use-cattle-detail-tabs";
 import type { WeightHistoryPeriod } from "../../detail-types";
 import type { AnimalCategory, CattleGender, LactationStage } from "../../types";
@@ -232,19 +230,6 @@ function NonCalfPerformanceTab({
       </div>
 
       <MilkQualityTestsSection cattleId={cattleId} />
-
-      {isFemale ? (
-        /* RAKHAL-295-F — export the current/most-recent lactation as a PDF/CSV report; cattleId is
-           enough on its own (backend falls back to the ACTIVE lactation, else the most-recently-ended
-           one), so it's pre-filled and the dialog's lactationId field stays optional/manual. */
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-4">
-          <div className="flex flex-col gap-0.5">
-            <h3 className="text-sm font-semibold text-foreground">{tReproduction("lactationReport.title")}</h3>
-            <p className="text-xs text-muted-foreground">{tReproduction("lactationReport.description")}</p>
-          </div>
-          <ReportExportButton report={LACTATION_INDIVIDUAL_REPORT} defaultParams={{ cattleId }} />
-        </div>
-      ) : null}
     </div>
   );
 }

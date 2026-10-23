@@ -160,36 +160,6 @@ export interface UpdateMilkSessionsResponse {
   active_sessions: MilkSessionKey[];
 }
 
-export interface MilkImportRow {
-  row: number;
-  date: string | null;
-  tag: string | null;
-  status: "ready" | "error";
-  error?: string;
-}
-
-/** `POST /milk/import/preview` response — cached server-side under `importSessionId` (30 min TTL). */
-export interface MilkImportPreview {
-  importSessionId: string;
-  total: number;
-  ready: number;
-  errors: number;
-  rows: MilkImportRow[];
-}
-
-/** `POST /milk/import/confirm` response. */
-export interface MilkImportConfirmResult {
-  imported: number;
-  skipped: number;
-  failedGroups: number;
-}
-
-export interface ExportMilkLogInput {
-  from: string;
-  to: string;
-  cattleIds?: string[];
-}
-
 /**
  * RAKHAL-277/278 (backend `MilkDisposition` + `MilkEligibility`) — now wired. Confirmed by reading
  * the backend source directly (not guessed): `GET /milk/log` (`logTable()`) now includes

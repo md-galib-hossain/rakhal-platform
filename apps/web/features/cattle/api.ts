@@ -13,8 +13,6 @@ import type {
   CattleDetail,
   CattleFormPayload,
   CattleHighlights,
-  CattleImportConfirmResult,
-  CattleImportPreview,
   CattleListFilters,
   CattleListItem,
   MediaUrls,
@@ -208,17 +206,6 @@ export const cattleApi = {
   },
   recordWeight(id: string, dto: RecordWeightInput): Promise<WeightRecordResult> {
     return apiFetch<WeightRecordResult>(`/cattle/${id}/weight`, { method: "POST", body: dto });
-  },
-
-  // RFE-024 — CSV import (multipart preview → confirm, both `cattle.create`-gated).
-  importPreview(file: File): Promise<CattleImportPreview> {
-    return apiUpload<CattleImportPreview>("/cattle/import/preview", file);
-  },
-  importConfirm(importSessionId: string, skipErrors: boolean): Promise<CattleImportConfirmResult> {
-    return apiFetch<CattleImportConfirmResult>("/cattle/import/confirm", {
-      method: "POST",
-      body: { importSessionId, skipErrors },
-    });
   },
 
   // MILESTONE 10 gap closure — generic per-animal hold (RAKHAL-280, `cattle.hold`-gated).

@@ -1,21 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Upload } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { Button } from "@/components/ui/button";
 import { CattleFormDialog } from "@/features/cattle/components/cattle-form-dialog";
-import { CattleImportDialog } from "@/features/cattle/components/cattle-import-dialog";
 import { useOnboardingStatus } from "../hooks/use-onboarding-status";
 
-/** Wizard Step 3 (PRD §5.1 Step 4) — "Add your first animals": a guided single add or a CSV import,
- * both reusing RFE-022/024's real dialogs (no bespoke onboarding-only create flow). */
+/** Wizard Step 3 (PRD §5.1 Step 4) — "Add your first animals": a guided single add
+ * reusing RFE-022's real dialog. */
 export function CattleStep({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }) {
   const t = useTranslations("onboarding.wizard.cattle");
   const [addOpen, setAddOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
   const queryClient = useQueryClient();
   const { data: status } = useOnboardingStatus();
   const count = status?.steps.cattle.count ?? 0;
@@ -37,23 +35,12 @@ export function CattleStep({ onNext, onSkip }: { onNext: () => void; onSkip: () 
           <Plus className="size-4" aria-hidden />
           {t("addOne")}
         </Button>
-        <Button type="button" variant="outline" onClick={() => setImportOpen(true)}>
-          <Upload className="size-4" aria-hidden />
-          {t("importCsv")}
-        </Button>
       </div>
 
       <CattleFormDialog
         open={addOpen}
         onOpenChange={(open) => {
           setAddOpen(open);
-          if (!open) refreshCount();
-        }}
-      />
-      <CattleImportDialog
-        open={importOpen}
-        onOpenChange={(open) => {
-          setImportOpen(open);
           if (!open) refreshCount();
         }}
       />

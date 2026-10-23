@@ -328,29 +328,3 @@ export interface PurchasedLactationResult {
   estimatedDaysInMilk: number | null;
   estimatedLactationNumber: number | null;
 }
-
-// ---- RFE-024 — Cattle CSV import (`cattle-import.service.ts`) -------------------------------------
-
-/** One row of a `POST /cattle/import/preview` response. */
-export interface CattleImportRow {
-  row: number;
-  name: string | null;
-  tag: string | null;
-  status: "ready" | "error";
-  error?: string;
-}
-
-/** `POST /cattle/import/preview` response — cached server-side under `importSessionId` (30 min TTL). */
-export interface CattleImportPreview {
-  importSessionId: string;
-  total: number;
-  ready: number;
-  errors: number;
-  rows: CattleImportRow[];
-}
-
-/** `POST /cattle/import/confirm` response. */
-export interface CattleImportConfirmResult {
-  imported: number;
-  skipped: number;
-}

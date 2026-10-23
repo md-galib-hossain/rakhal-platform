@@ -3296,7 +3296,9 @@
       "startsIn": "{value, plural, one {Starts in # day} other {Starts in # days}}",
       "dayOf": "Day {day} of {total}",
       "dayOnly": "Day {day}",
-      "aiDone": "AI done"
+      "aiDone": "AI done",
+      "daysLeft": "{count, plural, one {# day left} other {# days left}}",
+      "lastDay": "Last day"
     },
     "subtitle": "Track heat, breeding, pregnancy and calving across the herd."
   },

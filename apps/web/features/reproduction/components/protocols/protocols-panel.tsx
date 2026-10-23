@@ -8,7 +8,6 @@ import { ClipboardList, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Chip, type ChipProps } from "@/components/ui/chip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ErrorState } from "@/components/shared/error-state";
@@ -31,6 +30,7 @@ import { ApplyProtocolDialog } from "./apply-protocol-dialog";
 import { ProtocolDetailSheet } from "./protocol-detail-sheet";
 import { ProtocolFormDialog } from "./protocol-form-dialog";
 import { ProtocolInstanceActions } from "./protocol-instance-actions";
+import { ProtocolProgress } from "./protocol-progress";
 import { ProtocolInstanceTimeline } from "./protocol-instance-timeline";
 import type { ProtocolInstance, ProtocolInstanceStatus, ProtocolSummary } from "../../types";
 
@@ -539,25 +539,20 @@ function InstanceRow({
   const scheduledAhead = instance.status === "SCHEDULED" && elapsed < 0;
 
   let progress: React.ReactNode;
-  if (instance.status === "IN_PROGRESS" || instance.status === "DRAFT" || (instance.status === "SCHEDULED" && !scheduledAhead)) {
-    progress = (
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between gap-2 text-xs">
-          <span className="font-medium text-foreground">
-            {durationDays ? t("dayOf", { day, total: durationDays }) : t("dayOnly", { day })}
-          </span>
-          {instance.ai_completed_at ? <span className="text-accent-teal">{t("aiDone")}</span> : null}
-        </div>
-        {durationDays ? (
-          <Progress value={Math.round((day / durationDays) * 100)} aria-label={t("dayOf", { day, total: durationDays })} className="h-1.5" />
-        ) : null}
+  if (scheduledAhead) {
+    progress = durationDays ? (
+      <div className="flex flex-col gap-2">
+        <span className="text-xs font-semibold text-info">{t("startsIn", { value: Math.abs(elapsed) })}</span>
+        <ProtocolProgress day={0} total={durationDays} hideSummary />
       </div>
+    ) : (
+      <span className="text-xs font-semibold text-info">{t("startsIn", { value: Math.abs(elapsed) })}</span>
     );
-  } else if (scheduledAhead) {
-    progress = (
-      <span className="text-xs font-medium text-info">
-        {t("startsIn", { value: Math.abs(elapsed) })}
-      </span>
+  } else if (instance.status === "IN_PROGRESS" || instance.status === "DRAFT" || instance.status === "SCHEDULED") {
+    progress = durationDays ? (
+      <ProtocolProgress day={day} total={durationDays} aiDone={Boolean(instance.ai_completed_at)} />
+    ) : (
+      <span className="text-xs font-semibold text-foreground">{t("dayOnly", { day })}</span>
     );
   } else if (instance.status === "COMPLETED") {
     progress = (
@@ -570,15 +565,17 @@ function InstanceRow({
   }
 
   return (
-    <li className="flex flex-wrap items-center gap-x-5 gap-y-3 py-3.5 first:pt-1 last:pb-1">
-      <div className="flex min-w-0 flex-1 basis-56 flex-col gap-1">
+    <li className="grid gap-x-6 gap-y-3 py-4 first:pt-1 last:pb-1 md:grid-cols-[minmax(0,1fr)_minmax(14rem,20rem)_auto] md:items-center">
+      <div className="flex min-w-0 flex-col gap-1">
         <InstanceCow cattleId={instance.cattle_id} />
         <p className="pl-12 text-xs text-muted-foreground">
-          {instance.protocol_name} · {t("startedOn")} <DateText date={instance.start_date} />
+          <span className="font-medium text-foreground/80">{instance.protocol_name}</span>
+          <span aria-hidden className="mx-1.5">·</span>
+          {t("startedOn")} <DateText date={instance.start_date} />
         </p>
       </div>
-      <div className="min-w-0 flex-1 basis-40">{progress}</div>
-      <div className="ml-auto flex items-center gap-2">
+      <div className="min-w-0 rounded-lg bg-muted/40 px-3.5 py-2.5">{progress}</div>
+      <div className="flex items-center justify-between gap-2 md:justify-end">
         <Chip variant={STATUS_VARIANT[instance.status]} className="shrink-0">
           {t(`statusValue.${instance.status}`)}
         </Chip>
