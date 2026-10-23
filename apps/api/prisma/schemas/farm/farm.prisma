@@ -70,8 +70,6 @@ model Farm {
   // top doc comment. `financeLoans` survives (`FinanceLoan` kept, `FINANCE_V2_DESIGN.md` §5.2).
   financeLoans              FinanceLoan[]               @relation("FarmToFinanceLoan")
   animalGroups              AnimalGroup[]               @relation("FarmToAnimalGroup")
-  reportJobs                ReportJob[]                 @relation("FarmToReportJob")
-  reportSchedules           ReportSchedule[]            @relation("FarmToReportSchedule")
   feedIngredientOverrides   FeedIngredientOverride[]    @relation("FarmToFeedIngredientOverride")
   feedConcentrations        FeedConcentration[]         @relation("FarmToFeedConcentration")
   feedConcentrationVersions FeedConcentrationVersion[]  @relation("FarmToFeedConcentrationVersion")

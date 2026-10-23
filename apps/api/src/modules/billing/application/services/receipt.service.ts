@@ -6,7 +6,7 @@ import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { env } from 'src/core/config/env';
 import { EmailService } from 'src/modules/email/application/services/email.service';
 import { EmailTemplate } from 'src/modules/email/domain/enums/email-template.enum';
-import { renderPdf } from 'src/modules/reports/domain/pdf-renderer';
+import { renderReceiptPdf } from '../../domain/receipt-pdf-renderer';
 import { buildReceiptReportData, ReceiptInput } from '../../domain/receipt-pdf';
 
 export interface RenderedReceipt {
@@ -146,7 +146,7 @@ export class ReceiptService {
       issuedAt: invoice.createdAt.toISOString(),
     };
 
-    const buffer = await renderPdf(buildReceiptReportData(input));
+    const buffer = await renderReceiptPdf(buildReceiptReportData(input));
     return {
       fileName: `receipt-${invoiceNumber}.pdf`,
       buffer: Buffer.from(buffer),

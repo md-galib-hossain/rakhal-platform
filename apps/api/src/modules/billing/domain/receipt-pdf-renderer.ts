@@ -1,12 +1,27 @@
 import PDFDocument from 'pdfkit';
-import { Cell, ReportData, ReportSection } from './report-data';
 
-/**
- * Render a {@link ReportData} to a simple tabular PDF (pdfkit), returning the
- * full document as a Buffer. Mirrors the email module's PdfGeneratorService
- * pattern (collect `data` chunks → `Buffer.concat`). Generic over any report:
- * title, period, summary block, then a paginated table.
- */
+export type Cell = string | number | null;
+
+export interface ReceiptSummaryItem {
+  label: string;
+  value: string | number;
+}
+
+export interface ReceiptSection {
+  heading: string;
+  summary?: ReceiptSummaryItem[];
+  columns: string[];
+  rows: Cell[][];
+}
+
+export interface ReceiptReportData {
+  title: string;
+  period?: string;
+  summary?: ReceiptSummaryItem[];
+  columns: string[];
+  rows: Cell[][];
+  sections?: ReceiptSection[];
+}
 
 const PAGE_MARGIN = 40;
 const ROW_HEIGHT = 18;
@@ -17,11 +32,10 @@ function cellText(value: Cell): string {
   return value === null || value === undefined ? '' : String(value);
 }
 
-/** Draws one section's summary list + paginated table at the doc's current y. */
 function renderSectionBody(
   doc: PDFKit.PDFDocument,
   pageWidth: number,
-  section: Pick<ReportSection, 'summary' | 'columns' | 'rows'>,
+  section: Pick<ReceiptSection, 'summary' | 'columns' | 'rows'>,
 ): void {
   if (section.summary?.length) {
     doc.fontSize(10).font('Helvetica');
@@ -67,7 +81,7 @@ function renderSectionBody(
       .fontSize(9)
       .font('Helvetica')
       .fillColor('#777')
-      .text('No data for the selected period.');
+      .text('No data.');
     doc.fillColor('black');
   } else {
     for (const row of section.rows) {
@@ -76,7 +90,7 @@ function renderSectionBody(
   }
 }
 
-export function renderPdf(report: ReportData): Promise<Buffer> {
+export function renderReceiptPdf(report: ReceiptReportData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: 'A4',

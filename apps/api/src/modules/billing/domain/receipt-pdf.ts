@@ -1,4 +1,4 @@
-import { ReportData } from 'src/modules/reports/domain/report-data';
+import { ReceiptReportData } from './receipt-pdf-renderer';
 
 /** The fields a receipt needs — snapshotted off the paid Invoice + its context. */
 export interface ReceiptInput {
@@ -32,7 +32,7 @@ function money(currency: string, amount: number): string {
  * Reports renderer"). Header carries seller/buyer identity + the sequential
  * number; the table is the line-item breakdown down to the amount paid.
  */
-export function buildReceiptReportData(input: ReceiptInput): ReportData {
+export function buildReceiptReportData(input: ReceiptInput): ReceiptReportData {
   const summary = [
     { label: 'Receipt No', value: input.invoiceNumber },
     { label: 'Status', value: input.status },

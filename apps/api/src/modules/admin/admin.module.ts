@@ -28,7 +28,6 @@ import { AdminPlatformConfigService } from './application/services/admin-platfor
 import { BullModule } from '@nestjs/bullmq';
 import { OUTBOX_QUEUE } from 'src/common/outbox/infrastructure/queue/outbox.queue.constants';
 import { EMAIL_QUEUE } from 'src/modules/email/infrastructure/queue/email.queue.constants';
-import { REPORTS_QUEUE } from 'src/modules/reports/infrastructure/queue/reports.queue.constants';
 import { AdminSupportActionsService } from './application/services/admin-support-actions.service';
 import { AdminDirectoryService } from './application/services/admin-directory.service';
 import { AdminAuthController } from './presentation/controllers/admin-auth.controller';
@@ -64,7 +63,6 @@ import { AdminInsightsService } from './application/services/admin-insights.serv
     BullModule.registerQueue(
       { name: OUTBOX_QUEUE },
       { name: EMAIL_QUEUE },
-      { name: REPORTS_QUEUE },
     ),
   ],
   controllers: [

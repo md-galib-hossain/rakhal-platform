@@ -12,7 +12,6 @@ import { REDIS_CLIENT } from 'src/core/redis/redis.constants';
 import type { RedisClient } from 'src/core/redis/redis.module';
 import { OUTBOX_QUEUE } from 'src/common/outbox/infrastructure/queue/outbox.queue.constants';
 import { EMAIL_QUEUE } from 'src/modules/email/infrastructure/queue/email.queue.constants';
-import { REPORTS_QUEUE } from 'src/modules/reports/infrastructure/queue/reports.queue.constants';
 import { AdminAuditService } from './admin-audit.service';
 
 export type IntegrationStatus =
@@ -55,12 +54,10 @@ export class AdminOpsService {
     @Inject(REDIS_CLIENT) private readonly redis: RedisClient,
     @InjectQueue(OUTBOX_QUEUE) outbox: Queue,
     @InjectQueue(EMAIL_QUEUE) email: Queue,
-    @InjectQueue(REPORTS_QUEUE) reports: Queue,
   ) {
     this.queues = {
       [OUTBOX_QUEUE]: outbox,
       [EMAIL_QUEUE]: email,
-      [REPORTS_QUEUE]: reports,
     };
   }
 
