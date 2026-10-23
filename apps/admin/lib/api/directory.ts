@@ -26,6 +26,7 @@ export interface FarmRow {
   createdAt: string;
   owner: { id: string; name: string; email: string };
   memberCount: number;
+  cattleCount: number;
   subscription: SubscriptionSummary | null;
 }
 
@@ -79,6 +80,9 @@ export interface UserRow {
   lastLoginAt: string | null;
   createdAt: string;
   farmCount: number;
+  ownedFarmCount: number;
+  /** Last time any of the user's sessions was used; null = never. */
+  lastActiveAt: string | null;
 }
 
 export interface UserDetail {
@@ -98,6 +102,16 @@ export interface UserDetail {
   mfaConfigured: boolean;
   ownedFarmCount: number;
   activeSessionCount: number;
+  recentSessions: {
+    id: string;
+    status: string;
+    ipAddress: string | null;
+    userAgent: string | null;
+    deviceName: string | null;
+    createdAt: string;
+    lastUsedAt: string | null;
+    expiresAt: string;
+  }[];
   memberships: { joinedAt: string; role: string; farm: { id: string; name: string; status: string } }[];
 }
 
@@ -108,8 +122,16 @@ export interface DayCount {
 
 export interface Overview {
   generatedAt: string;
-  farms: { total: number; byStatus: Record<string, number>; newLast7Days: number; newLast30Days: number };
-  users: { total: number; blocked: number; newLast7Days: number; newLast30Days: number };
+  farms: { total: number; byStatus: Record<string, number>; newLast7Days: number; newLast30Days: number; newThisMonth: number };
+  users: {
+    total: number;
+    blocked: number;
+    newLast7Days: number;
+    newLast30Days: number;
+    newThisMonth: number;
+    activeLastDay: number;
+    activeLast30Days: number;
+  };
   subscriptions: { byStatus: Record<string, number> };
   signups: { days: number; farms: DayCount[]; users: DayCount[] };
 }
@@ -274,5 +296,79 @@ export interface UsageAnalytics {
   expiring: { farmId: string; farm: string; plan: string; status: string; expiresAt: string }[];
 }
 
-export const getPlanMatrix = () => withToken((token) => callAdminApi<PlanMatrix>("/admin/plans/matrix", { token }));
+export interface Engagement {
+  generatedAt: string;
+  users: {
+    total: number;
+    active: { daily: number; weekly: number; monthly: number };
+    /** DAU / MAU as a percentage; null when there are no monthly actives. */
+    stickiness: number | null;
+    returning: number;
+    dormant: number;
+  };
+  activation: {
+    windowDays: number;
+    signedUp: number;
+    activated: number;
+    rate: number | null;
+    neverActivated: number;
+    medianHoursToFirstRecord: number | null;
+  };
+  retention: { d7: RetentionCohort; d30: RetentionCohort };
+  farms: { total: number; withRecordsLast30Days: number; everRecorded: number; shareWithRecordsLast30Days: number | null };
+  records: { cattleTracked: number; last30Days: number };
+  modules: { module: string; farms: number; records: number; shareOfActiveFarms: number | null }[];
+  dailyActiveUsers: DayCount[];
+  geography: {
+    unspecifiedFarms: number;
+    divisions: { name: string; farms: number; cattle: number }[];
+    districts: { division: string | null; district: string; farms: number }[];
+  };
+}
+export interface RetentionCohort {
+  base: number;
+  kept: number;
+  rate: number | null;
+}
+
+export interface SecurityOverview {
+  generatedAt: string;
+  counts: {
+    activeSessions: number;
+    signIns24h: number;
+    signIns7d: number;
+    usersWithFailedAttempts24h: number;
+    lockedNow: number;
+    blocked: number;
+    adminFailedLogins24h: number;
+  };
+  recentSignIns: {
+    id: string;
+    status: string;
+    ipAddress: string | null;
+    userAgent: string | null;
+    deviceName: string | null;
+    createdAt: string;
+    lastUsedAt: string | null;
+    user: { id: string; name: string; email: string };
+  }[];
+  needsAttention: {
+    id: string;
+    name: string;
+    email: string;
+    isBlocked: boolean;
+    failedLoginAttempts: number;
+    lastFailedLoginAt: string | null;
+    lockedUntil: string | null;
+  }[];
+  multiLocation: { id: string; name: string; email: string; distinctIps: number }[];
+  adminFailedLogins: { id: string; actorEmail: string | null; ipAddress: string | null; createdAt: string }[];
+}
+
+export const getEngagement = () =>
+  withToken((token) => callAdminApi<Engagement>("/admin/analytics/engagement", { token }));
+export const getSecurity = () =>
+  withToken((token) => callAdminApi<SecurityOverview>("/admin/security/overview", { token }));
+
+export const getPlanMatrix =() => withToken((token) => callAdminApi<PlanMatrix>("/admin/plans/matrix", { token }));
 export const getUsage = () => withToken((token) => callAdminApi<UsageAnalytics>("/admin/analytics/usage", { token }));

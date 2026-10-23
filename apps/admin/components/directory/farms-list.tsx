@@ -42,6 +42,7 @@ const columns: Column<FarmRow>[] = [
       ),
   },
   { header: "Members", cell: (farm) => <span className="tabular-nums">{farm.memberCount}</span> },
+  { header: "Cattle", cell: (farm) => <span className="tabular-nums">{farm.cattleCount}</span> },
   { header: "Created", cell: (farm) => formatDate(farm.createdAt) },
 ];
 
@@ -67,6 +68,7 @@ export function FarmsList({ initial, params }: { initial: Page<FarmRow>; params:
           { label: "Location", value: formatLocation(farm.district, farm.division) },
           { label: "Plan", value: farm.subscription?.subscriptionPlan.name ?? "-" },
           { label: "Members", value: farm.memberCount },
+          { label: "Cattle", value: farm.cattleCount },
         ],
       })}
     />

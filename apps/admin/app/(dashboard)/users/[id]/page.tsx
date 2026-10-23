@@ -7,7 +7,7 @@ import { UserActions } from "@/components/directory/user-actions";
 import { PermissionGate } from "@/lib/auth/permission-gate";
 import { getSession } from "@/lib/auth/session";
 import { canDo } from "@/lib/permissions";
-import { formatDate, formatDateTime, TIME_ZONE_LABEL } from "@/lib/format";
+import { describeAgent, formatDate, formatDateTime, TIME_ZONE_LABEL } from "@/lib/format";
 
 export default function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
@@ -67,6 +67,42 @@ async function UserDetail({ params }: { params: Promise<{ id: string }> }) {
           />
         </DetailSection>
       </div>
+
+      <DetailSection title="Devices and sign-ins">
+        {user.recentSessions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">This user has never signed in.</p>
+        ) : (
+          <TableShell caption="Most recent sign-ins for this user">
+            <thead className="border-b border-border bg-muted/40 text-left">
+              <tr>
+                <th className={th}>Signed in</th>
+                <th className={th}>Device</th>
+                <th className={th}>IP address</th>
+                <th className={th}>Last used</th>
+                <th className={th}>Session</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {user.recentSessions.map((s) => (
+                <tr key={s.id}>
+                  <td className={`${td} whitespace-nowrap`}>{formatDateTime(s.createdAt)}</td>
+                  <td className={td} title={s.userAgent ?? undefined}>
+                    {describeAgent(s.userAgent, s.deviceName)}
+                  </td>
+                  <td className={`${td} font-mono text-xs`}>{s.ipAddress ?? "-"}</td>
+                  <td className={`${td} whitespace-nowrap`}>{formatDateTime(s.lastUsedAt)}</td>
+                  <td className={td}>
+                    <StatusBadge status={s.status} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </TableShell>
+        )}
+        <p className="mt-2 text-xs text-muted-foreground">
+          Latest 20 sign-ins. Location is not captured from the IP; the farm&apos;s own address is shown under Farm memberships. Addresses are personal data.
+        </p>
+      </DetailSection>
 
       <DetailSection title={`Farm memberships (${user.memberships.length})`}>
         {user.memberships.length === 0 ? (

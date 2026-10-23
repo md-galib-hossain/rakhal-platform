@@ -25,9 +25,17 @@ const columns: Column<UserRow>[] = [
     ),
   },
   { header: "Email verified", cell: (u) => (u.isEmailVerified ? "Yes" : "No") },
-  { header: "Farms", cell: (u) => <span className="tabular-nums">{u.farmCount}</span> },
+  {
+    header: "Farms",
+    cell: (u) => (
+      <>
+        <span className="tabular-nums">{u.farmCount}</span>
+        {u.ownedFarmCount > 0 ? <p className="text-xs text-muted-foreground">owns {u.ownedFarmCount}</p> : null}
+      </>
+    ),
+  },
   { header: "Account", cell: accountState },
-  { header: "Last sign-in", cell: (u) => formatDateTime(u.lastLoginAt) },
+  { header: "Last active", cell: (u) => (u.lastActiveAt ? formatDateTime(u.lastActiveAt) : <span className="text-muted-foreground">Never</span>) },
   { header: "Joined", cell: (u) => formatDate(u.createdAt) },
 ];
 
@@ -46,6 +54,8 @@ export function UsersList({ initial, params }: { initial: Page<UserRow>; params:
         fields: [
           { label: "Email verified", value: u.isEmailVerified ? "Yes" : "No" },
           { label: "Farms", value: u.farmCount },
+          { label: "Owned farms", value: u.ownedFarmCount },
+          { label: "Last active", value: u.lastActiveAt ? formatDateTime(u.lastActiveAt) : "Never" },
           { label: "Last sign-in", value: formatDateTime(u.lastLoginAt) },
           { label: "Joined", value: formatDate(u.createdAt) },
         ],
