@@ -1,4 +1,4 @@
-"use client"; // status filter state + live cursor query
+"use client"; // status filter state + live cursor query + responsive layout
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -25,27 +25,34 @@ const STATUS_VARIANT: Record<ReproductiveStatus, ChipProps["variant"]> = {
   PREGNANT: "teal",
 };
 
-/** Filter chips — `undefined` is "all". Only the three statuses `GET /reproduction/cows` returns. */
-const STATUS_FILTERS: (ReproductiveStatus | undefined)[] = [undefined, "OPEN", "BRED_AWAITING_CONFIRMATION", "PREGNANT"];
+/** Only the three statuses `GET /reproduction/cows` returns in the active cycle. */
+const STATUS_FILTERS: (ReproductiveStatus | undefined)[] = [
+  undefined,
+  "OPEN",
+  "BRED_AWAITING_CONFIRMATION",
+  "PREGNANT",
+];
 
-/** Typical bovine gestation, used only to scale the progress bar (not shown as a number). */
+/** Typical bovine gestation (days). */
 const GESTATION_DAYS = 283;
 
-/** Rows fetched per request while scrolling. */
+/** Rows fetched per page. */
 const COW_PAGE_SIZE = 20;
 
-/** RAKHAL-363 — every cow currently in an active reproductive cycle (Open/Inseminated/Pregnant),
- * real numbered pages over the keyset cursor (`GET /reproduction/cows`, `reproduction.service.ts`'s
- * `listReproductionCows`). Status chips filter server-side via the endpoint's `status` param.
- *
- * Responsive by the card's own width (container query), not the viewport: a real table from `@3xl`
- * (48rem), a stack of self-contained cow cards below it — so the 7-column table never has to
- * side-scroll on a phone, and a half-width layout on a tablet gets the cards it needs. */
+/** Days open operational thresholds. */
+const DAYS_OPEN_WARN = 120;
+const DAYS_OPEN_DANGER = 180;
+
+/**
+ * Reproduction Cow List:
+ * - Segmented status tabs in the card header for a polished, cohesive feel
+ * - Scannable tabular format on desktop with zebra/hover interaction
+ * - Mobile card view below @3xl container query
+ */
 export function ReproductionCowList() {
   const t = useTranslations("reproduction.cowList");
   const [status, setStatus] = useState<ReproductiveStatus | undefined>(undefined);
-  // Infinite scroll over the endpoint's keyset cursor; a status-chip change restarts from the first
-  // page. Prefix matches the cow-list invalidation.
+
   const pager = useInfiniteCursorList(
     qk.reproduction.cows(status),
     (cursor, limit) => reproductionApi.reproductionCows(status, cursor, limit),
@@ -53,40 +60,47 @@ export function ReproductionCowList() {
   );
   const rows = pager.items;
 
-  return (
-    <ReproductionCard title={t("title")}>
-      <div role="group" aria-label={t("filterLabel")} className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {STATUS_FILTERS.map((value) => {
-          const active = value === status;
-          return (
-            <button
-              key={value ?? "all"}
-              type="button"
-              aria-pressed={active}
-              onClick={() => setStatus(value)}
-              className={cn(
-                "h-8 shrink-0 rounded-full border px-3.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                active
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-card text-muted-foreground hover:bg-muted",
-              )}
-            >
-              {value ? t(`statusValues.${value}`) : t("filterAll")}
-            </button>
-          );
-        })}
-      </div>
+  const headerFilter = (
+    <div
+      role="tablist"
+      aria-label={t("filterLabel")}
+      className="inline-flex items-center gap-1 rounded-xl border border-border bg-muted p-1"
+    >
+      {STATUS_FILTERS.map((value) => {
+        const active = value === status;
+        return (
+          <button
+            key={value ?? "all"}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => setStatus(value)}
+            className={cn(
+              "flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 sm:text-sm",
+              active
+                ? "bg-card text-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {value ? t(`statusValues.${value}`) : t("filterAll")}
+          </button>
+        );
+      })}
+    </div>
+  );
 
+  return (
+    <ReproductionCard title={t("title")} headerRight={headerFilter}>
       {pager.isLoading ? (
-        <div className="flex flex-col gap-3">
-          {Array.from({ length: 4 }, (_, i) => (
-            <Skeleton key={i} className="h-14 w-full" />
+        <div className="flex flex-col gap-3 py-2">
+          {Array.from({ length: 5 }, (_, i) => (
+            <Skeleton key={i} className="h-14 w-full rounded-xl" />
           ))}
         </div>
       ) : pager.isError ? (
         <ErrorState onRetry={() => void pager.refetch()} />
       ) : rows.length === 0 ? (
-        <EmptyState title={t("empty")} className="py-8" />
+        <EmptyState title={t("empty")} className="py-12" />
       ) : (
         <>
           <div className="hidden @3xl:block">
@@ -113,15 +127,27 @@ export function ReproductionCowList() {
 function StatusChip({ status }: { status: ReproductiveStatus | null }) {
   const t = useTranslations("reproduction.cowList");
   if (!status) return <span className="text-muted-foreground">—</span>;
-  return <Chip variant={STATUS_VARIANT[status]}>{t(`statusValues.${status}`)}</Chip>;
+  return (
+    <Chip variant={STATUS_VARIANT[status]} subtle className="px-2.5 py-0.5 text-xs">
+      {t(`statusValues.${status}`)}
+    </Chip>
+  );
 }
 
-/** A bare Yes/No under "Checked" was ambiguous (checked what?) and flagged an Open cow as "No"
- * though nothing awaits a check — only an inseminated, unchecked cow is "Pending". */
 function CheckChip({ row }: { row: ReproductionCowRow }) {
   const t = useTranslations("reproduction.cowList");
-  if (row.pregnancy_checked) return <Chip variant="teal">{t("checkDone")}</Chip>;
-  if (row.status === "BRED_AWAITING_CONFIRMATION") return <Chip variant="warning">{t("checkPending")}</Chip>;
+  if (row.pregnancy_checked)
+    return (
+      <Chip variant="teal" subtle className="px-2.5 py-0.5 text-xs">
+        {t("checkDone")}
+      </Chip>
+    );
+  if (row.status === "BRED_AWAITING_CONFIRMATION")
+    return (
+      <Chip variant="warning" subtle className="px-2.5 py-0.5 text-xs">
+        {t("checkPending")}
+      </Chip>
+    );
   return <span className="text-muted-foreground">—</span>;
 }
 
@@ -129,8 +155,8 @@ function GestationBar({ days }: { days: number }) {
   const t = useTranslations("reproduction.cowList");
   const pct = Math.max(0, Math.min(100, Math.round((days / GESTATION_DAYS) * 100)));
   return (
-    <div className="flex min-w-24 items-center gap-2">
-      <span className="text-sm font-medium text-foreground tabular-nums">{days}</span>
+    <div className="flex min-w-28 items-center gap-2">
+      <span className="text-sm font-medium text-foreground tabular-nums">{days}d</span>
       <div
         role="progressbar"
         aria-label={t("columns.daysPregnant")}
@@ -139,52 +165,82 @@ function GestationBar({ days }: { days: number }) {
         aria-valuenow={Math.min(days, GESTATION_DAYS)}
         className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"
       >
-        <div className="h-full rounded-full bg-accent-teal" style={{ width: `${pct}%` }} />
+        <div className="h-full rounded-full bg-accent-teal transition-all duration-300" style={{ width: `${pct}%` }} />
       </div>
     </div>
+  );
+}
+
+function DaysOpenCell({ days }: { days: number | null }) {
+  if (days == null) return <span className="text-muted-foreground">—</span>;
+  return (
+    <span
+      className={cn(
+        "font-semibold tabular-nums text-sm",
+        days >= DAYS_OPEN_DANGER
+          ? "text-destructive"
+          : days >= DAYS_OPEN_WARN
+            ? "text-warning"
+            : "text-foreground",
+      )}
+    >
+      {days}
+    </span>
   );
 }
 
 function CowTable({ rows }: { rows: ReproductionCowRow[] }) {
   const t = useTranslations("reproduction.cowList");
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>{t("columns.cow")}</TableHead>
-          <TableHead>{t("columns.status")}</TableHead>
-          <TableHead>{t("columns.lastAiDate")}</TableHead>
-          <TableHead>{t("columns.pregnancyChecked")}</TableHead>
-          <TableHead>{t("columns.daysOpen")}</TableHead>
-          <TableHead>{t("columns.daysPregnant")}</TableHead>
-          <TableHead>{t("columns.expectedCalvingDate")}</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((row) => (
-          <TableRow key={row.cattle_id}>
-            <TableCell>
-              <ReproductionCowIdentity cattleId={row.cattle_id} name={row.name} tag={row.tag} />
-            </TableCell>
-            <TableCell>
-              <StatusChip status={row.status} />
-            </TableCell>
-            <TableCell>{row.last_ai_date ? <DateText date={row.last_ai_date} /> : "—"}</TableCell>
-            <TableCell>
-              <CheckChip row={row} />
-            </TableCell>
-            <TableCell className="tabular-nums">{row.days_open ?? "—"}</TableCell>
-            <TableCell>{row.days_pregnant != null ? <GestationBar days={row.days_pregnant} /> : "—"}</TableCell>
-            <TableCell>{row.expected_calving_date ? <ExpectedCalving date={row.expected_calving_date} /> : "—"}</TableCell>
+    <div className="rounded-xl border border-border overflow-hidden bg-card">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/50 hover:bg-muted/50">
+            <TableHead className="py-3 font-semibold text-foreground">{t("columns.cow")}</TableHead>
+            <TableHead className="py-3 font-semibold text-foreground">{t("columns.status")}</TableHead>
+            <TableHead className="py-3 font-semibold text-foreground">{t("columns.lastAiDate")}</TableHead>
+            <TableHead className="py-3 font-semibold text-foreground">{t("columns.pregnancyChecked")}</TableHead>
+            <TableHead className="py-3 font-semibold text-foreground">{t("columns.daysOpen")}</TableHead>
+            <TableHead className="py-3 font-semibold text-foreground">{t("columns.daysPregnant")}</TableHead>
+            <TableHead className="py-3 font-semibold text-foreground">{t("columns.expectedCalvingDate")}</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.cattle_id} className="transition-colors hover:bg-muted/30">
+              <TableCell className="py-3.5">
+                <ReproductionCowIdentity cattleId={row.cattle_id} name={row.name} tag={row.tag} />
+              </TableCell>
+              <TableCell className="py-3.5">
+                <StatusChip status={row.status} />
+              </TableCell>
+              <TableCell className="py-3.5 text-sm text-muted-foreground">
+                {row.last_ai_date ? <DateText date={row.last_ai_date} /> : "—"}
+              </TableCell>
+              <TableCell className="py-3.5">
+                <CheckChip row={row} />
+              </TableCell>
+              <TableCell className="py-3.5">
+                <DaysOpenCell days={row.days_open} />
+              </TableCell>
+              <TableCell className="py-3.5">
+                {row.days_pregnant != null ? <GestationBar days={row.days_pregnant} /> : "—"}
+              </TableCell>
+              <TableCell className="py-3.5">
+                {row.expected_calving_date ? (
+                  <ExpectedCalving date={row.expected_calving_date} />
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
-/** Whole calendar days from today to the due date (negative = overdue). Parsed as a local date so the
- * `YYYY-MM-DD` prefix is never shifted by the viewer's UTC offset. */
 function daysUntil(isoDate: string): number {
   const [y, m, d] = isoDate.slice(0, 10).split("-").map(Number);
   const now = new Date();
@@ -192,30 +248,49 @@ function daysUntil(isoDate: string): number {
   return Math.round((new Date(y, m - 1, d).getTime() - today.getTime()) / 86_400_000);
 }
 
-/** Due date plus the days left in brackets, e.g. `12 Mar 2027 (45 days left)`; overdue turns destructive. */
 function ExpectedCalving({ date }: { date: string }) {
   const t = useTranslations("reproduction.cowList");
   const days = daysUntil(date);
   return (
-    <span className="flex flex-wrap items-baseline gap-x-1.5">
+    <span className="inline-flex flex-wrap items-baseline gap-1.5 text-sm">
       <DateText date={date} />
-      <span className={cn("text-xs tabular-nums", days < 0 ? "text-destructive" : "text-muted-foreground")}>
-        ({days < 0 ? t("overdueDays", { count: -days }) : days === 0 ? t("dueToday") : t("daysLeft", { count: days })})
+      <span className={cn("text-xs font-medium tabular-nums", days < 0 ? "text-destructive" : "text-muted-foreground")}>
+        (
+        {days < 0
+          ? t("overdueDays", { count: -days })
+          : days === 0
+            ? t("dueToday")
+            : t("daysLeft", { count: days })}
+        )
       </span>
     </span>
   );
 }
 
-/** Narrow-container form of one row: identity + status on top, then only the facts this cow actually
- * has (an Open cow has no pregnancy days or due date — showing "—" for them is noise). The facts grid
- * is `auto-fit`, so 2 columns on a phone, 3–4 as the card widens, no breakpoint. */
 function CowCard({ row }: { row: ReproductionCowRow }) {
   const t = useTranslations("reproduction.cowList");
   const showCheck = row.pregnancy_checked || row.status === "BRED_AWAITING_CONFIRMATION";
+  const daysOpenUrgent =
+    row.days_open != null && row.days_open >= DAYS_OPEN_WARN && row.status === "OPEN";
+
   return (
-    <li className="flex flex-col gap-3 rounded-xl border border-border p-3">
+    <li
+      className={cn(
+        "flex flex-col gap-3 rounded-xl border p-3.5 transition-colors",
+        daysOpenUrgent
+          ? row.days_open! >= DAYS_OPEN_DANGER
+            ? "border-destructive/30 bg-destructive-tint/20"
+            : "border-warning/30 bg-warning-tint/20"
+          : "border-border bg-card",
+      )}
+    >
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <ReproductionCowIdentity cattleId={row.cattle_id} name={row.name} tag={row.tag} className="flex-1 basis-40" />
+        <ReproductionCowIdentity
+          cattleId={row.cattle_id}
+          name={row.name}
+          tag={row.tag}
+          className="flex-1 basis-40"
+        />
         <StatusChip status={row.status} />
       </div>
       <dl className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-x-4 gap-y-2.5 text-sm">
@@ -224,7 +299,11 @@ function CowCard({ row }: { row: ReproductionCowRow }) {
             <DateText date={row.last_ai_date} />
           </Fact>
         ) : null}
-        {row.days_open != null ? <Fact label={t("columns.daysOpen")}>{row.days_open}</Fact> : null}
+        {row.days_open != null ? (
+          <Fact label={t("columns.daysOpen")}>
+            <DaysOpenCell days={row.days_open} />
+          </Fact>
+        ) : null}
         {row.days_pregnant != null ? (
           <Fact label={t("columns.daysPregnant")}>
             <GestationBar days={row.days_pregnant} />

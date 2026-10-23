@@ -26,8 +26,6 @@ import { ReproductionCowIdentity } from "./reproduction-cow-identity";
 type TabKey = "readyForAi" | "inHeat" | "pregnancyCheck" | "calving" | "dryOff";
 const TAB_ORDER: TabKey[] = ["readyForAi", "inHeat", "pregnancyCheck", "calving", "dryOff"];
 
-/** Rows shown first, and added per scroll step — keeps a 60-cow "ready for AI" list from pushing the
- * rest of the page down. The dashboard endpoint returns every row, so the reveal is client-side. */
 const ATTENTION_STEP = 8;
 
 export interface ReproductionActionPanelsProps {
@@ -38,12 +36,11 @@ export interface ReproductionActionPanelsProps {
   onRecordDryOff: (cattleId: string) => void;
 }
 
-/** "Cows Needing Action Today" (PRD §9.2) — the dashboard's 5 `action_required` lists as ONE panel
- * with a count-badged tab per list, instead of 5 stacked cards that each repeated the same row
- * layout. The tab strip doubles as the at-a-glance workload summary and opens on the first non-empty
- * list. Rows wrap their actions under the cow on a narrow card (no breakpoints — `flex-wrap` +
- * `basis`), and the tab strip scrolls sideways rather than squashing labels. Dry-off has a real
- * backend route (RD-038, `POST /reproduction/cattle/:id/dry-off`). */
+/**
+ * "Needs Attention Today" (PRD §9.2).
+ * Formatted to sit alongside the Calving Forecast in an equal-height 2-column grid.
+ * Structured with high-density rows and clear action CTAs.
+ */
 export function ReproductionActionPanels({
   onRecordAi,
   onRecordPregnancyCheck,
@@ -72,19 +69,20 @@ export function ReproductionActionPanels({
 
   if (dashboard.isLoading) {
     return (
-      <ReproductionCard title={t("title")}>
-        <Skeleton className="h-11 w-full" />
+      <ReproductionCard title={t("title")} className="h-full">
+        <Skeleton className="h-10 w-full rounded-xl" />
         <div className="flex flex-col gap-3">
           {Array.from({ length: 4 }, (_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
+            <Skeleton key={i} className="h-14 w-full rounded-xl" />
           ))}
         </div>
       </ReproductionCard>
     );
   }
+
   if (dashboard.isError) {
     return (
-      <ReproductionCard title={t("title")}>
+      <ReproductionCard title={t("title")} className="h-full">
         <ErrorState description={t("error")} onRetry={() => dashboard.refetch()} />
       </ReproductionCard>
     );
@@ -94,23 +92,34 @@ export function ReproductionActionPanels({
     <ReproductionCard
       title={t("title")}
       description={total > 0 ? t("summary", { count: total }) : undefined}
-      className="h-full min-h-[34rem]"
+      className="h-full min-h-[30rem]"
     >
       {total === 0 ? (
-        <EmptyState icon={CircleCheckBig} title={t("allClear")} description={t("allClearHint")} className="flex-1 justify-center py-8" />
+        <EmptyState
+          icon={CircleCheckBig}
+          title={t("allClear")}
+          description={t("allClearHint")}
+          className="flex-1 justify-center py-10"
+        />
       ) : (
         <Tabs value={activeTab} onValueChange={selectTab} className="flex flex-1 flex-col gap-3">
           <TabsList
             aria-label={t("title")}
-            className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-muted p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {TAB_ORDER.map((key) => (
-              <TabsTrigger key={key} value={key} className="h-9 shrink-0 rounded-lg px-3">
+              <TabsTrigger
+                key={key}
+                value={key}
+                className="h-8 shrink-0 rounded-lg px-2.5 text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-xs"
+              >
                 {t(`tabs.${key}`)}
                 <span
                   className={cn(
-                    "min-w-5 rounded-full px-1.5 text-center text-xs font-bold leading-5",
-                    counts[key] > 0 ? "bg-primary/15 text-primary" : "bg-background/60 text-muted-foreground",
+                    "ml-1.5 min-w-4.5 rounded-full px-1 text-center text-[0.7rem] font-bold leading-4",
+                    counts[key] > 0
+                      ? "bg-primary/15 text-primary"
+                      : "bg-background/60 text-muted-foreground",
                   )}
                 >
                   {counts[key]}
@@ -127,7 +136,7 @@ export function ReproductionActionPanels({
                 <AttentionRow
                   key={row.cattle_id}
                   cow={row}
-                  meta={<MetaPill>{t("daysOpen", { value: row.days_open ?? 0 })}</MetaPill>}
+                  meta={<MetaPill tone="warning">{t("daysOpen", { value: row.days_open ?? 0 })}</MetaPill>}
                 >
                   <Button size="sm" variant="secondary" onClick={() => onRecordAi(row.cattle_id)}>
                     {t("recordAi")}
@@ -146,7 +155,7 @@ export function ReproductionActionPanels({
                   key={row.cattle_id}
                   cow={row}
                   meta={
-                    <MetaPill>
+                    <MetaPill tone="warning">
                       <DateText date={row.heat_observed_at} relative />
                     </MetaPill>
                   }
@@ -168,7 +177,7 @@ export function ReproductionActionPanels({
                   key={row.cattle_id}
                   cow={row}
                   meta={
-                    <MetaPill>
+                    <MetaPill tone="muted">
                       {t("aiOn")} <DateText date={row.ai_date} />
                     </MetaPill>
                   }
@@ -230,7 +239,7 @@ export function ReproductionActionPanels({
                   key={row.cattle_id}
                   cow={row}
                   meta={
-                    <MetaPill>
+                    <MetaPill tone="muted">
                       {t("dryoffTarget")} <DateText date={row.dryoff_target_date} />
                     </MetaPill>
                   }
@@ -248,8 +257,6 @@ export function ReproductionActionPanels({
   );
 }
 
-/** One tab's rows, revealed `ATTENTION_STEP` at a time. The list takes the card's spare height
- * (`flex-1`) and the footer is pinned to the bottom (`mt-auto`), so the card keeps its shape beside its partner. */
 function AttentionList<T>({
   rows,
   emptyLabel,
@@ -259,15 +266,14 @@ function AttentionList<T>({
   emptyLabel: string;
   renderRow: (row: T) => React.ReactNode;
 }) {
-  // Each tab mounts its own list, so switching tabs naturally starts again at the first rows.
   const reveal = useIncrementalReveal(rows, ATTENTION_STEP);
   if (rows.length === 0) {
-    return <EmptyState icon={CircleCheckBig} title={emptyLabel} className="flex-1 justify-center py-8" />;
+    return <EmptyState icon={CircleCheckBig} title={emptyLabel} className="flex-1 justify-center py-10" />;
   }
 
   return (
     <div className="flex flex-1 flex-col gap-3">
-      <ul className="flex flex-col divide-y divide-border">{reveal.visible.map(renderRow)}</ul>
+      <ul className="flex flex-col divide-y divide-border/80">{reveal.visible.map(renderRow)}</ul>
       <InfiniteScrollFooter
         hasNextPage={reveal.hasMore}
         isFetchingNextPage={false}
@@ -278,9 +284,6 @@ function AttentionList<T>({
   );
 }
 
-/** One cow row. The identity block claims the first `basis-44` (11rem) of the line; whatever doesn't
- * fit beside it — the meta pill and buttons — wraps underneath and right-aligns, so there is no
- * viewport or container breakpoint to tune. */
 function AttentionRow({
   cow,
   meta,
@@ -291,9 +294,9 @@ function AttentionRow({
   children: React.ReactNode;
 }) {
   return (
-    <li className="flex min-h-[3.75rem] flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
-      <ReproductionCowIdentity cattleId={cow.cattle_id} name={cow.name} tag={cow.tag} className="flex-1 basis-44" />
-      <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+    <li className="flex min-h-[3.75rem] flex-wrap items-center justify-between gap-x-4 gap-y-2 py-2.5 transition-colors hover:bg-muted/30 px-2 rounded-lg">
+      <ReproductionCowIdentity cattleId={cow.cattle_id} name={cow.name} tag={cow.tag} className="flex-1 min-w-44" />
+      <div className="flex items-center gap-2">
         {meta}
         {children}
       </div>
@@ -303,13 +306,13 @@ function AttentionRow({
 
 const PILL_TONES = {
   muted: "bg-muted text-muted-foreground",
-  warning: "bg-warning-tint text-warning",
-  danger: "bg-destructive-tint text-destructive",
+  warning: "bg-warning-tint text-warning font-semibold",
+  danger: "bg-destructive-tint text-destructive font-semibold",
 } as const;
 
 function MetaPill({ tone = "muted", children }: { tone?: keyof typeof PILL_TONES; children: React.ReactNode }) {
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium", PILL_TONES[tone])}>
+    <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs", PILL_TONES[tone])}>
       {children}
     </span>
   );

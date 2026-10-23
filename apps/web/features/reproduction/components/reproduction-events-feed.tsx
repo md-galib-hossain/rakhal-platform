@@ -33,7 +33,6 @@ const EVENT_ICONS: Record<ReproEventType, React.ElementType> = {
   abortion: HeartCrack,
 };
 
-/** Distinct tint per event type so the feed scans quickly instead of every row looking identical. */
 const EVENT_TINTS: Record<ReproEventType, string> = {
   heat: "bg-accent-pink-tint text-accent-pink",
   breeding: "bg-info-tint text-info",
@@ -43,28 +42,13 @@ const EVENT_TINTS: Record<ReproEventType, string> = {
 };
 
 const EVENT_TYPES: ReproEventType[] = ["heat", "breeding", "pregnancy_diagnosis", "calving", "abortion"];
-
-/** Detail chips shown per row before "+N more" — the backend's `details` bag can hold a dozen keys.
- * They sit on ONE clipped line (full text in the tooltip) so a row stays ~66px instead of wrapping to 2–3
- * lines, which matters because this card shares a row with the calving forecast. */
 const MAX_DETAIL_CHIPS = 3;
-
-/** 5 rows by default: this card shares a row with the calving forecast (also 5 rows), so the pair stays
- * close in height; 10 / 20 / 50 are one tap away in the pager. */
 const EVENTS_PAGE_SIZE = 10;
-
 const DAY_FORMAT = "yyyy-MM-dd";
 
-/** The API compares instants, so a bare `2026-09-30` as "to" would exclude everything after
- * 00:00 UTC that day — send the local day's real start / end instead. */
 const dayStartIso = (day: string) => (day ? startOfDay(parseISO(day)).toISOString() : undefined);
 const dayEndIso = (day: string) => (day ? endOfDay(parseISO(day)).toISOString() : undefined);
 
-/** `detection_method: VISUAL` → `Detection Method: Visual` — the raw `details` dump from the
- * backend's unified feed is snake_case keys / SCREAMING_CASE enum values; this is purely cosmetic
- * (no i18n translation table for every backend enum value across 5 event types — out of scope).
- * `false`/`null`/empty-string values are dropped: "Standing Heat: No" or "Inseminator: null" on
- * every row that didn't have one added noise without information. */
 function humanizeDetail(key: string, value: unknown): string | null {
   if (value === false || value == null || value === "") return null;
   const label = key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -72,15 +56,12 @@ function humanizeDetail(key: string, value: unknown): string | null {
   return `${label}: ${display}`;
 }
 
-/** Local `YYYY-MM-DD` for a Date — the feed groups by calendar day, so compare day strings, never
- * instants (an event dated `2026-09-30` must read "Today" on the 30th in any timezone). */
 function localDayKey(d: Date): string {
   return format(d, DAY_FORMAT);
 }
 
 const cattleName = (c: CattleOption) => c.name ?? c.tagNumber;
 
-/** Small pill used for every filter chip strip (type, quick range, sort). */
 function FilterChip({
   active,
   onClick,
@@ -98,8 +79,10 @@ function FilterChip({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        active ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:bg-muted",
+        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        active
+          ? "border-primary bg-primary text-primary-foreground shadow-xs"
+          : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
         className,
       )}
     >
@@ -108,17 +91,10 @@ function FilterChip({
   );
 }
 
-/** Unified reproduction events feed (RAKHAL-051 `GET /reproduction/events`) — every heat/AI/pregnancy-
- * check/calving/abortion, grouped under a heading per day.
- *
- * **Real server pagination** (`useCursorPager`, same numbered-page adapter every other cursor list
- * uses): the endpoint now takes a keyset `cursor`, so older events are reachable instead of being
- * silently cut at the newest 100. The pager resets to page 1 whenever a filter or the page size changes.
- *
- * **Filters**, in three tiers so the common case is one tap: the event-type chip strip is always
- * visible; cow and a from–to date range live in a compact one-row panel that is always open on a wide
- * card and behind a "Filters (n)" button on a narrow one; and whatever is applied shows as
- * removable chips underneath, so it is always obvious why the list is short. */
+/**
+ * Reproduction Events Activity Feed.
+ * Full width, comprehensive log with filters in a neat top bar.
+ */
 export function ReproductionEventsFeed() {
   const t = useTranslations("reproduction.eventsFeed");
   const [editingBreedingEventId, setEditingBreedingEventId] = useState<string | null>(null);
@@ -138,7 +114,6 @@ export function ReproductionEventsFeed() {
     toDate: toDate || undefined,
   };
   const pager = useInfiniteCursorList(
-    // Prefix matches the dashboard/event mutations' `["reproduction", "events"]` invalidation.
     ["reproduction", "events", "list", filters],
     (cursor, limit) =>
       reproductionApi.events({
@@ -149,13 +124,13 @@ export function ReproductionEventsFeed() {
         cursor,
         limit,
       }),
-    // The same id can appear under two event types, so the dedupe key includes the type (as the row key does).
     { pageSize: EVENTS_PAGE_SIZE, getId: (event) => `${event.event_type}-${event.id}` },
   );
 
   const hasDateFilter = !!fromDate || !!toDate;
   const panelFilterCount = (cattle ? 1 : 0) + (hasDateFilter ? 1 : 0);
   const hasActiveFilters = panelFilterCount > 0 || eventType !== "all";
+
   function clearAll() {
     setCattle(null);
     setEventType("all");
@@ -167,7 +142,6 @@ export function ReproductionEventsFeed() {
     setToDate("");
   }
 
-  /** The current page's rows bucketed by calendar day, preserving the backend's order. */
   const dayGroups = useMemo(() => {
     const groups: { day: string; items: ReproEventEntry[] }[] = [];
     for (const item of pager.items) {
@@ -180,8 +154,8 @@ export function ReproductionEventsFeed() {
   }, [pager.items]);
 
   return (
-    <ReproductionCard title={t("title")} description={t("description")} className="h-full">
-      <div className="flex flex-col gap-3 rounded-xl bg-muted/40 p-3">
+    <ReproductionCard title={t("title")} description={t("description")}>
+      <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/40 p-3">
         <div className="flex items-center gap-2">
           <div
             role="group"
@@ -215,11 +189,9 @@ export function ReproductionEventsFeed() {
           </Button>
         </div>
 
-        {/* One compact row: the pickers flex to fit the card but are capped (cow 15rem, dates 10rem) so they never
-            stretch across a wide one; below 28rem the whole panel folds behind the "Filters" button. */}
         <div className={cn("flex-wrap items-end gap-3", filtersOpen ? "flex" : "hidden @md:flex")}>
-          <div className="flex w-full min-w-0 flex-col gap-1 @md:w-auto @md:max-w-60 @md:min-w-40 @md:flex-[1.4]">
-            <Label className="text-xs text-muted-foreground">{t("filterCow")}</Label>
+          <div className="flex w-full min-w-0 flex-col gap-1 @md:w-auto @md:max-w-60 @md:min-w-44 @md:flex-[1.4]">
+            <Label className="text-xs font-medium text-muted-foreground">{t("filterCow")}</Label>
             <CattlePicker
               value={cattle?.id}
               onValueChange={(_id, option) => setCattle(option)}
@@ -227,8 +199,8 @@ export function ReproductionEventsFeed() {
               className="h-9 px-3 text-sm"
             />
           </div>
-          <div className="flex min-w-28 flex-1 flex-col gap-1 @md:max-w-40">
-            <Label className="text-xs text-muted-foreground">{t("fromDate")}</Label>
+          <div className="flex min-w-32 flex-1 flex-col gap-1 @md:max-w-44">
+            <Label className="text-xs font-medium text-muted-foreground">{t("fromDate")}</Label>
             <DatePicker
               label={t("fromDate")}
               placeholder={t("fromDate")}
@@ -238,8 +210,8 @@ export function ReproductionEventsFeed() {
               className="h-9 px-3"
             />
           </div>
-          <div className="flex min-w-28 flex-1 flex-col gap-1 @md:max-w-40">
-            <Label className="text-xs text-muted-foreground">{t("toDate")}</Label>
+          <div className="flex min-w-32 flex-1 flex-col gap-1 @md:max-w-44">
+            <Label className="text-xs font-medium text-muted-foreground">{t("toDate")}</Label>
             <DatePicker
               label={t("toDate")}
               placeholder={t("toDate")}
@@ -252,13 +224,21 @@ export function ReproductionEventsFeed() {
         </div>
 
         {hasActiveFilters ? (
-          <div className="flex flex-wrap items-center gap-2 border-t border-dashed border-border pt-3">
+          <div className="flex flex-wrap items-center gap-2 border-t border-dashed border-border pt-2.5">
             <span className="text-xs font-medium text-muted-foreground">{t("applied")}</span>
             {eventType !== "all" ? (
-              <AppliedChip label={t(`eventTypes.${eventType}`)} removeLabel={t("removeFilter", { name: t(`eventTypes.${eventType}`) })} onRemove={() => setEventType("all")} />
+              <AppliedChip
+                label={t(`eventTypes.${eventType}`)}
+                removeLabel={t("removeFilter", { name: t(`eventTypes.${eventType}`) })}
+                onRemove={() => setEventType("all")}
+              />
             ) : null}
             {cattle ? (
-              <AppliedChip label={cattleName(cattle)} removeLabel={t("removeFilter", { name: cattleName(cattle) })} onRemove={() => setCattle(null)} />
+              <AppliedChip
+                label={cattleName(cattle)}
+                removeLabel={t("removeFilter", { name: cattleName(cattle) })}
+                onRemove={() => setCattle(null)}
+              />
             ) : null}
             {hasDateFilter ? (
               <AppliedChip
@@ -279,9 +259,9 @@ export function ReproductionEventsFeed() {
       </div>
 
       {pager.isLoading ? (
-        <div className="flex flex-col gap-3">
-          {Array.from({ length: 5 }, (_, i) => (
-            <Skeleton key={i} className="h-14 w-full" />
+        <div className="flex flex-col gap-3 py-2">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-xl" />
           ))}
         </div>
       ) : pager.isError ? (
@@ -290,7 +270,7 @@ export function ReproductionEventsFeed() {
         <EmptyState
           title={t("empty")}
           description={hasActiveFilters ? t("emptyFiltered") : undefined}
-          className="py-8"
+          className="py-10"
           action={
             hasActiveFilters ? (
               <Button size="sm" variant="secondary" onClick={clearAll}>
@@ -300,11 +280,11 @@ export function ReproductionEventsFeed() {
           }
         />
       ) : (
-        <div className={cn("flex flex-1 flex-col gap-4", pager.isFetching && "opacity-70 transition-opacity")}>
+        <div className={cn("flex flex-1 flex-col gap-5", pager.isFetching && "opacity-70 transition-opacity")}>
           {dayGroups.map((group) => (
-            <section key={group.day} className="flex flex-col gap-1">
+            <section key={group.day} className="flex flex-col gap-1.5">
               <DayHeading day={group.day} />
-              <ul className="flex flex-col">
+              <ul className="flex flex-col divide-y divide-border/60 rounded-xl border border-border/80 bg-card overflow-hidden">
                 {group.items.map((event) => (
                   <EventRow
                     key={`${event.event_type}-${event.id}`}
@@ -367,16 +347,15 @@ export function ReproductionEventsFeed() {
   );
 }
 
-/** A filter that is currently applied, with its own ✕ — so nobody has to open the panel to undo one. */
 function AppliedChip({ label, removeLabel, onRemove }: { label: React.ReactNode; removeLabel: string; onRemove: () => void }) {
   return (
-    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary/10 py-0.5 pl-2.5 pr-1 text-xs font-medium text-primary">
+    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary/10 py-0.5 pl-2.5 pr-1 text-xs font-semibold text-primary">
       <span className="truncate">{label}</span>
       <button
         type="button"
         aria-label={removeLabel}
         onClick={onRemove}
-        className="flex size-5 items-center justify-center rounded-full transition-colors hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex size-4.5 items-center justify-center rounded-full transition-colors hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <X className="size-3" aria-hidden />
       </button>
@@ -384,13 +363,12 @@ function AppliedChip({ label, removeLabel, onRemove }: { label: React.ReactNode;
   );
 }
 
-/** "Today" / "Yesterday" / "Tue, 29 Sep 2026" — the day is the group's only date, so rows drop theirs. */
 function DayHeading({ day }: { day: string }) {
   const t = useTranslations("reproduction.eventsFeed");
   const now = new Date();
   const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
   return (
-    <h3 className="py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <h3 className="px-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">
       {day === localDayKey(now) ? (
         t("today")
       ) : day === localDayKey(yesterday) ? (
@@ -405,7 +383,6 @@ function DayHeading({ day }: { day: string }) {
 function EventRow({ event, onEdit, onVoid }: { event: ReproEventEntry; onEdit?: () => void; onVoid?: () => void }) {
   const t = useTranslations("reproduction.eventsFeed");
   const Icon = EVENT_ICONS[event.event_type];
-  // `resolution` / `resolved_at` render as a status badge, not as raw detail chips.
   const resolution = typeof event.details.resolution === "string" ? event.details.resolution : null;
   const details = Object.entries(event.details)
     .filter(([k]) => k !== "resolution" && k !== "resolved_at")
@@ -415,22 +392,23 @@ function EventRow({ event, onEdit, onVoid }: { event: ReproEventEntry; onEdit?: 
   const extra = details.length - shownDetails.length;
 
   return (
-    <li className="flex items-start gap-3 rounded-lg px-1.5 py-2.5 transition-colors hover:bg-muted/50 sm:px-2">
-      <span className={`flex size-9 shrink-0 items-center justify-center rounded-full ${EVENT_TINTS[event.event_type]}`}>
-        <Icon className="size-4" aria-hidden />
+    <li className="flex items-center gap-3.5 px-3.5 py-3 transition-colors hover:bg-muted/40">
+      <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${EVENT_TINTS[event.event_type]}`}>
+        <Icon className="size-4.5" aria-hidden />
       </span>
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
         <p className="text-sm font-medium text-foreground">
-          {t(`eventTypes.${event.event_type}`)} <span className="text-muted-foreground">—</span>{" "}
+          <span className="font-semibold">{t(`eventTypes.${event.event_type}`)}</span>
+          <span className="text-muted-foreground mx-1.5">·</span>
           <AnimalLink
             id={event.cattle_id}
             animalName={event.cattle_name}
             tagNumber={event.cattle_tag}
-            className="text-foreground hover:text-primary"
+            className="text-foreground hover:text-primary transition-colors font-medium"
           >
             {event.cattle_name ?? event.cattle_tag}
           </AnimalLink>
-          {event.cattle_name ? <span className="ml-1 text-xs font-normal text-muted-foreground">{event.cattle_tag}</span> : null}
+          {event.cattle_name ? <span className="ml-1 text-xs text-muted-foreground">({event.cattle_tag})</span> : null}
           {event.event_type === "heat" && resolution ? (
             <span className="ml-2 inline-block rounded-full bg-muted px-2 py-0.5 align-middle text-xs font-semibold text-muted-foreground">
               {t(`resolution.${resolution}`)}
@@ -454,9 +432,9 @@ function EventRow({ event, onEdit, onVoid }: { event: ReproEventEntry; onEdit?: 
       </div>
       {onEdit || onVoid ? (
         <Can I="reproduction.update">
-          <div className="flex shrink-0 items-center">
+          <div className="flex shrink-0 items-center gap-1">
             {onEdit ? (
-              <Button variant="ghost" size="icon" className="size-9 shrink-0" onClick={onEdit} aria-label={t("edit")}>
+              <Button variant="ghost" size="icon" className="size-8" onClick={onEdit} aria-label={t("edit")}>
                 <Pencil className="size-4" aria-hidden />
               </Button>
             ) : null}
@@ -464,7 +442,7 @@ function EventRow({ event, onEdit, onVoid }: { event: ReproEventEntry; onEdit?: 
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-9 shrink-0 text-destructive hover:text-destructive"
+                className="size-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                 onClick={onVoid}
                 aria-label={t("void")}
                 title={t("void")}

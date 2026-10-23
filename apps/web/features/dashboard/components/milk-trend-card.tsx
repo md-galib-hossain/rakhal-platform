@@ -39,6 +39,7 @@ export function MilkTrendCard() {
   return (
     <ChartCard
       title={t("title")}
+      className="h-full"
       rangeControl={
         <div className="flex items-center gap-2">
           <MilkTrendRangeSelect value={range} onChange={setRange} />
@@ -48,7 +49,7 @@ export function MilkTrendCard() {
         </div>
       }
     >
-      <MilkTrendChartInner trend={query.data?.trend ?? []} label={t("title")} />
+      <MilkTrendChartInner trend={query.data?.trend ?? []} label={t("title")} compact />
     </ChartCard>
   );
 }

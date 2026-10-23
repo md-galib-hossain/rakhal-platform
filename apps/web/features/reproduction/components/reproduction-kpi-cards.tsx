@@ -8,27 +8,25 @@ import { ErrorState } from "@/components/shared/error-state";
 import { cn } from "@/lib/utils";
 import { useReproductionDashboard } from "../hooks/use-reproduction";
 
-function HighlightTile({
-  icon,
-  iconBg,
-  label,
-  value,
-  footnote,
-}: {
+interface HighlightTileProps {
   icon: React.ReactNode;
   iconBg: string;
   label: string;
   value: React.ReactNode;
   footnote?: React.ReactNode;
-}) {
+}
+
+function HighlightTile({ icon, iconBg, label, value, footnote }: HighlightTileProps) {
   return (
-    <div className="flex flex-1 flex-col justify-between gap-3 rounded-xl border border-border bg-card p-3">
-      <div className="flex items-center gap-2">
-        <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", iconBg)}>{icon}</span>
-        <p className="text-sm font-medium text-foreground">{label}</p>
+    <div className="flex flex-1 flex-col justify-between gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-border/80">
+      <div className="flex items-center gap-2.5">
+        <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg shadow-2xs", iconBg)}>
+          {icon}
+        </span>
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
       </div>
-      <div className="flex flex-col gap-1">
-        <p className="text-2xl font-bold text-foreground">{value}</p>
+      <div className="flex flex-col gap-0.5">
+        <p className="text-2xl font-bold tracking-tight text-foreground tabular-nums">{value}</p>
         {footnote ? <p className="text-xs text-muted-foreground">{footnote}</p> : null}
       </div>
     </div>
@@ -36,9 +34,10 @@ function HighlightTile({
 }
 
 /**
- * Reproduction Highlights KPI section (matching Animal Highlights visual language) —
- * 4 headline KPIs from `GET /reproduction/dashboard`: Heat Detection Rate, Conception Rate,
- * Pregnancy Rate, and Avg. Calving Interval.
+ * Reproduction Highlights KPI Section (Figma/Rakhal Design Standard).
+ * Follows the exact pattern from `CattleHighlightsBar` and `HealthStatStrip`:
+ * An elevated outer card with an explicit section title (`text-xl font-medium`)
+ * and a 4-tile grid of consistent, beautifully proportioned KPI tiles.
  */
 export function ReproductionKpiCards() {
   const t = useTranslations("reproduction.kpi");
@@ -50,18 +49,20 @@ export function ReproductionKpiCards() {
 
   return (
     <Card className="flex flex-col gap-4 rounded-2xl border-border p-4 shadow-card">
-      <p className="text-xl font-medium text-foreground">{t("title")}</p>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-medium text-foreground">{t("title")}</h2>
+      </div>
 
       {dashboard.isLoading ? (
-        <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-[104px] flex-1 rounded-xl" />
+            <Skeleton key={i} className="h-[108px] rounded-xl" />
           ))}
         </div>
       ) : dashboard.isError ? (
         <ErrorState description={t("error")} onRetry={() => dashboard.refetch()} />
       ) : dashboard.data ? (
-        <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <HighlightTile
             icon={<HeartPulse className="size-4 text-accent-pink" aria-hidden />}
             iconBg="bg-accent-pink-tint"

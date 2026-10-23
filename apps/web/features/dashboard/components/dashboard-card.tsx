@@ -1,3 +1,5 @@
+import { cn } from "@/lib/utils";
+
 /**
  * Card chrome pixel-matched against the Figma "Dashboard" frame's widget cards (file
  * SCfMPdxP6vgW1uTxfqCtz7, node 732:1656 — e.g. "Production Key Metrics" 732:1723, "Livestock
@@ -19,19 +21,16 @@ export function DashboardCard({
 }) {
   return (
     <div
-      className={
-        /* `shadow-card` alone is a black rgba shadow — invisible on a dark page, and in dark
-         * mode this card and its `PageCard` parent share the exact same `--card` color, so
-         * there's no color separation either. `border-border` gives every theme a real edge. */
-        "flex flex-col gap-6 rounded-2xl border border-border bg-card p-4 shadow-card " +
-        (className ?? "")
-      }
+      className={cn(
+        "flex h-full w-full flex-col justify-between gap-4 rounded-2xl border border-border bg-card p-4 shadow-card",
+        className,
+      )}
     >
       <div className="flex items-center justify-between gap-2">
         <p className="text-base font-medium text-foreground">{title}</p>
         {headerRight}
       </div>
-      {children}
+      <div className="flex flex-1 flex-col justify-between">{children}</div>
     </div>
   );
 }

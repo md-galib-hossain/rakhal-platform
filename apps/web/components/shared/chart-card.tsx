@@ -21,7 +21,7 @@ export interface ChartCardProps {
  * doesn't float in a sea of whitespace. */
 export function ChartCard({ title, subtitle, rangeControl, exportControl, legend, children, className }: ChartCardProps) {
   return (
-    <Card className={cn("rounded-2xl", className)}>
+    <Card className={cn("flex h-full w-full flex-col justify-between rounded-2xl", className)}>
       <CardHeader className="flex-row items-center justify-between space-y-0 p-4 pb-3">
         <div className="flex flex-col gap-1">
           <CardTitle className="text-base">{title}</CardTitle>
@@ -33,7 +33,7 @@ export function ChartCard({ title, subtitle, rangeControl, exportControl, legend
           {exportControl}
         </div>
       </CardHeader>
-      <CardContent className="p-4 pt-0">{children}</CardContent>
+      <CardContent className="flex flex-1 flex-col justify-between p-4 pt-0">{children}</CardContent>
     </Card>
   );
 }

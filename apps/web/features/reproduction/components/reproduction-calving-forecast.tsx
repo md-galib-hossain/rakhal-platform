@@ -13,28 +13,24 @@ import { useReproductionDashboard } from "../hooks/use-reproduction";
 import { ReproductionCard } from "./reproduction-card";
 import { ReproductionCowIdentity } from "./reproduction-cow-identity";
 
-/** 8 rows per page: this card shares a row with the (taller) events feed, so a bigger page than the
- * attention list's 5 keeps the pair balanced instead of leaving half the card empty. */
 const FORECAST_PAGE_SIZE = 8;
 
-/** Whole calendar days from today to `iso` (negative = overdue). Compares `YYYY-MM-DD` parts, not
- * instants, so the time-of-day / timezone of the stored date can never shift a row by one day. */
 function daysUntil(iso: string): number {
   const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
   const now = new Date();
   return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) / 86_400_000);
 }
 
-/** "Calving Forecast Widget" (PRD §9.2): 30-day forward list of expected calvings, already sorted by
- * the backend. No calendar-grid component exists in `components/shared/` and this module has no Figma
- * frame to dictate one, so each row is a date tile + cow + "in N days" — the tile is tinted by how
- * close the date is, so the imminent ones read at a glance without a real calendar widget. */
+/**
+ * Calving Forecast Widget (30 Days).
+ * Sits in the top 2-column operational row next to "Needs attention today".
+ * Clean date badges, cow identity with avatar, and countdown chip.
+ */
 export function ReproductionCalvingForecast() {
   const t = useTranslations("reproduction.calvingForecast");
   const dashboard = useReproductionDashboard();
 
   const rows = dashboard.data?.calving_forecast_30_days ?? [];
-  // The 30-day forecast arrives whole in the dashboard payload, so "more" reveals rows already held.
   const reveal = useIncrementalReveal(rows, FORECAST_PAGE_SIZE);
   const pageRows = reveal.visible;
 
@@ -42,45 +38,58 @@ export function ReproductionCalvingForecast() {
     <ReproductionCard
       title={t("title")}
       description={dashboard.data ? t("count", { count: rows.length }) : undefined}
-      className="h-full"
+      className="h-full min-h-[30rem]"
     >
       {dashboard.isLoading ? (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 py-2">
           {Array.from({ length: 4 }, (_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
+            <Skeleton key={i} className="h-14 w-full rounded-xl" />
           ))}
         </div>
       ) : dashboard.isError ? (
         <ErrorState description={t("error")} onRetry={() => dashboard.refetch()} />
       ) : rows.length === 0 ? (
-        <EmptyState icon={CalendarCheck} title={t("empty")} className="flex-1 justify-center py-8" />
+        <EmptyState
+          icon={CalendarCheck}
+          title={t("empty")}
+          className="flex-1 justify-center py-10"
+        />
       ) : (
         <div className="flex flex-1 flex-col gap-3">
-          <ul className="flex flex-col divide-y divide-border">
+          <ul className="flex flex-col divide-y divide-border/80">
             {pageRows.map((row) => {
               const days = daysUntil(row.expected_date);
               const soon = days <= 7;
               return (
-                <li key={row.cattle_id} className="flex min-h-[3.75rem] items-center gap-3 py-2.5">
+                <li
+                  key={row.cattle_id}
+                  className="flex min-h-[3.75rem] items-center gap-3.5 py-2.5 px-2 rounded-lg transition-colors hover:bg-muted/30"
+                >
                   <time
                     dateTime={row.expected_date}
                     className={cn(
-                      "flex size-10 shrink-0 flex-col items-center justify-center rounded-lg leading-none",
-                      soon ? "bg-warning-tint text-warning" : "bg-info-tint text-info",
+                      "flex size-10 shrink-0 flex-col items-center justify-center rounded-xl font-medium leading-none border shadow-2xs",
+                      soon
+                        ? "border-warning/30 bg-warning-tint text-warning"
+                        : "border-info/30 bg-info-tint text-info",
                     )}
                   >
-                    <DateText date={row.expected_date} options={{ day: "numeric" }} className="text-base font-bold" />
+                    <DateText date={row.expected_date} options={{ day: "numeric" }} className="text-sm font-bold" />
                     <DateText
                       date={row.expected_date}
                       options={{ month: "short" }}
-                      className="mt-0.5 text-[0.65rem] font-medium uppercase"
+                      className="mt-0.5 text-[0.65rem] font-semibold uppercase tracking-wider"
                     />
                   </time>
                   <ReproductionCowIdentity cattleId={row.cattle_id} name={row.name} tag={row.tag} className="flex-1" />
                   <span
                     className={cn(
-                      "shrink-0 text-xs font-medium",
-                      days < 0 ? "text-destructive" : soon ? "text-warning" : "text-muted-foreground",
+                      "shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums",
+                      days < 0
+                        ? "bg-destructive-tint text-destructive"
+                        : soon
+                          ? "bg-warning-tint text-warning"
+                          : "bg-muted text-muted-foreground",
                     )}
                   >
                     {days < 0
