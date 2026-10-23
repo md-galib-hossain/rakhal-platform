@@ -20,6 +20,7 @@ const ADMIN_ROLE_GRANTS: Record<PlatformAdminRole, string[]> = {
     'system.read',
     'config.read',
     'analytics.read',
+    'security.read',
   ],
   BILLING_ADMIN: [
     'coupon.*',

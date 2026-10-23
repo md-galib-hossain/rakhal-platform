@@ -79,7 +79,12 @@ export class AdminDirectoryService {
         district: true,
         createdAt: true,
         owner: { select: { id: true, name: true, email: true } },
-        _count: { select: { members: true } },
+        _count: {
+          select: {
+            members: true,
+            cattle: { where: { deletedAt: null } },
+          },
+        },
         subscriptions: LATEST_SUBSCRIPTION,
       },
     });
@@ -90,6 +95,7 @@ export class AdminDirectoryService {
       items: page.items.map(({ subscriptions, _count, ...farm }) => ({
         ...farm,
         memberCount: _count.members,
+        cattleCount: _count.cattle,
         subscription: subscriptions[0] ?? null,
       })),
     };
@@ -190,16 +196,24 @@ export class AdminDirectoryService {
         lockedUntil: true,
         lastLoginAt: true,
         createdAt: true,
-        _count: { select: { farmMembers: true } },
+        _count: { select: { farmMembers: true, ownedFarms: true } },
+        sessions: {
+          orderBy: { lastUsedAt: { sort: 'desc', nulls: 'last' } },
+          take: 1,
+          select: { lastUsedAt: true },
+        },
       },
     });
 
     const page = toCursorPage(rows, query);
     return {
       ...page,
-      items: page.items.map(({ _count, ...user }) => ({
+      items: page.items.map(({ _count, sessions, ...user }) => ({
         ...user,
         farmCount: _count.farmMembers,
+        ownedFarmCount: _count.ownedFarms,
+        /** Most recent time any of the user's sessions was used (null = never). */
+        lastActiveAt: sessions[0]?.lastUsedAt ?? null,
       })),
     };
   }
@@ -239,9 +253,27 @@ export class AdminDirectoryService {
       where: { userId: id, status: 'ACTIVE', expiresAt: { gt: new Date() } },
     });
 
+    // Sign-in history: IP, device and timing only. Token/refresh material is never selected.
+    const recentSessions = await this.prisma.session.findMany({
+      where: { userId: id },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: 20,
+      select: {
+        id: true,
+        status: true,
+        ipAddress: true,
+        userAgent: true,
+        deviceName: true,
+        createdAt: true,
+        lastUsedAt: true,
+        expiresAt: true,
+      },
+    });
+
     const { mfa, farmMembers, _count, ...rest } = user;
     return {
       ...rest,
+      recentSessions,
       mfaConfigured: mfa !== null,
       ownedFarmCount: _count.ownedFarms,
       activeSessionCount: activeSessions,
@@ -271,6 +303,9 @@ export class AdminDirectoryService {
         now.getUTCDate() - (SERIES_DAYS - 1),
       ),
     );
+    const monthStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    );
 
     const [
       farmsByStatus,
@@ -283,6 +318,10 @@ export class AdminDirectoryService {
       subs,
       farmSeries,
       userSeries,
+      farmsMonth,
+      usersMonth,
+      dau,
+      mau,
     ] = await Promise.all([
       this.prisma.farm.groupBy({
         by: ['status'],
@@ -313,6 +352,14 @@ export class AdminDirectoryService {
         GROUP BY status`,
       this.dailySeries('Farm', seriesFrom),
       this.dailySeries('User', seriesFrom),
+      this.prisma.farm.count({
+        where: { deletedAt: null, createdAt: { gte: monthStart } },
+      }),
+      this.prisma.user.count({
+        where: { deletedAt: null, createdAt: { gte: monthStart } },
+      }),
+      this.activeUsers(since(1)),
+      this.activeUsers(since(30)),
     ]);
 
     const farmCounts: Record<string, number> = {
@@ -329,12 +376,17 @@ export class AdminDirectoryService {
         byStatus: farmCounts,
         newLast7Days: farms7,
         newLast30Days: farms30,
+        newThisMonth: farmsMonth,
       },
       users: {
         total: usersTotal,
         blocked: usersBlocked,
         newLast7Days: users7,
         newLast30Days: users30,
+        newThisMonth: usersMonth,
+        /** Distinct users whose session was used in the last 24 h / 30 days (see AdminInsightsService). */
+        activeLastDay: dau,
+        activeLast30Days: mau,
       },
       subscriptions: {
         byStatus: Object.fromEntries(subs.map((s) => [s.status, Number(s.n)])),
@@ -345,6 +397,14 @@ export class AdminDirectoryService {
         users: this.fillDays(userSeries, seriesFrom),
       },
     };
+  }
+
+  private async activeUsers(since: Date): Promise<number> {
+    const rows = await this.prisma.$queryRaw<{ n: bigint }[]>`
+      SELECT count(DISTINCT s."userId") AS n
+      FROM "Session" s JOIN "User" u ON u.id = s."userId" AND u."deletedAt" IS NULL
+      WHERE s."lastUsedAt" >= ${since}`;
+    return Number(rows[0]?.n ?? 0);
   }
 
   private async dailySeries(
