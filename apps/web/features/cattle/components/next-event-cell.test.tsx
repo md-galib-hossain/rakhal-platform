@@ -57,24 +57,33 @@ describe("NextEventCell", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("shows the label, how overdue it is, and the date", () => {
+  it("shows the label and how overdue it is without showing the date in the column", () => {
     renderCell(cow());
     expect(screen.getByText("Antibiotic day 2")).toBeInTheDocument();
     expect(screen.getByText(/2d overdue/)).toBeInTheDocument();
-    expect(screen.getByText(/Oct 9, 2026/)).toBeInTheDocument();
+    expect(screen.queryByText(/Oct 9, 2026/)).not.toBeInTheDocument();
   });
 
-  it("shows a +N hint only when more events exist", () => {
+  it("keeps the column simple showing only the single event without +N hints", () => {
     const { unmount } = render(
       <NextIntlClientProvider locale="en" messages={en}>
         <NextEventCell cattle={cow({ upcoming_event_count: 3 })} onView={vi.fn()} />
       </NextIntlClientProvider>,
     );
-    expect(screen.getByText("+2 more")).toBeInTheDocument();
+    expect(screen.queryByText(/\+2 more/)).not.toBeInTheDocument();
+    expect(screen.getByText("Antibiotic day 2")).toBeInTheDocument();
     unmount();
 
     renderCell(cow({ upcoming_event_count: 1 }));
     expect(screen.queryByText(/more/)).not.toBeInTheDocument();
+  });
+
+  it("shows full details with date and title when the cell is clicked", () => {
+    renderCell(cow());
+    fireEvent.click(screen.getByRole("button", { name: /Bessie/ }));
+    expect(screen.getByText(/Oct 9, 2026/)).toBeInTheDocument();
+    expect(screen.getAllByText("Antibiotic day 2")).toHaveLength(2);
+    expect(screen.getAllByText(/2d overdue/)).toHaveLength(2);
   });
 
   it("names the relative day for today, tomorrow and later", () => {

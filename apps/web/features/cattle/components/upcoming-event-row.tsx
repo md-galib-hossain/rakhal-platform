@@ -55,10 +55,57 @@ export function useEventText(event: UpcomingEvent) {
   };
 }
 
-export function UpcomingEventRow({ event }: { event: UpcomingEvent }) {
+export function UpcomingEventRow({
+  event,
+  detailed = false,
+}: {
+  event: UpcomingEvent;
+  detailed?: boolean;
+}) {
   const t = useTranslations("cattle");
   const text = useEventText(event);
   const Icon = KIND_ICON[event.kind];
+  const kindLabel = t(`upcoming.kinds.${event.kind}`);
+
+  if (detailed) {
+    return (
+      <li className="flex items-start gap-3 px-3.5 py-2.5 transition-colors hover:bg-muted/30">
+        <div
+          className={cn(
+            "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border",
+            {
+              "border-destructive/30 bg-destructive/10 text-destructive": text.variant === "destructive",
+              "border-warning/30 bg-warning/10 text-warning": text.variant === "warning",
+              "border-info/30 bg-info/10 text-info": text.variant === "info",
+              "border-border bg-muted/60 text-muted-foreground": text.variant === "muted",
+            },
+          )}
+        >
+          <Icon className="size-4 shrink-0" aria-hidden />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-sm font-semibold leading-snug text-foreground break-words">
+              {text.label}
+            </span>
+            {!event.actionable ? (
+              <span className="shrink-0 text-xs font-medium text-muted-foreground">· {t("upcoming.info")}</span>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+            <span className={cn("font-medium", DUE_TEXT[text.variant])}>
+              <span>{text.due}</span>
+              {text.date ? <span className="text-muted-foreground font-normal"> ({text.date})</span> : null}
+            </span>
+            {kindLabel && kindLabel !== text.label ? (
+              <span className="text-muted-foreground/80">· {kindLabel}</span>
+            ) : null}
+          </div>
+        </div>
+      </li>
+    );
+  }
+
   return (
     <li className="flex items-start gap-2.5 px-3 py-2">
       <Icon className={cn("mt-0.5 size-4 shrink-0", DUE_TEXT[text.variant])} aria-hidden />
