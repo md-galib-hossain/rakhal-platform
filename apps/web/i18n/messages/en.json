@@ -6323,7 +6323,10 @@
       "filters": {
         "all": "All Plans ({count})",
         "active": "Active / Applied ({count})",
-        "unassigned": "Unassigned Drafts ({count})"
+        "unassigned": "Unassigned Drafts ({count})",
+        "emptyTitle": "No plans in this filter",
+        "emptyHint": "No feed plans match the selected status filter.",
+        "switchAll": "Switch to All Plans"
       },
       "kind": {
         "PLAN": "Plan",
@@ -6348,12 +6351,15 @@
         "moreIngredients": "+{count} more ingredients",
         "herdDemand": "Herd Daily Demand",
         "herdDemandFormula": "{count, plural, one {# cow} other {# cows}} × {kg} kg/day",
+        "herdDemandPerHead": "{kg} kg/head/day · Whole Herd",
         "herdDemandUnassigned": "Unassigned · Apply to calculate daily herd volume",
         "viewAndManageCows": "View & Manage {count, plural, one {# Cow} other {# Cows}} →",
+        "viewAndManageHerd": "View & Manage Herd →",
         "viewAssigned": "View Assigned Animals",
         "noCowsAssigned": "No animals assigned yet",
         "applyPrompt": "Click Apply to assign this plan to cows or groups.",
         "appliedStatus": "Active • {count, plural, one {# Cow} other {# Cows}}",
+        "appliedStatusHerd": "Active • Whole Herd Default",
         "unassignedStatus": "Unassigned Draft",
         "removeProgram": "Remove",
         "removeConfirmTitle": "Remove this program?",
@@ -6381,7 +6387,8 @@
           "assignmentTypes": "Assignment Sources",
           "directCount": "{count} Direct",
           "groupCount": "{count} via Group",
-          "herdCount": "Whole Herd"
+          "herdCount": "Whole Herd",
+          "herdDemandPerHead": "{kg} kg/head · Whole Herd Default"
         },
         "filters": {
           "all": "All Cattle ({count})",
@@ -6392,7 +6399,7 @@
         "applyMore": "Assign More Cows",
         "removeAction": "Remove",
         "removeConfirmTitle": "Remove {cowName} from this plan?",
-        "removeConfirmDesc": "{cowName} ({tagNumber}) will no longer receive this feed ration. Historical feeding records are kept.",
+        "removeConfirmDesc": "{target} will no longer receive this feed ration. Historical feeding records are kept.",
         "removeSuccessToast": "{cowName} removed from {planName}",
         "emptyFilterTitle": "No cattle match \"{query}\"",
         "emptyFilterHint": "Try searching with a different name or ear tag number.",

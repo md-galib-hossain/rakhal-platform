@@ -219,7 +219,7 @@
 
   --shadow-card: var(--shadow-card);
 
-  --font-sans: var(--font-latin), var(--font-bengali), sans-serif;
+  --font-sans: var(--font-latin), var(--font-bengali), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-bengali: var(--font-bengali), sans-serif;
 }
 
@@ -227,8 +227,10 @@
   * {
     @apply border-border;
   }
+  html,
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+    font-family: var(--font-sans);
   }
 }
 

@@ -48,7 +48,7 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="flex w-full flex-col items-center gap-[60px]" noValidate>
+    <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="flex w-full flex-col items-center gap-[60px]" noValidate>
       <div className="flex flex-col items-center gap-3 text-center">
         <h1 className="text-[28px] font-bold leading-[1.4] text-foreground">{t("forgotPassword.title")}</h1>
         <p className="text-base text-muted-foreground">{t("forgotPassword.subtitle")}</p>

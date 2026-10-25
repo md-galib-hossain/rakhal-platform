@@ -151,7 +151,7 @@ export function InviteAcceptView({ token, preview, notFound, hasSession, session
               </button>
             </div>
 
-            <form onSubmit={form.handleSubmit(onSubmit)} className="flex w-full flex-col gap-4" noValidate>
+            <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="flex w-full flex-col gap-4" noValidate>
               {mode === "register" ? (
                 <FloatingInput
                   id="invite-name"

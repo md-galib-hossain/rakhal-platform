@@ -96,16 +96,18 @@ export function DatePicker({
             disabled={disabled}
             onBlur={onBlur}
             className={cn(
-              "flex h-11 w-full items-center gap-2 rounded-md border border-input bg-card px-3.5 text-left shadow-xs transition-colors hover:border-ring/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+              "flex min-h-[56px] w-full items-center justify-between gap-2 rounded-xl border border-input bg-card px-4 py-2 text-left shadow-xs transition-colors hover:border-ring/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
               clearable && selected && !disabled && "pr-16",
               error && "border-destructive focus-visible:ring-destructive",
               className,
             )}
           >
-            <span className="sr-only">{label}</span>
-            <span className={cn("min-w-0 flex-1 truncate text-sm", selected ? "text-foreground" : "text-muted-foreground")}>
-              {selected ? formatDate(selected, locale) : (placeholder ?? label)}
-            </span>
+            <div className="flex min-w-0 flex-1 flex-col justify-center">
+              <span className="text-xs text-muted-foreground select-none">{label}</span>
+              <span className={cn("truncate text-sm", selected ? "text-foreground" : "text-muted-foreground")}>
+                {selected ? formatDate(selected, locale) : (placeholder ?? "—")}
+              </span>
+            </div>
             {/* Custom brand-colored glyph — replaces the native date input's own picker icon. */}
             <CalendarDays className="size-4 shrink-0 text-primary" aria-hidden />
           </button>

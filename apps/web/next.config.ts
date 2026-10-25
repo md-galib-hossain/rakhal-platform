@@ -11,6 +11,11 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+  allowedDevOrigins: [
+    "local-rakhal-frontend.rakhal.app",
+    "local-rakhal-backend.rakhal.app",
+    "localhost:3005",
+  ],
 };
 
 export default withNextIntl(nextConfig);

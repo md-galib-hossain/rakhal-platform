@@ -33,7 +33,7 @@ export function StatCard({ label, value, delta, deltaLabel, icon, iconClassName,
         <p className="text-sm font-medium text-foreground">{label}</p>
       </div>
       <div className="flex flex-col gap-1">
-        <p className="text-2xl font-bold text-foreground">{value}</p>
+        <p className="text-2xl font-bold tracking-tight text-foreground tabular-nums">{value}</p>
         {typeof delta === "number" ? (
           <div className="flex items-center gap-2">
             <span

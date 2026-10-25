@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Noto_Sans_Bengali, Plus_Jakarta_Sans } from "next/font/google";
+import { Inter, Noto_Sans_Bengali } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { AppProviders } from "@/providers/app-providers";
@@ -12,7 +12,7 @@ const bengali = Noto_Sans_Bengali({
   display: "swap",
 });
 
-const latin = Plus_Jakarta_Sans({
+const latin = Inter({
   variable: "--font-latin",
   subsets: ["latin"],
   display: "swap",
@@ -31,10 +31,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html
       lang={locale}
-      className={`${bengali.variable} ${latin.variable} h-full antialiased`}
+      className={`${bengali.variable} ${latin.variable} h-full antialiased font-sans`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+      <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         <NextIntlClientProvider locale={locale} messages={messages}>
           <AppProviders>{children}</AppProviders>
         </NextIntlClientProvider>

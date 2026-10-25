@@ -80,98 +80,119 @@ function CattleCard({
 }) {
   const t = useTranslations("cattle");
   const initial = (cattle.name ?? cattle.tagNumber).charAt(0).toUpperCase();
+  const hasDistinctName = Boolean(
+    cattle.name && cattle.name.trim().toLowerCase() !== cattle.tagNumber.trim().toLowerCase(),
+  );
+  const title = hasDistinctName ? cattle.name! : cattle.tagNumber;
+  const subtitle = hasDistinctName
+    ? `${cattle.tagNumber}${cattle.breed?.name ? ` · ${cattle.breed.name}` : ""}`
+    : (cattle.breed?.name ?? "");
 
   return (
-    <div className="flex w-full flex-col gap-2.5 rounded-2xl bg-card p-2 shadow-card">
-      <div className="relative h-[110px] w-full shrink-0 rounded-xl">
-        <button
-          type="button"
-          onClick={() => rowActions.onView(cattle)}
-          className="absolute inset-0 cursor-pointer overflow-hidden rounded-xl text-left"
-        >
-          {cattle.profile_photo ? (
-            <Avatar className="size-full rounded-xl">
-              <AvatarImage src={cattle.profile_photo.thumb_url} alt="" className="rounded-xl object-cover" />
-              <AvatarFallback className={cn("rounded-xl text-2xl", avatarTint(cattle.id))}>{initial}</AvatarFallback>
-            </Avatar>
-          ) : (
-            <div className={cn("flex size-full items-center justify-center text-2xl font-semibold", avatarTint(cattle.id))}>
-              {initial}
-            </div>
-          )}
-        </button>
+    <div className="flex h-full w-full flex-col justify-between gap-2.5 rounded-2xl bg-card p-2 shadow-card transition-shadow hover:shadow-md">
+      <div className="flex flex-col gap-2.5">
+        <div className="relative h-[116px] w-full shrink-0 overflow-hidden rounded-xl border border-border/40 bg-muted/40">
+          <button
+            type="button"
+            onClick={() => rowActions.onView(cattle)}
+            className="absolute inset-0 cursor-pointer overflow-hidden rounded-xl text-left"
+          >
+            {cattle.profile_photo ? (
+              <div className="relative size-full">
+                <Avatar className="size-full rounded-xl">
+                  <AvatarImage src={cattle.profile_photo.thumb_url} alt="" className="size-full rounded-xl object-cover" />
+                  <AvatarFallback className={cn("rounded-xl text-2xl", avatarTint(cattle.id))}>{initial}</AvatarFallback>
+                </Avatar>
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20" />
+              </div>
+            ) : (
+              <div className="flex size-full items-center justify-center bg-gradient-to-b from-muted/60 to-muted/20">
+                <div
+                  className={cn(
+                    "flex size-14 items-center justify-center rounded-2xl border border-border/60 text-xl font-bold shadow-xs",
+                    avatarTint(cattle.id),
+                  )}
+                >
+                  {initial}
+                </div>
+              </div>
+            )}
+          </button>
 
-        <div className="pointer-events-none absolute left-2.5 top-2.5 flex flex-wrap items-center gap-1.5">
-          <Chip variant={ANIMAL_CATEGORY_VARIANT[cattle.animalCategory]}>{t(`animalCategory.${cattle.animalCategory}`)}</Chip>
-          {cattle.productionStatus ? (
-            <Chip variant={PRODUCTION_STATUS_VARIANT[cattle.productionStatus]}>
-              {t(`statusOptions.${cattle.productionStatus.toLowerCase()}`)}
-            </Chip>
-          ) : null}
+          <div className="pointer-events-none absolute left-2.5 top-2.5 flex flex-wrap items-center gap-1.5">
+            <Chip variant={ANIMAL_CATEGORY_VARIANT[cattle.animalCategory]}>{t(`animalCategory.${cattle.animalCategory}`)}</Chip>
+            {cattle.productionStatus ? (
+              <Chip variant={PRODUCTION_STATUS_VARIANT[cattle.productionStatus]}>
+                {t(`statusOptions.${cattle.productionStatus.toLowerCase()}`)}
+              </Chip>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="flex w-full flex-col gap-3 px-1.5 pb-1">
+          <button
+            type="button"
+            onClick={() => rowActions.onView(cattle)}
+            className="flex flex-col gap-0.5 text-left transition-opacity hover:opacity-80"
+          >
+            <span className="flex items-center gap-1.5">
+              <span className="truncate text-lg font-bold text-foreground hover:underline">{title}</span>
+              <GenderGlyph gender={cattle.gender} />
+            </span>
+            <span className="block min-h-[16px] truncate text-xs text-muted-foreground">
+              {subtitle || "\u00A0"}
+            </span>
+          </button>
+
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <CalendarDays className="size-3.5 text-muted-foreground/70" aria-hidden />
+                {t("columns.age")}
+              </span>
+              <span className="text-sm font-medium text-foreground">{formatCattleAge(cattle.dateOfBirth, t)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Scale className="size-3.5 text-muted-foreground/70" aria-hidden />
+                {t("columns.weight")}
+              </span>
+              <span className="text-sm font-medium text-foreground">
+                {cattle.lastWeightKg != null ? `${cattle.lastWeightKg} kg` : "—"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <MapPin className="size-3.5 text-muted-foreground/70" aria-hidden />
+                {t("columns.shed")}
+              </span>
+              <span className="text-sm font-medium text-foreground">{cattle.shed?.name ?? "—"}</span>
+            </div>
+            <div className="flex min-h-[24px] items-center justify-between gap-2">
+              <span className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
+                <CalendarClock className="size-3.5 text-muted-foreground/70" aria-hidden />
+                {t("columns.nextEvent")}
+              </span>
+              {cattle.next_event ? (
+                <NextEventCell cattle={cattle} onView={rowActions.onView} />
+              ) : (
+                <span className="text-sm font-medium text-muted-foreground">—</span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="flex w-full flex-col gap-3 px-1.5 pb-1.5">
-        <button
-          type="button"
-          onClick={() => rowActions.onView(cattle)}
-          className="flex flex-col gap-0.5 text-left transition-opacity hover:opacity-80"
-        >
-          <span className="flex items-center gap-1.5">
-            <span className="truncate text-lg font-bold text-foreground hover:underline">{cattle.name ?? cattle.tagNumber}</span>
-            <GenderGlyph gender={cattle.gender} />
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {cattle.tagNumber} {cattle.breed?.name ? `· ${cattle.breed.name}` : ""}
-          </span>
-        </button>
-
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <CalendarDays className="size-4" aria-hidden />
-              {t("columns.age")}
-            </span>
-            <span className="text-sm font-medium text-muted-foreground">{formatCattleAge(cattle.dateOfBirth, t)}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Scale className="size-4" aria-hidden />
-              {t("columns.weight")}
-            </span>
-            <span className="text-sm font-medium text-muted-foreground">
-              {cattle.lastWeightKg != null ? `${cattle.lastWeightKg} kg` : "—"}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <MapPin className="size-4" aria-hidden />
-              {t("columns.shed")}
-            </span>
-            <span className="text-sm font-medium text-muted-foreground">{cattle.shed?.name ?? "—"}</span>
-          </div>
-          {/* RFE-151 — the phone-card chip for the Next event column; hidden when nothing is upcoming so a
-              quiet animal's card stays compact. */}
-          {cattle.next_event ? (
-            <div className="flex items-center justify-between gap-2">
-              <span className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
-                <CalendarClock className="size-4" aria-hidden />
-                {t("columns.nextEvent")}
-              </span>
-              <NextEventCell cattle={cattle} onView={rowActions.onView} />
-            </div>
-          ) : null}
-        </div>
-
-        <div className="flex items-center justify-between rounded-xl bg-card p-2 shadow-card">
-          <span className="text-base font-medium text-muted-foreground">{t("columns.aqr")}</span>
+      <div className="flex flex-col gap-2.5 px-1.5 pb-1">
+        <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/40 px-3 py-2">
+          <span className="text-sm font-medium text-muted-foreground">{t("columns.aqr")}</span>
           <span className="flex items-baseline gap-1">
-            <span className="text-[28px] font-bold leading-none text-primary">{cattle.aqrScore ?? "—"}</span>
-            {cattle.aqrScore != null ? <span className="text-sm font-medium text-muted-foreground">/100</span> : null}
+            <span className="text-2xl font-bold leading-none text-primary tabular-nums">{cattle.aqrScore ?? "—"}</span>
+            {cattle.aqrScore != null ? <span className="text-xs font-medium text-muted-foreground">/100</span> : null}
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex min-h-[26px] flex-wrap items-center gap-1.5 pt-0.5">
           {cattle.lactationStage ? (
             <Chip variant={LACTATION_STAGE_VARIANT[cattle.lactationStage]}>{t(`lactationStageOptions.${cattle.lactationStage}`)}</Chip>
           ) : null}
@@ -241,9 +262,9 @@ export function CattleGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {isLoading && items.length === 0
-        ? Array.from({ length: 6 }, (_, i) => <div key={i} className="h-[420px] animate-pulse rounded-2xl bg-muted" />)
+        ? Array.from({ length: 8 }, (_, i) => <div key={i} className="h-[420px] animate-pulse rounded-2xl bg-muted" />)
         : items.map((cattle) => (
             <SelectableCardOverlay
               key={cattle.id}

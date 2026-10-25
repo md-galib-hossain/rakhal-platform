@@ -52,7 +52,7 @@ function KpiTile({
         <p className="text-sm font-medium text-foreground">{label}</p>
       </div>
       <div className="flex items-end justify-between gap-2">
-        <p className="text-2xl font-bold text-foreground">{value}</p>
+        <p className="text-2xl font-bold tracking-tight text-foreground tabular-nums">{value}</p>
         {delta && <KpiDeltaBadge pct={delta.pct} direction={delta.direction} />}
       </div>
     </div>

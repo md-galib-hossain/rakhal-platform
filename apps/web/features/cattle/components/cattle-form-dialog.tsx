@@ -154,7 +154,7 @@ function PhotoDropzone({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   return (
-    <div className="relative size-[110px] shrink-0">
+    <div className="relative size-[116px] shrink-0">
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
@@ -267,12 +267,16 @@ function CattleFormDialogSkeleton() {
       <div className="flex min-h-[460px] flex-1 flex-col gap-4 overflow-y-auto px-6 py-5">
         <div className="h-9 w-40 animate-pulse rounded-xl bg-muted" />
         <div className="flex gap-4">
-          <div className="size-[110px] shrink-0 animate-pulse rounded-xl bg-muted" />
-          <div className="grid flex-1 grid-cols-2 gap-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-14 animate-pulse rounded-xl bg-muted" />
-            ))}
+          <div className="size-[116px] shrink-0 animate-pulse rounded-xl bg-muted" />
+          <div className="flex flex-1 flex-col justify-between gap-1">
+            <div className="h-14 animate-pulse rounded-xl bg-muted" />
+            <div className="h-14 animate-pulse rounded-xl bg-muted" />
           </div>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-14 animate-pulse rounded-xl bg-muted" />
+          ))}
         </div>
       </div>
     </SheetContent>
@@ -521,11 +525,10 @@ function CattleFormDialogBody({
               onClear={handlePhotoClear}
               label={t("addCowImage")}
             />
-            <div className="grid flex-1 grid-cols-2 gap-3">
+            <div className="flex flex-1 flex-col justify-between gap-1">
               <LabeledInput
                 id="name"
                 label={t("cowName")}
-                className="col-span-2"
                 {...form.register("name")}
               />
               <LabeledInput
@@ -534,128 +537,131 @@ function CattleFormDialogBody({
                 error={form.formState.errors.tagNumber?.message}
                 {...form.register("tagNumber")}
               />
-              <Controller
-                control={form.control}
-                name="breedId"
-                render={({ field }) => (
-                  <Select
-                    value={field.value || UNSET}
-                    onValueChange={(v) => {
-                      if (v === ADD_NEW_BREED) {
-                        setAddBreedOpen(true);
-                        return;
-                      }
-                      field.onChange(v);
-                    }}
-                  >
-                    <LabeledSelectTrigger
-                      label={t("breed")}
-                      placeholder={t("unassigned")}
-                    />
-                    <SelectContent>
-                      <SelectItem value={UNSET}>{t("unassigned")}</SelectItem>
-                      {(breeds.data?.items ?? []).map((b) => (
-                        <SelectItem key={b.id} value={b.id}>
-                          {b.name}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value={ADD_NEW_BREED} className="text-primary">
-                        <span className="flex items-center gap-1.5">
-                          <Plus className="size-3.5" aria-hidden />
-                          {t("addBreed")}
-                        </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Controller
+              control={form.control}
+              name="breedId"
+              render={({ field }) => (
+                <Select
+                  value={field.value || UNSET}
+                  onValueChange={(v) => {
+                    if (v === ADD_NEW_BREED) {
+                      setAddBreedOpen(true);
+                      return;
+                    }
+                    field.onChange(v);
+                  }}
+                >
+                  <LabeledSelectTrigger
+                    label={t("breed")}
+                    placeholder={t("unassigned")}
+                  />
+                  <SelectContent>
+                    <SelectItem value={UNSET}>{t("unassigned")}</SelectItem>
+                    {(breeds.data?.items ?? []).map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
                       </SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
+                    ))}
+                    <SelectItem value={ADD_NEW_BREED} className="text-primary">
+                      <span className="flex items-center gap-1.5">
+                        <Plus className="size-3.5" aria-hidden />
+                        {t("addBreed")}
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <Controller
+              control={form.control}
+              name="gender"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <LabeledSelectTrigger label={t("gender")} />
+                  <SelectContent>
+                    {GENDERS.map((g) => (
+                      <SelectItem key={g} value={g}>
+                        {t(`genderOptions.${g}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <Controller
+              control={form.control}
+              name="shedId"
+              render={({ field }) => (
+                <CreatableSelect
+                  value={field.value || UNSET}
+                  onValueChange={field.onChange}
+                  options={sheds.data?.items ?? []}
+                  trigger={<LabeledSelectTrigger label={t("shed")} placeholder={t("unassigned")} />}
+                  extraItems={<SelectItem value={UNSET}>{t("unassigned")}</SelectItem>}
+                  createLabel={t("addShed")}
+                  namePlaceholder={t("shedNamePlaceholder")}
+                  createErrorMessage={t("addShedError")}
+                  onCreate={(name) => createShedInline.mutateAsync(name)}
+                />
+              )}
+            />
+            {!isEdit ? (
               <Controller
                 control={form.control}
-                name="gender"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <LabeledSelectTrigger label={t("gender")} />
-                    <SelectContent>
-                      {GENDERS.map((g) => (
-                        <SelectItem key={g} value={g}>
-                          {t(`genderOptions.${g}`)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              <Controller
-                control={form.control}
-                name="shedId"
+                name="animalGroupId"
                 render={({ field }) => (
                   <CreatableSelect
                     value={field.value || UNSET}
                     onValueChange={field.onChange}
-                    options={sheds.data?.items ?? []}
-                    trigger={<LabeledSelectTrigger label={t("shed")} placeholder={t("unassigned")} />}
+                    options={animalGroups.data?.items ?? []}
+                    trigger={<LabeledSelectTrigger label={t("animalGroup")} placeholder={t("unassigned")} />}
                     extraItems={<SelectItem value={UNSET}>{t("unassigned")}</SelectItem>}
-                    createLabel={t("addShed")}
-                    namePlaceholder={t("shedNamePlaceholder")}
-                    createErrorMessage={t("addShedError")}
-                    onCreate={(name) => createShedInline.mutateAsync(name)}
+                    createLabel={t("addGroup")}
+                    namePlaceholder={t("groupNamePlaceholder")}
+                    createErrorMessage={t("addGroupError")}
+                    onCreate={(name) => createAnimalGroup.mutateAsync({ name })}
                   />
                 )}
               />
-              {!isEdit ? (
-                <Controller
-                  control={form.control}
-                  name="animalGroupId"
-                  render={({ field }) => (
-                    <CreatableSelect
-                      value={field.value || UNSET}
-                      onValueChange={field.onChange}
-                      options={animalGroups.data?.items ?? []}
-                      trigger={<LabeledSelectTrigger label={t("animalGroup")} placeholder={t("unassigned")} />}
-                      extraItems={<SelectItem value={UNSET}>{t("unassigned")}</SelectItem>}
-                      createLabel={t("addGroup")}
-                      namePlaceholder={t("groupNamePlaceholder")}
-                      createErrorMessage={t("addGroupError")}
-                      onCreate={(name) => createAnimalGroup.mutateAsync({ name })}
-                    />
-                  )}
+            ) : null}
+            <Controller
+              control={form.control}
+              name="dateOfBirth"
+              render={({ field, fieldState }) => (
+                <DatePicker
+                  id="dateOfBirth"
+                  label={t("dateOfBirth")}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={fieldState.error?.message}
+                  disabledDates={{ after: new Date() }}
                 />
-              ) : null}
-              <Controller
-                control={form.control}
-                name="dateOfBirth"
-                render={({ field, fieldState }) => (
-                  <DatePicker
-                    id="dateOfBirth"
-                    label={t("dateOfBirth")}
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    error={fieldState.error?.message}
-                    disabledDates={{ after: new Date() }}
-                  />
-                )}
-              />
-              {/* RAKHAL-297: only meaningful for a female (a purchased already-calved cow needs
-                  this so she lands as `COW` not `HEIFER` on create) — hidden entirely for
-                  MALE/CASTRATED_MALE rather than disabled, since it has no effect for them. */}
-              {watchedGender === "FEMALE" ? (
-                <div className="col-span-2 flex flex-col gap-1.5">
-                  <LabeledInput
-                    id="priorCalvings"
-                    type="number"
-                    min={1}
-                    step={1}
-                    label={t("priorCalvings")}
-                    error={form.formState.errors.priorCalvings?.message}
-                    {...form.register("priorCalvings", {
-                      setValueAs: (v) => (v === "" ? undefined : Number(v)),
-                    })}
-                  />
-                  <p className="text-muted-foreground text-xs">{t("priorCalvingsHint")}</p>
-                </div>
-              ) : null}
-            </div>
+              )}
+            />
+            {/* RAKHAL-297: only meaningful for a female (a purchased already-calved cow needs
+                this so she lands as `COW` not `HEIFER` on create) — hidden entirely for
+                MALE/CASTRATED_MALE rather than disabled, since it has no effect for them. */}
+            {watchedGender === "FEMALE" ? (
+              <div className="col-span-1 flex flex-col gap-1.5 sm:col-span-2">
+                <LabeledInput
+                  id="priorCalvings"
+                  type="number"
+                  min={1}
+                  step={1}
+                  label={t("priorCalvings")}
+                  error={form.formState.errors.priorCalvings?.message}
+                  {...form.register("priorCalvings", {
+                    setValueAs: (v) => (v === "" ? undefined : Number(v)),
+                  })}
+                />
+                <p className="text-muted-foreground text-xs">{t("priorCalvingsHint")}</p>
+              </div>
+            ) : null}
           </div>
 
           {/* RAKHAL-297: create-mode live preview of the derived `AnimalCategory` (UI-mirror only,
@@ -1003,30 +1009,7 @@ function CattleFormDialogBody({
             <Info className="size-4 text-primary" aria-hidden />
             {t("additionalInfo")}
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Controller
-              control={form.control}
-              name="sourceType"
-              render={({ field }) => (
-                <Select
-                  value={field.value || UNSET}
-                  onValueChange={field.onChange}
-                >
-                  <LabeledSelectTrigger
-                    label={t("sourceType")}
-                    placeholder={t("unassigned")}
-                  />
-                  <SelectContent>
-                    <SelectItem value={UNSET}>{t("unassigned")}</SelectItem>
-                    {SOURCE_TYPES.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {t(`sourceTypeOptions.${s}`)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label>{t("mother")}</Label>
               <Controller
@@ -1055,6 +1038,29 @@ function CattleFormDialogBody({
                 )}
               />
             </div>
+            <Controller
+              control={form.control}
+              name="sourceType"
+              render={({ field }) => (
+                <Select
+                  value={field.value || UNSET}
+                  onValueChange={field.onChange}
+                >
+                  <LabeledSelectTrigger
+                    label={t("sourceType")}
+                    placeholder={t("unassigned")}
+                  />
+                  <SelectContent>
+                    <SelectItem value={UNSET}>{t("unassigned")}</SelectItem>
+                    {SOURCE_TYPES.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {t(`sourceTypeOptions.${s}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
             <LabeledInput
               id="color"
               label={t("color")}
@@ -1071,7 +1077,7 @@ function CattleFormDialogBody({
                 setValueAs: (v) => (v === "" ? undefined : Number(v)),
               })}
             />
-            <div className="col-span-2 flex flex-col gap-1.5">
+            <div className="col-span-1 flex flex-col gap-1.5 sm:col-span-2">
               <Label htmlFor="notes">{t("notes")}</Label>
               <Textarea id="notes" {...form.register("notes")} />
             </div>

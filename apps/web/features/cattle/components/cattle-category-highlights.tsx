@@ -118,7 +118,7 @@ export function CattleCategoryHighlights() {
             {result.isLoading ? (
               <Skeleton className="h-8 w-12" />
             ) : (
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-2xl font-bold tracking-tight text-foreground tabular-nums">
                 {result.data
                   ? result.data.meta.hasNextPage
                     ? `${result.data.items.length}+`

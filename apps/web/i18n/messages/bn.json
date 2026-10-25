@@ -6323,7 +6323,10 @@
       "filters": {
         "all": "সব প্ল্যান ({count})",
         "active": "সক্রিয় / প্রয়োগকৃত ({count})",
-        "unassigned": "অনির্ধারিত ড্রাফট ({count})"
+        "unassigned": "অনির্ধারিত ড্রাফট ({count})",
+        "emptyTitle": "এই ফিল্টারে কোনো প্ল্যান নেই",
+        "emptyHint": "নির্বাচিত ফিল্টারের আওতায় কোনো ফিড প্ল্যান পাওয়া যায়নি।",
+        "switchAll": "সব প্ল্যান দেখুন"
       },
       "kind": {
         "PLAN": "প্ল্যান",
@@ -6348,12 +6351,15 @@
         "moreIngredients": "আরও +{count}টি উপাদান",
         "herdDemand": "পালের দৈনিক মোট খাদ্য",
         "herdDemandFormula": "{count}টি গরু × দৈনিক {kg} কেজি",
+        "herdDemandPerHead": "প্রতি পশুতে {kg} কেজি/দিন · পুরো পাল",
         "herdDemandUnassigned": "প্রয়োগ করা হয়নি · পালের মোট হিসাব পেতে প্রয়োগ করুন",
         "viewAndManageCows": "{count}টি গরু দেখুন ও পরিচালনা করুন →",
+        "viewAndManageHerd": "পুরো পাল দেখুন ও পরিচালনা করুন →",
         "viewAssigned": "নির্ধারিত গরু দেখুন",
         "noCowsAssigned": "এখনও কোনো পশু নির্ধারণ করা হয়নি",
         "applyPrompt": "গরু বা গ্রুপে এই প্ল্যান প্রয়োগ করতে 'প্রয়োগ করুন' চাপুন।",
         "appliedStatus": "সক্রিয় • {count}টি গরু",
+        "appliedStatusHerd": "সক্রিয় • পুরো পালের ডিফল্ট",
         "unassignedStatus": "অনির্ধারিত ড্রাফট",
         "removeProgram": "সরান",
         "removeConfirmTitle": "এই প্রোগ্রাম সরাবেন?",
@@ -6381,7 +6387,8 @@
           "assignmentTypes": "বরাদ্দের ধরন",
           "directCount": "{count}টি সরাসরি",
           "groupCount": "{count}টি গ্রুপে",
-          "herdCount": "পুরো পাল"
+          "herdCount": "পুরো পাল",
+          "herdDemandPerHead": "প্রতি পশুতে {kg} কেজি · পুরো পালের ডিফল্ট"
         },
         "filters": {
           "all": "সব গরু ({count})",
@@ -6392,7 +6399,7 @@
         "applyMore": "আরও গরু যোগ করুন",
         "removeAction": "সরান",
         "removeConfirmTitle": "এই প্ল্যান থেকে {cowName}-কে সরাবেন?",
-        "removeConfirmDesc": "{cowName} ({tagNumber}) আর এই ফিড রেশন পাবে না। আগের খাওয়ানোর ইতিহাস অপরিবর্তিত থাকবে।",
+        "removeConfirmDesc": "{target} আর এই ফিড রেশন পাবে না। আগের খাওয়ানোর ইতিহাস অপরিবর্তিত থাকবে।",
         "removeSuccessToast": "{planName} থেকে {cowName}-কে সরানো হয়েছে",
         "emptyFilterTitle": "\"{query}\"-এর সাথে মিলিয়ে কোনো গরু পাওয়া যায়নি",
         "emptyFilterHint": "ভিন্ন নাম বা কানের ট্যাগ নম্বর দিয়ে অনুসন্ধান করে দেখুন।",

@@ -1,5 +1,6 @@
 "use client"; // corner checkbox over a grid card
 
+import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 
 /** Thin corner-checkbox wrapper for the bulk-action dock (2026-07-21) — factored out of
@@ -14,17 +15,19 @@ export function SelectableCardOverlay({
   onToggleSelect,
   canSelect,
   label,
+  className,
   children,
 }: {
   selected: boolean;
   onToggleSelect: () => void;
   canSelect: boolean;
   label: string;
+  className?: string;
   children: React.ReactNode;
 }) {
   if (!canSelect) return <>{children}</>;
   return (
-    <div className="relative">
+    <div className={cn("relative h-full flex flex-col", className)}>
       <div className="absolute left-1.5 top-1.5 z-20">
         <Checkbox
           checked={selected}
