@@ -314,4 +314,15 @@ export const qk = {
       ["notifications", "list", status, page, locale] as const,
     preferences: () => ["notifications", "preferences"] as const,
   },
+  /** RFE-153 — Reports v2 (`/reports*`). `all()` is the invalidation prefix for every reports read. */
+  reports: {
+    all: () => ["reports"] as const,
+    templates: () => ["reports", "templates"] as const,
+    /** Infinite list: filters are part of the key, so each filter combination has its own cache entry. */
+    list: (filters: Record<string, string | undefined>) => ["reports", "list", filters] as const,
+    listAll: () => ["reports", "list"] as const,
+    detail: (id: string) => ["reports", "detail", id] as const,
+    /** Preview is a mutation (never cached); this key exists only so a wizard can store/read the last result. */
+    preview: () => ["reports", "preview"] as const,
+  },
 };

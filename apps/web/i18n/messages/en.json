@@ -7146,69 +7146,514 @@
     }
   },
   "reports": {
-    "categories": {
-      "production": "Production",
-      "reproduction": "Reproduction",
-      "health": "Health",
-      "financial": "Financial",
-      "combined": "Combined"
-    },
-    "export": "Export",
-    "generate": "Generate",
-    "regenerate": "Regenerate",
-    "format": "Format",
-    "lastGenerated": "Last generated {date}",
-    "neverGenerated": "Never generated",
-    "catalogueError": "Couldn't load the report catalogue.",
-    "schedulesError": "Couldn't load scheduled reports.",
-    "genericError": "Something went wrong. Please try again.",
-    "generating": "Generating your report — this can take a few seconds.",
-    "download": "Download",
     "status": {
-      "queued": "Queued",
-      "generating": "Generating",
-      "completed": "Ready",
-      "failed": "Failed"
+      "QUEUED": "Queued",
+      "PROCESSING": "Generating",
+      "COMPLETED": "Ready",
+      "FAILED": "Failed"
     },
-    "params": {
-      "date": "Date",
-      "month": "Month",
-      "year": "Year",
-      "shedId": "Shed ID",
-      "cattleId": "Cattle ID",
-      "lactationId": "Lactation ID",
-      "fromDate": "From date",
-      "toDate": "To date",
-      "status": "Status",
-      "search": "Search",
-      "category": "Category"
+    "type": {
+      "WEEKLY": "Weekly",
+      "MONTHLY": "Monthly",
+      "ON_DEMAND": "On demand"
     },
-    "schedules": {
-      "title": "Scheduled reports",
-      "new": "New schedule",
-      "empty": "No scheduled reports yet.",
-      "report": "Report",
-      "reportPlaceholder": "Choose a report",
-      "frequencyLabel": "Frequency",
-      "frequency": {
-        "daily": "Daily",
-        "weekly": "Weekly",
-        "monthly": "Monthly"
-      },
-      "dayOfWeek": "Day of week (1 = Mon, 7 = Sun)",
-      "dayOfMonth": "Day of month (1-28)",
-      "nextRun": "Next run: {date}",
-      "create": "Create schedule",
+    "origin": {
+      "SCHEDULED": "Scheduled",
+      "ON_DEMAND": "Created by you"
+    },
+    "scopeKind": {
+      "SINGLE_COW": "One animal",
+      "GROUP": "A group",
+      "ALL_ELIGIBLE": "All eligible animals"
+    },
+    "preset": {
+      "today": "Today",
+      "this_week": "This week",
+      "this_month": "This month",
+      "this_year": "This year",
+      "custom": "Custom range"
+    },
+    "domain": {
+      "milk": "Milk",
+      "health": "Health",
+      "reproduction": "Breeding",
+      "finance": "Cash",
+      "feed": "Feed",
+      "cow_profile": "Animal profile"
+    },
+    "actions": {
+      "download": "Download PDF",
+      "retry": "Try again",
       "delete": "Delete",
-      "deleteConfirmTitle": "Delete this scheduled report?",
-      "deleteConfirmDescription": "It will stop auto-generating. This can't be undone.",
-      "createdToast": "Schedule created.",
-      "deletedToast": "Schedule deleted."
+      "preview": "Preview",
+      "generate": "Generate report",
+      "generateAgain": "Generate a new one",
+      "openExisting": "Open existing report",
+      "refresh": "Refresh",
+      "back": "Back",
+      "cancel": "Cancel",
+      "close": "Close"
     },
-    "locked": {
-      "title": "Reports is a Pro feature",
-      "description": "Upgrade your plan to generate and schedule reports.",
-      "cta": "View plans"
+    "generation": {
+      "queued": "Your report is in the queue.",
+      "processing": "Your report is being generated. This usually takes a few seconds.",
+      "timedOut": "This is taking longer than usual. Refresh to check again.",
+      "failed": "This report could not be generated."
+    },
+    "duplicate": {
+      "title": "You already have this report",
+      "body": "A report with the same period, animals and figures already exists. Open it, or generate a new one."
+    },
+    "comparison": {
+      "previous": "Previous period",
+      "change": "Change"
+    },
+    "access": {
+      "featureRequired": "Reports are not included in your current plan.",
+      "noPermission": "You do not have permission to use reports.",
+      "ownerOnlyDelete": "Only the farm owner can delete reports."
+    },
+    "states": {
+      "missing": "Not recorded",
+      "not_calculated": "Not calculated",
+      "not_applicable": "Not applicable"
+    },
+    "units": {
+      "L": "L",
+      "kg": "kg",
+      "cows": "cows",
+      "cowDays": "cow-days",
+      "days": "days",
+      "cases": "cases",
+      "withdrawals": "withdrawals",
+      "items": "items",
+      "tasks": "tasks",
+      "treatments": "treatments",
+      "perCowDay": "per cow-day",
+      "perLitre": "per litre"
+    },
+    "errorCategory": {
+      "STORAGE_UNAVAILABLE": "File storage was unavailable. Try again.",
+      "DB_TIMEOUT": "The data took too long to load. Try again.",
+      "QUEUE_UNAVAILABLE": "The report queue was unavailable. Try again.",
+      "INVALID_CONFIG": "The report settings are no longer valid.",
+      "PLAN_LIMIT": "Your plan does not allow this report.",
+      "PERMISSION_DENIED": "You no longer have permission for this report.",
+      "RENDER_FAILED": "The PDF could not be created.",
+      "GENERATION_FAILED": "The report could not be generated."
+    },
+    "errors": {
+      "generic": "Something went wrong. Please try again.",
+      "network": "Could not reach the server. Check your connection and try again.",
+      "forbidden": "You do not have access to this, or your plan does not include reports.",
+      "notFound": "This report was not found.",
+      "rateLimited": "Too many requests. Wait a moment and try again.",
+      "noMetrics": "Select at least one figure.",
+      "tooManyMetrics": "Too many figures selected. The most you can pick is 60.",
+      "metricNotAllowed": "One or more selected figures are not available for this report.",
+      "financeForbidden": "Cash and cost figures need finance access.",
+      "invalidTemplate": "This report template is not available.",
+      "invalidScope": "The selected animals are not valid for this report.",
+      "invalidPeriod": "The selected period is not valid.",
+      "invalidIdempotencyKey": "The request could not be sent safely. Please try again.",
+      "idempotencyConflict": "This request was already used for a different report. Please try again.",
+      "tooManyInFlight": "Too many reports are being generated right now. Wait for one to finish.",
+      "pdfNotAvailable": "The PDF is not ready for this report.",
+      "notRetryable": "Only a failed report can be tried again.",
+      "retryLimit": "This report was tried again too many times.",
+      "ownerOnly": "Only the farm owner can delete reports.",
+      "templateUnavailable": "Reports are not available right now. Try again later.",
+      "processing": "This report is still being generated and cannot be deleted yet.",
+      "previewBusy": "A preview is already running. Try again shortly.",
+      "queueUnavailable": "The report queue is unavailable. Try again shortly.",
+      "storageUnavailable": "File storage is unavailable. Try again shortly.",
+      "period": {
+        "invalidTimezone": "The farm time zone is not valid.",
+        "invalidDate": "One of the dates is not a real date.",
+        "invalidRange": "The start date must be on or before the end date.",
+        "rangeTooLong": "A custom range can be at most 366 days.",
+        "kindMismatch": "This period does not match the report type.",
+        "invalidPreset": "Choose a valid period."
+      }
+    },
+    "validation": {
+      "noMetrics": "Select at least one figure.",
+      "tooManyMetrics": "You can select at most 60 figures.",
+      "invalidDate": "Enter a real date.",
+      "customDatesRequired": "Choose both a start and an end date.",
+      "customDatesNotAllowed": "Dates are only used with a custom range.",
+      "rangeInverted": "The start date must be on or before the end date.",
+      "rangeTooLong": "A custom range can be at most 366 days.",
+      "cattleRequired": "Choose an animal.",
+      "groupRequired": "Choose a group.",
+      "scopeExtraId": "Choose only the animal or group that matches your selection.",
+      "templateRequired": "Choose a report template."
+    },
+    "sources": {
+      "recordedActual": "Recorded actual",
+      "recordedRefusal": "Recorded refusal",
+      "offeredMinusRefusal": "Offered minus refusal, not measured intake",
+      "distributionCost": "Distribution cost",
+      "distributionCostKnownOnly": "Known costs only",
+      "ledgerFeed5000": "Ledger feed account",
+      "feedPlanFitDay": "Plan fit by day",
+      "asOfGeneration": "As of report generation",
+      "feedStockMovementFed": "Stock movements",
+      "derived": "Derived",
+      "cash_ledger": "Cash ledger",
+      "expense_accrual": "Expense records",
+      "vet_fee": "Vet fee"
+    },
+    "section": {
+      "milk": "Milk",
+      "health": "Health",
+      "reproduction": "Breeding",
+      "feed": "Feed",
+      "finance": "Cash"
+    },
+    "sections": {
+      "finance": "Cash"
+    },
+    "dq": {
+      "entry_date_created_at_proxy": "Some entry dates use the time the record was created.",
+      "estimated_values": "Some figures use an estimate; they are marked in the report.",
+      "feed_farm_wide_totals": "Recorded feed totals cover the whole farm, not only the selected animals.",
+      "group_membership_as_of_generation": "Group members are as of the day the report was generated.",
+      "incomplete_coverage": "Some expected records were not entered, so totals may be low.",
+      "no_expected_data": "No records were expected in this period.",
+      "partial_costs": "Some costs are not linked, so totals may be low.",
+      "scope_empty": "No animals matched this report scope.",
+      "unknown_costs": "Some costs are unknown and are not counted.",
+      "unsubmitted_drafts_excluded": "Unsubmitted milk drafts are excluded."
+    },
+    "exception": {
+      "feed": {
+        "low_stock_items": "Feed items are running low",
+        "persistently_off_target": "Animals persistently off their feed target"
+      },
+      "milk": {
+        "sudden_drop": "Sudden drop in milk yield"
+      },
+      "reproduction": {
+        "pregnancy_check_overdue": "Pregnancy checks are overdue",
+        "repeated_failed_services": "Repeated failed services"
+      }
+    },
+    "exceptions": {
+      "health": {
+        "overdue_tasks": "Health follow-ups are overdue",
+        "repeated_cases": "Repeated health cases"
+      }
+    },
+    "milk": {
+      "no_submitted_rows": "No submitted milk records",
+      "no_rows_for_day": "No record for this day",
+      "no_rows_for_cow": "No record in this period",
+      "no_recorded_cow_days": "No cow-day has a milk record",
+      "no_complete_data_for_drop_check": "Not enough complete days to check for a sudden drop",
+      "expected_days_unknown": "Expected days could not be worked out"
+    },
+    "metrics": {
+      "milk": {
+        "total_yield": {
+          "label": "Milk collected",
+          "definition": "Total litres from submitted milk records in the period."
+        },
+        "avg_daily_yield": {
+          "label": "Mean yield per recorded cow-day",
+          "definition": "Total milk divided by the cow-days that have a record."
+        },
+        "cows_with_data": {
+          "label": "Cows with milk records",
+          "definition": "Cows with at least one submitted milk record."
+        },
+        "expected_cow_days": {
+          "label": "Expected cow-days",
+          "definition": "Cows multiplied by the days they were on the farm in the period."
+        },
+        "recorded_cow_days": {
+          "label": "Recorded cow-days",
+          "definition": "Cow and day pairs that have at least one milk record."
+        },
+        "daily_yield": {
+          "label": "Daily milk collected",
+          "definition": "Milk collected on each day of the period."
+        },
+        "cow_total_yield": {
+          "label": "Milk total per cow",
+          "definition": "Total milk of each cow in the period."
+        },
+        "cow_avg_daily_yield": {
+          "label": "Average per recorded day",
+          "definition": "Each cow's milk divided by her recorded days."
+        },
+        "cow_recorded_days": {
+          "label": "Recorded days",
+          "definition": "Days on which each cow has a milk record."
+        },
+        "cow_expected_days": {
+          "label": "Expected days",
+          "definition": "Days on which each cow was expected to have a record."
+        },
+        "top_cow_avg_yield": {
+          "label": "Highest average per recorded day",
+          "definition": "Up to 5 cows with the highest average per recorded day."
+        },
+        "bottom_cow_avg_yield": {
+          "label": "Lowest average per recorded day",
+          "definition": "Up to 5 cows with the lowest average per recorded day."
+        },
+        "disposition_yield": {
+          "label": "Milk by destination",
+          "definition": "Milk split by where it went."
+        },
+        "sudden_drop_cows": {
+          "label": "Cows with a sudden milk drop",
+          "definition": "Cows whose last day is well below their average of the 7 days before."
+        }
+      },
+      "health": {
+        "cases_opened": {
+          "label": "Cases opened",
+          "definition": "Treatment cases that started in the period."
+        },
+        "cows_with_cases_opened": {
+          "label": "Unique animals with cases",
+          "definition": "Animals counted once, however many cases they had."
+        },
+        "treatments_given": {
+          "label": "Treatments given",
+          "definition": "Treatments administered in the period."
+        },
+        "cows_treated": {
+          "label": "Animals treated",
+          "definition": "Animals that received at least one treatment."
+        },
+        "cases_closed": {
+          "label": "Cases closed",
+          "definition": "Cases closed in the period."
+        },
+        "cases_recovered": {
+          "label": "Recoveries recorded",
+          "definition": "Cases closed as recovered."
+        },
+        "cases_mortality": {
+          "label": "Deaths recorded",
+          "definition": "Cases closed because the animal died."
+        },
+        "cases_open_at_period_end": {
+          "label": "Unresolved at period end",
+          "definition": "Cases still open on the last day of the period."
+        },
+        "preventive_tasks_completed": {
+          "label": "Preventive tasks completed",
+          "definition": "Preventive health tasks done in the period."
+        },
+        "preventive_tasks_missed": {
+          "label": "Preventive tasks missed",
+          "definition": "Preventive health tasks that were due but not done."
+        },
+        "tasks_overdue": {
+          "label": "Health follow-ups overdue",
+          "definition": "Health follow-up tasks past their due date."
+        },
+        "cases_repeated": {
+          "label": "Repeated cases",
+          "definition": "Cases that came back within the repeat window."
+        },
+        "withdrawals_active": {
+          "label": "Active withdrawal periods",
+          "definition": "Withdrawal periods still running at report time."
+        },
+        "treatment_cost": {
+          "label": "Treatment cost",
+          "definition": "Cost of treatments given in the period. Vet fees are separate."
+        },
+        "vet_fees": {
+          "label": "Vet fees",
+          "definition": "Vet fees paid for treatments in the period."
+        }
+      },
+      "reproduction": {
+        "services_total": {
+          "label": "Services logged",
+          "definition": "All breeding services recorded in the period."
+        },
+        "services_ai": {
+          "label": "AI services",
+          "definition": "Artificial insemination services."
+        },
+        "services_natural": {
+          "label": "Natural services",
+          "definition": "Natural mating services."
+        },
+        "services_embryo_transfer": {
+          "label": "Embryo transfers",
+          "definition": "Embryo transfer services."
+        },
+        "services_unique_cows": {
+          "label": "Animals served",
+          "definition": "Animals that had at least one service."
+        },
+        "outcomes_confirmed": {
+          "label": "Confirmed pregnancies",
+          "definition": "Services confirmed pregnant."
+        },
+        "outcomes_pending": {
+          "label": "Outcomes pending",
+          "definition": "Services still waiting for a result."
+        },
+        "outcomes_failed": {
+          "label": "Failed services",
+          "definition": "Services that did not result in pregnancy."
+        },
+        "outcomes_other": {
+          "label": "Other outcomes",
+          "definition": "Services with another recorded outcome."
+        },
+        "services_decided": {
+          "label": "Services decided",
+          "definition": "Services with a confirmed or failed result."
+        },
+        "conception_rate": {
+          "label": "Conception rate",
+          "definition": "Confirmed pregnancies as a share of decided services."
+        },
+        "pregnancy_checks_overdue": {
+          "label": "Pregnancy checks overdue",
+          "definition": "Pregnancy checks past their due date."
+        },
+        "calvings": {
+          "label": "Calvings recorded",
+          "definition": "Calvings recorded in the period."
+        },
+        "calves_born": {
+          "label": "Calves born",
+          "definition": "Calves born in the period."
+        },
+        "abortions": {
+          "label": "Abortions recorded",
+          "definition": "Abortions recorded in the period."
+        },
+        "expected_calvings_30d": {
+          "label": "Expected calvings (30 days)",
+          "definition": "Calvings expected in the 30 days after the report."
+        },
+        "ai_cost_total": {
+          "label": "AI cost",
+          "definition": "Cost of AI services linked to expenses."
+        }
+      },
+      "feed": {
+        "recorded_actual_kg": {
+          "label": "Recorded actual feed",
+          "definition": "Feed actually recorded as given, for the whole farm."
+        },
+        "refusal_kg": {
+          "label": "Recorded refusal",
+          "definition": "Feed left over and recorded as refused, for the whole farm."
+        },
+        "offered_minus_refusal_kg": {
+          "label": "Offered minus refusal",
+          "definition": "Feed offered minus feed refused. This is not measured intake."
+        },
+        "tmr_fed_kg": {
+          "label": "TMR fed",
+          "definition": "TMR taken out of stock for feeding."
+        },
+        "fit_off_target_share": {
+          "label": "Share of cow-days off target",
+          "definition": "Cow-days where feed did not match the plan, as a share of all measured cow-days."
+        },
+        "fit_estimated_cow_days": {
+          "label": "Cow-days with estimated fit",
+          "definition": "Cow-days whose plan fit is estimated, not measured."
+        },
+        "low_stock_items": {
+          "label": "Low-stock feed items",
+          "definition": "Feed items at or below their low-stock level now."
+        },
+        "distribution_cost": {
+          "label": "Feed distribution cost",
+          "definition": "Cost of feed given to animals. Shown only when every cost is known."
+        },
+        "distribution_cost_known_only": {
+          "label": "Feed distribution cost (known only)",
+          "definition": "Feed cost counting only the entries whose cost is known."
+        },
+        "distribution_cost_coverage": {
+          "label": "Feed cost coverage",
+          "definition": "Share of feeding entries that have a known cost."
+        },
+        "cost_per_cow_day": {
+          "label": "Feed cost per cow-day",
+          "definition": "Feed distribution cost divided by cow-days fed."
+        },
+        "cost_per_litre": {
+          "label": "Feed cost per litre",
+          "definition": "Feed distribution cost divided by litres of milk."
+        },
+        "ledger_feed_spend": {
+          "label": "Feed spend (ledger)",
+          "definition": "Net spend on the feed account in the ledger. Separate from distribution cost."
+        }
+      },
+      "finance": {
+        "cash_received": {
+          "label": "Cash received",
+          "definition": "Money that came into your cash and bank accounts."
+        },
+        "cash_paid": {
+          "label": "Cash paid",
+          "definition": "Money that went out of your cash and bank accounts."
+        },
+        "net_cash_flow": {
+          "label": "Net cash flow",
+          "definition": "Cash received minus cash paid."
+        },
+        "opening_cash_balance": {
+          "label": "Opening cash balance",
+          "definition": "Cash and bank balance at the start of the period."
+        },
+        "closing_cash_balance": {
+          "label": "Closing cash balance",
+          "definition": "Cash and bank balance at the end of the period."
+        },
+        "expenses_total": {
+          "label": "Expenses recorded",
+          "definition": "Expenses dated in the period, whether paid or not. Not a cash figure."
+        },
+        "expenses_by_category": {
+          "SALARY": {
+            "label": "Salary expenses",
+            "definition": "Expenses in the \"Salary\" category dated in the period. Not a cash figure."
+          },
+          "UTILITIES": {
+            "label": "Utilities expenses",
+            "definition": "Expenses in the \"Utilities\" category dated in the period. Not a cash figure."
+          },
+          "BREEDING": {
+            "label": "Breeding expenses",
+            "definition": "Expenses in the \"Breeding\" category dated in the period. Not a cash figure."
+          },
+          "TRANSFER_FEE": {
+            "label": "Transfer fee expenses",
+            "definition": "Expenses in the \"Transfer fees\" category dated in the period. Not a cash figure."
+          },
+          "DEPRECIATION": {
+            "label": "Depreciation expenses",
+            "definition": "Expenses in the \"Depreciation\" category dated in the period. Not a cash figure."
+          },
+          "OTHER": {
+            "label": "Other expenses",
+            "definition": "Expenses in the \"Other\" category dated in the period. Not a cash figure."
+          },
+          "HEALTH": {
+            "label": "Health expenses",
+            "definition": "Expenses in the \"Health\" category dated in the period. Not a cash figure."
+          }
+        }
+      }
     }
   },
   "purchasing": {
@@ -7830,6 +8275,298 @@
       "cancel": "Cancel",
       "submittedToast": "Thanks — your feedback has been sent.",
       "genericError": "Could not send your feedback. Please try again."
+    }
+  },
+  "reportsLanding": {
+    "title": "Reports",
+    "subtitle": "Weekly and monthly reports are created for you. You can also make your own.",
+    "newReport": "New report",
+    "retry": "Try again",
+    "noAccess": {
+      "description": "Ask the farm owner to give you access to reports."
+    },
+    "planBlocked": {
+      "tooltip": "Creating reports is not in your current plan.",
+      "body": "You can still open reports you already have. Upgrade your plan to create new ones.",
+      "cta": "See plans"
+    },
+    "scheduled": {
+      "title": "Automatic reports"
+    },
+    "card": {
+      "title": {
+        "WEEKLY": "Weekly report",
+        "MONTHLY": "Monthly report"
+      },
+      "generated": "Ready {when}",
+      "error": "Could not load this report.",
+      "empty": {
+        "WEEKLY": "Created automatically after each week closes.",
+        "MONTHLY": "Created automatically after each month closes."
+      },
+      "requested": "Requested {when}"
+    },
+    "actions": {
+      "open": "Open"
+    },
+    "download": {
+      "notReady": "The PDF is not ready yet.",
+      "failed": "This report failed, so there is no PDF.",
+      "noPdf": "No PDF is available for this report."
+    },
+    "toast": {
+      "retried": "Trying again. The report is back in the queue.",
+      "deleted": "Report deleted."
+    },
+    "delete": {
+      "title": "Delete this report?",
+      "description": "The report and its PDF will be removed. This cannot be undone."
+    },
+    "filters": {
+      "label": "Filter reports",
+      "type": "Report type",
+      "origin": "Created by",
+      "status": "Status",
+      "allTypes": "All types",
+      "allOrigins": "All reports",
+      "allStatuses": "All statuses",
+      "clear": "Clear filters"
+    },
+    "history": {
+      "title": "All reports",
+      "columns": {
+        "report": "Report",
+        "origin": "Source",
+        "status": "Status",
+        "generated": "When",
+        "actions": "Actions"
+      },
+      "empty": {
+        "title": "No reports yet",
+        "description": "Your first weekly report appears here once a week closes. You can make one any time."
+      },
+      "noMatch": {
+        "title": "No reports match",
+        "description": "Try a different type or status."
+      },
+      "error": {
+        "title": "Could not load reports",
+        "description": "Check your connection and try again."
+      }
+    }
+  },
+  "reportsWizard": {
+    "title": "New report",
+    "subtitle": "Choose the figures, the period and the animals. You can preview before you generate.",
+    "back": "All reports",
+    "stepOf": "Step {step} of {total}",
+    "stepAnnounce": "Step {step} of {total}: {title}",
+    "next": "Continue",
+    "previous": "Back",
+    "cancel": "Cancel",
+    "generate": "Generate report",
+    "steps": {
+      "report": {
+        "title": "What to include",
+        "subtitle": "Tick the sections you need. Open a section to remove single figures."
+      },
+      "period": {
+        "title": "Period",
+        "subtitle": "Pick the days the report covers."
+      },
+      "scope": {
+        "title": "Animals",
+        "subtitle": "Choose which animals the report is about."
+      },
+      "review": {
+        "title": "Review",
+        "subtitle": "Check your choices. Preview is optional and nothing is saved."
+      }
+    },
+    "access": {
+      "loading": "Checking your plan…",
+      "noPermission": "You do not have permission to create reports. Ask the farm owner or a manager.",
+      "upgradeTitle": "Reports are not in your plan",
+      "upgradeBody": "Creating reports needs a plan that includes reports. You can still open reports you already have.",
+      "upgradeCta": "See plans",
+      "backToReports": "Back to reports"
+    },
+    "catalogue": {
+      "loadError": "The list of figures could not be loaded.",
+      "retry": "Try again",
+      "empty": "No figures are available for your account.",
+      "selectedCount": "{selected} of {total} selected",
+      "totalSelected": "{selected} figures selected",
+      "showFigures": "Choose figures",
+      "hideFigures": "Hide figures",
+      "sectionLabel": "Include {section}",
+      "figureCount": "{count} figures",
+      "limitHint": "At most {max} figures per report."
+    },
+    "period": {
+      "presets": "Period",
+      "resolved": "Covers",
+      "comparedWith": "Compared with {period}",
+      "comparedPartial": "Compared with {period}, the same number of days so far.",
+      "weekNote": "Weeks run Monday to Sunday.",
+      "customRange": "Pick start and end date",
+      "customApply": "Apply",
+      "customTooLong": "A custom range can be at most {max} days.",
+      "customDays": "{count} days",
+      "customLabel": "Dates",
+      "pickDates": "Choose dates"
+    },
+    "scope": {
+      "legend": "Animals in this report",
+      "allDesc": "Every animal that was on the farm during the period.",
+      "groupDesc": "Animals in one group you made.",
+      "cowDesc": "One animal only.",
+      "presentRule": "Only animals that were on the farm during the period are counted, for the days they were there.",
+      "groupAsOf": "Group members are taken as of the day you generate the report, not as of the period.",
+      "groupPlaceholder": "Choose a group",
+      "groupSearchLabel": "Group",
+      "groupEmpty": "You have no animal groups yet. Create one in Cattle, or pick another option.",
+      "groupLoadError": "Groups could not be loaded.",
+      "groupMembers": "{count} animals",
+      "cowLabel": "Animal",
+      "cowPlaceholder": "Search by tag or name"
+    },
+    "review": {
+      "figures": "Figures",
+      "period": "Period",
+      "compared": "Compared with",
+      "animals": "Animals",
+      "figuresValue": "{count} figures in {sections} sections",
+      "groupValue": "Group: {name}",
+      "cowValue": "One animal",
+      "preview": "Preview",
+      "previewing": "Calculating…",
+      "previewHint": "A preview calculates the figures now without saving a report.",
+      "previewTitle": "Preview",
+      "previewStale": "You changed your choices. Preview again to see the new figures.",
+      "previewMore": "+ {count} more figures in the full report",
+      "previewNoFigures": "No headline figures to show.",
+      "coverage": "{recorded} of {expected} expected records entered",
+      "previewChange": "{change} vs previous period",
+      "previewReadOnly": "Not saved. Generate the report to keep it.",
+      "generateError": "Report not created",
+      "generating": "Creating your report…",
+      "qualityTitle": "Data notes"
+    },
+    "duplicate": {
+      "title": "A matching report already exists",
+      "body": "You already have a report with the same period, animals and figures.",
+      "period": "Period",
+      "generatedAt": "Generated",
+      "status": "Status",
+      "openExisting": "Open existing",
+      "generateNew": "Generate a new snapshot",
+      "working": "Working…"
+    }
+  },
+  "reportsDetail": {
+    "pageTitle": "Report",
+    "back": "Back to reports",
+    "type": {
+      "WEEKLY": "Weekly report",
+      "MONTHLY": "Monthly report",
+      "ON_DEMAND": "Custom report"
+    },
+    "meta": {
+      "period": "Period",
+      "comparedWith": "Compared with",
+      "farm": "Farm",
+      "generatedAt": "Generated",
+      "scope": "Covers",
+      "origin": "Created",
+      "scopeAll": "All eligible animals",
+      "scopeCow": "One animal",
+      "scopeGroup": "A group, as it was on {date}"
+    },
+    "actions": {
+      "download": "Download PDF",
+      "downloading": "Preparing PDF…",
+      "noPdf": "The PDF is not available for this report.",
+      "delete": "Delete",
+      "deleteTitle": "Delete this report?",
+      "deleteDescription": "The report and its PDF will be removed. This cannot be undone.",
+      "deleteConfirm": "Delete report",
+      "deleted": "Report deleted.",
+      "downloadStarted": "Download started.",
+      "retry": "Try again",
+      "retrying": "Trying again…",
+      "refresh": "Refresh",
+      "ownerOnlyHint": "Only the farm owner can delete reports."
+    },
+    "loading": "Loading report",
+    "pending": {
+      "queuedTitle": "Your report is in the queue",
+      "processingTitle": "Your report is being generated",
+      "hint": "This usually takes under a minute. You can leave this page; the report will be in your list.",
+      "stepQueued": "Queued",
+      "stepProcessing": "Gathering figures",
+      "stepReady": "Ready",
+      "timedOutTitle": "This is taking longer than usual",
+      "timedOutBody": "Refresh to check again. If it stays stuck, go back to the list and try later."
+    },
+    "failed": {
+      "title": "This report could not be generated",
+      "retriesHint": "You can try again. A report can be retried up to 3 times.",
+      "retryDone": "Trying again. This page will update on its own."
+    },
+    "notFound": {
+      "title": "Report not found",
+      "body": "It may have been deleted, or you may not have access to it."
+    },
+    "noAccess": {
+      "title": "You cannot open reports",
+      "body": "Your role or plan does not include reports."
+    },
+    "loadError": {
+      "title": "Could not load this report"
+    },
+    "section": {
+      "empty": "No figures in this section."
+    },
+    "metric": {
+      "previous": "Previous period",
+      "change": "Change",
+      "vsPrevious": "vs previous period",
+      "noRecordDays": "{count, plural, one {# day has} other {# days have}} no record",
+      "recordedDays": "{recorded} of {total} days recorded",
+      "chartSummary": "{name}: {recorded} of {total} days recorded, highest {max}, lowest {min}.",
+      "table": "Table",
+      "showAll": "Show all {count}",
+      "showFewer": "Show fewer",
+      "rows": "Breakdown",
+      "animalRemoved": "Animal (removed)",
+      "col": {
+        "name": "Name",
+        "value": "Value"
+      },
+      "noRows": "No breakdown for this period.",
+      "sourceLabel": "Basis"
+    },
+    "exceptions": {
+      "title": "Needs attention",
+      "animals": "{count, plural, one {# animal} other {# animals}}",
+      "none": "Nothing needs attention in this period.",
+      "viewAnimal": "Open animal"
+    },
+    "dq": {
+      "title": "How complete is this data",
+      "coverage": "{recorded} of {expected} expected records entered",
+      "noExpected": "No records were expected in this period.",
+      "flagsTitle": "Things to know",
+      "drafts": "Unsubmitted milk drafts are not counted.",
+      "estimated": "Some figures are estimates.",
+      "unknownCosts": "Some costs are unknown and not counted.",
+      "membership": "Group members are as of the day the report was generated.",
+      "incomplete": "Some expected records were not entered, so totals may be low."
+    },
+    "finance": {
+      "title": "Cash figures are not in this report",
+      "body": "This report was made without cash and cost figures, so none are shown here."
     }
   }
 }

@@ -36,6 +36,8 @@ async function forward(
 
   const search = req.nextUrl.search;
   const url = `${serverEnv.API_BASE_URL}/${path.join("/")}${search}`;
+  // RFE-156: forward the client's `Idempotency-Key` (POST /reports) verbatim; the backend validates it.
+  const idempotencyKey = req.headers.get("idempotency-key");
   const contentType = req.headers.get("content-type");
   const isMultipart = contentType?.startsWith("multipart/form-data") ?? false;
 
@@ -45,6 +47,7 @@ async function forward(
     headers: {
       "Accept-Language": locale,
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
       ...(body !== undefined ? { "Content-Type": isMultipart ? contentType! : "application/json" } : {}),
     },
     body,

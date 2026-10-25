@@ -19,6 +19,8 @@ export interface ApiFetchInit {
   body?: unknown;
   searchParams?: Record<string, string | number | boolean | undefined>;
   signal?: AbortSignal;
+  /** Extra request headers (e.g. `Idempotency-Key`). `Content-Type` is still set automatically for a body. */
+  headers?: Record<string, string>;
 }
 
 function buildUrl(path: string, searchParams?: ApiFetchInit["searchParams"]): string {
@@ -39,7 +41,10 @@ async function rawFetch<T>(path: string, init: ApiFetchInit): Promise<{ envelope
       method: init.method ?? "GET",
       credentials: "same-origin",
       signal: init.signal,
-      headers: init.body !== undefined ? { "Content-Type": "application/json" } : undefined,
+      headers:
+        init.body !== undefined || init.headers
+          ? { ...(init.headers ?? {}), ...(init.body !== undefined ? { "Content-Type": "application/json" } : {}) }
+          : undefined,
       body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
     });
   } catch (cause) {
