@@ -1,8 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { randomInt } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import type { ConfigType } from '@nestjs/config';
 import { telegramConfig } from 'src/core/config/env';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
+import { CacheService } from 'src/core/cache/cache.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 
 const TELEGRAM_PROVIDER = 'telegram';
@@ -10,6 +12,11 @@ const LINK_TOKEN_TTL = '10m';
 
 interface TelegramLinkPayload {
   purpose: 'telegram_link';
+  userId: string;
+  farmId: string;
+}
+
+interface TelegramLinkCodeSession {
   userId: string;
   farmId: string;
 }
@@ -43,6 +50,7 @@ export class TelegramLinkService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
     @Inject(telegramConfig.KEY)
     private readonly config: ConfigType<typeof telegramConfig>,
     logger: LoggerService,
@@ -55,6 +63,28 @@ export class TelegramLinkService {
       Boolean(this.config.webhookSecret) &&
       headerValue === this.config.webhookSecret
     );
+  }
+
+  async mintConnectSession(userId: string, farmId: string) {
+    const code = randomInt(100000, 1000000).toString();
+    await this.cache.set<TelegramLinkCodeSession>(
+      `telegram:link_code:${code}`,
+      { userId, farmId },
+      900,
+    );
+    const botUsername = this.config.botUsername ?? '';
+    const configured = Boolean(this.config.botToken && botUsername);
+    const deepLink = botUsername
+      ? `https://t.me/${botUsername}?start=${code}`
+      : '';
+    return {
+      configured,
+      botUsername,
+      code,
+      expiresIn: 900,
+      deepLink,
+      qrPayload: deepLink || code,
+    };
   }
 
   async mintLinkToken(userId: string, farmId: string) {
@@ -119,11 +149,20 @@ export class TelegramLinkService {
     const text = update.message?.text?.trim();
     if (chatId === undefined || !text) return;
 
+    if (/^\d{6}$/.test(text)) {
+      await this.handleLinkWithCode(chatId, text);
+      return;
+    }
+
     if (text.startsWith('/start')) {
       const parts = text.split(/\s+/);
-      const token = parts[1];
-      if (token) {
-        await this.handleStartWithToken(chatId, token);
+      const arg = parts[1];
+      if (arg) {
+        if (/^\d{6}$/.test(arg)) {
+          await this.handleLinkWithCode(chatId, arg);
+        } else {
+          await this.handleStartWithToken(chatId, arg);
+        }
       } else {
         await this.handleStartWelcome(chatId);
       }
@@ -147,6 +186,54 @@ export class TelegramLinkService {
 
     // Fallback for natural language text queries (V2 AI assistant seam)
     await this.handleAiQueryFallback(chatId, text);
+  }
+
+  private async handleLinkWithCode(
+    chatId: number | string,
+    code: string,
+  ): Promise<void> {
+    const cacheKey = `telegram:link_code:${code}`;
+    const session = await this.cache.get<TelegramLinkCodeSession>(cacheKey);
+
+    if (!session) {
+      this.log.warn('Telegram link code rejected or expired', {
+        chatId: String(chatId),
+        code,
+      });
+      await this.reply(
+        chatId,
+        '⚠️ এই কোডটি সঠিক নয় অথবা এর মেয়াদ শেষ হয়ে গেছে। দয়া করে রাখাল অ্যাপ থেকে নতুন কোড নিন।',
+      );
+      return;
+    }
+
+    await this.prisma.deviceToken.upsert({
+      where: { token: String(chatId) },
+      create: {
+        userId: session.userId,
+        farmId: session.farmId,
+        token: String(chatId),
+        platform: 'telegram',
+        provider: TELEGRAM_PROVIDER,
+      },
+      update: {
+        userId: session.userId,
+        farmId: session.farmId,
+        lastSeenAt: new Date(),
+      },
+    });
+
+    await this.cache.delete(cacheKey);
+
+    this.log.info('Telegram account linked via code', {
+      userId: session.userId,
+      chatId: String(chatId),
+    });
+
+    await this.reply(
+      chatId,
+      '✅ <b>অভিনন্দন! আপনার টেলিগ্রাম অ্যাকাউন্ট সফলভাবে রাখাল (Rakhal) অ্যাকাউন্টের সাথে যুক্ত হয়েছে।</b>',
+    );
   }
 
   private async handleStartWithToken(

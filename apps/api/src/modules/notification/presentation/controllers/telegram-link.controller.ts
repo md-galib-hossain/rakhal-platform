@@ -32,6 +32,17 @@ const WEBHOOK_SECRET_HEADER = 'x-telegram-bot-api-secret-token';
 export class TelegramLinkController {
   constructor(private readonly telegramLink: TelegramLinkService) {}
 
+  @Get('connect-session')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+  @RequirePermission('notification.read')
+  getConnectSession(
+    @CurrentUserId() userId: string,
+    @CurrentFarmId() farmId: string,
+  ) {
+    return this.telegramLink.mintConnectSession(userId, farmId);
+  }
+
   @Get('link-token')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)

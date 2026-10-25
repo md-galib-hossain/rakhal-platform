@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
+import { CacheService } from '../src/core/cache/cache.service';
 import { TelegramLinkService } from '../src/modules/notification/application/services/telegram-link.service';
 import { TelegramBotProvider } from '../src/modules/notification/application/channels/telegram-bot.provider';
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
@@ -15,6 +16,7 @@ describe('Notifications — Telegram (e2e)', () => {
   let owner: AuthedUser;
   let worker: AuthedUser;
   let prisma: PrismaService;
+  let cache: CacheService;
   let jwt: JwtService;
   let telegramLink: TelegramLinkService;
   let telegramProvider: TelegramBotProvider;
@@ -32,6 +34,7 @@ describe('Notifications — Telegram (e2e)', () => {
     owner = await loginAs(ctx, 'owner@demo.rakhal.test', 'DemoPass123');
     worker = await loginAs(ctx, 'worker@demo.rakhal.test', 'WorkerPass123');
     prisma = ctx.app.get(PrismaService);
+    cache = ctx.app.get(CacheService);
     jwt = ctx.app.get(JwtService);
     telegramLink = ctx.app.get(TelegramLinkService);
     telegramProvider = ctx.app.get(TelegramBotProvider);
@@ -51,6 +54,28 @@ describe('Notifications — Telegram (e2e)', () => {
       where: { userId: ownerUserId, provider: 'telegram' },
     });
     await ctx.app.close();
+  });
+
+  it('GET /notifications/telegram/connect-session returns 6-digit code and deepLink', async () => {
+    const res = await request(server())
+      .get(api('/notifications/telegram/connect-session'))
+      .set(...auth(owner))
+      .expect(200);
+
+    expect(res.body.data).toMatchObject({
+      configured: expect.any(Boolean),
+      botUsername: expect.any(String),
+      expiresIn: 900,
+    });
+    expect(res.body.data.code).toMatch(/^\d{6}$/);
+    expect(typeof res.body.data.deepLink).toBe('string');
+    expect(typeof res.body.data.qrPayload).toBe('string');
+  });
+
+  it('rejects an unauthenticated connect-session request', async () => {
+    await request(server())
+      .get(api('/notifications/telegram/connect-session'))
+      .expect(401);
   });
 
   it('GET /notifications/telegram/link-token returns a configured flag', async () => {
@@ -209,17 +234,106 @@ describe('Notifications — Telegram (e2e)', () => {
     expect(row).toBeNull();
   });
 
-  it('provider defers when TELEGRAM_BOT_TOKEN is unset', async () => {
-    const result = await telegramProvider.send({
-      userId: ownerUserId,
-      eventKey: 'low_feed_stock',
-      category: 'inventory',
-      priority: 'medium',
-      title: 'Feed Low',
-      message: 'Silage stock is under 3 days.',
+  it('links a chat id on /start <code> with a valid 6-digit session code', async () => {
+    const replySpy = jest.spyOn(telegramLink, 'reply');
+    const session = await telegramLink.mintConnectSession(
+      ownerUserId,
+      owner.farmId,
+    );
+
+    await telegramLink.handleUpdate({
+      message: { chat: { id: 112233 }, text: `/start ${session.code}` },
     });
-    expect(telegramProvider.isConfigured()).toBe(false);
-    expect(result).toEqual({ delivered: false, detail: 'not_configured' });
+
+    const row = await prisma.deviceToken.findFirst({
+      where: { userId: ownerUserId, token: '112233', provider: 'telegram' },
+    });
+    expect(row).toMatchObject({
+      token: '112233',
+      platform: 'telegram',
+      provider: 'telegram',
+    });
+
+    // Code is single-use: deleted from cache
+    const cached = await cache.get(`telegram:link_code:${session.code}`);
+    expect(cached).toBeUndefined();
+
+    // Bengali confirmation reply sent
+    expect(replySpy).toHaveBeenCalledWith(
+      112233,
+      expect.stringContaining('সফলভাবে রাখাল (Rakhal) অ্যাকাউন্টের সাথে যুক্ত হয়েছে'),
+    );
+
+    await prisma.deviceToken.deleteMany({ where: { token: '112233' } });
+  });
+
+  it('links a chat id on bare 6-digit code message', async () => {
+    const replySpy = jest.spyOn(telegramLink, 'reply');
+    const session = await telegramLink.mintConnectSession(
+      ownerUserId,
+      owner.farmId,
+    );
+
+    await telegramLink.handleUpdate({
+      message: { chat: { id: 223344 }, text: session.code },
+    });
+
+    const row = await prisma.deviceToken.findFirst({
+      where: { userId: ownerUserId, token: '223344', provider: 'telegram' },
+    });
+    expect(row).toMatchObject({
+      token: '223344',
+      platform: 'telegram',
+      provider: 'telegram',
+    });
+
+    // Code is single-use: deleted from cache
+    const cached = await cache.get(`telegram:link_code:${session.code}`);
+    expect(cached).toBeUndefined();
+
+    expect(replySpy).toHaveBeenCalledWith(
+      223344,
+      expect.stringContaining('সফলভাবে রাখাল (Rakhal) অ্যাকাউন্টের সাথে যুক্ত হয়েছে'),
+    );
+
+    await prisma.deviceToken.deleteMany({ where: { token: '223344' } });
+  });
+
+  it('rejects an invalid or expired 6-digit code with error message', async () => {
+    const replySpy = jest.spyOn(telegramLink, 'reply');
+
+    await telegramLink.handleUpdate({
+      message: { chat: { id: 334455 }, text: '999999' },
+    });
+
+    const row = await prisma.deviceToken.findFirst({
+      where: { token: '334455' },
+    });
+    expect(row).toBeNull();
+
+    expect(replySpy).toHaveBeenCalledWith(
+      334455,
+      expect.stringContaining('এই কোডটি সঠিক নয় অথবা এর মেয়াদ শেষ হয়ে গেছে'),
+    );
+  });
+
+  it('provider defers when TELEGRAM_BOT_TOKEN is unset', async () => {
+    const originalToken = (telegramProvider as any).config.botToken;
+    (telegramProvider as any).config.botToken = undefined;
+    try {
+      const result = await telegramProvider.send({
+        userId: ownerUserId,
+        eventKey: 'low_feed_stock',
+        category: 'inventory',
+        priority: 'medium',
+        title: 'Feed Low',
+        message: 'Silage stock is under 3 days.',
+      });
+      expect(telegramProvider.isConfigured()).toBe(false);
+      expect(result).toEqual({ delivered: false, detail: 'not_configured' });
+    } finally {
+      (telegramProvider as any).config.botToken = originalToken;
+    }
   });
 
   it('worker may also mint their own link-token (self-service, no elevated perm)', async () => {
