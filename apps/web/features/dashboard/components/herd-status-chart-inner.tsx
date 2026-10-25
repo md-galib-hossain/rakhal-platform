@@ -1,5 +1,6 @@
 "use client"; // recharts renders to the DOM/canvas — client-only, loaded via next/dynamic in the parent
 
+import * as React from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 export interface DonutSlice {

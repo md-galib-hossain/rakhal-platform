@@ -1,5 +1,6 @@
 "use client"; // recharts renders to the DOM/canvas — client-only, loaded via next/dynamic in the parent
 
+import * as React from "react";
 import { Area, Bar, CartesianGrid, ComposedChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { ConceptionRateResponse } from "../types";
 

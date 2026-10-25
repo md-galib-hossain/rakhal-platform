@@ -1,5 +1,6 @@
 "use client"; // recharts renders to the DOM/canvas — client-only, loaded via next/dynamic in the parent
 
+import * as React from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { ProductionVsFeedcostResponse } from "../types";
 
