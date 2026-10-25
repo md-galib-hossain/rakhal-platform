@@ -64,24 +64,30 @@ export async function sendBroadcastMessage(
   }
 
   try {
-    const res = await callAdminApi<{ data: { targetedCount: number; deliveredCount: number } }>(
-      "/admin/communications/broadcast",
-      {
-        method: "POST",
-        token,
-        body: { title, message, link: link || undefined, targetAudience },
-      },
-    );
+    const res = await callAdminApi<{
+      targetedCount?: number;
+      deliveredCount?: number;
+      data?: { targetedCount: number; deliveredCount: number };
+    }>("/admin/communications/broadcast", {
+      method: "POST",
+      token,
+      body: { title, message, link: link || undefined, targetAudience },
+    });
+
+    const targeted = res?.targetedCount ?? res?.data?.targetedCount ?? 0;
+    const delivered = res?.deliveredCount ?? res?.data?.deliveredCount ?? 0;
+
     revalidatePath("/communications");
     revalidatePath("/audit");
     return {
       ok: true,
-      message: `Broadcast delivered to ${res.data.deliveredCount} of ${res.data.targetedCount} recipients.`,
+      message: `Broadcast delivered successfully to ${delivered} of ${targeted} recipients.`,
     };
   } catch (err) {
     if (err instanceof AdminApiError) {
       return { ok: false, message: err.body?.message ?? "Failed to send broadcast." };
     }
-    return { ok: false, message: "Failed to broadcast announcement." };
+    const errMsg = err instanceof Error ? err.message : "Failed to broadcast announcement.";
+    return { ok: false, message: errMsg };
   }
 }
