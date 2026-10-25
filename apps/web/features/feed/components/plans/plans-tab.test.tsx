@@ -7,17 +7,24 @@ import bn from "@/i18n/messages/bn.json";
 import { PlansTab } from "./plans-tab";
 import type { FeedPlan } from "../../plans-types";
 
+interface MockAnimalGroup {
+  id: string;
+  name: string;
+  memberCount: number;
+  description?: string | null;
+}
+
 const { mockArchiveMutation, getPlansData, setPlansData, getGroupsData, setGroupsData } = vi.hoisted(() => {
-  let plans: any[] = [];
-  let groups: any[] = [];
+  let plans: FeedPlan[] = [];
+  let groups: MockAnimalGroup[] = [];
   return {
     mockArchiveMutation: vi.fn().mockResolvedValue({ success: true }),
     getPlansData: () => plans,
-    setPlansData: (p: any[]) => {
+    setPlansData: (p: FeedPlan[]) => {
       plans = p;
     },
     getGroupsData: () => groups,
-    setGroupsData: (g: any[]) => {
+    setGroupsData: (g: MockAnimalGroup[]) => {
       groups = g;
     },
   };

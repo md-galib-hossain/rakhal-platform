@@ -183,7 +183,7 @@ describe("AssignedCattleDialog", () => {
     expect(screen.queryByText("Group: Milkers Shed A")).not.toBeInTheDocument();
   });
 
-  it("opens ConfirmDialog when remove is clicked", async () => {
+  it("opens ConfirmDialog when remove is clicked and formats description without empty ()", async () => {
     renderWithProviders(
       <AssignedCattleDialog
         plan={mockPlan}
@@ -200,9 +200,11 @@ describe("AssignedCattleDialog", () => {
     const removeButtons = screen.getAllByRole("button", { name: /Remove/i });
     fireEvent.click(removeButtons[0]);
 
-    // Check confirmation title is displayed
+    // Check confirmation title and formatted target with tag
     await waitFor(() => {
       expect(screen.getByText(/Remove Tuni from this plan\?/i)).toBeInTheDocument();
+      expect(screen.getByText(/Tuni \(GALIB-006\) will no longer receive this feed ration/i)).toBeInTheDocument();
+      expect(screen.queryByText(/\(\s*\)/)).not.toBeInTheDocument();
     });
   });
 

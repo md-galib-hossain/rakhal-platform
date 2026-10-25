@@ -74,11 +74,12 @@ export function PlanProportionBar({
               return (
                 <Tooltip key={seg.line.id || `seg-${idx}`}>
                   <TooltipTrigger asChild>
-                    <div
+                    <button
+                      type="button"
                       tabIndex={0}
                       style={{ width: `${seg.pct}%` }}
                       className={cn(
-                        "h-full shrink-0 transition-all duration-300 first:rounded-l-full last:rounded-r-full hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                        "h-full shrink-0 border-0 p-0 transition-all duration-300 first:rounded-l-full last:rounded-r-full hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 cursor-default",
                         seg.color,
                       )}
                       aria-label={label}
