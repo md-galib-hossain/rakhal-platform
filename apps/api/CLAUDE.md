@@ -18,6 +18,7 @@ Copy `src/modules/inventory/` for any new module.
 - DTOs: class-validator; every prop needs a validator decorator (whitelist strips undecorated). Reuse `src/common/dto` helpers.
 - Services hold business logic + farm scoping; soft-delete; throw exceptions (global filter envelops). Map Prisma `P2002` → Conflict.
 - AQR/Activity: `AqrService.applyEvent(...)` / `ActivityLogService.record(...)`. Module tasks: `TaskService.createInternal(...)`.
+- Cost & scale: No Kafka or heavy architecture; ask target scale (QPS, writes/sec) before introducing costly optimizations; keep schedulers/jobs from preventing DB idle suspension (e.g. Neon 24/7 wakeups).
 
 ## Commands
 - `pnpm prisma:generate`, `prisma migrate dev --name <x>`, `pnpm seed`.
