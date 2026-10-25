@@ -64,24 +64,25 @@ export async function sendBroadcastMessage(
   }
 
   try {
-    const res = await callAdminApi<{
-      targetedCount?: number;
-      deliveredCount?: number;
-      data?: { targetedCount: number; deliveredCount: number };
-    }>("/admin/communications/broadcast", {
+    const rawRes = await callAdminApi<any>("/admin/communications/broadcast", {
       method: "POST",
       token,
       body: { title, message, link: link || undefined, targetAudience },
     });
 
-    const targeted = res?.targetedCount ?? res?.data?.targetedCount ?? 0;
-    const delivered = res?.deliveredCount ?? res?.data?.deliveredCount ?? 0;
+    const targeted = rawRes?.targetedCount ?? rawRes?.data?.targetedCount ?? 0;
+    const delivered = rawRes?.deliveredCount ?? rawRes?.data?.deliveredCount ?? 0;
 
     revalidatePath("/communications");
     revalidatePath("/audit");
     return {
       ok: true,
-      message: `Broadcast delivered successfully to ${delivered} of ${targeted} recipients.`,
+      message:
+        delivered > 0
+          ? `Broadcast delivered successfully to ${delivered} of ${targeted} recipients.`
+          : targeted > 0
+            ? `Broadcast processed for ${targeted} recipients.`
+            : "Broadcast sent successfully.",
     };
   } catch (err) {
     if (err instanceof AdminApiError) {
