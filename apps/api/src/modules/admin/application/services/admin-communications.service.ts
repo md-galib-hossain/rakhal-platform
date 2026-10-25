@@ -75,7 +75,6 @@ export class AdminCommunicationsService {
     });
 
     return {
-      success: true,
       delivered: result.length > 0,
       recipient: { id: user.id, name: user.name, email: user.email },
     };
@@ -126,7 +125,7 @@ export class AdminCommunicationsService {
     }
 
     if (targetUserIds.length === 0) {
-      return { success: true, count: 0, delivered: 0, message: 'No recipients matched the target audience' };
+      return { targetedCount: 0, deliveredCount: 0, message: 'No recipients matched the target audience' };
     }
 
     // Resolve farms for users or fallback to 'system'
@@ -177,7 +176,6 @@ export class AdminCommunicationsService {
     });
 
     return {
-      success: true,
       targetedCount: targetUserIds.length,
       deliveredCount: totalDelivered,
     };

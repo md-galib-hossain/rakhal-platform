@@ -115,10 +115,9 @@ describe('Admin communications (e2e)', () => {
       })
       .expect(200);
 
-    const body = res.body as { data?: { success: boolean; recipient: { id: string } }; success?: boolean; recipient?: { id: string } };
-    const data = body.data ?? body;
-    expect(data.success).toBe(true);
-    expect(data.recipient?.id).toBe(tenant.userId);
+    const body = res.body as { data?: { delivered: boolean; recipient: { id: string } }; success?: boolean; recipient?: { id: string } };
+    expect(body.success).toBe(true);
+    expect(body.data?.recipient?.id).toBe(tenant.userId);
 
     const notif = await prisma.notification.findFirst({
       where: { userId: tenant.userId, eventKey: 'admin_broadcast' },
@@ -141,9 +140,8 @@ describe('Admin communications (e2e)', () => {
       })
       .expect(200);
 
-    const body = res.body as { data?: { success: boolean; targetedCount: number }; success?: boolean; targetedCount?: number };
-    const data = body.data ?? body;
-    expect(data.success).toBe(true);
-    expect(data.targetedCount).toBe(1);
+    const body = res.body as { data?: { targetedCount: number }; success?: boolean; targetedCount?: number };
+    expect(body.success).toBe(true);
+    expect(body.data?.targetedCount).toBe(1);
   });
 });
