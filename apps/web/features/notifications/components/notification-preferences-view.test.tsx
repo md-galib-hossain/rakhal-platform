@@ -116,7 +116,7 @@ describe("NotificationPreferencesView", () => {
     expect(screen.getByTestId("channel-card-sms")).toBeInTheDocument();
     expect(screen.getByTestId("channel-card-push")).toBeInTheDocument();
 
-    expect(screen.getByText("Not connected")).toBeInTheDocument();
+    expect(screen.getAllByText("Not connected").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /connect telegram/i })).toBeInTheDocument();
   });
 
@@ -140,7 +140,7 @@ describe("NotificationPreferencesView", () => {
 
     renderWithProviders(<NotificationPreferencesView />);
 
-    expect(screen.getByText("Connected")).toBeInTheDocument();
+    expect(screen.getAllByText("Active").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /disconnect/i })).toBeInTheDocument();
 
     // Find the toggle switch for Telegram
@@ -150,7 +150,7 @@ describe("NotificationPreferencesView", () => {
 
     // Click to mute
     fireEvent.click(toggle);
-    expect(screen.getByText("Muted")).toBeInTheDocument();
+    expect(screen.getAllByText("Muted").length).toBeGreaterThan(0);
   });
 
   it("renders per-event channel personalization with Telegram and SMS pills", () => {

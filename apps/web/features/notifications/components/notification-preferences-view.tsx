@@ -5,8 +5,6 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
   Bell,
-  CheckCircle2,
-  Filter,
   Loader2,
   Moon,
   Search,
@@ -71,10 +69,13 @@ function saveChannelMutes(mutes: Record<DeliveryChannelKey, boolean>) {
 }
 
 /**
- * RFE-043 & RAKHAL-257 — Modernized multi-channel notification settings:
- * - Delivery Channels Hub with individual Master Active/Mute toggles and connection state.
+ * RFE-043 & RAKHAL-257 — Multi-channel notification settings matching project design system:
+ * - Clean 2-color state representation:
+ *   - Active: Brand primary green (--primary #00a86b fill / border / tint)
+ *   - Inactive: Clean neutral muted (--muted / --muted-foreground / --border)
+ * - Delivery Channels Hub with individual Master Active/Mute toggles.
  * - Telegram bot linking + self-service disconnect + soft mute without disconnect.
- * - Per-event personalization matrix with channel-specific checkboxes (Telegram, SMS, Push).
+ * - Per-event personalization matrix with channel-specific toggles (Telegram, SMS, Push).
  * - Category filter pills + search input for quick personalization.
  * - Quiet hours (Do Not Disturb) window.
  */
@@ -201,7 +202,7 @@ export function NotificationPreferencesView() {
       {/* 2. QUIET HOURS (DND Window) */}
       <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:p-5">
         <div className="flex items-center gap-2">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
             <Moon className="size-4" />
           </div>
           <div>
@@ -277,7 +278,7 @@ export function NotificationPreferencesView() {
         {/* Category Filter Chips */}
         <div className="flex flex-wrap items-center gap-1.5 pt-1">
           <Button
-            variant={selectedCategory === "ALL" ? "primary" : "outline"}
+            variant={selectedCategory === "ALL" ? "default" : "outline"}
             size="sm"
             onClick={() => setSelectedCategory("ALL")}
             className="h-7 px-2.5 text-xs rounded-full"
@@ -287,7 +288,7 @@ export function NotificationPreferencesView() {
           {CATEGORY_ORDER.map((cat) => (
             <Button
               key={cat}
-              variant={selectedCategory === cat ? "primary" : "outline"}
+              variant={selectedCategory === cat ? "default" : "outline"}
               size="sm"
               onClick={() => setSelectedCategory(cat)}
               className="h-7 px-2.5 text-xs rounded-full"
@@ -315,7 +316,7 @@ export function NotificationPreferencesView() {
                   </span>
                 </div>
 
-                <div className="flex flex-col divide-y divide-border/80 rounded-xl border border-border bg-card shadow-xs">
+                <div className="flex flex-col divide-y divide-border rounded-xl border border-border bg-card shadow-xs">
                   {byCategory.get(category)!.map((item) => {
                     const isMutedByChannel = {
                       telegram: isTelegramLinked && channelMutes.telegram,
@@ -352,24 +353,24 @@ export function NotificationPreferencesView() {
                           </div>
                         </div>
 
-                        {/* Channel personalization toggles */}
+                        {/* Channel personalization toggles: 2-color state (primary green for active, neutral muted for inactive) */}
                         {item.enabled ? (
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-1 border-t border-border/40">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-1 border-t border-border/50">
                             <span className="text-[11px] font-medium text-muted-foreground mr-1 flex items-center gap-1">
                               <SlidersHorizontal className="size-3" />
                               {t("deliveryVia")}
                             </span>
 
                             <Can I="notification.update">
-                              <div className="flex flex-wrap items-center gap-2.5">
+                              <div className="flex flex-wrap items-center gap-2">
                                 {/* Telegram Pill Toggle */}
                                 <label
                                   className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors cursor-pointer select-none ${
                                     item.channels.telegram
                                       ? isMutedByChannel.telegram
-                                        ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                                        : "border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300 font-medium"
-                                      : "border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted"
+                                        ? "border-border bg-muted/60 text-muted-foreground line-through opacity-75"
+                                        : "border-primary/40 bg-primary/10 text-primary font-medium"
+                                      : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/60"
                                   }`}
                                 >
                                   <Checkbox
@@ -378,12 +379,14 @@ export function NotificationPreferencesView() {
                                     onCheckedChange={(checked) =>
                                       toggleChannel(item, "telegram", checked === true)
                                     }
-                                    className="size-3.5 data-[state=checked]:bg-sky-600 data-[state=checked]:border-sky-600"
+                                    className="size-3.5"
                                   />
                                   <Send className="size-3" />
                                   <span>{t("channels.telegram")}</span>
                                   {isMutedByChannel.telegram ? (
-                                    <span className="text-[10px] text-amber-600 font-normal">(Muted)</span>
+                                    <span className="text-[10px] font-normal no-underline text-muted-foreground">
+                                      (Muted)
+                                    </span>
                                   ) : null}
                                 </label>
 
@@ -392,9 +395,9 @@ export function NotificationPreferencesView() {
                                   className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors cursor-pointer select-none ${
                                     item.channels.sms
                                       ? isMutedByChannel.sms
-                                        ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                                        : "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-medium"
-                                      : "border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted"
+                                        ? "border-border bg-muted/60 text-muted-foreground line-through opacity-75"
+                                        : "border-primary/40 bg-primary/10 text-primary font-medium"
+                                      : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/60"
                                   }`}
                                 >
                                   <Checkbox
@@ -403,12 +406,14 @@ export function NotificationPreferencesView() {
                                     onCheckedChange={(checked) =>
                                       toggleChannel(item, "sms", checked === true)
                                     }
-                                    className="size-3.5 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+                                    className="size-3.5"
                                   />
                                   <Smartphone className="size-3" />
                                   <span>{t("channels.sms")}</span>
                                   {isMutedByChannel.sms ? (
-                                    <span className="text-[10px] text-amber-600 font-normal">(Muted)</span>
+                                    <span className="text-[10px] font-normal no-underline text-muted-foreground">
+                                      (Muted)
+                                    </span>
                                   ) : null}
                                 </label>
 
@@ -417,9 +422,9 @@ export function NotificationPreferencesView() {
                                   className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors cursor-pointer select-none ${
                                     item.channels.push
                                       ? isMutedByChannel.push
-                                        ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                                        : "border-indigo-500/40 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-medium"
-                                      : "border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted"
+                                        ? "border-border bg-muted/60 text-muted-foreground line-through opacity-75"
+                                        : "border-primary/40 bg-primary/10 text-primary font-medium"
+                                      : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/60"
                                   }`}
                                 >
                                   <Checkbox
@@ -428,7 +433,7 @@ export function NotificationPreferencesView() {
                                     onCheckedChange={(checked) =>
                                       toggleChannel(item, "push", checked === true)
                                     }
-                                    className="size-3.5 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+                                    className="size-3.5"
                                   />
                                   <Bell className="size-3" />
                                   <span>{t("channels.push")}</span>

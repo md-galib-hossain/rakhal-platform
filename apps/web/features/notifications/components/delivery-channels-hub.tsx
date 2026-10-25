@@ -8,12 +8,8 @@ import {
   Smartphone,
   Mail,
   CheckCircle2,
-  AlertCircle,
   QrCode,
   Loader2,
-  Power,
-  PowerOff,
-  Sparkles,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,19 +44,14 @@ export function DeliveryChannelsHub({
 
   const isTelegramLinked = Boolean(telegramStatus.data?.linked);
   const isTelegramMuted = Boolean(channelMutes.telegram);
+  const isTelegramActive = isTelegramLinked && !isTelegramMuted;
 
   return (
     <section className="flex flex-col gap-4">
       <div>
-        <div className="flex items-center gap-2">
-          <h2 className="text-base font-semibold text-foreground tracking-tight">
-            {t("deliveryChannelsTitle")}
-          </h2>
-          <Badge variant="outline" className="text-[11px] font-normal border-primary/20 text-primary">
-            <Sparkles className="size-3 mr-1" />
-            Multi-Channel
-          </Badge>
-        </div>
+        <h2 className="text-base font-semibold text-foreground tracking-tight">
+          {t("deliveryChannelsTitle")}
+        </h2>
         <p className="text-xs text-muted-foreground mt-0.5">
           {t("deliveryChannelsSubtitle")}
         </p>
@@ -71,20 +62,18 @@ export function DeliveryChannelsHub({
         <div
           data-testid="channel-card-telegram"
           className={`flex flex-col justify-between rounded-xl border p-4 transition-colors ${
-            isTelegramLinked
-              ? isTelegramMuted
-                ? "border-amber-500/30 bg-amber-500/[0.02]"
-                : "border-sky-500/30 bg-sky-500/[0.02]"
-              : "border-border bg-card hover:border-border/80"
+            isTelegramActive
+              ? "border-primary/40 bg-card ring-1 ring-primary/20"
+              : "border-border bg-card"
           }`}
         >
           <div className="flex flex-col gap-3">
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2.5">
                 <div
-                  className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
-                    isTelegramLinked
-                      ? "bg-sky-500/15 text-sky-600 dark:text-sky-400"
+                  className={`flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                    isTelegramActive
+                      ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground"
                   }`}
                 >
@@ -98,9 +87,18 @@ export function DeliveryChannelsHub({
                     {telegramStatus.isLoading ? (
                       <Skeleton className="h-4 w-12" />
                     ) : isTelegramLinked ? (
-                      <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-[10px] px-1.5 py-0">
-                        <CheckCircle2 className="size-2.5 mr-0.5" />
-                        {t("telegram.statusConnected")}
+                      <Badge
+                        variant={isTelegramActive ? "default" : "outline"}
+                        className="text-[10px] px-1.5 py-0"
+                      >
+                        {isTelegramActive ? (
+                          <>
+                            <CheckCircle2 className="size-2.5 mr-0.5" />
+                            {t("channelActive")}
+                          </>
+                        ) : (
+                          t("channelMuted")
+                        )}
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
@@ -111,7 +109,7 @@ export function DeliveryChannelsHub({
                   <span className="text-[11px] text-muted-foreground">
                     {telegramStatus.data?.linked && telegramStatus.data.count > 0
                       ? t("telegram.activeChats", { count: telegramStatus.data.count })
-                      : "Instant Bot Delivery"}
+                      : "Instant Bot Alerts"}
                   </span>
                 </div>
               </div>
@@ -138,23 +136,13 @@ export function DeliveryChannelsHub({
             </p>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between gap-2">
-            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-              {isTelegramLinked ? (
-                isTelegramMuted ? (
-                  <>
-                    <PowerOff className="size-3 text-amber-500" />
-                    <span>Muted (no alerts sent)</span>
-                  </>
-                ) : (
-                  <>
-                    <Power className="size-3 text-emerald-500" />
-                    <span>Active & receiving</span>
-                  </>
-                )
-              ) : (
-                <span>Requires bot linking</span>
-              )}
+          <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-2">
+            <span className="text-[11px] text-muted-foreground">
+              {isTelegramLinked
+                ? isTelegramActive
+                  ? "Active"
+                  : "Muted (not sending)"
+                : "Not connected"}
             </span>
 
             <Can I="notification.update">
@@ -166,7 +154,7 @@ export function DeliveryChannelsHub({
                   size="sm"
                   onClick={onUnlinkTelegram}
                   disabled={isUnlinkingTelegram}
-                  className="h-7.5 px-2.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+                  className="h-7.5 px-2.5 text-xs text-muted-foreground hover:text-destructive hover:border-destructive/40"
                 >
                   {isUnlinkingTelegram ? (
                     <Loader2 className="size-3 mr-1 animate-spin" />
@@ -178,7 +166,7 @@ export function DeliveryChannelsHub({
                   size="sm"
                   onClick={onOpenTelegramConnect}
                   disabled={!telegramStatus.data?.configured}
-                  className="h-7.5 px-2.5 text-xs bg-sky-600 hover:bg-sky-700 text-white"
+                  className="h-7.5 px-2.5 text-xs"
                 >
                   <QrCode className="size-3 mr-1" />
                   {t("telegram.connect")}
@@ -191,12 +179,22 @@ export function DeliveryChannelsHub({
         {/* 2. SMS CHANNEL */}
         <div
           data-testid="channel-card-sms"
-          className="flex flex-col justify-between rounded-xl border border-border bg-card p-4 transition-colors"
+          className={`flex flex-col justify-between rounded-xl border p-4 transition-colors ${
+            !channelMutes.sms
+              ? "border-primary/40 bg-card ring-1 ring-primary/20"
+              : "border-border bg-card"
+          }`}
         >
           <div className="flex flex-col gap-3">
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <div
+                  className={`flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                    !channelMutes.sms
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
                   <Smartphone className="size-4.5" />
                 </div>
                 <div>
@@ -204,8 +202,11 @@ export function DeliveryChannelsHub({
                     <span className="text-sm font-semibold text-foreground">
                       {t("channels.sms")}
                     </span>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
-                      {t("channelStatus.ready")}
+                    <Badge
+                      variant={!channelMutes.sms ? "default" : "outline"}
+                      className="text-[10px] px-1.5 py-0"
+                    >
+                      {!channelMutes.sms ? t("channelActive") : t("channelMuted")}
                     </Badge>
                   </div>
                   <span className="text-[11px] text-muted-foreground">
@@ -233,19 +234,9 @@ export function DeliveryChannelsHub({
             </p>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between gap-2">
-            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-              {channelMutes.sms ? (
-                <>
-                  <PowerOff className="size-3 text-amber-500" />
-                  <span>Muted</span>
-                </>
-              ) : (
-                <>
-                  <Power className="size-3 text-emerald-500" />
-                  <span>Active</span>
-                </>
-              )}
+          <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-2">
+            <span className="text-[11px] text-muted-foreground">
+              {!channelMutes.sms ? "Active" : "Muted"}
             </span>
             <Button
               variant="outline"
@@ -261,12 +252,22 @@ export function DeliveryChannelsHub({
         {/* 3. IN-APP & WEB PUSH CHANNEL */}
         <div
           data-testid="channel-card-push"
-          className="flex flex-col justify-between rounded-xl border border-border bg-card p-4 transition-colors"
+          className={`flex flex-col justify-between rounded-xl border p-4 transition-colors ${
+            !channelMutes.push
+              ? "border-primary/40 bg-card ring-1 ring-primary/20"
+              : "border-border bg-card"
+          }`}
         >
           <div className="flex flex-col gap-3">
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                <div
+                  className={`flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                    !channelMutes.push
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
                   <Bell className="size-4.5" />
                 </div>
                 <div>
@@ -274,9 +275,11 @@ export function DeliveryChannelsHub({
                     <span className="text-sm font-semibold text-foreground">
                       {t("channels.push")}
                     </span>
-                    <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-[10px] px-1.5 py-0">
-                      <CheckCircle2 className="size-2.5 mr-0.5" />
-                      Active
+                    <Badge
+                      variant={!channelMutes.push ? "default" : "outline"}
+                      className="text-[10px] px-1.5 py-0"
+                    >
+                      {!channelMutes.push ? t("channelActive") : t("channelMuted")}
                     </Badge>
                   </div>
                   <span className="text-[11px] text-muted-foreground">
@@ -304,10 +307,9 @@ export function DeliveryChannelsHub({
             </p>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between gap-2">
-            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-              <Power className="size-3 text-emerald-500" />
-              <span>Always available</span>
+          <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-2">
+            <span className="text-[11px] text-muted-foreground">
+              {!channelMutes.push ? "Active" : "Muted"}
             </span>
             <Button
               variant="outline"
@@ -323,12 +325,12 @@ export function DeliveryChannelsHub({
         {/* 4. WHATSAPP (Upcoming Seam) */}
         <div
           data-testid="channel-card-whatsapp"
-          className="flex flex-col justify-between rounded-xl border border-dashed border-border/80 bg-card/50 p-4"
+          className="flex flex-col justify-between rounded-xl border border-border bg-card p-4 opacity-75"
         >
           <div className="flex flex-col gap-3">
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600/10 text-emerald-600">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                   <MessageSquare className="size-4.5" />
                 </div>
                 <div>
@@ -340,7 +342,7 @@ export function DeliveryChannelsHub({
                       {t("channelStatus.comingSoon")}
                     </Badge>
                   </div>
-                  <span className="text-[11px] text-muted-foreground">WhatsApp Business API</span>
+                  <span className="text-[11px] text-muted-foreground">WhatsApp API</span>
                 </div>
               </div>
             </div>
@@ -350,9 +352,9 @@ export function DeliveryChannelsHub({
             </p>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between gap-2">
-            <span className="text-[11px] text-muted-foreground">Modular integration ready</span>
-            <Button variant="ghost" size="sm" disabled className="h-7.5 px-2.5 text-xs opacity-60">
+          <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-2">
+            <span className="text-[11px] text-muted-foreground">Modular seam ready</span>
+            <Button variant="outline" size="sm" disabled className="h-7.5 px-2.5 text-xs text-muted-foreground">
               {t("channelAction.connect")}
             </Button>
           </div>
@@ -361,12 +363,12 @@ export function DeliveryChannelsHub({
         {/* 5. EMAIL (Upcoming Seam) */}
         <div
           data-testid="channel-card-email"
-          className="flex flex-col justify-between rounded-xl border border-dashed border-border/80 bg-card/50 p-4"
+          className="flex flex-col justify-between rounded-xl border border-border bg-card p-4 opacity-75"
         >
           <div className="flex flex-col gap-3">
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2.5">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                   <Mail className="size-4.5" />
                 </div>
                 <div>
@@ -378,7 +380,7 @@ export function DeliveryChannelsHub({
                       {t("channelStatus.comingSoon")}
                     </Badge>
                   </div>
-                  <span className="text-[11px] text-muted-foreground">SMTP & Resend Engine</span>
+                  <span className="text-[11px] text-muted-foreground">Digest & Alerts</span>
                 </div>
               </div>
             </div>
@@ -388,9 +390,9 @@ export function DeliveryChannelsHub({
             </p>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between gap-2">
-            <span className="text-[11px] text-muted-foreground">Modular integration ready</span>
-            <Button variant="ghost" size="sm" disabled className="h-7.5 px-2.5 text-xs opacity-60">
+          <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-2">
+            <span className="text-[11px] text-muted-foreground">Modular seam ready</span>
+            <Button variant="outline" size="sm" disabled className="h-7.5 px-2.5 text-xs text-muted-foreground">
               {t("channelAction.connect")}
             </Button>
           </div>
