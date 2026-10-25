@@ -100,6 +100,15 @@ export interface UserDetail {
   preferredLanguage: string;
   createdAt: string;
   mfaConfigured: boolean;
+  hasTelegram?: boolean;
+  hasPush?: boolean;
+  connectedChannels?: {
+    id: string;
+    provider: string;
+    platform: string;
+    createdAt: string;
+    lastSeenAt: string;
+  }[];
   ownedFarmCount: number;
   activeSessionCount: number;
   recentSessions: {
@@ -372,3 +381,14 @@ export const getSecurity = () =>
 
 export const getPlanMatrix =() => withToken((token) => callAdminApi<PlanMatrix>("/admin/plans/matrix", { token }));
 export const getUsage = () => withToken((token) => callAdminApi<UsageAnalytics>("/admin/analytics/usage", { token }));
+
+export interface CommunicationStats {
+  totalUsers: number;
+  telegramSubscribers: number;
+  pushSubscribers: number;
+}
+
+export const getCommunicationStats = () =>
+  withToken((token) =>
+    callAdminApi<CommunicationStats>("/admin/communications/stats", { token }),
+  );

@@ -32,7 +32,15 @@ async function UserDetail({ params }: { params: Promise<{ id: string }> }) {
         actions={user.isBlocked ? <StatusBadge status="BLOCKED" /> : undefined}
       />
 
-      <UserActions userId={user.id} email={user.email} isBlocked={user.isBlocked} canManage={canManage} />
+      <UserActions
+        userId={user.id}
+        name={user.name}
+        email={user.email}
+        isBlocked={user.isBlocked}
+        canManage={canManage}
+        hasTelegram={user.hasTelegram}
+        hasPush={user.hasPush}
+      />
 
       {user.isBlocked ? (
         <p role="status" className="rounded-md bg-destructive-tint px-3 py-2 text-sm text-foreground">
@@ -48,6 +56,10 @@ async function UserDetail({ params }: { params: Promise<{ id: string }> }) {
               { label: "Blocked", value: user.isBlocked ? "Yes" : "No" },
               { label: "Temporarily locked", value: locked ? `Until ${formatDateTime(user.lockedUntil)}` : "No" },
               { label: "Two-factor", value: user.mfaConfigured ? "Configured" : "Not configured" },
+              {
+                label: "Telegram Bot",
+                value: user.hasTelegram ? "Connected (@rakhal_farm_bot)" : "Not connected",
+              },
               { label: "Language", value: user.preferredLanguage },
               { label: `Joined (${TIME_ZONE_LABEL})`, value: formatDateTime(user.createdAt) },
             ]}

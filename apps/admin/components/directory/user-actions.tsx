@@ -1,23 +1,37 @@
 "use client";
 
 import { ActionDialog } from "./action-dialog";
+import { SendMessageDialog } from "./send-message-dialog";
 
 /** User support actions. Hidden without `user.manage`; the backend enforces the permission regardless. */
 export function UserActions({
   userId,
+  name,
   email,
   isBlocked,
   canManage,
+  hasTelegram,
+  hasPush,
 }: {
   userId: string;
+  name: string;
   email: string;
   isBlocked: boolean;
   canManage: boolean;
+  hasTelegram?: boolean;
+  hasPush?: boolean;
 }) {
   if (!canManage) return null;
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap items-center gap-2">
+      <SendMessageDialog
+        userId={userId}
+        userName={name}
+        hasTelegram={hasTelegram}
+        hasPush={hasPush}
+      />
+
       {isBlocked ? (
         <ActionDialog
           key="user.unblock"
