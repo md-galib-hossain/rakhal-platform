@@ -1,4 +1,4 @@
-import type { ReportDomain } from './enums';
+import type { ReportDomain, ReportType } from './enums';
 import type { ReportPeriod } from './period';
 import type { ReportScope } from './scope';
 import type { MetricResult, MetricValue } from './metric-value';
@@ -26,9 +26,17 @@ export interface ReportException {
  */
 export interface ReportSnapshotPayload {
   schemaVersion: number;
+  /** Report type at compute time; absent on older snapshots (renderer then infers from the period). */
+  reportType?: ReportType;
   calcVersion: number;
   templateVersion: number;
-  farm: { id: string; name: string; timezone: string };
+  farm: {
+    id: string;
+    name: string;
+    timezone: string;
+    /** Object-storage key of the farm logo captured at compute time; null when none/unusable. */
+    logoKey?: string | null;
+  };
   period: ReportPeriod;
   previousPeriod?: ReportPeriod;
   scope: ReportScope;

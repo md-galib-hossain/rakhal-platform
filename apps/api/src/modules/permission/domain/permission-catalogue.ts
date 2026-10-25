@@ -156,7 +156,8 @@ const RESOURCES: ResourceDef[] = [
   {
     resource: 'reports',
     group: PermissionGroup.REPORTS,
-    actions: ['read', 'create', 'schedule'],
+    // `delete` is Owner-only (Reports v2 decision 6): Manager gets explicit actions, not `reports.*`.
+    actions: ['read', 'create', 'schedule', 'delete'],
   },
   {
     resource: 'scoreboard',
@@ -244,7 +245,10 @@ export const ROLE_PERMISSIONS: Record<SystemRoleName, string[]> = {
     'calf.*',
     'inventory.*',
     'task.*',
-    'reports.*',
+    // Reports minus owner-only delete (explicit: `reports.*` would grant it)
+    'reports.read',
+    'reports.create',
+    'reports.schedule',
     'activity.*',
     'notification.*',
     // Milk minus owner-only withholding-override

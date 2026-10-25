@@ -63,6 +63,7 @@ import { BuyerModule } from './modules/buyer/buyer.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { FeedModule } from './modules/feed/feed.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { FarmModule } from './modules/farm/farm.module';
 import { ActivityModule } from './modules/activity/activity.module';
@@ -183,6 +184,7 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     FinanceModule,
     DashboardModule,
     FeedModule,
+    ReportsModule,
     InventoryModule,
     FarmModule,
     SettingsModule,

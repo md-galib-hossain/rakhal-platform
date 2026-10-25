@@ -4,14 +4,14 @@ Pure TypeScript. No Nest, Prisma or I/O imports. Spec: `docs/EPIC_REPORTS.md`.
 
 | File | Contract |
 |---|---|
-| `enums.ts` | ReportType, ReportOrigin, ReportStatus, ReportDomain, ReportScopeKind, DatePreset, ReportErrorCategory, `isTransientError`, `isTerminalStatus` |
+| `enums.ts` | ReportType, ReportOrigin, ReportStatus, ReportDomain, ReportScopeKind, DatePreset, ReportErrorCategory (transient: STORAGE_UNAVAILABLE, DB_TIMEOUT, QUEUE_UNAVAILABLE; permanent incl. RENDER_FAILED, GENERATION_FAILED), `isTransientError`, `isTerminalStatus` |
 | `period.ts` | `ReportPeriod`: `[start, end)` instants (end exclusive), inclusive farm-local `startDate`/`endDate`, Mon-Sun weeks |
 | `scope.ts` | `ReportScope` union; GROUP carries `membershipAsOf` (membership is current-only) |
 | `metric-value.ts` | `MetricValue` (4 states), `Comparison`, `MetricResult` (with `source`), `safePercentChange`, `compareMetric` |
 | `data-quality.ts` | `DataQuality` coverage, notes, flags |
 | `metric-definition.ts` | `MetricId` union (seed only), `MetricDefinition`, `MetricRegistry` type |
 | `template.ts` | `ReportTemplateDefinition`, `ReportRequestConfig`, `isSubsetOfAllowed` |
-| `snapshot.ts` | `ReportSnapshotPayload`, `assertNoFinance` |
+| `snapshot.ts` | `ReportSnapshotPayload` (optional `reportType`), `assertNoFinance` |
 | `job-key.ts` | `scheduledReportKey` = unique `(farmId, type, periodStart, templateVersion)` |
 
 ## Invariants

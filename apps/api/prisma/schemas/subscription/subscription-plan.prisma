@@ -13,6 +13,9 @@ model SubscriptionPlan {
 
   maxCattle Int?
 
+  /// Reports v2 retention (EPIC_REPORTS decision 5).
+  reportRetentionDays Int @default(365)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -54,6 +54,9 @@ model Cattle {
   /// The `CattleDisposition` row that sold/disposed this animal (SALE/DEATH/
   /// CULL/TRANSFER). Null until `CattleService.recordDisposition()` runs.
   dispositionId String?   @unique
+  /// Civil date the animal entered the herd (Reports v2, EPIC_REPORTS decision 1).
+  /// Backfilled from farm-local createdAt; null = fall back to createdAt.
+  enteredHerdAt DateTime? @db.Date
   createdBy     String
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

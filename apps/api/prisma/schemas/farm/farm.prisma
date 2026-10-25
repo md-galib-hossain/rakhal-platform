@@ -105,6 +105,7 @@ model Farm {
   payables                  Payable[]                   @relation("FarmToPayable")
   financialDocuments        FinancialDocument[]         @relation("FarmToFinancialDocument")
   requirementOverrides      CattleRequirementOverride[]
+  reports                   Report[]                    @relation("FarmToReport")
 
   @@index([ownerId])
   @@index([slug])

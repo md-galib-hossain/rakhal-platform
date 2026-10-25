@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import {
+  GetObjectOptions,
   ObjectStoragePort,
   PutObjectInput,
+  StorageObjectTooLargeError,
 } from '../../application/ports/object-storage.port';
 
 /**
@@ -37,9 +39,11 @@ export class MemoryStorageAdapter implements ObjectStoragePort {
     return Promise.resolve(`memory://${key}?expires=${expirySeconds}`);
   }
 
-  get(key: string): Promise<Buffer> {
+  get(key: string, opts?: GetObjectOptions): Promise<Buffer> {
     const body = MemoryStorageAdapter.store.get(key);
     if (!body) return Promise.reject(new Error(`Object not found: ${key}`));
+    if (opts?.maxBytes !== undefined && body.length > opts.maxBytes)
+      return Promise.reject(new StorageObjectTooLargeError(key, opts.maxBytes));
     return Promise.resolve(body);
   }
 

@@ -60,3 +60,22 @@ describe('permission-catalogue — RAKHAL-353 governance', () => {
     ).toBe(false);
   });
 });
+
+describe('permission-catalogue — Reports v2 reports.delete', () => {
+  it('declares reports.delete and keeps it Owner-only', () => {
+    expect(PERMISSIONS.map((p) => p.key)).toContain('reports.delete');
+    const manager = ROLE_PERMISSIONS[SYSTEM_ROLES.MANAGER];
+    const worker = ROLE_PERMISSIONS[SYSTEM_ROLES.WORKER];
+    expect(manager).not.toContain('reports.*');
+    expect(manager).not.toContain('reports.delete');
+    expect(worker.some((g) => g.startsWith('reports.'))).toBe(false);
+    expect(manager).toEqual(
+      expect.arrayContaining([
+        'reports.read',
+        'reports.create',
+        'reports.schedule',
+      ]),
+    );
+    expect(ROLE_PERMISSIONS[SYSTEM_ROLES.OWNER]).toEqual(['*']);
+  });
+});

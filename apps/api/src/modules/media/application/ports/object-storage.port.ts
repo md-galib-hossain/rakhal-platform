@@ -1,6 +1,22 @@
 /** DI token for the object-storage adapter (R2 in prod, in-memory in test/dev). */
 export const OBJECT_STORAGE = Symbol('OBJECT_STORAGE');
 
+export interface GetObjectOptions {
+  /** Reject (StorageObjectTooLargeError) instead of buffering an object larger than this. */
+  maxBytes?: number;
+}
+
+/** Thrown by `get` when the object exceeds `opts.maxBytes`; nothing past the limit is buffered. */
+export class StorageObjectTooLargeError extends Error {
+  constructor(
+    readonly key: string,
+    readonly maxBytes: number,
+  ) {
+    super(`Object ${key} exceeds ${maxBytes} bytes`);
+    this.name = 'StorageObjectTooLargeError';
+  }
+}
+
 export interface PutObjectInput {
   key: string;
   body: Buffer;
@@ -19,6 +35,6 @@ export interface ObjectStoragePort {
   /** A presigned GET URL for `key`, valid for `expirySeconds`. */
   getSignedUrl(key: string, expirySeconds: number): Promise<string>;
   /** Fetches the object's bytes directly (server-side proxy, no signed URL). */
-  get(key: string): Promise<Buffer>;
+  get(key: string, opts?: GetObjectOptions): Promise<Buffer>;
   delete(key: string): Promise<void>;
 }

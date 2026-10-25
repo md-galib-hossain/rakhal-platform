@@ -4,7 +4,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
-import { Test } from '@nestjs/testing';
+import { Test, type TestingModuleBuilder } from '@nestjs/testing';
 import { RakhalThrottlerGuard } from '../../src/core/throttler/rakhal-throttler.guard';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
@@ -35,6 +35,8 @@ export interface CreateTestAppOptions {
    * everything else would trip the 5-logins/min auth tier during setup.
    */
   throttling?: boolean;
+  /** Hook to override providers (e.g. a fake queue) before the module compiles. */
+  configure?: (builder: TestingModuleBuilder) => void;
 }
 
 export async function createTestApp(
@@ -52,6 +54,7 @@ export async function createTestApp(
       .useValue({ canActivate: () => true });
   }
 
+  options.configure?.(builder);
   const moduleRef = await builder.compile();
 
   const app = moduleRef.createNestApplication();

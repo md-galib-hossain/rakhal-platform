@@ -8,8 +8,10 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from 'src/core/config/env';
 import {
+  GetObjectOptions,
   ObjectStoragePort,
   PutObjectInput,
+  StorageObjectTooLargeError,
 } from '../../application/ports/object-storage.port';
 
 /**
@@ -51,15 +53,33 @@ export class R2StorageAdapter implements ObjectStoragePort {
     );
   }
 
-  async get(key: string): Promise<Buffer> {
+  async get(key: string, opts?: GetObjectOptions): Promise<Buffer> {
+    const max = opts?.maxBytes;
     const result = await this.getClient().send(
       new GetObjectCommand({ Bucket: this.bucket(), Key: key }),
     );
     const body = result.Body;
     if (!body) throw new Error(`R2 object not found: ${key}`);
+    const abort = (): void => {
+      const destroy = (body as { destroy?: () => void }).destroy;
+      if (typeof destroy === 'function') destroy.call(body);
+    };
+    // Declared size is checked before a single byte is buffered.
+    if (max !== undefined && (result.ContentLength ?? 0) > max) {
+      abort();
+      throw new StorageObjectTooLargeError(key, max);
+    }
     const chunks: Buffer[] = [];
+    let total = 0;
     for await (const chunk of body as AsyncIterable<Buffer>) {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      const c = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      total += c.length;
+      // Defence in depth when ContentLength is missing or wrong.
+      if (max !== undefined && total > max) {
+        abort();
+        throw new StorageObjectTooLargeError(key, max);
+      }
+      chunks.push(c);
     }
     return Buffer.concat(chunks);
   }
