@@ -61,7 +61,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Topbar />
         <ReadOnlyBanner />
 
-        <main className="flex-1 p-1 sm:p-2">{children}</main>
+        <main className="flex flex-1 flex-col p-1 sm:p-2">{children}</main>
       </div>
     </div>
   );

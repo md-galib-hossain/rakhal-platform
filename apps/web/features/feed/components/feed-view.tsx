@@ -65,7 +65,7 @@ function ConcentrationSection({
   selection: { isSelected: (id: string) => boolean; toggle: (id: string) => void };
 }) {
   return (
-    <div className="flex flex-col gap-4 rounded-2xl bg-card p-4 shadow-card">
+    <div className="flex flex-1 flex-col gap-4 rounded-2xl bg-card p-4 shadow-card">
       <div className="flex items-center justify-between">
         <p className="text-xl font-medium text-foreground">{title}</p>
         <Can I="feed.create">
@@ -222,8 +222,8 @@ export function FeedView() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <Tabs defaultValue="ingredients">
+    <div className="flex flex-1 flex-col gap-4">
+      <Tabs defaultValue="ingredients" className="flex flex-1 flex-col">
         <TabsList className="h-auto w-full flex-wrap items-stretch justify-between gap-1 rounded-xl border border-border bg-muted p-1 text-muted-foreground">
           <TabsTrigger value="ingredients" className="flex-1">
             {t("ingredientsManager.title")}
@@ -242,17 +242,17 @@ export function FeedView() {
           </TabsTrigger>
         </TabsList>
         {/* MILESTONE 27 (RFE-126): feed plans + where they are applied. */}
-        <TabsContent value="plans">
+        <TabsContent value="plans" className="flex flex-1 flex-col mt-4">
           <PlansTab />
         </TabsContent>
         {/* RFE-103: Nutrition requirements */}
-        <TabsContent value="requirements">
+        <TabsContent value="requirements" className="flex flex-1 flex-col mt-4">
           <RequirementsTab />
         </TabsContent>
-        <TabsContent value="ingredients">
+        <TabsContent value="ingredients" className="flex flex-1 flex-col mt-4">
           <IngredientManagementTable />
         </TabsContent>
-        <TabsContent value="templates">
+        <TabsContent value="templates" className="flex flex-1 flex-col mt-4">
           <ConcentrationSection
             title={t("concentrationTemplate")}
             createLabel={t("createNewTemplate")}
@@ -270,7 +270,7 @@ export function FeedView() {
             selection={{ isSelected: templateSelection.isSelected, toggle: toggleTemplate }}
           />
         </TabsContent>
-        <TabsContent value="mixtures">
+        <TabsContent value="mixtures" className="flex flex-1 flex-col mt-4">
           <ConcentrationSection
             title={t("feedMixture")}
             createLabel={t("createNewFeed")}

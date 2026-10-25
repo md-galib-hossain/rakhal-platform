@@ -278,7 +278,7 @@ export function NotificationPreferencesView() {
         {/* Category Filter Chips */}
         <div className="flex flex-wrap items-center gap-1.5 pt-1">
           <Button
-            variant={selectedCategory === "ALL" ? "default" : "outline"}
+            variant={selectedCategory === "ALL" ? "primary" : "outline"}
             size="sm"
             onClick={() => setSelectedCategory("ALL")}
             className="h-7 px-2.5 text-xs rounded-full"
@@ -288,7 +288,7 @@ export function NotificationPreferencesView() {
           {CATEGORY_ORDER.map((cat) => (
             <Button
               key={cat}
-              variant={selectedCategory === cat ? "default" : "outline"}
+              variant={selectedCategory === cat ? "primary" : "outline"}
               size="sm"
               onClick={() => setSelectedCategory(cat)}
               className="h-7 px-2.5 text-xs rounded-full"

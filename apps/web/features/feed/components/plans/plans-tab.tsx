@@ -244,7 +244,7 @@ export function PlansTab() {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl bg-card p-4 shadow-card">
+    <div className="flex flex-1 flex-col gap-4 rounded-2xl bg-card p-4 shadow-card">
       {/* Header with Search and Create CTA */}
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
