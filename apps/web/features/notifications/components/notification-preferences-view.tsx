@@ -3,7 +3,17 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2, QrCode, Send } from "lucide-react";
+import {
+  Bell,
+  CheckCircle2,
+  Filter,
+  Loader2,
+  Moon,
+  Search,
+  Send,
+  Smartphone,
+  SlidersHorizontal,
+} from "lucide-react";
 import { Can } from "@/lib/auth/permissions";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import { ErrorState } from "@/components/shared/error-state";
 import { ApiError } from "@/lib/api/errors";
 import {
@@ -20,6 +31,7 @@ import {
   useUpdateNotificationPreferences,
 } from "../hooks/use-notifications";
 import { TelegramConnectDialog } from "./telegram-connect-dialog";
+import { DeliveryChannelsHub, type DeliveryChannelKey } from "./delivery-channels-hub";
 import type {
   NotificationCategory,
   NotificationChannels,
@@ -34,11 +46,37 @@ const CATEGORY_ORDER: NotificationCategory[] = [
   "inventory",
 ];
 
+const STORAGE_KEY_CHANNEL_MUTES = "rakhal_notif_channel_mutes";
+
+function loadChannelMutes(): Record<DeliveryChannelKey, boolean> {
+  if (typeof window === "undefined") {
+    return { telegram: false, sms: false, push: false, whatsapp: false, email: false };
+  }
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_CHANNEL_MUTES);
+    if (!raw) return { telegram: false, sms: false, push: false, whatsapp: false, email: false };
+    return JSON.parse(raw);
+  } catch {
+    return { telegram: false, sms: false, push: false, whatsapp: false, email: false };
+  }
+}
+
+function saveChannelMutes(mutes: Record<DeliveryChannelKey, boolean>) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY_CHANNEL_MUTES, JSON.stringify(mutes));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 /**
- * RFE-043 & RAKHAL-257 — per-event channel toggles + quiet hours + Telegram bot connection.
- * Reads `NOTIFICATION_EVENTS` catalogue merged with the user's own overrides.
- * Health & Safety events are mandatory (`can_disable: false`) — their Enabled switch is locked on.
- * Telegram bot alerts can be linked via `/start` deep link and unlinked self-service.
+ * RFE-043 & RAKHAL-257 — Modernized multi-channel notification settings:
+ * - Delivery Channels Hub with individual Master Active/Mute toggles and connection state.
+ * - Telegram bot linking + self-service disconnect + soft mute without disconnect.
+ * - Per-event personalization matrix with channel-specific checkboxes (Telegram, SMS, Push).
+ * - Category filter pills + search input for quick personalization.
+ * - Quiet hours (Do Not Disturb) window.
  */
 export function NotificationPreferencesView() {
   const t = useTranslations("settings.notifications");
@@ -48,18 +86,44 @@ export function NotificationPreferencesView() {
   const unlinkTelegramMutation = useUnlinkTelegram();
   const [isConnectDialogOpen, setIsConnectDialogOpen] = useState(false);
 
+  // Channel Master Mutes (turns off channel delivery across alerts without disconnecting account)
+  const [channelMutes, setChannelMutes] = useState<Record<DeliveryChannelKey, boolean>>(() => loadChannelMutes());
+
+  // Filter & Search states
+  const [selectedCategory, setSelectedCategory] = useState<NotificationCategory | "ALL">("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
+
   // `null` = user hasn't touched the field yet — falls back to the fetched value at render time
   const [quietStartOverride, setQuietStartOverride] = useState<string | null>(null);
   const [quietEndOverride, setQuietEndOverride] = useState<string | null>(null);
   const quietStart = quietStartOverride ?? prefs.data?.quiet_hours.start ?? "";
   const quietEnd = quietEndOverride ?? prefs.data?.quiet_hours.end ?? "";
 
+  function handleToggleChannelMute(channel: DeliveryChannelKey, muted: boolean) {
+    setChannelMutes((prev) => {
+      const next = { ...prev, [channel]: muted };
+      saveChannelMutes(next);
+      return next;
+    });
+
+    const channelName = t(`channels.${channel}`);
+    if (muted) {
+      toast.info(`${channelName} alerts muted.`);
+    } else {
+      toast.success(`${channelName} alerts active.`);
+    }
+  }
+
   if (prefs.isLoading) {
     return (
-      <div className="flex flex-col gap-3">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-14 w-full" />
-        ))}
+      <div className="flex flex-col gap-4">
+        <Skeleton className="h-44 w-full rounded-xl" />
+        <Skeleton className="h-24 w-full rounded-xl" />
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-xl" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -69,15 +133,7 @@ export function NotificationPreferencesView() {
   }
 
   const items = prefs.data?.preferences ?? [];
-  const byCategory = new Map<NotificationCategory, NotificationPreferenceItem[]>();
-  for (const item of items) {
-    const list = byCategory.get(item.category) ?? [];
-    list.push(item);
-    byCategory.set(item.category, list);
-  }
-
   const isTelegramLinked = Boolean(telegramStatus.data?.linked);
-  const activeChannels: Array<keyof NotificationChannels> = isTelegramLinked ? ["telegram"] : [];
 
   function toggleEnabled(item: NotificationPreferenceItem, enabled: boolean) {
     update.mutate(
@@ -111,87 +167,53 @@ export function NotificationPreferencesView() {
     });
   }
 
+  // Filter items by category and search query
+  const filteredItems = items.filter((item) => {
+    if (selectedCategory !== "ALL" && item.category !== selectedCategory) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const labelMatch = item.label.toLowerCase().includes(q);
+      const keyMatch = item.event_key.toLowerCase().includes(q);
+      return labelMatch || keyMatch;
+    }
+    return true;
+  });
+
+  const byCategory = new Map<NotificationCategory, NotificationPreferenceItem[]>();
+  for (const item of filteredItems) {
+    const list = byCategory.get(item.category) ?? [];
+    list.push(item);
+    byCategory.set(item.category, list);
+  }
+
   return (
-    <div className="flex flex-col gap-8">
-      {/* Telegram Bot Connection Card */}
-      <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
-              <Send className="size-5" />
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-semibold text-foreground">
-                  {t("telegram.title")}
-                </h3>
-                {telegramStatus.isLoading ? (
-                  <Skeleton className="h-5 w-20" />
-                ) : telegramStatus.data?.linked ? (
-                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">
-                    <CheckCircle2 className="size-3 mr-1" />
-                    {t("telegram.statusConnected")}
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-muted-foreground">
-                    {t("telegram.statusNotConnected")}
-                  </Badge>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground max-w-xl">
-                {t("telegram.description")}
-              </p>
-              {telegramStatus.data?.linked && telegramStatus.data.count > 0 ? (
-                <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mt-0.5">
-                  {t("telegram.activeChats", { count: telegramStatus.data.count })}
-                </p>
-              ) : null}
-            </div>
+    <div className="flex flex-col gap-8 pb-10">
+      {/* 1. DELIVERY CHANNELS HUB (Telegram, SMS, Push, WhatsApp, Email) */}
+      <DeliveryChannelsHub
+        telegramStatus={telegramStatus}
+        channelMutes={channelMutes}
+        onToggleChannelMute={handleToggleChannelMute}
+        onOpenTelegramConnect={() => setIsConnectDialogOpen(true)}
+        onUnlinkTelegram={handleUnlinkTelegram}
+        isUnlinkingTelegram={unlinkTelegramMutation.isPending}
+      />
+
+      {/* 2. QUIET HOURS (DND Window) */}
+      <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:p-5">
+        <div className="flex items-center gap-2">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Moon className="size-4" />
           </div>
-
-          <Can I="notification.update">
-            <div className="flex items-center gap-2 shrink-0">
-              {telegramStatus.isLoading ? (
-                <Skeleton className="h-9 w-28" />
-              ) : telegramStatus.data?.linked ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleUnlinkTelegram}
-                  disabled={unlinkTelegramMutation.isPending}
-                  className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
-                >
-                  {unlinkTelegramMutation.isPending ? (
-                    <Loader2 className="size-3.5 mr-1.5 animate-spin" />
-                  ) : null}
-                  {t("telegram.disconnect")}
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  onClick={() => setIsConnectDialogOpen(true)}
-                  disabled={!telegramStatus.data?.configured}
-                  className="bg-sky-600 hover:bg-sky-700 text-white"
-                >
-                  <QrCode className="size-3.5 mr-1.5" />
-                  {t("telegram.connect")}
-                </Button>
-              )}
-            </div>
-          </Can>
+          <div>
+            <p className="text-sm font-semibold text-foreground">{t("quietHours")}</p>
+            <p className="text-xs text-muted-foreground">{t("quietHoursDescription")}</p>
+          </div>
         </div>
-      </section>
 
-      {/* Quiet Hours Settings */}
-      <section className="flex flex-col gap-3 rounded-xl border border-border p-4">
-        <div>
-          <p className="text-sm font-medium text-foreground">{t("quietHours")}</p>
-          <p className="text-xs text-muted-foreground">{t("quietHoursDescription")}</p>
-        </div>
         <Can I="notification.update">
-          <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-wrap items-end gap-3 pt-1">
             <div className="flex flex-col gap-1">
-              <Label htmlFor="quiet-start" className="text-xs">
+              <Label htmlFor="quiet-start" className="text-xs text-muted-foreground">
                 {t("quietHoursStart")}
               </Label>
               <input
@@ -199,11 +221,11 @@ export function NotificationPreferencesView() {
                 type="time"
                 value={quietStart}
                 onChange={(e) => setQuietStartOverride(e.target.value)}
-                className="h-9 rounded-md border border-input bg-card px-2 text-sm"
+                className="h-9 rounded-md border border-input bg-background px-2.5 text-sm"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <Label htmlFor="quiet-end" className="text-xs">
+              <Label htmlFor="quiet-end" className="text-xs text-muted-foreground">
                 {t("quietHoursEnd")}
               </Label>
               <input
@@ -211,64 +233,221 @@ export function NotificationPreferencesView() {
                 type="time"
                 value={quietEnd}
                 onChange={(e) => setQuietEndOverride(e.target.value)}
-                className="h-9 rounded-md border border-input bg-card px-2 text-sm"
+                className="h-9 rounded-md border border-input bg-background px-2.5 text-sm"
               />
             </div>
-            <Button size="sm" onClick={saveQuietHours} disabled={update.isPending || !quietStart || !quietEnd}>
-              {update.isPending ? <Loader2 className="size-3.5 animate-spin" /> : null}
+            <Button
+              size="sm"
+              onClick={saveQuietHours}
+              disabled={update.isPending || !quietStart || !quietEnd}
+              className="h-9"
+            >
+              {update.isPending ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : null}
               {t("save")}
             </Button>
           </div>
         </Can>
       </section>
 
-      {/* Categories & Channel Toggles */}
-      {CATEGORY_ORDER.filter((c) => byCategory.has(c)).map((category) => (
-        <section key={category} className="flex flex-col gap-3">
-          <h3 className="text-sm font-semibold text-foreground">{t(`categories.${category}`)}</h3>
-          <div className="flex flex-col divide-y divide-border rounded-xl border border-border">
-            {byCategory.get(category)!.map((item) => (
-              <div key={item.event_key} className="flex flex-col gap-3 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-foreground">{item.label}</span>
-                    {!item.can_disable ? <Badge variant="destructive">{t("mandatory")}</Badge> : null}
-                  </div>
-                  <Switch
-                    checked={item.enabled}
-                    disabled={!item.can_disable || update.isPending}
-                    onCheckedChange={(checked) => toggleEnabled(item, checked)}
-                  />
+      {/* 3. NOTIFICATION ROUTING & PERSONALIZATION */}
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-foreground tracking-tight">
+              {t("routingTitle")}
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {t("routingSubtitle")}
+            </p>
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder={t("searchAlerts")}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-8.5 pl-8.5 text-xs bg-background"
+            />
+          </div>
+        </div>
+
+        {/* Category Filter Chips */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+          <Button
+            variant={selectedCategory === "ALL" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSelectedCategory("ALL")}
+            className="h-7 px-2.5 text-xs rounded-full"
+          >
+            {t("allCategories")}
+          </Button>
+          {CATEGORY_ORDER.map((cat) => (
+            <Button
+              key={cat}
+              variant={selectedCategory === cat ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedCategory(cat)}
+              className="h-7 px-2.5 text-xs rounded-full"
+            >
+              {t(`categories.${cat}`)}
+            </Button>
+          ))}
+        </div>
+
+        {/* Items List grouped by Category */}
+        {filteredItems.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground">
+            {t("noMatchingAlerts")}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-6">
+            {CATEGORY_ORDER.filter((c) => byCategory.has(c)).map((category) => (
+              <div key={category} className="flex flex-col gap-2.5">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {t(`categories.${category}`)}
+                  </h3>
+                  <span className="text-[11px] text-muted-foreground">
+                    {byCategory.get(category)!.length} alerts
+                  </span>
                 </div>
-                {item.enabled ? (
-                  activeChannels.length > 0 ? (
-                    <Can I="notification.update">
-                      <div className="flex flex-wrap gap-4">
-                        {activeChannels.map((channel) => (
-                          <label
-                            key={channel}
-                            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-                          >
-                            <Checkbox
-                              checked={item.channels[channel]}
-                              disabled={update.isPending}
-                              onCheckedChange={(checked) => toggleChannel(item, channel, checked === true)}
+
+                <div className="flex flex-col divide-y divide-border/80 rounded-xl border border-border bg-card shadow-xs">
+                  {byCategory.get(category)!.map((item) => {
+                    const isMutedByChannel = {
+                      telegram: isTelegramLinked && channelMutes.telegram,
+                      sms: channelMutes.sms,
+                      push: channelMutes.push,
+                    };
+
+                    return (
+                      <div key={item.event_key} className="flex flex-col gap-3 p-4 sm:p-4.5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-foreground">
+                                {item.label}
+                              </span>
+                              {!item.can_disable ? (
+                                <Badge variant="destructive" className="text-[10px] px-1.5 py-0 font-normal">
+                                  {t("mandatory")}
+                                </Badge>
+                              ) : null}
+                            </div>
+                            <span className="text-[11px] text-muted-foreground font-mono">
+                              {item.event_key}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              aria-label={`Toggle ${item.label}`}
+                              checked={item.enabled}
+                              disabled={!item.can_disable || update.isPending}
+                              onCheckedChange={(checked) => toggleEnabled(item, checked)}
                             />
-                            {t(`channels.${channel}`)}
-                          </label>
-                        ))}
+                          </div>
+                        </div>
+
+                        {/* Channel personalization toggles */}
+                        {item.enabled ? (
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-1 border-t border-border/40">
+                            <span className="text-[11px] font-medium text-muted-foreground mr-1 flex items-center gap-1">
+                              <SlidersHorizontal className="size-3" />
+                              {t("deliveryVia")}
+                            </span>
+
+                            <Can I="notification.update">
+                              <div className="flex flex-wrap items-center gap-2.5">
+                                {/* Telegram Pill Toggle */}
+                                <label
+                                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors cursor-pointer select-none ${
+                                    item.channels.telegram
+                                      ? isMutedByChannel.telegram
+                                        ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                        : "border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300 font-medium"
+                                      : "border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted"
+                                  }`}
+                                >
+                                  <Checkbox
+                                    checked={item.channels.telegram}
+                                    disabled={update.isPending}
+                                    onCheckedChange={(checked) =>
+                                      toggleChannel(item, "telegram", checked === true)
+                                    }
+                                    className="size-3.5 data-[state=checked]:bg-sky-600 data-[state=checked]:border-sky-600"
+                                  />
+                                  <Send className="size-3" />
+                                  <span>{t("channels.telegram")}</span>
+                                  {isMutedByChannel.telegram ? (
+                                    <span className="text-[10px] text-amber-600 font-normal">(Muted)</span>
+                                  ) : null}
+                                </label>
+
+                                {/* SMS Pill Toggle */}
+                                <label
+                                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors cursor-pointer select-none ${
+                                    item.channels.sms
+                                      ? isMutedByChannel.sms
+                                        ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                        : "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-medium"
+                                      : "border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted"
+                                  }`}
+                                >
+                                  <Checkbox
+                                    checked={item.channels.sms}
+                                    disabled={update.isPending}
+                                    onCheckedChange={(checked) =>
+                                      toggleChannel(item, "sms", checked === true)
+                                    }
+                                    className="size-3.5 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+                                  />
+                                  <Smartphone className="size-3" />
+                                  <span>{t("channels.sms")}</span>
+                                  {isMutedByChannel.sms ? (
+                                    <span className="text-[10px] text-amber-600 font-normal">(Muted)</span>
+                                  ) : null}
+                                </label>
+
+                                {/* In-App / Push Pill Toggle */}
+                                <label
+                                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors cursor-pointer select-none ${
+                                    item.channels.push
+                                      ? isMutedByChannel.push
+                                        ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                        : "border-indigo-500/40 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-medium"
+                                      : "border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted"
+                                  }`}
+                                >
+                                  <Checkbox
+                                    checked={item.channels.push}
+                                    disabled={update.isPending}
+                                    onCheckedChange={(checked) =>
+                                      toggleChannel(item, "push", checked === true)
+                                    }
+                                    className="size-3.5 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+                                  />
+                                  <Bell className="size-3" />
+                                  <span>{t("channels.push")}</span>
+                                </label>
+                              </div>
+                            </Can>
+                          </div>
+                        ) : null}
                       </div>
-                    </Can>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">{t("inAppOnlyNote")}</p>
-                  )
-                ) : null}
+                    );
+                  })}
+                </div>
               </div>
             ))}
           </div>
-        </section>
-      ))}
+        )}
+      </section>
 
+      {/* Connect Telegram Dialog */}
       <TelegramConnectDialog
         open={isConnectDialogOpen}
         onOpenChange={setIsConnectDialogOpen}

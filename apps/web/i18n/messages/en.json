@@ -6949,7 +6949,41 @@
         "waitingForConnection": "Waiting for connection…",
         "sessionLoading": "Loading connection details…",
         "sessionFailed": "Failed to load connection session."
-      }
+      },
+      "deliveryChannelsTitle": "Notification Delivery Channels",
+      "deliveryChannelsSubtitle": "Manage where your alerts are routed. You can turn off channel delivery anytime without disconnecting your account.",
+      "routingTitle": "Notification Routing & Personalization",
+      "routingSubtitle": "Choose what you receive through each channel. Customize alerts for Telegram, SMS, Push, and more.",
+      "allCategories": "All Categories",
+      "channelActive": "Active",
+      "channelMuted": "Muted",
+      "muteChannel": "Mute channel",
+      "unmuteChannel": "Unmute channel",
+      "channelStatus": {
+        "connected": "Connected",
+        "notConnected": "Not connected",
+        "ready": "Ready",
+        "comingSoon": "Coming Soon"
+      },
+      "channelDescriptions": {
+        "telegram": "Instant bot alerts, milk volume updates, and emergency warnings directly in Telegram.",
+        "sms": "Urgent mobile SMS notifications sent directly to your verified phone number.",
+        "push": "Real-time push notifications delivered to your browser or mobile app.",
+        "whatsapp": "Automated WhatsApp alerts, reports, and team action reminders.",
+        "email": "Daily digests, invoice receipts, and scheduled health summaries."
+      },
+      "channelAction": {
+        "connect": "Connect",
+        "disconnect": "Disconnect",
+        "configure": "Configure",
+        "manage": "Manage"
+      },
+      "deliveryVia": "Deliver via:",
+      "bulkEnableAll": "Enable All",
+      "bulkDisableAll": "Disable All",
+      "filterByChannel": "Filter by channel:",
+      "searchAlerts": "Search alerts...",
+      "noMatchingAlerts": "No alerts match your filter."
     },
     "serviceProviderPicker": {
       "selectProvider": "Select a technician",

@@ -9,6 +9,15 @@ vi.mock("@/lib/auth/permissions", () => ({
   Can: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+const mockUnlink = vi.fn();
+const mockUpdate = vi.fn();
+
+let mockTelegramStatus = {
+  configured: true,
+  linked: false,
+  count: 0,
+};
+
 vi.mock("../hooks/use-notifications", () => ({
   useNotificationPreferences: () => ({
     data: {
@@ -22,10 +31,25 @@ vi.mock("../hooks/use-notifications", () => ({
           enabled: true,
           channels: {
             in_app: true,
-            push: false,
+            push: true,
             sms: false,
             whatsapp: false,
             telegram: true,
+            email: false,
+          },
+        },
+        {
+          event_key: "milk_target_missed",
+          label: "Milk Target Missed",
+          category: "operational",
+          can_disable: true,
+          enabled: true,
+          channels: {
+            in_app: true,
+            push: false,
+            sms: true,
+            whatsapp: false,
+            telegram: false,
             email: false,
           },
         },
@@ -35,20 +59,16 @@ vi.mock("../hooks/use-notifications", () => ({
     isError: false,
   }),
   useUpdateNotificationPreferences: () => ({
-    mutate: vi.fn(),
+    mutate: mockUpdate,
     isPending: false,
   }),
   useTelegramStatus: () => ({
-    data: {
-      configured: true,
-      linked: false,
-      count: 0,
-    },
+    data: mockTelegramStatus,
     isLoading: false,
     isError: false,
   }),
   useUnlinkTelegram: () => ({
-    mutate: vi.fn(),
+    mutate: mockUnlink,
     isPending: false,
   }),
   useTelegramConnectSession: () => ({
@@ -81,23 +101,70 @@ function renderWithProviders(ui: React.ReactElement) {
 describe("NotificationPreferencesView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockTelegramStatus = {
+      configured: true,
+      linked: false,
+      count: 0,
+    };
   });
 
-  it("renders preferences view and opens TelegramConnectDialog when Connect Telegram is clicked", async () => {
+  it("renders Delivery Channels Hub with Telegram, SMS, and Push cards", () => {
     renderWithProviders(<NotificationPreferencesView />);
 
-    expect(screen.getByText("Telegram Bot Alerts")).toBeInTheDocument();
+    expect(screen.getByText("Notification Delivery Channels")).toBeInTheDocument();
+    expect(screen.getByTestId("channel-card-telegram")).toBeInTheDocument();
+    expect(screen.getByTestId("channel-card-sms")).toBeInTheDocument();
+    expect(screen.getByTestId("channel-card-push")).toBeInTheDocument();
+
     expect(screen.getByText("Not connected")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /connect telegram/i })).toBeInTheDocument();
+  });
+
+  it("opens TelegramConnectDialog when Connect Telegram is clicked", async () => {
+    renderWithProviders(<NotificationPreferencesView />);
 
     const connectBtn = screen.getByRole("button", { name: /connect telegram/i });
-    expect(connectBtn).toBeInTheDocument();
-
-    // Click to open the connect dialog
     fireEvent.click(connectBtn);
 
-    // Expect dialog content to appear
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("Scan with phone camera to open in Telegram")).toBeInTheDocument();
     expect(screen.getByText("582914".slice(0, 1))).toBeInTheDocument();
+  });
+
+  it("allows muting Telegram notifications without disconnecting", () => {
+    mockTelegramStatus = {
+      configured: true,
+      linked: true,
+      count: 1,
+    };
+
+    renderWithProviders(<NotificationPreferencesView />);
+
+    expect(screen.getByText("Connected")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /disconnect/i })).toBeInTheDocument();
+
+    // Find the toggle switch for Telegram
+    const toggle = screen.getByRole("switch", { name: /toggle telegram notifications delivery/i });
+    expect(toggle).toBeInTheDocument();
+    expect(toggle).toHaveAttribute("aria-checked", "true");
+
+    // Click to mute
+    fireEvent.click(toggle);
+    expect(screen.getByText("Muted")).toBeInTheDocument();
+  });
+
+  it("renders per-event channel personalization with Telegram and SMS pills", () => {
+    renderWithProviders(<NotificationPreferencesView />);
+
+    expect(screen.getByText("Notification Routing & Personalization")).toBeInTheDocument();
+    expect(screen.getByText("Cow Sick Alert")).toBeInTheDocument();
+    expect(screen.getByText("Milk Target Missed")).toBeInTheDocument();
+
+    // Filter by category
+    const healthFilter = screen.getByRole("button", { name: /health & safety/i });
+    fireEvent.click(healthFilter);
+
+    expect(screen.getByText("Cow Sick Alert")).toBeInTheDocument();
+    expect(screen.queryByText("Milk Target Missed")).not.toBeInTheDocument();
   });
 });
