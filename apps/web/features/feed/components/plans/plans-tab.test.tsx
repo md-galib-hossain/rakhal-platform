@@ -130,28 +130,33 @@ describe("PlansTab", () => {
     setGroupsData([]);
   });
 
-  it("renders header metrics, filter tabs and plan cards", () => {
+  it("renders uncluttered header and plan cards without KPI chips or filter tabs", () => {
     renderWithProviders(<PlansTab />);
 
-    // Title
+    // Title & subtitle
     expect(screen.getByText("Feed Plans")).toBeInTheDocument();
+    expect(
+      screen.getByText("What one animal eats per day. A plan changes nothing until you apply it."),
+    ).toBeInTheDocument();
 
-    // Metric chips
-    expect(screen.getByText("2 Plans")).toBeInTheDocument();
-    expect(screen.getByText("1 Active Program")).toBeInTheDocument();
-    expect(screen.getByText("2 Cows Covered")).toBeInTheDocument();
+    // Search and Create CTA
+    expect(screen.getByPlaceholderText("Search plans")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /New plan/i })).toBeInTheDocument();
 
-    // Filter tabs
-    expect(screen.getByRole("button", { name: /All Plans \(2\)/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Active \/ Applied \(1\)/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Unassigned Drafts \(1\)/i })).toBeInTheDocument();
+    // Verify removed KPI chips and filter tabs are NOT rendered
+    expect(screen.queryByText(/Plans/i)).not.toHaveTextContent("2 Plans");
+    expect(screen.queryByText(/Active Program/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Cows Covered/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /All Plans/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Active \/ Applied/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Unassigned Drafts/i })).not.toBeInTheDocument();
 
     // Cards
     expect(screen.getByText("High Yield Lactating TMR")).toBeInTheDocument();
     expect(screen.getByText("Dry Cow Maintenance")).toBeInTheDocument();
   });
 
-  it("calculates accurate group cattle headcounts from useAnimalGroups without arbitrary multipliers", () => {
+  it("calculates accurate group cattle headcounts from useAnimalGroups in bottom card info", () => {
     setGroupsData([{ id: "grp-1", name: "Milkers Shed A", memberCount: 7 }]);
     setPlansData([
       {
@@ -163,18 +168,15 @@ describe("PlansTab", () => {
 
     renderWithProviders(<PlansTab />);
 
-    // 1 direct cow + 7 group members = 8 cows covered
-    expect(screen.getByText("8 Cows Covered")).toBeInTheDocument();
-    // Plan card badge
-    expect(screen.getByText("Active • 8 Cows")).toBeInTheDocument();
-    // Demand widget calculation: 8 cows × 10.0 kg/day = 80.0 kg/day
-    expect(screen.getByText("8 cows × 10.0 kg/day")).toBeInTheDocument();
-    expect(screen.getByText("80.0 kg/day")).toBeInTheDocument();
+    // 1 direct cow + 7 group members = 8 cows assigned
+    expect(screen.getByText("8 cows")).toBeInTheDocument();
+    // Demand calculation: 8 cows × 10.0 kg/day = 80.0 kg/day total
+    expect(screen.getByText("80.0 kg/day total")).toBeInTheDocument();
     // Button
-    expect(screen.getByRole("button", { name: /View & Manage 8 Cows →/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /View Assigned Animals/i })).toBeInTheDocument();
   });
 
-  it("displays Whole Herd Default badge, per-head demand, and View & Manage Herd button when applied to herd without individual cattle", () => {
+  it("displays Whole Herd info, per-head demand subtext, and View Assigned Animals button when applied to herd without individual cattle", () => {
     setPlansData([
       {
         ...mockPlans[0],
@@ -185,75 +187,30 @@ describe("PlansTab", () => {
 
     renderWithProviders(<PlansTab />);
 
-    // Card status badge
-    expect(screen.getAllByText("Active • Whole Herd Default").length).toBeGreaterThanOrEqual(1);
-    // Herd Demand widget: per-head rate without multiplying by fake 1
-    expect(screen.getByText("15.0 kg/head/day · Whole Herd")).toBeInTheDocument();
+    // Card herd label and per-head subtext
+    expect(screen.getByText("Whole herd")).toBeInTheDocument();
     expect(screen.getByText("15.0 kg/head")).toBeInTheDocument();
     // Button
-    expect(screen.getByRole("button", { name: /View & Manage Herd →/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /View Assigned Animals/i })).toBeInTheDocument();
   });
 
-  it("renders contextual empty state with Switch to All Plans button when a filter has 0 matching plans", () => {
-    // Both plans are applied
-    setPlansData([
-      { ...mockPlans[0], applied_to: { cattle_ids: ["cow-1"], group_ids: [], herd: false } },
-      { ...mockPlans[1], applied_to: { cattle_ids: ["cow-2"], group_ids: [], herd: false } },
-    ]);
-
+  it("opens AssignedCattleDialog when View Assigned Animals is clicked", () => {
     renderWithProviders(<PlansTab />);
 
-    // Click Unassigned filter which now has 0 plans
-    const unassignedBtn = screen.getByRole("button", { name: /Unassigned Drafts \(0\)/i });
-    fireEvent.click(unassignedBtn);
-
-    expect(screen.getByText("No plans in this filter")).toBeInTheDocument();
-    expect(screen.getByText("No feed plans match the selected status filter.")).toBeInTheDocument();
-
-    const switchBtn = screen.getByRole("button", { name: /Switch to All Plans/i });
-    expect(switchBtn).toBeInTheDocument();
-
-    fireEvent.click(switchBtn);
-
-    // Both plans reappear
-    expect(screen.getByText("High Yield Lactating TMR")).toBeInTheDocument();
-    expect(screen.getByText("Dry Cow Maintenance")).toBeInTheDocument();
-  });
-
-  it("filters cards when filter tabs are clicked", () => {
-    renderWithProviders(<PlansTab />);
-
-    const activeFilterBtn = screen.getByRole("button", { name: /Active \/ Applied \(1\)/i });
-    fireEvent.click(activeFilterBtn);
-
-    expect(screen.getByText("High Yield Lactating TMR")).toBeInTheDocument();
-    expect(screen.queryByText("Dry Cow Maintenance")).not.toBeInTheDocument();
-
-    const unassignedFilterBtn = screen.getByRole("button", { name: /Unassigned Drafts \(1\)/i });
-    fireEvent.click(unassignedFilterBtn);
-
-    expect(screen.queryByText("High Yield Lactating TMR")).not.toBeInTheDocument();
-    expect(screen.getByText("Dry Cow Maintenance")).toBeInTheDocument();
-  });
-
-  it("opens AssignedCattleDialog when View & Manage Cows is clicked", () => {
-    renderWithProviders(<PlansTab />);
-
-    const viewBtn = screen.getByRole("button", { name: /View & Manage 2 Cows →/i });
+    const viewBtn = screen.getByRole("button", { name: /View Assigned Animals/i });
     expect(viewBtn).toBeInTheDocument();
     fireEvent.click(viewBtn);
 
     expect(screen.getByText("Assigned Cattle — High Yield Lactating TMR")).toBeInTheDocument();
   });
 
-  it("displays unassigned draft badge and clean notice without NaN for plan with 0 assignments", () => {
+  it("displays unassigned badge and clean notice for plan with 0 assignments", () => {
     renderWithProviders(<PlansTab />);
 
-    expect(screen.getByText("Unassigned Draft")).toBeInTheDocument();
+    expect(screen.getByText("Not applied yet")).toBeInTheDocument();
     expect(
       screen.getByText("Unassigned · Apply to calculate daily herd volume"),
     ).toBeInTheDocument();
-    expect(screen.getByText("No animals assigned yet")).toBeInTheDocument();
     expect(screen.queryByText(/\bNaN\b/)).not.toBeInTheDocument();
   });
 
@@ -333,8 +290,8 @@ describe("PlansTab", () => {
 
     // Title in Bengali
     expect(screen.getByText("ফিড প্ল্যান")).toBeInTheDocument();
-    // Unassigned badge in Bengali
-    expect(screen.getByText("অনির্ধারিত ড্রাফট")).toBeInTheDocument();
+    // Not applied badge in Bengali
+    expect(screen.getByText("এখনও প্রয়োগ করা হয়নি")).toBeInTheDocument();
   });
 });
 

@@ -7,13 +7,10 @@ import {
   ArrowRight,
   ClipboardList,
   Globe,
-  Layers,
   MoreHorizontal,
   Plus,
-  Scale,
   Search,
   SearchX,
-  Sparkles,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -45,8 +42,6 @@ import { ApplyPlanDialog, type ApplyTarget } from "./apply-plan-dialog";
 import { AssignedCattleDialog } from "./assigned-cattle-dialog";
 import { PlanEditorSheet } from "./plan-editor-sheet";
 import { PlanProportionBar } from "./plan-proportion-bar";
-
-type FilterTab = "ALL" | "ACTIVE" | "UNASSIGNED";
 
 const isApplied = (plan: FeedPlan) =>
   plan.applied_to.cattle_ids.length > 0 ||
@@ -83,54 +78,25 @@ function PlanCard({
   const isHerdOnly = isHerd && totalAssignedCattle === 0;
   const totalDemandKg = (plan.total_kg_per_day * totalAssignedCattle).toFixed(1);
 
-  // Icon based on plan kind
-  const kindIcon =
-    plan.kind === "TMR_SHORTCUT" ? (
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-info-tint text-info">
-        <Layers className="size-5" aria-hidden />
-      </div>
-    ) : plan.kind === "CONCENTRATE_SHORTCUT" ? (
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-warning-tint text-warning">
-        <Sparkles className="size-5" aria-hidden />
-      </div>
-    ) : (
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-        <Scale className="size-5" aria-hidden />
-      </div>
-    );
-
   return (
-    <article className="flex h-full flex-col justify-between gap-4 rounded-2xl border border-border bg-card p-4.5 shadow-card transition-shadow hover:shadow-md">
-      {/* Zone 1: Identity & Badges */}
-      <div className="flex flex-col gap-2.5">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 items-start gap-3">
-            {kindIcon}
-            <div className="min-w-0">
-              <h3 className="line-clamp-2 text-base font-semibold text-foreground" title={plan.name}>
-                {plan.name}
-              </h3>
-              <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                {applied ? (
-                  <Badge variant="success" className="text-[11px] font-medium">
-                    {isHerdOnly
-                      ? t("appliedStatusHerd")
-                      : t("appliedStatus", { count: totalAssignedCattle })}
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-[11px] text-muted-foreground">
-                    {t("unassignedStatus")}
-                  </Badge>
-                )}
-                {plan.kind !== "PLAN" && (
-                  <Badge variant="secondary" className="text-[11px]">
-                    {tKind(plan.kind)}
-                  </Badge>
-                )}
-              </div>
-            </div>
-          </div>
+    <article className="flex h-full flex-col justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-card">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="line-clamp-2 text-base font-semibold text-foreground" title={plan.name}>
+            {plan.name}
+          </h3>
+          <p className="mt-0.5 text-sm text-muted-foreground tabular-nums">
+            {t("totalKg", { kg: plan.total_kg_per_day })}
+          </p>
+        </div>
 
+        <div className="flex shrink-0 items-center gap-1.5">
+          {plan.kind !== "PLAN" && (
+            <Badge variant="secondary" className="text-[11px]">
+              {tKind(plan.kind)}
+            </Badge>
+          )}
           {canDelete && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -151,65 +117,25 @@ function PlanCard({
             </DropdownMenu>
           )}
         </div>
-
-        {/* Daily Per-Head Intake */}
-        <div className="flex items-baseline gap-1.5 pt-1">
-          <span className="text-lg font-bold tabular-nums text-foreground">
-            {plan.total_kg_per_day.toFixed(1)} kg
-          </span>
-          <span className="text-xs text-muted-foreground">{t("perHeadDay")}</span>
-        </div>
       </div>
 
-      {/* Zone 2: Ration Composition Bar */}
-      <div className="flex flex-col gap-1.5 border-t border-border pt-3">
-        <p className="text-xs font-semibold text-foreground">{t("compositionTitle")}</p>
+      {/* Middle: Ration composition with the chart */}
+      <div className="flex flex-col gap-1.5">
         <PlanProportionBar lines={plan.lines} totalKg={plan.total_kg_per_day} showLegend={true} />
       </div>
 
-      {/* Zone 3: Herd Consumption Widget */}
-      <div className="pt-1">
+      {/* Clean Ending Bottom */}
+      <div className="mt-auto flex flex-col gap-3 border-t border-border pt-3">
         {applied ? (
-          <div className="flex items-center justify-between rounded-xl border border-border/80 bg-muted/40 p-2.5">
-            <div className="min-w-0 pr-2">
-              <p className="text-xs font-semibold text-foreground">{t("herdDemand")}</p>
-              <p className="text-[11px] text-muted-foreground">
-                {isHerdOnly
-                  ? t("herdDemandPerHead", { kg: plan.total_kg_per_day.toFixed(1) })
-                  : t("herdDemandFormula", {
-                      count: totalAssignedCattle,
-                      kg: plan.total_kg_per_day.toFixed(1),
-                    })}
-              </p>
-            </div>
-            <span className="shrink-0 text-sm font-bold tabular-nums text-foreground">
-              {isHerdOnly
-                ? `${plan.total_kg_per_day.toFixed(1)} kg/head`
-                : `${totalDemandKg} kg/day`}
-            </span>
-          </div>
-        ) : (
-          <div className="rounded-xl border border-dashed border-border bg-muted/20 p-2 text-center text-xs text-muted-foreground">
-            {t("herdDemandUnassigned")}
-          </div>
-        )}
-      </div>
-
-      {/* Zone 4: Assigned Cattle Preview Strip */}
-      <div className="flex flex-col gap-2 border-t border-border pt-3">
-        {applied ? (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               {isHerdOnly ? (
-                <div className="flex items-center gap-2">
-                  <div className="flex size-6.5 items-center justify-center rounded-full bg-success-tint font-bold text-success ring-2 ring-card">
-                    <Globe className="size-3.5" aria-hidden />
-                  </div>
-                  <span className="text-xs font-medium text-foreground">{t("herd")}</span>
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-success-tint font-bold text-success ring-1 ring-border">
+                  <Globe className="size-3.5" aria-hidden />
                 </div>
               ) : (
-                <div className="flex items-center">
-                  {plan.applied_to.cattle_ids.slice(0, 4).map((id) => (
+                <div className="flex shrink-0 items-center">
+                  {plan.applied_to.cattle_ids.slice(0, 3).map((id) => (
                     <Avatar
                       key={id}
                       className={cn("size-6.5 -ml-1.5 first:ml-0 ring-2 ring-card", avatarTint(id))}
@@ -219,47 +145,54 @@ function PlanCard({
                       </AvatarFallback>
                     </Avatar>
                   ))}
-                  {plan.applied_to.cattle_ids.length > 4 && (
+                  {plan.applied_to.cattle_ids.length > 3 && (
                     <div className="-ml-1.5 flex size-6.5 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground ring-2 ring-card">
-                      +{plan.applied_to.cattle_ids.length - 4}
+                      +{plan.applied_to.cattle_ids.length - 3}
                     </div>
                   )}
                 </div>
               )}
-              <span className="text-xs font-medium text-muted-foreground">
-                {isHerdOnly ? t("appliedStatusHerd") : t("cows", { count: totalAssignedCattle })}
-              </span>
+              <div className="min-w-0">
+                <p className="truncate text-xs font-medium text-foreground">
+                  {isHerdOnly ? t("herd") : t("cows", { count: totalAssignedCattle })}
+                </p>
+                <p className="truncate text-[11px] text-muted-foreground tabular-nums">
+                  {isHerdOnly
+                    ? `${plan.total_kg_per_day.toFixed(1)} kg/head`
+                    : `${totalDemandKg} kg/day total`}
+                </p>
+              </div>
             </div>
 
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={onViewAssigned}
-              className="mt-1 w-full justify-between font-medium text-foreground hover:bg-muted"
+              className="shrink-0 gap-1 text-xs font-medium text-foreground hover:bg-muted"
             >
-              <span>
-                {isHerdOnly
-                  ? t("viewAndManageHerd")
-                  : t("viewAndManageCows", { count: totalAssignedCattle })}
-              </span>
-              <ArrowRight className="size-4 text-muted-foreground" aria-hidden />
+              <span>{t("viewAssigned")}</span>
+              <ArrowRight className="size-3.5" aria-hidden />
             </Button>
           </div>
         ) : (
-          <div className="flex flex-col gap-0.5 py-1 text-center">
-            <span className="text-xs font-medium text-muted-foreground">{t("noCowsAssigned")}</span>
-            <span className="text-[11px] text-muted-foreground">{t("applyPrompt")}</span>
+          <div className="flex items-center justify-between gap-2">
+            <Badge variant="outline" className="text-[11px] font-normal text-muted-foreground">
+              {t("notApplied")}
+            </Badge>
+            <span className="truncate text-right text-[11px] text-muted-foreground">
+              {t("herdDemandUnassigned")}
+            </span>
           </div>
         )}
 
-        {/* Zone 5: Card Actions */}
+        {/* Pinned Bottom Actions Row */}
         <Can I="feed.update">
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <Button size="sm" variant="primary" onClick={onApply} className="flex-1">
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={onApply} className="flex-1">
               {t("apply")}
             </Button>
-            <Button size="sm" variant="outline" onClick={onEdit} className="flex-1">
+            <Button size="sm" variant="secondary" onClick={onEdit} className="flex-1">
               {t("edit")}
             </Button>
           </div>
@@ -271,13 +204,12 @@ function PlanCard({
 
 /**
  * Feed Formulator → Feed Plans tab.
- * Displays daily feeding rations per head, live herd KPIs, ration proportion bars,
- * and the dedicated "Selected Cow See Mode" assigned cattle inspection dialog.
+ * Displays daily feeding rations per head, ration proportion bars,
+ * and the dedicated assigned cattle inspection dialog.
  */
 export function PlansTab() {
   const t = useTranslations("feed.plans");
   const [search, setSearch] = useState("");
-  const [filterTab, setFilterTab] = useState<FilterTab>("ALL");
 
   const list = useFeedPlansList({ search: search.trim() || undefined });
   const groups = useAnimalGroups();
@@ -311,44 +243,8 @@ export function PlansTab() {
     }
   }
 
-  // Live operational KPI metrics calculation
-  const { totalPlans, activePlans, coveredCattleCount, totalHerdDemand } = useMemo(() => {
-    const items = list.items;
-    const active = items.filter(isApplied);
-
-    let cattleSum = 0;
-    let demandSum = 0;
-
-    items.forEach((p) => {
-      const pCows = p.applied_to.cattle_ids.length;
-      const pGroupCows = p.applied_to.group_ids.reduce(
-        (sum, gid) => sum + (groupMap.get(gid) ?? 0),
-        0,
-      );
-      const planTotalCattle = pCows + pGroupCows;
-      cattleSum += planTotalCattle;
-      if (planTotalCattle > 0) {
-        demandSum += p.total_kg_per_day * planTotalCattle;
-      }
-    });
-
-    return {
-      totalPlans: items.length,
-      activePlans: active.length,
-      coveredCattleCount: cattleSum,
-      totalHerdDemand: demandSum.toFixed(0),
-    };
-  }, [list.items, groupMap]);
-
-  // Tab filtered items
-  const filteredItems = useMemo(() => {
-    if (filterTab === "ACTIVE") return list.items.filter(isApplied);
-    if (filterTab === "UNASSIGNED") return list.items.filter((p) => !isApplied(p));
-    return list.items;
-  }, [list.items, filterTab]);
-
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
+    <div className="flex flex-col gap-4 rounded-2xl bg-card p-4 shadow-card">
       {/* Header with Search and Create CTA */}
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
@@ -357,7 +253,10 @@ export function PlansTab() {
         </div>
         <div className="flex w-full items-center gap-2 sm:w-auto">
           <div className="relative min-w-0 flex-1 sm:w-64 sm:flex-none">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
             <Input
               type="search"
               placeholder={t("searchPlaceholder")}
@@ -390,63 +289,16 @@ export function PlansTab() {
         </div>
       </div>
 
-      {/* Operational KPI Chips */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-xs">
-          {t("metrics.totalPlans", { count: totalPlans })}
-        </div>
-        <div className="rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-xs">
-          {t("metrics.activePlans", { count: activePlans })}
-        </div>
-        <div className="rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-xs">
-          {t("metrics.coveredCattle", { count: coveredCattleCount })}
-        </div>
-        <div className="rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-semibold tabular-nums text-foreground shadow-xs">
-          {t("metrics.totalHerdDemand", { kg: totalHerdDemand })}
-        </div>
-      </div>
-
-      {/* Segmented Filter Tabs */}
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-border pb-3">
-        <Button
-          type="button"
-          variant={filterTab === "ALL" ? "primary" : "outline"}
-          size="sm"
-          className="h-8 text-xs font-medium"
-          onClick={() => setFilterTab("ALL")}
-        >
-          {t("filters.all", { count: list.items.length })}
-        </Button>
-        <Button
-          type="button"
-          variant={filterTab === "ACTIVE" ? "primary" : "outline"}
-          size="sm"
-          className="h-8 text-xs font-medium"
-          onClick={() => setFilterTab("ACTIVE")}
-        >
-          {t("filters.active", { count: list.items.filter(isApplied).length })}
-        </Button>
-        <Button
-          type="button"
-          variant={filterTab === "UNASSIGNED" ? "primary" : "outline"}
-          size="sm"
-          className="h-8 text-xs font-medium"
-          onClick={() => setFilterTab("UNASSIGNED")}
-        >
-          {t("filters.unassigned", { count: list.items.filter((p) => !isApplied(p)).length })}
-        </Button>
-      </div>
-
       {/* Plans Grid or Empty State */}
       {list.isLoading ? (
-        <div className="grid grid-cols-1 gap-4.5 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           <CardSkeleton lines={5} />
           <CardSkeleton lines={5} />
           <CardSkeleton lines={5} />
         </div>
       ) : list.isError ? (
         <ErrorState onRetry={() => list.refetch()} />
-      ) : filteredItems.length === 0 && search.trim() ? (
+      ) : list.items.length === 0 && search.trim() ? (
         <EmptyState
           icon={SearchX}
           title={t("noMatch", { query: search.trim() })}
@@ -457,18 +309,7 @@ export function PlansTab() {
             </Button>
           }
         />
-      ) : list.items.length > 0 && filteredItems.length === 0 ? (
-        <EmptyState
-          icon={ClipboardList}
-          title={t("filters.emptyTitle")}
-          description={t("filters.emptyHint")}
-          action={
-            <Button variant="outline" size="sm" onClick={() => setFilterTab("ALL")}>
-              {t("filters.switchAll")}
-            </Button>
-          }
-        />
-      ) : filteredItems.length === 0 ? (
+      ) : list.items.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
           title={t("empty")}
@@ -483,8 +324,8 @@ export function PlansTab() {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4.5 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
-          {filteredItems.map((plan) => (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {list.items.map((plan) => (
             <PlanCard
               key={plan.id}
               plan={plan}
