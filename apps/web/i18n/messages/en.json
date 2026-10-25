@@ -6936,7 +6936,19 @@
         "connectInstructions": "Clicking will open Telegram to link with the Rakhal Bot.",
         "activeChats": "{count} active chat(s) connected",
         "failedToGetLink": "Could not generate Telegram link. Please try again.",
-        "enablePrompt": "Connect Telegram above to enable Telegram delivery for this alert."
+        "enablePrompt": "Connect Telegram above to enable Telegram delivery for this alert.",
+        "dialogTitle": "Connect Telegram",
+        "dialogDescription": "Connect the Rakhal bot using any of the methods below.",
+        "scanQrCaption": "Scan with phone camera to open in Telegram",
+        "orCodeTitle": "Or send 6-digit code",
+        "codeInstructions": "Send this code to @{botUsername} in Telegram",
+        "copyCode": "Copy Code",
+        "copied": "Copied!",
+        "openTelegramApp": "Open Telegram App",
+        "connectedSuccess": "Successfully connected!",
+        "waitingForConnection": "Waiting for connection…",
+        "sessionLoading": "Loading connection details…",
+        "sessionFailed": "Failed to load connection session."
       }
     },
     "serviceProviderPicker": {

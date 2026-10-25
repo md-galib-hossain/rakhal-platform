@@ -5,6 +5,7 @@ import type {
   NotificationListResult,
   NotificationPreferencesResult,
   NotificationStatusFilter,
+  TelegramConnectSessionResult,
   TelegramLinkTokenResult,
   TelegramStatusResult,
   UpdatePreferencesInput,
@@ -32,6 +33,9 @@ export const notificationsApi = {
       method: "PATCH",
       body: input,
     });
+  },
+  getTelegramConnectSession(): Promise<TelegramConnectSessionResult> {
+    return apiFetch<TelegramConnectSessionResult>("/notifications/telegram/connect-session");
   },
   getTelegramLinkToken(): Promise<TelegramLinkTokenResult> {
     return apiFetch<TelegramLinkTokenResult>("/notifications/telegram/link-token");

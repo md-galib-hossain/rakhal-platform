@@ -72,6 +72,15 @@ export interface TelegramLinkTokenResult {
   deepLink: string | null;
 }
 
+export interface TelegramConnectSessionResult {
+  configured: boolean;
+  botUsername: string | null;
+  code: string | null;
+  expiresIn: number;
+  deepLink: string | null;
+  qrPayload: string | null;
+}
+
 export interface TelegramStatusResult {
   configured: boolean;
   linked: boolean;

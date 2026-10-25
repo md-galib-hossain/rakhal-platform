@@ -55,10 +55,19 @@ export function useUpdateNotificationPreferences() {
   });
 }
 
-export function useTelegramStatus() {
+export function useTelegramStatus(options?: { refetchInterval?: number | false }) {
   return useQuery({
     queryKey: qk.notifications.telegramStatus(),
     queryFn: () => notificationsApi.getTelegramStatus(),
+    refetchInterval: options?.refetchInterval,
+  });
+}
+
+export function useTelegramConnectSession(enabled: boolean = true) {
+  return useQuery({
+    queryKey: qk.notifications.telegramConnectSession(),
+    queryFn: () => notificationsApi.getTelegramConnectSession(),
+    enabled,
   });
 }
 

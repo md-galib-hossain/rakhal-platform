@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { CheckCircle2, ExternalLink, Loader2, Send } from "lucide-react";
+import { CheckCircle2, Loader2, QrCode, Send } from "lucide-react";
 import { Can } from "@/lib/auth/permissions";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,11 +15,11 @@ import { ErrorState } from "@/components/shared/error-state";
 import { ApiError } from "@/lib/api/errors";
 import {
   useNotificationPreferences,
-  useTelegramLinkToken,
   useTelegramStatus,
   useUnlinkTelegram,
   useUpdateNotificationPreferences,
 } from "../hooks/use-notifications";
+import { TelegramConnectDialog } from "./telegram-connect-dialog";
 import type {
   NotificationCategory,
   NotificationChannels,
@@ -45,8 +45,8 @@ export function NotificationPreferencesView() {
   const prefs = useNotificationPreferences();
   const update = useUpdateNotificationPreferences();
   const telegramStatus = useTelegramStatus();
-  const linkTokenMutation = useTelegramLinkToken();
   const unlinkTelegramMutation = useUnlinkTelegram();
+  const [isConnectDialogOpen, setIsConnectDialogOpen] = useState(false);
 
   // `null` = user hasn't touched the field yet — falls back to the fetched value at render time
   const [quietStartOverride, setQuietStartOverride] = useState<string | null>(null);
@@ -102,20 +102,6 @@ export function NotificationPreferencesView() {
         onError: (err) => toast.error(err instanceof ApiError ? err.message : t("saveError")),
       },
     );
-  }
-
-  function handleConnectTelegram() {
-    linkTokenMutation.mutate(undefined, {
-      onSuccess: (data) => {
-        if (data.deepLink) {
-          window.open(data.deepLink, "_blank", "noopener,noreferrer");
-          toast.success(t("telegram.connecting"));
-        } else {
-          toast.error(t("telegram.notConfigured"));
-        }
-      },
-      onError: () => toast.error(t("telegram.failedToGetLink")),
-    });
   }
 
   function handleUnlinkTelegram() {
@@ -183,15 +169,11 @@ export function NotificationPreferencesView() {
               ) : (
                 <Button
                   size="sm"
-                  onClick={handleConnectTelegram}
-                  disabled={linkTokenMutation.isPending || !telegramStatus.data?.configured}
+                  onClick={() => setIsConnectDialogOpen(true)}
+                  disabled={!telegramStatus.data?.configured}
                   className="bg-sky-600 hover:bg-sky-700 text-white"
                 >
-                  {linkTokenMutation.isPending ? (
-                    <Loader2 className="size-3.5 mr-1.5 animate-spin" />
-                  ) : (
-                    <ExternalLink className="size-3.5 mr-1.5" />
-                  )}
+                  <QrCode className="size-3.5 mr-1.5" />
                   {t("telegram.connect")}
                 </Button>
               )}
@@ -286,6 +268,11 @@ export function NotificationPreferencesView() {
           </div>
         </section>
       ))}
+
+      <TelegramConnectDialog
+        open={isConnectDialogOpen}
+        onOpenChange={setIsConnectDialogOpen}
+      />
     </div>
   );
 }
