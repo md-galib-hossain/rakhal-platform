@@ -292,6 +292,15 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     true,
     ch({ sms: true }),
   ),
+  // ── Admin Outreach ────────────────────────────────────────────────────────
+  evt(
+    'admin_broadcast',
+    'Admin Announcement',
+    'operational',
+    'high',
+    false,
+    ch({ telegram: true, push: true, sms: false, whatsapp: false, email: false }),
+  ),
 ];
 
 const BY_KEY = new Map(NOTIFICATION_EVENTS.map((e) => [e.key, e]));

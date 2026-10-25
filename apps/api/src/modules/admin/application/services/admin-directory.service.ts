@@ -253,6 +253,18 @@ export class AdminDirectoryService {
       where: { userId: id, status: 'ACTIVE', expiresAt: { gt: new Date() } },
     });
 
+    const connectedChannels = await this.prisma.deviceToken.findMany({
+      where: { userId: id },
+      select: {
+        id: true,
+        provider: true,
+        platform: true,
+        token: true,
+        createdAt: true,
+        lastSeenAt: true,
+      },
+    });
+
     // Sign-in history: IP, device and timing only. Token/refresh material is never selected.
     const recentSessions = await this.prisma.session.findMany({
       where: { userId: id },
@@ -274,6 +286,15 @@ export class AdminDirectoryService {
     return {
       ...rest,
       recentSessions,
+      connectedChannels: connectedChannels.map((c) => ({
+        id: c.id,
+        provider: c.provider,
+        platform: c.platform,
+        createdAt: c.createdAt,
+        lastSeenAt: c.lastSeenAt,
+      })),
+      hasTelegram: connectedChannels.some((c) => c.provider === 'telegram'),
+      hasPush: connectedChannels.some((c) => c.provider === 'fcm'),
       mfaConfigured: mfa !== null,
       ownedFarmCount: _count.ownedFarms,
       activeSessionCount: activeSessions,

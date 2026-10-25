@@ -53,6 +53,7 @@ export const ADMIN_AUDIT_ACTIONS = [
   'REQUIREMENT_PRESET_UPDATED',
   'REQUIREMENT_PRESET_ACTIVATED',
   'FEEDBACK_UPDATED',
+  'COMMUNICATION_SENT',
 ] as const;
 
 export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];

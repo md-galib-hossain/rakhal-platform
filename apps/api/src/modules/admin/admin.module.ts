@@ -4,6 +4,9 @@ import { AuthModule } from '../auth/auth.module';
 import { BillingModule } from '../billing/billing.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { FeedModule } from '../feed/feed.module';
+import { NotificationModule } from '../notification/notification.module';
+import { AdminCommunicationsController } from './presentation/controllers/admin-communications.controller';
+import { AdminCommunicationsService } from './application/services/admin-communications.service';
 import { AdminTokenService } from './application/services/admin-token.service';
 import { AdminAuthService } from './application/services/admin-auth.service';
 import { AdminAuditService } from './application/services/admin-audit.service';
@@ -60,6 +63,7 @@ import { AdminInsightsService } from './application/services/admin-insights.serv
     BillingModule,
     SubscriptionModule,
     FeedModule,
+    NotificationModule,
     BullModule.registerQueue(
       { name: OUTBOX_QUEUE },
       { name: EMAIL_QUEUE },
@@ -82,10 +86,12 @@ import { AdminInsightsService } from './application/services/admin-insights.serv
     AdminAnalyticsController,
     AdminInsightsController,
     AdminConfigController,
+    AdminCommunicationsController,
   ],
   providers: [
     AdminTokenService,
     AdminSessionService,
+    AdminCommunicationsService,
     AdminManagementService,
     AdminDirectoryService,
     AdminSupportActionsService,
