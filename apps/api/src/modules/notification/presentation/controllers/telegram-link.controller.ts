@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   HttpCode,
@@ -20,10 +21,11 @@ import type { TelegramUpdate } from '../../application/services/telegram-link.se
 const WEBHOOK_SECRET_HEADER = 'x-telegram-bot-api-secret-token';
 
 /**
- * Telegram account linking (RAKHAL-257). `/notifications/telegram/link-token`
- * is a normal farm-scoped route (self-service, own account only). The webhook
- * is called by Telegram itself — no farm guard chain — authenticated instead
- * by the `X-Telegram-Bot-Api-Secret-Token` header set on `setWebhook`.
+ * Telegram account linking & status management (RAKHAL-257).
+ * - `/notifications/telegram/link-token`: mints a 10m JWT deep link.
+ * - `/notifications/telegram/status`: checks if user has active Telegram link.
+ * - `/notifications/telegram/link`: unlinks user's Telegram connection.
+ * - `/notifications/telegram/webhook`: inbound update receiver from Telegram Bot API.
  */
 @ApiTags('Notifications')
 @Controller('notifications/telegram')
@@ -39,6 +41,22 @@ export class TelegramLinkController {
     @CurrentFarmId() farmId: string,
   ) {
     return this.telegramLink.mintLinkToken(userId, farmId);
+  }
+
+  @Get('status')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+  @RequirePermission('notification.read')
+  getStatus(@CurrentUserId() userId: string) {
+    return this.telegramLink.getUserStatus(userId);
+  }
+
+  @Delete('link')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
+  @RequirePermission('notification.read')
+  unlink(@CurrentUserId() userId: string) {
+    return this.telegramLink.unlinkUser(userId);
   }
 
   @Post('webhook')

@@ -16,6 +16,9 @@ interface TelegramApiError {
   ok: false;
   error_code: number;
   description: string;
+  parameters?: {
+    retry_after?: number;
+  };
 }
 
 /**
@@ -74,20 +77,82 @@ export class TelegramBotProvider implements ChannelProvider {
     };
   }
 
+  /** Formats a notification badge depending on category and priority */
+  private getBadge(category: string, priority: string): string {
+    const isUrgent =
+      priority?.toLowerCase() === 'urgent' ||
+      priority?.toLowerCase() === 'high';
+    switch (category?.toLowerCase()) {
+      case 'health':
+        return isUrgent ? '🚨 <b>[URGENT HEALTH]</b>' : '🩺 <b>[HEALTH]</b>';
+      case 'milk':
+        return isUrgent ? '🥛 <b>[MILK ALERT]</b>' : '🥛 <b>[MILK]</b>';
+      case 'reproduction':
+        return isUrgent
+          ? '🐂 <b>[REPRODUCTION ALERT]</b>'
+          : '🐂 <b>[REPRODUCTION]</b>';
+      case 'feed':
+      case 'inventory':
+        return isUrgent
+          ? '📦 <b>[INVENTORY ALERT]</b>'
+          : '📦 <b>[INVENTORY]</b>';
+      case 'finance':
+        return '৳ <b>[FINANCE]</b>';
+      case 'task':
+        return isUrgent ? '📋 <b>[TASK OVERDUE]</b>' : '📋 <b>[TASK]</b>';
+      default:
+        return isUrgent ? '🔔 <b>[ALERT]</b>' : '🔔 <b>[RAKHAL]</b>';
+    }
+  }
+
+  /** Escapes HTML special characters for safe Telegram HTML parsing */
+  private escapeHtml(str: string): string {
+    return (str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
   private async sendToChat(
     chatId: string,
     msg: ChannelMessage,
   ): Promise<'sent' | 'stale' | 'failed'> {
-    const text = msg.link
-      ? `${msg.title}\n${msg.message}\n${msg.link}`
-      : `${msg.title}\n${msg.message}`;
+    const badge = this.getBadge(msg.category, msg.priority);
+    const escapedTitle = this.escapeHtml(msg.title);
+    const escapedMessage = this.escapeHtml(msg.message);
+
+    let text = `${badge} ${escapedTitle}\n\n${escapedMessage}`;
+
+    const isHttpLink = Boolean(msg.link && /^https?:\/\//i.test(msg.link));
+    const payload: Record<string, any> = {
+      chat_id: chatId,
+      text,
+      parse_mode: 'HTML',
+    };
+
+    if (isHttpLink && msg.link) {
+      payload.reply_markup = {
+        inline_keyboard: [
+          [
+            {
+              text: '🔗 Open in Rakhal',
+              url: msg.link,
+            },
+          ],
+        ],
+      };
+    } else if (msg.link) {
+      text += `\n\n🔗 ${this.escapeHtml(msg.link)}`;
+      payload.text = text;
+    }
+
     try {
       const res = await fetch(
         `https://api.telegram.org/bot${this.config.botToken}/sendMessage`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: chatId, text }),
+          body: JSON.stringify(payload),
         },
       );
       if (res.ok) return 'sent';
@@ -95,12 +160,22 @@ export class TelegramBotProvider implements ChannelProvider {
       const body = (await res
         .json()
         .catch(() => null)) as TelegramApiError | null;
+
+      if (res.status === 429) {
+        this.log.warn('Telegram rate limited (429)', {
+          chatId,
+          retryAfter: body?.parameters?.retry_after,
+        });
+        return 'failed';
+      }
+
       const blocked =
         body?.error_code === 403 ||
         (body?.error_code === 400 && /chat not found/i.test(body.description));
       this.log.warn('Telegram send rejected', {
         status: res.status,
         errorCode: body?.error_code,
+        description: body?.description,
       });
       return blocked ? 'stale' : 'failed';
     } catch (err) {

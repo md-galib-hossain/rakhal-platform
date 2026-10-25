@@ -14,22 +14,27 @@ interface TelegramLinkPayload {
   farmId: string;
 }
 
-/** Minimal shape of a Telegram Bot API `Update` — only what `/start` needs. */
+/** Minimal shape of a Telegram Bot API `Update` */
 export interface TelegramUpdate {
+  update_id?: number;
   message?: {
-    chat: { id: number | string };
+    message_id?: number;
+    chat: { id: number | string; first_name?: string; username?: string };
+    from?: { id: number; first_name?: string; username?: string };
     text?: string;
   };
 }
 
 /**
- * Telegram account-linking flow (RAKHAL-257, PRD §20.1/§28.3). A signed,
- * short-lived JWT stands in for a one-time link code: `mintLinkToken` embeds
- * `userId`/`farmId`, the user opens `t.me/<bot>?start=<token>` from the app,
- * and the webhook's `/start <token>` message verifies it and stores the chat
- * id in `DeviceToken` (`provider: 'telegram'`) — the same table FCM uses, no
- * new schema. No DB round-trip needed to mint the link; the JWT itself is
- * the state, so a stale/replayed token past its 10-minute TTL just fails.
+ * Telegram account-linking & command flow (RAKHAL-257, PRD §20.1/§28.3).
+ *
+ * 1. Linking: A signed, short-lived JWT stands in for a one-time link code.
+ *    `mintLinkToken` embeds `userId`/`farmId`, the user opens `t.me/<bot>?start=<token>`
+ *    from the app, and the webhook's `/start <token>` verifies it and stores the chat id
+ *    in `DeviceToken` (`provider: 'telegram'`).
+ * 2. Commands: Supports `/start`, `/status`, `/help`, `/unlink`, and natural language queries.
+ * 3. AI Seam: Non-command queries are received and greeted with a V2 preview notice,
+ *    establishing the forward-compatible integration point for the LLM farm query engine.
  */
 @Injectable()
 export class TelegramLinkService {
@@ -70,18 +75,91 @@ export class TelegramLinkService {
     };
   }
 
+  /** Check if a user has linked Telegram chats */
+  async getUserStatus(userId: string) {
+    const tokens = await this.prisma.deviceToken.findMany({
+      where: { userId, provider: TELEGRAM_PROVIDER },
+      select: { id: true, token: true, createdAt: true, lastSeenAt: true },
+    });
+    return {
+      configured: Boolean(this.config.botToken && this.config.botUsername),
+      linked: tokens.length > 0,
+      count: tokens.length,
+      chats: tokens.map((t) => ({ id: t.id, createdAt: t.createdAt })),
+    };
+  }
+
+  /** Unlink all Telegram chats for a user (web self-service) */
+  async unlinkUser(userId: string) {
+    const result = await this.prisma.deviceToken.deleteMany({
+      where: { userId, provider: TELEGRAM_PROVIDER },
+    });
+    this.log.info('User unlinked all Telegram chats', {
+      userId,
+      count: result.count,
+    });
+    return { unlinked: true, count: result.count };
+  }
+
+  /** Unlink a single chat ID (bot command) */
+  async unlinkChat(chatId: number | string) {
+    const result = await this.prisma.deviceToken.deleteMany({
+      where: { token: String(chatId), provider: TELEGRAM_PROVIDER },
+    });
+    this.log.info('Telegram chat unlinked', {
+      chatId: String(chatId),
+      count: result.count,
+    });
+    return { unlinked: result.count > 0 };
+  }
+
   /** Handle one incoming Telegram webhook update. Never throws — always 200s. */
   async handleUpdate(update: TelegramUpdate): Promise<void> {
     const chatId = update.message?.chat.id;
     const text = update.message?.text?.trim();
-    if (chatId === undefined || !text?.startsWith('/start')) return;
+    if (chatId === undefined || !text) return;
 
-    const token = text.split(/\s+/)[1];
-    if (!token) return;
+    if (text.startsWith('/start')) {
+      const parts = text.split(/\s+/);
+      const token = parts[1];
+      if (token) {
+        await this.handleStartWithToken(chatId, token);
+      } else {
+        await this.handleStartWelcome(chatId);
+      }
+      return;
+    }
 
+    if (text.startsWith('/status')) {
+      await this.handleStatus(chatId);
+      return;
+    }
+
+    if (text.startsWith('/help')) {
+      await this.handleHelp(chatId);
+      return;
+    }
+
+    if (text.startsWith('/unlink')) {
+      await this.handleUnlink(chatId);
+      return;
+    }
+
+    // Fallback for natural language text queries (V2 AI assistant seam)
+    await this.handleAiQueryFallback(chatId, text);
+  }
+
+  private async handleStartWithToken(
+    chatId: number | string,
+    token: string,
+  ): Promise<void> {
     const payload = await this.verifyLinkToken(token);
     if (!payload) {
       this.log.warn('Telegram link token rejected', { chatId: String(chatId) });
+      await this.reply(
+        chatId,
+        '⚠️ <b>Link Failed</b>\n\nThis connection link is invalid or has expired (valid for 10 minutes).\n\nPlease generate a new connection link from your <b>Rakhal Web or Mobile App</b> (Settings → Notifications).',
+      );
       return;
     }
 
@@ -102,7 +180,72 @@ export class TelegramLinkService {
     });
     this.log.info('Telegram account linked', { userId: payload.userId });
 
-    await this.reply(chatId, 'Rakhal linked. You will receive alerts here.');
+    await this.reply(
+      chatId,
+      '✅ <b>Rakhal Connected Successfully!</b>\n\nYour Telegram account is now linked to your Rakhal farm profile. You will receive real-time alerts for milk yields, cattle health, reproduction events, and tasks here.\n\nType /status to verify your connection or /help for more commands.',
+    );
+  }
+
+  private async handleStartWelcome(chatId: number | string): Promise<void> {
+    await this.reply(
+      chatId,
+      '👋 <b>Welcome to Rakhal (রাখাল)!</b>\n\nTo connect this bot to your dairy farm account:\n1. Open your <b>Rakhal Web or Mobile App</b>.\n2. Navigate to <b>Settings → Notifications</b>.\n3. Click <b>"Connect Telegram"</b>.\n\nOnce linked, you will receive real-time farm alerts and critical notifications directly in this chat!',
+    );
+  }
+
+  private async handleStatus(chatId: number | string): Promise<void> {
+    const token = await this.prisma.deviceToken.findFirst({
+      where: { token: String(chatId), provider: TELEGRAM_PROVIDER },
+      include: { user: { select: { name: true, email: true } } },
+    });
+
+    if (!token) {
+      await this.reply(
+        chatId,
+        '⚠️ <b>Not Connected</b>\n\nThis Telegram chat is not linked to any Rakhal account.\n\nTo connect, please visit <b>Settings → Notifications</b> in your Rakhal app and click "Connect Telegram".',
+      );
+      return;
+    }
+
+    const userName = token.user?.name ?? 'Farm Member';
+    await this.reply(
+      chatId,
+      `📊 <b>Rakhal Connection Status</b>\n\n• User: <b>${this.escapeHtml(userName)}</b>\n• Status: <b>Active & Linked</b>\n• Notifications: <b>Enabled</b>\n\nTo disconnect this chat from Rakhal, type /unlink.`,
+    );
+  }
+
+  private async handleHelp(chatId: number | string): Promise<void> {
+    await this.reply(
+      chatId,
+      '📖 <b>Rakhal Telegram Bot Commands:</b>\n\n/start - Connect or view setup guide\n/status - Check connection status\n/unlink - Disconnect this chat from Rakhal\n/help - View this help menu\n\n<i>Note: V2 conversational AI queries (e.g. asking "What is the milk collection today?" or cow health summaries) will be available in the upcoming release!</i>',
+    );
+  }
+
+  private async handleUnlink(chatId: number | string): Promise<void> {
+    const res = await this.unlinkChat(chatId);
+    if (res.unlinked) {
+      await this.reply(
+        chatId,
+        '👋 <b>Disconnected Successfully</b>\n\nYour Telegram account has been unlinked from Rakhal. You will no longer receive notifications here.\n\nYou can reconnect anytime from your Rakhal app settings.',
+      );
+    } else {
+      await this.reply(
+        chatId,
+        'ℹ️ This chat is not currently connected to any Rakhal account.',
+      );
+    }
+  }
+
+  private async handleAiQueryFallback(
+    chatId: number | string,
+    userQuery: string,
+  ): Promise<void> {
+    // Forward-compatible seam for V2 Conversational AI Assistant
+    const truncated = userQuery.slice(0, 80);
+    await this.reply(
+      chatId,
+      `🐮 <b>Rakhal Assistant (V2 Preview)</b>\n\nWe received: <i>"${this.escapeHtml(truncated)}"</i>\n\nConversational AI queries (such as answering milk production numbers, cow health status, or feed stock) are currently in active development for V2.\n\nFor now, this bot delivers real-time farm alerts and critical notifications.`,
+    );
   }
 
   private async verifyLinkToken(
@@ -121,7 +264,14 @@ export class TelegramLinkService {
     }
   }
 
-  private async reply(chatId: number | string, text: string): Promise<void> {
+  private escapeHtml(str: string): string {
+    return (str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  async reply(chatId: number | string, text: string): Promise<void> {
     if (!this.config.botToken) return;
     try {
       await fetch(
@@ -129,7 +279,11 @@ export class TelegramLinkService {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: chatId, text }),
+          body: JSON.stringify({
+            chat_id: chatId,
+            text,
+            parse_mode: 'HTML',
+          }),
         },
       );
     } catch (err) {

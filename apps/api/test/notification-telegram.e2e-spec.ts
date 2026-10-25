@@ -1,4 +1,4 @@
-﻿import request from 'supertest';
+import request from 'supertest';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../src/core/database/prisma/prisma.service';
 import { TelegramLinkService } from '../src/modules/notification/application/services/telegram-link.service';
@@ -6,11 +6,9 @@ import { TelegramBotProvider } from '../src/modules/notification/application/cha
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
 /**
- * Telegram notification channel (RAKHAL-257) e2e. `TELEGRAM_BOT_TOKEN` is
- * unset in the test env (like every other real-world integration secret in
- * this suite), so it exercises the "not configured, defer gracefully" path
- * end-to-end plus the linking business logic directly via the service (the
- * same pattern `notification.e2e-spec.ts` uses for `notifyUsers`).
+ * Telegram notification channel & commands (RAKHAL-257) e2e.
+ * Tests account linking, command routing (/start, /status, /help, /unlink, V2 fallback),
+ * self-service status & unlink endpoints, and the provider fallback when unconfigured.
  */
 describe('Notifications — Telegram (e2e)', () => {
   let ctx: TestContext;
@@ -85,9 +83,9 @@ describe('Notifications — Telegram (e2e)', () => {
 
   it('links a chat id on a valid /start token (service-level)', async () => {
     await telegramLink.mintLinkToken(ownerUserId, owner.farmId);
-    // botUsername is unset in test env, so the deep link has no token to
-    // parse out — sign the same payload shape directly for the test.
+    // botUsername is unset in test env, so sign the exact required payload directly
     const token = await jwt.signAsync({
+      purpose: 'telegram_link',
       userId: ownerUserId,
       farmId: owner.farmId,
     });
@@ -106,6 +104,101 @@ describe('Notifications — Telegram (e2e)', () => {
     });
   });
 
+  it('GET /notifications/telegram/status returns linked status', async () => {
+    const res = await request(server())
+      .get(api('/notifications/telegram/status'))
+      .set(...auth(owner))
+      .expect(200);
+    expect(res.body.data).toMatchObject({
+      linked: true,
+      count: 1,
+    });
+    expect(res.body.data.chats).toHaveLength(1);
+  });
+
+  it('handles /status command when linked', async () => {
+    await expect(
+      telegramLink.handleUpdate({
+        message: { chat: { id: 424242 }, text: '/status' },
+      }),
+    ).resolves.not.toThrow();
+  });
+
+  it('handles /help command gracefully', async () => {
+    await expect(
+      telegramLink.handleUpdate({
+        message: { chat: { id: 424242 }, text: '/help' },
+      }),
+    ).resolves.not.toThrow();
+  });
+
+  it('handles /start without a token (welcome guide)', async () => {
+    await expect(
+      telegramLink.handleUpdate({
+        message: { chat: { id: 888888 }, text: '/start' },
+      }),
+    ).resolves.not.toThrow();
+
+    // No row should be created for /start without token
+    const row = await prisma.deviceToken.findFirst({
+      where: { token: '888888' },
+    });
+    expect(row).toBeNull();
+  });
+
+  it('handles conversational farm query fallback (V2 AI seam)', async () => {
+    await expect(
+      telegramLink.handleUpdate({
+        message: {
+          chat: { id: 424242 },
+          text: 'What is today milk collection?',
+        },
+      }),
+    ).resolves.not.toThrow();
+  });
+
+  it('unlinks chat id via /unlink command', async () => {
+    await telegramLink.handleUpdate({
+      message: { chat: { id: 424242 }, text: '/unlink' },
+    });
+
+    const row = await prisma.deviceToken.findFirst({
+      where: { token: '424242' },
+    });
+    expect(row).toBeNull();
+  });
+
+  it('handles /status command when not linked', async () => {
+    await expect(
+      telegramLink.handleUpdate({
+        message: { chat: { id: 424242 }, text: '/status' },
+      }),
+    ).resolves.not.toThrow();
+  });
+
+  it('DELETE /notifications/telegram/link unlinks via authenticated web API', async () => {
+    // Re-link first
+    const token = await jwt.signAsync({
+      purpose: 'telegram_link',
+      userId: ownerUserId,
+      farmId: owner.farmId,
+    });
+    await telegramLink.handleUpdate({
+      message: { chat: { id: 777777 }, text: `/start ${token}` },
+    });
+
+    const res = await request(server())
+      .delete(api('/notifications/telegram/link'))
+      .set(...auth(owner))
+      .expect(200);
+    expect(res.body.data).toMatchObject({ unlinked: true });
+
+    const check = await prisma.deviceToken.findFirst({
+      where: { token: '777777' },
+    });
+    expect(check).toBeNull();
+  });
+
   it('ignores an expired/garbage /start token — no row created', async () => {
     await telegramLink.handleUpdate({
       message: { chat: { id: 555555 }, text: '/start not-a-real-jwt' },
@@ -122,8 +215,8 @@ describe('Notifications — Telegram (e2e)', () => {
       eventKey: 'low_feed_stock',
       category: 'inventory',
       priority: 'medium',
-      title: 'T',
-      message: 'M',
+      title: 'Feed Low',
+      message: 'Silage stock is under 3 days.',
     });
     expect(telegramProvider.isConfigured()).toBe(false);
     expect(result).toEqual({ delivered: false, detail: 'not_configured' });
