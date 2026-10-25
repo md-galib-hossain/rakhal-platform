@@ -313,6 +313,7 @@ export const qk = {
     list: (status: string, page: number, locale: string) =>
       ["notifications", "list", status, page, locale] as const,
     preferences: () => ["notifications", "preferences"] as const,
+    telegramStatus: () => ["notifications", "telegram", "status"] as const,
   },
   /** RFE-153 — Reports v2 (`/reports*`). `all()` is the invalidation prefix for every reports read. */
   reports: {

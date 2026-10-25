@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { CheckCircle2, ExternalLink, Loader2, Send } from "lucide-react";
 import { Can } from "@/lib/auth/permissions";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,6 +15,9 @@ import { ErrorState } from "@/components/shared/error-state";
 import { ApiError } from "@/lib/api/errors";
 import {
   useNotificationPreferences,
+  useTelegramLinkToken,
+  useTelegramStatus,
+  useUnlinkTelegram,
   useUpdateNotificationPreferences,
 } from "../hooks/use-notifications";
 import type {
@@ -31,34 +34,21 @@ const CATEGORY_ORDER: NotificationCategory[] = [
   "inventory",
 ];
 
-/** External channels a farmer can toggle per event. `in_app` is always on (the free bell feed,
- * see `notification-events.ts`'s own doc comment) so it isn't offered as a checkbox.
- *
- * Deliberately empty for now (user scope decision, 2026-09-21: "avoid the sms for now we just
- * working with notifications in app"). None of these are actually reachable from the web app
- * today even though the backend's catalogue lists them: `sms`/`whatsapp`/`email` have no
- * provider at all; `telegram` has a provider (`TelegramBotProvider`) but needs both a configured
- * bot token AND a `/start` linking flow this app has no UI for; `push` has a real `FcmPushProvider`
- * but nothing here ever registers a browser device token (`POST /notifications/devices` — RFE-043's
- * own scope note explicitly skipped it), so no farmer using this web app has a token to deliver to.
- * Offering these as checkable meant a farmer could enable "SMS" and reasonably expect a text that
- * would never arrive. Re-populate this array (and drop the `only in-app` note below) once a channel
- * is genuinely wired end-to-end, not just backend-capable. */
-const CHANNEL_KEYS: Array<keyof NotificationChannels> = [];
-
 /**
- * RFE-043 — per-event channel toggles + quiet hours (PRD §20.3). Reads `NOTIFICATION_EVENTS`
- * (backend catalogue, RAKHAL-098) merged with the user's own overrides. Health & Safety events
- * are mandatory (`can_disable: false`) — their Enabled switch is locked on, matching the backend's
- * own `updatePreferences` rejection of a disable attempt on them.
+ * RFE-043 & RAKHAL-257 — per-event channel toggles + quiet hours + Telegram bot connection.
+ * Reads `NOTIFICATION_EVENTS` catalogue merged with the user's own overrides.
+ * Health & Safety events are mandatory (`can_disable: false`) — their Enabled switch is locked on.
+ * Telegram bot alerts can be linked via `/start` deep link and unlinked self-service.
  */
 export function NotificationPreferencesView() {
   const t = useTranslations("settings.notifications");
   const prefs = useNotificationPreferences();
   const update = useUpdateNotificationPreferences();
+  const telegramStatus = useTelegramStatus();
+  const linkTokenMutation = useTelegramLinkToken();
+  const unlinkTelegramMutation = useUnlinkTelegram();
 
   // `null` = user hasn't touched the field yet — falls back to the fetched value at render time
-  // (no effect+setState mirroring, same cascading-render pitfall RFE-109 already hit on this board).
   const [quietStartOverride, setQuietStartOverride] = useState<string | null>(null);
   const [quietEndOverride, setQuietEndOverride] = useState<string | null>(null);
   const quietStart = quietStartOverride ?? prefs.data?.quiet_hours.start ?? "";
@@ -86,6 +76,9 @@ export function NotificationPreferencesView() {
     byCategory.set(item.category, list);
   }
 
+  const isTelegramLinked = Boolean(telegramStatus.data?.linked);
+  const activeChannels: Array<keyof NotificationChannels> = isTelegramLinked ? ["telegram"] : [];
+
   function toggleEnabled(item: NotificationPreferenceItem, enabled: boolean) {
     update.mutate(
       { preferences: [{ event_key: item.event_key, enabled }] },
@@ -111,8 +104,103 @@ export function NotificationPreferencesView() {
     );
   }
 
+  function handleConnectTelegram() {
+    linkTokenMutation.mutate(undefined, {
+      onSuccess: (data) => {
+        if (data.deepLink) {
+          window.open(data.deepLink, "_blank", "noopener,noreferrer");
+          toast.success(t("telegram.connecting"));
+        } else {
+          toast.error(t("telegram.notConfigured"));
+        }
+      },
+      onError: () => toast.error(t("telegram.failedToGetLink")),
+    });
+  }
+
+  function handleUnlinkTelegram() {
+    unlinkTelegramMutation.mutate(undefined, {
+      onSuccess: () => toast.success(t("telegram.disconnectedSuccess")),
+      onError: (err) => toast.error(err instanceof ApiError ? err.message : t("saveError")),
+    });
+  }
+
   return (
     <div className="flex flex-col gap-8">
+      {/* Telegram Bot Connection Card */}
+      <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
+              <Send className="size-5" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-semibold text-foreground">
+                  {t("telegram.title")}
+                </h3>
+                {telegramStatus.isLoading ? (
+                  <Skeleton className="h-5 w-20" />
+                ) : telegramStatus.data?.linked ? (
+                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">
+                    <CheckCircle2 className="size-3 mr-1" />
+                    {t("telegram.statusConnected")}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    {t("telegram.statusNotConnected")}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground max-w-xl">
+                {t("telegram.description")}
+              </p>
+              {telegramStatus.data?.linked && telegramStatus.data.count > 0 ? (
+                <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  {t("telegram.activeChats", { count: telegramStatus.data.count })}
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          <Can I="notification.update">
+            <div className="flex items-center gap-2 shrink-0">
+              {telegramStatus.isLoading ? (
+                <Skeleton className="h-9 w-28" />
+              ) : telegramStatus.data?.linked ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleUnlinkTelegram}
+                  disabled={unlinkTelegramMutation.isPending}
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+                >
+                  {unlinkTelegramMutation.isPending ? (
+                    <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                  ) : null}
+                  {t("telegram.disconnect")}
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={handleConnectTelegram}
+                  disabled={linkTokenMutation.isPending || !telegramStatus.data?.configured}
+                  className="bg-sky-600 hover:bg-sky-700 text-white"
+                >
+                  {linkTokenMutation.isPending ? (
+                    <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <ExternalLink className="size-3.5 mr-1.5" />
+                  )}
+                  {t("telegram.connect")}
+                </Button>
+              )}
+            </div>
+          </Can>
+        </div>
+      </section>
+
+      {/* Quiet Hours Settings */}
       <section className="flex flex-col gap-3 rounded-xl border border-border p-4">
         <div>
           <p className="text-sm font-medium text-foreground">{t("quietHours")}</p>
@@ -152,6 +240,7 @@ export function NotificationPreferencesView() {
         </Can>
       </section>
 
+      {/* Categories & Channel Toggles */}
       {CATEGORY_ORDER.filter((c) => byCategory.has(c)).map((category) => (
         <section key={category} className="flex flex-col gap-3">
           <h3 className="text-sm font-semibold text-foreground">{t(`categories.${category}`)}</h3>
@@ -170,11 +259,14 @@ export function NotificationPreferencesView() {
                   />
                 </div>
                 {item.enabled ? (
-                  CHANNEL_KEYS.length > 0 ? (
+                  activeChannels.length > 0 ? (
                     <Can I="notification.update">
                       <div className="flex flex-wrap gap-4">
-                        {CHANNEL_KEYS.map((channel) => (
-                          <label key={channel} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        {activeChannels.map((channel) => (
+                          <label
+                            key={channel}
+                            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                          >
                             <Checkbox
                               checked={item.channels[channel]}
                               disabled={update.isPending}

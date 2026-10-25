@@ -5,6 +5,8 @@ import type {
   NotificationListResult,
   NotificationPreferencesResult,
   NotificationStatusFilter,
+  TelegramLinkTokenResult,
+  TelegramStatusResult,
   UpdatePreferencesInput,
 } from "./types";
 
@@ -29,6 +31,17 @@ export const notificationsApi = {
     return apiFetch<NotificationPreferencesResult>("/notifications/preferences", {
       method: "PATCH",
       body: input,
+    });
+  },
+  getTelegramLinkToken(): Promise<TelegramLinkTokenResult> {
+    return apiFetch<TelegramLinkTokenResult>("/notifications/telegram/link-token");
+  },
+  getTelegramStatus(): Promise<TelegramStatusResult> {
+    return apiFetch<TelegramStatusResult>("/notifications/telegram/status");
+  },
+  unlinkTelegram(): Promise<{ unlinked: boolean }> {
+    return apiFetch<{ unlinked: boolean }>("/notifications/telegram/link", {
+      method: "DELETE",
     });
   },
 };

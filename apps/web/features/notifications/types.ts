@@ -66,3 +66,16 @@ export interface UpdatePreferencesInput {
     channels?: NotificationChannels;
   }>;
 }
+
+export interface TelegramLinkTokenResult {
+  configured: boolean;
+  deepLink: string | null;
+}
+
+export interface TelegramStatusResult {
+  configured: boolean;
+  linked: boolean;
+  count: number;
+  chats?: Array<{ id: string; createdAt: string }>;
+}
+

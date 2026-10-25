@@ -54,3 +54,27 @@ export function useUpdateNotificationPreferences() {
     },
   });
 }
+
+export function useTelegramStatus() {
+  return useQuery({
+    queryKey: qk.notifications.telegramStatus(),
+    queryFn: () => notificationsApi.getTelegramStatus(),
+  });
+}
+
+export function useTelegramLinkToken() {
+  return useMutation({
+    mutationFn: () => notificationsApi.getTelegramLinkToken(),
+  });
+}
+
+export function useUnlinkTelegram() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => notificationsApi.unlinkTelegram(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.notifications.telegramStatus() });
+      void queryClient.invalidateQueries({ queryKey: qk.notifications.preferences() });
+    },
+  });
+}

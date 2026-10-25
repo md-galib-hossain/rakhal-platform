@@ -3340,7 +3340,12 @@
     },
     "insights": {
       "range": "সময়কাল",
-      "rangeOption": { "30": "৩০ দিন", "90": "৯০ দিন", "365": "১ বছর", "all": "সর্বমোট" }
+      "rangeOption": {
+        "30": "৩০ দিন",
+        "90": "৯০ দিন",
+        "365": "১ বছর",
+        "all": "সর্বমোট"
+      }
     },
     "managementCenter": {
       "title": "স্বাস্থ্য ব্যবস্থাপনা কেন্দ্র",
@@ -3913,7 +3918,11 @@
     "outcomes": {
       "title": "ফলাফল",
       "window": "সময়কাল",
-      "windowOption": { "30": "৩০ দিন", "90": "৯০ দিন", "365": "১ বছর" },
+      "windowOption": {
+        "30": "৩০ দিন",
+        "90": "৯০ দিন",
+        "365": "১ বছর"
+      },
       "error": "ফলাফল লোড করা যায়নি।",
       "emptyTitle": "গত {days} দিনে কোনো কেস নেই",
       "emptyTitleAll": "এখনও কোনো কেস রিপোর্ট হয়নি",
@@ -4088,7 +4097,11 @@
         "result": {
           "titleClosed": "ফলাফল",
           "titleSoFar": "এখন পর্যন্ত",
-          "outcome": { "RECOVERED": "সুস্থ হয়েছে", "MORTALITY": "মারা গেছে", "CLOSED": "বন্ধ" },
+          "outcome": {
+            "RECOVERED": "সুস্থ হয়েছে",
+            "MORTALITY": "মারা গেছে",
+            "CLOSED": "বন্ধ"
+          },
           "recurrence": "পুনরাবৃত্তি — আগের কেস বন্ধ হওয়ার {days, plural, one {১ দিন} other {# দিন}} পর",
           "daysToRecover": "সুস্থ হতে দিন লেগেছে",
           "daysSick": "অসুস্থ আছে",
@@ -4120,18 +4133,36 @@
         "timelineTitle": "কেসের ইতিহাস",
         "timeline": {
           "opened": "রিপোর্ট করা হয়েছে — {what}",
-          "priority": { "LOW": "কম অগ্রাধিকার", "MEDIUM": "মাঝারি অগ্রাধিকার", "HIGH": "উচ্চ অগ্রাধিকার", "CRITICAL": "গুরুতর" },
+          "priority": {
+            "LOW": "কম অগ্রাধিকার",
+            "MEDIUM": "মাঝারি অগ্রাধিকার",
+            "HIGH": "উচ্চ অগ্রাধিকার",
+            "CRITICAL": "গুরুতর"
+          },
           "update": "স্বাস্থ্য আপডেট — {progress}",
-          "progress": { "IMPROVING": "উন্নতি হচ্ছে", "WORSENING": "অবনতি হচ্ছে", "STABLE": "স্থিতিশীল" },
+          "progress": {
+            "IMPROVING": "উন্নতি হচ্ছে",
+            "WORSENING": "অবনতি হচ্ছে",
+            "STABLE": "স্থিতিশীল"
+          },
           "treatment": "চিকিৎসা — {medicine}",
           "unnamedTreatment": "চিকিৎসা",
           "voidDose": "ডোজ বাতিল করুন",
           "stepOf": "ধাপ {number}/{total}",
           "stepDone": "ধাপ সম্পন্ন — {title}",
           "stepStatus": "ধাপ {status} — {title}",
-          "stepState": { "MISSED": "বাদ পড়েছে", "SKIPPED": "এড়ানো হয়েছে", "RESCHEDULED": "পুনঃনির্ধারিত", "OVERDUE": "বকেয়া" },
+          "stepState": {
+            "MISSED": "বাদ পড়েছে",
+            "SKIPPED": "এড়ানো হয়েছে",
+            "RESCHEDULED": "পুনঃনির্ধারিত",
+            "OVERDUE": "বকেয়া"
+          },
           "closed": "বন্ধ — {status}",
-          "closedStatus": { "RECOVERED": "সুস্থ হয়েছে", "MORTALITY": "মারা গেছে", "CLOSED": "প্রোটোকল শেষ" },
+          "closedStatus": {
+            "RECOVERED": "সুস্থ হয়েছে",
+            "MORTALITY": "মারা গেছে",
+            "CLOSED": "প্রোটোকল শেষ"
+          },
           "mortality": "মারা গেছে"
         }
       },
@@ -4191,7 +4222,11 @@
       },
       "healthUpdate": {
         "clinicalProgress": "ক্লিনিক্যাল অগ্রগতি",
-          "progress": { "IMPROVING": "উন্নতি হচ্ছে", "WORSENING": "অবনতি হচ্ছে", "STABLE": "স্থিতিশীল" },
+        "progress": {
+          "IMPROVING": "উন্নতি হচ্ছে",
+          "WORSENING": "অবনতি হচ্ছে",
+          "STABLE": "স্থিতিশীল"
+        },
         "signsAndSymptoms": "লক্ষণ ও উপসর্গ",
         "temperature": "তাপমাত্রা",
         "appetite": "ক্ষুধা",
@@ -6279,6 +6314,17 @@
       "noMatch": "\"{query}\" নামে কোনো প্ল্যান নেই",
       "noMatchHint": "বানান দেখুন বা খোঁজা মুছে দিন।",
       "clearSearch": "খোঁজা মুছুন",
+      "metrics": {
+        "totalPlans": "{count}টি প্ল্যান",
+        "activePlans": "{count}টি সক্রিয় প্রোগ্রাম",
+        "coveredCattle": "{count}টি গরু অন্তর্ভুক্ত",
+        "totalHerdDemand": "দৈনিক মোট চাহিদা {kg} কেজি"
+      },
+      "filters": {
+        "all": "সব প্ল্যান ({count})",
+        "active": "সক্রিয় / প্রয়োগকৃত ({count})",
+        "unassigned": "অনির্ধারিত ড্রাফট ({count})"
+      },
       "kind": {
         "PLAN": "প্ল্যান",
         "TMR_SHORTCUT": "টিএমআর",
@@ -6286,6 +6332,7 @@
       },
       "card": {
         "totalKg": "প্রতি পশুতে দৈনিক {kg} কেজি",
+        "perHeadDay": "প্রতি পশু / দিনে",
         "kgLine": "{kg} কেজি",
         "moreActions": "{name}-এর আরও কাজ",
         "appliedTo": "প্রয়োগ করা হয়েছে",
@@ -6297,6 +6344,17 @@
         "assignmentsTitle": "এই প্ল্যান যেখানে প্রয়োগ করা আছে",
         "showMore": "আরও {count} টি",
         "allTargets": "{count}টিতে প্রয়োগ করা",
+        "compositionTitle": "রেশনের মিশ্রণ",
+        "moreIngredients": "আরও +{count}টি উপাদান",
+        "herdDemand": "পালের দৈনিক মোট খাদ্য",
+        "herdDemandFormula": "{count}টি গরু × দৈনিক {kg} কেজি",
+        "herdDemandUnassigned": "প্রয়োগ করা হয়নি · পালের মোট হিসাব পেতে প্রয়োগ করুন",
+        "viewAndManageCows": "{count}টি গরু দেখুন ও পরিচালনা করুন →",
+        "viewAssigned": "নির্ধারিত গরু দেখুন",
+        "noCowsAssigned": "এখনও কোনো পশু নির্ধারণ করা হয়নি",
+        "applyPrompt": "গরু বা গ্রুপে এই প্ল্যান প্রয়োগ করতে 'প্রয়োগ করুন' চাপুন।",
+        "appliedStatus": "সক্রিয় • {count}টি গরু",
+        "unassignedStatus": "অনির্ধারিত ড্রাফট",
         "removeProgram": "সরান",
         "removeConfirmTitle": "এই প্রোগ্রাম সরাবেন?",
         "removeConfirmDescription": "পশুগুলো আর \"{name}\" অনুসরণ করবে না। খাওয়ানোর ইতিহাস থাকবে।",
@@ -6311,6 +6369,36 @@
         "forceDeleteDescription": "এই প্ল্যান এখনও প্রয়োগ করা আছে। প্রতিটি পশু, গ্রুপ ও পাল থেকে সরিয়ে তারপর মুছে ফেলা হবে।",
         "forceDelete": "সব থেকে সরিয়ে মুছুন",
         "deletedToast": "প্ল্যান মুছে ফেলা হয়েছে"
+      },
+      "assignedModal": {
+        "title": "নির্ধারিত গরু — {name}",
+        "subtitle": "মাথাপিছু দৈনিক {kg} কেজি · পালের মোট দৈনিক চাহিদা: {totalDemand} কেজি",
+        "searchPlaceholder": "নাম বা ট্যাগ নম্বর দিয়ে খুঁজুন...",
+        "kpis": {
+          "totalCattle": "মোট গরু",
+          "totalDemand": "মোট খাদ্য চাহিদা",
+          "demandUnit": "কেজি / দিন",
+          "assignmentTypes": "বরাদ্দের ধরন",
+          "directCount": "{count}টি সরাসরি",
+          "groupCount": "{count}টি গ্রুপে",
+          "herdCount": "পুরো পাল"
+        },
+        "filters": {
+          "all": "সব গরু ({count})",
+          "direct": "সরাসরি ({count})",
+          "group": "গ্রুপ ({count})",
+          "herd": "পাল ({count})"
+        },
+        "applyMore": "আরও গরু যোগ করুন",
+        "removeAction": "সরান",
+        "removeConfirmTitle": "এই প্ল্যান থেকে {cowName}-কে সরাবেন?",
+        "removeConfirmDesc": "{cowName} ({tagNumber}) আর এই ফিড রেশন পাবে না। আগের খাওয়ানোর ইতিহাস অপরিবর্তিত থাকবে।",
+        "removeSuccessToast": "{planName} থেকে {cowName}-কে সরানো হয়েছে",
+        "emptyFilterTitle": "\"{query}\"-এর সাথে মিলিয়ে কোনো গরু পাওয়া যায়নি",
+        "emptyFilterHint": "ভিন্ন নাম বা কানের ট্যাগ নম্বর দিয়ে অনুসন্ধান করে দেখুন।",
+        "emptyNoCowsTitle": "এই প্ল্যানে এখনও কোনো গরু নির্ধারিত নেই",
+        "emptyNoCowsHint": "'আরও গরু যোগ করুন' বোতামে চেপে নির্দিষ্ট গরু বা গ্রুপে এই প্ল্যান প্রয়োগ করুন।",
+        "close": "বন্ধ করুন"
       },
       "editor": {
         "createTitle": "নতুন ফিড প্ল্যান",
@@ -6553,7 +6641,11 @@
       "requirementBar": {
         "title": "দৈনিক চাহিদা পূরণ",
         "aria": "দৈনিক চাহিদার {pct}% পূরণ হয়েছে",
-        "nutrient": { "dm": "শুষ্ক পদার্থ", "cp": "প্রোটিন", "me": "শক্তি" }
+        "nutrient": {
+          "dm": "শুষ্ক পদার্থ",
+          "cp": "প্রোটিন",
+          "me": "শক্তি"
+        }
       },
       "rowSource": {
         "selectPrompt": "উৎস নির্বাচন করুন…",
@@ -6762,7 +6854,11 @@
         "variance": "পার্থক্য",
         "nutrientHeader": "পুষ্টি উপাদান",
         "incomplete": "একটি লাইনে ব্যাচ বা মজুত নেই, তাই প্রকৃত সরবরাহ দেখানোর চেয়ে বেশি।",
-        "nutrient": { "dm": "শুষ্ক পদার্থ", "cp": "প্রোটিন", "me": "শক্তি" }
+        "nutrient": {
+          "dm": "শুষ্ক পদার্থ",
+          "cp": "প্রোটিন",
+          "me": "শক্তি"
+        }
       },
       "adjust": {
         "adjustPlan": "প্ল্যান বদলান",
@@ -6818,6 +6914,22 @@
         "whatsapp": "হোয়াটসঅ্যাপ",
         "telegram": "টেলিগ্রাম",
         "email": "ইমেইল"
+      },
+      "telegram": {
+        "title": "টেলিগ্রাম বট অ্যালার্ট",
+        "description": "ফোনে সরাসরি জরুরি নোটিফিকেশন, দুধের হিসাব এবং স্বাস্থ্য সতর্কবার্তা পেতে আপনার টেলিগ্রাম অ্যাকাউন্ট যুক্ত করুন।",
+        "notConfigured": "এই সার্ভারে টেলিগ্রাম বট কনফিগার করা নেই।",
+        "statusConnected": "সংযুক্ত",
+        "statusNotConnected": "সংযুক্ত নেই",
+        "connect": "টেলিগ্রাম যুক্ত করুন",
+        "connecting": "টেলিগ্রাম খোলা হচ্ছে...",
+        "disconnect": "সংযোগ বিচ্ছিন্ন করুন",
+        "disconnecting": "সংযোগ বিচ্ছিন্ন করা হচ্ছে...",
+        "disconnectedSuccess": "টেলিগ্রাম অ্যাকাউন্ট বিচ্ছিন্ন করা হয়েছে।",
+        "connectInstructions": "ক্লিক করলে রাখাল বটের সাথে যুক্ত হতে টেলিগ্রাম খুলবে।",
+        "activeChats": "{count} টি চ্যাট সংযুক্ত",
+        "failedToGetLink": "টেলিগ্রাম লিংক তৈরি করা যায়নি। আবার চেষ্টা করুন।",
+        "enablePrompt": "এই বিজ্ঞপ্তির জন্য টেলিগ্রাম চালু করতে উপরে টেলিগ্রাম সংযুক্ত করুন।"
       }
     },
     "serviceProviderPicker": {
