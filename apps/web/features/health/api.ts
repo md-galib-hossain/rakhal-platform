@@ -40,6 +40,8 @@ import type {
   SafetyWithdrawalStatus,
   SkipTaskPayload,
   TreatmentLog,
+  TreatmentLogFilters,
+  TreatmentLogListItem,
   UpdateHealthPlanPayload,
 } from "./types";
 import type { ProtocolStockCheck, UndoResult } from "./types";
@@ -100,6 +102,18 @@ export const healthApi = {
   /** RAKHAL-416 — Quick Treat: logs a treatment for N animals with no case id, one call. */
   recordTreatment(dto: RecordTreatmentPayload): Promise<RecordTreatmentResult> {
     return apiFetch<RecordTreatmentResult>("/health/treatments", { method: "POST", body: dto });
+  },
+  /** Farm-wide treatment logs history (curative and preventive). */
+  treatmentLogs(filters: TreatmentLogFilters = {}, cursor?: string, limit = 20): Promise<CursorPage<TreatmentLogListItem>> {
+    return apiFetchPage<TreatmentLogListItem>("/health/treatments", {
+      searchParams: {
+        search: filters.search,
+        careType: filters.careType,
+        cattleId: filters.cattleId,
+        cursor,
+        limit,
+      },
+    });
   },
   /** Sick Bay delete — soft delete (`isActive:false`), `healthcare.delete` (manager+). */
   deleteCase(id: string): Promise<HealthCaseDetail> {

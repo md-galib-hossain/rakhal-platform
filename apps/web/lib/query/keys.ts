@@ -99,6 +99,7 @@ export const qk = {
      * `GET /health/plan-applications` (grouped rounds, not one row per cow). */
     planApplications: (filters: Record<string, string | undefined>) => ["health", "plan-applications", "list", filters] as const,
     safetyWithdrawals: () => ["health", "safety-withdrawals", "list"] as const,
+    treatmentLogs: (filters: Record<string, string | undefined>) => ["health", "treatment-logs", "list", filters] as const,
   },
   activity: {
     list: (filters: Record<string, string | undefined>) => ["activity", "list", filters] as const,

@@ -26,6 +26,7 @@ vi.mock("../hooks/use-health", () => ({
 }));
 vi.mock("./sick-bay-table", () => ({ SickBayTable: () => <div data-testid="sick-bay-table" /> }));
 vi.mock("./safety-withdrawal-tab", () => ({ SafetyWithdrawalSection: () => <div data-testid="withdrawals" /> }));
+vi.mock("./treatment-history-table", () => ({ TreatmentHistorySection: () => <div data-testid="treatment-history" /> }));
 vi.mock("@/components/shared/pagination", () => ({
   Pagination: ({ onPageChange }: { onPageChange: (page: number) => void }) => (
     <button type="button" onClick={() => onPageChange(2)}>
@@ -57,9 +58,10 @@ describe("TreatmentsTab — one paged list at a time (RFE-141)", () => {
     expect(screen.queryByText("Preventive Rounds")).toBeNull();
   });
 
-  it("has only two views - preventive rounds moved into the Protocols sheet (RFE-143)", () => {
+  it("has three views: cases, history, and withheld", () => {
     renderTab();
-    expect(screen.getAllByRole("tab")).toHaveLength(2);
+    expect(screen.getAllByRole("tab")).toHaveLength(3);
+    expect(screen.getByRole("tab", { name: /Treatment History/i })).toBeTruthy();
     expect(screen.queryByRole("tab", { name: /Preventive rounds/i })).toBeNull();
   });
 
@@ -79,6 +81,18 @@ describe("TreatmentsTab — one paged list at a time (RFE-141)", () => {
     fireEvent.click(screen.getByRole("tab", { name: /Milk\/meat withheld/ }));
     expect(screen.getByTestId("withdrawals")).toBeTruthy();
     expect(screen.queryByTestId("sick-bay-table")).toBeNull();
+  });
+
+  it("switching to History swaps to the treatment history list", () => {
+    renderTab();
+    fireEvent.click(screen.getByRole("tab", { name: /Treatment History/ }));
+    expect(screen.getByTestId("treatment-history")).toBeTruthy();
+    expect(screen.queryByTestId("sick-bay-table")).toBeNull();
+  });
+
+  it("a ?bay=history link opens treatment history directly", () => {
+    renderTab("history");
+    expect(screen.getByTestId("treatment-history")).toBeTruthy();
   });
 
   it("a ?bay=withheld link (from the stat strip) opens that list directly", () => {

@@ -3901,8 +3901,33 @@
       "viewLabel": "দেখুন",
       "views": {
         "cases": "চিকিৎসাধীন",
+        "history": "চিকিৎসার ইতিহাস",
         "withheld": "দুধ/মাংস আটকানো"
       }
+    },
+    "treatmentHistory": {
+      "filter": {
+        "all": "সকল চিকিৎসা",
+        "PREVENTIVE": "সুরক্ষা / টিকা",
+        "CURATIVE": "অসুস্থতা"
+      },
+      "columns": {
+        "date": "তারিখ ও সময়",
+        "animal": "পশু",
+        "purpose": "উদ্দেশ্য",
+        "medicine": "ওষুধ",
+        "dose": "মাত্রা",
+        "route": "প্রয়োগের পথ",
+        "administeredBy": "প্রদানকারী",
+        "notes": "মন্তব্য"
+      },
+      "purposes": {
+        "PREVENTIVE": "সুরক্ষা / টিকা",
+        "CURATIVE": "অসুস্থতা"
+      },
+      "emptyTitle": "চিকিৎসার কোনো রেকর্ড পাওয়া যায়নি",
+      "emptyDescription": "পশুকে প্রদত্ত ওষুধ, টিকা এবং সুরক্ষা মাত্রার বিবরণ এখানে দেখা যাবে।",
+      "error": "চিকিৎসার ইতিহাস লোড করা যায়নি।"
     },
     "symptoms": {
       "limpingLameness": "খোঁড়ানো/পঙ্গুত্ব",

@@ -25,6 +25,7 @@ import type {
   SafetyWithdrawalStatus,
   SkipTaskPayload,
   StopCattleProtocolPayload,
+  TreatmentLogFilters,
   UpdateHealthPlanPayload,
 } from "../types";
 
@@ -43,6 +44,15 @@ export function useSickBayPagedList(filters: HealthListFilters) {
   return useCursorPager(
     qk.health.sickBay(filters as Record<string, string | undefined>),
     (cursor, limit) => healthApi.sickBay(filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
+}
+
+/** Shared-pager adapter (`useCursorPager`) over the cursor-only `GET /health/treatments`. */
+export function useTreatmentLogsPagedList(filters: TreatmentLogFilters) {
+  return useCursorPager(
+    qk.health.treatmentLogs(filters as Record<string, string | undefined>),
+    (cursor, limit) => healthApi.treatmentLogs(filters, cursor, limit),
     { staleTime: STALE_TIME },
   );
 }
@@ -92,6 +102,7 @@ function useInvalidateHealth() {
   const queryClient = useQueryClient();
   return (caseId?: string, cattleId?: string) => {
     void queryClient.invalidateQueries({ queryKey: ["health", "sick-bay"] });
+    void queryClient.invalidateQueries({ queryKey: ["health", "treatment-logs"] });
     void queryClient.invalidateQueries({ queryKey: qk.health.dashboard() });
     void queryClient.invalidateQueries({ queryKey: ["health", "outcomes"] });
     // Completing/logging a treatment also flips its HealthTask's status — bust the Task Hub's

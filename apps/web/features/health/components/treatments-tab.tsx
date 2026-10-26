@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Pagination } from "@/components/shared/pagination";
 import { SickBayTable } from "./sick-bay-table";
 import { SafetyWithdrawalSection } from "./safety-withdrawal-tab";
+import { TreatmentHistorySection } from "./treatment-history-table";
 import { useHealthDashboard, useSickBayPagedList } from "../hooks/use-health";
 import { SICK_BAY_VIEWS, type SickBayView } from "../types";
 
@@ -60,7 +61,13 @@ export function TreatmentsTab({
         ))}
       </div>
 
-      {view === "cases" ? <CasesView search={search} onManageCase={onManageCase} /> : <SafetyWithdrawalSection />}
+      {view === "cases" ? (
+        <CasesView search={search} onManageCase={onManageCase} />
+      ) : view === "history" ? (
+        <TreatmentHistorySection search={search} />
+      ) : (
+        <SafetyWithdrawalSection />
+      )}
     </div>
   );
 }

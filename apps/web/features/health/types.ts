@@ -654,8 +654,44 @@ export type HealthManagementTab = (typeof HEALTH_MANAGEMENT_TABS)[number];
 /** RFE-141 — the Sick Bay tab shows ONE paged list at a time: animals under treatment, animals whose milk/meat is
  * withheld (a closed case can still have a running withdrawal). Lives in the URL as `?bay=` so the stat strip and
  * links can open the right one. (RFE-143 removed the third view, preventive rounds - they are in the protocol sheet.) */
-export const SICK_BAY_VIEWS = ["cases", "withheld"] as const;
+export const SICK_BAY_VIEWS = ["cases", "history", "withheld"] as const;
 export type SickBayView = (typeof SICK_BAY_VIEWS)[number];
+
+export interface TreatmentLogListItem {
+  id: string;
+  farmId: string;
+  cattleId: string;
+  healthCaseId?: string | null;
+  healthTaskId?: string | null;
+  medicineId?: string | null;
+  medicineName: string | null;
+  doseAmount: number | null;
+  doseUnit: string | null;
+  route: MedicineRoute | null;
+  administeredAt: string;
+  administeredBy: string;
+  notes?: string | null;
+  vetCost?: number | null;
+  cattle: {
+    id: string;
+    name?: string | null;
+    tagNumber: string;
+    image?: string | null;
+  };
+  healthCase?: {
+    id: string;
+    caseCode: string;
+    careType: HealthCareType;
+    condition?: string | null;
+    note?: string | null;
+  } | null;
+}
+
+export interface TreatmentLogFilters {
+  search?: string;
+  careType?: HealthCareType;
+  cattleId?: string;
+}
 
 /** `GET /health/safety-withdrawals` row shape (`health.service.ts#getSafetyWithdrawals`) — the
  * backend include for `cattle` was added alongside this frontend tab (previously had zero UI

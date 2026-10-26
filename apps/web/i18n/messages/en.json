@@ -3901,8 +3901,33 @@
       "viewLabel": "Show",
       "views": {
         "cases": "Under treatment",
+        "history": "Treatment History",
         "withheld": "Milk/meat withheld"
       }
+    },
+    "treatmentHistory": {
+      "filter": {
+        "all": "All Treatments",
+        "PREVENTIVE": "Wellness / Vaccine",
+        "CURATIVE": "Illness"
+      },
+      "columns": {
+        "date": "Date & Time",
+        "animal": "Animal",
+        "purpose": "Purpose",
+        "medicine": "Medicine",
+        "dose": "Dose",
+        "route": "Route",
+        "administeredBy": "Given By",
+        "notes": "Notes"
+      },
+      "purposes": {
+        "PREVENTIVE": "Wellness / Vaccine",
+        "CURATIVE": "Illness"
+      },
+      "emptyTitle": "No treatment logs found",
+      "emptyDescription": "Treatments, wellness doses, and vaccinations administered to cattle will appear here.",
+      "error": "Could not load treatment history."
     },
     "symptoms": {
       "limpingLameness": "Limping/Lameness",
