@@ -14,6 +14,7 @@ import {
   AppetiteStatus,
   AppearanceStatus,
   ClinicalProgress,
+  HealthCareType,
   HealthCloseOutcome,
   MedicineRoute,
 } from '@prisma/client';
@@ -381,6 +382,10 @@ export class RecordTreatmentDto {
 
   @IsDateString()
   treatedAt!: string;
+
+  @IsOptional()
+  @IsEnum(HealthCareType)
+  careType?: HealthCareType;
 
   @IsOptional()
   @Transform(trimString)

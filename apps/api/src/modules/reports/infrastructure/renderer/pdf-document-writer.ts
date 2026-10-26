@@ -24,32 +24,48 @@ const TOP_LATER = 82;
 const GAP = 10;
 
 const C = {
-  page: '#FBFAF6',
-  green: '#2F5D50',
-  greenDark: '#244A40',
-  sage: '#A9BFB3',
-  sageMid: '#7FA08F',
-  sageLight: '#E4ECE7',
-  sand: '#C9A56B',
-  amber: '#9A6B2A',
-  text: '#1F2A26',
-  muted: '#6B7771',
-  rule: '#D9DDD6',
+  page: '#FFFFFF',
+  forest: '#0C2A1D',
+  forestDark: '#06170F',
+  forestLight: '#143D2B',
+  forestSubtle: '#1C543B',
+  emerald: '#059669',
+  emeraldBright: '#10B981',
+  emeraldLight: '#ECFDF5',
+  emeraldBorder: '#A7F3D0',
+  teal: '#0D9488',
+  sand: '#10B981',
+  gold: '#D97706',
+  goldLight: '#FEF3C7',
+  goldBorder: '#FDE68A',
+  amber: '#D97706',
+  text: '#0F172A',
+  textHeading: '#0A1E14',
+  muted: '#64748B',
+  mutedLight: '#94A3B8',
+  rule: '#E2E8F0',
   card: '#FFFFFF',
-  cardLine: '#DAD9D0',
-  warnBg: '#FAF6EC',
-  restricted: '#F1F2EE',
+  cardLine: '#E2E8F0',
+  cardBg: '#FAFCFA',
+  warnBg: '#FFFBEB',
+  warnBorder: '#FCD34D',
+  restricted: '#F8FAFC',
   white: '#FFFFFF',
+  green: '#059669',
+  greenDark: '#0C2A1D',
+  sage: '#059669',
+  sageMid: '#0C2A1D',
+  sageLight: '#ECFDF5',
 };
 const PALETTE = [
-  C.green,
-  C.sageMid,
-  C.sand,
-  '#4E7F6F',
-  '#D9C4A0',
-  C.sage,
-  '#8C6B3A',
-  '#B9CFC4',
+  '#059669', // Emerald
+  '#0284C7', // Sky Blue
+  '#D97706', // Amber Gold
+  '#8B5CF6', // Purple
+  '#0D9488', // Teal
+  '#F43F5E', // Rose
+  '#10B981', // Mint
+  '#6366F1', // Indigo
 ];
 
 type Role = 'sans' | 'sansBold' | 'serif' | 'serifBold';
@@ -323,7 +339,7 @@ export class PdfDocumentWriter {
     fill = C.card,
   ): void {
     this.doc.lineWidth(0.6);
-    this.rect(x, y, w, h, fill, C.cardLine, 2);
+    this.rect(x, y, w, h, fill, C.cardLine, 4);
   }
 
   private ensure(h: number): void {
@@ -333,24 +349,30 @@ export class PdfDocumentWriter {
   /* -------------------------------- pages -------------------------------- */
 
   private brand(x: number, y: number, size: number): void {
-    this.rect(x, y, size, size, C.green, undefined, size * 0.22);
-    this.text('R', x, y + size * 0.16, {
+    // Sleek rounded emblem badge in deep luxury forest
+    this.rect(x, y, size, size, C.forest, undefined, 6);
+    this.rect(x + 1.2, y + 1.2, size - 2.4, size - 2.4, undefined, C.forestSubtle, 4.8);
+    this.text('R', x, y + size * 0.15, {
       role: 'serifBold',
-      size: size * 0.66,
+      size: size * 0.65,
       color: C.white,
       align: 'center',
       width: size,
     });
-    this.text('RAKHAL', x + size + 9, y + size * 0.1, {
+    // Gold accent dot in corner
+    this.rect(x + size - 5.5, y + size - 5.5, 3, 3, C.gold, undefined, 1.5);
+
+    this.text('RAKHAL', x + size + 9, y + size * 0.08, {
       role: 'sansBold',
-      size: 9,
-      color: C.greenDark,
-      cs: 1.6,
+      size: 9.5,
+      color: C.forestDark,
+      cs: 1.8,
     });
-    this.text('FARM RECORDS, CLEARLY.', x + size + 9, y + size * 0.1 + 14, {
-      size: 5.6,
-      color: C.muted,
-      cs: 1,
+    this.text('FARM INTELLIGENCE REPORT', x + size + 9, y + size * 0.08 + 13.5, {
+      role: 'sansBold',
+      size: 5.4,
+      color: C.emerald,
+      cs: 1.1,
     });
   }
 
@@ -367,34 +389,39 @@ export class PdfDocumentWriter {
     });
     this.pages += 1;
     this.rect(0, 0, PAGE_W, PAGE_H, C.page);
-    this.rect(0, 0, PAGE_W * 0.45, 5, C.green);
-    this.rect(PAGE_W * 0.45, 0, PAGE_W * 0.55, 5, C.sage);
+    // Modern multi-tier top accent band
+    this.rect(0, 0, PAGE_W, 4.5, C.forest);
+    this.rect(0, 4.5, PAGE_W, 2, C.emeraldBright);
+    this.rect(0, 6.5, PAGE_W, 1, C.gold);
+
     if (this.pages === 1) {
       this.firstHeader();
     } else {
-      this.brand(MX, 30, 22);
-      this.text(this.layout.headerRight[0] ?? '', MX, 32, {
-        size: 6,
-        color: C.muted,
+      this.brand(MX, 28, 22);
+      this.text(this.layout.headerRight[0] ?? '', MX, 30, {
+        role: 'sansBold',
+        size: 6.2,
+        color: C.forest,
         cs: 0.9,
         align: 'right',
         width: CW,
       });
-      this.text(`${this.layout.headerRight[1] ?? ''} · CONTINUED`, MX, 42, {
+      this.text(`${this.layout.headerRight[1] ?? ''} · CONTINUED`, MX, 40, {
         size: 6,
         color: C.muted,
-        cs: 0.9,
+        cs: 0.8,
         align: 'right',
         width: CW,
       });
-      this.hline(MX, MX + CW, 66);
+      this.hline(MX, MX + 40, 62, C.emerald, 1.2);
+      this.hline(MX + 40, MX + CW, 62, C.rule, 0.5);
       this.y = TOP_LATER;
     }
   }
 
   private firstHeader(): void {
     const L = this.layout;
-    this.brand(MX, 34, 28);
+    this.brand(MX, 32, 28);
     let rightEdge = MX + CW;
     if (this.logo) {
       try {
@@ -403,66 +430,73 @@ export class PdfDocumentWriter {
         const s = Math.min(maxW / this.logo.w, maxH / this.logo.h, 1);
         const w = this.logo.w * s;
         const h = this.logo.h * s;
-        this.doc.image(this.logo.buf, rightEdge - w, 34 + (28 - h) / 2, {
+        this.rect(rightEdge - w - 4, 32 + (28 - h) / 2 - 2, w + 8, h + 4, C.cardBg, C.cardLine, 4);
+        this.doc.image(this.logo.buf, rightEdge - w, 32 + (28 - h) / 2, {
           width: w,
           height: h,
         });
-        rightEdge -= w + 12;
+        rightEdge -= w + 16;
       } catch {
         /* a bad logo never fails the report */
       }
     }
-    this.text(L.headerRight[0] ?? '', MX, 38, {
-      size: 6,
-      color: C.muted,
-      cs: 0.9,
+    this.text(L.headerRight[0] ?? '', MX, 36, {
+      role: 'sansBold',
+      size: 6.8,
+      color: C.forest,
+      cs: 1,
       align: 'right',
       width: rightEdge - MX,
     });
-    this.text(L.headerRight[1] ?? '', MX, 49, {
-      size: 6,
+    this.text(L.headerRight[1] ?? '', MX, 47, {
+      size: 6.2,
       color: C.muted,
-      cs: 0.9,
+      cs: 0.8,
       align: 'right',
       width: rightEdge - MX,
     });
-    this.hline(MX, MX + CW, 78);
-    this.text(L.eyebrow, MX, 92, {
+    // Dual-tone divider line
+    this.hline(MX, MX + 45, 74, C.emerald, 1.4);
+    this.hline(MX + 45, MX + CW, 74, C.rule, 0.6);
+
+    this.text(L.eyebrow, MX, 88, {
       role: 'sansBold',
-      size: 6.5,
-      color: C.green,
-      cs: 1.2,
+      size: 6.8,
+      color: C.emerald,
+      cs: 1.3,
       maxW: CW,
     });
-    this.text(L.title, MX, 104, {
-      role: 'serif',
-      size: 27,
+    this.text(L.title, MX, 100, {
+      role: 'sansBold',
+      size: 26,
       color: C.text,
       maxW: CW,
     });
-    this.text(L.farmName, MX, 140, {
+    this.text(L.farmName, MX, 136, {
       role: 'sansBold',
-      size: 9,
-      color: C.text,
+      size: 11,
+      color: C.forest,
       maxW: CW,
     });
     let x = MX;
-    const metaY = 156;
+    const metaY = 154;
     for (const m of L.meta) {
-      const label = `${m.label}  `;
-      const lw = this.measure(label, 'sansBold', 7);
-      const avail = MX + CW - x - lw;
+      const label = `${m.label}: `;
+      const lw = this.measure(label, 'sansBold', 6.6);
+      const avail = MX + CW - x - lw - 16;
       const value = this.fit(
         m.value,
         'sans',
-        7,
+        6.6,
         Math.max(40, Math.min(avail, 230)),
       );
-      const vw = this.measure(value, 'sans', 7);
-      if (x + lw + vw > MX + CW) break;
-      this.text(label, x, metaY, { role: 'sansBold', size: 7, color: C.text });
-      this.text(value, x + lw, metaY, { size: 7, color: C.muted });
-      x += lw + vw + 18;
+      const vw = this.measure(value, 'sans', 6.6);
+      const badgeW = lw + vw + 14;
+      if (x + badgeW > MX + CW) break;
+      this.rect(x, metaY - 3, badgeW, 16, C.cardBg, C.cardLine, 4);
+      this.text(label, x + 7, metaY + 1.2, { role: 'sansBold', size: 6.6, color: C.forest });
+      this.text(value, x + 7 + lw, metaY + 1.2, { size: 6.6, color: C.text });
+      x += badgeW + 8;
     }
     this.y = 178;
   }
@@ -517,24 +551,31 @@ export class PdfDocumentWriter {
     for (let i = 0; i < total; i++) {
       this.doc.switchToPage(range.start + i);
       const fy = PAGE_H - 44;
-      this.hline(MX, MX + CW, fy);
+      this.hline(MX, MX + 45, fy, C.emerald, 1.2);
+      this.hline(MX + 45, MX + CW, fy, C.rule, 0.5);
       this.text(this.layout.footerLabel, MX, fy + 10, {
         role: 'sansBold',
-        size: 6.5,
-        color: C.greenDark,
-        cs: 0.8,
+        size: 6.8,
+        color: C.forestDark,
+        cs: 0.9,
+      });
+      this.text('Rakhal Farm Engine Verified · Official Operational Audit', MX, fy + 20, {
+        size: 5.6,
+        color: C.muted,
+        cs: 0.5,
       });
       this.text(this.layout.farmName, MX, fy + 8, {
-        size: 6.5,
-        color: C.muted,
+        role: 'sansBold',
+        size: 6.8,
+        color: C.forest,
         align: 'right',
         width: CW,
         maxW: CW * 0.5,
       });
-      const pg = `${String(i + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
+      const pg = `Page ${i + 1} of ${total}`;
       this.text(pg, MX, fy + 18, {
-        role: 'serif',
-        size: 8.5,
+        role: 'sans',
+        size: 7.2,
         color: C.muted,
         align: 'right',
         width: CW,
@@ -545,74 +586,85 @@ export class PdfDocumentWriter {
   /* -------------------------------- blocks ------------------------------- */
 
   private section(title: string): void {
-    this.y += 4;
-    this.text(title, MX, this.y, {
-      role: 'serif',
-      size: 14,
-      color: C.greenDark,
-      maxW: CW,
+    this.y += 6;
+    this.rect(MX, this.y + 1, 3.5, 13, C.emerald, undefined, 1.5);
+    this.text(title, MX + 10, this.y, {
+      role: 'sansBold',
+      size: 13.5,
+      color: C.forestDark,
+      maxW: CW - 10,
     });
-    this.y += 20;
-    this.hline(MX, MX + CW, this.y - 3);
-    this.y += 5;
+    this.y += 19;
+    this.hline(MX, MX + 45, this.y - 3, C.emerald, 1.2);
+    this.hline(MX + 45, MX + CW, this.y - 3, C.rule, 0.5);
+    this.y += 6;
   }
 
   private hero(b: Extract<LayoutBlock, { type: 'hero' }>): void {
-    const h = 72;
+    const h = 74;
     this.ensure(h + GAP);
     const y = this.y;
-    this.rect(MX, y, CW, h, C.green, undefined, 3);
-    const sideW = 170;
-    this.text(b.eyebrow, MX + 16, y + 12, {
+    this.rect(MX, y, CW, h, C.forest, undefined, 7);
+    this.rect(MX, y, 4, h, C.emeraldBright, undefined, 2);
+
+    const sideW = 175;
+    this.text(b.eyebrow, MX + 18, y + 12, {
       role: 'sansBold',
-      size: 6.5,
-      color: C.sageLight,
-      cs: 1.1,
-      maxW: CW - sideW - 24,
+      size: 6.8,
+      color: C.emeraldBorder,
+      cs: 1.2,
+      maxW: CW - sideW - 28,
     });
     const isValue = b.state === 'value';
     const vSize = isValue ? 30 : 20;
     const vText = b.valueText;
-    this.text(vText, MX + 16, y + 24, {
-      role: 'serifBold',
+    this.text(vText, MX + 18, y + 24, {
+      role: 'sansBold',
       size: vSize,
       color: C.white,
     });
     if (b.unitText) {
-      const vw = this.measure(vText, isValue ? 'serifBold' : 'sansBold', vSize);
-      this.text(b.unitText, MX + 16 + vw + 5, y + 24 + vSize - 15, {
-        role: 'serif',
+      const vw = this.measure(vText, 'sansBold', vSize);
+      this.text(b.unitText, MX + 18 + vw + 6, y + 24 + vSize - 15, {
+        role: 'sansBold',
         size: 12,
-        color: C.sageLight,
+        color: C.emeraldBorder,
       });
     }
     const sub = [b.delta ? b.delta.text : '', b.caption ?? '']
       .filter(Boolean)
       .join('  ·  ');
-    if (sub)
-      this.text(sub, MX + 16, y + h - 15, {
-        size: 7,
-        color: C.sageLight,
-        maxW: CW - sideW - 24,
+    if (sub) {
+      const isUp = b.delta?.direction === 'up';
+      const subPillBg = isUp ? '#174A35' : '#452A18';
+      const subPillColor = isUp ? '#6EE7B7' : '#FCD34D';
+      const sw = Math.min(CW - sideW - 28, this.measure(sub, 'sansBold', 6.6) + 14);
+      this.rect(MX + 18, y + h - 18, sw, 12, subPillBg, undefined, 3);
+      this.text(sub, MX + 25, y + h - 15.2, {
+        role: 'sansBold',
+        size: 6.6,
+        color: subPillColor,
+        maxW: sw - 14,
       });
+    }
     const sx = MX + CW - sideW;
     this.doc
       .lineWidth(0.6)
-      .strokeColor('#5E8A7C')
+      .strokeColor(C.forestSubtle)
       .moveTo(sx, y + 12)
       .lineTo(sx, y + h - 12)
       .stroke();
-    this.text(b.sideLabel, sx + 14, y + 14, {
+    this.text(b.sideLabel, sx + 16, y + 13, {
       role: 'sansBold',
-      size: 6.5,
+      size: 6.8,
       color: C.white,
       cs: 1.1,
     });
     let ly = y + 28;
     for (const line of b.sideLines.slice(0, 3)) {
-      for (const l of this.wrap(line, 'sans', 7.5, sideW - 24, 2)) {
-        this.text(l, sx + 14, ly, { size: 7.5, color: C.sageLight });
-        ly += 10;
+      for (const l of this.wrap(line, 'sans', 7.5, sideW - 26, 2)) {
+        this.text(l, sx + 16, ly, { size: 7.5, color: '#D1FAE5' });
+        ly += 10.5;
       }
     }
     this.y = y + h + GAP + 4;
@@ -622,7 +674,7 @@ export class PdfDocumentWriter {
     const cols = 4;
     const gap = 8;
     const w = (CW - gap * (cols - 1)) / cols;
-    const h = 68;
+    const h = 70;
     for (let i = 0; i < cards.length; i += cols) {
       this.ensure(h + gap);
       const y = this.y;
@@ -641,10 +693,18 @@ export class PdfDocumentWriter {
     w: number,
     h: number,
   ): void {
-    this.card(x, y, w, h);
+    this.card(x, y, w, h, C.cardBg);
+    // Colored accent strip along the top of card
+    let topIndicator = C.rule;
+    if (c.delta) {
+      topIndicator = c.delta.direction === 'up' ? C.emerald : c.delta.direction === 'down' ? C.amber : C.muted;
+    } else if (c.state === 'value') {
+      topIndicator = C.forest;
+    }
+    this.rect(x + 1, y + 1, w - 2, 2.5, topIndicator, undefined, 1);
+
     const iw = w - 16;
     const label = this.wrap(c.label.toUpperCase(), 'sansBold', 5.8, iw, 2);
-    // `wrap` measures without letter spacing; leave a little headroom for the 0.5 tracking.
     label.forEach((l, i) =>
       this.text(l, x + 8, y + 8 + i * 8, {
         role: 'sansBold',
@@ -657,16 +717,17 @@ export class PdfDocumentWriter {
     const vy = y + 27;
     if (c.state === 'value') {
       this.text(c.valueText, x + 8, vy, {
-        role: 'serif',
-        size: 17,
+        role: 'sansBold',
+        size: 16.5,
         color: C.text,
         maxW: iw,
       });
       if (c.unitText) {
-        const vw = this.measure(c.valueText, 'serif', 17);
+        const vw = this.measure(c.valueText, 'sansBold', 16.5);
         if (vw + 6 < iw)
-          this.text(c.unitText, x + 8 + vw + 4, vy + 6, {
-            size: 8,
+          this.text(c.unitText, x + 8 + vw + 4, vy + 5, {
+            role: 'sans',
+            size: 7.8,
             color: C.muted,
             maxW: iw - vw - 6,
           });
@@ -674,26 +735,27 @@ export class PdfDocumentWriter {
     } else {
       this.text(c.valueText, x + 8, vy + 3, {
         role: 'sansBold',
-        size: 10,
+        size: 9.5,
         color: C.amber,
         maxW: iw,
       });
     }
     let sy = y + 50;
     if (c.delta) {
-      const col =
-        c.delta.direction === 'up'
-          ? C.green
-          : c.delta.direction === 'down'
-            ? C.amber
-            : C.muted;
-      this.text(`${c.delta.text} vs previous`, x + 8, sy, {
+      const isUp = c.delta.direction === 'up';
+      const isDown = c.delta.direction === 'down';
+      const col = isUp ? '#065F46' : isDown ? '#92400E' : C.muted;
+      const pillBg = isUp ? '#D1FAE5' : isDown ? '#FEF3C7' : '#F1F5F9';
+      const deltaStr = `${c.delta.text} vs previous`;
+      const dw = Math.min(iw, this.measure(deltaStr, 'sansBold', 5.8) + 8);
+      this.rect(x + 8, sy - 1, dw, 11, pillBg, undefined, 3);
+      this.text(deltaStr, x + 12, sy + 1.2, {
         role: 'sansBold',
-        size: 6.2,
+        size: 5.8,
         color: col,
-        maxW: iw,
+        maxW: dw - 8,
       });
-      sy += 9;
+      sy += 12;
     } else if (c.detail) {
       this.text(c.detail, x + 8, sy, { size: 6.2, color: C.muted, maxW: iw });
       sy += 8;
@@ -713,33 +775,33 @@ export class PdfDocumentWriter {
     y: number,
     w: number,
   ): void {
-    this.text(title, x + 10, y + 9, {
+    this.text(title, x + 12, y + 10, {
       role: 'sansBold',
-      size: 7.5,
+      size: 8,
       color: C.text,
-      maxW: w - 20 - (unit ? 60 : 0),
+      maxW: w - 24 - (unit ? 60 : 0),
     });
     if (unit)
-      this.text(unit, x + 10, y + 9, {
-        size: 6.5,
+      this.text(unit, x + 12, y + 10, {
+        size: 6.8,
         color: C.muted,
         align: 'right',
-        width: w - 20,
+        width: w - 24,
       });
   }
 
   private chart(b: Extract<LayoutBlock, { type: 'line' | 'bar' }>): void {
-    const h = 150 + (b.footnote ? 12 : 0);
+    const h = 152 + (b.footnote ? 12 : 0);
     this.ensure(h + GAP);
     const x = MX;
     const y = this.y;
-    this.card(x, y, CW, h);
+    this.card(x, y, CW, h, C.cardBg);
     this.cardTitle(b.title, b.unitLabel ? `${b.unitLabel}` : '', x, y, CW);
 
     const px = x + 40;
     const pw = CW - 40 - 16;
-    const py = y + 30;
-    const ph = 150 - 30 - 26;
+    const py = y + 32;
+    const ph = 150 - 32 - 24;
     const vals = b.points
       .map((p) => p.value)
       .filter((v): v is number => v !== null);
@@ -752,7 +814,6 @@ export class PdfDocumentWriter {
         width: CW,
       });
     } else {
-      // Bars grow from a zero baseline, so the axis always spans zero (negative bars hang below it).
       let lo = Math.min(...vals, b.type === 'bar' ? 0 : Infinity);
       let hi = Math.max(...vals, b.type === 'bar' ? 0 : -Infinity);
       if (b.type === 'line') {
@@ -764,11 +825,11 @@ export class PdfDocumentWriter {
       const n = b.points.length;
       const xOf = (i: number): number =>
         n === 1 ? px + pw / 2 : px + (i * pw) / (n - 1);
-      // gridlines
+      // Subtle background gridlines
       for (let g = 0; g <= 2; g++) {
         const gv = lo + ((hi - lo) * g) / 2;
         const gy = yOf(gv);
-        this.hline(px, px + pw, gy, '#E6E8E2', 0.5);
+        this.hline(px, px + pw, gy, '#EAECE8', 0.5);
         this.text(fmtTick(gv), x + 6, gy - 3, {
           size: 6,
           color: C.muted,
@@ -777,7 +838,7 @@ export class PdfDocumentWriter {
         });
       }
       if (b.type === 'line') this.lineSeries(b.points, xOf, yOf, py + ph);
-      else this.barSeries(b.points, px, pw, yOf, py + ph);
+      else this.barSeries(b.points, px, pw, yOf, py + ph, py);
       // x labels
       const maxLabels = Math.min(n, 7);
       const used = new Set<number>();
@@ -785,7 +846,6 @@ export class PdfDocumentWriter {
         used.add(
           maxLabels === 1 ? 0 : Math.round((k * (n - 1)) / (maxLabels - 1)),
         );
-      // Bar labels get the room between neighbouring labels and shrink (down to 4.4pt) before ellipsising.
       const labelW =
         b.type === 'bar'
           ? Math.max(50, Math.min(pw / Math.max(maxLabels, 1), 96))
@@ -803,10 +863,10 @@ export class PdfDocumentWriter {
       }
     }
     if (b.footnote)
-      this.text(b.footnote, x + 10, y + h - 14, {
+      this.text(b.footnote, x + 12, y + h - 14, {
         size: 6.2,
         color: C.muted,
-        maxW: CW - 20,
+        maxW: CW - 24,
       });
     this.y = y + h + GAP;
   }
@@ -818,7 +878,6 @@ export class PdfDocumentWriter {
     baseY: number,
   ): void {
     const d = this.doc;
-    // contiguous runs (gaps break the line: missing is never drawn as 0)
     const runs: { i: number; v: number }[][] = [];
     let cur: { i: number; v: number }[] = [];
     pts.forEach((p, i) => {
@@ -830,27 +889,31 @@ export class PdfDocumentWriter {
     if (cur.length) runs.push(cur);
     for (const r of runs) {
       if (r.length >= 2) {
+        // Soft mint area fill
         d.moveTo(xOf(r[0].i), baseY);
         for (const p of r) d.lineTo(xOf(p.i), yOf(p.v));
         d.lineTo(xOf(r[r.length - 1].i), baseY)
           .closePath()
-          .fillColor(C.sageLight)
+          .fillColor(C.emeraldLight)
           .fill();
-        d.lineWidth(1.5).strokeColor(C.green).lineJoin('round');
+        // Vibrant emerald line
+        d.lineWidth(1.8).strokeColor(C.emerald).lineJoin('round');
         d.moveTo(xOf(r[0].i), yOf(r[0].v));
         for (const p of r.slice(1)) d.lineTo(xOf(p.i), yOf(p.v));
         d.stroke();
       }
-      // A lone recorded point has no line to show it, so it is always drawn as a dot.
+      // Circular nodes: outer emerald, inner white core
       if (pts.length <= 40 || r.length === 1)
-        for (const p of r)
-          d.circle(xOf(p.i), yOf(p.v), 1.8).fillColor(C.green).fill();
+        for (const p of r) {
+          d.circle(xOf(p.i), yOf(p.v), 2.2).fillColor(C.emerald).fill();
+          d.circle(xOf(p.i), yOf(p.v), 1.0).fillColor(C.white).fill();
+        }
     }
     pts.forEach((p, i) => {
       if (p.value === null) {
         d.lineWidth(1)
-          .strokeColor(C.sand)
-          .moveTo(xOf(i), baseY - 5)
+          .strokeColor(C.gold)
+          .moveTo(xOf(i), baseY - 6)
           .lineTo(xOf(i), baseY)
           .stroke();
       }
@@ -863,38 +926,45 @@ export class PdfDocumentWriter {
     pw: number,
     yOf: (v: number) => number,
     baseY: number,
+    py: number,
   ): void {
     const n = pts.length;
     const slot = pw / n;
-    const bw = Math.min(34, slot * 0.62);
+    const bw = Math.min(32, slot * 0.62);
     const zeroY = yOf(0);
     pts.forEach((p, i) => {
       const cx = px + (i + 0.5) * slot;
       if (p.value === null) {
         this.doc
           .lineWidth(1)
-          .strokeColor(C.sand)
-          .moveTo(cx, baseY - 5)
+          .strokeColor(C.gold)
+          .moveTo(cx, baseY - 6)
           .lineTo(cx, baseY)
           .stroke();
         return;
       }
       const end = yOf(p.value);
       const top = Math.min(end, zeroY);
+      const barH = Math.max(0.5, Math.abs(end - zeroY));
+      // Subtle background track
+      this.rect(cx - bw / 2, py + 2, bw, baseY - py - 2, '#F1F5F9', undefined, 2);
+      // Filled bar with rounded cap
       this.rect(
         cx - bw / 2,
         top,
         bw,
-        Math.max(0.5, Math.abs(end - zeroY)),
-        C.sageMid,
+        barH,
+        C.emerald,
+        undefined,
+        Math.min(3, bw / 3),
       );
       if (n <= 12) {
-        // The payload-derived text (same formatting as the tables), shrunk to the slot before ellipsising.
         const lw = Math.max(slot, 40);
         const size = this.shrinkSize(p.text, 'sans', 6, 4.4, lw);
         this.text(p.text, cx - lw / 2, p.value < 0 ? end + 2 : top - 8, {
+          role: 'sansBold',
           size,
-          color: C.muted,
+          color: C.text,
           align: 'center',
           width: lw,
           maxW: lw,
@@ -904,18 +974,17 @@ export class PdfDocumentWriter {
   }
 
   private donut(b: Extract<LayoutBlock, { type: 'donut' }>): void {
-    // The card grows with the legend (at most DONUT_MAX_SLICES rows) so it never overflows its border.
     const legendRows = b.slices.length;
-    const h = Math.max(124, 36 + legendRows * 12 + 10) + (b.footnote ? 12 : 0);
+    const h = Math.max(128, 38 + legendRows * 13 + 10) + (b.footnote ? 12 : 0);
     this.ensure(h + GAP);
     const x = MX;
     const y = this.y;
-    this.card(x, y, CW, h);
+    this.card(x, y, CW, h, C.cardBg);
     this.cardTitle(b.title, '', x, y, CW);
-    const cx = x + 70;
-    const cy = y + 32 + 40;
-    const R = 40;
-    const r = 25;
+    const cx = x + 72;
+    const cy = y + 34 + 42;
+    const R = 42;
+    const r = 26;
     const total = b.slices.reduce((s, v) => s + v.value, 0);
     if (total > 0 && b.slices.length > 0) {
       let a0 = -Math.PI / 2;
@@ -933,9 +1002,9 @@ export class PdfDocumentWriter {
         a0 += sweep;
       });
     }
-    this.text(b.centerText, cx - r, cy - 5, {
-      role: 'serif',
-      size: 9,
+    this.text(b.centerText, cx - r, cy - 6, {
+      role: 'sansBold',
+      size: 10,
       color: C.text,
       align: 'center',
       width: r * 2,
@@ -943,6 +1012,7 @@ export class PdfDocumentWriter {
     });
     if (b.centerCaption)
       this.text(b.centerCaption, cx - r, cy + 5, {
+        role: 'sansBold',
         size: 5.6,
         color: C.muted,
         align: 'center',
@@ -951,21 +1021,22 @@ export class PdfDocumentWriter {
       });
     let ly = y + 36;
     b.slices.forEach((s, i) => {
-      this.rect(x + 150, ly + 1, 7, 7, PALETTE[i % PALETTE.length]);
-      this.text(s.label, x + 164, ly, { size: 7.5, color: C.text, maxW: 150 });
+      this.rect(x + 150, ly + 1.5, 8, 8, PALETTE[i % PALETTE.length], undefined, 2);
+      this.text(s.label, x + 164, ly, { role: 'sansBold', size: 7.5, color: C.text, maxW: 150 });
       this.text(s.text, x + 164, ly, {
+        role: 'sansBold',
         size: 7.5,
-        color: C.muted,
+        color: C.forestDark,
         align: 'right',
         width: CW - 164 - 14,
       });
-      ly += 12;
+      ly += 13;
     });
     if (b.footnote)
-      this.text(b.footnote, x + 10, y + h - 14, {
+      this.text(b.footnote, x + 12, y + h - 14, {
         size: 6.2,
         color: C.muted,
-        maxW: CW - 20,
+        maxW: CW - 24,
       });
     this.y = y + h + GAP;
   }
@@ -996,26 +1067,26 @@ export class PdfDocumentWriter {
   }
 
   private ranked(b: Extract<LayoutBlock, { type: 'ranked' }>): void {
-    const rowH = 15;
+    const rowH = 16;
     const head = 30;
     const n = Math.max(b.rows.length, b.table?.rows.length ?? 0, 1);
     const h = head + n * rowH + (b.footnote ? 16 : 8);
     this.ensure(h + GAP);
     const x = MX;
     const y = this.y;
-    this.card(x, y, CW, h);
+    this.card(x, y, CW, h, C.cardBg);
     this.cardTitle(b.title, b.unitLabel, x, y, b.table ? CW * 0.46 : CW);
     const barW = b.table ? CW * 0.46 : CW;
     const max = Math.max(...b.rows.map((r) => r.value), 0);
     if (b.rows.length === 0) {
-      this.text('Not recorded', x + 10, y + head + 4, {
+      this.text('Not recorded', x + 12, y + head + 4, {
         role: 'sansBold',
         size: 9,
         color: C.amber,
       });
     }
     b.rows.forEach((r, i) =>
-      this.rankedRow(r, i, x + 10, y + head + i * rowH, barW - 20, max),
+      this.rankedRow(r, i, x + 12, y + head + i * rowH, barW - 22, max),
     );
     if (b.table) {
       const tx = x + CW * 0.46 + 6;
@@ -1024,10 +1095,10 @@ export class PdfDocumentWriter {
       this.tableBody(b.table, tx, y + 10, tw, rowH, true, b.table.rows.length);
     }
     if (b.footnote)
-      this.text(b.footnote, x + 10, y + h - 14, {
+      this.text(b.footnote, x + 12, y + h - 14, {
         size: 6.2,
         color: C.muted,
-        maxW: CW - 20,
+        maxW: CW - 24,
       });
     this.y = y + h + GAP;
   }
@@ -1040,23 +1111,35 @@ export class PdfDocumentWriter {
     w: number,
     max: number,
   ): void {
+    const isTop3 = r.rank <= 3;
+    const rankColor = isTop3 ? C.forestDark : C.muted;
+    const rankBg = isTop3 ? (r.rank === 1 ? '#FEF3C7' : '#ECFDF5') : '#F1F5F9';
+    this.rect(x, y + 1.5, 12, 11, rankBg, undefined, 2.5);
     this.text(String(r.rank).padStart(2, '0'), x, y + 3, {
-      size: 6.5,
-      color: C.muted,
+      role: 'sansBold',
+      size: 5.8,
+      color: rankColor,
+      align: 'center',
+      width: 12,
     });
     const labelW = Math.min(88, w * 0.34);
-    this.text(r.label, x + 14, y + 3, {
+    this.text(r.label, x + 16, y + 3.5, {
+      role: isTop3 ? 'sansBold' : 'sans',
       size: this.shrinkSize(clean(r.label), 'sans', 7, 5, labelW),
       color: C.text,
       maxW: labelW,
     });
     const valueW = 62;
-    const bx = x + 14 + labelW + 6;
+    const bx = x + 16 + labelW + 6;
     const bw = Math.max(20, w - (bx - x) - valueW - 4);
-    this.rect(bx, y + 4, bw, 6, '#EEF1EC');
     const fill = max > 0 ? Math.max(1.5, (r.value / max) * bw) : 0;
-    this.rect(bx, y + 4, fill, 6, i === 0 ? C.green : C.sageMid);
-    this.text(r.text, bx + bw + 4, y + 3, {
+    this.rect(bx, y + 4, bw, 6.5, '#F1F5F9', undefined, 3);
+    if (fill > 0) {
+      const barCol = isTop3 ? C.emerald : '#10B981';
+      this.rect(bx, y + 4, fill, 6.5, barCol, undefined, 3);
+    }
+    this.text(r.text, bx + bw + 4, y + 3.5, {
+      role: 'sansBold',
       size: 7,
       color: C.text,
       align: 'right',
@@ -1122,7 +1205,9 @@ export class PdfDocumentWriter {
       y,
       widths.reduce((s, v) => s + v, 0),
       h,
-      C.sageLight,
+      C.forest,
+      undefined,
+      3,
     );
     let cx = x;
     cols.forEach((c, i) => {
@@ -1131,7 +1216,7 @@ export class PdfDocumentWriter {
         this.text(l, cx + 4, y + (lines.length === 1 ? 7 : 3) + li * 7.5, {
           role: 'sansBold',
           size: 6,
-          color: C.greenDark,
+          color: C.white,
           align: c.align,
           width: widths[i] - 8,
         }),
@@ -1156,7 +1241,7 @@ export class PdfDocumentWriter {
         y,
         widths.reduce((s, v) => s + v, 0),
         h,
-        '#F5F6F1',
+        '#F8FAF8',
       );
     let cx = x;
     cells.forEach((cell, i) => {
@@ -1226,7 +1311,7 @@ export class PdfDocumentWriter {
           (i + k) % 2 === 1,
           7,
         );
-        this.hline(MX, MX + CW, this.y + rowH, '#ECEEE8', 0.4);
+        this.hline(MX, MX + CW, this.y + rowH, C.rule, 0.5);
         this.y += rowH;
       }
       i += take;
@@ -1246,35 +1331,38 @@ export class PdfDocumentWriter {
   }
 
   private exceptions(b: Extract<LayoutBlock, { type: 'exceptions' }>): void {
-    const lh = 11;
-    const h = 28 + b.items.length * lh + 6;
+    const lh = 12;
+    const h = 30 + b.items.length * lh + 6;
     this.ensure(Math.min(h, 120) + GAP);
     let y = this.y;
     let drawn = 0;
     while (drawn < b.items.length) {
-      const room = Math.max(1, Math.floor((BOTTOM - y - 34) / lh));
+      const room = Math.max(1, Math.floor((BOTTOM - y - 36) / lh));
       const part = b.items.slice(drawn, drawn + room);
-      const ph = 28 + part.length * lh + 6;
-      this.rect(MX, y, CW, ph, C.warnBg, undefined, 2);
-      this.rect(MX, y, 2.5, ph, C.sand);
-      this.text(b.title.toUpperCase(), MX + 12, y + 9, {
+      const ph = 30 + part.length * lh + 6;
+      this.doc.lineWidth(0.8);
+      this.rect(MX, y, CW, ph, '#FFFBEB', '#FCD34D', 6);
+      this.rect(MX, y, 3.5, ph, C.amber, undefined, 2);
+      this.text(b.title.toUpperCase(), MX + 14, y + 9, {
         role: 'sansBold',
-        size: 6.5,
-        color: C.amber,
+        size: 6.8,
+        color: '#B45309',
         cs: 1,
       });
       part.forEach((it, i) => {
-        this.text(it.text, MX + 12, y + 24 + i * lh, {
+        this.rect(MX + 14, y + 26 + i * lh, 3, 3, C.amber, undefined, 1.5);
+        this.text(it.text, MX + 22, y + 24 + i * lh, {
           size: 7.5,
           color: C.text,
-          maxW: CW - 130,
+          maxW: CW - 140,
         });
         if (it.detail)
           this.text(it.detail, MX, y + 24 + i * lh, {
+            role: 'sansBold',
             size: 7.5,
-            color: C.muted,
+            color: '#B45309',
             align: 'right',
-            width: CW - 12,
+            width: CW - 14,
           });
       });
       drawn += part.length;
@@ -1292,16 +1380,16 @@ export class PdfDocumentWriter {
     const h = 28 + lines.length * 10 + 4;
     this.ensure(h + GAP);
     const y = this.y;
-    this.rect(MX, y, CW, h, C.restricted, undefined, 2);
-    this.rect(MX, y, 2.5, h, C.green);
-    this.text(b.title, MX + 12, y + 9, {
+    this.rect(MX, y, CW, h, C.restricted, C.rule, 4);
+    this.rect(MX, y, 3.5, h, C.emerald, undefined, 2);
+    this.text(b.title, MX + 14, y + 9, {
       role: 'sansBold',
-      size: 6.5,
-      color: C.greenDark,
+      size: 6.8,
+      color: C.forestDark,
       cs: 1,
     });
     lines.forEach((l, i) =>
-      this.text(l, MX + 12, y + 22 + i * 10, { size: 7.5, color: C.muted }),
+      this.text(l, MX + 14, y + 22 + i * 10, { size: 7.5, color: C.muted }),
     );
     this.y = y + h + GAP;
   }
@@ -1315,22 +1403,24 @@ export class PdfDocumentWriter {
     for (const n of b.notes)
       items.push(this.wrap(`• ${n}`, 'sans', 7.2, iw, 3));
     const lineCount = items.reduce((s, l) => s + l.length, 0);
-    const h = 26 + lineCount * 9.5 + items.length * 2 + 8;
+    const h = 28 + lineCount * 9.5 + items.length * 2 + 8;
     this.ensure(h + GAP);
     const y = this.y;
-    this.card(MX, y, CW, h, C.warnBg);
-    this.text(b.title.toUpperCase(), MX + 12, y + 9, {
+    this.doc.lineWidth(0.8);
+    this.rect(MX, y, CW, h, '#F8FAFC', '#E2E8F0', 6);
+    this.rect(MX, y, 3.5, h, '#0284C7', undefined, 2);
+    this.text(b.title.toUpperCase(), MX + 14, y + 9, {
       role: 'sansBold',
-      size: 6.5,
-      color: C.amber,
+      size: 6.8,
+      color: '#0369A1',
       cs: 1,
     });
-    let ly = y + 23;
+    let ly = y + 24;
     items.forEach((lines, idx) => {
       lines.forEach((l) => {
-        this.text(l, MX + 12, ly, {
+        this.text(l, MX + 14, ly, {
           role: idx === 0 && b.coverage ? 'sansBold' : 'sans',
-          size: idx === 0 && b.coverage ? 7.5 : 7.2,
+          size: idx === 0 && b.coverage ? 7.6 : 7.2,
           color: idx === 0 && b.coverage ? C.text : C.muted,
         });
         ly += 9.5;

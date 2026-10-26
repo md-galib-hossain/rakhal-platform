@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   ExpenseCategory,
   LactationStatus,
+  MilkDisposition,
   MilkSession,
   Prisma,
   SaleStatus,
@@ -13,7 +14,10 @@ import {
   DailyYield,
   trendPct,
 } from '../../domain/lactation-curve';
-import { computeCattleFinance } from './cattle-finance-aggregation';
+import {
+  computeCattleFinance,
+  resolveEffectiveMilkRate,
+} from './cattle-finance-aggregation';
 import { computeAqrScoreAsOf } from './aqr-trend';
 
 /**
@@ -243,12 +247,17 @@ export class CattleDetailService {
     // RAKHAL-352: single shared aggregation (`cattle-finance-aggregation.ts`)
     // — see that file's doc comment for exactly what's V2 vs a documented gap.
     const chartStart = this.monthsAgo(start, 5);
-    const [totals, animalSaleLines, breedingExpenses] = await Promise.all([
+    const [
+      totals,
+      animalSaleLines,
+      breedingExpenses,
+      healthExpenses,
+      feedCostItems,
+      milkEntries,
+      effectiveMilkRate,
+    ] = await Promise.all([
       computeCattleFinance(this.prisma, farmId, cattleId, start, end),
-      // Last 6 months for the income-vs-cost chart. RAKHAL-354: V1
-      // `FinanceTransaction` dropped — same two V2 sources
-      // `computeCattleFinance` uses, bucketed by month instead of summed
-      // over one period.
+      // Last 6 months for the income-vs-cost chart.
       this.prisma.animalSaleLine.findMany({
         where: {
           cattleId,
@@ -256,7 +265,7 @@ export class CattleDetailService {
             sale: {
               farmId,
               status: SaleStatus.CONFIRMED,
-              saleDate: { gte: chartStart },
+              saleDate: { gte: chartStart, lt: end },
             },
           },
         },
@@ -273,10 +282,41 @@ export class CattleDetailService {
           category: ExpenseCategory.BREEDING,
           // A voided / edited-away breeding cost must not stay on the chart.
           voidedAt: null,
-          expenseDate: { gte: chartStart },
+          expenseDate: { gte: chartStart, lt: end },
         },
         select: { amount: true, expenseDate: true },
       }),
+      this.prisma.expense.findMany({
+        where: {
+          farmId,
+          cattleId,
+          category: ExpenseCategory.HEALTH,
+          voidedAt: null,
+          expenseDate: { gte: chartStart, lt: end },
+        },
+        select: { amount: true, expenseDate: true },
+      }),
+      this.prisma.feedDistributionCattleItem.findMany({
+        where: {
+          cattleId,
+          voidedAt: null,
+          costTk: { not: null },
+          distribution: { farmId, distributedAt: { gte: chartStart, lt: end } },
+        },
+        select: {
+          costTk: true,
+          distribution: { select: { distributedAt: true } },
+        },
+      }),
+      this.prisma.milkLogEntry.findMany({
+        where: {
+          cattleId,
+          disposition: MilkDisposition.SALEABLE,
+          logDate: { gte: chartStart, lt: end },
+        },
+        select: { yieldL: true, logDate: true },
+      }),
+      resolveEffectiveMilkRate(this.prisma, farmId, end),
     ]);
 
     return {
@@ -286,11 +326,15 @@ export class CattleDetailService {
       net_profit: this.round(totals.totalIncome - totals.totalCost),
       expense_breakdown: this.roundAll(totals.expense),
       income_breakdown: this.roundAll(totals.income),
-      monthly_chart: this.monthlyChart(
+      monthly_chart: this.monthlyChart({
         animalSaleLines,
         breedingExpenses,
+        healthExpenses,
+        feedCostItems,
+        milkEntries,
+        effectiveMilkRate,
         start,
-      ),
+      }),
     };
   }
 
@@ -378,35 +422,87 @@ export class CattleDetailService {
       .map(([year, total]) => ({ year, total_l: this.round(total) }));
   }
 
-  private monthlyChart(
+  private monthlyChart(params: {
     animalSaleLines: {
       saleLine: {
         totalAmount: number | { toString(): string };
         sale: { saleDate: Date };
       };
-    }[],
+    }[];
     breedingExpenses: {
       amount: number | { toString(): string };
       expenseDate: Date;
-    }[],
-    start: Date,
-  ) {
+    }[];
+    healthExpenses: {
+      amount: number | { toString(): string };
+      expenseDate: Date;
+    }[];
+    feedCostItems: {
+      costTk: number | null;
+      distribution: { distributedAt: Date };
+    }[];
+    milkEntries: {
+      yieldL: number;
+      logDate: Date;
+    }[];
+    effectiveMilkRate: number;
+    start: Date;
+  }) {
+    const {
+      animalSaleLines,
+      breedingExpenses,
+      healthExpenses,
+      feedCostItems,
+      milkEntries,
+      effectiveMilkRate,
+      start,
+    } = params;
+
     const months: { month: string; income: number; cost: number }[] = [];
     for (let i = 5; i >= 0; i -= 1) {
       const m = this.monthsAgo(start, i);
       months.push({ month: this.monthLabel(m), income: 0, cost: 0 });
     }
     const index = new Map(months.map((m, i) => [m.month, i]));
+
+    // Income: animal/calf sales
     for (const line of animalSaleLines) {
       const i = index.get(this.monthLabel(line.saleLine.sale.saleDate));
       if (i === undefined) continue;
       months[i].income += Number(line.saleLine.totalAmount);
     }
+
+    // Income: milk production revenue
+    if (effectiveMilkRate > 0) {
+      for (const entry of milkEntries) {
+        const i = index.get(this.monthLabel(entry.logDate));
+        if (i === undefined) continue;
+        months[i].income += entry.yieldL * effectiveMilkRate;
+      }
+    }
+
+    // Cost: breeding expenses
     for (const e of breedingExpenses) {
       const i = index.get(this.monthLabel(e.expenseDate));
       if (i === undefined) continue;
       months[i].cost += Number(e.amount);
     }
+
+    // Cost: health expenses
+    for (const e of healthExpenses) {
+      const i = index.get(this.monthLabel(e.expenseDate));
+      if (i === undefined) continue;
+      months[i].cost += Number(e.amount);
+    }
+
+    // Cost: feed distribution costs
+    for (const f of feedCostItems) {
+      if (f.costTk === null) continue;
+      const i = index.get(this.monthLabel(f.distribution.distributedAt));
+      if (i === undefined) continue;
+      months[i].cost += f.costTk;
+    }
+
     return months.map((m) => ({
       month: m.month,
       income: this.round(m.income),

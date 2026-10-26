@@ -1,5 +1,10 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { SafetyWithdrawalStatus } from '@prisma/client';
+import {
+  HealthCareType,
+  HealthCaseStatus,
+  MedicineRoute,
+  SafetyWithdrawalStatus,
+} from '@prisma/client';
 import { HealthService } from './health.service';
 
 /**
@@ -223,6 +228,184 @@ describe('HealthService — safety withdrawal release flow (RAKHAL-276)', () => 
         }),
       );
       expect(result).toBe(released);
+    });
+  });
+
+  describe('recordTreatment — careType handling', () => {
+    it('creates a CLOSED case with 100% progress for PREVENTIVE careType and does not attach to active cases', async () => {
+      const createCaseMock = jest.fn().mockResolvedValue({ id: 'case-prev-1' });
+      const mockPrisma = {
+        cattle: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 'cow-1', tagNumber: 'TAG-1', name: 'Lokkhi', shedId: 'shed-1' },
+          ]),
+        },
+        healthCase: {
+          findFirst: jest.fn(),
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+        $transaction: jest.fn(async (callback) => {
+          const tx = {
+            healthCase: {
+              create: createCaseMock,
+              findMany: jest.fn().mockResolvedValue([]),
+            },
+            treatmentLog: {
+              create: jest.fn().mockResolvedValue({ id: 'log-1' }),
+            },
+            medicineStockMovement: { updateMany: jest.fn() },
+            safetyWithdrawal: { create: jest.fn() },
+          };
+          return callback(tx);
+        }),
+      };
+      const mockMedicineService = {
+        getMedicine: jest.fn().mockResolvedValue(null),
+        decrementForTreatment: jest.fn().mockResolvedValue(null),
+      };
+      const mockAqr = { applyEvent: jest.fn().mockResolvedValue(undefined) };
+      const mockLogger = {
+        setContext: jest.fn().mockReturnValue({
+          info: jest.fn(),
+          warn: jest.fn(),
+          error: jest.fn(),
+        }),
+      };
+
+      const service = new HealthService(
+        mockPrisma as never,
+        mockAqr as never,
+        activityLog as never,
+        mockMedicineService as never,
+        undefined as never,
+        undefined as never,
+        undefined as never,
+        undefined as never,
+        mockLogger as never,
+        undefined as never,
+      );
+
+      const result = await service.recordTreatment('farm-1', 'user-1', {
+        cattleIds: ['cow-1'],
+        outsideInventory: true,
+        medicineName: 'Vitamin AD3E',
+        doseAmount: 10,
+        doseUnit: 'ml',
+        route: MedicineRoute.IM,
+        treatedAt: '2026-10-27T10:00:00.000Z',
+        careType: HealthCareType.PREVENTIVE,
+      } as never);
+
+      expect(mockPrisma.healthCase.findFirst).not.toHaveBeenCalled();
+      expect(createCaseMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            careType: HealthCareType.PREVENTIVE,
+            status: HealthCaseStatus.CLOSED,
+            totalSteps: 1,
+            currentStep: 1,
+            progressPercentage: 100,
+            closeReason: 'preventive_routine',
+          }),
+        }),
+      );
+      expect(result.appliedCount).toBe(1);
+      expect(mockAqr.applyEvent).toHaveBeenCalledWith(
+        'farm-1',
+        'cow-1',
+        'treatment_completed',
+        expect.objectContaining({
+          actionDetails: expect.stringContaining('Preventive / Wellness'),
+        }),
+      );
+    });
+
+    it('creates an ACTIVE case for CURATIVE careType and attaches to open case when present', async () => {
+      const openCase = { id: 'case-open-1', shedId: 'shed-1' };
+      const createCaseMock = jest.fn();
+      const mockPrisma = {
+        cattle: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 'cow-1', tagNumber: 'TAG-1', name: 'Lokkhi', shedId: 'shed-1' },
+          ]),
+        },
+        healthCase: {
+          findFirst: jest.fn().mockResolvedValue(openCase),
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+        $transaction: jest.fn(async (callback) => {
+          const tx = {
+            healthCase: {
+              create: createCaseMock,
+              findUniqueOrThrow: jest.fn().mockResolvedValue({
+                farmId: 'farm-1',
+                cattleId: 'cow-1',
+                caseCode: 'HC-001',
+                healthPlanId: null,
+                status: HealthCaseStatus.ACTIVE,
+              }),
+              update: jest.fn(),
+            },
+            healthTask: {
+              count: jest.fn().mockResolvedValue(0),
+            },
+            treatmentLog: {
+              create: jest.fn().mockResolvedValue({ id: 'log-1' }),
+            },
+            medicineStockMovement: { updateMany: jest.fn() },
+            safetyWithdrawal: { create: jest.fn() },
+          };
+          return callback(tx);
+        }),
+      };
+      const mockMedicineService = {
+        getMedicine: jest.fn().mockResolvedValue(null),
+        decrementForTreatment: jest.fn().mockResolvedValue(null),
+      };
+      const mockAqr = { applyEvent: jest.fn().mockResolvedValue(undefined) };
+      const mockLogger = {
+        setContext: jest.fn().mockReturnValue({
+          info: jest.fn(),
+          warn: jest.fn(),
+          error: jest.fn(),
+        }),
+      };
+
+      const service = new HealthService(
+        mockPrisma as never,
+        mockAqr as never,
+        activityLog as never,
+        mockMedicineService as never,
+        undefined as never,
+        undefined as never,
+        undefined as never,
+        undefined as never,
+        mockLogger as never,
+        undefined as never,
+      );
+
+      const result = await service.recordTreatment('farm-1', 'user-1', {
+        cattleIds: ['cow-1'],
+        outsideInventory: true,
+        medicineName: 'Penicillin',
+        doseAmount: 20,
+        doseUnit: 'ml',
+        route: MedicineRoute.IM,
+        treatedAt: '2026-10-27T10:00:00.000Z',
+        careType: HealthCareType.CURATIVE,
+      } as never);
+
+      expect(mockPrisma.healthCase.findFirst).toHaveBeenCalled();
+      expect(createCaseMock).not.toHaveBeenCalled();
+      expect(result.appliedCount).toBe(1);
+      expect(mockAqr.applyEvent).toHaveBeenCalledWith(
+        'farm-1',
+        'cow-1',
+        'treatment_completed',
+        expect.objectContaining({
+          actionDetails: expect.stringContaining('Quick treatment administered'),
+        }),
+      );
     });
   });
 });

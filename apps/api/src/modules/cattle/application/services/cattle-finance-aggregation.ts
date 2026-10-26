@@ -1,4 +1,9 @@
-import { ExpenseCategory, SaleStatus } from '@prisma/client';
+import {
+  ExpenseCategory,
+  MilkDisposition,
+  SaleLineType,
+  SaleStatus,
+} from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 
 /**
@@ -35,13 +40,14 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
  * === null` reads as unknown, never backfilled to 0 — same convention as
  * `FeedDistributionItem.dmPct`).
  *
- * **Income** — real V2 FK join, no string matching: `AnimalSaleLine.cattleId`
- * -> `SaleLine.totalAmount` for the specific line (not `Sale.totalAmount`,
- * which could span several lines), excluding non-`CONFIRMED` sales. V2 has
- * no per-cow milk-sale tracking at all (`lactation-economics.service.ts`'s
- * own documented assumption: "milk sales are not tracked per cow in this
- * system"), so `income.milk_sales` is always 0 now that the V1 income read
- * is gone — same "no replacement, honest 0" treatment as the expense side.
+ * **Income**:
+ * - Calf / animal sale: real V2 FK join (`AnimalSaleLine.cattleId` ->
+ *   `SaleLine.totalAmount` for the specific line), excluding non-`CONFIRMED` sales.
+ * - Milk revenue: milk is physically pooled in bulk storage (`MilkTank`) and sold
+ *   at farm level (`SaleLineType.MILK` / `MilkDispatch`), so individual cow milk
+ *   revenue is computed managerially as `saleableYieldLitres * effectiveMilkRatePerLitre`
+ *   (same proven economic model used in `LactationEconomicsService`), resolving rate from
+ *   the latest confirmed milk sale, latest dispatch, or active buyer base price.
  */
 
 export type CattleExpenseBucket = 'feed' | 'health' | 'breeding' | 'others';
@@ -139,6 +145,87 @@ async function sumFeedCost(
   return rows.reduce((sum, r) => sum + (r.costTk ?? 0), 0);
 }
 
+/**
+ * Resolves the effective milk price per litre for a farm on or before a given date.
+ * 1. Checks the most recent confirmed SaleLine of type MILK on or before the date.
+ * 2. If none, checks the most recent non-cancelled MilkDispatch on or before the date.
+ * 3. If none, falls back to the average basePricePerLitre of active MilkBuyers.
+ * 4. Falls back to 0 when no sale/dispatch/buyer exists.
+ */
+export async function resolveEffectiveMilkRate(
+  prisma: PrismaService,
+  farmId: string,
+  onOrBefore: Date,
+): Promise<number> {
+  const latestMilkSaleLine = prisma.saleLine
+    ? await prisma.saleLine.findFirst({
+        where: {
+          type: SaleLineType.MILK,
+          sale: {
+            farmId,
+            status: SaleStatus.CONFIRMED,
+            saleDate: { lte: onOrBefore },
+          },
+        },
+        orderBy: { sale: { saleDate: 'desc' } },
+        select: { unitPrice: true },
+      })
+    : null;
+  if (latestMilkSaleLine && Number(latestMilkSaleLine.unitPrice) > 0) {
+    return Number(latestMilkSaleLine.unitPrice);
+  }
+
+  const latestDispatch = prisma.milkDispatch
+    ? await prisma.milkDispatch.findFirst({
+        where: { farmId, cancelledAt: null, dispatchedAt: { lte: onOrBefore } },
+        orderBy: { dispatchedAt: 'desc' },
+        select: { basePricePerLitre: true },
+      })
+    : null;
+  if (latestDispatch && latestDispatch.basePricePerLitre > 0) {
+    return latestDispatch.basePricePerLitre;
+  }
+
+  if (!prisma.milkBuyer) return 0;
+  const activeBuyers = await prisma.milkBuyer.findMany({
+    where: { farmId, deletedAt: null },
+    select: { basePricePerLitre: true },
+  });
+  if (activeBuyers.length === 0) return 0;
+
+  const validBuyers = activeBuyers.filter(
+    (b) => b.basePricePerLitre !== null && b.basePricePerLitre > 0,
+  );
+  if (validBuyers.length === 0) return 0;
+
+  const sum = validBuyers.reduce(
+    (acc, b) => acc + (b.basePricePerLitre ?? 0),
+    0,
+  );
+  return sum / validBuyers.length;
+}
+
+/**
+ * Sum of one cow's saleable milk volume (litres) across her active MilkLogEntry rows in a period [start, end).
+ */
+export async function sumSaleableMilkLitres(
+  prisma: PrismaService,
+  cattleId: string,
+  start: Date,
+  end: Date,
+): Promise<number> {
+  if (!prisma.milkLogEntry) return 0;
+  const rows = await prisma.milkLogEntry.findMany({
+    where: {
+      cattleId,
+      disposition: MilkDisposition.SALEABLE,
+      logDate: { gte: start, lt: end },
+    },
+    select: { yieldL: true },
+  });
+  return rows.reduce((sum, r) => sum + r.yieldL, 0);
+}
+
 export async function computeCattleFinance(
   prisma: PrismaService,
   farmId: string,
@@ -146,43 +233,57 @@ export async function computeCattleFinance(
   start: Date,
   end: Date,
 ): Promise<CattleFinanceTotals> {
-  const [animalSaleLines, breedingCost, healthCost, feedCost] =
-    await Promise.all([
-      // Real FK join for animal-sale revenue (RAKHAL-339/345) — no string match.
-      prisma.animalSaleLine.findMany({
-        where: {
-          cattleId,
-          saleLine: {
-            sale: {
-              farmId,
-              status: SaleStatus.CONFIRMED,
-              saleDate: { gte: start, lt: end },
-            },
+  const [
+    animalSaleLines,
+    breedingCost,
+    healthCost,
+    feedCost,
+    saleableLitres,
+  ] = await Promise.all([
+    // Real FK join for animal-sale revenue (RAKHAL-339/345) — no string match.
+    prisma.animalSaleLine.findMany({
+      where: {
+        cattleId,
+        saleLine: {
+          sale: {
+            farmId,
+            status: SaleStatus.CONFIRMED,
+            saleDate: { gte: start, lt: end },
           },
         },
-        select: { saleLine: { select: { totalAmount: true } } },
-      }),
-      sumUnreversedExpense(
-        prisma,
-        farmId,
-        cattleId,
-        ExpenseCategory.BREEDING,
-        start,
-        end,
-      ),
-      sumUnreversedExpense(
-        prisma,
-        farmId,
-        cattleId,
-        ExpenseCategory.HEALTH,
-        start,
-        end,
-      ),
-      sumFeedCost(prisma, farmId, cattleId, start, end),
-    ]);
+      },
+      select: { saleLine: { select: { totalAmount: true } } },
+    }),
+    sumUnreversedExpense(
+      prisma,
+      farmId,
+      cattleId,
+      ExpenseCategory.BREEDING,
+      start,
+      end,
+    ),
+    sumUnreversedExpense(
+      prisma,
+      farmId,
+      cattleId,
+      ExpenseCategory.HEALTH,
+      start,
+      end,
+    ),
+    sumFeedCost(prisma, farmId, cattleId, start, end),
+    sumSaleableMilkLitres(prisma, cattleId, start, end),
+  ]);
 
-  let totalIncome = 0;
-  const income = { milk_sales: 0, calf_sales: 0 };
+  const effectiveRate =
+    saleableLitres > 0
+      ? await resolveEffectiveMilkRate(prisma, farmId, end)
+      : 0;
+
+  const milkRevenue =
+    Math.round(saleableLitres * effectiveRate * 100) / 100;
+
+  let totalIncome = milkRevenue;
+  const income = { milk_sales: milkRevenue, calf_sales: 0 };
   for (const line of animalSaleLines) {
     const amount = Number(line.saleLine.totalAmount);
     totalIncome += amount;

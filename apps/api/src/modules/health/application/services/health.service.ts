@@ -1915,6 +1915,8 @@ export class HealthService {
     }
 
     const treatedAt = new Date(dto.treatedAt);
+    const careType = dto.careType ?? HealthCareType.CURATIVE;
+    const isPreventive = careType === HealthCareType.PREVENTIVE;
     const results: {
       cattleId: string;
       healthCaseId: string;
@@ -1924,14 +1926,16 @@ export class HealthService {
     }[] = [];
 
     for (const cattle of cattleRows) {
-      const openCase = await this.prisma.healthCase.findFirst({
-        where: {
-          farmId,
-          cattleId: cattle.id,
-          status: { in: ACTIVE_CASE_STATUSES },
-        },
-        orderBy: { startDate: 'desc' },
-      });
+      const openCase = isPreventive
+        ? null
+        : await this.prisma.healthCase.findFirst({
+            where: {
+              farmId,
+              cattleId: cattle.id,
+              status: { in: ACTIVE_CASE_STATUSES },
+            },
+            orderBy: { startDate: 'desc' },
+          });
       const reusedExistingCase = Boolean(openCase);
 
       // Stock decrement happens once per animal, outside the record-writing
@@ -1961,9 +1965,20 @@ export class HealthService {
                 cattleId: cattle.id,
                 caseCode: await this.nextCaseCode(farmId, tx),
                 note:
-                  dto.reason?.trim() || `Quick treatment — ${medicineLabel}`,
-                careType: HealthCareType.CURATIVE,
+                  dto.reason?.trim() ||
+                  (isPreventive
+                    ? `Preventive / Wellness — ${medicineLabel}`
+                    : `Quick treatment — ${medicineLabel}`),
+                careType,
                 priority: HealthPriority.LOW,
+                status: isPreventive
+                  ? HealthCaseStatus.CLOSED
+                  : HealthCaseStatus.ACTIVE,
+                closedDate: isPreventive ? treatedAt : undefined,
+                closeReason: isPreventive ? 'preventive_routine' : undefined,
+                totalSteps: isPreventive ? 1 : 0,
+                currentStep: isPreventive ? 1 : 0,
+                progressPercentage: isPreventive ? 100 : 0,
                 shedId: cattle.shedId,
                 startDate: treatedAt,
               },
@@ -2004,7 +2019,9 @@ export class HealthService {
             },
           );
 
-          const autoClosed = await this.updateCaseProgress(tx, targetCase.id);
+          const autoClosed = isPreventive
+            ? null
+            : await this.updateCaseProgress(tx, targetCase.id);
 
           return {
             healthCaseId: targetCase.id,
@@ -2069,7 +2086,7 @@ export class HealthService {
         'treatment_completed',
         {
           actorId: userId,
-          actionDetails: `Quick treatment administered for [${cattle.tagNumber}] — ${medicineLabel}.`,
+          actionDetails: `${isPreventive ? 'Preventive / Wellness' : 'Quick treatment'} administered for [${cattle.tagNumber}] — ${medicineLabel}.`,
         },
       );
 
