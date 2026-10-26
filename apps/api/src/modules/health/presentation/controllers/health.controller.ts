@@ -50,6 +50,7 @@ import {
   PlanRunsQueryDto,
   SafetyWithdrawalQueryDto,
   SickBayQueryDto,
+  TreatmentLogsQueryDto,
 } from '../dto/health-query.dto';
 import {
   AddRoundAnimalsDto,
@@ -130,6 +131,15 @@ export class HealthController {
     @Body() dto: BulkCreateHealthCasesDto,
   ) {
     return this.healthService.createHealthCasesBulk(farmId, userId, dto);
+  }
+
+  @Get('treatments')
+  @RequirePermission('healthcare.read')
+  getTreatmentLogs(
+    @CurrentFarmId() farmId: string,
+    @Query() query: TreatmentLogsQueryDto,
+  ) {
+    return this.healthService.getTreatmentLogs(farmId, query);
   }
 
   @Post('treatments')

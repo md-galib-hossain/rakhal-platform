@@ -408,4 +408,69 @@ describe('HealthService — safety withdrawal release flow (RAKHAL-276)', () => 
       );
     });
   });
+
+  describe('getTreatmentLogs', () => {
+    it('returns cursor-paginated treatment logs matching search and farm filters', async () => {
+      const mockRows = [
+        {
+          id: 'log-1',
+          cattleId: 'cow-1',
+          medicineName: 'Vitamin AD3E',
+          doseAmount: 10,
+          doseUnit: 'ml',
+          route: MedicineRoute.IM,
+          administeredAt: new Date('2026-10-27T10:00:00Z'),
+          cattle: { id: 'cow-1', name: 'Lokkhi', tagNumber: 'TAG-1', image: null },
+          healthCase: {
+            id: 'case-1',
+            caseCode: 'HC-001',
+            careType: HealthCareType.PREVENTIVE,
+            condition: null,
+            note: 'Routine vaccine',
+          },
+        },
+      ];
+      const mockPrisma = {
+        treatmentLog: {
+          findMany: jest.fn().mockResolvedValue(mockRows),
+        },
+      };
+      const mockLogger = {
+        setContext: jest.fn().mockReturnValue({
+          info: jest.fn(),
+          warn: jest.fn(),
+          error: jest.fn(),
+        }),
+      };
+
+      const service = new HealthService(
+        mockPrisma as never,
+        undefined as never,
+        activityLog as never,
+        undefined as never,
+        undefined as never,
+        undefined as never,
+        undefined as never,
+        undefined as never,
+        mockLogger as never,
+        undefined as never,
+      );
+
+      const page = await service.getTreatmentLogs('farm-1', {
+        search: 'Lokkhi',
+        limit: 10,
+      } as never);
+
+      expect(mockPrisma.treatmentLog.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            farmId: 'farm-1',
+            voidedAt: null,
+          }),
+        }),
+      );
+      expect(page.items).toHaveLength(1);
+      expect(page.items[0].medicineName).toBe('Vitamin AD3E');
+    });
+  });
 });

@@ -13,6 +13,7 @@ import {
 } from 'class-validator';
 import {
   HealthActionType,
+  HealthCareType,
   HealthCaseStatus,
   HealthCondition,
   HealthPlanCategory,
@@ -43,6 +44,12 @@ export class SickBayQueryDto extends HealthListQueryDto {
   @IsOptional()
   @IsEnum(HealthCaseStatus)
   status?: HealthCaseStatus;
+}
+
+export class TreatmentLogsQueryDto extends HealthListQueryDto {
+  @IsOptional()
+  @IsEnum(HealthCareType)
+  careType?: HealthCareType;
 }
 
 /** RAKHAL-467 — `GET /health/outcomes?days=`: how far back to look (cases opened in the window). */

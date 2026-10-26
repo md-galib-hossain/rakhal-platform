@@ -65,6 +65,7 @@ import {
   PlanRunsQueryDto,
   SafetyWithdrawalQueryDto,
   SickBayQueryDto,
+  TreatmentLogsQueryDto,
 } from '../../presentation/dto/health-query.dto';
 import {
   ApplyPlanToAnimalsDto,
@@ -333,6 +334,78 @@ export class HealthService {
       };
     });
     return toCursorPage(projected, query);
+  }
+
+  async getTreatmentLogs(farmId: string, query: TreatmentLogsQueryDto) {
+    const andClauses: Prisma.TreatmentLogWhereInput[] = [];
+
+    if (query.search) {
+      andClauses.push({
+        OR: [
+          { medicineName: { contains: query.search, mode: 'insensitive' } },
+          { notes: { contains: query.search, mode: 'insensitive' } },
+          {
+            cattle: {
+              tagNumber: { contains: query.search, mode: 'insensitive' },
+            },
+          },
+          {
+            cattle: {
+              name: { contains: query.search, mode: 'insensitive' },
+            },
+          },
+        ],
+      });
+    }
+
+    if (query.fromDate || query.toDate) {
+      andClauses.push({
+        administeredAt: {
+          ...(query.fromDate ? { gte: new Date(query.fromDate) } : {}),
+          ...(query.toDate ? { lte: new Date(query.toDate) } : {}),
+        },
+      });
+    }
+
+    if (query.careType) {
+      andClauses.push({
+        healthCase: {
+          careType: query.careType,
+        },
+      });
+    }
+
+    const where: Prisma.TreatmentLogWhereInput = {
+      farmId,
+      voidedAt: null,
+      ...(query.cattleId ? { cattleId: query.cattleId } : {}),
+      ...(andClauses.length ? { AND: andClauses } : {}),
+    };
+
+    const rows = await this.prisma.treatmentLog.findMany({
+      where,
+      orderBy: [
+        { administeredAt: query.sortOrder ?? 'desc' },
+        { id: query.sortOrder ?? 'desc' },
+      ],
+      ...getCursorArgs(query),
+      include: {
+        cattle: {
+          select: { id: true, name: true, tagNumber: true, image: true },
+        },
+        healthCase: {
+          select: {
+            id: true,
+            caseCode: true,
+            careType: true,
+            condition: true,
+            note: true,
+          },
+        },
+      },
+    });
+
+    return toCursorPage(rows, query);
   }
 
   async createHealthCase(
