@@ -47,13 +47,16 @@ export function PeriodStep({ form }: { form: WizardForm }) {
       >
         {DATE_PRESETS.map((p) => {
           const id = `wiz-preset-${p}`;
+          const isSelected = preset === p;
           return (
             <Label
               key={p}
               htmlFor={id}
               className={cn(
-                "flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border bg-card px-3 py-2 font-normal transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
-                preset === p ? "border-primary bg-accent" : "border-border hover:bg-accent/50",
+                "flex min-h-12 cursor-pointer items-center gap-2.5 rounded-2xl border bg-card px-3.5 py-2.5 text-sm font-medium transition-all duration-200 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
+                isSelected
+                  ? "border-primary ring-2 ring-primary/20 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100 shadow-sm"
+                  : "border-border text-foreground hover:border-primary/40 hover:bg-muted/40",
               )}
             >
               <RadioGroupItem id={id} value={p} />

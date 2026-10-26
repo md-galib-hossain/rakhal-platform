@@ -50,12 +50,12 @@ export function MetricRowsCard({
   const removed = t("metric.animalRemoved");
 
   return (
-    <Card className="flex flex-col gap-3 rounded-xl p-4 sm:col-span-2 lg:col-span-3" data-metric-id={metric.metricId}>
+    <Card className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-card sm:col-span-2 lg:col-span-3" data-metric-id={metric.metricId}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-0.5">
           <h4 className="text-sm font-medium text-foreground">{name}</h4>
           {source ? <p className="text-xs text-muted-foreground">{source}</p> : null}
-          <p className="mt-1 text-2xl font-bold text-foreground">{formatMetricValue(metric.value, locale, tr)}</p>
+          <p className="mt-1 text-3xl font-extrabold tracking-tight tabular-nums text-foreground">{formatMetricValue(metric.value, locale, tr)}</p>
         </div>
         {metric.comparison ? (
           <MetricComparison comparison={metric.comparison} labels={labels} locale={locale} tr={tr} />
@@ -77,21 +77,27 @@ export function MetricRowsCard({
               // A row basis that only repeats the metric's own basis is noise: show it when it differs.
               const rowSource = row.source && row.source !== metric.source ? resolveSourceLabel(row.source, tr) : null;
               return (
-                <tr key={`${row.key}-${i}`} className="border-t border-border first:border-t-0">
-                  <th scope="row" className="w-2/5 max-w-0 py-2 pr-3 text-left align-middle font-medium text-foreground">
+                <tr
+                  key={`${row.key}-${i}`}
+                  className="border-t border-border first:border-t-0 transition-colors hover:bg-muted/40"
+                >
+                  <th scope="row" className="w-2/5 max-w-0 py-2.5 pr-3 text-left align-middle font-medium text-foreground">
                     <span className="block truncate" title={rowLabel(row, removed)}>
                       {rowLabel(row, removed)}
                     </span>
                     {rowSource ? <span className="block truncate text-xs font-normal text-muted-foreground">{rowSource}</span> : null}
                   </th>
-                  <td className="py-2 pr-3 align-middle" aria-hidden>
+                  <td className="py-2.5 pr-3 align-middle" aria-hidden>
                     {isValue ? (
-                      <div className="h-2 w-full rounded-full bg-muted">
-                        <div className="h-2 rounded-full" style={{ width: `${pct}%`, backgroundColor: "var(--chart-production)" }} />
+                      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-700 transition-all duration-300"
+                          style={{ width: `${pct}%` }}
+                        />
                       </div>
                     ) : null}
                   </td>
-                  <td className="whitespace-nowrap py-2 text-right align-middle tabular-nums text-foreground">
+                  <td className="whitespace-nowrap py-2.5 text-right align-middle tabular-nums font-semibold text-foreground">
                     {formatMetricValue(row.value, locale, tr)}
                   </td>
                 </tr>

@@ -46,7 +46,7 @@ export interface CaseManagementSheetProps {
 export function CaseManagementSheet({ caseId, initialTab = "overview", onOpenChange }: CaseManagementSheetProps) {
   return (
     <Sheet open={Boolean(caseId)} onOpenChange={onOpenChange}>
-      <SheetContent className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-[640px]">
+      <SheetContent className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-[768px]">
         {caseId ? (
           <CaseManagementSheetBody key={caseId} caseId={caseId} initialTab={initialTab} onClose={() => onOpenChange(false)} />
         ) : null}
@@ -219,7 +219,7 @@ function CaseManagementSheetBody({
         <SheetTitle>{t("title")}</SheetTitle>
       </SheetHeader>
 
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto pr-1">
+      <div className="flex flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden pr-1">
         {query.isLoading ? (
           <Skeleton className="h-64 w-full rounded-2xl" />
         ) : query.isError || !query.data ? (

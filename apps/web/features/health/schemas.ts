@@ -36,6 +36,7 @@ export type LogTreatmentInput = z.infer<typeof logTreatmentSchema>;
  * kept as plain component state (a `Set<string>`/`MedicineOption`), not RHF fields, matching that
  * same dialog's split. */
 export const quickTreatSchema = z.object({
+  careType: z.enum(["CURATIVE", "PREVENTIVE"]),
   selectionMethod: z.enum(["shed", "batch", "individual"]),
   shedId: z.string().trim().optional(),
   animalGroupId: z.string().trim().optional(),

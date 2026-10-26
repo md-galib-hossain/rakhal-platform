@@ -12,6 +12,12 @@ import { ErrorState } from "@/components/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useCattleFinance } from "../../hooks/use-cattle-detail-tabs";
 
 const TrendChartInner = dynamic(() => import("./charts/trend-chart-inner"), {
@@ -105,6 +111,7 @@ export function FinanceTab({ cattleId }: { cattleId: string }) {
         <TrendChartInner
           data={data.monthly_chart}
           xKey="month"
+          valueFormatter={(v) => `৳${v.toLocaleString()}`}
           series={[
             { key: "income", label: t("income"), color: "var(--success)" },
             { key: "cost", label: t("cost"), color: "var(--destructive)", variant: "line" },
@@ -135,23 +142,59 @@ function BreakdownCard({
       {total === 0 ? (
         <p className="text-sm text-muted-foreground">{t("noData")}</p>
       ) : (
-        <>
+        <TooltipProvider delayDuration={100}>
           <div className="flex h-9 w-full gap-0.5 overflow-hidden rounded-lg">
             {entries.map(([key, value], i) => {
               const pct = total > 0 ? (value / total) * 100 : 0;
               if (pct <= 0) return null;
-              return <div key={key} className={cn("h-full", SEGMENT_COLORS[i % SEGMENT_COLORS.length])} style={{ width: `${pct}%` }} />;
+              return (
+                <Tooltip key={key}>
+                  <TooltipTrigger asChild>
+                    <div
+                      className={cn(
+                        "h-full cursor-pointer transition-opacity hover:opacity-85 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        SEGMENT_COLORS[i % SEGMENT_COLORS.length],
+                      )}
+                      style={{ width: `${pct}%` }}
+                      role="img"
+                      aria-label={`${t(`${labelKey}.${key}`)}: ${value}`}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <div className="flex items-center gap-1.5 text-xs font-medium">
+                      <span>{t(`${labelKey}.${key}`)}:</span>
+                      <MoneyText amount={value} />
+                      <span className="font-normal text-muted-foreground">({pct.toFixed(1)}%)</span>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              );
             })}
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-2">
-            {entries.map(([key], i) => (
-              <div key={key} className="flex items-center gap-1.5">
-                <span className={cn("size-2 rounded-full", SEGMENT_COLORS[i % SEGMENT_COLORS.length])} />
-                <p className="text-xs font-medium text-muted-foreground">{t(`${labelKey}.${key}`)}</p>
-              </div>
+            {entries.map(([key, value], i) => (
+              <Tooltip key={key}>
+                <TooltipTrigger asChild>
+                  <div className="flex cursor-pointer items-center gap-1.5 transition-opacity hover:opacity-80">
+                    <span className={cn("size-2 rounded-full", SEGMENT_COLORS[i % SEGMENT_COLORS.length])} />
+                    <p className="text-xs font-medium text-muted-foreground">{t(`${labelKey}.${key}`)}</p>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <div className="flex items-center gap-1.5 text-xs font-medium">
+                    <span>{t(`${labelKey}.${key}`)}:</span>
+                    <MoneyText amount={value} />
+                    {total > 0 && (
+                      <span className="font-normal text-muted-foreground">
+                        ({((value / total) * 100).toFixed(1)}%)
+                      </span>
+                    )}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
             ))}
           </div>
-        </>
+        </TooltipProvider>
       )}
     </div>
   );

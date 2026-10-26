@@ -70,12 +70,12 @@ export function MetricSeriesCard({
       : `${name}: ${t("metric.recordedDays", { recorded: 0, total })}`;
 
   return (
-    <Card className="flex flex-col gap-3 rounded-xl p-4 sm:col-span-2 lg:col-span-3" data-metric-id={metric.metricId}>
+    <Card className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-card sm:col-span-2 lg:col-span-3" data-metric-id={metric.metricId}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-0.5">
           <h4 className="text-sm font-medium text-foreground">{name}</h4>
           {source ? <p className="text-xs text-muted-foreground">{source}</p> : null}
-          <p className="mt-1 text-2xl font-bold text-foreground">{formatMetricValue(metric.value, locale, tr)}</p>
+          <p className="mt-1 text-3xl font-extrabold tracking-tight tabular-nums text-foreground">{formatMetricValue(metric.value, locale, tr)}</p>
         </div>
         {metric.comparison ? (
           <MetricComparison comparison={metric.comparison} labels={labels} locale={locale} tr={tr} />

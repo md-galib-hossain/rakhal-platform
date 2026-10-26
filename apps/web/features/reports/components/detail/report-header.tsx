@@ -13,8 +13,9 @@ import { useDeleteReport } from "../../hooks/use-delete-report";
 import { useDownloadReport } from "../../hooks/use-download-report";
 import { periodLabel } from "../../lib/format";
 import { reportErrorKeyFor } from "../../lib/errors";
-import { reportOriginKey } from "../../lib/labels";
+import { reportOriginKey, reportStatusKey } from "../../lib/labels";
 import type { ReportDetail, ReportSnapshotPayload } from "../../types";
+import { ReportStatusBadge } from "../history/report-status-badge";
 import { useReportI18n } from "./use-report-i18n";
 
 export const REPORTS_LIST_HREF = "/reports";
@@ -101,16 +102,28 @@ export function ReportHeader({
   ];
 
   return (
-    <header className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-2">
+    <header className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-card flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           <BackToReports />
-          <h1 className="text-2xl font-bold text-foreground">{t(`type.${type}`)}</h1>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">{t(`type.${type}`)}</h1>
+            <ReportStatusBadge status={report.status} label={tr(reportStatusKey(report.status))} />
+            <span className="inline-flex items-center rounded-full border border-border bg-muted/60 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+              {tr(reportOriginKey(report.origin))}
+            </span>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+
+        <div className="flex flex-wrap items-center gap-2.5">
           {report.hasPdf ? (
-            <Button onClick={onDownload} disabled={download.isPending} aria-busy={download.isPending}>
-              {download.isPending ? <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden /> : <Download aria-hidden />}
+            <Button
+              onClick={onDownload}
+              disabled={download.isPending}
+              aria-busy={download.isPending}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm font-medium transition-all"
+            >
+              {download.isPending ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden /> : <Download className="size-4" aria-hidden />}
               {download.isPending ? t("actions.downloading") : t("actions.download")}
             </Button>
           ) : (
@@ -119,9 +132,9 @@ export function ReportHeader({
                 <Button
                   aria-disabled="true"
                   onClick={(e) => e.preventDefault()}
-                  className="cursor-not-allowed opacity-50 hover:bg-primary"
+                  className="cursor-not-allowed opacity-50 bg-primary text-primary-foreground font-medium shadow-sm"
                 >
-                  <Download aria-hidden />
+                  <Download className="size-4" aria-hidden />
                   {t("actions.download")}
                 </Button>
               </TooltipTrigger>
@@ -129,19 +142,19 @@ export function ReportHeader({
             </Tooltip>
           )}
           {canDelete ? (
-            <Button variant="destructive" onClick={() => setConfirmOpen(true)}>
-              <Trash2 aria-hidden />
+            <Button variant="destructive" onClick={() => setConfirmOpen(true)} className="shadow-sm font-medium">
+              <Trash2 className="size-4" aria-hidden />
               {t("actions.delete")}
             </Button>
           ) : null}
         </div>
       </div>
 
-      <dl className="grid grid-cols-1 gap-x-6 gap-y-3 rounded-xl border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-3">
+      <dl className="grid grid-cols-2 gap-3 rounded-xl border border-border/70 bg-muted/30 p-4 sm:grid-cols-3 lg:grid-cols-5">
         {meta.map((m) => (
-          <div key={m.label} className="flex min-w-0 flex-col gap-0.5">
-            <dt className="text-xs text-muted-foreground">{m.label}</dt>
-            <dd className="break-words text-sm font-medium text-foreground">{m.value}</dd>
+          <div key={m.label} className="flex min-w-0 flex-col gap-1">
+            <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{m.label}</dt>
+            <dd className="break-words text-sm font-bold text-foreground">{m.value}</dd>
           </div>
         ))}
       </dl>

@@ -56,26 +56,33 @@ export function ReviewStep({ form, sections, onPreview, previewPending, previewE
 
   return (
     <div className="flex flex-col gap-4">
-      <dl className="grid grid-cols-1 gap-x-4 gap-y-2 rounded-xl border border-border bg-card p-3 text-sm sm:grid-cols-[auto_1fr]">
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-3 rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-card text-sm sm:grid-cols-[auto_1fr]">
         {rows.map(([k, val]) => (
           <div key={k} className="contents">
-            <dt className="text-muted-foreground">{k}</dt>
-            <dd className="font-medium text-foreground">{val}</dd>
+            <dt className="text-xs font-semibold uppercase tracking-wider text-muted-foreground self-center">{k}</dt>
+            <dd className="font-semibold text-foreground">{val}</dd>
           </div>
         ))}
       </dl>
 
       {submitErrorKey ? (
-        <div role="alert" className="rounded-xl border border-destructive/40 bg-destructive-tint p-3 text-sm" data-testid="generate-error">
+        <div role="alert" className="rounded-2xl border border-destructive/40 bg-destructive-tint p-4 text-sm" data-testid="generate-error">
           <p className="font-semibold text-destructive">{tw("review.generateError")}</p>
           <p className="text-foreground">{t(submitErrorKey)}</p>
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-2 rounded-xl border border-dashed border-border p-3">
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card/60 p-4 sm:p-5 shadow-card">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">{tw("review.previewHint")}</p>
-          <Button type="button" variant="secondary" onClick={onPreview} disabled={previewPending} aria-busy={previewPending}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onPreview}
+            disabled={previewPending}
+            aria-busy={previewPending}
+            className="hover:border-primary/40 hover:text-primary transition-colors"
+          >
             {previewPending ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden /> : null}
             {previewPending ? tw("review.previewing") : t("reports.actions.preview")}
           </Button>
@@ -96,8 +103,8 @@ function PreviewPanel({ snapshot, t, tw, locale }: { snapshot: ReportSnapshotPay
   const rt = t as unknown as ReportTranslator;
   const { coverage, notes } = snapshot.dataQuality;
   return (
-    <section aria-label={tw("review.previewTitle")} className="flex flex-col gap-3" data-testid="preview-panel">
-      <h3 className="text-sm font-semibold text-foreground">
+    <section aria-label={tw("review.previewTitle")} className="flex flex-col gap-4 pt-2" data-testid="preview-panel">
+      <h3 className="text-sm font-bold text-foreground">
         {tw("review.previewTitle")} · {periodLabel(snapshot.period, locale)}
       </h3>
       {snapshot.sections.map((s) => {
@@ -105,23 +112,23 @@ function PreviewPanel({ snapshot, t, tw, locale }: { snapshot: ReportSnapshotPay
         const hero = scalars.slice(0, HERO_PER_SECTION);
         const more = s.metrics.length - hero.length;
         return (
-          <div key={s.id} className="flex flex-col gap-1.5">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t(reportDomainKey(s.domain))}</h4>
+          <div key={s.id} className="flex flex-col gap-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t(reportDomainKey(s.domain))}</h4>
             {hero.length === 0 ? (
               <p className="text-sm text-muted-foreground">{tw("review.previewNoFigures")}</p>
             ) : (
-              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 {hero.map((m) => {
                   const change = m.comparison?.previous.state === "value" && m.value.state === "value" ? m.comparison.percentChange : null;
                   const muted = m.value.state !== "value";
                   return (
-                    <li key={m.metricId} className="rounded-lg border border-border bg-card p-2.5">
+                    <li key={m.metricId} className="rounded-xl border border-border bg-card p-3 shadow-2xs hover:border-primary/30 transition-colors">
                       <p className="text-xs text-muted-foreground">{resolveMetricLabel(m.metricId, rt)}</p>
-                      <p className={muted ? "text-sm text-muted-foreground" : "text-lg font-semibold text-foreground"}>
+                      <p className={muted ? "text-sm text-muted-foreground" : "text-xl font-bold tracking-tight text-foreground"}>
                         {formatMetricValue(m.value, locale, t)}
                       </p>
                       {change !== null ? (
-                        <p className="text-xs text-muted-foreground">{tw("review.previewChange", { change: formatPercentChange(change) })}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{tw("review.previewChange", { change: formatPercentChange(change) })}</p>
                       ) : null}
                     </li>
                   );
@@ -133,10 +140,10 @@ function PreviewPanel({ snapshot, t, tw, locale }: { snapshot: ReportSnapshotPay
         );
       })}
       {coverage.expected > 0 || notes.length > 0 ? (
-        <div className="rounded-lg bg-muted/50 p-2.5 text-xs text-muted-foreground">
-          <p className="font-medium text-foreground">{tw("review.qualityTitle")}</p>
-          {coverage.expected > 0 ? <p>{tw("review.coverage", { recorded: coverage.recorded, expected: coverage.expected })}</p> : null}
-          <ul className="list-disc pl-4">
+        <div className="rounded-xl border border-border/70 bg-muted/30 p-3 text-xs text-muted-foreground">
+          <p className="font-semibold text-foreground">{tw("review.qualityTitle")}</p>
+          {coverage.expected > 0 ? <p className="mt-0.5">{tw("review.coverage", { recorded: coverage.recorded, expected: coverage.expected })}</p> : null}
+          <ul className="list-disc pl-4 mt-1 space-y-0.5">
             {notes.map((n) => (
               <li key={n}>{resolveBackendKey(n, rt)}</li>
             ))}

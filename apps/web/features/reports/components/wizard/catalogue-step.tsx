@@ -60,8 +60,12 @@ export function CatalogueStep({ form, sections, maxMetrics }: Props) {
           const title = t(reportDomainKey(section.domain));
           const panelId = `wiz-section-${section.id}`;
           return (
-            <li key={section.id} className="rounded-xl border border-border bg-card" data-testid={`section-${section.domain}`}>
-              <div className="flex items-center gap-3 p-3">
+            <li
+              key={section.id}
+              className="rounded-2xl border border-border bg-card shadow-card transition-all duration-200 hover:border-primary/40"
+              data-testid={`section-${section.domain}`}
+            >
+              <div className="flex items-center gap-3 p-4">
                 <Checkbox
                   id={`${panelId}-check`}
                   checked={checked}
@@ -69,10 +73,15 @@ export function CatalogueStep({ form, sections, maxMetrics }: Props) {
                   aria-label={tw("catalogue.sectionLabel", { section: title })}
                 />
                 <div className="min-w-0 flex-1">
-                  <Label htmlFor={`${panelId}-check`} className="text-base font-semibold">
-                    {title}
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor={`${panelId}-check`} className="text-base font-semibold cursor-pointer">
+                      {title}
+                    </Label>
+                    <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 tabular-nums">
+                      {count} / {section.metrics.length}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     {tw("catalogue.selectedCount", { selected: count, total: section.metrics.length })}
                   </p>
                 </div>
@@ -81,7 +90,7 @@ export function CatalogueStep({ form, sections, maxMetrics }: Props) {
                   aria-expanded={isOpen}
                   aria-controls={panelId}
                   onClick={() => setOpen((o) => ({ ...o, [section.id]: !isOpen }))}
-                  className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 text-sm text-primary hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2.5 text-sm font-medium text-primary hover:bg-primary/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <span>{isOpen ? tw("catalogue.hideFigures") : tw("catalogue.showFigures")}</span>
                   <ChevronDown className={cn("size-4 transition-transform motion-reduce:transition-none", isOpen && "rotate-180")} aria-hidden />

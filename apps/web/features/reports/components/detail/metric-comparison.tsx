@@ -43,16 +43,31 @@ export function MetricComparison({
   const previousText =
     previous.state === "not_applicable" ? NOT_APPLICABLE_DASH : formatMetricValue(previous, locale, tr);
 
+  const isPositive = percentChange !== null && Number.isFinite(percentChange) && percentChange > 0;
+  const isNegative = percentChange !== null && Number.isFinite(percentChange) && percentChange < 0;
+
+  const toneClass = isPositive
+    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+    : isNegative
+      ? "bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20"
+      : "bg-muted text-foreground border border-border/60";
+
+  const iconClass = isPositive
+    ? "text-emerald-600 dark:text-emerald-400"
+    : isNegative
+      ? "text-rose-600 dark:text-rose-400"
+      : "text-muted-foreground";
+
   return (
-    <div className={cn("flex flex-col gap-1", className)}>
+    <div className={cn("flex flex-col gap-1.5", className)}>
       <span
-        className="inline-flex w-fit items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-foreground"
+        className={cn("inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold", toneClass)}
         aria-label={`${labels.vsPrevious}: ${absText ? `${absText}, ` : ""}${pctText}`}
       >
-        <Icon className="size-3.5 text-muted-foreground" aria-hidden />
+        <Icon className={cn("size-3.5", iconClass)} aria-hidden />
         <span aria-hidden>{pctText}</span>
         {absText ? (
-          <span aria-hidden className="font-normal text-muted-foreground">
+          <span aria-hidden className="font-normal opacity-85">
             ({absText})
           </span>
         ) : null}

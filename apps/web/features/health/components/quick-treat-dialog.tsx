@@ -1,6 +1,6 @@
 "use client"; // animal-selection state + a form + a pending mutation click
 
-import { todayLocalIso } from "@/lib/local-date";
+import { nowLocalDateTimeIso } from "@/lib/local-date";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Controller, useForm, useWatch } from "react-hook-form";
@@ -23,7 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { cattleApi } from "@/features/cattle/api";
 import type { CattleListItem } from "@/features/cattle/types";
@@ -36,17 +36,17 @@ import { useRecordTreatment } from "../hooks/use-health";
 import { quickTreatSchema, type QuickTreatInput } from "../schemas";
 import { maxWithdrawalDays, newTreatmentLine, validateTreatmentLines, type TreatmentLine, type TreatmentLineProblem } from "../treatment-lines";
 
-function todayIso() {
-  return todayLocalIso();
-}
-
 function addDaysIso(dateStr: string, days: number): string {
   const d = new Date(dateStr);
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
 }
 
-const DEFAULT_VALUES: QuickTreatInput = { selectionMethod: "individual", treatedAt: todayIso() } as QuickTreatInput;
+const DEFAULT_VALUES: QuickTreatInput = {
+  careType: "PREVENTIVE",
+  selectionMethod: "individual",
+  treatedAt: nowLocalDateTimeIso(),
+} as QuickTreatInput;
 
 /**
  * RFE-108 — "Quick Treat": log a treatment for one or more animals without opening a Sick Bay case
@@ -114,7 +114,7 @@ export function QuickTreatDialog({ open, onOpenChange }: { open: boolean; onOpen
 
   function handleOpenChange(next: boolean) {
     if (!next) {
-      form.reset(DEFAULT_VALUES);
+      form.reset({ ...DEFAULT_VALUES, treatedAt: nowLocalDateTimeIso() });
       setSelected(new Set());
       setLines([newTreatmentLine()]);
       setLineProblems(undefined);
@@ -158,6 +158,7 @@ export function QuickTreatDialog({ open, onOpenChange }: { open: boolean; onOpen
         const manual = line.manualName !== null;
         const medicineName = manual ? line.manualName!.trim() : line.medicine!.name;
         try {
+          const treatedAtIso = values.treatedAt ? new Date(values.treatedAt).toISOString() : new Date().toISOString();
           const result = await recordTreatment.mutateAsync({
             cattleIds: [...selected],
             ...(manual ? { outsideInventory: true, medicineName } : { medicineId: line.medicine!.id }),
@@ -165,7 +166,8 @@ export function QuickTreatDialog({ open, onOpenChange }: { open: boolean; onOpen
             doseUnit: units.find((u) => u.id === line.doseUnitId)?.symbol ?? line.medicine?.unit.symbol ?? "",
             doseUnitId: line.doseUnitId,
             route: line.route,
-            treatedAt: values.treatedAt,
+            treatedAt: treatedAtIso,
+            careType: values.careType,
             reason: values.reason || undefined,
             notes: values.notes || undefined,
             ...(vetPending ? { vetCost: vet, financialAccountId: vetAccountId } : {}),
@@ -195,12 +197,44 @@ export function QuickTreatDialog({ open, onOpenChange }: { open: boolean; onOpen
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
       {open ? (
-        <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-lg">
+        <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-2xl">
           <SheetHeader>
             <SheetTitle>{t("title")}</SheetTitle>
           </SheetHeader>
 
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto py-4">
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-medium text-foreground">{t("careTypeLabel")}</p>
+              <Controller
+                control={form.control}
+                name="careType"
+                render={({ field }) => (
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2">
+                      {(["PREVENTIVE", "CURATIVE"] as const).map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => field.onChange(type)}
+                          className={cn(
+                            "flex-1 rounded-lg border px-4 py-2 text-sm font-bold transition-colors",
+                            field.value === type
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {t(`careTypes.${type}`)}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t(`careTypeHints.${field.value}`)}
+                    </p>
+                  </div>
+                )}
+              />
+            </div>
+
             <div className="flex flex-col gap-2">
               <p className="text-xs font-medium text-foreground">{t("selectionMethod")}</p>
               <Controller
@@ -311,7 +345,13 @@ export function QuickTreatDialog({ open, onOpenChange }: { open: boolean; onOpen
               control={form.control}
               name="treatedAt"
               render={({ field, fieldState }) => (
-                <DatePicker label={t("treatedAt")} value={field.value} onChange={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
+                <DateTimePicker
+                  label={t("treatedAt")}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={fieldState.error?.message}
+                />
               )}
             />
 

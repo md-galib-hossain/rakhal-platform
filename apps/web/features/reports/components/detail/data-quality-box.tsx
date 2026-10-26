@@ -48,24 +48,37 @@ export function DataQualityBox({
 
   return (
     <section aria-labelledby="report-dq-title" className="flex flex-col gap-3">
-      <h2 id="report-dq-title" className="text-lg font-semibold text-foreground">
-        {t("dq.title")}
-      </h2>
-      <Card className="flex flex-col gap-3 rounded-xl p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="report-dq-title" className="text-lg font-semibold text-foreground">
+          {t("dq.title")}
+        </h2>
         {hasExpected ? (
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium text-foreground">
-              {t("dq.coverage", { recorded: formatNumber(recorded, locale), expected: formatNumber(expected, locale) })}
-            </p>
-            <Progress value={pct} aria-label={t("dq.coverage", { recorded: formatNumber(recorded, locale), expected: formatNumber(expected, locale) })} />
+          <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 tabular-nums">
+            {pct}%
+          </span>
+        ) : null}
+      </div>
+      <Card className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-card">
+        {hasExpected ? (
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center justify-between text-sm">
+              <p className="font-semibold text-foreground">
+                {t("dq.coverage", { recorded: formatNumber(recorded, locale), expected: formatNumber(expected, locale) })}
+              </p>
+            </div>
+            <Progress
+              value={pct}
+              aria-label={t("dq.coverage", { recorded: formatNumber(recorded, locale), expected: formatNumber(expected, locale) })}
+              className="h-2.5 bg-muted"
+            />
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">{t("dq.noExpected")}</p>
         )}
         {lines.length > 0 ? (
-          <ul className="flex flex-col gap-1.5">
+          <ul className="flex flex-col gap-2 rounded-xl border border-border/70 bg-muted/20 p-3.5">
             {lines.map((line, i) => (
-              <li key={`${line}-${i}`} className="flex items-start gap-2 text-sm text-muted-foreground">
+              <li key={`${line}-${i}`} className="flex items-start gap-2.5 text-sm text-muted-foreground">
                 <Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
                 <span>{line}</span>
               </li>

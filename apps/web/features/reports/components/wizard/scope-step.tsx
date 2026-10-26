@@ -1,5 +1,6 @@
 "use client"; // scope kind radio + group/cattle pickers
 
+import { PawPrint, Users, Globe2, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useWatch } from "react-hook-form";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,12 @@ const DESC: Record<ReportScopeKind, string> = {
   SINGLE_COW: "scope.cowDesc",
 };
 
+const SCOPE_ICON: Record<ReportScopeKind, LucideIcon> = {
+  ALL_ELIGIBLE: Globe2,
+  GROUP: Users,
+  SINGLE_COW: PawPrint,
+};
+
 export function ScopeStep({ form }: { form: WizardForm }) {
   const t = useTranslations() as unknown as Translate;
   const tw = useTranslations("reportsWizard") as unknown as Translate;
@@ -37,21 +44,31 @@ export function ScopeStep({ form }: { form: WizardForm }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <RadioGroup value={kind} onValueChange={(v) => choose(v as ReportScopeKind)} aria-label={tw("scope.legend")}>
+      <RadioGroup value={kind} onValueChange={(v) => choose(v as ReportScopeKind)} aria-label={tw("scope.legend")} className="flex flex-col gap-2.5">
         {KINDS.map((k) => {
           const id = `wiz-scope-${k}`;
+          const isSelected = kind === k;
+          const Icon = SCOPE_ICON[k];
           return (
             <Label
               key={k}
               htmlFor={id}
               className={cn(
-                "flex min-h-11 cursor-pointer items-start gap-3 rounded-xl border bg-card p-3 font-normal transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
-                kind === k ? "border-primary bg-accent" : "border-border hover:bg-accent/50",
+                "flex min-h-12 cursor-pointer items-start gap-3.5 rounded-2xl border bg-card p-4 transition-all duration-200 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
+                isSelected
+                  ? "border-primary ring-2 ring-primary/20 bg-emerald-500/10 shadow-sm"
+                  : "border-border hover:border-primary/40 hover:bg-muted/40",
               )}
             >
-              <RadioGroupItem id={id} value={k} className="mt-0.5" />
-              <span className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium text-foreground">{t(reportScopeKindKey(k))}</span>
+              <RadioGroupItem id={id} value={k} className="mt-1" />
+              <span className={cn(
+                "flex size-9 shrink-0 items-center justify-center rounded-xl transition-colors",
+                isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              )}>
+                <Icon className="size-4.5" aria-hidden />
+              </span>
+              <span className="flex flex-col gap-0.5 min-w-0 flex-1">
+                <span className="text-sm font-semibold text-foreground">{t(reportScopeKindKey(k))}</span>
                 <span className="text-xs text-muted-foreground">{tw(DESC[k])}</span>
               </span>
             </Label>

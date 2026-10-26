@@ -18,11 +18,11 @@ export default function SeriesChartInner({ data, name }: { data: SeriesChartPoin
           <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="reportSeriesFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--chart-production)" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="var(--chart-production)" stopOpacity={0} />
+                <stop offset="0%" stopColor="#00A86B" stopOpacity={0.25} />
+                <stop offset="100%" stopColor="#00A86B" stopOpacity={0.0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--border)" />
+            <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--border)" opacity={0.6} />
             <XAxis
               dataKey="shortLabel"
               tickLine={false}
@@ -33,17 +33,25 @@ export default function SeriesChartInner({ data, name }: { data: SeriesChartPoin
             <YAxis tickLine={false} axisLine={false} width={44} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
             <Tooltip
               formatter={(_v, _n, item) => [(item.payload as SeriesChartPoint).valueText, name]}
-              contentStyle={{ backgroundColor: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+              contentStyle={{
+                backgroundColor: "var(--card)",
+                border: "1px solid var(--border)",
+                borderRadius: 12,
+                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
+                fontSize: 12,
+                padding: "8px 12px",
+              }}
             />
             <Area
               type="monotone"
               dataKey="y"
               name={name}
-              stroke="var(--chart-production)"
-              strokeWidth={2}
+              stroke="#00A86B"
+              strokeWidth={2.5}
               fill="url(#reportSeriesFill)"
               connectNulls={false}
-              dot={{ r: 2.5, fill: "var(--chart-production)" }}
+              dot={{ r: 3, fill: "#00A86B", stroke: "var(--card)", strokeWidth: 1.5 }}
+              activeDot={{ r: 5, fill: "#00A86B", stroke: "var(--card)", strokeWidth: 2 }}
               isAnimationActive={false}
             />
           </AreaChart>

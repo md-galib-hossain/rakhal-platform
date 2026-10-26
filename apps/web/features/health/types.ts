@@ -422,6 +422,7 @@ export interface RecordTreatmentPayload {
   doseUnitId?: string;
   route: MedicineRoute;
   treatedAt: string;
+  careType?: "CURATIVE" | "PREVENTIVE";
   reason?: string;
   notes?: string;
   /** Account the vet fee is paid from; required when `vetCost` > 0 (medicine consumption itself never touches cash). */

@@ -85,25 +85,42 @@ function NavLink({ item, active, onNavigate }: { item: NavItem; active: boolean;
       aria-current={active ? "page" : undefined}
       title={locked ? t("premiumLocked") : undefined}
       className={cn(
-        "relative flex items-center gap-2.5 rounded-lg py-2.5 pl-[18px] pr-3.5 text-sm font-medium text-sidebar-foreground/80 transition-colors",
-        "hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar",
-        active && "bg-primary/25 text-sidebar-foreground hover:bg-primary/25",
-        locked && "text-sidebar-foreground/50 hover:text-sidebar-foreground/70",
+        "group relative flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-all duration-150 ease-out select-none",
+        "border border-transparent",
+        "active:scale-[0.99]",
+        "outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar",
+        active
+          ? "border-primary/30 bg-primary/20 text-white shadow-xs shadow-black/10 hover:border-primary/40 hover:bg-primary/25"
+          : "text-sidebar-foreground/75 hover:border-white/5 hover:bg-white/10 hover:text-white",
+        locked && "opacity-60 hover:opacity-80",
       )}
     >
-      {/* Thin left accent — reserved gutter on every item so the active state never shifts layout. */}
-      <span
+      <Icon
+        className={cn(
+          "size-[18px] shrink-0 transition-colors duration-150",
+          active ? "text-white" : "text-sidebar-foreground/70 group-hover:text-white",
+        )}
         aria-hidden
-        className={cn("absolute inset-y-1.5 left-0 w-[3px] rounded-full", active ? "bg-primary" : "bg-transparent")}
       />
-      <Icon className="size-[18px] shrink-0" aria-hidden />
       <span className="truncate">{t(item.labelKey)}</span>
       {item.premiumFlag ? (
         locked ? (
-          <Lock className="ml-auto size-3.5 shrink-0 text-sidebar-muted" aria-hidden />
+          <Lock
+            className={cn(
+              "ml-auto size-3.5 shrink-0 transition-colors duration-150",
+              active ? "text-white/80" : "text-sidebar-muted/70",
+            )}
+            aria-hidden
+          />
         ) : (
-          <span className="ml-auto rounded-full bg-sidebar-foreground/15 px-1.5 py-0.5 text-xs font-semibold uppercase text-sidebar-muted">
+          <span
+            className={cn(
+              "ml-auto rounded-full px-1.5 py-0.5 text-xs font-semibold uppercase transition-colors duration-150",
+              active
+                ? "bg-primary/30 text-white"
+                : "bg-white/10 text-sidebar-muted group-hover:bg-white/15 group-hover:text-white",
+            )}
+          >
             Pro
           </span>
         )
@@ -146,7 +163,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
               onClick={() => toggleGroup(group.key)}
               aria-expanded={!isCollapsed}
               aria-controls={listId}
-              className="flex w-full items-center justify-between rounded-md px-4 py-1 text-xs font-bold uppercase tracking-wide text-sidebar-muted transition-colors hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+              className="flex w-full items-center justify-between rounded-md px-4 py-1 text-xs font-bold uppercase tracking-wide text-sidebar-muted transition-colors hover:text-sidebar-foreground outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar"
             >
               <span>{t(group.labelKey)}</span>
               <ChevronDown

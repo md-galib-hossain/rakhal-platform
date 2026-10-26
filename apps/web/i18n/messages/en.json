@@ -4314,6 +4314,15 @@
     },
     "quickTreat": {
       "title": "Quick Treat",
+      "careTypeLabel": "Treatment Purpose",
+      "careTypes": {
+        "PREVENTIVE": "Wellness / Preventive",
+        "CURATIVE": "Illness Treatment"
+      },
+      "careTypeHints": {
+        "PREVENTIVE": "Routine vaccine, vitamin, supplement, or dewormer for healthy animals. Does not mark the animal as sick.",
+        "CURATIVE": "Treatment for sickness or infection. Places the animal under observation in Sick Bay."
+      },
       "selectionMethod": "Selection Method",
       "selectionMethods": {
         "shed": "Shed",
@@ -4333,7 +4342,7 @@
       "doseAmount": "Dose Amount",
       "doseUnit": "Dose Unit",
       "administrationRoute": "Administration Route",
-      "treatedAt": "Date",
+      "treatedAt": "Date & Time",
       "withdrawalWarning": "This will place {count, plural, one {1 animal} other {# animals}} under a withholding period — milk until {milkUntil}, meat until {meatUntil}.",
       "reason": "Reason (optional)",
       "notesPlaceholder": "Notes (optional)",

@@ -22,12 +22,14 @@ export default function TrendChartInner<T extends object>({
   series,
   minWidth = 480,
   height = 200,
+  valueFormatter,
 }: {
   data: T[];
   xKey: string;
   series: TrendSeries[];
   minWidth?: number;
   height?: number;
+  valueFormatter?: (value: number) => string;
 }) {
   return (
     <div className="w-full overflow-x-auto scrollbar-hide">
@@ -54,6 +56,14 @@ export default function TrendChartInner<T extends object>({
                 borderRadius: 8,
                 fontSize: 12,
               }}
+              formatter={
+                valueFormatter
+                  ? (val: any, name: any) => [
+                      typeof val === "number" ? valueFormatter(val) : val,
+                      name,
+                    ]
+                  : undefined
+              }
             />
             {series.map((s) =>
               s.variant === "line" ? (
