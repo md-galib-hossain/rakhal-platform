@@ -67,6 +67,8 @@ export default function FinancialPerformanceChartInner({
               strokeWidth={2}
               strokeDasharray="5 3"
               dot={false}
+              isAnimationActive={false}
+              animationDuration={0}
             />
             <Line
               type="monotone"
@@ -76,6 +78,8 @@ export default function FinancialPerformanceChartInner({
               strokeWidth={2}
               strokeDasharray="5 3"
               dot={false}
+              isAnimationActive={false}
+              animationDuration={0}
             />
             <Area
               type="monotone"
@@ -89,6 +93,8 @@ export default function FinancialPerformanceChartInner({
               // series' own minimum so it's always below the line, regardless of sign.
               baseValue="dataMin"
               dot={false}
+              isAnimationActive={false}
+              animationDuration={0}
             />
           </AreaChart>
         </ResponsiveContainer>

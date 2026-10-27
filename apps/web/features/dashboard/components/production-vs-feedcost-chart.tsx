@@ -1,5 +1,6 @@
 "use client"; // live query + dynamic chart import
 
+import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
@@ -8,7 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useProductionVsFeedcost } from "../hooks/use-dashboard-widgets";
 import { DashboardCard, PeriodPill } from "./dashboard-card";
 
-const ProductionVsFeedcostChartInner = dynamic(() => import("./production-vs-feedcost-chart-inner"), {
+const loadProductionVsFeedcostChart = () => import("./production-vs-feedcost-chart-inner");
+const ProductionVsFeedcostChartInner = dynamic(loadProductionVsFeedcostChart, {
   ssr: false,
   loading: () => <Skeleton className="h-[260px] w-full" />,
 });
@@ -28,10 +30,14 @@ export function ProductionVsFeedcostChart() {
 
   const headerRight = <PeriodPill label={t("periodLabel")} />;
 
-  if (query.isLoading) return <CardSkeleton lines={6} className="rounded-2xl" />;
+  useEffect(() => {
+    void loadProductionVsFeedcostChart();
+  }, []);
+
+  if (query.isLoading) return <CardSkeleton lines={6} className="min-h-[360px] rounded-2xl" />;
   if (query.isError) {
     return (
-      <DashboardCard title={t("title")} headerRight={headerRight}>
+      <DashboardCard title={t("title")} headerRight={headerRight} className="min-h-[360px]">
         <ErrorState description={t("error")} onRetry={() => query.refetch()} />
       </DashboardCard>
     );
@@ -40,7 +46,8 @@ export function ProductionVsFeedcostChart() {
   const labels = { production: t("production"), feedcost: t("feedcost") };
 
   return (
-    <DashboardCard title={t("title")} headerRight={headerRight} className="lg:col-span-2">
+    <DashboardCard title={t("title")} headerRight={headerRight} className="min-h-[360px] lg:col-span-2">
+
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           {LEGEND.map((item) => (

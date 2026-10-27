@@ -55,7 +55,7 @@ export default function MilkTrendChartInner({
                 fontSize: 12,
               }}
             />
-            <Area type="monotone" dataKey="totalL" name={label} stroke={COLOR} strokeWidth={2} fill="url(#milkTrendFillCompact)" dot={false} />
+            <Area type="monotone" dataKey="totalL" name={label} stroke={COLOR} strokeWidth={2} fill="url(#milkTrendFillCompact)" dot={false} isAnimationActive={false} animationDuration={0} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -96,7 +96,7 @@ export default function MilkTrendChartInner({
                 fontSize: 12,
               }}
             />
-            <Area type="monotone" dataKey="totalL" name={label} stroke={COLOR} strokeWidth={2} fill="url(#milkTrendFill)" dot={false} />
+            <Area type="monotone" dataKey="totalL" name={label} stroke={COLOR} strokeWidth={2} fill="url(#milkTrendFill)" dot={false} isAnimationActive={false} animationDuration={0} />
           </AreaChart>
         </ResponsiveContainer>
       </div>

@@ -60,8 +60,8 @@ export default function ProductionVsFeedcostChartInner({
                 fontSize: 12,
               }}
             />
-            <Bar yAxisId="production" dataKey="productionL" name={labels.production} fill={COLOR.production} radius={[2, 2, 0, 0]} maxBarSize={6} />
-            <Bar yAxisId="feedcost" dataKey="feedcost" name={labels.feedcost} fill={COLOR.feedcost} radius={[2, 2, 0, 0]} maxBarSize={6} />
+            <Bar yAxisId="production" dataKey="productionL" name={labels.production} fill={COLOR.production} radius={[2, 2, 0, 0]} maxBarSize={6} isAnimationActive={false} animationDuration={0} />
+            <Bar yAxisId="feedcost" dataKey="feedcost" name={labels.feedcost} fill={COLOR.feedcost} radius={[2, 2, 0, 0]} maxBarSize={6} isAnimationActive={false} animationDuration={0} />
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -71,6 +71,8 @@ export default function ConceptionRateChartInner({
               fill={COLOR.count}
               radius={[4, 4, 0, 0]}
               maxBarSize={22}
+              isAnimationActive={false}
+              animationDuration={0}
             />
             <Area
               yAxisId="rate"
@@ -81,6 +83,8 @@ export default function ConceptionRateChartInner({
               strokeWidth={2}
               fill="url(#conceptionRateFill)"
               dot={false}
+              isAnimationActive={false}
+              animationDuration={0}
             />
           </ComposedChart>
         </ResponsiveContainer>

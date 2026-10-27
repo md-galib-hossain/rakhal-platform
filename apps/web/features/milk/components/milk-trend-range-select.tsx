@@ -17,7 +17,10 @@ export function MilkTrendRangeSelect({
   const t = useTranslations("milk.trend.range");
   return (
     <Select value={value} onValueChange={(v) => onChange(v as MilkTrendRange)}>
-      <SelectTrigger className="h-auto w-auto gap-1.5 rounded-md border-border px-2 py-1.5 text-xs font-medium text-muted-foreground shadow-xs [&_svg]:size-3.5">
+      <SelectTrigger
+        aria-label="Select trend range"
+        className="h-auto w-auto gap-1.5 rounded-md border-border px-2 py-1.5 text-xs font-medium text-muted-foreground shadow-xs [&_svg]:size-3.5"
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent align="end">

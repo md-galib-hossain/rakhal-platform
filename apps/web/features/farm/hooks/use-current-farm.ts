@@ -13,7 +13,7 @@ export function useCurrentFarm() {
     queryKey: qk.farm.list(),
     queryFn: farmApi.list,
     enabled: !!session?.farmId,
-    staleTime: 5 * 60_000,
+    staleTime: 300_000,
   });
 
   return {

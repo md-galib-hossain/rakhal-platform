@@ -22,10 +22,11 @@ export function DashboardCard({
   return (
     <div
       className={cn(
-        "flex h-full w-full flex-col justify-between gap-4 rounded-2xl border border-border bg-card p-4 shadow-card",
+        "flex h-full w-full min-h-[220px] flex-col justify-between gap-4 rounded-2xl border border-border bg-card p-4 shadow-card",
         className,
       )}
     >
+
       <div className="flex items-center justify-between gap-2">
         <p className="text-base font-medium text-foreground">{title}</p>
         {headerRight}

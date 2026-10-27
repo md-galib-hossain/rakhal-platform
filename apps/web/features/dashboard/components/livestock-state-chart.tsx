@@ -29,10 +29,10 @@ export function LivestockStateChart() {
 
   const headerRight = <PeriodSelect value={period} onChange={setPeriod} />;
 
-  if (query.isLoading) return <CardSkeleton lines={6} className="rounded-2xl" />;
+  if (query.isLoading) return <CardSkeleton lines={6} className="min-h-[360px] rounded-2xl" />;
   if (query.isError) {
     return (
-      <DashboardCard title={t("title")} headerRight={headerRight}>
+      <DashboardCard title={t("title")} headerRight={headerRight} className="min-h-[360px]">
         <ErrorState description={t("error")} onRetry={() => query.refetch()} />
       </DashboardCard>
     );
@@ -43,7 +43,8 @@ export function LivestockStateChart() {
   const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(scaleMax * f));
 
   return (
-    <DashboardCard title={t("title")} headerRight={headerRight}>
+    <DashboardCard title={t("title")} headerRight={headerRight} className="min-h-[360px]">
+
       <div className="flex h-full flex-col justify-between gap-3 py-1">
         {ORDER.map((state) => {
           const count = byState.get(state) ?? 0;
@@ -70,7 +71,7 @@ export function LivestockStateChart() {
           );
         })}
         <div className="flex items-center gap-2 pt-1 border-t border-border/40">
-          <p className="w-[72px] shrink-0 text-xs text-muted-foreground/60">{t("axisLabel")}</p>
+          <p className="w-[72px] shrink-0 text-xs text-muted-foreground">{t("axisLabel")}</p>
           <div className="flex flex-1 justify-between text-xs text-muted-foreground">
             {ticks.map((tick) => (
               <span key={tick}>{tick}</span>

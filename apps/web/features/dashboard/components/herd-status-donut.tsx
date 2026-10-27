@@ -1,5 +1,6 @@
 "use client"; // live query + dynamic chart import
 
+import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
@@ -10,6 +11,8 @@ import { ANIMAL_CATEGORY_SLICE_COLOR } from "@/features/cattle/utils/animal-cate
 import { useHerdStatus } from "../hooks/use-dashboard-widgets";
 import { DashboardCard } from "./dashboard-card";
 import type { DonutSlice } from "./herd-status-chart-inner";
+
+
 
 type CategoryKey = "calf" | "heifer" | "cow" | "bull" | "steer";
 /** Cow-first display order (biggest/most-relevant category first) — the wire shape
@@ -54,7 +57,8 @@ const CATEGORY_SLICE_COLOR: Record<CategoryKey, string> = {
 };
 
 // Chart rendering is client/DOM-only and not needed for the initial paint — keep it out of the main bundle.
-const HerdStatusChartInner = dynamic(() => import("./herd-status-chart-inner"), {
+const loadHerdStatusChart = () => import("./herd-status-chart-inner");
+const HerdStatusChartInner = dynamic(loadHerdStatusChart, {
   ssr: false,
   loading: () => <Skeleton className="mx-auto size-[170px] rounded-full" />,
 });
@@ -72,14 +76,19 @@ export function HerdStatusDonut() {
   const tCategory = useTranslations("cattle.animalCategory");
   const query = useHerdStatus();
 
-  if (query.isLoading) return <CardSkeleton lines={4} className="rounded-2xl" />;
+  useEffect(() => {
+    void loadHerdStatusChart();
+  }, []);
+
+  if (query.isLoading) return <CardSkeleton lines={4} className="min-h-[360px] rounded-2xl" />;
   if (query.isError) {
     return (
-      <DashboardCard title={t("title")}>
+      <DashboardCard title={t("title")} className="min-h-[360px]">
         <ErrorState description={t("error")} onRetry={() => query.refetch()} />
       </DashboardCard>
     );
   }
+
   const data = query.data;
   if (!data) return null;
 
@@ -93,12 +102,18 @@ export function HerdStatusDonut() {
   return (
     <DashboardCard
       title={t("title")}
+      className="min-h-[360px]"
       headerRight={
-        <Link href="/animals" className="text-xs font-medium text-primary hover:underline">
+        <Link
+          href="/animals"
+          aria-label={t("viewAllAria")}
+          className="text-xs font-medium text-primary-hover hover:underline"
+        >
           {t("viewAll")}
         </Link>
       }
     >
+
       <div className="flex flex-1 flex-col items-center justify-between gap-6">
         <HerdStatusChartInner slices={slices} centerLabel={t("totalLabel")} centerValue={data.totalActive} />
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">

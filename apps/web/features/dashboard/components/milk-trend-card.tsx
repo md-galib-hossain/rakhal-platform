@@ -1,6 +1,6 @@
 "use client"; // live query + dynamic chart import
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -12,7 +12,8 @@ import { useMilkOverview } from "@/features/milk/hooks/use-milk";
 import type { MilkTrendRange } from "@/features/milk/types";
 import { MilkTrendRangeSelect } from "@/features/milk/components/milk-trend-range-select";
 
-const MilkTrendChartInner = dynamic(() => import("@/features/milk/components/milk-trend-chart-inner"), {
+const loadMilkTrendChart = () => import("@/features/milk/components/milk-trend-chart-inner");
+const MilkTrendChartInner = dynamic(loadMilkTrendChart, {
   ssr: false,
   loading: () => <Skeleton className="h-[220px] w-full" />,
 });
@@ -27,10 +28,14 @@ export function MilkTrendCard() {
   const [range, setRange] = useState<MilkTrendRange>("30d");
   const query = useMilkOverview(undefined, range);
 
-  if (query.isLoading) return <CardSkeleton lines={4} className="rounded-2xl" />;
+  useEffect(() => {
+    void loadMilkTrendChart();
+  }, []);
+
+  if (query.isLoading) return <CardSkeleton lines={4} className="min-h-[360px] rounded-2xl" />;
   if (query.isError) {
     return (
-      <ChartCard title={t("title")}>
+      <ChartCard title={t("title")} className="min-h-[360px]">
         <ErrorState description={t("error")} onRetry={() => void query.refetch()} />
       </ChartCard>
     );
@@ -39,11 +44,16 @@ export function MilkTrendCard() {
   return (
     <ChartCard
       title={t("title")}
-      className="h-full"
+      className="h-full min-h-[360px]"
+
       rangeControl={
         <div className="flex items-center gap-2">
           <MilkTrendRangeSelect value={range} onChange={setRange} />
-          <Link href="/milk" className="text-xs font-medium text-primary hover:underline">
+          <Link
+            href="/milk"
+            aria-label={t("viewAllAria")}
+            className="text-xs font-medium text-primary-hover hover:underline"
+          >
             {t("viewAll")}
           </Link>
         </div>

@@ -65,7 +65,11 @@ export function ActivityLogCard() {
     <DashboardCard
       title={t("title")}
       headerRight={
-        <Link href="/activity" className="text-xs font-medium text-primary hover:underline">
+        <Link
+          href="/activity"
+          aria-label={t("viewAllAria")}
+          className="text-xs font-medium text-primary-hover hover:underline"
+        >
           {t("viewAll")}
         </Link>
       }

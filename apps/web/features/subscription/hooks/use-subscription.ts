@@ -11,6 +11,6 @@ export function useSubscription() {
     queryKey: qk.subscription.current(),
     queryFn: subscriptionApi.current,
     enabled: !!session,
-    staleTime: 60_000,
+    staleTime: 300_000,
   });
 }

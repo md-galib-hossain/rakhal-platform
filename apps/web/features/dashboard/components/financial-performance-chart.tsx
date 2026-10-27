@@ -1,5 +1,6 @@
 "use client"; // live query + dynamic chart import
 
+import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
@@ -8,7 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useFinancialPerformance } from "../hooks/use-dashboard-widgets";
 import { DashboardCard, PeriodPill } from "./dashboard-card";
 
-const FinancialPerformanceChartInner = dynamic(() => import("./financial-performance-chart-inner"), {
+const loadFinancialPerformanceChart = () => import("./financial-performance-chart-inner");
+const FinancialPerformanceChartInner = dynamic(loadFinancialPerformanceChart, {
   ssr: false,
   loading: () => <Skeleton className="h-[260px] w-full" />,
 });
@@ -35,10 +37,14 @@ export function FinancialPerformanceChart() {
 
   const headerRight = <PeriodPill label={t("periodLabel")} />;
 
-  if (query.isLoading) return <CardSkeleton lines={6} className="rounded-2xl" />;
+  useEffect(() => {
+    void loadFinancialPerformanceChart();
+  }, []);
+
+  if (query.isLoading) return <CardSkeleton lines={6} className="min-h-[360px] rounded-2xl" />;
   if (query.isError) {
     return (
-      <DashboardCard title={t("title")} headerRight={headerRight}>
+      <DashboardCard title={t("title")} headerRight={headerRight} className="min-h-[360px]">
         <ErrorState description={t("error")} onRetry={() => query.refetch()} />
       </DashboardCard>
     );
@@ -47,7 +53,8 @@ export function FinancialPerformanceChart() {
   const labels = { income: t("income"), expense: t("expense"), profit: t("profit") };
 
   return (
-    <DashboardCard title={t("title")} headerRight={headerRight} className="lg:col-span-2">
+    <DashboardCard title={t("title")} headerRight={headerRight} className="min-h-[360px] lg:col-span-2">
+
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           {LEGEND.map((item) => (

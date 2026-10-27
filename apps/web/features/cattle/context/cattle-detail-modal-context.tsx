@@ -1,14 +1,31 @@
 "use client";
 
 import { createContext, useCallback, useContext, useState } from "react";
+import dynamic from "next/dynamic";
 import { parseAsString, useQueryState } from "nuqs";
-import { CattleDetailSheet } from "../components/detail/cattle-detail-sheet";
-import { CattleFormDialog } from "../components/cattle-form-dialog";
-import { CattleDisposeDialog } from "../components/cattle-dispose-dialog";
-import { CattleDeleteDialog } from "../components/cattle-delete-dialog";
-import { RecordSaleDialog } from "@/features/sales/components/record-sale-wizard";
 import { useCattleDetail } from "../hooks/use-cattle";
 import type { CattleDetail, CattleListItem } from "../types";
+
+const CattleDetailSheet = dynamic(
+  () => import("../components/detail/cattle-detail-sheet").then((m) => m.CattleDetailSheet),
+  { ssr: false },
+);
+const CattleFormDialog = dynamic(
+  () => import("../components/cattle-form-dialog").then((m) => m.CattleFormDialog),
+  { ssr: false },
+);
+const CattleDisposeDialog = dynamic(
+  () => import("../components/cattle-dispose-dialog").then((m) => m.CattleDisposeDialog),
+  { ssr: false },
+);
+const CattleDeleteDialog = dynamic(
+  () => import("../components/cattle-delete-dialog").then((m) => m.CattleDeleteDialog),
+  { ssr: false },
+);
+const RecordSaleDialog = dynamic(
+  () => import("@/features/sales/components/record-sale-wizard").then((m) => m.RecordSaleDialog),
+  { ssr: false },
+);
 
 interface CattleDetailModalContextValue {
   cattleId: string | null;
@@ -51,60 +68,70 @@ export function CattleDetailModalProvider({ children }: { children: React.ReactN
     >
       {children}
 
-      <CattleDetailSheet
-        cattleId={viewId ?? undefined}
-        onOpenChange={(open) => !open && closeCattleDetail()}
-        onEdit={(cattle) => {
-          closeCattleDetail();
-          setEditingId(cattle.id);
-          setFormOpen(true);
-        }}
-        onDispose={(cattle) => {
-          closeCattleDetail();
-          setDisposeTarget(cattle);
-        }}
-        onDelete={(cattle) => {
-          closeCattleDetail();
-          setDeleteTarget(cattle);
-        }}
-      />
+      {viewId != null && (
+        <CattleDetailSheet
+          cattleId={viewId ?? undefined}
+          onOpenChange={(open) => !open && closeCattleDetail()}
+          onEdit={(cattle) => {
+            closeCattleDetail();
+            setEditingId(cattle.id);
+            setFormOpen(true);
+          }}
+          onDispose={(cattle) => {
+            closeCattleDetail();
+            setDisposeTarget(cattle);
+          }}
+          onDelete={(cattle) => {
+            closeCattleDetail();
+            setDeleteTarget(cattle);
+          }}
+        />
+      )}
 
-      <CattleFormDialog
-        open={formOpen}
-        onOpenChange={(open) => {
-          setFormOpen(open);
-          if (!open) setEditingId(undefined);
-        }}
-        cattle={editingDetail.data}
-        loading={Boolean(editingId) && !editingDetail.data}
-      />
+      {formOpen && (
+        <CattleFormDialog
+          open={formOpen}
+          onOpenChange={(open) => {
+            setFormOpen(open);
+            if (!open) setEditingId(undefined);
+          }}
+          cattle={editingDetail.data}
+          loading={Boolean(editingId) && !editingDetail.data}
+        />
+      )}
 
-      <CattleDisposeDialog
-        open={disposeTarget !== null}
-        onOpenChange={(open) => !open && setDisposeTarget(null)}
-        cattle={disposeTarget as CattleListItem | null}
-        onRequestSale={(item) => setSaleTarget(item)}
-      />
+      {disposeTarget != null && (
+        <CattleDisposeDialog
+          open={disposeTarget !== null}
+          onOpenChange={(open) => !open && setDisposeTarget(null)}
+          cattle={disposeTarget as CattleListItem | null}
+          onRequestSale={(item) => setSaleTarget(item)}
+        />
+      )}
 
-      <RecordSaleDialog
-        open={saleTarget !== null}
-        onOpenChange={(open) => !open && setSaleTarget(null)}
-        initial={
-          saleTarget
-            ? {
-                type: "ANIMAL",
-                cattleId: saleTarget.id,
-                cattleLabel: `${saleTarget.tagNumber}${saleTarget.name ? ` — ${saleTarget.name}` : ""}`,
-              }
-            : undefined
-        }
-      />
+      {saleTarget != null && (
+        <RecordSaleDialog
+          open={saleTarget !== null}
+          onOpenChange={(open) => !open && setSaleTarget(null)}
+          initial={
+            saleTarget
+              ? {
+                  type: "ANIMAL",
+                  cattleId: saleTarget.id,
+                  cattleLabel: `${saleTarget.tagNumber}${saleTarget.name ? ` — ${saleTarget.name}` : ""}`,
+                }
+              : undefined
+          }
+        />
+      )}
 
-      <CattleDeleteDialog
-        open={deleteTarget !== null}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        cattle={deleteTarget as CattleListItem | null}
-      />
+      {deleteTarget != null && (
+        <CattleDeleteDialog
+          open={deleteTarget !== null}
+          onOpenChange={(open) => !open && setDeleteTarget(null)}
+          cattle={deleteTarget as CattleListItem | null}
+        />
+      )}
     </CattleDetailModalContext.Provider>
   );
 }

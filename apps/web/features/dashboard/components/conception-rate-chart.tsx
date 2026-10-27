@@ -1,5 +1,6 @@
 "use client"; // live query + dynamic chart import
 
+import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
@@ -8,7 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useConceptionRate } from "../hooks/use-dashboard-widgets";
 import { DashboardCard } from "./dashboard-card";
 
-const ConceptionRateChartInner = dynamic(() => import("./conception-rate-chart-inner"), {
+const loadConceptionRateChart = () => import("./conception-rate-chart-inner");
+const ConceptionRateChartInner = dynamic(loadConceptionRateChart, {
   ssr: false,
   loading: () => <Skeleton className="h-[260px] w-full" />,
 });
@@ -26,7 +28,11 @@ export function ConceptionRateChart() {
   const t = useTranslations("dashboard.conceptionRate");
   const query = useConceptionRate();
 
-  if (query.isLoading) return <CardSkeleton lines={6} className="rounded-2xl" />;
+  useEffect(() => {
+    void loadConceptionRateChart();
+  }, []);
+
+  if (query.isLoading) return <CardSkeleton lines={6} className="min-h-[360px] rounded-2xl" />;
   const months = query.data?.months ?? [];
   const totalInseminations = months.reduce((sum, m) => sum + m.inseminations, 0);
   const totalConfirmed = months.reduce((sum, m) => sum + m.confirmedPregnancies, 0);
@@ -35,7 +41,7 @@ export function ConceptionRateChart() {
 
   if (query.isError) {
     return (
-      <DashboardCard title={title}>
+      <DashboardCard title={title} className="min-h-[360px]">
         <ErrorState description={t("error")} onRetry={() => query.refetch()} />
       </DashboardCard>
     );
@@ -43,7 +49,8 @@ export function ConceptionRateChart() {
   const labels = { monthlyConception: t("monthlyConception"), avgRate: t("avgRate") };
 
   return (
-    <DashboardCard title={title}>
+    <DashboardCard title={title} className="min-h-[360px]">
+
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           {LEGEND.map((item) => (

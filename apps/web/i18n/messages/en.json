@@ -635,7 +635,8 @@
       "error": "Could not load herd status.",
       "totalLabel": "Total",
       "calvesTotal": "Calves",
-      "viewAll": "View all"
+      "viewAll": "View all",
+      "viewAllAria": "View all animals"
     },
     "livestockState": {
       "title": "Livestock State",
@@ -684,6 +685,7 @@
     "upcomingTasks": {
       "title": "Upcoming Tasks",
       "viewAll": "View all",
+      "viewAllAria": "View all tasks",
       "completed": "{done} of {total} done today",
       "overdue": "{count} overdue",
       "emptyTitle": "No tasks today",
@@ -693,6 +695,7 @@
     "activityLog": {
       "title": "Activity Log",
       "viewAll": "View all",
+      "viewAllAria": "View all activity",
       "emptyTitle": "No activity yet",
       "emptyDescription": "Actions across the farm will show up here.",
       "error": "Could not load the activity log."
@@ -700,6 +703,7 @@
     "milkTrend": {
       "title": "Production Trend Over Time",
       "viewAll": "View all",
+      "viewAllAria": "View all milk records",
       "error": "Could not load the milk trend."
     },
     "financialPerformance": {
@@ -724,6 +728,7 @@
       "error": "Could not load the conception rate."
     },
     "period": {
+      "selectPeriod": "Select period",
       "today": "Today",
       "week": "Week",
       "month": "Monthly"

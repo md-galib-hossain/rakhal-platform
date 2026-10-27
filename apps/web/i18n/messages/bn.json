@@ -635,7 +635,8 @@
       "error": "পালের অবস্থা লোড করা যায়নি।",
       "totalLabel": "মোট",
       "calvesTotal": "বাছুর",
-      "viewAll": "সব দেখুন"
+      "viewAll": "সব দেখুন",
+      "viewAllAria": "সব গবাদি পশু দেখুন"
     },
     "livestockState": {
       "title": "গবাদি পশুর অবস্থা",
@@ -684,6 +685,7 @@
     "upcomingTasks": {
       "title": "আসন্ন কাজ",
       "viewAll": "সব দেখুন",
+      "viewAllAria": "সব কাজ দেখুন",
       "completed": "আজ {total} টির মধ্যে {done} টি সম্পন্ন",
       "overdue": "{count} টি মেয়াদোত্তীর্ণ",
       "emptyTitle": "আজ কোনো কাজ নেই",
@@ -693,6 +695,7 @@
     "activityLog": {
       "title": "কার্যক্রম লগ",
       "viewAll": "সব দেখুন",
+      "viewAllAria": "সব কার্যক্রম দেখুন",
       "emptyTitle": "এখনো কোনো কার্যক্রম নেই",
       "emptyDescription": "খামারের কার্যক্রম এখানে দেখা যাবে।",
       "error": "কার্যক্রম লগ লোড করা যায়নি।"
@@ -700,6 +703,7 @@
     "milkTrend": {
       "title": "সময়ের সাথে উৎপাদনের প্রবণতা",
       "viewAll": "সব দেখুন",
+      "viewAllAria": "সব দুধের রেকর্ড দেখুন",
       "error": "দুধ উৎপাদনের প্রবণতা লোড করা যায়নি।"
     },
     "financialPerformance": {
@@ -724,6 +728,7 @@
       "error": "গর্ভধারণের হার লোড করা যায়নি।"
     },
     "period": {
+      "selectPeriod": "সময়কাল নির্বাচন করুন",
       "today": "আজ",
       "week": "সপ্তাহ",
       "month": "মাসিক"

@@ -1,9 +1,11 @@
 "use client"; // layout state + dnd-kit section sorter + persistent ordering
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { Sliders } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { CardSkeleton } from "@/components/shared/card-skeleton";
 import {
   LAYOUT_TOOLBAR_STICKY,
   LayoutEditControls,
@@ -13,18 +15,43 @@ import { useSectionLayout } from "@/lib/hooks/use-section-layout";
 import { PrioritiesPanel } from "./priorities-panel";
 import { KpiBar } from "./kpi-bar";
 import { ProductionSummaryCard } from "./production-summary-card";
-import { CalvingForecastCard } from "./calving-forecast-card";
 import { HerdStatusDonut } from "./herd-status-donut";
 import { LivestockStateChart } from "./livestock-state-chart";
 import { FinancialSnapshotCard } from "./financial-snapshot-card";
-import { FeedStockAlertsCard } from "./feed-stock-alerts-card";
-import { UpcomingTasksCard } from "./upcoming-tasks-card";
-import { FinancialPerformanceChart } from "./financial-performance-chart";
-import { ProductionVsFeedcostChart } from "./production-vs-feedcost-chart";
-import { ConceptionRateChart } from "./conception-rate-chart";
-import { ActivityLogCard } from "./activity-log-card";
 import { MilkTrendCard } from "./milk-trend-card";
-import { FeedCostCard } from "./feed-cost-card";
+
+const FinancialPerformanceChart = dynamic(
+  () => import("./financial-performance-chart").then((m) => m.FinancialPerformanceChart),
+  { loading: () => <CardSkeleton className="min-h-[360px] rounded-2xl" /> },
+);
+const ProductionVsFeedcostChart = dynamic(
+  () => import("./production-vs-feedcost-chart").then((m) => m.ProductionVsFeedcostChart),
+  { loading: () => <CardSkeleton className="min-h-[360px] rounded-2xl" /> },
+);
+const ConceptionRateChart = dynamic(
+  () => import("./conception-rate-chart").then((m) => m.ConceptionRateChart),
+  { loading: () => <CardSkeleton className="min-h-[360px] rounded-2xl" /> },
+);
+const CalvingForecastCard = dynamic(
+  () => import("./calving-forecast-card").then((m) => m.CalvingForecastCard),
+  { loading: () => <CardSkeleton className="min-h-[360px] rounded-2xl" /> },
+);
+const FeedStockAlertsCard = dynamic(
+  () => import("./feed-stock-alerts-card").then((m) => m.FeedStockAlertsCard),
+  { loading: () => <CardSkeleton className="min-h-[360px] rounded-2xl" /> },
+);
+const UpcomingTasksCard = dynamic(
+  () => import("./upcoming-tasks-card").then((m) => m.UpcomingTasksCard),
+  { loading: () => <CardSkeleton className="min-h-[360px] rounded-2xl" /> },
+);
+const ActivityLogCard = dynamic(
+  () => import("./activity-log-card").then((m) => m.ActivityLogCard),
+  { loading: () => <CardSkeleton className="min-h-[360px] rounded-2xl" /> },
+);
+const FeedCostCard = dynamic(
+  () => import("./feed-cost-card").then((m) => m.FeedCostCard),
+  { loading: () => <CardSkeleton className="min-h-[360px] rounded-2xl" /> },
+);
 
 export type DashboardBlockId =
   | "top-kpi-row"

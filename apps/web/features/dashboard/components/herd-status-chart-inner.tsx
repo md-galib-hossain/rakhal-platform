@@ -24,7 +24,7 @@ export default function HerdStatusChartInner({
     <div className="relative mx-auto size-[170px]">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
-          <Pie data={slices} dataKey="value" nameKey="name" innerRadius={62} outerRadius={85} paddingAngle={2}>
+          <Pie data={slices} dataKey="value" nameKey="name" innerRadius={62} outerRadius={85} paddingAngle={2} isAnimationActive={false} animationDuration={0}>
             {slices.map((slice) => (
               <Cell key={slice.name} fill={slice.color} />
             ))}

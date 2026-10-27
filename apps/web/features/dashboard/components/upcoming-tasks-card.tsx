@@ -16,7 +16,11 @@ export function UpcomingTasksCard() {
   const query = useUpcomingTasks();
 
   const headerRight = (
-    <Link href="/tasks" className="text-xs font-medium text-primary-hover hover:underline">
+    <Link
+      href="/tasks"
+      aria-label={t("viewAllAria")}
+      className="text-xs font-medium text-primary-hover hover:underline"
+    >
       {t("viewAll")}
     </Link>
   );
