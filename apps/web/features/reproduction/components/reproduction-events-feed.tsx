@@ -1,10 +1,11 @@
 "use client"; // local filter state + live cursor-paged query
 
 import { useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
-import { endOfDay, format, parseISO, startOfDay } from "date-fns";
+import { useLocale, useTranslations } from "next-intl";
+import { endOfDay, format, parseISO, startOfDay, startOfYear, subDays } from "date-fns";
 import { Baby, Ban, Heart, HeartCrack, Microscope, Pencil, SlidersHorizontal, Syringe, X } from "lucide-react";
 import { CattlePicker, type CattleOption } from "@/components/shared/cattle-picker";
+import { DateRangePicker, type DateRangeOption } from "@/components/shared/date-range-picker";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,6 +16,9 @@ import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer
 import { useInfiniteCursorList } from "@/lib/hooks/use-infinite-cursor-list";
 import { Can } from "@/lib/auth/permissions";
 import { cn } from "@/lib/utils";
+import { formatDate } from "@/lib/format";
+import type { Locale } from "@/lib/constants/i18n";
+import type { PeriodRange } from "@/lib/period/presets";
 import { reproductionApi } from "../api";
 import type { ReproEventEntry, ReproEventType } from "../types";
 import { AnimalLink } from "@/components/shared/animal-link";
@@ -23,7 +27,6 @@ import { BreedingEventDialog } from "./dialogs/breeding-event-dialog";
 import { PregnancyDiagnosisDialog } from "./dialogs/pregnancy-diagnosis-dialog";
 import { HeatEventEditDialog } from "./dialogs/heat-event-edit-dialog";
 import { BreedingEventVoidDialog } from "./dialogs/breeding-event-void-dialog";
-import { DatePicker } from "@/components/ui/date-picker";
 
 const EVENT_ICONS: Record<ReproEventType, React.ElementType> = {
   heat: Heart,
@@ -45,6 +48,25 @@ const EVENT_TYPES: ReproEventType[] = ["heat", "breeding", "pregnancy_diagnosis"
 const MAX_DETAIL_CHIPS = 3;
 const EVENTS_PAGE_SIZE = 10;
 const DAY_FORMAT = "yyyy-MM-dd";
+
+type DatePresetId = "any" | "d7" | "d30" | "d90" | "year" | "custom";
+const PRESET_IDS: Exclude<DatePresetId, "custom">[] = ["any", "d7", "d30", "d90", "year"];
+
+function getPresetRange(id: Exclude<DatePresetId, "custom">, now = new Date()): PeriodRange | null {
+  const todayEnd = endOfDay(now);
+  switch (id) {
+    case "any":
+      return null;
+    case "d7":
+      return { from: startOfDay(subDays(now, 6)), to: todayEnd };
+    case "d30":
+      return { from: startOfDay(subDays(now, 29)), to: todayEnd };
+    case "d90":
+      return { from: startOfDay(subDays(now, 89)), to: todayEnd };
+    case "year":
+      return { from: startOfYear(now), to: todayEnd };
+  }
+}
 
 const dayStartIso = (day: string) => (day ? startOfDay(parseISO(day)).toISOString() : undefined);
 const dayEndIso = (day: string) => (day ? endOfDay(parseISO(day)).toISOString() : undefined);
@@ -96,6 +118,7 @@ function FilterChip({
  * Full width, comprehensive log with filters in a neat top bar.
  */
 export function ReproductionEventsFeed() {
+  const locale = useLocale() as Locale;
   const t = useTranslations("reproduction.eventsFeed");
   const [editingBreedingEventId, setEditingBreedingEventId] = useState<string | null>(null);
   const [editingDiagnosisEvent, setEditingDiagnosisEvent] = useState<ReproEventEntry | null>(null);
@@ -103,6 +126,7 @@ export function ReproductionEventsFeed() {
   const [voidingBreedingEvent, setVoidingBreedingEvent] = useState<ReproEventEntry | null>(null);
   const [cattle, setCattle] = useState<CattleOption | null>(null);
   const [eventType, setEventType] = useState<ReproEventType | "all">("all");
+  const [datePreset, setDatePreset] = useState<DatePresetId>("any");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -127,20 +151,72 @@ export function ReproductionEventsFeed() {
     { pageSize: EVENTS_PAGE_SIZE, getId: (event) => `${event.event_type}-${event.id}` },
   );
 
-  const hasDateFilter = !!fromDate || !!toDate;
+  const hasDateFilter = Boolean(fromDate || toDate);
   const panelFilterCount = (cattle ? 1 : 0) + (hasDateFilter ? 1 : 0);
   const hasActiveFilters = panelFilterCount > 0 || eventType !== "all";
 
   function clearAll() {
     setCattle(null);
     setEventType("all");
+    setDatePreset("any");
     setFromDate("");
     setToDate("");
   }
   function clearDates() {
+    setDatePreset("any");
     setFromDate("");
     setToDate("");
   }
+
+  const dateRangeOptions = useMemo<DateRangeOption[]>(() => {
+    const now = new Date();
+    return PRESET_IDS.map((id) => ({
+      id,
+      label: t(`range.${id}`),
+      range: getPresetRange(id, now),
+    }));
+  }, [t]);
+
+  const activeRange = useMemo<PeriodRange>(() => {
+    if (fromDate && toDate) {
+      return { from: parseISO(fromDate), to: parseISO(toDate) };
+    }
+    const now = new Date();
+    return { from: startOfDay(now), to: endOfDay(now) };
+  }, [fromDate, toDate]);
+
+  const rangeLabel = useMemo(() => {
+    if (datePreset === "any" || (!fromDate && !toDate)) {
+      return t("range.any");
+    }
+    if (datePreset !== "custom") {
+      return t(`range.${datePreset}`);
+    }
+    const from = parseISO(fromDate);
+    const to = parseISO(toDate);
+    if (fromDate === toDate) {
+      return formatDate(from, locale);
+    }
+    return `${formatDate(from, locale)} – ${formatDate(to, locale)}`;
+  }, [datePreset, fromDate, toDate, locale, t]);
+
+  const handleOptionSelect = (option: DateRangeOption) => {
+    if (option.id === "any" || !option.range) {
+      setDatePreset("any");
+      setFromDate("");
+      setToDate("");
+      return;
+    }
+    setDatePreset(option.id as DatePresetId);
+    setFromDate(format(option.range.from, DAY_FORMAT));
+    setToDate(format(option.range.to, DAY_FORMAT));
+  };
+
+  const handleRangeChange = (from: Date, to: Date) => {
+    setDatePreset("custom");
+    setFromDate(format(from, DAY_FORMAT));
+    setToDate(format(to, DAY_FORMAT));
+  };
 
   const dayGroups = useMemo(() => {
     const groups: { day: string; items: ReproEventEntry[] }[] = [];
@@ -199,26 +275,17 @@ export function ReproductionEventsFeed() {
               className="h-9 px-3 text-sm"
             />
           </div>
-          <div className="flex min-w-32 flex-1 flex-col gap-1 @md:max-w-44">
-            <Label className="text-xs font-medium text-muted-foreground">{t("fromDate")}</Label>
-            <DatePicker
-              label={t("fromDate")}
-              placeholder={t("fromDate")}
-              value={fromDate}
-              onChange={setFromDate}
-              clearable
-              className="h-9 px-3"
-            />
-          </div>
-          <div className="flex min-w-32 flex-1 flex-col gap-1 @md:max-w-44">
-            <Label className="text-xs font-medium text-muted-foreground">{t("toDate")}</Label>
-            <DatePicker
-              label={t("toDate")}
-              placeholder={t("toDate")}
-              value={toDate}
-              onChange={setToDate}
-              clearable
-              className="h-9 px-3"
+          <div className="flex w-full min-w-0 flex-col gap-1 @md:w-auto @md:min-w-56 @md:max-w-72 @md:flex-1">
+            <Label className="text-xs font-medium text-muted-foreground">{t("range.label")}</Label>
+            <DateRangePicker
+              range={activeRange}
+              label={rangeLabel}
+              options={dateRangeOptions}
+              activeOptionId={datePreset}
+              applyLabel={t("range.apply")}
+              onOptionSelect={handleOptionSelect}
+              onRangeChange={handleRangeChange}
+              className="h-9 w-full justify-start text-xs font-normal @md:text-sm"
             />
           </div>
         </div>
@@ -243,9 +310,11 @@ export function ReproductionEventsFeed() {
             {hasDateFilter ? (
               <AppliedChip
                 label={
-                  <>
-                    {fromDate ? <DateText date={fromDate} /> : t("range.start")} – {toDate ? <DateText date={toDate} /> : t("range.today")}
-                  </>
+                  datePreset !== "custom" && datePreset !== "any"
+                    ? t(`range.${datePreset}`)
+                    : fromDate === toDate
+                      ? formatDate(parseISO(fromDate), locale)
+                      : `${formatDate(parseISO(fromDate), locale)} – ${formatDate(parseISO(toDate), locale)}`
                 }
                 removeLabel={t("removeFilter", { name: t("range.label") })}
                 onRemove={clearDates}

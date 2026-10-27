@@ -13,9 +13,10 @@ import { INVENTORY_TABS } from "../types";
 
 /** Top-level Inventory page body — the category tab bar + grid/list view toggle (Figma
  * "Inventory" frame 732:12409), routing to each tab's view. All tabs have real backed views now
- * (see `types.ts#INVENTORY_TABS` doc comment). Milk has no grid/list toggle of its own (single
- * fixed layout, not a table/grid pair like Medicine/FeedItem) — `view` is simply unused on that
- * branch. Feed's `view` threads down into **both** of its Purchased/Prepared segments (each is its
+ * (see `types.ts#INVENTORY_TABS` doc comment). Milk and Semen have no grid/list toggle of their own (single
+ * fixed layouts, not a table/grid pair like Medicine/FeedItem/Equipment) — the view toggle in
+ * `InventoryTabs` is conditionally rendered only on tabs that support both views (`hasViewToggle`).
+ * Feed's `view` threads down into **both** of its Purchased/Prepared segments (each is its
  * own real table/grid pair, `feed-view.tsx`). */
 export function InventoryView() {
   const t = useTranslations("inventory");

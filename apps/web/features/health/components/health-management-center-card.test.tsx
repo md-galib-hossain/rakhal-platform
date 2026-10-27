@@ -8,6 +8,7 @@ import { HealthManagementCenterCard, parseHealthTab } from "./health-management-
 vi.mock("./treatments-tab", () => ({ TreatmentsTab: () => <div data-testid="tab-treatments" /> }));
 vi.mock("./health-plan-tab", () => ({ HealthPlanTab: () => <div data-testid="tab-protocols" /> }));
 vi.mock("./health-insights-tab", () => ({ HealthInsightsTab: () => <div data-testid="tab-insights" /> }));
+vi.mock("./health-filter-bar", () => ({ HealthFilterBar: () => <div data-testid="health-filter-bar" /> }));
 vi.mock("@/components/shared/filter-bar", () => ({ FilterBar: () => <div data-testid="filter-bar" /> }));
 
 function renderCard(search = "") {

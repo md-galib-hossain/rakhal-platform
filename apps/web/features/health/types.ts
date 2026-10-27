@@ -690,6 +690,7 @@ export interface TreatmentLogListItem {
 export interface TreatmentLogFilters {
   search?: string;
   careType?: HealthCareType;
+  route?: MedicineRoute;
   cattleId?: string;
 }
 

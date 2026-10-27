@@ -2869,7 +2869,8 @@
         "d90": "Last 90 days",
         "year": "This year",
         "start": "Start",
-        "today": "Today"
+        "today": "Today",
+        "apply": "Apply"
       },
       "sort": {
         "label": "Sort order",
@@ -3364,6 +3365,68 @@
       "logTreatment": "Log Treatment",
       "quickTreat": "Quick Treat",
       "recordTreatment": "Record Treatment"
+    },
+    "filters": {
+      "trigger": "Filters",
+      "title": "Add Filters",
+      "clearAll": "Clear All",
+      "clear": "Clear",
+      "searchPlaceholder": "Search here…",
+      "noMatching": "No matching options",
+      "categories": {
+        "view": "View",
+        "withdrawalStatus": "Withholding",
+        "condition": "Condition",
+        "priority": "Priority",
+        "status": "Status",
+        "shed": "Shed",
+        "careType": "Care Type",
+        "route": "Route"
+      },
+      "view": {
+        "cases": "Under treatment",
+        "history": "Treatment History",
+        "withheld": "Milk/meat withheld"
+      },
+      "withdrawalStatus": {
+        "withholding": "Withholding only",
+        "all": "All records"
+      },
+      "condition": {
+        "searchPlaceholder": "Search conditions…",
+        "MASTITIS": "Mastitis",
+        "LAMENESS": "Lameness",
+        "METRITIS": "Metritis",
+        "KETOSIS": "Ketosis",
+        "MILK_FEVER": "Milk Fever",
+        "FEVER": "Fever",
+        "INJURY": "Injury",
+        "OTHER": "Other"
+      },
+      "priority": {
+        "CRITICAL": "Critical",
+        "HIGH": "High",
+        "MEDIUM": "Medium",
+        "LOW": "Low"
+      },
+      "status": {
+        "ACTIVE": "Active",
+        "IMPROVING": "Improving",
+        "STABLE": "Stable",
+        "WORSENING": "Worsening"
+      },
+      "careType": {
+        "PREVENTIVE": "Wellness / Vaccine",
+        "CURATIVE": "Illness"
+      },
+      "route": {
+        "IM": "Intramuscular (IM)",
+        "IV": "Intravenous (IV)",
+        "SC": "Subcutaneous (SC)",
+        "ORAL": "Oral",
+        "TOPICAL": "Topical",
+        "OTHER": "Other"
+      }
     },
     "sickBay": {
       "columns": {
@@ -3919,12 +3982,23 @@
         "dose": "Dose",
         "route": "Route",
         "administeredBy": "Given By",
-        "notes": "Notes"
+        "notes": "Notes",
+        "action": "Action"
       },
       "purposes": {
         "PREVENTIVE": "Wellness / Vaccine",
         "CURATIVE": "Illness"
       },
+      "moreActions": "More actions",
+      "voidAction": "Cancel entry (Void)",
+      "voidDialog": {
+        "title": "Cancel this treatment record?",
+        "description": "Cancelling this record for {animal} will return the administered medicine back to inventory stock, reverse any linked expense in Finance, and cancel any active safety withholding periods.",
+        "confirm": "Cancel Record",
+        "cancel": "Keep Record"
+      },
+      "voidSuccess": "Treatment record cancelled and stock restored.",
+      "voidError": "Could not cancel the treatment record.",
       "emptyTitle": "No treatment logs found",
       "emptyDescription": "Treatments, wellness doses, and vaccinations administered to cattle will appear here.",
       "error": "Could not load treatment history."

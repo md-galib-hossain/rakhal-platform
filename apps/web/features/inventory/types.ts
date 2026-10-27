@@ -312,14 +312,16 @@ export interface InventoryTabConfig {
   key: InventoryTabKey;
   /** Whether this tab has a real, wired-up list/CRUD flow yet. */
   implemented: boolean;
+  /** Whether this tab supports switching between table (list) and grid (cards) views. */
+  hasViewToggle: boolean;
 }
 
 export const INVENTORY_TABS: InventoryTabConfig[] = [
-  { key: "medicine", implemented: true },
-  { key: "semen", implemented: true },
-  { key: "milk", implemented: true },
-  { key: "feed", implemented: true },
-  { key: "others", implemented: true },
+  { key: "medicine", implemented: true, hasViewToggle: true },
+  { key: "semen", implemented: true, hasViewToggle: false },
+  { key: "milk", implemented: true, hasViewToggle: false },
+  { key: "feed", implemented: true, hasViewToggle: true },
+  { key: "others", implemented: true, hasViewToggle: true },
 ];
 
 /**

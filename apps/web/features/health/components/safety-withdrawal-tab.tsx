@@ -26,11 +26,28 @@ type Filter = (typeof FILTERS)[number];
  * "Refresh" clears any withdrawal whose milk/meat date has passed (`refreshSafetyWithdrawalsForFarm`) — normally
  * happens automatically on read paths server-side, this is a manual trigger so a manager can force it and see the count
  * of newly-cleared rows. Per-row release works as before. */
-export function SafetyWithdrawalSection() {
+export function SafetyWithdrawalSection({
+  hideFilterSwitch = false,
+  filter: controlledFilter,
+  onFilterChange,
+}: {
+  hideFilterSwitch?: boolean;
+  filter?: Filter;
+  onFilterChange?: (filter: Filter) => void;
+}) {
   const t = useTranslations("health.safetyWithdrawals");
-  const [filter, setFilter] = useState<Filter>("withholding");
+  const [internalFilter, setInternalFilter] = useState<Filter>("withholding");
+  const filter = controlledFilter ?? internalFilter;
   const list = useSafetyWithdrawalsPagedList(filter === "withholding" ? { activeOnly: true } : {});
   const refresh = useRefreshSafetyWithdrawals();
+
+  function handleFilterSelect(key: Filter) {
+    if (onFilterChange) {
+      onFilterChange(key);
+    } else {
+      setInternalFilter(key);
+    }
+  }
 
   async function handleRefresh() {
     try {
@@ -43,22 +60,24 @@ export function SafetyWithdrawalSection() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1 rounded-xl border border-border bg-muted p-1">
-          {FILTERS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setFilter(key)}
-              className={cn(
-                "rounded-md px-3 py-1 text-sm font-medium transition-colors",
-                filter === key ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t(`filter.${key}`)}
-            </button>
-          ))}
-        </div>
+      <div className={cn("flex flex-wrap items-center gap-3", hideFilterSwitch ? "justify-end" : "justify-between")}>
+        {!hideFilterSwitch && (
+          <div className="flex items-center gap-1 rounded-xl border border-border bg-muted p-1">
+            {FILTERS.map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => handleFilterSelect(key)}
+                className={cn(
+                  "rounded-md px-3 py-1 text-sm font-medium transition-colors",
+                  filter === key ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {t(`filter.${key}`)}
+              </button>
+            ))}
+          </div>
+        )}
         <Can I="healthcare.update">
           <Button variant="outline" size="sm" className="gap-2" onClick={() => void handleRefresh()} disabled={refresh.isPending}>
             <RefreshCw className="size-4" aria-hidden />

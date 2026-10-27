@@ -1,14 +1,14 @@
 "use client"; // URL-synced view switch
 
 import { useTranslations } from "next-intl";
-import { parseAsStringEnum, useQueryState } from "nuqs";
+import { parseAsString, parseAsStringEnum, useQueryState } from "nuqs";
 import { cn } from "@/lib/utils";
 import { Pagination } from "@/components/shared/pagination";
 import { SickBayTable } from "./sick-bay-table";
 import { SafetyWithdrawalSection } from "./safety-withdrawal-tab";
 import { TreatmentHistorySection } from "./treatment-history-table";
 import { useHealthDashboard, useSickBayPagedList } from "../hooks/use-health";
-import { SICK_BAY_VIEWS, type SickBayView } from "../types";
+import { SICK_BAY_VIEWS, type HealthCaseStatus, type HealthPriority, type SickBayView } from "../types";
 
 const VIEW_KEYS = SICK_BAY_VIEWS as unknown as [SickBayView, ...SickBayView[]];
 
@@ -26,9 +26,11 @@ const VIEW_KEYS = SICK_BAY_VIEWS as unknown as [SickBayView, ...SickBayView[]];
 export function TreatmentsTab({
   search,
   onManageCase,
+  hideScopeSwitcher = false,
 }: {
   search: string;
   onManageCase: (caseId: string) => void;
+  hideScopeSwitcher?: boolean;
 }) {
   const t = useTranslations("health.treatments");
   const [view, setView] = useQueryState("bay", parseAsStringEnum<SickBayView>(VIEW_KEYS).withDefault("cases"));
@@ -38,42 +40,61 @@ export function TreatmentsTab({
     withheld: dashboard.data?.safetyWithdrawalCount,
   };
 
+  const [withdrawalStatus, setWithdrawalStatus] = useQueryState("withdrawalStatus", parseAsString);
+
   return (
     <div className="flex flex-col gap-4">
-      <div role="tablist" aria-label={t("viewLabel")} className="flex flex-wrap items-center gap-2">
-        {SICK_BAY_VIEWS.map((key) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={view === key}
-            onClick={() => void setView(key)}
-            className={cn(
-              "flex min-h-9 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors",
-              view === key ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
-            )}
-          >
-            {t(`views.${key}`)}
-            {counts[key] !== undefined ? (
-              <span className={cn("rounded-full px-1.5 text-xs", view === key ? "bg-primary/15" : "bg-muted")}>{counts[key]}</span>
-            ) : null}
-          </button>
-        ))}
-      </div>
+      {!hideScopeSwitcher && (
+        <div role="tablist" aria-label={t("viewLabel")} className="flex flex-wrap items-center gap-2">
+          {SICK_BAY_VIEWS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={view === key}
+              onClick={() => void setView(key)}
+              className={cn(
+                "flex min-h-9 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors",
+                view === key ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+              )}
+            >
+              {t(`views.${key}`)}
+              {counts[key] !== undefined ? (
+                <span className={cn("rounded-full px-1.5 text-xs", view === key ? "bg-primary/15" : "bg-muted")}>{counts[key]}</span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+      )}
 
       {view === "cases" ? (
         <CasesView search={search} onManageCase={onManageCase} />
       ) : view === "history" ? (
         <TreatmentHistorySection search={search} />
       ) : (
-        <SafetyWithdrawalSection />
+        <SafetyWithdrawalSection
+          hideFilterSwitch={hideScopeSwitcher}
+          filter={withdrawalStatus === "all" ? "all" : "withholding"}
+          onFilterChange={(f) => void setWithdrawalStatus(f === "withholding" ? null : f)}
+        />
       )}
     </div>
   );
 }
 
 function CasesView({ search, onManageCase }: { search: string; onManageCase: (caseId: string) => void }) {
-  const sickBay = useSickBayPagedList({ search: search || undefined });
+  const [condition] = useQueryState("condition", parseAsString);
+  const [priority] = useQueryState("priority", parseAsString);
+  const [caseStatus] = useQueryState("caseStatus", parseAsString);
+  const [shed] = useQueryState("shed", parseAsString);
+
+  const sickBay = useSickBayPagedList({
+    search: search || undefined,
+    diagnosis: condition || undefined,
+    priority: (priority as HealthPriority) || undefined,
+    status: (caseStatus as HealthCaseStatus) || undefined,
+    shed: shed || undefined,
+  });
   return (
     <div className="flex flex-col gap-4">
       <SickBayTable items={sickBay.items} isLoading={sickBay.isLoading} isError={sickBay.isError} onRetry={sickBay.refetch} onManageCase={onManageCase} />

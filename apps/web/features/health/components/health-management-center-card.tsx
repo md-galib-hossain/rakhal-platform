@@ -4,13 +4,13 @@ import { useTranslations } from "next-intl";
 import { createParser, useQueryState } from "nuqs";
 import { Stethoscope, Syringe } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { FilterBar } from "@/components/shared/filter-bar";
 import { Button } from "@/components/ui/button";
 import { HEALTH_MANAGEMENT_TABS, type HealthManagementTab } from "../types";
 import { TreatmentsTab } from "./treatments-tab";
 import { HealthPlanTab } from "./health-plan-tab";
 import { HealthCard } from "./health-card";
 import { HealthInsightsTab } from "./health-insights-tab";
+import { HealthFilterBar } from "./health-filter-bar";
 import { parseAppliedStatus } from "../round-model";
 
 /** `?healthTab=` -> a tab. RFE-143 removed the `schedule` ("Care steps") tab; reminder notifications sent before that still
@@ -76,25 +76,29 @@ export function HealthManagementCenterCard({
       <p className="text-xs text-muted-foreground">{t(`tabDescriptions.${tab}`)}</p>
 
       {tab === "treatments" ? (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0 flex-1 basis-56">
-            <FilterBar searchKey="q" searchPlaceholder={t("searchPlaceholder")} />
-          </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <Button variant="outline" className="gap-2 border-destructive text-destructive hover:bg-destructive/5" onClick={onReportSickness}>
-              <Stethoscope className="size-4" aria-hidden />
-              {t("reportSickness")}
-            </Button>
-            <Button className="gap-2" onClick={onRecordTreatment}>
-              <Syringe className="size-4" aria-hidden />
-              {t("recordTreatment")}
-            </Button>
-          </div>
-        </div>
+        <HealthFilterBar
+          searchPlaceholder={t("searchPlaceholder")}
+          actions={
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                className="gap-2 border-destructive text-destructive hover:bg-destructive/5 rounded-xl h-11 px-4 text-sm font-semibold"
+                onClick={onReportSickness}
+              >
+                <Stethoscope className="size-4" aria-hidden />
+                <span>{t("reportSickness")}</span>
+              </Button>
+              <Button className="gap-2 rounded-xl h-11 px-4 text-sm font-semibold" onClick={onRecordTreatment}>
+                <Syringe className="size-4" aria-hidden />
+                <span>{t("recordTreatment")}</span>
+              </Button>
+            </div>
+          }
+        />
       ) : null}
 
       {tab === "treatments" ? (
-        <TreatmentsTab search={search || ""} onManageCase={onManageCase} />
+        <TreatmentsTab search={search || ""} onManageCase={onManageCase} hideScopeSwitcher />
       ) : tab === "protocols" ? (
         <HealthPlanTab onManageCase={onManageCase} openRoundKey={roundKey} onRoundOpened={() => void setRoundKey(null)} status={parseAppliedStatus(statusParam)} onStatusChange={(next) => void setStatusParam(next)} />
       ) : (

@@ -109,6 +109,7 @@ export const healthApi = {
       searchParams: {
         search: filters.search,
         careType: filters.careType,
+        route: filters.route,
         cattleId: filters.cattleId,
         cursor,
         limit,
