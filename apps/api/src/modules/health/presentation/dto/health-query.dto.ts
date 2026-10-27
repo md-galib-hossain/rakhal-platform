@@ -20,6 +20,7 @@ import {
   HealthPlanType,
   HealthPriority,
   HealthTaskStatus,
+  MedicineRoute,
   SafetyWithdrawalStatus,
 } from '@prisma/client';
 import { toBoolean } from 'src/common/dto';
@@ -50,6 +51,10 @@ export class TreatmentLogsQueryDto extends HealthListQueryDto {
   @IsOptional()
   @IsEnum(HealthCareType)
   careType?: HealthCareType;
+
+  @IsOptional()
+  @IsEnum(MedicineRoute)
+  route?: MedicineRoute;
 }
 
 /** RAKHAL-467 — `GET /health/outcomes?days=`: how far back to look (cases opened in the window). */

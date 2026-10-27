@@ -375,6 +375,12 @@ export class HealthService {
       });
     }
 
+    if (query.route) {
+      andClauses.push({
+        route: query.route,
+      });
+    }
+
     const where: Prisma.TreatmentLogWhereInput = {
       farmId,
       voidedAt: null,
