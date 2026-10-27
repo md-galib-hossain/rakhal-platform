@@ -182,7 +182,7 @@ export function DrilldownFilterPopover({
       <PopoverContent
         align={align}
         sideOffset={8}
-        className="w-80 sm:w-88 overflow-hidden rounded-2xl border border-border/80 bg-card p-0 shadow-[0_20px_50px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]"
+        className="flex flex-col w-80 sm:w-88 overflow-hidden rounded-2xl border border-border bg-card p-0 shadow-xl max-w-[calc(100vw-1.5rem)]"
       >
         <AnimatePresence mode="wait" initial={false} custom={direction}>
           {!activeCategory ? (
@@ -194,44 +194,67 @@ export function DrilldownFilterPopover({
               initial="enter"
               animate="center"
               exit="exit"
-              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-              className="flex flex-col p-4.5"
+              transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+              className="flex flex-col"
             >
-              <div className="flex items-center justify-between pb-3">
-                <span className="text-[15px] font-semibold text-foreground tracking-tight">{title}</span>
-                {totalActiveCount > 0 ? (
+              {/* Root Header */}
+              <div className="flex items-center justify-between border-b border-border bg-muted/40 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Filter className="size-4 text-primary" aria-hidden />
+                  <span className="text-sm font-bold text-foreground tracking-tight">{title}</span>
+                  {totalActiveCount > 0 ? (
+                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                      {totalActiveCount} active
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {totalActiveCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={handleClearAll}
+                      className="text-xs font-semibold text-destructive hover:text-destructive/80 transition-colors"
+                    >
+                      {clearAllLabel}
+                    </button>
+                  ) : null}
                   <button
                     type="button"
-                    onClick={handleClearAll}
-                    className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
+                    onClick={() => setOpen(false)}
+                    className="flex size-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    aria-label="Close filters"
                   >
-                    {clearAllLabel}
+                    <X className="size-4" />
                   </button>
-                ) : (
-                  <span className="text-xs text-muted-foreground/40 font-medium">
-                    {clearAllLabel}
-                  </span>
-                )}
+                </div>
               </div>
 
-              <div className="mt-1 flex flex-col gap-1">
+              {/* Categories List */}
+              <div className="flex max-h-[300px] flex-col gap-1 overflow-y-auto p-2.5">
                 {categories.map((cat) => {
                   const summary = getCategorySummary(cat);
+                  const hasSelected = (value[cat.id]?.length ?? 0) > 0;
                   return (
                     <button
                       key={cat.id}
                       type="button"
                       onClick={() => handleSelectCategory(cat.id)}
-                      className="group flex min-h-[44px] items-center justify-between px-3.5 py-2.5 rounded-xl text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-left"
+                      className={cn(
+                        "group flex min-h-[42px] items-center justify-between rounded-xl px-3.5 py-2 text-sm transition-colors text-left",
+                        hasSelected ? "bg-muted/40 hover:bg-muted/60" : "hover:bg-muted/50 text-foreground",
+                        "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                      )}
                     >
-                      <span className="font-medium text-foreground">{cat.label}</span>
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <span className={cn("font-medium", hasSelected ? "text-foreground font-semibold" : "text-foreground/90")}>
+                        {cat.label}
+                      </span>
+                      <div className="flex items-center gap-1.5 text-muted-foreground shrink-0">
                         {summary && (
-                          <span className="max-w-[145px] truncate text-xs text-muted-foreground font-normal">
+                          <span className="max-w-[140px] truncate rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                             {summary}
                           </span>
                         )}
-                        <ChevronRight className="size-4 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
+                        <ChevronRight className="size-4 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5" />
                       </div>
                     </button>
                   );
@@ -247,54 +270,67 @@ export function DrilldownFilterPopover({
               initial="enter"
               animate="center"
               exit="exit"
-              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-              className="flex flex-col p-4.5"
+              transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+              className="flex flex-col"
             >
-              {/* Sub-panel Header with Back chevron */}
-              <div className="flex items-center justify-between pb-3">
+              {/* Sub-panel Header */}
+              <div className="flex items-center justify-between border-b border-border bg-muted/40 px-3.5 py-2.5">
                 <button
                   type="button"
                   onClick={handleBack}
-                  className="flex items-center gap-1 text-[15px] font-semibold text-foreground hover:text-primary transition-colors -ml-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-lg px-1"
+                  className="flex items-center gap-1 rounded-lg px-1.5 py-1 text-sm font-semibold text-foreground hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
                   <ChevronLeft className="size-4 text-muted-foreground" />
                   <span>{activeCategory.label}</span>
                 </button>
-                {(value[activeCategory.id]?.length ?? 0) > 0 && (
+                <div className="flex items-center gap-1.5">
+                  {(value[activeCategory.id]?.length ?? 0) > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleClearCategory(activeCategory.id)}
+                      className="text-xs font-semibold text-destructive hover:text-destructive/80 transition-colors px-1"
+                    >
+                      {clearLabel}
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => handleClearCategory(activeCategory.id)}
-                    className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
+                    onClick={() => setOpen(false)}
+                    className="flex size-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    aria-label="Close filters"
                   >
-                    {clearLabel}
+                    <X className="size-4" />
                   </button>
-                )}
+                </div>
               </div>
 
               {/* In-category Search input */}
               {activeCategory.searchable && (
-                <div className="relative mt-1 mb-2">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/60" />
-                  <Input
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder={activeCategory.searchPlaceholder ?? searchPlaceholder}
-                    className="h-9 rounded-xl bg-muted/50 pl-8.5 pr-8 text-xs border-0 focus-visible:ring-1 focus-visible:ring-emerald-500/60 shadow-none placeholder:text-muted-foreground/60"
-                  />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-full"
-                    >
-                      <X className="size-3.5" />
-                    </button>
-                  )}
+                <div className="px-3 pt-3 pb-1">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/60" />
+                    <Input
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder={activeCategory.searchPlaceholder ?? searchPlaceholder}
+                      className="h-9 rounded-xl bg-card pl-8.5 pr-8 text-xs border border-border/80 shadow-xs placeholder:text-muted-foreground/60 focus-visible:ring-1 focus-visible:ring-primary"
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery("")}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-full"
+                        aria-label="Clear filter search"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
               {/* Options list */}
-              <div className="mt-1 flex max-h-64 flex-col gap-0.5 overflow-y-auto pr-0.5">
+              <div className="flex max-h-64 flex-col gap-0.5 overflow-y-auto p-2.5">
                 {filteredOptions.length === 0 ? (
                   <div className="py-8 text-center text-xs text-muted-foreground">
                     {noMatchingOptionsText}
@@ -311,25 +347,25 @@ export function DrilldownFilterPopover({
                           handleToggleOption(activeCategory.id, opt.value, activeCategory.mode)
                         }
                         className={cn(
-                          "flex min-h-[40px] items-center justify-between px-3 py-2 rounded-xl text-sm transition-colors text-left",
+                          "flex min-h-[40px] items-center justify-between rounded-xl px-3 py-2 text-sm transition-colors text-left",
                           isSelected
-                            ? "bg-muted/40 font-medium text-foreground"
+                            ? "bg-primary/10 font-medium text-foreground"
                             : "hover:bg-muted/50 text-foreground",
                         )}
                       >
-                        <div className="flex items-center gap-3 min-w-0">
-                          {/* Radio Dot indicator for single mode (reference Card 2) */}
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {/* Radio Dot indicator for single mode */}
                           {activeCategory.mode === "single" && (
                             <div
                               className={cn(
-                                "flex size-4.5 shrink-0 items-center justify-center rounded-full transition-colors",
+                                "flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors",
                                 isSelected
-                                  ? "border-2 border-emerald-600 dark:border-emerald-500 bg-transparent"
-                                  : "border border-muted-foreground/40 bg-transparent",
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-muted-foreground/40 bg-card",
                               )}
                             >
                               {isSelected && (
-                                <div className="size-2 rounded-full bg-emerald-600 dark:bg-emerald-500" />
+                                <div className="size-1.5 rounded-full bg-primary-foreground" />
                               )}
                             </div>
                           )}
@@ -356,14 +392,14 @@ export function DrilldownFilterPopover({
 
                         <div className="flex shrink-0 items-center gap-2">
                           {opt.badge !== undefined && (
-                            <span className="text-xs text-muted-foreground font-normal tabular-nums">
+                            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground font-normal tabular-nums">
                               {opt.badge}
                             </span>
                           )}
 
-                          {/* Emerald Checkmark for multi-select mode (reference Card 3) */}
+                          {/* Checkmark for multi-select mode */}
                           {activeCategory.mode === "multi" && isSelected && (
-                            <Check className="size-4 text-emerald-600 dark:text-emerald-400 stroke-[2.5] shrink-0" />
+                            <Check className="size-4 text-primary stroke-[2.5] shrink-0" />
                           )}
                         </div>
                       </button>
@@ -374,6 +410,22 @@ export function DrilldownFilterPopover({
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Unified Popover Footer */}
+        <div className="flex items-center justify-between border-t border-border bg-muted/20 px-4 py-2.5">
+          <span className="text-xs text-muted-foreground">
+            {totalActiveCount > 0
+              ? `${totalActiveCount} filter${totalActiveCount > 1 ? "s" : ""} active`
+              : "No filters active"}
+          </span>
+          <Button
+            size="sm"
+            className="h-8 px-4 text-xs font-semibold rounded-lg"
+            onClick={() => setOpen(false)}
+          >
+            Done
+          </Button>
+        </div>
       </PopoverContent>
     </Popover>
   );
