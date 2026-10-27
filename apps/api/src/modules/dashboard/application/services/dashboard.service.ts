@@ -31,6 +31,7 @@ import {
   buildAnimalCategoryWhere,
 } from 'src/modules/cattle/domain/animal-category';
 import { deriveLactationStage } from 'src/modules/reproduction/domain/lactation-stage';
+import { CacheService } from 'src/core/cache/cache.service';
 import { DashboardPeriod } from '../../presentation/dto/dashboard-query.dto';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -80,9 +81,175 @@ export class DashboardService {
     private readonly health: HealthService,
     private readonly farmSettings: FarmSettingsService,
     private readonly feedDistribution: FeedDistributionService,
+    private readonly cache: CacheService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(DashboardService.name);
+  }
+
+  /**
+   * Composite Batch Endpoint (RAKHAL Dashboard performance).
+   * Executes shared calculations once (milk.overview, herdStatus, financeSnapshot)
+   * in a single coordinated pass, cached in Redis for 60 seconds.
+   */
+  async overviewBatch(farmId: string) {
+    return this.cache.getOrSet(`dashboard:batch:${farmId}`, 60, async () => {
+      const now = new Date();
+      const monthStart = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+      );
+      const previous = derivePreviousPeriod({ from: monthStart, to: now });
+
+      const [
+        milkOverview,
+        herdStatus,
+        sharedFinance,
+        priorities,
+        calvingForecast,
+        feedStockAlerts,
+        upcomingTasks,
+        feedCostSummary,
+        [health, healthThreshold],
+        [income, expense, prevIncome, prevExpense],
+      ] = await Promise.all([
+        this.milk.overview(farmId),
+        this.herdStatus(farmId),
+        this.financeSnapshot(farmId),
+        this.priorities(farmId),
+        this.calvingForecast(farmId),
+        this.feedStockAlerts(farmId),
+        this.upcomingTasks(farmId),
+        this.feedCostSummary(farmId),
+        Promise.all([
+          this.health.getHealthDashboard(farmId),
+          this.farmSettings.healthScoreWarningPct(farmId),
+        ]),
+        Promise.all([
+          this.txnSum(farmId, true, monthStart, now),
+          this.txnSum(farmId, false, monthStart, now),
+          this.txnSum(farmId, true, previous.from, previous.to),
+          this.txnSum(farmId, false, previous.from, previous.to),
+        ]),
+      ]);
+
+      const yieldChangePct = this.changePct(
+        milkOverview.today.totalL,
+        milkOverview.yesterday.totalL,
+      );
+
+      const kpis = {
+        costPerLitre: {
+          value: sharedFinance.costPerLitreThisMonth,
+          currency: 'Tk',
+        },
+        todaysYield: {
+          value: milkOverview.today.totalL,
+          unit: 'L',
+          changePct: yieldChangePct,
+          changeDirection:
+            yieldChangePct == null ? null : yieldChangePct >= 0 ? 'up' : 'down',
+          changePeriod: 'vs_yesterday',
+        },
+        herdHealth: {
+          value: health.herdHealthScore,
+          unit: '%',
+          sickCount: health.sickBayCount,
+          threshold: healthThreshold,
+        },
+        cashRunway: {
+          value: sharedFinance.survivalRunwayDays,
+          unit: 'days',
+          status: sharedFinance.survivalRunwayStatus,
+        },
+      };
+
+      const livestockState = {
+        period: 'today' as const,
+        states: [
+          {
+            state: 'fresh',
+            count: herdStatus.productionBreakdown.fresh,
+            color: '#1A7A4A',
+          },
+          {
+            state: 'milking',
+            count: herdStatus.productionBreakdown.milking,
+            color: '#14B8A6',
+          },
+          {
+            state: 'dry',
+            count: herdStatus.productionBreakdown.dry,
+            color: '#7C3AED',
+          },
+          {
+            state: 'pregnant',
+            count: herdStatus.reproductiveBreakdown.pregnant,
+            color: '#D97706',
+          },
+          {
+            state: 'insemination',
+            count: herdStatus.reproductiveBreakdown.inseminated,
+            color: '#2563EB',
+          },
+          {
+            state: 'sick',
+            count: herdStatus.healthBreakdown.sick,
+            color: '#DC2626',
+          },
+        ],
+      };
+
+      const productionSummary = {
+        period: 'today' as const,
+        totalYieldL: milkOverview.today.totalL,
+        sellableL: milkOverview.today.sellableL,
+        withholdingL: milkOverview.today.withholdingL,
+        calfAllocationL: milkOverview.today.calfL,
+        comparison: {
+          yesterday: milkOverview.yesterday.totalL,
+          sameDayLastWeek: milkOverview.sameDayLastWeek.totalL,
+          sameDayLastYear: milkOverview.sameDayLastYear.totalL,
+        },
+        sessions: milkOverview.sessionsStatus,
+      };
+
+      const financialSnapshot = {
+        period: monthStart.toISOString().slice(0, 7),
+        income: {
+          current: income,
+          previous: prevIncome,
+          changePct: this.changePct(income, prevIncome),
+        },
+        expenses: {
+          current: expense,
+          previous: prevExpense,
+          changePct: this.changePct(expense, prevExpense),
+        },
+        profit: {
+          current: this.round(income - expense),
+          previous: this.round(prevIncome - prevExpense),
+          changePct: this.changePct(income - expense, prevIncome - prevExpense),
+        },
+        survivalRunway: {
+          days: sharedFinance.survivalRunwayDays,
+          availableLiquidity: sharedFinance.availableLiquidity,
+          status: sharedFinance.survivalRunwayStatus,
+        },
+      };
+
+      return {
+        priorities,
+        kpis,
+        herdStatus,
+        livestockState,
+        productionSummary,
+        calvingForecast,
+        feedStockAlerts,
+        upcomingTasks,
+        financialSnapshot,
+        feedCostSummary,
+      };
+    });
   }
 
   /** Feed cost/cow/day + cost/litre widget (2026-08-13, user request) — distinct from the
@@ -91,6 +258,7 @@ export class DashboardService {
   async feedCostSummary(farmId: string) {
     return this.feedDistribution.getFarmFeedCostSummary(farmId, 7);
   }
+
 
   // ---- Headline KPI bar (§7.2) --------------------------------------------
 

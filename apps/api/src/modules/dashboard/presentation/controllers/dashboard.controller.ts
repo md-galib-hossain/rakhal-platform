@@ -17,11 +17,18 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
+  @Get('overview-batch')
+  @RequirePermission('dashboard.read')
+  overviewBatch(@CurrentFarmId() farmId: string) {
+    return this.dashboardService.overviewBatch(farmId);
+  }
+
   @Get('priorities')
   @RequirePermission('dashboard.read')
   priorities(@CurrentFarmId() farmId: string) {
     return this.dashboardService.priorities(farmId);
   }
+
 
   @Get('kpis')
   @RequirePermission('dashboard.read')

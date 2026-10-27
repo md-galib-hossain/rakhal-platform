@@ -117,16 +117,32 @@ describe('DashboardService — herdStatus', () => {
     };
   });
 
-  const make = () =>
+  let cache: { getOrSet: jest.Mock };
+
+  beforeEach(() => {
+    cache = {
+      getOrSet: jest.fn((_key, _ttl, factory) => factory()),
+    };
+  });
+
+  const make = (overrides?: {
+    milk?: unknown;
+    balance?: unknown;
+    health?: unknown;
+    feedDistribution?: unknown;
+    cache?: unknown;
+  }) =>
     new DashboardService(
       prisma as never,
-      {} as never, // BalanceService — unused by herdStatus
-      {} as never, // MilkService — unused by herdStatus
-      {} as never, // HealthService — unused by herdStatus
+      (overrides?.balance ?? {}) as never, // BalanceService
+      (overrides?.milk ?? {}) as never, // MilkService
+      (overrides?.health ?? {}) as never, // HealthService
       farmSettings as never,
-      {} as never, // FeedDistributionService — unused by herdStatus
+      (overrides?.feedDistribution ?? {}) as never, // FeedDistributionService
+      (overrides?.cache ?? cache) as never,
       logger as never,
     );
+
 
   it('categoryBreakdown sums exactly to totalActive for a known category mix', async () => {
     const service = make();
@@ -235,8 +251,10 @@ describe('DashboardService — priorities (grouped cattle rows)', () => {
       {} as never, // HealthService — unused by priorities()
       {} as never, // FarmSettingsService — unused by priorities()
       {} as never, // FeedDistributionService — unused by priorities()
+      { getOrSet: jest.fn((_k, _ttl, fn) => fn()) } as never,
       logger as never,
     );
+
 
   it('omits the overdue-dose and pending-milk rows entirely when there are none', async () => {
     const service = make();
@@ -309,4 +327,138 @@ describe('DashboardService — priorities (grouped cattle rows)', () => {
     expect(row?.cattle).toHaveLength(1);
     expect(row?.message).toBe('1 cow(s) overdue for treatment dose');
   });
+
+  describe('overviewBatch', () => {
+    it('caches the combined result for 60 seconds with key dashboard:batch:{farmId}', async () => {
+      const milkOverview = {
+        today: { totalL: 120, sellableL: 110, withholdingL: 5, calfL: 5 },
+        yesterday: { totalL: 100 },
+        sameDayLastWeek: { totalL: 95 },
+        sameDayLastYear: { totalL: 90 },
+        sessionsStatus: {},
+      };
+      const milk = { overview: jest.fn().mockResolvedValue(milkOverview) };
+      const health = {
+        getHealthDashboard: jest.fn().mockResolvedValue({
+          herdHealthScore: 92,
+          sickBayCount: 1,
+        }),
+      };
+      const feedDistribution = {
+        getFarmFeedCostSummary: jest.fn().mockResolvedValue({
+          days: 7,
+          total_cost: 5000,
+          cost_per_cow_per_day: 50,
+          cost_per_litre: 12,
+          headcount: 10,
+        }),
+      };
+      const balance = {
+        getRakhalBalance: jest.fn().mockResolvedValue({ rakhalBalance: '50000' }),
+      };
+
+      const farmSettingsMock = {
+        getEffective: jest.fn().mockResolvedValue({
+          lactationFreshDays: 21,
+          lactationEarlyDays: 100,
+          lactationMidDays: 200,
+        }),
+        financeRunwayThresholds: jest
+          .fn()
+          .mockResolvedValue({ warningDays: 30, criticalDays: 14 }),
+        healthScoreWarningPct: jest.fn().mockResolvedValue(80),
+      };
+
+      // Prisma mocks for sub-calls inside overviewBatch
+      (prisma.cattle as Record<string, unknown>).count = jest.fn().mockResolvedValue(10);
+      (prisma as Record<string, unknown>).reproductionProfile = {
+        groupBy: jest.fn().mockResolvedValue([]),
+      };
+      (prisma as Record<string, unknown>).safetyWithdrawal = {
+        count: jest.fn().mockResolvedValue(0),
+      };
+      (prisma as Record<string, unknown>).healthCase = {
+        groupBy: jest.fn().mockResolvedValue([]),
+      };
+      (prisma as Record<string, unknown>).milkLogEntry = {
+
+        findMany: jest.fn().mockResolvedValue([]),
+        aggregate: jest.fn().mockResolvedValue({ _sum: { yieldL: 100 } }),
+        groupBy: jest.fn().mockResolvedValue([]),
+      };
+
+      (prisma as Record<string, unknown>).pregnancy = {
+        findMany: jest.fn().mockResolvedValue([]),
+        findFirst: jest.fn().mockResolvedValue(null),
+      };
+      (prisma as Record<string, unknown>).healthTask = {
+        findMany: jest.fn().mockResolvedValue([]),
+        groupBy: jest.fn().mockResolvedValue([]),
+      };
+      (prisma as Record<string, unknown>).medicine = {
+        fields: { lowStockThreshold: 'lowStockThreshold' },
+        findMany: jest.fn().mockResolvedValue([]),
+        findFirst: jest.fn().mockResolvedValue(null),
+      };
+
+      (prisma as Record<string, unknown>).feedItem = {
+        findMany: jest.fn().mockResolvedValue([]),
+      };
+      (prisma as Record<string, unknown>).feedItemStockMovement = {
+        groupBy: jest.fn().mockResolvedValue([]),
+      };
+      (prisma as Record<string, unknown>).task = {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
+      };
+
+      (prisma as Record<string, unknown>).receivable = {
+        findFirst: jest.fn().mockResolvedValue(null),
+      };
+      (prisma as Record<string, unknown>).journalEntry = {
+        aggregate: jest.fn().mockResolvedValue({ _sum: { debit: 0, credit: 0 } }),
+        findMany: jest.fn().mockResolvedValue([]),
+      };
+
+      const customCache = {
+        getOrSet: jest.fn((_key, _ttl, factory) => factory()),
+      };
+
+      const service = new DashboardService(
+        prisma as never,
+        balance as never,
+        milk as never,
+        health as never,
+        farmSettingsMock as never,
+        feedDistribution as never,
+        customCache as never,
+        logger as never,
+      );
+
+      const result = await service.overviewBatch('farm-42');
+
+
+      expect(customCache.getOrSet).toHaveBeenCalledWith(
+        'dashboard:batch:farm-42',
+        60,
+        expect.any(Function),
+      );
+
+      // Verify all 10 composite keys are returned
+      expect(result).toHaveProperty('priorities');
+      expect(result).toHaveProperty('kpis');
+      expect(result).toHaveProperty('herdStatus');
+      expect(result).toHaveProperty('livestockState');
+      expect(result).toHaveProperty('productionSummary');
+      expect(result).toHaveProperty('calvingForecast');
+      expect(result).toHaveProperty('feedStockAlerts');
+      expect(result).toHaveProperty('upcomingTasks');
+      expect(result).toHaveProperty('financialSnapshot');
+      expect(result).toHaveProperty('feedCostSummary');
+
+      // Shared milk.overview called ONCE:
+      expect(milk.overview).toHaveBeenCalledTimes(1);
+    });
+  });
 });
+
